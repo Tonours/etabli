@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Local settings (may contain sensitive data)
+.claude/
+*.local.json
+settings.local.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+
+# Logs
+*.log

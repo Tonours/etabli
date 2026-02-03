@@ -1,0 +1,44 @@
+#!/bin/bash
+# cw-clean - Clean merged worktrees
+# Usage: cw-clean <repo>
+
+set -euo pipefail
+
+REPO_NAME="${1:?Usage: cw-clean <repo>}"
+PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$HOME/projects}"
+
+cd "${PROJECT_ROOT}/${REPO_NAME}"
+
+# Detect default branch (fallbacks to main/master)
+DEFAULT_BRANCH="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+if [ -z "$DEFAULT_BRANCH" ]; then
+    if git show-ref --verify --quiet refs/heads/main; then
+        DEFAULT_BRANCH="main"
+    elif git show-ref --verify --quiet refs/heads/master; then
+        DEFAULT_BRANCH="master"
+    fi
+fi
+DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
+
+echo "Current worktrees:"
+git worktree list
+
+echo ""
+echo "Remove worktrees whose branch is merged? (y/n)"
+read -r confirm
+
+if [ "$confirm" = "y" ]; then
+    git worktree list --porcelain | grep "^worktree " | cut -d' ' -f2 | while read -r wt; do
+        if [ "$wt" != "$(pwd)" ]; then
+            branch=$(git -C "$wt" branch --show-current 2>/dev/null)
+            if [ -n "$branch" ] && [ "$branch" != "$DEFAULT_BRANCH" ]; then
+                if git for-each-ref --format='%(refname:short)' --merged "$DEFAULT_BRANCH" refs/heads | grep -Fxq "$branch"; then
+                    echo "Removing: $wt ($branch - merged into $DEFAULT_BRANCH)"
+                    git worktree remove "$wt" --force
+                fi
+            fi
+        fi
+    done
+    git worktree prune
+    echo "Cleanup done"
+fi

@@ -1,0 +1,94 @@
+#!/bin/bash
+# cw - Claude Worktree Manager
+# Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]
+# Example: cw myproject auth feature
+# Example: cw -n myproject auth feature  # without launching claude
+
+set -euo pipefail
+
+PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$HOME/projects}"
+WORKTREE_ROOT="${PROJECT_ROOT}/worktrees"
+
+# Parse flags
+NO_CLAUDE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -n|--no-claude)
+            NO_CLAUDE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]"
+            echo ""
+            echo "Options:"
+            echo "  -n, --no-claude   Create worktree without launching claude"
+            echo "  -h, --help        Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  cw monprojet auth feature      # creates feature/auth + launches claude"
+            echo "  cw -n monprojet bug42 fix      # creates fix/bug42 without claude"
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+REPO_NAME="${1:?Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]}"
+TASK_NAME="${2:?Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]}"
+BRANCH_PREFIX="${3:-feature}"
+TASK_SLUG="${TASK_NAME// /-}"
+BRANCH_NAME="${BRANCH_PREFIX}/${TASK_SLUG}"
+WORKTREE_PATH="${WORKTREE_ROOT}/${REPO_NAME}-${TASK_SLUG}"
+SESSION_NAME="${REPO_NAME}"
+
+# Ensure the repo exists
+if [ ! -d "${PROJECT_ROOT}/${REPO_NAME}/.git" ]; then
+    echo "Repo not found: ${PROJECT_ROOT}/${REPO_NAME}"
+    exit 1
+fi
+
+# Create the worktrees directory if needed
+mkdir -p "${WORKTREE_ROOT}"
+
+# Create the worktree if it does not exist
+if [ ! -d "${WORKTREE_PATH}" ]; then
+    echo "Creating worktree: ${WORKTREE_PATH} -> ${BRANCH_NAME}"
+    cd "${PROJECT_ROOT}/${REPO_NAME}"
+    git fetch origin --prune
+    if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
+        git worktree add "${WORKTREE_PATH}" "${BRANCH_NAME}"
+    elif git show-ref --verify --quiet "refs/remotes/origin/${BRANCH_NAME}"; then
+        git worktree add "${WORKTREE_PATH}" -b "${BRANCH_NAME}" "origin/${BRANCH_NAME}"
+    else
+        git worktree add "${WORKTREE_PATH}" -b "${BRANCH_NAME}"
+    fi
+    echo "Worktree created"
+else
+    echo "Worktree already exists: ${WORKTREE_PATH}"
+fi
+
+# Create or join the tmux session
+if tmux has-session -t "${SESSION_NAME}" 2>/dev/null; then
+    echo "Adding window '${TASK_NAME}' to session '${SESSION_NAME}'"
+    tmux new-window -t "${SESSION_NAME}" -n "${TASK_NAME}" -c "${WORKTREE_PATH}"
+else
+    echo "Creating tmux session '${SESSION_NAME}'"
+    tmux new-session -d -s "${SESSION_NAME}" -n "${TASK_NAME}" -c "${WORKTREE_PATH}"
+fi
+
+# Launch Claude in the window (unless -n)
+if [ "$NO_CLAUDE" = false ]; then
+    tmux send-keys -t "${SESSION_NAME}:${TASK_NAME}" "claude" Enter
+fi
+
+echo ""
+echo "To attach: tmux attach -t ${SESSION_NAME}"
+echo "To navigate: Alt+1..5 or Prefix+number"
+echo ""
+
+# Attach if not already inside tmux
+if [ -z "${TMUX:-}" ]; then
+    tmux attach -t "${SESSION_NAME}"
+fi

@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run *)",
+      "Bash(bun test *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(pnpm run *)",
+      "Bash(pnpm test *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git diff *)",
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git worktree *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/prettier-local.sh \"$CLAUDE_FILE_PATH\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,116 @@
+#!/bin/bash
+# ============================================================================
+# DEV-SPAWN - Launch tmux dev environments (local + VPS)
+# Usage: dev-spawn [local|vps|all]
+# ============================================================================
+
+set -e
+
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Config
+LOCAL_SESSION="dev-local"
+VPS_SESSION="dev-vps"
+VPS_HOST="vps-24g"
+
+usage() {
+    echo "Usage: dev-spawn [local|vps|all]"
+    echo ""
+    echo "  local  - Launch only the local tmux session"
+    echo "  vps    - Launch only the VPS tmux session"
+    echo "  all    - Launch both sessions (default)"
+    echo ""
+}
+
+spawn_local() {
+    printf '%b\n' "${BLUE}[*]${NC} Creating local session: ${GREEN}${LOCAL_SESSION}${NC}"
+
+    # Check if the session already exists
+    if tmux has-session -t "$LOCAL_SESSION" 2>/dev/null; then
+        printf '%b\n' "${YELLOW}[!]${NC} Session '$LOCAL_SESSION' already exists, attaching..."
+        return 0
+    fi
+
+    # Create the session with 2 windows
+    tmux new-session -d -s "$LOCAL_SESSION" -n "term1"
+    tmux new-window -t "$LOCAL_SESSION" -n "term2"
+
+    # Return to the first window
+    tmux select-window -t "$LOCAL_SESSION:1"
+
+    printf '%b\n' "${GREEN}[ok]${NC} Local session created with 2 tabs"
+}
+
+spawn_vps() {
+    printf '%b\n' "${BLUE}[*]${NC} Creating VPS session: ${GREEN}${VPS_SESSION}${NC}"
+
+    # Check SSH connectivity
+    if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$VPS_HOST" "echo ok" &>/dev/null; then
+        printf '%b\n' "${YELLOW}[!]${NC} Unable to connect to VPS '$VPS_HOST'"
+        echo "    Check your SSH connection and ~/.ssh/config"
+        return 1
+    fi
+
+    # Create the tmux session on the VPS via SSH
+    ssh "$VPS_HOST" "
+        if tmux has-session -t '$VPS_SESSION' 2>/dev/null; then
+            echo 'Session already exists'
+        else
+            tmux new-session -d -s '$VPS_SESSION' -n 'term1'
+            tmux new-window -t '$VPS_SESSION' -n 'term2'
+            tmux select-window -t '$VPS_SESSION:1'
+            echo 'Session created'
+        fi
+    "
+
+    printf '%b\n' "${GREEN}[ok]${NC} VPS session created with 2 tabs"
+}
+
+attach_sessions() {
+    echo ""
+    printf '%b\n' "${BLUE}--------------------------------------------------------------${NC}"
+    printf '%b\n' "${GREEN}Sessions created successfully${NC}"
+    echo ""
+    echo "  To attach the sessions:"
+    echo ""
+    printf '%b\n' "  ${YELLOW}Local:${NC}  tmux attach -t $LOCAL_SESSION"
+    printf '%b\n' "  ${YELLOW}VPS:${NC}    ssh -t $VPS_HOST 'tmux attach -t $VPS_SESSION'"
+    echo ""
+    printf '%b\n' "${BLUE}--------------------------------------------------------------${NC}"
+}
+
+# Main
+case "${1:-all}" in
+    local)
+        spawn_local
+        echo ""
+        printf '%b\n' "${BLUE}[*]${NC} Attaching to local session..."
+        exec tmux attach -t "$LOCAL_SESSION"
+        ;;
+    vps)
+        spawn_vps
+        echo ""
+        printf '%b\n' "${BLUE}[*]${NC} Attaching to VPS session..."
+        exec ssh -t "$VPS_HOST" "tmux attach -t '$VPS_SESSION'"
+        ;;
+    all)
+        spawn_local
+        spawn_vps
+        attach_sessions
+        echo ""
+        printf '%b\n' "${BLUE}[*]${NC} Attaching to local session..."
+        exec tmux attach -t "$LOCAL_SESSION"
+        ;;
+    -h|--help)
+        usage
+        ;;
+    *)
+        echo "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+esac

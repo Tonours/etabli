@@ -1,0 +1,81 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "opencode-gemini-auth@latest",
+    "@tarquinen/opencode-dcp@latest",
+    "@nick-vi/opencode-type-inject@latest",
+    "@franlol/opencode-md-table-formatter@latest"
+  ],
+
+  "model": "openai/gpt-5.2-codex",
+  "small_model": "google/gemini-2.0-flash",
+
+  "theme": "opencode",
+  "autoupdate": false,
+
+  "compaction": {
+    "auto": true,
+    "prune": true
+  },
+
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "openai/gpt-5.2-codex",
+      "description": "Agent principal - implementation"
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "github-copilot/claude-opus-4-5",
+      "description": "Planification et analyse"
+    },
+    "review": {
+      "mode": "secondary",
+      "model": "anthropic/claude-opus-4-5",
+      "description": "Code review et refactoring"
+    },
+    "debug": {
+      "mode": "secondary",
+      "model": "anthropic/claude-sonnet-4",
+      "description": "Debugging et diagnostic"
+    }
+  },
+
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    },
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}"
+      },
+      "enabled": true
+    }
+  },
+
+  "permission": {
+    "edit": "allow",
+    "bash": "allow"
+  },
+
+  "keybind": {
+    "submit": "enter",
+    "new_line": "shift+enter",
+    "cancel": "escape",
+    "interrupt": "ctrl+c"
+  },
+
+  "context": {
+    "max_tokens": 128000,
+    "reserve_output": 8000
+  }
+}

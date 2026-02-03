@@ -1,0 +1,22 @@
+# Font configuration - Nerd Font for LazyVim icons
+font-family = JetBrainsMono Nerd Font
+font-size = 22
+
+# Appearance
+background-opacity = 1
+window-padding-x = 0
+window-padding-y = 0
+
+# Cursor
+cursor-style = block
+cursor-style-blink = false
+
+# Shell integration
+shell-integration = zsh
+
+# macOS specific
+macos-option-as-alt = true
+macos-titlebar-style = transparent
+
+# Theme (Catppuccin Mocha - aligned with Neovim/tmux)
+theme = catppuccin-mocha

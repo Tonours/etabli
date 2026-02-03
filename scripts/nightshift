@@ -1,0 +1,562 @@
+#!/bin/bash
+# nightshift - local overnight runner (no OpenClaw)
+#
+# Flow:
+# - 17:00-17:30: you fill a Markdown tasks file.
+# - before leaving: `nightshift run`
+# - overnight: for each task it creates/reuses a git worktree, runs an engine (codex by default),
+#   then commits + pushes the branch (no PR, no merge).
+
+set -euo pipefail
+
+PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$HOME/projects}"
+WORKTREE_ROOT="${CLAUDE_WORKTREE_ROOT:-$PROJECT_ROOT/worktrees}"
+
+STATE_DIR="${NIGHTSHIFT_STATE_DIR:-$HOME/.local/state/nightshift}"
+TASKS_FILE_DEFAULT="${STATE_DIR}/tasks.md"
+STATE_FILE="${STATE_DIR}/state.json"
+LOG_DIR="${STATE_DIR}/logs"
+
+now_iso() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  nightshift init [--force] [tasks.md]
+  nightshift list [tasks.md]
+  nightshift run  [--tasks tasks.md] [--limit N] [--only id1,id2] [--dry-run]
+  nightshift status
+
+Environment:
+  CLAUDE_PROJECT_ROOT   (default: ~/projects)
+  CLAUDE_WORKTREE_ROOT  (default: $CLAUDE_PROJECT_ROOT/worktrees)
+  NIGHTSHIFT_STATE_DIR  (default: ~/.local/state/nightshift)
+
+Task format (Markdown):
+  Each task is a block:
+
+    ## TASK <id>
+    repo: my-repo               # under $CLAUDE_PROJECT_ROOT
+    # or:
+    path: /abs/path/to/repo     # overrides repo
+    base: main
+    branch: night/<id>          # optional
+    engine: codex               # codex | claude | none
+    verify:
+    - bun test
+    - npm test
+    prompt:
+    <multi-line prompt>
+    ENDPROMPT
+USAGE
+}
+
+need_bin() {
+  command -v "$1" >/dev/null 2>&1 || { echo "Missing binary: $1" >&2; exit 3; }
+}
+
+ensure_dirs() {
+  mkdir -p "$STATE_DIR" "$LOG_DIR" "$WORKTREE_ROOT"
+  if [[ ! -f "$STATE_FILE" ]]; then
+    printf '%s\n' '{"version":1,"tasks":{}}' >"$STATE_FILE"
+  fi
+}
+
+write_template() {
+  local out="$1"
+  cat >"$out" <<'TPL'
+# Night Shift Tasks
+
+Prep session (17:00-17:30):
+- add 1-3 tasks max
+- keep them execution-oriented (bugfix / small feature)
+- include verify commands
+
+## TASK example-fix-login-redirect
+repo: my-repo
+base: main
+branch: night/example-fix-login-redirect
+engine: codex
+verify:
+- bun test
+- bun run lint
+prompt:
+Fix the login redirect loop.
+
+Context:
+- Users on /app are redirected back to /login even after auth.
+
+DoD:
+- tests pass
+- no new lints
+- minimal diff
+
+Notes:
+- likely in src/auth/* and middleware
+ENDPROMPT
+TPL
+}
+
+parse_tasks_json() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import json
+import re
+import sys
+
+path = sys.argv[1]
+lines = open(path, 'r', encoding='utf-8').read().splitlines()
+
+tasks = []
+cur = None
+mode = None  # None | verify | prompt
+
+ID_RE = re.compile(r'^##\s+TASK\s+(.+?)\s*$')
+KV_RE = re.compile(r'^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*?)\s*$')
+
+def norm_id(s: str) -> str:
+    s = s.strip().lower()
+    s = re.sub(r'[^a-z0-9._-]+', '-', s)
+    return s.strip('-')
+
+def finish():
+    global cur, mode
+    if not cur:
+        return
+    cur['id'] = norm_id(cur['id'])
+    cur.setdefault('base', 'main')
+    cur.setdefault('engine', 'codex')
+    cur.setdefault('verify', [])
+    cur.setdefault('prompt', '')
+    if not cur.get('branch'):
+        cur['branch'] = f"night/{cur['id']}"
+    tasks.append(cur)
+    cur = None
+    mode = None
+
+for line in lines:
+    m = ID_RE.match(line)
+    if m:
+        finish()
+        cur = {'id': m.group(1).strip()}
+        continue
+
+    if cur is None:
+        continue
+
+    if mode == 'prompt':
+        if line.strip() == 'ENDPROMPT':
+            mode = None
+        else:
+            cur['prompt'] += line + '\n'
+        continue
+
+    if mode == 'verify':
+        if line.lstrip().startswith('- '):
+            cur.setdefault('verify', []).append(line.strip()[2:].strip())
+            continue
+        mode = None
+
+    if not line.strip():
+        continue
+
+    if line.strip() == 'verify:':
+        mode = 'verify'
+        cur.setdefault('verify', [])
+        continue
+
+    if line.strip() == 'prompt:':
+        mode = 'prompt'
+        cur['prompt'] = ''
+        continue
+
+    kv = KV_RE.match(line)
+    if kv:
+        key = kv.group(1)
+        val = kv.group(2)
+        cur[key] = val
+
+finish()
+
+print(json.dumps({'tasks': tasks}, ensure_ascii=True))
+PY
+}
+
+state_set() {
+  local id="$1" key="$2" val="$3"
+  python3 - "$STATE_FILE" "$id" "$key" "$val" <<'PY'
+import json, sys
+p, tid, key, val = sys.argv[1:5]
+try:
+  d=json.load(open(p,'r',encoding='utf-8'))
+except Exception:
+  d={'version':1,'tasks':{}}
+d.setdefault('tasks', {}).setdefault(tid, {})[key]=val
+with open(p,'w',encoding='utf-8') as f:
+  json.dump(d,f,indent=2,ensure_ascii=True)
+PY
+}
+
+state_get_status() {
+  local id="$1"
+  python3 - "$STATE_FILE" "$id" <<'PY'
+import json, sys
+p, tid = sys.argv[1:3]
+try:
+  d=json.load(open(p,'r',encoding='utf-8'))
+except Exception:
+  print('')
+  raise SystemExit(0)
+print(d.get('tasks', {}).get(tid, {}).get('status',''))
+PY
+}
+
+ensure_worktree() {
+  local repo_dir="$1" repo_name="$2" base="$3" branch="$4" task_id="$5"
+  local wt_path="${WORKTREE_ROOT}/${repo_name}-${task_id}"
+
+  if [[ -d "$wt_path/.git" ]]; then
+    echo "$wt_path"
+    return
+  fi
+
+  git -C "$repo_dir" fetch origin --prune >/dev/null 2>&1 || true
+
+  if git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$branch"; then
+    git -C "$repo_dir" worktree add "$wt_path" "$branch" >/dev/null
+  elif git -C "$repo_dir" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    git -C "$repo_dir" worktree add "$wt_path" -b "$branch" "origin/$branch" >/dev/null
+  else
+    if git -C "$repo_dir" show-ref --verify --quiet "refs/remotes/origin/$base"; then
+      git -C "$repo_dir" worktree add "$wt_path" -b "$branch" "origin/$base" >/dev/null
+    elif git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$base"; then
+      git -C "$repo_dir" worktree add "$wt_path" -b "$branch" "$base" >/dev/null
+    else
+      git -C "$repo_dir" worktree add "$wt_path" -b "$branch" >/dev/null
+    fi
+  fi
+
+  echo "$wt_path"
+}
+
+run_verify() {
+  local wt="$1"
+  local verify_json="$2"
+
+  local failed=0
+  local cmd
+  while IFS= read -r cmd; do
+    [[ -n "$cmd" ]] || continue
+    echo "[verify] $cmd"
+    if (cd "$wt" && bash -lc "$cmd"); then
+      :
+    else
+      failed=1
+    fi
+  done < <(echo "$verify_json" | jq -r '.[]?')
+
+  return $failed
+}
+
+commit_and_push() {
+  local wt="$1" branch="$2" msg="$3"
+  local remote
+  if git -C "$wt" remote | grep -q '^origin$'; then
+    remote="origin"
+  else
+    remote="$(git -C "$wt" remote | head -n 1 || true)"
+  fi
+  if [[ -z "$remote" ]]; then
+    echo "No remote found in $wt" >&2
+    return 2
+  fi
+
+  # Exclude .nightshift/ internal files from commits
+  if ! grep -qx '.nightshift/' "$wt/.gitignore" 2>/dev/null; then
+    echo '.nightshift/' >> "$wt/.gitignore"
+  fi
+
+  if [[ -n "$(git -C "$wt" status --porcelain)" ]]; then
+    git -C "$wt" add -A
+    git -C "$wt" commit -m "$msg" >/dev/null 2>&1 || true
+  fi
+
+  git -C "$wt" push -u "$remote" "$branch" >/dev/null 2>&1 || true
+}
+
+cmd_init() {
+  local force=false
+  local out=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=true; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) out="$1"; shift ;;
+    esac
+  done
+
+  ensure_dirs
+  out="${out:-$TASKS_FILE_DEFAULT}"
+
+  if [[ -e "$out" && "$force" != "true" ]]; then
+    echo "Tasks file already exists: $out (use --force to overwrite)" >&2
+    exit 2
+  fi
+
+  mkdir -p "$(dirname "$out")"
+  write_template "$out"
+  echo "Created: $out"
+}
+
+cmd_list() {
+  local file="${1:-$TASKS_FILE_DEFAULT}"
+  need_bin python3
+  need_bin jq
+  parse_tasks_json "$file" | jq -r '.tasks[] | "\(.id)\tengine=\(.engine)\trepo=\(.repo // "")\tpath=\(.path // "")\tbranch=\(.branch)"'
+}
+
+cmd_status() {
+  ensure_dirs
+  python3 - "$STATE_FILE" <<'PY'
+import json, sys
+p=sys.argv[1]
+try:
+  d=json.load(open(p,'r',encoding='utf-8'))
+except Exception:
+  d={'version':1,'tasks':{}}
+for tid, meta in sorted((d.get('tasks') or {}).items()):
+  st=meta.get('status','')
+  br=meta.get('branch','')
+  wt=meta.get('worktree','')
+  ts=meta.get('lastRunAt','')
+  err=meta.get('lastError','')
+  line=f"{tid}\t{st}\t{br}\t{wt}\t{ts}"
+  if err:
+    line += f"\t{err}"
+  print(line)
+PY
+}
+
+cmd_run() {
+  ensure_dirs
+  need_bin python3
+  need_bin git
+  need_bin jq
+
+  local tasks_file="$TASKS_FILE_DEFAULT"
+  local limit="0"
+  local only=""
+  local dry_run=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tasks) tasks_file="${2:?}"; shift 2 ;;
+      --limit) limit="${2:?}"; shift 2 ;;
+      --only) only="${2:?}"; shift 2 ;;
+      --dry-run) dry_run=true; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) echo "Unknown arg: $1" >&2; exit 2 ;;
+    esac
+  done
+
+  local json tasks
+  json="$(parse_tasks_json "$tasks_file")"
+
+  if [[ -n "$only" ]]; then
+    tasks="$(python3 - <<'PY'
+import json, sys
+ids=set([s.strip() for s in sys.argv[1].split(',') if s.strip()])
+d=json.loads(sys.stdin.read())
+out=[t for t in d.get('tasks',[]) if t.get('id') in ids]
+print(json.dumps(out))
+PY
+"$only" <<<"$json")"
+  else
+    tasks="$(echo "$json" | jq -c '.tasks')"
+  fi
+
+  local count i
+  count="$(echo "$tasks" | jq 'length')"
+  if [[ "$count" -eq 0 ]]; then
+    echo "No tasks found in: $tasks_file" >&2
+    exit 0
+  fi
+
+  i=0
+  while [[ $i -lt $count ]]; do
+    if [[ "$limit" != "0" && $i -ge $limit ]]; then
+      break
+    fi
+
+    local task id repo path base branch engine
+    task="$(echo "$tasks" | jq -c ".[$i]")"
+
+    id="$(echo "$task" | jq -r '.id')"
+    repo="$(echo "$task" | jq -r '.repo // ""')"
+    path="$(echo "$task" | jq -r '.path // ""')"
+    base="$(echo "$task" | jq -r '.base // "main"')"
+    branch="$(echo "$task" | jq -r '.branch')"
+    engine="$(echo "$task" | jq -r '.engine // "codex"')"
+
+    local st
+    st="$(state_get_status "$id")"
+    if [[ "$st" == "done" ]]; then
+      i=$((i+1))
+      continue
+    fi
+
+    state_set "$id" status running
+    state_set "$id" lastRunAt "$(now_iso)"
+    state_set "$id" branch "$branch"
+
+    local repo_dir repo_name
+    if [[ -n "$path" ]]; then
+      repo_dir="$(python3 - <<'PY'
+import os,sys
+print(os.path.expanduser(sys.argv[1]))
+PY
+"$path")"
+      repo_name="$(basename "$repo_dir")"
+    else
+      repo_name="$repo"
+      repo_dir="${PROJECT_ROOT}/${repo_name}"
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+      echo "[dry-run] $id repo_dir=$repo_dir branch=$branch engine=$engine"
+      state_set "$id" status todo
+      i=$((i+1))
+      continue
+    fi
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+      state_set "$id" status failed
+      state_set "$id" lastError "repo not found: $repo_dir"
+      echo "[fail] $id repo not found: $repo_dir" >&2
+      i=$((i+1))
+      continue
+    fi
+
+    local wt
+    wt="$(ensure_worktree "$repo_dir" "$repo_name" "$base" "$branch" "$id")"
+    state_set "$id" worktree "$wt"
+
+    mkdir -p "$wt/.nightshift"
+    local task_md="$wt/.nightshift/TASK.md"
+    local prompt
+    prompt="$(echo "$task" | jq -r '.prompt')"
+    cat >"$task_md" <<__NIGHTSHIFT_TASK__
+# Night Shift Task: $id
+
+Repo: $repo_name
+Base: $base
+Branch: $branch
+Engine: $engine
+
+## Prompt
+$prompt
+__NIGHTSHIFT_TASK__
+
+    local ts logf engine_failed
+    engine_failed=0
+    ts="$(date -u +%Y%m%d%H%M%S)"
+    logf="${LOG_DIR}/${id}-${ts}.log"
+
+    case "$engine" in
+      codex)
+        need_bin codex
+        cat >"$wt/.nightshift/ENGINE_PROMPT.txt" <<'__NIGHTSHIFT_ENGINE_PROMPT__'
+You are a senior engineer running an overnight batch task.
+
+Read .nightshift/TASK.md and implement it.
+Constraints:
+- No browser.
+- Do not create PRs.
+- Do not merge.
+- Prefer minimal changes.
+- After implementation, run the verify commands listed in the task (if any).
+- Leave the working tree in a clean state if possible.
+
+If you need to choose between options, pick the simplest that ships.
+__NIGHTSHIFT_ENGINE_PROMPT__
+        (cd "$wt" && codex exec --full-auto -C "$wt" -o "$logf" - < .nightshift/ENGINE_PROMPT.txt) || engine_failed=1
+        ;;
+      claude)
+        need_bin claude
+        cat >"$wt/.nightshift/ENGINE_PROMPT.txt" <<'__NIGHTSHIFT_ENGINE_PROMPT__'
+You are a senior engineer running an overnight batch task.
+
+Read .nightshift/TASK.md and implement it.
+Constraints:
+- No browser.
+- Do not create PRs.
+- Do not merge.
+- Prefer minimal changes.
+- After implementation, run the verify commands listed in the task (if any).
+- Leave the working tree in a clean state if possible.
+
+If you need to choose between options, pick the simplest that ships.
+__NIGHTSHIFT_ENGINE_PROMPT__
+        # Non-interactive run. We bypass permissions explicitly (workstation-only).
+        (
+          cd "$wt" && \
+          cat .nightshift/ENGINE_PROMPT.txt .nightshift/TASK.md | \
+            claude -p --input-format text --permission-mode bypassPermissions --dangerously-skip-permissions \
+              >"$logf" 2>&1
+        ) || engine_failed=1
+        ;;
+      none)
+        ;;
+      *)
+        state_set "$id" status failed
+        state_set "$id" lastError "unknown engine: $engine"
+        echo "[fail] unknown engine '$engine' (task $id)" >&2
+        i=$((i+1))
+        continue
+        ;;
+    esac
+
+    if [[ $engine_failed -ne 0 ]]; then
+      state_set "$id" lastError "engine failed"
+    fi
+
+    local verify_json
+    verify_json="$(echo "$task" | jq -c '.verify // []')"
+    if run_verify "$wt" "$verify_json"; then
+      state_set "$id" verify ok
+    else
+      state_set "$id" verify failed
+      engine_failed=1
+    fi
+
+    commit_and_push "$wt" "$branch" "nightshift: $id" || true
+
+    if [[ $engine_failed -eq 0 ]]; then
+      state_set "$id" status done
+      state_set "$id" lastError ""
+      echo "[done] $id -> pushed $branch"
+    else
+      state_set "$id" status failed
+      echo "[warn] $id finished with errors (see $logf)"
+    fi
+
+    i=$((i+1))
+  done
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+
+  case "$cmd" in
+    init) cmd_init "$@" ;;
+    list) cmd_list "$@" ;;
+    run) cmd_run "$@" ;;
+    status) cmd_status "$@" ;;
+    -h|--help|help|""|--help) usage ;;
+    *) echo "Unknown command: $cmd" >&2; usage; exit 2 ;;
+  esac
+}
+
+main "$@"
