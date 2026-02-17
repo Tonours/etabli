@@ -1,5 +1,22 @@
 -- Core editor plugins
 return {
+  -- Disable neo-tree (keep snacks explorer)
+  { "nvim-neo-tree/neo-tree.nvim", enabled = false },
+
+  -- Show hidden files in snacks explorer
+  {
+    "folke/snacks.nvim",
+    opts = {
+      picker = {
+        sources = {
+          explorer = {
+            hidden = true,
+          },
+        },
+      },
+    },
+  },
+
   -- Harpoon for quick file navigation
   {
     "ThePrimeagen/harpoon",
