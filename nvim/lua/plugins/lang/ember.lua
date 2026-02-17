@@ -112,7 +112,7 @@ return {
     "folke/which-key.nvim",
     opts = {
       spec = {
-        { "<leader>E", group = "Ember", icon = "🐹" },
+        { "<leader>mE", group = "Ember", icon = "🐹" },
       },
     },
   },
@@ -124,7 +124,7 @@ return {
     keys = {
       -- Navigate between component files (template <-> class)
       {
-        "<leader>Et",
+        "<leader>mEt",
         function()
           local file = vim.fn.expand("%:t")
           local dir = vim.fn.expand("%:p:h")
@@ -168,7 +168,7 @@ return {
 
       -- Run ember-template-lint on current file
       {
-        "<leader>El",
+        "<leader>mEl",
         function()
           local file = vim.fn.expand("%:p")
           if file:match("%.hbs$") then
@@ -182,7 +182,7 @@ return {
 
       -- Search Ember components
       {
-        "<leader>Ec",
+        "<leader>mEc",
         function()
           require("telescope.builtin").find_files({
             prompt_title = "Ember Components",
@@ -194,7 +194,7 @@ return {
 
       -- Search Ember routes
       {
-        "<leader>Er",
+        "<leader>mEr",
         function()
           require("telescope.builtin").find_files({
             prompt_title = "Ember Routes",
@@ -206,7 +206,7 @@ return {
 
       -- Search Ember services
       {
-        "<leader>Es",
+        "<leader>mEs",
         function()
           require("telescope.builtin").find_files({
             prompt_title = "Ember Services",
@@ -218,7 +218,7 @@ return {
 
       -- Search Ember helpers
       {
-        "<leader>Eh",
+        "<leader>mEh",
         function()
           require("telescope.builtin").find_files({
             prompt_title = "Ember Helpers",
@@ -230,7 +230,7 @@ return {
 
       -- Search Ember models
       {
-        "<leader>Em",
+        "<leader>mEm",
         function()
           require("telescope.builtin").find_files({
             prompt_title = "Ember Models",
@@ -242,7 +242,7 @@ return {
 
       -- Run Ember test for current file
       {
-        "<leader>ET",
+        "<leader>mET",
         function()
           local filter = vim.fn.shellescape(vim.fn.expand("%:t:r"))
           vim.cmd("vsplit term://ember test --filter=" .. filter)
