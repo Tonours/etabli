@@ -53,7 +53,7 @@ if [ -f "$PROJECT_ROOT/biome.json" ] || [ -f "$PROJECT_ROOT/biome.jsonc" ]; then
     fi
 
     # Fallback: npx biome
-    npx @biomejs/biome format --write "$FILE_PATH" 2>/dev/null && exit 0
+    npx --yes @biomejs/biome format --write "$FILE_PATH" 2>/dev/null && exit 0
 fi
 
 # --- Prettier: fallback when no biome config ---
@@ -80,4 +80,4 @@ elif [ -f "bun.lockb" ] && command -v bun &>/dev/null; then
 fi
 
 # Last resort: npx prettier
-npx prettier --write "$FILE_PATH" --ignore-unknown 2>/dev/null || true
+npx --yes prettier --write "$FILE_PATH" --ignore-unknown 2>/dev/null || true
