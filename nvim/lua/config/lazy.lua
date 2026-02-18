@@ -25,6 +25,9 @@ require("lazy").setup({
     { import = "lazyvim.plugins.extras.lang.json" },
     { import = "lazyvim.plugins.extras.lang.markdown" },
 
+    -- Linting
+    { import = "lazyvim.plugins.extras.linting.eslint" },
+
     -- Copilot
     { import = "lazyvim.plugins.extras.ai.copilot" },
 
