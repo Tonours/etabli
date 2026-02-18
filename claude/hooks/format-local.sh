@@ -1,6 +1,8 @@
 #!/bin/bash
 # Use project-local formatter (Biome or Prettier) based on the file being edited
 # Prefers Biome if biome.json exists, otherwise falls back to Prettier
+# Note: We intentionally do NOT use set -e because formatter failures
+# should not block file editing. All errors are silently ignored.
 
 FILE_PATH="$1"
 
@@ -36,12 +38,12 @@ if [ -f "$PROJECT_ROOT/biome.json" ] || [ -f "$PROJECT_ROOT/biome.jsonc" ]; then
     LOCAL_BIOME="$PROJECT_ROOT/node_modules/.bin/biome"
 
     if [ -x "$LOCAL_BIOME" ]; then
-        "$LOCAL_BIOME" format --write "$FILE_PATH" 2>/dev/null
-        exit 0
+        "$LOCAL_BIOME" format --write "$FILE_PATH" 2>/dev/null && exit 0
+        # Biome failed; fall through to try package manager runners
     fi
 
     # Try package manager runners
-    cd "$PROJECT_ROOT"
+    cd "$PROJECT_ROOT" || exit 0
     if [ -f "yarn.lock" ] && command -v yarn &>/dev/null; then
         yarn biome format --write "$FILE_PATH" 2>/dev/null && exit 0
     elif [ -f "pnpm-lock.yaml" ] && command -v pnpm &>/dev/null; then
@@ -58,15 +60,17 @@ fi
 LOCAL_PRETTIER="$PROJECT_ROOT/node_modules/.bin/prettier"
 
 if [ -x "$LOCAL_PRETTIER" ]; then
-    cd "$PROJECT_ROOT"
-    if "$LOCAL_PRETTIER" --check "$FILE_PATH" --ignore-unknown 2>/dev/null || [ $? -eq 1 ]; then
+    cd "$PROJECT_ROOT" || exit 0
+    "$LOCAL_PRETTIER" --check "$FILE_PATH" --ignore-unknown 2>/dev/null
+    check_status=$?
+    if [ "$check_status" -eq 0 ] || [ "$check_status" -eq 1 ]; then
         "$LOCAL_PRETTIER" --write "$FILE_PATH" --ignore-unknown 2>/dev/null
         exit 0
     fi
 fi
 
 # Try yarn/pnpm/bun for prettier
-cd "$PROJECT_ROOT"
+cd "$PROJECT_ROOT" || exit 0
 if [ -f "yarn.lock" ] && command -v yarn &>/dev/null; then
     yarn prettier --write "$FILE_PATH" --ignore-unknown 2>/dev/null && exit 0
 elif [ -f "pnpm-lock.yaml" ] && command -v pnpm &>/dev/null; then
