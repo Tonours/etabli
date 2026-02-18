@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/prettier-local.sh \"$CLAUDE_FILE_PATH\""
+            "command": "$HOME/.claude/hooks/format-local.sh \"$CLAUDE_FILE_PATH\""
           }
         ]
       }
