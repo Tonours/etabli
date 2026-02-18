@@ -4,6 +4,7 @@ return {
   {
     "nvim-treesitter/nvim-treesitter",
     opts = function(_, opts)
+      opts.ensure_installed = opts.ensure_installed or {}
       vim.list_extend(opts.ensure_installed, {
         "glimmer", -- Handlebars/Glimmer templates
         "html",
@@ -98,7 +99,7 @@ return {
 
   -- Add colorizer support for handlebars
   {
-    "norcalli/nvim-colorizer.lua",
+    "NvChad/nvim-colorizer.lua",
     opts = function(_, opts)
       opts = opts or {}
       opts.filetypes = opts.filetypes or {}

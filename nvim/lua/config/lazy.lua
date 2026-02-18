@@ -35,7 +35,9 @@ require("lazy").setup({
     -- { import = "lazyvim.plugins.extras.editor.diffview" }, -- removed: not found in this LazyVim version
 
     -- import/override with your plugins
-    { import = "plugins" },
+    { import = "plugins.core" },
+    { import = "plugins.extras" },
+    { import = "plugins.lang" },
   },
   defaults = {
     -- By default, only LazyVim plugins will be lazy-loaded. Your custom plugins will load during startup.
