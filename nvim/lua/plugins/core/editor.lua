@@ -36,18 +36,9 @@ return {
     end,
   },
 
-  -- Spectre for search & replace
+  -- Color preview (NvChad fork, actively maintained)
   {
-    "nvim-pack/nvim-spectre",
-    keys = {
-      { "<leader>sR", function() require("spectre").open() end, desc = "Search & Replace" },
-      { "<leader>sw", function() require("spectre").open_visual({ select_word = true }) end, desc = "Search Word" },
-    },
-  },
-
-  -- Color preview
-  {
-    "norcalli/nvim-colorizer.lua",
+    "NvChad/nvim-colorizer.lua",
     event = { "BufReadPre", "BufNewFile" },
     opts = {
       filetypes = {
@@ -61,7 +52,7 @@ return {
       },
     },
     config = function(_, opts)
-      require("colorizer").setup(opts.filetypes)
+      require("colorizer").setup({ filetypes = opts.filetypes })
     end,
   },
 
@@ -69,6 +60,7 @@ return {
   {
     "nvim-treesitter/nvim-treesitter",
     opts = function(_, opts)
+      opts.ensure_installed = opts.ensure_installed or {}
       vim.list_extend(opts.ensure_installed, {
         "css", "scss", "sql", "graphql", "prisma",
       })
