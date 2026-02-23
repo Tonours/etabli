@@ -205,7 +205,8 @@ Keyboard-driven tiling window management using Yabai + skhd, with SketchyBar and
 
 | Shortcut | Action |
 | -------- | ------ |
-| `alt + return` | Open Ghostty |
+| `cmd + return` | Open Ghostty |
+| `cmd + space` | Open Sol (launcher) |
 
 ### Utility Scripts
 
