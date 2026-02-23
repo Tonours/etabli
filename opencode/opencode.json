@@ -7,37 +7,41 @@
     "@franlol/opencode-md-table-formatter@latest"
   ],
 
-  "model": "openai/gpt-5.2-codex",
-  "small_model": "google/gemini-2.0-flash",
+  "model": "openai/gpt-5.3-codex",
+  "small_model": "openai/gpt-5-mini",
 
   "theme": "opencode",
-  "autoupdate": false,
+  "autoupdate": true,
+  "share": "manual",
 
   "compaction": {
     "auto": true,
     "prune": true
   },
 
+  "server": {
+    "port": 4096,
+    "hostname": "0.0.0.0"
+  },
+
   "agent": {
     "build": {
       "mode": "primary",
-      "model": "openai/gpt-5.2-codex",
+      "model": "openai/gpt-5.3-codex",
+      "variant": "high",
       "description": "Agent principal - implementation"
     },
     "plan": {
       "mode": "primary",
-      "model": "github-copilot/claude-opus-4-5",
-      "description": "Planification et analyse"
+      "model": "kimi-for-coding/k2p5",
+      "description": "Planification et analyse (etape 1 - K2.5)"
     },
-    "review": {
-      "mode": "secondary",
-      "model": "anthropic/claude-opus-4-5",
-      "description": "Code review et refactoring"
-    },
-    "debug": {
-      "mode": "secondary",
-      "model": "anthropic/claude-sonnet-4",
-      "description": "Debugging et diagnostic"
+    "plan_review": {
+      "mode": "primary",
+      "model": "openai/gpt-5.3-codex",
+      "variant": "xhigh",
+      "description": "Review de plan (etape 2 - Lead SWE)",
+      "prompt": "As a lead software engineer review and update this plan"
     }
   },
 
@@ -67,15 +71,14 @@
     "bash": "allow"
   },
 
-  "keybind": {
-    "submit": "enter",
-    "new_line": "shift+enter",
-    "cancel": "escape",
-    "interrupt": "ctrl+c"
-  },
-
-  "context": {
-    "max_tokens": 128000,
-    "reserve_output": 8000
+  "command": {
+    "test": {
+      "template": "Run the test suite and fix failing tests.",
+      "description": "Run tests"
+    },
+    "review": {
+      "template": "Review changes for security and best practices. @review",
+      "description": "Code review"
+    }
   }
 }
