@@ -16,7 +16,7 @@ format = "[$path]($style) "
 style = "bold #82aaff"
 
 [git_branch]
-format = "[git:(](bold #c792ea)[$branch](bold #c3e88d)[)](bold #c792ea) "
+format = "[git:\\(](bold #c792ea)[$branch](bold #c3e88d)[\\)](bold #c792ea) "
 
 [git_status]
 format = '[$all_status]($style)'
