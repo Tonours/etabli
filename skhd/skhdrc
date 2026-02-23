@@ -91,3 +91,6 @@ shift + alt - 0 : yabai -m space --balance
 
 # Open terminal (SUPER+Return)
 alt - return : open -na "Ghostty"
+
+# App launcher (SUPER+Space)
+alt - space : open -a "Sol"
