@@ -11,7 +11,7 @@ FONT="JetBrainsMono Nerd Font"
 # ============================================================================
 sketchybar --bar \
     position=top \
-    height=26 \
+    height=32 \
     color="$BAR_COLOR" \
     border_width=0 \
     shadow=off \
@@ -33,7 +33,7 @@ sketchybar --default \
     label.font="$FONT:Regular:12.0" \
     label.color="$TEXT" \
     background.color="$BAR_COLOR" \
-    background.height=26 \
+    background.height=32 \
     padding_left=4 \
     padding_right=4
 
@@ -64,7 +64,7 @@ for i in $(seq 1 9); do
             label.padding_right=6 \
             background.color="$MANTLE" \
             background.corner_radius=0 \
-            background.height=26 \
+            background.height=32 \
             script="$PLUGIN_DIR/space.sh" \
             click_script="yabai -m space --focus $i"
 done
