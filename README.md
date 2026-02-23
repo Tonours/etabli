@@ -32,13 +32,13 @@ nvim/                       Neovim config (LazyVim)
   lua/plugins/lang/         TypeScript, Rust, Ember
   lua/plugins/extras/       Hardtime, Precognition
 
-opencode/opencode.json      OpenCode config (GPT-5.2-Codex, Claude Opus)
+opencode/opencode.json      OpenCode config (GPT-5.3-Codex, K2.5 planner)
 
 yabai/yabairc               BSP tiling WM (zero animation, macOS)
 skhd/skhdrc                 Keyboard-driven tiling keybindings
 sketchybar/                 Status bar (Catppuccin Mocha, workspaces, system info)
 borders/bordersrc           JankyBorders (cyan-green gradient)
-starship/starship.toml      Starship prompt (minimal, git-aware)
+starship/starship.toml      Starship prompt (oh-my-zsh inspired, git-aware)
 
 scripts/
   install.sh                Full setup (deps, nvim, tmux, fonts, tiling WM, scripts)
