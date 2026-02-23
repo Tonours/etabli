@@ -1,6 +1,6 @@
 # Etabli
 
-Personal dev environment for AI-assisted parallel workflows with Neovim, tmux, Ghostty, Claude Code and OpenCode.
+Personal dev environment for AI-assisted parallel workflows with Neovim, tmux, Ghostty, Claude Code and OpenCode. Includes a keyboard-driven tiling WM setup for macOS.
 
 Inspired by [Anthropic's Claude Code best practices](https://anthropic.com/engineering/claude-code-best-practices) (Boris Cherny).
 
@@ -34,12 +34,21 @@ nvim/                       Neovim config (LazyVim)
 
 opencode/opencode.json      OpenCode config (GPT-5.2-Codex, Claude Opus)
 
+yabai/yabairc               BSP tiling WM (zero animation, macOS)
+skhd/skhdrc                 Keyboard-driven tiling keybindings
+sketchybar/                 Status bar (Catppuccin Mocha, workspaces, system info)
+borders/bordersrc           JankyBorders (cyan-green gradient)
+starship/starship.toml      Starship prompt (minimal, git-aware)
+
 scripts/
-  install.sh                Full setup (deps, nvim, tmux, fonts, scripts)
+  install.sh                Full setup (deps, nvim, tmux, fonts, tiling WM, scripts)
   cw                        Claude Worktree Manager
   cw-clean                  Clean merged worktrees
   nightshift                Overnight batch runner
   dev-spawn                 Launch local + VPS tmux sessions
+  macos-optimize.sh         Aggressive macOS perf optimization
+  omarchy-toggle.sh         Toggle tiling stack on/off
+  yabai-sudoers-update.sh   Regenerate yabai sudoers after brew upgrade
   tmux-clipboard.sh         Cross-platform clipboard (pbcopy/wl-copy/xclip/OSC52)
   tmux-claude-status.sh     Claude session count in tmux status bar
   claude-usage.sh           Enable Claude status display
@@ -107,14 +116,14 @@ dev-spawn vps                    # VPS only
 
 ### tmux
 
-| Shortcut       | Action                 |
-| -------------- | ---------------------- |
-| `Alt+1..5`     | Jump to window         |
-| `Alt+arrows`   | Navigate panes         |
-| `Prefix + \|`  | Split vertical         |
-| `Prefix + -`   | Split horizontal       |
-| `Prefix + z`   | Zoom/unzoom pane       |
-| `Prefix + Space` | Last session         |
+| Shortcut         | Action                 |
+| ---------------- | ---------------------- |
+| `Prefix + 1..9`  | Jump to window         |
+| `Prefix + h/j/k/l` | Navigate panes      |
+| `Prefix + \|`    | Split vertical         |
+| `Prefix + -`     | Split horizontal       |
+| `Prefix + z`     | Zoom/unzoom pane       |
+| `Prefix + Space` | Last session           |
 
 Clipboard: copy-mode pipes through `tmux-clipboard.sh` (pbcopy > wl-copy > xclip > OSC52).
 
@@ -133,6 +142,95 @@ Clipboard: copy-mode pipes through `tmux-clipboard.sh` (pbcopy > wl-copy > xclip
 | `<leader>1-5`  | Harpoon file 1-5       |
 | `<leader>sR`   | Search & replace       |
 | `Alt+l`        | Accept Copilot         |
+
+## Tiling WM (macOS)
+
+Keyboard-driven tiling window management using Yabai + skhd, with SketchyBar and JankyBorders.
+
+### Tools
+
+| Tool | Role | Equivalent (Hyprland) |
+| ---- | ---- | --------------------- |
+| Yabai | BSP tiling WM | Hyprland |
+| skhd | Hotkey daemon | Hyprland bindings |
+| SketchyBar | Status bar | Waybar |
+| JankyBorders | Window borders | Hyprland borders |
+| Sol | App launcher | Walker |
+| Starship | Shell prompt | Starship |
+
+### Prerequisites
+
+1. **Partially disable SIP** (required for yabai scripting addition):
+   - Boot to Recovery Mode (hold Power on Apple Silicon)
+   - Open Terminal and run: `csrutil enable --without fs --without debug --without nvram`
+   - Reboot
+2. **Create 5+ Mission Control Spaces** (System Settings > Desktop & Dock)
+3. **Disable** "Automatically rearrange Spaces based on most recent use"
+4. **Hide macOS menu bar** (System Settings > Control Center > Automatically hide and show the menu bar > Always)
+5. **Configure Sol hotkey** to `alt+space` in Sol preferences
+
+### Keybindings (skhd)
+
+`alt` is the modifier key (equivalent to `SUPER` on Linux).
+
+**Window management:**
+
+| Shortcut | Action |
+| -------- | ------ |
+| `alt + w` | Close window |
+| `alt + t` | Toggle float (center 50%) |
+| `alt + f` | Toggle fullscreen |
+| `alt + j` | Toggle split direction |
+
+**Navigation:**
+
+| Shortcut | Action |
+| -------- | ------ |
+| `alt + arrows` | Focus window direction |
+| `shift + alt + arrows` | Swap windows |
+| `alt + minus/equals` | Resize horizontal |
+| `shift + alt + minus/equals` | Resize vertical |
+| `shift + alt + 0` | Balance BSP tree |
+
+**Workspaces:**
+
+| Shortcut | Action |
+| -------- | ------ |
+| `alt + 1..9` | Focus workspace |
+| `shift + alt + 1..9` | Move window to workspace |
+| `alt + tab` | Next workspace |
+| `shift + alt + tab` | Previous workspace |
+
+**Apps:**
+
+| Shortcut | Action |
+| -------- | ------ |
+| `alt + return` | Open Ghostty |
+
+### Utility Scripts
+
+```bash
+omarchy-toggle.sh          # Toggle tiling stack on/off
+omarchy-toggle.sh on       # Start yabai, skhd, sketchybar, borders
+omarchy-toggle.sh off      # Stop all tiling services
+
+macos-optimize.sh apply    # Disable animations, services, clean RAM
+macos-optimize.sh daemon   # RAM cleanup loop (every 5 min)
+macos-optimize.sh reset    # Restore macOS defaults
+
+yabai-sudoers-update.sh    # Run after brew upgrade yabai
+```
+
+### Troubleshooting
+
+| Problem | Fix |
+| ------- | --- |
+| Yabai not tiling | Check SIP: `csrutil status`, run `yabai-sudoers-update.sh` |
+| skhd keys not working | Check `skhd --start-service`, verify `macos-option-as-alt = true` in Ghostty |
+| SketchyBar not showing | `brew services restart sketchybar` |
+| Borders missing | `brew services restart borders` |
+| Workspaces not switching | Create Mission Control spaces manually, disable auto-rearrange |
+| Alt sends Unicode in terminal | Set `macos-option-as-alt = true` in Ghostty config |
 
 ## Manual Install
 
@@ -164,10 +262,18 @@ ln -sf $(pwd)/claude/commands/*.md ~/.claude/commands/
 mkdir -p ~/.config/opencode
 ln -sf $(pwd)/opencode/opencode.json ~/.config/opencode/opencode.json
 
+# Tiling WM (macOS only)
+mkdir -p ~/.config/yabai ~/.config/skhd ~/.config/borders
+ln -sf $(pwd)/yabai/yabairc ~/.config/yabai/yabairc
+ln -sf $(pwd)/skhd/skhdrc ~/.config/skhd/skhdrc
+ln -sfn $(pwd)/sketchybar ~/.config/sketchybar
+ln -sf $(pwd)/borders/bordersrc ~/.config/borders/bordersrc
+ln -sf $(pwd)/starship/starship.toml ~/.config/starship.toml
+
 # Font (macOS)
 brew install --cask font-jetbrains-mono-nerd-font
 ```
 
 ## Theme
 
-Catppuccin Mocha everywhere: Neovim, tmux, Ghostty. Font: JetBrains Mono Nerd Font.
+Catppuccin Mocha everywhere: Neovim, tmux, Ghostty, SketchyBar, JankyBorders. Font: JetBrains Mono Nerd Font.
