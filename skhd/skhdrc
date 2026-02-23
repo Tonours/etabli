@@ -5,16 +5,16 @@
 # WINDOW MANAGEMENT
 # ============================================================================
 
-# Close window (SUPER+W)
-alt - w : yabai -m window --close
+# Close window (SUPER+W) — fallback to native close if yabai fails
+alt - w : yabai -m window --close || skhd -k "cmd - w"
 
 # Toggle float and center (SUPER+T)
 alt - t : yabai -m window --toggle float --grid 4:4:1:1:2:2
 
-# Toggle fullscreen (SUPER+F)
-alt - f : yabai -m window --toggle zoom-fullscreen
+# Toggle fullscreen (SUPER+F) — zoom-parent stays in tile, no macOS animation
+alt - f : yabai -m window --toggle zoom-parent
 
-# Toggle split direction (SUPER+J)
+# Toggle split direction (SUPER+J) — only works with 2+ tiled windows
 alt - j : yabai -m window --toggle split
 
 # ============================================================================
