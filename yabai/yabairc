@@ -15,7 +15,7 @@ sudo yabai --load-sa
 yabai -m config layout bsp
 
 # Gaps and padding (matching reference: gaps_in=5, gaps_out=10)
-yabai -m config top_padding    36  # 26px bar + 10px outer gap
+yabai -m config top_padding    37  # 32px bar + 5px gap
 yabai -m config bottom_padding 10
 yabai -m config left_padding   10
 yabai -m config right_padding  10
