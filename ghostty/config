@@ -4,8 +4,11 @@ font-size = 22
 
 # Appearance
 background-opacity = 1
-window-padding-x = 0
-window-padding-y = 0
+window-padding-x = 14
+window-padding-y = 14
+window-decoration = false
+confirm-close-surface = false
+resize-overlay = never
 
 # Cursor
 cursor-style = block
@@ -16,7 +19,7 @@ shell-integration = zsh
 
 # macOS specific
 macos-option-as-alt = true
-macos-titlebar-style = transparent
+macos-titlebar-style = hidden
 
 # Theme (Catppuccin Mocha - aligned with Neovim/tmux)
 theme = catppuccin-mocha
