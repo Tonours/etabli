@@ -3,8 +3,6 @@
 # macOS performance optimization — aggressive mode
 # Usage: macos-optimize.sh [apply|daemon|reset]
 
-set -e
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -31,8 +29,8 @@ disable_animations() {
     defaults write com.apple.dock springboard-show-duration -float 0
     defaults write com.apple.dock springboard-hide-duration -float 0
     defaults write com.apple.finder DisableAllAnimations -bool true
-    defaults write com.apple.universalaccess reduceMotion -bool true
-    defaults write com.apple.universalaccess reduceTransparency -bool true
+    sudo defaults write com.apple.universalaccess reduceMotion -bool true 2>/dev/null || true
+    sudo defaults write com.apple.universalaccess reduceTransparency -bool true 2>/dev/null || true
     defaults write NSGlobalDomain NSScrollAnimationEnabled -bool false
 
     ok "Animations disabled"
@@ -50,8 +48,8 @@ restore_animations() {
     defaults delete com.apple.dock springboard-show-duration 2>/dev/null || true
     defaults delete com.apple.dock springboard-hide-duration 2>/dev/null || true
     defaults delete com.apple.finder DisableAllAnimations 2>/dev/null || true
-    defaults delete com.apple.universalaccess reduceMotion 2>/dev/null || true
-    defaults delete com.apple.universalaccess reduceTransparency 2>/dev/null || true
+    sudo defaults delete com.apple.universalaccess reduceMotion 2>/dev/null || true
+    sudo defaults delete com.apple.universalaccess reduceTransparency 2>/dev/null || true
     defaults delete NSGlobalDomain NSScrollAnimationEnabled 2>/dev/null || true
 
     ok "Animations restored to defaults"
