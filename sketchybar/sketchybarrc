@@ -1,0 +1,133 @@
+#!/bin/bash
+
+source "$CONFIG_DIR/colors.sh"
+source "$CONFIG_DIR/icons.sh"
+
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+FONT="JetBrainsMono Nerd Font"
+
+# ============================================================================
+# BAR
+# ============================================================================
+sketchybar --bar \
+    position=top \
+    height=26 \
+    color="$BAR_COLOR" \
+    border_width=0 \
+    shadow=off \
+    blur_radius=0 \
+    corner_radius=0 \
+    y_offset=0 \
+    margin=0 \
+    padding_left=8 \
+    padding_right=8 \
+    topmost=window
+
+# ============================================================================
+# DEFAULTS
+# ============================================================================
+sketchybar --default \
+    icon.font="$FONT:Bold:12.0" \
+    icon.color="$TEXT" \
+    label.font="$FONT:Regular:12.0" \
+    label.color="$TEXT" \
+    background.color="$BAR_COLOR" \
+    background.height=26 \
+    padding_left=4 \
+    padding_right=4
+
+# ============================================================================
+# LEFT: Apple logo + Workspaces
+# ============================================================================
+
+# Apple logo
+sketchybar --add item apple left \
+    --set apple \
+        icon="$ICON_APPLE" \
+        icon.color="$MAUVE" \
+        icon.font="$FONT:Bold:14.0" \
+        icon.padding_left=4 \
+        icon.padding_right=8 \
+        label.drawing=off
+
+# Workspace indicators (1-9)
+for i in $(seq 1 9); do
+    sketchybar --add space space."$i" left \
+        --set space."$i" \
+            associated_space="$i" \
+            icon.drawing=off \
+            label="$i" \
+            label.font="$FONT:Bold:12.0" \
+            label.color="$OVERLAY0" \
+            label.padding_left=6 \
+            label.padding_right=6 \
+            background.color="$MANTLE" \
+            background.corner_radius=0 \
+            background.height=26 \
+            script="$PLUGIN_DIR/space.sh" \
+            click_script="yabai -m space --focus $i"
+done
+
+# Front app name
+sketchybar --add item front_app left \
+    --set front_app \
+        icon.drawing=off \
+        label.font="$FONT:Bold:12.0" \
+        label.color="$SUBTEXT1" \
+        label.padding_left=8 \
+        script="$PLUGIN_DIR/front_app.sh" \
+    --subscribe front_app front_app_switched
+
+# ============================================================================
+# CENTER: Clock
+# ============================================================================
+sketchybar --add item clock center \
+    --set clock \
+        icon.drawing=off \
+        label.font="$FONT:Regular:12.0" \
+        label.color="$TEXT" \
+        update_freq=30 \
+        script="$PLUGIN_DIR/clock.sh"
+
+# ============================================================================
+# RIGHT: System info (icons only, minimal)
+# ============================================================================
+
+# WiFi
+sketchybar --add item wifi right \
+    --set wifi \
+        icon.font="$FONT:Bold:14.0" \
+        label.drawing=off \
+        update_freq=30 \
+        script="$PLUGIN_DIR/wifi.sh"
+
+# Volume
+sketchybar --add item volume right \
+    --set volume \
+        icon.font="$FONT:Bold:14.0" \
+        label.drawing=off \
+        update_freq=10 \
+        script="$PLUGIN_DIR/volume.sh" \
+    --subscribe volume volume_change
+
+# CPU
+sketchybar --add item cpu right \
+    --set cpu \
+        icon.font="$FONT:Bold:14.0" \
+        label.drawing=off \
+        update_freq=30 \
+        script="$PLUGIN_DIR/cpu.sh"
+
+# Battery
+sketchybar --add item battery right \
+    --set battery \
+        icon.font="$FONT:Bold:14.0" \
+        label.drawing=off \
+        update_freq=60 \
+        script="$PLUGIN_DIR/battery.sh" \
+    --subscribe battery power_source_change system_woke
+
+# ============================================================================
+# INIT
+# ============================================================================
+sketchybar --update
