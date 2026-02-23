@@ -389,6 +389,24 @@ else
 fi
 
 # ============================================================================
+# SETUP OPENCODE
+# ============================================================================
+print_step "Setting up OpenCode config..."
+
+mkdir -p ~/.config/opencode
+
+for f in opencode.json dcp.jsonc; do
+    if [ -f "$REPO_DIR/opencode/$f" ]; then
+        if [ -f ~/.config/opencode/$f ] && [ ! -L ~/.config/opencode/$f ]; then
+            print_warning "Backing up existing opencode/$f"
+            cp ~/.config/opencode/$f ~/.config/opencode/$f.bak
+        fi
+        ln -sf "$REPO_DIR/opencode/$f" ~/.config/opencode/$f
+        print_success "OpenCode $f linked"
+    fi
+done
+
+# ============================================================================
 # SETUP TILING WM (macOS only)
 # ============================================================================
 if [[ "$OS" == "mac" ]]; then
