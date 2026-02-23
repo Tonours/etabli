@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# JankyBorders — active window border with gradient
+# Cyan-to-green gradient matching tiling desktop aesthetic
+
+options=(
+    style=round
+    width=2.0
+    hidpi=on
+    active_color="gradient(top_left=0xee33ccff,bottom_right=0xee00ff99)"
+    inactive_color="0xaa595959"
+    blacklist="Sol,System Settings,Calculator,Activity Monitor,1Password,Archive Utility,Installer"
+)
+
+borders "${options[@]}"
