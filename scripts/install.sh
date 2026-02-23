@@ -128,9 +128,17 @@ if [[ "$OS" == "mac" ]]; then
     fi
 
     # Note: node/npm installed via nvm below
-    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh || {
+    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship || {
         print_warning "Some brew packages may have failed"
     }
+
+    # Tiling WM stack (macOS only)
+    print_step "Installing tiling WM tools..."
+    brew install koekeishiya/formulae/yabai 2>/dev/null || true
+    brew install koekeishiya/formulae/skhd 2>/dev/null || true
+    brew install FelixKratz/formulae/sketchybar 2>/dev/null || true
+    brew install FelixKratz/formulae/borders 2>/dev/null || true
+    brew install --cask sol 2>/dev/null || true
 
     # Nerd Font via Homebrew (for Ghostty)
     brew tap homebrew/cask-fonts 2>/dev/null || true
@@ -381,6 +389,64 @@ else
 fi
 
 # ============================================================================
+# SETUP TILING WM (macOS only)
+# ============================================================================
+if [[ "$OS" == "mac" ]]; then
+    print_step "Setting up tiling WM configs..."
+
+    # Yabai
+    mkdir -p ~/.config/yabai
+    if [ -f "$REPO_DIR/yabai/yabairc" ]; then
+        ln -sf "$REPO_DIR/yabai/yabairc" ~/.config/yabai/yabairc
+        chmod +x ~/.config/yabai/yabairc
+        print_success "Yabai config linked"
+    fi
+
+    # skhd
+    mkdir -p ~/.config/skhd
+    if [ -f "$REPO_DIR/skhd/skhdrc" ]; then
+        ln -sf "$REPO_DIR/skhd/skhdrc" ~/.config/skhd/skhdrc
+        print_success "skhd config linked"
+    fi
+
+    # SketchyBar (directory symlink)
+    if [ -d "$REPO_DIR/sketchybar" ]; then
+        if [ -d ~/.config/sketchybar ] && [ ! -L ~/.config/sketchybar ]; then
+            mv ~/.config/sketchybar ~/.config/sketchybar.bak
+        fi
+        ln -sfn "$REPO_DIR/sketchybar" ~/.config/sketchybar
+        print_success "SketchyBar config linked"
+    fi
+
+    # JankyBorders
+    mkdir -p ~/.config/borders
+    if [ -f "$REPO_DIR/borders/bordersrc" ]; then
+        ln -sf "$REPO_DIR/borders/bordersrc" ~/.config/borders/bordersrc
+        print_success "JankyBorders config linked"
+    fi
+
+    # Starship
+    if [ -f "$REPO_DIR/starship/starship.toml" ]; then
+        ln -sf "$REPO_DIR/starship/starship.toml" ~/.config/starship.toml
+        print_success "Starship config linked"
+    fi
+
+    # Add starship init to zshrc if not present
+    if [ -f ~/.zshrc ] && ! grep -q 'starship init' ~/.zshrc 2>/dev/null; then
+        echo 'eval "$(starship init zsh)"' >> ~/.zshrc
+        print_success "Starship init added to .zshrc"
+    fi
+
+    # Start tiling services
+    print_step "Starting tiling WM services..."
+    yabai --start-service 2>/dev/null || true
+    skhd --start-service 2>/dev/null || true
+    brew services start sketchybar 2>/dev/null || true
+    brew services start borders 2>/dev/null || true
+    print_success "Tiling WM services started"
+fi
+
+# ============================================================================
 # INSTALL DEV SCRIPTS
 # ============================================================================
 print_step "Installing dev scripts..."
@@ -398,6 +464,9 @@ install_script "tmux-clipboard.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
 install_script "nightshift" || true
+install_script "macos-optimize.sh" || true
+install_script "omarchy-toggle.sh" || true
+install_script "yabai-sudoers-update.sh" || true
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do
@@ -481,3 +550,29 @@ printf "  ${YELLOW}claude-usage.sh setup${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
+if [[ "$OS" == "mac" ]]; then
+printf "  ${BLUE}Tiling WM (macOS) — Manual Steps Required:${NC}\n"
+echo ""
+printf "  1. ${YELLOW}Partially disable SIP${NC} (Recovery Mode):\n"
+printf "     Boot to Recovery > Terminal > csrutil enable --without fs --without debug --without nvram\n"
+printf "  2. ${YELLOW}Configure yabai sudoers${NC}:\n"
+printf "     ${YELLOW}yabai-sudoers-update.sh${NC}\n"
+printf "  3. ${YELLOW}Create 5+ Mission Control Spaces${NC} (System Settings > Desktop & Dock)\n"
+printf "     Also disable: \"Automatically rearrange Spaces based on most recent use\"\n"
+printf "  4. ${YELLOW}Hide macOS menu bar${NC} (System Settings > Control Center > Menu Bar Only)\n"
+printf "  5. ${YELLOW}Configure Sol hotkey${NC} (alt+space) in Sol preferences\n"
+printf "  6. ${YELLOW}Apply performance optimizations${NC}:\n"
+printf "     ${YELLOW}macos-optimize.sh apply${NC}\n"
+echo ""
+printf "  ${BLUE}Tiling WM Shortcuts:${NC}\n"
+printf "  alt+1..9        Switch workspace\n"
+printf "  alt+arrows      Focus window direction\n"
+printf "  alt+shift+arrows Swap windows\n"
+printf "  alt+return      Open Ghostty\n"
+printf "  alt+w           Close window\n"
+printf "  alt+f           Toggle fullscreen\n"
+printf "  alt+t           Toggle float\n"
+echo ""
+echo "-------------------------------------------------------------------"
+echo ""
+fi
