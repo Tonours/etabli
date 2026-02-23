@@ -34,14 +34,15 @@
     "plan": {
       "mode": "primary",
       "model": "kimi-for-coding/k2p5",
-      "description": "Planification et analyse (etape 1 - K2.5)"
+      "description": "Planification et analyse (etape 1 - K2.5)",
+      "prompt": "Include in plan:\n- Goal: What we're building and why\n- Files to modify: List with rationale\n- Implementation steps: Ordered, with verification for each\n- Verification commands: Test commands and expected output\n- Risks: What could go wrong, rollback strategy\n- Dependencies: External deps, blockers\nWrite plan to ./PLAN.md. Do NOT write code yet. Iterate on plan until approved."
     },
     "plan_review": {
       "mode": "primary",
       "model": "openai/gpt-5.3-codex",
       "variant": "xhigh",
       "description": "Review de plan (etape 2 - Lead SWE)",
-      "prompt": "As a lead software engineer review and update this plan"
+      "prompt": "Read ./PLAN.md as a staff engineer conducting design review.\nContext: git diff --stat HEAD~5..HEAD 2>/dev/null || echo 'No recent commits'\nFor each issue found:\n- Severity: blocking / important / suggestion\n- Description: Clear explanation of the concern\n- Recommended fix: Specific, actionable\nFocus areas:\n- Logic gaps and missed edge cases\n- Architectural concerns\n- Performance implications\n- Security vulnerabilities\n- Regression risks\n- Over-engineering (can it be simpler?)\n- Missing verification steps\nWrite review to ./REVIEW.md"
     }
   },
 
