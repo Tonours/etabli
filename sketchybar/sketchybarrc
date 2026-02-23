@@ -21,7 +21,8 @@ sketchybar --bar \
     margin=0 \
     padding_left=8 \
     padding_right=8 \
-    topmost=window
+    notch_width=0 \
+    topmost=on
 
 # ============================================================================
 # DEFAULTS
