@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Toggle tiling WM stack on/off
-# Usage: omarchy-toggle.sh [on|off]
+# Usage: tiling-toggle.sh [on|off]
 
 set -e
 
@@ -70,7 +70,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        echo "Usage: omarchy-toggle.sh [on|off]"
+        echo "Usage: tiling-toggle.sh [on|off]"
         echo ""
         echo "  on   — Start yabai, skhd, sketchybar, borders"
         echo "  off  — Stop all tiling services"
