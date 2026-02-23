@@ -47,7 +47,7 @@ scripts/
   nightshift                Overnight batch runner
   dev-spawn                 Launch local + VPS tmux sessions
   macos-optimize.sh         Aggressive macOS perf optimization
-  omarchy-toggle.sh         Toggle tiling stack on/off
+  tiling-toggle.sh          Toggle tiling stack on/off
   yabai-sudoers-update.sh   Regenerate yabai sudoers after brew upgrade
   tmux-clipboard.sh         Cross-platform clipboard (pbcopy/wl-copy/xclip/OSC52)
   tmux-claude-status.sh     Claude session count in tmux status bar
@@ -210,9 +210,9 @@ Keyboard-driven tiling window management using Yabai + skhd, with SketchyBar and
 ### Utility Scripts
 
 ```bash
-omarchy-toggle.sh          # Toggle tiling stack on/off
-omarchy-toggle.sh on       # Start yabai, skhd, sketchybar, borders
-omarchy-toggle.sh off      # Stop all tiling services
+tiling-toggle.sh           # Toggle tiling stack on/off
+tiling-toggle.sh on        # Start yabai, skhd, sketchybar, borders
+tiling-toggle.sh off       # Stop all tiling services
 
 macos-optimize.sh apply    # Disable animations, services, clean RAM
 macos-optimize.sh daemon   # RAM cleanup loop (every 5 min)

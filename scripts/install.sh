@@ -465,7 +465,7 @@ install_script "cw" || true
 install_script "cw-clean" || true
 install_script "nightshift" || true
 install_script "macos-optimize.sh" || true
-install_script "omarchy-toggle.sh" || true
+install_script "tiling-toggle.sh" || true
 install_script "yabai-sudoers-update.sh" || true
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
