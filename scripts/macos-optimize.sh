@@ -56,6 +56,40 @@ restore_animations() {
 }
 
 # ============================================================================
+# KEYBOARD REPEAT RATE (fast for vim users)
+# ============================================================================
+optimize_keyboard() {
+    log "Optimizing keyboard repeat rate..."
+
+    defaults write NSGlobalDomain KeyRepeat -int 1
+    defaults write NSGlobalDomain InitialKeyRepeat -int 10
+    defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
+
+    ok "Keyboard repeat: fast (1/10), press-and-hold disabled"
+}
+
+restore_keyboard() {
+    log "Restoring keyboard defaults..."
+
+    defaults delete NSGlobalDomain KeyRepeat 2>/dev/null || true
+    defaults delete NSGlobalDomain InitialKeyRepeat 2>/dev/null || true
+    defaults delete NSGlobalDomain ApplePressAndHoldEnabled 2>/dev/null || true
+
+    ok "Keyboard restored to defaults"
+}
+
+# ============================================================================
+# DOCK CLEANUP (use Sol launcher instead)
+# ============================================================================
+clean_dock() {
+    log "Cleaning Dock (pinned apps removed)..."
+
+    defaults write com.apple.dock persistent-apps -array
+
+    ok "Dock cleaned — use Sol for app launching"
+}
+
+# ============================================================================
 # SYSTEM SERVICES
 # ============================================================================
 disable_services() {
@@ -151,6 +185,8 @@ case "${1:-apply}" in
         echo "  =========================================="
         echo ""
         disable_animations
+        optimize_keyboard
+        clean_dock
         disable_services
         disable_indexing
         cleanup_ram
@@ -170,6 +206,7 @@ case "${1:-apply}" in
         echo "  ========================"
         echo ""
         restore_animations
+        restore_keyboard
         restore_services
         restore_indexing
         killall Dock 2>/dev/null || true
