@@ -128,7 +128,7 @@ if [[ "$OS" == "mac" ]]; then
     fi
 
     # Note: node/npm installed via nvm below
-    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship || {
+    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
         print_warning "Some brew packages may have failed"
     }
 
@@ -453,6 +453,24 @@ if [[ "$OS" == "mac" ]]; then
     if [ -f ~/.zshrc ] && ! grep -q 'starship init' ~/.zshrc 2>/dev/null; then
         echo 'eval "$(starship init zsh)"' >> ~/.zshrc
         print_success "Starship init added to .zshrc"
+    fi
+
+    # btop
+    mkdir -p ~/.config/btop/themes
+    if [ -f "$REPO_DIR/btop/btop.conf" ]; then
+        ln -sf "$REPO_DIR/btop/btop.conf" ~/.config/btop/btop.conf
+        print_success "btop config linked"
+    fi
+    if [ -f "$REPO_DIR/btop/themes/catppuccin_mocha.theme" ]; then
+        ln -sf "$REPO_DIR/btop/themes/catppuccin_mocha.theme" ~/.config/btop/themes/catppuccin_mocha.theme
+        print_success "btop Catppuccin theme linked"
+    fi
+
+    # fastfetch
+    mkdir -p ~/.config/fastfetch
+    if [ -f "$REPO_DIR/fastfetch/config.jsonc" ]; then
+        ln -sf "$REPO_DIR/fastfetch/config.jsonc" ~/.config/fastfetch/config.jsonc
+        print_success "fastfetch config linked"
     fi
 
     # Start tiling services
