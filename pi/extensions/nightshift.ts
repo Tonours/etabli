@@ -5,7 +5,7 @@
  * Commands:
  *   /nightshift init [--force]     - Create tasks template
  *   /nightshift list               - List parsed tasks
- *   /nightshift run [--dry-run]    - Execute tasks
+ *   /nightshift run [--dry-run] [--verify-only] - Execute tasks
  *   /nightshift status             - Show task status
  */
 
@@ -39,6 +39,10 @@ function runNightshift(args: string[]): Promise<{ stdout: string; stderr: string
       stderr += data.toString();
     });
 
+    child.on("error", (error) => {
+      resolve({ stdout, stderr: `${stderr}\n${error.message}`.trim(), code: 127 });
+    });
+
     child.on("close", (code) => {
       resolve({ stdout, stderr, code: code ?? 1 });
     });
@@ -70,6 +74,10 @@ export default function (pi: ExtensionAPI) {
           type: "boolean",
           description: "Dry run mode for run command",
         },
+        verifyOnly: {
+          type: "boolean",
+          description: "Run checks only, skip commit/push",
+        },
         only: {
           type: "string",
           description: "Comma-separated task IDs to run",
@@ -78,10 +86,11 @@ export default function (pi: ExtensionAPI) {
       required: ["subcommand"],
     },
     async execute(params) {
-      const { subcommand, force, dryRun, only } = params as {
+      const { subcommand, force, dryRun, verifyOnly, only } = params as {
         subcommand: string;
         force?: boolean;
         dryRun?: boolean;
+        verifyOnly?: boolean;
         only?: string;
       };
 
@@ -93,6 +102,7 @@ export default function (pi: ExtensionAPI) {
 
       if (subcommand === "run") {
         if (dryRun) args.push("--dry-run");
+        if (verifyOnly) args.push("--verify-only");
         if (only) {
           args.push("--only", only);
         }
