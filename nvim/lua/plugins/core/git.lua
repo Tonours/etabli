@@ -37,22 +37,22 @@ return {
     },
   },
 
-  -- Keymap to open CLAUDE.md
+  -- Keymap to open AGENTS.md
   {
     dir = ".",
-    name = "claude-keymaps",
+    name = "agent-keymaps",
     keys = {
       {
         "<leader>cm",
         function()
-          local claude_md = vim.fn.findfile("CLAUDE.md", vim.fn.getcwd() .. ";")
-          if claude_md ~= "" then
-            vim.cmd("edit " .. vim.fn.fnameescape(claude_md))
+          local agents_md = vim.fn.findfile("AGENTS.md", vim.fn.getcwd() .. ";")
+          if agents_md ~= "" then
+            vim.cmd("edit " .. vim.fn.fnameescape(agents_md))
           else
-            vim.notify("CLAUDE.md not found", vim.log.levels.WARN)
+            vim.notify("AGENTS.md not found", vim.log.levels.WARN)
           end
         end,
-        desc = "Edit CLAUDE.md",
+        desc = "Edit AGENTS.md",
       },
     },
   },

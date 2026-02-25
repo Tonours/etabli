@@ -2,7 +2,6 @@
 .DS_Store
 
 # Local settings (may contain sensitive data)
-.claude/
 *.local.json
 settings.local.json
 

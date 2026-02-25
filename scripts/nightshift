@@ -9,8 +9,8 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$HOME/projects}"
-WORKTREE_ROOT="${CLAUDE_WORKTREE_ROOT:-$PROJECT_ROOT/worktrees}"
+PROJECT_ROOT="${PI_PROJECT_ROOT:-$HOME/projects}"
+WORKTREE_ROOT="${PI_WORKTREE_ROOT:-$PROJECT_ROOT/worktrees}"
 
 STATE_DIR="${NIGHTSHIFT_STATE_DIR:-$HOME/.local/state/nightshift}"
 TASKS_FILE_DEFAULT="${STATE_DIR}/tasks.md"
@@ -28,20 +28,20 @@ Usage:
   nightshift status
 
 Environment:
-  CLAUDE_PROJECT_ROOT   (default: ~/projects)
-  CLAUDE_WORKTREE_ROOT  (default: $CLAUDE_PROJECT_ROOT/worktrees)
+  PI_PROJECT_ROOT       (default: ~/projects)
+  PI_WORKTREE_ROOT      (default: $PI_PROJECT_ROOT/worktrees)
   NIGHTSHIFT_STATE_DIR  (default: ~/.local/state/nightshift)
 
 Task format (Markdown):
   Each task is a block:
 
     ## TASK <id>
-    repo: my-repo               # under $CLAUDE_PROJECT_ROOT
+    repo: my-repo               # under $PI_PROJECT_ROOT
     # or:
     path: /abs/path/to/repo     # overrides repo
     base: main
     branch: night/<id>          # optional
-    engine: codex               # codex | claude | none
+    engine: codex               # codex | none
     verify:
     - bun test
     - npm test
@@ -481,30 +481,6 @@ Constraints:
 If you need to choose between options, pick the simplest that ships.
 __NIGHTSHIFT_ENGINE_PROMPT__
         (cd "$wt" && codex exec --full-auto -C "$wt" -o "$logf" - < .nightshift/ENGINE_PROMPT.txt) || engine_failed=1
-        ;;
-      claude)
-        need_bin claude
-        cat >"$wt/.nightshift/ENGINE_PROMPT.txt" <<'__NIGHTSHIFT_ENGINE_PROMPT__'
-You are a senior engineer running an overnight batch task.
-
-Read .nightshift/TASK.md and implement it.
-Constraints:
-- No browser.
-- Do not create PRs.
-- Do not merge.
-- Prefer minimal changes.
-- After implementation, run the verify commands listed in the task (if any).
-- Leave the working tree in a clean state if possible.
-
-If you need to choose between options, pick the simplest that ships.
-__NIGHTSHIFT_ENGINE_PROMPT__
-        # Non-interactive run. We bypass permissions explicitly (workstation-only).
-        (
-          cd "$wt" && \
-          cat .nightshift/ENGINE_PROMPT.txt .nightshift/TASK.md | \
-            claude -p --input-format text --permission-mode bypassPermissions --dangerously-skip-permissions \
-              >"$logf" 2>&1
-        ) || engine_failed=1
         ;;
       none)
         ;;
