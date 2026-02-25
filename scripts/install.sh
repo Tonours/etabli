@@ -481,11 +481,14 @@ if ! command -v pi &> /dev/null; then
         print_warning "Pi install failed (npm i -g @mariozechner/pi-coding-agent)"
 fi
 
-# Install packages (mitsupi, checkpoint)
+# Install packages (core + agentic plugins)
 if command -v pi &> /dev/null; then
     print_step "Installing Pi packages..."
     pi install npm:mitsupi 2>/dev/null && print_success "mitsupi installed" || true
     pi install npm:checkpoint 2>/dev/null && print_success "checkpoint installed" || true
+    pi install npm:pi-notify 2>/dev/null && print_success "pi-notify installed" || true
+    pi install git:github.com/ogulcancelik/pi-ghostty-theme-sync 2>/dev/null && print_success "pi-ghostty-theme-sync installed" || true
+    pi install git:github.com/badlogic/pi-skills 2>/dev/null && print_success "pi-skills installed" || true
 fi
 
 # ============================================================================
