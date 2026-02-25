@@ -23,6 +23,9 @@ Before leaving:
 If you only want execution + checks (no commit/push):
 - `nightshift run --verify-only`
 
+If you want strict task hygiene (every task must define verify commands):
+- `nightshift run --require-verify`
+
 Next morning:
 - `nightshift status`
 - check `~/.local/state/nightshift/last-run-report.md`
@@ -66,6 +69,7 @@ Fields:
 
 Nightshift now writes structured run artifacts:
 - `~/.local/state/nightshift/last-run-report.md` (latest run summary)
+- `~/.local/state/nightshift/last-run-report.json` (machine-readable summary)
 - `~/.local/state/nightshift/history.jsonl` (per-task history for metrics)
 - `~/.local/state/nightshift/logs/<task>-<timestamp>.log` (engine logs)
 
