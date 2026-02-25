@@ -15,9 +15,12 @@ WORKTREE_ROOT="${PI_WORKTREE_ROOT:-$PROJECT_ROOT/worktrees}"
 STATE_DIR="${NIGHTSHIFT_STATE_DIR:-$HOME/.local/state/nightshift}"
 TASKS_FILE_DEFAULT="${STATE_DIR}/tasks.md"
 STATE_FILE="${STATE_DIR}/state.json"
+STATE_LOCK_FILE="${STATE_DIR}/state.lock"
+HISTORY_LOCK_FILE="${STATE_DIR}/history.lock"
 LOG_DIR="${STATE_DIR}/logs"
 HISTORY_FILE="${STATE_DIR}/history.jsonl"
 LAST_REPORT_FILE="${STATE_DIR}/last-run-report.md"
+LAST_REPORT_JSON_FILE="${STATE_DIR}/last-run-report.json"
 
 now_iso() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
@@ -26,7 +29,7 @@ usage() {
 Usage:
   nightshift init [--force] [tasks.md]
   nightshift list [tasks.md]
-  nightshift run  [--tasks tasks.md] [--limit N] [--only id1,id2] [--dry-run] [--verify-only]
+  nightshift run  [--tasks tasks.md] [--limit N] [--only id1,id2] [--dry-run] [--verify-only] [--require-verify]
   nightshift status
 
 Environment:
@@ -65,6 +68,8 @@ ensure_dirs() {
   if [[ ! -f "$HISTORY_FILE" ]]; then
     : >"$HISTORY_FILE"
   fi
+  : >>"$STATE_LOCK_FILE"
+  : >>"$HISTORY_LOCK_FILE"
 }
 
 write_template() {
@@ -189,39 +194,63 @@ PY
 
 state_set() {
   local id="$1" key="$2" val="$3"
-  python3 - "$STATE_FILE" "$id" "$key" "$val" <<'PY'
-import json, sys
-p, tid, key, val = sys.argv[1:5]
-try:
-  d=json.load(open(p,'r',encoding='utf-8'))
-except Exception:
-  d={'version':1,'tasks':{}}
-d.setdefault('tasks', {}).setdefault(tid, {})[key]=val
-with open(p,'w',encoding='utf-8') as f:
-  json.dump(d,f,indent=2,ensure_ascii=True)
+  python3 - "$STATE_FILE" "$STATE_LOCK_FILE" "$id" "$key" "$val" <<'PY'
+import json
+import sys
+
+state_file, lock_file, task_id, key, value = sys.argv[1:6]
+
+with open(lock_file, 'a+', encoding='utf-8') as lock:
+  import fcntl
+  fcntl.flock(lock, fcntl.LOCK_EX)
+
+  try:
+    with open(state_file, 'r', encoding='utf-8') as f:
+      data = json.load(f)
+  except Exception:
+    data = {'version': 1, 'tasks': {}}
+
+  data.setdefault('tasks', {}).setdefault(task_id, {})[key] = value
+
+  with open(state_file, 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=True)
+
+  fcntl.flock(lock, fcntl.LOCK_UN)
 PY
 }
 
 state_get_status() {
   local id="$1"
-  python3 - "$STATE_FILE" "$id" <<'PY'
-import json, sys
-p, tid = sys.argv[1:3]
-try:
-  d=json.load(open(p,'r',encoding='utf-8'))
-except Exception:
-  print('')
-  raise SystemExit(0)
-print(d.get('tasks', {}).get(tid, {}).get('status',''))
+  python3 - "$STATE_FILE" "$STATE_LOCK_FILE" "$id" <<'PY'
+import json
+import sys
+
+state_file, lock_file, task_id = sys.argv[1:4]
+
+with open(lock_file, 'a+', encoding='utf-8') as lock:
+  import fcntl
+  fcntl.flock(lock, fcntl.LOCK_SH)
+
+  try:
+    with open(state_file, 'r', encoding='utf-8') as f:
+      data = json.load(f)
+  except Exception:
+    data = {'version': 1, 'tasks': {}}
+
+  print(data.get('tasks', {}).get(task_id, {}).get('status', ''))
+  fcntl.flock(lock, fcntl.LOCK_UN)
 PY
 }
 
 append_history() {
   local run_id="$1" task_id="$2" status="$3" verify_status="$4" engine="$5" branch="$6" repo_dir="$7" worktree="$8" started_at="$9" ended_at="${10}" error_msg="${11}" log_file="${12}" verify_only="${13}"
-  python3 - "$HISTORY_FILE" "$run_id" "$task_id" "$status" "$verify_status" "$engine" "$branch" "$repo_dir" "$worktree" "$started_at" "$ended_at" "$error_msg" "$log_file" "$verify_only" <<'PY'
-import json, sys
+  python3 - "$HISTORY_FILE" "$HISTORY_LOCK_FILE" "$run_id" "$task_id" "$status" "$verify_status" "$engine" "$branch" "$repo_dir" "$worktree" "$started_at" "$ended_at" "$error_msg" "$log_file" "$verify_only" <<'PY'
+import json
+import sys
+
 (
   history_file,
+  lock_file,
   run_id,
   task_id,
   status,
@@ -236,6 +265,7 @@ import json, sys
   log_file,
   verify_only,
 ) = sys.argv[1:]
+
 entry = {
   "runId": run_id,
   "taskId": task_id,
@@ -251,8 +281,105 @@ entry = {
   "logFile": log_file,
   "verifyOnly": verify_only == "true",
 }
-with open(history_file, "a", encoding="utf-8") as f:
+
+with open(lock_file, 'a+', encoding='utf-8') as lock:
+  import fcntl
+  fcntl.flock(lock, fcntl.LOCK_EX)
+  with open(history_file, "a", encoding="utf-8") as f:
+    f.write(json.dumps(entry, ensure_ascii=True) + "\n")
+  fcntl.flock(lock, fcntl.LOCK_UN)
+PY
+}
+
+append_run_report_task() {
+  local run_tasks_file="$1" task_id="$2" status="$3" verify_status="$4" branch="$5" engine="$6" repo_dir="$7" worktree="$8" started_at="$9" ended_at="${10}" error_msg="${11}" log_file="${12}"
+  python3 - "$run_tasks_file" "$task_id" "$status" "$verify_status" "$branch" "$engine" "$repo_dir" "$worktree" "$started_at" "$ended_at" "$error_msg" "$log_file" <<'PY'
+import json
+import sys
+
+(
+  run_tasks_file,
+  task_id,
+  status,
+  verify_status,
+  branch,
+  engine,
+  repo_dir,
+  worktree,
+  started_at,
+  ended_at,
+  error_msg,
+  log_file,
+) = sys.argv[1:]
+
+entry = {
+  "taskId": task_id,
+  "status": status,
+  "verify": verify_status,
+  "branch": branch,
+  "engine": engine,
+  "repoDir": repo_dir,
+  "worktree": worktree,
+  "startedAt": started_at,
+  "endedAt": ended_at,
+  "error": error_msg,
+  "logFile": log_file,
+}
+
+with open(run_tasks_file, "a", encoding="utf-8") as f:
   f.write(json.dumps(entry, ensure_ascii=True) + "\n")
+PY
+}
+
+write_run_json_report() {
+  local run_tasks_file="$1" run_id="$2" run_started="$3" run_finished="$4" verify_only="$5" require_verify="$6" tasks_file="$7" done_count="$8" failed_count="$9" skipped_count="${10}"
+  python3 - "$run_tasks_file" "$LAST_REPORT_JSON_FILE" "$run_id" "$run_started" "$run_finished" "$verify_only" "$require_verify" "$tasks_file" "$done_count" "$failed_count" "$skipped_count" <<'PY'
+import json
+import sys
+
+(
+  run_tasks_file,
+  output_file,
+  run_id,
+  run_started,
+  run_finished,
+  verify_only,
+  require_verify,
+  tasks_file,
+  done_count,
+  failed_count,
+  skipped_count,
+) = sys.argv[1:]
+
+tasks = []
+try:
+  with open(run_tasks_file, 'r', encoding='utf-8') as f:
+    for line in f:
+      line = line.strip()
+      if not line:
+        continue
+      tasks.append(json.loads(line))
+except Exception:
+  tasks = []
+
+report = {
+  "runId": run_id,
+  "startedAt": run_started,
+  "finishedAt": run_finished,
+  "verifyOnly": verify_only == "true",
+  "requireVerify": require_verify == "true",
+  "tasksFile": tasks_file,
+  "summary": {
+    "done": int(done_count),
+    "failed": int(failed_count),
+    "skipped": int(skipped_count),
+  },
+  "tasks": tasks,
+}
+
+with open(output_file, 'w', encoding='utf-8') as f:
+  json.dump(report, f, indent=2, ensure_ascii=True)
+  f.write('\n')
 PY
 }
 
@@ -400,6 +527,7 @@ cmd_run() {
   local only=""
   local dry_run=false
   local verify_only=false
+  local require_verify=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -408,6 +536,7 @@ cmd_run() {
       --only) only="${2:?}"; shift 2 ;;
       --dry-run) dry_run=true; shift ;;
       --verify-only) verify_only=true; shift ;;
+      --require-verify) require_verify=true; shift ;;
       -h|--help) usage; exit 0 ;;
       *) echo "Unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -436,10 +565,12 @@ PY
     exit 0
   fi
 
-  local run_id run_started report_file
+  local run_id run_started report_file run_tasks_file
   run_id="$(date -u +%Y%m%d%H%M%S)-$$"
   run_started="$(now_iso)"
   report_file="$LAST_REPORT_FILE"
+  run_tasks_file="${STATE_DIR}/run-${run_id}.jsonl"
+  : >"$run_tasks_file"
 
   local done_count failed_count skipped_count
   done_count=0
@@ -452,6 +583,7 @@ PY
     echo "- Run ID: $run_id"
     echo "- Started at: $run_started"
     echo "- Verify only: $verify_only"
+    echo "- Require verify commands: $require_verify"
     echo "- Tasks file: $tasks_file"
     echo
     echo "| Task | Status | Verify | Branch | Error | Log |"
@@ -476,10 +608,16 @@ PY
     branch="$(echo "$task" | jq -r '.branch')"
     engine="$(echo "$task" | jq -r '.engine // "codex"')"
 
+    local verify_json verify_count
+    verify_json="$(echo "$task" | jq -c '.verify // []')"
+    verify_count="$(echo "$verify_json" | jq 'length')"
+
     local st
     st="$(state_get_status "$id")"
     if [[ "$st" == "done" ]]; then
       skipped_count=$((skipped_count + 1))
+      echo "| $id | skipped | n/a | $branch | already done | - |" >>"$report_file"
+      append_run_report_task "$run_tasks_file" "$id" "skipped" "n/a" "$branch" "$engine" "" "" "" "" "already done" ""
       i=$((i+1))
       continue
     fi
@@ -508,6 +646,7 @@ PY
       echo "[dry-run] $id repo_dir=$repo_dir branch=$branch engine=$engine"
       state_set "$id" status todo
       echo "| $id | dry-run | n/a | $branch | - | - |" >>"$report_file"
+      append_run_report_task "$run_tasks_file" "$id" "dry-run" "n/a" "$branch" "$engine" "$repo_dir" "" "$started_at" "$started_at" "" ""
       skipped_count=$((skipped_count + 1))
       i=$((i+1))
       continue
@@ -521,7 +660,24 @@ PY
       ended_at="$(now_iso)"
       append_history "$run_id" "$id" failed skipped "$engine" "$branch" "$repo_dir" "" "$started_at" "$ended_at" "$not_found_error" "" "$verify_only"
       echo "| $id | failed | skipped | $branch | $not_found_error | - |" >>"$report_file"
+      append_run_report_task "$run_tasks_file" "$id" "failed" "skipped" "$branch" "$engine" "$repo_dir" "" "$started_at" "$ended_at" "$not_found_error" ""
       echo "[fail] $id $not_found_error" >&2
+      failed_count=$((failed_count + 1))
+      i=$((i+1))
+      continue
+    fi
+
+    if [[ "$require_verify" == "true" && "$verify_count" -eq 0 ]]; then
+      local verify_required_error
+      verify_required_error="verify commands required"
+      state_set "$id" status failed
+      state_set "$id" verify failed
+      state_set "$id" lastError "$verify_required_error"
+      ended_at="$(now_iso)"
+      append_history "$run_id" "$id" failed failed "$engine" "$branch" "$repo_dir" "" "$started_at" "$ended_at" "$verify_required_error" "" "$verify_only"
+      echo "| $id | failed | failed | $branch | $verify_required_error | - |" >>"$report_file"
+      append_run_report_task "$run_tasks_file" "$id" "failed" "failed" "$branch" "$engine" "$repo_dir" "" "$started_at" "$ended_at" "$verify_required_error" ""
+      echo "[fail] $id $verify_required_error" >&2
       failed_count=$((failed_count + 1))
       i=$((i+1))
       continue
@@ -588,8 +744,6 @@ __NIGHTSHIFT_ENGINE_PROMPT__
       state_set "$id" lastError "$task_error"
     fi
 
-    local verify_json
-    verify_json="$(echo "$task" | jq -c '.verify // []')"
     if run_verify "$wt" "$verify_json"; then
       verify_status="ok"
       state_set "$id" verify ok
@@ -629,6 +783,7 @@ __NIGHTSHIFT_ENGINE_PROMPT__
       echo "| $id | failed | $verify_status | $branch | ${task_error:-unknown error} | $logf |" >>"$report_file"
       failed_count=$((failed_count + 1))
       append_history "$run_id" "$id" failed "$verify_status" "$engine" "$branch" "$repo_dir" "$wt" "$started_at" "$ended_at" "$task_error" "$logf" "$verify_only"
+      append_run_report_task "$run_tasks_file" "$id" "failed" "$verify_status" "$branch" "$engine" "$repo_dir" "$wt" "$started_at" "$ended_at" "$task_error" "$logf"
     else
       state_set "$id" status done
       state_set "$id" lastError ""
@@ -636,10 +791,14 @@ __NIGHTSHIFT_ENGINE_PROMPT__
       echo "| $id | done | $verify_status | $branch | - | $logf |" >>"$report_file"
       done_count=$((done_count + 1))
       append_history "$run_id" "$id" done "$verify_status" "$engine" "$branch" "$repo_dir" "$wt" "$started_at" "$ended_at" "" "$logf" "$verify_only"
+      append_run_report_task "$run_tasks_file" "$id" "done" "$verify_status" "$branch" "$engine" "$repo_dir" "$wt" "$started_at" "$ended_at" "" "$logf"
     fi
 
     i=$((i+1))
   done
+
+  local run_finished
+  run_finished="$(now_iso)"
 
   {
     echo
@@ -648,10 +807,14 @@ __NIGHTSHIFT_ENGINE_PROMPT__
     echo "- Done: $done_count"
     echo "- Failed: $failed_count"
     echo "- Skipped: $skipped_count"
-    echo "- Finished at: $(now_iso)"
+    echo "- Finished at: $run_finished"
   } >>"$report_file"
 
+  write_run_json_report "$run_tasks_file" "$run_id" "$run_started" "$run_finished" "$verify_only" "$require_verify" "$tasks_file" "$done_count" "$failed_count" "$skipped_count"
+  rm -f "$run_tasks_file"
+
   echo "Run report: $report_file"
+  echo "Run report JSON: $LAST_REPORT_JSON_FILE"
 }
 
 main() {

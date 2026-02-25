@@ -5,7 +5,7 @@
  * Commands:
  *   /nightshift init [--force]     - Create tasks template
  *   /nightshift list               - List parsed tasks
- *   /nightshift run [--dry-run] [--verify-only] - Execute tasks
+ *   /nightshift run [--dry-run] [--verify-only] [--require-verify] - Execute tasks
  *   /nightshift status             - Show task status
  */
 
@@ -78,6 +78,10 @@ export default function (pi: ExtensionAPI) {
           type: "boolean",
           description: "Run checks only, skip commit/push",
         },
+        requireVerify: {
+          type: "boolean",
+          description: "Fail tasks that do not define verify commands",
+        },
         only: {
           type: "string",
           description: "Comma-separated task IDs to run",
@@ -86,11 +90,12 @@ export default function (pi: ExtensionAPI) {
       required: ["subcommand"],
     },
     async execute(params) {
-      const { subcommand, force, dryRun, verifyOnly, only } = params as {
+      const { subcommand, force, dryRun, verifyOnly, requireVerify, only } = params as {
         subcommand: string;
         force?: boolean;
         dryRun?: boolean;
         verifyOnly?: boolean;
+        requireVerify?: boolean;
         only?: string;
       };
 
@@ -103,6 +108,7 @@ export default function (pi: ExtensionAPI) {
       if (subcommand === "run") {
         if (dryRun) args.push("--dry-run");
         if (verifyOnly) args.push("--verify-only");
+        if (requireVerify) args.push("--require-verify");
         if (only) {
           args.push("--only", only);
         }
