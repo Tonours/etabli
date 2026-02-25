@@ -1,30 +1,30 @@
 # Night Shift (Local Runner)
 
-`scripts/nightshift` est un runner local fait pour bosser pendant que tu dors:
-- tu prepares 1-3 taches avant de quitter le bureau
-- la machine execute (LLM ou pas) dans des worktrees
-- ca fait `commit + push` (pas de PR, pas de merge)
+`scripts/nightshift` is a local overnight runner designed to keep working while you sleep:
+- prepare 1–3 tasks before leaving
+- the machine executes them (LLM or not) in worktrees
+- it does `commit + push` automatically (no PR, no merge)
 
 ## Installation
 
-Si tu as installe la config via `scripts/install.sh`, tu dois avoir `nightshift` dans ton PATH.
+If you installed the setup via `scripts/install.sh`, `nightshift` should already be in your PATH.
 
 ## Routine
 
-Prep (vers 17:00-17:30):
+Prep (around 17:00–17:30):
 - `nightshift init`
-- edite `~/.local/state/nightshift/tasks.md`
-- `nightshift run --dry-run` pour valider le parsing
+- edit `~/.local/state/nightshift/tasks.md`
+- `nightshift run --dry-run` to validate parsing
 
-Avant de partir (19:30 ou quand tu veux):
+Before leaving (19:30 or whenever):
 - `nightshift run`
 
-Le matin:
+Next morning:
 - `nightshift status`
 
-## Format des taches
+## Task Format
 
-Chaque tache est un bloc:
+Each task is a block:
 
 ```md
 ## TASK fix-login-redirect
@@ -48,41 +48,40 @@ DoD:
 ENDPROMPT
 ```
 
-Champs:
-- `repo:` nom d'un repo sous `$PI_PROJECT_ROOT` (par defaut `~/projects`)
-- `path:` chemin absolu vers le repo (override `repo:`)
-- `base:` branche de base (defaut `main`)
-- `branch:` branche cible (defaut `night/<id>`)
-- `engine:` `codex` (defaut) | `none`
-- `verify:` liste de commandes a executer apres l'implementation (facultatif mais recommande)
-- `prompt:` bloc multi-ligne termine par `ENDPROMPT`
+Fields:
+- `repo:` repository name under `$PI_PROJECT_ROOT` (default `~/projects`)
+- `path:` absolute path to the repository (overrides `repo:`)
+- `base:` base branch (default `main`)
+- `branch:` target branch (default `night/<id>`)
+- `engine:` `codex` (default) | `none`
+- `verify:` list of commands to run after implementation (optional but recommended)
+- `prompt:` multi-line prompt block ending with `ENDPROMPT`
 
-## Worktrees / branches
+## Worktrees / Branches
 
-Pour chaque tache:
-- un worktree est cree/reutilise sous `$PI_WORKTREE_ROOT` (defaut: `~/projects/worktrees`)
-- la branche est creee si besoin et push a la fin
+For each task:
+- a worktree is created/reused under `$PI_WORKTREE_ROOT` (default `~/projects/worktrees`)
+- the branch is created if needed and pushed at the end
 
 ## Engines
 
 ### engine: codex
 
-Utilise `codex exec --full-auto` dans le worktree.
+Runs `codex exec --full-auto` inside the worktree.
 
 ### engine: none
 
-Ne lance pas de LLM. Utile si tu veux juste pre-creer worktree+branche.
+Does not run an LLM. Useful if you only want to pre-create worktree + branch.
 
-## Gardes-fous / limitations
+## Guardrails / Limitations
 
-- pas de PR
-- pas de merge
-- pas de browser
-- bruit faible: logs dans `~/.local/state/nightshift/logs/`
+- no PR
+- no merge
+- no browser
+- low noise: logs are written to `~/.local/state/nightshift/logs/`
 
 ## Troubleshooting
 
-- verifier que la machine ne se met pas en veille (macOS: Energy/Battery settings)
-- verifier `nightshift list` et `nightshift run --dry-run`
-- lire le log: `~/.local/state/nightshift/logs/<task>-<timestamp>.log`
-
+- ensure the machine does not go to sleep (macOS: Energy/Battery settings)
+- validate with `nightshift list` and `nightshift run --dry-run`
+- read logs at `~/.local/state/nightshift/logs/<task>-<timestamp>.log`
