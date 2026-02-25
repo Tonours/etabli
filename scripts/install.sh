@@ -393,7 +393,7 @@ fi
 # ============================================================================
 print_step "Setting up Pi Coding Agent..."
 
-mkdir -p ~/.pi/agent/skills ~/.pi/agent/themes
+mkdir -p ~/.pi ~/.pi/agent/skills ~/.pi/agent/themes ~/.pi/agent/extensions
 
 # AGENTS.md
 if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
@@ -408,6 +408,26 @@ if [ -f "$REPO_DIR/pi/models.json" ]; then
     fi
     ln -sf "$REPO_DIR/pi/models.json" ~/.pi/agent/models.json
     print_success "Pi models.json linked"
+fi
+
+# Link extensions directories for relative-path portability in settings
+if [ -d "$REPO_DIR/pi/extensions" ]; then
+    if [ -d ~/.pi/extensions ] && [ ! -L ~/.pi/extensions ]; then
+        mv ~/.pi/extensions ~/.pi/extensions.bak
+    fi
+    if [ -d ~/.pi/agent/extensions ] && [ ! -L ~/.pi/agent/extensions ]; then
+        mv ~/.pi/agent/extensions ~/.pi/agent/extensions.bak
+    fi
+    ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/extensions
+    ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/agent/extensions
+    print_success "Pi extensions linked"
+fi
+
+if [ -d "$REPO_DIR/pi/themes" ]; then
+    if [ -d ~/.pi/themes ] && [ ! -L ~/.pi/themes ]; then
+        mv ~/.pi/themes ~/.pi/themes.bak
+    fi
+    ln -sfn "$REPO_DIR/pi/themes" ~/.pi/themes
 fi
 
 # settings.json (root + agent)
@@ -461,11 +481,10 @@ if ! command -v pi &> /dev/null; then
         print_warning "Pi install failed (npm i -g @mariozechner/pi-coding-agent)"
 fi
 
-# Install packages (mitsupi, filter-output, checkpoint)
+# Install packages (mitsupi, checkpoint)
 if command -v pi &> /dev/null; then
     print_step "Installing Pi packages..."
     pi install npm:mitsupi 2>/dev/null && print_success "mitsupi installed" || true
-    pi install "$REPO_DIR/pi/extensions/filter-output.ts" -l 2>/dev/null && print_success "filter-output installed" || true
     pi install npm:checkpoint 2>/dev/null && print_success "checkpoint installed" || true
 fi
 
@@ -561,6 +580,8 @@ install_script "tmux-clipboard.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
 install_script "nightshift" || true
+install_script "agent-scorecard" || true
+install_script "agent-fanout" || true
 
 if [[ "$OS" == "mac" ]]; then
     install_script "macos-optimize.sh" || true
