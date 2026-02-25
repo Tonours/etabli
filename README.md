@@ -106,6 +106,7 @@ cw-clean myproject
 | `/skill:review`         | Final pre-commit review (risks, regressions, edge cases) |
 | `/skill:verify`         | Run typecheck/tests/lint/build             |
 | `/ship start --task`    | Orchestrate plan/review/verify flow        |
+| `/ship finalize`        | Queue verify/review and prepare final decision |
 | `/ship mark --result`   | Record `go` / `block` decision             |
 | `/ship status`          | Show current run + weekly go/block summary |
 | `/skill:coordinator`    | Run coordinator protocol for multi-worker flow |
@@ -118,8 +119,7 @@ cw-clean myproject
 ```bash
 /ship start --task "Implement X safely"  # queues plan + plan-review
 # ... implement ...
-/skill:verify
-/skill:review
+/ship finalize                     # queues /skill:verify + /skill:review
 /ship mark --result go --notes "ready to commit"
 ```
 
@@ -133,6 +133,7 @@ Prepare 1-3 tasks before leaving. The machine works overnight, commits and pushe
 nightshift init                  # Create tasks template
 nightshift run --dry-run         # Preview
 nightshift run --verify-only     # Execute + verify only (no commit/push)
+nightshift run --require-verify  # Fail tasks without verify commands
 nightshift run                   # Execute overnight
 nightshift status                # Check results next morning
 ```
@@ -140,6 +141,7 @@ nightshift status                # Check results next morning
 Tasks are Markdown blocks in `~/.local/state/nightshift/tasks.md`. Supports `codex` or `none` engines.
 Each run also writes:
 - `~/.local/state/nightshift/last-run-report.md`
+- `~/.local/state/nightshift/last-run-report.json`
 - `~/.local/state/nightshift/history.jsonl`
 
 See [docs/nightshift.md](docs/nightshift.md) for details.
@@ -158,9 +160,12 @@ Generates a markdown report with Nightshift outcomes, Ship GO/BLOCK decisions, a
 agent-fanout init
 # edit ~/.local/state/pi-agentic/workers.md
 agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md
+# optional: skip coordinator window
+agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md --no-coordinator
 ```
 
-This creates one tmux worker window per task, launches Pi, and starts `/ship` in each worker.
+This creates one tmux worker window per task, launches Pi, starts `/ship` in each worker,
+and auto-creates a coordinator window per repo (unless `--no-coordinator`).
 
 ### Dev Spawn
 

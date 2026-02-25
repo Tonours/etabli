@@ -8,12 +8,13 @@ CW_BIN="$SCRIPT_DIR/cw"
 
 STATE_DIR="${PI_AGENTIC_STATE_DIR:-$HOME/.local/state/pi-agentic}"
 WORKERS_FILE_DEFAULT="$STATE_DIR/workers.md"
+PROJECT_ROOT="${PI_PROJECT_ROOT:-$HOME/projects}"
 
 usage() {
   cat <<'USAGE'
 Usage:
   agent-fanout init [--force] [workers.md]
-  agent-fanout run  [--tasks workers.md] [--no-agent] [--dry-run]
+  agent-fanout run  [--tasks workers.md] [--no-agent] [--no-coordinator] [--dry-run]
 
 Worker file format:
 
@@ -158,6 +159,32 @@ cmd_init() {
   echo "Created: $out"
 }
 
+create_coordinator_window() {
+  local repo="$1"
+  local repo_dir="${PROJECT_ROOT}/${repo}"
+  local session_name="$repo"
+  local window_name="coordinator"
+  local created=false
+
+  if [[ ! -d "$repo_dir/.git" ]]; then
+    echo "[warn] coordinator skipped, repo not found: $repo_dir" >&2
+    return 0
+  fi
+
+  if ! tmux has-session -t "$session_name" 2>/dev/null; then
+    tmux new-session -d -s "$session_name" -n "$window_name" -c "$repo_dir"
+    created=true
+  elif ! tmux list-windows -t "$session_name" -F '#{window_name}' | grep -Fxq "$window_name"; then
+    tmux new-window -t "$session_name" -n "$window_name" -c "$repo_dir"
+    created=true
+  fi
+
+  if [[ "$created" == "true" ]]; then
+    tmux send-keys -t "$session_name:$window_name" "pi" Enter
+    tmux send-keys -t "$session_name:$window_name" "/skill:coordinator" Enter
+  fi
+}
+
 cmd_run() {
   ensure_dirs
   need_bin python3
@@ -171,12 +198,14 @@ cmd_run() {
 
   local tasks_file="$WORKERS_FILE_DEFAULT"
   local no_agent=false
+  local no_coordinator=false
   local dry_run=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --tasks) tasks_file="${2:?}"; shift 2 ;;
       --no-agent) no_agent=true; shift ;;
+      --no-coordinator) no_coordinator=true; shift ;;
       --dry-run) dry_run=true; shift ;;
       -h|--help) usage; exit 0 ;;
       *) echo "Unknown arg: $1" >&2; exit 2 ;;
@@ -191,6 +220,12 @@ cmd_run() {
   if [[ "$count" -eq 0 ]]; then
     echo "No valid workers found in: $tasks_file" >&2
     exit 0
+  fi
+
+  if [[ "$dry_run" != "true" && "$no_agent" != "true" && "$no_coordinator" != "true" ]]; then
+    for repo in $(echo "$workers_json" | jq -r '.[].repo' | sort -u); do
+      create_coordinator_window "$repo"
+    done
   fi
 
   i=0

@@ -1,0 +1,38 @@
+name: agentic-infra
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  verify-agentic-infra:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          bash -n scripts/install.sh
+          bash -n scripts/nightshift
+          bash -n scripts/agent-fanout
+          bash -n scripts/agent-scorecard
+          bash -n scripts/cw
+          bash -n scripts/cw-clean
+
+      - name: Validate JSON config files
+        run: |
+          jq empty pi/settings.json
+          jq empty pi/agent/settings.json
+          jq empty pi/models.json
+
+      - name: Run script tests
+        run: |
+          python3 -m unittest discover -s tests/agentic -p 'test_*.py'
+
+      - name: Scorecard smoke test
+        run: |
+          ./scripts/agent-scorecard weekly --repo . --days 7 --output /tmp/scorecard.md
+          test -s /tmp/scorecard.md
