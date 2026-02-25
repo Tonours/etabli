@@ -1,8 +1,8 @@
 # Etabli
 
-Personal dev environment for AI-assisted parallel workflows with Neovim, tmux, Ghostty, Claude Code and OpenCode. Includes a keyboard-driven tiling WM setup for macOS.
+Personal dev environment for AI-assisted parallel workflows with Neovim, tmux, Ghostty and Pi Coding Agent. Includes a keyboard-driven tiling WM setup for macOS.
 
-Inspired by [Anthropic's Claude Code best practices](https://anthropic.com/engineering/claude-code-best-practices) (Boris Cherny).
+Inspired by practical agentic coding workflows and parallel worktree execution.
 
 ## Quick Start
 
@@ -19,10 +19,13 @@ Works on **macOS** and **Linux** (Ubuntu/Debian).
 ## What's Inside
 
 ```
-claude/                     Claude Code config
-  settings.json             Permissions + PostToolUse hooks (Prettier)
-  commands/                 Slash commands: plan, review, verify, commit, learn
-  CLAUDE.md.template        Starter CLAUDE.md for new projects
+pi/                         Pi Coding Agent config
+  AGENTS.md                 Project instructions
+  models.json               Custom model/provider config
+  settings.json             Pi user settings
+  extensions/               Pi extensions (filter-output, uv, nightshift)
+  skills/                   Pi skills (plan, verify)
+  themes/                   Pi themes
 
 ghostty/config              Ghostty terminal (Catppuccin Mocha, JetBrains Mono)
 
@@ -32,8 +35,6 @@ nvim/                       Neovim config (LazyVim)
   lua/plugins/lang/         TypeScript, Rust, Ember
   lua/plugins/extras/       Hardtime, Precognition
 
-opencode/opencode.json      OpenCode config (GPT-5.3-Codex, K2.5 planner)
-
 yabai/yabairc               BSP tiling WM (zero animation, macOS)
 skhd/skhdrc                 Keyboard-driven tiling keybindings
 sketchybar/                 Status bar (Catppuccin Mocha, workspaces, system info)
@@ -42,7 +43,7 @@ starship/starship.toml      Starship prompt (oh-my-zsh inspired, git-aware)
 
 scripts/
   install.sh                Full setup (deps, nvim, tmux, fonts, tiling WM, scripts)
-  cw                        Claude Worktree Manager
+  cw                        Worktree manager (tmux + optional pi launch)
   cw-clean                  Clean merged worktrees
   nightshift                Overnight batch runner
   dev-spawn                 Launch local + VPS tmux sessions
@@ -50,8 +51,6 @@ scripts/
   tiling-toggle.sh          Toggle tiling stack on/off
   yabai-sudoers-update.sh   Regenerate yabai sudoers after brew upgrade
   tmux-clipboard.sh         Cross-platform clipboard (pbcopy/wl-copy/xclip/OSC52)
-  tmux-claude-status.sh     Claude session count in tmux status bar
-  claude-usage.sh           Enable Claude status display
 
 skills/                     Shared skills (React best practices, Web design guidelines)
 
@@ -63,33 +62,33 @@ tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
 The engineer supervises parallel sessions, each in its own git worktree:
 
 ```
-/plan  ->  /review  ->  implement  ->  /verify  ->  /commit  ->  /learn
+/skill:plan  ->  implement  ->  /skill:verify  ->  Ctrl+R review  ->  commit
 ```
 
 ### Git Worktrees
 
 ```bash
-# Create worktree + tmux window + launch Claude
+# Create worktree + tmux window + launch pi
 cw myproject auth feature        # -> feature/auth
 
-# Create without launching Claude
+# Create without launching pi
 cw -n myproject bug42 fix        # -> fix/bug42
 
 # Clean merged worktrees
 cw-clean myproject
 ```
 
-`CLAUDE_PROJECT_ROOT` defaults to `~/projects`.
+`PI_PROJECT_ROOT` defaults to `~/projects`.
 
 ### Slash Commands
 
-| Command            | What it does                              |
-| ------------------ | ----------------------------------------- |
-| `/plan <feature>`  | Create PLAN.md with steps, risks, deps    |
-| `/review`          | Staff-engineer review of PLAN.md          |
-| `/verify`          | Run typecheck, tests, lint                |
-| `/commit`          | Stage, commit, push, create PR            |
-| `/learn`           | Update CLAUDE.md after a mistake          |
+| Command                 | What it does                               |
+| ----------------------- | ------------------------------------------ |
+| `/skill:plan <feature>` | Create PLAN.md with steps, risks, deps     |
+| `Ctrl+R`                | Code review via mitsupi                    |
+| `/skill:verify`         | Run typecheck/tests/lint/build             |
+| `/loop tests`           | Red-green-refactor testing loop            |
+| `Ctrl+P`                | Switch model/provider quickly              |
 
 ### Night Shift
 
@@ -102,7 +101,7 @@ nightshift run                   # Execute overnight
 nightshift status                # Check results next morning
 ```
 
-Tasks are Markdown blocks in `~/.local/state/nightshift/tasks.md`. Supports `codex`, `claude`, or `none` engines. See [docs/nightshift.md](docs/nightshift.md) for details.
+Tasks are Markdown blocks in `~/.local/state/nightshift/tasks.md`. Supports `codex` or `none` engines. See [docs/nightshift.md](docs/nightshift.md) for details.
 
 ### Dev Spawn
 
@@ -131,7 +130,7 @@ Clipboard: copy-mode pipes through `tmux-clipboard.sh` (pbcopy > wl-copy > xclip
 
 | Keymap         | Action                 |
 | -------------- | ---------------------- |
-| `<leader>cm`   | Open CLAUDE.md         |
+| `<leader>cm`   | Open AGENTS.md         |
 | `<leader>gw`   | Switch worktree        |
 | `<leader>gW`   | Create worktree        |
 | `<leader>gd`   | Diff view              |
@@ -250,18 +249,19 @@ ln -sf $(pwd)/ghostty/config ~/.config/ghostty/config
 
 # Scripts
 mkdir -p ~/.local/bin
-for s in cw cw-clean nightshift dev-spawn tmux-clipboard.sh tmux-claude-status.sh claude-usage.sh; do
+for s in cw cw-clean nightshift dev-spawn tmux-clipboard.sh macos-optimize.sh tiling-toggle.sh yabai-sudoers-update.sh; do
   ln -sf $(pwd)/scripts/$s ~/.local/bin/$s
 done
 
-# Claude Code
-mkdir -p ~/.claude/commands
-ln -sf $(pwd)/claude/settings.json ~/.claude/settings.json
-ln -sf $(pwd)/claude/commands/*.md ~/.claude/commands/
-
-# OpenCode
-mkdir -p ~/.config/opencode
-ln -sf $(pwd)/opencode/opencode.json ~/.config/opencode/opencode.json
+# Pi Coding Agent
+mkdir -p ~/.pi/agent/skills ~/.pi/agent/themes
+ln -sf $(pwd)/pi/AGENTS.md ~/.pi/agent/AGENTS.md
+ln -sf $(pwd)/pi/models.json ~/.pi/agent/models.json
+ln -sf $(pwd)/pi/settings.json ~/.pi/settings.json
+ln -sf $(pwd)/pi/agent/settings.json ~/.pi/agent/settings.json
+ln -sfn $(pwd)/pi/skills/plan ~/.pi/agent/skills/plan
+ln -sfn $(pwd)/pi/skills/verify ~/.pi/agent/skills/verify
+ln -sf $(pwd)/pi/themes/catppuccin-mocha.json ~/.pi/agent/themes/catppuccin-mocha.json
 
 # Tiling WM (macOS only)
 mkdir -p ~/.config/yabai ~/.config/skhd ~/.config/borders

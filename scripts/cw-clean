@@ -5,7 +5,7 @@
 set -euo pipefail
 
 REPO_NAME="${1:?Usage: cw-clean <repo>}"
-PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$HOME/projects}"
+PROJECT_ROOT="${PI_PROJECT_ROOT:-$HOME/projects}"
 
 cd "${PROJECT_ROOT}/${REPO_NAME}"
 

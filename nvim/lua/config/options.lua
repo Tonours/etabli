@@ -12,7 +12,7 @@ opt.sidescrolloff = 8
 opt.tabstop = 2
 opt.shiftwidth = 2
 
--- Auto-reload files (for external tools like OpenCode)
+-- Auto-reload files (for external tools like Pi)
 opt.autoread = true
 
 -- No line wrapping

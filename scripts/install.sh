@@ -389,22 +389,85 @@ else
 fi
 
 # ============================================================================
-# SETUP OPENCODE
+# SETUP PI CODING AGENT
 # ============================================================================
-print_step "Setting up OpenCode config..."
+print_step "Setting up Pi Coding Agent..."
 
-mkdir -p ~/.config/opencode
+mkdir -p ~/.pi/agent/skills ~/.pi/agent/themes
 
-for f in opencode.json dcp.jsonc; do
-    if [ -f "$REPO_DIR/opencode/$f" ]; then
-        if [ -f ~/.config/opencode/$f ] && [ ! -L ~/.config/opencode/$f ]; then
-            print_warning "Backing up existing opencode/$f"
-            cp ~/.config/opencode/$f ~/.config/opencode/$f.bak
-        fi
-        ln -sf "$REPO_DIR/opencode/$f" ~/.config/opencode/$f
-        print_success "OpenCode $f linked"
+# AGENTS.md
+if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
+    ln -sf "$REPO_DIR/pi/AGENTS.md" ~/.pi/agent/AGENTS.md
+    print_success "Pi AGENTS.md linked"
+fi
+
+# models.json (backup existing if not a symlink)
+if [ -f "$REPO_DIR/pi/models.json" ]; then
+    if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then
+        cp ~/.pi/agent/models.json ~/.pi/agent/models.json.bak
+    fi
+    ln -sf "$REPO_DIR/pi/models.json" ~/.pi/agent/models.json
+    print_success "Pi models.json linked"
+fi
+
+# settings.json (root + agent)
+if [ -f "$REPO_DIR/pi/settings.json" ]; then
+    if [ -f ~/.pi/settings.json ] && [ ! -L ~/.pi/settings.json ]; then
+        cp ~/.pi/settings.json ~/.pi/settings.json.bak
+    fi
+    ln -sf "$REPO_DIR/pi/settings.json" ~/.pi/settings.json
+    print_success "Pi settings.json linked"
+fi
+
+if [ -f "$REPO_DIR/pi/agent/settings.json" ]; then
+    if [ -f ~/.pi/agent/settings.json ] && [ ! -L ~/.pi/agent/settings.json ]; then
+        cp ~/.pi/agent/settings.json ~/.pi/agent/settings.json.bak
+    fi
+    ln -sf "$REPO_DIR/pi/agent/settings.json" ~/.pi/agent/settings.json
+    print_success "Pi agent settings.json linked"
+fi
+
+# Themes
+for theme_file in "$REPO_DIR/pi/themes"/*.json; do
+    if [ -f "$theme_file" ]; then
+        theme_name=$(basename "$theme_file")
+        ln -sf "$theme_file" ~/.pi/agent/themes/"$theme_name"
+        print_success "Pi theme '$theme_name' linked"
     fi
 done
+
+# Custom skills (plan, verify)
+for skill_dir in "$REPO_DIR/pi/skills"/*/; do
+    if [ -d "$skill_dir" ]; then
+        skill_name=$(basename "$skill_dir")
+        ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
+        print_success "Pi skill '$skill_name' linked"
+    fi
+done
+
+# Shared skills from etabli/skills/ (only if not already in ~/.agents/skills/)
+for shared_skill in vercel-react-best-practices web-design-guidelines; do
+    if [ -d "$REPO_DIR/skills/$shared_skill" ] && [ ! -e ~/.agents/skills/"$shared_skill" ]; then
+        ln -sfn "$REPO_DIR/skills/$shared_skill" ~/.pi/agent/skills/"$shared_skill"
+        print_success "Pi shared skill '$shared_skill' linked"
+    fi
+done
+
+# Install Pi if not present
+if ! command -v pi &> /dev/null; then
+    print_step "Installing Pi Coding Agent..."
+    npm install -g @mariozechner/pi-coding-agent && \
+        print_success "Pi installed" || \
+        print_warning "Pi install failed (npm i -g @mariozechner/pi-coding-agent)"
+fi
+
+# Install packages (mitsupi, filter-output, checkpoint)
+if command -v pi &> /dev/null; then
+    print_step "Installing Pi packages..."
+    pi install npm:mitsupi 2>/dev/null && print_success "mitsupi installed" || true
+    pi install "$REPO_DIR/pi/extensions/filter-output.ts" -l 2>/dev/null && print_success "filter-output installed" || true
+    pi install npm:checkpoint 2>/dev/null && print_success "checkpoint installed" || true
+fi
 
 # ============================================================================
 # SETUP TILING WM (macOS only)
@@ -494,8 +557,6 @@ export PATH="$HOME/.local/bin:$PATH"
 
 # Install scripts using helper function
 install_script "dev-spawn" || true
-install_script "claude-usage.sh" || true
-install_script "tmux-claude-status.sh" || true
 install_script "tmux-clipboard.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
@@ -580,12 +641,6 @@ printf "  dev-spawn vps       VPS session only\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
-printf "  ${BLUE}Claude Usage (tmux status bar):${NC}\n"
-printf "  To enable Claude usage display:\n"
-printf "  ${YELLOW}claude-usage.sh setup${NC}\n"
-echo ""
-echo "-------------------------------------------------------------------"
-echo ""
 if [[ "$OS" == "mac" ]]; then
 printf "  ${BLUE}Tiling WM (macOS) — Manual Steps Required:${NC}\n"
 echo ""
@@ -612,3 +667,14 @@ echo ""
 echo "-------------------------------------------------------------------"
 echo ""
 fi
+printf "  ${BLUE}Pi Coding Agent:${NC}\n"
+printf "  Start:           ${YELLOW}pi${NC}\n"
+printf "  Auth providers:  ${YELLOW}/login${NC}\n"
+printf "  Plan:            ${YELLOW}/skill:plan${NC}\n"
+printf "  Verify:          ${YELLOW}/skill:verify${NC}\n"
+printf "  Code review:     ${YELLOW}Ctrl+R${NC} (mitsupi)\n"
+printf "  TDD loop:        ${YELLOW}/loop tests${NC} (mitsupi)\n"
+printf "  Switch model:    ${YELLOW}Ctrl+P${NC}\n"
+echo ""
+echo "-------------------------------------------------------------------"
+echo ""

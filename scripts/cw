@@ -1,32 +1,32 @@
 #!/bin/bash
-# cw - Claude Worktree Manager
-# Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]
+# cw - Worktree Manager
+# Usage: cw [-n|--no-agent] <repo> <task> [branch-prefix]
 # Example: cw myproject auth feature
-# Example: cw -n myproject auth feature  # without launching claude
+# Example: cw -n myproject auth feature  # without launching pi
 
 set -euo pipefail
 
-PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$HOME/projects}"
+PROJECT_ROOT="${PI_PROJECT_ROOT:-$HOME/projects}"
 WORKTREE_ROOT="${PROJECT_ROOT}/worktrees"
 
 # Parse flags
-NO_CLAUDE=false
+NO_AGENT=false
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -n|--no-claude)
-            NO_CLAUDE=true
+        -n|--no-agent)
+            NO_AGENT=true
             shift
             ;;
         -h|--help)
-            echo "Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]"
+            echo "Usage: cw [-n|--no-agent] <repo> <task> [branch-prefix]"
             echo ""
             echo "Options:"
-            echo "  -n, --no-claude   Create worktree without launching claude"
+            echo "  -n, --no-agent    Create worktree without launching pi"
             echo "  -h, --help        Show this help"
             echo ""
             echo "Examples:"
-            echo "  cw monprojet auth feature      # creates feature/auth + launches claude"
-            echo "  cw -n monprojet bug42 fix      # creates fix/bug42 without claude"
+            echo "  cw monprojet auth feature      # creates feature/auth + launches pi"
+            echo "  cw -n monprojet bug42 fix      # creates fix/bug42 without launching pi"
             exit 0
             ;;
         *)
@@ -35,8 +35,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-REPO_NAME="${1:?Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]}"
-TASK_NAME="${2:?Usage: cw [-n|--no-claude] <repo> <task> [branch-prefix]}"
+REPO_NAME="${1:?Usage: cw [-n|--no-agent] <repo> <task> [branch-prefix]}"
+TASK_NAME="${2:?Usage: cw [-n|--no-agent] <repo> <task> [branch-prefix]}"
 BRANCH_PREFIX="${3:-feature}"
 TASK_SLUG="${TASK_NAME// /-}"
 BRANCH_NAME="${BRANCH_PREFIX}/${TASK_SLUG}"
@@ -78,9 +78,9 @@ else
     tmux new-session -d -s "${SESSION_NAME}" -n "${TASK_NAME}" -c "${WORKTREE_PATH}"
 fi
 
-# Launch Claude in the window (unless -n)
-if [ "$NO_CLAUDE" = false ]; then
-    tmux send-keys -t "${SESSION_NAME}:${TASK_NAME}" "claude" Enter
+# Launch agent in the window (unless -n)
+if [ "$NO_AGENT" = false ]; then
+    tmux send-keys -t "${SESSION_NAME}:${TASK_NAME}" "pi" Enter
 fi
 
 echo ""

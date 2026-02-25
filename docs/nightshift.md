@@ -7,7 +7,7 @@
 
 ## Installation
 
-Si tu as installe opencode via `scripts/install.sh`, tu dois avoir `nightshift` dans ton PATH.
+Si tu as installe la config via `scripts/install.sh`, tu dois avoir `nightshift` dans ton PATH.
 
 ## Routine
 
@@ -49,18 +49,18 @@ ENDPROMPT
 ```
 
 Champs:
-- `repo:` nom d'un repo sous `$CLAUDE_PROJECT_ROOT` (par defaut `~/projects`)
+- `repo:` nom d'un repo sous `$PI_PROJECT_ROOT` (par defaut `~/projects`)
 - `path:` chemin absolu vers le repo (override `repo:`)
 - `base:` branche de base (defaut `main`)
 - `branch:` branche cible (defaut `night/<id>`)
-- `engine:` `codex` (defaut) | `claude` | `none`
+- `engine:` `codex` (defaut) | `none`
 - `verify:` liste de commandes a executer apres l'implementation (facultatif mais recommande)
 - `prompt:` bloc multi-ligne termine par `ENDPROMPT`
 
 ## Worktrees / branches
 
 Pour chaque tache:
-- un worktree est cree/reutilise sous `$CLAUDE_WORKTREE_ROOT` (defaut: `~/projects/worktrees`)
+- un worktree est cree/reutilise sous `$PI_WORKTREE_ROOT` (defaut: `~/projects/worktrees`)
 - la branche est creee si besoin et push a la fin
 
 ## Engines
@@ -68,10 +68,6 @@ Pour chaque tache:
 ### engine: codex
 
 Utilise `codex exec --full-auto` dans le worktree.
-
-### engine: claude
-
-Utilise Claude Code en mode non-interactif (`claude -p`) avec bypass permissions (workstation only).
 
 ### engine: none
 
