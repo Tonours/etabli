@@ -61,11 +61,11 @@ restore_animations() {
 optimize_keyboard() {
     log "Optimizing keyboard repeat rate..."
 
-    defaults write NSGlobalDomain KeyRepeat -int 1
-    defaults write NSGlobalDomain InitialKeyRepeat -int 10
+    defaults write NSGlobalDomain KeyRepeat -int 2
+    defaults write NSGlobalDomain InitialKeyRepeat -int 15
     defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
-    ok "Keyboard repeat: fast (1/10), press-and-hold disabled"
+    ok "Keyboard repeat: fast (2/15), press-and-hold disabled"
 }
 
 restore_keyboard() {
