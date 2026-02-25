@@ -37,7 +37,7 @@ pi/                         Pi Coding Agent config
   models.json               Custom model/provider config
   settings.json             Pi user settings
   extensions/               Pi extensions (filter-output, uv, nightshift)
-  skills/                   Pi skills (plan, verify, review)
+  skills/                   Pi skills (plan, plan-review, verify, review)
   themes/                   Pi themes
 
 ghostty/config              Ghostty terminal (Catppuccin Mocha, JetBrains Mono)
@@ -75,7 +75,7 @@ tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
 The engineer supervises parallel sessions, each in its own git worktree:
 
 ```
-/skill:plan  ->  implement  ->  /skill:verify  ->  /skill:review  ->  Ctrl+R review  ->  commit
+/skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  Ctrl+R review  ->  commit
 ```
 
 ### Git Worktrees
@@ -97,9 +97,10 @@ cw-clean myproject
 
 | Command                 | What it does                               |
 | ----------------------- | ------------------------------------------ |
-| `/skill:plan <feature>` | Create PLAN.md with steps, risks, deps     |
+| `/skill:plan <feature>` | Create PLAN.md with steps, risks, deps      |
+| `/skill:plan-review`    | Challenge the plan before coding (assumptions, risks, edge cases) |
+| `/skill:review`         | Review code changes, risks, regressions, and edge cases |
 | `/skill:verify`         | Run typecheck/tests/lint/build             |
-| `/skill:review`         | Review changes, risks, regressions, and edge cases |
 | `Ctrl+R`                | Code review via mitsupi                    |
 | `/loop tests`           | Red-green-refactor testing loop            |
 | `Ctrl+P`                | Switch model/provider quickly              |
