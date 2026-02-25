@@ -1,18 +1,28 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createHash } from "node:crypto";
+import { basename, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
 
-type ShipSubcommand = "start" | "mark" | "status";
+type ShipSubcommand = "start" | "mark" | "status" | "finalize";
 type ShipResult = "go" | "block";
-
 type ShipHistoryStatus = "started" | ShipResult;
+
+interface ShipStatePaths {
+  dir: string;
+  currentFile: string;
+  historyFile: string;
+  sessionKey: string;
+}
 
 interface ShipCurrentRun {
   runId: string;
   task: string;
   startedAt: string;
   auto: boolean;
+  repoPath: string;
+  repoName: string;
+  sessionKey: string;
 }
 
 interface ShipHistoryEntry {
@@ -22,20 +32,57 @@ interface ShipHistoryEntry {
   startedAt: string;
   endedAt?: string;
   notes?: string;
+  repoPath: string;
+  repoName: string;
+  sessionKey: string;
 }
 
-const STATE_DIR = join(homedir(), ".local", "state", "pi-ship");
-const CURRENT_FILE = join(STATE_DIR, "current.json");
-const HISTORY_FILE = join(STATE_DIR, "history.jsonl");
+const SHIP_BASE_STATE_DIR = join(homedir(), ".local", "state", "pi-ship");
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
-function ensureStateDir(): void {
-  mkdirSync(STATE_DIR, { recursive: true });
-  if (!existsSync(HISTORY_FILE)) {
-    writeFileSync(HISTORY_FILE, "", "utf-8");
+function normalizeSegment(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function getRepoPath(): string {
+  return process.cwd();
+}
+
+function getRepoName(repoPath: string): string {
+  const name = basename(repoPath);
+  const normalized = normalizeSegment(name);
+  return normalized.length > 0 ? normalized : "repo";
+}
+
+function createRepoKey(repoPath: string): string {
+  const hash = createHash("sha1").update(repoPath).digest("hex").slice(0, 12);
+  return `${getRepoName(repoPath)}-${hash}`;
+}
+
+function getSessionKey(): string {
+  const raw = process.env.PI_SHIP_SESSION ?? process.env.TMUX_PANE ?? "default";
+  const normalized = normalizeSegment(raw);
+  return normalized.length > 0 ? normalized : "default";
+}
+
+function getStatePaths(repoPath: string, sessionKey: string): ShipStatePaths {
+  const repoKey = createRepoKey(repoPath);
+  const dir = join(SHIP_BASE_STATE_DIR, repoKey);
+  return {
+    dir,
+    currentFile: join(dir, `current-${sessionKey}.json`),
+    historyFile: join(dir, "history.jsonl"),
+    sessionKey,
+  };
+}
+
+function ensureStateDir(paths: ShipStatePaths): void {
+  mkdirSync(paths.dir, { recursive: true });
+  if (!existsSync(paths.historyFile)) {
+    writeFileSync(paths.historyFile, "", "utf-8");
   }
 }
 
@@ -44,33 +91,33 @@ function createRunId(): string {
   return `${Date.now()}-${rand}`;
 }
 
-function readCurrentRun(): ShipCurrentRun | null {
-  if (!existsSync(CURRENT_FILE)) return null;
+function readCurrentRun(paths: ShipStatePaths): ShipCurrentRun | null {
+  if (!existsSync(paths.currentFile)) return null;
   try {
-    return JSON.parse(readFileSync(CURRENT_FILE, "utf-8")) as ShipCurrentRun;
+    return JSON.parse(readFileSync(paths.currentFile, "utf-8")) as ShipCurrentRun;
   } catch {
     return null;
   }
 }
 
-function writeCurrentRun(run: ShipCurrentRun): void {
-  writeFileSync(CURRENT_FILE, `${JSON.stringify(run, null, 2)}\n`, "utf-8");
+function writeCurrentRun(paths: ShipStatePaths, run: ShipCurrentRun): void {
+  writeFileSync(paths.currentFile, `${JSON.stringify(run, null, 2)}\n`, "utf-8");
 }
 
-function clearCurrentRun(): void {
-  if (existsSync(CURRENT_FILE)) {
-    rmSync(CURRENT_FILE, { force: true });
+function clearCurrentRun(paths: ShipStatePaths): void {
+  if (existsSync(paths.currentFile)) {
+    rmSync(paths.currentFile, { force: true });
   }
 }
 
-function appendHistory(entry: ShipHistoryEntry): void {
+function appendHistory(paths: ShipStatePaths, entry: ShipHistoryEntry): void {
   const line = `${JSON.stringify(entry)}\n`;
-  writeFileSync(HISTORY_FILE, line, { encoding: "utf-8", flag: "a" });
+  writeFileSync(paths.historyFile, line, { encoding: "utf-8", flag: "a" });
 }
 
-function readHistory(): ShipHistoryEntry[] {
-  if (!existsSync(HISTORY_FILE)) return [];
-  const lines = readFileSync(HISTORY_FILE, "utf-8")
+function readHistory(paths: ShipStatePaths): ShipHistoryEntry[] {
+  if (!existsSync(paths.historyFile)) return [];
+  const lines = readFileSync(paths.historyFile, "utf-8")
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
@@ -80,7 +127,7 @@ function readHistory(): ShipHistoryEntry[] {
     try {
       entries.push(JSON.parse(line) as ShipHistoryEntry);
     } catch {
-      // Ignore malformed line
+      // Ignore malformed lines.
     }
   }
   return entries;
@@ -128,6 +175,8 @@ function formatStartResponse(run: ShipCurrentRun, auto: boolean): string {
   const lines = [
     `Started /ship run: ${run.runId}`,
     `Task: ${run.task}`,
+    `Repo: ${run.repoName}`,
+    `Session: ${run.sessionKey}`,
     "",
     "Pipeline:",
     "1) /skill:plan",
@@ -143,7 +192,24 @@ function formatStartResponse(run: ShipCurrentRun, auto: boolean): string {
   ];
 
   if (auto) {
-    lines.splice(2, 0, "Queued /skill:plan and /skill:plan-review.");
+    lines.splice(3, 0, "Queued /skill:plan and /skill:plan-review.");
+  }
+
+  return lines.join("\n");
+}
+
+function formatFinalizeResponse(run: ShipCurrentRun, runChecks: boolean): string {
+  const lines = [
+    `Finalize requested for: ${run.task}`,
+    `Run ID: ${run.runId}`,
+    "",
+    "Next:",
+    "- ensure verify + review are complete",
+    "- then record decision with /ship mark --result go|block",
+  ];
+
+  if (runChecks) {
+    lines.splice(3, 0, "Queued /skill:verify and /skill:review.");
   }
 
   return lines.join("\n");
@@ -155,7 +221,7 @@ function isShipResult(value: string | undefined): value is ShipResult {
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
-    ctx.ui.notify("Ship extension loaded — /ship {start,mark,status}", "info");
+    ctx.ui.notify("Ship extension loaded — /ship {start,mark,status,finalize}", "info");
   });
 
   pi.registerCommand({
@@ -166,7 +232,7 @@ export default function (pi: ExtensionAPI) {
       properties: {
         subcommand: {
           type: "string",
-          enum: ["start", "mark", "status"],
+          enum: ["start", "mark", "status", "finalize"],
           description: "Action to execute",
         },
         task: {
@@ -176,6 +242,11 @@ export default function (pi: ExtensionAPI) {
         auto: {
           type: "boolean",
           description: "Auto-queue plan steps on start",
+          default: true,
+        },
+        runChecks: {
+          type: "boolean",
+          description: "Queue verify/review during /ship finalize",
           default: true,
         },
         result: {
@@ -191,12 +262,17 @@ export default function (pi: ExtensionAPI) {
       required: ["subcommand"],
     },
     async execute(params) {
-      ensureStateDir();
+      const repoPath = getRepoPath();
+      const repoName = getRepoName(repoPath);
+      const sessionKey = getSessionKey();
+      const statePaths = getStatePaths(repoPath, sessionKey);
+      ensureStateDir(statePaths);
 
-      const { subcommand, task, auto = true, result, notes } = params as {
+      const { subcommand, task, auto = true, runChecks = true, result, notes } = params as {
         subcommand: ShipSubcommand;
         task?: string;
         auto?: boolean;
+        runChecks?: boolean;
         result?: string;
         notes?: string;
       };
@@ -214,14 +290,20 @@ export default function (pi: ExtensionAPI) {
           task: task.trim(),
           startedAt: nowIso(),
           auto,
+          repoPath,
+          repoName,
+          sessionKey,
         };
 
-        writeCurrentRun(run);
-        appendHistory({
+        writeCurrentRun(statePaths, run);
+        appendHistory(statePaths, {
           runId: run.runId,
           status: "started",
           task: run.task,
           startedAt: run.startedAt,
+          repoPath,
+          repoName,
+          sessionKey,
         });
 
         if (auto) {
@@ -234,6 +316,25 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
+      if (subcommand === "finalize") {
+        const current = readCurrentRun(statePaths);
+        if (!current) {
+          return {
+            content: [{ type: "text", text: "No active /ship run for this repo. Start one with /ship start --task \"...\"" }],
+            isError: true,
+          };
+        }
+
+        if (runChecks) {
+          pi.sendUserMessage("/skill:verify");
+          pi.sendUserMessage("/skill:review", { deliverAs: "followUp" });
+        }
+
+        return {
+          content: [{ type: "text", text: formatFinalizeResponse(current, runChecks) }],
+        };
+      }
+
       if (subcommand === "mark") {
         if (!isShipResult(result)) {
           return {
@@ -242,22 +343,25 @@ export default function (pi: ExtensionAPI) {
           };
         }
 
-        const current = readCurrentRun();
+        const current = readCurrentRun(statePaths);
         const startedAt = current?.startedAt ?? nowIso();
         const taskName = current?.task ?? task?.trim() ?? "(unknown task)";
         const runId = current?.runId ?? createRunId();
 
-        appendHistory({
+        appendHistory(statePaths, {
           runId,
           status: result,
           task: taskName,
           startedAt,
           endedAt: nowIso(),
           notes: notes?.trim(),
+          repoPath,
+          repoName,
+          sessionKey,
         });
 
         if (current) {
-          clearCurrentRun();
+          clearCurrentRun(statePaths);
         }
 
         return {
@@ -265,11 +369,11 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      const current = readCurrentRun();
-      const summary = summarizeLast7Days(readHistory());
+      const current = readCurrentRun(statePaths);
+      const summary = summarizeLast7Days(readHistory(statePaths));
       const currentText = current
-        ? `Current run: ${current.runId}\nTask: ${current.task}\nStarted: ${current.startedAt}\n`
-        : "Current run: none\n";
+        ? `Current run: ${current.runId}\nTask: ${current.task}\nRepo: ${current.repoName}\nSession: ${current.sessionKey}\nStarted: ${current.startedAt}\n`
+        : `Current run: none\nRepo: ${repoName}\nSession: ${sessionKey}\n`;
 
       return {
         content: [{ type: "text", text: `${currentText}\n${summary}` }],
