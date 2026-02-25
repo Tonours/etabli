@@ -16,6 +16,8 @@ STATE_DIR="${NIGHTSHIFT_STATE_DIR:-$HOME/.local/state/nightshift}"
 TASKS_FILE_DEFAULT="${STATE_DIR}/tasks.md"
 STATE_FILE="${STATE_DIR}/state.json"
 LOG_DIR="${STATE_DIR}/logs"
+HISTORY_FILE="${STATE_DIR}/history.jsonl"
+LAST_REPORT_FILE="${STATE_DIR}/last-run-report.md"
 
 now_iso() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
@@ -24,7 +26,7 @@ usage() {
 Usage:
   nightshift init [--force] [tasks.md]
   nightshift list [tasks.md]
-  nightshift run  [--tasks tasks.md] [--limit N] [--only id1,id2] [--dry-run]
+  nightshift run  [--tasks tasks.md] [--limit N] [--only id1,id2] [--dry-run] [--verify-only]
   nightshift status
 
 Environment:
@@ -59,6 +61,9 @@ ensure_dirs() {
   mkdir -p "$STATE_DIR" "$LOG_DIR" "$WORKTREE_ROOT"
   if [[ ! -f "$STATE_FILE" ]]; then
     printf '%s\n' '{"version":1,"tasks":{}}' >"$STATE_FILE"
+  fi
+  if [[ ! -f "$HISTORY_FILE" ]]; then
+    : >"$HISTORY_FILE"
   fi
 }
 
@@ -211,6 +216,46 @@ print(d.get('tasks', {}).get(tid, {}).get('status',''))
 PY
 }
 
+append_history() {
+  local run_id="$1" task_id="$2" status="$3" verify_status="$4" engine="$5" branch="$6" repo_dir="$7" worktree="$8" started_at="$9" ended_at="${10}" error_msg="${11}" log_file="${12}" verify_only="${13}"
+  python3 - "$HISTORY_FILE" "$run_id" "$task_id" "$status" "$verify_status" "$engine" "$branch" "$repo_dir" "$worktree" "$started_at" "$ended_at" "$error_msg" "$log_file" "$verify_only" <<'PY'
+import json, sys
+(
+  history_file,
+  run_id,
+  task_id,
+  status,
+  verify_status,
+  engine,
+  branch,
+  repo_dir,
+  worktree,
+  started_at,
+  ended_at,
+  error_msg,
+  log_file,
+  verify_only,
+) = sys.argv[1:]
+entry = {
+  "runId": run_id,
+  "taskId": task_id,
+  "status": status,
+  "verify": verify_status,
+  "engine": engine,
+  "branch": branch,
+  "repoDir": repo_dir,
+  "worktree": worktree,
+  "startedAt": started_at,
+  "endedAt": ended_at,
+  "error": error_msg,
+  "logFile": log_file,
+  "verifyOnly": verify_only == "true",
+}
+with open(history_file, "a", encoding="utf-8") as f:
+  f.write(json.dumps(entry, ensure_ascii=True) + "\n")
+PY
+}
+
 ensure_worktree() {
   local repo_dir="$1" repo_name="$2" base="$3" branch="$4" task_id="$5"
   local wt_path="${WORKTREE_ROOT}/${repo_name}-${task_id}"
@@ -278,10 +323,16 @@ commit_and_push() {
 
   if [[ -n "$(git -C "$wt" status --porcelain)" ]]; then
     git -C "$wt" add -A
-    git -C "$wt" commit -m "$msg" >/dev/null 2>&1 || true
+    if ! git -C "$wt" commit -m "$msg" >/dev/null 2>&1; then
+      echo "Commit failed in $wt" >&2
+      return 3
+    fi
   fi
 
-  git -C "$wt" push -u "$remote" "$branch" >/dev/null 2>&1 || true
+  if ! git -C "$wt" push -u "$remote" "$branch" >/dev/null 2>&1; then
+    echo "Push failed for branch '$branch' in $wt" >&2
+    return 4
+  fi
 }
 
 cmd_init() {
@@ -348,6 +399,7 @@ cmd_run() {
   local limit="0"
   local only=""
   local dry_run=false
+  local verify_only=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -355,6 +407,7 @@ cmd_run() {
       --limit) limit="${2:?}"; shift 2 ;;
       --only) only="${2:?}"; shift 2 ;;
       --dry-run) dry_run=true; shift ;;
+      --verify-only) verify_only=true; shift ;;
       -h|--help) usage; exit 0 ;;
       *) echo "Unknown arg: $1" >&2; exit 2 ;;
     esac
@@ -383,10 +436,34 @@ PY
     exit 0
   fi
 
+  local run_id run_started report_file
+  run_id="$(date -u +%Y%m%d%H%M%S)-$$"
+  run_started="$(now_iso)"
+  report_file="$LAST_REPORT_FILE"
+
+  local done_count failed_count skipped_count
+  done_count=0
+  failed_count=0
+  skipped_count=0
+
+  {
+    echo "# Nightshift Run Report"
+    echo
+    echo "- Run ID: $run_id"
+    echo "- Started at: $run_started"
+    echo "- Verify only: $verify_only"
+    echo "- Tasks file: $tasks_file"
+    echo
+    echo "| Task | Status | Verify | Branch | Error | Log |"
+    echo "| --- | --- | --- | --- | --- | --- |"
+  } >"$report_file"
+
   i=0
   while [[ $i -lt $count ]]; do
     if [[ "$limit" != "0" && $i -ge $limit ]]; then
-      break
+      skipped_count=$((skipped_count + 1))
+      i=$((i+1))
+      continue
     fi
 
     local task id repo path base branch engine
@@ -402,12 +479,16 @@ PY
     local st
     st="$(state_get_status "$id")"
     if [[ "$st" == "done" ]]; then
+      skipped_count=$((skipped_count + 1))
       i=$((i+1))
       continue
     fi
 
+    local started_at ended_at
+    started_at="$(now_iso)"
+
     state_set "$id" status running
-    state_set "$id" lastRunAt "$(now_iso)"
+    state_set "$id" lastRunAt "$started_at"
     state_set "$id" branch "$branch"
 
     local repo_dir repo_name
@@ -426,14 +507,22 @@ PY
     if [[ "$dry_run" == "true" ]]; then
       echo "[dry-run] $id repo_dir=$repo_dir branch=$branch engine=$engine"
       state_set "$id" status todo
+      echo "| $id | dry-run | n/a | $branch | - | - |" >>"$report_file"
+      skipped_count=$((skipped_count + 1))
       i=$((i+1))
       continue
     fi
 
     if [[ ! -d "$repo_dir/.git" ]]; then
+      local not_found_error
+      not_found_error="repo not found: $repo_dir"
       state_set "$id" status failed
-      state_set "$id" lastError "repo not found: $repo_dir"
-      echo "[fail] $id repo not found: $repo_dir" >&2
+      state_set "$id" lastError "$not_found_error"
+      ended_at="$(now_iso)"
+      append_history "$run_id" "$id" failed skipped "$engine" "$branch" "$repo_dir" "" "$started_at" "$ended_at" "$not_found_error" "" "$verify_only"
+      echo "| $id | failed | skipped | $branch | $not_found_error | - |" >>"$report_file"
+      echo "[fail] $id $not_found_error" >&2
+      failed_count=$((failed_count + 1))
       i=$((i+1))
       continue
     fi
@@ -458,8 +547,10 @@ Engine: $engine
 $prompt
 __NIGHTSHIFT_TASK__
 
-    local ts logf engine_failed
-    engine_failed=0
+    local ts logf
+    local failed=false
+    local verify_status="skipped"
+    local task_error=""
     ts="$(date -u +%Y%m%d%H%M%S)"
     logf="${LOG_DIR}/${id}-${ts}.log"
 
@@ -480,45 +571,87 @@ Constraints:
 
 If you need to choose between options, pick the simplest that ships.
 __NIGHTSHIFT_ENGINE_PROMPT__
-        (cd "$wt" && codex exec --full-auto -C "$wt" -o "$logf" - < .nightshift/ENGINE_PROMPT.txt) || engine_failed=1
+        if ! (cd "$wt" && codex exec --full-auto -C "$wt" -o "$logf" - < .nightshift/ENGINE_PROMPT.txt); then
+          failed=true
+          task_error="engine failed"
+        fi
         ;;
       none)
         ;;
       *)
-        state_set "$id" status failed
-        state_set "$id" lastError "unknown engine: $engine"
-        echo "[fail] unknown engine '$engine' (task $id)" >&2
-        i=$((i+1))
-        continue
+        task_error="unknown engine: $engine"
+        failed=true
         ;;
     esac
 
-    if [[ $engine_failed -ne 0 ]]; then
-      state_set "$id" lastError "engine failed"
+    if [[ "$failed" == "true" && -n "$task_error" ]]; then
+      state_set "$id" lastError "$task_error"
     fi
 
     local verify_json
     verify_json="$(echo "$task" | jq -c '.verify // []')"
     if run_verify "$wt" "$verify_json"; then
+      verify_status="ok"
       state_set "$id" verify ok
     else
+      verify_status="failed"
+      failed=true
       state_set "$id" verify failed
-      engine_failed=1
+      if [[ -z "$task_error" ]]; then
+        task_error="verify failed"
+      fi
     fi
 
-    commit_and_push "$wt" "$branch" "nightshift: $id" || true
+    if [[ "$verify_only" != "true" ]]; then
+      local cp_code
+      cp_code=0
+      commit_and_push "$wt" "$branch" "nightshift: $id" || cp_code=$?
+      if [[ $cp_code -ne 0 ]]; then
+        failed=true
+        if [[ $cp_code -eq 2 ]]; then
+          task_error="no remote"
+        elif [[ $cp_code -eq 3 ]]; then
+          task_error="commit failed"
+        elif [[ $cp_code -eq 4 ]]; then
+          task_error="push failed"
+        elif [[ -z "$task_error" ]]; then
+          task_error="commit/push failed"
+        fi
+      fi
+    fi
 
-    if [[ $engine_failed -eq 0 ]]; then
+    ended_at="$(now_iso)"
+
+    if [[ "$failed" == "true" ]]; then
+      state_set "$id" status failed
+      state_set "$id" lastError "$task_error"
+      echo "[warn] $id finished with errors (see $logf)"
+      echo "| $id | failed | $verify_status | $branch | ${task_error:-unknown error} | $logf |" >>"$report_file"
+      failed_count=$((failed_count + 1))
+      append_history "$run_id" "$id" failed "$verify_status" "$engine" "$branch" "$repo_dir" "$wt" "$started_at" "$ended_at" "$task_error" "$logf" "$verify_only"
+    else
       state_set "$id" status done
       state_set "$id" lastError ""
       echo "[done] $id -> pushed $branch"
-    else
-      state_set "$id" status failed
-      echo "[warn] $id finished with errors (see $logf)"
+      echo "| $id | done | $verify_status | $branch | - | $logf |" >>"$report_file"
+      done_count=$((done_count + 1))
+      append_history "$run_id" "$id" done "$verify_status" "$engine" "$branch" "$repo_dir" "$wt" "$started_at" "$ended_at" "" "$logf" "$verify_only"
     fi
 
     i=$((i+1))
   done
+
+  {
+    echo
+    echo "## Summary"
+    echo
+    echo "- Done: $done_count"
+    echo "- Failed: $failed_count"
+    echo "- Skipped: $skipped_count"
+    echo "- Finished at: $(now_iso)"
+  } >>"$report_file"
+
+  echo "Run report: $report_file"
 }
 
 main() {
