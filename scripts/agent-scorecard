@@ -73,12 +73,12 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-repo_dir = Path(sys.argv[1])
+repo_dir = Path(sys.argv[1]).resolve()
 days = int(sys.argv[2])
 output = Path(sys.argv[3])
 
 nightshift_history = Path.home() / ".local" / "state" / "nightshift" / "history.jsonl"
-ship_history = Path.home() / ".local" / "state" / "pi-ship" / "history.jsonl"
+ship_root = Path.home() / ".local" / "state" / "pi-ship"
 
 cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -87,8 +87,7 @@ def parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        value = value.replace("Z", "+00:00")
-        return datetime.fromisoformat(value)
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except Exception:
         return None
 
@@ -117,6 +116,15 @@ def recent(items, key: str):
     return out
 
 
+def normalize_path(value: str | None) -> Path | None:
+    if not value:
+        return None
+    try:
+        return Path(value).expanduser().resolve()
+    except Exception:
+        return None
+
+
 def run_git(args: list[str]) -> str:
     proc = subprocess.run(
         ["git", "-C", str(repo_dir), *args],
@@ -131,10 +139,38 @@ def run_git(args: list[str]) -> str:
 
 
 nightshift_all = load_jsonl(nightshift_history)
-ship_all = load_jsonl(ship_history)
+nightshift_repo = []
+for entry in nightshift_all:
+    entry_repo = normalize_path(entry.get("repoDir"))
+    if entry_repo and entry_repo == repo_dir:
+        nightshift_repo.append(entry)
 
-nightshift_recent = recent(nightshift_all, "startedAt")
-ship_recent = recent(ship_all, "startedAt")
+ship_histories = []
+legacy_ship_history = ship_root / "history.jsonl"
+if legacy_ship_history.exists():
+    ship_histories.append(legacy_ship_history)
+if ship_root.exists():
+    ship_histories.extend(path for path in ship_root.glob("*/history.jsonl") if path.is_file())
+
+ship_all = []
+for history_file in ship_histories:
+    ship_all.extend(load_jsonl(history_file))
+
+ship_repo = []
+repo_name = repo_dir.name
+for entry in ship_all:
+    entry_repo = normalize_path(entry.get("repoPath"))
+    if entry_repo is not None:
+        if entry_repo == repo_dir:
+            ship_repo.append(entry)
+        continue
+
+    # Legacy fallback: if repoPath is missing, use repoName match.
+    if entry.get("repoName") == repo_name:
+        ship_repo.append(entry)
+
+nightshift_recent = recent(nightshift_repo, "startedAt")
+ship_recent = recent(ship_repo, "startedAt")
 
 night_total = len(nightshift_recent)
 night_done = sum(1 for e in nightshift_recent if e.get("status") == "done")
@@ -206,7 +242,7 @@ report.extend(
         "",
         "1. If Nightshift failure rate > 20%, tighten task scope and verify commands.",
         "2. If BLOCK rate is high, improve plan-review quality before implementation.",
-        "3. Keep using `/ship mark` consistently for accurate decision metrics.",
+        "3. Keep using `/ship mark` consistently for accurate repo-level metrics.",
     ]
 )
 

@@ -15,8 +15,7 @@ This project uses a staged flow:
 # runs /skill:plan + /skill:plan-review when auto=true
 
 # after implementation
-/skill:verify
-/skill:review
+/ship finalize                     # queues verify + review
 /ship mark --result go --notes "ready"
 ```
 
@@ -40,9 +39,12 @@ Outputs a markdown report with:
 agent-fanout init
 # edit ~/.local/state/pi-agentic/workers.md
 agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md
+# optional: skip coordinator window
+agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md --no-coordinator
 ```
 
-This creates one tmux worker window per task and starts Pi + `/ship` automatically.
+This creates one tmux worker window per task, auto-starts Pi + `/ship`,
+and creates a coordinator window per repo unless disabled.
 
 ## 4) Skills
 
