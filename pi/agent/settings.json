@@ -1,0 +1,24 @@
+{
+  "packages": [
+    "/Volumes/Crucial/work/etabli/pi/extensions/filter-output.ts",
+    "/Volumes/Crucial/work/etabli/pi/extensions/uv.ts",
+    "/Volumes/Crucial/work/etabli/pi/extensions/nightshift.ts",
+    {
+      "source": "npm:mitsupi",
+      "extensions": [
+        "!uv.ts"
+      ]
+    },
+    "npm:checkpoint"
+  ],
+  "lastChangelogVersion": "0.55.0",
+  "defaultProvider": "kimi-coding",
+  "defaultModel": "k2p5",
+  "theme": "catppuccin-mocha",
+  "defaultThinkingLevel": "high",
+  "editorPaddingX": 1,
+  "hideThinkingBlock": true,
+  "collapseChangelog": true,
+  "quietStartup": true,
+  "doubleEscapeAction": "tree"
+}

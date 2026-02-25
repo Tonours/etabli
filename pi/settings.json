@@ -1,0 +1,11 @@
+{
+  "packages": [
+    "../../../Volumes/Crucial/work/etabli/pi/extensions/filter-output.ts",
+    "../../../Volumes/Crucial/work/etabli/pi/extensions/nightshift.ts"
+  ],
+  "theme": "catppuccin-mocha",
+  "themePaths": [
+    "/Volumes/Crucial/work/etabli/pi/themes"
+  ],
+  "editorPaddingX": 1
+}
