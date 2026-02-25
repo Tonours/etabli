@@ -16,6 +16,19 @@ The installer symlinks all configs to the repo, so edits here are reflected ever
 
 Works on **macOS** and **Linux** (Ubuntu/Debian).
 
+### Pi config & secrets (important)
+
+Pi is configured via repo files, but secrets are loaded from your local environment at runtime.
+
+- `pi/models.json`, `pi/settings.json`, and `pi/agent/settings.json` are tracked templates.
+- API keys (ex: `MISTRAL_API_KEY`, etc.) are expected via env vars.
+- `auth.json` (or any local auth file) is intentionally **not** tracked.
+
+Recommended local pattern:
+- Export credentials in your shell profile (`.zshrc` / `.bashrc`) or a local secret file loaded outside the repo.
+- Keep `.env*`, token files, and private keys out of git (they are already in `.gitignore` by default).
+
+
 ## What's Inside
 
 ```
