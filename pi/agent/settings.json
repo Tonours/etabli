@@ -1,8 +1,9 @@
 {
   "packages": [
-    "/Volumes/Crucial/work/etabli/pi/extensions/filter-output.ts",
-    "/Volumes/Crucial/work/etabli/pi/extensions/uv.ts",
-    "/Volumes/Crucial/work/etabli/pi/extensions/nightshift.ts",
+    "extensions/filter-output.ts",
+    "extensions/uv.ts",
+    "extensions/nightshift.ts",
+    "extensions/ship.ts",
     {
       "source": "npm:mitsupi",
       "extensions": [
