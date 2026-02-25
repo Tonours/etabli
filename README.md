@@ -75,7 +75,7 @@ tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
 The engineer supervises parallel sessions, each in its own git worktree:
 
 ```
-/skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  Ctrl+R review  ->  commit
+/skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  commit
 ```
 
 ### Git Worktrees
@@ -101,7 +101,6 @@ cw-clean myproject
 | `/skill:plan-review`    | Challenge the plan before coding (assumptions, risks, edge cases) |
 | `/skill:review`         | Review code changes, risks, regressions, and edge cases |
 | `/skill:verify`         | Run typecheck/tests/lint/build             |
-| `Ctrl+R`                | Code review via mitsupi                    |
 | `/loop tests`           | Red-green-refactor testing loop            |
 | `Ctrl+P`                | Switch model/provider quickly              |
 
