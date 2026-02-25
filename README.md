@@ -36,8 +36,8 @@ pi/                         Pi Coding Agent config
   AGENTS.md                 Project instructions
   models.json               Custom model/provider config
   settings.json             Pi user settings
-  extensions/               Pi extensions (filter-output, uv, nightshift)
-  skills/                   Pi skills (plan, plan-review, verify, review)
+  extensions/               Pi extensions (filter-output, uv, nightshift, ship)
+  skills/                   Pi skills (plan, plan-review, verify, review, coordinator, worker)
   themes/                   Pi themes
 
 ghostty/config              Ghostty terminal (Catppuccin Mocha, JetBrains Mono)
@@ -59,6 +59,8 @@ scripts/
   cw                        Worktree manager (tmux + optional pi launch)
   cw-clean                  Clean merged worktrees
   nightshift                Overnight batch runner
+  agent-scorecard           Weekly agentic metrics report
+  agent-fanout              Spawn coordinator/worker sessions from a tasks file
   dev-spawn                 Launch local + VPS tmux sessions
   macos-optimize.sh         Aggressive macOS perf optimization
   tiling-toggle.sh          Toggle tiling stack on/off
@@ -77,6 +79,8 @@ The engineer supervises parallel sessions, each in its own git worktree:
 ```
 /skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  commit
 ```
+
+See [docs/agentic-flow.md](docs/agentic-flow.md) for the orchestrated `/ship`, scorecard, and coordinator/worker flow.
 
 ### Git Worktrees
 
@@ -99,10 +103,27 @@ cw-clean myproject
 | ----------------------- | ------------------------------------------ |
 | `/skill:plan <feature>` | Create PLAN.md with steps, risks, deps      |
 | `/skill:plan-review`    | Challenge the plan before coding (assumptions, risks, edge cases) |
-| `/skill:review`         | Review code changes, risks, regressions, and edge cases |
+| `/skill:review`         | Final pre-commit review (risks, regressions, edge cases) |
 | `/skill:verify`         | Run typecheck/tests/lint/build             |
+| `/ship start --task`    | Orchestrate plan/review/verify flow        |
+| `/ship mark --result`   | Record `go` / `block` decision             |
+| `/ship status`          | Show current run + weekly go/block summary |
+| `/skill:coordinator`    | Run coordinator protocol for multi-worker flow |
+| `/skill:worker`         | Run worker protocol for one scoped slice   |
 | `/loop tests`           | Red-green-refactor testing loop            |
 | `Ctrl+P`                | Switch model/provider quickly              |
+
+### Ship (Orchestrated Flow)
+
+```bash
+/ship start --task "Implement X safely"  # queues plan + plan-review
+# ... implement ...
+/skill:verify
+/skill:review
+/ship mark --result go --notes "ready to commit"
+```
+
+`/ship status` shows the active run and recent GO/BLOCK decisions.
 
 ### Night Shift
 
@@ -111,11 +132,35 @@ Prepare 1-3 tasks before leaving. The machine works overnight, commits and pushe
 ```bash
 nightshift init                  # Create tasks template
 nightshift run --dry-run         # Preview
+nightshift run --verify-only     # Execute + verify only (no commit/push)
 nightshift run                   # Execute overnight
 nightshift status                # Check results next morning
 ```
 
-Tasks are Markdown blocks in `~/.local/state/nightshift/tasks.md`. Supports `codex` or `none` engines. See [docs/nightshift.md](docs/nightshift.md) for details.
+Tasks are Markdown blocks in `~/.local/state/nightshift/tasks.md`. Supports `codex` or `none` engines.
+Each run also writes:
+- `~/.local/state/nightshift/last-run-report.md`
+- `~/.local/state/nightshift/history.jsonl`
+
+See [docs/nightshift.md](docs/nightshift.md) for details.
+
+### Weekly Agentic Scorecard
+
+```bash
+agent-scorecard weekly --repo /path/to/repo
+```
+
+Generates a markdown report with Nightshift outcomes, Ship GO/BLOCK decisions, and commit activity.
+
+### Coordinator / Workers Fanout
+
+```bash
+agent-fanout init
+# edit ~/.local/state/pi-agentic/workers.md
+agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md
+```
+
+This creates one tmux worker window per task, launches Pi, and starts `/ship` in each worker.
 
 ### Dev Spawn
 
@@ -263,17 +308,20 @@ ln -sf $(pwd)/ghostty/config ~/.config/ghostty/config
 
 # Scripts (cross-platform)
 mkdir -p ~/.local/bin
-for s in cw cw-clean nightshift dev-spawn tmux-clipboard.sh; do
+for s in cw cw-clean nightshift agent-scorecard agent-fanout dev-spawn tmux-clipboard.sh; do
   ln -sf $(pwd)/scripts/$s ~/.local/bin/$s
 done
 
 # Pi Coding Agent
-mkdir -p ~/.pi/agent/skills ~/.pi/agent/themes
+mkdir -p ~/.pi ~/.pi/agent/skills ~/.pi/agent/themes ~/.pi/agent/extensions
 ln -sf $(pwd)/pi/AGENTS.md ~/.pi/agent/AGENTS.md
 ln -sf $(pwd)/pi/models.json ~/.pi/agent/models.json
 ln -sf $(pwd)/pi/settings.json ~/.pi/settings.json
 ln -sf $(pwd)/pi/agent/settings.json ~/.pi/agent/settings.json
-for s in plan plan-review verify review; do
+ln -sfn $(pwd)/pi/extensions ~/.pi/extensions
+ln -sfn $(pwd)/pi/extensions ~/.pi/agent/extensions
+ln -sfn $(pwd)/pi/themes ~/.pi/themes
+for s in plan plan-review verify review coordinator worker; do
   ln -sfn $(pwd)/pi/skills/$s ~/.pi/agent/skills/$s
 done
 ln -sf $(pwd)/pi/themes/catppuccin-mocha.json ~/.pi/agent/themes/catppuccin-mocha.json

@@ -1,0 +1,215 @@
+#!/bin/bash
+# agent-scorecard - generate weekly agentic metrics
+
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  agent-scorecard weekly [--repo /path/to/repo] [--days N] [--output file.md]
+
+Defaults:
+  --repo    current directory
+  --days    7
+  --output  ~/.local/state/pi-agentic/scorecard-YYYY-WW.md
+USAGE
+}
+
+cmd="${1:-weekly}"
+shift || true
+
+if [[ "$cmd" != "weekly" ]]; then
+  usage
+  exit 2
+fi
+
+REPO_DIR="$(pwd)"
+DAYS=7
+OUTPUT=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)
+      REPO_DIR="${2:?}"
+      shift 2
+      ;;
+    --days)
+      DAYS="${2:?}"
+      shift 2
+      ;;
+    --output)
+      OUTPUT="${2:?}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+  echo "Not a git repo: $REPO_DIR" >&2
+  exit 2
+fi
+
+if [[ -z "$OUTPUT" ]]; then
+  target_dir="$HOME/.local/state/pi-agentic"
+  mkdir -p "$target_dir"
+  week_id="$(date +%G-W%V)"
+  OUTPUT="$target_dir/scorecard-$week_id.md"
+fi
+
+mkdir -p "$(dirname "$OUTPUT")"
+
+python3 - "$REPO_DIR" "$DAYS" "$OUTPUT" <<'PY'
+import json
+import subprocess
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+repo_dir = Path(sys.argv[1])
+days = int(sys.argv[2])
+output = Path(sys.argv[3])
+
+nightshift_history = Path.home() / ".local" / "state" / "nightshift" / "history.jsonl"
+ship_history = Path.home() / ".local" / "state" / "pi-ship" / "history.jsonl"
+
+cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+
+def parse_iso(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        value = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
+
+
+def load_jsonl(path: Path):
+    if not path.exists():
+        return []
+    items = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            items.append(json.loads(line))
+        except Exception:
+            continue
+    return items
+
+
+def recent(items, key: str):
+    out = []
+    for item in items:
+        ts = parse_iso(item.get(key))
+        if ts and ts >= cutoff:
+            out.append(item)
+    return out
+
+
+def run_git(args: list[str]) -> str:
+    proc = subprocess.run(
+        ["git", "-C", str(repo_dir), *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return ""
+    return proc.stdout.strip()
+
+
+nightshift_all = load_jsonl(nightshift_history)
+ship_all = load_jsonl(ship_history)
+
+nightshift_recent = recent(nightshift_all, "startedAt")
+ship_recent = recent(ship_all, "startedAt")
+
+night_total = len(nightshift_recent)
+night_done = sum(1 for e in nightshift_recent if e.get("status") == "done")
+night_failed = sum(1 for e in nightshift_recent if e.get("status") == "failed")
+verify_ok = sum(1 for e in nightshift_recent if e.get("verify") == "ok")
+verify_failed = sum(1 for e in nightshift_recent if e.get("verify") == "failed")
+
+ship_started = sum(1 for e in ship_recent if e.get("status") == "started")
+ship_go = sum(1 for e in ship_recent if e.get("status") == "go")
+ship_block = sum(1 for e in ship_recent if e.get("status") == "block")
+
+since_arg = f"--since={days}.days"
+git_commits = run_git(["rev-list", "--count", "HEAD", since_arg])
+commit_count = int(git_commits) if git_commits.isdigit() else 0
+
+subjects = run_git(["log", since_arg, "--pretty=%s"]).splitlines()
+conventional = {
+    "feat": 0,
+    "fix": 0,
+    "refactor": 0,
+    "test": 0,
+    "docs": 0,
+    "chore": 0,
+}
+for subject in subjects:
+    head = subject.split("(", 1)[0].split(":", 1)[0].strip()
+    if head in conventional:
+        conventional[head] += 1
+
+night_success_rate = (night_done / night_total * 100.0) if night_total else 0.0
+ship_go_rate = (ship_go / (ship_go + ship_block) * 100.0) if (ship_go + ship_block) else 0.0
+
+report = [
+    "# Weekly Agentic Scorecard",
+    "",
+    f"- Period: last {days} days",
+    f"- Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%SZ')}",
+    f"- Repository: `{repo_dir}`",
+    "",
+    "## Nightshift",
+    "",
+    f"- Tasks processed: **{night_total}**",
+    f"- Done: **{night_done}**",
+    f"- Failed: **{night_failed}**",
+    f"- Verify OK: **{verify_ok}**",
+    f"- Verify failed: **{verify_failed}**",
+    f"- Success rate: **{night_success_rate:.1f}%**",
+    "",
+    "## Ship Pipeline",
+    "",
+    f"- Runs started: **{ship_started}**",
+    f"- GO decisions: **{ship_go}**",
+    f"- BLOCK decisions: **{ship_block}**",
+    f"- GO rate: **{ship_go_rate:.1f}%**",
+    "",
+    "## Git Activity",
+    "",
+    f"- Commits: **{commit_count}**",
+    "- Conventional commit breakdown:",
+]
+
+for key in ["feat", "fix", "refactor", "test", "docs", "chore"]:
+    report.append(f"  - `{key}`: {conventional[key]}")
+
+report.extend(
+    [
+        "",
+        "## Actions",
+        "",
+        "1. If Nightshift failure rate > 20%, tighten task scope and verify commands.",
+        "2. If BLOCK rate is high, improve plan-review quality before implementation.",
+        "3. Keep using `/ship mark` consistently for accurate decision metrics.",
+    ]
+)
+
+output.write_text("\n".join(report) + "\n", encoding="utf-8")
+print(str(output))
+PY
