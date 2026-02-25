@@ -10,7 +10,19 @@
         "!uv.ts"
       ]
     },
-    "npm:checkpoint"
+    "npm:checkpoint",
+    "npm:pi-notify",
+    "git:github.com/ogulcancelik/pi-ghostty-theme-sync",
+    {
+      "source": "git:github.com/badlogic/pi-skills",
+      "skills": [
+        "brave-search",
+        "youtube-transcript"
+      ],
+      "extensions": [],
+      "prompts": [],
+      "themes": []
+    }
   ],
   "lastChangelogVersion": "0.55.0",
   "defaultProvider": "kimi-coding",

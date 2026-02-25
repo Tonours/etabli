@@ -23,6 +23,10 @@ Pi is configured via repo files, but secrets are loaded from your local environm
 - `pi/models.json`, `pi/settings.json`, and `pi/agent/settings.json` are tracked templates.
 - API keys (ex: `MISTRAL_API_KEY`, etc.) are expected via env vars.
 - `auth.json` (or any local auth file) is intentionally **not** tracked.
+- Default package set includes:
+  - `npm:pi-notify` (desktop notifications)
+  - `git:github.com/ogulcancelik/pi-ghostty-theme-sync` (Pi/Ghostty theme sync)
+  - `git:github.com/badlogic/pi-skills` with `brave-search` + `youtube-transcript`
 
 Recommended local pattern:
 - Export credentials in your shell profile (`.zshrc` / `.bashrc`) or a local secret file loaded outside the repo.
