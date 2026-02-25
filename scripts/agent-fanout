@@ -1,0 +1,248 @@
+#!/bin/bash
+# agent-fanout - spawn coordinator/worker sessions for parallel Pi execution
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CW_BIN="$SCRIPT_DIR/cw"
+
+STATE_DIR="${PI_AGENTIC_STATE_DIR:-$HOME/.local/state/pi-agentic}"
+WORKERS_FILE_DEFAULT="$STATE_DIR/workers.md"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  agent-fanout init [--force] [workers.md]
+  agent-fanout run  [--tasks workers.md] [--no-agent] [--dry-run]
+
+Worker file format:
+
+  ## WORKER <id>
+  repo: my-repo
+  prefix: feature            # optional (default: feature)
+  goal: Fix login redirect   # required
+  prompt:                    # optional
+  Extra context for the worker.
+  ENDPROMPT
+USAGE
+}
+
+need_bin() {
+  command -v "$1" >/dev/null 2>&1 || { echo "Missing binary: $1" >&2; exit 3; }
+}
+
+ensure_dirs() {
+  mkdir -p "$STATE_DIR"
+}
+
+write_template() {
+  local out="$1"
+  cat >"$out" <<'TPL'
+# Agent Fanout Workers
+
+## WORKER login-redirect
+repo: my-repo
+prefix: fix
+goal: Fix login redirect loop for authenticated users
+prompt:
+Investigate middleware and auth redirect guards.
+Keep the diff minimal and run relevant tests.
+ENDPROMPT
+
+## WORKER flaky-test
+repo: my-repo
+prefix: fix
+goal: Stabilize flaky payment webhook test
+prompt:
+Focus on deterministic timing and fixture setup.
+ENDPROMPT
+TPL
+}
+
+parse_workers_json() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import json
+import re
+import sys
+
+path = sys.argv[1]
+lines = open(path, 'r', encoding='utf-8').read().splitlines()
+
+workers = []
+cur = None
+mode = None
+
+ID_RE = re.compile(r'^##\s+WORKER\s+(.+?)\s*$')
+KV_RE = re.compile(r'^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*?)\s*$')
+
+
+def norm_id(value: str) -> str:
+    value = value.strip().lower()
+    value = re.sub(r'[^a-z0-9._-]+', '-', value)
+    return value.strip('-')
+
+
+def finish() -> None:
+    global cur, mode
+    if cur is None:
+        return
+    cur['id'] = norm_id(cur['id'])
+    cur.setdefault('prefix', 'feature')
+    cur.setdefault('goal', '')
+    cur.setdefault('prompt', '')
+    workers.append(cur)
+    cur = None
+    mode = None
+
+
+for line in lines:
+    m = ID_RE.match(line)
+    if m:
+        finish()
+        cur = {'id': m.group(1).strip()}
+        continue
+
+    if cur is None:
+        continue
+
+    if mode == 'prompt':
+        if line.strip() == 'ENDPROMPT':
+            mode = None
+        else:
+            cur['prompt'] += line + '\n'
+        continue
+
+    if not line.strip():
+        continue
+
+    if line.strip() == 'prompt:':
+        mode = 'prompt'
+        cur['prompt'] = ''
+        continue
+
+    kv = KV_RE.match(line)
+    if kv:
+        cur[kv.group(1)] = kv.group(2)
+
+finish()
+
+# Keep only valid workers
+valid = [w for w in workers if w.get('repo') and w.get('goal') and w.get('id')]
+print(json.dumps(valid, ensure_ascii=True))
+PY
+}
+
+cmd_init() {
+  local force=false
+  local out=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=true; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) out="$1"; shift ;;
+    esac
+  done
+
+  ensure_dirs
+  out="${out:-$WORKERS_FILE_DEFAULT}"
+
+  if [[ -e "$out" && "$force" != "true" ]]; then
+    echo "Workers file exists: $out (use --force to overwrite)" >&2
+    exit 2
+  fi
+
+  mkdir -p "$(dirname "$out")"
+  write_template "$out"
+  echo "Created: $out"
+}
+
+cmd_run() {
+  ensure_dirs
+  need_bin python3
+  need_bin jq
+  need_bin tmux
+
+  if [[ ! -x "$CW_BIN" ]]; then
+    echo "cw script not found or not executable: $CW_BIN" >&2
+    exit 2
+  fi
+
+  local tasks_file="$WORKERS_FILE_DEFAULT"
+  local no_agent=false
+  local dry_run=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tasks) tasks_file="${2:?}"; shift 2 ;;
+      --no-agent) no_agent=true; shift ;;
+      --dry-run) dry_run=true; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) echo "Unknown arg: $1" >&2; exit 2 ;;
+    esac
+  done
+
+  local workers_json
+  workers_json="$(parse_workers_json "$tasks_file")"
+
+  local count i
+  count="$(echo "$workers_json" | jq 'length')"
+  if [[ "$count" -eq 0 ]]; then
+    echo "No valid workers found in: $tasks_file" >&2
+    exit 0
+  fi
+
+  i=0
+  while [[ $i -lt $count ]]; do
+    local worker_id repo prefix goal prompt
+    worker_id="$(echo "$workers_json" | jq -r ".[$i].id")"
+    repo="$(echo "$workers_json" | jq -r ".[$i].repo")"
+    prefix="$(echo "$workers_json" | jq -r ".[$i].prefix")"
+    goal="$(echo "$workers_json" | jq -r ".[$i].goal")"
+    prompt="$(echo "$workers_json" | jq -r ".[$i].prompt")"
+
+    if [[ "$dry_run" == "true" ]]; then
+      echo "[dry-run] worker=$worker_id repo=$repo prefix=$prefix goal=$goal"
+      i=$((i+1))
+      continue
+    fi
+
+    echo "[fanout] creating worker $worker_id in repo $repo"
+    TMUX=1 "$CW_BIN" -n "$repo" "$worker_id" "$prefix"
+
+    if [[ "$no_agent" != "true" ]]; then
+      local target escaped_goal escaped_prompt
+      target="$repo:$worker_id"
+      tmux send-keys -t "$target" "pi" Enter
+
+      escaped_goal="${goal//\"/\\\"}"
+      tmux send-keys -t "$target" "/ship start --task \"$escaped_goal\"" Enter
+
+      if [[ -n "$prompt" ]]; then
+        local compact_prompt
+        compact_prompt="$(echo "$prompt" | tr '\n' ' ' | xargs)"
+        escaped_prompt="${compact_prompt//\"/\\\"}"
+        tmux send-keys -t "$target" "$escaped_prompt" Enter
+      fi
+    fi
+
+    i=$((i+1))
+  done
+
+  echo "Fanout complete."
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+
+  case "$cmd" in
+    init) cmd_init "$@" ;;
+    run) cmd_run "$@" ;;
+    -h|--help|help|"") usage ;;
+    *) echo "Unknown command: $cmd" >&2; usage; exit 2 ;;
+  esac
+}
+
+main "$@"
