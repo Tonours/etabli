@@ -261,9 +261,9 @@ ln -sf $(pwd)/tmux.conf ~/.tmux.conf
 mkdir -p ~/.config/ghostty
 ln -sf $(pwd)/ghostty/config ~/.config/ghostty/config
 
-# Scripts
+# Scripts (cross-platform)
 mkdir -p ~/.local/bin
-for s in cw cw-clean nightshift dev-spawn tmux-clipboard.sh macos-optimize.sh tiling-toggle.sh yabai-sudoers-update.sh; do
+for s in cw cw-clean nightshift dev-spawn tmux-clipboard.sh; do
   ln -sf $(pwd)/scripts/$s ~/.local/bin/$s
 done
 
@@ -273,9 +273,15 @@ ln -sf $(pwd)/pi/AGENTS.md ~/.pi/agent/AGENTS.md
 ln -sf $(pwd)/pi/models.json ~/.pi/agent/models.json
 ln -sf $(pwd)/pi/settings.json ~/.pi/settings.json
 ln -sf $(pwd)/pi/agent/settings.json ~/.pi/agent/settings.json
-ln -sfn $(pwd)/pi/skills/plan ~/.pi/agent/skills/plan
-ln -sfn $(pwd)/pi/skills/verify ~/.pi/agent/skills/verify
+for s in plan plan-review verify review; do
+  ln -sfn $(pwd)/pi/skills/$s ~/.pi/agent/skills/$s
+done
 ln -sf $(pwd)/pi/themes/catppuccin-mocha.json ~/.pi/agent/themes/catppuccin-mocha.json
+
+# macOS-only scripts
+for s in macos-optimize.sh tiling-toggle.sh yabai-sudoers-update.sh; do
+  ln -sf $(pwd)/scripts/$s ~/.local/bin/$s
+done
 
 # Tiling WM (macOS only)
 mkdir -p ~/.config/yabai ~/.config/skhd ~/.config/borders

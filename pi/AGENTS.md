@@ -21,7 +21,7 @@
 - Run single relevant test, not full suite
 - Atomic commits: one logical change per commit
 - Always verify before committing
-- Use `Ctrl+R` for code review before committing
+- Use `/skill:review` before committing
 - Commit format: feat|fix|refactor|test|docs|chore(scope): description
 
 ## Model usage
