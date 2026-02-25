@@ -561,9 +561,12 @@ install_script "tmux-clipboard.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
 install_script "nightshift" || true
-install_script "macos-optimize.sh" || true
-install_script "tiling-toggle.sh" || true
-install_script "yabai-sudoers-update.sh" || true
+
+if [[ "$OS" == "mac" ]]; then
+    install_script "macos-optimize.sh" || true
+    install_script "tiling-toggle.sh" || true
+    install_script "yabai-sudoers-update.sh" || true
+fi
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do
