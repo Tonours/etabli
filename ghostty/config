@@ -4,8 +4,10 @@ font-size = 22
 
 # Appearance
 background-opacity = 1
-window-padding-x = 14
-window-padding-y = 14
+window-padding-x = 20
+window-padding-y = 16
+window-padding-balance = true
+window-padding-color = background
 window-decoration = false
 confirm-close-surface = false
 resize-overlay = never

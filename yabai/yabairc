@@ -15,7 +15,7 @@ sudo yabai --load-sa
 yabai -m config layout bsp
 
 # Reserve space for hidden menu bar
-yabai -m config external_bar main:28:0
+yabai -m config external_bar all:28:0
 
 # Gaps and padding
 yabai -m config top_padding     5
