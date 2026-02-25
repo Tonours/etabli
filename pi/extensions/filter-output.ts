@@ -99,6 +99,9 @@ export default function (pi: ExtensionAPI) {
     /\.env\.(?!example$|sample$|template$)[^/]+$/,   // .env.local, .env.production (NOT .env.example/sample/template)
     /\.dev\.vars$/,                                  // Cloudflare .dev.vars
     /secrets?\.(json|ya?ml|toml)$/i,                 // secrets.json, secret.yaml
+    /(?:^|\/)auth\.json$/i,                          // auth.json (OAuth/API secrets)
+    /(?:^|\/).*\.token$/i,                           // *.token
+    /(?:^|\/).*\.secrets\.json$/i,                  // *.secrets.json
     /credentials(\.json|\.ya?ml|\.toml)?$/i,         // credentials, credentials.json
     /\.(?:pem|key|p12|pfx|jks|keystore|kdbx)$/i,    // crypto key files
     /(?:^|\/)id_(?:rsa|ed25519|ecdsa|dsa)$/,         // SSH private keys
@@ -116,6 +119,8 @@ export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   const sensitiveCommandPatterns: RegExp[] = [
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*\.env\b/,
+    /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*auth\.json\b/i,
+    /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*\.token\b/i,
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*secrets?\.\w+/i,
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*credentials/i,
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*\.pem\b/,
