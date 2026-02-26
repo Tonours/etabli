@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { parseCommandArgs, getFlagValue, toBoolean, toOptionalString, notifyBlock } from "./lib/args.ts";
 
 type ShipSubcommand = "start" | "mark" | "status" | "finalize";
 type ShipResult = "go" | "block";
@@ -38,6 +39,7 @@ interface ShipHistoryEntry {
 }
 
 const SHIP_BASE_STATE_DIR = join(homedir(), ".local", "state", "pi-ship");
+const SHIP_SUBCOMMANDS = new Set<ShipSubcommand>(["start", "mark", "status", "finalize"]);
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -220,69 +222,45 @@ function isShipResult(value: string | undefined): value is ShipResult {
 }
 
 export default function (pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
-    ctx.ui.notify("Ship extension loaded — /ship {start,mark,status,finalize}", "info");
-  });
-
-  pi.registerCommand({
-    name: "ship",
+  pi.registerCommand("ship", {
     description: "Orchestrate plan->verify->review pipeline with GO/BLOCK tracking",
-    parameters: {
-      type: "object",
-      properties: {
-        subcommand: {
-          type: "string",
-          enum: ["start", "mark", "status", "finalize"],
-          description: "Action to execute",
-        },
-        task: {
-          type: "string",
-          description: "Task description for /ship start",
-        },
-        auto: {
-          type: "boolean",
-          description: "Auto-queue plan steps on start",
-          default: true,
-        },
-        runChecks: {
-          type: "boolean",
-          description: "Queue verify/review during /ship finalize",
-          default: true,
-        },
-        result: {
-          type: "string",
-          enum: ["go", "block"],
-          description: "Decision for /ship mark",
-        },
-        notes: {
-          type: "string",
-          description: "Optional notes for /ship mark",
-        },
-      },
-      required: ["subcommand"],
-    },
-    async execute(params) {
+    handler: async (args, ctx) => {
+      const parsed = parseCommandArgs(args);
+      const firstPositional = parsed.positional[0];
+      const subcommand = SHIP_SUBCOMMANDS.has(firstPositional as ShipSubcommand)
+        ? (firstPositional as ShipSubcommand)
+        : undefined;
+
+      if (!subcommand) {
+        ctx.ui.notify("Usage: /ship <start|mark|status|finalize> [--flags]", "warning");
+        return;
+      }
+
       const repoPath = getRepoPath();
       const repoName = getRepoName(repoPath);
       const sessionKey = getSessionKey();
       const statePaths = getStatePaths(repoPath, sessionKey);
       ensureStateDir(statePaths);
 
-      const { subcommand, task, auto = true, runChecks = true, result, notes } = params as {
-        subcommand: ShipSubcommand;
-        task?: string;
-        auto?: boolean;
-        runChecks?: boolean;
-        result?: string;
-        notes?: string;
-      };
+      const taskFromFlag = toOptionalString(getFlagValue(parsed.flags, ["task"]));
+      const taskFromPositionals = parsed.positional.slice(1).join(" ").trim();
+      const task = taskFromFlag ?? (taskFromPositionals.length > 0 ? taskFromPositionals : undefined);
+
+      const resultFromFlag = toOptionalString(getFlagValue(parsed.flags, ["result"]));
+      const positionalResult = parsed.positional[1];
+      const result = resultFromFlag ?? positionalResult;
+
+      const notesFromFlag = toOptionalString(getFlagValue(parsed.flags, ["notes"]));
+      const positionalNotes = parsed.positional.slice(2).join(" ").trim();
+      const notes = notesFromFlag ?? (positionalNotes.length > 0 ? positionalNotes : undefined);
+
+      const auto = toBoolean(getFlagValue(parsed.flags, ["auto"]), true);
+      const runChecks = toBoolean(getFlagValue(parsed.flags, ["run-checks", "runChecks"]), true);
 
       if (subcommand === "start") {
         if (!task || task.trim().length === 0) {
-          return {
-            content: [{ type: "text", text: "Missing task. Usage: /ship start --task \"...\"" }],
-            isError: true,
-          };
+          ctx.ui.notify("Missing task. Usage: /ship start --task \"...\"", "warning");
+          return;
         }
 
         const run: ShipCurrentRun = {
@@ -307,40 +285,42 @@ export default function (pi: ExtensionAPI) {
         });
 
         if (auto) {
-          pi.sendUserMessage(`/skill:plan ${run.task}`);
+          if (ctx.isIdle()) {
+            pi.sendUserMessage(`/skill:plan ${run.task}`);
+          } else {
+            pi.sendUserMessage(`/skill:plan ${run.task}`, { deliverAs: "steer" });
+          }
           pi.sendUserMessage("/skill:plan-review", { deliverAs: "followUp" });
         }
 
-        return {
-          content: [{ type: "text", text: formatStartResponse(run, auto) }],
-        };
+        notifyBlock(ctx, formatStartResponse(run, auto), "info");
+        return;
       }
 
       if (subcommand === "finalize") {
         const current = readCurrentRun(statePaths);
         if (!current) {
-          return {
-            content: [{ type: "text", text: "No active /ship run for this repo. Start one with /ship start --task \"...\"" }],
-            isError: true,
-          };
+          ctx.ui.notify("No active /ship run for this repo. Start one with /ship start --task \"...\"", "warning");
+          return;
         }
 
         if (runChecks) {
-          pi.sendUserMessage("/skill:verify");
+          if (ctx.isIdle()) {
+            pi.sendUserMessage("/skill:verify");
+          } else {
+            pi.sendUserMessage("/skill:verify", { deliverAs: "steer" });
+          }
           pi.sendUserMessage("/skill:review", { deliverAs: "followUp" });
         }
 
-        return {
-          content: [{ type: "text", text: formatFinalizeResponse(current, runChecks) }],
-        };
+        notifyBlock(ctx, formatFinalizeResponse(current, runChecks), "info");
+        return;
       }
 
       if (subcommand === "mark") {
         if (!isShipResult(result)) {
-          return {
-            content: [{ type: "text", text: "Missing result. Usage: /ship mark --result go|block [--notes \"...\"]" }],
-            isError: true,
-          };
+          ctx.ui.notify("Missing result. Usage: /ship mark --result go|block [--notes \"...\"]", "warning");
+          return;
         }
 
         const current = readCurrentRun(statePaths);
@@ -364,9 +344,8 @@ export default function (pi: ExtensionAPI) {
           clearCurrentRun(statePaths);
         }
 
-        return {
-          content: [{ type: "text", text: `Recorded SHIP_${result.toUpperCase()} for: ${taskName}` }],
-        };
+        ctx.ui.notify(`Recorded SHIP_${result.toUpperCase()} for: ${taskName}`, "info");
+        return;
       }
 
       const current = readCurrentRun(statePaths);
@@ -375,9 +354,7 @@ export default function (pi: ExtensionAPI) {
         ? `Current run: ${current.runId}\nTask: ${current.task}\nRepo: ${current.repoName}\nSession: ${current.sessionKey}\nStarted: ${current.startedAt}\n`
         : `Current run: none\nRepo: ${repoName}\nSession: ${sessionKey}\n`;
 
-      return {
-        content: [{ type: "text", text: `${currentText}\n${summary}` }],
-      };
+      notifyBlock(ctx, `${currentText}\n${summary}`, "info");
     },
   });
 }
