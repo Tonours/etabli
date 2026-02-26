@@ -1,6 +1,12 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 /**
+ * Filter Output — POST-EXECUTION secret redaction for tool results.
+ *
+ * Security layer 2 of 2 (with damage-control.ts):
+ *   - damage-control.ts → intercepts tool_call BEFORE execution → blocks or asks
+ *   - filter-output.ts  → intercepts tool_result AFTER execution  → redacts secrets
+ *
  * Redacts sensitive data (API keys, tokens, secrets, credentials) from tool
  * output before the LLM sees it. Covers both `read` (file reads) and `bash`
  * (command output) to prevent accidental secret leakage.
