@@ -1,21 +1,4 @@
 {
-  "packages": [
-    "extensions/filter-output.ts",
-    "extensions/nightshift.ts",
-    "extensions/ship.ts",
-    "npm:pi-notify",
-    "git:github.com/ogulcancelik/pi-ghostty-theme-sync",
-    {
-      "source": "git:github.com/badlogic/pi-skills",
-      "skills": [
-        "brave-search",
-        "youtube-transcript"
-      ],
-      "extensions": [],
-      "prompts": [],
-      "themes": []
-    }
-  ],
   "theme": "catppuccin-mocha",
   "themes": [
     "themes"
