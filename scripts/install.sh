@@ -401,6 +401,12 @@ if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
     print_success "Pi AGENTS.md linked"
 fi
 
+# damage-control-rules.json (global safety rules)
+if [ -f "$REPO_DIR/pi/damage-control-rules.json" ]; then
+    ln -sf "$REPO_DIR/pi/damage-control-rules.json" ~/.pi/damage-control-rules.json
+    print_success "Pi damage-control-rules.json linked"
+fi
+
 # models.json (backup existing if not a symlink)
 if [ -f "$REPO_DIR/pi/models.json" ]; then
     if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then
