@@ -1,5 +1,9 @@
 /**
- * Damage Control — Safety gate for dangerous tool calls.
+ * Damage Control — PRE-EXECUTION safety gate for dangerous tool calls.
+ *
+ * Security layer 1 of 2 (with filter-output.ts):
+ *   - damage-control.ts → intercepts tool_call BEFORE execution → blocks or asks
+ *   - filter-output.ts  → intercepts tool_result AFTER execution  → redacts secrets
  *
  * Intercepts tool_call events and blocks or asks confirmation for dangerous
  * commands based on rules loaded from damage-control-rules.json.
