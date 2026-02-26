@@ -7,12 +7,23 @@
 - Functions < 50 lines, files < 300 lines
 - Destructure imports when possible
 
-## Architecture
-- src/api/ — Route handlers
-- src/services/ — Business logic
-- src/lib/ — Shared utilities
-- src/types/ — TypeScript types
-- Tests next to source: foo.ts → foo.test.ts
+## Architecture (dotfiles repo)
+- pi/extensions/     — Pi extensions (TypeScript, auto-loaded via settings.json)
+- pi/extensions/lib/ — Shared utilities between extensions
+- pi/skills/         — Pi skills (Markdown SKILL.md)
+- pi/themes/         — Custom themes (JSON)
+- pi/agent/          — Agent-level settings
+- scripts/           — Install & dev scripts (Bash)
+- nvim/              — Neovim config (Lua, LazyVim)
+- ghostty/           — Ghostty terminal config
+- yabai/ skhd/ sketchybar/ borders/ — Tiling WM configs (macOS)
+
+## Extension conventions
+- One extension per file in pi/extensions/
+- Shared helpers go in pi/extensions/lib/
+- Auto-loaded extensions registered in pi/agent/settings.json packages
+- Opt-in extensions loaded via `pi -e extensions/<name>.ts`
+- Security layers: damage-control (pre-execution gate) → filter-output (post-execution redaction)
 
 ## Workflow
 - TDD: write tests first, then implementation
@@ -23,6 +34,15 @@
 - Always verify before committing
 - Use `/skill:review` before committing
 - Commit format: feat|fix|refactor|test|docs|chore(scope): description
+
+## Ship pipeline
+1. `/ship start --task "..."` — start tracked run
+2. `/skill:plan` — create implementation plan
+3. `/skill:plan-review` — stress-test the plan
+4. implement — write code
+5. `/skill:verify` — type-check, test, lint, build
+6. `/skill:review` — code review
+7. `/ship mark --result go|block` — record decision
 
 ## Model usage
 - Planning & analysis: prefer reasoning models (Kimi K2.5, o3)
