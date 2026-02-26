@@ -14,8 +14,10 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { parseCommandArgs, getFlagValue, toBoolean, toOptionalString, notifyBlock } from "./lib/args.ts";
 
 const NIGHTSHIFT_BIN = join(homedir(), ".local", "bin", "nightshift");
+const NIGHTSHIFT_SUBCOMMANDS = new Set(["init", "list", "run", "status"] as const);
 
 const STATE_DIR = join(homedir(), ".local", "state", "nightshift");
 const TASKS_FILE = join(STATE_DIR, "tasks.md");
@@ -50,111 +52,76 @@ function runNightshift(args: string[]): Promise<{ stdout: string; stderr: string
 }
 
 export default function (pi: ExtensionAPI) {
-  // Register /nightshift command
-  pi.on("session_start", (_event, ctx) => {
-    ctx.ui.notify("Nightshift extension loaded — /nightshift {init,list,run,status}", "info");
-  });
-
-  pi.registerCommand({
-    name: "nightshift",
+  pi.registerCommand("nightshift", {
     description: "Overnight batch task runner",
-    parameters: {
-      type: "object",
-      properties: {
-        subcommand: {
-          type: "string",
-          enum: ["init", "list", "run", "status"],
-          description: "Subcommand to execute",
-        },
-        force: {
-          type: "boolean",
-          description: "Force overwrite for init",
-        },
-        dryRun: {
-          type: "boolean",
-          description: "Dry run mode for run command",
-        },
-        verifyOnly: {
-          type: "boolean",
-          description: "Run checks only, skip commit/push",
-        },
-        requireVerify: {
-          type: "boolean",
-          description: "Fail tasks that do not define verify commands",
-        },
-        only: {
-          type: "string",
-          description: "Comma-separated task IDs to run",
-        },
-      },
-      required: ["subcommand"],
-    },
-    async execute(params) {
-      const { subcommand, force, dryRun, verifyOnly, requireVerify, only } = params as {
-        subcommand: string;
-        force?: boolean;
-        dryRun?: boolean;
-        verifyOnly?: boolean;
-        requireVerify?: boolean;
-        only?: string;
-      };
+    handler: async (args, ctx) => {
+      const parsed = parseCommandArgs(args);
+      const firstPositional = parsed.positional[0];
+      const subcommand = NIGHTSHIFT_SUBCOMMANDS.has(firstPositional as "init" | "list" | "run" | "status")
+        ? (firstPositional as "init" | "list" | "run" | "status")
+        : undefined;
 
-      const args: string[] = [subcommand];
+      if (!subcommand) {
+        ctx.ui.notify("Usage: /nightshift <init|list|run|status> [--flags]", "warning");
+        return;
+      }
+
+      const force = toBoolean(getFlagValue(parsed.flags, ["force"]), false);
+      const dryRun = toBoolean(getFlagValue(parsed.flags, ["dry-run", "dryRun"]), false);
+      const verifyOnly = toBoolean(getFlagValue(parsed.flags, ["verify-only", "verifyOnly"]), false);
+      const requireVerify = toBoolean(getFlagValue(parsed.flags, ["require-verify", "requireVerify"]), false);
+      const only = toOptionalString(getFlagValue(parsed.flags, ["only"]));
+
+      const commandArgs: string[] = [subcommand];
 
       if (subcommand === "init" && force) {
-        args.push("--force");
+        commandArgs.push("--force");
       }
 
       if (subcommand === "run") {
-        if (dryRun) args.push("--dry-run");
-        if (verifyOnly) args.push("--verify-only");
-        if (requireVerify) args.push("--require-verify");
+        if (dryRun) commandArgs.push("--dry-run");
+        if (verifyOnly) commandArgs.push("--verify-only");
+        if (requireVerify) commandArgs.push("--require-verify");
         if (only) {
-          args.push("--only", only);
+          commandArgs.push("--only", only);
         }
       }
 
-      const result = await runNightshift(args);
+      const result = await runNightshift(commandArgs);
 
       if (result.code !== 0) {
-        return {
-          content: [
-            { type: "text", text: `Nightshift ${subcommand} failed (exit ${result.code}):` },
-            { type: "text", text: result.stderr || result.stdout },
-          ],
-          isError: true,
-        };
+        notifyBlock(ctx, `Nightshift ${subcommand} failed (exit ${result.code}):\n${result.stderr || result.stdout}`, "error");
+        return;
       }
 
-      return {
-        content: [{ type: "text", text: result.stdout || result.stderr || "Done." }],
-      };
+      notifyBlock(ctx, result.stdout || result.stderr || "Done.", "info");
     },
   });
 
   // Helper: quick task add via /nightshift-quick
-  pi.registerCommand({
-    name: "nightshift-quick",
+  pi.registerCommand("nightshift-quick", {
     description: "Quickly add a nightshift task",
-    parameters: {
-      type: "object",
-      properties: {
-        repo: { type: "string", description: "Repository name (under $PI_PROJECT_ROOT)" },
-        prompt: { type: "string", description: "Task prompt" },
-        verify: { type: "string", description: "Verify command (optional)" },
-        engine: { type: "string", enum: ["codex", "none"], default: "codex" },
-        base: { type: "string", default: "main" },
-      },
-      required: ["repo", "prompt"],
-    },
-    async execute(params) {
-      const { repo, prompt, verify, engine = "codex", base = "main" } = params as {
-        repo: string;
-        prompt: string;
-        verify?: string;
-        engine?: "codex" | "none";
-        base?: string;
-      };
+    handler: async (args, ctx) => {
+      const parsed = parseCommandArgs(args);
+      const repoFromFlag = toOptionalString(getFlagValue(parsed.flags, ["repo"]));
+      const promptFromFlag = toOptionalString(getFlagValue(parsed.flags, ["prompt"]));
+      const verify = toOptionalString(getFlagValue(parsed.flags, ["verify"]));
+      const base = toOptionalString(getFlagValue(parsed.flags, ["base"])) ?? "main";
+      const engineRaw = (toOptionalString(getFlagValue(parsed.flags, ["engine"])) ?? "codex").toLowerCase();
+      const engine = engineRaw === "none" ? "none" : engineRaw === "codex" ? "codex" : undefined;
+
+      const repo = repoFromFlag ?? parsed.positional[0];
+      const promptPositional = parsed.positional.slice(1).join(" ").trim();
+      const prompt = promptFromFlag ?? (promptPositional.length > 0 ? promptPositional : undefined);
+
+      if (!repo || !prompt) {
+        ctx.ui.notify("Usage: /nightshift-quick --repo <name> --prompt \"...\" [--verify \"...\"] [--engine codex|none] [--base main]", "warning");
+        return;
+      }
+      if (!engine) {
+        ctx.ui.notify("Invalid engine. Allowed values: codex, none.", "warning");
+        return;
+      }
 
       // Generate task ID from prompt
       const taskId = prompt
@@ -167,7 +134,7 @@ export default function (pi: ExtensionAPI) {
 
       // Read existing tasks or create new
       const { readFileSync, writeFileSync, mkdirSync } = await import("node:fs");
-      
+
       try {
         mkdirSync(STATE_DIR, { recursive: true });
       } catch {
@@ -194,13 +161,11 @@ ENDPROMPT
 
       writeFileSync(TASKS_FILE, existing + taskBlock, "utf-8");
 
-      return {
-        content: [
-          { type: "text", text: `Added nightshift task: ${taskId}` },
-          { type: "text", text: `Branch: ${branch}` },
-          { type: "text", text: `\nRun with: /nightshift run --only ${taskId}` },
-        ],
-      };
+      notifyBlock(
+        ctx,
+        `Added nightshift task: ${taskId}\nBranch: ${branch}\n\nRun with: /nightshift run --only ${taskId}`,
+        "info",
+      );
     },
   });
 }
