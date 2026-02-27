@@ -1,11 +1,5 @@
 {
   "packages": [
-    "extensions/damage-control.ts",
-    "extensions/tool-counter.ts",
-    "extensions/filter-output.ts",
-    "extensions/uv.ts",
-    "extensions/nightshift.ts",
-    "extensions/ship.ts",
     {
       "source": "npm:mitsupi",
       "extensions": [
