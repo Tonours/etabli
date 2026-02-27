@@ -28,10 +28,27 @@
 
 ## Workflow
 - TDD: test first, watch it fail, minimal code to pass.
+- Use `/loop tests` for red-green-refactor cycles.
 - Run single relevant test, not full suite.
+- Run typecheck after changes.
 - Verify before committing. Always.
+- Use `/skill:review` before committing.
 - Commit format: `feat|fix|refactor|test|docs|chore(scope): description`
 - Atomic commits: one logical change per commit.
+
+## Ship pipeline
+1. `/ship start --task "..."` — start tracked run
+2. `/skill:plan` — create implementation plan
+3. `/skill:plan-review` — stress-test the plan
+4. implement — write code
+5. `/skill:verify` — type-check, test, lint, build
+6. `/skill:review` — code review
+7. `/ship mark --result go|block` — record decision
+
+## Model usage
+- Planning & analysis: prefer reasoning models (Kimi K2.5, o3)
+- Implementation: prefer coding models (GPT-5.3 Codex, Kimi K2.5)
+- Quick iterations: prefer fast models (GPT-5-mini, Haiku, Flash)
 
 ## Plan mode
 - Plans MUST be extremely concise. Sacrifice grammar for brevity.
@@ -58,3 +75,6 @@
 - Don't add comments, docstrings, or types to unchanged code.
 - Don't create helpers for one-time operations.
 - Don't design for hypothetical future requirements.
+
+## Common mistakes to avoid
+<!-- Updated when Pi makes mistakes — use /skill:learn pattern -->
