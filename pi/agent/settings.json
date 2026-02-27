@@ -21,10 +21,10 @@
     }
   ],
   "lastChangelogVersion": "0.55.1",
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-6",
+  "defaultProvider": "kimi-coding",
+  "defaultModel": "k2p5",
   "theme": "ghostty-sync-169e8b08",
-  "defaultThinkingLevel": "off",
+  "defaultThinkingLevel": "medium",
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,
