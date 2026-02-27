@@ -145,7 +145,7 @@ export default function (pi: ExtensionAPI) {
     );
   });
 
-  pi.on("tool_call", async (_event, ctx) => {
+  pi.on("turn_start", async (_event, ctx) => {
     if (visible) {
       visible = false;
       ctx.ui.setWidget("welcome", undefined);
