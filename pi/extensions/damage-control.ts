@@ -1,18 +1,12 @@
 /**
  * Damage Control — PRE-EXECUTION safety gate for dangerous tool calls.
  *
- * Security layer 1 of 2 (with filter-output.ts):
- *   - damage-control.ts → intercepts tool_call BEFORE execution → blocks or asks
- *   - filter-output.ts  → intercepts tool_result AFTER execution  → redacts secrets
+ * Modes: light (default) — zeroAccess + critical bash only
+ *        full  — all rules (readOnly, noDelete, ask patterns)
+ *        off   — bypass all checks
+ * Command: /dc [off|light|full|status]
  *
- * Intercepts tool_call events and blocks or asks confirmation for dangerous
- * commands based on rules loaded from damage-control-rules.json.
- *
- * Rule file lookup order:
- *   1. <cwd>/.pi/damage-control-rules.json  (per-project override)
- *   2. ~/.pi/damage-control-rules.json       (global default)
- *
- * Usage: loaded via settings.json packages or `pi -e extensions/damage-control.ts`
+ * Rules from: <cwd>/.pi/damage-control-rules.json or ~/.pi/damage-control-rules.json
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -20,6 +14,8 @@ import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, isAbsolute, resolve, relative } from "node:path";
+
+type DcMode = "off" | "light" | "full";
 
 interface Rule {
   pattern: string;
@@ -122,6 +118,7 @@ function blockMessage(reason: string): string {
 export default function (pi: ExtensionAPI) {
   let rules: Rules = EMPTY_RULES;
   let compiledBashRules: CompiledRule[] = [];
+  let mode: DcMode = "light";
 
   pi.on("session_start", async (_event, ctx) => {
     const loaded = loadRules(ctx.cwd);
@@ -148,10 +145,32 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify("Damage-Control: no rules found", "warning");
     }
 
-    ctx.ui.setStatus("damage-control", `${total} rules active`);
+    const label = mode === "off" ? "OFF" : `${mode} — ${total} rules`;
+    ctx.ui.setStatus("damage-control", label);
+  });
+
+  pi.registerCommand("dc", {
+    description: "Damage-Control: /dc [off|light|full|status]",
+    handler: async (args, ctx) => {
+      const arg = (args ?? "").trim().toLowerCase();
+      if (!arg || arg === "status") {
+        ctx.ui.notify(`Damage-Control: mode=${mode}, ${countRules(rules)} rules loaded`, "info");
+        return;
+      }
+      if (arg === "off" || arg === "light" || arg === "full") {
+        mode = arg;
+        const label = mode === "off" ? "OFF" : `${mode} — ${countRules(rules)} rules`;
+        ctx.ui.setStatus("damage-control", label);
+        ctx.ui.notify(`Damage-Control: ${mode}`, "info");
+        return;
+      }
+      ctx.ui.notify("Usage: /dc [off|light|full|status]", "warning");
+    },
   });
 
   pi.on("tool_call", async (event, ctx) => {
+    if (mode === "off") return { block: false };
+
     let violationReason: string | null = null;
     let shouldAsk = false;
 
@@ -177,9 +196,10 @@ export default function (pi: ExtensionAPI) {
       if (violationReason) break;
     }
 
-    // --- Check read-only paths for write/edit ---
+    // --- Check read-only paths for write/edit (full mode only) ---
     if (
       !violationReason &&
+      mode === "full" &&
       (isToolCallEventType("write", event) || isToolCallEventType("edit", event))
     ) {
       for (const p of inputPaths) {
@@ -199,6 +219,7 @@ export default function (pi: ExtensionAPI) {
       const command = event.input.command;
 
       for (const rule of compiledBashRules) {
+        if (mode === "light" && rule.ask) continue;
         if (rule.regex.test(command)) {
           violationReason = rule.reason;
           shouldAsk = rule.ask;
@@ -215,7 +236,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      if (!violationReason) {
+      if (!violationReason && mode === "full") {
         for (const rop of rules.readOnlyPaths) {
           const hasModifier = /[>|]/.test(command) || /\b(rm|mv|sed)\b/.test(command);
           if (hasModifier && (command.includes(rop) || command.includes(resolveTilde(rop)))) {
@@ -225,7 +246,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      if (!violationReason) {
+      if (!violationReason && mode === "full") {
         for (const ndp of rules.noDeletePaths) {
           const hasDelete = /\b(rm|mv)\b/.test(command);
           if (hasDelete && (command.includes(ndp) || command.includes(resolveTilde(ndp)))) {
