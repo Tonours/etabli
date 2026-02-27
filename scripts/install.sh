@@ -416,15 +416,17 @@ if [ -f "$REPO_DIR/pi/models.json" ]; then
     print_success "Pi models.json linked"
 fi
 
-# Link extensions directories for relative-path portability in settings
+# Link extensions directory (agent path only — ~/.pi/extensions auto-scans and would cause conflicts)
 if [ -d "$REPO_DIR/pi/extensions" ]; then
-    if [ -d ~/.pi/extensions ] && [ ! -L ~/.pi/extensions ]; then
+    # Remove ~/.pi/extensions if it exists (avoid double-loading conflicts)
+    if [ -L ~/.pi/extensions ]; then
+        rm ~/.pi/extensions
+    elif [ -d ~/.pi/extensions ]; then
         mv ~/.pi/extensions ~/.pi/extensions.bak
     fi
     if [ -d ~/.pi/agent/extensions ] && [ ! -L ~/.pi/agent/extensions ]; then
         mv ~/.pi/agent/extensions ~/.pi/agent/extensions.bak
     fi
-    ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/extensions
     ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/agent/extensions
     print_success "Pi extensions linked"
 fi
@@ -495,6 +497,12 @@ if command -v pi &> /dev/null; then
     pi install npm:pi-notify 2>/dev/null && print_success "pi-notify installed" || true
     pi install git:github.com/ogulcancelik/pi-ghostty-theme-sync 2>/dev/null && print_success "pi-ghostty-theme-sync installed" || true
     pi install git:github.com/badlogic/pi-skills 2>/dev/null && print_success "pi-skills installed" || true
+fi
+
+# Symlink node_modules into extensions dir so createRequire() can resolve npm packages (e.g. mitsupi)
+if [ -d ~/.pi/npm/node_modules ] && [ -d "$REPO_DIR/pi/extensions" ]; then
+    ln -sfn ~/.pi/npm/node_modules "$REPO_DIR/pi/extensions/node_modules"
+    print_success "Pi extensions node_modules linked"
 fi
 
 # ============================================================================
