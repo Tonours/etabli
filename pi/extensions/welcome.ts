@@ -7,16 +7,15 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder, VERSION } from "@mariozechner/pi-coding-agent";
 import { Container, Text, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
-import { basename } from "node:path";
-import { userInfo } from "node:os";
+import { homedir, userInfo } from "node:os";
 
 // Pixel-art bear using block characters — 9 lines tall, ~19 cols wide
 const BEAR_ART = [
   "    ██      ██    ",
   "  ██░░██  ██░░██  ",
-  "  ██░░████░░░░██  ",
+  "  ██░░██████░░██  ",
   "██░░░░░░░░░░░░░░██",
-  "██░░██░░░░██░░░░██",
+  "██░░░░██░░██░░░░██",
   "██░░░░░░██░░░░░░██",
   "  ██░░░░░░░░░░██  ",
   "    ██░░░░░░██    ",
@@ -53,7 +52,8 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     visible = true;
     const model = ctx.model?.id ?? "?";
-    const dir = basename(ctx.cwd);
+    const home = homedir();
+    const dir = ctx.cwd.startsWith(home) ? "~" + ctx.cwd.slice(home.length) : ctx.cwd;
     const name = getUserName();
     const version = VERSION ?? "?";
 
@@ -90,7 +90,7 @@ export default function (pi: ExtensionAPI) {
                 theme.fg("warning", `Pi v${version}`) +
                   theme.fg("dim", "  ·  ") +
                   theme.fg("success", model),
-                theme.fg("dim", dir + "/"),
+                theme.fg("dim", dir),
               ];
 
               const maxLines = Math.max(art.length, infoParts.length);
@@ -126,7 +126,7 @@ export default function (pi: ExtensionAPI) {
                 theme.fg("success", model);
               lines.push(center(info, inner));
 
-              const dirLine = theme.fg("dim", dir + "/");
+              const dirLine = theme.fg("dim", dir);
               lines.push(center(dirLine, inner));
 
               lines.push("");
