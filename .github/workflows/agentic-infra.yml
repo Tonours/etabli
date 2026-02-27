@@ -16,7 +16,6 @@ jobs:
       - name: Bash syntax check
         run: |
           bash -n scripts/install.sh
-          bash -n scripts/nightshift
           bash -n scripts/agent-fanout
           bash -n scripts/agent-scorecard
           bash -n scripts/cw
@@ -27,6 +26,14 @@ jobs:
           jq empty pi/settings.json
           jq empty pi/agent/settings.json
           jq empty pi/models.json
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Run TypeScript tests
+        run: |
+          bun test pi/extensions/lib/nightshift/__tests__/
+          bun test pi/extensions/__tests__/
 
       - name: Run script tests
         run: |

@@ -1,33 +1,50 @@
-# Night Shift (Local Runner)
+# Night Shift (Native Pi Extension)
 
-`scripts/nightshift` is a local overnight runner designed to keep working while you sleep:
+`/nightshift` is a native Pi extension for overnight batch tasks:
 - prepare 1–3 tasks before leaving
 - execute each task in its own worktree
 - run verify commands
 - commit + push automatically (unless `--verify-only`)
 
-## Installation
+No external dependencies required (no python3, jq).
 
-If you installed via `scripts/install.sh`, `nightshift` should already be in your PATH.
+## Commands
+
+```
+/nightshift init [--force]          — Create tasks template
+/nightshift list                    — List parsed tasks with status
+/nightshift run [options]           — Execute tasks
+/nightshift status                  — Show task state
+/nightshift clean                   — Purge stale worktrees
+/nightshift-quick --repo <n> ...    — Quick task add
+```
+
+### Run options
+
+- `--dry-run` — Parse and validate only, no execution
+- `--verify-only` — Run engine + verify but skip commit/push
+- `--require-verify` — Fail tasks without verify commands
+- `--only id1,id2` — Run specific tasks only
+- `--limit N` — Limit number of tasks to run
 
 ## Routine
 
 Prep (around 17:00–17:30):
-- `nightshift init`
+- `/nightshift init`
 - edit `~/.local/state/nightshift/tasks.md`
-- run `nightshift run --dry-run` to validate parsing
+- `/nightshift run --dry-run` to validate parsing
 
 Before leaving:
-- `nightshift run`
+- `/nightshift run`
 
 If you only want execution + checks (no commit/push):
-- `nightshift run --verify-only`
+- `/nightshift run --verify-only`
 
 If you want strict task hygiene (every task must define verify commands):
-- `nightshift run --require-verify`
+- `/nightshift run --require-verify`
 
 Next morning:
-- `nightshift status`
+- `/nightshift status`
 - check `~/.local/state/nightshift/last-run-report.md`
 
 ## Task Format
@@ -67,7 +84,6 @@ Fields:
 
 ## Run Output Files
 
-Nightshift now writes structured run artifacts:
 - `~/.local/state/nightshift/last-run-report.md` (latest run summary)
 - `~/.local/state/nightshift/last-run-report.json` (machine-readable summary)
 - `~/.local/state/nightshift/history.jsonl` (per-task history for metrics)
@@ -78,6 +94,8 @@ Nightshift now writes structured run artifacts:
 - commit/push errors are treated as failures (no silent success)
 - failed tasks are marked with explicit `lastError`
 - each task is appended to history with status and verify result
+- selective git add (no `git add -A`) to avoid committing unrelated files
+- atomic write-rename for state and history files
 
 ## Engines
 
@@ -93,8 +111,23 @@ Skips LLM execution; useful for pre-creating worktree + branch.
 - no merge
 - no browser
 
+## Architecture
+
+The extension is composed of focused modules in `pi/extensions/lib/nightshift/`:
+- `config.ts` — Environment variable resolution
+- `parse-tasks.ts` — Markdown task parser (state machine)
+- `state.ts` — Atomic state.json read/write
+- `history.ts` — JSONL history append/read/prune
+- `worktree.ts` — Git worktree creation/cleanup
+- `engine.ts` — Engine execution (codex spawn)
+- `verify.ts` — Verify command runner
+- `git-ops.ts` — Selective git add, commit, push
+- `report.ts` — Markdown and JSON report generation
+- `checks.ts` — Binary availability checks
+
 ## Troubleshooting
 
 - ensure the machine does not sleep overnight
-- validate task parsing first: `nightshift list` + `nightshift run --dry-run`
+- validate task parsing first: `/nightshift list` + `/nightshift run --dry-run`
 - inspect logs and `last-run-report.md` for failures
+- `/nightshift clean` to purge stale worktrees

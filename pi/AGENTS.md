@@ -8,14 +8,17 @@
 - Destructure imports when possible
 
 ## Architecture (dotfiles repo)
-- pi/extensions/     — Pi extensions (TypeScript, auto-loaded via settings.json)
-- pi/extensions/lib/ — Shared utilities between extensions
-- pi/skills/         — Pi skills (Markdown SKILL.md)
-- pi/themes/         — Custom themes (JSON)
-- pi/agent/          — Agent-level settings
-- scripts/           — Install & dev scripts (Bash)
-- nvim/              — Neovim config (Lua, LazyVim)
-- ghostty/           — Ghostty terminal config
+- pi/extensions/                  — Pi extensions (TypeScript, auto-loaded via settings.json)
+- pi/extensions/lib/              — Shared utilities between extensions
+- pi/extensions/lib/nightshift/   — Nightshift modules (config, parser, state, history, worktree, engine, git-ops, verify, report, checks, runner)
+- pi/extensions/lib/ship-utils.ts — Ship shared utilities (session key, history, prune)
+- pi/extensions/__tests__/        — Extension-level tests
+- pi/skills/                      — Pi skills (Markdown SKILL.md)
+- pi/themes/                      — Custom themes (JSON)
+- pi/agent/                       — Agent-level settings
+- scripts/                        — Install & dev scripts (Bash)
+- nvim/                           — Neovim config (Lua, LazyVim)
+- ghostty/                        — Ghostty terminal config
 - yabai/ skhd/ sketchybar/ borders/ — Tiling WM configs (macOS)
 
 ## Extension conventions
