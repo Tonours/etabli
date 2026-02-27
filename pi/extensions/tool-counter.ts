@@ -19,22 +19,24 @@ interface GitStatus {
 
 let cachedGitStatus: GitStatus = { staged: 0, modified: 0, untracked: 0 };
 let gitStatusTs = 0;
+let gitStatusCwd = "";
 const GIT_STATUS_TTL = 3000;
 
 function getGitStatus(cwd: string): GitStatus {
   const now = Date.now();
-  if (now - gitStatusTs < GIT_STATUS_TTL) return cachedGitStatus;
+  if (cwd === gitStatusCwd && now - gitStatusTs < GIT_STATUS_TTL) return cachedGitStatus;
   try {
     const out = execFileSync("git", ["status", "--porcelain"], {
       cwd,
       encoding: "utf-8",
+      timeout: 2000,
       stdio: ["ignore", "pipe", "ignore"],
     });
     let staged = 0;
     let modified = 0;
     let untracked = 0;
     for (const line of out.split("\n")) {
-      if (!line) continue;
+      if (line.length < 2) continue;
       const x = line[0];
       const y = line[1];
       if (x === "?" && y === "?") {
@@ -46,9 +48,11 @@ function getGitStatus(cwd: string): GitStatus {
     }
     cachedGitStatus = { staged, modified, untracked };
     gitStatusTs = now;
+    gitStatusCwd = cwd;
   } catch {
     cachedGitStatus = { staged: 0, modified: 0, untracked: 0 };
     gitStatusTs = now;
+    gitStatusCwd = cwd;
   }
   return cachedGitStatus;
 }
