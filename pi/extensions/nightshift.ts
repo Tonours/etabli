@@ -1,104 +1,207 @@
 /**
- * Nightshift extension for pi.
+ * Nightshift extension for pi — native TypeScript orchestrator.
  *
- * Wraps the nightshift runner for overnight batch tasks.
  * Commands:
- *   /nightshift init [--force]     - Create tasks template
- *   /nightshift list               - List parsed tasks
- *   /nightshift run [--dry-run] [--verify-only] [--require-verify] - Execute tasks
- *   /nightshift status             - Show task status
+ *   /nightshift init [--force]                      — Create tasks template
+ *   /nightshift list                                — List parsed tasks with status
+ *   /nightshift run [--dry-run] [--verify-only]     — Execute tasks
+ *            [--require-verify] [--only id] [--limit N]
+ *   /nightshift status                              — Show task status from state.json
+ *   /nightshift clean                               — Purge stale worktrees
+ *   /nightshift-quick --repo <name> --prompt "..."  — Quick task add
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseCommandArgs, getFlagValue, toBoolean, toOptionalString, notifyBlock } from "./lib/args.ts";
+import { resolveConfig } from "./lib/nightshift/config.ts";
+import { parseTasks, normalizeTaskId } from "./lib/nightshift/parse-tasks.ts";
+import { readState } from "./lib/nightshift/state.ts";
+import { cleanWorktrees } from "./lib/nightshift/worktree.ts";
+import { cmdRun } from "./lib/nightshift/runner.ts";
+import type { NightshiftConfig } from "./lib/nightshift/types.ts";
 
-const NIGHTSHIFT_BIN = join(homedir(), ".local", "bin", "nightshift");
-const NIGHTSHIFT_SUBCOMMANDS = new Set(["init", "list", "run", "status"] as const);
+type Subcommand = "init" | "list" | "run" | "status" | "clean";
+const SUBCOMMANDS = new Set<Subcommand>(["init", "list", "run", "status", "clean"]);
 
-const STATE_DIR = join(homedir(), ".local", "state", "nightshift");
-const TASKS_FILE = join(STATE_DIR, "tasks.md");
+function ensureDirs(config: NightshiftConfig): void {
+  mkdirSync(config.stateDir, { recursive: true });
+  mkdirSync(config.logDir, { recursive: true });
+  mkdirSync(config.worktreeRoot, { recursive: true });
 
-function runNightshift(args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
-  return new Promise((resolve) => {
-    const bin = existsSync(NIGHTSHIFT_BIN) ? NIGHTSHIFT_BIN : "nightshift";
-    const child = spawn(bin, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, CLICOLOR_FORCE: "1" },
-    });
+  if (!existsSync(config.stateFile)) {
+    writeFileSync(config.stateFile, '{"version":1,"tasks":{}}\n', "utf-8");
+  }
+  if (!existsSync(config.historyFile)) {
+    writeFileSync(config.historyFile, "", "utf-8");
+  }
+}
 
-    let stdout = "";
-    let stderr = "";
+const TEMPLATE = `# Night Shift Tasks
 
-    child.stdout?.on("data", (data) => {
-      stdout += data.toString();
-    });
+Prep session (17:00-17:30):
+- add 1-3 tasks max
+- keep them execution-oriented (bugfix / small feature)
+- include verify commands
 
-    child.stderr?.on("data", (data) => {
-      stderr += data.toString();
-    });
+## TASK example-fix-login-redirect
+repo: my-repo
+base: main
+branch: night/example-fix-login-redirect
+engine: codex
+verify:
+- bun test
+- bun run lint
+prompt:
+Fix the login redirect loop.
 
-    child.on("error", (error) => {
-      resolve({ stdout, stderr: `${stderr}\n${error.message}`.trim(), code: 127 });
-    });
+Context:
+- Users on /app are redirected back to /login even after auth.
 
-    child.on("close", (code) => {
-      resolve({ stdout, stderr, code: code ?? 1 });
-    });
-  });
+DoD:
+- tests pass
+- no new lints
+- minimal diff
+
+Notes:
+- likely in src/auth/* and middleware
+ENDPROMPT
+`;
+
+function cmdInit(config: NightshiftConfig, force: boolean): string {
+  ensureDirs(config);
+  const out = config.tasksFile;
+
+  if (existsSync(out) && !force) {
+    return `Tasks file already exists: ${out} (use --force to overwrite)`;
+  }
+
+  writeFileSync(out, TEMPLATE, "utf-8");
+  return `Created: ${out}`;
+}
+
+function cmdList(config: NightshiftConfig): string {
+  if (!existsSync(config.tasksFile)) {
+    return `No tasks file found: ${config.tasksFile}\nRun /nightshift init to create one.`;
+  }
+  const content = readFileSync(config.tasksFile, "utf-8");
+  const tasks = parseTasks(content);
+
+  if (tasks.length === 0) return "No tasks found.";
+
+  const state = readState(config.stateFile);
+  const lines: string[] = [];
+
+  for (const task of tasks) {
+    const taskState = state.tasks[task.id];
+    const status = taskState?.status ?? "pending";
+    const repo = task.path ?? task.repo ?? "";
+    lines.push(`${task.id}\t${status}\tengine=${task.engine}\trepo=${repo}\tbranch=${task.branch}`);
+  }
+
+  return lines.join("\n");
+}
+
+function cmdStatus(config: NightshiftConfig): string {
+  ensureDirs(config);
+  const state = readState(config.stateFile);
+  const entries = Object.entries(state.tasks).sort(([a], [b]) => a.localeCompare(b));
+
+  if (entries.length === 0) return "No task state recorded yet.";
+
+  const lines: string[] = [];
+  for (const [tid, meta] of entries) {
+    const parts = [tid, meta.status ?? "", meta.branch ?? "", meta.worktree ?? "", meta.lastRunAt ?? ""];
+    if (meta.lastError) parts.push(meta.lastError);
+    lines.push(parts.join("\t"));
+  }
+  return lines.join("\n");
+}
+
+function cmdClean(config: NightshiftConfig): string {
+  if (!existsSync(config.tasksFile)) {
+    return `No tasks file found: ${config.tasksFile}\nRun /nightshift init to create one.`;
+  }
+  const content = readFileSync(config.tasksFile, "utf-8");
+  const tasks = parseTasks(content);
+
+  const repoDirs = new Set<string>();
+  for (const task of tasks) {
+    if (task.path) {
+      repoDirs.add(task.path);
+    } else if (task.repo) {
+      repoDirs.add(join(config.projectRoot, task.repo));
+    }
+  }
+
+  let totalCleaned = 0;
+  for (const repoDir of repoDirs) {
+    if (!existsSync(join(repoDir, ".git"))) continue;
+    totalCleaned += cleanWorktrees(repoDir);
+  }
+
+  return `Cleaned ${totalCleaned} stale worktree(s).`;
 }
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("nightshift", {
-    description: "Overnight batch task runner",
+    description: "Overnight batch task runner (native)",
     handler: async (args, ctx) => {
       const parsed = parseCommandArgs(args);
       const firstPositional = parsed.positional[0];
-      const subcommand = NIGHTSHIFT_SUBCOMMANDS.has(firstPositional as "init" | "list" | "run" | "status")
-        ? (firstPositional as "init" | "list" | "run" | "status")
+      const subcommand = SUBCOMMANDS.has(firstPositional as Subcommand)
+        ? (firstPositional as Subcommand)
         : undefined;
 
       if (!subcommand) {
-        ctx.ui.notify("Usage: /nightshift <init|list|run|status> [--flags]", "warning");
+        ctx.ui.notify("Usage: /nightshift <init|list|run|status|clean> [--flags]", "warning");
         return;
       }
 
-      const force = toBoolean(getFlagValue(parsed.flags, ["force"]), false);
-      const dryRun = toBoolean(getFlagValue(parsed.flags, ["dry-run", "dryRun"]), false);
-      const verifyOnly = toBoolean(getFlagValue(parsed.flags, ["verify-only", "verifyOnly"]), false);
-      const requireVerify = toBoolean(getFlagValue(parsed.flags, ["require-verify", "requireVerify"]), false);
-      const only = toOptionalString(getFlagValue(parsed.flags, ["only"]));
+      const config = resolveConfig();
 
-      const commandArgs: string[] = [subcommand];
-
-      if (subcommand === "init" && force) {
-        commandArgs.push("--force");
-      }
-
-      if (subcommand === "run") {
-        if (dryRun) commandArgs.push("--dry-run");
-        if (verifyOnly) commandArgs.push("--verify-only");
-        if (requireVerify) commandArgs.push("--require-verify");
-        if (only) {
-          commandArgs.push("--only", only);
+      try {
+        if (subcommand === "init") {
+          const force = toBoolean(getFlagValue(parsed.flags, ["force"]), false);
+          notifyBlock(ctx, cmdInit(config, force), "info");
+          return;
         }
+
+        if (subcommand === "list") {
+          notifyBlock(ctx, cmdList(config), "info");
+          return;
+        }
+
+        if (subcommand === "status") {
+          notifyBlock(ctx, cmdStatus(config), "info");
+          return;
+        }
+
+        if (subcommand === "clean") {
+          notifyBlock(ctx, cmdClean(config), "info");
+          return;
+        }
+
+        if (subcommand === "run") {
+          const dryRun = toBoolean(getFlagValue(parsed.flags, ["dry-run", "dryRun"]), false);
+          const verifyOnly = toBoolean(getFlagValue(parsed.flags, ["verify-only", "verifyOnly"]), false);
+          const requireVerify = toBoolean(getFlagValue(parsed.flags, ["require-verify", "requireVerify"]), false);
+          const only = toOptionalString(getFlagValue(parsed.flags, ["only"]));
+          const limitRaw = toOptionalString(getFlagValue(parsed.flags, ["limit"]));
+          const limit = limitRaw !== undefined ? Math.max(0, Math.trunc(Number(limitRaw)) || 0) : 0;
+
+          ensureDirs(config);
+          const result = await cmdRun(config, { dryRun, verifyOnly, requireVerify, only, limit });
+          notifyBlock(ctx, result, "info");
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        notifyBlock(ctx, `Nightshift ${subcommand} failed: ${msg}`, "error");
       }
-
-      const result = await runNightshift(commandArgs);
-
-      if (result.code !== 0) {
-        notifyBlock(ctx, `Nightshift ${subcommand} failed (exit ${result.code}):\n${result.stderr || result.stdout}`, "error");
-        return;
-      }
-
-      notifyBlock(ctx, result.stdout || result.stderr || "Done.", "info");
     },
   });
 
-  // Helper: quick task add via /nightshift-quick
   pi.registerCommand("nightshift-quick", {
     description: "Quickly add a nightshift task",
     handler: async (args, ctx) => {
@@ -115,7 +218,7 @@ export default function (pi: ExtensionAPI) {
       const prompt = promptFromFlag ?? (promptPositional.length > 0 ? promptPositional : undefined);
 
       if (!repo || !prompt) {
-        ctx.ui.notify("Usage: /nightshift-quick --repo <name> --prompt \"...\" [--verify \"...\"] [--engine codex|none] [--base main]", "warning");
+        ctx.ui.notify('Usage: /nightshift-quick --repo <name> --prompt "..." [--verify "..."] [--engine codex|none] [--base main]', "warning");
         return;
       }
       if (!engine) {
@@ -123,30 +226,9 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Generate task ID from prompt
-      const taskId = prompt
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .slice(0, 40)
-        .replace(/^-+|-+$/g, "");
-
+      const config = resolveConfig();
+      const taskId = normalizeTaskId(prompt.slice(0, 40));
       const branch = `night/${taskId}`;
-
-      // Read existing tasks or create new
-      const { readFileSync, writeFileSync, mkdirSync } = await import("node:fs");
-
-      try {
-        mkdirSync(STATE_DIR, { recursive: true });
-      } catch {
-        // ignore
-      }
-
-      let existing = "";
-      try {
-        existing = readFileSync(TASKS_FILE, "utf-8");
-      } catch {
-        existing = "# Night Shift Tasks\n\n";
-      }
 
       const taskBlock = `## TASK ${taskId}
 repo: ${repo}
@@ -159,7 +241,21 @@ ENDPROMPT
 
 `;
 
-      writeFileSync(TASKS_FILE, existing + taskBlock, "utf-8");
+      const validated = parseTasks(taskBlock);
+      if (validated.length === 0) {
+        ctx.ui.notify("Failed to generate valid task block. Check your input.", "error");
+        return;
+      }
+
+      ensureDirs(config);
+      let existing = "";
+      try {
+        existing = readFileSync(config.tasksFile, "utf-8");
+      } catch {
+        existing = "# Night Shift Tasks\n\n";
+      }
+
+      writeFileSync(config.tasksFile, existing + taskBlock, "utf-8");
 
       notifyBlock(
         ctx,
