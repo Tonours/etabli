@@ -46,7 +46,7 @@
 7. `/ship mark --result go|block` — record decision
 
 ## Model usage
-- Planning & analysis: prefer reasoning models (Kimi K2.5, o3)
+- Planning & analysis: prefer reasoning models (Kimi K2.5, GPT-5.3 xhigh)
 - Implementation: prefer coding models (GPT-5.3 Codex, Kimi K2.5)
 - Quick iterations: prefer fast models (GPT-5-mini, Haiku, Flash)
 
