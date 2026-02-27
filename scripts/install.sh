@@ -588,7 +588,7 @@ install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
-install_script "nightshift" || true
+## nightshift is now a native Pi extension (pi/extensions/nightshift.ts)
 install_script "agent-scorecard" || true
 install_script "agent-fanout" || true
 
