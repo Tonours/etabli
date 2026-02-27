@@ -169,7 +169,8 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (mode === "off") return { block: false };
+    const activeMode = mode;
+    if (activeMode === "off") return { block: false };
 
     let violationReason: string | null = null;
     let shouldAsk = false;
@@ -199,7 +200,7 @@ export default function (pi: ExtensionAPI) {
     // --- Check read-only paths for write/edit (full mode only) ---
     if (
       !violationReason &&
-      mode === "full" &&
+      activeMode === "full" &&
       (isToolCallEventType("write", event) || isToolCallEventType("edit", event))
     ) {
       for (const p of inputPaths) {
@@ -219,7 +220,7 @@ export default function (pi: ExtensionAPI) {
       const command = event.input.command;
 
       for (const rule of compiledBashRules) {
-        if (mode === "light" && rule.ask) continue;
+        if (activeMode === "light" && rule.ask) continue;
         if (rule.regex.test(command)) {
           violationReason = rule.reason;
           shouldAsk = rule.ask;
@@ -236,7 +237,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      if (!violationReason && mode === "full") {
+      if (!violationReason && activeMode === "full") {
         for (const rop of rules.readOnlyPaths) {
           const hasModifier = /[>|]/.test(command) || /\b(rm|mv|sed)\b/.test(command);
           if (hasModifier && (command.includes(rop) || command.includes(resolveTilde(rop)))) {
@@ -246,7 +247,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      if (!violationReason && mode === "full") {
+      if (!violationReason && activeMode === "full") {
         for (const ndp of rules.noDeletePaths) {
           const hasDelete = /\b(rm|mv)\b/.test(command);
           if (hasDelete && (command.includes(ndp) || command.includes(resolveTilde(ndp)))) {
