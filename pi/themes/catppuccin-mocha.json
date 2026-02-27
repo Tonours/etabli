@@ -76,11 +76,11 @@
     "syntaxComment": "overlay0",
     "syntaxKeyword": "lavender",
     "syntaxFunction": "sky",
-    "syntaxVariable": "text",
+    "syntaxVariable": "rosewater",
     "syntaxString": "green",
     "syntaxNumber": "peach",
     "syntaxType": "yellow",
-    "syntaxOperator": "sky",
+    "syntaxOperator": "mauve",
     "syntaxPunctuation": "overlay2",
 
     "thinkingOff": "surface0",
@@ -90,7 +90,7 @@
     "thinkingHigh": "blue",
     "thinkingXhigh": "peach",
 
-    "bashMode": "sky"
+    "bashMode": "peach"
   },
   "export": {
     "pageBg": "mantle",
