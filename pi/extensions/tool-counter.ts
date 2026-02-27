@@ -2,15 +2,70 @@
  * Tool Counter — Two-line footer with real-time session metrics.
  *
  * Line 1: model + context bar + % (left) | tokens in/out + cost (right)
- * Line 2: cwd + git branch (left) | tool call tally (right)
- *
- * Usage: loaded via settings.json packages or `pi -e extensions/tool-counter.ts`
+ * Line 2: cwd + git branch + git status + DC mode (left) | tool tally (right)
  */
 
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { execFileSync } from "node:child_process";
 import { basename } from "node:path";
+
+interface GitStatus {
+  staged: number;
+  modified: number;
+  untracked: number;
+}
+
+let cachedGitStatus: GitStatus = { staged: 0, modified: 0, untracked: 0 };
+let gitStatusTs = 0;
+const GIT_STATUS_TTL = 3000;
+
+function getGitStatus(cwd: string): GitStatus {
+  const now = Date.now();
+  if (now - gitStatusTs < GIT_STATUS_TTL) return cachedGitStatus;
+  try {
+    const out = execFileSync("git", ["status", "--porcelain"], {
+      cwd,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    let staged = 0;
+    let modified = 0;
+    let untracked = 0;
+    for (const line of out.split("\n")) {
+      if (!line) continue;
+      const x = line[0];
+      const y = line[1];
+      if (x === "?" && y === "?") {
+        untracked++;
+        continue;
+      }
+      if (x !== " " && x !== "?") staged++;
+      if (y !== " " && y !== "?") modified++;
+    }
+    cachedGitStatus = { staged, modified, untracked };
+    gitStatusTs = now;
+  } catch {
+    cachedGitStatus = { staged: 0, modified: 0, untracked: 0 };
+    gitStatusTs = now;
+  }
+  return cachedGitStatus;
+}
+
+function fmtGitStatus(
+  gs: GitStatus,
+  theme: { fg: (color: string, text: string) => string },
+): string {
+  if (gs.staged === 0 && gs.modified === 0 && gs.untracked === 0) {
+    return theme.fg("success", " \u2713");
+  }
+  const parts: string[] = [];
+  if (gs.staged > 0) parts.push(theme.fg("success", `+${gs.staged}`));
+  if (gs.modified > 0) parts.push(theme.fg("warning", `~${gs.modified}`));
+  if (gs.untracked > 0) parts.push(theme.fg("dim", `?${gs.untracked}`));
+  return " " + parts.join(theme.fg("dim", " "));
+}
 
 export default function (pi: ExtensionAPI) {
   const counts: Record<string, number> = {};
@@ -50,7 +105,7 @@ export default function (pi: ExtensionAPI) {
           const usage = ctx.getContextUsage();
           const pct = usage ? usage.percent : 0;
           const filled = Math.round(pct / 10) || 1;
-          const model = ctx.model?.id ?? "no-model";
+          const model = ctx.model?.id ?? "?";
 
           // --- Line 1: model + context bar (left) | tokens + cost (right) ---
           const l1Left =
@@ -75,7 +130,11 @@ export default function (pi: ExtensionAPI) {
           );
           const line1 = truncateToWidth(l1Left + pad1 + l1Right, width, "");
 
-          // --- Line 2: cwd + branch (left) | tool tally (right) ---
+          // --- Line 2: cwd + branch + git status + DC (left) | tool tally (right) ---
+          const gs = getGitStatus(ctx.cwd);
+          const dcRaw = footerData.getExtensionStatuses().get("damage-control") ?? "";
+          const dcMode = dcRaw.split(" ")[0] ?? "";
+
           const l2Left =
             theme.fg("dim", ` ${dir}`) +
             (branch
@@ -83,7 +142,10 @@ export default function (pi: ExtensionAPI) {
                 theme.fg("warning", "(") +
                 theme.fg("success", branch) +
                 theme.fg("warning", ")")
-              : "");
+              : "") +
+            fmtGitStatus(gs, theme) +
+            theme.fg("dim", "  DC:") +
+            theme.fg(dcMode === "OFF" ? "error" : dcMode === "full" ? "accent" : "dim", dcMode || "?");
 
           const entries = Object.entries(counts);
           const l2Right =
