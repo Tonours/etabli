@@ -30,6 +30,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Configure git
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+
       - name: Run TypeScript tests
         run: |
           bun test pi/extensions/lib/nightshift/__tests__/
