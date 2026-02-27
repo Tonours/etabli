@@ -10,10 +10,9 @@
  *   - No task in progress   → block (must toggle one to inprogress)
  *
  * UI surfaces:
- *   - Footer:   persistent task progress + recent tasks
- *   - Widget:   current in-progress task (below editor)
+ *   - Widget:   full task list (above editor)
  *   - Status:   compact summary
- *   - /tilldone: interactive overlay with full task list
+ *   - /tilldone: interactive overlay with task management
  *
  * Usage: `pi -e extensions/tilldone.ts`
  */
@@ -222,35 +221,54 @@ export default function (pi: ExtensionAPI) {
   // ── UI refresh ───────────────────────────────────────────────────────
 
   function refreshWidget(ctx: ExtensionContext): void {
-    const current = tasks.find((t) => t.status === "inprogress");
-
-    if (!current) {
-      ctx.ui.setWidget("tilldone-current", undefined);
+    if (tasks.length === 0) {
+      ctx.ui.setWidget("tilldone-tasks", undefined);
       return;
     }
 
     ctx.ui.setWidget(
-      "tilldone-current",
+      "tilldone-tasks",
       (_tui, theme) => {
         const container = new Container();
         const borderFn = (s: string) => theme.fg("dim", s);
         container.addChild(new Text("", 0, 0));
         container.addChild(new DynamicBorder(borderFn));
-        const content = new Text("", 1, 0);
-        container.addChild(content);
+        const body = new Text("", 1, 0);
+        container.addChild(body);
         container.addChild(new DynamicBorder(borderFn));
 
         return {
           render(width: number): string[] {
-            const cur = tasks.find((t) => t.status === "inprogress");
-            if (!cur) return [];
-            const line =
-              theme.fg("accent", "● ") +
-              theme.fg("dim", "WORKING ON  ") +
-              theme.fg("accent", `#${cur.id}`) +
-              theme.fg("dim", "  ") +
-              theme.fg("success", cur.text);
-            content.setText(truncateToWidth(line, width - 4));
+            if (tasks.length === 0) return [];
+            const inner = width - 4;
+            const done = tasks.filter((t) => t.status === "done").length;
+            const title = listTitle ?? "TillDone";
+
+            const header =
+              theme.fg("accent", ` ${title} `) +
+              theme.fg("warning", "[") +
+              theme.fg("success", `${done}`) +
+              theme.fg("dim", "/") +
+              theme.fg("success", `${tasks.length}`) +
+              theme.fg("warning", "]");
+
+            const rows = tasks.map((t) => {
+              const icon =
+                t.status === "done"
+                  ? theme.fg("success", STATUS_ICON.done)
+                  : t.status === "inprogress"
+                    ? theme.fg("accent", STATUS_ICON.inprogress)
+                    : theme.fg("dim", STATUS_ICON.idle);
+              const text =
+                t.status === "done"
+                  ? theme.fg("dim", t.text)
+                  : t.status === "inprogress"
+                    ? theme.fg("success", t.text)
+                    : theme.fg("muted", t.text);
+              return truncateToWidth(` ${icon} ${text}`, inner);
+            });
+
+            body.setText([header, ...rows].join("\n"));
             return container.render(width);
           },
           invalidate() {
@@ -258,7 +276,7 @@ export default function (pi: ExtensionAPI) {
           },
         };
       },
-      { placement: "belowEditor" },
+      { placement: "aboveEditor" },
     );
   }
 
