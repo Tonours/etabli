@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from "bun:test";
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -11,8 +11,12 @@ import {
   pruneHistory,
   readHistory,
   appendHistory,
+  formatStartResponse,
+  formatFinalizeResponse,
+  detectStepFromInput,
   type ShipHistoryEntry,
   type ShipStatePaths,
+  type ShipCurrentRun,
 } from "../lib/ship-utils.ts";
 
 // -- normalizeSegment --
@@ -29,8 +33,7 @@ describe("normalizeSegment", () => {
     expect(normalizeSegment("--hello--")).toBe("hello");
   });
 
-  test("returns 'repo' for empty result", () => {
-    // normalizeSegment("") → "" but getRepoName handles fallback
+  test("returns empty string for empty input", () => {
     expect(normalizeSegment("")).toBe("");
   });
 });
@@ -44,14 +47,11 @@ describe("createRepoKey", () => {
   });
 
   test("different paths produce different keys", () => {
-    const key1 = createRepoKey("/path/a");
-    const key2 = createRepoKey("/path/b");
-    expect(key1).not.toBe(key2);
+    expect(createRepoKey("/path/a")).not.toBe(createRepoKey("/path/b"));
   });
 
   test("key includes normalized repo name", () => {
-    const key = createRepoKey("/projects/My App");
-    expect(key).toMatch(/^my-app-/);
+    expect(createRepoKey("/projects/My App")).toMatch(/^my-app-/);
   });
 });
 
@@ -64,35 +64,63 @@ describe("isShipResult", () => {
   test("rejects empty string", () => expect(isShipResult("")).toBe(false));
 });
 
-// -- getSessionKey (Fix I-6) --
+// -- getSessionKey --
 describe("getSessionKey", () => {
   test("uses PI_SHIP_SESSION when set", () => {
-    const key = getSessionKey({ PI_SHIP_SESSION: "my-session" });
-    expect(key).toBe("my-session");
+    expect(getSessionKey({ PI_SHIP_SESSION: "my-session" })).toBe("my-session");
   });
 
   test("falls back to TMUX_PANE", () => {
-    const key = getSessionKey({ TMUX_PANE: "%3" });
-    expect(key).toBe("3"); // normalized: % stripped
+    expect(getSessionKey({ TMUX_PANE: "%3" })).toBe("3");
   });
 
   test("falls back to TTY", () => {
-    const key = getSessionKey({ TTY: "/dev/ttys003" });
-    expect(key).toMatch(/ttys003/);
+    expect(getSessionKey({ TTY: "/dev/ttys003" })).toMatch(/ttys003/);
   });
 
   test("falls back to pid-based key when no env set", () => {
-    const key = getSessionKey({});
-    expect(key).toMatch(/^pid-\d+$/);
+    expect(getSessionKey({})).toMatch(/^pid-\d+$/);
   });
 
   test("never returns 'default'", () => {
-    const key = getSessionKey({});
-    expect(key).not.toBe("default");
+    expect(getSessionKey({})).not.toBe("default");
   });
 });
 
-// -- summarizeLast7Days (Fix C-5: filter by sessionKey) --
+// -- detectStepFromInput --
+describe("detectStepFromInput", () => {
+  test("detects /skill:plan", () => {
+    expect(detectStepFromInput("/skill:plan some task")).toBe("plan");
+  });
+
+  test("detects /skill:plan-review", () => {
+    expect(detectStepFromInput("/skill:plan-review")).toBe("plan-review");
+  });
+
+  test("detects /skill:verify", () => {
+    expect(detectStepFromInput("/skill:verify")).toBe("verify");
+  });
+
+  test("detects /skill:review", () => {
+    expect(detectStepFromInput("/skill:review")).toBe("review");
+  });
+
+  test("does not confuse plan with plan-review", () => {
+    expect(detectStepFromInput("/skill:plan-review")).toBe("plan-review");
+    expect(detectStepFromInput("/skill:plan do stuff")).toBe("plan");
+  });
+
+  test("returns undefined for non-skill input", () => {
+    expect(detectStepFromInput("hello world")).toBeUndefined();
+    expect(detectStepFromInput("/ship start")).toBeUndefined();
+  });
+
+  test("handles leading whitespace", () => {
+    expect(detectStepFromInput("  /skill:verify")).toBe("verify");
+  });
+});
+
+// -- summarizeLast7Days --
 describe("summarizeLast7Days", () => {
   const now = new Date();
   const recent = now.toISOString();
@@ -100,50 +128,89 @@ describe("summarizeLast7Days", () => {
 
   function entry(overrides: Partial<ShipHistoryEntry>): ShipHistoryEntry {
     return {
-      runId: "r1",
-      status: "go",
-      task: "test-task",
-      startedAt: recent,
-      repoPath: "/path",
-      repoName: "repo",
-      sessionKey: "session-a",
+      runId: "r1", status: "go", task: "test-task", startedAt: recent,
+      repoPath: "/path", repoName: "repo", sessionKey: "session-a",
       ...overrides,
     };
   }
 
   test("filters entries by sessionKey", () => {
-    const entries: ShipHistoryEntry[] = [
+    const entries = [
       entry({ status: "go", sessionKey: "session-a" }),
       entry({ status: "block", sessionKey: "session-b" }),
       entry({ status: "go", sessionKey: "session-a" }),
     ];
-
     const summary = summarizeLast7Days(entries, "session-a");
     expect(summary).toContain("go=2");
     expect(summary).not.toContain("block=1");
   });
 
   test("excludes entries older than 7 days", () => {
-    const entries: ShipHistoryEntry[] = [
-      entry({ status: "go", startedAt: old }),
-      entry({ status: "go", startedAt: recent }),
-    ];
-
-    const summary = summarizeLast7Days(entries, "session-a");
-    expect(summary).toContain("go=1");
+    const entries = [entry({ startedAt: old }), entry({ startedAt: recent })];
+    expect(summarizeLast7Days(entries, "session-a")).toContain("go=1");
   });
 
   test("shows 'No GO/BLOCK decision' when none recorded", () => {
-    const entries: ShipHistoryEntry[] = [
-      entry({ status: "started" }),
-    ];
-
-    const summary = summarizeLast7Days(entries, "session-a");
-    expect(summary).toContain("No GO/BLOCK decision");
+    expect(summarizeLast7Days([entry({ status: "started" })], "session-a")).toContain("No GO/BLOCK decision");
   });
 });
 
-// -- pruneHistory (Fix I-3) --
+// -- formatStartResponse --
+describe("formatStartResponse", () => {
+  function makeRun(overrides?: Partial<ShipCurrentRun>): ShipCurrentRun {
+    return {
+      runId: "123", task: "add feature", startedAt: "2025-01-01T00:00:00Z",
+      auto: false, repoPath: "/path", repoName: "repo", sessionKey: "s1", completedSteps: [],
+      ...overrides,
+    };
+  }
+
+  test("includes task and repo info", () => {
+    const out = formatStartResponse(makeRun(), false);
+    expect(out).toContain("add feature");
+    expect(out).toContain("repo");
+  });
+
+  test("shows queue message when auto", () => {
+    const out = formatStartResponse(makeRun(), true);
+    expect(out).toContain("Queued /skill:plan");
+  });
+
+  test("no queue message when not auto", () => {
+    const out = formatStartResponse(makeRun(), false);
+    expect(out).not.toContain("Queued");
+  });
+});
+
+// -- formatFinalizeResponse --
+describe("formatFinalizeResponse", () => {
+  function makeRun(overrides?: Partial<ShipCurrentRun>): ShipCurrentRun {
+    return {
+      runId: "456", task: "fix bug", startedAt: "2025-01-01T00:00:00Z",
+      auto: false, repoPath: "/path", repoName: "repo", sessionKey: "s1", completedSteps: [],
+      ...overrides,
+    };
+  }
+
+  test("shows completed and pending steps", () => {
+    const out = formatFinalizeResponse(makeRun({ completedSteps: ["plan", "verify"] }), false);
+    expect(out).toContain("plan, verify");
+    expect(out).toContain("plan-review, implement, review");
+  });
+
+  test("shows queue message when runChecks and steps pending", () => {
+    const out = formatFinalizeResponse(makeRun(), true);
+    expect(out).toContain("Queued /skill:verify and /skill:review");
+  });
+
+  test("does not queue already completed steps", () => {
+    const out = formatFinalizeResponse(makeRun({ completedSteps: ["verify"] }), true);
+    expect(out).not.toContain("/skill:verify");
+    expect(out).toContain("/skill:review");
+  });
+});
+
+// -- pruneHistory --
 describe("pruneHistory", () => {
   let historyFile: string;
 
@@ -153,23 +220,13 @@ describe("pruneHistory", () => {
   });
 
   function makePaths(): ShipStatePaths {
-    return {
-      dir: tmpdir(),
-      currentFile: "",
-      historyFile,
-      sessionKey: "test",
-    };
+    return { dir: tmpdir(), currentFile: "", historyFile, sessionKey: "test" };
   }
 
   function entry(i: number): ShipHistoryEntry {
     return {
-      runId: `r${i}`,
-      status: "go",
-      task: `task-${i}`,
-      startedAt: new Date().toISOString(),
-      repoPath: "/path",
-      repoName: "repo",
-      sessionKey: "test",
+      runId: `r${i}`, status: "go", task: `task-${i}`, startedAt: new Date().toISOString(),
+      repoPath: "/path", repoName: "repo", sessionKey: "test",
     };
   }
 
@@ -177,21 +234,14 @@ describe("pruneHistory", () => {
     const paths = makePaths();
     appendHistory(paths, entry(1));
     appendHistory(paths, entry(2));
-
     pruneHistory(paths, 10);
-
-    const entries = readHistory(paths);
-    expect(entries).toHaveLength(2);
+    expect(readHistory(paths)).toHaveLength(2);
   });
 
   test("trims to max entries keeping latest", () => {
     const paths = makePaths();
-    for (let i = 0; i < 10; i++) {
-      appendHistory(paths, entry(i));
-    }
-
+    for (let i = 0; i < 10; i++) appendHistory(paths, entry(i));
     pruneHistory(paths, 3);
-
     const entries = readHistory(paths);
     expect(entries).toHaveLength(3);
     expect(entries[0].runId).toBe("r7");
@@ -200,19 +250,13 @@ describe("pruneHistory", () => {
 
   test("atomic write (file exists after prune)", () => {
     const paths = makePaths();
-    for (let i = 0; i < 5; i++) {
-      appendHistory(paths, entry(i));
-    }
-
+    for (let i = 0; i < 5; i++) appendHistory(paths, entry(i));
     pruneHistory(paths, 2);
-
     expect(existsSync(historyFile)).toBe(true);
-    const raw = readFileSync(historyFile, "utf-8");
-    expect(raw.trim().split("\n")).toHaveLength(2);
+    expect(readFileSync(historyFile, "utf-8").trim().split("\n")).toHaveLength(2);
   });
 
   test("no-op on non-existent file", () => {
-    const paths = makePaths();
-    expect(() => pruneHistory(paths, 10)).not.toThrow();
+    expect(() => pruneHistory(makePaths(), 10)).not.toThrow();
   });
 });

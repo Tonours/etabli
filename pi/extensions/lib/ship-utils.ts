@@ -42,6 +42,32 @@ export interface ShipHistoryEntry {
   sessionKey: string;
 }
 
+export const PIPELINE_STEPS = ["plan", "plan-review", "implement", "verify", "review"] as const;
+export type PipelineStep = (typeof PIPELINE_STEPS)[number];
+
+/** Map /skill:X input prefixes to pipeline step names */
+const SKILL_TO_STEP: Record<string, PipelineStep> = {
+  "plan-review": "plan-review",
+  "plan": "plan",
+  "verify": "verify",
+  "review": "review",
+};
+
+/**
+ * Detect pipeline step from user input text.
+ * Returns the step name or undefined if not a tracked skill.
+ */
+export function detectStepFromInput(text: string): PipelineStep | undefined {
+  const trimmed = text.trim();
+  // Match longer prefixes first to avoid "plan" matching "plan-review"
+  for (const [prefix, step] of Object.entries(SKILL_TO_STEP).sort((a, b) => b[0].length - a[0].length)) {
+    if (trimmed === `/skill:${prefix}` || trimmed.startsWith(`/skill:${prefix} `)) {
+      return step;
+    }
+  }
+  return undefined;
+}
+
 // -- Pure helpers --
 
 export function normalizeSegment(value: string): string {
@@ -63,13 +89,8 @@ export function isShipResult(value: string | undefined): value is ShipResult {
   return value === "go" || value === "block";
 }
 
-// Fix I-6: deterministic fallback chain, never "default"
 export function getSessionKey(env: Record<string, string | undefined> = process.env): string {
-  const candidates = [
-    env.PI_SHIP_SESSION,
-    env.TMUX_PANE,
-    env.TTY,
-  ];
+  const candidates = [env.PI_SHIP_SESSION, env.TMUX_PANE, env.TTY];
 
   for (const raw of candidates) {
     if (raw) {
@@ -81,7 +102,6 @@ export function getSessionKey(env: Record<string, string | undefined> = process.
   return `pid-${process.pid}`;
 }
 
-// Fix C-5: filter by sessionKey
 export function summarizeLast7Days(entries: ShipHistoryEntry[], sessionKey: string): string {
   const weekMs = 7 * 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - weekMs;
@@ -92,18 +112,14 @@ export function summarizeLast7Days(entries: ShipHistoryEntry[], sessionKey: stri
     return Number.isFinite(ts) && ts >= cutoff;
   });
 
-  const started = recent.filter((entry) => entry.status === "started").length;
-  const go = recent.filter((entry) => entry.status === "go").length;
-  const block = recent.filter((entry) => entry.status === "block").length;
+  const started = recent.filter((e) => e.status === "started").length;
+  const go = recent.filter((e) => e.status === "go").length;
+  const block = recent.filter((e) => e.status === "block").length;
 
-  const lines = [
-    `Last 7 days: started=${started}, go=${go}, block=${block}`,
-    "",
-    "Recent decisions:",
-  ];
+  const lines = [`Last 7 days: started=${started}, go=${go}, block=${block}`, "", "Recent decisions:"];
 
   const recentDecisions = recent
-    .filter((entry) => entry.status === "go" || entry.status === "block")
+    .filter((e) => e.status === "go" || e.status === "block")
     .slice(-10)
     .reverse();
 
@@ -132,8 +148,8 @@ export function readHistory(paths: ShipStatePaths): ShipHistoryEntry[] {
   if (!existsSync(paths.historyFile)) return [];
   const lines = readFileSync(paths.historyFile, "utf-8")
     .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
 
   const entries: ShipHistoryEntry[] = [];
   for (const line of lines) {
@@ -146,7 +162,6 @@ export function readHistory(paths: ShipStatePaths): ShipHistoryEntry[] {
   return entries;
 }
 
-// Fix I-3: prune history with atomic write-rename
 export function pruneHistory(paths: ShipStatePaths, max: number = 500): void {
   if (!existsSync(paths.historyFile)) return;
 
@@ -163,31 +178,18 @@ export function pruneHistory(paths: ShipStatePaths, max: number = 500): void {
 
 // -- Format helpers --
 
-const PIPELINE_STEPS = ["plan", "plan-review", "implement", "verify", "review"] as const;
-
 export function formatStartResponse(run: ShipCurrentRun, auto: boolean): string {
   const lines = [
-    `Started /ship run: ${run.runId}`,
+    `🚀 Ship run: ${run.runId}`,
     `Task: ${run.task}`,
     `Repo: ${run.repoName}`,
     `Session: ${run.sessionKey}`,
-    "",
-    "Pipeline:",
-    "1) /skill:plan",
-    "2) /skill:plan-review",
-    "3) implement",
-    "4) /skill:verify",
-    "5) /skill:review",
-    "",
-    "When finished, record decision:",
-    '/ship mark --result go --notes "ready to commit"',
-    "or",
-    '/ship mark --result block --notes "why blocked"',
   ];
 
-  if (auto) {
-    lines.splice(3, 0, "Queued /skill:plan and /skill:plan-review.");
-  }
+  if (auto) lines.push("Queued /skill:plan and /skill:plan-review.");
+
+  lines.push("", "Pipeline: plan → plan-review → implement → verify → review");
+  lines.push("When done: /ship mark (or /ship → ✅ mark go/block)");
 
   return lines.join("\n");
 }
@@ -196,32 +198,18 @@ export function formatFinalizeResponse(run: ShipCurrentRun, runChecks: boolean):
   const completed = new Set(run.completedSteps);
   const pendingSteps = PIPELINE_STEPS.filter((s) => !completed.has(s));
 
-  const lines = [
-    `Finalize requested for: ${run.task}`,
-    `Run ID: ${run.runId}`,
-    "",
-  ];
+  const lines = [`🏁 Finalize: ${run.task}`, `Run: ${run.runId}`];
 
-  if (completed.size > 0) {
-    lines.push(`Completed: ${[...completed].join(", ")}`);
-  }
-  if (pendingSteps.length > 0) {
-    lines.push(`Pending: ${pendingSteps.join(", ")}`);
-  }
-
-  lines.push("");
-  lines.push("Next:");
-  lines.push("- ensure verify + review are complete");
-  lines.push("- then record decision with /ship mark --result go|block");
+  if (completed.size > 0) lines.push(`✅ ${[...completed].join(", ")}`);
+  if (pendingSteps.length > 0) lines.push(`⏳ ${pendingSteps.join(", ")}`);
 
   if (runChecks) {
     const toQueue: string[] = [];
     if (!completed.has("verify")) toQueue.push("/skill:verify");
     if (!completed.has("review")) toQueue.push("/skill:review");
-    if (toQueue.length > 0) {
-      lines.splice(3, 0, `Queued ${toQueue.join(" and ")}.`);
-    }
+    if (toQueue.length > 0) lines.push(`Queued ${toQueue.join(" and ")}.`);
   }
 
+  lines.push("", "Next: /ship mark --result go|block");
   return lines.join("\n");
 }
