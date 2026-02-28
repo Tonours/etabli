@@ -160,3 +160,68 @@ export function pruneHistory(paths: ShipStatePaths, max: number = 500): void {
   writeFileSync(tmpFile, content, "utf-8");
   renameSync(tmpFile, paths.historyFile);
 }
+
+// -- Format helpers --
+
+const PIPELINE_STEPS = ["plan", "plan-review", "implement", "verify", "review"] as const;
+
+export function formatStartResponse(run: ShipCurrentRun, auto: boolean): string {
+  const lines = [
+    `Started /ship run: ${run.runId}`,
+    `Task: ${run.task}`,
+    `Repo: ${run.repoName}`,
+    `Session: ${run.sessionKey}`,
+    "",
+    "Pipeline:",
+    "1) /skill:plan",
+    "2) /skill:plan-review",
+    "3) implement",
+    "4) /skill:verify",
+    "5) /skill:review",
+    "",
+    "When finished, record decision:",
+    '/ship mark --result go --notes "ready to commit"',
+    "or",
+    '/ship mark --result block --notes "why blocked"',
+  ];
+
+  if (auto) {
+    lines.splice(3, 0, "Queued /skill:plan and /skill:plan-review.");
+  }
+
+  return lines.join("\n");
+}
+
+export function formatFinalizeResponse(run: ShipCurrentRun, runChecks: boolean): string {
+  const completed = new Set(run.completedSteps);
+  const pendingSteps = PIPELINE_STEPS.filter((s) => !completed.has(s));
+
+  const lines = [
+    `Finalize requested for: ${run.task}`,
+    `Run ID: ${run.runId}`,
+    "",
+  ];
+
+  if (completed.size > 0) {
+    lines.push(`Completed: ${[...completed].join(", ")}`);
+  }
+  if (pendingSteps.length > 0) {
+    lines.push(`Pending: ${pendingSteps.join(", ")}`);
+  }
+
+  lines.push("");
+  lines.push("Next:");
+  lines.push("- ensure verify + review are complete");
+  lines.push("- then record decision with /ship mark --result go|block");
+
+  if (runChecks) {
+    const toQueue: string[] = [];
+    if (!completed.has("verify")) toQueue.push("/skill:verify");
+    if (!completed.has("review")) toQueue.push("/skill:review");
+    if (toQueue.length > 0) {
+      lines.splice(3, 0, `Queued ${toQueue.join(" and ")}.`);
+    }
+  }
+
+  return lines.join("\n");
+}
