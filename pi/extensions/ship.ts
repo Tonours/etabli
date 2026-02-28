@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { homedir } from "node:os";
 import { parseCommandArgs, getFlagValue, toBoolean, toOptionalString, notifyBlock } from "./lib/args.ts";
 import {
-  normalizeSegment,
   getRepoName,
   createRepoKey,
   getSessionKey,
@@ -13,9 +12,10 @@ import {
   appendHistory,
   readHistory,
   pruneHistory,
+  formatStartResponse,
+  formatFinalizeResponse,
   type ShipStatePaths,
   type ShipCurrentRun,
-  type ShipHistoryEntry,
   type ShipResult,
 } from "./lib/ship-utils.ts";
 
@@ -23,9 +23,6 @@ type ShipSubcommand = "start" | "mark" | "status" | "finalize";
 
 const SHIP_BASE_STATE_DIR = join(homedir(), ".local", "state", "pi-ship");
 const SHIP_SUBCOMMANDS = new Set<ShipSubcommand>(["start", "mark", "status", "finalize"]);
-
-// Fix M-4: pipeline steps tracked
-const PIPELINE_STEPS = ["plan", "plan-review", "implement", "verify", "review"] as const;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -82,140 +79,162 @@ function clearCurrentRun(paths: ShipStatePaths): void {
   }
 }
 
-function formatStartResponse(run: ShipCurrentRun, auto: boolean): string {
-  const lines = [
-    `Started /ship run: ${run.runId}`,
-    `Task: ${run.task}`,
-    `Repo: ${run.repoName}`,
-    `Session: ${run.sessionKey}`,
-    "",
-    "Pipeline:",
-    "1) /skill:plan",
-    "2) /skill:plan-review",
-    "3) implement",
-    "4) /skill:verify",
-    "5) /skill:review",
-    "",
-    "When finished, record decision:",
-    '/ship mark --result go --notes "ready to commit"',
-    "or",
-    '/ship mark --result block --notes "why blocked"',
-  ];
+async function interactiveStart(
+  pi: ExtensionAPI,
+  ctx: import("@mariozechner/pi-coding-agent").ExtensionCommandContext,
+  statePaths: ShipStatePaths,
+  repoPath: string,
+  repoName: string,
+  sessionKey: string,
+): Promise<void> {
+  const task = await ctx.ui.input("Ship — task description", "What are you shipping?");
+  if (!task?.trim()) return;
+
+  const auto = await ctx.ui.confirm("Ship — auto-run", "Queue /skill:plan + /skill:plan-review?");
+
+  const run: ShipCurrentRun = {
+    runId: createRunId(),
+    task: task.trim(),
+    startedAt: nowIso(),
+    auto,
+    repoPath,
+    repoName,
+    sessionKey,
+    completedSteps: [],
+  };
+
+  writeCurrentRun(statePaths, run);
+  appendHistory(statePaths, {
+    runId: run.runId, status: "started", task: run.task,
+    startedAt: run.startedAt, repoPath, repoName, sessionKey,
+  });
 
   if (auto) {
-    lines.splice(3, 0, "Queued /skill:plan and /skill:plan-review.");
+    pi.sendUserMessage(`/skill:plan ${run.task}`, { deliverAs: "steer" });
+    pi.sendUserMessage("/skill:plan-review", { deliverAs: "followUp" });
   }
 
-  return lines.join("\n");
+  notifyBlock(ctx, formatStartResponse(run, auto), "info");
 }
 
-// Fix M-4: show completed vs pending steps
-function formatFinalizeResponse(run: ShipCurrentRun, runChecks: boolean): string {
-  const completed = new Set(run.completedSteps);
-  const pendingSteps = PIPELINE_STEPS.filter((s) => !completed.has(s));
+async function interactiveMark(
+  ctx: import("@mariozechner/pi-coding-agent").ExtensionCommandContext,
+  statePaths: ShipStatePaths,
+  repoPath: string,
+  repoName: string,
+  sessionKey: string,
+): Promise<void> {
+  const current = readCurrentRun(statePaths);
+  const taskName = current?.task ?? "(unknown task)";
 
-  const lines = [
-    `Finalize requested for: ${run.task}`,
-    `Run ID: ${run.runId}`,
-    "",
-  ];
+  const choice = await ctx.ui.select(`Ship — mark result for: ${taskName}`, ["🟢 go", "🔴 block"]);
+  if (!choice) return;
+  const result: ShipResult = choice.includes("go") ? "go" : "block";
 
-  if (completed.size > 0) {
-    lines.push(`Completed: ${[...completed].join(", ")}`);
-  }
-  if (pendingSteps.length > 0) {
-    lines.push(`Pending: ${pendingSteps.join(", ")}`);
-  }
+  const notes = await ctx.ui.input("Ship — notes (optional)", "Any notes?");
 
-  lines.push("");
-  lines.push("Next:");
-  lines.push("- ensure verify + review are complete");
-  lines.push("- then record decision with /ship mark --result go|block");
+  const startedAt = current?.startedAt ?? nowIso();
+  const runId = current?.runId ?? createRunId();
 
+  appendHistory(statePaths, {
+    runId, status: result, task: taskName, startedAt,
+    endedAt: nowIso(), notes: notes?.trim(), repoPath, repoName, sessionKey,
+  });
+
+  if (current) clearCurrentRun(statePaths);
+  ctx.ui.notify(`Recorded SHIP_${result.toUpperCase()} for: ${taskName}`, "info");
+}
+
+function handleFinalize(
+  pi: ExtensionAPI,
+  ctx: import("@mariozechner/pi-coding-agent").ExtensionCommandContext,
+  statePaths: ShipStatePaths,
+  current: ShipCurrentRun,
+  runChecks: boolean,
+): void {
   if (runChecks) {
-    // Fix M-4: only queue steps not already completed
-    const toQueue: string[] = [];
-    if (!completed.has("verify")) toQueue.push("/skill:verify");
-    if (!completed.has("review")) toQueue.push("/skill:review");
-    if (toQueue.length > 0) {
-      lines.splice(3, 0, `Queued ${toQueue.join(" and ")}.`);
+    const completed = new Set(current.completedSteps);
+    if (!completed.has("verify")) {
+      pi.sendUserMessage("/skill:verify", { deliverAs: "steer" });
+    }
+    if (!completed.has("review")) {
+      pi.sendUserMessage("/skill:review", { deliverAs: "followUp" });
     }
   }
+  notifyBlock(ctx, formatFinalizeResponse(current, runChecks), "info");
+}
 
-  return lines.join("\n");
+function handleStatus(
+  ctx: import("@mariozechner/pi-coding-agent").ExtensionCommandContext,
+  statePaths: ShipStatePaths,
+  repoName: string,
+  sessionKey: string,
+): void {
+  const current = readCurrentRun(statePaths);
+  const summary = summarizeLast7Days(readHistory(statePaths), sessionKey);
+  const currentText = current
+    ? `Current run: ${current.runId}\nTask: ${current.task}\nRepo: ${current.repoName}\nSession: ${current.sessionKey}\nStarted: ${current.startedAt}\n`
+    : `Current run: none\nRepo: ${repoName}\nSession: ${sessionKey}\n`;
+  notifyBlock(ctx, `${currentText}\n${summary}`, "info");
 }
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("ship", {
     description: "Orchestrate plan->verify->review pipeline with GO/BLOCK tracking",
     handler: async (args, ctx) => {
-      const parsed = parseCommandArgs(args);
-      const firstPositional = parsed.positional[0];
-      const subcommand = SHIP_SUBCOMMANDS.has(firstPositional as ShipSubcommand)
-        ? (firstPositional as ShipSubcommand)
-        : undefined;
-
-      if (!subcommand) {
-        ctx.ui.notify("Usage: /ship <start|mark|status|finalize> [--flags]", "warning");
-        return;
-      }
-
       const repoPath = getRepoPath();
       const repoName = getRepoName(repoPath);
-      // Fix I-6: deterministic session key
       const sessionKey = getSessionKey();
       const statePaths = getStatePaths(repoPath, sessionKey);
       ensureStateDir(statePaths);
 
-      const taskFromFlag = toOptionalString(getFlagValue(parsed.flags, ["task"]));
-      const taskFromPositionals = parsed.positional.slice(1).join(" ").trim();
-      const task = taskFromFlag ?? (taskFromPositionals.length > 0 ? taskFromPositionals : undefined);
+      const parsed = parseCommandArgs(args);
+      const firstPositional = parsed.positional[0];
+      let subcommand = SHIP_SUBCOMMANDS.has(firstPositional as ShipSubcommand)
+        ? (firstPositional as ShipSubcommand)
+        : undefined;
 
-      const resultFromFlag = toOptionalString(getFlagValue(parsed.flags, ["result"]));
-      const positionalResult = parsed.positional[1];
-      const result = resultFromFlag ?? positionalResult;
+      // Interactive mode: no subcommand → show picker
+      if (!subcommand) {
+        const current = readCurrentRun(statePaths);
+        const options = current
+          ? ["📊 status", "🏁 finalize", "✅ mark go/block", "🚀 start new"]
+          : ["🚀 start", "📊 status"];
 
-      const notesFromFlag = toOptionalString(getFlagValue(parsed.flags, ["notes"]));
-      const positionalNotes = parsed.positional.slice(2).join(" ").trim();
-      const notes = notesFromFlag ?? (positionalNotes.length > 0 ? positionalNotes : undefined);
+        const choice = await ctx.ui.select("Ship — what do you want to do?", options);
+        if (!choice) return;
 
-      const auto = toBoolean(getFlagValue(parsed.flags, ["auto"]), true);
-      const runChecks = toBoolean(getFlagValue(parsed.flags, ["run-checks", "runChecks"]), true);
+        if (choice.includes("start")) subcommand = "start";
+        else if (choice.includes("mark")) subcommand = "mark";
+        else if (choice.includes("finalize")) subcommand = "finalize";
+        else if (choice.includes("status")) subcommand = "status";
+        else return;
+      }
 
       if (subcommand === "start") {
-        if (!task || task.trim().length === 0) {
-          ctx.ui.notify('Missing task. Usage: /ship start --task "..."', "warning");
+        const taskFromFlag = toOptionalString(getFlagValue(parsed.flags, ["task"]));
+        const taskFromPositionals = parsed.positional.slice(1).join(" ").trim();
+        const task = taskFromFlag ?? (taskFromPositionals.length > 0 ? taskFromPositionals : undefined);
+
+        if (!task) {
+          await interactiveStart(pi, ctx, statePaths, repoPath, repoName, sessionKey);
           return;
         }
 
+        const auto = toBoolean(getFlagValue(parsed.flags, ["auto"]), true);
         const run: ShipCurrentRun = {
-          runId: createRunId(),
-          task: task.trim(),
-          startedAt: nowIso(),
-          auto,
-          repoPath,
-          repoName,
-          sessionKey,
-          completedSteps: [],
+          runId: createRunId(), task: task.trim(), startedAt: nowIso(),
+          auto, repoPath, repoName, sessionKey, completedSteps: [],
         };
 
         writeCurrentRun(statePaths, run);
         appendHistory(statePaths, {
-          runId: run.runId,
-          status: "started",
-          task: run.task,
-          startedAt: run.startedAt,
-          repoPath,
-          repoName,
-          sessionKey,
+          runId: run.runId, status: "started", task: run.task,
+          startedAt: run.startedAt, repoPath, repoName, sessionKey,
         });
 
         if (auto) {
-          if (ctx.isIdle()) {
-            pi.sendUserMessage(`/skill:plan ${run.task}`);
-          } else {
-            pi.sendUserMessage(`/skill:plan ${run.task}`, { deliverAs: "steer" });
-          }
+          pi.sendUserMessage(`/skill:plan ${run.task}`, { deliverAs: "steer" });
           pi.sendUserMessage("/skill:plan-review", { deliverAs: "followUp" });
         }
 
@@ -226,69 +245,44 @@ export default function (pi: ExtensionAPI) {
       if (subcommand === "finalize") {
         const current = readCurrentRun(statePaths);
         if (!current) {
-          ctx.ui.notify('No active /ship run for this repo. Start one with /ship start --task "..."', "warning");
+          ctx.ui.notify('No active /ship run. Start one with /ship start --task "..."', "warning");
           return;
         }
-
-        if (runChecks) {
-          // Fix M-4: only queue not-yet-completed steps
-          const completed = new Set(current.completedSteps);
-          if (!completed.has("verify")) {
-            if (ctx.isIdle()) {
-              pi.sendUserMessage("/skill:verify");
-            } else {
-              pi.sendUserMessage("/skill:verify", { deliverAs: "steer" });
-            }
-          }
-          if (!completed.has("review")) {
-            pi.sendUserMessage("/skill:review", { deliverAs: "followUp" });
-          }
-        }
-
-        notifyBlock(ctx, formatFinalizeResponse(current, runChecks), "info");
+        const runChecks = toBoolean(getFlagValue(parsed.flags, ["run-checks", "runChecks"]), true);
+        handleFinalize(pi, ctx, statePaths, current, runChecks);
         return;
       }
 
       if (subcommand === "mark") {
+        const resultFromFlag = toOptionalString(getFlagValue(parsed.flags, ["result"]));
+        const positionalResult = parsed.positional[1];
+        const result = resultFromFlag ?? positionalResult;
+
         if (!isShipResult(result)) {
-          ctx.ui.notify('Missing result. Usage: /ship mark --result go|block [--notes "..."]', "warning");
+          await interactiveMark(ctx, statePaths, repoPath, repoName, sessionKey);
           return;
         }
 
+        const notesFromFlag = toOptionalString(getFlagValue(parsed.flags, ["notes"]));
+        const positionalNotes = parsed.positional.slice(2).join(" ").trim();
+        const notes = notesFromFlag ?? (positionalNotes.length > 0 ? positionalNotes : undefined);
+
         const current = readCurrentRun(statePaths);
         const startedAt = current?.startedAt ?? nowIso();
-        const taskName = current?.task ?? task?.trim() ?? "(unknown task)";
+        const taskName = current?.task ?? toOptionalString(getFlagValue(parsed.flags, ["task"]))?.trim() ?? "(unknown task)";
         const runId = current?.runId ?? createRunId();
 
         appendHistory(statePaths, {
-          runId,
-          status: result,
-          task: taskName,
-          startedAt,
-          endedAt: nowIso(),
-          notes: notes?.trim(),
-          repoPath,
-          repoName,
-          sessionKey,
+          runId, status: result, task: taskName, startedAt,
+          endedAt: nowIso(), notes: notes?.trim(), repoPath, repoName, sessionKey,
         });
 
-        if (current) {
-          clearCurrentRun(statePaths);
-        }
-
+        if (current) clearCurrentRun(statePaths);
         ctx.ui.notify(`Recorded SHIP_${result.toUpperCase()} for: ${taskName}`, "info");
         return;
       }
 
-      // status subcommand
-      const current = readCurrentRun(statePaths);
-      // Fix C-5: pass sessionKey to summarizeLast7Days
-      const summary = summarizeLast7Days(readHistory(statePaths), sessionKey);
-      const currentText = current
-        ? `Current run: ${current.runId}\nTask: ${current.task}\nRepo: ${current.repoName}\nSession: ${current.sessionKey}\nStarted: ${current.startedAt}\n`
-        : `Current run: none\nRepo: ${repoName}\nSession: ${sessionKey}\n`;
-
-      notifyBlock(ctx, `${currentText}\n${summary}`, "info");
+      handleStatus(ctx, statePaths, repoName, sessionKey);
     },
   });
 }
