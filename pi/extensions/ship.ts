@@ -30,6 +30,7 @@ interface ShipEnv {
   repoPath: string;
   repoName: string;
   sessionKey: string;
+  queueUserMessages: (messages: string[]) => void;
 }
 
 const SHIP_BASE_STATE_DIR = join(homedir(), ".local", "state", "pi-ship");
@@ -100,8 +101,7 @@ function startRun(env: ShipEnv, task: string, auto: boolean): void {
   });
 
   if (auto) {
-    env.pi.sendUserMessage(`/skill:plan ${run.task}`, { deliverAs: "steer" });
-    env.pi.sendUserMessage("/skill:plan-review", { deliverAs: "followUp" });
+    env.queueUserMessages([`/skill:plan ${run.task}`, "/skill:plan-review"]);
   }
 
   notifyBlock(env.ctx, formatStartResponse(run, auto), "info");
@@ -188,8 +188,10 @@ function handleFinalize(env: ShipEnv, args: ReturnType<typeof parseCommandArgs>)
   const runChecks = toBoolean(getFlagValue(args.flags, ["run-checks", "runChecks"]), true);
   if (runChecks) {
     const completed = new Set(current.completedSteps);
-    if (!completed.has("verify")) env.pi.sendUserMessage("/skill:verify", { deliverAs: "steer" });
-    if (!completed.has("review")) env.pi.sendUserMessage("/skill:review", { deliverAs: "followUp" });
+    const messages: string[] = [];
+    if (!completed.has("verify")) messages.push("/skill:verify");
+    if (!completed.has("review")) messages.push("/skill:review");
+    env.queueUserMessages(messages);
   }
   notifyBlock(env.ctx, formatFinalizeResponse(current, runChecks), "info");
 }
@@ -215,6 +217,14 @@ export default function (pi: ExtensionAPI) {
   // Track pending step to mark as completed when the agent finishes processing it
   let pendingStep: PipelineStep | undefined;
   let activeStatePaths: ShipStatePaths | undefined;
+  const pendingUserMessages: string[] = [];
+
+  const queueUserMessages = (messages: string[]): void => {
+    if (messages.length === 0) return;
+    const [first, ...rest] = messages;
+    if (rest.length > 0) pendingUserMessages.push(...rest);
+    pi.sendUserMessage(first, { deliverAs: "followUp" });
+  };
 
   pi.on("input", async (event) => {
     const step = detectStepFromInput(event.text);
@@ -225,9 +235,15 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", async () => {
-    if (!pendingStep || !activeStatePaths) return;
-    addCompletedStep(activeStatePaths, pendingStep);
-    pendingStep = undefined;
+    if (pendingStep && activeStatePaths) {
+      addCompletedStep(activeStatePaths, pendingStep);
+      pendingStep = undefined;
+    }
+
+    const nextMessage = pendingUserMessages.shift();
+    if (nextMessage) {
+      pi.sendUserMessage(nextMessage, { deliverAs: "followUp" });
+    }
   });
 
   pi.registerCommand("ship", {
@@ -261,7 +277,7 @@ export default function (pi: ExtensionAPI) {
         else return;
       }
 
-      const env: ShipEnv = { pi, ctx, paths, repoPath, repoName, sessionKey };
+      const env: ShipEnv = { pi, ctx, paths, repoPath, repoName, sessionKey, queueUserMessages };
 
       if (subcommand === "start") return handleStart(env, parsed);
       if (subcommand === "mark") return handleMark(env, parsed);

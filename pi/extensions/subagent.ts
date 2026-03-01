@@ -362,7 +362,7 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify("Usage: /sub <prompt>", "warning");
         return;
       }
-      pi.sendUserMessage(`Use subagent_create to run this task in background: ${prompt}`);
+      pi.sendUserMessage(`Use subagent_create to run this task in background: ${prompt}`, { deliverAs: "followUp" });
     },
   });
 
@@ -376,7 +376,7 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify("Usage: /subcont <id> <prompt>", "warning");
         return;
       }
-      pi.sendUserMessage(`Use subagent_continue to continue sub-agent #${id}: ${prompt}`);
+      pi.sendUserMessage(`Use subagent_continue to continue sub-agent #${id}: ${prompt}`, { deliverAs: "followUp" });
     },
   });
 
@@ -388,7 +388,7 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify("Usage: /subrm <id>", "warning");
         return;
       }
-      pi.sendUserMessage(`Use subagent_remove to remove sub-agent #${id}`);
+      pi.sendUserMessage(`Use subagent_remove to remove sub-agent #${id}`, { deliverAs: "followUp" });
     },
   });
 
