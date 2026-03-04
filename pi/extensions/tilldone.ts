@@ -252,7 +252,10 @@ export default function (pi: ExtensionAPI) {
               theme.fg("success", `${tasks.length}`) +
               theme.fg("warning", "]");
 
-            const allRows = tasks.map((t) => {
+            const STATUS_ORDER: Record<TaskStatus, number> = { inprogress: 0, idle: 1, done: 2 };
+            const sorted = [...tasks].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+
+            const allRows = sorted.map((t) => {
               const icon =
                 t.status === "done"
                   ? theme.fg("success", STATUS_ICON.done)
