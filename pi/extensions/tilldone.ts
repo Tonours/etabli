@@ -252,7 +252,7 @@ export default function (pi: ExtensionAPI) {
               theme.fg("success", `${tasks.length}`) +
               theme.fg("warning", "]");
 
-            const rows = tasks.map((t) => {
+            const allRows = tasks.map((t) => {
               const icon =
                 t.status === "done"
                   ? theme.fg("success", STATUS_ICON.done)
@@ -267,6 +267,18 @@ export default function (pi: ExtensionAPI) {
                     : theme.fg("muted", t.text);
               return truncateToWidth(` ${icon} ${text}`, inner);
             });
+
+            // Cap widget height at ~33% of terminal (minus chrome: header + borders + spacer)
+            const termRows = process.stdout.rows ?? 24;
+            const maxWidgetRows = Math.max(3, Math.floor(termRows / 3) - 4);
+            let rows: string[];
+            if (allRows.length > maxWidgetRows) {
+              const hidden = allRows.length - maxWidgetRows + 1;
+              rows = allRows.slice(0, maxWidgetRows - 1);
+              rows.push(truncateToWidth(` ${theme.fg("dim", `↓ ${hidden} more… (/tilldone)`)}`, inner));
+            } else {
+              rows = allRows;
+            }
 
             body.setText([header, ...rows].join("\n"));
             return container.render(width);
