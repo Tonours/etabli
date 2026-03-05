@@ -45,8 +45,8 @@ pi/                         Pi Coding Agent config
   AGENTS.md                 Project instructions
   models.json               Custom model/provider config
   settings.json             Pi user settings
-  extensions/               Pi extensions (filter-output, uv, nightshift)
-  skills/                   Pi skills (plan, plan-review, verify, review, coordinator, worker)
+  extensions/               Pi extensions (safety, UI, image input, RTK, subagents, tilldone)
+  skills/                   Pi skills (plan, plan-review, verify, review)
   themes/                   Pi themes
 
 ghostty/config              Ghostty terminal (Catppuccin Mocha, JetBrains Mono)
@@ -67,9 +67,6 @@ scripts/
   install.sh                Full setup (deps, nvim, tmux, fonts, tiling WM, scripts)
   cw                        Worktree manager (tmux + optional pi launch)
   cw-clean                  Clean merged worktrees
-  nightshift                Overnight batch runner
-  agent-scorecard           Weekly agentic metrics report
-  agent-fanout              Spawn coordinator/worker sessions from a tasks file
   dev-spawn                 Launch local + VPS tmux sessions
   macos-optimize.sh         Aggressive macOS perf optimization
   tiling-toggle.sh          Toggle tiling stack on/off
@@ -83,13 +80,9 @@ tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
 
 ## Workflow
 
-The engineer supervises parallel sessions, each in its own git worktree:
-
 ```
 /skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  commit
 ```
-
-See [docs/agentic-flow.md](docs/agentic-flow.md) for the agentic workflow, scorecard, and coordinator/worker flow.
 
 ### Git Worktrees
 
@@ -114,52 +107,16 @@ cw-clean myproject
 | `/skill:plan-review`    | Challenge the plan before coding (assumptions, risks, edge cases) |
 | `/skill:review`         | Final pre-commit review (risks, regressions, edge cases) |
 | `/skill:verify`         | Run typecheck/tests/lint/build             |
-| `/skill:coordinator`    | Run coordinator protocol for multi-worker flow |
-| `/skill:worker`         | Run worker protocol for one scoped slice   |
 | `/loop tests`           | Red-green-refactor testing loop            |
 | `Ctrl+P`                | Switch model/provider quickly              |
 
-### Night Shift
+### Pi Extensions
 
-Prepare 1-3 tasks before leaving. The machine works overnight, commits and pushes (no PR, no merge).
-
-```bash
-nightshift init                  # Create tasks template
-nightshift run --dry-run         # Preview
-nightshift run --verify-only     # Execute + verify only (no commit/push)
-nightshift run --require-verify  # Fail tasks without verify commands
-nightshift run                   # Execute overnight
-nightshift status                # Check results next morning
-```
-
-Tasks are Markdown blocks in `~/.local/state/nightshift/tasks.md`. Supports `codex` or `none` engines.
-Each run also writes:
-- `~/.local/state/nightshift/last-run-report.md`
-- `~/.local/state/nightshift/last-run-report.json`
-- `~/.local/state/nightshift/history.jsonl`
-
-See [docs/nightshift.md](docs/nightshift.md) for details.
-
-### Weekly Agentic Scorecard
-
-```bash
-agent-scorecard weekly --repo /path/to/repo
-```
-
-Generates a markdown report with Nightshift outcomes and commit activity.
-
-### Coordinator / Workers Fanout
-
-```bash
-agent-fanout init
-# edit ~/.local/state/pi-agentic/workers.md
-agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md
-# optional: skip coordinator window
-agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md --no-coordinator
-```
-
-This creates one tmux worker window per task, launches Pi in each worker,
-and auto-creates a coordinator window per repo (unless `--no-coordinator`).
+Local Pi extensions kept in this repo:
+- `rtk.ts` rewrites shell commands through `rtk rewrite` when the `rtk` binary is installed.
+  The install script installs `rtk` from [rtk-ai/rtk](https://github.com/rtk-ai/rtk).
+- `subagent.ts` runs background Pi sub-agents with `/sub`, `/subcont`, `/subrm`, `/subclear`.
+- `tilldone.ts` enforces an explicit task list before tool usage with the `tilldone` tool and `/tilldone`.
 
 ### Dev Spawn
 
@@ -307,7 +264,7 @@ ln -sf $(pwd)/ghostty/config ~/.config/ghostty/config
 
 # Scripts (cross-platform)
 mkdir -p ~/.local/bin
-for s in cw cw-clean nightshift agent-scorecard agent-fanout dev-spawn tmux-clipboard.sh; do
+for s in cw cw-clean dev-spawn tmux-clipboard.sh; do
   ln -sf $(pwd)/scripts/$s ~/.local/bin/$s
 done
 
@@ -320,7 +277,7 @@ ln -sf $(pwd)/pi/agent/settings.json ~/.pi/agent/settings.json
 ln -sfn $(pwd)/pi/extensions ~/.pi/extensions
 ln -sfn $(pwd)/pi/extensions ~/.pi/agent/extensions
 ln -sfn $(pwd)/pi/themes ~/.pi/themes
-for s in plan plan-review verify review coordinator worker; do
+for s in plan plan-review verify review; do
   ln -sfn $(pwd)/pi/skills/$s ~/.pi/agent/skills/$s
 done
 ln -sf $(pwd)/pi/themes/catppuccin-mocha.json ~/.pi/agent/themes/catppuccin-mocha.json

@@ -28,6 +28,10 @@ print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
 
+has_valid_rtk() {
+    command -v rtk &> /dev/null && rtk gain > /dev/null 2>&1
+}
+
 # Download helper with retries
 download_with_retry() {
     local url="$1"
@@ -208,6 +212,28 @@ elif [[ "$OS" == "redhat" ]]; then
 fi
 
 print_success "Dependencies installed"
+
+# ============================================================================
+# INSTALL RTK
+# ============================================================================
+print_step "Installing RTK..."
+
+if has_valid_rtk; then
+    print_success "RTK already installed"
+else
+    if [[ "$OS" == "mac" ]] && command -v brew &> /dev/null; then
+        brew install rtk || print_warning "RTK brew install failed"
+    else
+        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh || \
+            print_warning "RTK install script failed"
+    fi
+
+    if has_valid_rtk; then
+        print_success "RTK installed"
+    else
+        print_warning "RTK not available or wrong binary installed; verify with: rtk gain"
+    fi
+fi
 
 # ============================================================================
 # INSTALL NODE.JS (via nvm)
@@ -596,9 +622,6 @@ install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
-## nightshift is now a native Pi extension (pi/extensions/nightshift.ts)
-install_script "agent-scorecard" || true
-install_script "agent-fanout" || true
 
 if [[ "$OS" == "mac" ]]; then
     install_script "macos-optimize.sh" || true
