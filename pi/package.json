@@ -1,0 +1,9 @@
+{
+  "name": "pi-config",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test ./extensions/__tests__/*.test.ts ./extensions/lib/nightshift/__tests__/*.test.ts",
+    "test:nightshift": "bun test ./extensions/lib/nightshift/__tests__/*.test.ts"
+  }
+}

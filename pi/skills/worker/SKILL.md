@@ -17,13 +17,10 @@ Use this skill in a single worker session with one well-defined task.
 ## Execution Flow
 
 1. Confirm the assigned goal and branch.
-2. Run `/ship start --task "<goal>"` if not already started.
-3. Implement in small increments.
-4. Run `/skill:verify`.
-5. Run `/skill:review`.
-6. Record decision:
-   - `/ship mark --result go --notes "ready"`
-   - or `/ship mark --result block --notes "blocking reason"`
+2. Implement in small increments.
+3. Run `/skill:verify`.
+4. Run `/skill:review`.
+5. Record decision in your response.
 
 ## Response Contract
 

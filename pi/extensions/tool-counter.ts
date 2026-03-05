@@ -110,10 +110,14 @@ export default function (pi: ExtensionAPI) {
           const pct = usage ? usage.percent : 0;
           const filled = Math.round(pct / 10) || 1;
           const model = ctx.model?.id ?? "?";
+          const thinking = pi.getThinkingLevel();
 
           // --- Line 1: model + context bar (left) | tokens + cost (right) ---
           const l1Left =
-            theme.fg("dim", ` ${model} `) +
+            theme.fg("dim", ` ${model}`) +
+            theme.fg("warning", "(") +
+            theme.fg("accent", thinking) +
+            theme.fg("warning", ") ") +
             theme.fg("warning", "[") +
             theme.fg("success", "#".repeat(filled)) +
             theme.fg("dim", "-".repeat(10 - filled)) +

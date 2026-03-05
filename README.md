@@ -4,6 +4,11 @@ Personal dev environment for AI-assisted parallel workflows with Neovim, tmux, G
 
 Inspired by practical agentic coding workflows and parallel worktree execution.
 
+## Inspiration & Credits
+
+Parts of the multi-agent UX direction (team/chain dashboards, widget-first orchestration patterns) are inspired by:
+- [disler/pi-vs-claude-code](https://github.com/disler/pi-vs-claude-code) by **@disler**
+
 ## Quick Start
 
 ```bash
@@ -40,7 +45,7 @@ pi/                         Pi Coding Agent config
   AGENTS.md                 Project instructions
   models.json               Custom model/provider config
   settings.json             Pi user settings
-  extensions/               Pi extensions (filter-output, uv, nightshift, ship)
+  extensions/               Pi extensions (filter-output, uv, nightshift)
   skills/                   Pi skills (plan, plan-review, verify, review, coordinator, worker)
   themes/                   Pi themes
 
@@ -84,7 +89,7 @@ The engineer supervises parallel sessions, each in its own git worktree:
 /skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  commit
 ```
 
-See [docs/agentic-flow.md](docs/agentic-flow.md) for the orchestrated `/ship`, scorecard, and coordinator/worker flow.
+See [docs/agentic-flow.md](docs/agentic-flow.md) for the agentic workflow, scorecard, and coordinator/worker flow.
 
 ### Git Worktrees
 
@@ -109,25 +114,10 @@ cw-clean myproject
 | `/skill:plan-review`    | Challenge the plan before coding (assumptions, risks, edge cases) |
 | `/skill:review`         | Final pre-commit review (risks, regressions, edge cases) |
 | `/skill:verify`         | Run typecheck/tests/lint/build             |
-| `/ship start --task`    | Orchestrate plan/review/verify flow        |
-| `/ship finalize`        | Queue verify/review and prepare final decision |
-| `/ship mark --result`   | Record `go` / `block` decision             |
-| `/ship status`          | Show current run + weekly go/block summary |
 | `/skill:coordinator`    | Run coordinator protocol for multi-worker flow |
 | `/skill:worker`         | Run worker protocol for one scoped slice   |
 | `/loop tests`           | Red-green-refactor testing loop            |
 | `Ctrl+P`                | Switch model/provider quickly              |
-
-### Ship (Orchestrated Flow)
-
-```bash
-/ship start --task "Implement X safely"  # queues plan + plan-review
-# ... implement ...
-/ship finalize                     # queues /skill:verify + /skill:review
-/ship mark --result go --notes "ready to commit"
-```
-
-`/ship status` shows the active run and recent GO/BLOCK decisions.
 
 ### Night Shift
 
@@ -156,7 +146,7 @@ See [docs/nightshift.md](docs/nightshift.md) for details.
 agent-scorecard weekly --repo /path/to/repo
 ```
 
-Generates a markdown report with Nightshift outcomes, Ship GO/BLOCK decisions, and commit activity.
+Generates a markdown report with Nightshift outcomes and commit activity.
 
 ### Coordinator / Workers Fanout
 
@@ -168,7 +158,7 @@ agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md
 agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md --no-coordinator
 ```
 
-This creates one tmux worker window per task, launches Pi, starts `/ship` in each worker,
+This creates one tmux worker window per task, launches Pi in each worker,
 and auto-creates a coordinator window per repo (unless `--no-coordinator`).
 
 ### Dev Spawn

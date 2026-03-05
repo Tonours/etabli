@@ -1,7 +1,7 @@
 /**
  * Shared CLI argument parsing helpers for Pi extension commands.
  *
- * Used by: ship.ts, nightshift.ts
+ * Used by: nightshift.ts
  */
 
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";

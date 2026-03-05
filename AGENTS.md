@@ -5,8 +5,7 @@
 - pi/extensions/lib/                   — Shared utilities between extensions
 - pi/extensions/lib/nightshift/        — Nightshift modules (see lib/nightshift/ for full list)
 - pi/extensions/lib/nightshift/__tests__/ — Nightshift unit tests
-- pi/extensions/lib/ship-utils.ts      — Ship shared utilities (session key, history, prune)
-- pi/extensions/__tests__/             — Extension-level tests (ship)
+- pi/extensions/__tests__/             — Extension-level tests
 - pi/damage-control-rules.json        — Safety rules for damage-control extension
 - pi/agent/settings.json              — Pi agent settings (packages, model, theme)
 - pi/settings.json                    — Pi root settings (theme, editor)
@@ -38,5 +37,5 @@
 
 ## Testing
 - Nightshift tests: `bun test pi/extensions/lib/nightshift/__tests__/`
-- Ship tests: `bun test pi/extensions/__tests__/`
+- Extension tests: `bun test pi/extensions/__tests__/`
 - Agentic scripts: `python -m pytest tests/agentic/`

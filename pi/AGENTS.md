@@ -36,14 +36,12 @@
 - Commit format: `feat|fix|refactor|test|docs|chore(scope): description`
 - Atomic commits: one logical change per commit.
 
-## Ship pipeline
-1. `/ship start --task "..."` — start tracked run
-2. `/skill:plan` — create implementation plan
-3. `/skill:plan-review` — stress-test the plan
-4. implement — write code
-5. `/skill:verify` — type-check, test, lint, build
-6. `/skill:review` — code review
-7. `/ship mark --result go|block` — record decision
+## Workflow pipeline
+1. `/skill:plan` — create implementation plan
+2. `/skill:plan-review` — stress-test the plan
+3. implement — write code
+4. `/skill:verify` — type-check, test, lint, build
+5. `/skill:review` — code review
 
 ## Model usage
 - Planning & analysis: prefer reasoning models (Kimi K2.5, GPT-5.3 xhigh)

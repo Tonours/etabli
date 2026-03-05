@@ -13,7 +13,7 @@
  * Supports: png, jpg/jpeg, gif, webp
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import { Container, Text } from "@mariozechner/pi-tui";
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -68,20 +68,28 @@ function readImageAsBase64(token: string): ImageInfo | null {
 export default function (pi: ExtensionAPI) {
   let pendingImages: ImageInfo[] = [];
 
-  // Clear preview widget when agent finishes responding
-  pi.on("agent_end", async (_event, ctx) => {
-    if (pendingImages.length > 0) {
-      ctx.ui.setWidget("img-preview", undefined);
-      pendingImages = [];
+  function clearPreview(ctx: ExtensionContext): void {
+    if (pendingImages.length === 0) {
+      return;
     }
+    ctx.ui.setWidget("img-preview", undefined);
+    pendingImages = [];
+  }
+
+  // Clear preview once a user message is consumed or a run ends.
+  pi.on("message_start", async (event, ctx) => {
+    if (event.message.role === "user") {
+      clearPreview(ctx);
+    }
+  });
+
+  pi.on("agent_end", async (_event, ctx) => {
+    clearPreview(ctx);
   });
 
   pi.on("input", async (event, ctx) => {
     // Clear previous preview
-    if (pendingImages.length > 0) {
-      ctx.ui.setWidget("img-preview", undefined);
-      pendingImages = [];
-    }
+    clearPreview(ctx);
 
     // Skip extension-injected messages only (not commands or paths)
     if (event.source === "extension") {
@@ -110,7 +118,13 @@ export default function (pi: ExtensionAPI) {
     const text = textParts.join(" ").trim() || "Describe this image.";
     const allImages: ImageContent[] = [...(event.images ?? []), ...images.map((i) => i.content)];
 
-    // Show preview widget above editor
+    // If the agent is busy, this input is queued (steer/follow-up). Avoid pinning
+    // the preview to the current textbox; the message is no longer tied to it.
+    if (!ctx.isIdle()) {
+      return { action: "transform" as const, text, images: allImages };
+    }
+
+    // Show preview widget above editor for immediate sends.
     pendingImages = images;
     ctx.ui.setWidget(
       "img-preview",

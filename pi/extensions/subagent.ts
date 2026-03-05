@@ -35,6 +35,7 @@ interface SubState {
   elapsed: number;
   sessionFile: string;
   turnCount: number;
+  model?: string;
   proc?: ChildProcess;
 }
 
@@ -48,6 +49,14 @@ export default function (pi: ExtensionAPI) {
   function makeSessionFile(id: number): string {
     mkdirSync(SESSION_DIR, { recursive: true });
     return join(SESSION_DIR, `subagent-${id}-${Date.now()}.jsonl`);
+  }
+
+  function normalizeModel(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   }
 
   // ── JSONL stream parsing ─────────────────────────────────────────────
@@ -137,9 +146,11 @@ export default function (pi: ExtensionAPI) {
   // ── Spawn a sub-agent process ────────────────────────────────────────
 
   function spawnAgent(state: SubState, prompt: string, ctx: ExtensionContext): Promise<void> {
-    const model = ctx.model
-      ? `${ctx.model.provider}/${ctx.model.id}`
-      : "anthropic/claude-sonnet-4-6";
+    const model =
+      state.model ??
+      (ctx.model
+        ? `${ctx.model.provider}/${ctx.model.id}`
+        : "anthropic/claude-sonnet-4-6");
 
     return new Promise<void>((resolve) => {
       const proc = spawn(
@@ -236,6 +247,7 @@ export default function (pi: ExtensionAPI) {
       "Spawn a background sub-agent to perform a task. Returns the sub-agent ID immediately while it runs in the background. Results are delivered as a follow-up message when finished.",
     parameters: Type.Object({
       task: Type.String({ description: "The complete task description for the sub-agent" }),
+      model: Type.Optional(Type.String({ description: "Optional model override (provider/model-id)" })),
     }),
     execute: async (_callId, args, _signal, _onUpdate, ctx) => {
       widgetCtx = ctx;
@@ -261,6 +273,7 @@ export default function (pi: ExtensionAPI) {
         elapsed: 0,
         sessionFile: makeSessionFile(id),
         turnCount: 1,
+        model: normalizeModel(args.model),
       };
       agents.set(id, state);
       updateWidgets();
@@ -282,6 +295,7 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       id: Type.Number({ description: "The ID of the sub-agent to continue" }),
       prompt: Type.String({ description: "The follow-up prompt or new instructions" }),
+      model: Type.Optional(Type.String({ description: "Optional model override (provider/model-id)" })),
     }),
     execute: async (_callId, args, _signal, _onUpdate, ctx) => {
       widgetCtx = ctx;
@@ -298,6 +312,10 @@ export default function (pi: ExtensionAPI) {
       state.textChunks = [];
       state.elapsed = 0;
       state.turnCount++;
+      const modelOverride = normalizeModel(args.model);
+      if (modelOverride) {
+        state.model = modelOverride;
+      }
       updateWidgets();
 
       ctx.ui.notify(`Continuing sub-agent #${args.id} (Turn ${state.turnCount})`, "info");
