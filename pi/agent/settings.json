@@ -7,6 +7,16 @@
       ]
     },
     "npm:checkpoint",
+    {
+      "source": "npm:pi-hooks",
+      "extensions": [
+        "lsp/lsp.ts",
+        "lsp/lsp-tool.ts"
+      ],
+      "skills": [],
+      "prompts": [],
+      "themes": []
+    },
     "npm:pi-notify",
     "git:github.com/ogulcancelik/pi-ghostty-theme-sync",
     {
@@ -20,11 +30,14 @@
       "themes": []
     }
   ],
-  "lastChangelogVersion": "0.55.1",
-  "defaultProvider": "kimi-coding",
-  "defaultModel": "k2p5",
+  "lsp": {
+    "hookMode": "agent_end"
+  },
+  "lastChangelogVersion": "0.56.0",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.3-codex",
   "theme": "ghostty-sync-169e8b08",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "xhigh",
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,

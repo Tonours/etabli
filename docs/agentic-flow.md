@@ -3,24 +3,21 @@
 This project uses a staged flow:
 
 1. **Reliable overnight execution** (`nightshift`)
-2. **Orchestrated ship pipeline** (`/ship`)
+2. **Manual plan/review/verify workflow** (`/skill:plan`, `/skill:plan-review`, `/skill:verify`, `/skill:review`)
 3. **Portable Pi settings** (relative paths + linked extension dirs)
 4. **Weekly metrics** (`agent-scorecard`)
 5. **Coordinator/workers fanout** (`agent-fanout` + coordinator/worker skills)
 
-## 1) Ship Pipeline
+## 1) Workflow Pipeline
 
 ```bash
-/ship start --task "Implement X"
-# runs /skill:plan + /skill:plan-review when auto=true
-
-# after implementation
-/ship finalize                     # queues verify + review
-/ship mark --result go --notes "ready"
+/skill:plan "Implement X"
+/skill:plan-review
+# ... implement ...
+/skill:verify
+/skill:review
+# ... commit ...
 ```
-
-Use:
-- `/ship status` to inspect active run and recent GO/BLOCK outcomes.
 
 ## 2) Weekly Scorecard
 
@@ -30,7 +27,6 @@ agent-scorecard weekly --repo /path/to/repo
 
 Outputs a markdown report with:
 - Nightshift task success/failure
-- Ship GO/BLOCK decisions
 - Commit activity by conventional commit type
 
 ## 3) Coordinator / Workers
@@ -43,7 +39,7 @@ agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md
 agent-fanout run --tasks ~/.local/state/pi-agentic/workers.md --no-coordinator
 ```
 
-This creates one tmux worker window per task, auto-starts Pi + `/ship`,
+This creates one tmux worker window per task and launches Pi in each worker,
 and creates a coordinator window per repo unless disabled.
 
 ## 4) Skills
@@ -54,6 +50,6 @@ and creates a coordinator window per repo unless disabled.
 ## 5) Recommended Operating Cadence
 
 - **Morning**: review overnight report, fix failures
-- **Day**: run ship pipeline per feature/fix
+- **Day**: run plan → review → implement → verify → review per feature/fix
 - **End of day**: prepare 1–3 nightshift tasks
 - **Weekly**: generate scorecard and tune prompts/models/process
