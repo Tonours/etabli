@@ -5,9 +5,9 @@ description: Critique an implementation plan before execution and challenge assu
 
 # Plan Review
 
-Use this before implementation to stress-test a plan.
+Use this before implementation to stress-test a plan and harden `PLAN.md`.
 
-1. Read `PLAN.md` (or provided plan content).
+1. Read `PLAN.md` and `PLAN_TEMPLATE.md` from the repository root.
 2. Validate first: is the goal clear, measurable, and within scope?
 3. Challenge assumptions:
    - What is assumed about inputs, environment, data shape, concurrency, and failure modes?
@@ -20,13 +20,16 @@ Use this before implementation to stress-test a plan.
 5. Verify execution order:
    - does each step depend on required state?
    - can risky steps be moved later/split?
-6. Suggest a stricter plan:
+6. Update `PLAN.md` in place:
    - simplify scope if needed
    - split into smaller verify-able slices
    - add explicit checks before each risky step
-7. Return output:
-   - `BLOCK` if critical issues
-   - `GO WITH CHANGES` with required fixes
-   - `GO` if clean
+   - record the key deltas in `Review Changes`
+   - set `Status: CHALLENGED` if important issues remain
+   - set `Status: READY` if the plan is executable without major rethinking
+7. Return a short verdict plus the highest-impact changes made to `PLAN.md`
 
-Keep it short and decisive. Prefer 5–10 concrete improvements, ordered by impact.
+Rules:
+- never create `REVIEW.md`
+- preserve the template structure
+- keep the plan short, decisive, and implementation-ready
