@@ -33,11 +33,11 @@
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.56.0",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.3-codex",
+  "lastChangelogVersion": "0.56.2",
+  "defaultProvider": "kimi-coding",
+  "defaultModel": "k2p5",
   "theme": "ghostty-sync-169e8b08",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "medium",
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,

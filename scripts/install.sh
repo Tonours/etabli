@@ -490,7 +490,7 @@ for theme_file in "$REPO_DIR/pi/themes"/*.json; do
     fi
 done
 
-# Custom skills (plan, verify)
+# Custom skills (plan workflow, review)
 for skill_dir in "$REPO_DIR/pi/skills"/*/; do
     if [ -d "$skill_dir" ]; then
         skill_name=$(basename "$skill_dir")
@@ -498,6 +498,18 @@ for skill_dir in "$REPO_DIR/pi/skills"/*/; do
         print_success "Pi skill '$skill_name' linked"
     fi
 done
+
+rm -f ~/.pi/agent/skills/verify
+
+mkdir -p ~/.claude/commands
+for command_file in "$REPO_DIR/claude/commands"/*.md; do
+    if [ -f "$command_file" ]; then
+        command_name=$(basename "$command_file")
+        ln -sf "$command_file" ~/.claude/commands/"$command_name"
+        print_success "Claude command '$command_name' linked"
+    fi
+done
+rm -f ~/.claude/commands/verify.md
 
 # Shared skills from etabli/skills/ (only if not already in ~/.agents/skills/)
 for shared_skill in vercel-react-best-practices web-design-guidelines; do
@@ -735,10 +747,18 @@ printf "  ${BLUE}Pi Coding Agent:${NC}\n"
 printf "  Start:           ${YELLOW}pi${NC}\n"
 printf "  Auth providers:  ${YELLOW}/login${NC}\n"
 printf "  Plan:            ${YELLOW}/skill:plan${NC}\n"
-printf "  Verify:          ${YELLOW}/skill:verify${NC}\n"
+printf "  Plan review:     ${YELLOW}/skill:plan-review${NC}\n"
+printf "  Plan loop:       ${YELLOW}/skill:plan-loop${NC}\n"
 printf "  Code review:     ${YELLOW}Ctrl+R${NC} (mitsupi)\n"
 printf "  TDD loop:        ${YELLOW}/loop tests${NC} (mitsupi)\n"
 printf "  Switch model:    ${YELLOW}Ctrl+P${NC}\n"
+echo ""
+echo "-------------------------------------------------------------------"
+echo ""
+printf "  ${BLUE}Claude Code:${NC}\n"
+printf "  Plan:            ${YELLOW}/plan${NC}\n"
+printf "  Plan review:     ${YELLOW}/plan-review${NC}\n"
+printf "  Plan loop:       ${YELLOW}/plan-loop${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""

@@ -37,11 +37,17 @@
 - Atomic commits: one logical change per commit.
 
 ## Workflow pipeline
-1. `/skill:plan` — create implementation plan
-2. `/skill:plan-review` — stress-test the plan
-3. implement — write code
-4. `/skill:verify` — type-check, test, lint, build
-5. `/skill:review` — code review
+1. `/skill:plan` — create `PLAN.md` from `PLAN_TEMPLATE.md` with `Status: DRAFT`
+2. `/skill:plan-review` — stress-test the plan and update `PLAN.md` in place
+3. implement — write code only from a `PLAN.md` marked `READY`
+4. `/skill:review` — code review
+
+## Plan contract
+- `PLAN_TEMPLATE.md` is the source of truth for the shape of `PLAN.md`.
+- Planning review does not create `REVIEW.md`; it hardens `PLAN.md`.
+- Use `Review Changes` to capture what changed after critique.
+- If major issues remain, set `Status: CHALLENGED`. If the plan is executable without major rethinking, set `Status: READY`.
+- `/skill:plan-loop` is the interactive shortcut that chains the draft and critique passes in one flow.
 
 ## Model usage
 - Planning & analysis: prefer reasoning models (Kimi K2.5, GPT-5.3 xhigh)

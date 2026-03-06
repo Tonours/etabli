@@ -1,0 +1,29 @@
+---
+description: Chain plan and plan-review in one interactive flow until PLAN.md lands in CHALLENGED or READY
+argument-hint: <task description>
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+---
+
+# Plan Loop
+
+User request: $ARGUMENTS
+
+## Your task
+
+1. Inspect the current repository state and analyze the relevant codebase area.
+2. Read `PLAN_TEMPLATE.md` from the repository root.
+3. Create or refresh `PLAN.md` from the template with `Status: DRAFT`.
+4. Immediately run a separate critique pass against that draft:
+   - challenge scope
+   - challenge assumptions
+   - identify missing risks and edge cases
+   - verify execution order and validation steps
+5. Update `PLAN.md` in place:
+   - preserve the template structure
+   - record key deltas in `Review Changes`
+   - set `Status: CHALLENGED` if important issues remain
+   - set `Status: READY` if the plan is executable without major rethinking
+6. If critical context is missing, ask only the narrowest blocking question(s), then fold the answer back into `PLAN.md` and tighten it once more.
+7. Never create `REVIEW.md`.
+8. Do not implement code.
+9. Return the final status and the highest-impact plan changes.

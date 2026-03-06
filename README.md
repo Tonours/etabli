@@ -46,8 +46,12 @@ pi/                         Pi Coding Agent config
   models.json               Custom model/provider config
   settings.json             Pi user settings
   extensions/               Pi extensions (safety, UI, image input, RTK, subagents, tilldone)
-  skills/                   Pi skills (plan, plan-review, verify, review)
+  skills/                   Pi skills (plan, plan-review, plan-loop, review)
   themes/                   Pi themes
+
+claude/
+  commands/                 Claude Code commands (plan, plan-review, plan-loop)
+  README.md                 Claude Code workflow notes
 
 ghostty/config              Ghostty terminal (Catppuccin Mocha, JetBrains Mono)
 
@@ -74,6 +78,7 @@ scripts/
   tmux-clipboard.sh         Cross-platform clipboard (pbcopy/wl-copy/xclip/OSC52)
 
 skills/                     Shared skills (React best practices, Web design guidelines)
+PLAN_TEMPLATE.md            Canonical template used to create and revise PLAN.md
 
 tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
 ```
@@ -81,8 +86,12 @@ tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
 ## Workflow
 
 ```
-/skill:plan  ->  /skill:plan-review  ->  implement  ->  /skill:verify  ->  /skill:review  ->  commit
+problem  ->  plan  ->  PLAN.md (DRAFT)  ->  plan-review  ->  PLAN.md (CHALLENGED/READY)  ->  implement
 ```
+
+`PLAN.md` is the single pre-implementation artifact across Pi and Claude Code. `PLAN_TEMPLATE.md` defines the structure, and `plan-review` revises `PLAN.md` in place instead of creating a separate `REVIEW.md`.
+
+Optional interactive shortcut: `plan-loop` chains plan creation and plan critique in one flow, then stops at `CHALLENGED` or `READY`.
 
 ### Git Worktrees
 
@@ -99,16 +108,24 @@ cw-clean myproject
 
 `PI_PROJECT_ROOT` defaults to `~/projects`.
 
-### Slash Commands
+### Pi Commands
 
-| Command                 | What it does                               |
-| ----------------------- | ------------------------------------------ |
-| `/skill:plan <feature>` | Create PLAN.md with steps, risks, deps      |
-| `/skill:plan-review`    | Challenge the plan before coding (assumptions, risks, edge cases) |
-| `/skill:review`         | Final pre-commit review (risks, regressions, edge cases) |
-| `/skill:verify`         | Run typecheck/tests/lint/build             |
-| `/loop tests`           | Red-green-refactor testing loop            |
-| `Ctrl+P`                | Switch model/provider quickly              |
+| Command                      | What it does |
+| ---------------------------- | ------------ |
+| `/skill:plan <feature>`      | Create `PLAN.md` from `PLAN_TEMPLATE.md` with status `DRAFT` |
+| `/skill:plan-review`         | Stress-test and update `PLAN.md`, then mark it `CHALLENGED` or `READY` |
+| `/skill:plan-loop <feature>` | Chain plan creation and plan critique until `PLAN.md` lands in `CHALLENGED` or `READY` |
+| `/skill:review`              | Final pre-commit review (risks, regressions, edge cases) |
+| `/loop tests`                | Red-green-refactor testing loop |
+| `Ctrl+P`                     | Switch model/provider quickly |
+
+### Claude Commands
+
+| Command                  | What it does |
+| ------------------------ | ------------ |
+| `/plan <feature>`        | Create `PLAN.md` from `PLAN_TEMPLATE.md` with status `DRAFT` |
+| `/plan-review`           | Stress-test and update `PLAN.md`, then mark it `CHALLENGED` or `READY` |
+| `/plan-loop <feature>`   | Chain plan creation and plan critique until `PLAN.md` lands in `CHALLENGED` or `READY` |
 
 ### Pi Extensions
 
@@ -277,10 +294,18 @@ ln -sf $(pwd)/pi/agent/settings.json ~/.pi/agent/settings.json
 ln -sfn $(pwd)/pi/extensions ~/.pi/extensions
 ln -sfn $(pwd)/pi/extensions ~/.pi/agent/extensions
 ln -sfn $(pwd)/pi/themes ~/.pi/themes
-for s in plan plan-review verify review; do
+rm -f ~/.pi/agent/skills/verify
+for s in plan plan-review plan-loop review; do
   ln -sfn $(pwd)/pi/skills/$s ~/.pi/agent/skills/$s
 done
 ln -sf $(pwd)/pi/themes/catppuccin-mocha.json ~/.pi/agent/themes/catppuccin-mocha.json
+
+# Claude Code
+mkdir -p ~/.claude/commands
+rm -f ~/.claude/commands/verify.md
+for c in plan plan-review plan-loop; do
+  ln -sf $(pwd)/claude/commands/$c.md ~/.claude/commands/$c.md
+done
 
 # macOS-only scripts
 for s in macos-optimize.sh tiling-toggle.sh yabai-sudoers-update.sh; do

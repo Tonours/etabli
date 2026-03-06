@@ -9,12 +9,13 @@ Create a detailed implementation plan.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. Analyze the codebase to understand what needs to change
-3. Write plan to ./PLAN.md:
-   - **Goal**: What we're building and why
-   - **Files to modify**: List with rationale
-   - **Implementation steps**: Ordered, with verification for each
-   - **Verification commands**: Test commands and expected output
-   - **Risks**: What could go wrong, rollback strategy
-   - **Dependencies**: External deps, blockers
-4. Do NOT write code yet
-5. Iterate on the plan until the user approves
+3. Read `PLAN_TEMPLATE.md` from the repository root and use it as the exact base structure for `./PLAN.md`
+4. Write `./PLAN.md`:
+   - preserve the template section order
+   - set `Status: DRAFT`
+   - fill every relevant section with concrete project-specific content
+   - keep it concise; if something is unknown, make it explicit in `Open Questions`
+   - include likely files/components under `Relevant Context`, not as a free-form dump
+5. Do NOT write code yet
+6. `PLAN.md` becomes executable only after `/skill:plan-review` updates it and marks it `READY`
+7. If the user wants plan creation and critique chained together, use `/skill:plan-loop`

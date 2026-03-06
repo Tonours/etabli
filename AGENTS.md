@@ -35,3 +35,13 @@
 
 ## Testing
 - Extension tests: `bun test pi/extensions/__tests__/`
+
+## Planning workflow
+- This planning contract applies across Pi and Claude Code in this repo.
+- `PLAN_TEMPLATE.md` is the canonical base for pre-implementation planning.
+- Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md` before writing code.
+- First-pass plans start with `Status: DRAFT`.
+- Plan critique updates `PLAN.md` in place, records the delta in `Review Changes`, and promotes status to `CHALLENGED` or `READY`.
+- `plan-loop` is the interactive shortcut: create the draft, critique it, and stop only at `CHALLENGED` or `READY`.
+- Implement only from a `PLAN.md` whose status is `READY`.
+- Do not create `REVIEW.md` for pre-implementation plan critique.
