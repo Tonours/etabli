@@ -7,7 +7,9 @@ description: Critique an implementation plan before execution and challenge assu
 
 Use this before implementation to stress-test a plan and harden `PLAN.md`.
 
-1. Read `PLAN.md` and `PLAN_TEMPLATE.md` from the repository root.
+1. Read `./PLAN.md` and resolve the plan template from the first existing file in this order:
+   - `./PLAN_TEMPLATE.md`
+   - `../../PLAN_TEMPLATE.md`
 2. Validate first: is the goal clear, measurable, and within scope?
 3. Challenge assumptions:
    - What is assumed about inputs, environment, data shape, concurrency, and failure modes?

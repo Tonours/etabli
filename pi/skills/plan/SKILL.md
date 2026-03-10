@@ -9,7 +9,9 @@ Create a detailed implementation plan.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. Analyze the codebase to understand what needs to change
-3. Read `./PLAN_TEMPLATE.md` from the repository root and use it as the exact base structure for `./PLAN.md`
+3. Resolve the plan template in this order and use the first existing file as the exact base structure for `./PLAN.md`:
+   - `./PLAN_TEMPLATE.md`
+   - `../../PLAN_TEMPLATE.md`
 4. Write `./PLAN.md`:
    - preserve the template section order
    - set `Status: DRAFT`
