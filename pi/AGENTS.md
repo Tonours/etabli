@@ -48,6 +48,7 @@
 - Use `Review Changes` to capture what changed after critique.
 - If major issues remain, set `Status: CHALLENGED`. If the plan is executable without major rethinking, set `Status: READY`.
 - `/skill:plan-loop` is the interactive shortcut that chains the draft and critique passes in one flow.
+- `/skill:plan-implement` is the optional one-shot shortcut: run `plan-loop`, stop on `CHALLENGED`, implement only from `READY`.
 
 ## Model usage
 - Planning & analysis: prefer reasoning models (Kimi K2.5, GPT-5.3 xhigh)
