@@ -9,7 +9,7 @@ Use this when the user wants plan creation and plan critique chained together.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. Analyze the relevant codebase area
-3. Read `PLAN_TEMPLATE.md` from the repository root
+3. Read `./PLAN_TEMPLATE.md` from the repository root
 4. Create or refresh `./PLAN.md` from the template with `Status: DRAFT`
 5. Run an explicit critique pass against that draft:
    - challenge scope
@@ -23,6 +23,7 @@ Use this when the user wants plan creation and plan critique chained together.
    - set `Status: READY` if the plan is executable without major rethinking
 7. If critical context is missing, ask only the narrowest blocking question(s), then fold the answer back into `PLAN.md`
 8. Return the final status plus the highest-impact changes made to the plan
+9. If the user also wants implementation in the same flow, use `/skill:plan-implement`
 
 Rules:
 - do NOT write implementation code
