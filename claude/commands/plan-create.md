@@ -12,8 +12,10 @@ User request: $ARGUMENTS
 
 1. Inspect the current repository state and recent commits.
 2. Analyze the relevant codebase area before planning.
-3. Read `PLAN_TEMPLATE.md` from the repository root.
-4. Create or refresh `PLAN.md` from that template.
+3. Resolve the plan template from the first existing file in this order and preserve its structure exactly:
+   - `./PLAN_TEMPLATE.md`
+   - `./claude/PLAN_TEMPLATE.md`
+4. Create or refresh `./PLAN.md` from that template.
 5. Set `Status: DRAFT`.
 6. Fill the relevant sections with concrete project-specific content.
 7. Keep the plan concise. If something important is unknown, make it explicit in `Open Questions`.

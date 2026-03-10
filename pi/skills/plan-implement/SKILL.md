@@ -10,7 +10,9 @@ Use this when the user wants planning, critique, and implementation chained in o
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. If the user provided a task description, run the full `plan-loop` flow first:
    - analyze the relevant codebase area
-   - read `./PLAN_TEMPLATE.md`
+   - resolve the plan template from the first existing file in this order:
+     - `./PLAN_TEMPLATE.md`
+     - `../../PLAN_TEMPLATE.md`
    - create or refresh `./PLAN.md` with `Status: DRAFT`
    - critique it and update it to `CHALLENGED` or `READY`
 3. If no task description was provided:

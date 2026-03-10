@@ -9,7 +9,9 @@ Use this when the user wants plan creation and plan critique chained together.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. Analyze the relevant codebase area
-3. Read `./PLAN_TEMPLATE.md` from the repository root
+3. Resolve the plan template from the first existing file in this order:
+   - `./PLAN_TEMPLATE.md`
+   - `../../PLAN_TEMPLATE.md`
 4. Create or refresh `./PLAN.md` from the template with `Status: DRAFT`
 5. Run an explicit critique pass against that draft:
    - challenge scope

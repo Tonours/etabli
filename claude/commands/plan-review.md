@@ -7,8 +7,10 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 ## Your task
 
-1. Read `PLAN.md` and `PLAN_TEMPLATE.md` from the repository root.
-2. Treat `PLAN.md` as a draft that must be challenged, not defended.
+1. Read `./PLAN.md` and resolve the plan template from the first existing file in this order:
+   - `./PLAN_TEMPLATE.md`
+   - `./claude/PLAN_TEMPLATE.md`
+2. Treat `./PLAN.md` as a draft that must be challenged, not defended.
 3. Check:
    - goal clarity and scope boundaries
    - risky assumptions

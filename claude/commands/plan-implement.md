@@ -12,7 +12,9 @@ User request: $ARGUMENTS
 
 1. If `$ARGUMENTS` is present, run the full `plan-loop` flow first:
    - inspect the current repository state and analyze the relevant codebase area
-   - read `./PLAN_TEMPLATE.md` from the repository root and keep it as the exact base structure
+   - resolve the plan template from the first existing file in this order and keep it as the exact base structure:
+     - `./PLAN_TEMPLATE.md`
+     - `./claude/PLAN_TEMPLATE.md`
    - create or refresh `./PLAN.md` with `Status: DRAFT`
    - critique it and update it to `CHALLENGED` or `READY`
 2. If `$ARGUMENTS` is empty:
