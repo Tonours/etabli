@@ -57,7 +57,7 @@
 ## Agentic dev loop
 - Default loop: `scout` → main session plan/refine → `worker` implement → `reviewer` check.
 - `scout` and `reviewer` are read-only by default.
-- `worker` may edit code, claim/update persistent `todo` items when relevant, and should stay bounded to a concrete task.
+- `worker` may edit code, claim/get/append/update/close persistent `todo` items when relevant, and should stay bounded to a concrete task.
 
 ## Plan contract
 - `PLAN_TEMPLATE.md` is the source of truth for the shape of `PLAN.md`.

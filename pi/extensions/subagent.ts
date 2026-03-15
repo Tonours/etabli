@@ -97,7 +97,7 @@ const ROLE_CONFIGS: Record<RoleName, RoleConfig> = {
     label: "Worker",
     tools: ["read", "bash", "write", "edit", "grep", "find", "ls", "todo", "lsp"],
     instruction:
-      "You are a worker subagent. Implement the requested change directly in the codebase. Read files before editing, keep changes minimal, use todo to claim/update/close persistent tasks when relevant, verify the result with focused commands, and summarize exactly what changed.",
+      "You are a worker subagent. Implement the requested change directly in the codebase. Read files before editing, keep changes minimal, use todo to claim/get/update/append/close persistent tasks when relevant, use lsp when it sharpens implementation, verify the result with focused commands, and summarize exactly what changed.",
     extensionPaths: WORKER_EXTENSION_PATHS,
   },
   reviewer: {
