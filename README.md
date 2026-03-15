@@ -93,20 +93,58 @@ problem  ->  plan  ->  PLAN.md (DRAFT)  ->  plan-review  ->  PLAN.md (CHALLENGED
 
 Optional interactive shortcut: `plan-loop` chains plan creation and plan critique in one flow, then stops at `CHALLENGED` or `READY`.
 
+Optional one-shot shortcut: `plan-implement` runs `plan-loop`, stops if `PLAN.md` is still `CHALLENGED`, and implements only from `READY`.
+
 ### Git Worktrees
 
 ```bash
-# Create worktree + tmux window + launch pi
-cw myproject auth feature        # -> feature/auth
+# Preferred: explicit subcommands
+cw new myproject auth feature
+cw open myproject fix/auth
+cw ls myproject
+cw attach myproject fix/auth
 
-# Create without launching pi
-cw -n myproject bug42 fix        # -> fix/bug42
+# Merge and remove a single worktree (both dry-run by default)
+cw merge myproject fix/auth
+cw merge myproject fix/auth --yes
+cw rm myproject fix/auth
+cw rm myproject fix/auth --yes
 
-# Clean merged worktrees
+# Thin picker UI via fzf / fzf-tmux
+cw pick myproject
+
+# Backward-compatible alias during migration
+cw myproject auth feature
+
+# Batch cleanup stays in cw-clean
 cw-clean myproject
+cw-clean myproject --yes
 ```
 
 `PI_PROJECT_ROOT` defaults to `~/projects`.
+`cw` now creates worktrees under the current project when you run it from inside that repo, in `./.worktrees/<prefix>-<task>`.
+If you run it elsewhere, it uses `"$PWD/.worktrees/<repo>/<prefix>-<task>"`.
+`CW_WORKTREE_ROOT` can override that base directory explicitly.
+`CW_DEFAULT_AGENT` defaults to `pi` and can be overridden per call with `--agent`.
+Selectors for `open|attach|merge|rm` accept an exact branch name, a worktree path, or a unique worktree directory name.
+
+`cw` command surface:
+
+| Command | Role |
+| ------- | ---- |
+| `cw new` | Create/reuse a worktree, ensure a tmux target, optionally launch an agent |
+| `cw open` | Reopen an existing worktree in tmux without changing git state |
+| `cw ls` | Show registered worktrees, dirty state, and tmux targets |
+| `cw attach` | Attach to an existing tmux target for a worktree |
+| `cw merge` | Merge one secondary worktree branch into the base branch from the main repo worktree |
+| `cw rm` | Remove one secondary worktree with explicit dirty/tmux checks |
+| `cw pick` | Thin UI wrapper on top of `fzf` / `fzf-tmux` |
+| `cw-clean` | Batch cleanup for merged, gone, or stale worktrees |
+
+Notes:
+- there is no separate `cw ui` command; the lightweight UI is `cw pick`
+- `cw merge` and `cw rm` are dry-run by default; add `--yes` to apply
+- `cw-clean` stays the batch cleanup tool; `cw rm` handles one worktree at a time
 
 ### Pi Commands
 
