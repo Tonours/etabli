@@ -39,14 +39,32 @@
 ## Workflow pipeline
 1. `/skill:plan` — create `PLAN.md` from `PLAN_TEMPLATE.md` with `Status: DRAFT`
 2. `/skill:plan-review` — stress-test the plan and update `PLAN.md` in place
-3. implement — write code only from a `PLAN.md` marked `READY`
+3. `/skill:implement` — write code only from a `PLAN.md` marked `READY`
 4. `/skill:review` — code review
+
+## Cross-tool convention files
+- In any repo, check local convention files before changing code: `CLAUDE.md`, `.claude/commands/`, `.claude/settings.json`, `.cursor/rules/`, `.cursorrules`, `COPILOT.md`, `.github/copilot-instructions.md`.
+- If a repo defines a reusable command/workflow in `.claude/commands/`, follow it when the task matches.
+- Pi owns runtime behavior and extensions. Claude owns reusable command/docs surfaces. Keep the workflow aligned, not duplicated.
+- Shared default flow: learn → plan → implement → review → handoff.
+
+## Delegation defaults
+- Prefer a named reconnaissance/review role over generic delegation when possible.
+- Use `scout` for codebase reconnaissance and `reviewer` for focused review work.
+- Use `worker` for bounded implementation tasks that need direct code changes.
+- Keep delegation read-only unless the task explicitly needs implementation.
+
+## Agentic dev loop
+- Default loop: `scout` → main session plan/refine → `worker` implement → `reviewer` check.
+- `scout` and `reviewer` are read-only by default.
+- `worker` may edit code, claim/update persistent `todo` items when relevant, and should stay bounded to a concrete task.
 
 ## Plan contract
 - `PLAN_TEMPLATE.md` is the source of truth for the shape of `PLAN.md`.
 - Planning review does not create `REVIEW.md`; it hardens `PLAN.md`.
 - Use `Review Changes` to capture what changed after critique.
 - If major issues remain, set `Status: CHALLENGED`. If the plan is executable without major rethinking, set `Status: READY`.
+- `/skill:implement` is the direct continuation after review and only runs from `READY`.
 - `/skill:plan-loop` is the interactive shortcut that chains the draft and critique passes in one flow.
 - `/skill:plan-implement` is the optional one-shot shortcut: run `plan-loop`, stop on `CHALLENGED`, implement only from `READY`.
 
