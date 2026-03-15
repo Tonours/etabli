@@ -76,6 +76,7 @@ pi --tools read,grep,find,ls      # mode lecture seule
 # workflow agentic
 /review [uncommitted|branch <base>|commit <sha>]
 /handoff [path]
+/handoff-implement [path]
 /scout <task>
 /worker <task>
 /reviewer <task>
@@ -102,7 +103,7 @@ Notes repo :
 2. `/skill:plan` + `/skill:plan-review` jusqu'à `PLAN.md` en `READY`
 3. `/skill:implement` dans la session principale, ou `/worker <task>` si la tâche est bornée
 4. `/review` ou `/skill:review` pour la vérification finale
-5. `/handoff` si tu changes de contexte ou t'arrêtes en cours de route
+5. `/handoff` pour une reprise générique, ou `/handoff-implement` si tu stoppes une implémentation déjà cadrée par un `PLAN.md` `READY`
 
 Rôles :
 - `scout` : reconnaissance read-only

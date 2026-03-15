@@ -20,5 +20,6 @@ Create a detailed implementation plan.
    - include likely files/components under `Relevant Context`, not as a free-form dump
 5. Do NOT write code yet
 6. `PLAN.md` becomes executable only after `/skill:plan-review` updates it and marks it `READY`
-7. If the user wants plan creation and critique chained together, use `/skill:plan-loop`
-8. If the user wants planning, critique, and implementation chained together, use `/skill:plan-implement`
+7. If the user wants to continue from a reviewed `READY` plan, use `/skill:implement`
+8. If the user wants plan creation and critique chained together, use `/skill:plan-loop`
+9. If the user wants planning, critique, and implementation chained together, use `/skill:plan-implement`

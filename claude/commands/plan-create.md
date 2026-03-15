@@ -19,6 +19,7 @@ User request: $ARGUMENTS
 5. Set `Status: DRAFT`.
 6. Fill the relevant sections with concrete project-specific content.
 7. Keep the plan concise. If something important is unknown, make it explicit in `Open Questions`.
-8. Do not implement code.
+8. Once `PLAN.md` is reviewed to `READY`, continue with `/implement`.
+9. Do not implement code.
 
 If critical context is missing, ask only the narrowest blocking question.

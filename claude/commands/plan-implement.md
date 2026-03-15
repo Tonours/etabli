@@ -8,6 +8,8 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
+Use `/implement` instead when an existing `PLAN.md` is already reviewed and `READY`.
+
 ## Your task
 
 1. If `$ARGUMENTS` is present, run the full `plan-loop` flow first:

@@ -24,7 +24,8 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
    - record key deltas in `Review Changes`
    - set `Status: CHALLENGED` if important issues remain
    - set `Status: READY` if the plan is executable without major rethinking
-5. Never create `REVIEW.md`.
-6. Return the final status and the highest-impact changes made.
+5. If the final status is `READY`, the next implementation step is `/implement`.
+6. Never create `REVIEW.md`.
+7. Return the final status and the highest-impact changes made.
 
 If critical context is missing, ask only the narrowest blocking question.

@@ -6,6 +6,7 @@ description: Create/review PLAN.md and implement it only when the plan is READY
 # Plan Implement
 
 Use this when the user wants planning, critique, and implementation chained in one flow.
+If the plan is already reviewed and `READY`, use `/skill:implement` instead.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. If the user provided a task description, run the full `plan-loop` flow first:
