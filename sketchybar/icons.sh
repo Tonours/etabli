@@ -3,7 +3,7 @@
 # Nerd Font icons for SketchyBar modules
 
 # System
-export ICON_APPLE=""
+export ICON_APPLE=""
 export ICON_CLOCK="󰥔"
 export ICON_CALENDAR=""
 
@@ -26,9 +26,9 @@ export ICON_WIFI_OFF="󰤮"
 export ICON_VPN="󰦝"
 
 # Audio
-export ICON_VOLUME_HIGH=""
-export ICON_VOLUME_MID=""
-export ICON_VOLUME_LOW=""
+export ICON_VOLUME_HIGH="󰕾"
+export ICON_VOLUME_MID="󰖀"
+export ICON_VOLUME_LOW="󰕿"
 export ICON_VOLUME_MUTE="󰝟"
 
 # Bluetooth

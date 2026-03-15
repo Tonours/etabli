@@ -25,11 +25,10 @@ start_stack() {
     skhd --start-service 2>/dev/null || brew services start skhd 2>/dev/null || warn "skhd already running"
     ok "skhd started"
 
-    brew services start sketchybar 2>/dev/null || warn "sketchybar already running"
-    ok "sketchybar started"
-
-    brew services start borders 2>/dev/null || warn "borders already running"
-    ok "borders started"
+    if [ -x "$HOME/.local/bin/yabai-space-local.sh" ]; then
+        "$HOME/.local/bin/yabai-space-local.sh" ensure >/dev/null 2>&1 || \
+            warn "could not converge spaces to 5 per display"
+    fi
 
     echo ""
     ok "Tiling stack is ON"
@@ -43,12 +42,6 @@ stop_stack() {
 
     skhd --stop-service 2>/dev/null || brew services stop skhd 2>/dev/null || true
     ok "skhd stopped"
-
-    brew services stop sketchybar 2>/dev/null || true
-    ok "sketchybar stopped"
-
-    brew services stop borders 2>/dev/null || true
-    ok "borders stopped"
 
     echo ""
     ok "Tiling stack is OFF"
@@ -72,7 +65,7 @@ case "${1:-}" in
     *)
         echo "Usage: tiling-toggle.sh [on|off]"
         echo ""
-        echo "  on   — Start yabai, skhd, sketchybar, borders"
+        echo "  on   — Start yabai, skhd"
         echo "  off  — Stop all tiling services"
         echo "  (no arg) — Toggle automatically"
         exit 1

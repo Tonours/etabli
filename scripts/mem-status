@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: mem-status [watch [seconds]]
+       mem-status --watch [seconds]
+
+Show macOS memory headroom, compression, and swap activity.
+
+Examples:
+  mem-status
+  mem-status watch
+  mem-status --watch 1
+EOF
+}
+
+supports_color() {
+    [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]
+}
+
+paint() {
+    local color="$1"
+    local text="$2"
+
+    if ! supports_color; then
+        printf "%s" "$text"
+        return 0
+    fi
+
+    case "$color" in
+        green) printf '\033[32m%s\033[0m' "$text" ;;
+        yellow) printf '\033[33m%s\033[0m' "$text" ;;
+        red) printf '\033[31m%s\033[0m' "$text" ;;
+        *) printf "%s" "$text" ;;
+    esac
+}
+
+read_kv_value() {
+    local text="$1"
+    local key="$2"
+
+    awk -F': *' -v key="$key" '
+        $1 == key {
+            value = $2
+            gsub(/[.% ]/, "", value)
+            print value
+            exit
+        }
+    ' <<<"$text"
+}
+
+pages_to_gb() {
+    local pages="$1"
+    local page_size="$2"
+
+    awk -v pages="$pages" -v page_size="$page_size" '
+        BEGIN { printf "%.2f", (pages * page_size) / (1024 * 1024 * 1024) }
+    '
+}
+
+bytes_to_gb() {
+    local bytes="$1"
+
+    awk -v bytes="$bytes" 'BEGIN { printf "%.2f", bytes / (1024 * 1024 * 1024) }'
+}
+
+compression_ratio() {
+    local compressed_pages="$1"
+    local total_bytes="$2"
+    local page_size="$3"
+
+    awk -v compressed_pages="$compressed_pages" -v total_bytes="$total_bytes" -v page_size="$page_size" '
+        BEGIN {
+            compressed_bytes = compressed_pages * page_size
+            printf "%.1f", (compressed_bytes / total_bytes) * 100
+        }
+    '
+}
+
+health_state() {
+    local headroom="$1"
+    local swapouts="$2"
+    local compression_pct="$3"
+
+    if [ "$swapouts" -gt 0 ] || [ "$headroom" -lt 35 ]; then
+        printf "pressure"
+    elif [ "$headroom" -lt 60 ] || awk -v pct="$compression_pct" 'BEGIN { exit !(pct >= 15) }'; then
+        printf "watch"
+    else
+        printf "healthy"
+    fi
+}
+
+render_once() {
+    local vm_stats pressure_stats total_bytes page_size
+    local free_pages active_pages inactive_pages speculative_pages purgeable_pages wired_pages compressed_pages
+    local swapins swapouts headroom available_pages compression_pct state state_label
+
+    vm_stats="$(vm_stat)"
+    pressure_stats="$(memory_pressure)"
+    total_bytes="$(sysctl -n hw.memsize)"
+    page_size="$(awk -F'page size of | bytes' 'NR == 1 {print $2}' <<<"$vm_stats")"
+
+    free_pages="$(read_kv_value "$vm_stats" "Pages free")"
+    active_pages="$(read_kv_value "$vm_stats" "Pages active")"
+    inactive_pages="$(read_kv_value "$vm_stats" "Pages inactive")"
+    speculative_pages="$(read_kv_value "$vm_stats" "Pages speculative")"
+    purgeable_pages="$(read_kv_value "$vm_stats" "Pages purgeable")"
+    wired_pages="$(read_kv_value "$vm_stats" "Pages wired down")"
+    compressed_pages="$(read_kv_value "$vm_stats" "Pages occupied by compressor")"
+    swapins="$(read_kv_value "$vm_stats" "Swapins")"
+    swapouts="$(read_kv_value "$vm_stats" "Swapouts")"
+    headroom="$(read_kv_value "$pressure_stats" "System-wide memory free percentage")"
+
+    available_pages=$((free_pages + speculative_pages + purgeable_pages))
+    compression_pct="$(compression_ratio "$compressed_pages" "$total_bytes" "$page_size")"
+    state="$(health_state "$headroom" "$swapouts" "$compression_pct")"
+
+    case "$state" in
+        healthy) state_label="$(paint green "$state")" ;;
+        watch) state_label="$(paint yellow "$state")" ;;
+        pressure) state_label="$(paint red "$state")" ;;
+        *) state_label="$state" ;;
+    esac
+
+    printf "time:       %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "state:      %s\n" "$state_label"
+    printf "headroom:   %s%%\n" "$headroom"
+    printf "total:      %s GB\n" "$(bytes_to_gb "$total_bytes")"
+    printf "available:  %s GB\n" "$(pages_to_gb "$available_pages" "$page_size")"
+    printf "compressed: %s GB (%s%%)\n" "$(pages_to_gb "$compressed_pages" "$page_size")" "$compression_pct"
+    printf "wired:      %s GB\n" "$(pages_to_gb "$wired_pages" "$page_size")"
+    printf "active:     %s GB\n" "$(pages_to_gb "$active_pages" "$page_size")"
+    printf "inactive:   %s GB\n" "$(pages_to_gb "$inactive_pages" "$page_size")"
+    printf "swap:       in %s / out %s (since boot)\n" "$swapins" "$swapouts"
+}
+
+watch_loop() {
+    local interval="$1"
+
+    while true; do
+        printf '\033[H\033[2J'
+        render_once
+        sleep "$interval"
+    done
+}
+
+[ "$(uname -s)" = "Darwin" ] || {
+    printf "mem-status only supports macOS.\n" >&2
+    exit 1
+}
+
+MODE="once"
+INTERVAL="2"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        watch)
+            MODE="watch"
+            if [[ "${2:-}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                INTERVAL="$2"
+                shift
+            fi
+            shift
+            ;;
+        -w|--watch)
+            MODE="watch"
+            if [[ "${2:-}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                INTERVAL="$2"
+                shift
+            fi
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$MODE" = "watch" ]; then
+    watch_loop "$INTERVAL"
+else
+    render_once
+fi
