@@ -25,7 +25,8 @@ Use this when the user wants plan creation and plan critique chained together.
    - set `Status: READY` if the plan is executable without major rethinking
 7. If critical context is missing, ask only the narrowest blocking question(s), then fold the answer back into `PLAN.md`
 8. Return the final status plus the highest-impact changes made to the plan
-9. If the user also wants implementation in the same flow, use `/skill:plan-implement`
+9. If the user wants to continue later from the reviewed plan, use `/skill:implement`
+10. If the user also wants implementation in the same flow, use `/skill:plan-implement`
 
 Rules:
 - do NOT write implementation code

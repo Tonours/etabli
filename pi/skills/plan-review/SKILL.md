@@ -29,7 +29,8 @@ Use this before implementation to stress-test a plan and harden `PLAN.md`.
    - record the key deltas in `Review Changes`
    - set `Status: CHALLENGED` if important issues remain
    - set `Status: READY` if the plan is executable without major rethinking
-7. Return a short verdict plus the highest-impact changes made to `PLAN.md`
+7. If the final status is `READY`, the next implementation step is `/skill:implement`
+8. Return a short verdict plus the highest-impact changes made to `PLAN.md`
 
 Rules:
 - never create `REVIEW.md`

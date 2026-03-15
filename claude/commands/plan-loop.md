@@ -28,4 +28,5 @@ User request: $ARGUMENTS
 6. If critical context is missing, ask only the narrowest blocking question(s), then fold the answer back into `PLAN.md` and tighten it once more.
 7. Never create `REVIEW.md`.
 8. Do not implement code.
-9. Return the final status and the highest-impact plan changes.
+9. If the user wants to continue later from the reviewed plan, use `/implement`.
+10. Return the final status and the highest-impact plan changes.
