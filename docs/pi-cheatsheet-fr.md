@@ -69,6 +69,7 @@ pi --tools read,grep,find,ls      # mode lecture seule
 # workflow plan
 /skill:plan <feature>
 /skill:plan-review
+/skill:implement
 /skill:plan-loop <feature>
 /skill:plan-implement <feature>
 
@@ -99,13 +100,13 @@ Notes repo :
 
 1. `scout` ou lecture directe pour comprendre la zone à modifier
 2. `/skill:plan` + `/skill:plan-review` jusqu'à `PLAN.md` en `READY`
-3. implémentation dans la session principale ou via `/worker <task>` si la tâche est bornée
+3. `/skill:implement` dans la session principale, ou `/worker <task>` si la tâche est bornée
 4. `/review` ou `/skill:review` pour la vérification finale
 5. `/handoff` si tu changes de contexte ou t'arrêtes en cours de route
 
 Rôles :
 - `scout` : reconnaissance read-only
-- `worker` : implémentation read/write
+- `worker` : implémentation read/write avec `todo` persistant et `lsp` quand dispo
 - `reviewer` : revue read-only
 
 ## Fichiers de configuration importants
