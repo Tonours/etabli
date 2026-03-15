@@ -12,7 +12,7 @@
 - pi/themes/                           — Custom themes (JSON)
 - scripts/                             — Install & dev scripts (Bash)
 - nvim/                                — Neovim config (Lua, LazyVim)
-- ghostty/                             — Ghostty terminal config
+- iterm2/                              — iTerm2 dynamic profile
 - yabai/ skhd/ sketchybar/ borders/    — Tiling WM configs (macOS)
 
 ## Extension conventions
@@ -42,6 +42,7 @@
 - Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md` before writing code.
 - First-pass plans start with `Status: DRAFT`.
 - Plan critique updates `PLAN.md` in place, records the delta in `Review Changes`, and promotes status to `CHALLENGED` or `READY`.
+- `implement` is the direct continuation step: execute only from an existing `PLAN.md` marked `READY`.
 - `plan-loop` is the interactive shortcut: create the draft, critique it, and stop only at `CHALLENGED` or `READY`.
 - `plan-implement` is the optional one-shot shortcut: run `plan-loop`, stop on `CHALLENGED`, implement only from `READY`.
 - Implement only from a `PLAN.md` whose status is `READY`.

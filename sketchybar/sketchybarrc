@@ -5,13 +5,45 @@ source "$CONFIG_DIR/icons.sh"
 
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 FONT="JetBrainsMono Nerd Font"
+WORKSPACE_LIMIT=5
+SPACE_HELPER="$HOME/.local/bin/yabai-space-local.sh"
+
+add_spaces_for_display() {
+    local display="$1"
+    local slot=1
+    local -a spaces
+
+    while IFS= read -r space_id; do
+        spaces+=("$space_id")
+    done < <(yabai -m query --displays --display "$display" 2>/dev/null | jq -r --argjson limit "$WORKSPACE_LIMIT" '.spaces[:$limit][]')
+
+    for space_id in "${spaces[@]}"; do
+        sketchybar --add space "space.$space_id" left \
+            --set "space.$space_id" \
+                associated_space="$space_id" \
+                display="$display" \
+                icon.drawing=off \
+                label="$slot" \
+                label.font="$FONT:Bold:11.0" \
+                label.color="$OVERLAY0" \
+                label.padding_left=7 \
+                label.padding_right=7 \
+                background.color="$CRUST" \
+                background.corner_radius=0 \
+                background.height=28 \
+                script="$PLUGIN_DIR/space.sh" \
+                click_script="$SPACE_HELPER focus $slot $display"
+
+        slot=$((slot + 1))
+    done
+}
 
 # ============================================================================
 # BAR
 # ============================================================================
 sketchybar --bar \
     position=top \
-    height=32 \
+    height=30 \
     color="$BAR_COLOR" \
     border_width=0 \
     shadow=off \
@@ -19,8 +51,8 @@ sketchybar --bar \
     corner_radius=0 \
     y_offset=0 \
     margin=0 \
-    padding_left=8 \
-    padding_right=8 \
+    padding_left=10 \
+    padding_right=10 \
     notch_width=0 \
     topmost=on
 
@@ -30,73 +62,25 @@ sketchybar --bar \
 sketchybar --default \
     icon.font="$FONT:Bold:12.0" \
     icon.color="$TEXT" \
-    label.font="$FONT:Regular:12.0" \
+    label.font="$FONT:Regular:11.0" \
     label.color="$TEXT" \
     background.color="$BAR_COLOR" \
-    background.height=32 \
-    padding_left=4 \
-    padding_right=4
+    background.height=28 \
+    padding_left=5 \
+    padding_right=5
 
 # ============================================================================
-# LEFT: Apple logo + Workspaces
+# LEFT: Workspaces
 # ============================================================================
+add_spaces_for_display 1
+add_spaces_for_display 2
 
-# Apple logo
-sketchybar --add item apple left \
-    --set apple \
-        icon="$ICON_APPLE" \
-        icon.color="$MAUVE" \
-        icon.font="$FONT:Bold:14.0" \
-        icon.padding_left=4 \
-        icon.padding_right=8 \
-        label.drawing=off
-
-# Workspace indicators — Display 1 (spaces 1-9)
-for i in $(seq 1 9); do
-    sketchybar --add space space."$i" left \
-        --set space."$i" \
-            associated_space="$i" \
-            display=1 \
-            icon.drawing=off \
-            label="$i" \
-            label.font="$FONT:Bold:12.0" \
-            label.color="$OVERLAY0" \
-            label.padding_left=6 \
-            label.padding_right=6 \
-            background.color="$MANTLE" \
-            background.corner_radius=0 \
-            background.height=32 \
-            script="$PLUGIN_DIR/space.sh" \
-            click_script="yabai -m space --focus $i"
-done
-
-# Workspace indicators — Display 2 (spaces 10-18, labeled 1-9)
-for i in $(seq 10 18); do
-    DISPLAY_LABEL=$((i - 9))
-    sketchybar --add space space."$i" left \
-        --set space."$i" \
-            associated_space="$i" \
-            display=2 \
-            icon.drawing=off \
-            label="$DISPLAY_LABEL" \
-            label.font="$FONT:Bold:12.0" \
-            label.color="$OVERLAY0" \
-            label.padding_left=6 \
-            label.padding_right=6 \
-            background.color="$MANTLE" \
-            background.corner_radius=0 \
-            background.height=32 \
-            script="$PLUGIN_DIR/space.sh" \
-            click_script="yabai -m space --focus $i"
-done
-
-# Front app name
 sketchybar --add item front_app left \
     --set front_app \
         icon.drawing=off \
-        label.font="$FONT:Bold:12.0" \
+        label.font="$FONT:Bold:11.0" \
         label.color="$SUBTEXT1" \
-        label.padding_left=8 \
+        label.padding_left=10 \
         script="$PLUGIN_DIR/front_app.sh" \
     --subscribe front_app front_app_switched
 
@@ -105,47 +89,50 @@ sketchybar --add item front_app left \
 # ============================================================================
 sketchybar --add item clock center \
     --set clock \
-        icon.drawing=off \
-        label.font="$FONT:Regular:12.0" \
+        icon="$ICON_CLOCK" \
+        icon.color="$ACCENT_COLOR" \
+        label.font="$FONT:Regular:11.0" \
         label.color="$TEXT" \
-        update_freq=30 \
+        update_freq=60 \
         script="$PLUGIN_DIR/clock.sh"
 
 # ============================================================================
-# RIGHT: System info (icons only, minimal)
+# RIGHT: System info
 # ============================================================================
+sketchybar --add item tailscale right \
+    --set tailscale \
+        icon.font="$FONT:Bold:14.0" \
+        label.drawing=off \
+        update_freq=180 \
+        script="$PLUGIN_DIR/tailscale.sh" \
+        click_script="open -a Tailscale"
 
-# WiFi
 sketchybar --add item wifi right \
     --set wifi \
         icon.font="$FONT:Bold:14.0" \
         label.drawing=off \
-        update_freq=30 \
+        update_freq=120 \
         script="$PLUGIN_DIR/wifi.sh"
 
-# Volume
 sketchybar --add item volume right \
     --set volume \
         icon.font="$FONT:Bold:14.0" \
         label.drawing=off \
-        update_freq=10 \
         script="$PLUGIN_DIR/volume.sh" \
     --subscribe volume volume_change
 
-# CPU
 sketchybar --add item cpu right \
     --set cpu \
         icon.font="$FONT:Bold:14.0" \
         label.drawing=off \
-        update_freq=30 \
+        update_freq=120 \
         script="$PLUGIN_DIR/cpu.sh"
 
-# Battery
 sketchybar --add item battery right \
     --set battery \
         icon.font="$FONT:Bold:14.0" \
         label.drawing=off \
-        update_freq=60 \
+        update_freq=120 \
         script="$PLUGIN_DIR/battery.sh" \
     --subscribe battery power_source_change system_woke
 

@@ -135,16 +135,15 @@ if [[ "$OS" == "mac" ]]; then
     brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
         print_warning "Some brew packages may have failed"
     }
+    brew install --cask iterm2 2>/dev/null || true
 
     # Tiling WM stack (macOS only)
     print_step "Installing tiling WM tools..."
     brew install koekeishiya/formulae/yabai 2>/dev/null || true
     brew install koekeishiya/formulae/skhd 2>/dev/null || true
-    brew install FelixKratz/formulae/sketchybar 2>/dev/null || true
-    brew install FelixKratz/formulae/borders 2>/dev/null || true
     brew install --cask sol 2>/dev/null || true
 
-    # Nerd Font via Homebrew (for Ghostty)
+    # Nerd Font via Homebrew (for iTerm2)
     brew tap homebrew/cask-fonts 2>/dev/null || true
     brew install --cask font-jetbrains-mono-nerd-font 2>/dev/null || true
 
@@ -392,26 +391,28 @@ if [ ! -d ~/.tmux/plugins/tpm ]; then
 fi
 
 # ============================================================================
-# SETUP GHOSTTY CONFIG
+# SETUP ITERM2 PROFILE
 # ============================================================================
-print_step "Setting up Ghostty config..."
+if [[ "$OS" == "mac" ]]; then
+    print_step "Setting up iTerm2 profile..."
 
-mkdir -p ~/.config/ghostty
+    ITERM2_PROFILES_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+    mkdir -p "$ITERM2_PROFILES_DIR"
 
-if [ -f "$REPO_DIR/ghostty/config" ]; then
-    # Backup if target is a regular file (not a symlink)
-    if [ -f ~/.config/ghostty/config ] && [ ! -L ~/.config/ghostty/config ]; then
-        print_warning "Backing up existing ghostty config"
-        cp ~/.config/ghostty/config ~/.config/ghostty/config.bak
-    fi
+    if [ -f "$REPO_DIR/iterm2/etabli.json" ]; then
+        if [ -f "$ITERM2_PROFILES_DIR/etabli.json" ] && [ ! -L "$ITERM2_PROFILES_DIR/etabli.json" ]; then
+            print_warning "Backing up existing iTerm2 profile"
+            cp "$ITERM2_PROFILES_DIR/etabli.json" "$ITERM2_PROFILES_DIR/etabli.json.bak"
+        fi
 
-    if ln -sf "$REPO_DIR/ghostty/config" ~/.config/ghostty/config; then
-        print_success "Ghostty config linked"
+        if ln -sf "$REPO_DIR/iterm2/etabli.json" "$ITERM2_PROFILES_DIR/etabli.json"; then
+            print_success "iTerm2 dynamic profile linked"
+        else
+            print_error "Failed to create iTerm2 profile symlink"
+        fi
     else
-        print_error "Failed to create ghostty symlink"
+        print_warning "iTerm2 profile not found in $REPO_DIR/iterm2/"
     fi
-else
-    print_warning "Ghostty config not found in $REPO_DIR/ghostty/"
 fi
 
 # ============================================================================
@@ -505,11 +506,23 @@ mkdir -p ~/.claude/commands
 for command_file in "$REPO_DIR/claude/commands"/*.md; do
     if [ -f "$command_file" ]; then
         command_name=$(basename "$command_file")
-        ln -sf "$command_file" ~/.claude/commands/"$command_name"
-        print_success "Claude command '$command_name' linked"
+        target_name="$command_name"
+        if [ "$command_name" = "plan-create.md" ]; then
+            target_name="plan.md"
+        fi
+        ln -sf "$command_file" ~/.claude/commands/"$target_name"
+        print_success "Claude command '$target_name' linked"
     fi
 done
 rm -f ~/.claude/commands/verify.md
+rm -f ~/.claude/commands/plan-create.md
+
+for shared_doc in review-rubric.md handoff-template.md; do
+    if [ -f "$REPO_DIR/claude/$shared_doc" ]; then
+        ln -sf "$REPO_DIR/claude/$shared_doc" ~/.claude/"$shared_doc"
+        print_success "Claude doc '$shared_doc' linked"
+    fi
+done
 
 # Shared skills from etabli/skills/ (only if not already in ~/.agents/skills/)
 for shared_skill in vercel-react-best-practices web-design-guidelines; do
@@ -531,9 +544,9 @@ fi
 if command -v pi &> /dev/null; then
     print_step "Installing Pi packages..."
     pi install npm:mitsupi 2>/dev/null && print_success "mitsupi installed" || true
+    pi install npm:pi-hooks 2>/dev/null && print_success "pi-hooks installed" || true
     pi install npm:checkpoint 2>/dev/null && print_success "checkpoint installed" || true
     pi install npm:pi-notify 2>/dev/null && print_success "pi-notify installed" || true
-    pi install git:github.com/ogulcancelik/pi-ghostty-theme-sync 2>/dev/null && print_success "pi-ghostty-theme-sync installed" || true
     pi install git:github.com/badlogic/pi-skills 2>/dev/null && print_success "pi-skills installed" || true
 fi
 
@@ -562,22 +575,6 @@ if [[ "$OS" == "mac" ]]; then
     if [ -f "$REPO_DIR/skhd/skhdrc" ]; then
         ln -sf "$REPO_DIR/skhd/skhdrc" ~/.config/skhd/skhdrc
         print_success "skhd config linked"
-    fi
-
-    # SketchyBar (directory symlink)
-    if [ -d "$REPO_DIR/sketchybar" ]; then
-        if [ -d ~/.config/sketchybar ] && [ ! -L ~/.config/sketchybar ]; then
-            mv ~/.config/sketchybar ~/.config/sketchybar.bak
-        fi
-        ln -sfn "$REPO_DIR/sketchybar" ~/.config/sketchybar
-        print_success "SketchyBar config linked"
-    fi
-
-    # JankyBorders
-    mkdir -p ~/.config/borders
-    if [ -f "$REPO_DIR/borders/bordersrc" ]; then
-        ln -sf "$REPO_DIR/borders/bordersrc" ~/.config/borders/bordersrc
-        print_success "JankyBorders config linked"
     fi
 
     # Starship
@@ -614,8 +611,6 @@ if [[ "$OS" == "mac" ]]; then
     print_step "Starting tiling WM services..."
     yabai --start-service 2>/dev/null || true
     skhd --start-service 2>/dev/null || true
-    brew services start sketchybar 2>/dev/null || true
-    brew services start borders 2>/dev/null || true
     print_success "Tiling WM services started"
 fi
 
@@ -632,12 +627,17 @@ export PATH="$HOME/.local/bin:$PATH"
 # Install scripts using helper function
 install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
+install_script "iterm2-tmux.sh" || true
 install_script "cw" || true
 install_script "cw-clean" || true
 
 if [[ "$OS" == "mac" ]]; then
+    install_script "open-iterm2.sh" || true
     install_script "macos-optimize.sh" || true
+    install_script "macos-disk-clean.sh" || true
+    install_script "mem-status" || true
     install_script "tiling-toggle.sh" || true
+    install_script "yabai-space-local.sh" || true
     install_script "yabai-sudoers-update.sh" || true
 fi
 
@@ -651,6 +651,11 @@ for rcfile in ~/.bashrc ~/.zshrc; do
 done
 
 print_success "Dev scripts installed"
+
+if [[ "$OS" == "mac" ]] && [ -x "$HOME/.local/bin/yabai-space-local.sh" ]; then
+    "$HOME/.local/bin/yabai-space-local.sh" ensure >/dev/null 2>&1 || \
+        print_warning "Could not converge spaces to 5 per display automatically"
+fi
 
 # ============================================================================
 # SETUP GITHUB COPILOT
@@ -724,18 +729,20 @@ printf "  1. ${YELLOW}Partially disable SIP${NC} (Recovery Mode):\n"
 printf "     Boot to Recovery > Terminal > csrutil enable --without fs --without debug --without nvram\n"
 printf "  2. ${YELLOW}Configure yabai sudoers${NC}:\n"
 printf "     ${YELLOW}yabai-sudoers-update.sh${NC}\n"
-printf "  3. ${YELLOW}Create 5+ Mission Control Spaces${NC} (System Settings > Desktop & Dock)\n"
-printf "     Also disable: \"Automatically rearrange Spaces based on most recent use\"\n"
+printf "  3. ${YELLOW}Enable separate Spaces per display${NC} and disable auto-rearrange\n"
+printf "     ${YELLOW}macos-optimize.sh apply${NC} handles both defaults for you\n"
 printf "  4. ${YELLOW}Hide macOS menu bar${NC} (System Settings > Control Center > Menu Bar Only)\n"
 printf "  5. ${YELLOW}Configure Sol hotkey${NC} (alt+space) in Sol preferences\n"
 printf "  6. ${YELLOW}Apply performance optimizations${NC}:\n"
 printf "     ${YELLOW}macos-optimize.sh apply${NC}\n"
+printf "  7. ${YELLOW}Converge spaces to 5 per display${NC} if needed:\n"
+printf "     ${YELLOW}yabai-space-local.sh ensure${NC}\n"
 echo ""
 printf "  ${BLUE}Tiling WM Shortcuts:${NC}\n"
-printf "  alt+1..9        Switch workspace\n"
+printf "  alt+1..5        Switch workspace on focused display\n"
 printf "  alt+arrows      Focus window direction\n"
 printf "  alt+shift+arrows Swap windows\n"
-printf "  alt+return      Open Ghostty\n"
+printf "  alt+return      Open iTerm2\n"
 printf "  alt+w           Close window\n"
 printf "  alt+f           Toggle fullscreen\n"
 printf "  alt+t           Toggle float\n"
@@ -748,8 +755,12 @@ printf "  Start:           ${YELLOW}pi${NC}\n"
 printf "  Auth providers:  ${YELLOW}/login${NC}\n"
 printf "  Plan:            ${YELLOW}/skill:plan${NC}\n"
 printf "  Plan review:     ${YELLOW}/skill:plan-review${NC}\n"
+printf "  Implement:       ${YELLOW}/skill:implement${NC}\n"
 printf "  Plan loop:       ${YELLOW}/skill:plan-loop${NC}\n"
+printf "  Plan implement:  ${YELLOW}/skill:plan-implement${NC}\n"
 printf "  Code review:     ${YELLOW}Ctrl+R${NC} (mitsupi)\n"
+printf "  Handoff:         ${YELLOW}/handoff${NC}\n"
+printf "  Impl handoff:    ${YELLOW}/handoff-implement${NC}\n"
 printf "  TDD loop:        ${YELLOW}/loop tests${NC} (mitsupi)\n"
 printf "  Switch model:    ${YELLOW}Ctrl+P${NC}\n"
 echo ""
@@ -758,7 +769,12 @@ echo ""
 printf "  ${BLUE}Claude Code:${NC}\n"
 printf "  Plan:            ${YELLOW}/plan${NC}\n"
 printf "  Plan review:     ${YELLOW}/plan-review${NC}\n"
+printf "  Implement:       ${YELLOW}/implement${NC}\n"
 printf "  Plan loop:       ${YELLOW}/plan-loop${NC}\n"
+printf "  Plan implement:  ${YELLOW}/plan-implement${NC}\n"
+printf "  Review:          ${YELLOW}/review${NC}\n"
+printf "  Handoff:         ${YELLOW}/handoff${NC}\n"
+printf "  Impl handoff:    ${YELLOW}/handoff-implement${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""

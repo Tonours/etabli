@@ -3,8 +3,15 @@
 # Yabai — BSP tiling window manager
 # Zero animation, performance-first
 
+SPACE_HELPER="$HOME/.local/bin/yabai-space-local.sh"
+
+remove_signal() {
+    yabai -m signal --remove "$1" 2>/dev/null || true
+}
+
 # Load scripting addition (requires SIP partially disabled)
-yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
+remove_signal "reload-sa"
+yabai -m signal --add label="reload-sa" event=dock_did_restart action="sudo yabai --load-sa"
 sudo yabai --load-sa
 
 # ============================================================================
@@ -13,9 +20,10 @@ sudo yabai --load-sa
 
 # Layout: BSP (binary space partitioning, like Hyprland dwindle)
 yabai -m config layout bsp
+yabai -m config display_arrangement_order horizontal
 
-# Reserve space for hidden menu bar
-yabai -m config external_bar all:28:0
+# No external bar
+yabai -m config external_bar off
 
 # Gaps and padding
 yabai -m config top_padding     5
@@ -34,6 +42,9 @@ yabai -m config insert_feedback_color       0xff9399b2
 yabai -m config split_ratio          0.50
 yabai -m config split_type           auto
 yabai -m config auto_balance         off
+yabai -m config window_origin_display focused
+yabai -m config window_insertion_point last
+yabai -m config window_zoom_persist  on
 
 # Mouse
 yabai -m config mouse_follows_focus  on
@@ -62,5 +73,22 @@ yabai -m rule --add app="^FaceTime$"           manage=off
 yabai -m rule --add app="^System Information$" manage=off
 yabai -m rule --add app="^Font Book$"          manage=off
 yabai -m rule --add app="^Finder$" title="(Copy|Bin|Preferences|Info)" manage=off
+
+if [ -x "$SPACE_HELPER" ]; then
+    remove_signal "limit-spaces-display-added"
+    remove_signal "limit-spaces-display-removed"
+
+    "$SPACE_HELPER" ensure >/dev/null 2>&1 || true
+
+    yabai -m signal --add \
+        label="limit-spaces-display-added" \
+        event=display_added \
+        action="$SPACE_HELPER ensure >/dev/null 2>&1"
+
+    yabai -m signal --add \
+        label="limit-spaces-display-removed" \
+        event=display_removed \
+        action="$SPACE_HELPER ensure >/dev/null 2>&1"
+fi
 
 echo "yabai: config loaded"

@@ -18,7 +18,6 @@
       "themes": []
     },
     "npm:pi-notify",
-    "git:github.com/ogulcancelik/pi-ghostty-theme-sync",
     {
       "source": "git:github.com/badlogic/pi-skills",
       "skills": [
@@ -33,11 +32,11 @@
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.56.2",
-  "defaultProvider": "kimi-coding",
-  "defaultModel": "k2p5",
-  "theme": "ghostty-sync-169e8b08",
-  "defaultThinkingLevel": "medium",
+  "lastChangelogVersion": "0.58.1",
+  "defaultProvider": "zai",
+  "defaultModel": "glm-5",
+  "theme": "catppuccin-mocha",
+  "defaultThinkingLevel": "high",
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,

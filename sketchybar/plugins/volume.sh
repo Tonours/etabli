@@ -3,8 +3,11 @@
 source "$CONFIG_DIR/icons.sh"
 source "$CONFIG_DIR/colors.sh"
 
-VOLUME=$(osascript -e 'output volume of (get volume settings)')
-MUTED=$(osascript -e 'output muted of (get volume settings)')
+IFS=',' read -r VOLUME MUTED <<EOF
+$(osascript \
+    -e 'set volumeInfo to get volume settings' \
+    -e 'return (output volume of volumeInfo as string) & "," & (output muted of volumeInfo as string)')
+EOF
 
 if [ "$MUTED" = "true" ] || [ "$VOLUME" -eq 0 ]; then
     ICON="$ICON_VOLUME_MUTE"
