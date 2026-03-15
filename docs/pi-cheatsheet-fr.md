@@ -109,6 +109,12 @@ Rôles :
 - `worker` : implémentation read/write avec `todo` persistant et `lsp` quand dispo
 - `reviewer` : revue read-only
 
+Protocole worker recommandé :
+- `todo claim` au début si une tâche persistante existe
+- `todo get` pour relire le détail exact
+- `todo append` / `todo update` pendant l'exécution si besoin
+- `todo close` en fin de tâche validée
+
 ## Fichiers de configuration importants
 
 - `~/.pi/agent/settings.json` (global)
