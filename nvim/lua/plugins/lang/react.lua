@@ -42,7 +42,6 @@ return {
         "graphql",
         "svelte",
         "vue",
-        "astro",
       }
       for _, ft in ipairs(biome_fts) do
         opts.formatters_by_ft[ft] = opts.formatters_by_ft[ft] or {}
