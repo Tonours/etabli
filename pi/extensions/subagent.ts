@@ -235,6 +235,11 @@ export default function (pi: ExtensionAPI) {
 
     for (const [id, state] of agents.entries()) {
       const key = `sub-${id}`;
+      if (state.status !== "running") {
+        widgetCtx.ui.setWidget(key, undefined);
+        continue;
+      }
+
       widgetCtx.ui.setWidget(key, (_tui, theme) => {
         const container = new Container();
         const borderFn = (s: string) => theme.fg("dim", s);
@@ -246,14 +251,6 @@ export default function (pi: ExtensionAPI) {
 
         return {
           render(width: number): string[] {
-            const statusColor =
-              state.status === "running"
-                ? "accent"
-                : state.status === "done"
-                  ? "success"
-                  : "error";
-            const statusIcon =
-              state.status === "running" ? "●" : state.status === "done" ? "✓" : "✗";
             const roleConfig = getRoleConfig(state.role);
 
             const taskPreview =
@@ -263,7 +260,7 @@ export default function (pi: ExtensionAPI) {
               state.turnCount > 1 ? theme.fg("dim", ` · Turn ${state.turnCount}`) : "";
 
             const header =
-              theme.fg(statusColor, `${statusIcon} ${buildTargetLabel(state)}`) +
+              theme.fg("accent", `● ${buildTargetLabel(state)}`) +
               (roleConfig ? theme.fg("dim", ` [${state.role}]`) : "") +
               turnLabel +
               theme.fg("dim", `  ${taskPreview}`) +
