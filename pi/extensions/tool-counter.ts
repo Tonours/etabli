@@ -107,8 +107,10 @@ export default function (pi: ExtensionAPI) {
           const dir = basename(ctx.cwd);
           const branch = footerData.getGitBranch();
           const usage = ctx.getContextUsage();
-          const pct = usage ? usage.percent : 0;
-          const filled = Math.round(pct / 10) || 1;
+          const pct = typeof usage?.percent === "number" && Number.isFinite(usage.percent)
+            ? usage.percent
+            : 0;
+          const filled = Math.max(1, Math.min(10, Math.round(pct / 10) || 1));
           const model = ctx.model?.id ?? "?";
           const thinking = pi.getThinkingLevel();
 
