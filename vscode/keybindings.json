@@ -1,0 +1,7 @@
+[
+  {
+    "key": "alt+l",
+    "command": "editor.action.inlineSuggest.commit",
+    "when": "editorTextFocus && inlineSuggestionVisible && !editorReadonly"
+  }
+]

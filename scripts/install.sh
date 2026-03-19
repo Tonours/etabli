@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================================
-# NEOVIM + TMUX SETUP
+# VS CODE + TMUX SETUP
 # Compatible: macOS, Linux (Ubuntu/Debian), Remote (SSH)
 # ============================================================================
 
@@ -11,7 +11,6 @@ set -e
 # VERSIONS (centralized for maintenance)
 # ============================================================================
 readonly NVM_VERSION="v0.40.1"
-readonly NVIM_VERSION="v0.11.0"
 readonly NERD_FONT_VERSION="v3.1.1"
 
 # ============================================================================
@@ -104,8 +103,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 
 # Validate repo structure
-if [ ! -d "$REPO_DIR/nvim" ]; then
-    print_warning "Missing nvim config at $REPO_DIR/nvim - it will not be copied"
+if [ ! -d "$REPO_DIR/vscode" ]; then
+    print_warning "Missing VS Code config at $REPO_DIR/vscode - it will not be copied"
 fi
 if [ ! -f "$REPO_DIR/tmux.conf" ]; then
     print_warning "Missing tmux.conf at $REPO_DIR/tmux.conf - it will not be copied"
@@ -113,7 +112,7 @@ fi
 
 echo ""
 echo "-------------------------------------------------------------------"
-echo "  Neovim + Tmux Setup"
+echo "  VS Code + Tmux Setup"
 echo "  Detected OS: $OS"
 echo "  Repo: $REPO_DIR"
 echo "-------------------------------------------------------------------"
@@ -132,10 +131,10 @@ if [[ "$OS" == "mac" ]]; then
     fi
 
     # Note: node/npm installed via nvm below
-    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
+    brew install tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
         print_warning "Some brew packages may have failed"
     }
-    brew install --cask iterm2 2>/dev/null || true
+    brew install --cask iterm2 visual-studio-code 2>/dev/null || true
 
     # Tiling WM stack (macOS only)
     print_step "Installing tiling WM tools..."
@@ -158,29 +157,6 @@ elif [[ "$OS" == "debian" ]]; then
     if command -v fdfind &> /dev/null && ! command -v fd &> /dev/null; then
         sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd || print_warning "Could not create fd symlink"
     fi
-
-    # Neovim (0.11+ required for LazyVim)
-    print_step "Installing Neovim ${NVIM_VERSION}..."
-    (
-        cd /tmp || exit 1
-        if download_with_retry \
-            "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
-            "nvim-linux-x86_64.tar.gz"; then
-            sudo rm -rf /opt/nvim
-            sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
-            sudo mv /opt/nvim-linux-x86_64 /opt/nvim
-            rm -f nvim-linux-x86_64.tar.gz
-        fi
-    )
-
-    # Add to PATH
-    if ! grep -q '/opt/nvim/bin' ~/.bashrc 2>/dev/null; then
-        echo 'export PATH="/opt/nvim/bin:$PATH"' >> ~/.bashrc
-    fi
-    if ! grep -q '/opt/nvim/bin' ~/.zshrc 2>/dev/null; then
-        echo 'export PATH="/opt/nvim/bin:$PATH"' >> ~/.zshrc
-    fi
-    export PATH="/opt/nvim/bin:$PATH"
 
     # Lazygit
     if ! command -v lazygit &> /dev/null; then
@@ -205,7 +181,7 @@ elif [[ "$OS" == "debian" ]]; then
 
 elif [[ "$OS" == "redhat" ]]; then
     # RHEL/CentOS/Fedora (node via nvm plus bas)
-    sudo dnf install -y neovim tmux git ripgrep fd-find fzf || {
+    sudo dnf install -y tmux git ripgrep fd-find fzf || {
         print_warning "Some dnf packages may have failed"
     }
 fi
@@ -297,8 +273,7 @@ if npm install -g \
     typescript \
     prettier \
     eslint \
-    @tailwindcss/language-server \
-    neovim; then
+    @tailwindcss/language-server; then
     print_success "NPM tools installed"
 else
     print_warning "Some npm packages may have failed to install"
@@ -338,30 +313,54 @@ fi
 print_success "Nerd Font installed"
 
 # ============================================================================
-# SETUP NEOVIM CONFIG (LazyVim)
+# SETUP VS CODE CONFIG
 # ============================================================================
-print_step "Setting up Neovim config (LazyVim)..."
+print_step "Setting up VS Code config..."
 
-# Backup existing config (skip if already a symlink to this repo)
-if [ -d ~/.config/nvim ] && [ ! -L ~/.config/nvim ]; then
-    print_warning "Backing up existing config to ~/.config/nvim.bak"
-    rm -rf ~/.config/nvim.bak
-    mv ~/.config/nvim ~/.config/nvim.bak
-    # Clean plugin cache on fresh install
-    rm -rf ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim
-elif [ -L ~/.config/nvim ]; then
-    print_success "nvim config already linked"
+if [[ "$OS" == "mac" ]]; then
+    VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
+else
+    VSCODE_USER_DIR="$HOME/.config/Code/User"
 fi
 
-# Symlink config
-if [ -d "$REPO_DIR/nvim" ]; then
-    if ln -sfn "$REPO_DIR/nvim" ~/.config/nvim; then
-        print_success "LazyVim config linked"
+mkdir -p "$VSCODE_USER_DIR"
+
+for config_file in settings.json keybindings.json; do
+    src="$REPO_DIR/vscode/$config_file"
+    dst="$VSCODE_USER_DIR/$config_file"
+
+    if [ -f "$src" ]; then
+        if [ -f "$dst" ] && [ ! -L "$dst" ]; then
+            cp "$dst" "$dst.bak"
+        fi
+
+        if ln -sf "$src" "$dst"; then
+            print_success "VS Code $config_file linked"
+        else
+            print_error "Failed to link VS Code $config_file"
+        fi
     else
-        print_error "Failed to link nvim config"
+        print_warning "Missing VS Code file: $src"
     fi
+done
+
+VSCODE_BIN=""
+if command -v code &> /dev/null; then
+    VSCODE_BIN="$(command -v code)"
+elif [[ "$OS" == "mac" ]] && [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
+    VSCODE_BIN="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+fi
+
+if [ -n "$VSCODE_BIN" ] && [ -f "$REPO_DIR/vscode/extensions.txt" ]; then
+    print_step "Installing VS Code extensions..."
+    while IFS= read -r extension || [ -n "$extension" ]; do
+        [ -z "$extension" ] && continue
+        "$VSCODE_BIN" --install-extension "$extension" --force > /dev/null 2>&1 || \
+            print_warning "Failed to install VS Code extension: $extension"
+    done < "$REPO_DIR/vscode/extensions.txt"
+    print_success "VS Code extensions processed"
 else
-    print_warning "nvim folder not found in $REPO_DIR, please link manually"
+    print_warning "VS Code CLI 'code' not found - install extensions later from $REPO_DIR/vscode/extensions.txt"
 fi
 
 # ============================================================================
@@ -524,9 +523,9 @@ for shared_doc in review-rubric.md handoff-template.md; do
     fi
 done
 
-# Shared skills from etabli/skills/ (only if not already in ~/.agents/skills/)
+# Shared skills from etabli/skills/ (only if not already linked in Pi)
 for shared_skill in vercel-react-best-practices web-design-guidelines; do
-    if [ -d "$REPO_DIR/skills/$shared_skill" ] && [ ! -e ~/.agents/skills/"$shared_skill" ]; then
+    if [ -d "$REPO_DIR/skills/$shared_skill" ] && [ ! -e ~/.pi/agent/skills/"$shared_skill" ]; then
         ln -sfn "$REPO_DIR/skills/$shared_skill" ~/.pi/agent/skills/"$shared_skill"
         print_success "Pi shared skill '$shared_skill' linked"
     fi
@@ -664,10 +663,17 @@ echo ""
 print_step "GitHub Copilot setup..."
 echo ""
 printf "  To enable Copilot:\n"
-printf "  1. Open Neovim: ${YELLOW}nvim${NC}\n"
-printf "  2. Wait for plugins to install\n"
-printf "  3. Run: ${YELLOW}:Copilot auth${NC}\n"
-printf "  4. Follow the instructions (GitHub login)\n"
+if [ -n "$VSCODE_BIN" ]; then
+    printf "  1. Open VS Code: ${YELLOW}code .${NC}\n"
+    printf "  2. Install the ${YELLOW}code${NC} shell command from the Command Palette if needed\n"
+    printf "  3. Sign in to GitHub / Copilot when prompted\n"
+    printf "  4. Verify inline suggestions are enabled\n"
+else
+    printf "  1. Install VS Code and expose the ${YELLOW}code${NC} CLI\n"
+    printf "  2. Open this repo in VS Code\n"
+    printf "  3. Install extensions from ${YELLOW}$REPO_DIR/vscode/extensions.txt${NC}\n"
+    printf "  4. Sign in to GitHub / Copilot when prompted\n"
+fi
 echo ""
 
 # ============================================================================
@@ -685,8 +691,13 @@ if [[ "$SHELL" == *"zsh"* ]]; then
 else
     printf "  1. Reload shell:     ${YELLOW}source ~/.bashrc${NC}\n"
 fi
-printf "  2. Start Neovim:     ${YELLOW}nvim${NC} (plugins auto-install)\n"
-printf "  3. Auth Copilot:     ${YELLOW}:Copilot auth${NC}\n"
+if [ -n "$VSCODE_BIN" ]; then
+    printf "  2. Start VS Code:    ${YELLOW}code .${NC}\n"
+    printf "  3. Auth Copilot:     Sign in inside VS Code\n"
+else
+    printf "  2. Install VS Code:  Ensure the ${YELLOW}code${NC} CLI is available\n"
+    printf "  3. Open the repo:    Open it manually in VS Code\n"
+fi
 printf "  4. Start Tmux:       ${YELLOW}tmux${NC}\n"
 printf "  5. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
 echo ""
@@ -698,13 +709,12 @@ printf "  Firewall VPS:    ${YELLOW}sudo ufw allow 60000:61000/udp${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
-printf "  ${BLUE}Neovim Shortcuts:${NC}\n"
-printf "  <Space>         Leader key\n"
-printf "  <Space>e        File explorer\n"
-printf "  <Space>ff       Find files\n"
-printf "  <Space>fg       Grep\n"
-printf "  Alt+l           Accept Copilot suggestion\n"
-printf "  <Space>cp       Copilot panel\n"
+printf "  ${BLUE}VS Code Defaults:${NC}\n"
+printf "  Theme           Catppuccin Mocha\n"
+printf "  Font            JetBrainsMono Nerd Font @ 18\n"
+printf "  Alt+l           Accept Copilot inline suggestion\n"
+printf "  Cmd/Ctrl+P      Quick open\n"
+printf "  Cmd/Ctrl+Shift+P Command Palette\n"
 echo ""
 printf "  ${BLUE}Tmux Shortcuts:${NC}\n"
 printf "  Ctrl+b          Prefix\n"
@@ -762,7 +772,8 @@ printf "  Code review:     ${YELLOW}Ctrl+R${NC} (mitsupi)\n"
 printf "  Handoff:         ${YELLOW}/handoff${NC}\n"
 printf "  Impl handoff:    ${YELLOW}/handoff-implement${NC}\n"
 printf "  TDD loop:        ${YELLOW}/loop tests${NC} (mitsupi)\n"
-printf "  Switch model:    ${YELLOW}Ctrl+P${NC}\n"
+printf "  Model selector:  ${YELLOW}Ctrl+L${NC}\n"
+printf "  Cycle models:    ${YELLOW}Ctrl+P / Shift+Ctrl+P${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
