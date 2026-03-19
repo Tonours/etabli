@@ -32,9 +32,9 @@
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.58.1",
-  "defaultProvider": "zai",
-  "defaultModel": "glm-5",
+  "lastChangelogVersion": "0.60.0",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.4",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
   "editorPaddingX": 1,
