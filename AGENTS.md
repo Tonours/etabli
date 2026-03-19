@@ -11,9 +11,9 @@
 - pi/skills/                           — Pi skills (Markdown SKILL.md)
 - pi/themes/                           — Custom themes (JSON)
 - scripts/                             — Install & dev scripts (Bash)
-- nvim/                                — Neovim config (Lua, LazyVim)
+- vscode/                              — VS Code user config (settings, keybindings, extensions)
 - iterm2/                              — iTerm2 dynamic profile
-- yabai/ skhd/ sketchybar/ borders/    — Tiling WM configs (macOS)
+- yabai/ skhd/ sketchybar/             — Tiling WM configs (macOS)
 
 ## Extension conventions
 - One extension per file in pi/extensions/
@@ -26,6 +26,7 @@
 ## Symlink layout (~/.pi/)
 - ~/.pi/agent/extensions/ → pi/extensions/ (auto-loaded by Pi)
 - ~/.pi/agent/settings.json → pi/agent/settings.json
+- ~/.pi/agent/models.json → pi/models.json
 - ~/.pi/agent/AGENTS.md → pi/AGENTS.md (global coding preferences)
 - ~/.pi/settings.json → pi/settings.json
 - ~/.pi/themes/ → pi/themes/

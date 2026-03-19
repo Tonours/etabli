@@ -87,7 +87,7 @@ optimize_keyboard() {
     defaults write NSGlobalDomain InitialKeyRepeat -int 15
     defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
-    ok "Keyboard tuned for vim-style navigation"
+    ok "Keyboard tuned for fast editor navigation"
 }
 
 restore_keyboard() {

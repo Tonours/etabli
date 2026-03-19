@@ -1,6 +1,6 @@
 # Etabli
 
-Personal dev environment for AI-assisted parallel workflows with Neovim, tmux, iTerm2 and Pi Coding Agent. Includes a keyboard-driven tiling WM setup for macOS.
+Personal dev environment for AI-assisted parallel workflows with VS Code, tmux, iTerm2 and Pi Coding Agent. Includes a keyboard-driven tiling WM setup for macOS.
 
 Inspired by practical agentic coding workflows and parallel worktree execution.
 
@@ -21,17 +21,24 @@ The installer symlinks all configs to the repo, so edits here are reflected ever
 
 Works on **macOS** and **Linux** (Ubuntu/Debian).
 
+For Linux, install VS Code separately and make sure the `code` CLI is available if you want the repo installer to link settings and install extensions automatically.
+
 ### Pi config & secrets (important)
 
-Pi is configured via repo files, but secrets are loaded from your local environment at runtime.
+Pi is configured via repo-tracked source files, and `scripts/install.sh` symlinks them into the active Pi config under `~/.pi/`.
 
-- `pi/models.json`, `pi/settings.json`, and `pi/agent/settings.json` are tracked templates.
+- `pi/models.json` is synced to `~/.pi/agent/models.json`.
+- `pi/settings.json` and `pi/agent/settings.json` are the tracked source files for the installed Pi config.
 - API keys (ex: `MISTRAL_API_KEY`, etc.) are expected via env vars.
 - `auth.json` (or any local auth file) is intentionally **not** tracked.
 - Default package set includes:
+  - `npm:checkpoint` (session checkpoints)
   - `npm:pi-hooks` (LSP tool support)
   - `npm:pi-notify` (desktop notifications)
   - `git:github.com/badlogic/pi-skills` with `brave-search` + `youtube-transcript`
+- Repo-local shared Pi skills also linked by the installer when absent:
+  - `skills/vercel-react-best-practices`
+  - `skills/web-design-guidelines`
 - Default local Pi theme: `catppuccin-mocha`
 
 Recommended local pattern:
@@ -51,16 +58,15 @@ pi/                         Pi Coding Agent config
   themes/                   Pi themes
 
 claude/
-  commands/                 Claude Code commands (plan, plan-review, implement, plan-loop, plan-implement, handoff, handoff-implement, review)
+  commands/                 Tracked Claude Code command sources (installed into ~/.claude/commands/)
   README.md                 Claude Code workflow notes
 
 iterm2/etabli.json          iTerm2 dynamic profile (font/colors, Option sends Esc+)
 
-nvim/                       Neovim config (LazyVim)
-  lua/config/               Options, keymaps, autocmds
-  lua/plugins/core/         Theme, LSP, git, editor, AI, lualine, explorer
-  lua/plugins/lang/         TypeScript, Rust, Ember
-  lua/plugins/extras/       Hardtime, Precognition
+vscode/                     VS Code user config
+  settings.json             Theme, font, formatter, language defaults
+  keybindings.json          User-level keybindings tracked in the repo
+  extensions.txt            Recommended extensions installed by the setup script
 
 yabai/yabairc               BSP tiling WM (zero animation, macOS)
 skhd/skhdrc                 Keyboard-driven tiling keybindings
@@ -68,7 +74,7 @@ sketchybar/                 Old status bar config kept as inactive backup
 starship/starship.toml      Starship prompt (oh-my-zsh inspired, git-aware)
 
 scripts/
-  install.sh                Full setup (deps, nvim, tmux, fonts, tiling WM, scripts)
+  install.sh                Full setup (deps, VS Code, tmux, fonts, tiling WM, scripts)
   cw                        Worktree manager (worktree + tmux + optional agent)
   cw-clean                  Inspect/clean merged or gone worktrees (dry-run by default)
   dev-spawn                 Launch local + VPS tmux sessions
@@ -85,7 +91,7 @@ scripts/
 skills/                     Shared skills (React best practices, Web design guidelines)
 PLAN_TEMPLATE.md            Canonical template used to create and revise PLAN.md
 
-tmux.conf                   tmux config (Catppuccin Mocha, vim keys, fast nav)
+tmux.conf                   tmux config (Catppuccin Mocha, vi copy mode, fast nav)
 ```
 
 ## Workflow
@@ -170,7 +176,13 @@ Notes:
 | `/worker <task>`             | Spawn an implementation subagent that can edit code |
 | `/reviewer <task>`           | Spawn a read-only review subagent |
 | `/loop tests`                | Red-green-refactor testing loop |
-| `Ctrl+P`                     | Switch model/provider quickly |
+| `Ctrl+R`                     | Launch runtime code review shortcut (mitsupi) |
+| `Ctrl+L`                     | Open model/provider selector |
+| `Ctrl+P` / `Shift+Ctrl+P`    | Cycle models |
+
+Notes:
+- `/skill:*` commands come from repo-tracked Pi skills under `pi/skills/`.
+- `/review`, `/handoff`, `/handoff-implement`, `/scout`, `/worker`, and `/reviewer` are runtime/extension commands loaded by Pi.
 
 ### Agentic Development Flow
 
@@ -254,21 +266,32 @@ dev-spawn vps                    # VPS only
 
 Clipboard: copy-mode pipes through `tmux-clipboard.sh` (pbcopy > wl-copy > xclip > OSC52).
 
-### Neovim
+### VS Code
 
-| Keymap         | Action                 |
-| -------------- | ---------------------- |
-| `<leader>cm`   | Open AGENTS.md         |
-| `<leader>gw`   | Switch worktree        |
-| `<leader>gW`   | Create worktree        |
-| `<leader>gd`   | Diff view              |
-| `<leader>gD`   | Diff vs last commit    |
-| `<leader>gh`   | File history           |
-| `<leader>ha`   | Harpoon add            |
-| `<leader>hh`   | Harpoon menu           |
-| `<leader>1-5`  | Harpoon file 1-5       |
-| `<leader>sR`   | Search & replace       |
-| `Alt+l`        | Accept Copilot         |
+| Default | Value / Role |
+| ------- | ------------- |
+| Theme | Catppuccin Mocha |
+| Font | JetBrainsMono Nerd Font |
+| Font size | 18 |
+| Ruler | 100 columns |
+| Wrap | Off |
+| Copilot accept | `Alt+l` |
+
+Recommended extensions installed by `scripts/install.sh` when the `code` CLI is available:
+
+- Catppuccin theme + icons
+- GitHub Copilot + Copilot Chat
+- GitLens + Bookmarks
+- Biome, ESLint, Prettier
+- Tailwind CSS, Astro, Rust Analyzer, Even Better TOML, Ember + Glint
+- Color preview + Todo Tree
+
+Formatter split:
+- Biome = default formatter for JS/TS/CSS/JSON/GraphQL
+- Prettier = Astro + Handlebars
+- ESLint = diagnostics first, no formatter role by default
+
+The setup script also installs matching CLI tools globally (`typescript`, `prettier`, `eslint`, `@tailwindcss/language-server`) for shell/editor interoperability.
 
 ## Tiling WM (macOS)
 
@@ -367,8 +390,23 @@ yabai-sudoers-update.sh    # Run after brew upgrade yabai
 If you prefer to set things up yourself:
 
 ```bash
-# Neovim (symlink, not copy)
-ln -sfn $(pwd)/nvim ~/.config/nvim
+# VS Code user config
+VSCODE_USER_DIR="$HOME/.config/Code/User"
+[ "$(uname)" = "Darwin" ] && VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
+mkdir -p "$VSCODE_USER_DIR"
+ln -sf "$(pwd)/vscode/settings.json" "$VSCODE_USER_DIR/settings.json"
+ln -sf "$(pwd)/vscode/keybindings.json" "$VSCODE_USER_DIR/keybindings.json"
+VSCODE_BIN=""
+if command -v code >/dev/null; then
+  VSCODE_BIN="$(command -v code)"
+elif [ "$(uname)" = "Darwin" ] && [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
+  VSCODE_BIN="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+fi
+if [ -n "$VSCODE_BIN" ]; then
+  while IFS= read -r extension; do
+    "$VSCODE_BIN" --install-extension "$extension"
+  done < "$(pwd)/vscode/extensions.txt"
+fi
 
 # tmux
 ln -sf $(pwd)/tmux.conf ~/.tmux.conf
@@ -389,17 +427,21 @@ ln -sf $(pwd)/scripts/open-iterm2.sh ~/.local/bin/open-iterm2.sh
 # Pi Coding Agent
 mkdir -p ~/.pi ~/.pi/agent/skills ~/.pi/agent/themes ~/.pi/agent/extensions
 ln -sf $(pwd)/pi/AGENTS.md ~/.pi/agent/AGENTS.md
+ln -sf $(pwd)/pi/damage-control-rules.json ~/.pi/damage-control-rules.json
 ln -sf $(pwd)/pi/models.json ~/.pi/agent/models.json
 ln -sf $(pwd)/pi/settings.json ~/.pi/settings.json
 ln -sf $(pwd)/pi/agent/settings.json ~/.pi/agent/settings.json
-ln -sfn $(pwd)/pi/extensions ~/.pi/extensions
 ln -sfn $(pwd)/pi/extensions ~/.pi/agent/extensions
 ln -sfn $(pwd)/pi/themes ~/.pi/themes
 rm -f ~/.pi/agent/skills/verify
-for s in plan plan-review implement plan-loop plan-implement review; do
-  ln -sfn $(pwd)/pi/skills/$s ~/.pi/agent/skills/$s
+for s in $(find "$(pwd)/pi/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;); do
+  ln -sfn "$(pwd)/pi/skills/$s" ~/.pi/agent/skills/$s
+done
+for s in vercel-react-best-practices web-design-guidelines; do
+  ln -sfn $(pwd)/skills/$s ~/.pi/agent/skills/$s
 done
 ln -sf $(pwd)/pi/themes/catppuccin-mocha.json ~/.pi/agent/themes/catppuccin-mocha.json
+ln -sfn ~/.pi/npm/node_modules $(pwd)/pi/extensions/node_modules
 
 # Claude Code
 mkdir -p ~/.claude/commands
@@ -412,6 +454,8 @@ ln -sf $(pwd)/claude/commands/plan-implement.md ~/.claude/commands/plan-implemen
 ln -sf $(pwd)/claude/commands/review.md ~/.claude/commands/review.md
 ln -sf $(pwd)/claude/commands/handoff.md ~/.claude/commands/handoff.md
 ln -sf $(pwd)/claude/commands/handoff-implement.md ~/.claude/commands/handoff-implement.md
+ln -sf $(pwd)/claude/review-rubric.md ~/.claude/review-rubric.md
+ln -sf $(pwd)/claude/handoff-template.md ~/.claude/handoff-template.md
 
 # macOS-only scripts
 for s in macos-optimize.sh macos-disk-clean.sh mem-status tiling-toggle.sh yabai-space-local.sh yabai-sudoers-update.sh; do
@@ -425,9 +469,9 @@ ln -sf $(pwd)/skhd/skhdrc ~/.config/skhd/skhdrc
 ln -sf $(pwd)/starship/starship.toml ~/.config/starship.toml
 
 # Terminal + font (macOS)
-brew install --cask iterm2 font-jetbrains-mono-nerd-font
+brew install --cask iterm2 visual-studio-code font-jetbrains-mono-nerd-font
 ```
 
 ## Theme
 
-Core editor stack stays close to Catppuccin Mocha, while iTerm2 keeps a colder blue accent palette. Font: JetBrains Mono Nerd Font.
+Core editor stack stays close to Catppuccin Mocha, while iTerm2 keeps a colder blue accent palette. Font: JetBrains Mono Nerd Font, editor size 18.

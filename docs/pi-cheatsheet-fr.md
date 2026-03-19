@@ -33,8 +33,9 @@ pi
 
 ## Raccourcis clavier essentiels
 
-- `Ctrl+L` : sélecteur de modèle
+- `Ctrl+L` : sélecteur de modèle/provider
 - `Ctrl+P` / `Shift+Ctrl+P` : cycle modèles
+- `Ctrl+R` : lancer la review runtime (mitsupi)
 - `Shift+Tab` : niveau de thinking
 - `Esc` : interrompre
 - `Esc` x2 : ouvrir `/tree`
@@ -118,15 +119,12 @@ Protocole worker recommandé :
 
 ## Fichiers de configuration importants
 
-- `~/.pi/agent/settings.json` (global)
-- `.pi/settings.json` (projet)
-- `~/.pi/agent/auth.json` (auth)
-- `~/.pi/agent/models.json` (providers/modèles custom)
-- `~/.pi/agent/keybindings.json` (raccourcis)
-- `~/.pi/agent/{extensions,skills,prompts,themes}/`
-- `.pi/{extensions,skills,prompts,themes}/`
-- `AGENTS.md` / `CLAUDE.md` (contexte)
-- `.pi/SYSTEM.md` (override system prompt)
+- Repo source : `pi/settings.json`, `pi/agent/settings.json`, `pi/models.json`
+- Repo source : `pi/{extensions,skills,themes}/`
+- Installé : `~/.pi/settings.json`, `~/.pi/agent/settings.json`
+- Installé : `~/.pi/agent/models.json`, `~/.pi/agent/auth.json`, `~/.pi/agent/keybindings.json`
+- Installé : `~/.pi/agent/{extensions,skills,prompts,themes}/`
+- Contexte : `AGENTS.md`, `pi/AGENTS.md`, `claude/README.md`
 
 ## Packages Pi
 
