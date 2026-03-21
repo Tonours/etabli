@@ -13,7 +13,7 @@ type Entry = {
   };
 };
 
-const TEMPLATE_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../claude/handoff-template.md");
+const TEMPLATE_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../workflow/handoff-template.md");
 const DEFAULT_HANDOFF_PATH = [".pi", "handoff.md"] as const;
 const DEFAULT_IMPLEMENT_HANDOFF_PATH = [".pi", "handoff-implement.md"] as const;
 const GENERIC_SYSTEM_PROMPT = "You create concise continuation handoffs for coding work. Do not continue the work. Only produce the handoff document.";

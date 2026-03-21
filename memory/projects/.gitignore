@@ -1,0 +1,8 @@
+*
+!.gitignore
+!README.md
+!_template/
+!_template/README.md
+!_template/decisions.md
+!_template/pitfalls.md
+!_template/current-focus.md

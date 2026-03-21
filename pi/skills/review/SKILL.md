@@ -8,8 +8,8 @@ description: Review proposed changes before commit and flag correctness, risks, 
 Run a production-minded code review with concise decisions.
 
 1. Read the shared review rubric from the first existing file in this order:
-   - `./claude/review-rubric.md`
-   - `../../claude/review-rubric.md`
+   - `./workflow/review-rubric.md`
+   - `../../workflow/review-rubric.md`
 2. Inspect `git status --short`, `git diff --stat` and full diff for context.
 3. Look for:
    - ✅ correctness bugs (logic, edge cases, error paths)
