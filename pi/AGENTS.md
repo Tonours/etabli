@@ -47,6 +47,9 @@
 - If a repo defines a reusable command/workflow in `.claude/commands/`, follow it when the task matches.
 - Pi owns runtime behavior and extensions. Claude owns reusable command/docs surfaces. Keep the workflow aligned, not duplicated.
 - Shared default flow: learn → plan → implement → review → handoff.
+- In this repo, canonical workflow docs live in `workflow/spec.md`, `workflow/statuses.md`, `workflow/review-rubric.md`, and `workflow/handoff-template.md`.
+- Profile docs live in `profiles/README.md` and `docs/profiles.md`.
+- Memory contract lives in `memory/projects/README.md`.
 
 ## Delegation defaults
 - Prefer a named reconnaissance/review role over generic delegation when possible.

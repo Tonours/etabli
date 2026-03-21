@@ -4,6 +4,15 @@ This folder contains Claude Code-specific artifacts and documents.
 
 ## Shared workflow
 
+Canonical sources:
+- `../workflow/spec.md`
+- `../workflow/statuses.md`
+- `../workflow/review-rubric.md`
+- `../workflow/handoff-template.md`
+- `../profiles/README.md`
+- `../docs/profiles.md`
+- `../memory/projects/README.md`
+
 Default flow across Pi + Claude:
 
 - learn
@@ -25,8 +34,9 @@ Default flow across Pi + Claude:
 
 ## Shared docs
 
-- `review-rubric.md` is the shared review source of truth used by Pi/Claude review flows
-- `handoff-template.md` is the shared continuation template used by Pi/Claude handoff flows
+- `~/.claude/review-rubric.md` is installed from `../workflow/review-rubric.md`
+- `~/.claude/handoff-template.md` is installed from `../workflow/handoff-template.md`
+- `claude/review-rubric.md` and `claude/handoff-template.md` stay only as compatibility pointers inside the repo
 
 `verify` is no longer part of this workflow.
 
@@ -48,3 +58,16 @@ Preferred command surface:
 There is no separate `cw ui` command; `cw pick` is the lightweight UI entrypoint.
 
 Because `PLAN.md` is gitignored and macOS filesystems are often case-insensitive, the repo does not track `commands/plan.md` directly. Installation maps `commands/plan-create.md` to `~/.claude/commands/plan.md`.
+
+## Profile fit
+
+- `../profiles/work/` is the default fit for Claude work-facing usage.
+- `../docs/profiles.md` is the user-facing guide for choosing between `personal` and `work`.
+- The workflow contract stays shared; profiles do not define a different status model.
+
+## Deferred after Phase 1
+
+- `scripts/doctor`
+- workflow test / CI hardening
+- repo modularity split (`core` / `optional` / `legacy` / `experimental`)
+- `workflow/roles.md`

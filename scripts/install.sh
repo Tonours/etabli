@@ -517,8 +517,8 @@ rm -f ~/.claude/commands/verify.md
 rm -f ~/.claude/commands/plan-create.md
 
 for shared_doc in review-rubric.md handoff-template.md; do
-    if [ -f "$REPO_DIR/claude/$shared_doc" ]; then
-        ln -sf "$REPO_DIR/claude/$shared_doc" ~/.claude/"$shared_doc"
+    if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
+        ln -sf "$REPO_DIR/workflow/$shared_doc" ~/.claude/"$shared_doc"
         print_success "Claude doc '$shared_doc' linked"
     fi
 done

@@ -1,25 +1,6 @@
-# Handoff
+# Compatibility Note
 
-## Goal
-[What the user is trying to accomplish]
+Canonical source: `../workflow/handoff-template.md`
 
-## Current State
-[What exists now, including files touched, current behavior, and relevant branch/session state]
-
-## Constraints
-- [Project constraints, preferences, or rules]
-- [(none) if none]
-
-## Decisions
-- [Decision]: [Reason]
-
-## Open Issues
-- [Outstanding bug, risk, or blocker]
-- [(none) if none]
-
-## Next Steps
-1. [Smallest next action]
-2. [Next action after that]
-
-## References
-- [File paths, commands, or artifacts needed to continue]
+Installed path:
+- `~/.claude/handoff-template.md` should point to the canonical workflow doc.

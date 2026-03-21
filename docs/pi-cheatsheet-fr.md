@@ -64,6 +64,16 @@ pi --no-session                   # session éphémère
 pi --tools read,grep,find,ls      # mode lecture seule
 ```
 
+## Contrat canonique du repo
+
+- workflow : `workflow/spec.md`
+- statuts : `workflow/statuses.md`
+- review : `workflow/review-rubric.md`
+- handoff : `workflow/handoff-template.md`
+- profils : `profiles/README.md`
+- guide profils : `docs/profiles.md`
+- mémoire projet : `memory/projects/README.md`
+
 ## Raccourcis utiles dans ce repo
 
 ```bash
@@ -100,6 +110,8 @@ Notes repo :
 
 ## Flow agentic recommandé sur ce repo
 
+Référence canonique : `workflow/spec.md` + `workflow/statuses.md`
+
 1. `scout` ou lecture directe pour comprendre la zone à modifier
 2. `/skill:plan` + `/skill:plan-review` jusqu'à `PLAN.md` en `READY`
 3. `/skill:implement` dans la session principale, ou `/worker <task>` si la tâche est bornée
@@ -110,6 +122,11 @@ Rôles :
 - `scout` : reconnaissance read-only
 - `worker` : implémentation read/write avec `todo` persistant et `lsp` quand dispo
 - `reviewer` : revue read-only
+
+Profils :
+- `profiles/personal/` : posture perso Pi-first
+- `profiles/work/` : posture travail Claude-first
+- `docs/profiles.md` : quand choisir chaque profil ; sélection encore manuelle
 
 Protocole worker recommandé :
 - `todo claim` au début si une tâche persistante existe

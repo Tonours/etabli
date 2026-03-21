@@ -89,6 +89,9 @@ scripts/
   tmux-clipboard.sh         Cross-platform clipboard (pbcopy/wl-copy/xclip/OSC52)
 
 skills/                     Shared skills (React best practices, Web design guidelines)
+workflow/                   Canonical cross-runtime workflow docs
+profiles/                   Explicit personal/work usage contracts
+memory/                     Minimal local project-memory contract + templates
 PLAN_TEMPLATE.md            Canonical template used to create and revise PLAN.md
 
 tmux.conf                   tmux config (Catppuccin Mocha, vi copy mode, fast nav)
@@ -102,11 +105,34 @@ problem  ->  plan  ->  PLAN.md (DRAFT)  ->  plan-review  ->  PLAN.md (CHALLENGED
 
 `PLAN.md` is the single pre-implementation artifact across Pi and Claude Code. `PLAN_TEMPLATE.md` defines the structure, and `plan-review` revises `PLAN.md` in place instead of creating a separate `REVIEW.md`.
 
+Canonical sources:
+- `workflow/spec.md`
+- `workflow/statuses.md`
+- `workflow/review-rubric.md`
+- `workflow/handoff-template.md`
+- `profiles/README.md`
+- `docs/profiles.md`
+- `memory/projects/README.md`
+
 Optional interactive shortcut: `plan-loop` chains plan creation and plan critique in one flow, then stops at `CHALLENGED` or `READY`.
 
 Direct continuation step: `implement` executes an existing `READY` `PLAN.md` without rerunning planning.
 
 Optional one-shot shortcut: `plan-implement` runs `plan-loop`, stops if `PLAN.md` is still `CHALLENGED`, and implements only from `READY`.
+
+### Profiles & Memory
+
+- `profiles/personal/` documents the Pi-first personal posture.
+- `profiles/work/` documents the Claude-first work posture.
+- `docs/profiles.md` explains when to choose each profile and what stays manual.
+- `memory/projects/_template/` defines the minimal project-memory layout.
+- Real `memory/projects/<repo>/...` entries are local by default and should stay short, durable, and non-sensitive.
+
+### Roadmap Status
+
+- Phase 1 focus: canonical workflow + explicit profiles + minimal project memory
+- Deferred on purpose: `scripts/doctor`, broader workflow tests/CI hardening, `core/optional/legacy/experimental` clarification, and `workflow/roles.md`
+- Rule: later phases stay visible in repo docs, but are not mixed into the current foundations pass
 
 ### Git Worktrees
 
@@ -454,8 +480,8 @@ ln -sf $(pwd)/claude/commands/plan-implement.md ~/.claude/commands/plan-implemen
 ln -sf $(pwd)/claude/commands/review.md ~/.claude/commands/review.md
 ln -sf $(pwd)/claude/commands/handoff.md ~/.claude/commands/handoff.md
 ln -sf $(pwd)/claude/commands/handoff-implement.md ~/.claude/commands/handoff-implement.md
-ln -sf $(pwd)/claude/review-rubric.md ~/.claude/review-rubric.md
-ln -sf $(pwd)/claude/handoff-template.md ~/.claude/handoff-template.md
+ln -sf $(pwd)/workflow/review-rubric.md ~/.claude/review-rubric.md
+ln -sf $(pwd)/workflow/handoff-template.md ~/.claude/handoff-template.md
 
 # macOS-only scripts
 for s in macos-optimize.sh macos-disk-clean.sh mem-status tiling-toggle.sh yabai-space-local.sh yabai-sudoers-update.sh; do
