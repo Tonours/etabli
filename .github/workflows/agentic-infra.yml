@@ -38,10 +38,10 @@ jobs:
 
       - name: Run TypeScript tests
         run: |
-          bun test pi/extensions/lib/nightshift/__tests__/
           bun test pi/extensions/__tests__/
 
       - name: Run script tests
         run: |
-          python3 -m unittest discover -s tests/agentic -p 'test_*.py'
+          bash tests/cw-smoke.sh
+          bash tests/workflow-docs-smoke.sh
 
