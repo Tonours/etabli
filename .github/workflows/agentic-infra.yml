@@ -16,10 +16,11 @@ jobs:
       - name: Bash syntax check
         run: |
           bash -n scripts/install.sh
-          bash -n scripts/agent-fanout
-          bash -n scripts/agent-scorecard
           bash -n scripts/cw
           bash -n scripts/cw-clean
+          bash -n scripts/dev-spawn
+          bash -n scripts/iterm2-tmux.sh
+          bash -n scripts/tmux-clipboard.sh
 
       - name: Validate JSON config files
         run: |
@@ -44,7 +45,3 @@ jobs:
         run: |
           python3 -m unittest discover -s tests/agentic -p 'test_*.py'
 
-      - name: Scorecard smoke test
-        run: |
-          ./scripts/agent-scorecard weekly --repo . --days 7 --output /tmp/scorecard.md
-          test -s /tmp/scorecard.md
