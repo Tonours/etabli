@@ -109,10 +109,13 @@ fi
 if [ ! -f "$REPO_DIR/tmux.conf" ]; then
     print_warning "Missing tmux.conf at $REPO_DIR/tmux.conf - it will not be copied"
 fi
+if [ ! -d "$REPO_DIR/nvim" ]; then
+    print_warning "Missing Neovim config at $REPO_DIR/nvim - it will not be linked"
+fi
 
 echo ""
 echo "-------------------------------------------------------------------"
-echo "  VS Code + Tmux Setup"
+echo "  Dev Environment Setup"
 echo "  Detected OS: $OS"
 echo "  Repo: $REPO_DIR"
 echo "-------------------------------------------------------------------"
@@ -131,7 +134,7 @@ if [[ "$OS" == "mac" ]]; then
     fi
 
     # Note: node/npm installed via nvm below
-    brew install tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
+    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
         print_warning "Some brew packages may have failed"
     }
     brew install --cask iterm2 visual-studio-code 2>/dev/null || true
@@ -149,7 +152,7 @@ if [[ "$OS" == "mac" ]]; then
 elif [[ "$OS" == "debian" ]]; then
     # Ubuntu/Debian
     sudo apt update
-    sudo apt install -y curl wget git unzip ripgrep fd-find fzf jq build-essential tmux xclip mosh || {
+    sudo apt install -y curl wget git unzip ripgrep fd-find fzf jq build-essential make neovim tmux xclip mosh || {
         print_warning "Some apt packages may have failed"
     }
 
@@ -181,7 +184,7 @@ elif [[ "$OS" == "debian" ]]; then
 
 elif [[ "$OS" == "redhat" ]]; then
     # RHEL/CentOS/Fedora (node via nvm plus bas)
-    sudo dnf install -y tmux git ripgrep fd-find fzf || {
+    sudo dnf install -y neovim tmux git ripgrep fd fzf make gcc jq unzip curl mosh || {
         print_warning "Some dnf packages may have failed"
     }
 fi
@@ -271,8 +274,11 @@ fi
 
 if npm install -g \
     typescript \
+    typescript-language-server \
     prettier \
     eslint \
+    intelephense \
+    @ember-tooling/ember-language-server \
     @tailwindcss/language-server; then
     print_success "NPM tools installed"
 else
@@ -361,6 +367,39 @@ if [ -n "$VSCODE_BIN" ] && [ -f "$REPO_DIR/vscode/extensions.txt" ]; then
     print_success "VS Code extensions processed"
 else
     print_warning "VS Code CLI 'code' not found - install extensions later from $REPO_DIR/vscode/extensions.txt"
+fi
+
+# ============================================================================
+# SETUP NEOVIM CONFIG
+# ============================================================================
+print_step "Setting up Neovim config..."
+
+mkdir -p ~/.config
+
+if [ -d "$REPO_DIR/nvim" ]; then
+    NVIM_TARGET="$REPO_DIR/nvim"
+    NVIM_LINK="$HOME/.config/nvim"
+    CURRENT_LINK_TARGET=""
+
+    if [ -L "$NVIM_LINK" ]; then
+        CURRENT_LINK_TARGET="$(readlink "$NVIM_LINK")"
+    fi
+
+    if [ -e "$NVIM_LINK" ] || [ -L "$NVIM_LINK" ]; then
+        if [ "$CURRENT_LINK_TARGET" != "$NVIM_TARGET" ]; then
+            NVIM_BACKUP="$HOME/.config/nvim.bak.$(date +%Y%m%d-%H%M%S)"
+            mv "$NVIM_LINK" "$NVIM_BACKUP"
+            print_warning "Existing Neovim config moved to $NVIM_BACKUP"
+        fi
+    fi
+
+    if ln -sfn "$NVIM_TARGET" "$NVIM_LINK"; then
+        print_success "Neovim config linked"
+    else
+        print_error "Failed to link Neovim config"
+    fi
+else
+    print_warning "Neovim config directory not found in $REPO_DIR/nvim"
 fi
 
 # ============================================================================
@@ -674,6 +713,7 @@ else
     printf "  3. Install extensions from ${YELLOW}$REPO_DIR/vscode/extensions.txt${NC}\n"
     printf "  4. Sign in to GitHub / Copilot when prompted\n"
 fi
+printf "  5. In Neovim, run ${YELLOW}:Copilot auth${NC} once after first launch\n"
 echo ""
 
 # ============================================================================
@@ -698,8 +738,10 @@ else
     printf "  2. Install VS Code:  Ensure the ${YELLOW}code${NC} CLI is available\n"
     printf "  3. Open the repo:    Open it manually in VS Code\n"
 fi
-printf "  4. Start Tmux:       ${YELLOW}tmux${NC}\n"
-printf "  5. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
+printf "  4. Start Neovim:     ${YELLOW}nvim${NC}\n"
+printf "  5. Auth Copilot:     ${YELLOW}:Copilot auth${NC} in Neovim\n"
+printf "  6. Start Tmux:       ${YELLOW}tmux${NC}\n"
+printf "  7. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
@@ -709,12 +751,30 @@ printf "  Firewall VPS:    ${YELLOW}sudo ufw allow 60000:61000/udp${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
-printf "  ${BLUE}VS Code Defaults:${NC}\n"
+printf "  ${BLUE}VS Code Defaults (VS Code only):${NC}\n"
 printf "  Theme           Catppuccin Mocha\n"
 printf "  Font            JetBrainsMono Nerd Font @ 18\n"
 printf "  Alt+l           Accept Copilot inline suggestion\n"
 printf "  Cmd/Ctrl+P      Quick open\n"
 printf "  Cmd/Ctrl+Shift+P Command Palette\n"
+echo ""
+printf "  ${BLUE}Neovim Defaults:${NC}\n"
+printf "  Leader          Space\n"
+printf "  Files / Grep    <leader><space> / <leader>/\n"
+printf "  Buffers         <leader>.\n"
+printf "  Explorer        <leader>ft / <leader>fe\n"
+printf "  Projects        <leader>pp / <leader>pr / <leader>pi\n"
+printf "  Worktrees       <leader>pw\n"
+printf "  Sessions        <leader>ps / <leader>pl\n"
+printf "  Project files   <leader>fp\n"
+printf "  Aliases         <leader>ff / <leader>fg / <leader>fb\n"
+printf "  Copilot         In cmp menu after :Copilot auth\n"
+printf "  Complete        <C-n> / <C-p> / <CR>\n"
+printf "  Format          <leader>cf\n"
+printf "  LSP rename      <leader>rn (buffer-local)\n"
+printf "  Code action     <leader>ca (buffer-local)\n"
+printf "  Help            Minimal which-key on leader maps\n"
+printf "  Notes           See nvim/README.md\n"
 echo ""
 printf "  ${BLUE}Tmux Shortcuts:${NC}\n"
 printf "  Ctrl+b          Prefix\n"

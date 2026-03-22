@@ -1,0 +1,84 @@
+# Neovim Cheatsheet
+
+Leader: `<Space>`
+
+## Find
+
+- files: `<leader><space>` or `<leader>ff`
+- grep: `<leader>/` or `<leader>fg`
+- current word: `<leader>fw`
+- buffers: `<leader>.` or `<leader>fb`
+- recent files: `<leader>fr`
+- project recent files: `<leader>fp`
+
+## Explorer
+
+- toggle explorer: `<leader>ft`
+- focus explorer: `<leader>fe`
+- in explorer:
+  - open file in new tab: `<CR>`, `o`, double click
+  - expand/collapse directory: `<CR>`, `o`, double click
+  - new tab directly: `<C-t>`
+
+## Projects / worktrees
+
+- projects: `<leader>pp`
+- worktrees: `<leader>pw`
+- root current buffer: `<leader>pr`
+- save session: `<leader>ps`
+- load session: `<leader>pl`
+- project info: `<leader>pi`
+
+## Buffers
+
+- next buffer: `<leader>bn`
+- previous buffer: `<leader>bp`
+- close buffer: `<leader>bd`
+
+## Tabs
+
+- new tab: `<leader>tn`
+- next tab: `<leader>tl`
+- previous tab: `<leader>th`
+- close tab: `<leader>tx`
+- close other tabs: `<leader>to`
+
+## Windows
+
+- vertical split: `<leader>wv`
+- horizontal split: `<leader>wh`
+- keep only current window: `<leader>wo`
+- move left/down/up/right: `<C-h>`, `<C-j>`, `<C-k>`, `<C-l>`
+
+## LSP / code
+
+- definition: `gd`
+- references: `gr`
+- implementation: `gI` or `<leader>ci`
+- hover: `K`
+- rename: `<leader>rn`
+- code action: `<leader>ca`
+- format: `<leader>cf`
+- document symbols: `<leader>ss`
+- workspace symbols: `<leader>sS`
+
+## Diagnostics
+
+- buffer diagnostics: `<leader>dd`
+- workspace diagnostics: `<leader>dD`
+- line diagnostics: `<leader>dl`
+- previous diagnostic: `[d`
+- next diagnostic: `]d`
+
+## Multi-cursor
+
+- add next occurrence: `<C-n>` or `<leader>mn`
+- add cursor down/up: `<leader>mj`, `<leader>mk`
+- original vertical cursor shortcuts: `<C-Down>`, `<C-Up>`
+- skip current match: `q`
+- remove current cursor: `Q`
+- switch mode: `<Tab>`
+
+## Tip
+
+- `which-key` shows leader mappings after pressing `<Space>`.
