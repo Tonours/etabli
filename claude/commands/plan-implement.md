@@ -17,6 +17,7 @@ Use `/implement` instead when an existing `PLAN.md` is already reviewed and `REA
    - resolve the plan template from the first existing file in this order and keep it as the exact base structure:
      - `./PLAN_TEMPLATE.md`
      - `./claude/PLAN_TEMPLATE.md`
+     - `~/.claude/PLAN_TEMPLATE.md`
    - create or refresh `./PLAN.md` with `Status: DRAFT`
    - critique it and update it to `CHALLENGED` or `READY`
 2. If `$ARGUMENTS` is empty:
