@@ -101,8 +101,7 @@ return {
       view = {
         side = "left",
         signcolumn = "no",
-        width = "20%",
-        preserve_window_proportions = true,
+        width = 30,
       },
       renderer = {
         group_empty = true,

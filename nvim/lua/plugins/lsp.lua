@@ -83,6 +83,8 @@ local function setup_servers()
     vim.lsp.enable("intelephense")
   end
 
+  vim.lsp.enable("glint", false)
+
   lsp.setup_keymaps()
 end
 
