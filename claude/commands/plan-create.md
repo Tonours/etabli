@@ -15,6 +15,7 @@ User request: $ARGUMENTS
 3. Resolve the plan template from the first existing file in this order and preserve its structure exactly:
    - `./PLAN_TEMPLATE.md`
    - `./claude/PLAN_TEMPLATE.md`
+   - `~/.claude/PLAN_TEMPLATE.md`
 4. Create or refresh `./PLAN.md` from that template.
 5. Set `Status: DRAFT`.
 6. Fill the relevant sections with concrete project-specific content.
