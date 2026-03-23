@@ -28,6 +28,7 @@ opt.splitbelow = true
 opt.splitright = true
 opt.swapfile = false
 opt.tabstop = 2
+opt.tabline = "%!v:lua.require'config.statusline'.tabline()"
 opt.termguicolors = true
 opt.timeoutlen = 300
 opt.undofile = true
