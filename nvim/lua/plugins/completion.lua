@@ -1,9 +1,10 @@
 return {
   {
     "zbirenbaum/copilot.lua",
-    event = "InsertEnter",
+    lazy = false,
     cmd = "Copilot",
     opts = {
+      copilot_node_command = vim.fn.expand("~/.nvm/versions/node/v22.21.1/bin/node"),
       panel = {
         enabled = false,
       },

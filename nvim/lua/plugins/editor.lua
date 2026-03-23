@@ -11,6 +11,9 @@ local function open_tree_on_startup()
   vim.cmd.cd(first_arg)
   vim.cmd.enew()
   require("nvim-tree.api").tree.open()
+  vim.defer_fn(function()
+    require("nvim-tree.api").tree.resize(30)
+  end, 50)
 end
 
 local function open_node_in_tab_or_toggle_dir()
@@ -50,6 +53,12 @@ local function tree_on_attach(bufnr)
 end
 
 return {
+  {
+    "MeanderingProgrammer/render-markdown.nvim",
+    ft = "markdown",
+    dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
+    opts = {},
+  },
   {
     "nvim-tree/nvim-web-devicons",
     lazy = true,
@@ -102,6 +111,7 @@ return {
         side = "left",
         signcolumn = "no",
         width = 30,
+        preserve_window_proportions = true,
       },
       renderer = {
         group_empty = true,
@@ -129,6 +139,17 @@ return {
     },
     config = function(_, opts)
       require("nvim-tree").setup(opts)
+
+      vim.api.nvim_create_autocmd("BufWinEnter", {
+        callback = function()
+          if vim.bo.filetype == "NvimTree" then
+            local win = vim.api.nvim_get_current_win()
+            if vim.api.nvim_win_get_width(win) ~= opts.view.width then
+              vim.api.nvim_win_set_width(win, opts.view.width)
+            end
+          end
+        end,
+      })
 
       vim.api.nvim_create_autocmd("VimEnter", {
         once = true,
