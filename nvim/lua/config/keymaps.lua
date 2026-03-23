@@ -2,6 +2,41 @@ local map = vim.keymap.set
 local opts = { silent = true }
 local remap_opts = { remap = true, silent = true }
 
+local function next_terminal_title()
+  local max_count = 0
+
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    local name = vim.api.nvim_buf_get_name(buf)
+    local count = name:match("^term://terminal%-(%d+)$")
+
+    if count then
+      max_count = math.max(max_count, tonumber(count))
+    end
+  end
+
+  return string.format("terminal-%d", max_count + 1)
+end
+
+local function open_terminal_tab(command)
+  local title = next_terminal_title()
+
+  vim.cmd.tabnew()
+  vim.fn.termopen(command ~= "" and command or vim.o.shell)
+  vim.api.nvim_buf_set_name(0, "term://" .. title)
+  vim.cmd.startinsert()
+end
+
+vim.api.nvim_create_user_command("Terminal", function(command_opts)
+  open_terminal_tab(command_opts.args)
+end, {
+  complete = "shellcmd",
+  desc = "Open terminal in new tab",
+  nargs = "*",
+})
+
+vim.cmd([[cnoreabbrev <expr> term getcmdtype() == ':' && getcmdline() == 'term' ? 'Terminal' : 'term']])
+vim.cmd([[cnoreabbrev <expr> terminal getcmdtype() == ':' && getcmdline() == 'terminal' ? 'Terminal' : 'terminal']])
+
 map("n", "<leader><space>", "<cmd>Telescope find_files<cr>", vim.tbl_extend("force", opts, { desc = "Find files" }))
 map("n", "<leader>/", "<cmd>Telescope live_grep<cr>", vim.tbl_extend("force", opts, { desc = "Live grep" }))
 map("n", "<leader>.", "<cmd>Telescope buffers<cr>", vim.tbl_extend("force", opts, { desc = "Buffers" }))

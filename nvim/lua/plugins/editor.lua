@@ -140,14 +140,18 @@ return {
     config = function(_, opts)
       require("nvim-tree").setup(opts)
 
-      vim.api.nvim_create_autocmd("BufWinEnter", {
-        callback = function()
-          if vim.bo.filetype == "NvimTree" then
-            local win = vim.api.nvim_get_current_win()
-            if vim.api.nvim_win_get_width(win) ~= opts.view.width then
-              vim.api.nvim_win_set_width(win, opts.view.width)
-            end
+      local group = vim.api.nvim_create_augroup("etabli_nvim_tree_width", { clear = true })
+
+      vim.api.nvim_create_autocmd("FileType", {
+        group = group,
+        pattern = "NvimTree",
+        callback = function(args)
+          local win = vim.fn.bufwinid(args.buf)
+          if win == -1 or vim.api.nvim_win_get_width(win) == opts.view.width then
+            return
           end
+
+          vim.api.nvim_win_set_width(win, opts.view.width)
         end,
       })
 

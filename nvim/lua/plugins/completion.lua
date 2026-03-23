@@ -1,10 +1,12 @@
+local copilot_node_command = vim.fn.exepath("node")
+
 return {
   {
     "zbirenbaum/copilot.lua",
     lazy = false,
     cmd = "Copilot",
     opts = {
-      copilot_node_command = vim.fn.expand("~/.nvm/versions/node/v22.21.1/bin/node"),
+      copilot_node_command = copilot_node_command ~= "" and copilot_node_command or nil,
       panel = {
         enabled = false,
       },
