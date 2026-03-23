@@ -38,6 +38,8 @@ return {
           NvimTreeOpenedFile = { fg = colors.lavender, bold = true },
           NvimTreeSpecialFile = { fg = colors.mauve, underline = true },
           NvimTreeIndentMarker = { fg = colors.surface1 },
+          WinSeparator = { fg = colors.surface1 },
+          NvimTreeWinSeparator = { fg = colors.surface1, bg = colors.base },
         }
       end,
     },
