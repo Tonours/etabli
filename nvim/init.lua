@@ -6,6 +6,7 @@ require("config.options")
 require("config.autocmds")
 require("config.projects").setup()
 require("config.project_runtime").setup()
+require("config.review").setup()
 require("config.keymaps")
 
 require("lazy").setup("plugins", {
