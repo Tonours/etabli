@@ -15,7 +15,7 @@ function M.servers()
   return {
     cssls = {},
     ember = {
-      filetypes = { "handlebars", "javascript.glimmer", "typescript.glimmer" },
+      filetypes = { "hbs", "handlebars", "html.handlebars", "javascript.glimmer", "typescript.glimmer" },
     },
     html = {},
     jsonls = {},

@@ -2,7 +2,10 @@ local lsp = require("config.lsp")
 
 local prettier_filetypes = {
   css = true,
+  hbs = true,
+  handlebars = true,
   html = true,
+  ["html.handlebars"] = true,
   javascript = true,
   javascriptreact = true,
   json = true,
@@ -31,12 +34,25 @@ local prettier_configs = {
   "prettier.config.mts",
 }
 
-local function has_prettier(filename)
-  if vim.fn.executable("prettier") ~= 1 then
+local function has_prettier_executable(start)
+  if vim.fn.executable("prettier") == 1 then
+    return true
+  end
+
+  local prettier_bin = vim.fs.find("node_modules", { path = start, upward = true })[1]
+  if not prettier_bin then
     return false
   end
 
+  return vim.fn.executable(vim.fs.joinpath(prettier_bin, ".bin", "prettier")) == 1
+end
+
+local function has_prettier(filename)
   local start = filename ~= "" and vim.fs.dirname(filename) or vim.fn.getcwd()
+  if not has_prettier_executable(start) then
+    return false
+  end
+
   local found = vim.fs.find(prettier_configs, { path = start, upward = true })[1]
 
   if found then
@@ -116,7 +132,10 @@ return {
     opts = {
       formatters_by_ft = {
         css = { "prettier" },
+        hbs = { "prettier" },
+        handlebars = { "prettier" },
         html = { "prettier" },
+        ["html.handlebars"] = { "prettier" },
         javascript = { "prettier" },
         javascriptreact = { "prettier" },
         json = { "prettier" },
@@ -129,7 +148,7 @@ return {
       formatters = {
         prettier = {
           condition = function(_, ctx)
-            if not prettier_filetypes[ctx.ft] then
+            if not prettier_filetypes[vim.bo[ctx.buf].filetype] then
               return false
             end
 
