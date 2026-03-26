@@ -6,6 +6,8 @@ Good fit: TS/JS, React, Ember, Tailwind, CSS/SCSS, JSON/YAML, PHP.
 
 Quick ref: `nvim/CHEATSHEET.md`
 
+Detailed review flow: `docs/nvim-diff-review-workflow.md`
+
 ## Core flow
 
 - Files: `<leader><space>`
@@ -41,6 +43,25 @@ Statusline:
 - Rename: `<leader>rn` (buffer-local, LSP)
 - Code action: `<leader>ca` (buffer-local, LSP)
 - Multi-cursor: `<C-n>` or `<leader>mn` next occurrence, `<leader>mj` / `<leader>mk` add vertical cursors
+
+## Diff review workflow
+
+- Inbox: `<leader>ri` or `:ReviewInbox [status]`
+- Current hunk: `<leader>rh` preview, `<leader>ra` annotate, `<leader>rs` status, `<leader>rA` accept
+- LLM actions: `<leader>rc` / `<leader>rC` for Claude revise/explain, `<leader>rp` / `<leader>rP` for Pi revise/explain
+- Batch rework: `<leader>rbc`, `<leader>rbp`, `:ReviewClaudeBatch [status]`, `:ReviewPiBatch [status]`
+
+Inbox shortcuts:
+- Mark entries: `<Tab>` / `<S-Tab>`
+- Open diff: `<CR>`
+- Annotate / status / accept: `<C-a>`, `<C-s>`, `<C-y>`
+- Launch provider directly with selected diff: `<C-c>` for Claude, `<C-p>` for Pi
+- Refresh / help: `<C-r>`, `?`
+
+Notes:
+- Review state is stored outside the repo under `stdpath("state")/etabli/review`
+- Stale `new`, `accepted`, and `ignore` entries are hidden by default in the inbox to reduce noise
+- Closing the help overlay reopens the review inbox automatically
 
 ## Window policy
 
