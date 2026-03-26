@@ -1,5 +1,6 @@
 local diff = require("config.review.diff")
 local prompts = require("config.review.prompts")
+local providers = require("config.review.providers")
 local state = require("config.review.state")
 
 local function fail(message)
@@ -123,7 +124,15 @@ assert_true(prompt_a:match("Please simplify this change") ~= nil, "prompt should
 assert_true(prompt_a:match("```diff") ~= nil, "prompt should include a diff block")
 assert_true(batch_prompt:match("Hunk 1:") ~= nil, "batch prompt should label hunks")
 assert_true(batch_prompt:match("Hunk count: 2") ~= nil, "batch prompt should include the hunk count")
-assert_true(batch_prompt:match("Matching review status: needs%-rework") ~= nil, "batch prompt should include the status filter")
+assert_true(batch_prompt:match("Selection: review status: needs%-rework") ~= nil, "batch prompt should include the selection label")
+
+local claude_argv = providers.launch_argv("claude", prompt_a)
+local pi_argv = providers.launch_argv("pi", prompt_a)
+
+assert_true(claude_argv[1] == "claude", "Claude launch argv should use the claude executable")
+assert_true(claude_argv[2] == prompt_a, "Claude launch argv should pass the full prompt directly")
+assert_true(pi_argv[1] == "pi", "Pi launch argv should use the pi executable")
+assert_true(pi_argv[2] == prompt_a, "Pi launch argv should pass the full prompt directly")
 
 state.clear(context)
 print("review smoke ok")

@@ -103,18 +103,22 @@ function M.build_batch(items, opts)
   local options = opts or {}
   local provider = options.provider or "LLM"
   local action = options.action or "revise"
-  local status = options.status or "needs-rework"
+  local selection_label = options.selection_label or (options.status and string.format("review status: %s", options.status))
   local lines = {
     string.format("You are preparing a %s request for %s.", action, provider),
     string.format("Work through the %d diff hunks below one by one.", #items),
     "Do not invent changes outside the provided hunks.",
     "",
     "Batch context:",
-    string.format("- Matching review status: %s", status),
     string.format("- Hunk count: %d", #items),
-    "",
-    "Task:",
   }
+
+  if selection_label then
+    table.insert(lines, string.format("- Selection: %s", selection_label))
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "Task:")
 
   for _, instruction in ipairs(batch_action_instructions(action)) do
     table.insert(lines, string.format("- %s", instruction))

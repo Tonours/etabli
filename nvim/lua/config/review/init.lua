@@ -60,6 +60,38 @@ local function context_for_current_buffer()
   return context
 end
 
+local function git_show_lines(repo, spec)
+  local result = vim.system({ "git", "-C", repo, "show", spec }, { text = true }):wait()
+  if result.code ~= 0 then
+    return {}
+  end
+
+  local stdout = result.stdout or ""
+  if stdout == "" then
+    return {}
+  end
+
+  return vim.split(stdout, "\n", { plain = true })
+end
+
+local function buffer_filetype(path)
+  return vim.filetype.match({ filename = path }) or ""
+end
+
+local function set_scratch_buffer(buf, name, lines, filetype)
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].swapfile = false
+  vim.bo[buf].modifiable = true
+  vim.bo[buf].readonly = false
+  vim.bo[buf].filetype = filetype or ""
+  vim.api.nvim_buf_set_name(buf, name)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].modifiable = false
+  vim.bo[buf].modified = false
+  vim.bo[buf].readonly = true
+end
+
 local function context_for_cwd()
   local context = state.context_for_repo(vim.fn.getcwd())
   if not context then
@@ -102,8 +134,10 @@ local function filter_items(items, opts)
   for _, item in ipairs(items) do
     local matches_status = options.status == nil or (item.status or "new") == options.status
     local keep_stale = options.include_stale ~= false or not item.stale
+    local surfaced_stale = item.stale and vim.tbl_contains({ "needs-rework", "question" }, item.status or "new")
+    local keep_default_stale = not item.stale or surfaced_stale or options.include_resolved_stale or options.status ~= nil
 
-    if matches_status and keep_stale then
+    if matches_status and keep_stale and keep_default_stale then
       table.insert(filtered, item)
     end
   end
@@ -168,6 +202,51 @@ local function jump_to_item(item)
   end
 end
 
+local function open_item_diff(item)
+  if item.stale then
+    vim.notify("This review item is stale, so the live diff no longer exists. Showing the stored patch instead.", vim.log.levels.INFO)
+    util.open_scratch("review-stale.md", render_item(item), "markdown")
+    return
+  end
+
+  local absolute_path = item.repo .. "/" .. item.path
+  local left_label = item.scope == "staged" and "HEAD" or "INDEX"
+  local left_spec = item.scope == "staged" and ("HEAD:" .. item.path) or (":" .. item.path)
+  local left_lines = git_show_lines(item.repo, left_spec)
+  local filetype = buffer_filetype(item.path)
+
+  vim.cmd.tabnew()
+
+  local left_buf = vim.api.nvim_get_current_buf()
+  set_scratch_buffer(left_buf, string.format("review-%s-%s", util.sanitize_segment(left_label:lower()), item.path), left_lines, filetype)
+
+  vim.cmd.vsplit()
+
+  local right_buf = vim.api.nvim_get_current_buf()
+  if vim.fn.filereadable(absolute_path) == 1 then
+    vim.cmd.edit(vim.fn.fnameescape(absolute_path))
+  else
+    set_scratch_buffer(
+      right_buf,
+      string.format("review-working-%s", item.path),
+      {},
+      filetype
+    )
+  end
+
+  vim.wo.wrap = false
+  vim.cmd.diffthis()
+
+  vim.cmd.wincmd("h")
+  vim.wo.wrap = false
+  vim.cmd.diffthis()
+
+  vim.cmd.wincmd("l")
+  if item.line_start and item.line_start > 0 then
+    pcall(vim.api.nvim_win_set_cursor, 0, { item.line_start, 0 })
+  end
+end
+
 local function set_item_status(item, status)
   local _, err = state.set_status({ repo = item.repo, branch = item.branch }, item, status)
   if err then
@@ -176,6 +255,23 @@ local function set_item_status(item, status)
   end
 
   vim.notify(string.format("Review status set to %s", status), vim.log.levels.INFO)
+end
+
+local function set_items_status(items, status)
+  local updated = 0
+
+  for _, item in ipairs(items) do
+    local saved, err = state.set_status({ repo = item.repo, branch = item.branch }, item, status)
+    if not saved then
+      vim.notify(err, vim.log.levels.ERROR)
+      return false
+    end
+
+    updated = updated + 1
+  end
+
+  vim.notify(string.format("Review status set to %s for %d hunk(s)", status, updated), vim.log.levels.INFO)
+  return true
 end
 
 local function prompt_for_status(item, opts)
@@ -233,6 +329,7 @@ end
 local function send_item(item, provider, action)
   local _, err = providers.dispatch(provider, item, {
     action = action,
+    cwd = item.repo,
     open_terminal = true,
   })
 
@@ -241,20 +338,39 @@ local function send_item(item, provider, action)
   end
 end
 
-local function show_inbox_help()
-  util.open_scratch("review-inbox-help.md", {
+local function show_inbox_help(opts)
+  local lines = {
     "# Review Inbox Help",
     "",
-    "- <CR> jump to the selected hunk",
+    "- <Tab> or <S-Tab> mark entries for a batch provider action",
+    "- <CR> open a diff view for the selected hunk",
     "- <C-a> add or edit the selected hunk note",
     "- <C-s> set the selected hunk status",
-    "- <C-c> prepare a Claude revise prompt for the selected hunk",
-    "- <C-p> prepare a Pi revise prompt for the selected hunk",
+    "- <C-y> accept the selected hunk or the marked set",
+    "- <C-c> launch Claude directly with the selected diff prompt",
+    "- <C-p> launch Pi directly with the selected diff prompt",
     "- <C-r> refresh the inbox after external changes",
     "- :ReviewInbox [status] filter the inbox by status",
+    "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewClaudeBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewPiBatch [status] prepare one prompt for all live hunks with that status",
-  }, "markdown")
+    "- <leader>rA accepts the current hunk quickly",
+    "- <leader>rbc and <leader>rbp run the default needs-rework batch commands",
+    "- stale new, accepted, and ignored entries are hidden from the default inbox to reduce noise",
+    "- if you want to inspect them again, open an explicit filter like :ReviewInbox new",
+  }
+
+  local options = opts or {}
+  if options.overlay then
+    util.open_overlay("Review Inbox Help", lines, {
+      filetype = "markdown",
+      on_close = options.on_close,
+      origin_win = options.origin_win,
+    })
+    return
+  end
+
+  util.open_scratch("review-inbox-help.md", lines, "markdown")
 end
 
 local function reopen_inbox_later(opts)
@@ -289,8 +405,30 @@ local function prepare_batch(provider, status)
 
   local _, err = providers.dispatch_batch(provider, items, {
     action = "revise",
+    cwd = context.repo,
     open_terminal = true,
+    selection_label = string.format("review status: %s", normalized_status),
+    slug = normalized_status,
     status = normalized_status,
+  })
+
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
+  end
+end
+
+local function prepare_selected_batch(provider, items)
+  if vim.tbl_isempty(items or {}) then
+    vim.notify("Select at least one review hunk", vim.log.levels.INFO)
+    return
+  end
+
+  local _, err = providers.dispatch_batch(provider, items, {
+    action = "revise",
+    cwd = items[1].repo,
+    open_terminal = true,
+    selection_label = "Telescope inbox multi-selection",
+    slug = "selection",
   })
 
   if err then
@@ -334,6 +472,10 @@ function M.set_current_status(status)
   set_item_status(item, status)
 end
 
+function M.accept_current_hunk()
+  M.set_current_status("accepted")
+end
+
 function M.send_current(provider, action)
   local _, item = current_hunk_item()
   if not item then
@@ -373,7 +515,7 @@ function M.open_inbox(opts)
   }
 
   picker.open(items, {
-    on_select = jump_to_item,
+    on_select = open_item_diff,
     on_annotate = function(item)
       prompt_for_note(item, { on_done = function()
         reopen_inbox_later(reopen_opts)
@@ -384,16 +526,37 @@ function M.open_inbox(opts)
         reopen_inbox_later(reopen_opts)
       end })
     end,
-    on_claude = function(item)
-      send_item(item, "claude", "revise")
+    on_accept = function(selected)
+      if set_items_status(selected, "accepted") then
+        reopen_inbox_later(reopen_opts)
+      end
     end,
-    on_pi = function(item)
-      send_item(item, "pi", "revise")
+    on_claude = function(selected)
+      if #selected > 1 then
+        prepare_selected_batch("claude", selected)
+        return
+      end
+
+      send_item(selected[1], "claude", "revise")
+    end,
+    on_pi = function(selected)
+      if #selected > 1 then
+        prepare_selected_batch("pi", selected)
+        return
+      end
+
+      send_item(selected[1], "pi", "revise")
     end,
     on_refresh = function()
       M.open_inbox(reopen_opts)
     end,
-    on_help = show_inbox_help,
+    on_help = function(help_opts)
+      show_inbox_help(vim.tbl_extend("force", help_opts or {}, {
+        on_close = function()
+          reopen_inbox_later(reopen_opts)
+        end,
+      }))
+    end,
   }, {
     status = status,
   })
@@ -432,6 +595,10 @@ function M.setup()
     desc = "Set the review status for the current hunk",
     nargs = "?",
   })
+
+  vim.api.nvim_create_user_command("ReviewAccept", function()
+    M.accept_current_hunk()
+  end, { desc = "Accept the current review hunk" })
 
   vim.api.nvim_create_user_command("ReviewClaude", function(command_opts)
     M.send_current("claude", command_opts.args ~= "" and command_opts.args or "revise")

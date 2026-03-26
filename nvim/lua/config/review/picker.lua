@@ -120,39 +120,85 @@ function M.open(items, callbacks, opts)
 
   pickers.new({}, {
     prompt_title = prompt_title(items, options),
-    results_title = "<CR> jump | <C-a> note | <C-s> status | <C-c> Claude | <C-p> Pi | <C-r> refresh",
+    results_title = "<Tab> mark  <CR> diff  <C-y> accept  ? help",
+    preview_title = "<C-a> note  <C-s> status  <C-c> Claude  <C-p> Pi  <C-r> refresh",
     finder = finders.new_table({
       results = items,
       entry_maker = entry_maker,
     }),
+    layout_strategy = "horizontal",
+    layout_config = {
+      height = 0.9,
+      preview_width = 0.58,
+      prompt_position = "top",
+      width = 0.96,
+    },
     previewer = previewer,
     sorter = config.values.generic_sorter({}),
     attach_mappings = function(prompt_bufnr, map)
-      local function with_selection(fn)
+      local function current_value()
         local entry = action_state.get_selected_entry()
+        return entry and entry.value or nil
+      end
+
+      local function selected_values()
+        local telescope_picker = action_state.get_current_picker(prompt_bufnr)
+        local multi = telescope_picker:get_multi_selection()
+
+        if multi and #multi > 0 then
+          local values = {}
+          for _, entry in ipairs(multi) do
+            table.insert(values, entry.value)
+          end
+
+          return values
+        end
+
+        local value = current_value()
+        return value and { value } or {}
+      end
+
+      local function with_selection(fn)
+        local values = selected_values()
         actions.close(prompt_bufnr)
 
-        if entry and fn then
-          fn(entry.value)
+        if #values > 0 and fn then
+          fn(values)
+        end
+      end
+
+      local function with_current(fn)
+        local value = current_value()
+        actions.close(prompt_bufnr)
+
+        if value and fn then
+          fn(value)
         end
       end
 
       actions.select_default:replace(function()
-        with_selection(callbacks.on_select)
+        with_current(callbacks.on_select)
       end)
 
       map("i", "<C-a>", function()
-        with_selection(callbacks.on_annotate)
+        with_current(callbacks.on_annotate)
       end)
       map("n", "<C-a>", function()
-        with_selection(callbacks.on_annotate)
+        with_current(callbacks.on_annotate)
       end)
 
       map("i", "<C-s>", function()
-        with_selection(callbacks.on_status)
+        with_current(callbacks.on_status)
       end)
       map("n", "<C-s>", function()
-        with_selection(callbacks.on_status)
+        with_current(callbacks.on_status)
+      end)
+
+      map("i", "<C-y>", function()
+        with_selection(callbacks.on_accept)
+      end)
+      map("n", "<C-y>", function()
+        with_selection(callbacks.on_accept)
       end)
 
       map("i", "<C-c>", function()
@@ -176,9 +222,22 @@ function M.open(items, callbacks, opts)
         with_selection(callbacks.on_refresh)
       end)
 
-      map("n", "?", function()
+      map("i", "?", function()
+        actions.close(prompt_bufnr)
         if callbacks.on_help then
-          callbacks.on_help()
+          callbacks.on_help({
+            origin_win = vim.api.nvim_get_current_win(),
+            overlay = true,
+          })
+        end
+      end)
+      map("n", "?", function()
+        actions.close(prompt_bufnr)
+        if callbacks.on_help then
+          callbacks.on_help({
+            origin_win = vim.api.nvim_get_current_win(),
+            overlay = true,
+          })
         end
       end)
 

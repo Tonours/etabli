@@ -23,18 +23,25 @@ local function provider_for(name)
   return provider
 end
 
-local function open_terminal(command)
-  if vim.fn.exists(":Terminal") == 2 then
-    vim.api.nvim_cmd({ cmd = "Terminal", args = { command } }, {})
-    return true
-  end
+local function launch_argv(provider, prompt)
+  return { provider.command, prompt }
+end
 
-  if vim.fn.executable(command) ~= 1 then
+local function open_terminal(command, opts)
+  local options = opts or {}
+  local executable = vim.islist(command) and command[1] or command
+
+  if vim.fn.executable(executable) ~= 1 then
     return false
   end
 
   vim.cmd.tabnew()
-  vim.fn.termopen(command)
+  vim.fn.termopen(command, { cwd = options.cwd })
+
+  if options.title and options.title ~= "" then
+    vim.api.nvim_buf_set_name(0, options.title)
+  end
+
   vim.cmd.startinsert()
   return true
 end
@@ -47,7 +54,10 @@ local function dispatch_prompt(provider, prompt, opts)
 
   if options.open_terminal ~= false then
     if vim.fn.executable(provider.command) == 1 then
-      open_terminal(provider.command)
+      open_terminal(launch_argv(provider, prompt), {
+        cwd = options.cwd,
+        title = string.format("term://review-%s", provider.command),
+      })
     else
       vim.notify(
         string.format("%s CLI not found. The prompt was still copied to registers.", provider.label),
@@ -59,6 +69,15 @@ local function dispatch_prompt(provider, prompt, opts)
   vim.notify(options.message, vim.log.levels.INFO)
 
   return prompt
+end
+
+function M.launch_argv(name, prompt)
+  local provider, err = provider_for(name)
+  if not provider then
+    return nil, err
+  end
+
+  return launch_argv(provider, prompt)
 end
 
 function M.dispatch(name, item, opts)
@@ -74,9 +93,14 @@ function M.dispatch(name, item, opts)
   })
 
   return dispatch_prompt(provider, prompt, {
+    cwd = options.cwd or item.repo,
     title = string.format("review-%s-%s.md", name, options.action or "revise"),
     open_terminal = options.open_terminal,
-    message = string.format("Prepared %s prompt for %s and copied it to registers.", options.action or "revise", provider.label),
+    message = string.format(
+      "Prepared %s prompt for %s, copied it to registers, and launched it directly in the CLI.",
+      options.action or "revise",
+      provider.label
+    ),
   })
 end
 
@@ -92,27 +116,26 @@ function M.dispatch_batch(name, items, opts)
 
   local options = opts or {}
   local action = options.action or "revise"
-  local status = options.status or "needs-rework"
   local prompt = prompts.build_batch(items, {
     action = action,
     provider = provider.label,
-    status = status,
+    selection_label = options.selection_label or (options.status and string.format("review status: %s", options.status)),
   })
 
   return dispatch_prompt(provider, prompt, {
+    cwd = options.cwd or items[1].repo,
     title = string.format(
       "review-%s-batch-%s-%s.md",
       name,
-      util.sanitize_segment(status),
+      util.sanitize_segment(options.slug or options.status or "selection"),
       action
     ),
     open_terminal = options.open_terminal,
     message = string.format(
-      "Prepared %s batch prompt for %s (%d hunks, status=%s) and copied it to registers.",
+      "Prepared %s batch prompt for %s (%d hunks), copied it to registers, and launched it directly in the CLI.",
       action,
       provider.label,
-      #items,
-      status
+      #items
     ),
   })
 end
