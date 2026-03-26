@@ -1,35 +1,27 @@
 return {
   {
     "nvim-treesitter/nvim-treesitter",
-    event = { "BufReadPost", "BufNewFile" },
+    lazy = false,
     build = ":TSUpdate",
-    main = "nvim-treesitter",
-    opts = {
-      ensure_installed = {
-        "bash",
-        "css",
-        "glimmer",
-        "html",
-        "javascript",
-        "json",
-        "lua",
-        "markdown",
-        "markdown_inline",
-        "php",
-        "scss",
-        "tsx",
-        "typescript",
-        "vim",
-        "vimdoc",
-        "yaml",
-      },
-      auto_install = true,
-      highlight = {
-        enable = true,
-      },
-      indent = {
-        enable = true,
-      },
-    },
+    init = function()
+      vim.filetype.add({
+        extension = {
+          hbs = "handlebars",
+        },
+      })
+
+      vim.treesitter.language.register("glimmer", "hbs")
+      vim.treesitter.language.register("glimmer", "handlebars")
+    end,
+    config = function()
+      require("nvim-treesitter").setup()
+
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "javascript.glimmer", "typescript.glimmer" },
+        callback = function(args)
+          pcall(vim.treesitter.start, args.buf, "glimmer")
+        end,
+      })
+    end,
   },
 }
