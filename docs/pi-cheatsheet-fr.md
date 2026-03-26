@@ -108,6 +108,44 @@ Notes repo :
 - `cw merge` et `cw rm` sont en dry-run par défaut sans `--yes`
 - les worktrees vivent sous `./.worktrees/` quand `cw` est lancé depuis le repo
 
+## Raccourcis review diff dans Neovim
+
+Actions sur le hunk courant :
+
+- `<leader>ri` : ouvrir l'inbox review Git
+- `<leader>rh` : prévisualiser le hunk courant
+- `<leader>ra` : annoter le hunk courant
+- `<leader>rs` : choisir un statut (`new`, `accepted`, `needs-rework`, `question`, `ignore`)
+- `<leader>rA` : accepter directement le hunk courant
+- `<leader>rc` / `<leader>rC` : lancer Claude avec un prompt `revise` / `explain`
+- `<leader>rp` / `<leader>rP` : lancer Pi avec un prompt `revise` / `explain`
+- `<leader>rbc` / `<leader>rbp` : préparer le batch `needs-rework` pour Claude / Pi
+
+Dans l'inbox Telescope :
+
+- `<Tab>` / `<S-Tab>` : marquer plusieurs hunks
+- `<CR>` : ouvrir une vue diff du hunk vivant sélectionné
+- `<C-a>` : annoter le hunk sélectionné
+- `<C-s>` : changer son statut
+- `<C-y>` : accepter le hunk sélectionné ou la sélection multiple
+- `<C-c>` / `<C-p>` : lancer Claude / Pi directement avec le diff sélectionné
+- `<C-r>` : rafraîchir l'inbox
+- `?` : ouvrir l'aide review en overlay ; `q` / `Esc` rouvre l'inbox
+
+Commandes associées :
+
+```vim
+:ReviewInbox [status]
+:ReviewCurrentHunk
+:ReviewAnnotate
+:ReviewStatus [new|accepted|needs-rework|question|ignore]
+:ReviewAccept
+:ReviewClaude [revise|explain]
+:ReviewPi [revise|explain]
+:ReviewClaudeBatch [status]
+:ReviewPiBatch [status]
+```
+
 ## Flow agentic recommandé sur ce repo
 
 Référence canonique : `workflow/spec.md` + `workflow/statuses.md`
