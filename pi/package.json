@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test ./extensions/__tests__/*.test.ts"
+    "test": "bun test ./extensions/__tests__/*.test.ts",
+    "verify:skills": "bun ./scripts/verify-skills-lock.mjs"
   }
 }

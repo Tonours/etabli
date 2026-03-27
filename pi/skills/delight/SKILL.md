@@ -38,7 +38,7 @@ Identify where delight would enhance (not distract from) the experience:
    - **Helpful surprises**: Anticipating needs before users ask (productivity tools)
    - **Sensory richness**: Satisfying sounds, smooth animations (creative tools)
 
-If any of these are unclear from the codebase, ask the user directly to clarify what you cannot infer.
+If required design context is still missing, follow /frontend-design's Context Gathering Protocol and run /teach-impeccable before proceeding. If domain appropriateness is still unclear after that, ask the user directly.
 
 **CRITICAL**: Delight should enhance usability, never obscure it. If users notice the delight more than accomplishing their goal, you've gone too far.
 

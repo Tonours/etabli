@@ -154,7 +154,7 @@ Quick notes on smaller issues worth addressing.
 
 ## Phase 3: Ask the User
 
-**After presenting findings**, use targeted questions based on what was actually found. ask the user directly to clarify what you cannot infer. These answers will shape the action plan.
+**After presenting findings**, ask targeted follow-up questions based on what was actually found. Only ask what you need to clarify priorities, design intent, scope, or constraints for the action plan.
 
 Ask questions along these lines (adapt to the specific findings — do NOT ask generic questions):
 

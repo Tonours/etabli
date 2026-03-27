@@ -9,7 +9,7 @@
     "animate": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "b00cb71343fa7e987489ad330e3dd3e504ff893b9ddd2b30cacea93691b78e46"
+      "computedHash": "c316305bee0800742a3aa056b240abbba49ba6fd6e9b48ec207e3407a07a8c2c"
     },
     "arrange": {
       "source": "pbakaus/impeccable",
@@ -24,32 +24,32 @@
     "bolder": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "4b03286f1dc45da3e1a76a71c0c62729b4887c814dff3084345889cb4780a3a2"
+      "computedHash": "79da3912c24dc434d3a3869928a3ecde2d94a2eca7f29724c96a0bd915a4b7d9"
     },
     "clarify": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "1138379fb9f10b911094fb57b5607de8efbd77d2467fba4981ccc1c155457c6f"
+      "computedHash": "1d171aeb9be68c25c8414dce9401bb3376d29655362a9c3cb5626d814b416f38"
     },
     "colorize": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "6e292a0ba428d339615e025cab1f2692b2e6267ba247574a00545b1dac1acc5a"
+      "computedHash": "b04593cce991a8eff2dd195ee5e7b13026224542e4d55c426f6f2f3283aeb7ce"
     },
     "critique": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "59d3facaee0d7c969f23e938c35239183d3fdd9befff526908585e55afa3a9dd"
+      "computedHash": "fe1cfca5970c6e0eebb2164918fbef6b07381d4af7e485ae12be9f4a8ef18100"
     },
     "delight": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "80127e9c695f768f5df70b9f62ad51cdfb3b4892791c4d901214b08f3be8d37e"
+      "computedHash": "3e070895f720a76e072b44238a5d44e895caa727c2c6c18e76dcd95bb0693524"
     },
     "distill": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "ce6fbd844488a326208c1302c73b2865fa4fb20e447b6a06c038315444d6e0c5"
+      "computedHash": "2c50fe257a36e6a83a45760f5b4231bebabe9bae1147d9c67351f4382b2dea69"
     },
     "extract": {
       "source": "pbakaus/impeccable",
@@ -84,7 +84,7 @@
     "overdrive": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "3b940d458ef13afcb93ccb51ff430510aca4a9733d68fbdc335927a2636a091d"
+      "computedHash": "1ad5b564e4379863db769b44a9fc6f891460fe09713671d2d5b0a25dffb8dbd4"
     },
     "polish": {
       "source": "pbakaus/impeccable",
@@ -94,12 +94,12 @@
     "quieter": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "6066e73875e4770e624641355cc04662ce75d2b1d1a3673e24dcbd0ec8936297"
+      "computedHash": "81729f4670326583b8ba79ebef8912777b1c2b5a7e584c7c92d53bee1d720557"
     },
     "teach-impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
-      "computedHash": "b3b5541bb9b0a260af793c7d79c2db4a436c2cd9384be34a4024c7f28af72e62"
+      "computedHash": "7528a77597e33ea46e3994c0539eff155af2f1d2c022faa44a42bf8bf8001240"
     },
     "typeset": {
       "source": "pbakaus/impeccable",
