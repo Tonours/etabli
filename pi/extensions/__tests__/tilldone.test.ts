@@ -5,6 +5,7 @@ import tilldone, {
   nextToggleStatus,
   normalizeTasks,
   setExclusiveInProgress,
+  validateTaskText,
   type Task,
 } from "../tilldone.ts";
 
@@ -188,6 +189,20 @@ describe("normalizeTasks", () => {
   });
 });
 
+describe("validateTaskText", () => {
+  test("rejects broader vague task phrases", () => {
+    expect(validateTaskText("fix bug")).toBe("task too vague");
+    expect(validateTaskText("investigate issue")).toBe("task too vague");
+    expect(validateTaskText("cleanup code")).toBe("task too vague");
+    expect(validateTaskText("refactor stuff in app")).toBe("task too vague");
+  });
+
+  test("accepts concrete tasks with specific nouns", () => {
+    expect(validateTaskText("fix auth token refresh bug")).toBeNull();
+    expect(validateTaskText("review onboarding copy in settings modal")).toBeNull();
+  });
+});
+
 describe("tool behavior", () => {
   test("new-list seeds tasks and auto-starts the first one", async () => {
     const harness = createHarness();
@@ -204,6 +219,42 @@ describe("tool behavior", () => {
         { id: 1, text: "first", status: "inprogress" },
         { id: 2, text: "second", status: "idle" },
       ],
+    });
+  });
+
+  test("new-list normalizes and dedupes seeded tasks", async () => {
+    const harness = createHarness();
+
+    const result = await harness.run({
+      action: "new-list",
+      text: "  TillDone  ",
+      texts: ["  first   task  ", "first task", "second task"],
+    });
+
+    expect(result.content[0]?.text).toContain("Skipped duplicates");
+    expect(result.details).toMatchObject({
+      listTitle: "TillDone",
+      tasks: [
+        { id: 1, text: "first task", status: "inprogress" },
+        { id: 2, text: "second task", status: "idle" },
+      ],
+    });
+  });
+
+  test("new-list still succeeds when optional seed tasks are all invalid", async () => {
+    const harness = createHarness();
+
+    const result = await harness.run({
+      action: "new-list",
+      text: "TillDone",
+      texts: ["stuff", "fix things"],
+    });
+
+    expect(result.content[0]?.text).toContain('New list: "TillDone"');
+    expect(result.content[0]?.text).toContain("Skipped vague/invalid tasks");
+    expect(result.details).toMatchObject({
+      listTitle: "TillDone",
+      tasks: [],
     });
   });
 
@@ -251,6 +302,88 @@ describe("tool behavior", () => {
     expect(removed.content[0]?.text).toContain("Auto-started #2");
     expect(removed.details).toMatchObject({
       tasks: [{ id: 2, text: "second", status: "inprogress" }],
+    });
+  });
+
+  test("add rejects vague tasks when nothing valid remains", async () => {
+    const harness = createHarness();
+
+    await harness.run({ action: "new-list", text: "TillDone" });
+    const result = await harness.run({
+      action: "add",
+      texts: ["fix things", "stuff", "fix bug", "investigate issue", "cleanup code"],
+    });
+
+    expect(result.content[0]?.text).toContain("Error:");
+    expect(result.details).toMatchObject({ error: "no valid tasks" });
+
+    const listed = await harness.run({ action: "list" });
+    expect(listed.details).toMatchObject({ tasks: [] });
+  });
+
+  test("add enforces the list size cap", async () => {
+    const harness = createHarness();
+
+    await harness.run({
+      action: "new-list",
+      text: "TillDone",
+      texts: ["task one", "task two", "task three", "task four", "task five", "task six"],
+    });
+    const result = await harness.run({ action: "add", texts: ["task seven", "task eight"] });
+
+    expect(result.content[0]?.text).toContain("Too many tasks");
+    expect(result.details).toMatchObject({ error: "too many tasks" });
+  });
+
+  test("add allows reaching exactly the list size cap", async () => {
+    const harness = createHarness();
+
+    await harness.run({
+      action: "new-list",
+      text: "TillDone",
+      texts: ["task one", "task two", "task three", "task four", "task five", "task six"],
+    });
+    const result = await harness.run({ action: "add", text: "task seven" });
+
+    expect(result.content[0]?.text).toContain("Added task #7");
+    expect(result.details).toMatchObject({
+      tasks: [
+        { id: 1, text: "task one", status: "inprogress" },
+        { id: 2, text: "task two", status: "idle" },
+        { id: 3, text: "task three", status: "idle" },
+        { id: 4, text: "task four", status: "idle" },
+        { id: 5, text: "task five", status: "idle" },
+        { id: 6, text: "task six", status: "idle" },
+        { id: 7, text: "task seven", status: "idle" },
+      ],
+    });
+  });
+
+  test("update normalizes text and rejects duplicates", async () => {
+    const harness = createHarness();
+
+    await harness.run({ action: "new-list", text: "TillDone", texts: ["first task", "second task"] });
+    const duplicate = await harness.run({ action: "update", id: 2, text: "  first   task " });
+    const updated = await harness.run({ action: "update", id: 2, text: "  third   task  " });
+
+    expect(duplicate.content[0]?.text).toContain("duplicate");
+    expect(updated.details).toMatchObject({
+      tasks: [
+        { id: 1, text: "first task", status: "inprogress" },
+        { id: 2, text: "third task", status: "idle" },
+      ],
+    });
+  });
+
+  test("update is a no-op when normalized text does not change", async () => {
+    const harness = createHarness();
+
+    await harness.run({ action: "new-list", text: "TillDone", texts: ["first task"] });
+    const updated = await harness.run({ action: "update", id: 1, text: "  first   task  " });
+
+    expect(updated.content[0]?.text).toBe("No change for #1");
+    expect(updated.details).toMatchObject({
+      tasks: [{ id: 1, text: "first task", status: "inprogress" }],
     });
   });
 
