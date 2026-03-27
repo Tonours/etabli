@@ -31,7 +31,7 @@ Analyze what makes the design feel too intense:
    - What's working? (Don't throw away good ideas)
    - What's the core message? (Preserve what matters)
 
-If any of these are unclear from the codebase, ask the user directly to clarify what you cannot infer.
+If required design context is still missing, follow /frontend-design's Context Gathering Protocol and run /teach-impeccable before proceeding. If the acceptable intensity range is still unclear after that, ask the user directly.
 
 **CRITICAL**: "Quieter" doesn't mean boring or generic. It means refined, sophisticated, and easier on the eyes. Think luxury, not laziness.
 

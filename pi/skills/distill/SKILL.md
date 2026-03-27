@@ -31,7 +31,7 @@ Analyze what makes the design feel complex or cluttered:
    - What can be removed, hidden, or combined?
    - What's the 20% that delivers 80% of value?
 
-If any of these are unclear from the codebase, ask the user directly to clarify what you cannot infer.
+If required design context is still missing, follow /frontend-design's Context Gathering Protocol and run /teach-impeccable before proceeding. If the core user goal is still unclear after that, ask the user directly.
 
 **CRITICAL**: Simplicity is not about removing features - it's about removing obstacles between users and their goals. Every element should justify its existence.
 

@@ -45,6 +45,8 @@ Create a strategy for clearer communication:
 
 **IMPORTANT**: Good UX writing is invisible. Users should understand immediately without noticing the words.
 
+If required design context is still missing, follow /frontend-design's Context Gathering Protocol and run /teach-impeccable before proceeding. If the audience's technical level or mental state are still unclear after that, ask the user directly.
+
 ## Improve Copy Systematically
 
 Refine text across these common areas:
