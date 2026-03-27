@@ -3,7 +3,8 @@
     {
       "source": "npm:mitsupi",
       "extensions": [
-        "!uv.ts"
+        "!uv.ts",
+        "-pi-extensions/go-to-bed.ts"
       ]
     },
     "npm:checkpoint",
@@ -27,12 +28,13 @@
       "extensions": [],
       "prompts": [],
       "themes": []
-    }
+    },
+    "git:github.com/davebcn87/pi-autoresearch"
   ],
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.60.0",
+  "lastChangelogVersion": "0.63.1",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "theme": "catppuccin-mocha",
