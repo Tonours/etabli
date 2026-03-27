@@ -8,6 +8,8 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
+This is one uninterrupted flow: once `PLAN.md` reaches `READY`, continue directly into implementation in the same invocation.
+Do not ask for confirmation at the handoff from planning to implementation.
 Use `/implement` instead when an existing `PLAN.md` is already reviewed and `READY`.
 
 ## Your task
@@ -23,10 +25,11 @@ Use `/implement` instead when an existing `PLAN.md` is already reviewed and `REA
 2. If `$ARGUMENTS` is empty:
    - read the existing `./PLAN.md`
    - if it is missing, stop and ask for a task description or a pre-existing plan
-   - if it is not `READY`, critique it and update it to `CHALLENGED` or `READY` before deciding whether implementation can start
+   - if it is not `READY`, critique it and update it to `CHALLENGED` or `READY`
+   - if that critique lands on `READY`, continue automatically into implementation in the same flow
 3. Never implement from a `DRAFT` or `CHALLENGED` plan.
 4. If `PLAN.md` is not `READY`, stop and return the blocker(s) plus the highest-impact plan changes still required.
-5. If `PLAN.md` is `READY`, implement strictly from it:
+5. If `PLAN.md` is `READY`, implement immediately and strictly from it:
    - follow the `Execution Plan` order
    - keep scope bounded to the plan
    - if new facts invalidate the plan, update `PLAN.md` first and re-establish `Status: READY` before continuing
@@ -39,3 +42,4 @@ Use `/implement` instead when an existing `PLAN.md` is already reviewed and `REA
    - remaining risks / follow-ups
 
 If critical context is missing, ask only the narrowest blocking question.
+Never ask for confirmation just because `PLAN.md` became `READY`.

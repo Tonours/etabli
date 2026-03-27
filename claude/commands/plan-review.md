@@ -5,6 +5,8 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 # Plan Review
 
+This flow ends after the critique pass. It updates the plan, returns the verdict, and stops.
+
 ## Your task
 
 1. Read `./PLAN.md` and resolve the plan template from the first existing file in this order:
@@ -24,8 +26,10 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
    - record key deltas in `Review Changes`
    - set `Status: CHALLENGED` if important issues remain
    - set `Status: READY` if the plan is executable without major rethinking
-5. If the final status is `READY`, the next implementation step is `/implement`.
-6. Never create `REVIEW.md`.
-7. Return the final status and the highest-impact changes made.
+5. If the final status is `READY`, stop at the reviewed plan and point to `/implement` as the next step.
+6. Do not implement code in this command.
+7. Never ask for implementation confirmation; return the reviewed status and next command instead.
+8. Never create `REVIEW.md`.
+9. Return the final status and the highest-impact changes made.
 
 If critical context is missing, ask only the narrowest blocking question.

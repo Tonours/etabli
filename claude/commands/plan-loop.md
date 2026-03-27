@@ -8,6 +8,9 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
+This flow ends at the reviewed plan. It does not continue into implementation.
+Do not ask for implementation confirmation at the end; return the final reviewed status and stop.
+
 ## Your task
 
 1. Inspect the current repository state and analyze the relevant codebase area.
@@ -30,4 +33,5 @@ User request: $ARGUMENTS
 7. Never create `REVIEW.md`.
 8. Do not implement code.
 9. If the user wants to continue later from the reviewed plan, use `/implement`.
-10. Return the final status and the highest-impact plan changes.
+10. If the user wants planning, critique, and implementation in one uninterrupted flow, use `/plan-implement` instead of this command.
+11. Return the final status and the highest-impact plan changes.

@@ -48,6 +48,8 @@ This spec defines the shared story those wrappers must follow.
 
 - Never implement from `DRAFT` or `CHALLENGED`.
 - Planning review never creates `REVIEW.md`; it updates `PLAN.md` in place.
+- `plan-loop` and `plan-review` stop at the reviewed plan; they do not continue into implementation and do not ask for implementation confirmation.
+- `plan-implement` is the only continuous flow that may go from planning/review straight into implementation once `PLAN.md` is `READY`.
 - Keep one workflow story across Pi and Claude; runtime surfaces may differ, contract should not.
 - Prefer simple plumbing over hidden automation.
 - Worktree/tmux plumbing (`scripts/cw`, `scripts/cw-clean`) stays the repo entrypoint; agent roles sit on top of it.
