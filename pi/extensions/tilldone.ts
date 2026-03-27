@@ -25,12 +25,20 @@ import { Type } from "@sinclair/typebox";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-type TaskStatus = "idle" | "inprogress" | "done";
+export type TaskStatus = "idle" | "inprogress" | "done";
 
-interface Task {
+export interface Task {
   id: number;
   text: string;
   status: TaskStatus;
+}
+
+interface TillDoneState {
+  tasks: Task[];
+  nextId: number;
+  listTitle?: string;
+  listDescription?: string;
+  undoState?: TillDoneState;
 }
 
 interface TillDoneDetails {
@@ -39,6 +47,7 @@ interface TillDoneDetails {
   nextId: number;
   listTitle?: string;
   listDescription?: string;
+  undoState?: TillDoneState;
   error?: string;
 }
 
@@ -51,12 +60,13 @@ const TillDoneParams = Type.Object({
     "update",
     "list",
     "clear",
+    "undo",
   ] as const),
   text: Type.Optional(
     Type.String({ description: "Task text (for add/update) or list title (for new-list)" }),
   ),
   texts: Type.Optional(
-    Type.Array(Type.String(), { description: "Multiple task texts (for batch add)" }),
+    Type.Array(Type.String(), { description: "Multiple task texts (for batch add or seeded new-list tasks)" }),
   ),
   description: Type.Optional(
     Type.String({ description: "List description (for new-list)" }),
@@ -74,17 +84,110 @@ const STATUS_ICON: Record<TaskStatus, string> = {
   done: "✓",
 };
 
-const NEXT_STATUS: Record<TaskStatus, TaskStatus> = {
-  idle: "inprogress",
-  inprogress: "done",
-  done: "idle",
-};
-
 const STATUS_LABEL: Record<TaskStatus, string> = {
   idle: "idle",
   inprogress: "in progress",
   done: "done",
 };
+
+function cloneTasks(tasks: Task[]): Task[] {
+  return tasks.map((task) => ({ ...task }));
+}
+
+function cloneState(state: TillDoneState): TillDoneState {
+  return {
+    tasks: cloneTasks(state.tasks),
+    nextId: state.nextId,
+    listTitle: state.listTitle,
+    listDescription: state.listDescription,
+    undoState: state.undoState ? cloneState(state.undoState) : undefined,
+  };
+}
+
+export function nextToggleStatus(status: TaskStatus): TaskStatus | null {
+  switch (status) {
+    case "idle":
+      return "inprogress";
+    case "inprogress":
+      return "done";
+    case "done":
+      return null;
+  }
+}
+
+export function setExclusiveInProgress(
+  tasks: Task[],
+  activeId: number,
+): { tasks: Task[]; demotedIds: number[] } {
+  const demotedIds: number[] = [];
+  const nextTasks = cloneTasks(tasks).map((task) => {
+    if (task.id === activeId) return { ...task, status: "inprogress" as const };
+    if (task.status === "inprogress") {
+      demotedIds.push(task.id);
+      return { ...task, status: "idle" as const };
+    }
+    return task;
+  });
+
+  return { tasks: nextTasks, demotedIds };
+}
+
+export function autoActivateTask(
+  tasks: Task[],
+  preferredTaskId?: number,
+): { tasks: Task[]; activatedId?: number } {
+  if (tasks.some((task) => task.status === "inprogress")) {
+    return { tasks: cloneTasks(tasks) };
+  }
+
+  const preferredTask =
+    preferredTaskId !== undefined
+      ? tasks.find((task) => task.id === preferredTaskId && task.status !== "done")
+      : undefined;
+  const fallbackTask = tasks.find((task) => task.status !== "done");
+  const toActivate = preferredTask ?? fallbackTask;
+
+  if (!toActivate) return { tasks: cloneTasks(tasks) };
+
+  const nextTasks = cloneTasks(tasks).map((task) =>
+    task.id === toActivate.id ? { ...task, status: "inprogress" as const } : task,
+  );
+
+  return { tasks: nextTasks, activatedId: toActivate.id };
+}
+
+export function normalizeTasks(
+  tasks: Task[],
+  options?: { autoActivatePending?: boolean },
+): { tasks: Task[]; activatedId?: number; demotedIds: number[] } {
+  const nextTasks = cloneTasks(tasks);
+  const activeTasks = nextTasks.filter((task) => task.status === "inprogress");
+  const demotedIds: number[] = [];
+
+  if (activeTasks.length > 1) {
+    const [keeper, ...rest] = activeTasks;
+    for (const task of nextTasks) {
+      if (rest.some((entry) => entry.id === task.id)) {
+        task.status = "idle";
+        demotedIds.push(task.id);
+      }
+      if (task.id === keeper.id) {
+        task.status = "inprogress";
+      }
+    }
+  }
+
+  if (!options?.autoActivatePending || nextTasks.some((task) => task.status === "inprogress")) {
+    return { tasks: nextTasks, demotedIds };
+  }
+
+  const activated = autoActivateTask(nextTasks);
+  return {
+    tasks: activated.tasks,
+    activatedId: activated.activatedId,
+    demotedIds,
+  };
+}
 
 // ── Overlay component ──────────────────────────────────────────────────
 
@@ -203,17 +306,42 @@ export default function (pi: ExtensionAPI) {
   let nextId = 1;
   let listTitle: string | undefined;
   let listDescription: string | undefined;
+  let undoState: TillDoneState | undefined;
   let nudgedThisCycle = false;
 
   // ── Snapshot for details ─────────────────────────────────────────────
 
-  function makeDetails(action: string, error?: string): TillDoneDetails {
+  function snapshotState(): TillDoneState {
     return {
-      action,
-      tasks: [...tasks],
+      tasks: cloneTasks(tasks),
       nextId,
       listTitle,
       listDescription,
+      undoState: undoState ? cloneState(undoState) : undefined,
+    };
+  }
+
+  function applyState(state: TillDoneState): void {
+    const normalized = normalizeTasks(state.tasks, { autoActivatePending: true });
+    tasks = normalized.tasks;
+    nextId = state.nextId;
+    listTitle = state.listTitle;
+    listDescription = state.listDescription;
+    undoState = state.undoState ? cloneState(state.undoState) : undefined;
+  }
+
+  function rememberUndo(): void {
+    undoState = snapshotState();
+  }
+
+  function makeDetails(action: string, error?: string): TillDoneDetails {
+    return {
+      action,
+      tasks: cloneTasks(tasks),
+      nextId,
+      listTitle,
+      listDescription,
+      undoState: undoState ? cloneState(undoState) : undefined,
       ...(error ? { error } : {}),
     };
   }
@@ -315,6 +443,7 @@ export default function (pi: ExtensionAPI) {
     nextId = 1;
     listTitle = undefined;
     listDescription = undefined;
+    undoState = undefined;
 
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "message") continue;
@@ -323,10 +452,13 @@ export default function (pi: ExtensionAPI) {
 
       const details = msg.details as TillDoneDetails | undefined;
       if (details) {
-        tasks = details.tasks;
-        nextId = details.nextId;
-        listTitle = details.listTitle;
-        listDescription = details.listDescription;
+        applyState({
+          tasks: details.tasks,
+          nextId: details.nextId,
+          listTitle: details.listTitle,
+          listDescription: details.listDescription,
+          undoState: details.undoState,
+        });
       }
     }
 
@@ -419,8 +551,8 @@ export default function (pi: ExtensionAPI) {
     label: "TillDone",
     description:
       "Manage your task list. You MUST add tasks before using any other tools. " +
-      "Actions: new-list (text=title, description), add (text or texts[] for batch), " +
-      "toggle (id) — cycles idle→inprogress→done, remove (id), update (id + text), list, clear. " +
+      "Actions: new-list (text=title, description, optional texts[] seed tasks), add (text or texts[] for batch), " +
+      "toggle (id) — cycles idle→inprogress→done, remove (id), update (id + text), list, clear, undo. " +
       "Always toggle a task to inprogress before starting work on it, and to done when finished. " +
       "Use new-list to start a themed list with a title and description. " +
       "If the user's new request does not fit the current list's theme, use clear then new-list.",
@@ -436,31 +568,40 @@ export default function (pi: ExtensionAPI) {
             };
           }
 
-          if (tasks.length > 0 || listTitle) {
-            const confirmed = await ctx.ui.confirm(
-              "Start a new list?",
-              `This will replace${listTitle ? ` "${listTitle}"` : " the current list"} (${tasks.length} task(s)). Continue?`,
-              { timeout: 30000 },
-            );
-            if (!confirmed) {
-              return {
-                content: [{ type: "text" as const, text: "New list cancelled by user." }],
-                details: makeDetails("new-list", "cancelled"),
-              };
-            }
-          }
+          const seededTexts = params.texts ?? [];
+          rememberUndo();
 
-          tasks = [];
           nextId = 1;
+          tasks = seededTexts.map((item) => ({
+            id: nextId++,
+            text: item,
+            status: "idle" as const,
+          }));
           listTitle = params.text;
           listDescription = params.description ?? undefined;
+
+          const activated = autoActivateTask(tasks, tasks[0]?.id);
+          tasks = activated.tasks;
+
+          if (tasks.length === 0) {
+            nextId = 1;
+          }
           refreshUI(ctx);
+
+          let text = `New list: "${listTitle}"${listDescription ? ` — ${listDescription}` : ""}`;
+          if (tasks.length > 0) {
+            text += ` (${tasks.length} task(s)`;
+            if (activated.activatedId !== undefined) {
+              text += `, auto-started #${activated.activatedId}`;
+            }
+            text += ")";
+          }
 
           return {
             content: [
               {
                 type: "text" as const,
-                text: `New list: "${listTitle}"${listDescription ? ` — ${listDescription}` : ""}`,
+                text,
               },
             ],
             details: makeDetails("new-list"),
@@ -494,20 +635,35 @@ export default function (pi: ExtensionAPI) {
               details: makeDetails("add", "text required"),
             };
           }
+
+          rememberUndo();
+
           const added: Task[] = [];
           for (const item of items) {
             const t: Task = { id: nextId++, text: item, status: "idle" };
             tasks.push(t);
             added.push(t);
           }
+
+          const activated = autoActivateTask(tasks, added[0]?.id);
+          tasks = activated.tasks;
           refreshUI(ctx);
 
           const msg =
             added.length === 1
               ? `Added task #${added[0].id}: ${added[0].text}`
               : `Added ${added.length} tasks: ${added.map((t) => `#${t.id}`).join(", ")}`;
+
           return {
-            content: [{ type: "text" as const, text: msg }],
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  activated.activatedId !== undefined
+                    ? `${msg}\n(Auto-started #${activated.activatedId}.)`
+                    : msg,
+              },
+            ],
             details: makeDetails("add"),
           };
         }
@@ -527,24 +683,38 @@ export default function (pi: ExtensionAPI) {
             };
           }
 
-          const prev = task.status;
-          task.status = NEXT_STATUS[task.status];
+          const nextStatus = nextToggleStatus(task.status);
+          if (!nextStatus) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Task #${task.id} is already done. Done tasks do not reopen via toggle.`,
+                },
+              ],
+              details: makeDetails("toggle"),
+            };
+          }
 
-          const demoted: Task[] = [];
-          if (task.status === "inprogress") {
-            for (const t of tasks) {
-              if (t.id !== task.id && t.status === "inprogress") {
-                t.status = "idle";
-                demoted.push(t);
-              }
-            }
+          rememberUndo();
+
+          const prev = task.status;
+          let demotedIds: number[] = [];
+          if (nextStatus === "inprogress") {
+            const nextTasks = setExclusiveInProgress(tasks, task.id);
+            tasks = nextTasks.tasks;
+            demotedIds = nextTasks.demotedIds;
+          } else {
+            tasks = tasks.map((entry) =>
+              entry.id === task.id ? { ...entry, status: nextStatus } : { ...entry },
+            );
           }
 
           refreshUI(ctx);
 
-          let msg = `Task #${task.id}: ${prev} → ${task.status}`;
-          if (demoted.length > 0) {
-            msg += `\n(Auto-paused ${demoted.map((t) => `#${t.id}`).join(", ")} → idle. Only one task can be in progress at a time.)`;
+          let msg = `Task #${task.id}: ${prev} → ${nextStatus}`;
+          if (demotedIds.length > 0) {
+            msg += `\n(Auto-paused ${demotedIds.map((id) => `#${id}`).join(", ")} → idle. Only one task can be in progress at a time.)`;
           }
           return {
             content: [{ type: "text" as const, text: msg }],
@@ -566,10 +736,18 @@ export default function (pi: ExtensionAPI) {
               details: makeDetails("remove", `#${params.id} not found`),
             };
           }
+          rememberUndo();
           const removed = tasks.splice(idx, 1)[0];
+          const normalized = normalizeTasks(tasks, { autoActivatePending: true });
+          tasks = normalized.tasks;
           refreshUI(ctx);
+
+          let text = `Removed task #${removed.id}: ${removed.text}`;
+          if (normalized.activatedId !== undefined) {
+            text += `\n(Auto-started #${normalized.activatedId}.)`;
+          }
           return {
-            content: [{ type: "text" as const, text: `Removed task #${removed.id}: ${removed.text}` }],
+            content: [{ type: "text" as const, text }],
             details: makeDetails("remove"),
           };
         }
@@ -594,6 +772,7 @@ export default function (pi: ExtensionAPI) {
               details: makeDetails("update", `#${params.id} not found`),
             };
           }
+          rememberUndo();
           const oldText = toUpdate.text;
           toUpdate.text = params.text;
           refreshUI(ctx);
@@ -606,20 +785,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         case "clear": {
-          if (tasks.length > 0) {
-            const confirmed = await ctx.ui.confirm(
-              "Clear TillDone list?",
-              `This will remove all ${tasks.length} task(s)${listTitle ? ` from "${listTitle}"` : ""}. Continue?`,
-              { timeout: 30000 },
-            );
-            if (!confirmed) {
-              return {
-                content: [{ type: "text" as const, text: "Clear cancelled by user." }],
-                details: makeDetails("clear", "cancelled"),
-              };
-            }
-          }
-
+          rememberUndo();
           const count = tasks.length;
           tasks = [];
           nextId = 1;
@@ -630,6 +796,23 @@ export default function (pi: ExtensionAPI) {
           return {
             content: [{ type: "text" as const, text: `Cleared ${count} task(s)` }],
             details: makeDetails("clear"),
+          };
+        }
+
+        case "undo": {
+          if (!undoState) {
+            return {
+              content: [{ type: "text" as const, text: "Nothing to undo" }],
+              details: makeDetails("undo"),
+            };
+          }
+
+          applyState(undoState);
+          refreshUI(ctx);
+
+          return {
+            content: [{ type: "text" as const, text: "Undid last TillDone change" }],
+            details: makeDetails("undo"),
           };
         }
 
@@ -731,6 +914,15 @@ export default function (pi: ExtensionAPI) {
 
         case "clear":
           return new Text(theme.fg("success", "✓ ") + theme.fg("muted", "Cleared all tasks"), 0, 0);
+
+        case "undo": {
+          const text = result.content[0];
+          return new Text(
+            theme.fg("accent", "↶ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
+            0,
+            0,
+          );
+        }
 
         default:
           return new Text(theme.fg("dim", "done"), 0, 0);
