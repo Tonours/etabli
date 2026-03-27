@@ -22,13 +22,25 @@ import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-age
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { Container, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { spawn, type ChildProcess } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import {
+  FALLBACK_MODEL,
+  findPackageFile,
+  getAgentDir,
+  getAgentSettingsPath,
+  getExtensionDirFromModule,
+  getSafeSubagentExtensionPaths,
+  getWorkerPackageExtensionPaths,
+  mergeSubagentExtensionPaths,
+  resolveSubagentModel,
+} from "./lib/pi-runtime.ts";
 
 const MAX_SUBAGENTS = 5;
-const SESSION_DIR = join(homedir(), ".pi", "agent", "sessions", "subagents");
+const SESSION_DIR = join(getAgentDir(), "sessions", "subagents");
+const EXTENSION_DIR = getExtensionDirFromModule(import.meta.url);
+const SETTINGS_PATH = getAgentSettingsPath();
 
 type RoleName = "scout" | "worker" | "reviewer";
 
@@ -40,38 +52,11 @@ type RoleConfig = {
 };
 
 const DEFAULT_TOOLS = ["read", "bash", "grep", "find", "ls"];
-
-function findPackageFile(packageName: string, relativePath: string): string | undefined {
-  const candidates = [
-    join(homedir(), ".pi", "npm", "node_modules", packageName, relativePath),
-  ];
-
-  try {
-    const globalRoot = execFileSync("npm", ["root", "-g"], {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    if (globalRoot) {
-      candidates.push(join(globalRoot, packageName, relativePath));
-    }
-  } catch {
-    // ignore
-  }
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return undefined;
-}
-
-const WORKER_TODO_EXTENSION = findPackageFile("mitsupi", "pi-extensions/todos.ts");
-const WORKER_LSP_EXTENSION = findPackageFile("pi-hooks", "lsp/lsp.ts");
-const WORKER_LSP_TOOL_EXTENSION = findPackageFile("pi-hooks", "lsp/lsp-tool.ts");
-const WORKER_EXTENSION_PATHS = [
-  WORKER_TODO_EXTENSION,
-  WORKER_LSP_EXTENSION,
-  WORKER_LSP_TOOL_EXTENSION,
-].filter((value): value is string => Boolean(value));
+const SAFE_EXTENSION_PATHS = getSafeSubagentExtensionPaths(EXTENSION_DIR);
+const WORKER_EXTENSION_PATHS = getWorkerPackageExtensionPaths(findPackageFile);
+const WORKER_TODO_EXTENSION = WORKER_EXTENSION_PATHS[0];
+const WORKER_LSP_EXTENSION = WORKER_EXTENSION_PATHS[1];
+const WORKER_LSP_TOOL_EXTENSION = WORKER_EXTENSION_PATHS[2];
 
 function buildRoleTools(role: RoleName | undefined): string {
   const tools = [...(role ? ROLE_CONFIGS[role].tools : DEFAULT_TOOLS)];
@@ -84,6 +69,11 @@ function buildRoleTools(role: RoleName | undefined): string {
     if (index !== -1) tools.splice(index, 1);
   }
   return tools.join(",");
+}
+
+function buildRoleExtensionPaths(role: RoleName | undefined): string[] {
+  const roleConfig = role ? ROLE_CONFIGS[role] : undefined;
+  return mergeSubagentExtensionPaths(roleConfig?.extensionPaths ?? [], SAFE_EXTENSION_PATHS);
 }
 
 const ROLE_CONFIGS: Record<RoleName, RoleConfig> = {
@@ -293,12 +283,12 @@ export default function (pi: ExtensionAPI) {
   // ── Spawn a sub-agent process ────────────────────────────────────────
 
   function spawnAgent(state: SubState, prompt: string, ctx: ExtensionContext): Promise<void> {
-    const roleConfig = getRoleConfig(state.role);
-    const model =
-      state.model ??
-      (ctx.model
-        ? `${ctx.model.provider}/${ctx.model.id}`
-        : "anthropic/claude-sonnet-4-6");
+    const model = resolveSubagentModel({
+      override: state.model,
+      currentModel: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
+      settingsPath: SETTINGS_PATH,
+      fallback: FALLBACK_MODEL,
+    });
 
     return new Promise<void>((resolve) => {
       const args = [
@@ -310,7 +300,7 @@ export default function (pi: ExtensionAPI) {
         "--no-extensions",
       ];
 
-      for (const extensionPath of roleConfig?.extensionPaths ?? []) {
+      for (const extensionPath of buildRoleExtensionPaths(state.role)) {
         args.push("-e", extensionPath);
       }
 
@@ -400,6 +390,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerTool({
     name: "subagent_create",
+    label: "Subagent Create",
     description:
       "Spawn a background sub-agent to perform a task. Optionally set role=scout, role=worker, or role=reviewer for a named preset. Scout and reviewer stay read-only; worker can edit code and use todo/LSP when available. Returns the sub-agent ID immediately while it runs in the background. Results are delivered as a follow-up message when finished.",
     parameters: Type.Object({
@@ -413,17 +404,19 @@ export default function (pi: ExtensionAPI) {
         role: normalizeRole(args.role),
       });
       if ("error" in created) {
-        return { content: [{ type: "text" as const, text: created.error }] };
+        return { content: [{ type: "text" as const, text: created.error }], details: {} };
       }
 
       return {
         content: [{ type: "text" as const, text: created.text }],
+        details: {},
       };
     },
   });
 
   pi.registerTool({
     name: "subagent_continue",
+    label: "Subagent Continue",
     description:
       "Continue an existing sub-agent's conversation with a follow-up prompt. Keeps the current role unless role is overridden. Returns immediately while it runs in the background.",
     parameters: Type.Object({
@@ -436,10 +429,10 @@ export default function (pi: ExtensionAPI) {
       widgetCtx = ctx;
       const state = agents.get(args.id);
       if (!state) {
-        return { content: [{ type: "text" as const, text: `Error: no sub-agent #${args.id} found.` }] };
+        return { content: [{ type: "text" as const, text: `Error: no sub-agent #${args.id} found.` }], details: {} };
       }
       if (state.status === "running") {
-        return { content: [{ type: "text" as const, text: `Error: sub-agent #${args.id} is still running.` }] };
+        return { content: [{ type: "text" as const, text: `Error: sub-agent #${args.id} is still running.` }], details: {} };
       }
 
       state.status = "running";
@@ -464,12 +457,14 @@ export default function (pi: ExtensionAPI) {
 
       return {
         content: [{ type: "text" as const, text: `Sub-agent #${args.id} continuing in background.` }],
+        details: {},
       };
     },
   });
 
   pi.registerTool({
     name: "subagent_remove",
+    label: "Subagent Remove",
     description: "Remove a specific sub-agent. Kills it if currently running.",
     parameters: Type.Object({
       id: Type.Number({ description: "The ID of the sub-agent to remove" }),
@@ -478,7 +473,7 @@ export default function (pi: ExtensionAPI) {
       widgetCtx = ctx;
       const state = agents.get(args.id);
       if (!state) {
-        return { content: [{ type: "text" as const, text: `Error: no sub-agent #${args.id} found.` }] };
+        return { content: [{ type: "text" as const, text: `Error: no sub-agent #${args.id} found.` }], details: {} };
       }
 
       if (state.proc && state.status === "running") {
@@ -488,24 +483,26 @@ export default function (pi: ExtensionAPI) {
       agents.delete(args.id);
       return {
         content: [{ type: "text" as const, text: `Sub-agent #${args.id} removed.` }],
+        details: {},
       };
     },
   });
 
   pi.registerTool({
     name: "subagent_list",
+    label: "Subagent List",
     description: "List all active sub-agents with their status and task.",
     parameters: Type.Object({}),
     execute: async () => {
       if (agents.size === 0) {
-        return { content: [{ type: "text" as const, text: "No sub-agents active." }] };
+        return { content: [{ type: "text" as const, text: "No sub-agents active." }], details: {} };
       }
 
       const lines = Array.from(agents.values()).map(
         (s) =>
           `#${s.id} [${s.status}]${s.role ? ` [${s.role}]` : ""} Turn ${s.turnCount} | Tools: ${s.toolCount} | ${s.task}`,
       );
-      return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+      return { content: [{ type: "text" as const, text: lines.join("\n") }], details: {} };
     },
   });
 
