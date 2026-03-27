@@ -90,8 +90,179 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   done: "done",
 };
 
+const MAX_TASKS = 7;
+
+const LOW_SIGNAL_TASK_TOKENS = new Set([
+  "a",
+  "an",
+  "the",
+  "and",
+  "app",
+  "bug",
+  "bugs",
+  "check",
+  "clean",
+  "cleanup",
+  "code",
+  "do",
+  "docs",
+  "documentation",
+  "file",
+  "files",
+  "fix",
+  "flow",
+  "flows",
+  "handle",
+  "improve",
+  "in",
+  "investigate",
+  "issue",
+  "issues",
+  "item",
+  "items",
+  "logic",
+  "misc",
+  "of",
+  "on",
+  "our",
+  "polish",
+  "problem",
+  "problems",
+  "refactor",
+  "review",
+  "some",
+  "stuff",
+  "task",
+  "tasks",
+  "thing",
+  "things",
+  "to",
+  "todo",
+  "ui",
+  "update",
+  "up",
+  "ux",
+  "with",
+  "work",
+]);
+
+const VAGUE_TASK_START_PHRASES = [
+  ["clean", "up"],
+  ["work", "on"],
+  ["fix"],
+  ["improve"],
+  ["handle"],
+  ["check"],
+  ["review"],
+  ["update"],
+  ["do"],
+  ["investigate"],
+  ["cleanup"],
+  ["refactor"],
+  ["polish"],
+];
+
 function cloneTasks(tasks: Task[]): Task[] {
   return tasks.map((task) => ({ ...task }));
+}
+
+export function normalizeTaskText(text: string): string {
+  return text.trim().replace(/\s+/g, " ");
+}
+
+function tokenizeTaskText(text: string): string[] {
+  return normalizeTaskText(text)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function startsWithPhrase(tokens: string[], phrase: string[]): boolean {
+  return phrase.every((part, index) => tokens[index] === part);
+}
+
+export function validateTaskText(text: string): string | null {
+  const normalized = normalizeTaskText(text);
+  if (normalized.length === 0) return "empty task";
+  if (normalized.length < 5) return "task too short";
+
+  const tokens = tokenizeTaskText(normalized);
+  const allLowSignal = tokens.length > 0 && tokens.every((token) => LOW_SIGNAL_TASK_TOKENS.has(token));
+  if (allLowSignal && tokens.length <= 5) {
+    return "task too vague";
+  }
+
+  const hasLowSignalStart = VAGUE_TASK_START_PHRASES.some((phrase) => {
+    if (!startsWithPhrase(tokens, phrase)) return false;
+    const tail = tokens.slice(phrase.length);
+    return tail.length === 0 || tail.every((token) => LOW_SIGNAL_TASK_TOKENS.has(token));
+  });
+  if (hasLowSignalStart) {
+    return "task too vague";
+  }
+
+  return null;
+}
+
+function buildTaskTextKey(text: string): string {
+  return normalizeTaskText(text).toLowerCase();
+}
+
+export function prepareTaskTexts(
+  items: string[],
+  existingTasks: Task[],
+): {
+  accepted: string[];
+  duplicates: string[];
+  invalid: string[];
+  error?: string;
+} {
+  const accepted: string[] = [];
+  const duplicates: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Set(existingTasks.map((task) => buildTaskTextKey(task.text)));
+
+  for (const item of items) {
+    const normalized = normalizeTaskText(item);
+    const invalidReason = validateTaskText(normalized);
+    if (invalidReason) {
+      invalid.push(normalized || item);
+      continue;
+    }
+
+    const key = buildTaskTextKey(normalized);
+    if (seen.has(key)) {
+      duplicates.push(normalized);
+      continue;
+    }
+
+    seen.add(key);
+    accepted.push(normalized);
+  }
+
+  if (accepted.length === 0 && (duplicates.length > 0 || invalid.length > 0)) {
+    return { accepted, duplicates, invalid, error: "no valid tasks" };
+  }
+
+  if (existingTasks.length + accepted.length > MAX_TASKS) {
+    return { accepted: [], duplicates, invalid, error: "too many tasks" };
+  }
+
+  return { accepted, duplicates, invalid };
+}
+
+function appendPreparationNotes(
+  message: string,
+  details: { duplicates: string[]; invalid: string[] },
+): string {
+  let next = message;
+  if (details.duplicates.length > 0) {
+    next += `\n(Skipped duplicates: ${details.duplicates.map((item) => `"${item}"`).join(", ")})`;
+  }
+  if (details.invalid.length > 0) {
+    next += `\n(Skipped vague/invalid tasks: ${details.invalid.map((item) => `"${item}"`).join(", ")})`;
+  }
+  return next;
 }
 
 function cloneState(state: TillDoneState): TillDoneState {
@@ -553,6 +724,7 @@ export default function (pi: ExtensionAPI) {
       "Manage your task list. You MUST add tasks before using any other tools. " +
       "Actions: new-list (text=title, description, optional texts[] seed tasks), add (text or texts[] for batch), " +
       "toggle (id) — cycles idle→inprogress→done, remove (id), update (id + text), list, clear, undo. " +
+      "Task text is normalized, vague/duplicate tasks are skipped, and lists are capped at 7 tasks. " +
       "Always toggle a task to inprogress before starting work on it, and to done when finished. " +
       "Use new-list to start a themed list with a title and description. " +
       "If the user's new request does not fit the current list's theme, use clear then new-list.",
@@ -561,7 +733,8 @@ export default function (pi: ExtensionAPI) {
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       switch (params.action) {
         case "new-list": {
-          if (!params.text) {
+          const title = params.text ? normalizeTaskText(params.text) : "";
+          if (!title) {
             return {
               content: [{ type: "text" as const, text: "Error: text (title) required for new-list" }],
               details: makeDetails("new-list", "text required"),
@@ -569,16 +742,26 @@ export default function (pi: ExtensionAPI) {
           }
 
           const seededTexts = params.texts ?? [];
+          const prepared = prepareTaskTexts(seededTexts, []);
+          if (prepared.error === "too many tasks") {
+            const errorText =
+              `Error: Too many tasks. Keep the list at ${MAX_TASKS} tasks or fewer.`;
+            return {
+              content: [{ type: "text" as const, text: appendPreparationNotes(errorText, prepared) }],
+              details: makeDetails("new-list", "too many tasks"),
+            };
+          }
+
           rememberUndo();
 
           nextId = 1;
-          tasks = seededTexts.map((item) => ({
+          tasks = prepared.accepted.map((item) => ({
             id: nextId++,
             text: item,
             status: "idle" as const,
           }));
-          listTitle = params.text;
-          listDescription = params.description ?? undefined;
+          listTitle = title;
+          listDescription = params.description ? normalizeTaskText(params.description) : undefined;
 
           const activated = autoActivateTask(tasks, tasks[0]?.id);
           tasks = activated.tasks;
@@ -596,6 +779,7 @@ export default function (pi: ExtensionAPI) {
             }
             text += ")";
           }
+          text = appendPreparationNotes(text, prepared);
 
           return {
             content: [
@@ -636,10 +820,22 @@ export default function (pi: ExtensionAPI) {
             };
           }
 
+          const prepared = prepareTaskTexts(items, tasks);
+          if (prepared.error) {
+            const errorText =
+              prepared.error === "too many tasks"
+                ? `Error: Too many tasks. Keep the list at ${MAX_TASKS} tasks or fewer.`
+                : "Error: no valid tasks to add.";
+            return {
+              content: [{ type: "text" as const, text: appendPreparationNotes(errorText, prepared) }],
+              details: makeDetails("add", prepared.error),
+            };
+          }
+
           rememberUndo();
 
           const added: Task[] = [];
-          for (const item of items) {
+          for (const item of prepared.accepted) {
             const t: Task = { id: nextId++, text: item, status: "idle" };
             tasks.push(t);
             added.push(t);
@@ -658,10 +854,12 @@ export default function (pi: ExtensionAPI) {
             content: [
               {
                 type: "text" as const,
-                text:
+                text: appendPreparationNotes(
                   activated.activatedId !== undefined
                     ? `${msg}\n(Auto-started #${activated.activatedId}.)`
                     : msg,
+                  prepared,
+                ),
               },
             ],
             details: makeDetails("add"),
@@ -772,9 +970,36 @@ export default function (pi: ExtensionAPI) {
               details: makeDetails("update", `#${params.id} not found`),
             };
           }
+
+          const nextText = normalizeTaskText(params.text);
+          const invalidReason = validateTaskText(nextText);
+          if (invalidReason) {
+            return {
+              content: [{ type: "text" as const, text: `Error: ${invalidReason}.` }],
+              details: makeDetails("update", invalidReason),
+            };
+          }
+
+          const isDuplicate = tasks.some(
+            (task) => task.id !== toUpdate.id && buildTaskTextKey(task.text) === buildTaskTextKey(nextText),
+          );
+          if (isDuplicate) {
+            return {
+              content: [{ type: "text" as const, text: `Error: duplicate task text "${nextText}".` }],
+              details: makeDetails("update", "duplicate task"),
+            };
+          }
+
+          if (toUpdate.text === nextText) {
+            return {
+              content: [{ type: "text" as const, text: `No change for #${toUpdate.id}` }],
+              details: makeDetails("update"),
+            };
+          }
+
           rememberUndo();
           const oldText = toUpdate.text;
-          toUpdate.text = params.text;
+          toUpdate.text = nextText;
           refreshUI(ctx);
           return {
             content: [
