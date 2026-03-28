@@ -120,17 +120,16 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
   vim.list_extend(patch_lines, hunk_state.lines)
   local patch = table.concat(patch_lines, "\n")
 
-  -- Use a faster hash for small hunks, fallback to sha256 for larger ones
+  local patch_key = scope .. "\n" .. path .. "\n" .. hunk_patch
   local patch_hash
-  if #hunk_patch < 1000 then
-    -- Simple hash for small hunks (faster than sha256)
+  if #patch_key < 1000 then
     local hash = 0
-    for i = 1, #hunk_patch do
-      hash = ((hash * 31) + hunk_patch:byte(i)) % 2147483647
+    for i = 1, #patch_key do
+      hash = ((hash * 31) + patch_key:byte(i)) % 2147483647
     end
     patch_hash = string.format("%08x", hash)
   else
-    patch_hash = vim.fn.sha256(scope .. "\n" .. path .. "\n" .. hunk_patch):sub(1, 16)
+    patch_hash = vim.fn.sha256(patch_key):sub(1, 16)
   end
 
   local line_start = hunk_state.new_start

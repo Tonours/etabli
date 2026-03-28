@@ -1,5 +1,4 @@
 local copilot_node_command_cache = nil
-local copilot_node_command_pending = false
 
 -- Persistent cache using vim.g to survive across plugin reloads
 vim.g.copilot_node_command_cache = vim.g.copilot_node_command_cache or nil
@@ -95,17 +94,12 @@ local function best_copilot_node_command()
   return copilot_node_command_cache
 end
 
--- Defer node detection to avoid blocking startup/first insert
-local function deferred_node_command_detection()
-  if copilot_node_command_pending or copilot_node_command_cache or vim.g.copilot_node_command_cache then
-    return
+local function ensure_copilot_node_command()
+  if vim.g.copilot_node_command_cache then
+    return vim.g.copilot_node_command_cache
   end
-  copilot_node_command_pending = true
 
-  vim.schedule(function()
-    copilot_node_command_cache = best_copilot_node_command()
-    copilot_node_command_pending = false
-  end)
+  return best_copilot_node_command()
 end
 
 local function quiet_copilot_on_exit(code, _, client_id)
@@ -126,12 +120,10 @@ return {
     event = "InsertEnter",
     cmd = "Copilot",
     init = function()
-      -- Start deferred node detection early
-      deferred_node_command_detection()
+      ensure_copilot_node_command()
     end,
     opts = function()
-      -- Use persistent cache if available
-      local node_cmd = vim.g.copilot_node_command_cache or copilot_node_command_cache or vim.fn.exepath("node")
+      local node_cmd = ensure_copilot_node_command()
       return {
         copilot_node_command = node_cmd,
         panel = {

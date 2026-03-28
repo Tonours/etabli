@@ -178,10 +178,12 @@ return {
           vim.schedule(function()
             vim.cmd.cd(first_arg)
             vim.cmd.enew()
-            -- Lazy-load nvim-tree API only when needed
             local ok, api = pcall(require, "nvim-tree.api")
             if ok then
               api.tree.open()
+              vim.schedule(function()
+                pcall(api.tree.resize, 30)
+              end)
             end
           end)
         end,
