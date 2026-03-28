@@ -263,10 +263,7 @@ function M.load_session(root)
   vim.cmd("silent! tabonly")
   vim.cmd("silent! only")
   vim.cmd("silent! %bwipeout!")
-  -- Use schedule for immediate but non-blocking session loading
-  vim.schedule(function()
-    vim.cmd("silent! source " .. vim.fn.fnameescape(target))
-  end)
+  vim.cmd("silent! source " .. vim.fn.fnameescape(target))
   return true
 end
 

@@ -137,8 +137,8 @@ opt.wrapmargin = 0 -- Disable wrap margin
 opt.modeline = false
 opt.modelines = 0
 
--- Reduce history to minimum needed
-opt.history = 50 -- Command history (default 10000, reduced for speed)
+-- Reduce history while keeping enough command/search recall
+opt.history = 500
 
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
