@@ -1,20 +1,68 @@
 local map = vim.keymap.set
 local opts = { silent = true }
 local remap_opts = { remap = true, silent = true }
+local telescope_loader = require("config.telescope")
 
-local function next_terminal_title()
+local function lazy_require(plugin, module)
+  local ok_lazy, lazy = pcall(require, "lazy")
+  if ok_lazy then
+    lazy.load({ plugins = { plugin } })
+  end
+
+  local ok_module, loaded = pcall(require, module)
+  if not ok_module then
+    vim.notify(module .. " not available", vim.log.levels.ERROR)
+    return nil
+  end
+
+  return loaded
+end
+
+-- Cache for terminal title calculation
+local terminal_title_cache = nil
+local last_buffer_count = 0
+local terminal_scan_cache = {}
+local terminal_scan_version = 0
+
+-- Track terminal buffers more efficiently
+local function update_terminal_scan_cache()
+  local buffers = vim.api.nvim_list_bufs()
+  local current_version = #buffers
+
+  if current_version == terminal_scan_version and terminal_scan_cache then
+    return terminal_scan_cache
+  end
+
   local max_count = 0
-
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+  for _, buf in ipairs(buffers) do
     local name = vim.api.nvim_buf_get_name(buf)
     local count = name:match("^term://terminal%-(%d+)$")
-
     if count then
       max_count = math.max(max_count, tonumber(count))
     end
   end
 
-  return string.format("terminal-%d", max_count + 1)
+  terminal_scan_cache = { max_count = max_count, buf_count = current_version }
+  terminal_scan_version = current_version
+  return terminal_scan_cache
+end
+
+local function next_terminal_title()
+  -- Get buffer list once
+  local buffers = vim.api.nvim_list_bufs()
+  local current_buffer_count = #buffers
+
+  -- Invalidate cache if buffer count changed
+  if terminal_title_cache and current_buffer_count == last_buffer_count then
+    return terminal_title_cache
+  end
+
+  local scan = update_terminal_scan_cache()
+  local max_count = scan.max_count
+
+  last_buffer_count = current_buffer_count
+  terminal_title_cache = string.format("terminal-%d", max_count + 1)
+  return terminal_title_cache
 end
 
 local function open_terminal_tab(command)
@@ -37,25 +85,63 @@ end, {
 vim.cmd([[cnoreabbrev <expr> term getcmdtype() == ':' && getcmdline() == 'term' ? 'Terminal' : 'term']])
 vim.cmd([[cnoreabbrev <expr> terminal getcmdtype() == ':' && getcmdline() == 'terminal' ? 'Terminal' : 'terminal']])
 
-map("n", "<leader><space>", "<cmd>Telescope find_files<cr>", vim.tbl_extend("force", opts, { desc = "Find files" }))
-map("n", "<leader>/", "<cmd>Telescope live_grep<cr>", vim.tbl_extend("force", opts, { desc = "Live grep" }))
-map("n", "<leader>.", "<cmd>Telescope buffers<cr>", vim.tbl_extend("force", opts, { desc = "Buffers" }))
-map("n", "<leader>ff", "<cmd>Telescope find_files<cr>", vim.tbl_extend("force", opts, { desc = "Find files" }))
-map("n", "<leader>fg", "<cmd>Telescope live_grep<cr>", vim.tbl_extend("force", opts, { desc = "Live grep" }))
-map("n", "<leader>fw", "<cmd>Telescope grep_string<cr>", vim.tbl_extend("force", opts, { desc = "Grep current word" }))
-map("n", "<leader>fb", "<cmd>Telescope buffers<cr>", vim.tbl_extend("force", opts, { desc = "Buffers" }))
-map("n", "<leader>fr", "<cmd>Telescope oldfiles<cr>", vim.tbl_extend("force", opts, { desc = "Recent files" }))
+-- Lazy-load telescope on first use, but keep first-call behavior reliable
+local telescope_modules = nil
+
+local function load_telescope_modules()
+  if telescope_modules then
+    return telescope_modules
+  end
+
+  local builtin = telescope_loader.require("telescope.builtin")
+  if not builtin then
+    vim.notify("Telescope not available", vim.log.levels.ERROR)
+    return nil
+  end
+
+  telescope_modules = {
+    builtin = builtin,
+  }
+  return telescope_modules
+end
+
+local function telescope_cmd(cmd)
+  return function()
+    local ts = load_telescope_modules()
+    if not ts then
+      return
+    end
+
+    ts.builtin[cmd]()
+  end
+end
+
+map("n", "<leader><space>", telescope_cmd("find_files"), vim.tbl_extend("force", opts, { desc = "Find files" }))
+map("n", "<leader>/", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))
+map("n", "<leader>.", telescope_cmd("buffers"), vim.tbl_extend("force", opts, { desc = "Buffers" }))
+map("n", "<leader>ff", telescope_cmd("find_files"), vim.tbl_extend("force", opts, { desc = "Find files" }))
+map("n", "<leader>fg", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))
+map("n", "<leader>fw", telescope_cmd("grep_string"), vim.tbl_extend("force", opts, { desc = "Grep current word" }))
+map("n", "<leader>fb", telescope_cmd("buffers"), vim.tbl_extend("force", opts, { desc = "Buffers" }))
+map("n", "<leader>fr", telescope_cmd("oldfiles"), vim.tbl_extend("force", opts, { desc = "Recent files" }))
 map("n", "<leader>fp", function()
-  require("config.projects_picker").pick_project_recent_files()
+  vim.schedule(function()
+    require("config.projects_picker").pick_project_recent_files()
+  end)
 end, vim.tbl_extend("force", opts, { desc = "Project recent files" }))
 map("n", "<leader>fe", "<cmd>NvimTreeFocus<cr>", vim.tbl_extend("force", opts, { desc = "Focus explorer" }))
 map("n", "<leader>ft", "<cmd>NvimTreeToggle<cr>", vim.tbl_extend("force", opts, { desc = "Toggle explorer" }))
 
 map("n", "<leader>pp", function()
-  require("config.projects_picker").pick_project()
+  -- Use schedule for immediate but non-blocking execution
+  vim.schedule(function()
+    require("config.projects_picker").pick_project()
+  end)
 end, vim.tbl_extend("force", opts, { desc = "Projects" }))
 map("n", "<leader>pw", function()
-  require("config.projects_picker").pick_worktree()
+  vim.schedule(function()
+    require("config.projects_picker").pick_worktree()
+  end)
 end, vim.tbl_extend("force", opts, { desc = "Worktrees" }))
 map("n", "<leader>pr", function()
   require("config.projects").root_current_buffer()
@@ -67,26 +153,49 @@ map("n", "<leader>pl", function()
   require("config.projects").load_session()
 end, vim.tbl_extend("force", opts, { desc = "Load project session" }))
 map("n", "<leader>pi", function()
-  vim.cmd("ProjectInfo")
+  require("config.project_runtime").project_info()
 end, vim.tbl_extend("force", opts, { desc = "Project info" }))
 
 map("n", "<leader>bn", "<cmd>bnext<cr>", vim.tbl_extend("force", opts, { desc = "Next buffer" }))
 map("n", "<leader>bp", "<cmd>bprevious<cr>", vim.tbl_extend("force", opts, { desc = "Previous buffer" }))
 map("n", "<leader>bd", function()
-  require("mini.bufremove").delete(0, false)
+  vim.schedule(function()
+    local bufremove = lazy_require("mini.bufremove", "mini.bufremove")
+    if bufremove then
+      bufremove.delete(0, false)
+    end
+  end)
 end, vim.tbl_extend("force", opts, { desc = "Delete buffer" }))
 
-map("n", "<leader>ss", "<cmd>Telescope lsp_document_symbols<cr>", vim.tbl_extend("force", opts, { desc = "Document symbols" }))
-map("n", "<leader>sS", "<cmd>Telescope lsp_dynamic_workspace_symbols<cr>", vim.tbl_extend("force", opts, { desc = "Workspace symbols" }))
+map("n", "<leader>ss", function()
+  local ts = load_telescope_modules()
+  if ts then
+    ts.builtin.lsp_document_symbols()
+  end
+end, vim.tbl_extend("force", opts, { desc = "Document symbols" }))
+map("n", "<leader>sS", function()
+  local ts = load_telescope_modules()
+  if ts then
+    ts.builtin.lsp_dynamic_workspace_symbols()
+  end
+end, vim.tbl_extend("force", opts, { desc = "Workspace symbols" }))
 
-map("n", "<leader>dd", "<cmd>Telescope diagnostics bufnr=0<cr>", vim.tbl_extend("force", opts, { desc = "Buffer diagnostics" }))
-map("n", "<leader>dD", "<cmd>Telescope diagnostics<cr>", vim.tbl_extend("force", opts, { desc = "Workspace diagnostics" }))
+map("n", "<leader>dd", function()
+  local ts = load_telescope_modules()
+  if ts then
+    ts.builtin.diagnostics({ bufnr = 0 })
+  end
+end, vim.tbl_extend("force", opts, { desc = "Buffer diagnostics" }))
+map("n", "<leader>dD", telescope_cmd("diagnostics"), vim.tbl_extend("force", opts, { desc = "Workspace diagnostics" }))
 map("n", "<leader>dl", vim.diagnostic.open_float, vim.tbl_extend("force", opts, { desc = "Line diagnostics" }))
 map("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, vim.tbl_extend("force", opts, { desc = "Previous diagnostic" }))
 map("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
 
 map("n", "<leader>cf", function()
-  require("conform").format({ async = true, lsp_format = "fallback" })
+  local conform = lazy_require("conform.nvim", "conform")
+  if conform then
+    conform.format({ async = true, lsp_format = "fallback" })
+  end
 end, vim.tbl_extend("force", opts, { desc = "Format buffer" }))
 
 map("n", "<leader>ri", function()
@@ -141,3 +250,22 @@ map("n", "<leader>to", "<cmd>tabonly<cr>", vim.tbl_extend("force", opts, { desc 
 map("n", "<leader>tx", "<cmd>tabclose<cr>", vim.tbl_extend("force", opts, { desc = "Close tab" }))
 map("n", "<leader>tl", "<cmd>tabnext<cr>", vim.tbl_extend("force", opts, { desc = "Next tab" }))
 map("n", "<leader>th", "<cmd>tabprevious<cr>", vim.tbl_extend("force", opts, { desc = "Previous tab" }))
+
+-- Invalidate terminal title cache on buffer delete (debounced)
+local invalidate_timer = nil
+local invalidate_debounce_ms = 750 -- Increased debounce for less frequent recalculation
+
+vim.api.nvim_create_autocmd({ "BufDelete", "BufAdd" }, {
+  callback = function()
+    -- Debounce cache invalidation to avoid frequent recalculation
+    if invalidate_timer then
+      vim.fn.timer_stop(invalidate_timer)
+    end
+    invalidate_timer = vim.fn.timer_start(invalidate_debounce_ms, function()
+      terminal_title_cache = nil
+      terminal_scan_cache = {}
+      terminal_scan_version = 0
+      invalidate_timer = nil
+    end)
+  end,
+})

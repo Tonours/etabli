@@ -1,5 +1,3 @@
-local statusline = require("config.statusline")
-
 return {
   {
     "catppuccin/nvim",
@@ -9,9 +7,9 @@ return {
     opts = {
       flavour = "mocha",
       integrations = {
-        mason = true,
-        telescope = true,
-        treesitter = true,
+        mason = false,
+        telescope = false,
+        treesitter = false,
       },
       custom_highlights = function(colors)
         return {
@@ -50,28 +48,38 @@ return {
   },
   {
     "nvim-lualine/lualine.nvim",
-    event = "VeryLazy",
+    event = { "BufReadPost", "BufNewFile" },
     dependencies = { "nvim-tree/nvim-web-devicons" },
-    opts = {
-      options = {
-        theme = "catppuccin-mocha",
-        globalstatus = true,
-        component_separators = { left = "|", right = "|" },
-        section_separators = { left = "", right = "" },
-      },
-      sections = {
-        lualine_a = { "mode" },
-        lualine_b = {
-          {
-            statusline.project_label,
-            color = statusline.project_color,
+    opts = function()
+      -- Lazy-load statusline module only when lualine initializes
+      local statusline = require("config.statusline")
+      return {
+        options = {
+          theme = "catppuccin-mocha",
+          globalstatus = true,
+          component_separators = { left = "|", right = "|" },
+          section_separators = { left = "", right = "" },
+          -- Performance: reduce refresh frequency
+          refresh = {
+            statusline = 1000,  -- Refresh every 1000ms (was 750ms)
+            tabline = 5000,     -- Refresh every 5000ms (was 3000ms)
+            winbar = 5000,      -- Refresh every 5000ms (was 3000ms)
           },
         },
-        lualine_c = { { "filename", path = 1 } },
-        lualine_x = { "diagnostics" },
-        lualine_y = {},
-        lualine_z = { "location" },
-      },
-    },
+        sections = {
+          lualine_a = { "mode" },
+          lualine_b = {
+            {
+              statusline.project_label,
+              color = statusline.project_color,
+            },
+          },
+          lualine_c = { { "filename", path = 1 } },
+          lualine_x = { "diagnostics" },
+          lualine_y = {},
+          lualine_z = { "location" },
+        },
+      }
+    end,
   },
 }

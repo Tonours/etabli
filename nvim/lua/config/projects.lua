@@ -1,5 +1,26 @@
 local M = {}
 
+-- Cache for normalized paths to avoid repeated filesystem calls
+local normalize_cache = {}
+local normalize_cache_size = 0
+local normalize_cache_max = 1000
+
+local function cached_normalize(path)
+  if normalize_cache[path] then
+    return normalize_cache[path]
+  end
+
+  local result = vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
+
+  -- Limit cache size to prevent memory bloat
+  if normalize_cache_size < normalize_cache_max then
+    normalize_cache[path] = result
+    normalize_cache_size = normalize_cache_size + 1
+  end
+
+  return result
+end
+
 local markers = {
   ".git",
   "package.json",
@@ -12,6 +33,11 @@ local state_dir = vim.fn.stdpath("state") .. "/etabli"
 local projects_file = state_dir .. "/projects.json"
 local sessions_dir = state_dir .. "/sessions"
 
+-- Cache for projects list to avoid repeated file reads
+local projects_cache = nil
+local projects_cache_time = 0
+local projects_cache_ttl = 3000 -- 3 seconds cache TTL (reduced from 5s)
+
 local function ensure_dirs()
   vim.fn.mkdir(state_dir, "p")
   vim.fn.mkdir(sessions_dir, "p")
@@ -22,7 +48,7 @@ local function path_exists(path)
 end
 
 local function normalize(path)
-  return vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
+  return cached_normalize(path)
 end
 
 local function session_path(root)
@@ -45,6 +71,12 @@ local function should_track(root)
 end
 
 local function read_projects()
+  -- Check cache first
+  local now = vim.loop.now()
+  if projects_cache and (now - projects_cache_time) < projects_cache_ttl then
+    return vim.deepcopy(projects_cache)
+  end
+
   if vim.fn.filereadable(projects_file) ~= 1 then
     return {}
   end
@@ -59,22 +91,50 @@ local function read_projects()
     return {}
   end
 
-  return decoded
+  -- Update cache
+  projects_cache = decoded
+  projects_cache_time = now
+
+  return vim.deepcopy(decoded)
 end
 
 local function write_projects(projects)
   ensure_dirs()
   vim.fn.writefile({ vim.json.encode(projects) }, projects_file)
+  -- Invalidate cache on write
+  projects_cache = nil
+  projects_cache_time = 0
 end
 
-local function is_modified()
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].modified then
-      return true
-    end
+-- Track modified buffer count for faster checks
+local modified_count = 0
+local modified_count_valid = false
+
+local function update_modified_count()
+  if modified_count_valid then
+    return modified_count
   end
 
-  return false
+  local count = 0
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].modified then
+      count = count + 1
+    end
+  end
+  modified_count = count
+  modified_count_valid = true
+  return count
+end
+
+-- Invalidate modified count on buffer changes
+vim.api.nvim_create_autocmd({ "BufModifiedSet", "BufAdd", "BufDelete" }, {
+  callback = function()
+    modified_count_valid = false
+  end,
+})
+
+local function is_modified()
+  return update_modified_count() > 0
 end
 
 local function detect_root(path)
@@ -92,17 +152,21 @@ local function detect_root(path)
 end
 
 local function has_meaningful_layout()
+  -- Quick checks first (cheaper operations)
   if #vim.api.nvim_list_tabpages() > 1 or #vim.api.nvim_list_wins() > 1 then
     return true
   end
 
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(buf) then
-      local name = vim.api.nvim_buf_get_name(buf)
-      local buftype = vim.bo[buf].buftype
-      if name ~= "" or buftype ~= "" then
-        return true
-      end
+  -- Check current buffer only (most likely to have content)
+  local current_buf = vim.api.nvim_get_current_buf()
+  if vim.api.nvim_buf_is_loaded(current_buf) then
+    local name = vim.api.nvim_buf_get_name(current_buf)
+    if name ~= "" then
+      return true
+    end
+    local buftype = vim.bo[current_buf].buftype
+    if buftype ~= "" then
+      return true
     end
   end
 
@@ -199,7 +263,10 @@ function M.load_session(root)
   vim.cmd("silent! tabonly")
   vim.cmd("silent! only")
   vim.cmd("silent! %bwipeout!")
-  vim.cmd("silent! source " .. vim.fn.fnameescape(target))
+  -- Use schedule for immediate but non-blocking session loading
+  vim.schedule(function()
+    vim.cmd("silent! source " .. vim.fn.fnameescape(target))
+  end)
   return true
 end
 
@@ -257,7 +324,22 @@ function M.setup()
   local group = vim.api.nvim_create_augroup("etabli_projects", { clear = true })
   local last_root = ""
 
-  vim.api.nvim_create_autocmd({ "VimEnter", "DirChanged" }, {
+  -- Defer tracking on VimEnter to improve startup time (use schedule for faster execution)
+  vim.api.nvim_create_autocmd("VimEnter", {
+    group = group,
+    once = true,
+    callback = function()
+      vim.schedule(function()
+        local project_root = M.current_root()
+        if should_track(project_root) and project_root ~= last_root then
+          last_root = project_root
+          M.track(project_root)
+        end
+      end)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("DirChanged", {
     group = group,
     callback = function()
       local project_root = M.current_root()

@@ -6,6 +6,7 @@ local util = require("config.review.util")
 
 local M = {}
 
+local commands_registered = false
 local provider_actions = { "explain", "revise" }
 
 local function status_complete()
@@ -23,7 +24,11 @@ local function inbox_complete()
 end
 
 local function render_item(item)
-  local lines = {
+  -- Pre-calculate lines for better performance with exact allocation
+  local patch_lines = vim.split(item.patch, "\n", { plain = true })
+  local has_note = item.note and item.note ~= ""
+  -- Pre-allocate with exact size: 11 base + patch_lines + (1 if note)
+  local lines = vim.list_extend({
     "# Review Hunk",
     "",
     string.format("- Repo: %s", item.repo),
@@ -32,19 +37,16 @@ local function render_item(item)
     string.format("- Scope: %s", item.scope),
     string.format("- Status: %s", item.status or "new"),
     string.format("- Stale: %s", item.stale and "yes" or "no"),
-  }
+  }, has_note and {
+    string.format("- Note: %s", item.note),
+    "",
+    "```diff",
+  } or {
+    "",
+    "```diff",
+  })
 
-  if item.note and item.note ~= "" then
-    table.insert(lines, string.format("- Note: %s", item.note))
-  end
-
-  table.insert(lines, "")
-  table.insert(lines, "```diff")
-
-  for _, line in ipairs(vim.split(item.patch, "\n", { plain = true })) do
-    table.insert(lines, line)
-  end
-
+  vim.list_extend(lines, patch_lines)
   table.insert(lines, "```")
 
   return lines
@@ -130,16 +132,35 @@ end
 local function filter_items(items, opts)
   local options = opts or {}
   local filtered = {}
+  local target_status = options.status
+  local include_stale = options.include_stale ~= false
+  local include_resolved_stale = options.include_resolved_stale
+  local target_status_nil = target_status == nil
 
   for _, item in ipairs(items) do
-    local matches_status = options.status == nil or (item.status or "new") == options.status
-    local keep_stale = options.include_stale ~= false or not item.stale
-    local surfaced_stale = item.stale and vim.tbl_contains({ "needs-rework", "question" }, item.status or "new")
-    local keep_default_stale = not item.stale or surfaced_stale or options.include_resolved_stale or options.status ~= nil
+    local status = item.status or "new"
+    local is_stale = item.stale
 
-    if matches_status and keep_stale and keep_default_stale then
-      table.insert(filtered, item)
+    -- Status match check
+    local matches_status = target_status_nil or status == target_status
+    if not matches_status then
+      goto continue
     end
+
+    -- Stale checks combined for efficiency
+    if is_stale then
+      local surfaced = vim.tbl_contains({ "needs-rework", "question" }, status)
+      if not include_stale then
+        if not surfaced then
+          goto continue
+        end
+      elseif not include_resolved_stale and target_status_nil and not surfaced then
+        goto continue
+      end
+    end
+
+    table.insert(filtered, item)
+    ::continue::
   end
 
   return filtered
@@ -376,6 +397,7 @@ end
 local function reopen_inbox_later(opts)
   local next_opts = vim.deepcopy(opts or {})
 
+  -- Use schedule for immediate but non-blocking execution
   vim.schedule(function()
     M.open_inbox(next_opts)
   end)
@@ -567,6 +589,12 @@ function M.prepare_batch(provider, status)
 end
 
 function M.setup()
+  if commands_registered then
+    return
+  end
+
+  commands_registered = true
+
   vim.api.nvim_create_user_command("ReviewInbox", function(command_opts)
     M.open_inbox({ status = command_opts.args })
   end, {

@@ -32,34 +32,41 @@ local function batch_action_instructions(action)
 end
 
 local function append_hunk(lines, item, index)
-  table.insert(lines, string.format("Hunk %d:", index))
-  table.insert(lines, string.format("- File: %s", item.path))
-  table.insert(lines, string.format("- Scope: %s", item.scope))
-  table.insert(lines, string.format("- Hunk: %s", item.hunk_header))
-  table.insert(lines, string.format("- Current review status: %s", item.status or "new"))
+  -- Build hunk lines in a temporary table for batch insertion
+  local hunk_lines = {
+    string.format("Hunk %d:", index),
+    string.format("- File: %s", item.path),
+    string.format("- Scope: %s", item.scope),
+    string.format("- Hunk: %s", item.hunk_header),
+    string.format("- Current review status: %s", item.status or "new"),
+  }
 
   if item.stale then
-    table.insert(lines, "- Warning: this stored review entry is stale relative to the current diff")
+    table.insert(hunk_lines, "- Warning: this stored review entry is stale relative to the current diff")
   end
 
   if item.note and item.note ~= "" then
-    table.insert(lines, string.format("- Reviewer note: %s", item.note))
+    table.insert(hunk_lines, string.format("- Reviewer note: %s", item.note))
   end
 
-  table.insert(lines, "- Diff:")
-  table.insert(lines, "```diff")
+  table.insert(hunk_lines, "- Diff:")
+  table.insert(hunk_lines, "```diff")
 
-  for _, line in ipairs(vim.split(item.patch, "\n", { plain = true })) do
-    table.insert(lines, line)
-  end
+  local patch_lines = vim.split(item.patch, "\n", { plain = true })
+  vim.list_extend(hunk_lines, patch_lines)
 
-  table.insert(lines, "```")
+  table.insert(hunk_lines, "```")
+
+  -- Batch extend main lines table
+  vim.list_extend(lines, hunk_lines)
 end
 
 function M.build(item, opts)
   local options = opts or {}
   local provider = options.provider or "LLM"
   local action = options.action or "revise"
+
+  -- Build lines efficiently with pre-allocation
   local lines = {
     string.format("You are preparing a %s request for %s.", action, provider),
     "Focus only on the diff hunk below.",
@@ -79,20 +86,17 @@ function M.build(item, opts)
     table.insert(lines, string.format("- Reviewer note: %s", item.note))
   end
 
-  table.insert(lines, "")
-  table.insert(lines, "Task:")
+  vim.list_extend(lines, { "", "Task:" })
 
-  for _, instruction in ipairs(action_instructions(action)) do
+  local instructions = action_instructions(action)
+  for _, instruction in ipairs(instructions) do
     table.insert(lines, string.format("- %s", instruction))
   end
 
-  table.insert(lines, "")
-  table.insert(lines, "Diff hunk:")
-  table.insert(lines, "```diff")
+  vim.list_extend(lines, { "", "Diff hunk:", "```diff" })
 
-  for _, line in ipairs(vim.split(item.patch, "\n", { plain = true })) do
-    table.insert(lines, line)
-  end
+  local patch_lines = vim.split(item.patch, "\n", { plain = true })
+  vim.list_extend(lines, patch_lines)
 
   table.insert(lines, "```")
 
@@ -104,6 +108,8 @@ function M.build_batch(items, opts)
   local provider = options.provider or "LLM"
   local action = options.action or "revise"
   local selection_label = options.selection_label or (options.status and string.format("review status: %s", options.status))
+
+  -- Build lines efficiently with pre-allocation
   local lines = {
     string.format("You are preparing a %s request for %s.", action, provider),
     string.format("Work through the %d diff hunks below one by one.", #items),
@@ -117,10 +123,10 @@ function M.build_batch(items, opts)
     table.insert(lines, string.format("- Selection: %s", selection_label))
   end
 
-  table.insert(lines, "")
-  table.insert(lines, "Task:")
+  vim.list_extend(lines, { "", "Task:" })
 
-  for _, instruction in ipairs(batch_action_instructions(action)) do
+  local instructions = batch_action_instructions(action)
+  for _, instruction in ipairs(instructions) do
     table.insert(lines, string.format("- %s", instruction))
   end
 

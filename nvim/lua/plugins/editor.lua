@@ -1,23 +1,10 @@
-local function open_tree_on_startup()
-  if vim.o.diff or vim.fn.argc() ~= 1 then
-    return
-  end
-
-  local first_arg = vim.fn.argv(0)
-  if first_arg == "" or vim.fn.isdirectory(first_arg) ~= 1 then
-    return
-  end
-
-  vim.cmd.cd(first_arg)
-  vim.cmd.enew()
-  require("nvim-tree.api").tree.open()
-  vim.defer_fn(function()
-    require("nvim-tree.api").tree.resize(30)
-  end, 50)
-end
-
 local function open_node_in_tab_or_toggle_dir()
-  local api = require("nvim-tree.api")
+  -- Lazy-load nvim-tree API only when needed
+  local ok, api = pcall(require, "nvim-tree.api")
+  if not ok then
+    return
+  end
+
   local node = api.tree.get_node_under_cursor()
 
   if not node then
@@ -65,7 +52,10 @@ return {
   },
   {
     "echasnovski/mini.bufremove",
-    lazy = false,
+    keys = {
+      { "<leader>bd", function() require("mini.bufremove").delete(0, false) end, desc = "Delete buffer" },
+      { "<leader>bD", function() require("mini.bufremove").delete(0, true) end, desc = "Delete buffer (force)" },
+    },
     opts = {},
   },
   {
@@ -79,14 +69,40 @@ return {
     opts = {
       current_line_blame = true,
       current_line_blame_opts = {
-        delay = 300,
+        delay = 1000,
+        ignore_whitespace = true,
       },
       signcolumn = true,
+      numhl = false,
+      linehl = false,
+      word_diff = false,
+      -- Performance optimizations
+      max_file_length = 4000, -- Reduced from 6000
+      update_debounce = 1500, -- Increased from 1000ms
+      attach_to_untracked = false,
+      preview_config = {
+        border = "rounded",
+        style = "minimal",
+        relative = "cursor",
+        row = 0,
+        col = 1,
+      },
+      watch_gitdir = {
+        interval = 5000, -- Increased from 3000ms
+        follow_files = true,
+      },
+      sign_priority = 6,
+      -- Additional performance: reduce internal operations
+      trouble = false, -- Disable trouble integration
     },
   },
   {
     "nvim-tree/nvim-tree.lua",
-    lazy = false,
+    cmd = { "NvimTreeToggle", "NvimTreeOpen", "NvimTreeFocus", "NvimTreeFindFile" },
+    keys = {
+      { "<leader>e", "<cmd>NvimTreeToggle<cr>", desc = "Toggle file explorer" },
+      { "<leader>fE", "<cmd>NvimTreeFindFile<cr>", desc = "Find file in explorer" },
+    },
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = {
       hijack_cursor = false,
@@ -106,6 +122,7 @@ return {
       update_focused_file = {
         enable = true,
         update_root = false,
+        debounce_delay = 10, -- Reduced debounce (was 15ms)
       },
       view = {
         side = "left",
@@ -137,6 +154,39 @@ return {
         dotfiles = false,
       },
     },
+    init = function()
+      vim.api.nvim_create_autocmd("VimEnter", {
+        once = true,
+        callback = function()
+          -- Skip if in diff mode or no args
+          if vim.o.diff or vim.fn.argc() ~= 1 then
+            return
+          end
+
+          local first_arg = vim.fn.argv(0)
+          -- Early return for empty or non-directory args
+          if first_arg == "" then
+            return
+          end
+
+          local stat = vim.uv.fs_stat(first_arg)
+          if not stat or stat.type ~= "directory" then
+            return
+          end
+
+          -- Use schedule for immediate deferred execution
+          vim.schedule(function()
+            vim.cmd.cd(first_arg)
+            vim.cmd.enew()
+            -- Lazy-load nvim-tree API only when needed
+            local ok, api = pcall(require, "nvim-tree.api")
+            if ok then
+              api.tree.open()
+            end
+          end)
+        end,
+      })
+    end,
     config = function(_, opts)
       require("nvim-tree").setup(opts)
 
@@ -152,13 +202,6 @@ return {
           end
 
           vim.api.nvim_win_set_width(win, opts.view.width)
-        end,
-      })
-
-      vim.api.nvim_create_autocmd("VimEnter", {
-        once = true,
-        callback = function()
-          vim.schedule(open_tree_on_startup)
         end,
       })
     end,

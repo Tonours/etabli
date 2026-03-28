@@ -1,12 +1,13 @@
 return {
   {
     "nvim-telescope/telescope.nvim",
-    lazy = false,
+    cmd = "Telescope",
     dependencies = {
       "nvim-lua/plenary.nvim",
       {
         "nvim-telescope/telescope-fzf-native.nvim",
         build = "make",
+        lazy = true,
       },
     },
     opts = function()
@@ -19,6 +20,11 @@ return {
             "dist/",
             "coverage/",
             ".git/",
+            ".cache/",
+            "build/",
+            "out/",
+            "%.lock",
+            "%-lock%.",
           },
           layout_config = {
             prompt_position = "top",
@@ -31,12 +37,29 @@ return {
               ["<C-k>"] = actions.move_selection_previous,
             },
           },
-          path_display = { "smart" },
+          path_display = { "truncate" },
           preview_title = false,
           prompt_prefix = "   ",
           results_title = false,
           selection_caret = " ",
           sorting_strategy = "ascending",
+          -- Performance optimizations
+          preview = {
+            timeout = 300, -- Reduced from 400ms for faster preview
+            msg_bg_fillchar = " ",
+            filesize_limit = 1.0, -- Reduced from 1.5MB for faster preview
+          },
+          -- Reduce environment overhead
+          set_env = {
+            COLORTERM = "truecolor",
+          },
+          -- Cache results for better performance (reduced memory usage)
+          cache_picker = {
+            num_pickers = 3, -- Reduced from 5 for lower memory usage
+            limit_entries = 75, -- Reduced from 100 for faster lookup
+          },
+          -- Speed up file finding
+          find_command = { "fd", "--type", "f", "--strip-cwd-prefix" },
         },
         pickers = {
           buffers = {

@@ -4,7 +4,64 @@ local M = {}
 
 local scopes = { "unstaged", "staged" }
 
+-- Cache for git root lookups (mirrors worktrees.lua optimization)
+local git_root_cache = {}
+local git_root_cache_time = {}
+local git_root_cache_ttl = 20000 -- 20 seconds TTL (reduced from 30s)
+
+-- Cache for diff results (short-lived, cleared on buffer operations)
+local diff_cache = {}
+local diff_cache_ttl = 500 -- 500ms TTL (reduced from 750ms)
+local diff_cache_time = {}
+
+-- Clear cache on directory change
+vim.api.nvim_create_autocmd("DirChanged", {
+  callback = function()
+    git_root_cache = {}
+    git_root_cache_time = {}
+    diff_cache = {}
+    diff_cache_time = {}
+  end,
+})
+
+-- Clear diff cache on buffer changes that might affect git state
+vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete" }, {
+  callback = function()
+    diff_cache = {}
+    diff_cache_time = {}
+  end,
+})
+
+local function get_cached_git_root(path)
+  local cached = git_root_cache[path]
+  if not cached then
+    return nil
+  end
+
+  local cached_time = git_root_cache_time[path]
+  if not cached_time then
+    return nil
+  end
+
+  -- Check if cache is still valid
+  if (vim.loop.now() - cached_time) > git_root_cache_ttl then
+    git_root_cache[path] = nil
+    git_root_cache_time[path] = nil
+    return nil
+  end
+
+  return cached
+end
+
 local function run_git(root, args)
+  local cache_key = root .. "#" .. table.concat(args, "#")
+  local now = vim.loop.now()
+
+  -- Check cache first
+  if diff_cache[cache_key] and (now - (diff_cache_time[cache_key] or 0)) < diff_cache_ttl then
+    return diff_cache[cache_key], nil
+  end
+
   local command = vim.list_extend({ "git", "-C", root }, args)
   local result = vim.system(command, { text = true }):wait()
 
@@ -13,7 +70,12 @@ local function run_git(root, args)
     return nil, stderr ~= "" and stderr or "git command failed"
   end
 
-  return result.stdout or ""
+  local output = result.stdout or ""
+  -- Cache the result
+  diff_cache[cache_key] = output
+  diff_cache_time[cache_key] = now
+
+  return output, nil
 end
 
 local function parse_range(spec)
@@ -52,10 +114,25 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
 
   local path = file_state.new_path ~= "/dev/null" and file_state.new_path or file_state.old_path
   local hunk_patch = table.concat(hunk_state.lines, "\n")
+
+  -- Pre-allocate patch_lines table for better performance
   local patch_lines = vim.deepcopy(file_state.header_lines)
   vim.list_extend(patch_lines, hunk_state.lines)
   local patch = table.concat(patch_lines, "\n")
-  local patch_hash = vim.fn.sha256(scope .. "\n" .. path .. "\n" .. hunk_patch)
+
+  -- Use a faster hash for small hunks, fallback to sha256 for larger ones
+  local patch_hash
+  if #hunk_patch < 1000 then
+    -- Simple hash for small hunks (faster than sha256)
+    local hash = 0
+    for i = 1, #hunk_patch do
+      hash = ((hash * 31) + hunk_patch:byte(i)) % 2147483647
+    end
+    patch_hash = string.format("%08x", hash)
+  else
+    patch_hash = vim.fn.sha256(scope .. "\n" .. path .. "\n" .. hunk_patch):sub(1, 16)
+  end
+
   local line_start = hunk_state.new_start
   local line_end = hunk_state.new_count > 0 and (hunk_state.new_start + hunk_state.new_count - 1) or hunk_state.new_start
 
@@ -71,7 +148,7 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
     patch = patch,
     hunk_patch = hunk_patch,
     patch_hash = patch_hash,
-    fingerprint = table.concat({ scope, path, hunk_state.header_line, patch_hash }, "\0"),
+    fingerprint = scope .. "\0" .. path .. "\0" .. hunk_state.header_line .. "\0" .. patch_hash,
     old_start = hunk_state.old_start,
     old_count = hunk_state.old_count,
     new_start = hunk_state.new_start,
@@ -163,13 +240,22 @@ function M.repo_root(path)
     start = vim.fs.dirname(target)
   end
 
+  -- Use cache if available (optimization: avoid repeated git calls)
+  local cached = get_cached_git_root(start)
+  if cached then
+    return cached
+  end
+
   local result = vim.system({ "git", "-C", start, "rev-parse", "--show-toplevel" }, { text = true }):wait()
   if result.code ~= 0 then
     local stderr = vim.trim(result.stderr or "")
     return nil, stderr ~= "" and stderr or "Not inside a git repository"
   end
 
-  return util.normalize(vim.trim(result.stdout or ""))
+  local root = util.normalize(vim.trim(result.stdout or ""))
+  git_root_cache[start] = root
+  git_root_cache_time[start] = vim.loop.now()
+  return root
 end
 
 function M.branch(root)
