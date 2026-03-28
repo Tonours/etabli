@@ -19,14 +19,6 @@ return {
           enable_handlebars_syntax(args.buf)
         end,
       })
-
-      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.api.nvim_buf_is_loaded(bufnr)
-          and (vim.bo[bufnr].filetype == "handlebars" or vim.bo[bufnr].filetype == "html.handlebars")
-        then
-          enable_handlebars_syntax(bufnr)
-        end
-      end
     end,
   },
 }

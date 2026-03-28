@@ -13,6 +13,29 @@ local statuses = {
 
 local state_dir = vim.fn.stdpath("state") .. "/etabli/review"
 
+-- Cache for file reads to avoid repeated disk access
+local file_cache = {}
+local file_cache_ttl = 300 -- 300ms TTL for cache (reduced from 500ms)
+local file_cache_time = {}
+
+local function is_cache_valid(key)
+  local cached_time = file_cache_time[key]
+  if not cached_time then
+    return false
+  end
+  return (vim.loop.now() - cached_time) < file_cache_ttl
+end
+
+local function set_cache(key, value)
+  file_cache[key] = value
+  file_cache_time[key] = vim.loop.now()
+end
+
+local function clear_cache()
+  file_cache = {}
+  file_cache_time = {}
+end
+
 local function sort_items(items)
   local status_order = {
     ["needs-rework"] = 1,
@@ -109,31 +132,54 @@ end
 
 function M.read(context)
   local target = file_path(context.repo, context.branch)
+  local cache_key = context.repo .. "#" .. context.branch
+
+  -- Check cache first
+  if is_cache_valid(cache_key) and file_cache[cache_key] then
+    return vim.deepcopy(file_cache[cache_key])
+  end
+
   if vim.fn.filereadable(target) ~= 1 then
-    return ensure_record_shape(nil, context.repo, context.branch)
+    local result = ensure_record_shape(nil, context.repo, context.branch)
+    set_cache(cache_key, result)
+    return result
   end
 
   local ok_read, lines = pcall(vim.fn.readfile, target)
   if not ok_read then
-    return ensure_record_shape(nil, context.repo, context.branch)
+    local result = ensure_record_shape(nil, context.repo, context.branch)
+    set_cache(cache_key, result)
+    return result
   end
 
   local ok_decode, decoded = pcall(vim.json.decode, table.concat(lines, "\n"))
   if not ok_decode then
-    return ensure_record_shape(nil, context.repo, context.branch)
+    local result = ensure_record_shape(nil, context.repo, context.branch)
+    set_cache(cache_key, result)
+    return result
   end
 
-  return ensure_record_shape(decoded, context.repo, context.branch)
+  local result = ensure_record_shape(decoded, context.repo, context.branch)
+  set_cache(cache_key, result)
+  return result
 end
 
 function M.write(context, data)
   util.ensure_dir(state_dir)
   local target = file_path(context.repo, context.branch)
   vim.fn.writefile({ vim.json.encode(data) }, target)
+  -- Invalidate cache on write
+  local cache_key = context.repo .. "#" .. context.branch
+  file_cache[cache_key] = nil
+  file_cache_time[cache_key] = nil
 end
 
 function M.clear(context)
   local target = file_path(context.repo, context.branch)
+  -- Invalidate cache before deleting
+  local cache_key = context.repo .. "#" .. context.branch
+  file_cache[cache_key] = nil
+  file_cache_time[cache_key] = nil
   if util.path_exists(target) then
     vim.uv.fs_unlink(target)
   end

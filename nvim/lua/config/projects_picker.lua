@@ -1,36 +1,71 @@
 local M = {}
 
+local telescope_loader = require("config.telescope")
 local worktrees = require("config.worktrees")
 
-local function open_picker(title, results, on_select)
-  local ok_pickers, pickers = pcall(require, "telescope.pickers")
-  local ok_finders, finders = pcall(require, "telescope.finders")
-  local ok_config, config = pcall(require, "telescope.config")
-  local ok_actions, actions = pcall(require, "telescope.actions")
-  local ok_state, action_state = pcall(require, "telescope.actions.state")
+-- Cache for telescope modules to avoid repeated requires
+local telescope_modules = nil
 
-  if not (ok_pickers and ok_finders and ok_config and ok_actions and ok_state) then
-    vim.notify("Telescope not available", vim.log.levels.ERROR)
+local function get_telescope_modules()
+  if telescope_modules then
+    return telescope_modules
+  end
+
+  local pickers = telescope_loader.require("telescope.pickers")
+  local finders = telescope_loader.require("telescope.finders")
+  local config = telescope_loader.require("telescope.config")
+  local actions = telescope_loader.require("telescope.actions")
+  local action_state = telescope_loader.require("telescope.actions.state")
+
+  if not (pickers and finders and config and actions and action_state) then
+    return nil
+  end
+
+  telescope_modules = {
+    pickers = pickers,
+    finders = finders,
+    config = config,
+    actions = actions,
+    action_state = action_state,
+  }
+  return telescope_modules
+end
+
+local function open_picker(title, results, on_select)
+  if #vim.api.nvim_list_uis() == 0 then
+    vim.notify(title .. " is not available in headless mode", vim.log.levels.WARN)
     return
   end
 
-  pickers.new({}, {
-    finder = finders.new_table({ results = results, entry_maker = function(entry) return entry end }),
-    previewer = false,
-    prompt_title = title,
-    sorter = config.values.generic_sorter({}),
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-        if selection then
-          on_select(selection.value)
-        end
-      end)
+  -- Use schedule for immediate but non-blocking execution
+  vim.schedule(function()
+    local ts = get_telescope_modules()
+    if not ts then
+      vim.notify("Telescope not available", vim.log.levels.ERROR)
+      return
+    end
 
-      return true
-    end,
-  }):find()
+    -- Pre-allocate results table if large
+    local entry_maker = function(entry) return entry end
+
+    ts.pickers.new({}, {
+      finder = ts.finders.new_table({ results = results, entry_maker = entry_maker }),
+      previewer = false,
+      prompt_title = title,
+      sorter = ts.config.values.generic_sorter({}),
+      attach_mappings = function(prompt_bufnr)
+        ts.actions.select_default:replace(function()
+          local selection = ts.action_state.get_selected_entry()
+          ts.actions.close(prompt_bufnr)
+          if selection then
+            on_select(selection.value)
+          end
+        end)
+
+        return true
+      end,
+    }):find()
+  end)
 end
 
 function M.pick_project()

@@ -27,7 +27,7 @@ local function launch_argv(provider, prompt)
   return { provider.command, prompt }
 end
 
-local function open_terminal(command, opts)
+local function do_open_terminal(command, opts)
   local options = opts or {}
   local executable = vim.islist(command) and command[1] or command
 
@@ -50,23 +50,32 @@ local function dispatch_prompt(provider, prompt, opts)
   local options = opts or {}
 
   util.copy_to_registers(prompt)
-  util.open_scratch(options.title or "review.md", vim.split(prompt, "\n", { plain = true }), "markdown")
 
-  if options.open_terminal ~= false then
-    if vim.fn.executable(provider.command) == 1 then
-      open_terminal(launch_argv(provider, prompt), {
-        cwd = options.cwd,
-        title = string.format("term://review-%s", provider.command),
-      })
-    else
-      vim.notify(
-        string.format("%s CLI not found. The prompt was still copied to registers.", provider.label),
-        vim.log.levels.WARN
-      )
+  local title = options.title or "review.md"
+  local cwd = options.cwd
+  local open_terminal = options.open_terminal
+  local message = options.message
+
+  -- Use schedule for immediate but non-blocking execution
+  vim.schedule(function()
+    util.open_scratch(title, vim.split(prompt, "\n", { plain = true }), "markdown")
+
+    if open_terminal ~= false then
+      if vim.fn.executable(provider.command) == 1 then
+        do_open_terminal(launch_argv(provider, prompt), {
+          cwd = cwd,
+          title = string.format("term://review-%s", provider.command),
+        })
+      else
+        vim.notify(
+          string.format("%s CLI not found. The prompt was still copied to registers.", provider.label),
+          vim.log.levels.WARN
+        )
+      end
     end
-  end
+  end)
 
-  vim.notify(options.message, vim.log.levels.INFO)
+  vim.notify(message, vim.log.levels.INFO)
 
   return prompt
 end

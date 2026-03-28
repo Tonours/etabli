@@ -1,6 +1,9 @@
 local M = {}
 
+local telescope_loader = require("config.telescope")
+
 local function render_preview(item)
+  -- Pre-allocate lines table for better performance
   local lines = {
     "# Review Hunk",
     string.format("# File: %s", item.path),
@@ -15,9 +18,8 @@ local function render_preview(item)
 
   table.insert(lines, "")
 
-  for _, line in ipairs(vim.split(item.patch, "\n", { plain = true })) do
-    table.insert(lines, line)
-  end
+  local patch_lines = vim.split(item.patch, "\n", { plain = true })
+  vim.list_extend(lines, patch_lines)
 
   return lines
 end
@@ -35,6 +37,7 @@ local function summarize(items)
 
   for _, item in ipairs(items) do
     local status = item.status or "new"
+    -- Direct increment with fallback for unknown statuses
     counts[status] = (counts[status] or 0) + 1
 
     if item.stale then
@@ -81,14 +84,19 @@ local function prompt_title(items, opts)
 end
 
 function M.open(items, callbacks, opts)
-  local ok_pickers, pickers = pcall(require, "telescope.pickers")
-  local ok_finders, finders = pcall(require, "telescope.finders")
-  local ok_previewers, previewers = pcall(require, "telescope.previewers")
-  local ok_config, config = pcall(require, "telescope.config")
-  local ok_actions, actions = pcall(require, "telescope.actions")
-  local ok_state, action_state = pcall(require, "telescope.actions.state")
+  if #vim.api.nvim_list_uis() == 0 then
+    vim.notify("Review inbox is not available in headless mode", vim.log.levels.WARN)
+    return
+  end
 
-  if not (ok_pickers and ok_finders and ok_previewers and ok_config and ok_actions and ok_state) then
+  local pickers = telescope_loader.require("telescope.pickers")
+  local finders = telescope_loader.require("telescope.finders")
+  local previewers = telescope_loader.require("telescope.previewers")
+  local config = telescope_loader.require("telescope.config")
+  local actions = telescope_loader.require("telescope.actions")
+  local action_state = telescope_loader.require("telescope.actions.state")
+
+  if not (pickers and finders and previewers and config and actions and action_state) then
     vim.notify("Telescope not available", vim.log.levels.ERROR)
     return
   end

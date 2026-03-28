@@ -8,6 +8,40 @@ local colors = {
 local cached_context = nil
 local cache_cwd = ""
 
+-- Tabline caching - more aggressive caching
+local cached_tabline = nil
+local tabline_cache_cwd = ""
+local tabline_cache_tabcount = 0
+local tabline_cache_current = nil
+local tabline_cache_bufcount = 0
+local tabline_cache_version = 0
+
+-- Path cache for unique_path_label
+local path_cache = {}
+local path_cache_cwd = ""
+
+-- Track buffer changes for cache invalidation
+local buffer_change_count = 0
+vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufFilePost" }, {
+  callback = function()
+    buffer_change_count = buffer_change_count + 1
+  end,
+})
+
+-- Use a more efficient buffer change tracking with debouncing
+local buffer_change_timer = nil
+vim.api.nvim_create_autocmd({ "BufEnter", "BufLeave" }, {
+  callback = function()
+    if buffer_change_timer then
+      vim.fn.timer_stop(buffer_change_timer)
+    end
+  buffer_change_timer = vim.fn.timer_start(75, function()
+      buffer_change_count = buffer_change_count + 1
+      buffer_change_timer = nil
+    end)
+  end,
+})
+
 local function join_last(parts, count)
   local start_index = math.max(#parts - count + 1, 1)
   return table.concat(parts, "/", start_index, #parts)
@@ -24,14 +58,42 @@ local function path_parts(path)
 end
 
 local function unique_path_label(path, paths)
-  local relative_path = vim.fn.fnamemodify(path, ":~:.")
-  local relative_paths = {}
+  -- Clear cache if cwd changed
+  local cwd = vim.fn.getcwd()
+  if cwd ~= path_cache_cwd then
+    path_cache = {}
+    path_cache_cwd = cwd
+  end
 
-  for _, item in ipairs(paths) do
-    table.insert(relative_paths, vim.fn.fnamemodify(item, ":~:."))
+  -- Check cache first
+  local cached = path_cache[path]
+  if cached then
+    return cached
+  end
+
+  -- Fast path: single path, just return the tail
+  if #paths <= 1 then
+    local result = vim.fn.fnamemodify(path, ":t")
+    path_cache[path] = result
+    return result
+  end
+
+  local relative_path = vim.fn.fnamemodify(path, ":~:.")
+
+  -- Batch convert paths to relative once
+  local relative_paths = {}
+  for i, item in ipairs(paths) do
+    relative_paths[i] = vim.fn.fnamemodify(item, ":~:.")
   end
 
   local parts = path_parts(relative_path)
+
+  -- Fast path: single-part paths
+  if #parts == 1 then
+    path_cache[path] = relative_path
+    return relative_path
+  end
+
   for count = 1, #parts do
     local candidate = join_last(parts, count)
     local unique = true
@@ -44,10 +106,12 @@ local function unique_path_label(path, paths)
     end
 
     if unique then
+      path_cache[path] = candidate
       return candidate
     end
   end
 
+  path_cache[path] = relative_path
   return relative_path
 end
 
@@ -130,28 +194,100 @@ end
 function M.invalidate()
   cached_context = nil
   cache_cwd = ""
+  -- Also invalidate tabline cache
+  cached_tabline = nil
+  tabline_cache_cwd = ""
+  tabline_cache_tabcount = 0
+  tabline_cache_current = nil
+  tabline_cache_bufcount = 0
+  tabline_cache_version = buffer_change_count
+  -- Clear path cache
+  path_cache = {}
+  path_cache_cwd = ""
 end
 
 function M.project_label()
-  return refresh_context().label
+  local ctx = refresh_context()
+  return ctx and ctx.label or ""
 end
 
 function M.project_color()
-  return { fg = refresh_context().color }
+  local ctx = refresh_context()
+  return ctx and { fg = ctx.color } or {}
 end
 
 function M.tabline()
   local current = vim.api.nvim_get_current_tabpage()
-  local parts = {}
+  local tabs = vim.api.nvim_list_tabpages()
+  local cwd = vim.fn.getcwd()
+  local buf_count = #vim.api.nvim_list_bufs()
 
-  for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
-    local tabnr = vim.api.nvim_tabpage_get_number(tab)
-    local hl = tab == current and "%#TabLineSel#" or "%#TabLine#"
-    table.insert(parts, string.format("%%%dT%s %d %s %%T", tabnr, hl, tabnr, tab_label(tab)))
+  -- Use cached tabline if context hasn't changed
+  if cached_tabline
+    and cwd == tabline_cache_cwd
+    and #tabs == tabline_cache_tabcount
+    and current == tabline_cache_current
+    and buf_count == tabline_cache_bufcount
+    and buffer_change_count == tabline_cache_version then
+    return cached_tabline
   end
 
-  table.insert(parts, "%#TabLineFill#%=")
-  return table.concat(parts, "")
+  -- Pre-allocate parts table with exact capacity
+  local parts = {}
+  local idx = 0
+  for i = 1, #tabs do
+    local tab = tabs[i]
+    local tabnr = vim.api.nvim_tabpage_get_number(tab)
+    local hl = tab == current and "%#TabLineSel#" or "%#TabLine#"
+    idx = idx + 1
+    parts[idx] = string.format("%%%dT%s %d %s %%T", tabnr, hl, tabnr, tab_label(tab))
+  end
+
+  parts[idx + 1] = "%#TabLineFill#%="
+
+  -- Update cache
+  cached_tabline = table.concat(parts, "")
+  tabline_cache_cwd = cwd
+  tabline_cache_tabcount = #tabs
+  tabline_cache_current = current
+  tabline_cache_bufcount = buf_count
+  tabline_cache_version = buffer_change_count
+
+  return cached_tabline
 end
+
+-- Cache invalidation on relevant events
+local function setup_invalidation()
+  local group = vim.api.nvim_create_augroup("etabli_statusline_cache", { clear = true })
+
+  vim.api.nvim_create_autocmd({ "DirChanged" }, {
+    group = group,
+    callback = M.invalidate,
+  })
+
+  -- Clear tabline cache when tabs change
+  vim.api.nvim_create_autocmd({ "TabNew", "TabClosed" }, {
+    group = group,
+    callback = function()
+      cached_tabline = nil
+      tabline_cache_cwd = ""
+      tabline_cache_tabcount = 0
+      tabline_cache_current = nil
+      -- Clear path cache on tab changes
+      path_cache = {}
+      path_cache_cwd = ""
+    end,
+  })
+
+  -- Only update current tab highlight on TabEnter without full rebuild
+  vim.api.nvim_create_autocmd("TabEnter", {
+    group = group,
+    callback = function()
+      cached_tabline = nil
+    end,
+  })
+end
+
+setup_invalidation()
 
 return M

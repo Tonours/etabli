@@ -1,6 +1,7 @@
 return {
   {
     "folke/which-key.nvim",
+    cmd = "WhichKey",
     event = "VeryLazy",
     opts = {
       delay = 300,
