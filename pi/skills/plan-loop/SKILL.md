@@ -17,12 +17,16 @@ Do not ask for implementation confirmation at the end; return the final reviewed
 4. Create or refresh `./PLAN.md` from the template with `Status: DRAFT`
 5. Run an explicit critique pass against that draft:
    - challenge scope
+   - challenge the measurement contract
+   - challenge the execution contract
    - challenge assumptions
    - check edge cases and risks
    - verify execution order
 6. Update `./PLAN.md` in place:
    - preserve the template structure
    - record key deltas in `Review Changes`
+   - refuse `READY` if outcome/checks/trace/stop/escalation criteria remain vague
+   - refuse `READY` if slices/files/checks/invariants/done criteria/rollback points remain vague
    - set `Status: CHALLENGED` if important issues remain
    - set `Status: READY` if the plan is executable without major rethinking
 7. If critical context is missing, ask only the narrowest blocking question(s), then fold the answer back into `PLAN.md`

@@ -19,7 +19,7 @@ Describe in 1-3 sentences what will change and why it matters.
 ### In scope
 - 
 
-### Out of scope
+### Out of scope / Non-goals
 - 
 
 ## Relevant Context
@@ -32,15 +32,44 @@ Describe in 1-3 sentences what will change and why it matters.
   - Why it seems plausible:
   - How it will be validated or invalidated:
 
+## Measurement Contract
+- Outcome:
+- Primary checks:
+- Secondary checks:
+- Trace points:
+- Rollback / stop triggers:
+- Escalation triggers:
+- Diff budget:
+
+## Invariants
+- Invariant:
+
+## Done Criteria
+-
+
 ## Chosen Approach
 Describe the selected approach and why it is proportionate to the problem.
 Mention rejected options only if they changed the decision.
 
-## Execution Plan
-1. Step
-   Verification:
-2. Step
-   Verification:
+## Execution Slices
+### Slice 1
+- Goal:
+- Files / areas:
+- Checks:
+- Rollback point:
+
+### Slice 2
+- Goal:
+- Files / areas:
+- Checks:
+- Rollback point:
+
+## Implementation Tracking
+- Active slice:
+- Completed slices:
+- Pending checks:
+- Last validated state:
+- Next recommended action:
 
 ## Risks And Edge Cases
 - Risk / edge case:
@@ -53,6 +82,12 @@ Mention rejected options only if they changed the decision.
 - Regressions to watch:
 - Visible success criteria:
 
+## Review Checkpoints
+- Self-check:
+- Plan compliance:
+- Adversarial focus:
+- Human checkpoint triggers:
+
 ## Review Changes
 - Key weaknesses found during review:
 - Changes made after review:
@@ -63,9 +98,13 @@ Mention rejected options only if they changed the decision.
 
 ## Ready Gate
 - [ ] Scope is clear and bounded
+- [ ] Non-goals are explicit
 - [ ] Risky assumptions are explicit
-- [ ] Steps are executable in order
-- [ ] Each step has a verification
+- [ ] Invariants are explicit
+- [ ] Done criteria are concrete
+- [ ] Slices are executable in order
+- [ ] Each slice names files/areas and checks
+- [ ] Rollback points are explicit
 - [ ] Main risks are documented
 - [ ] Blocking questions are resolved or consciously accepted
 - [ ] Plan is ready for implementation
