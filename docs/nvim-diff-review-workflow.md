@@ -40,6 +40,8 @@ Note: current-hunk review uses `git diff` as the source of truth. Save the buffe
 
 The inbox labels each entry with a clearer scope marker (`WORKING`, `STAGED`, `STALE`), review status, and a count summary in the picker title. Shortcut hints are split between the results header and preview header so they stay readable. After you annotate a hunk or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
 
+The inbox now also keeps a short-lived local cache for merged review items. This is meant to speed up repeated opens during the same review pass without weakening review correctness: writes, deletes, directory changes, shell commands, focus changes, review status updates, and review notes all invalidate the cache.
+
 By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the inbox to avoid noise after a revert or commit. Actionable stale entries such as `needs-rework` or `question` still stay visible by default. If you explicitly filter `:ReviewInbox new`, `:ReviewInbox accepted`, or `:ReviewInbox ignore`, those stale entries are still available.
 
 ## Batch prompt preparation
@@ -60,6 +62,8 @@ Provider actions do three things:
 3. open a scratch preview and then launch `claude` or `pi` in a terminal tab with that prompt passed directly as the first message when the CLI exists
 
 This keeps the flow safe and explicit while removing the manual paste step: the prompt is still visible in the scratch preview and copied to registers, but the CLI also starts with the diff prompt already injected. Batch commands use the same preview/copy/direct-launch flow, but include every matching hunk in a single prompt.
+
+In the broader operating model, this inbox is one of the main “zero-idle” surfaces: while a worker runs in another worktree, you can keep using the inbox for annotation, acceptance, and provider dispatch instead of waiting on the implementation path.
 
 Provider CLIs are resolved from your environment (`PATH`, plus `NVM_DIR` for Copilot's Node lookup when relevant), so the setup stays portable across machines instead of depending on a single hardcoded local path.
 
