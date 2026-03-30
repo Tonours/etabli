@@ -1,0 +1,464 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+resolve_script_dir() {
+    local source_path="${BASH_SOURCE[0]}"
+    local dir=""
+
+    while [ -L "$source_path" ]; do
+        dir="$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)"
+        source_path="$(readlink "$source_path")"
+        [[ "$source_path" != /* ]] && source_path="${dir}/${source_path}"
+    done
+
+    cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd
+}
+
+SCRIPT_DIR="$(resolve_script_dir)"
+CW_BIN="${SCRIPT_DIR}/cw"
+
+MODE=""
+REPO_INPUT=""
+REPO_ROOT=""
+TASK=""
+POSITIONAL_PREFIX=""
+RUNTIME="both"
+BASE_REF=""
+EFFECTIVE_BASE_REF=""
+OPTION_COUNT=2
+PRINT_SHELL=false
+PRINT_TMUX=false
+
+usage() {
+    cat <<'EOF'
+Usage:
+  cw-mode <simple|standard|option-compare> <repo|path> <task> [prefix] [options]
+
+Options:
+  -r, --runtime <pi|claude|both>  Output runtime-specific next steps. Default: both.
+  -b, --base <ref>                Base branch/ref passed through to cw.
+  -o, --options <2|3>             Number of option worktrees for option-compare. Default: 2.
+      --print-shell               Print shell-safe exports instead of the human protocol.
+      --print-tmux                Print a tmux-ready attach/select snippet.
+  -h, --help                      Show this help.
+
+Notes:
+- Reuses existing worktrees when the same task/prefix already exists.
+- Wraps 'scripts/cw'; it does not replace it.
+- Does not auto-start agents.
+
+Examples:
+  cw-mode simple . "fix login redirect" --runtime pi
+  cw-mode standard . "refactor review inbox" --runtime both
+  cw-mode option-compare . "benchmark picker startup" --runtime claude --options 3
+EOF
+}
+
+die() {
+    printf "cw-mode: %s\n" "$1" >&2
+    exit 1
+}
+
+require_bin() {
+    command -v "$1" >/dev/null 2>&1 || die "missing required binary: $1"
+}
+
+resolve_repo_root() {
+    git -C "$1" rev-parse --show-toplevel 2>/dev/null || die "repo not found: $1"
+}
+
+resolve_default_base_ref() {
+    local repo_root="$1"
+    local branch=""
+
+    branch="$(git -C "$repo_root" branch --show-current 2>/dev/null || true)"
+    if [ -n "$branch" ]; then
+        printf "%s\n" "$branch"
+        return 0
+    fi
+
+    printf "HEAD\n"
+}
+
+parse_args() {
+    local positionals=()
+
+    [ "$#" -gt 0 ] || {
+        usage >&2
+        exit 1
+    }
+
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+    esac
+
+    MODE="$1"
+    shift
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -r|--runtime)
+                [ "$#" -ge 2 ] || die "missing value for $1"
+                RUNTIME="$2"
+                shift 2
+                ;;
+            -b|--base)
+                [ "$#" -ge 2 ] || die "missing value for $1"
+                BASE_REF="$2"
+                shift 2
+                ;;
+            -o|--options)
+                [ "$#" -ge 2 ] || die "missing value for $1"
+                OPTION_COUNT="$2"
+                shift 2
+                ;;
+            --print-shell)
+                PRINT_SHELL=true
+                shift
+                ;;
+            --print-tmux)
+                PRINT_TMUX=true
+                shift
+                ;;
+            --)
+                shift
+                while [ "$#" -gt 0 ]; do
+                    positionals+=("$1")
+                    shift
+                done
+                ;;
+            -*)
+                die "unknown option: $1"
+                ;;
+            *)
+                positionals+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    [ "${#positionals[@]}" -ge 2 ] || die "expected <repo|path> <task>"
+    REPO_INPUT="${positionals[0]}"
+    TASK="${positionals[1]}"
+    POSITIONAL_PREFIX="${positionals[2]:-}"
+
+    case "$MODE" in
+        simple|standard|option-compare) ;;
+        *) die "invalid mode: $MODE" ;;
+    esac
+
+    case "$RUNTIME" in
+        pi|claude|both) ;;
+        *) die "invalid runtime: $RUNTIME" ;;
+    esac
+
+    case "$OPTION_COUNT" in
+        2|3) ;;
+        *) die "--options must be 2 or 3" ;;
+    esac
+
+    if [ "$PRINT_SHELL" = true ] && [ "$PRINT_TMUX" = true ]; then
+        die "use only one of --print-shell or --print-tmux"
+    fi
+}
+
+parse_summary_field() {
+    local field="$1"
+    local text="$2"
+    printf "%s\n" "$text" | sed -n "s/^${field}:[[:space:]]*//p" | tail -n 1
+}
+
+cw_new_detached() {
+    local repo="$1"
+    local task="$2"
+    local prefix="$3"
+    local output=""
+    local -a cmd=("$CW_BIN" new --detach --no-agent --print-path)
+
+    [ -n "$EFFECTIVE_BASE_REF" ] && cmd+=(--base "$EFFECTIVE_BASE_REF")
+    [ -n "$prefix" ] && cmd+=(--prefix "$prefix")
+    cmd+=("$repo" "$task")
+
+    if ! output="$("${cmd[@]}" 2>&1)"; then
+        printf "%s\n" "$output" >&2
+        die "cw new failed"
+    fi
+
+    local path branch tmux_target
+    path="$(parse_summary_field path "$output")"
+    branch="$(parse_summary_field branch "$output")"
+    tmux_target="$(parse_summary_field tmux "$output")"
+
+    [ -n "$path" ] || die "could not parse worktree path from cw output"
+
+    printf "%s\t%s\t%s\n" "$path" "$branch" "$tmux_target"
+}
+
+print_header() {
+    printf "Mode:      %s\n" "$MODE"
+    printf "Runtime:   %s\n" "$RUNTIME"
+    printf "Task:      %s\n" "$TASK"
+    [ -n "$EFFECTIVE_BASE_REF" ] && printf "Base:      %s\n" "$EFFECTIVE_BASE_REF"
+    printf "\n"
+}
+
+print_shell_var() {
+    local name="$1"
+    local value="${2-}"
+    printf 'export %s=%q\n' "$name" "$value"
+}
+
+print_shell_output() {
+    local main_path="$1"
+    local main_branch="$2"
+    local main_tmux="$3"
+    shift 3
+    local index=1
+    local option_path option_branch option_tmux
+
+    print_shell_var CW_MODE_MODE "$MODE"
+    print_shell_var CW_MODE_RUNTIME "$RUNTIME"
+    print_shell_var CW_MODE_TASK "$TASK"
+    print_shell_var CW_MODE_BASE_REF "$EFFECTIVE_BASE_REF"
+    print_shell_var CW_MODE_REPO_ROOT "$REPO_ROOT"
+    print_shell_var CW_MODE_MAIN_PATH "$main_path"
+    print_shell_var CW_MODE_MAIN_BRANCH "$main_branch"
+    print_shell_var CW_MODE_MAIN_TMUX "$main_tmux"
+
+    while [ "$#" -gt 0 ]; do
+        option_path="$1"
+        option_branch="$2"
+        option_tmux="$3"
+        print_shell_var "CW_MODE_OPTION_${index}_PATH" "$option_path"
+        print_shell_var "CW_MODE_OPTION_${index}_BRANCH" "$option_branch"
+        print_shell_var "CW_MODE_OPTION_${index}_TMUX" "$option_tmux"
+        index=$((index + 1))
+        shift 3
+    done
+
+    print_shell_var CW_MODE_OPTION_COUNT "$((index - 1))"
+}
+
+print_tmux_output() {
+    local main_path="$1"
+    local main_branch="$2"
+    local main_tmux="$3"
+    shift 3
+    local main_session="${main_tmux%%:*}"
+    local index=1
+    local option_path option_branch option_tmux
+
+    printf '# cw-mode tmux snippet\n'
+    printf '# mode=%s runtime=%s task=%q\n' "$MODE" "$RUNTIME" "$TASK"
+    printf '# main path=%q branch=%q\n' "$main_path" "$main_branch"
+
+    if [ -z "$main_tmux" ]; then
+        printf 'echo %q >&2\n' 'cw-mode: no tmux target available; tmux may be unavailable'
+        return 0
+    fi
+
+    printf 'MAIN_TMUX_TARGET=%q\n' "$main_tmux"
+    printf 'MAIN_TMUX_SESSION=%q\n' "$main_session"
+
+    while [ "$#" -gt 0 ]; do
+        option_path="$1"
+        option_branch="$2"
+        option_tmux="$3"
+        printf '# option-%d path=%q branch=%q tmux=%q\n' "$index" "$option_path" "$option_branch" "$option_tmux"
+        index=$((index + 1))
+        shift 3
+    done
+
+    cat <<'EOF'
+if [ -n "${TMUX:-}" ]; then
+  tmux switch-client -t "$MAIN_TMUX_SESSION" \; select-window -t "$MAIN_TMUX_TARGET"
+else
+  tmux select-window -t "$MAIN_TMUX_TARGET" >/dev/null 2>&1 || true
+  exec tmux attach-session -t "$MAIN_TMUX_SESSION"
+fi
+EOF
+}
+
+print_worktree_line() {
+    local label="$1"
+    local path="$2"
+    local branch="$3"
+    printf -- "- %-8s %s\n" "${label}:" "$path"
+    [ -n "$branch" ] && printf "  branch:   %s\n" "$branch"
+}
+
+print_runtime_block() {
+    local title="$1"
+    shift
+    [ "$RUNTIME" = both ] || [ "$RUNTIME" = "$title" ] || return 0
+
+    printf "\n%s\n" "$(printf "%s" "$title" | tr '[:lower:]' '[:upper:]')"
+    for line in "$@"; do
+        printf -- "- %s\n" "$line"
+    done
+}
+
+print_simple_protocol() {
+    local main_path="$1"
+
+    printf "Worktrees\n"
+    print_worktree_line main "$main_path" "$2"
+
+    printf "\nShared next steps\n"
+    printf -- "- Open the main worktree and drive PLAN.md to READY.\n"
+    printf -- "- Implement in the same worktree, then review, test, type-check, and run manual QA.\n"
+
+    print_runtime_block pi \
+        "cd ${main_path}" \
+        "/skill:plan-loop \"${TASK}\"" \
+        "Once PLAN.md is READY, run /skill:implement" \
+        "Run /review before final QA"
+
+    print_runtime_block claude \
+        "cd ${main_path}" \
+        "/plan-loop" \
+        "Once PLAN.md is READY, run /implement" \
+        "Run /review before final QA"
+}
+
+print_standard_protocol() {
+    local main_path="$1"
+    local main_branch="$2"
+
+    printf "Worktrees\n"
+    print_worktree_line main "$main_path" "$main_branch"
+
+    printf "\nShared next steps\n"
+    printf -- "- Use the main worktree for the main session and worker.\n"
+    printf -- "- Scout and reviewer can use separate read-only sessions against the same worktree.\n"
+    printf -- "- While the worker runs, prepare QA, annotate review findings, or validate the previous slice.\n"
+
+    print_runtime_block pi \
+        "Main session: cd ${main_path} && /skill:plan-loop \"${TASK}\"" \
+        "After READY: run /skill:implement in the main session" \
+        "Parallel scout: /scout \"map files, risks, and edge cases for ${TASK}\"" \
+        "Parallel reviewer: /reviewer \"review current diff against PLAN.md\""
+
+    print_runtime_block claude \
+        "Main session: cd ${main_path} && /plan-loop" \
+        "After READY: run /implement in the main session" \
+        "Use a second Claude session for reconnaissance or focused review if needed" \
+        "Run /review before final QA"
+}
+
+print_option_protocol() {
+    local main_path="$1"
+    local main_branch="$2"
+    shift 2
+    local option_index=1
+    local option_path option_branch label
+
+    printf "Worktrees\n"
+    print_worktree_line main "$main_path" "$main_branch"
+
+    while [ "$#" -gt 0 ]; do
+        option_path="$1"
+        option_branch="$2"
+        label="option-${option_index}"
+        print_worktree_line "$label" "$option_path" "$option_branch"
+        option_index=$((option_index + 1))
+        shift 2
+    done
+
+    printf "\nShared next steps\n"
+    printf -- "- Keep PLAN.md and keep/discard gates in the main worktree.\n"
+    printf -- "- Run one isolated worker per option worktree only.\n"
+    printf -- "- Compare diffs, checks, and measurements in the main session; keep one option or discard all.\n"
+    printf -- "- Do not co-edit options in the same worktree. Isolation is the point.\n"
+
+    print_runtime_block pi \
+        "Main session: cd ${main_path} && /skill:plan-loop \"${TASK}\"" \
+        "After READY: keep arbitration and comparison notes in the main session" \
+        "In each option worktree, run /worker \"implement one local option only; do not widen scope\"" \
+        "Use /reviewer to compare each option against PLAN.md and the keep/discard gates"
+
+    print_runtime_block claude \
+        "Main session: cd ${main_path} && /plan-loop" \
+        "After READY: keep arbitration in the main session" \
+        "In each option worktree, open a separate Claude session and run /implement against that isolated option" \
+        "Run /review on each candidate before deciding keep/discard"
+}
+
+main() {
+    local main_record=""
+    local main_path=""
+    local main_branch=""
+    local main_tmux=""
+    local option_records=()
+    local option_letters=(a b c)
+    local index=0
+    local record=""
+
+    require_bin git
+    [ -x "$CW_BIN" ] || die "missing executable: $CW_BIN"
+
+    parse_args "$@"
+    REPO_ROOT="$(resolve_repo_root "$REPO_INPUT")"
+    EFFECTIVE_BASE_REF="${BASE_REF:-$(resolve_default_base_ref "$REPO_ROOT")}"
+
+    [ "$PRINT_SHELL" = true ] || [ "$PRINT_TMUX" = true ] || print_header
+
+    case "$MODE" in
+        simple)
+            record="$(cw_new_detached "$REPO_INPUT" "$TASK" "${POSITIONAL_PREFIX:-task}")"
+            IFS=$'\t' read -r main_path main_branch main_tmux <<<"$record"
+            if [ "$PRINT_SHELL" = true ]; then
+                print_shell_output "$main_path" "$main_branch" "$main_tmux"
+            elif [ "$PRINT_TMUX" = true ]; then
+                print_tmux_output "$main_path" "$main_branch" "$main_tmux"
+            else
+                print_simple_protocol "$main_path" "$main_branch"
+            fi
+            ;;
+        standard)
+            record="$(cw_new_detached "$REPO_INPUT" "$TASK" "${POSITIONAL_PREFIX:-std}")"
+            IFS=$'\t' read -r main_path main_branch main_tmux <<<"$record"
+            if [ "$PRINT_SHELL" = true ]; then
+                print_shell_output "$main_path" "$main_branch" "$main_tmux"
+            elif [ "$PRINT_TMUX" = true ]; then
+                print_tmux_output "$main_path" "$main_branch" "$main_tmux"
+            else
+                print_standard_protocol "$main_path" "$main_branch"
+            fi
+            ;;
+        option-compare)
+            record="$(cw_new_detached "$REPO_INPUT" "$TASK" "orch")"
+            IFS=$'\t' read -r main_path main_branch main_tmux <<<"$record"
+            while [ "$index" -lt "$OPTION_COUNT" ]; do
+                record="$(cw_new_detached "$REPO_INPUT" "$TASK" "opt-${option_letters[$index]}")"
+                option_records+=("$record")
+                index=$((index + 1))
+            done
+
+            # Flatten path/branch pairs for the printer.
+            local flattened=()
+            for record in "${option_records[@]}"; do
+                local option_path option_branch option_tmux
+                IFS=$'\t' read -r option_path option_branch option_tmux <<<"$record"
+                flattened+=("$option_path" "$option_branch" "$option_tmux")
+            done
+            if [ "$PRINT_SHELL" = true ]; then
+                print_shell_output "$main_path" "$main_branch" "$main_tmux" "${flattened[@]}"
+            elif [ "$PRINT_TMUX" = true ]; then
+                print_tmux_output "$main_path" "$main_branch" "$main_tmux" "${flattened[@]}"
+            else
+                print_option_protocol "$main_path" "$main_branch" "${flattened[@]}"
+            fi
+            ;;
+    esac
+}
+
+main "$@"

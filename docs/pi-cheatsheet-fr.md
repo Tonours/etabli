@@ -101,12 +101,17 @@ cw merge <repo> [branch|path|name] --yes
 cw rm <repo> [branch|path|name] --yes
 cw pick <repo>          # UI légère fzf/fzf-tmux
 cw-clean <repo> --yes   # nettoyage batch
+scripts/cw-mode <simple|standard|option-compare> <repo|path> "<task>"
 ```
 
 Notes repo :
 - `cw pick` est l'UI légère actuelle ; pas de commande `cw ui`
 - `cw merge` et `cw rm` sont en dry-run par défaut sans `--yes`
 - les worktrees vivent sous `./.worktrees/` quand `cw` est lancé depuis le repo
+- `scripts/cw-mode` est le lanceur protocolaire : il prépare les worktrees attendus puis imprime les prochaines étapes Claude/Pi
+- ajoute `--print-shell` si tu veux des variables shell réutilisables dans un alias, un wrapper tmux, ou un `eval "$(...)"`
+- ajoute `--print-tmux` si tu veux un snippet léger pour te rattacher directement à la cible tmux principale
+- source `scripts/cw-mode-aliases.sh` pour récupérer `cws`, `cwstd`, `cwcmp`, et `cwtmux` (ou laisse `scripts/install.sh` ajouter le sourcing dans `~/.bashrc` / `~/.zshrc`)
 
 ## Raccourcis review diff dans Neovim
 
@@ -150,11 +155,22 @@ Commandes associées :
 
 Référence canonique : `workflow/spec.md` + `workflow/statuses.md`
 
+Mode opératoire quotidien : `workflow/operating-model.md`
+
 1. `scout` ou lecture directe pour comprendre la zone à modifier
 2. `/skill:plan` + `/skill:plan-review` jusqu'à `PLAN.md` en `READY`
 3. `/skill:implement` dans la session principale, ou `/worker <task>` si la tâche est bornée
 4. `/review` ou `/skill:review` pour la vérification finale
 5. `/handoff` pour une reprise générique, ou `/handoff-implement` si tu stoppes une implémentation déjà cadrée par un `PLAN.md` `READY`
+
+Modes d'exécution conseillés :
+- simple : 1 session principale + 1 worker
+- standard : 1 session principale + scout/worker/reviewer en parallèle borné
+- option-compare : 1 session principale + 2-3 workers isolés par worktree pour comparer plusieurs options
+
+Boucle zéro temps mort :
+- pendant qu'un worker tourne, prépare la QA manuelle, relis la slice précédente, annote l'inbox review, ou compare une option concurrente
+- n'utilise pas plusieurs workers sur la même zone sans isolation claire par worktree
 
 Rôles :
 - `scout` : reconnaissance read-only

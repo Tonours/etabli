@@ -44,6 +44,7 @@ cd etabli
 ### Planning and execution
 
 - `workflow/spec.md` - canonical workflow contract
+- `workflow/operating-model.md` - daily Claude + Pi operating model, execution modes, and worktree parallelism rules
 - `workflow/statuses.md` - lifecycle and status model
 - `workflow/review-rubric.md` - review expectations
 - `workflow/handoff-template.md` - continuation handoff template
@@ -59,11 +60,15 @@ cd etabli
 ## Core workflow
 
 ```text
-problem -> plan -> PLAN.md (DRAFT) -> plan-review -> PLAN.md (CHALLENGED/READY) -> implement
+problem -> learn -> phase-0 measure -> plan -> PLAN.md (DRAFT) -> plan-review -> PLAN.md (CHALLENGED/READY) -> implement
 ```
 
-- `PLAN.md` is the single pre-implementation artifact across Claude and Pi
+- `PLAN.md` is the single execution contract across Claude and Pi
 - `PLAN_TEMPLATE.md` is the canonical template
+- the phase-0 measurement contract lives inside `PLAN.md`; no extra mandatory artifact is introduced
+- the phase-1 execution contract also lives inside `PLAN.md`: slices, file scope, checks, invariants, done criteria, rollback points
+- phase 2 keeps light implementation state in `PLAN.md`: active slice, completed slices, pending checks, next recommended action
+- phase 3 makes review plan-aware: self-check, plan compliance, adversarial review, human checkpoint triggers
 - implementation should start only from a `READY` `PLAN.md`
 - review and handoff docs live under `workflow/` and are shared across runtimes
 
@@ -77,11 +82,24 @@ Typical flow in this repo:
 4. review diffs inside Neovim or via runtime review commands
 5. hand off or merge once verified
 
+Delegation default:
+- scout/reviewer can run in parallel for reconnaissance/review
+- worker stays single by default unless work is explicitly isolated
+
+Daily execution modes:
+- simple mode: one worker, one clear path
+- standard mode: scout/worker/reviewer around one main implementation path
+- option-compare mode: multiple workers only in isolated worktrees with explicit keep/discard gates
+
+For the full zero-idle Claude + Pi loop, see `workflow/operating-model.md`.
+
 Useful entrypoints:
 
 - `cw new <repo> <task> [prefix]`
 - `cw open <repo> [branch|path|name]`
 - `cw pick <repo>`
+- `scripts/cw-mode <simple|standard|option-compare> <repo|path> "<task>"`
+- `source scripts/cw-mode-aliases.sh` for short shell wrappers: `cws`, `cwstd`, `cwcmp`, `cwtmux` (and `scripts/install.sh` now wires this automatically into Bash/Zsh rc files)
 - `cw merge <repo> [branch|path|name] --yes`
 - `cw rm <repo> [branch|path|name] --yes`
 - `cw-clean <repo> --yes`
