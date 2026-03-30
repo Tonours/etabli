@@ -22,6 +22,9 @@ Template source of truth: `~/.claude/handoff-template.md`
    - otherwise `./.pi/handoff-implement.md`
 8. Keep it concise and continuation-focused.
 9. Focus on:
+   - the active slice and what changed in it
+   - completed slices vs. remaining slices
+   - pending checks and last validated state
    - the next bounded implementation steps from the current plan
    - validation already run / still needed
    - blockers, risks, and exact files/commands needed to resume

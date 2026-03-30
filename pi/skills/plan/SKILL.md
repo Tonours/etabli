@@ -16,6 +16,8 @@ Create a detailed implementation plan.
    - preserve the template section order
    - set `Status: DRAFT`
    - fill every relevant section with concrete project-specific content
+   - make the phase-0 measurement contract explicit: outcome, blocking checks, trace points, stop/escalation triggers, diff budget
+   - make the phase-1 execution contract explicit: non-goals, invariants, done criteria, ordered slices with files/areas, checks, rollback points
    - keep it concise; if something is unknown, make it explicit in `Open Questions`
    - include likely files/components under `Relevant Context`, not as a free-form dump
 5. Do NOT write code yet

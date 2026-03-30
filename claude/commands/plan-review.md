@@ -15,6 +15,8 @@ This flow ends after the critique pass. It updates the plan, returns the verdict
 2. Treat `./PLAN.md` as a draft that must be challenged, not defended.
 3. Check:
    - goal clarity and scope boundaries
+   - measurement contract quality
+   - execution contract quality
    - risky assumptions
    - missing risks and edge cases
    - execution order
@@ -22,6 +24,8 @@ This flow ends after the critique pass. It updates the plan, returns the verdict
 4. Update `PLAN.md` in place:
    - preserve the template structure
    - tighten scope if needed
+   - tighten the measurement contract if outcome/checks/trace/stop criteria are weak
+   - tighten slices/files/checks/invariants/done criteria/rollback points if execution remains too interpretive
    - split risky steps into smaller verifiable slices
    - record key deltas in `Review Changes`
    - set `Status: CHALLENGED` if important issues remain

@@ -21,6 +21,8 @@ Use `/implement` instead when an existing `PLAN.md` is already reviewed and `REA
      - `./claude/PLAN_TEMPLATE.md`
      - `~/.claude/PLAN_TEMPLATE.md`
    - create or refresh `./PLAN.md` with `Status: DRAFT`
+   - make the phase-0 measurement contract explicit before `READY`
+   - make the phase-1 execution contract explicit before `READY`
    - critique it and update it to `CHALLENGED` or `READY`
 2. If `$ARGUMENTS` is empty:
    - read the existing `./PLAN.md`
@@ -30,7 +32,12 @@ Use `/implement` instead when an existing `PLAN.md` is already reviewed and `REA
 3. Never implement from a `DRAFT` or `CHALLENGED` plan.
 4. If `PLAN.md` is not `READY`, stop and return the blocker(s) plus the highest-impact plan changes still required.
 5. If `PLAN.md` is `READY`, implement immediately and strictly from it:
-   - follow the `Execution Plan` order
+   - follow the execution slices in order
+   - mark the active slice and keep light implementation state in `PLAN.md`
+   - load only the context needed for the current slice
+   - make the smallest change that advances the slice
+   - run the slice checks before moving on
+   - decide after each slice whether to continue, correct, or replan
    - keep scope bounded to the plan
    - if new facts invalidate the plan, update `PLAN.md` first and re-establish `Status: READY` before continuing
 6. Validate with the focused checks in `PLAN.md` plus the smallest directly relevant tests/typechecks for touched code.
