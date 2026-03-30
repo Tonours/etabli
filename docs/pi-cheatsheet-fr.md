@@ -174,7 +174,7 @@ Boucle zéro temps mort :
 
 Rôles :
 - `scout` : reconnaissance read-only
-- `worker` : implémentation read/write avec `todo` persistant et `lsp` quand dispo
+- `worker` : implémentation read/write avec `todo` persistant, `lsp` quand dispo, et plan state quand utile ; un seul worker à la fois par défaut sauf isolation explicite
 - `reviewer` : revue read-only
 
 Profils :

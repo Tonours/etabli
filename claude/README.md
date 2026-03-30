@@ -6,6 +6,7 @@ This folder contains Claude Code-specific artifacts and documents.
 
 Canonical sources:
 - `../workflow/spec.md`
+- `../workflow/operating-model.md`
 - `../workflow/statuses.md`
 - `../workflow/review-rubric.md`
 - `../workflow/handoff-template.md`
@@ -16,10 +17,17 @@ Canonical sources:
 Default flow across Pi + Claude:
 
 - learn
+- phase-0 measure
 - plan
 - implement
 - review
 - handoff
+
+Shared contract reminders:
+- `PLAN.md` is the single execution contract across Claude and Pi
+- the measurement contract, execution slices, implementation tracking, and review checkpoints all live inside `PLAN.md`
+- implementation starts only from `READY`
+- daily execution modes (`simple`, `standard`, `option-compare`) live in `../workflow/operating-model.md`
 
 ## Commands
 
@@ -53,6 +61,8 @@ Preferred command surface:
 - `cw merge <repo> [branch|path|name] --yes`
 - `cw rm <repo> [branch|path|name] --yes`
 - `cw pick <repo>` for the thin `fzf` / `fzf-tmux` UI
+- `scripts/cw-mode <simple|standard|option-compare> <repo|path> "<task>"`
+- `source scripts/cw-mode-aliases.sh` for `cws`, `cwstd`, `cwcmp`, and `cwtmux`
 - `cw-clean <repo> --yes` for batch cleanup
 
 There is no separate `cw ui` command; `cw pick` is the lightweight UI entrypoint.
