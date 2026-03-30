@@ -13,7 +13,7 @@ Do not ask for implementation confirmation at the end; return the final reviewed
 2. Analyze the relevant codebase area
 3. Resolve the plan template from the first existing file in this order:
    - `./PLAN_TEMPLATE.md`
-   - `../../PLAN_TEMPLATE.md`
+   - `~/.claude/PLAN_TEMPLATE.md`
 4. Create or refresh `./PLAN.md` from the template with `Status: DRAFT`
 5. Run an explicit critique pass against that draft:
    - challenge scope

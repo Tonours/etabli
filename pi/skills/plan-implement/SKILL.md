@@ -15,7 +15,7 @@ If the plan is already reviewed and `READY`, use `/skill:implement` instead.
    - analyze the relevant codebase area
    - resolve the plan template from the first existing file in this order:
      - `./PLAN_TEMPLATE.md`
-     - `../../PLAN_TEMPLATE.md`
+     - `~/.claude/PLAN_TEMPLATE.md`
    - create or refresh `./PLAN.md` with `Status: DRAFT`
    - make the phase-0 measurement contract explicit before `READY`
    - make the phase-1 execution contract explicit before `READY`

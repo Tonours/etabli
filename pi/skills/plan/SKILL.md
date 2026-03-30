@@ -11,7 +11,7 @@ Create a detailed implementation plan.
 2. Analyze the codebase to understand what needs to change
 3. Resolve the plan template in this order and use the first existing file as the exact base structure for `./PLAN.md`:
    - `./PLAN_TEMPLATE.md`
-   - `../../PLAN_TEMPLATE.md`
+   - `~/.claude/PLAN_TEMPLATE.md`
 4. Write `./PLAN.md`:
    - preserve the template section order
    - set `Status: DRAFT`

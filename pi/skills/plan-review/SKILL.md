@@ -10,7 +10,7 @@ This flow ends after the critique pass. It updates the plan, returns the verdict
 
 1. Read `./PLAN.md` and resolve the plan template from the first existing file in this order:
    - `./PLAN_TEMPLATE.md`
-   - `../../PLAN_TEMPLATE.md`
+   - `~/.claude/PLAN_TEMPLATE.md`
 2. Validate first: is the goal clear, measurable, and within scope?
 3. Challenge assumptions:
    - What is assumed about inputs, environment, data shape, concurrency, and failure modes?
