@@ -28,13 +28,12 @@
       "extensions": [],
       "prompts": [],
       "themes": []
-    },
-    "git:github.com/davebcn87/pi-autoresearch"
+    }
   ],
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.63.1",
+  "lastChangelogVersion": "0.64.0",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "theme": "catppuccin-mocha",
