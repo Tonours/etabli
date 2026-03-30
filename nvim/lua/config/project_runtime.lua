@@ -45,11 +45,12 @@ end
 function M.project_info_lines()
   local projects = require("config.projects")
   local worktree = require("config.worktrees").current()
+  local ade = require("config.ade")
   local root = projects.current_root()
   local buffer_root = projects.buffer_root()
   local marker = M.session_marker(root)
 
-  return {
+  local lines = {
     "Project:    " .. vim.fn.fnamemodify(root, ":t"),
     "CWD:        " .. root,
     "Buffer root:" .. (buffer_root and " " .. buffer_root or " none"),
@@ -57,6 +58,9 @@ function M.project_info_lines()
     "Session:    " .. (projects.session_exists(root) and (marker == " +" and "exists, unsaved changes since session" or "exists") or "none"),
     "Marker:     " .. (marker == "" and "none" or marker),
   }
+
+  vim.list_extend(lines, ade.project_info_lines(root))
+  return lines
 end
 
 function M.project_info()

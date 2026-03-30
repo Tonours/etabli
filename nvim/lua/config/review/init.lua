@@ -8,6 +8,42 @@ local M = {}
 
 local commands_registered = false
 local provider_actions = { "explain", "revise" }
+local repo_items_cache = {}
+local repo_items_cache_ttl = 1000
+
+local function clear_repo_items_cache()
+  repo_items_cache = {}
+end
+
+local function repo_items_cache_key(context, opts)
+  local options = opts or {}
+  return table.concat({
+    context.repo,
+    context.branch,
+    options.path or "",
+  }, "\0")
+end
+
+local function cached_repo_items(context, opts)
+  local key = repo_items_cache_key(context, opts)
+  local cached = repo_items_cache[key]
+  if cached and (vim.loop.now() - cached.at) < repo_items_cache_ttl then
+    return cached.items
+  end
+
+  local items, err = diff.collect_all(context.repo, { path = opts.path })
+  if not items then
+    return nil, err
+  end
+
+  local merged = state.merge_items(context, items)
+  repo_items_cache[key] = {
+    at = vim.loop.now(),
+    items = merged,
+  }
+
+  return merged
+end
 
 local function status_complete()
   return state.statuses()
@@ -168,13 +204,13 @@ end
 
 local function repo_items(context, opts)
   local options = opts or {}
-  local items, err = diff.collect_all(context.repo, { path = options.path })
+  local items, err = cached_repo_items(context, options)
   if not items then
     vim.notify(err, vim.log.levels.ERROR)
     return nil
   end
 
-  return filter_items(state.merge_items(context, items), options)
+  return filter_items(items, options)
 end
 
 local function current_hunk_item()
@@ -275,6 +311,8 @@ local function set_item_status(item, status)
     return
   end
 
+  clear_repo_items_cache()
+
   vim.notify(string.format("Review status set to %s", status), vim.log.levels.INFO)
 end
 
@@ -290,6 +328,8 @@ local function set_items_status(items, status)
 
     updated = updated + 1
   end
+
+  clear_repo_items_cache()
 
   vim.notify(string.format("Review status set to %s for %d hunk(s)", status, updated), vim.log.levels.INFO)
   return true
@@ -340,6 +380,7 @@ local function prompt_for_note(item, opts)
     end
 
     vim.notify("Review note saved", vim.log.levels.INFO)
+    clear_repo_items_cache()
 
     if options.on_done then
       options.on_done()
@@ -594,6 +635,12 @@ function M.setup()
   end
 
   commands_registered = true
+
+  local cache_group = vim.api.nvim_create_augroup("etabli_review_cache", { clear = true })
+  vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "DirChanged", "FocusGained", "ShellCmdPost" }, {
+    group = cache_group,
+    callback = clear_repo_items_cache,
+  })
 
   vim.api.nvim_create_user_command("ReviewInbox", function(command_opts)
     M.open_inbox({ status = command_opts.args })

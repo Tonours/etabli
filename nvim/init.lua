@@ -17,6 +17,7 @@ require("config.bootstrap")
 require("config.options")
 require("config.autocmds")
 require("config.review").setup()
+require("config.ade").setup_commands()
 require("config.project_runtime").setup_commands()
 require("config.keymaps")
 

@@ -73,6 +73,14 @@ return {
               statusline.project_label,
               color = statusline.project_color,
             },
+            {
+              function()
+                return require("config.ade").statusline_label()
+              end,
+              color = function()
+                return require("config.ade").statusline_color()
+              end,
+            },
           },
           lualine_c = { { "filename", path = 1 } },
           lualine_x = { "diagnostics" },
