@@ -17,6 +17,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Projects: `<leader>pp`
 - Worktrees: `<leader>pw`
 - Project info: `<leader>pi` or `:ProjectInfo`
+- ADE status: `<leader>pa` or `:ADEStatus`
 
 Long-form aliases stay available:
 - `<leader>ff`, `<leader>fg`, `<leader>fb`
@@ -33,6 +34,7 @@ Statusline:
 - ` branch` = worktree
 - `•` = session exists
 - `+` = session exists, context changed since last save
+- `ADE ...` = current plan/runtime snapshot for the current cwd
 
 ## Code workflow
 
@@ -74,4 +76,6 @@ Notes:
 
 - Use `cw` to create/open worktrees.
 - Use Neovim to switch between tracked projects/worktrees.
+- Neovim is the cockpit, not the workflow brain: the shared execution model lives in `workflow/operating-model.md`.
+- A practical zero-idle loop is: worker running in one worktree, review inbox / QA prep / option comparison running in parallel outside that critical path.
 - `which-key` is enabled in a minimal mode for leader-map recall.

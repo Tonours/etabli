@@ -28,6 +28,7 @@ Leader: `<Space>`
 - save session: `<leader>ps`
 - load session: `<leader>pl`
 - project info: `<leader>pi`
+- ADE status: `<leader>pa` or `:ADEStatus`
 
 ## Buffers
 
@@ -82,3 +83,5 @@ Leader: `<Space>`
 ## Tip
 
 - `which-key` shows leader mappings after pressing `<Space>`.
+- Use `workflow/operating-model.md` for the daily Claude + Pi execution modes.
+- Keep Neovim as cockpit: while one worker runs, use review inbox, project info, and QA prep instead of watching the agent stream.

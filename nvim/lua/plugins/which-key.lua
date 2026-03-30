@@ -12,7 +12,7 @@ return {
       spec = {
         { "<leader>f", group = "find" },
         { "<leader>p", group = "project" },
-        { "<leader>r", group = "refactor" },
+        { "<leader>r", group = "review" },
         { "<leader>s", group = "symbols" },
         { "<leader>d", group = "diagnostics" },
         { "<leader>c", group = "code" },
