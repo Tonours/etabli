@@ -23,7 +23,7 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { Container, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   FALLBACK_MODEL,
@@ -36,11 +36,15 @@ import {
   mergeSubagentExtensionPaths,
   resolveSubagentModel,
 } from "./lib/pi-runtime.ts";
+import { canSpawnRole } from "./lib/subagent-orchestration.ts";
 
 const MAX_SUBAGENTS = 5;
 const SESSION_DIR = join(getAgentDir(), "sessions", "subagents");
 const EXTENSION_DIR = getExtensionDirFromModule(import.meta.url);
 const SETTINGS_PATH = getAgentSettingsPath();
+const PLAN_STATE_EXTENSION_PATH = join(EXTENSION_DIR, "plan-state.ts");
+const WORKER_LOCAL_EXTENSION_PATHS = existsSync(PLAN_STATE_EXTENSION_PATH) ? [PLAN_STATE_EXTENSION_PATH] : [];
+const WORKER_PLAN_STATE_TOOLS = WORKER_LOCAL_EXTENSION_PATHS.length > 0 ? ["plan_state_read", "plan_state_update"] : [];
 
 type RoleName = "scout" | "worker" | "reviewer";
 
@@ -85,10 +89,10 @@ const ROLE_CONFIGS: Record<RoleName, RoleConfig> = {
   },
   worker: {
     label: "Worker",
-    tools: ["read", "bash", "write", "edit", "grep", "find", "ls", "todo", "lsp"],
+    tools: ["read", "bash", "write", "edit", "grep", "find", "ls", "todo", "lsp", ...WORKER_PLAN_STATE_TOOLS],
     instruction:
-      "You are a worker subagent. Implement the requested change directly in the codebase. Read files before editing, keep changes minimal, use todo to claim/get/update/append/close persistent tasks when relevant, use lsp when it sharpens implementation, verify the result with focused commands, and summarize exactly what changed.",
-    extensionPaths: WORKER_EXTENSION_PATHS,
+      "You are a worker subagent. Implement one bounded slice at a time. Read files before editing, keep changes minimal, load only the context needed for the current slice, use todo to claim/get/update/append/close persistent tasks when relevant, use lsp when it sharpens implementation, use plan_state_read/plan_state_update when it helps keep PLAN.md tracking accurate, verify the result with focused commands, and summarize whether the next action is continue, correct, or replan.",
+    extensionPaths: [...WORKER_EXTENSION_PATHS, ...WORKER_LOCAL_EXTENSION_PATHS],
   },
   reviewer: {
     label: "Reviewer",
@@ -166,12 +170,21 @@ export default function (pi: ExtensionAPI) {
   function createSubagent(
     task: string,
     ctx: ExtensionContext,
-    options?: { model?: string; role?: RoleName },
+    options?: { model?: string; role?: RoleName; allowParallelWorkers?: boolean },
   ): { text: string } | { error: string } {
     widgetCtx = ctx;
 
     if (agents.size >= MAX_SUBAGENTS) {
       return { error: `Error: maximum ${MAX_SUBAGENTS} sub-agents reached. Remove one with subagent_remove first.` };
+    }
+
+    const roleConflict = canSpawnRole(
+      Array.from(agents.values()).map((state) => ({ status: state.status, role: state.role })),
+      options?.role,
+      options?.allowParallelWorkers === true,
+    );
+    if (roleConflict) {
+      return { error: roleConflict };
     }
 
     const id = nextId++;
@@ -392,16 +405,23 @@ export default function (pi: ExtensionAPI) {
     name: "subagent_create",
     label: "Subagent Create",
     description:
-      "Spawn a background sub-agent to perform a task. Optionally set role=scout, role=worker, or role=reviewer for a named preset. Scout and reviewer stay read-only; worker can edit code and use todo/LSP when available. Returns the sub-agent ID immediately while it runs in the background. Results are delivered as a follow-up message when finished.",
+      "Spawn a background sub-agent to perform a task. Optionally set role=scout, role=worker, or role=reviewer for a named preset. Scout and reviewer stay read-only; worker can edit code and use todo/LSP when available. Only one worker runs by default unless allowParallelWorkers=true is explicitly set for isolated work. Returns the sub-agent ID immediately while it runs in the background. Results are delivered as a follow-up message when finished.",
     parameters: Type.Object({
       task: Type.String({ description: "The complete task description for the sub-agent" }),
       model: Type.Optional(Type.String({ description: "Optional model override (provider/model-id)" })),
       role: Type.Optional(StringEnum(["scout", "worker", "reviewer"] as const)),
+      allowParallelWorkers: Type.Optional(
+        Type.Boolean({
+          description:
+            "Allow spawning a second worker while another worker is running. Use only when work is explicitly isolated outside this runtime.",
+        }),
+      ),
     }),
     execute: async (_callId, args, _signal, _onUpdate, ctx) => {
       const created = createSubagent(args.task, ctx, {
         model: args.model,
         role: normalizeRole(args.role),
+        allowParallelWorkers: args.allowParallelWorkers,
       });
       if ("error" in created) {
         return { content: [{ type: "text" as const, text: created.error }], details: {} };
@@ -418,12 +438,18 @@ export default function (pi: ExtensionAPI) {
     name: "subagent_continue",
     label: "Subagent Continue",
     description:
-      "Continue an existing sub-agent's conversation with a follow-up prompt. Keeps the current role unless role is overridden. Returns immediately while it runs in the background.",
+      "Continue an existing sub-agent's conversation with a follow-up prompt. Keeps the current role unless role is overridden. Worker continuations still respect the one-worker-by-default rule unless allowParallelWorkers=true is explicitly set for isolated work. Returns immediately while it runs in the background.",
     parameters: Type.Object({
       id: Type.Number({ description: "The ID of the sub-agent to continue" }),
       prompt: Type.String({ description: "The follow-up prompt or new instructions" }),
       model: Type.Optional(Type.String({ description: "Optional model override (provider/model-id)" })),
       role: Type.Optional(StringEnum(["scout", "worker", "reviewer"] as const)),
+      allowParallelWorkers: Type.Optional(
+        Type.Boolean({
+          description:
+            "Allow continuing or spawning a worker in parallel with another running worker. Use only when work is explicitly isolated outside this runtime.",
+        }),
+      ),
     }),
     execute: async (_callId, args, _signal, _onUpdate, ctx) => {
       widgetCtx = ctx;
@@ -435,6 +461,22 @@ export default function (pi: ExtensionAPI) {
         return { content: [{ type: "text" as const, text: `Error: sub-agent #${args.id} is still running.` }], details: {} };
       }
 
+      const roleOverride = normalizeRole(args.role);
+      const targetRole = roleOverride ?? state.role;
+      const roleConflict = canSpawnRole(
+        Array.from(agents.values())
+          .filter((candidate) => candidate.id !== state.id)
+          .map((candidate) => ({ status: candidate.status, role: candidate.role })),
+        targetRole,
+        args.allowParallelWorkers === true,
+      );
+      if (roleConflict) {
+        return {
+          content: [{ type: "text" as const, text: roleConflict }],
+          details: {},
+        };
+      }
+
       state.status = "running";
       state.task = args.prompt;
       state.textChunks = [];
@@ -444,7 +486,6 @@ export default function (pi: ExtensionAPI) {
       if (modelOverride) {
         state.model = modelOverride;
       }
-      const roleOverride = normalizeRole(args.role);
       if (roleOverride) {
         state.role = roleOverride;
       }
