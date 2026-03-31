@@ -98,6 +98,7 @@ assert_true(matched.status == "needs-rework", "saved status was not restored")
 working_lines[9] = "nine changed again"
 working_lines[10] = "ten changed again"
 vim.fn.writefile(working_lines, repo .. "/demo.txt")
+diff.clear_cache()
 
 local changed = state.merge_items(context, diff.collect_all(repo_root))
 local saw_stale = false

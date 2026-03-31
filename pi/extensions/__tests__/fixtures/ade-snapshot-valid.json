@@ -1,0 +1,65 @@
+{
+  "kind": "ade-snapshot",
+  "version": 1,
+  "project": "etabli",
+  "cwd": "/Volumes/Crucial/work/etabli",
+  "generatedAt": "2026-03-31T12:00:00.000Z",
+  "updatedAt": "2026-03-31T12:00:00.000Z",
+  "revision": 3,
+  "paths": {
+    "snapshot": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.ade.json",
+    "plan": "/Volumes/Crucial/work/etabli/PLAN.md",
+    "runtime": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.json",
+    "handoffImplement": "/Volumes/Crucial/work/etabli/.pi/handoff-implement.md",
+    "handoffGeneric": "/Volumes/Crucial/work/etabli/.pi/handoff.md"
+  },
+  "plan": {
+    "state": "available",
+    "path": "/Volumes/Crucial/work/etabli/PLAN.md",
+    "status": "READY",
+    "plannedSlice": "Slice 1",
+    "activeSlice": null,
+    "nextRecommendedAction": "start Slice 1",
+    "warnings": []
+  },
+  "review": {
+    "state": "available",
+    "source": "stored",
+    "mayBeStale": true,
+    "refreshedAt": null,
+    "actionable": 0,
+    "line": "clear in stored state",
+    "warnings": []
+  },
+  "runtime": {
+    "state": "available",
+    "source": "file",
+    "phase": "idle",
+    "tool": null,
+    "model": "gpt-5-mini",
+    "thinking": "off",
+    "updatedAt": "2026-03-31T12:00:00.000Z",
+    "warnings": []
+  },
+  "handoff": {
+    "state": "missing",
+    "kind": null,
+    "path": null
+  },
+  "mode": {
+    "state": "available",
+    "mode": "standard",
+    "explicit": false,
+    "hint": {
+      "roles": "main + scout + worker + reviewer",
+      "review": "continuous review",
+      "worktrees": "main worktree"
+    },
+    "warnings": []
+  },
+  "nextAction": {
+    "value": "start Slice 1",
+    "reason": "ready plan with no active slice",
+    "derivedFrom": "plan"
+  }
+}

@@ -29,6 +29,14 @@ Leader: `<Space>`
 - load session: `<leader>pl`
 - project info: `<leader>pi`
 - ADE status: `<leader>pa` or `:ADEStatus`
+- ADE resume: `<leader>pA` or `:ADEResume`
+- ADE next: `<leader>pn` or `:ADENext`
+- ADE doctor: `<leader>pd` or `:ADEDoctor`
+- ADE refresh review: `<leader>pf` or `:ADERefreshReview`
+- ADE mode: `<leader>pm` or `:ADEMode [simple|standard|option-compare]`
+- ADE open plan: `<leader>po` or `:ADEOpenPlan`
+- ADE handoff: `<leader>ph` or `:ADEHandoff`
+- ADE review: `<leader>pR` or `:ADEReview`
 
 ## Buffers
 
@@ -85,3 +93,7 @@ Leader: `<Space>`
 - `which-key` shows leader mappings after pressing `<Space>`.
 - Use `workflow/operating-model.md` for the daily Claude + Pi execution modes.
 - Keep Neovim as cockpit: while one worker runs, use review inbox, project info, and QA prep instead of watching the agent stream.
+- `:ADEStatus` shows stored review blockers, runtime state, handoff presence, and parse warnings for the current worktree.
+- `:ADENext` gives the next bounded ADE action; it uses stored review state for speed, so open the inbox or run `:ADERefreshReview` for live diff accuracy and stale-blocker refresh.
+- `:ADEDoctor` is the plumbing check when the cockpit feels suspicious.
+- `:ADEMode` is explicit posture, not auto-detection; unset defaults to `standard`.

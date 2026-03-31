@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "project": "etabli",
+  "cwd": "/tmp/etabli",
+  "phase": "running",
+  "tool": "read",
+  "model": "gpt-5-mini",
+  "thinking": "medium",
+  "updatedAt": "2026-03-30T10:00:00.000Z"
+}

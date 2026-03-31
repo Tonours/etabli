@@ -1,0 +1,26 @@
+[
+  {
+    "cwd": "/Volumes/Crucial/work/etabli",
+    "sanitized": "_Volumes_Crucial_work_etabli"
+  },
+  {
+    "cwd": "/tmp/demo repo/worktree-a",
+    "sanitized": "_tmp_demo_repo_worktree-a"
+  },
+  {
+    "cwd": "/tmp/demo repo/worktree-a/",
+    "sanitized": "_tmp_demo_repo_worktree-a"
+  },
+  {
+    "cwd": "/tmp/./demo repo/worktree-a",
+    "sanitized": "_tmp_demo_repo_worktree-a"
+  },
+  {
+    "cwd": "C:/Users/tonours/work/etabli",
+    "sanitized": "C_Users_tonours_work_etabli"
+  },
+  {
+    "cwd": "/tmp/démo/α",
+    "sanitized": "_tmp_d_mo_"
+  }
+]
