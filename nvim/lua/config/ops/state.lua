@@ -134,7 +134,7 @@ function M.runtime_status_path(cwd)
 end
 
 function M.snapshot_status_path(cwd)
-  return vim.fn.expand("~/.pi/status/" .. M.status_file_name(cwd) .. ".ade.json")
+  return vim.fn.expand("~/.pi/status/" .. M.status_file_name(cwd) .. ".ops.json")
 end
 
 function M.handoff_paths(cwd)
@@ -221,17 +221,20 @@ local function parse_first_execution_slice(content)
   return nil
 end
 
-function M.inspect_plan_content(content)
-  local warnings = {}
-  local status = nil
-
+local function parse_meta_value(content, label)
   for _, line in ipairs(vim.split(content, "\n", { plain = true })) do
-    local matched = line:match("^%- Status:%s*(.-)%s*$")
-    if matched then
-      status = matched
-      break
+    local matched = line:match("^%- " .. label .. ":%s*(.-)%s*$")
+    if matched and matched ~= "" then
+      return matched
     end
   end
+
+  return nil
+end
+
+function M.inspect_plan_content(content)
+  local warnings = {}
+  local status = parse_meta_value(content, "Status")
 
   if not status then
     add_warning(warnings, "Missing plan status")
@@ -245,6 +248,7 @@ function M.inspect_plan_content(content)
 
   return {
     exists = true,
+    subject = parse_meta_value(content, "Subject"),
     status = status,
     planned_slice = parse_first_execution_slice(content),
     tracking = tracking,
@@ -264,6 +268,7 @@ function M.plan_state(cwd)
     return {
       exists = false,
       path = target,
+      subject = nil,
       status = nil,
       planned_slice = nil,
       tracking = empty_tracking(),

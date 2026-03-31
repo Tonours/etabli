@@ -1,11 +1,12 @@
-local mode = require("config.ade.mode")
-local state = require("config.ade.state")
+local mode = require("config.ops.mode")
+local state = require("config.ops.state")
+local task = require("config.ops.task")
 
 local M = {}
 
 local uv = vim.uv or vim.loop
 local JSON_NULL = vim.NIL
-local SNAPSHOT_KIND = "ade-snapshot"
+local SNAPSHOT_KIND = "ops-snapshot"
 local SNAPSHOT_VERSION = 1
 local pending = {
   token = 0,
@@ -32,6 +33,20 @@ local function first_item(items)
     return nil
   end
   return value
+end
+
+local function list_items(items)
+  if not items or #items == 0 then
+    return {}
+  end
+
+  local result = {}
+  for _, item in ipairs(items) do
+    if item ~= "none" then
+      table.insert(result, item)
+    end
+  end
+  return result
 end
 
 local function to_json_value(value)
@@ -121,7 +136,7 @@ local function next_action_details(plan, review, runtime, handoff)
     }
   end
   return {
-    value = "no actionable ADE state",
+    value = "no actionable OPS state",
     reason = "no bounded signal available",
     derivedFrom = "mixed",
   }
@@ -137,6 +152,9 @@ local function project_plan(root)
     status = to_json_value(plan.status),
     plannedSlice = to_json_value(plan.planned_slice),
     activeSlice = to_json_value(first_item(plan.tracking["Active slice"])),
+    completedSlices = list_items(plan.tracking["Completed slices"]),
+    pendingChecks = list_items(plan.tracking["Pending checks"]),
+    lastValidatedState = to_json_value(first_item(plan.tracking["Last validated state"])),
     nextRecommendedAction = to_json_value(first_item(plan.tracking["Next recommended action"])),
     warnings = vim.deepcopy(plan.warnings or {}),
   }
@@ -203,9 +221,16 @@ function M.project(cwd)
   local review_raw, review = project_review(root)
   local runtime_raw, runtime = project_runtime(root)
   local handoff_raw, handoff = project_handoff(root)
-  local _mode_raw, mode_block = project_mode(root)
+  local mode_raw, mode_block = project_mode(root)
   local next_action = next_action_details(plan_raw, review_raw, runtime_raw, handoff_raw)
   local paths = state.handoff_paths(root)
+  local task_block = task.project(root, {
+    plan = plan_raw,
+    review = review_raw,
+    runtime = runtime_raw,
+    mode_state = mode_raw,
+    next_action = next_action,
+  })
 
   return {
     kind = SNAPSHOT_KIND,
@@ -214,11 +239,13 @@ function M.project(cwd)
     cwd = root,
     paths = {
       snapshot = M.snapshot_path(root),
+      task = task.path(root),
       plan = state.plan_path(root),
       runtime = state.runtime_status_path(root),
       handoffImplement = paths.implement,
       handoffGeneric = paths.generic,
     },
+    task = task_block,
     plan = plan,
     review = review,
     runtime = runtime,
@@ -233,6 +260,9 @@ local function strip_metadata(snapshot)
   copy.generatedAt = nil
   copy.updatedAt = nil
   copy.revision = nil
+  if copy.task then
+    copy.task.updatedAt = nil
+  end
   return copy
 end
 
@@ -257,7 +287,7 @@ local function write_atomic(path, lines)
   local ok, err = uv.fs_rename(tmp, path)
   if not ok then
     pcall(uv.fs_unlink, tmp)
-    error(err or "failed to rename ADE snapshot temp file")
+    error(err or "failed to rename OPS snapshot temp file")
   end
 end
 
@@ -265,6 +295,7 @@ function M.write(cwd)
   local root = vim.fs.normalize(cwd or vim.fn.getcwd())
   local path = M.snapshot_path(root)
   local snapshot = M.project(root)
+  task.write(root, snapshot.task)
   local previous = read_existing(path)
   local previous_revision = 0
 
@@ -272,7 +303,7 @@ function M.write(cwd)
     previous_revision = previous.revision
   end
 
-  if previous and vim.deep_equal(strip_metadata(previous), snapshot) then
+  if previous and vim.deep_equal(strip_metadata(previous), strip_metadata(snapshot)) then
     return previous, false
   end
 

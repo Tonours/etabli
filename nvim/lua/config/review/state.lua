@@ -196,7 +196,7 @@ function M.write(context, data)
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
 
-  local ok, snapshot = pcall(require, "config.ade.snapshot")
+  local ok, snapshot = pcall(require, "config.ops.snapshot")
   if ok and snapshot and snapshot.schedule_write then
     snapshot.schedule_write(context.repo)
   end
@@ -212,7 +212,7 @@ function M.clear(context)
     vim.uv.fs_unlink(target)
   end
 
-  local ok, snapshot = pcall(require, "config.ade.snapshot")
+  local ok, snapshot = pcall(require, "config.ops.snapshot")
   if ok and snapshot and snapshot.schedule_write then
     snapshot.schedule_write(context.repo)
   end

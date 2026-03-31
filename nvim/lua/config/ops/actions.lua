@@ -1,8 +1,8 @@
-local doctor = require("config.ade.doctor")
-local mode = require("config.ade.mode")
-local snapshot = require("config.ade.snapshot")
-local state = require("config.ade.state")
-local view = require("config.ade.view")
+local doctor = require("config.ops.doctor")
+local mode = require("config.ops.mode")
+local snapshot = require("config.ops.snapshot")
+local state = require("config.ops.state")
+local view = require("config.ops.view")
 
 local M = {}
 
@@ -19,25 +19,25 @@ local function try_write_snapshot(cwd, title)
 end
 
 function M.show_status()
-  vim.notify(table.concat(view.info_lines(), "\n"), vim.log.levels.INFO, { title = "ADEStatus" })
+  vim.notify(table.concat(view.info_lines(), "\n"), vim.log.levels.INFO, { title = "OPSStatus" })
 end
 
 function M.show_next()
-  vim.notify(table.concat(view.next_lines(), "\n"), vim.log.levels.INFO, { title = "ADENext" })
+  vim.notify(table.concat(view.next_lines(), "\n"), vim.log.levels.INFO, { title = "OPSNext" })
 end
 
 function M.refresh_review()
   local cwd = vim.fn.getcwd()
   local review = state.refresh_review_summary(cwd)
-  try_write_snapshot(cwd, "ADERefreshReview")
+  try_write_snapshot(cwd, "OPSRefreshReview")
   local lines = {
-    "ADE review refresh:",
+    "OPS review refresh:",
     "Review:     " .. review.line,
   }
   for _, warning in ipairs(review.warnings or {}) do
     table.insert(lines, "Review warn: " .. warning)
   end
-  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "ADERefreshReview" })
+  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "OPSRefreshReview" })
 end
 
 function M.open_plan()
@@ -49,7 +49,7 @@ function M.open_plan()
 
   vim.cmd.edit(vim.fn.fnameescape(plan.path))
   if #plan.warnings > 0 then
-    vim.notify(table.concat(plan.warnings, "\n"), vim.log.levels.WARN, { title = "ADEOpenPlan" })
+    vim.notify(table.concat(plan.warnings, "\n"), vim.log.levels.WARN, { title = "OPSOpenPlan" })
   end
 end
 
@@ -75,11 +75,11 @@ function M.resume()
     session_state = projects.load_session_state(root)
   end
 
-  vim.notify(table.concat(view.resume_lines(root, session_state), "\n"), vim.log.levels.INFO, { title = "ADEResume" })
+  vim.notify(table.concat(view.resume_lines(root, session_state), "\n"), vim.log.levels.INFO, { title = "OPSResume" })
 end
 
 function M.show_doctor()
-  vim.notify(table.concat(doctor.lines(), "\n"), vim.log.levels.INFO, { title = "ADEDoctor" })
+  vim.notify(table.concat(doctor.lines(), "\n"), vim.log.levels.INFO, { title = "OPSDoctor" })
 end
 
 function M.show_mode(command_mode)
@@ -92,25 +92,25 @@ function M.show_mode(command_mode)
     end
 
     vim.notify(
-      string.format("ADE mode set to %s\n%s", mode_state.mode, mode_state.description.roles),
+      string.format("OPS mode set to %s\n%s", mode_state.mode, mode_state.description.roles),
       vim.log.levels.INFO,
-      { title = "ADEMode" }
+      { title = "OPSMode" }
     )
-    try_write_snapshot(cwd, "ADEMode")
+    try_write_snapshot(cwd, "OPSMode")
     return
   end
 
   local mode_state = mode.read(cwd)
   vim.notify(
     string.format(
-      "ADE mode: %s\nRoles: %s\nReview: %s\nWorktrees: %s",
+      "OPS mode: %s\nRoles: %s\nReview: %s\nWorktrees: %s",
       mode_state.explicit and mode_state.mode or (mode_state.mode .. " (default)"),
       mode_state.description.roles,
       mode_state.description.review,
       mode_state.description.worktrees
     ),
     vim.log.levels.INFO,
-    { title = "ADEMode" }
+    { title = "OPSMode" }
   )
 end
 

@@ -11,7 +11,7 @@ type ModelRegistry = Pick<ExtensionContext["modelRegistry"], "find">;
 
 export const CONFIGURED_DEFAULT_MODEL: ProviderModel = {
   provider: "github-copilot",
-  id: "gemini-3.1-pro-preview",
+  id: "claude-opus-4.6",
 };
 
 const FALLBACKS: readonly ProviderModel[] = [

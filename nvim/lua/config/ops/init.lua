@@ -1,8 +1,8 @@
-local actions = require("config.ade.actions")
-local mode = require("config.ade.mode")
-local snapshot = require("config.ade.snapshot")
-local state = require("config.ade.state")
-local view = require("config.ade.view")
+local actions = require("config.ops.actions")
+local mode = require("config.ops.mode")
+local snapshot = require("config.ops.snapshot")
+local state = require("config.ops.state")
+local view = require("config.ops.view")
 
 local M = {}
 local commands_registered = false
@@ -46,53 +46,53 @@ function M.setup_commands()
 
   commands_registered = true
 
-  vim.api.nvim_create_user_command("ADEStatus", function()
+  vim.api.nvim_create_user_command("OPSStatus", function()
     M.show_status()
-  end, { desc = "Show ADE plan/runtime/review status" })
+  end, { desc = "Show OPS plan/runtime/review status" })
 
-  vim.api.nvim_create_user_command("ADE", function()
+  vim.api.nvim_create_user_command("OPS", function()
     M.show_status()
-  end, { desc = "Show ADE plan/runtime/review status" })
+  end, { desc = "Show OPS plan/runtime/review status" })
 
-  vim.api.nvim_create_user_command("ADENext", function()
+  vim.api.nvim_create_user_command("OPSNext", function()
     M.show_next()
-  end, { desc = "Show the next ADE action" })
+  end, { desc = "Show the next OPS action" })
 
-  vim.api.nvim_create_user_command("ADEOpenPlan", function()
+  vim.api.nvim_create_user_command("OPSOpenPlan", function()
     M.open_plan()
   end, { desc = "Open PLAN.md for the current worktree" })
 
-  vim.api.nvim_create_user_command("ADEReview", function()
+  vim.api.nvim_create_user_command("OPSReview", function()
     M.open_review()
   end, { desc = "Open the review inbox for the current worktree" })
 
-  vim.api.nvim_create_user_command("ADEHandoff", function()
+  vim.api.nvim_create_user_command("OPSHandoff", function()
     M.open_handoff()
-  end, { desc = "Open the current ADE handoff file" })
+  end, { desc = "Open the current OPS handoff file" })
 
-  vim.api.nvim_create_user_command("ADERefreshReview", function()
+  vim.api.nvim_create_user_command("OPSRefreshReview", function()
     M.refresh_review()
-  end, { desc = "Refresh live ADE review state" })
+  end, { desc = "Refresh live OPS review state" })
 
-  vim.api.nvim_create_user_command("ADEDoctor", function()
+  vim.api.nvim_create_user_command("OPSDoctor", function()
     M.show_doctor()
-  end, { desc = "Diagnose ADE plumbing for the current worktree" })
+  end, { desc = "Diagnose OPS plumbing for the current worktree" })
 
-  vim.api.nvim_create_user_command("ADEResume", function()
+  vim.api.nvim_create_user_command("OPSResume", function()
     M.resume()
   end, { desc = "Resume the current worktree context" })
 
-  vim.api.nvim_create_user_command("ADEMode", function(opts)
+  vim.api.nvim_create_user_command("OPSMode", function(opts)
     M.show_mode(opts.args)
   end, {
-    desc = "Show or set the ADE operating mode",
+    desc = "Show or set the OPS operating mode",
     nargs = "?",
     complete = function()
       return mode.modes()
     end,
   })
 
-  local group = vim.api.nvim_create_augroup("etabli_ade_runtime", { clear = true })
+  local group = vim.api.nvim_create_augroup("etabli_ops_runtime", { clear = true })
   vim.api.nvim_create_autocmd({ "DirChanged", "BufWritePost" }, {
     group = group,
     pattern = { "*" },

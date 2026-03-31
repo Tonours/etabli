@@ -29,16 +29,16 @@ Leader: `<Space>`
 - save session: `<leader>ps`
 - load session: `<leader>pl`
 - project info: `<leader>pi`
-- ADE group aliases: `<leader>as`, `<leader>au`, `<leader>an`, `<leader>ad`, `<leader>af`, `<leader>am`, `<leader>ap`, `<leader>ah`, `<leader>ar`
-- ADE status: `<leader>pa` or `:ADEStatus`
-- ADE resume: `<leader>pA` or `:ADEResume`
-- ADE next: `<leader>pn` or `:ADENext`
-- ADE doctor: `<leader>pd` or `:ADEDoctor`
-- ADE refresh review: `<leader>pf` or `:ADERefreshReview`
-- ADE mode: `<leader>pm` or `:ADEMode [simple|standard|option-compare]`
-- ADE open plan: `<leader>po` or `:ADEOpenPlan`
-- ADE handoff: `<leader>ph` or `:ADEHandoff`
-- ADE review: `<leader>pR` or `:ADEReview`
+- OPS group aliases: `<leader>as`, `<leader>au`, `<leader>an`, `<leader>ad`, `<leader>af`, `<leader>am`, `<leader>ap`, `<leader>ah`, `<leader>ar`
+- OPS status: `<leader>pa` or `:OPSStatus`
+- OPS resume: `<leader>pA` or `:OPSResume`
+- OPS next: `<leader>pn` or `:OPSNext`
+- OPS doctor: `<leader>pd` or `:OPSDoctor`
+- OPS refresh review: `<leader>pf` or `:OPSRefreshReview`
+- OPS mode: `<leader>pm` or `:OPSMode [simple|standard|option-compare]`
+- OPS open plan: `<leader>po` or `:OPSOpenPlan`
+- OPS handoff: `<leader>ph` or `:OPSHandoff`
+- OPS review: `<leader>pR` or `:OPSReview`
 
 ## Buffers
 
@@ -95,8 +95,8 @@ Leader: `<Space>`
 - `which-key` shows leader mappings after pressing `<Space>`.
 - Use `workflow/operating-model.md` for the daily Claude + Pi execution modes.
 - Keep Neovim as cockpit: while one worker runs, use review inbox, project info, and QA prep instead of watching the agent stream.
-- `:ADEStatus` shows stored review blockers, runtime state, handoff presence, and parse warnings for the current worktree.
-- `:ADENext` gives the next bounded ADE action; it uses stored review state for speed, so open the inbox or run `:ADERefreshReview` for live diff accuracy and stale-blocker refresh.
-- `:ADEDoctor` is the plumbing check when the cockpit feels suspicious.
-- `:ADEMode` is explicit posture, not auto-detection; unset defaults to `standard`.
+- `:OPSStatus` shows stored review blockers, runtime state, handoff presence, and parse warnings for the current worktree.
+- `:OPSNext` gives the next bounded OPS action; it uses stored review state for speed, so open the inbox or run `:OPSRefreshReview` for live diff accuracy and stale-blocker refresh.
+- `:OPSDoctor` is the plumbing check when the cockpit feels suspicious.
+- `:OPSMode` is explicit posture, not auto-detection; unset defaults to `standard`.
 - Worktree picker: press `<C-n>` to create a new worktree.

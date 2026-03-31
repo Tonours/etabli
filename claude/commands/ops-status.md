@@ -1,29 +1,33 @@
 ---
-description: Read the exported ADE snapshot for the current worktree and summarize it
+description: Read the exported OPS snapshot for the current worktree and summarize it
 allowed-tools: [Read, Bash]
 ---
 
-# ADE Status
+# OPS Status
 
-Read the exported ADE snapshot for the current cwd and return a concise summary.
+Read the exported OPS snapshot for the current cwd and return a concise summary.
 
 ## Steps
 
 1. Determine the current working directory.
 2. Build the snapshot path using this exact sanitization rule:
    - replace every run of characters outside `[A-Za-z0-9._-]` with `_`
-   - path = `~/.pi/status/<sanitized-cwd>.ade.json`
+   - path = `~/.pi/status/<sanitized-cwd>.ops.json`
 3. Read the snapshot file.
 4. If the snapshot file is missing:
-   - say that no ADE snapshot is exported for the current cwd
+   - say that no OPS snapshot is exported for the current cwd
    - show the expected path
-   - suggest opening Neovim in that worktree and running `:ADEStatus` or `:ADEDoctor`
+   - suggest opening Neovim in that worktree and running `:OPSStatus` or `:OPSDoctor`
 5. If the snapshot file exists but is invalid:
-   - report that the ADE snapshot is invalid
+   - report that the OPS snapshot is invalid
    - show the expected path
    - include the parse/validation error if available
 6. If the snapshot is valid, summarize only:
+   - current task title
    - plan status
+   - completed slice count
+   - pending checks count
+   - last validated state, if present
    - next action
    - review line + whether it is `stored` or `live`
    - runtime phase/tool/model if present
@@ -34,7 +38,7 @@ Read the exported ADE snapshot for the current cwd and return a concise summary.
 
 ## Rules
 
-- Do not recompute ADE logic from source files.
+- Do not recompute OPS logic from source files.
 - Do not refresh review state.
 - Do not edit any files.
 - Treat `nextAction` as a hint, not an automation instruction.

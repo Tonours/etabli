@@ -1,10 +1,10 @@
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { formatAdeReadError, formatAdeStatus, readAdeSnapshotForCwd } from "./lib/ade-snapshot.ts";
+import { formatOpsReadError, formatOpsStatus, readOpsSnapshotForCwd } from "./lib/ops-snapshot.ts";
 
 function sync(ctx: ExtensionContext): void {
   if (!ctx.hasUI) return;
-  const result = readAdeSnapshotForCwd(ctx.cwd);
-  ctx.ui.setStatus("ade-status", result.ok && result.value ? formatAdeStatus(result.value) : formatAdeReadError(result));
+  const result = readOpsSnapshotForCwd(ctx.cwd);
+  ctx.ui.setStatus("ops-status", result.ok && result.value ? formatOpsStatus(result.value) : formatOpsReadError(result));
 }
 
 export default function (pi: ExtensionAPI) {

@@ -1,5 +1,7 @@
-local mode = require("config.ade.mode")
-local state = require("config.ade.state")
+local mode = require("config.ops.mode")
+local state = require("config.ops.state")
+local snapshot = require("config.ops.snapshot")
+local task = require("config.ops.task")
 
 local M = {}
 
@@ -16,7 +18,7 @@ end
 
 function M.lines(cwd)
   local root = vim.fs.normalize(cwd or vim.fn.getcwd())
-  local lines = { "ADE doctor:" }
+  local lines = { "OPS doctor:" }
   local projects = require("config.projects")
   local worktrees = require("config.worktrees")
   local review_diff = require("config.review.diff")
@@ -29,6 +31,14 @@ function M.lines(cwd)
   local review = state.review_summary(root)
   local handoff = state.handoff_state(root)
   local mode_state = mode.read(root)
+  local task_state = task.project(root, {
+    plan = plan,
+    review = review,
+    runtime = runtime,
+    mode_state = mode_state,
+    next_action = snapshot.next_action_details(plan, review, runtime, handoff),
+  })
+  local task_path = task.path(root)
   local session_exists = projects.session_exists(root)
 
   if repo then
@@ -47,6 +57,12 @@ function M.lines(cwd)
     table.insert(lines, line("PASS", "session", "saved session available"))
   else
     table.insert(lines, line("WARN", "session", "no saved session"))
+  end
+
+  if vim.uv.fs_stat(task_path) then
+    table.insert(lines, line("PASS", "task", task_state.title))
+  else
+    table.insert(lines, line("WARN", "task", "task projection not exported yet"))
   end
 
   if not plan.exists then

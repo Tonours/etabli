@@ -41,12 +41,14 @@ cd etabli
 - `docs/pi-cheatsheet-fr.md` - Pi commands, shortcuts, and repo-specific reminders
 - `pi/AGENTS.md` - project-specific agent instructions used by Pi
 
-### ADE shared status
+### OPS shared status
 
-- Neovim exports one shared ADE snapshot per worktree at `~/.pi/status/<sanitized-cwd>.ade.json`
-- Pi reads that snapshot through the ambient `ade-status` extension
-- Claude reads that snapshot through `claude/commands/ade-status.md`
-- `./scripts/test-ade-local.sh` runs the bounded local verification flow for this ADE surface
+- Neovim also exports one lightweight task projection per worktree at `~/.pi/status/<sanitized-cwd>.task.json`
+- Neovim exports one shared OPS snapshot per worktree at `~/.pi/status/<sanitized-cwd>.ops.json`
+- the OPS snapshot now includes that task projection so Pi and Claude see the same current task/title/next-action context
+- Pi reads that snapshot through the ambient `ops-status` extension
+- Claude reads that snapshot through `claude/commands/ops-status.md`
+- `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface
 
 ### Planning and execution
 
@@ -113,11 +115,11 @@ Useful entrypoints:
 
 For the full workflow surface, use the dedicated docs above instead of this root README.
 
-Local ADE verification:
+Local OPS verification:
 
-- run `./scripts/test-ade-local.sh` before commit when touching the shared ADE snapshot flow
-- it runs targeted ADE Bun tests, Neovim ADE/review smokes, the Pi extension suite, and `git diff --check`
-- the real Claude `/ade-status` runtime check remains manual
+- run `./scripts/test-ops-local.sh` before commit when touching the shared OPS snapshot flow
+- it runs targeted OPS Bun tests, Neovim OPS/review smokes, the Pi extension suite, and `git diff --check`
+- the real Claude `/ops-status` runtime check remains manual
 
 ## Config and secrets
 

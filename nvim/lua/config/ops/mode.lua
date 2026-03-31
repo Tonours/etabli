@@ -47,7 +47,7 @@ local function ensure_dir(path)
 end
 
 local function state_dir()
-  return vim.fn.stdpath("state") .. "/etabli/ade-mode"
+  return vim.fn.stdpath("state") .. "/etabli/ops-mode"
 end
 
 local function file_path(cwd)
@@ -158,7 +158,7 @@ end
 
 function M.write(cwd, mode)
   if not is_valid_mode(mode) then
-    return nil, string.format("Invalid ADE mode: %s", mode)
+    return nil, string.format("Invalid OPS mode: %s", mode)
   end
 
   local normalized = vim.fs.normalize(cwd or vim.fn.getcwd())
