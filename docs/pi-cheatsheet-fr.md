@@ -113,6 +113,32 @@ Notes repo :
 - ajoute `--print-tmux` si tu veux un snippet léger pour te rattacher directement à la cible tmux principale
 - source `scripts/cw-mode-aliases.sh` pour récupérer `cws`, `cwstd`, `cwcmp`, et `cwtmux` (ou laisse `scripts/install.sh` ajouter le sourcing dans `~/.bashrc` / `~/.zshrc`)
 
+## ADE snapshot partagé
+
+- Neovim exporte un snapshot ADE dérivé par worktree vers `~/.pi/status/<sanitized-cwd>.ade.json`
+- Pi le lit via l'extension ambient `ade-status`
+- Claude peut lire le même snapshot via `claude/commands/ade-status.md`
+- ce snapshot est **read-only** et **display-only** : pas de recalcul ADE, pas de refresh review live implicite, pas d'écriture d'artefacts workflow
+- `:ADERefreshReview` dans Neovim reste le seul chemin coûteux explicite pour remettre à jour la review live
+- si le snapshot est absent ou invalide, Pi et Claude doivent échouer proprement avec un message explicite
+
+## Vérification locale ADE
+
+Depuis la racine du repo :
+
+```bash
+./scripts/test-ade-local.sh
+```
+
+Le runner enchaîne :
+- tests Bun ciblés ADE
+- smoke Neovim ADE
+- smoke Neovim review
+- suite complète des extensions Pi
+- `git diff --check`
+
+La validation réelle de Claude `/ade-status` reste manuelle.
+
 ## Raccourcis review diff dans Neovim
 
 Actions sur le hunk courant :

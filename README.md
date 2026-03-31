@@ -41,6 +41,13 @@ cd etabli
 - `docs/pi-cheatsheet-fr.md` - Pi commands, shortcuts, and repo-specific reminders
 - `pi/AGENTS.md` - project-specific agent instructions used by Pi
 
+### ADE shared status
+
+- Neovim exports one shared ADE snapshot per worktree at `~/.pi/status/<sanitized-cwd>.ade.json`
+- Pi reads that snapshot through the ambient `ade-status` extension
+- Claude reads that snapshot through `claude/commands/ade-status.md`
+- `./scripts/test-ade-local.sh` runs the bounded local verification flow for this ADE surface
+
 ### Planning and execution
 
 - `workflow/spec.md` - canonical workflow contract
@@ -105,6 +112,12 @@ Useful entrypoints:
 - `cw-clean <repo> --yes`
 
 For the full workflow surface, use the dedicated docs above instead of this root README.
+
+Local ADE verification:
+
+- run `./scripts/test-ade-local.sh` before commit when touching the shared ADE snapshot flow
+- it runs targeted ADE Bun tests, Neovim ADE/review smokes, the Pi extension suite, and `git diff --check`
+- the real Claude `/ade-status` runtime check remains manual
 
 ## Config and secrets
 

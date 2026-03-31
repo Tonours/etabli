@@ -55,6 +55,7 @@ ADE cockpit:
 - `:ADEHandoff` opens `.pi/handoff-implement.md`, then `.pi/handoff.md`
 - `:ADEReview` opens the review inbox directly
 - ADE also exports a derived snapshot for the current worktree at `~/.pi/status/<sanitized-cwd>.ade.json` so Pi and Claude can read the same bounded status without recomputing ADE logic
+- run `./scripts/test-ade-local.sh` from repo root to revalidate the shared ADE surface before commit
 
 ## Code workflow
 
