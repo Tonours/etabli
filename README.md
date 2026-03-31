@@ -121,8 +121,9 @@ Local ADE verification:
 
 ## Config and secrets
 
-- Pi tracked source files live in `pi/` and are symlinked into `~/.pi/` by `scripts/install.sh`
-- `pi/models.json`, `pi/settings.json`, and `pi/agent/settings.json` are the editable source files
+- Pi tracked source files live in `pi/`; most are symlinked into `~/.pi/` by `scripts/install.sh`, while mutable agent settings stay local
+- `pi/models.json` and `pi/settings.json` are editable source files
+- `pi/agent/settings.json` is a tracked bootstrap/default file; the live `~/.pi/agent/settings.json` stays local so model switches do not dirty the repo
 - `auth.json` and credentials are intentionally not tracked
 - API keys such as `MISTRAL_API_KEY` should come from your shell environment or a non-tracked local secret loader
 

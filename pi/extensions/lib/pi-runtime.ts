@@ -158,11 +158,18 @@ export function buildSetupChecks(options: {
     }
   })();
 
+  const actualSettings = safeRealpath(settingsPath);
+  const expectedSettingsReal = safeRealpath(expectedSettings);
+
   return [
     {
-      label: "agent settings symlink",
-      ok: safeRealpath(settingsPath) === safeRealpath(expectedSettings),
-      detail: safeRealpath(settingsPath) ?? "missing",
+      label: "agent settings local file",
+      ok: Boolean(actualSettings) && actualSettings !== expectedSettingsReal,
+      detail: actualSettings
+        ? actualSettings === expectedSettingsReal
+          ? "repo-linked (model changes will dirty the repo)"
+          : actualSettings
+        : "missing",
     },
     {
       label: "agent extensions symlink",

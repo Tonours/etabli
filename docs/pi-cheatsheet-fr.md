@@ -216,9 +216,9 @@ Protocole worker recommandé :
 
 ## Fichiers de configuration importants
 
-- Repo source : `pi/settings.json`, `pi/agent/settings.json`, `pi/models.json`
+- Repo source : `pi/settings.json`, `pi/models.json`, `pi/agent/settings.json` (bootstrap par défaut)
 - Repo source : `pi/{extensions,skills,themes}/`
-- Installé : `~/.pi/settings.json`, `~/.pi/agent/settings.json`
+- Installé : `~/.pi/settings.json`, `~/.pi/agent/settings.json` (local, non symlinké au repo)
 - Installé : `~/.pi/agent/models.json`, `~/.pi/agent/auth.json`, `~/.pi/agent/keybindings.json`
 - Installé : `~/.pi/agent/{extensions,skills,prompts,themes}/`
 - Contexte : `AGENTS.md`, `pi/AGENTS.md`, `claude/README.md`
