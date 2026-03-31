@@ -10,7 +10,7 @@ return {
       },
       preset = "classic",
       spec = {
-        { "<leader>a", group = "ADE" },
+        { "<leader>a", group = "OPS" },
         { "<leader>f", group = "find" },
         { "<leader>p", group = "project" },
         { "<leader>r", group = "review" },

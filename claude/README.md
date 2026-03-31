@@ -39,7 +39,7 @@ Shared contract reminders:
 - `commands/review.md` runs a focused review against uncommitted changes, a branch diff, or a commit using the shared review rubric
 - `commands/handoff.md` writes or refreshes `.pi/handoff.md` for session continuation using the shared handoff template
 - `commands/handoff-implement.md` writes or refreshes `.pi/handoff-implement.md` for implementation continuation from an existing `READY` `PLAN.md`
-- `commands/ade-status.md` reads the exported ADE snapshot for the current worktree and summarizes it without recomputing ADE logic
+- `commands/ops-status.md` reads the exported OPS snapshot for the current worktree and summarizes it without recomputing OPS logic
 
 ## Shared docs
 
@@ -70,19 +70,19 @@ There is no separate `cw ui` command; `cw pick` is the lightweight UI entrypoint
 
 Because `PLAN.md` is gitignored and macOS filesystems are often case-insensitive, the repo does not track `commands/plan.md` directly. Installation maps `commands/plan-create.md` to `~/.claude/commands/plan.md`.
 
-## ADE snapshot consumer
+## OPS snapshot consumer
 
-Claude can read the ADE snapshot exported by Neovim for the current worktree:
+Claude can read the OPS snapshot exported by Neovim for the current worktree:
 
-- path: `~/.pi/status/<sanitized-cwd>.ade.json`
-- surface: `commands/ade-status.md`
+- path: `~/.pi/status/<sanitized-cwd>.ops.json`
+- surface: `commands/ops-status.md`
 
 Rules:
 - it is a read-only display projection
 - it does not refresh review state
 - it does not write workflow artifacts
-- it is intentionally thinner than the Neovim ADE cockpit
-- use `./scripts/test-ade-local.sh` for local automated verification before commit; the real Claude `/ade-status` runtime check stays manual
+- it is intentionally thinner than the Neovim OPS cockpit
+- use `./scripts/test-ops-local.sh` for local automated verification before commit; the real Claude `/ops-status` runtime check stays manual
 
 ## Profile fit
 

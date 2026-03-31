@@ -104,13 +104,13 @@ return {
           lualine_x = {
             {
               function()
-                return require("config.ade").statusline_label()
+                return require("config.ops").statusline_label()
               end,
               color = function()
-                return require("config.ade").statusline_color()
+                return require("config.ops").statusline_color()
               end,
               cond = function()
-                return require("config.ade").statusline_label() ~= ""
+                return require("config.ops").statusline_label() ~= ""
               end,
             },
             "diagnostics",

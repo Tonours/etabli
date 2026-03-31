@@ -57,7 +57,7 @@ end
 function M.project_info_lines()
   local projects = require("config.projects")
   local worktree = require("config.worktrees").current()
-  local ade = require("config.ade")
+  local ops = require("config.ops")
   local root = projects.current_root()
   local buffer_root = projects.buffer_root()
   local marker = M.session_marker(root)
@@ -71,7 +71,7 @@ function M.project_info_lines()
     "Marker:     " .. (marker == "" and "none" or marker),
   }
 
-  vim.list_extend(lines, ade.project_info_lines(root))
+  vim.list_extend(lines, ops.project_info_lines(root))
   return lines
 end
 

@@ -1,6 +1,7 @@
-local mode = require("config.ade.mode")
-local snapshot = require("config.ade.snapshot")
-local state = require("config.ade.state")
+local mode = require("config.ops.mode")
+local snapshot = require("config.ops.snapshot")
+local state = require("config.ops.state")
+local task = require("config.ops.task")
 
 local M = {}
 
@@ -67,6 +68,10 @@ local function mode_hint(mode_state)
   return string.format("%s · %s", mode_state.description.roles, mode_state.description.review)
 end
 
+local function task_label(task_state)
+  return string.format("%s (%s)", task_state.title, task_state.taskId)
+end
+
 local function append_prefixed_warnings(lines, prefix, warnings)
   for _, warning in ipairs(warnings or {}) do
     table.insert(lines, string.format("%s %s", prefix, warning))
@@ -95,8 +100,16 @@ function M.info_lines(cwd)
   local review = state.review_summary(cwd)
   local handoff = state.handoff_state(cwd)
   local mode_state = mode.read(cwd)
+  local task_state = task.project(cwd, {
+    plan = plan,
+    review = review,
+    runtime = runtime,
+    mode_state = mode_state,
+    next_action = snapshot.next_action_details(plan, review, runtime, handoff),
+  })
 
-  table.insert(lines, "ADE plan:   " .. plan_label(plan))
+  table.insert(lines, "Task:       " .. task_label(task_state))
+  table.insert(lines, "OPS plan:   " .. plan_label(plan))
   table.insert(lines, "Mode:       " .. mode_label(mode_state))
   table.insert(lines, "Mode hint:  " .. mode_hint(mode_state))
   table.insert(lines, "Slice:      " .. slice_label(plan))
@@ -120,7 +133,7 @@ end
 
 function M.project_info_lines(cwd)
   local info = M.info_lines(cwd)
-  local lines = { "ADE:" }
+  local lines = { "OPS:" }
   for _, line in ipairs(info) do
     table.insert(lines, "  " .. line)
   end
@@ -128,13 +141,21 @@ function M.project_info_lines(cwd)
 end
 
 function M.next_lines(cwd)
-  local lines = { "ADE next:" }
+  local lines = { "OPS next:" }
   local plan = state.plan_state(cwd)
   local runtime = state.runtime_state(cwd)
   local review = state.review_summary(cwd)
   local handoff = state.handoff_state(cwd)
   local mode_state = mode.read(cwd)
+  local task_state = task.project(cwd, {
+    plan = plan,
+    review = review,
+    runtime = runtime,
+    mode_state = mode_state,
+    next_action = snapshot.next_action_details(plan, review, runtime, handoff),
+  })
 
+  table.insert(lines, "Task:       " .. task_label(task_state))
   table.insert(lines, "Action:     " .. M.next_action(plan, review, runtime, handoff))
   table.insert(lines, "Mode:       " .. mode_label(mode_state))
   table.insert(lines, "Mode hint:  " .. mode_hint(mode_state))
@@ -167,15 +188,23 @@ local function session_line(session_state)
 end
 
 function M.resume_lines(cwd, session_state)
-  local lines = { "ADE resume:" }
+  local lines = { "OPS resume:" }
   local root = vim.fs.normalize(cwd or vim.fn.getcwd())
   local review = state.review_summary(root)
   local runtime = state.runtime_state(root)
   local handoff = state.handoff_state(root)
   local mode_state = mode.read(root)
   local plan = state.plan_state(root)
+  local task_state = task.project(root, {
+    plan = plan,
+    review = review,
+    runtime = runtime,
+    mode_state = mode_state,
+    next_action = snapshot.next_action_details(plan, review, runtime, handoff),
+  })
 
   table.insert(lines, "Session:    " .. session_line(session_state))
+  table.insert(lines, "Task:       " .. task_label(task_state))
   table.insert(lines, "Mode:       " .. mode_label(mode_state))
   table.insert(lines, "Action:     " .. M.next_action(plan, review, runtime, handoff))
   table.insert(lines, "Review:     " .. review.line)
@@ -193,7 +222,7 @@ function M.statusline_label()
     return ""
   end
 
-  local parts = { "ADE" }
+  local parts = { "OPS" }
   if plan.exists then
     table.insert(parts, plan_label(plan))
     local active = first_value(plan.tracking["Active slice"])

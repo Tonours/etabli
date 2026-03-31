@@ -1,5 +1,5 @@
 {
-  "kind": "ade-snapshot",
+  "kind": "ops-snapshot",
   "version": 1,
   "project": "etabli",
   "cwd": "/Volumes/Crucial/work/etabli",
@@ -7,11 +7,32 @@
   "updatedAt": "2026-03-31T12:00:00.000Z",
   "revision": 3,
   "paths": {
-    "snapshot": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.ade.json",
+    "snapshot": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.ops.json",
+    "task": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.task.json",
     "plan": "/Volumes/Crucial/work/etabli/PLAN.md",
     "runtime": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.json",
     "handoffImplement": "/Volumes/Crucial/work/etabli/.pi/handoff-implement.md",
     "handoffGeneric": "/Volumes/Crucial/work/etabli/.pi/handoff.md"
+  },
+  "task": {
+    "taskId": "etabli:feature-ops-task-state",
+    "title": "Add per-worktree task-state projection to OPS",
+    "repo": "etabli",
+    "worktreePath": "/Volumes/Crucial/work/etabli",
+    "branch": "feature/ops-task-state",
+    "mode": "standard",
+    "planStatus": "READY",
+    "runtimePhase": "idle",
+    "reviewSummary": "clear in stored state",
+    "nextAction": "start Slice 1",
+    "activeSlice": null,
+    "completedSlices": [],
+    "pendingChecks": [
+      "Bun OPS snapshot tests",
+      "Neovim OPS smoke",
+      "`git diff --check`"
+    ],
+    "updatedAt": "2026-03-31T12:00:00.000Z"
   },
   "plan": {
     "state": "available",
@@ -19,6 +40,14 @@
     "status": "READY",
     "plannedSlice": "Slice 1",
     "activeSlice": null,
+    "completedSlices": [
+      "Slice 0: baseline measured"
+    ],
+    "pendingChecks": [
+      "Bun OPS snapshot tests",
+      "Neovim OPS smoke"
+    ],
+    "lastValidatedState": "baseline checks passed",
     "nextRecommendedAction": "start Slice 1",
     "warnings": []
   },

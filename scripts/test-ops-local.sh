@@ -25,17 +25,17 @@ require_tool git
 cd "$ROOT_DIR"
 
 run_step \
-  "Targeted ADE Bun tests" \
+  "Targeted OPS Bun tests" \
   bun test \
-  ./pi/extensions/__tests__/ade-snapshot.test.ts \
+  ./pi/extensions/__tests__/ops-snapshot.test.ts \
   ./pi/extensions/__tests__/runtime-status.test.ts \
   ./pi/extensions/__tests__/block-google-providers.test.ts
 
 run_step \
-  "ADE Neovim smoke" \
+  "OPS Neovim smoke" \
   env XDG_CONFIG_HOME="$ROOT_DIR" \
   nvim --headless -u "$ROOT_DIR/nvim/init.lua" \
-  "+lua dofile([[$ROOT_DIR/scripts/ade_smoke.lua]])" \
+  "+lua dofile([[$ROOT_DIR/scripts/ops_smoke.lua]])" \
   +qa
 
 run_step \
@@ -51,5 +51,5 @@ run_step \
 
 run_step "git diff --check" git diff --check
 
-printf '\nPASS: ADE local verification runner completed.\n'
-printf 'Manual follow-up: run Claude /ade-status in a real Claude session against this worktree snapshot.\n'
+printf '\nPASS: OPS local verification runner completed.\n'
+printf 'Manual follow-up: run Claude /ops-status in a real Claude session against this worktree snapshot.\n'
