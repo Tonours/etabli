@@ -57,8 +57,8 @@ return {
         options = {
           theme = "catppuccin-mocha",
           globalstatus = true,
-          component_separators = { left = "|", right = "|" },
-          section_separators = { left = "", right = "" },
+          component_separators = { left = "", right = "" },
+          section_separators = { left = "", right = "" },
           -- Performance: reduce refresh frequency
           refresh = {
             statusline = 1000,  -- Refresh every 1000ms (was 750ms)
@@ -67,12 +67,41 @@ return {
           },
         },
         sections = {
-          lualine_a = { "mode" },
+          lualine_a = {
+            {
+              "mode",
+              fmt = function(str)
+                return " " .. str
+              end,
+            },
+          },
           lualine_b = {
+            {
+              "branch",
+              icon = "",
+            },
+            {
+              statusline.worktree_label,
+              cond = statusline.has_worktree,
+              color = statusline.worktree_color,
+            },
             {
               statusline.project_label,
               color = statusline.project_color,
             },
+          },
+          lualine_c = {
+            {
+              "filename",
+              path = 1,
+              symbols = {
+                modified = " ●",
+                readonly = " ",
+                unnamed = "[No Name]",
+              },
+            },
+          },
+          lualine_x = {
             {
               function()
                 return require("config.ade").statusline_label()
@@ -80,11 +109,13 @@ return {
               color = function()
                 return require("config.ade").statusline_color()
               end,
+              cond = function()
+                return require("config.ade").statusline_label() ~= ""
+              end,
             },
+            "diagnostics",
           },
-          lualine_c = { { "filename", path = 1 } },
-          lualine_x = { "diagnostics" },
-          lualine_y = {},
+          lualine_y = { "progress" },
           lualine_z = { "location" },
         },
       }

@@ -36,58 +36,61 @@ local prettier_configs = {
 
 -- Cache for prettier detection results
 local prettier_cache = {}
-local prettier_cache_ttl = 10000 -- 10 seconds TTL (reduced from 15s for fresher data)
+local prettier_cache_ttl = 10000 -- 10 seconds TTL
 local prettier_cache_time = {}
+local prettier_package_cache = {}
+local prettier_package_cache_mtime = {}
 
-local function has_prettier_executable(start)
-  if vim.fn.executable("prettier") == 1 then
-    return true
+local function parent_dir(path)
+  local parent = vim.fs.dirname(path)
+  if parent == path then
+    return nil
   end
 
-  local prettier_bin = vim.fs.find("node_modules", { path = start, upward = true })[1]
-  if not prettier_bin then
-    return false
-  end
-
-  return vim.fn.executable(vim.fs.joinpath(prettier_bin, ".bin", "prettier")) == 1
+  return parent
 end
 
-local function has_prettier(filename)
-  local start = filename ~= "" and vim.fs.dirname(filename) or vim.fn.getcwd()
+local function set_prettier_cache(paths, value, now)
+  for _, path in ipairs(paths) do
+    prettier_cache[path] = value
+    prettier_cache_time[path] = now
+  end
+end
 
-  -- Check cache first
-  local now = vim.loop.now()
+local function cached_prettier(start, now)
   local cached = prettier_cache[start]
   local cached_time = prettier_cache_time[start]
-  if cached ~= nil and cached_time and (now - cached_time) < prettier_cache_ttl then
-    return cached
+  if cached == nil or not cached_time or (now - cached_time) >= prettier_cache_ttl then
+    return nil
   end
 
-  if not has_prettier_executable(start) then
-    prettier_cache[start] = false
-    prettier_cache_time[start] = now
+  return cached
+end
+
+local function package_json_has_prettier(package_json)
+  local stat = vim.uv.fs_stat(package_json)
+  if not stat or not stat.mtime then
+    prettier_package_cache[package_json] = false
+    prettier_package_cache_mtime[package_json] = nil
     return false
   end
 
-  local found = vim.fs.find(prettier_configs, { path = start, upward = true })[1]
-
-  if found then
-    prettier_cache[start] = true
-    prettier_cache_time[start] = now
-    return true
+  local mtime = string.format("%s:%s", stat.mtime.sec or 0, stat.mtime.nsec or 0)
+  if prettier_package_cache_mtime[package_json] == mtime and prettier_package_cache[package_json] ~= nil then
+    return prettier_package_cache[package_json]
   end
 
-  local package_json = vim.fs.find("package.json", { path = start, upward = true })[1]
-  if not package_json then
-    prettier_cache[start] = false
-    prettier_cache_time[start] = now
+  local ok_read, lines = pcall(vim.fn.readfile, package_json)
+  if not ok_read then
+    prettier_package_cache[package_json] = false
+    prettier_package_cache_mtime[package_json] = mtime
     return false
   end
 
-  local ok, decoded = pcall(vim.json.decode, table.concat(vim.fn.readfile(package_json), "\n"))
-  if not ok or type(decoded) ~= "table" then
-    prettier_cache[start] = false
-    prettier_cache_time[start] = now
+  local ok_decode, decoded = pcall(vim.json.decode, table.concat(lines, "\n"))
+  if not ok_decode or type(decoded) ~= "table" then
+    prettier_package_cache[package_json] = false
+    prettier_package_cache_mtime[package_json] = mtime
     return false
   end
 
@@ -95,9 +98,74 @@ local function has_prettier(filename)
   local dev_dependencies = decoded.devDependencies or {}
   local result = decoded.prettier ~= nil or dependencies.prettier ~= nil or dev_dependencies.prettier ~= nil
 
-  prettier_cache[start] = result
-  prettier_cache_time[start] = now
+  prettier_package_cache[package_json] = result
+  prettier_package_cache_mtime[package_json] = mtime
   return result
+end
+
+local function has_prettier_executable(start)
+  if vim.fn.executable("prettier") == 1 then
+    return true
+  end
+
+  local dir = start
+  while dir do
+    if vim.fn.executable(vim.fs.joinpath(dir, "node_modules", ".bin", "prettier")) == 1 then
+      return true
+    end
+
+    dir = parent_dir(dir)
+  end
+
+  return false
+end
+
+local function has_prettier(filename)
+  local start = filename ~= "" and vim.fs.dirname(filename) or vim.fn.getcwd()
+
+  -- Check cache first
+  local now = vim.loop.now()
+  local cached = cached_prettier(start, now)
+  if cached ~= nil then
+    return cached
+  end
+
+  if not has_prettier_executable(start) then
+    set_prettier_cache({ start }, false, now)
+    return false
+  end
+
+  local visited = {}
+  local dir = start
+
+  while dir do
+    table.insert(visited, dir)
+
+    local dir_cached = cached_prettier(dir, now)
+    if dir_cached ~= nil then
+      set_prettier_cache(visited, dir_cached, now)
+      return dir_cached
+    end
+
+    for _, config in ipairs(prettier_configs) do
+      if vim.uv.fs_stat(vim.fs.joinpath(dir, config)) then
+        set_prettier_cache(visited, true, now)
+        return true
+      end
+    end
+
+    local package_json = vim.fs.joinpath(dir, "package.json")
+    if vim.uv.fs_stat(package_json) then
+      local result = package_json_has_prettier(package_json)
+      set_prettier_cache(visited, result, now)
+      return result
+    end
+
+    dir = parent_dir(dir)
+  end
+
+  set_prettier_cache(visited, false, now)
+  return false
 end
 
 local function setup_servers()
@@ -115,6 +183,8 @@ local function setup_servers()
       clear_cache_timer = vim.fn.timer_start(25, function()
         prettier_cache = {}
         prettier_cache_time = {}
+        prettier_package_cache = {}
+        prettier_package_cache_mtime = {}
         clear_cache_timer = nil
       end)
     end,

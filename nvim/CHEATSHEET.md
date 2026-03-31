@@ -24,10 +24,12 @@ Leader: `<Space>`
 
 - projects: `<leader>pp`
 - worktrees: `<leader>pw`
+- new worktree: `<leader>pW`
 - root current buffer: `<leader>pr`
 - save session: `<leader>ps`
 - load session: `<leader>pl`
 - project info: `<leader>pi`
+- ADE group aliases: `<leader>as`, `<leader>au`, `<leader>an`, `<leader>ad`, `<leader>af`, `<leader>am`, `<leader>ap`, `<leader>ah`, `<leader>ar`
 - ADE status: `<leader>pa` or `:ADEStatus`
 - ADE resume: `<leader>pA` or `:ADEResume`
 - ADE next: `<leader>pn` or `:ADENext`
@@ -97,3 +99,4 @@ Leader: `<Space>`
 - `:ADENext` gives the next bounded ADE action; it uses stored review state for speed, so open the inbox or run `:ADERefreshReview` for live diff accuracy and stale-blocker refresh.
 - `:ADEDoctor` is the plumbing check when the cockpit feels suspicious.
 - `:ADEMode` is explicit posture, not auto-detection; unset defaults to `standard`.
+- Worktree picker: press `<C-n>` to create a new worktree.

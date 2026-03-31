@@ -125,7 +125,7 @@ return {
         debounce_delay = 10, -- Reduced debounce (was 15ms)
       },
       view = {
-        side = "left",
+        side = "right",
         signcolumn = "no",
         width = 30,
         preserve_window_proportions = true,

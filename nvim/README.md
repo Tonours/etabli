@@ -16,6 +16,8 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Explorer: `<leader>ft`, `<leader>fe`
 - Projects: `<leader>pp`
 - Worktrees: `<leader>pw`
+- New worktree: `<leader>pW`
+- ADE group aliases: `<leader>a...`
 - Project info: `<leader>pi` or `:ProjectInfo`
 - ADE status: `<leader>pa` or `:ADEStatus`
 - ADE resume: `<leader>pA` or `:ADEResume`
@@ -33,6 +35,7 @@ Long-form aliases stay available:
 ## Project workflow
 
 - Re-root to current buffer: `<leader>pr`
+- New worktree: `<leader>pW`
 - Save project session: `<leader>ps`
 - Load project session: `<leader>pl`
 - Recent files in current project: `<leader>fp`
@@ -45,6 +48,7 @@ Statusline:
 - `ADE ...` = current plan/runtime snapshot for the current cwd
 
 ADE cockpit:
+- top-level ADE aliases now live under `<leader>a...` for easier grouping in which-key (`as`, `au`, `an`, `ad`, `af`, `am`, `ap`, `ah`, `ar`)
 - `:ADEStatus` shows plan, stored review blockers, runtime, handoff presence, and parse warnings
 - `:ADEResume` reloads the current worktree session when available, then summarizes the current ADE context
 - `:ADENext` shows the next bounded ADE action for the current worktree
@@ -99,6 +103,7 @@ Notes:
 ## Notes
 
 - Use `cw` to create/open worktrees.
+- In the worktree picker, press `<C-n>` to create a new worktree.
 - Use Neovim to switch between tracked projects/worktrees.
 - Neovim is the cockpit, not the workflow brain: the shared execution model lives in `workflow/operating-model.md`.
 - A practical zero-idle loop is: worker running in one worktree, review inbox / QA prep / option comparison running in parallel outside that critical path.
