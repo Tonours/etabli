@@ -82,6 +82,7 @@ Rules:
 - it does not refresh review state
 - it does not write workflow artifacts
 - it is intentionally thinner than the Neovim ADE cockpit
+- use `./scripts/test-ade-local.sh` for local automated verification before commit; the real Claude `/ade-status` runtime check stays manual
 
 ## Profile fit
 
