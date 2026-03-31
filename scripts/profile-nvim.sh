@@ -147,9 +147,12 @@ run_profile() {
 }
 
 run_insert_profile() {
-  printf 'top lazy profile (first insert)\n'
+  local label="$1"
+  shift
+
+  printf 'top lazy profile (%s)\n' "$label"
   env XDG_CONFIG_HOME="$ROOT_DIR" NVIM_PERF_FILTER="event:InsertEnter" NVIM_PERF_LIMIT=8 \
-    nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" nvim/init.lua \
+    nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@" \
     "+lua vim.api.nvim_exec_autocmds('InsertEnter', {})" \
     "+lua dofile([[$PROFILE_LUA]])" +qa 2>&1
 }
@@ -191,4 +194,7 @@ report_scenario 'markdown file open' README.md
 run_profile 'markdown file open' '' README.md
 
 printf '\n== first insert on code file\n'
-run_insert_profile
+run_insert_profile 'first insert on code file' nvim/init.lua
+
+printf '\n== first insert on markdown file\n'
+run_insert_profile 'first insert on markdown file' README.md

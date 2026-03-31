@@ -114,11 +114,40 @@ local function quiet_copilot_on_exit(code, _, client_id)
   end
 end
 
+local function setup_copilot_cmp()
+  local copilot_cmp = require("copilot_cmp")
+  copilot_cmp.setup()
+
+  local group = vim.api.nvim_create_augroup("etabli_copilot_cmp", { clear = true })
+  vim.api.nvim_create_autocmd("LspAttach", {
+    group = group,
+    callback = function(args)
+      local client = args.data and vim.lsp.get_client_by_id(args.data.client_id) or nil
+      if not client or client.name ~= "copilot" then
+        return
+      end
+
+      copilot_cmp._on_insert_enter({})
+    end,
+  })
+end
+
+local copilot_cmp_ready = false
+
+local function maybe_setup_copilot_cmp()
+  if copilot_cmp_ready or vim.bo.filetype == "markdown" then
+    return
+  end
+
+  copilot_cmp_ready = true
+  setup_copilot_cmp()
+end
+
 return {
   {
     "zbirenbaum/copilot.lua",
-    event = "InsertEnter",
     cmd = "Copilot",
+    build = ":Copilot auth",
     opts = function()
       local node_cmd = ensure_copilot_node_command()
       return {
@@ -131,6 +160,7 @@ return {
         },
         filetypes = {
           gitcommit = true,
+          help = true,
           markdown = false,
           yaml = true,
         },
@@ -142,15 +172,12 @@ return {
   },
   {
     "zbirenbaum/copilot-cmp",
-    event = "InsertEnter",
+    lazy = true,
     dependencies = {
       "zbirenbaum/copilot.lua",
     },
     config = function()
-      -- Use schedule for immediate deferred execution (faster than defer_fn)
-      vim.schedule(function()
-        require("copilot_cmp").setup()
-      end)
+      vim.schedule(maybe_setup_copilot_cmp)
     end,
   },
   {
@@ -167,15 +194,19 @@ return {
     "hrsh7th/nvim-cmp",
     event = "InsertEnter",
     dependencies = {
-      "L3MON4D3/LuaSnip",
       "hrsh7th/cmp-buffer",
       "hrsh7th/cmp-nvim-lsp",
       "hrsh7th/cmp-path",
-      "zbirenbaum/copilot-cmp",
     },
     config = function()
       local cmp = require("cmp")
-      local luasnip = require("luasnip")
+
+      if vim.bo.filetype ~= "markdown" then
+        local ok_lazy, lazy = pcall(require, "lazy")
+        if ok_lazy then
+          lazy.load({ plugins = { "copilot-cmp" } })
+        end
+      end
 
       cmp.setup({
         completion = {
@@ -193,7 +224,7 @@ return {
         preselect = cmp.PreselectMode.None,
         snippet = {
           expand = function(args)
-            luasnip.lsp_expand(args.body)
+            require("luasnip").lsp_expand(args.body)
           end,
         },
         sources = cmp.config.sources({
@@ -212,6 +243,19 @@ return {
           debounce = 25, -- Debounce completion by 25ms (was 30ms)
           throttle = 8, -- Throttle completion by 8ms (was 10ms)
           fetching_timeout = 200, -- Timeout for fetching completions (was 250ms)
+        },
+      })
+
+      cmp.setup.filetype("markdown", {
+        sources = cmp.config.sources({
+          { name = "path", max_item_count = 8 },
+        }, {
+          { name = "buffer", max_item_count = 8, keyword_length = 5 },
+        }),
+        performance = {
+          debounce = 40,
+          throttle = 15,
+          fetching_timeout = 120,
         },
       })
     end,
