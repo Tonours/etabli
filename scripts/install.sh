@@ -513,11 +513,25 @@ if [ -f "$REPO_DIR/pi/settings.json" ]; then
 fi
 
 if [ -f "$REPO_DIR/pi/agent/settings.json" ]; then
-    if [ -f ~/.pi/agent/settings.json ] && [ ! -L ~/.pi/agent/settings.json ]; then
-        cp ~/.pi/agent/settings.json ~/.pi/agent/settings.json.bak
+    mkdir -p ~/.pi/agent
+    if [ -L ~/.pi/agent/settings.json ]; then
+        tmp_settings="$(mktemp)"
+        if cp -L ~/.pi/agent/settings.json "$tmp_settings" 2>/dev/null; then
+            rm ~/.pi/agent/settings.json
+            mv "$tmp_settings" ~/.pi/agent/settings.json
+            print_success "Pi agent settings migrated to local file"
+        else
+            rm -f "$tmp_settings"
+            rm ~/.pi/agent/settings.json
+            cp "$REPO_DIR/pi/agent/settings.json" ~/.pi/agent/settings.json
+            print_success "Pi agent settings bootstrapped locally"
+        fi
+    elif [ ! -f ~/.pi/agent/settings.json ]; then
+        cp "$REPO_DIR/pi/agent/settings.json" ~/.pi/agent/settings.json
+        print_success "Pi agent settings bootstrapped locally"
+    else
+        print_success "Pi agent settings kept local"
     fi
-    ln -sf "$REPO_DIR/pi/agent/settings.json" ~/.pi/agent/settings.json
-    print_success "Pi agent settings.json linked"
 fi
 
 # Themes

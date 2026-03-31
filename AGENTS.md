@@ -25,7 +25,7 @@
 
 ## Symlink layout (~/.pi/)
 - ~/.pi/agent/extensions/ → pi/extensions/ (auto-loaded by Pi)
-- ~/.pi/agent/settings.json → pi/agent/settings.json
+- ~/.pi/agent/settings.json stays local (bootstrapped from pi/agent/settings.json on install)
 - ~/.pi/agent/models.json → pi/models.json
 - ~/.pi/agent/AGENTS.md → pi/AGENTS.md (global coding preferences)
 - ~/.pi/settings.json → pi/settings.json
