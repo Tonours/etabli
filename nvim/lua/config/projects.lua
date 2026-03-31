@@ -242,21 +242,21 @@ function M.save_session()
   save_session_file(M.current_root(), true)
 end
 
-function M.load_session(root)
+local function load_session_state(root)
   local project_root = normalize(root or M.current_root())
   local target = session_path(project_root)
 
   if vim.fn.filereadable(target) ~= 1 then
-    return false
+    return "missing"
   end
 
   if is_modified() then
     vim.notify("Save or close modified buffers before loading a project session", vim.log.levels.WARN)
-    return true
+    return "blocked"
   end
 
   if not confirm_replace_layout() then
-    return true
+    return "cancelled"
   end
 
   M.change_root(project_root)
@@ -264,7 +264,15 @@ function M.load_session(root)
   vim.cmd("silent! only")
   vim.cmd("silent! %bwipeout!")
   vim.cmd("silent! source " .. vim.fn.fnameescape(target))
-  return true
+  return "loaded"
+end
+
+function M.load_session(root)
+  return load_session_state(root) ~= "missing"
+end
+
+function M.load_session_state(root)
+  return load_session_state(root)
 end
 
 function M.root_current_buffer()

@@ -39,6 +39,7 @@ Shared contract reminders:
 - `commands/review.md` runs a focused review against uncommitted changes, a branch diff, or a commit using the shared review rubric
 - `commands/handoff.md` writes or refreshes `.pi/handoff.md` for session continuation using the shared handoff template
 - `commands/handoff-implement.md` writes or refreshes `.pi/handoff-implement.md` for implementation continuation from an existing `READY` `PLAN.md`
+- `commands/ade-status.md` reads the exported ADE snapshot for the current worktree and summarizes it without recomputing ADE logic
 
 ## Shared docs
 
@@ -68,6 +69,19 @@ Preferred command surface:
 There is no separate `cw ui` command; `cw pick` is the lightweight UI entrypoint.
 
 Because `PLAN.md` is gitignored and macOS filesystems are often case-insensitive, the repo does not track `commands/plan.md` directly. Installation maps `commands/plan-create.md` to `~/.claude/commands/plan.md`.
+
+## ADE snapshot consumer
+
+Claude can read the ADE snapshot exported by Neovim for the current worktree:
+
+- path: `~/.pi/status/<sanitized-cwd>.ade.json`
+- surface: `commands/ade-status.md`
+
+Rules:
+- it is a read-only display projection
+- it does not refresh review state
+- it does not write workflow artifacts
+- it is intentionally thinner than the Neovim ADE cockpit
 
 ## Profile fit
 

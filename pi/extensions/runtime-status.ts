@@ -2,16 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-age
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
-
-interface RuntimeStatus {
-  project: string;
-  cwd: string;
-  phase: "idle" | "running" | "offline";
-  tool?: string;
-  model?: string;
-  thinking: string;
-  updatedAt: string;
-}
+import { normalizeRuntimeStatus, type RuntimeStatus, validateRuntimeStatus } from "./lib/runtime-status.ts";
 
 function statusFileName(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -22,8 +13,13 @@ function makeStatusFile(cwd: string): string {
 }
 
 function writeStatus(filePath: string, state: RuntimeStatus): void {
+  const result = validateRuntimeStatus(state);
+  if (!result.ok || !result.value) {
+    throw new Error(`Invalid runtime status: ${result.errors.join("; ")}`);
+  }
+
   mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, JSON.stringify(state, null, 2) + "\n", "utf-8");
+  writeFileSync(filePath, JSON.stringify(normalizeRuntimeStatus(result.value), null, 2) + "\n", "utf-8");
 }
 
 function formatTitle(state: RuntimeStatus): string {

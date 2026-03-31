@@ -14,21 +14,24 @@ local diff_cache = {}
 local diff_cache_ttl = 500 -- 500ms TTL (reduced from 750ms)
 local diff_cache_time = {}
 
+function M.clear_cache()
+  diff_cache = {}
+  diff_cache_time = {}
+end
+
 -- Clear cache on directory change
 vim.api.nvim_create_autocmd("DirChanged", {
   callback = function()
     git_root_cache = {}
     git_root_cache_time = {}
-    diff_cache = {}
-    diff_cache_time = {}
+    M.clear_cache()
   end,
 })
 
 -- Clear diff cache on buffer changes that might affect git state
 vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete" }, {
   callback = function()
-    diff_cache = {}
-    diff_cache_time = {}
+    M.clear_cache()
   end,
 })
 
