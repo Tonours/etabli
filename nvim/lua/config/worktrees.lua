@@ -3,7 +3,7 @@ local M = {}
 -- Cache for git root lookups with TTL
 local git_root_cache = {}
 local git_root_cache_time = {}
-local git_root_cache_ttl = 5000 -- 5 seconds TTL (reduced from 10s)
+local git_root_cache_ttl = 30000 -- 30 seconds TTL; explicit DirChanged clears keep it fresh enough
 
 local function normalize(path)
   return vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
@@ -59,7 +59,7 @@ vim.api.nvim_create_autocmd("DirChanged", {
 
 local worktree_cache = {}
 local worktree_cache_time = {}
-local worktree_cache_ttl = 2000 -- 2 seconds default TTL (reduced from 3s)
+local worktree_cache_ttl = 30000 -- 30 seconds TTL; explicit clears on directory changes handle active context changes
 
 function M.entries(path)
   local now = vim.loop.now()

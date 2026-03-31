@@ -12,11 +12,23 @@ local function current_root()
 end
 
 local function mark_dirty(root)
-  dirty_roots[normalize(root or current_root())] = true
+  local key = normalize(root or current_root())
+  if dirty_roots[key] then
+    return false
+  end
+
+  dirty_roots[key] = true
+  return true
 end
 
 local function clear_dirty(root)
-  dirty_roots[normalize(root or current_root())] = nil
+  local key = normalize(root or current_root())
+  if not dirty_roots[key] then
+    return false
+  end
+
+  dirty_roots[key] = nil
+  return true
 end
 
 function M.session_marker(root)
@@ -107,8 +119,9 @@ function M.setup()
       -- Create new timer
       dirty_timer = vim.fn.timer_start(throttle_ms, function()
         dirty_timer = nil
-        mark_dirty()
-        require("config.statusline").invalidate()
+        if mark_dirty() then
+          require("config.statusline").invalidate()
+        end
       end)
     end,
   })

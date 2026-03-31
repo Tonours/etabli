@@ -119,9 +119,6 @@ return {
     "zbirenbaum/copilot.lua",
     event = "InsertEnter",
     cmd = "Copilot",
-    init = function()
-      ensure_copilot_node_command()
-    end,
     opts = function()
       local node_cmd = ensure_copilot_node_command()
       return {

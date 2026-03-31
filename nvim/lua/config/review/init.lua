@@ -10,9 +10,21 @@ local commands_registered = false
 local provider_actions = { "explain", "revise" }
 local repo_items_cache = {}
 local repo_items_cache_ttl = 1000
+local review_focus_clear_ttl = 1500
+local last_focus_clear_at = 0
 
 local function clear_repo_items_cache()
   repo_items_cache = {}
+end
+
+local function clear_repo_items_cache_on_focus()
+  local now = vim.uv.now()
+  if (now - last_focus_clear_at) < review_focus_clear_ttl then
+    return
+  end
+
+  last_focus_clear_at = now
+  clear_repo_items_cache()
 end
 
 local function repo_items_cache_key(context, opts)
@@ -637,9 +649,14 @@ function M.setup()
   commands_registered = true
 
   local cache_group = vim.api.nvim_create_augroup("etabli_review_cache", { clear = true })
-  vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "DirChanged", "FocusGained", "ShellCmdPost" }, {
+  vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "DirChanged", "ShellCmdPost" }, {
     group = cache_group,
     callback = clear_repo_items_cache,
+  })
+
+  vim.api.nvim_create_autocmd("FocusGained", {
+    group = cache_group,
+    callback = clear_repo_items_cache_on_focus,
   })
 
   vim.api.nvim_create_user_command("ReviewInbox", function(command_opts)

@@ -6,6 +6,22 @@ local view = require("config.ade.view")
 
 local M = {}
 local commands_registered = false
+local focus_refresh_ttl = 1500
+local last_focus_refresh_at = 0
+
+local function refresh_runtime(cause)
+  if cause == "focus" then
+    local now = vim.uv.now()
+    if (now - last_focus_refresh_at) < focus_refresh_ttl then
+      return
+    end
+
+    last_focus_refresh_at = now
+  end
+
+  state.invalidate()
+  snapshot.schedule_write(vim.fn.getcwd())
+end
 
 M.info_lines = view.info_lines
 M.project_info_lines = view.project_info_lines
@@ -77,12 +93,19 @@ function M.setup_commands()
   })
 
   local group = vim.api.nvim_create_augroup("etabli_ade_runtime", { clear = true })
-  vim.api.nvim_create_autocmd({ "DirChanged", "BufWritePost", "FocusGained" }, {
+  vim.api.nvim_create_autocmd({ "DirChanged", "BufWritePost" }, {
     group = group,
     pattern = { "*" },
     callback = function()
-      state.invalidate()
-      snapshot.schedule_write(vim.fn.getcwd())
+      refresh_runtime("event")
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("FocusGained", {
+    group = group,
+    pattern = { "*" },
+    callback = function()
+      refresh_runtime("focus")
     end,
   })
 

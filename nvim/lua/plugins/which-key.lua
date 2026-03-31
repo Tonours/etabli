@@ -10,6 +10,7 @@ return {
       },
       preset = "classic",
       spec = {
+        { "<leader>a", group = "ADE" },
         { "<leader>f", group = "find" },
         { "<leader>p", group = "project" },
         { "<leader>r", group = "review" },
@@ -20,6 +21,7 @@ return {
         { "<leader>b", group = "buffers" },
         { "<leader>w", group = "windows" },
         { "<leader>t", group = "tabs" },
+        { "<leader>pW", desc = "New worktree" },
       },
       win = {
         border = "rounded",
