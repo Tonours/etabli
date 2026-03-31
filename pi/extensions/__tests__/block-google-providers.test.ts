@@ -78,7 +78,7 @@ function setupExtension(setModelImpl: (model: ProviderModel) => boolean | Promis
 
 describe("buildAllowedCandidates", () => {
   test("dedupes preferred model against fallback registry matches", () => {
-    const preferred = { ...CONFIGURED_DEFAULT_MODEL };
+    const preferred = { provider: "openai-codex", id: "gpt-5.4" };
     const candidates = buildAllowedCandidates(
       createRegistry([
         { provider: "openai-codex", id: "gpt-5.4" },
@@ -146,7 +146,7 @@ describe("configured default model", () => {
 
     expect(ctx.ui.notifications).toEqual([
       {
-        message: "Configured default model openai-codex/gpt-5.4 not available.",
+        message: "Configured default model github-copilot/gemini-3.1-pro-preview not available.",
         level: "warning",
       },
     ]);

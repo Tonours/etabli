@@ -10,8 +10,8 @@ type ProviderModel = {
 type ModelRegistry = Pick<ExtensionContext["modelRegistry"], "find">;
 
 export const CONFIGURED_DEFAULT_MODEL: ProviderModel = {
-  provider: "openai-codex",
-  id: "gpt-5.4",
+  provider: "github-copilot",
+  id: "gemini-3.1-pro-preview",
 };
 
 const FALLBACKS: readonly ProviderModel[] = [
