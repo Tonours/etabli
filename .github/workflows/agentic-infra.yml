@@ -36,12 +36,17 @@ jobs:
           git config --global user.email "ci@example.com"
           git config --global user.name "CI"
 
+      - name: Install Pi test dependencies
+        run: |
+          cd pi
+          bun install --frozen-lockfile
+
       - name: Run TypeScript tests
         run: |
-          bun test pi/extensions/__tests__/
+          cd pi
+          bun test ./extensions/__tests__/
 
       - name: Run script tests
         run: |
           bash tests/cw-smoke.sh
           bash tests/workflow-docs-smoke.sh
-
