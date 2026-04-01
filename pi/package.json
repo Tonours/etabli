@@ -2,6 +2,12 @@
   "name": "pi-config",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@mariozechner/pi-ai": "^0.64.0",
+    "@mariozechner/pi-coding-agent": "^0.64.0",
+    "@mariozechner/pi-tui": "^0.64.0",
+    "@sinclair/typebox": "^0.34.49"
+  },
   "scripts": {
     "test": "bun test ./extensions/__tests__/*.test.ts",
     "verify:skills": "bun ./scripts/verify-skills-lock.mjs"
