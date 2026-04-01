@@ -35,8 +35,8 @@
     "hookMode": "agent_end"
   },
   "lastChangelogVersion": "0.64.0",
-  "defaultProvider": "github-copilot",
-  "defaultModel": "claude-opus-4.6",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.4",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
   "editorPaddingX": 1,
