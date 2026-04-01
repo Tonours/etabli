@@ -8,6 +8,7 @@
       ]
     },
     "npm:checkpoint",
+    "npm:pi-magic-docs",
     {
       "source": "npm:pi-hooks",
       "extensions": [

@@ -38,3 +38,11 @@ Create them locally from `_template/` when needed.
 
 Prefer short bullets.
 Update only when the information is likely to matter in a future session.
+
+## Magic docs rule
+
+Use `pi-magic-docs` only for `memory/projects/<repo>/current-focus.md` by default.
+
+- keep the rest of the project-memory files manual
+- let Pi refresh only `current-focus.md` when it has actually touched that file in-session
+- do not use any project-memory file for session-by-session handoff or plan execution state
