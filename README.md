@@ -65,6 +65,7 @@ cd etabli
 - `docs/profiles.md` - when to choose personal vs work posture
 - `memory/README.md` - memory goals and layout
 - `memory/projects/README.md` - per-project memory convention
+- `pi-magic-docs` is now part of the Pi package set and is meant to keep local `memory/projects/<repo>/current-focus.md` fresh, not replace the memory contract
 
 ## Core workflow
 
