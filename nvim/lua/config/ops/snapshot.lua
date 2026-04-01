@@ -35,6 +35,25 @@ local function first_item(items)
   return value
 end
 
+local function review_focus(review)
+  local counts = review.counts or {}
+  local parts = {}
+  local needs_rework = counts["needs-rework"] or 0
+  local questions = counts.question or 0
+
+  if needs_rework > 0 then
+    table.insert(parts, string.format("%d needs-rework", needs_rework))
+  end
+  if questions > 0 then
+    table.insert(parts, string.format("%d question%s", questions, questions == 1 and "" or "s"))
+  end
+  if #parts == 0 and review.actionable and review.actionable > 0 then
+    table.insert(parts, string.format("%d review item(s)", review.actionable))
+  end
+
+  return table.concat(parts, " / ")
+end
+
 local function list_items(items)
   if not items or #items == 0 then
     return {}
@@ -78,6 +97,8 @@ end
 
 local function next_action_details(plan, review, runtime, handoff)
   local active_slice = first_item(plan.tracking["Active slice"])
+  local pending_check = first_item(plan.tracking["Pending checks"])
+  local last_validated = first_item(plan.tracking["Last validated state"])
 
   if not plan.exists then
     return {
@@ -94,10 +115,33 @@ local function next_action_details(plan, review, runtime, handoff)
     }
   end
   if review.actionable > 0 then
+    local focus = review_focus(review)
+    local prefix = review.source ~= "live" and review.mayBeStale and "refresh review inbox and handle " or "handle "
     return {
-      value = string.format("address %d review item(s)", review.actionable),
-      reason = "review blockers present",
+      value = prefix .. focus,
+      reason = review.source ~= "live" and review.mayBeStale and "stored review blockers may be stale" or "review blockers present",
       derivedFrom = "review",
+    }
+  end
+  if runtime.phase == "running" then
+    if pending_check then
+      return {
+        value = "worker active — prepare check: " .. pending_check,
+        reason = "runtime running with validation pending",
+        derivedFrom = "runtime",
+      }
+    end
+    return {
+      value = "worker active — review/QA while waiting",
+      reason = "runtime running",
+      derivedFrom = "runtime",
+    }
+  end
+  if pending_check then
+    return {
+      value = "run check: " .. pending_check,
+      reason = last_validated and ("pending checks after " .. last_validated) or "pending checks present",
+      derivedFrom = "plan",
     }
   end
   if plan.status == "READY" and active_slice == nil then
@@ -121,13 +165,6 @@ local function next_action_details(plan, review, runtime, handoff)
       derivedFrom = "plan",
     }
   end
-  if runtime.phase == "running" then
-    return {
-      value = "worker active — review/QA while waiting",
-      reason = "runtime running",
-      derivedFrom = "runtime",
-    }
-  end
   if handoff.available then
     return {
       value = "handoff available for continuation",
@@ -140,6 +177,17 @@ local function next_action_details(plan, review, runtime, handoff)
     reason = "no bounded signal available",
     derivedFrom = "mixed",
   }
+end
+
+local function max_revision(previous_snapshot, previous_task)
+  local revision = 0
+  if previous_snapshot and type(previous_snapshot.revision) == "number" and previous_snapshot.revision > revision then
+    revision = previous_snapshot.revision
+  end
+  if previous_task and type(previous_task.revision) == "number" and previous_task.revision > revision then
+    revision = previous_task.revision
+  end
+  return revision
 end
 
 M.next_action_details = next_action_details
@@ -262,6 +310,7 @@ local function strip_metadata(snapshot)
   copy.revision = nil
   if copy.task then
     copy.task.updatedAt = nil
+    copy.task.revision = nil
   end
   return copy
 end
@@ -280,6 +329,10 @@ local function read_existing(path)
   return decoded
 end
 
+function M.read(cwd)
+  return read_existing(M.snapshot_path(cwd))
+end
+
 local function write_atomic(path, lines)
   ensure_dir(vim.fs.dirname(path))
   local tmp = string.format("%s.tmp.%d", path, uv.hrtime())
@@ -295,21 +348,21 @@ function M.write(cwd)
   local root = vim.fs.normalize(cwd or vim.fn.getcwd())
   local path = M.snapshot_path(root)
   local snapshot = M.project(root)
-  task.write(root, snapshot.task)
   local previous = read_existing(path)
-  local previous_revision = 0
+  local previous_task = task.read(root)
 
-  if previous and type(previous.revision) == "number" then
-    previous_revision = previous.revision
-  end
-
-  if previous and vim.deep_equal(strip_metadata(previous), strip_metadata(snapshot)) then
+  if previous and previous_task and vim.deep_equal(strip_metadata(previous), strip_metadata(snapshot)) and task.same(previous_task, snapshot.task) then
     return previous, false
   end
 
-  snapshot.generatedAt = now_iso()
+  local revision = max_revision(previous, previous_task) + 1
+  local updated_at = now_iso()
+  snapshot.generatedAt = updated_at
   snapshot.updatedAt = snapshot.generatedAt
-  snapshot.revision = previous_revision + 1
+  snapshot.revision = revision
+  snapshot.task.updatedAt = updated_at
+  snapshot.task.revision = revision
+  task.write(root, snapshot.task)
   write_atomic(path, vim.split(vim.json.encode(snapshot), "\n", { plain = true }))
   return snapshot, true
 end

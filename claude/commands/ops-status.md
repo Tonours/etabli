@@ -24,6 +24,7 @@ Read the exported OPS snapshot for the current cwd and return a concise summary.
    - include the parse/validation error if available
 6. If the snapshot is valid, summarize only:
    - current task title
+   - task lifecycle state
    - plan status
    - completed slice count
    - pending checks count

@@ -47,6 +47,8 @@ describe("normalizeOpsSnapshot", () => {
     expect(snapshot.updatedAt).toBe(snapshot.generatedAt);
     expect(snapshot.paths.task).toEndWith(".task.json");
     expect(snapshot.task?.title).toBeTruthy();
+    expect(snapshot.task?.revision).toBe(snapshot.revision);
+    expect(snapshot.task?.identitySource).toBeTruthy();
     expect(snapshot.plan.completedSlices).toEqual(VALID_FIXTURE.plan.completedSlices);
   });
 
@@ -69,6 +71,9 @@ describe("normalizeOpsSnapshot", () => {
     expect(legacy.task?.title).toBe(VALID_FIXTURE.project);
     expect(legacy.task?.nextAction).toBe(VALID_FIXTURE.nextAction.value);
     expect(legacy.paths.task).toBe(makeOpsTaskStateFile(VALID_FIXTURE.cwd));
+    expect(legacy.task?.identitySource).toBe("cwd");
+    expect(legacy.task?.titleSource).toBe("repo");
+    expect(legacy.task?.lifecycleState).toBe("ready");
     expect(legacy.plan.completedSlices).toEqual([]);
     expect(legacy.plan.pendingChecks).toEqual([]);
     expect(legacy.plan.lastValidatedState).toBeNull();

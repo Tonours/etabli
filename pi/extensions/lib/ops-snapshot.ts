@@ -37,6 +37,9 @@ export interface OpsSnapshotTask {
   repo: string;
   worktreePath: string;
   branch: string | null;
+  identitySource: string;
+  titleSource: string;
+  lifecycleState: string;
   mode: string;
   planStatus: string | null;
   runtimePhase: string | null;
@@ -45,6 +48,8 @@ export interface OpsSnapshotTask {
   activeSlice: string | null;
   completedSlices: string[];
   pendingChecks: string[];
+  lastValidatedState: string | null;
+  revision: number | null;
   updatedAt: string;
 }
 
@@ -187,12 +192,32 @@ export function makeOpsTaskStateFile(cwd: string): string {
 }
 
 function normalizeTask(snapshot: OpsSnapshot): OpsSnapshotTask {
+  const actionable = snapshot.review.actionable > 0;
+  const pendingChecks = snapshot.plan.pendingChecks ?? [];
+  const lifecycleState = snapshot.task?.lifecycleState
+    ?? (!snapshot.plan.status || snapshot.plan.status === "DRAFT" || snapshot.plan.status === "CHALLENGED"
+      ? "planning"
+      : actionable
+        ? "blocked-review"
+        : pendingChecks.length > 0
+          ? "awaiting-checks"
+          : snapshot.runtime.phase === "running"
+            ? "running"
+            : snapshot.plan.activeSlice
+              ? "implementing"
+              : snapshot.plan.status === "READY"
+                ? "ready"
+                : "idle");
+
   return {
     taskId: snapshot.task?.taskId ?? snapshot.cwd,
     title: snapshot.task?.title ?? snapshot.project,
     repo: snapshot.task?.repo ?? snapshot.project,
     worktreePath: snapshot.task?.worktreePath ?? snapshot.cwd,
     branch: snapshot.task?.branch ?? null,
+    identitySource: snapshot.task?.identitySource ?? "cwd",
+    titleSource: snapshot.task?.titleSource ?? "repo",
+    lifecycleState,
     mode: snapshot.task?.mode ?? snapshot.mode.mode,
     planStatus: snapshot.task?.planStatus ?? snapshot.plan.status,
     runtimePhase: snapshot.task?.runtimePhase ?? snapshot.runtime.phase,
@@ -200,7 +225,9 @@ function normalizeTask(snapshot: OpsSnapshot): OpsSnapshotTask {
     nextAction: snapshot.task?.nextAction ?? snapshot.nextAction.value,
     activeSlice: snapshot.task?.activeSlice ?? snapshot.plan.activeSlice,
     completedSlices: [...(snapshot.task?.completedSlices ?? [])],
-    pendingChecks: [...(snapshot.task?.pendingChecks ?? [])],
+    pendingChecks: [...(snapshot.task?.pendingChecks ?? pendingChecks)],
+    lastValidatedState: snapshot.task?.lastValidatedState ?? snapshot.plan.lastValidatedState,
+    revision: snapshot.task?.revision ?? snapshot.revision,
     updatedAt: snapshot.task?.updatedAt ?? snapshot.updatedAt ?? snapshot.generatedAt,
   };
 }
@@ -295,6 +322,15 @@ export function validateOpsSnapshot(value: unknown): OpsSnapshotValidationResult
         errors.push("OPS snapshot task.worktreePath must be a non-empty string");
       }
       if (!isOptionalString(task.branch)) errors.push("OPS snapshot task.branch must be a string or null");
+      if (!isNonEmptyString(task.identitySource)) {
+        errors.push("OPS snapshot task.identitySource must be a non-empty string");
+      }
+      if (!isNonEmptyString(task.titleSource)) {
+        errors.push("OPS snapshot task.titleSource must be a non-empty string");
+      }
+      if (!isNonEmptyString(task.lifecycleState)) {
+        errors.push("OPS snapshot task.lifecycleState must be a non-empty string");
+      }
       if (!isNonEmptyString(task.mode)) errors.push("OPS snapshot task.mode must be a non-empty string");
       if (!isOptionalString(task.planStatus)) errors.push("OPS snapshot task.planStatus must be a string or null");
       if (!isOptionalString(task.runtimePhase)) {
@@ -312,6 +348,12 @@ export function validateOpsSnapshot(value: unknown): OpsSnapshotValidationResult
       }
       if (!isStringArray(task.pendingChecks)) {
         errors.push("OPS snapshot task.pendingChecks must be a string array");
+      }
+      if (task.lastValidatedState !== undefined && !isOptionalString(task.lastValidatedState)) {
+        errors.push("OPS snapshot task.lastValidatedState must be a string or null when present");
+      }
+      if (task.revision !== undefined && !(task.revision === null || (isNumber(task.revision) && task.revision >= 1))) {
+        errors.push("OPS snapshot task.revision must be a positive number or null when present");
       }
       if (!isNonEmptyString(task.updatedAt)) errors.push("OPS snapshot task.updatedAt must be a non-empty string");
     }

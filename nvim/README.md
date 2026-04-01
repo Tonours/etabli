@@ -60,6 +60,7 @@ OPS cockpit:
 - `:OPSReview` opens the review inbox directly
 - OPS writes one lightweight per-worktree task projection to `~/.pi/status/<sanitized-cwd>.task.json`
 - OPS also exports a derived snapshot for the current worktree at `~/.pi/status/<sanitized-cwd>.ops.json` so Pi and Claude can read the same bounded status without recomputing OPS logic
+- task + snapshot are regenerated together with shared revision/timestamp metadata, and task identity follows branch → worktree tail → cwd fallback
 - run `./scripts/test-ops-local.sh` from repo root to revalidate the shared OPS surface before commit
 
 ## Code workflow
