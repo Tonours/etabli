@@ -39,6 +39,8 @@ function M.lines(cwd)
     next_action = snapshot.next_action_details(plan, review, runtime, handoff),
   })
   local task_path = task.path(root)
+  local task_file = task.read(root)
+  local snapshot_file = snapshot.read(root)
   local session_exists = projects.session_exists(root)
 
   if repo then
@@ -60,7 +62,18 @@ function M.lines(cwd)
   end
 
   if vim.uv.fs_stat(task_path) then
-    table.insert(lines, line("PASS", "task", task_state.title))
+    local task_message = string.format("%s · %s", task_state.title, task_state.lifecycleState)
+    if snapshot_file and snapshot_file.task and type(task_file) == "table" then
+      local snapshot_revision = snapshot_file.task.revision
+      local task_revision = task_file.revision
+      if type(snapshot_revision) == "number" and type(task_revision) == "number" and snapshot_revision ~= task_revision then
+        table.insert(lines, line("WARN", "task", string.format("revision mismatch task=%d snapshot=%d", task_revision, snapshot_revision)))
+      else
+        table.insert(lines, line("PASS", "task", task_message))
+      end
+    else
+      table.insert(lines, line("PASS", "task", task_message))
+    end
   else
     table.insert(lines, line("WARN", "task", "task projection not exported yet"))
   end

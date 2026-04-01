@@ -45,7 +45,8 @@ cd etabli
 
 - Neovim also exports one lightweight task projection per worktree at `~/.pi/status/<sanitized-cwd>.task.json`
 - Neovim exports one shared OPS snapshot per worktree at `~/.pi/status/<sanitized-cwd>.ops.json`
-- the OPS snapshot now includes that task projection so Pi and Claude see the same current task/title/next-action context
+- task + snapshot are regenerated together and share revision/timestamp metadata so Pi and Claude see the same current task/title/next-action context
+- task identity follows current branch first, then worktree tail, then cwd fallback
 - Pi reads that snapshot through the ambient `ops-status` extension
 - Claude reads that snapshot through `claude/commands/ops-status.md`
 - `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface

@@ -185,7 +185,12 @@ assert_true(snapshot.paths.snapshot:match("%.ops%.json$") ~= nil, "expected ops 
 assert_true(snapshot.paths.task:match("%.task%.json$") ~= nil, "expected task-state path suffix")
 assert_true(vim.uv.fs_stat(snapshot.paths.task) ~= nil, "expected task-state file to be written")
 assert_true(snapshot.task.title == "OPS", "expected task title from plan subject")
+assert_true(snapshot.task.identitySource == "branch", "expected task identity source from active branch")
+assert_true(snapshot.task.titleSource == "plan-subject", "expected task title source from plan subject")
+assert_true(snapshot.task.lifecycleState == "awaiting-checks", "expected lifecycle state to reflect pending checks")
 assert_true(snapshot.task.planStatus == "READY", "expected task plan status")
+assert_true(snapshot.task.lastValidatedState == "partial", "expected task last validated state")
+assert_true(snapshot.task.revision == snapshot.revision, "expected shared task/snapshot revision")
 assert_true(snapshot.plan.state == "available", "expected available plan state")
 assert_true(vim.deep_equal(snapshot.plan.completedSlices, {}), "expected empty completed slices when plan tracks none")
 assert_true(vim.deep_equal(snapshot.plan.pendingChecks, { "ops smoke" }), "expected pending checks in snapshot plan")
@@ -196,7 +201,9 @@ assert_true(snapshot.runtime.state == "available", "expected available runtime s
 assert_true(
   snapshot.nextAction.value:match("start") ~= nil
     or snapshot.nextAction.value:match("address") ~= nil
-    or snapshot.nextAction.value:match("continue") ~= nil,
+    or snapshot.nextAction.value:match("continue") ~= nil
+    or snapshot.nextAction.value:match("worker active") ~= nil
+    or snapshot.nextAction.value:match("run check") ~= nil,
   "expected bounded next action"
 )
 local snapshot_again, wrote_again = ops_snapshot.write(repo_root)
