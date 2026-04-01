@@ -146,7 +146,7 @@ describe("configured default model", () => {
 
     expect(ctx.ui.notifications).toEqual([
       {
-        message: "Configured default model github-copilot/claude-opus-4.6 not available.",
+        message: "Configured default model openai-codex/gpt-5.4 not available.",
         level: "warning",
       },
     ]);
