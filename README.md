@@ -2,7 +2,7 @@
 
 Personal dev environment for AI-assisted workflows across Neovim, Claude Code, Pi Coding Agent, tmux, iTerm2, VS Code, and a macOS tiling setup.
 
-The repo is intentionally source-of-truth oriented: the install script symlinks tracked config into your local environment, so editing files here updates the live setup.
+The repo is intentionally source-of-truth oriented: the install script symlinks tracked config into your local environment, and re-running it re-syncs the live Neovim and Pi setup from the repo defaults.
 
 ## Quick start
 
