@@ -63,6 +63,66 @@ install_script() {
     return 1
 }
 
+sync_nvim_plugins() {
+    if ! command -v nvim &> /dev/null; then
+        print_warning "Neovim not available - skipping plugin sync"
+        return 0
+    fi
+
+    print_step "Syncing Neovim plugins from lazy-lock.json..."
+    if nvim --headless "+Lazy! restore" +qa > /dev/null 2>&1; then
+        print_success "Neovim plugins synced"
+    else
+        print_warning "Neovim plugin sync failed - run: nvim '+Lazy! restore'"
+    fi
+}
+
+install_pi_packages_from_settings() {
+    local settings_path="$REPO_DIR/pi/agent/settings.json"
+    local package_sources
+
+    if [ ! -f "$settings_path" ]; then
+        print_warning "Pi package bootstrap file missing: $settings_path"
+        return 0
+    fi
+
+    if ! command -v node &> /dev/null; then
+        print_warning "Node.js not available - skipping Pi package sync"
+        return 0
+    fi
+
+    package_sources="$({
+        node -e '
+const fs = require("fs");
+const settingsPath = process.argv[1];
+const raw = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
+  if (typeof entry === "string" && entry.trim()) {
+    console.log(entry.trim());
+    continue;
+  }
+  if (entry && typeof entry === "object" && typeof entry.source === "string" && entry.source.trim()) {
+    console.log(entry.source.trim());
+  }
+}
+' "$settings_path"
+    } 2>/dev/null | awk 'NF && !seen[$0]++')"
+
+    if [ -z "$package_sources" ]; then
+        print_warning "No Pi packages found in $settings_path"
+        return 0
+    fi
+
+    printf '%s\n' "$package_sources" | while IFS= read -r package_source; do
+        [ -z "$package_source" ] && continue
+        if pi install "$package_source" > /dev/null 2>&1; then
+            print_success "Pi package '$package_source' installed"
+        else
+            print_warning "Failed to install Pi package: $package_source"
+        fi
+    done
+}
+
 # ============================================================================
 # VALIDATIONS
 # ============================================================================
@@ -395,6 +455,7 @@ if [ -d "$REPO_DIR/nvim" ]; then
 
     if ln -sfn "$NVIM_TARGET" "$NVIM_LINK"; then
         print_success "Neovim config linked"
+        sync_nvim_plugins
     else
         print_error "Failed to link Neovim config"
     fi
@@ -592,14 +653,10 @@ if ! command -v pi &> /dev/null; then
         print_warning "Pi install failed (npm i -g @mariozechner/pi-coding-agent)"
 fi
 
-# Install packages (core + agentic plugins)
+# Install packages declared in tracked bootstrap settings
 if command -v pi &> /dev/null; then
-    print_step "Installing Pi packages..."
-    pi install npm:mitsupi 2>/dev/null && print_success "mitsupi installed" || true
-    pi install npm:pi-hooks 2>/dev/null && print_success "pi-hooks installed" || true
-    pi install npm:checkpoint 2>/dev/null && print_success "checkpoint installed" || true
-    pi install npm:pi-notify 2>/dev/null && print_success "pi-notify installed" || true
-    pi install git:github.com/badlogic/pi-skills 2>/dev/null && print_success "pi-skills installed" || true
+    print_step "Installing Pi packages from tracked settings..."
+    install_pi_packages_from_settings
 fi
 
 # Symlink node_modules into extensions dir so createRequire() can resolve npm packages (e.g. mitsupi)
