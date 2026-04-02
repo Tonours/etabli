@@ -36,7 +36,14 @@ local function do_open_terminal(command, opts)
   end
 
   vim.cmd.tabnew()
-  vim.fn.termopen(command, { cwd = options.cwd })
+  vim.fn.termopen(command, {
+    cwd = options.cwd,
+    on_exit = function()
+      if options.on_exit then
+        vim.schedule(options.on_exit)
+      end
+    end,
+  })
 
   if options.title and options.title ~= "" then
     vim.api.nvim_buf_set_name(0, options.title)
@@ -55,6 +62,14 @@ local function dispatch_prompt(provider, prompt, opts)
   local cwd = options.cwd
   local open_terminal = options.open_terminal
   local message = options.message
+  local before_signature
+
+  if cwd and cwd ~= "" then
+    local ok, review = pcall(require, "config.review")
+    if ok and review and review.repo_change_signature then
+      before_signature = review.repo_change_signature(cwd)
+    end
+  end
 
   -- Use schedule for immediate but non-blocking execution
   vim.schedule(function()
@@ -64,6 +79,15 @@ local function dispatch_prompt(provider, prompt, opts)
       if vim.fn.executable(provider.command) == 1 then
         do_open_terminal(launch_argv(provider, prompt), {
           cwd = cwd,
+          on_exit = function()
+            local ok, review = pcall(require, "config.review")
+            if ok and review and review.refresh_after_external_edit then
+              review.refresh_after_external_edit(cwd, {
+                before_signature = before_signature,
+                provider = provider.label,
+              })
+            end
+          end,
           title = string.format("term://review-%s", provider.command),
         })
       else

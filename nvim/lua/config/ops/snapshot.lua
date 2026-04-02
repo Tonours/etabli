@@ -253,7 +253,7 @@ local function project_mode(root)
     hint = {
       roles = mode_state.description.roles,
       review = mode_state.description.review,
-      worktrees = mode_state.description.worktrees,
+      scope = mode_state.description.scope,
     },
     warnings = vim.deepcopy(mode_state.warnings or {}),
   }

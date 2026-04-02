@@ -16,9 +16,9 @@
   },
   "task": {
     "taskId": "etabli:feature-ops-task-state",
-    "title": "Add per-worktree task-state projection to OPS",
+    "title": "Add per-cwd task-state projection to OPS",
     "repo": "etabli",
-    "worktreePath": "/Volumes/Crucial/work/etabli",
+    "workspacePath": "/Volumes/Crucial/work/etabli",
     "branch": "feature/ops-task-state",
     "identitySource": "branch",
     "titleSource": "plan-subject",
@@ -87,7 +87,7 @@
     "hint": {
       "roles": "main + scout + worker + reviewer",
       "review": "continuous review",
-      "worktrees": "main worktree"
+      "scope": "current cwd"
     },
     "warnings": []
   },

@@ -10,8 +10,10 @@ local function action_instructions(action)
 
   return {
     "Revise only this hunk.",
+    "Apply the change directly in the workspace instead of only replying with a patch.",
+    "Save every touched file before you stop.",
     "Do not change unrelated parts of the file.",
-    "Return a concrete patch or replacement snippet for this hunk.",
+    "If you are blocked from editing, explain the blocker explicitly.",
   }
 end
 
@@ -26,8 +28,10 @@ local function batch_action_instructions(action)
 
   return {
     "Revise each hunk separately.",
+    "Apply the changes directly in the workspace instead of only replying with patches.",
+    "Save every touched file before you stop.",
     "Do not change unrelated parts of the file.",
-    "Return one concrete patch or replacement snippet per hunk, grouped by hunk number and file path.",
+    "If you are blocked from editing, explain the blocker explicitly per affected hunk.",
   }
 end
 

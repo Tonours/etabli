@@ -54,7 +54,7 @@ export default function (pi: ExtensionAPI) {
     name: "plan_state_read",
     label: "Plan State Read",
     description:
-      "Read the current PLAN.md implementation-tracking state for the active worktree. Useful for seeing the active slice, completed slices, pending checks, and next recommended action.",
+      "Read the current PLAN.md implementation-tracking state for the active cwd. Useful for seeing the active slice, completed slices, pending checks, and next recommended action.",
     parameters: Type.Object({}),
     async execute(_toolCallId, _args, _signal, _onUpdate, ctx) {
       try {

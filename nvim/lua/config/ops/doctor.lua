@@ -20,12 +20,10 @@ function M.lines(cwd)
   local root = vim.fs.normalize(cwd or vim.fn.getcwd())
   local lines = { "OPS doctor:" }
   local projects = require("config.projects")
-  local worktrees = require("config.worktrees")
   local review_diff = require("config.review.diff")
   local review_state = require("config.review.state")
 
   local repo = review_diff.repo_root(root)
-  local worktree = worktrees.current(root)
   local plan = state.plan_state(root)
   local runtime = state.runtime_state(root)
   local review = state.review_summary(root)
@@ -47,12 +45,6 @@ function M.lines(cwd)
     table.insert(lines, line("PASS", "repo", repo))
   else
     table.insert(lines, line("FAIL", "repo", "not inside a git repo"))
-  end
-
-  if worktree then
-    table.insert(lines, line("PASS", "worktree", worktree.branch ~= "" and worktree.branch or worktree.tail))
-  else
-    table.insert(lines, line("WARN", "worktree", "no named worktree detected"))
   end
 
   if session_exists then
@@ -122,13 +114,6 @@ function M.lines(cwd)
     table.insert(lines, line("WARN", "mode", mode_state.warnings[1]))
   else
     table.insert(lines, line("PASS", "mode", mode_message))
-  end
-
-  if mode_state.mode == "option-compare" and repo then
-    local entries = worktrees.entries(root)
-    if #entries < 2 then
-      table.insert(lines, line("WARN", "mode", "option-compare expects isolated option worktrees"))
-    end
   end
 
   return lines

@@ -24,7 +24,7 @@ cd etabli
 - `workflow/` - canonical planning, review, and handoff docs shared across runtimes
 - `profiles/` - explicit personal/work usage contracts
 - `memory/` - minimal project memory layout and templates
-- `scripts/` - installer, worktree tooling, terminal bootstraps, and platform helpers
+- `scripts/` - installer, local verification runners, terminal bootstraps, and platform helpers
 - `vscode/` - tracked VS Code settings, keybindings, and extension list
 - `tmux.conf`, `iterm2/`, `yabai/`, `skhd/`, `starship/` - terminal and window-management setup
 
@@ -43,10 +43,10 @@ cd etabli
 
 ### OPS shared status
 
-- Neovim also exports one lightweight task projection per worktree at `~/.pi/status/<sanitized-cwd>.task.json`
-- Neovim exports one shared OPS snapshot per worktree at `~/.pi/status/<sanitized-cwd>.ops.json`
+- Neovim also exports one lightweight task projection per current cwd at `~/.pi/status/<sanitized-cwd>.task.json`
+- Neovim exports one shared OPS snapshot per current cwd at `~/.pi/status/<sanitized-cwd>.ops.json`
 - task + snapshot are regenerated together and share revision/timestamp metadata so Pi and Claude see the same current task/title/next-action context
-- task identity follows current branch first, then worktree tail, then cwd fallback
+- task identity follows current branch first, then cwd/repo fallback
 - Pi reads that snapshot through the ambient `ops-status` extension
 - Claude reads that snapshot through `claude/commands/ops-status.md`
 - `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface
@@ -54,7 +54,7 @@ cd etabli
 ### Planning and execution
 
 - `workflow/spec.md` - canonical workflow contract
-- `workflow/operating-model.md` - daily Claude + Pi operating model, execution modes, and worktree parallelism rules
+- `workflow/operating-model.md` - daily Claude + Pi operating model and execution modes
 - `workflow/statuses.md` - lifecycle and status model
 - `workflow/review-rubric.md` - review expectations
 - `workflow/handoff-template.md` - continuation handoff template
@@ -83,15 +83,15 @@ problem -> learn -> phase-0 measure -> plan -> PLAN.md (DRAFT) -> plan-review ->
 - implementation should start only from a `READY` `PLAN.md`
 - review and handoff docs live under `workflow/` and are shared across runtimes
 
-## Worktree and agent loop
+## Daily agent loop
 
 Typical flow in this repo:
 
-1. create or open a worktree with `cw`
+1. inspect current repo state
 2. explore or plan with Claude/Pi
 3. implement from a `READY` plan
 4. review diffs inside Neovim or via runtime review commands
-5. hand off or merge once verified
+5. hand off or commit once verified
 
 Delegation default:
 - scout/reviewer can run in parallel for reconnaissance/review
@@ -100,20 +100,14 @@ Delegation default:
 Daily execution modes:
 - simple mode: one worker, one clear path
 - standard mode: scout/worker/reviewer around one main implementation path
-- option-compare mode: multiple workers only in isolated worktrees with explicit keep/discard gates
 
 For the full zero-idle Claude + Pi loop, see `workflow/operating-model.md`.
 
 Useful entrypoints:
 
-- `cw new <repo> <task> [prefix]`
-- `cw open <repo> [branch|path|name]`
-- `cw pick <repo>`
-- `scripts/cw-mode <simple|standard|option-compare> <repo|path> "<task>"`
-- `source scripts/cw-mode-aliases.sh` for short shell wrappers: `cws`, `cwstd`, `cwcmp`, `cwtmux` (and `scripts/install.sh` now wires this automatically into Bash/Zsh rc files)
-- `cw merge <repo> [branch|path|name] --yes`
-- `cw rm <repo> [branch|path|name] --yes`
-- `cw-clean <repo> --yes`
+- `PLAN.md`
+- Neovim OPS/review commands
+- Claude/Pi workflow commands documented above
 
 For the full workflow surface, use the dedicated docs above instead of this root README.
 

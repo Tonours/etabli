@@ -4,7 +4,7 @@ local M = {}
 
 local scopes = { "unstaged", "staged" }
 
--- Cache for git root lookups (mirrors worktrees.lua optimization)
+-- Cache for git root lookups
 local git_root_cache = {}
 local git_root_cache_time = {}
 local git_root_cache_ttl = 20000 -- 20 seconds TTL (reduced from 30s)

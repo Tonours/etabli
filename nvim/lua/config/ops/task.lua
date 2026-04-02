@@ -1,7 +1,6 @@
 local mode = require("config.ops.mode")
 local state = require("config.ops.state")
 local review_diff = require("config.review.diff")
-local worktrees = require("config.worktrees")
 
 local M = {}
 
@@ -52,19 +51,21 @@ local function to_json_value(value)
   return value
 end
 
-local function branch_name(worktree)
-  if not worktree or not worktree.branch or worktree.branch == "" then
+local function branch_name(root)
+  local lines = vim.fn.systemlist({ "git", "-C", root, "branch", "--show-current" })
+  if vim.v.shell_error ~= 0 then
     return nil
   end
-  return worktree.branch
+  local branch = vim.trim(lines[1] or "")
+  if branch == "" then
+    return nil
+  end
+  return branch
 end
 
-local function identity_source(worktree)
-  if branch_name(worktree) then
+local function identity_source(root)
+  if branch_name(root) then
     return "branch"
-  end
-  if worktree and worktree.tail and worktree.tail ~= "" then
-    return "worktree"
   end
   return "cwd"
 end
@@ -77,44 +78,35 @@ local function sanitize_id(value)
   return normalized
 end
 
-local function title_source(root, plan, worktree)
+local function title_source(root, plan)
   if plan.subject and plan.subject ~= "" then
     return "plan-subject"
   end
 
-  if branch_name(worktree) then
+  if branch_name(root) then
     return "branch"
-  end
-
-  if worktree and worktree.tail and worktree.tail ~= "" then
-    return "worktree"
   end
 
   return "repo"
 end
 
-local function task_title(root, plan, worktree, source)
-  local resolved = source or title_source(root, plan, worktree)
+local function task_title(root, plan, source)
+  local resolved = source or title_source(root, plan)
   if resolved == "plan-subject" then
     return plan.subject
   end
   if resolved == "branch" then
-    return branch_name(worktree)
-  end
-  if resolved == "worktree" then
-    return worktree.tail
+    return branch_name(root)
   end
   return basename(root)
 end
 
-local function task_id(repo_name, root, worktree, source)
-  local resolved = source or identity_source(worktree)
+local function task_id(repo_name, root, source)
+  local resolved = source or identity_source(root)
   local suffix = ""
 
   if resolved == "branch" then
-    suffix = sanitize_id(branch_name(worktree))
-  elseif resolved == "worktree" then
-    suffix = sanitize_id(worktree and worktree.tail or "")
+    suffix = sanitize_id(branch_name(root))
   else
     suffix = state.status_file_name(root)
   end
@@ -159,18 +151,17 @@ function M.project(cwd, inputs)
   local runtime = (inputs and inputs.runtime) or state.runtime_state(root)
   local mode_state = (inputs and inputs.mode_state) or mode.read(root)
   local next_action = (inputs and inputs.next_action) or { value = "no actionable OPS state" }
-  local worktree = (inputs and inputs.worktree) or worktrees.current(root)
   local repo_root = (inputs and inputs.repo_root) or review_diff.repo_root(root) or root
   local repo_name = basename(repo_root)
-  local task_identity_source = identity_source(worktree)
-  local task_title_source = title_source(root, plan, worktree)
+  local task_identity_source = identity_source(root)
+  local task_title_source = title_source(root, plan)
 
   return {
-    taskId = task_id(repo_name, root, worktree, task_identity_source),
-    title = task_title(root, plan, worktree, task_title_source),
+    taskId = task_id(repo_name, root, task_identity_source),
+    title = task_title(root, plan, task_title_source),
     repo = repo_name,
-    worktreePath = root,
-    branch = to_json_value(branch_name(worktree)),
+    workspacePath = root,
+    branch = to_json_value(branch_name(root)),
     identitySource = task_identity_source,
     titleSource = task_title_source,
     lifecycleState = lifecycle_state(plan, review, runtime),

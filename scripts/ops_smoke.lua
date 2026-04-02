@@ -198,6 +198,7 @@ assert_true(snapshot.plan.lastValidatedState == "partial", "expected last valida
 assert_true(snapshot.review.source == "live", "expected live review source after explicit refresh")
 assert_true(snapshot.review.mayBeStale == false, "expected live review to be non-stale")
 assert_true(snapshot.runtime.state == "available", "expected available runtime state")
+assert_true(snapshot.mode.hint.scope == "current cwd", "expected OPS mode scope hint")
 assert_true(
   snapshot.nextAction.value:match("start") ~= nil
     or snapshot.nextAction.value:match("address") ~= nil

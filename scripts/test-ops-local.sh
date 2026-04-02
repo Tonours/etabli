@@ -52,4 +52,4 @@ run_step \
 run_step "git diff --check" git diff --check
 
 printf '\nPASS: OPS local verification runner completed.\n'
-printf 'Manual follow-up: run Claude /ops-status in a real Claude session against this worktree snapshot.\n'
+printf 'Manual follow-up: run Claude /ops-status in a real Claude session against this cwd snapshot.\n'

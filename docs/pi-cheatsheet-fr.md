@@ -92,31 +92,20 @@ pi --tools read,grep,find,ls      # mode lecture seule
 /worker <task>
 /reviewer <task>
 
-# workflow worktree/tmux
-cw new <repo> <task> [prefix]
-cw open <repo> [branch|path|name]
-cw ls <repo>
-cw attach <repo> [branch|path|name]
-cw merge <repo> [branch|path|name] --yes
-cw rm <repo> [branch|path|name] --yes
-cw pick <repo>          # UI légère fzf/fzf-tmux
-cw-clean <repo> --yes   # nettoyage batch
-scripts/cw-mode <simple|standard|option-compare> <repo|path> "<task>"
+# workflow repo/cwd
+git status --short
+git log --oneline -3
+PLAN.md
 ```
 
 Notes repo :
-- `cw pick` est l'UI légère actuelle ; pas de commande `cw ui`
-- `cw merge` et `cw rm` sont en dry-run par défaut sans `--yes`
-- les worktrees vivent sous `./.worktrees/` quand `cw` est lancé depuis le repo
-- `scripts/cw-mode` est le lanceur protocolaire : il prépare les worktrees attendus puis imprime les prochaines étapes Claude/Pi
-- ajoute `--print-shell` si tu veux des variables shell réutilisables dans un alias, un wrapper tmux, ou un `eval "$(...)"`
-- ajoute `--print-tmux` si tu veux un snippet léger pour te rattacher directement à la cible tmux principale
-- source `scripts/cw-mode-aliases.sh` pour récupérer `cws`, `cwstd`, `cwcmp`, et `cwtmux` (ou laisse `scripts/install.sh` ajouter le sourcing dans `~/.bashrc` / `~/.zshrc`)
+- le workflow recommandé part du repo/cwd courant
+- garde le focus sur `PLAN.md`, review, validation ciblée, et QA manuelle
 
 ## OPS snapshot partagé
 
-- Neovim exporte aussi une projection légère de tâche par worktree vers `~/.pi/status/<sanitized-cwd>.task.json`
-- Neovim exporte un snapshot OPS dérivé par worktree vers `~/.pi/status/<sanitized-cwd>.ops.json`
+- Neovim exporte aussi une projection légère de tâche par cwd vers `~/.pi/status/<sanitized-cwd>.task.json`
+- Neovim exporte un snapshot OPS dérivé par cwd vers `~/.pi/status/<sanitized-cwd>.ops.json`
 - Pi le lit via l'extension ambient `ops-status`
 - Claude peut lire le même snapshot via `claude/commands/ops-status.md`
 - le snapshot OPS embarque aussi cette projection de tâche pour exposer le titre courant, l'état du plan, et la prochaine action sans recalcul coûteux
@@ -194,11 +183,10 @@ Mode opératoire quotidien : `workflow/operating-model.md`
 Modes d'exécution conseillés :
 - simple : 1 session principale + 1 worker
 - standard : 1 session principale + scout/worker/reviewer en parallèle borné
-- option-compare : 1 session principale + 2-3 workers isolés par worktree pour comparer plusieurs options
 
 Boucle zéro temps mort :
-- pendant qu'un worker tourne, prépare la QA manuelle, relis la slice précédente, annote l'inbox review, ou compare une option concurrente
-- n'utilise pas plusieurs workers sur la même zone sans isolation claire par worktree
+- pendant qu'un worker tourne, prépare la QA manuelle, relis la slice précédente, ou annote l'inbox review
+- n'utilise pas plusieurs workers sur la même zone mutable en parallèle
 
 Rôles :
 - `scout` : reconnaissance read-only

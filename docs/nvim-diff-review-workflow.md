@@ -63,7 +63,7 @@ Provider actions do three things:
 
 This keeps the flow safe and explicit while removing the manual paste step: the prompt is still visible in the scratch preview and copied to registers, but the CLI also starts with the diff prompt already injected. Batch commands use the same preview/copy/direct-launch flow, but include every matching hunk in a single prompt.
 
-In the broader operating model, this inbox is one of the main “zero-idle” surfaces: while a worker runs in another worktree, you can keep using the inbox for annotation, acceptance, and provider dispatch instead of waiting on the implementation path.
+In the broader operating model, this inbox is one of the main “zero-idle” surfaces: while a worker runs elsewhere in the flow, you can keep using the inbox for annotation, acceptance, and provider dispatch instead of waiting on the implementation path.
 
 Provider CLIs are resolved from your environment (`PATH`, plus `NVM_DIR` for Copilot's Node lookup when relevant), so the setup stays portable across machines instead of depending on a single hardcoded local path.
 
