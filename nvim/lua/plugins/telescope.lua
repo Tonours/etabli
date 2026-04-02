@@ -12,6 +12,27 @@ return {
     },
     opts = function()
       local actions = require("telescope.actions")
+      local action_state = require("telescope.actions.state")
+
+      local function picker_started_in_terminal(prompt_bufnr)
+        local picker = action_state.get_current_picker(prompt_bufnr)
+        if not picker or not picker.original_win_id or not vim.api.nvim_win_is_valid(picker.original_win_id) then
+          return false
+        end
+
+        local origin_buf = vim.api.nvim_win_get_buf(picker.original_win_id)
+        return vim.bo[origin_buf].buftype == "terminal"
+      end
+
+      local function open_in_tab_from_terminal(prompt_bufnr)
+        if picker_started_in_terminal(prompt_bufnr) then
+          actions.select_default:replace(function()
+            actions.file_tab(prompt_bufnr)
+          end)
+        end
+
+        return true
+      end
 
       return {
         defaults = {
@@ -72,10 +93,12 @@ return {
             prompt_title = "Diagnostics",
           },
           find_files = {
+            attach_mappings = open_in_tab_from_terminal,
             hidden = true,
             prompt_title = "Files",
           },
           live_grep = {
+            attach_mappings = open_in_tab_from_terminal,
             prompt_title = "Grep",
           },
           lsp_document_symbols = {
