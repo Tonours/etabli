@@ -72,6 +72,13 @@ local function task_label(task_state)
   return string.format("%s (%s)", task_state.title, task_state.taskId)
 end
 
+local function optional_label(value)
+  if value == nil or value == vim.NIL or value == "" then
+    return "none"
+  end
+  return tostring(value)
+end
+
 local function append_prefixed_warnings(lines, prefix, warnings)
   for _, warning in ipairs(warnings or {}) do
     table.insert(lines, string.format("%s %s", prefix, warning))
@@ -116,7 +123,7 @@ function M.info_lines(cwd)
   table.insert(lines, "Slice:      " .. slice_label(plan))
   table.insert(lines, "Completed:  " .. join_values(task_state.completedSlices))
   table.insert(lines, "Checks:     " .. join_values(task_state.pendingChecks))
-  table.insert(lines, "Validated:  " .. (task_state.lastValidatedState or "none"))
+  table.insert(lines, "Validated:  " .. optional_label(task_state.lastValidatedState))
   table.insert(lines, "Next:       " .. first_value(plan.tracking["Next recommended action"]))
   table.insert(lines, "Review:     " .. review.line)
   table.insert(lines, "Runtime:    " .. runtime_label(runtime))
@@ -165,7 +172,7 @@ function M.next_lines(cwd)
   table.insert(lines, "Plan:       " .. plan_label(plan))
   table.insert(lines, "Slice:      " .. slice_label(plan))
   table.insert(lines, "Checks:     " .. join_values(task_state.pendingChecks))
-  table.insert(lines, "Validated:  " .. (task_state.lastValidatedState or "none"))
+  table.insert(lines, "Validated:  " .. optional_label(task_state.lastValidatedState))
   table.insert(lines, "Plan next:  " .. first_value(plan.tracking["Next recommended action"]))
   table.insert(lines, "Review:     " .. review.line)
   table.insert(lines, "Runtime:    " .. runtime_label(runtime))
@@ -214,7 +221,7 @@ function M.resume_lines(cwd, session_state)
   table.insert(lines, "Mode:       " .. mode_label(mode_state))
   table.insert(lines, "Action:     " .. M.next_action(plan, review, runtime, handoff))
   table.insert(lines, "Checks:     " .. join_values(task_state.pendingChecks))
-  table.insert(lines, "Validated:  " .. (task_state.lastValidatedState or "none"))
+  table.insert(lines, "Validated:  " .. optional_label(task_state.lastValidatedState))
   table.insert(lines, "Review:     " .. review.line)
   table.insert(lines, "Runtime:    " .. runtime_label(runtime))
   table.insert(lines, "Handoff:    " .. handoff_label(handoff))

@@ -15,8 +15,6 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Buffers: `<leader>.`
 - Explorer: `<leader>ft`, `<leader>fe`
 - Projects: `<leader>pp`
-- Worktrees: `<leader>pw`
-- New worktree: `<leader>pW`
 - OPS group aliases: `<leader>a...`
 - Project info: `<leader>pi` or `:ProjectInfo`
 - OPS status: `<leader>pa` or `:OPSStatus`
@@ -24,7 +22,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - OPS next: `<leader>pn` or `:OPSNext`
 - OPS doctor: `<leader>pd` or `:OPSDoctor`
 - OPS refresh review: `<leader>pf` or `:OPSRefreshReview`
-- OPS mode: `<leader>pm` or `:OPSMode [simple|standard|option-compare]`
+- OPS mode: `<leader>pm` or `:OPSMode [simple|standard]`
 - OPS plan: `<leader>po` or `:OPSOpenPlan`
 - OPS handoff: `<leader>ph` or `:OPSHandoff`
 - OPS review: `<leader>pR` or `:OPSReview`
@@ -35,14 +33,12 @@ Long-form aliases stay available:
 ## Project workflow
 
 - Re-root to current buffer: `<leader>pr`
-- New worktree: `<leader>pW`
 - Save project session: `<leader>ps`
 - Load project session: `<leader>pl`
 - Recent files in current project: `<leader>fp`
 
 Statusline:
 - `󰉋 name` = project
-- ` branch` = worktree
 - `•` = session exists
 - `+` = session exists, context changed since last save
 - `OPS ...` = current plan/runtime snapshot for the current cwd
@@ -50,17 +46,17 @@ Statusline:
 OPS cockpit:
 - top-level OPS aliases now live under `<leader>a...` for easier grouping in which-key (`as`, `au`, `an`, `ad`, `af`, `am`, `ap`, `ah`, `ar`)
 - `:OPSStatus` shows the current task, plan, stored review blockers, runtime, handoff presence, and parse warnings
-- `:OPSResume` reloads the current worktree session when available, then summarizes the current task/OPS context
-- `:OPSNext` shows the next bounded OPS action for the current worktree
-- `:OPSDoctor` reports `PASS|WARN|FAIL` checks for repo, worktree, session, plan, runtime, review, handoff, and mode
+- `:OPSResume` reloads the current repo session when available, then summarizes the current task/OPS context
+- `:OPSNext` shows the next bounded OPS action for the current cwd
+- `:OPSDoctor` reports `PASS|WARN|FAIL` checks for repo, session, plan, runtime, review, handoff, and mode
 - `:OPSRefreshReview` runs the explicit live diff refresh path and updates the current review blocker summary
-- `:OPSMode` shows or sets the current OPS operating mode (`simple`, `standard`, `option-compare`)
+- `:OPSMode` shows or sets the current OPS operating mode (`simple`, `standard`)
 - `:OPSOpenPlan` opens `PLAN.md` in the current buffer and warns if the file is partial/invalid
 - `:OPSHandoff` opens `.pi/handoff-implement.md`, then `.pi/handoff.md`
 - `:OPSReview` opens the review inbox directly
-- OPS writes one lightweight per-worktree task projection to `~/.pi/status/<sanitized-cwd>.task.json`
-- OPS also exports a derived snapshot for the current worktree at `~/.pi/status/<sanitized-cwd>.ops.json` so Pi and Claude can read the same bounded status without recomputing OPS logic
-- task + snapshot are regenerated together with shared revision/timestamp metadata, and task identity follows branch → worktree tail → cwd fallback
+- OPS writes one lightweight per-cwd task projection to `~/.pi/status/<sanitized-cwd>.task.json`
+- OPS also exports a derived snapshot for the current cwd at `~/.pi/status/<sanitized-cwd>.ops.json` so Pi and Claude can read the same bounded status without recomputing OPS logic
+- task + snapshot are regenerated together with shared revision/timestamp metadata, and task identity follows branch → cwd fallback
 - run `./scripts/test-ops-local.sh` from repo root to revalidate the shared OPS surface before commit
 
 ## Code workflow
@@ -104,9 +100,7 @@ Notes:
 
 ## Notes
 
-- Use `cw` to create/open worktrees.
-- In the worktree picker, press `<C-n>` to create a new worktree.
-- Use Neovim to switch between tracked projects/worktrees.
+- Use Neovim to switch between tracked projects.
 - Neovim is the cockpit, not the workflow brain: the shared execution model lives in `workflow/operating-model.md`.
-- A practical zero-idle loop is: worker running in one worktree, review inbox / QA prep / option comparison running in parallel outside that critical path.
+- A practical zero-idle loop is: worker running in the active repo while review inbox and QA prep happen off the critical path.
 - `which-key` is enabled in a minimal mode for leader-map recall.

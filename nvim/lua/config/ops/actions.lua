@@ -103,11 +103,10 @@ function M.show_mode(command_mode)
   local mode_state = mode.read(cwd)
   vim.notify(
     string.format(
-      "OPS mode: %s\nRoles: %s\nReview: %s\nWorktrees: %s",
+      "OPS mode: %s\nRoles: %s\nReview: %s",
       mode_state.explicit and mode_state.mode or (mode_state.mode .. " (default)"),
       mode_state.description.roles,
-      mode_state.description.review,
-      mode_state.description.worktrees
+      mode_state.description.review
     ),
     vim.log.levels.INFO,
     { title = "OPSMode" }

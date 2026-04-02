@@ -60,11 +60,11 @@ function M.setup_commands()
 
   vim.api.nvim_create_user_command("OPSOpenPlan", function()
     M.open_plan()
-  end, { desc = "Open PLAN.md for the current worktree" })
+  end, { desc = "Open PLAN.md for the current cwd" })
 
   vim.api.nvim_create_user_command("OPSReview", function()
     M.open_review()
-  end, { desc = "Open the review inbox for the current worktree" })
+  end, { desc = "Open the review inbox for the current cwd" })
 
   vim.api.nvim_create_user_command("OPSHandoff", function()
     M.open_handoff()
@@ -76,11 +76,11 @@ function M.setup_commands()
 
   vim.api.nvim_create_user_command("OPSDoctor", function()
     M.show_doctor()
-  end, { desc = "Diagnose OPS plumbing for the current worktree" })
+  end, { desc = "Diagnose OPS plumbing for the current cwd" })
 
   vim.api.nvim_create_user_command("OPSResume", function()
     M.resume()
-  end, { desc = "Resume the current worktree context" })
+  end, { desc = "Resume the current cwd context" })
 
   vim.api.nvim_create_user_command("OPSMode", function(opts)
     M.show_mode(opts.args)

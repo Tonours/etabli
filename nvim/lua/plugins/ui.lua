@@ -48,7 +48,7 @@ return {
   },
   {
     "nvim-lualine/lualine.nvim",
-    event = { "BufReadPost", "BufNewFile" },
+    event = "UIEnter",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = function()
       -- Lazy-load statusline module only when lualine initializes
@@ -79,11 +79,6 @@ return {
             {
               "branch",
               icon = "",
-            },
-            {
-              statusline.worktree_label,
-              cond = statusline.has_worktree,
-              color = statusline.worktree_color,
             },
             {
               statusline.project_label,

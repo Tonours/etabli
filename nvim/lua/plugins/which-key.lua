@@ -21,7 +21,6 @@ return {
         { "<leader>b", group = "buffers" },
         { "<leader>w", group = "windows" },
         { "<leader>t", group = "tabs" },
-        { "<leader>pW", desc = "New worktree" },
       },
       win = {
         border = "rounded",

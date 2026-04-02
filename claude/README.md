@@ -27,7 +27,7 @@ Shared contract reminders:
 - `PLAN.md` is the single execution contract across Claude and Pi
 - the measurement contract, execution slices, implementation tracking, and review checkpoints all live inside `PLAN.md`
 - implementation starts only from `READY`
-- daily execution modes (`simple`, `standard`, `option-compare`) live in `../workflow/operating-model.md`
+- daily execution modes (`simple`, `standard`) live in `../workflow/operating-model.md`
 
 ## Commands
 
@@ -39,7 +39,7 @@ Shared contract reminders:
 - `commands/review.md` runs a focused review against uncommitted changes, a branch diff, or a commit using the shared review rubric
 - `commands/handoff.md` writes or refreshes `.pi/handoff.md` for session continuation using the shared handoff template
 - `commands/handoff-implement.md` writes or refreshes `.pi/handoff-implement.md` for implementation continuation from an existing `READY` `PLAN.md`
-- `commands/ops-status.md` reads the exported OPS snapshot for the current worktree and summarizes it without recomputing OPS logic
+- `commands/ops-status.md` reads the exported OPS snapshot for the current cwd and summarizes it without recomputing OPS logic
 
 ## Shared docs
 
@@ -49,30 +49,20 @@ Shared contract reminders:
 
 `verify` is no longer part of this workflow.
 
-## Repo worktree helper
-
-The repo-native worktree/tmux helper lives at the root as `scripts/cw` with `scripts/cw-clean` for batch cleanup.
+## Repo workflow
 
 Preferred command surface:
 
-- `cw new <repo> <task> [prefix]`
-- `cw open <repo> [branch|path|name]`
-- `cw ls <repo>`
-- `cw attach <repo> [branch|path|name]`
-- `cw merge <repo> [branch|path|name] --yes`
-- `cw rm <repo> [branch|path|name] --yes`
-- `cw pick <repo>` for the thin `fzf` / `fzf-tmux` UI
-- `scripts/cw-mode <simple|standard|option-compare> <repo|path> "<task>"`
-- `source scripts/cw-mode-aliases.sh` for `cws`, `cwstd`, `cwcmp`, and `cwtmux`
-- `cw-clean <repo> --yes` for batch cleanup
-
-There is no separate `cw ui` command; `cw pick` is the lightweight UI entrypoint.
+- inspect current repo state
+- create or refresh `PLAN.md`
+- implement only from `READY`
+- use focused review + QA before commit
 
 Because `PLAN.md` is gitignored and macOS filesystems are often case-insensitive, the repo does not track `commands/plan.md` directly. Installation maps `commands/plan-create.md` to `~/.claude/commands/plan.md`.
 
 ## OPS snapshot consumer
 
-Claude can read the OPS snapshot exported by Neovim for the current worktree:
+Claude can read the OPS snapshot exported by Neovim for the current cwd:
 
 - path: `~/.pi/status/<sanitized-cwd>.ops.json`
 - surface: `commands/ops-status.md`

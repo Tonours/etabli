@@ -51,7 +51,7 @@ Profiles do not change:
 - `PLAN.md` statuses
 - review rubric structure
 - handoff template structure
-- the repo worktree/tmux entrypoints
+- the repo workflow entrypoints
 
 ## Still manual in this phase
 

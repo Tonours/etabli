@@ -680,10 +680,6 @@ export PATH="$HOME/.local/bin:$PATH"
 install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "iterm2-tmux.sh" || true
-install_script "cw" || true
-install_script "cw-mode" || true
-install_script "cw-mode-aliases.sh" || true
-install_script "cw-clean" || true
 
 if [[ "$OS" == "mac" ]]; then
     install_script "open-iterm2.sh" || true
@@ -700,9 +696,6 @@ for rcfile in ~/.bashrc ~/.zshrc; do
     if [ -f "$rcfile" ] || [ "$rcfile" = ~/.zshrc ]; then
         if ! grep -q '\$HOME/.local/bin' "$rcfile" 2>/dev/null; then
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rcfile" 2>/dev/null || true
-        fi
-        if ! grep -q 'cw-mode-aliases.sh' "$rcfile" 2>/dev/null; then
-            echo '[ -f "$HOME/.local/bin/cw-mode-aliases.sh" ] && source "$HOME/.local/bin/cw-mode-aliases.sh"' >> "$rcfile" 2>/dev/null || true
         fi
     fi
 done
@@ -761,7 +754,6 @@ printf "  4. Start Neovim:     ${YELLOW}nvim${NC}\n"
 printf "  5. Auth Copilot:     ${YELLOW}:Copilot auth${NC} in Neovim\n"
 printf "  6. Start Tmux:       ${YELLOW}tmux${NC}\n"
 printf "  7. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
-printf "  8. Launcher helpers: ${YELLOW}cws / cwstd / cwcmp / cwtmux${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
@@ -784,7 +776,6 @@ printf "  Files / Grep    <leader><space> / <leader>/\n"
 printf "  Buffers         <leader>.\n"
 printf "  Explorer        <leader>ft / <leader>fe\n"
 printf "  Projects        <leader>pp / <leader>pr / <leader>pi\n"
-printf "  Worktrees       <leader>pw\n"
 printf "  Sessions        <leader>ps / <leader>pl\n"
 printf "  Project files   <leader>fp\n"
 printf "  Aliases         <leader>ff / <leader>fg / <leader>fb\n"

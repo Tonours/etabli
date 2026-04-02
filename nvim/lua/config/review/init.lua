@@ -17,6 +17,33 @@ local function clear_repo_items_cache()
   repo_items_cache = {}
 end
 
+local function repo_change_signature(repo)
+  local result = vim.system({ "git", "-C", repo, "status", "--short" }, { text = true }):wait()
+  if result.code ~= 0 then
+    return nil
+  end
+
+  return result.stdout or ""
+end
+
+local function refresh_repo_buffers(repo)
+  local normalized_repo = util.normalize(repo)
+  local prefix = normalized_repo .. "/"
+
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buftype == "" then
+      local name = vim.api.nvim_buf_get_name(bufnr)
+      local normalized_name = name ~= "" and util.normalize(name) or ""
+
+      if normalized_name == normalized_repo or vim.startswith(normalized_name, prefix) then
+        pcall(vim.api.nvim_buf_call, bufnr, function()
+          vim.cmd("silent! checktime")
+        end)
+      end
+    end
+  end
+end
+
 local function clear_repo_items_cache_on_focus()
   local now = vim.uv.now()
   if (now - last_focus_clear_at) < review_focus_clear_ttl then
@@ -639,6 +666,54 @@ end
 
 function M.prepare_batch(provider, status)
   prepare_batch(provider, status)
+end
+
+function M.repo_change_signature(repo)
+  if not repo or repo == "" then
+    return nil
+  end
+
+  return repo_change_signature(repo)
+end
+
+function M.refresh_after_external_edit(repo, opts)
+  if not repo or repo == "" then
+    return
+  end
+
+  local options = opts or {}
+
+  clear_repo_items_cache()
+  diff.clear_cache()
+  refresh_repo_buffers(repo)
+
+  local ok, snapshot = pcall(require, "config.ops.snapshot")
+  if ok and snapshot and snapshot.schedule_write then
+    snapshot.schedule_write(repo)
+  end
+
+  local after_signature = repo_change_signature(repo)
+  local changed = options.before_signature ~= nil and after_signature ~= nil and options.before_signature ~= after_signature
+  local provider = options.provider or "Review"
+
+  if options.before_signature == nil or after_signature == nil then
+    vim.notify(
+      string.format("%s session closed; local buffers and review state refreshed.", provider),
+      vim.log.levels.INFO,
+      { title = "Review refresh" }
+    )
+    return
+  end
+
+  vim.notify(
+    changed
+        and string.format("%s session closed; repo changes detected and local review state refreshed.", provider)
+      or string.format("%s session closed; local review state refreshed, no repo change detected.", provider),
+    vim.log.levels.INFO,
+    { title = "Review refresh" }
+  )
+
+  return changed
 end
 
 function M.setup()

@@ -35,7 +35,7 @@ export interface OpsSnapshotTask {
   taskId: string;
   title: string;
   repo: string;
-  worktreePath: string;
+  workspacePath: string;
   branch: string | null;
   identitySource: string;
   titleSource: string;
@@ -100,7 +100,7 @@ export interface OpsSnapshotMode {
   hint: {
     roles: string;
     review: string;
-    worktrees: string;
+    scope: string;
   };
   warnings: string[];
 }
@@ -213,7 +213,7 @@ function normalizeTask(snapshot: OpsSnapshot): OpsSnapshotTask {
     taskId: snapshot.task?.taskId ?? snapshot.cwd,
     title: snapshot.task?.title ?? snapshot.project,
     repo: snapshot.task?.repo ?? snapshot.project,
-    worktreePath: snapshot.task?.worktreePath ?? snapshot.cwd,
+    workspacePath: snapshot.task?.workspacePath ?? snapshot.cwd,
     branch: snapshot.task?.branch ?? null,
     identitySource: snapshot.task?.identitySource ?? "cwd",
     titleSource: snapshot.task?.titleSource ?? "repo",
@@ -318,8 +318,8 @@ export function validateOpsSnapshot(value: unknown): OpsSnapshotValidationResult
       if (!isNonEmptyString(task.taskId)) errors.push("OPS snapshot task.taskId must be a non-empty string");
       if (!isNonEmptyString(task.title)) errors.push("OPS snapshot task.title must be a non-empty string");
       if (!isNonEmptyString(task.repo)) errors.push("OPS snapshot task.repo must be a non-empty string");
-      if (!isNonEmptyString(task.worktreePath)) {
-        errors.push("OPS snapshot task.worktreePath must be a non-empty string");
+      if (!isNonEmptyString(task.workspacePath)) {
+        errors.push("OPS snapshot task.workspacePath must be a non-empty string");
       }
       if (!isOptionalString(task.branch)) errors.push("OPS snapshot task.branch must be a string or null");
       if (!isNonEmptyString(task.identitySource)) {
@@ -436,7 +436,7 @@ export function validateOpsSnapshot(value: unknown): OpsSnapshotValidationResult
     } else {
       if (!isNonEmptyString(hint.roles)) errors.push("OPS snapshot mode.hint.roles must be a non-empty string");
       if (!isNonEmptyString(hint.review)) errors.push("OPS snapshot mode.hint.review must be a non-empty string");
-      if (!isNonEmptyString(hint.worktrees)) errors.push("OPS snapshot mode.hint.worktrees must be a non-empty string");
+      if (!isNonEmptyString(hint.scope)) errors.push("OPS snapshot mode.hint.scope must be a non-empty string");
     }
     if (!isStringArray(mode.warnings)) errors.push("OPS snapshot mode.warnings must be a string array");
   }

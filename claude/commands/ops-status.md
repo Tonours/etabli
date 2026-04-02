@@ -1,5 +1,5 @@
 ---
-description: Read the exported OPS snapshot for the current worktree and summarize it
+description: Read the exported OPS snapshot for the current cwd and summarize it
 allowed-tools: [Read, Bash]
 ---
 
@@ -17,7 +17,7 @@ Read the exported OPS snapshot for the current cwd and return a concise summary.
 4. If the snapshot file is missing:
    - say that no OPS snapshot is exported for the current cwd
    - show the expected path
-   - suggest opening Neovim in that worktree and running `:OPSStatus` or `:OPSDoctor`
+   - suggest opening Neovim in that repo/cwd and running `:OPSStatus` or `:OPSDoctor`
 5. If the snapshot file exists but is invalid:
    - report that the OPS snapshot is invalid
    - show the expected path

@@ -2,7 +2,6 @@ local M = {}
 
 local colors = {
   project = "#89b4fa",
-  worktree = "#a6e3a1",
 }
 
 local cached_context = nil
@@ -123,15 +122,12 @@ local function refresh_context()
 
   local projects = require("config.projects")
   local runtime = require("config.project_runtime")
-  local worktree = require("config.worktrees").current(cwd)
   local session_marker = runtime.session_marker(cwd)
 
-  local project_root = worktree and worktree.repo or projects.current_root()
+  local project_root = projects.current_root()
   cached_context = {
     project_color = colors.project,
     project_label = "󰉋 " .. vim.fn.fnamemodify(project_root, ":t") .. session_marker,
-    worktree_color = colors.worktree,
-    worktree_label = worktree and ("󱂬 " .. worktree.tail) or "",
   }
 
   cache_cwd = cwd
@@ -209,20 +205,6 @@ end
 function M.project_color()
   local ctx = refresh_context()
   return ctx and { fg = ctx.project_color } or {}
-end
-
-function M.worktree_label()
-  local ctx = refresh_context()
-  return ctx and ctx.worktree_label or ""
-end
-
-function M.worktree_color()
-  local ctx = refresh_context()
-  return ctx and { fg = ctx.worktree_color } or {}
-end
-
-function M.has_worktree()
-  return M.worktree_label() ~= ""
 end
 
 function M.tabline()

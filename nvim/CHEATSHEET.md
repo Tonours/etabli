@@ -20,11 +20,9 @@ Leader: `<Space>`
   - expand/collapse directory: `<CR>`, `o`, double click
   - new tab directly: `<C-t>`
 
-## Projects / worktrees
+## Projects / OPS
 
 - projects: `<leader>pp`
-- worktrees: `<leader>pw`
-- new worktree: `<leader>pW`
 - root current buffer: `<leader>pr`
 - save session: `<leader>ps`
 - load session: `<leader>pl`
@@ -35,7 +33,7 @@ Leader: `<Space>`
 - OPS next: `<leader>pn` or `:OPSNext`
 - OPS doctor: `<leader>pd` or `:OPSDoctor`
 - OPS refresh review: `<leader>pf` or `:OPSRefreshReview`
-- OPS mode: `<leader>pm` or `:OPSMode [simple|standard|option-compare]`
+- OPS mode: `<leader>pm` or `:OPSMode [simple|standard]`
 - OPS open plan: `<leader>po` or `:OPSOpenPlan`
 - OPS handoff: `<leader>ph` or `:OPSHandoff`
 - OPS review: `<leader>pR` or `:OPSReview`
@@ -95,8 +93,7 @@ Leader: `<Space>`
 - `which-key` shows leader mappings after pressing `<Space>`.
 - Use `workflow/operating-model.md` for the daily Claude + Pi execution modes.
 - Keep Neovim as cockpit: while one worker runs, use review inbox, project info, and QA prep instead of watching the agent stream.
-- `:OPSStatus` shows stored review blockers, runtime state, handoff presence, and parse warnings for the current worktree.
+- `:OPSStatus` shows stored review blockers, runtime state, handoff presence, and parse warnings for the current cwd.
 - `:OPSNext` gives the next bounded OPS action; it uses stored review state for speed, so open the inbox or run `:OPSRefreshReview` for live diff accuracy and stale-blocker refresh.
 - `:OPSDoctor` is the plumbing check when the cockpit feels suspicious.
 - `:OPSMode` is explicit posture, not auto-detection; unset defaults to `standard`.
-- Worktree picker: press `<C-n>` to create a new worktree.

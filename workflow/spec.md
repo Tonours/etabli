@@ -14,8 +14,8 @@ This spec defines the shared story those wrappers must follow.
 Use `workflow/operating-model.md` for the day-to-day Claude + Pi execution model:
 - one main session owns intent and arbitration
 - Claude and Pi stay runtime surfaces over the same contract
-- worktrees isolate parallel workers
-- zero-idle means pipelining review, QA prep, and option comparison without unsafe write contention
+- the default path is one active mutable checkout
+- zero-idle means pipelining review, QA prep, and focused support without unsafe write contention
 
 ## Canonical flow
 
@@ -56,7 +56,7 @@ Use `workflow/operating-model.md` for the day-to-day Claude + Pi execution model
 - `PLAN_TEMPLATE.md`
   - Canonical shape for `PLAN.md`
 - `PLAN.md`
-  - Single execution contract and light progress artifact per worktree/task
+  - Single execution contract and light progress artifact per task
 - `workflow/review-rubric.md`
   - Shared review rubric used by Pi/Claude flows
 - `workflow/handoff-template.md`
@@ -73,7 +73,7 @@ Use `workflow/operating-model.md` for the day-to-day Claude + Pi execution model
 - Keep one workflow story across Pi and Claude; runtime surfaces may differ, contract should not.
 - Prefer simple plumbing over hidden automation.
 - Multi-agent use should stay bounded: scout/reviewer may parallelize freely, worker stays single by default unless isolation is explicit.
-- Worktree/tmux plumbing (`scripts/cw`, `scripts/cw-clean`) stays the repo entrypoint; agent roles sit on top of it.
+- Prefer simple repo/cwd-based execution over extra launcher plumbing.
 
 ## Related docs
 

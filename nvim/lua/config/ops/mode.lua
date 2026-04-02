@@ -3,7 +3,7 @@ local M = {}
 local uv = vim.uv or vim.loop
 local cache_ttl_ms = 1000
 local default_mode = "standard"
-local modes = { "simple", "standard", "option-compare" }
+local modes = { "simple", "standard" }
 
 local cache = {
   cwd = nil,
@@ -16,17 +16,12 @@ local mode_hints = {
   simple = {
     roles = "main + worker",
     review = "end-focused review",
-    worktrees = "single worktree",
+    scope = "current cwd",
   },
   standard = {
     roles = "main + scout + worker + reviewer",
     review = "continuous review",
-    worktrees = "main worktree",
-  },
-  ["option-compare"] = {
-    roles = "main + 2-3 isolated workers + reviewer",
-    review = "compare before keep/discard",
-    worktrees = "isolated option worktrees",
+    scope = "current cwd",
   },
 }
 
@@ -87,7 +82,7 @@ function M.describe(mode)
     mode = resolved,
     roles = hint.roles,
     review = hint.review,
-    worktrees = hint.worktrees,
+    scope = hint.scope,
   }
 end
 
