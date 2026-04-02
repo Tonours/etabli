@@ -87,6 +87,10 @@ local function dispatch_prompt(provider, prompt, opts)
                 provider = provider.label,
               })
             end
+
+            if options.after_exit then
+              options.after_exit()
+            end
           end,
           title = string.format("term://review-%s", provider.command),
         })
@@ -126,6 +130,7 @@ function M.dispatch(name, item, opts)
   })
 
   return dispatch_prompt(provider, prompt, {
+    after_exit = options.after_exit,
     cwd = options.cwd or item.repo,
     title = string.format("review-%s-%s.md", name, options.action or "revise"),
     open_terminal = options.open_terminal,
@@ -156,6 +161,7 @@ function M.dispatch_batch(name, items, opts)
   })
 
   return dispatch_prompt(provider, prompt, {
+    after_exit = options.after_exit,
     cwd = options.cwd or items[1].repo,
     title = string.format(
       "review-%s-batch-%s-%s.md",
