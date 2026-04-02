@@ -427,11 +427,13 @@ local function prompt_for_note(item, opts)
   end)
 end
 
-local function send_item(item, provider, action)
+local function send_item(item, provider, action, opts)
+  local options = opts or {}
   local _, err = providers.dispatch(provider, item, {
     action = action,
     cwd = item.repo,
     open_terminal = true,
+    after_exit = options.after_exit,
   })
 
   if err then
@@ -512,6 +514,12 @@ local function prepare_batch(provider, status)
     selection_label = string.format("review status: %s", normalized_status),
     slug = normalized_status,
     status = normalized_status,
+    after_exit = function()
+      reopen_inbox_later({
+        include_stale = false,
+        status = normalized_status,
+      })
+    end,
   })
 
   if err then
@@ -525,12 +533,28 @@ local function prepare_selected_batch(provider, items)
     return
   end
 
+  local status = items[1].status
+  local same_status = true
+
+  for index = 2, #items do
+    if items[index].status ~= status then
+      same_status = false
+      break
+    end
+  end
+
   local _, err = providers.dispatch_batch(provider, items, {
     action = "revise",
     cwd = items[1].repo,
     open_terminal = true,
     selection_label = "Telescope inbox multi-selection",
     slug = "selection",
+    after_exit = function()
+      reopen_inbox_later({
+        include_stale = false,
+        status = same_status and status or nil,
+      })
+    end,
   })
 
   if err then
@@ -639,7 +663,11 @@ function M.open_inbox(opts)
         return
       end
 
-      send_item(selected[1], "claude", "revise")
+      send_item(selected[1], "claude", "revise", {
+        after_exit = function()
+          reopen_inbox_later(reopen_opts)
+        end,
+      })
     end,
     on_pi = function(selected)
       if #selected > 1 then
@@ -647,7 +675,11 @@ function M.open_inbox(opts)
         return
       end
 
-      send_item(selected[1], "pi", "revise")
+      send_item(selected[1], "pi", "revise", {
+        after_exit = function()
+          reopen_inbox_later(reopen_opts)
+        end,
+      })
     end,
     on_refresh = function()
       M.open_inbox(reopen_opts)
