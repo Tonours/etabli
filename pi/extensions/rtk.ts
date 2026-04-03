@@ -11,6 +11,7 @@ import { createBashTool } from "@mariozechner/pi-coding-agent";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { createRtkCommandRewriter, createRtkSpawnHook } from "./lib/rtk-runtime.ts";
 
 function resolveInterceptedCommandsPath(): string | null {
   try {
@@ -25,30 +26,18 @@ function resolveInterceptedCommandsPath(): string | null {
 export default function (pi: ExtensionAPI) {
   const cwd = process.cwd();
   const interceptedCommandsPath = resolveInterceptedCommandsPath();
+  const rewriteCommand = createRtkCommandRewriter((command, env) =>
+    execFileSync("rtk", ["rewrite", command], {
+      encoding: "utf-8",
+      timeout: 3000,
+      env,
+    }),
+  );
+  const spawnHook = createRtkSpawnHook({ pathPrefix: interceptedCommandsPath, rewriteCommand });
 
   const bashTool = createBashTool(cwd, {
-    // UV intercepted commands (pip→uv, python→uv run, etc.)
-    commandPrefix: interceptedCommandsPath
-      ? `export PATH="${interceptedCommandsPath}:$PATH"`
-      : undefined,
-
-    // RTK rewrite (git→rtk git, cat→rtk read, etc.)
-    spawnHook: ({ command, cwd, env }) => {
-      try {
-        const rewritten = execFileSync("rtk", ["rewrite", command], {
-          encoding: "utf-8",
-          timeout: 3000,
-          env,
-        }).trim();
-
-        if (rewritten.length > 0 && rewritten !== command) {
-          return { command: rewritten, cwd, env };
-        }
-      } catch {
-        // rtk rewrite exits 1 when no rewrite applies — expected
-      }
-      return { command, cwd, env };
-    },
+    // UV intercepted commands (pip→uv, python→uv run, etc.) plus RTK rewrite
+    spawnHook,
   });
 
   pi.registerTool({
