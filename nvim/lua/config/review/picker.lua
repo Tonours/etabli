@@ -83,6 +83,20 @@ local function prompt_title(items, opts)
   )
 end
 
+local function default_selection_index(items, focus_fingerprint)
+  if not focus_fingerprint or focus_fingerprint == "" then
+    return nil
+  end
+
+  for index, item in ipairs(items) do
+    if item.fingerprint == focus_fingerprint then
+      return index
+    end
+  end
+
+  return nil
+end
+
 function M.open(items, callbacks, opts)
   if #vim.api.nvim_list_uis() == 0 then
     vim.notify("Review inbox is not available in headless mode", vim.log.levels.WARN)
@@ -108,10 +122,12 @@ function M.open(items, callbacks, opts)
     local line = item.line_start or 0
     local status = status_label(item.status)
     local context = item.hunk_context ~= "" and (" " .. item.hunk_context) or ""
-    local note = item.note and item.note ~= "" and (" note:" .. item.note) or ""
+    local has_note = item.note and item.note ~= ""
+    local note_marker = has_note and "[N]" or ""
+    local note = has_note and (" note " .. item.note) or ""
 
     return {
-      display = string.format("[%s][%s] %s:%d%s", stale, status, item.path, line, context),
+      display = string.format("[%s][%s]%s %s:%d%s", stale, status, note_marker, item.path, line, context),
       ordinal = table.concat({ status, item.path, item.scope, item.hunk_header, context, note }, " "),
       value = item,
     }
@@ -127,6 +143,7 @@ function M.open(items, callbacks, opts)
   })
 
   pickers.new({}, {
+    default_selection_index = default_selection_index(items, options.focus_fingerprint),
     prompt_title = prompt_title(items, options),
     results_title = "<Tab> mark  <CR> diff  <C-y> accept  ? help",
     preview_title = "<C-a> note  <C-s> status  <C-c> Claude  <C-p> Pi  <C-r> refresh",
@@ -144,6 +161,8 @@ function M.open(items, callbacks, opts)
     previewer = previewer,
     sorter = config.values.generic_sorter({}),
     attach_mappings = function(prompt_bufnr, map)
+      local map_opts = { nowait = true, noremap = true, silent = true }
+
       local function current_value()
         local entry = action_state.get_selected_entry()
         return entry and entry.value or nil
@@ -190,45 +209,45 @@ function M.open(items, callbacks, opts)
 
       map("i", "<C-a>", function()
         with_current(callbacks.on_annotate)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Annotate selected hunk" }))
       map("n", "<C-a>", function()
         with_current(callbacks.on_annotate)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Annotate selected hunk" }))
 
       map("i", "<C-s>", function()
         with_current(callbacks.on_status)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Set selected hunk status" }))
       map("n", "<C-s>", function()
         with_current(callbacks.on_status)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Set selected hunk status" }))
 
       map("i", "<C-y>", function()
         with_selection(callbacks.on_accept)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Accept selected hunk(s)" }))
       map("n", "<C-y>", function()
         with_selection(callbacks.on_accept)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Accept selected hunk(s)" }))
 
       map("i", "<C-c>", function()
         with_selection(callbacks.on_claude)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Send selected hunk(s) to Claude" }))
       map("n", "<C-c>", function()
         with_selection(callbacks.on_claude)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Send selected hunk(s) to Claude" }))
 
       map("i", "<C-p>", function()
         with_selection(callbacks.on_pi)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Send selected hunk(s) to Pi" }))
       map("n", "<C-p>", function()
         with_selection(callbacks.on_pi)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Send selected hunk(s) to Pi" }))
 
       map("i", "<C-r>", function()
         with_selection(callbacks.on_refresh)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Refresh review inbox" }))
       map("n", "<C-r>", function()
         with_selection(callbacks.on_refresh)
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Refresh review inbox" }))
 
       map("i", "?", function()
         actions.close(prompt_bufnr)
@@ -238,7 +257,7 @@ function M.open(items, callbacks, opts)
             overlay = true,
           })
         end
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Open review inbox help" }))
       map("n", "?", function()
         actions.close(prompt_bufnr)
         if callbacks.on_help then
@@ -247,7 +266,7 @@ function M.open(items, callbacks, opts)
             overlay = true,
           })
         end
-      end)
+      end, vim.tbl_extend("force", map_opts, { desc = "Open review inbox help" }))
 
       return true
     end,
