@@ -10,6 +10,7 @@ import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { execFileSync } from "node:child_process";
 import { basename } from "node:path";
+import { getWidthBand, type WidthBand } from "./lib/tui-chrome.ts";
 
 interface GitStatus {
   staged: number;
@@ -78,6 +79,64 @@ function fmtDcMode(mode: string, theme: FooterTheme): string {
   return theme.fg(mode === "full" ? "dim" : "accent", `DC ${mode || "?"}`);
 }
 
+function fmtTokenSummary(
+  tokIn: number,
+  tokOut: number,
+  cost: number,
+  widthBand: WidthBand,
+  theme: FooterTheme,
+): string {
+  const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`);
+  if (widthBand === "wide") {
+    return theme.fg("muted", `${fmt(tokIn)} in · ${fmt(tokOut)} out · $${cost.toFixed(4)}`) + theme.fg("dim", " ");
+  }
+
+  const total = fmt(tokIn + tokOut);
+  if (widthBand === "very-narrow") {
+    return theme.fg("muted", `${total} tok`) + theme.fg("dim", " ");
+  }
+
+  return theme.fg("muted", `${total} tok · $${cost.toFixed(4)}`) + theme.fg("dim", " ");
+}
+
+function fmtToolSummary(
+  counts: Record<string, number>,
+  widthBand: WidthBand,
+  theme: FooterTheme,
+): string {
+  const entries = Object.entries(counts);
+  if (entries.length === 0) {
+    return theme.fg("dim", "waiting for tools ");
+  }
+
+  if (widthBand === "wide") {
+    return theme.fg(
+      "muted",
+      entries.map(([name, count]) => `${name} ${count}`).join(" · "),
+    ) + theme.fg("dim", " ");
+  }
+
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+  return theme.fg("muted", `${total} tool calls`) + theme.fg("dim", " ");
+}
+
+function fitFooterLine(primary: string, secondary: string, width: number): string {
+  if (visibleWidth(primary) >= width) {
+    return truncateToWidth(primary, width, "");
+  }
+
+  if (secondary.length === 0) {
+    return truncateToWidth(primary, width, "");
+  }
+
+  const gap = width - visibleWidth(primary) - visibleWidth(secondary);
+  if (gap < 1) {
+    return truncateToWidth(primary, width, "");
+  }
+
+  return truncateToWidth(primary + " ".repeat(gap) + secondary, width, "");
+}
+
 export default function (pi: ExtensionAPI) {
   const counts: Record<string, number> = {};
 
@@ -108,8 +167,6 @@ export default function (pi: ExtensionAPI) {
             }
           }
 
-          const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`);
-
           const dir = basename(ctx.cwd);
           const branch = footerData.getGitBranch();
           const usage = ctx.getContextUsage();
@@ -119,26 +176,23 @@ export default function (pi: ExtensionAPI) {
           const filled = Math.max(1, Math.min(10, Math.round(pct / 10) || 1));
           const model = ctx.model?.id ?? "?";
           const thinking = pi.getThinkingLevel();
+          const widthBand = getWidthBand(width);
+
+          const thinkingPart = widthBand === "wide" ? theme.fg("dim", ` · ${thinking} `) : theme.fg("dim", " ");
 
           const l1Left =
             theme.fg("muted", ` ${model}`) +
-            theme.fg("dim", ` · ${thinking} `) +
+            thinkingPart +
             fmtContextBar(filled, theme) +
             theme.fg("dim", ` ${Math.round(pct)}%`);
-
-          const l1Right =
-            theme.fg("muted", `${fmt(tokIn)} in · ${fmt(tokOut)} out · $${cost.toFixed(4)}`) +
-            theme.fg("dim", " ");
-
-          const pad1 = " ".repeat(
-            Math.max(1, width - visibleWidth(l1Left) - visibleWidth(l1Right)),
-          );
-          const line1 = truncateToWidth(l1Left + pad1 + l1Right, width, "");
+          const l1Right = fmtTokenSummary(tokIn, tokOut, cost, widthBand, theme);
+          const line1 = fitFooterLine(l1Left, l1Right, width);
 
           const gs = getGitStatus(ctx.cwd);
           const dcRaw = footerData.getExtensionStatuses().get("damage-control") ?? "";
           const dcMode = dcRaw.split(" ")[0] ?? "";
-          const branchPart = branch ? theme.fg("muted", ` · ${branch}`) : "";
+          const showBranch = widthBand !== "very-narrow";
+          const branchPart = branch && showBranch ? theme.fg("muted", ` · ${branch}`) : "";
 
           const l2Left =
             theme.fg("muted", ` ${dir}`) +
@@ -147,20 +201,8 @@ export default function (pi: ExtensionAPI) {
             fmtGitStatus(gs, theme) +
             theme.fg("dim", " · ") +
             fmtDcMode(dcMode, theme);
-
-          const entries = Object.entries(counts);
-          const l2Right =
-            entries.length === 0
-              ? theme.fg("dim", "waiting for tools ")
-              : theme.fg(
-                  "muted",
-                  entries.map(([name, count]) => `${name} ${count}`).join(" · "),
-                ) + theme.fg("dim", " ");
-
-          const pad2 = " ".repeat(
-            Math.max(1, width - visibleWidth(l2Left) - visibleWidth(l2Right)),
-          );
-          const line2 = truncateToWidth(l2Left + pad2 + l2Right, width, "");
+          const l2Right = fmtToolSummary(counts, widthBand, theme);
+          const line2 = fitFooterLine(l2Left, l2Right, width);
 
           return [line1, line2];
         },
