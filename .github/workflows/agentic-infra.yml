@@ -5,8 +5,11 @@ on:
     branches: ["main"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  verify-agentic-infra:
+  verify-shell-and-docs:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,18 +18,31 @@ jobs:
 
       - name: Bash syntax check
         run: |
-          bash -n scripts/install.sh
-          bash -n scripts/cw
-          bash -n scripts/cw-clean
-          bash -n scripts/dev-spawn
-          bash -n scripts/iterm2-tmux.sh
-          bash -n scripts/tmux-clipboard.sh
+          while IFS= read -r -d '' file; do
+            if head -n 1 "$file" | grep -Eq '^#!.*\b(bash|sh)\b'; then
+              bash -n "$file"
+            fi
+          done < <(find scripts -maxdepth 1 -type f -print0)
 
       - name: Validate JSON config files
         run: |
           jq empty pi/settings.json
           jq empty pi/agent/settings.json
           jq empty pi/models.json
+
+      - name: Run script tests
+        run: |
+          if [ -f scripts/cw ]; then
+            bash tests/cw-smoke.sh
+          fi
+          bash tests/workflow-docs-smoke.sh
+
+  verify-pi-typescript:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -41,12 +57,34 @@ jobs:
           cd pi
           bun install --frozen-lockfile
 
-      - name: Run TypeScript tests
+      - name: Run Pi integration tests
         run: |
           cd pi
-          bun test ./extensions/__tests__/
+          bun test ./extensions/__tests__/*integration.test.ts
 
-      - name: Run script tests
+      - name: Run Pi TypeScript test suite
         run: |
-          bash tests/cw-smoke.sh
-          bash tests/workflow-docs-smoke.sh
+          cd pi
+          bun test ./extensions/__tests__/*.test.ts
+
+      - name: Run Pi extension import smoke
+        run: |
+          cd pi
+          bun -e 'for (const path of [
+            "./extensions/auto-hide-header.ts",
+            "./extensions/block-google-providers.ts",
+            "./extensions/context-budget.ts",
+            "./extensions/damage-control.ts",
+            "./extensions/filter-output.ts",
+            "./extensions/handoff.ts",
+            "./extensions/img.ts",
+            "./extensions/ops-status.ts",
+            "./extensions/pi-setup.ts",
+            "./extensions/plan-state.ts",
+            "./extensions/rtk.ts",
+            "./extensions/runtime-status.ts",
+            "./extensions/subagent.ts",
+            "./extensions/tilldone.ts",
+            "./extensions/tool-counter.ts",
+            "./extensions/welcome.ts",
+          ]) await import(path)'
