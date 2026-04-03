@@ -20,7 +20,7 @@
 import { StringEnum } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
-import { Container, Text } from "@mariozechner/pi-tui";
+import { Container, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -39,6 +39,7 @@ import {
   resolveSubagentThinking,
   type SubagentRole,
 } from "./lib/pi-runtime.ts";
+import { getWidthBand } from "./lib/tui-chrome.ts";
 import {
   buildAutomationInstruction,
   createWorkflowAutomationState,
@@ -447,19 +448,16 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
 
         return {
           render(width: number): string[] {
-            const roleConfig = getRoleConfig(state.role);
-
-            const taskPreview =
-              state.task.length > 40 ? state.task.slice(0, 37) + "..." : state.task;
-
-            const turnLabel = state.turnCount > 1 ? ` · turn ${state.turnCount}` : "";
-
+            const inner = Math.max(1, width - 4);
+            const widthBand = getWidthBand(inner);
+            const seconds = Math.round(state.elapsed / 1000);
+            const turnLabel = widthBand === "wide" && state.turnCount > 1 ? ` · turn ${state.turnCount}` : "";
+            const toolLabel = widthBand === "very-narrow" ? "" : ` · ${state.toolCount} tools`;
             const header =
               theme.fg("accent", buildTargetLabel(state)) +
-              (roleConfig ? theme.fg("dim", ` · ${state.role}`) : "") +
-              theme.fg("dim", ` · ${Math.round(state.elapsed / 1000)}s · ${state.toolCount} tools${turnLabel}`);
-            const taskLine = theme.fg("muted", ` ${taskPreview}`);
-            const runtimeLine = theme.fg("dim", ` ${formatRuntimeSpec(state)}`);
+              theme.fg("dim", ` · ${seconds}s${toolLabel}${turnLabel}`);
+            const taskLine = theme.fg("muted", ` ${truncateToWidth(state.task, inner - 1, "")}`);
+            const runtimeLine = theme.fg("dim", ` ${truncateToWidth(formatRuntimeSpec(state), inner - 1, "")}`);
 
             const fullText = state.textChunks.join("");
             const lastLine = fullText
@@ -467,11 +465,16 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
               .filter((l) => l.trim())
               .pop();
             const preview = lastLine
-              ? theme.fg("muted", `  ${lastLine.length > width - 10 ? lastLine.slice(0, width - 13) + "..." : lastLine}`)
+              ? theme.fg("muted", `  ${truncateToWidth(lastLine, Math.max(1, inner - 2), "")}`)
               : "";
 
-            const lines = [header, taskLine, runtimeLine];
-            if (preview) lines.push(preview);
+            const lines = [truncateToWidth(header, inner, ""), taskLine];
+            if (widthBand !== "very-narrow") {
+              lines.push(runtimeLine);
+            }
+            if (widthBand === "wide" && preview) {
+              lines.push(preview);
+            }
 
             content.setText(lines.join("\n"));
             return container.render(width);
