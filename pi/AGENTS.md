@@ -36,12 +36,6 @@
 - Commit format: `feat|fix|refactor|test|docs|chore(scope): description`
 - Atomic commits: one logical change per commit.
 
-## Workflow pipeline
-1. `/skill:plan` — create `PLAN.md` from `PLAN_TEMPLATE.md` with `Status: DRAFT`
-2. `/skill:plan-review` — stress-test the plan and update `PLAN.md` in place
-3. `/skill:implement` — write code only from a `PLAN.md` marked `READY`
-4. `/skill:review` — code review
-
 ## Cross-tool convention files
 - In any repo, check local convention files before changing code: `CLAUDE.md`, `.claude/commands/`, `.claude/settings.json`, `.cursor/rules/`, `.cursorrules`, `COPILOT.md`, `.github/copilot-instructions.md`.
 - If a repo defines a reusable command/workflow in `.claude/commands/`, follow it when the task matches.
@@ -62,23 +56,10 @@
 - `scout` and `reviewer` are read-only by default.
 - `worker` may edit code, claim/get/append/update/close persistent `todo` items when relevant, and should stay bounded to a concrete task.
 
-## Plan contract
-- `PLAN_TEMPLATE.md` is the source of truth for the shape of `PLAN.md`.
-- Planning review does not create `REVIEW.md`; it hardens `PLAN.md`.
-- Use `Review Changes` to capture what changed after critique.
-- If major issues remain, set `Status: CHALLENGED`. If the plan is executable without major rethinking, set `Status: READY`.
-- `/skill:implement` is the direct continuation after review and only runs from `READY`.
-- `/skill:plan-loop` is the interactive shortcut that chains the draft and critique passes in one flow.
-- `/skill:plan-implement` is the optional one-shot shortcut: run `plan-loop`, stop on `CHALLENGED`, implement only from `READY`.
-
 ## Model usage
 - Planning & analysis: prefer reasoning models (Kimi K2.5, GPT-5.3 xhigh)
 - Implementation: prefer coding models (GPT-5.3 Codex, Kimi K2.5)
 - Quick iterations: prefer fast models (GPT-5-mini, Haiku, Flash)
-
-## Plan mode
-- Plans MUST be extremely concise. Sacrifice grammar for brevity.
-- End every plan with unresolved questions, if any.
 
 ## Communication
 - Be direct. No hedging, no "I think maybe we could...".
