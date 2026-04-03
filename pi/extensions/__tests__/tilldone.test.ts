@@ -258,6 +258,23 @@ describe("tool behavior", () => {
     });
   });
 
+  test("new-list compiles rough seeded tasks before storing them", async () => {
+    const harness = createHarness();
+
+    const result = await harness.run({
+      action: "new-list",
+      text: "TillDone",
+      texts: ["please fix auth token refresh bug?", "we need to review settings copy"],
+    });
+
+    expect(result.details).toMatchObject({
+      tasks: [
+        { id: 1, text: "fix auth token refresh bug", status: "inprogress" },
+        { id: 2, text: "review settings copy", status: "idle" },
+      ],
+    });
+  });
+
   test("toggle does not reopen done tasks", async () => {
     const harness = createHarness();
 
@@ -321,6 +338,18 @@ describe("tool behavior", () => {
     expect(listed.details).toMatchObject({ tasks: [] });
   });
 
+  test("add compiles rough task text before validation and storage", async () => {
+    const harness = createHarness();
+
+    await harness.run({ action: "new-list", text: "TillDone" });
+    const result = await harness.run({ action: "add", text: "please fix auth token refresh bug?" });
+
+    expect(result.content[0]?.text).toContain("fix auth token refresh bug");
+    expect(result.details).toMatchObject({
+      tasks: [{ id: 1, text: "fix auth token refresh bug", status: "inprogress" }],
+    });
+  });
+
   test("add enforces the list size cap", async () => {
     const harness = createHarness();
 
@@ -357,6 +386,32 @@ describe("tool behavior", () => {
         { id: 7, text: "task seven", status: "idle" },
       ],
     });
+  });
+
+  test("update compiles text and detects duplicates after compilation", async () => {
+    const harness = createHarness();
+
+    await harness.run({
+      action: "new-list",
+      text: "TillDone",
+      texts: ["fix auth token refresh bug", "review settings copy"],
+    });
+
+    const duplicate = await harness.run({
+      action: "update",
+      id: 2,
+      text: "please fix auth token refresh bug?",
+    });
+
+    expect(duplicate.content[0]?.text).toContain('duplicate task text "fix auth token refresh bug"');
+
+    const updated = await harness.run({
+      action: "update",
+      id: 2,
+      text: "we need to review onboarding copy",
+    });
+
+    expect(updated.content[0]?.text).toContain('"review settings copy" → "review onboarding copy"');
   });
 
   test("update normalizes text and rejects duplicates", async () => {

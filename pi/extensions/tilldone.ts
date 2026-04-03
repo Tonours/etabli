@@ -22,6 +22,7 @@ import type { ExtensionAPI, ExtensionContext, Theme } from "@mariozechner/pi-cod
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { Container, matchesKey, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
+import { compileTodoIntent } from "./lib/intent-compiler.ts";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -223,7 +224,7 @@ export function prepareTaskTexts(
   const seen = new Set(existingTasks.map((task) => buildTaskTextKey(task.text)));
 
   for (const item of items) {
-    const normalized = normalizeTaskText(item);
+    const normalized = normalizeTaskText(compileTodoIntent(item));
     const invalidReason = validateTaskText(normalized);
     if (invalidReason) {
       invalid.push(normalized || item);
@@ -971,7 +972,7 @@ export default function (pi: ExtensionAPI) {
             };
           }
 
-          const nextText = normalizeTaskText(params.text);
+          const nextText = normalizeTaskText(compileTodoIntent(params.text));
           const invalidReason = validateTaskText(nextText);
           if (invalidReason) {
             return {
