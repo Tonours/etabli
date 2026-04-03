@@ -220,14 +220,17 @@ local function setup_servers()
     vim.lsp.enable(name)
   end
 
+  vim.lsp.config("glint", {
+    root_dir = lsp.glint_root_dir,
+  })
+  vim.lsp.enable("glint")
+
   if vim.fn.executable("intelephense") == 1 then
     vim.lsp.config("intelephense", {
       cmd = { "intelephense", "--stdio" },
     })
     vim.lsp.enable("intelephense")
   end
-
-  vim.lsp.enable("glint", false)
 
   lsp.setup_keymaps()
 end
