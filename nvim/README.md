@@ -10,8 +10,10 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 
 ## Core flow
 
-- Files: `<leader><space>`
+- Files: `<leader><space>` or `Cmd/Ctrl+P`
+- Command palette: `Cmd/Ctrl+Shift+P` or `:CommandPalette`
 - Grep: `<leader>/`
+- Find & replace: `<leader>fr`
 - Buffers: `<leader>.`
 - Explorer: `<leader>ft`, `<leader>fe`
 - Projects: `<leader>pp`
@@ -28,7 +30,9 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - OPS review: `<leader>pR` or `:OPSReview`
 
 Long-form aliases stay available:
-- `<leader>ff`, `<leader>fg`, `<leader>fb`
+- `<leader>ff`, `<leader>fg`, `<leader>fb`, `<leader>fo`
+
+Find & replace opens a dedicated overlay form with explicit inputs for search, replace, and paths/files filtering. Inside the grug-far buffer, `?` shows help, `q` closes, and `<leader>R` replaces all.
 
 ## Project workflow
 

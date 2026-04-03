@@ -4,12 +4,15 @@ Leader: `<Space>`
 
 ## Find
 
-- files: `<leader><space>` or `<leader>ff`
+- files: `<leader><space>`, `<leader>ff`, or `Cmd/Ctrl+P`
+- command palette: `Cmd/Ctrl+Shift+P` or `:CommandPalette`
 - grep: `<leader>/` or `<leader>fg`
 - current word: `<leader>fw`
 - buffers: `<leader>.` or `<leader>fb`
-- recent files: `<leader>fr`
+- find & replace: `<leader>fr`
+- recent files: `<leader>fo`
 - project recent files: `<leader>fp`
+- in find & replace: explicit `Search`, `Replace`, `Paths` inputs in an overlay; `<Tab>` / `<S-Tab>` switch inputs; `q` close; `?` help; inside the grug-far buffer, `<leader>R` replaces all
 
 ## Explorer
 
