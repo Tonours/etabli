@@ -39,6 +39,20 @@
   "defaultModel": "gpt-5.4",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
+  "subagents": {
+    "scout": {
+      "model": "kimi-coding/k2p5",
+      "thinking": "high"
+    },
+    "worker": {
+      "model": "openai-codex/gpt-5.4",
+      "thinking": "high"
+    },
+    "reviewer": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "thinking": "high"
+    }
+  },
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,

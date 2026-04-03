@@ -1,5 +1,5 @@
 /// <reference path="./node-runtime.d.ts" />
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -141,6 +141,18 @@ export interface OpsSnapshotReadResult {
   reason?: "missing" | "invalid";
   errors?: string[];
   value: OpsSnapshot | null;
+}
+
+type OpsSnapshotCacheEntry = {
+  mtimeMs: number;
+  size: number;
+  value: OpsSnapshot;
+};
+
+const opsSnapshotReadCache = new Map<string, OpsSnapshotCacheEntry>();
+
+function cloneOpsSnapshot(snapshot: OpsSnapshot): OpsSnapshot {
+  return JSON.parse(JSON.stringify(snapshot)) as OpsSnapshot;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -473,15 +485,34 @@ export function parseOpsSnapshot(content: string): OpsSnapshotValidationResult {
 export function readOpsSnapshotForCwd(cwd: string): OpsSnapshotReadResult {
   const path = makeOpsSnapshotFile(cwd);
   if (!existsSync(path)) {
+    opsSnapshotReadCache.delete(path);
     return { ok: false, path, reason: "missing", errors: ["OPS snapshot file is missing"], value: null };
   }
 
-  const parsed = parseOpsSnapshot(readFileSync(path, "utf-8"));
-  if (!parsed.ok || !parsed.value) {
-    return { ok: false, path, reason: "invalid", errors: parsed.errors, value: null };
-  }
+  try {
+    const stats = statSync(path);
+    const cached = opsSnapshotReadCache.get(path);
+    if (cached && cached.mtimeMs === stats.mtimeMs && cached.size === stats.size) {
+      return { ok: true, path, value: cloneOpsSnapshot(cached.value) };
+    }
 
-  return { ok: true, path, value: parsed.value };
+    const parsed = parseOpsSnapshot(readFileSync(path, "utf-8"));
+    if (!parsed.ok || !parsed.value) {
+      opsSnapshotReadCache.delete(path);
+      return { ok: false, path, reason: "invalid", errors: parsed.errors, value: null };
+    }
+
+    const value = cloneOpsSnapshot(parsed.value);
+    opsSnapshotReadCache.set(path, { mtimeMs: stats.mtimeMs, size: stats.size, value: cloneOpsSnapshot(value) });
+    return { ok: true, path, value };
+  } catch {
+    opsSnapshotReadCache.delete(path);
+    return { ok: false, path, reason: "invalid", errors: ["OPS snapshot could not be read"], value: null };
+  }
+}
+
+export function clearOpsSnapshotReadCache(): void {
+  opsSnapshotReadCache.clear();
 }
 
 export function formatOpsStatus(snapshot: OpsSnapshot): string {
