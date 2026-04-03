@@ -8,30 +8,35 @@ description: Critique an implementation plan before execution and challenge assu
 Use this before implementation to stress-test a plan and harden `PLAN.md`.
 This flow ends after the critique pass. It updates the plan, returns the verdict, and stops.
 
-1. Read `./PLAN.md` and resolve the plan template from the first existing file in this order:
+1. If the user included extra framing for the review request, silently compile it into a compact review brief first:
+   - strip filler, hedging, and conversational wrappers
+   - preserve scope, constraints, file paths, commands, and acceptance criteria
+   - when useful, restate it as a short working brief with goal, constraints, known context, and expected output
+   - use this compiled brief internally for the rest of the skill without asking the user to confirm or rewrite it
+2. Read `./PLAN.md` and resolve the plan template from the first existing file in this order:
    - `./PLAN_TEMPLATE.md`
    - `~/.claude/PLAN_TEMPLATE.md`
-2. Validate first: is the goal clear, measurable, and within scope?
-3. Challenge assumptions:
+3. Validate first: is the goal clear, measurable, and within scope?
+4. Challenge assumptions:
    - What is assumed about inputs, environment, data shape, concurrency, and failure modes?
    - Which assumptions are risky/unproven?
-4. Challenge the measurement contract:
+5. Challenge the measurement contract:
    - Is the expected outcome observable?
    - Are the blocking checks explicit?
    - Are trace points, stop triggers, and escalation triggers clear enough to guide execution?
-5. Challenge the execution contract:
+6. Challenge the execution contract:
    - Are non-goals explicit?
    - Are invariants and done criteria concrete?
    - Do slices name files/areas, checks, and rollback points clearly enough to execute without reinterpretation?
-6. Identify missing risks and edge cases:
+7. Identify missing risks and edge cases:
    - rollback points
    - irreversible actions
    - permissions/security boundaries
    - backward compatibility and migration concerns
-7. Verify execution order:
+8. Verify execution order:
    - does each step depend on required state?
    - can risky steps be moved later/split?
-8. Update `PLAN.md` in place:
+9. Update `PLAN.md` in place:
    - simplify scope if needed
    - tighten the measurement contract if success/stop/escalation criteria are weak
    - tighten the execution contract if slices/files/checks/invariants/done/rollback are weak
@@ -40,8 +45,8 @@ This flow ends after the critique pass. It updates the plan, returns the verdict
    - record the key deltas in `Review Changes`
    - set `Status: CHALLENGED` if important issues remain
    - set `Status: READY` if the plan is executable without major rethinking
-9. If the final status is `READY`, stop at the reviewed plan and point to `/skill:implement` as the next step
-10. Return a short verdict plus the highest-impact changes made to `PLAN.md`
+10. If the final status is `READY`, stop at the reviewed plan and point to `/skill:implement` as the next step
+11. Return a short verdict plus the highest-impact changes made to `PLAN.md`
 
 Rules:
 - do NOT implement code in this skill
