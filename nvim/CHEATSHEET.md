@@ -82,6 +82,15 @@ Leader: `<Space>`
 - previous diagnostic: `[d`
 - next diagnostic: `]d`
 
+## Review
+
+- inbox: `<leader>ri` or `:ReviewInbox [status]`
+- current hunk: `<leader>rh` preview, `<leader>ra` annotate, `<leader>rs` status, `<leader>rA` accept
+- Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
+- Pi hunk actions: `<leader>rp` revise, `<leader>rP` explain
+- batch rework: `<leader>rbc`, `<leader>rbp`
+- in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
+
 ## Multi-cursor
 
 - add next occurrence: `<C-n>` or `<leader>mn`
