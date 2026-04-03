@@ -24,7 +24,7 @@ import { Container, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   FALLBACK_MODEL,
   FALLBACK_THINKING,
@@ -39,6 +39,16 @@ import {
   resolveSubagentThinking,
   type SubagentRole,
 } from "./lib/pi-runtime.ts";
+import {
+  buildAutomationInstruction,
+  createWorkflowAutomationState,
+  detectWorkflowInput,
+  hasPlanFile,
+  readPlanStatus,
+  readWorkflowAutomationSettings,
+  shouldSpawnWorker,
+  type WorkflowAutomationState,
+} from "./lib/subagent-automation.ts";
 import { canSpawnRole } from "./lib/subagent-orchestration.ts";
 
 const MAX_SUBAGENTS = 5;
@@ -56,6 +66,23 @@ type RoleConfig = {
   tools: string[];
   instruction: string;
   extensionPaths?: string[];
+};
+
+type SubagentRuntime = {
+  start(args: {
+    state: SubState;
+    prompt: string;
+    ctx: ExtensionContext;
+    model: string;
+    thinking: string;
+    toolList: string;
+    extensionPaths: string[];
+    fullPrompt: string;
+    onText: (chunk: string) => void;
+    onToolStart: () => void;
+    onComplete: (code: number) => void;
+    onError: (error: Error) => void;
+  }): void;
 };
 
 const DEFAULT_TOOLS = ["read", "bash", "grep", "find", "ls"];
@@ -116,15 +143,96 @@ interface SubState {
   sessionFile: string;
   turnCount: number;
   model?: string;
+  automationId?: number;
   resolvedModel?: string;
   resolvedThinking?: string;
   proc?: ChildProcess;
 }
 
-export default function (pi: ExtensionAPI) {
+const defaultRuntime: SubagentRuntime = {
+  start(args) {
+    const procArgs = [
+      "--mode",
+      "json",
+      "-p",
+      "--session",
+      args.state.sessionFile,
+      "--no-extensions",
+    ];
+
+    for (const extensionPath of args.extensionPaths) {
+      procArgs.push("-e", extensionPath);
+    }
+
+    procArgs.push(
+      "--model",
+      args.model,
+      "--tools",
+      args.toolList,
+      "--thinking",
+      args.thinking,
+      args.fullPrompt,
+    );
+
+    const proc = spawn("pi", procArgs, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env },
+    });
+
+    args.state.proc = proc;
+    let buffer = "";
+
+    proc.stdout!.setEncoding("utf-8");
+    proc.stdout!.on("data", (chunk: string) => {
+      buffer += chunk;
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line);
+          if (event.type === "message_update") {
+            const delta = event.assistantMessageEvent;
+            if (delta?.type === "text_delta") {
+              args.onText(delta.delta ?? "");
+            }
+          } else if (event.type === "tool_execution_start") {
+            args.onToolStart();
+          }
+        } catch {
+          // ignore non-JSON lines
+        }
+      }
+    });
+
+    proc.stderr!.setEncoding("utf-8");
+    proc.stderr!.on("data", (chunk: string) => {
+      if (chunk.trim()) {
+        args.onText(chunk);
+      }
+    });
+
+    proc.on("close", (code) => {
+      if (buffer.trim()) {
+        args.onText(buffer);
+      }
+      args.onComplete(code ?? 1);
+    });
+
+    proc.on("error", (error) => {
+      args.onError(error);
+    });
+  },
+};
+
+export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRuntime) {
   const agents = new Map<number, SubState>();
   let nextId = 1;
+  let nextAutomationRunId = 1;
   let widgetCtx: ExtensionContext | undefined;
+  let automation: WorkflowAutomationState | null = null;
+  let agentEndCount = 0;
 
   // ── Session file helpers ─────────────────────────────────────────────
 
@@ -179,11 +287,105 @@ export default function (pi: ExtensionAPI) {
     return parts.length > 0 ? parts.join(" | ") : "runtime pending";
   }
 
+  function resetAutomationState(): void {
+    automation = null;
+    agentEndCount = 0;
+  }
+
+  function buildScoutTask(): string {
+    if (!automation) {
+      return "Explore the relevant codebase area, identify likely files, constraints, risks, and focused validation needed for the active workflow.";
+    }
+
+    const scope = automation.task.length > 0
+      ? `Original task:\n${automation.task}`
+      : "No explicit task text was supplied. Use the current repo state and any existing PLAN.md to infer the active scope.";
+
+    return [
+      `Workflow: ${automation.workflow}`,
+      scope,
+      "Explore the relevant codebase area, identify likely files, constraints, edge cases, risks, and focused checks.",
+      "Return concise findings that help the planning pass move faster.",
+    ].join("\n\n");
+  }
+
+  function buildReviewerTask(): string {
+    if (!automation) {
+      return "Review the current PLAN.md draft, challenge scope and execution, and return concise findings.";
+    }
+
+    const scope = automation.task.length > 0
+      ? `Original task:\n${automation.task}`
+      : "No explicit task text was supplied. Review the current PLAN.md in repo context.";
+
+    const implementationNote = automation.workflow === "plan-implement"
+      ? "This review gates implementation. Be strict about blocking issues before the worker is allowed to start."
+      : "This review should harden PLAN.md from v1 draft to a proper reviewed v2 plan.";
+
+    return [
+      `Workflow: ${automation.workflow}`,
+      scope,
+      "Read the current PLAN.md and challenge measurement contract, scope, ordered slices, validations, invariants, rollback points, and key risks.",
+      implementationNote,
+      "Return concise findings with the highest-impact changes needed in PLAN.md.",
+    ].join("\n\n");
+  }
+
+  function buildWorkerTask(): string {
+    return [
+      "Implement the current READY PLAN.md in this repository.",
+      "Follow slices in order, keep PLAN.md implementation tracking current, run focused checks, and keep changes minimal.",
+      "If new facts invalidate the plan, stop implementation, update PLAN.md first, and restore READY before continuing.",
+    ].join("\n\n");
+  }
+
+  function spawnAutomatedRole(role: RoleName, task: string, ctx: ExtensionContext): void {
+    if (!automation) return;
+
+    const created = createSubagent(task, ctx, {
+      role,
+      automationId: automation.runId,
+    });
+    if ("error" in created) {
+      ctx.ui.notify(created.error, "error");
+      return;
+    }
+
+    if (role === "scout") automation.scoutId = created.id;
+    if (role === "reviewer") automation.reviewerId = created.id;
+    if (role === "worker") automation.workerId = created.id;
+    ctx.ui.notify(`${created.text} [auto]`, "info");
+  }
+
+  function maybeSpawnReviewer(ctx: ExtensionContext): void {
+    if (!automation) return;
+    const config = readWorkflowAutomationSettings(SETTINGS_PATH)[automation.workflow];
+    if (!config.enabled || !config.autoReviewer || automation.reviewerId || !hasPlanFile(ctx.cwd)) return;
+    spawnAutomatedRole("reviewer", buildReviewerTask(), ctx);
+  }
+
+  function maybeSpawnWorker(ctx: ExtensionContext): void {
+    if (!automation) return;
+    const config = readWorkflowAutomationSettings(SETTINGS_PATH)[automation.workflow];
+    const planStatus = readPlanStatus(ctx.cwd);
+
+    if (!shouldSpawnWorker({ automation, config, agentEndCount, planStatus })) {
+      return;
+    }
+
+    spawnAutomatedRole("worker", buildWorkerTask(), ctx);
+  }
+
+  function isPlanPath(cwd: string, value: unknown): boolean {
+    if (typeof value !== "string" || value.trim().length === 0) return false;
+    return resolve(cwd, value) === join(cwd, "PLAN.md");
+  }
+
   function createSubagent(
     task: string,
     ctx: ExtensionContext,
-    options?: { model?: string; role?: RoleName; allowParallelWorkers?: boolean },
-  ): { text: string } | { error: string } {
+    options?: { model?: string; role?: RoleName; allowParallelWorkers?: boolean; automationId?: number },
+  ): { text: string; id: number } | { error: string } {
     widgetCtx = ctx;
 
     if (agents.size >= MAX_SUBAGENTS) {
@@ -205,6 +407,7 @@ export default function (pi: ExtensionAPI) {
       status: "running",
       task,
       role: options?.role,
+      automationId: options?.automationId,
       textChunks: [],
       toolCount: 0,
       elapsed: 0,
@@ -219,28 +422,7 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(`Subagent #${id} error: ${e}`, "error");
     });
 
-    return { text: formatSpawnMessage(state) };
-  }
-
-  // ── JSONL stream parsing ─────────────────────────────────────────────
-
-  function processLine(state: SubState, line: string): void {
-    if (!line.trim()) return;
-    try {
-      const event = JSON.parse(line);
-      if (event.type === "message_update") {
-        const delta = event.assistantMessageEvent;
-        if (delta?.type === "text_delta") {
-          state.textChunks.push(delta.delta ?? "");
-          updateWidgets();
-        }
-      } else if (event.type === "tool_execution_start") {
-        state.toolCount++;
-        updateWidgets();
-      }
-    } catch {
-      // ignore non-JSON lines
-    }
+    return { text: formatSpawnMessage(state), id };
   }
 
   // ── Widget rendering ─────────────────────────────────────────────────
@@ -326,97 +508,72 @@ export default function (pi: ExtensionAPI) {
     updateWidgets();
 
     return new Promise<void>((resolve) => {
-      const args = [
-        "--mode",
-        "json",
-        "-p",
-        "--session",
-        state.sessionFile,
-        "--no-extensions",
-      ];
-
-      for (const extensionPath of buildRoleExtensionPaths(state.role)) {
-        args.push("-e", extensionPath);
-      }
-
-      args.push(
-        "--model",
-        model,
-        "--tools",
-        buildRoleTools(state.role),
-        "--thinking",
-        thinking,
-        buildPrompt(state, prompt),
-      );
-
-      const proc = spawn(
-        "pi",
-        args,
-        {
-          stdio: ["ignore", "pipe", "pipe"],
-          env: { ...process.env },
-        },
-      );
-
-      state.proc = proc;
+      const toolList = buildRoleTools(state.role);
+      const extensionPaths = buildRoleExtensionPaths(state.role);
+      const fullPrompt = buildPrompt(state, prompt);
       const startTime = Date.now();
       const timer = setInterval(() => {
         state.elapsed = Date.now() - startTime;
         updateWidgets();
       }, 1000);
 
-      let buffer = "";
-
-      proc.stdout!.setEncoding("utf-8");
-      proc.stdout!.on("data", (chunk: string) => {
-        buffer += chunk;
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) processLine(state, line);
-      });
-
-      proc.stderr!.setEncoding("utf-8");
-      proc.stderr!.on("data", (chunk: string) => {
-        if (chunk.trim()) {
+      runtime.start({
+        state,
+        prompt,
+        ctx,
+        model,
+        thinking,
+        toolList,
+        extensionPaths,
+        fullPrompt,
+        onText: (chunk) => {
           state.textChunks.push(chunk);
           updateWidgets();
-        }
-      });
+        },
+        onToolStart: () => {
+          state.toolCount++;
+          updateWidgets();
+        },
+        onComplete: (code) => {
+          clearInterval(timer);
+          state.elapsed = Date.now() - startTime;
+          state.status = code === 0 ? "done" : "error";
+          state.proc = undefined;
+          updateWidgets();
 
-      proc.on("close", (code) => {
-        if (buffer.trim()) processLine(state, buffer);
-        clearInterval(timer);
-        state.elapsed = Date.now() - startTime;
-        state.status = code === 0 ? "done" : "error";
-        state.proc = undefined;
-        updateWidgets();
+          const result = state.textChunks.join("");
+          ctx.ui.notify(
+            `${buildTargetLabel(state)} ${state.status} in ${Math.round(state.elapsed / 1000)}s`,
+            state.status === "done" ? "info" : "error",
+          );
 
-        const result = state.textChunks.join("");
-        ctx.ui.notify(
-          `${buildTargetLabel(state)} ${state.status} in ${Math.round(state.elapsed / 1000)}s`,
-          state.status === "done" ? "info" : "error",
-        );
+          pi.sendMessage(
+            {
+              customType: "subagent-result",
+              content:
+                `${buildTargetLabel(state)}${state.turnCount > 1 ? ` (Turn ${state.turnCount})` : ""} finished "${prompt}" in ${Math.round(state.elapsed / 1000)}s.\n\nResult:\n${result.slice(0, 8000)}${result.length > 8000 ? "\n\n... [truncated]" : ""}`,
+              display: true,
+            },
+            { deliverAs: "followUp", triggerTurn: true },
+          );
 
-        pi.sendMessage(
-          {
-            customType: "subagent-result",
-            content:
-              `${buildTargetLabel(state)}${state.turnCount > 1 ? ` (Turn ${state.turnCount})` : ""} finished "${prompt}" in ${Math.round(state.elapsed / 1000)}s.\n\nResult:\n${result.slice(0, 8000)}${result.length > 8000 ? "\n\n... [truncated]" : ""}`,
-            display: true,
-          },
-          { deliverAs: "followUp", triggerTurn: true },
-        );
+          if (automation && state.automationId === automation.runId && automation.reviewerId === state.id) {
+            automation.reviewerDone = code === 0;
+            if (code === 0) {
+              automation.reviewerReadyAfterAgentEndCount = agentEndCount + (ctx.isIdle() ? 1 : 2);
+            }
+          }
 
-        resolve();
-      });
-
-      proc.on("error", (err) => {
-        clearInterval(timer);
-        state.status = "error";
-        state.proc = undefined;
-        state.textChunks.push(`Error: ${err.message}`);
-        updateWidgets();
-        resolve();
+          resolve();
+        },
+        onError: (err) => {
+          clearInterval(timer);
+          state.status = "error";
+          state.proc = undefined;
+          state.textChunks.push(`Error: ${err.message}`);
+          updateWidgets();
+          resolve();
+        },
       });
     });
   }
@@ -544,6 +701,15 @@ export default function (pi: ExtensionAPI) {
       if (state.proc && state.status === "running") {
         state.proc.kill("SIGTERM");
       }
+      if (automation && state.automationId === automation.runId) {
+        if (automation.scoutId === state.id) automation.scoutId = undefined;
+        if (automation.reviewerId === state.id) {
+          automation.reviewerId = undefined;
+          automation.reviewerDone = false;
+          automation.reviewerReadyAfterAgentEndCount = Number.POSITIVE_INFINITY;
+        }
+        if (automation.workerId === state.id) automation.workerId = undefined;
+      }
       ctx.ui.setWidget(`sub-${args.id}`, undefined);
       agents.delete(args.id);
       return {
@@ -569,6 +735,58 @@ export default function (pi: ExtensionAPI) {
       );
       return { content: [{ type: "text" as const, text: lines.join("\n") }], details: {} };
     },
+  });
+
+  pi.on("input", async (event, ctx) => {
+    if (event.source === "extension") {
+      return { action: "continue" as const };
+    }
+
+    const detected = detectWorkflowInput(event.text);
+    if (!detected) {
+      resetAutomationState();
+      return { action: "continue" as const };
+    }
+
+    const config = readWorkflowAutomationSettings(SETTINGS_PATH)[detected.workflow];
+    if (!config.enabled) {
+      resetAutomationState();
+      return { action: "continue" as const };
+    }
+
+    resetAutomationState();
+    automation = createWorkflowAutomationState(detected.workflow, detected.task, nextAutomationRunId++);
+
+    if (config.autoScout) {
+      spawnAutomatedRole("scout", buildScoutTask(), ctx);
+    }
+
+    if (detected.workflow === "plan-implement" && detected.task.length === 0 && hasPlanFile(ctx.cwd)) {
+      maybeSpawnReviewer(ctx);
+    }
+
+    return {
+      action: "transform" as const,
+      text: `${event.text}\n\n${buildAutomationInstruction(detected.workflow)}`,
+    };
+  });
+
+  pi.on("tool_result", async (event, ctx) => {
+    if (!automation || event.isError) {
+      return;
+    }
+
+    if ((event.toolName === "write" || event.toolName === "edit") && isPlanPath(ctx.cwd, event.input?.path)) {
+      maybeSpawnReviewer(ctx);
+    }
+  });
+
+  pi.on("agent_end", async (_event, ctx) => {
+    agentEndCount++;
+    if (automation?.workflow === "plan-implement") {
+      maybeSpawnReviewer(ctx);
+    }
+    maybeSpawnWorker(ctx);
   });
 
   // ── Slash commands ───────────────────────────────────────────────────

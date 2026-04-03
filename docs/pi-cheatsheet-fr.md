@@ -198,10 +198,14 @@ Config runtime subagents :
 - `pi/agent/settings.json` reste le bootstrap repo copié à l'installation
 - clé supportée : `subagents.<role>.model` + `subagents.<role>.thinking`
 - résolution : override explicite au spawn → config de rôle → modèle courant session → default global → fallback
+- auto-orchestration workflow : `subagentAutomation.planLoop` + `subagentAutomation.planImplement`
+- auto-déclenchement actuel :
+  - `/skill:plan-loop` → auto `scout`, puis auto `reviewer` au premier write/edit de `PLAN.md`
+  - `/skill:plan-implement` → auto `scout`, auto `reviewer` sur `PLAN.md`, puis auto `worker` quand `PLAN.md` redevient `READY` après la passe reviewer
 - défauts actuels repo :
   - `scout` → `kimi-coding/k2p5`, `thinking: high`
   - `worker` → `openai-codex/gpt-5.4`, `thinking: high`
-  - `reviewer` → `github-copilot/claude-sonnet-4.6`, `thinking: high`
+  - `reviewer` → `github-copilot/claude-opus-4.6`, `thinking: high`
 
 Profils :
 - `profiles/personal/` : posture perso Pi-first
