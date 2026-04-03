@@ -1,12 +1,13 @@
 /// <reference path="./bun-test.d.ts" />
 /// <reference path="../lib/node-runtime.d.ts" />
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   OPS_SNAPSHOT_KIND,
   OPS_SNAPSHOT_VERSION,
   type OpsSnapshot,
+  clearOpsSnapshotReadCache,
   formatOpsReadError,
   formatOpsStatus,
   makeOpsSnapshotFile,
@@ -27,8 +28,9 @@ const PATH_FIXTURES = JSON.parse(
 const cleanupPaths = new Set<string>();
 
 afterEach(() => {
+  clearOpsSnapshotReadCache();
   for (const path of cleanupPaths) {
-    rmSync(path, { force: true });
+    rmSync(path, { force: true, recursive: true });
   }
   cleanupPaths.clear();
 });
@@ -180,6 +182,59 @@ describe("readOpsSnapshotForCwd", () => {
     const result = readOpsSnapshotForCwd(cwd);
     expect(result.ok).toBe(true);
     expect(result.value?.cwd).toBe(cwd);
+  });
+
+  test("returns invalid instead of throwing when the snapshot path is unreadable", () => {
+    const cwd = "/tmp/ops-snapshot-unreadable";
+    const path = makeOpsSnapshotFile(cwd);
+    mkdirSync(path, { recursive: true });
+    cleanupPaths.add(path);
+
+    const result = readOpsSnapshotForCwd(cwd);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("invalid");
+    expect(result.errors?.[0]).toContain("could not be read");
+  });
+
+  test("invalidates cached snapshots when size changes but mtime stays the same", () => {
+    const cwd = "/tmp/ops-snapshot-same-mtime";
+    const path = makeOpsSnapshotFile(cwd);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(VALID_FIXTURE, null, 2) + "\n", "utf-8");
+    cleanupPaths.add(path);
+
+    const first = readOpsSnapshotForCwd(cwd);
+    expect(first.ok).toBe(true);
+
+    const initialStats = statSync(path);
+    const updated = {
+      ...VALID_FIXTURE,
+      review: { ...VALID_FIXTURE.review, actionable: 2 },
+      updatedAt: "2026-04-02T00:00:01.000Z",
+    };
+    writeFileSync(path, JSON.stringify(updated, null, 2) + "\n \n", "utf-8");
+    utimesSync(path, new Date(initialStats.mtimeMs), new Date(initialStats.mtimeMs));
+
+    const second = readOpsSnapshotForCwd(cwd);
+    expect(second.ok).toBe(true);
+    expect(second.value?.review.actionable).toBe(2);
+  });
+
+  test("returns cloned snapshots so callers cannot mutate the cache", () => {
+    const cwd = "/tmp/ops-snapshot-clone";
+    const path = makeOpsSnapshotFile(cwd);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(VALID_FIXTURE, null, 2) + "\n", "utf-8");
+    cleanupPaths.add(path);
+
+    const first = readOpsSnapshotForCwd(cwd);
+    expect(first.ok).toBe(true);
+    if (!first.ok || !first.value) throw new Error("expected snapshot");
+    first.value.plan.status = "DRAFT";
+
+    const second = readOpsSnapshotForCwd(cwd);
+    expect(second.ok).toBe(true);
+    expect(second.value?.plan.status).toBe(VALID_FIXTURE.plan.status);
   });
 });
 

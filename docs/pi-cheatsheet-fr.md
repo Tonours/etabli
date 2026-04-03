@@ -193,6 +193,16 @@ Rôles :
 - `worker` : implémentation read/write avec `todo` persistant, `lsp` quand dispo, et plan state quand utile ; un seul worker à la fois par défaut sauf isolation explicite
 - `reviewer` : revue read-only
 
+Config runtime subagents :
+- `~/.pi/agent/settings.json` pilote le runtime local effectif
+- `pi/agent/settings.json` reste le bootstrap repo copié à l'installation
+- clé supportée : `subagents.<role>.model` + `subagents.<role>.thinking`
+- résolution : override explicite au spawn → config de rôle → modèle courant session → default global → fallback
+- défauts actuels repo :
+  - `scout` → `kimi-coding/k2p5`, `thinking: high`
+  - `worker` → `openai-codex/gpt-5.4`, `thinking: high`
+  - `reviewer` → `github-copilot/claude-sonnet-4.6`, `thinking: high`
+
 Profils :
 - `profiles/personal/` : posture perso Pi-first
 - `profiles/work/` : posture travail Claude-first

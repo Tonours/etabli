@@ -27,6 +27,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   FALLBACK_MODEL,
+  FALLBACK_THINKING,
   findPackageFile,
   getAgentDir,
   getAgentSettingsPath,
@@ -35,6 +36,8 @@ import {
   getWorkerPackageExtensionPaths,
   mergeSubagentExtensionPaths,
   resolveSubagentModel,
+  resolveSubagentThinking,
+  type SubagentRole,
 } from "./lib/pi-runtime.ts";
 import { canSpawnRole } from "./lib/subagent-orchestration.ts";
 
@@ -46,7 +49,7 @@ const PLAN_STATE_EXTENSION_PATH = join(EXTENSION_DIR, "plan-state.ts");
 const WORKER_LOCAL_EXTENSION_PATHS = existsSync(PLAN_STATE_EXTENSION_PATH) ? [PLAN_STATE_EXTENSION_PATH] : [];
 const WORKER_PLAN_STATE_TOOLS = WORKER_LOCAL_EXTENSION_PATHS.length > 0 ? ["plan_state_read", "plan_state_update"] : [];
 
-type RoleName = "scout" | "worker" | "reviewer";
+type RoleName = SubagentRole;
 
 type RoleConfig = {
   label: string;
@@ -113,6 +116,8 @@ interface SubState {
   sessionFile: string;
   turnCount: number;
   model?: string;
+  resolvedModel?: string;
+  resolvedThinking?: string;
   proc?: ChildProcess;
 }
 
@@ -165,6 +170,13 @@ export default function (pi: ExtensionAPI) {
     return roleConfig
       ? `${roleConfig.label} subagent #${state.id} spawned and running in background.`
       : `Subagent #${state.id} spawned and running in background.`;
+  }
+
+  function formatRuntimeSpec(state: SubState): string {
+    const parts = [state.resolvedModel, state.resolvedThinking ? `thinking=${state.resolvedThinking}` : undefined].filter(
+      (value): value is string => Boolean(value),
+    );
+    return parts.length > 0 ? parts.join(" | ") : "runtime pending";
   }
 
   function createSubagent(
@@ -269,6 +281,7 @@ export default function (pi: ExtensionAPI) {
               theme.fg("dim", `  ${taskPreview}`) +
               theme.fg("dim", `  (${Math.round(state.elapsed / 1000)}s)`) +
               theme.fg("dim", ` | Tools: ${state.toolCount}`);
+            const runtimeLine = theme.fg("dim", `  ${formatRuntimeSpec(state)}`);
 
             const fullText = state.textChunks.join("");
             const lastLine = fullText
@@ -279,7 +292,7 @@ export default function (pi: ExtensionAPI) {
               ? theme.fg("muted", `  ${lastLine.length > width - 10 ? lastLine.slice(0, width - 13) + "..." : lastLine}`)
               : "";
 
-            const lines = [header];
+            const lines = [header, runtimeLine];
             if (preview) lines.push(preview);
 
             content.setText(lines.join("\n"));
@@ -298,10 +311,19 @@ export default function (pi: ExtensionAPI) {
   function spawnAgent(state: SubState, prompt: string, ctx: ExtensionContext): Promise<void> {
     const model = resolveSubagentModel({
       override: state.model,
+      role: state.role,
       currentModel: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
       settingsPath: SETTINGS_PATH,
       fallback: FALLBACK_MODEL,
     });
+    const thinking = resolveSubagentThinking({
+      role: state.role,
+      settingsPath: SETTINGS_PATH,
+      fallback: FALLBACK_THINKING,
+    });
+    state.resolvedModel = model;
+    state.resolvedThinking = thinking;
+    updateWidgets();
 
     return new Promise<void>((resolve) => {
       const args = [
@@ -323,7 +345,7 @@ export default function (pi: ExtensionAPI) {
         "--tools",
         buildRoleTools(state.role),
         "--thinking",
-        "off",
+        thinking,
         buildPrompt(state, prompt),
       );
 
@@ -482,6 +504,8 @@ export default function (pi: ExtensionAPI) {
       state.textChunks = [];
       state.elapsed = 0;
       state.turnCount++;
+      state.resolvedModel = undefined;
+      state.resolvedThinking = undefined;
       const modelOverride = normalizeModel(args.model);
       if (modelOverride) {
         state.model = modelOverride;
@@ -541,7 +565,7 @@ export default function (pi: ExtensionAPI) {
 
       const lines = Array.from(agents.values()).map(
         (s) =>
-          `#${s.id} [${s.status}]${s.role ? ` [${s.role}]` : ""} Turn ${s.turnCount} | Tools: ${s.toolCount} | ${s.task}`,
+          `#${s.id} [${s.status}]${s.role ? ` [${s.role}]` : ""} Turn ${s.turnCount} | ${formatRuntimeSpec(s)} | Tools: ${s.toolCount} | ${s.task}`,
       );
       return { content: [{ type: "text" as const, text: lines.join("\n") }], details: {} };
     },
