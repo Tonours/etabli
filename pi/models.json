@@ -97,6 +97,20 @@
           "contextWindow": 200000
         }
       ]
+    },
+    "zai-fast": {
+      "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+      "api": "openai-completions",
+      "apiKey": "ZAI_API_KEY",
+      "models": [
+        {
+          "id": "glm-4.5-air",
+          "name": "GLM 4.5 Air Fast",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 200000
+        }
+      ]
     }
   }
 }

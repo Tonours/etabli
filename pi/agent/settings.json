@@ -36,10 +36,10 @@
     "hookMode": "agent_end"
   },
   "lastChangelogVersion": "0.64.0",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4",
+  "defaultProvider": "zai",
+  "defaultModel": "glm-5.1",
   "theme": "catppuccin-mocha",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "off",
   "subagents": {
     "scout": {
       "model": "kimi-coding/k2p5",
@@ -50,7 +50,7 @@
       "thinking": "high"
     },
     "reviewer": {
-      "model": "github-copilot/claude-opus-4.6",
+      "model": "github-copilot/claude-sonnet-4.6",
       "thinking": "high"
     }
   },
