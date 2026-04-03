@@ -55,13 +55,16 @@ function createHarness(initialBranch: BranchEntry[] = []) {
   const branch = [...initialBranch];
   const handlers: EventHandlers = {};
   let tool: RegisteredTool | null = null;
+  const notifications: Array<{ message: string; level: string }> = [];
 
   const ctx: TestContext = {
-    hasUI: false,
+    hasUI: true,
     ui: {
       setWidget() {},
       setStatus() {},
-      notify() {},
+      notify(message: string, level: string) {
+        notifications.push({ message, level });
+      },
       async custom<T>(): Promise<T> {
         throw new Error("interactive UI not available in tests");
       },
@@ -91,6 +94,7 @@ function createHarness(initialBranch: BranchEntry[] = []) {
     branch,
     ctx,
     handlers,
+    notifications,
     async run(params: Record<string, unknown>) {
       const result = await registeredTool.execute("1", params, undefined, undefined, ctx);
       branch.push({
@@ -185,6 +189,23 @@ describe("normalizeTasks", () => {
     expect(result.tasks).toEqual([
       { id: 1, text: "first", status: "inprogress" },
       { id: 2, text: "second", status: "done" },
+    ]);
+  });
+
+  test("keeps the last active task when recovering a corrupted state", () => {
+    const tasks: Task[] = [
+      { id: 1, text: "review", status: "inprogress" },
+      { id: 2, text: "implement", status: "inprogress" },
+      { id: 3, text: "ship", status: "idle" },
+    ];
+
+    const result = normalizeTasks(tasks, { autoActivatePending: true });
+
+    expect(result.demotedIds).toEqual([1]);
+    expect(result.tasks).toEqual([
+      { id: 1, text: "review", status: "idle" },
+      { id: 2, text: "implement", status: "inprogress" },
+      { id: 3, text: "ship", status: "idle" },
     ]);
   });
 });
@@ -470,6 +491,45 @@ describe("tool behavior", () => {
         { id: 1, text: "first", status: "inprogress" },
         { id: 2, text: "second", status: "idle" },
       ],
+    });
+    expect(harness.notifications.at(-1)).toEqual({
+      message: "TillDone recovered state and resumed #1.",
+      level: "info",
+    });
+  });
+
+  test("reconstruction prefers the last active task from corrupted old states", async () => {
+    const harness = createHarness([
+      {
+        type: "message",
+        message: {
+          role: "toolResult",
+          toolName: "tilldone",
+          details: {
+            action: "list",
+            tasks: [
+              { id: 1, text: "review", status: "inprogress" },
+              { id: 2, text: "implement", status: "inprogress" },
+            ],
+            nextId: 3,
+            listTitle: "Recovered",
+          },
+        },
+      },
+    ]);
+
+    await harness.reconstruct();
+    const listed = await harness.run({ action: "list" });
+
+    expect(listed.details).toMatchObject({
+      tasks: [
+        { id: 1, text: "review", status: "idle" },
+        { id: 2, text: "implement", status: "inprogress" },
+      ],
+    });
+    expect(harness.notifications.at(-1)).toEqual({
+      message: "TillDone recovered multiple active tasks. Kept latest active task and paused #1.",
+      level: "warning",
     });
   });
 });
