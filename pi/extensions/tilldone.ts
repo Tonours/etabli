@@ -23,6 +23,7 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { Container, matchesKey, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { compileTodoIntent } from "./lib/intent-compiler.ts";
+import { getWidthBand } from "./lib/tui-chrome.ts";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -337,9 +338,9 @@ export function normalizeTasks(
   const demotedIds: number[] = [];
 
   if (activeTasks.length > 1) {
-    const [keeper, ...rest] = activeTasks;
+    const keeper = activeTasks[activeTasks.length - 1];
     for (const task of nextTasks) {
-      if (rest.some((entry) => entry.id === task.id)) {
+      if (task.status === "inprogress" && task.id !== keeper.id) {
         task.status = "idle";
         demotedIds.push(task.id);
       }
@@ -359,6 +360,10 @@ export function normalizeTasks(
     activatedId: activated.activatedId,
     demotedIds,
   };
+}
+
+function formatTaskIdList(ids: number[]): string {
+  return ids.map((id) => `#${id}`).join(", ");
 }
 
 // ── Overlay component ──────────────────────────────────────────────────
@@ -493,13 +498,17 @@ export default function (pi: ExtensionAPI) {
     };
   }
 
-  function applyState(state: TillDoneState): void {
+  function applyState(state: TillDoneState): { activatedId?: number; demotedIds: number[] } {
     const normalized = normalizeTasks(state.tasks, { autoActivatePending: true });
     tasks = normalized.tasks;
     nextId = state.nextId;
     listTitle = state.listTitle;
     listDescription = state.listDescription;
     undoState = state.undoState ? cloneState(state.undoState) : undefined;
+    return {
+      activatedId: normalized.activatedId,
+      demotedIds: normalized.demotedIds,
+    };
   }
 
   function rememberUndo(): void {
@@ -539,7 +548,8 @@ export default function (pi: ExtensionAPI) {
         return {
           render(width: number): string[] {
             if (tasks.length === 0) return [];
-            const inner = width - 4;
+            const inner = Math.max(1, width - 4);
+            const widthBand = getWidthBand(inner);
             const done = tasks.filter((t) => t.status === "done").length;
             const title = listTitle ?? "TillDone";
 
@@ -549,7 +559,7 @@ export default function (pi: ExtensionAPI) {
             const STATUS_ORDER: Record<TaskStatus, number> = { inprogress: 0, idle: 1, done: 2 };
             const sorted = [...tasks].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
-            const allRows = sorted.map((t) => {
+            const renderRow = (t: Task) => {
               const icon =
                 t.status === "done"
                   ? theme.fg("success", STATUS_ICON.done)
@@ -563,18 +573,36 @@ export default function (pi: ExtensionAPI) {
                     ? theme.fg("text", t.text)
                     : theme.fg("muted", t.text);
               return truncateToWidth(` ${icon} ${text}`, inner);
-            });
+            };
+
+            const activeRows = sorted.filter((t) => t.status === "inprogress").map(renderRow);
+            const idleRows = sorted.filter((t) => t.status === "idle").map(renderRow);
+            const doneRows = sorted.filter((t) => t.status === "done").map(renderRow);
+
+            const visibleRows =
+              widthBand === "wide"
+                ? [...activeRows, ...idleRows, ...doneRows]
+                : widthBand === "very-narrow"
+                  ? activeRows
+                  : [...activeRows, ...idleRows];
+
+            const hiddenCount =
+              sorted.length - visibleRows.length;
+            const hiddenLabel =
+              hiddenCount > 0
+                ? truncateToWidth(` ${theme.fg("dim", `↓ ${hiddenCount} more… (/tilldone)`)}`, inner)
+                : undefined;
 
             // Cap widget height at ~33% of terminal (minus chrome: header + borders + spacer)
             const termRows = process.stdout.rows ?? 24;
             const maxWidgetRows = Math.max(3, Math.floor(termRows / 3) - 4);
             let rows: string[];
-            if (allRows.length > maxWidgetRows) {
-              const hidden = allRows.length - maxWidgetRows + 1;
-              rows = allRows.slice(0, maxWidgetRows - 1);
+            if (visibleRows.length > maxWidgetRows) {
+              const hidden = visibleRows.length - maxWidgetRows + 1 + hiddenCount;
+              rows = visibleRows.slice(0, maxWidgetRows - 1);
               rows.push(truncateToWidth(` ${theme.fg("dim", `↓ ${hidden} more… (/tilldone)`)}`, inner));
             } else {
-              rows = allRows;
+              rows = hiddenLabel ? [...visibleRows, hiddenLabel] : visibleRows;
             }
 
             body.setText([header, ...rows].join("\n"));
@@ -610,6 +638,8 @@ export default function (pi: ExtensionAPI) {
     listTitle = undefined;
     listDescription = undefined;
     undoState = undefined;
+    let recoveredActivatedId: number | undefined;
+    let recoveredDemotedIds: number[] = [];
 
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type !== "message") continue;
@@ -618,17 +648,31 @@ export default function (pi: ExtensionAPI) {
 
       const details = msg.details as TillDoneDetails | undefined;
       if (details) {
-        applyState({
+        const recovered = applyState({
           tasks: details.tasks,
           nextId: details.nextId,
           listTitle: details.listTitle,
           listDescription: details.listDescription,
           undoState: details.undoState,
         });
+        recoveredActivatedId = recovered.activatedId;
+        recoveredDemotedIds = recovered.demotedIds;
       }
     }
 
     refreshUI(ctx);
+
+    if (recoveredDemotedIds.length > 0) {
+      ctx.ui.notify(
+        `TillDone recovered multiple active tasks. Kept latest active task and paused ${formatTaskIdList(recoveredDemotedIds)}.`,
+        "warning",
+      );
+      return;
+    }
+
+    if (recoveredActivatedId !== undefined) {
+      ctx.ui.notify(`TillDone recovered state and resumed #${recoveredActivatedId}.`, "info");
+    }
   }
 
   pi.on("session_start", async (_event, ctx) => {
