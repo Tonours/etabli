@@ -116,14 +116,52 @@ local function telescope_cmd(cmd)
   end
 end
 
-map("n", "<leader><space>", telescope_cmd("find_files"), vim.tbl_extend("force", opts, { desc = "Find files" }))
+local function open_command_palette()
+  local ts = load_telescope_modules()
+  if not ts then
+    return
+  end
+
+  ts.builtin.commands({ prompt_title = "Command Palette" })
+end
+
+local function map_vscode_aliases(lhs_list, rhs, desc)
+  for _, lhs in ipairs(lhs_list) do
+    map("n", lhs, rhs, vim.tbl_extend("force", opts, { desc = desc }))
+  end
+end
+
+local quick_open = telescope_cmd("find_files")
+
+vim.api.nvim_create_user_command("CommandPalette", open_command_palette, {
+  desc = "Open command palette",
+})
+
+map_vscode_aliases({ "<D-p>", "<C-p>" }, quick_open, "Quick open")
+map_vscode_aliases({ "<D-P>", "<D-S-p>", "<C-S-p>" }, open_command_palette, "Command palette")
+
+map("n", "<leader><space>", quick_open, vim.tbl_extend("force", opts, { desc = "Find files" }))
 map("n", "<leader>/", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))
 map("n", "<leader>.", telescope_cmd("buffers"), vim.tbl_extend("force", opts, { desc = "Buffers" }))
-map("n", "<leader>ff", telescope_cmd("find_files"), vim.tbl_extend("force", opts, { desc = "Find files" }))
+map("n", "<leader>ff", quick_open, vim.tbl_extend("force", opts, { desc = "Find files" }))
 map("n", "<leader>fg", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))
 map("n", "<leader>fw", telescope_cmd("grep_string"), vim.tbl_extend("force", opts, { desc = "Grep current word" }))
 map("n", "<leader>fb", telescope_cmd("buffers"), vim.tbl_extend("force", opts, { desc = "Buffers" }))
-map("n", "<leader>fr", telescope_cmd("oldfiles"), vim.tbl_extend("force", opts, { desc = "Recent files" }))
+map("n", "<leader>fo", telescope_cmd("oldfiles"), vim.tbl_extend("force", opts, { desc = "Recent files" }))
+map("n", "<leader>fr", function()
+  local grug_far = lazy_require("grug-far.nvim", "grug-far")
+  if grug_far then
+    grug_far.open()
+  end
+end, vim.tbl_extend("force", opts, { desc = "Find and replace" }))
+map("x", "<leader>fr", function()
+  local grug_far = lazy_require("grug-far.nvim", "grug-far")
+  if grug_far then
+    grug_far.with_visual_selection()
+  end
+end, vim.tbl_extend("force", opts, { desc = "Find and replace selection" }))
+map("x", "<Tab>", ">gv", vim.tbl_extend("force", opts, { desc = "Indent selection" }))
+map("x", "<S-Tab>", "<gv", vim.tbl_extend("force", opts, { desc = "Unindent selection" }))
 map("n", "<leader>fp", function()
   vim.schedule(function()
     require("config.projects_picker").pick_project_recent_files()
