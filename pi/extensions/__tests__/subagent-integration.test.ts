@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { resetRuntimeCaches } from "../lib/pi-runtime.ts";
 import subagent from "../subagent.ts";
 
 type Level = "info" | "warning" | "error";
@@ -45,6 +46,7 @@ type TestContext = {
 };
 
 function createHarness() {
+  resetRuntimeCaches();
   const cwd = mkdtempSync(join(tmpdir(), "subagent-integration-"));
   const handlers: EventHandlers = {};
   const runtimeControllers = new Map<number, RuntimeController>();
