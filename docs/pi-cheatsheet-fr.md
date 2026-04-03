@@ -205,7 +205,7 @@ Config runtime subagents :
 - défauts actuels repo :
   - `scout` → `kimi-coding/k2p5`, `thinking: high`
   - `worker` → `openai-codex/gpt-5.4`, `thinking: high`
-  - `reviewer` → `github-copilot/claude-opus-4.6`, `thinking: high`
+  - `reviewer` → `github-copilot/claude-sonnet-4.6`, `thinking: high`
 
 Profils :
 - `profiles/personal/` : posture perso Pi-first
