@@ -440,7 +440,6 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       widgetCtx.ui.setWidget(key, (_tui, theme) => {
         const container = new Container();
         const borderFn = (s: string) => theme.fg("dim", s);
-        container.addChild(new Text("", 0, 0));
         container.addChild(new DynamicBorder(borderFn));
         const content = new Text("", 1, 0);
         container.addChild(content);
@@ -453,17 +452,14 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
             const taskPreview =
               state.task.length > 40 ? state.task.slice(0, 37) + "..." : state.task;
 
-            const turnLabel =
-              state.turnCount > 1 ? theme.fg("dim", ` · Turn ${state.turnCount}`) : "";
+            const turnLabel = state.turnCount > 1 ? ` · turn ${state.turnCount}` : "";
 
             const header =
-              theme.fg("accent", `● ${buildTargetLabel(state)}`) +
-              (roleConfig ? theme.fg("dim", ` [${state.role}]`) : "") +
-              turnLabel +
-              theme.fg("dim", `  ${taskPreview}`) +
-              theme.fg("dim", `  (${Math.round(state.elapsed / 1000)}s)`) +
-              theme.fg("dim", ` | Tools: ${state.toolCount}`);
-            const runtimeLine = theme.fg("dim", `  ${formatRuntimeSpec(state)}`);
+              theme.fg("accent", buildTargetLabel(state)) +
+              (roleConfig ? theme.fg("dim", ` · ${state.role}`) : "") +
+              theme.fg("dim", ` · ${Math.round(state.elapsed / 1000)}s · ${state.toolCount} tools${turnLabel}`);
+            const taskLine = theme.fg("muted", ` ${taskPreview}`);
+            const runtimeLine = theme.fg("dim", ` ${formatRuntimeSpec(state)}`);
 
             const fullText = state.textChunks.join("");
             const lastLine = fullText
@@ -474,7 +470,7 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
               ? theme.fg("muted", `  ${lastLine.length > width - 10 ? lastLine.slice(0, width - 13) + "..." : lastLine}`)
               : "";
 
-            const lines = [header, runtimeLine];
+            const lines = [header, taskLine, runtimeLine];
             if (preview) lines.push(preview);
 
             content.setText(lines.join("\n"));
