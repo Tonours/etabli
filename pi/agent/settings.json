@@ -4,7 +4,8 @@
       "source": "npm:mitsupi",
       "extensions": [
         "!uv.ts",
-        "-pi-extensions/go-to-bed.ts"
+        "-pi-extensions/go-to-bed.ts",
+        "-pi-extensions/session-breakdown.ts"
       ]
     },
     "npm:checkpoint",
