@@ -146,7 +146,7 @@ describe("configured default model", () => {
 
     expect(ctx.ui.notifications).toEqual([
       {
-        message: "Configured default model openai-codex/gpt-5.4 not available.",
+        message: "Configured default model zai/glm-5.1 not available.",
         level: "warning",
       },
     ]);
