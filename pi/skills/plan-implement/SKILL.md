@@ -12,6 +12,11 @@ If the plan is already reviewed and `READY`, use `/skill:implement` instead.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. If the user provided a task description, run the full `plan-loop` flow first:
+   - silently compile the user's task into a compact planning brief before analysis
+   - strip filler, hedging, and conversational wrappers
+   - preserve scope, constraints, file paths, commands, and acceptance criteria
+   - when useful, restate it as a short working brief with goal, constraints, known context, and expected output
+   - use this compiled brief internally for the rest of the flow without asking the user to confirm or rerun anything
    - analyze the relevant codebase area
    - resolve the plan template from the first existing file in this order:
      - `./PLAN_TEMPLATE.md`
@@ -23,6 +28,7 @@ If the plan is already reviewed and `READY`, use `/skill:implement` instead.
 3. If no task description was provided:
    - read the existing `./PLAN.md`
    - if it is missing, stop and ask for a task description or a pre-existing plan
+   - if the user included extra framing for the request, silently compile that framing into a compact working brief before critique/implementation
    - if it is not `READY`, critique it and update it to `CHALLENGED` or `READY`
    - if that critique lands on `READY`, continue automatically into implementation in the same flow
 4. Never implement from a `DRAFT` or `CHALLENGED` plan.
