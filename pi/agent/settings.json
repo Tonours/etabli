@@ -49,8 +49,21 @@
       "thinking": "high"
     },
     "reviewer": {
-      "model": "github-copilot/claude-sonnet-4.6",
+      "model": "github-copilot/claude-opus-4.6",
       "thinking": "high"
+    }
+  },
+  "subagentAutomation": {
+    "planLoop": {
+      "enabled": true,
+      "autoScout": true,
+      "autoReviewer": true
+    },
+    "planImplement": {
+      "enabled": true,
+      "autoScout": true,
+      "autoReviewer": true,
+      "autoWorkerOnReady": true
     }
   },
   "editorPaddingX": 1,
