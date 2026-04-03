@@ -21,6 +21,7 @@ settings.local.json
 .vscode/
 *.swp
 *.swo
+github-copilot/
 
 # Node
 node_modules/
