@@ -485,6 +485,16 @@ local function reopen_inbox_later(opts)
   end)
 end
 
+local function reopen_opts_for_item(opts, item)
+  local next_opts = vim.deepcopy(opts or {})
+
+  if item and item.fingerprint then
+    next_opts.focus_fingerprint = item.fingerprint
+  end
+
+  return next_opts
+end
+
 local function prepare_batch(provider, status)
   local normalized_status = normalize_status(status or "needs-rework")
   if normalized_status == false then
@@ -644,17 +654,17 @@ function M.open_inbox(opts)
     on_select = open_item_diff,
     on_annotate = function(item)
       prompt_for_note(item, { on_done = function()
-        reopen_inbox_later(reopen_opts)
+        reopen_inbox_later(reopen_opts_for_item(reopen_opts, item))
       end })
     end,
     on_status = function(item)
       prompt_for_status(item, { on_done = function()
-        reopen_inbox_later(reopen_opts)
+        reopen_inbox_later(reopen_opts_for_item(reopen_opts, item))
       end })
     end,
     on_accept = function(selected)
       if set_items_status(selected, "accepted") then
-        reopen_inbox_later(reopen_opts)
+        reopen_inbox_later(reopen_opts_for_item(reopen_opts, #selected == 1 and selected[1] or nil))
       end
     end,
     on_claude = function(selected)
@@ -665,7 +675,7 @@ function M.open_inbox(opts)
 
       send_item(selected[1], "claude", "revise", {
         after_exit = function()
-          reopen_inbox_later(reopen_opts)
+          reopen_inbox_later(reopen_opts_for_item(reopen_opts, selected[1]))
         end,
       })
     end,
@@ -677,7 +687,7 @@ function M.open_inbox(opts)
 
       send_item(selected[1], "pi", "revise", {
         after_exit = function()
-          reopen_inbox_later(reopen_opts)
+          reopen_inbox_later(reopen_opts_for_item(reopen_opts, selected[1]))
         end,
       })
     end,
@@ -692,6 +702,7 @@ function M.open_inbox(opts)
       }))
     end,
   }, {
+    focus_fingerprint = open_opts.focus_fingerprint,
     status = status,
   })
 end
