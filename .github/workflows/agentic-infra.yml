@@ -52,6 +52,11 @@ jobs:
           git config --global user.email "ci@example.com"
           git config --global user.name "CI"
 
+      - name: Bootstrap local Pi agent settings
+        run: |
+          mkdir -p ~/.pi/agent
+          cp pi/agent/settings.json ~/.pi/agent/settings.json
+
       - name: Install Pi test dependencies
         run: |
           cd pi
