@@ -48,6 +48,21 @@ type TestContext = {
 function createHarness() {
   resetRuntimeCaches();
   const cwd = mkdtempSync(join(tmpdir(), "subagent-integration-"));
+  const agentDir = mkdtempSync(join(tmpdir(), "subagent-agent-"));
+  process.env.PI_CODING_AGENT_DIR = agentDir;
+  writeFileSync(
+    join(agentDir, "settings.json"),
+    JSON.stringify({
+      defaultProvider: "openai-codex",
+      defaultModel: "gpt-5.4",
+      subagents: {
+        scout: { model: "kimi-coding/k2p5", thinking: "high" },
+        worker: { model: "openai-codex/gpt-5.4", thinking: "high" },
+        reviewer: { model: "github-copilot/claude-sonnet-4.6", thinking: "high" },
+      },
+    }),
+    "utf-8",
+  );
   const handlers: EventHandlers = {};
   const runtimeControllers = new Map<number, RuntimeController>();
   const starts: RuntimeStart[] = [];
@@ -149,7 +164,7 @@ describe("subagent automation integration", () => {
     await harness.agentEnd();
 
     expect(harness.countRole("reviewer")).toBe(1);
-    expect(harness.latestRole("reviewer")?.model).toBe("github-copilot/claude-opus-4.6");
+    expect(harness.latestRole("reviewer")?.model).toBe("github-copilot/claude-sonnet-4.6");
   });
 
   test("plan-implement waits for reviewer completion before worker", async () => {
