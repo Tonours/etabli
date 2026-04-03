@@ -531,7 +531,6 @@ export default function (pi: ExtensionAPI) {
       (_tui, theme) => {
         const container = new Container();
         const borderFn = (s: string) => theme.fg("dim", s);
-        container.addChild(new Text("", 0, 0));
         container.addChild(new DynamicBorder(borderFn));
         const body = new Text("", 1, 0);
         container.addChild(body);
@@ -545,12 +544,7 @@ export default function (pi: ExtensionAPI) {
             const title = listTitle ?? "TillDone";
 
             const header =
-              theme.fg("accent", ` ${title} `) +
-              theme.fg("warning", "[") +
-              theme.fg("success", `${done}`) +
-              theme.fg("dim", "/") +
-              theme.fg("success", `${tasks.length}`) +
-              theme.fg("warning", "]");
+              theme.fg("accent", title) + theme.fg("dim", ` ${done}/${tasks.length}`);
 
             const STATUS_ORDER: Record<TaskStatus, number> = { inprogress: 0, idle: 1, done: 2 };
             const sorted = [...tasks].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
@@ -566,7 +560,7 @@ export default function (pi: ExtensionAPI) {
                 t.status === "done"
                   ? theme.fg("dim", t.text)
                   : t.status === "inprogress"
-                    ? theme.fg("success", t.text)
+                    ? theme.fg("text", t.text)
                     : theme.fg("muted", t.text);
               return truncateToWidth(` ${icon} ${text}`, inner);
             });

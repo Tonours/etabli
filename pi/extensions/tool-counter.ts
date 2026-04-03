@@ -1,12 +1,12 @@
 /**
  * Tool Counter — Two-line footer with real-time session metrics.
  *
- * Line 1: model + context bar + % (left) | tokens in/out + cost (right)
+ * Line 1: model + thinking + context bar (left) | tokens in/out + cost (right)
  * Line 2: cwd + git branch + git status + DC mode (left) | tool tally (right)
  */
 
 import type { AssistantMessage } from "@mariozechner/pi-ai";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { execFileSync } from "node:child_process";
 import { basename } from "node:path";
@@ -16,6 +16,8 @@ interface GitStatus {
   modified: number;
   untracked: number;
 }
+
+type FooterTheme = Pick<Theme, "fg">;
 
 let cachedGitStatus: GitStatus = { staged: 0, modified: 0, untracked: 0 };
 let gitStatusTs = 0;
@@ -57,18 +59,23 @@ function getGitStatus(cwd: string): GitStatus {
   return cachedGitStatus;
 }
 
-function fmtGitStatus(
-  gs: GitStatus,
-  theme: { fg: (color: string, text: string) => string },
-): string {
+function fmtGitStatus(gs: GitStatus, theme: FooterTheme): string {
   if (gs.staged === 0 && gs.modified === 0 && gs.untracked === 0) {
-    return theme.fg("success", " \u2713");
+    return theme.fg("dim", "clean");
   }
   const parts: string[] = [];
-  if (gs.staged > 0) parts.push(theme.fg("success", `+${gs.staged}`));
-  if (gs.modified > 0) parts.push(theme.fg("warning", `~${gs.modified}`));
-  if (gs.untracked > 0) parts.push(theme.fg("dim", `?${gs.untracked}`));
-  return " " + parts.join(theme.fg("dim", " "));
+  if (gs.staged > 0) parts.push(`+${gs.staged}`);
+  if (gs.modified > 0) parts.push(`~${gs.modified}`);
+  if (gs.untracked > 0) parts.push(`?${gs.untracked}`);
+  return theme.fg("accent", parts.join(" "));
+}
+
+function fmtContextBar(filled: number, theme: FooterTheme): string {
+  return theme.fg("accent", "■".repeat(filled)) + theme.fg("dim", "·".repeat(10 - filled));
+}
+
+function fmtDcMode(mode: string, theme: FooterTheme): string {
+  return theme.fg(mode === "full" ? "dim" : "accent", `DC ${mode || "?"}`);
 }
 
 export default function (pi: ExtensionAPI) {
@@ -101,8 +108,7 @@ export default function (pi: ExtensionAPI) {
             }
           }
 
-          const fmt = (n: number) =>
-            n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`;
+          const fmt = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toFixed(1)}k`);
 
           const dir = basename(ctx.cwd);
           const branch = footerData.getGitBranch();
@@ -114,25 +120,14 @@ export default function (pi: ExtensionAPI) {
           const model = ctx.model?.id ?? "?";
           const thinking = pi.getThinkingLevel();
 
-          // --- Line 1: model + context bar (left) | tokens + cost (right) ---
           const l1Left =
-            theme.fg("dim", ` ${model}`) +
-            theme.fg("warning", "(") +
-            theme.fg("accent", thinking) +
-            theme.fg("warning", ") ") +
-            theme.fg("warning", "[") +
-            theme.fg("success", "#".repeat(filled)) +
-            theme.fg("dim", "-".repeat(10 - filled)) +
-            theme.fg("warning", "]") +
-            theme.fg("dim", " ") +
-            theme.fg("accent", `${Math.round(pct)}%`);
+            theme.fg("muted", ` ${model}`) +
+            theme.fg("dim", ` · ${thinking} `) +
+            fmtContextBar(filled, theme) +
+            theme.fg("dim", ` ${Math.round(pct)}%`);
 
           const l1Right =
-            theme.fg("success", `${fmt(tokIn)}`) +
-            theme.fg("dim", " in ") +
-            theme.fg("accent", `${fmt(tokOut)}`) +
-            theme.fg("dim", " out ") +
-            theme.fg("warning", `$${cost.toFixed(4)}`) +
+            theme.fg("muted", `${fmt(tokIn)} in · ${fmt(tokOut)} out · $${cost.toFixed(4)}`) +
             theme.fg("dim", " ");
 
           const pad1 = " ".repeat(
@@ -140,36 +135,27 @@ export default function (pi: ExtensionAPI) {
           );
           const line1 = truncateToWidth(l1Left + pad1 + l1Right, width, "");
 
-          // --- Line 2: cwd + branch + git status + DC (left) | tool tally (right) ---
           const gs = getGitStatus(ctx.cwd);
           const dcRaw = footerData.getExtensionStatuses().get("damage-control") ?? "";
           const dcMode = dcRaw.split(" ")[0] ?? "";
+          const branchPart = branch ? theme.fg("muted", ` · ${branch}`) : "";
 
           const l2Left =
-            theme.fg("dim", ` ${dir}`) +
-            (branch
-              ? theme.fg("dim", " ") +
-                theme.fg("warning", "(") +
-                theme.fg("success", branch) +
-                theme.fg("warning", ")")
-              : "") +
+            theme.fg("muted", ` ${dir}`) +
+            branchPart +
+            theme.fg("dim", " · ") +
             fmtGitStatus(gs, theme) +
-            theme.fg("dim", "  DC:") +
-            theme.fg(dcMode === "OFF" ? "error" : dcMode === "full" ? "accent" : "dim", dcMode || "?");
+            theme.fg("dim", " · ") +
+            fmtDcMode(dcMode, theme);
 
           const entries = Object.entries(counts);
           const l2Right =
             entries.length === 0
               ? theme.fg("dim", "waiting for tools ")
-              : entries
-                  .map(
-                    ([name, count]) =>
-                      theme.fg("accent", name) +
-                      theme.fg("dim", " ") +
-                      theme.fg("success", `${count}`),
-                  )
-                  .join(theme.fg("warning", " | ")) +
-                theme.fg("dim", " ");
+              : theme.fg(
+                  "muted",
+                  entries.map(([name, count]) => `${name} ${count}`).join(" · "),
+                ) + theme.fg("dim", " ");
 
           const pad2 = " ".repeat(
             Math.max(1, width - visibleWidth(l2Left) - visibleWidth(l2Right)),
