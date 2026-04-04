@@ -84,10 +84,14 @@ pi --tools read,grep,find,ls      # mode lecture seule
 /skill:plan-loop <feature>
 /skill:plan-implement <feature>
 
+# workflow handoff (fast = local, instantané)
+/fast-handoff [path]          # Génère handoff depuis l'état local (pas d'appel LLM)
+/fast-handoff-implement       # Idem mais pour continuation d'implémentation
+/handoff [path]               # Fallback LLM si fast-handoff échoue
+/handoff-implement [path]     # Fallback LLM pour implémentation
+
 # workflow agentic
 /review [uncommitted|branch <base>|commit <sha>]
-/handoff [path]
-/handoff-implement [path]
 /scout <task>
 /worker <task>
 /reviewer <task>
@@ -130,6 +134,14 @@ Le runner enchaîne :
 
 La validation réelle de Claude `/ops-status` reste manuelle.
 
+Tests utiles côté `pi/` :
+
+```bash
+bun test ./extensions/__tests__/*.test.ts
+bun run test:workflow
+bun run test:workflow-coverage
+```
+
 ## Raccourcis review diff dans Neovim
 
 Actions sur le hunk courant :
@@ -168,6 +180,121 @@ Commandes associées :
 :ReviewPiBatch [status]
 ```
 
+## Fast-handoff (zero-latency)
+
+Le workflow supporte deux modes de handoff :
+
+**Fast-handoff (recommandé)** : Génération locale instantanée sans appel LLM
+- `/fast-handoff` → utilise l'OPS snapshot + PLAN.md locaux
+- `/fast-handoff-implement` → pour continuation d'implémentation READY
+- Avantage : < 10ms vs 2-5s avec LLM, gratuit, toujours disponible
+- Fonctionne quand un OPS snapshot existe (exporté par Neovim ou Pi)
+
+**Handoff LLM (fallback)** : Génération via modèle pour cas complexes
+- `/handoff` → résume la conversation via LLM
+- `/handoff-implement` → handoff context-aware avec plan READY
+- Utile quand le snapshot est absent ou pour résumés nuancés
+
+Auto-handoff (optionnel) :
+```bash
+export PI_AUTO_HANDOFF=1  # Met à jour .pi/handoff.md à chaque fin de session
+```
+
+## TillDone ↔ OPS Sync
+
+Synchronisation automatique entre les tâches TillDone et l'OPS snapshot :
+
+- Les tâches TillDone apparaissent dans l'OPS task projection
+- L'action active TillDone devient le `nextAction` OPS
+- Neovim peut afficher les tâches actives via `:OPSStatus`
+- Permet une vue unifiée des "next actions" à travers Pi et Neovim
+
+Commandes :
+- `/tilldone-sync` → Force la synchronisation manuelle
+- `tilldone_ops_read` (tool) → Lit l'état TillDone depuis une autre session
+
+La sync se fait automatiquement à chaque `agent_end` et changement de session.
+
+## Review-to-Plan Bridge
+
+Pont entre la review inbox Neovim et le système de planification :
+
+- Convertit les hunks "needs-rework" en tâches TillDone
+- Génère des slices PLAN.md à partir des blockers de review
+- Alerte automatique si review a des items actionnables en début de session
+
+Commandes :
+- `/review-to-tilldone` → Crée des tâches à partir des items "needs-rework"
+- `/review-to-plan` → Génère une slice de plan pour les corrections
+
+Tools :
+- `review_state_read` → Lit l'état de review inbox
+- `review_to_tilldone` → Convertit en tâches (output structuré pour tilldone)
+
+Workflow recommandé :
+1. Faire la review dans Neovim (`:ReviewInbox`)
+2. Marquer les hunks problématiques comme "needs-rework"
+3. Dans Pi: `/review-to-tilldone` pour créer les tâches
+4. Les tâches apparaissent dans TillDone et OPS automatiquement
+
+## Neovim Integration
+
+Intégration côté éditeur pour afficher les données Pi :
+
+Commands :
+- `:OPSTillDone` → Affiche les tâches TillDone dans une fenêtre flottante
+- `:TillDoneNext` → Affiche la prochaine action (OPS + TillDone)
+
+Statusline :
+- Les tâches TillDone apparaissent dans la statusline quand disponibles
+- Format: `TD:<task> (#<id>)` ou `TD:<remaining>/<total>`
+- S'intègre automatiquement au statusline OPS existant
+
+Les données sont lues depuis `~/.pi/status/<cwd>.tilldone-ops.json` (écrit par l'extension Pi `tilldone-ops-sync`).
+
+## Auto-Validation
+
+Validation continue du workflow pour détecter les problèmes tôt :
+
+Checks automatiques :
+- **PLAN.md exists** → Vérifie la présence et la structure
+- **PLAN.md status** → Alerte si CHALLENGED (bloquant) ou DRAFT (attention)
+- **Git working tree** → Signale les changements non commités
+- **Merge conflicts** → Détecte les marqueurs de conflit
+- **TypeScript compilation** → Vérifie que les extensions compilent
+- **Large files** → Alerte sur les fichiers >500KB
+
+Commandes :
+- `/validate` → Lance la suite de validation complète
+- Tool `validate` → Même chose, avec output structuré pour les agents
+
+Auto-validation (optionnel) :
+```bash
+export PI_AUTO_VALIDATE=1  # Valide à chaque fin de session
+```
+
+Alertes automatiques :
+- Alerte CHALLENGED au démarrage de session si PLAN.md est bloqué
+- Notification des échecs en fin de session si auto-validation activée
+
+## Health Check
+
+Validation complète du workflow :
+
+```bash
+/health                    # Vérification manuelle
+health_check (tool)       # Pour les agents
+```
+
+Vérifie :
+- Présence des extensions workflow (14 vérifications)
+- Configuration settings.json
+- Synchronisation OPS
+- Intégration Neovim
+- Commandes Claude
+
+Rapport : ✓ ok / ⚠ warn / ✗ error avec suggestions de correction
+
 ## Flow agentic recommandé sur ce repo
 
 Référence canonique : `workflow/spec.md` + `workflow/statuses.md`
@@ -178,7 +305,7 @@ Mode opératoire quotidien : `workflow/operating-model.md`
 2. `/skill:plan` + `/skill:plan-review` jusqu'à `PLAN.md` en `READY`
 3. `/skill:implement` dans la session principale, ou `/worker <task>` si la tâche est bornée
 4. `/review` ou `/skill:review` pour la vérification finale
-5. `/handoff` pour une reprise générique, ou `/handoff-implement` si tu stoppes une implémentation déjà cadrée par un `PLAN.md` `READY`
+5. `/fast-handoff` ou `/handoff` pour reprise rapide
 
 Modes d'exécution conseillés :
 - simple : 1 session principale + 1 worker

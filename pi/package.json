@@ -10,6 +10,8 @@
   },
   "scripts": {
     "test": "bun test ./extensions/__tests__/*.test.ts",
+    "test:workflow": "bun test ./extensions/__tests__/workflow-*.test.ts",
+    "test:workflow-coverage": "bun test --coverage ./extensions/__tests__/workflow-*.test.ts ./extensions/__tests__/auto-validate.test.ts ./extensions/__tests__/fast-handoff.test.ts ./extensions/__tests__/project-switcher.test.ts ./extensions/__tests__/review-plan-bridge.test.ts ./extensions/__tests__/task-templates.test.ts ./extensions/__tests__/tilldone-ops-sync.test.ts ./extensions/__tests__/workflow-metrics.test.ts",
     "verify:skills": "bun ./scripts/verify-skills-lock.mjs"
   }
 }

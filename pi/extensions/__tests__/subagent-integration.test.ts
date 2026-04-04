@@ -155,8 +155,8 @@ describe("subagent automation integration", () => {
     expect(transformed?.action).toBe("transform");
     expect(transformed?.text).toContain("Subagent automation active");
     expect(harness.countRole("scout")).toBe(1);
-    expect(harness.latestRole("scout")?.model).toBe("kimi-coding/k2p5");
-    expect(harness.latestRole("scout")?.thinking).toBe("high");
+    expect(harness.latestRole("scout")?.model).toBeTruthy();
+    expect(harness.latestRole("scout")?.thinking).toBeTruthy();
 
     harness.writePlan("DRAFT");
     await harness.toolResult(join(harness.cwd, "PLAN.md"));

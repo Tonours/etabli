@@ -3,6 +3,7 @@ local mode = require("config.ops.mode")
 local snapshot = require("config.ops.snapshot")
 local state = require("config.ops.state")
 local view = require("config.ops.view")
+local tilldone = require("config.ops.tilldone")
 
 local M = {}
 local commands_registered = false
@@ -40,6 +41,7 @@ M.show_doctor = actions.show_doctor
 M.show_mode = actions.show_mode
 M.set_mode_simple = actions.set_mode_simple
 M.set_mode_standard = actions.set_mode_standard
+M.show_tilldone = tilldone.show_float
 
 function M.setup_commands()
   if commands_registered then
@@ -101,6 +103,14 @@ function M.setup_commands()
   vim.api.nvim_create_user_command("OPSModeStandard", function()
     M.set_mode_standard()
   end, { desc = "Set OPS mode to standard (main + scout + worker + reviewer)" })
+
+  vim.api.nvim_create_user_command("OPSTillDone", function()
+    tilldone.show_float()
+  end, { desc = "Show TillDone tasks from Pi" })
+
+  vim.api.nvim_create_user_command("TillDoneNext", function()
+    tilldone.show_next_action()
+  end, { desc = "Show next action from TillDone and OPS" })
 
   local group = vim.api.nvim_create_augroup("etabli_ops_runtime", { clear = true })
   vim.api.nvim_create_autocmd({ "DirChanged", "BufWritePost" }, {

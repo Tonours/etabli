@@ -3,6 +3,10 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+function getHomeDir(): string {
+  return process.env.HOME || process.env.USERPROFILE || homedir();
+}
+
 export const OPS_SNAPSHOT_KIND = "ops-snapshot";
 export const OPS_SNAPSHOT_VERSION = 1;
 
@@ -196,11 +200,11 @@ function normalizeSnapshotCwd(cwd: string): string {
 }
 
 export function makeOpsSnapshotFile(cwd: string): string {
-  return join(homedir(), ".pi", "status", `${statusFileName(normalizeSnapshotCwd(cwd))}.ops.json`);
+  return join(getHomeDir(), ".pi", "status", `${statusFileName(normalizeSnapshotCwd(cwd))}.ops.json`);
 }
 
 export function makeOpsTaskStateFile(cwd: string): string {
-  return join(homedir(), ".pi", "status", `${statusFileName(normalizeSnapshotCwd(cwd))}.task.json`);
+  return join(getHomeDir(), ".pi", "status", `${statusFileName(normalizeSnapshotCwd(cwd))}.task.json`);
 }
 
 function normalizeTask(snapshot: OpsSnapshot): OpsSnapshotTask {
