@@ -113,4 +113,12 @@ function M.show_mode(command_mode)
   )
 end
 
+function M.set_mode_simple()
+  M.show_mode("simple")
+end
+
+function M.set_mode_standard()
+  M.show_mode("standard")
+end
+
 return M

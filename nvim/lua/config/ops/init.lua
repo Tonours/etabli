@@ -38,6 +38,8 @@ M.open_handoff = actions.open_handoff
 M.resume = actions.resume
 M.show_doctor = actions.show_doctor
 M.show_mode = actions.show_mode
+M.set_mode_simple = actions.set_mode_simple
+M.set_mode_standard = actions.set_mode_standard
 
 function M.setup_commands()
   if commands_registered then
@@ -91,6 +93,14 @@ function M.setup_commands()
       return mode.modes()
     end,
   })
+
+  vim.api.nvim_create_user_command("OPSModeSimple", function()
+    M.set_mode_simple()
+  end, { desc = "Set OPS mode to simple (main + worker)" })
+
+  vim.api.nvim_create_user_command("OPSModeStandard", function()
+    M.set_mode_standard()
+  end, { desc = "Set OPS mode to standard (main + scout + worker + reviewer)" })
 
   local group = vim.api.nvim_create_augroup("etabli_ops_runtime", { clear = true })
   vim.api.nvim_create_autocmd({ "DirChanged", "BufWritePost" }, {
