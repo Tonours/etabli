@@ -55,6 +55,9 @@ OPS cockpit:
 - `:OPSDoctor` reports `PASS|WARN|FAIL` checks for repo, session, plan, runtime, review, handoff, and mode
 - `:OPSRefreshReview` runs the explicit live diff refresh path and updates the current review blocker summary
 - `:OPSMode` shows or sets the current OPS operating mode (`simple`, `standard`)
+- `:OPSModeSimple` quickly sets mode to simple (main + worker only)
+- `:OPSModeStandard` quickly sets mode to standard (main + scout + worker + reviewer)
+- `<leader>aM` toggles between simple and standard mode
 - `:OPSOpenPlan` opens `PLAN.md` in the current buffer and warns if the file is partial/invalid
 - `:OPSHandoff` opens `.pi/handoff-implement.md`, then `.pi/handoff.md`
 - `:OPSReview` opens the review inbox directly

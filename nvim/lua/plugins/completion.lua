@@ -118,6 +118,18 @@ local function setup_copilot_cmp()
   local copilot_cmp = require("copilot_cmp")
   copilot_cmp.setup()
 
+  -- Add copilot source to cmp after setup
+  local cmp = require("cmp")
+  cmp.setup.filetype("*", {
+    sources = cmp.config.sources({
+      { name = "nvim_lsp", max_item_count = 20 },
+      { name = "copilot", max_item_count = 3 },
+      { name = "path", max_item_count = 10 },
+    }, {
+      { name = "buffer", max_item_count = 10, keyword_length = 3 },
+    }),
+  })
+
   local group = vim.api.nvim_create_augroup("etabli_copilot_cmp", { clear = true })
   vim.api.nvim_create_autocmd("LspAttach", {
     group = group,
@@ -133,14 +145,26 @@ local function setup_copilot_cmp()
 end
 
 local copilot_cmp_ready = false
+local copilot_cmp_setup_timer = nil
 
 local function maybe_setup_copilot_cmp()
   if copilot_cmp_ready or vim.bo.filetype == "markdown" then
     return
   end
 
+  -- Cancel any pending setup
+  if copilot_cmp_setup_timer then
+    vim.fn.timer_stop(copilot_cmp_setup_timer)
+    copilot_cmp_setup_timer = nil
+  end
+
   copilot_cmp_ready = true
-  setup_copilot_cmp()
+
+  -- Defer setup to not block InsertEnter
+  copilot_cmp_setup_timer = vim.defer_fn(function()
+    copilot_cmp_setup_timer = nil
+    setup_copilot_cmp()
+  end, 50)
 end
 
 return {
@@ -176,7 +200,9 @@ return {
     dependencies = {
       "zbirenbaum/copilot.lua",
     },
+    -- Setup is triggered async from autocmds.lua on first InsertEnter
     config = function()
+      -- Defer to prevent blocking startup
       vim.schedule(maybe_setup_copilot_cmp)
     end,
   },
@@ -201,12 +227,8 @@ return {
     config = function()
       local cmp = require("cmp")
 
-      if vim.bo.filetype ~= "markdown" then
-        local ok_lazy, lazy = pcall(require, "lazy")
-        if ok_lazy then
-          lazy.load({ plugins = { "copilot-cmp" } })
-        end
-      end
+      -- copilot-cmp is now loaded asynchronously via autocmd
+      -- No need to force load here - it would block InsertEnter
 
       cmp.setup({
         completion = {
@@ -230,7 +252,7 @@ return {
         sources = cmp.config.sources({
           { name = "nvim_lsp", max_item_count = 20 },
           { name = "path", max_item_count = 10 },
-          { name = "copilot", max_item_count = 3 },
+          -- copilot source will be added async after plugin loads
         }, {
           { name = "buffer", max_item_count = 10, keyword_length = 3 },
         }),
