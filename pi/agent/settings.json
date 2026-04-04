@@ -30,6 +30,25 @@
       "extensions": [],
       "prompts": [],
       "themes": []
+    },
+    {
+      "source": "local:etabli-workflow",
+      "extensions": [
+        "fast-handoff.ts",
+        "tilldone-ops-sync.ts",
+        "review-plan-bridge.ts",
+        "auto-validate.ts",
+        "workflow-metrics.ts",
+        "project-switcher.ts",
+        "task-templates.ts",
+        "auto-resume.ts",
+        "scope-guard.ts",
+        "pre-flight.ts",
+        "smart-context.ts",
+        "health-check.ts",
+        "error-recovery.ts",
+        "context-help.ts"
+      ]
     }
   ],
   "lsp": {

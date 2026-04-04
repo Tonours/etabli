@@ -229,11 +229,26 @@ function M.resume_lines(cwd, session_state)
   return lines
 end
 
+local function tilldone_label()
+  local ok, tilldone = pcall(require, "config.ops.tilldone")
+  if not ok then
+    return nil
+  end
+  
+  local status = tilldone.get_statusline()
+  return status
+end
+
 function M.statusline_label()
   local plan = state.plan_state(vim.fn.getcwd())
   local runtime = state.runtime_state(vim.fn.getcwd())
 
   if not plan.exists and not runtime.exists then
+    -- Still show TillDone if available
+    local td = tilldone_label()
+    if td then
+      return td
+    end
     return ""
   end
 
@@ -247,6 +262,12 @@ function M.statusline_label()
   end
   if runtime.phase then
     table.insert(parts, runtime.phase)
+  end
+  
+  -- Add TillDone info if available
+  local td = tilldone_label()
+  if td then
+    table.insert(parts, "| " .. td)
   end
 
   return table.concat(parts, " · ")
