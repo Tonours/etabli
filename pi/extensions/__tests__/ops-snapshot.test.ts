@@ -121,11 +121,43 @@ describe("validateOpsSnapshot", () => {
       updatedAt: "",
       revision: 0,
       paths: {},
-      plan: { state: "broken", warnings: "oops" },
-      review: { state: "bad", mayBeStale: "yes" },
-      runtime: { state: "bad" },
-      handoff: { state: "bad" },
-      mode: { state: "bad" },
+      task: {
+        taskId: "",
+        title: "",
+        repo: "",
+        workspacePath: "",
+        branch: 5,
+        identitySource: "",
+        titleSource: "",
+        lifecycleState: "",
+        mode: "",
+        planStatus: 1,
+        runtimePhase: 2,
+        reviewSummary: "",
+        nextAction: "",
+        activeSlice: 3,
+        completedSlices: "bad",
+        pendingChecks: "bad",
+        lastValidatedState: 4,
+        revision: 0,
+        updatedAt: "",
+      },
+      plan: {
+        state: "broken",
+        path: 1,
+        status: 2,
+        plannedSlice: 3,
+        activeSlice: 4,
+        completedSlices: "oops",
+        pendingChecks: "oops",
+        lastValidatedState: 5,
+        nextRecommendedAction: 6,
+        warnings: "oops",
+      },
+      review: { state: "bad", source: "weird", mayBeStale: "yes", refreshedAt: 1, actionable: -1, line: "", warnings: "oops" },
+      runtime: { state: "bad", source: 1, phase: 2, tool: 3, model: 4, thinking: 5, updatedAt: 6, warnings: "oops" },
+      handoff: { state: "bad", kind: 1, path: 2 },
+      mode: { state: "bad", mode: "", explicit: "no", hint: { roles: "", review: "", scope: "" }, warnings: "oops" },
       nextAction: { value: "", reason: "", derivedFrom: "bad" },
     });
 
@@ -133,10 +165,12 @@ describe("validateOpsSnapshot", () => {
     expect(result.errors).toContain(`OPS snapshot kind must be ${OPS_SNAPSHOT_KIND}`);
     expect(result.errors).toContain(`OPS snapshot version must be ${OPS_SNAPSHOT_VERSION}`);
     expect(result.errors).toContain("OPS snapshot project must be a non-empty string");
+    expect(result.errors).toContain("OPS snapshot task.taskId must be a non-empty string");
+    expect(result.errors).toContain("OPS snapshot plan.completedSlices must be a string array when present");
     expect(result.errors).toContain("OPS snapshot review.state is invalid");
+    expect(result.errors).toContain("OPS snapshot runtime.state is invalid");
     expect(result.errors).toContain("OPS snapshot nextAction.derivedFrom is invalid");
-  });
-});
+  });});
 
 describe("parseOpsSnapshot", () => {
   test("parses and validates JSON content", () => {
@@ -170,6 +204,12 @@ describe("readOpsSnapshotForCwd", () => {
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("missing");
     expect(formatOpsReadError(result)).toContain("no snapshot");
+  });
+
+  test("formats invalid read errors", () => {
+    expect(
+      formatOpsReadError({ ok: false, path: "/tmp/x", reason: "invalid", errors: ["broken snapshot"], value: null }),
+    ).toBe("OPS: broken snapshot");
   });
 
   test("reads a valid snapshot file for a cwd", () => {
