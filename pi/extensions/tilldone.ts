@@ -1,7 +1,7 @@
 /**
  * TillDone — Task-driven discipline gate.
  *
- * Forces the agent to define tasks before using any tools, and nudges it to
+ * Forces the agent to define tasks before using write/edit/bash-modifying tools, and nudges it to
  * continue when incomplete tasks remain. Three-state lifecycle: idle → inprogress → done.
  *
  * Gate rules:
@@ -694,8 +694,86 @@ export default function (pi: ExtensionAPI) {
 
   // ── Blocking gate ────────────────────────────────────────────────────
 
+  // Read-only tools that never need a task context — reconnaissance,
+  // reading files, checking diagnostics. Blocking these creates frustrating
+  // loops where the model can't even gather context to plan its tasks.
+  const READ_ONLY_TOOLS: Set<string> = new Set([
+    "read",
+    "lsp",
+    "pi_setup_check",
+    "health_check",
+    "plan_state_read",
+    "review_state_read",
+    "tilldone_ops_read",
+    "workflow_metrics_read",
+    "context_budget_read",
+    "help_get",
+    "smart_suggest",
+    "task_template_list",
+    "task_template_get",
+    "subagent_list",
+    "validate",
+  ]);
+
+  // Read-only bash command prefixes — reconnaissance that shouldn't be gated.
+  const READ_ONLY_BASH_PREFIXES: string[] = [
+    "git status",
+    "git branch",
+    "git log",
+    "git diff",
+    "git show",
+    "git rev-parse",
+    "git merge-base",
+    "git remote",
+    "git stash list",
+    "git tag",
+    "ls",
+    "find ",
+    "cat ",
+    "head ",
+    "grep ",
+    "rg ",
+    "fd ",
+    "which ",
+    "echo ",
+    "pwd",
+    "wc ",
+    "file ",
+    "stat ",
+    "du ",
+    "df ",
+    "uname",
+    "basename ",
+    "dirname ",
+    "realpath ",
+    "readlink ",
+    "tree ",
+    "tsc --noEmit",
+    "bun test",
+    "pnpm test",
+    "pnpm typecheck",
+  ];
+
+  function isReadOnlyBash(command: string): boolean {
+    const cmd = command.trim();
+    return READ_ONLY_BASH_PREFIXES.some((prefix) => cmd.startsWith(prefix) || cmd === prefix);
+  }
+
   pi.on("tool_call", async (event) => {
     if (event.toolName === "tilldone") return { block: false };
+
+    // Never block read-only tools — the agent needs these to plan tasks.
+    if (READ_ONLY_TOOLS.has(event.toolName)) return { block: false };
+
+    // Bash commands that are purely read-only reconnaissance are exempt.
+    if (event.toolName === "bash" && event.args?.command) {
+      if (isReadOnlyBash(String(event.args.command))) return { block: false };
+    }
+
+    // Subagents (scout/reviewer) are read-only reconnaissance — exempt.
+    if (event.toolName === "subagent_create" || event.toolName === "subagent_continue") {
+      return { block: false };
+    }
 
     const pending = tasks.filter((t) => t.status !== "done");
     const active = tasks.filter((t) => t.status === "inprogress");
@@ -704,21 +782,21 @@ export default function (pi: ExtensionAPI) {
       return {
         block: true,
         reason:
-          "No TillDone tasks defined. You MUST use `tilldone new-list` or `tilldone add` to define your tasks before using any other tools. Plan your work first!",
+          "No TillDone tasks defined. You MUST use `tilldone new-list` or `tilldone add` to define your tasks before using write/edit/bash-modifying tools. Plan your work first!",
       };
     }
     if (pending.length === 0) {
       return {
         block: true,
         reason:
-          "All TillDone tasks are done. You MUST use `tilldone add` for new tasks or `tilldone new-list` to start a fresh list before using any other tools.",
+          "All TillDone tasks are done. You MUST use `tilldone add` for new tasks or `tilldone new-list` to start a fresh list before using write/edit/bash-modifying tools.",
       };
     }
     if (active.length === 0) {
       return {
         block: true,
         reason:
-          "No task is in progress. You MUST use `tilldone toggle` to mark a task as inprogress before doing any work.",
+          "No task is in progress. You MUST use `tilldone toggle` to mark a task as inprogress before doing any write/edit/bash-modifying work.",
       };
     }
 
@@ -760,7 +838,7 @@ export default function (pi: ExtensionAPI) {
     name: "tilldone",
     label: "TillDone",
     description:
-      "Manage your task list. You MUST add tasks before using any other tools. " +
+      "Manage your task list. You MUST add tasks before using write/edit/bash-modifying tools (read-only tools like read, lsp, git status, ls are exempt). " +
       "Actions: new-list (text=title, description, optional texts[] seed tasks), add (text or texts[] for batch), " +
       "toggle (id) — cycles idle→inprogress→done, remove (id), update (id + text), list, clear, undo. " +
       "Task text is normalized, vague/duplicate tasks are skipped, and lists are capped at 7 tasks. " +
