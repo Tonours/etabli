@@ -1,5 +1,30 @@
 local group = vim.api.nvim_create_augroup("etabli_core", { clear = true })
 
+-- Async copilot-cmp setup: defer loading until after first InsertEnter
+-- This prevents the 250ms+ blocking delay on first insertion
+local copilot_cmp_setup_done = false
+vim.api.nvim_create_autocmd("InsertEnter", {
+  group = group,
+  once = true,
+  callback = function()
+    if copilot_cmp_setup_done or vim.bo.filetype == "markdown" then
+      return
+    end
+    -- Defer by 150ms to allow immediate insertion response
+    vim.defer_fn(function()
+      if copilot_cmp_setup_done then
+        return
+      end
+      copilot_cmp_setup_done = true
+      -- Lazy-load copilot-cmp without blocking
+      local ok_lazy, lazy = pcall(require, "lazy")
+      if ok_lazy then
+        lazy.load({ plugins = { "copilot-cmp" } })
+      end
+    end, 150)
+  end,
+})
+
 vim.api.nvim_create_autocmd("TextYankPost", {
   group = group,
   callback = function()

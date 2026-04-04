@@ -17,6 +17,20 @@ return {
         local lang = "glimmer"
         vim.treesitter.language.register(lang, { "hbs", "handlebars" })
       end)
+
+      -- Defer markdown parser registration to not block file opening
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "markdown",
+        once = true,
+        callback = function(args)
+          -- Defer markdown parser loading by 50ms to prioritize editing
+          vim.defer_fn(function()
+            if vim.api.nvim_buf_is_valid(args.buf) and vim.bo[args.buf].filetype == "markdown" then
+              pcall(vim.treesitter.start, args.buf, "markdown")
+            end
+          end, 50)
+        end,
+      })
     end,
     config = function()
       require("nvim-treesitter").setup()
