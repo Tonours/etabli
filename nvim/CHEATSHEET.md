@@ -37,6 +37,9 @@ Leader: `<Space>`
 - OPS doctor: `<leader>pd` or `:OPSDoctor`
 - OPS refresh review: `<leader>pf` or `:OPSRefreshReview`
 - OPS mode: `<leader>pm` or `:OPSMode [simple|standard]`
+- OPS mode toggle: `<leader>aM` (switch between simple/standard)
+- OPS mode simple: `:OPSModeSimple`
+- OPS mode standard: `:OPSModeStandard`
 - OPS open plan: `<leader>po` or `:OPSOpenPlan`
 - OPS handoff: `<leader>ph` or `:OPSHandoff`
 - OPS review: `<leader>pR` or `:OPSReview`
@@ -86,6 +89,7 @@ Leader: `<Space>`
 
 - inbox: `<leader>ri` or `:ReviewInbox [status]`
 - current hunk: `<leader>rh` preview, `<leader>ra` annotate, `<leader>rs` status, `<leader>rA` accept
+- navigate hunks: `[h` previous, `]h` next (like diagnostics)
 - Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
 - Pi hunk actions: `<leader>rp` revise, `<leader>rP` explain
 - batch rework: `<leader>rbc`, `<leader>rbp`

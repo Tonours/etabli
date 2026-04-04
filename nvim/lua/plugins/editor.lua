@@ -44,7 +44,24 @@ return {
     "MeanderingProgrammer/render-markdown.nvim",
     ft = "markdown",
     dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
-    opts = {},
+    -- Defer setup to not block file opening
+    init = function()
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "markdown",
+        once = true,
+        callback = function(args)
+          -- Defer render-markdown setup to allow immediate editing
+          vim.defer_fn(function()
+            if vim.api.nvim_buf_is_valid(args.buf) and vim.bo[args.buf].filetype == "markdown" then
+              require("render-markdown").setup({})
+              require("render-markdown").enable(args.buf)
+            end
+          end, 50)
+        end,
+      })
+    end,
+    -- Disable auto-setup - we handle it manually in init
+    config = function() end,
   },
   {
     "nvim-tree/nvim-web-devicons",
@@ -65,7 +82,29 @@ return {
   },
   {
     "lewis6991/gitsigns.nvim",
-    event = { "BufReadPre", "BufNewFile" },
+    -- Defer loading to not block file opening
+    event = "VeryLazy",
+    init = function()
+      -- Schedule gitsigns attach after buffer is fully loaded
+      vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
+        group = vim.api.nvim_create_augroup("etabli_gitsigns_lazy", { clear = true }),
+        callback = function(args)
+          -- Skip if not a file or special buffer
+          if vim.bo[args.buf].buftype ~= "" or not vim.bo[args.buf].buflisted then
+            return
+          end
+          -- Defer gitsigns attach by 100ms to prioritize editing responsiveness
+          vim.defer_fn(function()
+            if vim.api.nvim_buf_is_valid(args.buf) then
+              local ok, gitsigns = pcall(require, "gitsigns")
+              if ok then
+                gitsigns.attach(args.buf)
+              end
+            end
+          end, 100)
+        end,
+      })
+    end,
     opts = {
       current_line_blame = true,
       current_line_blame_opts = {
