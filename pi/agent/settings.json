@@ -6,6 +6,22 @@
         "!uv.ts",
         "-pi-extensions/go-to-bed.ts",
         "-pi-extensions/session-breakdown.ts"
+      ],
+      "skills": [
+        "github",
+        "commit",
+        "summarize",
+        "update-changelog",
+        "native-web-search",
+        "web-browser",
+        "librarian",
+        "tmux",
+        "pi-share",
+        "mermaid",
+        "frontend-design",
+        "sentry",
+        "apple-mail",
+        "google-workspace"
       ]
     },
     "npm:checkpoint",
