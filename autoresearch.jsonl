@@ -1,1 +1,2 @@
 {"type":"config","name":"nvim startup optimization","metricName":"startup_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":1,"commit":"c3ac460","metric":15.7,"metrics":{},"status":"keep","description":"Baseline: average of 5 runs (26.6/17.7/15.3/16.6/15.4), cold run excluded → ~15.7ms","timestamp":1775594790823,"segment":0,"confidence":null,"iterationTokens":139,"asi":{"hypothesis":"baseline measurement"}}
