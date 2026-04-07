@@ -51,8 +51,8 @@ return {
     event = "UIEnter",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = function()
-      -- Lazy-load statusline module only when lualine initializes
       local statusline = require("config.statusline")
+      local ops = require("config.ops")
       return {
         options = {
           theme = "catppuccin-mocha",
@@ -99,13 +99,13 @@ return {
           lualine_x = {
             {
               function()
-                return require("config.ops").statusline_label()
+                return ops.statusline_label()
               end,
               color = function()
-                return require("config.ops").statusline_color()
+                return ops.statusline_color()
               end,
               cond = function()
-                return require("config.ops").statusline_label() ~= ""
+                return ops.statusline_label() ~= ""
               end,
             },
             "diagnostics",
