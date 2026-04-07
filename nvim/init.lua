@@ -69,31 +69,33 @@ lazy_cmd("ReviewPiBatch", "config.review", "cmd_pi_batch", {
   desc = "Prepare one Pi prompt for all hunks with a review status", nargs = "?",
 })
 
+local function load_catppuccin()
+  if vim.g.etabli_catppuccin_loaded then
+    return
+  end
+
+  local ok, lazy = pcall(require, "lazy")
+  if not ok then
+    return
+  end
+
+  lazy.load({ plugins = { "catppuccin" } })
+  vim.g.etabli_catppuccin_loaded = true
+end
+
 -- Priority 1: keymaps needed for immediate editing
 vim.schedule(function()
   require("config.keymaps")
 end)
 
--- Priority 2: project features (deferred to avoid blocking first paint)
-vim.defer_fn(function()
-  require("config.projects").setup()
-  require("config.project_runtime").setup()
-end, 10)
-
--- Priority 3: ops/review runtime (only needed when explicitly invoked, but setup hooks early)
-vim.defer_fn(function()
-  require("config.ops").setup_runtime()
-  require("config.review").setup()
-end, 50)
-
--- Load colorscheme after UI is ready
-vim.api.nvim_create_autocmd("UIEnter", {
+vim.api.nvim_create_autocmd("User", {
+  pattern = "VeryLazy",
   once = true,
   callback = function()
-    local ok, lazy = pcall(require, "lazy")
-    if ok then
-      lazy.load({ plugins = { "catppuccin" } })
-    end
+    require("config.projects").setup()
+    require("config.project_runtime").setup()
+    require("config.ops").setup_runtime()
+    require("config.review").setup()
   end,
 })
 
@@ -134,3 +136,12 @@ require("lazy").setup("plugins", {
     },
   },
 })
+
+if #vim.api.nvim_list_uis() == 0 then
+  load_catppuccin()
+else
+  vim.api.nvim_create_autocmd("UIEnter", {
+    once = true,
+    callback = load_catppuccin,
+  })
+end

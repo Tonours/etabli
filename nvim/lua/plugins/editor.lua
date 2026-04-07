@@ -101,7 +101,7 @@ return {
                 gitsigns.attach(args.buf)
               end
             end
-          end, 100)
+          end, 200)
         end,
       })
     end,

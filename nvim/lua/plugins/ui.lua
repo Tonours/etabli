@@ -51,7 +51,17 @@ return {
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = function()
       local statusline = require("config.statusline")
-      local ops = require("config.ops")
+
+      local function ops_label()
+        local ops = package.loaded["config.ops"]
+        return ops and ops.statusline_label() or ""
+      end
+
+      local function ops_color()
+        local ops = package.loaded["config.ops"]
+        return ops and ops.statusline_color() or {}
+      end
+
       return {
         options = {
           theme = "catppuccin-mocha",
@@ -97,14 +107,10 @@ return {
           },
           lualine_x = {
             {
-              function()
-                return ops.statusline_label()
-              end,
-              color = function()
-                return ops.statusline_color()
-              end,
+              ops_label,
+              color = ops_color,
               cond = function()
-                return ops.statusline_label() ~= ""
+                return ops_label() ~= ""
               end,
             },
             "diagnostics",
