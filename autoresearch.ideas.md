@@ -1,0 +1,3 @@
+- Explore a lightweight startup theme path: keep a minimal dark fallback for the first frame, then load full Catppuccin after startup without visible flash.
+- Investigate whether lazy.nvim startup overhead can be reduced with a custom slim spec loader or a different plugin bootstrap strategy; current plateau suggests lazy internals are now one of the main remaining costs.
+- Consider a dual-mode config: aggressively optimized startup path for empty launches and a separate first-file path for language features, measured with real editing tasks rather than only `+quit` startup.
