@@ -665,6 +665,16 @@ if [ -d ~/.pi/npm/node_modules ] && [ -d "$REPO_DIR/pi/extensions" ]; then
     print_success "Pi extensions node_modules linked"
 fi
 
+# Apply tracked patch-package overrides for globally installed Pi packages (e.g. mitsupi)
+if [ -x "$REPO_DIR/scripts/apply-pi-package-patches.sh" ]; then
+    print_step "Applying Pi package patches..."
+    if "$REPO_DIR/scripts/apply-pi-package-patches.sh"; then
+        print_success "Pi package patches applied"
+    else
+        print_warning "Pi package patches failed to apply"
+    fi
+fi
+
 # ============================================================================
 # SETUP TILING WM (macOS only)
 # ============================================================================
@@ -737,6 +747,7 @@ export PATH="$HOME/.local/bin:$PATH"
 install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "iterm2-tmux.sh" || true
+install_script "fix-links" || true
 
 if [[ "$OS" == "mac" ]]; then
     install_script "open-iterm2.sh" || true

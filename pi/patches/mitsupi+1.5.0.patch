@@ -1,0 +1,236 @@
+diff --git a/node_modules/mitsupi/pi-extensions/answer.ts b/node_modules/mitsupi/pi-extensions/answer.ts
+index 5a66ff1..be14acf 100644
+--- a/node_modules/mitsupi/pi-extensions/answer.ts
++++ b/node_modules/mitsupi/pi-extensions/answer.ts
+@@ -70,6 +70,22 @@ Example output:
+ const CODEX_MODEL_ID = "gpt-5.1-codex-mini";
+ const HAIKU_MODEL_ID = "claude-haiku-4-5";
+ 
++async function getModelAuth(
++	modelRegistry: {
++		getApiKeyAndHeaders: (model: Model<Api>) => Promise<{
++			ok: boolean;
++			apiKey?: string;
++			headers?: Record<string, string>;
++			error?: string;
++		}>;
++	},
++	model: Model<Api>,
++): Promise<{ apiKey?: string; headers?: Record<string, string> } | null> {
++	const auth = await modelRegistry.getApiKeyAndHeaders(model);
++	if (!auth.ok) return null;
++	return { apiKey: auth.apiKey, headers: auth.headers };
++}
++
+ /**
+  * Prefer Codex mini for extraction when available, otherwise fallback to haiku or the current model.
+  */
+@@ -77,13 +93,18 @@ async function selectExtractionModel(
+ 	currentModel: Model<Api>,
+ 	modelRegistry: {
+ 		find: (provider: string, modelId: string) => Model<Api> | undefined;
+-		getApiKey: (model: Model<Api>) => Promise<string | undefined>;
++		getApiKeyAndHeaders: (model: Model<Api>) => Promise<{
++			ok: boolean;
++			apiKey?: string;
++			headers?: Record<string, string>;
++			error?: string;
++		}>;
+ 	},
+ ): Promise<Model<Api>> {
+ 	const codexModel = modelRegistry.find("openai-codex", CODEX_MODEL_ID);
+ 	if (codexModel) {
+-		const apiKey = await modelRegistry.getApiKey(codexModel);
+-		if (apiKey) {
++		const auth = await getModelAuth(modelRegistry, codexModel);
++		if (auth) {
+ 			return codexModel;
+ 		}
+ 	}
+@@ -93,8 +114,8 @@ async function selectExtractionModel(
+ 		return currentModel;
+ 	}
+ 
+-	const apiKey = await modelRegistry.getApiKey(haikuModel);
+-	if (!apiKey) {
++	const auth = await getModelAuth(modelRegistry, haikuModel);
++	if (!auth) {
+ 		return currentModel;
+ 	}
+ 
+@@ -457,7 +478,11 @@ export default function (pi: ExtensionAPI) {
+ 				loader.onAbort = () => done(null);
+ 
+ 				const doExtract = async () => {
+-					const apiKey = await ctx.modelRegistry.getApiKey(extractionModel);
++					const auth = await getModelAuth(ctx.modelRegistry, extractionModel);
++					if (!auth) {
++						done(null);
++						return;
++					}
+ 					const userMessage: UserMessage = {
+ 						role: "user",
+ 						content: [{ type: "text", text: lastAssistantText! }],
+@@ -467,7 +492,7 @@ export default function (pi: ExtensionAPI) {
+ 					const response = await complete(
+ 						extractionModel,
+ 						{ systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
+-						{ apiKey, signal: loader.signal },
++						{ apiKey: auth.apiKey, headers: auth.headers, signal: loader.signal },
+ 					);
+ 
+ 					if (response.stopReason === "aborted") {
+diff --git a/node_modules/mitsupi/pi-extensions/control.ts b/node_modules/mitsupi/pi-extensions/control.ts
+index 15e7d2f..c9c1a7a 100644
+--- a/node_modules/mitsupi/pi-extensions/control.ts
++++ b/node_modules/mitsupi/pi-extensions/control.ts
+@@ -163,23 +163,44 @@ const TURN_SUMMARY_PROMPT = `Summarize what happened in this conversation since
+ 
+ Be concise but comprehensive. Preserve exact file paths, function names, and error messages.`;
+ 
++async function getModelAuth(
++	modelRegistry: {
++		getApiKeyAndHeaders: (model: Model<Api>) => Promise<{
++			ok: boolean;
++			apiKey?: string;
++			headers?: Record<string, string>;
++			error?: string;
++		}>;
++	},
++	model: Model<Api>,
++): Promise<{ apiKey?: string; headers?: Record<string, string> } | null> {
++	const auth = await modelRegistry.getApiKeyAndHeaders(model);
++	if (!auth.ok) return null;
++	return { apiKey: auth.apiKey, headers: auth.headers };
++}
++
+ async function selectSummarizationModel(
+ 	currentModel: Model<Api> | undefined,
+ 	modelRegistry: {
+ 		find: (provider: string, modelId: string) => Model<Api> | undefined;
+-		getApiKey: (model: Model<Api>) => Promise<string | undefined>;
++		getApiKeyAndHeaders: (model: Model<Api>) => Promise<{
++			ok: boolean;
++			apiKey?: string;
++			headers?: Record<string, string>;
++			error?: string;
++		}>;
+ 	},
+ ): Promise<Model<Api> | undefined> {
+ 	const codexModel = modelRegistry.find("openai-codex", CODEX_MODEL_ID);
+ 	if (codexModel) {
+-		const apiKey = await modelRegistry.getApiKey(codexModel);
+-		if (apiKey) return codexModel;
++		const auth = await getModelAuth(modelRegistry, codexModel);
++		if (auth) return codexModel;
+ 	}
+ 
+ 	const haikuModel = modelRegistry.find("anthropic", HAIKU_MODEL_ID);
+ 	if (haikuModel) {
+-		const apiKey = await modelRegistry.getApiKey(haikuModel);
+-		if (apiKey) return haikuModel;
++		const auth = await getModelAuth(modelRegistry, haikuModel);
++		if (auth) return haikuModel;
+ 	}
+ 
+ 	return currentModel;
+@@ -657,8 +678,8 @@ async function handleCommand(
+ 			return;
+ 		}
+ 
+-		const apiKey = await ctx.modelRegistry.getApiKey(model);
+-		if (!apiKey) {
++		const auth = await getModelAuth(ctx.modelRegistry, model);
++		if (!auth) {
+ 			respond(false, "get_summary", undefined, "No API key available for summarization model");
+ 			return;
+ 		}
+@@ -677,7 +698,7 @@ async function handleCommand(
+ 			const response = await complete(
+ 				model,
+ 				{ systemPrompt: SUMMARIZATION_SYSTEM_PROMPT, messages: [userMessage] },
+-				{ apiKey },
++				{ apiKey: auth.apiKey, headers: auth.headers },
+ 			);
+ 
+ 			if (response.stopReason === "aborted" || response.stopReason === "error") {
+diff --git a/node_modules/mitsupi/pi-extensions/loop.ts b/node_modules/mitsupi/pi-extensions/loop.ts
+index 5c93d99..996fa58 100644
+--- a/node_modules/mitsupi/pi-extensions/loop.ts
++++ b/node_modules/mitsupi/pi-extensions/loop.ts
+@@ -85,24 +85,33 @@ function getConditionText(mode: LoopMode, condition?: string): string {
+ 	}
+ }
+ 
++async function getModelAuth(
++	ctx: ExtensionContext,
++	model: Model<Api>,
++): Promise<{ apiKey?: string; headers?: Record<string, string> } | null> {
++	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
++	if (!auth.ok) return null;
++	return { apiKey: auth.apiKey, headers: auth.headers };
++}
++
+ async function selectSummaryModel(
+ 	ctx: ExtensionContext,
+-): Promise<{ model: Model<Api>; apiKey: string } | null> {
++): Promise<{ model: Model<Api>; apiKey?: string; headers?: Record<string, string> } | null> {
+ 	if (!ctx.model) return null;
+ 
+ 	if (ctx.model.provider === "anthropic") {
+ 		const haikuModel = ctx.modelRegistry.find("anthropic", HAIKU_MODEL_ID);
+ 		if (haikuModel) {
+-			const apiKey = await ctx.modelRegistry.getApiKey(haikuModel);
+-			if (apiKey) {
+-				return { model: haikuModel, apiKey };
++			const auth = await getModelAuth(ctx, haikuModel);
++			if (auth) {
++				return { model: haikuModel, ...auth };
+ 			}
+ 		}
+ 	}
+ 
+-	const apiKey = await ctx.modelRegistry.getApiKey(ctx.model);
+-	if (!apiKey) return null;
+-	return { model: ctx.model, apiKey };
++	const auth = await getModelAuth(ctx, ctx.model);
++	if (!auth) return null;
++	return { model: ctx.model, ...auth };
+ }
+ 
+ async function summarizeBreakoutCondition(
+@@ -124,7 +133,7 @@ async function summarizeBreakoutCondition(
+ 	const response = await complete(
+ 		selection.model,
+ 		{ systemPrompt: SUMMARY_SYSTEM_PROMPT, messages: [userMessage] },
+-		{ apiKey: selection.apiKey },
++		{ apiKey: selection.apiKey, headers: selection.headers },
+ 	);
+ 
+ 	if (response.stopReason === "aborted" || response.stopReason === "error") {
+@@ -400,15 +409,22 @@ export default function loopExtension(pi: ExtensionAPI): void {
+ 
+ 	pi.on("session_before_compact", async (event, ctx) => {
+ 		if (!loopState.active || !loopState.mode || !ctx.model) return;
+-		const apiKey = await ctx.modelRegistry.getApiKey(ctx.model);
+-		if (!apiKey) return;
++		const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
++		if (!auth.ok) return;
+ 
+ 		const instructionParts = [event.customInstructions, getCompactionInstructions(loopState.mode, loopState.condition)]
+ 			.filter(Boolean)
+ 			.join("\n\n");
+ 
+ 		try {
+-			const compaction = await compact(event.preparation, ctx.model, apiKey, instructionParts, event.signal);
++			const compaction = await compact(
++				event.preparation,
++				ctx.model,
++				auth.apiKey,
++				auth.headers,
++				instructionParts,
++				event.signal,
++			);
+ 			return { compaction };
+ 		} catch (error) {
+ 			if (ctx.hasUI) {

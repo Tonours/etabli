@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+TARGET="$SCRIPT_DIR/check-fix-symlinks.sh"
+
+case "${1:-}" in
+  "")
+    exec "$TARGET" --fix --verbose
+    ;;
+  check)
+    shift
+    exec "$TARGET" --verbose "$@"
+    ;;
+  fix)
+    shift
+    exec "$TARGET" --fix --verbose "$@"
+    ;;
+  *)
+    exec "$TARGET" "$@"
+    ;;
+esac

@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FIX=0
+VERBOSE=0
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+ISSUES=0
+FIXED=0
+OS="$(uname -s)"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--fix] [--verbose]
+
+Checks key local symlinks for this repo.
+
+Options:
+  --fix      Repair broken/wrong symlinks in place
+  --verbose  Show ok entries too
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --fix) FIX=1 ;;
+    --verbose) VERBOSE=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $1" >&2; usage; exit 1 ;;
+  esac
+  shift
+done
+
+status_line() {
+  local status="$1"
+  local message="$2"
+  printf '%-6s %s\n' "$status" "$message"
+}
+
+ensure_parent_dir() {
+  local path="$1"
+  mkdir -p "$(dirname "$path")"
+}
+
+repair_link() {
+  local link_path="$1"
+  local target_path="$2"
+  local type_label="$3"
+
+  ensure_parent_dir "$link_path"
+
+  if [ -e "$link_path" ] && [ ! -L "$link_path" ]; then
+    local backup_path="${link_path}.bak.${TIMESTAMP}"
+    mv "$link_path" "$backup_path"
+    status_line BACKUP "$type_label moved to $backup_path"
+  else
+    rm -rf "$link_path"
+  fi
+
+  ln -sfn "$target_path" "$link_path"
+  FIXED=$((FIXED + 1))
+  status_line FIXED "$type_label -> $target_path"
+}
+
+check_link() {
+  local link_path="$1"
+  local target_path="$2"
+  local type_label="$3"
+  local current=""
+
+  if [ -L "$link_path" ]; then
+    current="$(readlink "$link_path")"
+    if [ "$current" = "$target_path" ] && [ -e "$link_path" ]; then
+      if [ "$VERBOSE" -eq 1 ]; then
+        status_line OK "$type_label -> $current"
+      fi
+      return 0
+    fi
+  fi
+
+  ISSUES=$((ISSUES + 1))
+  if [ -L "$link_path" ]; then
+    status_line WARN "$type_label -> ${current:-<unknown>} (expected $target_path)"
+  elif [ -e "$link_path" ]; then
+    status_line WARN "$type_label exists but is not a symlink (expected $target_path)"
+  else
+    status_line WARN "$type_label missing (expected $target_path)"
+  fi
+
+  if [ "$FIX" -eq 1 ]; then
+    repair_link "$link_path" "$target_path" "$type_label"
+  fi
+}
+
+check_script_link() {
+  local script_name="$1"
+  local link_path="$HOME/.local/bin/$script_name"
+  local target_path="$REPO_DIR/scripts/$script_name"
+
+  if [ -f "$target_path" ]; then
+    check_link "$link_path" "$target_path" "script $script_name"
+  fi
+}
+
+check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
+check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
+check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
+check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
+check_link "$HOME/.pi/settings.json" "$REPO_DIR/pi/settings.json" "pi settings.json"
+check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
+check_link "$HOME/.pi/damage-control-rules.json" "$REPO_DIR/pi/damage-control-rules.json" "pi damage-control-rules.json"
+check_link "$REPO_DIR/pi/extensions/node_modules" "$HOME/.pi/npm/node_modules" "pi/extensions/node_modules"
+
+check_script_link "dev-spawn"
+check_script_link "tmux-clipboard.sh"
+check_script_link "iterm2-tmux.sh"
+check_script_link "fix-links"
+
+if [ "$OS" = "Darwin" ]; then
+  check_script_link "open-iterm2.sh"
+  check_script_link "macos-optimize.sh"
+  check_script_link "macos-disk-clean.sh"
+  check_script_link "mem-status"
+  check_script_link "tiling-toggle.sh"
+  check_script_link "yabai-space-local.sh"
+  check_script_link "yabai-sudoers-update.sh"
+fi
+
+printf '\nSummary: %d issue(s), %d fix(es) applied\n' "$ISSUES" "$FIXED"
+
+if [ "$ISSUES" -gt 0 ] && [ "$FIX" -eq 0 ]; then
+  exit 1
+fi
