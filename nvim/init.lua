@@ -1,7 +1,6 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
--- Optional: Profile startup time (set PROFILE_NVIM=1 to enable)
 if vim.env.PROFILE_NVIM == "1" then
   vim.api.nvim_create_autocmd("User", {
     pattern = "LazyDone",
@@ -18,14 +17,12 @@ require("config.options")
 require("config.autocmds")
 require("config.project_runtime").setup_commands()
 
--- Helper: register a user command that lazy-loads its module on first invocation
 local function lazy_cmd(name, module, fn, opts)
   vim.api.nvim_create_user_command(name, function(cmd_opts)
     require(module)[fn](cmd_opts)
   end, opts or {})
 end
 
--- Register OPS commands as thin wrappers — module loads only when invoked
 lazy_cmd("OPSStatus", "config.ops", "show_status", { desc = "Show OPS plan/runtime/review status" })
 lazy_cmd("OPS", "config.ops", "show_status", { desc = "Show OPS plan/runtime/review status" })
 lazy_cmd("OPSNext", "config.ops", "show_next", { desc = "Show the next OPS action" })
@@ -44,7 +41,6 @@ lazy_cmd("OPSModeStandard", "config.ops", "set_mode_standard", { desc = "Set OPS
 lazy_cmd("OPSTillDone", "config.ops", "show_tilldone", { desc = "Show TillDone tasks from Pi" })
 lazy_cmd("TillDoneNext", "config.ops", "show_tilldone_next", { desc = "Show next action from TillDone and OPS" })
 
--- Register Review commands as thin wrappers
 lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
   complete = function() return require("config.review.state").statuses() end,
   desc = "Open the review inbox", nargs = "?",
@@ -73,27 +69,34 @@ lazy_cmd("ReviewPiBatch", "config.review", "cmd_pi_batch", {
   desc = "Prepare one Pi prompt for all hunks with a review status", nargs = "?",
 })
 
--- Defer keymaps and heavy module setup to first event loop tick
+-- Priority 1: keymaps needed for immediate editing
 vim.schedule(function()
   require("config.keymaps")
-  require("config.projects").setup()
-  require("config.project_runtime").setup()
-  require("config.ops").setup_runtime()
-  require("config.review").setup()
 end)
 
+-- Priority 2: project features (deferred to avoid blocking first paint)
+vim.defer_fn(function()
+  require("config.projects").setup()
+  require("config.project_runtime").setup()
+end, 10)
+
+-- Priority 3: ops/review runtime (only needed when explicitly invoked, but setup hooks early)
+vim.defer_fn(function()
+  require("config.ops").setup_runtime()
+  require("config.review").setup()
+end, 50)
+
 -- Load colorscheme after UI is ready
-vim.api.nvim_create_autocmd('UIEnter', {
+vim.api.nvim_create_autocmd("UIEnter", {
   once = true,
   callback = function()
-    local ok, lazy = pcall(require, 'lazy')
+    local ok, lazy = pcall(require, "lazy")
     if ok then
-      lazy.load({ plugins = { 'catppuccin' } })
+      lazy.load({ plugins = { "catppuccin" } })
     end
   end,
 })
 
--- Setup lazy.nvim immediately (needed for colorscheme + plugin loading)
 require("lazy").setup("plugins", {
   defaults = {
     lazy = true,
