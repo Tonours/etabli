@@ -25,7 +25,7 @@ local function lazy_cmd(name, module, fn, opts)
   end, opts or {})
 end
 
--- Register OPS commands as thin wrappers — module loads only when invoked (~1.2ms saved)
+-- Register OPS commands as thin wrappers — module loads only when invoked
 lazy_cmd("OPSStatus", "config.ops", "show_status", { desc = "Show OPS plan/runtime/review status" })
 lazy_cmd("OPS", "config.ops", "show_status", { desc = "Show OPS plan/runtime/review status" })
 lazy_cmd("OPSNext", "config.ops", "show_next", { desc = "Show the next OPS action" })
@@ -44,7 +44,7 @@ lazy_cmd("OPSModeStandard", "config.ops", "set_mode_standard", { desc = "Set OPS
 lazy_cmd("OPSTillDone", "config.ops", "show_tilldone", { desc = "Show TillDone tasks from Pi" })
 lazy_cmd("TillDoneNext", "config.ops", "show_tilldone_next", { desc = "Show next action from TillDone and OPS" })
 
--- Register Review commands as thin wrappers (~1.0ms saved)
+-- Register Review commands as thin wrappers
 lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
   complete = function() return require("config.review.state").statuses() end,
   desc = "Open the review inbox", nargs = "?",
@@ -73,7 +73,7 @@ lazy_cmd("ReviewPiBatch", "config.review", "cmd_pi_batch", {
   desc = "Prepare one Pi prompt for all hunks with a review status", nargs = "?",
 })
 
--- Defer keymaps (vim.diagnostic costs ~0.8ms) and heavy module setup
+-- Defer keymaps and heavy module setup to first event loop tick
 vim.schedule(function()
   require("config.keymaps")
   require("config.projects").setup()
@@ -82,7 +82,7 @@ vim.schedule(function()
   require("config.review").setup()
 end)
 
--- Setup lazy.nvim immediately
+-- Setup lazy.nvim immediately (needed for colorscheme + plugin loading)
 require("lazy").setup("plugins", {
   defaults = {
     lazy = true,
@@ -110,6 +110,8 @@ require("lazy").setup("plugins", {
         "matchparen",
         "netrw",
         "netrwPlugin",
+        "rplugin",
+        "spellfile",
         "tarPlugin",
         "tohtml",
         "tutor",
