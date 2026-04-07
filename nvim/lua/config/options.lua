@@ -1,55 +1,119 @@
 local opt = vim.opt
 
 -- Early performance settings
-vim.g.loaded_python3_provider = 0 -- Disable Python 3 provider (speeds up startup)
-vim.g.loaded_ruby_provider = 0    -- Disable Ruby provider
-vim.g.loaded_perl_provider = 0    -- Disable Perl provider
-vim.g.loaded_node_provider = 0    -- Disable Node provider
+vim.g.loaded_python3_provider = 0
+vim.g.loaded_ruby_provider = 0
+vim.g.loaded_perl_provider = 0
+vim.g.loaded_node_provider = 0
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
 
-opt.clipboard = "unnamedplus"
-opt.completeopt = { "menu", "menuone", "noselect" }
-opt.confirm = true
-opt.cursorline = true
-opt.equalalways = false
-opt.expandtab = true
-opt.fillchars = { eob = " " }
-opt.hidden = true
-opt.hlsearch = false
-opt.ignorecase = true
-opt.incsearch = true
-opt.laststatus = 3
-opt.mouse = "a"
-opt.number = true
-opt.relativenumber = true
-opt.shiftwidth = 2
-opt.showmode = false
-opt.smartcase = true
-opt.smartindent = true
-opt.softtabstop = 2
-opt.splitbelow = true
-opt.splitright = true
-opt.swapfile = false
-opt.tabstop = 2
+-- Batch all simple options in one pass (each vim.opt set has overhead)
+-- Use raw :set commands for maximum speed
+vim.cmd([[
+  set clipboard=unnamedplus
+  set completeopt=menu,menuone,noselect
+  set confirm
+  set cursorline
+  set cursorlineopt=number
+  set noequalalways
+  set expandtab
+  set fillchars=eob:\ 
+  set hidden
+  set nohlsearch
+  set ignorecase
+  set incsearch
+  set laststatus=3
+  set mouse=a
+  set number
+  set relativenumber
+  set shiftwidth=2
+  set noshowmode
+  set smartcase
+  set smartindent
+  set softtabstop=2
+  set splitbelow
+  set splitright
+  set noswapfile
+  set tabstop=2
+  set termguicolors
+  set timeoutlen=300
+  set undofile
+  set updatetime=120
+  set winminwidth=5
+  set nowrap
+  set nolazyredraw
+  set synmaxcol=300
+  set maxmempattern=20000
+  set redrawtime=1500
+  set maxfuncdepth=100
+  set switchbuf=useopen
+  set shortmess+=cC
+  set notitle
+  set nospell
+  set startofline
+  set regexpengine=0
+  set diffopt+=algorithm:patience
+  set jumpoptions=stack
+  set maxmapdepth=1000
+  set noshowcmd
+  set cmdheight=0
+  set laststatus=3
+  set noruler
+  set numberwidth=2
+  set signcolumn=yes:1
+  set pumblend=0
+  set winblend=0
+  set bufhidden=hide
+  set eadirection=hor
+  set previewheight=5
+  set nolinebreak
+  set nobreakindent
+  set nowritebackup
+  set nobackup
+  set noautochdir
+  set autoread
+  set noautowrite
+  set undoreload=10000
+  set updatecount=0
+  set nofsync
+  set noerrorbells
+  set novisualbell
+  set sidescroll=1
+  set sidescrolloff=0
+  set nojoinspaces
+  set nrformats=bin
+  set textwidth=0
+  set wrapmargin=0
+  set nomodeline
+  set modelines=0
+  set history=500
+  set pumheight=6
+  set pumwidth=12
+  set helpheight=10
+  set cmdwinheight=4
+  set scrolljump=8
+  set scrolloff=1
+]])
 
--- Defer tabline setup to avoid loading statusline at startup
+-- Options that need array/table values (can't use :set easily)
+opt.backupskip = opt.backupskip + "*"
+opt.formatoptions = opt.formatoptions - "a" - "o" + "j"
+opt.sessionoptions = "buffers,curdir,folds,help,tabpages,localoptions"
+opt.viewoptions = "cursor,folds,options"
+
+-- Defer tabline and diagnostic setup
 vim.schedule(function()
   opt.tabline = "%!v:lua.require'config.statusline'.tabline()"
-end)
-
--- Defer diagnostic config to avoid slowing startup
-vim.schedule(function()
   vim.diagnostic.config({
-    float = {
-      border = "rounded",
-      source = "if_many",
-    },
+    float = { border = "rounded", source = "if_many" },
     severity_sort = true,
     signs = {
       text = {
-        [vim.diagnostic.severity.ERROR] = " ",
-        [vim.diagnostic.severity.WARN] = " ",
-        [vim.diagnostic.severity.INFO] = " ",
-        [vim.diagnostic.severity.HINT] = " ",
+        [vim.diagnostic.severity.ERROR] = " ",
+        [vim.diagnostic.severity.WARN] = " ",
+        [vim.diagnostic.severity.INFO] = " ",
+        [vim.diagnostic.severity.HINT] = " ",
       },
     },
     underline = true,
@@ -57,88 +121,3 @@ vim.schedule(function()
     virtual_text = false,
   })
 end)
-opt.termguicolors = true
-opt.timeoutlen = 300
-opt.undofile = true
-opt.updatetime = 120 -- Reduced from 150ms for better responsiveness
-opt.winminwidth = 5
-opt.wrap = false
-
--- Performance optimizations
-opt.lazyredraw = false
-opt.synmaxcol = 300
-opt.maxmempattern = 20000
-opt.redrawtime = 1500
-opt.maxfuncdepth = 100
-opt.switchbuf = "useopen"
-opt.shortmess:append("cC") -- Reduce completion messages
-opt.title = false -- Disable title setting for performance
-opt.spell = false -- Disable spell checking by default
-opt.startofline = false -- Keep cursor column when jumping
-
--- Additional performance settings
-opt.regexpengine = 0 -- Use NFA regex engine (auto-select fastest)
-opt.diffopt:append("algorithm:patience") -- Faster diff algorithm
-opt.jumpoptions = "stack" -- Optimize jump list behavior
-opt.maxmapdepth = 1000 -- Limit macro recursion depth
-
--- More performance optimizations
-opt.cursorlineopt = "number" -- Only highlight line number, not entire line
-opt.showcmd = false -- Don't show command in status line (reduces redraws)
-opt.cmdheight = 0 -- Hide command line when not in use (Neovim 0.8+)
-opt.laststatus = 3 -- Global statusline (reduces redraws vs per-window)
-opt.ruler = false -- Disable ruler (reduces redraws, use statusline instead)
-opt.numberwidth = 2 -- Minimum number column width (reduces calculations)
-opt.signcolumn = "yes:1" -- Fixed sign column width (reduces layout recalc)
-opt.pumblend = 0 -- Disable popup menu transparency (faster rendering)
-opt.winblend = 0 -- Disable window transparency (faster rendering)
-opt.bufhidden = "hide" -- Hide buffers instead of unloading (faster switching)
-opt.eadirection = "hor" -- Only resize horizontal splits (faster)
-opt.previewheight = 5 -- Smaller preview window (less rendering)
-opt.linebreak = false -- Disable line break (faster rendering)
-opt.breakindent = false -- Disable break indent (faster rendering)
-
--- Additional performance optimizations
--- Batch formatoptions modifications for better performance
-opt.formatoptions = opt.formatoptions - "a" - "o" + "j" -- Disable auto-formatting, comment continuation; enable join comment removal
-opt.writebackup = false -- Disable write backup (faster writes)
-opt.backup = false -- Disable backup (faster writes)
-opt.backupskip = opt.backupskip + "*" -- Skip backup for all files
-opt.autochdir = false -- Don't auto-change directory (expensive)
-opt.autoread = true -- Auto-reload changed files (avoids manual checks)
-opt.autowrite = false -- Don't auto-write (can be slow)
-opt.undoreload = 10000 -- Limit undo reload for large files
-opt.updatecount = 0 -- Disable swap file update count (use time-based instead)
-opt.fsync = false -- Disable fsync for faster writes
-
--- Micro-optimizations for faster UI
-opt.sessionoptions = "buffers,curdir,folds,help,tabpages,localoptions" -- Minimal session options
-opt.viewoptions = "cursor,folds,options" -- Minimal view options
-
--- Additional micro-optimizations
-opt.pumheight = 6 -- Smaller popup menu (faster rendering, was 8)
-opt.pumwidth = 12 -- Minimum popup width (was 15)
-opt.helpheight = 10 -- Smaller help window (was 12)
-opt.cmdwinheight = 4 -- Smaller command-line window (was 5)
-opt.scrolljump = 8 -- Faster scrolling (was 6)
-opt.scrolloff = 1 -- Smaller scrolloff for faster rendering (was 2)
-
--- Extra micro-optimizations for faster startup and runtime
-opt.errorbells = false -- Disable error bells
-opt.visualbell = false -- Disable visual bell
-opt.sidescroll = 1 -- Minimal sideways scroll
-opt.sidescrolloff = 0 -- No side scroll offset
-opt.joinspaces = false -- Single space after join
-opt.nrformats = "bin" -- Only binary number formats (faster increment)
-opt.textwidth = 0 -- Disable auto text width
-opt.wrapmargin = 0 -- Disable wrap margin
-
--- Security + performance: disable modeline (can execute arbitrary code)
-opt.modeline = false
-opt.modelines = 0
-
--- Reduce history while keeping enough command/search recall
-opt.history = 500
-
-vim.g.loaded_netrw = 1
-vim.g.loaded_netrwPlugin = 1
