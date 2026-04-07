@@ -2,8 +2,7 @@ return {
   {
     "catppuccin/nvim",
     name = "catppuccin",
-    lazy = false,
-    priority = 1000,
+    lazy = true,
     opts = {
       flavour = "mocha",
       integrations = {
@@ -43,10 +42,7 @@ return {
     },
     config = function(_, opts)
       require("catppuccin").setup(opts)
-      -- Defer colorscheme to avoid blocking startup
-      vim.schedule(function()
-        vim.cmd.colorscheme("catppuccin-mocha")
-      end)
+      vim.cmd.colorscheme("catppuccin-mocha")
     end,
   },
   {

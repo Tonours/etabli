@@ -82,6 +82,17 @@ vim.schedule(function()
   require("config.review").setup()
 end)
 
+-- Load colorscheme after UI is ready
+vim.api.nvim_create_autocmd('UIEnter', {
+  once = true,
+  callback = function()
+    local ok, lazy = pcall(require, 'lazy')
+    if ok then
+      lazy.load({ plugins = { 'catppuccin' } })
+    end
+  end,
+})
+
 -- Setup lazy.nvim immediately (needed for colorscheme + plugin loading)
 require("lazy").setup("plugins", {
   defaults = {
