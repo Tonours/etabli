@@ -101,6 +101,7 @@ opt.backupskip = opt.backupskip + "*"
 opt.formatoptions = opt.formatoptions - "a" - "o" + "j"
 opt.sessionoptions = "buffers,curdir,folds,help,tabpages,localoptions"
 opt.viewoptions = "cursor,folds,options"
+opt.shada = [['20,<20,s10,h]] -- Smaller persistent history to reduce startup I/O
 
 -- Defer tabline and diagnostic setup
 vim.schedule(function()
