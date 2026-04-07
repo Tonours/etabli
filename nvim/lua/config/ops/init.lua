@@ -132,4 +132,9 @@ function M.setup_commands()
   snapshot.schedule_write(vim.fn.getcwd())
 end
 
+
+-- Alias for lazy-loaded commands (called from init.lua)
+M.show_tilldone_next = tilldone.show_next_action
+M.setup_runtime = M.setup_commands
+
 return M

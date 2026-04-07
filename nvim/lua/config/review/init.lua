@@ -843,4 +843,34 @@ function M.setup()
   })
 end
 
+
+-- Thin wrappers for lazy-loaded commands (called from init.lua lazy_cmd registrations)
+function M.cmd_open_inbox(cmd_opts)
+  M.open_inbox({ status = cmd_opts.args })
+end
+
+function M.cmd_set_status(cmd_opts)
+  if cmd_opts.args == "" then
+    M.select_current_status()
+  else
+    M.set_current_status(cmd_opts.args)
+  end
+end
+
+function M.cmd_send_claude(cmd_opts)
+  M.send_current("claude", cmd_opts.args ~= "" and cmd_opts.args or "revise")
+end
+
+function M.cmd_send_pi(cmd_opts)
+  M.send_current("pi", cmd_opts.args ~= "" and cmd_opts.args or "revise")
+end
+
+function M.cmd_claude_batch(cmd_opts)
+  M.prepare_batch("claude", cmd_opts.args ~= "" and cmd_opts.args or "needs-rework")
+end
+
+function M.cmd_pi_batch(cmd_opts)
+  M.prepare_batch("pi", cmd_opts.args ~= "" and cmd_opts.args or "needs-rework")
+end
+
 return M
