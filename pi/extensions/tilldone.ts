@@ -53,6 +53,12 @@ interface TillDoneDetails {
   error?: string;
 }
 
+interface ToolCallEventLike {
+  toolName: string;
+  input?: unknown;
+  args?: unknown;
+}
+
 const TillDoneParams = Type.Object({
   action: StringEnum([
     "new-list",
@@ -364,6 +370,43 @@ export function normalizeTasks(
 
 function formatTaskIdList(ids: number[]): string {
   return ids.map((id) => `#${id}`).join(", ");
+}
+
+function readBashCommand(event: ToolCallEventLike): string | null {
+  const payload = event.input ?? event.args;
+  if (!payload || typeof payload !== "object") return null;
+  const command = (payload as { command?: unknown }).command;
+  return typeof command === "string" ? command : null;
+}
+
+function buildNoTasksReason(): string {
+  return [
+    "TillDone gate: no task list exists yet.",
+    "Next action now: call the `tilldone` tool before retrying this blocked tool.",
+    'Recommended call: {"action":"new-list","text":"<request title>","description":"<what you are doing>","texts":["first concrete step","second concrete step"]}',
+    'If a matching list already exists, use: {"action":"add","text":"next concrete task"}',
+    "Read-only tools like read, lsp, ls, find, rg, git status, and tests are allowed without TillDone.",
+  ].join("\n");
+}
+
+function buildAllDoneReason(): string {
+  return [
+    "TillDone gate: all tasks in the current list are already done.",
+    "Next action now: add a new concrete task before retrying this blocked tool.",
+    'Same request: {"action":"add","text":"next concrete task"}',
+    'New request/theme: {"action":"clear"} then {"action":"new-list","text":"<request title>","texts":["first concrete step"]}',
+  ].join("\n");
+}
+
+function buildNoActiveTaskReason(tasks: Task[]): string {
+  const nextTask = tasks.find((task) => task.status !== "done");
+  const nextIdHint = nextTask ? ` Recommended id: ${nextTask.id}.` : "";
+  return [
+    "TillDone gate: a task list exists, but no task is currently in progress.",
+    "Next action now: call the `tilldone` tool, inspect the pending ids, then toggle one task to inprogress before retrying this blocked tool.",
+    'Helpful calls: {"action":"list"} then {"action":"toggle","id":<task id>}' + nextIdHint,
+    "Only one task should be in progress at a time.",
+  ].join("\n");
 }
 
 // ── Overlay component ──────────────────────────────────────────────────
@@ -759,15 +802,16 @@ export default function (pi: ExtensionAPI) {
     return READ_ONLY_BASH_PREFIXES.some((prefix) => cmd.startsWith(prefix) || cmd === prefix);
   }
 
-  pi.on("tool_call", async (event) => {
+  pi.on("tool_call", async (event: ToolCallEventLike) => {
     if (event.toolName === "tilldone") return { block: false };
 
     // Never block read-only tools — the agent needs these to plan tasks.
     if (READ_ONLY_TOOLS.has(event.toolName)) return { block: false };
 
     // Bash commands that are purely read-only reconnaissance are exempt.
-    if (event.toolName === "bash" && event.args?.command) {
-      if (isReadOnlyBash(String(event.args.command))) return { block: false };
+    if (event.toolName === "bash") {
+      const command = readBashCommand(event);
+      if (command && isReadOnlyBash(command)) return { block: false };
     }
 
     // Subagents (scout/reviewer) are read-only reconnaissance — exempt.
@@ -781,22 +825,19 @@ export default function (pi: ExtensionAPI) {
     if (tasks.length === 0) {
       return {
         block: true,
-        reason:
-          "No TillDone tasks defined. You MUST use `tilldone new-list` or `tilldone add` to define your tasks before using write/edit/bash-modifying tools. Plan your work first!",
+        reason: buildNoTasksReason(),
       };
     }
     if (pending.length === 0) {
       return {
         block: true,
-        reason:
-          "All TillDone tasks are done. You MUST use `tilldone add` for new tasks or `tilldone new-list` to start a fresh list before using write/edit/bash-modifying tools.",
+        reason: buildAllDoneReason(),
       };
     }
     if (active.length === 0) {
       return {
         block: true,
-        reason:
-          "No task is in progress. You MUST use `tilldone toggle` to mark a task as inprogress before doing any write/edit/bash-modifying work.",
+        reason: buildNoActiveTaskReason(tasks),
       };
     }
 
@@ -844,6 +885,7 @@ export default function (pi: ExtensionAPI) {
       "Task text is normalized, vague/duplicate tasks are skipped, and lists are capped at 7 tasks. " +
       "Always toggle a task to inprogress before starting work on it, and to done when finished. " +
       "Use new-list to start a themed list with a title and description. " +
+      "Bootstrap examples: if no list exists, call tilldone with {action:'new-list', text:'request title', texts:['first concrete step']}; if the list exists, call {action:'add', text:'next concrete task'}; if no task is active, call {action:'list'} then {action:'toggle', id:<task id>}. " +
       "If the user's new request does not fit the current list's theme, use clear then new-list.",
     parameters: TillDoneParams,
 
