@@ -16,6 +16,17 @@ cd etabli
 - VS Code should be installed separately on Linux if you want settings and extensions linked automatically
 - Most secrets stay out of the repo and should come from shell env vars or local files loaded outside git
 
+## Useful maintenance
+
+Quick symlink audit/fix after moving or renaming the repo:
+
+```bash
+fix-links check   # audit key Neovim / Pi / local-bin symlinks
+fix-links         # repair them in place
+```
+
+The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-links`.
+
 ## Repo map
 
 - `nvim/` - daily-driver Neovim config, including the diff-centric review workflow
