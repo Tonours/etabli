@@ -43,7 +43,10 @@ return {
     },
     config = function(_, opts)
       require("catppuccin").setup(opts)
-      vim.cmd.colorscheme("catppuccin-mocha")
+      -- Defer colorscheme to avoid blocking startup
+      vim.schedule(function()
+        vim.cmd.colorscheme("catppuccin-mocha")
+      end)
     end,
   },
   {
