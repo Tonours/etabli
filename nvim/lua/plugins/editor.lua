@@ -93,7 +93,7 @@ return {
           if vim.bo[args.buf].buftype ~= "" or not vim.bo[args.buf].buflisted then
             return
           end
-          -- Defer gitsigns attach by 100ms to prioritize editing responsiveness
+          -- Defer gitsigns attach by 200ms to prioritize editing responsiveness
           vim.defer_fn(function()
             if vim.api.nvim_buf_is_valid(args.buf) then
               local ok, gitsigns = pcall(require, "gitsigns")
