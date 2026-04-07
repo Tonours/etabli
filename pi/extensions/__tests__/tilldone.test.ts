@@ -25,7 +25,10 @@ type BranchEntry = {
 
 type EventHandlers = {
   session_start?: (event: unknown, ctx: TestContext) => Promise<void>;
-  tool_call?: (event: { toolName: string; input?: unknown }, ctx: TestContext) => Promise<{ block: boolean }>;
+  tool_call?: (
+    event: { toolName: string; input?: unknown; args?: unknown },
+    ctx: TestContext,
+  ) => Promise<{ block: boolean; reason?: string }>;
 };
 
 type RegisteredTool = {
@@ -531,5 +534,98 @@ describe("tool behavior", () => {
       message: "TillDone recovered multiple active tasks. Kept latest active task and paused #1.",
       level: "warning",
     });
+  });
+});
+
+describe("tool gate", () => {
+  test("allows read-only bash reconnaissance before any task exists", async () => {
+    const harness = createHarness();
+    if (!harness.handlers.tool_call) throw new Error("tool_call handler not registered");
+
+    const result = await harness.handlers.tool_call({
+      toolName: "bash",
+      input: { command: "ls -la" },
+    }, harness.ctx);
+
+    expect(result).toEqual({ block: false });
+  });
+
+  test("allows read-only bash when the command arrives through args", async () => {
+    const harness = createHarness();
+    if (!harness.handlers.tool_call) throw new Error("tool_call handler not registered");
+
+    const result = await harness.handlers.tool_call({
+      toolName: "bash",
+      args: { command: "rg -n tilldone pi/extensions" },
+    }, harness.ctx);
+
+    expect(result).toEqual({ block: false });
+  });
+
+  test("blocks write work with an explicit TillDone bootstrap message", async () => {
+    const harness = createHarness();
+    if (!harness.handlers.tool_call) throw new Error("tool_call handler not registered");
+
+    const result = await harness.handlers.tool_call({
+      toolName: "write",
+      input: { path: "pi/extensions/tilldone.ts" },
+    }, harness.ctx);
+
+    expect(result.block).toBe(true);
+    expect(result.reason).toContain("TillDone gate: no task list exists yet.");
+    expect(result.reason).toContain('Recommended call: {"action":"new-list"');
+    expect(result.reason).toContain("Read-only tools like read, lsp, ls, find, rg, git status, and tests are allowed without TillDone.");
+  });
+
+  test("blocks when all tasks are done with next-step guidance", async () => {
+    const harness = createHarness();
+    if (!harness.handlers.tool_call) throw new Error("tool_call handler not registered");
+
+    await harness.run({ action: "new-list", text: "TillDone", texts: ["first task"] });
+    await harness.run({ action: "toggle", id: 1 });
+
+    const result = await harness.handlers.tool_call({
+      toolName: "edit",
+      input: { path: "pi/extensions/tilldone.ts", oldText: "a", newText: "b" },
+    }, harness.ctx);
+
+    expect(result.block).toBe(true);
+    expect(result.reason).toContain("TillDone gate: all tasks in the current list are already done.");
+    expect(result.reason).toContain('Same request: {"action":"add"');
+  });
+
+  test("blocks when no task is active with the pending id hint", async () => {
+    const harness = createHarness([
+      {
+        type: "message",
+        message: {
+          role: "toolResult",
+          toolName: "tilldone",
+          details: {
+            action: "list",
+            tasks: [
+              { id: 1, text: "inspect config wiring", status: "idle" },
+              { id: 2, text: "run focused tests", status: "idle" },
+            ],
+            nextId: 3,
+            listTitle: "Recovered",
+          },
+        },
+      },
+    ]);
+    if (!harness.handlers.tool_call) throw new Error("tool_call handler not registered");
+
+    await harness.reconstruct();
+    await harness.run({ action: "toggle", id: 1 });
+    await harness.run({ action: "toggle", id: 1 });
+
+    const result = await harness.handlers.tool_call({
+      toolName: "bash",
+      input: { command: "touch /tmp/demo" },
+    }, harness.ctx);
+
+    expect(result.block).toBe(true);
+    expect(result.reason).toContain("TillDone gate: a task list exists, but no task is currently in progress.");
+    expect(result.reason).toContain('Helpful calls: {"action":"list"} then {"action":"toggle","id":<task id>} Recommended id: 2.');
   });
 });
