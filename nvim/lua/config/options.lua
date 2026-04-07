@@ -9,7 +9,6 @@ vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
 -- Batch all simple options in one pass (each vim.opt set has overhead)
--- Use raw :set commands for maximum speed
 vim.cmd([[
   set clipboard=unnamedplus
   set completeopt=menu,menuone,noselect
@@ -96,7 +95,7 @@ vim.cmd([[
   set scrolloff=1
 ]])
 
--- Options that need array/table values (can't use :set easily)
+-- Options that need array/table values
 opt.backupskip = opt.backupskip + "*"
 opt.formatoptions = opt.formatoptions - "a" - "o" + "j"
 opt.sessionoptions = "buffers,curdir,folds,help,tabpages,localoptions"

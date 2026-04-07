@@ -1,7 +1,6 @@
 local group = vim.api.nvim_create_augroup("etabli_core", { clear = true })
 
 -- Async copilot-cmp setup: defer loading until after first InsertEnter
--- This prevents the 250ms+ blocking delay on first insertion
 local copilot_cmp_setup_done = false
 vim.api.nvim_create_autocmd("InsertEnter", {
   group = group,
@@ -10,13 +9,11 @@ vim.api.nvim_create_autocmd("InsertEnter", {
     if copilot_cmp_setup_done or vim.bo.filetype == "markdown" then
       return
     end
-    -- Defer by 150ms to allow immediate insertion response
     vim.defer_fn(function()
       if copilot_cmp_setup_done then
         return
       end
       copilot_cmp_setup_done = true
-      -- Lazy-load copilot-cmp without blocking
       local ok_lazy, lazy = pcall(require, "lazy")
       if ok_lazy then
         lazy.load({ plugins = { "copilot-cmp" } })
@@ -28,7 +25,6 @@ vim.api.nvim_create_autocmd("InsertEnter", {
 vim.api.nvim_create_autocmd("TextYankPost", {
   group = group,
   callback = function()
-    -- Skip highlight for large files
     if vim.b.large_file then
       return
     end
@@ -36,42 +32,37 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   end,
 })
 
--- Optimize formatoptions only for specific filetypes using single autocmd with lookup table
+-- Single FileType autocmd for all formatoptions + markdown handling
 local formatoptions_fts = {
   javascript = true, typescript = true, javascriptreact = true, typescriptreact = true,
   json = true, jsonc = true, yaml = true, lua = true, html = true, css = true, scss = true,
   markdown = true, hbs = true, handlebars = true, ["html.handlebars"] = true,
 }
+
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
   callback = function(args)
-    if formatoptions_fts[vim.bo[args.buf].filetype] then
+    local ft = vim.bo[args.buf].filetype
+    if formatoptions_fts[ft] then
       vim.opt_local.formatoptions:remove({ "c", "r", "o" })
+    end
+    if ft == "markdown" then
+      vim.opt_local.wrap = true
+      vim.opt_local.linebreak = true
     end
   end,
 })
 
-vim.api.nvim_create_autocmd("FileType", {
-  group = group,
-  pattern = "markdown",
-  callback = function()
-    vim.opt_local.wrap = true
-    vim.opt_local.linebreak = true
-  end,
-})
+-- Large file protection
+local large_file_threshold = 3 * 1024 * 1024
+local medium_file_threshold = 512 * 1024
 
--- Performance: Disable syntax highlighting and other features for large files
--- Use a single autocmd with optimized early returns
-local large_file_threshold = 3 * 1024 * 1024 -- 3MB (reduced from 5MB)
-local medium_file_threshold = 512 * 1024 -- 512KB (reduced from 1MB)
-
-vim.api.nvim_create_autocmd({ "BufReadPre" }, {
+vim.api.nvim_create_autocmd("BufReadPre", {
   group = group,
   callback = function(args)
     local bufnr = args.buf
     local bo = vim.bo[bufnr]
 
-    -- Skip special buffers immediately (fast path)
     if bo.buftype ~= "" or not bo.buflisted then
       return
     end
@@ -81,13 +72,11 @@ vim.api.nvim_create_autocmd({ "BufReadPre" }, {
       return
     end
 
-    -- Quick synchronous check for very large files
     local ok, stats = pcall(vim.uv.fs_stat, bufname)
     if not ok or not stats then
       return
     end
 
-    -- Large file: disable features immediately
     if stats.size > large_file_threshold then
       bo.syntax = "off"
       bo.foldmethod = "manual"
@@ -98,7 +87,6 @@ vim.api.nvim_create_autocmd({ "BufReadPre" }, {
       return
     end
 
-    -- Medium file: use schedule for deferred handling
     if stats.size > medium_file_threshold then
       vim.schedule(function()
         if not vim.api.nvim_buf_is_valid(bufnr) then
