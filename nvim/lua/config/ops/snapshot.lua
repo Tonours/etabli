@@ -95,7 +95,7 @@ local function runtime_state_kind(runtime)
   return "available"
 end
 
-local function next_action_details(plan, review, runtime, handoff)
+local function next_action_details(plan, review, runtime, handoff, agents)
   local active_slice = first_item(plan.tracking["Active slice"])
   local pending_check = first_item(plan.tracking["Pending checks"])
   local last_validated = first_item(plan.tracking["Last validated state"])
@@ -121,6 +121,29 @@ local function next_action_details(plan, review, runtime, handoff)
       value = prefix .. focus,
       reason = review.source ~= "live" and review.mayBeStale and "stored review blockers may be stale" or "review blockers present",
       derivedFrom = "review",
+    }
+  end
+  if agents and agents.waitingHuman and agents.waitingHuman > 0 then
+    local first_agent = agents.items and agents.items[1] or nil
+    local prompt = first_agent and first_agent.question and (": " .. first_agent.question) or ""
+    return {
+      value = "answer agent checkpoint" .. prompt,
+      reason = "agent waiting for human input",
+      derivedFrom = "mixed",
+    }
+  end
+  if agents and agents.running and agents.running > 0 then
+    if pending_check then
+      return {
+        value = "agents active — prepare check: " .. pending_check,
+        reason = "background agents running with validation pending",
+        derivedFrom = "mixed",
+      }
+    end
+    return {
+      value = "agents active — review/QA while waiting",
+      reason = "background agents running",
+      derivedFrom = "mixed",
     }
   end
   if runtime.phase == "running" then
@@ -235,6 +258,20 @@ local function project_runtime(root)
   }
 end
 
+local function project_agents(root)
+  local agents = state.agents_state(root)
+  return agents, {
+    state = agents.state,
+    updatedAt = to_json_value(agents.updatedAt),
+    total = agents.total or 0,
+    running = agents.running or 0,
+    waitingHuman = agents.waitingHuman or 0,
+    failed = agents.failed or 0,
+    items = vim.deepcopy(agents.items or {}),
+    warnings = vim.deepcopy(agents.warnings or {}),
+  }
+end
+
 local function project_handoff(root)
   local handoff = state.handoff_state(root)
   return handoff, {
@@ -268,9 +305,10 @@ function M.project(cwd)
   local plan_raw, plan = project_plan(root)
   local review_raw, review = project_review(root)
   local runtime_raw, runtime = project_runtime(root)
+  local agents_raw, agents = project_agents(root)
   local handoff_raw, handoff = project_handoff(root)
   local mode_raw, mode_block = project_mode(root)
-  local next_action = next_action_details(plan_raw, review_raw, runtime_raw, handoff_raw)
+  local next_action = next_action_details(plan_raw, review_raw, runtime_raw, handoff_raw, agents_raw)
   local paths = state.handoff_paths(root)
   local task_block = task.project(root, {
     plan = plan_raw,
@@ -290,6 +328,7 @@ function M.project(cwd)
       task = task.path(root),
       plan = state.plan_path(root),
       runtime = state.runtime_status_path(root),
+      agents = state.agent_status_path(root),
       handoffImplement = paths.implement,
       handoffGeneric = paths.generic,
     },
@@ -297,6 +336,7 @@ function M.project(cwd)
     plan = plan,
     review = review,
     runtime = runtime,
+    agents = agents,
     handoff = handoff,
     mode = mode_block,
     nextAction = next_action,

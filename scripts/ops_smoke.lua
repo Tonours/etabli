@@ -1,7 +1,9 @@
 local ops_doctor = require("config.ops.doctor")
 local ops_mode = require("config.ops.mode")
 local ops_snapshot = require("config.ops.snapshot")
+local ops_view = require("config.ops.view")
 local ops_state = require("config.ops.state")
+local agent_state = require("config.ops.agent_state")
 local diff = require("config.review.diff")
 local review_state = require("config.review.state")
 
@@ -89,6 +91,7 @@ local broken_runtime = ops_state.inspect_runtime_content("{not json")
 assert_true(#broken_runtime.warnings == 1, "expected invalid runtime JSON warning")
 assert_true(broken_runtime.warnings[1] == "Runtime status is not valid JSON", "expected precise runtime JSON warning")
 
+ops_mode.clear(vim.loop.cwd())
 local mode_state = ops_mode.read(vim.loop.cwd())
 assert_true(mode_state.mode == "standard", "expected default OPS mode to be standard")
 local written_mode, write_err = ops_mode.write(vim.loop.cwd(), "simple")
@@ -139,6 +142,13 @@ vim.fn.writefile(changed_lines, repo .. "/demo.txt")
 
 local repo_root, repo_err = diff.repo_root(repo)
 assert_true(repo_root ~= nil, repo_err or "repo root lookup failed")
+
+vim.fn.mkdir(repo_root .. "/nested/deeper", "p")
+assert_true(
+  agent_state.project_key(repo_root .. "/nested/deeper") == agent_state.project_key(repo_root),
+  "expected agent project key to normalize to git root"
+)
+
 local unstaged = diff.collect_scope(repo_root, "unstaged")
 assert_true(unstaged ~= nil and #unstaged == 1, "expected one unstaged hunk")
 
@@ -175,6 +185,38 @@ vim.fn.writefile(vim.split(valid_plan, "\n", { plain = true }), repo_root .. "/P
 local runtime_path = ops_state.runtime_status_path(repo_root)
 vim.fn.mkdir(vim.fs.dirname(runtime_path), "p")
 vim.fn.writefile(vim.fn.readfile("pi/extensions/__tests__/fixtures/runtime-status-valid.json"), runtime_path)
+local agents_path = ops_state.agent_status_path(repo_root)
+vim.fn.writefile({
+  vim.json.encode({
+    kind = "subagent-state",
+    version = 1,
+    project = vim.fs.basename(repo_root),
+    cwd = repo_root,
+    updatedAt = "2026-04-07T00:00:00.000Z",
+    agents = {
+      {
+        id = 1,
+        status = "waiting_human",
+        role = "worker",
+        task = "Decide resume path",
+        turnCount = 1,
+        toolCount = 2,
+        elapsedMs = 1250,
+        sessionFile = repo_root .. "/subagent-1.jsonl",
+        model = "gpt-5",
+        thinking = "high",
+        updatedAt = "2026-04-07T00:00:00.000Z",
+        lastEvent = "needs_human",
+        humanCheckpoint = {
+          reason = "human input required",
+          question = "Choose resume strategy",
+          resumePrompt = "Continue after human decision",
+          requestedAt = "2026-04-07T00:00:00.000Z",
+        },
+      },
+    },
+  }),
+}, agents_path)
 ops_state.invalidate()
 ops_state.refresh_review_summary(repo_root)
 local snapshot, wrote = ops_snapshot.write(repo_root)
@@ -183,6 +225,7 @@ assert_true(snapshot.kind == "ops-snapshot", "expected snapshot kind")
 assert_true(snapshot.version == 1, "expected snapshot version")
 assert_true(snapshot.paths.snapshot:match("%.ops%.json$") ~= nil, "expected ops snapshot path suffix")
 assert_true(snapshot.paths.task:match("%.task%.json$") ~= nil, "expected task-state path suffix")
+assert_true(snapshot.paths.agents:match("%.agents%.json$") ~= nil, "expected agent-state path suffix")
 assert_true(vim.uv.fs_stat(snapshot.paths.task) ~= nil, "expected task-state file to be written")
 assert_true(snapshot.task.title == "OPS", "expected task title from plan subject")
 assert_true(snapshot.task.identitySource == "branch", "expected task identity source from active branch")
@@ -198,12 +241,21 @@ assert_true(snapshot.plan.lastValidatedState == "partial", "expected last valida
 assert_true(snapshot.review.source == "live", "expected live review source after explicit refresh")
 assert_true(snapshot.review.mayBeStale == false, "expected live review to be non-stale")
 assert_true(snapshot.runtime.state == "available", "expected available runtime state")
+assert_true(snapshot.agents.state == "available", "expected available agent state")
+assert_true(snapshot.agents.waitingHuman == 1, "expected one waiting-human agent")
+assert_true(snapshot.agents.items[1].question == "Choose resume strategy", "expected agent question in snapshot")
+local agent_lines = table.concat(ops_view.agent_lines(repo_root), "\n")
+assert_true(agent_lines:match("waiting_human") ~= nil, "expected agent lines to surface waiting_human")
+local human_lines = table.concat(ops_view.human_lines(repo_root), "\n")
+assert_true(human_lines:match("Choose resume strategy") ~= nil, "expected human lines to surface checkpoint question")
 assert_true(snapshot.mode.hint.scope == "current cwd", "expected OPS mode scope hint")
 assert_true(
   snapshot.nextAction.value:match("start") ~= nil
     or snapshot.nextAction.value:match("address") ~= nil
     or snapshot.nextAction.value:match("continue") ~= nil
     or snapshot.nextAction.value:match("worker active") ~= nil
+    or snapshot.nextAction.value:match("agents active") ~= nil
+    or snapshot.nextAction.value:match("answer agent checkpoint") ~= nil
     or snapshot.nextAction.value:match("run check") ~= nil,
   "expected bounded next action"
 )
@@ -213,6 +265,7 @@ assert_true(snapshot_again.revision == snapshot.revision, "expected snapshot rev
 
 review_state.clear(context)
 vim.fn.delete(runtime_path)
+vim.fn.delete(agents_path)
 vim.fn.delete(repo_root .. "/PLAN.md")
 ops_mode.clear(repo_root)
 print("ops smoke ok")

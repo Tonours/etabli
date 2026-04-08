@@ -107,7 +107,7 @@ opt.shada = [['20,<20,s10,h]] -- Smaller persistent history to reduce startup I/
 vim.schedule(function()
   opt.tabline = "%!v:lua.require'config.statusline'.tabline()"
   vim.diagnostic.config({
-    float = { border = "rounded", source = "if_many" },
+    float = { border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }, source = "if_many" },
     severity_sort = true,
     signs = {
       text = {

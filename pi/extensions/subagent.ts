@@ -23,8 +23,9 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { Container, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import {
   FALLBACK_MODEL,
   FALLBACK_THINKING,
@@ -54,8 +55,11 @@ import { canSpawnRole } from "./lib/subagent-orchestration.ts";
 
 const MAX_SUBAGENTS = 5;
 const SESSION_DIR = join(getAgentDir(), "sessions", "subagents");
+const STATUS_DIR = join(homedir(), ".pi", "status");
 const EXTENSION_DIR = getExtensionDirFromModule(import.meta.url);
-const SETTINGS_PATH = getAgentSettingsPath();
+function settingsPath(): string {
+  return getAgentSettingsPath();
+}
 const PLAN_STATE_EXTENSION_PATH = join(EXTENSION_DIR, "plan-state.ts");
 const WORKER_LOCAL_EXTENSION_PATHS = existsSync(PLAN_STATE_EXTENSION_PATH) ? [PLAN_STATE_EXTENSION_PATH] : [];
 const WORKER_PLAN_STATE_TOOLS = WORKER_LOCAL_EXTENSION_PATHS.length > 0 ? ["plan_state_read", "plan_state_update"] : [];
@@ -133,9 +137,18 @@ const ROLE_CONFIGS: Record<RoleName, RoleConfig> = {
   },
 };
 
+type SubStateStatus = "running" | "done" | "error" | "waiting_human";
+
+interface HumanCheckpoint {
+  reason: string;
+  question: string;
+  resumePrompt?: string;
+  requestedAt: string;
+}
+
 interface SubState {
   id: number;
-  status: "running" | "done" | "error";
+  status: SubStateStatus;
   task: string;
   role?: RoleName;
   textChunks: string[];
@@ -147,6 +160,10 @@ interface SubState {
   automationId?: number;
   resolvedModel?: string;
   resolvedThinking?: string;
+  updatedAt: string;
+  lastEvent: string;
+  humanCheckpoint?: HumanCheckpoint;
+  pendingStopStatus?: SubStateStatus;
   proc?: ChildProcess;
 }
 
@@ -232,8 +249,62 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
   let nextId = 1;
   let nextAutomationRunId = 1;
   let widgetCtx: ExtensionContext | undefined;
+  let currentCwd = process.cwd();
   let automation: WorkflowAutomationState | null = null;
   let agentEndCount = 0;
+
+  function nowIso(): string {
+    return new Date().toISOString();
+  }
+
+  function statusFileName(cwd: string): string {
+    return cwd.replace(/[^a-zA-Z0-9._-]+/g, "_");
+  }
+
+  function agentStatusPath(cwd: string): string {
+    return join(STATUS_DIR, `${statusFileName(cwd)}.agents.json`);
+  }
+
+  function touchState(state: SubState, lastEvent: string): void {
+    state.lastEvent = lastEvent;
+    state.updatedAt = nowIso();
+  }
+
+  function syncAgentState(cwd?: string): void {
+    const targetCwd = cwd ?? widgetCtx?.cwd ?? currentCwd;
+    currentCwd = targetCwd;
+    mkdirSync(dirname(agentStatusPath(targetCwd)), { recursive: true });
+    const payload = {
+      kind: "subagent-state",
+      version: 1,
+      project: basename(targetCwd),
+      cwd: targetCwd,
+      updatedAt: nowIso(),
+      agents: Array.from(agents.values()).map((state) => ({
+        id: state.id,
+        status: state.status,
+        role: state.role ?? null,
+        task: state.task,
+        turnCount: state.turnCount,
+        toolCount: state.toolCount,
+        elapsedMs: state.elapsed,
+        sessionFile: state.sessionFile,
+        model: state.resolvedModel ?? state.model ?? null,
+        thinking: state.resolvedThinking ?? null,
+        updatedAt: state.updatedAt,
+        lastEvent: state.lastEvent,
+        humanCheckpoint: state.humanCheckpoint
+          ? {
+              reason: state.humanCheckpoint.reason,
+              question: state.humanCheckpoint.question,
+              resumePrompt: state.humanCheckpoint.resumePrompt ?? null,
+              requestedAt: state.humanCheckpoint.requestedAt,
+            }
+          : null,
+      })),
+    };
+    writeFileSync(agentStatusPath(targetCwd), JSON.stringify(payload, null, 2) + "\n", "utf-8");
+  }
 
   // ── Session file helpers ─────────────────────────────────────────────
 
@@ -360,14 +431,14 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
 
   function maybeSpawnReviewer(ctx: ExtensionContext): void {
     if (!automation) return;
-    const config = readWorkflowAutomationSettings(SETTINGS_PATH)[automation.workflow];
+    const config = readWorkflowAutomationSettings(settingsPath())[automation.workflow];
     if (!config.enabled || !config.autoReviewer || automation.reviewerId || !hasPlanFile(ctx.cwd)) return;
     spawnAutomatedRole("reviewer", buildReviewerTask(), ctx);
   }
 
   function maybeSpawnWorker(ctx: ExtensionContext): void {
     if (!automation) return;
-    const config = readWorkflowAutomationSettings(SETTINGS_PATH)[automation.workflow];
+    const config = readWorkflowAutomationSettings(settingsPath())[automation.workflow];
     const planStatus = readPlanStatus(ctx.cwd);
 
     if (!shouldSpawnWorker({ automation, config, agentEndCount, planStatus })) {
@@ -415,8 +486,11 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       sessionFile: makeSessionFile(id),
       turnCount: 1,
       model: normalizeModel(options?.model),
+      updatedAt: nowIso(),
+      lastEvent: "started",
     };
     agents.set(id, state);
+    syncAgentState(ctx.cwd);
     updateWidgets();
 
     spawnAgent(state, task, ctx).catch((e) => {
@@ -490,16 +564,19 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
   // ── Spawn a sub-agent process ────────────────────────────────────────
 
   function spawnAgent(state: SubState, prompt: string, ctx: ExtensionContext): Promise<void> {
+    touchState(state, state.turnCount > 1 ? "resumed" : "started");
+    syncAgentState(ctx.cwd);
+
     const model = resolveSubagentModel({
       override: state.model,
       role: state.role,
       currentModel: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
-      settingsPath: SETTINGS_PATH,
+      settingsPath: settingsPath(),
       fallback: FALLBACK_MODEL,
     });
     const thinking = resolveSubagentThinking({
       role: state.role,
-      settingsPath: SETTINGS_PATH,
+      settingsPath: settingsPath(),
       fallback: FALLBACK_THINKING,
     });
     state.resolvedModel = model;
@@ -527,22 +604,58 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
         fullPrompt,
         onText: (chunk) => {
           state.textChunks.push(chunk);
+          touchState(state, "progress");
+          syncAgentState(ctx.cwd);
           updateWidgets();
         },
         onToolStart: () => {
           state.toolCount++;
+          touchState(state, "tool_start");
+          syncAgentState(ctx.cwd);
           updateWidgets();
         },
         onComplete: (code) => {
           clearInterval(timer);
           state.elapsed = Date.now() - startTime;
-          state.status = code === 0 ? "done" : "error";
+          const finalStatus = state.pendingStopStatus ?? (code === 0 ? "done" : "error");
+          state.pendingStopStatus = undefined;
+          state.status = finalStatus;
           state.proc = undefined;
+          touchState(state, finalStatus === "waiting_human" ? "needs_human" : finalStatus === "done" ? "completed" : "failed");
+          syncAgentState(ctx.cwd);
           updateWidgets();
 
           const result = state.textChunks.join("");
+          const duration = Math.round(state.elapsed / 1000);
+          if (finalStatus === "waiting_human") {
+            const checkpoint = state.humanCheckpoint;
+            ctx.ui.notify(`${buildTargetLabel(state)} waiting for human input`, "warning");
+            pi.sendMessage(
+              {
+                customType: "subagent-hitl",
+                content:
+                  `${buildTargetLabel(state)} paused for human input after "${prompt}".
+
+Question:
+${checkpoint?.question ?? "human input required"}${checkpoint?.resumePrompt ? `
+
+Resume hint:
+${checkpoint.resumePrompt}` : ""}`,
+                display: true,
+              },
+              { deliverAs: "followUp", triggerTurn: true },
+            );
+
+            if (automation && state.automationId === automation.runId && automation.reviewerId === state.id) {
+              automation.reviewerDone = false;
+            }
+
+            resolve();
+            return;
+          }
+
           ctx.ui.notify(
-            `${buildTargetLabel(state)} ${state.status} in ${Math.round(state.elapsed / 1000)}s`,
+            `${buildTargetLabel(state)} ${state.status} in ${duration}s`,
             state.status === "done" ? "info" : "error",
           );
 
@@ -550,7 +663,10 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
             {
               customType: "subagent-result",
               content:
-                `${buildTargetLabel(state)}${state.turnCount > 1 ? ` (Turn ${state.turnCount})` : ""} finished "${prompt}" in ${Math.round(state.elapsed / 1000)}s.\n\nResult:\n${result.slice(0, 8000)}${result.length > 8000 ? "\n\n... [truncated]" : ""}`,
+                `${buildTargetLabel(state)}${state.turnCount > 1 ? ` (Turn ${state.turnCount})` : ""} finished "${prompt}" in ${duration}s.
+
+Result:
+${result.slice(0, 8000)}${result.length > 8000 ? "\n\n... [truncated]" : ""}`,
               display: true,
             },
             { deliverAs: "followUp", triggerTurn: true },
@@ -570,6 +686,8 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
           state.status = "error";
           state.proc = undefined;
           state.textChunks.push(`Error: ${err.message}`);
+          touchState(state, "failed");
+          syncAgentState(ctx.cwd);
           updateWidgets();
           resolve();
         },
@@ -638,6 +756,12 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       if (state.status === "running") {
         return { content: [{ type: "text" as const, text: `Error: sub-agent #${args.id} is still running.` }], details: {} };
       }
+      if (state.proc) {
+        return {
+          content: [{ type: "text" as const, text: `Error: sub-agent #${args.id} is still stopping. Retry once the checkpoint is persisted.` }],
+          details: {},
+        };
+      }
 
       const roleOverride = normalizeRole(args.role);
       const targetRole = roleOverride ?? state.role;
@@ -660,8 +784,10 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       state.textChunks = [];
       state.elapsed = 0;
       state.turnCount++;
+      state.humanCheckpoint = undefined;
       state.resolvedModel = undefined;
       state.resolvedThinking = undefined;
+      touchState(state, "resumed");
       const modelOverride = normalizeModel(args.model);
       if (modelOverride) {
         state.model = modelOverride;
@@ -669,6 +795,7 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       if (roleOverride) {
         state.role = roleOverride;
       }
+      syncAgentState(ctx.cwd);
       updateWidgets();
 
       ctx.ui.notify(`Continuing ${buildTargetLabel(state)} (Turn ${state.turnCount})`, "info");
@@ -678,6 +805,50 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
 
       return {
         content: [{ type: "text" as const, text: `Sub-agent #${args.id} continuing in background.` }],
+        details: {},
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "subagent_wait_human",
+    label: "Subagent Wait Human",
+    description:
+      "Checkpoint a sub-agent for human input. Stops a running agent after a bounded checkpoint, records the question, and marks it as waiting_human until a later continuation resumes it.",
+    parameters: Type.Object({
+      id: Type.Number({ description: "The ID of the sub-agent to checkpoint for human input" }),
+      question: Type.String({ description: "The question or decision required from the human" }),
+      reason: Type.Optional(Type.String({ description: "Optional short reason for the checkpoint" })),
+      resumePrompt: Type.Optional(Type.String({ description: "Optional suggested follow-up prompt for resuming the sub-agent" })),
+    }),
+    execute: async (_callId, args, _signal, _onUpdate, ctx) => {
+      widgetCtx = ctx;
+      const state = agents.get(args.id);
+      if (!state) {
+        return { content: [{ type: "text" as const, text: `Error: no sub-agent #${args.id} found.` }], details: {} };
+      }
+      if (state.status === "done") {
+        return { content: [{ type: "text" as const, text: `Error: sub-agent #${args.id} is already done.` }], details: {} };
+      }
+
+      state.humanCheckpoint = {
+        reason: (args.reason || "human input required").trim() || "human input required",
+        question: args.question.trim(),
+        resumePrompt: args.resumePrompt?.trim() || undefined,
+        requestedAt: nowIso(),
+      };
+      state.pendingStopStatus = "waiting_human";
+      state.status = "waiting_human";
+      touchState(state, "needs_human");
+      syncAgentState(ctx.cwd);
+      updateWidgets();
+
+      if (state.proc) {
+        state.proc.kill("SIGTERM");
+      }
+
+      return {
+        content: [{ type: "text" as const, text: `Sub-agent #${args.id} checkpointed for human input.` }],
         details: {},
       };
     },
@@ -711,6 +882,7 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       }
       ctx.ui.setWidget(`sub-${args.id}`, undefined);
       agents.delete(args.id);
+      syncAgentState(ctx.cwd);
       return {
         content: [{ type: "text" as const, text: `Sub-agent #${args.id} removed.` }],
         details: {},
@@ -728,12 +900,30 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
         return { content: [{ type: "text" as const, text: "No sub-agents active." }], details: {} };
       }
 
-      const lines = Array.from(agents.values()).map(
-        (s) =>
-          `#${s.id} [${s.status}]${s.role ? ` [${s.role}]` : ""} Turn ${s.turnCount} | ${formatRuntimeSpec(s)} | Tools: ${s.toolCount} | ${s.task}`,
-      );
+      const lines = Array.from(agents.values()).map((s) => {
+        const checkpoint = s.humanCheckpoint
+          ? ` | Human: ${s.humanCheckpoint.question}${s.humanCheckpoint.resumePrompt ? ` | Resume hint: ${s.humanCheckpoint.resumePrompt}` : ""}`
+          : "";
+        return `#${s.id} [${s.status}]${s.role ? ` [${s.role}]` : ""} Turn ${s.turnCount} | ${formatRuntimeSpec(s)} | Tools: ${s.toolCount} | ${s.task}${checkpoint}`;
+      });
       return { content: [{ type: "text" as const, text: lines.join("\n") }], details: {} };
     },
+  });
+
+  pi.on("session_start", async (_event, ctx) => {
+    widgetCtx = ctx;
+    currentCwd = ctx.cwd;
+    syncAgentState(ctx.cwd);
+  });
+
+  pi.on("session_switch", async (_event, ctx) => {
+    widgetCtx = ctx;
+    currentCwd = ctx.cwd;
+    syncAgentState(ctx.cwd);
+  });
+
+  pi.on("session_shutdown", async (_event, ctx) => {
+    syncAgentState(ctx.cwd);
   });
 
   pi.on("input", async (event, ctx) => {
@@ -747,7 +937,7 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
       return { action: "continue" as const };
     }
 
-    const config = readWorkflowAutomationSettings(SETTINGS_PATH)[detected.workflow];
+    const config = readWorkflowAutomationSettings(settingsPath())[detected.workflow];
     if (!config.enabled) {
       resetAutomationState();
       return { action: "continue" as const };
@@ -889,6 +1079,7 @@ export default function (pi: ExtensionAPI, runtime: SubagentRuntime = defaultRun
         ctx.ui.setWidget(`sub-${id}`, undefined);
       }
       agents.clear();
+      syncAgentState(ctx.cwd);
       ctx.ui.notify("All sub-agents cleared.", "info");
     },
   });

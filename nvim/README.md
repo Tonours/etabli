@@ -66,6 +66,16 @@ OPS cockpit:
 - task + snapshot are regenerated together with shared revision/timestamp metadata, and task identity follows branch → cwd fallback
 - run `./scripts/test-ops-local.sh` from repo root to revalidate the shared OPS surface before commit
 
+## OPS agent workspace (terminal-first)
+
+- Toggle workspace: `<leader>at`
+- Focus threads sidebar: `<leader>aT`
+- Focus diffs panel: `<leader>aI` or `<leader>ri` when agent mode is enabled
+- Show agent key help: `<leader>a?`
+- In-panel hints are always visible (`<CR>`, `C`, `P`, `R`, `?`) in sidebar/diffs buffers
+- Provider dispatch stays terminal-first: if the active provider thread is unusable or mismatched, Neovim falls back to launching `claude`/`pi` in a terminal tab
+- Closing agent mode restores prior `nvim-tree` side and open/closed state
+
 ## Code workflow
 
 - Symbols: `<leader>ss`, `<leader>sS`

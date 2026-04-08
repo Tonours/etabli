@@ -23,6 +23,13 @@ local valid_runtime_phases = {
   offline = true,
 }
 
+local valid_agent_statuses = {
+  running = true,
+  done = true,
+  error = true,
+  waiting_human = true,
+}
+
 local plan_cache = {
   key = nil,
   checked_at = 0,
@@ -31,6 +38,13 @@ local plan_cache = {
 }
 
 local runtime_cache = {
+  key = nil,
+  checked_at = 0,
+  mtime = nil,
+  value = nil,
+}
+
+local agents_cache = {
   key = nil,
   checked_at = 0,
   mtime = nil,
@@ -135,6 +149,10 @@ end
 
 function M.snapshot_status_path(cwd)
   return vim.fn.expand("~/.pi/status/" .. M.status_file_name(cwd) .. ".ops.json")
+end
+
+function M.agent_status_path(cwd)
+  return vim.fn.expand("~/.pi/status/" .. M.status_file_name(cwd) .. ".agents.json")
 end
 
 function M.handoff_paths(cwd)
@@ -366,6 +384,96 @@ function M.runtime_state(cwd)
   end)
 end
 
+
+function M.inspect_agents_content(content)
+  local warnings = {}
+  local ok, decoded = pcall(vim.json.decode, content)
+  if not ok or type(decoded) ~= "table" then
+    return {
+      exists = true,
+      state = "invalid",
+      updatedAt = nil,
+      total = 0,
+      running = 0,
+      waitingHuman = 0,
+      failed = 0,
+      items = {},
+      warnings = { "Agent status is not valid JSON" },
+    }
+  end
+
+  local items = {}
+  local agents = decoded.agents
+  if type(agents) ~= "table" then
+    add_warning(warnings, "Agent status agents must be an array")
+    agents = {}
+  end
+
+  local running = 0
+  local waiting_human = 0
+  local failed = 0
+
+  for _, entry in ipairs(agents) do
+    if type(entry) == "table" then
+      local status = type(entry.status) == "string" and entry.status or nil
+      if status == nil or not valid_agent_statuses[status] then
+        add_warning(warnings, "Agent status entry has invalid status")
+        status = "error"
+      end
+      if status == "running" then running = running + 1 end
+      if status == "waiting_human" then waiting_human = waiting_human + 1 end
+      if status == "error" then failed = failed + 1 end
+      local checkpoint = type(entry.humanCheckpoint) == "table" and entry.humanCheckpoint or nil
+      table.insert(items, {
+        id = type(entry.id) == "number" and entry.id or 0,
+        status = status,
+        role = type(entry.role) == "string" and entry.role or nil,
+        task = type(entry.task) == "string" and entry.task or "",
+        updatedAt = type(entry.updatedAt) == "string" and entry.updatedAt or nil,
+        lastEvent = type(entry.lastEvent) == "string" and entry.lastEvent or nil,
+        question = checkpoint and type(checkpoint.question) == "string" and checkpoint.question or nil,
+        resumePrompt = checkpoint and type(checkpoint.resumePrompt) == "string" and checkpoint.resumePrompt or nil,
+      })
+    end
+  end
+
+  return {
+    exists = true,
+    state = #warnings > 0 and "invalid" or "available",
+    updatedAt = type(decoded.updatedAt) == "string" and decoded.updatedAt or nil,
+    total = #items,
+    running = running,
+    waitingHuman = waiting_human,
+    failed = failed,
+    items = items,
+    warnings = warnings,
+  }
+end
+
+function M.agents_state(cwd)
+  local path = M.agent_status_path(cwd)
+  local key = vim.fs.normalize(cwd or vim.fn.getcwd())
+
+  return inspect_cached_file(agents_cache, key, path, function(content, target)
+    local parsed = M.inspect_agents_content(content)
+    parsed.path = target
+    return parsed
+  end, function(target)
+    return {
+      exists = false,
+      path = target,
+      state = "missing",
+      updatedAt = nil,
+      total = 0,
+      running = 0,
+      waitingHuman = 0,
+      failed = 0,
+      items = {},
+      warnings = {},
+    }
+  end)
+end
+
 local function zero_counts(statuses)
   local counts = { total = 0 }
   for _, status in ipairs(statuses) do
@@ -561,6 +669,35 @@ function M.handoff_state(cwd)
   }
 end
 
+function M.threads_state(cwd)
+  local agent_threads = require("config.ops.agent_threads")
+  local agent_state = require("config.ops.agent_state")
+  local root = vim.fs.normalize(cwd or vim.fn.getcwd())
+  local threads = agent_threads.list_project_threads(root)
+  local active = agent_state.get_active_thread(root)
+  local counts = {
+    total = #threads,
+    running = 0,
+    inactive = 0,
+    idle = 0,
+    error = 0,
+  }
+
+  for _, thread in ipairs(threads) do
+    if counts[thread.status] ~= nil then
+      counts[thread.status] = counts[thread.status] + 1
+    end
+  end
+
+  return {
+    exists = true,
+    activeThreadId = active and active.id or nil,
+    threads = threads,
+    counts = counts,
+    updatedAt = os.date("!%Y-%m-%dT%H:%M:%S.000Z"),
+  }
+end
+
 function M.invalidate()
   plan_cache.key = nil
   plan_cache.checked_at = 0
@@ -571,6 +708,11 @@ function M.invalidate()
   runtime_cache.checked_at = 0
   runtime_cache.mtime = nil
   runtime_cache.value = nil
+
+  agents_cache.key = nil
+  agents_cache.checked_at = 0
+  agents_cache.mtime = nil
+  agents_cache.value = nil
 
   review_cache.key = nil
   review_cache.checked_at = 0

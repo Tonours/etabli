@@ -64,6 +64,10 @@
         "health-check.ts",
         "error-recovery.ts",
         "context-help.ts"
+      ],
+      "skills": [
+        "plan-loop",
+        "plan-implement"
       ]
     }
   ],

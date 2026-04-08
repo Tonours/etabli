@@ -77,6 +77,7 @@ end
 
 function M.servers()
   return {
+    astro = {},
     cssls = {},
     ember = {
       filetypes = { "hbs", "handlebars", "html.handlebars", "javascript.glimmer", "typescript.glimmer" },
@@ -99,7 +100,9 @@ function M.servers()
         },
       },
     },
-    tailwindcss = {},
+    tailwindcss = {
+      filetypes = { "astro", "css", "html", "javascript", "javascriptreact", "scss", "typescript", "typescriptreact" },
+    },
     ts_ls = {
       -- Performance settings for TypeScript
       settings = {

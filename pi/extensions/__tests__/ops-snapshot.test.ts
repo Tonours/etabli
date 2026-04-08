@@ -48,6 +48,7 @@ describe("normalizeOpsSnapshot", () => {
     expect(snapshot.version).toBe(OPS_SNAPSHOT_VERSION);
     expect(snapshot.updatedAt).toBe(snapshot.generatedAt);
     expect(snapshot.paths.task).toEndWith(".task.json");
+    expect(snapshot.paths.agents).toEndWith(".agents.json");
     expect(snapshot.task?.title).toBeTruthy();
     expect(snapshot.task?.revision).toBe(snapshot.revision);
     expect(snapshot.task?.identitySource).toBeTruthy();
@@ -156,6 +157,7 @@ describe("validateOpsSnapshot", () => {
       },
       review: { state: "bad", source: "weird", mayBeStale: "yes", refreshedAt: 1, actionable: -1, line: "", warnings: "oops" },
       runtime: { state: "bad", source: 1, phase: 2, tool: 3, model: 4, thinking: 5, updatedAt: 6, warnings: "oops" },
+      agents: { state: "bad", updatedAt: 1, total: -1, running: -1, waitingHuman: -1, failed: -1, items: "oops", warnings: "oops" },
       handoff: { state: "bad", kind: 1, path: 2 },
       mode: { state: "bad", mode: "", explicit: "no", hint: { roles: "", review: "", scope: "" }, warnings: "oops" },
       nextAction: { value: "", reason: "", derivedFrom: "bad" },
@@ -169,6 +171,7 @@ describe("validateOpsSnapshot", () => {
     expect(result.errors).toContain("OPS snapshot plan.completedSlices must be a string array when present");
     expect(result.errors).toContain("OPS snapshot review.state is invalid");
     expect(result.errors).toContain("OPS snapshot runtime.state is invalid");
+    expect(result.errors).toContain("OPS snapshot agents.state is invalid");
     expect(result.errors).toContain("OPS snapshot nextAction.derivedFrom is invalid");
   });});
 

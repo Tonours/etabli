@@ -31,6 +31,7 @@ export interface OpsSnapshotPaths {
   task?: string;
   plan: string;
   runtime: string;
+  agents?: string;
   handoffImplement: string;
   handoffGeneric: string;
 }
@@ -91,6 +92,28 @@ export interface OpsSnapshotRuntime {
   warnings: string[];
 }
 
+export interface OpsSnapshotAgentsItem {
+  id: number;
+  status: string;
+  role: string | null;
+  task: string;
+  updatedAt: string | null;
+  lastEvent: string | null;
+  question: string | null;
+  resumePrompt: string | null;
+}
+
+export interface OpsSnapshotAgents {
+  state: "available" | "missing" | "invalid";
+  updatedAt: string | null;
+  total: number;
+  running: number;
+  waitingHuman: number;
+  failed: number;
+  items: OpsSnapshotAgentsItem[];
+  warnings: string[];
+}
+
 export interface OpsSnapshotHandoff {
   state: HandoffStateKind;
   kind: string | null;
@@ -128,6 +151,7 @@ export interface OpsSnapshot {
   plan: OpsSnapshotPlan;
   review: OpsSnapshotReview;
   runtime: OpsSnapshotRuntime;
+  agents: OpsSnapshotAgents;
   handoff: OpsSnapshotHandoff;
   mode: OpsSnapshotMode;
   nextAction: OpsSnapshotNextAction;
@@ -261,6 +285,7 @@ export function normalizeOpsSnapshot(snapshot: OpsSnapshot): OpsSnapshot {
     paths: {
       ...snapshot.paths,
       task: snapshot.paths.task ?? makeOpsTaskStateFile(snapshot.cwd),
+      agents: snapshot.paths.agents ?? join(getHomeDir(), ".pi", "status", `${statusFileName(normalizeSnapshotCwd(snapshot.cwd))}.agents.json`),
     },
     task,
     plan: {
@@ -277,6 +302,16 @@ export function normalizeOpsSnapshot(snapshot: OpsSnapshot): OpsSnapshot {
     runtime: {
       ...snapshot.runtime,
       warnings: [...snapshot.runtime.warnings],
+    },
+    agents: {
+      state: snapshot.agents?.state ?? "missing",
+      updatedAt: snapshot.agents?.updatedAt ?? null,
+      total: snapshot.agents?.total ?? 0,
+      running: snapshot.agents?.running ?? 0,
+      waitingHuman: snapshot.agents?.waitingHuman ?? 0,
+      failed: snapshot.agents?.failed ?? 0,
+      items: [...(snapshot.agents?.items ?? [])],
+      warnings: [...(snapshot.agents?.warnings ?? [])],
     },
     handoff: { ...snapshot.handoff },
     mode: {
@@ -323,6 +358,9 @@ export function validateOpsSnapshot(value: unknown): OpsSnapshotValidationResult
     }
     if (paths.task !== undefined && !isNonEmptyString(paths.task)) {
       errors.push("OPS snapshot paths.task must be a non-empty string when present");
+    }
+    if (paths.agents !== undefined && !isNonEmptyString(paths.agents)) {
+      errors.push("OPS snapshot paths.agents must be a non-empty string when present");
     }
   }
 
@@ -428,6 +466,24 @@ export function validateOpsSnapshot(value: unknown): OpsSnapshotValidationResult
     if (!isOptionalString(runtime.thinking)) errors.push("OPS snapshot runtime.thinking must be a string or null");
     if (!isOptionalString(runtime.updatedAt)) errors.push("OPS snapshot runtime.updatedAt must be a string or null");
     if (!isStringArray(runtime.warnings)) errors.push("OPS snapshot runtime.warnings must be a string array");
+  }
+
+  const agents = candidate.agents as Record<string, unknown> | undefined;
+  if (agents !== undefined) {
+    if (typeof agents !== "object" || agents === null) {
+      errors.push("OPS snapshot agents must be an object when present");
+    } else {
+      if (!isEnumValue(agents.state, ["available", "missing", "invalid"] as const)) errors.push("OPS snapshot agents.state is invalid");
+      if (!isOptionalString(agents.updatedAt)) errors.push("OPS snapshot agents.updatedAt must be a string or null");
+      if (!isNumber(agents.total) || (agents.total as number) < 0) errors.push("OPS snapshot agents.total must be a non-negative number");
+      if (!isNumber(agents.running) || (agents.running as number) < 0) errors.push("OPS snapshot agents.running must be a non-negative number");
+      if (!isNumber(agents.waitingHuman) || (agents.waitingHuman as number) < 0) errors.push("OPS snapshot agents.waitingHuman must be a non-negative number");
+      if (!isNumber(agents.failed) || (agents.failed as number) < 0) errors.push("OPS snapshot agents.failed must be a non-negative number");
+      if (!Array.isArray(agents.items)) {
+        errors.push("OPS snapshot agents.items must be an array");
+      }
+      if (!isStringArray(agents.warnings)) errors.push("OPS snapshot agents.warnings must be a string array");
+    }
   }
 
   const handoff = candidate.handoff as Record<string, unknown> | undefined;

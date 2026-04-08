@@ -7,6 +7,7 @@ return {
       -- Batch filetype registrations for better performance
       vim.filetype.add({
         extension = {
+          astro = "astro",
           hbs = "handlebars",
         },
       })

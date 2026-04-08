@@ -1,6 +1,7 @@
 local lsp = require("config.lsp")
 
 local prettier_filetypes = {
+  astro = true,
   css = true,
   hbs = true,
   handlebars = true,
@@ -261,6 +262,7 @@ return {
     cmd = { "ConformInfo" },
     opts = {
       formatters_by_ft = {
+        astro = { "prettier" },
         css = { "prettier" },
         hbs = { "prettier" },
         handlebars = { "prettier" },

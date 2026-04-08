@@ -3,6 +3,7 @@ local mode = require("config.ops.mode")
 local snapshot = require("config.ops.snapshot")
 local state = require("config.ops.state")
 local view = require("config.ops.view")
+local agent_threads = require("config.ops.agent_threads")
 
 local M = {}
 
@@ -80,6 +81,59 @@ end
 
 function M.show_doctor()
   vim.notify(table.concat(doctor.lines(), "\n"), vim.log.levels.INFO, { title = "OPSDoctor" })
+end
+
+function M.show_threads()
+  local threads_state = state.threads_state(vim.fn.getcwd())
+  local lines = {
+    "Agent Threads:",
+    string.format(
+      "Active: %s | total=%d running=%d inactive=%d idle=%d error=%d",
+      threads_state.activeThreadId or "none",
+      threads_state.counts.total,
+      threads_state.counts.running,
+      threads_state.counts.inactive,
+      threads_state.counts.idle,
+      threads_state.counts.error
+    ),
+    "",
+  }
+
+  if #threads_state.threads == 0 then
+    table.insert(lines, "(none)")
+  else
+    local max_lines = 12
+    for index, thread in ipairs(threads_state.threads) do
+      if index > max_lines then
+        table.insert(lines, string.format("… and %d more", #threads_state.threads - max_lines))
+        break
+      end
+
+      local prefix = thread.id == threads_state.activeThreadId and "*" or "-"
+      table.insert(
+        lines,
+        string.format("%s %s [%s] %s", prefix, thread.title or (thread.provider .. " thread"), thread.provider, thread.status)
+      )
+    end
+  end
+
+  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "OPSThreads" })
+end
+
+function M.new_thread(provider)
+  local cwd = vim.fn.getcwd()
+  local ok, thread = pcall(agent_threads.create_thread, provider, { root = cwd, cwd = cwd })
+  if not ok then
+    vim.notify(thread, vim.log.levels.ERROR, { title = "OPSNewThread" })
+    return
+  end
+
+  try_write_snapshot(cwd, "OPSNewThread")
+  vim.notify(
+    string.format("Started %s thread: %s", provider, thread.title or (provider .. " thread")),
+    vim.log.levels.INFO,
+    { title = "OPSNewThread" }
+  )
 end
 
 function M.show_mode(command_mode)

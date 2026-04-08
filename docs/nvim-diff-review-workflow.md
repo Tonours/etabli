@@ -44,6 +44,17 @@ The inbox now also keeps a short-lived local cache for merged review items. This
 
 By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the inbox to avoid noise after a revert or commit. Actionable stale entries such as `needs-rework` or `question` still stay visible by default. If you explicitly filter `:ReviewInbox new`, `:ReviewInbox accepted`, or `:ReviewInbox ignore`, those stale entries are still available.
 
+## OPS agent routing
+
+When OPS agent mode is on (`<leader>at`):
+
+- `<leader>ri` focuses the OPS diffs panel (instead of opening Telescope inbox)
+- sidebar and diffs panels show inline shortcut hints and quick refresh/open actions
+- dispatch to Claude/Pi first tries the active matching agent thread for the current repo key
+- if no usable matching thread exists, dispatch falls back to a terminal tab launch (`claude`/`pi`) with the prepared prompt
+
+When OPS agent mode is off, `<leader>ri` keeps the classic review inbox behavior.
+
 ## Batch prompt preparation
 
 - `:ReviewClaudeBatch [status]` prepares one Claude prompt for every live hunk with that status

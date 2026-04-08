@@ -20,19 +20,23 @@ return {
           DiagnosticFloatingWarn = { fg = colors.yellow },
           DiagnosticFloatingInfo = { fg = colors.sky },
           DiagnosticFloatingHint = { fg = colors.teal },
+          NormalFloat = { bg = colors.mantle },
+          FloatBorder = { fg = colors.surface1, bg = colors.mantle },
+          TelescopeNormal = { bg = colors.base },
           TelescopeBorder = { fg = colors.surface1, bg = colors.base },
           TelescopePromptBorder = { fg = colors.blue, bg = colors.mantle },
           TelescopePromptNormal = { bg = colors.mantle },
           TelescopePromptPrefix = { fg = colors.blue, bg = colors.mantle },
+          TelescopePreviewNormal = { bg = colors.base },
           TelescopeResultsNormal = { bg = colors.base },
           TelescopeSelection = { fg = colors.text, bg = colors.surface0, bold = true },
           TelescopeMatching = { fg = colors.lavender, bold = true },
           NvimTreeNormal = { bg = colors.base },
           NvimTreeNormalNC = { bg = colors.base },
-          NvimTreeRootFolder = { fg = colors.blue, bold = true },
+          NvimTreeRootFolder = { fg = colors.peach, bold = true },
           NvimTreeFolderName = { fg = colors.text },
-          NvimTreeOpenedFolderName = { fg = colors.blue, bold = true },
-          NvimTreeOpenedFile = { fg = colors.lavender, bold = true },
+          NvimTreeOpenedFolderName = { fg = colors.peach, bold = true },
+          NvimTreeOpenedFile = { fg = colors.peach, bold = true },
           NvimTreeSpecialFile = { fg = colors.mauve, underline = true },
           NvimTreeIndentMarker = { fg = colors.surface1 },
           WinSeparator = { fg = colors.surface1 },
@@ -66,13 +70,13 @@ return {
         options = {
           theme = "catppuccin-mocha",
           globalstatus = true,
-          component_separators = { left = "", right = "" },
-          section_separators = { left = "", right = "" },
+          component_separators = { left = "▓", right = "▒" },
+          section_separators = { left = "█", right = "█" },
           -- Performance: reduce refresh frequency
           refresh = {
-            statusline = 1000,  -- Refresh every 1000ms (was 750ms)
-            tabline = 5000,     -- Refresh every 5000ms (was 3000ms)
-            winbar = 5000,      -- Refresh every 5000ms (was 3000ms)
+            statusline = 1000,
+            tabline = 5000,
+            winbar = 5000,
           },
         },
         sections = {
@@ -80,14 +84,14 @@ return {
             {
               "mode",
               fmt = function(str)
-                return " " .. str
+                return "█ " .. str
               end,
             },
           },
           lualine_b = {
             {
               "branch",
-              icon = "",
+              icon = "▛",
             },
             {
               statusline.project_label,
@@ -119,6 +123,10 @@ return {
           lualine_z = { "location" },
         },
       }
+    end,
+    config = function(_, opts)
+      require("lualine").setup(opts)
+      require("config.lualine_notices").patch()
     end,
   },
 }
