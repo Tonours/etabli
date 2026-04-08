@@ -1,4 +1,5 @@
 local actions = require("config.ops.actions")
+local agent_threads = require("config.ops.agent_threads")
 local mode = require("config.ops.mode")
 local snapshot = require("config.ops.snapshot")
 local state = require("config.ops.state")
@@ -32,16 +33,24 @@ M.statusline_label = view.statusline_label
 M.statusline_color = view.statusline_color
 M.show_status = actions.show_status
 M.show_next = actions.show_next
+M.show_agents = actions.show_agents
+M.show_human = actions.show_human
 M.refresh_review = actions.refresh_review
 M.open_plan = actions.open_plan
 M.open_review = actions.open_review
 M.open_handoff = actions.open_handoff
 M.resume = actions.resume
 M.show_doctor = actions.show_doctor
+M.show_threads = actions.show_threads
+M.new_thread = actions.new_thread
 M.show_mode = actions.show_mode
 M.set_mode_simple = actions.set_mode_simple
 M.set_mode_standard = actions.set_mode_standard
 M.show_tilldone = tilldone.show_float
+M.create_thread = agent_threads.create_thread
+M.list_threads = agent_threads.list_threads
+M.remove_thread = agent_threads.remove_thread
+M.providers = agent_threads.providers
 
 function M.setup_commands()
   if commands_registered then
@@ -61,6 +70,14 @@ function M.setup_commands()
   vim.api.nvim_create_user_command("OPSNext", function()
     M.show_next()
   end, { desc = "Show the next OPS action" })
+
+  vim.api.nvim_create_user_command("OPSAgents", function()
+    M.show_agents()
+  end, { desc = "Show tracked background agents and HITL checkpoints" })
+
+  vim.api.nvim_create_user_command("OPSHuman", function()
+    M.show_human()
+  end, { desc = "Show the current human checkpoint and resume hint" })
 
   vim.api.nvim_create_user_command("OPSOpenPlan", function()
     M.open_plan()
@@ -111,6 +128,20 @@ function M.setup_commands()
   vim.api.nvim_create_user_command("TillDoneNext", function()
     tilldone.show_next_action()
   end, { desc = "Show next action from TillDone and OPS" })
+
+  vim.api.nvim_create_user_command("OPSThreads", function()
+    actions.show_threads()
+  end, { desc = "Show running agent threads" })
+
+  vim.api.nvim_create_user_command("OPSNewThread", function(opts)
+    actions.new_thread(opts.args)
+  end, {
+    desc = "Start a new agent thread",
+    nargs = 1,
+    complete = function()
+      return { "claude", "pi" }
+    end,
+  })
 
   local group = vim.api.nvim_create_augroup("etabli_ops_runtime", { clear = true })
   vim.api.nvim_create_autocmd({ "DirChanged", "BufWritePost" }, {

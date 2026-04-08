@@ -1,7 +1,7 @@
 export type SubagentRole = "scout" | "worker" | "reviewer";
 
 export type MinimalSubagentState = {
-  status: "running" | "done" | "error";
+  status: "running" | "done" | "error" | "waiting_human";
   role?: SubagentRole;
 };
 

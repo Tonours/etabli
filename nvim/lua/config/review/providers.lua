@@ -14,6 +14,82 @@ local providers = {
   },
 }
 
+
+local overlay_border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }
+
+local function overlay_geometry()
+  local available_width = math.max(20, vim.o.columns - 4)
+  local preferred_width = math.max(60, math.floor(vim.o.columns * 0.8))
+  local width = math.min(preferred_width, available_width)
+
+  local available_height = math.max(6, vim.o.lines - 4)
+  local preferred_height = math.max(10, math.floor(vim.o.lines * 0.45))
+  local height = math.min(preferred_height, available_height)
+
+  return {
+    width = width,
+    height = height,
+    col = math.max(0, math.floor((vim.o.columns - width) / 2)),
+    row = math.max(0, vim.o.lines - height - 2),
+  }
+end
+
+local function open_overlay_terminal_window()
+  local bufnr = vim.api.nvim_create_buf(false, false)
+  local geometry = overlay_geometry()
+  local winid = vim.api.nvim_open_win(bufnr, true, {
+    relative = "editor",
+    width = geometry.width,
+    height = geometry.height,
+    col = geometry.col,
+    row = geometry.row,
+    style = "minimal",
+    border = overlay_border,
+  })
+
+  vim.wo[winid].number = false
+  vim.wo[winid].relativenumber = false
+  vim.wo[winid].signcolumn = "no"
+  vim.wo[winid].winblend = 0
+
+  return bufnr, winid
+end
+
+local function close_overlay_window(winid, bufnr)
+  if winid and vim.api.nvim_win_is_valid(winid) then
+    pcall(vim.api.nvim_win_close, winid, true)
+  end
+
+  if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+    pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+  end
+end
+
+local function attach_overlay_shortcuts(bufnr, winid)
+  local function close()
+    close_overlay_window(winid, bufnr)
+  end
+
+  vim.keymap.set("n", "q", close, {
+    buffer = bufnr,
+    silent = true,
+    nowait = true,
+    desc = "Close provider overlay",
+  })
+  vim.keymap.set("n", "<Esc>", close, {
+    buffer = bufnr,
+    silent = true,
+    nowait = true,
+    desc = "Close provider overlay",
+  })
+  vim.keymap.set("t", "<Esc>", close, {
+    buffer = bufnr,
+    silent = true,
+    nowait = true,
+    desc = "Close provider overlay",
+  })
+end
+
 local function provider_for(name)
   local provider = providers[name]
   if not provider then
@@ -35,8 +111,26 @@ local function do_open_terminal(command, opts)
     return false
   end
 
-  vim.cmd.tabnew()
-  vim.fn.termopen(command, {
+  local has_ui = #vim.api.nvim_list_uis() > 0
+  local bufnr
+  local winid
+
+  if has_ui then
+    bufnr, winid = open_overlay_terminal_window()
+    attach_overlay_shortcuts(bufnr, winid)
+  else
+    vim.cmd.enew()
+    bufnr = vim.api.nvim_get_current_buf()
+    winid = vim.api.nvim_get_current_win()
+  end
+
+  vim.bo[bufnr].bufhidden = "hide"
+
+  if options.title and options.title ~= "" then
+    pcall(vim.api.nvim_buf_set_name, bufnr, options.title)
+  end
+
+  local job_id = vim.fn.termopen(command, {
     cwd = options.cwd,
     on_exit = function()
       if options.on_exit then
@@ -45,11 +139,35 @@ local function do_open_terminal(command, opts)
     end,
   })
 
-  if options.title and options.title ~= "" then
-    vim.api.nvim_buf_set_name(0, options.title)
+  if type(job_id) ~= "number" or job_id <= 0 then
+    close_overlay_window(winid, bufnr)
+    return false
   end
 
-  vim.cmd.startinsert()
+  if has_ui then
+    vim.cmd.startinsert()
+  end
+
+  return true
+end
+
+local function try_send_active_thread(provider_name, prompt, cwd)
+  local ok_threads, agent_threads = pcall(require, "config.ops.agent_threads")
+  if not ok_threads or not agent_threads then
+    return false
+  end
+
+  local root = cwd and cwd ~= "" and cwd or vim.fn.getcwd()
+  local active = agent_threads.active_thread(root)
+  if not active or active.provider ~= provider_name then
+    return false
+  end
+
+  local ok_send, result = pcall(agent_threads.send_to_thread, active.id, prompt)
+  if not ok_send or not result then
+    return false
+  end
+
   return true
 end
 
@@ -71,36 +189,46 @@ local function dispatch_prompt(provider, prompt, opts)
     end
   end
 
-  -- Use schedule for immediate but non-blocking execution
   vim.schedule(function()
     util.open_scratch(title, vim.split(prompt, "\n", { plain = true }), "markdown")
 
-    if open_terminal ~= false then
-      if vim.fn.executable(provider.command) == 1 then
-        do_open_terminal(launch_argv(provider, prompt), {
-          cwd = cwd,
-          on_exit = function()
-            local ok, review = pcall(require, "config.review")
-            if ok and review and review.refresh_after_external_edit then
-              review.refresh_after_external_edit(cwd, {
-                before_signature = before_signature,
-                provider = provider.label,
-              })
-            end
-
-            if options.after_exit then
-              options.after_exit()
-            end
-          end,
-          title = string.format("term://review-%s", provider.command),
-        })
-      else
-        vim.notify(
-          string.format("%s CLI not found. The prompt was still copied to registers.", provider.label),
-          vim.log.levels.WARN
-        )
-      end
+    if open_terminal == false then
+      return
     end
+
+    if try_send_active_thread(provider.command, prompt, cwd) then
+      vim.notify(string.format("Sent prompt to active %s thread.", provider.label), vim.log.levels.INFO)
+      if options.after_exit then
+        options.after_exit()
+      end
+      return
+    end
+
+    if vim.fn.executable(provider.command) == 1 then
+      do_open_terminal(launch_argv(provider, prompt), {
+        cwd = cwd,
+        on_exit = function()
+          local ok, review = pcall(require, "config.review")
+          if ok and review and review.refresh_after_external_edit then
+            review.refresh_after_external_edit(cwd, {
+              before_signature = before_signature,
+              provider = provider.label,
+            })
+          end
+
+          if options.after_exit then
+            options.after_exit()
+          end
+        end,
+        title = string.format("term://review-%s", provider.command),
+      })
+      return
+    end
+
+    vim.notify(
+      string.format("%s CLI not found. The prompt was still copied to registers.", provider.label),
+      vim.log.levels.WARN
+    )
   end)
 
   vim.notify(message, vim.log.levels.INFO)
@@ -135,7 +263,7 @@ function M.dispatch(name, item, opts)
     title = string.format("review-%s-%s.md", name, options.action or "revise"),
     open_terminal = options.open_terminal,
     message = string.format(
-      "Prepared %s prompt for %s, copied it to registers, and launched it directly in the CLI.",
+      "Prepared %s prompt for %s and copied it to registers.",
       options.action or "revise",
       provider.label
     ),
@@ -171,7 +299,7 @@ function M.dispatch_batch(name, items, opts)
     ),
     open_terminal = options.open_terminal,
     message = string.format(
-      "Prepared %s batch prompt for %s (%d hunks), copied it to registers, and launched it directly in the CLI.",
+      "Prepared %s batch prompt for %s (%d hunks) and copied it to registers.",
       action,
       provider.label,
       #items

@@ -234,6 +234,21 @@ end, vim.tbl_extend("force", opts, { desc = "OPS refresh review" }))
 map("n", "<leader>am", function()
   require("config.ops").show_mode()
 end, vim.tbl_extend("force", opts, { desc = "OPS mode" }))
+map("n", "<leader>at", function()
+  require("config.ops.agent_layout").toggle()
+end, vim.tbl_extend("force", opts, { desc = "OPS agent mode toggle" }))
+map("n", "<leader>aT", function()
+  require("config.ops.agent_layout").focus_sidebar()
+end, vim.tbl_extend("force", opts, { desc = "OPS agent sidebar" }))
+map("n", "<leader>aI", function()
+  require("config.ops.agent_layout").focus_diffs()
+end, vim.tbl_extend("force", opts, { desc = "OPS agent diffs" }))
+map("n", "<leader>a?", function()
+  vim.notify(
+    "OPS agent keys: <leader>at toggle · <leader>aT threads · <leader>aI diffs · <leader>ri inbox/diffs",
+    vim.log.levels.INFO
+  )
+end, vim.tbl_extend("force", opts, { desc = "OPS agent help" }))
 map("n", "<leader>aM", function()
   -- Toggle between simple and standard mode
   local mode = require("config.ops.mode").read()
@@ -296,8 +311,14 @@ map("n", "<leader>cf", function()
 end, vim.tbl_extend("force", opts, { desc = "Format buffer" }))
 
 map("n", "<leader>ri", function()
+  local agent_layout = require("config.ops.agent_layout")
+  if agent_layout.is_enabled() then
+    agent_layout.focus_diffs()
+    return
+  end
+
   require("config.review").open_inbox()
-end, vim.tbl_extend("force", opts, { desc = "Review inbox" }))
+end, vim.tbl_extend("force", opts, { desc = "Review inbox / agent diffs" }))
 map("n", "<leader>rh", function()
   require("config.review").show_current_hunk()
 end, vim.tbl_extend("force", opts, { desc = "Review current hunk" }))

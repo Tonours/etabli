@@ -12,7 +12,8 @@
     "plan": "/Volumes/Crucial/work/etabli/PLAN.md",
     "runtime": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.json",
     "handoffImplement": "/Volumes/Crucial/work/etabli/.pi/handoff-implement.md",
-    "handoffGeneric": "/Volumes/Crucial/work/etabli/.pi/handoff.md"
+    "handoffGeneric": "/Volumes/Crucial/work/etabli/.pi/handoff.md",
+    "agents": "/Users/tonours/.pi/status/_Volumes_Crucial_work_etabli.agents.json"
   },
   "task": {
     "taskId": "etabli:feature-ops-task-state",
@@ -95,5 +96,36 @@
     "value": "start Slice 1",
     "reason": "ready plan with no active slice",
     "derivedFrom": "plan"
+  },
+  "agents": {
+    "state": "available",
+    "updatedAt": "2026-03-31T12:00:00.000Z",
+    "total": 2,
+    "running": 1,
+    "waitingHuman": 1,
+    "failed": 0,
+    "items": [
+      {
+        "id": 1,
+        "status": "running",
+        "role": "worker",
+        "task": "Implement Slice 1",
+        "updatedAt": "2026-03-31T12:00:00.000Z",
+        "lastEvent": "progress",
+        "question": null,
+        "resumePrompt": null
+      },
+      {
+        "id": 2,
+        "status": "waiting_human",
+        "role": "reviewer",
+        "task": "Review resume strategy",
+        "updatedAt": "2026-03-31T12:00:00.000Z",
+        "lastEvent": "needs_human",
+        "question": "Choose resume strategy",
+        "resumePrompt": "Continue after human decision"
+      }
+    ],
+    "warnings": []
   }
 }

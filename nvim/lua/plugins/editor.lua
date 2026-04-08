@@ -1,43 +1,4 @@
-local function open_node_in_tab_or_toggle_dir()
-  -- Lazy-load nvim-tree API only when needed
-  local ok, api = pcall(require, "nvim-tree.api")
-  if not ok then
-    return
-  end
-
-  local node = api.tree.get_node_under_cursor()
-
-  if not node then
-    return
-  end
-
-  if node.type == "directory" then
-    api.node.open.edit(node)
-    return
-  end
-
-  api.node.open.tab_drop(node)
-end
-
-local function tree_on_attach(bufnr)
-  local api = require("nvim-tree.api")
-
-  api.config.mappings.default_on_attach(bufnr)
-
-  local function opts(desc)
-    return {
-      buffer = bufnr,
-      desc = "nvim-tree: " .. desc,
-      noremap = true,
-      nowait = true,
-      silent = true,
-    }
-  end
-
-  vim.keymap.set("n", "<CR>", open_node_in_tab_or_toggle_dir, opts("Open: Tab / Toggle Dir"))
-  vim.keymap.set("n", "o", open_node_in_tab_or_toggle_dir, opts("Open: Tab / Toggle Dir"))
-  vim.keymap.set("n", "<2-LeftMouse>", open_node_in_tab_or_toggle_dir, opts("Open: Tab / Toggle Dir"))
-end
+local nvim_tree = require("config.nvim_tree")
 
 return {
   {
@@ -120,7 +81,7 @@ return {
       update_debounce = 1500, -- Increased from 1000ms
       attach_to_untracked = false,
       preview_config = {
-        border = "rounded",
+        border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" },
         style = "minimal",
         relative = "cursor",
         row = 0,
@@ -143,56 +104,9 @@ return {
       { "<leader>fE", "<cmd>NvimTreeFindFile<cr>", desc = "Find file in explorer" },
     },
     dependencies = { "nvim-tree/nvim-web-devicons" },
-    opts = {
-      hijack_cursor = false,
-      on_attach = tree_on_attach,
-      sync_root_with_cwd = true,
-      tab = {
-        sync = {
-          open = true,
-        },
-      },
-      git = {
-        enable = false,
-      },
-      diagnostics = {
-        enable = false,
-      },
-      update_focused_file = {
-        enable = true,
-        update_root = false,
-        debounce_delay = 10, -- Reduced debounce (was 15ms)
-      },
-      view = {
-        side = "right",
-        signcolumn = "no",
-        width = 30,
-        preserve_window_proportions = true,
-      },
-      renderer = {
-        group_empty = true,
-        highlight_opened_files = "name",
-        indent_width = 1,
-        root_folder_label = false,
-        icons = {
-          show = {
-            git = false,
-          },
-        },
-      },
-      actions = {
-        open_file = {
-          quit_on_open = false,
-          resize_window = false,
-          window_picker = {
-            enable = false,
-          },
-        },
-      },
-      filters = {
-        dotfiles = false,
-      },
-    },
+    opts = function()
+      return nvim_tree.opts()
+    end,
     init = function()
       vim.api.nvim_create_autocmd("VimEnter", {
         once = true,
@@ -221,7 +135,7 @@ return {
             if ok then
               api.tree.open()
               vim.schedule(function()
-                pcall(api.tree.resize, 30)
+                pcall(api.tree.resize, nvim_tree.width)
               end)
             end
           end)
@@ -229,22 +143,7 @@ return {
       })
     end,
     config = function(_, opts)
-      require("nvim-tree").setup(opts)
-
-      local group = vim.api.nvim_create_augroup("etabli_nvim_tree_width", { clear = true })
-
-      vim.api.nvim_create_autocmd("FileType", {
-        group = group,
-        pattern = "NvimTree",
-        callback = function(args)
-          local win = vim.fn.bufwinid(args.buf)
-          if win == -1 or vim.api.nvim_win_get_width(win) == opts.view.width then
-            return
-          end
-
-          vim.api.nvim_win_set_width(win, opts.view.width)
-        end,
-      })
+      nvim_tree.setup(opts)
     end,
   },
 }
