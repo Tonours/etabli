@@ -1,26 +1,25 @@
 return {
   {
     "folke/which-key.nvim",
-    cmd = "WhichKey",
     event = "VeryLazy",
     opts = {
       delay = 300,
-      icons = {
-        mappings = false,
+      preset = "modern",
+      plugins = {
+        spelling = {
+          enabled = false,
+        },
       },
-      preset = "classic",
       spec = {
-        { "<leader>a", group = "OPS" },
-        { "<leader>f", group = "find" },
-        { "<leader>p", group = "project" },
-        { "<leader>r", group = "review" },
-        { "<leader>s", group = "symbols" },
-        { "<leader>d", group = "diagnostics" },
-        { "<leader>c", group = "code" },
-        { "<leader>m", group = "multi-cursor" },
-        { "<leader>b", group = "buffers" },
-        { "<leader>w", group = "windows" },
-        { "<leader>t", group = "tabs" },
+        { "<leader>b", group = "Buffers" },
+        { "<leader>c", group = "Code" },
+        { "<leader>d", group = "Diagnostics" },
+        { "<leader>f", group = "Files" },
+        { "<leader>p", group = "Projects" },
+        { "<leader>r", group = "Review" },
+        { "<leader>s", group = "Symbols" },
+        { "<leader>t", group = "Tabs" },
+        { "<leader>w", group = "Windows" },
       },
       win = {
         border = "rounded",

@@ -1,6 +1,6 @@
 local agent_diffs = require("config.ops.agent_diffs")
 local agent_sidebar = require("config.ops.agent_sidebar")
-local nvim_tree = require("config.nvim_tree")
+local nvim_tree = require("config.ops.nvim_tree")
 
 local M = {}
 

@@ -195,11 +195,6 @@ function M.write(context, data)
   local cache_key = context.repo .. "#" .. context.branch
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
-
-  local ok, snapshot = pcall(require, "config.ops.snapshot")
-  if ok and snapshot and snapshot.schedule_write then
-    snapshot.schedule_write(context.repo)
-  end
 end
 
 function M.clear(context)
@@ -210,11 +205,6 @@ function M.clear(context)
   file_cache_time[cache_key] = nil
   if util.path_exists(target) then
     vim.uv.fs_unlink(target)
-  end
-
-  local ok, snapshot = pcall(require, "config.ops.snapshot")
-  if ok and snapshot and snapshot.schedule_write then
-    snapshot.schedule_write(context.repo)
   end
 end
 
