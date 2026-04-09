@@ -106,18 +106,7 @@ Notes repo :
 - le workflow recommandé part du repo/cwd courant
 - garde le focus sur `PLAN.md`, review, validation ciblée, et QA manuelle
 
-## OPS snapshot partagé
-
-- Neovim exporte aussi une projection légère de tâche par cwd vers `~/.pi/status/<sanitized-cwd>.task.json`
-- Neovim exporte un snapshot OPS dérivé par cwd vers `~/.pi/status/<sanitized-cwd>.ops.json`
-- Pi le lit via l'extension ambient `ops-status`
-- Claude peut lire le même snapshot via `claude/commands/ops-status.md`
-- le snapshot OPS embarque aussi cette projection de tâche pour exposer le titre courant, l'état du plan, et la prochaine action sans recalcul coûteux
-- ce snapshot est **read-only** et **display-only** : pas de recalcul OPS, pas de refresh review live implicite, pas d'écriture d'artefacts workflow
-- `:OPSRefreshReview` dans Neovim reste le seul chemin coûteux explicite pour remettre à jour la review live
-- si le snapshot est absent ou invalide, Pi et Claude doivent échouer proprement avec un message explicite
-
-## Vérification locale OPS
+## Vérification locale workflow
 
 Depuis la racine du repo :
 
@@ -126,13 +115,10 @@ Depuis la racine du repo :
 ```
 
 Le runner enchaîne :
-- tests Bun ciblés OPS
-- smoke Neovim OPS
+- tests Bun ciblés workflow
 - smoke Neovim review
 - suite complète des extensions Pi
 - `git diff --check`
-
-La validation réelle de Claude `/ops-status` reste manuelle.
 
 Tests utiles côté `pi/` :
 
@@ -185,10 +171,10 @@ Commandes associées :
 Le workflow supporte deux modes de handoff :
 
 **Fast-handoff (recommandé)** : Génération locale instantanée sans appel LLM
-- `/fast-handoff` → utilise l'OPS snapshot + PLAN.md locaux
+- `/fast-handoff` → utilise l'état local disponible + `PLAN.md`
 - `/fast-handoff-implement` → pour continuation d'implémentation READY
 - Avantage : < 10ms vs 2-5s avec LLM, gratuit, toujours disponible
-- Fonctionne quand un OPS snapshot existe (exporté par Neovim ou Pi)
+- Fonctionne quand le contexte local nécessaire est disponible
 
 **Handoff LLM (fallback)** : Génération via modèle pour cas complexes
 - `/handoff` → résume la conversation via LLM
@@ -200,14 +186,9 @@ Auto-handoff (optionnel) :
 export PI_AUTO_HANDOFF=1  # Met à jour .pi/handoff.md à chaque fin de session
 ```
 
-## TillDone ↔ OPS Sync
+## TillDone Sync
 
-Synchronisation automatique entre les tâches TillDone et l'OPS snapshot :
-
-- Les tâches TillDone apparaissent dans l'OPS task projection
-- L'action active TillDone devient le `nextAction` OPS
-- Neovim peut afficher les tâches actives via `:OPSStatus`
-- Permet une vue unifiée des "next actions" à travers Pi et Neovim
+Synchronisation automatique entre les tâches TillDone et l'état workflow :
 
 Commandes :
 - `/tilldone-sync` → Force la synchronisation manuelle
@@ -235,22 +216,7 @@ Workflow recommandé :
 1. Faire la review dans Neovim (`:ReviewInbox`)
 2. Marquer les hunks problématiques comme "needs-rework"
 3. Dans Pi: `/review-to-tilldone` pour créer les tâches
-4. Les tâches apparaissent dans TillDone et OPS automatiquement
-
-## Neovim Integration
-
-Intégration côté éditeur pour afficher les données Pi :
-
-Commands :
-- `:OPSTillDone` → Affiche les tâches TillDone dans une fenêtre flottante
-- `:TillDoneNext` → Affiche la prochaine action (OPS + TillDone)
-
-Statusline :
-- Les tâches TillDone apparaissent dans la statusline quand disponibles
-- Format: `TD:<task> (#<id>)` ou `TD:<remaining>/<total>`
-- S'intègre automatiquement au statusline OPS existant
-
-Les données sont lues depuis `~/.pi/status/<cwd>.tilldone-ops.json` (écrit par l'extension Pi `tilldone-ops-sync`).
+4. Les tâches apparaissent dans TillDone automatiquement
 
 ## Auto-Validation
 
@@ -289,7 +255,7 @@ health_check (tool)       # Pour les agents
 Vérifie :
 - Présence des extensions workflow (14 vérifications)
 - Configuration settings.json
-- Synchronisation OPS
+- Synchronisation workflow
 - Intégration Neovim
 - Commandes Claude
 

@@ -1,132 +1,72 @@
 return {
   {
-    "catppuccin/nvim",
-    name = "catppuccin",
+    "nvim-tree/nvim-web-devicons",
     lazy = true,
-    opts = {
-      flavour = "mocha",
-      integrations = {
-        mason = false,
-        telescope = false,
-        treesitter = false,
-      },
-      custom_highlights = function(colors)
-        return {
-          DiagnosticSignError = { fg = colors.red, bg = colors.base },
-          DiagnosticSignWarn = { fg = colors.yellow, bg = colors.base },
-          DiagnosticSignInfo = { fg = colors.sky, bg = colors.base },
-          DiagnosticSignHint = { fg = colors.teal, bg = colors.base },
-          DiagnosticFloatingError = { fg = colors.red },
-          DiagnosticFloatingWarn = { fg = colors.yellow },
-          DiagnosticFloatingInfo = { fg = colors.sky },
-          DiagnosticFloatingHint = { fg = colors.teal },
-          NormalFloat = { bg = colors.mantle },
-          FloatBorder = { fg = colors.surface1, bg = colors.mantle },
-          TelescopeNormal = { bg = colors.base },
-          TelescopeBorder = { fg = colors.surface1, bg = colors.base },
-          TelescopePromptBorder = { fg = colors.blue, bg = colors.mantle },
-          TelescopePromptNormal = { bg = colors.mantle },
-          TelescopePromptPrefix = { fg = colors.blue, bg = colors.mantle },
-          TelescopePreviewNormal = { bg = colors.base },
-          TelescopeResultsNormal = { bg = colors.base },
-          TelescopeSelection = { fg = colors.text, bg = colors.surface0, bold = true },
-          TelescopeMatching = { fg = colors.lavender, bold = true },
-          NvimTreeNormal = { bg = colors.base },
-          NvimTreeNormalNC = { bg = colors.base },
-          NvimTreeRootFolder = { fg = colors.peach, bold = true },
-          NvimTreeFolderName = { fg = colors.text },
-          NvimTreeOpenedFolderName = { fg = colors.peach, bold = true },
-          NvimTreeOpenedFile = { fg = colors.peach, bold = true },
-          NvimTreeSpecialFile = { fg = colors.mauve, underline = true },
-          NvimTreeIndentMarker = { fg = colors.surface1 },
-          WinSeparator = { fg = colors.surface1 },
-          NvimTreeWinSeparator = { fg = colors.surface1, bg = colors.base },
-        }
-      end,
-    },
-    config = function(_, opts)
-      require("catppuccin").setup(opts)
-      vim.cmd.colorscheme("catppuccin-mocha")
-    end,
   },
   {
-    "nvim-lualine/lualine.nvim",
-    event = "UIEnter",
-    dependencies = { "nvim-tree/nvim-web-devicons" },
-    opts = function()
-      local statusline = require("config.statusline")
-
-      local function ops_label()
-        local ops = package.loaded["config.ops"]
-        return ops and ops.statusline_label() or ""
-      end
-
-      local function ops_color()
-        local ops = package.loaded["config.ops"]
-        return ops and ops.statusline_color() or {}
-      end
-
-      return {
-        options = {
-          theme = "catppuccin-mocha",
-          globalstatus = true,
-          component_separators = { left = "▓", right = "▒" },
-          section_separators = { left = "█", right = "█" },
-          -- Performance: reduce refresh frequency
-          refresh = {
-            statusline = 1000,
-            tabline = 5000,
-            winbar = 5000,
+    "nvim-neo-tree/neo-tree.nvim",
+    branch = "v3.x",
+    cmd = "Neotree",
+    dependencies = {
+      "MunifTanjim/nui.nvim",
+      "nvim-lua/plenary.nvim",
+      "nvim-tree/nvim-web-devicons",
+    },
+    init = function()
+      require("config.neo_tree").setup_autocmds()
+    end,
+    opts = {
+      close_if_last_window = false,
+      enable_diagnostics = false,
+      enable_git_status = true,
+      filesystem = {
+        bind_to_cwd = false,
+        filtered_items = {
+          hide_dotfiles = false,
+          hide_gitignored = false,
+        },
+        follow_current_file = {
+          enabled = true,
+          leave_dirs_open = false,
+        },
+        hijack_netrw_behavior = "open_default",
+        use_libuv_file_watcher = true,
+      },
+      popup_border_style = "rounded",
+      sources = { "filesystem" },
+      window = {
+        position = "right",
+        width = 34,
+        mappings = {
+          ["<space>"] = "none",
+        },
+      },
+    },
+  },
+  {
+    "akinsho/bufferline.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "nvim-tree/nvim-web-devicons",
+    },
+    opts = {
+      options = {
+        always_show_bufferline = true,
+        diagnostics = false,
+        mode = "buffers",
+        numbers = "none",
+        separator_style = "thin",
+        show_buffer_close_icons = false,
+        show_close_icon = false,
+        offsets = {
+          {
+            filetype = "neo-tree",
+            text = "Files",
+            text_align = "left",
+            separator = true,
           },
         },
-        sections = {
-          lualine_a = {
-            {
-              "mode",
-              fmt = function(str)
-                return "█ " .. str
-              end,
-            },
-          },
-          lualine_b = {
-            {
-              "branch",
-              icon = "▛",
-            },
-            {
-              statusline.project_label,
-              color = statusline.project_color,
-            },
-          },
-          lualine_c = {
-            {
-              "filename",
-              path = 1,
-              symbols = {
-                modified = " ●",
-                readonly = " ",
-                unnamed = "[No Name]",
-              },
-            },
-          },
-          lualine_x = {
-            {
-              ops_label,
-              color = ops_color,
-              cond = function()
-                return ops_label() ~= ""
-              end,
-            },
-            "diagnostics",
-          },
-          lualine_y = { "progress" },
-          lualine_z = { "location" },
-        },
-      }
-    end,
-    config = function(_, opts)
-      require("lualine").setup(opts)
-      require("config.lualine_notices").patch()
-    end,
+      },
+    },
   },
 }

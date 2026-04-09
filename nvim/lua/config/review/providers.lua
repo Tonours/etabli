@@ -151,26 +151,6 @@ local function do_open_terminal(command, opts)
   return true
 end
 
-local function try_send_active_thread(provider_name, prompt, cwd)
-  local ok_threads, agent_threads = pcall(require, "config.ops.agent_threads")
-  if not ok_threads or not agent_threads then
-    return false
-  end
-
-  local root = cwd and cwd ~= "" and cwd or vim.fn.getcwd()
-  local active = agent_threads.active_thread(root)
-  if not active or active.provider ~= provider_name then
-    return false
-  end
-
-  local ok_send, result = pcall(agent_threads.send_to_thread, active.id, prompt)
-  if not ok_send or not result then
-    return false
-  end
-
-  return true
-end
-
 local function dispatch_prompt(provider, prompt, opts)
   local options = opts or {}
 
@@ -193,14 +173,6 @@ local function dispatch_prompt(provider, prompt, opts)
     util.open_scratch(title, vim.split(prompt, "\n", { plain = true }), "markdown")
 
     if open_terminal == false then
-      return
-    end
-
-    if try_send_active_thread(provider.command, prompt, cwd) then
-      vim.notify(string.format("Sent prompt to active %s thread.", provider.label), vim.log.levels.INFO)
-      if options.after_exit then
-        options.after_exit()
-      end
       return
     end
 

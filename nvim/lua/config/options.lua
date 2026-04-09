@@ -62,6 +62,7 @@ vim.cmd([[
   set noruler
   set numberwidth=2
   set signcolumn=yes:1
+  set showtabline=2
   set pumblend=0
   set winblend=0
   set bufhidden=hide
@@ -103,9 +104,8 @@ opt.sessionoptions = "buffers,curdir,folds,help,tabpages,localoptions"
 opt.viewoptions = "cursor,folds,options"
 opt.shada = [['20,<20,s10,h]] -- Smaller persistent history to reduce startup I/O
 
--- Defer tabline and diagnostic setup
+-- Defer diagnostic setup
 vim.schedule(function()
-  opt.tabline = "%!v:lua.require'config.statusline'.tabline()"
   vim.diagnostic.config({
     float = { border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }, source = "if_many" },
     severity_sort = true,

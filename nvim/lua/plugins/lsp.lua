@@ -191,27 +191,6 @@ local function setup_servers()
     end,
   })
 
-  -- Defer Mason setup to not block startup at all
-  vim.schedule(function()
-    -- Lazy-load Mason only when needed
-    local ok_mason, mason = pcall(require, "mason")
-    if not ok_mason then
-      return
-    end
-
-    mason.setup({ ui = { border = "rounded" } })
-
-    local ok_mason_lspconfig, mason_lspconfig = pcall(require, "mason-lspconfig")
-    if ok_mason_lspconfig then
-      mason_lspconfig.setup({
-        ensure_installed = vim.tbl_keys(servers),
-        automatic_enable = {
-          exclude = { "copilot" },
-        },
-      })
-    end
-  end)
-
   vim.lsp.config("*", {
     capabilities = capabilities,
   })
@@ -238,21 +217,10 @@ end
 
 return {
   {
-    "williamboman/mason.nvim",
-    lazy = true,
-    cmd = { "Mason", "MasonInstall", "MasonUpdate" },
-  },
-  {
-    "williamboman/mason-lspconfig.nvim",
-    lazy = true,
-    dependencies = { "williamboman/mason.nvim" },
-  },
-  {
     "neovim/nvim-lspconfig",
     event = { "BufReadPost", "BufNewFile" },
     dependencies = {
       "hrsh7th/cmp-nvim-lsp",
-      "williamboman/mason-lspconfig.nvim",
     },
     config = setup_servers,
   },

@@ -730,11 +730,6 @@ function M.refresh_after_external_edit(repo, opts)
   diff.clear_cache()
   refresh_repo_buffers(repo)
 
-  local ok, snapshot = pcall(require, "config.ops.snapshot")
-  if ok and snapshot and snapshot.schedule_write then
-    snapshot.schedule_write(repo)
-  end
-
   local after_signature = repo_change_signature(repo)
   local changed = options.before_signature ~= nil and after_signature ~= nil and options.before_signature ~= after_signature
   local provider = options.provider or "Review"

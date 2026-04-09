@@ -1,6 +1,10 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
+if vim.loader and vim.loader.enable then
+  vim.loader.enable()
+end
+
 if vim.env.PROFILE_NVIM == "1" then
   vim.api.nvim_create_autocmd("User", {
     pattern = "LazyDone",
@@ -14,6 +18,7 @@ end
 
 require("config.bootstrap")
 require("config.options")
+vim.cmd.colorscheme("habamax")
 require("config.autocmds")
 require("config.project_runtime").setup_commands()
 
@@ -22,24 +27,6 @@ local function lazy_cmd(name, module, fn, opts)
     require(module)[fn](cmd_opts)
   end, opts or {})
 end
-
-lazy_cmd("OPSStatus", "config.ops", "show_status", { desc = "Show OPS plan/runtime/review status" })
-lazy_cmd("OPS", "config.ops", "show_status", { desc = "Show OPS plan/runtime/review status" })
-lazy_cmd("OPSNext", "config.ops", "show_next", { desc = "Show the next OPS action" })
-lazy_cmd("OPSOpenPlan", "config.ops", "open_plan", { desc = "Open PLAN.md for the current cwd" })
-lazy_cmd("OPSReview", "config.ops", "open_review", { desc = "Open the review inbox for the current cwd" })
-lazy_cmd("OPSHandoff", "config.ops", "open_handoff", { desc = "Open the current OPS handoff file" })
-lazy_cmd("OPSRefreshReview", "config.ops", "refresh_review", { desc = "Refresh live OPS review state" })
-lazy_cmd("OPSDoctor", "config.ops", "show_doctor", { desc = "Diagnose OPS plumbing for the current cwd" })
-lazy_cmd("OPSResume", "config.ops", "resume", { desc = "Resume the current cwd context" })
-lazy_cmd("OPSMode", "config.ops", "show_mode", {
-  desc = "Show or set the OPS operating mode", nargs = "?",
-  complete = function() return require("config.ops.mode").modes() end,
-})
-lazy_cmd("OPSModeSimple", "config.ops", "set_mode_simple", { desc = "Set OPS mode to simple (main + worker)" })
-lazy_cmd("OPSModeStandard", "config.ops", "set_mode_standard", { desc = "Set OPS mode to standard (main + scout + worker + reviewer)" })
-lazy_cmd("OPSTillDone", "config.ops", "show_tilldone", { desc = "Show TillDone tasks from Pi" })
-lazy_cmd("TillDoneNext", "config.ops", "show_tilldone_next", { desc = "Show next action from TillDone and OPS" })
 
 lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
   complete = function() return require("config.review.state").statuses() end,
@@ -69,20 +56,6 @@ lazy_cmd("ReviewPiBatch", "config.review", "cmd_pi_batch", {
   desc = "Prepare one Pi prompt for all hunks with a review status", nargs = "?",
 })
 
-local function load_catppuccin()
-  if vim.g.etabli_catppuccin_loaded then
-    return
-  end
-
-  local ok, lazy = pcall(require, "lazy")
-  if not ok then
-    return
-  end
-
-  lazy.load({ plugins = { "catppuccin" } })
-  vim.g.etabli_catppuccin_loaded = true
-end
-
 -- Priority 1: keymaps needed for immediate editing
 vim.schedule(function()
   require("config.keymaps")
@@ -94,7 +67,6 @@ vim.api.nvim_create_autocmd("User", {
   callback = function()
     require("config.projects").setup()
     require("config.project_runtime").setup()
-    require("config.ops").setup_runtime()
     require("config.review").setup()
   end,
 })
@@ -103,9 +75,6 @@ require("lazy").setup("plugins", {
   defaults = {
     lazy = true,
     version = false,
-  },
-  install = {
-    colorscheme = { "catppuccin" },
   },
   checker = {
     enabled = false,
@@ -124,11 +93,11 @@ require("lazy").setup("plugins", {
         "gzip",
         "matchit",
         "matchparen",
-        "netrw",
-        "netrwPlugin",
         "editorconfig",
         "man",
         "net",
+        "netrw",
+        "netrwPlugin",
         "osc52",
         "rplugin",
         "spellfile",
@@ -140,12 +109,3 @@ require("lazy").setup("plugins", {
     },
   },
 })
-
-if #vim.api.nvim_list_uis() == 0 then
-  load_catppuccin()
-else
-  vim.api.nvim_create_autocmd("UIEnter", {
-    once = true,
-    callback = load_catppuccin,
-  })
-end
