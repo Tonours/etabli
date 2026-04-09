@@ -26,66 +26,6 @@ afterEach(() => {
 });
 
 describe("workflow branch coverage", () => {
-  test("auto-validate covers warn, skip, and command branches", async () => {
-    const cwd = makeDir("auto-validate-branches-");
-    writeFileSync(join(cwd, "PLAN.md"), ["# Plan", "- Status: DRAFT", "", "## Goal", "Ship it"].join("\n"), "utf-8");
-    writeFileSync(join(cwd, "large.bin"), "x".repeat(600000), "utf-8");
-
-    const mod = await import("../auto-validate.ts");
-    expect(mod.checks.planExists(cwd).status).toBe("warn");
-    expect(mod.checks.gitState(cwd).status).toBe("skip");
-    expect(mod.checks.mergeConflicts(cwd).status).toBe("pass");
-    expect(mod.checks.tsCompilation(cwd).status).toBe("skip");
-    expect(mod.checks.largeFiles(cwd).status).toBe("warn");
-    expect(mod.formatValidationReport(mod.runAllValidations(cwd))).toContain("Warnings present");
-
-    const harness = createHarness();
-    mod.default(harness.api as never);
-    const ctx = createMockContext(cwd);
-    await harness.command("validate", "", ctx);
-    expect(harness.messages.at(-1)?.customType).toBe("validation-report");
-    process.env.PI_AUTO_VALIDATE = "1";
-    await harness.emit("agent_end", {}, ctx);
-    delete process.env.PI_AUTO_VALIDATE;
-  });
-
-  test("context-help covers no-match and auto-detect branches", async () => {
-    const cwd = makeDir("context-help-branches-");
-    const mod = await import("../context-help.ts");
-    const harness = createHarness();
-    mod.default(harness.api as never);
-    const ctx = createMockContext(cwd);
-
-    expect(mod.findHelpTopic("")).toBeNull();
-    expect(mod.detectContext(cwd)).toBe("getting-started");
-    await harness.emit("session_start", {}, ctx);
-    expect(harness.messages.at(-1)?.customType).toBe("context-help");
-
-    await harness.command("help", "unknown-topic", ctx);
-    expect(ctx.ui.notifications.at(-1)?.level).toBe("warning");
-
-    const toolResult = (await harness.tool("help_get", {}, ctx)) as { details: { found: boolean; autoDetected: boolean } };
-    expect(toolResult.details.found).toBe(true);
-    expect(toolResult.details.autoDetected).toBe(true);
-  });
-
-  test("error-recovery covers fallback, compact, and unknown errors", async () => {
-    const cwd = makeDir("error-recovery-branches-");
-    const mod = await import("../error-recovery.ts");
-    const harness = createHarness();
-    mod.default(harness.api as never);
-    const ctx = createMockContext(cwd);
-
-    await harness.emit("tool_result", { toolName: "bash", isError: true, content: [{ type: "text", text: "503 service unavailable" }] }, ctx);
-    expect(harness.messages.at(-1)?.content).toContain("fallback");
-
-    await harness.emit("tool_result", { toolName: "bash", isError: true, content: [{ type: "text", text: "maximum context exceeded" }] }, ctx);
-    expect(harness.messages.at(-1)?.content).toContain("/compact");
-
-    await harness.emit("tool_result", { toolName: "bash", isError: true, content: [{ type: "text", text: "weird failure" }] }, ctx);
-    expect(ctx.ui.notifications.at(-1)?.level).toBe("error");
-  });
-
   test("fast-handoff helper branches cover defaults and fallback states", async () => {
     const cwd = makeDir("fast-handoff-branches-");
     mkdirSync(join(homeDir, ".pi", "status"), { recursive: true });
@@ -125,29 +65,16 @@ describe("workflow branch coverage", () => {
     delete process.env.PI_AUTO_HANDOFF;
   });
 
-  test("health-check and project-switcher cover missing states", async () => {
-    const cwd = makeDir("health-project-branches-");
+  test("health-check covers missing states", async () => {
+    const cwd = makeDir("health-branches-");
     mkdirSync(join(cwd, "pi", "extensions"), { recursive: true });
 
     const health = await import("../health-check.ts");
     expect(health.checkSettings(cwd)[0]?.status).toBe("error");
-    expect(health.checkClaudeCommands(cwd).every((item: { status: string }) => item.status === "warn")).toBe(true);
-    expect(health.formatReport(health.runHealthCheck(cwd))).toContain("Warnings:");
-
-    const projects = await import("../project-switcher.ts");
-    const harness = createHarness();
-    projects.default(harness.api as never);
-    const ctx = createMockContext(cwd);
-    await harness.command("projects", "", ctx);
-    expect(harness.messages.at(-1)?.customType).toBe("project-list");
-    await harness.command("switch", "", ctx);
-    expect(ctx.ui.notifications.at(-1)?.message).toContain("Usage");
-    await harness.command("favorite", "", ctx);
-    const missing = (await harness.tool("project_switch", { query: "missing" }, ctx)) as { details: { found: boolean } };
-    expect(missing.details.found).toBe(false);
+    expect(health.formatReport(health.runHealthCheck(cwd))).toContain("Errors:");
   });
 
-  test("review bridge, scope guard, smart context, and templates cover fallback branches", async () => {
+  test("review bridge, scope guard, and tilldone sync cover fallback branches", async () => {
     const cwd = makeDir("bridge-scope-branches-");
     writeFileSync(join(cwd, "PLAN.md"), ["# Plan", "- Status: READY", "", "## Goal", "Do work"].join("\n"), "utf-8");
 
@@ -172,15 +99,6 @@ describe("workflow branch coverage", () => {
     await bridgeHarness.emit("session_start", {}, bridgeCtx);
     expect(bridgeHarness.messages.at(-1)?.customType).toBe("review-bridge-warning");
 
-    const reviewRead = (await bridgeHarness.tool("review_state_read", {}, bridgeCtx)) as { details: { found: boolean; actionableCount: number } };
-    expect(reviewRead.details.found).toBe(true);
-    expect(reviewRead.details.actionableCount).toBe(1);
-
-    await bridgeHarness.command("review-to-plan", "", bridgeCtx);
-    expect(bridgeHarness.messages.at(-1)?.content).toContain("Proposed PLAN.md slice");
-    const reviewTasks = (await bridgeHarness.tool("review_to_tilldone", {}, bridgeCtx)) as { details: { created: number } };
-    expect(reviewTasks.details.created).toBe(1);
-
     const scope = await import("../scope-guard.ts");
     const scopeHarness = createHarness();
     scope.default(scopeHarness.api as never);
@@ -190,47 +108,13 @@ describe("workflow branch coverage", () => {
     const bashChecks = scope.checkForScopeCreep({ toolName: "bash", input: { command: "git reset --hard" } }, { goal: "g", nonGoals: [], slices: [], files: [], invariants: [] });
     expect(bashChecks[0]?.type).toBe("error");
 
-    const smart = await import("../smart-context.ts");
-    const smartHarness = createHarness();
-    smart.default(smartHarness.api as never);
-    const smartCtx = createMockContext(makeDir("no-history-smart-"));
-    await smartHarness.command("suggest", "", smartCtx);
-    expect(smartCtx.ui.notifications.at(-1)?.message).toContain("No history yet");
-
-    const templates = await import("../task-templates.ts");
-    const templateHarness = createHarness();
-    templates.default(templateHarness.api as never);
-    const templateCtx = createMockContext(cwd);
-    await templateHarness.command("template-use", "", templateCtx);
-    await templateHarness.command("template-use", "missing", templateCtx);
-    const listResult = (await templateHarness.tool("task_template_list", {}, templateCtx)) as { details: { templates: Array<unknown> } };
-    expect(listResult.details.templates.length).toBeGreaterThan(0);
-  });
-
-  test("tilldone sync and workflow metrics cover empty-state branches", async () => {
-    const cwd = makeDir("tilldone-metrics-branches-");
-    mkdirSync(join(homeDir, ".pi", "metrics"), { recursive: true });
-
     const sync = await import("../tilldone-ops-sync.ts");
     const syncHarness = createHarness();
     sync.default(syncHarness.api as never);
-    const syncCtx = createMockContext(cwd, []);
+    const syncCtx = createMockContext(makeDir("empty-tilldone-"), []);
     await syncHarness.command("tilldone-sync", "", syncCtx);
     expect(syncCtx.ui.notifications.at(-1)?.message).toContain("No TillDone state");
     const syncTool = (await syncHarness.tool("tilldone_ops_read", {}, syncCtx)) as { details: { found: boolean } };
     expect(syncTool.details.found).toBe(false);
-
-    const metrics = await import("../workflow-metrics.ts");
-    const metricsHarness = createHarness();
-    metrics.default(metricsHarness.api as never);
-    const metricsCtx = createMockContext(cwd);
-    await metricsHarness.command("metrics-today", "", metricsCtx);
-    await metricsHarness.command("metrics-summary", "", metricsCtx);
-    const noData = (await metricsHarness.tool("workflow_metrics_read", { days: 2 }, metricsCtx)) as { details: { found: boolean } };
-    expect(noData.details.found).toBe(false);
-    expect(metrics.generateSummary([
-      { date: "2026-01-01", sessions: [], totalTimeMs: 1000, phaseBreakdown: {}, toolUsage: {} },
-      { date: "2026-01-02", sessions: [], totalTimeMs: 2000, phaseBreakdown: {}, toolUsage: {} },
-    ]).trend).toBe("up");
   });
 });

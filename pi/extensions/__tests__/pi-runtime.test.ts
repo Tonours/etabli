@@ -7,6 +7,7 @@ import {
   FALLBACK_MODEL,
   FALLBACK_THINKING,
   mergeSubagentExtensionPaths,
+  readRtkConfig,
   readDefaultModelSpec,
   resetRuntimeCaches,
   resolveSubagentModel,
@@ -155,5 +156,46 @@ describe("resolveSubagentThinking", () => {
         fallback: FALLBACK_THINKING,
       }),
     ).toBe("off");
+  });
+});
+
+describe("readRtkConfig", () => {
+  test("reads explicit rtk settings when present", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pi-runtime-"));
+    const file = join(dir, "settings.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        rtk: {
+          enabled: true,
+          mode: "always",
+          timeoutMs: 1200,
+          maxCacheEntries: 12,
+          maxCommandLength: 240,
+          dangerousCommandBypass: false,
+        },
+      }),
+      "utf-8",
+    );
+
+    expect(readRtkConfig(file)).toEqual({
+      enabled: true,
+      mode: "always",
+      timeoutMs: 1200,
+      maxCacheEntries: 12,
+      maxCommandLength: 240,
+      dangerousCommandBypass: false,
+    });
+  });
+
+  test("falls back to defaults for missing or invalid settings", () => {
+    expect(readRtkConfig(join(tmpdir(), "missing-pi-settings.json"))).toEqual({
+      enabled: true,
+      mode: "always",
+      timeoutMs: 2500,
+      maxCacheEntries: 256,
+      maxCommandLength: 4000,
+      dangerousCommandBypass: true,
+    });
   });
 });

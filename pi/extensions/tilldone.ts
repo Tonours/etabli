@@ -99,6 +99,9 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 const MAX_TASKS = 7;
+const PRIMARY_TOOL_NAME = "tilldone";
+const DISCOVERABILITY_TOOL_NAME = "task_list";
+const TILLDONE_TOOL_NAMES = [PRIMARY_TOOL_NAME, DISCOVERABILITY_TOOL_NAME] as const;
 
 const LOW_SIGNAL_TASK_TOKENS = new Set([
   "a",
@@ -379,12 +382,17 @@ function readBashCommand(event: ToolCallEventLike): string | null {
   return typeof command === "string" ? command : null;
 }
 
+function tilldoneToolHint(): string {
+  return `\`${DISCOVERABILITY_TOOL_NAME}\` (alias \`${PRIMARY_TOOL_NAME}\`)`;
+}
+
 function buildNoTasksReason(): string {
   return [
     "TillDone gate: no task list exists yet.",
-    "Next action now: call the `tilldone` tool before retrying this blocked tool.",
+    `Next action now: call ${tilldoneToolHint()} before retrying this blocked tool.`,
     'Recommended call: {"action":"new-list","text":"<request title>","description":"<what you are doing>","texts":["first concrete step","second concrete step"]}',
     'If a matching list already exists, use: {"action":"add","text":"next concrete task"}',
+    `If you are about to modify files or run a write-oriented bash command, you must go through ${tilldoneToolHint()} first.`,
     "Read-only tools like read, lsp, ls, find, rg, git status, and tests are allowed without TillDone.",
   ].join("\n");
 }
@@ -392,7 +400,7 @@ function buildNoTasksReason(): string {
 function buildAllDoneReason(): string {
   return [
     "TillDone gate: all tasks in the current list are already done.",
-    "Next action now: add a new concrete task before retrying this blocked tool.",
+    `Next action now: use ${tilldoneToolHint()} to add a new concrete task before retrying this blocked tool.`,
     'Same request: {"action":"add","text":"next concrete task"}',
     'New request/theme: {"action":"clear"} then {"action":"new-list","text":"<request title>","texts":["first concrete step"]}',
   ].join("\n");
@@ -403,7 +411,7 @@ function buildNoActiveTaskReason(tasks: Task[]): string {
   const nextIdHint = nextTask ? ` Recommended id: ${nextTask.id}.` : "";
   return [
     "TillDone gate: a task list exists, but no task is currently in progress.",
-    "Next action now: call the `tilldone` tool, inspect the pending ids, then toggle one task to inprogress before retrying this blocked tool.",
+    `Next action now: call ${tilldoneToolHint()}, inspect the pending ids, then toggle one task to inprogress before retrying this blocked tool.`,
     'Helpful calls: {"action":"list"} then {"action":"toggle","id":<task id>}' + nextIdHint,
     "Only one task should be in progress at a time.",
   ].join("\n");
@@ -721,6 +729,13 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     nudgedThisCycle = false;
     reconstructState(ctx);
+    pi.sendMessage({
+      customType: "tilldone-discovery",
+      content:
+        `TillDone workflow active. Before write/edit or bash commands that change files, first call ${tilldoneToolHint()}. ` +
+        `Typical flow: {"action":"new-list","text":"request title","texts":["first concrete step"]} then {"action":"toggle","id":1} if needed.`,
+      display: false,
+    });
   });
   pi.on("session_switch", async (_event, ctx) => {
     nudgedThisCycle = false;
@@ -803,7 +818,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   pi.on("tool_call", async (event: ToolCallEventLike) => {
-    if (event.toolName === "tilldone") return { block: false };
+    if (TILLDONE_TOOL_NAMES.includes(event.toolName as (typeof TILLDONE_TOOL_NAMES)[number])) return { block: false };
 
     // Never block read-only tools — the agent needs these to plan tasks.
     if (READ_ONLY_TOOLS.has(event.toolName)) return { block: false };
@@ -875,21 +890,7 @@ export default function (pi: ExtensionAPI) {
 
   // ── Register tilldone tool ───────────────────────────────────────────
 
-  pi.registerTool({
-    name: "tilldone",
-    label: "TillDone",
-    description:
-      "Manage your task list. You MUST add tasks before using write/edit/bash-modifying tools (read-only tools like read, lsp, git status, ls are exempt). " +
-      "Actions: new-list (text=title, description, optional texts[] seed tasks), add (text or texts[] for batch), " +
-      "toggle (id) — cycles idle→inprogress→done, remove (id), update (id + text), list, clear, undo. " +
-      "Task text is normalized, vague/duplicate tasks are skipped, and lists are capped at 7 tasks. " +
-      "Always toggle a task to inprogress before starting work on it, and to done when finished. " +
-      "Use new-list to start a themed list with a title and description. " +
-      "Bootstrap examples: if no list exists, call tilldone with {action:'new-list', text:'request title', texts:['first concrete step']}; if the list exists, call {action:'add', text:'next concrete task'}; if no task is active, call {action:'list'} then {action:'toggle', id:<task id>}. " +
-      "If the user's new request does not fit the current list's theme, use clear then new-list.",
-    parameters: TillDoneParams,
-
-    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+  async function executeTillDone(_toolCallId: string, params: Record<string, unknown>, _signal: unknown, _onUpdate: unknown, ctx: ExtensionContext) {
       switch (params.action) {
         case "new-list": {
           const title = params.text ? normalizeTaskText(params.text) : "";
@@ -1206,113 +1207,137 @@ export default function (pi: ExtensionAPI) {
             details: makeDetails("list", `unknown action: ${params.action}`),
           };
       }
-    },
+  }
 
-    renderCall(args, theme) {
-      let text = theme.fg("accent", theme.bold("tilldone ")) + theme.fg("muted", args.action);
-      if (args.texts?.length) text += ` ${theme.fg("dim", `${args.texts.length} tasks`)}`;
-      else if (args.text) text += ` ${theme.fg("dim", `"${args.text}"`)}`;
-      if (args.description) text += ` ${theme.fg("dim", `— ${args.description}`)}`;
-      if (args.id !== undefined) text += ` ${theme.fg("accent", `#${args.id}`)}`;
-      return new Text(text, 0, 0);
-    },
+  function tilldoneDescription(toolName: string): string {
+    const selfReference = toolName === DISCOVERABILITY_TOOL_NAME ? DISCOVERABILITY_TOOL_NAME : PRIMARY_TOOL_NAME;
+    return (
+      `Required task workflow gate for implementation work. Use ${selfReference} before write/edit or bash commands that change files; otherwise those tools may be blocked. ` +
+      "Read-only tools like read, lsp, git status, ls, find, rg, and tests are exempt. " +
+      "Actions: new-list (text=title, description, optional texts[] seed tasks), add (text or texts[]), toggle (id), remove (id), update (id + text), list, clear, undo. " +
+      "Always keep exactly one active task when work is in progress. Typical bootstrap: " +
+      `{"action":"new-list","text":"request title","texts":["first concrete step","second concrete step"]}. ` +
+      `If tasks already exist: {"action":"add","text":"next concrete task"}. ` +
+      `If no task is active: {"action":"list"} then {"action":"toggle","id":<task id>}. ` +
+      "Task text is normalized, vague or duplicate tasks are skipped, and lists are capped at 7 tasks."
+    );
+  }
 
-    renderResult(result, { expanded }, theme) {
-      const details = result.details as TillDoneDetails | undefined;
-      if (!details) {
-        const text = result.content[0];
-        return new Text(text?.type === "text" ? text.text : "", 0, 0);
-      }
+  for (const toolName of TILLDONE_TOOL_NAMES) {
+    pi.registerTool({
+      name: toolName,
+      label: toolName === DISCOVERABILITY_TOOL_NAME ? "Task List" : "TillDone",
+      description: tilldoneDescription(toolName),
+      parameters: TillDoneParams,
 
-      if (details.error) {
-        return new Text(theme.fg("error", `Error: ${details.error}`), 0, 0);
-      }
+      execute: executeTillDone,
 
-      const taskList = details.tasks;
+      renderCall(args, theme) {
+        let text = theme.fg("accent", theme.bold(`${toolName} `)) + theme.fg("muted", args.action);
+        if (args.texts?.length) text += ` ${theme.fg("dim", `${args.texts.length} tasks`)}`;
+        else if (args.text) text += ` ${theme.fg("dim", `"${args.text}"`)}`;
+        if (args.description) text += ` ${theme.fg("dim", `— ${args.description}`)}`;
+        if (args.id !== undefined) text += ` ${theme.fg("accent", `#${args.id}`)}`;
+        return new Text(text, 0, 0);
+      },
 
-      switch (details.action) {
-        case "new-list": {
-          let msg = theme.fg("success", "✓ New list ") + theme.fg("accent", `"${details.listTitle}"`);
-          if (details.listDescription) {
-            msg += theme.fg("dim", ` — ${details.listDescription}`);
-          }
-          return new Text(msg, 0, 0);
-        }
-
-        case "list": {
-          if (taskList.length === 0) return new Text(theme.fg("dim", "No tasks"), 0, 0);
-          let listText = "";
-          if (details.listTitle) {
-            listText += theme.fg("accent", details.listTitle) + theme.fg("dim", "  ");
-          }
-          listText += theme.fg("muted", `${taskList.length} task(s):`);
-          const display = expanded ? taskList : taskList.slice(0, 5);
-          for (const t of display) {
-            const icon =
-              t.status === "done"
-                ? theme.fg("success", STATUS_ICON.done)
-                : t.status === "inprogress"
-                  ? theme.fg("accent", STATUS_ICON.inprogress)
-                  : theme.fg("dim", STATUS_ICON.idle);
-            const itemText =
-              t.status === "done"
-                ? theme.fg("dim", t.text)
-                : t.status === "inprogress"
-                  ? theme.fg("success", t.text)
-                  : theme.fg("muted", t.text);
-            listText += `\n${icon} ${theme.fg("accent", `#${t.id}`)} ${itemText}`;
-          }
-          if (!expanded && taskList.length > 5) {
-            listText += `\n${theme.fg("dim", `... ${taskList.length - 5} more`)}`;
-          }
-          return new Text(listText, 0, 0);
-        }
-
-        case "add":
-        case "update": {
+      renderResult(result, { expanded }, theme) {
+        const details = result.details as TillDoneDetails | undefined;
+        if (!details) {
           const text = result.content[0];
-          return new Text(
-            theme.fg("success", "✓ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
-            0,
-            0,
-          );
+          return new Text(text?.type === "text" ? text.text : "", 0, 0);
         }
 
-        case "toggle": {
-          const text = result.content[0];
-          return new Text(
-            theme.fg("accent", "⟳ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
-            0,
-            0,
-          );
+        if (details.error) {
+          return new Text(theme.fg("error", `Error: ${details.error}`), 0, 0);
         }
 
-        case "remove": {
-          const text = result.content[0];
-          return new Text(
-            theme.fg("warning", "✕ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
-            0,
-            0,
-          );
+        const taskList = details.tasks;
+
+        switch (details.action) {
+          case "new-list": {
+            let msg = theme.fg("success", "✓ New list ") + theme.fg("accent", `"${details.listTitle}"`);
+            if (details.listDescription) {
+              msg += theme.fg("dim", ` — ${details.listDescription}`);
+            }
+            return new Text(msg, 0, 0);
+          }
+
+          case "list": {
+            if (taskList.length === 0) return new Text(theme.fg("dim", "No tasks"), 0, 0);
+            let listText = "";
+            if (details.listTitle) {
+              listText += theme.fg("accent", details.listTitle) + theme.fg("dim", "  ");
+            }
+            listText += theme.fg("muted", `${taskList.length} task(s):`);
+            const display = expanded ? taskList : taskList.slice(0, 5);
+            for (const t of display) {
+              const icon =
+                t.status === "done"
+                  ? theme.fg("success", STATUS_ICON.done)
+                  : t.status === "inprogress"
+                    ? theme.fg("accent", STATUS_ICON.inprogress)
+                    : theme.fg("dim", STATUS_ICON.idle);
+              const itemText =
+                t.status === "done"
+                  ? theme.fg("dim", t.text)
+                  : t.status === "inprogress"
+                    ? theme.fg("success", t.text)
+                    : theme.fg("muted", t.text);
+              listText += `\n${icon} ${theme.fg("accent", `#${t.id}`)} ${itemText}`;
+            }
+            if (!expanded && taskList.length > 5) {
+              listText += `\n${theme.fg("dim", `... ${taskList.length - 5} more`)}`;
+            }
+            return new Text(listText, 0, 0);
+          }
+
+          case "add":
+          case "update": {
+            const text = result.content[0];
+            return new Text(
+              theme.fg("success", "✓ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
+              0,
+              0,
+            );
+          }
+
+          case "toggle": {
+            const text = result.content[0];
+            return new Text(
+              theme.fg("accent", "⟳ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
+              0,
+              0,
+            );
+          }
+
+          case "remove": {
+            const text = result.content[0];
+            return new Text(
+              theme.fg("warning", "✕ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
+              0,
+              0,
+            );
+          }
+
+          case "clear":
+            return new Text(theme.fg("success", "✓ ") + theme.fg("muted", "Cleared all tasks"), 0, 0);
+
+          case "undo": {
+            const text = result.content[0];
+            return new Text(
+              theme.fg("accent", "↶ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
+              0,
+              0,
+            );
+          }
+
+          default:
+            return new Text(theme.fg("dim", "done"), 0, 0);
         }
-
-        case "clear":
-          return new Text(theme.fg("success", "✓ ") + theme.fg("muted", "Cleared all tasks"), 0, 0);
-
-        case "undo": {
-          const text = result.content[0];
-          return new Text(
-            theme.fg("accent", "↶ ") + theme.fg("muted", text?.type === "text" ? text.text : ""),
-            0,
-            0,
-          );
-        }
-
-        default:
-          return new Text(theme.fg("dim", "done"), 0, 0);
-      }
-    },
-  });
+      },
+    });
+  }
 
   // ── /tilldone command ────────────────────────────────────────────────
 

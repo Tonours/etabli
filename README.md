@@ -31,7 +31,7 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 
 - `nvim/` - daily-driver Neovim config, including the diff-centric review workflow
 - `claude/` - tracked Claude Code commands and workflow notes
-- `pi/` - Pi configuration, extensions, skills, themes, and agent settings
+- `pi/` - Pi configuration, extensions, minimal workflow skills, themes, and agent settings
 - `workflow/` - canonical planning, review, and handoff docs shared across runtimes
 - `profiles/` - explicit personal/work usage contracts
 - `memory/` - minimal project memory layout and templates
@@ -58,7 +58,7 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 - Neovim exports one shared OPS snapshot per current cwd at `~/.pi/status/<sanitized-cwd>.ops.json`
 - task + snapshot are regenerated together and share revision/timestamp metadata so Pi and Claude see the same current task/title/next-action context
 - task identity follows current branch first, then cwd/repo fallback
-- Pi reads that snapshot through the ambient `ops-status` extension
+- Pi reads that snapshot through the minimal workflow extensions (`fast-handoff`, `review-plan-bridge`, `subagent`)
 - Claude reads that snapshot through `claude/commands/ops-status.md`
 - `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface
 
@@ -77,7 +77,7 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 - `docs/profiles.md` - when to choose personal vs work posture
 - `memory/README.md` - memory goals and layout
 - `memory/projects/README.md` - per-project memory convention
-- `pi-magic-docs` is now part of the Pi package set and is meant to keep local `memory/projects/<repo>/current-focus.md` fresh, not replace the memory contract
+- local memory stays opt-in; the default Pi profile no longer pulls extra documentation packages into the everyday loadout
 
 ## Core workflow
 
@@ -133,6 +133,7 @@ Local OPS verification:
 - Pi tracked source files live in `pi/`; most are symlinked into `~/.pi/` by `scripts/install.sh`, while mutable agent settings stay local
 - `pi/models.json` and `pi/settings.json` are editable source files
 - `pi/agent/settings.json` is a tracked bootstrap/default file; the live `~/.pi/agent/settings.json` stays local so model switches do not dirty the repo
+- the installer now links only the core Pi skills by default: `plan`, `plan-loop`, `plan-review`, `plan-implement`, `review`, `implement`, `caveman`
 - `auth.json` and credentials are intentionally not tracked
 - API keys such as `MISTRAL_API_KEY` should come from your shell environment or a non-tracked local secret loader
 

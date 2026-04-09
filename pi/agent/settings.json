@@ -9,23 +9,9 @@
       ],
       "skills": [
         "github",
-        "commit",
-        "summarize",
-        "update-changelog",
-        "native-web-search",
-        "web-browser",
-        "librarian",
-        "tmux",
-        "pi-share",
-        "mermaid",
-        "frontend-design",
-        "sentry",
-        "apple-mail",
-        "google-workspace"
+        "commit"
       ]
     },
-    "npm:checkpoint",
-    "npm:pi-magic-docs",
     {
       "source": "npm:pi-hooks",
       "extensions": [
@@ -36,45 +22,33 @@
       "prompts": [],
       "themes": []
     },
-    "npm:pi-notify",
-    {
-      "source": "git:github.com/badlogic/pi-skills",
-      "skills": [
-        "brave-search",
-        "youtube-transcript"
-      ],
-      "extensions": [],
-      "prompts": [],
-      "themes": []
-    },
     {
       "source": "local:etabli-workflow",
       "extensions": [
         "fast-handoff.ts",
-        "tilldone-ops-sync.ts",
         "review-plan-bridge.ts",
-        "auto-validate.ts",
-        "workflow-metrics.ts",
-        "project-switcher.ts",
-        "task-templates.ts",
-        "auto-resume.ts",
         "scope-guard.ts",
-        "pre-flight.ts",
-        "smart-context.ts",
         "health-check.ts",
-        "error-recovery.ts",
-        "context-help.ts"
+        "rtk.ts",
+        "subagent.ts",
+        "tilldone.ts",
+        "tilldone-ops-sync.ts"
       ],
       "skills": [
+        "plan",
         "plan-loop",
-        "plan-implement"
+        "plan-review",
+        "plan-implement",
+        "review",
+        "implement",
+        "caveman"
       ]
     }
   ],
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.64.0",
+  "lastChangelogVersion": "0.66.1",
   "defaultProvider": "zai",
   "defaultModel": "glm-5.1",
   "theme": "catppuccin-mocha",
@@ -105,6 +79,14 @@
       "autoReviewer": true,
       "autoWorkerOnReady": true
     }
+  },
+  "rtk": {
+    "enabled": true,
+    "mode": "always",
+    "timeoutMs": 2500,
+    "maxCacheEntries": 256,
+    "maxCommandLength": 4000,
+    "dangerousCommandBypass": true
   },
   "editorPaddingX": 1,
   "hideThinkingBlock": true,

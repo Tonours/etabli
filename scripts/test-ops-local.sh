@@ -28,7 +28,6 @@ run_step \
   "Targeted OPS Bun tests" \
   bun test \
   ./pi/extensions/__tests__/ops-snapshot.test.ts \
-  ./pi/extensions/__tests__/runtime-status.test.ts \
   ./pi/extensions/__tests__/block-google-providers.test.ts
 
 run_step \

@@ -83,12 +83,11 @@ pi --tools read,grep,find,ls      # mode lecture seule
 /skill:implement
 /skill:plan-loop <feature>
 /skill:plan-implement <feature>
+/skill:caveman [lite|full|ultra]
 
 # workflow handoff (fast = local, instantané)
 /fast-handoff [path]          # Génère handoff depuis l'état local (pas d'appel LLM)
 /fast-handoff-implement       # Idem mais pour continuation d'implémentation
-/handoff [path]               # Fallback LLM si fast-handoff échoue
-/handoff-implement [path]     # Fallback LLM pour implémentation
 
 # workflow agentic
 /review [uncommitted|branch <base>|commit <sha>]
@@ -105,6 +104,7 @@ PLAN.md
 Notes repo :
 - le workflow recommandé part du repo/cwd courant
 - garde le focus sur `PLAN.md`, review, validation ciblée, et QA manuelle
+- la config Pi par défaut est maintenant volontairement minimale; le bruit historique reste dans le repo mais n'est plus chargé au quotidien
 
 ## Vérification locale workflow
 
@@ -176,15 +176,26 @@ Le workflow supporte deux modes de handoff :
 - Avantage : < 10ms vs 2-5s avec LLM, gratuit, toujours disponible
 - Fonctionne quand le contexte local nécessaire est disponible
 
-**Handoff LLM (fallback)** : Génération via modèle pour cas complexes
-- `/handoff` → résume la conversation via LLM
-- `/handoff-implement` → handoff context-aware avec plan READY
-- Utile quand le snapshot est absent ou pour résumés nuancés
-
 Auto-handoff (optionnel) :
 ```bash
 export PI_AUTO_HANDOFF=1  # Met à jour .pi/handoff.md à chaque fin de session
 ```
+
+## Review-to-Plan Bridge
+
+Pont entre la review inbox Neovim et le système de planification :
+
+- Convertit les hunks "needs-rework" en liste d'actions exploitable
+- Génère des slices PLAN.md à partir des blockers de review
+- Alerte automatique si review a des items actionnables en début de session
+
+Commandes :
+- `/review-to-tilldone` → Produit une liste d'actions à partir des items "needs-rework"
+- `/review-to-plan` → Génère une slice de plan pour les corrections
+
+Tools :
+- `review_state_read` → Lit l'état de review inbox
+- `review_to_tilldone` → Convertit en liste d'actions structurée
 
 ## TillDone Sync
 
@@ -196,27 +207,8 @@ Commandes :
 
 La sync se fait automatiquement à chaque `agent_end` et changement de session.
 
-## Review-to-Plan Bridge
-
-Pont entre la review inbox Neovim et le système de planification :
-
-- Convertit les hunks "needs-rework" en tâches TillDone
-- Génère des slices PLAN.md à partir des blockers de review
-- Alerte automatique si review a des items actionnables en début de session
-
-Commandes :
-- `/review-to-tilldone` → Crée des tâches à partir des items "needs-rework"
-- `/review-to-plan` → Génère une slice de plan pour les corrections
-
-Tools :
-- `review_state_read` → Lit l'état de review inbox
-- `review_to_tilldone` → Convertit en tâches (output structuré pour tilldone)
-
-Workflow recommandé :
-1. Faire la review dans Neovim (`:ReviewInbox`)
-2. Marquer les hunks problématiques comme "needs-rework"
-3. Dans Pi: `/review-to-tilldone` pour créer les tâches
-4. Les tâches apparaissent dans TillDone automatiquement
+Note pratique :
+- certains modèles découvrent mieux `task_list` que `tilldone`; les deux pointent vers le même tool et acceptent les mêmes paramètres
 
 ## Auto-Validation
 
@@ -253,7 +245,7 @@ health_check (tool)       # Pour les agents
 ```
 
 Vérifie :
-- Présence des extensions workflow (14 vérifications)
+- Présence des extensions workflow du noyau minimal
 - Configuration settings.json
 - Synchronisation workflow
 - Intégration Neovim
@@ -271,7 +263,7 @@ Mode opératoire quotidien : `workflow/operating-model.md`
 2. `/skill:plan` + `/skill:plan-review` jusqu'à `PLAN.md` en `READY`
 3. `/skill:implement` dans la session principale, ou `/worker <task>` si la tâche est bornée
 4. `/review` ou `/skill:review` pour la vérification finale
-5. `/fast-handoff` ou `/handoff` pour reprise rapide
+5. `/fast-handoff` pour reprise rapide
 
 Modes d'exécution conseillés :
 - simple : 1 session principale + 1 worker

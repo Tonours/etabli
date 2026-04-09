@@ -32,6 +32,7 @@ type EventHandlers = {
 };
 
 type RegisteredTool = {
+  name: string;
   execute: (
     toolCallId: string,
     params: Record<string, unknown>,
@@ -57,7 +58,7 @@ type TestContext = {
 function createHarness(initialBranch: BranchEntry[] = []) {
   const branch = [...initialBranch];
   const handlers: EventHandlers = {};
-  let tool: RegisteredTool | null = null;
+  const tools = new Map<string, RegisteredTool>();
   const notifications: Array<{ message: string; level: string }> = [];
 
   const ctx: TestContext = {
@@ -84,20 +85,22 @@ function createHarness(initialBranch: BranchEntry[] = []) {
       handlers[event] = handler as never;
     },
     registerTool(definition: unknown) {
-      tool = definition as RegisteredTool;
+      const tool = definition as RegisteredTool;
+      tools.set(tool.name, tool);
     },
     registerCommand() {},
     sendMessage() {},
   } as never);
 
-  if (!tool) throw new Error("tilldone tool was not registered");
-  const registeredTool: RegisteredTool = tool;
+  const registeredTool = tools.get("tilldone");
+  if (!registeredTool) throw new Error("tilldone tool was not registered");
 
   return {
     branch,
     ctx,
     handlers,
     notifications,
+    tools,
     async run(params: Record<string, unknown>) {
       const result = await registeredTool.execute("1", params, undefined, undefined, ctx);
       branch.push({
@@ -109,6 +112,11 @@ function createHarness(initialBranch: BranchEntry[] = []) {
         },
       });
       return result;
+    },
+    async runWith(toolName: string, params: Record<string, unknown>) {
+      const tool = tools.get(toolName);
+      if (!tool) throw new Error(`tool ${toolName} not registered`);
+      return await tool.execute("1", params, undefined, undefined, ctx);
     },
     async reconstruct() {
       if (!handlers.session_start) throw new Error("session_start handler not registered");
@@ -228,6 +236,21 @@ describe("validateTaskText", () => {
 });
 
 describe("tool behavior", () => {
+  test("registers a discoverable alias tool", async () => {
+    const harness = createHarness();
+
+    expect(harness.tools.has("tilldone")).toBe(true);
+    expect(harness.tools.has("task_list")).toBe(true);
+
+    const result = await harness.runWith("task_list", {
+      action: "new-list",
+      text: "Tasks",
+      texts: ["first concrete step"],
+    });
+
+    expect(result.content[0]?.text).toContain('New list: "Tasks"');
+  });
+
   test("new-list seeds tasks and auto-starts the first one", async () => {
     const harness = createHarness();
 

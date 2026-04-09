@@ -12,6 +12,15 @@ set -e
 # ============================================================================
 readonly NVM_VERSION="v0.40.1"
 readonly NERD_FONT_VERSION="v3.1.1"
+readonly PI_CORE_SKILLS=(
+    "plan"
+    "plan-loop"
+    "plan-review"
+    "plan-implement"
+    "review"
+    "implement"
+    "caveman"
+)
 
 # ============================================================================
 # COLORS & HELPERS
@@ -61,6 +70,37 @@ install_script() {
         return 0
     fi
     return 1
+}
+
+is_core_pi_skill() {
+    local skill="$1"
+    for core_skill in "${PI_CORE_SKILLS[@]}"; do
+        if [ "$core_skill" = "$skill" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+prune_managed_pi_skills() {
+    local skills_dir="$HOME/.pi/agent/skills"
+    [ -d "$skills_dir" ] || return 0
+
+    for skill_link in "$skills_dir"/*; do
+        [ -L "$skill_link" ] || continue
+        local target
+        target="$(readlink "$skill_link")"
+        case "$target" in
+            "$REPO_DIR/pi/skills/"*|"$REPO_DIR/skills/"*)
+                local skill_name
+                skill_name="$(basename "$skill_link")"
+                if ! is_core_pi_skill "$skill_name"; then
+                    rm -f "$skill_link"
+                    print_success "Removed stale Pi skill '$skill_name'"
+                fi
+                ;;
+        esac
+    done
 }
 
 sync_nvim_plugins() {
@@ -604,12 +644,15 @@ for theme_file in "$REPO_DIR/pi/themes"/*.json; do
     fi
 done
 
-# Custom skills (plan workflow, review)
-for skill_dir in "$REPO_DIR/pi/skills"/*/; do
+# Core Pi skills only
+prune_managed_pi_skills
+for skill_name in "${PI_CORE_SKILLS[@]}"; do
+    skill_dir="$REPO_DIR/pi/skills/$skill_name"
     if [ -d "$skill_dir" ]; then
-        skill_name=$(basename "$skill_dir")
         ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
         print_success "Pi skill '$skill_name' linked"
+    else
+        print_warning "Pi skill '$skill_name' missing from repo"
     fi
 done
 
@@ -634,14 +677,6 @@ for shared_doc in review-rubric.md handoff-template.md; do
     if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
         ln -sf "$REPO_DIR/workflow/$shared_doc" ~/.claude/"$shared_doc"
         print_success "Claude doc '$shared_doc' linked"
-    fi
-done
-
-# Shared skills from etabli/skills/ (only if not already linked in Pi)
-for shared_skill in vercel-react-best-practices web-design-guidelines; do
-    if [ -d "$REPO_DIR/skills/$shared_skill" ] && [ ! -e ~/.pi/agent/skills/"$shared_skill" ]; then
-        ln -sfn "$REPO_DIR/skills/$shared_skill" ~/.pi/agent/skills/"$shared_skill"
-        print_success "Pi shared skill '$shared_skill' linked"
     fi
 done
 
@@ -907,9 +942,10 @@ printf "  Plan review:     ${YELLOW}/skill:plan-review${NC}\n"
 printf "  Implement:       ${YELLOW}/skill:implement${NC}\n"
 printf "  Plan loop:       ${YELLOW}/skill:plan-loop${NC}\n"
 printf "  Plan implement:  ${YELLOW}/skill:plan-implement${NC}\n"
+printf "  Caveman:         ${YELLOW}/skill:caveman${NC}\n"
 printf "  Code review:     ${YELLOW}Ctrl+R${NC} (mitsupi)\n"
-printf "  Handoff:         ${YELLOW}/handoff${NC}\n"
-printf "  Impl handoff:    ${YELLOW}/handoff-implement${NC}\n"
+printf "  Fast handoff:    ${YELLOW}/fast-handoff${NC}\n"
+printf "  Impl handoff:    ${YELLOW}/fast-handoff-implement${NC}\n"
 printf "  TDD loop:        ${YELLOW}/loop tests${NC} (mitsupi)\n"
 printf "  Model selector:  ${YELLOW}Ctrl+L${NC}\n"
 printf "  Cycle models:    ${YELLOW}Ctrl+P / Shift+Ctrl+P${NC}\n"
