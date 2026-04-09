@@ -1,4 +1,5 @@
 import { delimiter } from "node:path";
+import type { RtkConfig } from "./pi-runtime.ts";
 
 export type RewriteEnv = Record<string, string | undefined> | undefined;
 export type RewriteRunner = (command: string, env: RewriteEnv) => string;
@@ -13,12 +14,72 @@ type RewriteError = {
   status?: unknown;
 };
 
+export type RtkRuntimeState = {
+  cacheSize: number;
+  cacheHits: number;
+  cacheMisses: number;
+  rewrites: number;
+  bypasses: number;
+  disabled: boolean;
+  lastBypassReason: string | null;
+};
+
+type ManagedRtkConfig = Pick<
+  RtkConfig,
+  "enabled" | "mode" | "maxCacheEntries" | "maxCommandLength" | "dangerousCommandBypass"
+>;
+
+const runtimeState: RtkRuntimeState = {
+  cacheSize: 0,
+  cacheHits: 0,
+  cacheMisses: 0,
+  rewrites: 0,
+  bypasses: 0,
+  disabled: false,
+  lastBypassReason: null,
+};
+
 function isMissingBinaryError(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as RewriteError).code === "ENOENT";
 }
 
 function isExpectedNoRewriteError(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as RewriteError).status === 1;
+}
+
+function noteBypass(reason: string): void {
+  runtimeState.bypasses += 1;
+  runtimeState.lastBypassReason = reason;
+}
+
+function findBypassReason(command: string, config: ManagedRtkConfig): string | null {
+  const trimmed = command.trim();
+  if (trimmed.length === 0) return null;
+  if (!config.enabled || config.mode === "off") return "disabled";
+  if (trimmed.includes("\n")) return "multiline";
+  if (/(^|\s)<<-?\s*['"]?[A-Za-z0-9_]+['"]?/.test(trimmed)) return "heredoc";
+  if (trimmed.length > config.maxCommandLength) return "command-too-long";
+  if (trimmed.includes("|")) return "pipeline";
+  if (
+    config.dangerousCommandBypass &&
+    /(^|\s)(sudo\b|rm\s+-rf\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b|git\s+clean\s+-fdx\b)/.test(trimmed)
+  ) {
+    return "dangerous-command";
+  }
+  return null;
+}
+
+function remember(cache: Map<string, string>, key: string, value: string, maxEntries: number): void {
+  if (cache.has(key)) cache.delete(key);
+  cache.set(key, value);
+
+  while (cache.size > maxEntries) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+
+  runtimeState.cacheSize = cache.size;
 }
 
 export function prependPathToEnv(env: RewriteEnv, pathPrefix: string | null): RewriteEnv {
@@ -29,31 +90,67 @@ export function prependPathToEnv(env: RewriteEnv, pathPrefix: string | null): Re
   };
 }
 
-export function createRtkCommandRewriter(runRewrite: RewriteRunner): (command: string, env?: RewriteEnv) => string {
+export function getRtkRuntimeState(): RtkRuntimeState {
+  return { ...runtimeState };
+}
+
+export function resetRtkRuntimeState(): void {
+  runtimeState.cacheSize = 0;
+  runtimeState.cacheHits = 0;
+  runtimeState.cacheMisses = 0;
+  runtimeState.rewrites = 0;
+  runtimeState.bypasses = 0;
+  runtimeState.disabled = false;
+  runtimeState.lastBypassReason = null;
+}
+
+export function createRtkCommandRewriter(
+  runRewrite: RewriteRunner,
+  config: ManagedRtkConfig,
+): (command: string, env?: RewriteEnv) => string {
   const cache = new Map<string, string>();
   let disabled = false;
+  resetRtkRuntimeState();
 
   return (command: string, env?: RewriteEnv): string => {
     if (command.trim().length === 0) return command;
 
+    if (disabled) {
+      noteBypass("missing-binary");
+      return command;
+    }
+
+    const bypassReason = findBypassReason(command, config);
+    if (bypassReason) {
+      noteBypass(bypassReason);
+      return command;
+    }
+
     const cached = cache.get(command);
-    if (cached) return cached;
-    if (disabled) return command;
+    if (cached) {
+      runtimeState.cacheHits += 1;
+      return cached;
+    }
+
+    runtimeState.cacheMisses += 1;
 
     try {
       const rewritten = runRewrite(command, env).trim();
       const resolved = rewritten.length > 0 && rewritten !== command ? rewritten : command;
-      cache.set(command, resolved);
+      if (resolved !== command) runtimeState.rewrites += 1;
+      remember(cache, command, resolved, config.maxCacheEntries);
       return resolved;
     } catch (error) {
       if (isMissingBinaryError(error)) {
         disabled = true;
-        cache.set(command, command);
+        runtimeState.disabled = true;
+        noteBypass("missing-binary");
+        remember(cache, command, command, config.maxCacheEntries);
         return command;
       }
 
       if (isExpectedNoRewriteError(error)) {
-        cache.set(command, command);
+        remember(cache, command, command, config.maxCacheEntries);
       }
 
       return command;

@@ -11,6 +11,7 @@ import { createBashTool } from "@mariozechner/pi-coding-agent";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { getAgentSettingsPath, readRtkConfig } from "./lib/pi-runtime.ts";
 import { createRtkCommandRewriter, createRtkSpawnHook } from "./lib/rtk-runtime.ts";
 
 function resolveInterceptedCommandsPath(): string | null {
@@ -26,12 +27,14 @@ function resolveInterceptedCommandsPath(): string | null {
 export default function (pi: ExtensionAPI) {
   const cwd = process.cwd();
   const interceptedCommandsPath = resolveInterceptedCommandsPath();
+  const rtkConfig = readRtkConfig(getAgentSettingsPath());
   const rewriteCommand = createRtkCommandRewriter((command, env) =>
     execFileSync("rtk", ["rewrite", command], {
       encoding: "utf-8",
-      timeout: 3000,
+      timeout: rtkConfig.timeoutMs,
       env,
     }),
+    rtkConfig,
   );
   const spawnHook = createRtkSpawnHook({ pathPrefix: interceptedCommandsPath, rewriteCommand });
 

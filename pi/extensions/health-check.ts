@@ -3,6 +3,8 @@ import { Type } from "@sinclair/typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { getRtkRuntimeState } from "./lib/rtk-runtime.ts";
+import { readRtkConfig } from "./lib/pi-runtime.ts";
 
 function getHomeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || homedir();
@@ -29,19 +31,13 @@ export interface HealthReport {
 
 const EXTENSIONS = [
   "fast-handoff",
-  "tilldone-ops-sync",
   "review-plan-bridge",
-  "auto-validate",
-  "workflow-metrics",
-  "project-switcher",
-  "task-templates",
-  "auto-resume",
   "scope-guard",
-  "pre-flight",
-  "smart-context",
   "health-check",
-  "error-recovery",
-  "context-help",
+  "rtk",
+  "subagent",
+  "tilldone",
+  "tilldone-ops-sync",
 ];
 
 export function checkExtensionFiles(cwd: string): HealthCheck[] {
@@ -79,18 +75,24 @@ export function checkSettings(cwd: string): HealthCheck[] {
 
   try {
     const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as {
-      packages?: Array<string | { source?: string; extensions?: string[] }>;
+      packages?: Array<string | { source?: string; extensions?: string[]; skills?: string[] }>;
       subagents?: { scout?: { model?: string } };
     };
 
     const localWorkflowPackage = settings.packages?.find(
-      (entry): entry is { source?: string; extensions?: string[] } =>
+      (entry): entry is { source?: string; extensions?: string[]; skills?: string[] } =>
         typeof entry === "object" && (entry.source?.includes("etabli") || entry.source === "local:etabli-workflow"),
     );
     const packageRegistered = Boolean(localWorkflowPackage) || settings.packages?.some((entry) => typeof entry === "string" && entry.includes("etabli"));
     const missingRegisteredExtensions = (localWorkflowPackage?.extensions || []).filter(
       (extension) => !existsSync(join(cwd, "pi", "extensions", extension)),
     );
+    const registeredExtensions = new Set(localWorkflowPackage?.extensions || []);
+    const missingCoreExtensions = EXTENSIONS
+      .map((extension) => `${extension}.ts`)
+      .filter((extension) => !registeredExtensions.has(extension));
+    const rtkConfig = readRtkConfig(settingsPath);
+    const rtkState = getRtkRuntimeState();
 
     return [
       {
@@ -112,10 +114,34 @@ export function checkSettings(cwd: string): HealthCheck[] {
             : "Sync pi/agent/settings.json with files in pi/extensions/",
       },
       {
+        component: "settings:core-extensions",
+        status: missingCoreExtensions.length === 0 ? "ok" : "warn",
+        message:
+          missingCoreExtensions.length === 0
+            ? "Minimal core extensions registered"
+            : `Missing minimal core extensions: ${missingCoreExtensions.join(", ")}`,
+        fix:
+          missingCoreExtensions.length === 0
+            ? undefined
+            : "Register fast-handoff.ts, review-plan-bridge.ts, scope-guard.ts, health-check.ts, rtk.ts, subagent.ts, tilldone.ts, and tilldone-ops-sync.ts",
+      },
+      {
         component: "settings:subagents",
         status: settings.subagents?.scout?.model ? "ok" : "warn",
         message: settings.subagents?.scout?.model ? "Subagent models configured" : "Subagent models not configured",
         fix: settings.subagents?.scout?.model ? undefined : "Add subagent configuration to settings.json",
+      },
+      {
+        component: "settings:rtk-config",
+        status: rtkConfig.enabled && rtkConfig.mode === "always" ? "ok" : "warn",
+        message: `RTK ${rtkConfig.enabled ? "enabled" : "disabled"} (${rtkConfig.mode}, timeout ${rtkConfig.timeoutMs}ms, cache ${rtkConfig.maxCacheEntries})`,
+        fix: rtkConfig.enabled && rtkConfig.mode === "always" ? undefined : "Set rtk.enabled=true and rtk.mode=always in settings.json",
+      },
+      {
+        component: "rtk:runtime",
+        status: rtkState.disabled ? "warn" : "ok",
+        message: `cache=${rtkState.cacheSize}, hits=${rtkState.cacheHits}, misses=${rtkState.cacheMisses}, bypasses=${rtkState.bypasses}, last bypass=${rtkState.lastBypassReason ?? "none"}`,
+        fix: rtkState.disabled ? "Install the rtk binary or disable the extension explicitly" : undefined,
       },
     ];
   } catch {
@@ -188,12 +214,30 @@ export function checkClaudeCommands(cwd: string): HealthCheck[] {
 }
 
 export function runHealthCheck(cwd: string): HealthReport {
+  const settingsPath = join(cwd, "pi", "agent", "settings.json");
+  let includeOpsChecks = false;
+
+  if (existsSync(settingsPath)) {
+    try {
+      const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as {
+        packages?: Array<string | { source?: string; extensions?: string[] }>;
+      };
+      const localWorkflowPackage = settings.packages?.find(
+        (entry): entry is { source?: string; extensions?: string[] } =>
+          typeof entry === "object" && entry.source === "local:etabli-workflow",
+      );
+      includeOpsChecks = Boolean(localWorkflowPackage?.extensions?.includes("tilldone-ops-sync.ts"));
+    } catch {
+      includeOpsChecks = false;
+    }
+  }
+
   const checks = [
     ...checkExtensionFiles(cwd),
     ...checkSettings(cwd),
-    ...checkOpsSync(cwd),
-    ...checkNeovimIntegration(cwd),
-    ...checkClaudeCommands(cwd),
+    ...(includeOpsChecks ? checkOpsSync(cwd) : []),
+    ...(includeOpsChecks ? checkNeovimIntegration(cwd) : []),
+    ...(includeOpsChecks ? checkClaudeCommands(cwd) : []),
   ];
 
   return {

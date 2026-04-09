@@ -2,27 +2,26 @@
 
 This directory contains custom Pi extensions for the etabli workflow.
 
-## Extensions
+## Default profile
 
-### Core workflow
+The default Pi profile is intentionally minimal and centered on planning, review, and safe shell execution.
+
 - `fast-handoff.ts` - instant local handoff generation
-- `tilldone-ops-sync.ts` - sync TillDone state into shared OPS files
 - `review-plan-bridge.ts` - turn review findings into tasks or plan slices
-- `auto-resume.ts` - detect fresh handoff files and suggest a resume path
-
-### Quality and safety
-- `auto-validate.ts` - run workflow checks for plan, git, conflicts, build, and large files
 - `scope-guard.ts` - warn when work drifts outside the current plan
-- `pre-flight.ts` - create snapshots before risky writes or shell commands
-- `error-recovery.ts` - classify common failures and suggest the next safe move
-- `health-check.ts` - check extension wiring, OPS files, Neovim, and Claude commands
+- `health-check.ts` - check core workflow wiring and RTK status
+- `rtk.ts` - rewrite safe bash commands through RTK to reduce shell noise and token usage
+- `subagent.ts` - automate scout/reviewer/worker flows behind `/plan-loop` and `/plan-implement`
+- `tilldone.ts` - persistent task list and task gating for implementation work
+- `tilldone-ops-sync.ts` - sync TillDone state into the shared OPS snapshot
+- `plan-state.ts` - lightweight PLAN.md tracking helper used by worker subagents
+- `damage-control.ts` - pre-execution safety gate used by subagents
+- `filter-output.ts` - post-execution redaction used by subagents
+- `block-google-providers.ts` - provider guardrail used by subagents
 
-### Productivity
-- `workflow-metrics.ts` - track time spent by phase and tool usage
-- `project-switcher.ts` - keep a recent/favorite project list and switch hints
-- `task-templates.ts` - ready-made task lists for common workflows
-- `smart-context.ts` - learn local patterns and suggest likely next tools
-- `context-help.ts` - contextual help for planning, implementation, review, and handoff
+## Optional extensions
+
+No optional Pi extension surface is kept in the repo anymore. The workflow surface is intentionally small.
 
 ## Installation
 
@@ -59,5 +58,4 @@ Set optional environment variables in your shell:
 
 ```bash
 export PI_AUTO_HANDOFF=1
-export PI_AUTO_VALIDATE=1
 ```
