@@ -36,3 +36,6 @@ __pycache__/
 # Working documents (not for commit)
 PLAN.md
 ops-roadmap.md
+
+# Local Pi runtime state
+.pi/

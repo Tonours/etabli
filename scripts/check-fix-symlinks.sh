@@ -108,8 +108,6 @@ check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions
 check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
 check_link "$HOME/.pi/settings.json" "$REPO_DIR/pi/settings.json" "pi settings.json"
 check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
-check_link "$HOME/.pi/damage-control-rules.json" "$REPO_DIR/pi/damage-control-rules.json" "pi damage-control-rules.json"
-check_link "$REPO_DIR/pi/extensions/node_modules" "$HOME/.pi/npm/node_modules" "pi/extensions/node_modules"
 
 check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"

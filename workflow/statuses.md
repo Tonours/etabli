@@ -16,8 +16,8 @@ Not allowed:
 - Implementation.
 
 Typical entry:
-- `/skill:plan`
-- `/plan`
+- `/skill:plan-loop`
+- `/plan-loop`
 
 ## `CHALLENGED`
 
@@ -58,11 +58,10 @@ Meaning:
 Allowed actions:
 - Implementation
 - Review after implementation
-- Implementation handoff
 
 Typical entry:
-- `/skill:plan-review`
-- `/plan-review`
+- `/skill:plan-loop`
+- `/plan-loop`
 - `plan-loop` once critique lands cleanly
 
 ## State transitions

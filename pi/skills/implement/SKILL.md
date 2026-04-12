@@ -5,13 +5,13 @@ description: Implement an existing READY PLAN.md
 
 # Implement
 
-Use this after `/skill:plan-review` when `PLAN.md` is already `READY`.
+Use this when `PLAN.md` is already `READY`.
 
 1. Check current state: `git status --short` and `git log --oneline -3`
 2. Read the existing `./PLAN.md`
-3. If `PLAN.md` is missing, stop and ask for a task description with `/skill:plan` or a pre-existing plan
+3. If `PLAN.md` is missing, stop and ask for a task description with `/skill:plan-loop` or a pre-existing plan
 4. Never implement from a `DRAFT` or `CHALLENGED` plan
-5. If `PLAN.md` is not `READY`, stop and return the blocker(s) plus the next command to run (`/skill:plan-review` or `/skill:plan`)
+5. If `PLAN.md` is not `READY`, stop and return the blocker(s) plus the next command to run (`/skill:plan-loop` or `/skill:plan-implement`)
 6. If `PLAN.md` is `READY`, implement strictly from it:
    - follow the execution slices in order
    - mark the active slice in `PLAN.md`
@@ -28,7 +28,6 @@ Use this after `/skill:plan-review` when `PLAN.md` is already `READY`.
    - files changed
    - validation run
    - remaining risks / follow-ups
-9. If the user wants to pause and resume later from the current implementation state, use `/handoff-implement`
 
 Rules:
 - do NOT rerun full planning if a reviewed `PLAN.md` already exists
