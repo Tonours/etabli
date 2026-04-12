@@ -13,13 +13,12 @@ set -e
 readonly NVM_VERSION="v0.40.1"
 readonly NERD_FONT_VERSION="v3.1.1"
 readonly PI_CORE_SKILLS=(
-    "plan"
     "plan-loop"
-    "plan-review"
     "plan-implement"
     "review"
     "implement"
     "caveman"
+    "ui"
 )
 
 # ============================================================================
@@ -567,12 +566,6 @@ if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
     print_success "Pi AGENTS.md linked"
 fi
 
-# damage-control-rules.json (global safety rules)
-if [ -f "$REPO_DIR/pi/damage-control-rules.json" ]; then
-    ln -sf "$REPO_DIR/pi/damage-control-rules.json" ~/.pi/damage-control-rules.json
-    print_success "Pi damage-control-rules.json linked"
-fi
-
 # models.json (backup existing if not a symlink)
 if [ -f "$REPO_DIR/pi/models.json" ]; then
     if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then
@@ -692,22 +685,6 @@ fi
 if command -v pi &> /dev/null; then
     print_step "Installing Pi packages from tracked settings..."
     install_pi_packages_from_settings
-fi
-
-# Symlink node_modules into extensions dir so createRequire() can resolve npm packages (e.g. mitsupi)
-if [ -d ~/.pi/npm/node_modules ] && [ -d "$REPO_DIR/pi/extensions" ]; then
-    ln -sfn ~/.pi/npm/node_modules "$REPO_DIR/pi/extensions/node_modules"
-    print_success "Pi extensions node_modules linked"
-fi
-
-# Apply tracked patch-package overrides for globally installed Pi packages (e.g. mitsupi)
-if [ -x "$REPO_DIR/scripts/apply-pi-package-patches.sh" ]; then
-    print_step "Applying Pi package patches..."
-    if "$REPO_DIR/scripts/apply-pi-package-patches.sh"; then
-        print_success "Pi package patches applied"
-    else
-        print_warning "Pi package patches failed to apply"
-    fi
 fi
 
 # ============================================================================
@@ -937,16 +914,11 @@ fi
 printf "  ${BLUE}Pi Coding Agent:${NC}\n"
 printf "  Start:           ${YELLOW}pi${NC}\n"
 printf "  Auth providers:  ${YELLOW}/login${NC}\n"
-printf "  Plan:            ${YELLOW}/skill:plan${NC}\n"
-printf "  Plan review:     ${YELLOW}/skill:plan-review${NC}\n"
 printf "  Implement:       ${YELLOW}/skill:implement${NC}\n"
 printf "  Plan loop:       ${YELLOW}/skill:plan-loop${NC}\n"
 printf "  Plan implement:  ${YELLOW}/skill:plan-implement${NC}\n"
 printf "  Caveman:         ${YELLOW}/skill:caveman${NC}\n"
-printf "  Code review:     ${YELLOW}Ctrl+R${NC} (mitsupi)\n"
-printf "  Fast handoff:    ${YELLOW}/fast-handoff${NC}\n"
-printf "  Impl handoff:    ${YELLOW}/fast-handoff-implement${NC}\n"
-printf "  TDD loop:        ${YELLOW}/loop tests${NC} (mitsupi)\n"
+printf "  UI:              ${YELLOW}/skill:ui${NC}\n"
 printf "  Model selector:  ${YELLOW}Ctrl+L${NC}\n"
 printf "  Cycle models:    ${YELLOW}Ctrl+P / Shift+Ctrl+P${NC}\n"
 echo ""

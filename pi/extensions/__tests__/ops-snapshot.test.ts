@@ -1,8 +1,9 @@
 /// <reference path="./bun-test.d.ts" />
 /// <reference path="../lib/node-runtime.d.ts" />
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   OPS_SNAPSHOT_KIND,
   OPS_SNAPSHOT_VERSION,
@@ -25,14 +26,10 @@ const PATH_FIXTURES = JSON.parse(
   readFileSync(new URL("./fixtures/ops-snapshot-paths.json", import.meta.url), "utf-8"),
 ) as Array<{ cwd: string; sanitized: string }>;
 
-const cleanupPaths = new Set<string>();
+process.env.HOME = mkdtempSync(join(tmpdir(), "ops-snapshot-home-"));
 
 afterEach(() => {
   clearOpsSnapshotReadCache();
-  for (const path of cleanupPaths) {
-    rmSync(path, { force: true, recursive: true });
-  }
-  cleanupPaths.clear();
 });
 
 describe("normalizeOpsSnapshot", () => {
@@ -220,7 +217,6 @@ describe("readOpsSnapshotForCwd", () => {
     const path = makeOpsSnapshotFile(cwd);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(VALID_FIXTURE, null, 2) + "\n", "utf-8");
-    cleanupPaths.add(path);
 
     const result = readOpsSnapshotForCwd(cwd);
     expect(result.ok).toBe(true);
@@ -231,7 +227,6 @@ describe("readOpsSnapshotForCwd", () => {
     const cwd = "/tmp/ops-snapshot-unreadable";
     const path = makeOpsSnapshotFile(cwd);
     mkdirSync(path, { recursive: true });
-    cleanupPaths.add(path);
 
     const result = readOpsSnapshotForCwd(cwd);
     expect(result.ok).toBe(false);
@@ -244,7 +239,6 @@ describe("readOpsSnapshotForCwd", () => {
     const path = makeOpsSnapshotFile(cwd);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(VALID_FIXTURE, null, 2) + "\n", "utf-8");
-    cleanupPaths.add(path);
 
     const first = readOpsSnapshotForCwd(cwd);
     expect(first.ok).toBe(true);
@@ -268,7 +262,6 @@ describe("readOpsSnapshotForCwd", () => {
     const path = makeOpsSnapshotFile(cwd);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(VALID_FIXTURE, null, 2) + "\n", "utf-8");
-    cleanupPaths.add(path);
 
     const first = readOpsSnapshotForCwd(cwd);
     expect(first.ok).toBe(true);

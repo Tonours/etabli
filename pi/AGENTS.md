@@ -17,8 +17,7 @@
 - In this repo: `workflow/spec.md`, `workflow/statuses.md`, `workflow/review-rubric.md`, `workflow/handoff-template.md`.
 
 ## Delegation
-- `scout` (read-only recon) → plan/refine → `worker` (bounded edits) → `reviewer` (read-only check).
-- Keep delegation read-only unless explicitly implementing.
+- Keep the runtime simple. Prefer one main session over orchestration layers.
 
 ## Communication
 - Direct. No hedging, no "I think maybe...". Don't ask permission for small decisions.

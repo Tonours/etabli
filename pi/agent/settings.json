@@ -1,85 +1,25 @@
 {
   "packages": [
     {
-      "source": "npm:mitsupi",
-      "extensions": [
-        "!uv.ts",
-        "-pi-extensions/go-to-bed.ts",
-        "-pi-extensions/session-breakdown.ts"
-      ],
-      "skills": [
-        "github",
-        "commit"
-      ]
-    },
-    {
-      "source": "npm:pi-hooks",
-      "extensions": [
-        "lsp/lsp.ts",
-        "lsp/lsp-tool.ts"
-      ],
-      "skills": [],
-      "prompts": [],
-      "themes": []
-    },
-    {
       "source": "local:etabli-workflow",
       "extensions": [
-        "fast-handoff.ts",
-        "review-plan-bridge.ts",
-        "scope-guard.ts",
-        "health-check.ts",
-        "rtk.ts",
-        "subagent.ts",
-        "tilldone.ts",
-        "tilldone-ops-sync.ts"
+        "rtk.ts"
       ],
       "skills": [
-        "plan",
         "plan-loop",
-        "plan-review",
         "plan-implement",
         "review",
         "implement",
-        "caveman"
+        "caveman",
+        "ui"
       ]
     }
   ],
-  "lsp": {
-    "hookMode": "agent_end"
-  },
   "lastChangelogVersion": "0.66.1",
   "defaultProvider": "zai",
   "defaultModel": "glm-5.1",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "off",
-  "subagents": {
-    "scout": {
-      "model": "kimi-coding/k2p5",
-      "thinking": "high"
-    },
-    "worker": {
-      "model": "openai-codex/gpt-5.4",
-      "thinking": "high"
-    },
-    "reviewer": {
-      "model": "github-copilot/claude-sonnet-4.6",
-      "thinking": "high"
-    }
-  },
-  "subagentAutomation": {
-    "planLoop": {
-      "enabled": true,
-      "autoScout": true,
-      "autoReviewer": true
-    },
-    "planImplement": {
-      "enabled": true,
-      "autoScout": true,
-      "autoReviewer": true,
-      "autoWorkerOnReady": true
-    }
-  },
   "rtk": {
     "enabled": true,
     "mode": "always",

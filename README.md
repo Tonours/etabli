@@ -2,7 +2,7 @@
 
 Personal dev environment for AI-assisted workflows across Neovim, Claude Code, Pi Coding Agent, tmux, iTerm2, VS Code, and a macOS tiling setup.
 
-The repo is intentionally source-of-truth oriented: the install script symlinks tracked config into your local environment, and re-running it re-syncs the live Neovim and Pi setup from the repo defaults.
+The repo stays source-of-truth oriented: the install script symlinks tracked config into your local environment, and re-running it re-syncs the live Neovim and Pi setup from the repo defaults.
 
 ## Quick start
 
@@ -18,11 +18,11 @@ cd etabli
 
 ## Useful maintenance
 
-Quick symlink audit/fix after moving or renaming the repo:
+Quick symlink audit or fix after moving or renaming the repo:
 
 ```bash
-fix-links check   # audit key Neovim / Pi / local-bin symlinks
-fix-links         # repair them in place
+fix-links check
+fix-links
 ```
 
 The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-links`.
@@ -31,122 +31,68 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 
 - `nvim/` - daily-driver Neovim config, including the diff-centric review workflow
 - `claude/` - tracked Claude Code commands and workflow notes
-- `pi/` - Pi configuration, extensions, minimal workflow skills, themes, and agent settings
-- `workflow/` - canonical planning, review, and handoff docs shared across runtimes
+- `pi/` - Pi configuration, minimal workflow skills, lightweight extensions, themes, and agent settings
+- `workflow/` - canonical planning and review docs shared across runtimes
 - `profiles/` - explicit personal/work usage contracts
 - `memory/` - minimal project memory layout and templates
 - `scripts/` - installer, local verification runners, terminal bootstraps, and platform helpers
 - `vscode/` - tracked VS Code settings, keybindings, and extension list
-- `tmux.conf`, `iterm2/`, `yabai/`, `skhd/`, `starship/` - terminal and window-management setup
 
 ## Where to look next
 
-### Editor and review flow
-
 - `nvim/README.md` - Neovim overview and key flows
-- `docs/nvim-diff-review-workflow.md` - diff-centric review inbox, statuses, batch prompts, Claude/Pi launch flow
-
-### Claude and Pi
-
+- `docs/nvim-diff-review-workflow.md` - diff-centric review inbox and batch prompts
 - `claude/README.md` - Claude Code workflow notes
 - `docs/pi-cheatsheet-fr.md` - Pi commands, shortcuts, and repo-specific reminders
-- `pi/AGENTS.md` - project-specific agent instructions used by Pi
-
-### OPS shared status
-
-- Neovim also exports one lightweight task projection per current cwd at `~/.pi/status/<sanitized-cwd>.task.json`
-- Neovim exports one shared OPS snapshot per current cwd at `~/.pi/status/<sanitized-cwd>.ops.json`
-- task + snapshot are regenerated together and share revision/timestamp metadata so Pi and Claude see the same current task/title/next-action context
-- task identity follows current branch first, then cwd/repo fallback
-- Pi reads that snapshot through the minimal workflow extensions (`fast-handoff`, `review-plan-bridge`, `subagent`)
-- Claude reads that snapshot through `claude/commands/ops-status.md`
-- `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface
-
-### Planning and execution
-
 - `workflow/spec.md` - canonical workflow contract
-- `workflow/operating-model.md` - daily Claude + Pi operating model and execution modes
+- `workflow/operating-model.md` - daily Claude + Pi operating model
 - `workflow/statuses.md` - lifecycle and status model
 - `workflow/review-rubric.md` - review expectations
-- `workflow/handoff-template.md` - continuation handoff template
 - `PLAN_TEMPLATE.md` - canonical source for `PLAN.md`
-
-### Profiles and memory
-
-- `profiles/README.md` - profile structure and usage
-- `docs/profiles.md` - when to choose personal vs work posture
-- `memory/README.md` - memory goals and layout
-- `memory/projects/README.md` - per-project memory convention
-- local memory stays opt-in; the default Pi profile no longer pulls extra documentation packages into the everyday loadout
 
 ## Core workflow
 
 ```text
-problem -> learn -> phase-0 measure -> plan -> PLAN.md (DRAFT) -> plan-review -> PLAN.md (CHALLENGED/READY) -> implement
+problem -> learn -> phase-0 measure -> plan-loop -> PLAN.md (CHALLENGED/READY) -> implement -> review
 ```
 
 - `PLAN.md` is the single execution contract across Claude and Pi
 - `PLAN_TEMPLATE.md` is the canonical template
-- the phase-0 measurement contract lives inside `PLAN.md`; no extra mandatory artifact is introduced
-- the phase-1 execution contract also lives inside `PLAN.md`: slices, file scope, checks, invariants, done criteria, rollback points
-- phase 2 keeps light implementation state in `PLAN.md`: active slice, completed slices, pending checks, next recommended action
-- phase 3 makes review plan-aware: self-check, plan compliance, adversarial review, human checkpoint triggers
+- the phase-0 measurement contract lives inside `PLAN.md`
+- the execution contract also lives inside `PLAN.md`: slices, file scope, checks, invariants, done criteria, rollback points
 - implementation should start only from a `READY` `PLAN.md`
-- review and handoff docs live under `workflow/` and are shared across runtimes
+- review stays plan-aware
 
-## Daily agent loop
+## Daily loop
 
 Typical flow in this repo:
 
 1. inspect current repo state
-2. explore or plan with Claude/Pi
+2. explore or run `plan-loop`
 3. implement from a `READY` plan
 4. review diffs inside Neovim or via runtime review commands
-5. hand off or commit once verified
+5. run focused checks and manual QA
+6. commit once verified
 
-Delegation default:
-- scout/reviewer can run in parallel for reconnaissance/review
-- worker stays single by default unless work is explicitly isolated
+## OPS shared status
 
-Daily execution modes:
-- simple mode: one worker, one clear path
-- standard mode: scout/worker/reviewer around one main implementation path
-
-For the full zero-idle Claude + Pi loop, see `workflow/operating-model.md`.
-
-Useful entrypoints:
-
-- `PLAN.md`
-- Neovim OPS/review commands
-- Claude/Pi workflow commands documented above
-
-For the full workflow surface, use the dedicated docs above instead of this root README.
-
-Local OPS verification:
-
-- run `./scripts/test-ops-local.sh` before commit when touching the shared OPS snapshot flow
-- it runs targeted OPS Bun tests, Neovim OPS/review smokes, the Pi extension suite, and `git diff --check`
-- the real Claude `/ops-status` runtime check remains manual
+- Neovim exports one lightweight task projection per current cwd at `~/.pi/status/<sanitized-cwd>.task.json`
+- Neovim exports one shared OPS snapshot per current cwd at `~/.pi/status/<sanitized-cwd>.ops.json`
+- task + snapshot are regenerated together and share revision/timestamp metadata so Claude and local tooling see the same current task/title/next-action context
+- task identity follows current branch first, then cwd/repo fallback
+- `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface
 
 ## Config and secrets
 
 - Pi tracked source files live in `pi/`; most are symlinked into `~/.pi/` by `scripts/install.sh`, while mutable agent settings stay local
 - `pi/models.json` and `pi/settings.json` are editable source files
 - `pi/agent/settings.json` is a tracked bootstrap/default file; the live `~/.pi/agent/settings.json` stays local so model switches do not dirty the repo
-- the installer now links only the core Pi skills by default: `plan`, `plan-loop`, `plan-review`, `plan-implement`, `review`, `implement`, `caveman`
+- the installer now links only the core Pi skills by default: `plan-loop`, `plan-implement`, `review`, `implement`, `caveman`, `ui`
 - `auth.json` and credentials are intentionally not tracked
-- API keys such as `MISTRAL_API_KEY` should come from your shell environment or a non-tracked local secret loader
-
-## Platform notes
-
-- macOS tiling uses Yabai + skhd
-- iTerm2, tmux, and Starship are configured from this repo
-- VS Code config and recommended extensions are tracked under `vscode/`
-- Prettier, language servers, and related CLI dependencies are handled by the installer where relevant
 
 ## Philosophy
 
 - keep source-of-truth config in the repo
 - keep secrets and auth local
-- prefer small dedicated docs over one giant README
+- prefer a small Pi runtime over orchestration layers
 - keep planning and review contracts shared across Claude and Pi
