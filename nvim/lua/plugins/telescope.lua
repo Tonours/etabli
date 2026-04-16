@@ -2,6 +2,26 @@ return {
   {
     "nvim-telescope/telescope.nvim",
     cmd = "Telescope",
+    init = function()
+      vim.api.nvim_create_autocmd("VimEnter", {
+        once = true,
+        callback = function()
+          if #vim.api.nvim_list_uis() == 0 then
+            return
+          end
+
+          vim.schedule(function()
+            local ok_lazy, lazy = pcall(require, "lazy")
+            if not ok_lazy then
+              return
+            end
+
+            lazy.load({ plugins = { "telescope.nvim" } })
+            pcall(require, "telescope.builtin")
+          end)
+        end,
+      })
+    end,
     dependencies = {
       "nvim-lua/plenary.nvim",
       {
@@ -13,6 +33,37 @@ return {
     opts = function()
       local actions = require("telescope.actions")
       local action_state = require("telescope.actions.state")
+      local file_find_command = {
+        "fd",
+        "--type",
+        "f",
+        "--strip-cwd-prefix",
+        "--exclude",
+        ".git",
+        "--exclude",
+        "node_modules",
+        "--exclude",
+        "dist",
+        "--exclude",
+        "coverage",
+        "--exclude",
+        ".cache",
+        "--exclude",
+        "build",
+        "--exclude",
+        "out",
+      }
+      local hidden_file_find_command = vim.deepcopy(file_find_command)
+      table.insert(hidden_file_find_command, 4, "--hidden")
+      local grep_globs = {
+        "-g", "!.git",
+        "-g", "!node_modules",
+        "-g", "!dist",
+        "-g", "!coverage",
+        "-g", "!.cache",
+        "-g", "!build",
+        "-g", "!out",
+      }
 
       local function picker_started_in_terminal(prompt_bufnr)
         local picker = action_state.get_current_picker(prompt_bufnr)
@@ -79,8 +130,18 @@ return {
             num_pickers = 3, -- Reduced from 5 for lower memory usage
             limit_entries = 75, -- Reduced from 100 for faster lookup
           },
-          -- Speed up file finding
-          find_command = { "fd", "--type", "f", "--strip-cwd-prefix" },
+          vimgrep_arguments = {
+            "rg",
+            "--color=never",
+            "--no-heading",
+            "--with-filename",
+            "--line-number",
+            "--column",
+            "--smart-case",
+            unpack(grep_globs),
+          },
+          -- Speed up file finding by excluding heavy directories up front.
+          find_command = file_find_command,
         },
         pickers = {
           buffers = {
@@ -94,11 +155,13 @@ return {
           },
           find_files = {
             attach_mappings = open_in_tab_from_terminal,
-            hidden = true,
+            find_command = file_find_command,
+            previewer = false,
             prompt_title = "Files",
           },
           live_grep = {
             attach_mappings = open_in_tab_from_terminal,
+            previewer = false,
             prompt_title = "Grep",
           },
           lsp_document_symbols = {

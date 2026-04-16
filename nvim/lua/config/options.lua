@@ -1,5 +1,7 @@
 local opt = vim.opt
 
+vim.cmd("syntax enable")
+
 -- Early performance settings
 vim.o.background = 'dark'
 vim.g.loaded_python3_provider = 0
@@ -37,7 +39,8 @@ vim.cmd([[
   set noswapfile
   set tabstop=2
   set termguicolors
-  set timeoutlen=300
+  set timeoutlen=200
+  set ttimeoutlen=10
   set undofile
   set updatetime=120
   set winminwidth=5

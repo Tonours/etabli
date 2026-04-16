@@ -104,14 +104,14 @@ local function load_telescope_modules()
   return telescope_modules
 end
 
-local function telescope_cmd(cmd)
+local function telescope_cmd(cmd, picker_opts)
   return function()
     local ts = load_telescope_modules()
     if not ts then
       return
     end
 
-    ts.builtin[cmd]()
+    ts.builtin[cmd](picker_opts or {})
   end
 end
 
@@ -131,6 +131,44 @@ local function map_vscode_aliases(lhs_list, rhs, desc)
 end
 
 local quick_open = telescope_cmd("find_files")
+local quick_open_hidden = telescope_cmd("find_files", {
+  hidden = true,
+  find_command = {
+    "fd",
+    "--type",
+    "f",
+    "--hidden",
+    "--strip-cwd-prefix",
+    "--exclude",
+    ".git",
+    "--exclude",
+    "node_modules",
+    "--exclude",
+    "dist",
+    "--exclude",
+    "coverage",
+    "--exclude",
+    ".cache",
+    "--exclude",
+    "build",
+    "--exclude",
+    "out",
+  },
+})
+local live_grep_hidden = telescope_cmd("live_grep", {
+  additional_args = function()
+    return {
+      "--hidden",
+      "-g", "!.git",
+      "-g", "!node_modules",
+      "-g", "!dist",
+      "-g", "!coverage",
+      "-g", "!.cache",
+      "-g", "!build",
+      "-g", "!out",
+    }
+  end,
+})
 
 vim.api.nvim_create_user_command("CommandPalette", open_command_palette, {
   desc = "Open command palette",
@@ -143,7 +181,9 @@ map("n", "<leader><space>", quick_open, vim.tbl_extend("force", opts, { desc = "
 map("n", "<leader>/", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))
 map("n", "<leader>.", telescope_cmd("buffers"), vim.tbl_extend("force", opts, { desc = "Buffers" }))
 map("n", "<leader>ff", quick_open, vim.tbl_extend("force", opts, { desc = "Find files" }))
+map("n", "<leader>fF", quick_open_hidden, vim.tbl_extend("force", opts, { desc = "Find files incl. hidden" }))
 map("n", "<leader>fg", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))
+map("n", "<leader>fG", live_grep_hidden, vim.tbl_extend("force", opts, { desc = "Live grep incl. hidden" }))
 map("n", "<leader>fw", telescope_cmd("grep_string"), vim.tbl_extend("force", opts, { desc = "Grep current word" }))
 map("n", "<leader>fb", telescope_cmd("buffers"), vim.tbl_extend("force", opts, { desc = "Buffers" }))
 map("n", "<leader>fo", telescope_cmd("oldfiles"), vim.tbl_extend("force", opts, { desc = "Recent files" }))
