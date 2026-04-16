@@ -47,8 +47,6 @@ return {
           "lua",
           "markdown",
           "scss",
-          "typescript",
-          "typescriptreact",
           "yaml",
         },
         callback = function(args)
@@ -102,19 +100,31 @@ return {
         end)
       end
 
+      local function start_treesitter(args, lang)
+        if vim.b[args.buf].large_file then
+          return
+        end
+
+        vim.schedule(function()
+          if vim.api.nvim_buf_is_valid(args.buf) then
+            pcall(vim.treesitter.start, args.buf, lang)
+          end
+        end)
+      end
+
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "typescript", "typescriptreact" },
+        callback = function(args)
+          local lang = vim.bo[args.buf].filetype == "typescriptreact" and "tsx" or "typescript"
+          start_treesitter(args, lang)
+        end,
+      })
+
       -- Performance: Disable treesitter for large files
       vim.api.nvim_create_autocmd("FileType", {
         pattern = { "javascript.glimmer", "typescript.glimmer" },
         callback = function(args)
-          -- Skip treesitter for large files
-          if vim.b[args.buf].large_file then
-            return
-          end
-          vim.schedule(function()
-            if vim.api.nvim_buf_is_valid(args.buf) then
-              pcall(vim.treesitter.start, args.buf, "glimmer")
-            end
-          end)
+          start_treesitter(args, "glimmer")
         end,
       })
 
