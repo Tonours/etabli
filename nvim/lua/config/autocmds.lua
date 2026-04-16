@@ -35,6 +35,20 @@ vim.api.nvim_create_autocmd("FileType", {
 local large_file_threshold = 3 * 1024 * 1024
 local medium_file_threshold = 512 * 1024
 
+local function mark_large_file(bufnr)
+  local bo = vim.bo[bufnr]
+
+  bo.syntax = "off"
+  bo.undolevels = -1
+  bo.swapfile = false
+  bo.bufhidden = "unload"
+  vim.b[bufnr].large_file = true
+
+  if vim.api.nvim_get_current_buf() == bufnr then
+    vim.wo.foldmethod = "manual"
+  end
+end
+
 vim.api.nvim_create_autocmd("BufReadPre", {
   group = group,
   callback = function(args)
@@ -56,12 +70,7 @@ vim.api.nvim_create_autocmd("BufReadPre", {
     end
 
     if stats.size > large_file_threshold then
-      bo.syntax = "off"
-      bo.foldmethod = "manual"
-      bo.undolevels = -1
-      bo.swapfile = false
-      bo.bufhidden = "unload"
-      vim.b[bufnr].large_file = true
+      mark_large_file(bufnr)
       return
     end
 
@@ -70,13 +79,8 @@ vim.api.nvim_create_autocmd("BufReadPre", {
         if not vim.api.nvim_buf_is_valid(bufnr) then
           return
         end
-        local b = vim.bo[bufnr]
-        b.syntax = "off"
-        b.foldmethod = "manual"
-        b.undolevels = -1
-        b.swapfile = false
-        b.bufhidden = "unload"
-        vim.b[bufnr].large_file = true
+
+        mark_large_file(bufnr)
       end)
     end
   end,
