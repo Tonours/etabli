@@ -1,17 +1,7 @@
-local copilot_node_command_cache = nil
-
--- Persistent cache using vim.g to survive across plugin reloads
-vim.g.copilot_node_command_cache = vim.g.copilot_node_command_cache or nil
+local copilot_node_command_cache = vim.g.copilot_node_command_cache or nil
 
 local function best_copilot_node_command()
-  -- Check persistent cache first
-  if vim.g.copilot_node_command_cache then
-    return vim.g.copilot_node_command_cache
-  end
-
-  -- Check session cache
   if copilot_node_command_cache then
-    vim.g.copilot_node_command_cache = copilot_node_command_cache
     return copilot_node_command_cache
   end
 
@@ -20,13 +10,19 @@ local function best_copilot_node_command()
     if not major then
       return nil
     end
+
     return { major = tonumber(major), minor = tonumber(minor), patch = tonumber(patch) }
   end
 
   local function version_is_supported(version)
-    if not version or version.major ~= 22 then
-      return version and version.major > 22 or false
+    if not version then
+      return false
     end
+
+    if version.major ~= 22 then
+      return version.major > 22
+    end
+
     return version.minor >= 13
   end
 
@@ -40,52 +36,40 @@ local function best_copilot_node_command()
     if left.minor ~= right.minor then
       return left.minor > right.minor
     end
+
     return left.patch > right.patch
   end
 
-  local function candidate_nodes()
-    local candidates = {}
-    local seen = {}
+  local candidates = {}
+  local seen = {}
 
-    local function add(path)
-      if path and path ~= "" and not seen[path] and vim.fn.executable(path) == 1 then
-        seen[path] = true
-        table.insert(candidates, path)
-      end
+  local function add_candidate(path)
+    if path and path ~= "" and not seen[path] and vim.fn.executable(path) == 1 then
+      seen[path] = true
+      table.insert(candidates, path)
     end
-
-    add(vim.fn.exepath("node"))
-
-    for _, dir in ipairs(vim.split(vim.env.PATH or "", ":", { plain = true, trimempty = true })) do
-      add(vim.fs.joinpath(dir, "node"))
-    end
-
-    local nvm_dir = vim.env.NVM_DIR or (vim.env.HOME and vim.fs.joinpath(vim.env.HOME, ".nvm") or nil)
-    local nvm_nodes = nvm_dir and vim.fn.glob(vim.fs.joinpath(nvm_dir, "versions", "node", "*", "bin", "node"), false, true) or {}
-    for _, path in ipairs(nvm_nodes) do
-      add(path)
-    end
-
-    return candidates
   end
 
-  local function node_supports_sqlite(path)
-    local result = vim.system({ path, "-p", "typeof require('node:sqlite')" }, { text = true }):wait()
-    return result.code == 0 and vim.trim(result.stdout or "") == "object"
+  add_candidate(vim.fn.exepath("node"))
+  for _, dir in ipairs(vim.split(vim.env.PATH or "", ":", { plain = true, trimempty = true })) do
+    add_candidate(vim.fs.joinpath(dir, "node"))
+  end
+
+  local nvm_dir = vim.env.NVM_DIR or (vim.env.HOME and vim.fs.joinpath(vim.env.HOME, ".nvm") or nil)
+  local nvm_nodes = nvm_dir and vim.fn.glob(vim.fs.joinpath(nvm_dir, "versions", "node", "*", "bin", "node"), false, true) or {}
+  for _, path in ipairs(nvm_nodes) do
+    add_candidate(path)
   end
 
   local best_path
   local best_version
 
-  for _, path in ipairs(candidate_nodes()) do
+  for _, path in ipairs(candidates) do
     local result = vim.system({ path, "--version" }, { text = true }):wait()
     local version = result.code == 0 and parse_node_version(vim.trim(result.stdout or "")) or nil
-
-    if version and version_is_supported(version) and node_supports_sqlite(path) then
-      if version_is_newer(version, best_version) then
-        best_path = path
-        best_version = version
-      end
+    if version and version_is_supported(version) and version_is_newer(version, best_version) then
+      best_path = path
+      best_version = version
     end
   end
 
@@ -94,118 +78,7 @@ local function best_copilot_node_command()
   return copilot_node_command_cache
 end
 
-local function ensure_copilot_node_command()
-  if vim.g.copilot_node_command_cache then
-    return vim.g.copilot_node_command_cache
-  end
-
-  return best_copilot_node_command()
-end
-
-local function quiet_copilot_on_exit(code, _, client_id)
-  local client = require("copilot.client")
-
-  if client.id == client_id then
-    vim.schedule(function()
-      client.teardown()
-      client.id = nil
-      client.capabilities = nil
-    end)
-  end
-end
-
-local function setup_copilot_cmp()
-  local copilot_cmp = require("copilot_cmp")
-  copilot_cmp.setup()
-
-  -- Add copilot source to cmp after setup
-  local cmp = require("cmp")
-  cmp.setup.filetype("*", {
-    sources = cmp.config.sources({
-      { name = "nvim_lsp", max_item_count = 20 },
-      { name = "copilot", max_item_count = 3 },
-      { name = "path", max_item_count = 10 },
-    }, {
-      { name = "buffer", max_item_count = 10, keyword_length = 3 },
-    }),
-  })
-
-  local group = vim.api.nvim_create_augroup("etabli_copilot_cmp", { clear = true })
-  vim.api.nvim_create_autocmd("LspAttach", {
-    group = group,
-    callback = function(args)
-      local client = args.data and vim.lsp.get_client_by_id(args.data.client_id) or nil
-      if not client or client.name ~= "copilot" then
-        return
-      end
-
-      copilot_cmp._on_insert_enter({})
-    end,
-  })
-end
-
-local copilot_cmp_ready = false
-local copilot_cmp_setup_timer = nil
-
-local function maybe_setup_copilot_cmp()
-  if copilot_cmp_ready or vim.bo.filetype == "markdown" then
-    return
-  end
-
-  -- Cancel any pending setup
-  if copilot_cmp_setup_timer then
-    vim.fn.timer_stop(copilot_cmp_setup_timer)
-    copilot_cmp_setup_timer = nil
-  end
-
-  copilot_cmp_ready = true
-
-  -- Defer setup to not block InsertEnter
-  copilot_cmp_setup_timer = vim.defer_fn(function()
-    copilot_cmp_setup_timer = nil
-    setup_copilot_cmp()
-  end, 50)
-end
-
 return {
-  {
-    "zbirenbaum/copilot.lua",
-    cmd = "Copilot",
-    build = ":Copilot auth",
-    opts = function()
-      local node_cmd = ensure_copilot_node_command()
-      return {
-        copilot_node_command = node_cmd,
-        panel = {
-          enabled = false,
-        },
-        suggestion = {
-          enabled = false,
-        },
-        filetypes = {
-          gitcommit = true,
-          help = true,
-          markdown = false,
-          yaml = true,
-        },
-        server_opts_overrides = {
-          on_exit = quiet_copilot_on_exit,
-        },
-      }
-    end,
-  },
-  {
-    "zbirenbaum/copilot-cmp",
-    lazy = true,
-    dependencies = {
-      "zbirenbaum/copilot.lua",
-    },
-    -- Setup is triggered async from autocmds.lua on first InsertEnter
-    config = function()
-      -- Defer to prevent blocking startup
-      vim.schedule(maybe_setup_copilot_cmp)
-    end,
-  },
   {
     "L3MON4D3/LuaSnip",
     lazy = true,
@@ -219,16 +92,62 @@ return {
   {
     "hrsh7th/nvim-cmp",
     event = "InsertEnter",
+    init = function()
+      vim.api.nvim_create_autocmd("VimEnter", {
+        once = true,
+        callback = function()
+          if #vim.api.nvim_list_uis() == 0 then
+            return
+          end
+
+          vim.schedule(function()
+            local ok_lazy, lazy = pcall(require, "lazy")
+            if not ok_lazy then
+              return
+            end
+
+            lazy.load({ plugins = { "nvim-cmp" } })
+            pcall(require, "cmp")
+          end)
+        end,
+      })
+    end,
     dependencies = {
       "hrsh7th/cmp-buffer",
       "hrsh7th/cmp-nvim-lsp",
       "hrsh7th/cmp-path",
+      "zbirenbaum/copilot.lua",
+      "zbirenbaum/copilot-cmp",
     },
     config = function()
       local cmp = require("cmp")
+      local luasnip = require("luasnip")
+      local compare = cmp.config.compare
+      local copilot_cmp = require("copilot_cmp")
 
-      -- copilot-cmp is now loaded asynchronously via autocmd
-      -- No need to force load here - it would block InsertEnter
+      require("copilot").setup({
+        copilot_node_command = best_copilot_node_command(),
+        suggestion = { enabled = false },
+        panel = { enabled = false },
+        filetypes = {
+          markdown = false,
+          help = false,
+          gitcommit = true,
+          yaml = true,
+        },
+      })
+      copilot_cmp.setup()
+      copilot_cmp._on_insert_enter({})
+
+      local function has_words_before()
+        local line, col = unpack(vim.api.nvim_win_get_cursor(0))
+        if col == 0 then
+          return false
+        end
+
+        local current_line = vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]
+        return current_line:sub(col, col):match("%s") == nil
+      end
 
       cmp.setup({
         completion = {
@@ -242,6 +161,34 @@ return {
           ["<C-p>"] = cmp.mapping.select_prev_item(),
           ["<C-e>"] = cmp.mapping.abort(),
           ["<CR>"] = cmp.mapping.confirm({ select = false }),
+          ["<A-y>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.complete()
+              return
+            end
+
+            cmp.complete()
+          end, { "i" }),
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_locally_jumpable() then
+              luasnip.expand_or_jump()
+            elseif has_words_before() then
+              cmp.complete()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.locally_jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
         }),
         preselect = cmp.PreselectMode.None,
         snippet = {
@@ -250,21 +197,34 @@ return {
           end,
         },
         sources = cmp.config.sources({
+          { name = "copilot", max_item_count = 3, group_index = 1 },
           { name = "nvim_lsp", max_item_count = 20 },
           { name = "path", max_item_count = 10 },
-          -- copilot source will be added async after plugin loads
         }, {
           { name = "buffer", max_item_count = 10, keyword_length = 3 },
         }),
-        -- Performance: limit items shown and add debouncing
         formatting = {
           expandable_indicator = true,
         },
-        -- Performance: reduce completion trigger frequency
         performance = {
-          debounce = 25, -- Debounce completion by 25ms (was 30ms)
-          throttle = 8, -- Throttle completion by 8ms (was 10ms)
-          fetching_timeout = 200, -- Timeout for fetching completions (was 250ms)
+          debounce = 25,
+          throttle = 8,
+          fetching_timeout = 2000,
+        },
+        sorting = {
+          priority_weight = 2,
+          comparators = {
+            require("copilot_cmp.comparators").prioritize,
+            compare.offset,
+            compare.exact,
+            compare.score,
+            compare.recently_used,
+            compare.locality,
+            compare.kind,
+            compare.sort_text,
+            compare.length,
+            compare.order,
+          },
         },
       })
 

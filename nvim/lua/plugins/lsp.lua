@@ -169,6 +169,15 @@ local function has_prettier(filename)
   return false
 end
 
+local function server_is_available(name)
+  local required_commands = {
+    ts_ls = "typescript-language-server",
+  }
+
+  local command = required_commands[name]
+  return command == nil or vim.fn.executable(command) == 1
+end
+
 local function setup_servers()
   local capabilities = lsp.capabilities()
   local servers = lsp.servers()
@@ -196,8 +205,14 @@ local function setup_servers()
   })
 
   for name, server_opts in pairs(servers) do
+    if not server_is_available(name) then
+      goto continue
+    end
+
     vim.lsp.config(name, server_opts)
     vim.lsp.enable(name)
+
+    ::continue::
   end
 
   vim.lsp.config("glint", {
@@ -262,7 +277,7 @@ return {
         if vim.b[bufnr].large_file then
           return nil
         end
-        return { timeout_ms = 500, lsp_format = "fallback" }
+        return { timeout_ms = 1500, lsp_format = "fallback" }
       end,
     },
   },

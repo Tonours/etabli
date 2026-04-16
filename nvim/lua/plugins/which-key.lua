@@ -3,7 +3,7 @@ return {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
-      delay = 300,
+      delay = 150,
       preset = "modern",
       plugins = {
         spelling = {

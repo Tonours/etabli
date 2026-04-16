@@ -1,7 +1,9 @@
+local pending_installs = {}
+
 return {
   {
     "nvim-treesitter/nvim-treesitter",
-    event = { "BufReadPost", "BufNewFile" },
+    lazy = false,
     build = ":TSUpdate",
     init = function()
       -- Batch filetype registrations for better performance
@@ -12,12 +14,8 @@ return {
         },
       })
 
-      -- Defer language registration to not block startup
-      vim.schedule(function()
-        -- Register glimmer for handlebars variants in one call
-        local lang = "glimmer"
-        vim.treesitter.language.register(lang, { "hbs", "handlebars" })
-      end)
+      -- Register glimmer for handlebars variants
+      vim.treesitter.language.register("glimmer", { "hbs", "handlebars", "html.handlebars" })
 
       -- Defer markdown parser registration to not block file opening
       vim.api.nvim_create_autocmd("FileType", {
@@ -32,9 +30,77 @@ return {
           end, 50)
         end,
       })
+
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = {
+          "astro",
+          "bash",
+          "css",
+          "graphql",
+          "html.handlebars",
+          "handlebars",
+          "hbs",
+          "html",
+          "javascript",
+          "javascriptreact",
+          "json",
+          "lua",
+          "markdown",
+          "scss",
+          "typescript",
+          "typescriptreact",
+          "yaml",
+        },
+        callback = function(args)
+          if vim.b[args.buf].large_file then
+            return
+          end
+          pcall(vim.treesitter.start, args.buf)
+        end,
+      })
     end,
     config = function()
-      require("nvim-treesitter").setup()
+      local languages = {
+        "bash", "css", "glimmer", "graphql", "html", "javascript",
+        "json", "lua", "markdown", "markdown_inline", "scss",
+        "tsx", "typescript", "yaml",
+      }
+      local treesitter = require("nvim-treesitter")
+
+      local installed = {}
+      for _, language in ipairs(treesitter.get_installed()) do
+        installed[language] = true
+      end
+
+      local missing = vim.tbl_filter(function(language)
+        return not installed[language]
+      end, languages)
+
+      if #missing > 0 then
+        vim.schedule(function()
+          local ok, task = pcall(treesitter.install, missing, { summary = true })
+          if not ok or not task or not task.await then
+            vim.notify("Treesitter parser install could not be started", vim.log.levels.WARN)
+            return
+          end
+
+          table.insert(pending_installs, task)
+          task:await(function(err)
+            for index, pending in ipairs(pending_installs) do
+              if pending == task then
+                table.remove(pending_installs, index)
+                break
+              end
+            end
+
+            if err then
+              vim.schedule(function()
+                vim.notify("Treesitter parser install failed: " .. tostring(err), vim.log.levels.WARN)
+              end)
+            end
+          end)
+        end)
+      end
 
       -- Performance: Disable treesitter for large files
       vim.api.nvim_create_autocmd("FileType", {
