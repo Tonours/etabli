@@ -11,9 +11,13 @@
         "review",
         "implement",
         "caveman",
-        "ui"
+        "ui",
+        "grill-me"
       ]
-    }
+    },
+    "npm:pi-interview",
+    "https://github.com/davebcn87/pi-autoresearch",
+    "npm:glimpseui"
   ],
   "lsp": {
     "hookMode": "agent_end"
