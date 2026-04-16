@@ -51,49 +51,63 @@
           "id": "glm-5.1",
           "name": "GLM 5.1",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         },
         {
           "id": "glm-5",
           "name": "GLM 5",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         },
         {
           "id": "glm-5-turbo",
           "name": "GLM 5 Turbo",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         },
         {
           "id": "glm-4.7",
           "name": "GLM 4.7",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         },
         {
           "id": "glm-4.6",
           "name": "GLM 4.6",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         },
         {
           "id": "glm-4.5",
           "name": "GLM 4.5",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         },
         {
           "id": "glm-4.5-air",
           "name": "GLM 4.5 Air",
           "reasoning": true,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         }
       ]
@@ -107,7 +121,9 @@
           "id": "glm-4.5-air",
           "name": "GLM 4.5 Air Fast",
           "reasoning": false,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 200000
         }
       ]
@@ -125,9 +141,101 @@
           "id": "gemma-4-E4B-it-Q8_0.gguf",
           "name": "Gemma 4 E4B Local",
           "reasoning": false,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 32768,
           "maxTokens": 4096
+        },
+        {
+          "id": "qwen2.5-coder-7b-instruct-q6_k.gguf",
+          "name": "Qwen 2.5 Coder 7B Q6 (backup)",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 8192
+        },
+        {
+          "id": "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+          "name": "Qwen 2.5 Coder 7B Q4 Local",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 8192,
+          "maxTokens": 8192
+        },
+        {
+          "id": "qwen3.5-9b-ud-q4_k_xl.gguf",
+          "name": "Qwen 3.5 9B Local (best)",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 8192
+        }
+      ]
+    },
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "ollama",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "maxTokensField": "max_tokens"
+      },
+      "models": [
+        {
+          "id": "qwen2.5-coder:14b",
+          "name": "Qwen 2.5 Coder 14B (local)",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 33000,
+          "maxTokens": 8192
+        },
+        {
+          "id": "mistral-nemo:12b",
+          "name": "Mistral Nemo 12B (local)",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 128000,
+          "maxTokens": 8192
+        },
+        {
+          "id": "phi4:14b",
+          "name": "Phi-4 14B (local)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 128000,
+          "maxTokens": 8192
         }
       ]
     }
