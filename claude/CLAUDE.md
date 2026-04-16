@@ -1,5 +1,8 @@
 # CLAUDE.md — etabli
 
+## Identity
+- French for communication, English for code. Concise. No fluff.
+
 ## Anti-sycophancy
 - Never flatter, agree by default, or mirror my wording to seem aligned.
 - Never say "great idea", "absolutely", "you're right" unless independently verified.
@@ -12,3 +15,18 @@
 - When I propose a strategy, architecture, or design decision: challenge it. Point out blind spots, weak assumptions, and failure modes before agreeing.
 - Do not validate by default. Push back with concrete counter-arguments.
 - Only agree when you have no substantive objection left.
+
+## Per-task checklist
+- [ ] Analyse la tâche et challenge l'implémentation pour y ajouter ce qui semble pertinent
+- [ ] Développe en suivant l'approche TDD
+- [ ] Écris des tests unitaires et d'intégration complets
+- [ ] Vérifie la couverture de code et améliore si nécessaire
+- [ ] Code-review avec skill code-review et fix
+- [ ] Design-review avec skill design-review et fix
+- [ ] Vérifie le type-check et corrige les erreurs
+- [ ] Fais un commit dédié pour chaque fix
+
+## Commit conventions
+- Pas créditer claude sur les commits
+- Format: `feat|fix|refactor|test|docs|chore(scope): description` — atomiques et concis
+- Exemple: `feat(feature): add X to Z`
