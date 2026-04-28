@@ -427,7 +427,7 @@ elif [[ "$OS" == "debian" ]]; then
     fi
 
 elif [[ "$OS" == "redhat" ]]; then
-    # RHEL/CentOS/Fedora (node via nvm plus bas)
+    # RHEL/CentOS/Fedora (Node is installed through nvm below)
     sudo dnf install -y neovim tmux git ripgrep fd fzf make gcc jq unzip curl mosh || {
         print_warning "Some dnf packages may have failed"
     }
@@ -734,6 +734,16 @@ done
 rm -f ~/.pi/agent/skills/verify
 
 mkdir -p ~/.claude/commands
+if [ -f "$REPO_DIR/claude/CLAUDE.md" ]; then
+    ln -sf "$REPO_DIR/claude/CLAUDE.md" ~/.claude/CLAUDE.md
+    print_success "Claude CLAUDE.md linked"
+fi
+
+if [ -f "$REPO_DIR/PLAN_TEMPLATE.md" ]; then
+    ln -sf "$REPO_DIR/PLAN_TEMPLATE.md" ~/.claude/PLAN_TEMPLATE.md
+    print_success "Claude PLAN_TEMPLATE.md linked"
+fi
+
 for command_file in "$REPO_DIR/claude/commands"/*.md; do
     if [ -f "$command_file" ]; then
         command_name=$(basename "$command_file")
@@ -747,6 +757,17 @@ for command_file in "$REPO_DIR/claude/commands"/*.md; do
 done
 rm -f ~/.claude/commands/verify.md
 rm -f ~/.claude/commands/plan-create.md
+
+if [ -d "$REPO_DIR/claude/skills" ]; then
+    mkdir -p ~/.claude/skills
+    for skill_dir in "$REPO_DIR/claude/skills"/*; do
+        if [ -d "$skill_dir" ]; then
+            skill_name=$(basename "$skill_dir")
+            ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
+            print_success "Claude skill '$skill_name' linked"
+        fi
+    done
+fi
 
 for shared_doc in review-rubric.md handoff-template.md; do
     if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
