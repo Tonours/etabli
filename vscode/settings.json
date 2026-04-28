@@ -1,8 +1,8 @@
 {
   "workbench.colorTheme": "Catppuccin Mocha",
   "workbench.iconTheme": "catppuccin-mocha",
-  "editor.fontFamily": "JetBrainsMono Nerd Font, JetBrainsMono Nerd Font Mono, JetBrains Mono, monospace",
-  "editor.fontLigatures": true,
+  "editor.fontFamily": "CaskaydiaMono Nerd Font, CaskaydiaMono Nerd Font Mono, monospace",
+  "editor.fontLigatures": false,
   "editor.fontSize": 18,
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
@@ -32,7 +32,7 @@
   "typescript.updateImportsOnFileMove.enabled": "always",
   "git.autofetch": true,
   "git.openRepositoryInParentFolders": "always",
-  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+  "terminal.integrated.fontFamily": "CaskaydiaMono Nerd Font",
   "terminal.integrated.fontSize": 18,
   "tailwindCSS.includeLanguages": {
     "plaintext": "html"
