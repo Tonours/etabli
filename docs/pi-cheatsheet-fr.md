@@ -48,6 +48,12 @@ pi
 - `Shift+Enter` : nouvelle ligne
 - `Ctrl+V` : coller une image
 
+## tmux
+
+- Pi attend des touches modifiées distinctes pour `Enter`, `Shift+Enter` et `Ctrl+Enter`.
+- `tmux.conf` active `extended-keys` avec `extended-keys-format csi-u`.
+- Après changement de ce bloc, redémarrer tmux complètement : `tmux kill-server && tmux`.
+
 ## Contrat canonique du repo
 
 - workflow : `workflow/spec.md`

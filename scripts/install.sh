@@ -152,6 +152,69 @@ prune_managed_pi_skills() {
     done
 }
 
+sync_pi_agent_settings_resources() {
+    local local_settings="$HOME/.pi/agent/settings.json"
+    local tracked_settings="$REPO_DIR/pi/agent/settings.json"
+
+    if [ ! -f "$local_settings" ] || [ ! -f "$tracked_settings" ]; then
+        return 0
+    fi
+
+    if ! command -v node &> /dev/null; then
+        print_warning "Node.js not available - skipping Pi agent settings resource sync"
+        return 0
+    fi
+
+    if node - "$local_settings" "$tracked_settings" <<'NODE'
+const fs = require("node:fs");
+
+const [localPath, trackedPath] = process.argv.slice(2);
+const localSettings = JSON.parse(fs.readFileSync(localPath, "utf8"));
+const trackedSettings = JSON.parse(fs.readFileSync(trackedPath, "utf8"));
+
+const managedSources = new Set(["local:etabli-workflow"]);
+const localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
+const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
+
+const trackedBySource = new Map();
+for (const entry of trackedPackages) {
+  if (entry && typeof entry === "object" && managedSources.has(entry.source)) {
+    trackedBySource.set(entry.source, entry);
+  }
+}
+
+let changed = false;
+for (const [source, trackedEntry] of trackedBySource) {
+  const localIndex = localPackages.findIndex(
+    (entry) => entry && typeof entry === "object" && entry.source === source,
+  );
+
+  if (localIndex === -1) {
+    localPackages.unshift(trackedEntry);
+    changed = true;
+    continue;
+  }
+
+  const before = JSON.stringify(localPackages[localIndex]);
+  const after = JSON.stringify(trackedEntry);
+  if (before !== after) {
+    localPackages[localIndex] = trackedEntry;
+    changed = true;
+  }
+}
+
+if (changed) {
+  localSettings.packages = localPackages;
+  fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
+}
+NODE
+    then
+        print_success "Pi agent settings resource filters synced"
+    else
+        print_warning "Pi agent settings resource sync failed"
+    fi
+}
+
 sync_nvim_plugins() {
     if ! command -v nvim &> /dev/null; then
         print_warning "Neovim not available - skipping plugin sync"
@@ -692,6 +755,14 @@ if [ -f "$REPO_DIR/pi/agent/settings.json" ]; then
     else
         print_success "Pi agent settings kept local"
     fi
+
+    sync_pi_agent_settings_resources
+fi
+
+# damage-control is not part of the default Pi profile; remove stale managed
+# symlinks left by older installer versions without touching user-owned files.
+if [ -L ~/.pi/damage-control-rules.json ]; then
+    rm -f ~/.pi/damage-control-rules.json
 fi
 
 # Themes

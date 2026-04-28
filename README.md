@@ -95,6 +95,7 @@ Typical flow in this repo:
 - `pi/agent/settings.json` is a tracked bootstrap/default file; the live `~/.pi/agent/settings.json` stays local so model switches do not dirty the repo
 - the installer now links only the core Pi skills by default: `plan-loop`, `plan-implement`, `review`, `implement`, `caveman`, `ui`, `grill-me`
 - the default Pi extension loadout is `rtk.ts`, `filter-output.ts`, and `block-google-providers.ts`; damage-control is intentionally disabled by default
+- tmux is configured for Pi with `extended-keys` and `extended-keys-format csi-u` so modified Enter keybindings stay distinct
 - `auth.json` and credentials are intentionally not tracked
 
 ## Philosophy
