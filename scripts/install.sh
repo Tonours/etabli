@@ -249,6 +249,24 @@ sync_nvim_plugins() {
     fi
 }
 
+ensure_pi_extension_node_modules_link() {
+    local link_path="$REPO_DIR/pi/extensions/node_modules"
+    local target_path="$HOME/.pi/npm/node_modules"
+
+    mkdir -p "$target_path"
+
+    if [ -e "$link_path" ] && [ ! -L "$link_path" ]; then
+        print_warning "pi/extensions/node_modules exists but is not a symlink; leaving it untouched"
+        return 0
+    fi
+
+    if ln -sfn "$target_path" "$link_path"; then
+        print_success "Pi extension node_modules linked"
+    else
+        print_warning "Failed to link Pi extension node_modules"
+    fi
+}
+
 install_pi_packages_from_settings() {
     local settings_path="$REPO_DIR/pi/agent/settings.json"
     local package_sources
@@ -643,6 +661,7 @@ if [ -d "$REPO_DIR/pi/extensions" ]; then
     fi
     ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/agent/extensions
     print_success "Pi extensions linked"
+    ensure_pi_extension_node_modules_link
 fi
 
 if [ -d "$REPO_DIR/pi/themes" ]; then

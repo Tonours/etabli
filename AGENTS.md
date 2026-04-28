@@ -26,7 +26,7 @@
 - ~/.pi/agent/AGENTS.md → pi/AGENTS.md (global coding preferences)
 - ~/.pi/settings.json → pi/settings.json
 - ~/.pi/themes/ → pi/themes/
-- pi/extensions/node_modules/ → ~/.pi/npm/node_modules/ (for createRequire resolution)
+- pi/extensions/node_modules/ is a local ignored symlink created by install.sh → ~/.pi/npm/node_modules/ (for createRequire resolution)
 - Do NOT create ~/.pi/extensions/ — it causes double-loading conflicts
 
 ## Testing
