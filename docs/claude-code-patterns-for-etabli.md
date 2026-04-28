@@ -16,4 +16,4 @@ Use the current source of truth instead:
 - `README.md`
 - `workflow/spec.md`
 - `workflow/operating-model.md`
-- `docs/pi-cheatsheet-fr.md`
+- `docs/pi-cheatsheet.md`
