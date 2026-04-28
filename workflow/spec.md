@@ -6,7 +6,7 @@ Runtime-owned wrappers still live where the tools expect them:
 
 - Pi commands and skills: `pi/skills/`
 - Claude commands: `claude/commands/`
-- Installed Claude shared docs: `~/.claude/review-rubric.md`, `~/.claude/handoff-template.md`
+- Installed Claude shared docs: `~/.claude/PLAN_TEMPLATE.md`, `~/.claude/review-rubric.md`, `~/.claude/handoff-template.md`
 
 This spec defines the shared story those wrappers must follow.
 

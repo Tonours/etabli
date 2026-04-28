@@ -2,6 +2,15 @@
 
 This folder contains Claude Code-specific artifacts and documents.
 
+## Installed surface
+
+`scripts/install.sh` links:
+- `CLAUDE.md` to `~/.claude/CLAUDE.md`
+- root `../PLAN_TEMPLATE.md` to `~/.claude/PLAN_TEMPLATE.md`
+- `commands/*.md` to `~/.claude/commands/`
+- `skills/*` to `~/.claude/skills/`
+- shared workflow docs from `../workflow/` to `~/.claude/`
+
 ## Shared workflow
 
 Canonical sources:
@@ -40,12 +49,13 @@ Shared contract reminders:
 - `commands/handoff.md` writes or refreshes `.pi/handoff.md` for session continuation using the shared handoff template
 - `commands/handoff-implement.md` writes or refreshes `.pi/handoff-implement.md` for implementation continuation from an existing `READY` `PLAN.md`
 - `commands/ops-status.md` reads the exported OPS snapshot for the current cwd and summarizes it without recomputing OPS logic
+- `commands/ops-pi-status.md` reads companion OPS files for TillDone/task/project state
 
 ## Shared docs
 
+- `~/.claude/PLAN_TEMPLATE.md` is installed from `../PLAN_TEMPLATE.md`
 - `~/.claude/review-rubric.md` is installed from `../workflow/review-rubric.md`
 - `~/.claude/handoff-template.md` is installed from `../workflow/handoff-template.md`
-- `claude/review-rubric.md` and `claude/handoff-template.md` stay only as compatibility pointers inside the repo
 
 `verify` is no longer part of this workflow.
 
@@ -79,10 +89,3 @@ Rules:
 - `../profiles/work/` is the default fit for Claude work-facing usage.
 - `../docs/profiles.md` is the user-facing guide for choosing between `personal` and `work`.
 - The workflow contract stays shared; profiles do not define a different status model.
-
-## Deferred after Phase 1
-
-- `scripts/doctor`
-- workflow test / CI hardening
-- repo modularity split (`core` / `optional` / `legacy` / `experimental`)
-- `workflow/roles.md`

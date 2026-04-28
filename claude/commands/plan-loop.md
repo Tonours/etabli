@@ -16,7 +16,6 @@ Do not ask for implementation confirmation at the end; return the final reviewed
 1. Inspect the current repository state and analyze the relevant codebase area.
 2. Resolve the plan template from the first existing file in this order and keep it as the exact base structure:
    - `./PLAN_TEMPLATE.md`
-   - `./claude/PLAN_TEMPLATE.md`
    - `~/.claude/PLAN_TEMPLATE.md`
 3. Create or refresh `./PLAN.md` from that template with `Status: DRAFT`.
 4. Immediately run a separate critique pass against that draft:

@@ -1,4 +1,4 @@
-# Claude Code patterns relevant to etablí
+# Claude Code patterns relevant to etabli
 
 Date: 2026-04-12
 

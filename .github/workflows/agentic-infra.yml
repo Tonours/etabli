@@ -64,6 +64,11 @@ jobs:
           cd pi
           bun test ./extensions/__tests__/*.test.ts
 
+      - name: Verify skill lock
+        run: |
+          cd pi
+          bun run verify:skills
+
       - name: Run Pi extension import smoke
         run: |
           cd pi
@@ -72,3 +77,28 @@ jobs:
             "./extensions/filter-output.ts",
             "./extensions/rtk.ts",
           ]) await import(path)'
+
+  verify-neovim-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.12.2
+
+      - name: Configure git
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+
+      - name: Run local OPS and Neovim smoke suite
+        run: |
+          ./scripts/test-ops-local.sh

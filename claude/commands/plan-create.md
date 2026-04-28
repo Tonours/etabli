@@ -14,7 +14,6 @@ User request: $ARGUMENTS
 2. Analyze the relevant codebase area before planning.
 3. Resolve the plan template from the first existing file in this order and preserve its structure exactly:
    - `./PLAN_TEMPLATE.md`
-   - `./claude/PLAN_TEMPLATE.md`
    - `~/.claude/PLAN_TEMPLATE.md`
 4. Create or refresh `./PLAN.md` from that template.
 5. Set `Status: DRAFT`.

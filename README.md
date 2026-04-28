@@ -89,6 +89,7 @@ Typical flow in this repo:
 ## Config and secrets
 
 - Pi tracked source files live in `pi/`; most are symlinked into `~/.pi/` by `scripts/install.sh`, while mutable agent settings stay local
+- Claude tracked commands and skills live in `claude/`; shared docs are installed from `workflow/` and the root `PLAN_TEMPLATE.md`
 - `pi/models.json` and `pi/settings.json` are editable source files
 - `pi/agent/settings.json` is a tracked bootstrap/default file; the live `~/.pi/agent/settings.json` stays local so model switches do not dirty the repo
 - the installer now links only the core Pi skills by default: `plan-loop`, `plan-implement`, `review`, `implement`, `caveman`, `ui`, `grill-me`
