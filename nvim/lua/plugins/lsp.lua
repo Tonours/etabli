@@ -171,6 +171,7 @@ end
 
 local function server_is_available(name)
   local required_commands = {
+    copilot = "copilot-language-server",
     ts_ls = "typescript-language-server",
   }
 

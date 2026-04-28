@@ -1,6 +1,70 @@
 local M = {}
 
 local autocmds_registered = false
+local sidebar_width = 34
+
+local function is_neo_tree_window(winid)
+  if not vim.api.nvim_win_is_valid(winid) then
+    return false
+  end
+
+  local bufnr = vim.api.nvim_win_get_buf(winid)
+  return vim.bo[bufnr].filetype == "neo-tree"
+end
+
+local function neo_tree_window()
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if is_neo_tree_window(winid) then
+      return winid
+    end
+  end
+
+  return nil
+end
+
+local function normal_window_count()
+  local count = 0
+
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if not is_neo_tree_window(winid) then
+      count = count + 1
+    end
+  end
+
+  return count
+end
+
+local function clamp_sidebar_width()
+  return math.max(24, math.min(sidebar_width, vim.o.columns - 20))
+end
+
+local function fix_sidebar_width()
+  local winid = neo_tree_window()
+  if not winid then
+    return
+  end
+
+  vim.wo[winid].winfixwidth = true
+  pcall(vim.api.nvim_win_set_width, winid, clamp_sidebar_width())
+end
+
+local function ensure_editor_window()
+  if #vim.api.nvim_list_uis() == 0 or vim.v.exiting ~= vim.NIL then
+    return
+  end
+
+  local tree_win = neo_tree_window()
+  if not tree_win or normal_window_count() > 0 then
+    fix_sidebar_width()
+    return
+  end
+
+  vim.api.nvim_set_current_win(tree_win)
+  vim.cmd("topleft vertical new")
+  vim.bo.buflisted = false
+  vim.wo.winfixwidth = false
+  fix_sidebar_width()
+end
 
 local function ensure_loaded()
   local ok_lazy, lazy = pcall(require, "lazy")
@@ -73,6 +137,7 @@ function M.ensure_visible()
 
   keep_focus(function()
     execute({})
+    fix_sidebar_width()
   end)
 
   return true
@@ -80,6 +145,7 @@ end
 
 function M.focus()
   execute({})
+  fix_sidebar_width()
 end
 
 function M.reveal_current_file()
@@ -109,6 +175,12 @@ function M.setup_autocmds()
     end)
   end
 
+  local function preserve_sidebar_layout()
+    vim.schedule(function()
+      ensure_editor_window()
+    end)
+  end
+
   vim.api.nvim_create_autocmd("VimEnter", {
     group = group,
     once = true,
@@ -118,6 +190,17 @@ function M.setup_autocmds()
   vim.api.nvim_create_autocmd("SessionLoadPost", {
     group = group,
     callback = open_sidebar,
+  })
+
+  vim.api.nvim_create_autocmd("FileType", {
+    group = group,
+    pattern = "neo-tree",
+    callback = fix_sidebar_width,
+  })
+
+  vim.api.nvim_create_autocmd({ "WinClosed", "BufWinLeave", "TabEnter" }, {
+    group = group,
+    callback = preserve_sidebar_layout,
   })
 end
 

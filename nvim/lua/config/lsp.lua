@@ -1,5 +1,6 @@
 local M = {}
 
+local copilot = require("config.copilot")
 local telescope_loader = require("config.telescope")
 
 local glint_config_files = {
@@ -69,7 +70,6 @@ function M.capabilities()
     capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
   end
 
-  -- Performance: Disable features that can slow down editing
   capabilities.textDocument.completion.completionItem.snippetSupport = true
 
   return capabilities
@@ -78,6 +78,13 @@ end
 function M.servers()
   return {
     astro = {},
+    copilot = {
+      settings = {
+        telemetry = {
+          telemetryLevel = "off",
+        },
+      },
+    },
     cssls = {},
     ember = {
       filetypes = { "hbs", "handlebars", "html.handlebars", "javascript.glimmer", "typescript.glimmer" },
@@ -140,6 +147,31 @@ function M.setup_keymaps()
           vim.lsp.buf_detach_client(bufnr, client.id)
         end
         return
+      end
+
+      local client = vim.lsp.get_client_by_id(event.data.client_id)
+      if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlineCompletion, bufnr) then
+        copilot.enable_buffer(bufnr, client)
+
+        vim.keymap.set("i", "<A-l>", copilot.accept_inline, {
+          buffer = bufnr,
+          silent = true,
+          desc = "Accept inline completion",
+        })
+        vim.keymap.set({ "i", "n" }, "<A-]>", function()
+          copilot.select_inline(1)
+        end, {
+          buffer = bufnr,
+          silent = true,
+          desc = "Next inline completion",
+        })
+        vim.keymap.set({ "i", "n" }, "<A-[>", function()
+          copilot.select_inline(-1)
+        end, {
+          buffer = bufnr,
+          silent = true,
+          desc = "Previous inline completion",
+        })
       end
 
       local map = function(lhs, rhs, desc)

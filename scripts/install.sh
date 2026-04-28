@@ -12,6 +12,7 @@ set -e
 # ============================================================================
 readonly NVM_VERSION="v0.40.1"
 readonly NERD_FONT_VERSION="v3.1.1"
+readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_CORE_SKILLS=(
     "plan-loop"
     "plan-implement"
@@ -34,6 +35,54 @@ print_step() { printf "${BLUE}[*]${NC} %s\n" "$1"; }
 print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
+
+version_at_least() {
+    local current="$1"
+    local minimum="$2"
+    local current_major current_minor current_patch minimum_major minimum_minor minimum_patch
+
+    IFS=. read -r current_major current_minor current_patch <<EOF
+$current
+EOF
+    IFS=. read -r minimum_major minimum_minor minimum_patch <<EOF
+$minimum
+EOF
+
+    current_major=${current_major:-0}
+    current_minor=${current_minor:-0}
+    current_patch=${current_patch:-0}
+    minimum_major=${minimum_major:-0}
+    minimum_minor=${minimum_minor:-0}
+    minimum_patch=${minimum_patch:-0}
+
+    [ "$current_major" -gt "$minimum_major" ] && return 0
+    [ "$current_major" -lt "$minimum_major" ] && return 1
+    [ "$current_minor" -gt "$minimum_minor" ] && return 0
+    [ "$current_minor" -lt "$minimum_minor" ] && return 1
+    [ "$current_patch" -ge "$minimum_patch" ]
+}
+
+nvim_version() {
+    command -v nvim >/dev/null 2>&1 || return 1
+    nvim --version | sed -n '1s/^NVIM v//p' | awk '{print $1}'
+}
+
+ensure_nvim_version() {
+    local version
+
+    if ! version="$(nvim_version)"; then
+        print_warning "Neovim not available after dependency install"
+        return 1
+    fi
+
+    if version_at_least "$version" "$MIN_NVIM_VERSION"; then
+        print_success "Neovim $version available"
+        return 0
+    fi
+
+    print_warning "Neovim $version is older than required $MIN_NVIM_VERSION"
+    return 1
+}
 
 has_valid_rtk() {
     command -v rtk &> /dev/null && rtk gain > /dev/null 2>&1
@@ -108,11 +157,19 @@ sync_nvim_plugins() {
         return 0
     fi
 
+    ensure_nvim_version || print_warning "Install Neovim $MIN_NVIM_VERSION+ before relying on this config"
+
     print_step "Syncing Neovim plugins from lazy-lock.json..."
     if nvim --headless "+Lazy! restore" +qa > /dev/null 2>&1; then
         print_success "Neovim plugins synced"
     else
         print_warning "Neovim plugin sync failed - run: nvim '+Lazy! restore'"
+    fi
+
+    if nvim --headless "+lua vim.notify = function() end" +qa > /dev/null 2>&1; then
+        print_success "Neovim config loads"
+    else
+        print_warning "Neovim config load check failed - run: nvim --headless +qa"
     fi
 }
 
@@ -233,9 +290,10 @@ if [[ "$OS" == "mac" ]]; then
     fi
 
     # Note: node/npm installed via nvm below
-    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch || {
+    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch lua-language-server || {
         print_warning "Some brew packages may have failed"
     }
+    brew upgrade neovim 2>/dev/null || true
     brew install --cask iterm2 visual-studio-code 2>/dev/null || true
 
     # Tiling WM stack (macOS only)
@@ -246,13 +304,16 @@ if [[ "$OS" == "mac" ]]; then
 
     # Nerd Font via Homebrew (for iTerm2)
     brew tap homebrew/cask-fonts 2>/dev/null || true
-    brew install --cask font-jetbrains-mono-nerd-font 2>/dev/null || true
+    brew install --cask font-caskaydia-mono-nerd-font 2>/dev/null || true
 
 elif [[ "$OS" == "debian" ]]; then
     # Ubuntu/Debian
     sudo apt update
     sudo apt install -y curl wget git unzip ripgrep fd-find fzf jq build-essential make neovim tmux xclip mosh || {
         print_warning "Some apt packages may have failed"
+    }
+    sudo apt install -y lua-language-server 2>/dev/null || {
+        print_warning "lua-language-server package unavailable from apt"
     }
 
     # fd symlink
@@ -285,6 +346,9 @@ elif [[ "$OS" == "redhat" ]]; then
     # RHEL/CentOS/Fedora (node via nvm plus bas)
     sudo dnf install -y neovim tmux git ripgrep fd fzf make gcc jq unzip curl mosh || {
         print_warning "Some dnf packages may have failed"
+    }
+    sudo dnf install -y lua-language-server 2>/dev/null || {
+        print_warning "lua-language-server package unavailable from dnf"
     }
 fi
 
@@ -377,6 +441,7 @@ if npm install -g \
     prettier \
     eslint \
     intelephense \
+    @github/copilot-language-server \
     @ember-tooling/ember-language-server \
     @tailwindcss/language-server; then
     print_success "NPM tools installed"
@@ -394,17 +459,17 @@ mkdir -p ~/.local/share/fonts
 (
     cd ~/.local/share/fonts || exit 1
 
-    if [ ! -f "JetBrainsMonoNerdFont-Regular.ttf" ]; then
+    if [ ! -f "CaskaydiaMonoNerdFont-Regular.ttf" ]; then
         if download_with_retry \
-            "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONT_VERSION}/JetBrainsMono.zip" \
-            "JetBrainsMono.zip"; then
+            "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONT_VERSION}/CaskaydiaMono.zip" \
+            "CaskaydiaMono.zip"; then
             # Verify zip integrity before extracting
-            if unzip -tq JetBrainsMono.zip > /dev/null 2>&1; then
-                unzip -qo JetBrainsMono.zip
-                rm -f JetBrainsMono.zip
+            if unzip -tq CaskaydiaMono.zip > /dev/null 2>&1; then
+                unzip -qo CaskaydiaMono.zip
+                rm -f CaskaydiaMono.zip
             else
                 print_warning "Font zip corrupted, removing"
-                rm -f JetBrainsMono.zip
+                rm -f CaskaydiaMono.zip
             fi
         fi
     fi
@@ -805,7 +870,8 @@ else
     printf "  3. Install extensions from ${YELLOW}$REPO_DIR/vscode/extensions.txt${NC}\n"
     printf "  4. Sign in to GitHub / Copilot when prompted\n"
 fi
-printf "  5. In Neovim, run ${YELLOW}:Copilot auth${NC} once after first launch\n"
+printf "  5. In Neovim, open a project buffer and run ${YELLOW}:LspCopilotSignIn${NC} once\n"
+printf "  6. Use ${YELLOW}:CopilotStatus${NC} or ${YELLOW}:CopilotToggle${NC} if a project needs diagnosis or a local disable\n"
 echo ""
 
 # ============================================================================
@@ -831,7 +897,7 @@ else
     printf "  3. Open the repo:    Open it manually in VS Code\n"
 fi
 printf "  4. Start Neovim:     ${YELLOW}nvim${NC}\n"
-printf "  5. Auth Copilot:     ${YELLOW}:Copilot auth${NC} in Neovim\n"
+printf "  5. Auth Copilot:     ${YELLOW}:LspCopilotSignIn${NC} in a Neovim project buffer\n"
 printf "  6. Start Tmux:       ${YELLOW}tmux${NC}\n"
 printf "  7. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
 echo ""
@@ -845,7 +911,7 @@ echo "-------------------------------------------------------------------"
 echo ""
 printf "  ${BLUE}VS Code Defaults (VS Code only):${NC}\n"
 printf "  Theme           Catppuccin Mocha\n"
-printf "  Font            JetBrainsMono Nerd Font @ 18\n"
+printf "  Font            CaskaydiaMono Nerd Font @ 18, ligatures off\n"
 printf "  Alt+l           Accept Copilot inline suggestion\n"
 printf "  Cmd/Ctrl+P      Quick open\n"
 printf "  Cmd/Ctrl+Shift+P Command Palette\n"
@@ -859,7 +925,8 @@ printf "  Projects        <leader>pp / <leader>pr / <leader>pi\n"
 printf "  Sessions        <leader>ps / <leader>pl\n"
 printf "  Project files   <leader>fp\n"
 printf "  Aliases         <leader>ff / <leader>fg / <leader>fb\n"
-printf "  Copilot         In cmp menu after :Copilot auth\n"
+printf "  Copilot         Native inline: Tab/<A-l> accept, <A-]> / <A-[> cycle, :CopilotToggle\n"
+printf "  Doctor          :EtabliDoctor\n"
 printf "  Complete        <C-n> / <C-p> / <CR>\n"
 printf "  Format          <leader>cf\n"
 printf "  LSP rename      <leader>rn (buffer-local)\n"

@@ -14,6 +14,10 @@ cd etabli
 
 - Supported: macOS and Linux (Ubuntu/Debian)
 - VS Code should be installed separately on Linux if you want settings and extensions linked automatically
+- Neovim target is `0.12.2+`; the installer validates the local version after dependency setup
+- Neovim Copilot uses native LSP inline completion via `copilot-language-server`
+- Neovim exposes `:EtabliDoctor` plus `:CopilotStatus` / `:CopilotToggle` for local diagnosis and per-project Copilot control
+- Default coding font is `CaskaydiaMono Nerd Font` with editor ligatures disabled
 - Most secrets stay out of the repo and should come from shell env vars or local files loaded outside git
 
 ## Useful maintenance
@@ -80,7 +84,9 @@ Typical flow in this repo:
 - Neovim exports one shared OPS snapshot per current cwd at `~/.pi/status/<sanitized-cwd>.ops.json`
 - task + snapshot are regenerated together and share revision/timestamp metadata so Claude and local tooling see the same current task/title/next-action context
 - task identity follows current branch first, then cwd/repo fallback
+- Neovim exposes `:OPS`, `:OPSDoctor`, `:OPSReview`, `:OPSNext`, `:OPSAgents`, and related `:OPS*` commands for this surface
 - `./scripts/test-ops-local.sh` runs the bounded local verification flow for this OPS surface
+- `:EtabliDoctor` includes the existing OPS doctor checks alongside Neovim/Copilot/runtime checks
 
 ## Config and secrets
 

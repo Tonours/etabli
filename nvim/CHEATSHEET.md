@@ -58,6 +58,10 @@ Leader: `<Space>`
 - format: `<leader>cf`
 - document symbols: `<leader>ss`
 - workspace symbols: `<leader>sS`
+- Copilot native sign in: `:LspCopilotSignIn`
+- Copilot inline: `Tab` or `<A-l>` accept, `<A-]>` next, `<A-[>` previous
+- Copilot controls: `:CopilotStatus`, `:CopilotDisable`, `:CopilotEnable`, `:CopilotToggle`
+- setup diagnostics: `:EtabliDoctor`
 
 ## Diagnostics
 
@@ -77,8 +81,18 @@ Leader: `<Space>`
 - batch rework: `<leader>rbc`, `<leader>rbp`
 - in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
 
+## OPS
+
+- status / doctor: `:OPS`, `:OPSStatus`, `:OPSDoctor`
+- next / review: `:OPSNext`, `:OPSReview`, `:OPSRefreshReview`
+- plan / handoff: `:OPSOpenPlan`, `:OPSHandoff`, `:OPSResume`
+- agents / human: `:OPSAgents`, `:OPSHuman`, `:OPSThreads`, `:OPSNewThread`
+- mode / TillDone: `:OPSMode`, `:OPSModeSimple`, `:OPSModeStandard`, `:OPSTillDone`, `:TillDoneNext`
+
 ## Tip
 
 - Use Neovim as the review and editing surface, not as an agent cockpit.
+- Copilot runs through Neovim's native LSP inline completion, not as an `nvim-cmp` source.
+- `Tab` first accepts a visible Copilot inline suggestion, then falls back to completion or a literal tab.
 - Press `<leader>` to let `which-key` remind you of grouped shortcuts.
 - `workflow/operating-model.md` remains the reference for the broader agent workflow.

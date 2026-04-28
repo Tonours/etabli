@@ -1,4 +1,5 @@
 local review_diff = require("config.review.diff")
+local review_meta = require("config.review.meta")
 local review_state = require("config.review.state")
 
 local M = {}
@@ -46,7 +47,7 @@ end
 
 local function line_for_item(item)
   local stale = item.stale and " · stale" or ""
-  local status = string.upper(item.status or "new")
+  local status = review_meta.label(item.status)
   return string.format("[%s] %s:%d · %s%s", status, item.path, item.line_start or 1, item.scope, stale)
 end
 
@@ -78,7 +79,7 @@ local function render(root)
   local merged = review_state.merge_items(context, items)
   local actionable = 0
   for _, item in ipairs(merged) do
-    if item.status == "needs-rework" or item.status == "question" then
+    if review_meta.is_actionable(item.status) then
       actionable = actionable + 1
     end
   end
@@ -127,7 +128,7 @@ local function target_window()
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     local buf = vim.api.nvim_win_get_buf(winid)
     local filetype = vim.bo[buf].filetype
-    if filetype ~= "NvimTree" and filetype ~= "ops-agent-diffs" and filetype ~= "ops-agent-sidebar" then
+    if filetype ~= "ops-agent-diffs" and filetype ~= "ops-agent-sidebar" then
       return winid
     end
   end

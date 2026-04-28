@@ -23,6 +23,8 @@ require_tool nvim
 require_tool git
 
 cd "$ROOT_DIR"
+NVIM_STATE_DIR="$(mktemp -d)"
+trap 'rm -rf "$NVIM_STATE_DIR"' EXIT
 
 run_step \
   "Targeted OPS Bun tests" \
@@ -31,15 +33,22 @@ run_step \
   ./pi/extensions/__tests__/block-google-providers.test.ts
 
 run_step \
+  "Etabli doctor Neovim smoke" \
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$NVIM_STATE_DIR" \
+  nvim --headless -u "$ROOT_DIR/nvim/init.lua" \
+  "+lua dofile([[$ROOT_DIR/scripts/etabli_doctor_smoke.lua]])" \
+  +qa
+
+run_step \
   "OPS Neovim smoke" \
-  env XDG_CONFIG_HOME="$ROOT_DIR" \
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$NVIM_STATE_DIR" \
   nvim --headless -u "$ROOT_DIR/nvim/init.lua" \
   "+lua dofile([[$ROOT_DIR/scripts/ops_smoke.lua]])" \
   +qa
 
 run_step \
   "Review Neovim smoke" \
-  env XDG_CONFIG_HOME="$ROOT_DIR" \
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$NVIM_STATE_DIR" \
   nvim --headless -u "$ROOT_DIR/nvim/init.lua" \
   "+lua dofile([[$ROOT_DIR/scripts/review_smoke.lua]])" \
   +qa

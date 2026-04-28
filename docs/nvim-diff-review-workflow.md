@@ -38,7 +38,7 @@ Note: current-hunk review uses `git diff` as the source of truth. Save the buffe
 - `<C-r>` refreshes the inbox after you changed the diff outside the picker
 - `?` opens an overlay help panel for the inbox shortcuts; when you close it with `q` or `Esc`, the review inbox is reopened
 
-The inbox labels each entry with a clearer scope marker (`WORKING`, `STAGED`, `STALE`), review status, and a count summary in the picker title. Shortcut hints are split between the results header and preview header so they stay readable. After you annotate a hunk or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
+The inbox labels each entry with stable columns for scope (`WORKING`, `STAGED`, `STALE`), review status, note marker, and file location. Statuses are highlighted, and the preview starts with file/status/note metadata before the diff. After you annotate a hunk or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
 
 The inbox keeps a short-lived local cache for merged review items. This speeds up repeated opens during the same review pass without weakening review correctness: writes, deletes, directory changes, shell commands, focus changes, review status updates, and review notes all invalidate the cache.
 

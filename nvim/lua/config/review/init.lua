@@ -1,4 +1,5 @@
 local diff = require("config.review.diff")
+local meta = require("config.review.meta")
 local picker = require("config.review.picker")
 local providers = require("config.review.providers")
 local state = require("config.review.state")
@@ -6,8 +7,7 @@ local util = require("config.review.util")
 
 local M = {}
 
-local commands_registered = false
-local provider_actions = { "explain", "revise" }
+local setup_done = false
 local repo_items_cache = {}
 local repo_items_cache_ttl = 1000
 local review_focus_clear_ttl = 1500
@@ -82,20 +82,6 @@ local function cached_repo_items(context, opts)
   }
 
   return merged
-end
-
-local function status_complete()
-  return state.statuses()
-end
-
-local function action_complete()
-  return provider_actions
-end
-
-local function inbox_complete()
-  local choices = state.statuses()
-  table.insert(choices, 1, "all")
-  return choices
 end
 
 local function render_item(item)
@@ -224,7 +210,7 @@ local function filter_items(items, opts)
 
     -- Stale checks combined for efficiency
     if is_stale then
-      local surfaced = vim.tbl_contains({ "needs-rework", "question" }, status)
+      local surfaced = meta.is_actionable(status)
       if not include_stale then
         if not surfaced then
           goto continue
@@ -755,11 +741,11 @@ function M.refresh_after_external_edit(repo, opts)
 end
 
 function M.setup()
-  if commands_registered then
+  if setup_done then
     return
   end
 
-  commands_registered = true
+  setup_done = true
 
   local cache_group = vim.api.nvim_create_augroup("etabli_review_cache", { clear = true })
   vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "DirChanged", "ShellCmdPost" }, {
@@ -770,71 +756,6 @@ function M.setup()
   vim.api.nvim_create_autocmd("FocusGained", {
     group = cache_group,
     callback = clear_repo_items_cache_on_focus,
-  })
-
-  vim.api.nvim_create_user_command("ReviewInbox", function(command_opts)
-    M.open_inbox({ status = command_opts.args })
-  end, {
-    complete = inbox_complete,
-    desc = "Open the review inbox",
-    nargs = "?",
-  })
-
-  vim.api.nvim_create_user_command("ReviewCurrentHunk", function()
-    M.show_current_hunk()
-  end, { desc = "Preview the current review hunk" })
-
-  vim.api.nvim_create_user_command("ReviewAnnotate", function()
-    M.annotate_current_hunk()
-  end, { desc = "Annotate the current review hunk" })
-
-  vim.api.nvim_create_user_command("ReviewStatus", function(command_opts)
-    if command_opts.args == "" then
-      M.select_current_status()
-      return
-    end
-
-    M.set_current_status(command_opts.args)
-  end, {
-    complete = status_complete,
-    desc = "Set the review status for the current hunk",
-    nargs = "?",
-  })
-
-  vim.api.nvim_create_user_command("ReviewAccept", function()
-    M.accept_current_hunk()
-  end, { desc = "Accept the current review hunk" })
-
-  vim.api.nvim_create_user_command("ReviewClaude", function(command_opts)
-    M.send_current("claude", command_opts.args ~= "" and command_opts.args or "revise")
-  end, {
-    complete = action_complete,
-    desc = "Send the current hunk review prompt to Claude",
-    nargs = "?",
-  })
-
-  vim.api.nvim_create_user_command("ReviewPi", function(command_opts)
-    M.send_current("pi", command_opts.args ~= "" and command_opts.args or "revise")
-  end, {
-    complete = action_complete,
-    desc = "Send the current hunk review prompt to Pi",
-    nargs = "?",
-  })
-
-  vim.api.nvim_create_user_command("ReviewClaudeBatch", function(command_opts)
-    M.prepare_batch("claude", command_opts.args ~= "" and command_opts.args or "needs-rework")
-  end, {
-    complete = status_complete,
-    desc = "Prepare one Claude prompt for all hunks with a review status",
-    nargs = "?",
-  })
-
-  vim.api.nvim_create_user_command("ReviewPiBatch", function(command_opts)
-    M.prepare_batch("pi", command_opts.args ~= "" and command_opts.args or "needs-rework")
-  end, {
-    complete = status_complete,
-    desc = "Prepare one Pi prompt for all hunks with a review status",
-    nargs = "?",
   })
 end
 
