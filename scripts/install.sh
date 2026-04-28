@@ -20,6 +20,7 @@ readonly PI_CORE_SKILLS=(
     "implement"
     "caveman"
     "ui"
+    "grill-me"
 )
 
 # ============================================================================
@@ -985,6 +986,7 @@ printf "  Implement:       ${YELLOW}/skill:implement${NC}\n"
 printf "  Plan loop:       ${YELLOW}/skill:plan-loop${NC}\n"
 printf "  Plan implement:  ${YELLOW}/skill:plan-implement${NC}\n"
 printf "  Caveman:         ${YELLOW}/skill:caveman${NC}\n"
+printf "  Grill me:        ${YELLOW}/skill:grill-me${NC}\n"
 printf "  UI:              ${YELLOW}/skill:ui${NC}\n"
 printf "  Model selector:  ${YELLOW}Ctrl+L${NC}\n"
 printf "  Cycle models:    ${YELLOW}Ctrl+P / Shift+Ctrl+P${NC}\n"

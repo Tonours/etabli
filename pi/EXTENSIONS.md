@@ -7,11 +7,9 @@ This directory contains the tiny Pi extension surface kept in `etabli`.
 The default Pi profile is intentionally small.
 
 - `rtk.ts` - rewrite safe bash commands through RTK to reduce shell noise and token usage
-
-The repo still keeps two standalone guardrails that are not part of the default managed loadout:
-
 - `filter-output.ts` - post-execution secret redaction for tool output
 - `block-google-providers.ts` - provider guardrail for local policy
+- damage-control is intentionally not enabled by default.
 
 ## Optional extensions
 

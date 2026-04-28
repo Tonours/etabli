@@ -3,7 +3,9 @@
     {
       "source": "local:etabli-workflow",
       "extensions": [
-        "rtk.ts"
+        "rtk.ts",
+        "filter-output.ts",
+        "block-google-providers.ts"
       ],
       "skills": [
         "plan-loop",

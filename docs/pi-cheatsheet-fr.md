@@ -140,4 +140,6 @@ Le runtime Pi du repo reste volontairement petit :
 - Installé : `~/.pi/settings.json`, `~/.pi/agent/settings.json` (local, non symlinké au repo)
 - Installé : `~/.pi/agent/models.json`, `~/.pi/agent/auth.json`, `~/.pi/agent/keybindings.json`
 - Installé : `~/.pi/agent/{extensions,skills,prompts,themes}/`
+- Extensions par défaut : `rtk.ts`, `filter-output.ts`, `block-google-providers.ts`
+- `damage-control` est désactivé par défaut.
 - Contexte : `AGENTS.md`, `pi/AGENTS.md`, `claude/README.md`

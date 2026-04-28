@@ -93,7 +93,8 @@ Typical flow in this repo:
 - Pi tracked source files live in `pi/`; most are symlinked into `~/.pi/` by `scripts/install.sh`, while mutable agent settings stay local
 - `pi/models.json` and `pi/settings.json` are editable source files
 - `pi/agent/settings.json` is a tracked bootstrap/default file; the live `~/.pi/agent/settings.json` stays local so model switches do not dirty the repo
-- the installer now links only the core Pi skills by default: `plan-loop`, `plan-implement`, `review`, `implement`, `caveman`, `ui`
+- the installer now links only the core Pi skills by default: `plan-loop`, `plan-implement`, `review`, `implement`, `caveman`, `ui`, `grill-me`
+- the default Pi extension loadout is `rtk.ts`, `filter-output.ts`, and `block-google-providers.ts`; damage-control is intentionally disabled by default
 - `auth.json` and credentials are intentionally not tracked
 
 ## Philosophy
