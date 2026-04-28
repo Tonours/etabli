@@ -1,4 +1,5 @@
 local ops_doctor = require("config.ops.doctor")
+local etabli_doctor = require("config.doctor")
 local ops_mode = require("config.ops.mode")
 local ops_snapshot = require("config.ops.snapshot")
 local ops_view = require("config.ops.view")
@@ -180,6 +181,9 @@ assert_true(#refreshed.warnings == 1, "expected stale blocker warning after live
 local doctor_lines = ops_doctor.lines(repo_root)
 assert_true(#doctor_lines > 1, "expected OPS doctor lines")
 assert_true(table.concat(doctor_lines, "\n"):match("mode") ~= nil, "expected doctor output to include mode")
+local etabli_doctor_lines = table.concat(etabli_doctor.lines(repo_root), "\n")
+assert_true(etabli_doctor_lines:match("OPS doctor:") ~= nil, "expected Etabli doctor to include OPS doctor")
+assert_true(etabli_doctor_lines:match("Copilot status:") ~= nil, "expected Etabli doctor to include Copilot status")
 
 vim.fn.writefile(vim.split(valid_plan, "\n", { plain = true }), repo_root .. "/PLAN.md")
 local runtime_path = ops_state.runtime_status_path(repo_root)

@@ -1,6 +1,5 @@
 local agent_diffs = require("config.ops.agent_diffs")
 local agent_sidebar = require("config.ops.agent_sidebar")
-local nvim_tree = require("config.ops.nvim_tree")
 
 local M = {}
 
@@ -57,8 +56,6 @@ local function ensure_layout()
 
   ensure_sidebar_win()
   refresh_panels()
-  -- Note: We intentionally DO NOT restore_focus to main_win here. 
-  -- In Mission Control mode, the floating dashboard demands the focus.
 end
 
 local function setup_refresh_autocmds()
@@ -83,7 +80,7 @@ function M.open()
 
   state.enabled = true
   ensure_layout()
-  
+
   local buf = agent_sidebar.buffer()
   if buf and vim.api.nvim_buf_is_valid(buf) then
     vim.keymap.set("n", "<Esc>", function()
@@ -110,8 +107,6 @@ function M.close()
   end
 
   close_win(state.sidebar_win)
-  
-  -- Diff window will be handled via <leader>ri eventually, but let's hide it too if closing the mode
   close_win(state.diff_win)
   state.diff_win = nil
   state.sidebar_win = nil

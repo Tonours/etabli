@@ -1,4 +1,5 @@
 local diff = require("config.review.diff")
+local meta = require("config.review.meta")
 local prompts = require("config.review.prompts")
 local providers = require("config.review.providers")
 local state = require("config.review.state")
@@ -71,6 +72,9 @@ local unstaged = diff.collect_scope(repo_root, "unstaged")
 
 assert_true(staged ~= nil and #staged == 1, "expected exactly one staged hunk")
 assert_true(unstaged ~= nil and #unstaged == 1, "expected exactly one unstaged hunk")
+assert_true(meta.label("needs-rework") == "REWORK", "expected shared review status label")
+assert_true(meta.is_actionable("question") == true, "expected question status to be actionable")
+assert_true(meta.priority("needs-rework") < meta.priority("new"), "expected blocker statuses to sort first")
 
 local context, context_err = state.context_for_repo(repo_root)
 assert_true(context ~= nil, context_err or "state context failed")

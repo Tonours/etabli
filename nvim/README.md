@@ -17,7 +17,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Buffers: `<leader>.`
 - Projects: `<leader>pp`
 - Project info: `<leader>pi` or `:ProjectInfo`
-- Sidebar: `neo-tree` stays on the right with file icons, `<leader>ft` focuses it, `<leader>fe` reveals the current file
+- Sidebar: `neo-tree` stays on the right with file icons, keeps its width when the last editor buffer closes, `<leader>ft` focuses it, `<leader>fe` reveals the current file
 - Tabs: `bufferline` shows open buffers across the top
 - Shortcut help: press `<leader>` and wait briefly for `which-key`
 
@@ -51,6 +51,14 @@ Notes:
 - Load project session: `<leader>pl`
 - Recent files in current project: `<leader>fp`
 
+## OPS workflow
+
+- Status / doctor: `:OPS`, `:OPSStatus`, `:OPSDoctor`
+- Next action / review: `:OPSNext`, `:OPSReview`, `:OPSRefreshReview`
+- Plan / handoff: `:OPSOpenPlan`, `:OPSHandoff`, `:OPSResume`
+- Agents / human checkpoints: `:OPSAgents`, `:OPSHuman`, `:OPSThreads`, `:OPSNewThread`
+- Mode / TillDone: `:OPSMode`, `:OPSModeSimple`, `:OPSModeStandard`, `:OPSTillDone`, `:TillDoneNext`
+
 ## Code workflow
 
 - Symbols: `<leader>ss`, `<leader>sS`
@@ -59,10 +67,16 @@ Notes:
 - Implementation: `gI` or `<leader>ci`
 - Rename: `<leader>rn`
 - Code action: `<leader>ca`
+- Copilot native: `:LspCopilotSignIn` from a project buffer, `Tab` or `<A-l>` accept inline suggestion, `<A-]>` / `<A-[>` cycle suggestions
+- Copilot controls: `:CopilotStatus`, `:CopilotDisable`, `:CopilotEnable`, `:CopilotToggle`
+- Setup doctor: `:EtabliDoctor`
 
 ## Notes
 
 - Neovim is the review and editing surface; agent orchestration lives outside the editor.
 - Buffers, `bufferline`, the right sidebar, and Telescope are the default navigation model.
 - Theme is the builtin `habamax`.
-- File icons assume a Nerd Font-capable terminal.
+- Target Neovim version is `0.12.2+`.
+- `:EtabliDoctor` checks the dotfiles config root separately from the current project root, so Pi symlink checks remain valid from any repo.
+- Copilot uses Neovim native LSP inline completion when `copilot-language-server` is installed; it is not part of the `nvim-cmp` menu. Project toggles are stored under `stdpath("state")/etabli/copilot.json`.
+- File icons assume a Nerd Font-capable terminal; repo defaults use `CaskaydiaMono Nerd Font` with editor ligatures disabled.

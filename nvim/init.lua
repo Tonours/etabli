@@ -20,7 +20,13 @@ require("config.bootstrap")
 require("config.options")
 vim.cmd.colorscheme("habamax")
 require("config.autocmds")
+require("config.copilot").setup_commands()
+require("config.ops").setup_commands()
 require("config.project_runtime").setup_commands()
+
+vim.api.nvim_create_user_command("EtabliDoctor", function()
+  require("config.doctor").show()
+end, { desc = "Diagnose Etabli Neovim setup" })
 
 local function lazy_cmd(name, module, fn, opts)
   vim.api.nvim_create_user_command(name, function(cmd_opts)
@@ -29,7 +35,11 @@ local function lazy_cmd(name, module, fn, opts)
 end
 
 lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
-  complete = function() return require("config.review.state").statuses() end,
+  complete = function()
+    local choices = require("config.review.state").statuses()
+    table.insert(choices, 1, "all")
+    return choices
+  end,
   desc = "Open the review inbox", nargs = "?",
 })
 lazy_cmd("ReviewCurrentHunk", "config.review", "show_current_hunk", { desc = "Preview the current review hunk" })

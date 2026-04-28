@@ -17,23 +17,9 @@ local function lazy_require(plugin, module)
   return loaded
 end
 
--- Cache for terminal title calculation
-local terminal_title_cache = nil
-local last_buffer_count = 0
-local terminal_scan_cache = {}
-local terminal_scan_version = 0
-
--- Track terminal buffers more efficiently
-local function update_terminal_scan_cache()
-  local buffers = vim.api.nvim_list_bufs()
-  local current_version = #buffers
-
-  if current_version == terminal_scan_version and terminal_scan_cache then
-    return terminal_scan_cache
-  end
-
+local function next_terminal_title()
   local max_count = 0
-  for _, buf in ipairs(buffers) do
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     local name = vim.api.nvim_buf_get_name(buf)
     local count = name:match("^term://terminal%-(%d+)$")
     if count then
@@ -41,27 +27,7 @@ local function update_terminal_scan_cache()
     end
   end
 
-  terminal_scan_cache = { max_count = max_count, buf_count = current_version }
-  terminal_scan_version = current_version
-  return terminal_scan_cache
-end
-
-local function next_terminal_title()
-  -- Get buffer list once
-  local buffers = vim.api.nvim_list_bufs()
-  local current_buffer_count = #buffers
-
-  -- Invalidate cache if buffer count changed
-  if terminal_title_cache and current_buffer_count == last_buffer_count then
-    return terminal_title_cache
-  end
-
-  local scan = update_terminal_scan_cache()
-  local max_count = scan.max_count
-
-  last_buffer_count = current_buffer_count
-  terminal_title_cache = string.format("terminal-%d", max_count + 1)
-  return terminal_title_cache
+  return string.format("terminal-%d", max_count + 1)
 end
 
 local function open_terminal_tab(command)
@@ -336,22 +302,3 @@ map("n", "<leader>to", "<cmd>tabonly<cr>", vim.tbl_extend("force", opts, { desc 
 map("n", "<leader>tx", "<cmd>tabclose<cr>", vim.tbl_extend("force", opts, { desc = "Close tab" }))
 map("n", "<leader>tl", "<cmd>tabnext<cr>", vim.tbl_extend("force", opts, { desc = "Next tab" }))
 map("n", "<leader>th", "<cmd>tabprevious<cr>", vim.tbl_extend("force", opts, { desc = "Previous tab" }))
-
--- Invalidate terminal title cache on buffer delete (debounced)
-local invalidate_timer = nil
-local invalidate_debounce_ms = 750 -- Increased debounce for less frequent recalculation
-
-vim.api.nvim_create_autocmd({ "BufDelete", "BufAdd" }, {
-  callback = function()
-    -- Debounce cache invalidation to avoid frequent recalculation
-    if invalidate_timer then
-      vim.fn.timer_stop(invalidate_timer)
-    end
-    invalidate_timer = vim.fn.timer_start(invalidate_debounce_ms, function()
-      terminal_title_cache = nil
-      terminal_scan_cache = {}
-      terminal_scan_version = 0
-      invalidate_timer = nil
-    end)
-  end,
-})

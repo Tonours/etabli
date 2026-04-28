@@ -1,4 +1,5 @@
 local mode = require("config.ops.mode")
+local review_meta = require("config.review.meta")
 local state = require("config.ops.state")
 local task = require("config.ops.task")
 
@@ -49,6 +50,10 @@ local function review_focus(review)
   end
   if #parts == 0 and review.actionable and review.actionable > 0 then
     table.insert(parts, string.format("%d review item(s)", review.actionable))
+  end
+
+  if #parts == 0 then
+    return review_meta.actionable_summary(counts)
   end
 
   return table.concat(parts, " / ")

@@ -1,15 +1,8 @@
 local diff = require("config.review.diff")
+local meta = require("config.review.meta")
 local util = require("config.review.util")
 
 local M = {}
-
-local statuses = {
-  "new",
-  "accepted",
-  "needs-rework",
-  "question",
-  "ignore",
-}
 
 local state_dir = vim.fn.stdpath("state") .. "/etabli/review"
 
@@ -37,21 +30,13 @@ local function clear_cache()
 end
 
 local function sort_items(items)
-  local status_order = {
-    ["needs-rework"] = 1,
-    question = 2,
-    new = 3,
-    accepted = 4,
-    ignore = 5,
-  }
-
   table.sort(items, function(left, right)
     if left.stale ~= right.stale then
       return not left.stale
     end
 
-    local left_status = status_order[left.status or "new"] or 99
-    local right_status = status_order[right.status or "new"] or 99
+    local left_status = meta.priority(left.status)
+    local right_status = meta.priority(right.status)
     if left_status ~= right_status then
       return left_status < right_status
     end
@@ -97,11 +82,11 @@ local function ensure_record_shape(decoded, repo, branch)
 end
 
 function M.statuses()
-  return vim.deepcopy(statuses)
+  return meta.statuses()
 end
 
 function M.is_valid_status(status)
-  return vim.tbl_contains(statuses, status)
+  return meta.is_valid_status(status)
 end
 
 function M.context_for_repo(repo)
@@ -168,7 +153,7 @@ function M.status_counts(context)
   local stored = M.read(context)
   local counts = {}
 
-  for _, status in ipairs(statuses) do
+  for _, status in ipairs(meta.statuses()) do
     counts[status] = 0
   end
 
@@ -180,7 +165,7 @@ function M.status_counts(context)
   end
 
   counts.total = 0
-  for _, status in ipairs(statuses) do
+  for _, status in ipairs(meta.statuses()) do
     counts.total = counts.total + counts[status]
   end
 

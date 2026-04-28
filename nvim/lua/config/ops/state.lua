@@ -1,5 +1,7 @@
 local M = {}
 
+local review_meta = require("config.review.meta")
+
 local uv = vim.uv or vim.loop
 local cache_ttl_ms = 750
 
@@ -520,10 +522,10 @@ function M.review_summary(cwd)
   end
 
   local counts = review_state.status_counts(context)
-  local actionable = (counts["needs-rework"] or 0) + (counts.question or 0)
+  local actionable = review_meta.actionable_count(counts)
   local line
   if actionable > 0 then
-    line = string.format("needs-rework %d | question %d (stored, may be stale)", counts["needs-rework"] or 0, counts.question or 0)
+    line = review_meta.actionable_summary(counts, "stored, may be stale")
   else
     line = "clear in stored state"
   end
@@ -604,7 +606,7 @@ function M.refresh_review_summary(cwd)
   for _, item in ipairs(merged) do
     local status = item.status or "new"
     if item.stale then
-      if status == "needs-rework" or status == "question" then
+      if review_meta.is_actionable(status) then
         stale_blockers = stale_blockers + 1
       end
     elseif counts[status] ~= nil then
@@ -613,7 +615,7 @@ function M.refresh_review_summary(cwd)
     end
   end
 
-  local actionable = (counts["needs-rework"] or 0) + (counts.question or 0)
+  local actionable = review_meta.actionable_count(counts)
   local warnings = {}
   if stale_blockers > 0 then
     table.insert(warnings, string.format("Ignored %d stale blocker(s) during live refresh", stale_blockers))
@@ -621,7 +623,7 @@ function M.refresh_review_summary(cwd)
 
   local line
   if actionable > 0 then
-    line = string.format("needs-rework %d | question %d (live)", counts["needs-rework"] or 0, counts.question or 0)
+    line = review_meta.actionable_summary(counts, "live")
   else
     line = "clear (live)"
   end

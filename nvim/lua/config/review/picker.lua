@@ -1,28 +1,7 @@
 local M = {}
 
+local meta = require("config.review.meta")
 local telescope_loader = require("config.telescope")
-
-local function render_preview(item)
-  -- Pre-allocate lines table for better performance
-  local lines = {
-    "# Review Hunk",
-    string.format("# File: %s", item.path),
-    string.format("# Scope: %s", item.scope),
-    string.format("# Status: %s", item.status or "new"),
-    string.format("# Stale: %s", item.stale and "yes" or "no"),
-  }
-
-  if item.note and item.note ~= "" then
-    table.insert(lines, string.format("# Note: %s", item.note))
-  end
-
-  table.insert(lines, "")
-
-  local patch_lines = vim.split(item.patch, "\n", { plain = true })
-  vim.list_extend(lines, patch_lines)
-
-  return lines
-end
 
 local function summarize(items)
   local counts = {
@@ -37,7 +16,6 @@ local function summarize(items)
 
   for _, item in ipairs(items) do
     local status = item.status or "new"
-    -- Direct increment with fallback for unknown statuses
     counts[status] = (counts[status] or 0) + 1
 
     if item.stale then
@@ -48,18 +26,6 @@ local function summarize(items)
   return counts
 end
 
-local function status_label(status)
-  local labels = {
-    ["needs-rework"] = "REWORK",
-    question = "QUESTION",
-    new = "NEW",
-    accepted = "ACCEPT",
-    ignore = "IGNORE",
-  }
-
-  return labels[status or "new"] or string.upper(status or "new")
-end
-
 local function scope_label(item)
   if item.stale then
     return "STALE"
@@ -68,13 +34,45 @@ local function scope_label(item)
   return item.scope == "staged" and "STAGED" or "WORKING"
 end
 
+local function render_preview(item)
+  local lines = {
+    "Review hunk",
+    "",
+    string.format("File:   %s", item.path),
+    string.format("Line:   %s", item.line_start or "?"),
+    string.format("Scope:  %s", scope_label(item)),
+    string.format("Status: %s", meta.label(item.status)),
+  }
+
+  if item.note and item.note ~= "" then
+    table.insert(lines, string.format("Note:   %s", item.note))
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, string.rep("-", 72))
+  table.insert(lines, "")
+
+  local patch_lines = vim.split(item.patch, "\n", { plain = true })
+  vim.list_extend(lines, patch_lines)
+
+  return lines
+end
+
+local function scope_highlight(item)
+  if item.stale then
+    return "Comment"
+  end
+
+  return item.scope == "staged" and "DiagnosticHint" or "Identifier"
+end
+
 local function prompt_title(items, opts)
   local counts = summarize(items)
   local options = opts or {}
   local suffix = options.status and string.format(" [%s]", options.status) or ""
 
   return string.format(
-    "Review Inbox%s %d total %d rework %d question %d stale",
+    "Review Inbox%s - %d hunks | %d rework | %d question | %d stale",
     suffix,
     counts.total,
     counts["needs-rework"],
@@ -109,25 +107,42 @@ function M.open(items, callbacks, opts)
   local config = telescope_loader.require("telescope.config")
   local actions = telescope_loader.require("telescope.actions")
   local action_state = telescope_loader.require("telescope.actions.state")
+  local entry_display = telescope_loader.require("telescope.pickers.entry_display")
 
-  if not (pickers and finders and previewers and config and actions and action_state) then
+  if not (pickers and finders and previewers and config and actions and action_state and entry_display) then
     vim.notify("Telescope not available", vim.log.levels.ERROR)
     return
   end
 
   local options = opts or {}
+  local displayer = entry_display.create({
+    separator = " ",
+    items = {
+      { width = 8 },
+      { width = 8 },
+      { width = 3 },
+      { remaining = true },
+    },
+  })
 
   local entry_maker = function(item)
-    local stale = scope_label(item)
     local line = item.line_start or 0
-    local status = status_label(item.status)
+    local status = meta.label(item.status)
     local context = item.hunk_context ~= "" and (" " .. item.hunk_context) or ""
     local has_note = item.note and item.note ~= ""
-    local note_marker = has_note and "[N]" or ""
-    local note = has_note and (" note " .. item.note) or ""
+    local note_marker = has_note and "N" or ""
+    local note = has_note and (" " .. item.note) or ""
+    local location = string.format("%s:%d%s", item.path, line, context)
 
     return {
-      display = string.format("[%s][%s]%s %s:%d%s", stale, status, note_marker, item.path, line, context),
+      display = function(entry)
+        return displayer({
+          { scope_label(entry.value), scope_highlight(entry.value) },
+          { meta.label(entry.value.status), meta.highlight(entry.value.status) },
+          { note_marker, has_note and "Special" or "Comment" },
+          { location, entry.value.stale and "Comment" or "Normal" },
+        })
+      end,
       ordinal = table.concat({ status, item.path, item.scope, item.hunk_header, context, note }, " "),
       value = item,
     }
@@ -145,8 +160,8 @@ function M.open(items, callbacks, opts)
   pickers.new({}, {
     default_selection_index = default_selection_index(items, options.focus_fingerprint),
     prompt_title = prompt_title(items, options),
-    results_title = "<Tab> mark  <CR> diff  <C-y> accept  ? help",
-    preview_title = "<C-a> note  <C-s> status  <C-c> Claude  <C-p> Pi  <C-r> refresh",
+    results_title = "Enter diff | Tab mark | Ctrl-Y accept | ? help",
+    preview_title = "Ctrl-A note | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi | Ctrl-R refresh",
     finder = finders.new_table({
       results = items,
       entry_maker = entry_maker,
@@ -154,7 +169,7 @@ function M.open(items, callbacks, opts)
     layout_strategy = "horizontal",
     layout_config = {
       height = 0.9,
-      preview_width = 0.58,
+      preview_width = 0.6,
       prompt_position = "top",
       width = 0.96,
     },

@@ -1,5 +1,4 @@
 local agent_layout = require("config.ops.agent_layout")
-local nvim_tree = require("config.nvim_tree")
 
 local temp_root = vim.fs.normalize(vim.fn.tempname())
 local file_path = temp_root .. "/demo.txt"
@@ -34,9 +33,6 @@ local ok, err = xpcall(function()
   vim.fn.writefile({ "one", "two", "three" }, file_path)
   vim.cmd.cd(temp_root)
   vim.cmd.edit(vim.fn.fnameescape(file_path))
-
-  local initial_tree_open = nvim_tree.find_window() ~= nil
-  local initial_tree_side = nvim_tree.current_side()
 
   agent_layout.open()
 
