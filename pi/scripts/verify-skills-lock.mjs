@@ -6,6 +6,19 @@ import { fileURLToPath } from "node:url";
 const piDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const repoDir = dirname(piDir);
 const lock = JSON.parse(await readFile(join(repoDir, "skills-lock.json"), "utf8"));
+const settings = JSON.parse(await readFile(join(piDir, "agent", "settings.json"), "utf8"));
+
+function configuredLocalSkills() {
+  const result = new Set();
+  for (const pkg of settings.packages ?? []) {
+    if (typeof pkg !== "object" || pkg === null) continue;
+    if (pkg.source !== "local:etabli-workflow") continue;
+    for (const skill of pkg.skills ?? []) {
+      result.add(skill);
+    }
+  }
+  return [...result].sort();
+}
 
 async function files(dir, base = dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -27,6 +40,10 @@ async function hashSkill(name) {
 }
 
 const failures = [];
+for (const name of configuredLocalSkills()) {
+  if (!lock.skills[name]) failures.push(`${name}: configured skill missing from skills-lock.json`);
+}
+
 for (const [name, entry] of Object.entries(lock.skills)) {
   const actual = await hashSkill(name);
   if (actual !== entry.computedHash) failures.push(`${name}: expected ${entry.computedHash}, got ${actual}`);
