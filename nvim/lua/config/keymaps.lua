@@ -90,7 +90,7 @@ local function open_command_palette()
   ts.builtin.commands({ prompt_title = "Command Palette" })
 end
 
-local function map_vscode_aliases(lhs_list, rhs, desc)
+local function map_editor_aliases(lhs_list, rhs, desc)
   for _, lhs in ipairs(lhs_list) do
     map("n", lhs, rhs, vim.tbl_extend("force", opts, { desc = desc }))
   end
@@ -140,8 +140,8 @@ vim.api.nvim_create_user_command("CommandPalette", open_command_palette, {
   desc = "Open command palette",
 })
 
-map_vscode_aliases({ "<D-p>", "<C-p>" }, quick_open, "Quick open")
-map_vscode_aliases({ "<D-P>", "<D-S-p>", "<C-S-p>" }, open_command_palette, "Command palette")
+map_editor_aliases({ "<D-p>", "<C-p>" }, quick_open, "Quick open")
+map_editor_aliases({ "<D-P>", "<D-S-p>", "<C-S-p>" }, open_command_palette, "Command palette")
 
 map("n", "<leader><space>", quick_open, vim.tbl_extend("force", opts, { desc = "Find files" }))
 map("n", "<leader>/", telescope_cmd("live_grep"), vim.tbl_extend("force", opts, { desc = "Live grep" }))

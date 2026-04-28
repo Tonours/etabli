@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================================
-# VS CODE + TMUX SETUP
+# ETABLI DEV SETUP
 # Compatible: macOS, Linux (Ubuntu/Debian), Remote (SSH)
 # ============================================================================
 
@@ -140,7 +140,7 @@ prune_managed_pi_skills() {
         local target
         target="$(readlink "$skill_link")"
         case "$target" in
-            "$REPO_DIR/pi/skills/"*|"$REPO_DIR/skills/"*)
+            "$REPO_DIR/pi/skills/"*)
                 local skill_name
                 skill_name="$(basename "$skill_link")"
                 if ! is_core_pi_skill "$skill_name"; then
@@ -335,9 +335,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 
 # Validate repo structure
-if [ ! -d "$REPO_DIR/vscode" ]; then
-    print_warning "Missing VS Code config at $REPO_DIR/vscode - it will not be copied"
-fi
 if [ ! -f "$REPO_DIR/tmux.conf" ]; then
     print_warning "Missing tmux.conf at $REPO_DIR/tmux.conf - it will not be copied"
 fi
@@ -366,19 +363,12 @@ if [[ "$OS" == "mac" ]]; then
     fi
 
     # Note: node/npm installed via nvm below
-    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh starship btop fastfetch lua-language-server || {
+    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh lua-language-server || {
         print_warning "Some brew packages may have failed"
     }
     brew upgrade neovim 2>/dev/null || true
-    brew install --cask iterm2 visual-studio-code 2>/dev/null || true
 
-    # Tiling WM stack (macOS only)
-    print_step "Installing tiling WM tools..."
-    brew install koekeishiya/formulae/yabai 2>/dev/null || true
-    brew install koekeishiya/formulae/skhd 2>/dev/null || true
-    brew install --cask sol 2>/dev/null || true
-
-    # Nerd Font via Homebrew (for iTerm2)
+    # Nerd Font via Homebrew
     brew tap homebrew/cask-fonts 2>/dev/null || true
     brew install --cask font-caskaydia-mono-nerd-font 2>/dev/null || true
 
@@ -559,57 +549,6 @@ fi
 print_success "Nerd Font installed"
 
 # ============================================================================
-# SETUP VS CODE CONFIG
-# ============================================================================
-print_step "Setting up VS Code config..."
-
-if [[ "$OS" == "mac" ]]; then
-    VSCODE_USER_DIR="$HOME/Library/Application Support/Code/User"
-else
-    VSCODE_USER_DIR="$HOME/.config/Code/User"
-fi
-
-mkdir -p "$VSCODE_USER_DIR"
-
-for config_file in settings.json keybindings.json; do
-    src="$REPO_DIR/vscode/$config_file"
-    dst="$VSCODE_USER_DIR/$config_file"
-
-    if [ -f "$src" ]; then
-        if [ -f "$dst" ] && [ ! -L "$dst" ]; then
-            cp "$dst" "$dst.bak"
-        fi
-
-        if ln -sf "$src" "$dst"; then
-            print_success "VS Code $config_file linked"
-        else
-            print_error "Failed to link VS Code $config_file"
-        fi
-    else
-        print_warning "Missing VS Code file: $src"
-    fi
-done
-
-VSCODE_BIN=""
-if command -v code &> /dev/null; then
-    VSCODE_BIN="$(command -v code)"
-elif [[ "$OS" == "mac" ]] && [ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]; then
-    VSCODE_BIN="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
-fi
-
-if [ -n "$VSCODE_BIN" ] && [ -f "$REPO_DIR/vscode/extensions.txt" ]; then
-    print_step "Installing VS Code extensions..."
-    while IFS= read -r extension || [ -n "$extension" ]; do
-        [ -z "$extension" ] && continue
-        "$VSCODE_BIN" --install-extension "$extension" --force > /dev/null 2>&1 || \
-            print_warning "Failed to install VS Code extension: $extension"
-    done < "$REPO_DIR/vscode/extensions.txt"
-    print_success "VS Code extensions processed"
-else
-    print_warning "VS Code CLI 'code' not found - install extensions later from $REPO_DIR/vscode/extensions.txt"
-fi
-
-# ============================================================================
 # SETUP NEOVIM CONFIG
 # ============================================================================
 print_step "Setting up Neovim config..."
@@ -667,31 +606,6 @@ fi
 # Install TPM (Tmux Plugin Manager)
 if [ ! -d ~/.tmux/plugins/tpm ]; then
     git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-fi
-
-# ============================================================================
-# SETUP ITERM2 PROFILE
-# ============================================================================
-if [[ "$OS" == "mac" ]]; then
-    print_step "Setting up iTerm2 profile..."
-
-    ITERM2_PROFILES_DIR="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-    mkdir -p "$ITERM2_PROFILES_DIR"
-
-    if [ -f "$REPO_DIR/iterm2/etabli.json" ]; then
-        if [ -f "$ITERM2_PROFILES_DIR/etabli.json" ] && [ ! -L "$ITERM2_PROFILES_DIR/etabli.json" ]; then
-            print_warning "Backing up existing iTerm2 profile"
-            cp "$ITERM2_PROFILES_DIR/etabli.json" "$ITERM2_PROFILES_DIR/etabli.json.bak"
-        fi
-
-        if ln -sf "$REPO_DIR/iterm2/etabli.json" "$ITERM2_PROFILES_DIR/etabli.json"; then
-            print_success "iTerm2 dynamic profile linked"
-        else
-            print_error "Failed to create iTerm2 profile symlink"
-        fi
-    else
-        print_warning "iTerm2 profile not found in $REPO_DIR/iterm2/"
-    fi
 fi
 
 # ============================================================================
@@ -837,64 +751,6 @@ if command -v pi &> /dev/null; then
 fi
 
 # ============================================================================
-# SETUP TILING WM (macOS only)
-# ============================================================================
-if [[ "$OS" == "mac" ]]; then
-    print_step "Setting up tiling WM configs..."
-
-    # Yabai
-    mkdir -p ~/.config/yabai
-    if [ -f "$REPO_DIR/yabai/yabairc" ]; then
-        ln -sf "$REPO_DIR/yabai/yabairc" ~/.config/yabai/yabairc
-        chmod +x ~/.config/yabai/yabairc
-        print_success "Yabai config linked"
-    fi
-
-    # skhd
-    mkdir -p ~/.config/skhd
-    if [ -f "$REPO_DIR/skhd/skhdrc" ]; then
-        ln -sf "$REPO_DIR/skhd/skhdrc" ~/.config/skhd/skhdrc
-        print_success "skhd config linked"
-    fi
-
-    # Starship
-    if [ -f "$REPO_DIR/starship/starship.toml" ]; then
-        ln -sf "$REPO_DIR/starship/starship.toml" ~/.config/starship.toml
-        print_success "Starship config linked"
-    fi
-
-    # Add starship init to zshrc if not present
-    if [ -f ~/.zshrc ] && ! grep -q 'starship init' ~/.zshrc 2>/dev/null; then
-        echo 'eval "$(starship init zsh)"' >> ~/.zshrc
-        print_success "Starship init added to .zshrc"
-    fi
-
-    # btop
-    mkdir -p ~/.config/btop/themes
-    if [ -f "$REPO_DIR/btop/btop.conf" ]; then
-        ln -sf "$REPO_DIR/btop/btop.conf" ~/.config/btop/btop.conf
-        print_success "btop config linked"
-    fi
-    if [ -f "$REPO_DIR/btop/themes/catppuccin_mocha.theme" ]; then
-        ln -sf "$REPO_DIR/btop/themes/catppuccin_mocha.theme" ~/.config/btop/themes/catppuccin_mocha.theme
-        print_success "btop Catppuccin theme linked"
-    fi
-
-    # fastfetch
-    mkdir -p ~/.config/fastfetch
-    if [ -f "$REPO_DIR/fastfetch/config.jsonc" ]; then
-        ln -sf "$REPO_DIR/fastfetch/config.jsonc" ~/.config/fastfetch/config.jsonc
-        print_success "fastfetch config linked"
-    fi
-
-    # Start tiling services
-    print_step "Starting tiling WM services..."
-    yabai --start-service 2>/dev/null || true
-    skhd --start-service 2>/dev/null || true
-    print_success "Tiling WM services started"
-fi
-
-# ============================================================================
 # INSTALL DEV SCRIPTS
 # ============================================================================
 print_step "Installing dev scripts..."
@@ -907,18 +763,7 @@ export PATH="$HOME/.local/bin:$PATH"
 # Install scripts using helper function
 install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
-install_script "iterm2-tmux.sh" || true
 install_script "fix-links" || true
-
-if [[ "$OS" == "mac" ]]; then
-    install_script "open-iterm2.sh" || true
-    install_script "macos-optimize.sh" || true
-    install_script "macos-disk-clean.sh" || true
-    install_script "mem-status" || true
-    install_script "tiling-toggle.sh" || true
-    install_script "yabai-space-local.sh" || true
-    install_script "yabai-sudoers-update.sh" || true
-fi
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do
@@ -930,33 +775,6 @@ for rcfile in ~/.bashrc ~/.zshrc; do
 done
 
 print_success "Dev scripts installed"
-
-if [[ "$OS" == "mac" ]] && [ -x "$HOME/.local/bin/yabai-space-local.sh" ]; then
-    "$HOME/.local/bin/yabai-space-local.sh" ensure >/dev/null 2>&1 || \
-        print_warning "Could not converge spaces to 5 per display automatically"
-fi
-
-# ============================================================================
-# SETUP GITHUB COPILOT
-# ============================================================================
-echo ""
-print_step "GitHub Copilot setup..."
-echo ""
-printf "  To enable Copilot:\n"
-if [ -n "$VSCODE_BIN" ]; then
-    printf "  1. Open VS Code: ${YELLOW}code .${NC}\n"
-    printf "  2. Install the ${YELLOW}code${NC} shell command from the Command Palette if needed\n"
-    printf "  3. Sign in to GitHub / Copilot when prompted\n"
-    printf "  4. Verify inline suggestions are enabled\n"
-else
-    printf "  1. Install VS Code and expose the ${YELLOW}code${NC} CLI\n"
-    printf "  2. Open this repo in VS Code\n"
-    printf "  3. Install extensions from ${YELLOW}$REPO_DIR/vscode/extensions.txt${NC}\n"
-    printf "  4. Sign in to GitHub / Copilot when prompted\n"
-fi
-printf "  5. In Neovim, open a project buffer and run ${YELLOW}:LspCopilotSignIn${NC} once\n"
-printf "  6. Use ${YELLOW}:CopilotStatus${NC} or ${YELLOW}:CopilotToggle${NC} if a project needs diagnosis or a local disable\n"
-echo ""
 
 # ============================================================================
 # DONE
@@ -973,17 +791,10 @@ if [[ "$SHELL" == *"zsh"* ]]; then
 else
     printf "  1. Reload shell:     ${YELLOW}source ~/.bashrc${NC}\n"
 fi
-if [ -n "$VSCODE_BIN" ]; then
-    printf "  2. Start VS Code:    ${YELLOW}code .${NC}\n"
-    printf "  3. Auth Copilot:     Sign in inside VS Code\n"
-else
-    printf "  2. Install VS Code:  Ensure the ${YELLOW}code${NC} CLI is available\n"
-    printf "  3. Open the repo:    Open it manually in VS Code\n"
-fi
-printf "  4. Start Neovim:     ${YELLOW}nvim${NC}\n"
-printf "  5. Auth Copilot:     ${YELLOW}:LspCopilotSignIn${NC} in a Neovim project buffer\n"
-printf "  6. Start Tmux:       ${YELLOW}tmux${NC}\n"
-printf "  7. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
+printf "  2. Start Neovim:     ${YELLOW}nvim${NC}\n"
+printf "  3. Auth Copilot:     ${YELLOW}:LspCopilotSignIn${NC} in a Neovim project buffer\n"
+printf "  4. Start Tmux:       ${YELLOW}tmux${NC}\n"
+printf "  5. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
@@ -992,13 +803,6 @@ printf "  From your Mac:   ${YELLOW}mosh user@your-vps.com${NC}\n"
 printf "  Firewall VPS:    ${YELLOW}sudo ufw allow 60000:61000/udp${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
-echo ""
-printf "  ${BLUE}VS Code Defaults (VS Code only):${NC}\n"
-printf "  Theme           Catppuccin Mocha\n"
-printf "  Font            CaskaydiaMono Nerd Font @ 18, ligatures off\n"
-printf "  Alt+l           Accept Copilot inline suggestion\n"
-printf "  Cmd/Ctrl+P      Quick open\n"
-printf "  Cmd/Ctrl+Shift+P Command Palette\n"
 echo ""
 printf "  ${BLUE}Neovim Defaults:${NC}\n"
 printf "  Leader          Space\n"
@@ -1034,34 +838,6 @@ printf "  dev-spawn vps       VPS session only\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
-if [[ "$OS" == "mac" ]]; then
-printf "  ${BLUE}Tiling WM (macOS) — Manual Steps Required:${NC}\n"
-echo ""
-printf "  1. ${YELLOW}Partially disable SIP${NC} (Recovery Mode):\n"
-printf "     Boot to Recovery > Terminal > csrutil enable --without fs --without debug --without nvram\n"
-printf "  2. ${YELLOW}Configure yabai sudoers${NC}:\n"
-printf "     ${YELLOW}yabai-sudoers-update.sh${NC}\n"
-printf "  3. ${YELLOW}Enable separate Spaces per display${NC} and disable auto-rearrange\n"
-printf "     ${YELLOW}macos-optimize.sh apply${NC} handles both defaults for you\n"
-printf "  4. ${YELLOW}Hide macOS menu bar${NC} (System Settings > Control Center > Menu Bar Only)\n"
-printf "  5. ${YELLOW}Configure Sol hotkey${NC} (alt+space) in Sol preferences\n"
-printf "  6. ${YELLOW}Apply performance optimizations${NC}:\n"
-printf "     ${YELLOW}macos-optimize.sh apply${NC}\n"
-printf "  7. ${YELLOW}Converge spaces to 5 per display${NC} if needed:\n"
-printf "     ${YELLOW}yabai-space-local.sh ensure${NC}\n"
-echo ""
-printf "  ${BLUE}Tiling WM Shortcuts:${NC}\n"
-printf "  alt+1..5        Switch workspace on focused display\n"
-printf "  alt+arrows      Focus window direction\n"
-printf "  alt+shift+arrows Swap windows\n"
-printf "  alt+return      Open iTerm2\n"
-printf "  alt+w           Close window\n"
-printf "  alt+f           Toggle fullscreen\n"
-printf "  alt+t           Toggle float\n"
-echo ""
-echo "-------------------------------------------------------------------"
-echo ""
-fi
 printf "  ${BLUE}Pi Coding Agent:${NC}\n"
 printf "  Start:           ${YELLOW}pi${NC}\n"
 printf "  Auth providers:  ${YELLOW}/login${NC}\n"

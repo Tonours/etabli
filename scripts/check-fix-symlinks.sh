@@ -111,18 +111,7 @@ check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
 
 check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"
-check_script_link "iterm2-tmux.sh"
 check_script_link "fix-links"
-
-if [ "$OS" = "Darwin" ]; then
-  check_script_link "open-iterm2.sh"
-  check_script_link "macos-optimize.sh"
-  check_script_link "macos-disk-clean.sh"
-  check_script_link "mem-status"
-  check_script_link "tiling-toggle.sh"
-  check_script_link "yabai-space-local.sh"
-  check_script_link "yabai-sudoers-update.sh"
-fi
 
 printf '\nSummary: %d issue(s), %d fix(es) applied\n' "$ISSUES" "$FIXED"
 

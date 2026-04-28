@@ -35,7 +35,8 @@ assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/handoff-template.md"
 
 assert_contains "$ROOT_DIR/scripts/install.sh" 'workflow/$shared_doc'
-assert_contains "$ROOT_DIR/pi/extensions/handoff.ts" 'workflow/handoff-template.md'
+assert_contains "$ROOT_DIR/claude/commands/handoff.md" '~/.claude/handoff-template.md'
+assert_contains "$ROOT_DIR/claude/commands/handoff-implement.md" '~/.claude/handoff-template.md'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'workflow/review-rubric.md'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'claude/review-rubric.md'
 
