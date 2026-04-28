@@ -17,16 +17,16 @@
 - Only agree when you have no substantive objection left.
 
 ## Per-task checklist
-- [ ] Analyse la tâche et challenge l'implémentation pour y ajouter ce qui semble pertinent
-- [ ] Développe en suivant l'approche TDD
-- [ ] Écris des tests unitaires et d'intégration complets
-- [ ] Vérifie la couverture de code et améliore si nécessaire
-- [ ] Code-review avec skill code-review et fix
-- [ ] Design-review avec skill design-review et fix
-- [ ] Vérifie le type-check et corrige les erreurs
-- [ ] Fais un commit dédié pour chaque fix
+- [ ] Analyze the task and challenge the implementation to add anything that is materially relevant
+- [ ] Develop using a TDD approach
+- [ ] Write complete unit and integration tests
+- [ ] Check code coverage and improve it when needed
+- [ ] Run a code review with the code-review skill and fix findings
+- [ ] Run a design review with the design-review skill and fix findings
+- [ ] Run type-checking and fix errors
+- [ ] Make one dedicated commit per fix
 
 ## Commit conventions
-- Pas créditer claude sur les commits
-- Format: `feat|fix|refactor|test|docs|chore(scope): description` — atomiques et concis
-- Exemple: `feat(feature): add X to Z`
+- Do not credit Claude in commits
+- Format: `feat|fix|refactor|test|docs|chore(scope): description` - atomic and concise
+- Example: `feat(feature): add X to Z`

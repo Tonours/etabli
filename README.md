@@ -47,7 +47,7 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 - `nvim/README.md` - Neovim overview and key flows
 - `docs/nvim-diff-review-workflow.md` - diff-centric review inbox and batch prompts
 - `claude/README.md` - Claude Code workflow notes
-- `docs/pi-cheatsheet-fr.md` - Pi commands, shortcuts, and repo-specific reminders
+- `docs/pi-cheatsheet.md` - Pi commands, shortcuts, and repo-specific reminders
 - `workflow/spec.md` - canonical workflow contract
 - `workflow/operating-model.md` - daily Claude + Pi operating model
 - `workflow/statuses.md` - lifecycle and status model
