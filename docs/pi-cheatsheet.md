@@ -83,6 +83,7 @@ Repo notes:
 - the recommended workflow starts from the repo root or current working directory
 - keep focus on `PLAN.md`, review, targeted validation, and manual QA
 - the default Pi config is intentionally small
+- third-party Pi packages are filtered to the verified resources used by this setup
 - `rtk` stays enabled to reduce shell noise and token cost
 
 ## Local Workflow Verification
@@ -147,5 +148,6 @@ The repo Pi runtime stays intentionally small:
 - Installed: `~/.pi/agent/models.json`, `~/.pi/agent/auth.json`, `~/.pi/agent/keybindings.json`
 - Installed: `~/.pi/agent/{extensions,skills,prompts,themes}/`
 - Default extensions: `rtk.ts`, `filter-output.ts`, `block-google-providers.ts`
+- Curated packages: `pi-hooks` LSP, `mitsupi` `github`/`commit`, `brave-search`, `pi-interview`, `pi-autoresearch`, and `glimpseui` without its standalone skill
 - `damage-control` is disabled by default.
 - Context: `AGENTS.md`, `pi/AGENTS.md`, `claude/README.md`

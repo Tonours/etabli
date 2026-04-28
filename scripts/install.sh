@@ -172,9 +172,23 @@ const [localPath, trackedPath] = process.argv.slice(2);
 const localSettings = JSON.parse(fs.readFileSync(localPath, "utf8"));
 const trackedSettings = JSON.parse(fs.readFileSync(trackedPath, "utf8"));
 
-const managedSources = new Set(["local:etabli-workflow"]);
+const managedSources = new Set([
+  "local:etabli-workflow",
+  "npm:pi-hooks",
+  "npm:mitsupi",
+  "git:github.com/badlogic/pi-skills",
+  "npm:pi-interview",
+  "https://github.com/davebcn87/pi-autoresearch",
+  "npm:glimpseui",
+]);
 const localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
+
+function packageSource(entry) {
+  if (typeof entry === "string") return entry;
+  if (entry && typeof entry === "object" && typeof entry.source === "string") return entry.source;
+  return null;
+}
 
 const trackedBySource = new Map();
 for (const entry of trackedPackages) {
@@ -185,9 +199,7 @@ for (const entry of trackedPackages) {
 
 let changed = false;
 for (const [source, trackedEntry] of trackedBySource) {
-  const localIndex = localPackages.findIndex(
-    (entry) => entry && typeof entry === "object" && entry.source === source,
-  );
+  const localIndex = localPackages.findIndex((entry) => packageSource(entry) === source);
 
   if (localIndex === -1) {
     localPackages.unshift(trackedEntry);
