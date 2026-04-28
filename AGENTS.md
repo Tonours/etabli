@@ -10,9 +10,6 @@
 - pi/skills/                           — Pi skills (Markdown SKILL.md)
 - pi/themes/                           — Custom themes (JSON)
 - scripts/                             — Install & dev scripts (Bash)
-- vscode/                              — VS Code user config (settings, keybindings, extensions)
-- iterm2/                              — iTerm2 dynamic profile
-- yabai/ skhd/ sketchybar/             — Tiling WM configs (macOS)
 
 ## Extension conventions
 - One extension per file in pi/extensions/

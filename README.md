@@ -1,6 +1,6 @@
 # Etabli
 
-Personal dev environment for AI-assisted workflows across Neovim, Claude Code, Pi Coding Agent, tmux, iTerm2, VS Code, and a macOS tiling setup.
+Personal dev environment for AI-assisted workflows across Neovim, Claude Code, Pi Coding Agent, and tmux.
 
 The repo stays source-of-truth oriented: the install script symlinks tracked config into your local environment, and re-running it re-syncs the live Neovim and Pi setup from the repo defaults.
 
@@ -13,7 +13,6 @@ cd etabli
 ```
 
 - Supported: macOS and Linux (Ubuntu/Debian)
-- VS Code should be installed separately on Linux if you want settings and extensions linked automatically
 - Neovim target is `0.12.2+`; the installer validates the local version after dependency setup
 - Neovim Copilot uses native LSP inline completion via `copilot-language-server`
 - Neovim exposes `:EtabliDoctor` plus `:CopilotStatus` / `:CopilotToggle` for local diagnosis and per-project Copilot control
@@ -39,8 +38,7 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 - `workflow/` - canonical planning and review docs shared across runtimes
 - `profiles/` - explicit personal/work usage contracts
 - `memory/` - minimal project memory layout and templates
-- `scripts/` - installer, local verification runners, terminal bootstraps, and platform helpers
-- `vscode/` - tracked VS Code settings, keybindings, and extension list
+- `scripts/` - installer, local verification runners, and workflow helpers
 
 ## Where to look next
 
