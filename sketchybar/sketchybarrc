@@ -4,7 +4,7 @@ source "$CONFIG_DIR/colors.sh"
 source "$CONFIG_DIR/icons.sh"
 
 PLUGIN_DIR="$CONFIG_DIR/plugins"
-FONT="JetBrainsMono Nerd Font"
+FONT="CaskaydiaMono Nerd Font"
 WORKSPACE_LIMIT=5
 SPACE_HELPER="$HOME/.local/bin/yabai-space-local.sh"
 
