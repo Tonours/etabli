@@ -20,7 +20,7 @@
     "sanitized": "C_Users_example_work_etabli"
   },
   {
-    "cwd": "/tmp/démo/α",
-    "sanitized": "_tmp_d_mo_"
+    "cwd": "/tmp/demo/unicode-beta",
+    "sanitized": "_tmp_demo_unicode-beta"
   }
 ]
