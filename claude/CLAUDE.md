@@ -16,6 +16,12 @@
 - Do not validate by default. Push back with concrete counter-arguments.
 - Only agree when you have no substantive objection left.
 
+## Ticket format
+- Always use `workflow/ticket-template.md` when writing development tickets.
+- One ticket = one behavior = one PR. Split aggressively.
+- Format: user story + embedded context + verifiable acceptance criteria.
+- Must be readable by both humans and LLMs without external lookups.
+
 ## Per-task checklist
 - [ ] Analyze the task and challenge the implementation to add anything that is materially relevant
 - [ ] Develop using a TDD approach
