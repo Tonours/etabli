@@ -14,7 +14,13 @@
 - Commit format: `feat|fix|refactor|test|docs|chore(scope): description` — atomic.
 - Check local convention files before changing code: `CLAUDE.md`, `.claude/commands/`, `.cursor/rules/`, `COPILOT.md`.
 - Shared flow: learn → plan → implement → review → handoff.
-- In this repo: `workflow/spec.md`, `workflow/statuses.md`, `workflow/review-rubric.md`, `workflow/handoff-template.md`.
+- In this repo: `workflow/spec.md`, `workflow/statuses.md`, `workflow/review-rubric.md`, `workflow/handoff-template.md`, `workflow/ticket-template.md`.
+
+## Ticket format
+- Always use `workflow/ticket-template.md` when writing development tickets.
+- One ticket = one behavior = one PR. Split aggressively.
+- Format: user story + embedded context + verifiable acceptance criteria.
+- Must be readable by both humans and LLMs without external lookups.
 
 ## Delegation
 - Keep the runtime simple. Prefer one main session over orchestration layers.

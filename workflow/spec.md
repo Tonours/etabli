@@ -55,6 +55,8 @@ Use `workflow/operating-model.md` for the day-to-day Claude + Pi execution model
   - Canonical shape for `PLAN.md`
 - `PLAN.md`
   - Single execution contract and light progress artifact per task
+- `workflow/ticket-template.md`
+  - Canonical shape for development tickets (solo-dev, user story format, human+LLM readable)
 - `workflow/review-rubric.md`
   - Shared review rubric used by Pi/Claude flows
 

@@ -29,6 +29,12 @@
 - pi/extensions/node_modules/ is a local ignored symlink created by install.sh → ~/.pi/npm/node_modules/ (for createRequire resolution)
 - Do NOT create ~/.pi/extensions/ — it causes double-loading conflicts
 
+## Ticket format
+- Always use `workflow/ticket-template.md` when writing development tickets.
+- One ticket = one behavior = one PR. Split aggressively.
+- Format: user story + embedded context + verifiable acceptance criteria.
+- Must be readable by both humans and LLMs without external lookups.
+
 ## Testing
 - Extension tests: `bun test pi/extensions/__tests__/`
 
