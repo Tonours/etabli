@@ -14,6 +14,10 @@
 - Valide seulement quand plus aucune objection substantielle ne reste.
 - Pushback avec des contre-arguments concrets, pas du théâtre.
 
+## Code
+- YAGNI, KISS, DRY — dans cet ordre.
+- TypeScript strict, no `any`. ES modules only. Functions < 50 lines, files < 300 lines.
+
 ## Cognition
 - Charge cognitive = contrainte. Plans resumables, next action claire, zéro loop ouvert.
 - Preuve d'abord : repo state, tests, logs. Pas "ça devrait marcher" sans artefact.
