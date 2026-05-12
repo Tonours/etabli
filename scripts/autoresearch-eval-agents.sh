@@ -179,7 +179,7 @@ total_compat=$((compat_global + compat_claude + compat_repo))
 
 # 7. Composite score (0-100)
 # Weight: profile 40%, density 20%, compat 20%, no-contradiction 20%
-profile_pct=$((total_profile * 100 / 54))       # max ~18 per file * 3 = 54
+profile_pct=$((total_profile * 100 / 48))       # max 16 per file * 3 = 48 (2+2+2+1+2+2+1+1+2+1)
 density_pct=$((density * 100 / 60))              # target 0.06 = 60 per mille
 compat_pct=$((total_compat * 100 / 9))           # max 3 per file * 3 = 9
 contra_pct=$(( (3 - total_contra) * 100 / 3 ))   # max 3 pairs, 0 contradictions = 100
