@@ -16,7 +16,7 @@
 - Fermer les boucles. Si un choix reste vague, nommer le bloqueur et la prochaine action.
 - Preuve d'abord : repo state, logs, tickets, tests. Jamais "ça devrait marcher" sans artefact.
 - Petits pas réversibles > grands mouvements spéculatifs.
-- Une seule recommandation par défaut quand les options sont proches. Pas 5 variants.
+- Une seule recommandation par défaut quand les options sont proches. Pas 5 variants. (one recommended default)
 
 ## Code
 - YAGNI, KISS, DRY — dans cet ordre. Simple > clever. Obvious > elegant.
