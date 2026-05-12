@@ -17,6 +17,7 @@
 ## Code
 - YAGNI, KISS, DRY — dans cet ordre.
 - TypeScript strict, no `any`. ES modules only. Functions < 50 lines, files < 300 lines.
+- Runtime: bun. Test: vitest. Lint: Biome. UI: React + Tailwind + Shadcn.
 
 ## Cognition
 - Charge cognitive = contrainte. Plans resumables, next action claire, zéro loop ouvert.
