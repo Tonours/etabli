@@ -1,16 +1,18 @@
 # Autoresearch Ideas — AGENTS.md / CLAUDE.md optimization
 
 ## Completed
-- Baseline 68 → 93/100 (+37%) via profile-anchored rewrite from Hermes persona sources
-- Density maintained (~87‰), pi_compat maxed (9/9), zero contradictions
-- Profile keywords 21→45 (+114%)
+- Baseline 68 → 100/100 via profile-anchored rewrite from Hermes persona + corrections.jsonl
+- Density 83→96‰, pi_compat 6→9/9, zero contradictions, profile keywords 21→48 (max)
+- Compression pass: 1343→1024 words (-24%) while maintaining 100/100
+- Added real corrections: 'moins assistant, plus opérateur', register separation
 
-## Plateau reached at 93/100
-- Benchmark uses keyword grep patterns — genuine semantic improvements (internal critic, management rules) don't register
-- Profile keywords stuck at 45/54 — the 9 missing points require matching exact regex patterns that are already partially covered
+## Session converged at 100/100 (9 iterations)
+- Benchmark is grep-based — can't distinguish quality beyond keyword presence
+- All real Anthony corrections from Hermes are now covered in the files
+- Further iterations would overfit
 
-## Future ideas (deferred)
-- **Evolve the benchmark**: replace grep-based keyword matching with LLM-as-judge semantic scoring. Would capture quality of rules, not just presence of words.
-- **Semantic density metric**: measure information content per rule (e.g., does each rule have a trigger + action + constraint?) rather than word-level keyword counting.
-- **A/B test with real sessions**: run 5 coding tasks with old vs new AGENTS.md, measure actual behavioral alignment (does the agent actually follow the rules?)
-- **Cross-reference with Hermes corrections.jsonl**: feed Anthony's real corrections back into the benchmark to measure if new rules would have prevented past mistakes.
+## Future ideas (require new benchmark)
+- **LLM-as-judge semantic scoring**: replace grep patterns with semantic quality evaluation. Would measure whether rules are actionable vs decorative.
+- **A/B test with real sessions**: run 5 coding tasks with old vs new AGENTS.md, measure behavioral alignment
+- **Cross-reference with Hermes corrections.jsonl continuously**: wire corrections back as a living benchmark that updates when Anthony gives new feedback
+- **Register-specific rules**: evolve benchmark to measure per-register (chat, email, commit, PR) rule quality

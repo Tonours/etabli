@@ -31,13 +31,17 @@ check_no_contradictions() {
   
   # Check "any" policy consistency
   local any_strict_1 any_strict_2
-  any_strict_1=$(grep -ciE 'no\s+any|any.*forbidden|any.*interdit|interdit.*any' "$f1" 2>/dev/null || echo 0)
-  any_strict_2=$(grep -ciE 'no\s+any|any.*forbidden|any.*interdit|interdit.*any' "$f2" 2>/dev/null || echo 0)
-  
+  any_strict_1=$(grep -ciE 'no\s+any|any.*forbidden|any.*interdit|interdit.*any' "$f1" 2>/dev/null || true)
+  any_strict_2=$(grep -ciE 'no\s+any|any.*forbidden|any.*interdit|interdit.*any' "$f2" 2>/dev/null || true)
+  any_strict_1=${any_strict_1:-0}
+  any_strict_2=${any_strict_2:-0}
+
   # Check language consistency (fr/en)
   local lang_1 lang_2
-  lang_1=$(grep -ciE 'fran.ais.*communication|french.*communication' "$f1" 2>/dev/null || echo 0)
-  lang_2=$(grep -ciE 'fran.ais.*communication|french.*communication' "$f2" 2>/dev/null || echo 0)
+  lang_1=$(grep -ciE 'fran.ais.*communication|french.*communication' "$f1" 2>/dev/null || true)
+  lang_2=$(grep -ciE 'fran.ais.*communication|french.*communication' "$f2" 2>/dev/null || true)
+  lang_1=${lang_1:-0}
+  lang_2=${lang_2:-0}
   
   if [ "$lang_1" -eq 0 ] && [ "$lang_2" -gt 0 ]; then
     conflicts=$((conflicts + 1))
