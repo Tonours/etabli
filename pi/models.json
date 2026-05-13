@@ -314,11 +314,11 @@
           "maxTokens": 4096
         },
         {
-          "id": "/Volumes/Crucial/models/mlx/Qwen3-14B-MLX-4bit",
-          "name": "Qwen3 14B (MLX, local quality)",
+          "id": "/Volumes/Crucial/models/mlx/Qwen3.5-9B-OptiQ-4bit",
+          "name": "Qwen3.5 9B OptiQ (MLX, local quality)",
           "reasoning": true,
           "input": ["text"],
-          "contextWindow": 16384,
+          "contextWindow": 32768,
           "maxTokens": 4096
         },
         {
@@ -338,19 +338,19 @@
           "maxTokens": 4096
         },
         {
-          "id": "/Volumes/Crucial/models/mlx/Granite-3.3-8B-Instruct-4bit",
-          "name": "Granite 3.3 8B (MLX, tools)",
+          "id": "/Volumes/Crucial/models/mlx/granite-4.1-8b-4bit",
+          "name": "Granite 4.1 8B (MLX, tools)",
           "reasoning": false,
           "input": ["text"],
           "contextWindow": 32768,
           "maxTokens": 4096
         },
         {
-          "id": "/Volumes/Crucial/models/mlx/Qwen3-4B-Instruct-2507-gabliterated-4bit",
-          "name": "Qwen3 4B Gabliterated (MLX, uncensored)",
+          "id": "/Volumes/Crucial/models/mlx/Qwen3-8B-abliterated-v2-mxfp4",
+          "name": "Qwen3 8B Abliterated v2 (MLX, uncensored)",
           "reasoning": true,
           "input": ["text"],
-          "contextWindow": 65536,
+          "contextWindow": 32768,
           "maxTokens": 4096
         }
       ]
