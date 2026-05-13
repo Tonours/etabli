@@ -342,7 +342,7 @@
           "name": "Qwen3 4B Gabliterated (MLX, uncensored)",
           "reasoning": true,
           "input": ["text"],
-          "contextWindow": 16384,
+          "contextWindow": 65536,
           "maxTokens": 4096
         }
       ]
