@@ -330,6 +330,14 @@
           "maxTokens": 4096
         },
         {
+          "id": "/Volumes/Crucial/models/mlx/DeepSeek-Coder-V2-Lite-Instruct-4bit",
+          "name": "DeepSeek Coder V2 Lite (MLX, code max)",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 32768,
+          "maxTokens": 4096
+        },
+        {
           "id": "/Volumes/Crucial/models/mlx/Granite-3.3-8B-Instruct-4bit",
           "name": "Granite 3.3 8B (MLX, tools)",
           "reasoning": false,
