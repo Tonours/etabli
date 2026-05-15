@@ -627,6 +627,29 @@ if [ ! -d ~/.tmux/plugins/tpm ]; then
 fi
 
 # ============================================================================
+# SETUP GHOSTTY CONFIG
+# ============================================================================
+print_step "Setting up Ghostty config..."
+
+GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
+GHOSTTY_CONFIG_LINK="$GHOSTTY_CONFIG_DIR/config"
+GHOSTTY_CONFIG_TARGET="$REPO_DIR/ghostty/config"
+
+if [ -f "$GHOSTTY_CONFIG_TARGET" ]; then
+    mkdir -p "$GHOSTTY_CONFIG_DIR"
+    if [ -f "$GHOSTTY_CONFIG_LINK" ] && [ ! -L "$GHOSTTY_CONFIG_LINK" ]; then
+        cp "$GHOSTTY_CONFIG_LINK" "$GHOSTTY_CONFIG_LINK.bak"
+    fi
+    if ln -sf "$GHOSTTY_CONFIG_TARGET" "$GHOSTTY_CONFIG_LINK"; then
+        print_success "Ghostty config linked"
+    else
+        print_warning "Failed to link Ghostty config"
+    fi
+else
+    print_warning "Ghostty config not found in $REPO_DIR/ghostty/config"
+fi
+
+# ============================================================================
 # SETUP PI CODING AGENT
 # ============================================================================
 print_step "Setting up Pi Coding Agent..."
