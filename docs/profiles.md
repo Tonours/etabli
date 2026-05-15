@@ -2,61 +2,39 @@
 
 This guide explains when to use the repo's two explicit profiles.
 
-Canonical profile contracts live in:
+Canonical profile contracts:
+
 - `profiles/README.md`
 - `profiles/personal/README.md`
 - `profiles/work/README.md`
 
 ## Current rule
 
-Profile selection is manual.
-There is no automatic loader in this phase.
+Profile selection is manual. There is no automatic loader.
 
-Use the profile that matches the work context, then keep the shared workflow contract unchanged:
+Profiles do not change the workflow contract:
+
 - `workflow/spec.md`
-- `workflow/statuses.md`
 - `workflow/review-rubric.md`
 - `workflow/handoff-template.md`
 
 ## Choose `personal`
 
-Use `profiles/personal/` when:
-- the task is personal/local
-- Pi is the main runtime
-- faster iteration matters more than cross-team portability
-- local convenience tools are acceptable
+Use `profiles/personal/` when the task is personal/local and Pi-first speed matters more than portability.
 
-Expect:
-- Pi-first commands and extensions
-- more autonomy inside local safety defaults
-- local shell/env context to be acceptable
+Expect local convenience tools and more autonomy inside local safety defaults.
 
 ## Choose `work`
 
-Use `profiles/work/` when:
-- the task is work-facing
-- Claude is the main runtime
-- explicit plans, review, and handoff matter more than local speed
-- provider/model and tooling choices need to stay auditable
+Use `profiles/work/` when the task is work-facing and auditability matters.
 
-Expect:
-- Claude-first command surfaces
-- tighter autonomy and more explicit artifacts
-- fewer personal-local assumptions
+Expect Claude-first command surfaces, explicit review, and fewer personal-local assumptions.
 
-## What stays shared
+## Shared invariants
 
 Profiles do not change:
-- `PLAN_TEMPLATE.md`
-- `PLAN.md` statuses
+
+- `PLAN.md` status model
 - review rubric structure
 - handoff template structure
-- the repo workflow entrypoints
-
-## Still manual in this phase
-
-- no profile auto-loading
-- no runtime-enforced command allowlists
-- no separate per-profile settings engine
-
-Later phases may tighten enforcement only if the manual contract proves too weak.
+- repo workflow entrypoints

@@ -8,25 +8,12 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
-## Your task
+Follow `workflow/spec.md`.
 
-1. Inspect the current repository state and recent commits.
-2. Analyze the relevant codebase area before planning.
-3. Resolve the plan template from the first existing file in this order and preserve its structure exactly:
-   - `./PLAN_TEMPLATE.md`
-   - `~/.claude/PLAN_TEMPLATE.md`
-4. Create or refresh `./PLAN.md` from that template.
-5. Set `Status: DRAFT`.
-6. Fill the relevant sections with concrete project-specific content, including the phase-0 measurement contract:
-   - expected outcome
-   - blocking checks
-   - trace points
-   - rollback / stop triggers
-   - escalation triggers
-   - diff budget
-   - explicit non-goals, invariants, done criteria, and ordered slices with files/areas, checks, and rollback points
-7. Keep the plan concise. If something important is unknown, make it explicit in `Open Questions`.
-8. Once `PLAN.md` is reviewed to `READY`, continue with `/implement`.
-9. Do not implement code.
-
-If critical context is missing, ask only the narrowest blocking question.
+1. Inspect repo state and relevant files.
+2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
+3. Use `PLAN_TEMPLATE_FULL.md` only for broad/risky work.
+4. Set `Status: DRAFT`.
+5. Fill goal, scope, steps, checks, risks, and open questions.
+6. Ask only narrow blocking questions.
+7. Stop without implementation.

@@ -28,7 +28,6 @@ Profiles describe expected differences in:
 
 The workflow contract stays shared:
 - `workflow/spec.md`
-- `workflow/statuses.md`
 - `workflow/review-rubric.md`
 - `workflow/handoff-template.md`
 

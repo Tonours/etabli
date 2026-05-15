@@ -82,7 +82,7 @@ describe("buildAllowedCandidates", () => {
     const candidates = buildAllowedCandidates(
       createRegistry([
         { provider: "openai-codex", id: "gpt-5.4" },
-        { provider: "github-copilot", id: "gpt-5.4" },
+        { provider: "github-copilot", id: "claude-sonnet-4.6" },
         { provider: "openai-codex", id: "gpt-5.3-codex" },
         { provider: "github-copilot", id: "gpt-5.3-codex" },
       ]),
@@ -91,7 +91,7 @@ describe("buildAllowedCandidates", () => {
 
     expect(candidates).toEqual([
       { provider: "openai-codex", id: "gpt-5.4" },
-      { provider: "github-copilot", id: "gpt-5.4" },
+      { provider: "github-copilot", id: "claude-sonnet-4.6" },
       { provider: "openai-codex", id: "gpt-5.3-codex" },
       { provider: "github-copilot", id: "gpt-5.3-codex" },
     ]);
@@ -146,7 +146,7 @@ describe("configured default model", () => {
 
     expect(ctx.ui.notifications).toEqual([
       {
-        message: "Configured default model openai-codex/gpt-5.4 not available.",
+        message: "Configured default model openai-codex/gpt-5.5 not available.",
         level: "warning",
       },
     ]);
