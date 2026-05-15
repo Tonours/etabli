@@ -58,7 +58,6 @@ Pi commands:
 /skill:implement
 /skill:review
 /skill:caveman [lite|full|ultra]
-/skill:ui
 ```
 
 Rules:
@@ -73,7 +72,6 @@ Rules:
 From repo root:
 
 ```bash
-./scripts/test-ops-local.sh
 cd pi && bun test ./extensions/__tests__/*.test.ts
 cd pi && bun run test:workflow
 ```
@@ -109,7 +107,6 @@ Curated packages:
 - `mitsupi` for `github` and `commit`
 - `brave-search`
 - `pi-interview`
-- `pi-autoresearch`
 - `glimpseui` without standalone skill
 
 ## tmux note

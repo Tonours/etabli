@@ -21,7 +21,6 @@ require("config.options")
 vim.cmd.colorscheme("habamax")
 require("config.autocmds")
 require("config.copilot").setup_commands()
-require("config.ops").setup_commands()
 require("config.project_runtime").setup_commands()
 
 vim.api.nvim_create_user_command("EtabliDoctor", function()

@@ -81,13 +81,6 @@ Leader: `<Space>`
 - batch rework: `<leader>rbc`, `<leader>rbp`
 - in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
 
-## OPS
-
-- status / doctor: `:OPS`, `:OPSStatus`, `:OPSDoctor`
-- next / review: `:OPSNext`, `:OPSReview`, `:OPSRefreshReview`
-- plan / handoff: `:OPSOpenPlan`, `:OPSHandoff`, `:OPSResume`
-- agents / human: `:OPSAgents`, `:OPSHuman`, `:OPSThreads`, `:OPSNewThread`
-- mode / TillDone: `:OPSMode`, `:OPSModeSimple`, `:OPSModeStandard`, `:OPSTillDone`, `:TillDoneNext`
 
 ## Tip
 
