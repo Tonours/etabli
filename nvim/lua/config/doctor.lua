@@ -86,20 +86,6 @@ local function copilot_lines()
   return lines
 end
 
-local function ops_lines(cwd)
-  local ok, ops_doctor = pcall(require, "config.ops.doctor")
-  if not ok then
-    return { line("WARN", "ops", "OPS doctor unavailable") }
-  end
-
-  local lines = ops_doctor.lines(cwd)
-  for index, text in ipairs(lines) do
-    lines[index] = "  " .. text
-  end
-
-  return lines
-end
-
 local function repo_root(cwd)
   local marker = vim.fs.find(".git", {
     path = cwd,
@@ -153,7 +139,6 @@ function M.lines(cwd)
     executable_line("lua-ls", { command = "lua-language-server", required = false }),
     path_line("project-root", project_root),
     path_line("config-root", dotfiles_root),
-    path_line("pi-status", "~/.pi/status", { required = false }),
     symlink_line("pi-agents", "~/.pi/agent/AGENTS.md", dotfiles_root .. "/pi/AGENTS.md"),
     symlink_line("pi-extensions", "~/.pi/agent/extensions", dotfiles_root .. "/pi/extensions"),
     symlink_line("pi-models", "~/.pi/agent/models.json", dotfiles_root .. "/pi/models.json"),
@@ -163,8 +148,6 @@ function M.lines(cwd)
   }
 
   vim.list_extend(lines, copilot_lines())
-  table.insert(lines, "")
-  vim.list_extend(lines, ops_lines(project_root))
 
   return lines
 end

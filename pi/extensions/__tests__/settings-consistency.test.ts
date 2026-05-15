@@ -86,13 +86,6 @@ describe("Pi settings consistency", () => {
       themes: [],
     });
 
-    expect(packageBySource("https://github.com/davebcn87/pi-autoresearch")).toMatchObject({
-      extensions: ["extensions/pi-autoresearch/index.ts"],
-      skills: ["autoresearch-create", "autoresearch-finalize", "autoresearch-hooks"],
-      prompts: [],
-      themes: [],
-    });
-
     expect(packageBySource("npm:glimpseui")).toMatchObject({
       extensions: [],
       skills: [],

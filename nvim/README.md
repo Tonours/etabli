@@ -51,13 +51,6 @@ Notes:
 - Load project session: `<leader>pl`
 - Recent files in current project: `<leader>fp`
 
-## OPS workflow
-
-- Status / doctor: `:OPS`, `:OPSStatus`, `:OPSDoctor`
-- Next action / review: `:OPSNext`, `:OPSReview`, `:OPSRefreshReview`
-- Plan / handoff: `:OPSOpenPlan`, `:OPSHandoff`, `:OPSResume`
-- Agents / human checkpoints: `:OPSAgents`, `:OPSHuman`, `:OPSThreads`, `:OPSNewThread`
-- Mode / TillDone: `:OPSMode`, `:OPSModeSimple`, `:OPSModeStandard`, `:OPSTillDone`, `:TillDoneNext`
 
 ## Code workflow
 

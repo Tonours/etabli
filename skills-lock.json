@@ -26,11 +26,6 @@
       "sourceType": "github",
       "computedHash": "725d6aeaf6d3c228a296cff5c388e99ba0034d89d790f8682542ac5a907422e0"
     },
-    "ui": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "13ca57b7c2fc97a1b9e275ed0e7cce20e1e8642e5b374f40543622f762144106"
-    },
     "grill-me": {
       "source": "local",
       "sourceType": "repo",

@@ -1,5 +1,3 @@
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-
 const BLOCKED_PROVIDERS = new Set(["google-antigravity", "google-gemini-cli"]);
 
 type ProviderModel = {
@@ -7,7 +5,34 @@ type ProviderModel = {
   id: string;
 };
 
-type ModelRegistry = Pick<ExtensionContext["modelRegistry"], "find">;
+type ModelRegistry = {
+  find(provider: string, id: string): ProviderModel | undefined;
+};
+
+type NotifyLevel = "info" | "warning" | "error";
+
+type ExtensionContext = {
+  model?: ProviderModel;
+  modelRegistry: ModelRegistry;
+  ui: {
+    notify(message: string, level: NotifyLevel): void;
+  };
+};
+
+type ModelSelectEvent = {
+  model: ProviderModel;
+  previousModel?: ProviderModel;
+};
+
+type InputResult = { action: "continue" | "handled" };
+
+type ExtensionAPI = {
+  setModel(model: ProviderModel): boolean | Promise<boolean>;
+  on(event: "session_start", handler: (event: unknown, ctx: ExtensionContext) => Promise<void>): void;
+  on(event: "session_switch", handler: (event: unknown, ctx: ExtensionContext) => Promise<void>): void;
+  on(event: "model_select", handler: (event: ModelSelectEvent, ctx: ExtensionContext) => Promise<void>): void;
+  on(event: "input", handler: (event: unknown, ctx: ExtensionContext) => Promise<InputResult>): void;
+};
 
 export const CONFIGURED_DEFAULT_MODEL: ProviderModel = {
   provider: "openai-codex",

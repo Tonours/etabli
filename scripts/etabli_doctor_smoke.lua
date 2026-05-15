@@ -32,24 +32,6 @@ local expected_commands = {
   "ReviewPi",
   "ReviewClaudeBatch",
   "ReviewPiBatch",
-  "OPS",
-  "OPSStatus",
-  "OPSNext",
-  "OPSAgents",
-  "OPSHuman",
-  "OPSOpenPlan",
-  "OPSReview",
-  "OPSHandoff",
-  "OPSRefreshReview",
-  "OPSDoctor",
-  "OPSResume",
-  "OPSMode",
-  "OPSModeSimple",
-  "OPSModeStandard",
-  "OPSTillDone",
-  "TillDoneNext",
-  "OPSThreads",
-  "OPSNewThread",
 }
 
 for _, command in ipairs(expected_commands) do
@@ -62,7 +44,6 @@ assert_true(output:match("Etabli doctor:") ~= nil, "doctor should include title"
 assert_true(output:match("project%-root:") ~= nil, "doctor should include project root")
 assert_true(output:match("config%-root:") ~= nil, "doctor should include config root")
 assert_true(output:match("Copilot status:") ~= nil, "doctor should include Copilot status")
-assert_true(output:match("OPS doctor:") ~= nil, "doctor should include OPS doctor")
 assert_true(doctor.config_root():match("/etabli$") ~= nil, "doctor config root should point at the dotfiles repo")
 
 local outside = vim.fn.tempname()

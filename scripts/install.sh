@@ -19,7 +19,6 @@ readonly PI_CORE_SKILLS=(
     "review"
     "implement"
     "caveman"
-    "ui"
     "grill-me"
 )
 
@@ -178,7 +177,6 @@ const managedSources = new Set([
   "npm:mitsupi",
   "git:github.com/badlogic/pi-skills",
   "npm:pi-interview",
-  "https://github.com/davebcn87/pi-autoresearch",
   "npm:glimpseui",
 ]);
 const localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
@@ -780,6 +778,12 @@ for command_file in "$REPO_DIR/claude/commands"/*.md; do
 done
 rm -f ~/.claude/commands/verify.md
 rm -f ~/.claude/commands/plan-create.md
+rm -f ~/.claude/commands/plan-review.md
+rm -f ~/.claude/commands/handoff.md
+rm -f ~/.claude/commands/handoff-implement.md
+rm -f ~/.claude/commands/ops-status.md
+rm -f ~/.claude/commands/ops-pi-status.md
+rm -f ~/.claude/handoff-template.md
 
 if [ -d "$REPO_DIR/claude/skills" ]; then
     mkdir -p ~/.claude/skills
@@ -792,7 +796,7 @@ if [ -d "$REPO_DIR/claude/skills" ]; then
     done
 fi
 
-for shared_doc in review-rubric.md handoff-template.md; do
+for shared_doc in review-rubric.md; do
     if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
         ln -sf "$REPO_DIR/workflow/$shared_doc" ~/.claude/"$shared_doc"
         print_success "Claude doc '$shared_doc' linked"
@@ -909,7 +913,6 @@ printf "  Plan loop:       ${YELLOW}/skill:plan-loop${NC}\n"
 printf "  Plan implement:  ${YELLOW}/skill:plan-implement${NC}\n"
 printf "  Caveman:         ${YELLOW}/skill:caveman${NC}\n"
 printf "  Grill me:        ${YELLOW}/skill:grill-me${NC}\n"
-printf "  UI:              ${YELLOW}/skill:ui${NC}\n"
 printf "  Model selector:  ${YELLOW}Ctrl+L${NC}\n"
 printf "  Cycle models:    ${YELLOW}Ctrl+P / Shift+Ctrl+P${NC}\n"
 echo ""
@@ -920,8 +923,6 @@ printf "  Plan loop:       ${YELLOW}/plan-loop${NC}\n"
 printf "  Plan implement:  ${YELLOW}/plan-implement${NC}\n"
 printf "  Implement:       ${YELLOW}/implement${NC}\n"
 printf "  Review:          ${YELLOW}/review${NC}\n"
-printf "  Handoff:         ${YELLOW}/handoff${NC}\n"
-printf "  Impl handoff:    ${YELLOW}/handoff-implement${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""

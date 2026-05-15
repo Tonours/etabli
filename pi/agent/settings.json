@@ -33,7 +33,6 @@
         "review",
         "implement",
         "caveman",
-        "ui",
         "grill-me"
       ]
     },
@@ -52,19 +51,6 @@
         "index.ts"
       ],
       "skills": [],
-      "prompts": [],
-      "themes": []
-    },
-    {
-      "source": "https://github.com/davebcn87/pi-autoresearch",
-      "extensions": [
-        "extensions/pi-autoresearch/index.ts"
-      ],
-      "skills": [
-        "autoresearch-create",
-        "autoresearch-finalize",
-        "autoresearch-hooks"
-      ],
       "prompts": [],
       "themes": []
     },

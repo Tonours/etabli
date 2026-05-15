@@ -84,7 +84,6 @@ local function measure_redraw()
   setup_tab_fixture()
 
   local statusline = require("config.statusline")
-  local ops = require("config.ops")
 
   local total_tabline, avg_tabline = measure(120, function()
     statusline.invalidate()
@@ -98,11 +97,6 @@ local function measure_redraw()
     statusline.project_label()
   end)
   report("project label", 250, total_project, avg_project)
-
-  local total_ops, avg_ops = measure(250, function()
-    ops.statusline_label()
-  end)
-  report("OPS label", 250, total_ops, avg_ops)
 end
 
 local function measure_save()
@@ -199,7 +193,7 @@ local function measure_focus()
     vim.api.nvim_exec_autocmds("FocusGained", { modeline = false })
     sleep(180)
   end)
-  report("focus settle", 3, settle_total, settle_avg, "includes OPS deferred write window")
+  report("focus settle", 3, settle_total, settle_avg, "includes deferred focus handlers")
 end
 
 print(string.format("Neovim runtime perf baseline for %s", root))

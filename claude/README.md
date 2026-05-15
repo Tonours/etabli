@@ -23,10 +23,6 @@ Claude commands are thin wrappers over that contract:
 - `/plan-implement`
 - `/implement`
 - `/review`
-- `/handoff`
-- `/handoff-implement`
-- `/ops-status`
-- `/ops-pi-status`
 
 Rules:
 
