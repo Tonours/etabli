@@ -1,91 +1,40 @@
 # Claude
 
-This folder contains Claude Code-specific artifacts and documents.
+Claude Code-specific files for `etabli`.
 
 ## Installed surface
 
 `scripts/install.sh` links:
-- `CLAUDE.md` to `~/.claude/CLAUDE.md`
-- root `../PLAN_TEMPLATE.md` to `~/.claude/PLAN_TEMPLATE.md`
-- `commands/*.md` to `~/.claude/commands/`
-- `skills/*` to `~/.claude/skills/`
-- shared workflow docs from `../workflow/` to `~/.claude/`
 
-## Shared workflow
+- `CLAUDE.md` -> `~/.claude/CLAUDE.md`
+- `../PLAN_TEMPLATE.md` -> `~/.claude/PLAN_TEMPLATE.md`
+- `commands/*.md` -> `~/.claude/commands/`
+- `skills/*` -> `~/.claude/skills/`
+- selected shared docs from `../workflow/` -> `~/.claude/`
 
-Canonical sources:
-- `../workflow/spec.md`
-- `../workflow/operating-model.md`
-- `../workflow/statuses.md`
-- `../workflow/review-rubric.md`
-- `../workflow/handoff-template.md`
-- `../profiles/README.md`
-- `../docs/profiles.md`
-- `../memory/projects/README.md`
+## Workflow
 
-Default flow across Pi + Claude:
+Canonical contract: `../workflow/spec.md`.
 
-- learn
-- phase-0 measure
-- plan
-- implement
-- review
-- handoff
+Claude commands are thin wrappers over that contract:
 
-Shared contract reminders:
-- `PLAN.md` is the single execution contract across Claude and Pi
-- the measurement contract, execution slices, implementation tracking, and review checkpoints all live inside `PLAN.md`
-- implementation starts only from `READY`
-- daily execution modes (`simple`, `standard`) live in `../workflow/operating-model.md`
-
-## Commands
-
-- `commands/plan-create.md` is the tracked source for `/plan` and creates or refreshes `PLAN.md` from `PLAN_TEMPLATE.md` with `Status: DRAFT`
-- `commands/plan-review.md` reviews `PLAN.md`, hardens it in place, and marks it `CHALLENGED` or `READY`
-- `commands/implement.md` is the direct continuation command after review and implements only from an existing `READY` `PLAN.md`
-- `commands/plan-loop.md` chains `plan` then `plan-review` in a single interactive loop
-- `commands/plan-implement.md` runs `plan-loop`, stops on `CHALLENGED`, and implements only from a `READY` `PLAN.md`
-- `commands/review.md` runs a focused review against uncommitted changes, a branch diff, or a commit using the shared review rubric
-- `commands/handoff.md` writes or refreshes `.pi/handoff.md` for session continuation using the shared handoff template
-- `commands/handoff-implement.md` writes or refreshes `.pi/handoff-implement.md` for implementation continuation from an existing `READY` `PLAN.md`
-- `commands/ops-status.md` reads the exported OPS snapshot for the current cwd and summarizes it without recomputing OPS logic
-- `commands/ops-pi-status.md` reads companion OPS files for TillDone/task/project state
-
-## Shared docs
-
-- `~/.claude/PLAN_TEMPLATE.md` is installed from `../PLAN_TEMPLATE.md`
-- `~/.claude/review-rubric.md` is installed from `../workflow/review-rubric.md`
-- `~/.claude/handoff-template.md` is installed from `../workflow/handoff-template.md`
-
-`verify` is no longer part of this workflow.
-
-## Repo workflow
-
-Preferred command surface:
-
-- inspect current repo state
-- create or refresh `PLAN.md`
-- implement only from `READY`
-- use focused review + QA before commit
-
-Because `PLAN.md` is gitignored and macOS filesystems are often case-insensitive, the repo does not track `commands/plan.md` directly. Installation maps `commands/plan-create.md` to `~/.claude/commands/plan.md`.
-
-## OPS snapshot consumer
-
-Claude can read the OPS snapshot exported by Neovim for the current cwd:
-
-- path: `~/.pi/status/<sanitized-cwd>.ops.json`
-- surface: `commands/ops-status.md`
+- `/plan` from `commands/plan-create.md`
+- `/plan-loop`
+- `/plan-implement`
+- `/implement`
+- `/review`
+- `/handoff`
+- `/handoff-implement`
+- `/ops-status`
+- `/ops-pi-status`
 
 Rules:
-- it is a read-only display projection
-- it does not refresh review state
-- it does not write workflow artifacts
-- it is intentionally thinner than the Neovim OPS cockpit
-- use `./scripts/test-ops-local.sh` for local automated verification before commit; the real Claude `/ops-status` runtime check stays manual
 
-## Profile fit
+- one execution artifact: `PLAN.md`
+- implement only from `Status: READY`
+- no `REVIEW.md`
+- review with `../workflow/review-rubric.md`
 
-- `../profiles/work/` is the default fit for Claude work-facing usage.
-- `../docs/profiles.md` is the user-facing guide for choosing between `personal` and `work`.
-- The workflow contract stays shared; profiles do not define a different status model.
+## Notes
+
+`commands/plan-create.md` installs as `/plan` because `PLAN.md` is gitignored and case-insensitive filesystems are common.

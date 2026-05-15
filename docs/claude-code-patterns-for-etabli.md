@@ -2,18 +2,17 @@
 
 Date: 2026-04-12
 
-This note is retained as historical context only.
+Historical note only.
 
-The current Pi runtime in `etabli` is intentionally much smaller than the earlier exploration documented here:
+The current runtime is intentionally smaller than earlier explorations:
 
 - no subagent runtime
 - no TillDone task gate
 - no damage-control layer
 - no Pi handoff extensions
 
-Use the current source of truth instead:
+Current sources of truth:
 
 - `README.md`
 - `workflow/spec.md`
-- `workflow/operating-model.md`
 - `docs/pi-cheatsheet.md`

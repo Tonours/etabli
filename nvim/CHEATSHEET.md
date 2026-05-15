@@ -95,4 +95,4 @@ Leader: `<Space>`
 - Copilot runs through Neovim's native LSP inline completion, not as an `nvim-cmp` source.
 - `Tab` first accepts a visible Copilot inline suggestion, then falls back to completion or a literal tab.
 - Press `<leader>` to let `which-key` remind you of grouped shortcuts.
-- `workflow/operating-model.md` remains the reference for the broader agent workflow.
+- `workflow/spec.md` remains the reference for the broader agent workflow.

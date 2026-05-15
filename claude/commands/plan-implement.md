@@ -1,5 +1,5 @@
 ---
-description: Create/review PLAN.md then implement it only when the plan is READY
+description: Plan, review, then implement only when PLAN.md is READY
 argument-hint: [task description]
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 ---
@@ -8,44 +8,15 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
-This is one uninterrupted flow: once `PLAN.md` reaches `READY`, continue directly into implementation in the same invocation.
-Do not ask for confirmation at the handoff from planning to implementation.
-Use `/implement` instead when an existing `PLAN.md` is already reviewed and `READY`.
+Follow `workflow/spec.md`.
 
-## Your task
+1. If `$ARGUMENTS` is present, run the `plan-loop` behavior first.
+2. If not, read existing `PLAN.md`.
+3. Never implement from `DRAFT` or `CHALLENGED`.
+4. If the plan is not `READY`, stop with blockers and next action.
+5. If `READY`, implement plan steps in order with minimal scope-bound changes.
+6. If facts invalidate the plan, update `PLAN.md` before continuing.
+7. Run focused checks.
+8. Return files changed, validation, risks, and final status.
 
-1. If `$ARGUMENTS` is present, run the full `plan-loop` flow first:
-   - inspect the current repository state and analyze the relevant codebase area
-   - resolve the plan template from the first existing file in this order and keep it as the exact base structure:
-     - `./PLAN_TEMPLATE.md`
-     - `~/.claude/PLAN_TEMPLATE.md`
-   - create or refresh `./PLAN.md` with `Status: DRAFT`
-   - make the phase-0 measurement contract explicit before `READY`
-   - make the phase-1 execution contract explicit before `READY`
-   - critique it and update it to `CHALLENGED` or `READY`
-2. If `$ARGUMENTS` is empty:
-   - read the existing `./PLAN.md`
-   - if it is missing, stop and ask for a task description or a pre-existing plan
-   - if it is not `READY`, critique it and update it to `CHALLENGED` or `READY`
-   - if that critique lands on `READY`, continue automatically into implementation in the same flow
-3. Never implement from a `DRAFT` or `CHALLENGED` plan.
-4. If `PLAN.md` is not `READY`, stop and return the blocker(s) plus the highest-impact plan changes still required.
-5. If `PLAN.md` is `READY`, implement immediately and strictly from it:
-   - follow the execution slices in order
-   - mark the active slice and keep light implementation state in `PLAN.md`
-   - load only the context needed for the current slice
-   - make the smallest change that advances the slice
-   - run the slice checks before moving on
-   - decide after each slice whether to continue, correct, or replan
-   - keep scope bounded to the plan
-   - if new facts invalidate the plan, update `PLAN.md` first and re-establish `Status: READY` before continuing
-6. Validate with the focused checks in `PLAN.md` plus the smallest directly relevant tests/typechecks for touched code.
-7. Never create `REVIEW.md`.
-8. Return:
-   - final `PLAN.md` status
-   - files changed
-   - validation run
-   - remaining risks / follow-ups
-
-If critical context is missing, ask only the narrowest blocking question.
-Never ask for confirmation just because `PLAN.md` became `READY`.
+Do not ask for confirmation once `READY`. Do not create `REVIEW.md`.
