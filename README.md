@@ -33,6 +33,7 @@ The underlying scripts live in `scripts/check-fix-symlinks.sh` and `scripts/fix-
 ## Repo map
 
 - `nvim/` - daily-driver Neovim config, including the diff-centric review workflow
+- `ghostty/` - tracked Ghostty terminal config
 - `claude/` - tracked Claude Code commands and workflow notes
 - `pi/` - Pi configuration, minimal workflow skills, lightweight extensions, themes, and agent settings
 - `workflow/` - canonical planning and review docs shared across runtimes
@@ -95,6 +96,7 @@ Typical flow in this repo:
 - the installer now links only the core Pi skills by default: `plan-loop`, `plan-implement`, `review`, `implement`, `caveman`, `ui`, `grill-me`
 - the default Pi extension loadout is `rtk.ts`, `filter-output.ts`, and `block-google-providers.ts`; damage-control is intentionally disabled by default
 - third-party Pi packages are kept explicit and filtered: `pi-hooks` only for LSP, `mitsupi` only for `github`/`commit`, `badlogic/pi-skills` only for `brave-search`, `pi-interview` for the interview tool, `pi-autoresearch` for experiment loops, and `glimpseui` installed without loading its standalone skill
+- Ghostty config lives in `ghostty/config` and is linked to `~/.config/ghostty/config` by the installer
 - tmux is configured for Pi with `extended-keys` and `extended-keys-format csi-u` so modified Enter keybindings stay distinct
 - `auth.json` and credentials are intentionally not tracked
 
