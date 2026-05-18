@@ -178,7 +178,16 @@ function M.setup_keymaps()
         vim.keymap.set("n", lhs, rhs, { buffer = bufnr, silent = true, desc = desc })
       end
 
-      map("gd", vim.lsp.buf.definition, "Definition")
+      map("gd", function()
+        local bufname = vim.api.nvim_buf_get_name(0)
+        if bufname:match("%.hbs$") then
+          local ok, ember = pcall(require, "config.ember.definition")
+          if ok and ember.goto_definition() then
+            return
+          end
+        end
+        vim.lsp.buf.definition()
+      end, "Definition")
       map("gr", function()
         local telescope = telescope_loader.require("telescope.builtin")
         if telescope then
