@@ -43,7 +43,8 @@ window-padding-x = 0
 window-padding-y = 0
 window-padding-balance = true
 window-padding-color = background
-macos-titlebar-style = hidden
+macos-titlebar-style = native
+macos-window-buttons = visible
 
 # Disable shell integration title override — keeps tmux window names fixed
 shell-integration-features = cursor,no-sudo,no-ssh-env,no-ssh-terminfo,path
