@@ -61,6 +61,40 @@ Claude:
 /review
 ```
 
+## Project harness
+
+Deploy the Etabli agent harness into a new or existing project:
+
+```bash
+deploy-harness ~/code/my-project
+deploy-harness . --dry-run
+```
+
+The harness installs:
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `workflow/spec.md`
+- `workflow/review-rubric.md`
+- `workflow/ticket-template.md`
+- `PLAN_TEMPLATE.md`
+- `PLAN_TEMPLATE_FULL.md`
+- `docs/agent-harness.md`
+- `docs/claude-code-harness.md`
+- `docs/project-context.md`
+
+Existing files are never overwritten by default. Review conflicts manually, or rerun with `--force` to create timestamped backups before replacing files.
+
+Validation:
+
+```bash
+tests/harness-smoke.sh
+tests/workflow-docs-smoke.sh
+RUN_AGENT_CLI_SMOKE=1 tests/harness-cli-smoke.sh
+```
+
+The CLI smoke test runs real Pi and Claude Code prompts in a temporary project. It is opt-in because it may use authenticated model calls.
+
 ## Config notes
 
 - `pi/agent/settings.json` is a tracked bootstrap/default; live `~/.pi/agent/settings.json` stays local.
@@ -74,6 +108,7 @@ Claude:
 - `workflow/review-rubric.md` - review output and priorities
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
+- `harness/templates/` - project harness templates
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes
 - `claude/README.md` - Claude installed surface

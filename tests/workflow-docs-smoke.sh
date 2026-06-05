@@ -33,11 +33,23 @@ assert_not_contains() {
 
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
+assert_file "$ROOT_DIR/harness/templates/AGENTS.md"
+assert_file "$ROOT_DIR/harness/templates/CLAUDE.md"
+assert_file "$ROOT_DIR/harness/templates/docs/claude-code-harness.md"
+assert_file "$ROOT_DIR/harness/templates/docs/project-context.md"
+assert_file "$ROOT_DIR/scripts/deploy-harness"
+assert_file "$ROOT_DIR/tests/harness-cli-smoke.sh"
 
 assert_contains "$ROOT_DIR/scripts/install.sh" 'workflow/$shared_doc'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'Claude CLAUDE.md linked'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'Claude skill'
+assert_contains "$ROOT_DIR/scripts/install.sh" 'deploy-harness'
+assert_contains "$ROOT_DIR/README.md" 'deploy-harness'
+assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
+assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
+assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'workflow/review-rubric.md'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'claude/review-rubric.md'
 assert_not_contains "$ROOT_DIR/claude/commands/plan-create.md" './claude/PLAN_TEMPLATE.md'

@@ -119,6 +119,7 @@ check_link "$HOME/.claude/skills/grill-me" "$REPO_DIR/claude/skills/grill-me" "c
 check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
+check_script_link "deploy-harness"
 
 printf '\nSummary: %d issue(s), %d fix(es) applied\n' "$ISSUES" "$FIXED"
 
