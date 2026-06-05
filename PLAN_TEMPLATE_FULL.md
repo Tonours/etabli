@@ -1,16 +1,20 @@
 # PLAN.md Full Template
 
-Use this for broad, risky, or multi-surface work.
+Use this for broad, risky, UI-heavy, multi-surface, or long-running work.
+Keep it as a restartable working contract, not a research essay.
 
 ## Meta
 - Subject:
-- Type: bugfix | feature | refactor
+- Type: bugfix | feature | refactor | migration | investigation
 - Status: DRAFT | CHALLENGED | READY
 - Source:
 - Last revised:
 
 ## Goal
 Describe in 1-3 sentences what will change and why it matters.
+
+## Acceptance Criteria
+- [ ] ...
 
 ## Problem
 - Current behavior:
@@ -24,29 +28,22 @@ Describe in 1-3 sentences what will change and why it matters.
 ### Out of scope / Non-goals
 -
 
-## Relevant Context
-- Product areas touched:
-- Likely components / files:
-- Existing constraints:
+## Facts And Assumptions
+### Observed Facts
+- file/path/command/source:
 
-## Measurement Contract
-- Outcome:
-- Primary checks:
-- Secondary checks:
-- Trace points:
-- Rollback / stop triggers:
-- Escalation triggers:
-- Diff budget:
+### Assumptions To Verify
+- None / ...
 
-## Invariants
-- Invariant:
+## Context Map
+- Product areas:
+- Likely files / modules:
+- Existing docs / source of truth:
+- Commands discovered:
 
-## Done Criteria
--
-
-## Chosen Approach
-Describe the selected approach and why it is proportionate to the problem.
-Mention rejected options only if they changed the decision.
+## Approach
+Describe the selected approach and why it is proportionate.
+Mention rejected options only when they changed the decision.
 
 ## Execution Slices
 ### Slice 1
@@ -61,37 +58,38 @@ Mention rejected options only if they changed the decision.
 - Checks:
 - Rollback point:
 
-## Implementation Tracking
-- Active slice:
-- Completed slices:
-- Pending checks:
-- Last validated state:
-- Next recommended action:
+## Validation Plan
+- Automated checks:
+- Manual checks:
+- UI/browser checks:
+- Regression risks to watch:
+- Evidence required for done:
 
-## Risks And Edge Cases
-- Risk / edge case:
+## Progress Log
+- YYYY-MM-DD:
+
+## Decision Log
+- YYYY-MM-DD:
+
+## Handoff State
+- Current state:
+- Last validated state:
+- Known failures:
+- Next action:
+
+## Risks
+- Risk:
   - Impact:
   - Mitigation:
-
-## Validation
-- Manual checks:
-- Automated checks:
-- Regressions to watch:
-- Visible success criteria:
-
-## Review Changes
-- Key weaknesses found during review:
-- Changes made after review:
-- Risks explicitly accepted:
 
 ## Open Questions
 - None / ...
 
 ## Ready Gate
-- [ ] Scope is clear and bounded
-- [ ] Non-goals are explicit
-- [ ] Done criteria are concrete
+- [ ] Goal and acceptance criteria are concrete
+- [ ] Scope and non-goals are bounded
+- [ ] Observed facts are separated from assumptions
 - [ ] Steps/slices are executable in order
-- [ ] Checks are named
-- [ ] Blocking questions are resolved or consciously accepted
-- [ ] Plan is ready for implementation
+- [ ] Checks are named and proportionate
+- [ ] Risks are identified or explicitly none
+- [ ] No blocking open questions remain

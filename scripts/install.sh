@@ -835,6 +835,7 @@ export PATH="$HOME/.local/bin:$PATH"
 install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
+install_script "deploy-harness" || true
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do

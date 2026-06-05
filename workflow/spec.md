@@ -25,6 +25,8 @@ Only `READY` authorizes implementation.
 - Do not create `REVIEW.md` or secondary mandatory planning docs.
 - For small safe tasks, use the simple `PLAN_TEMPLATE.md` shape.
 - For broad/risky work, use `PLAN_TEMPLATE_FULL.md`.
+- Keep observed facts separate from assumptions in plans.
+- Record exact validation commands and results before claiming completion.
 - Planning review updates `PLAN.md` in place.
 - Implementation follows plan steps in order.
 - If new facts invalidate the plan, update it before continuing.
@@ -40,7 +42,8 @@ A plan is `READY` when it has:
 - concrete steps
 - named files/areas for risky changes
 - checks to run
-- known risks or explicit “none”
+- known risks or explicit "none"
+- facts separated from assumptions when the task depends on uncertain context
 - no blocking open questions
 
 ## Runtime surfaces
@@ -50,6 +53,7 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/commands/`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
+- Project context: `docs/project-context.md` in harnessed projects
 - Review rubric: `workflow/review-rubric.md`
 - Ticket template: `workflow/ticket-template.md`
 
