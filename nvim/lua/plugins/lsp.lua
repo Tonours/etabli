@@ -169,16 +169,6 @@ local function has_prettier(filename)
   return false
 end
 
-local function server_is_available(name)
-  local required_commands = {
-    copilot = "copilot-language-server",
-    ts_ls = "typescript-language-server",
-  }
-
-  local command = required_commands[name]
-  return command == nil or vim.fn.executable(command) == 1
-end
-
 local function setup_servers()
   local capabilities = lsp.capabilities()
   local servers = lsp.servers()
@@ -206,7 +196,7 @@ local function setup_servers()
   })
 
   for name, server_opts in pairs(servers) do
-    if not server_is_available(name) then
+    if not lsp.server_is_available(name) then
       goto continue
     end
 
@@ -216,12 +206,14 @@ local function setup_servers()
     ::continue::
   end
 
-  vim.lsp.config("glint", {
-    root_dir = lsp.glint_root_dir,
-  })
-  vim.lsp.enable("glint")
+  if lsp.server_is_available("glint") then
+    vim.lsp.config("glint", {
+      root_dir = lsp.glint_root_dir,
+    })
+    vim.lsp.enable("glint")
+  end
 
-  if vim.fn.executable("intelephense") == 1 then
+  if lsp.server_is_available("intelephense") then
     vim.lsp.config("intelephense", {
       cmd = { "intelephense", "--stdio" },
     })

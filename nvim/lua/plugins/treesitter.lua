@@ -46,6 +46,7 @@ return {
           "json",
           "lua",
           "markdown",
+          "php",
           "scss",
           "yaml",
         },
@@ -60,7 +61,7 @@ return {
     config = function()
       local languages = {
         "bash", "css", "glimmer", "graphql", "html", "javascript",
-        "json", "lua", "markdown", "markdown_inline", "scss",
+        "json", "lua", "markdown", "markdown_inline", "php", "scss",
         "tsx", "typescript", "yaml",
       }
       local treesitter = require("nvim-treesitter")
