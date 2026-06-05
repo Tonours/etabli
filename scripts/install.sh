@@ -523,6 +523,10 @@ if npm install -g \
     prettier \
     eslint \
     intelephense \
+    vscode-langservers-extracted \
+    yaml-language-server \
+    @astrojs/language-server \
+    @glint/core \
     @github/copilot-language-server \
     @ember-tooling/ember-language-server \
     @tailwindcss/language-server; then

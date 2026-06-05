@@ -1,5 +1,7 @@
 local M = {}
 
+local lsp = require("config.lsp")
+
 local min_nvim = { 0, 12, 2 }
 local uv = vim.uv or vim.loop
 
@@ -37,10 +39,22 @@ local function executable_line(name, opts)
   local options = opts or {}
   local command = options.command or name
   local required = options.required ~= false
-  local available = vim.fn.executable(command) == 1
+  local path
 
-  if available then
-    return line("PASS", name, vim.fn.exepath(command))
+  if vim.fn.executable(command) == 1 then
+    path = vim.fn.exepath(command)
+  else
+    for _, candidate in ipairs(options.candidates or {}) do
+      local expanded = vim.fs.normalize(vim.fn.expand(candidate))
+      if vim.fn.executable(expanded) == 1 then
+        path = expanded
+        break
+      end
+    end
+  end
+
+  if path then
+    return line("PASS", name, path)
   end
 
   return line(required and "FAIL" or "WARN", name, "missing")
@@ -133,10 +147,18 @@ function M.lines(cwd)
     executable_line("rg"),
     executable_line("fd"),
     executable_line("node"),
-    executable_line("bun"),
-    executable_line("copilot-ls", { command = "copilot-language-server" }),
-    executable_line("ts-ls", { command = "typescript-language-server", required = false }),
-    executable_line("lua-ls", { command = "lua-language-server", required = false }),
+    executable_line("bun", { candidates = { "~/.bun/bin/bun" } }),
+    executable_line("copilot-ls", { command = lsp.server_command("copilot") }),
+    executable_line("ts-ls", { command = lsp.server_command("ts_ls"), required = false }),
+    executable_line("lua-ls", { command = lsp.server_command("lua_ls"), required = false }),
+    executable_line("tailwind-ls", { command = lsp.server_command("tailwindcss"), required = false }),
+    executable_line("ember-ls", { command = lsp.server_command("ember"), required = false }),
+    executable_line("php-ls", { command = lsp.server_command("intelephense"), required = false }),
+    executable_line("astro-ls", { command = lsp.server_command("astro"), required = false }),
+    executable_line("html-ls", { command = lsp.server_command("html"), required = false }),
+    executable_line("css-ls", { command = lsp.server_command("cssls"), required = false }),
+    executable_line("json-ls", { command = lsp.server_command("jsonls"), required = false }),
+    executable_line("yaml-ls", { command = lsp.server_command("yamlls"), required = false }),
     path_line("project-root", project_root),
     path_line("config-root", dotfiles_root),
     symlink_line("pi-agents", "~/.pi/agent/AGENTS.md", dotfiles_root .. "/pi/AGENTS.md"),

@@ -11,6 +11,21 @@ local glint_config_files = {
   "glint.config.js",
 }
 
+local server_commands = {
+  astro = "astro-ls",
+  copilot = "copilot-language-server",
+  cssls = "vscode-css-language-server",
+  ember = "ember-language-server",
+  glint = "glint-language-server",
+  html = "vscode-html-language-server",
+  intelephense = "intelephense",
+  jsonls = "vscode-json-language-server",
+  lua_ls = "lua-language-server",
+  tailwindcss = "tailwindcss-language-server",
+  ts_ls = "typescript-language-server",
+  yamlls = "yaml-language-server",
+}
+
 local function has_glint_dependency(package_json)
   local ok_read, lines = pcall(vim.fn.readfile, package_json)
   if not ok_read then
@@ -61,6 +76,15 @@ local function glint_root_dir(bufnr, on_dir)
 end
 
 M.glint_root_dir = glint_root_dir
+
+function M.server_command(name)
+  return server_commands[name]
+end
+
+function M.server_is_available(name)
+  local command = server_commands[name]
+  return command == nil or vim.fn.executable(command) == 1
+end
 
 function M.capabilities()
   local capabilities = vim.lsp.protocol.make_client_capabilities()
