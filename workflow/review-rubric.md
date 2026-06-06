@@ -51,6 +51,8 @@ For each issue include:
 - `review_comment:` one concise inline-ready comment suitable for a GitHub-style review thread, without code fences or tables
 - `suggested_fix:`
 
+Use `line_range:` instead of `line:` when the finding applies to multiple changed lines.
+
 If human arbitration is needed, add:
 - `human_checkpoint: yes`
 - why the reviewer is escalating
