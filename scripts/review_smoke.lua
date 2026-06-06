@@ -1071,6 +1071,13 @@ end
 
 assert_true(saw_stale, "expected previous review item to become stale after patch change")
 
+vim.fn.writefile({
+  "# Plan",
+  "",
+  "- Keep CLI review bounded.",
+  "- Preserve multiline review annotations.",
+}, repo .. "/PLAN.md")
+
 local prompt_a = prompts.build(matched, { provider = "Claude", action = "revise" })
 local prompt_b = prompts.build(matched, { provider = "Claude", action = "revise" })
 local review_prompt = prompts.build(matched, { provider = "Claude", action = "review" })
@@ -1098,6 +1105,7 @@ assert_true(prompt_a:match("demo%.txt") ~= nil, "prompt should include the file 
 assert_true(prompt_a:find("- Repo: " .. repo_root, 1, true) ~= nil, "prompt should include the repository root")
 assert_true(prompt_a:find("- Branch: " .. context.branch, 1, true) ~= nil, "prompt should include the repository branch")
 assert_true(prompt_a:find("- Changed lines: 9-10", 1, true) ~= nil, "prompt should include changed line coordinates")
+assert_true(prompt_a:find("- PLAN.md context:", 1, true) == nil, "revise prompts should stay focused and omit plan context")
 assert_true(prompt_a:match("Please simplify this change") ~= nil, "prompt should include the saved note")
 assert_true(prompt_a:match("\n    Keep the guard explicit%.") ~= nil, "prompt should indent multiline reviewer notes")
 assert_true(prompt_a:match("Existing review comments") ~= nil, "prompt should include review comments")
@@ -1111,6 +1119,11 @@ assert_true(
   "prompt should indent multiline review comment bodies"
 )
 assert_true(prompt_a:match("```diff") ~= nil, "prompt should include a diff block")
+assert_true(review_prompt:find("- PLAN.md context:", 1, true) ~= nil, "review prompt should include bounded plan context")
+assert_true(
+  review_prompt:find("    - Keep CLI review bounded.", 1, true) ~= nil,
+  "review prompt should include indented PLAN.md lines"
+)
 assert_true(review_prompt:match("first%-pass code review") ~= nil, "review prompt should request first-pass review")
 assert_true(review_prompt:match("Do not edit files") ~= nil, "review prompt should be read-only")
 assert_true(
@@ -1160,6 +1173,10 @@ assert_true(
 assert_true(
   count_plain(batch_review_prompt, "- Branch: " .. context.branch) == 1,
   "batch review prompt should not repeat shared branch context per hunk"
+)
+assert_true(
+  batch_review_prompt:find("- PLAN.md context:", 1, true) ~= nil,
+  "batch review prompt should include bounded plan context"
 )
 assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch review prompt should review the changeset")
 assert_true(
