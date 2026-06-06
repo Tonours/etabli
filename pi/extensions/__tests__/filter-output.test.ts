@@ -820,6 +820,54 @@ describe("filter-output", () => {
     expect(ctx.ui.notifications).toEqual([]);
   });
 
+  test("blocks interpreter heredocs that read sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: {
+          command: [
+            "python <<'PY'",
+            "print(open('.env.local').read())",
+            "PY",
+          ].join("\n"),
+        },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("allows interpreter heredocs that only mention sensitive filenames", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: ".env.local" }],
+        input: {
+          command: [
+            "python <<'PY'",
+            "print('.env.local')",
+            "PY",
+          ].join("\n"),
+        },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.ui.notifications).toEqual([]);
+  });
+
   test("allows search patterns that look like sensitive filenames when safe files are searched", async () => {
     const handler = setupExtension();
     const ctx = createContext();
