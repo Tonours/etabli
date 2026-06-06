@@ -102,6 +102,63 @@ local function append_hashed_paths(parts, label, paths, hashes)
   end
 end
 
+local function unique_sorted(paths)
+  local seen = {}
+  local unique = {}
+
+  for _, path in ipairs(paths) do
+    if path and path ~= "" and not seen[path] then
+      seen[path] = true
+      table.insert(unique, path)
+    end
+  end
+
+  table.sort(unique)
+  return unique
+end
+
+local function paths_from_raw_diff(raw)
+  local tokens = split_nul(raw)
+  local paths = {}
+  local index = 1
+
+  while index <= #tokens do
+    local header = tokens[index]
+    if vim.startswith(header, ":") then
+      local status = header:match("%s([A-Z][0-9]*)$")
+      local path = tokens[index + 1]
+      local next_index = index + 2
+
+      if status and (status:sub(1, 1) == "R" or status:sub(1, 1) == "C") then
+        path = tokens[index + 2]
+        next_index = index + 3
+      end
+
+      if status and status:sub(1, 1) ~= "D" and path and path ~= "" then
+        table.insert(paths, path)
+      end
+
+      index = next_index
+    else
+      index = index + 1
+    end
+  end
+
+  return unique_sorted(paths)
+end
+
+local function untracked_paths_from_status(status)
+  local paths = {}
+
+  for _, entry in ipairs(split_nul(status)) do
+    if vim.startswith(entry, "?? ") then
+      table.insert(paths, entry:sub(4))
+    end
+  end
+
+  return unique_sorted(paths)
+end
+
 function M.repo_change_signature(repo)
   if not repo or repo == "" then
     return nil
@@ -111,9 +168,8 @@ function M.repo_change_signature(repo)
   local status = git_output(repo, { "status", "--porcelain=v1", "--untracked-files=all", "-z" })
   local unstaged_raw = git_output(repo, { "diff", "--no-ext-diff", "--raw", "--full-index", "-z" })
   local staged_raw = git_output(repo, { "diff", "--cached", "--no-ext-diff", "--raw", "--full-index", "-z" })
-  local unstaged_paths_output = git_output(repo, { "diff", "--no-ext-diff", "--name-only", "--diff-filter=d", "-z" })
 
-  if not status or not unstaged_raw or not staged_raw or not unstaged_paths_output then
+  if not status or not unstaged_raw or not staged_raw then
     return nil
   end
 
@@ -121,26 +177,14 @@ function M.repo_change_signature(repo)
   append_signature_part(parts, "diff --raw --full-index -z", unstaged_raw)
   append_signature_part(parts, "diff --cached --raw --full-index -z", staged_raw)
 
-  local unstaged_paths = split_nul(unstaged_paths_output)
-  table.sort(unstaged_paths)
-  local unstaged_hashes = hash_paths(repo, unstaged_paths)
-  if not unstaged_hashes then
+  local unstaged_paths = paths_from_raw_diff(unstaged_raw)
+  local untracked_paths = untracked_paths_from_status(status)
+  local content_paths = unique_sorted(vim.list_extend(unstaged_paths, untracked_paths))
+  local content_hashes = hash_paths(repo, content_paths)
+  if not content_hashes then
     return nil
   end
-  append_hashed_paths(parts, "unstaged", unstaged_paths, unstaged_hashes)
-
-  local untracked_output = git_output(repo, { "ls-files", "--others", "--exclude-standard", "-z" })
-  if not untracked_output then
-    return nil
-  end
-
-  local untracked_paths = split_nul(untracked_output)
-  table.sort(untracked_paths)
-  local untracked_hashes = hash_paths(repo, untracked_paths)
-  if not untracked_hashes then
-    return nil
-  end
-  append_hashed_paths(parts, "untracked", untracked_paths, untracked_hashes)
+  append_hashed_paths(parts, "content", content_paths, content_hashes)
 
   return vim.fn.sha256(table.concat(parts, ""))
 end
