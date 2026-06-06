@@ -7,6 +7,7 @@ VERBOSE=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 ISSUES=0
 FIXED=0
+UNRESOLVED=0
 OS="$(uname -s)"
 PI_CORE_SKILLS=(
   "plan-loop"
@@ -68,6 +69,12 @@ repair_link() {
   local target_path="$2"
   local type_label="$3"
 
+  if [ ! -e "$target_path" ] && [ ! -L "$target_path" ]; then
+    UNRESOLVED=$((UNRESOLVED + 1))
+    status_line WARN "$type_label source missing; not linking to $target_path"
+    return 1
+  fi
+
   ensure_parent_dir "$link_path"
 
   if [ -e "$link_path" ] && [ ! -L "$link_path" ]; then
@@ -89,6 +96,13 @@ check_link() {
   local target_path="$2"
   local type_label="$3"
   local current=""
+
+  if [ ! -e "$target_path" ] && [ ! -L "$target_path" ]; then
+    ISSUES=$((ISSUES + 1))
+    UNRESOLVED=$((UNRESOLVED + 1))
+    status_line WARN "$type_label source missing (expected $target_path)"
+    return
+  fi
 
   if [ -L "$link_path" ]; then
     current="$(readlink "$link_path")"
@@ -166,8 +180,8 @@ check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-harness"
 
-printf '\nSummary: %d issue(s), %d fix(es) applied\n' "$ISSUES" "$FIXED"
+printf '\nSummary: %d issue(s), %d fix(es) applied, %d unresolved\n' "$ISSUES" "$FIXED" "$UNRESOLVED"
 
-if [ "$ISSUES" -gt 0 ] && [ "$FIX" -eq 0 ]; then
+if [ "$ISSUES" -gt 0 ] && { [ "$FIX" -eq 0 ] || [ "$UNRESOLVED" -gt 0 ]; }; then
   exit 1
 fi
