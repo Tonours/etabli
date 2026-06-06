@@ -99,10 +99,14 @@ local function provider_for(name)
   return provider
 end
 
+local function terminal_safe_input(input)
+  return tostring(input or ""):gsub("\027", "\\x1b")
+end
+
 local function launch_spec(provider, prompt)
   return {
     command = { provider.command },
-    input = prompt,
+    input = terminal_safe_input(prompt),
     mode = "terminal-paste",
   }
 end
