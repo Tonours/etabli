@@ -82,6 +82,32 @@ function remember(cache: Map<string, string>, key: string, value: string, maxEnt
   runtimeState.cacheSize = cache.size;
 }
 
+function updateFingerprint(hash: bigint, text: string): bigint {
+  let nextHash = hash;
+  for (let index = 0; index < text.length; index += 1) {
+    nextHash ^= BigInt(text.charCodeAt(index));
+    nextHash = BigInt.asUintN(64, nextHash * 1099511628211n);
+  }
+  return nextHash;
+}
+
+function envFingerprint(env: RewriteEnv): string {
+  if (!env) return "none";
+
+  let hash = 14695981039346656037n;
+  for (const key of Object.keys(env).sort()) {
+    const value = env[key];
+    hash = updateFingerprint(hash, `${key.length}:${key}`);
+    hash = updateFingerprint(hash, value === undefined ? ":-1:" : `:${value.length}:${value}`);
+  }
+
+  return hash.toString(16).padStart(16, "0");
+}
+
+function cacheKeyFor(command: string, fingerprint: string): string {
+  return `${command}\0env:${fingerprint}`;
+}
+
 export function prependPathToEnv(env: RewriteEnv, pathPrefix: string | null): RewriteEnv {
   if (!pathPrefix) return env;
   return {
@@ -109,16 +135,11 @@ export function createRtkCommandRewriter(
   config: ManagedRtkConfig,
 ): (command: string, env?: RewriteEnv) => string {
   const cache = new Map<string, string>();
-  let disabled = false;
+  const disabledFingerprints = new Set<string>();
   resetRtkRuntimeState();
 
   return (command: string, env?: RewriteEnv): string => {
     if (command.trim().length === 0) return command;
-
-    if (disabled) {
-      noteBypass("missing-binary");
-      return command;
-    }
 
     const bypassReason = findBypassReason(command, config);
     if (bypassReason) {
@@ -126,7 +147,15 @@ export function createRtkCommandRewriter(
       return command;
     }
 
-    const cached = cache.get(command);
+    const fingerprint = envFingerprint(env);
+
+    if (disabledFingerprints.has(fingerprint)) {
+      noteBypass("missing-binary");
+      return command;
+    }
+
+    const cacheKey = cacheKeyFor(command, fingerprint);
+    const cached = cache.get(cacheKey);
     if (cached) {
       runtimeState.cacheHits += 1;
       return cached;
@@ -138,19 +167,19 @@ export function createRtkCommandRewriter(
       const rewritten = runRewrite(command, env).trim();
       const resolved = rewritten.length > 0 && rewritten !== command ? rewritten : command;
       if (resolved !== command) runtimeState.rewrites += 1;
-      remember(cache, command, resolved, config.maxCacheEntries);
+      remember(cache, cacheKey, resolved, config.maxCacheEntries);
       return resolved;
     } catch (error) {
       if (isMissingBinaryError(error)) {
-        disabled = true;
+        disabledFingerprints.add(fingerprint);
         runtimeState.disabled = true;
         noteBypass("missing-binary");
-        remember(cache, command, command, config.maxCacheEntries);
+        remember(cache, cacheKey, command, config.maxCacheEntries);
         return command;
       }
 
       if (isExpectedNoRewriteError(error)) {
-        remember(cache, command, command, config.maxCacheEntries);
+        remember(cache, cacheKey, command, config.maxCacheEntries);
       }
 
       return command;

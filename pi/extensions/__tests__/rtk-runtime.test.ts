@@ -81,6 +81,20 @@ describe("createRtkCommandRewriter", () => {
     expect(getRtkRuntimeState().cacheHits).toBe(1);
   });
 
+  test("scopes rewrite cache entries by execution environment", () => {
+    let calls = 0;
+    const rewrite = createRtkCommandRewriter((command, env) => {
+      calls += 1;
+      return `rtk:${env?.PATH}:${command}`;
+    }, DEFAULT_CONFIG);
+
+    expect(rewrite("git status", { PATH: "/tmp/asdf-a" })).toBe("rtk:/tmp/asdf-a:git status");
+    expect(rewrite("git status", { PATH: "/tmp/asdf-b" })).toBe("rtk:/tmp/asdf-b:git status");
+    expect(rewrite("git status", { PATH: "/tmp/asdf-a" })).toBe("rtk:/tmp/asdf-a:git status");
+    expect(calls).toBe(2);
+    expect(getRtkRuntimeState().cacheHits).toBe(1);
+  });
+
   test("caches expected no-rewrite failures as the original command", () => {
     let calls = 0;
     const rewrite = createRtkCommandRewriter(() => {
@@ -103,6 +117,21 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git status")).toBe("git status");
     expect(rewrite("ls -la")).toBe("ls -la");
     expect(calls).toBe(1);
+    expect(getRtkRuntimeState().disabled).toBe(true);
+  });
+
+  test("scopes missing-binary bypasses by execution environment", () => {
+    let calls = 0;
+    const rewrite = createRtkCommandRewriter((command, env) => {
+      calls += 1;
+      if (env?.PATH === "/tmp/missing") throw { code: "ENOENT" };
+      return `rtk:${command}`;
+    }, DEFAULT_CONFIG);
+
+    expect(rewrite("git status", { PATH: "/tmp/missing" })).toBe("git status");
+    expect(rewrite("git status", { PATH: "/tmp/found" })).toBe("rtk:git status");
+    expect(rewrite("git diff", { PATH: "/tmp/missing" })).toBe("git diff");
+    expect(calls).toBe(2);
     expect(getRtkRuntimeState().disabled).toBe(true);
   });
 
