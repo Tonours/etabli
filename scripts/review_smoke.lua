@@ -351,6 +351,31 @@ assert_true(
   "repo change signature should detect content changes inside an already dirty file"
 )
 
+local staged_signature_repo = vim.fn.tempname()
+vim.fn.mkdir(staged_signature_repo, "p")
+git(staged_signature_repo, { "init" })
+vim.fn.writefile({ "before" }, staged_signature_repo .. "/staged.txt")
+git(staged_signature_repo, { "add", "staged.txt" })
+git(staged_signature_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "staged one" }, staged_signature_repo .. "/staged.txt")
+git(staged_signature_repo, { "add", "staged.txt" })
+local staged_signature_a = review.repo_change_signature(staged_signature_repo)
+vim.fn.writefile({ "staged two" }, staged_signature_repo .. "/staged.txt")
+git(staged_signature_repo, { "add", "staged.txt" })
+local staged_signature_b = review.repo_change_signature(staged_signature_repo)
+assert_true(
+  staged_signature_a ~= staged_signature_b,
+  "repo change signature should detect content changes inside staged files"
+)
+
 local original_system_for_signature = vim.system
 local binary_signature_commands = 0
 vim.system = function(command, opts)
@@ -437,18 +462,36 @@ local original_system_for_signature_commands = vim.system
 local signature_hash_processes = 0
 local signature_ls_files_processes = 0
 local signature_name_only_processes = 0
+local signature_unstaged_raw_processes = 0
 vim.system = function(command, opts)
   if type(command) == "table" and command[1] == "git" then
     if command[4] == "hash-object" then
       signature_hash_processes = signature_hash_processes + 1
     elseif command[4] == "ls-files" then
       signature_ls_files_processes = signature_ls_files_processes + 1
-    else
+    end
+
+    for _, arg in ipairs(command) do
+      if arg == "--name-only" then
+        signature_name_only_processes = signature_name_only_processes + 1
+        break
+      end
+    end
+
+    if command[4] == "diff" then
+      local has_raw = false
+      local has_cached = false
+
       for _, arg in ipairs(command) do
-        if arg == "--name-only" then
-          signature_name_only_processes = signature_name_only_processes + 1
-          break
+        if arg == "--raw" then
+          has_raw = true
+        elseif arg == "--cached" then
+          has_cached = true
         end
+      end
+
+      if has_raw and not has_cached then
+        signature_unstaged_raw_processes = signature_unstaged_raw_processes + 1
       end
     end
   end
@@ -464,7 +507,8 @@ vim.system = original_system_for_signature_commands
 assert_true(ok_signature_command_budget, signature_command_budget_err or "repo signature command budget fixture failed")
 assert_true(signature_hash_processes == 1, "repo change signature should batch all content hashing")
 assert_true(signature_ls_files_processes == 0, "repo change signature should reuse status output for untracked paths")
-assert_true(signature_name_only_processes == 0, "repo change signature should reuse raw diff output for unstaged paths")
+assert_true(signature_name_only_processes == 0, "repo change signature should avoid name-only diff discovery")
+assert_true(signature_unstaged_raw_processes == 0, "repo change signature should reuse status output for unstaged paths")
 
 local untracked_diff_batch_repo = vim.fn.tempname()
 vim.fn.mkdir(untracked_diff_batch_repo, "p")

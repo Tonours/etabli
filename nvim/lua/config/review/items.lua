@@ -117,43 +117,33 @@ local function unique_sorted(paths)
   return unique
 end
 
-local function paths_from_raw_diff(raw)
-  local tokens = split_nul(raw)
+local function content_paths_from_status(status)
+  local tokens = split_nul(status)
   local paths = {}
   local index = 1
 
   while index <= #tokens do
-    local header = tokens[index]
-    if vim.startswith(header, ":") then
-      local status = header:match("%s([A-Z][0-9]*)$")
-      local path = tokens[index + 1]
-      local next_index = index + 2
+    local entry = tokens[index]
+    local code = entry:sub(1, 2)
+    local path = entry:sub(4)
+    local next_index = index + 1
 
-      if status and (status:sub(1, 1) == "R" or status:sub(1, 1) == "C") then
-        path = tokens[index + 2]
-        next_index = index + 3
+    if code == "??" then
+      table.insert(paths, path)
+    elseif #entry >= 4 then
+      local index_status = code:sub(1, 1)
+      local worktree_status = code:sub(2, 2)
+
+      if index_status == "R" or index_status == "C" or worktree_status == "R" or worktree_status == "C" then
+        next_index = index + 2
       end
 
-      if status and status:sub(1, 1) ~= "D" and path and path ~= "" then
+      if worktree_status ~= " " and worktree_status ~= "D" then
         table.insert(paths, path)
       end
-
-      index = next_index
-    else
-      index = index + 1
     end
-  end
 
-  return unique_sorted(paths)
-end
-
-local function untracked_paths_from_status(status)
-  local paths = {}
-
-  for _, entry in ipairs(split_nul(status)) do
-    if vim.startswith(entry, "?? ") then
-      table.insert(paths, entry:sub(4))
-    end
+    index = next_index
   end
 
   return unique_sorted(paths)
@@ -166,20 +156,16 @@ function M.repo_change_signature(repo)
 
   local parts = {}
   local status = git_output(repo, { "status", "--porcelain=v1", "--untracked-files=all", "-z" })
-  local unstaged_raw = git_output(repo, { "diff", "--no-ext-diff", "--raw", "--full-index", "-z" })
   local staged_raw = git_output(repo, { "diff", "--cached", "--no-ext-diff", "--raw", "--full-index", "-z" })
 
-  if not status or not unstaged_raw or not staged_raw then
+  if not status or not staged_raw then
     return nil
   end
 
   append_signature_part(parts, "status --porcelain=v1 --untracked-files=all -z", status)
-  append_signature_part(parts, "diff --raw --full-index -z", unstaged_raw)
   append_signature_part(parts, "diff --cached --raw --full-index -z", staged_raw)
 
-  local unstaged_paths = paths_from_raw_diff(unstaged_raw)
-  local untracked_paths = untracked_paths_from_status(status)
-  local content_paths = unique_sorted(vim.list_extend(unstaged_paths, untracked_paths))
+  local content_paths = content_paths_from_status(status)
   local content_hashes = hash_paths(repo, content_paths)
   if not content_hashes then
     return nil
