@@ -202,7 +202,7 @@ function M.build_batch(items, opts)
     action == "review"
         and string.format("Review the %d diff hunks below as one local changeset.", #items)
       or string.format("Work through the %d diff hunks below one by one.", #items),
-    action == "review" and "Do not invent findings outside the provided hunks unless you label them as assumptions."
+    action == "review" and "Do not invent findings outside the provided hunks; put context gaps in open questions or assumptions, not findings."
       or "Do not invent changes outside the provided hunks.",
     "",
     "Batch context:",
