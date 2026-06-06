@@ -409,6 +409,36 @@ assert_true(long_spec.command[1] == "claude", "large prompt dispatch should stil
 assert_true(long_spec.command[2] == nil, "large prompt dispatch should not pass the full prompt as argv")
 assert_true(long_spec.input == long_prompt, "large prompt dispatch should queue the full prompt as terminal input")
 
+local fenced_file = repo .. "/fenced.md"
+vim.fn.writefile({ "before" }, fenced_file)
+git(repo, { "add", "fenced.md" })
+git(repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "add fenced file",
+})
+vim.fn.writefile({ "```" }, fenced_file)
+diff.clear_cache()
+vim.cmd.edit(vim.fn.fnameescape(fenced_file))
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+local ok_show, show_err = pcall(function()
+  review.show_current_hunk()
+end)
+assert_true(ok_show, show_err or "show current hunk failed")
+local scratch_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+assert_true(
+  scratch_text:find("\n````diff\n", 1, true) ~= nil,
+  "review hunk scratch should expand diff fences when patch contains backticks"
+)
+assert_true(
+  select(2, scratch_text:gsub("\n````", "")) == 2,
+  "review hunk scratch should open and close expanded diff fences"
+)
+
 local second_file = repo .. "/second.txt"
 vim.fn.writefile({ "alpha", "beta", "gamma" }, second_file)
 git(repo, { "add", "second.txt" })

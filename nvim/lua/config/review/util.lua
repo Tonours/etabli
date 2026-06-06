@@ -54,6 +54,25 @@ function M.open_scratch(title, lines, filetype)
   return buf
 end
 
+function M.diff_fence_for(text)
+  local longest = 0
+
+  for run in tostring(text or ""):gmatch("`+") do
+    longest = math.max(longest, #run)
+  end
+
+  return string.rep("`", math.max(3, longest + 1))
+end
+
+function M.append_fenced_block(lines, language, body)
+  local fence = M.diff_fence_for(body)
+  local suffix = language and language ~= "" and language or ""
+
+  table.insert(lines, fence .. suffix)
+  vim.list_extend(lines, vim.split(body or "", "\n", { plain = true }))
+  table.insert(lines, fence)
+end
+
 function M.open_overlay(title, lines, opts)
   local options = opts or {}
   local buf = vim.api.nvim_create_buf(false, true)

@@ -97,11 +97,8 @@ local function comment_range_label(comment)
 end
 
 local function render_item(item)
-  -- Pre-calculate lines for better performance with exact allocation
-  local patch_lines = vim.split(item.patch, "\n", { plain = true })
   local has_note = item.note and item.note ~= ""
   local comments = item.comments or {}
-  -- Pre-allocate with exact size: 11 base + patch_lines + (1 if note)
   local lines = vim.list_extend({
     "# Review Hunk",
     "",
@@ -114,14 +111,11 @@ local function render_item(item)
   }, has_note and {
     string.format("- Note: %s", item.note),
     "",
-    "```diff",
   } or {
     "",
-    "```diff",
   })
 
-  vim.list_extend(lines, patch_lines)
-  table.insert(lines, "```")
+  util.append_fenced_block(lines, "diff", item.patch)
 
   if #comments > 0 then
     vim.list_extend(lines, { "", "## Review comments" })
