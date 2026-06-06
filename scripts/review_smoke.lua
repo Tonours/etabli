@@ -1136,6 +1136,10 @@ assert_true(review_prompt:match("Findings must come first") ~= nil, "review prom
 assert_true(review_prompt:match("Verify every reported line or range exists in the supplied diff") ~= nil, "review prompt should guard diff coordinates")
 assert_true(review_prompt:match("review_comment") ~= nil, "review prompt should request inline-ready comment text")
 assert_true(
+  review_prompt:match("Anchor every line: or line_range: to the Changed lines") ~= nil,
+  "review prompt should anchor inline findings to changed lines"
+)
+assert_true(
   review_prompt:match("severity:, file:, line: or line_range:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
   "review prompt should require stable finding labels for inline review extraction"
 )
@@ -1195,6 +1199,10 @@ assert_true(
 assert_true(
   batch_review_prompt:match("severity:, file:, hunk:, line: or line_range:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
   "batch review prompt should require stable finding labels for inline review extraction"
+)
+assert_true(
+  batch_review_prompt:match("Anchor every line: or line_range: to that hunk's Changed lines") ~= nil,
+  "batch review prompt should anchor inline findings to each hunk's changed lines"
 )
 assert_true(
   batch_review_prompt:match("spans multiple changed lines") ~= nil,
