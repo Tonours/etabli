@@ -123,6 +123,12 @@ export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
+  const searchPathOptionNames = new Set([
+    "--glob",
+    "--iglob",
+    "--include",
+    "-g",
+  ]);
   const sensitiveCommandPatterns: RegExp[] = [
     /\bprintenv\b/,
     /\benv\s*$/m,
@@ -170,13 +176,47 @@ export default function (pi: ExtensionAPI) {
     const tokens = args
       .split(/\s+/)
       .map((token) => token.replace(/^['"]|['"]$/g, ""))
-      .filter((token) => token !== "" && !token.startsWith("-"));
+      .filter((token) => token !== "");
 
     if (!searchCommands.has(commandName.toLowerCase())) {
-      return tokens;
+      return tokens.filter((token) => !token.startsWith("-"));
     }
 
-    return tokens.slice(1);
+    const pathTokens: string[] = [];
+    let patternSeen = false;
+    let nextTokenIsPathOptionValue = false;
+
+    for (const token of tokens) {
+      if (nextTokenIsPathOptionValue) {
+        pathTokens.push(token);
+        nextTokenIsPathOptionValue = false;
+        continue;
+      }
+
+      const optionWithValue = token.match(/^(--(?:glob|iglob|include))=(.+)$/);
+      if (optionWithValue) {
+        pathTokens.push(optionWithValue[2]);
+        continue;
+      }
+
+      if (searchPathOptionNames.has(token)) {
+        nextTokenIsPathOptionValue = true;
+        continue;
+      }
+
+      if (token.startsWith("-")) {
+        continue;
+      }
+
+      if (!patternSeen) {
+        patternSeen = true;
+        continue;
+      }
+
+      pathTokens.push(token);
+    }
+
+    return pathTokens;
   }
 
   function readsSensitiveFile(command: string): boolean {

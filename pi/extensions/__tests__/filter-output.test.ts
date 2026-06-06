@@ -184,6 +184,25 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks search commands that include sensitive file globs", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
+        input: { command: "rg --glob .env.local PUBLIC_API_URL ." },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("blocks search commands that read other sensitive files", async () => {
     const handler = setupExtension();
     const ctx = createContext();
