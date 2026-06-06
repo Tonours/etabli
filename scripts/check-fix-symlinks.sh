@@ -161,6 +161,8 @@ check_claude_skill_links() {
 }
 
 check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
+check_link "$HOME/.tmux.conf" "$REPO_DIR/tmux.conf" "tmux config"
+check_link "$HOME/.config/ghostty/config" "$REPO_DIR/ghostty/config" "ghostty config"
 check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
 check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
 check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
