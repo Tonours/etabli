@@ -163,6 +163,23 @@ local function normalize_comments(comments)
   return normalized
 end
 
+local function comments_for_item(comments, item)
+  local normalized = normalize_comments(comments)
+  if not item or not item.line_start or not item.line_end then
+    return normalized
+  end
+
+  local filtered = {}
+
+  for _, comment in ipairs(normalized) do
+    if diff.hunk_contains_line(item, comment.line) and diff.hunk_contains_line(item, comment.end_line) then
+      table.insert(filtered, comment)
+    end
+  end
+
+  return filtered
+end
+
 local function comment_id_exists(comments, id)
   for _, comment in ipairs(comments) do
     if comment.id == id then
@@ -286,10 +303,11 @@ function M.merge_items(context, current_items)
 
   for _, item in ipairs(current_items) do
     local saved = stored.items[item.fingerprint]
+    local saved_comments = saved and comments_for_item(saved.comments, item) or {}
     local combined = vim.tbl_extend("force", item, {
       branch = context.branch,
       note = saved and saved.note or "",
-      comments = saved and normalize_comments(saved.comments) or {},
+      comments = saved_comments,
       status = saved and saved.status or "new",
       updated_at = saved and saved.updated_at or nil,
       stale = false,
@@ -300,7 +318,7 @@ function M.merge_items(context, current_items)
   end
 
   for fingerprint, saved in pairs(stored.items) do
-    local saved_comments = normalize_comments(saved.comments)
+    local saved_comments = comments_for_item(saved.comments, saved)
     local has_comment = not vim.tbl_isempty(saved_comments)
     if not seen[fingerprint] and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new" or has_comment) then
       local stale = vim.deepcopy(saved)
