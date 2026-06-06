@@ -452,6 +452,133 @@ local function prompt_for_status(item, opts)
   end)
 end
 
+local function finish_comment(item, line, end_line, body, opts)
+  local options = opts or {}
+
+  if body == nil then
+    if options.on_done then
+      options.on_done()
+    end
+    return
+  end
+
+  local _, err = state.add_comment({ repo = item.repo, branch = item.branch }, item, {
+    body = body,
+    line = line,
+    end_line = end_line,
+  })
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
+    if options.on_done then
+      options.on_done()
+    end
+    return
+  end
+
+  vim.notify("Review comment added", vim.log.levels.INFO)
+  clear_repo_items_cache()
+  annotations.refresh_repo(item.repo)
+
+  if options.on_done then
+    options.on_done()
+  end
+end
+
+local function comment_editor_geometry()
+  local available_width = math.max(30, vim.o.columns - 6)
+  local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), available_width)
+  local available_height = math.max(8, vim.o.lines - 6)
+  local height = math.min(math.max(10, math.floor(vim.o.lines * 0.38)), available_height)
+
+  return {
+    col = math.max(0, math.floor((vim.o.columns - width) / 2)),
+    height = height,
+    row = math.max(0, math.floor((vim.o.lines - height) / 2)),
+    width = width,
+  }
+end
+
+local function open_comment_editor(item, line, end_line, target, opts)
+  local options = opts or {}
+  local origin_win = vim.api.nvim_get_current_win()
+  local geometry = comment_editor_geometry()
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  local winid = vim.api.nvim_open_win(bufnr, true, {
+    border = "rounded",
+    col = geometry.col,
+    height = geometry.height,
+    relative = "editor",
+    row = geometry.row,
+    style = "minimal",
+    title = string.format("Review comment %s", target),
+    title_pos = "center",
+    width = geometry.width,
+    zindex = 95,
+  })
+
+  vim.bo[bufnr].buftype = "nofile"
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].filetype = "markdown"
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].modifiable = true
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "" })
+
+  local closed = false
+
+  local function close()
+    if winid and vim.api.nvim_win_is_valid(winid) then
+      pcall(vim.api.nvim_win_close, winid, true)
+    end
+
+    if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    end
+
+    if origin_win and vim.api.nvim_win_is_valid(origin_win) then
+      pcall(vim.api.nvim_set_current_win, origin_win)
+    end
+  end
+
+  local function submit()
+    if closed then
+      return
+    end
+
+    closed = true
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    close()
+    finish_comment(item, line, end_line, table.concat(lines, "\n"), options)
+  end
+
+  local function cancel()
+    if closed then
+      return
+    end
+
+    closed = true
+    close()
+    if options.on_done then
+      options.on_done()
+    end
+  end
+
+  for _, mode in ipairs({ "n", "i" }) do
+    vim.keymap.set(mode, "<C-s>", submit, {
+      buffer = bufnr,
+      desc = "Save review comment",
+      nowait = true,
+      silent = true,
+    })
+  end
+
+  vim.keymap.set("n", "ZZ", submit, { buffer = bufnr, desc = "Save review comment", nowait = true, silent = true })
+  vim.keymap.set("n", "ZQ", cancel, { buffer = bufnr, desc = "Cancel review comment", nowait = true, silent = true })
+  vim.keymap.set("n", "q", cancel, { buffer = bufnr, desc = "Cancel review comment", nowait = true, silent = true })
+  vim.keymap.set("n", "<Esc>", cancel, { buffer = bufnr, desc = "Cancel review comment", nowait = true, silent = true })
+
+  vim.cmd.startinsert()
+end
+
 local function prompt_for_comment(item, opts)
   local options = opts or {}
   local line = options.line or item.line_start or 1
@@ -462,36 +589,15 @@ local function prompt_for_comment(item, opts)
   local target = line == end_line and string.format("%s:%d", item.path, line)
     or string.format("%s:%d-%d", item.path, line, end_line)
 
+  if #vim.api.nvim_list_uis() > 0 then
+    open_comment_editor(item, line, end_line, target, options)
+    return
+  end
+
   vim.ui.input({
     prompt = string.format("Review comment %s: ", target),
   }, function(input)
-    if input == nil then
-      if options.on_done then
-        options.on_done()
-      end
-      return
-    end
-
-    local _, err = state.add_comment({ repo = item.repo, branch = item.branch }, item, {
-      body = input,
-      line = line,
-      end_line = end_line,
-    })
-    if err then
-      vim.notify(err, vim.log.levels.ERROR)
-      if options.on_done then
-        options.on_done()
-      end
-      return
-    end
-
-    vim.notify("Review comment added", vim.log.levels.INFO)
-    clear_repo_items_cache()
-    annotations.refresh_repo(item.repo)
-
-    if options.on_done then
-      options.on_done()
-    end
+    finish_comment(item, line, end_line, input, options)
   end)
 end
 

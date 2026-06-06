@@ -159,7 +159,7 @@ vim.ui.input = function(input_opts, on_confirm)
     input_opts.prompt:match("demo%.txt:9%-10") ~= nil,
     "range annotation prompt should include the selected target"
   )
-  on_confirm("Range comment created through ReviewAnnotate.")
+  on_confirm("Range comment created through ReviewAnnotate.\nSecond line from a multiline comment.")
 end
 
 local ok_annotate, annotate_err = pcall(function()
@@ -178,8 +178,8 @@ end
 
 assert_true(#matched.comments == 3, "range annotation command should save another review comment")
 assert_true(
-  matched.comments[3].body == "Range comment created through ReviewAnnotate.",
-  "range annotation command should save the entered comment body"
+  matched.comments[3].body == "Range comment created through ReviewAnnotate.\nSecond line from a multiline comment.",
+  "range annotation command should save the entered multiline comment body"
 )
 assert_true(matched.comments[3].line == 9, "range annotation command should save the start line")
 assert_true(matched.comments[3].end_line == 10, "range annotation command should save the end line")
@@ -262,6 +262,10 @@ assert_true(prompt_a:match("demo%.txt") ~= nil, "prompt should include the file 
 assert_true(prompt_a:match("Please simplify this change") ~= nil, "prompt should include the saved note")
 assert_true(prompt_a:match("Existing review comments") ~= nil, "prompt should include review comments")
 assert_true(prompt_a:match("lines 9%-10") ~= nil, "prompt should include multiline review ranges")
+assert_true(
+  prompt_a:match("Second line from a multiline comment") ~= nil,
+  "prompt should include multiline review comment bodies"
+)
 assert_true(prompt_a:match("```diff") ~= nil, "prompt should include a diff block")
 assert_true(review_prompt:match("first%-pass code review") ~= nil, "review prompt should request first-pass review")
 assert_true(review_prompt:match("Do not edit files") ~= nil, "review prompt should be read-only")

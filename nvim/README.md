@@ -26,6 +26,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Inbox: `<leader>ri` or `:ReviewInbox [status]`
 - Current hunk: `<leader>rh` preview, `<leader>ra` comment line or visual range, `<leader>rr` resolve conversation, `<leader>rs` status, `<leader>rA` accept
 - Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers
+- Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk navigation: `[h`, `]h`
 - Claude: `<leader>rc` revise, `<leader>rC` explain
 - Pi: `<leader>rp` revise, `<leader>rP` explain
