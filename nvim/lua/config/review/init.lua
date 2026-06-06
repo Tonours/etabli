@@ -521,8 +521,11 @@ local function show_inbox_help(opts)
     "- :ReviewExport [markdown|json] exports the pending transaction",
     "- :ReviewClaudeBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewPiBatch [status] prepare one prompt for all live hunks with that status",
-    "- :ReviewClaudeReview [status|all] launch a first-pass Claude code review",
-    "- :ReviewPiReview [status|all] launch a first-pass Pi code review",
+    "- :ReviewClaudeReview [status|all|changed-only] launch a first-pass Claude code review",
+    "- :ReviewPiReview [status|all|changed-only] launch a first-pass Pi code review",
+    "- :ReviewIngestClaude [file] imports structured Claude findings from a file or unnamed register",
+    "- :ReviewIngestPi [file] imports structured Pi findings from a file or unnamed register",
+    "- :ReviewCompareAgents compares Pi and Claude findings for the current hunk",
     "- <leader>rA accepts the current hunk quickly",
     "- <leader>rbc and <leader>rbp run the default needs-rework batch commands",
     "- <leader>rvc and <leader>rvp run first-pass review commands",
@@ -604,9 +607,37 @@ local function prepare_batch(provider, status)
   end
 end
 
-local function prepare_review(provider, status)
-  local normalized_status = normalize_status(status, { allow_all = true })
+local function normalize_review_target(target)
+  if target == nil or target == "" or target == "all" then
+    return {
+      label = "all live staged and unstaged hunks",
+      slug = "all",
+    }
+  end
+
+  if target == "changed-only" then
+    return {
+      filter = "changed-since-review",
+      label = "changed since last review",
+      slug = "changed-only",
+    }
+  end
+
+  local normalized_status = normalize_status(target)
   if normalized_status == false then
+    return false
+  end
+
+  return {
+    label = string.format("review status: %s", normalized_status),
+    slug = normalized_status,
+    status = normalized_status,
+  }
+end
+
+local function prepare_review(provider, target)
+  local review_target = normalize_review_target(target)
+  if review_target == false then
     return
   end
 
@@ -617,38 +648,104 @@ local function prepare_review(provider, status)
   end
 
   local items = repo_items(context, {
+    filter = review_target.filter,
     include_stale = false,
-    status = normalized_status,
+    status = review_target.status,
   })
 
   if not items or vim.tbl_isempty(items) then
-    local label = normalized_status and string.format(" with status %s", normalized_status) or ""
+    local label = review_target.label and string.format(" for %s", review_target.label) or ""
     vim.notify("No live review hunks found" .. label, vim.log.levels.INFO)
     return
   end
 
-  local selection_label = normalized_status
-      and string.format("review status: %s", normalized_status)
-    or "all live staged and unstaged hunks"
-
-  local _, err = providers.dispatch_batch(provider, items, {
+  local prompt, err = providers.dispatch_batch(provider, items, {
     action = "review",
     cwd = context.repo,
     open_terminal = true,
-    selection_label = selection_label,
-    slug = normalized_status or "all",
-    status = normalized_status,
+    selection_label = review_target.label,
+    slug = review_target.slug,
+    status = review_target.status,
     after_exit = function()
       reopen_inbox_later({
+        filter = review_target.filter,
         include_stale = false,
-        status = normalized_status,
+        status = review_target.status,
       })
     end,
   })
 
   if err then
     vim.notify(err, vim.log.levels.ERROR)
+    return
   end
+
+  if prompt then
+    state.record_agent_run(context, {
+      provider = provider,
+      mode = "review",
+      scope = review_target.label,
+      prompt_hash = vim.fn.sha256(prompt),
+      diff_signature = review_items.repo_change_signature(context.repo),
+      result = "running",
+    })
+  end
+end
+
+local function read_agent_output_source(source)
+  local target = vim.trim(source or "")
+  if target ~= "" then
+    local path = vim.fn.expand(target)
+    local ok_read, lines = pcall(vim.fn.readfile, path)
+    if not ok_read then
+      return nil, string.format("Could not read agent output file: %s", path)
+    end
+
+    return table.concat(lines, "\n"), path
+  end
+
+  local register_text = vim.fn.getreg('"')
+  if register_text == "" then
+    return nil, "No agent output path was provided and the unnamed register is empty"
+  end
+
+  return register_text, "unnamed register"
+end
+
+local function ingest_provider_output(provider, source)
+  local context = best_context()
+  if not context then
+    vim.notify("Import agent review output from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local output, source_label = read_agent_output_source(source)
+  if not output then
+    vim.notify(source_label, vim.log.levels.ERROR)
+    return
+  end
+
+  local summary, err = state.ingest_agent_output(context, provider, output, {
+    diff_signature = review_items.repo_change_signature(context.repo),
+    scope = source_label,
+  })
+  if not summary then
+    vim.notify(err, vim.log.levels.ERROR)
+    return
+  end
+
+  review_items.clear_cache()
+  annotations.refresh_repo(context.repo)
+  vim.notify(
+    string.format(
+      "Imported %d/%d %s finding(s), skipped %d",
+      summary.imported,
+      summary.parsed,
+      provider,
+      summary.skipped
+    ),
+    vim.log.levels.INFO
+  )
 end
 
 local function prepare_selected_batch(provider, items)
@@ -860,6 +957,24 @@ function M.send_current(provider, action)
   end
 
   send_item(item, provider, action)
+end
+
+function M.ingest_agent_output(provider, source)
+  ingest_provider_output(provider, source)
+end
+
+function M.compare_current_agents()
+  local _, item = current_hunk_item()
+  if not item then
+    return
+  end
+
+  if vim.tbl_isempty(item.agent_findings or {}) then
+    vim.notify("No agent findings found for this hunk", vim.log.levels.INFO)
+    return
+  end
+
+  util.open_scratch("review-agent-findings.md", views.render_agent_compare(item), "markdown")
 end
 
 function M.open_inbox(opts)
@@ -1101,6 +1216,18 @@ end
 
 function M.cmd_export_transaction(cmd_opts)
   M.export_transaction(cmd_opts.args ~= "" and cmd_opts.args or "markdown")
+end
+
+function M.cmd_ingest_claude(cmd_opts)
+  M.ingest_agent_output("claude", cmd_opts.args)
+end
+
+function M.cmd_ingest_pi(cmd_opts)
+  M.ingest_agent_output("pi", cmd_opts.args)
+end
+
+function M.cmd_compare_agents()
+  M.compare_current_agents()
 end
 
 function M.cmd_send_claude(cmd_opts)

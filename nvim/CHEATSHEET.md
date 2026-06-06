@@ -78,11 +78,12 @@ Leader: `<Space>`
 - review transaction: `<leader>rt` start, `<leader>rT` preview, `:ReviewSubmit comment|approve|request-changes`
 - inline annotations: `<leader>rl` toggle, `<leader>ro` expand thread
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
+- agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare
 - navigate hunks: `[h` previous, `]h` next
 - Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
 - Pi hunk actions: `<leader>rp` revise, `<leader>rP` explain
 - batch rework: `<leader>rbc`, `<leader>rbp`
-- first-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi
+- first-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only`, `:ReviewPiReview changed-only`
 - in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `r`/`<C-g>` reviewed, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
 
 

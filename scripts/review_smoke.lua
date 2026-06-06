@@ -951,6 +951,131 @@ end
 
 assert_review_transaction_persists_draft_comments()
 
+local function assert_agent_findings_ingestion_tracks_provider_counts()
+  local agent_repo = vim.fn.tempname()
+  vim.fn.mkdir(agent_repo, "p")
+  git(agent_repo, { "init" })
+  vim.fn.writefile({ "before" }, agent_repo .. "/agent.txt")
+  git(agent_repo, { "add", "agent.txt" })
+  git(agent_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+  vim.fn.writefile({ "after" }, agent_repo .. "/agent.txt")
+
+  local agent_context = assert(state.context_for_repo(agent_repo))
+  state.clear(agent_context)
+  local claude_summary, claude_err = state.ingest_agent_output(agent_context, "claude", table.concat({
+    "severity: high",
+    "file: agent.txt",
+    "line: 1",
+    "issue: The changed value is not validated.",
+    "impact: Invalid data can be persisted.",
+    "review_comment: Add validation before accepting this changed value.",
+    "suggested_fix: Validate the value before writing it.",
+  }, "\n"), {
+    prompt_hash = "claude-prompt",
+    scope = "fixture",
+  })
+  assert_true(claude_summary ~= nil, claude_err or "failed to ingest Claude findings")
+  assert_true(claude_summary.imported == 1, "Claude ingestion should import one finding")
+
+  local pi_summary, pi_err = state.ingest_agent_output(agent_context, "pi", table.concat({
+    "severity: medium",
+    "file: agent.txt",
+    "line_range: 1-1",
+    "issue: The review fixture lacks a regression check.",
+    "impact: The same behavior can regress unnoticed.",
+    "review_comment: Add a focused regression test for this changed value.",
+    "suggested_fix: Add a smoke test around the changed line.",
+  }, "\n"), {
+    prompt_hash = "pi-prompt",
+    scope = "fixture",
+  })
+  assert_true(pi_summary ~= nil, pi_err or "failed to ingest Pi findings")
+  assert_true(pi_summary.imported == 1, "Pi ingestion should import one finding")
+
+  local agent_record = state.read(agent_context)
+  assert_true(
+    agent_record.review_runs[claude_summary.run_id].result == "done",
+    "ingesting Claude findings should persist a completed review run"
+  )
+  assert_true(
+    agent_record.review_runs[pi_summary.run_id].findings_count == 1,
+    "ingesting Pi findings should persist run finding counts"
+  )
+
+  local agent_merged = state.merge_items(agent_context, diff.collect_all(agent_repo))
+  assert_true(agent_merged[1].agent_finding_count == 2, "merged agent hunk should expose finding count")
+  assert_true(agent_merged[1].agent_provider_counts.claude == 1, "merged agent hunk should expose Claude count")
+  assert_true(agent_merged[1].agent_provider_counts.pi == 1, "merged agent hunk should expose Pi count")
+  local agent_filter = review_items.for_context(agent_context, { filter = "agent", include_stale = false })
+  assert_true(agent_filter ~= nil and #agent_filter == 1, "agent inbox filter should return hunks with findings")
+  local agent_preview = table.concat(views.render_item(agent_merged[1]), "\n")
+  assert_true(agent_preview:find("## Agent findings", 1, true) ~= nil, "review preview should render agent findings")
+  local agent_compare = table.concat(views.render_agent_compare(agent_merged[1]), "\n")
+  assert_true(agent_compare:find("## claude", 1, true) ~= nil, "agent compare should include Claude findings")
+  assert_true(agent_compare:find("## pi", 1, true) ~= nil, "agent compare should include Pi findings")
+  state.clear(agent_context)
+end
+
+assert_agent_findings_ingestion_tracks_provider_counts()
+
+local function assert_changed_only_review_rerun_uses_changed_filter()
+  local rerun_repo = vim.fn.tempname()
+  vim.fn.mkdir(rerun_repo, "p")
+  git(rerun_repo, { "init" })
+  vim.fn.writefile({ "before" }, rerun_repo .. "/rerun.txt")
+  git(rerun_repo, { "add", "rerun.txt" })
+  git(rerun_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+  vim.fn.writefile({ "after one" }, rerun_repo .. "/rerun.txt")
+  local rerun_context = assert(state.context_for_repo(rerun_repo))
+  state.clear(rerun_context)
+  local first_items = diff.collect_scope(rerun_repo, "unstaged")
+  assert_true(first_items ~= nil and #first_items == 1, "expected changed-only fixture hunk")
+  vim.cmd.edit(vim.fn.fnameescape(rerun_repo .. "/rerun.txt"))
+
+  local original_for_context = review_items.for_context
+  local original_dispatch_batch = providers.dispatch_batch
+  local captured_changed_only = false
+  review_items.for_context = function(request_context, opts)
+    captured_changed_only = request_context.repo ~= "" and opts.filter == "changed-since-review"
+    return first_items
+  end
+  providers.dispatch_batch = function(provider_name, items, opts)
+    captured_changed_only = captured_changed_only
+      and provider_name == "claude"
+      and #items == 1
+      and opts.selection_label == "changed since last review"
+      and opts.slug == "changed-only"
+    return "changed-only prompt"
+  end
+  local ok_changed_only, changed_only_err = pcall(function()
+    review.prepare_review("claude", "changed-only")
+  end)
+  providers.dispatch_batch = original_dispatch_batch
+  review_items.for_context = original_for_context
+
+  assert_true(ok_changed_only, changed_only_err or "changed-only review command failed")
+  assert_true(captured_changed_only, "changed-only review should dispatch only changed-since-review hunks")
+  state.clear(rerun_context)
+end
+
+assert_changed_only_review_rerun_uses_changed_filter()
+
 local original_tab = vim.api.nvim_get_current_tabpage()
 local opened_diff_tabs = {}
 local function remember_current_diff_tab()

@@ -15,6 +15,7 @@ end
 
 function M.render_item(item)
   local has_note = item.note and item.note ~= ""
+  local agent_findings = item.agent_findings or {}
   local comments = item.comments or {}
   local draft_comments = item.draft_comments or {}
   local lines = {
@@ -61,6 +62,75 @@ function M.render_item(item)
       )
       util.append_text_lines(lines, comment.body or "", "  ")
     end
+  end
+
+  if #agent_findings > 0 then
+    vim.list_extend(lines, { "", "## Agent findings" })
+    for _, finding in ipairs(agent_findings) do
+      table.insert(
+        lines,
+        string.format(
+          "- %s %s %s [%s]:",
+          finding.id or "?",
+          finding.provider or "agent",
+          finding.severity or "low",
+          finding.status or "open"
+        )
+      )
+      table.insert(lines, string.format("  - Range: %s", M.comment_range_label(finding)))
+      util.append_text_lines(lines, finding.review_comment or finding.issue or "", "  ")
+      if finding.impact and finding.impact ~= "" then
+        table.insert(lines, "  Impact:")
+        util.append_text_lines(lines, finding.impact, "    ")
+      end
+      if finding.suggested_fix and finding.suggested_fix ~= "" then
+        table.insert(lines, "  Suggested fix:")
+        util.append_text_lines(lines, finding.suggested_fix, "    ")
+      end
+    end
+  end
+
+  return lines
+end
+
+function M.render_agent_compare(item)
+  local lines = {
+    "# Agent Review Findings",
+    "",
+    string.format("- File: %s", item.path),
+    string.format("- Hunk: %s", item.hunk_header or item.header or "?"),
+    "",
+  }
+  local by_provider = {}
+
+  for _, finding in ipairs(item.agent_findings or {}) do
+    local provider = finding.provider or "agent"
+    by_provider[provider] = by_provider[provider] or {}
+    table.insert(by_provider[provider], finding)
+  end
+
+  if vim.tbl_isempty(by_provider) then
+    table.insert(lines, "No agent findings for this hunk.")
+    return lines
+  end
+
+  local providers = {}
+  for provider in pairs(by_provider) do
+    table.insert(providers, provider)
+  end
+  table.sort(providers)
+
+  for _, provider in ipairs(providers) do
+    vim.list_extend(lines, { string.format("## %s", provider), "" })
+    for _, finding in ipairs(by_provider[provider]) do
+      table.insert(lines, string.format("- %s %s [%s]", finding.severity or "low", M.comment_range_label(finding), finding.status or "open"))
+      util.append_text_lines(lines, finding.review_comment or finding.issue or "", "  ")
+      if finding.suggested_fix and finding.suggested_fix ~= "" then
+        table.insert(lines, "  Suggested fix:")
+        util.append_text_lines(lines, finding.suggested_fix, "    ")
+      end
+    end
+    table.insert(lines, "")
   end
 
   return lines
