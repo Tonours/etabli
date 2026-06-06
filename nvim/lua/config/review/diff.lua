@@ -135,8 +135,37 @@ local function parse_hunk_header(line)
   }
 end
 
+local function unquote_git_path(raw)
+  if not raw:match('^".*"$') then
+    return raw
+  end
+
+  local escapes = {
+    a = "\a",
+    b = "\b",
+    f = "\f",
+    n = "\n",
+    r = "\r",
+    t = "\t",
+    v = "\v",
+    ['"'] = '"',
+    ["\\"] = "\\",
+  }
+
+  local body = raw:sub(2, -2)
+  body = body:gsub("\\([0-7][0-7][0-7])", function(value)
+    return string.char(tonumber(value, 8))
+  end)
+
+  return body:gsub("\\(.)", function(value)
+    return escapes[value] or value
+  end)
+end
+
 local function parse_file_marker_path(raw, prefix)
   local path = raw:match("^(.-)\t") or raw
+  path = unquote_git_path(path)
+
   if path == "/dev/null" then
     return path
   end
