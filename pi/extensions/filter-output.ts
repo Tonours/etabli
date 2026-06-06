@@ -133,7 +133,7 @@ export default function (pi: ExtensionAPI) {
   ]);
   const sensitiveCommandPatterns: RegExp[] = [
     /\bprintenv\b/,
-    /\benv\s*$/m,
+    /(^|[;&(]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:env|\/usr\/bin\/env|\/bin\/env)(?:\s+-\S+)*\s*(?:$|[|>])/m,
     /\bexport\s+-p\b/,
   ];
 
