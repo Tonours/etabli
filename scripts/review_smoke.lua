@@ -45,6 +45,19 @@ local function git(repo, args)
   return vim.trim(result.stdout or "")
 end
 
+local function current_state_path(context)
+  local state_dir = vim.fn.stdpath("state") .. "/etabli/review"
+  util.ensure_dir(state_dir)
+  return string.format(
+    "%s/%s__%s__%s__%s.json",
+    state_dir,
+    vim.fn.fnamemodify(context.repo, ":t"),
+    util.sanitize_segment(context.branch),
+    vim.fn.sha256(context.branch):sub(1, 12),
+    vim.fn.sha256(context.repo):sub(1, 12)
+  )
+end
+
 local function assert_patch_hash_collisions_do_not_reuse_review_state()
   local collision_repo = vim.fn.tempname()
   local collision_file = collision_repo .. "/demo.txt"
@@ -137,7 +150,37 @@ local function assert_legacy_out_of_hunk_comments_are_ignored()
   local items = diff.collect_scope(legacy_repo, "unstaged")
   assert_true(items ~= nil and #items == 1, "expected legacy out-of-hunk comment fixture hunk")
 
-  local saved, save_err = state.save_item(context, items[1], {
+  vim.fn.writefile({
+    vim.json.encode({
+      version = 1,
+      repo = context.repo,
+      branch = context.branch,
+      items = {
+        [items[1].fingerprint] = vim.tbl_extend("force", items[1], {
+          repo = context.repo,
+          branch = context.branch,
+          status = "needs-rework",
+          comments = {
+            {
+              id = "valid",
+              body = "This comment is inside the hunk.",
+              line = items[1].line_start,
+              end_line = items[1].line_start,
+            },
+            {
+              id = "invalid",
+              body = "This legacy comment is outside the hunk.",
+              line = items[1].line_end + 1,
+              end_line = items[1].line_end + 1,
+            },
+          },
+        }),
+      },
+    }),
+  }, current_state_path(context))
+  state.clear_cache()
+
+  local sanitized, sanitized_err = state.save_item(context, items[1], {
     status = "needs-rework",
     comments = {
       {
@@ -154,7 +197,8 @@ local function assert_legacy_out_of_hunk_comments_are_ignored()
       },
     },
   })
-  assert_true(saved ~= nil, save_err or "failed to seed legacy out-of-hunk comment fixture")
+  assert_true(sanitized ~= nil, sanitized_err or "failed to sanitize out-of-hunk comments on save")
+  assert_true(#sanitized.comments == 1, "saving a review item should filter out-of-hunk comments")
 
   local merged = state.merge_items(context, diff.collect_all(legacy_repo))
   assert_true(merged ~= nil and #merged == 1, "expected merged legacy out-of-hunk comment fixture hunk")
@@ -171,19 +215,6 @@ assert_legacy_out_of_hunk_comments_are_ignored()
 
 local repo = vim.fn.tempname()
 vim.fn.mkdir(repo, "p")
-
-local function current_state_path(context)
-  local state_dir = vim.fn.stdpath("state") .. "/etabli/review"
-  util.ensure_dir(state_dir)
-  return string.format(
-    "%s/%s__%s__%s__%s.json",
-    state_dir,
-    vim.fn.fnamemodify(context.repo, ":t"),
-    util.sanitize_segment(context.branch),
-    vim.fn.sha256(context.branch):sub(1, 12),
-    vim.fn.sha256(context.repo):sub(1, 12)
-  )
-end
 
 local non_git_dir = vim.fn.tempname()
 vim.fn.mkdir(non_git_dir, "p")
