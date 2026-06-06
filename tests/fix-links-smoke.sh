@@ -83,6 +83,7 @@ if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose 
 fi
 
 assert_contains "$MISSING_SOURCE_OUTPUT" "source missing"
+assert_contains "$MISSING_SOURCE_OUTPUT" "script deploy-harness source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "unresolved"
 assert_not_exists "$FAKE_HOME/.config/nvim"
 
