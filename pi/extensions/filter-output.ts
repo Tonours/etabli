@@ -123,6 +123,8 @@ export default function (pi: ExtensionAPI) {
   // Sensitive bash commands — detect when bash reads sensitive files
   // ---------------------------------------------------------------------------
   const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|jq|yq|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
+  const inputRedirectionPattern = /(?:^|[^<])\d*<\s*(?![<(&])(['"]?)([^'"\s;&|()]+)\1/g;
+  const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
     "--file",
@@ -232,6 +234,8 @@ export default function (pi: ExtensionAPI) {
 
   function readsSensitiveFile(command: string): boolean {
     readCommandPattern.lastIndex = 0;
+    inputRedirectionPattern.lastIndex = 0;
+    sourceCommandPattern.lastIndex = 0;
 
     for (const match of command.matchAll(readCommandPattern)) {
       const commandName = match[1] ?? "";
@@ -240,6 +244,20 @@ export default function (pi: ExtensionAPI) {
         if (isSensitiveFile(token)) {
           return true;
         }
+      }
+    }
+
+    for (const match of command.matchAll(inputRedirectionPattern)) {
+      const token = match[2] ?? "";
+      if (isSensitiveFile(token)) {
+        return true;
+      }
+    }
+
+    for (const match of command.matchAll(sourceCommandPattern)) {
+      const token = match[2] ?? "";
+      if (isSensitiveFile(token)) {
+        return true;
       }
     }
 

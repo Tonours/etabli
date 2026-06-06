@@ -313,6 +313,44 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks shell input redirection from sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
+        input: { command: "cat<.env.local" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks sourcing sensitive env files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
+        input: { command: ". .env.local && echo \"$PUBLIC_API_URL\"" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("blocks search commands that read local env files", async () => {
     const handler = setupExtension();
     const ctx = createContext();
