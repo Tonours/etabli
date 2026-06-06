@@ -135,6 +135,7 @@ export default function (pi: ExtensionAPI) {
   const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
   const shellCommandPattern = /\b(?:bash|sh|zsh)((?:\s+-[A-Za-z-]+)+)\s+(['"])([\s\S]*?)\2/g;
   const inlineInterpreterPattern = /\b(?:python3?|node|ruby|perl)\s+(?:-[A-Za-z]*[ce][A-Za-z]*|-e)\s+(['"])([\s\S]*?)\1/g;
+  const heredocInterpreterPattern = /\b(?:python3?|node|ruby|perl)(?:\s+-)?\s+<<-?\s*['"]?([A-Za-z0-9_]+)['"]?\s*\n([\s\S]*?)\n\1\b/g;
   const inlineFileReadPattern = /\b(?:open|readFile|readFileSync|read_text|read_bytes|File\.read|IO\.read)\b/;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
@@ -223,6 +224,23 @@ export default function (pi: ExtensionAPI) {
     inlineInterpreterPattern.lastIndex = 0;
 
     for (const match of command.matchAll(inlineInterpreterPattern)) {
+      const code = match[2] ?? "";
+      if (!inlineFileReadPattern.test(code)) {
+        continue;
+      }
+
+      if (stringLiteralValues(code).some(isSensitiveFile)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function heredocCodeReadsSensitiveFile(command: string): boolean {
+    heredocInterpreterPattern.lastIndex = 0;
+
+    for (const match of command.matchAll(heredocInterpreterPattern)) {
       const code = match[2] ?? "";
       if (!inlineFileReadPattern.test(code)) {
         continue;
@@ -391,6 +409,7 @@ export default function (pi: ExtensionAPI) {
     return commandFragments(command).some((fragment) => (
       readsSensitiveFile(fragment)
       || inlineCodeReadsSensitiveFile(fragment)
+      || heredocCodeReadsSensitiveFile(fragment)
       || sensitiveCommandPatterns.some((p) => p.test(fragment))
     ));
   }
