@@ -190,6 +190,21 @@ describe("createRtkCommandRewriter", () => {
     expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
   });
 
+  test("bypasses destructive rm long flag variants", () => {
+    resetRtkRuntimeState();
+    let calls = 0;
+    const rewrite = createRtkCommandRewriter((command) => {
+      calls += 1;
+      return `rtk ${command}`;
+    }, DEFAULT_CONFIG);
+
+    expect(rewrite("rm --recursive --force build")).toBe("rm --recursive --force build");
+    expect(rewrite("rm -r --force build")).toBe("rm -r --force build");
+    expect(calls).toBe(0);
+    expect(getRtkRuntimeState().bypasses).toBe(2);
+    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
+  });
+
   test("bypasses destructive git clean flag variants", () => {
     resetRtkRuntimeState();
     let calls = 0;
@@ -203,6 +218,21 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git clean -d -f")).toBe("git clean -d -f");
     expect(calls).toBe(0);
     expect(getRtkRuntimeState().bypasses).toBe(3);
+    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
+  });
+
+  test("bypasses destructive git clean long flag variants", () => {
+    resetRtkRuntimeState();
+    let calls = 0;
+    const rewrite = createRtkCommandRewriter((command) => {
+      calls += 1;
+      return `rtk ${command}`;
+    }, DEFAULT_CONFIG);
+
+    expect(rewrite("git clean --force -d")).toBe("git clean --force -d");
+    expect(rewrite("git clean --force --directory")).toBe("git clean --force --directory");
+    expect(calls).toBe(0);
+    expect(getRtkRuntimeState().bypasses).toBe(2);
     expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
   });
 
