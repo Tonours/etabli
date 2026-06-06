@@ -19,6 +19,21 @@ local function assert_true(condition, message)
   end
 end
 
+local function count_plain(text, needle)
+  local count = 0
+  local start = 1
+
+  while true do
+    local found_at = text:find(needle, start, true)
+    if not found_at then
+      return count
+    end
+
+    count = count + 1
+    start = found_at + #needle
+  end
+end
+
 local function git(repo, args)
   local command = vim.list_extend({ "git", "-C", repo }, args)
   local result = vim.system(command, { text = true }):wait()
@@ -764,6 +779,14 @@ assert_true(
 assert_true(
   batch_review_prompt:find("- Branch: " .. context.branch, 1, true) ~= nil,
   "batch review prompt should include branch context"
+)
+assert_true(
+  count_plain(batch_review_prompt, "- Repo: " .. repo_root) == 1,
+  "batch review prompt should not repeat shared repository context per hunk"
+)
+assert_true(
+  count_plain(batch_review_prompt, "- Branch: " .. context.branch) == 1,
+  "batch review prompt should not repeat shared branch context per hunk"
 )
 assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch review prompt should review the changeset")
 assert_true(
