@@ -14,8 +14,9 @@ local providers = {
   },
 }
 
-
 local overlay_border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }
+local max_direct_prompt_bytes = 32000
+local terminal_paste_delay_ms = 350
 
 local function overlay_geometry()
   local available_width = math.max(20, vim.o.columns - 4)
@@ -99,8 +100,24 @@ local function provider_for(name)
   return provider
 end
 
-local function launch_argv(provider, prompt)
-  return { provider.command, prompt }
+local function launch_spec(provider, prompt)
+  if #prompt <= max_direct_prompt_bytes then
+    return {
+      command = { provider.command, prompt },
+      input = nil,
+      mode = "argv",
+    }
+  end
+
+  return {
+    command = { provider.command },
+    input = prompt,
+    mode = "terminal-paste",
+  }
+end
+
+local function bracketed_paste_input(input)
+  return "\027[200~" .. input .. "\027[201~\r"
 end
 
 local function do_open_terminal(command, opts)
@@ -148,6 +165,12 @@ local function do_open_terminal(command, opts)
     vim.cmd.startinsert()
   end
 
+  if options.input and options.input ~= "" then
+    vim.defer_fn(function()
+      pcall(vim.api.nvim_chan_send, job_id, bracketed_paste_input(options.input))
+    end, options.input_delay_ms or terminal_paste_delay_ms)
+  end
+
   return true
 end
 
@@ -177,8 +200,11 @@ local function dispatch_prompt(provider, prompt, opts)
     end
 
     if vim.fn.executable(provider.command) == 1 then
-      do_open_terminal(launch_argv(provider, prompt), {
+      local spec = launch_spec(provider, prompt)
+      local launched = do_open_terminal(spec.command, {
         cwd = cwd,
+        input = spec.input,
+        input_delay_ms = terminal_paste_delay_ms,
         on_exit = function()
           local ok, review = pcall(require, "config.review")
           if ok and review and review.refresh_after_external_edit then
@@ -194,6 +220,24 @@ local function dispatch_prompt(provider, prompt, opts)
         end,
         title = string.format("term://review-%s", provider.command),
       })
+
+      if not launched then
+        vim.notify(
+          string.format("%s CLI could not be opened. The prompt was still copied to registers.", provider.label),
+          vim.log.levels.WARN
+        )
+        return
+      end
+
+      if spec.mode == "terminal-paste" then
+        vim.notify(
+          string.format(
+            "%s prompt is too large for direct argv; opened the CLI and queued terminal paste input.",
+            provider.label
+          ),
+          vim.log.levels.INFO
+        )
+      end
       return
     end
 
@@ -214,7 +258,17 @@ function M.launch_argv(name, prompt)
     return nil, err
   end
 
-  return launch_argv(provider, prompt)
+  return launch_spec(provider, prompt).command
+end
+
+function M.launch_spec(name, prompt)
+  local provider, err = provider_for(name)
+  if not provider then
+    return nil, err
+  end
+
+  local spec = launch_spec(provider, prompt)
+  return vim.deepcopy(spec)
 end
 
 function M.dispatch(name, item, opts)

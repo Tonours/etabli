@@ -1,5 +1,6 @@
 local diff = require("config.review.diff")
 local meta = require("config.review.meta")
+local annotations = require("config.review.annotations")
 local picker = require("config.review.picker")
 local providers = require("config.review.providers")
 local state = require("config.review.state")
@@ -84,10 +85,22 @@ local function cached_repo_items(context, opts)
   return merged
 end
 
+local function comment_range_label(comment)
+  local line = tonumber(comment.line)
+  local end_line = tonumber(comment.end_line) or line
+
+  if line and end_line and end_line ~= line then
+    return string.format("lines %d-%d", line, end_line)
+  end
+
+  return string.format("line %s", line or "?")
+end
+
 local function render_item(item)
   -- Pre-calculate lines for better performance with exact allocation
   local patch_lines = vim.split(item.patch, "\n", { plain = true })
   local has_note = item.note and item.note ~= ""
+  local comments = item.comments or {}
   -- Pre-allocate with exact size: 11 base + patch_lines + (1 if note)
   local lines = vim.list_extend({
     "# Review Hunk",
@@ -109,6 +122,22 @@ local function render_item(item)
 
   vim.list_extend(lines, patch_lines)
   table.insert(lines, "```")
+
+  if #comments > 0 then
+    vim.list_extend(lines, { "", "## Review comments" })
+    for _, comment in ipairs(comments) do
+      table.insert(
+        lines,
+        string.format(
+          "- %s %s [%s]: %s",
+          comment.id or "?",
+          comment_range_label(comment),
+          comment.resolved and "resolved" or "unresolved",
+          comment.body or ""
+        )
+      )
+    end
+  end
 
   return lines
 end
@@ -238,7 +267,9 @@ local function repo_items(context, opts)
   return filter_items(items, options)
 end
 
-local function current_hunk_item()
+local function current_hunk_item_at_line(line, opts)
+  local options = opts or {}
+
   if vim.bo.modified then
     vim.notify("Save the current buffer before reviewing its git hunk", vim.log.levels.WARN)
     return nil, nil
@@ -251,7 +282,6 @@ local function current_hunk_item()
 
   local buffer_name = vim.api.nvim_buf_get_name(0)
   local relative_path = util.relative_path(context.repo, buffer_name)
-  local line = vim.api.nvim_win_get_cursor(0)[1]
   local items = repo_items(context, { include_stale = false, path = relative_path })
   if not items then
     return nil, nil
@@ -265,8 +295,45 @@ local function current_hunk_item()
     end
   end
 
-  vim.notify("No reviewable git hunk found at the cursor", vim.log.levels.INFO)
+  if not options.silent then
+    vim.notify("No reviewable git hunk found at the cursor", vim.log.levels.INFO)
+  end
   return nil, nil
+end
+
+local function current_hunk_item()
+  return current_hunk_item_at_line(vim.api.nvim_win_get_cursor(0)[1])
+end
+
+local function selected_line_range()
+  local start_line = vim.fn.getpos("'<")[2]
+  local end_line = vim.fn.getpos("'>")[2]
+
+  if start_line < 1 or end_line < 1 then
+    return nil, nil
+  end
+
+  if end_line < start_line then
+    start_line, end_line = end_line, start_line
+  end
+
+  return start_line, end_line
+end
+
+local function item_for_line_range(start_line, end_line)
+  local context, start_item = current_hunk_item_at_line(start_line, { silent = true })
+  if not start_item then
+    vim.notify("Select lines inside one reviewable git hunk", vim.log.levels.INFO)
+    return nil, nil
+  end
+
+  local _, end_item = current_hunk_item_at_line(end_line, { silent = true })
+  if not end_item or end_item.fingerprint ~= start_item.fingerprint then
+    vim.notify("Review comments can only cover one git hunk at a time", vim.log.levels.WARN)
+    return nil, nil
+  end
+
+  return context, start_item
 end
 
 local function jump_to_item(item)
@@ -337,6 +404,7 @@ local function set_item_status(item, status)
   end
 
   clear_repo_items_cache()
+  annotations.refresh_repo(item.repo)
 
   vim.notify(string.format("Review status set to %s", status), vim.log.levels.INFO)
 end
@@ -355,6 +423,9 @@ local function set_items_status(items, status)
   end
 
   clear_repo_items_cache()
+  if items[1] then
+    annotations.refresh_repo(items[1].repo)
+  end
 
   vim.notify(string.format("Review status set to %s for %d hunk(s)", status, updated), vim.log.levels.INFO)
   return true
@@ -381,12 +452,18 @@ local function prompt_for_status(item, opts)
   end)
 end
 
-local function prompt_for_note(item, opts)
+local function prompt_for_comment(item, opts)
   local options = opts or {}
+  local line = options.line or item.line_start or 1
+  local end_line = options.end_line or line
+  if end_line < line then
+    line, end_line = end_line, line
+  end
+  local target = line == end_line and string.format("%s:%d", item.path, line)
+    or string.format("%s:%d-%d", item.path, line, end_line)
 
   vim.ui.input({
-    prompt = "Review note: ",
-    default = item.note or "",
+    prompt = string.format("Review comment %s: ", target),
   }, function(input)
     if input == nil then
       if options.on_done then
@@ -395,7 +472,11 @@ local function prompt_for_note(item, opts)
       return
     end
 
-    local _, err = state.set_note({ repo = item.repo, branch = item.branch }, item, input)
+    local _, err = state.add_comment({ repo = item.repo, branch = item.branch }, item, {
+      body = input,
+      line = line,
+      end_line = end_line,
+    })
     if err then
       vim.notify(err, vim.log.levels.ERROR)
       if options.on_done then
@@ -404,11 +485,72 @@ local function prompt_for_note(item, opts)
       return
     end
 
-    vim.notify("Review note saved", vim.log.levels.INFO)
+    vim.notify("Review comment added", vim.log.levels.INFO)
     clear_repo_items_cache()
+    annotations.refresh_repo(item.repo)
 
     if options.on_done then
       options.on_done()
+    end
+  end)
+end
+
+local function unresolved_comments(item, line)
+  local comments = {}
+  for _, comment in ipairs(item.comments or {}) do
+    if comment.resolved ~= true and comment.body and comment.body ~= "" then
+      local start_line = tonumber(comment.line)
+      local end_line = tonumber(comment.end_line) or start_line
+      local contains_line = line ~= nil and start_line and end_line and line >= start_line and line <= end_line
+      if line == nil or contains_line then
+        table.insert(comments, comment)
+      end
+    end
+  end
+  return comments
+end
+
+local function resolve_comment(context, item, comment)
+  local _, err = state.set_comment_resolved(context, item, comment.id, true)
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
+    return false
+  end
+
+  vim.notify("Review conversation resolved", vim.log.levels.INFO)
+  clear_repo_items_cache()
+  annotations.refresh_repo(item.repo)
+  return true
+end
+
+local function prompt_resolve_comment(context, item, line)
+  local candidates = unresolved_comments(item, line)
+  if vim.tbl_isempty(candidates) then
+    candidates = unresolved_comments(item)
+  end
+
+  if vim.tbl_isempty(candidates) then
+    vim.notify("No unresolved review comments found for this hunk", vim.log.levels.INFO)
+    return
+  end
+
+  if #candidates == 1 then
+    resolve_comment(context, item, candidates[1])
+    return
+  end
+
+  vim.ui.select(candidates, {
+    prompt = "Resolve review conversation",
+    format_item = function(comment)
+      local body = (comment.body or ""):gsub("%s+", " ")
+      if #body > 80 then
+        body = body:sub(1, 77) .. "..."
+      end
+      return string.format("%s %s: %s", comment.id or "?", comment_range_label(comment), body)
+    end,
+  }, function(choice)
+    if choice then
+      resolve_comment(context, item, choice)
     end
   end)
 end
@@ -433,18 +575,23 @@ local function show_inbox_help(opts)
     "",
     "- <Tab> or <S-Tab> mark entries for a batch provider action",
     "- <CR> open a diff view for the selected hunk",
-    "- <C-a> add or edit the selected hunk note",
+    "- <C-a> add a review comment at the selected hunk start line",
     "- <C-s> set the selected hunk status",
     "- <C-y> accept the selected hunk or the marked set",
     "- <C-c> launch Claude directly with the selected diff prompt",
     "- <C-p> launch Pi directly with the selected diff prompt",
     "- <C-r> refresh the inbox after external changes",
     "- :ReviewInbox [status] filter the inbox by status",
+    "- :ReviewInlineAnnotations [on|off|refresh|toggle] controls inline review notes",
+    "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewClaudeBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewPiBatch [status] prepare one prompt for all live hunks with that status",
+    "- :ReviewClaudeReview [status|all] launch a first-pass Claude code review",
+    "- :ReviewPiReview [status|all] launch a first-pass Pi code review",
     "- <leader>rA accepts the current hunk quickly",
     "- <leader>rbc and <leader>rbp run the default needs-rework batch commands",
+    "- <leader>rvc and <leader>rvp run first-pass review commands",
     "- stale new, accepted, and ignored entries are hidden from the default inbox to reduce noise",
     "- if you want to inspect them again, open an explicit filter like :ReviewInbox new",
   }
@@ -523,6 +670,53 @@ local function prepare_batch(provider, status)
   end
 end
 
+local function prepare_review(provider, status)
+  local normalized_status = normalize_status(status, { allow_all = true })
+  if normalized_status == false then
+    return
+  end
+
+  local context = best_context()
+  if not context then
+    vim.notify("Open this review command from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local items = repo_items(context, {
+    include_stale = false,
+    status = normalized_status,
+  })
+
+  if not items or vim.tbl_isempty(items) then
+    local label = normalized_status and string.format(" with status %s", normalized_status) or ""
+    vim.notify("No live review hunks found" .. label, vim.log.levels.INFO)
+    return
+  end
+
+  local selection_label = normalized_status
+      and string.format("review status: %s", normalized_status)
+    or "all live staged and unstaged hunks"
+
+  local _, err = providers.dispatch_batch(provider, items, {
+    action = "review",
+    cwd = context.repo,
+    open_terminal = true,
+    selection_label = selection_label,
+    slug = normalized_status or "all",
+    status = normalized_status,
+    after_exit = function()
+      reopen_inbox_later({
+        include_stale = false,
+        status = normalized_status,
+      })
+    end,
+  })
+
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
+  end
+end
+
 local function prepare_selected_batch(provider, items)
   if vim.tbl_isempty(items or {}) then
     vim.notify("Select at least one review hunk", vim.log.levels.INFO)
@@ -573,7 +767,40 @@ function M.annotate_current_hunk()
     return
   end
 
-  prompt_for_note(item)
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  prompt_for_comment(item, { line = line })
+end
+
+function M.annotate_line_range(start_line, end_line)
+  if not start_line or not end_line then
+    vim.notify("No visual review range found", vim.log.levels.WARN)
+    return
+  end
+
+  local _, item = item_for_line_range(start_line, end_line)
+  if not item then
+    return
+  end
+
+  prompt_for_comment(item, {
+    line = start_line,
+    end_line = end_line,
+  })
+end
+
+function M.annotate_visual_selection()
+  local start_line, end_line = selected_line_range()
+  M.annotate_line_range(start_line, end_line)
+end
+
+function M.resolve_current_comment()
+  local context, item = current_hunk_item()
+  if not item then
+    return
+  end
+
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  prompt_resolve_comment(context, item, line)
 end
 
 function M.select_current_status()
@@ -639,7 +866,7 @@ function M.open_inbox(opts)
   picker.open(items, {
     on_select = open_item_diff,
     on_annotate = function(item)
-      prompt_for_note(item, { on_done = function()
+      prompt_for_comment(item, { line = item.line_start, on_done = function()
         reopen_inbox_later(reopen_opts_for_item(reopen_opts, item))
       end })
     end,
@@ -695,6 +922,10 @@ end
 
 function M.prepare_batch(provider, status)
   prepare_batch(provider, status)
+end
+
+function M.prepare_review(provider, status)
+  prepare_review(provider, status)
 end
 
 function M.repo_change_signature(repo)
@@ -757,12 +988,23 @@ function M.setup()
     group = cache_group,
     callback = clear_repo_items_cache_on_focus,
   })
+
+  annotations.setup()
 end
 
 
 -- Thin wrappers for lazy-loaded commands (called from init.lua lazy_cmd registrations)
 function M.cmd_open_inbox(cmd_opts)
   M.open_inbox({ status = cmd_opts.args })
+end
+
+function M.cmd_annotate(cmd_opts)
+  if cmd_opts.range and cmd_opts.range > 0 then
+    M.annotate_line_range(cmd_opts.line1, cmd_opts.line2)
+    return
+  end
+
+  M.annotate_current_hunk()
 end
 
 function M.cmd_set_status(cmd_opts)
@@ -773,6 +1015,10 @@ function M.cmd_set_status(cmd_opts)
   end
 end
 
+function M.cmd_resolve_comment()
+  M.resolve_current_comment()
+end
+
 function M.cmd_send_claude(cmd_opts)
   M.send_current("claude", cmd_opts.args ~= "" and cmd_opts.args or "revise")
 end
@@ -781,12 +1027,40 @@ function M.cmd_send_pi(cmd_opts)
   M.send_current("pi", cmd_opts.args ~= "" and cmd_opts.args or "revise")
 end
 
+function M.cmd_inline_annotations(cmd_opts)
+  local action = cmd_opts.args
+  if action == "on" then
+    annotations.set_enabled(true)
+    return
+  end
+
+  if action == "off" then
+    annotations.set_enabled(false)
+    return
+  end
+
+  if action == "refresh" then
+    annotations.refresh_buffer(0, { force = true })
+    return
+  end
+
+  annotations.toggle()
+end
+
 function M.cmd_claude_batch(cmd_opts)
   M.prepare_batch("claude", cmd_opts.args ~= "" and cmd_opts.args or "needs-rework")
 end
 
 function M.cmd_pi_batch(cmd_opts)
   M.prepare_batch("pi", cmd_opts.args ~= "" and cmd_opts.args or "needs-rework")
+end
+
+function M.cmd_claude_review(cmd_opts)
+  M.prepare_review("claude", cmd_opts.args ~= "" and cmd_opts.args or nil)
+end
+
+function M.cmd_pi_review(cmd_opts)
+  M.prepare_review("pi", cmd_opts.args ~= "" and cmd_opts.args or nil)
 end
 
 return M

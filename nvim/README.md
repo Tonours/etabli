@@ -24,23 +24,26 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 ## Review flow
 
 - Inbox: `<leader>ri` or `:ReviewInbox [status]`
-- Current hunk: `<leader>rh` preview, `<leader>ra` annotate, `<leader>rs` status, `<leader>rA` accept
+- Current hunk: `<leader>rh` preview, `<leader>ra` comment line or visual range, `<leader>rr` resolve conversation, `<leader>rs` status, `<leader>rA` accept
+- Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers
 - Hunk navigation: `[h`, `]h`
 - Claude: `<leader>rc` revise, `<leader>rC` explain
 - Pi: `<leader>rp` revise, `<leader>rP` explain
 - Batch rework: `<leader>rbc`, `<leader>rbp`
+- First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi
 
 Inbox shortcuts:
 
 - Mark entries: `<Tab>` / `<S-Tab>`
 - Open diff: `<CR>`
-- Annotate / status / accept: `<C-a>`, `<C-s>`, `<C-y>`
+- Comment / status / accept: `<C-a>`, `<C-s>`, `<C-y>`
 - Launch provider directly with selected diff: `<C-c>` for Claude, `<C-p>` for Pi
 - Refresh / help: `<C-r>`, `?`
 
 Notes:
 
 - Review state is stored outside the repo under `stdpath("state")/etabli/review`
+- Inline review conversations are rendered with extmarks/signs and never edit the file
 - Stale `new`, `accepted`, and `ignore` entries are hidden by default in the inbox to reduce noise
 - Closing the help overlay reopens the review inbox automatically
 

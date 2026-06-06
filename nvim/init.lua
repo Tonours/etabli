@@ -42,18 +42,23 @@ lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
   desc = "Open the review inbox", nargs = "?",
 })
 lazy_cmd("ReviewCurrentHunk", "config.review", "show_current_hunk", { desc = "Preview the current review hunk" })
-lazy_cmd("ReviewAnnotate", "config.review", "annotate_current_hunk", { desc = "Annotate the current review hunk" })
+lazy_cmd("ReviewAnnotate", "config.review", "cmd_annotate", { desc = "Comment the current review line or range", range = true })
+lazy_cmd("ReviewResolve", "config.review", "cmd_resolve_comment", { desc = "Resolve the current review conversation" })
 lazy_cmd("ReviewStatus", "config.review", "cmd_set_status", {
   complete = function() return require("config.review.state").statuses() end,
   desc = "Set the review status for the current hunk", nargs = "?",
 })
 lazy_cmd("ReviewAccept", "config.review", "accept_current_hunk", { desc = "Accept the current review hunk" })
+lazy_cmd("ReviewInlineAnnotations", "config.review", "cmd_inline_annotations", {
+  complete = function() return { "on", "off", "refresh", "toggle" } end,
+  desc = "Toggle review inline annotations", nargs = "?",
+})
 lazy_cmd("ReviewClaude", "config.review", "cmd_send_claude", {
-  complete = function() return { "revise", "explain" } end,
+  complete = function() return { "revise", "explain", "review" } end,
   desc = "Send the current hunk review prompt to Claude", nargs = "?",
 })
 lazy_cmd("ReviewPi", "config.review", "cmd_send_pi", {
-  complete = function() return { "revise", "explain" } end,
+  complete = function() return { "revise", "explain", "review" } end,
   desc = "Send the current hunk review prompt to Pi", nargs = "?",
 })
 lazy_cmd("ReviewClaudeBatch", "config.review", "cmd_claude_batch", {
@@ -63,6 +68,22 @@ lazy_cmd("ReviewClaudeBatch", "config.review", "cmd_claude_batch", {
 lazy_cmd("ReviewPiBatch", "config.review", "cmd_pi_batch", {
   complete = function() return require("config.review.state").statuses() end,
   desc = "Prepare one Pi prompt for all hunks with a review status", nargs = "?",
+})
+lazy_cmd("ReviewClaudeReview", "config.review", "cmd_claude_review", {
+  complete = function()
+    local choices = require("config.review.state").statuses()
+    table.insert(choices, 1, "all")
+    return choices
+  end,
+  desc = "Launch Claude for a first-pass code review", nargs = "?",
+})
+lazy_cmd("ReviewPiReview", "config.review", "cmd_pi_review", {
+  complete = function()
+    local choices = require("config.review.state").statuses()
+    table.insert(choices, 1, "all")
+    return choices
+  end,
+  desc = "Launch Pi for a first-pass code review", nargs = "?",
 })
 
 -- Priority 1: keymaps needed for immediate editing
