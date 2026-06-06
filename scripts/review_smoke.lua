@@ -921,8 +921,12 @@ assert_true(review_prompt:match("Findings must come first") ~= nil, "review prom
 assert_true(review_prompt:match("Verify every reported line or range exists in the supplied diff") ~= nil, "review prompt should guard diff coordinates")
 assert_true(review_prompt:match("review_comment") ~= nil, "review prompt should request inline-ready comment text")
 assert_true(
-  review_prompt:match("severity:, file:, line:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
+  review_prompt:match("severity:, file:, line: or line_range:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
   "review prompt should require stable finding labels for inline review extraction"
+)
+assert_true(
+  review_prompt:match("spans multiple changed lines") ~= nil,
+  "review prompt should direct multiline findings to line_range"
 )
 assert_true(
   review_prompt:match("without code fences or tables") ~= nil,
@@ -966,8 +970,12 @@ assert_true(
   "batch review prompt should specify the no-findings path"
 )
 assert_true(
-  batch_review_prompt:match("severity:, file:, hunk:, line:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
+  batch_review_prompt:match("severity:, file:, hunk:, line: or line_range:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
   "batch review prompt should require stable finding labels for inline review extraction"
+)
+assert_true(
+  batch_review_prompt:match("spans multiple changed lines") ~= nil,
+  "batch review prompt should direct multiline findings to line_range"
 )
 assert_true(
   batch_review_prompt:match("then still include the final verdict") ~= nil,
