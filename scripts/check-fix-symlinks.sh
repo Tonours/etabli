@@ -8,6 +8,14 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 ISSUES=0
 FIXED=0
 OS="$(uname -s)"
+PI_CORE_SKILLS=(
+  "plan-loop"
+  "plan-implement"
+  "review"
+  "implement"
+  "caveman"
+  "grill-me"
+)
 
 usage() {
   cat <<EOF
@@ -42,6 +50,19 @@ ensure_parent_dir() {
   mkdir -p "$(dirname "$path")"
 }
 
+backup_path() {
+  local path="$1"
+  local candidate="${path}.bak.${TIMESTAMP}"
+  local index=1
+
+  while [ -e "$candidate" ]; do
+    candidate="${path}.bak.${TIMESTAMP}.${index}"
+    index=$((index + 1))
+  done
+
+  printf '%s\n' "$candidate"
+}
+
 repair_link() {
   local link_path="$1"
   local target_path="$2"
@@ -50,7 +71,8 @@ repair_link() {
   ensure_parent_dir "$link_path"
 
   if [ -e "$link_path" ] && [ ! -L "$link_path" ]; then
-    local backup_path="${link_path}.bak.${TIMESTAMP}"
+    local backup_path
+    backup_path="$(backup_path "$link_path")"
     mv "$link_path" "$backup_path"
     status_line BACKUP "$type_label moved to $backup_path"
   else
@@ -102,6 +124,28 @@ check_script_link() {
   fi
 }
 
+check_pi_skill_links() {
+  local skill_name
+  for skill_name in "${PI_CORE_SKILLS[@]}"; do
+    check_link "$HOME/.pi/agent/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "pi skill $skill_name"
+  done
+}
+
+check_claude_skill_links() {
+  local skill_dir skill_name
+
+  if [ ! -d "$REPO_DIR/claude/skills" ]; then
+    return
+  fi
+
+  for skill_dir in "$REPO_DIR/claude/skills"/*; do
+    if [ -d "$skill_dir" ]; then
+      skill_name="$(basename "$skill_dir")"
+      check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
+    fi
+  done
+}
+
 check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
 check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
 check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
@@ -114,7 +158,8 @@ check_link "$HOME/.claude/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md
 check_link "$HOME/.claude/commands/plan.md" "$REPO_DIR/claude/commands/plan-create.md" "claude command plan.md"
 check_link "$HOME/.claude/commands/implement.md" "$REPO_DIR/claude/commands/implement.md" "claude command implement.md"
 check_link "$HOME/.claude/commands/review.md" "$REPO_DIR/claude/commands/review.md" "claude command review.md"
-check_link "$HOME/.claude/skills/grill-me" "$REPO_DIR/claude/skills/grill-me" "claude skill grill-me"
+check_pi_skill_links
+check_claude_skill_links
 
 check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"

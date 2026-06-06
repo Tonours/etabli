@@ -92,6 +92,7 @@ Validation:
 ```bash
 tests/harness-smoke.sh
 tests/workflow-docs-smoke.sh
+tests/fix-links-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 tests/harness-cli-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 tests/harness-cli-smoke.sh
 ```
