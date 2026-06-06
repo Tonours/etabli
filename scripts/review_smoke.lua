@@ -1151,33 +1151,55 @@ assert_true(
 assert_true(matched.comments[3].line == 9, "range annotation command should save the start line")
 assert_true(matched.comments[3].end_line == 10, "range annotation command should save the end line")
 
-annotations.refresh_buffer(0, { force = true })
-local annotation_marks = vim.api.nvim_buf_get_extmarks(0, annotations.namespace(), 0, -1, { details = true })
-assert_true(#annotation_marks > 0, "expected saved review note to render as an inline annotation")
-local saw_comment_lines = false
-local saw_summary_text = false
-local saw_normalized_summary_note = false
-for _, mark in ipairs(annotation_marks) do
-  local details = mark[4] or {}
-  if details.virt_lines ~= nil then
-    saw_comment_lines = true
-  end
-  if details.virt_text ~= nil then
-    saw_summary_text = true
-    local summary_parts = {}
-    for _, chunk in ipairs(details.virt_text) do
-      table.insert(summary_parts, chunk[1] or "")
+local function assert_inline_annotations_are_compact_until_expanded()
+  annotations.compact_buffer(0)
+  local marks = vim.api.nvim_buf_get_extmarks(0, annotations.namespace(), 0, -1, { details = true })
+  assert_true(#marks > 0, "expected saved review note to render as an inline annotation")
+
+  local saw_compact_comment = false
+  local saw_summary_text = false
+  local saw_normalized_summary_note = false
+  for _, mark in ipairs(marks) do
+    local details = mark[4] or {}
+    if details.virt_lines ~= nil then
+      fail("inline review comments should render compactly by default")
     end
-    local summary_text = table.concat(summary_parts, "")
-    assert_true(summary_text:find("\n", 1, true) == nil, "inline review summary should stay on one line")
-    if summary_text:find("Please simplify this change. Keep the guard explicit.", 1, true) ~= nil then
-      saw_normalized_summary_note = true
+    if details.virt_text ~= nil then
+      saw_summary_text = true
+      local summary_parts = {}
+      for _, chunk in ipairs(details.virt_text) do
+        table.insert(summary_parts, chunk[1] or "")
+      end
+      local summary_text = table.concat(summary_parts, "")
+      assert_true(summary_text:find("\n", 1, true) == nil, "inline review summary should stay on one line")
+      if summary_text:find("Please simplify this change. Keep the guard explicit.", 1, true) ~= nil then
+        saw_normalized_summary_note = true
+      end
+      if summary_text:find("3 unresolved", 1, true) ~= nil and summary_text:find("<leader>ro", 1, true) ~= nil then
+        saw_compact_comment = true
+      end
     end
   end
+  assert_true(saw_compact_comment, "expected review comments to render as compact inline text by default")
+  assert_true(saw_summary_text, "expected hunk-level note/status to render with comments")
+  assert_true(saw_normalized_summary_note, "expected multiline note to be normalized in the inline summary")
+
+  vim.api.nvim_win_set_cursor(0, { 10, 0 })
+  annotations.expand_current_thread(0)
+  marks = vim.api.nvim_buf_get_extmarks(0, annotations.namespace(), 0, -1, { details = true })
+  local saw_expanded_comment_lines = false
+  for _, mark in ipairs(marks) do
+    local details = mark[4] or {}
+    if details.virt_lines ~= nil then
+      saw_expanded_comment_lines = true
+      break
+    end
+  end
+  assert_true(saw_expanded_comment_lines, "expected cursor review thread expansion to render virtual lines")
+  annotations.compact_buffer(0)
 end
-assert_true(saw_comment_lines, "expected review comments to render as virtual lines")
-assert_true(saw_summary_text, "expected hunk-level note/status to render with comments")
-assert_true(saw_normalized_summary_note, "expected multiline note to be normalized in the inline summary")
+
+assert_inline_annotations_are_compact_until_expanded()
 
 local original_collect_all_for_throttle = diff.collect_all
 local refresh_collect_calls = 0

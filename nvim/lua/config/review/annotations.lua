@@ -10,7 +10,16 @@ local namespace = vim.api.nvim_create_namespace("etabli_review_annotations")
 local enabled = true
 local refresh_ttl = 750
 local last_refresh = {}
+local expanded_line_by_buffer = {}
 local setup_done = false
+
+local function normalize_bufnr(bufnr)
+  if bufnr == nil or bufnr == 0 then
+    return vim.api.nvim_get_current_buf()
+  end
+
+  return bufnr
+end
 
 local markers = {
   ["needs-rework"] = "R",
@@ -140,6 +149,15 @@ local function comment_virtual_lines(comments)
   return lines
 end
 
+local function compact_comment_text(comments)
+  local count = #comments
+  local label = count == 1 and "1 unresolved" or string.format("%d unresolved", count)
+  local first = comments[1]
+  local range = first and range_label(first) or "line ?"
+
+  return string.format("%s at %s [open: <leader>ro]", label, range)
+end
+
 local function line_for_item(bufnr, item)
   local line_count = vim.api.nvim_buf_line_count(bufnr)
   if line_count < 1 then
@@ -195,6 +213,8 @@ local function context_for_buffer(bufnr)
 end
 
 local function render_items(bufnr, items, relative_path)
+  local expanded_line = expanded_line_by_buffer[bufnr]
+
   for _, item in ipairs(items) do
     if not item.stale and item.path == relative_path and should_render(item) then
       local status = item.status or "new"
@@ -203,13 +223,25 @@ local function render_items(bufnr, items, relative_path)
       local grouped_comments = comments_by_line(item)
 
       for line, comments in pairs(grouped_comments) do
-        vim.api.nvim_buf_set_extmark(bufnr, namespace, line_index(bufnr, line), 0, {
+        local row = line_index(bufnr, line)
+        local extmark = {
           hl_mode = "combine",
           priority = 130,
           sign_hl_group = "DiagnosticWarn",
           sign_text = "R",
-          virt_lines = comment_virtual_lines(comments),
-        })
+        }
+
+        if expanded_line == line then
+          extmark.virt_lines = comment_virtual_lines(comments)
+        else
+          extmark.virt_text = {
+            { "  review: ", "Comment" },
+            { compact_comment_text(comments), "DiagnosticWarn" },
+          }
+          extmark.virt_text_pos = "eol"
+        end
+
+        vim.api.nvim_buf_set_extmark(bufnr, namespace, row, 0, extmark)
       end
 
       if has_summary_annotation(item) then
@@ -269,6 +301,7 @@ function M.is_enabled()
 end
 
 function M.clear_buffer(bufnr)
+  bufnr = normalize_bufnr(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
@@ -276,8 +309,27 @@ function M.clear_buffer(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
 end
 
+function M.expand_current_thread(bufnr)
+  bufnr = normalize_bufnr(bufnr)
+  local target = vim.api.nvim_win_get_cursor(0)[1]
+
+  if expanded_line_by_buffer[bufnr] == target then
+    expanded_line_by_buffer[bufnr] = nil
+  else
+    expanded_line_by_buffer[bufnr] = target
+  end
+
+  M.refresh_buffer(bufnr, { force = true })
+end
+
+function M.compact_buffer(bufnr)
+  bufnr = normalize_bufnr(bufnr)
+  expanded_line_by_buffer[bufnr] = nil
+  M.refresh_buffer(bufnr, { force = true })
+end
+
 function M.refresh_buffer(bufnr, opts)
-  bufnr = bufnr or 0
+  bufnr = normalize_bufnr(bufnr)
   local options = opts or {}
   local now = vim.uv.now()
 
@@ -369,6 +421,7 @@ function M.toggle()
   end
 
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    expanded_line_by_buffer[bufnr] = nil
     M.clear_buffer(bufnr)
   end
   vim.notify("Review inline annotations disabled", vim.log.levels.INFO)
@@ -383,6 +436,7 @@ function M.set_enabled(next_enabled)
   end
 
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    expanded_line_by_buffer[bufnr] = nil
     M.clear_buffer(bufnr)
   end
 end
@@ -406,6 +460,7 @@ function M.setup()
     group = group,
     callback = function(event)
       last_refresh[event.buf] = nil
+      expanded_line_by_buffer[event.buf] = nil
     end,
   })
 end

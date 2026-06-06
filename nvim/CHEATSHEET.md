@@ -75,7 +75,7 @@ Leader: `<Space>`
 
 - inbox: `<leader>ri` or `:ReviewInbox [status|filter]`
 - current hunk: `<leader>rh` preview, `<leader>ra` comment line/range, `<leader>rr` resolve, `<leader>rs` status, `<leader>rA` accept, `<leader>rV` reviewed
-- inline annotations: `<leader>rl`
+- inline annotations: `<leader>rl` toggle, `<leader>ro` expand thread
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
 - navigate hunks: `[h` previous, `]h` next
 - Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
