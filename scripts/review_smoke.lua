@@ -151,6 +151,29 @@ assert_true(tabbed_items[1].path == tabbed_name, "tabbed file path should be dec
 assert_true(tabbed_items[1].old_path == tabbed_name, "old tabbed file path should be decoded from Git quoting")
 assert_true(tabbed_items[1].new_path == tabbed_name, "new tabbed file path should be decoded from Git quoting")
 
+local signature_repo = vim.fn.tempname()
+vim.fn.mkdir(signature_repo, "p")
+git(signature_repo, { "init" })
+vim.fn.writefile({ "before" }, signature_repo .. "/dirty.txt")
+git(signature_repo, { "add", "dirty.txt" })
+git(signature_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "dirty one" }, signature_repo .. "/dirty.txt")
+local dirty_signature_a = review.repo_change_signature(signature_repo)
+vim.fn.writefile({ "dirty two" }, signature_repo .. "/dirty.txt")
+local dirty_signature_b = review.repo_change_signature(signature_repo)
+assert_true(
+  dirty_signature_a ~= dirty_signature_b,
+  "repo change signature should detect content changes inside an already dirty file"
+)
+
 git(repo, { "init" })
 
 local initial = {
