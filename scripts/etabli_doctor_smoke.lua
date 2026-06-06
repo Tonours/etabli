@@ -48,6 +48,29 @@ assert_true(output:match("config%-root:") ~= nil, "doctor should include config 
 assert_true(output:match("Copilot status:") ~= nil, "doctor should include Copilot status")
 assert_true(doctor.config_root():match("/etabli$") ~= nil, "doctor config root should point at the dotfiles repo")
 
+local expected_symlink_labels = {
+  "nvim%-config:",
+  "tmux%-config:",
+  "ghostty:",
+  "pi%-agents:",
+  "pi%-extensions:",
+  "pi%-models:",
+  "pi%-settings:",
+  "pi%-themes:",
+  "claude%-md:",
+  "claude%-plan:",
+  "claude%-rubric:",
+  "claude%-review:",
+}
+
+for _, label in ipairs(expected_symlink_labels) do
+  assert_true(output:match(label) ~= nil, "doctor should include symlink diagnostic " .. label)
+end
+
+assert_true(output:find(doctor.config_root() .. "/nvim", 1, true) ~= nil, "doctor should check the repo nvim config link")
+assert_true(output:find(doctor.config_root() .. "/ghostty/config", 1, true) ~= nil, "doctor should check the repo Ghostty config link")
+assert_true(output:find(doctor.config_root() .. "/claude/commands/review.md", 1, true) ~= nil, "doctor should check the Claude review command link")
+
 local outside = vim.fn.tempname()
 vim.fn.mkdir(outside, "p")
 vim.system({ "git", "-C", outside, "init" }, { text = true }):wait()

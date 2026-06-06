@@ -161,11 +161,18 @@ function M.lines(cwd)
     executable_line("yaml-ls", { command = lsp.server_command("yamlls"), required = false }),
     path_line("project-root", project_root),
     path_line("config-root", dotfiles_root),
+    symlink_line("nvim-config", "~/.config/nvim", dotfiles_root .. "/nvim"),
+    symlink_line("tmux-config", "~/.tmux.conf", dotfiles_root .. "/tmux.conf"),
+    symlink_line("ghostty", "~/.config/ghostty/config", dotfiles_root .. "/ghostty/config"),
     symlink_line("pi-agents", "~/.pi/agent/AGENTS.md", dotfiles_root .. "/pi/AGENTS.md"),
     symlink_line("pi-extensions", "~/.pi/agent/extensions", dotfiles_root .. "/pi/extensions"),
     symlink_line("pi-models", "~/.pi/agent/models.json", dotfiles_root .. "/pi/models.json"),
     symlink_line("pi-settings", "~/.pi/settings.json", dotfiles_root .. "/pi/settings.json"),
     symlink_line("pi-themes", "~/.pi/themes", dotfiles_root .. "/pi/themes"),
+    symlink_line("claude-md", "~/.claude/CLAUDE.md", dotfiles_root .. "/claude/CLAUDE.md"),
+    symlink_line("claude-plan", "~/.claude/PLAN_TEMPLATE.md", dotfiles_root .. "/PLAN_TEMPLATE.md"),
+    symlink_line("claude-rubric", "~/.claude/review-rubric.md", dotfiles_root .. "/workflow/review-rubric.md"),
+    symlink_line("claude-review", "~/.claude/commands/review.md", dotfiles_root .. "/claude/commands/review.md"),
     "",
   }
 
