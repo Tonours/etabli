@@ -323,14 +323,6 @@ end
 
 local function patch_hash_for(scope, path, body)
   local patch_key = scope .. "\n" .. path .. "\n" .. body
-  if #patch_key < 1000 then
-    local hash = 0
-    for i = 1, #patch_key do
-      hash = ((hash * 31) + patch_key:byte(i)) % 2147483647
-    end
-    return string.format("%08x", hash)
-  end
-
   return vim.fn.sha256(patch_key):sub(1, 16)
 end
 

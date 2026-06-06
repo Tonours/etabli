@@ -44,6 +44,77 @@ local function git(repo, args)
   return vim.trim(result.stdout or "")
 end
 
+local function assert_patch_hash_collisions_do_not_reuse_review_state()
+  local collision_repo = vim.fn.tempname()
+  local collision_file = collision_repo .. "/demo.txt"
+  vim.fn.mkdir(collision_repo, "p")
+  git(collision_repo, { "init" })
+  vim.fn.writefile({ "A~" }, collision_file)
+  git(collision_repo, { "add", "demo.txt" })
+  git(collision_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+
+  vim.fn.writefile({ "X" }, collision_file)
+  local context = assert(state.context_for_repo(collision_repo))
+  state.clear(context)
+  local first_items = diff.collect_scope(collision_repo, "unstaged")
+  assert_true(first_items ~= nil and #first_items == 1, "expected first collision fixture hunk")
+  local saved, save_err = state.save_item(context, first_items[1], {
+    note = "collision sentinel",
+    status = "needs-rework",
+  })
+  assert_true(saved ~= nil, save_err or "failed to save first collision fixture hunk")
+
+  git(collision_repo, { "checkout", "--", "demo.txt" })
+  vim.fn.writefile({ "B_" }, collision_file)
+  git(collision_repo, { "add", "demo.txt" })
+  git(collision_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "change base",
+  })
+  vim.fn.writefile({ "X" }, collision_file)
+  diff.clear_cache()
+
+  local second_items = diff.collect_scope(collision_repo, "unstaged")
+  assert_true(second_items ~= nil and #second_items == 1, "expected second collision fixture hunk")
+  assert_true(first_items[1].hunk_header == second_items[1].hunk_header, "collision fixture should keep hunk headers equal")
+  assert_true(first_items[1].hunk_patch ~= second_items[1].hunk_patch, "collision fixture should change hunk content")
+  assert_true(
+    first_items[1].fingerprint ~= second_items[1].fingerprint,
+    "different hunk patches should not reuse the same review fingerprint"
+  )
+
+  local merged = state.merge_items(context, diff.collect_all(collision_repo))
+  local current
+  local stale
+  for _, item in ipairs(merged) do
+    if item.path == "demo.txt" and item.stale then
+      stale = item
+    elseif item.path == "demo.txt" then
+      current = item
+    end
+  end
+
+  assert_true(current ~= nil, "expected current collision fixture hunk")
+  assert_true(current.note == "", "current hunk should not inherit a note from a different patch")
+  assert_true(stale ~= nil and stale.note == "collision sentinel", "previous collision fixture note should become stale")
+  state.clear(context)
+end
+
+assert_patch_hash_collisions_do_not_reuse_review_state()
+
 local repo = vim.fn.tempname()
 vim.fn.mkdir(repo, "p")
 
