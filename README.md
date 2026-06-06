@@ -99,7 +99,7 @@ RUN_AGENT_CLI_SMOKE=1 tests/harness-cli-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 tests/harness-cli-smoke.sh
 ```
 
-The CLI smoke test runs real Pi prompts in a temporary project. Claude Code `--print` is behind `RUN_CLAUDE_PRINT_SMOKE=1` because Anthropic treats `--print` / `-p` as non-interactive Agent SDK usage.
+The CLI smoke test runs real Pi prompts in a temporary project and verifies the Claude Code binary with `claude --version`. Claude Code `--print` is behind `RUN_CLAUDE_PRINT_SMOKE=1` because Anthropic treats `--print` / `-p` as non-interactive Agent SDK usage.
 
 ## Config notes
 
