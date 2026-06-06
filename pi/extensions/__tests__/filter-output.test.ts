@@ -841,6 +841,54 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks inline Node stream reads of sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "node -e 'require(\"fs\").createReadStream(\".env.local\").pipe(process.stdout)'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks inline Deno and Bun reads of sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const denoResult = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "deno eval 'console.log(await Deno.readTextFile(\".env.local\"))'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+    const bunResult = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "bun -e 'console.log(await Bun.file(\".env.local\").text())'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(denoResult?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(bunResult?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("allows inline interpreter commands that only mention sensitive filenames", async () => {
     const handler = setupExtension();
     const ctx = createContext();

@@ -134,9 +134,9 @@ export default function (pi: ExtensionAPI) {
   const inputRedirectionPattern = /(?:^|[^<])\d*<\s*(?![<(&])(['"]?)([^'"\s;&|()]+)\1/g;
   const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
   const shellCommandPattern = /\b(?:bash|sh|zsh)((?:\s+-[A-Za-z-]+)+)\s+(['"])([\s\S]*?)\2/g;
-  const inlineInterpreterPattern = /\b(?:python3?|ruby|perl)\s+(?:-[A-Za-z]*[ce][A-Za-z]*|--(?:command|eval))\s+(['"])([\s\S]*?)\1|\bnode\s+(?:-[A-Za-z]*[ep][A-Za-z]*|--(?:eval|print))\s+(['"])([\s\S]*?)\3/g;
-  const heredocInterpreterPattern = /\b(?:python3?|node|ruby|perl)(?:\s+-)?\s+<<-?\s*['"]?([A-Za-z0-9_]+)['"]?\s*\n([\s\S]*?)\n\1\b/g;
-  const inlineFileReadPattern = /\b(?:open|readFile|readFileSync|read_text|read_bytes|File\.read|IO\.read)\b/;
+  const inlineInterpreterPattern = /\b(?:python3?|ruby|perl)\s+(?:-[A-Za-z]*[ce][A-Za-z]*|--(?:command|eval))\s+(['"])([\s\S]*?)\1|\bnode\s+(?:-[A-Za-z]*[ep][A-Za-z]*|--(?:eval|print))\s+(['"])([\s\S]*?)\3|\bdeno\s+eval\s+(['"])([\s\S]*?)\5|\bbun\s+(?:-[A-Za-z]*e[A-Za-z]*|--eval)\s+(['"])([\s\S]*?)\7/g;
+  const heredocInterpreterPattern = /\b(?:python3?|node|ruby|perl|deno|bun)(?:\s+-)?\s+<<-?\s*['"]?([A-Za-z0-9_]+)['"]?\s*\n([\s\S]*?)\n\1\b/g;
+  const inlineFileReadPattern = /\b(?:open|readFile|readFileSync|createReadStream|read_text|read_bytes|File\.read|IO\.read|Bun\.file|Deno\.readTextFile|Deno\.readFile)\b/;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
     "--file",
@@ -224,7 +224,7 @@ export default function (pi: ExtensionAPI) {
     inlineInterpreterPattern.lastIndex = 0;
 
     for (const match of command.matchAll(inlineInterpreterPattern)) {
-      const code = match[2] ?? match[4] ?? "";
+      const code = match[2] ?? match[4] ?? match[6] ?? match[8] ?? "";
       if (!inlineFileReadPattern.test(code)) {
         continue;
       }
