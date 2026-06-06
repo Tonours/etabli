@@ -2,6 +2,9 @@ local util = require("config.review.util")
 
 local M = {}
 
+local max_plan_context_lines = 120
+local plan_context_cache = {}
+
 local function comment_range_label(comment)
   local line = tonumber(comment.line)
   local end_line = tonumber(comment.end_line) or line
@@ -39,6 +42,62 @@ local function append_repo_context(lines, item, opts)
 
   if item.branch and item.branch ~= "" and item.branch ~= options.skip_branch then
     table.insert(lines, string.format("- Branch: %s", item.branch))
+  end
+end
+
+local function plan_context(repo)
+  if not repo or repo == "" then
+    return nil
+  end
+
+  local plan_path = vim.fs.joinpath(util.normalize(repo), "PLAN.md")
+  local stat = vim.uv.fs_stat(plan_path)
+  if not stat or stat.type ~= "file" then
+    return nil
+  end
+
+  local signature = table.concat({
+    tostring(stat.size or 0),
+    tostring((stat.mtime or {}).sec or 0),
+    tostring((stat.mtime or {}).nsec or 0),
+  }, ":")
+  local cached = plan_context_cache[plan_path]
+  if cached and cached.signature == signature then
+    return cached.text
+  end
+
+  local ok_read, lines = pcall(vim.fn.readfile, plan_path, "", max_plan_context_lines + 1)
+  if not ok_read then
+    return nil
+  end
+
+  local truncated = #lines > max_plan_context_lines
+  if truncated then
+    lines = vim.list_slice(lines, 1, max_plan_context_lines)
+    table.insert(lines, "... (PLAN.md truncated; inspect the file before making plan-compliance findings)")
+  end
+
+  local text = table.concat(lines, "\n")
+  if vim.trim(text) == "" then
+    text = nil
+  end
+
+  plan_context_cache[plan_path] = {
+    signature = signature,
+    text = text,
+  }
+
+  return text
+end
+
+local function append_plan_context(lines, repo, action)
+  if action ~= "review" then
+    return
+  end
+
+  local text = plan_context(repo)
+  if text then
+    append_multiline_field(lines, "- PLAN.md context", text)
   end
 end
 
@@ -242,6 +301,8 @@ function M.build(item, opts)
     table.insert(lines, string.format("- Changed lines: %s", changed_lines))
   end
 
+  append_plan_context(lines, item.repo, action)
+
   if item.stale then
     table.insert(lines, "- Warning: this stored review entry is stale relative to the current diff")
   end
@@ -297,6 +358,8 @@ function M.build_batch(items, opts)
   if selection_label then
     table.insert(lines, string.format("- Selection: %s", selection_label))
   end
+
+  append_plan_context(lines, shared_repo or (items[1] and items[1].repo), action)
 
   vim.list_extend(lines, { "", "Task:" })
 
