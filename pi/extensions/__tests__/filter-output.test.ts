@@ -256,6 +256,25 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks env dumps inside quoted subshell commands", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "bash -lc 'env | grep POSTMARK_TOKEN'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("allows commands that only print the word env", async () => {
     const handler = setupExtension();
     const ctx = createContext();

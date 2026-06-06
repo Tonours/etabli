@@ -133,6 +133,7 @@ export default function (pi: ExtensionAPI) {
   const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|jq|yq|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
   const inputRedirectionPattern = /(?:^|[^<])\d*<\s*(?![<(&])(['"]?)([^'"\s;&|()]+)\1/g;
   const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
+  const shellCommandPattern = /\b(?:bash|sh|zsh)\s+-[A-Za-z]*c[A-Za-z]*\s+(['"])([\s\S]*?)\1/g;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
     "--file",
@@ -275,8 +276,24 @@ export default function (pi: ExtensionAPI) {
     return false;
   }
 
+  function commandFragments(command: string): string[] {
+    const fragments = [command];
+    shellCommandPattern.lastIndex = 0;
+
+    for (const match of command.matchAll(shellCommandPattern)) {
+      const fragment = match[2] ?? "";
+      if (fragment !== "") {
+        fragments.push(fragment);
+      }
+    }
+
+    return fragments;
+  }
+
   function isSensitiveCommand(command: string): boolean {
-    return readsSensitiveFile(command) || sensitiveCommandPatterns.some((p) => p.test(command));
+    return commandFragments(command).some((fragment) => (
+      readsSensitiveFile(fragment) || sensitiveCommandPatterns.some((p) => p.test(fragment))
+    ));
   }
 
   // ---------------------------------------------------------------------------
