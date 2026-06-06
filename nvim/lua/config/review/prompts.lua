@@ -30,14 +30,35 @@ local function append_multiline_field(lines, label, value)
   append_comment_body(lines, value)
 end
 
-local function append_repo_context(lines, item)
-  if item.repo and item.repo ~= "" then
+local function append_repo_context(lines, item, opts)
+  local options = opts or {}
+
+  if item.repo and item.repo ~= "" and item.repo ~= options.skip_repo then
     table.insert(lines, string.format("- Repo: %s", item.repo))
   end
 
-  if item.branch and item.branch ~= "" then
+  if item.branch and item.branch ~= "" and item.branch ~= options.skip_branch then
     table.insert(lines, string.format("- Branch: %s", item.branch))
   end
+end
+
+local function shared_item_value(items, key)
+  local shared
+
+  for _, item in ipairs(items) do
+    local value = item[key]
+    if value and value ~= "" then
+      if not shared then
+        shared = value
+      elseif shared ~= value then
+        return nil
+      end
+    else
+      return nil
+    end
+  end
+
+  return shared
 end
 
 local function append_review_comments(lines, item)
@@ -137,12 +158,16 @@ local function batch_action_instructions(action)
   }
 end
 
-local function append_hunk(lines, item, index)
+local function append_hunk(lines, item, index, opts)
+  local options = opts or {}
   -- Build hunk lines in a temporary table for batch insertion
   local hunk_lines = {
     string.format("Hunk %d:", index),
   }
-  append_repo_context(hunk_lines, item)
+  append_repo_context(hunk_lines, item, {
+    skip_repo = options.shared_repo,
+    skip_branch = options.shared_branch,
+  })
   vim.list_extend(hunk_lines, {
     string.format("- File: %s", item.path),
     string.format("- Scope: %s", item.scope),
@@ -215,6 +240,8 @@ function M.build_batch(items, opts)
   local provider = options.provider or "LLM"
   local action = options.action or "revise"
   local selection_label = options.selection_label or (options.status and string.format("review status: %s", options.status))
+  local shared_repo = shared_item_value(items, "repo")
+  local shared_branch = shared_item_value(items, "branch")
 
   -- Build lines efficiently with pre-allocation
   local lines = {
@@ -229,6 +256,14 @@ function M.build_batch(items, opts)
     string.format("- Hunk count: %d", #items),
   }
 
+  if shared_repo then
+    table.insert(lines, string.format("- Repo: %s", shared_repo))
+  end
+
+  if shared_branch then
+    table.insert(lines, string.format("- Branch: %s", shared_branch))
+  end
+
   if selection_label then
     table.insert(lines, string.format("- Selection: %s", selection_label))
   end
@@ -242,7 +277,10 @@ function M.build_batch(items, opts)
 
   for index, item in ipairs(items) do
     table.insert(lines, "")
-    append_hunk(lines, item, index)
+    append_hunk(lines, item, index, {
+      shared_repo = shared_repo,
+      shared_branch = shared_branch,
+    })
   end
 
   return table.concat(lines, "\n")
