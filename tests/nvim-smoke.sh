@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+TMP_DIR="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+require_tool() {
+  command -v "$1" >/dev/null 2>&1 || {
+    printf 'missing tool: %s\n' "$1" >&2
+    exit 1
+  }
+}
+
+run_nvim() {
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" \
+    nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@"
+}
+
+require_tool nvim
+require_tool git
+
+run_nvim "+lua if not vim.startswith(vim.fn.stdpath('state'), vim.env.XDG_STATE_HOME) then vim.api.nvim_err_writeln('nvim smoke state is not isolated: ' .. vim.fn.stdpath('state')); vim.cmd('cquit 1') end" +qa
+run_nvim "+lua dofile([[$ROOT_DIR/scripts/review_smoke.lua]])" +qa
+run_nvim "+lua dofile([[$ROOT_DIR/scripts/etabli_doctor_smoke.lua]])" +qa
+
+printf 'nvim smoke test: ok\n'

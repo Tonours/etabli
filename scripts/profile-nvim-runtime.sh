@@ -306,6 +306,6 @@ require_tool git
 write_profile_lua
 cd "$ROOT_DIR"
 
-env XDG_CONFIG_HOME="$ROOT_DIR" NVIM_PERF_ROOT="$ROOT_DIR" NVIM_PERF_TMP="$TMP_DIR" \
+env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" NVIM_PERF_ROOT="$ROOT_DIR" NVIM_PERF_TMP="$TMP_DIR" \
   nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" \
   "+lua dofile([[$PROFILE_LUA]])" +qa
