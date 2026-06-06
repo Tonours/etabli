@@ -61,10 +61,20 @@ function hasRecursiveForceRm(command: string): boolean {
   return joined.includes("r") && joined.includes("f");
 }
 
+function hasForceDirectoryGitClean(command: string): boolean {
+  const match = command.match(/(^|\s)git\s+clean\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)(?:\s|$)/);
+  if (!match) return false;
+
+  const flags = match[2]?.match(/-[A-Za-z]+/g) ?? [];
+  const joined = flags.join("").toLowerCase();
+  return joined.includes("f") && joined.includes("d");
+}
+
 function isDangerousCommand(command: string): boolean {
   return (
-    /(^|\s)(sudo\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b|git\s+clean\s+-fdx\b)/.test(command)
+    /(^|\s)(sudo\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b)/.test(command)
     || hasRecursiveForceRm(command)
+    || hasForceDirectoryGitClean(command)
   );
 }
 
