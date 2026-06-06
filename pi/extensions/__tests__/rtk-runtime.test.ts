@@ -174,6 +174,22 @@ describe("createRtkCommandRewriter", () => {
     expect(getRtkRuntimeState().lastBypassReason).toBe("multiline");
   });
 
+  test("bypasses destructive rm flag variants", () => {
+    resetRtkRuntimeState();
+    let calls = 0;
+    const rewrite = createRtkCommandRewriter((command) => {
+      calls += 1;
+      return `rtk ${command}`;
+    }, DEFAULT_CONFIG);
+
+    expect(rewrite("rm -fr build")).toBe("rm -fr build");
+    expect(rewrite("rm -r -f build")).toBe("rm -r -f build");
+    expect(rewrite("rm -Rf build")).toBe("rm -Rf build");
+    expect(calls).toBe(0);
+    expect(getRtkRuntimeState().bypasses).toBe(3);
+    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
+  });
+
   test("evicts oldest cache entries when max size is reached", () => {
     let calls = 0;
     const rewrite = createRtkCommandRewriter((command) => {

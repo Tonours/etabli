@@ -52,6 +52,22 @@ function noteBypass(reason: string): void {
   runtimeState.lastBypassReason = reason;
 }
 
+function hasRecursiveForceRm(command: string): boolean {
+  const match = command.match(/(^|\s)rm\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)\s+/);
+  if (!match) return false;
+
+  const flags = match[2]?.match(/-[A-Za-z]+/g) ?? [];
+  const joined = flags.join("").toLowerCase();
+  return joined.includes("r") && joined.includes("f");
+}
+
+function isDangerousCommand(command: string): boolean {
+  return (
+    /(^|\s)(sudo\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b|git\s+clean\s+-fdx\b)/.test(command)
+    || hasRecursiveForceRm(command)
+  );
+}
+
 function findBypassReason(command: string, config: ManagedRtkConfig): string | null {
   const trimmed = command.trim();
   if (trimmed.length === 0) return null;
@@ -60,10 +76,7 @@ function findBypassReason(command: string, config: ManagedRtkConfig): string | n
   if (/(^|\s)<<-?\s*['"]?[A-Za-z0-9_]+['"]?/.test(trimmed)) return "heredoc";
   if (trimmed.length > config.maxCommandLength) return "command-too-long";
   if (trimmed.includes("|")) return "pipeline";
-  if (
-    config.dangerousCommandBypass &&
-    /(^|\s)(sudo\b|rm\s+-rf\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b|git\s+clean\s+-fdx\b)/.test(trimmed)
-  ) {
+  if (config.dangerousCommandBypass && isDangerousCommand(trimmed)) {
     return "dangerous-command";
   }
   return null;
