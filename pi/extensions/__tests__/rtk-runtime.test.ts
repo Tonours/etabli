@@ -190,6 +190,22 @@ describe("createRtkCommandRewriter", () => {
     expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
   });
 
+  test("bypasses destructive git clean flag variants", () => {
+    resetRtkRuntimeState();
+    let calls = 0;
+    const rewrite = createRtkCommandRewriter((command) => {
+      calls += 1;
+      return `rtk ${command}`;
+    }, DEFAULT_CONFIG);
+
+    expect(rewrite("git clean -fd")).toBe("git clean -fd");
+    expect(rewrite("git clean -xdf")).toBe("git clean -xdf");
+    expect(rewrite("git clean -d -f")).toBe("git clean -d -f");
+    expect(calls).toBe(0);
+    expect(getRtkRuntimeState().bypasses).toBe(3);
+    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
+  });
+
   test("evicts oldest cache entries when max size is reached", () => {
     let calls = 0;
     const rewrite = createRtkCommandRewriter((command) => {
