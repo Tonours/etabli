@@ -256,6 +256,29 @@ assert_true(
   "untracked empty file should use file metadata as its review header"
 )
 
+local empty_untracked_delimiter_repo = vim.fn.tempname()
+vim.fn.mkdir(empty_untracked_delimiter_repo .. "/x b", "p")
+git(empty_untracked_delimiter_repo, { "init" })
+local empty_untracked_delimiter_name = "x b/y.txt"
+vim.fn.writefile({}, empty_untracked_delimiter_repo .. "/" .. empty_untracked_delimiter_name)
+local empty_untracked_delimiter_items = diff.collect_scope(empty_untracked_delimiter_repo, "unstaged")
+assert_true(
+  empty_untracked_delimiter_items ~= nil and #empty_untracked_delimiter_items == 1,
+  "expected one file-level review item for untracked empty path containing diff delimiter text"
+)
+assert_true(
+  empty_untracked_delimiter_items[1].path == empty_untracked_delimiter_name,
+  "untracked empty path containing ' b/' should not be split at the embedded delimiter"
+)
+assert_true(
+  empty_untracked_delimiter_items[1].old_path == "/dev/null",
+  "untracked empty path with embedded delimiter should keep /dev/null as old path"
+)
+assert_true(
+  empty_untracked_delimiter_items[1].new_path == empty_untracked_delimiter_name,
+  "untracked empty new path containing ' b/' should be preserved"
+)
+
 local delimiter_path_repo = vim.fn.tempname()
 vim.fn.mkdir(delimiter_path_repo .. "/x b", "p")
 git(delimiter_path_repo, { "init" })

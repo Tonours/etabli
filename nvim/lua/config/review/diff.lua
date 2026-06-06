@@ -228,6 +228,34 @@ local function parse_file_marker_path(raw, prefixes)
   return strip_file_marker_prefix(path, prefixes)
 end
 
+local function split_diff_git_body(body, delimiter)
+  local fallback_old
+  local fallback_new
+  local start = 1
+
+  while true do
+    local delimiter_at = body:find(delimiter, start, true)
+    if not delimiter_at then
+      break
+    end
+
+    local old_path = body:sub(1, delimiter_at - 1)
+    local new_path = body:sub(delimiter_at + #delimiter)
+    if not fallback_old then
+      fallback_old = old_path
+      fallback_new = new_path
+    end
+
+    if old_path == new_path then
+      return old_path, new_path
+    end
+
+    start = delimiter_at + 1
+  end
+
+  return fallback_old, fallback_new
+end
+
 local function parse_diff_git_paths(line)
   for _, prefixes in ipairs(path_prefix_pairs) do
     local line_prefix = "diff --git " .. prefixes.old
@@ -235,10 +263,7 @@ local function parse_diff_git_paths(line)
 
     if vim.startswith(line, line_prefix) then
       local body = line:sub(#line_prefix + 1)
-      local delimiter_at = body:find(delimiter, 1, true)
-      if delimiter_at then
-        return body:sub(1, delimiter_at - 1), body:sub(delimiter_at + #delimiter)
-      end
+      return split_diff_git_body(body, delimiter)
     end
   end
 
