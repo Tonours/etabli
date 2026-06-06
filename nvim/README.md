@@ -25,6 +25,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 
 - Inbox: `<leader>ri` or `:ReviewInbox [status|filter]`
 - Current hunk: `<leader>rh` preview, `<leader>ra` comment line or visual range, `<leader>rr` resolve conversation, `<leader>rs` status, `<leader>rA` accept, `<leader>rV` reviewed
+- Review transaction: `<leader>rt` starts a local draft transaction, `<leader>rT` previews it, `:ReviewSubmit comment|approve|request-changes` submits it
 - Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers, `<leader>ro` expands the thread under the cursor
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk navigation: `[h`, `]h`

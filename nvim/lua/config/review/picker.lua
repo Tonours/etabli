@@ -115,6 +115,7 @@ end
 
 local function render_preview(item)
   local comments = item.comments or {}
+  local draft_comments = item.draft_comments or {}
   local unresolved = unresolved_comments(comments)
   local lines = {
     "Review hunk",
@@ -134,6 +135,14 @@ local function render_preview(item)
   if item.note and item.note ~= "" then
     table.insert(lines, "Note:")
     util.append_text_lines(lines, item.note, "  ")
+  end
+
+  if #draft_comments > 0 then
+    table.insert(lines, "Pending transaction comments:")
+    for _, comment in ipairs(draft_comments) do
+      table.insert(lines, string.format("  - %s %s [pending]:", comment.id or "?", comment_range_label(comment)))
+      util.append_text_lines(lines, comment.body or "", "    ")
+    end
   end
 
   if #unresolved > 0 then

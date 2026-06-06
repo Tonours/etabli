@@ -6,6 +6,11 @@ local util = require("config.review.util")
 local M = {}
 
 local state_dir = vim.fn.stdpath("state") .. "/etabli/review"
+local valid_transaction_verdicts = {
+  comment = true,
+  approve = true,
+  ["request-changes"] = true,
+}
 
 -- Cache for file reads to avoid repeated disk access
 local file_cache = {}
@@ -100,6 +105,11 @@ local function ensure_record_shape(decoded, repo, branch)
   decoded.repo = decoded.repo or repo
   decoded.branch = decoded.branch or branch
   decoded.items = type(decoded.items) == "table" and decoded.items or {}
+  if type(decoded.transaction) ~= "table" or decoded.transaction.status ~= "draft" then
+    decoded.transaction = nil
+  else
+    decoded.transaction.items = type(decoded.transaction.items) == "table" and decoded.transaction.items or {}
+  end
 
   return decoded
 end
@@ -196,7 +206,86 @@ local function comment_id_exists(comments, id)
   return false
 end
 
-local function review_anchor(item)
+local review_anchor
+local review_signature
+
+local function active_transaction(stored)
+  if type(stored.transaction) == "table" and stored.transaction.status == "draft" then
+    stored.transaction.items = type(stored.transaction.items) == "table" and stored.transaction.items or {}
+    return stored.transaction
+  end
+
+  return nil
+end
+
+local function transaction_has_content(transaction)
+  if not transaction then
+    return false
+  end
+
+  for _, item in pairs(transaction.items or {}) do
+    if not vim.tbl_isempty(normalize_comments(item.comments)) then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function transaction_item_snapshot(context, item)
+  return {
+    repo = context.repo,
+    branch = context.branch,
+    fingerprint = item.fingerprint,
+    path = item.path,
+    scope = item.scope,
+    hunk_header = item.hunk_header or item.header,
+    hunk_context = item.hunk_context,
+    patch = item.patch,
+    patch_hash = item.patch_hash,
+    review_anchor = review_anchor(item),
+    review_signature = review_signature(item),
+    line_start = item.line_start,
+    line_end = item.line_end,
+    changed_line_start = item.changed_line_start,
+    changed_line_end = item.changed_line_end,
+    comments = {},
+  }
+end
+
+local function transaction_comments_for_item(transaction, item)
+  if not transaction or not item or not item.fingerprint then
+    return {}
+  end
+
+  local draft = transaction.items and transaction.items[item.fingerprint]
+  if not draft then
+    return {}
+  end
+
+  local comments = comments_for_item(draft.comments, item)
+  for _, comment in ipairs(comments) do
+    comment.draft = true
+  end
+
+  return comments
+end
+
+local function current_items_by_fingerprint(context)
+  local items, err = diff.collect_all(context.repo)
+  if not items then
+    return nil, err
+  end
+
+  local by_fingerprint = {}
+  for _, item in ipairs(items) do
+    by_fingerprint[item.fingerprint] = item
+  end
+
+  return by_fingerprint
+end
+
+review_anchor = function(item)
   return table.concat({
     item.scope or "",
     item.path or "",
@@ -204,7 +293,7 @@ local function review_anchor(item)
   }, "\0")
 end
 
-local function review_signature(item)
+review_signature = function(item)
   return item.patch_hash or item.fingerprint or ""
 end
 
@@ -239,12 +328,14 @@ end
 local function decorate_attention(item)
   local status = item.status or "new"
   local unresolved = unresolved_comment_count(item.comments)
+  local draft_count = #(item.draft_comments or {})
   local has_note = item.note and item.note ~= ""
 
-  item.comment_count = #(item.comments or {})
-  item.unresolved_comment_count = unresolved
+  item.draft_comment_count = draft_count
+  item.comment_count = #(item.comments or {}) + draft_count
+  item.unresolved_comment_count = unresolved + draft_count
 
-  if item.stale and (meta.is_actionable(status) or unresolved > 0 or has_note) then
+  if item.stale and (meta.is_actionable(status) or item.unresolved_comment_count > 0 or has_note) then
     item.attention_reason = "needs-recheck"
     item.attention_label = "RECHECK"
     item.attention_rank = 2
@@ -252,7 +343,7 @@ local function decorate_attention(item)
     item.attention_reason = "changed-since-review"
     item.attention_label = "CHANGED"
     item.attention_rank = 2
-  elseif unresolved > 0 or meta.is_actionable(status) then
+  elseif item.unresolved_comment_count > 0 or meta.is_actionable(status) then
     item.attention_reason = "needs-human"
     item.attention_label = "HUMAN"
     item.attention_rank = 1
@@ -410,12 +501,15 @@ function M.merge_items(context, current_items)
   local merged = {}
   local seen = {}
   local reviewed_by_anchor = latest_reviewed_by_anchor(stored.items)
+  local transaction = active_transaction(stored)
 
   for _, item in ipairs(current_items) do
     local saved = stored.items[item.fingerprint]
     local saved_comments = saved and comments_for_item(saved.comments, item) or {}
+    local draft_comments = transaction_comments_for_item(transaction, item)
     local combined = vim.tbl_extend("force", item, {
       branch = context.branch,
+      draft_comments = draft_comments,
       note = saved and saved.note or "",
       comments = saved_comments,
       status = saved and saved.status or "new",
@@ -431,10 +525,13 @@ function M.merge_items(context, current_items)
 
   for fingerprint, saved in pairs(stored.items) do
     local saved_comments = comments_for_item(saved.comments, saved)
+    local draft_comments = transaction_comments_for_item(transaction, saved)
     local has_comment = not vim.tbl_isempty(saved_comments)
-    if not seen[fingerprint] and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new" or has_comment) then
+    local has_draft = not vim.tbl_isempty(draft_comments)
+    if not seen[fingerprint] and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new" or has_comment or has_draft) then
       local stale = vim.deepcopy(saved)
       stale.comments = saved_comments
+      stale.draft_comments = draft_comments
       stale.branch = context.branch
       stale.stale = true
       stale.review_anchor = stale.review_anchor or review_anchor(stale)
@@ -450,12 +547,12 @@ function M.merge_items(context, current_items)
   return merged
 end
 
-local function save_item_in_record(context, stored, item, attrs)
+local function set_item_in_record(context, stored, item, attrs, timestamp)
   local previous = stored.items[item.fingerprint] or {}
   local note = attrs and attrs.note or previous.note or ""
   local status = attrs and attrs.status or previous.status or "new"
   local comments = attrs and attrs.comments or previous.comments or {}
-  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local now = timestamp or os.date("!%Y-%m-%dT%H:%M:%SZ")
   local reviewed = previous.reviewed == true
   local reviewed_signature = previous.reviewed_signature
   local reviewed_at = previous.reviewed_at
@@ -497,6 +594,20 @@ local function save_item_in_record(context, stored, item, attrs)
   return stored.items[item.fingerprint]
 end
 
+local function save_item_in_record(context, stored, item, attrs)
+  local saved, err = set_item_in_record(context, stored, item, attrs)
+  if not saved then
+    return nil, err
+  end
+
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
+
+  return saved
+end
+
 function M.save_item(context, item, attrs)
   return save_item_in_record(context, M.read(context), item, attrs)
 end
@@ -511,6 +622,190 @@ end
 
 function M.set_reviewed(context, item, reviewed)
   return M.save_item(context, item, { reviewed = reviewed ~= false })
+end
+
+function M.start_transaction(context)
+  local stored = M.read(context)
+  local transaction = active_transaction(stored)
+  if transaction then
+    return vim.deepcopy(transaction)
+  end
+
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  stored.transaction = {
+    id = vim.fn.sha256(table.concat({
+      context.repo,
+      context.branch,
+      now,
+      tostring(vim.uv.hrtime()),
+    }, "\n")):sub(1, 12),
+    status = "draft",
+    started_at = now,
+    updated_at = now,
+    items = {},
+  }
+
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
+
+  return vim.deepcopy(stored.transaction)
+end
+
+function M.active_transaction(context)
+  local transaction = active_transaction(M.read(context))
+  return transaction and vim.deepcopy(transaction) or nil
+end
+
+function M.discard_transaction(context)
+  local stored = M.read(context)
+  if not active_transaction(stored) then
+    return true
+  end
+
+  stored.transaction = nil
+  return M.write(context, stored)
+end
+
+function M.add_draft_comment(context, item, attrs)
+  local options = attrs or {}
+  local body = vim.trim(options.body or "")
+  if body == "" then
+    return nil, "Review comment cannot be empty"
+  end
+
+  local stored = M.read(context)
+  local transaction = active_transaction(stored)
+  if not transaction then
+    return nil, "No active review transaction"
+  end
+
+  local line = tonumber(options.line) or item.line_start or 1
+  local end_line = tonumber(options.end_line) or line
+  if end_line < line then
+    line, end_line = end_line, line
+  end
+  if not diff.hunk_contains_line(item, line) or not diff.hunk_contains_line(item, end_line) then
+    return nil, "Review comment range must stay inside this hunk"
+  end
+
+  local draft = transaction.items[item.fingerprint] or transaction_item_snapshot(context, item)
+  local comments = normalize_comments(draft.comments)
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local nonce = 0
+  local id
+
+  repeat
+    nonce = nonce + 1
+    id = "draft_" .. vim.fn.sha256(table.concat({
+      item.fingerprint or "",
+      tostring(line),
+      tostring(end_line),
+      body,
+      now,
+      tostring(#comments + nonce),
+      tostring(vim.uv.hrtime()),
+    }, "\n")):sub(1, 10)
+  until not comment_id_exists(comments, id)
+
+  table.insert(comments, {
+    id = id,
+    line = line,
+    end_line = end_line,
+    body = body,
+    resolved = false,
+    created_at = now,
+    updated_at = now,
+  })
+
+  draft.comments = comments
+  transaction.items[item.fingerprint] = draft
+  transaction.updated_at = now
+  stored.transaction = transaction
+
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
+
+  return vim.deepcopy(draft)
+end
+
+function M.submit_transaction(context, verdict)
+  local requested_verdict = (verdict == nil or verdict == "") and "comment" or verdict
+  if not valid_transaction_verdicts[requested_verdict] then
+    return nil, string.format("Invalid review transaction verdict: %s", tostring(verdict))
+  end
+
+  local stored = M.read(context)
+  local transaction = active_transaction(stored)
+  if not transaction or not transaction_has_content(transaction) then
+    return nil, "No active review transaction with draft content"
+  end
+
+  local current_items, current_err = current_items_by_fingerprint(context)
+  if not current_items then
+    return nil, current_err
+  end
+
+  for fingerprint, draft in pairs(transaction.items or {}) do
+    if not current_items[fingerprint] then
+      return nil, string.format("Cannot submit review transaction because %s changed since draft creation", draft.path or fingerprint)
+    end
+  end
+
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local submitted_comments = 0
+  local submitted_items = 0
+
+  for fingerprint, draft in pairs(transaction.items or {}) do
+    local draft_comments = normalize_comments(draft.comments)
+    if not vim.tbl_isempty(draft_comments) then
+      local item = current_items[fingerprint]
+      local previous = stored.items[fingerprint] or {}
+      local comments = normalize_comments(previous.comments)
+
+      for _, comment in ipairs(draft_comments) do
+        table.insert(comments, comment)
+      end
+
+      local attrs = { comments = comments }
+      if requested_verdict == "approve" then
+        attrs.reviewed = true
+      elseif requested_verdict == "request-changes" then
+        attrs.status = "needs-rework"
+      end
+
+      local _, err = set_item_in_record(context, stored, item, attrs, now)
+      if err then
+        return nil, err
+      end
+
+      submitted_comments = submitted_comments + #draft_comments
+      submitted_items = submitted_items + 1
+    end
+  end
+
+  stored.last_transaction = vim.tbl_extend("force", vim.deepcopy(transaction), {
+    status = "submitted",
+    verdict = requested_verdict,
+    submitted_at = now,
+    submitted_comments = submitted_comments,
+    submitted_items = submitted_items,
+  })
+  stored.transaction = nil
+
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
+
+  return {
+    verdict = requested_verdict,
+    submitted_comments = submitted_comments,
+    submitted_items = submitted_items,
+  }
 end
 
 function M.add_comment(context, item, attrs)

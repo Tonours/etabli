@@ -270,6 +270,7 @@ end
 
 local function finish_comment(item, line, end_line, body, opts)
   local options = opts or {}
+  local context = { repo = item.repo, branch = item.branch }
 
   if body == nil then
     if options.on_done then
@@ -278,7 +279,9 @@ local function finish_comment(item, line, end_line, body, opts)
     return
   end
 
-  local _, err = state.add_comment({ repo = item.repo, branch = item.branch }, item, {
+  local has_transaction = state.active_transaction(context) ~= nil
+  local save = has_transaction and state.add_draft_comment or state.add_comment
+  local _, err = save(context, item, {
     body = body,
     line = line,
     end_line = end_line,
@@ -291,7 +294,7 @@ local function finish_comment(item, line, end_line, body, opts)
     return
   end
 
-  vim.notify("Review comment added", vim.log.levels.INFO)
+  vim.notify(has_transaction and "Review draft comment added" or "Review comment added", vim.log.levels.INFO)
   review_items.clear_cache()
   annotations.refresh_repo(item.repo)
 
@@ -512,6 +515,10 @@ local function show_inbox_help(opts)
     "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewMarkReviewed [on|off|toggle] marks the current hunk reviewed without changing status",
+    "- :ReviewStart begins a local draft review transaction",
+    "- :ReviewPreview shows pending transaction comments",
+    "- :ReviewSubmit [comment|approve|request-changes] submits pending transaction comments locally",
+    "- :ReviewExport [markdown|json] exports the pending transaction",
     "- :ReviewClaudeBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewPiBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewClaudeReview [status|all] launch a first-pass Claude code review",
@@ -766,6 +773,86 @@ function M.mark_current_reviewed(reviewed)
   set_item_reviewed(item, next_reviewed)
 end
 
+function M.start_transaction()
+  local context = best_context()
+  if not context then
+    vim.notify("Open a review transaction from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local transaction, err = state.start_transaction(context)
+  if not transaction then
+    vim.notify(err, vim.log.levels.ERROR)
+    return
+  end
+
+  vim.notify(string.format("Review transaction %s started", transaction.id or "?"), vim.log.levels.INFO)
+end
+
+function M.preview_transaction()
+  local context = best_context()
+  if not context then
+    vim.notify("Open a review transaction preview from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local transaction = state.active_transaction(context)
+  if not transaction then
+    vim.notify("No active review transaction", vim.log.levels.INFO)
+    return
+  end
+
+  util.open_scratch("review-transaction.md", views.render_transaction(transaction), "markdown")
+end
+
+function M.submit_transaction(verdict)
+  local context = best_context()
+  if not context then
+    vim.notify("Submit a review transaction from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local result, err = state.submit_transaction(context, verdict)
+  if not result then
+    vim.notify(err, vim.log.levels.ERROR)
+    return
+  end
+
+  review_items.clear_cache()
+  annotations.refresh_repo(context.repo)
+  vim.notify(
+    string.format(
+      "Review transaction submitted as %s: %d comment(s) across %d hunk(s)",
+      result.verdict,
+      result.submitted_comments,
+      result.submitted_items
+    ),
+    vim.log.levels.INFO
+  )
+end
+
+function M.export_transaction(format)
+  local context = best_context()
+  if not context then
+    vim.notify("Export a review transaction from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local transaction = state.active_transaction(context)
+  if not transaction then
+    vim.notify("No active review transaction", vim.log.levels.INFO)
+    return
+  end
+
+  local target_format = format == "json" and "json" or "markdown"
+  if target_format == "json" then
+    util.open_scratch("review-transaction.json", { vim.json.encode(transaction) }, "json")
+    return
+  end
+
+  util.open_scratch("review-transaction.md", views.render_transaction(transaction), "markdown")
+end
+
 function M.send_current(provider, action)
   local _, item = current_hunk_item()
   if not item then
@@ -998,6 +1085,22 @@ function M.cmd_mark_reviewed(cmd_opts)
   end
 
   vim.notify(string.format("Invalid review mark action: %s", action), vim.log.levels.ERROR)
+end
+
+function M.cmd_start_transaction()
+  M.start_transaction()
+end
+
+function M.cmd_preview_transaction()
+  M.preview_transaction()
+end
+
+function M.cmd_submit_transaction(cmd_opts)
+  M.submit_transaction(cmd_opts.args ~= "" and cmd_opts.args or "comment")
+end
+
+function M.cmd_export_transaction(cmd_opts)
+  M.export_transaction(cmd_opts.args ~= "" and cmd_opts.args or "markdown")
 end
 
 function M.cmd_send_claude(cmd_opts)

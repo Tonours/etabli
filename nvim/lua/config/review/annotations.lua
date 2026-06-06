@@ -38,6 +38,12 @@ local function unresolved_comments(item)
     end
   end
 
+  for _, comment in ipairs(item.draft_comments or {}) do
+    if comment.body and comment.body ~= "" then
+      table.insert(comments, comment)
+    end
+  end
+
   return comments
 end
 
@@ -151,7 +157,19 @@ end
 
 local function compact_comment_text(comments)
   local count = #comments
-  local label = count == 1 and "1 unresolved" or string.format("%d unresolved", count)
+  local draft_count = 0
+  for _, comment in ipairs(comments) do
+    if comment.draft == true then
+      draft_count = draft_count + 1
+    end
+  end
+
+  local label
+  if draft_count == count then
+    label = count == 1 and "1 pending" or string.format("%d pending", count)
+  else
+    label = count == 1 and "1 unresolved" or string.format("%d unresolved", count)
+  end
   local first = comments[1]
   local range = first and range_label(first) or "line ?"
 

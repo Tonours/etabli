@@ -54,6 +54,16 @@ lazy_cmd("ReviewMarkReviewed", "config.review", "cmd_mark_reviewed", {
   complete = function() return { "on", "off", "toggle" } end,
   desc = "Mark the current review hunk as reviewed", nargs = "?",
 })
+lazy_cmd("ReviewStart", "config.review", "cmd_start_transaction", { desc = "Start a local draft review transaction" })
+lazy_cmd("ReviewPreview", "config.review", "cmd_preview_transaction", { desc = "Preview the active draft review transaction" })
+lazy_cmd("ReviewSubmit", "config.review", "cmd_submit_transaction", {
+  complete = function() return { "comment", "approve", "request-changes" } end,
+  desc = "Submit the active draft review transaction locally", nargs = "?",
+})
+lazy_cmd("ReviewExport", "config.review", "cmd_export_transaction", {
+  complete = function() return { "markdown", "json" } end,
+  desc = "Export the active draft review transaction", nargs = "?",
+})
 lazy_cmd("ReviewInlineAnnotations", "config.review", "cmd_inline_annotations", {
   complete = function() return { "on", "off", "refresh", "toggle", "expand", "compact" } end,
   desc = "Toggle review inline annotations", nargs = "?",
