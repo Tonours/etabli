@@ -91,6 +91,29 @@ repair_link() {
   status_line FIXED "$type_label -> $target_path"
 }
 
+check_absent() {
+  local path="$1"
+  local type_label="$2"
+
+  if [ ! -e "$path" ] && [ ! -L "$path" ]; then
+    if [ "$VERBOSE" -eq 1 ]; then
+      status_line OK "$type_label absent"
+    fi
+    return 0
+  fi
+
+  ISSUES=$((ISSUES + 1))
+  status_line WARN "$type_label exists but must be absent"
+
+  if [ "$FIX" -eq 1 ]; then
+    local backup_path
+    backup_path="$(backup_path "$path")"
+    mv "$path" "$backup_path"
+    FIXED=$((FIXED + 1))
+    status_line BACKUP "$type_label moved to $backup_path"
+  fi
+}
+
 check_link() {
   local link_path="$1"
   local target_path="$2"
@@ -163,6 +186,7 @@ check_link "$HOME/.tmux.conf" "$REPO_DIR/tmux.conf" "tmux config"
 check_link "$HOME/.config/ghostty/config" "$REPO_DIR/ghostty/config" "ghostty config"
 check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
 check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
+check_absent "$HOME/.pi/extensions" "legacy pi extensions"
 check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
 check_link "$HOME/.pi/settings.json" "$REPO_DIR/pi/settings.json" "pi settings.json"
 check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
