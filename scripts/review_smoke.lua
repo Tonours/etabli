@@ -789,6 +789,14 @@ assert_true(review_prompt:match("Findings must come first") ~= nil, "review prom
 assert_true(review_prompt:match("Verify every reported line or range exists in the supplied diff") ~= nil, "review prompt should guard diff coordinates")
 assert_true(review_prompt:match("review_comment") ~= nil, "review prompt should request inline-ready comment text")
 assert_true(
+  review_prompt:match("severity:, file:, line:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
+  "review prompt should require stable finding labels for inline review extraction"
+)
+assert_true(
+  review_prompt:match("without code fences or tables") ~= nil,
+  "review prompt should keep inline review comments directly pasteable"
+)
+assert_true(
   review_prompt:match("then still include the final verdict") ~= nil,
   "review prompt should keep no-findings output compatible with verdicts"
 )
@@ -824,6 +832,10 @@ assert_true(batch_review_prompt:match("GO WITH NOTES") ~= nil, "batch review pro
 assert_true(
   batch_review_prompt:match("No findings%.") ~= nil,
   "batch review prompt should specify the no-findings path"
+)
+assert_true(
+  batch_review_prompt:match("severity:, file:, hunk:, line:, issue:, impact:, review_comment:, suggested_fix:") ~= nil,
+  "batch review prompt should require stable finding labels for inline review extraction"
 )
 assert_true(
   batch_review_prompt:match("then still include the final verdict") ~= nil,
