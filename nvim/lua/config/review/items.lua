@@ -267,6 +267,15 @@ local function cached(context, opts)
   return merged
 end
 
+local function item_snapshot(item)
+  local snapshot = vim.tbl_extend("force", {}, item)
+  if item.comments then
+    snapshot.comments = vim.deepcopy(item.comments)
+  end
+
+  return snapshot
+end
+
 local function filter(items, opts)
   local options = opts or {}
   local filtered = {}
@@ -294,7 +303,7 @@ local function filter(items, opts)
       end
     end
 
-    table.insert(filtered, item)
+    table.insert(filtered, item_snapshot(item))
     ::continue::
   end
 

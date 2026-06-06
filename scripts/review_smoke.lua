@@ -842,6 +842,38 @@ assert_true(
   "duplicate review comments should still receive unique ids"
 )
 
+require("config.review.items").clear_cache()
+_G.etabli_review_cached_items = require("config.review.items").for_context(context, {
+  include_stale = false,
+  path = unstaged[1].path,
+  status = "needs-rework",
+})
+assert_true(
+  _G.etabli_review_cached_items ~= nil and #_G.etabli_review_cached_items == 1,
+  "expected cached review item snapshot fixture"
+)
+_G.etabli_review_cached_items[1].note = "mutated cached note"
+_G.etabli_review_cached_items[1].status = "accepted"
+_G.etabli_review_cached_items[1].comments[1].body = "mutated cached comment"
+_G.etabli_review_cached_items = require("config.review.items").for_context(context, {
+  include_stale = false,
+  path = unstaged[1].path,
+  status = "needs-rework",
+})
+assert_true(
+  _G.etabli_review_cached_items[1].note == reviewer_note,
+  "review item cache should not retain caller-mutated notes"
+)
+assert_true(
+  _G.etabli_review_cached_items[1].status == "needs-rework",
+  "review item cache should not retain caller-mutated statuses"
+)
+assert_true(
+  _G.etabli_review_cached_items[1].comments[1].body == "This edge case needs a guard.",
+  "review item cache should not retain caller-mutated comments"
+)
+_G.etabli_review_cached_items = nil
+
 local merged = state.merge_items(context, diff.collect_all(repo_root))
 local matched
 for _, item in ipairs(merged) do
