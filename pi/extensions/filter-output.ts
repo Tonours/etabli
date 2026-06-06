@@ -205,10 +205,8 @@ export default function (pi: ExtensionAPI) {
   pi.on("tool_result", async (event, ctx) => {
     if (event.isError) return undefined;
 
-    const textContent = event.content.find(
-      (c): c is { type: "text"; text: string } => c.type === "text",
-    );
-    if (!textContent) return undefined;
+    const hasTextContent = event.content.some((c) => c.type === "text");
+    if (!hasTextContent) return undefined;
 
     // -- Block sensitive file reads --
     if (event.toolName === "read") {
@@ -233,19 +231,26 @@ export default function (pi: ExtensionAPI) {
     }
 
     // -- Redact inline secrets from any tool output --
-    let result = textContent.text;
-    const tokens = redactTokens(result);
-    result = tokens.result;
-    const structural = redactStructural(result);
-    result = structural.result;
+    let totalRedactions = 0;
+    const redactedContent = event.content.map((content) => {
+      if (content.type !== "text") return content;
 
-    const totalRedactions = tokens.count + structural.count;
+      let text = content.text;
+      const tokens = redactTokens(text);
+      text = tokens.result;
+      const structural = redactStructural(text);
+      text = structural.result;
+      totalRedactions += tokens.count + structural.count;
+
+      return text === content.text ? content : { ...content, text };
+    });
+
     if (totalRedactions > 0) {
       ctx.ui.notify(
         `Redacted ${totalRedactions} secret${totalRedactions > 1 ? "s" : ""} from output`,
         "warning",
       );
-      return { content: [{ type: "text", text: result }] };
+      return { content: redactedContent };
     }
 
     return undefined;
