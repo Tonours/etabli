@@ -32,6 +32,16 @@ assert_not_exists() {
   }
 }
 
+assert_contains() {
+  local path="$1"
+  local needle="$2"
+
+  grep -Fq "$needle" "$path" || {
+    printf 'expected %s in %s\n' "$needle" "$path" >&2
+    exit 1
+  }
+}
+
 backup_count() {
   find "$(dirname "$1")" -maxdepth 1 -name "$(basename "$1").bak.*" | wc -l | tr -d ' '
 }
@@ -57,5 +67,21 @@ if [ "$(backup_count "$TMP_HOME/.pi/settings.json")" -lt 2 ]; then
   printf 'expected repeated fixes to keep distinct settings.json backups\n' >&2
   exit 1
 fi
+
+FAKE_REPO="$TMP_HOME/fake-repo"
+FAKE_HOME="$TMP_HOME/fake-home"
+MISSING_SOURCE_OUTPUT="$TMP_HOME/missing-source.out"
+mkdir -p "$FAKE_REPO/scripts" "$FAKE_HOME"
+cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
+chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
+
+if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then
+  printf 'expected --fix to fail when repo sources are missing\n' >&2
+  exit 1
+fi
+
+assert_contains "$MISSING_SOURCE_OUTPUT" "source missing"
+assert_contains "$MISSING_SOURCE_OUTPUT" "unresolved"
+assert_not_exists "$FAKE_HOME/.config/nvim"
 
 printf 'fix-links smoke test: ok\n'
