@@ -48,7 +48,7 @@ If human arbitration is needed, add:
 - `human_checkpoint: yes`
 - why the reviewer is escalating
 
-Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If there is no actionable issue, write exactly: `No findings.`
+Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If there is no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.
 
 ## Verdict
 End with exactly one verdict:

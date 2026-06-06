@@ -13,7 +13,7 @@ Use `workflow/review-rubric.md`.
 4. Review correctness, regressions, safety, validation, maintainability, and plan drift.
 5. Report only actionable findings grounded in the reviewed diff. Verify every reported line or range exists in that diff.
 6. Include severity, location, impact, smallest fix, and `review_comment:` with one concise inline-ready comment for each finding.
-7. If there is no actionable issue, write exactly: `No findings.`
+7. If there is no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.
 8. Escalate human checkpoint only for real tradeoffs or accepted risk.
 9. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
 
