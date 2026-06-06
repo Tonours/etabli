@@ -57,6 +57,16 @@ assert_link "$TMP_HOME/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loo
 assert_link "$TMP_HOME/.claude/commands/review.md" "$ROOT_DIR/claude/commands/review.md"
 assert_not_exists "$TMP_HOME/.claude/skills/grill-me"
 
+mkdir -p "$TMP_HOME/.pi/extensions"
+printf 'legacy extension\n' > "$TMP_HOME/.pi/extensions/legacy.txt"
+HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
+assert_not_exists "$TMP_HOME/.pi/extensions"
+
+if [ "$(backup_count "$TMP_HOME/.pi/extensions")" -lt 1 ]; then
+  printf 'expected legacy ~/.pi/extensions to be backed up before removal\n' >&2
+  exit 1
+fi
+
 rm "$TMP_HOME/.pi/settings.json"
 printf 'custom one\n' > "$TMP_HOME/.pi/settings.json"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
