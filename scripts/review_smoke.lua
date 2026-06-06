@@ -606,6 +606,8 @@ local fenced_batch_prompt = prompts.build_batch({ fenced_item }, {
 
 assert_true(prompt_a == prompt_b, "prompt generation should be deterministic")
 assert_true(prompt_a:match("demo%.txt") ~= nil, "prompt should include the file path")
+assert_true(prompt_a:find("- Repo: " .. repo_root, 1, true) ~= nil, "prompt should include the repository root")
+assert_true(prompt_a:find("- Branch: " .. context.branch, 1, true) ~= nil, "prompt should include the repository branch")
 assert_true(prompt_a:match("Please simplify this change") ~= nil, "prompt should include the saved note")
 assert_true(prompt_a:match("\n    Keep the guard explicit%.") ~= nil, "prompt should indent multiline reviewer notes")
 assert_true(prompt_a:match("Existing review comments") ~= nil, "prompt should include review comments")
@@ -637,6 +639,14 @@ assert_true(
 assert_true(batch_prompt:match("Hunk 1:") ~= nil, "batch prompt should label hunks")
 assert_true(batch_prompt:match("Hunk count: 2") ~= nil, "batch prompt should include the hunk count")
 assert_true(batch_prompt:match("Selection: review status: needs%-rework") ~= nil, "batch prompt should include the selection label")
+assert_true(
+  batch_review_prompt:find("- Repo: " .. repo_root, 1, true) ~= nil,
+  "batch review prompt should include repository context"
+)
+assert_true(
+  batch_review_prompt:find("- Branch: " .. context.branch, 1, true) ~= nil,
+  "batch review prompt should include branch context"
+)
 assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch review prompt should review the changeset")
 assert_true(
   batch_review_prompt:match("context gaps in open questions or assumptions, not findings") ~= nil,

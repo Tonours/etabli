@@ -30,6 +30,16 @@ local function append_multiline_field(lines, label, value)
   append_comment_body(lines, value)
 end
 
+local function append_repo_context(lines, item)
+  if item.repo and item.repo ~= "" then
+    table.insert(lines, string.format("- Repo: %s", item.repo))
+  end
+
+  if item.branch and item.branch ~= "" then
+    table.insert(lines, string.format("- Branch: %s", item.branch))
+  end
+end
+
 local function append_review_comments(lines, item)
   local comments = item.comments or {}
   if vim.tbl_isempty(comments) then
@@ -131,11 +141,14 @@ local function append_hunk(lines, item, index)
   -- Build hunk lines in a temporary table for batch insertion
   local hunk_lines = {
     string.format("Hunk %d:", index),
+  }
+  append_repo_context(hunk_lines, item)
+  vim.list_extend(hunk_lines, {
     string.format("- File: %s", item.path),
     string.format("- Scope: %s", item.scope),
     string.format("- Hunk: %s", item.hunk_header),
     string.format("- Current review status: %s", item.status or "new"),
-  }
+  })
 
   if item.stale then
     table.insert(hunk_lines, "- Warning: this stored review entry is stale relative to the current diff")
@@ -165,11 +178,14 @@ function M.build(item, opts)
     action == "review" and "Review only the diff hunk below." or "Focus only on the diff hunk below.",
     "",
     "Context:",
+  }
+  append_repo_context(lines, item)
+  vim.list_extend(lines, {
     string.format("- File: %s", item.path),
     string.format("- Scope: %s", item.scope),
     string.format("- Hunk: %s", item.hunk_header),
     string.format("- Current review status: %s", item.status or "new"),
-  }
+  })
 
   if item.stale then
     table.insert(lines, "- Warning: this stored review entry is stale relative to the current diff")
