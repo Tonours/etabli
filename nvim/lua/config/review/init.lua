@@ -19,12 +19,25 @@ local function clear_repo_items_cache()
 end
 
 local function repo_change_signature(repo)
-  local result = vim.system({ "git", "-C", repo, "status", "--short" }, { text = true }):wait()
-  if result.code ~= 0 then
-    return nil
+  local commands = {
+    { "status", "--porcelain=v1", "--untracked-files=all" },
+    { "diff", "--no-ext-diff", "--no-color", "--binary" },
+    { "diff", "--cached", "--no-ext-diff", "--no-color", "--binary" },
+  }
+  local parts = {}
+
+  for _, args in ipairs(commands) do
+    local result = vim.system(vim.list_extend({ "git", "-C", repo }, args), { text = true }):wait()
+    if result.code ~= 0 then
+      return nil
+    end
+
+    local label = table.concat(args, " ")
+    local output = result.stdout or ""
+    table.insert(parts, string.format("%d:%s%d:%s", #label, label, #output, output))
   end
 
-  return result.stdout or ""
+  return vim.fn.sha256(table.concat(parts, ""))
 end
 
 local function refresh_repo_buffers(repo)
