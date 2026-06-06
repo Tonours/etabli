@@ -32,13 +32,15 @@ run_bounded() {
 }
 
 pi_bin() {
+  local asdf_shim="${ASDF_DATA_DIR:-$HOME/.asdf}/shims/pi"
+
   if command -v pi >/dev/null 2>&1; then
     command -v pi
     return 0
   fi
 
-  if [ -x "$HOME/.asdf/shims/pi" ]; then
-    printf '%s\n' "$HOME/.asdf/shims/pi"
+  if [ -x "$asdf_shim" ]; then
+    printf '%s\n' "$asdf_shim"
   fi
 }
 

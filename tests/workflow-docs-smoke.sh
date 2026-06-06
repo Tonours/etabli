@@ -92,6 +92,7 @@ assert_contains "$ROOT_DIR/pi/extensions/rtk.ts" '@earendil-works/pi-coding-agen
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'RUN_CLAUDE_PRINT_SMOKE'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'Claude Code binary smoke'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" '--version'
+assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'ASDF_DATA_DIR'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'sanitized bracketed terminal paste input'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'instead of using Claude `-p` / `--print`'
 assert_not_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'Single-line prompts can be passed'
