@@ -124,9 +124,11 @@ export default function (pi: ExtensionAPI) {
   const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
+    "--file",
     "--glob",
     "--iglob",
     "--include",
+    "-f",
     "-g",
   ]);
   const sensitiveCommandPatterns: RegExp[] = [
@@ -193,15 +195,15 @@ export default function (pi: ExtensionAPI) {
         continue;
       }
 
-      const optionWithValue = token.match(/^(--(?:glob|iglob|include))=(.+)$/);
+      const optionWithValue = token.match(/^(--(?:file|glob|iglob|include))=(.+)$/);
       if (optionWithValue) {
         pathTokens.push(optionWithValue[2]);
         continue;
       }
 
-      const attachedShortGlob = token.match(/^-g(.+)$/);
-      if (attachedShortGlob) {
-        pathTokens.push(attachedShortGlob[1]);
+      const attachedShortPathOption = token.match(/^-[fg](.+)$/);
+      if (attachedShortPathOption) {
+        pathTokens.push(attachedShortPathOption[1]);
         continue;
       }
 
