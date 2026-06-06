@@ -266,6 +266,10 @@ assert_true(
   prompt_a:match("Second line from a multiline comment") ~= nil,
   "prompt should include multiline review comment bodies"
 )
+assert_true(
+  prompt_a:match("\n    Second line from a multiline comment%.") ~= nil,
+  "prompt should indent multiline review comment bodies"
+)
 assert_true(prompt_a:match("```diff") ~= nil, "prompt should include a diff block")
 assert_true(review_prompt:match("first%-pass code review") ~= nil, "review prompt should request first-pass review")
 assert_true(review_prompt:match("Do not edit files") ~= nil, "review prompt should be read-only")

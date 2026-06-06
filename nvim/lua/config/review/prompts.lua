@@ -11,6 +11,14 @@ local function comment_range_label(comment)
   return string.format("line %s", line or "?")
 end
 
+local function append_comment_body(lines, body)
+  local body_lines = vim.split(body or "", "\n", { plain = true })
+
+  for _, body_line in ipairs(body_lines) do
+    table.insert(lines, string.format("    %s", body_line))
+  end
+end
+
 local function append_review_comments(lines, item)
   local comments = item.comments or {}
   if vim.tbl_isempty(comments) then
@@ -22,13 +30,13 @@ local function append_review_comments(lines, item)
     table.insert(
       lines,
       string.format(
-        "  - %s %s [%s]: %s",
+        "  - %s %s [%s]:",
         comment.id or "?",
         comment_range_label(comment),
-        comment.resolved and "resolved" or "unresolved",
-        comment.body or ""
+        comment.resolved and "resolved" or "unresolved"
       )
     )
+    append_comment_body(lines, comment.body)
   end
 end
 
