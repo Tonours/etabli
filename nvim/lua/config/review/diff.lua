@@ -33,8 +33,8 @@ vim.api.nvim_create_autocmd("DirChanged", {
   end,
 })
 
--- Clear diff cache on buffer changes that might affect git state
-vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete" }, {
+-- Clear diff cache on changes that might affect git state
+vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "ShellCmdPost" }, {
   callback = function()
     M.clear_cache()
   end,

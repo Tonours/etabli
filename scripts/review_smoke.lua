@@ -174,6 +174,35 @@ assert_true(
   "repo change signature should detect content changes inside an already dirty file"
 )
 
+local shell_cache_repo = vim.fn.tempname()
+vim.fn.mkdir(shell_cache_repo, "p")
+git(shell_cache_repo, { "init" })
+vim.fn.writefile({ "before" }, shell_cache_repo .. "/tracked.txt")
+git(shell_cache_repo, { "add", "tracked.txt" })
+git(shell_cache_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "after" }, shell_cache_repo .. "/tracked.txt")
+diff.clear_cache()
+local shell_unstaged_before = diff.collect_scope(shell_cache_repo, "unstaged")
+assert_true(
+  shell_unstaged_before ~= nil and #shell_unstaged_before == 1,
+  "expected unstaged diff before shell cache invalidation fixture"
+)
+git(shell_cache_repo, { "add", "tracked.txt" })
+vim.api.nvim_exec_autocmds("ShellCmdPost", { modeline = false })
+local shell_unstaged_after = diff.collect_scope(shell_cache_repo, "unstaged")
+assert_true(
+  shell_unstaged_after ~= nil and #shell_unstaged_after == 0,
+  "ShellCmdPost should invalidate cached unstaged review diffs after external git commands"
+)
+
 git(repo, { "init" })
 
 local initial = {
