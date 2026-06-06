@@ -102,6 +102,33 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("redacts secrets from every text content chunk", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+    const openAiKey = `sk-proj-${"c".repeat(24)}`;
+
+    const result = await handler(
+      {
+        content: [
+          { type: "text", text: "first chunk has no secret" },
+          { type: "text", text: `second chunk has ${openAiKey}` },
+        ],
+        input: {},
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content).toEqual([
+      { type: "text", text: "first chunk has no secret" },
+      { type: "text", text: "second chunk has [OPENAI_KEY_REDACTED]" },
+    ]);
+    expect(result?.content[1]?.text).not.toContain(openAiKey);
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacted 1 secret from output", level: "warning" },
+    ]);
+  });
+
   test("allows example env file command output", async () => {
     const handler = setupExtension();
     const ctx = createContext();
