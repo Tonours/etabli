@@ -1,5 +1,6 @@
 local diff = require("config.review.diff")
 local meta = require("config.review.meta")
+local review_items = require("config.review.items")
 local state = require("config.review.state")
 local util = require("config.review.util")
 
@@ -302,13 +303,15 @@ function M.refresh_buffer(bufnr, opts)
   local relative_path = util.relative_path(context.repo, name)
   local items = options.merged_items
   if not items then
-    local current_items, err = diff.collect_all(context.repo, { path = relative_path })
-    if not current_items then
+    local err
+    items, err = review_items.for_context(context, {
+      include_stale = false,
+      path = relative_path,
+    })
+    if not items then
       vim.notify(err, vim.log.levels.WARN)
       return
     end
-
-    items = state.merge_items(context, current_items)
   end
 
   render_items(bufnr, items, relative_path)
