@@ -61,7 +61,7 @@ local function sort_items(items)
   end)
 end
 
-local function file_path(repo, branch)
+local function legacy_file_path(repo, branch)
   local repo_tail = vim.fn.fnamemodify(repo, ":t")
   local repo_hash = vim.fn.sha256(repo):sub(1, 12)
   local branch_slug = util.sanitize_segment(branch)
@@ -69,6 +69,17 @@ local function file_path(repo, branch)
   util.ensure_dir(state_dir)
 
   return string.format("%s/%s__%s__%s.json", state_dir, repo_tail, branch_slug, repo_hash)
+end
+
+local function file_path(repo, branch)
+  local repo_tail = vim.fn.fnamemodify(repo, ":t")
+  local repo_hash = vim.fn.sha256(repo):sub(1, 12)
+  local branch_slug = util.sanitize_segment(branch)
+  local branch_hash = vim.fn.sha256(branch):sub(1, 12)
+
+  util.ensure_dir(state_dir)
+
+  return string.format("%s/%s__%s__%s__%s.json", state_dir, repo_tail, branch_slug, branch_hash, repo_hash)
 end
 
 local function ensure_record_shape(decoded, repo, branch)
@@ -87,6 +98,29 @@ local function ensure_record_shape(decoded, repo, branch)
   decoded.items = type(decoded.items) == "table" and decoded.items or {}
 
   return decoded
+end
+
+local function read_record(path, repo, branch)
+  if vim.fn.filereadable(path) ~= 1 then
+    return nil
+  end
+
+  local ok_read, lines = pcall(vim.fn.readfile, path)
+  if not ok_read then
+    return nil
+  end
+
+  local ok_decode, decoded = pcall(vim.json.decode, table.concat(lines, "\n"))
+  if not ok_decode then
+    return nil
+  end
+
+  local record = ensure_record_shape(decoded, repo, branch)
+  if record.repo ~= repo or record.branch ~= branch then
+    return nil
+  end
+
+  return record
 end
 
 local function normalize_comments(comments)
@@ -171,6 +205,7 @@ end
 
 function M.read(context)
   local target = file_path(context.repo, context.branch)
+  local legacy_target = legacy_file_path(context.repo, context.branch)
   local cache_key = context_cache_key(context)
 
   -- Check cache first
@@ -178,27 +213,11 @@ function M.read(context)
     return vim.deepcopy(file_cache[cache_key])
   end
 
-  if vim.fn.filereadable(target) ~= 1 then
-    local result = ensure_record_shape(nil, context.repo, context.branch)
-    set_cache(cache_key, result)
-    return result
+  local result = read_record(target, context.repo, context.branch)
+  if not result and legacy_target ~= target then
+    result = read_record(legacy_target, context.repo, context.branch)
   end
-
-  local ok_read, lines = pcall(vim.fn.readfile, target)
-  if not ok_read then
-    local result = ensure_record_shape(nil, context.repo, context.branch)
-    set_cache(cache_key, result)
-    return result
-  end
-
-  local ok_decode, decoded = pcall(vim.json.decode, table.concat(lines, "\n"))
-  if not ok_decode then
-    local result = ensure_record_shape(nil, context.repo, context.branch)
-    set_cache(cache_key, result)
-    return result
-  end
-
-  local result = ensure_record_shape(decoded, context.repo, context.branch)
+  result = result or ensure_record_shape(nil, context.repo, context.branch)
   set_cache(cache_key, result)
   return result
 end
@@ -243,12 +262,16 @@ end
 
 function M.clear(context)
   local target = file_path(context.repo, context.branch)
+  local legacy_target = legacy_file_path(context.repo, context.branch)
   -- Invalidate cache before deleting
   local cache_key = context_cache_key(context)
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
   if util.path_exists(target) then
     pcall(vim.uv.fs_unlink, target)
+  end
+  if legacy_target ~= target and read_record(legacy_target, context.repo, context.branch) then
+    pcall(vim.uv.fs_unlink, legacy_target)
   end
 end
 
