@@ -30,6 +30,10 @@ local function clear_cache()
   file_cache_time = {}
 end
 
+function M.clear_cache()
+  clear_cache()
+end
+
 local function context_cache_key(context)
   return table.concat({
     context.repo or "",

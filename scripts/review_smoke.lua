@@ -59,6 +59,19 @@ local function legacy_state_path(context)
   )
 end
 
+local function current_state_path(context)
+  local state_dir = vim.fn.stdpath("state") .. "/etabli/review"
+  util.ensure_dir(state_dir)
+  return string.format(
+    "%s/%s__%s__%s__%s.json",
+    state_dir,
+    vim.fn.fnamemodify(context.repo, ":t"),
+    util.sanitize_segment(context.branch),
+    vim.fn.sha256(context.branch):sub(1, 12),
+    vim.fn.sha256(context.repo):sub(1, 12)
+  )
+end
+
 local branch_collision_repo = repo .. "/branch-collision"
 local branch_context_a = { repo = branch_collision_repo, branch = "feature/a" }
 local branch_context_b = { repo = branch_collision_repo, branch = "feature_a" }
@@ -713,6 +726,70 @@ assert_true(
 
 local context, context_err = state.context_for_repo(repo_root)
 assert_true(context ~= nil, context_err or "state context failed")
+state.clear(context)
+
+local external_state_item_v1 = vim.tbl_extend("force", unstaged[1], {
+  branch = context.branch,
+  note = "external note v1",
+  status = "needs-rework",
+})
+local external_state_record = {
+  version = 1,
+  repo = context.repo,
+  branch = context.branch,
+  items = {
+    [unstaged[1].fingerprint] = external_state_item_v1,
+  },
+}
+vim.fn.writefile({ vim.json.encode(external_state_record) }, current_state_path(context))
+local cached_external_state = state.read(context)
+assert_true(
+  cached_external_state.items[unstaged[1].fingerprint].note == "external note v1",
+  "external review state fixture should seed the read cache"
+)
+
+external_state_record.items[unstaged[1].fingerprint] = vim.tbl_extend("force", external_state_item_v1, {
+  note = "external note v2",
+  status = "accepted",
+})
+vim.fn.writefile({ vim.json.encode(external_state_record) }, current_state_path(context))
+local stale_external_state = state.read(context)
+assert_true(
+  stale_external_state.items[unstaged[1].fingerprint].note == "external note v1",
+  "review state reads should use the warm cache before explicit invalidation"
+)
+state.clear_cache()
+local fresh_external_state = state.read(context)
+assert_true(
+  fresh_external_state.items[unstaged[1].fingerprint].note == "external note v2",
+  "review state cache invalidation should reload externally written state"
+)
+
+external_state_record.items[unstaged[1].fingerprint] = vim.tbl_extend("force", external_state_item_v1, {
+  note = "external note v3",
+  status = "question",
+})
+vim.fn.writefile({ vim.json.encode(external_state_record) }, current_state_path(context))
+local original_state_clear_cache_for_refresh = state.clear_cache
+local refresh_state_clear_cache_calls = 0
+state.clear_cache = function()
+  refresh_state_clear_cache_calls = refresh_state_clear_cache_calls + 1
+  return original_state_clear_cache_for_refresh()
+end
+local ok_refresh_external_state, refresh_external_state_err = pcall(function()
+  review.refresh_after_external_edit(repo_root, { provider = "Smoke" })
+end)
+state.clear_cache = original_state_clear_cache_for_refresh
+assert_true(ok_refresh_external_state, refresh_external_state_err or "external edit refresh cache fixture failed")
+assert_true(
+  refresh_state_clear_cache_calls == 1,
+  "external edit refresh should invalidate the review state file cache"
+)
+local refreshed_external_state = state.read(context)
+assert_true(
+  refreshed_external_state.items[unstaged[1].fingerprint].note == "external note v3",
+  "external edit refresh should reload externally written review state"
+)
 state.clear(context)
 
 local reviewer_note = "Please simplify this change.\nKeep the guard explicit."
