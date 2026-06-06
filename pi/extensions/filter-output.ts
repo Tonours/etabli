@@ -77,6 +77,10 @@ export default function (pi: ExtensionAPI) {
       replacement: "$1=[REDACTED]",
     },
     {
+      pattern: /(["'])([a-zA-Z0-9_-]*(?:token|secret|credential)[a-zA-Z0-9_-]*)\1\s*:\s*(["'])([^"'\s]{8,})\3/gi,
+      replacement: "$1$2$1:$3[REDACTED]$3",
+    },
+    {
       pattern: /\b([a-zA-Z0-9_-]*(?:token|secret|credential)[a-zA-Z0-9_-]*)\s*[=:]\s*['"]?([^\s'"]{8,})['"]?/gi,
       replacement: "$1=[REDACTED]",
     },
