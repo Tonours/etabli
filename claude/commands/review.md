@@ -27,10 +27,11 @@ Use `workflow/review-rubric.md` as the source of truth for review output and pri
 7. Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.
 8. Do not edit files, install dependencies, or run broad/slow validation unless the user explicitly asked for that level of review.
 9. Report concise findings grounded in the reviewed diff using stable labels: `severity:`, `file:`, `line:` or `line_range:`, `issue:`, `impact:`, `review_comment:`, and `suggested_fix:`.
-10. Keep `review_comment:` as one inline-ready GitHub-style review thread comment without code fences or tables.
-11. If the diff conflicts with the plan, say so explicitly.
-12. Verify every reported line or range exists in the supplied diff; if there are no actionable issues, put exactly `No findings.` as the only finding, then still include the final verdict.
-13. If a human should arbitrate risk, replan, or broad-impact tradeoffs, say so explicitly.
-14. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
+10. Use `line_range:` instead of `line:` when the inline comment spans multiple changed lines.
+11. Keep `review_comment:` as one inline-ready GitHub-style review thread comment without code fences or tables.
+12. If the diff conflicts with the plan, say so explicitly.
+13. Verify every reported line or range exists in the supplied diff; if there are no actionable issues, put exactly `No findings.` as the only finding, then still include the final verdict.
+14. If a human should arbitrate risk, replan, or broad-impact tradeoffs, say so explicitly.
+15. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
 
 If the target is ambiguous, ask only the narrowest blocking question.
