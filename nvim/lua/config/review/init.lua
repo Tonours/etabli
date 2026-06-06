@@ -28,6 +28,64 @@ local function split_nul(text)
   return items
 end
 
+local function can_batch_hash_paths(paths)
+  for _, path in ipairs(paths) do
+    if path:find("\n", 1, true) then
+      return false
+    end
+  end
+
+  return true
+end
+
+local function hash_untracked_paths(repo, paths)
+  if vim.tbl_isempty(paths) then
+    return {}
+  end
+
+  if can_batch_hash_paths(paths) then
+    local result = vim.system({
+      "git",
+      "-C",
+      repo,
+      "hash-object",
+      "--stdin-paths",
+    }, {
+      text = true,
+      stdin = table.concat(paths, "\n") .. "\n",
+    }):wait()
+    if result.code ~= 0 then
+      return nil
+    end
+
+    local hashes = vim.split(vim.trim(result.stdout or ""), "\n", { plain = true })
+    if #hashes ~= #paths then
+      return nil
+    end
+
+    return hashes
+  end
+
+  local hashes = {}
+  for _, path in ipairs(paths) do
+    local result = vim.system({
+      "git",
+      "-C",
+      repo,
+      "hash-object",
+      "--",
+      path,
+    }, { text = true }):wait()
+    if result.code ~= 0 then
+      return nil
+    end
+
+    table.insert(hashes, vim.trim(result.stdout or ""))
+  end
+
+  return hashes
+end
+
 local function repo_change_signature(repo)
   local commands = {
     { "status", "--porcelain=v1", "--untracked-files=all" },
@@ -62,20 +120,13 @@ local function repo_change_signature(repo)
 
   local untracked_paths = split_nul(untracked_result.stdout or "")
   table.sort(untracked_paths)
-  for _, path in ipairs(untracked_paths) do
-    local hash_result = vim.system({
-      "git",
-      "-C",
-      repo,
-      "hash-object",
-      "--",
-      path,
-    }, { text = true }):wait()
-    if hash_result.code ~= 0 then
-      return nil
-    end
+  local untracked_hashes = hash_untracked_paths(repo, untracked_paths)
+  if not untracked_hashes then
+    return nil
+  end
 
-    local hash = vim.trim(hash_result.stdout or "")
+  for index, path in ipairs(untracked_paths) do
+    local hash = untracked_hashes[index] or ""
     table.insert(parts, string.format("%d:untracked:%s%d:%s", #path, path, #hash, hash))
   end
 

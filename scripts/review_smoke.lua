@@ -290,6 +290,36 @@ assert_true(
   "repo change signature should detect content changes inside untracked files"
 )
 
+local untracked_batch_repo = vim.fn.tempname()
+vim.fn.mkdir(untracked_batch_repo, "p")
+git(untracked_batch_repo, { "init" })
+vim.fn.writefile({ "one" }, untracked_batch_repo .. "/one.txt")
+vim.fn.writefile({ "two" }, untracked_batch_repo .. "/two.txt")
+
+local original_system_for_untracked_hash = vim.system
+local untracked_hash_processes = 0
+vim.system = function(command, opts)
+  if
+    type(command) == "table"
+    and command[1] == "git"
+    and command[4] == "hash-object"
+  then
+    untracked_hash_processes = untracked_hash_processes + 1
+  end
+  return original_system_for_untracked_hash(command, opts)
+end
+
+local ok_untracked_batch, untracked_batch_err = pcall(function()
+  review.repo_change_signature(untracked_batch_repo)
+end)
+vim.system = original_system_for_untracked_hash
+
+assert_true(ok_untracked_batch, untracked_batch_err or "untracked signature batching fixture failed")
+assert_true(
+  untracked_hash_processes == 1,
+  "repo change signature should batch untracked file hashing"
+)
+
 local shell_cache_repo = vim.fn.tempname()
 vim.fn.mkdir(shell_cache_repo, "p")
 git(shell_cache_repo, { "init" })
