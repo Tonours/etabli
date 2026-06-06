@@ -278,15 +278,15 @@ end
 function M.refresh_buffer(bufnr, opts)
   bufnr = bufnr or 0
   local options = opts or {}
+  local now = vim.uv.now()
 
   if not options.force then
-    local now = vim.uv.now()
     local refreshed_at = last_refresh[bufnr] or 0
     if (now - refreshed_at) < refresh_ttl then
       return
     end
-    last_refresh[bufnr] = now
   end
+  last_refresh[bufnr] = now
 
   M.clear_buffer(bufnr)
 

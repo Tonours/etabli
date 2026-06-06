@@ -438,6 +438,25 @@ assert_true(saw_comment_lines, "expected review comments to render as virtual li
 assert_true(saw_summary_text, "expected hunk-level note/status to render with comments")
 assert_true(saw_normalized_summary_note, "expected multiline note to be normalized in the inline summary")
 
+local original_collect_all_for_throttle = diff.collect_all
+local refresh_collect_calls = 0
+diff.collect_all = function(root, opts)
+  refresh_collect_calls = refresh_collect_calls + 1
+  return original_collect_all_for_throttle(root, opts)
+end
+
+local ok_force_refresh, force_refresh_err = pcall(function()
+  annotations.refresh_buffer(0, { force = true })
+  annotations.refresh_buffer(0)
+end)
+diff.collect_all = original_collect_all_for_throttle
+
+assert_true(ok_force_refresh, force_refresh_err or "annotation refresh throttle fixture failed")
+assert_true(
+  refresh_collect_calls == 1,
+  "forced annotation refresh should update the throttle for immediate non-forced refreshes"
+)
+
 vim.api.nvim_win_set_cursor(0, { 9, 0 })
 local original_select = vim.ui.select
 vim.ui.select = function(choices, select_opts, on_choice)
