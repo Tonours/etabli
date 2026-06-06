@@ -12,10 +12,10 @@ export default function (pi: ExtensionAPI) {
   // Token patterns — prefixed / structurally identifiable keys
   // ---------------------------------------------------------------------------
   const tokenPatterns: { pattern: RegExp; label: string }[] = [
-    // OpenAI (sk-proj-... is the new format, sk-... is legacy)
-    { pattern: /\bsk-(?:proj-)?[a-zA-Z0-9_-]{20,}\b/g, label: "OPENAI_KEY" },
     // Anthropic
     { pattern: /\bsk-ant-[a-zA-Z0-9_-]{20,}\b/g, label: "ANTHROPIC_KEY" },
+    // OpenAI (sk-proj-... is the new format, sk-... is legacy)
+    { pattern: /\bsk-(?!ant-)(?:proj-)?[a-zA-Z0-9_-]{20,}\b/g, label: "OPENAI_KEY" },
     // GitHub (PAT, OAuth, app, refresh tokens)
     { pattern: /\bg(?:hp|ho|hs|hu|hr)_[a-zA-Z0-9]{36,}\b/g, label: "GITHUB_TOKEN" },
     // GitHub fine-grained PAT
