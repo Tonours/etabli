@@ -76,6 +76,28 @@ assert_true(spaced_items[1].path == "a file.txt", "spaced file path should not i
 assert_true(spaced_items[1].old_path == "a file.txt", "old spaced file path should not include diff header metadata")
 assert_true(spaced_items[1].new_path == "a file.txt", "new spaced file path should not include diff header metadata")
 
+local quoted_repo = vim.fn.tempname()
+vim.fn.mkdir(quoted_repo, "p")
+local quoted_name = vim.fn.nr2char(233) .. ".txt"
+git(quoted_repo, { "init" })
+vim.fn.writefile({ "before" }, quoted_repo .. "/" .. quoted_name)
+git(quoted_repo, { "add", quoted_name })
+git(quoted_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "after" }, quoted_repo .. "/" .. quoted_name)
+local quoted_items = diff.collect_scope(quoted_repo, "unstaged")
+assert_true(quoted_items ~= nil and #quoted_items == 1, "expected one hunk for quoted file path")
+assert_true(quoted_items[1].path == quoted_name, "quoted file path should be collected as a real file path")
+assert_true(quoted_items[1].old_path == quoted_name, "old quoted file path should be collected as a real file path")
+assert_true(quoted_items[1].new_path == quoted_name, "new quoted file path should be collected as a real file path")
+
 git(repo, { "init" })
 
 local initial = {

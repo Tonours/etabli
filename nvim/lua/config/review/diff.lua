@@ -90,7 +90,7 @@ local function run_git(root, args)
     return diff_cache[cache_key], nil
   end
 
-  local command = vim.list_extend({ "git", "-C", root }, args)
+  local command = vim.list_extend({ "git", "-C", root, "-c", "core.quotePath=false" }, args)
   local result = vim.system(command, { text = true }):wait()
 
   if result.code ~= 0 then
