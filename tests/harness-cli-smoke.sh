@@ -67,7 +67,9 @@ else
 fi
 
 CLAUDE_BIN="$(claude_bin)"
-if [ -n "$CLAUDE_BIN" ]; then
+if [ "${RUN_CLAUDE_PRINT_SMOKE:-}" != "1" ]; then
+  printf 'Claude Code harness smoke: skipped (set RUN_CLAUDE_PRINT_SMOKE=1 to run claude --print)\n'
+elif [ -n "$CLAUDE_BIN" ]; then
   claude_output="$(
     cd "$PROJECT"
     printf '%s\n' 'According to the local project instructions, what file is the shared cross-agent map? Reply with only the path.' |
