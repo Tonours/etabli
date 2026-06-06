@@ -120,6 +120,17 @@ fi
 assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/AGENTS.md"
 assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/CLAUDE.md"
 
+TARGET_FILE_PROJECT="$TMP_DIR/target-file-project"
+TARGET_FILE_OUTPUT="$TMP_DIR/target-file-project.out"
+printf 'not a directory\n' > "$TARGET_FILE_PROJECT"
+
+if "$SCRIPT" "$TARGET_FILE_PROJECT" --force >"$TARGET_FILE_OUTPUT" 2>&1; then
+  printf 'expected deploy to fail when target path is a file, even with --force\n' >&2
+  exit 1
+fi
+assert_contains "$TARGET_FILE_OUTPUT" "exists but is not a directory"
+assert_contains "$TARGET_FILE_PROJECT" "not a directory"
+
 "$SCRIPT" "$PARENT_CONFLICT_PROJECT" --force >/dev/null
 assert_file "$PARENT_CONFLICT_PROJECT/docs/agent-harness.md"
 if ! ls "$PARENT_CONFLICT_PROJECT"/docs.bak.* >/dev/null 2>&1; then

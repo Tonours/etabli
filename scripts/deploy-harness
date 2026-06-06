@@ -145,6 +145,13 @@ preflight_sources() {
   done
 }
 
+preflight_target() {
+  if [ -e "$TARGET_INPUT" ] && [ ! -d "$TARGET_INPUT" ]; then
+    status_line CONFLICT "$TARGET_INPUT exists but is not a directory"
+    CONFLICTS=$((CONFLICTS + 1))
+  fi
+}
+
 preflight_conflicts() {
   local entry source_path relative_path destination_path parent_path
 
@@ -269,6 +276,7 @@ ensure_plan_gitignore() {
 printf 'Target: %s\n\n' "$(display_target_dir)"
 
 preflight_sources
+preflight_target
 
 if [ "$CONFLICTS" -eq 0 ]; then
   TARGET_DIR="$(target_dir)"
