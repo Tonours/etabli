@@ -214,9 +214,57 @@ local function parse_file_marker_path(raw, prefix)
   return path
 end
 
+local function parse_diff_git_paths(line)
+  local old_path, new_path = line:match("^diff %-%-git a/(.-) b/(.-)$")
+  if old_path and new_path then
+    return old_path, new_path
+  end
+
+  local old_raw, new_raw = line:match('^diff %-%-git%s+(".*")%s+(".*")$')
+  if old_raw and new_raw then
+    return parse_file_marker_path(old_raw, "a/"), parse_file_marker_path(new_raw, "b/")
+  end
+
+  return nil, nil
+end
+
+local function patch_hash_for(scope, path, body)
+  local patch_key = scope .. "\n" .. path .. "\n" .. body
+  if #patch_key < 1000 then
+    local hash = 0
+    for i = 1, #patch_key do
+      hash = ((hash * 31) + patch_key:byte(i)) % 2147483647
+    end
+    return string.format("%08x", hash)
+  end
+
+  return vim.fn.sha256(patch_key):sub(1, 16)
+end
+
+local function file_header_label(file_state)
+  for index = 2, #(file_state.header_lines or {}) do
+    local line = file_state.header_lines[index]
+    if line and line ~= "" then
+      return line
+    end
+  end
+
+  return "file metadata"
+end
+
+local function file_state_has_header(file_state, prefix)
+  for _, line in ipairs(file_state.header_lines or {}) do
+    if vim.startswith(line, prefix) then
+      return true
+    end
+  end
+
+  return false
+end
+
 local function finalize_hunk(root, scope, file_state, hunk_state, items)
   if not file_state or not hunk_state then
-    return
+    return false
   end
 
   local path = file_state.new_path ~= "/dev/null" and file_state.new_path or file_state.old_path
@@ -226,18 +274,7 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
   local patch_lines = vim.deepcopy(file_state.header_lines)
   vim.list_extend(patch_lines, hunk_state.lines)
   local patch = table.concat(patch_lines, "\n")
-
-  local patch_key = scope .. "\n" .. path .. "\n" .. hunk_patch
-  local patch_hash
-  if #patch_key < 1000 then
-    local hash = 0
-    for i = 1, #patch_key do
-      hash = ((hash * 31) + patch_key:byte(i)) % 2147483647
-    end
-    patch_hash = string.format("%08x", hash)
-  else
-    patch_hash = vim.fn.sha256(patch_key):sub(1, 16)
-  end
+  local patch_hash = patch_hash_for(scope, path, hunk_patch)
 
   local line_start = hunk_state.new_start
   local line_end = hunk_state.new_count > 0 and (hunk_state.new_start + hunk_state.new_count - 1) or hunk_state.new_start
@@ -264,6 +301,51 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
     added = file_state.old_path == "/dev/null",
     deleted = file_state.new_path == "/dev/null",
   })
+
+  return true
+end
+
+local function finalize_file_metadata(root, scope, file_state, items)
+  if not file_state or file_state.has_hunk then
+    return
+  end
+
+  local added = file_state.old_path == "/dev/null" or file_state_has_header(file_state, "new file mode")
+  local deleted = file_state.new_path == "/dev/null" or file_state_has_header(file_state, "deleted file mode")
+  local old_path = added and "/dev/null" or file_state.old_path
+  local new_path = deleted and "/dev/null" or file_state.new_path
+  local path = new_path ~= "/dev/null" and new_path or old_path
+
+  if not path or path == "" or path == "/dev/null" then
+    return
+  end
+
+  local patch = table.concat(file_state.header_lines, "\n")
+  local header = file_header_label(file_state)
+  local patch_hash = patch_hash_for(scope, path, patch)
+
+  table.insert(items, {
+    repo = util.normalize(root),
+    scope = scope,
+    path = path,
+    old_path = old_path,
+    new_path = new_path,
+    header = header,
+    hunk_header = header,
+    hunk_context = "",
+    patch = patch,
+    hunk_patch = patch,
+    patch_hash = patch_hash,
+    fingerprint = scope .. "\0" .. path .. "\0" .. header .. "\0" .. patch_hash,
+    old_start = 1,
+    old_count = 0,
+    new_start = 1,
+    new_count = 0,
+    line_start = 1,
+    line_end = 1,
+    added = added,
+    deleted = deleted,
+  })
 end
 
 local function parse_diff(root, scope, text)
@@ -272,12 +354,15 @@ local function parse_diff(root, scope, text)
   local current_hunk
 
   local function flush_hunk()
-    finalize_hunk(root, scope, current_file, current_hunk, items)
+    if finalize_hunk(root, scope, current_file, current_hunk, items) and current_file then
+      current_file.has_hunk = true
+    end
     current_hunk = nil
   end
 
   local function flush_file()
     flush_hunk()
+    finalize_file_metadata(root, scope, current_file, items)
     current_file = nil
   end
 
@@ -285,7 +370,7 @@ local function parse_diff(root, scope, text)
     if vim.startswith(line, "diff --git ") then
       flush_file()
 
-      local old_path, new_path = line:match("^diff %-%-git a/(.-) b/(.-)$")
+      local old_path, new_path = parse_diff_git_paths(line)
       current_file = {
         old_path = old_path,
         new_path = new_path,

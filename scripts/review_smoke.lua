@@ -239,6 +239,22 @@ assert_true(untracked_items[1].added == true, "untracked file should be marked a
 assert_true(untracked_items[1].old_path == "/dev/null", "untracked old path should be /dev/null")
 assert_true(untracked_items[1].path == untracked_name, "untracked file path should be reviewable before git add")
 
+local empty_untracked_repo = vim.fn.tempname()
+vim.fn.mkdir(empty_untracked_repo, "p")
+git(empty_untracked_repo, { "init" })
+local empty_untracked_name = "empty.txt"
+vim.fn.writefile({}, empty_untracked_repo .. "/" .. empty_untracked_name)
+local empty_untracked_items = diff.collect_scope(empty_untracked_repo, "unstaged")
+assert_true(
+  empty_untracked_items ~= nil and #empty_untracked_items == 1,
+  "expected a file-level review item for untracked empty files"
+)
+assert_true(empty_untracked_items[1].added == true, "untracked empty file should be marked as added")
+assert_true(
+  empty_untracked_items[1].hunk_header == "new file mode 100644",
+  "untracked empty file should use file metadata as its review header"
+)
+
 local signature_repo = vim.fn.tempname()
 vim.fn.mkdir(signature_repo, "p")
 git(signature_repo, { "init" })
