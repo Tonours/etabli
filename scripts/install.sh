@@ -10,7 +10,6 @@ set -e
 # ============================================================================
 # VERSIONS (centralized for maintenance)
 # ============================================================================
-readonly NVM_VERSION="v0.40.1"
 readonly NERD_FONT_VERSION="v3.1.1"
 readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_CORE_SKILLS=(
@@ -21,6 +20,8 @@ readonly PI_CORE_SKILLS=(
     "caveman"
     "grill-me"
 )
+NODE_CMD=(node)
+NPM_CMD=(npm)
 
 # ============================================================================
 # COLORS & HELPERS
@@ -86,6 +87,52 @@ ensure_nvim_version() {
 
 has_valid_rtk() {
     command -v rtk &> /dev/null && rtk gain > /dev/null 2>&1
+}
+
+node_runtime_available() {
+    "${NODE_CMD[@]}" -v > /dev/null 2>&1 && "${NPM_CMD[@]}" -v > /dev/null 2>&1
+}
+
+prepend_asdf_shims() {
+    local shims_dir="${ASDF_DATA_DIR:-$HOME/.asdf}/shims"
+
+    if [ -d "$shims_dir" ]; then
+        case ":$PATH:" in
+            *":$shims_dir:"*) ;;
+            *) export PATH="$shims_dir:$PATH" ;;
+        esac
+    fi
+}
+
+reshim_asdf_node() {
+    if [ "${NODE_CMD[0]}" = "asdf" ]; then
+        asdf reshim nodejs > /dev/null 2>&1 || true
+    fi
+}
+
+select_node_runtime() {
+    print_step "Checking Node.js runtime..."
+
+    if command -v asdf &> /dev/null; then
+        if asdf exec node -v > /dev/null 2>&1 && asdf exec npm -v > /dev/null 2>&1; then
+            prepend_asdf_shims
+            NODE_CMD=(asdf exec node)
+            NPM_CMD=(asdf exec npm)
+            print_success "Node.js $("${NODE_CMD[@]}" -v) ready (via asdf)"
+            return 0
+        fi
+    fi
+
+    if command -v node &> /dev/null && command -v npm &> /dev/null; then
+        NODE_CMD=(node)
+        NPM_CMD=(npm)
+        print_success "Node.js $("${NODE_CMD[@]}" -v) ready (via PATH)"
+        return 0
+    fi
+
+    print_error "Node.js and npm are required but were not found"
+    print_error "Install them with asdf, then rerun: asdf plugin add nodejs; asdf install nodejs latest"
+    return 1
 }
 
 # Download helper with retries
@@ -159,12 +206,12 @@ sync_pi_agent_settings_resources() {
         return 0
     fi
 
-    if ! command -v node &> /dev/null; then
+    if ! node_runtime_available; then
         print_warning "Node.js not available - skipping Pi agent settings resource sync"
         return 0
     fi
 
-    if node - "$local_settings" "$tracked_settings" <<'NODE'
+    if "${NODE_CMD[@]}" - "$local_settings" "$tracked_settings" <<'NODE'
 const fs = require("node:fs");
 
 const [localPath, trackedPath] = process.argv.slice(2);
@@ -274,13 +321,13 @@ install_pi_packages_from_settings() {
         return 0
     fi
 
-    if ! command -v node &> /dev/null; then
+    if ! node_runtime_available; then
         print_warning "Node.js not available - skipping Pi package sync"
         return 0
     fi
 
     package_sources="$({
-        node -e '
+        "${NODE_CMD[@]}" -e '
 const fs = require("fs");
 const settingsPath = process.argv[1];
 const raw = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
@@ -378,7 +425,7 @@ if [[ "$OS" == "mac" ]]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
-    # Note: node/npm installed via nvm below
+    # Node/npm are selected from asdf or the existing PATH below; Homebrew is not used for Node here.
     brew install neovim tmux git ripgrep fd fzf jq lazygit mosh lua-language-server || {
         print_warning "Some brew packages may have failed"
     }
@@ -425,7 +472,7 @@ elif [[ "$OS" == "debian" ]]; then
     fi
 
 elif [[ "$OS" == "redhat" ]]; then
-    # RHEL/CentOS/Fedora (Node is installed through nvm below)
+    # RHEL/CentOS/Fedora
     sudo dnf install -y neovim tmux git ripgrep fd fzf make gcc jq unzip curl mosh || {
         print_warning "Some dnf packages may have failed"
     }
@@ -459,50 +506,9 @@ else
 fi
 
 # ============================================================================
-# INSTALL NODE.JS (via nvm)
+# SELECT NODE.JS
 # ============================================================================
-print_step "Setting up Node.js via nvm..."
-
-export NVM_DIR="$HOME/.nvm"
-
-# Install nvm if not present
-if [ ! -d "$NVM_DIR" ] || [ ! -f "$NVM_DIR/nvm.sh" ]; then
-    print_step "Installing nvm ${NVM_VERSION}..."
-    curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
-fi
-
-# Verify nvm.sh exists after installation
-if [ ! -f "$NVM_DIR/nvm.sh" ]; then
-    print_error "nvm installation failed - $NVM_DIR/nvm.sh not found"
-    print_error "Please restart your shell and re-run this script"
-    exit 1
-fi
-
-# Load nvm (it is a shell function, not a command)
-# shellcheck source=/dev/null
-source "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
-
-# Verify nvm is loaded as a function
-if ! declare -f nvm > /dev/null 2>&1; then
-    print_error "nvm failed to load as a function"
-    print_error "Please restart your shell and re-run this script"
-    exit 1
-fi
-
-# Install LTS node if not present via nvm
-if ! command -v node &> /dev/null; then
-    print_step "Installing Node.js LTS..."
-    nvm install --lts
-    nvm use --lts
-    nvm alias default lts/*
-fi
-
-# Verify node is available
-if command -v node &> /dev/null; then
-    print_success "Node.js $(node -v) ready (via nvm)"
-else
-    print_error "Node.js installation failed"
+if ! select_node_runtime; then
     exit 1
 fi
 
@@ -511,13 +517,7 @@ fi
 # ============================================================================
 print_step "Installing npm tools..."
 
-# Verify npm works
-if ! command -v npm &> /dev/null; then
-    print_error "npm not available - nvm setup may have failed"
-    exit 1
-fi
-
-if npm install -g \
+if "${NPM_CMD[@]}" install -g \
     typescript \
     typescript-language-server \
     prettier \
@@ -530,8 +530,10 @@ if npm install -g \
     @github/copilot-language-server \
     @ember-tooling/ember-language-server \
     @tailwindcss/language-server; then
+    reshim_asdf_node
     print_success "NPM tools installed"
 else
+    reshim_asdf_node
     print_warning "Some npm packages may have failed to install"
 fi
 
@@ -810,9 +812,10 @@ done
 # Install Pi if not present
 if ! command -v pi &> /dev/null; then
     print_step "Installing Pi Coding Agent..."
-    npm install -g @mariozechner/pi-coding-agent && \
+    "${NPM_CMD[@]}" install -g --ignore-scripts @earendil-works/pi-coding-agent && \
+        reshim_asdf_node && \
         print_success "Pi installed" || \
-        print_warning "Pi install failed (npm i -g @mariozechner/pi-coding-agent)"
+        print_warning "Pi install failed (npm install -g --ignore-scripts @earendil-works/pi-coding-agent)"
 fi
 
 # Install packages declared in tracked bootstrap settings
