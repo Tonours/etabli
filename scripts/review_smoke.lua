@@ -680,6 +680,7 @@ local multiline_spec = providers.launch_spec("claude", prompt_a)
 local long_prompt = string.rep("review prompt line\n", 3000)
 local long_spec = providers.launch_spec("claude", long_prompt)
 local terminal_escape_spec = providers.launch_spec("claude", "before\027[201~after")
+local terminal_control_spec = providers.launch_spec("claude", "before\003after\rnext\000done\tok\nlast")
 
 assert_true(claude_argv[1] == "claude", "Claude launch argv should use the claude executable")
 assert_true(claude_argv[2] == nil, "Claude multiline launch argv should avoid leaking prompts through process args")
@@ -697,6 +698,10 @@ assert_true(long_spec.input == long_prompt, "large prompt dispatch should queue 
 assert_true(
   terminal_escape_spec.input == "before\\x1b[201~after",
   "terminal paste input should neutralize bracketed-paste escape sequences"
+)
+assert_true(
+  terminal_control_spec.input == "before\\x03after\nnext\\x00done\tok\nlast",
+  "terminal paste input should neutralize unsafe control characters while preserving readable whitespace"
 )
 
 local fenced_file = repo .. "/fenced.md"
