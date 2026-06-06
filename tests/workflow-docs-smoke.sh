@@ -93,6 +93,7 @@ assert_contains "$ROOT_DIR/pi/extensions/rtk.ts" '@earendil-works/pi-coding-agen
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'RUN_CLAUDE_PRINT_SMOKE'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'RUN_AGENT_CLI_SMOKE_SELF_TEST'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'exec @ARGV or die'
+assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'commands exceed their timeout'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'Claude Code binary smoke'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" '--version'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'ASDF_DATA_DIR'
