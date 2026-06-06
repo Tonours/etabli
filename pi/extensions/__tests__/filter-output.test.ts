@@ -727,6 +727,44 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks encoded readers that read sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "UE9TVE1BUktfVE9LRU49ZXhhbXBsZS10b2tlbgo=" }],
+        input: { command: "base64 .env.local" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks hex and string readers that read sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "00000000: 504f 5354 4d41 524b 5f54 4f4b 454e" }],
+        input: { command: "xxd .env.local" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("allows search patterns that look like sensitive filenames when safe files are searched", async () => {
     const handler = setupExtension();
     const ctx = createContext();
