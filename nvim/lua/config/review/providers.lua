@@ -145,7 +145,7 @@ local function do_open_terminal(command, opts)
     pcall(vim.api.nvim_buf_set_name, bufnr, options.title)
   end
 
-  local job_id = vim.fn.termopen(command, {
+  local ok_termopen, job_id = pcall(vim.fn.termopen, command, {
     cwd = options.cwd,
     on_exit = function()
       if options.on_exit then
@@ -154,7 +154,7 @@ local function do_open_terminal(command, opts)
     end,
   })
 
-  if type(job_id) ~= "number" or job_id <= 0 then
+  if not ok_termopen or type(job_id) ~= "number" or job_id <= 0 then
     close_overlay_window(winid, bufnr)
     return false
   end
