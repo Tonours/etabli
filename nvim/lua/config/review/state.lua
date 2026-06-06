@@ -104,6 +104,11 @@ local function ensure_record_shape(decoded, repo, branch)
   return decoded
 end
 
+local function backup_corrupt_record(path)
+  local backup = string.format("%s.corrupt.%s.%s", path, os.date("!%Y%m%d-%H%M%S"), vim.uv.hrtime())
+  pcall(vim.uv.fs_rename, path, backup)
+end
+
 local function read_record(path, repo, branch)
   if vim.fn.filereadable(path) ~= 1 then
     return nil
@@ -116,6 +121,7 @@ local function read_record(path, repo, branch)
 
   local ok_decode, decoded = pcall(vim.json.decode, table.concat(lines, "\n"))
   if not ok_decode then
+    backup_corrupt_record(path)
     return nil
   end
 

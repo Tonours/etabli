@@ -210,8 +210,50 @@ local function assert_legacy_out_of_hunk_comments_are_ignored()
   state.clear(context)
 end
 
+local function assert_corrupt_review_state_is_backed_up_before_save()
+  local corrupt_repo = vim.fn.tempname()
+  local corrupt_file = corrupt_repo .. "/demo.txt"
+  vim.fn.mkdir(corrupt_repo, "p")
+  git(corrupt_repo, { "init" })
+  vim.fn.writefile({ "before" }, corrupt_file)
+  git(corrupt_repo, { "add", "demo.txt" })
+  git(corrupt_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+
+  vim.fn.writefile({ "after" }, corrupt_file)
+  local context = assert(state.context_for_repo(corrupt_repo))
+  state.clear(context)
+  local items = diff.collect_scope(corrupt_repo, "unstaged")
+  assert_true(items ~= nil and #items == 1, "expected corrupt state backup fixture hunk")
+
+  local state_path = current_state_path(context)
+  vim.fn.writefile({ "{not json" }, state_path)
+  state.clear_cache()
+
+  local saved, save_err = state.save_item(context, items[1], {
+    status = "needs-rework",
+  })
+  assert_true(saved ~= nil, save_err or "saving after corrupt review state should recover")
+
+  local backups = vim.fn.glob(state_path .. ".corrupt.*", false, true)
+  assert_true(#backups == 1, "corrupt review state should be backed up before recovery write")
+  assert_true(
+    table.concat(vim.fn.readfile(backups[1]), "\n") == "{not json",
+    "corrupt review state backup should preserve the original payload"
+  )
+  state.clear(context)
+end
+
 assert_patch_hash_collisions_do_not_reuse_review_state()
 assert_legacy_out_of_hunk_comments_are_ignored()
+assert_corrupt_review_state_is_backed_up_before_save()
 
 local repo = vim.fn.tempname()
 vim.fn.mkdir(repo, "p")
