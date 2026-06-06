@@ -372,6 +372,9 @@ function M.add_comment(context, item, attrs)
   if end_line < line then
     line, end_line = end_line, line
   end
+  if not diff.hunk_contains_line(item, line) or not diff.hunk_contains_line(item, end_line) then
+    return nil, "Review comment range must stay inside this hunk"
+  end
   local nonce = 0
   local id
 

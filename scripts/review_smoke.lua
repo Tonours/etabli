@@ -855,6 +855,17 @@ assert_true(
   "duplicate review comments should still receive unique ids"
 )
 
+local invalid_range_comment, invalid_range_err = state.add_comment(context, unstaged[1], {
+  body = "This comment should not be saved outside the diff hunk.",
+  line = unstaged[1].line_end + 1,
+  end_line = unstaged[1].line_end + 1,
+})
+assert_true(invalid_range_comment == nil, "review comments outside the hunk should be rejected")
+assert_true(
+  invalid_range_err == "Review comment range must stay inside this hunk",
+  "out-of-hunk review comment errors should explain the invalid range"
+)
+
 require("config.review.items").clear_cache()
 _G.etabli_review_cached_items = require("config.review.items").for_context(context, {
   include_stale = false,
