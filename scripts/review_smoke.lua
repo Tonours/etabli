@@ -361,6 +361,10 @@ assert_true(batch_prompt:match("Hunk 1:") ~= nil, "batch prompt should label hun
 assert_true(batch_prompt:match("Hunk count: 2") ~= nil, "batch prompt should include the hunk count")
 assert_true(batch_prompt:match("Selection: review status: needs%-rework") ~= nil, "batch prompt should include the selection label")
 assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch review prompt should review the changeset")
+assert_true(
+  batch_review_prompt:match("context gaps in open questions or assumptions, not findings") ~= nil,
+  "batch review prompt should keep assumptions out of findings"
+)
 assert_true(batch_review_prompt:match("GO WITH NOTES") ~= nil, "batch review prompt should include review verdicts")
 assert_true(
   batch_review_prompt:match("No findings%.") ~= nil,
