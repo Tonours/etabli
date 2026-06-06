@@ -19,6 +19,15 @@ local function append_comment_body(lines, body)
   end
 end
 
+local function append_multiline_field(lines, label, value)
+  if not value or value == "" then
+    return
+  end
+
+  table.insert(lines, label .. ":")
+  append_comment_body(lines, value)
+end
+
 local function append_review_comments(lines, item)
   local comments = item.comments or {}
   if vim.tbl_isempty(comments) then
@@ -127,7 +136,7 @@ local function append_hunk(lines, item, index)
   end
 
   if item.note and item.note ~= "" then
-    table.insert(hunk_lines, string.format("- Reviewer note: %s", item.note))
+    append_multiline_field(hunk_lines, "- Reviewer note", item.note)
   end
 
   append_review_comments(hunk_lines, item)
@@ -166,7 +175,7 @@ function M.build(item, opts)
   end
 
   if item.note and item.note ~= "" then
-    table.insert(lines, string.format("- Reviewer note: %s", item.note))
+    append_multiline_field(lines, "- Reviewer note", item.note)
   end
 
   append_review_comments(lines, item)

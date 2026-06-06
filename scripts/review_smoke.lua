@@ -108,8 +108,9 @@ local context, context_err = state.context_for_repo(repo_root)
 assert_true(context ~= nil, context_err or "state context failed")
 state.clear(context)
 
+local reviewer_note = "Please simplify this change.\nKeep the guard explicit."
 local saved, save_err = state.save_item(context, unstaged[1], {
-  note = "Please simplify this change.",
+  note = reviewer_note,
   status = "needs-rework",
 })
 assert_true(saved ~= nil, save_err or "failed to save review item")
@@ -145,7 +146,7 @@ for _, item in ipairs(merged) do
 end
 
 assert_true(matched ~= nil, "saved review item did not merge back into current diff")
-assert_true(matched.note == "Please simplify this change.", "saved note was not restored")
+assert_true(matched.note == reviewer_note, "saved note was not restored")
 assert_true(matched.status == "needs-rework", "saved status was not restored")
 assert_true(#matched.comments == 2, "saved review comments were not restored")
 assert_true(matched.comments[1].line == 9, "saved review comment line was not restored")
@@ -235,7 +236,7 @@ diff.clear_cache()
 local changed = state.merge_items(context, diff.collect_all(repo_root))
 local saw_stale = false
 for _, item in ipairs(changed) do
-  if item.stale and item.note == "Please simplify this change." then
+  if item.stale and item.note == reviewer_note then
     saw_stale = true
     break
   end
@@ -260,6 +261,7 @@ local batch_review_prompt = prompts.build_batch({ matched, staged[1] }, {
 assert_true(prompt_a == prompt_b, "prompt generation should be deterministic")
 assert_true(prompt_a:match("demo%.txt") ~= nil, "prompt should include the file path")
 assert_true(prompt_a:match("Please simplify this change") ~= nil, "prompt should include the saved note")
+assert_true(prompt_a:match("\n    Keep the guard explicit%.") ~= nil, "prompt should indent multiline reviewer notes")
 assert_true(prompt_a:match("Existing review comments") ~= nil, "prompt should include review comments")
 assert_true(prompt_a:match("lines 9%-10") ~= nil, "prompt should include multiline review ranges")
 assert_true(
