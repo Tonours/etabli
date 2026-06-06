@@ -79,6 +79,7 @@ Leader: `<Space>`
 - inline annotations: `<leader>rl` toggle, `<leader>ro` expand thread
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
 - agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare
+- suggested changes: `<leader>rS` preview, `:ReviewSuggestionStatus applied|rejected|resolved|open`
 - navigate hunks: `[h` previous, `]h` next
 - Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
 - Pi hunk actions: `<leader>rp` revise, `<leader>rP` explain

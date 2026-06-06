@@ -1021,6 +1021,42 @@ local function assert_agent_findings_ingestion_tracks_provider_counts()
   local agent_compare = table.concat(views.render_agent_compare(agent_merged[1]), "\n")
   assert_true(agent_compare:find("## claude", 1, true) ~= nil, "agent compare should include Claude findings")
   assert_true(agent_compare:find("## pi", 1, true) ~= nil, "agent compare should include Pi findings")
+  local review_suggestions = require("config.review.suggestions")
+  local suggestion_candidates = review_suggestions.for_item(agent_merged[1])
+  assert_true(#suggestion_candidates == 2, "agent suggested fixes should become suggested change candidates")
+  local suggestion_preview = table.concat(review_suggestions.preview_lines(agent_merged[1], suggestion_candidates[1]), "\n")
+  assert_true(
+    suggestion_preview:find("Safety: preview-only", 1, true) ~= nil,
+    "text suggested fixes should render as preview-only"
+  )
+  assert_true(
+    suggestion_preview:find("Validate the value before writing it.", 1, true) ~= nil,
+    "suggestion preview should include the suggested fix body"
+  )
+  local unsafe_preview = table.concat(review_suggestions.preview_lines(agent_merged[1], vim.tbl_extend("force", suggestion_candidates[1], {
+    suggested_fix = table.concat({
+      "```diff",
+      "--- a/other.txt",
+      "+++ b/other.txt",
+      "@@ -1 +1 @@",
+      "-before",
+      "+after",
+      "```",
+    }, "\n"),
+  })), "\n")
+  assert_true(
+    unsafe_preview:find("Safety: unsafe", 1, true) ~= nil,
+    "suggestion preview should reject patches that target another file"
+  )
+  local rejected, rejected_err = state.set_agent_finding_status(
+    agent_context,
+    agent_merged[1],
+    suggestion_candidates[1].id,
+    "rejected"
+  )
+  assert_true(rejected ~= nil, rejected_err or "failed to reject suggested change")
+  local rejected_merged = state.merge_items(agent_context, diff.collect_all(agent_repo))
+  assert_true(rejected_merged[1].agent_finding_count == 1, "rejected agent suggestions should no longer count as open")
   state.clear(agent_context)
 end
 
