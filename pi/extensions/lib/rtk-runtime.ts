@@ -53,7 +53,7 @@ function noteBypass(reason: string): void {
 }
 
 function hasRecursiveForceRm(command: string): boolean {
-  const match = command.match(/(^|\s)rm\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)\s+/);
+  const match = command.match(/(^|[\s;&()])rm\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)\s+/);
   if (!match) return false;
 
   const flags = match[2]?.match(/-[A-Za-z]+/g) ?? [];
@@ -62,7 +62,7 @@ function hasRecursiveForceRm(command: string): boolean {
 }
 
 function hasForceDirectoryGitClean(command: string): boolean {
-  const match = command.match(/(^|\s)git\s+clean\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)(?:\s|$)/);
+  const match = command.match(/(^|[\s;&()])git\s+clean\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)(?:\s|$)/);
   if (!match) return false;
 
   const flags = match[2]?.match(/-[A-Za-z]+/g) ?? [];
@@ -72,7 +72,7 @@ function hasForceDirectoryGitClean(command: string): boolean {
 
 function isDangerousCommand(command: string): boolean {
   return (
-    /(^|\s)(sudo\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b)/.test(command)
+    /(^|[\s;&()])(sudo\b|dd\b|mkfs\b|fdisk\b|parted\b|diskutil\b|mount\b|umount\b|chmod\b|chown\b|chgrp\b|git\s+reset\s+--hard\b)/.test(command)
     || hasRecursiveForceRm(command)
     || hasForceDirectoryGitClean(command)
   );
