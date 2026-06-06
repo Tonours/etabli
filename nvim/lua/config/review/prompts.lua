@@ -42,6 +42,24 @@ local function append_repo_context(lines, item, opts)
   end
 end
 
+local function changed_line_range(item)
+  local line_start = tonumber(item.changed_line_start or item.line_start)
+  if not line_start then
+    return nil
+  end
+
+  local line_end = tonumber(item.changed_line_end or item.line_end) or line_start
+  if line_end < line_start then
+    line_start, line_end = line_end, line_start
+  end
+
+  if line_end == line_start then
+    return tostring(line_start)
+  end
+
+  return string.format("%d-%d", line_start, line_end)
+end
+
 local function shared_item_value(items, key)
   local shared
 
@@ -178,6 +196,10 @@ local function append_hunk(lines, item, index, opts)
     string.format("- Hunk: %s", item.hunk_header),
     string.format("- Current review status: %s", item.status or "new"),
   })
+  local changed_lines = changed_line_range(item)
+  if changed_lines then
+    table.insert(hunk_lines, string.format("- Changed lines: %s", changed_lines))
+  end
 
   if item.stale then
     table.insert(hunk_lines, "- Warning: this stored review entry is stale relative to the current diff")
@@ -215,6 +237,10 @@ function M.build(item, opts)
     string.format("- Hunk: %s", item.hunk_header),
     string.format("- Current review status: %s", item.status or "new"),
   })
+  local changed_lines = changed_line_range(item)
+  if changed_lines then
+    table.insert(lines, string.format("- Changed lines: %s", changed_lines))
+  end
 
   if item.stale then
     table.insert(lines, "- Warning: this stored review entry is stale relative to the current diff")

@@ -653,6 +653,10 @@ local unstaged = diff.collect_scope(repo_root, "unstaged")
 
 assert_true(staged ~= nil and #staged == 1, "expected exactly one staged hunk")
 assert_true(unstaged ~= nil and #unstaged == 1, "expected exactly one unstaged hunk")
+assert_true(staged[1].changed_line_start == 2, "staged hunk should expose the first changed line")
+assert_true(staged[1].changed_line_end == 2, "staged hunk should expose the last changed line")
+assert_true(unstaged[1].changed_line_start == 9, "unstaged hunk should expose the first changed line")
+assert_true(unstaged[1].changed_line_end == 10, "unstaged hunk should expose the last changed line")
 assert_true(meta.label("needs-rework") == "REWORK", "expected shared review status label")
 assert_true(meta.is_actionable("question") == true, "expected question status to be actionable")
 assert_true(meta.priority("needs-rework") < meta.priority("new"), "expected blocker statuses to sort first")
@@ -1040,6 +1044,7 @@ assert_true(prompt_a == prompt_b, "prompt generation should be deterministic")
 assert_true(prompt_a:match("demo%.txt") ~= nil, "prompt should include the file path")
 assert_true(prompt_a:find("- Repo: " .. repo_root, 1, true) ~= nil, "prompt should include the repository root")
 assert_true(prompt_a:find("- Branch: " .. context.branch, 1, true) ~= nil, "prompt should include the repository branch")
+assert_true(prompt_a:find("- Changed lines: 9-10", 1, true) ~= nil, "prompt should include changed line coordinates")
 assert_true(prompt_a:match("Please simplify this change") ~= nil, "prompt should include the saved note")
 assert_true(prompt_a:match("\n    Keep the guard explicit%.") ~= nil, "prompt should indent multiline reviewer notes")
 assert_true(prompt_a:match("Existing review comments") ~= nil, "prompt should include review comments")
@@ -1083,6 +1088,10 @@ assert_true(
 assert_true(batch_prompt:match("Hunk 1:") ~= nil, "batch prompt should label hunks")
 assert_true(batch_prompt:match("Hunk count: 2") ~= nil, "batch prompt should include the hunk count")
 assert_true(batch_prompt:match("Selection: review status: needs%-rework") ~= nil, "batch prompt should include the selection label")
+assert_true(
+  count_plain(batch_prompt, "- Changed lines: ") == 2,
+  "batch prompt should include changed line coordinates per hunk"
+)
 assert_true(
   batch_review_prompt:find("- Repo: " .. repo_root, 1, true) ~= nil,
   "batch review prompt should include repository context"
