@@ -42,6 +42,8 @@ assert_file "$ROOT_DIR/tests/harness-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 assert_file "$ROOT_DIR/tests/install-smoke.sh"
 assert_file "$ROOT_DIR/tests/nvim-smoke.sh"
+assert_file "$ROOT_DIR/scripts/profile-nvim.sh"
+assert_file "$ROOT_DIR/scripts/profile-nvim-runtime.sh"
 
 assert_contains "$ROOT_DIR/scripts/install.sh" 'workflow/$shared_doc'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'PLAN_TEMPLATE.md'
@@ -103,6 +105,10 @@ assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'commands exceed their ti
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'Claude Code binary smoke'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" '--version'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'ASDF_DATA_DIR'
+assert_contains "$ROOT_DIR/scripts/profile-nvim.sh" 'pcall(dofile'
+assert_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" 'pcall(dofile'
+assert_not_contains "$ROOT_DIR/scripts/profile-nvim.sh" '+lua dofile'
+assert_not_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" '+lua dofile'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'sanitized bracketed terminal paste input'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'instead of using Claude `-p` / `--print`'
 assert_not_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'Single-line prompts can be passed'
