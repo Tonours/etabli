@@ -98,6 +98,28 @@ assert_true(quoted_items[1].path == quoted_name, "quoted file path should be col
 assert_true(quoted_items[1].old_path == quoted_name, "old quoted file path should be collected as a real file path")
 assert_true(quoted_items[1].new_path == quoted_name, "new quoted file path should be collected as a real file path")
 
+local tabbed_repo = vim.fn.tempname()
+vim.fn.mkdir(tabbed_repo, "p")
+local tabbed_name = "a" .. vim.fn.nr2char(9) .. "b.txt"
+git(tabbed_repo, { "init" })
+vim.fn.writefile({ "before" }, tabbed_repo .. "/" .. tabbed_name)
+git(tabbed_repo, { "add", tabbed_name })
+git(tabbed_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "after" }, tabbed_repo .. "/" .. tabbed_name)
+local tabbed_items = diff.collect_scope(tabbed_repo, "unstaged")
+assert_true(tabbed_items ~= nil and #tabbed_items == 1, "expected one hunk for tabbed file path")
+assert_true(tabbed_items[1].path == tabbed_name, "tabbed file path should be decoded from Git quoting")
+assert_true(tabbed_items[1].old_path == tabbed_name, "old tabbed file path should be decoded from Git quoting")
+assert_true(tabbed_items[1].new_path == tabbed_name, "new tabbed file path should be decoded from Git quoting")
+
 git(repo, { "init" })
 
 local initial = {
