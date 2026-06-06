@@ -92,8 +92,10 @@ Entries are keyed by repo root, branch, diff scope, file path, hunk header, and 
 
 ## Smoke check
 
-You can run the review smoke check with:
+Run the isolated Neovim smoke check with:
 
 ```bash
-XDG_CONFIG_HOME="$PWD" nvim --headless -u "$PWD/nvim/init.lua" "+lua dofile('$PWD/scripts/review_smoke.lua')" +qa
+tests/nvim-smoke.sh
 ```
+
+The wrapper sets `XDG_STATE_HOME` to a temporary directory so review and Copilot state checks never write to the user's live Neovim state.
