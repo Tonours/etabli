@@ -52,22 +52,29 @@ function noteBypass(reason: string): void {
   runtimeState.lastBypassReason = reason;
 }
 
-function hasRecursiveForceRm(command: string): boolean {
-  const match = command.match(/(^|[\s;&()])rm\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)\s+/);
-  if (!match) return false;
+function commandFlags(command: string, pattern: RegExp): string[] {
+  const match = command.match(pattern);
+  if (!match) return [];
 
-  const flags = match[2]?.match(/-[A-Za-z]+/g) ?? [];
-  const joined = flags.join("").toLowerCase();
-  return joined.includes("r") && joined.includes("f");
+  return match[2]?.match(/--[A-Za-z-]+|-[A-Za-z]+/g) ?? [];
+}
+
+function flagsInclude(flags: string[], shortFlag: string, longFlag: string): boolean {
+  return flags.some((flag) => {
+    if (flag === longFlag) return true;
+    if (!flag.startsWith("--")) return flag.toLowerCase().includes(shortFlag);
+    return false;
+  });
+}
+
+function hasRecursiveForceRm(command: string): boolean {
+  const flags = commandFlags(command, /(^|[\s;&()])rm\s+((?:(?:--[A-Za-z-]+|-[A-Za-z]+)(?:\s+|$))*)/);
+  return flagsInclude(flags, "r", "--recursive") && flagsInclude(flags, "f", "--force");
 }
 
 function hasForceDirectoryGitClean(command: string): boolean {
-  const match = command.match(/(^|[\s;&()])git\s+clean\s+((?:-[A-Za-z]+\s+)*-[A-Za-z]+)(?:\s|$)/);
-  if (!match) return false;
-
-  const flags = match[2]?.match(/-[A-Za-z]+/g) ?? [];
-  const joined = flags.join("").toLowerCase();
-  return joined.includes("f") && joined.includes("d");
+  const flags = commandFlags(command, /(^|[\s;&()])git\s+clean\s+((?:(?:--[A-Za-z-]+|-[A-Za-z]+)(?:\s+|$))*)/);
+  return flagsInclude(flags, "f", "--force") && flagsInclude(flags, "d", "--directory");
 }
 
 function isDangerousCommand(command: string): boolean {
