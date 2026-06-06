@@ -12,6 +12,12 @@ local valid_transaction_verdicts = {
   approve = true,
   ["request-changes"] = true,
 }
+local valid_agent_finding_statuses = {
+  applied = true,
+  open = true,
+  rejected = true,
+  resolved = true,
+}
 
 -- Cache for file reads to avoid repeated disk access
 local file_cache = {}
@@ -1130,6 +1136,38 @@ function M.ingest_agent_output(context, provider, output, opts)
     imported = imported,
     skipped = skipped,
   }
+end
+
+function M.set_agent_finding_status(context, item, finding_id, status)
+  local next_status = status or "open"
+  if not valid_agent_finding_statuses[next_status] then
+    return nil, string.format("Invalid agent finding status: %s", tostring(status))
+  end
+
+  local stored = M.read(context)
+  local previous = stored.items[item.fingerprint]
+  if not previous then
+    return nil, "No agent findings found for this hunk"
+  end
+
+  local agent_findings = normalize_agent_findings(previous.agent_findings)
+  local changed = false
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+
+  for _, finding in ipairs(agent_findings) do
+    if finding.id == finding_id then
+      finding.status = next_status
+      finding.updated_at = now
+      changed = true
+      break
+    end
+  end
+
+  if not changed then
+    return nil, "No matching agent finding found"
+  end
+
+  return save_item_in_record(context, stored, item, { agent_findings = agent_findings })
 end
 
 function M.set_comment_resolved(context, item, comment_id, resolved)

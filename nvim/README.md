@@ -30,6 +30,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk navigation: `[h`, `]h`
 - Agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare current hunk findings
+- Suggested changes: `<leader>rS` preview safely, `:ReviewSuggestionStatus applied|rejected|resolved|open` tracks the decision
 - Claude: `<leader>rc` revise, `<leader>rC` explain
 - Pi: `<leader>rp` revise, `<leader>rP` explain
 - Batch rework: `<leader>rbc`, `<leader>rbp`

@@ -87,6 +87,13 @@ lazy_cmd("ReviewIngestPi", "config.review", "cmd_ingest_pi", {
 lazy_cmd("ReviewCompareAgents", "config.review", "cmd_compare_agents", {
   desc = "Compare Pi and Claude findings for the current review hunk",
 })
+lazy_cmd("ReviewSuggestionPreview", "config.review", "cmd_preview_suggestion", {
+  desc = "Safely preview a suggested change for the current review hunk",
+})
+lazy_cmd("ReviewSuggestionStatus", "config.review", "cmd_suggestion_status", {
+  complete = function() return { "open", "applied", "rejected", "resolved" } end,
+  desc = "Set the selected suggested change status", nargs = "?",
+})
 lazy_cmd("ReviewClaudeBatch", "config.review", "cmd_claude_batch", {
   complete = function() return require("config.review.state").statuses() end,
   desc = "Prepare one Claude prompt for all hunks with a review status", nargs = "?",

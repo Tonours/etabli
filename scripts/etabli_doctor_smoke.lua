@@ -39,6 +39,8 @@ local expected_commands = {
   "ReviewIngestClaude",
   "ReviewIngestPi",
   "ReviewCompareAgents",
+  "ReviewSuggestionPreview",
+  "ReviewSuggestionStatus",
   "ReviewClaudeBatch",
   "ReviewPiBatch",
 }

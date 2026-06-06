@@ -4,6 +4,7 @@ local review_items = require("config.review.items")
 local picker = require("config.review.picker")
 local providers = require("config.review.providers")
 local state = require("config.review.state")
+local suggestions = require("config.review.suggestions")
 local util = require("config.review.util")
 local views = require("config.review.views")
 
@@ -526,6 +527,8 @@ local function show_inbox_help(opts)
     "- :ReviewIngestClaude [file] imports structured Claude findings from a file or unnamed register",
     "- :ReviewIngestPi [file] imports structured Pi findings from a file or unnamed register",
     "- :ReviewCompareAgents compares Pi and Claude findings for the current hunk",
+    "- :ReviewSuggestionPreview safely previews the selected suggested change",
+    "- :ReviewSuggestionStatus [open|applied|rejected|resolved] updates suggestion state",
     "- <leader>rA accepts the current hunk quickly",
     "- <leader>rbc and <leader>rbp run the default needs-rework batch commands",
     "- <leader>rvc and <leader>rvp run first-pass review commands",
@@ -746,6 +749,28 @@ local function ingest_provider_output(provider, source)
     ),
     vim.log.levels.INFO
   )
+end
+
+local function select_suggestion(item, on_choice)
+  local candidates = suggestions.for_item(item)
+  if vim.tbl_isempty(candidates) then
+    vim.notify("No suggested changes found for this hunk", vim.log.levels.INFO)
+    return
+  end
+
+  if #candidates == 1 then
+    on_choice(candidates[1])
+    return
+  end
+
+  vim.ui.select(candidates, {
+    prompt = "Suggested change",
+    format_item = suggestions.format_candidate,
+  }, function(choice)
+    if choice then
+      on_choice(choice)
+    end
+  end)
 end
 
 local function prepare_selected_batch(provider, items)
@@ -975,6 +1000,36 @@ function M.compare_current_agents()
   end
 
   util.open_scratch("review-agent-findings.md", views.render_agent_compare(item), "markdown")
+end
+
+function M.preview_current_suggestion()
+  local _, item = current_hunk_item()
+  if not item then
+    return
+  end
+
+  select_suggestion(item, function(candidate)
+    util.open_scratch("review-suggestion.md", suggestions.preview_lines(item, candidate), "markdown")
+  end)
+end
+
+function M.set_current_suggestion_status(status)
+  local context, item = current_hunk_item()
+  if not item then
+    return
+  end
+
+  select_suggestion(item, function(candidate)
+    local _, err = state.set_agent_finding_status(context, item, candidate.id, status)
+    if err then
+      vim.notify(err, vim.log.levels.ERROR)
+      return
+    end
+
+    review_items.clear_cache()
+    annotations.refresh_repo(item.repo)
+    vim.notify(string.format("Suggested change marked %s", status), vim.log.levels.INFO)
+  end)
 end
 
 function M.open_inbox(opts)
@@ -1228,6 +1283,15 @@ end
 
 function M.cmd_compare_agents()
   M.compare_current_agents()
+end
+
+function M.cmd_preview_suggestion()
+  M.preview_current_suggestion()
+end
+
+function M.cmd_suggestion_status(cmd_opts)
+  local status = cmd_opts.args ~= "" and cmd_opts.args or "open"
+  M.set_current_suggestion_status(status)
 end
 
 function M.cmd_send_claude(cmd_opts)

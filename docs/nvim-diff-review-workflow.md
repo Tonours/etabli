@@ -16,6 +16,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rl` toggle inline review annotations in file buffers
 - `<leader>ro` expand or collapse the inline review thread under the cursor
 - `<leader>rg` compare agent review findings for the current hunk
+- `<leader>rS` safely preview a suggested change for the current hunk
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
 - `<leader>rC` build an `explain` prompt for Claude from the current hunk
 - `<leader>rp` build a `revise` prompt for Pi from the current hunk
@@ -39,6 +40,8 @@ Equivalent commands:
 - `:ReviewIngestClaude [file]`
 - `:ReviewIngestPi [file]`
 - `:ReviewCompareAgents`
+- `:ReviewSuggestionPreview`
+- `:ReviewSuggestionStatus [open|applied|rejected|resolved]`
 
 Inline annotations show unresolved review conversations on the live file line or selected line range, similar to GitHub PR file review comments. They are rendered with extmarks and signs, so they do not modify the file. To keep large reviews readable and fast, conversations render as compact end-of-line markers by default. Use `<leader>ro` or `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again. Older hunk-level notes are still shown as a compact end-of-line fallback.
 
@@ -96,6 +99,8 @@ Review commands default to all live staged and unstaged hunks. Passing a status 
 The `review` action is intentionally read-only. It asks the provider to report findings ordered by severity and end with `GO`, `GO WITH NOTES`, or `BLOCK`; it does not ask the provider to edit files.
 
 Import agent review output back into local review state with `:ReviewIngestClaude [file]` or `:ReviewIngestPi [file]`. Without a file argument, the command reads the unnamed register. Imported findings must use the structured labels requested by the review prompt: `severity:`, `file:`, `line:` or `line_range:`, `issue:`, `impact:`, `review_comment:`, and optional `suggested_fix:`. Findings are anchored to live hunks before being stored; unmatched or duplicate findings are skipped. The Inbox shows provider counts such as `C:1` and `P:2`, inline annotations show compact agent markers, and `<leader>rg` or `:ReviewCompareAgents` compares Pi and Claude findings for the current hunk.
+
+Suggested changes from imported `suggested_fix:` fields are preview-first. Use `<leader>rS` or `:ReviewSuggestionPreview` to open a markdown preview with the original finding, suggested fix, and a safety classification. Text-only suggestions are `preview-only`; diff suggestions are marked `safe-preview` only when all file markers target the current review file, otherwise they are `unsafe`. This flow does not auto-apply arbitrary agent patches. Use `:ReviewSuggestionStatus applied|rejected|resolved|open` to track the decision after manual review or application.
 
 ## Prompt dispatch behavior
 
