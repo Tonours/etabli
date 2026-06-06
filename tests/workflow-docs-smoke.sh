@@ -39,6 +39,7 @@ assert_file "$ROOT_DIR/harness/templates/docs/claude-code-harness.md"
 assert_file "$ROOT_DIR/harness/templates/docs/project-context.md"
 assert_file "$ROOT_DIR/scripts/deploy-harness"
 assert_file "$ROOT_DIR/tests/harness-cli-smoke.sh"
+assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 
 assert_contains "$ROOT_DIR/scripts/install.sh" 'workflow/$shared_doc'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'PLAN_TEMPLATE.md'
@@ -51,6 +52,7 @@ assert_contains "$ROOT_DIR/scripts/install.sh" 'asdf reshim nodejs'
 assert_not_contains "$ROOT_DIR/scripts/install.sh" 'nvm-sh/nvm'
 assert_not_contains "$ROOT_DIR/scripts/install.sh" '@mariozechner/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'deploy-harness'
+assert_contains "$ROOT_DIR/README.md" 'tests/fix-links-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_CLAUDE_PRINT_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
