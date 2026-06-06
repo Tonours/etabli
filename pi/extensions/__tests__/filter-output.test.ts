@@ -803,6 +803,44 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks inline Node print-mode reads of sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "node -p 'require(\"fs\").readFileSync(\".env.local\", \"utf8\")'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks inline Node long-option reads of sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "node --eval 'console.log(require(\"fs\").readFileSync(\".env.local\", \"utf8\"))'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("allows inline interpreter commands that only mention sensitive filenames", async () => {
     const handler = setupExtension();
     const ctx = createContext();
@@ -811,6 +849,23 @@ describe("filter-output", () => {
       {
         content: [{ type: "text", text: ".env.local" }],
         input: { command: "python -c 'print(\".env.local\")'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.ui.notifications).toEqual([]);
+  });
+
+  test("allows inline Node print-mode commands that only mention sensitive filenames", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: ".env.local" }],
+        input: { command: "node --print '\".env.local\"'" },
         toolName: "bash",
       },
       ctx,
