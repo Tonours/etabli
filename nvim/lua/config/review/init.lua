@@ -803,6 +803,7 @@ function M.refresh_after_external_edit(repo, opts)
 
   local options = opts or {}
 
+  state.clear_cache()
   review_items.clear_cache()
   diff.clear_cache()
   review_items.refresh_buffers(repo)
