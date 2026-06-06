@@ -44,6 +44,13 @@ claude_bin() {
   command -v claude 2>/dev/null || true
 }
 
+pi_supports_flag() {
+  local bin="$1"
+  local flag="$2"
+
+  "$bin" --help 2>&1 | grep -Eq -- "(^|[[:space:]])${flag}([,[:space:]]|$)"
+}
+
 if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ] && [ "${RUN_AGENT_CLI_SMOKE_SELF_TEST:-}" != "1" ]; then
   printf 'harness CLI smoke test: skipped (set RUN_AGENT_CLI_SMOKE=1 to run real agent CLIs)\n'
   exit 0
@@ -72,6 +79,47 @@ if [ "${RUN_AGENT_CLI_SMOKE_SELF_TEST:-}" = "1" ]; then
 
   printf 'harness CLI bounded runner self-test: ok\n'
 
+  STUB_BIN="$TMP_DIR/stub-bin"
+  mkdir -p "$STUB_BIN"
+  cat >"$STUB_BIN/pi" <<'SH'
+#!/usr/bin/env sh
+if [ "${1:-}" = "--help" ]; then
+  printf 'Usage: pi [options]\n  --approve Trust project-local files for this run\n'
+  exit 0
+fi
+
+case " $* " in
+  *" --approve "*) ;;
+  *" -a "*) ;;
+  *)
+    printf 'missing Pi --approve flag\n' >&2
+    exit 42
+    ;;
+esac
+
+if [ "${PI_SKIP_VERSION_CHECK:-}" != "1" ]; then
+  printf 'missing PI_SKIP_VERSION_CHECK=1\n' >&2
+  exit 42
+fi
+
+printf 'map/manual\n'
+SH
+  chmod +x "$STUB_BIN/pi"
+  cat >"$STUB_BIN/claude" <<'SH'
+#!/usr/bin/env sh
+if [ "${1:-}" = "--version" ]; then
+  printf 'claude-stub\n'
+  exit 0
+fi
+
+cat >/dev/null
+printf 'AGENTS.md\n'
+SH
+  chmod +x "$STUB_BIN/claude"
+
+  PATH="$STUB_BIN:$PATH" RUN_AGENT_CLI_SMOKE=1 RUN_AGENT_CLI_SMOKE_SELF_TEST=0 "$0" >/dev/null
+  printf 'harness CLI stub smoke: ok\n'
+
   if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ]; then
     exit 0
   fi
@@ -82,10 +130,17 @@ PROJECT="$TMP_DIR/project"
 
 PI_BIN="$(pi_bin || true)"
 if [ -n "$PI_BIN" ]; then
+  pi_args=(--print --no-session --no-tools --thinking off)
+  if pi_supports_flag "$PI_BIN" "--approve"; then
+    pi_args+=(--approve)
+  fi
+  pi_args+=(
+    'According to the local project instructions, complete this sentence with the two missing words: Treat this file as a ___, not a ___. Reply only as word/word.'
+  )
+
   pi_output="$(
     cd "$PROJECT"
-    run_bounded 45 "$PI_BIN" --print --no-session --no-tools --thinking off \
-      'According to the local project instructions, complete this sentence with the two missing words: Treat this file as a ___, not a ___. Reply only as word/word.'
+    PI_SKIP_VERSION_CHECK=1 run_bounded 45 "$PI_BIN" "${pi_args[@]}"
   )"
   pi_output="$(printf '%s' "$pi_output" | trim_output)"
   if [ "$pi_output" != "map/manual" ]; then
