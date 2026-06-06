@@ -276,6 +276,9 @@ end, vim.tbl_extend("force", opts, { desc = "Toggle review inline annotations" }
 map("n", "<leader>ro", function()
   require("config.review").cmd_inline_annotations({ args = "expand" })
 end, vim.tbl_extend("force", opts, { desc = "Open inline review thread" }))
+map("n", "<leader>rg", function()
+  require("config.review").compare_current_agents()
+end, vim.tbl_extend("force", opts, { desc = "Compare agent review findings" }))
 
 -- Quick navigation between hunks (similar to diagnostics [d ]d)
 map("n", "[h", function()

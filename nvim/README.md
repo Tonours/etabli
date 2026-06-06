@@ -29,10 +29,11 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers, `<leader>ro` expands the thread under the cursor
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk navigation: `[h`, `]h`
+- Agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare current hunk findings
 - Claude: `<leader>rc` revise, `<leader>rC` explain
 - Pi: `<leader>rp` revise, `<leader>rP` explain
 - Batch rework: `<leader>rbc`, `<leader>rbp`
-- First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi
+- First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only` or `:ReviewPiReview changed-only` for changed hunks
 
 Inbox shortcuts:
 

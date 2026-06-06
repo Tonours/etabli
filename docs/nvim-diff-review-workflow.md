@@ -15,6 +15,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rT` preview the active review transaction
 - `<leader>rl` toggle inline review annotations in file buffers
 - `<leader>ro` expand or collapse the inline review thread under the cursor
+- `<leader>rg` compare agent review findings for the current hunk
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
 - `<leader>rC` build an `explain` prompt for Claude from the current hunk
 - `<leader>rp` build a `revise` prompt for Pi from the current hunk
@@ -35,6 +36,9 @@ Equivalent commands:
 - `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
+- `:ReviewIngestClaude [file]`
+- `:ReviewIngestPi [file]`
+- `:ReviewCompareAgents`
 
 Inline annotations show unresolved review conversations on the live file line or selected line range, similar to GitHub PR file review comments. They are rendered with extmarks and signs, so they do not modify the file. To keep large reviews readable and fast, conversations render as compact end-of-line markers by default. Use `<leader>ro` or `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again. Older hunk-level notes are still shown as a compact end-of-line fallback.
 
@@ -78,8 +82,8 @@ By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the 
 
 - `:ReviewClaudeBatch [status]` prepares one Claude prompt for every live hunk with that status
 - `:ReviewPiBatch [status]` prepares one Pi prompt for every live hunk with that status
-- `:ReviewClaudeReview [status|all]` launches Claude with a first-pass code review prompt for live hunks
-- `:ReviewPiReview [status|all]` launches Pi with a first-pass code review prompt for live hunks
+- `:ReviewClaudeReview [status|all|changed-only]` launches Claude with a first-pass code review prompt for live hunks
+- `:ReviewPiReview [status|all|changed-only]` launches Pi with a first-pass code review prompt for live hunks
 - `<leader>rbc` prepares the default Claude batch prompt for `needs-rework`
 - `<leader>rbp` prepares the default Pi batch prompt for `needs-rework`
 - `<leader>rvc` launches the Claude first-pass review for all live hunks
@@ -87,9 +91,11 @@ By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the 
 
 Both commands default to `needs-rework`, so `:ReviewClaudeBatch` is the quick "prepare all needs-rework hunks" flow.
 
-Review commands default to all live staged and unstaged hunks. Passing a status narrows the review, for example `:ReviewClaudeReview needs-rework`.
+Review commands default to all live staged and unstaged hunks. Passing a status narrows the review, for example `:ReviewClaudeReview needs-rework`. Passing `changed-only` reviews only hunks that changed after being marked reviewed.
 
 The `review` action is intentionally read-only. It asks the provider to report findings ordered by severity and end with `GO`, `GO WITH NOTES`, or `BLOCK`; it does not ask the provider to edit files.
+
+Import agent review output back into local review state with `:ReviewIngestClaude [file]` or `:ReviewIngestPi [file]`. Without a file argument, the command reads the unnamed register. Imported findings must use the structured labels requested by the review prompt: `severity:`, `file:`, `line:` or `line_range:`, `issue:`, `impact:`, `review_comment:`, and optional `suggested_fix:`. Findings are anchored to live hunks before being stored; unmatched or duplicate findings are skipped. The Inbox shows provider counts such as `C:1` and `P:2`, inline annotations show compact agent markers, and `<leader>rg` or `:ReviewCompareAgents` compares Pi and Claude findings for the current hunk.
 
 ## Prompt dispatch behavior
 

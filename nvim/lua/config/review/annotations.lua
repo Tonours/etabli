@@ -44,6 +44,22 @@ local function unresolved_comments(item)
     end
   end
 
+  for _, finding in ipairs(item.agent_findings or {}) do
+    if
+      (finding.status == nil or finding.status == "open")
+      and finding.review_comment
+      and finding.review_comment ~= ""
+    then
+      table.insert(comments, {
+        id = finding.id,
+        line = finding.line,
+        end_line = finding.end_line,
+        body = string.format("[%s/%s] %s", finding.provider or "agent", finding.severity or "low", finding.review_comment),
+        agent = true,
+      })
+    end
+  end
+
   return comments
 end
 
@@ -158,15 +174,20 @@ end
 local function compact_comment_text(comments)
   local count = #comments
   local draft_count = 0
+  local agent_count = 0
   for _, comment in ipairs(comments) do
     if comment.draft == true then
       draft_count = draft_count + 1
+    elseif comment.agent == true then
+      agent_count = agent_count + 1
     end
   end
 
   local label
   if draft_count == count then
     label = count == 1 and "1 pending" or string.format("%d pending", count)
+  elseif agent_count == count then
+    label = count == 1 and "1 agent finding" or string.format("%d agent findings", count)
   else
     label = count == 1 and "1 unresolved" or string.format("%d unresolved", count)
   end

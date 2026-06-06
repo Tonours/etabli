@@ -1,4 +1,5 @@
 local diff = require("config.review.diff")
+local findings = require("config.review.findings")
 local meta = require("config.review.meta")
 local state_file = require("config.state_file")
 local util = require("config.review.util")
@@ -105,6 +106,7 @@ local function ensure_record_shape(decoded, repo, branch)
   decoded.repo = decoded.repo or repo
   decoded.branch = decoded.branch or branch
   decoded.items = type(decoded.items) == "table" and decoded.items or {}
+  decoded.review_runs = type(decoded.review_runs) == "table" and decoded.review_runs or {}
   if type(decoded.transaction) ~= "table" or decoded.transaction.status ~= "draft" then
     decoded.transaction = nil
   else
@@ -196,9 +198,88 @@ local function comments_for_item(comments, item)
   return filtered
 end
 
+local function normalize_agent_findings(agent_findings)
+  if type(agent_findings) ~= "table" then
+    return {}
+  end
+
+  local normalized = {}
+  for index, finding in ipairs(agent_findings) do
+    if type(finding) == "table" and type(finding.review_comment) == "string" and finding.review_comment ~= "" then
+      local line = tonumber(finding.line)
+      local end_line = tonumber(finding.end_line) or line
+      if line and end_line and end_line < line then
+        line, end_line = end_line, line
+      end
+
+      local provider = tostring(finding.provider or ""):lower()
+      local fallback_id = provider .. "_" .. vim.fn.sha256(table.concat({
+        provider,
+        finding.severity or "",
+        finding.file or "",
+        tostring(line or ""),
+        tostring(end_line or ""),
+        finding.issue or "",
+        finding.review_comment or "",
+        finding.suggested_fix or "",
+        tostring(index),
+      }, "\n")):sub(1, 12)
+
+      table.insert(normalized, {
+        id = finding.id or fallback_id,
+        provider = provider,
+        run_id = finding.run_id,
+        severity = finding.severity or "low",
+        file = finding.file,
+        line = line,
+        end_line = end_line,
+        issue = finding.issue or "",
+        impact = finding.impact or "",
+        review_comment = finding.review_comment,
+        suggested_fix = finding.suggested_fix or "",
+        status = finding.status or "open",
+        created_at = finding.created_at,
+        updated_at = finding.updated_at,
+      })
+    end
+  end
+
+  return normalized
+end
+
+local function agent_findings_for_item(agent_findings, item)
+  local normalized = normalize_agent_findings(agent_findings)
+  if not item or not item.line_start or not item.line_end then
+    return normalized
+  end
+
+  local filtered = {}
+
+  for _, finding in ipairs(normalized) do
+    local file_matches = finding.file == nil or finding.file == "" or finding.file == item.path
+    local line_matches = finding.line == nil
+      or (diff.hunk_contains_line(item, finding.line) and diff.hunk_contains_line(item, finding.end_line or finding.line))
+    if file_matches and line_matches then
+      table.insert(filtered, finding)
+    end
+  end
+
+  return filtered
+end
+
 local function comment_id_exists(comments, id)
   for _, comment in ipairs(comments) do
     if comment.id == id then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function agent_finding_id_exists(agent_findings, id)
+  for _, finding in ipairs(agent_findings) do
+    if finding.id == id then
       return true
     end
   end
@@ -285,6 +366,80 @@ local function current_items_by_fingerprint(context)
   return by_fingerprint
 end
 
+local function normalize_provider(provider)
+  local value = tostring(provider or ""):lower()
+  if value == "claude code" then
+    return "claude"
+  end
+
+  return value ~= "" and value or "agent"
+end
+
+local function set_agent_run_in_record(stored, attrs, timestamp)
+  local options = attrs or {}
+  local now = timestamp or os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local provider = normalize_provider(options.provider)
+  local id = options.id
+    or (provider .. "_" .. vim.fn.sha256(table.concat({
+      provider,
+      options.mode or "review",
+      options.scope or "",
+      options.prompt_hash or "",
+      options.diff_signature or "",
+      now,
+      tostring(vim.uv.hrtime()),
+    }, "\n")):sub(1, 12))
+
+  stored.review_runs = type(stored.review_runs) == "table" and stored.review_runs or {}
+  stored.review_runs[id] = vim.tbl_extend("force", stored.review_runs[id] or {}, {
+    id = id,
+    provider = provider,
+    mode = options.mode or "review",
+    scope = options.scope or "all",
+    prompt_hash = options.prompt_hash,
+    diff_signature = options.diff_signature,
+    started_at = options.started_at or now,
+    completed_at = options.completed_at,
+    result = options.result or "running",
+    findings_count = options.findings_count or 0,
+    skipped_count = options.skipped_count or 0,
+    updated_at = now,
+  })
+
+  return stored.review_runs[id]
+end
+
+local function item_matches_agent_finding(item, finding)
+  if finding.file and finding.file ~= "" and finding.file ~= item.path then
+    return false
+  end
+
+  if not finding.line then
+    return true
+  end
+
+  return diff.hunk_contains_line(item, finding.line) and diff.hunk_contains_line(item, finding.end_line or finding.line)
+end
+
+local function item_for_agent_finding(items, finding)
+  if finding.hunk and items[finding.hunk] and item_matches_agent_finding(items[finding.hunk], finding) then
+    return items[finding.hunk]
+  end
+
+  local matched
+  for _, item in ipairs(items) do
+    if item_matches_agent_finding(item, finding) then
+      if matched then
+        return nil
+      end
+
+      matched = item
+    end
+  end
+
+  return matched
+end
+
 review_anchor = function(item)
   return table.concat({
     item.scope or "",
@@ -329,13 +484,25 @@ local function decorate_attention(item)
   local status = item.status or "new"
   local unresolved = unresolved_comment_count(item.comments)
   local draft_count = #(item.draft_comments or {})
+  local open_agent_count = 0
+  local provider_counts = {}
   local has_note = item.note and item.note ~= ""
+
+  for _, finding in ipairs(item.agent_findings or {}) do
+    if finding.status == nil or finding.status == "open" then
+      open_agent_count = open_agent_count + 1
+      local provider = finding.provider or "agent"
+      provider_counts[provider] = (provider_counts[provider] or 0) + 1
+    end
+  end
 
   item.draft_comment_count = draft_count
   item.comment_count = #(item.comments or {}) + draft_count
   item.unresolved_comment_count = unresolved + draft_count
+  item.agent_finding_count = open_agent_count
+  item.agent_provider_counts = provider_counts
 
-  if item.stale and (meta.is_actionable(status) or item.unresolved_comment_count > 0 or has_note) then
+  if item.stale and (meta.is_actionable(status) or item.unresolved_comment_count > 0 or open_agent_count > 0 or has_note) then
     item.attention_reason = "needs-recheck"
     item.attention_label = "RECHECK"
     item.attention_rank = 2
@@ -343,7 +510,7 @@ local function decorate_attention(item)
     item.attention_reason = "changed-since-review"
     item.attention_label = "CHANGED"
     item.attention_rank = 2
-  elseif item.unresolved_comment_count > 0 or meta.is_actionable(status) then
+  elseif item.unresolved_comment_count > 0 or open_agent_count > 0 or meta.is_actionable(status) then
     item.attention_reason = "needs-human"
     item.attention_label = "HUMAN"
     item.attention_rank = 1
@@ -506,8 +673,10 @@ function M.merge_items(context, current_items)
   for _, item in ipairs(current_items) do
     local saved = stored.items[item.fingerprint]
     local saved_comments = saved and comments_for_item(saved.comments, item) or {}
+    local saved_agent_findings = saved and agent_findings_for_item(saved.agent_findings, item) or {}
     local draft_comments = transaction_comments_for_item(transaction, item)
     local combined = vim.tbl_extend("force", item, {
+      agent_findings = saved_agent_findings,
       branch = context.branch,
       draft_comments = draft_comments,
       note = saved and saved.note or "",
@@ -525,11 +694,17 @@ function M.merge_items(context, current_items)
 
   for fingerprint, saved in pairs(stored.items) do
     local saved_comments = comments_for_item(saved.comments, saved)
+    local saved_agent_findings = agent_findings_for_item(saved.agent_findings, saved)
     local draft_comments = transaction_comments_for_item(transaction, saved)
     local has_comment = not vim.tbl_isempty(saved_comments)
+    local has_agent_finding = not vim.tbl_isempty(saved_agent_findings)
     local has_draft = not vim.tbl_isempty(draft_comments)
-    if not seen[fingerprint] and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new" or has_comment or has_draft) then
+    if
+      not seen[fingerprint]
+      and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new" or has_comment or has_agent_finding or has_draft)
+    then
       local stale = vim.deepcopy(saved)
+      stale.agent_findings = saved_agent_findings
       stale.comments = saved_comments
       stale.draft_comments = draft_comments
       stale.branch = context.branch
@@ -549,6 +724,7 @@ end
 
 local function set_item_in_record(context, stored, item, attrs, timestamp)
   local previous = stored.items[item.fingerprint] or {}
+  local agent_findings = attrs and attrs.agent_findings or previous.agent_findings or {}
   local note = attrs and attrs.note or previous.note or ""
   local status = attrs and attrs.status or previous.status or "new"
   local comments = attrs and attrs.comments or previous.comments or {}
@@ -574,6 +750,7 @@ local function set_item_in_record(context, stored, item, attrs, timestamp)
   stored.items[item.fingerprint] = vim.tbl_extend("force", previous, item, {
     repo = context.repo,
     branch = context.branch,
+    agent_findings = normalize_agent_findings(agent_findings),
     note = note,
     comments = comments_for_item(comments, item),
     status = status,
@@ -808,6 +985,17 @@ function M.submit_transaction(context, verdict)
   }
 end
 
+function M.record_agent_run(context, attrs)
+  local stored = M.read(context)
+  local run = set_agent_run_in_record(stored, attrs)
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
+
+  return vim.deepcopy(run)
+end
+
 function M.add_comment(context, item, attrs)
   local options = attrs or {}
   local body = vim.trim(options.body or "")
@@ -854,6 +1042,94 @@ function M.add_comment(context, item, attrs)
   })
 
   return save_item_in_record(context, stored, item, { comments = comments })
+end
+
+function M.ingest_agent_output(context, provider, output, opts)
+  local options = opts or {}
+  local normalized_provider = normalize_provider(provider)
+  local parsed = findings.parse(output)
+  local current_items, current_err = diff.collect_all(context.repo)
+  if not current_items then
+    return nil, current_err
+  end
+
+  local stored = M.read(context)
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local run = set_agent_run_in_record(stored, {
+    provider = normalized_provider,
+    mode = options.mode or "review",
+    scope = options.scope or "import",
+    prompt_hash = options.prompt_hash,
+    diff_signature = options.diff_signature,
+    completed_at = now,
+    result = "done",
+  }, now)
+  local imported = 0
+  local skipped = 0
+
+  for _, finding in ipairs(parsed) do
+    local item = item_for_agent_finding(current_items, finding)
+    if not item then
+      skipped = skipped + 1
+    else
+      local previous = stored.items[item.fingerprint] or {}
+      local agent_findings = normalize_agent_findings(previous.agent_findings)
+      local line = finding.line or item.changed_line_start or item.line_start
+      local end_line = finding.end_line or line
+      local id = normalized_provider .. "_" .. vim.fn.sha256(table.concat({
+        item.fingerprint or "",
+        tostring(line or ""),
+        tostring(end_line or ""),
+        finding.severity or "",
+        finding.issue or "",
+        finding.review_comment or "",
+        finding.suggested_fix or "",
+      }, "\n")):sub(1, 12)
+
+      if agent_finding_id_exists(agent_findings, id) then
+        skipped = skipped + 1
+      else
+        table.insert(agent_findings, {
+          id = id,
+          provider = normalized_provider,
+          run_id = run.id,
+          severity = finding.severity,
+          file = item.path,
+          line = line,
+          end_line = end_line,
+          issue = finding.issue,
+          impact = finding.impact,
+          review_comment = finding.review_comment,
+          suggested_fix = finding.suggested_fix,
+          status = "open",
+          created_at = now,
+          updated_at = now,
+        })
+
+        local _, set_err = set_item_in_record(context, stored, item, { agent_findings = agent_findings }, now)
+        if set_err then
+          return nil, set_err
+        end
+
+        imported = imported + 1
+      end
+    end
+  end
+
+  run.findings_count = imported
+  run.skipped_count = skipped
+
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
+
+  return {
+    run_id = run.id,
+    parsed = #parsed,
+    imported = imported,
+    skipped = skipped,
+  }
 end
 
 function M.set_comment_resolved(context, item, comment_id, resolved)

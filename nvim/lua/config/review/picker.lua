@@ -113,7 +113,22 @@ local function unresolved_comments(comments)
   return unresolved
 end
 
+local function agent_activity_label(item)
+  local counts = item.agent_provider_counts or {}
+  local parts = {}
+
+  if (counts.claude or 0) > 0 then
+    table.insert(parts, string.format("C:%d", counts.claude))
+  end
+  if (counts.pi or 0) > 0 then
+    table.insert(parts, string.format("P:%d", counts.pi))
+  end
+
+  return table.concat(parts, " ")
+end
+
 local function render_preview(item)
+  local agent_findings = item.agent_findings or {}
   local comments = item.comments or {}
   local draft_comments = item.draft_comments or {}
   local unresolved = unresolved_comments(comments)
@@ -163,6 +178,27 @@ local function render_preview(item)
 
   if #comments > #unresolved then
     table.insert(lines, string.format("Resolved comments: %d", #comments - #unresolved))
+  end
+
+  if #agent_findings > 0 then
+    table.insert(lines, "Agent findings:")
+    for _, finding in ipairs(agent_findings) do
+      table.insert(
+        lines,
+        string.format(
+          "  - %s %s %s [%s]:",
+          finding.provider or "agent",
+          finding.severity or "low",
+          comment_range_label(finding),
+          finding.status or "open"
+        )
+      )
+      util.append_text_lines(lines, finding.review_comment or finding.issue or "", "    ")
+      if finding.suggested_fix and finding.suggested_fix ~= "" then
+        table.insert(lines, "    suggested_fix:")
+        util.append_text_lines(lines, finding.suggested_fix, "      ")
+      end
+    end
   end
 
   table.insert(lines, "")
@@ -238,7 +274,7 @@ function M.open(items, callbacks, opts)
       { width = 3 },
       { width = 8 },
       { width = 8 },
-      { width = 5 },
+      { width = 10 },
       { width = 8 },
       { remaining = true },
     },
@@ -250,7 +286,17 @@ function M.open(items, callbacks, opts)
     local context = item.hunk_context ~= "" and (" " .. item.hunk_context) or ""
     local has_note = item.note and item.note ~= ""
     local comment_count = item.unresolved_comment_count or 0
-    local note_marker = comment_count > 0 and tostring(math.min(comment_count, 9)) or (has_note and "N" or "")
+    local activity_parts = {}
+    if comment_count > 0 then
+      table.insert(activity_parts, tostring(math.min(comment_count, 9)))
+    elseif has_note then
+      table.insert(activity_parts, "N")
+    end
+    local agent_label = agent_activity_label(item)
+    if agent_label ~= "" then
+      table.insert(activity_parts, agent_label)
+    end
+    local note_marker = table.concat(activity_parts, " ")
     local note = has_note and (" " .. item.note) or ""
     local location = string.format("%s:%d%s", item.path, line, context)
 

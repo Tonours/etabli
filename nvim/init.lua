@@ -76,6 +76,17 @@ lazy_cmd("ReviewPi", "config.review", "cmd_send_pi", {
   complete = function() return { "revise", "explain", "review" } end,
   desc = "Send the current hunk review prompt to Pi", nargs = "?",
 })
+lazy_cmd("ReviewIngestClaude", "config.review", "cmd_ingest_claude", {
+  complete = "file",
+  desc = "Import structured Claude review findings", nargs = "?",
+})
+lazy_cmd("ReviewIngestPi", "config.review", "cmd_ingest_pi", {
+  complete = "file",
+  desc = "Import structured Pi review findings", nargs = "?",
+})
+lazy_cmd("ReviewCompareAgents", "config.review", "cmd_compare_agents", {
+  desc = "Compare Pi and Claude findings for the current review hunk",
+})
 lazy_cmd("ReviewClaudeBatch", "config.review", "cmd_claude_batch", {
   complete = function() return require("config.review.state").statuses() end,
   desc = "Prepare one Claude prompt for all hunks with a review status", nargs = "?",
@@ -88,6 +99,7 @@ lazy_cmd("ReviewClaudeReview", "config.review", "cmd_claude_review", {
   complete = function()
     local choices = require("config.review.state").statuses()
     table.insert(choices, 1, "all")
+    table.insert(choices, 2, "changed-only")
     return choices
   end,
   desc = "Launch Claude for a first-pass code review", nargs = "?",
@@ -96,6 +108,7 @@ lazy_cmd("ReviewPiReview", "config.review", "cmd_pi_review", {
   complete = function()
     local choices = require("config.review.state").statuses()
     table.insert(choices, 1, "all")
+    table.insert(choices, 2, "changed-only")
     return choices
   end,
   desc = "Launch Pi for a first-pass code review", nargs = "?",
