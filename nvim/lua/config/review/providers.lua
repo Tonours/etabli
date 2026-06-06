@@ -100,7 +100,10 @@ local function provider_for(name)
 end
 
 local function terminal_safe_input(input)
-  return tostring(input or ""):gsub("\027", "\\x1b")
+  local text = tostring(input or ""):gsub("\r\n", "\n"):gsub("\r", "\n")
+  return text:gsub("[%z\1-\8\11\12\14-\31\127]", function(value)
+    return string.format("\\x%02x", value:byte())
+  end)
 end
 
 local function launch_spec(provider, prompt)
