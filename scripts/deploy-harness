@@ -115,11 +115,7 @@ TARGET_DIR="$(target_dir)"
 preflight_conflicts() {
   local entry source_path relative_path destination_path parent_path
 
-  if [ "$FORCE" -eq 1 ]; then
-    return 0
-  fi
-
-  if [ -e "$TARGET_DIR/.gitignore" ] && [ ! -f "$TARGET_DIR/.gitignore" ]; then
+  if [ "$FORCE" -eq 0 ] && [ -e "$TARGET_DIR/.gitignore" ] && [ ! -f "$TARGET_DIR/.gitignore" ]; then
     status_line CONFLICT ".gitignore exists but is not a file"
     CONFLICTS=$((CONFLICTS + 1))
   fi
@@ -136,13 +132,13 @@ preflight_conflicts() {
       continue
     fi
 
-    if [ -e "$parent_path" ] && [ ! -d "$parent_path" ]; then
+    if [ "$FORCE" -eq 0 ] && [ -e "$parent_path" ] && [ ! -d "$parent_path" ]; then
       status_line CONFLICT "$(dirname "$relative_path") exists but is not a directory"
       CONFLICTS=$((CONFLICTS + 1))
       continue
     fi
 
-    if [ -e "$destination_path" ] && ! { [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; }; then
+    if [ "$FORCE" -eq 0 ] && [ -e "$destination_path" ] && ! { [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; }; then
       status_line CONFLICT "$relative_path exists; rerun with --force or merge manually"
       CONFLICTS=$((CONFLICTS + 1))
     fi
