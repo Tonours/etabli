@@ -254,8 +254,8 @@ function M.write(context, data)
   end
 
   local cache_key = context_cache_key(context)
-  file_cache[cache_key] = nil
-  file_cache_time[cache_key] = nil
+  file_cache[cache_key] = vim.deepcopy(data)
+  file_cache_time[cache_key] = vim.loop.now()
 
   return true
 end

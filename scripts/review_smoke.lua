@@ -714,6 +714,20 @@ assert_true(add_comment_read_calls == 1, "saving a review comment should read re
 assert_true(#commented.comments == 1, "expected saved review comment")
 assert_true(commented.comments[1].resolved == false, "new review comments should be unresolved")
 
+local original_readfile_after_comment = vim.fn.readfile
+local readfile_after_comment_calls = 0
+vim.fn.readfile = function(...)
+  readfile_after_comment_calls = readfile_after_comment_calls + 1
+  return original_readfile_after_comment(...)
+end
+local cached_after_comment = state.read(context)
+vim.fn.readfile = original_readfile_after_comment
+assert_true(
+  cached_after_comment.items[unstaged[1].fingerprint] ~= nil,
+  "review state cache after comment should contain the saved item"
+)
+assert_true(readfile_after_comment_calls == 0, "reading immediately after a review state write should use cache")
+
 local duplicate_comment, duplicate_err = state.add_comment(context, unstaged[1], {
   body = "This edge case needs a guard.",
   line = 9,
