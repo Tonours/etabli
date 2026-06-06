@@ -34,12 +34,12 @@ run_startuptime() {
   shift 2
 
   if [[ "$mode" == "clean" ]]; then
-    env XDG_CONFIG_HOME="$ROOT_DIR" \
+    env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" \
       nvim -i NONE --clean --headless --startuptime "$log_path" "$@" +qa >/dev/null 2>&1
     return
   fi
 
-  env XDG_CONFIG_HOME="$ROOT_DIR" \
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" \
     nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" --startuptime "$log_path" "$@" +qa >/dev/null 2>&1
 }
 
@@ -141,7 +141,7 @@ run_profile() {
   shift 2
 
   printf 'top lazy profile (%s)\n' "$label"
-  env XDG_CONFIG_HOME="$ROOT_DIR" NVIM_PERF_FILTER="$filter" NVIM_PERF_LIMIT=8 \
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" NVIM_PERF_FILTER="$filter" NVIM_PERF_LIMIT=8 \
     nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@" \
     "+lua dofile([[$PROFILE_LUA]])" +qa 2>&1
 }
@@ -151,7 +151,7 @@ run_insert_profile() {
   shift
 
   printf 'top lazy profile (%s)\n' "$label"
-  env XDG_CONFIG_HOME="$ROOT_DIR" NVIM_PERF_FILTER="event:InsertEnter" NVIM_PERF_LIMIT=8 \
+  env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" NVIM_PERF_FILTER="event:InsertEnter" NVIM_PERF_LIMIT=8 \
     nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@" \
     "+lua vim.api.nvim_exec_autocmds('InsertEnter', {})" \
     "+lua dofile([[$PROFILE_LUA]])" +qa 2>&1
