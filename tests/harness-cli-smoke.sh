@@ -65,6 +65,11 @@ if [ "${RUN_AGENT_CLI_SMOKE_SELF_TEST:-}" = "1" ]; then
     exit 1
   fi
 
+  if run_bounded 1 sh -c 'sleep 5' >/dev/null 2>&1; then
+    printf 'bounded runner should fail when commands exceed their timeout\n' >&2
+    exit 1
+  fi
+
   printf 'harness CLI bounded runner self-test: ok\n'
 
   if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ]; then
