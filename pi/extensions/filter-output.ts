@@ -130,7 +130,7 @@ export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   // Sensitive bash commands — detect when bash reads sensitive files
   // ---------------------------------------------------------------------------
-  const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|jq|yq|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
+  const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|jq|yq|grep|rg|ripgrep|base64|xxd|hexdump|od|strings)\s+([^\n|;]+)/gi;
   const inputRedirectionPattern = /(?:^|[^<])\d*<\s*(?![<(&])(['"]?)([^'"\s;&|()]+)\1/g;
   const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
   const shellCommandPattern = /\b(?:bash|sh|zsh)((?:\s+-[A-Za-z-]+)+)\s+(['"])([\s\S]*?)\2/g;
