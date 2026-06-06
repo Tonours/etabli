@@ -737,6 +737,12 @@ assert_true(matched.comments[1].end_line == 10, "saved review comment end line w
 vim.cmd.edit(vim.fn.fnameescape(repo .. "/demo.txt"))
 
 local original_input = vim.ui.input
+local original_context_for_range_annotation = state.context_for_buffer
+local range_annotation_context_lookups = 0
+state.context_for_buffer = function(bufnr)
+  range_annotation_context_lookups = range_annotation_context_lookups + 1
+  return original_context_for_range_annotation(bufnr)
+end
 vim.ui.input = function(input_opts, on_confirm)
   assert_true(
     input_opts.prompt:match("demo%.txt:9%-10") ~= nil,
@@ -749,7 +755,12 @@ local ok_annotate, annotate_err = pcall(function()
   review.cmd_annotate({ range = 2, line1 = 9, line2 = 10 })
 end)
 vim.ui.input = original_input
+state.context_for_buffer = original_context_for_range_annotation
 assert_true(ok_annotate, annotate_err or "range annotation command failed")
+assert_true(
+  range_annotation_context_lookups == 1,
+  "range annotation should resolve the buffer review context once"
+)
 
 merged = state.merge_items(context, diff.collect_all(repo_root))
 for _, item in ipairs(merged) do

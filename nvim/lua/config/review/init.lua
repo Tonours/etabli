@@ -60,22 +60,30 @@ local function repo_items(context, opts)
   return review_items.for_context(context, opts)
 end
 
-local function current_hunk_item_at_line(line, opts)
-  local options = opts or {}
-
+local function current_buffer_review_items()
   if vim.bo.modified then
     vim.notify("Save the current buffer before reviewing its git hunk", vim.log.levels.WARN)
-    return nil, nil
+    return nil, nil, nil
   end
 
   local context = context_for_current_buffer()
   if not context then
-    return nil, nil
+    return nil, nil, nil
   end
 
   local buffer_name = vim.api.nvim_buf_get_name(0)
   local relative_path = util.relative_path(context.repo, buffer_name)
   local items = repo_items(context, { include_stale = false, path = relative_path })
+  if not items then
+    return nil, nil, nil
+  end
+
+  return context, relative_path, items
+end
+
+local function current_hunk_item_at_line(line, opts)
+  local options = opts or {}
+  local context, relative_path, items = current_buffer_review_items()
   if not items then
     return nil, nil
   end
@@ -114,14 +122,31 @@ local function selected_line_range()
 end
 
 local function item_for_line_range(start_line, end_line)
-  local context, start_item = current_hunk_item_at_line(start_line, { silent = true })
+  local context, relative_path, items = current_buffer_review_items()
+  if not items then
+    return nil, nil
+  end
+
+  local start_item
+  for _, scope in ipairs(diff.scopes()) do
+    for _, item in ipairs(items) do
+      if not item.stale and item.path == relative_path and item.scope == scope and diff.hunk_contains_line(item, start_line) then
+        start_item = item
+        break
+      end
+    end
+
+    if start_item then
+      break
+    end
+  end
+
   if not start_item then
     vim.notify("Select lines inside one reviewable git hunk", vim.log.levels.INFO)
     return nil, nil
   end
 
-  local _, end_item = current_hunk_item_at_line(end_line, { silent = true })
-  if not end_item or end_item.fingerprint ~= start_item.fingerprint then
+  if not diff.hunk_contains_line(start_item, end_line) then
     vim.notify("Review comments can only cover one git hunk at a time", vim.log.levels.WARN)
     return nil, nil
   end
