@@ -21,11 +21,17 @@ run_nvim() {
     nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@"
 }
 
+run_lua_file() {
+  local path="$1"
+
+  run_nvim "+lua local ok, err = pcall(dofile, [[$path]]); if not ok then vim.api.nvim_err_writeln(tostring(err)); vim.cmd('cquit 1') end" +qa
+}
+
 require_tool nvim
 require_tool git
 
 run_nvim "+lua if not vim.startswith(vim.fn.stdpath('state'), vim.env.XDG_STATE_HOME) then vim.api.nvim_err_writeln('nvim smoke state is not isolated: ' .. vim.fn.stdpath('state')); vim.cmd('cquit 1') end" +qa
-run_nvim "+lua dofile([[$ROOT_DIR/scripts/review_smoke.lua]])" +qa
-run_nvim "+lua dofile([[$ROOT_DIR/scripts/etabli_doctor_smoke.lua]])" +qa
+run_lua_file "$ROOT_DIR/scripts/review_smoke.lua"
+run_lua_file "$ROOT_DIR/scripts/etabli_doctor_smoke.lua"
 
 printf 'nvim smoke test: ok\n'
