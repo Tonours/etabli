@@ -133,7 +133,7 @@ export default function (pi: ExtensionAPI) {
   const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|jq|yq|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
   const inputRedirectionPattern = /(?:^|[^<])\d*<\s*(?![<(&])(['"]?)([^'"\s;&|()]+)\1/g;
   const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
-  const shellCommandPattern = /\b(?:bash|sh|zsh)\s+-[A-Za-z]*c[A-Za-z]*\s+(['"])([\s\S]*?)\1/g;
+  const shellCommandPattern = /\b(?:bash|sh|zsh)((?:\s+-[A-Za-z-]+)+)\s+(['"])([\s\S]*?)\2/g;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
     "--file",
@@ -281,7 +281,9 @@ export default function (pi: ExtensionAPI) {
     shellCommandPattern.lastIndex = 0;
 
     for (const match of command.matchAll(shellCommandPattern)) {
-      const fragment = match[2] ?? "";
+      const shellOptions = match[1] ?? "";
+      const hasCommandOption = shellOptions.split(/\s+/).some((option) => /^-[A-Za-z-]*c[A-Za-z-]*$/.test(option));
+      const fragment = hasCommandOption ? match[3] ?? "" : "";
       if (fragment !== "") {
         fragments.push(fragment);
       }
