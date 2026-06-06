@@ -43,11 +43,13 @@ Run a production-minded review.
 
 ## Findings format
 For each issue include:
-- severity: `high | medium | low`
-- file and line/block
-- why it matters
-- smallest concrete fix
-- `review_comment:` one concise inline-ready comment suitable for a GitHub-style review thread
+- `severity:` `high | medium | low`
+- `file:`
+- `line:` or `line_range:`
+- `issue:`
+- `impact:`
+- `review_comment:` one concise inline-ready comment suitable for a GitHub-style review thread, without code fences or tables
+- `suggested_fix:`
 
 If human arbitration is needed, add:
 - `human_checkpoint: yes`
