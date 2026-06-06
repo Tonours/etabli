@@ -1,5 +1,7 @@
 local M = {}
 
+local state_file = require("config.state_file")
+
 -- Cache for normalized paths to avoid repeated filesystem calls
 local normalize_cache = {}
 local normalize_cache_size = 0
@@ -100,10 +102,16 @@ end
 
 local function write_projects(projects)
   ensure_dirs()
-  vim.fn.writefile({ vim.json.encode(projects) }, projects_file)
+  local ok_write, write_err = state_file.write_json(projects_file, projects)
+  if not ok_write then
+    vim.notify(write_err, vim.log.levels.ERROR)
+    return false
+  end
+
   -- Invalidate cache on write
   projects_cache = nil
   projects_cache_time = 0
+  return true
 end
 
 -- Track modified buffer count for faster checks
@@ -211,7 +219,7 @@ function M.track(root)
     end
   end
 
-  write_projects(updated)
+  return write_projects(updated)
 end
 
 function M.change_root(root)

@@ -1,5 +1,6 @@
 local diff = require("config.review.diff")
 local meta = require("config.review.meta")
+local state_file = require("config.state_file")
 local util = require("config.review.util")
 
 local M = {}
@@ -221,22 +222,9 @@ end
 function M.write(context, data)
   util.ensure_dir(state_dir)
   local target = file_path(context.repo, context.branch)
-  local tmp = string.format("%s.tmp.%s.%s", target, vim.fn.getpid(), vim.uv.hrtime())
-  local ok_encode, payload = pcall(vim.json.encode, data)
-  if not ok_encode then
-    return nil, string.format("Failed to encode review state: %s", payload)
-  end
-
-  local ok_write, write_result = pcall(vim.fn.writefile, { payload }, tmp)
-  if not ok_write or write_result ~= 0 then
-    pcall(vim.uv.fs_unlink, tmp)
-    return nil, string.format("Failed to write review state: %s", ok_write and write_result or write_result)
-  end
-
-  local ok_rename, rename_result, rename_err = pcall(vim.uv.fs_rename, tmp, target)
-  if not ok_rename or not rename_result then
-    pcall(vim.uv.fs_unlink, tmp)
-    return nil, string.format("Failed to replace review state: %s", rename_err or rename_result or "unknown error")
+  local ok_write, write_err = state_file.write_json(target, data)
+  if not ok_write then
+    return nil, write_err
   end
 
   local cache_key = context.repo .. "#" .. context.branch
