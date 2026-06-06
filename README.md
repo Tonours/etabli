@@ -4,6 +4,8 @@ Personal dev environment for AI-assisted workflows across Neovim, Claude Code, P
 
 The repo is the source of truth for tracked config. `scripts/install.sh` links or bootstraps local files into the expected tool locations.
 
+The installer uses an existing Node.js runtime, preferring `asdf` when available. It does not install `nvm`; Pi is installed from the official `@earendil-works/pi-coding-agent` package.
+
 ## Quick start
 
 ```bash

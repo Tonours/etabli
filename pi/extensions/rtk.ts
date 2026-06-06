@@ -5,8 +5,8 @@
  * and save tokens. Falls back to the original command on any RTK error.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createBashTool } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createBashTool } from "@earendil-works/pi-coding-agent";
 import { execFileSync } from "node:child_process";
 import { getAgentSettingsPath, readRtkConfig } from "./lib/pi-runtime.ts";
 import { createRtkCommandRewriter, createRtkSpawnHook } from "./lib/rtk-runtime.ts";
