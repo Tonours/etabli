@@ -134,6 +134,8 @@ export default function (pi: ExtensionAPI) {
   const inputRedirectionPattern = /(?:^|[^<])\d*<\s*(?![<(&])(['"]?)([^'"\s;&|()]+)\1/g;
   const sourceCommandPattern = /(?:^|[;&|()]\s*)(?:source|\.)\s+(['"]?)([^'"\s;&|()]+)\1/g;
   const shellCommandPattern = /\b(?:bash|sh|zsh)((?:\s+-[A-Za-z-]+)+)\s+(['"])([\s\S]*?)\2/g;
+  const inlineInterpreterPattern = /\b(?:python3?|node|ruby|perl)\s+(?:-[A-Za-z]*[ce][A-Za-z]*|-e)\s+(['"])([\s\S]*?)\1/g;
+  const inlineFileReadPattern = /\b(?:open|readFile|readFileSync|read_text|read_bytes|File\.read|IO\.read)\b/;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
     "--file",
@@ -204,6 +206,34 @@ export default function (pi: ExtensionAPI) {
 
   function isSensitiveFile(filePath: string): boolean {
     return sensitiveFiles.some((p) => p.test(filePath));
+  }
+
+  function stringLiteralValues(code: string): string[] {
+    const values: string[] = [];
+    const literalPattern = /(['"])((?:\\.|(?!\1)[^\\])*)\1/g;
+
+    for (const match of code.matchAll(literalPattern)) {
+      values.push((match[2] ?? "").replace(/\\(['"\\])/g, "$1"));
+    }
+
+    return values;
+  }
+
+  function inlineCodeReadsSensitiveFile(command: string): boolean {
+    inlineInterpreterPattern.lastIndex = 0;
+
+    for (const match of command.matchAll(inlineInterpreterPattern)) {
+      const code = match[2] ?? "";
+      if (!inlineFileReadPattern.test(code)) {
+        continue;
+      }
+
+      if (stringLiteralValues(code).some(isSensitiveFile)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function shellTokens(args: string): string[] {
@@ -359,7 +389,9 @@ export default function (pi: ExtensionAPI) {
 
   function isSensitiveCommand(command: string): boolean {
     return commandFragments(command).some((fragment) => (
-      readsSensitiveFile(fragment) || sensitiveCommandPatterns.some((p) => p.test(fragment))
+      readsSensitiveFile(fragment)
+      || inlineCodeReadsSensitiveFile(fragment)
+      || sensitiveCommandPatterns.some((p) => p.test(fragment))
     ));
   }
 

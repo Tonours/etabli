@@ -765,6 +765,61 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks inline Python reads of sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "python -c 'print(open(\".env.local\").read())'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks inline Node reads of sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "node -e 'console.log(require(\"fs\").readFileSync(\".env.local\", \"utf8\"))'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("allows inline interpreter commands that only mention sensitive filenames", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: ".env.local" }],
+        input: { command: "python -c 'print(\".env.local\")'" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.ui.notifications).toEqual([]);
+  });
+
   test("allows search patterns that look like sensitive filenames when safe files are searched", async () => {
     const handler = setupExtension();
     const ctx = createContext();
