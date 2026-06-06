@@ -234,7 +234,7 @@ local function dispatch_prompt(provider, prompt, opts)
       if spec.mode == "terminal-paste" then
         vim.notify(
           string.format(
-            "%s prompt is too large for direct argv; opened the CLI and queued terminal paste input.",
+            "%s prompt uses terminal paste to keep the CLI interactive and avoid prompt argv exposure.",
             provider.label
           ),
           vim.log.levels.INFO
