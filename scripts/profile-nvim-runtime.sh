@@ -23,6 +23,7 @@ write_profile_lua() {
 local uv = vim.uv or vim.loop
 local root = vim.env.NVIM_PERF_ROOT
 local tmp = vim.env.NVIM_PERF_TMP
+vim.notify = function() end
 
 local function sleep(ms)
   local done = false
