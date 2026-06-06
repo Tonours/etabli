@@ -78,7 +78,7 @@ Provider actions do three things:
 2. copy it to the unnamed register and clipboard register when available
 3. open a scratch preview and then launch `claude` or `pi` in a terminal tab when the CLI exists
 
-This keeps the flow safe and explicit while removing the manual paste step: the prompt is still visible in the scratch preview and copied to registers, but the CLI also starts with the diff prompt already injected. Single-line prompts can be passed as the first CLI message. Review prompts are multi-line, so they launch the interactive CLI without a prompt argument and queue bracketed terminal paste input instead of using Claude `-p` / `--print` or leaking the full prompt through process arguments.
+This keeps the flow safe and explicit while removing the manual paste step: the prompt is still visible in the scratch preview and copied to registers, but the CLI also starts with the diff prompt already injected. Provider prompts always launch the interactive CLI without a prompt argument and queue sanitized bracketed terminal paste input instead of using Claude `-p` / `--print` or leaking the full prompt through process arguments.
 
 Provider CLIs are resolved from your environment, so the setup stays portable across machines instead of depending on a single hardcoded local path.
 
