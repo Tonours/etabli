@@ -30,6 +30,13 @@ local function clear_cache()
   file_cache_time = {}
 end
 
+local function context_cache_key(context)
+  return table.concat({
+    context.repo or "",
+    context.branch or "",
+  }, "\0")
+end
+
 local function sort_items(items)
   table.sort(items, function(left, right)
     if left.stale ~= right.stale then
@@ -164,7 +171,7 @@ end
 
 function M.read(context)
   local target = file_path(context.repo, context.branch)
-  local cache_key = context.repo .. "#" .. context.branch
+  local cache_key = context_cache_key(context)
 
   -- Check cache first
   if is_cache_valid(cache_key) and file_cache[cache_key] then
@@ -227,7 +234,7 @@ function M.write(context, data)
     return nil, write_err
   end
 
-  local cache_key = context.repo .. "#" .. context.branch
+  local cache_key = context_cache_key(context)
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
 
@@ -237,7 +244,7 @@ end
 function M.clear(context)
   local target = file_path(context.repo, context.branch)
   -- Invalidate cache before deleting
-  local cache_key = context.repo .. "#" .. context.branch
+  local cache_key = context_cache_key(context)
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
   if util.path_exists(target) then

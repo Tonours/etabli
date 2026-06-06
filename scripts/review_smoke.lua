@@ -30,6 +30,37 @@ end
 local repo = vim.fn.tempname()
 vim.fn.mkdir(repo, "p")
 
+local cache_context_a = { repo = repo .. "/cache#a", branch = "branch" }
+local cache_context_b = { repo = repo .. "/cache", branch = "a#branch" }
+state.clear(cache_context_a)
+state.clear(cache_context_b)
+local seeded_cache_record, seeded_cache_err = state.write(cache_context_b, {
+  version = 1,
+  repo = cache_context_b.repo,
+  branch = cache_context_b.branch,
+  items = {
+    sentinel = {
+      path = "sentinel.txt",
+      scope = "unstaged",
+      status = "needs-rework",
+    },
+  },
+})
+assert_true(seeded_cache_record ~= nil, seeded_cache_err or "failed to seed review state cache collision fixture")
+local cache_record_b = state.read(cache_context_b)
+assert_true(cache_record_b.repo == cache_context_b.repo, "expected seeded review state context to load")
+local cache_record_a = state.read(cache_context_a)
+assert_true(
+  cache_record_a.repo == cache_context_a.repo,
+  "review state cache keys should not collide when repo paths or branches contain #"
+)
+assert_true(
+  vim.tbl_isempty(cache_record_a.items),
+  "review state cache collisions should not leak items between repo/branch contexts"
+)
+state.clear(cache_context_a)
+state.clear(cache_context_b)
+
 local non_git_dir = vim.fn.tempname()
 vim.fn.mkdir(non_git_dir, "p")
 vim.fn.writefile({ "outside" }, non_git_dir .. "/outside.txt")
