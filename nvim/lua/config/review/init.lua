@@ -18,6 +18,16 @@ local function clear_repo_items_cache()
   repo_items_cache = {}
 end
 
+local function split_nul(text)
+  local items = {}
+
+  for value in tostring(text or ""):gmatch("([^%z]+)%z") do
+    table.insert(items, value)
+  end
+
+  return items
+end
+
 local function repo_change_signature(repo)
   local commands = {
     { "status", "--porcelain=v1", "--untracked-files=all" },
@@ -35,6 +45,38 @@ local function repo_change_signature(repo)
     local label = table.concat(args, " ")
     local output = result.stdout or ""
     table.insert(parts, string.format("%d:%s%d:%s", #label, label, #output, output))
+  end
+
+  local untracked_result = vim.system({
+    "git",
+    "-C",
+    repo,
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+    "-z",
+  }, { text = true }):wait()
+  if untracked_result.code ~= 0 then
+    return nil
+  end
+
+  local untracked_paths = split_nul(untracked_result.stdout or "")
+  table.sort(untracked_paths)
+  for _, path in ipairs(untracked_paths) do
+    local hash_result = vim.system({
+      "git",
+      "-C",
+      repo,
+      "hash-object",
+      "--",
+      path,
+    }, { text = true }):wait()
+    if hash_result.code ~= 0 then
+      return nil
+    end
+
+    local hash = vim.trim(hash_result.stdout or "")
+    table.insert(parts, string.format("%d:untracked:%s%d:%s", #path, path, #hash, hash))
   end
 
   return vim.fn.sha256(table.concat(parts, ""))

@@ -278,6 +278,18 @@ assert_true(
   "repo change signature should detect content changes inside an already dirty file"
 )
 
+local untracked_signature_repo = vim.fn.tempname()
+vim.fn.mkdir(untracked_signature_repo, "p")
+git(untracked_signature_repo, { "init" })
+vim.fn.writefile({ "untracked one" }, untracked_signature_repo .. "/new.txt")
+local untracked_signature_a = review.repo_change_signature(untracked_signature_repo)
+vim.fn.writefile({ "untracked two" }, untracked_signature_repo .. "/new.txt")
+local untracked_signature_b = review.repo_change_signature(untracked_signature_repo)
+assert_true(
+  untracked_signature_a ~= untracked_signature_b,
+  "repo change signature should detect content changes inside untracked files"
+)
+
 local shell_cache_repo = vim.fn.tempname()
 vim.fn.mkdir(shell_cache_repo, "p")
 git(shell_cache_repo, { "init" })
