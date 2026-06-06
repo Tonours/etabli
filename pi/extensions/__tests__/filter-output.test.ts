@@ -613,6 +613,101 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks recursive grep over broad paths that may traverse sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "./.env.local:POSTMARK_TOKEN=example-token" }],
+        input: { command: "grep -R POSTMARK_TOKEN ." },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks recursive grep without explicit paths", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "grep -Rh POSTMARK_TOKEN" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks hidden ripgrep over broad paths that may traverse sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: ".env.local:POSTMARK_TOKEN=example-token" }],
+        input: { command: "rg --hidden POSTMARK_TOKEN ." },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks hidden ripgrep without explicit paths", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "rg --hidden --no-heading POSTMARK_TOKEN" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks search output that reports matches from sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "config/secrets.json:1:{\"password\":\"example\"}" }],
+        input: { command: "rg password config" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("blocks structured readers that read sensitive files", async () => {
     const handler = setupExtension();
     const ctx = createContext();
@@ -640,6 +735,23 @@ describe("filter-output", () => {
       {
         content: [{ type: "text", text: "README.md:mentions secrets.json" }],
         input: { command: "rg secrets.json README.md" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.ui.notifications).toEqual([]);
+  });
+
+  test("allows focused code searches in ordinary source directories", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "src/index.ts:TODO" }],
+        input: { command: "rg TODO src" },
         toolName: "bash",
       },
       ctx,
