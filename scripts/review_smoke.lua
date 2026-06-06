@@ -463,6 +463,7 @@ local signature_hash_processes = 0
 local signature_ls_files_processes = 0
 local signature_name_only_processes = 0
 local signature_unstaged_raw_processes = 0
+local signature_cached_raw_processes = 0
 vim.system = function(command, opts)
   if type(command) == "table" and command[1] == "git" then
     if command[4] == "hash-object" then
@@ -492,6 +493,8 @@ vim.system = function(command, opts)
 
       if has_raw and not has_cached then
         signature_unstaged_raw_processes = signature_unstaged_raw_processes + 1
+      elseif has_raw and has_cached then
+        signature_cached_raw_processes = signature_cached_raw_processes + 1
       end
     end
   end
@@ -509,6 +512,41 @@ assert_true(signature_hash_processes == 1, "repo change signature should batch a
 assert_true(signature_ls_files_processes == 0, "repo change signature should reuse status output for untracked paths")
 assert_true(signature_name_only_processes == 0, "repo change signature should avoid name-only diff discovery")
 assert_true(signature_unstaged_raw_processes == 0, "repo change signature should reuse status output for unstaged paths")
+assert_true(signature_cached_raw_processes == 0, "repo change signature should skip cached raw diff without staged paths")
+
+local original_system_for_staged_signature_commands = vim.system
+local staged_cached_raw_processes = 0
+vim.system = function(command, opts)
+  if type(command) == "table" and command[1] == "git" and command[4] == "diff" then
+    local has_raw = false
+    local has_cached = false
+
+    for _, arg in ipairs(command) do
+      if arg == "--raw" then
+        has_raw = true
+      elseif arg == "--cached" then
+        has_cached = true
+      end
+    end
+
+    if has_raw and has_cached then
+      staged_cached_raw_processes = staged_cached_raw_processes + 1
+    end
+  end
+
+  return original_system_for_staged_signature_commands(command, opts)
+end
+
+local ok_staged_signature_command_budget, staged_signature_command_budget_err = pcall(function()
+  review.repo_change_signature(staged_signature_repo)
+end)
+vim.system = original_system_for_staged_signature_commands
+
+assert_true(
+  ok_staged_signature_command_budget,
+  staged_signature_command_budget_err or "staged repo signature command budget fixture failed"
+)
+assert_true(staged_cached_raw_processes == 1, "repo change signature should read cached raw diff for staged paths")
 
 local untracked_diff_batch_repo = vim.fn.tempname()
 vim.fn.mkdir(untracked_diff_batch_repo, "p")
