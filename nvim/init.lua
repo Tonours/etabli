@@ -36,6 +36,7 @@ end
 lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
   complete = function()
     local choices = require("config.review.state").statuses()
+    vim.list_extend(choices, require("config.review.items").filters())
     table.insert(choices, 1, "all")
     return choices
   end,
@@ -49,6 +50,10 @@ lazy_cmd("ReviewStatus", "config.review", "cmd_set_status", {
   desc = "Set the review status for the current hunk", nargs = "?",
 })
 lazy_cmd("ReviewAccept", "config.review", "accept_current_hunk", { desc = "Accept the current review hunk" })
+lazy_cmd("ReviewMarkReviewed", "config.review", "cmd_mark_reviewed", {
+  complete = function() return { "on", "off", "toggle" } end,
+  desc = "Mark the current review hunk as reviewed", nargs = "?",
+})
 lazy_cmd("ReviewInlineAnnotations", "config.review", "cmd_inline_annotations", {
   complete = function() return { "on", "off", "refresh", "toggle" } end,
   desc = "Toggle review inline annotations", nargs = "?",

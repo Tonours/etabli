@@ -7,7 +7,10 @@ local util = require("config.review.util")
 local function summarize(items)
   local counts = {
     total = #items,
+    attention = 0,
     stale = 0,
+    changed = 0,
+    unreviewed = 0,
     ["needs-rework"] = 0,
     question = 0,
     new = 0,
@@ -21,6 +24,15 @@ local function summarize(items)
 
     if item.stale then
       counts.stale = counts.stale + 1
+    end
+    if (item.attention_rank or 99) < 99 then
+      counts.attention = counts.attention + 1
+    end
+    if item.changed_since_review then
+      counts.changed = counts.changed + 1
+    end
+    if item.reviewed ~= true then
+      counts.unreviewed = counts.unreviewed + 1
     end
   end
 
@@ -46,8 +58,64 @@ local function comment_range_label(comment)
   return string.format("line %s", line or "?")
 end
 
+local function reviewed_label(item)
+  if item.changed_since_review then
+    return "changed"
+  end
+
+  if item.reviewed then
+    return "reviewed"
+  end
+
+  return "open"
+end
+
+local function attention_marker(item)
+  local reason = item.attention_reason
+  if reason == "needs-human" then
+    return "!"
+  end
+  if reason == "needs-recheck" or reason == "changed-since-review" then
+    return "~"
+  end
+  if reason == "needs-review" then
+    return ">"
+  end
+  if reason == "ready-to-accept" then
+    return "+"
+  end
+  return " "
+end
+
+local function attention_highlight(item)
+  local reason = item.attention_reason
+  if reason == "needs-human" then
+    return "DiagnosticError"
+  end
+  if reason == "needs-recheck" or reason == "changed-since-review" then
+    return "DiagnosticWarn"
+  end
+  if reason == "needs-review" or reason == "ready-to-accept" then
+    return "DiagnosticInfo"
+  end
+  return "Comment"
+end
+
+local function unresolved_comments(comments)
+  local unresolved = {}
+
+  for _, comment in ipairs(comments or {}) do
+    if comment.resolved ~= true and comment.body and comment.body ~= "" then
+      table.insert(unresolved, comment)
+    end
+  end
+
+  return unresolved
+end
+
 local function render_preview(item)
   local comments = item.comments or {}
+  local unresolved = unresolved_comments(comments)
   local lines = {
     "Review hunk",
     "",
@@ -55,16 +123,22 @@ local function render_preview(item)
     string.format("Line:   %s", item.line_start or "?"),
     string.format("Scope:  %s", scope_label(item)),
     string.format("Status: %s", meta.label(item.status)),
+    string.format("Attention: %s", item.attention_label or item.attention_reason or "MUTED"),
+    string.format("Reviewed:  %s", reviewed_label(item)),
   }
+
+  if item.changed_since_review and item.reviewed_at then
+    table.insert(lines, string.format("Changed since review: %s", item.reviewed_at))
+  end
 
   if item.note and item.note ~= "" then
     table.insert(lines, "Note:")
     util.append_text_lines(lines, item.note, "  ")
   end
 
-  if #comments > 0 then
-    table.insert(lines, "Comments:")
-    for _, comment in ipairs(comments) do
+  if #unresolved > 0 then
+    table.insert(lines, "Unresolved comments:")
+    for _, comment in ipairs(unresolved) do
       table.insert(
         lines,
         string.format(
@@ -76,6 +150,10 @@ local function render_preview(item)
       )
       util.append_text_lines(lines, comment.body or "", "    ")
     end
+  end
+
+  if #comments > #unresolved then
+    table.insert(lines, string.format("Resolved comments: %d", #comments - #unresolved))
   end
 
   table.insert(lines, "")
@@ -99,14 +177,14 @@ end
 local function prompt_title(items, opts)
   local counts = summarize(items)
   local options = opts or {}
-  local suffix = options.status and string.format(" [%s]", options.status) or ""
+  local suffix = options.status and string.format(" [%s]", options.status) or (options.filter and string.format(" [%s]", options.filter) or "")
 
   return string.format(
-    "Review Inbox%s - %d hunks | %d rework | %d question | %d stale",
+    "Review Inbox%s - %d hunks | %d attention | %d changed | %d stale",
     suffix,
     counts.total,
-    counts["needs-rework"],
-    counts.question,
+    counts.attention,
+    counts.changed,
     counts.stale
   )
 end
@@ -148,9 +226,11 @@ function M.open(items, callbacks, opts)
   local displayer = entry_display.create({
     separator = " ",
     items = {
-      { width = 8 },
-      { width = 8 },
       { width = 3 },
+      { width = 8 },
+      { width = 8 },
+      { width = 5 },
+      { width = 8 },
       { remaining = true },
     },
   })
@@ -160,12 +240,7 @@ function M.open(items, callbacks, opts)
     local status = meta.label(item.status)
     local context = item.hunk_context ~= "" and (" " .. item.hunk_context) or ""
     local has_note = item.note and item.note ~= ""
-    local comment_count = 0
-    for _, comment in ipairs(item.comments or {}) do
-      if comment.resolved ~= true then
-        comment_count = comment_count + 1
-      end
-    end
+    local comment_count = item.unresolved_comment_count or 0
     local note_marker = comment_count > 0 and tostring(math.min(comment_count, 9)) or (has_note and "N" or "")
     local note = has_note and (" " .. item.note) or ""
     local location = string.format("%s:%d%s", item.path, line, context)
@@ -173,13 +248,15 @@ function M.open(items, callbacks, opts)
     return {
       display = function(entry)
         return displayer({
+          { attention_marker(entry.value), attention_highlight(entry.value) },
           { scope_label(entry.value), scope_highlight(entry.value) },
           { meta.label(entry.value.status), meta.highlight(entry.value.status) },
           { note_marker, has_note and "Special" or "Comment" },
+          { reviewed_label(entry.value), entry.value.changed_since_review and "DiagnosticWarn" or "Comment" },
           { location, entry.value.stale and "Comment" or "Normal" },
         })
       end,
-      ordinal = table.concat({ status, item.path, item.scope, item.hunk_header, context, note }, " "),
+      ordinal = table.concat({ item.attention_reason or "", reviewed_label(item), status, item.path, item.scope, item.hunk_header, context, note }, " "),
       value = item,
     }
   end
@@ -196,7 +273,7 @@ function M.open(items, callbacks, opts)
   pickers.new({}, {
     default_selection_index = default_selection_index(items, options.focus_fingerprint),
     prompt_title = prompt_title(items, options),
-    results_title = "Enter diff | Tab mark | Ctrl-Y accept | ? help",
+    results_title = "Enter diff | Tab mark | r reviewed | Ctrl-Y accept | ? help",
     preview_title = "Ctrl-A comment | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi | Ctrl-R refresh",
     finder = finders.new_table({
       results = items,
@@ -278,6 +355,16 @@ function M.open(items, callbacks, opts)
       map("n", "<C-y>", function()
         with_selection(callbacks.on_accept)
       end, vim.tbl_extend("force", map_opts, { desc = "Accept selected hunk(s)" }))
+
+      map("i", "<C-g>", function()
+        with_selection(callbacks.on_reviewed)
+      end, vim.tbl_extend("force", map_opts, { desc = "Mark selected hunk(s) reviewed" }))
+      map("n", "<C-g>", function()
+        with_selection(callbacks.on_reviewed)
+      end, vim.tbl_extend("force", map_opts, { desc = "Mark selected hunk(s) reviewed" }))
+      map("n", "r", function()
+        with_selection(callbacks.on_reviewed)
+      end, vim.tbl_extend("force", map_opts, { desc = "Mark selected hunk(s) reviewed" }))
 
       map("i", "<C-c>", function()
         with_selection(callbacks.on_claude)

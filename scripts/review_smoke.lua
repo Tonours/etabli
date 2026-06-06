@@ -819,6 +819,73 @@ assert_true(meta.label("needs-rework") == "REWORK", "expected shared review stat
 assert_true(meta.is_actionable("question") == true, "expected question status to be actionable")
 assert_true(meta.priority("needs-rework") < meta.priority("new"), "expected blocker statuses to sort first")
 
+local function assert_reviewed_state_tracks_changed_hunks()
+  local reviewed_repo = vim.fn.tempname()
+  vim.fn.mkdir(reviewed_repo, "p")
+  git(reviewed_repo, { "init" })
+  vim.fn.writefile({ "before" }, reviewed_repo .. "/reviewed.txt")
+  git(reviewed_repo, { "add", "reviewed.txt" })
+  git(reviewed_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+  vim.fn.writefile({ "after one" }, reviewed_repo .. "/reviewed.txt")
+  local reviewed_context = assert(state.context_for_repo(reviewed_repo))
+  state.clear(reviewed_context)
+  local reviewed_items = diff.collect_scope(reviewed_repo, "unstaged")
+  assert_true(reviewed_items ~= nil and #reviewed_items == 1, "expected reviewed-state fixture hunk")
+  local marked_reviewed, marked_reviewed_err = state.set_reviewed(reviewed_context, reviewed_items[1], true)
+  assert_true(marked_reviewed ~= nil, marked_reviewed_err or "failed to mark review hunk as reviewed")
+  assert_true(marked_reviewed.reviewed == true, "marking a hunk reviewed should persist reviewed state")
+  assert_true(
+    marked_reviewed.reviewed_signature == reviewed_items[1].patch_hash,
+    "reviewed state should persist the current patch signature"
+  )
+  local reviewed_merged = state.merge_items(reviewed_context, diff.collect_all(reviewed_repo))
+  assert_true(reviewed_merged[1].reviewed == true, "merged current hunk should show reviewed state")
+  assert_true(reviewed_merged[1].attention_reason == "ready-to-accept", "reviewed new hunk should be ready to accept")
+  local accepted_reviewed, accepted_reviewed_err = state.set_status(reviewed_context, reviewed_items[1], "accepted")
+  assert_true(accepted_reviewed ~= nil, accepted_reviewed_err or "failed to accept reviewed fixture hunk")
+  assert_true(accepted_reviewed.reviewed == true, "accepted hunks should be marked reviewed automatically")
+  vim.fn.writefile({ "after two" }, reviewed_repo .. "/reviewed.txt")
+  diff.clear_cache()
+  review_items.clear_cache()
+  local changed_reviewed = state.merge_items(reviewed_context, diff.collect_all(reviewed_repo))
+  local changed_current
+  local changed_stale
+  for _, item in ipairs(changed_reviewed) do
+    if item.stale then
+      changed_stale = item
+    else
+      changed_current = item
+    end
+  end
+  assert_true(changed_current ~= nil, "changed-since-review fixture should keep a current hunk")
+  assert_true(changed_current.changed_since_review == true, "current hunk should be marked changed since review")
+  assert_true(changed_current.reviewed ~= true, "changed current hunk should no longer count as reviewed")
+  assert_true(
+    changed_current.attention_reason == "changed-since-review",
+    "changed current hunk should carry a changed-since-review attention reason"
+  )
+  assert_true(changed_stale ~= nil and changed_stale.reviewed == true, "previous reviewed hunk should remain as stale context")
+  local changed_filter = review_items.for_context(reviewed_context, {
+    filter = "changed-since-review",
+    include_stale = true,
+  })
+  assert_true(
+    changed_filter ~= nil and #changed_filter >= 1,
+    "changed-since-review inbox filter should return changed review items"
+  )
+  state.clear(reviewed_context)
+end
+
+assert_reviewed_state_tracks_changed_hunks()
+
 local original_tab = vim.api.nvim_get_current_tabpage()
 local opened_diff_tabs = {}
 local function remember_current_diff_tab()

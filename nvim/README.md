@@ -23,8 +23,8 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 
 ## Review flow
 
-- Inbox: `<leader>ri` or `:ReviewInbox [status]`
-- Current hunk: `<leader>rh` preview, `<leader>ra` comment line or visual range, `<leader>rr` resolve conversation, `<leader>rs` status, `<leader>rA` accept
+- Inbox: `<leader>ri` or `:ReviewInbox [status|filter]`
+- Current hunk: `<leader>rh` preview, `<leader>ra` comment line or visual range, `<leader>rr` resolve conversation, `<leader>rs` status, `<leader>rA` accept, `<leader>rV` reviewed
 - Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk navigation: `[h`, `]h`
@@ -37,7 +37,7 @@ Inbox shortcuts:
 
 - Mark entries: `<Tab>` / `<S-Tab>`
 - Open diff: `<CR>`
-- Comment / status / accept: `<C-a>`, `<C-s>`, `<C-y>`
+- Comment / status / reviewed / accept: `<C-a>`, `<C-s>`, `r` or `<C-g>`, `<C-y>`
 - Launch provider directly with selected diff: `<C-c>` for Claude, `<C-p>` for Pi
 - Refresh / help: `<C-r>`, `?`
 
