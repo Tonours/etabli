@@ -404,6 +404,25 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks sensitive files read through process substitution", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+        input: { command: "diff <(cat .env.local) README.md" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("blocks direnv file command output", async () => {
     const handler = setupExtension();
     const ctx = createContext();
