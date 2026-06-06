@@ -14,10 +14,11 @@ Use `workflow/review-rubric.md`.
 5. Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.
 6. Do not edit files, install dependencies, or run broad/slow validation unless the user explicitly asked for that level of review.
 7. Report only actionable findings grounded in the reviewed diff. Verify every reported line or range exists in that diff.
-8. Include severity, location, impact, smallest fix, and `review_comment:` with one concise inline-ready comment for each finding.
-9. If there is no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.
-10. Escalate human checkpoint only for real tradeoffs or accepted risk.
-11. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
+8. For each finding, use stable labels: `severity:`, `file:`, `line:` or `line_range:`, `issue:`, `impact:`, `review_comment:`, and `suggested_fix:`.
+9. Keep `review_comment:` as one concise inline-ready GitHub-style review thread comment without code fences or tables.
+10. If there is no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.
+11. Escalate human checkpoint only for real tradeoffs or accepted risk.
+12. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
 
 Rules:
 - No style nitpicks unless they affect correctness or maintenance.
