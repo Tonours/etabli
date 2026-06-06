@@ -1,247 +1,15 @@
 local diff = require("config.review.diff")
-local meta = require("config.review.meta")
 local annotations = require("config.review.annotations")
+local review_items = require("config.review.items")
 local picker = require("config.review.picker")
 local providers = require("config.review.providers")
 local state = require("config.review.state")
 local util = require("config.review.util")
+local views = require("config.review.views")
 
 local M = {}
 
 local setup_done = false
-local repo_items_cache = {}
-local repo_items_cache_ttl = 1000
-local review_focus_clear_ttl = 1500
-local last_focus_clear_at = 0
-
-local function clear_repo_items_cache()
-  repo_items_cache = {}
-end
-
-local function split_nul(text)
-  local items = {}
-
-  for value in tostring(text or ""):gmatch("([^%z]+)%z") do
-    table.insert(items, value)
-  end
-
-  return items
-end
-
-local function can_batch_hash_paths(paths)
-  for _, path in ipairs(paths) do
-    if path:find("\n", 1, true) then
-      return false
-    end
-  end
-
-  return true
-end
-
-local function hash_untracked_paths(repo, paths)
-  if vim.tbl_isempty(paths) then
-    return {}
-  end
-
-  if can_batch_hash_paths(paths) then
-    local result = vim.system({
-      "git",
-      "-C",
-      repo,
-      "hash-object",
-      "--stdin-paths",
-    }, {
-      text = true,
-      stdin = table.concat(paths, "\n") .. "\n",
-    }):wait()
-    if result.code ~= 0 then
-      return nil
-    end
-
-    local hashes = vim.split(vim.trim(result.stdout or ""), "\n", { plain = true })
-    if #hashes ~= #paths then
-      return nil
-    end
-
-    return hashes
-  end
-
-  local hashes = {}
-  for _, path in ipairs(paths) do
-    local result = vim.system({
-      "git",
-      "-C",
-      repo,
-      "hash-object",
-      "--",
-      path,
-    }, { text = true }):wait()
-    if result.code ~= 0 then
-      return nil
-    end
-
-    table.insert(hashes, vim.trim(result.stdout or ""))
-  end
-
-  return hashes
-end
-
-local function repo_change_signature(repo)
-  local commands = {
-    { "status", "--porcelain=v1", "--untracked-files=all" },
-    { "diff", "--no-ext-diff", "--no-color", "--binary" },
-    { "diff", "--cached", "--no-ext-diff", "--no-color", "--binary" },
-  }
-  local parts = {}
-
-  for _, args in ipairs(commands) do
-    local result = vim.system(vim.list_extend({ "git", "-C", repo }, args), { text = true }):wait()
-    if result.code ~= 0 then
-      return nil
-    end
-
-    local label = table.concat(args, " ")
-    local output = result.stdout or ""
-    table.insert(parts, string.format("%d:%s%d:%s", #label, label, #output, output))
-  end
-
-  local untracked_result = vim.system({
-    "git",
-    "-C",
-    repo,
-    "ls-files",
-    "--others",
-    "--exclude-standard",
-    "-z",
-  }, { text = true }):wait()
-  if untracked_result.code ~= 0 then
-    return nil
-  end
-
-  local untracked_paths = split_nul(untracked_result.stdout or "")
-  table.sort(untracked_paths)
-  local untracked_hashes = hash_untracked_paths(repo, untracked_paths)
-  if not untracked_hashes then
-    return nil
-  end
-
-  for index, path in ipairs(untracked_paths) do
-    local hash = untracked_hashes[index] or ""
-    table.insert(parts, string.format("%d:untracked:%s%d:%s", #path, path, #hash, hash))
-  end
-
-  return vim.fn.sha256(table.concat(parts, ""))
-end
-
-local function refresh_repo_buffers(repo)
-  local normalized_repo = util.normalize(repo)
-  local prefix = normalized_repo .. "/"
-
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buftype == "" then
-      local name = vim.api.nvim_buf_get_name(bufnr)
-      local normalized_name = name ~= "" and util.normalize(name) or ""
-
-      if normalized_name == normalized_repo or vim.startswith(normalized_name, prefix) then
-        pcall(vim.api.nvim_buf_call, bufnr, function()
-          vim.cmd("silent! checktime")
-        end)
-      end
-    end
-  end
-end
-
-local function clear_repo_items_cache_on_focus()
-  local now = vim.uv.now()
-  if (now - last_focus_clear_at) < review_focus_clear_ttl then
-    return
-  end
-
-  last_focus_clear_at = now
-  clear_repo_items_cache()
-end
-
-local function repo_items_cache_key(context, opts)
-  local options = opts or {}
-  return table.concat({
-    context.repo,
-    context.branch,
-    options.path or "",
-  }, "\0")
-end
-
-local function cached_repo_items(context, opts)
-  local key = repo_items_cache_key(context, opts)
-  local cached = repo_items_cache[key]
-  if cached and (vim.loop.now() - cached.at) < repo_items_cache_ttl then
-    return cached.items
-  end
-
-  local items, err = diff.collect_all(context.repo, { path = opts.path })
-  if not items then
-    return nil, err
-  end
-
-  local merged = state.merge_items(context, items)
-  repo_items_cache[key] = {
-    at = vim.loop.now(),
-    items = merged,
-  }
-
-  return merged
-end
-
-local function comment_range_label(comment)
-  local line = tonumber(comment.line)
-  local end_line = tonumber(comment.end_line) or line
-
-  if line and end_line and end_line ~= line then
-    return string.format("lines %d-%d", line, end_line)
-  end
-
-  return string.format("line %s", line or "?")
-end
-
-local function render_item(item)
-  local has_note = item.note and item.note ~= ""
-  local comments = item.comments or {}
-  local lines = {
-    "# Review Hunk",
-    "",
-    string.format("- Repo: %s", item.repo),
-    string.format("- Branch: %s", item.branch or "unknown"),
-    string.format("- File: %s", item.path),
-    string.format("- Scope: %s", item.scope),
-    string.format("- Status: %s", item.status or "new"),
-    string.format("- Stale: %s", item.stale and "yes" or "no"),
-  }
-
-  if has_note then
-    table.insert(lines, "- Note:")
-    util.append_text_lines(lines, item.note, "  ")
-  end
-
-  table.insert(lines, "")
-  util.append_fenced_block(lines, "diff", item.patch)
-
-  if #comments > 0 then
-    vim.list_extend(lines, { "", "## Review comments" })
-    for _, comment in ipairs(comments) do
-      table.insert(
-        lines,
-        string.format(
-          "- %s %s [%s]:",
-          comment.id or "?",
-          comment_range_label(comment),
-          comment.resolved and "resolved" or "unresolved"
-        )
-      )
-      util.append_text_lines(lines, comment.body or "", "  ")
-    end
-  end
-
-  return lines
-end
 
 local function context_for_current_buffer()
   local context, err = state.context_for_buffer(0)
@@ -251,38 +19,6 @@ local function context_for_current_buffer()
   end
 
   return context
-end
-
-local function git_show_lines(repo, spec)
-  local result = vim.system({ "git", "-C", repo, "show", spec }, { text = true }):wait()
-  if result.code ~= 0 then
-    return {}
-  end
-
-  local stdout = result.stdout or ""
-  if stdout == "" then
-    return {}
-  end
-
-  return vim.split(stdout, "\n", { plain = true })
-end
-
-local function buffer_filetype(path)
-  return vim.filetype.match({ filename = path }) or ""
-end
-
-local function set_scratch_buffer(buf, name, lines, filetype)
-  vim.bo[buf].buftype = "nofile"
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].swapfile = false
-  vim.bo[buf].modifiable = true
-  vim.bo[buf].readonly = false
-  vim.bo[buf].filetype = filetype or ""
-  vim.api.nvim_buf_set_name(buf, name)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].modifiable = false
-  vim.bo[buf].modified = false
-  vim.bo[buf].readonly = true
 end
 
 local function context_for_cwd()
@@ -320,52 +56,8 @@ local function normalize_status(status, opts)
   return status
 end
 
-local function filter_items(items, opts)
-  local options = opts or {}
-  local filtered = {}
-  local target_status = options.status
-  local include_stale = options.include_stale ~= false
-  local include_resolved_stale = options.include_resolved_stale
-  local target_status_nil = target_status == nil
-
-  for _, item in ipairs(items) do
-    local status = item.status or "new"
-    local is_stale = item.stale
-
-    -- Status match check
-    local matches_status = target_status_nil or status == target_status
-    if not matches_status then
-      goto continue
-    end
-
-    -- Stale checks combined for efficiency
-    if is_stale then
-      local surfaced = meta.is_actionable(status)
-      if not include_stale then
-        if not surfaced then
-          goto continue
-        end
-      elseif not include_resolved_stale and target_status_nil and not surfaced then
-        goto continue
-      end
-    end
-
-    table.insert(filtered, item)
-    ::continue::
-  end
-
-  return filtered
-end
-
 local function repo_items(context, opts)
-  local options = opts or {}
-  local items, err = cached_repo_items(context, options)
-  if not items then
-    vim.notify(err, vim.log.levels.ERROR)
-    return nil
-  end
-
-  return filter_items(items, options)
+  return review_items.for_context(context, opts)
 end
 
 local function current_hunk_item_at_line(line, opts)
@@ -437,66 +129,6 @@ local function item_for_line_range(start_line, end_line)
   return context, start_item
 end
 
-local function jump_to_item(item)
-  local absolute_path = item.repo .. "/" .. item.path
-  if vim.fn.filereadable(absolute_path) ~= 1 then
-    vim.notify("File for this review item is no longer available", vim.log.levels.WARN)
-    util.open_scratch("review-stale.md", render_item(item), "markdown")
-    return
-  end
-
-  vim.cmd.edit(vim.fn.fnameescape(absolute_path))
-
-  if item.line_start and item.line_start > 0 then
-    pcall(vim.api.nvim_win_set_cursor, 0, { item.line_start, 0 })
-  end
-end
-
-local function open_item_diff(item)
-  if item.stale then
-    vim.notify("This review item is stale, so the live diff no longer exists. Showing the stored patch instead.", vim.log.levels.INFO)
-    util.open_scratch("review-stale.md", render_item(item), "markdown")
-    return
-  end
-
-  local absolute_path = item.repo .. "/" .. item.path
-  local left_label = item.scope == "staged" and "HEAD" or "INDEX"
-  local left_spec = item.scope == "staged" and ("HEAD:" .. item.path) or (":" .. item.path)
-  local left_lines = git_show_lines(item.repo, left_spec)
-  local filetype = buffer_filetype(item.path)
-
-  vim.cmd.tabnew()
-
-  local left_buf = vim.api.nvim_get_current_buf()
-  set_scratch_buffer(left_buf, string.format("review-%s-%s", util.sanitize_segment(left_label:lower()), item.path), left_lines, filetype)
-
-  vim.cmd.vsplit()
-
-  local right_buf = vim.api.nvim_get_current_buf()
-  if vim.fn.filereadable(absolute_path) == 1 then
-    vim.cmd.edit(vim.fn.fnameescape(absolute_path))
-  else
-    set_scratch_buffer(
-      right_buf,
-      string.format("review-working-%s", item.path),
-      {},
-      filetype
-    )
-  end
-
-  vim.wo.wrap = false
-  vim.cmd.diffthis()
-
-  vim.cmd.wincmd("h")
-  vim.wo.wrap = false
-  vim.cmd.diffthis()
-
-  vim.cmd.wincmd("l")
-  if item.line_start and item.line_start > 0 then
-    pcall(vim.api.nvim_win_set_cursor, 0, { item.line_start, 0 })
-  end
-end
-
 local function set_item_status(item, status)
   local _, err = state.set_status({ repo = item.repo, branch = item.branch }, item, status)
   if err then
@@ -504,7 +136,7 @@ local function set_item_status(item, status)
     return
   end
 
-  clear_repo_items_cache()
+  review_items.clear_cache()
   annotations.refresh_repo(item.repo)
 
   vim.notify(string.format("Review status set to %s", status), vim.log.levels.INFO)
@@ -523,7 +155,7 @@ local function set_items_status(items, status)
     updated = updated + 1
   end
 
-  clear_repo_items_cache()
+  review_items.clear_cache()
   if items[1] then
     annotations.refresh_repo(items[1].repo)
   end
@@ -577,7 +209,7 @@ local function finish_comment(item, line, end_line, body, opts)
   end
 
   vim.notify("Review comment added", vim.log.levels.INFO)
-  clear_repo_items_cache()
+  review_items.clear_cache()
   annotations.refresh_repo(item.repo)
 
   if options.on_done then
@@ -725,7 +357,7 @@ local function resolve_comment(context, item, comment)
   end
 
   vim.notify("Review conversation resolved", vim.log.levels.INFO)
-  clear_repo_items_cache()
+  review_items.clear_cache()
   annotations.refresh_repo(item.repo)
   return true
 end
@@ -753,7 +385,7 @@ local function prompt_resolve_comment(context, item, line)
       if #body > 80 then
         body = body:sub(1, 77) .. "..."
       end
-      return string.format("%s %s: %s", comment.id or "?", comment_range_label(comment), body)
+      return string.format("%s %s: %s", comment.id or "?", views.comment_range_label(comment), body)
     end,
   }, function(choice)
     if choice then
@@ -965,7 +597,7 @@ function M.show_current_hunk()
     return
   end
 
-  util.open_scratch("review-current-hunk.md", render_item(item), "markdown")
+  util.open_scratch("review-current-hunk.md", views.render_item(item), "markdown")
 end
 
 function M.annotate_current_hunk()
@@ -1071,7 +703,7 @@ function M.open_inbox(opts)
   }
 
   picker.open(items, {
-    on_select = open_item_diff,
+    on_select = views.open_item_diff,
     on_annotate = function(item)
       prompt_for_comment(item, { line = item.line_start, on_done = function()
         reopen_inbox_later(reopen_opts_for_item(reopen_opts, item))
@@ -1136,11 +768,7 @@ function M.prepare_review(provider, status)
 end
 
 function M.repo_change_signature(repo)
-  if not repo or repo == "" then
-    return nil
-  end
-
-  return repo_change_signature(repo)
+  return review_items.repo_change_signature(repo)
 end
 
 function M.refresh_after_external_edit(repo, opts)
@@ -1150,11 +778,11 @@ function M.refresh_after_external_edit(repo, opts)
 
   local options = opts or {}
 
-  clear_repo_items_cache()
+  review_items.clear_cache()
   diff.clear_cache()
-  refresh_repo_buffers(repo)
+  review_items.refresh_buffers(repo)
 
-  local after_signature = repo_change_signature(repo)
+  local after_signature = review_items.repo_change_signature(repo)
   local changed = options.before_signature ~= nil and after_signature ~= nil and options.before_signature ~= after_signature
   local provider = options.provider or "Review"
 
@@ -1188,12 +816,12 @@ function M.setup()
   local cache_group = vim.api.nvim_create_augroup("etabli_review_cache", { clear = true })
   vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "DirChanged", "ShellCmdPost" }, {
     group = cache_group,
-    callback = clear_repo_items_cache,
+    callback = review_items.clear_cache,
   })
 
   vim.api.nvim_create_autocmd("FocusGained", {
     group = cache_group,
-    callback = clear_repo_items_cache_on_focus,
+    callback = review_items.clear_cache_on_focus,
   })
 
   annotations.setup()
