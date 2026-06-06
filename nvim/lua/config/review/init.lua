@@ -56,6 +56,23 @@ local function normalize_status(status, opts)
   return status
 end
 
+local function normalize_inbox_target(target)
+  if target == nil or target == "" or target == "all" then
+    return {}
+  end
+
+  if state.is_valid_status(target) then
+    return { status = target }
+  end
+
+  if review_items.is_valid_filter(target) then
+    return { filter = target }
+  end
+
+  vim.notify(string.format("Invalid review inbox filter: %s", target), vim.log.levels.ERROR)
+  return false
+end
+
 local function repo_items(context, opts)
   return review_items.for_context(context, opts)
 end
@@ -186,6 +203,47 @@ local function set_items_status(items, status)
   end
 
   vim.notify(string.format("Review status set to %s for %d hunk(s)", status, updated), vim.log.levels.INFO)
+  return true
+end
+
+local function set_item_reviewed(item, reviewed)
+  local saved, err = state.set_reviewed({ repo = item.repo, branch = item.branch }, item, reviewed)
+  if not saved then
+    vim.notify(err, vim.log.levels.ERROR)
+    return false
+  end
+
+  review_items.clear_cache()
+  annotations.refresh_repo(item.repo)
+
+  vim.notify(reviewed == false and "Review hunk marked open" or "Review hunk marked reviewed", vim.log.levels.INFO)
+  return true
+end
+
+local function set_items_reviewed(items, reviewed)
+  local updated = 0
+
+  for _, item in ipairs(items) do
+    local saved, err = state.set_reviewed({ repo = item.repo, branch = item.branch }, item, reviewed)
+    if not saved then
+      vim.notify(err, vim.log.levels.ERROR)
+      return false
+    end
+
+    updated = updated + 1
+  end
+
+  review_items.clear_cache()
+  if items[1] then
+    annotations.refresh_repo(items[1].repo)
+  end
+
+  vim.notify(
+    reviewed == false
+        and string.format("Marked %d review hunk(s) open", updated)
+      or string.format("Marked %d review hunk(s) reviewed", updated),
+    vim.log.levels.INFO
+  )
   return true
 end
 
@@ -442,13 +500,16 @@ local function show_inbox_help(opts)
     "- <C-a> add a review comment at the selected hunk start line",
     "- <C-s> set the selected hunk status",
     "- <C-y> accept the selected hunk or the marked set",
+    "- r or <C-g> mark the selected hunk or marked set as reviewed without accepting it",
     "- <C-c> launch Claude directly with the selected diff prompt",
     "- <C-p> launch Pi directly with the selected diff prompt",
     "- <C-r> refresh the inbox after external changes",
-    "- :ReviewInbox [status] filter the inbox by status",
+    "- :ReviewInbox [status|filter] filter the inbox by status or attention state",
+    "- filters: attention, unresolved, stale, changed-since-review, reviewed:false, reviewed:true, current-file",
     "- :ReviewInlineAnnotations [on|off|refresh|toggle] controls inline review notes",
     "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
+    "- :ReviewMarkReviewed [on|off|toggle] marks the current hunk reviewed without changing status",
     "- :ReviewClaudeBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewPiBatch [status] prepare one prompt for all live hunks with that status",
     "- :ReviewClaudeReview [status|all] launch a first-pass Claude code review",
@@ -689,6 +750,20 @@ function M.accept_current_hunk()
   M.set_current_status("accepted")
 end
 
+function M.mark_current_reviewed(reviewed)
+  local _, item = current_hunk_item()
+  if not item then
+    return
+  end
+
+  local next_reviewed = reviewed
+  if next_reviewed == nil then
+    next_reviewed = item.reviewed ~= true
+  end
+
+  set_item_reviewed(item, next_reviewed)
+end
+
 function M.send_current(provider, action)
   local _, item = current_hunk_item()
   if not item then
@@ -700,10 +775,12 @@ end
 
 function M.open_inbox(opts)
   local open_opts = type(opts) == "string" and { status = opts } or (opts or {})
-  local status = normalize_status(open_opts.status, { allow_all = true })
-  if status == false then
+  local target = normalize_inbox_target(open_opts.filter or open_opts.status)
+  if target == false then
     return
   end
+  local status = target.status
+  local filter = target.filter
 
   local context = best_context()
 
@@ -713,17 +790,23 @@ function M.open_inbox(opts)
   end
 
   local items = repo_items(context, {
+    filter = filter,
     include_stale = open_opts.include_stale ~= false,
+    path = filter == "current-file" and open_opts.path or nil,
+    sort = open_opts.sort or "attention",
     status = status,
   })
   if not items or vim.tbl_isempty(items) then
-    local label = status and string.format(" with status %s", status) or ""
+    local label = status and string.format(" with status %s", status) or (filter and string.format(" with filter %s", filter) or "")
     vim.notify("No reviewable staged or unstaged hunks found" .. label, vim.log.levels.INFO)
     return
   end
 
   local reopen_opts = {
+    filter = filter,
     include_stale = open_opts.include_stale,
+    path = open_opts.path,
+    sort = open_opts.sort,
     status = status,
   }
 
@@ -741,6 +824,11 @@ function M.open_inbox(opts)
     end,
     on_accept = function(selected)
       if set_items_status(selected, "accepted") then
+        reopen_inbox_later(reopen_opts_for_item(reopen_opts, #selected == 1 and selected[1] or nil))
+      end
+    end,
+    on_reviewed = function(selected)
+      if set_items_reviewed(selected, true) then
         reopen_inbox_later(reopen_opts_for_item(reopen_opts, #selected == 1 and selected[1] or nil))
       end
     end,
@@ -779,6 +867,7 @@ function M.open_inbox(opts)
       }))
     end,
   }, {
+    filter = filter,
     focus_fingerprint = open_opts.focus_fingerprint,
     status = status,
   })
@@ -854,7 +943,18 @@ end
 
 -- Thin wrappers for lazy-loaded commands (called from init.lua lazy_cmd registrations)
 function M.cmd_open_inbox(cmd_opts)
-  M.open_inbox({ status = cmd_opts.args })
+  local filter = cmd_opts.args == "current-file" and "current-file" or nil
+  local path
+
+  if filter then
+    local context = best_context()
+    local buffer_name = vim.api.nvim_buf_get_name(0)
+    if context and buffer_name ~= "" then
+      path = util.relative_path(context.repo, buffer_name)
+    end
+  end
+
+  M.open_inbox({ filter = filter, path = path, status = cmd_opts.args })
 end
 
 function M.cmd_annotate(cmd_opts)
@@ -876,6 +976,26 @@ end
 
 function M.cmd_resolve_comment()
   M.resolve_current_comment()
+end
+
+function M.cmd_mark_reviewed(cmd_opts)
+  local action = cmd_opts.args
+  if action == "" or action == "on" then
+    M.mark_current_reviewed(true)
+    return
+  end
+
+  if action == "off" then
+    M.mark_current_reviewed(false)
+    return
+  end
+
+  if action == "toggle" then
+    M.mark_current_reviewed()
+    return
+  end
+
+  vim.notify(string.format("Invalid review mark action: %s", action), vim.log.levels.ERROR)
 end
 
 function M.cmd_send_claude(cmd_opts)

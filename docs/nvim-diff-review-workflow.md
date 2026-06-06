@@ -10,6 +10,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rr` resolve the current review conversation
 - `<leader>rs` choose a review status for the current hunk
 - `<leader>rA` accept the current hunk directly
+- `<leader>rV` mark the current hunk as reviewed without accepting it
 - `<leader>rl` toggle inline review annotations in file buffers
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
 - `<leader>rC` build an `explain` prompt for Claude from the current hunk
@@ -23,6 +24,7 @@ Equivalent commands:
 - `:ReviewResolve`
 - `:ReviewStatus [new|accepted|needs-rework|question|ignore]`
 - `:ReviewAccept`
+- `:ReviewMarkReviewed [on|off|toggle]`
 - `:ReviewInlineAnnotations [on|off|refresh|toggle]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
@@ -36,18 +38,28 @@ Note: current-hunk review uses `git diff` as the source of truth. Save the buffe
 ## Review inbox
 
 - `<leader>ri` opens a Telescope inbox for staged and unstaged hunks in the current repo
-- `:ReviewInbox [status]` opens the same inbox with an optional status filter such as `needs-rework` or `question`
+- `:ReviewInbox [status|filter]` opens the same inbox with an optional status filter such as `needs-rework` or an attention filter such as `attention`
 - mark one or more entries with Telescope multi-select (`<Tab>` / `<S-Tab>`) before triggering a provider action if you want a batch prompt from the inbox
 - default `<CR>` opens a diff tab for the selected live hunk, with the current file on the right when available
 - `<C-a>` adds a review comment at the selected hunk start line
 - `<C-s>` changes the selected hunk status
+- `r` or `<C-g>` marks the selected hunk, or all marked hunks, as reviewed without accepting them
 - `<C-y>` accepts the selected hunk, or all marked hunks
 - `<C-c>` launches Claude directly with the selected `revise` prompt, or one batch prompt if multiple entries are marked
 - `<C-p>` launches Pi directly with the selected `revise` prompt, or one batch prompt if multiple entries are marked
 - `<C-r>` refreshes the inbox after you changed the diff outside the picker
 - `?` opens an overlay help panel for the inbox shortcuts; when you close it with `q` or `Esc`, the review inbox is reopened
 
-The inbox labels each entry with stable columns for scope (`WORKING`, `STAGED`, `STALE`), review status, unresolved comment count or note marker, and file location. Statuses are highlighted, and the preview starts with file/status/comment metadata before the diff. After you comment on a hunk or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
+The inbox labels each entry with stable columns for attention marker, scope (`WORKING`, `STAGED`, `STALE`), review status, unresolved comment count or note marker, reviewed state, and file location. Statuses are highlighted, and the preview starts with file/status/attention/comment metadata before the diff. After you comment on a hunk, mark it reviewed, or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
+
+Attention filters:
+
+- `:ReviewInbox attention` shows hunks that still need review action.
+- `:ReviewInbox unresolved` shows hunks with unresolved review comments.
+- `:ReviewInbox changed-since-review` shows hunks whose patch changed after they were marked reviewed.
+- `:ReviewInbox reviewed:false` shows hunks that are still open.
+- `:ReviewInbox reviewed:true` shows hunks already marked reviewed.
+- `:ReviewInbox current-file` shows review items for the current buffer path.
 
 The inbox keeps a short-lived local cache for merged review items. This speeds up repeated opens during the same review pass without weakening review correctness: writes, deletes, directory changes, shell commands, focus changes, review status updates, and review notes all invalidate the cache.
 

@@ -9,6 +9,21 @@ local repo_items_cache = {}
 local repo_items_cache_ttl = 1000
 local review_focus_clear_ttl = 1500
 local last_focus_clear_at = 0
+local filters = {
+  "attention",
+  "unresolved",
+  "agent",
+  "stale",
+  "changed-since-review",
+  "reviewed:false",
+  "reviewed:true",
+  "current-file",
+}
+local filter_set = {}
+
+for _, name in ipairs(filters) do
+  filter_set[name] = true
+end
 
 function M.clear_cache()
   repo_items_cache = {}
@@ -278,10 +293,91 @@ local function item_snapshot(item)
   return snapshot
 end
 
+local function filter_matches(item, filter_name, opts)
+  if not filter_name or filter_name == "" then
+    return true
+  end
+
+  if filter_name == "attention" then
+    return (item.attention_rank or 99) < 99
+  end
+
+  if filter_name == "unresolved" then
+    return (item.unresolved_comment_count or 0) > 0
+  end
+
+  if filter_name == "agent" then
+    return (item.agent_finding_count or 0) > 0
+  end
+
+  if filter_name == "stale" then
+    return item.stale == true
+  end
+
+  if filter_name == "changed-since-review" then
+    return item.changed_since_review == true
+  end
+
+  if filter_name == "reviewed:false" then
+    return item.reviewed ~= true
+  end
+
+  if filter_name == "reviewed:true" then
+    return item.reviewed == true
+  end
+
+  if filter_name == "current-file" then
+    return opts and opts.path and opts.path ~= "" and item.path == opts.path
+  end
+
+  return true
+end
+
+local function sort_filtered(items, sort_mode)
+  local mode = sort_mode or "attention"
+
+  table.sort(items, function(left, right)
+    if mode == "file" then
+      if left.path == right.path then
+        if left.scope == right.scope then
+          return (left.line_start or 0) < (right.line_start or 0)
+        end
+
+        return left.scope < right.scope
+      end
+
+      return left.path < right.path
+    end
+
+    local left_attention = left.attention_rank or 99
+    local right_attention = right.attention_rank or 99
+    if left_attention ~= right_attention then
+      return left_attention < right_attention
+    end
+
+    local left_status = meta.priority(left.status)
+    local right_status = meta.priority(right.status)
+    if left_status ~= right_status then
+      return left_status < right_status
+    end
+
+    if left.path == right.path then
+      if left.scope == right.scope then
+        return (left.line_start or 0) < (right.line_start or 0)
+      end
+
+      return left.scope < right.scope
+    end
+
+    return left.path < right.path
+  end)
+end
+
 local function filter(items, opts)
   local options = opts or {}
   local filtered = {}
   local target_status = options.status
+  local target_filter = options.filter
   local include_stale = options.include_stale ~= false
   local include_resolved_stale = options.include_resolved_stale
   local target_status_nil = target_status == nil
@@ -294,7 +390,11 @@ local function filter(items, opts)
       goto continue
     end
 
-    if is_stale then
+    if target_filter and not filter_matches(item, target_filter, options) then
+      goto continue
+    end
+
+    if is_stale and target_filter ~= "stale" and target_filter ~= "changed-since-review" then
       local surfaced = meta.is_actionable(status)
       if not include_stale then
         if not surfaced then
@@ -309,7 +409,17 @@ local function filter(items, opts)
     ::continue::
   end
 
+  sort_filtered(filtered, options.sort)
+
   return filtered
+end
+
+function M.filters()
+  return vim.deepcopy(filters)
+end
+
+function M.is_valid_filter(filter_name)
+  return filter_set[filter_name] == true
 end
 
 function M.for_context(context, opts)

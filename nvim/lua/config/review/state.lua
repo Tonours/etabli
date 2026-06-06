@@ -196,6 +196,109 @@ local function comment_id_exists(comments, id)
   return false
 end
 
+local function review_anchor(item)
+  return table.concat({
+    item.scope or "",
+    item.path or "",
+    item.hunk_header or item.header or "",
+  }, "\0")
+end
+
+local function review_signature(item)
+  return item.patch_hash or item.fingerprint or ""
+end
+
+local function unresolved_comment_count(comments)
+  local count = 0
+
+  for _, comment in ipairs(comments or {}) do
+    if comment.resolved ~= true and comment.body and comment.body ~= "" then
+      count = count + 1
+    end
+  end
+
+  return count
+end
+
+local function latest_reviewed_by_anchor(items)
+  local reviewed = {}
+
+  for _, item in pairs(items or {}) do
+    if item.reviewed == true then
+      local anchor = item.review_anchor or review_anchor(item)
+      local current = reviewed[anchor]
+      if not current or tostring(item.reviewed_at or item.updated_at or "") > tostring(current.reviewed_at or current.updated_at or "") then
+        reviewed[anchor] = item
+      end
+    end
+  end
+
+  return reviewed
+end
+
+local function decorate_attention(item)
+  local status = item.status or "new"
+  local unresolved = unresolved_comment_count(item.comments)
+  local has_note = item.note and item.note ~= ""
+
+  item.comment_count = #(item.comments or {})
+  item.unresolved_comment_count = unresolved
+
+  if item.stale and (meta.is_actionable(status) or unresolved > 0 or has_note) then
+    item.attention_reason = "needs-recheck"
+    item.attention_label = "RECHECK"
+    item.attention_rank = 2
+  elseif item.changed_since_review then
+    item.attention_reason = "changed-since-review"
+    item.attention_label = "CHANGED"
+    item.attention_rank = 2
+  elseif unresolved > 0 or meta.is_actionable(status) then
+    item.attention_reason = "needs-human"
+    item.attention_label = "HUMAN"
+    item.attention_rank = 1
+  elseif status == "new" and item.reviewed ~= true then
+    item.attention_reason = "needs-review"
+    item.attention_label = "REVIEW"
+    item.attention_rank = 3
+  elseif status == "new" and item.reviewed == true then
+    item.attention_reason = "ready-to-accept"
+    item.attention_label = "READY"
+    item.attention_rank = 4
+  else
+    item.attention_reason = "muted"
+    item.attention_label = "MUTED"
+    item.attention_rank = 99
+  end
+
+  return item
+end
+
+local function apply_review_state(item, saved, reviewed_by_anchor)
+  local signature = review_signature(item)
+  local anchor = review_anchor(item)
+  local anchor_review = reviewed_by_anchor[anchor]
+
+  item.review_anchor = anchor
+  item.review_signature = signature
+  item.reviewed = saved and saved.reviewed == true and (saved.reviewed_signature or "") == signature
+  item.reviewed_at = saved and saved.reviewed_at or nil
+  item.changed_since_review = false
+
+  if saved and saved.reviewed == true and (saved.reviewed_signature or "") ~= "" and saved.reviewed_signature ~= signature then
+    item.changed_since_review = true
+    item.reviewed = false
+    item.previous_reviewed_signature = saved.reviewed_signature
+    item.reviewed_at = saved.reviewed_at
+  elseif (not saved or saved.reviewed ~= true) and anchor_review and (anchor_review.reviewed_signature or "") ~= "" and anchor_review.reviewed_signature ~= signature then
+    item.changed_since_review = true
+    item.reviewed = false
+    item.previous_reviewed_signature = anchor_review.reviewed_signature
+    item.reviewed_at = anchor_review.reviewed_at
+  end
+
+  return item
+end
+
 function M.statuses()
   return meta.statuses()
 end
@@ -306,6 +409,7 @@ function M.merge_items(context, current_items)
   local stored = M.read(context)
   local merged = {}
   local seen = {}
+  local reviewed_by_anchor = latest_reviewed_by_anchor(stored.items)
 
   for _, item in ipairs(current_items) do
     local saved = stored.items[item.fingerprint]
@@ -318,6 +422,8 @@ function M.merge_items(context, current_items)
       updated_at = saved and saved.updated_at or nil,
       stale = false,
     })
+    apply_review_state(combined, saved, reviewed_by_anchor)
+    decorate_attention(combined)
 
     table.insert(merged, combined)
     seen[item.fingerprint] = true
@@ -331,6 +437,10 @@ function M.merge_items(context, current_items)
       stale.comments = saved_comments
       stale.branch = context.branch
       stale.stale = true
+      stale.review_anchor = stale.review_anchor or review_anchor(stale)
+      stale.review_signature = stale.review_signature or review_signature(stale)
+      stale.changed_since_review = stale.reviewed == true
+      decorate_attention(stale)
       table.insert(merged, stale)
     end
   end
@@ -345,6 +455,20 @@ local function save_item_in_record(context, stored, item, attrs)
   local note = attrs and attrs.note or previous.note or ""
   local status = attrs and attrs.status or previous.status or "new"
   local comments = attrs and attrs.comments or previous.comments or {}
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local reviewed = previous.reviewed == true
+  local reviewed_signature = previous.reviewed_signature
+  local reviewed_at = previous.reviewed_at
+
+  if attrs and attrs.reviewed ~= nil then
+    reviewed = attrs.reviewed == true
+    reviewed_signature = reviewed and review_signature(item) or nil
+    reviewed_at = reviewed and now or nil
+  elseif status == "accepted" then
+    reviewed = true
+    reviewed_signature = review_signature(item)
+    reviewed_at = reviewed_at or now
+  end
 
   if not M.is_valid_status(status) then
     return nil, string.format("Invalid review status: %s", status)
@@ -356,8 +480,13 @@ local function save_item_in_record(context, stored, item, attrs)
     note = note,
     comments = comments_for_item(comments, item),
     status = status,
+    reviewed = reviewed,
+    reviewed_at = reviewed_at,
+    reviewed_signature = reviewed_signature,
+    review_anchor = review_anchor(item),
+    review_signature = review_signature(item),
     stale = false,
-    updated_at = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    updated_at = now,
   })
 
   local ok_write, write_err = M.write(context, stored)
@@ -378,6 +507,10 @@ end
 
 function M.set_note(context, item, note)
   return M.save_item(context, item, { note = note or "" })
+end
+
+function M.set_reviewed(context, item, reviewed)
+  return M.save_item(context, item, { reviewed = reviewed ~= false })
 end
 
 function M.add_comment(context, item, attrs)
