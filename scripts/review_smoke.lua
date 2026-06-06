@@ -668,8 +668,28 @@ assert_true(meta.is_actionable("question") == true, "expected question status to
 assert_true(meta.priority("needs-rework") < meta.priority("new"), "expected blocker statuses to sort first")
 
 local original_tab = vim.api.nvim_get_current_tabpage()
+local opened_diff_tabs = {}
+local function remember_current_diff_tab()
+  table.insert(opened_diff_tabs, vim.api.nvim_get_current_tabpage())
+end
+
+local function close_opened_diff_tabs()
+  for index = #opened_diff_tabs, 1, -1 do
+    local tab = opened_diff_tabs[index]
+    if tab and vim.api.nvim_tabpage_is_valid(tab) then
+      pcall(vim.api.nvim_set_current_tabpage, tab)
+      pcall(vim.cmd.tabclose)
+    end
+  end
+
+  if original_tab and vim.api.nvim_tabpage_is_valid(original_tab) then
+    pcall(vim.api.nvim_set_current_tabpage, original_tab)
+  end
+end
+
 local ok_staged_diff_view, staged_diff_view_err = pcall(function()
   views.open_item_diff(staged[1])
+  remember_current_diff_tab()
 end)
 assert_true(ok_staged_diff_view, staged_diff_view_err or "opening staged diff view failed")
 local staged_diff_right_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
@@ -681,10 +701,15 @@ assert_true(
   staged_diff_right_text:find("nine unstaged", 1, true) == nil,
   "staged diff view should not include unstaged working-tree content on the right side"
 )
-vim.cmd.tabclose()
-if original_tab and vim.api.nvim_tabpage_is_valid(original_tab) then
-  pcall(vim.api.nvim_set_current_tabpage, original_tab)
-end
+local ok_duplicate_staged_diff_view, duplicate_staged_diff_view_err = pcall(function()
+  views.open_item_diff(staged[1])
+  remember_current_diff_tab()
+end)
+close_opened_diff_tabs()
+assert_true(
+  ok_duplicate_staged_diff_view,
+  duplicate_staged_diff_view_err or "opening the same staged diff view twice should not collide on scratch buffer names"
+)
 
 local context, context_err = state.context_for_repo(repo_root)
 assert_true(context ~= nil, context_err or "state context failed")

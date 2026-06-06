@@ -72,6 +72,29 @@ local function buffer_filetype(path)
   return vim.filetype.match({ filename = path }) or ""
 end
 
+local function set_unique_buffer_name(buf, name)
+  local safe_name = tostring(name or "")
+  if safe_name == "" then
+    safe_name = "review"
+  end
+
+  if pcall(vim.api.nvim_buf_set_name, buf, safe_name) then
+    return
+  end
+
+  if pcall(vim.api.nvim_buf_set_name, buf, string.format("%s-%d", safe_name, buf)) then
+    return
+  end
+
+  for suffix = 1, 1000 do
+    if pcall(vim.api.nvim_buf_set_name, buf, string.format("%s-%d", safe_name, suffix)) then
+      return
+    end
+  end
+
+  error(string.format("failed to create a unique review buffer name for %s", safe_name))
+end
+
 local function set_scratch_buffer(buf, name, lines, filetype)
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
@@ -79,7 +102,7 @@ local function set_scratch_buffer(buf, name, lines, filetype)
   vim.bo[buf].modifiable = true
   vim.bo[buf].readonly = false
   vim.bo[buf].filetype = filetype or ""
-  vim.api.nvim_buf_set_name(buf, name)
+  set_unique_buffer_name(buf, name)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.bo[buf].modifiable = false
   vim.bo[buf].modified = false
