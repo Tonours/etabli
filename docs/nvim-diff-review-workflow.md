@@ -12,6 +12,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rA` accept the current hunk directly
 - `<leader>rV` mark the current hunk as reviewed without accepting it
 - `<leader>rl` toggle inline review annotations in file buffers
+- `<leader>ro` expand or collapse the inline review thread under the cursor
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
 - `<leader>rC` build an `explain` prompt for Claude from the current hunk
 - `<leader>rp` build a `revise` prompt for Pi from the current hunk
@@ -25,11 +26,11 @@ Equivalent commands:
 - `:ReviewStatus [new|accepted|needs-rework|question|ignore]`
 - `:ReviewAccept`
 - `:ReviewMarkReviewed [on|off|toggle]`
-- `:ReviewInlineAnnotations [on|off|refresh|toggle]`
+- `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
 
-Inline annotations show unresolved review conversations below the live file line or selected line range, similar to GitHub PR file review comments. They are rendered with extmarks and signs, so they do not modify the file. Older hunk-level notes are still shown as a compact end-of-line fallback.
+Inline annotations show unresolved review conversations on the live file line or selected line range, similar to GitHub PR file review comments. They are rendered with extmarks and signs, so they do not modify the file. To keep large reviews readable and fast, conversations render as compact end-of-line markers by default. Use `<leader>ro` or `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again. Older hunk-level notes are still shown as a compact end-of-line fallback.
 
 Multi-line comments must stay inside one reviewable git hunk. If a visual selection crosses hunk boundaries, the review command refuses the comment instead of storing an ambiguous anchor.
 

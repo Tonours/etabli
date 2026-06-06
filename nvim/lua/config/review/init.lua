@@ -507,6 +507,8 @@ local function show_inbox_help(opts)
     "- :ReviewInbox [status|filter] filter the inbox by status or attention state",
     "- filters: attention, unresolved, stale, changed-since-review, reviewed:false, reviewed:true, current-file",
     "- :ReviewInlineAnnotations [on|off|refresh|toggle] controls inline review notes",
+    "- :ReviewInlineAnnotations expand expands or collapses the thread under the cursor",
+    "- :ReviewInlineAnnotations compact returns the current buffer to compact inline comments",
     "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewMarkReviewed [on|off|toggle] marks the current hunk reviewed without changing status",
@@ -1020,6 +1022,16 @@ function M.cmd_inline_annotations(cmd_opts)
 
   if action == "refresh" then
     annotations.refresh_buffer(0, { force = true })
+    return
+  end
+
+  if action == "expand" then
+    annotations.expand_current_thread(0)
+    return
+  end
+
+  if action == "compact" then
+    annotations.compact_buffer(0)
     return
   end
 

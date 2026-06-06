@@ -55,7 +55,7 @@ lazy_cmd("ReviewMarkReviewed", "config.review", "cmd_mark_reviewed", {
   desc = "Mark the current review hunk as reviewed", nargs = "?",
 })
 lazy_cmd("ReviewInlineAnnotations", "config.review", "cmd_inline_annotations", {
-  complete = function() return { "on", "off", "refresh", "toggle" } end,
+  complete = function() return { "on", "off", "refresh", "toggle", "expand", "compact" } end,
   desc = "Toggle review inline annotations", nargs = "?",
 })
 lazy_cmd("ReviewClaude", "config.review", "cmd_send_claude", {
