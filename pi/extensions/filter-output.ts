@@ -101,6 +101,7 @@ export default function (pi: ExtensionAPI) {
   const sensitiveFiles: RegExp[] = [
     /\.env$/,                                        // .env
     /\.env\.(?!example$|sample$|template$)[^/]+$/,   // .env.local, .env.production (NOT .env.example/sample/template)
+    /(?:^|\/)\.envrc$/,                              // direnv .envrc
     /\.dev\.vars$/,                                  // Cloudflare .dev.vars
     /secrets?\.(json|ya?ml|toml)$/i,                 // secrets.json, secret.yaml
     /(?:^|\/)auth\.json$/i,                          // auth.json (OAuth/API secrets)
@@ -121,7 +122,7 @@ export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   // Sensitive bash commands — detect when bash reads sensitive files
   // ---------------------------------------------------------------------------
-  const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
+  const readCommandPattern = /\b(cat|less|more|head|tail|bat|sed|awk|jq|yq|grep|rg|ripgrep)\s+([^\n|;]+)/gi;
   const searchCommands = new Set(["grep", "rg", "ripgrep"]);
   const searchPathOptionNames = new Set([
     "--file",
@@ -133,7 +134,7 @@ export default function (pi: ExtensionAPI) {
   ]);
   const sensitiveCommandPatterns: RegExp[] = [
     /\bprintenv\b/,
-    /(^|[;&(]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:env|\/usr\/bin\/env|\/bin\/env)(?:\s+-\S+)*\s*(?:$|[|>])/m,
+    /(^|[;&(]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:env|\/usr\/bin\/env|\/bin\/env)(?:\s+(?:-\S+|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s*(?:$|[|>])/m,
     /\bexport\s+-p\b/,
   ];
 

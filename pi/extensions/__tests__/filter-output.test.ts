@@ -165,6 +165,25 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("blocks env dumps with inline assignments", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "POSTMARK_TOKEN=example-token\nFOO=bar" }],
+        input: { command: "env FOO=bar | grep POSTMARK_TOKEN" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
   test("allows commands that only print the word env", async () => {
     const handler = setupExtension();
     const ctx = createContext();
@@ -190,6 +209,25 @@ describe("filter-output", () => {
       {
         content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
         input: { command: "cat .env.local" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks direnv file command output", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "export SECRET_KEY=example" }],
+        input: { command: "cat .envrc" },
         toolName: "bash",
       },
       ctx,
@@ -323,6 +361,25 @@ describe("filter-output", () => {
       {
         content: [{ type: "text", text: '"password":"example"' }],
         input: { command: "grep password secrets.json" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks structured readers that read sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: '{"password":"example"}' }],
+        input: { command: "jq . secrets.json" },
         toolName: "bash",
       },
       ctx,
