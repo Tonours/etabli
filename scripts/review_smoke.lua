@@ -1063,6 +1063,51 @@ assert_true(
   "prompt-only provider dispatch should skip repo change signatures"
 )
 
+local original_executable_for_termopen_error = vim.fn.executable
+local original_termopen_for_error = vim.fn.termopen
+local original_notify_for_termopen_error = vim.notify
+local termopen_error_calls = 0
+local termopen_error_warning = false
+vim.fn.executable = function(command)
+  if command == "claude" then
+    return 1
+  end
+
+  return original_executable_for_termopen_error(command)
+end
+vim.fn.termopen = function()
+  termopen_error_calls = termopen_error_calls + 1
+  error("simulated termopen failure")
+end
+vim.notify = function(message, level, opts)
+  if
+    tostring(message):find("Claude CLI could not be opened", 1, true)
+    and level == vim.log.levels.WARN
+  then
+    termopen_error_warning = true
+  end
+
+  return original_notify_for_termopen_error(message, level, opts)
+end
+
+local ok_termopen_error_dispatch, termopen_error_dispatch_err = pcall(function()
+  providers.dispatch("claude", matched, {
+    action = "review",
+    cwd = repo_root,
+    open_terminal = true,
+  })
+  vim.wait(1000, function()
+    return termopen_error_calls > 0
+  end, 10)
+end)
+vim.fn.executable = original_executable_for_termopen_error
+vim.fn.termopen = original_termopen_for_error
+vim.notify = original_notify_for_termopen_error
+
+assert_true(ok_termopen_error_dispatch, termopen_error_dispatch_err or "termopen error dispatch failed")
+assert_true(termopen_error_calls == 1, "provider dispatch should attempt to open the configured CLI once")
+assert_true(termopen_error_warning, "provider dispatch should warn when termopen fails")
+
 local fenced_file = repo .. "/fenced.md"
 vim.fn.writefile({ "before" }, fenced_file)
 git(repo, { "add", "fenced.md" })
