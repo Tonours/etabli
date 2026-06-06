@@ -12,6 +12,8 @@ local last_focus_clear_at = 0
 
 function M.clear_cache()
   repo_items_cache = {}
+  state.clear_cache()
+  diff.clear_cache()
 end
 
 local function split_nul(text)

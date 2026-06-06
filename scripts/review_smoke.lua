@@ -4,6 +4,7 @@ local annotations = require("config.review.annotations")
 local prompts = require("config.review.prompts")
 local providers = require("config.review.providers")
 local review = require("config.review")
+local review_items = require("config.review.items")
 local state = require("config.review.state")
 local util = require("config.review.util")
 local views = require("config.review.views")
@@ -608,6 +609,37 @@ assert_true(
   "ShellCmdPost should invalidate cached unstaged review diffs after external git commands"
 )
 
+local item_cache_repo = vim.fn.tempname()
+vim.fn.mkdir(item_cache_repo, "p")
+git(item_cache_repo, { "init" })
+vim.fn.writefile({ "before" }, item_cache_repo .. "/tracked.txt")
+git(item_cache_repo, { "add", "tracked.txt" })
+git(item_cache_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "after" }, item_cache_repo .. "/tracked.txt")
+local item_cache_context = assert(state.context_for_repo(item_cache_repo))
+diff.clear_cache()
+review_items.clear_cache()
+local cached_dirty_items = review_items.for_context(item_cache_context, { include_stale = false })
+assert_true(
+  cached_dirty_items ~= nil and #cached_dirty_items == 1,
+  "expected cached review items before review item cache invalidation fixture"
+)
+git(item_cache_repo, { "checkout", "--", "tracked.txt" })
+review_items.clear_cache()
+local cached_clean_items = review_items.for_context(item_cache_context, { include_stale = false })
+assert_true(
+  cached_clean_items ~= nil and #cached_clean_items == 0,
+  "review item cache invalidation should also invalidate cached git diffs"
+)
+
 git(repo, { "init" })
 
 local initial = {
@@ -945,6 +977,7 @@ assert_true(saw_normalized_summary_note, "expected multiline note to be normaliz
 
 local original_collect_all_for_throttle = diff.collect_all
 local refresh_collect_calls = 0
+review_items.clear_cache()
 diff.collect_all = function(root, opts)
   refresh_collect_calls = refresh_collect_calls + 1
   return original_collect_all_for_throttle(root, opts)
@@ -960,6 +993,26 @@ assert_true(ok_force_refresh, force_refresh_err or "annotation refresh throttle 
 assert_true(
   refresh_collect_calls == 1,
   "forced annotation refresh should update the throttle for immediate non-forced refreshes"
+)
+
+local original_collect_all_for_cached_force = diff.collect_all
+local cached_force_collect_calls = 0
+review_items.clear_cache()
+diff.collect_all = function(root, opts)
+  cached_force_collect_calls = cached_force_collect_calls + 1
+  return original_collect_all_for_cached_force(root, opts)
+end
+
+local ok_cached_force_refresh, cached_force_refresh_err = pcall(function()
+  annotations.refresh_buffer(0, { force = true })
+  annotations.refresh_buffer(0, { force = true })
+end)
+diff.collect_all = original_collect_all_for_cached_force
+
+assert_true(ok_cached_force_refresh, cached_force_refresh_err or "cached annotation refresh fixture failed")
+assert_true(
+  cached_force_collect_calls == 1,
+  "forced annotation refreshes without repo changes should reuse the shared review item cache"
 )
 
 vim.api.nvim_win_set_cursor(0, { 9, 0 })
