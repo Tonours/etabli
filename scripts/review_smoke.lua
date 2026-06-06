@@ -30,6 +30,31 @@ end
 local repo = vim.fn.tempname()
 vim.fn.mkdir(repo, "p")
 
+local non_git_dir = vim.fn.tempname()
+vim.fn.mkdir(non_git_dir, "p")
+vim.fn.writefile({ "outside" }, non_git_dir .. "/outside.txt")
+
+local original_system = vim.system
+local repo_root_calls = 0
+vim.system = function(command, opts)
+  if
+    type(command) == "table"
+    and command[1] == "git"
+    and command[4] == "rev-parse"
+    and command[5] == "--show-toplevel"
+  then
+    repo_root_calls = repo_root_calls + 1
+  end
+  return original_system(command, opts)
+end
+
+local outside_root_a, outside_err_a = diff.repo_root(non_git_dir .. "/outside.txt")
+local outside_root_b, outside_err_b = diff.repo_root(non_git_dir .. "/outside.txt")
+vim.system = original_system
+assert_true(outside_root_a == nil and outside_err_a ~= nil, "non-git repo lookup should fail")
+assert_true(outside_root_b == nil and outside_err_b ~= nil, "cached non-git repo lookup should still fail")
+assert_true(repo_root_calls == 1, "non-git repo lookup failures should be cached briefly")
+
 git(repo, { "init" })
 
 local initial = {
