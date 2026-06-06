@@ -107,7 +107,14 @@ function M.open_item_diff(item)
   vim.cmd.vsplit()
 
   local right_buf = vim.api.nvim_get_current_buf()
-  if vim.fn.filereadable(absolute_path) == 1 then
+  if item.scope == "staged" then
+    set_scratch_buffer(
+      right_buf,
+      string.format("review-index-%s", item.path),
+      git_show_lines(item.repo, ":" .. item.path),
+      filetype
+    )
+  elseif vim.fn.filereadable(absolute_path) == 1 then
     vim.cmd.edit(vim.fn.fnameescape(absolute_path))
   else
     set_scratch_buffer(
