@@ -81,6 +81,52 @@ local function ensure_record_shape(decoded, repo, branch)
   return decoded
 end
 
+local function normalize_comments(comments)
+  if type(comments) ~= "table" then
+    return {}
+  end
+
+  local normalized = {}
+  for index, comment in ipairs(comments) do
+    if type(comment) == "table" and type(comment.body) == "string" and comment.body ~= "" then
+      local line = tonumber(comment.line or comment.start_line)
+      local end_line = tonumber(comment.end_line) or line
+      if line and end_line and end_line < line then
+        line, end_line = end_line, line
+      end
+
+      local fallback_id = vim.fn.sha256(table.concat({
+        comment.body,
+        tostring(line or ""),
+        tostring(end_line or ""),
+        tostring(index),
+      }, "\n")):sub(1, 12)
+
+      table.insert(normalized, {
+        id = comment.id or fallback_id,
+        line = line,
+        end_line = end_line,
+        body = comment.body,
+        resolved = comment.resolved == true,
+        created_at = comment.created_at,
+        updated_at = comment.updated_at,
+      })
+    end
+  end
+
+  return normalized
+end
+
+local function comment_id_exists(comments, id)
+  for _, comment in ipairs(comments) do
+    if comment.id == id then
+      return true
+    end
+  end
+
+  return false
+end
+
 function M.statuses()
   return meta.statuses()
 end
@@ -203,6 +249,7 @@ function M.merge_items(context, current_items)
     local combined = vim.tbl_extend("force", item, {
       branch = context.branch,
       note = saved and saved.note or "",
+      comments = saved and normalize_comments(saved.comments) or {},
       status = saved and saved.status or "new",
       updated_at = saved and saved.updated_at or nil,
       stale = false,
@@ -213,8 +260,11 @@ function M.merge_items(context, current_items)
   end
 
   for fingerprint, saved in pairs(stored.items) do
-    if not seen[fingerprint] and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new") then
+    local saved_comments = normalize_comments(saved.comments)
+    local has_comment = not vim.tbl_isempty(saved_comments)
+    if not seen[fingerprint] and ((saved.note or "") ~= "" or (saved.status or "new") ~= "new" or has_comment) then
       local stale = vim.deepcopy(saved)
+      stale.comments = saved_comments
       stale.branch = context.branch
       stale.stale = true
       table.insert(merged, stale)
@@ -231,6 +281,7 @@ function M.save_item(context, item, attrs)
   local previous = stored.items[item.fingerprint] or {}
   local note = attrs and attrs.note or previous.note or ""
   local status = attrs and attrs.status or previous.status or "new"
+  local comments = attrs and attrs.comments or previous.comments or {}
 
   if not M.is_valid_status(status) then
     return nil, string.format("Invalid review status: %s", status)
@@ -240,6 +291,7 @@ function M.save_item(context, item, attrs)
     repo = context.repo,
     branch = context.branch,
     note = note,
+    comments = normalize_comments(comments),
     status = status,
     stale = false,
     updated_at = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -256,6 +308,78 @@ end
 
 function M.set_note(context, item, note)
   return M.save_item(context, item, { note = note or "" })
+end
+
+function M.add_comment(context, item, attrs)
+  local options = attrs or {}
+  local body = vim.trim(options.body or "")
+  if body == "" then
+    return nil, "Review comment cannot be empty"
+  end
+
+  local stored = M.read(context)
+  local previous = stored.items[item.fingerprint] or {}
+  local comments = normalize_comments(previous.comments)
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  local line = tonumber(options.line) or item.line_start or 1
+  local end_line = tonumber(options.end_line) or line
+  if end_line < line then
+    line, end_line = end_line, line
+  end
+  local nonce = 0
+  local id
+
+  repeat
+    nonce = nonce + 1
+    id = vim.fn.sha256(table.concat({
+      item.fingerprint or "",
+      tostring(line),
+      tostring(end_line),
+      body,
+      now,
+      tostring(#comments + nonce),
+      tostring(vim.uv.hrtime()),
+    }, "\n")):sub(1, 12)
+  until not comment_id_exists(comments, id)
+
+  table.insert(comments, {
+    id = id,
+    line = line,
+    end_line = end_line,
+    body = body,
+    resolved = false,
+    created_at = now,
+    updated_at = now,
+  })
+
+  return M.save_item(context, item, { comments = comments })
+end
+
+function M.set_comment_resolved(context, item, comment_id, resolved)
+  local stored = M.read(context)
+  local previous = stored.items[item.fingerprint]
+  if not previous then
+    return nil, "No review comments found for this hunk"
+  end
+
+  local comments = normalize_comments(previous.comments)
+  local changed = false
+  local now = os.date("!%Y-%m-%dT%H:%M:%SZ")
+
+  for _, comment in ipairs(comments) do
+    if comment.id == comment_id then
+      comment.resolved = resolved == true
+      comment.updated_at = now
+      changed = true
+      break
+    end
+  end
+
+  if not changed then
+    return nil, "No matching review comment found"
+  end
+
+  return M.save_item(context, item, { comments = comments })
 end
 
 return M

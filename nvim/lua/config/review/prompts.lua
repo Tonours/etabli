@@ -1,10 +1,57 @@
 local M = {}
 
+local function comment_range_label(comment)
+  local line = tonumber(comment.line)
+  local end_line = tonumber(comment.end_line) or line
+
+  if line and end_line and end_line ~= line then
+    return string.format("lines %d-%d", line, end_line)
+  end
+
+  return string.format("line %s", line or "?")
+end
+
+local function append_review_comments(lines, item)
+  local comments = item.comments or {}
+  if vim.tbl_isempty(comments) then
+    return
+  end
+
+  table.insert(lines, "- Existing review comments:")
+  for _, comment in ipairs(comments) do
+    table.insert(
+      lines,
+      string.format(
+        "  - %s %s [%s]: %s",
+        comment.id or "?",
+        comment_range_label(comment),
+        comment.resolved and "resolved" or "unresolved",
+        comment.body or ""
+      )
+    )
+  end
+end
+
 local function action_instructions(action)
   if action == "explain" then
     return {
       "Explain what this hunk changes, why it may exist, and any risks or follow-up questions.",
       "Stay focused on this hunk only.",
+    }
+  end
+
+  if action == "review" then
+    return {
+      "Perform a first-pass code review of this hunk.",
+      "Do not edit files or apply fixes during this pass.",
+      "Use this review stack: self-check the diff, check scope/plan consistency when context is present, then run an adversarial review for edge cases and regressions.",
+      "Prioritize correctness bugs, regressions, security issues, missing validation, missing tests, and maintainability risks that affect behavior.",
+      "Treat existing review comments as reviewer context; do not duplicate resolved conversations unless the issue still exists.",
+      "Ignore style nits unless they affect correctness or future maintenance.",
+      "Findings must come first. For each finding, use severity high|medium|low, file, line or range, why it matters, and the smallest concrete fix.",
+      "Then add open questions or assumptions only when they change the decision.",
+      "If human arbitration is needed, include human_checkpoint: yes and the reason.",
+      "End with exactly one verdict: GO, GO WITH NOTES, or BLOCK.",
     }
   end
 
@@ -23,6 +70,22 @@ local function batch_action_instructions(action)
       "Explain each hunk separately.",
       "Call out risks, missing context, and follow-up questions per hunk.",
       "Keep the response grouped by hunk number and file path.",
+    }
+  end
+
+  if action == "review" then
+    return {
+      "Perform a first-pass code review across the selected hunks.",
+      "Do not edit files or apply fixes during this pass.",
+      "Use this review stack: self-check the diff, check scope/plan consistency when context is present, run an adversarial review for edge cases and regressions, then trigger a human checkpoint only for accepted risk or ambiguous tradeoffs.",
+      "Prioritize correctness bugs, regressions, security issues, missing validation, missing tests, and maintainability risks that affect behavior.",
+      "Check whether changes across hunks are semantically consistent; call out missing paired edits when one hunk implies another should exist.",
+      "Treat existing review comments as reviewer context; do not duplicate resolved conversations unless the issue still exists.",
+      "Ignore style nits unless they affect correctness or future maintenance.",
+      "Findings must come first, grouped by severity. For each finding, include severity high|medium|low, file, hunk number, line or range if inferable, why it matters, and the smallest concrete fix.",
+      "Then add open questions or assumptions only when they change the decision.",
+      "If human arbitration is needed, include human_checkpoint: yes and the reason.",
+      "End with exactly one verdict: GO, GO WITH NOTES, or BLOCK.",
     }
   end
 
@@ -53,6 +116,8 @@ local function append_hunk(lines, item, index)
     table.insert(hunk_lines, string.format("- Reviewer note: %s", item.note))
   end
 
+  append_review_comments(hunk_lines, item)
+
   table.insert(hunk_lines, "- Diff:")
   table.insert(hunk_lines, "```diff")
 
@@ -73,7 +138,7 @@ function M.build(item, opts)
   -- Build lines efficiently with pre-allocation
   local lines = {
     string.format("You are preparing a %s request for %s.", action, provider),
-    "Focus only on the diff hunk below.",
+    action == "review" and "Review only the diff hunk below." or "Focus only on the diff hunk below.",
     "",
     "Context:",
     string.format("- File: %s", item.path),
@@ -89,6 +154,8 @@ function M.build(item, opts)
   if item.note and item.note ~= "" then
     table.insert(lines, string.format("- Reviewer note: %s", item.note))
   end
+
+  append_review_comments(lines, item)
 
   vim.list_extend(lines, { "", "Task:" })
 
@@ -116,8 +183,11 @@ function M.build_batch(items, opts)
   -- Build lines efficiently with pre-allocation
   local lines = {
     string.format("You are preparing a %s request for %s.", action, provider),
-    string.format("Work through the %d diff hunks below one by one.", #items),
-    "Do not invent changes outside the provided hunks.",
+    action == "review"
+        and string.format("Review the %d diff hunks below as one local changeset.", #items)
+      or string.format("Work through the %d diff hunks below one by one.", #items),
+    action == "review" and "Do not invent findings outside the provided hunks unless you label them as assumptions."
+      or "Do not invent changes outside the provided hunks.",
     "",
     "Batch context:",
     string.format("- Hunk count: %d", #items),

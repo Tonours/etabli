@@ -74,11 +74,13 @@ Leader: `<Space>`
 ## Review
 
 - inbox: `<leader>ri` or `:ReviewInbox [status]`
-- current hunk: `<leader>rh` preview, `<leader>ra` annotate, `<leader>rs` status, `<leader>rA` accept
+- current hunk: `<leader>rh` preview, `<leader>ra` comment line/range, `<leader>rr` resolve, `<leader>rs` status, `<leader>rA` accept
+- inline annotations: `<leader>rl`
 - navigate hunks: `[h` previous, `]h` next
 - Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
 - Pi hunk actions: `<leader>rp` revise, `<leader>rP` explain
 - batch rework: `<leader>rbc`, `<leader>rbp`
+- first-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi
 - in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
 
 

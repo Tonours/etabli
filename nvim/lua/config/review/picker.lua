@@ -34,7 +34,19 @@ local function scope_label(item)
   return item.scope == "staged" and "STAGED" or "WORKING"
 end
 
+local function comment_range_label(comment)
+  local line = tonumber(comment.line)
+  local end_line = tonumber(comment.end_line) or line
+
+  if line and end_line and end_line ~= line then
+    return string.format("lines %d-%d", line, end_line)
+  end
+
+  return string.format("line %s", line or "?")
+end
+
 local function render_preview(item)
+  local comments = item.comments or {}
   local lines = {
     "Review hunk",
     "",
@@ -46,6 +58,22 @@ local function render_preview(item)
 
   if item.note and item.note ~= "" then
     table.insert(lines, string.format("Note:   %s", item.note))
+  end
+
+  if #comments > 0 then
+    table.insert(lines, "Comments:")
+    for _, comment in ipairs(comments) do
+      table.insert(
+        lines,
+        string.format(
+          "  - %s %s [%s]: %s",
+          comment.id or "?",
+          comment_range_label(comment),
+          comment.resolved and "resolved" or "unresolved",
+          comment.body or ""
+        )
+      )
+    end
   end
 
   table.insert(lines, "")
@@ -130,7 +158,13 @@ function M.open(items, callbacks, opts)
     local status = meta.label(item.status)
     local context = item.hunk_context ~= "" and (" " .. item.hunk_context) or ""
     local has_note = item.note and item.note ~= ""
-    local note_marker = has_note and "N" or ""
+    local comment_count = 0
+    for _, comment in ipairs(item.comments or {}) do
+      if comment.resolved ~= true then
+        comment_count = comment_count + 1
+      end
+    end
+    local note_marker = comment_count > 0 and tostring(math.min(comment_count, 9)) or (has_note and "N" or "")
     local note = has_note and (" " .. item.note) or ""
     local location = string.format("%s:%d%s", item.path, line, context)
 
@@ -161,7 +195,7 @@ function M.open(items, callbacks, opts)
     default_selection_index = default_selection_index(items, options.focus_fingerprint),
     prompt_title = prompt_title(items, options),
     results_title = "Enter diff | Tab mark | Ctrl-Y accept | ? help",
-    preview_title = "Ctrl-A note | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi | Ctrl-R refresh",
+    preview_title = "Ctrl-A comment | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi | Ctrl-R refresh",
     finder = finders.new_table({
       results = items,
       entry_maker = entry_maker,
@@ -224,10 +258,10 @@ function M.open(items, callbacks, opts)
 
       map("i", "<C-a>", function()
         with_current(callbacks.on_annotate)
-      end, vim.tbl_extend("force", map_opts, { desc = "Annotate selected hunk" }))
+      end, vim.tbl_extend("force", map_opts, { desc = "Comment selected review line" }))
       map("n", "<C-a>", function()
         with_current(callbacks.on_annotate)
-      end, vim.tbl_extend("force", map_opts, { desc = "Annotate selected hunk" }))
+      end, vim.tbl_extend("force", map_opts, { desc = "Comment selected review line" }))
 
       map("i", "<C-s>", function()
         with_current(callbacks.on_status)
