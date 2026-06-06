@@ -86,6 +86,19 @@ assert_true(outside_root_a == nil and outside_err_a ~= nil, "non-git repo lookup
 assert_true(outside_root_b == nil and outside_err_b ~= nil, "cached non-git repo lookup should still fail")
 assert_true(repo_root_calls == 1, "non-git repo lookup failures should be cached briefly")
 
+local initialized_after_miss = vim.fn.tempname()
+vim.fn.mkdir(initialized_after_miss, "p")
+vim.fn.writefile({ "later" }, initialized_after_miss .. "/later.txt")
+local missing_before_init = diff.repo_root(initialized_after_miss .. "/later.txt")
+assert_true(missing_before_init == nil, "pre-init repo lookup should fail")
+git(initialized_after_miss, { "init" })
+vim.api.nvim_exec_autocmds("ShellCmdPost", { modeline = false })
+local root_after_init, root_after_init_err = diff.repo_root(initialized_after_miss .. "/later.txt")
+assert_true(
+  root_after_init ~= nil,
+  root_after_init_err or "ShellCmdPost should clear cached non-git repo lookup failures after git init"
+)
+
 local spaced_repo = vim.fn.tempname()
 vim.fn.mkdir(spaced_repo, "p")
 git(spaced_repo, { "init" })
