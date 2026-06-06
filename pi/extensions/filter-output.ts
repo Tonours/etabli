@@ -143,6 +143,21 @@ export default function (pi: ExtensionAPI) {
     "-f",
     "-g",
   ]);
+  const grepRecursiveOptionNames = new Set([
+    "--recursive",
+    "--dereference-recursive",
+    "-r",
+    "-R",
+  ]);
+  const ripgrepSensitiveScopeOptionNames = new Set([
+    "--hidden",
+    "--no-ignore",
+    "--no-ignore-vcs",
+    "--no-ignore-dot",
+    "-u",
+    "-uu",
+    "-uuu",
+  ]);
   const sensitiveCommandPatterns: RegExp[] = [
     /\bprintenv\b/,
     /(^|[;&|()]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:env|\/usr\/bin\/env|\/bin\/env)(?:\s+(?:-\S+|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s*(?:$|[|>])/m,
@@ -191,11 +206,57 @@ export default function (pi: ExtensionAPI) {
     return sensitiveFiles.some((p) => p.test(filePath));
   }
 
-  function commandPathTokens(commandName: string, args: string): string[] {
-    const tokens = args
+  function shellTokens(args: string): string[] {
+    return args
       .split(/\s+/)
       .map((token) => token.replace(/^['"]|['"]$/g, ""))
       .filter((token) => token !== "");
+  }
+
+  function isBroadSearchPath(token: string): boolean {
+    return token === "." || token === "./" || token === ".." || token === "../";
+  }
+
+  function hasOption(tokens: string[], names: Set<string>, shortFlags: string[]): boolean {
+    return tokens.some((token) => {
+      if (names.has(token)) return true;
+      if (token.startsWith("--")) return false;
+      return shortFlags.some((flag) => token.startsWith("-") && token.includes(flag));
+    });
+  }
+
+  function searchCanTraverseSensitiveFiles(commandName: string, args: string): boolean {
+    const normalizedCommand = commandName.toLowerCase();
+    const tokens = shellTokens(args);
+    const pathTokens = commandPathTokens(commandName, args);
+    const hasBroadPath = pathTokens.some(isBroadSearchPath);
+
+    if (normalizedCommand === "grep") {
+      const hasRecursiveOption = hasOption(tokens, grepRecursiveOptionNames, ["r", "R"]);
+      return hasRecursiveOption && (hasBroadPath || pathTokens.length === 0);
+    }
+
+    if (normalizedCommand === "rg" || normalizedCommand === "ripgrep") {
+      const hasSensitiveScopeOption = hasOption(tokens, ripgrepSensitiveScopeOptionNames, ["u"]);
+      return hasSensitiveScopeOption && (hasBroadPath || pathTokens.length === 0);
+    }
+
+    return false;
+  }
+
+  function searchOutputReferencesSensitiveFile(commandName: string, output: string): boolean {
+    if (!searchCommands.has(commandName.toLowerCase())) {
+      return false;
+    }
+
+    return output.split(/\r?\n/).some((line) => {
+      const match = line.match(/^([^:\0]+)(?::|\0)/);
+      return match ? isSensitiveFile(match[1]) : false;
+    });
+  }
+
+  function commandPathTokens(commandName: string, args: string): string[] {
+    const tokens = shellTokens(args);
 
     if (!searchCommands.has(commandName.toLowerCase())) {
       return tokens.filter((token) => !token.startsWith("-"));
@@ -252,6 +313,10 @@ export default function (pi: ExtensionAPI) {
     for (const match of command.matchAll(readCommandPattern)) {
       const commandName = match[1] ?? "";
       const args = match[2] ?? "";
+      if (searchCanTraverseSensitiveFiles(commandName, args)) {
+        return true;
+      }
+
       for (const token of commandPathTokens(commandName, args)) {
         if (isSensitiveFile(token)) {
           return true;
@@ -298,6 +363,19 @@ export default function (pi: ExtensionAPI) {
     ));
   }
 
+  function outputReferencesSensitiveSearchResult(command: string, output: string): boolean {
+    return commandFragments(command).some((fragment) => {
+      readCommandPattern.lastIndex = 0;
+      for (const match of fragment.matchAll(readCommandPattern)) {
+        if (searchOutputReferencesSensitiveFile(match[1] ?? "", output)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Hook: tool_result
   // ---------------------------------------------------------------------------
@@ -321,7 +399,11 @@ export default function (pi: ExtensionAPI) {
     // -- Block bash commands that dump sensitive files or env --
     if (event.toolName === "bash" || event.toolName === "shell") {
       const command = (event.input.command ?? event.input.cmd ?? "") as string;
-      if (isSensitiveCommand(command)) {
+      const output = event.content
+        .filter((content) => content.type === "text")
+        .map((content) => content.text)
+        .join("\n");
+      if (isSensitiveCommand(command) || outputReferencesSensitiveSearchResult(command, output)) {
         ctx.ui.notify(`Redacting output of sensitive command`, "warning");
         return {
           content: [{ type: "text", text: `[Output redacted — command reads sensitive data]` }],
