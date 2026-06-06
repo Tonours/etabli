@@ -136,10 +136,10 @@ export default function (pi: ExtensionAPI) {
   ]);
   const sensitiveCommandPatterns: RegExp[] = [
     /\bprintenv\b/,
-    /(^|[;&(]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:env|\/usr\/bin\/env|\/bin\/env)(?:\s+(?:-\S+|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s*(?:$|[|>])/m,
-    /(^|[;&(]\s*)set\s*(?:$|[|>])/m,
-    /(^|[;&(]\s*)(?:declare|typeset)\s+-[A-Za-z-]*p[A-Za-z-]*\b/,
-    /(^|[;&(]\s*)export\s*(?:-p\s*)?(?:$|[|>])/m,
+    /(^|[;&|()]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:env|\/usr\/bin\/env|\/bin\/env)(?:\s+(?:-\S+|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s*(?:$|[|>])/m,
+    /(^|[;&|()]\s*)set\s*(?:$|[|>])/m,
+    /(^|[;&|()]\s*)(?:declare|typeset)\s+-[A-Za-z-]*p[A-Za-z-]*\b/,
+    /(^|[;&|()]\s*)export\s*(?:-p\s*)?(?:$|[|>])/m,
   ];
 
   // ---------------------------------------------------------------------------
