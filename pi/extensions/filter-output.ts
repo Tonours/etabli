@@ -55,8 +55,6 @@ export default function (pi: ExtensionAPI) {
     { pattern: /\bglc_[a-zA-Z0-9_-]{32,}\b/g, label: "GRAFANA_TOKEN" },
     // Linear
     { pattern: /\blin_api_[a-zA-Z0-9]{40,}\b/g, label: "LINEAR_KEY" },
-    // Postmark
-    { pattern: /\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/g, label: "UUID" },
     // Resend
     { pattern: /\bre_[a-zA-Z0-9]{20,}\b/g, label: "RESEND_KEY" },
   ];
@@ -72,6 +70,10 @@ export default function (pi: ExtensionAPI) {
     },
     {
       pattern: /\b(secret[_-]?key|private[_-]?key|auth[_-]?token|access[_-]?token|refresh[_-]?token)\s*[=:]\s*['"]?([^\s'"]{8,})['"]?/gi,
+      replacement: "$1=[REDACTED]",
+    },
+    {
+      pattern: /\b(postmark[_-]?(?:server[_-]?)?token)\s*[=:]\s*['"]?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})['"]?/gi,
       replacement: "$1=[REDACTED]",
     },
     {

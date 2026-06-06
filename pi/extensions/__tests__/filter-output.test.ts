@@ -73,4 +73,32 @@ describe("filter-output", () => {
       { message: "Redacted 2 secrets from output", level: "warning" },
     ]);
   });
+
+  test("keeps ordinary UUIDs but redacts contextual Postmark tokens", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+    const businessId = "123e4567-e89b-12d3-a456-426614174000";
+    const postmarkToken = "89abcdef-0123-4567-89ab-cdef01234567";
+
+    const result = await handler(
+      {
+        content: [
+          {
+            type: "text",
+            text: `order_id=${businessId}\npostmark_server_token=${postmarkToken}`,
+          },
+        ],
+        input: {},
+        toolName: "read",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toContain(`order_id=${businessId}`);
+    expect(result?.content[0]?.text).toContain("postmark_server_token=[REDACTED]");
+    expect(result?.content[0]?.text).not.toContain(postmarkToken);
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacted 1 secret from output", level: "warning" },
+    ]);
+  });
 });
