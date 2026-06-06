@@ -697,12 +697,20 @@ local saved, save_err = state.save_item(context, unstaged[1], {
 })
 assert_true(saved ~= nil, save_err or "failed to save review item")
 
+local original_state_read_for_comment = state.read
+local add_comment_read_calls = 0
+state.read = function(read_context)
+  add_comment_read_calls = add_comment_read_calls + 1
+  return original_state_read_for_comment(read_context)
+end
 local commented, comment_err = state.add_comment(context, unstaged[1], {
   body = "This edge case needs a guard.",
   line = 9,
   end_line = 10,
 })
+state.read = original_state_read_for_comment
 assert_true(commented ~= nil, comment_err or "failed to save review comment")
+assert_true(add_comment_read_calls == 1, "saving a review comment should read review state once")
 assert_true(#commented.comments == 1, "expected saved review comment")
 assert_true(commented.comments[1].resolved == false, "new review comments should be unresolved")
 

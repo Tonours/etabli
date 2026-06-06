@@ -312,8 +312,7 @@ function M.merge_items(context, current_items)
   return merged
 end
 
-function M.save_item(context, item, attrs)
-  local stored = M.read(context)
+local function save_item_in_record(context, stored, item, attrs)
   local previous = stored.items[item.fingerprint] or {}
   local note = attrs and attrs.note or previous.note or ""
   local status = attrs and attrs.status or previous.status or "new"
@@ -339,6 +338,10 @@ function M.save_item(context, item, attrs)
   end
 
   return stored.items[item.fingerprint]
+end
+
+function M.save_item(context, item, attrs)
+  return save_item_in_record(context, M.read(context), item, attrs)
 end
 
 function M.set_status(context, item, status)
@@ -391,7 +394,7 @@ function M.add_comment(context, item, attrs)
     updated_at = now,
   })
 
-  return M.save_item(context, item, { comments = comments })
+  return save_item_in_record(context, stored, item, { comments = comments })
 end
 
 function M.set_comment_resolved(context, item, comment_id, resolved)
@@ -418,7 +421,7 @@ function M.set_comment_resolved(context, item, comment_id, resolved)
     return nil, "No matching review comment found"
   end
 
-  return M.save_item(context, item, { comments = comments })
+  return save_item_in_record(context, stored, item, { comments = comments })
 end
 
 return M
