@@ -98,9 +98,32 @@ local function get_cached_git_root_error(path)
   return cached
 end
 
-local function run_git(root, args, opts)
+local function run_git_uncached(root, args, opts)
   local options = opts or {}
   local ok_codes = options.ok_codes or { [0] = true }
+  local command = vim.list_extend({ "git", "-C", root, "-c", "core.quotePath=false" }, args)
+  local system_opts = { text = true }
+
+  if options.env then
+    system_opts.env = options.env
+  end
+
+  local result = vim.system(command, system_opts):wait()
+
+  if not ok_codes[result.code] then
+    local stderr = vim.trim(result.stderr or "")
+    return nil, stderr ~= "" and stderr or "git command failed"
+  end
+
+  return result.stdout or "", nil
+end
+
+local function run_git(root, args, opts)
+  local options = opts or {}
+  if options.env or options.cache == false then
+    return run_git_uncached(root, args, options)
+  end
+
   local cache_key = root .. "\0" .. table.concat(args, "\0")
   local now = vim.loop.now()
 
@@ -109,15 +132,11 @@ local function run_git(root, args, opts)
     return diff_cache[cache_key], nil
   end
 
-  local command = vim.list_extend({ "git", "-C", root, "-c", "core.quotePath=false" }, args)
-  local result = vim.system(command, { text = true }):wait()
-
-  if not ok_codes[result.code] then
-    local stderr = vim.trim(result.stderr or "")
-    return nil, stderr ~= "" and stderr or "git command failed"
+  local output, err = run_git_uncached(root, args, options)
+  if not output then
+    return nil, err
   end
 
-  local output = result.stdout or ""
   -- Cache the result
   diff_cache[cache_key] = output
   diff_cache_time[cache_key] = now
@@ -133,6 +152,32 @@ local function nul_split(text)
   end
 
   return items
+end
+
+local function path_chunks(paths)
+  local chunks = {}
+  local current = {}
+  local current_bytes = 0
+  local max_paths = 128
+  local max_bytes = 24000
+
+  for _, path in ipairs(paths) do
+    local path_bytes = #path + 1
+    if #current > 0 and (#current >= max_paths or current_bytes + path_bytes > max_bytes) then
+      table.insert(chunks, current)
+      current = {}
+      current_bytes = 0
+    end
+
+    table.insert(current, path)
+    current_bytes = current_bytes + path_bytes
+  end
+
+  if #current > 0 then
+    table.insert(chunks, current)
+  end
+
+  return chunks
 end
 
 local function sort_items(items)
@@ -469,24 +514,63 @@ local function collect_untracked(root, opts)
     return nil, err
   end
 
+  local paths = nul_split(stdout)
   local items = {}
-  for _, path in ipairs(nul_split(stdout)) do
-    local patch, patch_err = run_git(root, {
+
+  if #paths == 0 then
+    return items
+  end
+
+  local index_path = vim.fn.tempname()
+  local env = { GIT_INDEX_FILE = index_path }
+  local has_head = run_git_uncached(root, { "rev-parse", "--verify", "HEAD" }, { env = env }) ~= nil
+  local read_tree_args = has_head and { "read-tree", "HEAD" } or { "read-tree", "--empty" }
+  local _, read_tree_err = run_git_uncached(root, read_tree_args, { env = env })
+
+  if read_tree_err then
+    vim.fn.delete(index_path)
+    vim.fn.delete(index_path .. ".lock")
+    return nil, read_tree_err
+  end
+
+  for _, chunk in ipairs(path_chunks(paths)) do
+    local add_args = { "add", "-N", "--" }
+    vim.list_extend(add_args, chunk)
+
+    local _, add_err = run_git_uncached(root, add_args, { env = env })
+    if add_err then
+      vim.fn.delete(index_path)
+      vim.fn.delete(index_path .. ".lock")
+      return nil, add_err
+    end
+  end
+
+  for _, chunk in ipairs(path_chunks(paths)) do
+    local diff_args = {
       "diff",
-      "--no-index",
       "--no-ext-diff",
       "--no-color",
+      "--no-renames",
+      "--unified=3",
+      "--relative",
+      "--src-prefix=" .. tracked_old_prefix,
+      "--dst-prefix=" .. tracked_new_prefix,
       "--",
-      "/dev/null",
-      path,
-    }, { ok_codes = { [0] = true, [1] = true } })
+    }
+    vim.list_extend(diff_args, chunk)
+
+    local patch, patch_err = run_git_uncached(root, diff_args, { env = env })
     if not patch then
+      vim.fn.delete(index_path)
+      vim.fn.delete(index_path .. ".lock")
       return nil, patch_err
     end
 
     vim.list_extend(items, parse_diff(root, "unstaged", patch))
   end
 
+  vim.fn.delete(index_path)
+  vim.fn.delete(index_path .. ".lock")
   sort_items(items)
   return items
 end
