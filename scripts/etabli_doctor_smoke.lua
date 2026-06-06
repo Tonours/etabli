@@ -1,5 +1,6 @@
 local copilot = require("config.copilot")
 local doctor = require("config.doctor")
+local state_file = require("config.state_file")
 
 local function fail(message)
   vim.api.nvim_err_writeln("etabli doctor smoke failed: " .. message)
@@ -72,5 +73,14 @@ assert_true(vim.fn.filereadable(state_path) == 1, "Copilot state file should be 
 assert_true(joined(copilot.status_lines()):match("state:") ~= nil, "Copilot status should include state path")
 
 copilot.set_enabled(original, nil, { notify = false })
+
+local atomic_dir = vim.fn.tempname()
+local atomic_path = atomic_dir .. "/nested/state.json"
+local ok_atomic, atomic_err = state_file.write_json(atomic_path, { version = 1, value = "ok" })
+assert_true(ok_atomic == true, atomic_err or "atomic state write failed")
+assert_true(vim.fn.filereadable(atomic_path) == 1, "atomic state file should be written")
+local ok_decode, decoded = pcall(vim.json.decode, joined(vim.fn.readfile(atomic_path)))
+assert_true(ok_decode and decoded.value == "ok", "atomic state file should contain valid JSON")
+assert_true(vim.tbl_isempty(vim.fn.glob(atomic_path .. ".tmp.*", false, true)), "atomic state write should clean temp files")
 
 print("etabli doctor smoke ok")

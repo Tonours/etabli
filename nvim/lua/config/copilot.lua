@@ -1,5 +1,7 @@
 local M = {}
 
+local state_file = require("config.state_file")
+
 local state_path = vim.fn.stdpath("state") .. "/etabli/copilot.json"
 local commands_registered = false
 
@@ -43,7 +45,7 @@ end
 
 local function write_state(state)
   ensure_state_dir()
-  vim.fn.writefile({ vim.json.encode(state) }, state_path)
+  return state_file.write_json(state_path, state)
 end
 
 local function project_entry(cwd)
@@ -106,7 +108,11 @@ function M.set_enabled(enabled, cwd, opts)
   entry.enabled = enabled ~= false
   entry.updated_at = os.date("!%Y-%m-%dT%H:%M:%SZ")
   state.projects[root] = entry
-  write_state(state)
+  local ok_write, write_err = write_state(state)
+  if not ok_write then
+    vim.notify(write_err, vim.log.levels.ERROR)
+    return nil, write_err
+  end
 
   apply_enabled_to_project(root, entry.enabled)
 
