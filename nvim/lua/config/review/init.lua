@@ -99,7 +99,7 @@ end
 local function render_item(item)
   local has_note = item.note and item.note ~= ""
   local comments = item.comments or {}
-  local lines = vim.list_extend({
+  local lines = {
     "# Review Hunk",
     "",
     string.format("- Repo: %s", item.repo),
@@ -108,13 +108,14 @@ local function render_item(item)
     string.format("- Scope: %s", item.scope),
     string.format("- Status: %s", item.status or "new"),
     string.format("- Stale: %s", item.stale and "yes" or "no"),
-  }, has_note and {
-    string.format("- Note: %s", item.note),
-    "",
-  } or {
-    "",
-  })
+  }
 
+  if has_note then
+    table.insert(lines, "- Note:")
+    util.append_text_lines(lines, item.note, "  ")
+  end
+
+  table.insert(lines, "")
   util.append_fenced_block(lines, "diff", item.patch)
 
   if #comments > 0 then
@@ -123,13 +124,13 @@ local function render_item(item)
       table.insert(
         lines,
         string.format(
-          "- %s %s [%s]: %s",
+          "- %s %s [%s]:",
           comment.id or "?",
           comment_range_label(comment),
-          comment.resolved and "resolved" or "unresolved",
-          comment.body or ""
+          comment.resolved and "resolved" or "unresolved"
         )
       )
+      util.append_text_lines(lines, comment.body or "", "  ")
     end
   end
 

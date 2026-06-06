@@ -43,7 +43,10 @@ local function annotation_text(item)
   local parts = { meta.label(status) }
 
   if item.note and item.note ~= "" then
-    table.insert(parts, item.note)
+    local note = vim.trim((item.note:gsub("%s+", " ")))
+    if note ~= "" then
+      table.insert(parts, note)
+    end
   end
 
   return table.concat(parts, " ")
