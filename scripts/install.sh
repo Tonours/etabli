@@ -136,6 +136,66 @@ prepend_asdf_shims() {
     fi
 }
 
+append_path_entry() {
+    local entry="$1"
+
+    case ":${PATH:-}:" in
+        *":$entry:"*) ;;
+        *)
+            if [ -n "${PATH:-}" ]; then
+                export PATH="$PATH:$entry"
+            else
+                export PATH="$entry"
+            fi
+            ;;
+    esac
+}
+
+ensure_local_bin_shell_path() {
+    local rcfile="$1"
+    local desired='case ":${PATH:-}:" in *":$HOME/.local/bin:"*) ;; *) export PATH="${PATH:+$PATH:}$HOME/.local/bin" ;; esac'
+    local legacy='export PATH="$HOME/.local/bin:$PATH"'
+    local tmp_file
+
+    if [ ! -f "$rcfile" ] && [ "$rcfile" != "$HOME/.zshrc" ]; then
+        return 0
+    fi
+
+    touch "$rcfile" 2>/dev/null || return 0
+
+    tmp_file="$(mktemp)" || return 0
+    if awk -v desired="$desired" -v legacy="$legacy" '
+        $0 == desired {
+            has_desired = 1
+            has_local_bin = 1
+            print
+            next
+        }
+        $0 == legacy {
+            if (!has_desired) {
+                print desired
+                has_desired = 1
+            }
+            has_local_bin = 1
+            next
+        }
+        /\$HOME\/\.local\/bin/ || /~\/\.local\/bin/ || /\/\.local\/bin/ {
+            has_local_bin = 1
+        }
+        { print }
+        END {
+            if (!has_local_bin && !has_desired) {
+                print desired
+            }
+        }
+    ' "$rcfile" > "$tmp_file" && cp "$tmp_file" "$rcfile"; then
+        rm -f "$tmp_file"
+    else
+        rm -f "$tmp_file"
+        return 0
+    fi
+}
+
 reshim_asdf_node() {
     if [ "${NODE_CMD[0]}" = "asdf" ]; then
         asdf reshim nodejs > /dev/null 2>&1 || true
@@ -393,6 +453,7 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
 if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     tmp_dir="$(mktemp -d)"
     trap 'rm -rf "$tmp_dir"' EXIT
+    original_path="$PATH"
 
     first_backup="$tmp_dir/settings.json.bak.${TIMESTAMP}"
     second_backup="$tmp_dir/settings.json.bak.${TIMESTAMP}.1"
@@ -401,6 +462,54 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     computed_backup="$(backup_path "$tmp_dir/settings.json")"
     if [ "$computed_backup" != "$second_backup" ]; then
         print_error "backup_path did not avoid an existing backup path"
+        exit 1
+    fi
+
+    PATH="/tmp/asdf-shims:/usr/bin"
+    append_path_entry "/tmp/local-bin"
+    if [ "$PATH" != "/tmp/asdf-shims:/usr/bin:/tmp/local-bin" ]; then
+        print_error "append_path_entry did not preserve existing PATH precedence"
+        exit 1
+    fi
+
+    append_path_entry "/tmp/local-bin"
+    if [ "$PATH" != "/tmp/asdf-shims:/usr/bin:/tmp/local-bin" ]; then
+        print_error "append_path_entry duplicated an existing PATH entry"
+        exit 1
+    fi
+
+    PATH=""
+    append_path_entry "/tmp/local-bin"
+    if [ "$PATH" != "/tmp/local-bin" ]; then
+        print_error "append_path_entry did not initialize an empty PATH"
+        exit 1
+    fi
+    PATH="$original_path"
+
+    rcfile="$tmp_dir/zshrc"
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' > "$rcfile"
+    ensure_local_bin_shell_path "$rcfile"
+    desired_rc_line='case ":${PATH:-}:" in *":$HOME/.local/bin:"*) ;; *) export PATH="${PATH:+$PATH:}$HOME/.local/bin" ;; esac'
+    if ! grep -Fxq "$desired_rc_line" "$rcfile"; then
+        print_error "ensure_local_bin_shell_path did not install the order-preserving PATH line"
+        exit 1
+    fi
+    if grep -Fxq 'export PATH="$HOME/.local/bin:$PATH"' "$rcfile"; then
+        print_error "ensure_local_bin_shell_path kept the legacy PATH-prepending line"
+        exit 1
+    fi
+
+    symlink_target="$tmp_dir/linked-zshrc-target"
+    symlink_rc="$tmp_dir/linked-zshrc"
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' > "$symlink_target"
+    ln -s "$symlink_target" "$symlink_rc"
+    ensure_local_bin_shell_path "$symlink_rc"
+    if [ ! -L "$symlink_rc" ]; then
+        print_error "ensure_local_bin_shell_path replaced an rcfile symlink"
+        exit 1
+    fi
+    if ! grep -Fxq "$desired_rc_line" "$symlink_target"; then
+        print_error "ensure_local_bin_shell_path did not update the symlink target"
         exit 1
     fi
 
@@ -879,8 +988,8 @@ print_step "Installing dev scripts..."
 
 mkdir -p ~/.local/bin
 
-# Export PATH immediately for current session
-export PATH="$HOME/.local/bin:$PATH"
+# Export PATH immediately for current session without taking precedence over asdf shims.
+append_path_entry "$HOME/.local/bin"
 
 # Install scripts using helper function
 install_script "dev-spawn" || true
@@ -890,11 +999,7 @@ install_script "deploy-harness" || true
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do
-    if [ -f "$rcfile" ] || [ "$rcfile" = ~/.zshrc ]; then
-        if ! grep -q '\$HOME/.local/bin' "$rcfile" 2>/dev/null; then
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rcfile" 2>/dev/null || true
-        fi
-    fi
+    ensure_local_bin_shell_path "$rcfile"
 done
 
 print_success "Dev scripts installed"
