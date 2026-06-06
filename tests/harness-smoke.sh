@@ -110,6 +110,16 @@ assert_not_exists "$PARENT_CONFLICT_PROJECT/AGENTS.md"
 assert_not_exists "$PARENT_CONFLICT_PROJECT/CLAUDE.md"
 assert_not_exists "$PARENT_CONFLICT_PROJECT/workflow"
 
+GITIGNORE_CONFLICT_PROJECT="$TMP_DIR/gitignore-conflict-project"
+mkdir -p "$GITIGNORE_CONFLICT_PROJECT/.gitignore"
+
+if "$SCRIPT" "$GITIGNORE_CONFLICT_PROJECT" >/dev/null 2>&1; then
+  printf 'expected .gitignore directory conflict deploy to fail\n' >&2
+  exit 1
+fi
+assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/AGENTS.md"
+assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/CLAUDE.md"
+
 "$SCRIPT" "$PARENT_CONFLICT_PROJECT" --force >/dev/null
 assert_file "$PARENT_CONFLICT_PROJECT/docs/agent-harness.md"
 if ! ls "$PARENT_CONFLICT_PROJECT"/docs.bak.* >/dev/null 2>&1; then
@@ -117,10 +127,25 @@ if ! ls "$PARENT_CONFLICT_PROJECT"/docs.bak.* >/dev/null 2>&1; then
   exit 1
 fi
 
+"$SCRIPT" "$GITIGNORE_CONFLICT_PROJECT" --force >/dev/null
+assert_file "$GITIGNORE_CONFLICT_PROJECT/.gitignore"
+assert_contains "$GITIGNORE_CONFLICT_PROJECT/.gitignore" "PLAN.md"
+if ! ls "$GITIGNORE_CONFLICT_PROJECT"/.gitignore.bak.* >/dev/null 2>&1; then
+  printf 'expected .gitignore backup after --force directory conflict\n' >&2
+  exit 1
+fi
+
 "$SCRIPT" "$CONFLICT_PROJECT" --force >/dev/null
 assert_contains "$CONFLICT_PROJECT/AGENTS.md" "project harness"
 if ! ls "$CONFLICT_PROJECT"/AGENTS.md.bak.* >/dev/null 2>&1; then
   printf 'expected AGENTS.md backup after --force\n' >&2
+  exit 1
+fi
+
+printf 'custom instructions again\n' > "$CONFLICT_PROJECT/AGENTS.md"
+"$SCRIPT" "$CONFLICT_PROJECT" --force >/dev/null
+if [ "$(find "$CONFLICT_PROJECT" -maxdepth 1 -name 'AGENTS.md.bak.*' | wc -l | tr -d ' ')" -lt 2 ]; then
+  printf 'expected repeated --force deploys to keep distinct AGENTS.md backups\n' >&2
   exit 1
 fi
 

@@ -48,8 +48,11 @@ local function action_instructions(action)
       "Prioritize correctness bugs, regressions, security issues, missing validation, missing tests, and maintainability risks that affect behavior.",
       "Treat existing review comments as reviewer context; do not duplicate resolved conversations unless the issue still exists.",
       "Ignore style nits unless they affect correctness or future maintenance.",
+      "Only report findings grounded in the supplied diff. Verify every reported line or range exists in the supplied diff before you include it.",
       "Findings must come first. For each finding, use severity high|medium|low, file, line or range, why it matters, and the smallest concrete fix.",
+      "For each finding, include review_comment: one concise inline-ready comment suitable for a GitHub-style review thread.",
       "Then add open questions or assumptions only when they change the decision.",
+      "If you find no actionable issue, write exactly: No findings.",
       "If human arbitration is needed, include human_checkpoint: yes and the reason.",
       "End with exactly one verdict: GO, GO WITH NOTES, or BLOCK.",
     }
@@ -82,8 +85,11 @@ local function batch_action_instructions(action)
       "Check whether changes across hunks are semantically consistent; call out missing paired edits when one hunk implies another should exist.",
       "Treat existing review comments as reviewer context; do not duplicate resolved conversations unless the issue still exists.",
       "Ignore style nits unless they affect correctness or future maintenance.",
+      "Only report findings grounded in the supplied hunks. Verify every reported line or range exists in the supplied diff before you include it.",
       "Findings must come first, grouped by severity. For each finding, include severity high|medium|low, file, hunk number, line or range if inferable, why it matters, and the smallest concrete fix.",
+      "For each finding, include review_comment: one concise inline-ready comment suitable for a GitHub-style review thread.",
       "Then add open questions or assumptions only when they change the decision.",
+      "If you find no actionable issue, write exactly: No findings.",
       "If human arbitration is needed, include human_checkpoint: yes and the reason.",
       "End with exactly one verdict: GO, GO WITH NOTES, or BLOCK.",
     }

@@ -7,7 +7,8 @@ local review = require("config.review")
 local state = require("config.review.state")
 
 local function fail(message)
-  error(message, 0)
+  vim.api.nvim_err_writeln("review smoke failed: " .. message)
+  vim.cmd("cquit 1")
 end
 
 local function assert_true(condition, message)
@@ -242,11 +243,14 @@ assert_true(review_prompt:match("Do not edit files") ~= nil, "review prompt shou
 assert_true(review_prompt:match("adversarial review") ~= nil, "review prompt should request adversarial review")
 assert_true(review_prompt:match("human_checkpoint") ~= nil, "review prompt should include the human checkpoint trigger")
 assert_true(review_prompt:match("Findings must come first") ~= nil, "review prompt should enforce findings-first output")
+assert_true(review_prompt:match("Verify every reported line or range exists in the supplied diff") ~= nil, "review prompt should guard diff coordinates")
+assert_true(review_prompt:match("review_comment") ~= nil, "review prompt should request inline-ready comment text")
 assert_true(batch_prompt:match("Hunk 1:") ~= nil, "batch prompt should label hunks")
 assert_true(batch_prompt:match("Hunk count: 2") ~= nil, "batch prompt should include the hunk count")
 assert_true(batch_prompt:match("Selection: review status: needs%-rework") ~= nil, "batch prompt should include the selection label")
 assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch review prompt should review the changeset")
 assert_true(batch_review_prompt:match("GO WITH NOTES") ~= nil, "batch review prompt should include review verdicts")
+assert_true(batch_review_prompt:match("No findings") ~= nil, "batch review prompt should specify the no-findings path")
 assert_true(
   batch_review_prompt:match("semantically consistent") ~= nil,
   "batch review prompt should request cross-hunk consistency checks"
@@ -254,17 +258,56 @@ assert_true(
 
 local claude_argv = providers.launch_argv("claude", prompt_a)
 local pi_argv = providers.launch_argv("pi", prompt_a)
+local single_line_spec = providers.launch_spec("claude", "single line prompt")
+local multiline_spec = providers.launch_spec("claude", prompt_a)
 local long_prompt = string.rep("review prompt line\n", 3000)
 local long_spec = providers.launch_spec("claude", long_prompt)
 
 assert_true(claude_argv[1] == "claude", "Claude launch argv should use the claude executable")
-assert_true(claude_argv[2] == prompt_a, "Claude launch argv should pass the full prompt directly")
+assert_true(claude_argv[2] == nil, "Claude multiline launch argv should avoid leaking prompts through process args")
 assert_true(pi_argv[1] == "pi", "Pi launch argv should use the pi executable")
-assert_true(pi_argv[2] == prompt_a, "Pi launch argv should pass the full prompt directly")
+assert_true(pi_argv[2] == nil, "Pi multiline launch argv should avoid leaking prompts through process args")
+assert_true(single_line_spec.mode == "argv", "single-line prompt dispatch can use argv")
+assert_true(single_line_spec.command[2] == "single line prompt", "single-line prompt dispatch should pass the prompt as argv")
+assert_true(multiline_spec.mode == "terminal-paste", "multiline prompts should use terminal paste")
+assert_true(multiline_spec.input == prompt_a, "multiline prompt dispatch should queue the prompt as terminal input")
 assert_true(long_spec.mode == "terminal-paste", "large prompts should avoid direct argv dispatch")
 assert_true(long_spec.command[1] == "claude", "large prompt dispatch should still launch Claude")
 assert_true(long_spec.command[2] == nil, "large prompt dispatch should not pass the full prompt as argv")
 assert_true(long_spec.input == long_prompt, "large prompt dispatch should queue the full prompt as terminal input")
+
+local second_file = repo .. "/second.txt"
+vim.fn.writefile({ "alpha", "beta", "gamma" }, second_file)
+git(repo, { "add", "second.txt" })
+git(repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "add second file",
+})
+vim.fn.writefile({ "alpha", "beta changed", "gamma" }, second_file)
+
+vim.cmd.edit(vim.fn.fnameescape(repo .. "/demo.txt"))
+vim.cmd.vsplit(vim.fn.fnameescape(second_file))
+diff.clear_cache()
+
+local original_collect_all = diff.collect_all
+local collect_all_calls = 0
+diff.collect_all = function(root, opts)
+  collect_all_calls = collect_all_calls + 1
+  return original_collect_all(root, opts)
+end
+
+local ok_refresh_repo, refresh_repo_err = pcall(function()
+  annotations.refresh_repo(repo_root)
+end)
+diff.collect_all = original_collect_all
+
+assert_true(ok_refresh_repo, refresh_repo_err or "refresh_repo failed")
+assert_true(collect_all_calls == 1, "refresh_repo should collect git diff once per repo refresh")
 
 state.clear(context)
 print("review smoke ok")

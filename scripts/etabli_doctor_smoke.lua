@@ -2,7 +2,8 @@ local copilot = require("config.copilot")
 local doctor = require("config.doctor")
 
 local function fail(message)
-  error(message, 0)
+  vim.api.nvim_err_writeln("etabli doctor smoke failed: " .. message)
+  vim.cmd("cquit 1")
 end
 
 local function assert_true(condition, message)

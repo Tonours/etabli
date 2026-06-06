@@ -7,6 +7,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 DRY_RUN=0
 FORCE=0
 TARGET_INPUT="."
+TARGET_SET=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
 WRITTEN=0
@@ -63,7 +64,13 @@ while [ "$#" -gt 0 ]; do
       exit 2
       ;;
     *)
+      if [ "$TARGET_SET" -eq 1 ]; then
+        printf 'multiple target directories provided: %s\n' "$1" >&2
+        usage >&2
+        exit 2
+      fi
       TARGET_INPUT="$1"
+      TARGET_SET=1
       ;;
   esac
   shift
@@ -73,6 +80,19 @@ status_line() {
   local status="$1"
   local message="$2"
   printf '%-9s %s\n' "$status" "$message"
+}
+
+backup_path() {
+  local path="$1"
+  local candidate="$path.bak.$TIMESTAMP"
+  local index=1
+
+  while [ -e "$candidate" ]; do
+    candidate="$path.bak.$TIMESTAMP.$index"
+    index=$((index + 1))
+  done
+
+  printf '%s\n' "$candidate"
 }
 
 target_dir() {
@@ -97,6 +117,11 @@ preflight_conflicts() {
 
   if [ "$FORCE" -eq 1 ]; then
     return 0
+  fi
+
+  if [ -e "$TARGET_DIR/.gitignore" ] && [ ! -f "$TARGET_DIR/.gitignore" ]; then
+    status_line CONFLICT ".gitignore exists but is not a file"
+    CONFLICTS=$((CONFLICTS + 1))
   fi
 
   for entry in "${FILES[@]}"; do
@@ -129,6 +154,7 @@ write_file() {
   local relative_path="$2"
   local destination_path="$TARGET_DIR/$relative_path"
   local destination_dir
+  local backup
 
   if [ ! -f "$source_path" ]; then
     status_line MISSING "$source_path"
@@ -151,8 +177,9 @@ write_file() {
       return 0
     fi
 
-    mv "$destination_dir" "$destination_dir.bak.$TIMESTAMP"
-    status_line BACKUP "$(dirname "$relative_path").bak.$TIMESTAMP"
+    backup="$(backup_path "$destination_dir")"
+    mv "$destination_dir" "$backup"
+    status_line BACKUP "${backup#$TARGET_DIR/}"
   fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
@@ -166,8 +193,9 @@ write_file() {
   mkdir -p "$destination_dir"
 
   if [ -e "$destination_path" ]; then
-    mv "$destination_path" "$destination_path.bak.$TIMESTAMP"
-    status_line BACKUP "$relative_path.bak.$TIMESTAMP"
+    backup="$(backup_path "$destination_path")"
+    mv "$destination_path" "$backup"
+    status_line BACKUP "${backup#$TARGET_DIR/}"
   fi
 
   cp "$source_path" "$destination_path"
@@ -177,6 +205,7 @@ write_file() {
 
 ensure_plan_gitignore() {
   local gitignore_path="$TARGET_DIR/.gitignore"
+  local backup
 
   if [ -f "$gitignore_path" ] && grep -Fxq "PLAN.md" "$gitignore_path"; then
     status_line OK ".gitignore contains PLAN.md"
@@ -185,8 +214,17 @@ ensure_plan_gitignore() {
   fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -e "$gitignore_path" ] && [ ! -f "$gitignore_path" ]; then
+      status_line WOULD_BACKUP ".gitignore"
+    fi
     status_line WOULD_WRITE ".gitignore PLAN.md entry"
     return 0
+  fi
+
+  if [ -e "$gitignore_path" ] && [ ! -f "$gitignore_path" ]; then
+    backup="$(backup_path "$gitignore_path")"
+    mv "$gitignore_path" "$backup"
+    status_line BACKUP "${backup#$TARGET_DIR/}"
   fi
 
   if [ -f "$gitignore_path" ] && [ -s "$gitignore_path" ]; then

@@ -53,6 +53,15 @@ local function write_file(path, lines)
   vim.fn.writefile(lines, path)
 end
 
+local function git(repo, args)
+  local command = vim.list_extend({ "git", "-C", repo }, args)
+  local result = vim.system(command, { text = true }):wait()
+  if result.code ~= 0 then
+    error(table.concat(command, " ") .. "\n" .. (result.stderr or ""), 0)
+  end
+  return vim.trim(result.stdout or "")
+end
+
 local function setup_tab_fixture()
   local fixture_root = vim.fs.joinpath(tmp, "redraw")
   local paths = {
@@ -196,15 +205,84 @@ local function measure_focus()
   report("focus settle", 3, settle_total, settle_avg, "includes deferred focus handlers")
 end
 
+local function measure_review()
+  local review_root = vim.fs.joinpath(tmp, "review-project")
+  local files = {
+    vim.fs.joinpath(review_root, "src", "alpha.ts"),
+    vim.fs.joinpath(review_root, "src", "beta.ts"),
+    vim.fs.joinpath(review_root, "docs", "notes.md"),
+  }
+
+  for index, path in ipairs(files) do
+    write_file(path, {
+      string.format("export const value%d = %d", index, index),
+      string.format("export const next%d = %d", index, index + 1),
+      "",
+    })
+  end
+
+  git(review_root, { "init" })
+  git(review_root, { "add", "." })
+  git(review_root, {
+    "-c",
+    "user.name=Nvim Perf",
+    "-c",
+    "user.email=nvim-perf@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+
+  for index, path in ipairs(files) do
+    write_file(path, {
+      string.format("export const value%d = %d", index, index * 10),
+      string.format("export const next%d = %d", index, index + 1),
+      "",
+    })
+  end
+
+  local diff = require("config.review.diff")
+  local state = require("config.review.state")
+  local annotations = require("config.review.annotations")
+  local context = assert(state.context_for_repo(review_root))
+  local items = assert(diff.collect_all(review_root))
+
+  for _, item in ipairs(items) do
+    assert(state.set_status(context, item, "needs-rework"))
+  end
+
+  vim.cmd.cd(review_root)
+  vim.cmd.edit(vim.fn.fnameescape(files[1]))
+  vim.cmd.vsplit(vim.fn.fnameescape(files[2]))
+  vim.cmd.tabnew()
+  vim.cmd.edit(vim.fn.fnameescape(files[3]))
+
+  diff.clear_cache()
+
+  local cold_total, cold_avg = measure(1, function()
+    annotations.refresh_repo(review_root)
+  end)
+  report("review refresh cold", 1, cold_total, cold_avg, "3 buffers / 3 files")
+
+  local warm_total, warm_avg = measure(8, function()
+    annotations.refresh_repo(review_root)
+  end)
+  report("review refresh warm", 8, warm_total, warm_avg, "cached diff / grouped render")
+
+  state.clear(context)
+end
+
 print(string.format("Neovim runtime perf baseline for %s", root))
 sleep(160)
 measure_redraw()
 measure_save()
+measure_review()
 measure_focus()
 LUA
 }
 
 require_tool nvim
+require_tool git
 write_profile_lua
 cd "$ROOT_DIR"
 

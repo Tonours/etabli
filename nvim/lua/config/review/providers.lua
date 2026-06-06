@@ -101,7 +101,9 @@ local function provider_for(name)
 end
 
 local function launch_spec(provider, prompt)
-  if #prompt <= max_direct_prompt_bytes then
+  local has_multiline_prompt = prompt:find("\n", 1, true) ~= nil
+
+  if not has_multiline_prompt and #prompt <= max_direct_prompt_bytes then
     return {
       command = { provider.command, prompt },
       input = nil,
