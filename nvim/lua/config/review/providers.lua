@@ -15,7 +15,6 @@ local providers = {
 }
 
 local overlay_border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }
-local max_direct_prompt_bytes = 32000
 local terminal_paste_delay_ms = 350
 
 local function overlay_geometry()
@@ -101,16 +100,6 @@ local function provider_for(name)
 end
 
 local function launch_spec(provider, prompt)
-  local has_multiline_prompt = prompt:find("\n", 1, true) ~= nil
-
-  if not has_multiline_prompt and #prompt <= max_direct_prompt_bytes then
-    return {
-      command = { provider.command, prompt },
-      input = nil,
-      mode = "argv",
-    }
-  end
-
   return {
     command = { provider.command },
     input = prompt,
