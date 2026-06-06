@@ -878,6 +878,28 @@ assert_true(
   "terminal paste input should neutralize unsafe control characters while preserving readable whitespace"
 )
 
+local original_review_signature_for_dispatch = review.repo_change_signature
+local prompt_only_signature_calls = 0
+review.repo_change_signature = function(root)
+  prompt_only_signature_calls = prompt_only_signature_calls + 1
+  return original_review_signature_for_dispatch(root)
+end
+
+local ok_prompt_only_dispatch, prompt_only_dispatch_err = pcall(function()
+  providers.dispatch("claude", matched, {
+    action = "review",
+    cwd = repo_root,
+    open_terminal = false,
+  })
+end)
+review.repo_change_signature = original_review_signature_for_dispatch
+
+assert_true(ok_prompt_only_dispatch, prompt_only_dispatch_err or "prompt-only provider dispatch failed")
+assert_true(
+  prompt_only_signature_calls == 0,
+  "prompt-only provider dispatch should skip repo change signatures"
+)
+
 local fenced_file = repo .. "/fenced.md"
 vim.fn.writefile({ "before" }, fenced_file)
 git(repo, { "add", "fenced.md" })
