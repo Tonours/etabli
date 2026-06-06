@@ -20,6 +20,7 @@ readonly PI_CORE_SKILLS=(
     "caveman"
     "grill-me"
 )
+readonly TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 NODE_CMD=(node)
 NPM_CMD=(npm)
 
@@ -36,6 +37,37 @@ print_step() { printf "${BLUE}[*]${NC} %s\n" "$1"; }
 print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
+
+backup_path() {
+    local path="$1"
+    local candidate="${path}.bak.${TIMESTAMP}"
+    local index=1
+
+    while [ -e "$candidate" ]; do
+        candidate="${path}.bak.${TIMESTAMP}.${index}"
+        index=$((index + 1))
+    done
+
+    printf '%s\n' "$candidate"
+}
+
+backup_file() {
+    local path="$1"
+    local backup
+
+    backup="$(backup_path "$path")"
+    cp "$path" "$backup"
+    print_warning "Existing file backed up to $backup"
+}
+
+backup_path_move() {
+    local path="$1"
+    local backup
+
+    backup="$(backup_path "$path")"
+    mv "$path" "$backup"
+    print_warning "Existing path moved to $backup"
+}
 
 version_at_least() {
     local current="$1"
@@ -358,6 +390,24 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
     done
 }
 
+if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' EXIT
+
+    first_backup="$tmp_dir/settings.json.bak.${TIMESTAMP}"
+    second_backup="$tmp_dir/settings.json.bak.${TIMESTAMP}.1"
+    : > "$first_backup"
+
+    computed_backup="$(backup_path "$tmp_dir/settings.json")"
+    if [ "$computed_backup" != "$second_backup" ]; then
+        print_error "backup_path did not avoid an existing backup path"
+        exit 1
+    fi
+
+    printf 'install helper smoke test: ok\n'
+    exit 0
+fi
+
 # ============================================================================
 # VALIDATIONS
 # ============================================================================
@@ -588,9 +638,7 @@ if [ -d "$REPO_DIR/nvim" ]; then
 
     if [ -e "$NVIM_LINK" ] || [ -L "$NVIM_LINK" ]; then
         if [ "$CURRENT_LINK_TARGET" != "$NVIM_TARGET" ]; then
-            NVIM_BACKUP="$HOME/.config/nvim.bak.$(date +%Y%m%d-%H%M%S)"
-            mv "$NVIM_LINK" "$NVIM_BACKUP"
-            print_warning "Existing Neovim config moved to $NVIM_BACKUP"
+            backup_path_move "$NVIM_LINK"
         fi
     fi
 
@@ -611,7 +659,7 @@ print_step "Setting up Tmux config..."
 
 # Backup existing config (skip if already a symlink)
 if [ -f ~/.tmux.conf ] && [ ! -L ~/.tmux.conf ]; then
-    cp ~/.tmux.conf ~/.tmux.conf.bak
+    backup_file "$HOME/.tmux.conf"
 fi
 
 # Symlink config
@@ -642,7 +690,7 @@ GHOSTTY_CONFIG_TARGET="$REPO_DIR/ghostty/config"
 if [ -f "$GHOSTTY_CONFIG_TARGET" ]; then
     mkdir -p "$GHOSTTY_CONFIG_DIR"
     if [ -f "$GHOSTTY_CONFIG_LINK" ] && [ ! -L "$GHOSTTY_CONFIG_LINK" ]; then
-        cp "$GHOSTTY_CONFIG_LINK" "$GHOSTTY_CONFIG_LINK.bak"
+        backup_file "$GHOSTTY_CONFIG_LINK"
     fi
     if ln -sf "$GHOSTTY_CONFIG_TARGET" "$GHOSTTY_CONFIG_LINK"; then
         print_success "Ghostty config linked"
@@ -669,7 +717,7 @@ fi
 # models.json (backup existing if not a symlink)
 if [ -f "$REPO_DIR/pi/models.json" ]; then
     if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then
-        cp ~/.pi/agent/models.json ~/.pi/agent/models.json.bak
+        backup_file "$HOME/.pi/agent/models.json"
     fi
     ln -sf "$REPO_DIR/pi/models.json" ~/.pi/agent/models.json
     print_success "Pi models.json linked"
@@ -681,10 +729,10 @@ if [ -d "$REPO_DIR/pi/extensions" ]; then
     if [ -L ~/.pi/extensions ]; then
         rm ~/.pi/extensions
     elif [ -d ~/.pi/extensions ]; then
-        mv ~/.pi/extensions ~/.pi/extensions.bak
+        backup_path_move "$HOME/.pi/extensions"
     fi
     if [ -d ~/.pi/agent/extensions ] && [ ! -L ~/.pi/agent/extensions ]; then
-        mv ~/.pi/agent/extensions ~/.pi/agent/extensions.bak
+        backup_path_move "$HOME/.pi/agent/extensions"
     fi
     ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/agent/extensions
     print_success "Pi extensions linked"
@@ -693,7 +741,7 @@ fi
 
 if [ -d "$REPO_DIR/pi/themes" ]; then
     if [ -d ~/.pi/themes ] && [ ! -L ~/.pi/themes ]; then
-        mv ~/.pi/themes ~/.pi/themes.bak
+        backup_path_move "$HOME/.pi/themes"
     fi
     ln -sfn "$REPO_DIR/pi/themes" ~/.pi/themes
 fi
@@ -701,7 +749,7 @@ fi
 # settings.json (root + agent)
 if [ -f "$REPO_DIR/pi/settings.json" ]; then
     if [ -f ~/.pi/settings.json ] && [ ! -L ~/.pi/settings.json ]; then
-        cp ~/.pi/settings.json ~/.pi/settings.json.bak
+        backup_file "$HOME/.pi/settings.json"
     fi
     ln -sf "$REPO_DIR/pi/settings.json" ~/.pi/settings.json
     print_success "Pi settings.json linked"
