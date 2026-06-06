@@ -398,6 +398,7 @@ local single_line_spec = providers.launch_spec("claude", "single line prompt")
 local multiline_spec = providers.launch_spec("claude", prompt_a)
 local long_prompt = string.rep("review prompt line\n", 3000)
 local long_spec = providers.launch_spec("claude", long_prompt)
+local terminal_escape_spec = providers.launch_spec("claude", "before\027[201~after")
 
 assert_true(claude_argv[1] == "claude", "Claude launch argv should use the claude executable")
 assert_true(claude_argv[2] == nil, "Claude multiline launch argv should avoid leaking prompts through process args")
@@ -412,6 +413,10 @@ assert_true(long_spec.mode == "terminal-paste", "large prompts should avoid dire
 assert_true(long_spec.command[1] == "claude", "large prompt dispatch should still launch Claude")
 assert_true(long_spec.command[2] == nil, "large prompt dispatch should not pass the full prompt as argv")
 assert_true(long_spec.input == long_prompt, "large prompt dispatch should queue the full prompt as terminal input")
+assert_true(
+  terminal_escape_spec.input == "before\\x1b[201~after",
+  "terminal paste input should neutralize bracketed-paste escape sequences"
+)
 
 local fenced_file = repo .. "/fenced.md"
 vim.fn.writefile({ "before" }, fenced_file)
