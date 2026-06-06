@@ -101,4 +101,40 @@ describe("filter-output", () => {
       { message: "Redacted 1 secret from output", level: "warning" },
     ]);
   });
+
+  test("allows example env file command output", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
+        input: { command: "cat .env.example" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.ui.notifications).toEqual([]);
+  });
+
+  test("blocks local env file command output", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
+        input: { command: "cat .env.local" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
 });

@@ -121,8 +121,9 @@ export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   // Sensitive bash commands — detect when bash reads sensitive files
   // ---------------------------------------------------------------------------
+  const readCommandPattern = /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+([^\n|;]+)/gi;
+  const sensitiveEnvFilePattern = /(?:^|\/)\.env(?:$|\.(?!example$|sample$|template$)[^/\s'"|;]+)/i;
   const sensitiveCommandPatterns: RegExp[] = [
-    /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*\.env\b/,
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*auth\.json\b/i,
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*\.token\b/i,
     /\b(?:cat|less|more|head|tail|bat|sed|awk)\s+[^\s|;]*secrets?\.\w+/i,
@@ -172,8 +173,24 @@ export default function (pi: ExtensionAPI) {
     return sensitiveFiles.some((p) => p.test(filePath));
   }
 
+  function readsSensitiveEnvFile(command: string): boolean {
+    readCommandPattern.lastIndex = 0;
+
+    for (const match of command.matchAll(readCommandPattern)) {
+      const args = match[1] ?? "";
+      for (const token of args.split(/\s+/)) {
+        const normalized = token.replace(/^['"]|['"]$/g, "");
+        if (sensitiveEnvFilePattern.test(normalized)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   function isSensitiveCommand(command: string): boolean {
-    return sensitiveCommandPatterns.some((p) => p.test(command));
+    return readsSensitiveEnvFile(command) || sensitiveCommandPatterns.some((p) => p.test(command));
   }
 
   // ---------------------------------------------------------------------------
