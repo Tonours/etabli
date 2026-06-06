@@ -64,12 +64,20 @@ function M.diff_fence_for(text)
   return string.rep("`", math.max(3, longest + 1))
 end
 
+function M.append_text_lines(lines, text, prefix)
+  local line_prefix = prefix or ""
+
+  for _, line in ipairs(vim.split(text or "", "\n", { plain = true })) do
+    table.insert(lines, line_prefix .. line)
+  end
+end
+
 function M.append_fenced_block(lines, language, body)
   local fence = M.diff_fence_for(body)
   local suffix = language and language ~= "" and language or ""
 
   table.insert(lines, fence .. suffix)
-  vim.list_extend(lines, vim.split(body or "", "\n", { plain = true }))
+  M.append_text_lines(lines, body)
   table.insert(lines, fence)
 end
 

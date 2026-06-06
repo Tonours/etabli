@@ -2,6 +2,7 @@ local M = {}
 
 local meta = require("config.review.meta")
 local telescope_loader = require("config.telescope")
+local util = require("config.review.util")
 
 local function summarize(items)
   local counts = {
@@ -57,7 +58,8 @@ local function render_preview(item)
   }
 
   if item.note and item.note ~= "" then
-    table.insert(lines, string.format("Note:   %s", item.note))
+    table.insert(lines, "Note:")
+    util.append_text_lines(lines, item.note, "  ")
   end
 
   if #comments > 0 then
@@ -66,13 +68,13 @@ local function render_preview(item)
       table.insert(
         lines,
         string.format(
-          "  - %s %s [%s]: %s",
+          "  - %s %s [%s]:",
           comment.id or "?",
           comment_range_label(comment),
-          comment.resolved and "resolved" or "unresolved",
-          comment.body or ""
+          comment.resolved and "resolved" or "unresolved"
         )
       )
+      util.append_text_lines(lines, comment.body or "", "    ")
     end
   end
 

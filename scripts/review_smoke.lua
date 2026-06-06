@@ -255,6 +255,7 @@ local annotation_marks = vim.api.nvim_buf_get_extmarks(0, annotations.namespace(
 assert_true(#annotation_marks > 0, "expected saved review note to render as an inline annotation")
 local saw_comment_lines = false
 local saw_summary_text = false
+local saw_normalized_summary_note = false
 for _, mark in ipairs(annotation_marks) do
   local details = mark[4] or {}
   if details.virt_lines ~= nil then
@@ -262,10 +263,20 @@ for _, mark in ipairs(annotation_marks) do
   end
   if details.virt_text ~= nil then
     saw_summary_text = true
+    local summary_parts = {}
+    for _, chunk in ipairs(details.virt_text) do
+      table.insert(summary_parts, chunk[1] or "")
+    end
+    local summary_text = table.concat(summary_parts, "")
+    assert_true(summary_text:find("\n", 1, true) == nil, "inline review summary should stay on one line")
+    if summary_text:find("Please simplify this change. Keep the guard explicit.", 1, true) ~= nil then
+      saw_normalized_summary_note = true
+    end
   end
 end
 assert_true(saw_comment_lines, "expected review comments to render as virtual lines")
 assert_true(saw_summary_text, "expected hunk-level note/status to render with comments")
+assert_true(saw_normalized_summary_note, "expected multiline note to be normalized in the inline summary")
 
 vim.api.nvim_win_set_cursor(0, { 9, 0 })
 local original_select = vim.ui.select
@@ -292,6 +303,20 @@ end
 assert_true(matched.comments[1].resolved == true, "resolve flow should resolve the selected comment")
 assert_true(matched.comments[2].resolved == false, "resolve flow should leave the other comment unresolved")
 assert_true(matched.comments[3].resolved == false, "resolve flow should leave the range comment unresolved")
+
+local ok_show_multiline, show_multiline_err = pcall(function()
+  review.show_current_hunk()
+end)
+assert_true(ok_show_multiline, show_multiline_err or "show current hunk with multiline review state failed")
+local multiline_scratch_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+assert_true(
+  multiline_scratch_text:find("- Note:\n  Please simplify this change.\n  Keep the guard explicit.", 1, true) ~= nil,
+  "review hunk scratch should render multiline notes as separate lines"
+)
+assert_true(
+  multiline_scratch_text:find("  Second line from a multiline comment.", 1, true) ~= nil,
+  "review hunk scratch should render multiline comments as separate lines"
+)
 
 working_lines[9] = "nine changed again"
 working_lines[10] = "ten changed again"
