@@ -67,8 +67,22 @@ else
 fi
 
 CLAUDE_BIN="$(claude_bin)"
+if [ -n "$CLAUDE_BIN" ]; then
+  claude_version="$(
+    run_bounded 20 "$CLAUDE_BIN" --version 2>&1
+  )"
+  claude_version="$(printf '%s' "$claude_version" | trim_output)"
+  if [ -z "$claude_version" ]; then
+    printf 'unexpected empty Claude Code --version output\n' >&2
+    exit 1
+  fi
+  printf 'Claude Code binary smoke: ok\n'
+else
+  printf 'Claude Code binary smoke: skipped (claude not found)\n'
+fi
+
 if [ "${RUN_CLAUDE_PRINT_SMOKE:-}" != "1" ]; then
-  printf 'Claude Code harness smoke: skipped (set RUN_CLAUDE_PRINT_SMOKE=1 to run claude --print)\n'
+  printf 'Claude Code print smoke: skipped (set RUN_CLAUDE_PRINT_SMOKE=1 to run claude --print)\n'
 elif [ -n "$CLAUDE_BIN" ]; then
   claude_output="$(
     cd "$PROJECT"
@@ -83,9 +97,9 @@ elif [ -n "$CLAUDE_BIN" ]; then
       exit 1
       ;;
   esac
-  printf 'Claude Code harness smoke: ok\n'
+  printf 'Claude Code print smoke: ok\n'
 else
-  printf 'Claude Code harness smoke: skipped (claude not found)\n'
+  printf 'Claude Code print smoke: skipped (claude not found)\n'
 fi
 
 printf 'harness CLI smoke test: ok\n'

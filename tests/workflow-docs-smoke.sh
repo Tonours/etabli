@@ -15,7 +15,7 @@ assert_contains() {
     local path="$1"
     local needle="$2"
 
-    grep -Fq "$needle" "$path" || {
+    grep -Fq -- "$needle" "$path" || {
         printf 'expected %s in %s\n' "$needle" "$path" >&2
         exit 1
     }
@@ -25,7 +25,7 @@ assert_not_contains() {
     local path="$1"
     local needle="$2"
 
-    if grep -Fq "$needle" "$path"; then
+    if grep -Fq -- "$needle" "$path"; then
         printf 'did not expect %s in %s\n' "$needle" "$path" >&2
         exit 1
     fi
@@ -59,6 +59,7 @@ assert_contains "$ROOT_DIR/README.md" 'tests/install-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/nvim-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_CLAUDE_PRINT_SMOKE=1'
+assert_contains "$ROOT_DIR/README.md" 'claude --version'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'does not install `nvm`'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
@@ -89,6 +90,8 @@ assert_not_contains "$ROOT_DIR/pi/package.json" '@mariozechner/pi-coding-agent'
 assert_contains "$ROOT_DIR/pi/extensions/filter-output.ts" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/pi/extensions/rtk.ts" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'RUN_CLAUDE_PRINT_SMOKE'
+assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" 'Claude Code binary smoke'
+assert_contains "$ROOT_DIR/tests/harness-cli-smoke.sh" '--version'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'sanitized bracketed terminal paste input'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'instead of using Claude `-p` / `--print`'
 assert_not_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'Single-line prompts can be passed'

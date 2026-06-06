@@ -21,7 +21,7 @@ assert_contains() {
   local path="$1"
   local needle="$2"
 
-  grep -Fq "$needle" "$path" || {
+  grep -Fq -- "$needle" "$path" || {
     printf 'expected %s in %s\n' "$needle" "$path" >&2
     exit 1
   }
