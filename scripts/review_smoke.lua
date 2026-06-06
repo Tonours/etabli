@@ -228,6 +228,17 @@ assert_true(tabbed_items[1].path == tabbed_name, "tabbed file path should be dec
 assert_true(tabbed_items[1].old_path == tabbed_name, "old tabbed file path should be decoded from Git quoting")
 assert_true(tabbed_items[1].new_path == tabbed_name, "new tabbed file path should be decoded from Git quoting")
 
+local untracked_repo = vim.fn.tempname()
+vim.fn.mkdir(untracked_repo, "p")
+git(untracked_repo, { "init" })
+local untracked_name = "new file.txt"
+vim.fn.writefile({ "one", "two" }, untracked_repo .. "/" .. untracked_name)
+local untracked_items = diff.collect_scope(untracked_repo, "unstaged")
+assert_true(untracked_items ~= nil and #untracked_items == 1, "expected one hunk for untracked file path")
+assert_true(untracked_items[1].added == true, "untracked file should be marked as an added review hunk")
+assert_true(untracked_items[1].old_path == "/dev/null", "untracked old path should be /dev/null")
+assert_true(untracked_items[1].path == untracked_name, "untracked file path should be reviewable before git add")
+
 local signature_repo = vim.fn.tempname()
 vim.fn.mkdir(signature_repo, "p")
 git(signature_repo, { "init" })

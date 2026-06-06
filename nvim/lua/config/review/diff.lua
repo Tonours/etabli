@@ -92,8 +92,10 @@ local function get_cached_git_root_error(path)
   return cached
 end
 
-local function run_git(root, args)
-  local cache_key = root .. "#" .. table.concat(args, "#")
+local function run_git(root, args, opts)
+  local options = opts or {}
+  local ok_codes = options.ok_codes or { [0] = true }
+  local cache_key = root .. "\0" .. table.concat(args, "\0")
   local now = vim.loop.now()
 
   -- Check cache first
@@ -104,7 +106,7 @@ local function run_git(root, args)
   local command = vim.list_extend({ "git", "-C", root, "-c", "core.quotePath=false" }, args)
   local result = vim.system(command, { text = true }):wait()
 
-  if result.code ~= 0 then
+  if not ok_codes[result.code] then
     local stderr = vim.trim(result.stderr or "")
     return nil, stderr ~= "" and stderr or "git command failed"
   end
@@ -115,6 +117,30 @@ local function run_git(root, args)
   diff_cache_time[cache_key] = now
 
   return output, nil
+end
+
+local function nul_split(text)
+  local items = {}
+
+  for value in tostring(text or ""):gmatch("([^%z]+)%z") do
+    table.insert(items, value)
+  end
+
+  return items
+end
+
+local function sort_items(items)
+  table.sort(items, function(left, right)
+    if left.path == right.path then
+      if left.scope == right.scope then
+        return left.line_start < right.line_start
+      end
+
+      return left.scope < right.scope
+    end
+
+    return left.path < right.path
+  end)
 end
 
 local function parse_range(spec)
@@ -291,18 +317,44 @@ local function parse_diff(root, scope, text)
 
   flush_file()
 
-  table.sort(items, function(left, right)
-    if left.path == right.path then
-      if left.scope == right.scope then
-        return left.line_start < right.line_start
-      end
+  sort_items(items)
 
-      return left.scope < right.scope
+  return items
+end
+
+local function collect_untracked(root, opts)
+  local options = opts or {}
+  local args = { "ls-files", "--others", "--exclude-standard", "-z" }
+
+  if options.path and options.path ~= "" then
+    table.insert(args, "--")
+    table.insert(args, options.path)
+  end
+
+  local stdout, err = run_git(root, args)
+  if not stdout then
+    return nil, err
+  end
+
+  local items = {}
+  for _, path in ipairs(nul_split(stdout)) do
+    local patch, patch_err = run_git(root, {
+      "diff",
+      "--no-index",
+      "--no-ext-diff",
+      "--no-color",
+      "--",
+      "/dev/null",
+      path,
+    }, { ok_codes = { [0] = true, [1] = true } })
+    if not patch then
+      return nil, patch_err
     end
 
-    return left.path < right.path
-  end)
+    vim.list_extend(items, parse_diff(root, "unstaged", patch))
+  end
 
+  sort_items(items)
   return items
 end
 
@@ -380,7 +432,18 @@ function M.collect_scope(root, scope, opts)
     return nil, err
   end
 
-  return parse_diff(root, scope, stdout)
+  local items = parse_diff(root, scope, stdout)
+  if scope == "unstaged" then
+    local untracked, untracked_err = collect_untracked(root, options)
+    if not untracked then
+      return nil, untracked_err
+    end
+
+    vim.list_extend(items, untracked)
+    sort_items(items)
+  end
+
+  return items
 end
 
 function M.collect_all(root, opts)
@@ -395,17 +458,7 @@ function M.collect_all(root, opts)
     vim.list_extend(items, scoped)
   end
 
-  table.sort(items, function(left, right)
-    if left.path == right.path then
-      if left.scope == right.scope then
-        return left.line_start < right.line_start
-      end
-
-      return left.scope < right.scope
-    end
-
-    return left.path < right.path
-  end)
+  sort_items(items)
 
   return items
 end
