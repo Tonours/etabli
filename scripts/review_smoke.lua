@@ -378,6 +378,47 @@ assert_true(
   "repo change signature should batch untracked file hashing"
 )
 
+local untracked_diff_batch_repo = vim.fn.tempname()
+vim.fn.mkdir(untracked_diff_batch_repo, "p")
+git(untracked_diff_batch_repo, { "init" })
+vim.fn.writefile({ "one" }, untracked_diff_batch_repo .. "/one.txt")
+vim.fn.writefile({ "two" }, untracked_diff_batch_repo .. "/two.txt")
+
+local original_system_for_untracked_diff = vim.system
+local no_index_diff_processes = 0
+local temp_index_diff_processes = 0
+vim.system = function(command, opts)
+  if type(command) == "table" and command[1] == "git" then
+    local is_diff = false
+    local uses_no_index = false
+    for _, arg in ipairs(command) do
+      if arg == "diff" then
+        is_diff = true
+      elseif arg == "--no-index" then
+        uses_no_index = true
+      end
+    end
+
+    if is_diff and uses_no_index then
+      no_index_diff_processes = no_index_diff_processes + 1
+    elseif is_diff and opts and opts.env and opts.env.GIT_INDEX_FILE then
+      temp_index_diff_processes = temp_index_diff_processes + 1
+    end
+  end
+
+  return original_system_for_untracked_diff(command, opts)
+end
+
+local ok_untracked_diff_batch, untracked_diff_batch_err = pcall(function()
+  local items = diff.collect_scope(untracked_diff_batch_repo, "unstaged")
+  assert_true(items ~= nil and #items == 2, "expected two review items for batched untracked diffs")
+end)
+vim.system = original_system_for_untracked_diff
+
+assert_true(ok_untracked_diff_batch, untracked_diff_batch_err or "untracked diff batching fixture failed")
+assert_true(no_index_diff_processes == 0, "untracked diff collection should avoid per-file --no-index processes")
+assert_true(temp_index_diff_processes == 1, "untracked diff collection should batch paths through one temp-index diff")
+
 local shell_cache_repo = vim.fn.tempname()
 vim.fn.mkdir(shell_cache_repo, "p")
 git(shell_cache_repo, { "init" })
