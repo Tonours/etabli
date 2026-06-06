@@ -348,7 +348,7 @@ local function save_item_in_record(context, stored, item, attrs)
     repo = context.repo,
     branch = context.branch,
     note = note,
-    comments = normalize_comments(comments),
+    comments = comments_for_item(comments, item),
     status = status,
     stale = false,
     updated_at = os.date("!%Y-%m-%dT%H:%M:%SZ"),
