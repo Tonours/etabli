@@ -8,6 +8,9 @@ local scopes = { "unstaged", "staged" }
 local git_root_cache = {}
 local git_root_cache_time = {}
 local git_root_cache_ttl = 20000 -- 20 seconds TTL (reduced from 30s)
+local git_root_error_cache = {}
+local git_root_error_cache_time = {}
+local git_root_error_cache_ttl = 2000 -- short TTL so new git init commands are picked up quickly
 
 -- Cache for diff results (short-lived, cleared on buffer operations)
 local diff_cache = {}
@@ -24,6 +27,8 @@ vim.api.nvim_create_autocmd("DirChanged", {
   callback = function()
     git_root_cache = {}
     git_root_cache_time = {}
+    git_root_error_cache = {}
+    git_root_error_cache_time = {}
     M.clear_cache()
   end,
 })
@@ -50,6 +55,26 @@ local function get_cached_git_root(path)
   if (vim.loop.now() - cached_time) > git_root_cache_ttl then
     git_root_cache[path] = nil
     git_root_cache_time[path] = nil
+    return nil
+  end
+
+  return cached
+end
+
+local function get_cached_git_root_error(path)
+  local cached = git_root_error_cache[path]
+  if not cached then
+    return nil
+  end
+
+  local cached_time = git_root_error_cache_time[path]
+  if not cached_time then
+    return nil
+  end
+
+  if (vim.loop.now() - cached_time) > git_root_error_cache_ttl then
+    git_root_error_cache[path] = nil
+    git_root_error_cache_time[path] = nil
     return nil
   end
 
@@ -248,15 +273,25 @@ function M.repo_root(path)
     return cached
   end
 
+  local cached_error = get_cached_git_root_error(start)
+  if cached_error then
+    return nil, cached_error
+  end
+
   local result = vim.system({ "git", "-C", start, "rev-parse", "--show-toplevel" }, { text = true }):wait()
   if result.code ~= 0 then
     local stderr = vim.trim(result.stderr or "")
-    return nil, stderr ~= "" and stderr or "Not inside a git repository"
+    local err = stderr ~= "" and stderr or "Not inside a git repository"
+    git_root_error_cache[start] = err
+    git_root_error_cache_time[start] = vim.loop.now()
+    return nil, err
   end
 
   local root = util.normalize(vim.trim(result.stdout or ""))
   git_root_cache[start] = root
   git_root_cache_time[start] = vim.loop.now()
+  git_root_error_cache[start] = nil
+  git_root_error_cache_time[start] = nil
   return root
 end
 

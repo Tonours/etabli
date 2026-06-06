@@ -45,7 +45,7 @@ end
 
 local function report(name, iterations, total, average, extra)
   local suffix = extra and extra ~= "" and ("  " .. extra) or ""
-  print(string.format("%-24s total=%8.3fms avg=%8.3fms runs=%d%s", name, total, average, iterations, suffix))
+  io.write(string.format("%-24s total=%8.3fms avg=%8.3fms runs=%d%s\n", name, total, average, iterations, suffix))
 end
 
 local function write_file(path, lines)
@@ -202,7 +202,26 @@ local function measure_focus()
     vim.api.nvim_exec_autocmds("FocusGained", { modeline = false })
     sleep(180)
   end)
-  report("focus settle", 3, settle_total, settle_avg, "includes deferred focus handlers")
+  io.write("\n")
+  report("focus settle wait", 3, settle_total, settle_avg, "includes fixed 180ms wait budget")
+end
+
+local function measure_repo_root_misses()
+  local outside_root = vim.fs.joinpath(tmp, "outside-git")
+  local outside_file = vim.fs.joinpath(outside_root, "notes.txt")
+  write_file(outside_file, { "outside" })
+
+  local diff = require("config.review.diff")
+
+  local cold_total, cold_avg = measure(1, function()
+    diff.repo_root(outside_file)
+  end)
+  report("repo root miss cold", 1, cold_total, cold_avg, "non-git file")
+
+  local warm_total, warm_avg = measure(50, function()
+    diff.repo_root(outside_file)
+  end)
+  report("repo root miss warm", 50, warm_total, warm_avg, "negative cache")
 end
 
 local function measure_review()
@@ -272,10 +291,11 @@ local function measure_review()
   state.clear(context)
 end
 
-print(string.format("Neovim runtime perf baseline for %s", root))
+io.write(string.format("Neovim runtime perf baseline for %s\n", root))
 sleep(160)
 measure_redraw()
 measure_save()
+measure_repo_root_misses()
 measure_review()
 measure_focus()
 LUA
