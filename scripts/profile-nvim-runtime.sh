@@ -262,6 +262,7 @@ local function measure_review()
   end
 
   local diff = require("config.review.diff")
+  local review_items = require("config.review.items")
   local state = require("config.review.state")
   local annotations = require("config.review.annotations")
   local context = assert(state.context_for_repo(review_root))
@@ -278,6 +279,11 @@ local function measure_review()
   vim.cmd.edit(vim.fn.fnameescape(files[3]))
 
   diff.clear_cache()
+
+  local signature_total, signature_avg = measure(8, function()
+    review_items.repo_change_signature(review_root)
+  end)
+  report("review signature", 8, signature_total, signature_avg, "raw diff + content hashes")
 
   local cold_total, cold_avg = measure(1, function()
     annotations.refresh_repo(review_root)

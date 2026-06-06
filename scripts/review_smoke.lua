@@ -416,6 +416,56 @@ assert_true(
   "repo change signature should batch untracked file hashing"
 )
 
+local signature_command_repo = vim.fn.tempname()
+vim.fn.mkdir(signature_command_repo, "p")
+git(signature_command_repo, { "init" })
+vim.fn.writefile({ "before" }, signature_command_repo .. "/tracked.txt")
+git(signature_command_repo, { "add", "tracked.txt" })
+git(signature_command_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "after" }, signature_command_repo .. "/tracked.txt")
+vim.fn.writefile({ "new" }, signature_command_repo .. "/new.txt")
+
+local original_system_for_signature_commands = vim.system
+local signature_hash_processes = 0
+local signature_ls_files_processes = 0
+local signature_name_only_processes = 0
+vim.system = function(command, opts)
+  if type(command) == "table" and command[1] == "git" then
+    if command[4] == "hash-object" then
+      signature_hash_processes = signature_hash_processes + 1
+    elseif command[4] == "ls-files" then
+      signature_ls_files_processes = signature_ls_files_processes + 1
+    else
+      for _, arg in ipairs(command) do
+        if arg == "--name-only" then
+          signature_name_only_processes = signature_name_only_processes + 1
+          break
+        end
+      end
+    end
+  end
+
+  return original_system_for_signature_commands(command, opts)
+end
+
+local ok_signature_command_budget, signature_command_budget_err = pcall(function()
+  review.repo_change_signature(signature_command_repo)
+end)
+vim.system = original_system_for_signature_commands
+
+assert_true(ok_signature_command_budget, signature_command_budget_err or "repo signature command budget fixture failed")
+assert_true(signature_hash_processes == 1, "repo change signature should batch all content hashing")
+assert_true(signature_ls_files_processes == 0, "repo change signature should reuse status output for untracked paths")
+assert_true(signature_name_only_processes == 0, "repo change signature should reuse raw diff output for unstaged paths")
+
 local untracked_diff_batch_repo = vim.fn.tempname()
 vim.fn.mkdir(untracked_diff_batch_repo, "p")
 git(untracked_diff_batch_repo, { "init" })
