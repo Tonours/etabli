@@ -137,4 +137,59 @@ describe("filter-output", () => {
       { message: "Redacting output of sensitive command", level: "warning" },
     ]);
   });
+
+  test("blocks search commands that read local env files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "PUBLIC_API_URL=https://example.test" }],
+        input: { command: "rg PUBLIC_API_URL .env.local" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("blocks search commands that read other sensitive files", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: '"password":"example"' }],
+        input: { command: "grep password secrets.json" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toBe("[Output redacted — command reads sensitive data]");
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacting output of sensitive command", level: "warning" },
+    ]);
+  });
+
+  test("allows search patterns that look like sensitive filenames when safe files are searched", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: "README.md:mentions secrets.json" }],
+        input: { command: "rg secrets.json README.md" },
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.ui.notifications).toEqual([]);
+  });
 });
