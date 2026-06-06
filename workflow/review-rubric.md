@@ -42,10 +42,13 @@ For each issue include:
 - file and line/block
 - why it matters
 - smallest concrete fix
+- `review_comment:` one concise inline-ready comment suitable for a GitHub-style review thread
 
 If human arbitration is needed, add:
 - `human_checkpoint: yes`
 - why the reviewer is escalating
+
+Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If there is no actionable issue, write exactly: `No findings.`
 
 ## Verdict
 End with exactly one verdict:

@@ -221,11 +221,29 @@ end
 function M.write(context, data)
   util.ensure_dir(state_dir)
   local target = file_path(context.repo, context.branch)
-  vim.fn.writefile({ vim.json.encode(data) }, target)
-  -- Invalidate cache on write
+  local tmp = string.format("%s.tmp.%s.%s", target, vim.fn.getpid(), vim.uv.hrtime())
+  local ok_encode, payload = pcall(vim.json.encode, data)
+  if not ok_encode then
+    return nil, string.format("Failed to encode review state: %s", payload)
+  end
+
+  local ok_write, write_result = pcall(vim.fn.writefile, { payload }, tmp)
+  if not ok_write or write_result ~= 0 then
+    pcall(vim.uv.fs_unlink, tmp)
+    return nil, string.format("Failed to write review state: %s", ok_write and write_result or write_result)
+  end
+
+  local ok_rename, rename_result, rename_err = pcall(vim.uv.fs_rename, tmp, target)
+  if not ok_rename or not rename_result then
+    pcall(vim.uv.fs_unlink, tmp)
+    return nil, string.format("Failed to replace review state: %s", rename_err or rename_result or "unknown error")
+  end
+
   local cache_key = context.repo .. "#" .. context.branch
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
+
+  return true
 end
 
 function M.clear(context)
@@ -235,7 +253,7 @@ function M.clear(context)
   file_cache[cache_key] = nil
   file_cache_time[cache_key] = nil
   if util.path_exists(target) then
-    vim.uv.fs_unlink(target)
+    pcall(vim.uv.fs_unlink, target)
   end
 end
 
@@ -297,7 +315,10 @@ function M.save_item(context, item, attrs)
     updated_at = os.date("!%Y-%m-%dT%H:%M:%SZ"),
   })
 
-  M.write(context, stored)
+  local ok_write, write_err = M.write(context, stored)
+  if not ok_write then
+    return nil, write_err
+  end
 
   return stored.items[item.fingerprint]
 end

@@ -190,6 +190,72 @@ local function context_for_buffer(bufnr)
   return context, name
 end
 
+local function render_items(bufnr, items, relative_path)
+  for _, item in ipairs(items) do
+    if not item.stale and item.path == relative_path and should_render(item) then
+      local status = item.status or "new"
+      local highlight = meta.highlight(status)
+      local text = annotation_text(item)
+      local grouped_comments = comments_by_line(item)
+
+      for line, comments in pairs(grouped_comments) do
+        vim.api.nvim_buf_set_extmark(bufnr, namespace, line_index(bufnr, line), 0, {
+          hl_mode = "combine",
+          priority = 130,
+          sign_hl_group = "DiagnosticWarn",
+          sign_text = "R",
+          virt_lines = comment_virtual_lines(comments),
+        })
+      end
+
+      if has_summary_annotation(item) then
+        vim.api.nvim_buf_set_extmark(bufnr, namespace, line_for_item(bufnr, item), 0, {
+          hl_mode = "combine",
+          priority = 120,
+          sign_hl_group = highlight,
+          sign_text = markers[status] or "R",
+          virt_text = {
+            { "  review: ", "Comment" },
+            { text, highlight },
+          },
+          virt_text_pos = "eol",
+        })
+      end
+    end
+  end
+end
+
+local function repo_buffers(normalized_repo)
+  local prefix = normalized_repo .. "/"
+  local buffers = {}
+
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buftype == "" then
+      local name = vim.api.nvim_buf_get_name(bufnr)
+      local normalized_name = name ~= "" and util.normalize(name) or ""
+      if normalized_name == normalized_repo or vim.startswith(normalized_name, prefix) then
+        table.insert(buffers, {
+          bufnr = bufnr,
+          path = util.relative_path(normalized_repo, name),
+        })
+      end
+    end
+  end
+
+  return buffers
+end
+
+local function group_items_by_path(items)
+  local grouped = {}
+
+  for _, item in ipairs(items) do
+    grouped[item.path] = grouped[item.path] or {}
+    table.insert(grouped[item.path], item)
+  end
+
+  return grouped
+end
+
 function M.namespace()
   return namespace
 end
@@ -231,45 +297,18 @@ function M.refresh_buffer(bufnr, opts)
   end
 
   local relative_path = util.relative_path(context.repo, name)
-  local current_items, err = diff.collect_all(context.repo, { path = relative_path })
-  if not current_items then
-    vim.notify(err, vim.log.levels.WARN)
-    return
-  end
-
-  local items = state.merge_items(context, current_items)
-  for _, item in ipairs(items) do
-    if not item.stale and item.path == relative_path and should_render(item) then
-      local status = item.status or "new"
-      local highlight = meta.highlight(status)
-      local text = annotation_text(item)
-      local grouped_comments = comments_by_line(item)
-
-      for line, comments in pairs(grouped_comments) do
-        vim.api.nvim_buf_set_extmark(bufnr, namespace, line_index(bufnr, line), 0, {
-          hl_mode = "combine",
-          priority = 130,
-          sign_hl_group = "DiagnosticWarn",
-          sign_text = "R",
-          virt_lines = comment_virtual_lines(comments),
-        })
-      end
-
-      if has_summary_annotation(item) then
-        vim.api.nvim_buf_set_extmark(bufnr, namespace, line_for_item(bufnr, item), 0, {
-          hl_mode = "combine",
-          priority = 120,
-          sign_hl_group = highlight,
-          sign_text = markers[status] or "R",
-          virt_text = {
-            { "  review: ", "Comment" },
-            { text, highlight },
-          },
-          virt_text_pos = "eol",
-        })
-      end
+  local items = options.merged_items
+  if not items then
+    local current_items, err = diff.collect_all(context.repo, { path = relative_path })
+    if not current_items then
+      vim.notify(err, vim.log.levels.WARN)
+      return
     end
+
+    items = state.merge_items(context, current_items)
   end
+
+  render_items(bufnr, items, relative_path)
 end
 
 function M.refresh_repo(repo)
@@ -278,16 +317,39 @@ function M.refresh_repo(repo)
   end
 
   local normalized_repo = util.normalize(repo)
-  local prefix = normalized_repo .. "/"
+  local buffers = repo_buffers(normalized_repo)
+  if vim.tbl_isempty(buffers) then
+    return
+  end
 
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(bufnr) then
-      local name = vim.api.nvim_buf_get_name(bufnr)
-      local normalized_name = name ~= "" and util.normalize(name) or ""
-      if normalized_name == normalized_repo or vim.startswith(normalized_name, prefix) then
-        M.refresh_buffer(bufnr, { force = true })
-      end
+  local function clear_repo_buffer_annotations()
+    for _, buffer in ipairs(buffers) do
+      M.clear_buffer(buffer.bufnr)
     end
+  end
+
+  local context, context_err = state.context_for_repo(normalized_repo)
+  if not context then
+    clear_repo_buffer_annotations()
+    vim.notify(context_err, vim.log.levels.WARN)
+    return
+  end
+
+  local current_items, err = diff.collect_all(context.repo)
+  if not current_items then
+    clear_repo_buffer_annotations()
+    vim.notify(err, vim.log.levels.WARN)
+    return
+  end
+
+  local merged_items = state.merge_items(context, current_items)
+  local items_by_path = group_items_by_path(merged_items)
+  local now = vim.uv.now()
+
+  for _, buffer in ipairs(buffers) do
+    last_refresh[buffer.bufnr] = now
+    M.clear_buffer(buffer.bufnr)
+    render_items(buffer.bufnr, items_by_path[buffer.path] or {}, buffer.path)
   end
 end
 
