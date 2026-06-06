@@ -133,9 +133,7 @@ check_script_link() {
   local link_path="$HOME/.local/bin/$script_name"
   local target_path="$REPO_DIR/scripts/$script_name"
 
-  if [ -f "$target_path" ]; then
-    check_link "$link_path" "$target_path" "script $script_name"
-  fi
+  check_link "$link_path" "$target_path" "script $script_name"
 }
 
 check_pi_skill_links() {
