@@ -10,16 +10,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ]; then
-  printf 'harness CLI smoke test: skipped (set RUN_AGENT_CLI_SMOKE=1 to run real agent CLIs)\n'
-  exit 0
-fi
-
-if ! command -v perl >/dev/null 2>&1; then
-  printf 'missing perl, needed for bounded CLI smoke timeouts\n' >&2
-  exit 1
-fi
-
 trim_output() {
   sed -e 's/^[[:space:]`]*//' -e 's/[[:space:]`]*$//'
 }
@@ -28,7 +18,13 @@ run_bounded() {
   local seconds="$1"
   shift
 
-  perl -e 'alarm shift @ARGV; exec @ARGV' "$seconds" "$@"
+  perl -e '
+    my $seconds = shift @ARGV;
+    die "missing timeout\n" unless defined $seconds && $seconds =~ /\A[1-9][0-9]*\z/;
+    die "missing command\n" unless @ARGV;
+    alarm $seconds;
+    exec @ARGV or die "exec failed: $!\n";
+  ' "$seconds" "$@"
 }
 
 pi_bin() {
@@ -47,6 +43,34 @@ pi_bin() {
 claude_bin() {
   command -v claude 2>/dev/null || true
 }
+
+if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ] && [ "${RUN_AGENT_CLI_SMOKE_SELF_TEST:-}" != "1" ]; then
+  printf 'harness CLI smoke test: skipped (set RUN_AGENT_CLI_SMOKE=1 to run real agent CLIs)\n'
+  exit 0
+fi
+
+if ! command -v perl >/dev/null 2>&1; then
+  printf 'missing perl, needed for bounded CLI smoke timeouts\n' >&2
+  exit 1
+fi
+
+if [ "${RUN_AGENT_CLI_SMOKE_SELF_TEST:-}" = "1" ]; then
+  if ! run_bounded 2 sh -c 'exit 0'; then
+    printf 'bounded runner should allow successful commands\n' >&2
+    exit 1
+  fi
+
+  if run_bounded 2 "$TMP_DIR/missing-cli" >/dev/null 2>&1; then
+    printf 'bounded runner should fail when exec fails\n' >&2
+    exit 1
+  fi
+
+  printf 'harness CLI bounded runner self-test: ok\n'
+
+  if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ]; then
+    exit 0
+  fi
+fi
 
 PROJECT="$TMP_DIR/project"
 "$SCRIPT" "$PROJECT" >/dev/null
