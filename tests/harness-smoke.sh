@@ -149,4 +149,19 @@ if [ "$(find "$CONFLICT_PROJECT" -maxdepth 1 -name 'AGENTS.md.bak.*' | wc -l | t
   exit 1
 fi
 
+BROKEN_REPO="$TMP_DIR/broken-repo"
+BROKEN_PROJECT="$TMP_DIR/broken-project"
+BROKEN_OUTPUT="$TMP_DIR/broken-source.out"
+mkdir -p "$BROKEN_REPO/scripts"
+cp "$SCRIPT" "$BROKEN_REPO/scripts/deploy-harness"
+chmod +x "$BROKEN_REPO/scripts/deploy-harness"
+
+if "$BROKEN_REPO/scripts/deploy-harness" "$BROKEN_PROJECT" --force >"$BROKEN_OUTPUT" 2>&1; then
+  printf 'expected deploy to fail when harness sources are missing, even with --force\n' >&2
+  exit 1
+fi
+assert_contains "$BROKEN_OUTPUT" "MISSING"
+assert_not_exists "$BROKEN_PROJECT/AGENTS.md"
+assert_not_exists "$BROKEN_PROJECT/.gitignore"
+
 printf 'harness smoke test: ok\n'
