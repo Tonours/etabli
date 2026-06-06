@@ -114,7 +114,60 @@ local function assert_patch_hash_collisions_do_not_reuse_review_state()
   state.clear(context)
 end
 
+local function assert_legacy_out_of_hunk_comments_are_ignored()
+  local legacy_repo = vim.fn.tempname()
+  local legacy_file = legacy_repo .. "/demo.txt"
+  vim.fn.mkdir(legacy_repo, "p")
+  git(legacy_repo, { "init" })
+  vim.fn.writefile({ "one", "two", "three", "four", "five" }, legacy_file)
+  git(legacy_repo, { "add", "demo.txt" })
+  git(legacy_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+
+  vim.fn.writefile({ "one", "two changed", "three", "four", "five" }, legacy_file)
+  local context = assert(state.context_for_repo(legacy_repo))
+  state.clear(context)
+  local items = diff.collect_scope(legacy_repo, "unstaged")
+  assert_true(items ~= nil and #items == 1, "expected legacy out-of-hunk comment fixture hunk")
+
+  local saved, save_err = state.save_item(context, items[1], {
+    status = "needs-rework",
+    comments = {
+      {
+        id = "valid",
+        body = "This comment is inside the hunk.",
+        line = items[1].line_start,
+        end_line = items[1].line_start,
+      },
+      {
+        id = "invalid",
+        body = "This legacy comment is outside the hunk.",
+        line = items[1].line_end + 1,
+        end_line = items[1].line_end + 1,
+      },
+    },
+  })
+  assert_true(saved ~= nil, save_err or "failed to seed legacy out-of-hunk comment fixture")
+
+  local merged = state.merge_items(context, diff.collect_all(legacy_repo))
+  assert_true(merged ~= nil and #merged == 1, "expected merged legacy out-of-hunk comment fixture hunk")
+  assert_true(#merged[1].comments == 1, "legacy out-of-hunk comments should be ignored during merge")
+  assert_true(
+    merged[1].comments[1].id == "valid",
+    "legacy comment filtering should preserve valid comments"
+  )
+  state.clear(context)
+end
+
 assert_patch_hash_collisions_do_not_reuse_review_state()
+assert_legacy_out_of_hunk_comments_are_ignored()
 
 local repo = vim.fn.tempname()
 vim.fn.mkdir(repo, "p")
