@@ -199,6 +199,12 @@ export default function (pi: ExtensionAPI) {
         continue;
       }
 
+      const attachedShortGlob = token.match(/^-g(.+)$/);
+      if (attachedShortGlob) {
+        pathTokens.push(attachedShortGlob[1]);
+        continue;
+      }
+
       if (searchPathOptionNames.has(token)) {
         nextTokenIsPathOptionValue = true;
         continue;
