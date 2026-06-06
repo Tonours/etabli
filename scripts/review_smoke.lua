@@ -323,12 +323,23 @@ assert_true(review_prompt:match("human_checkpoint") ~= nil, "review prompt shoul
 assert_true(review_prompt:match("Findings must come first") ~= nil, "review prompt should enforce findings-first output")
 assert_true(review_prompt:match("Verify every reported line or range exists in the supplied diff") ~= nil, "review prompt should guard diff coordinates")
 assert_true(review_prompt:match("review_comment") ~= nil, "review prompt should request inline-ready comment text")
+assert_true(
+  review_prompt:match("then still include the final verdict") ~= nil,
+  "review prompt should keep no-findings output compatible with verdicts"
+)
 assert_true(batch_prompt:match("Hunk 1:") ~= nil, "batch prompt should label hunks")
 assert_true(batch_prompt:match("Hunk count: 2") ~= nil, "batch prompt should include the hunk count")
 assert_true(batch_prompt:match("Selection: review status: needs%-rework") ~= nil, "batch prompt should include the selection label")
 assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch review prompt should review the changeset")
 assert_true(batch_review_prompt:match("GO WITH NOTES") ~= nil, "batch review prompt should include review verdicts")
-assert_true(batch_review_prompt:match("No findings") ~= nil, "batch review prompt should specify the no-findings path")
+assert_true(
+  batch_review_prompt:match("No findings%.") ~= nil,
+  "batch review prompt should specify the no-findings path"
+)
+assert_true(
+  batch_review_prompt:match("then still include the final verdict") ~= nil,
+  "batch review prompt should keep no-findings output compatible with verdicts"
+)
 assert_true(
   batch_review_prompt:match("semantically consistent") ~= nil,
   "batch review prompt should request cross-hunk consistency checks"

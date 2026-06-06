@@ -69,7 +69,7 @@ local function action_instructions(action)
       "Findings must come first. For each finding, use severity high|medium|low, file, line or range, why it matters, and the smallest concrete fix.",
       "For each finding, include review_comment: one concise inline-ready comment suitable for a GitHub-style review thread.",
       "Then add open questions or assumptions only when they change the decision.",
-      "If you find no actionable issue, write exactly: No findings.",
+      "If you find no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.",
       "If human arbitration is needed, include human_checkpoint: yes and the reason.",
       "End with exactly one verdict: GO, GO WITH NOTES, or BLOCK.",
     }
@@ -106,7 +106,7 @@ local function batch_action_instructions(action)
       "Findings must come first, grouped by severity. For each finding, include severity high|medium|low, file, hunk number, line or range if inferable, why it matters, and the smallest concrete fix.",
       "For each finding, include review_comment: one concise inline-ready comment suitable for a GitHub-style review thread.",
       "Then add open questions or assumptions only when they change the decision.",
-      "If you find no actionable issue, write exactly: No findings.",
+      "If you find no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.",
       "If human arbitration is needed, include human_checkpoint: yes and the reason.",
       "End with exactly one verdict: GO, GO WITH NOTES, or BLOCK.",
     }
