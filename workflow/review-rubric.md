@@ -28,6 +28,11 @@ Run a production-minded review.
 - full diff for the target scope
 - `PLAN.md` when present
 
+## Evidence rules
+- Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.
+- Do not edit files, install dependencies, or run broad/slow validation unless the user explicitly asked for that level of review.
+- Treat missing validation as a finding only when the risk or blast radius justifies it.
+
 ## Look for
 - correctness bugs
 - regressions / behavior changes

@@ -373,6 +373,10 @@ assert_true(
 assert_true(prompt_a:match("```diff") ~= nil, "prompt should include a diff block")
 assert_true(review_prompt:match("first%-pass code review") ~= nil, "review prompt should request first-pass review")
 assert_true(review_prompt:match("Do not edit files") ~= nil, "review prompt should be read-only")
+assert_true(
+  review_prompt:match("bounded read%-only") ~= nil,
+  "review prompt should allow bounded read-only evidence gathering"
+)
 assert_true(review_prompt:match("adversarial review") ~= nil, "review prompt should request adversarial review")
 assert_true(review_prompt:match("human_checkpoint") ~= nil, "review prompt should include the human checkpoint trigger")
 assert_true(review_prompt:match("Findings must come first") ~= nil, "review prompt should enforce findings-first output")
@@ -389,6 +393,10 @@ assert_true(batch_review_prompt:match("Review the 2 diff hunks") ~= nil, "batch 
 assert_true(
   batch_review_prompt:match("context gaps in open questions or assumptions, not findings") ~= nil,
   "batch review prompt should keep assumptions out of findings"
+)
+assert_true(
+  batch_review_prompt:match("bounded read%-only") ~= nil,
+  "batch review prompt should allow bounded read-only evidence gathering"
 )
 assert_true(batch_review_prompt:match("GO WITH NOTES") ~= nil, "batch review prompt should include review verdicts")
 assert_true(

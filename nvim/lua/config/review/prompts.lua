@@ -63,6 +63,8 @@ local function action_instructions(action)
     return {
       "Perform a first-pass code review of this hunk.",
       "Do not edit files or apply fixes during this pass.",
+      "Use bounded read-only inspection of nearby code, tests, or config only when it materially confirms or rejects a suspected finding.",
+      "Do not run broad scans, install dependencies, or perform slow validation unless the user explicitly asked for it.",
       "Use this review stack: self-check the diff, check scope/plan consistency when context is present, then run an adversarial review for edge cases and regressions.",
       "Prioritize correctness bugs, regressions, security issues, missing validation, missing tests, and maintainability risks that affect behavior.",
       "Treat existing review comments as reviewer context; do not duplicate resolved conversations unless the issue still exists.",
@@ -99,6 +101,8 @@ local function batch_action_instructions(action)
     return {
       "Perform a first-pass code review across the selected hunks.",
       "Do not edit files or apply fixes during this pass.",
+      "Use bounded read-only inspection of nearby code, tests, or config only when it materially confirms or rejects a suspected finding.",
+      "Do not run broad scans, install dependencies, or perform slow validation unless the user explicitly asked for it.",
       "Use this review stack: self-check the diff, check scope/plan consistency when context is present, run an adversarial review for edge cases and regressions, then trigger a human checkpoint only for accepted risk or ambiguous tradeoffs.",
       "Prioritize correctness bugs, regressions, security issues, missing validation, missing tests, and maintainability risks that affect behavior.",
       "Check whether changes across hunks are semantically consistent; call out missing paired edits when one hunk implies another should exist.",
