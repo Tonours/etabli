@@ -161,6 +161,7 @@ if "$BROKEN_REPO/scripts/deploy-harness" "$BROKEN_PROJECT" --force >"$BROKEN_OUT
   exit 1
 fi
 assert_contains "$BROKEN_OUTPUT" "MISSING"
+assert_not_exists "$BROKEN_PROJECT"
 assert_not_exists "$BROKEN_PROJECT/AGENTS.md"
 assert_not_exists "$BROKEN_PROJECT/.gitignore"
 

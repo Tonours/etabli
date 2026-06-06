@@ -110,7 +110,40 @@ target_dir() {
   cd "$TARGET_INPUT" >/dev/null 2>&1 && pwd
 }
 
-TARGET_DIR="$(target_dir)"
+display_target_dir() {
+  if [ -d "$TARGET_INPUT" ]; then
+    cd "$TARGET_INPUT" >/dev/null 2>&1 && pwd
+    return 0
+  fi
+
+  local parent_path
+  local target_name
+  parent_path="$(dirname "$TARGET_INPUT")"
+  target_name="$(basename "$TARGET_INPUT")"
+
+  if [ -d "$parent_path" ]; then
+    printf '%s/%s\n' "$(cd "$parent_path" >/dev/null 2>&1 && pwd)" "$target_name"
+    return 0
+  fi
+
+  case "$TARGET_INPUT" in
+    /*) printf '%s\n' "$TARGET_INPUT" ;;
+    *) printf '%s/%s\n' "$(pwd -P)" "$TARGET_INPUT" ;;
+  esac
+}
+
+preflight_sources() {
+  local entry source_path
+
+  for entry in "${FILES[@]}"; do
+    source_path="${entry%%|*}"
+
+    if [ ! -f "$source_path" ]; then
+      status_line MISSING "$source_path"
+      CONFLICTS=$((CONFLICTS + 1))
+    fi
+  done
+}
 
 preflight_conflicts() {
   local entry source_path relative_path destination_path parent_path
@@ -233,9 +266,14 @@ ensure_plan_gitignore() {
   WRITTEN=$((WRITTEN + 1))
 }
 
-printf 'Target: %s\n\n' "$TARGET_DIR"
+printf 'Target: %s\n\n' "$(display_target_dir)"
 
-preflight_conflicts
+preflight_sources
+
+if [ "$CONFLICTS" -eq 0 ]; then
+  TARGET_DIR="$(target_dir)"
+  preflight_conflicts
+fi
 
 if [ "$CONFLICTS" -eq 0 ]; then
   for entry in "${FILES[@]}"; do
