@@ -26,7 +26,7 @@ Use `workflow/review-rubric.md` as the source of truth for review output and pri
    - human checkpoint trigger when needed
 7. Report concise findings grounded in the reviewed diff with severity, file/line, why it matters, the smallest fix, and `review_comment:` text suitable for an inline review thread.
 8. If the diff conflicts with the plan, say so explicitly.
-9. Verify every reported line or range exists in the supplied diff; if there are no actionable issues, write exactly `No findings.`
+9. Verify every reported line or range exists in the supplied diff; if there are no actionable issues, put exactly `No findings.` as the only finding, then still include the final verdict.
 10. If a human should arbitrate risk, replan, or broad-impact tradeoffs, say so explicitly.
 11. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
 
