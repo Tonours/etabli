@@ -16,6 +16,7 @@ end
 function M.render_item(item)
   local has_note = item.note and item.note ~= ""
   local comments = item.comments or {}
+  local draft_comments = item.draft_comments or {}
   local lines = {
     "# Review Hunk",
     "",
@@ -35,6 +36,17 @@ function M.render_item(item)
   table.insert(lines, "")
   util.append_fenced_block(lines, "diff", item.patch)
 
+  if #draft_comments > 0 then
+    vim.list_extend(lines, { "", "## Pending transaction comments" })
+    for _, comment in ipairs(draft_comments) do
+      table.insert(
+        lines,
+        string.format("- %s %s [pending]:", comment.id or "?", M.comment_range_label(comment))
+      )
+      util.append_text_lines(lines, comment.body or "", "  ")
+    end
+  end
+
   if #comments > 0 then
     vim.list_extend(lines, { "", "## Review comments" })
     for _, comment in ipairs(comments) do
@@ -49,6 +61,54 @@ function M.render_item(item)
       )
       util.append_text_lines(lines, comment.body or "", "  ")
     end
+  end
+
+  return lines
+end
+
+function M.render_transaction(transaction)
+  local lines = {
+    "# Review Transaction",
+    "",
+    string.format("- Id: %s", transaction.id or "?"),
+    string.format("- Status: %s", transaction.status or "draft"),
+    string.format("- Started: %s", transaction.started_at or "?"),
+    string.format("- Updated: %s", transaction.updated_at or "?"),
+    "",
+  }
+  local items = {}
+
+  for _, item in pairs(transaction.items or {}) do
+    table.insert(items, item)
+  end
+
+  table.sort(items, function(left, right)
+    if (left.path or "") == (right.path or "") then
+      return (left.line_start or 0) < (right.line_start or 0)
+    end
+
+    return (left.path or "") < (right.path or "")
+  end)
+
+  if vim.tbl_isempty(items) then
+    table.insert(lines, "No draft review comments.")
+    return lines
+  end
+
+  for _, item in ipairs(items) do
+    vim.list_extend(lines, {
+      string.format("## %s:%s", item.path or "?", item.line_start or "?"),
+      "",
+      string.format("- Scope: %s", item.scope or "?"),
+      string.format("- Hunk: %s", item.hunk_header or "?"),
+    })
+
+    for _, comment in ipairs(item.comments or {}) do
+      table.insert(lines, string.format("- Draft comment %s %s:", comment.id or "?", M.comment_range_label(comment)))
+      util.append_text_lines(lines, comment.body or "", "  ")
+    end
+
+    table.insert(lines, "")
   end
 
   return lines

@@ -11,6 +11,8 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rs` choose a review status for the current hunk
 - `<leader>rA` accept the current hunk directly
 - `<leader>rV` mark the current hunk as reviewed without accepting it
+- `<leader>rt` start a local draft review transaction
+- `<leader>rT` preview the active review transaction
 - `<leader>rl` toggle inline review annotations in file buffers
 - `<leader>ro` expand or collapse the inline review thread under the cursor
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
@@ -26,6 +28,10 @@ Equivalent commands:
 - `:ReviewStatus [new|accepted|needs-rework|question|ignore]`
 - `:ReviewAccept`
 - `:ReviewMarkReviewed [on|off|toggle]`
+- `:ReviewStart`
+- `:ReviewPreview`
+- `:ReviewSubmit [comment|approve|request-changes]`
+- `:ReviewExport [markdown|json]`
 - `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
@@ -33,6 +39,8 @@ Equivalent commands:
 Inline annotations show unresolved review conversations on the live file line or selected line range, similar to GitHub PR file review comments. They are rendered with extmarks and signs, so they do not modify the file. To keep large reviews readable and fast, conversations render as compact end-of-line markers by default. Use `<leader>ro` or `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again. Older hunk-level notes are still shown as a compact end-of-line fallback.
 
 Multi-line comments must stay inside one reviewable git hunk. If a visual selection crosses hunk boundaries, the review command refuses the comment instead of storing an ambiguous anchor.
+
+Use `:ReviewStart` before annotating when you want GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
 Note: current-hunk review uses `git diff` as the source of truth. Save the buffer first if you want cursor-to-hunk matching to stay accurate.
 

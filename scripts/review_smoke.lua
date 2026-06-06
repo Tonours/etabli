@@ -886,6 +886,71 @@ end
 
 assert_reviewed_state_tracks_changed_hunks()
 
+local function assert_review_transaction_persists_draft_comments()
+  local transaction_repo = vim.fn.tempname()
+  vim.fn.mkdir(transaction_repo, "p")
+  git(transaction_repo, { "init" })
+  vim.fn.writefile({ "before" }, transaction_repo .. "/transaction.txt")
+  git(transaction_repo, { "add", "transaction.txt" })
+  git(transaction_repo, {
+    "-c",
+    "user.name=Review Smoke",
+    "-c",
+    "user.email=review-smoke@example.com",
+    "commit",
+    "-m",
+    "initial",
+  })
+  vim.fn.writefile({ "after" }, transaction_repo .. "/transaction.txt")
+
+  local transaction_context = assert(state.context_for_repo(transaction_repo))
+  state.clear(transaction_context)
+  local transaction_items = diff.collect_scope(transaction_repo, "unstaged")
+  assert_true(transaction_items ~= nil and #transaction_items == 1, "expected transaction fixture hunk")
+
+  local transaction, transaction_err = state.start_transaction(transaction_context)
+  assert_true(transaction ~= nil, transaction_err or "failed to start review transaction")
+  assert_true(transaction.status == "draft", "review transaction should start as draft")
+
+  local draft_item, draft_err = state.add_draft_comment(transaction_context, transaction_items[1], {
+    body = "Draft transaction comment.",
+    line = 1,
+    end_line = 1,
+  })
+  assert_true(draft_item ~= nil, draft_err or "failed to add draft transaction comment")
+  assert_true(#draft_item.comments == 1, "draft transaction should keep the pending comment")
+
+  local active_transaction = state.active_transaction(transaction_context)
+  local transaction_preview = table.concat(views.render_transaction(active_transaction), "\n")
+  assert_true(
+    transaction_preview:find("Draft transaction comment.", 1, true) ~= nil,
+    "transaction preview should render draft comments"
+  )
+
+  local draft_merged = state.merge_items(transaction_context, diff.collect_all(transaction_repo))
+  assert_true(draft_merged[1].draft_comment_count == 1, "merged transaction hunk should expose draft comment count")
+  assert_true(draft_merged[1].unresolved_comment_count == 1, "draft comments should count as unresolved attention")
+  assert_true(#draft_merged[1].comments == 0, "draft comments should not be submitted before ReviewSubmit")
+  local draft_item_preview = table.concat(views.render_item(draft_merged[1]), "\n")
+  assert_true(
+    draft_item_preview:find("Pending transaction comments", 1, true) ~= nil,
+    "review hunk preview should render pending transaction comments separately"
+  )
+
+  local submitted, submit_err = state.submit_transaction(transaction_context, "request-changes")
+  assert_true(submitted ~= nil, submit_err or "failed to submit review transaction")
+  assert_true(submitted.submitted_comments == 1, "submitted transaction should report comment count")
+  assert_true(state.active_transaction(transaction_context) == nil, "submitted transaction should clear the active draft")
+
+  local submitted_merged = state.merge_items(transaction_context, diff.collect_all(transaction_repo))
+  assert_true(submitted_merged[1].draft_comment_count == 0, "submitted transaction should clear draft comments")
+  assert_true(#submitted_merged[1].comments == 1, "submitted transaction should persist comments")
+  assert_true(submitted_merged[1].status == "needs-rework", "request-changes transaction should set needs-rework")
+  state.clear(transaction_context)
+end
+
+assert_review_transaction_persists_draft_comments()
+
 local original_tab = vim.api.nvim_get_current_tabpage()
 local opened_diff_tabs = {}
 local function remember_current_diff_tab()
