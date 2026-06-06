@@ -347,6 +347,27 @@ local function file_state_has_header(file_state, prefix)
   return false
 end
 
+local function changed_line_range_for_hunk(hunk_state)
+  local new_line = hunk_state.new_start
+  local changed_start
+  local changed_end
+
+  for index, line in ipairs(hunk_state.lines or {}) do
+    if index > 1 then
+      local prefix = line:sub(1, 1)
+      if prefix == "+" then
+        changed_start = changed_start or new_line
+        changed_end = new_line
+        new_line = new_line + 1
+      elseif prefix == " " then
+        new_line = new_line + 1
+      end
+    end
+  end
+
+  return changed_start or hunk_state.new_start, changed_end or changed_start or hunk_state.new_start
+end
+
 local function finalize_hunk(root, scope, file_state, hunk_state, items)
   if not file_state or not hunk_state then
     return false
@@ -363,6 +384,7 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
 
   local line_start = hunk_state.new_start
   local line_end = hunk_state.new_count > 0 and (hunk_state.new_start + hunk_state.new_count - 1) or hunk_state.new_start
+  local changed_line_start, changed_line_end = changed_line_range_for_hunk(hunk_state)
 
   table.insert(items, {
     repo = util.normalize(root),
@@ -381,6 +403,8 @@ local function finalize_hunk(root, scope, file_state, hunk_state, items)
     old_count = hunk_state.old_count,
     new_start = hunk_state.new_start,
     new_count = hunk_state.new_count,
+    changed_line_start = changed_line_start,
+    changed_line_end = changed_line_end,
     line_start = line_start,
     line_end = line_end,
     added = file_state.old_path == "/dev/null",
