@@ -22,20 +22,31 @@ function M.clear_cache()
   diff_cache_time = {}
 end
 
+local function clear_git_root_cache()
+  git_root_cache = {}
+  git_root_cache_time = {}
+  git_root_error_cache = {}
+  git_root_error_cache_time = {}
+end
+
 -- Clear cache on directory change
 vim.api.nvim_create_autocmd("DirChanged", {
   callback = function()
-    git_root_cache = {}
-    git_root_cache_time = {}
-    git_root_error_cache = {}
-    git_root_error_cache_time = {}
+    clear_git_root_cache()
     M.clear_cache()
   end,
 })
 
 -- Clear diff cache on changes that might affect git state
-vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "ShellCmdPost" }, {
+vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete" }, {
   callback = function()
+    M.clear_cache()
+  end,
+})
+
+vim.api.nvim_create_autocmd("ShellCmdPost", {
+  callback = function()
+    clear_git_root_cache()
     M.clear_cache()
   end,
 })
