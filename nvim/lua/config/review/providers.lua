@@ -182,8 +182,9 @@ local function dispatch_prompt(provider, prompt, opts)
   local open_terminal = options.open_terminal
   local message = options.message
   local before_signature
+  local can_open_terminal = open_terminal ~= false and vim.fn.executable(provider.command) == 1
 
-  if cwd and cwd ~= "" then
+  if can_open_terminal and cwd and cwd ~= "" then
     local ok, review = pcall(require, "config.review")
     if ok and review and review.repo_change_signature then
       before_signature = review.repo_change_signature(cwd)
@@ -197,7 +198,7 @@ local function dispatch_prompt(provider, prompt, opts)
       return
     end
 
-    if vim.fn.executable(provider.command) == 1 then
+    if can_open_terminal then
       local spec = launch_spec(provider, prompt)
       local launched = do_open_terminal(spec.command, {
         cwd = cwd,
