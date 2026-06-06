@@ -255,6 +255,40 @@ assert_true(
   "untracked empty file should use file metadata as its review header"
 )
 
+local delimiter_path_repo = vim.fn.tempname()
+vim.fn.mkdir(delimiter_path_repo .. "/x b", "p")
+git(delimiter_path_repo, { "init" })
+local delimiter_path_name = "x b/y.txt"
+vim.fn.writefile({ "same" }, delimiter_path_repo .. "/" .. delimiter_path_name)
+git(delimiter_path_repo, { "add", delimiter_path_name })
+git(delimiter_path_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.setfperm(delimiter_path_repo .. "/" .. delimiter_path_name, "rwxr-xr-x")
+local delimiter_path_items = diff.collect_scope(delimiter_path_repo, "unstaged")
+assert_true(
+  delimiter_path_items ~= nil and #delimiter_path_items == 1,
+  "expected one file-level item for mode-only path containing diff delimiter text"
+)
+assert_true(
+  delimiter_path_items[1].path == delimiter_path_name,
+  "file-level diff path containing ' b/' should not be split at the embedded delimiter"
+)
+assert_true(
+  delimiter_path_items[1].old_path == delimiter_path_name,
+  "file-level old path containing ' b/' should be preserved"
+)
+assert_true(
+  delimiter_path_items[1].new_path == delimiter_path_name,
+  "file-level new path containing ' b/' should be preserved"
+)
+
 local signature_repo = vim.fn.tempname()
 vim.fn.mkdir(signature_repo, "p")
 git(signature_repo, { "init" })
