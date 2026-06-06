@@ -28,6 +28,27 @@ local function append_multiline_field(lines, label, value)
   append_comment_body(lines, value)
 end
 
+local function diff_fence_for(patch)
+  local longest = 0
+
+  for run in tostring(patch or ""):gmatch("`+") do
+    longest = math.max(longest, #run)
+  end
+
+  return string.rep("`", math.max(3, longest + 1))
+end
+
+local function append_diff_block(lines, patch)
+  local fence = diff_fence_for(patch)
+
+  table.insert(lines, fence .. "diff")
+
+  local patch_lines = vim.split(patch, "\n", { plain = true })
+  vim.list_extend(lines, patch_lines)
+
+  table.insert(lines, fence)
+end
+
 local function append_review_comments(lines, item)
   local comments = item.comments or {}
   if vim.tbl_isempty(comments) then
@@ -142,12 +163,7 @@ local function append_hunk(lines, item, index)
   append_review_comments(hunk_lines, item)
 
   table.insert(hunk_lines, "- Diff:")
-  table.insert(hunk_lines, "```diff")
-
-  local patch_lines = vim.split(item.patch, "\n", { plain = true })
-  vim.list_extend(hunk_lines, patch_lines)
-
-  table.insert(hunk_lines, "```")
+  append_diff_block(hunk_lines, item.patch)
 
   -- Batch extend main lines table
   vim.list_extend(lines, hunk_lines)
@@ -187,12 +203,8 @@ function M.build(item, opts)
     table.insert(lines, string.format("- %s", instruction))
   end
 
-  vim.list_extend(lines, { "", "Diff hunk:", "```diff" })
-
-  local patch_lines = vim.split(item.patch, "\n", { plain = true })
-  vim.list_extend(lines, patch_lines)
-
-  table.insert(lines, "```")
+  vim.list_extend(lines, { "", "Diff hunk:" })
+  append_diff_block(lines, item.patch)
 
   return table.concat(lines, "\n")
 end

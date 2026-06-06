@@ -322,6 +322,14 @@ local batch_review_prompt = prompts.build_batch({ matched, staged[1] }, {
   action = "review",
   selection_label = "all live staged and unstaged hunks",
 })
+local fenced_item = vim.tbl_extend("force", matched, {
+  patch = matched.patch .. "\n+```",
+})
+local fenced_prompt = prompts.build(fenced_item, { provider = "Claude", action = "review" })
+local fenced_batch_prompt = prompts.build_batch({ fenced_item }, {
+  provider = "Claude",
+  action = "review",
+})
 
 assert_true(prompt_a == prompt_b, "prompt generation should be deterministic")
 assert_true(prompt_a:match("demo%.txt") ~= nil, "prompt should include the file path")
@@ -365,6 +373,19 @@ assert_true(
 assert_true(
   batch_review_prompt:match("semantically consistent") ~= nil,
   "batch review prompt should request cross-hunk consistency checks"
+)
+assert_true(fenced_prompt:find("\n````diff\n", 1, true) ~= nil, "prompt should expand diff fences when patch contains backticks")
+assert_true(
+  select(2, fenced_prompt:gsub("\n````", "")) == 2,
+  "prompt should open and close expanded diff fences"
+)
+assert_true(
+  fenced_batch_prompt:find("\n````diff\n", 1, true) ~= nil,
+  "batch prompt should expand diff fences when patch contains backticks"
+)
+assert_true(
+  select(2, fenced_batch_prompt:gsub("\n````", "")) == 2,
+  "batch prompt should open and close expanded diff fences"
 )
 
 local claude_argv = providers.launch_argv("claude", prompt_a)
