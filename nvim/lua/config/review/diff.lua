@@ -3,6 +3,12 @@ local util = require("config.review.util")
 local M = {}
 
 local scopes = { "unstaged", "staged" }
+local tracked_old_prefix = "etabli-old/"
+local tracked_new_prefix = "etabli-new/"
+local path_prefix_pairs = {
+  { old = tracked_old_prefix, new = tracked_new_prefix },
+  { old = "a/", new = "b/" },
+}
 
 -- Cache for git root lookups
 local git_root_cache = {}
@@ -199,7 +205,19 @@ local function unquote_git_path(raw)
   end)
 end
 
-local function parse_file_marker_path(raw, prefix)
+local function strip_file_marker_prefix(path, prefixes)
+  local candidates = vim.islist(prefixes) and prefixes or { prefixes }
+
+  for _, prefix in ipairs(candidates) do
+    if vim.startswith(path, prefix) then
+      return path:sub(#prefix + 1)
+    end
+  end
+
+  return path
+end
+
+local function parse_file_marker_path(raw, prefixes)
   local path = raw:match("^(.-)\t") or raw
   path = unquote_git_path(path)
 
@@ -207,22 +225,27 @@ local function parse_file_marker_path(raw, prefix)
     return path
   end
 
-  if vim.startswith(path, prefix) then
-    return path:sub(#prefix + 1)
-  end
-
-  return path
+  return strip_file_marker_prefix(path, prefixes)
 end
 
 local function parse_diff_git_paths(line)
-  local old_path, new_path = line:match("^diff %-%-git a/(.-) b/(.-)$")
-  if old_path and new_path then
-    return old_path, new_path
+  for _, prefixes in ipairs(path_prefix_pairs) do
+    local line_prefix = "diff --git " .. prefixes.old
+    local delimiter = " " .. prefixes.new
+
+    if vim.startswith(line, line_prefix) then
+      local body = line:sub(#line_prefix + 1)
+      local delimiter_at = body:find(delimiter, 1, true)
+      if delimiter_at then
+        return body:sub(1, delimiter_at - 1), body:sub(delimiter_at + #delimiter)
+      end
+    end
   end
 
   local old_raw, new_raw = line:match('^diff %-%-git%s+(".*")%s+(".*")$')
   if old_raw and new_raw then
-    return parse_file_marker_path(old_raw, "a/"), parse_file_marker_path(new_raw, "b/")
+    return parse_file_marker_path(old_raw, { tracked_old_prefix, "a/" }),
+      parse_file_marker_path(new_raw, { tracked_new_prefix, "b/" })
   end
 
   return nil, nil
@@ -391,9 +414,9 @@ local function parse_diff(root, scope, text)
           table.insert(current_file.header_lines, line)
 
           if vim.startswith(line, "--- ") then
-            current_file.old_path = parse_file_marker_path(line:sub(5), "a/")
+            current_file.old_path = parse_file_marker_path(line:sub(5), { tracked_old_prefix, "a/" })
           elseif vim.startswith(line, "+++ ") then
-            current_file.new_path = parse_file_marker_path(line:sub(5), "b/")
+            current_file.new_path = parse_file_marker_path(line:sub(5), { tracked_new_prefix, "b/" })
           end
         end
       end
@@ -498,7 +521,16 @@ function M.branch(root)
 end
 
 function M.collect_scope(root, scope, opts)
-  local args = { "diff", "--no-ext-diff", "--no-color", "--no-renames", "--unified=3", "--relative" }
+  local args = {
+    "diff",
+    "--no-ext-diff",
+    "--no-color",
+    "--no-renames",
+    "--unified=3",
+    "--relative",
+    "--src-prefix=" .. tracked_old_prefix,
+    "--dst-prefix=" .. tracked_new_prefix,
+  }
   local options = opts or {}
 
   if scope == "staged" then
