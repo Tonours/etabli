@@ -34,7 +34,7 @@ local function can_batch_hash_paths(paths)
   return true
 end
 
-local function hash_untracked_paths(repo, paths)
+local function hash_paths(repo, paths)
   if vim.tbl_isempty(paths) then
     return {}
   end
@@ -82,53 +82,65 @@ local function hash_untracked_paths(repo, paths)
   return hashes
 end
 
+local function git_output(repo, args)
+  local result = vim.system(vim.list_extend({ "git", "-C", repo }, args), { text = true }):wait()
+  if result.code ~= 0 then
+    return nil
+  end
+
+  return result.stdout or ""
+end
+
+local function append_signature_part(parts, label, output)
+  table.insert(parts, string.format("%d:%s%d:%s", #label, label, #output, output))
+end
+
+local function append_hashed_paths(parts, label, paths, hashes)
+  for index, path in ipairs(paths) do
+    local hash = hashes[index] or ""
+    table.insert(parts, string.format("%d:%s%d:%s%d:%s", #label, label, #path, path, #hash, hash))
+  end
+end
+
 function M.repo_change_signature(repo)
   if not repo or repo == "" then
     return nil
   end
 
-  local commands = {
-    { "status", "--porcelain=v1", "--untracked-files=all" },
-    { "diff", "--no-ext-diff", "--no-color", "--binary" },
-    { "diff", "--cached", "--no-ext-diff", "--no-color", "--binary" },
-  }
   local parts = {}
+  local status = git_output(repo, { "status", "--porcelain=v1", "--untracked-files=all", "-z" })
+  local unstaged_raw = git_output(repo, { "diff", "--no-ext-diff", "--raw", "--full-index", "-z" })
+  local staged_raw = git_output(repo, { "diff", "--cached", "--no-ext-diff", "--raw", "--full-index", "-z" })
+  local unstaged_paths_output = git_output(repo, { "diff", "--no-ext-diff", "--name-only", "--diff-filter=d", "-z" })
 
-  for _, args in ipairs(commands) do
-    local result = vim.system(vim.list_extend({ "git", "-C", repo }, args), { text = true }):wait()
-    if result.code ~= 0 then
-      return nil
-    end
-
-    local label = table.concat(args, " ")
-    local output = result.stdout or ""
-    table.insert(parts, string.format("%d:%s%d:%s", #label, label, #output, output))
-  end
-
-  local untracked_result = vim.system({
-    "git",
-    "-C",
-    repo,
-    "ls-files",
-    "--others",
-    "--exclude-standard",
-    "-z",
-  }, { text = true }):wait()
-  if untracked_result.code ~= 0 then
+  if not status or not unstaged_raw or not staged_raw or not unstaged_paths_output then
     return nil
   end
 
-  local untracked_paths = split_nul(untracked_result.stdout or "")
+  append_signature_part(parts, "status --porcelain=v1 --untracked-files=all -z", status)
+  append_signature_part(parts, "diff --raw --full-index -z", unstaged_raw)
+  append_signature_part(parts, "diff --cached --raw --full-index -z", staged_raw)
+
+  local unstaged_paths = split_nul(unstaged_paths_output)
+  table.sort(unstaged_paths)
+  local unstaged_hashes = hash_paths(repo, unstaged_paths)
+  if not unstaged_hashes then
+    return nil
+  end
+  append_hashed_paths(parts, "unstaged", unstaged_paths, unstaged_hashes)
+
+  local untracked_output = git_output(repo, { "ls-files", "--others", "--exclude-standard", "-z" })
+  if not untracked_output then
+    return nil
+  end
+
+  local untracked_paths = split_nul(untracked_output)
   table.sort(untracked_paths)
-  local untracked_hashes = hash_untracked_paths(repo, untracked_paths)
+  local untracked_hashes = hash_paths(repo, untracked_paths)
   if not untracked_hashes then
     return nil
   end
-
-  for index, path in ipairs(untracked_paths) do
-    local hash = untracked_hashes[index] or ""
-    table.insert(parts, string.format("%d:untracked:%s%d:%s", #path, path, #hash, hash))
-  end
+  append_hashed_paths(parts, "untracked", untracked_paths, untracked_hashes)
 
   return vim.fn.sha256(table.concat(parts, ""))
 end

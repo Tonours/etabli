@@ -351,6 +351,29 @@ assert_true(
   "repo change signature should detect content changes inside an already dirty file"
 )
 
+local original_system_for_signature = vim.system
+local binary_signature_commands = 0
+vim.system = function(command, opts)
+  if type(command) == "table" and command[1] == "git" then
+    for _, arg in ipairs(command) do
+      if arg == "--binary" then
+        binary_signature_commands = binary_signature_commands + 1
+        break
+      end
+    end
+  end
+
+  return original_system_for_signature(command, opts)
+end
+
+local ok_signature_fast_path, signature_fast_path_err = pcall(function()
+  review.repo_change_signature(signature_repo)
+end)
+vim.system = original_system_for_signature
+
+assert_true(ok_signature_fast_path, signature_fast_path_err or "repo signature fast-path fixture failed")
+assert_true(binary_signature_commands == 0, "repo change signature should avoid full binary diff payloads")
+
 local untracked_signature_repo = vim.fn.tempname()
 vim.fn.mkdir(untracked_signature_repo, "p")
 git(untracked_signature_repo, { "init" })
