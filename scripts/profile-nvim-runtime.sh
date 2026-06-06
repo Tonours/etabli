@@ -308,6 +308,10 @@ measure_focus()
 LUA
 }
 
+profile_lua_cmd() {
+  printf '+lua local ok, err = pcall(dofile, [[%s]]); if not ok then vim.api.nvim_err_writeln(tostring(err)); vim.cmd("cquit 1") end' "$PROFILE_LUA"
+}
+
 require_tool nvim
 require_tool git
 write_profile_lua
@@ -315,4 +319,4 @@ cd "$ROOT_DIR"
 
 env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" NVIM_PERF_ROOT="$ROOT_DIR" NVIM_PERF_TMP="$TMP_DIR" \
   nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" \
-  "+lua dofile([[$PROFILE_LUA]])" +qa
+  "$(profile_lua_cmd)" +qa

@@ -135,6 +135,10 @@ end
 LUA
 }
 
+profile_lua_cmd() {
+  printf '+lua local ok, err = pcall(dofile, [[%s]]); if not ok then vim.api.nvim_err_writeln(tostring(err)); vim.cmd("cquit 1") end' "$PROFILE_LUA"
+}
+
 run_profile() {
   local label="$1"
   local filter="$2"
@@ -143,7 +147,7 @@ run_profile() {
   printf 'top lazy profile (%s)\n' "$label"
   env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" NVIM_PERF_FILTER="$filter" NVIM_PERF_LIMIT=8 \
     nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@" \
-    "+lua dofile([[$PROFILE_LUA]])" +qa 2>&1
+    "$(profile_lua_cmd)" +qa 2>&1
 }
 
 run_insert_profile() {
@@ -154,7 +158,7 @@ run_insert_profile() {
   env XDG_CONFIG_HOME="$ROOT_DIR" XDG_STATE_HOME="$TMP_DIR/state" NVIM_PERF_FILTER="event:InsertEnter" NVIM_PERF_LIMIT=8 \
     nvim -i NONE --headless -u "$ROOT_DIR/nvim/init.lua" "$@" \
     "+lua vim.api.nvim_exec_autocmds('InsertEnter', {})" \
-    "+lua dofile([[$PROFILE_LUA]])" +qa 2>&1
+    "$(profile_lua_cmd)" +qa 2>&1
 }
 
 report_scenario() {
