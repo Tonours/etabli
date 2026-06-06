@@ -55,6 +55,27 @@ assert_true(outside_root_a == nil and outside_err_a ~= nil, "non-git repo lookup
 assert_true(outside_root_b == nil and outside_err_b ~= nil, "cached non-git repo lookup should still fail")
 assert_true(repo_root_calls == 1, "non-git repo lookup failures should be cached briefly")
 
+local spaced_repo = vim.fn.tempname()
+vim.fn.mkdir(spaced_repo, "p")
+git(spaced_repo, { "init" })
+vim.fn.writefile({ "before" }, spaced_repo .. "/a file.txt")
+git(spaced_repo, { "add", "a file.txt" })
+git(spaced_repo, {
+  "-c",
+  "user.name=Review Smoke",
+  "-c",
+  "user.email=review-smoke@example.com",
+  "commit",
+  "-m",
+  "initial",
+})
+vim.fn.writefile({ "after" }, spaced_repo .. "/a file.txt")
+local spaced_items = diff.collect_scope(spaced_repo, "unstaged")
+assert_true(spaced_items ~= nil and #spaced_items == 1, "expected one hunk for spaced file path")
+assert_true(spaced_items[1].path == "a file.txt", "spaced file path should not include diff header metadata")
+assert_true(spaced_items[1].old_path == "a file.txt", "old spaced file path should not include diff header metadata")
+assert_true(spaced_items[1].new_path == "a file.txt", "new spaced file path should not include diff header metadata")
+
 git(repo, { "init" })
 
 local initial = {

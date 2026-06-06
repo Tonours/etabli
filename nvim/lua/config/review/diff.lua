@@ -135,6 +135,19 @@ local function parse_hunk_header(line)
   }
 end
 
+local function parse_file_marker_path(raw, prefix)
+  local path = raw:match("^(.-)\t") or raw
+  if path == "/dev/null" then
+    return path
+  end
+
+  if vim.startswith(path, prefix) then
+    return path:sub(#prefix + 1)
+  end
+
+  return path
+end
+
 local function finalize_hunk(root, scope, file_state, hunk_state, items)
   if not file_state or not hunk_state then
     return
@@ -227,11 +240,9 @@ local function parse_diff(root, scope, text)
           table.insert(current_file.header_lines, line)
 
           if vim.startswith(line, "--- ") then
-            local old_path = line:sub(5)
-            current_file.old_path = old_path == "/dev/null" and old_path or old_path:gsub("^a/", "")
+            current_file.old_path = parse_file_marker_path(line:sub(5), "a/")
           elseif vim.startswith(line, "+++ ") then
-            local new_path = line:sub(5)
-            current_file.new_path = new_path == "/dev/null" and new_path or new_path:gsub("^b/", "")
+            current_file.new_path = parse_file_marker_path(line:sub(5), "b/")
           end
         end
       end
