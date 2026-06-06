@@ -149,6 +149,34 @@ local function content_paths_from_status(status)
   return unique_sorted(paths)
 end
 
+local function status_has_staged_changes(status)
+  local tokens = split_nul(status)
+  local index = 1
+
+  while index <= #tokens do
+    local entry = tokens[index]
+    local code = entry:sub(1, 2)
+    local next_index = index + 1
+
+    if code ~= "??" and code ~= "!!" and #entry >= 4 then
+      local index_status = code:sub(1, 1)
+      local worktree_status = code:sub(2, 2)
+
+      if index_status == "R" or index_status == "C" or worktree_status == "R" or worktree_status == "C" then
+        next_index = index + 2
+      end
+
+      if index_status ~= " " then
+        return true
+      end
+    end
+
+    index = next_index
+  end
+
+  return false
+end
+
 function M.repo_change_signature(repo)
   if not repo or repo == "" then
     return nil
@@ -156,13 +184,19 @@ function M.repo_change_signature(repo)
 
   local parts = {}
   local status = git_output(repo, { "status", "--porcelain=v1", "--untracked-files=all", "-z" })
-  local staged_raw = git_output(repo, { "diff", "--cached", "--no-ext-diff", "--raw", "--full-index", "-z" })
-
-  if not status or not staged_raw then
+  if not status then
     return nil
   end
 
   append_signature_part(parts, "status --porcelain=v1 --untracked-files=all -z", status)
+
+  local staged_raw = ""
+  if status_has_staged_changes(status) then
+    staged_raw = git_output(repo, { "diff", "--cached", "--no-ext-diff", "--raw", "--full-index", "-z" })
+    if not staged_raw then
+      return nil
+    end
+  end
   append_signature_part(parts, "diff --cached --raw --full-index -z", staged_raw)
 
   local content_paths = content_paths_from_status(status)

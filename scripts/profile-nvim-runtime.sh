@@ -283,7 +283,7 @@ local function measure_review()
   local signature_total, signature_avg = measure(8, function()
     review_items.repo_change_signature(review_root)
   end)
-  report("review signature", 8, signature_total, signature_avg, "raw diff + content hashes")
+  report("review signature", 8, signature_total, signature_avg, "status + content hashes")
 
   local cold_total, cold_avg = measure(1, function()
     annotations.refresh_repo(review_root)
