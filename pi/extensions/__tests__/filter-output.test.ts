@@ -129,6 +129,30 @@ describe("filter-output", () => {
     ]);
   });
 
+  test("redacts generic token and secret assignments by contextual name", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+    const postmarkToken = "plain-postmark-token-value";
+    const jwtSecret = "plain-jwt-secret-value";
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: `POSTMARK_TOKEN=${postmarkToken}\nJWT_SECRET="${jwtSecret}"` }],
+        input: {},
+        toolName: "read",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toContain("POSTMARK_TOKEN=[REDACTED]");
+    expect(result?.content[0]?.text).toContain("JWT_SECRET=[REDACTED]");
+    expect(result?.content[0]?.text).not.toContain(postmarkToken);
+    expect(result?.content[0]?.text).not.toContain(jwtSecret);
+    expect(ctx.ui.notifications).toEqual([
+      { message: "Redacted 2 secrets from output", level: "warning" },
+    ]);
+  });
+
   test("allows example env file command output", async () => {
     const handler = setupExtension();
     const ctx = createContext();

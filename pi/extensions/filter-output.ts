@@ -77,6 +77,10 @@ export default function (pi: ExtensionAPI) {
       replacement: "$1=[REDACTED]",
     },
     {
+      pattern: /\b([a-zA-Z0-9_-]*(?:token|secret|credential)[a-zA-Z0-9_-]*)\s*[=:]\s*['"]?([^\s'"]{8,})['"]?/gi,
+      replacement: "$1=[REDACTED]",
+    },
+    {
       pattern: /\b(password|passwd|pwd|pass)\s*[=:]\s*['"]?([^\s'"]{4,})['"]?/gi,
       replacement: "$1=[REDACTED]",
     },
@@ -166,9 +170,12 @@ export default function (pi: ExtensionAPI) {
     for (const { pattern, replacement } of structuralPatterns) {
       pattern.lastIndex = 0;
       const newResult = result.replace(pattern, (...args) => {
-        count++;
         // Reconstruct replacement with captured groups
-        return replacement.replace(/\$(\d)/g, (_, n) => args[parseInt(n)] || "");
+        const replacementText = replacement.replace(/\$(\d)/g, (_, n) => args[parseInt(n)] || "");
+        if (replacementText !== args[0]) {
+          count++;
+        }
+        return replacementText;
       });
       result = newResult;
     }
