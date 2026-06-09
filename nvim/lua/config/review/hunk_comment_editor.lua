@@ -24,7 +24,7 @@ local function open_window(target, on_submit, opts)
   local size = geometry()
   local bufnr = vim.api.nvim_create_buf(false, true)
   local winid = vim.api.nvim_open_win(bufnr, true, {
-    border = "rounded",
+    border = "single",
     col = size.col,
     height = size.height,
     relative = "editor",

@@ -14,7 +14,7 @@ local providers = {
   },
 }
 
-local overlay_border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }
+local overlay_border = "single"
 local terminal_paste_delay_ms = 350
 
 local function overlay_geometry()

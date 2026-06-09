@@ -44,10 +44,10 @@ end
 
 local function scope_label(item)
   if item.stale then
-    return "old"
+    return "stale"
   end
 
-  return item.scope == "staged" and "idx" or "work"
+  return item.scope == "staged" and "index" or "tree"
 end
 
 local function comment_range_label(comment)
@@ -63,11 +63,11 @@ end
 
 local function reviewed_label(item)
   if item.changed_since_review then
-    return "chg"
+    return "changed"
   end
 
   if item.reviewed then
-    return "seen"
+    return "reviewed"
   end
 
   return "open"
@@ -121,10 +121,10 @@ local function agent_activity_label(item)
   local parts = {}
 
   if (counts.claude or 0) > 0 then
-    table.insert(parts, string.format("C:%d", counts.claude))
+    table.insert(parts, string.format("claude%d", counts.claude))
   end
   if (counts.pi or 0) > 0 then
-    table.insert(parts, string.format("P:%d", counts.pi))
+    table.insert(parts, string.format("pi%d", counts.pi))
   end
 
   return table.concat(parts, " ")
@@ -175,6 +175,7 @@ local function append_patch_preview(lines, patch)
   local limit = math.min(#patch_lines, max_preview_patch_lines)
 
   table.insert(lines, "")
+  table.insert(lines, "Diff")
   table.insert(lines, string.rep("-", 72))
   table.insert(lines, "")
 
@@ -193,13 +194,18 @@ local function render_preview(item)
   local draft_comments = item.draft_comments or {}
   local unresolved = unresolved_comments(comments)
   local lines = {
-    "Review",
+    "Review hunk",
     "",
-    string.format("%s:%s  %s  %s", item.path, item.line_start or "?", scope_label(item), meta.label(item.status)),
+    string.format("File      %s:%s", item.path, item.line_start or "?"),
     string.format(
-      "attention %s | review %s | comments %d | agents %d",
+      "State     %s | %s | %s",
+      scope_label(item),
+      meta.label(item.status),
+      reviewed_label(item)
+    ),
+    string.format(
+      "Activity  attention %s | comments %d | agents %d",
       item.attention_label or item.attention_reason or "muted",
-      reviewed_label(item),
       #unresolved + #draft_comments,
       #agent_findings
     ),
@@ -209,13 +215,13 @@ local function render_preview(item)
     table.insert(lines, string.format("changed after review %s", item.reviewed_at))
   end
 
-  append_compact_text(lines, "note", item.note)
+  append_compact_text(lines, "Note", item.note)
 
-  append_limited_section(lines, "Drafts", draft_comments, function(comment)
+  append_limited_section(lines, "Draft comments", draft_comments, function(comment)
     table.insert(lines, string.format("  - %s %s: %s", comment.id or "?", comment_range_label(comment), truncate(comment.body)))
   end)
 
-  append_limited_section(lines, "Comments", unresolved, function(comment)
+  append_limited_section(lines, "Open comments", unresolved, function(comment)
     table.insert(lines, string.format("  - %s %s: %s", comment.id or "?", comment_range_label(comment), truncate(comment.body)))
   end)
 
@@ -224,7 +230,7 @@ local function render_preview(item)
     table.insert(lines, string.format("resolved %d", resolved_count))
   end
 
-  append_limited_section(lines, "Agents", agent_findings, function(finding)
+  append_limited_section(lines, "Agent findings", agent_findings, function(finding)
     local suffix = ""
     if finding.suggested_fix and finding.suggested_fix ~= "" then
       suffix = " +suggestion"
@@ -284,9 +290,9 @@ local function entry_activity_label(item)
   local activity_parts = {}
 
   if comment_count > 0 then
-    table.insert(activity_parts, tostring(math.min(comment_count, 9)))
+    table.insert(activity_parts, string.format("c%d", math.min(comment_count, 9)))
   elseif has_note then
-    table.insert(activity_parts, "N")
+    table.insert(activity_parts, "note")
   end
 
   local agent_label = agent_activity_label(item)
@@ -294,7 +300,8 @@ local function entry_activity_label(item)
     table.insert(activity_parts, agent_label)
   end
 
-  return table.concat(activity_parts, " ")
+  local activity = table.concat(activity_parts, " ")
+  return activity ~= "" and activity or "-"
 end
 
 local function scope_highlight(item)
@@ -311,7 +318,7 @@ local function prompt_title(items, opts)
   local suffix = options.status and string.format(" [%s]", options.status) or (options.filter and string.format(" [%s]", options.filter) or "")
 
   return string.format(
-    "Review%s  %d | attn %d | chg %d | old %d",
+    "Review Inbox%s  items %d | action %d | changed %d | stale %d",
     suffix,
     counts.total,
     counts.attention,
@@ -357,11 +364,11 @@ function M.open(items, callbacks, opts)
   local displayer = entry_display.create({
     separator = " ",
     items = {
-      { width = 3 },
+      { width = 2 },
+      { width = 6 },
       { width = 4 },
-      { width = 4 },
+      { width = 16 },
       { width = 8 },
-      { width = 5 },
       { remaining = true },
     },
   })
@@ -402,7 +409,7 @@ function M.open(items, callbacks, opts)
   pickers.new({}, {
     default_selection_index = default_selection_index(items, options.focus_fingerprint),
     prompt_title = prompt_title(items, options),
-    results_title = "Enter diff | Tab mark | r seen | Ctrl-Y accept | ? help",
+    results_title = "Enter open | Tab mark | r reviewed | Ctrl-Y accept | ? keys",
     preview_title = "Ctrl-A comment | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi",
     finder = finders.new_table({
       results = items,

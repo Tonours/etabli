@@ -253,7 +253,7 @@ local function open_comment_editor(item, line, end_line, target, opts)
   local geometry = comment_editor_geometry()
   local bufnr = vim.api.nvim_create_buf(false, true)
   local winid = vim.api.nvim_open_win(bufnr, true, {
-    border = "rounded",
+    border = "single",
     col = geometry.col,
     height = geometry.height,
     relative = "editor",
