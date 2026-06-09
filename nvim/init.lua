@@ -59,6 +59,9 @@ lazy_cmd("ReviewHunkNextComment", "config.review.hunk_flow", "cmd_hunk_next_comm
 lazy_cmd("ReviewHunkPrevComment", "config.review.hunk_flow", "cmd_hunk_prev_comment", {
   desc = "Move Hunk to the previous review comment",
 })
+lazy_cmd("ReviewHelp", "config.review.hunk_flow", "cmd_help", {
+  desc = "Show Hunk review workflow help",
+})
 lazy_cmd("ReviewClaudeReview", "config.review.hunk_flow", "cmd_claude_review", {
   complete = function()
     return { "all", "changed-only" }

@@ -191,6 +191,34 @@ local function normalize_review_target(target)
   return false
 end
 
+local function help_lines()
+  return {
+    "# Hunk Review Help",
+    "",
+    "Default flow",
+    "- :ReviewInbox or <leader>ri opens the watched Hunk diff for this repo",
+    "- :ReviewCurrentHunk or <leader>rh focuses the current file line in Hunk",
+    "- :ReviewAnnotate or <leader>ra adds an inline Hunk review comment",
+    "- visual <leader>ra adds a range comment",
+    "- :ReviewHunkSync [pull|push|both] or <leader>rs syncs Hunk notes and local state",
+    "- :ReviewHunkNextComment / :ReviewHunkPrevComment or <leader>rn / <leader>rN navigate comments",
+    "- :ReviewClaudeReview [all|changed-only] or <leader>rc starts a Claude HITL review pass",
+    "- :ReviewPiReview [all|changed-only] or <leader>rp starts a Pi HITL review pass",
+    "",
+    "Review loop",
+    "1. Open :ReviewInbox",
+    "2. Use :ReviewAnnotate from file buffers for precise line or range comments",
+    "3. Run Claude or Pi only when you want a read-only first pass",
+    "4. Inspect agent comments as evidence, then accept, revise, or ignore manually",
+    "5. Run :ReviewHunkSync pull before closing Hunk if comments were added outside Etabli",
+    "",
+    "Notes",
+    "- Hunk is the default review surface; legacy local review commands are opt-in",
+    "- Claude and Pi prompts stay interactive through terminal paste",
+    "- If Hunk is not running, review commands open the watched diff first",
+  }
+end
+
 local function selected_line_range()
   local start_line = vim.fn.getpos("'<")[2]
   local end_line = vim.fn.getpos("'>")[2]
@@ -423,6 +451,24 @@ function M.sync_hunk(action)
   adapter_mod().sync_hunk(action)
 end
 
+function M.help_lines()
+  return vim.deepcopy(help_lines())
+end
+
+function M.show_help(opts)
+  local options = opts or {}
+  if #vim.api.nvim_list_uis() == 0 then
+    util_mod().open_scratch("hunk-review-help.md", help_lines(), "markdown")
+    return
+  end
+
+  util_mod().open_overlay("Hunk Review Help", help_lines(), {
+    filetype = "markdown",
+    on_close = options.on_close,
+    origin_win = options.origin_win,
+  })
+end
+
 function M.navigate_hunk_comment(direction)
   local context = hunk_context()
   if not context then
@@ -543,6 +589,10 @@ end
 
 function M.cmd_sync_hunk(cmd_opts)
   M.sync_hunk(cmd_opts.args)
+end
+
+function M.cmd_help()
+  M.show_help()
 end
 
 function M.cmd_hunk_next_comment()
