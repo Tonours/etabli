@@ -68,6 +68,10 @@ lazy_cmd("ReviewInlineAnnotations", "config.review", "cmd_inline_annotations", {
   complete = function() return { "on", "off", "refresh", "toggle", "expand", "compact" } end,
   desc = "Toggle review inline annotations", nargs = "?",
 })
+lazy_cmd("ReviewHunk", "config.review", "cmd_open_hunk", {
+  complete = function() return { "diff", "diff --watch", "show", "show HEAD" } end,
+  desc = "Open Hunk diff viewer", nargs = "*",
+})
 lazy_cmd("ReviewClaude", "config.review", "cmd_send_claude", {
   complete = function() return { "revise", "explain", "review" } end,
   desc = "Send the current hunk review prompt to Claude", nargs = "?",

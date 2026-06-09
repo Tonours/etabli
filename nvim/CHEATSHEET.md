@@ -78,6 +78,7 @@ Leader: `<Space>`
 - review transaction: `<leader>rt` start, `<leader>rT` preview, `:ReviewSubmit comment|approve|request-changes`
 - inline annotations: `<leader>rl` toggle, `<leader>ro` expand thread
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
+- Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch`
 - agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare
 - suggested changes: `<leader>rS` preview, `:ReviewSuggestionStatus applied|rejected|resolved|open`
 - navigate hunks: `[h` previous, `]h` next
