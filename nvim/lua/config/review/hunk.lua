@@ -219,6 +219,15 @@ function M.navigate(context, file, line)
   return true
 end
 
+function M.navigate_comment(context, direction)
+  if not context or not context.repo then
+    return nil, "Hunk comment navigation needs a repository"
+  end
+
+  local target = direction == "prev" and "--prev-comment" or "--next-comment"
+  return run_json(session_command(context.repo, "navigate", { target, "--json" }))
+end
+
 function M.review_model(context, opts)
   local options = opts or {}
   if not context or not context.repo then

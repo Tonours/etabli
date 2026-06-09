@@ -5,29 +5,32 @@ This review flow uses Hunk as the default review surface for Git hunks inside Ne
 ## Current hunk actions
 
 - `<leader>rh` focus the current file and line in the live Hunk review when a session exists, or open Hunk otherwise
-- `<leader>ra` add a GitHub PR-style review comment on the current line
-- visual `<leader>ra` add a review comment on the selected line range
-- `<leader>rr` resolve the current review conversation
-- `<leader>rs` choose a review status for the current hunk
-- `<leader>rA` accept the current hunk directly
-- `<leader>rV` mark the current hunk as reviewed without accepting it
-- `<leader>rt` start a local draft review transaction
-- `<leader>rT` preview the active review transaction
-- `<leader>rl` toggle inline review annotations in file buffers
-- `<leader>ro` expand or collapse the inline review thread under the cursor
+- `<leader>ra` add a review comment on the current line, persisted locally and pushed to Hunk when a session exists
+- visual `<leader>ra` add a review comment on the selected line range, with Hunk anchoring to the first selected changed line
+- `<leader>rs` pull then push review notes between local persistence and the live Hunk session
+- `<leader>rn` move Hunk to the next review comment
+- `<leader>rN` move Hunk to the previous review comment
 - `<leader>rH` open or reload Hunk's terminal review viewer for the current repo
-- `<leader>rg` compare agent review findings for the current hunk
-- `<leader>rS` safely preview a suggested change for the current hunk
-- `<leader>rc` build a `revise` prompt for Claude from the current hunk
-- `<leader>rC` build an `explain` prompt for Claude from the current hunk
-- `<leader>rp` build a `revise` prompt for Pi from the current hunk
-- `<leader>rP` build an `explain` prompt for Pi from the current hunk
+- `<leader>rc` launch a Claude first-pass Hunk review
+- `<leader>rp` launch a Pi first-pass Hunk review
+- `<leader>rvc` launch the Claude first-pass Hunk review
+- `<leader>rvp` launch the Pi first-pass Hunk review
 
-Equivalent commands:
+Hunk commands:
 
 - `:ReviewCurrentHunk`
-- `:ReviewLegacyCurrentHunk`
 - `:ReviewAnnotate`
+- `:ReviewHunk [diff|show]`
+- `:ReviewHunkSync [push|pull|both]`
+- `:ReviewHunkNextComment`
+- `:ReviewHunkPrevComment`
+- `:ReviewClaudeReview [status|all|changed-only]`
+- `:ReviewPiReview [status|all|changed-only]`
+
+Legacy local commands remain available for capabilities Hunk does not yet persist natively:
+
+- `:ReviewLegacyInbox [status|filter]`
+- `:ReviewLegacyCurrentHunk`
 - `:ReviewResolve`
 - `:ReviewStatus [new|accepted|needs-rework|question|ignore]`
 - `:ReviewAccept`
@@ -37,9 +40,6 @@ Equivalent commands:
 - `:ReviewSubmit [comment|approve|request-changes]`
 - `:ReviewExport [markdown|json]`
 - `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
-- `:ReviewHunk [diff|show]`
-- `:ReviewHunkSync [push|pull|both]`
-- `:ReviewLegacyInbox [status|filter]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
 - `:ReviewIngestClaude [file]`
@@ -48,11 +48,13 @@ Equivalent commands:
 - `:ReviewSuggestionPreview`
 - `:ReviewSuggestionStatus [open|applied|rejected|resolved]`
 
-Inline annotations show unresolved review conversations on the live file line or selected line range, similar to GitHub PR file review comments. They are rendered with extmarks and signs, so they do not modify the file. To keep large reviews readable and fast, conversations render as compact end-of-line markers by default. Use `<leader>ro` or `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again. Older hunk-level notes are still shown as a compact end-of-line fallback.
+Legacy keymaps are disabled by default. Set `vim.g.etabli_review_legacy_keymaps = 1` before loading `config.keymaps` if you need the old status, transaction, local inline annotation, suggestion, and local batch mappings.
 
-Multi-line comments must stay inside one reviewable git hunk. If a visual selection crosses hunk boundaries, the review command refuses the comment instead of storing an ambiguous anchor.
+Local inline annotations show unresolved local review conversations on the live file line or selected line range. They are legacy UI now; Hunk is the default visible review surface. Use `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again.
 
-Use `:ReviewStart` before annotating when you want GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. Without a transaction, `ReviewAnnotate` persists the comment locally and also adds it to the live Hunk session when one is active. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
+Multi-line comments must stay inside one reviewable git hunk. Hunk anchors the synced note to one changed line and stores the original selected range in the Hunk rationale.
+
+Use `:ReviewStart` before annotating when you want legacy GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. Without a transaction, `ReviewAnnotate` persists the comment locally and also adds it to the live Hunk session when one is active. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
 Note: legacy current-hunk review uses `git diff` as the source of truth. Save the buffer first if you use `:ReviewLegacyCurrentHunk` and want cursor-to-hunk matching to stay accurate.
 
@@ -61,6 +63,8 @@ Note: legacy current-hunk review uses `git diff` as the source of truth. Save th
 Etabli installs Hunk from the official `hunkdiff` npm package documented at https://www.hunk.dev/. Use `<leader>ri`, `<leader>rh`, `<leader>rH`, `:ReviewInbox`, `:ReviewCurrentHunk`, or `:ReviewHunk` to open or reload `hunk diff --watch` for the current repository in a Neovim terminal tab. Pass explicit Hunk commands when needed, for example `:ReviewHunk diff` or `:ReviewHunk show HEAD~1`. This integration does not change the global Git pager.
 
 When a live Hunk session exists, `:ReviewCurrentHunk` uses `hunk session navigate --repo <repo> --file <path> --new-line <line>` to move the Hunk viewport to the current buffer line. If no session exists, it opens Hunk first.
+
+Use `<leader>rn`, `<leader>rN`, `:ReviewHunkNextComment`, or `:ReviewHunkPrevComment` to navigate between Hunk inline review comments through `hunk session navigate --next-comment|--prev-comment`.
 
 Use `:ReviewHunkSync pull` to persist live Hunk notes into local review state before closing Hunk. Use `:ReviewHunkSync push` to rehydrate unresolved local comments and open agent findings into the active Hunk session. `:ReviewHunkSync` or `:ReviewHunkSync both` pulls first, then pushes. Pushed comments carry an `Etabli id` marker so repeated syncs can skip duplicates.
 
@@ -102,16 +106,12 @@ By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the 
 
 ## Agent Review
 
-- `:ReviewClaudeBatch [status]` prepares one Claude prompt for every live hunk with that status
-- `:ReviewPiBatch [status]` prepares one Pi prompt for every live hunk with that status
 - `:ReviewClaudeReview [status|all|changed-only]` launches Claude with a Hunk HITL review prompt
 - `:ReviewPiReview [status|all|changed-only]` launches Pi with a Hunk HITL review prompt
-- `<leader>rbc` prepares the default Claude batch prompt for `needs-rework`
-- `<leader>rbp` prepares the default Pi batch prompt for `needs-rework`
-- `<leader>rvc` launches the Claude first-pass review for all live hunks
-- `<leader>rvp` launches the Pi first-pass review for all live hunks
+- `<leader>rc` and `<leader>rvc` launch the Claude first-pass Hunk review
+- `<leader>rp` and `<leader>rvp` launch the Pi first-pass Hunk review
 
-Batch commands still use the legacy local hunk model and are retained for status-scoped prompts. The first-pass review commands use Hunk when the CLI is available.
+Legacy batch commands `:ReviewClaudeBatch [status]` and `:ReviewPiBatch [status]` still use the local hunk model and are retained for status-scoped prompts. Their keymaps are available only when `vim.g.etabli_review_legacy_keymaps = 1`.
 
 Review commands default to all live staged and unstaged hunks. Passing a status or `changed-only` narrows the Hunk prompt label for the agent, but Hunk itself remains the source of diff truth.
 

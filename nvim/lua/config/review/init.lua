@@ -1513,6 +1513,29 @@ function M.sync_hunk(action)
   sync_hunk_notes(action)
 end
 
+function M.navigate_hunk_comment(direction)
+  local context = best_context()
+  if not context then
+    vim.notify("Navigate Hunk review comments from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  if not hunk.is_available() then
+    vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
+    return
+  end
+
+  if not hunk.session_exists(context.repo) then
+    vim.notify("No active Hunk session for this repository. Run :ReviewHunk first.", vim.log.levels.WARN)
+    return
+  end
+
+  local _, err = hunk.navigate_comment(context, direction)
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
+  end
+end
+
 function M.repo_change_signature(repo)
   return review_items.repo_change_signature(repo)
 end
@@ -1730,6 +1753,14 @@ end
 
 function M.cmd_sync_hunk(cmd_opts)
   M.sync_hunk(cmd_opts.args)
+end
+
+function M.cmd_hunk_next_comment()
+  M.navigate_hunk_comment("next")
+end
+
+function M.cmd_hunk_prev_comment()
+  M.navigate_hunk_comment("prev")
 end
 
 function M.cmd_claude_batch(cmd_opts)
