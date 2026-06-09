@@ -6,7 +6,7 @@ This document records the evidence for replacing Etabli's local Neovim review sy
 
 Current decision: **do not delete the existing local review state yet**.
 
-Hunk is a strong replacement for the review surface: multi-file diff UI, live sessions, inline agent comments, session navigation, reload, `--watch`, JSON inspection, and agent skill control are confirmed. It is not yet a complete durable replacement for Etabli's current persisted review model because Hunk live comments did not survive closing and reopening the TUI during local smoke testing.
+Hunk is a strong replacement for the review surface: multi-file diff UI, live sessions, inline agent comments, session navigation, reload, `--watch`, JSON inspection, and agent skill control are confirmed. It is not yet a complete durable replacement for Etabli's current persisted review model because Hunk live comments did not survive closing and reopening the TUI during local smoke testing. Etabli now compensates with a thin invisible persistence adapter.
 
 If "exclusive Hunk" means Hunk owns the visible review UI and AI HITL workflow, the migration is feasible with a thin persistence adapter. If it means no Etabli review persistence at all, the migration would drop currently supported behavior.
 
@@ -95,6 +95,8 @@ Hunk owns the visible review UI and agent HITL flow. Etabli keeps a minimal dura
 - stores comments/statuses that must survive Hunk close
 - rehydrates comments into Hunk using `hunk session comment apply`
 - exports Hunk notes back to durable state with `hunk session review --include-notes --json`
+- auto-persists on active-session reloads, direct comments, provider exit, Hunk terminal close, and Neovim exit
+- auto-rehydrates when an active Hunk session is opened or reloaded
 - launches Claude/Pi with the Hunk skill prompt
 - removes the custom Telescope Inbox, diff previews, extmark annotation renderer, and scratch diff views once parity is proven
 
@@ -110,7 +112,7 @@ Use Option B unless the user explicitly accepts losing durable review metadata. 
 
 1. Make `:ReviewInbox`, `<leader>ri`, and current-hunk preview commands open or reload Hunk instead of Telescope/scratch diff views. Implemented for the default path.
 2. Change Claude/Pi review prompts to require `hunk skill path` and `hunk session review/comment` instead of pasting raw diff prompts. Implemented for first-pass review commands; provider prompts are dispatched only after an active Hunk session exists, otherwise the command opens Hunk and stops.
-3. Keep Etabli state read-only or fallback-only until Hunk notes can be exported and rehydrated reliably. In progress: `ReviewAnnotate` writes only to an active Hunk session and opens Hunk instead of falling back to local state when no session exists, default `:ReviewHunkSync` pulls live Hunk notes into local state before close, and explicit `:ReviewHunkSync push` rehydrates unresolved local comments/open findings back into Hunk with dedupe markers.
-4. Add tests proving Hunk commands are the default review path and custom UI modules are no longer used when `hunk` is executable. Implemented in the Neovim review smoke test, including default keymap checks that leave local transaction/status/batch mappings disabled unless `vim.g.etabli_review_legacy_keymaps = 1`; legacy local commands are hidden unless `vim.g.etabli_review_legacy_commands = 1`; local inline annotations are also disabled unless explicitly enabled. The default command/keymap surface now routes through the smaller `config.review.hunk_flow` orchestrator, with local persistence isolated in the on-demand `config.review.hunk_local_adapter`; `config.review` remains unloaded at startup unless legacy flags are enabled, the default Hunk inbox opens without loading local review state/items/providers or the local adapter, and Hunk Claude/Pi prompts use a lightweight Git signature instead of Etabli's local review model.
+3. Keep Etabli state as a fallback durability layer until Hunk notes can be exported and rehydrated natively. Implemented: `ReviewAnnotate` writes only to an active Hunk session and opens Hunk instead of falling back to local state when no session exists; active Hunk sessions auto-persist notes into local state; active Hunk reloads/open sessions auto-rehydrate unresolved local notes; `:ReviewHunkSync pull|push|both` remains the manual checkpoint with dedupe markers.
+4. Add tests proving Hunk commands are the default review path and custom UI modules are no longer used when `hunk` is executable. Implemented in the Neovim review smoke test, including default keymap checks that leave local transaction/status/batch mappings disabled unless `vim.g.etabli_review_legacy_keymaps = 1`; legacy local commands are hidden unless `vim.g.etabli_review_legacy_commands = 1`; local inline annotations are also disabled unless explicitly enabled. The default command/keymap surface now routes through the smaller `config.review.hunk_flow` orchestrator; `config.review` remains unloaded at startup unless legacy flags are enabled; the default Hunk inbox opens through Hunk, with local state/items allowed only as an invisible durability adapter for active Hunk sessions; and Hunk Claude/Pi prompts use a lightweight Git signature plus Hunk session notes instead of Etabli's legacy review UI.
 
 Do not delete `state.lua`, transactions, or suggestion state until the persistence decision is explicit.

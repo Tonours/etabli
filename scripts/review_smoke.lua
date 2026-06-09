@@ -1546,6 +1546,7 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
   local original_hunk_available = hunk.is_available
   local original_hunk_session_exists = hunk.session_exists
   local original_hunk_add_comment = hunk.add_comment
+  local original_hunk_review_model = hunk.review_model
   local captured_hunk_comment
 
   hunk.is_available = function()
@@ -1560,6 +1561,23 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
     }, attrs)
     return { result = { commentId = "hunk-comment" } }
   end
+  hunk.review_model = function(request_context, opts)
+    assert_true(request_context.repo == repo_root, "direct Hunk annotation persistence should target the current repo")
+    assert_true(opts.include_notes == true, "direct Hunk annotation persistence should pull live Hunk notes")
+    return {
+      review = {
+        reviewNotes = {
+          {
+            body = "Dual-write annotation for Hunk.",
+            createdAt = "2026-06-09T12:00:00Z",
+            filePath = "demo.txt",
+            newRange = { 9, 9 },
+            noteId = "note-direct-hunk",
+          },
+        },
+      },
+    }
+  end
   vim.ui.input = function(_, on_confirm)
     on_confirm("Dual-write annotation for Hunk.")
   end
@@ -1570,6 +1588,7 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
   end)
 
   vim.ui.input = original_input
+  hunk.review_model = original_hunk_review_model
   hunk.add_comment = original_hunk_add_comment
   hunk.session_exists = original_hunk_session_exists
   hunk.is_available = original_hunk_available
@@ -1582,6 +1601,23 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
   assert_true(
     captured_hunk_comment.id == nil,
     "direct Hunk annotation should not include an Etabli id marker so pull can persist it later"
+  )
+
+  local persisted_hunk_comment
+  for _, item in ipairs(state.merge_items(context, diff.collect_all(repo_root))) do
+    if item.path == "demo.txt" then
+      for _, comment in ipairs(item.comments or {}) do
+        if comment.body == "Dual-write annotation for Hunk." then
+          persisted_hunk_comment = comment
+          break
+        end
+      end
+    end
+  end
+  assert_true(persisted_hunk_comment ~= nil, "direct Hunk annotation should be persisted locally after add")
+  assert_true(
+    tostring(persisted_hunk_comment.id or ""):match("^hunk_") ~= nil,
+    "persisted direct Hunk annotation should keep a Hunk-origin id"
   )
 end)()
 
@@ -1616,6 +1652,55 @@ end)()
 
   assert_true(ok_hunk_sync, hunk_sync_err or "default Hunk sync failed")
   assert_true(not applied_comments, "default Hunk sync should not push local notes back into Hunk")
+end)()
+
+;(function()
+  local hunk = require("config.review.hunk")
+  local hunk_adapter = require("config.review.hunk_local_adapter")
+  local original_hunk_available = hunk.is_available
+  local original_hunk_session_exists = hunk.session_exists
+  local original_hunk_review_model = hunk.review_model
+  local original_hunk_apply_comments = hunk.apply_comments
+  local captured_comments = {}
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.session_exists = function(repo_arg)
+    return repo_arg == repo_root
+  end
+  hunk.review_model = function(request_context, opts)
+    assert_true(request_context.repo == repo_root, "Hunk rehydrate should inspect the current live session")
+    assert_true(opts.include_notes == true, "Hunk rehydrate should include existing notes for dedupe")
+    return { review = { reviewNotes = {} } }
+  end
+  hunk.apply_comments = function(request_context, comments)
+    assert_true(request_context.repo == repo_root, "Hunk rehydrate should target the current repo")
+    captured_comments = comments or {}
+    return { applied = #captured_comments, skipped = 0 }
+  end
+
+  local result, rehydrate_err = hunk_adapter.rehydrate_repo(context, { silent = true })
+
+  hunk.apply_comments = original_hunk_apply_comments
+  hunk.review_model = original_hunk_review_model
+  hunk.session_exists = original_hunk_session_exists
+  hunk.is_available = original_hunk_available
+
+  assert_true(result ~= nil, rehydrate_err or "Hunk rehydrate failed")
+  local saw_hunk_origin_comment = false
+  for _, comment in ipairs(captured_comments) do
+    if
+      comment.file == "demo.txt"
+      and comment.line == 9
+      and comment.body == "Dual-write annotation for Hunk."
+      and tostring(comment.id or ""):match("^comment:hunk_")
+    then
+      saw_hunk_origin_comment = true
+      break
+    end
+  end
+  assert_true(saw_hunk_origin_comment, "Hunk rehydrate should push persisted Hunk-origin notes back into Hunk")
 end)()
 
 local ok_show_multiline, show_multiline_err = pcall(function()
@@ -1877,19 +1962,31 @@ assert_true(
 
   local original_hunk_available = hunk.is_available
   local original_hunk_open_or_reload = hunk.open_or_reload
-  local original_hunk_open_or_navigate = hunk.open_or_navigate
+  local original_hunk_session_exists = hunk.session_exists
+  local original_hunk_navigate = hunk.navigate
+  local original_hunk_review_model = hunk.review_model
+  local original_hunk_apply_comments = hunk.apply_comments
   local hunk_inbox_opened = false
   local hunk_line_focused = false
 
   hunk.is_available = function()
     return true
   end
+  hunk.session_exists = function(repo_arg)
+    return repo_arg == repo_root
+  end
+  hunk.review_model = function()
+    return { review = { reviewNotes = {} } }
+  end
+  hunk.apply_comments = function(_, comments)
+    return { applied = #(comments or {}), skipped = 0 }
+  end
   hunk.open_or_reload = function(request_context, raw_args)
     hunk_inbox_opened = request_context.repo == repo_root and raw_args == "diff --watch"
     return true
   end
-  hunk.open_or_navigate = function(request_context, opts)
-    hunk_line_focused = request_context.repo == repo_root and opts.file == "demo.txt" and opts.line == 9
+  hunk.navigate = function(request_context, file, line)
+    hunk_line_focused = request_context.repo == repo_root and file == "demo.txt" and line == 9
     return true
   end
 
@@ -1898,7 +1995,10 @@ assert_true(
   hunk_flow.open_inbox()
   hunk_flow.show_current_hunk()
 
-  hunk.open_or_navigate = original_hunk_open_or_navigate
+  hunk.apply_comments = original_hunk_apply_comments
+  hunk.review_model = original_hunk_review_model
+  hunk.navigate = original_hunk_navigate
+  hunk.session_exists = original_hunk_session_exists
   hunk.open_or_reload = original_hunk_open_or_reload
   hunk.is_available = original_hunk_available
 

@@ -149,6 +149,7 @@ function M.open(context, raw_args)
   local bufnr = vim.api.nvim_get_current_buf()
   vim.bo[bufnr].bufhidden = "wipe"
   pcall(vim.api.nvim_buf_set_name, bufnr, "term://hunk-review")
+  vim.b[bufnr].etabli_hunk_repo = context.repo
 
   local ok_termopen, job_id = pcall(vim.fn.termopen, command, {
     cwd = context.repo,
