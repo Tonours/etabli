@@ -1041,6 +1041,9 @@ local function assert_agent_findings_ingestion_tracks_provider_counts()
   local compact_preview_item = vim.deepcopy(agent_merged[1])
   compact_preview_item.patch = table.concat(long_patch_lines, "\n")
   local inbox_preview = table.concat(picker.preview_lines(compact_preview_item), "\n")
+  assert_true(inbox_preview:find("Review hunk", 1, true) ~= nil, "inbox preview should start with review context")
+  assert_true(inbox_preview:find("State     tree", 1, true) ~= nil, "inbox preview should render explicit scope state")
+  assert_true(inbox_preview:find("Agent findings", 1, true) ~= nil, "inbox preview should name agent findings")
   assert_true(
     inbox_preview:find("+suggestion", 1, true) ~= nil,
     "inbox scan preview should signal available suggested fixes"
@@ -1447,7 +1450,7 @@ local function assert_inline_annotations_are_compact_until_expanded()
       if summary_text:find("Please simplify this change. Keep the guard explicit.", 1, true) ~= nil then
         saw_normalized_summary_note = true
       end
-      if summary_text:find("3 open", 1, true) ~= nil and summary_text:find("-> <leader>ro", 1, true) ~= nil then
+      if summary_text:find("3 comments", 1, true) ~= nil and summary_text:find("| <leader>ro", 1, true) ~= nil then
         saw_compact_comment = true
       end
     end

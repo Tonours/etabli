@@ -44,7 +44,9 @@ local function unresolved_comments(item)
 
   for _, comment in ipairs(item.draft_comments or {}) do
     if comment.body and comment.body ~= "" then
-      table.insert(comments, comment)
+      local draft = vim.deepcopy(comment)
+      draft.draft = true
+      table.insert(comments, draft)
     end
   end
 
@@ -155,7 +157,13 @@ local function comment_virtual_lines(comments)
   local lines = {}
 
   for index, comment in ipairs(comments) do
-    local prefix = string.format("  | review #%s %s", comment.id or "?", range_label(comment))
+    local kind = "comment"
+    if comment.agent == true then
+      kind = "agent"
+    elseif comment.draft == true then
+      kind = "draft"
+    end
+    local prefix = string.format("  | %s #%s %s", kind, comment.id or "?", range_label(comment))
     if #comments > 1 then
       prefix = string.format("%s (%d/%d)", prefix, index, #comments)
     end
@@ -187,18 +195,21 @@ local function compact_comment_text(comments)
     end
   end
 
-  local label
-  if draft_count == count then
-    label = count == 1 and "1 draft" or string.format("%d drafts", count)
-  elseif agent_count == count then
-    label = count == 1 and "1 agent" or string.format("%d agents", count)
-  else
-    label = count == 1 and "1 open" or string.format("%d open", count)
+  local human_count = count - draft_count - agent_count
+  local labels = {}
+  if human_count > 0 then
+    table.insert(labels, human_count == 1 and "1 comment" or string.format("%d comments", human_count))
+  end
+  if draft_count > 0 then
+    table.insert(labels, draft_count == 1 and "1 draft" or string.format("%d drafts", draft_count))
+  end
+  if agent_count > 0 then
+    table.insert(labels, agent_count == 1 and "1 agent" or string.format("%d agents", agent_count))
   end
   local first = comments[1]
   local range = first and range_label(first) or "line ?"
 
-  return string.format("%s %s -> <leader>ro", label, range)
+  return string.format("thread %s at %s | <leader>ro", table.concat(labels, ", "), range)
 end
 
 local function line_for_item(bufnr, item)
