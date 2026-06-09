@@ -1572,6 +1572,39 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
   )
 end)()
 
+;(function()
+  local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
+  local original_hunk_available = hunk.is_available
+  local original_hunk_review_model = hunk.review_model
+  local original_hunk_apply_comments = hunk.apply_comments
+  local applied_comments = false
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.review_model = function(request_context, opts)
+    assert_true(request_context.repo == repo_root, "default Hunk sync should target the current repo")
+    assert_true(opts.include_notes == true, "default Hunk sync should pull Hunk notes")
+    return { review = { reviewNotes = {} } }
+  end
+  hunk.apply_comments = function()
+    applied_comments = true
+    return { applied = 1, skipped = 0 }
+  end
+
+  local ok_hunk_sync, hunk_sync_err = pcall(function()
+    hunk_flow.sync_hunk("")
+  end)
+
+  hunk.apply_comments = original_hunk_apply_comments
+  hunk.review_model = original_hunk_review_model
+  hunk.is_available = original_hunk_available
+
+  assert_true(ok_hunk_sync, hunk_sync_err or "default Hunk sync failed")
+  assert_true(not applied_comments, "default Hunk sync should not push local notes back into Hunk")
+end)()
+
 local ok_show_multiline, show_multiline_err = pcall(function()
   review.show_legacy_current_hunk()
 end)
@@ -1821,7 +1854,7 @@ assert_true(
   local claude_keymap = vim.fn.maparg("<leader>rc", "n", false, true)
   local legacy_transaction_keymap = vim.fn.maparg("<leader>rt", "n", false, true)
   local legacy_batch_keymap = vim.fn.maparg("<leader>rbc", "n", false, true)
-  assert_true(sync_keymap.desc == "Sync Hunk review notes", "default <leader>rs should sync Hunk notes")
+  assert_true(sync_keymap.desc == "Persist Hunk review notes", "default <leader>rs should persist Hunk notes")
   assert_true(claude_keymap.desc == "Claude Hunk review pass", "default <leader>rc should launch Hunk Claude review")
   assert_true(
     vim.tbl_isempty(legacy_transaction_keymap),

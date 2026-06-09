@@ -7,7 +7,7 @@ This review flow uses Hunk as the default review surface for Git hunks inside Ne
 - `<leader>rh` focus the current file and line in the live Hunk review when a session exists, or open Hunk otherwise
 - `<leader>ra` add a review comment on the current line; when a Hunk session is active, the comment is written directly to Hunk
 - visual `<leader>ra` add a review comment on the selected line range, with Hunk anchoring to the first selected changed line
-- `<leader>rs` pull then push review notes between local persistence and the live Hunk session
+- `<leader>rs` pulls live Hunk notes into local persistence before closing Hunk
 - `<leader>rn` move Hunk to the next review comment
 - `<leader>rN` move Hunk to the previous review comment
 - `<leader>rH` open or reload Hunk's terminal review viewer for the current repo
@@ -66,7 +66,7 @@ When a live Hunk session exists, `:ReviewCurrentHunk` uses `hunk session navigat
 
 Use `<leader>rn`, `<leader>rN`, `:ReviewHunkNextComment`, or `:ReviewHunkPrevComment` to navigate between Hunk inline review comments through `hunk session navigate --next-comment|--prev-comment`.
 
-Use `:ReviewHunkSync pull` to persist live Hunk notes into local review state before closing Hunk. Use `:ReviewHunkSync push` to rehydrate unresolved local comments and open agent findings into the active Hunk session. `:ReviewHunkSync` or `:ReviewHunkSync both` pulls first, then pushes. Pushed comments carry an `Etabli id` marker so repeated syncs can skip duplicates.
+Use `:ReviewHunkSync` or `:ReviewHunkSync pull` to persist live Hunk notes into local review state before closing Hunk. Use `:ReviewHunkSync push` to rehydrate unresolved local comments and open agent findings into the active Hunk session. Use `:ReviewHunkSync both` only when you intentionally want to pull first, then push local unresolved notes back into Hunk. Pushed comments carry an `Etabli id` marker so repeated syncs can skip duplicates.
 
 The full migration feasibility record is `docs/hunk-review-migration-feasibility.md`. Do not delete the persisted Etabli review state until the persistence decision in that document is resolved.
 

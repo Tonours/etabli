@@ -623,7 +623,7 @@ function M.annotate_visual_selection()
 end
 
 function M.sync_hunk(action)
-  local mode = action == "" and "both" or (action or "both")
+  local mode = action == "" and "pull" or (action or "pull")
   if mode ~= "push" and mode ~= "pull" and mode ~= "both" then
     vim.notify(string.format("Invalid Hunk sync action: %s", mode), vim.log.levels.ERROR)
     return
