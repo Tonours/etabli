@@ -4,7 +4,7 @@ Personal dev environment for AI-assisted workflows across Neovim, Claude Code, P
 
 The repo is the source of truth for tracked config. `scripts/install.sh` links or bootstraps local files into the expected tool locations.
 
-The installer uses an existing Node.js runtime, preferring `asdf` when available. It does not install `nvm`; Pi is installed from the official `@earendil-works/pi-coding-agent` package.
+The installer uses an existing Node.js runtime, preferring `asdf` when available. It does not install `nvm`; Pi is installed from the official `@earendil-works/pi-coding-agent` package, and Hunk is installed from the official `hunkdiff` package documented at https://www.hunk.dev/.
 
 ## Quick start
 
@@ -42,6 +42,7 @@ Use `PLAN.md` as the only execution artifact. Implement only from `Status: READY
 ```bash
 fix-links check
 fix-links
+hunk diff --watch
 bun test pi/extensions/__tests__/
 ```
 

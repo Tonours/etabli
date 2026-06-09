@@ -42,6 +42,60 @@ local function best_context()
   return context_for_cwd()
 end
 
+local function parse_hunk_args(raw_args)
+  local args = {}
+
+  for value in vim.gsplit(raw_args or "", "%s+", { trimempty = true }) do
+    table.insert(args, value)
+  end
+
+  if vim.tbl_isempty(args) then
+    return { "diff", "--watch" }
+  end
+
+  if args[1] ~= "diff" and args[1] ~= "show" then
+    return nil, "ReviewHunk supports only `diff` and `show`"
+  end
+
+  return args
+end
+
+local function open_hunk_terminal(raw_args)
+  local context = best_context()
+  if not context then
+    vim.notify("Open Hunk from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  if vim.fn.executable("hunk") ~= 1 then
+    vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
+    return
+  end
+
+  local args, err = parse_hunk_args(raw_args)
+  if not args then
+    vim.notify(err, vim.log.levels.ERROR)
+    return
+  end
+
+  vim.cmd.tabnew()
+  local bufnr = vim.api.nvim_get_current_buf()
+  vim.bo[bufnr].bufhidden = "wipe"
+  pcall(vim.api.nvim_buf_set_name, bufnr, "term://hunk-review")
+
+  local command = vim.list_extend({ "hunk" }, args)
+  local ok_termopen, job_id = pcall(vim.fn.termopen, command, {
+    cwd = context.repo,
+  })
+
+  if not ok_termopen or type(job_id) ~= "number" or job_id <= 0 then
+    vim.notify("Could not open Hunk diff viewer", vim.log.levels.ERROR)
+    return
+  end
+
+  vim.cmd.startinsert()
+end
+
 local function normalize_status(status, opts)
   local options = opts or {}
 
@@ -553,6 +607,7 @@ local function show_inbox_help(opts)
     "- :ReviewInlineAnnotations [on|off|refresh|toggle] controls inline review notes",
     "- :ReviewInlineAnnotations expand expands or collapses the thread under the cursor",
     "- :ReviewInlineAnnotations compact returns the current buffer to compact inline comments",
+    "- :ReviewHunk opens Hunk with hunk diff --watch for the current repo",
     "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewMarkReviewed [on|off|toggle] marks the current hunk reviewed without changing status",
@@ -1180,6 +1235,10 @@ function M.prepare_review(provider, status)
   prepare_review(provider, status)
 end
 
+function M.open_hunk(raw_args)
+  open_hunk_terminal(raw_args)
+end
+
 function M.repo_change_signature(repo)
   return review_items.repo_change_signature(repo)
 end
@@ -1370,6 +1429,10 @@ function M.cmd_inline_annotations(cmd_opts)
   end
 
   annotations.toggle()
+end
+
+function M.cmd_open_hunk(cmd_opts)
+  M.open_hunk(cmd_opts.args)
 end
 
 function M.cmd_claude_batch(cmd_opts)

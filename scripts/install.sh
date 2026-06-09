@@ -259,6 +259,32 @@ install_script() {
     return 1
 }
 
+install_npm_global_binary_link() {
+    local binary="$1"
+    local prefix target
+
+    if command -v "$binary" > /dev/null 2>&1; then
+        print_success "$binary available"
+        return 0
+    fi
+
+    prefix="$("${NPM_CMD[@]}" config get prefix 2>/dev/null || true)"
+    if [ -z "$prefix" ]; then
+        print_warning "Could not resolve npm prefix for $binary"
+        return 1
+    fi
+
+    target="$prefix/bin/$binary"
+    if [ ! -x "$target" ]; then
+        print_warning "$binary not found after npm install"
+        return 1
+    fi
+
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$target" "$HOME/.local/bin/$binary"
+    print_success "$binary linked into ~/.local/bin"
+}
+
 is_core_pi_skill() {
     local skill="$1"
     for core_skill in "${PI_CORE_SKILLS[@]}"; do
@@ -687,6 +713,7 @@ if "${NPM_CMD[@]}" install -g \
     @astrojs/language-server \
     @glint/core \
     @github/copilot-language-server \
+    hunkdiff \
     @ember-tooling/ember-language-server \
     @tailwindcss/language-server; then
     reshim_asdf_node
@@ -695,6 +722,8 @@ else
     reshim_asdf_node
     print_warning "Some npm packages may have failed to install"
 fi
+install_npm_global_binary_link "hunk" || true
+install_npm_global_binary_link "hunkdiff" || true
 
 # ============================================================================
 # INSTALL NERD FONT

@@ -15,6 +15,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rT` preview the active review transaction
 - `<leader>rl` toggle inline review annotations in file buffers
 - `<leader>ro` expand or collapse the inline review thread under the cursor
+- `<leader>rH` open Hunk's terminal review viewer for the current repo
 - `<leader>rg` compare agent review findings for the current hunk
 - `<leader>rS` safely preview a suggested change for the current hunk
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
@@ -35,6 +36,7 @@ Equivalent commands:
 - `:ReviewSubmit [comment|approve|request-changes]`
 - `:ReviewExport [markdown|json]`
 - `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
+- `:ReviewHunk [diff|show]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
 - `:ReviewIngestClaude [file]`
@@ -50,6 +52,10 @@ Multi-line comments must stay inside one reviewable git hunk. If a visual select
 Use `:ReviewStart` before annotating when you want GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
 Note: current-hunk review uses `git diff` as the source of truth. Save the buffer first if you want cursor-to-hunk matching to stay accurate.
+
+## Hunk viewer
+
+Etabli installs Hunk from the official `hunkdiff` npm package documented at https://www.hunk.dev/. Use `<leader>rH` or `:ReviewHunk` to open `hunk diff --watch` for the current repository in a Neovim terminal tab. Pass explicit Hunk commands when needed, for example `:ReviewHunk diff` or `:ReviewHunk show HEAD~1`. The command is intentionally opt-in and does not change the global Git pager.
 
 ## Review inbox
 

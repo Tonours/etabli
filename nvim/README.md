@@ -28,6 +28,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Review transaction: `<leader>rt` starts a local draft transaction, `<leader>rT` previews it, `:ReviewSubmit comment|approve|request-changes` submits it
 - Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers, `<leader>ro` expands the thread under the cursor
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
+- Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch` for the current repo
 - Hunk navigation: `[h`, `]h`
 - Agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare current hunk findings
 - Suggested changes: `<leader>rS` preview safely, `:ReviewSuggestionStatus applied|rejected|resolved|open` tracks the decision
@@ -48,6 +49,7 @@ Notes:
 
 - Review state is stored outside the repo under `stdpath("state")/etabli/review`
 - The inbox preview stays compact; open the diff, agent compare, or suggestion preview for full detail
+- Hunk is the terminal review-first diff viewer installed from `hunkdiff`; use it for full changeset walkthroughs and live agent-facing review sessions
 - Inline review conversations are rendered with extmarks/signs and never edit the file
 - Stale `new`, `accepted`, and `ignore` entries are hidden by default in the inbox to reduce noise
 - Closing the help overlay reopens the review inbox automatically
