@@ -185,9 +185,9 @@ local function dispatch_prompt(provider, prompt, opts)
   local can_open_terminal = open_terminal ~= false and vim.fn.executable(provider.command) == 1
 
   if can_open_terminal and cwd and cwd ~= "" then
-    local ok, review = pcall(require, "config.review")
-    if ok and review and review.repo_change_signature then
-      before_signature = review.repo_change_signature(cwd)
+    local ok, hunk_flow = pcall(require, "config.review.hunk_flow")
+    if ok and hunk_flow and hunk_flow.repo_change_signature then
+      before_signature = hunk_flow.repo_change_signature(cwd)
     end
   end
 
@@ -205,9 +205,9 @@ local function dispatch_prompt(provider, prompt, opts)
         input = spec.input,
         input_delay_ms = terminal_paste_delay_ms,
         on_exit = function()
-          local ok, review = pcall(require, "config.review")
-          if ok and review and review.refresh_after_external_edit then
-            review.refresh_after_external_edit(cwd, {
+          local ok, hunk_flow = pcall(require, "config.review.hunk_flow")
+          if ok and hunk_flow and hunk_flow.refresh_after_external_edit then
+            hunk_flow.refresh_after_external_edit(cwd, {
               before_signature = before_signature,
               provider = provider.label,
             })

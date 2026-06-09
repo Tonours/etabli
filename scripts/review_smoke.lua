@@ -1084,6 +1084,7 @@ assert_agent_findings_ingestion_tracks_provider_counts()
 
 local function assert_changed_only_review_rerun_uses_changed_filter()
   local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
   local rerun_repo = vim.fn.tempname()
   vim.fn.mkdir(rerun_repo, "p")
   git(rerun_repo, { "init" })
@@ -1129,7 +1130,7 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
     return prompt
   end
   local ok_changed_only, changed_only_err = pcall(function()
-    review.prepare_review("claude", "changed-only")
+    hunk_flow.prepare_review("claude", "changed-only")
   end)
   providers.dispatch_prompt = original_dispatch_prompt
   hunk.review_prompt = original_hunk_review_prompt
@@ -1527,6 +1528,7 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
 
 ;(function()
   local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
   local original_input = vim.ui.input
   local original_hunk_available = hunk.is_available
   local original_hunk_session_exists = hunk.session_exists
@@ -1551,7 +1553,7 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
 
   vim.api.nvim_win_set_cursor(0, { 9, 0 })
   local ok_hunk_annotate, hunk_annotate_err = pcall(function()
-    review.annotate_current_hunk()
+    hunk_flow.annotate_current_hunk()
   end)
 
   vim.ui.input = original_input
@@ -1761,6 +1763,7 @@ assert_true(
 
 ;(function()
   local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
   local default_args = hunk.parse_args("")
   local show_command = hunk.command("show HEAD")
   local invalid_args, invalid_err = hunk.parse_args("patch")
@@ -1829,10 +1832,8 @@ assert_true(
   local original_hunk_available = hunk.is_available
   local original_hunk_open_or_reload = hunk.open_or_reload
   local original_hunk_open_or_navigate = hunk.open_or_navigate
-  local original_legacy_inbox = review.open_legacy_inbox
   local hunk_inbox_opened = false
   local hunk_line_focused = false
-  local legacy_inbox_opened = false
 
   hunk.is_available = function()
     return true
@@ -1845,23 +1846,18 @@ assert_true(
     hunk_line_focused = request_context.repo == repo_root and opts.file == "demo.txt" and opts.line == 9
     return true
   end
-  review.open_legacy_inbox = function()
-    legacy_inbox_opened = true
-  end
 
   vim.cmd.edit(vim.fn.fnameescape(repo .. "/demo.txt"))
   vim.api.nvim_win_set_cursor(0, { 9, 0 })
-  review.open_inbox()
-  review.show_current_hunk()
+  hunk_flow.open_inbox()
+  hunk_flow.show_current_hunk()
 
-  review.open_legacy_inbox = original_legacy_inbox
   hunk.open_or_navigate = original_hunk_open_or_navigate
   hunk.open_or_reload = original_hunk_open_or_reload
   hunk.is_available = original_hunk_available
 
   assert_true(hunk_inbox_opened, "default review inbox should open or reload Hunk when available")
   assert_true(hunk_line_focused, "default current-hunk command should focus the current line through Hunk")
-  assert_true(not legacy_inbox_opened, "default review inbox should not open the legacy picker when Hunk is available")
 end)()
 
 local claude_argv = providers.launch_argv("claude", prompt_a)

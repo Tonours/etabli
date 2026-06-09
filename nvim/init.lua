@@ -37,7 +37,7 @@ local function is_truthy_flag(value)
   return value == true or value == 1 or value == "1"
 end
 
-lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
+lazy_cmd("ReviewInbox", "config.review.hunk_flow", "cmd_open_inbox", {
   complete = function()
     local choices = require("config.review.state").statuses()
     vim.list_extend(choices, require("config.review.items").filters())
@@ -46,23 +46,23 @@ lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
   end,
   desc = "Open the Hunk review inbox", nargs = "?",
 })
-lazy_cmd("ReviewCurrentHunk", "config.review", "show_current_hunk", { desc = "Focus the current line in Hunk review" })
-lazy_cmd("ReviewAnnotate", "config.review", "cmd_annotate", { desc = "Comment the current review line or range", range = true })
-lazy_cmd("ReviewHunk", "config.review", "cmd_open_hunk", {
+lazy_cmd("ReviewCurrentHunk", "config.review.hunk_flow", "show_current_hunk", { desc = "Focus the current line in Hunk review" })
+lazy_cmd("ReviewAnnotate", "config.review.hunk_flow", "cmd_annotate", { desc = "Comment the current review line or range", range = true })
+lazy_cmd("ReviewHunk", "config.review.hunk_flow", "cmd_open_hunk", {
   complete = function() return { "diff", "diff --watch", "show", "show HEAD" } end,
   desc = "Open Hunk diff viewer", nargs = "*",
 })
-lazy_cmd("ReviewHunkSync", "config.review", "cmd_sync_hunk", {
+lazy_cmd("ReviewHunkSync", "config.review.hunk_flow", "cmd_sync_hunk", {
   complete = function() return { "push", "pull", "both" } end,
   desc = "Synchronize local review notes with the live Hunk session", nargs = "?",
 })
-lazy_cmd("ReviewHunkNextComment", "config.review", "cmd_hunk_next_comment", {
+lazy_cmd("ReviewHunkNextComment", "config.review.hunk_flow", "cmd_hunk_next_comment", {
   desc = "Move Hunk to the next review comment",
 })
-lazy_cmd("ReviewHunkPrevComment", "config.review", "cmd_hunk_prev_comment", {
+lazy_cmd("ReviewHunkPrevComment", "config.review.hunk_flow", "cmd_hunk_prev_comment", {
   desc = "Move Hunk to the previous review comment",
 })
-lazy_cmd("ReviewClaudeReview", "config.review", "cmd_claude_review", {
+lazy_cmd("ReviewClaudeReview", "config.review.hunk_flow", "cmd_claude_review", {
   complete = function()
     local choices = require("config.review.state").statuses()
     table.insert(choices, 1, "all")
@@ -71,7 +71,7 @@ lazy_cmd("ReviewClaudeReview", "config.review", "cmd_claude_review", {
   end,
   desc = "Launch Claude for a first-pass Hunk code review", nargs = "?",
 })
-lazy_cmd("ReviewPiReview", "config.review", "cmd_pi_review", {
+lazy_cmd("ReviewPiReview", "config.review.hunk_flow", "cmd_pi_review", {
   complete = function()
     local choices = require("config.review.state").statuses()
     table.insert(choices, 1, "all")
@@ -169,7 +169,13 @@ vim.api.nvim_create_autocmd("User", {
   callback = function()
     require("config.projects").setup()
     require("config.project_runtime").setup()
-    require("config.review").setup()
+    require("config.review.hunk_flow").setup()
+    if
+      is_truthy_flag(vim.g.etabli_review_legacy_commands)
+      or is_truthy_flag(vim.g.etabli_review_legacy_annotations)
+    then
+      require("config.review").setup()
+    end
   end,
 })
 
