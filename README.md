@@ -114,6 +114,7 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 
 - `workflow/spec.md` - workflow contract
 - `workflow/review-rubric.md` - review output and priorities
+- `docs/hunk-review-migration-feasibility.md` - Hunk review migration evidence and decision record
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `harness/templates/` - project harness templates
