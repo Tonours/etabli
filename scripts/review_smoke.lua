@@ -2006,6 +2006,57 @@ assert_true(
   assert_true(hunk_line_focused, "default current-hunk command should focus the current line through Hunk")
 end)()
 
+;(function()
+  local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
+  local hunk_adapter = require("config.review.hunk_local_adapter")
+  local original_hunk_available = hunk.is_available
+  local original_hunk_session_exists = hunk.session_exists
+  local original_hunk_navigate_comment = hunk.navigate_comment
+  local original_hunk_review_model = hunk.review_model
+  local original_hunk_apply_comments = hunk.apply_comments
+  local original_cwd = vim.fn.getcwd()
+  local sync_repo
+  local nav_repo
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.session_exists = function(repo_arg)
+    return repo_arg == repo_root
+  end
+  hunk.navigate_comment = function(request_context, direction)
+    nav_repo = request_context.repo
+    return { direction = direction }
+  end
+  hunk.review_model = function(request_context, opts)
+    sync_repo = request_context.repo
+    assert_true(opts.include_notes == true, "Hunk terminal sync should pull live notes")
+    return { review = { reviewNotes = {} } }
+  end
+  hunk.apply_comments = function(_, comments)
+    return { applied = #(comments or {}), skipped = 0 }
+  end
+
+  vim.cmd.cd(vim.fn.fnameescape(vim.loop.os_tmpdir()))
+  vim.cmd.enew()
+  vim.b.etabli_hunk_repo = repo_root
+
+  hunk_flow.navigate_hunk_comment("next")
+  hunk_adapter.sync_hunk("pull")
+
+  vim.cmd.cd(vim.fn.fnameescape(original_cwd))
+  vim.b.etabli_hunk_repo = nil
+  hunk.apply_comments = original_hunk_apply_comments
+  hunk.review_model = original_hunk_review_model
+  hunk.navigate_comment = original_hunk_navigate_comment
+  hunk.session_exists = original_hunk_session_exists
+  hunk.is_available = original_hunk_available
+
+  assert_true(nav_repo == repo_root, "Hunk terminal comment navigation should use the terminal buffer repo")
+  assert_true(sync_repo == repo_root, "Hunk terminal sync should use the terminal buffer repo")
+end)()
+
 local claude_argv = providers.launch_argv("claude", prompt_a)
 local pi_argv = providers.launch_argv("pi", prompt_a)
 local single_line_spec = providers.launch_spec("claude", "single line prompt")

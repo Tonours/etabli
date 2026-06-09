@@ -51,6 +51,11 @@ local function git_root(path)
 end
 
 local function hunk_context()
+  local hunk_repo = vim.b.etabli_hunk_repo
+  if hunk_repo and hunk_repo ~= "" then
+    return { repo = normalize(hunk_repo) }
+  end
+
   local root = git_root(current_target_path())
   if not root then
     return nil
