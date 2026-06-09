@@ -2,7 +2,10 @@ local M = {}
 
 local meta = require("config.review.meta")
 local telescope_loader = require("config.telescope")
-local util = require("config.review.util")
+
+local max_preview_text_width = 96
+local max_preview_patch_lines = 120
+local max_preview_items_per_section = 3
 
 local function summarize(items)
   local counts = {
@@ -41,10 +44,10 @@ end
 
 local function scope_label(item)
   if item.stale then
-    return "STALE"
+    return "old"
   end
 
-  return item.scope == "staged" and "STAGED" or "WORKING"
+  return item.scope == "staged" and "idx" or "work"
 end
 
 local function comment_range_label(comment)
@@ -60,11 +63,11 @@ end
 
 local function reviewed_label(item)
   if item.changed_since_review then
-    return "changed"
+    return "chg"
   end
 
   if item.reviewed then
-    return "reviewed"
+    return "seen"
   end
 
   return "open"
@@ -127,88 +130,171 @@ local function agent_activity_label(item)
   return table.concat(parts, " ")
 end
 
+local function single_line(text)
+  return vim.trim(tostring(text or ""):gsub("%s+", " "))
+end
+
+local function truncate(text, max_width)
+  local value = single_line(text)
+  local width = max_width or max_preview_text_width
+
+  if vim.fn.strdisplaywidth(value) <= width then
+    return value
+  end
+
+  return vim.fn.strcharpart(value, 0, math.max(width - 3, 1)) .. "..."
+end
+
+local function append_compact_text(lines, label, text)
+  local value = truncate(text, max_preview_text_width)
+  if value ~= "" then
+    table.insert(lines, string.format("%s %s", label, value))
+  end
+end
+
+local function append_limited_section(lines, title, items, render)
+  if #items == 0 then
+    return
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, string.format("%s (%d)", title, #items))
+
+  local limit = math.min(#items, max_preview_items_per_section)
+  for index = 1, limit do
+    render(items[index])
+  end
+
+  if #items > limit then
+    table.insert(lines, string.format("  +%d more, press Enter for full view", #items - limit))
+  end
+end
+
+local function append_patch_preview(lines, patch)
+  local patch_lines = vim.split(patch or "", "\n", { plain = true })
+  local limit = math.min(#patch_lines, max_preview_patch_lines)
+
+  table.insert(lines, "")
+  table.insert(lines, string.rep("-", 72))
+  table.insert(lines, "")
+
+  for index = 1, limit do
+    table.insert(lines, patch_lines[index])
+  end
+
+  if #patch_lines > limit then
+    table.insert(lines, string.format("... %d more diff lines, press Enter for full diff", #patch_lines - limit))
+  end
+end
+
 local function render_preview(item)
   local agent_findings = item.agent_findings or {}
   local comments = item.comments or {}
   local draft_comments = item.draft_comments or {}
   local unresolved = unresolved_comments(comments)
   local lines = {
-    "Review hunk",
+    "Review",
     "",
-    string.format("File:   %s", item.path),
-    string.format("Line:   %s", item.line_start or "?"),
-    string.format("Scope:  %s", scope_label(item)),
-    string.format("Status: %s", meta.label(item.status)),
-    string.format("Attention: %s", item.attention_label or item.attention_reason or "MUTED"),
-    string.format("Reviewed:  %s", reviewed_label(item)),
+    string.format("%s:%s  %s  %s", item.path, item.line_start or "?", scope_label(item), meta.label(item.status)),
+    string.format(
+      "attention %s | review %s | comments %d | agents %d",
+      item.attention_label or item.attention_reason or "muted",
+      reviewed_label(item),
+      #unresolved + #draft_comments,
+      #agent_findings
+    ),
   }
 
   if item.changed_since_review and item.reviewed_at then
-    table.insert(lines, string.format("Changed since review: %s", item.reviewed_at))
+    table.insert(lines, string.format("changed after review %s", item.reviewed_at))
   end
 
-  if item.note and item.note ~= "" then
-    table.insert(lines, "Note:")
-    util.append_text_lines(lines, item.note, "  ")
+  append_compact_text(lines, "note", item.note)
+
+  append_limited_section(lines, "Drafts", draft_comments, function(comment)
+    table.insert(lines, string.format("  - %s %s: %s", comment.id or "?", comment_range_label(comment), truncate(comment.body)))
+  end)
+
+  append_limited_section(lines, "Comments", unresolved, function(comment)
+    table.insert(lines, string.format("  - %s %s: %s", comment.id or "?", comment_range_label(comment), truncate(comment.body)))
+  end)
+
+  local resolved_count = #comments - #unresolved
+  if resolved_count > 0 then
+    table.insert(lines, string.format("resolved %d", resolved_count))
   end
 
-  if #draft_comments > 0 then
-    table.insert(lines, "Pending transaction comments:")
-    for _, comment in ipairs(draft_comments) do
-      table.insert(lines, string.format("  - %s %s [pending]:", comment.id or "?", comment_range_label(comment)))
-      util.append_text_lines(lines, comment.body or "", "    ")
+  append_limited_section(lines, "Agents", agent_findings, function(finding)
+    local suffix = ""
+    if finding.suggested_fix and finding.suggested_fix ~= "" then
+      suffix = " +suggestion"
     end
-  end
 
-  if #unresolved > 0 then
-    table.insert(lines, "Unresolved comments:")
-    for _, comment in ipairs(unresolved) do
-      table.insert(
-        lines,
-        string.format(
-          "  - %s %s [%s]:",
-          comment.id or "?",
-          comment_range_label(comment),
-          comment.resolved and "resolved" or "unresolved"
-        )
+    table.insert(
+      lines,
+      string.format(
+        "  - %s/%s %s [%s]%s: %s",
+        finding.provider or "agent",
+        finding.severity or "low",
+        comment_range_label(finding),
+        finding.status or "open",
+        suffix,
+        truncate(finding.review_comment or finding.issue)
       )
-      util.append_text_lines(lines, comment.body or "", "    ")
-    end
-  end
+    )
+  end)
 
-  if #comments > #unresolved then
-    table.insert(lines, string.format("Resolved comments: %d", #comments - #unresolved))
-  end
-
-  if #agent_findings > 0 then
-    table.insert(lines, "Agent findings:")
-    for _, finding in ipairs(agent_findings) do
-      table.insert(
-        lines,
-        string.format(
-          "  - %s %s %s [%s]:",
-          finding.provider or "agent",
-          finding.severity or "low",
-          comment_range_label(finding),
-          finding.status or "open"
-        )
-      )
-      util.append_text_lines(lines, finding.review_comment or finding.issue or "", "    ")
-      if finding.suggested_fix and finding.suggested_fix ~= "" then
-        table.insert(lines, "    suggested_fix:")
-        util.append_text_lines(lines, finding.suggested_fix, "      ")
-      end
-    end
-  end
-
-  table.insert(lines, "")
-  table.insert(lines, string.rep("-", 72))
-  table.insert(lines, "")
-
-  local patch_lines = vim.split(item.patch, "\n", { plain = true })
-  vim.list_extend(lines, patch_lines)
+  append_patch_preview(lines, item.patch)
 
   return lines
+end
+
+function M.preview_lines(item)
+  return render_preview(item)
+end
+
+local function short_status_label(status)
+  if status == "needs-rework" then
+    return "fix"
+  end
+  if status == "question" then
+    return "ask"
+  end
+  if status == "accepted" then
+    return "ok"
+  end
+  if status == "ignore" then
+    return "skip"
+  end
+
+  return string.lower(meta.label(status))
+end
+
+local function entry_location(item)
+  local line = item.line_start or 0
+  local hunk_context = item.hunk_context or ""
+  local context = hunk_context ~= "" and (" " .. truncate(hunk_context, 48)) or ""
+
+  return string.format("%s:%d%s", item.path, line, context)
+end
+
+local function entry_activity_label(item)
+  local has_note = item.note and item.note ~= ""
+  local comment_count = item.unresolved_comment_count or 0
+  local activity_parts = {}
+
+  if comment_count > 0 then
+    table.insert(activity_parts, tostring(math.min(comment_count, 9)))
+  elseif has_note then
+    table.insert(activity_parts, "N")
+  end
+
+  local agent_label = agent_activity_label(item)
+  if agent_label ~= "" then
+    table.insert(activity_parts, agent_label)
+  end
+
+  return table.concat(activity_parts, " ")
 end
 
 local function scope_highlight(item)
@@ -225,7 +311,7 @@ local function prompt_title(items, opts)
   local suffix = options.status and string.format(" [%s]", options.status) or (options.filter and string.format(" [%s]", options.filter) or "")
 
   return string.format(
-    "Review Inbox%s - %d hunks | %d attention | %d changed | %d stale",
+    "Review%s  %d | attn %d | chg %d | old %d",
     suffix,
     counts.total,
     counts.attention,
@@ -272,46 +358,34 @@ function M.open(items, callbacks, opts)
     separator = " ",
     items = {
       { width = 3 },
+      { width = 4 },
+      { width = 4 },
       { width = 8 },
-      { width = 8 },
-      { width = 10 },
-      { width = 8 },
+      { width = 5 },
       { remaining = true },
     },
   })
 
   local entry_maker = function(item)
-    local line = item.line_start or 0
-    local status = meta.label(item.status)
-    local context = item.hunk_context ~= "" and (" " .. item.hunk_context) or ""
+    local status = short_status_label(item.status)
     local has_note = item.note and item.note ~= ""
-    local comment_count = item.unresolved_comment_count or 0
-    local activity_parts = {}
-    if comment_count > 0 then
-      table.insert(activity_parts, tostring(math.min(comment_count, 9)))
-    elseif has_note then
-      table.insert(activity_parts, "N")
-    end
-    local agent_label = agent_activity_label(item)
-    if agent_label ~= "" then
-      table.insert(activity_parts, agent_label)
-    end
-    local note_marker = table.concat(activity_parts, " ")
-    local note = has_note and (" " .. item.note) or ""
-    local location = string.format("%s:%d%s", item.path, line, context)
+    local hunk_context = item.hunk_context or ""
+    local activity = entry_activity_label(item)
+    local note = has_note and (" " .. truncate(item.note, 80)) or ""
+    local location = entry_location(item)
 
     return {
       display = function(entry)
         return displayer({
           { attention_marker(entry.value), attention_highlight(entry.value) },
           { scope_label(entry.value), scope_highlight(entry.value) },
-          { meta.label(entry.value.status), meta.highlight(entry.value.status) },
-          { note_marker, has_note and "Special" or "Comment" },
+          { short_status_label(entry.value.status), meta.highlight(entry.value.status) },
+          { activity, has_note and "Special" or "Comment" },
           { reviewed_label(entry.value), entry.value.changed_since_review and "DiagnosticWarn" or "Comment" },
           { location, entry.value.stale and "Comment" or "Normal" },
         })
       end,
-      ordinal = table.concat({ item.attention_reason or "", reviewed_label(item), status, item.path, item.scope, item.hunk_header, context, note }, " "),
+      ordinal = table.concat({ item.attention_reason or "", reviewed_label(item), status, item.path, item.scope, item.hunk_header, hunk_context, note }, " "),
       value = item,
     }
   end
@@ -328,8 +402,8 @@ function M.open(items, callbacks, opts)
   pickers.new({}, {
     default_selection_index = default_selection_index(items, options.focus_fingerprint),
     prompt_title = prompt_title(items, options),
-    results_title = "Enter diff | Tab mark | r reviewed | Ctrl-Y accept | ? help",
-    preview_title = "Ctrl-A comment | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi | Ctrl-R refresh",
+    results_title = "Enter diff | Tab mark | r seen | Ctrl-Y accept | ? help",
+    preview_title = "Ctrl-A comment | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi",
     finder = finders.new_table({
       results = items,
       entry_maker = entry_maker,

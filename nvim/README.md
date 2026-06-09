@@ -47,6 +47,7 @@ Inbox shortcuts:
 Notes:
 
 - Review state is stored outside the repo under `stdpath("state")/etabli/review`
+- The inbox preview stays compact; open the diff, agent compare, or suggestion preview for full detail
 - Inline review conversations are rendered with extmarks/signs and never edit the file
 - Stale `new`, `accepted`, and `ignore` entries are hidden by default in the inbox to reduce noise
 - Closing the help overlay reopens the review inbox automatically

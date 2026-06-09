@@ -1033,6 +1033,26 @@ local function assert_agent_findings_ingestion_tracks_provider_counts()
     suggestion_preview:find("Validate the value before writing it.", 1, true) ~= nil,
     "suggestion preview should include the suggested fix body"
   )
+  local picker = require("config.review.picker")
+  local long_patch_lines = {}
+  for index = 1, 130 do
+    long_patch_lines[index] = string.format("+generated preview line %03d", index)
+  end
+  local compact_preview_item = vim.deepcopy(agent_merged[1])
+  compact_preview_item.patch = table.concat(long_patch_lines, "\n")
+  local inbox_preview = table.concat(picker.preview_lines(compact_preview_item), "\n")
+  assert_true(
+    inbox_preview:find("+suggestion", 1, true) ~= nil,
+    "inbox scan preview should signal available suggested fixes"
+  )
+  assert_true(
+    inbox_preview:find("Validate the value before writing it.", 1, true) == nil,
+    "inbox scan preview should not inline suggested fix bodies"
+  )
+  assert_true(
+    inbox_preview:find("more diff lines", 1, true) ~= nil,
+    "inbox scan preview should cap long diffs"
+  )
   local unsafe_preview = table.concat(review_suggestions.preview_lines(agent_merged[1], vim.tbl_extend("force", suggestion_candidates[1], {
     suggested_fix = table.concat({
       "```diff",
@@ -1401,7 +1421,7 @@ local function assert_inline_annotations_are_compact_until_expanded()
       if summary_text:find("Please simplify this change. Keep the guard explicit.", 1, true) ~= nil then
         saw_normalized_summary_note = true
       end
-      if summary_text:find("3 unresolved", 1, true) ~= nil and summary_text:find("<leader>ro", 1, true) ~= nil then
+      if summary_text:find("3 open", 1, true) ~= nil and summary_text:find("-> <leader>ro", 1, true) ~= nil then
         saw_compact_comment = true
       end
     end
