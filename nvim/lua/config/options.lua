@@ -110,7 +110,7 @@ opt.shada = [['20,<20,s10,h]] -- Smaller persistent history to reduce startup I/
 -- Defer diagnostic setup
 vim.schedule(function()
   vim.diagnostic.config({
-    float = { border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" }, source = "if_many" },
+    float = { border = "single", source = "if_many" },
     severity_sort = true,
     signs = {
       text = {

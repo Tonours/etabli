@@ -108,7 +108,7 @@ function M.open_overlay(title, lines, opts)
   vim.bo[buf].modified = false
 
   local win = vim.api.nvim_open_win(buf, true, {
-    border = "rounded",
+    border = "single",
     col = col,
     height = height,
     relative = "editor",
