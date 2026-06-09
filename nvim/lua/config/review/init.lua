@@ -336,7 +336,12 @@ local function open_comment_editor(item, line, end_line, target, opts)
     zindex = 95,
   })
 
-  vim.bo[bufnr].buftype = "nofile"
+  pcall(
+    vim.api.nvim_buf_set_name,
+    bufnr,
+    string.format("review-comment://%s-%d", util.sanitize_segment(target), bufnr)
+  )
+  vim.bo[bufnr].buftype = "acwrite"
   vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].filetype = "markdown"
   vim.bo[bufnr].swapfile = false
@@ -344,6 +349,7 @@ local function open_comment_editor(item, line, end_line, target, opts)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "" })
 
   local closed = false
+  local group = vim.api.nvim_create_augroup(string.format("etabli_review_comment_%d", bufnr), { clear = true })
 
   local function close()
     if winid and vim.api.nvim_win_is_valid(winid) then
@@ -359,19 +365,43 @@ local function open_comment_editor(item, line, end_line, target, opts)
     end
   end
 
-  local function submit()
+  local function comment_body()
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    return table.concat(lines, "\n")
+  end
+
+  local function has_comment_body()
+    return vim.trim(comment_body()) ~= ""
+  end
+
+  local function submit(submit_opts)
+    local submit_options = submit_opts or {}
     if closed then
       return
     end
 
     closed = true
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    close()
-    finish_comment(item, line, end_line, table.concat(lines, "\n"), options)
+    local body = comment_body()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      vim.bo[bufnr].modified = false
+    end
+
+    finish_comment(item, line, end_line, body, options)
+
+    if submit_options.defer_close then
+      vim.schedule(close)
+    else
+      close()
+    end
   end
 
-  local function cancel()
+  local function cancel(force)
     if closed then
+      return
+    end
+
+    if force ~= true and has_comment_body() then
+      vim.notify("Review comment not saved. Use :write or ZZ to save, ZQ to discard.", vim.log.levels.WARN)
       return
     end
 
@@ -381,6 +411,14 @@ local function open_comment_editor(item, line, end_line, target, opts)
       options.on_done()
     end
   end
+
+  vim.api.nvim_create_autocmd("BufWriteCmd", {
+    buffer = bufnr,
+    group = group,
+    callback = function()
+      submit({ defer_close = true })
+    end,
+  })
 
   for _, mode in ipairs({ "n", "i" }) do
     vim.keymap.set(mode, "<C-s>", submit, {
@@ -392,7 +430,9 @@ local function open_comment_editor(item, line, end_line, target, opts)
   end
 
   vim.keymap.set("n", "ZZ", submit, { buffer = bufnr, desc = "Save review comment", nowait = true, silent = true })
-  vim.keymap.set("n", "ZQ", cancel, { buffer = bufnr, desc = "Cancel review comment", nowait = true, silent = true })
+  vim.keymap.set("n", "ZQ", function()
+    cancel(true)
+  end, { buffer = bufnr, desc = "Discard review comment", nowait = true, silent = true })
   vim.keymap.set("n", "q", cancel, { buffer = bufnr, desc = "Cancel review comment", nowait = true, silent = true })
   vim.keymap.set("n", "<Esc>", cancel, { buffer = bufnr, desc = "Cancel review comment", nowait = true, silent = true })
 
