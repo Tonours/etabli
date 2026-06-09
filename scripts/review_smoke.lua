@@ -1917,6 +1917,7 @@ assert_true(
   local hunk_prompt = hunk.review_prompt("Claude", context, {
     target_label = "all live staged and unstaged hunks",
   })
+  local hunk_help = table.concat(hunk_flow.help_lines(), "\n")
 
   assert_true(default_args[1] == "diff", "Hunk default command should open diff")
   assert_true(default_args[2] == "--watch", "Hunk default command should watch local changes")
@@ -1940,6 +1941,29 @@ assert_true(
     hunk_prompt:find("```diff", 1, true) == nil,
     "Hunk review prompt should avoid embedding raw diff blocks"
   )
+  assert_true(
+    hunk_help:find(":ReviewInbox or <leader>ri opens the watched Hunk diff", 1, true) ~= nil,
+    "Hunk review help should expose the default inbox command"
+  )
+  assert_true(
+    hunk_help:find(":ReviewClaudeReview [all|changed-only]", 1, true) ~= nil,
+    "Hunk review help should expose Claude review"
+  )
+  assert_true(
+    hunk_help:find("terminal paste", 1, true) ~= nil,
+    "Hunk review help should explain interactive provider prompts"
+  )
+  local help_origin_tab = vim.api.nvim_get_current_tabpage()
+  hunk_flow.show_help()
+  local help_scratch = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  assert_true(
+    help_scratch:find("# Hunk Review Help", 1, true) ~= nil,
+    "Hunk review help should render in headless mode"
+  )
+  pcall(vim.cmd.tabclose)
+  if help_origin_tab and vim.api.nvim_tabpage_is_valid(help_origin_tab) then
+    pcall(vim.api.nvim_set_current_tabpage, help_origin_tab)
+  end
   assert_true(hunk_comment_payload.filePath == "demo.txt", "Hunk comment payload should keep the file path")
   assert_true(hunk_comment_payload.newLine == 9, "Hunk comment payload should anchor to the selected new line")
   assert_true(
@@ -1958,10 +1982,14 @@ assert_true(
   require("config.keymaps")
   local sync_keymap = vim.fn.maparg("<leader>rs", "n", false, true)
   local claude_keymap = vim.fn.maparg("<leader>rc", "n", false, true)
+  local help_keymap = vim.fn.maparg("<leader>r?", "n", false, true)
   local legacy_transaction_keymap = vim.fn.maparg("<leader>rt", "n", false, true)
   local legacy_batch_keymap = vim.fn.maparg("<leader>rbc", "n", false, true)
+  local commands = vim.api.nvim_get_commands({})
   assert_true(sync_keymap.desc == "Persist Hunk review notes", "default <leader>rs should persist Hunk notes")
   assert_true(claude_keymap.desc == "Claude Hunk review pass", "default <leader>rc should launch Hunk Claude review")
+  assert_true(help_keymap.desc == "Hunk review help", "default <leader>r? should open Hunk review help")
+  assert_true(commands.ReviewHelp ~= nil, "default review commands should expose ReviewHelp")
   assert_true(
     vim.tbl_isempty(legacy_transaction_keymap),
     "legacy transaction keymaps should be disabled by default"
