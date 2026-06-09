@@ -27,7 +27,7 @@ Hunk commands:
 - `:ReviewClaudeReview [status|all|changed-only]`
 - `:ReviewPiReview [status|all|changed-only]`
 
-Legacy local commands remain available for capabilities Hunk does not yet persist natively:
+Legacy local commands are opt-in for capabilities Hunk does not yet persist natively. Set `vim.g.etabli_review_legacy_commands = 1` before loading `nvim/init.lua` if you need them:
 
 - `:ReviewLegacyInbox [status|filter]`
 - `:ReviewLegacyCurrentHunk`
@@ -48,13 +48,13 @@ Legacy local commands remain available for capabilities Hunk does not yet persis
 - `:ReviewSuggestionPreview`
 - `:ReviewSuggestionStatus [open|applied|rejected|resolved]`
 
-Legacy keymaps are disabled by default. Set `vim.g.etabli_review_legacy_keymaps = 1` before loading `config.keymaps` if you need the old status, transaction, local inline annotation, suggestion, and local batch mappings.
+Legacy commands and keymaps are disabled by default. Set `vim.g.etabli_review_legacy_commands = 1` before loading `nvim/init.lua` if you need the old command surface, and set `vim.g.etabli_review_legacy_keymaps = 1` before loading `config.keymaps` if you need the old status, transaction, local inline annotation, suggestion, and local batch mappings.
 
 Local inline annotations show unresolved local review conversations on the live file line or selected line range. They are legacy UI now, disabled by default because Hunk is the visible review surface. Use `:ReviewInlineAnnotations on` for the current session, or set `vim.g.etabli_review_legacy_annotations = 1` before loading Neovim config if you want them enabled at startup. Use `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again.
 
 Multi-line comments must stay inside one reviewable git hunk. Hunk anchors the synced note to one changed line and stores the original selected range in the Hunk rationale.
 
-Use `:ReviewStart` before annotating when you want legacy GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. Without a transaction, `ReviewAnnotate` persists the comment locally and also adds it to the live Hunk session when one is active. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
+Use `:ReviewStart` before annotating when you opt into legacy GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. Without a transaction, `ReviewAnnotate` persists the comment locally and also adds it to the live Hunk session when one is active. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
 Note: legacy current-hunk review uses `git diff` as the source of truth. Save the buffer first if you use `:ReviewLegacyCurrentHunk` and want cursor-to-hunk matching to stay accurate.
 
@@ -74,9 +74,9 @@ The full migration feasibility record is `docs/hunk-review-migration-feasibility
 
 - `<leader>ri` and `:ReviewInbox` open or reload Hunk for staged and unstaged hunks in the current repo.
 - `:ReviewInbox [status|filter]` still accepts legacy arguments for command compatibility, but Hunk opens the full live diff because Hunk does not expose Etabli's local status filters.
-- `:ReviewLegacyInbox [status|filter]` opens the old Telescope inbox with local status and attention filters.
+- `:ReviewLegacyInbox [status|filter]` opens the old Telescope inbox with local status and attention filters when `vim.g.etabli_review_legacy_commands = 1`.
 
-The Hunk inbox is the scan-first review UI. It owns the live diff stream, file navigation, responsive split/stack layouts, inline notes, reload, and `--watch`. The legacy picker remains available only for durable local state features that Hunk does not yet cover: local statuses, draft transactions, stale markers, suggested-fix tracking, and persisted multiline range comments.
+The Hunk inbox is the scan-first review UI. It owns the live diff stream, file navigation, responsive split/stack layouts, inline notes, reload, and `--watch`. The legacy picker is hidden by default and should be enabled only for durable local state features that Hunk does not yet cover: local statuses, draft transactions, stale markers, suggested-fix tracking, and persisted multiline range comments.
 
 Legacy picker shortcuts:
 
@@ -111,7 +111,7 @@ By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the 
 - `<leader>rc` and `<leader>rvc` launch the Claude first-pass Hunk review
 - `<leader>rp` and `<leader>rvp` launch the Pi first-pass Hunk review
 
-Legacy batch commands `:ReviewClaudeBatch [status]` and `:ReviewPiBatch [status]` still use the local hunk model and are retained for status-scoped prompts. Their keymaps are available only when `vim.g.etabli_review_legacy_keymaps = 1`.
+Legacy batch commands `:ReviewClaudeBatch [status]` and `:ReviewPiBatch [status]` still use the local hunk model and are retained for status-scoped prompts when `vim.g.etabli_review_legacy_commands = 1`. Their keymaps are available only when `vim.g.etabli_review_legacy_keymaps = 1`.
 
 Review commands default to all live staged and unstaged hunks. Passing a status or `changed-only` narrows the Hunk prompt label for the agent, but Hunk itself remains the source of diff truth.
 
@@ -135,7 +135,7 @@ Provider CLIs are resolved from your environment, so the setup stays portable ac
 
 ## Local state
 
-Hunk is the default visible review UI. Local review state remains only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, exact multiline range anchors, and note rehydration through `:ReviewHunkSync`.
+Hunk is the default visible review UI and default command surface. Local review state remains as a persistence adapter only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, exact multiline range anchors, and note rehydration through `:ReviewHunkSync`.
 
 Review state is stored outside tracked project files under Neovim state:
 
