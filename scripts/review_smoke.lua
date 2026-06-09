@@ -2110,6 +2110,57 @@ assert_true(
   "prompt-only provider dispatch should skip repo change signatures"
 )
 
+;(function()
+  local hunk_flow_for_refresh = require("config.review.hunk_flow")
+  local original_executable_for_refresh = vim.fn.executable
+  local original_termopen_for_refresh = vim.fn.termopen
+  local original_review_refresh_for_dispatch = review.refresh_after_external_edit
+  local original_hunk_refresh_for_dispatch = hunk_flow_for_refresh.refresh_after_external_edit
+  local legacy_refresh_calls = 0
+  local hunk_refresh_calls = 0
+  vim.fn.executable = function(command)
+    if command == "claude" then
+      return 1
+    end
+
+    return original_executable_for_refresh(command)
+  end
+  vim.fn.termopen = function(_, opts)
+    if opts and opts.on_exit then
+      opts.on_exit()
+    end
+
+    return 42
+  end
+  review.refresh_after_external_edit = function(root, opts)
+    legacy_refresh_calls = legacy_refresh_calls + 1
+    assert_true(root == repo_root, "legacy provider refresh should target the review repo")
+    assert_true(opts.provider == "Claude", "legacy provider refresh should keep the provider label")
+  end
+  hunk_flow_for_refresh.refresh_after_external_edit = function()
+    hunk_refresh_calls = hunk_refresh_calls + 1
+  end
+
+  local ok_legacy_refresh_dispatch, legacy_refresh_dispatch_err = pcall(function()
+    providers.dispatch("claude", matched, {
+      action = "review",
+      cwd = repo_root,
+      open_terminal = true,
+    })
+    vim.wait(1000, function()
+      return legacy_refresh_calls > 0
+    end, 10)
+  end)
+  vim.fn.executable = original_executable_for_refresh
+  vim.fn.termopen = original_termopen_for_refresh
+  review.refresh_after_external_edit = original_review_refresh_for_dispatch
+  hunk_flow_for_refresh.refresh_after_external_edit = original_hunk_refresh_for_dispatch
+
+  assert_true(ok_legacy_refresh_dispatch, legacy_refresh_dispatch_err or "legacy provider refresh dispatch failed")
+  assert_true(legacy_refresh_calls == 1, "legacy provider dispatch should refresh through config.review")
+  assert_true(hunk_refresh_calls == 0, "legacy provider dispatch should not refresh through hunk_flow")
+end)()
+
 local original_executable_for_termopen_error = vim.fn.executable
 local original_termopen_for_error = vim.fn.termopen
 local original_notify_for_termopen_error = vim.notify
