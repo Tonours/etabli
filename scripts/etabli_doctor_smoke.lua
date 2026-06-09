@@ -70,6 +70,9 @@ for _, command in ipairs(hidden_legacy_commands) do
 end
 
 assert_true(package.loaded["config.review"] == nil, "legacy review module should not load during default startup")
+assert_true(package.loaded["config.review.state"] == nil, "review state module should not load during default startup")
+assert_true(package.loaded["config.review.items"] == nil, "review items module should not load during default startup")
+assert_true(package.loaded["config.review.providers"] == nil, "review providers module should not load during default startup")
 
 local lines = doctor.lines(vim.fn.getcwd())
 local output = joined(lines)
