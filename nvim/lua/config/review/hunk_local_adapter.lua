@@ -632,6 +632,14 @@ end
 function M.best_context()
   ensure_setup()
 
+  local hunk_repo = vim.b.etabli_hunk_repo
+  if hunk_repo and hunk_repo ~= "" then
+    local hunk_context = state_mod().context_for_repo(hunk_repo)
+    if hunk_context then
+      return hunk_context
+    end
+  end
+
   if vim.api.nvim_buf_get_name(0) ~= "" then
     local buffer_context = state_mod().context_for_buffer(0)
     if buffer_context then
