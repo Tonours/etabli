@@ -1,16 +1,33 @@
-local diff = require("config.review.diff")
-local hunk = require("config.review.hunk")
-local review_items = require("config.review.items")
-local providers = require("config.review.providers")
-local state = require("config.review.state")
-local util = require("config.review.util")
-
 local M = {}
 
 local setup_done = false
 
+local function diff_mod()
+  return require("config.review.diff")
+end
+
+local function hunk_mod()
+  return require("config.review.hunk")
+end
+
+local function items_mod()
+  return require("config.review.items")
+end
+
+local function providers_mod()
+  return require("config.review.providers")
+end
+
+local function state_mod()
+  return require("config.review.state")
+end
+
+local function util_mod()
+  return require("config.review.util")
+end
+
 local function context_for_current_buffer()
-  local context, err = state.context_for_buffer(0)
+  local context, err = state_mod().context_for_buffer(0)
   if not context then
     vim.notify(err, vim.log.levels.WARN)
     return nil
@@ -20,12 +37,12 @@ local function context_for_current_buffer()
 end
 
 local function context_for_cwd()
-  return state.context_for_repo(vim.fn.getcwd())
+  return state_mod().context_for_repo(vim.fn.getcwd())
 end
 
 local function best_context()
   if vim.api.nvim_buf_get_name(0) ~= "" then
-    local buffer_context = state.context_for_buffer(0)
+    local buffer_context = state_mod().context_for_buffer(0)
     if buffer_context then
       return buffer_context
     end
@@ -35,7 +52,7 @@ local function best_context()
 end
 
 local function repo_items(context, opts)
-  return review_items.for_context(context, opts)
+  return items_mod().for_context(context, opts)
 end
 
 local function normalize_status(status, opts)
@@ -45,7 +62,7 @@ local function normalize_status(status, opts)
     return nil
   end
 
-  if not state.is_valid_status(status) then
+  if not state_mod().is_valid_status(status) then
     vim.notify(string.format("Invalid review status: %s", status), vim.log.levels.ERROR)
     return false
   end
@@ -58,11 +75,11 @@ local function normalize_inbox_target(target)
     return {}
   end
 
-  if state.is_valid_status(target) then
+  if state_mod().is_valid_status(target) then
     return { status = target }
   end
 
-  if review_items.is_valid_filter(target) then
+  if items_mod().is_valid_filter(target) then
     return { filter = target }
   end
 
@@ -89,7 +106,7 @@ local function current_buffer_review_items()
   end
 
   local buffer_name = vim.api.nvim_buf_get_name(0)
-  local relative_path = util.relative_path(context.repo, buffer_name)
+  local relative_path = util_mod().relative_path(context.repo, buffer_name)
   local items = repo_items(context, { include_stale = false, path = relative_path })
   if not items then
     return nil, nil, nil
@@ -105,9 +122,9 @@ local function current_hunk_item_at_line(line, opts)
     return nil, nil
   end
 
-  for _, scope in ipairs(diff.scopes()) do
+  for _, scope in ipairs(diff_mod().scopes()) do
     for _, item in ipairs(items) do
-      if not item.stale and item.path == relative_path and item.scope == scope and diff.hunk_contains_line(item, line) then
+      if not item.stale and item.path == relative_path and item.scope == scope and diff_mod().hunk_contains_line(item, line) then
         return context, item
       end
     end
@@ -141,9 +158,9 @@ local function item_for_line_range(start_line, end_line)
   end
 
   local start_item
-  for _, scope in ipairs(diff.scopes()) do
+  for _, scope in ipairs(diff_mod().scopes()) do
     for _, item in ipairs(items) do
-      if not item.stale and item.path == relative_path and item.scope == scope and diff.hunk_contains_line(item, start_line) then
+      if not item.stale and item.path == relative_path and item.scope == scope and diff_mod().hunk_contains_line(item, start_line) then
         start_item = item
         break
       end
@@ -159,7 +176,7 @@ local function item_for_line_range(start_line, end_line)
     return nil, nil
   end
 
-  if not diff.hunk_contains_line(start_item, end_line) then
+  if not diff_mod().hunk_contains_line(start_item, end_line) then
     vim.notify("Review comments can only cover one git hunk at a time", vim.log.levels.WARN)
     return nil, nil
   end
@@ -179,11 +196,11 @@ local function latest_matching_comment(saved, line, end_line, body)
 end
 
 local function sync_saved_comment_to_hunk(context, item, comment)
-  if not comment or not hunk.is_available() or not hunk.session_exists(context.repo) then
+  if not comment or not hunk_mod().is_available() or not hunk_mod().session_exists(context.repo) then
     return false
   end
 
-  local result, err = hunk.add_comment(context, {
+  local result, err = hunk_mod().add_comment(context, {
     author = "User",
     body = comment.body,
     end_line = comment.end_line,
@@ -211,8 +228,8 @@ local function finish_comment(item, line, end_line, body, opts)
     return
   end
 
-  local has_transaction = state.active_transaction(context) ~= nil
-  local save = has_transaction and state.add_draft_comment or state.add_comment
+  local has_transaction = state_mod().active_transaction(context) ~= nil
+  local save = has_transaction and state_mod().add_draft_comment or state_mod().add_comment
   local saved, err = save(context, item, {
     body = body,
     line = line,
@@ -234,7 +251,7 @@ local function finish_comment(item, line, end_line, body, opts)
   local message = has_transaction and "Review draft comment added"
     or (hunk_synced and "Review comment added to Hunk and local state" or "Review comment added")
   vim.notify(message, vim.log.levels.INFO)
-  review_items.clear_cache()
+  items_mod().clear_cache()
   refresh_optional_annotations(item.repo)
 
   if options.on_done then
@@ -277,7 +294,7 @@ local function open_comment_editor(item, line, end_line, target, opts)
   pcall(
     vim.api.nvim_buf_set_name,
     bufnr,
-    string.format("hunk-review-comment://%s-%d", util.sanitize_segment(target), bufnr)
+    string.format("hunk-review-comment://%s-%d", util_mod().sanitize_segment(target), bufnr)
   )
   vim.bo[bufnr].buftype = "acwrite"
   vim.bo[bufnr].bufhidden = "wipe"
@@ -502,7 +519,7 @@ local function item_for_hunk_note(items, note)
   for _, item in ipairs(items or {}) do
     if not item.stale and item.path == file_path then
       fallback = fallback or item
-      if line and diff.hunk_contains_line(item, line) then
+      if line and diff_mod().hunk_contains_line(item, line) then
         return item, line, tonumber(range[2]) or line
       end
     end
@@ -516,7 +533,7 @@ local function item_for_hunk_note(items, note)
 end
 
 local function pull_hunk_notes(context)
-  local model, err = hunk.review_model(context, { include_notes = true })
+  local model, err = hunk_mod().review_model(context, { include_notes = true })
   if not model then
     return nil, err
   end
@@ -549,7 +566,7 @@ local function pull_hunk_notes(context)
           updated_at = note.createdAt,
         })
 
-        local saved, save_err = state.save_item(context, item, { comments = comments })
+        local saved, save_err = state_mod().save_item(context, item, { comments = comments })
         if not saved then
           return nil, save_err
         end
@@ -558,19 +575,19 @@ local function pull_hunk_notes(context)
     end
   end
 
-  review_items.clear_cache()
+  items_mod().clear_cache()
   refresh_optional_annotations(context.repo)
   return { imported = imported, skipped = skipped }
 end
 
 local function push_hunk_notes(context)
-  if not hunk.session_exists(context.repo) then
+  if not hunk_mod().session_exists(context.repo) then
     return nil, "No active Hunk session for this repository. Run :ReviewHunk first."
   end
 
   local items = repo_items(context, { include_stale = false })
   local payloads = hunk_comment_payloads(items)
-  return hunk.apply_comments(context, payloads, { dedupe = true })
+  return hunk_mod().apply_comments(context, payloads, { dedupe = true })
 end
 
 local function sync_hunk_notes(action)
@@ -586,7 +603,7 @@ local function sync_hunk_notes(action)
     return
   end
 
-  if not hunk.is_available() then
+  if not hunk_mod().is_available() then
     vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
     return
   end
@@ -629,7 +646,7 @@ function M.open_inbox(opts)
     return
   end
 
-  if not hunk.is_available() then
+  if not hunk_mod().is_available() then
     vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
     return
   end
@@ -643,7 +660,7 @@ function M.open_inbox(opts)
     vim.notify("Hunk is the default review inbox; legacy status filters require opt-in legacy commands.", vim.log.levels.INFO)
   end
 
-  hunk.open_or_reload(context, "diff --watch", { notify = false })
+  hunk_mod().open_or_reload(context, "diff --watch", { notify = false })
 end
 
 function M.show_current_hunk()
@@ -653,7 +670,7 @@ function M.show_current_hunk()
     return
   end
 
-  if not hunk.is_available() then
+  if not hunk_mod().is_available() then
     vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
     return
   end
@@ -661,13 +678,13 @@ function M.show_current_hunk()
   local buffer_name = vim.api.nvim_buf_get_name(0)
   if buffer_name ~= "" then
     local line = vim.api.nvim_win_get_cursor(0)[1]
-    local file = util.relative_path(context.repo, buffer_name)
-    if hunk.open_or_navigate(context, { file = file, line = line }) then
+    local file = util_mod().relative_path(context.repo, buffer_name)
+    if hunk_mod().open_or_navigate(context, { file = file, line = line }) then
       return
     end
   end
 
-  hunk.open_or_reload(context, "diff --watch", { notify = false })
+  hunk_mod().open_or_reload(context, "diff --watch", { notify = false })
 end
 
 function M.annotate_current_hunk()
@@ -714,25 +731,25 @@ function M.prepare_review(provider, target)
     return
   end
 
-  if not hunk.is_available() then
+  if not hunk_mod().is_available() then
     vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
     return
   end
 
-  local prompt = hunk.review_prompt(provider, context, {
+  local prompt = hunk_mod().review_prompt(provider, context, {
     target_label = review_target.label or "all live staged and unstaged hunks",
   })
-  local dispatched, err = providers.dispatch_prompt(provider, prompt, {
+  local dispatched, err = providers_mod().dispatch_prompt(provider, prompt, {
     cwd = context.repo,
     open_terminal = true,
     title = string.format(
       "review-%s-hunk-%s.md",
       provider,
-      util.sanitize_segment(review_target.slug or review_target.status or "all")
+      util_mod().sanitize_segment(review_target.slug or review_target.status or "all")
     ),
     message = string.format("Prepared Hunk HITL review prompt for %s and copied it to registers.", provider),
     after_exit = function()
-      review_items.clear_cache()
+      items_mod().clear_cache()
       refresh_optional_annotations(context.repo)
     end,
   })
@@ -743,12 +760,12 @@ function M.prepare_review(provider, target)
   end
 
   if dispatched then
-    state.record_agent_run(context, {
+    state_mod().record_agent_run(context, {
       provider = provider,
       mode = "hunk-review",
       scope = review_target.label,
       prompt_hash = vim.fn.sha256(dispatched),
-      diff_signature = review_items.repo_change_signature(context.repo),
+      diff_signature = items_mod().repo_change_signature(context.repo),
       result = "running",
     })
   end
@@ -756,12 +773,12 @@ end
 
 function M.open_hunk(raw_args)
   local context = best_context()
-  if not hunk.is_available() then
+  if not hunk_mod().is_available() then
     vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
     return
   end
 
-  hunk.open_or_reload(context, raw_args, { notify = false })
+  hunk_mod().open_or_reload(context, raw_args, { notify = false })
 end
 
 function M.sync_hunk(action)
@@ -775,24 +792,24 @@ function M.navigate_hunk_comment(direction)
     return
   end
 
-  if not hunk.is_available() then
+  if not hunk_mod().is_available() then
     vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
     return
   end
 
-  if not hunk.session_exists(context.repo) then
+  if not hunk_mod().session_exists(context.repo) then
     vim.notify("No active Hunk session for this repository. Run :ReviewHunk first.", vim.log.levels.WARN)
     return
   end
 
-  local _, err = hunk.navigate_comment(context, direction)
+  local _, err = hunk_mod().navigate_comment(context, direction)
   if err then
     vim.notify(err, vim.log.levels.ERROR)
   end
 end
 
 function M.repo_change_signature(repo)
-  return review_items.repo_change_signature(repo)
+  return items_mod().repo_change_signature(repo)
 end
 
 function M.refresh_after_external_edit(repo, opts)
@@ -802,10 +819,10 @@ function M.refresh_after_external_edit(repo, opts)
 
   local options = opts or {}
 
-  review_items.clear_cache()
-  review_items.refresh_buffers(repo)
+  items_mod().clear_cache()
+  items_mod().refresh_buffers(repo)
 
-  local after_signature = review_items.repo_change_signature(repo)
+  local after_signature = items_mod().repo_change_signature(repo)
   local changed = options.before_signature ~= nil and after_signature ~= nil and options.before_signature ~= after_signature
   local provider = options.provider or "Review"
 
@@ -839,12 +856,16 @@ function M.setup()
   local cache_group = vim.api.nvim_create_augroup("etabli_hunk_review_cache", { clear = true })
   vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete", "DirChanged", "ShellCmdPost" }, {
     group = cache_group,
-    callback = review_items.clear_cache,
+    callback = function()
+      items_mod().clear_cache()
+    end,
   })
 
   vim.api.nvim_create_autocmd("FocusGained", {
     group = cache_group,
-    callback = review_items.clear_cache_on_focus,
+    callback = function()
+      items_mod().clear_cache_on_focus()
+    end,
   })
 end
 
@@ -856,7 +877,7 @@ function M.cmd_open_inbox(cmd_opts)
     local context = best_context()
     local buffer_name = vim.api.nvim_buf_get_name(0)
     if context and buffer_name ~= "" then
-      path = util.relative_path(context.repo, buffer_name)
+      path = util_mod().relative_path(context.repo, buffer_name)
     end
   end
 
