@@ -1083,6 +1083,7 @@ end
 assert_agent_findings_ingestion_tracks_provider_counts()
 
 local function assert_changed_only_review_rerun_uses_changed_filter()
+  local hunk = require("config.review.hunk")
   local rerun_repo = vim.fn.tempname()
   vim.fn.mkdir(rerun_repo, "p")
   git(rerun_repo, { "init" })
@@ -1104,29 +1105,38 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
   assert_true(first_items ~= nil and #first_items == 1, "expected changed-only fixture hunk")
   vim.cmd.edit(vim.fn.fnameescape(rerun_repo .. "/rerun.txt"))
 
-  local original_for_context = review_items.for_context
-  local original_dispatch_batch = providers.dispatch_batch
+  local original_hunk_available = hunk.is_available
+  local original_hunk_review_prompt = hunk.review_prompt
+  local original_dispatch_prompt = providers.dispatch_prompt
   local captured_changed_only = false
-  review_items.for_context = function(request_context, opts)
-    captured_changed_only = request_context.repo ~= "" and opts.filter == "changed-since-review"
-    return first_items
+  local captured_repo
+  hunk.is_available = function()
+    return true
   end
-  providers.dispatch_batch = function(provider_name, items, opts)
+  hunk.review_prompt = function(provider_name, request_context, opts)
+    captured_repo = request_context.repo
+    captured_changed_only = provider_name == "claude"
+      and request_context.repo ~= ""
+      and opts.target_label == "changed since last review"
+    return "changed-only Hunk prompt"
+  end
+  providers.dispatch_prompt = function(provider_name, prompt, opts)
     captured_changed_only = captured_changed_only
       and provider_name == "claude"
-      and #items == 1
-      and opts.selection_label == "changed since last review"
-      and opts.slug == "changed-only"
-    return "changed-only prompt"
+      and prompt == "changed-only Hunk prompt"
+      and opts.cwd == captured_repo
+      and opts.open_terminal == true
+    return prompt
   end
   local ok_changed_only, changed_only_err = pcall(function()
     review.prepare_review("claude", "changed-only")
   end)
-  providers.dispatch_batch = original_dispatch_batch
-  review_items.for_context = original_for_context
+  providers.dispatch_prompt = original_dispatch_prompt
+  hunk.review_prompt = original_hunk_review_prompt
+  hunk.is_available = original_hunk_available
 
   assert_true(ok_changed_only, changed_only_err or "changed-only review command failed")
-  assert_true(captured_changed_only, "changed-only review should dispatch only changed-since-review hunks")
+  assert_true(captured_changed_only, "changed-only review should dispatch a Hunk-targeted review prompt")
   state.clear(rerun_context)
 end
 
@@ -1514,7 +1524,7 @@ assert_true(matched.comments[2].resolved == false, "resolve flow should leave th
 assert_true(matched.comments[3].resolved == false, "resolve flow should leave the range comment unresolved")
 
 local ok_show_multiline, show_multiline_err = pcall(function()
-  review.show_current_hunk()
+  review.show_legacy_current_hunk()
 end)
 assert_true(ok_show_multiline, show_multiline_err or "show current hunk with multiline review state failed")
 local multiline_scratch_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
@@ -1702,6 +1712,76 @@ assert_true(
   "batch prompt should open and close expanded diff fences"
 )
 
+;(function()
+  local hunk = require("config.review.hunk")
+  local default_args = hunk.parse_args("")
+  local show_command = hunk.command("show HEAD")
+  local invalid_args, invalid_err = hunk.parse_args("patch")
+  local hunk_prompt = hunk.review_prompt("Claude", context, {
+    target_label = "all live staged and unstaged hunks",
+  })
+
+  assert_true(default_args[1] == "diff", "Hunk default command should open diff")
+  assert_true(default_args[2] == "--watch", "Hunk default command should watch local changes")
+  assert_true(show_command[1] == "hunk", "Hunk command should launch the hunk executable")
+  assert_true(show_command[2] == "show", "Hunk command should pass through supported show commands")
+  assert_true(invalid_args == nil, "Hunk command parser should reject unsupported commands")
+  assert_true(invalid_err:match("diff") ~= nil, "Hunk command parser should explain supported commands")
+  assert_true(
+    hunk_prompt:find("hunk session review --repo", 1, true) ~= nil,
+    "Hunk review prompt should inspect the live session"
+  )
+  assert_true(
+    hunk_prompt:find("hunk session comment apply --stdin --json", 1, true) ~= nil,
+    "Hunk review prompt should add inline comments through Hunk"
+  )
+  assert_true(
+    hunk_prompt:find("Do not edit files", 1, true) ~= nil,
+    "Hunk review prompt should keep agents read-only"
+  )
+  assert_true(
+    hunk_prompt:find("```diff", 1, true) == nil,
+    "Hunk review prompt should avoid embedding raw diff blocks"
+  )
+
+  local original_hunk_available = hunk.is_available
+  local original_hunk_open_or_reload = hunk.open_or_reload
+  local original_hunk_open_or_navigate = hunk.open_or_navigate
+  local original_legacy_inbox = review.open_legacy_inbox
+  local hunk_inbox_opened = false
+  local hunk_line_focused = false
+  local legacy_inbox_opened = false
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.open_or_reload = function(request_context, raw_args)
+    hunk_inbox_opened = request_context.repo == repo_root and raw_args == "diff --watch"
+    return true
+  end
+  hunk.open_or_navigate = function(request_context, opts)
+    hunk_line_focused = request_context.repo == repo_root and opts.file == "demo.txt" and opts.line == 9
+    return true
+  end
+  review.open_legacy_inbox = function()
+    legacy_inbox_opened = true
+  end
+
+  vim.cmd.edit(vim.fn.fnameescape(repo .. "/demo.txt"))
+  vim.api.nvim_win_set_cursor(0, { 9, 0 })
+  review.open_inbox()
+  review.show_current_hunk()
+
+  review.open_legacy_inbox = original_legacy_inbox
+  hunk.open_or_navigate = original_hunk_open_or_navigate
+  hunk.open_or_reload = original_hunk_open_or_reload
+  hunk.is_available = original_hunk_available
+
+  assert_true(hunk_inbox_opened, "default review inbox should open or reload Hunk when available")
+  assert_true(hunk_line_focused, "default current-hunk command should focus the current line through Hunk")
+  assert_true(not legacy_inbox_opened, "default review inbox should not open the legacy picker when Hunk is available")
+end)()
+
 local claude_argv = providers.launch_argv("claude", prompt_a)
 local pi_argv = providers.launch_argv("pi", prompt_a)
 local single_line_spec = providers.launch_spec("claude", "single line prompt")
@@ -1817,7 +1897,7 @@ diff.clear_cache()
 vim.cmd.edit(vim.fn.fnameescape(fenced_file))
 vim.api.nvim_win_set_cursor(0, { 1, 0 })
 local ok_show, show_err = pcall(function()
-  review.show_current_hunk()
+  review.show_legacy_current_hunk()
 end)
 assert_true(ok_show, show_err or "show current hunk failed")
 local scratch_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")

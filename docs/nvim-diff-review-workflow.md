@@ -1,10 +1,10 @@
 # Neovim Diff Review Workflow
 
-This review flow treats Git hunks as first-class review units inside Neovim.
+This review flow uses Hunk as the default review surface for Git hunks inside Neovim.
 
 ## Current hunk actions
 
-- `<leader>rh` preview the current hunk with its saved note and status
+- `<leader>rh` focus the current file and line in the live Hunk review when a session exists, or open Hunk otherwise
 - `<leader>ra` add a GitHub PR-style review comment on the current line
 - visual `<leader>ra` add a review comment on the selected line range
 - `<leader>rr` resolve the current review conversation
@@ -15,7 +15,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 - `<leader>rT` preview the active review transaction
 - `<leader>rl` toggle inline review annotations in file buffers
 - `<leader>ro` expand or collapse the inline review thread under the cursor
-- `<leader>rH` open Hunk's terminal review viewer for the current repo
+- `<leader>rH` open or reload Hunk's terminal review viewer for the current repo
 - `<leader>rg` compare agent review findings for the current hunk
 - `<leader>rS` safely preview a suggested change for the current hunk
 - `<leader>rc` build a `revise` prompt for Claude from the current hunk
@@ -26,6 +26,7 @@ This review flow treats Git hunks as first-class review units inside Neovim.
 Equivalent commands:
 
 - `:ReviewCurrentHunk`
+- `:ReviewLegacyCurrentHunk`
 - `:ReviewAnnotate`
 - `:ReviewResolve`
 - `:ReviewStatus [new|accepted|needs-rework|question|ignore]`
@@ -37,6 +38,7 @@ Equivalent commands:
 - `:ReviewExport [markdown|json]`
 - `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
 - `:ReviewHunk [diff|show]`
+- `:ReviewLegacyInbox [status|filter]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
 - `:ReviewIngestClaude [file]`
@@ -51,18 +53,26 @@ Multi-line comments must stay inside one reviewable git hunk. If a visual select
 
 Use `:ReviewStart` before annotating when you want GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
-Note: current-hunk review uses `git diff` as the source of truth. Save the buffer first if you want cursor-to-hunk matching to stay accurate.
+Note: legacy current-hunk review uses `git diff` as the source of truth. Save the buffer first if you use `:ReviewLegacyCurrentHunk` and want cursor-to-hunk matching to stay accurate.
 
-## Hunk viewer
+## Hunk Review Surface
 
-Etabli installs Hunk from the official `hunkdiff` npm package documented at https://www.hunk.dev/. Use `<leader>rH` or `:ReviewHunk` to open `hunk diff --watch` for the current repository in a Neovim terminal tab. Pass explicit Hunk commands when needed, for example `:ReviewHunk diff` or `:ReviewHunk show HEAD~1`. The command is intentionally opt-in and does not change the global Git pager.
+Etabli installs Hunk from the official `hunkdiff` npm package documented at https://www.hunk.dev/. Use `<leader>ri`, `<leader>rh`, `<leader>rH`, `:ReviewInbox`, `:ReviewCurrentHunk`, or `:ReviewHunk` to open or reload `hunk diff --watch` for the current repository in a Neovim terminal tab. Pass explicit Hunk commands when needed, for example `:ReviewHunk diff` or `:ReviewHunk show HEAD~1`. This integration does not change the global Git pager.
+
+When a live Hunk session exists, `:ReviewCurrentHunk` uses `hunk session navigate --repo <repo> --file <path> --new-line <line>` to move the Hunk viewport to the current buffer line. If no session exists, it opens Hunk first.
 
 The full migration feasibility record is `docs/hunk-review-migration-feasibility.md`. Do not delete the persisted Etabli review state until the persistence decision in that document is resolved.
 
 ## Review inbox
 
-- `<leader>ri` opens a Telescope inbox for staged and unstaged hunks in the current repo
-- `:ReviewInbox [status|filter]` opens the same inbox with an optional status filter such as `needs-rework` or an attention filter such as `attention`
+- `<leader>ri` and `:ReviewInbox` open or reload Hunk for staged and unstaged hunks in the current repo.
+- `:ReviewInbox [status|filter]` still accepts legacy arguments for command compatibility, but Hunk opens the full live diff because Hunk does not expose Etabli's local status filters.
+- `:ReviewLegacyInbox [status|filter]` opens the old Telescope inbox with local status and attention filters.
+
+The Hunk inbox is the scan-first review UI. It owns the live diff stream, file navigation, responsive split/stack layouts, inline notes, reload, and `--watch`. The legacy picker remains available only for durable local state features that Hunk does not yet cover: local statuses, draft transactions, stale markers, suggested-fix tracking, and persisted multiline range comments.
+
+Legacy picker shortcuts:
+
 - mark one or more entries with Telescope multi-select (`<Tab>` / `<S-Tab>`) before triggering a provider action if you want a batch prompt from the inbox
 - default `<CR>` opens a diff tab for the selected live hunk, with the current file on the right when available
 - `<C-a>` adds a review comment at the selected hunk start line
@@ -72,39 +82,37 @@ The full migration feasibility record is `docs/hunk-review-migration-feasibility
 - `<C-c>` launches Claude directly with the selected `revise` prompt, or one batch prompt if multiple entries are marked
 - `<C-p>` launches Pi directly with the selected `revise` prompt, or one batch prompt if multiple entries are marked
 - `<C-r>` refreshes the inbox after you changed the diff outside the picker
-- `?` opens an overlay help panel for the inbox shortcuts; when you close it with `q` or `Esc`, the review inbox is reopened
+- `?` opens an overlay help panel for the legacy inbox shortcuts
 
-The inbox is optimized for scan-first review. Each entry uses short stable columns for attention marker, scope (`work`, `idx`, `old`), review status, comment/agent activity, reviewed state (`open`, `seen`, `chg`), and file location. The picker preview shows compact metadata, one-line comment and agent summaries, suggested-change availability, and a capped diff. Use `<CR>`, `<leader>rh`, `<leader>rg`, or `<leader>rS` when you need the full hunk, full agent finding, or full suggested fix. After you comment on a hunk, mark it reviewed, or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
+Legacy attention filters:
 
-Attention filters:
+- `:ReviewLegacyInbox attention` shows hunks that still need review action.
+- `:ReviewLegacyInbox unresolved` shows hunks with unresolved review comments.
+- `:ReviewLegacyInbox changed-since-review` shows hunks whose patch changed after they were marked reviewed.
+- `:ReviewLegacyInbox reviewed:false` shows hunks that are still open.
+- `:ReviewLegacyInbox reviewed:true` shows hunks already marked reviewed.
+- `:ReviewLegacyInbox current-file` shows review items for the current buffer path.
 
-- `:ReviewInbox attention` shows hunks that still need review action.
-- `:ReviewInbox unresolved` shows hunks with unresolved review comments.
-- `:ReviewInbox changed-since-review` shows hunks whose patch changed after they were marked reviewed.
-- `:ReviewInbox reviewed:false` shows hunks that are still open.
-- `:ReviewInbox reviewed:true` shows hunks already marked reviewed.
-- `:ReviewInbox current-file` shows review items for the current buffer path.
+The legacy inbox keeps a short-lived local cache for merged review items. This speeds up repeated opens during the same review pass without weakening review correctness: writes, deletes, directory changes, shell commands, focus changes, review status updates, and review notes all invalidate the cache.
 
-The inbox keeps a short-lived local cache for merged review items. This speeds up repeated opens during the same review pass without weakening review correctness: writes, deletes, directory changes, shell commands, focus changes, review status updates, and review notes all invalidate the cache.
+By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the legacy inbox to avoid noise after a revert or commit. Actionable stale entries such as `needs-rework` or `question` still stay visible by default. If you explicitly filter `:ReviewLegacyInbox new`, `:ReviewLegacyInbox accepted`, or `:ReviewLegacyInbox ignore`, those stale entries are still available.
 
-By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the inbox to avoid noise after a revert or commit. Actionable stale entries such as `needs-rework` or `question` still stay visible by default. If you explicitly filter `:ReviewInbox new`, `:ReviewInbox accepted`, or `:ReviewInbox ignore`, those stale entries are still available.
-
-## Batch prompt preparation
+## Agent Review
 
 - `:ReviewClaudeBatch [status]` prepares one Claude prompt for every live hunk with that status
 - `:ReviewPiBatch [status]` prepares one Pi prompt for every live hunk with that status
-- `:ReviewClaudeReview [status|all|changed-only]` launches Claude with a first-pass code review prompt for live hunks
-- `:ReviewPiReview [status|all|changed-only]` launches Pi with a first-pass code review prompt for live hunks
+- `:ReviewClaudeReview [status|all|changed-only]` launches Claude with a Hunk HITL review prompt
+- `:ReviewPiReview [status|all|changed-only]` launches Pi with a Hunk HITL review prompt
 - `<leader>rbc` prepares the default Claude batch prompt for `needs-rework`
 - `<leader>rbp` prepares the default Pi batch prompt for `needs-rework`
 - `<leader>rvc` launches the Claude first-pass review for all live hunks
 - `<leader>rvp` launches the Pi first-pass review for all live hunks
 
-Both commands default to `needs-rework`, so `:ReviewClaudeBatch` is the quick "prepare all needs-rework hunks" flow.
+Batch commands still use the legacy local hunk model and are retained for status-scoped prompts. The first-pass review commands use Hunk when the CLI is available.
 
-Review commands default to all live staged and unstaged hunks. Passing a status narrows the review, for example `:ReviewClaudeReview needs-rework`. Passing `changed-only` reviews only hunks that changed after being marked reviewed.
+Review commands default to all live staged and unstaged hunks. Passing a status or `changed-only` narrows the Hunk prompt label for the agent, but Hunk itself remains the source of diff truth.
 
-The `review` action is intentionally read-only. It asks the provider to report findings ordered by severity and end with `GO`, `GO WITH NOTES`, or `BLOCK`; it does not ask the provider to edit files.
+The Hunk review action is intentionally read-only. It asks the provider to inspect the live session with `hunk session review --repo <repo> --json`, add inline notes with `hunk session comment apply --stdin --json` or `comment add`, and end with `GO`, `GO WITH NOTES`, or `BLOCK`. It does not ask the provider to edit files.
 
 Import agent review output back into local review state with `:ReviewIngestClaude [file]` or `:ReviewIngestPi [file]`. Without a file argument, the command reads the unnamed register. Imported findings must use the structured labels requested by the review prompt: `severity:`, `file:`, `line:` or `line_range:`, `issue:`, `impact:`, `review_comment:`, and optional `suggested_fix:`. Findings are anchored to live hunks before being stored; unmatched or duplicate findings are skipped. The Inbox shows provider counts such as `C:1` and `P:2`, inline annotations show compact agent markers, and `<leader>rg` or `:ReviewCompareAgents` compares Pi and Claude findings for the current hunk.
 
@@ -114,15 +122,17 @@ Suggested changes from imported `suggested_fix:` fields are preview-first. Use `
 
 Provider actions do three things:
 
-1. build a deterministic prompt from the selected hunk or batch
+1. build a deterministic prompt from the Hunk session or selected legacy hunk batch
 2. copy it to the unnamed register and clipboard register when available
 3. open a scratch preview and then launch `claude` or `pi` in a terminal tab when the CLI exists
 
-This keeps the flow safe and explicit while removing the manual paste step: the prompt is still visible in the scratch preview and copied to registers, but the CLI also starts with the diff prompt already injected. Provider prompts always launch the interactive CLI without a prompt argument and queue sanitized bracketed terminal paste input instead of using Claude `-p` / `--print` or leaking the full prompt through process arguments.
+This keeps the flow safe and explicit while removing the manual paste step: the prompt is still visible in the scratch preview and copied to registers, but the CLI also starts with the prompt already injected. Hunk review prompts tell the agent to inspect the live Hunk session and add inline Hunk comments. Provider prompts always launch the interactive CLI without a prompt argument and queue sanitized bracketed terminal paste input instead of using Claude `-p` / `--print` or leaking the full prompt through process arguments.
 
 Provider CLIs are resolved from your environment, so the setup stays portable across machines instead of depending on a single hardcoded local path.
 
 ## Local state
+
+Hunk is the default visible review UI. Local review state remains only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, and exact multiline range anchors.
 
 Review state is stored outside tracked project files under Neovim state:
 

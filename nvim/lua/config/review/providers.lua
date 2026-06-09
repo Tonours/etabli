@@ -270,6 +270,23 @@ function M.launch_spec(name, prompt)
   return vim.deepcopy(spec)
 end
 
+function M.dispatch_prompt(name, prompt, opts)
+  local provider, err = provider_for(name)
+  if not provider then
+    return nil, err
+  end
+
+  local options = opts or {}
+  return dispatch_prompt(provider, prompt, {
+    after_exit = options.after_exit,
+    cwd = options.cwd,
+    title = options.title or string.format("review-%s.md", name),
+    open_terminal = options.open_terminal,
+    message = options.message
+      or string.format("Prepared Hunk review prompt for %s and copied it to registers.", provider.label),
+  })
+end
+
 function M.dispatch(name, item, opts)
   local provider, err = provider_for(name)
   if not provider then

@@ -46,6 +46,16 @@ hunk diff --watch
 bun test pi/extensions/__tests__/
 ```
 
+Neovim review:
+
+```text
+:ReviewInbox          # opens or reloads Hunk for the current repo
+:ReviewCurrentHunk    # focuses the current line in the live Hunk session
+:ReviewClaudeReview   # launches an interactive Claude Hunk review prompt
+:ReviewPiReview       # launches an interactive Pi Hunk review prompt
+:ReviewLegacyInbox    # old local status inbox while Hunk persistence gaps remain
+```
+
 Pi:
 
 ```text

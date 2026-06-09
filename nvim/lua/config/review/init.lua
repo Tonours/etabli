@@ -1,5 +1,6 @@
 local diff = require("config.review.diff")
 local annotations = require("config.review.annotations")
+local hunk = require("config.review.hunk")
 local review_items = require("config.review.items")
 local picker = require("config.review.picker")
 local providers = require("config.review.providers")
@@ -40,60 +41,6 @@ local function best_context()
   end
 
   return context_for_cwd()
-end
-
-local function parse_hunk_args(raw_args)
-  local args = {}
-
-  for value in vim.gsplit(raw_args or "", "%s+", { trimempty = true }) do
-    table.insert(args, value)
-  end
-
-  if vim.tbl_isempty(args) then
-    return { "diff", "--watch" }
-  end
-
-  if args[1] ~= "diff" and args[1] ~= "show" then
-    return nil, "ReviewHunk supports only `diff` and `show`"
-  end
-
-  return args
-end
-
-local function open_hunk_terminal(raw_args)
-  local context = best_context()
-  if not context then
-    vim.notify("Open Hunk from inside a git repository", vim.log.levels.WARN)
-    return
-  end
-
-  if vim.fn.executable("hunk") ~= 1 then
-    vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
-    return
-  end
-
-  local args, err = parse_hunk_args(raw_args)
-  if not args then
-    vim.notify(err, vim.log.levels.ERROR)
-    return
-  end
-
-  vim.cmd.tabnew()
-  local bufnr = vim.api.nvim_get_current_buf()
-  vim.bo[bufnr].bufhidden = "wipe"
-  pcall(vim.api.nvim_buf_set_name, bufnr, "term://hunk-review")
-
-  local command = vim.list_extend({ "hunk" }, args)
-  local ok_termopen, job_id = pcall(vim.fn.termopen, command, {
-    cwd = context.repo,
-  })
-
-  if not ok_termopen or type(job_id) ~= "number" or job_id <= 0 then
-    vim.notify("Could not open Hunk diff viewer", vim.log.levels.ERROR)
-    return
-  end
-
-  vim.cmd.startinsert()
 end
 
 local function normalize_status(status, opts)
@@ -591,7 +538,7 @@ end
 
 local function show_inbox_help(opts)
   local lines = {
-    "# Review Inbox Help",
+    "# Legacy Review Inbox Help",
     "",
     "- <Tab> or <S-Tab> mark entries for a batch provider action",
     "- <CR> open a diff view for the selected hunk",
@@ -602,12 +549,12 @@ local function show_inbox_help(opts)
     "- <C-c> launch Claude directly with the selected diff prompt",
     "- <C-p> launch Pi directly with the selected diff prompt",
     "- <C-r> refresh the inbox after external changes",
-    "- :ReviewInbox [status|filter] filter the inbox by status or attention state",
+    "- :ReviewLegacyInbox [status|filter] filter the local inbox by status or attention state",
     "- filters: attention, unresolved, stale, changed-since-review, reviewed:false, reviewed:true, current-file",
     "- :ReviewInlineAnnotations [on|off|refresh|toggle] controls inline review notes",
     "- :ReviewInlineAnnotations expand expands or collapses the thread under the cursor",
     "- :ReviewInlineAnnotations compact returns the current buffer to compact inline comments",
-    "- :ReviewHunk opens Hunk with hunk diff --watch for the current repo",
+    "- :ReviewInbox and :ReviewHunk open or reload Hunk for the current repo",
     "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewMarkReviewed [on|off|toggle] marks the current hunk reviewed without changing status",
@@ -627,8 +574,8 @@ local function show_inbox_help(opts)
     "- <leader>rA accepts the current hunk quickly",
     "- <leader>rbc and <leader>rbp run the default needs-rework batch commands",
     "- <leader>rvc and <leader>rvp run first-pass review commands",
-    "- stale new, accepted, and ignored entries are hidden from the default inbox to reduce noise",
-    "- if you want to inspect them again, open an explicit filter like :ReviewInbox new",
+    "- stale new, accepted, and ignored entries are hidden from the legacy inbox to reduce noise",
+    "- if you want to inspect them again, open an explicit filter like :ReviewLegacyInbox new",
   }
 
   local options = opts or {}
@@ -742,6 +689,44 @@ local function prepare_review(provider, target)
   local context = best_context()
   if not context then
     vim.notify("Open this review command from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  if hunk.is_available() then
+    local prompt = hunk.review_prompt(provider, context, {
+      target_label = review_target.label or "all live staged and unstaged hunks",
+    })
+    local dispatched, err = providers.dispatch_prompt(provider, prompt, {
+      cwd = context.repo,
+      open_terminal = true,
+      title = string.format(
+        "review-%s-hunk-%s.md",
+        provider,
+        util.sanitize_segment(review_target.slug or review_target.status or "all")
+      ),
+      message = string.format("Prepared Hunk HITL review prompt for %s and copied it to registers.", provider),
+      after_exit = function()
+        review_items.clear_cache()
+        annotations.refresh_repo(context.repo)
+      end,
+    })
+
+    if err then
+      vim.notify(err, vim.log.levels.ERROR)
+      return
+    end
+
+    if dispatched then
+      state.record_agent_run(context, {
+        provider = provider,
+        mode = "hunk-review",
+        scope = review_target.label,
+        prompt_hash = vim.fn.sha256(dispatched),
+        diff_signature = review_items.repo_change_signature(context.repo),
+        result = "running",
+      })
+    end
+
     return
   end
 
@@ -903,13 +888,37 @@ local function prepare_selected_batch(provider, items)
   end
 end
 
-function M.show_current_hunk()
+function M.show_legacy_current_hunk()
   local _, item = current_hunk_item()
   if not item then
     return
   end
 
   util.open_scratch("review-current-hunk.md", views.render_item(item), "markdown")
+end
+
+function M.show_current_hunk()
+  local context = best_context()
+  if hunk.is_available() then
+    if not context then
+      vim.notify("Open the current Hunk review from inside a git repository", vim.log.levels.WARN)
+      return
+    end
+
+    local buffer_name = vim.api.nvim_buf_get_name(0)
+    if buffer_name ~= "" then
+      local line = vim.api.nvim_win_get_cursor(0)[1]
+      local file = util.relative_path(context.repo, buffer_name)
+      if hunk.open_or_navigate(context, { file = file, line = line }) then
+        return
+      end
+    end
+
+    hunk.open_or_reload(context, "diff --watch", { notify = false })
+    return
+  end
+
+  M.show_legacy_current_hunk()
 end
 
 function M.annotate_current_hunk()
@@ -1127,7 +1136,7 @@ function M.set_current_suggestion_status(status)
   end)
 end
 
-function M.open_inbox(opts)
+function M.open_legacy_inbox(opts)
   local open_opts = type(opts) == "string" and { status = opts } or (opts or {})
   local target = normalize_inbox_target(open_opts.filter or open_opts.status)
   if target == false then
@@ -1227,6 +1236,31 @@ function M.open_inbox(opts)
   })
 end
 
+function M.open_inbox(opts)
+  local open_opts = type(opts) == "string" and { status = opts } or (opts or {})
+  if open_opts.legacy == true or not hunk.is_available() then
+    M.open_legacy_inbox(open_opts)
+    return
+  end
+
+  local context = best_context()
+  if not context then
+    vim.notify("Open the review inbox from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  local target = normalize_inbox_target(open_opts.filter or open_opts.status)
+  if target == false then
+    return
+  end
+
+  if target.status or target.filter then
+    vim.notify("Hunk is the default review inbox; legacy status filters are available with :ReviewLegacyInbox.", vim.log.levels.INFO)
+  end
+
+  hunk.open_or_reload(context, "diff --watch", { notify = false })
+end
+
 function M.prepare_batch(provider, status)
   prepare_batch(provider, status)
 end
@@ -1236,7 +1270,8 @@ function M.prepare_review(provider, status)
 end
 
 function M.open_hunk(raw_args)
-  open_hunk_terminal(raw_args)
+  local context = best_context()
+  hunk.open_or_reload(context, raw_args, { notify = false })
 end
 
 function M.repo_change_signature(repo)
@@ -1313,6 +1348,25 @@ function M.cmd_open_inbox(cmd_opts)
   end
 
   M.open_inbox({ filter = filter, path = path, status = cmd_opts.args })
+end
+
+function M.cmd_open_legacy_inbox(cmd_opts)
+  local filter = cmd_opts.args == "current-file" and "current-file" or nil
+  local path
+
+  if filter then
+    local context = best_context()
+    local buffer_name = vim.api.nvim_buf_get_name(0)
+    if context and buffer_name ~= "" then
+      path = util.relative_path(context.repo, buffer_name)
+    end
+  end
+
+  M.open_legacy_inbox({ filter = filter, path = path, status = cmd_opts.args })
+end
+
+function M.cmd_show_legacy_current_hunk()
+  M.show_legacy_current_hunk()
 end
 
 function M.cmd_annotate(cmd_opts)
