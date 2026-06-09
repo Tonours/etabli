@@ -44,6 +44,7 @@ assert_file "$ROOT_DIR/tests/install-smoke.sh"
 assert_file "$ROOT_DIR/tests/nvim-smoke.sh"
 assert_file "$ROOT_DIR/scripts/profile-nvim.sh"
 assert_file "$ROOT_DIR/scripts/profile-nvim-runtime.sh"
+assert_file "$ROOT_DIR/docs/hunk-review-migration-feasibility.md"
 
 assert_contains "$ROOT_DIR/scripts/install.sh" 'workflow/$shared_doc'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'PLAN_TEMPLATE.md'
@@ -68,6 +69,7 @@ assert_contains "$ROOT_DIR/README.md" 'claude --version'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'hunkdiff'
 assert_contains "$ROOT_DIR/README.md" 'hunk diff --watch'
+assert_contains "$ROOT_DIR/README.md" 'docs/hunk-review-migration-feasibility.md'
 assert_contains "$ROOT_DIR/README.md" 'does not install `nvm`'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
@@ -120,6 +122,10 @@ assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'tests/nvim-smoke.
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'XDG_STATE_HOME'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" ':ReviewHunk'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'https://www.hunk.dev/'
+assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'docs/hunk-review-migration-feasibility.md'
+assert_contains "$ROOT_DIR/docs/hunk-review-migration-feasibility.md" 'Current decision: **do not delete the existing local review state yet**.'
+assert_contains "$ROOT_DIR/docs/hunk-review-migration-feasibility.md" 'Notes did **not** survive closing Hunk and opening a new Hunk session'
+assert_contains "$ROOT_DIR/docs/hunk-review-migration-feasibility.md" 'Hunk UI plus thin Etabli persistence adapter'
 assert_not_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'dofile('\''$PWD/scripts/review_smoke.lua'\'')'
 assert_not_contains "$ROOT_DIR/claude/commands/plan-create.md" './claude/PLAN_TEMPLATE.md'
 assert_not_contains "$ROOT_DIR/claude/commands/plan-loop.md" './claude/PLAN_TEMPLATE.md'

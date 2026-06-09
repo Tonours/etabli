@@ -57,6 +57,8 @@ Note: current-hunk review uses `git diff` as the source of truth. Save the buffe
 
 Etabli installs Hunk from the official `hunkdiff` npm package documented at https://www.hunk.dev/. Use `<leader>rH` or `:ReviewHunk` to open `hunk diff --watch` for the current repository in a Neovim terminal tab. Pass explicit Hunk commands when needed, for example `:ReviewHunk diff` or `:ReviewHunk show HEAD~1`. The command is intentionally opt-in and does not change the global Git pager.
 
+The full migration feasibility record is `docs/hunk-review-migration-feasibility.md`. Do not delete the persisted Etabli review state until the persistence decision in that document is resolved.
+
 ## Review inbox
 
 - `<leader>ri` opens a Telescope inbox for staged and unstaged hunks in the current repo
