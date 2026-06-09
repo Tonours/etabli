@@ -56,8 +56,9 @@ Neovim review:
 :ReviewHunkSync       # pulls/pushes notes between Hunk and local persistence
 :ReviewHunkNextComment
 :ReviewHunkPrevComment
-:ReviewLegacyInbox    # old local status inbox while Hunk persistence gaps remain
 ```
+
+Legacy local review commands are hidden by default. Set `vim.g.etabli_review_legacy_commands = 1` only if you need the old local status inbox while Hunk persistence gaps remain.
 
 Pi:
 

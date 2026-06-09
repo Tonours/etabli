@@ -28,12 +28,32 @@ local expected_commands = {
   "ReviewInbox",
   "ReviewCurrentHunk",
   "ReviewAnnotate",
+  "ReviewHunk",
+  "ReviewHunkSync",
+  "ReviewHunkNextComment",
+  "ReviewHunkPrevComment",
+  "ReviewClaudeReview",
+  "ReviewPiReview",
+}
+
+local registered_commands = vim.api.nvim_get_commands({})
+
+for _, command in ipairs(expected_commands) do
+  assert_true(registered_commands[command] ~= nil, "expected :" .. command .. " command")
+end
+
+local hidden_legacy_commands = {
+  "ReviewLegacyInbox",
+  "ReviewLegacyCurrentHunk",
+  "ReviewResolve",
   "ReviewStatus",
   "ReviewAccept",
+  "ReviewMarkReviewed",
   "ReviewStart",
   "ReviewPreview",
   "ReviewSubmit",
   "ReviewExport",
+  "ReviewInlineAnnotations",
   "ReviewClaude",
   "ReviewPi",
   "ReviewIngestClaude",
@@ -45,8 +65,8 @@ local expected_commands = {
   "ReviewPiBatch",
 }
 
-for _, command in ipairs(expected_commands) do
-  assert_true(vim.fn.exists(":" .. command) == 2, "expected :" .. command .. " command")
+for _, command in ipairs(hidden_legacy_commands) do
+  assert_true(registered_commands[command] == nil, "legacy :" .. command .. " command should be hidden by default")
 end
 
 local lines = doctor.lines(vim.fn.getcwd())

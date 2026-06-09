@@ -23,36 +23,25 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 
 ## Review flow
 
-- Inbox: `<leader>ri` or `:ReviewInbox [status|filter]`
-- Current hunk: `<leader>rh` preview, `<leader>ra` comment line or visual range, `<leader>rr` resolve conversation, `<leader>rs` status, `<leader>rA` accept, `<leader>rV` reviewed
-- Review transaction: `<leader>rt` starts a local draft transaction, `<leader>rT` previews it, `:ReviewSubmit comment|approve|request-changes` submits it
-- Inline annotations: `<leader>rl` toggles review notes/status markers in file buffers, `<leader>ro` expands the thread under the cursor
+- Inbox: `<leader>ri` or `:ReviewInbox` opens or reloads Hunk
+- Current hunk: `<leader>rh` focuses the current buffer line in Hunk, `<leader>ra` comments the current line or visual range
+- Sync: `<leader>rs` or `:ReviewHunkSync` pulls live Hunk notes into local persistence and pushes unresolved local notes back into the active Hunk session
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch` for the current repo
-- Hunk navigation: `[h`, `]h`
-- Agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare current hunk findings
-- Suggested changes: `<leader>rS` preview safely, `:ReviewSuggestionStatus applied|rejected|resolved|open` tracks the decision
-- Claude: `<leader>rc` revise, `<leader>rC` explain
-- Pi: `<leader>rp` revise, `<leader>rP` explain
-- Batch rework: `<leader>rbc`, `<leader>rbp`
+- Hunk comments: `<leader>rn` / `<leader>rN` navigate next/previous review comment
+- Hunk navigation: `[h`, `]h` moves between Git hunks in the file
+- Claude: `<leader>rc` or `<leader>rvc` launches a first-pass Hunk review
+- Pi: `<leader>rp` or `<leader>rvp` launches a first-pass Hunk review
 - First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only` or `:ReviewPiReview changed-only` for changed hunks
 
-Inbox shortcuts:
-
-- Mark entries: `<Tab>` / `<S-Tab>`
-- Open diff: `<CR>`
-- Comment / status / reviewed / accept: `<C-a>`, `<C-s>`, `r` or `<C-g>`, `<C-y>`
-- Launch provider directly with selected diff: `<C-c>` for Claude, `<C-p>` for Pi
-- Refresh / help: `<C-r>`, `?`
+Legacy local review commands and keymaps are opt-in. Set `vim.g.etabli_review_legacy_commands = 1` and `vim.g.etabli_review_legacy_keymaps = 1` before loading this config if you need the old local inbox, statuses, draft transactions, agent ingest, or suggestion tracking while Hunk persistence gaps remain.
 
 Notes:
 
 - Review state is stored outside the repo under `stdpath("state")/etabli/review`
-- The inbox preview stays compact; open the diff, agent compare, or suggestion preview for full detail
 - Hunk is the terminal review-first diff viewer installed from `hunkdiff`; use it for full changeset walkthroughs and live agent-facing review sessions
-- Inline review conversations are rendered with extmarks/signs and never edit the file
-- Stale `new`, `accepted`, and `ignore` entries are hidden by default in the inbox to reduce noise
-- Closing the help overlay reopens the review inbox automatically
+- Hunk notes are not durable after closing Hunk in the current tested version; run `:ReviewHunkSync pull` before closing a review session
+- Local inline annotations are legacy UI and disabled by default
 
 ## Project workflow
 

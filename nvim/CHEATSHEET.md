@@ -73,21 +73,16 @@ Leader: `<Space>`
 
 ## Review
 
-- inbox: `<leader>ri` or `:ReviewInbox [status|filter]`
-- current hunk: `<leader>rh` preview, `<leader>ra` comment line/range, `<leader>rr` resolve, `<leader>rs` status, `<leader>rA` accept, `<leader>rV` reviewed
-- review transaction: `<leader>rt` start, `<leader>rT` preview, `:ReviewSubmit comment|approve|request-changes`
-- inline annotations: `<leader>rl` toggle, `<leader>ro` expand thread
+- inbox: `<leader>ri` or `:ReviewInbox` opens Hunk
+- current hunk: `<leader>rh` focuses the current line in Hunk, `<leader>ra` comments the current line/range
+- sync notes: `<leader>rs` or `:ReviewHunkSync` pulls/pushes notes between Hunk and local persistence
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch`
-- agent findings: `:ReviewIngestClaude [file]`, `:ReviewIngestPi [file]`, `<leader>rg` compare
-- suggested changes: `<leader>rS` preview, `:ReviewSuggestionStatus applied|rejected|resolved|open`
+- Hunk comments: `<leader>rn` next, `<leader>rN` previous
 - navigate hunks: `[h` previous, `]h` next
-- Claude hunk actions: `<leader>rc` revise, `<leader>rC` explain
-- Pi hunk actions: `<leader>rp` revise, `<leader>rP` explain
-- batch rework: `<leader>rbc`, `<leader>rbp`
-- first-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only`, `:ReviewPiReview changed-only`
-- in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `r`/`<C-g>` reviewed, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
-- inbox preview is compact; open diff, agent compare, or suggested change preview for full detail
+- Claude review: `<leader>rc`, `<leader>rvc`, `:ReviewClaudeReview changed-only`
+- Pi review: `<leader>rp`, `<leader>rvp`, `:ReviewPiReview changed-only`
+- legacy local review commands/keymaps: opt in with `vim.g.etabli_review_legacy_commands = 1` and `vim.g.etabli_review_legacy_keymaps = 1`
 
 
 ## Tip
