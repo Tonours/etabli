@@ -108,9 +108,9 @@ Keep Etabli's current system until Hunk exposes durable review sessions or docum
 
 Use Option B unless the user explicitly accepts losing durable review metadata. The first implementation slice should:
 
-1. Make `:ReviewInbox`, `<leader>ri`, and current-hunk preview commands open or reload Hunk instead of Telescope/scratch diff views.
-2. Change Claude/Pi review prompts to require `hunk skill path` and `hunk session review/comment` instead of pasting raw diff prompts.
-3. Keep Etabli state read-only or fallback-only until Hunk notes can be exported and rehydrated reliably.
-4. Add tests proving Hunk commands are the default review path and custom UI modules are no longer used when `hunk` is executable.
+1. Make `:ReviewInbox`, `<leader>ri`, and current-hunk preview commands open or reload Hunk instead of Telescope/scratch diff views. Implemented for the default path.
+2. Change Claude/Pi review prompts to require `hunk skill path` and `hunk session review/comment` instead of pasting raw diff prompts. Implemented for first-pass review commands.
+3. Keep Etabli state read-only or fallback-only until Hunk notes can be exported and rehydrated reliably. In progress: legacy commands remain explicit for persistence-only capabilities.
+4. Add tests proving Hunk commands are the default review path and custom UI modules are no longer used when `hunk` is executable. Implemented in the Neovim review smoke test.
 
 Do not delete `state.lua`, transactions, or suggestion state until the persistence decision is explicit.

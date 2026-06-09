@@ -40,9 +40,21 @@ lazy_cmd("ReviewInbox", "config.review", "cmd_open_inbox", {
     table.insert(choices, 1, "all")
     return choices
   end,
-  desc = "Open the review inbox", nargs = "?",
+  desc = "Open the Hunk review inbox", nargs = "?",
 })
-lazy_cmd("ReviewCurrentHunk", "config.review", "show_current_hunk", { desc = "Preview the current review hunk" })
+lazy_cmd("ReviewLegacyInbox", "config.review", "cmd_open_legacy_inbox", {
+  complete = function()
+    local choices = require("config.review.state").statuses()
+    vim.list_extend(choices, require("config.review.items").filters())
+    table.insert(choices, 1, "all")
+    return choices
+  end,
+  desc = "Open the legacy local review inbox", nargs = "?",
+})
+lazy_cmd("ReviewCurrentHunk", "config.review", "show_current_hunk", { desc = "Focus the current line in Hunk review" })
+lazy_cmd("ReviewLegacyCurrentHunk", "config.review", "cmd_show_legacy_current_hunk", {
+  desc = "Preview the current review hunk with legacy local state",
+})
 lazy_cmd("ReviewAnnotate", "config.review", "cmd_annotate", { desc = "Comment the current review line or range", range = true })
 lazy_cmd("ReviewResolve", "config.review", "cmd_resolve_comment", { desc = "Resolve the current review conversation" })
 lazy_cmd("ReviewStatus", "config.review", "cmd_set_status", {
@@ -113,7 +125,7 @@ lazy_cmd("ReviewClaudeReview", "config.review", "cmd_claude_review", {
     table.insert(choices, 2, "changed-only")
     return choices
   end,
-  desc = "Launch Claude for a first-pass code review", nargs = "?",
+  desc = "Launch Claude for a first-pass Hunk code review", nargs = "?",
 })
 lazy_cmd("ReviewPiReview", "config.review", "cmd_pi_review", {
   complete = function()
@@ -122,7 +134,7 @@ lazy_cmd("ReviewPiReview", "config.review", "cmd_pi_review", {
     table.insert(choices, 2, "changed-only")
     return choices
   end,
-  desc = "Launch Pi for a first-pass code review", nargs = "?",
+  desc = "Launch Pi for a first-pass Hunk code review", nargs = "?",
 })
 
 -- Priority 1: keymaps needed for immediate editing
