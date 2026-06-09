@@ -135,7 +135,7 @@ Provider CLIs are resolved from your environment, so the setup stays portable ac
 
 ## Local state
 
-Hunk is the default visible review UI and default command surface. Default commands and keymaps route through `config.review.hunk_flow`, a small Hunk orchestrator that opens/reloads sessions, focuses the current line, creates comments, synchronizes notes, and launches HITL prompts. The larger `config.review` legacy module is not loaded during default startup unless legacy flags are enabled.
+Hunk is the default visible review UI and default command surface. Default commands and keymaps route through `config.review.hunk_flow`, a small Hunk orchestrator that opens/reloads sessions, focuses the current line, and launches HITL prompts. Local persistence, multiline comment editing, note import/export, and cache refresh live behind `config.review.hunk_local_adapter`. The larger `config.review` legacy module is not loaded during default startup unless legacy flags are enabled.
 
 Local review state remains as a persistence adapter only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, exact multiline range anchors, and note rehydration through `:ReviewHunkSync`.
 
