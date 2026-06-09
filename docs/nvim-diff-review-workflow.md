@@ -66,7 +66,7 @@ Note: current-hunk review uses `git diff` as the source of truth. Save the buffe
 - `<C-r>` refreshes the inbox after you changed the diff outside the picker
 - `?` opens an overlay help panel for the inbox shortcuts; when you close it with `q` or `Esc`, the review inbox is reopened
 
-The inbox labels each entry with stable columns for attention marker, scope (`WORKING`, `STAGED`, `STALE`), review status, unresolved comment count or note marker, reviewed state, and file location. Statuses are highlighted, and the preview starts with file/status/attention/comment metadata before the diff. After you comment on a hunk, mark it reviewed, or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
+The inbox is optimized for scan-first review. Each entry uses short stable columns for attention marker, scope (`work`, `idx`, `old`), review status, comment/agent activity, reviewed state (`open`, `seen`, `chg`), and file location. The picker preview shows compact metadata, one-line comment and agent summaries, suggested-change availability, and a capped diff. Use `<CR>`, `<leader>rh`, `<leader>rg`, or `<leader>rS` when you need the full hunk, full agent finding, or full suggested fix. After you comment on a hunk, mark it reviewed, or change its status from the picker, the inbox reopens automatically so you can continue reviewing.
 
 Attention filters:
 

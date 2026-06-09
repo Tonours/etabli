@@ -86,6 +86,7 @@ Leader: `<Space>`
 - batch rework: `<leader>rbc`, `<leader>rbp`
 - first-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only`, `:ReviewPiReview changed-only`
 - in inbox: `<Tab>` / `<S-Tab>` mark, `<CR>` open diff, `<C-a>` annotate, `<C-s>` status, `r`/`<C-g>` reviewed, `<C-y>` accept, `<C-c>` Claude, `<C-p>` Pi, `<C-r>` refresh, `?` help
+- inbox preview is compact; open diff, agent compare, or suggested change preview for full detail
 
 
 ## Tip

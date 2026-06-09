@@ -54,7 +54,7 @@ local function unresolved_comments(item)
         id = finding.id,
         line = finding.line,
         end_line = finding.end_line,
-        body = string.format("[%s/%s] %s", finding.provider or "agent", finding.severity or "low", finding.review_comment),
+        body = string.format("%s/%s: %s", finding.provider or "agent", finding.severity or "low", finding.review_comment),
         agent = true,
       })
     end
@@ -185,16 +185,16 @@ local function compact_comment_text(comments)
 
   local label
   if draft_count == count then
-    label = count == 1 and "1 pending" or string.format("%d pending", count)
+    label = count == 1 and "1 draft" or string.format("%d drafts", count)
   elseif agent_count == count then
-    label = count == 1 and "1 agent finding" or string.format("%d agent findings", count)
+    label = count == 1 and "1 agent" or string.format("%d agents", count)
   else
-    label = count == 1 and "1 unresolved" or string.format("%d unresolved", count)
+    label = count == 1 and "1 open" or string.format("%d open", count)
   end
   local first = comments[1]
   local range = first and range_label(first) or "line ?"
 
-  return string.format("%s at %s [open: <leader>ro]", label, range)
+  return string.format("%s %s -> <leader>ro", label, range)
 end
 
 local function line_for_item(bufnr, item)
