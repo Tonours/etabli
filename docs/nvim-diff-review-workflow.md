@@ -24,8 +24,8 @@ Hunk commands:
 - `:ReviewHunkSync [push|pull|both]`
 - `:ReviewHunkNextComment`
 - `:ReviewHunkPrevComment`
-- `:ReviewClaudeReview [status|all|changed-only]`
-- `:ReviewPiReview [status|all|changed-only]`
+- `:ReviewClaudeReview [all|changed-only]`
+- `:ReviewPiReview [all|changed-only]`
 
 Legacy local commands are opt-in for capabilities Hunk does not yet persist natively. Set `vim.g.etabli_review_legacy_commands = 1` before loading `nvim/init.lua` if you need them:
 
@@ -106,14 +106,14 @@ By default, stale entries in `new`, `accepted`, or `ignore` are hidden from the 
 
 ## Agent Review
 
-- `:ReviewClaudeReview [status|all|changed-only]` launches Claude with a Hunk HITL review prompt
-- `:ReviewPiReview [status|all|changed-only]` launches Pi with a Hunk HITL review prompt
+- `:ReviewClaudeReview [all|changed-only]` launches Claude with a Hunk HITL review prompt
+- `:ReviewPiReview [all|changed-only]` launches Pi with a Hunk HITL review prompt
 - `<leader>rc` and `<leader>rvc` launch the Claude first-pass Hunk review
 - `<leader>rp` and `<leader>rvp` launch the Pi first-pass Hunk review
 
 Legacy batch commands `:ReviewClaudeBatch [status]` and `:ReviewPiBatch [status]` still use the local hunk model and are retained for status-scoped prompts when `vim.g.etabli_review_legacy_commands = 1`. Their keymaps are available only when `vim.g.etabli_review_legacy_keymaps = 1`.
 
-Review commands default to all live staged and unstaged hunks. Passing a status or `changed-only` narrows the Hunk prompt label for the agent, but Hunk itself remains the source of diff truth.
+Review commands default to all live staged and unstaged hunks. Passing `changed-only` narrows the Hunk prompt label for the agent, but Hunk itself remains the source of diff truth. Status-scoped prompts are legacy local-review behavior and require the opt-in legacy batch commands.
 
 The Hunk review action is intentionally read-only. It asks the provider to inspect the live session with `hunk session review --repo <repo> --json`, add inline notes with `hunk session comment apply --stdin --json` or `comment add`, and end with `GO`, `GO WITH NOTES`, or `BLOCK`. It does not ask the provider to edit files.
 
@@ -135,7 +135,7 @@ Provider CLIs are resolved from your environment, so the setup stays portable ac
 
 ## Local state
 
-Hunk is the default visible review UI and default command surface. Default commands and keymaps route through `config.review.hunk_flow`, a small Hunk orchestrator that opens/reloads sessions, focuses the current line, and launches HITL prompts. Opening the Hunk inbox resolves the Git repo directly and does not load local review state. Claude/Pi Hunk prompts use a lightweight Git signature for after-exit refresh instead of Etabli's local review model. Local persistence, multiline comment editing, note import/export, and cache refresh live behind `config.review.hunk_local_adapter`. The larger `config.review` legacy module is not loaded during default startup unless legacy flags are enabled.
+Hunk is the default visible review UI and default command surface. Default commands and keymaps route through `config.review.hunk_flow`, a small Hunk orchestrator that opens/reloads sessions, focuses the current line, and launches HITL prompts. Opening the Hunk inbox resolves the Git repo directly and does not load local review state or the local persistence adapter. Claude/Pi Hunk prompts use a lightweight Git signature for after-exit refresh instead of Etabli's local review model. Local persistence, multiline comment editing, note import/export, and cache refresh live behind `config.review.hunk_local_adapter`, which is loaded on demand by explicit persistence or legacy fallback paths. The larger `config.review` legacy module is not loaded during default startup unless legacy flags are enabled.
 
 Local review state remains as a persistence adapter only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, exact multiline range anchors, and note rehydration through `:ReviewHunkSync`.
 

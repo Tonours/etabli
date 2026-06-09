@@ -197,12 +197,8 @@ function M.open_inbox(opts)
     return
   end
 
-  local target = adapter_mod().inbox_target(open_opts.filter or open_opts.status)
-  if target == false then
-    return
-  end
-
-  if target.status or target.filter then
+  local target = open_opts.filter or open_opts.status
+  if target and target ~= "" and target ~= "all" then
     vim.notify("Hunk is the default review inbox; legacy status filters require opt-in legacy commands.", vim.log.levels.INFO)
   end
 
@@ -284,7 +280,10 @@ function M.prepare_review(provider, target)
     ),
     message = string.format("Prepared Hunk HITL review prompt for %s and copied it to registers.", provider),
     after_exit = function()
-      adapter_mod().after_provider_exit(context.repo)
+      local loaded_adapter = package.loaded["config.review.hunk_local_adapter"]
+      if loaded_adapter and loaded_adapter.after_provider_exit then
+        loaded_adapter.after_provider_exit(context.repo)
+      end
     end,
   })
 
@@ -388,22 +387,12 @@ function M.refresh_after_external_edit(repo, opts)
 end
 
 function M.setup()
-  adapter_mod().setup()
+  -- Hunk owns the default review surface. The local persistence adapter registers
+  -- cache hooks lazily when an explicit persistence or legacy fallback path uses it.
 end
 
 function M.cmd_open_inbox(cmd_opts)
-  local filter = cmd_opts.args == "current-file" and "current-file" or nil
-  local path
-
-  if filter then
-    local context = hunk_context()
-    local buffer_name = vim.api.nvim_buf_get_name(0)
-    if context and buffer_name ~= "" then
-      path = relative_path(context.repo, buffer_name)
-    end
-  end
-
-  M.open_inbox({ filter = filter, path = path, status = cmd_opts.args })
+  M.open_inbox({ status = cmd_opts.args })
 end
 
 function M.cmd_annotate(cmd_opts)
