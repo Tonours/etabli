@@ -1567,8 +1567,8 @@ assert_true(matched.comments[3].resolved == false, "resolve flow should leave th
   assert_true(captured_hunk_comment.file == "demo.txt", "Hunk annotation should target the current file path")
   assert_true(captured_hunk_comment.line == 9, "Hunk annotation should target the current line")
   assert_true(
-    tostring(captured_hunk_comment.id or ""):match("^comment:") ~= nil,
-    "Hunk annotation should include the saved local comment id for dedupe"
+    captured_hunk_comment.id == nil,
+    "direct Hunk annotation should not include an Etabli id marker so pull can persist it later"
   )
 end)()
 
