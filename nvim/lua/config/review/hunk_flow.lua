@@ -8,6 +8,10 @@ local function hunk_mod()
   return require("config.review.hunk")
 end
 
+local function comment_editor_mod()
+  return require("config.review.hunk_comment_editor")
+end
+
 local function providers_mod()
   return require("config.review.providers")
 end
@@ -69,6 +73,87 @@ local function relative_path(root, path)
   return normalized_path
 end
 
+local function selected_line_range()
+  local start_line = vim.fn.getpos("'<")[2]
+  local end_line = vim.fn.getpos("'>")[2]
+
+  if start_line < 1 or end_line < 1 then
+    return nil, nil
+  end
+
+  if end_line < start_line then
+    start_line, end_line = end_line, start_line
+  end
+
+  return start_line, end_line
+end
+
+local function direct_comment_target(line, end_line)
+  local context = hunk_context()
+  if not context then
+    vim.notify("Add Hunk review comments from inside a git repository", vim.log.levels.WARN)
+    return nil
+  end
+
+  if not hunk_mod().is_available() or not hunk_mod().session_exists(context.repo) then
+    return nil
+  end
+
+  local buffer_name = vim.api.nvim_buf_get_name(0)
+  if buffer_name == "" then
+    vim.notify("Open a file buffer before adding a Hunk review comment", vim.log.levels.WARN)
+    return nil
+  end
+
+  local comment_line = tonumber(line) or vim.api.nvim_win_get_cursor(0)[1]
+  local comment_end_line = tonumber(end_line) or comment_line
+  if comment_end_line < comment_line then
+    comment_line, comment_end_line = comment_end_line, comment_line
+  end
+
+  local file = relative_path(context.repo, buffer_name)
+  local label = comment_line == comment_end_line and string.format("%s:%d", file, comment_line)
+    or string.format("%s:%d-%d", file, comment_line, comment_end_line)
+
+  return {
+    context = context,
+    end_line = comment_end_line,
+    file = file,
+    label = label,
+    line = comment_line,
+  }
+end
+
+local function add_direct_comment(line, end_line)
+  local target = direct_comment_target(line, end_line)
+  if not target then
+    return false
+  end
+
+  comment_editor_mod().prompt(target.label, function(body)
+    if body == nil then
+      return
+    end
+
+    local result, err = hunk_mod().add_comment(target.context, {
+      author = "User",
+      body = body,
+      end_line = target.end_line,
+      file = target.file,
+      focus = true,
+      line = target.line,
+    })
+    if not result then
+      vim.notify(err, vim.log.levels.ERROR)
+      return
+    end
+
+    vim.notify("Review comment added to Hunk. Run :ReviewHunkSync pull before closing Hunk to persist it locally.", vim.log.levels.INFO)
+  end)
+
+  return true
+end
+
 function M.open_inbox(opts)
   local open_opts = type(opts) == "string" and { status = opts } or (opts or {})
   local context = hunk_context()
@@ -119,15 +204,24 @@ function M.show_current_hunk()
 end
 
 function M.annotate_current_hunk()
+  if add_direct_comment(vim.api.nvim_win_get_cursor(0)[1]) then
+    return
+  end
+
   adapter_mod().annotate_current_hunk()
 end
 
 function M.annotate_line_range(start_line, end_line)
+  if add_direct_comment(start_line, end_line) then
+    return
+  end
+
   adapter_mod().annotate_line_range(start_line, end_line)
 end
 
 function M.annotate_visual_selection()
-  adapter_mod().annotate_visual_selection()
+  local start_line, end_line = selected_line_range()
+  M.annotate_line_range(start_line, end_line)
 end
 
 function M.prepare_review(provider, target)

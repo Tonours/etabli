@@ -77,24 +77,49 @@ assert_true(package.loaded["config.review.providers"] == nil, "review providers 
 do
   local hunk = require("config.review.hunk")
   local hunk_flow = require("config.review.hunk_flow")
+  local original_input = vim.ui.input
   local original_available = hunk.is_available
+  local original_session_exists = hunk.session_exists
+  local original_add_comment = hunk.add_comment
   local original_open_or_reload = hunk.open_or_reload
   local opened_hunk = false
+  local added_comment = false
 
   hunk.is_available = function()
     return true
+  end
+  hunk.session_exists = function(repo)
+    return repo == doctor.config_root()
   end
   hunk.open_or_reload = function(context, raw_args)
     opened_hunk = context.repo == doctor.config_root() and raw_args == "diff --watch"
     return true
   end
+  hunk.add_comment = function(context, attrs)
+    added_comment = context.repo == doctor.config_root()
+      and attrs.file == "README.md"
+      and attrs.line == 1
+      and attrs.body == "Hunk-only annotation."
+      and attrs.id == nil
+    return { result = { commentId = "direct-note" } }
+  end
+  vim.ui.input = function(_, on_confirm)
+    on_confirm("Hunk-only annotation.")
+  end
 
   hunk_flow.open_inbox()
+  vim.cmd.edit(vim.fn.fnameescape(doctor.config_root() .. "/README.md"))
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  hunk_flow.annotate_current_hunk()
 
+  vim.ui.input = original_input
   hunk.open_or_reload = original_open_or_reload
+  hunk.add_comment = original_add_comment
+  hunk.session_exists = original_session_exists
   hunk.is_available = original_available
 
   assert_true(opened_hunk, "default Hunk inbox should open without local review state")
+  assert_true(added_comment, "active Hunk annotation should write directly to Hunk without a local id")
   assert_true(package.loaded["config.review.state"] == nil, "Hunk inbox should not load review state")
   assert_true(package.loaded["config.review.items"] == nil, "Hunk inbox should not load review items")
   assert_true(package.loaded["config.review.providers"] == nil, "Hunk inbox should not load review providers")
