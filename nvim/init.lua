@@ -39,10 +39,7 @@ end
 
 lazy_cmd("ReviewInbox", "config.review.hunk_flow", "cmd_open_inbox", {
   complete = function()
-    local choices = require("config.review.state").statuses()
-    vim.list_extend(choices, require("config.review.items").filters())
-    table.insert(choices, 1, "all")
-    return choices
+    return { "all" }
   end,
   desc = "Open the Hunk review inbox", nargs = "?",
 })
@@ -64,19 +61,13 @@ lazy_cmd("ReviewHunkPrevComment", "config.review.hunk_flow", "cmd_hunk_prev_comm
 })
 lazy_cmd("ReviewClaudeReview", "config.review.hunk_flow", "cmd_claude_review", {
   complete = function()
-    local choices = require("config.review.state").statuses()
-    table.insert(choices, 1, "all")
-    table.insert(choices, 2, "changed-only")
-    return choices
+    return { "all", "changed-only" }
   end,
   desc = "Launch Claude for a first-pass Hunk code review", nargs = "?",
 })
 lazy_cmd("ReviewPiReview", "config.review.hunk_flow", "cmd_pi_review", {
   complete = function()
-    local choices = require("config.review.state").statuses()
-    table.insert(choices, 1, "all")
-    table.insert(choices, 2, "changed-only")
-    return choices
+    return { "all", "changed-only" }
   end,
   desc = "Launch Pi for a first-pass Hunk code review", nargs = "?",
 })

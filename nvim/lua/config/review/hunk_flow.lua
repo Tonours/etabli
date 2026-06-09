@@ -20,9 +20,58 @@ local function hunk_missing()
   vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
 end
 
+local function normalize(path)
+  return vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
+end
+
+local function current_target_path()
+  local buffer_name = vim.api.nvim_buf_get_name(0)
+  if buffer_name ~= "" then
+    return buffer_name
+  end
+
+  return vim.fn.getcwd()
+end
+
+local function git_root(path)
+  local target = path ~= "" and path or vim.fn.getcwd()
+  local start = vim.fn.isdirectory(target) == 1 and target or vim.fs.dirname(target)
+  if not start or start == "" then
+    start = vim.fn.getcwd()
+  end
+
+  local root = vim.fs.root(start, ".git")
+  return root and normalize(root) or nil
+end
+
+local function hunk_context()
+  local root = git_root(current_target_path())
+  if not root then
+    return nil
+  end
+
+  return { repo = root }
+end
+
+local function relative_path(root, path)
+  local normalized_root = normalize(root)
+  local normalized_path = normalize(path)
+  local prefix = normalized_root .. "/"
+
+  if normalized_path == normalized_root then
+    return "."
+  end
+
+  if vim.startswith(normalized_path, prefix) then
+    return normalized_path:sub(#prefix + 1)
+  end
+
+  return normalized_path
+end
+
 function M.open_inbox(opts)
   local open_opts = type(opts) == "string" and { status = opts } or (opts or {})
-  local context = adapter_mod().best_context()
+  local context = hunk_context()
   if not context then
     vim.notify("Open the review inbox from inside a git repository", vim.log.levels.WARN)
     return
@@ -46,7 +95,7 @@ function M.open_inbox(opts)
 end
 
 function M.show_current_hunk()
-  local context = adapter_mod().best_context()
+  local context = hunk_context()
   if not context then
     vim.notify("Open the current Hunk review from inside a git repository", vim.log.levels.WARN)
     return
@@ -60,7 +109,7 @@ function M.show_current_hunk()
   local buffer_name = vim.api.nvim_buf_get_name(0)
   if buffer_name ~= "" then
     local line = vim.api.nvim_win_get_cursor(0)[1]
-    local file = adapter_mod().relative_path(context.repo, buffer_name)
+    local file = relative_path(context.repo, buffer_name)
     if hunk_mod().open_or_navigate(context, { file = file, line = line }) then
       return
     end
@@ -87,7 +136,7 @@ function M.prepare_review(provider, target)
     return
   end
 
-  local context = adapter_mod().best_context()
+  local context = hunk_context()
   if not context then
     vim.notify("Open this review command from inside a git repository", vim.log.levels.WARN)
     return
@@ -121,19 +170,22 @@ function M.prepare_review(provider, target)
   end
 
   if dispatched then
-    adapter_mod().record_agent_run(context, {
-      provider = provider,
-      mode = "hunk-review",
-      scope = review_target.label,
-      prompt_hash = vim.fn.sha256(dispatched),
-      diff_signature = adapter_mod().repo_change_signature(context.repo),
-      result = "running",
-    })
+    local record_context = adapter_mod().best_context()
+    if record_context then
+      adapter_mod().record_agent_run(record_context, {
+        provider = provider,
+        mode = "hunk-review",
+        scope = review_target.label,
+        prompt_hash = vim.fn.sha256(dispatched),
+        diff_signature = adapter_mod().repo_change_signature(context.repo),
+        result = "running",
+      })
+    end
   end
 end
 
 function M.open_hunk(raw_args)
-  local context = adapter_mod().best_context()
+  local context = hunk_context()
   if not hunk_mod().is_available() then
     hunk_missing()
     return
@@ -147,7 +199,7 @@ function M.sync_hunk(action)
 end
 
 function M.navigate_hunk_comment(direction)
-  local context = adapter_mod().best_context()
+  local context = hunk_context()
   if not context then
     vim.notify("Navigate Hunk review comments from inside a git repository", vim.log.levels.WARN)
     return
@@ -186,10 +238,10 @@ function M.cmd_open_inbox(cmd_opts)
   local path
 
   if filter then
-    local context = adapter_mod().best_context()
+    local context = hunk_context()
     local buffer_name = vim.api.nvim_buf_get_name(0)
     if context and buffer_name ~= "" then
-      path = adapter_mod().relative_path(context.repo, buffer_name)
+      path = relative_path(context.repo, buffer_name)
     end
   end
 

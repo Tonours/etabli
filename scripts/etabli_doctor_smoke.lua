@@ -74,6 +74,32 @@ assert_true(package.loaded["config.review.state"] == nil, "review state module s
 assert_true(package.loaded["config.review.items"] == nil, "review items module should not load during default startup")
 assert_true(package.loaded["config.review.providers"] == nil, "review providers module should not load during default startup")
 
+do
+  local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
+  local original_available = hunk.is_available
+  local original_open_or_reload = hunk.open_or_reload
+  local opened_hunk = false
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.open_or_reload = function(context, raw_args)
+    opened_hunk = context.repo == doctor.config_root() and raw_args == "diff --watch"
+    return true
+  end
+
+  hunk_flow.open_inbox()
+
+  hunk.open_or_reload = original_open_or_reload
+  hunk.is_available = original_available
+
+  assert_true(opened_hunk, "default Hunk inbox should open without local review state")
+  assert_true(package.loaded["config.review.state"] == nil, "Hunk inbox should not load review state")
+  assert_true(package.loaded["config.review.items"] == nil, "Hunk inbox should not load review items")
+  assert_true(package.loaded["config.review.providers"] == nil, "Hunk inbox should not load review providers")
+end
+
 local lines = doctor.lines(vim.fn.getcwd())
 local output = joined(lines)
 assert_true(output:match("Etabli doctor:") ~= nil, "doctor should include title")
