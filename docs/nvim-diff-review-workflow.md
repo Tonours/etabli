@@ -5,8 +5,8 @@ This review flow uses Hunk as the default review surface for Git hunks inside Ne
 ## Current hunk actions
 
 - `<leader>rh` focus the current file and line in the live Hunk review when a session exists, or open Hunk otherwise
-- `<leader>ra` add a review comment on the current line; when a Hunk session is active, the comment is written directly to Hunk
-- visual `<leader>ra` add a review comment on the selected line range, with Hunk anchoring to the first selected changed line
+- `<leader>ra` add a review comment on the current line in an active Hunk session; if no session exists, it opens Hunk and asks you to rerun the annotation
+- visual `<leader>ra` add a review comment on the selected line range in Hunk, with Hunk anchoring to the first selected changed line
 - `<leader>rs` pulls live Hunk notes into local persistence before closing Hunk
 - `<leader>rn` move Hunk to the next review comment
 - `<leader>rN` move Hunk to the previous review comment
@@ -31,6 +31,7 @@ Legacy local commands are opt-in for capabilities Hunk does not yet persist nati
 
 - `:ReviewLegacyInbox [status|filter]`
 - `:ReviewLegacyCurrentHunk`
+- `:ReviewLegacyAnnotate`
 - `:ReviewResolve`
 - `:ReviewStatus [new|accepted|needs-rework|question|ignore]`
 - `:ReviewAccept`
@@ -54,7 +55,7 @@ Local inline annotations show unresolved local review conversations on the live 
 
 Multi-line comments must stay inside one reviewable git hunk. Hunk anchors the synced note to one changed line and stores the original selected range in the Hunk rationale.
 
-Use `:ReviewStart` before annotating when you opt into legacy GitHub-style draft review behavior. In the default Hunk flow, `ReviewAnnotate` writes to the active Hunk session first. Run `:ReviewHunkSync pull` before closing Hunk if you need those notes rehydrated into Etabli's local persistence. When legacy commands are enabled and a local transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
+Use `:ReviewStart` before annotating when you opt into legacy GitHub-style draft review behavior. In the default Hunk flow, `:ReviewAnnotate` writes only to an active Hunk session; when no session exists, it opens Hunk and asks you to rerun the annotation instead of writing to local review state. Run `:ReviewHunkSync pull` before closing Hunk if you need those notes rehydrated into Etabli's local persistence. When legacy commands are enabled and a local transaction is active, `:ReviewLegacyAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
 Note: legacy current-hunk review uses `git diff` as the source of truth. Save the buffer first if you use `:ReviewLegacyCurrentHunk` and want cursor-to-hunk matching to stay accurate.
 

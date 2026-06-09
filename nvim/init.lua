@@ -85,6 +85,9 @@ if is_truthy_flag(vim.g.etabli_review_legacy_commands) then
   lazy_cmd("ReviewLegacyCurrentHunk", "config.review", "cmd_show_legacy_current_hunk", {
     desc = "Preview the current review hunk with legacy local state",
   })
+  lazy_cmd("ReviewLegacyAnnotate", "config.review", "cmd_annotate", {
+    desc = "Legacy: comment the current local review hunk or range", range = true,
+  })
   lazy_cmd("ReviewResolve", "config.review", "cmd_resolve_comment", { desc = "Legacy: resolve a local review conversation" })
   lazy_cmd("ReviewStatus", "config.review", "cmd_set_status", {
     complete = function() return require("config.review.state").statuses() end,

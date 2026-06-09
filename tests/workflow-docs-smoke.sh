@@ -122,6 +122,8 @@ assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'tests/nvim-smoke.
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'XDG_STATE_HOME'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" ':ReviewHunk'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" ':ReviewClaudeReview [all|changed-only]'
+assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" ':ReviewLegacyAnnotate'
+assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'opens Hunk and asks you to rerun the annotation'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'loaded on demand by explicit persistence or legacy fallback paths'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'https://www.hunk.dev/'
 assert_contains "$ROOT_DIR/docs/nvim-diff-review-workflow.md" 'docs/hunk-review-migration-feasibility.md'

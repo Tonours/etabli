@@ -598,6 +598,7 @@ local function show_inbox_help(opts)
     "- :ReviewResolve resolves the current review conversation",
     "- :ReviewAccept sets the current hunk status to accepted",
     "- :ReviewMarkReviewed [on|off|toggle] marks the current hunk reviewed without changing status",
+    "- :ReviewLegacyAnnotate adds a local comment or draft comment to the current legacy hunk",
     "- :ReviewStart begins a local draft review transaction",
     "- :ReviewPreview shows pending transaction comments",
     "- :ReviewSubmit [comment|approve|request-changes] submits pending transaction comments locally",

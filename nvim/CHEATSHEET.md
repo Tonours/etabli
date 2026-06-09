@@ -74,7 +74,7 @@ Leader: `<Space>`
 ## Review
 
 - inbox: `<leader>ri` or `:ReviewInbox` opens Hunk
-- current hunk: `<leader>rh` focuses the current line in Hunk, `<leader>ra` comments the current line/range in Hunk
+- current hunk: `<leader>rh` focuses the current line in Hunk, `<leader>ra` comments the current line/range in an active Hunk session
 - sync notes: `<leader>rs` or `:ReviewHunkSync` pulls Hunk notes before close; use `:ReviewHunkSync push` explicitly to rehydrate local notes
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch`

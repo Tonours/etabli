@@ -45,6 +45,7 @@ end
 local hidden_legacy_commands = {
   "ReviewLegacyInbox",
   "ReviewLegacyCurrentHunk",
+  "ReviewLegacyAnnotate",
   "ReviewResolve",
   "ReviewStatus",
   "ReviewAccept",
