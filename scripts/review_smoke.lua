@@ -1523,6 +1523,51 @@ assert_true(matched.comments[1].resolved == true, "resolve flow should resolve t
 assert_true(matched.comments[2].resolved == false, "resolve flow should leave the other comment unresolved")
 assert_true(matched.comments[3].resolved == false, "resolve flow should leave the range comment unresolved")
 
+;(function()
+  local hunk = require("config.review.hunk")
+  local original_input = vim.ui.input
+  local original_hunk_available = hunk.is_available
+  local original_hunk_session_exists = hunk.session_exists
+  local original_hunk_add_comment = hunk.add_comment
+  local captured_hunk_comment
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.session_exists = function(repo_arg)
+    return repo_arg == repo_root
+  end
+  hunk.add_comment = function(request_context, attrs)
+    captured_hunk_comment = vim.tbl_extend("force", {
+      repo = request_context.repo,
+    }, attrs)
+    return { result = { commentId = "hunk-comment" } }
+  end
+  vim.ui.input = function(_, on_confirm)
+    on_confirm("Dual-write annotation for Hunk.")
+  end
+
+  vim.api.nvim_win_set_cursor(0, { 9, 0 })
+  local ok_hunk_annotate, hunk_annotate_err = pcall(function()
+    review.annotate_current_hunk()
+  end)
+
+  vim.ui.input = original_input
+  hunk.add_comment = original_hunk_add_comment
+  hunk.session_exists = original_hunk_session_exists
+  hunk.is_available = original_hunk_available
+
+  assert_true(ok_hunk_annotate, hunk_annotate_err or "Hunk dual-write annotation failed")
+  assert_true(captured_hunk_comment ~= nil, "annotation should add a Hunk comment when a session is active")
+  assert_true(captured_hunk_comment.repo == repo_root, "Hunk annotation should target the current repo")
+  assert_true(captured_hunk_comment.file == "demo.txt", "Hunk annotation should target the current file path")
+  assert_true(captured_hunk_comment.line == 9, "Hunk annotation should target the current line")
+  assert_true(
+    tostring(captured_hunk_comment.id or ""):match("^comment:") ~= nil,
+    "Hunk annotation should include the saved local comment id for dedupe"
+  )
+end)()
+
 local ok_show_multiline, show_multiline_err = pcall(function()
   review.show_legacy_current_hunk()
 end)
@@ -1717,6 +1762,14 @@ assert_true(
   local default_args = hunk.parse_args("")
   local show_command = hunk.command("show HEAD")
   local invalid_args, invalid_err = hunk.parse_args("patch")
+  local hunk_comment_payload = hunk.comment_payload({
+    author = "User",
+    body = "Range comment for Hunk.\nSecond line explains the risk.",
+    end_line = 10,
+    file = "demo.txt",
+    id = "comment:abc123",
+    line = 9,
+  })
   local hunk_prompt = hunk.review_prompt("Claude", context, {
     target_label = "all live staged and unstaged hunks",
   })
@@ -1742,6 +1795,20 @@ assert_true(
   assert_true(
     hunk_prompt:find("```diff", 1, true) == nil,
     "Hunk review prompt should avoid embedding raw diff blocks"
+  )
+  assert_true(hunk_comment_payload.filePath == "demo.txt", "Hunk comment payload should keep the file path")
+  assert_true(hunk_comment_payload.newLine == 9, "Hunk comment payload should anchor to the selected new line")
+  assert_true(
+    hunk_comment_payload.summary == "Range comment for Hunk.",
+    "Hunk comment payload should use the first line as inline summary"
+  )
+  assert_true(
+    hunk_comment_payload.rationale:find("Local selected range: 9-10.", 1, true) ~= nil,
+    "Hunk multiline range payload should preserve the original local range in rationale"
+  )
+  assert_true(
+    hunk_comment_payload.rationale:find("Etabli id: comment:abc123", 1, true) ~= nil,
+    "Hunk comment payload should include a stable Etabli marker for dedupe"
   )
 
   local original_hunk_available = hunk.is_available

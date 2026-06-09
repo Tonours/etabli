@@ -71,6 +71,30 @@ local function session_command(repo, subcommand, extra)
   return command
 end
 
+local function run_json(command, stdin)
+  local output
+  if stdin ~= nil then
+    output = vim.fn.system(command, stdin)
+  else
+    output = vim.fn.system(command)
+  end
+
+  if vim.v.shell_error ~= 0 then
+    return nil, trim(output) ~= "" and trim(output) or "Hunk command failed"
+  end
+
+  if trim(output) == "" then
+    return {}
+  end
+
+  local ok_decode, decoded = pcall(vim.json.decode, output)
+  if not ok_decode then
+    return nil, "Hunk returned invalid JSON"
+  end
+
+  return decoded
+end
+
 function M.session_exists(repo)
   if not M.is_available() then
     return false
@@ -195,6 +219,23 @@ function M.navigate(context, file, line)
   return true
 end
 
+function M.review_model(context, opts)
+  local options = opts or {}
+  if not context or not context.repo then
+    return nil, "Hunk review export needs a repository"
+  end
+
+  local args = { "--json" }
+  if options.include_patch then
+    table.insert(args, "--include-patch")
+  end
+  if options.include_notes then
+    table.insert(args, "--include-notes")
+  end
+
+  return run_json(session_command(context.repo, "review", args))
+end
+
 function M.open_or_navigate(context, opts)
   local options = opts or {}
   if M.is_available() and context and context.repo and M.session_exists(context.repo) then
@@ -211,6 +252,205 @@ end
 
 local function quote(value)
   return string.format("%q", tostring(value or ""))
+end
+
+function M.comment_marker(id)
+  if not id or id == "" then
+    return nil
+  end
+
+  return string.format("Etabli id: %s", id)
+end
+
+local function marker_in_body(body)
+  return tostring(body or ""):match("Etabli id:%s*([^%s]+)")
+end
+
+local function comment_summary_and_rationale(attrs)
+  local body = vim.trim(attrs.body or "")
+  if body == "" then
+    return nil, nil, "Review comment cannot be empty"
+  end
+
+  local body_lines = vim.split(body, "\n", { plain = true })
+  local summary = vim.trim(body_lines[1] or "")
+  if summary == "" then
+    summary = body:gsub("%s+", " ")
+  end
+
+  local rationale_lines = {}
+  for index = 2, #body_lines do
+    table.insert(rationale_lines, body_lines[index])
+  end
+
+  local line = tonumber(attrs.line)
+  local end_line = tonumber(attrs.end_line) or line
+  if line and end_line and end_line ~= line then
+    table.insert(rationale_lines, 1, string.format("Local selected range: %d-%d.", line, end_line))
+  end
+
+  if attrs.rationale and attrs.rationale ~= "" then
+    if #rationale_lines > 0 then
+      table.insert(rationale_lines, "")
+    end
+    vim.list_extend(rationale_lines, vim.split(attrs.rationale, "\n", { plain = true }))
+  end
+
+  local marker = M.comment_marker(attrs.id)
+  if marker then
+    if #rationale_lines > 0 then
+      table.insert(rationale_lines, "")
+    end
+    table.insert(rationale_lines, marker)
+  end
+
+  return summary, table.concat(rationale_lines, "\n")
+end
+
+function M.comment_payload(attrs)
+  local options = attrs or {}
+  local line = tonumber(options.line)
+  if not options.file or options.file == "" or not line then
+    return nil, "Hunk comments need a file path and new-side line"
+  end
+
+  local summary, rationale, err = comment_summary_and_rationale(options)
+  if not summary then
+    return nil, err
+  end
+
+  local payload = {
+    filePath = options.file,
+    newLine = line,
+    summary = summary,
+  }
+
+  if rationale and rationale ~= "" then
+    payload.rationale = rationale
+  end
+  if options.author and options.author ~= "" then
+    payload.author = options.author
+  end
+
+  return payload
+end
+
+function M.add_comment(context, attrs)
+  if not context or not context.repo then
+    return nil, "Hunk comment add needs a repository"
+  end
+
+  local payload, payload_err = M.comment_payload(attrs)
+  if not payload then
+    return nil, payload_err
+  end
+
+  local command = {
+    "hunk",
+    "session",
+    "comment",
+    "add",
+    "--repo",
+    M.realpath(context.repo),
+    "--file",
+    payload.filePath,
+    "--new-line",
+    tostring(payload.newLine),
+    "--summary",
+    payload.summary,
+    "--json",
+  }
+
+  if payload.rationale and payload.rationale ~= "" then
+    vim.list_extend(command, { "--rationale", payload.rationale })
+  end
+  if payload.author and payload.author ~= "" then
+    vim.list_extend(command, { "--author", payload.author })
+  end
+  if attrs and attrs.focus == true then
+    table.insert(command, "--focus")
+  end
+
+  return run_json(command)
+end
+
+function M.existing_markers(context)
+  local model, err = M.review_model(context, { include_notes = true })
+  if not model then
+    return nil, err
+  end
+
+  local markers = {}
+  local review = model.review or {}
+  for _, note in ipairs(review.reviewNotes or {}) do
+    local marker = marker_in_body(note.body)
+    if marker then
+      markers[marker] = true
+    end
+  end
+
+  return markers
+end
+
+function M.apply_comments(context, comments, opts)
+  if not context or not context.repo then
+    return nil, "Hunk comment apply needs a repository"
+  end
+
+  local options = opts or {}
+  local existing = {}
+  if options.dedupe ~= false then
+    local markers, marker_err = M.existing_markers(context)
+    if not markers then
+      return nil, marker_err
+    end
+    existing = markers
+  end
+
+  local payloads = {}
+  local skipped = 0
+  for _, comment in ipairs(comments or {}) do
+    local marker = comment.id and tostring(comment.id) or nil
+    if marker and existing[marker] then
+      skipped = skipped + 1
+    else
+      local payload = M.comment_payload(comment)
+      if payload then
+        table.insert(payloads, payload)
+      else
+        skipped = skipped + 1
+      end
+    end
+  end
+
+  if vim.tbl_isempty(payloads) then
+    return { applied = 0, skipped = skipped }
+  end
+
+  local command = {
+    "hunk",
+    "session",
+    "comment",
+    "apply",
+    "--repo",
+    M.realpath(context.repo),
+    "--stdin",
+    "--json",
+  }
+  if options.focus == true then
+    table.insert(command, "--focus")
+  end
+
+  local result, err = run_json(command, vim.json.encode({ comments = payloads }))
+  if not result then
+    return nil, err
+  end
+
+  return {
+    applied = #payloads,
+    result = result,
+    skipped = skipped,
+  }
 end
 
 function M.review_prompt(provider, context, opts)

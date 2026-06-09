@@ -270,6 +270,39 @@ local function prompt_for_status(item, opts)
   end)
 end
 
+local function latest_matching_comment(saved, line, end_line, body)
+  for index = #(saved.comments or {}), 1, -1 do
+    local comment = saved.comments[index]
+    if comment.line == line and comment.end_line == end_line and comment.body == vim.trim(body or "") then
+      return comment
+    end
+  end
+
+  return nil
+end
+
+local function sync_saved_comment_to_hunk(context, item, comment)
+  if not comment or not hunk.is_available() or not hunk.session_exists(context.repo) then
+    return false
+  end
+
+  local result, err = hunk.add_comment(context, {
+    author = "User",
+    body = comment.body,
+    end_line = comment.end_line,
+    file = item.path,
+    id = "comment:" .. tostring(comment.id or ""),
+    line = comment.line,
+  })
+
+  if not result then
+    vim.notify(string.format("Review comment saved locally; Hunk sync failed: %s", err), vim.log.levels.WARN)
+    return false
+  end
+
+  return true
+end
+
 local function finish_comment(item, line, end_line, body, opts)
   local options = opts or {}
   local context = { repo = item.repo, branch = item.branch }
@@ -283,7 +316,7 @@ local function finish_comment(item, line, end_line, body, opts)
 
   local has_transaction = state.active_transaction(context) ~= nil
   local save = has_transaction and state.add_draft_comment or state.add_comment
-  local _, err = save(context, item, {
+  local saved, err = save(context, item, {
     body = body,
     line = line,
     end_line = end_line,
@@ -296,7 +329,14 @@ local function finish_comment(item, line, end_line, body, opts)
     return
   end
 
-  vim.notify(has_transaction and "Review draft comment added" or "Review comment added", vim.log.levels.INFO)
+  local hunk_synced = false
+  if not has_transaction then
+    hunk_synced = sync_saved_comment_to_hunk(context, item, latest_matching_comment(saved, line, end_line, body))
+  end
+
+  local message = has_transaction and "Review draft comment added"
+    or (hunk_synced and "Review comment added to Hunk and local state" or "Review comment added")
+  vim.notify(message, vim.log.levels.INFO)
   review_items.clear_cache()
   annotations.refresh_repo(item.repo)
 
@@ -831,6 +871,201 @@ local function ingest_provider_output(provider, source)
   )
 end
 
+local function hunk_comment_payloads(items)
+  local payloads = {}
+
+  for _, item in ipairs(items or {}) do
+    if not item.stale then
+      for _, comment in ipairs(item.comments or {}) do
+        local comment_id = tostring(comment.id or "")
+        if
+          comment.resolved ~= true
+          and comment.body
+          and comment.body ~= ""
+          and not vim.startswith(comment_id, "hunk_")
+        then
+          table.insert(payloads, {
+            author = "User",
+            body = comment.body,
+            end_line = comment.end_line,
+            file = item.path,
+            id = "comment:" .. comment_id,
+            line = comment.line,
+          })
+        end
+      end
+
+      for _, finding in ipairs(item.agent_findings or {}) do
+        if finding.status == nil or finding.status == "open" then
+          local details = {}
+          if finding.severity and finding.severity ~= "" then
+            table.insert(details, "Severity: " .. finding.severity)
+          end
+          if finding.issue and finding.issue ~= "" then
+            table.insert(details, "Issue: " .. finding.issue)
+          end
+          if finding.impact and finding.impact ~= "" then
+            table.insert(details, "Impact: " .. finding.impact)
+          end
+          if finding.suggested_fix and finding.suggested_fix ~= "" then
+            table.insert(details, "Suggested fix: " .. finding.suggested_fix)
+          end
+
+          table.insert(payloads, {
+            author = finding.provider or "agent",
+            body = finding.review_comment,
+            end_line = finding.end_line,
+            file = item.path,
+            id = "finding:" .. tostring(finding.id or ""),
+            line = finding.line or item.line_start,
+            rationale = table.concat(details, "\n"),
+          })
+        end
+      end
+    end
+  end
+
+  return payloads
+end
+
+local function comment_exists(comments, id)
+  for _, comment in ipairs(comments or {}) do
+    if comment.id == id then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function item_for_hunk_note(items, note)
+  local file_path = note.filePath
+  local range = note.newRange or note.oldRange
+  local line = type(range) == "table" and tonumber(range[1]) or nil
+  local fallback
+
+  for _, item in ipairs(items or {}) do
+    if not item.stale and item.path == file_path then
+      fallback = fallback or item
+      if line and diff.hunk_contains_line(item, line) then
+        return item, line, tonumber(range[2]) or line
+      end
+    end
+  end
+
+  if fallback then
+    return fallback, line or fallback.line_start, line or fallback.line_start
+  end
+
+  return nil
+end
+
+local function pull_hunk_notes(context)
+  local model, err = hunk.review_model(context, { include_notes = true })
+  if not model then
+    return nil, err
+  end
+
+  local items = repo_items(context, { include_stale = false })
+  local imported = 0
+  local skipped = 0
+
+  for _, note in ipairs((model.review or {}).reviewNotes or {}) do
+    local item, line, end_line = item_for_hunk_note(items, note)
+    local body = note.body or ""
+    local exported_marker = body:match("Etabli id:%s*([^%s]+)")
+    if exported_marker then
+      skipped = skipped + 1
+    elseif body == "" or not item or not line then
+      skipped = skipped + 1
+    else
+      local comment_id = "hunk_" .. vim.fn.sha256(note.noteId or body or tostring(imported + skipped)):sub(1, 12)
+      local comments = vim.deepcopy(item.comments or {})
+      if comment_exists(comments, comment_id) then
+        skipped = skipped + 1
+      else
+        table.insert(comments, {
+          body = body,
+          created_at = note.createdAt,
+          end_line = end_line,
+          id = comment_id,
+          line = line,
+          resolved = false,
+          updated_at = note.createdAt,
+        })
+
+        local saved, save_err = state.save_item(context, item, { comments = comments })
+        if not saved then
+          return nil, save_err
+        end
+        imported = imported + 1
+      end
+    end
+  end
+
+  review_items.clear_cache()
+  annotations.refresh_repo(context.repo)
+  return { imported = imported, skipped = skipped }
+end
+
+local function push_hunk_notes(context)
+  if not hunk.session_exists(context.repo) then
+    return nil, "No active Hunk session for this repository. Run :ReviewHunk first."
+  end
+
+  local items = repo_items(context, { include_stale = false })
+  local payloads = hunk_comment_payloads(items)
+  return hunk.apply_comments(context, payloads, { dedupe = true })
+end
+
+local function sync_hunk_notes(action)
+  local mode = action == "" and "both" or (action or "both")
+  if mode ~= "push" and mode ~= "pull" and mode ~= "both" then
+    vim.notify(string.format("Invalid Hunk sync action: %s", mode), vim.log.levels.ERROR)
+    return
+  end
+
+  local context = best_context()
+  if not context then
+    vim.notify("Sync Hunk review notes from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+
+  if not hunk.is_available() then
+    vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
+    return
+  end
+
+  local pulled
+  local pushed
+  if mode == "pull" or mode == "both" then
+    local pull_err
+    pulled, pull_err = pull_hunk_notes(context)
+    if not pulled then
+      vim.notify(pull_err, vim.log.levels.ERROR)
+      return
+    end
+  end
+
+  if mode == "push" or mode == "both" then
+    local pushed_result, push_err = push_hunk_notes(context)
+    if not pushed_result then
+      vim.notify(push_err, vim.log.levels.ERROR)
+      return
+    end
+    pushed = pushed_result
+  end
+
+  local parts = {}
+  if pulled then
+    table.insert(parts, string.format("pulled %d Hunk note(s), skipped %d", pulled.imported, pulled.skipped))
+  end
+  if pushed then
+    table.insert(parts, string.format("pushed %d local note(s), skipped %d", pushed.applied, pushed.skipped))
+  end
+  vim.notify("Hunk review sync: " .. table.concat(parts, "; "), vim.log.levels.INFO)
+end
+
 local function select_suggestion(item, on_choice)
   local candidates = suggestions.for_item(item)
   if vim.tbl_isempty(candidates) then
@@ -1274,6 +1509,10 @@ function M.open_hunk(raw_args)
   hunk.open_or_reload(context, raw_args, { notify = false })
 end
 
+function M.sync_hunk(action)
+  sync_hunk_notes(action)
+end
+
 function M.repo_change_signature(repo)
   return review_items.repo_change_signature(repo)
 end
@@ -1487,6 +1726,10 @@ end
 
 function M.cmd_open_hunk(cmd_opts)
   M.open_hunk(cmd_opts.args)
+end
+
+function M.cmd_sync_hunk(cmd_opts)
+  M.sync_hunk(cmd_opts.args)
 end
 
 function M.cmd_claude_batch(cmd_opts)

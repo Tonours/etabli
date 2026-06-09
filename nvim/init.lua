@@ -84,6 +84,10 @@ lazy_cmd("ReviewHunk", "config.review", "cmd_open_hunk", {
   complete = function() return { "diff", "diff --watch", "show", "show HEAD" } end,
   desc = "Open Hunk diff viewer", nargs = "*",
 })
+lazy_cmd("ReviewHunkSync", "config.review", "cmd_sync_hunk", {
+  complete = function() return { "push", "pull", "both" } end,
+  desc = "Synchronize local review notes with the live Hunk session", nargs = "?",
+})
 lazy_cmd("ReviewClaude", "config.review", "cmd_send_claude", {
   complete = function() return { "revise", "explain", "review" } end,
   desc = "Send the current hunk review prompt to Claude", nargs = "?",

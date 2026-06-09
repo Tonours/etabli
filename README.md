@@ -53,6 +53,7 @@ Neovim review:
 :ReviewCurrentHunk    # focuses the current line in the live Hunk session
 :ReviewClaudeReview   # launches an interactive Claude Hunk review prompt
 :ReviewPiReview       # launches an interactive Pi Hunk review prompt
+:ReviewHunkSync       # pulls/pushes notes between Hunk and local persistence
 :ReviewLegacyInbox    # old local status inbox while Hunk persistence gaps remain
 ```
 
