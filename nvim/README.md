@@ -32,7 +32,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Hunk navigation: `[h`, `]h` moves between Git hunks in the file
 - Claude: `<leader>rc` or `<leader>rvc` launches a first-pass Hunk review
 - Pi: `<leader>rp` or `<leader>rvp` launches a first-pass Hunk review
-- First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only` or `:ReviewPiReview changed-only` for changed hunks
+- First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only` or `:ReviewPiReview changed-only` for changed hunks; if no Hunk session exists, the command opens Hunk first and you rerun it after the session is ready
 
 Legacy local review commands and keymaps are opt-in. Set `vim.g.etabli_review_legacy_commands = 1` and `vim.g.etabli_review_legacy_keymaps = 1` before loading this config if you need the old local inbox, statuses, draft transactions, agent ingest, or suggestion tracking while Hunk persistence gaps remain.
 

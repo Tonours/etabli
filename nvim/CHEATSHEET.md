@@ -80,8 +80,8 @@ Leader: `<Space>`
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch`
 - Hunk comments: `<leader>rn` next, `<leader>rN` previous
 - navigate hunks: `[h` previous, `]h` next
-- Claude review: `<leader>rc`, `<leader>rvc`, `:ReviewClaudeReview changed-only`
-- Pi review: `<leader>rp`, `<leader>rvp`, `:ReviewPiReview changed-only`
+- Claude review: `<leader>rc`, `<leader>rvc`, `:ReviewClaudeReview changed-only` after Hunk is open
+- Pi review: `<leader>rp`, `<leader>rvp`, `:ReviewPiReview changed-only` after Hunk is open
 - legacy local review commands/keymaps: opt in with `vim.g.etabli_review_legacy_commands = 1` and `vim.g.etabli_review_legacy_keymaps = 1`
 
 
