@@ -50,8 +50,8 @@ lazy_cmd("ReviewHunk", "config.review.hunk_flow", "cmd_open_hunk", {
   desc = "Open Hunk diff viewer", nargs = "*",
 })
 lazy_cmd("ReviewHunkSync", "config.review.hunk_flow", "cmd_sync_hunk", {
-  complete = function() return { "push", "pull", "both" } end,
-  desc = "Synchronize local review notes with the live Hunk session", nargs = "?",
+  complete = function() return { "pull", "push", "both" } end,
+  desc = "Persist or rehydrate Hunk review notes", nargs = "?",
 })
 lazy_cmd("ReviewHunkNextComment", "config.review.hunk_flow", "cmd_hunk_next_comment", {
   desc = "Move Hunk to the next review comment",
