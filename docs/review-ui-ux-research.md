@@ -294,3 +294,88 @@ Implementation constraints:
 - Should agent findings be stored as comments, or as a separate finding type with optional conversion to comment?
 - Should Pi and Claude findings share a normalized severity taxonomy, or preserve provider-native labels and map them for display?
 - Should `:ReviewSubmit` target local markdown only, or eventually GitHub PR reviews via `gh`?
+
+## 2026-06-09 Addendum: Minimal TUI Direction
+
+### Additional sources
+
+- OpenCode TUI: https://opencode.ai/docs/tui/
+- OpenCode keybinds: https://opencode.ai/docs/keybinds/
+- OpenCode TUI config: https://opencode.ai/docs/config/
+- OpenCode agents: https://opencode.ai/docs/agents/
+- OpenTUI: https://github.com/anomalyco/opentui
+- Hunk: https://github.com/modem-dev/hunk
+- Warp terminal/agent modes: https://docs.warp.dev/agent-platform/local-agents/interacting-with-agents/terminal-and-agent-modes/
+- Warp AI-generated code review workflow: https://docs.warp.dev/guides/agent-workflows/how-to-review-ai-generated-code/
+- Lip Gloss terminal styling: https://github.com/charmbracelet/lipgloss
+
+### Facts verified
+
+- OpenCode's terminal surface is the primary interaction surface: running `opencode`
+  starts a TUI for the current project, while CLI commands remain available for
+  automation.
+- OpenCode exposes TUI configuration separately through `tui.json`, including
+  keybinds, scrolling, diff style, mouse, and attention notifications. This
+  supports a strong split between behavior and terminal presentation.
+- OpenCode agents separate planning/review work from build work: the Plan agent
+  is explicitly positioned for analyzing code and reviewing suggestions without
+  modifying files.
+- OpenTUI, which powers OpenCode, emphasizes correctness, stability, high
+  performance, componentized layout, and flexible terminal layouts.
+- Hunk is explicitly review-first: multi-file stream, sidebar navigation, inline
+  AI/agent annotations beside code, split/stack/auto layouts, watch mode, and
+  keyboard/mouse support.
+- GitHub's PR review model keeps line/range comments, pending review batches,
+  and multi-line suggestions close to the diff. Existing Etabli multiline
+  comment support already matches the most important primitive.
+- Warp's agent UX separates a clean terminal mode from a richer agent
+  conversation mode, with contextual hints rather than permanently visible
+  controls.
+- Mobbin MCP was not available in the current Codex tool surface during this
+  pass. Research confidence therefore comes from primary docs and local code
+  inspection, not Mobbin screenshots.
+
+### Moodboard
+
+Generated visual reference:
+
+`/Users/tonours/.codex/generated_images/019e99f1-c213-7690-9cbf-4f7858403eed/ig_0327c6b7cc7a4723016a28880e3d308191a5b5f84b486d34ce.png`
+
+Direction extracted from the moodboard: graphite terminal surface, thin borders,
+high-density split panes, status text before color, restrained semantic accents,
+agent indicators as small evidence tags, and inline comment threads rendered as
+review objects rather than chat bubbles.
+
+### Local UX findings
+
+- The review Inbox already has the right data model for a compact review queue:
+  attention marker, scope, status, activity, reviewed state, location, preview,
+  and actions. The weakness is wording: `attn`, `chg`, `old`, `idx`, `work`,
+  `C:1`, and `P:1` are dense but not self-explanatory.
+- The picker preview puts decision context before the diff, which is correct,
+  but the first lines read as implementation metadata rather than review state.
+- Inline annotations are already compact by default and expanded on demand. The
+  weak point is the label `review:` plus raw counts, which does not read like a
+  GitHub-style review thread.
+- Agent terminals are interactive and prompt-pasted, which preserves the desired
+  Claude/Pi behavior. The floating border is visually heavier than the rest of
+  the TUI.
+- Comment composers are functional and persistent through `:write`, `<C-s>`,
+  `ZZ`, and `ZQ`. The rounded border and centered long title feel less aligned
+  with the thinner OpenCode/Hunk direction, but changing the editor model would
+  be higher risk than changing presentation.
+
+### Implementation plan for this pass
+
+- Make Inbox labels clearer while staying dense: replace ambiguous abbreviations
+  with short review terms (`index`, `tree`, `stale`, `changed`, `reviewed`,
+  `cN`, `note`, `claudeN`, `piN`) and update picker titles.
+- Improve preview hierarchy without adding new state: use `State`, `Activity`,
+  `Note`, `Draft comments`, `Open comments`, `Agent findings`, and `Diff`
+  sections.
+- Make inline annotations read like review threads: compact label should say
+  `review thread` with comment/agent/draft counts and the open action.
+- Use thinner `single` float borders for review agent terminals and Hunk comment
+  editors to align with terminal-native minimalism.
+- Preserve every existing command, keymap, persistence path, provider flow,
+  Hunk sync behavior, multiline behavior, and performance cap.
