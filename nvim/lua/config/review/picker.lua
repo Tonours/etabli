@@ -7,6 +7,10 @@ local max_preview_text_width = 96
 local max_preview_patch_lines = 120
 local max_preview_items_per_section = 3
 
+local function preview_keys_line()
+  return "Keys      Enter diff | Ctrl-A comment | Ctrl-S status | Ctrl-C Claude | Ctrl-P Pi | ? help"
+end
+
 local function summarize(items)
   local counts = {
     total = #items,
@@ -209,6 +213,7 @@ local function render_preview(item)
       #unresolved + #draft_comments,
       #agent_findings
     ),
+    preview_keys_line(),
   }
 
   if item.changed_since_review and item.reviewed_at then
@@ -341,6 +346,36 @@ local function default_selection_index(items, focus_fingerprint)
   return nil
 end
 
+local function picker_layout(columns)
+  local width = tonumber(columns) or vim.o.columns
+
+  if width < 120 then
+    return {
+      strategy = "vertical",
+      config = {
+        height = 0.92,
+        preview_height = 0.55,
+        prompt_position = "top",
+        width = 0.96,
+      },
+    }
+  end
+
+  return {
+    strategy = "horizontal",
+    config = {
+      height = 0.9,
+      preview_width = 0.6,
+      prompt_position = "top",
+      width = 0.96,
+    },
+  }
+end
+
+function M.layout_for_columns(columns)
+  return vim.deepcopy(picker_layout(columns))
+end
+
 function M.open(items, callbacks, opts)
   if #vim.api.nvim_list_uis() == 0 then
     vim.notify("Review inbox is not available in headless mode", vim.log.levels.WARN)
@@ -361,6 +396,7 @@ function M.open(items, callbacks, opts)
   end
 
   local options = opts or {}
+  local layout = picker_layout(vim.o.columns)
   local displayer = entry_display.create({
     separator = " ",
     items = {
@@ -415,13 +451,8 @@ function M.open(items, callbacks, opts)
       results = items,
       entry_maker = entry_maker,
     }),
-    layout_strategy = "horizontal",
-    layout_config = {
-      height = 0.9,
-      preview_width = 0.6,
-      prompt_position = "top",
-      width = 0.96,
-    },
+    layout_strategy = layout.strategy,
+    layout_config = layout.config,
     previewer = previewer,
     sorter = config.values.generic_sorter({}),
     attach_mappings = function(prompt_bufnr, map)

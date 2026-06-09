@@ -1043,6 +1043,7 @@ local function assert_agent_findings_ingestion_tracks_provider_counts()
   local inbox_preview = table.concat(picker.preview_lines(compact_preview_item), "\n")
   assert_true(inbox_preview:find("Review hunk", 1, true) ~= nil, "inbox preview should start with review context")
   assert_true(inbox_preview:find("State     tree", 1, true) ~= nil, "inbox preview should render explicit scope state")
+  assert_true(inbox_preview:find("Keys      Enter diff", 1, true) ~= nil, "inbox preview should expose review keys")
   assert_true(inbox_preview:find("Agent findings", 1, true) ~= nil, "inbox preview should name agent findings")
   assert_true(
     inbox_preview:find("+suggestion", 1, true) ~= nil,
@@ -1056,6 +1057,10 @@ local function assert_agent_findings_ingestion_tracks_provider_counts()
     inbox_preview:find("more diff lines", 1, true) ~= nil,
     "inbox scan preview should cap long diffs"
   )
+  local narrow_layout = picker.layout_for_columns(90)
+  local wide_layout = picker.layout_for_columns(160)
+  assert_true(narrow_layout.strategy == "vertical", "narrow review inbox should use a vertical preview layout")
+  assert_true(wide_layout.strategy == "horizontal", "wide review inbox should use a horizontal preview layout")
   local unsafe_preview = table.concat(review_suggestions.preview_lines(agent_merged[1], vim.tbl_extend("force", suggestion_candidates[1], {
     suggested_fix = table.concat({
       "```diff",
