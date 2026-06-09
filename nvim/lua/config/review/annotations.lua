@@ -7,7 +7,11 @@ local util = require("config.review.util")
 local M = {}
 
 local namespace = vim.api.nvim_create_namespace("etabli_review_annotations")
-local enabled = true
+local function is_truthy_flag(value)
+  return value == true or value == 1 or value == "1" or value == "true"
+end
+
+local enabled = is_truthy_flag(vim.g.etabli_review_legacy_annotations)
 local refresh_ttl = 750
 local last_refresh = {}
 local expanded_line_by_buffer = {}
@@ -370,6 +374,11 @@ end
 function M.refresh_buffer(bufnr, opts)
   bufnr = normalize_bufnr(bufnr)
   local options = opts or {}
+
+  if not enabled then
+    return
+  end
+
   local now = vim.uv.now()
 
   if not options.force then
@@ -381,10 +390,6 @@ function M.refresh_buffer(bufnr, opts)
   last_refresh[bufnr] = now
 
   M.clear_buffer(bufnr)
-
-  if not enabled then
-    return
-  end
 
   local context, name = context_for_buffer(bufnr)
   if not context then

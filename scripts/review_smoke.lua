@@ -1406,6 +1406,8 @@ assert_true(
 )
 assert_true(matched.comments[3].line == 9, "range annotation command should save the start line")
 assert_true(matched.comments[3].end_line == 10, "range annotation command should save the end line")
+assert_true(not annotations.is_enabled(), "legacy inline annotations should be disabled by default")
+annotations.set_enabled(true)
 
 local function assert_inline_annotations_are_compact_until_expanded()
   annotations.compact_buffer(0)
