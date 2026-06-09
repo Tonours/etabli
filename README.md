@@ -54,6 +54,8 @@ Neovim review:
 :ReviewClaudeReview   # launches an interactive Claude Hunk review prompt
 :ReviewPiReview       # launches an interactive Pi Hunk review prompt
 :ReviewHunkSync       # pulls/pushes notes between Hunk and local persistence
+:ReviewHunkNextComment
+:ReviewHunkPrevComment
 :ReviewLegacyInbox    # old local status inbox while Hunk persistence gaps remain
 ```
 

@@ -1811,6 +1811,19 @@ assert_true(
     "Hunk comment payload should include a stable Etabli marker for dedupe"
   )
 
+  require("config.keymaps")
+  local sync_keymap = vim.fn.maparg("<leader>rs", "n", false, true)
+  local claude_keymap = vim.fn.maparg("<leader>rc", "n", false, true)
+  local legacy_transaction_keymap = vim.fn.maparg("<leader>rt", "n", false, true)
+  local legacy_batch_keymap = vim.fn.maparg("<leader>rbc", "n", false, true)
+  assert_true(sync_keymap.desc == "Sync Hunk review notes", "default <leader>rs should sync Hunk notes")
+  assert_true(claude_keymap.desc == "Claude Hunk review pass", "default <leader>rc should launch Hunk Claude review")
+  assert_true(
+    vim.tbl_isempty(legacy_transaction_keymap),
+    "legacy transaction keymaps should be disabled by default"
+  )
+  assert_true(vim.tbl_isempty(legacy_batch_keymap), "legacy batch keymaps should be disabled by default")
+
   local original_hunk_available = hunk.is_available
   local original_hunk_open_or_reload = hunk.open_or_reload
   local original_hunk_open_or_navigate = hunk.open_or_navigate
