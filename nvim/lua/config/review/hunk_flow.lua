@@ -125,7 +125,8 @@ local function direct_comment_target(line, end_line)
     return nil
   end
 
-  if not hunk_mod().is_available() or not hunk_mod().session_exists(context.repo) then
+  if not hunk_mod().is_available() then
+    hunk_missing()
     return nil
   end
 
@@ -144,6 +145,13 @@ local function direct_comment_target(line, end_line)
   local file = relative_path(context.repo, buffer_name)
   local label = comment_line == comment_end_line and string.format("%s:%d", file, comment_line)
     or string.format("%s:%d-%d", file, comment_line, comment_end_line)
+
+  if not hunk_mod().session_exists(context.repo) then
+    if hunk_mod().open_or_reload(context, "diff --watch", { notify = false }) then
+      vim.notify("Hunk review opened. Run :ReviewAnnotate again after the session is ready.", vim.log.levels.INFO)
+    end
+    return nil
+  end
 
   return {
     context = context,
@@ -230,19 +238,11 @@ function M.show_current_hunk()
 end
 
 function M.annotate_current_hunk()
-  if add_direct_comment(vim.api.nvim_win_get_cursor(0)[1]) then
-    return
-  end
-
-  adapter_mod().annotate_current_hunk()
+  add_direct_comment(vim.api.nvim_win_get_cursor(0)[1])
 end
 
 function M.annotate_line_range(start_line, end_line)
-  if add_direct_comment(start_line, end_line) then
-    return
-  end
-
-  adapter_mod().annotate_line_range(start_line, end_line)
+  add_direct_comment(start_line, end_line)
 end
 
 function M.annotate_visual_selection()

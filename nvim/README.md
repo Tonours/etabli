@@ -24,7 +24,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 ## Review flow
 
 - Inbox: `<leader>ri` or `:ReviewInbox` opens or reloads Hunk
-- Current hunk: `<leader>rh` focuses the current buffer line in Hunk, `<leader>ra` comments the current line or visual range in the active Hunk session
+- Current hunk: `<leader>rh` focuses the current buffer line in Hunk, `<leader>ra` comments the current line or visual range in the active Hunk session; if no session exists, it opens Hunk first
 - Sync: `<leader>rs` or `:ReviewHunkSync` pulls live Hunk notes into local persistence before closing Hunk; use `:ReviewHunkSync push` explicitly to rehydrate unresolved local notes into Hunk
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch` for the current repo
