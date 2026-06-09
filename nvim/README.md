@@ -25,7 +25,7 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 
 - Inbox: `<leader>ri` or `:ReviewInbox` opens or reloads Hunk
 - Current hunk: `<leader>rh` focuses the current buffer line in Hunk, `<leader>ra` comments the current line or visual range in the active Hunk session; if no session exists, it opens Hunk first
-- Sync: `<leader>rs` or `:ReviewHunkSync` pulls live Hunk notes into local persistence before closing Hunk; use `:ReviewHunkSync push` explicitly to rehydrate unresolved local notes into Hunk
+- Sync: live Hunk notes are persisted and rehydrated best-effort during the Hunk session lifecycle; `<leader>rs` or `:ReviewHunkSync` is the manual checkpoint
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch` for the current repo
 - Hunk comments: `<leader>rn` / `<leader>rN` navigate next/previous review comment
@@ -40,7 +40,7 @@ Notes:
 
 - Review state is stored outside the repo under `stdpath("state")/etabli/review`
 - Hunk is the terminal review-first diff viewer installed from `hunkdiff`; use it for full changeset walkthroughs and live agent-facing review sessions
-- Hunk notes are not durable after closing Hunk in the current tested version; run `:ReviewHunkSync pull` before closing a review session
+- Hunk notes are not durable after closing Hunk in the current tested version, so Etabli mirrors them locally and rehydrates them into active Hunk sessions; run `:ReviewHunkSync pull` as an explicit checkpoint before risky exits
 - Local inline annotations are legacy UI and disabled by default
 
 ## Project workflow

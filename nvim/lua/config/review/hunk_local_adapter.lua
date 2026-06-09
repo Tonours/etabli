@@ -390,7 +390,8 @@ local function prompt_for_comment(item, opts)
   end)
 end
 
-local function hunk_comment_payloads(items)
+local function hunk_comment_payloads_with_options(items, opts)
+  local options = opts or {}
   local payloads = {}
 
   for _, item in ipairs(items or {}) do
@@ -401,7 +402,7 @@ local function hunk_comment_payloads(items)
           comment.resolved ~= true
           and comment.body
           and comment.body ~= ""
-          and not vim.startswith(comment_id, "hunk_")
+          and (options.include_hunk_comments == true or not vim.startswith(comment_id, "hunk_"))
         then
           table.insert(payloads, {
             author = "User",
@@ -445,6 +446,60 @@ local function hunk_comment_payloads(items)
   end
 
   return payloads
+end
+
+local function comment_summary(body)
+  local lines = vim.split(tostring(body or ""), "\n", { plain = true })
+  return vim.trim((lines[1] or ""):gsub("%s+", " "))
+end
+
+local function comment_key(file, line, body)
+  local normalized_file = tostring(file or "")
+  local normalized_line = tostring(tonumber(line) or "")
+  local normalized_summary = comment_summary(body)
+  if normalized_file == "" or normalized_line == "" or normalized_summary == "" then
+    return nil
+  end
+
+  return table.concat({ normalized_file, normalized_line, normalized_summary }, "\0")
+end
+
+local function hunk_note_line(note)
+  local range = note and (note.newRange or note.oldRange) or nil
+  if type(range) == "table" then
+    return tonumber(range[1])
+  end
+
+  return tonumber(note and (note.newLine or note.oldLine))
+end
+
+local function hunk_marker(body)
+  return tostring(body or ""):match("Etabli id:%s*([^%s]+)")
+end
+
+local function existing_hunk_note_index(context)
+  local model, err = hunk_mod().review_model(context, { include_notes = true })
+  if not model then
+    return nil, err
+  end
+
+  local index = {
+    keys = {},
+    markers = {},
+  }
+  for _, note in ipairs((model.review or {}).reviewNotes or {}) do
+    local key = comment_key(note.filePath, hunk_note_line(note), note.body)
+    if key then
+      index.keys[key] = true
+    end
+
+    local marker = hunk_marker(note.body)
+    if marker then
+      index.markers[marker] = true
+    end
+  end
+
+  return index
 end
 
 local function comment_exists(comments, id)
@@ -492,13 +547,18 @@ local function pull_hunk_notes(context)
   for _, note in ipairs((model.review or {}).reviewNotes or {}) do
     local item, line, end_line = item_for_hunk_note(items, note)
     local body = note.body or ""
-    local exported_marker = body:match("Etabli id:%s*([^%s]+)")
+    local exported_marker = hunk_marker(body)
     if exported_marker then
       skipped = skipped + 1
     elseif body == "" or not item or not line then
       skipped = skipped + 1
     else
-      local comment_id = "hunk_" .. vim.fn.sha256(note.noteId or body or tostring(imported + skipped)):sub(1, 12)
+      local note_key = note.noteId or table.concat({
+        note.filePath or "",
+        tostring(line or ""),
+        body,
+      }, "\0")
+      local comment_id = "hunk_" .. vim.fn.sha256(note_key):sub(1, 12)
       local comments = vim.deepcopy(item.comments or {})
       if comment_exists(comments, comment_id) then
         skipped = skipped + 1
@@ -527,14 +587,46 @@ local function pull_hunk_notes(context)
   return { imported = imported, skipped = skipped }
 end
 
-local function push_hunk_notes(context)
+local function push_hunk_notes(context, opts)
+  local options = opts or {}
   if not hunk_mod().session_exists(context.repo) then
     return nil, "No active Hunk session for this repository. Run :ReviewHunk first."
   end
 
   local items = repo_items(context, { include_stale = false })
-  local payloads = hunk_comment_payloads(items)
-  return hunk_mod().apply_comments(context, payloads, { dedupe = true })
+  local payloads = hunk_comment_payloads_with_options(items, {
+    include_hunk_comments = options.include_hunk_comments == true,
+  })
+  local existing, existing_err = existing_hunk_note_index(context)
+  if not existing then
+    return nil, existing_err
+  end
+
+  local filtered = {}
+  local skipped_existing = 0
+  for _, payload in ipairs(payloads) do
+    local key = comment_key(payload.file, payload.line, payload.body)
+    local marker = payload.id and tostring(payload.id) or nil
+    if marker and existing.markers[marker] then
+      skipped_existing = skipped_existing + 1
+    elseif key and existing.keys[key] then
+      skipped_existing = skipped_existing + 1
+    else
+      table.insert(filtered, payload)
+    end
+  end
+
+  if vim.tbl_isempty(filtered) then
+    return { applied = 0, skipped = skipped_existing }
+  end
+
+  local result, err = hunk_mod().apply_comments(context, filtered, { dedupe = false })
+  if not result then
+    return nil, err
+  end
+
+  result.skipped = (result.skipped or 0) + skipped_existing
+  return result
 end
 
 function M.best_context()
@@ -666,7 +758,7 @@ function M.sync_hunk(action)
   end
 
   if mode == "push" or mode == "both" then
-    local pushed_result, push_err = push_hunk_notes(context)
+    local pushed_result, push_err = push_hunk_notes(context, { include_hunk_comments = true })
     if not pushed_result then
       vim.notify(push_err, vim.log.levels.ERROR)
       return
@@ -682,6 +774,106 @@ function M.sync_hunk(action)
     table.insert(parts, string.format("pushed %d local note(s), skipped %d", pushed.applied, pushed.skipped))
   end
   vim.notify("Hunk review sync: " .. table.concat(parts, "; "), vim.log.levels.INFO)
+end
+
+local function context_for_repo_like(repo_or_context)
+  if type(repo_or_context) == "table" and repo_or_context.repo then
+    if repo_or_context.branch then
+      return repo_or_context
+    end
+
+    local context = state_mod().context_for_repo(repo_or_context.repo)
+    if context then
+      for key, value in pairs(repo_or_context) do
+        if context[key] == nil then
+          context[key] = value
+        end
+      end
+    end
+    return context
+  end
+
+  if type(repo_or_context) == "string" and repo_or_context ~= "" then
+    return state_mod().context_for_repo(repo_or_context)
+  end
+
+  return M.best_context()
+end
+
+function M.persist_repo(repo_or_context, opts)
+  ensure_setup()
+
+  local options = opts or {}
+  local context = context_for_repo_like(repo_or_context)
+  if not context then
+    return nil, "Persist Hunk review notes from inside a git repository"
+  end
+
+  if not hunk_mod().is_available() or not hunk_mod().session_exists(context.repo) then
+    return { imported = 0, no_session = true, skipped = 0 }
+  end
+
+  local pulled, err = pull_hunk_notes(context)
+  if not pulled then
+    if options.silent ~= true then
+      vim.notify(err, vim.log.levels.WARN)
+    end
+    return nil, err
+  end
+
+  if options.silent ~= true and pulled.imported > 0 then
+    vim.notify(string.format("Persisted %d Hunk note(s)", pulled.imported), vim.log.levels.INFO)
+  end
+  return pulled
+end
+
+function M.rehydrate_repo(repo_or_context, opts)
+  ensure_setup()
+
+  local options = opts or {}
+  local context = context_for_repo_like(repo_or_context)
+  if not context then
+    return nil, "Rehydrate Hunk review notes from inside a git repository"
+  end
+
+  if not hunk_mod().is_available() or not hunk_mod().session_exists(context.repo) then
+    return { applied = 0, no_session = true, skipped = 0 }
+  end
+
+  local pushed, err = push_hunk_notes(context, { include_hunk_comments = true })
+  if not pushed then
+    if options.silent ~= true then
+      vim.notify(err, vim.log.levels.WARN)
+    end
+    return nil, err
+  end
+
+  if options.silent ~= true and pushed.applied > 0 then
+    vim.notify(string.format("Rehydrated %d local Hunk note(s)", pushed.applied), vim.log.levels.INFO)
+  end
+  return pushed
+end
+
+function M.schedule_rehydrate(repo_or_context, opts)
+  ensure_setup()
+
+  local options = opts or {}
+  local attempts = options.attempts or 8
+  local delay_ms = options.delay_ms or 250
+  local first_delay_ms = options.first_delay_ms or delay_ms
+
+  local function attempt(index)
+    local result = M.rehydrate_repo(repo_or_context, { silent = true })
+    if result and result.no_session and index < attempts then
+      vim.defer_fn(function()
+        attempt(index + 1)
+      end, delay_ms)
+    end
+  end
+
+  vim.defer_fn(function()
+    attempt(1)
+  end, first_delay_ms)
 end
 
 function M.clear_cache()
@@ -719,21 +911,25 @@ function M.refresh_after_external_edit(repo, opts)
   local provider = options.provider or "Review"
 
   if options.before_signature == nil or after_signature == nil then
-    vim.notify(
-      string.format("%s session closed; local buffers and review state refreshed.", provider),
-      vim.log.levels.INFO,
-      { title = "Review refresh" }
-    )
+    if options.silent ~= true then
+      vim.notify(
+        string.format("%s session closed; local buffers and review state refreshed.", provider),
+        vim.log.levels.INFO,
+        { title = "Review refresh" }
+      )
+    end
     return
   end
 
-  vim.notify(
-    changed
-        and string.format("%s session closed; repo changes detected and local review state refreshed.", provider)
-      or string.format("%s session closed; local review state refreshed, no repo change detected.", provider),
-    vim.log.levels.INFO,
-    { title = "Review refresh" }
-  )
+  if options.silent ~= true then
+    vim.notify(
+      changed
+          and string.format("%s session closed; repo changes detected and local review state refreshed.", provider)
+        or string.format("%s session closed; local review state refreshed, no repo change detected.", provider),
+      vim.log.levels.INFO,
+      { title = "Review refresh" }
+    )
+  end
 
   return changed
 end
