@@ -1107,11 +1107,21 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
   vim.cmd.edit(vim.fn.fnameescape(rerun_repo .. "/rerun.txt"))
 
   local original_hunk_available = hunk.is_available
+  local original_hunk_session_exists = hunk.session_exists
+  local original_hunk_reload = hunk.reload
   local original_hunk_review_prompt = hunk.review_prompt
   local original_dispatch_prompt = providers.dispatch_prompt
   local captured_changed_only = false
   local captured_repo
+  local reloaded_hunk_review = false
   hunk.is_available = function()
+    return true
+  end
+  hunk.session_exists = function()
+    return true
+  end
+  hunk.reload = function(request_context, raw_args)
+    reloaded_hunk_review = request_context.repo ~= "" and raw_args == "diff --watch"
     return true
   end
   hunk.review_prompt = function(provider_name, request_context, opts)
@@ -1134,10 +1144,13 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
   end)
   providers.dispatch_prompt = original_dispatch_prompt
   hunk.review_prompt = original_hunk_review_prompt
+  hunk.reload = original_hunk_reload
+  hunk.session_exists = original_hunk_session_exists
   hunk.is_available = original_hunk_available
 
   assert_true(ok_changed_only, changed_only_err or "changed-only review command failed")
   assert_true(captured_changed_only, "changed-only review should dispatch a Hunk-targeted review prompt")
+  assert_true(reloaded_hunk_review, "changed-only review should reload the active Hunk session before dispatch")
   state.clear(rerun_context)
 end
 

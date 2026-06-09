@@ -267,6 +267,22 @@ function M.prepare_review(provider, target)
     return
   end
 
+  if not hunk_mod().session_exists(context.repo) then
+    if hunk_mod().open_or_reload(context, "diff --watch", { notify = false }) then
+      vim.notify(
+        string.format("Hunk review opened. Run :Review%sReview again after the session is ready.", provider == "pi" and "Pi" or "Claude"),
+        vim.log.levels.INFO
+      )
+    end
+    return
+  end
+
+  local reloaded, reload_err = hunk_mod().reload(context, "diff --watch")
+  if not reloaded then
+    vim.notify(reload_err, vim.log.levels.ERROR)
+    return
+  end
+
   local prompt = hunk_mod().review_prompt(provider, context, {
     target_label = review_target.label or "all live staged and unstaged hunks",
   })

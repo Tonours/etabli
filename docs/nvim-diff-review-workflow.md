@@ -116,6 +116,8 @@ Legacy batch commands `:ReviewClaudeBatch [status]` and `:ReviewPiBatch [status]
 
 Review commands default to all live staged and unstaged hunks. Passing `changed-only` narrows the Hunk prompt label for the agent, but Hunk itself remains the source of diff truth. Status-scoped prompts are legacy local-review behavior and require the opt-in legacy batch commands.
 
+Claude/Pi review commands require a live Hunk session. If none exists, Etabli opens `hunk diff --watch` and asks you to rerun the provider command after the session is ready. Provider prompts are dispatched only after an active Hunk session exists; when a session already exists, Etabli reloads it before dispatching the interactive provider prompt.
+
 The Hunk review action is intentionally read-only. It asks the provider to inspect the live session with `hunk session review --repo <repo> --json`, add inline notes with `hunk session comment apply --stdin --json` or `comment add`, and end with `GO`, `GO WITH NOTES`, or `BLOCK`. It does not ask the provider to edit files.
 
 Import agent review output back into local review state with `:ReviewIngestClaude [file]` or `:ReviewIngestPi [file]`. Without a file argument, the command reads the unnamed register. Imported findings must use the structured labels requested by the review prompt: `severity:`, `file:`, `line:` or `line_range:`, `issue:`, `impact:`, `review_comment:`, and optional `suggested_fix:`. Findings are anchored to live hunks before being stored; unmatched or duplicate findings are skipped. The Inbox shows provider counts such as `C:1` and `P:2`, inline annotations show compact agent markers, and `<leader>rg` or `:ReviewCompareAgents` compares Pi and Claude findings for the current hunk.
