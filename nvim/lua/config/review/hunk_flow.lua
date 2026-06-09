@@ -73,6 +73,36 @@ local function relative_path(root, path)
   return normalized_path
 end
 
+local function git_output(repo, args)
+  local command = { "git", "-C", repo }
+  vim.list_extend(command, args)
+  local output = vim.fn.system(command)
+  if vim.v.shell_error ~= 0 then
+    return ""
+  end
+
+  return output
+end
+
+local function normalize_review_target(target)
+  if target == nil or target == "" or target == "all" then
+    return {
+      label = "all live staged and unstaged hunks",
+      slug = "all",
+    }
+  end
+
+  if target == "changed-only" then
+    return {
+      label = "changed since last review",
+      slug = "changed-only",
+    }
+  end
+
+  vim.notify("Hunk review supports only all or changed-only. Legacy status filters require opt-in local commands.", vim.log.levels.ERROR)
+  return false
+end
+
 local function selected_line_range()
   local start_line = vim.fn.getpos("'<")[2]
   local end_line = vim.fn.getpos("'>")[2]
@@ -225,7 +255,7 @@ function M.annotate_visual_selection()
 end
 
 function M.prepare_review(provider, target)
-  local review_target = adapter_mod().review_target(target)
+  local review_target = normalize_review_target(target)
   if review_target == false then
     return
   end
@@ -263,19 +293,7 @@ function M.prepare_review(provider, target)
     return
   end
 
-  if dispatched then
-    local record_context = adapter_mod().best_context()
-    if record_context then
-      adapter_mod().record_agent_run(record_context, {
-        provider = provider,
-        mode = "hunk-review",
-        scope = review_target.label,
-        prompt_hash = vim.fn.sha256(dispatched),
-        diff_signature = adapter_mod().repo_change_signature(context.repo),
-        result = "running",
-      })
-    end
-  end
+  return dispatched
 end
 
 function M.open_hunk(raw_args)
@@ -316,11 +334,57 @@ function M.navigate_hunk_comment(direction)
 end
 
 function M.repo_change_signature(repo)
-  return adapter_mod().repo_change_signature(repo)
+  if not repo or repo == "" then
+    return nil
+  end
+
+  return vim.fn.sha256(table.concat({
+    git_output(repo, { "status", "--porcelain=v1", "-z" }),
+    git_output(repo, { "diff", "--cached", "--no-ext-diff", "--no-color", "--binary" }),
+    git_output(repo, { "diff", "--no-ext-diff", "--no-color", "--binary" }),
+  }, "\0"))
 end
 
 function M.refresh_after_external_edit(repo, opts)
-  return adapter_mod().refresh_after_external_edit(repo, opts)
+  local loaded_adapter = package.loaded["config.review.hunk_local_adapter"]
+  local local_state_loaded = package.loaded["config.review.state"] or package.loaded["config.review.items"]
+  if local_state_loaded and loaded_adapter and loaded_adapter.refresh_after_external_edit then
+    return loaded_adapter.refresh_after_external_edit(repo, opts)
+  end
+
+  if not repo or repo == "" then
+    return
+  end
+
+  local options = opts or {}
+  local after_signature = M.repo_change_signature(repo)
+  local changed = options.before_signature ~= nil and after_signature ~= nil and options.before_signature ~= after_signature
+  local provider = options.provider or "Review"
+
+  vim.cmd.checktime()
+
+  if hunk_mod().is_available() and hunk_mod().session_exists(repo) then
+    hunk_mod().reload({ repo = repo }, "diff --watch")
+  end
+
+  if options.before_signature == nil or after_signature == nil then
+    vim.notify(
+      string.format("%s session closed; local buffers refreshed.", provider),
+      vim.log.levels.INFO,
+      { title = "Review refresh" }
+    )
+    return
+  end
+
+  vim.notify(
+    changed
+        and string.format("%s session closed; repo changes detected and Hunk refreshed.", provider)
+      or string.format("%s session closed; Hunk refreshed, no repo change detected.", provider),
+    vim.log.levels.INFO,
+    { title = "Review refresh" }
+  )
+
+  return changed
 end
 
 function M.setup()

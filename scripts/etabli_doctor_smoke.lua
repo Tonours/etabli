@@ -125,6 +125,57 @@ do
   assert_true(package.loaded["config.review.providers"] == nil, "Hunk inbox should not load review providers")
 end
 
+do
+  local hunk = require("config.review.hunk")
+  local hunk_flow = require("config.review.hunk_flow")
+  local providers = require("config.review.providers")
+  local original_available = hunk.is_available
+  local original_session_exists = hunk.session_exists
+  local original_reload = hunk.reload
+  local original_review_prompt = hunk.review_prompt
+  local original_dispatch_prompt = providers.dispatch_prompt
+  local dispatched_prompt = false
+  local reloaded_hunk = false
+
+  hunk.is_available = function()
+    return true
+  end
+  hunk.session_exists = function(repo)
+    return repo == doctor.config_root()
+  end
+  hunk.reload = function(context, raw_args)
+    reloaded_hunk = context.repo == doctor.config_root() and raw_args == "diff --watch"
+    return true
+  end
+  hunk.review_prompt = function(provider, context, opts)
+    return table.concat({ provider, context.repo, opts.target_label }, "\n")
+  end
+  providers.dispatch_prompt = function(provider, prompt, opts)
+    dispatched_prompt = provider == "claude"
+      and prompt:find("changed since last review", 1, true) ~= nil
+      and opts.cwd == doctor.config_root()
+    return prompt
+  end
+
+  hunk_flow.prepare_review("claude", "changed-only")
+  local before_signature = hunk_flow.repo_change_signature(doctor.config_root())
+  hunk_flow.refresh_after_external_edit(doctor.config_root(), {
+    before_signature = before_signature,
+    provider = "Claude",
+  })
+
+  providers.dispatch_prompt = original_dispatch_prompt
+  hunk.review_prompt = original_review_prompt
+  hunk.reload = original_reload
+  hunk.session_exists = original_session_exists
+  hunk.is_available = original_available
+
+  assert_true(dispatched_prompt, "Hunk Claude review should dispatch without local review state")
+  assert_true(reloaded_hunk, "Hunk Claude review refresh should reload Hunk without local review state")
+  assert_true(package.loaded["config.review.state"] == nil, "Hunk Claude review should not load review state")
+  assert_true(package.loaded["config.review.items"] == nil, "Hunk Claude review should not load review items")
+end
+
 local lines = doctor.lines(vim.fn.getcwd())
 local output = joined(lines)
 assert_true(output:match("Etabli doctor:") ~= nil, "doctor should include title")
