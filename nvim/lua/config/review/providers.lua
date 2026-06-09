@@ -184,10 +184,20 @@ local function dispatch_prompt(provider, prompt, opts)
   local before_signature
   local can_open_terminal = open_terminal ~= false and vim.fn.executable(provider.command) == 1
 
+  local function refresh_module()
+    local module_name = options.refresh_module or "config.review"
+    local ok, module = pcall(require, module_name)
+    if ok then
+      return module
+    end
+
+    return nil
+  end
+
   if can_open_terminal and cwd and cwd ~= "" then
-    local ok, hunk_flow = pcall(require, "config.review.hunk_flow")
-    if ok and hunk_flow and hunk_flow.repo_change_signature then
-      before_signature = hunk_flow.repo_change_signature(cwd)
+    local module = refresh_module()
+    if module and module.repo_change_signature then
+      before_signature = module.repo_change_signature(cwd)
     end
   end
 
@@ -205,9 +215,9 @@ local function dispatch_prompt(provider, prompt, opts)
         input = spec.input,
         input_delay_ms = terminal_paste_delay_ms,
         on_exit = function()
-          local ok, hunk_flow = pcall(require, "config.review.hunk_flow")
-          if ok and hunk_flow and hunk_flow.refresh_after_external_edit then
-            hunk_flow.refresh_after_external_edit(cwd, {
+          local module = refresh_module()
+          if module and module.refresh_after_external_edit then
+            module.refresh_after_external_edit(cwd, {
               before_signature = before_signature,
               provider = provider.label,
             })
@@ -280,6 +290,7 @@ function M.dispatch_prompt(name, prompt, opts)
   return dispatch_prompt(provider, prompt, {
     after_exit = options.after_exit,
     cwd = options.cwd,
+    refresh_module = "config.review.hunk_flow",
     title = options.title or string.format("review-%s.md", name),
     open_terminal = options.open_terminal,
     message = options.message
