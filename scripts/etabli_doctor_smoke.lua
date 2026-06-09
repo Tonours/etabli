@@ -69,6 +69,8 @@ for _, command in ipairs(hidden_legacy_commands) do
   assert_true(registered_commands[command] == nil, "legacy :" .. command .. " command should be hidden by default")
 end
 
+assert_true(package.loaded["config.review"] == nil, "legacy review module should not load during default startup")
+
 local lines = doctor.lines(vim.fn.getcwd())
 local output = joined(lines)
 assert_true(output:match("Etabli doctor:") ~= nil, "doctor should include title")
