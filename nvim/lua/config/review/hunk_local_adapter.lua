@@ -2,6 +2,12 @@ local M = {}
 
 local setup_done = false
 
+local function ensure_setup()
+  if not setup_done and M.setup then
+    M.setup()
+  end
+end
+
 local function diff_mod()
   return require("config.review.diff")
 end
@@ -532,6 +538,8 @@ local function push_hunk_notes(context)
 end
 
 function M.best_context()
+  ensure_setup()
+
   if vim.api.nvim_buf_get_name(0) ~= "" then
     local buffer_context = state_mod().context_for_buffer(0)
     if buffer_context then
@@ -591,6 +599,8 @@ function M.review_target(target)
 end
 
 function M.annotate_current_hunk()
+  ensure_setup()
+
   local _, item = current_hunk_item_at_line(vim.api.nvim_win_get_cursor(0)[1])
   if not item then
     return
@@ -601,6 +611,8 @@ function M.annotate_current_hunk()
 end
 
 function M.annotate_line_range(start_line, end_line)
+  ensure_setup()
+
   if not start_line or not end_line then
     vim.notify("No visual review range found", vim.log.levels.WARN)
     return
@@ -623,6 +635,8 @@ function M.annotate_visual_selection()
 end
 
 function M.sync_hunk(action)
+  ensure_setup()
+
   local mode = action == "" and "pull" or (action or "pull")
   if mode ~= "push" and mode ~= "pull" and mode ~= "both" then
     vim.notify(string.format("Invalid Hunk sync action: %s", mode), vim.log.levels.ERROR)
@@ -671,18 +685,26 @@ function M.sync_hunk(action)
 end
 
 function M.clear_cache()
+  ensure_setup()
+
   items_mod().clear_cache()
 end
 
 function M.repo_change_signature(repo)
+  ensure_setup()
+
   return items_mod().repo_change_signature(repo)
 end
 
 function M.record_agent_run(context, attrs)
+  ensure_setup()
+
   return state_mod().record_agent_run(context, attrs)
 end
 
 function M.refresh_after_external_edit(repo, opts)
+  ensure_setup()
+
   if not repo or repo == "" then
     return
   end
@@ -717,6 +739,8 @@ function M.refresh_after_external_edit(repo, opts)
 end
 
 function M.after_provider_exit(repo)
+  ensure_setup()
+
   M.clear_cache()
   refresh_optional_annotations(repo)
 end
