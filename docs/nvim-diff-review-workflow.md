@@ -50,7 +50,7 @@ Legacy local commands remain available for capabilities Hunk does not yet persis
 
 Legacy keymaps are disabled by default. Set `vim.g.etabli_review_legacy_keymaps = 1` before loading `config.keymaps` if you need the old status, transaction, local inline annotation, suggestion, and local batch mappings.
 
-Local inline annotations show unresolved local review conversations on the live file line or selected line range. They are legacy UI now; Hunk is the default visible review surface. Use `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again.
+Local inline annotations show unresolved local review conversations on the live file line or selected line range. They are legacy UI now, disabled by default because Hunk is the visible review surface. Use `:ReviewInlineAnnotations on` for the current session, or set `vim.g.etabli_review_legacy_annotations = 1` before loading Neovim config if you want them enabled at startup. Use `:ReviewInlineAnnotations expand` to expand the thread under the cursor, and `:ReviewInlineAnnotations compact` to collapse the current buffer again.
 
 Multi-line comments must stay inside one reviewable git hunk. Hunk anchors the synced note to one changed line and stores the original selected range in the Hunk rationale.
 
