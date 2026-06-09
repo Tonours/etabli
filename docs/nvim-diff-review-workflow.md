@@ -38,6 +38,7 @@ Equivalent commands:
 - `:ReviewExport [markdown|json]`
 - `:ReviewInlineAnnotations [on|off|refresh|toggle|expand|compact]`
 - `:ReviewHunk [diff|show]`
+- `:ReviewHunkSync [push|pull|both]`
 - `:ReviewLegacyInbox [status|filter]`
 - `:ReviewClaude [revise|explain|review]`
 - `:ReviewPi [revise|explain|review]`
@@ -51,7 +52,7 @@ Inline annotations show unresolved review conversations on the live file line or
 
 Multi-line comments must stay inside one reviewable git hunk. If a visual selection crosses hunk boundaries, the review command refuses the comment instead of storing an ambiguous anchor.
 
-Use `:ReviewStart` before annotating when you want GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
+Use `:ReviewStart` before annotating when you want GitHub-style draft review behavior. While a transaction is active, `ReviewAnnotate` stores pending comments in the local transaction instead of immediately adding submitted comments. Without a transaction, `ReviewAnnotate` persists the comment locally and also adds it to the live Hunk session when one is active. `:ReviewPreview` shows the pending review, `:ReviewExport markdown|json` opens an export buffer, and `:ReviewSubmit comment|approve|request-changes` commits the pending comments into local review state. Submission refuses stale draft hunks when the diff changed before submit.
 
 Note: legacy current-hunk review uses `git diff` as the source of truth. Save the buffer first if you use `:ReviewLegacyCurrentHunk` and want cursor-to-hunk matching to stay accurate.
 
@@ -60,6 +61,8 @@ Note: legacy current-hunk review uses `git diff` as the source of truth. Save th
 Etabli installs Hunk from the official `hunkdiff` npm package documented at https://www.hunk.dev/. Use `<leader>ri`, `<leader>rh`, `<leader>rH`, `:ReviewInbox`, `:ReviewCurrentHunk`, or `:ReviewHunk` to open or reload `hunk diff --watch` for the current repository in a Neovim terminal tab. Pass explicit Hunk commands when needed, for example `:ReviewHunk diff` or `:ReviewHunk show HEAD~1`. This integration does not change the global Git pager.
 
 When a live Hunk session exists, `:ReviewCurrentHunk` uses `hunk session navigate --repo <repo> --file <path> --new-line <line>` to move the Hunk viewport to the current buffer line. If no session exists, it opens Hunk first.
+
+Use `:ReviewHunkSync pull` to persist live Hunk notes into local review state before closing Hunk. Use `:ReviewHunkSync push` to rehydrate unresolved local comments and open agent findings into the active Hunk session. `:ReviewHunkSync` or `:ReviewHunkSync both` pulls first, then pushes. Pushed comments carry an `Etabli id` marker so repeated syncs can skip duplicates.
 
 The full migration feasibility record is `docs/hunk-review-migration-feasibility.md`. Do not delete the persisted Etabli review state until the persistence decision in that document is resolved.
 
@@ -132,7 +135,7 @@ Provider CLIs are resolved from your environment, so the setup stays portable ac
 
 ## Local state
 
-Hunk is the default visible review UI. Local review state remains only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, and exact multiline range anchors.
+Hunk is the default visible review UI. Local review state remains only for capabilities Hunk does not yet persist after session close: statuses, draft transactions, stale review markers, suggested-fix status, exact multiline range anchors, and note rehydration through `:ReviewHunkSync`.
 
 Review state is stored outside tracked project files under Neovim state:
 
