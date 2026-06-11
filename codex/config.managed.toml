@@ -1,0 +1,37 @@
+# Safe Codex defaults tracked by Etabli.
+#
+# This file is deployed as ~/.codex/config.managed.toml. It is intentionally
+# not deployed over ~/.codex/config.toml because the live config may contain
+# local trust entries, provider settings, MCP headers, and tokens.
+
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+approval_policy = "never"
+approvals_reviewer = "user"
+sandbox_mode = "danger-full-access"
+
+[features]
+hooks = true
+js_repl = false
+
+[desktop]
+preventSleepWhileRunning = true
+hotkey-window-projectless-default-enabled = true
+
+[plugins.documents]
+enabled = true
+
+[plugins.spreadsheets]
+enabled = true
+
+[plugins.presentations]
+enabled = true
+
+[plugins.github]
+enabled = true
+
+[plugins.build-web-apps]
+enabled = true
+
+[plugins.browser]
+enabled = true

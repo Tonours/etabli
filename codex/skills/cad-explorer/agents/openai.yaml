@@ -1,0 +1,4 @@
+interface:
+  display_name: "CAD Explorer"
+  short_description: "Open CAD and robot files in Explorer."
+  default_prompt: "Use $cad-explorer to start CAD Explorer and return review links for explicit CAD or robot-description files."

@@ -1,0 +1,11 @@
+version = 1
+id = "repo-hygiene"
+kind = "cron"
+name = "Repository hygiene report"
+prompt = "Produce a repository hygiene report for configured local projects. Report only; do not edit files, commit, push, install dependencies, run full test suites, or run destructive commands.\n\nRead only the project roots configured in this automation's local cwd list. Do not inspect `.env`, credentials, private keys, auth files, raw Codex sessions, or unrelated secrets.\n\nFor each repo, gather lightweight evidence: `git status --short`, branch/upstream state, unpushed or uncommitted work when detectable, recent commits, obvious TODO/FIXME markers, documented cheap validation commands, and recent CI/test friction if visible.\n\nOutput concise severity-ranked findings with exact repo-relative evidence and safe next commands. Clearly separate observed facts from assumptions."
+status = "TEMPLATE"
+rrule = "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;BYHOUR=9;BYMINUTE=0;BYSECOND=0"
+model = "gpt-5.5"
+reasoning_effort = "medium"
+execution_environment = "local"
+cwds = ["<local-project-root>"]
