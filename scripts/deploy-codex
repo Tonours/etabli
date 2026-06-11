@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+SOURCE_DIR="$REPO_DIR/codex"
+
+DRY_RUN=1
+FORCE=0
+CODEX_HOME_INPUT="${CODEX_HOME:-$HOME/.codex}"
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+
+LINKED=0
+UNCHANGED=0
+CONFLICTS=0
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--dry-run] [--apply] [--force] [--codex-home DIR]
+
+Deploy the tracked Etabli Codex organization into a Codex home directory.
+
+Options:
+  --dry-run         Show planned links without touching the target (default)
+  --apply           Create links in the target Codex home
+  --force           Backup and replace conflicting files or links
+  --codex-home DIR  Target Codex home, defaults to CODEX_HOME or ~/.codex
+  -h, --help        Show this help
+
+Examples:
+  deploy-codex --dry-run
+  deploy-codex --apply
+  deploy-codex --apply --force
+  deploy-codex --apply --codex-home /tmp/codex-home
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    --apply)
+      DRY_RUN=0
+      ;;
+    --force)
+      FORCE=1
+      ;;
+    --codex-home)
+      if [ "$#" -lt 2 ]; then
+        printf 'missing value for --codex-home\n' >&2
+        exit 2
+      fi
+      CODEX_HOME_INPUT="$2"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      printf 'unexpected argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+status_line() {
+  local status="$1"
+  local message="$2"
+
+  printf '%-12s %s\n' "$status" "$message"
+}
+
+backup_path() {
+  local path="$1"
+  local candidate="$path.bak.$TIMESTAMP"
+  local index=1
+
+  while [ -e "$candidate" ]; do
+    candidate="$path.bak.$TIMESTAMP.$index"
+    index=$((index + 1))
+  done
+
+  printf '%s\n' "$candidate"
+}
+
+display_target_dir() {
+  if [ -d "$CODEX_HOME_INPUT" ]; then
+    cd "$CODEX_HOME_INPUT" >/dev/null 2>&1 && pwd
+    return 0
+  fi
+
+  local parent_path
+  local target_name
+  parent_path="$(dirname "$CODEX_HOME_INPUT")"
+  target_name="$(basename "$CODEX_HOME_INPUT")"
+
+  if [ -d "$parent_path" ]; then
+    printf '%s/%s\n' "$(cd "$parent_path" >/dev/null 2>&1 && pwd)" "$target_name"
+    return 0
+  fi
+
+  case "$CODEX_HOME_INPUT" in
+    /*) printf '%s\n' "$CODEX_HOME_INPUT" ;;
+    *) printf '%s/%s\n' "$(pwd -P)" "$CODEX_HOME_INPUT" ;;
+  esac
+}
+
+target_dir() {
+  if [ -d "$CODEX_HOME_INPUT" ]; then
+    cd "$CODEX_HOME_INPUT" >/dev/null 2>&1 && pwd
+    return 0
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '%s\n' "$(display_target_dir)"
+    return 0
+  fi
+
+  mkdir -p "$CODEX_HOME_INPUT"
+  cd "$CODEX_HOME_INPUT" >/dev/null 2>&1 && pwd
+}
+
+codex_files() {
+  find "$SOURCE_DIR" -type f \
+    ! -path '*/node_modules/*' \
+    ! -path '*/.venv/*' \
+    ! -path '*/__pycache__/*' \
+    ! -path '*/generated/*' \
+    ! -path '*/thread-organization/backups/*' \
+    -print | sort
+}
+
+preflight_source() {
+  if [ ! -d "$SOURCE_DIR" ]; then
+    status_line MISSING "$SOURCE_DIR"
+    CONFLICTS=$((CONFLICTS + 1))
+    return 0
+  fi
+
+  "$REPO_DIR/scripts/audit-codex-organization" >/dev/null
+}
+
+preflight_target() {
+  if [ -e "$CODEX_HOME_INPUT" ] && [ ! -d "$CODEX_HOME_INPUT" ]; then
+    status_line CONFLICT "$CODEX_HOME_INPUT exists but is not a directory"
+    CONFLICTS=$((CONFLICTS + 1))
+  fi
+}
+
+is_same_link_or_file() {
+  local source_path="$1"
+  local destination_path="$2"
+  local link_target
+
+  if [ -L "$destination_path" ]; then
+    link_target="$(readlink "$destination_path")"
+    [ "$link_target" = "$source_path" ] && return 0
+  fi
+
+  [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"
+}
+
+preflight_conflicts() {
+  local source_path relative_path destination_path parent_path
+
+  while IFS= read -r source_path; do
+    relative_path="${source_path#$SOURCE_DIR/}"
+    destination_path="$TARGET_DIR/$relative_path"
+    parent_path="$(dirname "$destination_path")"
+
+    if [ "$FORCE" -eq 0 ] && [ -e "$parent_path" ] && [ ! -d "$parent_path" ]; then
+      status_line CONFLICT "$(dirname "$relative_path") exists but is not a directory"
+      CONFLICTS=$((CONFLICTS + 1))
+      continue
+    fi
+
+    if [ "$FORCE" -eq 0 ] && [ -e "$destination_path" ] && ! is_same_link_or_file "$source_path" "$destination_path"; then
+      status_line CONFLICT "$relative_path exists; rerun with --force or merge manually"
+      CONFLICTS=$((CONFLICTS + 1))
+    fi
+  done < <(codex_files)
+}
+
+link_file() {
+  local source_path="$1"
+  local relative_path="${source_path#$SOURCE_DIR/}"
+  local destination_path="$TARGET_DIR/$relative_path"
+  local destination_dir
+  local backup
+
+  if is_same_link_or_file "$source_path" "$destination_path"; then
+    status_line OK "$relative_path"
+    UNCHANGED=$((UNCHANGED + 1))
+    return 0
+  fi
+
+  destination_dir="$(dirname "$destination_path")"
+
+  if [ -e "$destination_dir" ] && [ ! -d "$destination_dir" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      status_line WOULD_BACKUP "$(dirname "$relative_path")"
+      status_line WOULD_LINK "$relative_path"
+      return 0
+    fi
+
+    backup="$(backup_path "$destination_dir")"
+    mv "$destination_dir" "$backup"
+    status_line BACKUP "${backup#$TARGET_DIR/}"
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -e "$destination_path" ]; then
+      status_line WOULD_BACKUP "$relative_path"
+    fi
+    status_line WOULD_LINK "$relative_path"
+    return 0
+  fi
+
+  mkdir -p "$destination_dir"
+
+  if [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
+    backup="$(backup_path "$destination_path")"
+    mv "$destination_path" "$backup"
+    status_line BACKUP "${backup#$TARGET_DIR/}"
+  fi
+
+  ln -s "$source_path" "$destination_path"
+  status_line LINK "$relative_path"
+  LINKED=$((LINKED + 1))
+}
+
+preflight_source
+preflight_target
+TARGET_DIR="$(target_dir)"
+status_line TARGET "$TARGET_DIR"
+preflight_conflicts
+
+if [ "$CONFLICTS" -gt 0 ]; then
+  status_line FAILED "$CONFLICTS conflict(s); no files linked"
+  exit 1
+fi
+
+while IFS= read -r source_path; do
+  link_file "$source_path"
+done < <(codex_files)
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  status_line SUMMARY "dry-run complete"
+else
+  status_line SUMMARY "$LINKED linked, $UNCHANGED unchanged"
+fi

@@ -32,6 +32,7 @@ jobs:
 
       - name: Run script tests
         run: |
+          bash tests/codex-organization-smoke.sh
           bash tests/workflow-docs-smoke.sh
           bash tests/harness-smoke.sh
 
