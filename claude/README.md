@@ -9,7 +9,6 @@ Claude Code-specific files for `etabli`.
 - `CLAUDE.md` -> `~/.claude/CLAUDE.md`
 - `../PLAN_TEMPLATE.md` -> `~/.claude/PLAN_TEMPLATE.md`
 - `commands/*.md` -> `~/.claude/commands/`
-- `skills/*` -> `~/.claude/skills/`
 - selected shared docs from `../workflow/` -> `~/.claude/`
 
 ## Workflow

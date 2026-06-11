@@ -72,6 +72,7 @@ Pi:
 Claude:
 
 ```text
+/plan
 /plan-loop
 /plan-implement
 /implement
@@ -91,6 +92,7 @@ The harness installs:
 
 - `AGENTS.md`
 - `CLAUDE.md`
+- `workflow/memory.md`
 - `workflow/spec.md`
 - `workflow/review-rubric.md`
 - `workflow/ticket-template.md`
@@ -98,6 +100,7 @@ The harness installs:
 - `PLAN_TEMPLATE_FULL.md`
 - `docs/agent-harness.md`
 - `docs/claude-code-harness.md`
+- `docs/agent-memory/README.md`
 - `docs/project-context.md`
 
 Existing files are never overwritten by default. Review conflicts manually, or rerun with `--force` to create timestamped backups before replacing files.
@@ -127,10 +130,12 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 ## References
 
 - `workflow/spec.md` - workflow contract
+- `workflow/memory.md` - persistent agent memory convention
 - `workflow/review-rubric.md` - review output and priorities
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `harness/templates/` - project harness templates
+- `docs/fable5-notes.md` - Fable 5 migration decisions
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes
 - `claude/README.md` - Claude installed surface
