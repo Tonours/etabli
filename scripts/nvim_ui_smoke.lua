@@ -31,12 +31,11 @@ assert_true(gitsigns_spec.opts.preview_config.border == "single", "gitsigns prev
 
 local telescope_specs = require("plugins.telescope")
 local ok_telescope_opts, telescope_opts = pcall(telescope_specs[1].opts)
-if ok_telescope_opts then
-  assert_true(telescope_opts.defaults.border == true, "telescope should render explicit borders")
-  assert_true(
-    telescope_opts.defaults.borderchars[1] == "─",
-    "telescope should use single-line border characters"
-  )
-end
+assert_true(ok_telescope_opts, "telescope options should be inspectable in the UI smoke")
+assert_true(telescope_opts.defaults.border == true, "telescope should render explicit borders")
+assert_true(
+  telescope_opts.defaults.borderchars[1] == "─",
+  "telescope should use single-line border characters"
+)
 
 print("nvim UI smoke ok")
