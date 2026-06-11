@@ -4,6 +4,14 @@ Repo-specific instructions for this dotfiles repo.
 
 ## Architecture
 
+- `.github/workflows/` — CI workflows
+- `claude/` — Claude Code commands and local instructions
+- `docs/` — focused user docs
+- `ghostty/` — Ghostty config
+- `harness/` — project harness templates
+- `harness/templates/` — deployable project harness files
+- `nvim/` — Neovim config
+- `pi/` — Pi config, extensions, skills, themes
 - `pi/extensions/` — Pi extensions
 - `pi/extensions/lib/` — shared extension utilities
 - `pi/extensions/__tests__/` — extension tests
@@ -12,10 +20,10 @@ Repo-specific instructions for this dotfiles repo.
 - `pi/models.json` — custom model definitions
 - `pi/skills/` — local Pi skills
 - `pi/themes/` — Pi themes
-- `claude/` — Claude Code commands and local instructions
-- `workflow/` — canonical workflow contract
-- `ghostty/` — Ghostty config
 - `scripts/` — installer and dev scripts
+- `tests/` — smoke tests
+- `tmux.conf` — tmux config
+- `workflow/` — canonical workflow contract
 
 ## Symlink layout
 

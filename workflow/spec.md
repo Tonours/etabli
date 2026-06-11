@@ -54,6 +54,7 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Claude commands: `claude/commands/`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Project context: `docs/project-context.md` in harnessed projects
+- Agent memory: `docs/agent-memory/` in harnessed projects (`workflow/memory.md`)
 - Review rubric: `workflow/review-rubric.md`
 - Ticket template: `workflow/ticket-template.md`
 
@@ -68,10 +69,11 @@ Pi:
 
 Claude:
 
-- `/plan-loop`
-- `/plan-implement`
-- `/implement`
-- `/review`
+- `/plan`: create `PLAN.md` only, stop at `DRAFT`
+- `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
+- `/plan-implement`: plan, then implement if `READY`
+- `/implement`: implement existing `READY` plan
+- `/review`: review current diff
 
 ## Daily loop
 
