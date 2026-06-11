@@ -63,52 +63,6 @@ local function git(repo, args)
   return vim.trim(result.stdout or "")
 end
 
-local function setup_tab_fixture()
-  local fixture_root = vim.fs.joinpath(tmp, "redraw")
-  local paths = {
-    vim.fs.joinpath(fixture_root, "alpha", "src", "index.ts"),
-    vim.fs.joinpath(fixture_root, "beta", "src", "index.ts"),
-    vim.fs.joinpath(fixture_root, "gamma", "src", "index.ts"),
-    vim.fs.joinpath(fixture_root, "alpha", "tests", "main.ts"),
-    vim.fs.joinpath(fixture_root, "beta", "tests", "main.ts"),
-    vim.fs.joinpath(fixture_root, "gamma", "tests", "main.ts"),
-    vim.fs.joinpath(fixture_root, "alpha", "docs", "readme.md"),
-    vim.fs.joinpath(fixture_root, "beta", "docs", "readme.md"),
-  }
-
-  for _, path in ipairs(paths) do
-    write_file(path, { "export const value = 1", "" })
-  end
-
-  vim.cmd.cd(fixture_root)
-  vim.cmd.edit(vim.fn.fnameescape(paths[1]))
-  for index = 2, #paths do
-    vim.cmd.tabnew()
-    vim.cmd.edit(vim.fn.fnameescape(paths[index]))
-  end
-
-  require("config.statusline").invalidate()
-end
-
-local function measure_redraw()
-  setup_tab_fixture()
-
-  local statusline = require("config.statusline")
-
-  local total_tabline, avg_tabline = measure(120, function()
-    statusline.invalidate()
-    statusline.tabline()
-  end)
-  report("tabline redraw", 120, total_tabline, avg_tabline, "8 tabs / duplicate names")
-
-  vim.cmd.cd(root)
-  local total_project, avg_project = measure(250, function()
-    statusline.invalidate()
-    statusline.project_label()
-  end)
-  report("project label", 250, total_project, avg_project)
-end
-
 local function measure_save()
   local save_root = vim.fs.joinpath(tmp, "save-project")
   local file_path = vim.fs.joinpath(save_root, "sample.ts")
@@ -300,7 +254,6 @@ end
 
 io.write(string.format("Neovim runtime perf baseline for %s\n", root))
 sleep(160)
-measure_redraw()
 measure_save()
 measure_repo_root_misses()
 measure_review()
