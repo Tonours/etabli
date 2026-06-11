@@ -6,8 +6,6 @@ Good fit: TS/JS, React, Ember, Tailwind, CSS/SCSS, JSON/YAML, PHP.
 
 Quick ref: `nvim/CHEATSHEET.md`
 
-Detailed review flow: `docs/nvim-diff-review-workflow.md`
-
 ## Core flow
 
 - Files: `<leader><space>` or `Cmd/Ctrl+P`
