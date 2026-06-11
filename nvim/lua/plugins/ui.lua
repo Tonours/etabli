@@ -32,7 +32,7 @@ return {
         hijack_netrw_behavior = "open_default",
         use_libuv_file_watcher = true,
       },
-      popup_border_style = "rounded",
+      popup_border_style = "single",
       sources = { "filesystem" },
       window = {
         position = "right",
@@ -67,7 +67,7 @@ return {
         offsets = {
           {
             filetype = "neo-tree",
-            text = "Files",
+            text = "files",
             text_align = "left",
             separator = true,
           },

@@ -46,6 +46,16 @@ return {
         completion = {
           completeopt = "menu,menuone,noselect",
         },
+        window = {
+          completion = cmp.config.window.bordered({
+            border = "single",
+            winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
+          }),
+          documentation = cmp.config.window.bordered({
+            border = "single",
+            winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
+          }),
+        },
         experimental = {
           ghost_text = false,
         },

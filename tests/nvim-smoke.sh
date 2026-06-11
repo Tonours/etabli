@@ -36,6 +36,7 @@ require_tool nvim
 require_tool git
 
 run_nvim "+lua if not vim.startswith(vim.fn.stdpath('state'), vim.env.XDG_STATE_HOME) then vim.api.nvim_err_writeln('nvim smoke state is not isolated: ' .. vim.fn.stdpath('state')); vim.cmd('cquit 1') end" +qa
+run_lua_file "$ROOT_DIR/scripts/nvim_ui_smoke.lua"
 run_lua_file "$ROOT_DIR/scripts/review_hunk_lazy_smoke.lua"
 run_lua_file "$ROOT_DIR/scripts/review_state_smoke.lua"
 run_lua_file "$ROOT_DIR/scripts/review_smoke.lua"

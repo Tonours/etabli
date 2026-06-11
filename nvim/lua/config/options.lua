@@ -107,6 +107,10 @@ opt.sessionoptions = "buffers,curdir,folds,help,tabpages,localoptions"
 opt.viewoptions = "cursor,folds,options"
 opt.shada = [['20,<20,s10,h]] -- Smaller persistent history to reduce startup I/O
 
+if vim.fn.exists("&winborder") == 1 then
+  vim.o.winborder = "single"
+end
+
 -- Defer diagnostic setup
 vim.schedule(function()
   vim.diagnostic.config({
