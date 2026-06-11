@@ -102,6 +102,10 @@ local function is_diff_review(raw_args)
   return args ~= nil and args[1] == "diff"
 end
 
+local function default_diff_command()
+  return hunk_mod().default_diff_command()
+end
+
 local function persist_repo(repo)
   if not repo or repo == "" then
     return
@@ -193,29 +197,35 @@ end
 
 local function help_lines()
   return {
-    "# Hunk Review Help",
+    "Hunk review",
     "",
-    "Default flow",
-    "- :ReviewInbox or <leader>ri opens the watched Hunk diff for this repo",
-    "- :ReviewCurrentHunk or <leader>rh focuses the current file line in Hunk",
-    "- :ReviewAnnotate or <leader>ra adds an inline Hunk review comment",
-    "- visual <leader>ra adds a range comment",
-    "- :ReviewHunkSync [pull|push|both] or <leader>rs syncs Hunk notes and local state",
-    "- :ReviewHunkNextComment / :ReviewHunkPrevComment or <leader>rn / <leader>rN navigate comments",
-    "- :ReviewClaudeReview [all|changed-only] or <leader>rc starts a Claude HITL review pass",
-    "- :ReviewPiReview [all|changed-only] or <leader>rp starts a Pi HITL review pass",
+    "State     Hunk is the default review surface",
+    "Flow      inbox -> annotate -> agent pass -> sync",
+    "Layout    adaptive split, no-wrap, line-numbered diff",
     "",
-    "Review loop",
-    "1. Open :ReviewInbox",
-    "2. Use :ReviewAnnotate from file buffers for precise line or range comments",
-    "3. Run Claude or Pi only when you want a read-only first pass",
-    "4. Inspect agent comments as evidence, then accept, revise, or ignore manually",
-    "5. Run :ReviewHunkSync pull before closing Hunk if comments were added outside Etabli",
+    "Keys",
+    "  <leader>ri  :ReviewInbox                 open watched review",
+    "  <leader>rh  :ReviewCurrentHunk           focus current line",
+    "  <leader>ra  :ReviewAnnotate              add line comment",
+    "  visual ra   :ReviewAnnotate              add range comment",
+    "  <leader>rn  :ReviewHunkNextComment       next thread",
+    "  <leader>rN  :ReviewHunkPrevComment       previous thread",
+    "  <leader>rx  :ReviewContext               open context rail",
     "",
-    "Notes",
-    "- Hunk is the default review surface; legacy local review commands are opt-in",
-    "- Claude and Pi prompts stay interactive through terminal paste",
-    "- If Hunk is not running, review commands open the watched diff first",
+    "Agents",
+    "  <leader>rc  :ReviewClaudeReview          Claude HITL review",
+    "  <leader>rp  :ReviewPiReview              Pi HITL review",
+    "  mode        all | changed-only            review target",
+    "  prompt      interactive terminal paste     no prompt argv",
+    "",
+    "Sync",
+    "  <leader>rs  :ReviewHunkSync pull|push|both",
+    "  local       comments persist after Hunk sync",
+    "  thread      line and range comments stay anchored",
+    "",
+    "Model",
+    "  Agent findings are evidence tags, never auto-accepted",
+    "  Legacy local review commands stay opt-in",
   }
 end
 
@@ -263,7 +273,7 @@ local function direct_comment_target(line, end_line)
     or string.format("%s:%d-%d", file, comment_line, comment_end_line)
 
   if not hunk_mod().session_exists(context.repo) then
-    if open_or_reload_hunk(context, "diff --watch", { notify = false }) then
+    if open_or_reload_hunk(context, default_diff_command(), { notify = false }) then
       vim.notify("Hunk review opened. Run :ReviewAnnotate again after the session is ready.", vim.log.levels.INFO)
     end
     return nil
@@ -329,7 +339,7 @@ function M.open_inbox(opts)
     vim.notify("Hunk is the default review inbox; legacy status filters require opt-in legacy commands.", vim.log.levels.INFO)
   end
 
-  open_or_reload_hunk(context, "diff --watch", { notify = false })
+  open_or_reload_hunk(context, default_diff_command(), { notify = false })
 end
 
 function M.show_current_hunk()
@@ -358,7 +368,7 @@ function M.show_current_hunk()
     end
   end
 
-  open_or_reload_hunk(context, "diff --watch", { notify = false })
+  open_or_reload_hunk(context, default_diff_command(), { notify = false })
 end
 
 function M.annotate_current_hunk()
@@ -392,7 +402,7 @@ function M.prepare_review(provider, target)
   end
 
   if not hunk_mod().session_exists(context.repo) then
-    if open_or_reload_hunk(context, "diff --watch", { notify = false }) then
+    if open_or_reload_hunk(context, default_diff_command(), { notify = false }) then
       vim.notify(
         string.format("Hunk review opened. Run :Review%sReview again after the session is ready.", provider == "pi" and "Pi" or "Claude"),
         vim.log.levels.INFO
@@ -402,7 +412,7 @@ function M.prepare_review(provider, target)
   end
 
   persist_repo(context.repo)
-  local reloaded, reload_err = hunk_mod().reload(context, "diff --watch")
+  local reloaded, reload_err = hunk_mod().reload(context, default_diff_command())
   if not reloaded then
     vim.notify(reload_err, vim.log.levels.ERROR)
     return
@@ -451,6 +461,23 @@ function M.sync_hunk(action)
   adapter_mod().sync_hunk(action)
 end
 
+function M.open_context_rail()
+  local context = hunk_context()
+  if not context then
+    vim.notify("Open the Hunk context rail from inside a git repository", vim.log.levels.WARN)
+    return
+  end
+  if not hunk_mod().is_available() then
+    hunk_missing()
+    return
+  end
+
+  require("config.review.hunk_rail").open(context, {
+    min_columns = 1,
+    origin_win = vim.api.nvim_get_current_win(),
+  })
+end
+
 function M.help_lines()
   return vim.deepcopy(help_lines())
 end
@@ -458,14 +485,19 @@ end
 function M.show_help(opts)
   local options = opts or {}
   if #vim.api.nvim_list_uis() == 0 then
-    util_mod().open_scratch("hunk-review-help.md", help_lines(), "markdown")
+    util_mod().open_scratch("hunk-review-help.txt", help_lines(), "text")
     return
   end
 
   util_mod().open_overlay("Hunk Review Help", help_lines(), {
-    filetype = "markdown",
+    filetype = "text",
+    footer = "q close",
+    min_width = 68,
     on_close = options.on_close,
     origin_win = options.origin_win,
+    placement = "right",
+    title_pos = "left",
+    width = 84,
   })
 end
 
@@ -521,7 +553,7 @@ function M.refresh_after_external_edit(repo, opts)
     if loaded_adapter and loaded_adapter.persist_repo then
       loaded_adapter.persist_repo(repo, { silent = true })
     end
-    hunk_mod().reload({ repo = repo }, "diff --watch")
+    hunk_mod().reload({ repo = repo }, default_diff_command())
   end
 
   if loaded_adapter and loaded_adapter.refresh_after_external_edit then

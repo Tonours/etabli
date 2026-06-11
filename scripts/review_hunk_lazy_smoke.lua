@@ -50,7 +50,7 @@ end
 
 hunk.open_or_reload = function(context, raw_args)
   assert_true(context.repo ~= nil and context.repo ~= "", "Hunk inbox should resolve a git repo directly")
-  assert_true(raw_args == "diff --watch", "Hunk inbox should open the live watched diff")
+  assert_true(raw_args == hunk.default_diff_command(), "Hunk inbox should open the moodboard-aligned watched diff")
   opened = opened + 1
   return true
 end

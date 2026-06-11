@@ -32,6 +32,8 @@ local expected_commands = {
   "ReviewHunkSync",
   "ReviewHunkNextComment",
   "ReviewHunkPrevComment",
+  "ReviewHelp",
+  "ReviewContext",
   "ReviewClaudeReview",
   "ReviewPiReview",
 }
@@ -95,7 +97,7 @@ do
     return repo == doctor.config_root()
   end
   hunk.open_or_reload = function(context, raw_args)
-    opened_hunk = context.repo == doctor.config_root() and raw_args == "diff --watch"
+    opened_hunk = context.repo == doctor.config_root() and raw_args == hunk.default_diff_command()
     return true
   end
   hunk.add_comment = function(context, attrs)
@@ -159,7 +161,7 @@ do
     return repo == doctor.config_root()
   end
   hunk.reload = function(context, raw_args)
-    reloaded_hunk = context.repo == doctor.config_root() and raw_args == "diff --watch"
+    reloaded_hunk = context.repo == doctor.config_root() and raw_args == hunk.default_diff_command()
     return true
   end
   hunk.review_model = function(_, opts)

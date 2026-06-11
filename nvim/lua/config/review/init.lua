@@ -346,10 +346,22 @@ local function finish_comment(item, line, end_line, body, opts)
 end
 
 local function comment_editor_geometry()
-  local available_width = math.max(30, vim.o.columns - 6)
-  local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), available_width)
+  local margin = 2
+  local available_width = math.max(30, vim.o.columns - margin * 2)
   local available_height = math.max(8, vim.o.lines - 6)
-  local height = math.min(math.max(10, math.floor(vim.o.lines * 0.38)), available_height)
+  local height = math.min(math.max(10, math.floor(vim.o.lines * 0.36)), available_height)
+
+  if vim.o.columns >= 120 then
+    local width = math.min(math.max(52, math.floor(vim.o.columns * 0.36)), math.min(78, available_width))
+    return {
+      col = math.max(0, vim.o.columns - width - margin),
+      height = height,
+      row = math.min(3, math.max(1, vim.o.lines - height - 2)),
+      width = width,
+    }
+  end
+
+  local width = math.min(math.max(52, math.floor(vim.o.columns * 0.92)), available_width)
 
   return {
     col = math.max(0, math.floor((vim.o.columns - width) / 2)),
@@ -371,11 +383,21 @@ local function open_comment_editor(item, line, end_line, target, opts)
     relative = "editor",
     row = geometry.row,
     style = "minimal",
-    title = string.format("Review comment %s", target),
-    title_pos = "center",
+    title = string.format("Thread %s", target),
+    title_pos = "left",
+    footer = ":w save | ZQ discard",
+    footer_pos = "right",
     width = geometry.width,
     zindex = 95,
   })
+  pcall(function()
+    vim.wo[winid].winhighlight = "NormalFloat:Normal,FloatBorder:Comment,FloatTitle:Title,FloatFooter:Comment"
+    vim.wo[winid].cursorline = false
+    vim.wo[winid].number = false
+    vim.wo[winid].relativenumber = false
+    vim.wo[winid].signcolumn = "no"
+    vim.wo[winid].statusline = " :w Save %= ZQ Discard "
+  end)
 
   pcall(
     vim.api.nvim_buf_set_name,
@@ -622,14 +644,18 @@ local function show_inbox_help(opts)
   local options = opts or {}
   if options.overlay then
     util.open_overlay("Review Inbox Help", lines, {
-      filetype = "markdown",
+      filetype = "text",
+      footer = "q close",
       on_close = options.on_close,
       origin_win = options.origin_win,
+      placement = "right",
+      title_pos = "left",
+      width = 96,
     })
     return
   end
 
-  util.open_scratch("review-inbox-help.md", lines, "markdown")
+  util.open_scratch("review-inbox-help.txt", lines, "text")
 end
 
 local function reopen_inbox_later(opts)
@@ -1150,7 +1176,7 @@ function M.show_current_hunk()
       end
     end
 
-    hunk.open_or_reload(context, "diff --watch", { notify = false })
+    hunk.open_or_reload(context, hunk.default_diff_command(), { notify = false })
     return
   end
 
@@ -1494,7 +1520,7 @@ function M.open_inbox(opts)
     vim.notify("Hunk is the default review inbox; legacy status filters are available with :ReviewLegacyInbox.", vim.log.levels.INFO)
   end
 
-  hunk.open_or_reload(context, "diff --watch", { notify = false })
+  hunk.open_or_reload(context, hunk.default_diff_command(), { notify = false })
 end
 
 function M.prepare_batch(provider, status)

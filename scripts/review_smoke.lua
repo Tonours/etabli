@@ -1129,7 +1129,7 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
     return true
   end
   hunk.reload = function(request_context, raw_args)
-    reloaded_hunk_review = request_context.repo ~= "" and raw_args == "diff --watch"
+    reloaded_hunk_review = request_context.repo ~= "" and raw_args == hunk.default_diff_command()
     return true
   end
   hunk.review_prompt = function(provider_name, request_context, opts)
@@ -1903,6 +1903,7 @@ assert_true(
 ;(function()
   local hunk = require("config.review.hunk")
   local hunk_flow = require("config.review.hunk_flow")
+  local hunk_rail = require("config.review.hunk_rail")
   local default_args = hunk.parse_args("")
   local show_command = hunk.command("show HEAD")
   local invalid_args, invalid_err = hunk.parse_args("patch")
@@ -1918,9 +1919,61 @@ assert_true(
     target_label = "all live staged and unstaged hunks",
   })
   local hunk_help = table.concat(hunk_flow.help_lines(), "\n")
+  local rail_lines = table.concat(hunk_rail.lines({
+    review = {
+      files = {
+        { path = "api/chat/stream.py", additions = 8, deletions = 1, hunkCount = 2, hunks = {} },
+        { path = "tests/test_stream.py", additions = 5, deletions = 0, hunkCount = 1, hunks = {} },
+      },
+      liveCommentCount = 2,
+      reviewNoteCount = 2,
+      reviewNotes = {
+        {
+          body = "Claude AI: Extract streaming into a helper.",
+          filePath = "api/chat/stream.py",
+          newRange = { 8, 11 },
+          source = "agent",
+        },
+      },
+      selectedFile = {
+        path = "api/chat/stream.py",
+        hunks = {
+          { index = 0, newRange = { 8, 11 } },
+        },
+      },
+      selectedHunk = { index = 0, newRange = { 8, 11 } },
+      showAgentNotes = true,
+      title = "streaming review",
+    },
+  }, { width = 46 }), "\n")
+  local default_command = table.concat(default_args, " ")
+  local hunk_env = hunk.env()
+  local hunk_config_path = hunk_env.XDG_CONFIG_HOME .. "/hunk/config.toml"
+  local hunk_config = table.concat(vim.fn.readfile(hunk_config_path), "\n")
 
   assert_true(default_args[1] == "diff", "Hunk default command should open diff")
   assert_true(default_args[2] == "--watch", "Hunk default command should watch local changes")
+  assert_true(default_command:find("--mode auto", 1, true) ~= nil, "Hunk default command should use adaptive layout")
+  assert_true(default_command:find("--theme custom", 1, true) ~= nil, "Hunk default command should use the Etabli custom theme")
+  assert_true(default_command:find("--no-wrap", 1, true) ~= nil, "Hunk default command should keep dense diff rows")
+  assert_true(default_command:find("--line-numbers", 1, true) ~= nil, "Hunk default command should show line numbers")
+  assert_true(default_command:find("--agent-notes", 1, true) ~= nil, "Hunk default command should show review notes")
+  assert_true(
+    default_command:find("--no-transparent-bg", 1, true) ~= nil,
+    "Hunk default command should paint a stable custom graphite review surface"
+  )
+  assert_true(
+    hunk_config:find('theme = "custom"', 1, true) ~= nil,
+    "Hunk config should enable the custom Etabli theme"
+  )
+  assert_true(
+    hunk_config:find('noteBorder = "#56d4dd"', 1, true) ~= nil,
+    "Hunk config should align inline note borders with the moodboard cyan accent"
+  )
+  assert_true(
+    hunk_config_path:find("/etabli/hunk%-xdg/hunk/config%.toml$") ~= nil,
+    "Hunk config should be isolated under Neovim state"
+  )
   assert_true(show_command[1] == "hunk", "Hunk command should launch the hunk executable")
   assert_true(show_command[2] == "show", "Hunk command should pass through supported show commands")
   assert_true(invalid_args == nil, "Hunk command parser should reject unsupported commands")
@@ -1942,22 +1995,30 @@ assert_true(
     "Hunk review prompt should avoid embedding raw diff blocks"
   )
   assert_true(
-    hunk_help:find(":ReviewInbox or <leader>ri opens the watched Hunk diff", 1, true) ~= nil,
+    hunk_help:find("<leader>ri  :ReviewInbox", 1, true) ~= nil,
     "Hunk review help should expose the default inbox command"
   )
   assert_true(
-    hunk_help:find(":ReviewClaudeReview [all|changed-only]", 1, true) ~= nil,
+    hunk_help:find("<leader>rc  :ReviewClaudeReview", 1, true) ~= nil,
     "Hunk review help should expose Claude review"
+  )
+  assert_true(
+    hunk_help:find("<leader>rx  :ReviewContext", 1, true) ~= nil,
+    "Hunk review help should expose the context rail"
   )
   assert_true(
     hunk_help:find("terminal paste", 1, true) ~= nil,
     "Hunk review help should explain interactive provider prompts"
   )
+  assert_true(rail_lines:find("Thread    File    Checks", 1, true) ~= nil, "Hunk rail should render tabs")
+  assert_true(rail_lines:find("api/chat/stream.py", 1, true) ~= nil, "Hunk rail should render selected file")
+  assert_true(rail_lines:find("Claude AI", 1, true) ~= nil, "Hunk rail should render agent notes")
+  assert_true(rail_lines:find("Agent notes      visible", 1, true) ~= nil, "Hunk rail should show note visibility")
   local help_origin_tab = vim.api.nvim_get_current_tabpage()
   hunk_flow.show_help()
   local help_scratch = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   assert_true(
-    help_scratch:find("# Hunk Review Help", 1, true) ~= nil,
+    help_scratch:find("Hunk review", 1, true) ~= nil,
     "Hunk review help should render in headless mode"
   )
   pcall(vim.cmd.tabclose)
@@ -1983,13 +2044,16 @@ assert_true(
   local sync_keymap = vim.fn.maparg("<leader>rs", "n", false, true)
   local claude_keymap = vim.fn.maparg("<leader>rc", "n", false, true)
   local help_keymap = vim.fn.maparg("<leader>r?", "n", false, true)
+  local context_keymap = vim.fn.maparg("<leader>rx", "n", false, true)
   local legacy_transaction_keymap = vim.fn.maparg("<leader>rt", "n", false, true)
   local legacy_batch_keymap = vim.fn.maparg("<leader>rbc", "n", false, true)
   local commands = vim.api.nvim_get_commands({})
   assert_true(sync_keymap.desc == "Persist Hunk review notes", "default <leader>rs should persist Hunk notes")
   assert_true(claude_keymap.desc == "Claude Hunk review pass", "default <leader>rc should launch Hunk Claude review")
   assert_true(help_keymap.desc == "Hunk review help", "default <leader>r? should open Hunk review help")
+  assert_true(context_keymap.desc == "Hunk context rail", "default <leader>rx should open the Hunk context rail")
   assert_true(commands.ReviewHelp ~= nil, "default review commands should expose ReviewHelp")
+  assert_true(commands.ReviewContext ~= nil, "default review commands should expose ReviewContext")
   assert_true(
     vim.tbl_isempty(legacy_transaction_keymap),
     "legacy transaction keymaps should be disabled by default"
@@ -2018,7 +2082,7 @@ assert_true(
     return { applied = #(comments or {}), skipped = 0 }
   end
   hunk.open_or_reload = function(request_context, raw_args)
-    hunk_inbox_opened = request_context.repo == repo_root and raw_args == "diff --watch"
+    hunk_inbox_opened = request_context.repo == repo_root and raw_args == hunk.default_diff_command()
     return true
   end
   hunk.navigate = function(request_context, file, line)
