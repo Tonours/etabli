@@ -33,6 +33,7 @@ jobs:
       - name: Run script tests
         run: |
           bash tests/workflow-docs-smoke.sh
+          bash tests/harness-smoke.sh
 
   verify-pi-typescript:
     runs-on: ubuntu-latest
@@ -101,4 +102,6 @@ jobs:
 
       - name: Run local OPS and Neovim smoke suite
         run: |
-          ./scripts/test-ops-local.sh
+          bash tests/fix-links-smoke.sh
+          bash tests/install-smoke.sh
+          bash tests/nvim-smoke.sh
