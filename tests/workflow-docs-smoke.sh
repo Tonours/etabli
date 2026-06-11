@@ -32,6 +32,7 @@ assert_not_contains() {
 }
 
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
+assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_file "$ROOT_DIR/harness/templates/AGENTS.md"
 assert_file "$ROOT_DIR/harness/templates/CLAUDE.md"
@@ -72,6 +73,8 @@ assert_contains "$ROOT_DIR/README.md" 'does not install `nvm`'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/memory.md'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'then still include the final verdict'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'bounded read-only'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" '`severity:`'
@@ -116,6 +119,67 @@ assert_not_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" '+lua dofile'
 assert_not_contains "$ROOT_DIR/claude/commands/plan-create.md" './claude/PLAN_TEMPLATE.md'
 assert_not_contains "$ROOT_DIR/claude/commands/plan-loop.md" './claude/PLAN_TEMPLATE.md'
 assert_not_contains "$ROOT_DIR/claude/commands/plan-implement.md" './claude/PLAN_TEMPLATE.md'
+assert_not_contains "$ROOT_DIR/claude/README.md" '~/.claude/skills'
+
+command_file_for() {
+    case "$1" in
+        /plan) printf '%s\n' 'plan-create.md' ;;
+        /*) printf '%s.md\n' "${1#/}" ;;
+        *)
+            printf 'unexpected command format: %s\n' "$1" >&2
+            exit 1
+            ;;
+    esac
+}
+
+workflow_claude_commands="$(
+    awk '
+        /^Claude:$/ { in_claude = 1; next }
+        in_claude && /^## / { exit }
+        in_claude && /^- `\// {
+            line = $0
+            sub(/^- `/, "", line)
+            sub(/`.*/, "", line)
+            print line
+        }
+    ' "$ROOT_DIR/workflow/spec.md"
+)"
+
+readme_claude_commands="$(
+    awk '
+        /^Claude:$/ { in_claude = 1; next }
+        in_claude && /^```text$/ { in_block = 1; next }
+        in_block && /^```$/ { exit }
+        in_block && /^\// { print }
+    ' "$ROOT_DIR/README.md"
+)"
+
+if [ "$workflow_claude_commands" != "$readme_claude_commands" ]; then
+    printf 'Claude command lists differ between workflow/spec.md and README.md\n' >&2
+    printf 'workflow/spec.md:\n%s\n' "$workflow_claude_commands" >&2
+    printf 'README.md:\n%s\n' "$readme_claude_commands" >&2
+    exit 1
+fi
+
+while IFS= read -r command; do
+    [ -n "$command" ] || continue
+    command_file="$(command_file_for "$command")"
+    assert_file "$ROOT_DIR/claude/commands/$command_file"
+done <<< "$workflow_claude_commands"
+
+while IFS= read -r command_path; do
+    command_file="$(basename "$command_path")"
+    case "$command_file" in
+        plan-create.md) command='/plan' ;;
+        *.md) command="/${command_file%.md}" ;;
+        *)
+            printf 'unexpected command file: %s\n' "$command_file" >&2
+            exit 1
+            ;;
+    esac
+
+    assert_contains "$ROOT_DIR/claude/README.md" "- \`$command\`"
+done < <(find "$ROOT_DIR/claude/commands" -maxdepth 1 -type f -name '*.md' | sort)
 
 if [ -f "$ROOT_DIR/claude/PLAN_TEMPLATE.md" ] || [ -f "$ROOT_DIR/pi/PLAN_TEMPLATE.md" ]; then
     printf 'PLAN_TEMPLATE.md must stay canonical at repo root only\n' >&2
