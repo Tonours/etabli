@@ -27,7 +27,8 @@ Detailed review flow: `docs/nvim-diff-review-workflow.md`
 - Current hunk: `<leader>rh` focuses the current buffer line in Hunk, `<leader>ra` comments the current line or visual range in the active Hunk session; if no session exists, it opens Hunk first
 - Sync: live Hunk notes are persisted and rehydrated best-effort during the Hunk session lifecycle; `<leader>rs` or `:ReviewHunkSync` is the manual checkpoint
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
-- Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch` for the current repo
+- Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg` for the current repo
+- Context rail: `<leader>rx` or `:ReviewContext` opens the right-side Hunk thread/file/checks rail; it opens automatically on wide terminals
 - Hunk comments: `<leader>rn` / `<leader>rN` navigate next/previous review comment
 - Hunk navigation: `[h`, `]h` moves between Git hunks in the file
 - Claude: `<leader>rc` or `<leader>rvc` launches a first-pass Hunk review

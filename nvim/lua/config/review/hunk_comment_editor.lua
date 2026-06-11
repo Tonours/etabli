@@ -5,10 +5,22 @@ local function sanitize_segment(value)
 end
 
 local function geometry()
-  local available_width = math.max(30, vim.o.columns - 6)
-  local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), available_width)
+  local margin = 2
+  local available_width = math.max(30, vim.o.columns - margin * 2)
   local available_height = math.max(8, vim.o.lines - 6)
-  local height = math.min(math.max(10, math.floor(vim.o.lines * 0.38)), available_height)
+  local height = math.min(math.max(10, math.floor(vim.o.lines * 0.36)), available_height)
+
+  if vim.o.columns >= 120 then
+    local width = math.min(math.max(52, math.floor(vim.o.columns * 0.36)), math.min(78, available_width))
+    return {
+      col = math.max(0, vim.o.columns - width - margin),
+      height = height,
+      row = math.min(3, math.max(1, vim.o.lines - height - 2)),
+      width = width,
+    }
+  end
+
+  local width = math.min(math.max(52, math.floor(vim.o.columns * 0.92)), available_width)
 
   return {
     col = math.max(0, math.floor((vim.o.columns - width) / 2)),
@@ -30,11 +42,21 @@ local function open_window(target, on_submit, opts)
     relative = "editor",
     row = size.row,
     style = "minimal",
-    title = string.format("Hunk review comment %s", target),
-    title_pos = "center",
+    title = string.format("Thread %s", target),
+    title_pos = "left",
+    footer = ":w save | ZQ discard",
+    footer_pos = "right",
     width = size.width,
     zindex = 95,
   })
+  pcall(function()
+    vim.wo[winid].winhighlight = "NormalFloat:Normal,FloatBorder:Comment,FloatTitle:Title,FloatFooter:Comment"
+    vim.wo[winid].cursorline = false
+    vim.wo[winid].number = false
+    vim.wo[winid].relativenumber = false
+    vim.wo[winid].signcolumn = "no"
+    vim.wo[winid].statusline = " :w Save %= ZQ Discard "
+  end)
 
   pcall(
     vim.api.nvim_buf_set_name,

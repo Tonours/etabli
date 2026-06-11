@@ -54,6 +54,12 @@ return {
         always_show_bufferline = true,
         diagnostics = false,
         mode = "buffers",
+        name_formatter = function(buf)
+          if vim.bo[buf.bufnr].filetype == "hunkreview" then
+            return "etabli review"
+          end
+          return nil
+        end,
         numbers = "none",
         separator_style = "thin",
         show_buffer_close_icons = false,

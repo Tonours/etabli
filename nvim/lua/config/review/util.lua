@@ -32,6 +32,42 @@ function M.sanitize_segment(value)
   return tostring(value):gsub("[^%w%-_.]", "_")
 end
 
+local function is_empty_start_buffer(buf)
+  if vim.bo[buf].buftype ~= "" or vim.bo[buf].modified then
+    return false
+  end
+  if vim.api.nvim_buf_get_name(buf) ~= "" then
+    return false
+  end
+  if vim.api.nvim_buf_line_count(buf) ~= 1 then
+    return false
+  end
+
+  return (vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or "") == ""
+end
+
+local function prepare_overlay_backdrop()
+  local buf = vim.api.nvim_get_current_buf()
+  if not is_empty_start_buffer(buf) then
+    return
+  end
+
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].filetype = "hunkreview"
+  vim.bo[buf].swapfile = false
+  pcall(vim.api.nvim_buf_set_name, buf, "etabli-review://workspace")
+
+  local win = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_is_valid(win) then
+    vim.wo[win].cursorline = false
+    vim.wo[win].foldcolumn = "0"
+    vim.wo[win].number = false
+    vim.wo[win].relativenumber = false
+    vim.wo[win].signcolumn = "no"
+    vim.wo[win].statuscolumn = ""
+  end
+end
+
 function M.open_scratch(title, lines, filetype)
   vim.cmd.tabnew()
 
@@ -83,6 +119,8 @@ end
 
 function M.open_overlay(title, lines, opts)
   local options = opts or {}
+  prepare_overlay_backdrop()
+
   local buf = vim.api.nvim_create_buf(false, true)
   local max_line = 0
 
@@ -90,10 +128,17 @@ function M.open_overlay(title, lines, opts)
     max_line = math.max(max_line, vim.fn.strdisplaywidth(line))
   end
 
-  local width = math.min(math.max(max_line + 4, 60), math.floor(vim.o.columns * 0.72))
-  local height = math.min(math.max(#lines, 1) + 2, math.floor(vim.o.lines * 0.7))
+  local max_width = options.width or math.floor(vim.o.columns * 0.72)
+  local min_width = options.min_width or 60
+  local width = math.min(math.max(max_line + 4, min_width), max_width, math.max(30, vim.o.columns - 4))
+  local height = math.min(math.max(#lines, 1) + 2, options.height or math.floor(vim.o.lines * 0.7))
   local row = math.max(1, math.floor((vim.o.lines - height) / 2) - 1)
   local col = math.max(0, math.floor((vim.o.columns - width) / 2))
+
+  if options.placement == "right" and vim.o.columns >= 120 then
+    row = options.row or 1
+    col = math.max(0, vim.o.columns - width - 2)
+  end
 
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
@@ -115,10 +160,21 @@ function M.open_overlay(title, lines, opts)
     row = row,
     style = "minimal",
     title = title,
-    title_pos = "center",
+    title_pos = options.title_pos or "center",
+    footer = options.footer,
+    footer_pos = options.footer_pos or "right",
     width = width,
     zindex = 90,
   })
+  pcall(function()
+    vim.wo[win].winhighlight = options.winhighlight
+      or "NormalFloat:Normal,FloatBorder:Comment,FloatTitle:Title,FloatFooter:Comment"
+    vim.wo[win].cursorline = false
+    vim.wo[win].number = false
+    vim.wo[win].relativenumber = false
+    vim.wo[win].signcolumn = "no"
+    vim.wo[win].statusline = options.statusline or " q Close "
+  end)
 
   local function close()
     if vim.api.nvim_win_is_valid(win) then

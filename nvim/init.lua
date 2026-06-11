@@ -62,6 +62,9 @@ lazy_cmd("ReviewHunkPrevComment", "config.review.hunk_flow", "cmd_hunk_prev_comm
 lazy_cmd("ReviewHelp", "config.review.hunk_flow", "cmd_help", {
   desc = "Show Hunk review workflow help",
 })
+lazy_cmd("ReviewContext", "config.review.hunk_flow", "open_context_rail", {
+  desc = "Open the Hunk review context rail",
+})
 lazy_cmd("ReviewClaudeReview", "config.review.hunk_flow", "cmd_claude_review", {
   complete = function()
     return { "all", "changed-only" }

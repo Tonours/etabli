@@ -42,7 +42,7 @@ Use `PLAN.md` as the only execution artifact. Implement only from `Status: READY
 ```bash
 fix-links check
 fix-links
-hunk diff --watch
+hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg
 bun test pi/extensions/__tests__/
 ```
 

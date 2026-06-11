@@ -3,19 +3,103 @@ local util = require("config.review.util")
 local M = {}
 
 local cached_skill_path
+local cached_hunk_xdg_config_home
+local default_diff_args = {
+  "diff",
+  "--watch",
+  "--mode",
+  "auto",
+  "--theme",
+  "custom",
+  "--no-wrap",
+  "--line-numbers",
+  "--agent-notes",
+  "--no-transparent-bg",
+}
+
+local hunk_config_lines = {
+  'theme = "custom"',
+  "",
+  "[custom_theme]",
+  'base = "graphite"',
+  'label = "Etabli Graphite"',
+  'accent = "#56d4dd"',
+  'accentMuted = "#274850"',
+  'noteBorder = "#56d4dd"',
+  'noteBackground = "#13262c"',
+  'noteTitleBackground = "#173741"',
+  'noteTitleText = "#e6edf3"',
+}
 
 local function trim(text)
   return vim.trim(tostring(text or ""))
+end
+
+local function write_if_changed(path, lines)
+  local current = util.path_exists(path) and table.concat(vim.fn.readfile(path), "\n") or nil
+  local next_content = table.concat(lines, "\n")
+  if current == next_content then
+    return
+  end
+
+  vim.fn.writefile(lines, path)
 end
 
 function M.is_available()
   return vim.fn.executable("hunk") == 1
 end
 
+function M.default_diff_args()
+  return vim.deepcopy(default_diff_args)
+end
+
+function M.default_diff_command()
+  return table.concat(default_diff_args, " ")
+end
+
 function M.realpath(path)
   local normalized = util.normalize(path)
   local real = vim.uv.fs_realpath(normalized)
   return real or normalized
+end
+
+local function hunk_xdg_config_home()
+  if cached_hunk_xdg_config_home and util.path_exists(cached_hunk_xdg_config_home .. "/hunk/config.toml") then
+    return cached_hunk_xdg_config_home
+  end
+
+  local root = vim.fn.stdpath("state") .. "/etabli/hunk-xdg"
+  local config_dir = root .. "/hunk"
+  local config_path = config_dir .. "/config.toml"
+
+  util.ensure_dir(config_dir)
+  write_if_changed(config_path, hunk_config_lines)
+
+  cached_hunk_xdg_config_home = root
+  return root
+end
+
+function M.env()
+  return {
+    XDG_CONFIG_HOME = hunk_xdg_config_home(),
+  }
+end
+
+local function system_text(command, stdin)
+  local result = vim.system(command, {
+    env = M.env(),
+    stdin = stdin,
+    text = true,
+  }):wait()
+
+  local code = result.code or 0
+  local stdout = result.stdout or ""
+  local stderr = result.stderr or ""
+  if code ~= 0 and trim(stdout) == "" then
+    return code, stderr
+  end
+
+  return code, stdout
 end
 
 function M.parse_args(raw_args)
@@ -26,7 +110,7 @@ function M.parse_args(raw_args)
   end
 
   if vim.tbl_isempty(args) then
-    return { "diff", "--watch" }
+    return M.default_diff_args()
   end
 
   if args[1] ~= "diff" and args[1] ~= "show" then
@@ -55,8 +139,8 @@ function M.skill_path()
     return nil
   end
 
-  local output = vim.fn.system({ "hunk", "skill", "path" })
-  if vim.v.shell_error ~= 0 then
+  local code, output = system_text({ "hunk", "skill", "path" })
+  if code ~= 0 then
     cached_skill_path = ""
     return nil
   end
@@ -72,14 +156,9 @@ local function session_command(repo, subcommand, extra)
 end
 
 local function run_json(command, stdin)
-  local output
-  if stdin ~= nil then
-    output = vim.fn.system(command, stdin)
-  else
-    output = vim.fn.system(command)
-  end
+  local code, output = system_text(command, stdin)
 
-  if vim.v.shell_error ~= 0 then
+  if code ~= 0 then
     return nil, trim(output) ~= "" and trim(output) or "Hunk command failed"
   end
 
@@ -95,13 +174,102 @@ local function run_json(command, stdin)
   return decoded
 end
 
+local function style_review_terminal(bufnr, winid)
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].buflisted = true
+  vim.bo[bufnr].filetype = "hunkreview"
+  vim.bo[bufnr].swapfile = false
+
+  if not winid or not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+
+  local wo = vim.wo[winid]
+  wo.cursorline = false
+  wo.foldcolumn = "0"
+  wo.number = false
+  wo.relativenumber = false
+  wo.signcolumn = "no"
+  wo.statuscolumn = ""
+  wo.statusline = table.concat({
+    " q Quit",
+    "%=",
+    "j/k Navigate",
+    "  n/p Hunk",
+    "  c Comment",
+    "  a Agent",
+    "  x Context",
+    "  r Refresh",
+    "  ? Help ",
+  }, "")
+end
+
+local function attach_context_rail_refresh(bufnr, context)
+  if vim.g.etabli_review_hunk_rail == false then
+    return
+  end
+
+  local pending = false
+  local last_refresh = 0
+  local min_interval_ms = 1800
+
+  local function schedule()
+    if pending then
+      return
+    end
+
+    local now = vim.uv.now()
+    local delay = 450
+    if last_refresh > 0 and now - last_refresh < min_interval_ms then
+      delay = min_interval_ms - (now - last_refresh)
+    end
+
+    pending = true
+    vim.defer_fn(function()
+      pending = false
+      if vim.g.etabli_review_hunk_rail == false or not vim.api.nvim_buf_is_valid(bufnr) then
+        return
+      end
+
+      last_refresh = vim.uv.now()
+      pcall(function()
+        require("config.review.hunk_rail").refresh(context)
+      end)
+    end, delay)
+  end
+
+  pcall(vim.api.nvim_buf_attach, bufnr, false, {
+    on_lines = function()
+      schedule()
+    end,
+  })
+end
+
+local function unlist_empty_start_buffer()
+  local bufnr = vim.api.nvim_get_current_buf()
+  if vim.bo[bufnr].buftype ~= "" or vim.bo[bufnr].modified then
+    return
+  end
+  if vim.api.nvim_buf_get_name(bufnr) ~= "" then
+    return
+  end
+  if vim.api.nvim_buf_line_count(bufnr) ~= 1 then
+    return
+  end
+  if (vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1] or "") ~= "" then
+    return
+  end
+
+  vim.bo[bufnr].buflisted = false
+end
+
 function M.session_exists(repo)
   if not M.is_available() then
     return false
   end
 
-  local output = vim.fn.system(session_command(repo, "get", { "--json" }))
-  return vim.v.shell_error == 0 and trim(output) ~= ""
+  local code, output = system_text(session_command(repo, "get", { "--json" }))
+  return code == 0 and trim(output) ~= ""
 end
 
 function M.reload(context, raw_args)
@@ -120,8 +288,8 @@ function M.reload(context, raw_args)
 
   local command = session_command(context.repo, "reload", { "--" })
   vim.list_extend(command, args)
-  local output = vim.fn.system(command)
-  if vim.v.shell_error ~= 0 then
+  local code, output = system_text(command)
+  if code ~= 0 then
     return false, trim(output) ~= "" and trim(output) or "Could not reload Hunk session"
   end
 
@@ -145,20 +313,31 @@ function M.open(context, raw_args)
     return false
   end
 
+  unlist_empty_start_buffer()
   vim.cmd.tabnew()
   local bufnr = vim.api.nvim_get_current_buf()
-  vim.bo[bufnr].bufhidden = "wipe"
-  pcall(vim.api.nvim_buf_set_name, bufnr, "term://hunk-review")
+  local winid = vim.api.nvim_get_current_win()
+  style_review_terminal(bufnr, winid)
+  pcall(vim.api.nvim_buf_set_name, bufnr, "term://etabli-review")
   vim.b[bufnr].etabli_hunk_repo = context.repo
 
   local ok_termopen, job_id = pcall(vim.fn.termopen, command, {
     cwd = context.repo,
+    env = M.env(),
   })
 
   if not ok_termopen or type(job_id) ~= "number" or job_id <= 0 then
     vim.notify("Could not open Hunk diff viewer", vim.log.levels.ERROR)
     return false
   end
+
+  style_review_terminal(bufnr, winid)
+  pcall(vim.api.nvim_buf_set_name, bufnr, "term://etabli-review")
+
+  pcall(function()
+    require("config.review.hunk_rail").maybe_open(context, { origin_win = winid })
+  end)
+  attach_context_rail_refresh(bufnr, context)
 
   if #vim.api.nvim_list_uis() > 0 then
     vim.cmd.startinsert()
@@ -212,8 +391,8 @@ function M.navigate(context, file, line)
     tostring(line),
     "--json",
   })
-  local output = vim.fn.system(command)
-  if vim.v.shell_error ~= 0 then
+  local code, output = system_text(command)
+  if code ~= 0 then
     return false, trim(output) ~= "" and trim(output) or "Could not navigate Hunk session"
   end
 
@@ -257,7 +436,7 @@ function M.open_or_navigate(context, opts)
     vim.notify(err, vim.log.levels.WARN)
   end
 
-  return M.open_or_reload(context, options.command or "diff --watch", { notify = false })
+  return M.open_or_reload(context, options.command or M.default_diff_command(), { notify = false })
 end
 
 local function quote(value)

@@ -337,9 +337,8 @@ Implementation constraints:
 
 ### Moodboard
 
-Generated visual reference:
-
-`/Users/tonours/.codex/generated_images/019e99f1-c213-7690-9cbf-4f7858403eed/ig_0327c6b7cc7a4723016a28880e3d308191a5b5f84b486d34ce.png`
+Generated visual reference: local moodboard image, intentionally not tracked
+with a user-specific filesystem path.
 
 Direction extracted from the moodboard: graphite terminal surface, thin borders,
 high-density split panes, status text before color, restrained semantic accents,
