@@ -61,17 +61,4 @@ function M.is_actionable(status)
   return actionable[status or "new"] == true
 end
 
-function M.actionable_count(counts)
-  return (counts["needs-rework"] or 0) + (counts.question or 0)
-end
-
-function M.actionable_summary(counts, source)
-  local suffix = source and (" (" .. source .. ")") or ""
-  if M.actionable_count(counts) > 0 then
-    return string.format("needs-rework %d | question %d%s", counts["needs-rework"] or 0, counts.question or 0, suffix)
-  end
-
-  return source and ("clear (" .. source .. ")") or "clear"
-end
-
 return M

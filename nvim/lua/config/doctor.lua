@@ -189,8 +189,4 @@ function M.config_root()
   return config_root()
 end
 
-function M.project_root(cwd)
-  return repo_root(vim.fs.normalize(cwd or vim.fn.getcwd()))
-end
-
 return M

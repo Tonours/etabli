@@ -616,29 +616,6 @@ function M.read(context)
   return result
 end
 
-function M.status_counts(context)
-  local stored = M.read(context)
-  local counts = {}
-
-  for _, status in ipairs(meta.statuses()) do
-    counts[status] = 0
-  end
-
-  for _, item in pairs(stored.items) do
-    local status = item.status or "new"
-    if counts[status] ~= nil then
-      counts[status] = counts[status] + 1
-    end
-  end
-
-  counts.total = 0
-  for _, status in ipairs(meta.statuses()) do
-    counts.total = counts.total + counts[status]
-  end
-
-  return counts
-end
-
 function M.write(context, data)
   util.ensure_dir(state_dir)
   local target = file_path(context.repo, context.branch)
@@ -799,10 +776,6 @@ function M.set_status(context, item, status)
   return M.save_item(context, item, { status = status })
 end
 
-function M.set_note(context, item, note)
-  return M.save_item(context, item, { note = note or "" })
-end
-
 function M.set_reviewed(context, item, reviewed)
   return M.save_item(context, item, { reviewed = reviewed ~= false })
 end
@@ -839,16 +812,6 @@ end
 function M.active_transaction(context)
   local transaction = active_transaction(M.read(context))
   return transaction and vim.deepcopy(transaction) or nil
-end
-
-function M.discard_transaction(context)
-  local stored = M.read(context)
-  if not active_transaction(stored) then
-    return true
-  end
-
-  stored.transaction = nil
-  return M.write(context, stored)
 end
 
 function M.add_draft_comment(context, item, attrs)
