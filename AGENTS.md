@@ -6,6 +6,7 @@ Repo-specific instructions for this dotfiles repo.
 
 - `.github/workflows/` — CI workflows
 - `claude/` — Claude Code commands and local instructions
+- `codex/` — Codex organization, prompts, automations, hooks, and personal skills
 - `docs/` — focused user docs
 - `ghostty/` — Ghostty config
 - `harness/` — project harness templates
@@ -34,6 +35,7 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.pi/settings.json` -> `pi/settings.json`
 - `~/.pi/themes/` -> `pi/themes/`
 - `~/.config/ghostty/config` -> `ghostty/config`
+- `~/.codex/` receives managed Codex files via `scripts/deploy-codex --apply`
 - do not create `~/.pi/extensions/`; it causes double-loading
 
 ## Workflow
@@ -42,6 +44,7 @@ Repo-specific instructions for this dotfiles repo.
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
+- Codex organization: `docs/codex-organization.md`
 
 ## Code
 
@@ -52,6 +55,7 @@ Repo-specific instructions for this dotfiles repo.
 ## Testing
 
 ```bash
+bash tests/codex-organization-smoke.sh
 bun test pi/extensions/__tests__/
 ```
 
