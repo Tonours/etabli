@@ -47,7 +47,7 @@ return {
       update_debounce = 1500, -- Increased from 1000ms
       attach_to_untracked = false,
       preview_config = {
-        border = { "▛", "▀", "▜", "▐", "▟", "▄", "▙", "▌" },
+        border = "single",
         style = "minimal",
         relative = "cursor",
         row = 0,

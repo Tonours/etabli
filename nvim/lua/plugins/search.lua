@@ -13,9 +13,11 @@ local function open_grug_far_overlay()
     row = row,
     col = col,
     style = "minimal",
-    border = "rounded",
+    border = "single",
     title = " Find & Replace ",
-    title_pos = "center",
+    title_pos = "left",
+    footer = "q close | <leader>R replace",
+    footer_pos = "right",
     zindex = 90,
   })
 end
@@ -78,6 +80,7 @@ return {
           vim.wo[win].relativenumber = false
           vim.wo[win].signcolumn = "no"
           vim.wo[win].spell = false
+          vim.wo[win].statusline = " <leader>R Replace %= q Close "
           vim.wo[win].winhl = "NormalFloat:Normal,FloatBorder:FloatBorder,FloatTitle:Title"
         end,
       })

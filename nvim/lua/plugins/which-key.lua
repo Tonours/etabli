@@ -22,7 +22,7 @@ return {
         { "<leader>w", group = "Windows" },
       },
       win = {
-        border = "rounded",
+        border = "single",
       },
     },
   },

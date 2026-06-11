@@ -87,6 +87,8 @@ return {
 
       return {
         defaults = {
+          border = true,
+          borderchars = { "─", "│", "─", "│", "┌", "┐", "┘", "└" },
           file_ignore_patterns = {
             "node_modules/",
             "dist/",
