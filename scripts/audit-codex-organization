@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+CODEX_DIR="$REPO_DIR/codex"
+
+ERRORS=0
+
+fail() {
+  printf 'ERROR %s\n' "$1" >&2
+  ERRORS=$((ERRORS + 1))
+}
+
+require_file() {
+  local path="$1"
+
+  if [ ! -f "$REPO_DIR/$path" ]; then
+    fail "missing required file: $path"
+  fi
+}
+
+require_file "codex/README.md"
+require_file "codex/AGENTS.md"
+require_file "codex/config.managed.toml"
+require_file "codex/hooks.json"
+require_file "codex/workflow/dynamic-workflow-triggers.md"
+require_file "codex/workflow/ticket-template.md"
+require_file "codex/thread-organization/build_thread_organization.py"
+require_file "codex/thread-organization/run_hourly_thread_organization.sh"
+require_file "codex/automations/README.md"
+require_file "codex/automations/templates/repo-hygiene.template.toml"
+require_file "codex/automations/templates/thread-checkpoint.template.toml"
+require_file "codex/skills/README.md"
+require_file "docs/codex-organization.md"
+require_file "docs/codex-thread-organization.md"
+
+if [ ! -d "$CODEX_DIR" ]; then
+  fail "missing codex directory"
+fi
+
+for path in \
+  "$CODEX_DIR/thread-organization/generated" \
+  "$CODEX_DIR/thread-organization/backups" \
+  "$CODEX_DIR/thread-organization/__pycache__" \
+  "$CODEX_DIR/skills/.system" \
+  "$CODEX_DIR/plugins" \
+  "$CODEX_DIR/sessions" \
+  "$CODEX_DIR/archived_sessions" \
+  "$CODEX_DIR/shell_snapshots"
+do
+  if [ -e "$path" ]; then
+    fail "runtime path must not be tracked: ${path#$REPO_DIR/}"
+  fi
+done
+
+while IFS= read -r path; do
+  fail "runtime/generated file must not be tracked: ${path#$REPO_DIR/}"
+done < <(
+  find "$CODEX_DIR" -type f \( \
+    -name '*.sqlite' -o \
+    -name '*.sqlite-shm' -o \
+    -name '*.sqlite-wal' -o \
+    -name '*.pyc' -o \
+    -name 'thread-index.*' -o \
+    -name 'queues.md' -o \
+    -name 'hourly-dashboard.md' -o \
+    -name 'cleanup-candidates.md' -o \
+    -name 'suggested-thread-titles.md' -o \
+    -name 'last-*.json' -o \
+    -name 'auth.json' -o \
+    -name 'config.toml' \
+  \)
+)
+
+while IFS= read -r path; do
+  fail "dependency directory must not be tracked: ${path#$REPO_DIR/}"
+done < <(
+  find "$CODEX_DIR" -type d \( -name node_modules -o -name .venv -o -name __pycache__ \)
+)
+
+while IFS= read -r path; do
+  fail "generated directory must not be tracked: ${path#$REPO_DIR/}"
+done < <(
+  find "$CODEX_DIR" -type d -name generated
+)
+
+if grep -RIE -n 'Bearer[[:space:]]+[A-Za-z0-9._~+/-]{16,}' "$CODEX_DIR" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+  sed 's/^/SECRET /' /tmp/etabli-codex-audit.$$ >&2
+  fail "possible bearer credential in codex tree"
+fi
+rm -f /tmp/etabli-codex-audit.$$
+
+if grep -RIE -n '(api[_-]?key|authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']+["'\'']' "$CODEX_DIR" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+  sed 's/^/SECRET /' /tmp/etabli-codex-audit.$$ >&2
+  fail "possible key or token assignment in codex tree"
+fi
+rm -f /tmp/etabli-codex-audit.$$
+
+if grep -RIE -n 'sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}' "$CODEX_DIR" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+  sed 's/^/SECRET /' /tmp/etabli-codex-audit.$$ >&2
+  fail "possible API token in codex tree"
+fi
+rm -f /tmp/etabli-codex-audit.$$
+
+if grep -RIE -n '/Users/[^[:space:]`"'\''<>]+|/Volumes/[^[:space:]`"'\''<>]+' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" "$REPO_DIR/docs/codex-thread-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+  sed 's/^/PRIVATE /' /tmp/etabli-codex-audit.$$ >&2
+  fail "local absolute path in tracked Codex organization"
+fi
+rm -f /tmp/etabli-codex-audit.$$
+
+if grep -RIE -n '019e[0-9a-f-]{31,}|ssh-ed25519[[:space:]]+[A-Za-z0-9+/=]{32,}' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" "$REPO_DIR/docs/codex-thread-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+  sed 's/^/PRIVATE /' /tmp/etabli-codex-audit.$$ >&2
+  fail "thread identifier or public key in tracked Codex organization"
+fi
+rm -f /tmp/etabli-codex-audit.$$
+
+if grep -Eq '^\[(mcp_servers|projects|hooks\.state)' "$CODEX_DIR/config.managed.toml"; then
+  fail "config.managed.toml must not track local MCP, project trust, or hook state"
+fi
+
+if grep -Eq '^(notify|auth|http_headers)[[:space:]]*=' "$CODEX_DIR/config.managed.toml"; then
+  fail "config.managed.toml must not track local auth, notify, or headers"
+fi
+
+if grep -Eq '/Users/|/Volumes/' "$CODEX_DIR/hooks.json"; then
+  fail "hooks.json must not use machine-local absolute paths"
+fi
+
+if ! grep -Fq '$HOME/.codex/herdr-agent-state.sh' "$CODEX_DIR/hooks.json"; then
+  fail "hooks.json must reference the HOME-relative hook target"
+fi
+
+if ! grep -Fq 'exact thread ID and raw title are not tracked' "$REPO_DIR/docs/codex-thread-organization.md"; then
+  fail "thread organization docs must state that live thread identifiers stay local"
+fi
+
+if [ "$ERRORS" -gt 0 ]; then
+  exit 1
+fi
+
+printf 'codex organization audit: ok\n'
