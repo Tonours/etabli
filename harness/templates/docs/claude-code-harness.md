@@ -1,6 +1,7 @@
 # Claude Code Harness
 
 Source: Anthropic, "Harness design for long-running application development", published March 24, 2026.
+Source: Anthropic, "Prompting Claude Fable 5".
 
 ## Default Rule
 
@@ -18,9 +19,19 @@ Do not add multi-agent overhead by default. Add planner/builder/evaluator separa
 
 - Long tasks lose coherence as context fills.
 - Agents may wrap up early when they sense context pressure.
+- Fabricated or optimistic status reports appear when progress is not audited against tool results.
+- Premature wrap-up is triggered by visible context-budget counts.
 - Self-evaluation is too generous, especially for UI quality and product completeness.
 - Superficial QA misses edge cases and stubbed core behavior.
 - Over-specific planning can cascade wrong implementation details.
+
+## Grounding
+
+Before any progress report, audit each claim against a tool result from the session. Report unverified work as unverified.
+
+## Context Pressure
+
+Do not surface remaining-token counts to the agent. If the harness must, add: "You have ample context remaining. Do not stop, summarize, or suggest a new session on account of context limits." Use the handoff artifact when a reset is genuinely needed.
 
 ## Roles
 
@@ -50,10 +61,12 @@ The builder should:
 - run focused checks before handoff
 - leave exact verification commands and results
 - avoid treating its own review as final approval
+- end turns on completed work or a blocking question, never on a stated intention such as "I'll now run X"
 
 ### Evaluator
 
 Use a separate evaluator for risky work or when the builder cannot produce convincing evidence alone.
+Prefer a fresh-context evaluator (separate session/subagent) over builder self-critique. For long builds, run the evaluator at a fixed interval, not only at the end.
 
 The evaluator should be skeptical and concrete:
 

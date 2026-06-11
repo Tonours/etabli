@@ -8,6 +8,7 @@ Claude Code-specific adapter for the shared project harness.
 - Review rubric: `workflow/review-rubric.md`
 - Ticket template: `workflow/ticket-template.md`
 - Project context: `docs/project-context.md`
+- Durable lessons from past runs: `docs/agent-memory/`
 - Local execution artifact: `PLAN.md`
 - Long-running Claude Code loop: `docs/claude-code-harness.md`
 
@@ -15,8 +16,12 @@ Claude Code-specific adapter for the shared project harness.
 - Canonical workflow: `workflow/spec.md`
 - Use `PLAN.md` as the only execution artifact.
 - Implement only from `Status: READY`.
+- Read `docs/agent-memory/` before non-trivial work; write a lesson when a correction or confirmed approach will matter again.
 - Separate observed facts from assumptions before choosing an approach.
-- Record exact validation commands and outcomes before claiming completion.
+- Before reporting progress or completion, audit each claim against a tool result from this session. Record exact validation commands and outcomes before claiming completion.
+- When the user explicitly asks for assessment, review, diagnosis, or thinks out loud without asking for a fix, report findings and stop. Otherwise, fix the problem once you have enough evidence.
+- When you have enough information to act, act. Do not re-derive established facts or re-litigate decisions the user already made.
+- Pause for the user only for destructive/irreversible actions, real scope changes, or input only they can provide. Otherwise proceed and end the turn on completed work, not on a promise.
 - Review with `workflow/review-rubric.md`.
 - Use `workflow/ticket-template.md` for development tickets.
 - For long-running or UI-heavy work, follow `docs/claude-code-harness.md`.
@@ -35,6 +40,7 @@ Claude Code-specific adapter for the shared project harness.
 - Start with the simple workflow.
 - Add planner/builder/evaluator separation only when task size, UI quality, or verification risk justifies the overhead.
 - Do not rely on the builder's self-evaluation as the final quality gate.
+- Final summaries of long runs are written for a reader who did not watch the run: outcome first, complete sentences, no working shorthand, no arrow chains.
 
 ## Git
 - Do not credit AI tools in commits.

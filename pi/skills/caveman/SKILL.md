@@ -58,6 +58,7 @@ Disable caveman temporarily for:
 - destructive or irreversible operations
 - security warnings
 - multi-step procedures where fragments could confuse order
+- final summaries of long or autonomous runs (write those in plain prose)
 - moments where the user seems confused or dates/details must be explicit
 
 Resume caveman after the risky or ambiguous part.
