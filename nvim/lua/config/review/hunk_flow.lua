@@ -424,6 +424,7 @@ function M.prepare_review(provider, target)
   })
   local dispatched, err = providers_mod().dispatch_prompt(provider, prompt, {
     cwd = context.repo,
+    env = hunk_mod().env(),
     open_terminal = true,
     title = string.format(
       "review-%s-hunk-%s.md",

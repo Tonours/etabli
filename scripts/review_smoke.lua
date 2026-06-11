@@ -1121,6 +1121,7 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
   local original_dispatch_prompt = providers.dispatch_prompt
   local captured_changed_only = false
   local captured_repo
+  local captured_hunk_env = false
   local reloaded_hunk_review = false
   hunk.is_available = function()
     return true
@@ -1144,7 +1145,11 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
       and provider_name == "claude"
       and prompt == "changed-only Hunk prompt"
       and opts.cwd == captured_repo
+      and opts.env ~= nil
+      and type(opts.env.XDG_CONFIG_HOME) == "string"
+      and opts.env.XDG_CONFIG_HOME ~= ""
       and opts.open_terminal == true
+    captured_hunk_env = opts.env ~= nil and type(opts.env.XDG_CONFIG_HOME) == "string" and opts.env.XDG_CONFIG_HOME ~= ""
     return prompt
   end
   local ok_changed_only, changed_only_err = pcall(function()
@@ -1158,6 +1163,7 @@ local function assert_changed_only_review_rerun_uses_changed_filter()
 
   assert_true(ok_changed_only, changed_only_err or "changed-only review command failed")
   assert_true(captured_changed_only, "changed-only review should dispatch a Hunk-targeted review prompt")
+  assert_true(captured_hunk_env, "changed-only Hunk review should pass Hunk config env to the provider terminal")
   assert_true(reloaded_hunk_review, "changed-only review should reload the active Hunk session before dispatch")
   state.clear(rerun_context)
 end
@@ -2014,6 +2020,67 @@ assert_true(
   assert_true(rail_lines:find("api/chat/stream.py", 1, true) ~= nil, "Hunk rail should render selected file")
   assert_true(rail_lines:find("Claude AI", 1, true) ~= nil, "Hunk rail should render agent notes")
   assert_true(rail_lines:find("Agent notes      visible", 1, true) ~= nil, "Hunk rail should show note visibility")
+  do
+    local original_list_uis_for_rail = vim.api.nvim_list_uis
+    local original_hunk_review_model_for_rail = hunk.review_model
+    local origin_tab = vim.api.nvim_get_current_tabpage()
+    local rail_buf
+    local second_tab
+    vim.api.nvim_list_uis = function()
+      return { {} }
+    end
+    hunk.review_model = function(request_context)
+      assert_true(request_context == context, "explicit rail refresh should use the supplied Hunk context")
+      return {
+        review = {
+          files = {},
+          reviewNotes = {},
+          title = "explicit tab refresh",
+        },
+      }
+    end
+
+    local ok_rail_refresh, rail_refresh_err = pcall(function()
+      assert_true(
+        hunk_rail.open(context, { min_columns = 1, delay = 100000, second_delay = 100000 }) == true,
+        "Hunk rail should open when UI constraints are met"
+      )
+      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        local name = vim.api.nvim_buf_get_name(bufnr)
+        if name:find("hunk%-review%-rail://", 1) ~= nil then
+          rail_buf = bufnr
+          break
+        end
+      end
+      assert_true(rail_buf ~= nil, "Hunk rail should create a rail buffer")
+      vim.cmd.tabnew()
+      second_tab = vim.api.nvim_get_current_tabpage()
+      assert_true(
+        hunk_rail.refresh(context, { tab = origin_tab }) == true,
+        "Hunk rail should refresh an explicit tab even when another tab is current"
+      )
+      local refreshed = table.concat(vim.api.nvim_buf_get_lines(rail_buf, 0, -1, false), "\n")
+      assert_true(
+        refreshed:find("explicit tab refresh", 1, true) ~= nil,
+        "explicit tab refresh should update the original rail buffer"
+      )
+      pcall(vim.cmd.tabclose)
+    end)
+
+    vim.api.nvim_list_uis = original_list_uis_for_rail
+    hunk.review_model = original_hunk_review_model_for_rail
+    if second_tab and vim.api.nvim_tabpage_is_valid(second_tab) then
+      pcall(vim.api.nvim_set_current_tabpage, second_tab)
+      pcall(vim.cmd.tabclose)
+    end
+    if origin_tab and vim.api.nvim_tabpage_is_valid(origin_tab) then
+      pcall(vim.api.nvim_set_current_tabpage, origin_tab)
+    end
+    if rail_buf and vim.api.nvim_buf_is_valid(rail_buf) then
+      pcall(vim.api.nvim_buf_delete, rail_buf, { force = true })
+    end
+    assert_true(ok_rail_refresh, rail_refresh_err or "explicit-tab Hunk rail refresh failed")
+  end
   local help_origin_tab = vim.api.nvim_get_current_tabpage()
   hunk_flow.show_help()
   local help_scratch = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
@@ -2209,6 +2276,43 @@ assert_true(
   prompt_only_signature_calls == 0,
   "prompt-only provider dispatch should skip repo change signatures"
 )
+
+;(function()
+  local original_executable_for_env = vim.fn.executable
+  local original_termopen_for_env = vim.fn.termopen
+  local captured_env
+  vim.fn.executable = function(command)
+    if command == "claude" then
+      return 1
+    end
+
+    return original_executable_for_env(command)
+  end
+  vim.fn.termopen = function(_, opts)
+    captured_env = opts and opts.env
+    return 42
+  end
+
+  local ok_env_dispatch, env_dispatch_err = pcall(function()
+    providers.dispatch("claude", matched, {
+      action = "review",
+      cwd = repo_root,
+      env = { REVIEW_SMOKE_ENV = "1" },
+      open_terminal = true,
+    })
+    vim.wait(1000, function()
+      return captured_env ~= nil
+    end, 10)
+  end)
+  vim.fn.executable = original_executable_for_env
+  vim.fn.termopen = original_termopen_for_env
+
+  assert_true(ok_env_dispatch, env_dispatch_err or "provider env dispatch failed")
+  assert_true(
+    captured_env ~= nil and captured_env.REVIEW_SMOKE_ENV == "1",
+    "provider dispatch should pass environment variables to the opened terminal"
+  )
+end)()
 
 ;(function()
   local hunk_flow_for_refresh = require("config.review.hunk_flow")

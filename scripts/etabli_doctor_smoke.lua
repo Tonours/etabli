@@ -178,6 +178,9 @@ do
     dispatched_prompt = provider == "claude"
       and prompt:find("changed since last review", 1, true) ~= nil
       and opts.cwd == doctor.config_root()
+      and opts.env ~= nil
+      and type(opts.env.XDG_CONFIG_HOME) == "string"
+      and opts.env.XDG_CONFIG_HOME ~= ""
     return prompt
   end
 
