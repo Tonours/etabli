@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Doctor 100"
+  short_description: "Run react-doctor and fix React project issues without shortcuts"
+  default_prompt: "Use $react-doctor-100 to run npx react-doctor@latest and fix a React project until the score is 100 with proper validation."
