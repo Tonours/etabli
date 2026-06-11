@@ -167,7 +167,7 @@ end
 
 function M.refresh(context, opts)
   local options = opts or {}
-  local entry = options.entry or rail_by_tab[vim.api.nvim_get_current_tabpage()]
+  local entry = options.entry or rail_by_tab[options.tab or vim.api.nvim_get_current_tabpage()]
   if not entry or not vim.api.nvim_buf_is_valid(entry.buf) then
     return false
   end

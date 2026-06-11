@@ -147,6 +147,7 @@ local function do_open_terminal(command, opts)
 
   local ok_termopen, job_id = pcall(vim.fn.termopen, command, {
     cwd = options.cwd,
+    env = options.env,
     on_exit = function()
       if options.on_exit then
         vim.schedule(options.on_exit)
@@ -212,6 +213,7 @@ local function dispatch_prompt(provider, prompt, opts)
       local spec = launch_spec(provider, prompt)
       local launched = do_open_terminal(spec.command, {
         cwd = cwd,
+        env = options.env,
         input = spec.input,
         input_delay_ms = terminal_paste_delay_ms,
         on_exit = function()
@@ -290,6 +292,7 @@ function M.dispatch_prompt(name, prompt, opts)
   return dispatch_prompt(provider, prompt, {
     after_exit = options.after_exit,
     cwd = options.cwd,
+    env = options.env,
     refresh_module = "config.review.hunk_flow",
     title = options.title or string.format("review-%s.md", name),
     open_terminal = options.open_terminal,
@@ -313,6 +316,7 @@ function M.dispatch(name, item, opts)
   return dispatch_prompt(provider, prompt, {
     after_exit = options.after_exit,
     cwd = options.cwd or item.repo,
+    env = options.env,
     title = string.format("review-%s-%s.md", name, options.action or "revise"),
     open_terminal = options.open_terminal,
     message = string.format(
@@ -344,6 +348,7 @@ function M.dispatch_batch(name, items, opts)
   return dispatch_prompt(provider, prompt, {
     after_exit = options.after_exit,
     cwd = options.cwd or items[1].repo,
+    env = options.env,
     title = string.format(
       "review-%s-batch-%s-%s.md",
       name,

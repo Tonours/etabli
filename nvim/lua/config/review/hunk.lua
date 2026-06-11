@@ -209,6 +209,7 @@ local function attach_context_rail_refresh(bufnr, context)
     return
   end
 
+  local tab = vim.api.nvim_get_current_tabpage()
   local pending = false
   local last_refresh = 0
   local min_interval_ms = 1800
@@ -233,7 +234,7 @@ local function attach_context_rail_refresh(bufnr, context)
 
       last_refresh = vim.uv.now()
       pcall(function()
-        require("config.review.hunk_rail").refresh(context)
+        require("config.review.hunk_rail").refresh(context, { tab = tab })
       end)
     end, delay)
   end
