@@ -1,6 +1,6 @@
 # Etabli
 
-Personal dev environment for AI-assisted workflows across Neovim, Claude Code, Pi Coding Agent, Ghostty, and tmux.
+Personal dev environment for AI-assisted workflows across Codex, Neovim, Claude Code, Pi Coding Agent, Ghostty, and tmux.
 
 The repo is the source of truth for tracked config. `scripts/install.sh` links or bootstraps local files into the expected tool locations.
 
@@ -19,6 +19,7 @@ cd etabli
 - `nvim/` - Neovim config
 - `ghostty/` - Ghostty terminal config
 - `tmux.conf` - tmux config
+- `codex/` - Codex global instructions, workflow, prompts, automations, hooks, and personal skills
 - `pi/` - Pi config, extensions, skills, themes
 - `claude/` - Claude Code commands and local instructions
 - `workflow/` - canonical workflow contract and templates
@@ -43,6 +44,7 @@ Use `PLAN.md` as the only execution artifact. Implement only from `Status: READY
 fix-links check
 fix-links
 hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg
+bash tests/codex-organization-smoke.sh
 bun test pi/extensions/__tests__/
 ```
 
@@ -79,6 +81,18 @@ Claude:
 /review
 ```
 
+Codex:
+
+```bash
+scripts/audit-codex-organization
+scripts/deploy-codex --dry-run
+scripts/deploy-codex --apply
+```
+
+`scripts/deploy-codex` links tracked Codex files into `~/.codex`. It deploys
+`config.managed.toml` instead of replacing the live `config.toml`, because the
+live file can contain local trust state, provider configuration, and secrets.
+
 ## Project harness
 
 Deploy the Etabli agent harness into a new or existing project:
@@ -108,6 +122,7 @@ Existing files are never overwritten by default. Review conflicts manually, or r
 Validation:
 
 ```bash
+tests/codex-organization-smoke.sh
 tests/harness-smoke.sh
 tests/workflow-docs-smoke.sh
 tests/fix-links-smoke.sh
@@ -122,6 +137,8 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 
 ## Config notes
 
+- `codex/config.managed.toml` is a tracked non-secret baseline; live `~/.codex/config.toml` stays local.
+- `codex/hooks.json`, `codex/workflow/`, `codex/prompts/`, `codex/automations/`, `codex/thread-organization/`, and `codex/skills/` deploy through `scripts/deploy-codex`.
 - `pi/agent/settings.json` is a tracked bootstrap/default; live `~/.pi/agent/settings.json` stays local.
 - `pi/models.json` and `pi/settings.json` are linked into `~/.pi/`.
 - `ghostty/config` is linked to `~/.config/ghostty/config`.
@@ -135,6 +152,8 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `harness/templates/` - project harness templates
+- `docs/codex-organization.md` - tracked Codex surface and deployment rules
+- `docs/codex-thread-organization.md` - local thread organization routine
 - `docs/fable5-notes.md` - Fable 5 migration decisions
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes
