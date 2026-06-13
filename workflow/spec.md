@@ -22,6 +22,7 @@ Only `READY` authorizes implementation.
 
 - Read code directly before planning or editing.
 - Keep one execution artifact: `PLAN.md`.
+- Archive implemented plans in `docs/plan/` only after implementation and validation.
 - Do not create `REVIEW.md` or secondary mandatory planning docs.
 - For small safe tasks, use the simple `PLAN_TEMPLATE.md` shape.
 - For broad/risky work, use `PLAN_TEMPLATE_FULL.md`.
@@ -29,6 +30,7 @@ Only `READY` authorizes implementation.
 - Record exact validation commands and results before claiming completion.
 - Planning review updates `PLAN.md` in place.
 - Implementation follows plan steps in order.
+- Implementation commands archive the final implemented plan as a distilled memory record, not a raw `PLAN.md` copy.
 - If new facts invalidate the plan, update it before continuing.
 - Review checks correctness, regressions, safety, validation, and plan drift.
 - Prefer focused checks over full-suite ritual.
@@ -53,6 +55,7 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/commands/`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
+- Implemented plan archives: `docs/plan/` in harnessed projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in harnessed projects
 - Agent memory: `docs/agent-memory/` in harnessed projects (`workflow/memory.md`)
 - Review rubric: `workflow/review-rubric.md`
@@ -83,5 +86,6 @@ Claude:
 4. review plan to `READY` or `CHALLENGED`
 5. implement small steps
 6. run focused checks
-7. review diff
-8. commit once verified
+7. archive the implemented plan in `docs/plan/`
+8. review diff
+9. commit once verified

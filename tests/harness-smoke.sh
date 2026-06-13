@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 SCRIPT="$ROOT_DIR/scripts/deploy-harness"
+SCAFFOLD_SCRIPT="$ROOT_DIR/scripts/scaffold-project"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -51,9 +52,11 @@ assert_file "$NEW_PROJECT/AGENTS.md"
 assert_file "$NEW_PROJECT/CLAUDE.md"
 assert_file "$NEW_PROJECT/docs/agent-harness.md"
 assert_file "$NEW_PROJECT/docs/agent-memory/README.md"
+assert_file "$NEW_PROJECT/docs/plan/README.md"
 assert_file "$NEW_PROJECT/docs/claude-code-harness.md"
 assert_file "$NEW_PROJECT/docs/project-context.md"
 assert_file "$NEW_PROJECT/workflow/memory.md"
+assert_file "$NEW_PROJECT/workflow/plan-archive.md"
 assert_file "$NEW_PROJECT/workflow/spec.md"
 assert_file "$NEW_PROJECT/workflow/review-rubric.md"
 assert_file "$NEW_PROJECT/workflow/ticket-template.md"
@@ -63,9 +66,11 @@ assert_same "$ROOT_DIR/harness/templates/AGENTS.md" "$NEW_PROJECT/AGENTS.md"
 assert_same "$ROOT_DIR/harness/templates/CLAUDE.md" "$NEW_PROJECT/CLAUDE.md"
 assert_same "$ROOT_DIR/harness/templates/docs/agent-harness.md" "$NEW_PROJECT/docs/agent-harness.md"
 assert_same "$ROOT_DIR/harness/templates/docs/agent-memory.md" "$NEW_PROJECT/docs/agent-memory/README.md"
+assert_same "$ROOT_DIR/harness/templates/docs/plan.md" "$NEW_PROJECT/docs/plan/README.md"
 assert_same "$ROOT_DIR/harness/templates/docs/claude-code-harness.md" "$NEW_PROJECT/docs/claude-code-harness.md"
 assert_same "$ROOT_DIR/harness/templates/docs/project-context.md" "$NEW_PROJECT/docs/project-context.md"
 assert_same "$ROOT_DIR/workflow/memory.md" "$NEW_PROJECT/workflow/memory.md"
+assert_same "$ROOT_DIR/workflow/plan-archive.md" "$NEW_PROJECT/workflow/plan-archive.md"
 assert_same "$ROOT_DIR/workflow/spec.md" "$NEW_PROJECT/workflow/spec.md"
 assert_same "$ROOT_DIR/workflow/review-rubric.md" "$NEW_PROJECT/workflow/review-rubric.md"
 assert_same "$ROOT_DIR/workflow/ticket-template.md" "$NEW_PROJECT/workflow/ticket-template.md"
@@ -73,15 +78,42 @@ assert_same "$ROOT_DIR/PLAN_TEMPLATE.md" "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_same "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
 assert_contains "$NEW_PROJECT/AGENTS.md" "Treat this file as a map"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/agent-memory/"
+assert_contains "$NEW_PROJECT/AGENTS.md" "docs/plan/"
 assert_contains "$NEW_PROJECT/CLAUDE.md" "Claude Code-specific adapter"
 assert_contains "$NEW_PROJECT/CLAUDE.md" "docs/claude-code-harness.md"
 assert_contains "$NEW_PROJECT/docs/agent-harness.md" "Pi Coding Agent"
 assert_contains "$NEW_PROJECT/docs/agent-harness.md" "Claude Code"
 assert_contains "$NEW_PROJECT/docs/claude-code-harness.md" "planner -> builder -> evaluator"
 assert_contains "$NEW_PROJECT/docs/project-context.md" "Smallest useful check"
+assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Outcome"
+assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Stop conditions"
+assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "Keep project-specific scope"
 assert_contains "$NEW_PROJECT/.gitignore" "PLAN.md"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
+
+SCAFFOLD_PROJECT="$TMP_DIR/scaffold-project"
+"$SCAFFOLD_SCRIPT" "$SCAFFOLD_PROJECT" --new >/dev/null
+assert_file "$SCAFFOLD_PROJECT/AGENTS.md"
+assert_file "$SCAFFOLD_PROJECT/docs/plan/README.md"
+
+if "$SCAFFOLD_SCRIPT" "$SCAFFOLD_PROJECT" --new >/dev/null 2>&1; then
+  printf 'expected scaffold --new to fail for a non-empty target\n' >&2
+  exit 1
+fi
+
+CONVERT_PROJECT="$TMP_DIR/convert-project"
+mkdir -p "$CONVERT_PROJECT"
+printf 'existing project\n' > "$CONVERT_PROJECT/README.md"
+"$SCAFFOLD_SCRIPT" "$CONVERT_PROJECT" --convert >/dev/null
+assert_file "$CONVERT_PROJECT/AGENTS.md"
+assert_contains "$CONVERT_PROJECT/README.md" "existing project"
+
+MISSING_CONVERT_PROJECT="$TMP_DIR/missing-convert-project"
+if "$SCAFFOLD_SCRIPT" "$MISSING_CONVERT_PROJECT" --convert >/dev/null 2>&1; then
+  printf 'expected scaffold --convert to fail for a missing target\n' >&2
+  exit 1
+fi
 
 DRY_PROJECT="$TMP_DIR/dry-project"
 "$SCRIPT" "$DRY_PROJECT" --dry-run >/dev/null

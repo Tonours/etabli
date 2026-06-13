@@ -852,6 +852,26 @@ if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
     print_success "Pi AGENTS.md linked"
 fi
 
+# Shared workflow sources used by Pi skills as fallback when a target project has
+# not deployed the full harness yet.
+if [ -d "$REPO_DIR/workflow" ]; then
+    if [ -e ~/.pi/agent/workflow ] && [ ! -L ~/.pi/agent/workflow ]; then
+        backup_path_move "$HOME/.pi/agent/workflow"
+    fi
+    ln -sfn "$REPO_DIR/workflow" ~/.pi/agent/workflow
+    print_success "Pi workflow sources linked"
+fi
+
+for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
+    if [ -f "$REPO_DIR/$template_file" ]; then
+        if [ -e "$HOME/.pi/agent/$template_file" ] && [ ! -L "$HOME/.pi/agent/$template_file" ]; then
+            backup_path_move "$HOME/.pi/agent/$template_file"
+        fi
+        ln -sf "$REPO_DIR/$template_file" "$HOME/.pi/agent/$template_file"
+        print_success "Pi $template_file linked"
+    fi
+done
+
 # models.json (backup existing if not a symlink)
 if [ -f "$REPO_DIR/pi/models.json" ]; then
     if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then
@@ -952,10 +972,23 @@ if [ -f "$REPO_DIR/claude/CLAUDE.md" ]; then
     print_success "Claude CLAUDE.md linked"
 fi
 
-if [ -f "$REPO_DIR/PLAN_TEMPLATE.md" ]; then
-    ln -sf "$REPO_DIR/PLAN_TEMPLATE.md" ~/.claude/PLAN_TEMPLATE.md
-    print_success "Claude PLAN_TEMPLATE.md linked"
+if [ -d "$REPO_DIR/workflow" ]; then
+    if [ -e ~/.claude/workflow ] && [ ! -L ~/.claude/workflow ]; then
+        backup_path_move "$HOME/.claude/workflow"
+    fi
+    ln -sfn "$REPO_DIR/workflow" ~/.claude/workflow
+    print_success "Claude workflow sources linked"
 fi
+
+for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
+    if [ -f "$REPO_DIR/$template_file" ]; then
+        if [ -e "$HOME/.claude/$template_file" ] && [ ! -L "$HOME/.claude/$template_file" ]; then
+            backup_path_move "$HOME/.claude/$template_file"
+        fi
+        ln -sf "$REPO_DIR/$template_file" "$HOME/.claude/$template_file"
+        print_success "Claude $template_file linked"
+    fi
+done
 
 for command_file in "$REPO_DIR/claude/commands"/*.md; do
     if [ -f "$command_file" ]; then
@@ -1025,6 +1058,7 @@ install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-harness" || true
+install_script "scaffold-project" || true
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do

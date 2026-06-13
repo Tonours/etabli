@@ -9,6 +9,7 @@ Claude Code-specific adapter for the shared project harness.
 - Ticket template: `workflow/ticket-template.md`
 - Project context: `docs/project-context.md`
 - Durable lessons from past runs: `docs/agent-memory/`
+- Implemented plan archives: `docs/plan/`
 - Local execution artifact: `PLAN.md`
 - Long-running Claude Code loop: `docs/claude-code-harness.md`
 
@@ -16,6 +17,7 @@ Claude Code-specific adapter for the shared project harness.
 - Canonical workflow: `workflow/spec.md`
 - Use `PLAN.md` as the only execution artifact.
 - Implement only from `Status: READY`.
+- Archive implemented and validated plans in `docs/plan/`; never archive drafts, challenged plans, or abandoned ready plans.
 - Read `docs/agent-memory/` before non-trivial work; write a lesson when a correction or confirmed approach will matter again.
 - Separate observed facts from assumptions before choosing an approach.
 - Before reporting progress or completion, audit each claim against a tool result from this session. Record exact validation commands and outcomes before claiming completion.
