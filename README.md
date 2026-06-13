@@ -144,7 +144,7 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 ## Config notes
 
 - `codex/config.managed.toml` is a tracked non-secret baseline; live `~/.codex/config.toml` stays local.
-- `codex/hooks.json`, `codex/workflow/`, `codex/prompts/`, `codex/automations/`, `codex/thread-organization/`, and `codex/skills/` deploy through `scripts/deploy-codex`.
+- `codex/hooks.json`, `codex/workflow/`, `codex/prompts/`, `codex/automations/`, and `codex/skills/` deploy through `scripts/deploy-codex`.
 - `pi/agent/settings.json` is a tracked bootstrap/default; live `~/.pi/agent/settings.json` stays local.
 - `pi/models.json` and `pi/settings.json` are linked into `~/.pi/`.
 - `ghostty/config` is linked to `~/.config/ghostty/config`.
@@ -160,7 +160,6 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `harness/templates/` - project harness templates
 - `docs/codex-organization.md` - tracked Codex surface and deployment rules
-- `docs/codex-thread-organization.md` - local thread organization routine
 - `docs/fable5-notes.md` - Fable 5 migration decisions
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes

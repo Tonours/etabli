@@ -10,7 +10,6 @@ Etabli now tracks the durable Codex organization surface under `codex/`.
 - `codex/workflow/`: dynamic workflow triggers and ticket template.
 - `codex/prompts/`: reusable operational prompts.
 - `codex/automations/`: sanitized automation templates and durable conventions.
-- `codex/thread-organization/`: source files and docs for local thread organization.
 - `codex/skills/`: personal maintained skills.
 
 ## Deployment
@@ -52,7 +51,6 @@ These stay outside Git:
 - `~/.codex/*.sqlite*`
 - `~/.codex/sessions/`, `archived_sessions/`, `shell_snapshots/`, `log/`
 - `~/.codex/plugins/` and remote plugin caches
-- `~/.codex/thread-organization/generated/`, backups, index files, and last-run JSON
 - raw automation memories and live automation definitions with local paths
 
 The repository tracks conventions and reusable source, not live Codex state.
