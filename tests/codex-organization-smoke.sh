@@ -58,18 +58,14 @@ assert_symlink "$CODEX_HOME_DIR/config.managed.toml"
 assert_symlink "$CODEX_HOME_DIR/hooks.json"
 assert_file "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md"
 assert_file "$CODEX_HOME_DIR/workflow/ticket-template.md"
+assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Start here"
+assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Stop conditions"
 assert_file "$CODEX_HOME_DIR/prompts/opsx-apply.md"
-assert_file "$CODEX_HOME_DIR/thread-organization/build_thread_organization.py"
-assert_file "$CODEX_HOME_DIR/thread-organization/run_hourly_thread_organization.sh"
 assert_file "$CODEX_HOME_DIR/automations/templates/repo-hygiene.template.toml"
 assert_file "$CODEX_HOME_DIR/automations/templates/thread-checkpoint.template.toml"
 assert_file "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md"
 assert_contains "$CODEX_HOME_DIR/hooks.json" '$HOME/.codex/herdr-agent-state.sh'
-assert_not_exists "$CODEX_HOME_DIR/thread-organization/generated"
-assert_not_exists "$CODEX_HOME_DIR/thread-organization/backups"
-assert_not_exists "$CODEX_HOME_DIR/thread-organization/thread-index.md"
-assert_not_exists "$CODEX_HOME_DIR/thread-organization/queues.md"
-assert_not_exists "$CODEX_HOME_DIR/thread-organization/cleanup-candidates.md"
+assert_not_exists "$CODEX_HOME_DIR/thread-organization"
 assert_not_exists "$CODEX_HOME_DIR/skills/cad-explorer/scripts/explorer/node_modules"
 
 "$DEPLOY_SCRIPT" --apply --codex-home "$CODEX_HOME_DIR" >/dev/null
@@ -92,7 +88,5 @@ if ! ls "$CONFLICT_HOME"/AGENTS.md.bak.* >/dev/null 2>&1; then
   printf 'expected AGENTS.md backup after forced deploy\n' >&2
   exit 1
 fi
-
-assert_contains "$ROOT_DIR/docs/codex-thread-organization.md" "exact thread ID and raw title are not tracked"
 
 printf 'codex organization smoke test: ok\n'

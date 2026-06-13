@@ -26,23 +26,17 @@ require_file "codex/config.managed.toml"
 require_file "codex/hooks.json"
 require_file "codex/workflow/dynamic-workflow-triggers.md"
 require_file "codex/workflow/ticket-template.md"
-require_file "codex/thread-organization/build_thread_organization.py"
-require_file "codex/thread-organization/run_hourly_thread_organization.sh"
 require_file "codex/automations/README.md"
 require_file "codex/automations/templates/repo-hygiene.template.toml"
 require_file "codex/automations/templates/thread-checkpoint.template.toml"
 require_file "codex/skills/README.md"
 require_file "docs/codex-organization.md"
-require_file "docs/codex-thread-organization.md"
 
 if [ ! -d "$CODEX_DIR" ]; then
   fail "missing codex directory"
 fi
 
 for path in \
-  "$CODEX_DIR/thread-organization/generated" \
-  "$CODEX_DIR/thread-organization/backups" \
-  "$CODEX_DIR/thread-organization/__pycache__" \
   "$CODEX_DIR/skills/.system" \
   "$CODEX_DIR/plugins" \
   "$CODEX_DIR/sessions" \
@@ -103,13 +97,13 @@ if grep -RIE -n 'sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}' "$CODEX_DIR"
 fi
 rm -f /tmp/etabli-codex-audit.$$
 
-if grep -RIE -n '/Users/[^[:space:]`"'\''<>]+|/Volumes/[^[:space:]`"'\''<>]+' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" "$REPO_DIR/docs/codex-thread-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+if grep -RIE -n '/Users/[^[:space:]`"'\''<>]+|/Volumes/[^[:space:]`"'\''<>]+' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
   sed 's/^/PRIVATE /' /tmp/etabli-codex-audit.$$ >&2
   fail "local absolute path in tracked Codex organization"
 fi
 rm -f /tmp/etabli-codex-audit.$$
 
-if grep -RIE -n '019e[0-9a-f-]{31,}|ssh-ed25519[[:space:]]+[A-Za-z0-9+/=]{32,}' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" "$REPO_DIR/docs/codex-thread-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
+if grep -RIE -n '019e[0-9a-f-]{31,}|ssh-ed25519[[:space:]]+[A-Za-z0-9+/=]{32,}' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
   sed 's/^/PRIVATE /' /tmp/etabli-codex-audit.$$ >&2
   fail "thread identifier or public key in tracked Codex organization"
 fi
@@ -129,10 +123,6 @@ fi
 
 if ! grep -Fq '$HOME/.codex/herdr-agent-state.sh' "$CODEX_DIR/hooks.json"; then
   fail "hooks.json must reference the HOME-relative hook target"
-fi
-
-if ! grep -Fq 'exact thread ID and raw title are not tracked' "$REPO_DIR/docs/codex-thread-organization.md"; then
-  fail "thread organization docs must state that live thread identifiers stay local"
 fi
 
 if [ "$ERRORS" -gt 0 ]; then

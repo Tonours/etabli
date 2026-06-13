@@ -135,7 +135,6 @@ codex_files() {
     ! -path '*/.venv/*' \
     ! -path '*/__pycache__/*' \
     ! -path '*/generated/*' \
-    ! -path '*/thread-organization/backups/*' \
     -print | sort
 }
 
