@@ -12,6 +12,7 @@
 - Ticket template: `workflow/ticket-template.md`
 - Project context: `docs/project-context.md`
 - Durable lessons from past runs: `docs/agent-memory/`
+- Implemented plan archives: `docs/plan/`
 - Local execution artifact: `PLAN.md`
 - Long-lived project knowledge belongs in tracked docs or code, not chat history.
 
@@ -21,6 +22,7 @@
 - Separate observed facts from assumptions before choosing an approach.
 - Keep one execution artifact: `PLAN.md`.
 - Implement only when `PLAN.md` is `Status: READY`.
+- Archive implemented and validated plans in `docs/plan/`; never archive drafts, challenged plans, or abandoned ready plans.
 - Use focused checks that match the changed behavior.
 - Before reporting progress or completion, audit each claim against a tool result from this session. Record exact validation commands and outcomes before claiming completion.
 - When the user explicitly asks for assessment, review, diagnosis, or thinks out loud without asking for a fix, report findings and stop. Otherwise, fix the problem once you have enough evidence.

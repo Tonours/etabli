@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+DEPLOY_HARNESS="$SCRIPT_DIR/deploy-harness"
+
+MODE="auto"
+DRY_RUN=0
+FORCE=0
+TARGET_INPUT="."
+TARGET_SET=0
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [target-dir] [--new|--convert] [--dry-run] [--force]
+
+Scaffold a project with the Etabli agent harness.
+
+Modes:
+  --new       Target must be missing or empty
+  --convert   Target must already exist as a directory
+  auto        Missing/empty targets are scaffolded; existing non-empty targets are converted
+
+Options:
+  --dry-run   Show planned writes without touching the target
+  --force     Backup and overwrite conflicting harness files
+  -h, --help  Show this help
+
+Examples:
+  scaffold-project ~/code/new-project --new
+  scaffold-project . --convert --dry-run
+  scaffold-project . --convert --force
+EOF
+}
+
+is_empty_dir() {
+  [ -d "$1" ] || return 1
+  [ -z "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --new)
+      MODE="new"
+      ;;
+    --convert)
+      MODE="convert"
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    --force)
+      FORCE=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [ "$TARGET_SET" -eq 1 ]; then
+        printf 'multiple target directories provided: %s\n' "$1" >&2
+        usage >&2
+        exit 2
+      fi
+      TARGET_INPUT="$1"
+      TARGET_SET=1
+      ;;
+  esac
+  shift
+done
+
+if [ ! -x "$DEPLOY_HARNESS" ]; then
+  printf 'missing deploy-harness helper: %s\n' "$DEPLOY_HARNESS" >&2
+  exit 1
+fi
+
+case "$MODE" in
+  new)
+    if [ -e "$TARGET_INPUT" ] && { [ ! -d "$TARGET_INPUT" ] || ! is_empty_dir "$TARGET_INPUT"; }; then
+      printf 'new project target must be missing or empty: %s\n' "$TARGET_INPUT" >&2
+      exit 1
+    fi
+    printf 'Mode: new project scaffold\n'
+    ;;
+  convert)
+    if [ ! -d "$TARGET_INPUT" ]; then
+      printf 'convert target must exist as a directory: %s\n' "$TARGET_INPUT" >&2
+      exit 1
+    fi
+    printf 'Mode: existing project conversion\n'
+    ;;
+  auto)
+    if [ -d "$TARGET_INPUT" ] && ! is_empty_dir "$TARGET_INPUT"; then
+      printf 'Mode: existing project conversion\n'
+    else
+      printf 'Mode: new project scaffold\n'
+    fi
+    ;;
+  *)
+    printf 'unexpected mode: %s\n' "$MODE" >&2
+    exit 1
+    ;;
+esac
+
+args=("$TARGET_INPUT")
+[ "$DRY_RUN" -eq 1 ] && args+=("--dry-run")
+[ "$FORCE" -eq 1 ] && args+=("--force")
+
+exec "$DEPLOY_HARNESS" "${args[@]}"

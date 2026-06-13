@@ -4,6 +4,7 @@
 - Subject:
 - Status: DRAFT | CHALLENGED | READY
 - Last revised:
+- Archive: pending until implemented and validated
 
 ## Goal
 
@@ -36,6 +37,9 @@
 
 ## Risks
 - None / ...
+
+## Decision Log
+- YYYY-MM-DD:
 
 ## Open Questions
 - None / ...

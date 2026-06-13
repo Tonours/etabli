@@ -9,6 +9,7 @@ Keep it as a restartable working contract, not a research essay.
 - Status: DRAFT | CHALLENGED | READY
 - Source:
 - Last revised:
+- Archive: pending until implemented and validated
 
 ## Goal
 Describe in 1-3 sentences what will change and why it matters.

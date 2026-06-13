@@ -54,7 +54,13 @@ assert_link "$TMP_HOME/.tmux.conf" "$ROOT_DIR/tmux.conf"
 assert_link "$TMP_HOME/.config/ghostty/config" "$ROOT_DIR/ghostty/config"
 assert_link "$TMP_HOME/.pi/agent/skills/review" "$ROOT_DIR/pi/skills/review"
 assert_link "$TMP_HOME/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
+assert_link "$TMP_HOME/.pi/agent/workflow" "$ROOT_DIR/workflow"
+assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
+assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$TMP_HOME/.claude/commands/review.md" "$ROOT_DIR/claude/commands/review.md"
+assert_link "$TMP_HOME/.claude/workflow" "$ROOT_DIR/workflow"
+assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
+assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_not_exists "$TMP_HOME/.claude/skills/grill-me"
 
 mkdir -p "$TMP_HOME/.pi/extensions"
@@ -94,6 +100,7 @@ fi
 
 assert_contains "$MISSING_SOURCE_OUTPUT" "source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "script deploy-harness source missing"
+assert_contains "$MISSING_SOURCE_OUTPUT" "script scaffold-project source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "unresolved"
 assert_not_exists "$FAKE_HOME/.config/nvim"
 

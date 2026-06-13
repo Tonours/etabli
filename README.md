@@ -37,6 +37,7 @@ learn -> plan -> implement -> review -> validate
 ```
 
 Use `PLAN.md` as the only execution artifact. Implement only from `Status: READY`.
+Implemented and validated plans are archived as memory records in `docs/plan/`.
 
 ## Useful commands
 
@@ -98,7 +99,8 @@ live file can contain local trust state, provider configuration, and secrets.
 Deploy the Etabli agent harness into a new or existing project:
 
 ```bash
-deploy-harness ~/code/my-project
+scaffold-project ~/code/my-project --new
+scaffold-project . --convert --dry-run
 deploy-harness . --dry-run
 ```
 
@@ -107,6 +109,7 @@ The harness installs:
 - `AGENTS.md`
 - `CLAUDE.md`
 - `workflow/memory.md`
+- `workflow/plan-archive.md`
 - `workflow/spec.md`
 - `workflow/review-rubric.md`
 - `workflow/ticket-template.md`
@@ -115,9 +118,12 @@ The harness installs:
 - `docs/agent-harness.md`
 - `docs/claude-code-harness.md`
 - `docs/agent-memory/README.md`
+- `docs/plan/README.md`
 - `docs/project-context.md`
 
 Existing files are never overwritten by default. Review conflicts manually, or rerun with `--force` to create timestamped backups before replacing files.
+
+`scaffold-project` is the user-facing command. It wraps `deploy-harness` with explicit `--new` and `--convert` modes for new projects and existing project conversions.
 
 Validation:
 
@@ -148,6 +154,7 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 
 - `workflow/spec.md` - workflow contract
 - `workflow/memory.md` - persistent agent memory convention
+- `workflow/plan-archive.md` - implemented plan archive convention
 - `workflow/review-rubric.md` - review output and priorities
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
