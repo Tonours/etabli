@@ -42,6 +42,8 @@ describe("Pi settings consistency", () => {
       "rtk.ts",
       "filter-output.ts",
       "block-google-providers.ts",
+      "workflow-router.ts",
+      "tasks-till-done.ts",
     ]);
   });
 
@@ -91,6 +93,10 @@ describe("Pi settings consistency", () => {
       skills: [],
       prompts: [],
       themes: [],
+    });
+
+    expect(packageBySource("npm:@tintinweb/pi-tasks")).toMatchObject({
+      source: "npm:@tintinweb/pi-tasks",
     });
   });
 });

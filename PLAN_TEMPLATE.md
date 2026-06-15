@@ -8,6 +8,12 @@
 
 ## Goal
 
+## Workflow Contract
+- Route:
+- Role:
+- Stop condition:
+- Required evidence:
+
 ## Acceptance Criteria
 -
 

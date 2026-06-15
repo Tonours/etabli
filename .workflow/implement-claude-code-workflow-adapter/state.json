@@ -1,0 +1,87 @@
+{
+  "title": "Implement Claude Code workflow adapter",
+  "slug": "implement-claude-code-workflow-adapter",
+  "created_at": "2026-06-14T15:09:32+00:00",
+  "status": "implemented",
+  "approval": {
+    "required": false,
+    "granted": true,
+    "notes": "Local repo edits, local symlink fixes, and bounded smoke tests only. Live ~/.claude/settings.json was not edited."
+  },
+  "packets": [
+    {
+      "id": "packet-1",
+      "title": "Align Claude commands",
+      "status": "accepted",
+      "files": [
+        "claude/commands/plan-create.md",
+        "claude/commands/plan-loop.md",
+        "claude/commands/plan-implement.md",
+        "claude/commands/implement.md",
+        "claude/commands/review.md"
+      ]
+    },
+    {
+      "id": "packet-2",
+      "title": "Add verify-workflow command",
+      "status": "accepted",
+      "files": [
+        "claude/commands/verify-workflow.md"
+      ]
+    },
+    {
+      "id": "packet-3",
+      "title": "Add Claude workflow hooks",
+      "status": "accepted",
+      "files": [
+        "claude/hooks/workflow-router-lib.mjs",
+        "claude/hooks/workflow-router.mjs",
+        "claude/hooks/plan-ready-guard.mjs",
+        "claude/settings.workflow-hooks.json",
+        "tests/claude-hooks-smoke.sh",
+        "tests/fixtures/claude-hooks/"
+      ]
+    },
+    {
+      "id": "packet-4",
+      "title": "Update install, symlink, docs, and smokes",
+      "status": "accepted",
+      "files": [
+        "scripts/install.sh",
+        "scripts/check-fix-symlinks.sh",
+        "README.md",
+        "claude/README.md",
+        "claude/CLAUDE.md",
+        "workflow/spec.md",
+        "workflow-scaffold/templates/docs/claude-code-workflow.md",
+        "tests/workflow-docs-smoke.sh"
+      ]
+    },
+    {
+      "id": "packet-5",
+      "title": "Final validation",
+      "status": "accepted",
+      "files": [
+        ".workflow/implement-claude-code-workflow-adapter/final-report.md"
+      ]
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "checks": [
+      "bash tests/claude-hooks-smoke.sh",
+      "bash tests/workflow-docs-smoke.sh",
+      "bash tests/fix-links-smoke.sh",
+      "bash tests/install-smoke.sh",
+      "bash tests/workflow-scaffold-smoke.sh",
+      "RUN_AGENT_CLI_SMOKE_SELF_TEST=1 bash tests/workflow-cli-smoke.sh",
+      "RUN_AGENT_CLI_SMOKE=1 bash tests/workflow-cli-smoke.sh",
+      "RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 bash tests/workflow-cli-smoke.sh",
+      "bun test pi/extensions/__tests__/",
+      "bash scripts/check-fix-symlinks.sh --verbose",
+      "claude --version",
+      "git diff --check",
+      "rg -n \"\\bharness\\b|\\bHarness\\b\" docs workflow claude scripts tests README.md PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md .workflow/implement-claude-code-workflow-adapter"
+    ]
+  }
+}

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DEPLOY_HARNESS="$SCRIPT_DIR/deploy-harness"
+DEPLOY_WORKFLOW="$SCRIPT_DIR/deploy-workflow"
 
 MODE="auto"
 DRY_RUN=0
@@ -14,7 +14,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [target-dir] [--new|--convert] [--dry-run] [--force]
 
-Scaffold a project with the Etabli agent harness.
+Scaffold a project with the Etabli agent workflow.
 
 Modes:
   --new       Target must be missing or empty
@@ -23,7 +23,7 @@ Modes:
 
 Options:
   --dry-run   Show planned writes without touching the target
-  --force     Backup and overwrite conflicting harness files
+  --force     Backup and overwrite conflicting workflow scaffold files
   -h, --help  Show this help
 
 Examples:
@@ -74,8 +74,8 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-if [ ! -x "$DEPLOY_HARNESS" ]; then
-  printf 'missing deploy-harness helper: %s\n' "$DEPLOY_HARNESS" >&2
+if [ ! -x "$DEPLOY_WORKFLOW" ]; then
+  printf 'missing deploy-workflow helper: %s\n' "$DEPLOY_WORKFLOW" >&2
   exit 1
 fi
 
@@ -111,4 +111,4 @@ args=("$TARGET_INPUT")
 [ "$DRY_RUN" -eq 1 ] && args+=("--dry-run")
 [ "$FORCE" -eq 1 ] && args+=("--force")
 
-exec "$DEPLOY_HARNESS" "${args[@]}"
+exec "$DEPLOY_WORKFLOW" "${args[@]}"

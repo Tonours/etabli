@@ -14,6 +14,15 @@ Keep it as a restartable working contract, not a research essay.
 ## Goal
 Describe in 1-3 sentences what will change and why it matters.
 
+## Workflow Contract
+- Router decision:
+- Planner output:
+- Challenger focus:
+- Implementer boundaries:
+- Verifier checks:
+- Reporter artifact:
+- Stop conditions:
+
 ## Acceptance Criteria
 - [ ] ...
 

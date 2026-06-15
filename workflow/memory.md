@@ -1,6 +1,6 @@
 # Agent Memory
 
-Canonical convention for durable agent lessons in harnessed projects.
+Canonical convention for durable agent lessons in projects using the workflow scaffold.
 
 ## Location
 
@@ -22,7 +22,7 @@ Do not duplicate `PLAN.md`, `docs/project-context.md`, README content, or transi
 
 ## Bootstrap
 
-Use this prompt when adding memory to an existing harnessed project:
+Use this prompt when adding memory to an existing project using the workflow scaffold:
 
 ```text
 Reflect on past sessions/handoffs in docs/agent-runs/, extract durable lessons into docs/agent-memory/, one per file.

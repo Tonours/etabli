@@ -70,6 +70,15 @@ Pi:
 /skill:plan-implement <task>
 /skill:implement
 /skill:review
+/skill:verify
+/skill:bug-check
+/skill:linear-ticket-create
+/skill:linear-work
+/skill:pr-review
+/skill:pr-qa
+/skill:sec-pr
+/skill:ci-fix
+/skill:github-pr-review
 ```
 
 Claude:
@@ -80,6 +89,15 @@ Claude:
 /plan-implement
 /implement
 /review
+/verify-workflow
+/bug-check
+/linear-ticket-create
+/linear-work
+/pr-review
+/pr-qa
+/sec-pr
+/ci-fix
+/github-pr-review
 ```
 
 Codex:
@@ -94,17 +112,17 @@ scripts/deploy-codex --apply
 `config.managed.toml` instead of replacing the live `config.toml`, because the
 live file can contain local trust state, provider configuration, and secrets.
 
-## Project harness
+## Project workflow scaffold
 
-Deploy the Etabli agent harness into a new or existing project:
+Deploy the Etabli workflow scaffold into a new or existing project:
 
 ```bash
 scaffold-project ~/code/my-project --new
 scaffold-project . --convert --dry-run
-deploy-harness . --dry-run
+deploy-workflow . --dry-run
 ```
 
-The harness installs:
+The workflow scaffold installs:
 
 - `AGENTS.md`
 - `CLAUDE.md`
@@ -113,30 +131,32 @@ The harness installs:
 - `workflow/spec.md`
 - `workflow/review-rubric.md`
 - `workflow/ticket-template.md`
+- `workflow/linear-ticket-template.md`
 - `PLAN_TEMPLATE.md`
 - `PLAN_TEMPLATE_FULL.md`
-- `docs/agent-harness.md`
-- `docs/claude-code-harness.md`
+- `docs/agent-workflow.md`
+- `docs/claude-code-workflow.md`
 - `docs/agent-memory/README.md`
 - `docs/plan/README.md`
 - `docs/project-context.md`
 
 Existing files are never overwritten by default. Review conflicts manually, or rerun with `--force` to create timestamped backups before replacing files.
 
-`scaffold-project` is the user-facing command. It wraps `deploy-harness` with explicit `--new` and `--convert` modes for new projects and existing project conversions.
+`scaffold-project` is the user-facing command. It wraps `deploy-workflow` with explicit `--new` and `--convert` modes for new projects and existing project conversions.
 
 Validation:
 
 ```bash
 tests/codex-organization-smoke.sh
-tests/harness-smoke.sh
+tests/workflow-scaffold-smoke.sh
 tests/workflow-docs-smoke.sh
+tests/claude-hooks-smoke.sh
 tests/fix-links-smoke.sh
 tests/install-smoke.sh
 tests/nvim-smoke.sh
-RUN_AGENT_CLI_SMOKE_SELF_TEST=1 tests/harness-cli-smoke.sh
-RUN_AGENT_CLI_SMOKE=1 tests/harness-cli-smoke.sh
-RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 tests/harness-cli-smoke.sh
+RUN_AGENT_CLI_SMOKE_SELF_TEST=1 tests/workflow-cli-smoke.sh
+RUN_AGENT_CLI_SMOKE=1 tests/workflow-cli-smoke.sh
+RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 tests/workflow-cli-smoke.sh
 ```
 
 The CLI smoke test runs real Pi prompts in a temporary project and verifies the Claude Code binary with `claude --version`. Claude Code `--print` is behind `RUN_CLAUDE_PRINT_SMOKE=1` because Anthropic treats `--print` / `-p` as non-interactive Agent SDK usage.
@@ -158,7 +178,7 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 - `workflow/review-rubric.md` - review output and priorities
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
-- `harness/templates/` - project harness templates
+- `workflow-scaffold/templates/` - project workflow scaffold templates
 - `docs/codex-organization.md` - tracked Codex surface and deployment rules
 - `docs/fable5-notes.md` - Fable 5 migration decisions
 - `docs/pi-cheatsheet.md` - Pi usage reminders

@@ -44,6 +44,10 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
 - Record exact validation commands and outcomes before claiming completion.
 - Preserve unrelated user changes.
 - Do not create `REVIEW.md`.
+- Use `/verify-workflow` for workflow evidence checks. Do not shadow Claude
+  Code's native `/verify`.
+- Use `/goal` for long-running "keep going until done" work with a measurable
+  condition and explicit validation evidence.
 
 ## Code
 - YAGNI, KISS, DRY, in that order. Simple beats clever. Obvious beats elegant.

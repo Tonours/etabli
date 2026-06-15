@@ -42,6 +42,12 @@ Embedded fallback shape:
 
 ## Goal
 
+## Workflow Contract
+- Route:
+- Role:
+- Stop condition:
+- Required evidence:
+
 ## Acceptance Criteria
 -
 
@@ -86,8 +92,13 @@ Embedded fallback shape:
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad/risky work.
 4. Set `Status: DRAFT`.
-5. Fill goal, scope, steps, checks, risks, and open questions.
-6. Ask only narrow blocking questions.
-7. Stop without implementation.
+5. Fill goal, workflow contract, scope, steps, checks, risks, and open questions.
+6. For non-trivial plans, fill `Workflow Contract`:
+   - `Route`: selected workflow route from `workflow/spec.md`.
+   - `Role`: planner, challenger, reviewer, verifier, implementer, reporter, or a bounded combination.
+   - `Stop condition`: exact condition that ends the current workflow.
+   - `Required evidence`: command, artifact, source, or manual check needed before completion.
+7. Ask only narrow blocking questions.
+8. Stop without implementation.
 
 Do not create or update `docs/plan/` archives during planning.
