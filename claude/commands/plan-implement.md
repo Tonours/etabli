@@ -36,10 +36,15 @@ Before saying a workflow source is missing, resolve sources in this order:
 2. If not, read existing `PLAN.md`.
 3. Never implement from `DRAFT` or `CHALLENGED`.
 4. If the plan is not `READY`, stop with blockers and next action.
-5. If `READY`, implement plan steps in order with minimal scope-bound changes.
-6. If facts invalidate the plan, update `PLAN.md` before continuing.
-7. Run focused checks.
-8. If implementation and checks completed, archive the final plan in `docs/plan/YYYYMMDD-short-slug.md` using `workflow/plan-archive.md`; distill it as memory, do not raw-copy `PLAN.md`.
-9. Return files changed, validation, risks, archive path, and final status.
+5. Before editing, confirm the plan has concrete checks or required evidence. If missing, stop with `CHALLENGED` and explain the missing evidence.
+6. If the plan is `READY`, implement its steps in order.
+7. Keep changes minimal and scope-bound.
+8. If facts materially invalidate the route, scope, checks, or required evidence, stop as `plan drift detected`; update `PLAN.md` with observed facts and do not continue implementation until the plan is refreshed to `READY`.
+9. Run focused checks from the plan.
+10. If implementation and checks completed, archive the final plan in `docs/plan/YYYYMMDD-short-slug.md` using `workflow/plan-archive.md`; distill it as memory, do not raw-copy `PLAN.md`.
+11. After the archive is written and validation is complete, delete only the current workspace root `PLAN.md`. Do not delete archived plans, fallback templates, or any nested `PLAN.md`. If archiving was skipped or failed, keep `PLAN.md` and report why.
+12. Return files changed, validation, risks, archive path, deleted `PLAN.md` status, remaining risks, next action if any, and final status.
 
-Do not ask for confirmation once `READY`. Do not create `REVIEW.md`.
+Rules:
+- Do not ask for confirmation once the plan is `READY`.
+- Do not create `REVIEW.md`.

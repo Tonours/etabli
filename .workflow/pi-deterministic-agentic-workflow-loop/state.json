@@ -1,0 +1,44 @@
+{
+  "title": "Pi deterministic agentic workflow loop",
+  "slug": "pi-deterministic-agentic-workflow-loop",
+  "created_at": "2026-06-13T23:12:02+00:00",
+  "status": "verified",
+  "approval": {
+    "required": null,
+    "granted": null,
+    "notes": ""
+  },
+  "packets": [
+    {
+      "id": "local-inventory",
+      "status": "completed",
+      "result": ".workflow/pi-deterministic-agentic-workflow-loop/results/local-inventory.md"
+    },
+    {
+      "id": "web-research",
+      "status": "completed",
+      "result": ".workflow/pi-deterministic-agentic-workflow-loop/results/research.md"
+    },
+    {
+      "id": "integration",
+      "status": "completed",
+      "result": ".workflow/pi-deterministic-agentic-workflow-loop/results/integration.md"
+    },
+    {
+      "id": "plan-artifact",
+      "status": "completed",
+      "result": "docs/pi-agentic-workflow-loop-plan.md"
+    }
+  ],
+  "verification": {
+    "status": "completed",
+    "checks": [
+      "local inventory inspected",
+      "web research sourced",
+      "final plan artifact written",
+      "workflow verifier passed",
+      "git diff whitespace check passed",
+      "old ambiguous label appears only in source URLs"
+    ]
+  }
+}

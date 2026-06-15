@@ -8,10 +8,10 @@
 
 ## Outcome
 - Added a canonical implemented-plan archive convention in `workflow/plan-archive.md`.
-- Added the deployed `docs/plan/README.md` template at `harness/templates/docs/plan.md`.
+- Added the deployed `docs/plan/README.md` template at `workflow-scaffold/templates/docs/plan.md`.
 - Updated plan templates so every plan can record archive state and simple plans can record decisions.
 - Updated Pi skills and Claude commands so planning never archives and implementation archives only after checks.
-- Updated the harness deploy script, root README, workflow spec, and harness AGENTS/CLAUDE templates to expose the convention.
+- Updated the workflow deploy script, root README, workflow spec, and workflow scaffold AGENTS/CLAUDE templates to expose the convention.
 - Extended smoke tests to lock the new workflow and deployed files.
 
 ## Context
@@ -50,11 +50,11 @@
 ## Validation Evidence
 - command: `bash tests/workflow-docs-smoke.sh`
   - result: passed, output `workflow docs smoke test: ok`
-- command: `bash tests/harness-smoke.sh`
-  - result: passed, output `harness smoke test: ok`
+- command: `bash tests/workflow-scaffold-smoke.sh`
+  - result: passed, output `workflow scaffold smoke test: ok`
 - command: `git diff --check`
   - result: passed with no output
-- command: `scripts/deploy-harness /tmp/etabli-plan-archive-dry-run --dry-run`
+- command: `scripts/deploy-workflow /tmp/etabli-plan-archive-dry-run --dry-run`
   - result: passed and listed `docs/plan/README.md` plus `workflow/plan-archive.md`
 
 ## Follow-up State

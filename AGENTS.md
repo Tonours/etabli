@@ -9,8 +9,7 @@ Repo-specific instructions for this dotfiles repo.
 - `codex/` — Codex organization, prompts, automations, hooks, and personal skills
 - `docs/` — focused user docs
 - `ghostty/` — Ghostty config
-- `harness/` — project harness templates
-- `harness/templates/` — deployable project harness files
+- `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `nvim/` — Neovim config
 - `pi/` — Pi config, extensions, skills, themes
 - `pi/extensions/` — Pi extensions

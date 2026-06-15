@@ -25,13 +25,24 @@
       "extensions": [
         "rtk.ts",
         "filter-output.ts",
-        "block-google-providers.ts"
+        "block-google-providers.ts",
+        "workflow-router.ts",
+        "tasks-till-done.ts"
       ],
       "skills": [
         "plan-loop",
         "plan-implement",
         "review",
         "implement",
+        "verify",
+        "bug-check",
+        "linear-ticket-create",
+        "linear-work",
+        "pr-review",
+        "pr-qa",
+        "sec-pr",
+        "ci-fix",
+        "github-pr-review",
         "caveman",
         "grill-me"
       ]
@@ -60,6 +71,9 @@
       "skills": [],
       "prompts": [],
       "themes": []
+    },
+    {
+      "source": "npm:@tintinweb/pi-tasks"
     }
   ],
   "lsp": {
@@ -88,13 +102,10 @@
     "zai/glm-5.1",
     "openai-codex/gpt-5.3-codex-spark",
     "openai-codex/gpt-5.5",
-    "opencode-go/kimi-k2.5",
     "opencode-go/kimi-k2.6",
     "opencode-go/mimo-v2.5",
     "opencode-go/mimo-v2.5-pro",
-    "opencode-go/minimax-m2.5",
     "opencode-go/minimax-m2.7",
-    "opencode-go/qwen3.5-plus",
     "opencode-go/qwen3.6-plus",
     "github-copilot/claude-opus-4.7",
     "github-copilot/claude-sonnet-4.6"

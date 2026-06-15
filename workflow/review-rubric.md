@@ -57,16 +57,17 @@ If human arbitration is needed, add:
 - `human_checkpoint: yes`
 - why the reviewer is escalating
 
-Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If there is no actionable issue, put exactly `No findings.` as the only finding, then still include the final verdict.
+Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If there is no actionable issue, put exactly `No findings.` as the only finding and do not wrap it in severity/file fields.
 
 ## Verdict
-End with exactly one verdict:
-- `GO`
-- `GO WITH NOTES`
-- `BLOCK`
+End with a final line in this exact shape:
+- `Verdict: GO`
+- `Verdict: GO WITH NOTES`
+- `Verdict: BLOCK`
 
 ## Rules
 - Be direct.
 - No style nitpicks unless they impact correctness or maintenance.
 - Prefer minimal fixes.
 - Flag assumptions.
+- Never use `OK`, `APPROVED`, `PASS`, or other verdict words.

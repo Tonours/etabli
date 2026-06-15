@@ -17,8 +17,31 @@ readonly PI_CORE_SKILLS=(
     "plan-implement"
     "review"
     "implement"
+    "verify"
+    "bug-check"
+    "linear-ticket-create"
+    "linear-work"
+    "pr-review"
+    "pr-qa"
+    "sec-pr"
+    "ci-fix"
+    "github-pr-review"
     "caveman"
     "grill-me"
+)
+readonly CODEX_VISIBLE_PI_SKILLS=(
+    "plan-loop"
+    "plan-implement"
+    "implement"
+    "verify"
+    "bug-check"
+    "linear-ticket-create"
+    "linear-work"
+    "pr-review"
+    "pr-qa"
+    "sec-pr"
+    "ci-fix"
+    "github-pr-review"
 )
 readonly TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 NODE_CMD=(node)
@@ -343,6 +366,7 @@ const managedSources = new Set([
   "git:github.com/badlogic/pi-skills",
   "npm:pi-interview",
   "npm:glimpseui",
+  "npm:@tintinweb/pi-tasks",
 ]);
 const localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
@@ -853,7 +877,7 @@ if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
 fi
 
 # Shared workflow sources used by Pi skills as fallback when a target project has
-# not deployed the full harness yet.
+# not deployed the full workflow scaffold yet.
 if [ -d "$REPO_DIR/workflow" ]; then
     if [ -e ~/.pi/agent/workflow ] && [ ! -L ~/.pi/agent/workflow ]; then
         backup_path_move "$HOME/.pi/agent/workflow"
@@ -964,7 +988,16 @@ for skill_name in "${PI_CORE_SKILLS[@]}"; do
     fi
 done
 
-rm -f ~/.pi/agent/skills/verify
+mkdir -p ~/.agents/skills
+for skill_name in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
+    skill_dir="$REPO_DIR/pi/skills/$skill_name"
+    if [ -d "$skill_dir" ]; then
+        ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
+        print_success "Codex-visible Pi skill '$skill_name' linked"
+    else
+        print_warning "Codex-visible Pi skill '$skill_name' missing from repo"
+    fi
+done
 
 mkdir -p ~/.claude/commands
 if [ -f "$REPO_DIR/claude/CLAUDE.md" ]; then
@@ -1009,6 +1042,22 @@ rm -f ~/.claude/commands/handoff-implement.md
 rm -f ~/.claude/commands/ops-status.md
 rm -f ~/.claude/commands/ops-pi-status.md
 rm -f ~/.claude/handoff-template.md
+
+if [ -d "$REPO_DIR/claude/hooks" ]; then
+    mkdir -p ~/.claude/hooks
+    for hook_file in "$REPO_DIR/claude/hooks"/*.mjs; do
+        if [ -f "$hook_file" ]; then
+            hook_name=$(basename "$hook_file")
+            ln -sf "$hook_file" ~/.claude/hooks/"$hook_name"
+            print_success "Claude workflow hook '$hook_name' linked"
+        fi
+    done
+fi
+
+if [ -f "$REPO_DIR/claude/settings.workflow-hooks.json" ]; then
+    ln -sf "$REPO_DIR/claude/settings.workflow-hooks.json" ~/.claude/settings.workflow-hooks.json
+    print_success "Claude workflow hook settings fragment linked"
+fi
 
 if [ -d "$REPO_DIR/claude/skills" ]; then
     mkdir -p ~/.claude/skills
@@ -1057,8 +1106,13 @@ append_path_entry "$HOME/.local/bin"
 install_script "dev-spawn" || true
 install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
-install_script "deploy-harness" || true
+install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
+
+if [ -L ~/.local/bin/deploy-harness ]; then
+    rm -f ~/.local/bin/deploy-harness
+    print_success "Removed legacy deploy-harness link"
+fi
 
 # Add ~/.local/bin to PATH in shell configs (if not already present)
 for rcfile in ~/.bashrc ~/.zshrc; do

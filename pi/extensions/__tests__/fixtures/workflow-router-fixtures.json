@@ -1,0 +1,139 @@
+[
+  {
+    "name": "linear bug check stays read-only",
+    "prompt": "Analyse le bug Linear PRD-387 sans coder",
+    "route": "bug-check",
+    "mustNotRoute": "linear-work",
+    "writeAllowed": false,
+    "stopCondition": "CERTAIN, HIGH CONFIDENCE, or UNCERTAIN"
+  },
+  {
+    "name": "linear ticket summary stays answer",
+    "prompt": "Résume le ticket Linear LIN-123",
+    "route": "answer",
+    "mustNotRoute": "linear-ticket-create",
+    "writeAllowed": false,
+    "stopCondition": "answer delivered"
+  },
+  {
+    "name": "linear ticket creation uses Linear MCP route",
+    "prompt": "Crée un ticket Linear pour ce bug de login",
+    "route": "linear-ticket-create",
+    "mustNotRoute": "linear-work",
+    "writeAllowed": true,
+    "stopCondition": "created Linear issue or LINEAR_MCP_UNAVAILABLE blocker"
+  },
+  {
+    "name": "linear ticket creation accepts infinitive French",
+    "prompt": "Peux-tu créer un ticket Linear pour corriger le bug de login",
+    "route": "linear-ticket-create",
+    "mustNotRoute": "plan-loop",
+    "writeAllowed": true,
+    "stopCondition": "created Linear issue or LINEAR_MCP_UNAVAILABLE blocker"
+  },
+  {
+    "name": "linear ticket implementation uses Linear work",
+    "prompt": "Corrige le bug décrit dans Linear LIN-123",
+    "route": "linear-work",
+    "writeAllowed": true,
+    "stopCondition": "ticket acceptance criteria validated or blocked with Linear evidence"
+  },
+  {
+    "name": "github pr review uses pr-review route",
+    "prompt": "Fais une code review de la PR GitHub 42",
+    "route": "pr-review",
+    "mustNotRoute": "review",
+    "writeAllowed": false,
+    "stopCondition": "GO, GO WITH NOTES, or BLOCK"
+  },
+  {
+    "name": "pr qa routes to QA plan",
+    "prompt": "Comment tester la PR GitHub 42 ?",
+    "route": "pr-qa",
+    "mustNotRoute": "pr-review",
+    "writeAllowed": false,
+    "stopCondition": "executable QA plan delivered"
+  },
+  {
+    "name": "security pr routes to sec-pr",
+    "prompt": "Audite la PR Dependabot #1606",
+    "route": "sec-pr",
+    "writeAllowed": false,
+    "stopCondition": "PASS, FAIL, or INVESTIGATE"
+  },
+  {
+    "name": "explicit ci fix routes to ci-fix",
+    "prompt": "ci-fix 42",
+    "route": "ci-fix",
+    "writeAllowed": true,
+    "stopCondition": "CI green, blocked, time cap, or max fix attempts reached"
+  },
+  {
+    "name": "explicit ci fix with push stays ci-fix",
+    "prompt": "fix CI and push PR #42",
+    "route": "ci-fix",
+    "mustNotRoute": "ops-stop",
+    "writeAllowed": true,
+    "stopCondition": "CI green, blocked, time cap, or max fix attempts reached"
+  },
+  {
+    "name": "roadmap review stays read-only",
+    "prompt": "Fais une review de notre roadmap",
+    "route": "review",
+    "mustNotRoute": "plan-implement",
+    "writeAllowed": false,
+    "stopCondition": "GO, GO WITH NOTES, or BLOCK"
+  },
+  {
+    "name": "ready plan uses implement",
+    "prompt": "Implémente le PLAN.md ready",
+    "route": "implement",
+    "writeAllowed": true,
+    "stopCondition": "validated archive written and root PLAN.md deleted"
+  },
+  {
+    "name": "broad fix routes through plan implement",
+    "prompt": "Corrige tout y compris les warnings",
+    "route": "plan-implement",
+    "writeAllowed": true,
+    "stopCondition": "READY plan implemented, blocked plan reported, or plan drift detected"
+  },
+  {
+    "name": "goal prompt is an answer artifact",
+    "prompt": "Fais un prompt goal pour cette idée",
+    "route": "answer",
+    "mustNotRoute": "plan-loop",
+    "writeAllowed": false,
+    "stopCondition": "prompt delivered"
+  },
+  {
+    "name": "delete request stops for ops decision",
+    "prompt": "Supprime ce dossier",
+    "route": "ops-stop",
+    "mustNotRoute": "plan-implement",
+    "writeAllowed": false,
+    "stopCondition": "user decision before risky action"
+  },
+  {
+    "name": "english remove request stops for ops decision",
+    "prompt": "remove this folder",
+    "route": "ops-stop",
+    "mustNotRoute": "answer",
+    "writeAllowed": false,
+    "stopCondition": "user decision before risky action"
+  },
+  {
+    "name": "retest routes to verifier",
+    "prompt": "Retest et prouve que tout passe",
+    "route": "verify",
+    "writeAllowed": false,
+    "stopCondition": "VERIFIED, NOT VERIFIED, or INCONCLUSIVE"
+  },
+  {
+    "name": "source-backed research produces cited doc",
+    "prompt": "Fais une recherche web sourcée sur les pratiques agentiques",
+    "route": "research-plan",
+    "writeAllowed": true,
+    "stopCondition": "cited artifact complete or evidence blocker reported"
+  }
+]

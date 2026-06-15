@@ -6,7 +6,7 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 
 # Review
 
-Use `workflow/review-rubric.md` as the source of truth for review output and priorities when it exists. Fall back to `~/.claude/review-rubric.md` only outside a harnessed project.
+Use `workflow/review-rubric.md` as the source of truth for review output and priorities when it exists. Fall back to `~/.claude/review-rubric.md` only outside a workflow-scaffolded project.
 
 ## Your task
 
@@ -30,8 +30,10 @@ Use `workflow/review-rubric.md` as the source of truth for review output and pri
 10. Use `line_range:` instead of `line:` when the inline comment spans multiple changed lines.
 11. Keep `review_comment:` as one inline-ready GitHub-style review thread comment without code fences or tables.
 12. If the diff conflicts with the plan, say so explicitly.
-13. Verify every reported line or range exists in the supplied diff; if there are no actionable issues, put exactly `No findings.` as the only finding, then still include the final verdict.
+13. Verify every reported line or range exists in the supplied diff; if there are no actionable issues, put exactly `No findings.` as the only finding and do not wrap it in severity/file fields.
 14. If a human should arbitrate risk, replan, or broad-impact tradeoffs, say so explicitly.
-15. End with exactly one verdict: `GO`, `GO WITH NOTES`, or `BLOCK`.
+15. End with a final line in this exact shape: `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`.
+16. Never use `OK`, `APPROVED`, `PASS`, or other verdict words.
+17. If the request is to prove completion rather than review a diff, route to `/verify-workflow` instead of treating it as a code review.
 
 If the target is ambiguous, ask only the narrowest blocking question.

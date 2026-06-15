@@ -1,6 +1,6 @@
 # Fable 5 Migration Notes
 
-This repo aligns the Etabli harness with the Fable 5 guidance through short, general rules rather than a larger prompt rewrite.
+This repo aligns the Etabli agent workflow with the Fable 5 guidance through short, general rules rather than a larger prompt rewrite.
 
 ## Added
 
@@ -14,9 +14,9 @@ This repo aligns the Etabli harness with the Fable 5 guidance through short, gen
 
 ## Not Added
 
-- No `send_to_user` tool convention. That applies to custom API harnesses, not the Claude Code/Pi CLI surface in this repo.
+- No `send_to_user` tool convention. That applies to custom API agent runtimes, not the Claude Code/Pi CLI surface in this repo.
 - No detailed verbosity ladder. Existing concise style rules are sufficient; final-summary readability is the only added constraint.
-- No effort-level configuration. That belongs to the runtime or host tool, not this dotfiles harness.
+- No effort-level configuration. That belongs to the runtime or host tool, not this dotfiles workflow.
 
 ## Source
 

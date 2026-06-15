@@ -14,8 +14,31 @@ PI_CORE_SKILLS=(
   "plan-implement"
   "review"
   "implement"
+  "verify"
+  "bug-check"
+  "linear-ticket-create"
+  "linear-work"
+  "pr-review"
+  "pr-qa"
+  "sec-pr"
+  "ci-fix"
+  "github-pr-review"
   "caveman"
   "grill-me"
+)
+CODEX_VISIBLE_PI_SKILLS=(
+  "plan-loop"
+  "plan-implement"
+  "implement"
+  "verify"
+  "bug-check"
+  "linear-ticket-create"
+  "linear-work"
+  "pr-review"
+  "pr-qa"
+  "sec-pr"
+  "ci-fix"
+  "github-pr-review"
 )
 
 usage() {
@@ -166,6 +189,13 @@ check_pi_skill_links() {
   done
 }
 
+check_codex_visible_pi_skill_links() {
+  local skill_name
+  for skill_name in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
+    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "codex-visible pi skill $skill_name"
+  done
+}
+
 check_claude_skill_links() {
   local skill_dir skill_name
 
@@ -177,6 +207,40 @@ check_claude_skill_links() {
     if [ -d "$skill_dir" ]; then
       skill_name="$(basename "$skill_dir")"
       check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
+    fi
+  done
+}
+
+check_claude_command_links() {
+  local command_file command_name target_name
+
+  if [ ! -d "$REPO_DIR/claude/commands" ]; then
+    return
+  fi
+
+  for command_file in "$REPO_DIR/claude/commands"/*.md; do
+    if [ -f "$command_file" ]; then
+      command_name="$(basename "$command_file")"
+      target_name="$command_name"
+      if [ "$command_name" = "plan-create.md" ]; then
+        target_name="plan.md"
+      fi
+      check_link "$HOME/.claude/commands/$target_name" "$command_file" "claude command $target_name"
+    fi
+  done
+}
+
+check_claude_hook_links() {
+  local hook_file hook_name
+
+  if [ ! -d "$REPO_DIR/claude/hooks" ]; then
+    return
+  fi
+
+  for hook_file in "$REPO_DIR/claude/hooks"/*.mjs; do
+    if [ -f "$hook_file" ]; then
+      hook_name="$(basename "$hook_file")"
+      check_link "$HOME/.claude/hooks/$hook_name" "$hook_file" "claude workflow hook $hook_name"
     fi
   done
 }
@@ -198,16 +262,18 @@ check_link "$HOME/.claude/workflow" "$REPO_DIR/workflow" "claude workflow source
 check_link "$HOME/.claude/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "claude PLAN_TEMPLATE.md"
 check_link "$HOME/.claude/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "claude PLAN_TEMPLATE_FULL.md"
 check_link "$HOME/.claude/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md" "claude review rubric"
-check_link "$HOME/.claude/commands/plan.md" "$REPO_DIR/claude/commands/plan-create.md" "claude command plan.md"
-check_link "$HOME/.claude/commands/implement.md" "$REPO_DIR/claude/commands/implement.md" "claude command implement.md"
-check_link "$HOME/.claude/commands/review.md" "$REPO_DIR/claude/commands/review.md" "claude command review.md"
+check_claude_command_links
+check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
+check_claude_hook_links
 check_pi_skill_links
+check_codex_visible_pi_skill_links
 check_claude_skill_links
 
 check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
-check_script_link "deploy-harness"
+check_script_link "deploy-workflow"
+check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"
 check_script_link "scaffold-project"
 
 printf '\nSummary: %d issue(s), %d fix(es) applied, %d unresolved\n' "$ISSUES" "$FIXED" "$UNRESOLVED"
