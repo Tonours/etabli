@@ -54,6 +54,7 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
 - TypeScript strict, no `any`. ES modules only.
 - Keep functions under 50 lines and files under 300 lines unless the local codebase clearly uses another pattern.
 - Prefer composition over inheritance.
+- No comments. Code must be self-documenting: clear names over explanatory prose. Exceptions: mandatory tooling directives (e.g. `eslint-disable`), empty-block markers required by the linter, and a short `// why:` note only when the rationale is genuinely non-obvious and cannot be expressed in code. No JSDoc, no file headers, no comments that restate what the code does.
 - Use explicit errors. Do not leave `console.log` in production code.
 - Runtime: Bun. Tests: Vitest or Bun as configured. Lint: Biome when available.
 - Do not refactor unchanged code.
