@@ -1,0 +1,25 @@
+{
+  "title": "PLAN.md ADR review",
+  "slug": "plan-md-adr-review",
+  "created_at": "2026-06-25T12:16:11+00:00",
+  "status": "completed",
+  "approval": {
+    "required": false,
+    "granted": true,
+    "notes": "Read-only PLAN.md review rerun for tests-focused READY plan; only workflow artifacts are written."
+  },
+  "packets": [
+    {"id": "P1", "status": "completed", "owner": "main", "objective": "local evidence review"},
+    {"id": "P2", "status": "completed", "owner": "main", "objective": "adversarial critique"},
+    {"id": "P3", "status": "completed", "owner": "main", "objective": "web cross-check"},
+    {"id": "P4", "status": "completed", "owner": "main", "objective": "integration and verification"}
+  ],
+  "verification": {
+    "status": "completed",
+    "checks": [
+      "workflow artifact completeness",
+      "citation check",
+      "manual PLAN.md consistency audit"
+    ]
+  }
+}
