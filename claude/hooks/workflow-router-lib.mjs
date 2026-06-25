@@ -6,6 +6,9 @@ export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 const REVIEW_PATTERN = /\b(review|revue|relis|audit|critique|findings?)\b/i;
 const VERIFY_PATTERN = /\b(verify|v[eé]rifie|prouve|preuve|retest|relance les tests|completion audit|evidence)\b/i;
 const PLAN_PATTERN = /\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c|ticket)\b/i;
+const SPEC_GUIDE_PATTERN = /(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
+const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
+const SPEC_CREATE_VERB_PATTERN = /(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/iu;
 const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|modifie|update|cleanup|remplace)\b/i;
 const READY_PLAN_PATTERN = /\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/i;
 const RESEARCH_PATTERN = /\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
@@ -221,6 +224,19 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
+  if (SPEC_GUIDE_PATTERN.test(prompt) || (SPEC_INTENT_PATTERN.test(prompt) && SPEC_CREATE_VERB_PATTERN.test(prompt) && !PR_CONTEXT_PATTERN.test(prompt) && !LINEAR_PATTERN.test(prompt))) {
+    return {
+      route: "spec-guide",
+      reason: "spec construction request — build it by guided interview before formatting",
+      command: "/spec-guide",
+      artifact: "spec drafted via /spec template",
+      stopCondition: "spec solid enough (problem, non-goals, boundaries, alternatives, acceptance) then hands to /spec",
+      requiredEvidence: "user answers to the socratic interview, inferences marked as such",
+      writeAllowed: true,
+      suggestion: "Once the spec is solid, harden it with /plan-loop then /adversary.",
+    };
+  }
+
   if (PLAN_PATTERN.test(prompt)) {
     return {
       route: "plan-loop",
@@ -230,6 +246,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
       stopCondition: "READY or CHALLENGED",
       requiredEvidence: "route, role, stop condition, checks, risks, facts, and assumptions",
       writeAllowed: true,
+      suggestion: "As-tu pensé à /adversary ? Une fois le plan READY, une passe Codex cross-modèle catch les angles morts qu'une critique même-famille rate.",
     };
   }
 
@@ -241,7 +258,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 }
 
 export function buildRouteContext(decision) {
-  return [
+  const lines = [
     ROUTER_MARKER,
     "",
     `Route: ${decision.route}`,
@@ -250,10 +267,17 @@ export function buildRouteContext(decision) {
     `Artifact: ${decision.artifact}`,
     `Stop condition: ${decision.stopCondition}`,
     `Required evidence: ${decision.requiredEvidence}`,
+  ];
+  if (decision.suggestion) {
+    lines.push("", `Suggestion: ${decision.suggestion}`);
+  }
+  lines.push(
     "",
     "Follow this route unless the user explicitly invoked another command or new local evidence proves the route is wrong.",
+    "If a Suggestion is present, surface it to the user in passing (\"as-tu pensé à …\") — do not force it.",
     "Use Claude Code native surfaces for this adapter; do not create an external wrapper.",
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 export function isPlanFile(filePath, cwd) {
