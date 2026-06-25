@@ -3,28 +3,30 @@ import { resolve } from "node:path";
 
 export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 
-const REVIEW_PATTERN = /\b(review|revue|relis|audit|critique|findings?)\b/i;
+const REVIEW_PATTERN = /\b(review(?:er|ing)?|revue|relis|audit|critique|findings?)\b/i;
 const VERIFY_PATTERN = /\b(verify|v[eé]rifie|prouve|preuve|retest|relance les tests|completion audit|evidence)\b/i;
 const PLAN_PATTERN = /\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c|ticket)\b/i;
 const SPEC_GUIDE_PATTERN = /(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
 const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
 const SPEC_CREATE_VERB_PATTERN = /(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/iu;
-const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|modifie|update|cleanup|remplace)\b/i;
+const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/i;
 const READY_PLAN_PATTERN = /\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/i;
 const RESEARCH_PATTERN = /\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt|goal)\b/i;
-const OPS_STOP_PATTERN = /\b(supprime|delete|remove|rm -rf|prod|production|secret|credential|billing|deploy|push|force[- ]?push|migration destructive)\b/i;
+const OPS_STOP_PATTERN = /(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
 const LINEAR_PATTERN = /\b(linear|linear\.app|[A-Z][A-Z0-9]{1,9}-[0-9]+)\b/i;
 const TICKET_CREATE_PATTERN = /\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/i;
 const TICKET_WORK_PATTERN = /\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/i;
 const LINEAR_EXECUTE_PATTERN = /\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/i;
 const LINEAR_READ_PATTERN = /\b(r[eé]sume|resume|ouvre|open|show|montre|analyse|explique|lis|read)\b/i;
+const READ_ONLY_PATTERN = /\b(r[eé]sume|resume|summarize|explique|explain|lis|read|montre|show|d[eé]cris)\b/i;
+const QUESTION_PATTERN = /^\s*(as[- ]?tu|a[- ]?t[- ]?on|as[- ]?ton|est[- ]?ce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux[- ]?tu m'expliquer|c'est quoi|y a[- ]?t[- ]?il)\b|\?\s*$/i;
 const BUG_CHECK_PATTERN = /\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/i;
 const PR_CONTEXT_PATTERN = /\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/i;
 const PR_REVIEW_PATTERN = /\b(pr-review|code review|review|revue|relis|audit|critique|findings?)\b/i;
 const PR_QA_PATTERN = /\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/i;
 const SEC_PR_PATTERN = /\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/i;
-const CI_FIX_PATTERN = /\b(ci-fix|fix ci|corrige la ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/i;
+const CI_FIX_PATTERN = /\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/i;
 
 const MUTATING_BASH_PATTERN = /(^|[;&|()]\s*)(rm|mv|cp|mkdir|rmdir|touch|chmod|chown|git\s+(commit|push|merge|rebase|reset|clean|checkout|switch)|npm\s+(install|i|add)|pnpm\s+(install|i|add)|yarn\s+(install|add)|bun\s+(install|add)|sed\s+-i|perl\s+-pi|tee\s+)/i;
 const REDIRECT_WRITE_PATTERN = /(^|[^<>])>{1,2}\s*[^&\s]/;
@@ -210,6 +212,10 @@ export function classifyWorkflowRoute(prompt, context = {}) {
       requiredEvidence: "PLAN.md checks passed and archive created",
       writeAllowed: true,
     };
+  }
+
+  if (READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) {
+    return answerDecision("read-only, question, or summary request", "None", "answer delivered", "None");
   }
 
   if (IMPLEMENT_PATTERN.test(prompt)) {

@@ -67,6 +67,21 @@ assert_contains "$router_output" 'Route: review'
 assert_contains "$router_output" 'Command: /review'
 assert_not_contains "$router_output" 'Route: plan-implement'
 
+router_output="$(fixture_input router-architecture-review.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: review'
+assert_contains "$router_output" 'Command: /review'
+assert_not_contains "$router_output" 'Route: plan-loop'
+
+router_output="$(fixture_input router-roadmap-summary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: answer'
+assert_contains "$router_output" 'read-only, question, or summary request'
+assert_not_contains "$router_output" 'Route: plan-loop'
+
+router_output="$(fixture_input router-spec-read.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: answer'
+assert_contains "$router_output" 'read-only, question, or summary request'
+assert_not_contains "$router_output" 'Route: spec-guide'
+
 router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: implement'
 assert_contains "$router_output" 'validated archive written and root PLAN.md deleted'
@@ -115,6 +130,18 @@ assert_not_contains "$router_output" 'Route: ops-stop'
 router_output="$(fixture_input router-remove.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: ops-stop'
 assert_contains "$router_output" 'sensitive or destructive action requested'
+
+router_output="$(fixture_input router-implement-verb.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_not_contains "$router_output" 'Route: answer'
+
+router_output="$(fixture_input router-delete-text.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_not_contains "$router_output" 'Route: ops-stop'
+
+router_output="$(fixture_input router-spec-question.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: answer'
+assert_not_contains "$router_output" 'Route: plan-loop'
 
 slash_output="$(fixture_input router-slash-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 if [ -n "$slash_output" ]; then
