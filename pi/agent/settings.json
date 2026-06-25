@@ -79,11 +79,11 @@
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.74.0",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
+  "lastChangelogVersion": "0.79.6",
+  "defaultProvider": "zai",
+  "defaultModel": "glm-5.2",
   "theme": "catppuccin-mocha",
-  "defaultThinkingLevel": "low",
+  "defaultThinkingLevel": "high",
   "rtk": {
     "enabled": true,
     "mode": "always",
@@ -98,8 +98,8 @@
   "quietStartup": true,
   "doubleEscapeAction": "tree",
   "enabledModels": [
+    "zai/glm-5.2",
     "local-mlx//Volumes/Crucial/models/mlx/gemma-4-12B-it-4bit",
-    "zai/glm-5.1",
     "openai-codex/gpt-5.3-codex-spark",
     "openai-codex/gpt-5.5",
     "opencode-go/kimi-k2.6",

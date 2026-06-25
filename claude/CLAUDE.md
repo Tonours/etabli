@@ -36,14 +36,31 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
 - Use `PLAN.md` as the only execution artifact.
 - Implement only from `Status: READY`.
 - Flow: understand -> plan small -> implement -> prove -> deliver.
+- Route requests through the smallest Etabli workflow that can finish with evidence:
+  - broad task, unclear implementation, or "fais un plan" -> `/plan-loop`
+  - "plan puis implemente" or equivalent -> `/plan-implement`
+  - existing `READY PLAN.md` plus implementation request -> `/implement`
+  - review current diff -> `/review`
+  - verify, retest, prove, or completion audit -> `/verify-workflow`
+  - create/draft Linear ticket -> `/linear-ticket-create`
+  - read-only Linear bug root-cause analysis -> `/bug-check`
+  - implement work from Linear ticket -> `/linear-work`
+  - GitHub PR code review -> `/pr-review`
+  - GitHub PR QA/test-impact plan -> `/pr-qa`
+  - Dependabot/security PR audit -> `/sec-pr`
+  - explicit autonomous CI repair -> `/ci-fix`
+  - destructive, secret, production, billing, deploy, force-push, or broad irreversible work -> stop with a risk brief and wait for user approval
 - When the user explicitly asks for assessment, review, diagnosis, or thinks out loud without asking for a fix, report findings and stop. Otherwise, fix the problem once you have enough evidence.
 - When you have enough information to act, act. Do not re-derive established facts or re-litigate decisions the user already made.
 - Pause for the user only for destructive/irreversible actions, real scope changes, or input only they can provide. Otherwise proceed and end the turn on completed work, not on a promise.
 - Use TDD when practical.
 - Run focused tests that match the changed behavior.
+- Test naming (esp. agent-nodejs): `describe('when ...')` for context blocks, `it('should ...')` for behavior. Top-level `describe` may name the unit; nested describes use `when`.
 - Record exact validation commands and outcomes before claiming completion.
 - Preserve unrelated user changes.
 - Do not create `REVIEW.md`.
+- If facts materially invalidate the route, scope, checks, or required evidence, stop as plan drift and refresh `PLAN.md` before continuing.
+- After implementing a `READY` plan, archive the distilled result in `docs/plan/YYYYMMDD-short-slug.md`; delete only the current workspace root `PLAN.md` after validation and archive success.
 - Use `/verify-workflow` for workflow evidence checks. Do not shadow Claude
   Code's native `/verify`.
 - Use `/goal` for long-running "keep going until done" work with a measurable
@@ -56,7 +73,7 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
 - Prefer composition over inheritance.
 - No comments. Code must be self-documenting: clear names over explanatory prose. Exceptions: mandatory tooling directives (e.g. `eslint-disable`), empty-block markers required by the linter, and a short `// why:` note only when the rationale is genuinely non-obvious and cannot be expressed in code. No JSDoc, no file headers, no comments that restate what the code does.
 - Use explicit errors. Do not leave `console.log` in production code.
-- Runtime: Bun. Tests: Vitest or Bun as configured. Lint: Biome when available.
+- Runtime: Node.js (TypeScript). Tests: Vitest or Jest as configured. Lint: ESLint/Biome when available.
 - Do not refactor unchanged code.
 
 ## Reviews
@@ -90,6 +107,10 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
 - Keep commits atomic: one coherent fix per commit.
 - Do not credit AI tools in commits.
 - Do not amend, rewrite history, or push unless explicitly requested.
+
+## Subagent Model
+- Small task (scout, code reading, locate, mechanical edit): use `sonnet`.
+- Otherwise (planning, implementation, complex reasoning, review): use `opus`.
 
 ## Safety
 - Treat secrets, credentials, production data, destructive commands, and external side effects as explicit approval points.

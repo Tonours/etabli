@@ -31,7 +31,7 @@
           "name": "GLM-5.2",
           "reasoning": true,
           "input": ["text"],
-          "contextWindow": 200000,
+          "contextWindow": 1000000,
           "maxTokens": 131072,
           "compat": {
             "supportsDeveloperRole": false,

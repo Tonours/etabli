@@ -1,5 +1,11 @@
 # AGENTS.md — etabli (Codex)
 
+## lean-ctx
+- Prefer lean-ctx MCP tools over native equivalents for token savings.
+- Route shell commands through `ctx_shell` or `lean-ctx -c "<cmd>"`, file reads through `ctx_read`, and code search through `ctx_search`.
+- Hook-driven auto-compression may also be active, but MCP/CLI tools are the reliable path across Codex surfaces.
+- Full rules: `~/.codex/LEAN-CTX.md`
+
 ## Identity
 - French for communication, English for code. Concise. No fluff.
 - Prefer direct execution over long proposals when the task is clear.
@@ -46,6 +52,19 @@
 - Ask before spawning many agents, running long/expensive work, or performing destructive, external, production, credential, billing, deploy, or irreversible actions.
 - Integrate subagent results explicitly: accepted, rejected, conflicts, decisions, final changes, remaining risks.
 - Verify the final outcome with checks matched to the task's blast radius before marking the workflow complete.
+
+## Etabli workflow routing
+- When a repo has `workflow/spec.md`, `PLAN_TEMPLATE.md`, or `PLAN_TEMPLATE_FULL.md`, treat that scaffold as the active project workflow; otherwise fall back to the global Etabli workflow under `$CODEX_HOME/workflow/` when available.
+- Use `PLAN.md` as the only active execution artifact. Implement only from `Status: READY`; never implement from `DRAFT`, `CHALLENGED`, or a plan with missing evidence.
+- For broad tasks, unclear implementation requests, or explicit planning requests, use the `plan-loop` skill and stop at `READY` or `CHALLENGED`.
+- For “plan then implement” requests, use `plan-implement`: create or refresh `PLAN.md`, challenge it, then implement only if it is `READY`.
+- For an existing `READY PLAN.md` plus an implementation request, use `implement`; follow steps in order, run focused checks, archive the distilled result in `docs/plan/YYYYMMDD-short-slug.md`, then delete only the root `PLAN.md`.
+- For review requests, use `review`; for GitHub PR reviews use `pr-review`; for PR QA/test-impact requests use `pr-qa`; for Dependabot or security PR audits use `sec-pr`.
+- For verification, retest, “prove it”, or completion-audit requests, use `verify` and do not edit.
+- For Linear ticket creation use `linear-ticket-create`; for read-only bug root-cause analysis use `bug-check`; for implementation from a Linear ticket use `linear-work`.
+- For explicit autonomous CI repair requests, use `ci-fix`; inspect CI with `gh`, reproduce locally when practical, commit/push only when the skill contract allows it, and stop at green, blocked, time cap, or max attempts.
+- For destructive, secret, production, billing, deploy, force-push, or broad irreversible work, route to `ops-stop`: produce a risk brief and wait for user approval before acting.
+- If new facts materially invalidate the approved route, scope, checks, or required evidence, stop as plan drift and refresh `PLAN.md` before continuing.
 
 ## Scope control
 - Do not expand scope to chase a vague "10/10". Convert quality goals into verifiable criteria before implementing.

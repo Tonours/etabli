@@ -35,55 +35,6 @@ Know where the ticket sits before creating it:
 - A normal Issue or **sub-issue** hangs under an Epic via `parentId`. Resolve
   and set the parent when the user names one.
 
-## Implementation-task body (sub-issue / standalone task level)
-
-For a concrete implementation task — not an Epic — use this trimmed body. It is
-the employer cut of the fuller Etabli `workflow/ticket-template.md`: Linear-native
-fields replace some sections, and nothing is hard-required.
-
-**Core (always):**
-
-```md
-## Outcome
-One sentence: what becomes true when this is done.
-
-## Context
-Likely files, existing patterns, dependencies, constraints.
-
-## Scope
-- What this PR includes (one behavior).
-
-## Non-goals
-- What stays out of this PR, including tempting side quests.
-
-## Acceptance criteria
-- [ ] Given ..., when ..., then ...
-
-## Validation
-- [ ] Commands, manual checks, or fixture tests that prove it.
-
-## Stop conditions
-Pause and ask before continuing if:
-- The work needs a second behavior (split the ticket).
-- ...
-```
-
-**Optional (fill when an AI agent will execute the task, skip for a human who
-doesn't need them):** `## User story` (`As <role>, I want <action> so that
-<benefit>`), `## Start here` (first 5–10 min action), `## Implementation
-checklist` (small execution checkpoints).
-
-**Deliberately dropped** (do not add them):
-
-- *Why now* — Linear carries priority, dependencies, and project natively; use
-  those fields, not a prose section.
-- *Definition of done* — folded into Acceptance criteria + Validation; don't
-  repeat a third overlapping checklist.
-
-This is the **task** body. An **Epic** stays light (Context-first + Goal +
-Acceptance criteria + spec link) per the Epic convention above and
-`linear-project-setup` — do not push the full task body onto an Epic.
-
 ## Contract
 
 1. Identify the single behavior the ticket should cover. Split multiple
@@ -94,10 +45,8 @@ Acceptance criteria + spec link) per the Epic convention above and
    unless the user explicitly asked for a draft only.
 4. Ask one blocking question only when the target Linear team or project cannot
    be inferred.
-5. Fill the body by level: an Epic stays light (Context + Goal + Acceptance
-   criteria + spec link); an implementation task uses the trimmed
-   Implementation-task body above. Keep acceptance criteria behavioral with
-   `Given ..., when ..., then ...`.
+5. Fill the ticket from `workflow/ticket-template.md`; keep acceptance criteria
+   behavioral with `Given ..., when ..., then ...`.
 6. Keep scope narrow enough for one PR.
 7. Create the Linear issue through MCP only after team/project ambiguity is
    resolved.
