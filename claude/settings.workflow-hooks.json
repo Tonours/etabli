@@ -23,6 +23,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/detect-adr-signal.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
