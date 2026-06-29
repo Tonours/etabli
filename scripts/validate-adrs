@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const root = process.argv[2] || process.cwd();
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const modulePath = resolveValidationModule(scriptDir);
+
+if (!modulePath) {
+  console.error("ADR validation error: cannot locate adr-validation.mjs.");
+  console.error("Expected it in this repository's claude/skills/adr/scripts/ or in ~/.claude/skills/adr/scripts/.");
+  console.error("Install the ADR skill or copy adr-validation.mjs with this wrapper; see claude/skills/adr/scripts/VALIDATOR-PORTABILITY.md.");
+  process.exit(1);
+}
+
+const {
+  hasAdrDirectory,
+  nextAdrNumber,
+  readRecords,
+  validateProject,
+} = await import(pathToFileURL(modulePath).href);
+
+const errors = validateProject(root);
+
+if (errors.length > 0) {
+  for (const error of errors) {
+    console.error(`ADR validation error: ${error}`);
+  }
+  process.exit(1);
+}
+
+if (!hasAdrDirectory(root)) {
+  console.log("ADR validation ok: no docs/adr directory.");
+  process.exit(0);
+}
+
+const records = readRecords(root);
+const nextNumber = nextAdrNumber(records);
+console.log(`ADR validation ok: ${records.length} record(s), next ADR-${String(nextNumber).padStart(4, "0")}.`);
+
+function resolveValidationModule(baseDir) {
+  const candidates = [
+    join(baseDir, "..", "claude", "skills", "adr", "scripts", "adr-validation.mjs"),
+  ];
+
+  if (process.env.HOME) {
+    candidates.push(join(process.env.HOME, ".claude", "skills", "adr", "scripts", "adr-validation.mjs"));
+  }
+
+  return candidates.find((candidate) => existsSync(candidate)) || null;
+}

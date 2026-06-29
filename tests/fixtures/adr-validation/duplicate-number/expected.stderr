@@ -1,0 +1,1 @@
+ADR validation error: ADR-0002: duplicate ADR number in 0002-a.md, 0002-b.md. Fix: Keep one file for that ADR number and rename later decisions to the next available number.

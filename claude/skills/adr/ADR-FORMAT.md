@@ -32,10 +32,14 @@ formatting, a change with no alternative worth recording.
 - Sequential numbering, zero-padded to 4 digits: `0001-slug.md`, `0002-slug.md`.
 - Next number = `max(existing NNNN) + 1`, NOT `count + 1` (a gap like
   `0001, 0003` must yield `0004`, never reuse `0003`).
+- Parallel branches can still choose the same next number. That is a merge-time
+  collision, not something the writer can prevent perfectly. Run
+  `node scripts/validate-adrs` when available; duplicate numbers must be fixed
+  by renumbering the newer ADR and updating links/indexes before merge.
 - `slug` is a short kebab-case summary of the title. On collision, append a
   short disambiguator.
 
-## Template
+## Minimal template
 
 ```md
 ---
@@ -49,11 +53,15 @@ date: YYYY-MM-DD
 cost and the rejected alternatives when the rejection is non-obvious.}
 ```
 
-That is the whole template. An ADR can be a single paragraph. Optional sections,
-added ONLY when they carry value:
+That is the whole required template. An ADR can be a single paragraph. Add
+optional frontmatter and sections ONLY when they carry value:
 
 - `## Considered Options` — the alternatives weighed.
 - `## Consequences` — `Good, because …` / `Bad, because …`.
+- `supersedes` / `superseded_by` — required only when a supersession exists.
+- `tags` — short retrieval categories, e.g. `auth`, `storage`, `deployment`.
+- `affected_components` — concrete boundaries or components, e.g. `api`,
+  `billing`, `postgres`.
 
 All ADR content is written in English regardless of the conversation language.
 
@@ -66,17 +74,45 @@ All ADR content is written in English regardless of the conversation language.
 - An accepted ADR is NEVER edited. The collection is trustworthy precisely
   because ADR-0007 still says what was true when it was written.
 - To change a decision, write a NEW ADR. The only mutation allowed on an
-  existing ADR is flipping its `status` to `superseded by ADR-NNNN` and adding
-  the back-link.
+  existing ADR is flipping its `status` to `superseded by ADR-NNNN`, adding
+  `superseded_by: ADR-NNNN`, and adding the back-link.
 - Link bidirectionally: the new ADR references the old one and explains the
-  change; the old one points forward to the new.
+  change with `supersedes: ADR-MMMM`; the old one points forward to the new
+  with `superseded_by: ADR-NNNN`.
+- Do not guess supersession. Read existing ADRs first and cite the local file(s)
+  that were considered. If no candidate is grounded in an existing ADR, say
+  "No supersession candidate found" and write a standalone ADR.
+- If a candidate is plausible but uncertain, ask the user before mutating the
+  existing ADR.
+
+## Local grounding before drafting
+
+The ADR directory is the source of truth. Before drafting, build a small
+grounding set:
+
+1. Read the `docs/adr/` file list, frontmatter, and titles.
+2. Read the latest 3-5 ADRs by number.
+3. Search existing ADR titles, tags, affected components, and body text for
+   terms from the new decision.
+4. Read the full text of any matching candidates before proposing a
+   supersession.
+
+In the draft, include a short supersession analysis:
+
+```md
+Supersession analysis:
+- Considered: ADR-0003 `docs/adr/0003-example.md` — <why it might relate>
+- Decision: supersedes ADR-0003 because <evidence>, or no supersession because <evidence>.
+```
+
+This analysis is not necessarily copied into the final ADR; it is there to keep
+the model grounded and the human approval meaningful.
 
 ## CLAUDE.md pointer
 
 The skill keeps a lightweight index in the project's `CLAUDE.md`, delimited by
-HTML comment markers so it stays out of the loaded context (Claude Code strips
-HTML comments before injecting CLAUDE.md, but the skill can still read them on
-disk):
+HTML comment markers. Treat it as a disk pointer for humans and tools; do not
+rely on it as automatic runtime retrieval.
 
 ```md
 <!-- ADR:INDEX:START -->
@@ -89,4 +125,5 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 <!-- ADR:INDEX:END -->
 ```
 
-The index is updated in place between the markers (never appended twice).
+The index is updated in place between the markers (never appended twice). The
+`/adr` skill must still read `docs/adr/` directly when it needs prior decisions.

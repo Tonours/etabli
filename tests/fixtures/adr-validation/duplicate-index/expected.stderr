@@ -1,0 +1,1 @@
+ADR validation error: CLAUDE.md contains 2 ADR index blocks; expected at most one. Fix: Merge the entries into one ADR index block and delete the extra marker pair.

@@ -25,8 +25,8 @@ const STRUCTURAL_PATTERNS = [
   /(^|\/)docker-compose[^/]*\.ya?ml$/,
   /(^|\/)\.github\/workflows\//,
   /\.proto$/,
-  /(^|\/)[^/]*auth[^/]*$/i,
-  /(^|\/)[^/]*middleware[^/]*$/i,
+  /(^|\/)auth(\/|\.|$)/i,
+  /(^|\/)middleware(\/|\.|$)/i,
 ];
 
 const SUGGESTION =
@@ -35,7 +35,7 @@ const SUGGESTION =
 function porcelainPaths(cwd, pathspec) {
   let out;
   try {
-    const args = ["status", "--porcelain"];
+    const args = ["status", "--porcelain", "--untracked-files=all"];
     if (pathspec) args.push("--", pathspec);
     out = execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   } catch {

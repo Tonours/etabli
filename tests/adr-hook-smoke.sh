@@ -83,4 +83,23 @@ echo '# x' > "$repo/docs/adr/0001-x.md"
 out="$(run_hook "$repo" "$DECISION")"
 assert_empty "$out" "ADR already present should suppress suggestion"
 
+# 7. anti-noise: files containing auth as a substring are not structural auth
+repo="$(new_repo authfalsepositive)"
+echo 'export {}' > "$repo/author-card.tsx"
+out="$(run_hook "$repo" "$DECISION")"
+assert_empty "$out" "author-card.tsx should not trigger the auth structural gate"
+
+# 8. real auth and middleware paths remain structural
+repo="$(new_repo authpath)"
+mkdir -p "$repo/src/auth"
+echo 'export {}' > "$repo/src/auth/session.ts"
+out="$(run_hook "$repo" "$DECISION")"
+assert_contains '"systemMessage"' "$out"
+
+repo="$(new_repo middlewarefile)"
+mkdir -p "$repo/src"
+echo 'export {}' > "$repo/src/middleware.ts"
+out="$(run_hook "$repo" "$DECISION")"
+assert_contains '"systemMessage"' "$out"
+
 printf 'adr hook smoke test: ok\n'
