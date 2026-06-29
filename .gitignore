@@ -35,6 +35,7 @@ __pycache__/
 
 # Working documents (not for commit)
 PLAN.md
+!workflow-scaffold/templates/docs/plan.md
 ops-roadmap.md
 
 # Local Pi runtime state

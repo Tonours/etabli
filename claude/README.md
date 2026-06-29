@@ -37,6 +37,15 @@ Claude commands are thin wrappers over that contract:
 - `/ci-fix`
 - `/github-pr-review`
 
+Additional local wrappers:
+
+- `/adversary`
+- `/commit`
+- `/cross-repo-audit`
+- `/linear-project-setup`
+- `/spec-guide`
+- `/spec-verify`
+
 `/verify-workflow` is the Etabli workflow verifier. Keep Claude Code's native
 `/verify` free for app/runtime verification.
 

@@ -1,6 +1,10 @@
 ---
 name: spec
-description: Utiliser pour rédiger, structurer ou réviser une spec / tech spec / Epic / design doc Forest (workflow, MCP, agent, BFF, plateforme), ou quand on demande "écris une spec", "structure cette spec", "/spec". Fournit les deux templates Forest (produit et technique) et la méthode pour les remplir.
+description: >-
+  Rédaction, structuration et révision de specs / tech specs / Epics / design
+  docs Forest (workflow, MCP, agent, BFF, plateforme). Use when the user asks
+  "écris une spec", "structure cette spec", or invokes /spec. Provides the two
+  Forest templates and the method to fill them.
 ---
 
 # Création de spec Forest

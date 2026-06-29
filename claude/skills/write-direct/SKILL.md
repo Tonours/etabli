@@ -1,6 +1,11 @@
 ---
 name: write-direct
-description: Rédige ou réécrit un document / message interne (doc de conception, note, résumé, message d'équipe, Slack) dans le ton direct d'Anthony — tutoiement, concret, zéro chichi, structuré et lisible par un collègue. La densité s'adapte au format : doc long = on pose le problème et on explique ; message court = on va à l'os (quoi/solution direct, pas de garde-fous, pas d'emoji). Se déclenche sur demande explicite ("écris ça avec mon ton", "réécris dans mon style", "/write-direct"). Ne PAS l'appliquer aux commits (format imposé), aux PR (template imposé), ni au code/commentaires.
+description: >-
+  Rédaction ou réécriture de documents et messages internes dans le ton direct
+  d'Anthony : tutoiement, concret, zéro chichi, structuré et lisible par un
+  collègue. Use when the user explicitly asks "écris ça avec mon ton", "réécris
+  dans mon style", or invokes /write-direct. Do not use for commits, PR
+  templates, code, or code comments.
 ---
 
 # write-direct — le ton direct pour les docs et messages internes
