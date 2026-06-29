@@ -1,0 +1,45 @@
+{
+  "title": "ADR system hardening",
+  "slug": "adr-system-hardening",
+  "created_at": "2026-06-26T16:09:33+00:00",
+  "status": "complete",
+  "approval": {
+    "required": null,
+    "granted": null,
+    "notes": ""
+  },
+  "packets": [
+    {
+      "id": "P1",
+      "name": "research",
+      "status": "complete"
+    },
+    {
+      "id": "P2",
+      "name": "design",
+      "status": "complete"
+    },
+    {
+      "id": "P3",
+      "name": "implementation",
+      "status": "complete"
+    },
+    {
+      "id": "P4",
+      "name": "verification",
+      "status": "complete"
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "checks": [
+      "node scripts/validate-adrs",
+      "bash tests/adr-validate-smoke.sh",
+      "bash tests/adr-hook-smoke.sh",
+      "node --check scripts/validate-adrs && node --check claude/hooks/detect-adr-signal.mjs",
+      "bash -n tests/adr-validate-smoke.sh && bash -n tests/adr-hook-smoke.sh && bash -n tests/adr-skill-e2e.sh",
+      "bash tests/claude-hooks-smoke.sh",
+      "git diff --check"
+    ]
+  }
+}

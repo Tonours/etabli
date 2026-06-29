@@ -1,0 +1,67 @@
+{
+  "title": "ADR golden fixtures and dry-run",
+  "slug": "adr-golden-dry-run",
+  "created_at": "2026-06-27T00:00:00+02:00",
+  "completed_at": "2026-06-27T13:33:35+02:00",
+  "status": "complete",
+  "approval": {
+    "required": false,
+    "granted": true,
+    "notes": "User requested the goal in the current repository. No commit, push, destructive operation, external service, or live project mutation is in scope."
+  },
+  "packets": [
+    {
+      "id": "G1",
+      "name": "golden-fixtures",
+      "status": "complete"
+    },
+    {
+      "id": "G2",
+      "name": "dry-run",
+      "status": "complete"
+    },
+    {
+      "id": "G3",
+      "name": "error-messages",
+      "status": "complete"
+    },
+    {
+      "id": "G4",
+      "name": "portability-doc",
+      "status": "complete"
+    },
+    {
+      "id": "G5",
+      "name": "verification",
+      "status": "complete"
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "checks": [
+      "node --check scripts/validate-adrs",
+      "node --check claude/skills/adr/scripts/adr-validation.mjs",
+      "node --check claude/skills/adr/scripts/apply-adr.mjs",
+      "bash tests/adr-validation-golden.sh",
+      "bash tests/adr-helper-smoke.sh",
+      "bash tests/adr-validate-smoke.sh",
+      "bash tests/adr-hook-smoke.sh",
+      "bash tests/claude-skills-smoke.sh",
+      "node scripts/validate-adrs",
+      "bash tests/codex-organization-smoke.sh",
+      "bash tests/workflow-docs-smoke.sh",
+      "bash tests/workflow-scaffold-smoke.sh",
+      "bash tests/claude-hooks-smoke.sh",
+      "bash tests/workflow-cli-smoke.sh",
+      "git diff --check",
+      "python3 /Users/tonours/.codex/skills/.system/skill-creator/scripts/quick_validate.py claude/skills/adr",
+      "python3 /Users/tonours/.codex/skills/codex-dynamic-workflows/scripts/verify_workflow.py .workflow/adr-golden-dry-run",
+      "bash -n tests/adr-validation-golden.sh",
+      "bash -n tests/adr-helper-smoke.sh"
+    ],
+    "skipped": [
+      "tests/adr-skill-e2e.sh and tests/adr-skill-stress.sh call claude -p and are documented as manual/costly; they were not rerun because SKILL.md and the agentic procedure were not changed in this pass.",
+      "workflow CLI smoke skipped its real agent CLI path unless RUN_AGENT_CLI_SMOKE=1."
+    ]
+  }
+}
