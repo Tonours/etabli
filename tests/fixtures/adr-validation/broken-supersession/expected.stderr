@@ -1,0 +1,1 @@
+ADR validation error: 0002-new.md: supersedes ADR-0001, but 0001-old.md does not list superseded_by: ADR-0002. Fix: Update 0001-old.md with status: superseded by ADR-0002 and superseded_by: ADR-0002.
