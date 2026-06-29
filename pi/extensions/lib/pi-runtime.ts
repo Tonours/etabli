@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const FALLBACK_MODEL = "openai-codex/gpt-5.5";
+export const FALLBACK_MODEL = "zai/glm-5.2";
 export type RtkMode = "always" | "off";
 export type RtkConfig = {
   enabled: boolean;
