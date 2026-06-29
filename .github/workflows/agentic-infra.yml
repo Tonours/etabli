@@ -34,7 +34,15 @@ jobs:
         run: |
           bash tests/codex-organization-smoke.sh
           bash tests/workflow-docs-smoke.sh
-          bash tests/harness-smoke.sh
+          bash tests/workflow-scaffold-smoke.sh
+          bash tests/claude-hooks-smoke.sh
+          bash tests/claude-skills-smoke.sh
+          bash tests/workflow-cli-smoke.sh
+          bash tests/adr-hook-smoke.sh
+          bash tests/adr-validate-smoke.sh
+          bash tests/adr-validation-golden.sh
+          bash tests/adr-helper-smoke.sh
+          node scripts/validate-adrs
 
   verify-pi-typescript:
     runs-on: ubuntu-latest
@@ -95,6 +103,9 @@ jobs:
         with:
           neovim: true
           version: v0.12.2
+
+      - name: Install Hunk CLI
+        run: npm install --global hunkdiff
 
       - name: Configure git
         run: |
