@@ -10,7 +10,7 @@ set -e
 # ============================================================================
 # VERSIONS (centralized for maintenance)
 # ============================================================================
-readonly NERD_FONT_VERSION="v3.1.1"
+readonly NERD_FONT_VERSION="v3.4.0"
 readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_CORE_SKILLS=(
     "plan-loop"
@@ -42,6 +42,9 @@ readonly CODEX_VISIBLE_PI_SKILLS=(
     "sec-pr"
     "ci-fix"
     "github-pr-review"
+)
+readonly PI_AGENT_NPM_PINS=(
+    "vscode-languageserver-protocol@3.17.5"
 )
 readonly TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 NODE_CMD=(node)
@@ -438,7 +441,7 @@ sync_nvim_plugins() {
 
 ensure_pi_extension_node_modules_link() {
     local link_path="$REPO_DIR/pi/extensions/node_modules"
-    local target_path="$HOME/.pi/npm/node_modules"
+    local target_path="$HOME/.pi/agent/npm/node_modules"
 
     mkdir -p "$target_path"
 
@@ -498,6 +501,22 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
             print_warning "Failed to install Pi package: $package_source"
         fi
     done
+}
+
+install_pi_agent_npm_pins() {
+    local package_dir="$HOME/.pi/agent/npm"
+
+    if ! node_runtime_available; then
+        print_warning "Node.js not available - skipping Pi agent npm pins"
+        return 0
+    fi
+
+    mkdir -p "$package_dir"
+    if (cd "$package_dir" && "${NPM_CMD[@]}" install --save-exact "${PI_AGENT_NPM_PINS[@]}" > /dev/null 2>&1); then
+        print_success "Pi agent npm pins installed"
+    else
+        print_warning "Failed to install Pi agent npm pins"
+    fi
 }
 
 if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
@@ -579,6 +598,8 @@ elif [[ -f /etc/debian_version ]]; then
     OS="debian"
 elif [[ -f /etc/redhat-release ]]; then
     OS="redhat"
+elif [[ -f /etc/arch-release ]]; then
+    OS="arch"
 fi
 
 if [[ "$OS" == "unknown" ]]; then
@@ -688,6 +709,13 @@ elif [[ "$OS" == "redhat" ]]; then
     sudo dnf install -y lua-language-server 2>/dev/null || {
         print_warning "lua-language-server package unavailable from dnf"
     }
+elif [[ "$OS" == "arch" ]]; then
+    # Arch Linux / Omarchy
+    sudo pacman -Sy --needed --noconfirm \
+        curl wget git unzip ripgrep fd fzf jq base-devel make neovim tmux \
+        wl-clipboard xclip mosh lazygit lua-language-server || {
+        print_warning "Some pacman packages may have failed"
+    }
 fi
 
 print_success "Dependencies installed"
@@ -761,15 +789,15 @@ mkdir -p ~/.local/share/fonts
 
     if [ ! -f "CaskaydiaMonoNerdFont-Regular.ttf" ]; then
         if download_with_retry \
-            "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONT_VERSION}/CaskaydiaMono.zip" \
-            "CaskaydiaMono.zip"; then
+            "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONT_VERSION}/CascadiaMono.zip" \
+            "CascadiaMono.zip"; then
             # Verify zip integrity before extracting
-            if unzip -tq CaskaydiaMono.zip > /dev/null 2>&1; then
-                unzip -qo CaskaydiaMono.zip
-                rm -f CaskaydiaMono.zip
+            if unzip -tq CascadiaMono.zip > /dev/null 2>&1; then
+                unzip -qo CascadiaMono.zip
+                rm -f CascadiaMono.zip
             else
                 print_warning "Font zip corrupted, removing"
-                rm -f CaskaydiaMono.zip
+                rm -f CascadiaMono.zip
             fi
         fi
     fi
@@ -1090,6 +1118,7 @@ fi
 if command -v pi &> /dev/null; then
     print_step "Installing Pi packages from tracked settings..."
     install_pi_packages_from_settings
+    install_pi_agent_npm_pins
 fi
 
 # ============================================================================

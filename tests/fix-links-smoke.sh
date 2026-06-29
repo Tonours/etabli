@@ -4,8 +4,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 SCRIPT="$ROOT_DIR/scripts/check-fix-symlinks.sh"
 TMP_HOME="$(mktemp -d)"
+ORIGINAL_NODE_MODULES_TARGET=""
+ORIGINAL_NODE_MODULES_EXISTS=0
+
+if [ -L "$ROOT_DIR/pi/extensions/node_modules" ]; then
+  ORIGINAL_NODE_MODULES_EXISTS=1
+  ORIGINAL_NODE_MODULES_TARGET="$(readlink "$ROOT_DIR/pi/extensions/node_modules")"
+fi
 
 cleanup() {
+  if [ "$ORIGINAL_NODE_MODULES_EXISTS" -eq 1 ]; then
+    ln -sfn "$ORIGINAL_NODE_MODULES_TARGET" "$ROOT_DIR/pi/extensions/node_modules"
+  else
+    rm -f "$ROOT_DIR/pi/extensions/node_modules"
+  fi
   rm -rf "$TMP_HOME"
 }
 trap cleanup EXIT
@@ -46,6 +58,8 @@ backup_count() {
   find "$(dirname "$1")" -maxdepth 1 -name "$(basename "$1").bak.*" | wc -l | tr -d ' '
 }
 
+mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules"
+
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 HOME="$TMP_HOME" "$SCRIPT" --verbose >/dev/null
 
@@ -62,6 +76,7 @@ assert_link "$TMP_HOME/.agents/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
 assert_link "$TMP_HOME/.pi/agent/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
+assert_link "$ROOT_DIR/pi/extensions/node_modules" "$TMP_HOME/.pi/agent/npm/node_modules"
 assert_link "$TMP_HOME/.claude/commands/review.md" "$ROOT_DIR/claude/commands/review.md"
 assert_link "$TMP_HOME/.claude/commands/pr-review.md" "$ROOT_DIR/claude/commands/pr-review.md"
 assert_link "$TMP_HOME/.claude/commands/ci-fix.md" "$ROOT_DIR/claude/commands/ci-fix.md"
