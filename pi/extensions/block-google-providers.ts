@@ -35,8 +35,8 @@ type ExtensionAPI = {
 };
 
 export const CONFIGURED_DEFAULT_MODEL: ProviderModel = {
-  provider: "openai-codex",
-  id: "gpt-5.5",
+  provider: "zai",
+  id: "glm-5.2",
 };
 
 const FALLBACKS: readonly ProviderModel[] = [

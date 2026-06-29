@@ -146,7 +146,7 @@ describe("configured default model", () => {
 
     expect(ctx.ui.notifications).toEqual([
       {
-        message: "Configured default model openai-codex/gpt-5.5 not available.",
+        message: `Configured default model ${CONFIGURED_DEFAULT_MODEL.provider}/${CONFIGURED_DEFAULT_MODEL.id} not available.`,
         level: "warning",
       },
     ]);
