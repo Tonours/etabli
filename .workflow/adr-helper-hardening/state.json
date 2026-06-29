@@ -1,0 +1,61 @@
+{
+  "title": "ADR helper hardening",
+  "slug": "adr-helper-hardening",
+  "created_at": "2026-06-26T00:00:00+02:00",
+  "completed_at": "2026-06-26T22:00:18+02:00",
+  "status": "complete",
+  "approval": {
+    "required": false,
+    "granted": true,
+    "notes": "User requested the active goal; no commit, push, destructive operation, external service, or live project mutation was performed."
+  },
+  "packets": [
+    {
+      "id": "H1",
+      "name": "helper-scope",
+      "status": "complete"
+    },
+    {
+      "id": "H2",
+      "name": "helper",
+      "status": "complete"
+    },
+    {
+      "id": "H3",
+      "name": "tests",
+      "status": "complete"
+    },
+    {
+      "id": "H4",
+      "name": "skill-update",
+      "status": "complete"
+    },
+    {
+      "id": "H5",
+      "name": "verification",
+      "status": "complete"
+    }
+  ],
+  "verification": {
+    "status": "passed_with_environment_note",
+    "checks": [
+      "bash tests/adr-helper-smoke.sh",
+      "bash tests/adr-validate-smoke.sh",
+      "bash tests/adr-hook-smoke.sh",
+      "bash tests/claude-skills-smoke.sh",
+      "node scripts/validate-adrs",
+      "node --check scripts/validate-adrs && node --check claude/hooks/detect-adr-signal.mjs && node --check claude/skills/adr/scripts/apply-adr.mjs",
+      "bash -n tests/adr-helper-smoke.sh && bash -n tests/adr-skill-e2e.sh && bash -n tests/adr-skill-stress.sh",
+      "bash tests/codex-organization-smoke.sh && bash tests/workflow-docs-smoke.sh && bash tests/workflow-scaffold-smoke.sh && bash tests/claude-hooks-smoke.sh && bash tests/workflow-cli-smoke.sh",
+      "bash tests/adr-skill-e2e.sh",
+      "bash tests/adr-skill-stress.sh",
+      "git diff --check",
+      "python3 /Users/tonours/.codex/skills/.system/skill-creator/scripts/quick_validate.py claude/skills/adr",
+      "python3 /Users/tonours/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/tonours/.codex/skills/goal-prompt-rewriter",
+      "python3 -m py_compile /Users/tonours/.codex/skills/.system/skill-creator/scripts/quick_validate.py"
+    ],
+    "environment_notes": [
+      "workflow CLI smoke is skipped unless RUN_AGENT_CLI_SMOKE=1."
+    ]
+  }
+}
