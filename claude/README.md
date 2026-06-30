@@ -16,6 +16,10 @@ Claude Code-specific files for `etabli`.
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
 - selected shared docs from `../workflow/` -> `~/.claude/`
 
+Re-run `scripts/install.sh` any time to refresh links; it is idempotent. When
+links look stale or broken (missing command, drift after an update), run
+`scripts/check-fix-symlinks.sh` to validate and repair the installed surface.
+
 ## Workflow
 
 Canonical contract: `../workflow/spec.md`.
@@ -45,6 +49,14 @@ Additional local wrappers:
 - `/linear-project-setup`
 - `/spec-guide`
 - `/spec-verify`
+
+Playwright QA wrappers (agentic test loop):
+
+- `/qa-planner`
+- `/qa-generator`
+- `/qa-healer`
+- `/qa-reviewer`
+- `/qa-failure-dossier`
 
 `/verify-workflow` is the Etabli workflow verifier. Keep Claude Code's native
 `/verify` free for app/runtime verification.
