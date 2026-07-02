@@ -1,0 +1,8 @@
+{
+  "session_id": "test",
+  "transcript_path": "/tmp/test.jsonl",
+  "cwd": "__CWD__",
+  "permission_mode": "default",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "fais une code-review complète puis une code-review adversary"
+}

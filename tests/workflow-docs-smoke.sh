@@ -34,6 +34,9 @@ assert_not_contains() {
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/workflow/plan-archive.md"
+assert_file "$ROOT_DIR/workflow/skills/adversary.md"
+assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
+assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"
@@ -56,6 +59,7 @@ assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
+assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 assert_file "$ROOT_DIR/tests/install-smoke.sh"
@@ -83,6 +87,7 @@ assert_not_contains "$ROOT_DIR/scripts/install.sh" 'nvm-sh/nvm'
 assert_not_contains "$ROOT_DIR/scripts/install.sh" '@mariozechner/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'deploy-workflow'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
+assert_contains "$ROOT_DIR/README.md" 'docs/workflow-101.md'
 assert_contains "$ROOT_DIR/README.md" 'tests/fix-links-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/install-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/nvim-smoke.sh'
@@ -90,6 +95,8 @@ assert_contains "$ROOT_DIR/README.md" 'tests/claude-hooks-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE_SELF_TEST=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_CLAUDE_PRINT_SMOKE=1'
+assert_contains "$ROOT_DIR/README.md" 'RUN_REAL_AGENT_SCENARIOS=1'
+assert_contains "$ROOT_DIR/README.md" 'tests/workflow-real-agent-scenarios.sh'
 assert_contains "$ROOT_DIR/README.md" 'claude --version'
 assert_contains "$ROOT_DIR/README.md" '/skill:bug-check'
 assert_contains "$ROOT_DIR/README.md" '/skill:linear-ticket-create'
@@ -123,26 +130,59 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'sec-pr'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'ci-fix'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'claude/settings.workflow-hooks.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" '/goal <measurable condition>'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Autonomous plan-loop requests use `plan-implement`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Implementation-bound autonomous loops are not complete until validation,'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'adversary evidence, review, implemented-plan archive under `docs/plan/`, and'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Shared skill contracts: `workflow/skills/`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Orchestration contract: `workflow/skills/orchestration.md`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Claude orchestration parity is `proxy_supported`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implemented plan archives: `docs/plan/`'
 assert_contains "$ROOT_DIR/workflow/plan-archive.md" 'Archive a plan if and only if it was implemented and validation ran.'
+assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Do not implement.'
+assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Keep `Status: READY` only if no blocker or high-severity issue remains.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'wording such as "PLAN.md ready" is not proof.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Review the diff against `PLAN.md`.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'implemented-plan archive under `docs/plan/`'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Task* tools are Pi-only'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'subagents:rpc:spawn'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" '`confirmed`'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" '`proxy_supported`'
 assert_contains "$ROOT_DIR/workflow/linear-ticket-template.md" 'Resolve team/project/labels through Linear MCP'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" 'Each archive is a distilled memory record, not a raw copy of `PLAN.md`.'
+assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/'
+assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/orchestration.md'
+assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'workflow/linear-ticket-template.md'
 assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'Do not create or update `docs/plan/` archives during planning.'
 assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'Source resolution'
 assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" '../../PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" '../../../PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'Do not tell the user the template/spec is missing.'
+assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'autonomous plan-loop completion'
 assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" '../../workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" '../../../workflow/plan-archive.md'
+assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" '../../workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '../../workflow/spec.md'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '../../../workflow/spec.md'
+assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/pi/skills/bug-check/SKILL.md" 'Adversarial Analysis'
 assert_contains "$ROOT_DIR/pi/skills/linear-ticket-create/SKILL.md" 'Use Linear MCP as the Linear integration'
 assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/pi/skills/pr-review/SKILL.md" 'Use `gh`'
+assert_contains "$ROOT_DIR/docs/workflow-101.md" 'plan-loop → adversary → implement'
+assert_contains "$ROOT_DIR/docs/workflow-101.md" 'Status: READY'
+assert_contains "$ROOT_DIR/docs/workflow-101.md" 'workflow/spec.md'
+assert_contains "$ROOT_DIR/docs/workflow-101.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/docs/workflow-101.md" 'workflow/skills/orchestration.md'
+assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:adversary'
+assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'workflow/skills/orchestration.md'
+assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:verify'
+assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'docs/workflow-101.md'
 assert_contains "$ROOT_DIR/pi/skills/pr-qa/SKILL.md" 'Generate a test plan'
 assert_contains "$ROOT_DIR/pi/skills/sec-pr/SKILL.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/pi/skills/ci-fix/SKILL.md" 'Never plain `--force`'
@@ -157,8 +197,11 @@ assert_contains "$ROOT_DIR/claude/commands/plan-loop.md" '../PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/claude/commands/plan-loop.md" '../../PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/claude/commands/plan-implement.md" '../workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/claude/commands/plan-implement.md" '../../workflow/plan-archive.md'
+assert_contains "$ROOT_DIR/claude/commands/plan-implement.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/claude/commands/implement.md" '../workflow/spec.md'
 assert_contains "$ROOT_DIR/claude/commands/implement.md" '../../workflow/spec.md'
+assert_contains "$ROOT_DIR/claude/commands/implement.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/claude/commands/adversary.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/claude/commands/verify-workflow.md" 'workflow/verification-report-template.md'
 assert_contains "$ROOT_DIR/claude/commands/verify-workflow.md" 'Claude Code ships a native `/verify`'
 assert_contains "$ROOT_DIR/claude/commands/bug-check.md" 'Linear MCP'
@@ -169,11 +212,13 @@ assert_contains "$ROOT_DIR/claude/commands/pr-qa.md" 'QA Plan'
 assert_contains "$ROOT_DIR/claude/commands/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/claude/commands/ci-fix.md" 'Never disarm tests'
 assert_contains "$ROOT_DIR/claude/commands/github-pr-review.md" 'compatibility alias'
-assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'archive the final plan in `docs/plan/YYYYMMDD-short-slug.md`'
-assert_contains "$ROOT_DIR/claude/commands/implement.md" 'archive the final plan in `docs/plan/YYYYMMDD-short-slug.md`'
-assert_contains "$ROOT_DIR/claude/commands/implement.md" 'delete only the current workspace root `PLAN.md`'
-assert_contains "$ROOT_DIR/claude/commands/plan-implement.md" 'plan drift detected'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'delete only the current workspace root'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'plan drift detected'
 assert_contains "$ROOT_DIR/claude/commands/plan-loop.md" 'Workflow Contract'
+assert_contains "$ROOT_DIR/claude/commands/plan-loop.md" 'autonomous plan-loop completion'
+assert_contains "$ROOT_DIR/claude/commands/plan-implement.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/claude/commands/implement.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'do not wrap it in severity/file fields'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'End with a final line in this exact shape'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
@@ -220,6 +265,11 @@ assert_contains "$ROOT_DIR/tests/workflow-cli-smoke.sh" 'commands exceed their t
 assert_contains "$ROOT_DIR/tests/workflow-cli-smoke.sh" 'Claude Code binary smoke'
 assert_contains "$ROOT_DIR/tests/workflow-cli-smoke.sh" '--version'
 assert_contains "$ROOT_DIR/tests/workflow-cli-smoke.sh" 'ASDF_DATA_DIR'
+assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'RUN_REAL_AGENT_SCENARIOS'
+assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'ready-read-only'
+assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'read-only-adversarial-plan'
+assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'prompt-only-ready'
+assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" '--include-hook-events'
 assert_contains "$ROOT_DIR/scripts/profile-nvim.sh" 'pcall(dofile'
 assert_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" 'pcall(dofile'
 assert_not_contains "$ROOT_DIR/scripts/profile-nvim.sh" '+lua dofile'
@@ -237,15 +287,20 @@ assert_contains "$ROOT_DIR/claude/README.md" '/github-pr-review'
 assert_contains "$ROOT_DIR/claude/README.md" '/goal'
 assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/skills'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'UserPromptSubmit'
+assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'actual PLAN.md status is not proven READY'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'bug-check'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'linear-ticket-create'
 assert_contains "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" 'pr-review'
 assert_contains "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" 'ci-fix'
+assert_contains "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" 'autonomous-plan-loop'
+assert_contains "$ROOT_DIR/pi/extensions/lib/tasks-till-done-runtime.ts" 'completion_evidence_required'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'permissionDecision: "deny"'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'UserPromptSubmit'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'
+assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-tasks'
+assert_contains "$ROOT_DIR/scripts/install.sh" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'docs/agent-memory/README.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md" 'Use Claude Code `/goal`'
@@ -319,5 +374,41 @@ if [ -f "$ROOT_DIR/claude/review-rubric.md" ]; then
     printf 'Claude workflow doc pointers must not be reintroduced\n' >&2
     exit 1
 fi
+
+# Anti-drift: the embedded PLAN.md fallback shape lives verbatim in both the Pi
+# plan-loop skill and the Claude plan-loop command. If they diverge, one adapter
+# silently creates plans with a different shape. Extract the fenced block and
+# require byte-equality.
+extract_plan_fallback() {
+    awk '/^```md$/{f=1;next} /^```$/{if(f){f=0}} f{print}' "$1"
+}
+
+pi_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/pi/skills/plan-loop/SKILL.md")"
+claude_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/claude/commands/plan-loop.md")"
+if [ -z "$pi_plan_fallback" ] || [ -z "$claude_plan_fallback" ]; then
+    printf 'embedded PLAN.md fallback shape missing from a plan-loop adapter\n' >&2
+    exit 1
+fi
+if [ "$pi_plan_fallback" != "$claude_plan_fallback" ]; then
+    printf 'embedded PLAN.md fallback shape diverged between Pi and Claude plan-loop adapters\n' >&2
+    diff <(printf '%s\n' "$pi_plan_fallback") <(printf '%s\n' "$claude_plan_fallback") >&2
+    exit 1
+fi
+
+# Anti-drift: thin adapters must delegate shared behavior to workflow/skills/
+# contracts instead of duplicating phase order. Each implementation-bound adapter
+# references the shared contract; a missing reference means it drifted back to a
+# self-contained copy of the loop.
+for adapter in \
+    "pi/skills/implement/SKILL.md:workflow/skills/implementation-loop.md" \
+    "pi/skills/plan-implement/SKILL.md:workflow/skills/implementation-loop.md" \
+    "pi/skills/adversary/SKILL.md:workflow/skills/adversary.md" \
+    "claude/commands/implement.md:workflow/skills/implementation-loop.md" \
+    "claude/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
+    "claude/commands/adversary.md:workflow/skills/adversary.md"; do
+    adapter_path="${adapter%%:*}"
+    contract_ref="${adapter##*:}"
+    assert_contains "$ROOT_DIR/$adapter_path" "$contract_ref"
+done
 
 printf 'workflow docs smoke test: ok\n'

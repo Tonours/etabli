@@ -12,6 +12,7 @@ OS="$(uname -s)"
 PI_CORE_SKILLS=(
   "plan-loop"
   "plan-implement"
+  "adversary"
   "review"
   "implement"
   "verify"
@@ -29,6 +30,7 @@ PI_CORE_SKILLS=(
 CODEX_VISIBLE_PI_SKILLS=(
   "plan-loop"
   "plan-implement"
+  "adversary"
   "implement"
   "verify"
   "bug-check"

@@ -1,0 +1,53 @@
+{
+  "title": "Adversarial review fixes",
+  "slug": "adversarial-review-fixes",
+  "created_at": "2026-07-02T09:22:57+00:00",
+  "status": "completed",
+  "updated_at": "2026-07-02T09:41:25Z",
+  "approval": {
+    "required": true,
+    "granted": true,
+    "notes": "User requested complete review, adversarial review, and fixes. No push, deploy, destructive cleanup, force-push, reset, or history rewrite."
+  },
+  "packets": [
+    {
+      "id": "P1-local-review",
+      "status": "completed",
+      "owner": "main"
+    },
+    {
+      "id": "P2-complete-review",
+      "status": "completed",
+      "owner": "subagent"
+    },
+    {
+      "id": "P3-adversary-review",
+      "status": "completed",
+      "owner": "subagent"
+    },
+    {
+      "id": "P4-fix-integration",
+      "status": "completed",
+      "owner": "main"
+    },
+    {
+      "id": "P5-final-validation",
+      "status": "completed",
+      "owner": "main"
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "checks": [
+      "bun test pi/extensions/__tests__/",
+      "bash tests/workflow-autonomous-plan-loop-smoke.sh",
+      "bash tests/workflow-docs-smoke.sh",
+      "bash tests/workflow-scaffold-smoke.sh",
+      "bash tests/claude-hooks-smoke.sh",
+      "bash tests/codex-organization-smoke.sh",
+      "node --check claude/hooks/workflow-router-lib.mjs && node --check claude/hooks/workflow-router.mjs && node --check claude/hooks/plan-ready-guard.mjs",
+      "git diff --check",
+      "python3 /Users/tonours/.codex/skills/codex-dynamic-workflows/scripts/verify_workflow.py .workflow/adversarial-review-fixes"
+    ]
+  }
+}

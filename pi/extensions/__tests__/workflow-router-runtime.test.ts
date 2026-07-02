@@ -6,8 +6,50 @@ import {
 } from "../lib/workflow-router-runtime.ts";
 
 describe("workflow router runtime", () => {
-  test("routes explicit READY plan implementation to implement", () => {
-    expect(classifyWorkflowRoute("Implémente le PLAN.md ready").route).toBe("implement");
+  test("does not trust prompt wording alone for READY plan implementation", () => {
+    expect(classifyWorkflowRoute("Implémente le PLAN.md ready")).toMatchObject({
+      route: "plan-implement",
+      reason: "implementation request mentions a READY plan, but actual PLAN.md status is not proven READY",
+      planChain: {
+        currentPlanStatus: "missing",
+        currentPhase: "planning",
+        nextRoute: "plan-loop",
+      },
+    });
+  });
+
+  test("keeps read-only READY plan prompts as answers", () => {
+    expect(classifyWorkflowRoute("Résume le PLAN.md ready")).toMatchObject({
+      route: "answer",
+      writeAllowed: false,
+    });
+    expect(classifyWorkflowRoute("Résume le PLAN.md ready", { planStatus: "ready" })).toMatchObject({
+      route: "answer",
+      writeAllowed: false,
+    });
+  });
+
+  test("routes actual READY plan implementation to implement", () => {
+    expect(classifyWorkflowRoute("Implémente le PLAN.md ready", { planStatus: "ready" })).toMatchObject({
+      route: "implement",
+      planChain: {
+        currentPlanStatus: "ready",
+        currentPhase: "ready_to_implement",
+        nextRoute: "implement",
+      },
+    });
+  });
+
+  test("routes autonomous plan-loop requests through plan-implement", () => {
+    expect(classifyWorkflowRoute("Lance le plan-loop en autonomie jusqu'au bout")).toMatchObject({
+      route: "plan-implement",
+      reason: "autonomous plan-loop request",
+      stopCondition: "READY plan implemented, verified/reviewed, archived, and root PLAN.md deleted; or CHALLENGED/blocked with evidence",
+      planChain: {
+        currentPhase: "planning",
+        nextRoute: "plan-loop",
+      },
+    });
   });
 
   test("routes implementation without ready plan to plan-implement", () => {
@@ -16,7 +58,34 @@ describe("workflow router runtime", () => {
     expect(decision).toMatchObject({
       route: "plan-implement",
       skill: "plan-implement",
+      requiredEvidence: "actual root PLAN.md Status: READY before implementation, adversary evidence, focused validation, review evidence, docs/plan archive, root PLAN.md deletion, and final handoff",
       writeAllowed: true,
+    });
+  });
+
+  test("routes adversarial plan review to adversary", () => {
+    expect(classifyWorkflowRoute("Fais une passe adversary sur le PLAN.md")).toMatchObject({
+      route: "adversary",
+      skill: "adversary",
+      writeAllowed: true,
+      stopCondition: "plan remains READY, becomes CHALLENGED, or adversary blocker is reported",
+    });
+  });
+
+  test("does not route adversarial code review to plan adversary", () => {
+    expect(classifyWorkflowRoute("fais une code-review complète puis une code-review adversary")).toMatchObject({
+      route: "review",
+      skill: "review",
+      writeAllowed: false,
+    });
+  });
+
+  test("keeps explicitly read-only adversarial plan review read-only", () => {
+    expect(classifyWorkflowRoute("Read-only adversarial PLAN.md review. Do not edit files.")).toMatchObject({
+      route: "review",
+      skill: "review",
+      writeAllowed: false,
+      reason: "read-only adversarial review request",
     });
   });
 

@@ -15,6 +15,7 @@ readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_CORE_SKILLS=(
     "plan-loop"
     "plan-implement"
+    "adversary"
     "review"
     "implement"
     "verify"
@@ -32,6 +33,7 @@ readonly PI_CORE_SKILLS=(
 readonly CODEX_VISIBLE_PI_SKILLS=(
     "plan-loop"
     "plan-implement"
+    "adversary"
     "implement"
     "verify"
     "bug-check"
@@ -366,6 +368,7 @@ const managedSources = new Set([
   "git:github.com/badlogic/pi-skills",
   "npm:pi-interview",
   "npm:glimpseui",
+  "npm:@tintinweb/pi-subagents",
   "npm:@tintinweb/pi-tasks",
 ]);
 const localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
