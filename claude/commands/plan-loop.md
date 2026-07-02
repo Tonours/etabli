@@ -108,3 +108,6 @@ Rules:
 - Do not create `REVIEW.md`.
 - Do not create or update `docs/plan/` archives during planning.
 - Do not ask whether to implement next.
+- If the user asked for autonomous plan-loop completion, this command is only
+  the planning phase; the route must be `/plan-implement`, which continues
+  after the actual root `PLAN.md` is `READY`.

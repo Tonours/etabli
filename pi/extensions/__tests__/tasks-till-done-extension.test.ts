@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import tasksTillDone from "../tasks-till-done.ts";
 
 type Handler = (event: Record<string, unknown>) => unknown;
@@ -40,6 +43,20 @@ function setupExtension() {
   };
 }
 
+function createImplementationCwd(): string {
+  const cwd = mkdtempSync(join(tmpdir(), "etabli-task-loop-"));
+  mkdirSync(join(cwd, "docs", "plan"), { recursive: true });
+  return cwd;
+}
+
+function writeImplementedPlanArchive(cwd: string, mtime?: Date): void {
+  const archivePath = join(cwd, "docs", "plan", "20260702-implemented-plan.md");
+  writeFileSync(archivePath, "# Implemented plan\n");
+  if (mtime) {
+    utimesSync(archivePath, mtime, mtime);
+  }
+}
+
 describe("tasks till-done extension", () => {
   test("injects task loop guidance into eligible agent starts", () => {
     const runtime = setupExtension();
@@ -77,7 +94,65 @@ describe("tasks till-done extension", () => {
     expect(runtime.entries[0]).toMatchObject({ reason: "actionable_tasks" });
   });
 
-  test("requires validation before completing implementation task loops", () => {
+  test("uses structured TaskList details when text content is not parseable", () => {
+    const runtime = setupExtension();
+
+    runtime.emit("before_agent_start", {
+      prompt: "Implémente ce changement et valide le résultat",
+      systemPrompt: "Base prompt",
+    });
+    runtime.emit("tool_result", {
+      toolName: "TaskList",
+      content: [{ type: "text", text: "Task widget rendered without machine-readable lines" }],
+      details: {
+        tasks: [
+          { id: "1", subject: "Patch extension", status: "pending" },
+        ],
+      },
+    });
+    runtime.emit("agent_end", {});
+
+    expect(runtime.sentUserMessages).toHaveLength(1);
+    expect(runtime.entries[0]).toMatchObject({
+      reason: "actionable_tasks",
+      summary: {
+        evidenceSource: "structured",
+        guaranteeStatus: "confirmed",
+      },
+    });
+  });
+
+  test("stops visibly when TaskExecute cannot track subagents", () => {
+    const runtime = setupExtension();
+
+    runtime.emit("before_agent_start", {
+      prompt: "Implémente ce changement avec un subagent",
+      systemPrompt: "Base prompt",
+    });
+    runtime.emit("tool_result", {
+      toolName: "TaskExecute",
+      content: [{
+        type: "text",
+        text: "Subagent execution is currently unavailable (@tintinweb/pi-subagents not loaded or version mismatch). pi-tasks won't track them — status stays pending, cascade won't fire, TaskOutput stays empty.",
+      }],
+    });
+    runtime.emit("agent_end", {});
+
+    expect(runtime.sentUserMessages).toEqual([]);
+    expect(runtime.messages).toContainEqual(expect.objectContaining({
+      content: "Task loop stopped: runtime_capability_blocked",
+      display: true,
+      details: expect.objectContaining({
+        reason: "runtime_capability_blocked",
+        runtimeCapabilityIssue: expect.objectContaining({
+          kind: "subagent_execution_unavailable",
+          guaranteeStatus: "blocked",
+        }),
+      }),
+    }));
+  });
+
+  test("requires adversary, validation, review, archive, and cleanup before completing implementation task loops", () => {
     const runtime = setupExtension();
 
     runtime.emit("before_agent_start", {
@@ -91,8 +166,10 @@ describe("tasks till-done extension", () => {
     runtime.emit("agent_end", {});
 
     expect(runtime.sentUserMessages).toHaveLength(1);
-    expect(runtime.sentUserMessages[0]).toContain("needs validation evidence");
-    expect(runtime.entries[0]).toMatchObject({ reason: "validation_required", workflowRoute: "plan-implement" });
+    expect(runtime.sentUserMessages[0]).toContain("needs completion evidence");
+    expect(runtime.sentUserMessages[0]).toContain("adversarial plan review");
+    expect(runtime.sentUserMessages[0]).toContain("implemented-plan archive under docs/plan");
+    expect(runtime.entries[0]).toMatchObject({ reason: "completion_evidence_required", workflowRoute: "plan-implement" });
   });
 
   test("sends a visible stop message when blocked", () => {
@@ -115,19 +192,77 @@ describe("tasks till-done extension", () => {
     }));
   });
 
-  test("does not continue when TaskList is complete", () => {
+  test("does not continue when implementation TaskList has completion evidence", () => {
     const runtime = setupExtension();
+    const cwd = createImplementationCwd();
 
-    runtime.emit("before_agent_start", {
-      prompt: "Implémente ce changement et valide le résultat",
-      systemPrompt: "Base prompt",
-    });
-    runtime.emit("tool_result", {
-      toolName: "TaskList",
-      content: [{ type: "text", text: "#1 [completed] Inspect settings\n#2 [completed] Run validation tests" }],
-    });
-    runtime.emit("agent_end", {});
+    try {
+      runtime.emit("before_agent_start", {
+        prompt: "Implémente ce changement et valide le résultat",
+        systemPrompt: "Base prompt",
+        cwd,
+      });
+      writeImplementedPlanArchive(cwd);
+      runtime.emit("tool_result", {
+        toolName: "TaskList",
+        content: [{
+          type: "text",
+          text: [
+            "#1 [completed] Inspect settings",
+            "#2 [completed] Run adversary plan review",
+            "#3 [completed] Run validation tests",
+            "#4 [completed] Review diff against PLAN.md",
+            "#5 [completed] Archive implemented plan in docs/plan",
+            "#6 [completed] Delete root PLAN.md after archive",
+          ].join("\n"),
+        }],
+      });
+      runtime.emit("agent_end", {});
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
 
     expect(runtime.sentUserMessages).toEqual([]);
+  });
+
+  test("continues when completion tasks cite only a stale implemented-plan archive", () => {
+    const runtime = setupExtension();
+    const cwd = createImplementationCwd();
+
+    try {
+      writeImplementedPlanArchive(cwd, new Date(Date.now() - 60_000));
+      runtime.emit("before_agent_start", {
+        prompt: "Implémente ce changement et valide le résultat",
+        systemPrompt: "Base prompt",
+        cwd,
+      });
+      runtime.emit("tool_result", {
+        toolName: "TaskList",
+        content: [{
+          type: "text",
+          text: [
+            "#1 [completed] Inspect settings",
+            "#2 [completed] Run adversary plan review",
+            "#3 [completed] Run validation tests",
+            "#4 [completed] Review diff against PLAN.md",
+            "#5 [completed] Archive implemented plan in docs/plan",
+            "#6 [completed] Delete root PLAN.md after archive",
+          ].join("\n"),
+        }],
+      });
+      runtime.emit("agent_end", {});
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+
+    expect(runtime.sentUserMessages).toHaveLength(1);
+    expect(runtime.sentUserMessages[0]).toContain("needs completion evidence");
+    expect(runtime.entries[0]).toMatchObject({
+      reason: "completion_evidence_required",
+      implementationRuntimeEvidence: {
+        hasImplementedPlanArchive: false,
+        rootPlanDeleted: true,
+      },
+    });
   });
 });

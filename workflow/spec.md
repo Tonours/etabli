@@ -10,14 +10,15 @@ learn -> plan -> implement -> review -> validate
 
 ## Agentic workflow loop
 
-Pi remains the primary user-facing tool. The deterministic layer is a set of
-visible role contracts, templates, skills, extensions, checks, and stop
-conditions composed inside Pi. Do not replace Pi with an external wrapper.
+Pi remains the primary user-facing tool. The deterministic layer is a small set
+of role contracts, templates, skills, extensions, checks, and stop conditions
+composed inside Pi. Keep harness-specific mechanics in thin adapters; keep the
+shared behavior in tracked workflow sources.
 
 Use the smallest workflow that can finish with evidence:
 
 ```text
-user intent -> router -> planner -> challenger -> implementer -> verifier -> reviewer -> reporter -> stop
+user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
 ```
 
 Roles are contracts, not mandatory separate agents:
@@ -26,6 +27,8 @@ Roles are contracts, not mandatory separate agents:
 - `planner`: create or refresh `PLAN.md` and stop at `READY` or `CHALLENGED`.
 - `challenger`: reject vague scope, missing checks, hidden assumptions, and weak
   stop conditions before implementation.
+- `adversary`: stress-test `PLAN.md` before implementation, fold accepted
+  findings into the active plan, and keep `READY` only when no blocker remains.
 - `implementer`: execute only a `READY` plan, in order, with minimal drift.
 - `verifier`: prove or reject completion from checks, artifacts, sources, or
   command output without editing.
@@ -56,8 +59,17 @@ Only `READY` authorizes implementation.
 - Record exact validation commands and results before claiming completion.
 - Record route, role, stop condition, and required evidence in non-trivial plans.
 - Planning review updates `PLAN.md` in place.
+- Implementation-bound plans run an adversary pass before implementation.
 - Implementation follows plan steps in order.
 - Implementation commands archive the final implemented plan as a distilled memory record, not a raw `PLAN.md` copy.
+- Autonomous plan-loop requests use `plan-implement`: first run the `plan-loop`
+  behavior, then continue to implementation only after the actual root
+  `PLAN.md` is `READY`.
+- Prompt wording such as "PLAN.md ready" is routing context, not proof; the
+  implementation gate is the status recorded in the actual root `PLAN.md`.
+- Implementation-bound autonomous loops are not complete until validation,
+  adversary evidence, review, implemented-plan archive under `docs/plan/`, and
+  root `PLAN.md` cleanup are evidenced.
 - If new facts invalidate the plan, update it before continuing.
 - If new facts materially invalidate the implementation route or checks, stop as
   plan drift instead of silently continuing.
@@ -84,8 +96,9 @@ A plan is `READY` when it has:
 | --- | --- | --- | --- |
 | Simple question or explanation | `answer` | none | answer delivered |
 | Broad task, unclear implementation, or "fais un plan" | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
+| Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Existing `READY PLAN.md` plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
-| "plan puis implémente" or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
+| "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
 | Create or draft a Linear ticket | `linear-ticket-create` | Linear issue | created issue or MCP blocker |
 | Analyze a Linear bug without implementing | `bug-check` | adversarial root-cause report | `CERTAIN`, `HIGH CONFIDENCE`, or `UNCERTAIN` |
 | Bug fix or feature described by Linear ticket | `linear-work` | `PLAN.md` + code/docs + validation | ticket acceptance criteria validated or blocked |
@@ -105,8 +118,10 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/commands/`
+- Shared skill contracts: `workflow/skills/`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
+- Orchestration contract: `workflow/skills/orchestration.md`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
@@ -115,12 +130,17 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
 
+Runtime adapters should point to shared contracts instead of duplicating phase
+order. Add a shared contract only when two harnesses must preserve the same
+behavior.
+
 ## Default commands
 
 Pi:
 
 - `/skill:plan-loop <task>`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/skill:plan-implement <task>`: plan, then implement if `READY`
+- `/skill:adversary`: adversarially review `PLAN.md` before implementation
 - `/skill:implement`: implement existing `READY` plan
 - `/skill:review`: review current diff
 - `/skill:verify`: verify checks, claims, or current work without editing
@@ -138,6 +158,7 @@ Claude:
 - `/plan`: create `PLAN.md` only, stop at `DRAFT`
 - `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/plan-implement`: plan, then implement if `READY`
+- `/adversary`: cross-model adversarial review of `PLAN.md` before implementation
 - `/implement`: implement existing `READY` plan
 - `/review`: review current diff
 - `/verify-workflow`: verify checks, claims, or current work without editing
@@ -156,6 +177,9 @@ Claude-native loop:
   of recreating Pi's Task* continuation layer.
 - Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
   routing context and READY-gate hook enforcement.
+- Claude orchestration parity is `proxy_supported` through `/goal`, commands,
+  hooks, and smoke tests unless a live Claude `/goal` run proves it in the
+  current session. Do not claim Claude has Pi Task* semantics.
 
 ## Daily loop
 
@@ -163,8 +187,13 @@ Claude-native loop:
 2. read relevant files
 3. create or refresh `PLAN.md`
 4. review plan to `READY` or `CHALLENGED`
-5. implement small steps
-6. run focused checks
-7. archive the implemented plan in `docs/plan/`
-8. review diff
-9. commit once verified
+5. run adversary against implementation-bound `PLAN.md`; fold accepted findings
+   and keep `READY` only if no blocker remains
+6. if the selected route is `plan-implement` and the actual root `PLAN.md` is
+   `READY`, continue without asking for another prompt
+7. implement small steps
+8. run focused checks
+9. review diff against the plan
+10. archive the implemented plan in `docs/plan/`
+11. delete only the root `PLAN.md` after archive and validation
+12. commit once verified when the user asked for a commit

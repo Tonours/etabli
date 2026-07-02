@@ -65,6 +65,9 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
   Code's native `/verify`.
 - Use `/goal` for long-running "keep going until done" work with a measurable
   condition and explicit validation evidence.
+- Use `workflow/skills/orchestration.md` for Pi/Claude orchestration parity:
+  Claude uses `/goal`, commands, and hooks; Task* state is Pi-only unless the
+  active runtime exposes an equivalent primitive.
 
 ## Code
 - YAGNI, KISS, DRY, in that order. Simple beats clever. Obvious beats elegant.
