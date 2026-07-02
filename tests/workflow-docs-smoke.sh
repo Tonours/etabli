@@ -39,6 +39,7 @@ assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
+assert_file "$ROOT_DIR/docs/codex-app-subagents.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md"
@@ -97,6 +98,7 @@ assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE_SELF_TEST=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_CLAUDE_PRINT_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_REAL_AGENT_SCENARIOS=1'
 assert_contains "$ROOT_DIR/README.md" 'tests/workflow-real-agent-scenarios.sh'
+assert_contains "$ROOT_DIR/README.md" 'docs/codex-app-subagents.md'
 assert_contains "$ROOT_DIR/README.md" 'claude --version'
 assert_contains "$ROOT_DIR/README.md" '/skill:bug-check'
 assert_contains "$ROOT_DIR/README.md" '/skill:linear-ticket-create'
@@ -148,8 +150,17 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Review the d
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'implemented-plan archive under `docs/plan/`'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Task* tools are Pi-only'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'subagents:rpc:spawn'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'multi_agent_v1'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Codex subagents are internal sidecar workers'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" '`confirmed`'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" '`proxy_supported`'
+assert_contains "$ROOT_DIR/codex/AGENTS.md" 'multi_agent_v1.spawn_agent'
+assert_contains "$ROOT_DIR/codex/AGENTS.md" 'user-owned Codex threads'
+assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'multi_agent_v1.spawn_agent'
+assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'Do not create user-owned Codex threads'
+assert_contains "$ROOT_DIR/codex/workflow/dynamic-workflow-triggers.md" 'multi_agent_v1.spawn_agent'
+assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'multi_agent_v1.spawn_agent'
+assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'simulated `.workflow/<slug>/` packets'
 assert_contains "$ROOT_DIR/workflow/linear-ticket-template.md" 'Resolve team/project/labels through Linear MCP'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" 'Each archive is a distilled memory record, not a raw copy of `PLAN.md`.'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/'

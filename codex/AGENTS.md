@@ -47,6 +47,8 @@
 - Create or update a `.workflow/<slug>/` artifact before delegation when the task is substantial, risky, multi-track, or may span turns.
 - Keep the immediate critical path local. Delegate only bounded, disjoint sidecar packets that can progress in parallel.
 - Spawn subagents only when the active Codex environment exposes a supported subagent runner and the task has at least one independent packet with clear ownership and expected output.
+- In Codex App, `multi_agent_v1.spawn_agent`, `wait_agent`, and `close_agent` exposure is confirmed runner evidence for the current runtime only. Record the agent id/nickname, expected output, accepted/rejected result, and close the agent when no longer needed.
+- Codex subagents are internal sidecar workers/reviewers; do not treat them as Pi Task* tools, Claude Task* equivalents, or user-owned Codex threads.
 - Do not spawn subagents for trivial, tightly coupled, advisory-only, overlapping, or better-handled-locally tasks. If the keyword was present, say briefly that orchestration or delegation was unnecessary.
 - If no subagent runner is available, authorization is missing, or delegation would add overhead without useful parallelism, simulate the workflow with isolated packet notes and say so briefly.
 - Do not treat incidental mentions of `goal`, CI/GitHub workflows, `go`, `ok`, `retest`, or vague quality requests as subagent triggers.
