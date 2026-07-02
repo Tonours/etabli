@@ -36,6 +36,7 @@ None so far.
 - `bash tests/claude-hooks-smoke.sh` passed.
 - `bun test pi/extensions/__tests__/` passed with 165 tests.
 - `bash tests/workflow-autonomous-plan-loop-smoke.sh` passed.
+- Local setup commit created: `9a4955c feat(codex): document app subagent orchestration`.
 
 ## Remaining Risks
 
