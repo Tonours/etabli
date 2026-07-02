@@ -1,6 +1,7 @@
 # Orchestration Contract
 
-Shared contract for long-running Etabli orchestration across Pi and Claude.
+Shared contract for long-running Etabli orchestration across Pi, Claude, and
+Codex.
 
 Runtime adapters may differ in mechanics. They must preserve the same workflow
 semantics, evidence requirements, stop conditions, and honesty labels.
@@ -11,6 +12,8 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
 - Claude should use Claude Code `/goal` for long-running completion loops.
+- Codex App may use its multi-agent runner when the active runtime exposes one;
+  otherwise it should simulate packets through `.workflow/<slug>/`.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
 - Subagents are optional sidecar evaluators or workers, not the default workflow.
@@ -101,3 +104,14 @@ Claude:
   prove route/guard behavior in smoke tests.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.
+
+Codex:
+
+- `codex-dynamic-workflows` is the orchestration front door for `/goal`,
+  subagents, delegation, and dynamic workflow requests.
+- In Codex App, a visible `multi_agent_v1` runner with `spawn_agent`,
+  `wait_agent`, and `close_agent` is `confirmed` evidence for this runtime only.
+- Codex subagents are internal sidecar workers or reviewers. They are not Pi
+  Task* tools, and they are not user-owned Codex threads.
+- If the runner is absent, use simulated packets under `.workflow/<slug>/` and
+  label the runtime claim `blocked` rather than pretending delegation happened.

@@ -169,6 +169,10 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 
 The real agent scenarios test runs separate Pi and Claude Code invocations in temporary scaffolded projects. It checks realistic workflow-routing prompts with actual CLI/runtime context, including READY read-only prompts, adversarial code review, read-only adversarial PLAN.md review, actual READY implementation routing, prompt-only READY wording without a root `PLAN.md`, and a Pi `TaskExecute` subagent run that creates an archive under `docs/plan/` and removes the root `PLAN.md`.
 
+Codex App subagent orchestration is documented in `docs/codex-app-subagents.md`.
+It is confirmed only for runtimes that expose `multi_agent_v1`; otherwise the
+same workflow uses simulated `.workflow/<slug>/` packets.
+
 ## Config notes
 
 - `codex/config.managed.toml` is a tracked non-secret baseline; live `~/.codex/config.toml` stays local.
@@ -189,6 +193,7 @@ The real agent scenarios test runs separate Pi and Claude Code invocations in te
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `workflow-scaffold/templates/` - project workflow scaffold templates
+- `docs/codex-app-subagents.md` - Codex App subagent runner and fallback rules
 - `docs/workflow-101.md` - guided introduction to the workflow
 - `docs/codex-organization.md` - tracked Codex surface and deployment rules
 - `docs/fable5-notes.md` - Fable 5 migration decisions
