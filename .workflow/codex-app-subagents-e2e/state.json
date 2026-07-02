@@ -35,7 +35,8 @@
       "bash tests/workflow-docs-smoke.sh",
       "bash tests/codex-organization-smoke.sh",
       "python3 /Users/tonours/.codex/skills/codex-dynamic-workflows/scripts/verify_workflow.py .workflow/codex-app-subagents-e2e",
-      "git diff --check"
+      "git diff --check",
+      "git commit -m \"feat(codex): document app subagent orchestration\""
     ],
     "live_deploy": {
       "status": "skipped_not_required",

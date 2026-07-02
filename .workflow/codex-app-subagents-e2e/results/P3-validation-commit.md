@@ -16,7 +16,8 @@ Accepted.
 - `bash tests/claude-hooks-smoke.sh` passed.
 - `bun test pi/extensions/__tests__/` passed with 165 tests.
 - `bash tests/workflow-autonomous-plan-loop-smoke.sh` passed.
+- `git commit -m "feat(codex): document app subagent orchestration"` created commit `9a4955c`.
 
 ## Remaining
 
-- Local commit is the only remaining mechanical action after this result file update.
+- None.
