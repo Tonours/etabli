@@ -8,6 +8,15 @@ Canonical workflow contract for `etabli`.
 learn -> plan -> implement -> review -> validate
 ```
 
+## Activation
+
+The workflow is ambient in any project that contains `workflow/spec.md`. Users
+should not need to write "use the Etabli workflow" in normal prompts. Agents
+must infer the smallest matching route from the request and local repo state.
+Explicit markers such as `/goal`, `plan-loop`, `workflow`, `subagents`,
+`jusqu'au bout`, `review`, or `verify` select specialized routes; they are not
+required for ordinary bug fixes, feature work, reviews, or verification.
+
 ## Agentic workflow loop
 
 Pi remains the primary user-facing tool. The deterministic layer is a small set

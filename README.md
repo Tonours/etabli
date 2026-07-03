@@ -214,3 +214,7 @@ same workflow uses simulated `.workflow/<slug>/` packets.
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes
 - `claude/README.md` - Claude installed surface
+
+Projects scaffolded with `workflow/spec.md` activate the Etabli workflow
+ambiently. Users can write ordinary prompts such as "corrige le bug et valide";
+explicit workflow/subagent wording is only for heavier orchestration.

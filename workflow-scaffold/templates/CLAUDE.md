@@ -16,6 +16,11 @@ Claude Code-specific adapter for the shared project workflow scaffold.
 
 ## Workflow
 - Canonical workflow: `workflow/spec.md`
+- The Etabli workflow is ambient in this project because `workflow/spec.md`
+  exists. Do not require the user to write "use the Etabli workflow".
+- Keep ordinary prompts lightweight: route obvious implementation, review,
+  verification, ticket, or planning requests through the smallest matching
+  command; reserve `/goal` and heavier orchestration for tasks that justify it.
 - Use `PLAN.md` as the only execution artifact.
 - Implement only from `Status: READY`.
 - Archive implemented and validated plans in `docs/plan/`; never archive drafts, challenged plans, or abandoned ready plans.

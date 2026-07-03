@@ -17,6 +17,10 @@ agents from editing code on a vague prompt, and to leave durable state behind.
 - **Two harnesses, one contract**: Pi skills and Claude commands are thin
   adapters over the same `workflow/skills/` contracts.
 
+The workflow is ambient: if a repo contains `workflow/spec.md`, you should not
+need to write "use the Etabli workflow" in every prompt. Say the task normally;
+the agent should pick the smallest route that can finish with evidence.
+
 ## The loop in one picture
 
 ```text
@@ -116,6 +120,10 @@ post-implementation diff review, use `/skill:review` (Pi) or `/review`
 You rarely pick the route by hand. When you send a plain prompt (not a slash
 command), the router classifies it and injects context: the route, its artifact,
 its stop condition, and the required evidence.
+
+Use explicit markers only when you want the heavier path: `/goal`,
+`plan-loop`, `subagents`, `workflow`, or "jusqu'au bout". For ordinary work,
+"corrige le bug et valide" is enough.
 
 A few examples:
 

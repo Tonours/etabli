@@ -44,6 +44,9 @@ Repo-specific instructions for this dotfiles repo.
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
 - Codex organization: `docs/codex-organization.md`
+- Ambient activation: when a project contains `workflow/spec.md`, agents should
+  use the Etabli workflow automatically. Users should not need to write "use the
+  Etabli workflow" in ordinary prompts.
 
 ## Code
 

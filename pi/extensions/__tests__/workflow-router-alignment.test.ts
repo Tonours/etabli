@@ -42,6 +42,7 @@ describe("Pi and Claude workflow router alignment", () => {
     "fix CI and push PR #42",
     "remove this folder",
     "Fais une recherche web sourcée sur les pratiques agentiques",
+    "Corrige le bug de login et valide",
   ];
 
   for (const prompt of prompts) {
