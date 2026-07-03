@@ -83,11 +83,11 @@
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.79.6",
+  "lastChangelogVersion": "0.80.3",
   "defaultProvider": "zai",
   "defaultModel": "glm-5.2",
   "theme": "catppuccin-mocha",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "xhigh",
   "rtk": {
     "enabled": true,
     "mode": "always",
