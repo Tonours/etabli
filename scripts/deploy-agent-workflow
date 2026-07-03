@@ -25,6 +25,10 @@ CODEX_VISIBLE_PI_SKILLS=(
   "github-pr-review"
 )
 
+CODEX_VISIBLE_CODEX_SKILLS=(
+  "goal-prompt-rewriter"
+)
+
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR] [--codex-home DIR]
@@ -407,6 +411,10 @@ deploy_pi() {
 
   for skill in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
     link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Codex-visible Pi skill $skill"
+  done
+
+  for skill in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
+    link_path "$REPO_DIR/codex/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Codex-visible Codex skill $skill"
   done
 
   for theme_file in "$REPO_DIR/pi/themes"/*.json; do

@@ -42,6 +42,9 @@ CODEX_VISIBLE_PI_SKILLS=(
   "ci-fix"
   "github-pr-review"
 )
+CODEX_VISIBLE_CODEX_SKILLS=(
+  "goal-prompt-rewriter"
+)
 
 usage() {
   cat <<EOF
@@ -198,6 +201,13 @@ check_codex_visible_pi_skill_links() {
   done
 }
 
+check_codex_visible_codex_skill_links() {
+  local skill_name
+  for skill_name in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
+    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/codex/skills/$skill_name" "codex-visible codex skill $skill_name"
+  done
+}
+
 check_claude_skill_links() {
   local skill_dir skill_name
 
@@ -270,6 +280,7 @@ check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settin
 check_claude_hook_links
 check_pi_skill_links
 check_codex_visible_pi_skill_links
+check_codex_visible_codex_skill_links
 check_claude_skill_links
 
 check_script_link "dev-spawn"

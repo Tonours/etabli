@@ -208,6 +208,7 @@ same workflow uses simulated `.workflow/<slug>/` packets.
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `workflow-scaffold/templates/` - project workflow scaffold templates
 - `docs/codex-app-subagents.md` - Codex App subagent runner and fallback rules
+- `docs/workflow-duplication-audit.md` - current duplication map and anti-drift guards
 - `docs/workflow-101.md` - guided introduction to the workflow
 - `docs/codex-organization.md` - tracked Codex surface and deployment rules
 - `docs/fable5-notes.md` - Fable 5 migration decisions
