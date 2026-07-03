@@ -31,6 +31,17 @@ assert_not_contains() {
     fi
 }
 
+assert_same_file() {
+    local expected="$1"
+    local actual="$2"
+
+    if ! cmp -s "$expected" "$actual"; then
+        printf 'expected files to stay identical: %s %s\n' "$expected" "$actual" >&2
+        diff -u "$expected" "$actual" >&2 || true
+        exit 1
+    fi
+}
+
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/workflow/plan-archive.md"
@@ -139,6 +150,7 @@ assert_contains "$ROOT_DIR/workflow/ticket-template.md" 'Keep project-specific s
 assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" '## Start here'
 assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" '## Stop conditions'
 assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" 'Keep project-specific scope'
+assert_same_file "$ROOT_DIR/workflow/ticket-template.md" "$ROOT_DIR/codex/workflow/ticket-template.md"
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'should not need to write "use the Etabli workflow"'
@@ -213,6 +225,8 @@ assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'workflow/skills/advers
 assert_contains "$ROOT_DIR/pi/skills/bug-check/SKILL.md" 'Adversarial Analysis'
 assert_contains "$ROOT_DIR/pi/skills/linear-ticket-create/SKILL.md" 'Use Linear MCP as the Linear integration'
 assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILABLE'
+assert_file "$ROOT_DIR/codex/skills/linear-work/SKILL.md"
+assert_same_file "$ROOT_DIR/pi/skills/linear-work/SKILL.md" "$ROOT_DIR/codex/skills/linear-work/SKILL.md"
 assert_contains "$ROOT_DIR/pi/skills/pr-review/SKILL.md" 'Use `gh`'
 assert_contains "$ROOT_DIR/docs/workflow-101.md" 'plan-loop → adversary → implement'
 assert_contains "$ROOT_DIR/docs/workflow-101.md" 'Status: READY'

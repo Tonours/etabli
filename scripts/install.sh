@@ -45,6 +45,9 @@ readonly CODEX_VISIBLE_PI_SKILLS=(
     "ci-fix"
     "github-pr-review"
 )
+readonly CODEX_VISIBLE_CODEX_SKILLS=(
+    "goal-prompt-rewriter"
+)
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -1027,6 +1030,16 @@ for skill_name in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
         print_success "Codex-visible Pi skill '$skill_name' linked"
     else
         print_warning "Codex-visible Pi skill '$skill_name' missing from repo"
+    fi
+done
+
+for skill_name in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
+    skill_dir="$REPO_DIR/codex/skills/$skill_name"
+    if [ -d "$skill_dir" ]; then
+        ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
+        print_success "Codex-visible Codex skill '$skill_name' linked"
+    else
+        print_warning "Codex-visible Codex skill '$skill_name' missing from repo"
     fi
 done
 

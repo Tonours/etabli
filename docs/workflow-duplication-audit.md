@@ -1,8 +1,9 @@
 # Workflow Duplication Audit
 
 Stability audit of the Etabli workflow layer: where behavior is duplicated
-across Pi, Claude, and `workflow/skills/`, what drift risk it creates, and what
-guards it. The current loop is unchanged:
+across Pi, Claude, Codex, and `workflow/skills/`, what drift risk it creates,
+and what guards it. Last cleanup pass: 2026-07-03. The current loop is
+unchanged:
 
 ```text
 plan-loop -> adversary -> implement -> validate -> review -> archive -> cleanup
@@ -12,13 +13,16 @@ This is a read-only map plus targeted anti-drift guards. It is not a redesign.
 
 ## Duplication map
 
-| Surface | Pi source | Claude source | Shared contract | Drift risk |
-| --- | --- | --- | --- | --- |
-| Embedded `PLAN.md` fallback shape | `pi/skills/plan-loop/SKILL.md` | `claude/commands/plan-loop.md` | none (verbatim copy) | **High** — divergent shape produces different plans |
-| Implementation loop | `pi/skills/{implement,plan-implement}/SKILL.md` | `claude/commands/{implement,plan-implement}.md` | `workflow/skills/implementation-loop.md` | Low — adapters are thin |
-| Adversary gate | `pi/skills/adversary/SKILL.md` | `claude/commands/adversary.md` | `workflow/skills/adversary.md` | Low — adapters are thin |
-| Router decision logic | `pi/extensions/lib/workflow-router-runtime.ts` | `claude/hooks/workflow-router-lib.mjs` | none (parallel impl) | Medium — divergence silently routes differently |
-| Source-resolution fallback paths | each Pi skill | each Claude command | none | Accepted — harness paths differ by design |
+| Surface | Pi source | Claude source | Codex source | Shared contract | Drift risk |
+| --- | --- | --- | --- | --- | --- |
+| Embedded `PLAN.md` fallback shape | `pi/skills/plan-loop/SKILL.md` | `claude/commands/plan-loop.md` | n/a | none (verbatim copy) | **High** — divergent shape produces different plans |
+| Implementation loop | `pi/skills/{implement,plan-implement}/SKILL.md` | `claude/commands/{implement,plan-implement}.md` | n/a | `workflow/skills/implementation-loop.md` | Low — adapters are thin |
+| Adversary gate | `pi/skills/adversary/SKILL.md` | `claude/commands/adversary.md` | n/a | `workflow/skills/adversary.md` | Low — adapters are thin |
+| Router decision logic | `pi/extensions/lib/workflow-router-runtime.ts` | `claude/hooks/workflow-router-lib.mjs` | `codex/AGENTS.md` + `codex/workflow/dynamic-workflow-triggers.md` | `workflow/spec.md` and `workflow/skills/orchestration.md` | Medium — divergence silently routes differently |
+| Linear work skill | `pi/skills/linear-work/SKILL.md` | `claude/commands/linear-work.md` | `codex/skills/linear-work/SKILL.md` | `workflow/spec.md` route and `workflow/ticket-template.md` | Medium — Pi and Codex copies are byte-identical and should stay synchronized until a shared deployment source exists |
+| Ticket template fallback | `workflow/ticket-template.md` via scaffold | n/a | `codex/workflow/ticket-template.md` | `workflow/ticket-template.md` | Medium — Codex home needs a deployed fallback, but the copy must not drift from the repo canonical template |
+| Codex-visible skill link lists | `scripts/install.sh` | n/a | `scripts/deploy-agent-workflow`, `scripts/check-fix-symlinks.sh` | `pi/agent/settings.json` plus `codex/skills/goal-prompt-rewriter` | Medium — bootstrap scripts must agree on which Pi/Codex skills become visible to Codex |
+| Source-resolution fallback paths | each Pi skill | each Claude command | Codex global instructions | none | Accepted — harness paths differ by design |
 
 ## Guards added
 
@@ -34,6 +38,16 @@ This is a read-only map plus targeted anti-drift guards. It is not a redesign.
    planning) and `implement` (the READY gate). The READY gate is the most
    drift-prone decision; it now asserts both harnesses agree when
    `planStatus: "ready"` and disagree on `implement` when not proven READY.
+4. **Codex fallback parity** (`tests/workflow-docs-smoke.sh`): requires
+   `codex/workflow/ticket-template.md` to stay byte-identical to
+   `workflow/ticket-template.md`, and requires the Pi and Codex `linear-work`
+   skill copies to stay byte-identical while both deployed surfaces need the
+   same behavior.
+5. **Bootstrap list parity**
+   (`pi/extensions/__tests__/settings-consistency.test.ts`): parses
+   `CODEX_VISIBLE_PI_SKILLS` and `CODEX_VISIBLE_CODEX_SKILLS` from
+   `scripts/install.sh`, `scripts/deploy-agent-workflow`, and
+   `scripts/check-fix-symlinks.sh`, then requires the lists to match.
 
 ## Gap classification
 
@@ -46,6 +60,26 @@ This is a read-only map plus targeted anti-drift guards. It is not a redesign.
 - **Router READY gate under-tested**: the most important routing rule (only an
   actual READY `PLAN.md` authorizes `implement`) had no cross-harness
   assertion. Guard #3 above.
+- **Codex fallback copies**: `codex/workflow/ticket-template.md` and
+  `codex/skills/linear-work/SKILL.md` are exact duplicates required by Codex
+  deployment/discovery surfaces. Guard #4 above makes the duplication explicit
+  instead of relying on review memory.
+- **Codex-visible skill lists**: the same link list exists in install, deploy,
+  and symlink-check scripts. Guard #5 keeps the lists synchronized without
+  turning bootstrap scripts into a shared-source-loader dependency.
+- **Stale Pi loop implementation plan**: `docs/pi-agentic-workflow-loop-plan.md`
+  was unreferenced and contradicted current state by saying there was no
+  dedicated `verify` skill and by listing pre-router Pi settings. It was removed
+  in the 2026-07-03 cleanup; current sources are `workflow/spec.md`,
+  `workflow/skills/orchestration.md`, `docs/workflow-101.md`,
+  `docs/agentic-workflow-hardening.md`, and `docs/codex-app-subagents.md`.
+- **Stale workflow-scaffold best-practices audit**:
+  `docs/workflow-scaffold-best-practices-audit.md` was unreferenced and still
+  described already-fixed drift as a current recommendation, including the
+  scaffold installed-surface map and regression-test gaps. It was removed in
+  the 2026-07-03 cleanup; current scaffold contracts live in
+  `workflow/spec.md`, `workflow-scaffold/templates/docs/agent-workflow.md`,
+  `workflow/plan-archive.md`, and the workflow smoke tests.
 
 ### Proxy-supported (guarded by a non-targeted check)
 
@@ -61,6 +95,10 @@ This is a read-only map plus targeted anti-drift guards. It is not a redesign.
 - **Canonical `PLAN_TEMPLATE.md` location**: must stay at repo root only; the
   existing `workflow-docs-smoke.sh` assertion rejects copies under
   `claude/` or `pi/`.
+- **Manual ADR stress scripts**: `tests/adr-skill-stress.sh` is not referenced
+  by automated validation, but its header marks it as manual, out of CI, and
+  cost-bearing. It is retained as an explicit manual verification surface, not
+  treated as dead code.
 
 ### Unknown (low value to pursue)
 
@@ -72,6 +110,9 @@ This is a read-only map plus targeted anti-drift guards. It is not a redesign.
   add coupling without reducing real risk.
 - **`spec-guide` route (Claude-only)**: has no Pi equivalent by design (Pi has
   no guided spec interview skill). Not a drift surface.
+- **Ignored `.workflow/` packets**: ignored local artifacts can be useful
+  session evidence. They are not tracked and are not cleaned by repo validation;
+  delete them only with explicit local-state cleanup intent.
 
 ### Out of scope
 
@@ -81,6 +122,10 @@ This is a read-only map plus targeted anti-drift guards. It is not a redesign.
 - **Extracting the embedded fallback shape into a shared file**: it is a
   last-resort fallback used only when every shared copy is missing. A shared
   source for the fallback would defeat its purpose (survive missing sources).
+- **Symlinking Codex fallback files to root/Pi sources**: `scripts/deploy-codex`
+  links files from the tracked `codex/` tree into `$CODEX_HOME`; relative
+  symlinks inside that tree would make the deployed Codex surface less
+  self-contained and harder to audit.
 - **The `tasks-till-done` runtime**: duplicated task-parse/continue logic is
   Pi-specific (Claude uses native `/goal`); covered by
   `workflow-autonomous-plan-loop-smoke.sh` and the runtime tests, not a

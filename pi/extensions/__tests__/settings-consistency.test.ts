@@ -16,6 +16,14 @@ const settings = JSON.parse(
 };
 
 const installScript = readFileSync(new URL("../../../scripts/install.sh", import.meta.url), "utf-8");
+const deployAgentWorkflowScript = readFileSync(
+  new URL("../../../scripts/deploy-agent-workflow", import.meta.url),
+  "utf-8",
+);
+const checkFixSymlinksScript = readFileSync(
+  new URL("../../../scripts/check-fix-symlinks.sh", import.meta.url),
+  "utf-8",
+);
 
 function localPackage(): LocalPackage {
   const pkg = packageBySource("local:etabli-workflow");
@@ -30,8 +38,12 @@ function packageBySource(source: string): LocalPackage | undefined {
 }
 
 function installCoreSkills(): string[] {
-  const match = installScript.match(/readonly PI_CORE_SKILLS=\(\n([\s\S]*?)\n\)/);
-  if (!match) throw new Error("PI_CORE_SKILLS declaration missing");
+  return shellArray(installScript, "PI_CORE_SKILLS");
+}
+
+function shellArray(source: string, name: string): string[] {
+  const match = source.match(new RegExp(`(?:readonly\\s+)?${name}=\\(\\n([\\s\\S]*?)\\n\\)`));
+  if (!match) throw new Error(`${name} declaration missing`);
 
   return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
 }
@@ -53,6 +65,19 @@ describe("Pi settings consistency", () => {
 
   test("installer links every configured local skill", () => {
     expect(installCoreSkills().sort()).toEqual([...(localPackage().skills ?? [])].sort());
+  });
+
+  test("keeps Codex-visible skill lists synchronized across bootstrap scripts", () => {
+    const scripts = [installScript, deployAgentWorkflowScript, checkFixSymlinksScript];
+    const piSkillLists = scripts.map((source) => shellArray(source, "CODEX_VISIBLE_PI_SKILLS"));
+    const codexSkillLists = scripts.map((source) => shellArray(source, "CODEX_VISIBLE_CODEX_SKILLS"));
+
+    expect(piSkillLists[1]).toEqual(piSkillLists[0]);
+    expect(piSkillLists[2]).toEqual(piSkillLists[0]);
+    expect(codexSkillLists[1]).toEqual(codexSkillLists[0]);
+    expect(codexSkillLists[2]).toEqual(codexSkillLists[0]);
+    expect(piSkillLists[0].every((skill) => (localPackage().skills ?? []).includes(skill))).toBe(true);
+    expect(codexSkillLists[0]).toEqual(["goal-prompt-rewriter"]);
   });
 
   test("loads only the curated third-party Pi package surface", () => {
