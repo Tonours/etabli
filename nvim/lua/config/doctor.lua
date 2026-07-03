@@ -86,7 +86,7 @@ local function symlink_line(label, path, expected)
     return line("WARN", label, expanded .. " -> " .. target .. " expected " .. normalized_expected)
   end
 
-  return line("WARN", label, expanded .. " not linked")
+  return line("WARN", label, expanded .. " not linked expected " .. normalized_expected)
 end
 
 local function copilot_lines()
