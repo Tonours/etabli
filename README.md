@@ -114,6 +114,18 @@ scripts/deploy-codex --apply
 `config.managed.toml` instead of replacing the live `config.toml`, because the
 live file can contain local trust state, provider configuration, and secrets.
 
+Three-harness workflow deployment:
+
+```bash
+scripts/deploy-agent-workflow --dry-run
+scripts/deploy-agent-workflow --apply
+```
+
+`scripts/deploy-agent-workflow` applies only the Etabli agent workflow surfaces
+for Codex, Claude Code, and Pi. It relinks identical Codex copies back to repo
+symlinks, links Claude/Pi workflow files, and syncs only managed Pi package
+resources in the local `~/.pi/agent/settings.json`.
+
 ## Project workflow scaffold
 
 Deploy the Etabli workflow scaffold into a new or existing project:
@@ -158,6 +170,7 @@ tests/workflow-docs-smoke.sh
 tests/claude-hooks-smoke.sh
 tests/fix-links-smoke.sh
 tests/install-smoke.sh
+tests/deploy-agent-workflow-smoke.sh
 tests/nvim-smoke.sh
 RUN_AGENT_CLI_SMOKE_SELF_TEST=1 tests/workflow-cli-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 tests/workflow-cli-smoke.sh

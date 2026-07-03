@@ -25,6 +25,7 @@ github-copilot/
 
 # Node
 node_modules/
+pi/extensions/node_modules
 
 # Logs
 *.log

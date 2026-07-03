@@ -46,6 +46,7 @@ assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/project-context.md"
 assert_file "$ROOT_DIR/scripts/deploy-workflow"
+assert_file "$ROOT_DIR/scripts/deploy-agent-workflow"
 assert_file "$ROOT_DIR/claude/commands/verify-workflow.md"
 assert_file "$ROOT_DIR/claude/commands/bug-check.md"
 assert_file "$ROOT_DIR/claude/commands/linear-ticket-create.md"
@@ -64,6 +65,7 @@ assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 assert_file "$ROOT_DIR/tests/install-smoke.sh"
+assert_file "$ROOT_DIR/tests/deploy-agent-workflow-smoke.sh"
 assert_file "$ROOT_DIR/tests/nvim-smoke.sh"
 assert_file "$ROOT_DIR/scripts/profile-nvim.sh"
 assert_file "$ROOT_DIR/scripts/profile-nvim-runtime.sh"
@@ -79,6 +81,9 @@ assert_contains "$ROOT_DIR/scripts/install.sh" 'Claude skill'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'Claude workflow hook'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'settings.workflow-hooks.json'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'deploy-workflow'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Deploy only the Etabli agent workflow surfaces'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" '--prefer-links'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/scripts/install.sh" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'hunkdiff'
 assert_contains "$ROOT_DIR/scripts/install.sh" 'install_npm_global_binary_link "hunk"'
@@ -87,10 +92,14 @@ assert_contains "$ROOT_DIR/scripts/install.sh" 'asdf reshim nodejs'
 assert_not_contains "$ROOT_DIR/scripts/install.sh" 'nvm-sh/nvm'
 assert_not_contains "$ROOT_DIR/scripts/install.sh" '@mariozechner/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'deploy-workflow'
+assert_contains "$ROOT_DIR/README.md" 'deploy-agent-workflow'
+assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
+assert_contains "$ROOT_DIR/README.md" 'syncs only managed Pi package'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
 assert_contains "$ROOT_DIR/README.md" 'docs/workflow-101.md'
 assert_contains "$ROOT_DIR/README.md" 'tests/fix-links-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/install-smoke.sh'
+assert_contains "$ROOT_DIR/README.md" 'tests/deploy-agent-workflow-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/nvim-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/claude-hooks-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
