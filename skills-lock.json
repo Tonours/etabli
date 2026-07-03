@@ -4,12 +4,12 @@
     "plan-loop": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "2d63f1e3a0c6a4996106a5c51ccf2970cb42538d2b91557c8b42f4795c5e3433"
+      "computedHash": "7ef5d7b072765747e4c27abf7eea549221b6484a0b0ad1a274fe6ad61caeeb09"
     },
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "b788fcda67f199643ced6cb8ce72e56eaf505d51acb567247570b4887ede5c3b"
+      "computedHash": "e44b7da2831b7f08ec8935c699eba06db46a1e1566f2e11708c4c623aedf8f8f"
     },
     "review": {
       "source": "local",
@@ -19,7 +19,7 @@
     "implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "1505ef1d34611c68ac8b0f7db1fac3cf5ac9683e67408fe5091d2250813bf506"
+      "computedHash": "f7e50a7c9705e8c2122bcf4d3877ff8e782552deccec22fdec5bc7346254be01"
     },
     "verify": {
       "source": "local",
@@ -75,6 +75,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "04a99790c6b3a192779ef25550c427dcec93235a454202b2fa363077ae5dea5f"
+    },
+    "adversary": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "183e4e7b2352ac494333372fcc9de1ee9aa560f0ef3fc2c021778ba4c36cf35d"
     }
   }
 }
