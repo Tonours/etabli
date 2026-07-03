@@ -12,6 +12,9 @@ This project includes the Etabli agent workflow.
 - `workflow/linear-ticket-template.md` adapts tickets to Linear fields.
 - `workflow/memory.md` defines how durable agent lessons are recorded.
 - `workflow/plan-archive.md` defines implemented plan archive records.
+- `workflow/skills/` stores shared skill contracts for thin runtime adapters.
+- `workflow/skills/orchestration.md` defines capability labels, delegation,
+  retry, fallback, and acceptance evidence for long-running orchestration.
 - `docs/agent-memory/README.md` is the default memory directory index.
 - `docs/plan/README.md` is the default implemented-plan archive index.
 - `docs/project-context.md` stores durable project-specific facts.
@@ -20,7 +23,15 @@ This project includes the Etabli agent workflow.
 
 ## Operating Model
 
-The workflow scaffold favors short entry-point instructions plus tracked, focused source-of-truth files. Agents should discover project facts from the repository, not from hidden chat context.
+The workflow scaffold favors short entry-point instructions plus tracked,
+focused source-of-truth files. Agents should discover project facts from the
+repository, not from hidden chat context. Harness-specific wrappers should stay
+thin and point back to `workflow/skills/` when behavior is shared.
+
+Activation is ambient: because `workflow/spec.md` exists, users should not need
+to write "use the Etabli workflow". Plain prompts should route through the
+smallest matching workflow; explicit `/goal`, `workflow`, `subagents`, or
+`plan-loop` language is reserved for heavier orchestration.
 
 ## Project-Specific Context
 
@@ -43,6 +54,14 @@ Use `CLAUDE.md` as the thin adapter. It repeats the minimum source-of-truth map 
 ## Pi Coding Agent
 
 Use `AGENTS.md` as the Pi-facing entry point. Keep Pi-specific runtime configuration and personal skills outside the project unless the project owns them. The portable project workflow scaffold should depend on tracked docs, plans, tests, and commands that any agent can inspect.
+
+## Orchestration
+
+Use `workflow/skills/orchestration.md` when a task needs sustained workflow
+control, subagent delegation, retries, or runtime capability checks. Pi may use
+Task* tools when available. Claude should use `/goal` for long-running loops.
+Do not treat these mechanisms as identical; preserve the shared contract and
+label runtime evidence honestly.
 
 ## Safety
 

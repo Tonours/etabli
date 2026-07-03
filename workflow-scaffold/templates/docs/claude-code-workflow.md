@@ -31,6 +31,11 @@ Do not recreate Pi's `/tasks` behavior in Claude unless a deterministic Stop
 hook is needed for every session. `/goal` is session-scoped and uses a separate
 evaluator after each turn.
 
+For parity with Pi orchestration, follow `workflow/skills/orchestration.md`.
+Claude's parity path is `/goal`, slash commands, router context, READY guards,
+and smoke tests. Task* semantics are Pi-only unless the active Claude runtime
+explicitly exposes an equivalent primitive.
+
 ## Failure Modes to Guard Against
 
 - Long tasks lose coherence as context fills.

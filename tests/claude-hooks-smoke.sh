@@ -82,9 +82,23 @@ assert_contains "$router_output" 'Route: answer'
 assert_contains "$router_output" 'read-only, question, or summary request'
 assert_not_contains "$router_output" 'Route: spec-guide'
 
+write_plan "READY"
 router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: implement'
 assert_contains "$router_output" 'validated archive written and root PLAN.md deleted'
+rm -f "$TMP_DIR/PLAN.md"
+
+router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_contains "$router_output" 'actual PLAN.md status is not proven READY'
+assert_not_contains "$router_output" 'Route: implement'
+
+write_plan "READY"
+router_output="$(fixture_input router-ready-read-only.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: answer'
+assert_not_contains "$router_output" 'Route: implement'
+assert_not_contains "$router_output" 'Route: plan-implement'
+rm -f "$TMP_DIR/PLAN.md"
 
 router_output="$(fixture_input router-linear-ticket.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: linear-ticket-create'
@@ -135,6 +149,35 @@ router_output="$(fixture_input router-implement-verb.json | node "$ROOT_DIR/clau
 assert_contains "$router_output" 'Route: plan-implement'
 assert_not_contains "$router_output" 'Route: answer'
 
+router_output="$(fixture_input router-ambient-implementation.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_not_contains "$router_output" 'Route: answer'
+
+router_output="$(fixture_input router-autonomous-plan-loop.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_contains "$router_output" 'autonomous plan-loop request'
+assert_contains "$router_output" 'Plan chain: planning -> plan-loop'
+assert_contains "$router_output" 'Autonomous completion evidence:'
+assert_contains "$router_output" 'Runtime loop: use Claude Code `/goal`'
+assert_contains "$router_output" 'Claude parity is proxy_supported'
+assert_not_contains "$router_output" 'TaskCreate'
+assert_not_contains "$router_output" 'TaskList'
+assert_not_contains "$router_output" 'Route: plan-loop'
+
+router_output="$(fixture_input router-adversary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: adversary'
+assert_contains "$router_output" 'Command: /adversary'
+assert_not_contains "$router_output" 'Route: review'
+
+router_output="$(fixture_input router-adversarial-code-review.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: review'
+assert_not_contains "$router_output" 'Route: adversary'
+
+router_output="$(fixture_input router-read-only-adversary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: review'
+assert_contains "$router_output" 'read-only adversarial review request'
+assert_not_contains "$router_output" 'Route: adversary'
+
 router_output="$(fixture_input router-delete-text.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: plan-implement'
 assert_not_contains "$router_output" 'Route: ops-stop'
@@ -146,6 +189,12 @@ assert_not_contains "$router_output" 'Route: plan-loop'
 slash_output="$(fixture_input router-slash-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 if [ -n "$slash_output" ]; then
   printf 'slash commands should not receive injected router context; got: %s\n' "$slash_output" >&2
+  exit 1
+fi
+
+slash_goal_output="$(fixture_input router-goal-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+if [ -n "$slash_goal_output" ]; then
+  printf 'Claude /goal commands should not receive injected router context; got: %s\n' "$slash_goal_output" >&2
   exit 1
 fi
 

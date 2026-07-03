@@ -6,6 +6,8 @@ argument-hint: "[optional: path to the plan file, defaults to ./PLAN.md]"
 
 # /adversary — cross-model plan review by Codex
 
+Follow the shared contract in `workflow/skills/adversary.md`.
+
 Get an independent adversarial review of `PLAN.md` from Codex (a different model
 family than Claude). Same-family self-review shares blind spots and inflates
 confidence; a GPT-family reviewer surfaces what a Claude critique misses.
@@ -16,7 +18,9 @@ modify any repo command.
 
 ## Procedure
 
-1. **Locate the plan.** Use `$ARGUMENTS` if given, else `./PLAN.md`. If absent,
+1. **Locate the contract and plan.** Read `workflow/skills/adversary.md`.
+   Resolve it from `./workflow/skills/adversary.md`, `../workflow/skills/adversary.md`,
+   then `../../workflow/skills/adversary.md`. Use `$ARGUMENTS` if given, else `./PLAN.md`. If absent,
    stop and say so (run `/plan-loop` first).
 
 2. **Run Codex as an adversarial reviewer**, piping the plan in. One Bash call:

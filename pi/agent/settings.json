@@ -32,6 +32,7 @@
       "skills": [
         "plan-loop",
         "plan-implement",
+        "adversary",
         "review",
         "implement",
         "verify",
@@ -71,6 +72,9 @@
       "skills": [],
       "prompts": [],
       "themes": []
+    },
+    {
+      "source": "npm:@tintinweb/pi-subagents"
     },
     {
       "source": "npm:@tintinweb/pi-tasks"
