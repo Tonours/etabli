@@ -116,6 +116,14 @@
     "stopCondition": "READY plan implemented, blocked plan reported, or plan drift detected"
   },
   {
+    "name": "plain implementation prompt routes ambiently",
+    "prompt": "Corrige le bug de login et valide",
+    "route": "plan-implement",
+    "mustNotRoute": "answer",
+    "writeAllowed": true,
+    "stopCondition": "READY plan implemented, blocked plan reported, or plan drift detected"
+  },
+  {
     "name": "adversarial plan review routes to adversary",
     "prompt": "Fais une passe adversary sur le PLAN.md",
     "route": "adversary",

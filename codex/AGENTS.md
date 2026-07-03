@@ -58,6 +58,7 @@
 
 ## Etabli workflow routing
 - When a repo has `workflow/spec.md`, `PLAN_TEMPLATE.md`, or `PLAN_TEMPLATE_FULL.md`, treat that scaffold as the active project workflow; otherwise fall back to the global Etabli workflow under `$CODEX_HOME/workflow/` when available.
+- This activation is ambient: do not require the user to say "use the Etabli workflow". Route normal prompts through the smallest matching workflow, and reserve explicit `/goal`, `workflow`, `subagents`, `plan-loop`, or similar markers for heavier orchestration.
 - Use `PLAN.md` as the only active execution artifact. Implement only from `Status: READY`; never implement from `DRAFT`, `CHALLENGED`, or a plan with missing evidence.
 - For broad tasks, unclear implementation requests, or explicit planning requests, use the `plan-loop` skill and stop at `READY` or `CHALLENGED`.
 - For “plan then implement” requests, use `plan-implement`: create or refresh `PLAN.md`, challenge it, then implement only if it is `READY`.

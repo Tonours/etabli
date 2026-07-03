@@ -149,6 +149,10 @@ router_output="$(fixture_input router-implement-verb.json | node "$ROOT_DIR/clau
 assert_contains "$router_output" 'Route: plan-implement'
 assert_not_contains "$router_output" 'Route: answer'
 
+router_output="$(fixture_input router-ambient-implementation.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_not_contains "$router_output" 'Route: answer'
+
 router_output="$(fixture_input router-autonomous-plan-loop.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: plan-implement'
 assert_contains "$router_output" 'autonomous plan-loop request'

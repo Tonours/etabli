@@ -28,6 +28,11 @@ focused source-of-truth files. Agents should discover project facts from the
 repository, not from hidden chat context. Harness-specific wrappers should stay
 thin and point back to `workflow/skills/` when behavior is shared.
 
+Activation is ambient: because `workflow/spec.md` exists, users should not need
+to write "use the Etabli workflow". Plain prompts should route through the
+smallest matching workflow; explicit `/goal`, `workflow`, `subagents`, or
+`plan-loop` language is reserved for heavier orchestration.
+
 ## Project-Specific Context
 
 Add durable project knowledge under `docs/` or another tracked documentation directory:
