@@ -190,6 +190,7 @@ same workflow uses simulated `.workflow/<slug>/` packets.
 - `workflow/memory.md` - persistent agent memory convention
 - `workflow/plan-archive.md` - implemented plan archive convention
 - `workflow/review-rubric.md` - review output and priorities
+- `docs/agentic-workflow-hardening.md` - source-backed hardening notes for agentic loops and subagents
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `workflow-scaffold/templates/` - project workflow scaffold templates
