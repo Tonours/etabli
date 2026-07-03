@@ -17,7 +17,7 @@ For this repo, a Codex App subagent setup is `confirmed` only when all are true:
 - the active tool surface exposes `multi_agent_v1.close_agent`;
 - a bounded subagent packet runs and returns a verifiable result;
 - the orchestrator records the agent id or nickname, result status, integration
-  decision, and close status in `.workflow/<slug>/`.
+  decision, sandbox/approval posture, and close status in `.workflow/<slug>/`.
 
 This proves the current Codex App runtime only. It does not prove Pi
 `TaskExecute`, Claude Task* support, or future Codex surfaces.
@@ -29,6 +29,8 @@ This proves the current Codex App runtime only. It does not prove Pi
 - Create or update `.workflow/<slug>/` before spawning.
 - Keep the immediate critical path local.
 - Delegate only bounded, independent sidecar packets with clear ownership.
+- Account for inherited sandbox/approval policy and extra token/tool cost before
+  spawning.
 - Close agents after their result is integrated.
 - Do not create user-owned Codex threads for subagent packets.
 - Do not describe Codex subagents as Pi Task* tools.

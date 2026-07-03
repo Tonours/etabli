@@ -52,6 +52,8 @@ Delegate only when all are true:
 - the subtask is bounded and independent;
 - ownership is clear;
 - the runtime exposes a supported runner;
+- sandbox, approval, tool, and cost/token implications are understood for that
+  runtime;
 - retry and stop conditions are already defined.
 
 Keep the critical path local. Use fresh-context reviewer/oracle-style agents
@@ -62,6 +64,9 @@ before writer agents. Do not use subagents to hide uncertainty.
 - Retry only classified retryable failures: transient provider/runtime errors,
   missing context that can be supplied, timeout with partial useful output, or a
   validation failure with a clear next fix.
+- Each retry must consume new evidence: record the observation, failure
+  hypothesis, next action, and validation that will prove or reject the recovery.
+  Do not blindly rerun the same packet.
 - Do not retry destructive, security-sensitive, production, billing, or external
   write actions without explicit approval.
 - Cap retries per packet. After the cap, stop as `blocked` with attempts,
@@ -74,6 +79,7 @@ Each step or packet must leave enough evidence for the orchestrator to integrate
 without trusting prose alone:
 
 - objective and ownership;
+- runtime adapter plus sandbox, approval, and tool/permission context;
 - files or sources inspected;
 - files changed, when edits were allowed;
 - validation command or source checked;
@@ -102,6 +108,8 @@ Claude:
 - `/goal` is the native till-done mechanism.
 - `workflow-router.mjs` and `plan-ready-guard.mjs` are opt-in local hooks that
   prove route/guard behavior in smoke tests.
+- Hooks are deterministic guardrails for routing, blocking, and context
+  injection. They do not replace task state or completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.
 
@@ -113,5 +121,8 @@ Codex:
   `wait_agent`, and `close_agent` is `confirmed` evidence for this runtime only.
 - Codex subagents are internal sidecar workers or reviewers. They are not Pi
   Task* tools, and they are not user-owned Codex threads.
+- Codex subagents inherit the current sandbox/approval posture and can consume
+  extra model/tool budget. Record that posture when accepting a real subagent
+  result.
 - If the runner is absent, use simulated packets under `.workflow/<slug>/` and
   label the runtime claim `blocked` rather than pretending delegation happened.
