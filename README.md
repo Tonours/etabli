@@ -167,7 +167,7 @@ RUN_REAL_AGENT_SCENARIOS=1 tests/workflow-real-agent-scenarios.sh
 
 The CLI smoke test runs real Pi prompts in a temporary project and verifies the Claude Code binary with `claude --version`. Claude Code `--print` is behind `RUN_CLAUDE_PRINT_SMOKE=1` because Anthropic treats `--print` / `-p` as non-interactive Agent SDK usage.
 
-The real agent scenarios test runs separate Pi and Claude Code invocations in temporary scaffolded projects. It checks realistic workflow-routing prompts with actual CLI/runtime context, including READY read-only prompts, adversarial code review, read-only adversarial PLAN.md review, actual READY implementation routing, prompt-only READY wording without a root `PLAN.md`, and a Pi `TaskExecute` subagent run that creates an archive under `docs/plan/` and removes the root `PLAN.md`.
+The real agent scenarios test runs separate Pi, Claude Code, and Codex CLI invocations in temporary scaffolded projects. It checks realistic workflow-routing prompts with actual CLI/runtime context, including READY read-only prompts, adversarial code review, read-only adversarial PLAN.md review, actual READY implementation routing, prompt-only READY wording without a root `PLAN.md`, Codex's current-runtime-only subagent contract, and a Pi `TaskExecute` subagent run that creates an archive under `docs/plan/` and removes the root `PLAN.md`.
 
 Codex App subagent orchestration is documented in `docs/codex-app-subagents.md`.
 It is confirmed only for runtimes that expose `multi_agent_v1`; otherwise the

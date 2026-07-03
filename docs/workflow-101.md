@@ -107,8 +107,9 @@ fold back into `PLAN.md`. `READY` survives only if no blocker or high-severity
 issue remains. In Claude, `/adversary` can delegate the critique to Codex for a
 cross-model second opinion — same contract, different model family.
 
-The adversary reviews the **plan**. For post-implementation diff review, use
-`/skill:review` (Pi) or `/review` (Claude).
+The adversary reviews the **plan**. For read-only adversarial PLAN.md review or
+post-implementation diff review, use `/skill:review` (Pi) or `/review`
+(Claude).
 
 ## The router
 

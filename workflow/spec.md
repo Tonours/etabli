@@ -96,6 +96,7 @@ A plan is `READY` when it has:
 | --- | --- | --- | --- |
 | Simple question or explanation | `answer` | none | answer delivered |
 | Broad task, unclear implementation, or "fais un plan" | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
+| Read-only adversarial PLAN.md review, or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Existing `READY PLAN.md` plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
