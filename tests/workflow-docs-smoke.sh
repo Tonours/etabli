@@ -136,6 +136,7 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Autonomous plan-loop requests use 
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implementation-bound autonomous loops are not complete until validation,'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'adversary evidence, review, implemented-plan archive under `docs/plan/`, and'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Read-only adversarial PLAN.md review'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Shared skill contracts: `workflow/skills/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Orchestration contract: `workflow/skills/orchestration.md`'
