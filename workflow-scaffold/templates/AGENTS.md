@@ -18,6 +18,11 @@
 - Long-lived project knowledge belongs in tracked docs or code, not chat history.
 
 ## Workflow
+- The Etabli workflow is ambient in this project because `workflow/spec.md`
+  exists. Do not require the user to write "use the Etabli workflow".
+- Keep ordinary prompts lightweight: route obvious implementation, review,
+  verification, ticket, or planning requests through the smallest matching
+  workflow; use heavier planning/subagent loops only when the task warrants it.
 - Read the repo before planning or editing.
 - Read `docs/agent-memory/` before non-trivial work; write a lesson when a correction or confirmed approach will matter again.
 - Separate observed facts from assumptions before choosing an approach.

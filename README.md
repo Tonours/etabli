@@ -28,7 +28,7 @@ cd etabli
 
 ## Workflow
 
-Canonical contract: `workflow/spec.md`.
+Canonical contract: `workflow/spec.md`. New here? Start with `docs/workflow-101.md` for the guided introduction.
 
 Default loop:
 
@@ -68,6 +68,7 @@ Pi:
 ```text
 /skill:plan-loop <task>
 /skill:plan-implement <task>
+/skill:adversary
 /skill:implement
 /skill:review
 /skill:verify
@@ -87,6 +88,7 @@ Claude:
 /plan
 /plan-loop
 /plan-implement
+/adversary
 /implement
 /review
 /verify-workflow
@@ -112,6 +114,18 @@ scripts/deploy-codex --apply
 `config.managed.toml` instead of replacing the live `config.toml`, because the
 live file can contain local trust state, provider configuration, and secrets.
 
+Three-harness workflow deployment:
+
+```bash
+scripts/deploy-agent-workflow --dry-run
+scripts/deploy-agent-workflow --apply
+```
+
+`scripts/deploy-agent-workflow` applies only the Etabli agent workflow surfaces
+for Codex, Claude Code, and Pi. It relinks identical Codex copies back to repo
+symlinks, links Claude/Pi workflow files, and syncs only managed Pi package
+resources in the local `~/.pi/agent/settings.json`.
+
 ## Project workflow scaffold
 
 Deploy the Etabli workflow scaffold into a new or existing project:
@@ -129,6 +143,9 @@ The workflow scaffold installs:
 - `workflow/memory.md`
 - `workflow/plan-archive.md`
 - `workflow/spec.md`
+- `workflow/skills/adversary.md`
+- `workflow/skills/implementation-loop.md`
+- `workflow/skills/orchestration.md`
 - `workflow/review-rubric.md`
 - `workflow/ticket-template.md`
 - `workflow/linear-ticket-template.md`
@@ -153,19 +170,27 @@ tests/workflow-docs-smoke.sh
 tests/claude-hooks-smoke.sh
 tests/fix-links-smoke.sh
 tests/install-smoke.sh
+tests/deploy-agent-workflow-smoke.sh
 tests/nvim-smoke.sh
 RUN_AGENT_CLI_SMOKE_SELF_TEST=1 tests/workflow-cli-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 tests/workflow-cli-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 tests/workflow-cli-smoke.sh
+RUN_REAL_AGENT_SCENARIOS=1 tests/workflow-real-agent-scenarios.sh
 ```
 
 The CLI smoke test runs real Pi prompts in a temporary project and verifies the Claude Code binary with `claude --version`. Claude Code `--print` is behind `RUN_CLAUDE_PRINT_SMOKE=1` because Anthropic treats `--print` / `-p` as non-interactive Agent SDK usage.
+
+The real agent scenarios test runs separate Pi, Claude Code, and Codex CLI invocations in temporary scaffolded projects. It checks realistic workflow-routing prompts with actual CLI/runtime context, including READY read-only prompts, adversarial code review, read-only adversarial PLAN.md review, actual READY implementation routing, prompt-only READY wording without a root `PLAN.md`, Codex's current-runtime-only subagent contract, and a Pi `TaskExecute` subagent run that creates an archive under `docs/plan/` and removes the root `PLAN.md`.
+
+Codex App subagent orchestration is documented in `docs/codex-app-subagents.md`.
+It is confirmed only for runtimes that expose `multi_agent_v1`; otherwise the
+same workflow uses simulated `.workflow/<slug>/` packets.
 
 ## Config notes
 
 - `codex/config.managed.toml` is a tracked non-secret baseline; live `~/.codex/config.toml` stays local.
 - `codex/hooks.json`, `codex/workflow/`, `codex/prompts/`, `codex/automations/`, and `codex/skills/` deploy through `scripts/deploy-codex`.
-- `pi/agent/settings.json` is a tracked bootstrap/default; live `~/.pi/agent/settings.json` stays local.
+- `pi/agent/settings.json` is a tracked bootstrap/default; live `~/.pi/agent/settings.json` stays local. `@tintinweb/pi-tasks` is paired with `@tintinweb/pi-subagents` because `TaskExecute` needs the `subagents:rpc:*` protocol; the separate `npm:pi-subagents` package does not satisfy that protocol.
 - `pi/models.json` and `pi/settings.json` are linked into `~/.pi/`.
 - `ghostty/config` is linked to `~/.config/ghostty/config`.
 - secrets and auth files stay local and untracked.
@@ -173,14 +198,23 @@ The CLI smoke test runs real Pi prompts in a temporary project and verifies the 
 ## References
 
 - `workflow/spec.md` - workflow contract
+- `workflow/skills/` - shared skill contracts used by Pi and Claude wrappers
+- `workflow/skills/orchestration.md` - shared capability, delegation, retry, and fallback contract
 - `workflow/memory.md` - persistent agent memory convention
 - `workflow/plan-archive.md` - implemented plan archive convention
 - `workflow/review-rubric.md` - review output and priorities
+- `docs/agentic-workflow-hardening.md` - source-backed hardening notes for agentic loops and subagents
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
 - `workflow-scaffold/templates/` - project workflow scaffold templates
+- `docs/codex-app-subagents.md` - Codex App subagent runner and fallback rules
+- `docs/workflow-101.md` - guided introduction to the workflow
 - `docs/codex-organization.md` - tracked Codex surface and deployment rules
 - `docs/fable5-notes.md` - Fable 5 migration decisions
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes
 - `claude/README.md` - Claude installed surface
+
+Projects scaffolded with `workflow/spec.md` activate the Etabli workflow
+ambiently. Users can write ordinary prompts such as "corrige le bug et valide";
+explicit workflow/subagent wording is only for heavier orchestration.

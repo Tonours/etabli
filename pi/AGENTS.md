@@ -30,6 +30,8 @@
 
 ## Workflow
 - Follow the local source of truth first: `AGENTS.md`, `CLAUDE.md`, `.claude/commands/`, `.cursor/rules/`, `COPILOT.md`, and project docs.
+- If the project contains `workflow/spec.md`, activate the Etabli workflow automatically; the user should not have to say "use the Etabli workflow".
+- Keep ordinary prompts lightweight: route obvious implementation, review, verification, ticket, or planning requests through the matching workflow, and use the heavier plan/subagent loop only when the task actually warrants it.
 - Flow: understand -> plan small -> implement -> prove -> deliver.
 - When the user explicitly asks for assessment, review, diagnosis, or thinks out loud without asking for a fix, report findings and stop. Otherwise, fix the problem once you have enough evidence.
 - When you have enough information to act, act. Do not re-derive established facts or re-litigate decisions the user already made.

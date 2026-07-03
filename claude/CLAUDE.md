@@ -33,6 +33,8 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
 
 ## Workflow
 - Follow `workflow/spec.md`.
+- Activate the Etabli workflow ambiently when `workflow/spec.md` exists; do not require the user to say "use the Etabli workflow".
+- Keep ordinary prompts lightweight: route obvious implementation, review, verification, ticket, or planning requests through the matching command, and reserve `/goal`, subagents, or heavier orchestration for tasks that justify the overhead.
 - Use `PLAN.md` as the only execution artifact.
 - Implement only from `Status: READY`.
 - Flow: understand -> plan small -> implement -> prove -> deliver.
@@ -65,6 +67,9 @@ Claude Code-specific adapter for the Etabli repo. Keep this aligned with
   Code's native `/verify`.
 - Use `/goal` for long-running "keep going until done" work with a measurable
   condition and explicit validation evidence.
+- Use `workflow/skills/orchestration.md` for Pi/Claude orchestration parity:
+  Claude uses `/goal`, commands, and hooks; Task* state is Pi-only unless the
+  active runtime exposes an equivalent primitive.
 
 ## Code
 - YAGNI, KISS, DRY, in that order. Simple beats clever. Obvious beats elegant.

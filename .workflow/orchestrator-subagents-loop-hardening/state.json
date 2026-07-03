@@ -1,0 +1,52 @@
+{
+  "title": "orchestrator subagents loop hardening",
+  "slug": "orchestrator-subagents-loop-hardening",
+  "created_at": "2026-07-03T00:14:24+00:00",
+  "status": "completed",
+  "approval": {
+    "required": true,
+    "granted": true,
+    "notes": "Goal authorizes non-secret local repo and live Codex/Pi/Claude file updates with backup. No push, secrets, force-push, destructive ops, or user-owned threads."
+  },
+  "packets": [
+    {
+      "id": "P1-live-codex-sync",
+      "status": "accepted",
+      "result": "results/P1-live-codex-sync.md"
+    },
+    {
+      "id": "P2-source-research",
+      "status": "accepted",
+      "result": "results/P2-source-research.md"
+    },
+    {
+      "id": "P3-hardening-design",
+      "status": "accepted",
+      "result": "results/P3-hardening-design.md"
+    },
+    {
+      "id": "P4-implementation",
+      "status": "accepted",
+      "result": "results/P4-implementation.md"
+    },
+    {
+      "id": "P5-validation-review",
+      "status": "accepted",
+      "result": "results/P5-validation-review.md"
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "checks": [
+      "scripts/deploy-codex --dry-run",
+      "bash tests/workflow-docs-smoke.sh",
+      "bash tests/codex-organization-smoke.sh",
+      "bash tests/workflow-scaffold-smoke.sh",
+      "bash tests/claude-hooks-smoke.sh",
+      "bun test pi/extensions/__tests__/",
+      "git diff --check",
+      "RUN_REAL_AGENT_SCENARIOS=1 REAL_AGENT_RETRIES=1 tests/workflow-real-agent-scenarios.sh",
+      "python3 /Users/tonours/.codex/skills/codex-dynamic-workflows/scripts/verify_workflow.py .workflow/orchestrator-subagents-loop-hardening"
+    ]
+  }
+}

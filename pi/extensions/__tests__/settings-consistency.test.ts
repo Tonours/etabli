@@ -95,6 +95,10 @@ describe("Pi settings consistency", () => {
       themes: [],
     });
 
+    expect(packageBySource("npm:@tintinweb/pi-subagents")).toMatchObject({
+      source: "npm:@tintinweb/pi-subagents",
+    });
+
     expect(packageBySource("npm:@tintinweb/pi-tasks")).toMatchObject({
       source: "npm:@tintinweb/pi-tasks",
     });

@@ -97,6 +97,11 @@ Use Claude Code `/goal` for till-done loops:
 Prefer `/goal` over a custom task continuation hook unless the done condition
 requires deterministic script evaluation across every session.
 
+For Pi/Claude orchestration parity, use `../workflow/skills/orchestration.md`.
+Claude parity is through `/goal`, slash commands, hooks, and smoke tests; Task*
+state is Pi-only unless the active Claude runtime exposes an equivalent
+primitive.
+
 Rules:
 
 - one execution artifact: `PLAN.md`

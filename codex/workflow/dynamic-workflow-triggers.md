@@ -15,6 +15,11 @@
 6. Delegate bounded sidecar packets when authorized and useful.
 7. Integrate results, resolve conflicts, and verify.
 
+Codex App note: `multi_agent_v1.spawn_agent`, `wait_agent`, and `close_agent`
+are confirmed runner evidence only for the active runtime that exposes them.
+When they are absent, keep the same plan shape and simulate packets under
+`.workflow/<slug>/`.
+
 ## Packet List
 - Discovery or source-of-truth audit
 - Implementation slice with disjoint ownership
@@ -25,6 +30,10 @@
 ## Verification Checklist
 - Workflow artifact has goal, criteria, context, risks, packets, integration policy, and verification.
 - Subagents were spawned only when authorized and useful.
+- Codex App subagent runs record agent id/nickname, packet ownership, accepted or
+  rejected result, inherited sandbox/approval posture, and close status.
+- Retry attempts record observation, failure hypothesis, next action, and the
+  validation that will prove or reject recovery.
 - Packet ownership was disjoint.
 - Final answer distinguishes observed facts from assumptions where relevant.
 - Checks match the blast radius.
@@ -35,3 +44,5 @@
 - Subagents can duplicate work without strict packet ownership.
 - Incidental mentions of CI/GitHub workflows should not trigger agent orchestration.
 - Some Codex surfaces may not expose a subagent runner; simulate packets in that case.
+- A visible Codex App runner proves only the current runtime, not Pi, Claude, or
+  every future Codex surface.

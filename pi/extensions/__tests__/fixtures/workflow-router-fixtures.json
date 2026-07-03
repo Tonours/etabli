@@ -85,11 +85,28 @@
     "stopCondition": "GO, GO WITH NOTES, or BLOCK"
   },
   {
-    "name": "ready plan uses implement",
+    "name": "ready plan wording without file proof uses plan-implement",
     "prompt": "Implémente le PLAN.md ready",
-    "route": "implement",
+    "route": "plan-implement",
     "writeAllowed": true,
-    "stopCondition": "validated archive written and root PLAN.md deleted"
+    "stopCondition": "actual READY plan implemented, blocked plan reported, or plan drift detected",
+    "mustNotRoute": "implement"
+  },
+  {
+    "name": "read-only ready plan prompt stays answer",
+    "prompt": "Résume le PLAN.md ready",
+    "route": "answer",
+    "mustNotRoute": "plan-implement",
+    "writeAllowed": false,
+    "stopCondition": "answer delivered"
+  },
+  {
+    "name": "autonomous plan-loop uses plan-implement",
+    "prompt": "Lance le plan-loop en autonomie jusqu'au bout",
+    "route": "plan-implement",
+    "mustNotRoute": "plan-loop",
+    "writeAllowed": true,
+    "stopCondition": "READY plan implemented, verified/reviewed, archived, and root PLAN.md deleted; or CHALLENGED/blocked with evidence"
   },
   {
     "name": "broad fix routes through plan implement",
@@ -97,6 +114,37 @@
     "route": "plan-implement",
     "writeAllowed": true,
     "stopCondition": "READY plan implemented, blocked plan reported, or plan drift detected"
+  },
+  {
+    "name": "plain implementation prompt routes ambiently",
+    "prompt": "Corrige le bug de login et valide",
+    "route": "plan-implement",
+    "mustNotRoute": "answer",
+    "writeAllowed": true,
+    "stopCondition": "READY plan implemented, blocked plan reported, or plan drift detected"
+  },
+  {
+    "name": "adversarial plan review routes to adversary",
+    "prompt": "Fais une passe adversary sur le PLAN.md",
+    "route": "adversary",
+    "writeAllowed": true,
+    "stopCondition": "plan remains READY, becomes CHALLENGED, or adversary blocker is reported"
+  },
+  {
+    "name": "adversarial code review stays review",
+    "prompt": "fais une code-review complète puis une code-review adversary",
+    "route": "review",
+    "mustNotRoute": "adversary",
+    "writeAllowed": false,
+    "stopCondition": "GO, GO WITH NOTES, or BLOCK"
+  },
+  {
+    "name": "read-only adversarial plan review stays review",
+    "prompt": "Read-only adversarial PLAN.md review. Do not edit files.",
+    "route": "review",
+    "mustNotRoute": "adversary",
+    "writeAllowed": false,
+    "stopCondition": "GO, GO WITH NOTES, or BLOCK"
   },
   {
     "name": "goal prompt is an answer artifact",

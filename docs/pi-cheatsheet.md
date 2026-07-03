@@ -53,10 +53,14 @@ Canonical contract: `workflow/spec.md`.
 Pi commands:
 
 ```text
-/skill:plan-loop <task>
-/skill:plan-implement <task>
-/skill:implement
-/skill:review
+/skill:plan-loop <task>       # create/review PLAN.md, stop at READY or CHALLENGED
+/skill:plan-implement <task>  # plan, then implement once READY
+/skill:adversary              # adversarial review of PLAN.md before implementation
+/skill:implement              # implement an existing READY plan
+/skill:review                 # review current diff
+/skill:verify                 # verify checks/claims without editing
+/skill:bug-check              # analyze a Linear bug root cause without editing
+/skill:pr-review              # review a GitHub PR through gh
 /skill:caveman [lite|full|ultra]
 ```
 
@@ -64,8 +68,21 @@ Rules:
 
 - use one artifact: `PLAN.md`
 - implement only from `Status: READY`
+- run an adversary pass before implementation
 - run focused checks
 - review before commit
+
+See `docs/workflow-101.md` for an introduction and `workflow/spec.md` for the
+full contract.
+
+For long-running orchestration and subagent delegation rules, use
+`workflow/skills/orchestration.md`. Prefer structured Task* state when Pi
+exposes it; treat TaskList text parsing as a fallback.
+
+`TaskExecute` needs `@tintinweb/pi-subagents` loaded with `@tintinweb/pi-tasks`
+so Pi can use `subagents:rpc:ping`, `subagents:rpc:spawn`, and
+`subagents:rpc:stop`. The `npm:pi-subagents` package exposes a standalone
+subagent tool, but it does not provide the Task* tracking RPC protocol.
 
 ## Local checks
 

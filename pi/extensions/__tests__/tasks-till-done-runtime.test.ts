@@ -3,7 +3,11 @@ import {
   appendTaskLoopGuidance,
   buildStopSummary,
   decideAutoContinue,
+  detectTaskRuntimeCapabilityIssue,
+  hasImplementationCompletionEvidence,
+  parseStructuredTaskState,
   parseTaskListOutput,
+  parseTaskToolResult,
   shouldInjectTaskLoop,
 } from "../lib/tasks-till-done-runtime.ts";
 
@@ -36,8 +40,116 @@ describe("tasks till-done runtime", () => {
       actionable: 2,
       blocked: 1,
       hasValidationTask: true,
+      hasAdversaryTask: false,
+      hasReviewTask: false,
+      hasArchiveTask: false,
+      hasPlanCleanupTask: false,
+      evidenceSource: "text",
+      guaranteeStatus: "proxy_supported",
     });
     expect(summary?.signature).toBe("1:completed:free|2:in_progress:free|3:pending:blocked|4:pending:free");
+  });
+
+  test("parses structured task state without TaskList text", () => {
+    const summary = parseStructuredTaskState({
+      tasks: [
+        {
+          id: "1",
+          subject: "Run adversary plan review",
+          description: "Challenge the READY plan before implementation",
+          status: "completed",
+          metadata: { kind: "adversary" },
+        },
+        {
+          id: "2",
+          subject: "Run validation tests",
+          description: "Validate the changed orchestration",
+          status: "in_progress",
+          blockedBy: ["1"],
+        },
+        {
+          id: "3",
+          subject: "Archive implemented plan in docs/plan",
+          description: "Archive after validation",
+          status: "pending",
+          blockedBy: ["2"],
+        },
+      ],
+    });
+
+    expect(summary).toMatchObject({
+      total: 3,
+      open: 2,
+      actionable: 1,
+      blocked: 1,
+      hasAdversaryTask: true,
+      hasValidationTask: true,
+      hasArchiveTask: true,
+      evidenceSource: "structured",
+      guaranteeStatus: "confirmed",
+    });
+    expect(summary?.signature).toBe("1:completed:free|2:in_progress:free|3:pending:blocked");
+  });
+
+  test("prefers structured task details over parseable TaskList text", () => {
+    const summary = parseTaskToolResult({
+      details: {
+        data: {
+          tasks: [
+            { id: "1", subject: "Structured task", status: "pending" },
+            { id: "2", subject: "Structured blocked task", status: "pending", blockedBy: ["1"] },
+          ],
+        },
+      },
+      text: "#1 [completed] Text task",
+    });
+
+    expect(summary).toMatchObject({
+      total: 2,
+      open: 2,
+      actionable: 1,
+      blocked: 1,
+      evidenceSource: "structured",
+      guaranteeStatus: "confirmed",
+    });
+    expect(summary?.signature).toBe("1:pending:free|2:pending:blocked");
+  });
+
+  test("falls back to TaskList text when structured details are unavailable", () => {
+    const summary = parseTaskToolResult({
+      details: undefined,
+      text: "#1 [pending] Run tests",
+    });
+
+    expect(summary).toMatchObject({
+      total: 1,
+      evidenceSource: "text",
+      guaranteeStatus: "proxy_supported",
+      fallbackReason: "TaskList tool result did not expose structured task details.",
+    });
+  });
+
+  test("detects unavailable TaskExecute tracking as a blocked runtime capability", () => {
+    const issue = detectTaskRuntimeCapabilityIssue(
+      "TaskExecute",
+      "Subagent execution is currently unavailable (@tintinweb/pi-subagents not loaded or version mismatch). pi-tasks won't track them — status stays pending, cascade won't fire, TaskOutput stays empty.",
+    );
+
+    expect(issue).toEqual({
+      kind: "subagent_execution_unavailable",
+      guaranteeStatus: "blocked",
+      message: "TaskExecute subagent tracking is unavailable. Do not retry TaskExecute until the subagents:rpc protocol is confirmed.",
+    });
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: undefined,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      runtimeCapabilityIssue: issue,
+    })).toEqual({ continue: false, reason: "runtime_capability_blocked" });
   });
 
   test("detects validation tasks", () => {
@@ -56,7 +168,13 @@ describe("tasks till-done runtime", () => {
       actionable: 0,
       blocked: 0,
       hasValidationTask: false,
+      hasAdversaryTask: false,
+      hasReviewTask: false,
+      hasArchiveTask: false,
+      hasPlanCleanupTask: false,
       signature: "empty",
+      evidenceSource: "text",
+      guaranteeStatus: "proxy_supported",
     });
   });
 
@@ -64,7 +182,7 @@ describe("tasks till-done runtime", () => {
     expect(decideAutoContinue({
       active: true,
       taskToolUsed: true,
-      summary: { total: 2, open: 1, actionable: 1, blocked: 0, hasValidationTask: false, signature: "open" },
+      summary: { total: 2, open: 1, actionable: 1, blocked: 0, hasValidationTask: false, hasAdversaryTask: false, hasReviewTask: false, hasArchiveTask: false, hasPlanCleanupTask: false, signature: "open" },
       autoContinueCount: 0,
       maxAutoContinues: 12,
       stalledCount: 0,
@@ -74,7 +192,7 @@ describe("tasks till-done runtime", () => {
     expect(decideAutoContinue({
       active: true,
       taskToolUsed: true,
-      summary: { total: 2, open: 0, actionable: 0, blocked: 0, hasValidationTask: true, signature: "done" },
+      summary: { total: 2, open: 0, actionable: 0, blocked: 0, hasValidationTask: true, hasAdversaryTask: false, hasReviewTask: false, hasArchiveTask: false, hasPlanCleanupTask: false, signature: "done" },
       autoContinueCount: 0,
       maxAutoContinues: 12,
       stalledCount: 0,
@@ -84,7 +202,7 @@ describe("tasks till-done runtime", () => {
     expect(decideAutoContinue({
       active: true,
       taskToolUsed: true,
-      summary: { total: 2, open: 1, actionable: 0, blocked: 1, hasValidationTask: false, signature: "blocked" },
+      summary: { total: 2, open: 1, actionable: 0, blocked: 1, hasValidationTask: false, hasAdversaryTask: false, hasReviewTask: false, hasArchiveTask: false, hasPlanCleanupTask: false, signature: "blocked" },
       autoContinueCount: 0,
       maxAutoContinues: 12,
       stalledCount: 0,
@@ -96,7 +214,7 @@ describe("tasks till-done runtime", () => {
     expect(decideAutoContinue({
       active: true,
       taskToolUsed: true,
-      summary: { total: 1, open: 0, actionable: 0, blocked: 0, hasValidationTask: false, signature: "done" },
+      summary: { total: 1, open: 0, actionable: 0, blocked: 0, hasValidationTask: false, hasAdversaryTask: false, hasReviewTask: false, hasArchiveTask: false, hasPlanCleanupTask: false, signature: "done" },
       autoContinueCount: 0,
       maxAutoContinues: 12,
       stalledCount: 0,
@@ -105,8 +223,138 @@ describe("tasks till-done runtime", () => {
     })).toEqual({ continue: true, reason: "validation_required" });
   });
 
+  test("requires full implementation completion evidence before autonomous plan completion", () => {
+    const verifiedRuntimeEvidence = {
+      hasImplementedPlanArchive: true,
+      rootPlanDeleted: true,
+    };
+
+    const incompleteSummary = parseTaskListOutput([
+      "#1 [completed] Implement READY plan steps",
+      "#2 [completed] Run validation tests",
+    ].join("\n"));
+
+    expect(incompleteSummary).toBeDefined();
+    expect(hasImplementationCompletionEvidence(incompleteSummary!)).toBe(false);
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: incompleteSummary,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      implementationCompletionRequired: true,
+    })).toEqual({ continue: true, reason: "completion_evidence_required" });
+
+    const genericCleanupSummary = parseTaskListOutput([
+      "#1 [completed] Implement READY plan steps",
+      "#2 [completed] Run adversary plan review",
+      "#3 [completed] Run validation tests",
+      "#4 [completed] Review diff against PLAN.md",
+      "#5 [completed] Archive implemented plan in docs/plan",
+      "#6 [completed] Cleanup imports",
+    ].join("\n"));
+
+    expect(genericCleanupSummary).toBeDefined();
+    expect(genericCleanupSummary!.hasPlanCleanupTask).toBe(false);
+    expect(hasImplementationCompletionEvidence(genericCleanupSummary!)).toBe(false);
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: genericCleanupSummary,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      implementationCompletionRequired: true,
+    })).toEqual({ continue: true, reason: "completion_evidence_required" });
+
+    const adversaryOnlyReviewSummary = parseTaskListOutput([
+      "#1 [completed] Implement READY plan steps",
+      "#2 [completed] Run adversary plan review",
+      "#3 [completed] Run validation tests",
+      "#4 [completed] Archive implemented plan in docs/plan",
+      "#5 [completed] Delete root PLAN.md after archive",
+    ].join("\n"));
+
+    expect(adversaryOnlyReviewSummary).toBeDefined();
+    expect(adversaryOnlyReviewSummary!.hasAdversaryTask).toBe(true);
+    expect(adversaryOnlyReviewSummary!.hasReviewTask).toBe(false);
+    expect(hasImplementationCompletionEvidence(adversaryOnlyReviewSummary!)).toBe(false);
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: adversaryOnlyReviewSummary,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      implementationCompletionRequired: true,
+    })).toEqual({ continue: true, reason: "completion_evidence_required" });
+
+    const weakEvidenceSummary = parseTaskListOutput([
+      "#1 [completed] Implement READY plan steps",
+      "#2 [completed] Run adversarial code review",
+      "#3 [completed] Run validation tests",
+      "#4 [completed] Review diff against PLAN.md",
+      "#5 [completed] Archive terminal logs",
+      "#6 [completed] Remove PLAN.md references from docs",
+    ].join("\n"));
+
+    expect(weakEvidenceSummary).toBeDefined();
+    expect(weakEvidenceSummary!.hasAdversaryTask).toBe(false);
+    expect(weakEvidenceSummary!.hasArchiveTask).toBe(false);
+    expect(weakEvidenceSummary!.hasPlanCleanupTask).toBe(false);
+    expect(hasImplementationCompletionEvidence(weakEvidenceSummary!)).toBe(false);
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: weakEvidenceSummary,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      implementationCompletionRequired: true,
+    })).toEqual({ continue: true, reason: "completion_evidence_required" });
+
+    const completeSummary = parseTaskListOutput([
+      "#1 [completed] Implement READY plan steps",
+      "#2 [completed] Run adversary plan review",
+      "#3 [completed] Run validation tests",
+      "#4 [completed] Review diff against PLAN.md",
+      "#5 [completed] Archive implemented plan in docs/plan",
+      "#6 [completed] Delete root PLAN.md after archive",
+    ].join("\n"));
+
+    expect(completeSummary).toBeDefined();
+    expect(hasImplementationCompletionEvidence(completeSummary!)).toBe(false);
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: completeSummary,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      implementationCompletionRequired: true,
+    })).toEqual({ continue: true, reason: "completion_evidence_required" });
+    expect(hasImplementationCompletionEvidence(completeSummary!, verifiedRuntimeEvidence)).toBe(true);
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: completeSummary,
+      autoContinueCount: 0,
+      maxAutoContinues: 12,
+      stalledCount: 0,
+      maxStalledRepeats: 2,
+      implementationCompletionRequired: true,
+      implementationRuntimeEvidence: verifiedRuntimeEvidence,
+    })).toEqual({ continue: false, reason: "complete" });
+  });
+
   test("stops when limits or stall guards are reached", () => {
-    const summary = { total: 1, open: 1, actionable: 1, blocked: 0, hasValidationTask: false, signature: "same" };
+    const summary = { total: 1, open: 1, actionable: 1, blocked: 0, hasValidationTask: false, hasAdversaryTask: false, hasReviewTask: false, hasArchiveTask: false, hasPlanCleanupTask: false, signature: "same" };
 
     expect(decideAutoContinue({
       active: true,
@@ -136,6 +384,10 @@ describe("tasks till-done runtime", () => {
       actionable: 0,
       blocked: 1,
       hasValidationTask: false,
+      hasAdversaryTask: false,
+      hasReviewTask: false,
+      hasArchiveTask: false,
+      hasPlanCleanupTask: false,
       signature: "blocked",
     })).toBe("Task loop stopped: blocked (open=1, actionable=0, blocked=1).");
   });

@@ -139,6 +139,13 @@ When a subagent runner is available:
 - Avoid duplicate work across agents.
 - Ask workers to edit directly only when their write scope is disjoint and clear.
 - Wait for subagents only when their result is needed for the next critical-path step.
+- In Codex App, treat `multi_agent_v1.spawn_agent`, `wait_agent`, and
+  `close_agent` as confirmed evidence for the current runtime only; record agent
+  id/nickname, packet ownership, result status, and close agents after
+  integration.
+- Do not create user-owned Codex threads for subagent packets. Use the internal
+  subagent runner when it is exposed, otherwise use simulated packet notes.
+- Do not describe Codex subagents as Pi Task* tools or a Claude Task* primitive.
 
 When no subagent runner is available:
 

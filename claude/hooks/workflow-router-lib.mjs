@@ -4,6 +4,9 @@ import { resolve } from "node:path";
 export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 
 const REVIEW_PATTERN = /\b(review(?:er|ing)?|revue|relis|audit|critique|findings?)\b/i;
+const ADVERSARY_PATTERN = /\b(adversary|adversarial|contre[- ]?review|contre[- ]?revue|cross[- ]?model|plan hardening|hardens? le plan|durcis le plan)\b/i;
+const ADVERSARY_PLAN_CONTEXT_PATTERN = /\b(plan\.md|plan|plan hardening|hardens? le plan|durcis le plan)\b/i;
+const READ_ONLY_REVIEW_OVERRIDE_PATTERN = /\b(read[- ]?only|lecture seule|sans modifier|sans [eé]diter|do not edit|do not modify|ne modifie pas|n['’]?edite pas|n['’]?édite pas)\b/i;
 const VERIFY_PATTERN = /\b(verify|v[eé]rifie|prouve|preuve|retest|relance les tests|completion audit|evidence)\b/i;
 const PLAN_PATTERN = /\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c|ticket)\b/i;
 const SPEC_GUIDE_PATTERN = /(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
@@ -11,6 +14,7 @@ const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
 const SPEC_CREATE_VERB_PATTERN = /(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/iu;
 const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/i;
 const READY_PLAN_PATTERN = /\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/i;
+const AUTONOMOUS_PLAN_LOOP_PATTERN = /\b(plan-loop|plan loop|plan puis impl[eé]mente|plan[- ]?implement|jusqu[' ]?au bout|jusqu[' ]?[aà] la fin|en autonomie|tout seul|encha[iî]ne|encha[iî]ner|continue jusqu)\b/i;
 const RESEARCH_PATTERN = /\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt|goal)\b/i;
 const OPS_STOP_PATTERN = /(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
@@ -178,6 +182,30 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
+  if (ADVERSARY_PATTERN.test(prompt) && ADVERSARY_PLAN_CONTEXT_PATTERN.test(prompt) && READ_ONLY_REVIEW_OVERRIDE_PATTERN.test(prompt)) {
+    return {
+      route: "review",
+      reason: "read-only adversarial review request",
+      command: "/review",
+      artifact: "findings",
+      stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
+      requiredEvidence: "diff lines, plan drift evidence, or concrete reproduction",
+      writeAllowed: false,
+    };
+  }
+
+  if (ADVERSARY_PATTERN.test(prompt) && ADVERSARY_PLAN_CONTEXT_PATTERN.test(prompt)) {
+    return {
+      route: "adversary",
+      reason: "adversarial plan review request",
+      command: "/adversary",
+      artifact: "adversarial PLAN.md findings folded into the active plan",
+      stopCondition: "plan remains READY, becomes CHALLENGED, or adversary blocker is reported",
+      requiredEvidence: "actual PLAN.md, adversarial findings, accepted/rejected findings, and updated plan status",
+      writeAllowed: true,
+    };
+  }
+
   if (REVIEW_PATTERN.test(prompt)) {
     return {
       route: "review",
@@ -202,7 +230,11 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
-  if (READY_PLAN_PATTERN.test(prompt) || (planStatus === "ready" && IMPLEMENT_PATTERN.test(prompt))) {
+  if (READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) {
+    return answerDecision("read-only, question, or summary request", "None", "answer delivered", "None");
+  }
+
+  if (planStatus === "ready" && (READY_PLAN_PATTERN.test(prompt) || IMPLEMENT_PATTERN.test(prompt))) {
     return {
       route: "implement",
       reason: "implementation request with READY plan",
@@ -211,11 +243,34 @@ export function classifyWorkflowRoute(prompt, context = {}) {
       stopCondition: "validated archive written and root PLAN.md deleted",
       requiredEvidence: "PLAN.md checks passed and archive created",
       writeAllowed: true,
+      planChain: buildAutonomousPlanChain(planStatus),
     };
   }
 
-  if (READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) {
-    return answerDecision("read-only, question, or summary request", "None", "answer delivered", "None");
+  if (READY_PLAN_PATTERN.test(prompt)) {
+    return {
+      route: "plan-implement",
+      reason: "implementation request mentions a READY plan, but actual PLAN.md status is not proven READY",
+      command: "/plan-implement",
+      artifact: "PLAN.md then scoped implementation",
+      stopCondition: "actual READY plan implemented, blocked plan reported, or plan drift detected",
+      requiredEvidence: "actual root PLAN.md Status: READY before implementation, focused validation, review evidence, archive, and root PLAN.md deletion",
+      writeAllowed: true,
+      planChain: buildAutonomousPlanChain(planStatus),
+    };
+  }
+
+  if (PLAN_PATTERN.test(prompt) && AUTONOMOUS_PLAN_LOOP_PATTERN.test(prompt)) {
+    return {
+      route: "plan-implement",
+      reason: "autonomous plan-loop request",
+      command: "/plan-implement",
+      artifact: "PLAN.md then scoped implementation, verification/review, implemented plan archive, and root PLAN.md cleanup",
+      stopCondition: "READY plan implemented, verified/reviewed, archived, and root PLAN.md deleted; or CHALLENGED/blocked with evidence",
+      requiredEvidence: "PLAN.md status from the actual root file, focused validation, review evidence, docs/plan archive, and deleted root PLAN.md",
+      writeAllowed: true,
+      planChain: buildAutonomousPlanChain(planStatus),
+    };
   }
 
   if (IMPLEMENT_PATTERN.test(prompt)) {
@@ -225,8 +280,9 @@ export function classifyWorkflowRoute(prompt, context = {}) {
       command: "/plan-implement",
       artifact: "PLAN.md then scoped implementation",
       stopCondition: "READY plan implemented, blocked plan reported, or plan drift detected",
-      requiredEvidence: "plan checks, focused validation, and final handoff",
+      requiredEvidence: "actual root PLAN.md Status: READY before implementation, adversary evidence, focused validation, review evidence, docs/plan archive, root PLAN.md deletion, and final handoff",
       writeAllowed: true,
+      planChain: buildAutonomousPlanChain(planStatus),
     };
   }
 
@@ -263,6 +319,36 @@ export function classifyWorkflowRoute(prompt, context = {}) {
   return answerDecision("simple answer or unclear low-risk request", "None", "answer delivered", "None");
 }
 
+export function buildAutonomousPlanChain(planStatus) {
+  if (planStatus === "ready") {
+    return {
+      kind: "autonomous-plan-loop",
+      currentPlanStatus: planStatus,
+      currentPhase: "ready_to_implement",
+      nextRoute: "implement",
+      requiredEvidence: [
+        "actual root PLAN.md has Status: READY",
+        "focused validation command output",
+        "review evidence",
+        "docs/plan/YYYYMMDD-short-slug.md archive",
+        "root PLAN.md deleted after archive",
+      ],
+    };
+  }
+
+  return {
+    kind: "autonomous-plan-loop",
+    currentPlanStatus: planStatus,
+    currentPhase: "planning",
+    nextRoute: "plan-loop",
+    requiredEvidence: [
+      "actual root PLAN.md inspected or created",
+      "PLAN.md updated to READY or CHALLENGED",
+      "route, stop condition, required evidence, checks, facts, and assumptions recorded",
+    ],
+  };
+}
+
 export function buildRouteContext(decision) {
   const lines = [
     ROUTER_MARKER,
@@ -273,7 +359,19 @@ export function buildRouteContext(decision) {
     `Artifact: ${decision.artifact}`,
     `Stop condition: ${decision.stopCondition}`,
     `Required evidence: ${decision.requiredEvidence}`,
+    "Runtime adapter: Claude command/hooks adapter.",
+    "Runtime loop: use Claude Code `/goal` for long-running completion loops; hooks only route and guard.",
+    "Task state: Task* tools are Pi-only. Claude parity is proxy_supported through `/goal`, slash commands, hook context, and focused smoke tests.",
+    "Capability labels: confirmed for local hook/script behavior; proxy_supported for Claude runtime loops unless a live Claude `/goal` run is executed; blocked or unknown must be reported explicitly.",
   ];
+  if (decision.planChain) {
+    lines.push(
+      "",
+      `Plan chain: ${decision.planChain.currentPhase} -> ${decision.planChain.nextRoute}`,
+      `Plan status source: ${decision.planChain.currentPlanStatus}`,
+      `Autonomous completion evidence: ${decision.planChain.requiredEvidence.join("; ")}`,
+    );
+  }
   if (decision.suggestion) {
     lines.push("", `Suggestion: ${decision.suggestion}`);
   }
