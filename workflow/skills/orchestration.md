@@ -111,7 +111,9 @@ Pi:
 
 Claude:
 
-- `/goal` is the native till-done mechanism.
+- `/goal` is the native till-done mechanism. Pair the measurable condition
+  with an explicit cap (iterations or wall-clock) and record the event ledger
+  per `workflow/events.md`, as required by `workflow/spec.md`.
 - `workflow-router.mjs` and `plan-ready-guard.mjs` are opt-in local hooks that
   prove route/guard behavior in smoke tests.
 - Hooks are deterministic guardrails for routing, blocking, and context

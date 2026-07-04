@@ -11,6 +11,8 @@ ALLOWED_EVENTS=(
   validation_run
   validation_failed
   retry_classified
+  no_progress
+  handoff
   human_checkpoint
   archive_written
   completed

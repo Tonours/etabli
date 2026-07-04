@@ -22,7 +22,10 @@ details in the adapters; keep the phase order and completion evidence here.
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
 11. Run focused checks from the plan.
-12. Review the diff against `PLAN.md`.
+12. Review the diff against `PLAN.md`. In an autonomous run, this review comes
+    from a fresh context (subagent reviewer or cross-model) per
+    `workflow/spec.md`; without one, stop as `blocked` requesting external
+    review.
 13. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
     using `workflow/plan-archive.md`; distill it as memory, do not raw-copy
     `PLAN.md`.
@@ -40,6 +43,7 @@ evidence for all of:
 
 - adversary plan review;
 - focused validation;
+- event ledger per `workflow/events.md` (mandatory for autonomous runs);
 - diff/code review;
 - implemented-plan archive under `docs/plan/`;
 - root `PLAN.md` cleanup after successful archive and validation.
