@@ -82,12 +82,17 @@ local function measure_save()
   vim.cmd.edit(vim.fn.fnameescape(file_path))
 
   local prettier_available = vim.fn.executable("prettier") == 1
-  local conform_plugin = require("lazy.core.config").plugins["conform.nvim"]
-  local prettier_condition = conform_plugin
-    and conform_plugin.opts
-    and conform_plugin.opts.formatters
-    and conform_plugin.opts.formatters.prettier
-    and conform_plugin.opts.formatters.prettier.condition
+  local conform_spec
+  for _, entry in ipairs(require("plugins.lsp")) do
+    if entry[1] == "stevearc/conform.nvim" then
+      conform_spec = entry
+    end
+  end
+  local prettier_condition = conform_spec
+    and conform_spec.opts
+    and conform_spec.opts.formatters
+    and conform_spec.opts.formatters.prettier
+    and conform_spec.opts.formatters.prettier.condition
 
   if type(prettier_condition) == "function" then
     local detect_total, detect_avg = measure(1, function()
@@ -161,102 +166,9 @@ local function measure_focus()
   report("focus settle wait", 3, settle_total, settle_avg, "includes fixed 180ms wait budget")
 end
 
-local function measure_repo_root_misses()
-  local outside_root = vim.fs.joinpath(tmp, "outside-git")
-  local outside_file = vim.fs.joinpath(outside_root, "notes.txt")
-  write_file(outside_file, { "outside" })
-
-  local diff = require("config.review.diff")
-
-  local cold_total, cold_avg = measure(1, function()
-    diff.repo_root(outside_file)
-  end)
-  report("repo root miss cold", 1, cold_total, cold_avg, "non-git file")
-
-  local warm_total, warm_avg = measure(50, function()
-    diff.repo_root(outside_file)
-  end)
-  report("repo root miss warm", 50, warm_total, warm_avg, "negative cache")
-end
-
-local function measure_review()
-  local review_root = vim.fs.joinpath(tmp, "review-project")
-  local files = {
-    vim.fs.joinpath(review_root, "src", "alpha.ts"),
-    vim.fs.joinpath(review_root, "src", "beta.ts"),
-    vim.fs.joinpath(review_root, "docs", "notes.md"),
-  }
-
-  for index, path in ipairs(files) do
-    write_file(path, {
-      string.format("export const value%d = %d", index, index),
-      string.format("export const next%d = %d", index, index + 1),
-      "",
-    })
-  end
-
-  git(review_root, { "init" })
-  git(review_root, { "add", "." })
-  git(review_root, {
-    "-c",
-    "user.name=Nvim Perf",
-    "-c",
-    "user.email=nvim-perf@example.com",
-    "commit",
-    "-m",
-    "initial",
-  })
-
-  for index, path in ipairs(files) do
-    write_file(path, {
-      string.format("export const value%d = %d", index, index * 10),
-      string.format("export const next%d = %d", index, index + 1),
-      "",
-    })
-  end
-
-  local diff = require("config.review.diff")
-  local review_items = require("config.review.items")
-  local state = require("config.review.state")
-  local annotations = require("config.review.annotations")
-  local context = assert(state.context_for_repo(review_root))
-  local items = assert(diff.collect_all(review_root))
-
-  for _, item in ipairs(items) do
-    assert(state.set_status(context, item, "needs-rework"))
-  end
-
-  vim.cmd.cd(review_root)
-  vim.cmd.edit(vim.fn.fnameescape(files[1]))
-  vim.cmd.vsplit(vim.fn.fnameescape(files[2]))
-  vim.cmd.tabnew()
-  vim.cmd.edit(vim.fn.fnameescape(files[3]))
-
-  diff.clear_cache()
-
-  local signature_total, signature_avg = measure(8, function()
-    review_items.repo_change_signature(review_root)
-  end)
-  report("review signature", 8, signature_total, signature_avg, "status + content hashes")
-
-  local cold_total, cold_avg = measure(1, function()
-    annotations.refresh_repo(review_root)
-  end)
-  report("review refresh cold", 1, cold_total, cold_avg, "3 buffers / 3 files")
-
-  local warm_total, warm_avg = measure(8, function()
-    annotations.refresh_repo(review_root)
-  end)
-  report("review refresh warm", 8, warm_total, warm_avg, "cached diff / grouped render")
-
-  state.clear(context)
-end
-
 io.write(string.format("Neovim runtime perf baseline for %s\n", root))
 sleep(160)
 measure_save()
-measure_repo_root_misses()
-measure_review()
 measure_focus()
 LUA
 }

@@ -30,6 +30,7 @@ local gitsigns_spec = editor_specs[2]
 assert_true(gitsigns_spec.opts.preview_config.border == "single", "gitsigns preview should match review borders")
 
 local telescope_specs = require("plugins.telescope")
+require("config.pack").load("telescope.nvim")
 local ok_telescope_opts, telescope_opts = pcall(telescope_specs[1].opts)
 assert_true(ok_telescope_opts, "telescope options should be inspectable in the UI smoke")
 assert_true(telescope_opts.defaults.border == true, "telescope should render explicit borders")

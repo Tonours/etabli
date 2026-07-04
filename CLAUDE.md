@@ -13,4 +13,6 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0006](docs/adr/0006-keep-agent-surfaces-as-adapters-over-shared-workflow-contracts.md) — Keep agent surfaces as adapters over shared workflow contracts [accepted]
 - [0007](docs/adr/0007-gate-workflow-routing-with-deterministic-guards.md) — Gate workflow routing with deterministic guards [accepted]
 - [0008](docs/adr/0008-record-adrs-through-a-deterministic-helper-and-validator.md) — Record ADRs through a deterministic helper and validator [accepted]
+- [0009](docs/adr/0009-remove-the-legacy-local-review-mirror.md) — Remove the legacy local review mirror [accepted]
+- [0010](docs/adr/0010-replace-lazy-nvim-with-vim-pack.md) — Replace lazy.nvim with vim.pack [accepted]
 <!-- ADR:INDEX:END -->

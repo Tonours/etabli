@@ -431,11 +431,11 @@ sync_nvim_plugins() {
 
     ensure_nvim_version || print_warning "Install Neovim $MIN_NVIM_VERSION+ before relying on this config"
 
-    print_step "Syncing Neovim plugins from lazy-lock.json..."
-    if nvim --headless "+Lazy! restore" +qa > /dev/null 2>&1; then
-        print_success "Neovim plugins synced"
+    print_step "Installing Neovim plugins through vim.pack..."
+    if nvim --headless +qa > /dev/null 2>&1; then
+        print_success "Neovim plugins installed"
     else
-        print_warning "Neovim plugin sync failed - run: nvim '+Lazy! restore'"
+        print_warning "Neovim plugin install failed - run: nvim --headless +qa"
     fi
 
     if nvim --headless "+lua vim.notify = function() end" +qa > /dev/null 2>&1; then

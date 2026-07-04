@@ -12,11 +12,7 @@ function M.load()
 
   if not load_attempted then
     load_attempted = true
-
-    local ok_lazy, lazy = pcall(require, "lazy")
-    if ok_lazy then
-      lazy.load({ plugins = { plugin_name } })
-    end
+    require("config.pack").load(plugin_name)
   end
 
   local ok = pcall(require, "telescope")

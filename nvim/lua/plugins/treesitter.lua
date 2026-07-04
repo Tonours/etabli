@@ -3,7 +3,8 @@ local pending_installs = {}
 return {
   {
     "nvim-treesitter/nvim-treesitter",
-    lazy = false,
+    event = { "BufReadPre", "BufNewFile" },
+    cmd = { "TSUpdate", "TSInstall", "TSLog", "TSUninstall" },
     build = ":TSUpdate",
     init = function()
       -- Batch filetype registrations for better performance
@@ -13,9 +14,6 @@ return {
           hbs = "handlebars",
         },
       })
-
-      -- Register glimmer for handlebars variants
-      vim.treesitter.language.register("glimmer", { "hbs", "handlebars", "html.handlebars" })
 
       -- Defer markdown parser registration to not block file opening
       vim.api.nvim_create_autocmd("FileType", {
@@ -54,6 +52,7 @@ return {
           if vim.b[args.buf].large_file then
             return
           end
+          vim.treesitter.language.register("glimmer", { "hbs", "handlebars", "html.handlebars" })
           pcall(vim.treesitter.start, args.buf)
         end,
       })

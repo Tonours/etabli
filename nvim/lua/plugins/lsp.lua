@@ -1,4 +1,3 @@
-local lsp = require("config.lsp")
 
 local prettier_filetypes = {
   astro = true,
@@ -170,6 +169,7 @@ local function has_prettier(filename)
 end
 
 local function setup_servers()
+  local lsp = require("config.lsp")
   local capabilities = lsp.capabilities()
   local servers = lsp.servers()
 
