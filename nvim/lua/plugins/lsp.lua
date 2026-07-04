@@ -226,6 +226,7 @@ end
 return {
   {
     "neovim/nvim-lspconfig",
+    version = "d224a1920728",
     event = { "BufReadPost", "BufNewFile" },
     dependencies = {
       "hrsh7th/cmp-nvim-lsp",
@@ -234,6 +235,7 @@ return {
   },
   {
     "stevearc/conform.nvim",
+    version = "619363c30309",
     event = { "BufWritePre" },
     cmd = { "ConformInfo" },
     opts = {

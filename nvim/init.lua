@@ -9,6 +9,10 @@ require("config.options")
 vim.cmd.colorscheme("habamax")
 require("config.autocmds")
 
+vim.api.nvim_create_user_command("PackUpdate", function()
+  vim.pack.update()
+end, { desc = "Update vim.pack plugins" })
+
 vim.api.nvim_create_user_command("EtabliDoctor", function()
   require("config.doctor").show()
 end, { desc = "Diagnose Etabli Neovim setup" })

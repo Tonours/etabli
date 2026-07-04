@@ -5,7 +5,7 @@ return {
   },
   {
     "nvim-neo-tree/neo-tree.nvim",
-    branch = "v3.x",
+    version = "ebd667671917",
     cmd = "Neotree",
     dependencies = {
       "MunifTanjim/nui.nvim",
@@ -45,6 +45,7 @@ return {
   },
   {
     "akinsho/bufferline.nvim",
+    version = "v4.9.1",
     event = "VeryLazy",
     dependencies = {
       "nvim-tree/nvim-web-devicons",

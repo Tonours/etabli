@@ -9,6 +9,7 @@ return {
   },
   {
     "lewis6991/gitsigns.nvim",
+    version = "eb60cc7b94c4",
     -- Defer loading to not block file opening
     event = "VeryLazy",
     init = function()

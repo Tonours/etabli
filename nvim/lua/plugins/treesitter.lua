@@ -3,6 +3,7 @@ local pending_installs = {}
 return {
   {
     "nvim-treesitter/nvim-treesitter",
+    version = "4916d6592ede",
     event = { "BufReadPre", "BufNewFile" },
     cmd = { "TSUpdate", "TSInstall", "TSLog", "TSUninstall" },
     build = ":TSUpdate",
