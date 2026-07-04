@@ -216,7 +216,7 @@ Claude:
 
 - `/plan`: create `PLAN.md` only, stop at `DRAFT`
 - `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
-- `/plan-implement`: plan, then implement if `READY`
+- `/plan-implement`: full autonomous chain — plan, adversary, implement, checks, fresh-context review, archive — in one flow; the manual `/plan-loop` -> `/adversary` -> `/implement` sequence is for step-by-step control only
 - `/adversary`: cross-model adversarial review of `PLAN.md` before implementation
 - `/implement`: implement existing `READY` plan
 - `/review`: review current diff
