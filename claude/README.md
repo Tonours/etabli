@@ -29,6 +29,7 @@ Claude commands are thin wrappers over that contract:
 - `/plan` from `commands/plan-create.md`
 - `/plan-loop`
 - `/plan-implement`
+- `/ship`
 - `/implement`
 - `/review`
 - `/verify-workflow`
