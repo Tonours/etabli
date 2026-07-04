@@ -165,6 +165,17 @@ local function style_window(win)
   vim.wo[win].statusline = " r Refresh %= q Close "
 end
 
+local function render(entry, lines)
+  if not vim.api.nvim_buf_is_valid(entry.buf) then
+    return
+  end
+
+  vim.bo[entry.buf].modifiable = true
+  vim.api.nvim_buf_set_lines(entry.buf, 0, -1, false, lines)
+  vim.bo[entry.buf].modifiable = false
+  vim.bo[entry.buf].modified = false
+end
+
 function M.refresh(context, opts)
   local options = opts or {}
   local entry = options.entry or rail_by_tab[options.tab or vim.api.nvim_get_current_tabpage()]
@@ -172,20 +183,24 @@ function M.refresh(context, opts)
     return false
   end
 
-  local hunk = require("config.review.hunk")
-  local model, err = hunk.review_model(context, { include_notes = true })
-  local lines = model and M.lines(model, { width = entry.width - 2 }) or {
-    "Thread    File    Checks",
-    string.rep("-", math.min(entry.width - 2, 44)),
-    "Hunk context unavailable",
-    err or "session is still starting",
-  }
+  if entry.refreshing then
+    return true
+  end
+  entry.refreshing = true
 
-  vim.bo[entry.buf].modifiable = true
-  vim.api.nvim_buf_set_lines(entry.buf, 0, -1, false, lines)
-  vim.bo[entry.buf].modifiable = false
-  vim.bo[entry.buf].modified = false
-  return model ~= nil
+  local hunk = require("config.review.hunk")
+  hunk.review_model_async(context, { include_notes = true }, function(model, err)
+    entry.refreshing = false
+    local lines = model and M.lines(model, { width = entry.width - 2 }) or {
+      "Thread    File    Checks",
+      string.rep("-", math.min(entry.width - 2, 44)),
+      "Hunk context unavailable",
+      err or "session is still starting",
+    }
+    render(entry, lines)
+  end)
+
+  return true
 end
 
 function M.open(context, opts)

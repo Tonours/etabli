@@ -1,9 +1,5 @@
 local M = {}
 
-local function adapter_mod()
-  return require("config.review.hunk_local_adapter")
-end
-
 local function hunk_mod()
   return require("config.review.hunk")
 end
@@ -19,8 +15,6 @@ end
 local function util_mod()
   return require("config.review.util")
 end
-
-local tracked_repos = {}
 
 local function hunk_missing()
   vim.notify("Hunk CLI not found. Rerun scripts/install.sh or install with: npm i -g hunkdiff", vim.log.levels.WARN)
@@ -91,89 +85,12 @@ local function git_output(repo, args)
   return output
 end
 
-local function track_repo(repo)
-  if repo and repo ~= "" then
-    tracked_repos[normalize(repo)] = true
-  end
-end
-
-local function is_diff_review(raw_args)
-  local args = hunk_mod().parse_args(raw_args)
-  return args ~= nil and args[1] == "diff"
-end
-
 local function default_diff_command()
   return hunk_mod().default_diff_command()
 end
 
-local function persist_repo(repo)
-  if not repo or repo == "" then
-    return
-  end
-
-  if not hunk_mod().is_available() or not hunk_mod().session_exists(repo) then
-    return
-  end
-
-  pcall(function()
-    adapter_mod().persist_repo(repo, { silent = true })
-  end)
-end
-
-local function rehydrate_repo(repo, opts)
-  if not repo or repo == "" then
-    return
-  end
-
-  local options = opts or {}
-  local attempts = options.attempts or 8
-  local delay_ms = options.delay_ms or 250
-  local first_delay_ms = options.first_delay_ms or delay_ms
-
-  local function attempt(index)
-    if hunk_mod().is_available() and hunk_mod().session_exists(repo) then
-      pcall(function()
-        adapter_mod().rehydrate_repo(repo, { silent = true })
-      end)
-      return
-    end
-
-    if index < attempts then
-      vim.defer_fn(function()
-        attempt(index + 1)
-      end, delay_ms)
-    end
-  end
-
-  vim.defer_fn(function()
-    attempt(1)
-  end, first_delay_ms)
-end
-
 local function open_or_reload_hunk(context, raw_args, opts)
-  local options = opts or {}
-  if not context or not context.repo then
-    return hunk_mod().open_or_reload(context, raw_args, { notify = options.notify })
-  end
-
-  track_repo(context.repo)
-  local had_session = hunk_mod().is_available() and hunk_mod().session_exists(context.repo)
-  if had_session then
-    persist_repo(context.repo)
-  end
-
-  local opened = hunk_mod().open_or_reload(context, raw_args, { notify = options.notify })
-  if opened and is_diff_review(raw_args) then
-    if had_session then
-      pcall(function()
-        adapter_mod().rehydrate_repo(context.repo, { silent = true })
-      end)
-    else
-      rehydrate_repo(context.repo, { first_delay_ms = options.first_delay_ms, silent = true })
-    end
-  end
-
-  return opened
+  return hunk_mod().open_or_reload(context, raw_args, opts)
 end
 
 local function normalize_review_target(target)
@@ -191,7 +108,7 @@ local function normalize_review_target(target)
     }
   end
 
-  vim.notify("Hunk review supports only all or changed-only. Legacy status filters require opt-in local commands.", vim.log.levels.ERROR)
+  vim.notify("Hunk review supports only all or changed-only.", vim.log.levels.ERROR)
   return false
 end
 
@@ -199,8 +116,8 @@ local function help_lines()
   return {
     "Hunk review",
     "",
-    "State     Hunk is the default review surface",
-    "Flow      inbox -> annotate -> agent pass -> sync",
+    "State     Hunk owns review sessions and notes",
+    "Flow      inbox -> annotate -> agent pass",
     "Layout    adaptive split, no-wrap, line-numbered diff",
     "",
     "Keys",
@@ -208,8 +125,8 @@ local function help_lines()
     "  <leader>rh  :ReviewCurrentHunk           focus current line",
     "  <leader>ra  :ReviewAnnotate              add line comment",
     "  visual ra   :ReviewAnnotate              add range comment",
-    "  <leader>rn  :ReviewHunkNextComment       next thread",
-    "  <leader>rN  :ReviewHunkPrevComment       previous thread",
+    "  <leader>rj  :ReviewHunkNextComment       next thread",
+    "  <leader>rk  :ReviewHunkPrevComment       previous thread",
     "  <leader>rx  :ReviewContext               open context rail",
     "",
     "Agents",
@@ -218,14 +135,9 @@ local function help_lines()
     "  mode        all | changed-only            review target",
     "  prompt      interactive terminal paste     no prompt argv",
     "",
-    "Sync",
-    "  <leader>rs  :ReviewHunkSync pull|push|both",
-    "  local       comments persist after Hunk sync",
-    "  thread      line and range comments stay anchored",
-    "",
     "Model",
+    "  Hunk persists sessions and notes itself",
     "  Agent findings are evidence tags, never auto-accepted",
-    "  Legacy local review commands stay opt-in",
   }
 end
 
@@ -312,10 +224,7 @@ local function add_direct_comment(line, end_line)
       return
     end
 
-    local persisted = adapter_mod().persist_repo(target.context, { silent = true })
-    local message = persisted and "Review comment added to Hunk and persisted locally."
-      or "Review comment added to Hunk. Run :ReviewHunkSync pull before closing Hunk to persist it locally."
-    vim.notify(message, vim.log.levels.INFO)
+    vim.notify("Review comment added to Hunk.", vim.log.levels.INFO)
   end)
 
   return true
@@ -336,7 +245,7 @@ function M.open_inbox(opts)
 
   local target = open_opts.filter or open_opts.status
   if target and target ~= "" and target ~= "all" then
-    vim.notify("Hunk is the default review inbox; legacy status filters require opt-in legacy commands.", vim.log.levels.INFO)
+    vim.notify("Hunk is the review inbox; status filters are not supported.", vim.log.levels.INFO)
   end
 
   open_or_reload_hunk(context, default_diff_command(), { notify = false })
@@ -411,13 +320,11 @@ function M.prepare_review(provider, target)
     return
   end
 
-  persist_repo(context.repo)
   local reloaded, reload_err = hunk_mod().reload(context, default_diff_command())
   if not reloaded then
     vim.notify(reload_err, vim.log.levels.ERROR)
     return
   end
-  adapter_mod().rehydrate_repo(context, { silent = true })
 
   local prompt = hunk_mod().review_prompt(provider, context, {
     target_label = review_target.label or "all live staged and unstaged hunks",
@@ -432,12 +339,6 @@ function M.prepare_review(provider, target)
       util_mod().sanitize_segment(review_target.slug or review_target.status or "all")
     ),
     message = string.format("Prepared Hunk HITL review prompt for %s and copied it to registers.", provider),
-    after_exit = function()
-      local loaded_adapter = package.loaded["config.review.hunk_local_adapter"]
-      if loaded_adapter and loaded_adapter.after_provider_exit then
-        loaded_adapter.after_provider_exit(context.repo)
-      end
-    end,
   })
 
   if err then
@@ -456,10 +357,6 @@ function M.open_hunk(raw_args)
   end
 
   open_or_reload_hunk(context, raw_args, { notify = false })
-end
-
-function M.sync_hunk(action)
-  adapter_mod().sync_hunk(action)
 end
 
 function M.open_context_rail()
@@ -538,7 +435,6 @@ function M.repo_change_signature(repo)
 end
 
 function M.refresh_after_external_edit(repo, opts)
-  local loaded_adapter = package.loaded["config.review.hunk_local_adapter"]
   if not repo or repo == "" then
     return
   end
@@ -551,14 +447,7 @@ function M.refresh_after_external_edit(repo, opts)
   vim.cmd.checktime()
 
   if hunk_mod().is_available() and hunk_mod().session_exists(repo) then
-    if loaded_adapter and loaded_adapter.persist_repo then
-      loaded_adapter.persist_repo(repo, { silent = true })
-    end
     hunk_mod().reload({ repo = repo }, default_diff_command())
-  end
-
-  if loaded_adapter and loaded_adapter.refresh_after_external_edit then
-    loaded_adapter.refresh_after_external_edit(repo, vim.tbl_extend("force", options, { silent = true }))
   end
 
   if options.before_signature == nil or after_signature == nil then
@@ -581,28 +470,6 @@ function M.refresh_after_external_edit(repo, opts)
   return changed
 end
 
-function M.setup()
-  local group = vim.api.nvim_create_augroup("etabli_hunk_durable_review", { clear = true })
-  vim.api.nvim_create_autocmd({ "BufWinLeave", "TermClose" }, {
-    group = group,
-    callback = function(args)
-      local repo = vim.b[args.buf] and vim.b[args.buf].etabli_hunk_repo
-      if repo and repo ~= "" then
-        persist_repo(repo)
-      end
-    end,
-  })
-
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = group,
-    callback = function()
-      for repo in pairs(tracked_repos) do
-        persist_repo(repo)
-      end
-    end,
-  })
-end
-
 function M.cmd_open_inbox(cmd_opts)
   M.open_inbox({ status = cmd_opts.args })
 end
@@ -618,10 +485,6 @@ end
 
 function M.cmd_open_hunk(cmd_opts)
   M.open_hunk(cmd_opts.args)
-end
-
-function M.cmd_sync_hunk(cmd_opts)
-  M.sync_hunk(cmd_opts.args)
 end
 
 function M.cmd_help()

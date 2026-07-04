@@ -1,4 +1,3 @@
-local prompts = require("config.review.prompts")
 local util = require("config.review.util")
 
 local M = {}
@@ -186,7 +185,7 @@ local function dispatch_prompt(provider, prompt, opts)
   local can_open_terminal = open_terminal ~= false and vim.fn.executable(provider.command) == 1
 
   local function refresh_module()
-    local module_name = options.refresh_module or "config.review"
+    local module_name = options.refresh_module or "config.review.hunk_flow"
     local ok, module = pcall(require, module_name)
     if ok then
       return module
@@ -298,70 +297,6 @@ function M.dispatch_prompt(name, prompt, opts)
     open_terminal = options.open_terminal,
     message = options.message
       or string.format("Prepared Hunk review prompt for %s and copied it to registers.", provider.label),
-  })
-end
-
-function M.dispatch(name, item, opts)
-  local provider, err = provider_for(name)
-  if not provider then
-    return nil, err
-  end
-
-  local options = opts or {}
-  local prompt = prompts.build(item, {
-    action = options.action,
-    provider = provider.label,
-  })
-
-  return dispatch_prompt(provider, prompt, {
-    after_exit = options.after_exit,
-    cwd = options.cwd or item.repo,
-    env = options.env,
-    title = string.format("review-%s-%s.md", name, options.action or "revise"),
-    open_terminal = options.open_terminal,
-    message = string.format(
-      "Prepared %s prompt for %s and copied it to registers.",
-      options.action or "revise",
-      provider.label
-    ),
-  })
-end
-
-function M.dispatch_batch(name, items, opts)
-  local provider, err = provider_for(name)
-  if not provider then
-    return nil, err
-  end
-
-  if vim.tbl_isempty(items or {}) then
-    return nil, "No review hunks matched this batch request"
-  end
-
-  local options = opts or {}
-  local action = options.action or "revise"
-  local prompt = prompts.build_batch(items, {
-    action = action,
-    provider = provider.label,
-    selection_label = options.selection_label or (options.status and string.format("review status: %s", options.status)),
-  })
-
-  return dispatch_prompt(provider, prompt, {
-    after_exit = options.after_exit,
-    cwd = options.cwd or items[1].repo,
-    env = options.env,
-    title = string.format(
-      "review-%s-batch-%s-%s.md",
-      name,
-      util.sanitize_segment(options.slug or options.status or "selection"),
-      action
-    ),
-    open_terminal = options.open_terminal,
-    message = string.format(
-      "Prepared %s batch prompt for %s (%d hunks) and copied it to registers.",
-      action,
-      provider.label,
-      #items
-    ),
   })
 end
 
