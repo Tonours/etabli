@@ -8,31 +8,24 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
-Use Linear MCP as the Linear integration. Do not use GitHub issues, web
-scraping, shell-based Linear API calls, or a custom wrapper unless the user
-explicitly overrides this.
+Read and follow the shared contract in
+`workflow/skills/linear-ticket-create.md`.
 
-Read `workflow/ticket-template.md` and `workflow/linear-ticket-template.md`
-when available.
+## Source resolution
 
-Contract:
+Resolve the shared contract before acting:
 
-1. Identify one behavior per ticket. Split multiple behaviors into multiple
-   tickets.
-2. Resolve team, project, cycle, labels, assignee, and parent issue through
-   Linear MCP when partial context is provided.
-3. If no Linear MCP tool is available, stop with `LINEAR_MCP_UNAVAILABLE`
-   unless the user explicitly asked for a draft only.
-4. Ask one blocking question only when the target Linear team or project cannot
-   be inferred.
-5. Create the Linear issue through MCP once ambiguity is resolved.
-6. Return the created issue key, URL, title, and assumptions.
+1. Prefer the current workspace copy:
+   `workflow/skills/linear-ticket-create.md`.
+2. If missing, fall back to the Claude shared copy:
+   `../workflow/skills/linear-ticket-create.md`.
+3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
+   target path: `../../workflow/skills/linear-ticket-create.md`.
+4. If no copy exists, stop with
+   `SHARED_CONTRACT_MISSING: workflow/skills/linear-ticket-create.md`.
 
 Rules:
-
+- Use Linear MCP as the Linear integration.
+- If no Linear MCP tool is available, stop with `LINEAR_MCP_UNAVAILABLE`
+  unless the user explicitly asked for a draft only.
 - One ticket equals one behavior equals one PR.
-- Keep acceptance criteria behavioral with `Given ..., when ..., then ...`.
-- Do not invent product facts.
-- Do not create external tickets for destructive, security-sensitive,
-  production-impacting, billing, credential, or broad ambiguous work without
-  explicit confirmation of scope.

@@ -1,0 +1,1 @@
+{"claude_route":"ci-fix","pi_route":"ci-fix","write_allowed":true,"guard":null,"context_contains":["Route: ci-fix"],"context_not_contains":["Route: ops-stop"]}

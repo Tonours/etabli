@@ -5,13 +5,8 @@ description: Compatibility alias for pr-review. Use when an older prompt asks fo
 
 # GitHub PR Review
 
-Use `pr-review`. This skill exists only as a compatibility alias for earlier
-workflow prompts.
+This skill is a compatibility alias for `pr-review`.
 
-Follow `../pr-review/SKILL.md` when available. If unavailable, use the same
-contract:
-
-- use `gh` for GitHub
-- stay read-only unless the user explicitly asks to post or approve
-- report only actionable findings grounded in the PR diff
-- end with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`
+Resolve and follow `../pr-review/SKILL.md` when available. Otherwise resolve and
+follow the shared contract in `workflow/skills/pr-review.md` using the same
+source-resolution order as `pr-review`.

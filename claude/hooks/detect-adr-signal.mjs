@@ -67,7 +67,7 @@ function lastAssistantFromTranscript(transcriptPath) {
   } catch {
     return "";
   }
-  const lines = raw.split("\n").filter((l) => l.trim() !== "");
+  const lines = raw.split("\n").filter((l) => l.trim() !== "").slice(-200);
   for (let i = lines.length - 1; i >= 0; i--) {
     let entry;
     try {
@@ -99,9 +99,9 @@ const input = JSON.parse(readFileSync(0, "utf8") || "{}");
 const cwd = input.cwd || process.cwd();
 
 if (
-  !adrAlreadyTouched(cwd) &&
+  hasDecisionSignal(input) &&
   hasStructuralChange(cwd) &&
-  hasDecisionSignal(input)
+  !adrAlreadyTouched(cwd)
 ) {
   process.stdout.write(`${JSON.stringify({ systemMessage: SUGGESTION })}\n`);
 }

@@ -58,8 +58,13 @@ assert_symlink "$CODEX_HOME_DIR/config.managed.toml"
 assert_symlink "$CODEX_HOME_DIR/hooks.json"
 assert_file "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md"
 assert_file "$CODEX_HOME_DIR/workflow/ticket-template.md"
+while IFS= read -r contract_path; do
+  contract_name="$(basename "$contract_path")"
+  assert_symlink "$CODEX_HOME_DIR/workflow/skills/$contract_name"
+done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sort)
 assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Start here"
 assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Stop conditions"
+assert_contains "$CODEX_HOME_DIR/workflow/skills/linear-work.md" "LINEAR_MCP_UNAVAILABLE"
 assert_contains "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md" "multi_agent_v1.spawn_agent"
 assert_file "$CODEX_HOME_DIR/prompts/opsx-apply.md"
 assert_file "$CODEX_HOME_DIR/automations/templates/repo-hygiene.template.toml"

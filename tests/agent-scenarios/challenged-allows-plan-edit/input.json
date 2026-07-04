@@ -1,0 +1,1 @@
+{"prompt":"corrige le bug","plan_status":"challenged","guard_probe":{"tool_name":"Write","tool_input":{"file_path":"__CWD__/PLAN.md","content":"x"}}}

@@ -1,5 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+export type TokenPattern = { pattern: RegExp; label: string };
+export type StructuralPattern = { pattern: RegExp; replacement: string };
+
 /**
  * Filter Output — POST-EXECUTION secret redaction for tool results.
  *
@@ -7,11 +10,10 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
  * output before the LLM sees it. Covers both `read` (file reads) and `bash`
  * (command output) to prevent accidental secret leakage.
  */
-export default function (pi: ExtensionAPI) {
-  // ---------------------------------------------------------------------------
-  // Token patterns — prefixed / structurally identifiable keys
-  // ---------------------------------------------------------------------------
-  const tokenPatterns: { pattern: RegExp; label: string }[] = [
+// ---------------------------------------------------------------------------
+// Token patterns — prefixed / structurally identifiable keys
+// ---------------------------------------------------------------------------
+export const tokenPatterns: TokenPattern[] = [
     // Anthropic
     { pattern: /\bsk-ant-[a-zA-Z0-9_-]{20,}\b/g, label: "ANTHROPIC_KEY" },
     // OpenAI (sk-proj-... is the new format, sk-... is legacy)
@@ -57,12 +59,12 @@ export default function (pi: ExtensionAPI) {
     { pattern: /\blin_api_[a-zA-Z0-9]{40,}\b/g, label: "LINEAR_KEY" },
     // Resend
     { pattern: /\bre_[a-zA-Z0-9]{20,}\b/g, label: "RESEND_KEY" },
-  ];
+];
 
-  // ---------------------------------------------------------------------------
-  // Structural patterns — values identifiable by surrounding context
-  // ---------------------------------------------------------------------------
-  const structuralPatterns: { pattern: RegExp; replacement: string }[] = [
+// ---------------------------------------------------------------------------
+// Structural patterns — values identifiable by surrounding context
+// ---------------------------------------------------------------------------
+export const structuralPatterns: StructuralPattern[] = [
     // Generic key=value assignments where key suggests a secret
     {
       pattern: /\b(api[_-]?key|api[_-]?secret|access[_-]?key)\s*[=:]\s*['"]?([a-zA-Z0-9_\/.+=-]{16,})['"]?/gi,
@@ -101,8 +103,130 @@ export default function (pi: ExtensionAPI) {
     },
     // AWS secret access key pattern (40 char base64 following a label)
     { pattern: /(aws_secret_access_key\s*[=:]\s*['"]?)[a-zA-Z0-9/+=]{40}['"]?/gi, replacement: "$1[REDACTED]" },
-  ];
+];
 
+export const tokenGateNeedles = [
+  "sk-ant-",
+  "sk-",
+  "ghp_",
+  "gho_",
+  "ghs_",
+  "ghu_",
+  "ghr_",
+  "github_pat_",
+  "xox",
+  "AKIA",
+  "ASIA",
+  "sk_live_",
+  "sk_test_",
+  "rk_live_",
+  "rk_test_",
+  "pk_live_",
+  "pk_test_",
+  "whsec_",
+  "sbp_",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.",
+  "npm_",
+  "pypi-",
+  "SK",
+  "SG.",
+  "AIza",
+  "dp.",
+  "AGE-SECRET-KEY-",
+  "glc_",
+  "lin_api_",
+  "re_",
+] as const;
+export const caseInsensitiveTokenGateNeedles = ["vercel_", "cf_"] as const;
+export const structuralGateNeedles = [
+  "key",
+  "secret",
+  "token",
+  "credential",
+  "password",
+  "passwd",
+  "pwd",
+  "pass",
+  "bearer",
+  "authorization",
+  "mongodb",
+  "postgres",
+  "mysql",
+  "redis",
+  "amqp",
+  "nats",
+  "clickhouse",
+  "begin",
+  "aws_secret",
+] as const;
+
+function containsAny(text: string, needles: readonly string[]): boolean {
+  return needles.some((needle) => text.includes(needle));
+}
+
+export function shouldRedactTokens(text: string): boolean {
+  if (containsAny(text, tokenGateNeedles)) return true;
+  const lowerText = text.toLowerCase();
+  return containsAny(lowerText, caseInsensitiveTokenGateNeedles);
+}
+
+export function shouldRedactStructural(text: string): boolean {
+  return containsAny(text.toLowerCase(), structuralGateNeedles);
+}
+
+export function redactTokens(text: string, patterns: TokenPattern[] = tokenPatterns): { result: string; count: number } {
+  let count = 0;
+  let result = text;
+  for (const { pattern, label } of patterns) {
+    pattern.lastIndex = 0;
+    const newResult = result.replace(pattern, () => {
+      count++;
+      return `[${label}_REDACTED]`;
+    });
+    result = newResult;
+  }
+  return { result, count };
+}
+
+export function redactStructural(text: string, patterns: StructuralPattern[] = structuralPatterns): { result: string; count: number } {
+  let count = 0;
+  let result = text;
+  for (const { pattern, replacement } of patterns) {
+    pattern.lastIndex = 0;
+    const newResult = result.replace(pattern, (...args) => {
+      const replacementText = replacement.replace(/\$(\d)/g, (_, n) => args[parseInt(n)] || "");
+      if (replacementText !== args[0]) {
+        count++;
+      }
+      return replacementText;
+    });
+    result = newResult;
+  }
+  return { result, count };
+}
+
+export function redactInlineSecrets(text: string): { result: string; count: number } {
+  const runTokenRedaction = shouldRedactTokens(text);
+  const runStructuralRedaction = shouldRedactStructural(text);
+  let count = 0;
+  let result = text;
+
+  if (runTokenRedaction) {
+    const tokens = redactTokens(result);
+    result = tokens.result;
+    count += tokens.count;
+  }
+
+  if (runStructuralRedaction) {
+    const structural = redactStructural(result);
+    result = structural.result;
+    count += structural.count;
+  }
+
+  return { result, count };
+}
+
+export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   // Sensitive file patterns — block entire file reads
   // ---------------------------------------------------------------------------
@@ -172,39 +296,6 @@ export default function (pi: ExtensionAPI) {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-  function redactTokens(text: string): { result: string; count: number } {
-    let count = 0;
-    let result = text;
-    for (const { pattern, label } of tokenPatterns) {
-      // Reset lastIndex for safety (stateful /g regexes)
-      pattern.lastIndex = 0;
-      const newResult = result.replace(pattern, () => {
-        count++;
-        return `[${label}_REDACTED]`;
-      });
-      result = newResult;
-    }
-    return { result, count };
-  }
-
-  function redactStructural(text: string): { result: string; count: number } {
-    let count = 0;
-    let result = text;
-    for (const { pattern, replacement } of structuralPatterns) {
-      pattern.lastIndex = 0;
-      const newResult = result.replace(pattern, (...args) => {
-        // Reconstruct replacement with captured groups
-        const replacementText = replacement.replace(/\$(\d)/g, (_, n) => args[parseInt(n)] || "");
-        if (replacementText !== args[0]) {
-          count++;
-        }
-        return replacementText;
-      });
-      result = newResult;
-    }
-    return { result, count };
-  }
-
   function isSensitiveFile(filePath: string): boolean {
     return sensitiveFiles.some((p) => p.test(filePath));
   }
@@ -467,14 +558,10 @@ export default function (pi: ExtensionAPI) {
     const redactedContent = event.content.map((content) => {
       if (content.type !== "text") return content;
 
-      let text = content.text;
-      const tokens = redactTokens(text);
-      text = tokens.result;
-      const structural = redactStructural(text);
-      text = structural.result;
-      totalRedactions += tokens.count + structural.count;
+      const redacted = redactInlineSecrets(content.text);
+      totalRedactions += redacted.count;
 
-      return text === content.text ? content : { ...content, text };
+      return redacted.result === content.text ? content : { ...content, text: redacted.result };
     });
 
     if (totalRedactions > 0) {

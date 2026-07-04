@@ -8,28 +8,20 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
-Analyze a bug from a Linear issue. Use Linear MCP as the source of truth. If no
-Linear MCP tool is available, stop with `LINEAR_MCP_UNAVAILABLE`.
+Read and follow the shared contract in `workflow/skills/bug-check.md`.
 
-Read the issue, comments, attachments, diffs, and PR links through Linear MCP.
-Then inspect code read-only.
+## Source resolution
 
-Phases:
+Resolve the shared contract before acting:
 
-1. Fetch ticket and summarize reproduction, expected behavior, actual behavior,
-   and context in 3-5 lines.
-2. Locate impacted code with focused search and full function reads.
-3. Build root-cause candidates with `file:line`, code excerpt, and causal
-   mechanism.
-4. Attack each hypothesis with counterexamples, logical reproduction, edge
-   cases, alternatives, blind spots, and git history.
-5. Return `CERTAIN`, `HIGH CONFIDENCE`, or `UNCERTAIN`.
-6. Produce a minimal fix plan only when verdict is `CERTAIN`.
+1. Prefer the current workspace copy: `workflow/skills/bug-check.md`.
+2. If missing, fall back to the Claude shared copy:
+   `../workflow/skills/bug-check.md`.
+3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
+   target path: `../../workflow/skills/bug-check.md`.
+4. If no copy exists, stop with
+   `SHARED_CONTRACT_MISSING: workflow/skills/bug-check.md`.
 
 Rules:
-
-- Do not edit files.
-- Do not create `PLAN.md`.
-- Do not post to Linear.
-- Do not implement.
-- Mark unverified assumptions explicitly.
+- Read-only only.
+- Do not create `PLAN.md`, edit files, post to Linear, or implement.

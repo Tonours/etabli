@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+JSON=0
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--json]
+
+Report read-only workflow-layer size, duplication, and smoke coverage metrics.
+
+Options:
+  --json     Emit one JSON object
+  -h, --help Show this help
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --json)
+      JSON=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+line_count() {
+  wc -l < "$ROOT_DIR/$1" | tr -d ' '
+}
+
+total_lines() {
+  local total=0
+  local path
+
+  for path in "$@"; do
+    total=$((total + $(line_count "$path")))
+  done
+
+  printf '%s\n' "$total"
+}
+
+paths_with_lines_json() {
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    [ -f "$ROOT_DIR/$path" ] || continue
+    printf '%s\t%s\n' "$path" "$(line_count "$path")"
+  done | jq -Rn '[inputs | split("\t") | {path: .[0], lines: (.[1] | tonumber)}]'
+}
+
+status_line() {
+  local metric="$1"
+  local value="$2"
+  printf '%-30s %s\n' "$metric" "$value"
+}
+
+shared_contract_paths=()
+while IFS= read -r path; do
+  shared_contract_paths+=("$path")
+done < <(
+  cd "$ROOT_DIR"
+  {
+    find workflow -maxdepth 1 -type f -name '*.md' -print
+    if [ -d workflow/skills ]; then
+      find workflow/skills -maxdepth 1 -type f -name '*.md' -print
+    fi
+  } | sort
+)
+
+adapter_paths=()
+while IFS= read -r path; do
+  adapter_paths+=("$path")
+done < <(
+  cd "$ROOT_DIR"
+  {
+    find claude/hooks -maxdepth 1 -type f -name '*.mjs' -print
+    find pi/extensions -maxdepth 1 -type f -name '*.ts' -print
+    find pi/extensions/lib -maxdepth 1 -type f -name '*.ts' -print
+    find claude/commands -maxdepth 1 -type f -name '*.md' -print
+    if [ -d pi/skills ]; then
+      find pi/skills -type f -name '*.md' -print
+    fi
+  } | sort
+)
+
+router_paths=(
+  "claude/hooks/workflow-router-lib.mjs"
+  "pi/extensions/lib/workflow-router-runtime.ts"
+)
+
+instruction_dup_sections="$(
+  comm -12 \
+    <(grep -E '^## ' "$ROOT_DIR/claude/CLAUDE.md" | sed 's/^## //' | sort -u) \
+    <(grep -E '^## ' "$ROOT_DIR/pi/AGENTS.md" | sed 's/^## //' | sort -u) |
+    wc -l |
+    tr -d ' '
+)"
+
+smoke_paths=()
+while IFS= read -r path; do
+  smoke_paths+=("$path")
+done < <(
+  grep -Eho 'bash tests/[A-Za-z0-9._/-]+\.sh' "$ROOT_DIR/.github/workflows/agentic-infra.yml" |
+    awk '{print $2}' |
+    sort -u
+)
+
+source_candidates=(
+  "workflow/spec.md"
+  "claude/CLAUDE.md"
+  "claude/hooks/workflow-router-lib.mjs"
+  "pi/extensions/lib/workflow-router-runtime.ts"
+)
+source_conflict_files=()
+for path in "${source_candidates[@]}"; do
+  if [ -f "$ROOT_DIR/$path" ] && grep -Fq 'plan-loop' "$ROOT_DIR/$path"; then
+    source_conflict_files+=("$path")
+  fi
+done
+
+duplicate_pairs_tsv="$(
+  git -C "$ROOT_DIR" ls-files -s |
+    awk '{print $2 "\t" $4}' |
+    sort |
+    awk '
+      function flush_group(i, j) {
+        if (count > 1) {
+          for (i = 1; i <= count; i++) {
+            for (j = i + 1; j <= count; j++) {
+              print current_hash "\t" paths[i] "\t" paths[j]
+            }
+          }
+        }
+        for (i = 1; i <= count; i++) paths[i] = ""
+        count = 0
+      }
+      {
+        hash = $1
+        path = $2
+        if (current_hash != "" && hash != current_hash) flush_group()
+        current_hash = hash
+        count += 1
+        paths[count] = path
+      }
+      END {
+        flush_group()
+      }
+    ' |
+    sort
+)"
+
+shared_contract_files="${#shared_contract_paths[@]}"
+shared_contract_lines="$(total_lines "${shared_contract_paths[@]}")"
+adapter_files="${#adapter_paths[@]}"
+adapter_total_lines="$(total_lines "${adapter_paths[@]}")"
+smoke_suites="${#smoke_paths[@]}"
+smoke_total_lines="$(total_lines "${smoke_paths[@]}")"
+exact_duplicate_pair_count="$(
+  printf '%s' "$duplicate_pairs_tsv" |
+    sed '/^$/d' |
+    wc -l |
+    tr -d ' '
+)"
+source_of_truth_conflicts="${#source_conflict_files[@]}"
+
+router_json="$(printf '%s\n' "${router_paths[@]}" | paths_with_lines_json)"
+smoke_json="$(printf '%s\n' "${smoke_paths[@]}" | paths_with_lines_json)"
+duplicates_json="$(
+  printf '%s' "$duplicate_pairs_tsv" |
+    jq -Rn '[inputs | select(length > 0) | split("\t") | {hash: .[0], path_a: .[1], path_b: .[2]}]'
+)"
+source_conflicts_json="$(printf '%s\n' "${source_conflict_files[@]}" | jq -Rn '[inputs | select(length > 0)]')"
+
+if [ "$JSON" -eq 1 ]; then
+  jq -n \
+    --argjson shared_contract_files "$shared_contract_files" \
+    --argjson shared_contract_lines "$shared_contract_lines" \
+    --argjson adapter_files "$adapter_files" \
+    --argjson adapter_total_lines "$adapter_total_lines" \
+    --argjson router_adapter_lines "$router_json" \
+    --argjson exact_duplicate_pairs "$duplicates_json" \
+    --argjson instruction_dup_sections "$instruction_dup_sections" \
+    --argjson smoke_suites "$smoke_json" \
+    --argjson smoke_total_lines "$smoke_total_lines" \
+    --argjson source_of_truth_conflicts "$source_of_truth_conflicts" \
+    --argjson source_of_truth_conflict_files "$source_conflicts_json" \
+    '{
+      shared_contract_files: $shared_contract_files,
+      shared_contract_lines: $shared_contract_lines,
+      adapter_files: $adapter_files,
+      adapter_total_lines: $adapter_total_lines,
+      router_adapter_lines: $router_adapter_lines,
+      exact_duplicate_pairs: $exact_duplicate_pairs,
+      instruction_dup_sections: $instruction_dup_sections,
+      smoke_suites: $smoke_suites,
+      smoke_total_lines: $smoke_total_lines,
+      source_of_truth_conflicts: $source_of_truth_conflicts,
+      source_of_truth_conflict_files: $source_of_truth_conflict_files
+    }'
+  exit 0
+fi
+
+status_line shared_contract_files "$shared_contract_files"
+status_line shared_contract_lines "$shared_contract_lines"
+status_line adapter_files "$adapter_files"
+status_line adapter_total_lines "$adapter_total_lines"
+status_line instruction_dup_sections "$instruction_dup_sections"
+status_line smoke_suites "$smoke_suites"
+status_line smoke_total_lines "$smoke_total_lines"
+status_line source_of_truth_conflicts "$source_of_truth_conflicts"
+status_line exact_duplicate_pairs "$exact_duplicate_pair_count"
+
+printf '\nrouter_adapter_lines\n'
+for path in "${router_paths[@]}"; do
+  status_line "  $path" "$(line_count "$path")"
+done
+
+printf '\nsource_of_truth_conflict_files\n'
+for path in "${source_conflict_files[@]}"; do
+  printf '  %s\n' "$path"
+done
+
+printf '\nexact_duplicate_pairs\n'
+printf '%s' "$duplicate_pairs_tsv" | while IFS=$'\t' read -r _hash path_a path_b; do
+  [ -n "${path_a:-}" ] || continue
+  printf '  %s == %s\n' "$path_a" "$path_b"
+done

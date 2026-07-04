@@ -84,6 +84,10 @@ Only `READY` authorizes implementation.
   plan drift instead of silently continuing.
 - Review checks correctness, regressions, safety, validation, and plan drift.
 - Prefer focused checks over full-suite ritual.
+- Long or multi-packet runs record durable progress as events in
+  `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
+  ledger instead of chat history, and `completed` or `blocked` events are
+  terminal evidence.
 
 ## Minimal READY gate
 
@@ -105,6 +109,7 @@ A plan is `READY` when it has:
 | --- | --- | --- | --- |
 | Simple question or explanation | `answer` | none | answer delivered |
 | Broad task, unclear implementation, or "fais un plan" | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
+| Guided spec construction ("rédige une spec", "guide-moi pour la spec") | `spec-guide` | spec drafted via `/spec` template | spec solid, hands off to `/spec` |
 | Read-only adversarial PLAN.md review, or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Existing `READY PLAN.md` plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
@@ -122,6 +127,32 @@ A plan is `READY` when it has:
 | Destructive, secret, production, billing, deployment, or broad irreversible work | `ops-stop` | risk brief | user decision |
 | Task tools active and actionable request | `tasks-till-done` assists selected route | TaskList | all tasks done, blocked, stalled, or limit |
 
+## Human checkpoints
+
+Checkpoints sit at irreversibility boundaries, not every step. A checkpoint
+consumed by explicit user invocation, such as `/linear-ticket-create`, is
+consent for that command's external write contract. When a run ledger exists,
+journal checkpoint decisions as `human_checkpoint` events in
+`.workflow/<slug>/events.jsonl` per `workflow/events.md`.
+
+| Category | Examples | Enforcement | Behavior |
+| --- | --- | --- | --- |
+| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
+| production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
+| history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
+| secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
+| external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
+| premature implementation | any write before root `PLAN.md` is `READY` | `plan-ready-guard` hook for Claude; READY gate rule for all adapters | tool call denied |
+| ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: the agent must name the resolved target and get confirmation when >=2 targets are plausible | ask, do not guess |
+| missing validation surface | change with no runnable check or inspectable proof | prose rule: stop as `blocked: no validation surface` instead of claiming completion | report blocked |
+
+Adapter coverage: all routes are shared by the Pi extension router and the
+Claude hook router, except `tasks-till-done` (Pi-only Task* runtime). The
+executable source of truth for classification is
+`claude/hooks/workflow-router-lib.mjs` and
+`pi/extensions/lib/workflow-router-runtime.ts`; this table documents intent,
+the code decides.
+
 ## Runtime surfaces
 
 Pi and Claude wrappers are thin runtime adapters over this contract.
@@ -132,6 +163,7 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
+- Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
@@ -181,15 +213,21 @@ Claude:
 - `/ci-fix`: explicitly requested autonomous CI repair through `gh`
 - `/github-pr-review`: compatibility alias for `/pr-review`
 
+Manual-only Claude commands (invoked by explicit slash only, never ambiently
+routed): `/spec-verify`, `/commit`, `/cross-repo-audit`,
+`/linear-project-setup`, and the Playwright QA chain `/qa-planner`,
+`/qa-generator`, `/qa-healer`, `/qa-reviewer`, `/qa-failure-dossier`.
+`/spec-guide` is routed ambiently (see routing table). `/plan` maps to
+`claude/commands/plan-create.md`.
+
 Claude-native loop:
 
 - Use `/goal <measurable condition>` for long-running completion loops instead
   of recreating Pi's Task* continuation layer.
 - Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
   routing context and READY-gate hook enforcement.
-- Claude orchestration parity is `proxy_supported` through `/goal`, commands,
-  hooks, and smoke tests unless a live Claude `/goal` run proves it in the
-  current session. Do not claim Claude has Pi Task* semantics.
+- Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
+  Do not claim Claude has Pi Task* semantics.
 
 ## Daily loop
 

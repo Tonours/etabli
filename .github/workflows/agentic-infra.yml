@@ -22,27 +22,78 @@ jobs:
             if head -n 1 "$file" | grep -Eq '^#!.*\b(bash|sh)\b'; then
               bash -n "$file"
             fi
-          done < <(find scripts -maxdepth 1 -type f -print0)
+          done < <(find scripts tests -maxdepth 1 -type f -print0)
 
       - name: Validate JSON config files
         run: |
           jq empty pi/settings.json
           jq empty pi/agent/settings.json
           jq empty pi/models.json
+          jq empty workflow/runtime-capabilities.json
 
-      - name: Run script tests
-        run: |
-          bash tests/codex-organization-smoke.sh
-          bash tests/workflow-docs-smoke.sh
-          bash tests/workflow-scaffold-smoke.sh
-          bash tests/claude-hooks-smoke.sh
-          bash tests/claude-skills-smoke.sh
-          bash tests/workflow-cli-smoke.sh
-          bash tests/adr-hook-smoke.sh
-          bash tests/adr-validate-smoke.sh
-          bash tests/adr-validation-golden.sh
-          bash tests/adr-helper-smoke.sh
-          node scripts/validate-adrs
+      - name: codex-organization-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/codex-organization-smoke.sh
+
+      - name: workflow-contract-coverage-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-contract-coverage-smoke.sh
+
+      - name: workflow-efficiency-report-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-efficiency-report-smoke.sh
+
+      - name: workflow-docs-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-docs-smoke.sh
+
+      - name: workflow-scaffold-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-scaffold-smoke.sh
+
+      - name: claude-hooks-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/claude-hooks-smoke.sh
+
+      - name: agent-scenarios-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/agent-scenarios-smoke.sh
+
+      - name: claude-skills-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/claude-skills-smoke.sh
+
+      - name: workflow-cli-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-cli-smoke.sh
+
+      - name: workflow-event-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-event-smoke.sh
+
+      - name: runtime-capabilities-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/runtime-capabilities-smoke.sh
+
+      - name: adr-hook-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/adr-hook-smoke.sh
+
+      - name: adr-validate-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/adr-validate-smoke.sh
+
+      - name: adr-validation-golden
+        if: ${{ !cancelled() }}
+        run: bash tests/adr-validation-golden.sh
+
+      - name: adr-helper-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/adr-helper-smoke.sh
+
+      - name: validate-adrs
+        if: ${{ !cancelled() }}
+        run: node scripts/validate-adrs
 
   verify-pi-typescript:
     runs-on: ubuntu-latest
@@ -50,6 +101,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('pi/bun.lock*') }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -103,6 +160,12 @@ jobs:
         with:
           neovim: true
           version: v0.12.2
+
+      - name: Cache npm global
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-global-hunkdiff-${{ runner.os }}
 
       - name: Install Hunk CLI
         run: npm install --global hunkdiff

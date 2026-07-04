@@ -1,0 +1,72 @@
+{
+  "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
+  "updated_at": "2026-07-03",
+  "runtimes": {
+    "pi": {
+      "supports_hooks": {
+        "label": "confirmed",
+        "proof_command": "cd pi && bun test ./extensions/__tests__/*.test.ts",
+        "notes": "extensions are the hook surface"
+      },
+      "supports_subagents": {
+        "label": "blocked",
+        "proof_command": "check subagents:rpc:ping/spawn/stop in the active Pi runtime",
+        "notes": "TaskExecute blocked until rpc protocol is confirmed"
+      },
+      "supports_goal_state": {
+        "label": "proxy_supported",
+        "proof_command": "tasks-till-done loop with structured TaskList details",
+        "notes": "Pi continuation support depends on active Task* runtime evidence"
+      },
+      "supports_structured_task_state": {
+        "label": "confirmed",
+        "proof_command": "cd pi && bun test ./extensions/__tests__/tasks-till-done*.test.ts",
+        "notes": "structured task details are covered by runtime and extension tests"
+      }
+    },
+    "claude": {
+      "supports_hooks": {
+        "label": "confirmed",
+        "proof_command": "bash tests/claude-hooks-smoke.sh",
+        "notes": "local hook behavior is deterministic and smoke-tested"
+      },
+      "supports_subagents": {
+        "label": "proxy_supported",
+        "proof_command": "live Agent-tool dispatch in a Claude Code session",
+        "notes": "do not claim Pi Task* tracking semantics"
+      },
+      "supports_goal_state": {
+        "label": "proxy_supported",
+        "proof_command": "live /goal run in the current Claude session",
+        "notes": "do not claim Pi Task* semantics"
+      },
+      "supports_structured_task_state": {
+        "label": "blocked",
+        "proof_command": "none - no Pi Task* equivalent exposed",
+        "notes": "Claude hooks do not provide structured task state"
+      }
+    },
+    "codex": {
+      "supports_hooks": {
+        "label": "proxy_supported",
+        "proof_command": "bash tests/codex-organization-smoke.sh",
+        "notes": "Codex surface is validated through repo organization and deploy checks"
+      },
+      "supports_subagents": {
+        "label": "unknown",
+        "proof_command": "check multi_agent_v1 runner (spawn_agent/wait_agent/close_agent) in the active Codex App",
+        "notes": "confirmed evidence is runtime-session-scoped only"
+      },
+      "supports_goal_state": {
+        "label": "proxy_supported",
+        "proof_command": "live /goal run in Codex",
+        "notes": "goal state is runtime-controlled"
+      },
+      "supports_structured_task_state": {
+        "label": "blocked",
+        "proof_command": "none - simulate packets under .workflow/<slug>/",
+        "notes": "no Pi Task* equivalent is exposed"
+      }
+    }
+  }
+}

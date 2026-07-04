@@ -1,0 +1,1 @@
+{"claude_route":"plan-implement","pi_route":"plan-implement","write_allowed":true,"guard":"deny","context_contains":["Route: plan-implement","actual PLAN.md status is not proven READY"],"context_not_contains":["Route: implement"]}

@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKFLOW_DIR=".workflow"
+
+ALLOWED_EVENTS=(
+  route_decided
+  plan_created
+  adversary_completed
+  file_changed
+  validation_run
+  validation_failed
+  retry_classified
+  human_checkpoint
+  archive_written
+  completed
+  blocked
+)
+
+usage() {
+  cat <<EOF
+Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
+       workflow-event [--dir path] validate <slug>
+EOF
+}
+
+allowed_list() {
+  printf '%s\n' "${ALLOWED_EVENTS[@]}"
+}
+
+is_allowed_event() {
+  local event="$1"
+  local allowed
+  for allowed in "${ALLOWED_EVENTS[@]}"; do
+    [ "$event" = "$allowed" ] && return 0
+  done
+  return 1
+}
+
+die_usage() {
+  usage >&2
+  exit 2
+}
+
+if [ "${1:-}" = "--dir" ]; then
+  [ "$#" -ge 3 ] || die_usage
+  WORKFLOW_DIR="$2"
+  shift 2
+fi
+
+command="${1:-}"
+[ -n "$command" ] || die_usage
+shift || true
+
+case "$command" in
+  append)
+    [ "$#" -ge 2 ] || die_usage
+    slug="$1"
+    event="$2"
+    detail="{}"
+    if [ "$#" -ge 3 ]; then
+      detail="$3"
+    fi
+
+    if ! is_allowed_event "$event"; then
+      printf 'unknown event type: %s\nAllowed events:\n%s\n' "$event" "$(allowed_list)" >&2
+      exit 2
+    fi
+    if ! printf '%s\n' "$detail" | jq empty >/dev/null 2>&1; then
+      printf 'invalid json detail for event %s\n' "$event" >&2
+      exit 2
+    fi
+
+    run_dir="$WORKFLOW_DIR/$slug"
+    mkdir -p "$run_dir"
+    jq -nc \
+      --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --arg event "$event" \
+      --arg run "$slug" \
+      --argjson detail "$detail" \
+      '{ts:$ts,event:$event,run:$run,detail:$detail}' >> "$run_dir/events.jsonl"
+    ;;
+  validate)
+    [ "$#" -eq 1 ] || die_usage
+    slug="$1"
+    file="$WORKFLOW_DIR/$slug/events.jsonl"
+    count=0
+    previous_ts=""
+
+    if [ ! -f "$file" ]; then
+      printf '0 events, ok\n'
+      exit 0
+    fi
+
+    while IFS= read -r line || [ -n "$line" ]; do
+      count=$((count + 1))
+      if ! parsed="$(printf '%s\n' "$line" | jq -ec . 2>/dev/null)"; then
+        printf 'line %s: invalid json\n' "$count" >&2
+        exit 1
+      fi
+      ts="$(printf '%s\n' "$parsed" | jq -r '.ts // empty')"
+      event="$(printf '%s\n' "$parsed" | jq -r '.event // empty')"
+      if ! printf '%s\n' "$ts" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
+        printf 'line %s: invalid timestamp\n' "$count" >&2
+        exit 1
+      fi
+      if [ -n "$previous_ts" ] && [[ "$ts" < "$previous_ts" ]]; then
+        printf 'line %s: timestamp moved backwards\n' "$count" >&2
+        exit 1
+      fi
+      if ! is_allowed_event "$event"; then
+        printf 'line %s: unknown event type %s\n' "$count" "$event" >&2
+        exit 1
+      fi
+      previous_ts="$ts"
+    done < "$file"
+
+    printf '%s events, ok\n' "$count"
+    ;;
+  -h|--help)
+    usage
+    ;;
+  *)
+    printf 'unknown command: %s\n' "$command" >&2
+    die_usage
+    ;;
+esac

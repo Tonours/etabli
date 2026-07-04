@@ -8,41 +8,21 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
-Use `gh` for GitHub. Generate a read-only QA plan; do not comment, approve,
-edit, checkout, or merge.
+Read and follow the shared contract in `workflow/skills/pr-qa.md`.
 
-Supported aliases: `frontend`, `backend`, `agent`, `zendesk`. Also accept
-`owner/repo#123`, a PR URL, or current repository context.
+## Source resolution
 
-If only a PR number is provided and repo cannot be inferred, ask one blocking
-question.
+Resolve the shared contract before acting:
 
-Use:
+1. Prefer the current workspace copy: `workflow/skills/pr-qa.md`.
+2. If missing, fall back to the Claude shared copy:
+   `../workflow/skills/pr-qa.md`.
+3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
+   target path: `../../workflow/skills/pr-qa.md`.
+4. If no copy exists, stop with
+   `SHARED_CONTRACT_MISSING: workflow/skills/pr-qa.md`.
 
-```bash
-gh auth status
-gh pr view <PR_ID> --repo <OWNER/REPO> --json title,body,author,files,additions,deletions,baseRefName,headRefName,number,url,commits,labels,comments,reviews
-gh pr diff <PR_ID> --repo <OWNER/REPO>
-```
-
-Return:
-
-```md
-## QA Plan - PR #<ID>
-
-### Summary
-- Feature:
-- Type:
-- Risk:
-- Estimated time:
-
-### Prerequisites
-
-### Happy Path
-
-### Edge Cases
-
-### Non-Regression
-```
-
-Every test must be executable and have a measurable expected result.
+Rules:
+- Use `gh` for GitHub.
+- Generate a read-only QA plan.
+- Do not comment, approve, edit, checkout, or merge the PR.

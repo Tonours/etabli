@@ -24,6 +24,7 @@ cd etabli
 - `claude/` - Claude Code commands and local instructions
 - `workflow/` - canonical workflow contract and templates
 - `docs/` - focused user docs
+- `docs/adr/` - Architecture Decision Records
 - `scripts/` - installer and maintenance scripts
 
 ## Workflow
@@ -38,6 +39,8 @@ learn -> plan -> implement -> review -> validate
 
 Use `PLAN.md` as the only execution artifact. Implement only from `Status: READY`.
 Implemented and validated plans are archived as memory records in `docs/plan/`.
+Hard-to-reverse architecture decisions live in `docs/adr/`; record them with
+Claude `/adr` and validate the set with `node scripts/validate-adrs .`.
 
 ## Useful commands
 
@@ -45,6 +48,9 @@ Implemented and validated plans are archived as memory records in `docs/plan/`.
 fix-links check
 fix-links
 hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg
+deploy-workflow . --check
+scripts/workflow-efficiency-report
+node scripts/validate-adrs .
 bash tests/codex-organization-smoke.sh
 bun test pi/extensions/__tests__/
 ```
@@ -73,6 +79,7 @@ Pi:
 /skill:review
 /skill:verify
 /skill:bug-check
+/skill:linear-project-setup
 /skill:linear-ticket-create
 /skill:linear-work
 /skill:pr-review
@@ -102,6 +109,9 @@ Claude:
 /github-pr-review
 ```
 
+Manual-only Claude commands, including `/spec-guide`, `/spec-verify`, and
+`/linear-project-setup`, are documented in `workflow/spec.md`.
+
 Codex:
 
 ```bash
@@ -113,6 +123,9 @@ scripts/deploy-codex --apply
 `scripts/deploy-codex` links tracked Codex files into `~/.codex`. It deploys
 `config.managed.toml` instead of replacing the live `config.toml`, because the
 live file can contain local trust state, provider configuration, and secrets.
+It also links shared workflow skill contracts from `workflow/skills/` into
+`~/.codex/workflow/skills/` so Codex global skills can stay thin without
+tracking duplicate contract copies under `codex/`.
 
 Three-harness workflow deployment:
 
@@ -143,9 +156,7 @@ The workflow scaffold installs:
 - `workflow/memory.md`
 - `workflow/plan-archive.md`
 - `workflow/spec.md`
-- `workflow/skills/adversary.md`
-- `workflow/skills/implementation-loop.md`
-- `workflow/skills/orchestration.md`
+- `workflow/skills/*.md`
 - `workflow/review-rubric.md`
 - `workflow/ticket-template.md`
 - `workflow/linear-ticket-template.md`
@@ -158,19 +169,26 @@ The workflow scaffold installs:
 - `docs/project-context.md`
 
 Existing files are never overwritten by default. Review conflicts manually, or rerun with `--force` to create timestamped backups before replacing files.
+Use `deploy-workflow . --check` to report `OK`, `DRIFT`, and `MISSING` scaffold files without writing.
 
 `scaffold-project` is the user-facing command. It wraps `deploy-workflow` with explicit `--new` and `--convert` modes for new projects and existing project conversions.
 
 Validation:
 
 ```bash
+node scripts/validate-adrs .
 tests/codex-organization-smoke.sh
 tests/workflow-scaffold-smoke.sh
+tests/workflow-contract-coverage-smoke.sh
+tests/workflow-efficiency-report-smoke.sh
 tests/workflow-docs-smoke.sh
 tests/claude-hooks-smoke.sh
+tests/agent-scenarios-smoke.sh
 tests/fix-links-smoke.sh
 tests/install-smoke.sh
 tests/deploy-agent-workflow-smoke.sh
+tests/workflow-event-smoke.sh
+tests/runtime-capabilities-smoke.sh
 tests/nvim-smoke.sh
 RUN_AGENT_CLI_SMOKE_SELF_TEST=1 tests/workflow-cli-smoke.sh
 RUN_AGENT_CLI_SMOKE=1 tests/workflow-cli-smoke.sh
@@ -189,7 +207,7 @@ same workflow uses simulated `.workflow/<slug>/` packets.
 ## Config notes
 
 - `codex/config.managed.toml` is a tracked non-secret baseline; live `~/.codex/config.toml` stays local.
-- `codex/hooks.json`, `codex/workflow/`, `codex/prompts/`, `codex/automations/`, and `codex/skills/` deploy through `scripts/deploy-codex`.
+- `codex/hooks.json`, `codex/workflow/`, `codex/prompts/`, `codex/automations/`, `codex/skills/`, and shared `workflow/skills/` contracts deploy through `scripts/deploy-codex`.
 - `pi/agent/settings.json` is a tracked bootstrap/default; live `~/.pi/agent/settings.json` stays local. `@tintinweb/pi-tasks` is paired with `@tintinweb/pi-subagents` because `TaskExecute` needs the `subagents:rpc:*` protocol; the separate `npm:pi-subagents` package does not satisfy that protocol.
 - `pi/models.json` and `pi/settings.json` are linked into `~/.pi/`.
 - `ghostty/config` is linked to `~/.config/ghostty/config`.
@@ -198,11 +216,15 @@ same workflow uses simulated `.workflow/<slug>/` packets.
 ## References
 
 - `workflow/spec.md` - workflow contract
-- `workflow/skills/` - shared skill contracts used by Pi and Claude wrappers
+- `docs/adr/` - Architecture Decision Records
+- `workflow/skills/` - shared skill contracts used by Pi, Claude, and Codex adapters
 - `workflow/skills/orchestration.md` - shared capability, delegation, retry, and fallback contract
+- `workflow/events.md` - `.workflow/<slug>/events.jsonl` ledger convention
+- `workflow/runtime-capabilities.json` - runtime capability labels and proof commands
 - `workflow/memory.md` - persistent agent memory convention
 - `workflow/plan-archive.md` - implemented plan archive convention
 - `workflow/review-rubric.md` - review output and priorities
+- `scripts/workflow-efficiency-report` - read-only workflow-layer metrics
 - `docs/agentic-workflow-hardening.md` - source-backed hardening notes for agentic loops and subagents
 - `PLAN_TEMPLATE.md` - default lightweight plan
 - `PLAN_TEMPLATE_FULL.md` - full plan for risky work
@@ -211,7 +233,6 @@ same workflow uses simulated `.workflow/<slug>/` packets.
 - `docs/workflow-duplication-audit.md` - current duplication map and anti-drift guards
 - `docs/workflow-101.md` - guided introduction to the workflow
 - `docs/codex-organization.md` - tracked Codex surface and deployment rules
-- `docs/fable5-notes.md` - Fable 5 migration decisions
 - `docs/pi-cheatsheet.md` - Pi usage reminders
 - `nvim/README.md` - Neovim notes
 - `claude/README.md` - Claude installed surface

@@ -104,9 +104,7 @@ describe("workflow router extension", () => {
         cwd,
       });
 
-      expect(results[0]).toEqual({
-        systemPrompt: expect.stringContaining("Route: answer"),
-      });
+      expect(results).toEqual([undefined]);
       expect(runtime.entries[0]).toMatchObject({
         decision: { route: "answer", writeAllowed: false },
       });

@@ -8,6 +8,8 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 
 ## Runtime Adapters
 
+Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
+
 - Pi may use Task* tools and `tasks-till-done` when available.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
@@ -84,12 +86,16 @@ without trusting prose alone:
 - files changed, when edits were allowed;
 - validation command or source checked;
 - result label: accepted, rejected, blocked, or unknown;
+- durable event trail per `workflow/events.md` when the run uses a
+  `.workflow/<slug>/` directory;
 - remaining risks.
 
 Autonomous implementation loops are complete only when the implementation-loop
 contract's completion evidence is present.
 
 ## Runtime Notes
+
+Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
 
 Pi:
 

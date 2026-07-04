@@ -49,8 +49,12 @@ function createImplementationCwd(): string {
   return cwd;
 }
 
+function implementedPlanArchivePath(cwd: string): string {
+  return join(cwd, "docs", "plan", "20260702-implemented-plan.md");
+}
+
 function writeImplementedPlanArchive(cwd: string, mtime?: Date): void {
-  const archivePath = join(cwd, "docs", "plan", "20260702-implemented-plan.md");
+  const archivePath = implementedPlanArchivePath(cwd);
   writeFileSync(archivePath, "# Implemented plan\n");
   if (mtime) {
     utimesSync(archivePath, mtime, mtime);
@@ -264,5 +268,54 @@ describe("tasks till-done extension", () => {
         rootPlanDeleted: true,
       },
     });
+  });
+
+  test("keeps implemented-plan archive evidence once seen during a loop", () => {
+    const runtime = setupExtension();
+    const cwd = createImplementationCwd();
+
+    try {
+      runtime.emit("before_agent_start", {
+        prompt: "Implémente ce changement et valide le résultat",
+        systemPrompt: "Base prompt",
+        cwd,
+      });
+      writeImplementedPlanArchive(cwd);
+      runtime.emit("tool_result", {
+        toolName: "TaskList",
+        content: [{
+          type: "text",
+          text: "#1 [pending] Finish validation",
+        }],
+      });
+      runtime.emit("agent_end", {});
+      rmSync(implementedPlanArchivePath(cwd), { force: true });
+      runtime.emit("tool_result", {
+        toolName: "TaskList",
+        content: [{
+          type: "text",
+          text: [
+            "#1 [completed] Inspect settings",
+            "#2 [completed] Run adversary plan review",
+            "#3 [completed] Run validation tests",
+            "#4 [completed] Review diff against PLAN.md",
+            "#5 [completed] Archive implemented plan in docs/plan",
+            "#6 [completed] Delete root PLAN.md after archive",
+          ].join("\n"),
+        }],
+      });
+      runtime.emit("agent_end", {});
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+
+    expect(runtime.entries[0]).toMatchObject({
+      reason: "actionable_tasks",
+      implementationRuntimeEvidence: {
+        hasImplementedPlanArchive: true,
+      },
+    });
+    expect(runtime.sentUserMessages).toHaveLength(1);
+    expect(runtime.sentUserMessages[0]).toContain("Continue the Task Loop");
   });
 });

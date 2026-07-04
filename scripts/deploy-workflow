@@ -6,6 +6,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 
 DRY_RUN=0
 FORCE=0
+CHECK=0
 TARGET_INPUT="."
 TARGET_SET=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -13,6 +14,9 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 WRITTEN=0
 UNCHANGED=0
 CONFLICTS=0
+CHECK_DRIFT=0
+CHECK_MISSING=0
+CHECK_OK=0
 
 FILES=(
   "$REPO_DIR/workflow-scaffold/templates/AGENTS.md|AGENTS.md"
@@ -25,9 +29,6 @@ FILES=(
   "$REPO_DIR/workflow/memory.md|workflow/memory.md"
   "$REPO_DIR/workflow/plan-archive.md|workflow/plan-archive.md"
   "$REPO_DIR/workflow/spec.md|workflow/spec.md"
-  "$REPO_DIR/workflow/skills/adversary.md|workflow/skills/adversary.md"
-  "$REPO_DIR/workflow/skills/implementation-loop.md|workflow/skills/implementation-loop.md"
-  "$REPO_DIR/workflow/skills/orchestration.md|workflow/skills/orchestration.md"
   "$REPO_DIR/workflow/review-rubric.md|workflow/review-rubric.md"
   "$REPO_DIR/workflow/ticket-template.md|workflow/ticket-template.md"
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
@@ -35,15 +36,20 @@ FILES=(
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
 )
 
+while IFS= read -r contract_path; do
+  FILES+=("$contract_path|workflow/skills/$(basename "$contract_path")")
+done < <(find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort)
+
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [target-dir] [--dry-run] [--force]
+Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--check]
 
 Deploy the Etabli workflow scaffold into a new or existing project.
 
 Options:
   --dry-run   Show planned writes without touching the target
   --force     Backup and overwrite conflicting files
+  --check     Report drift between source templates and deployed files without writing
   -h, --help  Show this help
 
 Examples:
@@ -51,6 +57,7 @@ Examples:
   deploy-workflow ~/code/new-project
   deploy-workflow . --dry-run
   deploy-workflow . --force
+  deploy-workflow . --check
 EOF
 }
 
@@ -61,6 +68,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --force)
       FORCE=1
+      ;;
+    --check)
+      CHECK=1
       ;;
     -h|--help)
       usage
@@ -83,6 +93,11 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
+
+if [ "$CHECK" -eq 1 ] && { [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ]; }; then
+  printf 'flags are mutually exclusive: --check cannot be combined with --dry-run or --force\n' >&2
+  exit 2
+fi
 
 status_line() {
   local status="$1"
@@ -193,6 +208,43 @@ preflight_conflicts() {
   done
 }
 
+check_deployed_files() {
+  local entry source_path relative_path destination_path
+
+  for entry in "${FILES[@]}"; do
+    source_path="${entry%%|*}"
+    relative_path="${entry#*|}"
+    destination_path="$TARGET_DIR/$relative_path"
+
+    if [ ! -f "$source_path" ]; then
+      status_line MISSING "$source_path"
+      CHECK_MISSING=$((CHECK_MISSING + 1))
+      continue
+    fi
+
+    if [ ! -f "$destination_path" ]; then
+      status_line MISSING "$relative_path"
+      CHECK_MISSING=$((CHECK_MISSING + 1))
+      continue
+    fi
+
+    if cmp -s "$source_path" "$destination_path"; then
+      status_line OK "$relative_path"
+      CHECK_OK=$((CHECK_OK + 1))
+      continue
+    fi
+
+    status_line DRIFT "$relative_path"
+    CHECK_DRIFT=$((CHECK_DRIFT + 1))
+  done
+
+  printf '\nSummary: %d drifted, %d missing, %d ok\n' "$CHECK_DRIFT" "$CHECK_MISSING" "$CHECK_OK"
+
+  if [ $((CHECK_DRIFT + CHECK_MISSING)) -gt 0 ]; then
+    exit 1
+  fi
+}
+
 write_file() {
   local source_path="$1"
   local relative_path="$2"
@@ -282,6 +334,12 @@ ensure_plan_gitignore() {
 }
 
 printf 'Target: %s\n\n' "$(display_target_dir)"
+
+if [ "$CHECK" -eq 1 ]; then
+  TARGET_DIR="$(display_target_dir)"
+  check_deployed_files
+  exit 0
+fi
 
 preflight_sources
 preflight_target
