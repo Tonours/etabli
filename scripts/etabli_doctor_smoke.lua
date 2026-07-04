@@ -29,7 +29,6 @@ local expected_commands = {
   "ReviewCurrentHunk",
   "ReviewAnnotate",
   "ReviewHunk",
-  "ReviewHunkSync",
   "ReviewHunkNextComment",
   "ReviewHunkPrevComment",
   "ReviewHelp",
@@ -85,8 +84,6 @@ do
   local original_session_exists = hunk.session_exists
   local original_add_comment = hunk.add_comment
   local original_open_or_reload = hunk.open_or_reload
-  local original_review_model = hunk.review_model
-  local original_apply_comments = hunk.apply_comments
   local opened_hunk = false
   local added_comment = false
 
@@ -108,13 +105,6 @@ do
       and attrs.id == nil
     return { result = { commentId = "direct-note" } }
   end
-  hunk.review_model = function(_, opts)
-    assert_true(opts.include_notes == true, "active Hunk path should pull live notes for local durability")
-    return { review = { reviewNotes = {} } }
-  end
-  hunk.apply_comments = function(_, comments)
-    return { applied = #(comments or {}), skipped = 0 }
-  end
   vim.ui.input = function(_, on_confirm)
     on_confirm("Hunk-only annotation.")
   end
@@ -125,8 +115,6 @@ do
   hunk_flow.annotate_current_hunk()
 
   vim.ui.input = original_input
-  hunk.apply_comments = original_apply_comments
-  hunk.review_model = original_review_model
   hunk.open_or_reload = original_open_or_reload
   hunk.add_comment = original_add_comment
   hunk.session_exists = original_session_exists
@@ -134,9 +122,7 @@ do
 
   assert_true(opened_hunk, "default Hunk inbox should open through Hunk")
   assert_true(added_comment, "active Hunk annotation should write directly to Hunk without a local id")
-  assert_true(package.loaded["config.review.hunk_local_adapter"] ~= nil, "active Hunk inbox should load the durability adapter")
-  assert_true(package.loaded["config.review.state"] ~= nil, "active Hunk inbox should load local state for durability")
-  assert_true(package.loaded["config.review.items"] ~= nil, "active Hunk inbox should load review items for durability")
+  assert_true(package.loaded["config.review.hunk_local_adapter"] == nil, "Hunk inbox should not load a local durability adapter")
   assert_true(package.loaded["config.review.providers"] == nil, "Hunk inbox should not load review providers")
 end
 
@@ -147,8 +133,6 @@ do
   local original_available = hunk.is_available
   local original_session_exists = hunk.session_exists
   local original_reload = hunk.reload
-  local original_review_model = hunk.review_model
-  local original_apply_comments = hunk.apply_comments
   local original_review_prompt = hunk.review_prompt
   local original_dispatch_prompt = providers.dispatch_prompt
   local dispatched_prompt = false
@@ -163,13 +147,6 @@ do
   hunk.reload = function(context, raw_args)
     reloaded_hunk = context.repo == doctor.config_root() and raw_args == hunk.default_diff_command()
     return true
-  end
-  hunk.review_model = function(_, opts)
-    assert_true(opts.include_notes == true, "Hunk Claude review should inspect live notes for durability")
-    return { review = { reviewNotes = {} } }
-  end
-  hunk.apply_comments = function(_, comments)
-    return { applied = #(comments or {}), skipped = 0 }
   end
   hunk.review_prompt = function(provider, context, opts)
     return table.concat({ provider, context.repo, opts.target_label }, "\n")
@@ -193,8 +170,6 @@ do
 
   providers.dispatch_prompt = original_dispatch_prompt
   hunk.review_prompt = original_review_prompt
-  hunk.apply_comments = original_apply_comments
-  hunk.review_model = original_review_model
   hunk.reload = original_reload
   hunk.session_exists = original_session_exists
   hunk.is_available = original_available
@@ -202,8 +177,6 @@ do
   assert_true(dispatched_prompt, "Hunk Claude review should dispatch without the legacy review UI")
   assert_true(reloaded_hunk, "Hunk Claude review refresh should reload Hunk")
   assert_true(package.loaded["config.review"] == nil, "Hunk Claude review should not load the legacy review UI")
-  assert_true(package.loaded["config.review.state"] ~= nil, "Hunk Claude review should load local state only as durability")
-  assert_true(package.loaded["config.review.items"] ~= nil, "Hunk Claude review should load review items only as durability")
 end
 
 local lines = doctor.lines(vim.fn.getcwd())

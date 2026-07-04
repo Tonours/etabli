@@ -75,15 +75,13 @@ Leader: `<Space>`
 
 - inbox: `<leader>ri` or `:ReviewInbox` opens Hunk
 - current hunk: `<leader>rh` focuses the current line in Hunk, `<leader>ra` comments the current line/range in an active Hunk session
-- sync notes: Hunk notes mirror locally best-effort; `<leader>rs` or `:ReviewHunkSync` is the manual checkpoint
 - comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg`
 - Hunk context rail: `<leader>rx` or `:ReviewContext`
-- Hunk comments: `<leader>rn` next, `<leader>rN` previous
+- Hunk comments: `<leader>rj` next, `<leader>rk` previous
 - navigate hunks: `[h` previous, `]h` next
-- Claude review: `<leader>rc`, `<leader>rvc`, `:ReviewClaudeReview changed-only` after Hunk is open
-- Pi review: `<leader>rp`, `<leader>rvp`, `:ReviewPiReview changed-only` after Hunk is open
-- legacy local review commands/keymaps: opt in with `vim.g.etabli_review_legacy_commands = 1` and `vim.g.etabli_review_legacy_keymaps = 1`
+- Claude review: `<leader>rc` or `:ReviewClaudeReview changed-only` after Hunk is open
+- Pi review: `<leader>rp` or `:ReviewPiReview changed-only` after Hunk is open
 
 
 ## Tip

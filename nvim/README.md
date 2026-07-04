@@ -23,24 +23,20 @@ Quick ref: `nvim/CHEATSHEET.md`
 
 - Inbox: `<leader>ri` or `:ReviewInbox` opens or reloads Hunk
 - Current hunk: `<leader>rh` focuses the current buffer line in Hunk, `<leader>ra` comments the current line or visual range in the active Hunk session; if no session exists, it opens Hunk first
-- Sync: live Hunk notes are persisted and rehydrated best-effort during the Hunk session lifecycle; `<leader>rs` or `:ReviewHunkSync` is the manual checkpoint
 - Comment editor: `<C-s>` or `ZZ` saves a multiline Markdown comment, `ZQ`/`q`/`Esc` cancels
 - Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg` for the current repo
 - Context rail: `<leader>rx` or `:ReviewContext` opens the right-side Hunk thread/file/checks rail; it opens automatically on wide terminals
-- Hunk comments: `<leader>rn` / `<leader>rN` navigate next/previous review comment
+- Hunk comments: `<leader>rj` / `<leader>rk` navigate next/previous review comment
 - Hunk navigation: `[h`, `]h` moves between Git hunks in the file
-- Claude: `<leader>rc` or `<leader>rvc` launches a first-pass Hunk review
-- Pi: `<leader>rp` or `<leader>rvp` launches a first-pass Hunk review
-- First-pass review: `<leader>rvc` Claude, `<leader>rvp` Pi, `:ReviewClaudeReview changed-only` or `:ReviewPiReview changed-only` for changed hunks; if no Hunk session exists, the command opens Hunk first and you rerun it after the session is ready
-
-Legacy local review commands and keymaps are opt-in. Set `vim.g.etabli_review_legacy_commands = 1` and `vim.g.etabli_review_legacy_keymaps = 1` before loading this config if you need the old local inbox, statuses, draft transactions, agent ingest, or suggestion tracking while Hunk persistence gaps remain.
+- Claude: `<leader>rc` launches a first-pass Hunk review
+- Pi: `<leader>rp` launches a first-pass Hunk review
+- First-pass review: `:ReviewClaudeReview changed-only` or `:ReviewPiReview changed-only` for changed hunks; if no Hunk session exists, the command opens Hunk first and you rerun it after the session is ready
 
 Notes:
 
-- Review state is stored outside the repo under `stdpath("state")/etabli/review`
+- Hunk owns review sessions and notes; there is no local mirror or sync step
 - Hunk is the terminal review-first diff viewer installed from `hunkdiff`; use it for full changeset walkthroughs and live agent-facing review sessions
-- Hunk notes are not durable after closing Hunk in the current tested version, so Etabli mirrors them locally and rehydrates them into active Hunk sessions; run `:ReviewHunkSync pull` as an explicit checkpoint before risky exits
-- Local inline annotations are legacy UI and disabled by default
+- Review dispatch never checks `PLAN.md`/READY state; plan gating applies to implementation only (`workflow/spec.md`)
 
 ## Project workflow
 

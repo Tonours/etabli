@@ -409,7 +409,7 @@ function M.navigate_comment(context, direction)
   return run_json(session_command(context.repo, "navigate", { target, "--json" }))
 end
 
-function M.review_model(context, opts)
+local function review_command(context, opts)
   local options = opts or {}
   if not context or not context.repo then
     return nil, "Hunk review export needs a repository"
@@ -423,7 +423,43 @@ function M.review_model(context, opts)
     table.insert(args, "--include-notes")
   end
 
-  return run_json(session_command(context.repo, "review", args))
+  return session_command(context.repo, "review", args)
+end
+
+function M.review_model(context, opts)
+  local command, err = review_command(context, opts)
+  if not command then
+    return nil, err
+  end
+
+  return run_json(command)
+end
+
+function M.review_model_async(context, opts, callback)
+  local command, err = review_command(context, opts)
+  if not command then
+    callback(nil, err)
+    return
+  end
+
+  vim.system(command, { env = M.env(), text = true }, function(result)
+    vim.schedule(function()
+      local code = result.code or 0
+      local stdout = trim(result.stdout or "")
+      if code ~= 0 or stdout == "" then
+        callback(nil, stdout ~= "" and stdout or trim(result.stderr or "") or "Hunk command failed")
+        return
+      end
+
+      local ok_decode, decoded = pcall(vim.json.decode, stdout)
+      if not ok_decode then
+        callback(nil, "Hunk returned invalid JSON")
+        return
+      end
+
+      callback(decoded)
+    end)
+  end)
 end
 
 function M.open_or_navigate(context, opts)
