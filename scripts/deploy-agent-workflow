@@ -437,7 +437,7 @@ deploy_claude() {
   status_line SECTION "Claude"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.claude/commands" "$HOME_DIR/.claude/hooks" "$HOME_DIR/.claude/skills"
+    mkdir -p "$HOME_DIR/.claude/commands" "$HOME_DIR/.claude/hooks" "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude/agents"
   fi
 
   link_path "$REPO_DIR/claude/CLAUDE.md" "$HOME_DIR/.claude/CLAUDE.md" "Claude CLAUDE.md"
@@ -456,6 +456,11 @@ deploy_claude() {
   done
 
   for stale_command in \
+    qa-planner.md \
+    qa-generator.md \
+    qa-healer.md \
+    qa-reviewer.md \
+    qa-failure-dossier.md \
     verify.md \
     plan-create.md \
     plan-review.md \
@@ -479,6 +484,12 @@ deploy_claude() {
     [ -d "$skill_dir" ] || continue
     skill_name="$(basename "$skill_dir")"
     link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude skill $skill_name"
+  done
+
+  for agent_file in "$REPO_DIR/claude/agents"/*.md; do
+    [ -f "$agent_file" ] || continue
+    agent_name="$(basename "$agent_file")"
+    link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name" "Claude agent $agent_name"
   done
 
   link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"

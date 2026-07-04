@@ -61,11 +61,6 @@ Recurring-work commands (from the 2026-07 usage audit; manual-only):
 
 Playwright QA wrappers (agentic test loop):
 
-- `/qa-planner`
-- `/qa-generator`
-- `/qa-healer`
-- `/qa-reviewer`
-- `/qa-failure-dossier`
 
 `/verify-workflow` is the Etabli workflow verifier. Keep Claude Code's native
 `/verify` free for app/runtime verification.
