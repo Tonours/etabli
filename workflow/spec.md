@@ -105,6 +105,9 @@ Only `READY` authorizes implementation.
   requesting external review instead of self-reviewing.
 - Session handoffs in autonomous runs are recorded as a `handoff` event
   (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
+- Golden principles: a new transverse invariant ships with a mechanical check
+  (hook, lint, or smoke assertion) in the same change, instead of prose
+  duplicated across adapters. Instruction files stay maps, not manuals.
 
 ## Minimal READY gate
 
