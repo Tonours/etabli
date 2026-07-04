@@ -14,10 +14,14 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 3. Run the full autonomous chain from
    `workflow/skills/implementation-loop.md`: plan-loop, adversary, implement,
    plan checks, fresh-context review, archive, root `PLAN.md` cleanup.
+   During implementation, make a checkpoint commit on the ship branch after
+   each coherent slice whose focused checks pass — never staging `PLAN*.md`.
+   Checkpoints are revert points on a squash-mergeable branch, not release
+   history.
 4. Pre-commit pass: review the diff, sweep dead code, debug artifacts, and
    scope drift; run targeted tests for the touched code.
-5. Commit with the project's commit style. One commit per coherent unit;
-   never stage `PLAN*.md`.
+5. Final sweep commit with the project's commit style; never stage
+   `PLAN*.md`.
 6. Push the feature branch and open a PR using the project's PR template.
    Fill placeholders; leave checklists unchecked; no AI attribution.
 7. CI: follow the `ci-fix` contract (existing attempt and time caps) until

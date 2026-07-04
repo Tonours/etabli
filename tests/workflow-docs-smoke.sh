@@ -183,6 +183,24 @@ assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" '## Stop condition
 assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" 'Keep project-specific scope'
 assert_same_file "$ROOT_DIR/workflow/ticket-template.md" "$ROOT_DIR/codex/workflow/ticket-template.md"
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
+assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
+
+assert_max_lines() {
+  local file="$1"
+  local cap="$2"
+  local lines
+  lines="$(wc -l < "$file" | tr -d ' ')"
+  if [ "$lines" -gt "$cap" ]; then
+    printf 'map-not-manual: %s has %s lines, cap is %s; trim it or move detail to pointed docs\n' "$file" "$lines" "$cap" >&2
+    exit 1
+  fi
+}
+
+assert_max_lines "$ROOT_DIR/AGENTS.md" 120
+assert_max_lines "$ROOT_DIR/claude/CLAUDE.md" 90
+assert_max_lines "$ROOT_DIR/pi/AGENTS.md" 120
 assert_contains "$ROOT_DIR/workflow/spec.md" 'must record
   the event ledger'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'ordinary work may record it'
