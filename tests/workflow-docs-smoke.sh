@@ -11,6 +11,13 @@ assert_file() {
     }
 }
 
+assert_dir() {
+    [ -d "$1" ] || {
+        printf 'missing directory: %s\n' "$1" >&2
+        exit 1
+    }
+}
+
 assert_contains() {
     local path="$1"
     local needle="$2"
@@ -45,9 +52,28 @@ assert_same_file() {
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/workflow/plan-archive.md"
+assert_file "$ROOT_DIR/workflow/events.md"
+assert_file "$ROOT_DIR/workflow/runtime-capabilities.json"
+assert_dir "$ROOT_DIR/docs/adr"
+assert_file "$ROOT_DIR/CLAUDE.md"
+assert_file "$ROOT_DIR/scripts/validate-adrs"
+assert_file "$ROOT_DIR/claude/skills/adr/scripts/apply-adr.mjs"
+assert_file "$ROOT_DIR/claude/skills/adr/scripts/adr-validation.mjs"
 assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
+for contract in \
+    bug-check \
+    ci-fix \
+    linear-project-setup \
+    linear-ticket-create \
+    linear-work \
+    pr-qa \
+    pr-review \
+    review \
+    sec-pr; do
+    assert_file "$ROOT_DIR/workflow/skills/$contract.md"
+done
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_file "$ROOT_DIR/docs/codex-app-subagents.md"
@@ -107,6 +133,8 @@ assert_not_contains "$ROOT_DIR/scripts/install.sh" 'nvm-sh/nvm'
 assert_not_contains "$ROOT_DIR/scripts/install.sh" '@mariozechner/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'deploy-workflow'
 assert_contains "$ROOT_DIR/README.md" 'deploy-agent-workflow'
+assert_contains "$ROOT_DIR/README.md" 'docs/adr/'
+assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
 assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
 assert_contains "$ROOT_DIR/README.md" 'syncs only managed Pi package'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
@@ -138,9 +166,12 @@ assert_contains "$ROOT_DIR/README.md" 'does not install `nvm`'
 assert_contains "$ROOT_DIR/README.md" 'ambiently. Users can write ordinary prompts'
 assert_contains "$ROOT_DIR/README.md" 'corrige le bug et valide'
 assert_contains "$ROOT_DIR/AGENTS.md" 'Ambient activation'
+assert_contains "$ROOT_DIR/CLAUDE.md" 'Architecture Decision Records'
+assert_contains "$ROOT_DIR/CLAUDE.md" 'docs/adr/'
 assert_contains "$ROOT_DIR/codex/AGENTS.md" 'This activation is ambient'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'activate the Etabli workflow automatically'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Activate the Etabli workflow ambiently'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Follow `workflow/spec.md`; Claude hooks inject the selected route.'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Decision Log'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
@@ -168,11 +199,16 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Autonomous plan-loop requests use 
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implementation-bound autonomous loops are not complete until validation,'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'adversary evidence, review, implemented-plan archive under `docs/plan/`, and'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Read-only adversarial PLAN.md review'
+assert_contains "$ROOT_DIR/workflow/spec.md" '`spec-guide`'
+assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'
+assert_contains "$ROOT_DIR/workflow/spec.md" '`EXTERNAL_WRITE_BACK_PATTERN`'
+assert_contains "$ROOT_DIR/workflow/spec.md" '`human_checkpoint`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Shared skill contracts: `workflow/skills/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Orchestration contract: `workflow/skills/orchestration.md`'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'Claude orchestration parity is `proxy_supported`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/runtime-capabilities.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implemented plan archives: `docs/plan/`'
 assert_contains "$ROOT_DIR/workflow/plan-archive.md" 'Archive a plan if and only if it was implemented and validation ran.'
@@ -187,8 +223,19 @@ assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'multi_agent_v1'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Codex subagents are internal sidecar workers'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'sandbox, approval, tool, and cost/token'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'observation, failure'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'workflow/events.md'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'workflow/runtime-capabilities.json'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" '`confirmed`'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" '`proxy_supported`'
+assert_contains "$ROOT_DIR/workflow/skills/bug-check.md" 'Adversarial Analysis'
+assert_contains "$ROOT_DIR/workflow/skills/ci-fix.md" 'Never make a test pass by disarming it'
+assert_contains "$ROOT_DIR/workflow/skills/linear-project-setup.md" 'Confirm with the user before creating the Project or any Epic'
+assert_contains "$ROOT_DIR/workflow/skills/linear-ticket-create.md" 'Use Linear MCP as the Linear integration'
+assert_contains "$ROOT_DIR/workflow/skills/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
+assert_contains "$ROOT_DIR/workflow/skills/pr-review.md" 'Use `gh`'
+assert_contains "$ROOT_DIR/workflow/skills/pr-qa.md" 'QA Plan'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'do not wrap it in severity/file fields'
+assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/codex/AGENTS.md" 'multi_agent_v1.spawn_agent'
 assert_contains "$ROOT_DIR/codex/AGENTS.md" 'user-owned Codex threads'
 assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'multi_agent_v1.spawn_agent'
@@ -222,11 +269,11 @@ assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '../../workflow/spec.md
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '../../../workflow/spec.md'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'workflow/skills/adversary.md'
-assert_contains "$ROOT_DIR/pi/skills/bug-check/SKILL.md" 'Adversarial Analysis'
-assert_contains "$ROOT_DIR/pi/skills/linear-ticket-create/SKILL.md" 'Use Linear MCP as the Linear integration'
+assert_contains "$ROOT_DIR/pi/skills/bug-check/SKILL.md" 'workflow/skills/bug-check.md'
+assert_contains "$ROOT_DIR/pi/skills/linear-ticket-create/SKILL.md" 'workflow/skills/linear-ticket-create.md'
 assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_file "$ROOT_DIR/codex/skills/linear-work/SKILL.md"
-assert_same_file "$ROOT_DIR/pi/skills/linear-work/SKILL.md" "$ROOT_DIR/codex/skills/linear-work/SKILL.md"
+assert_contains "$ROOT_DIR/codex/skills/linear-work/SKILL.md" '$CODEX_HOME/workflow/skills/linear-work.md'
 assert_contains "$ROOT_DIR/pi/skills/pr-review/SKILL.md" 'Use `gh`'
 assert_contains "$ROOT_DIR/docs/workflow-101.md" 'plan-loop → adversary → implement'
 assert_contains "$ROOT_DIR/docs/workflow-101.md" 'Status: READY'
@@ -239,7 +286,7 @@ assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:adversary'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:verify'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'docs/workflow-101.md'
-assert_contains "$ROOT_DIR/pi/skills/pr-qa/SKILL.md" 'Generate a test plan'
+assert_contains "$ROOT_DIR/pi/skills/pr-qa/SKILL.md" 'workflow/skills/pr-qa.md'
 assert_contains "$ROOT_DIR/pi/skills/sec-pr/SKILL.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/pi/skills/ci-fix/SKILL.md" 'Never plain `--force`'
 assert_contains "$ROOT_DIR/pi/skills/github-pr-review/SKILL.md" 'compatibility alias'
@@ -260,13 +307,13 @@ assert_contains "$ROOT_DIR/claude/commands/implement.md" 'workflow/skills/implem
 assert_contains "$ROOT_DIR/claude/commands/adversary.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/claude/commands/verify-workflow.md" 'workflow/verification-report-template.md'
 assert_contains "$ROOT_DIR/claude/commands/verify-workflow.md" 'Claude Code ships a native `/verify`'
-assert_contains "$ROOT_DIR/claude/commands/bug-check.md" 'Linear MCP'
-assert_contains "$ROOT_DIR/claude/commands/linear-ticket-create.md" 'Use Linear MCP as the Linear integration'
+assert_contains "$ROOT_DIR/claude/commands/bug-check.md" 'workflow/skills/bug-check.md'
+assert_contains "$ROOT_DIR/claude/commands/linear-ticket-create.md" 'workflow/skills/linear-ticket-create.md'
 assert_contains "$ROOT_DIR/claude/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/claude/commands/pr-review.md" 'Use `gh`'
-assert_contains "$ROOT_DIR/claude/commands/pr-qa.md" 'QA Plan'
+assert_contains "$ROOT_DIR/claude/commands/pr-qa.md" 'workflow/skills/pr-qa.md'
 assert_contains "$ROOT_DIR/claude/commands/sec-pr.md" 'Never merge automatically'
-assert_contains "$ROOT_DIR/claude/commands/ci-fix.md" 'Never disarm tests'
+assert_contains "$ROOT_DIR/claude/commands/ci-fix.md" 'workflow/skills/ci-fix.md'
 assert_contains "$ROOT_DIR/claude/commands/github-pr-review.md" 'compatibility alias'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'delete only the current workspace root'
@@ -286,28 +333,13 @@ assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'multiple changed lines'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" '`suggested_fix:`'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'without code fences or tables'
 assert_not_contains "$ROOT_DIR/workflow/review-rubric.md" 'write exactly'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'do not wrap it in severity/file fields'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'End with a final line in this exact shape'
+assert_contains "$ROOT_DIR/claude/commands/review.md" 'workflow/skills/review.md'
+assert_contains "$ROOT_DIR/claude/commands/review.md" 'workflow/review-rubric.md'
 assert_contains "$ROOT_DIR/claude/commands/review.md" 'Verdict: GO'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'Never use `OK`, `APPROVED`, `PASS`'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'bounded read-only'
-assert_contains "$ROOT_DIR/claude/commands/review.md" '`severity:`, `file:`, `line:`'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'line_range:'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'multiple changed lines'
-assert_contains "$ROOT_DIR/claude/commands/review.md" '`suggested_fix:`'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'without code fences or tables'
 assert_not_contains "$ROOT_DIR/claude/commands/review.md" 'write exactly'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'workflow/review-rubric.md'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'do not wrap it in severity/file fields'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'End with a final line in this exact shape'
+assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'workflow/skills/review.md'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'Verdict: GO'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'Never use `OK`, `APPROVED`, `PASS`'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'bounded read-only'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" '`severity:`, `file:`, `line:`'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'line_range:'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'multiple changed lines'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" '`suggested_fix:`'
-assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'without code fences or tables'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'write exactly'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'claude/review-rubric.md'
 assert_contains "$ROOT_DIR/pi/package.json" '@earendil-works/pi-coding-agent'
@@ -459,12 +491,59 @@ for adapter in \
     "pi/skills/implement/SKILL.md:workflow/skills/implementation-loop.md" \
     "pi/skills/plan-implement/SKILL.md:workflow/skills/implementation-loop.md" \
     "pi/skills/adversary/SKILL.md:workflow/skills/adversary.md" \
+    "pi/skills/bug-check/SKILL.md:workflow/skills/bug-check.md" \
+    "pi/skills/ci-fix/SKILL.md:workflow/skills/ci-fix.md" \
+    "pi/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
+    "pi/skills/linear-ticket-create/SKILL.md:workflow/skills/linear-ticket-create.md" \
+    "pi/skills/linear-work/SKILL.md:workflow/skills/linear-work.md" \
+    "pi/skills/pr-qa/SKILL.md:workflow/skills/pr-qa.md" \
+    "pi/skills/pr-review/SKILL.md:workflow/skills/pr-review.md" \
+    "pi/skills/review/SKILL.md:workflow/skills/review.md" \
+    "pi/skills/sec-pr/SKILL.md:workflow/skills/sec-pr.md" \
+    "codex/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
+    "codex/skills/linear-ticket-create/SKILL.md:workflow/skills/linear-ticket-create.md" \
+    "codex/skills/linear-work/SKILL.md:workflow/skills/linear-work.md" \
     "claude/commands/implement.md:workflow/skills/implementation-loop.md" \
     "claude/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
-    "claude/commands/adversary.md:workflow/skills/adversary.md"; do
+    "claude/commands/adversary.md:workflow/skills/adversary.md" \
+    "claude/commands/bug-check.md:workflow/skills/bug-check.md" \
+    "claude/commands/ci-fix.md:workflow/skills/ci-fix.md" \
+    "claude/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
+    "claude/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
+    "claude/commands/linear-work.md:workflow/skills/linear-work.md" \
+    "claude/commands/pr-qa.md:workflow/skills/pr-qa.md" \
+    "claude/commands/pr-review.md:workflow/skills/pr-review.md" \
+    "claude/commands/review.md:workflow/skills/review.md" \
+    "claude/commands/sec-pr.md:workflow/skills/sec-pr.md"; do
     adapter_path="${adapter%%:*}"
     contract_ref="${adapter##*:}"
     assert_contains "$ROOT_DIR/$adapter_path" "$contract_ref"
 done
+
+duplicate_adapters="$(
+    {
+        find "$ROOT_DIR/pi/skills" -maxdepth 2 -type f -name 'SKILL.md'
+        find "$ROOT_DIR/claude/commands" -maxdepth 1 -type f -name '*.md'
+        find "$ROOT_DIR/codex/skills" -mindepth 2 -maxdepth 2 -type f -name 'SKILL.md'
+    } | sort | xargs shasum | sort -k1,1 | awk '
+        previous_hash == $1 {
+            if (!printed) {
+                print previous_line
+                printed = 1
+            }
+            print $0
+            next
+        }
+        {
+            previous_hash = $1
+            previous_line = $0
+            printed = 0
+        }
+    '
+)"
+if [ -n "$duplicate_adapters" ]; then
+    printf 'exact duplicate harness adapter bodies are not allowed:\n%s\n' "$duplicate_adapters" >&2
+    exit 1
+fi
 
 printf 'workflow docs smoke test: ok\n'

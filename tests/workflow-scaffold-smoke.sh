@@ -48,6 +48,10 @@ assert_same() {
 NEW_PROJECT="$TMP_DIR/new-project"
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
 
+HELP_OUTPUT="$TMP_DIR/deploy-workflow-help.out"
+"$SCRIPT" --help >"$HELP_OUTPUT"
+assert_contains "$HELP_OUTPUT" "--check"
+
 assert_file "$NEW_PROJECT/AGENTS.md"
 assert_file "$NEW_PROJECT/CLAUDE.md"
 assert_file "$NEW_PROJECT/docs/agent-workflow.md"
@@ -58,9 +62,6 @@ assert_file "$NEW_PROJECT/docs/project-context.md"
 assert_file "$NEW_PROJECT/workflow/memory.md"
 assert_file "$NEW_PROJECT/workflow/plan-archive.md"
 assert_file "$NEW_PROJECT/workflow/spec.md"
-assert_file "$NEW_PROJECT/workflow/skills/adversary.md"
-assert_file "$NEW_PROJECT/workflow/skills/implementation-loop.md"
-assert_file "$NEW_PROJECT/workflow/skills/orchestration.md"
 assert_file "$NEW_PROJECT/workflow/review-rubric.md"
 assert_file "$NEW_PROJECT/workflow/ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/linear-ticket-template.md"
@@ -76,14 +77,17 @@ assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/project-context.md" "$NE
 assert_same "$ROOT_DIR/workflow/memory.md" "$NEW_PROJECT/workflow/memory.md"
 assert_same "$ROOT_DIR/workflow/plan-archive.md" "$NEW_PROJECT/workflow/plan-archive.md"
 assert_same "$ROOT_DIR/workflow/spec.md" "$NEW_PROJECT/workflow/spec.md"
-assert_same "$ROOT_DIR/workflow/skills/adversary.md" "$NEW_PROJECT/workflow/skills/adversary.md"
-assert_same "$ROOT_DIR/workflow/skills/implementation-loop.md" "$NEW_PROJECT/workflow/skills/implementation-loop.md"
-assert_same "$ROOT_DIR/workflow/skills/orchestration.md" "$NEW_PROJECT/workflow/skills/orchestration.md"
 assert_same "$ROOT_DIR/workflow/review-rubric.md" "$NEW_PROJECT/workflow/review-rubric.md"
 assert_same "$ROOT_DIR/workflow/ticket-template.md" "$NEW_PROJECT/workflow/ticket-template.md"
 assert_same "$ROOT_DIR/workflow/linear-ticket-template.md" "$NEW_PROJECT/workflow/linear-ticket-template.md"
 assert_same "$ROOT_DIR/PLAN_TEMPLATE.md" "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_same "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
+
+while IFS= read -r contract_path; do
+  contract_name="$(basename "$contract_path")"
+  assert_file "$NEW_PROJECT/workflow/skills/$contract_name"
+  assert_same "$contract_path" "$NEW_PROJECT/workflow/skills/$contract_name"
+done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sort)
 assert_contains "$NEW_PROJECT/AGENTS.md" "Treat this file as a map"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/agent-memory/"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/plan/"
@@ -103,6 +107,45 @@ assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "Keep project-specifi
 assert_contains "$NEW_PROJECT/.gitignore" "PLAN.md"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
+
+CHECK_CLEAN_OUTPUT="$TMP_DIR/check-clean.out"
+"$SCRIPT" "$NEW_PROJECT" --check >"$CHECK_CLEAN_OUTPUT"
+assert_contains "$CHECK_CLEAN_OUTPUT" "OK        workflow/spec.md"
+assert_contains "$CHECK_CLEAN_OUTPUT" "Summary: 0 drifted, 0 missing"
+
+CHECK_DRIFT_PROJECT="$TMP_DIR/check-drift-project"
+CHECK_DRIFT_OUTPUT="$TMP_DIR/check-drift.out"
+"$SCRIPT" "$CHECK_DRIFT_PROJECT" >/dev/null
+printf '\nlocal change\n' >> "$CHECK_DRIFT_PROJECT/workflow/spec.md"
+rm "$CHECK_DRIFT_PROJECT/PLAN_TEMPLATE.md"
+find "$CHECK_DRIFT_PROJECT" -print | sort > "$TMP_DIR/check-drift.before"
+if "$SCRIPT" "$CHECK_DRIFT_PROJECT" --check >"$CHECK_DRIFT_OUTPUT" 2>&1; then
+  printf 'expected deploy --check to fail on drifted project\n' >&2
+  exit 1
+fi
+find "$CHECK_DRIFT_PROJECT" -print | sort > "$TMP_DIR/check-drift.after"
+if ! diff -u "$TMP_DIR/check-drift.before" "$TMP_DIR/check-drift.after"; then
+  printf 'deploy --check mutated the checked project\n' >&2
+  exit 1
+fi
+assert_contains "$CHECK_DRIFT_OUTPUT" "DRIFT     workflow/spec.md"
+assert_contains "$CHECK_DRIFT_OUTPUT" "MISSING   PLAN_TEMPLATE.md"
+assert_contains "$CHECK_DRIFT_OUTPUT" "Summary: 1 drifted, 1 missing"
+assert_contains "$CHECK_DRIFT_PROJECT/workflow/spec.md" "local change"
+assert_not_exists "$CHECK_DRIFT_PROJECT/PLAN_TEMPLATE.md"
+
+CHECK_FLAG_OUTPUT="$TMP_DIR/check-flags.out"
+if "$SCRIPT" "$NEW_PROJECT" --check --force >"$CHECK_FLAG_OUTPUT" 2>&1; then
+  printf 'expected deploy --check --force to fail\n' >&2
+  exit 1
+fi
+assert_contains "$CHECK_FLAG_OUTPUT" "flags are mutually exclusive"
+
+if "$SCRIPT" "$NEW_PROJECT" --check --dry-run >"$CHECK_FLAG_OUTPUT" 2>&1; then
+  printf 'expected deploy --check --dry-run to fail\n' >&2
+  exit 1
+fi
+assert_contains "$CHECK_FLAG_OUTPUT" "flags are mutually exclusive"
 
 SCAFFOLD_PROJECT="$TMP_DIR/scaffold-project"
 "$SCAFFOLD_SCRIPT" "$SCAFFOLD_PROJECT" --new >/dev/null

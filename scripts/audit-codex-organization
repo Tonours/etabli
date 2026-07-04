@@ -36,6 +36,10 @@ if [ ! -d "$CODEX_DIR" ]; then
   fail "missing codex directory"
 fi
 
+if [ -e "$CODEX_DIR/workflow/skills" ]; then
+  fail "codex/workflow/skills must not be tracked; deploy-codex links root workflow/skills contracts"
+fi
+
 for path in \
   "$CODEX_DIR/skills/.system" \
   "$CODEX_DIR/plugins" \

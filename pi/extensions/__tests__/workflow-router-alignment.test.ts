@@ -3,6 +3,7 @@ import { classifyWorkflowRoute as classifyPi, type WorkflowRoute } from "../lib/
 
 type ClaudeDecision = {
   route: string;
+  artifact: string;
   stopCondition: string;
   requiredEvidence: string;
   writeAllowed: boolean;
@@ -22,9 +23,21 @@ function equivalentRoute(route: string): WorkflowRoute | string {
   return route === "verify-workflow" ? "verify" : route;
 }
 
+function normalizeDecision(decision: ClaudeDecision) {
+  return {
+    route: equivalentRoute(decision.route),
+    artifact: decision.artifact,
+    stopCondition: decision.stopCondition.replace(/Verdict: /g, ""),
+    requiredEvidence: decision.requiredEvidence,
+    writeAllowed: decision.writeAllowed,
+    planChain: decision.planChain ?? null,
+  };
+}
+
 describe("Pi and Claude workflow router alignment", () => {
   const prompts = [
     "Fais une review de notre roadmap",
+    "Reviewer le plan de refactor",
     "Retest et prouve que tout passe",
     "Implémente le PLAN.md ready",
     "Résume le PLAN.md ready",
@@ -40,9 +53,23 @@ describe("Pi and Claude workflow router alignment", () => {
     "Comment tester la PR GitHub 42 ?",
     "Audite la PR Dependabot #1606",
     "fix CI and push PR #42",
+    "corrige la ci",
     "remove this folder",
+    "deploy staging",
+    "supprime ce dossier",
+    "poste un commentaire sur la PR 42",
+    "publie la review sur GitHub",
+    "approve the PR",
     "Fais une recherche web sourcée sur les pratiques agentiques",
     "Corrige le bug de login et valide",
+    "rédige une nouvelle spec",
+    "guide-moi pour construire la spec",
+    "mets à jour la doc du router",
+    "renomme la fonction classify",
+    "peux-tu implémenter le fix du login ?",
+    "montre puis corrige le bug",
+    "explique comment fonctionne le hook",
+    "c'est quoi le rôle du challenger ?",
   ];
 
   for (const prompt of prompts) {
@@ -50,8 +77,7 @@ describe("Pi and Claude workflow router alignment", () => {
       const piDecision = classifyPi(prompt);
       const claudeDecision = classifyClaude(prompt);
 
-      expect(equivalentRoute(claudeDecision.route)).toBe(piDecision.route);
-      expect(claudeDecision.writeAllowed).toBe(piDecision.writeAllowed);
+      expect(normalizeDecision(claudeDecision)).toEqual(normalizeDecision(piDecision));
     });
   }
 

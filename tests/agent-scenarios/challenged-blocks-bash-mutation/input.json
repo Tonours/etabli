@@ -1,0 +1,1 @@
+{"prompt":"corrige le bug","plan_status":"challenged","guard_probe":{"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}}

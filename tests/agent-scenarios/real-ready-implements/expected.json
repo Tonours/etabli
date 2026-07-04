@@ -1,0 +1,1 @@
+{"claude_route":"implement","pi_route":"implement","write_allowed":true,"guard":"allow","context_contains":["Route: implement","validated archive written and root PLAN.md deleted"],"context_not_contains":["Route: plan-implement"]}

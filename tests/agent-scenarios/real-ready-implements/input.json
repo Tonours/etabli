@@ -1,0 +1,1 @@
+{"prompt":"Implémente le PLAN.md ready","plan_status":"ready","guard_probe":{"tool_name":"Write","tool_input":{"file_path":"__CWD__/src/x.ts","content":"x"}}}

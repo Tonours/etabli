@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import filterOutput from "../filter-output.ts";
+import filterOutput, {
+  redactInlineSecrets,
+  redactStructural,
+  redactTokens,
+  structuralPatterns,
+  tokenPatterns,
+} from "../filter-output.ts";
 
 type TextContent = { type: "text"; text: string };
 type NotifyLevel = "info" | "warning" | "error";
@@ -47,6 +53,10 @@ function createContext(): ToolContext {
       },
     },
   };
+}
+
+function ungatedRedact(text: string): string {
+  return redactStructural(redactTokens(text).result).result;
 }
 
 describe("filter-output", () => {
@@ -180,6 +190,90 @@ describe("filter-output", () => {
     expect(ctx.ui.notifications).toEqual([
       { message: "Redacted 2 secrets from output", level: "warning" },
     ]);
+  });
+
+  test("redacts gated token prefixes mid-text and uppercase structural secrets", async () => {
+    const handler = setupExtension();
+    const ctx = createContext();
+    const openAiKey = `sk-proj-${"d".repeat(24)}`;
+    const password = "UpperCasePasswordValue";
+
+    const result = await handler(
+      {
+        content: [{ type: "text", text: `prefix ${openAiKey} suffix\nPASSWORD=${password}` }],
+        input: {},
+        toolName: "bash",
+      },
+      ctx,
+    );
+
+    expect(result?.content[0]?.text).toContain("[OPENAI_KEY_REDACTED]");
+    expect(result?.content[0]?.text).toContain("PASSWORD=[REDACTED]");
+    expect(result?.content[0]?.text).not.toContain(openAiKey);
+    expect(result?.content[0]?.text).not.toContain(password);
+  });
+
+  test("gated inline redaction matches an ungated full sweep", () => {
+    const tokenSamples = [
+      `sk-ant-${"a".repeat(24)}`,
+      `sk-proj-${"b".repeat(24)}`,
+      `ghp_${"A".repeat(36)}`,
+      `github_pat_${"A".repeat(20)}`,
+      `xoxb-${"A".repeat(10)}`,
+      `AKIA${"A".repeat(16)}`,
+      `ASIA${"A".repeat(16)}`,
+      `sk_live_${"a".repeat(20)}`,
+      `pk_test_${"b".repeat(20)}`,
+      `rk_live_${"c".repeat(20)}`,
+      `whsec_${"d".repeat(20)}`,
+      `VERCEL_${"A".repeat(20)}`,
+      `sbp_${"e".repeat(20)}`,
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def",
+      `CF_${"f".repeat(37)}`,
+      `npm_${"g".repeat(36)}`,
+      `pypi-${"h".repeat(20)}`,
+      `SK${"a".repeat(32)}`,
+      `SG.${"i".repeat(22)}.${"j".repeat(20)}`,
+      `AIza${"k".repeat(35)}`,
+      `dp.st.${"l".repeat(20)}`,
+      `AGE-SECRET-KEY-${"A".repeat(59)}`,
+      `glc_${"m".repeat(32)}`,
+      `lin_api_${"n".repeat(40)}`,
+      `re_${"o".repeat(20)}`,
+    ];
+    const structuralSamples = [
+      `api_key=${"a".repeat(16)}`,
+      `secret_key=${"b".repeat(8)}`,
+      "postmark_server_token=89abcdef-0123-4567-89ab-cdef01234567",
+      `"client_token":"${"c".repeat(8)}"`,
+      `custom_credential=${"d".repeat(8)}`,
+      "PASSWORD=MixedCaseValue",
+      `Bearer ${"e".repeat(20)}`,
+      `Authorization: Basic ${"f".repeat(8)}`,
+      "postgres://user:pass@example.test/db",
+      `-----BEGIN PRIVATE KEY-----\n${"g".repeat(64)}\n-----END PRIVATE KEY-----`,
+      `aws_secret_access_key=${"A".repeat(40)}`,
+    ];
+    const cleanSamples = [
+      'export const value = "plain";',
+      "README.md: mentions env example only",
+      '{"public_url":"https://example.test"}',
+      "task list done",
+      "src/index.ts:TODO",
+    ];
+    const extraSamples = [
+      `VerCel_${"p".repeat(20)}`,
+      `cF_${"q".repeat(37)}`,
+    ];
+
+    expect(tokenSamples).toHaveLength(tokenPatterns.length);
+    expect(structuralSamples).toHaveLength(structuralPatterns.length);
+
+    for (const sample of [...tokenSamples, ...structuralSamples, ...cleanSamples, ...extraSamples]) {
+      const gated = redactInlineSecrets(`before ${sample} after`).result;
+      const ungated = ungatedRedact(`before ${sample} after`);
+      expect(gated).toBe(ungated);
+    }
   });
 
   test("allows example env file command output", async () => {

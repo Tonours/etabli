@@ -18,6 +18,7 @@ const AUTONOMOUS_PLAN_LOOP_PATTERN = /\b(plan-loop|plan loop|plan puis impl[eé]
 const RESEARCH_PATTERN = /\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt|goal)\b/i;
 const OPS_STOP_PATTERN = /(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
+const EXTERNAL_WRITE_BACK_PATTERN = /\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/i;
 const LINEAR_PATTERN = /\b(linear|linear\.app|[A-Z][A-Z0-9]{1,9}-[0-9]+)\b/i;
 const TICKET_CREATE_PATTERN = /\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/i;
 const TICKET_WORK_PATTERN = /\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/i;
@@ -59,7 +60,6 @@ export function readPlanStatus(cwd) {
 
 export function classifyWorkflowRoute(prompt, context = {}) {
   const trimmed = prompt.trim();
-  const normalized = normalizePrompt(prompt);
   const planStatus = context.planStatus || "missing";
 
   if (trimmed === "") {
@@ -82,7 +82,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
-  if (OPS_STOP_PATTERN.test(prompt)) {
+  if (OPS_STOP_PATTERN.test(prompt) || EXTERNAL_WRITE_BACK_PATTERN.test(prompt)) {
     return {
       route: "ops-stop",
       reason: "sensitive or destructive action requested",
@@ -230,7 +230,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
-  if (READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) {
+  if ((READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) && !IMPLEMENT_PATTERN.test(prompt)) {
     return answerDecision("read-only, question, or summary request", "None", "answer delivered", "None");
   }
 
@@ -312,7 +312,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
-  if (PROMPT_ARTIFACT_PATTERN.test(normalized)) {
+  if (PROMPT_ARTIFACT_PATTERN.test(prompt)) {
     return answerDecision("prompt artifact request", "prompt artifact", "prompt delivered", "User-facing prompt text");
   }
 
@@ -361,8 +361,7 @@ export function buildRouteContext(decision) {
     `Required evidence: ${decision.requiredEvidence}`,
     "Runtime adapter: Claude command/hooks adapter.",
     "Runtime loop: use Claude Code `/goal` for long-running completion loops; hooks only route and guard.",
-    "Task state: Task* tools are Pi-only. Claude parity is proxy_supported through `/goal`, slash commands, hook context, and focused smoke tests.",
-    "Capability labels: confirmed for local hook/script behavior; proxy_supported for Claude runtime loops unless a live Claude `/goal` run is executed; blocked or unknown must be reported explicitly.",
+    "Capability labels: see workflow/runtime-capabilities.json; report blocked or unknown explicitly.",
   ];
   if (decision.planChain) {
     lines.push(
@@ -420,6 +419,8 @@ export function userPromptSubmitDecision(event) {
 
   const planStatus = readPlanStatus(event.cwd || process.cwd());
   const decision = classifyWorkflowRoute(prompt, { planStatus });
+  if (decision.route === "answer") return null;
+
   return {
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",

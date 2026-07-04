@@ -34,6 +34,16 @@ assert_not_contains() {
   esac
 }
 
+assert_empty() {
+  local text="$1"
+  local label="$2"
+
+  if [ -n "$text" ]; then
+    printf '%s should not receive injected router context; got: %s\n' "$label" "$text" >&2
+    exit 1
+  fi
+}
+
 fixture_input() {
   local fixture="$1"
   sed "s#__CWD__#$TMP_DIR#g" "$ROOT_DIR/tests/fixtures/claude-hooks/$fixture"
@@ -73,14 +83,10 @@ assert_contains "$router_output" 'Command: /review'
 assert_not_contains "$router_output" 'Route: plan-loop'
 
 router_output="$(fixture_input router-roadmap-summary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_contains "$router_output" 'read-only, question, or summary request'
-assert_not_contains "$router_output" 'Route: plan-loop'
+assert_empty "$router_output" "roadmap summary"
 
 router_output="$(fixture_input router-spec-read.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_contains "$router_output" 'read-only, question, or summary request'
-assert_not_contains "$router_output" 'Route: spec-guide'
+assert_empty "$router_output" "spec read"
 
 write_plan "READY"
 router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
@@ -95,9 +101,7 @@ assert_not_contains "$router_output" 'Route: implement'
 
 write_plan "READY"
 router_output="$(fixture_input router-ready-read-only.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_not_contains "$router_output" 'Route: implement'
-assert_not_contains "$router_output" 'Route: plan-implement'
+assert_empty "$router_output" "ready read-only"
 rm -f "$TMP_DIR/PLAN.md"
 
 router_output="$(fixture_input router-linear-ticket.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
@@ -111,8 +115,7 @@ assert_contains "$router_output" 'Command: /linear-ticket-create'
 assert_not_contains "$router_output" 'Route: plan-loop'
 
 router_output="$(fixture_input router-linear-read.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_not_contains "$router_output" 'Command: /linear-ticket-create'
+assert_empty "$router_output" "linear read"
 
 router_output="$(fixture_input router-bug-check.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: bug-check'
@@ -149,6 +152,14 @@ router_output="$(fixture_input router-implement-verb.json | node "$ROOT_DIR/clau
 assert_contains "$router_output" 'Route: plan-implement'
 assert_not_contains "$router_output" 'Route: answer'
 
+router_output="$(fixture_input router-question-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_not_contains "$router_output" 'Route: answer'
+
+router_output="$(fixture_input router-read-then-fix.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: plan-implement'
+assert_not_contains "$router_output" 'Route: answer'
+
 router_output="$(fixture_input router-ambient-implementation.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_contains "$router_output" 'Route: plan-implement'
 assert_not_contains "$router_output" 'Route: answer'
@@ -159,7 +170,7 @@ assert_contains "$router_output" 'autonomous plan-loop request'
 assert_contains "$router_output" 'Plan chain: planning -> plan-loop'
 assert_contains "$router_output" 'Autonomous completion evidence:'
 assert_contains "$router_output" 'Runtime loop: use Claude Code `/goal`'
-assert_contains "$router_output" 'Claude parity is proxy_supported'
+assert_contains "$router_output" 'workflow/runtime-capabilities.json'
 assert_not_contains "$router_output" 'TaskCreate'
 assert_not_contains "$router_output" 'TaskList'
 assert_not_contains "$router_output" 'Route: plan-loop'
@@ -183,20 +194,13 @@ assert_contains "$router_output" 'Route: plan-implement'
 assert_not_contains "$router_output" 'Route: ops-stop'
 
 router_output="$(fixture_input router-spec-question.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_not_contains "$router_output" 'Route: plan-loop'
+assert_empty "$router_output" "spec question"
 
 slash_output="$(fixture_input router-slash-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-if [ -n "$slash_output" ]; then
-  printf 'slash commands should not receive injected router context; got: %s\n' "$slash_output" >&2
-  exit 1
-fi
+assert_empty "$slash_output" "slash commands"
 
 slash_goal_output="$(fixture_input router-goal-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-if [ -n "$slash_goal_output" ]; then
-  printf 'Claude /goal commands should not receive injected router context; got: %s\n' "$slash_goal_output" >&2
-  exit 1
-fi
+assert_empty "$slash_goal_output" "Claude /goal commands"
 
 write_plan "DRAFT"
 guard_output="$(

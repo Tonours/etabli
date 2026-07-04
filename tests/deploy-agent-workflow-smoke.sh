@@ -42,6 +42,7 @@ assert_file() {
 
 assert_link "$HOME_DIR/.codex/skills/codex-dynamic-workflows/SKILL.md" "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md"
 assert_link "$HOME_DIR/.codex/workflow/dynamic-workflow-triggers.md" "$ROOT_DIR/codex/workflow/dynamic-workflow-triggers.md"
+assert_link "$HOME_DIR/.codex/workflow/skills/linear-work.md" "$ROOT_DIR/workflow/skills/linear-work.md"
 
 assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"

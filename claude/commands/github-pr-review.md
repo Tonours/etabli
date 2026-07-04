@@ -6,11 +6,10 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 
 # GitHub PR Review
 
+User request: $ARGUMENTS
+
 This command is a compatibility alias for `/pr-review`.
 
-Use `commands/pr-review.md` as the source of truth and follow the same contract:
-
-- use `gh` for GitHub
-- stay read-only unless the user explicitly asks to post or approve
-- report only actionable findings grounded in the PR diff
-- end with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`
+Resolve and follow `commands/pr-review.md` when available. Otherwise resolve and
+follow the shared contract in `workflow/skills/pr-review.md` using the same
+source-resolution order as `/pr-review`.

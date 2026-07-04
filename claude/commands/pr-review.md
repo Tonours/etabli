@@ -8,42 +8,21 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 
 User request: $ARGUMENTS
 
-Use `gh` for GitHub. Do not use the GitHub MCP/app connector unless the user
-explicitly overrides this.
+Read and follow the shared contract in `workflow/skills/pr-review.md`.
 
-Supported aliases: `frontend`, `backend`, `agent`, `zendesk`. Also accept
-`owner/repo#123`, a PR URL, or current repository context.
+## Source resolution
 
-If only a PR number is provided and repo cannot be inferred, ask one blocking
-question.
+Resolve the shared contract before acting:
 
-Read:
+1. Prefer the current workspace copy: `workflow/skills/pr-review.md`.
+2. If missing, fall back to the Claude shared copy:
+   `../workflow/skills/pr-review.md`.
+3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
+   target path: `../../workflow/skills/pr-review.md`.
+4. If no copy exists, stop with
+   `SHARED_CONTRACT_MISSING: workflow/skills/pr-review.md`.
 
-```bash
-gh auth status
-gh pr view <PR_ID> --repo <OWNER/REPO> --json title,body,author,files,additions,deletions,baseRefName,headRefName,number,url,commits,reviewDecision,mergeStateStatus
-gh pr diff <PR_ID> --repo <OWNER/REPO> --patch
-gh pr checks <PR_ID> --repo <OWNER/REPO>
-```
-
-Review correctness, regressions, edge cases, performance, security/privacy,
-tests, validation, and repo architecture fit.
-
-Finding format:
-
-```text
-severity: high | medium | low
-file:
-line: or line_range:
-issue:
-impact:
-review_comment:
-suggested_fix:
-```
-
-If no actionable issue exists, output exactly `No findings.` as the only
-finding. End with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`.
-
-Default is read-only. Post comments or approve only after explicit user
-approval. Inline comments must be one sentence, collegial, actionable, and
-without emojis.
+Rules:
+- Use `gh` for GitHub unless the user explicitly overrides this.
+- Default is read-only.
+- Do not post comments or approve without explicit user approval.

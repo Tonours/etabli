@@ -54,6 +54,8 @@ export default function (pi: ExtensionAPI) {
       decision,
     });
 
+    if (decision.route === "answer") return undefined;
+
     return {
       systemPrompt: appendWorkflowRouterGuidance(event.systemPrompt, decision),
     };

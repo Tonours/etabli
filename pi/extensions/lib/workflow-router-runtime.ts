@@ -16,6 +16,7 @@ export type WorkflowRoute =
   | "review"
   | "verify"
   | "research-plan"
+  | "spec-guide"
   | "ops-stop";
 
 export type PlanStatus = "missing" | "draft" | "challenged" | "ready" | "unknown";
@@ -28,6 +29,7 @@ export type WorkflowRouteDecision = {
   stopCondition: string;
   requiredEvidence: string;
   writeAllowed: boolean;
+  suggestion?: string;
   planChain?: WorkflowPlanChain;
 };
 
@@ -46,20 +48,24 @@ export type WorkflowPlanChain = {
 
 const ROUTER_MARKER = "# Etabli Workflow Router";
 
-const REVIEW_PATTERN = /\b(review|revue|relis|audit|critique|findings?)\b/i;
+const REVIEW_PATTERN = /\b(review(?:er|ing)?|revue|relis|audit|critique|findings?)\b/i;
 const ADVERSARY_PATTERN = /\b(adversary|adversarial|contre[- ]?review|contre[- ]?revue|cross[- ]?model|plan hardening|hardens? le plan|durcis le plan)\b/i;
 const ADVERSARY_PLAN_CONTEXT_PATTERN = /\b(plan\.md|plan|plan hardening|hardens? le plan|durcis le plan)\b/i;
 const READ_ONLY_REVIEW_OVERRIDE_PATTERN = /\b(read[- ]?only|lecture seule|sans modifier|sans [eé]diter|do not edit|do not modify|ne modifie pas|n['’]?edite pas|n['’]?édite pas)\b/i;
 const VERIFY_PATTERN = /\b(verify|v[eé]rifie|prouve|preuve|retest|relance les tests|completion audit|evidence)\b/i;
 const PLAN_PATTERN = /\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c|ticket)\b/i;
-const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|modifie|update|cleanup|remplace)\b/i;
+const SPEC_GUIDE_PATTERN = /(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
+const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
+const SPEC_CREATE_VERB_PATTERN = /(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/iu;
+const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/i;
 const READY_PLAN_PATTERN = /\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/i;
 const AUTONOMOUS_PLAN_LOOP_PATTERN = /\b(plan-loop|plan loop|plan puis impl[eé]mente|plan[- ]?implement|jusqu[' ]?au bout|jusqu[' ]?[aà] la fin|en autonomie|tout seul|encha[iî]ne|encha[iî]ner|continue jusqu)\b/i;
 const RESEARCH_PATTERN = /\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
 const READ_ONLY_PATTERN = /\b(r[eé]sume|resume|summarize|explique|explain|lis|read|montre|show|d[eé]cris)\b/i;
 const QUESTION_PATTERN = /^\s*(as[- ]?tu|a[- ]?t[- ]?on|as[- ]?ton|est[- ]?ce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux[- ]?tu m'expliquer|c'est quoi|y a[- ]?t[- ]?il)\b|\?\s*$/i;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt|goal)\b/i;
-const OPS_STOP_PATTERN = /\b(supprime|delete|remove|rm -rf|prod|production|secret|credential|billing|deploy|push|force[- ]?push|migration destructive)\b/i;
+const OPS_STOP_PATTERN = /(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
+const EXTERNAL_WRITE_BACK_PATTERN = /\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/i;
 const LINEAR_PATTERN = /\b(linear|linear\.app|[A-Z][A-Z0-9]{1,9}-[0-9]+)\b/i;
 const TICKET_CREATE_PATTERN = /\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/i;
 const TICKET_WORK_PATTERN = /\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/i;
@@ -70,7 +76,7 @@ const PR_CONTEXT_PATTERN = /\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+
 const PR_REVIEW_PATTERN = /\b(pr-review|code review|review|revue|relis|audit|critique|findings?)\b/i;
 const PR_QA_PATTERN = /\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/i;
 const SEC_PR_PATTERN = /\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/i;
-const CI_FIX_PATTERN = /\b(ci-fix|fix ci|corrige la ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/i;
+const CI_FIX_PATTERN = /\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/i;
 
 export function normalizePrompt(prompt: string): string {
   return prompt.trim().normalize("NFKD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -78,7 +84,6 @@ export function normalizePrompt(prompt: string): string {
 
 export function classifyWorkflowRoute(prompt: string, context: WorkflowRouteContext = {}): WorkflowRouteDecision {
   const trimmed = prompt.trim();
-  const normalized = normalizePrompt(prompt);
   const planStatus = context.planStatus ?? "missing";
 
   if (trimmed === "") {
@@ -101,7 +106,7 @@ export function classifyWorkflowRoute(prompt: string, context: WorkflowRouteCont
     };
   }
 
-  if (OPS_STOP_PATTERN.test(prompt)) {
+  if (OPS_STOP_PATTERN.test(prompt) || EXTERNAL_WRITE_BACK_PATTERN.test(prompt)) {
     return {
       route: "ops-stop",
       reason: "sensitive or destructive action requested",
@@ -247,7 +252,7 @@ export function classifyWorkflowRoute(prompt: string, context: WorkflowRouteCont
     };
   }
 
-  if (READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) {
+  if ((READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) && !IMPLEMENT_PATTERN.test(prompt)) {
     return answerDecision("read-only, question, or summary request", "None", "answer delivered", "None");
   }
 
@@ -303,6 +308,19 @@ export function classifyWorkflowRoute(prompt: string, context: WorkflowRouteCont
     };
   }
 
+  if (SPEC_GUIDE_PATTERN.test(prompt) || (SPEC_INTENT_PATTERN.test(prompt) && SPEC_CREATE_VERB_PATTERN.test(prompt) && !PR_CONTEXT_PATTERN.test(prompt) && !LINEAR_PATTERN.test(prompt))) {
+    return {
+      route: "spec-guide",
+      reason: "spec construction request — build it by guided interview before formatting",
+      skill: "spec-guide",
+      artifact: "spec drafted via /spec template",
+      stopCondition: "spec solid enough (problem, non-goals, boundaries, alternatives, acceptance) then hands to /spec",
+      requiredEvidence: "user answers to the socratic interview, inferences marked as such",
+      writeAllowed: true,
+      suggestion: "Once the spec is solid, harden it with /plan-loop then /adversary.",
+    };
+  }
+
   if (PLAN_PATTERN.test(prompt)) {
     return {
       route: "plan-loop",
@@ -315,7 +333,7 @@ export function classifyWorkflowRoute(prompt: string, context: WorkflowRouteCont
     };
   }
 
-  if (PROMPT_ARTIFACT_PATTERN.test(normalized)) {
+  if (PROMPT_ARTIFACT_PATTERN.test(prompt)) {
     return answerDecision("prompt artifact request", "prompt artifact", "prompt delivered", "User-facing prompt text");
   }
 

@@ -52,9 +52,9 @@ function hasImplementedPlanArchive(cwd: string, startedAtMs: number): boolean {
   }
 }
 
-function getImplementationRuntimeEvidence(cwd: string, startedAtMs: number): ImplementationRuntimeEvidence {
+function getImplementationRuntimeEvidence(cwd: string, hasImplementedPlanArchive: boolean): ImplementationRuntimeEvidence {
   return {
-    hasImplementedPlanArchive: hasImplementedPlanArchive(cwd, startedAtMs),
+    hasImplementedPlanArchive,
     rootPlanDeleted: !existsSync(join(cwd, "PLAN.md")),
   };
 }
@@ -72,6 +72,7 @@ export default function (pi: ExtensionAPI) {
   let implementationCompletionRequired = false;
   let currentCwd = ".";
   let taskLoopStartedAtMs = 0;
+  let archiveSeen = false;
   let runtimeCapabilityIssue: TaskRuntimeCapabilityIssue | undefined;
 
   pi.on("before_agent_start", (event) => {
@@ -89,6 +90,7 @@ export default function (pi: ExtensionAPI) {
         ? eventCwd
         : process.cwd?.() ?? ".";
       taskLoopStartedAtMs = Date.now();
+      archiveSeen = false;
       validationRequired = workflowRoute === "implement" || workflowRoute === "plan-implement";
       implementationCompletionRequired = workflowRoute === "implement" || workflowRoute === "plan-implement";
       runtimeCapabilityIssue = undefined;
@@ -131,9 +133,11 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", () => {
-    const implementationRuntimeEvidence = implementationCompletionRequired
-      ? getImplementationRuntimeEvidence(currentCwd, taskLoopStartedAtMs)
-      : undefined;
+    let implementationRuntimeEvidence: ImplementationRuntimeEvidence | undefined;
+    if (implementationCompletionRequired) {
+      archiveSeen = archiveSeen || hasImplementedPlanArchive(currentCwd, taskLoopStartedAtMs);
+      implementationRuntimeEvidence = getImplementationRuntimeEvidence(currentCwd, archiveSeen);
+    }
     const decision = decideAutoContinue({
       active,
       taskToolUsed: taskToolUsedThisRun,

@@ -1,0 +1,1 @@
+{"claude_route":"review","pi_route":"review","write_allowed":false,"guard":null,"context_contains":["Route: review","read-only adversarial review request"],"context_not_contains":["Route: adversary"]}
