@@ -50,6 +50,15 @@ Additional local wrappers:
 - `/spec-guide`
 - `/spec-verify`
 
+Recurring-work commands (from the 2026-07 usage audit; manual-only):
+
+- `/pr-feedback` — fetch, triage, and resolve review feedback on your own PR
+- `/pre-commit` — final pass before committing: review, sweep, targeted tests
+- `/tests-iso` — add tests indistinguishable from the existing suite
+- `/front-quality` — review → React best practices → react-doctor chain
+- `/ui-debug` — repro-first UI debugging, one hypothesis per measurement
+- `/recap` — evidence-based session/day recap (standup or Slack format)
+
 Playwright QA wrappers (agentic test loop):
 
 - `/qa-planner`
@@ -78,6 +87,9 @@ Optional hooks:
   `UserPromptSubmit`.
 - `plan-ready-guard.mjs` blocks implementation writes and mutating Bash commands
   when a root `PLAN.md` exists but is not `READY`.
+- `plan-commit-guard.mjs` denies `git add`/`git commit` calls that would stage
+  or commit a root `PLAN*.md`; plans are session artifacts, archives belong in
+  `docs/plan/`. Running git manually bypasses it deliberately.
 - `detect-adr-signal.mjs` runs on `Stop`. When a structural file changed and the
   last assistant message reads like a decision, it surfaces a `systemMessage`
   suggesting `/adr`. It never writes, never calls an LLM, and uses `systemMessage`

@@ -250,4 +250,52 @@ if [ -n "$ready_output" ]; then
   exit 1
 fi
 
+guard_repo="$TMP_DIR/plan-commit-guard-repo"
+mkdir -p "$guard_repo"
+git -C "$guard_repo" init -q
+printf 'plan\n' > "$guard_repo/PLAN.md"
+git -C "$guard_repo" add PLAN.md
+
+commit_guard_output="$(
+  printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"x\\""}}\n' "$guard_repo" |
+    node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+assert_contains "$commit_guard_output" '"permissionDecision":"deny"'
+assert_contains "$commit_guard_output" 'must not be committed'
+
+add_guard_output="$(
+  printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git add PLAN-e2e.md"}}\n' "$guard_repo" |
+    node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+assert_contains "$add_guard_output" '"permissionDecision":"deny"'
+assert_contains "$add_guard_output" 'must not be staged or committed'
+
+git -C "$guard_repo" rm --cached -q PLAN.md
+clean_commit_output="$(
+  printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"x\\""}}\n' "$guard_repo" |
+    node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+if [ -n "$clean_commit_output" ]; then
+  printf 'commits without staged PLAN files should pass the plan-commit-guard; got: %s\n' "$clean_commit_output" >&2
+  exit 1
+fi
+
+archive_add_output="$(
+  printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git add docs/plan/20260704-slug.md"}}\n' "$guard_repo" |
+    node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+if [ -n "$archive_add_output" ]; then
+  printf 'adding docs/plan archives should pass the plan-commit-guard; got: %s\n' "$archive_add_output" >&2
+  exit 1
+fi
+
+non_git_output="$(
+  printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls PLAN.md"}}\n' "$guard_repo" |
+    node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+if [ -n "$non_git_output" ]; then
+  printf 'non-git commands should pass the plan-commit-guard; got: %s\n' "$non_git_output" >&2
+  exit 1
+fi
+
 printf 'claude hooks smoke test: ok\n'
