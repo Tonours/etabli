@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { readHookInput } from "./workflow-router-lib.mjs";
 
 const DECISION_MARKERS = [
   "we decided",
@@ -95,7 +96,7 @@ function hasDecisionSignal(input) {
   return DECISION_MARKERS.some((marker) => text.includes(marker));
 }
 
-const input = JSON.parse(readFileSync(0, "utf8") || "{}");
+const input = readHookInput();
 const cwd = input.cwd || process.cwd();
 
 if (

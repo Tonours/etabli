@@ -36,8 +36,12 @@ const CI_FIX_PATTERN = /\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pa
 const MUTATING_BASH_PATTERN = /(^|[;&|()]\s*)(rm|mv|cp|mkdir|rmdir|touch|chmod|chown|git\s+(commit|push|merge|rebase|reset|clean|checkout|switch)|npm\s+(install|i|add)|pnpm\s+(install|i|add)|yarn\s+(install|add)|bun\s+(install|add)|sed\s+-i|perl\s+-pi|tee\s+)/i;
 const REDIRECT_WRITE_PATTERN = /(^|[^<>])>{1,2}\s*[^&\s]/;
 
-export function normalizePrompt(prompt) {
-  return prompt.trim().normalize("NFKD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+export function readHookInput() {
+  try {
+    return JSON.parse(readFileSync(0, "utf8") || "{}");
+  } catch {
+    return {};
+  }
 }
 
 export function shouldInjectRouteContext(prompt) {

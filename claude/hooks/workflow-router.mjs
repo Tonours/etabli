@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
-import { userPromptSubmitDecision } from "./workflow-router-lib.mjs";
+import { readHookInput, userPromptSubmitDecision } from "./workflow-router-lib.mjs";
 
-const input = JSON.parse(readFileSync(0, "utf8") || "{}");
+const input = readHookInput();
 const decision = userPromptSubmitDecision(input);
 
 if (decision) {

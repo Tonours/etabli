@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
-import { planReadyGuardDecision } from "./workflow-router-lib.mjs";
+import { planReadyGuardDecision, readHookInput } from "./workflow-router-lib.mjs";
 
-const input = JSON.parse(readFileSync(0, "utf8") || "{}");
+const input = readHookInput();
 const decision = planReadyGuardDecision(input);
 
 if (decision) {
