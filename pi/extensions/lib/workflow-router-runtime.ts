@@ -78,10 +78,6 @@ const PR_QA_PATTERN = /\b(pr-qa|qa|plan de test|comment tester|impact|tests? man
 const SEC_PR_PATTERN = /\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/i;
 const CI_FIX_PATTERN = /\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/i;
 
-export function normalizePrompt(prompt: string): string {
-  return prompt.trim().normalize("NFKD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-}
-
 export function classifyWorkflowRoute(prompt: string, context: WorkflowRouteContext = {}): WorkflowRouteDecision {
   const trimmed = prompt.trim();
   const planStatus = context.planStatus ?? "missing";

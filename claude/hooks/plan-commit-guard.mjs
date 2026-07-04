@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { readHookInput } from "./workflow-router-lib.mjs";
 
 const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/;
 const GIT_COMMIT_PATTERN = /\bgit\b[^|;&]*\bcommit\b/;
@@ -51,7 +51,7 @@ function planCommitGuardDecision(event) {
   return null;
 }
 
-const input = JSON.parse(readFileSync(0, "utf8") || "{}");
+const input = readHookInput();
 const decision = planCommitGuardDecision(input);
 if (decision) {
   process.stdout.write(`${JSON.stringify(decision)}\n`);

@@ -298,4 +298,9 @@ if [ -n "$non_git_output" ]; then
   exit 1
 fi
 
+for hook in workflow-router plan-ready-guard plan-commit-guard detect-adr-signal; do
+  malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
+  assert_empty "$malformed_output" "$hook on malformed stdin"
+done
+
 printf 'claude hooks smoke test: ok\n'
