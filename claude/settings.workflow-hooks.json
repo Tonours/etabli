@@ -22,6 +22,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/plan-commit-guard.mjs\"",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [

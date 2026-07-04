@@ -215,8 +215,10 @@ Claude:
 
 Manual-only Claude commands (invoked by explicit slash only, never ambiently
 routed): `/spec-verify`, `/commit`, `/cross-repo-audit`,
-`/linear-project-setup`, and the Playwright QA chain `/qa-planner`,
-`/qa-generator`, `/qa-healer`, `/qa-reviewer`, `/qa-failure-dossier`.
+`/linear-project-setup`, `/pr-feedback`, `/pre-commit`, `/tests-iso`,
+`/front-quality`, `/ui-debug`, `/recap`, and the Playwright QA chain
+`/qa-planner`, `/qa-generator`, `/qa-healer`, `/qa-reviewer`,
+`/qa-failure-dossier`.
 `/spec-guide` is routed ambiently (see routing table). `/plan` maps to
 `claude/commands/plan-create.md`.
 
