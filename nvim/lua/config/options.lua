@@ -1,7 +1,5 @@
 local opt = vim.opt
 
-vim.cmd("syntax enable")
-
 -- Early performance settings
 vim.o.background = 'dark'
 vim.g.loaded_python3_provider = 0
@@ -10,95 +8,109 @@ vim.g.loaded_perl_provider = 0
 vim.g.loaded_node_provider = 0
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
+vim.g.loaded_gzip = 1
+vim.g.loaded_matchit = 1
+vim.g.loaded_matchparen = 1
+vim.g.editorconfig = false
+vim.g.loaded_man = 1
+vim.g.loaded_osc52 = 1
+vim.g.loaded_remote_plugins = 1
+vim.g.loaded_spellfile_plugin = 1
+vim.g.loaded_tarPlugin = 1
+vim.g.loaded_2html_plugin = 1
+vim.g.loaded_tutor_mode_plugin = 1
+vim.g.loaded_zipPlugin = 1
 
 -- Batch all simple options in one pass (each vim.opt set has overhead)
-vim.cmd([[
-  set clipboard=unnamedplus
-  set completeopt=menu,menuone,noselect
-  set confirm
-  set cursorline
-  set cursorlineopt=number
-  set noequalalways
-  set expandtab
-  set fillchars=eob:\ 
-  set hidden
-  set nohlsearch
-  set ignorecase
-  set incsearch
-  set laststatus=3
-  set mouse=a
-  set number
-  set relativenumber
-  set shiftwidth=2
-  set noshowmode
-  set smartcase
-  set smartindent
-  set softtabstop=2
-  set splitbelow
-  set splitright
-  set noswapfile
-  set tabstop=2
-  set termguicolors
-  set timeoutlen=200
-  set ttimeoutlen=10
-  set undofile
-  set updatetime=120
-  set winminwidth=5
-  set nowrap
-  set nolazyredraw
-  set synmaxcol=300
-  set maxmempattern=20000
-  set redrawtime=1500
-  set maxfuncdepth=100
-  set switchbuf=useopen
-  set shortmess+=cC
-  set notitle
-  set nospell
-  set startofline
-  set regexpengine=0
-  set diffopt+=algorithm:patience
-  set jumpoptions=stack
-  set maxmapdepth=1000
-  set noshowcmd
-  set cmdheight=0
-  set laststatus=3
-  set noruler
-  set numberwidth=2
-  set signcolumn=yes:1
-  set showtabline=2
-  set pumblend=0
-  set winblend=0
-  set bufhidden=hide
-  set eadirection=hor
-  set previewheight=5
-  set nolinebreak
-  set nobreakindent
-  set nowritebackup
-  set nobackup
-  set noautochdir
-  set autoread
-  set noautowrite
-  set undoreload=10000
-  set updatecount=0
-  set nofsync
-  set noerrorbells
-  set novisualbell
-  set sidescroll=1
-  set sidescrolloff=0
-  set nojoinspaces
-  set nrformats=bin
-  set textwidth=0
-  set wrapmargin=0
-  set nomodeline
-  set modelines=0
-  set history=500
-  set pumheight=6
-  set pumwidth=12
-  set helpheight=10
-  set cmdwinheight=4
-  set scrolljump=8
-  set scrolloff=1
-]])
+vim.schedule(function()
+  vim.o.clipboard = "unnamedplus"
+end)
+
+local o = vim.o
+o.completeopt = "menu,menuone,noselect"
+o.confirm = true
+o.cursorline = true
+o.cursorlineopt = "number"
+o.equalalways = false
+o.expandtab = true
+o.fillchars = "eob: "
+o.hidden = true
+o.hlsearch = false
+o.ignorecase = true
+o.incsearch = true
+o.laststatus = 3
+o.mouse = "a"
+o.number = true
+o.relativenumber = true
+o.shiftwidth = 2
+o.showmode = false
+o.smartcase = true
+o.smartindent = true
+o.softtabstop = 2
+o.splitbelow = true
+o.splitright = true
+o.swapfile = false
+o.tabstop = 2
+o.termguicolors = true
+o.timeoutlen = 200
+o.ttimeoutlen = 10
+o.undofile = true
+o.updatetime = 120
+o.winminwidth = 5
+o.wrap = false
+o.lazyredraw = false
+o.synmaxcol = 300
+o.maxmempattern = 20000
+o.redrawtime = 1500
+o.maxfuncdepth = 100
+o.switchbuf = "useopen"
+vim.opt.shortmess:append("cC")
+o.title = false
+o.spell = false
+o.startofline = true
+o.regexpengine = 0
+vim.opt.diffopt:append("algorithm:patience")
+o.jumpoptions = "stack"
+o.maxmapdepth = 1000
+o.showcmd = false
+o.cmdheight = 0
+o.laststatus = 3
+o.ruler = false
+o.numberwidth = 2
+o.signcolumn = "yes:1"
+o.showtabline = 2
+o.pumblend = 0
+o.winblend = 0
+o.bufhidden = "hide"
+o.eadirection = "hor"
+o.previewheight = 5
+o.linebreak = false
+o.breakindent = false
+o.writebackup = false
+o.backup = false
+o.autochdir = false
+o.autoread = true
+o.autowrite = false
+o.undoreload = 10000
+o.updatecount = 0
+o.fsync = false
+o.errorbells = false
+o.visualbell = false
+o.sidescroll = 1
+o.sidescrolloff = 0
+o.joinspaces = false
+o.nrformats = "bin"
+o.textwidth = 0
+o.wrapmargin = 0
+o.modeline = false
+o.modelines = 0
+o.history = 500
+o.pumheight = 6
+o.pumwidth = 12
+o.helpheight = 10
+o.cmdwinheight = 4
+o.scrolljump = 8
+o.scrolloff = 1
 
 -- Options that need array/table values
 opt.backupskip = opt.backupskip + "*"

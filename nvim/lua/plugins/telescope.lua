@@ -2,26 +2,7 @@ return {
   {
     "nvim-telescope/telescope.nvim",
     cmd = "Telescope",
-    init = function()
-      vim.api.nvim_create_autocmd("VimEnter", {
-        once = true,
-        callback = function()
-          if #vim.api.nvim_list_uis() == 0 then
-            return
-          end
-
-          vim.schedule(function()
-            local ok_lazy, lazy = pcall(require, "lazy")
-            if not ok_lazy then
-              return
-            end
-
-            lazy.load({ plugins = { "telescope.nvim" } })
-            pcall(require, "telescope.builtin")
-          end)
-        end,
-      })
-    end,
+    event = "VeryLazy",
     dependencies = {
       "nvim-lua/plenary.nvim",
       {

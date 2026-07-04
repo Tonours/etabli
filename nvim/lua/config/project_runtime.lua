@@ -1,7 +1,6 @@
 local M = {}
 
 local dirty_roots = {}
-local commands_registered = false
 
 local function normalize(path)
   return vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
@@ -74,26 +73,8 @@ function M.project_info()
   vim.notify(table.concat(M.project_info_lines(), "\n"), vim.log.levels.INFO, { title = "ProjectInfo" })
 end
 
-function M.setup_commands()
-  if commands_registered then
-    return
-  end
-
-  commands_registered = true
-
-  vim.api.nvim_create_user_command("ProjectInfo", function()
-    M.project_info()
-  end, {})
-
-  vim.api.nvim_create_user_command("PI", function()
-    M.project_info()
-  end, {})
-end
-
 function M.setup()
   local group = vim.api.nvim_create_augroup("etabli_project_runtime", { clear = true })
-
-  M.setup_commands()
 
   -- Throttled autocmd with optimized batching using single timer
   local dirty_timer = nil

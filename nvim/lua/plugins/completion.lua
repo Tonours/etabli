@@ -1,27 +1,7 @@
 return {
   {
     "hrsh7th/nvim-cmp",
-    event = "InsertEnter",
-    init = function()
-      vim.api.nvim_create_autocmd("VimEnter", {
-        once = true,
-        callback = function()
-          if #vim.api.nvim_list_uis() == 0 then
-            return
-          end
-
-          vim.schedule(function()
-            local ok_lazy, lazy = pcall(require, "lazy")
-            if not ok_lazy then
-              return
-            end
-
-            lazy.load({ plugins = { "nvim-cmp" } })
-            pcall(require, "cmp")
-          end)
-        end,
-      })
-    end,
+    event = { "InsertEnter", "VeryLazy" },
     dependencies = {
       "hrsh7th/cmp-buffer",
       "hrsh7th/cmp-nvim-lsp",

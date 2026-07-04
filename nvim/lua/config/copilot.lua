@@ -3,7 +3,6 @@ local M = {}
 local state_file = require("config.state_file")
 
 local state_path = vim.fn.stdpath("state") .. "/etabli/copilot.json"
-local commands_registered = false
 
 local function normalize_root(cwd)
   local root = vim.fs.normalize(cwd or vim.fn.getcwd())
@@ -200,28 +199,12 @@ function M.status()
   vim.notify(table.concat(M.status_lines(), "\n"), vim.log.levels.INFO, { title = "CopilotStatus" })
 end
 
-function M.setup_commands()
-  if commands_registered then
-    return
-  end
+function M.enable_command()
+  M.set_enabled(true)
+end
 
-  commands_registered = true
-
-  vim.api.nvim_create_user_command("CopilotStatus", function()
-    M.status()
-  end, { desc = "Show native Copilot LSP status" })
-
-  vim.api.nvim_create_user_command("CopilotEnable", function()
-    M.set_enabled(true)
-  end, { desc = "Enable Copilot inline completion for the current cwd" })
-
-  vim.api.nvim_create_user_command("CopilotDisable", function()
-    M.set_enabled(false)
-  end, { desc = "Disable Copilot inline completion for the current cwd" })
-
-  vim.api.nvim_create_user_command("CopilotToggle", function()
-    M.toggle()
-  end, { desc = "Toggle Copilot inline completion for the current cwd" })
+function M.disable_command()
+  M.set_enabled(false)
 end
 
 function M.state_path()
