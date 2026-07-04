@@ -84,10 +84,27 @@ Only `READY` authorizes implementation.
   plan drift instead of silently continuing.
 - Review checks correctness, regressions, safety, validation, and plan drift.
 - Prefer focused checks over full-suite ritual.
-- Long or multi-packet runs record durable progress as events in
+- Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
   terminal evidence.
+- Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
+  the event ledger; ordinary work may record it.
+- No-progress stop: when the same fix hypothesis fails twice, or the same check
+  stays red three times with no new diff between runs, stop as `blocked`, emit a
+  `no_progress` event, and list the eliminated hypotheses instead of iterating.
+- Check-freeze: once `PLAN.md` is `READY`, its Checks and Acceptance Criteria
+  may only be strengthened or extended during implementation. Weakening or
+  removing one requires demoting the plan to `CHALLENGED` with a Decision Log
+  rationale, never a silent edit.
+- Autonomous loop stop conditions pair the measurable goal with an explicit cap
+  (iterations or wall-clock). `ci-fix` keeps its existing attempt and time caps.
+- The final review of an autonomous `plan-implement` run comes from a fresh
+  context (subagent reviewer or cross-model), never from the context that
+  implemented. If no fresh-context runner is available, stop as `blocked`
+  requesting external review instead of self-reviewing.
+- Session handoffs in autonomous runs are recorded as a `handoff` event
+  (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
 
 ## Minimal READY gate
 
@@ -225,7 +242,9 @@ subagents, not in slash commands.
 Claude-native loop:
 
 - Use `/goal <measurable condition>` for long-running completion loops instead
-  of recreating Pi's Task* continuation layer.
+  of recreating Pi's Task* continuation layer. The goal statement must pair the
+  measurable condition with an explicit cap (iterations or wall-clock), and the
+  run must record the event ledger per `workflow/events.md`.
 - Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
   routing context and READY-gate hook enforcement.
 - Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.

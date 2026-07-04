@@ -29,6 +29,8 @@ validated append is acceptable. Do not edit earlier lines.
 | `validation_run` | `{command, exit}` |
 | `validation_failed` | `{command, exit, failure}` |
 | `retry_classified` | `{failure_class, next_action}` |
+| `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
+| `handoff` | `{branch, sha, done, pending, next_action, do_not_redo}` |
 | `human_checkpoint` | `{category, decision, target}` |
 | `archive_written` | `{path}` |
 | `completed` | `{summary}` |

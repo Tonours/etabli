@@ -183,6 +183,22 @@ assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" '## Stop condition
 assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" 'Keep project-specific scope'
 assert_same_file "$ROOT_DIR/workflow/ticket-template.md" "$ROOT_DIR/codex/workflow/ticket-template.md"
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'must record
+  the event ledger'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'ordinary work may record it'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'No-progress stop'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'stays red three times with no new diff'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Check-freeze'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'demoting the plan to `CHALLENGED` with a Decision Log'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'explicit cap
+  (iterations or wall-clock)'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'fresh
+  context (subagent reviewer or cross-model)'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'recorded as a `handoff` event'
+assert_contains "$ROOT_DIR/workflow/events.md" '`no_progress`'
+assert_contains "$ROOT_DIR/workflow/events.md" '`handoff`'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'explicit cap'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'should not need to write "use the Etabli workflow"'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/memory.md'
