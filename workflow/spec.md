@@ -231,7 +231,9 @@ Claude:
 - `/github-pr-review`: compatibility alias for `/pr-review`
 
 Manual-only Claude commands (invoked by explicit slash only, never ambiently
-routed): `/spec-verify`, `/commit`, `/cross-repo-audit`,
+routed): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`; invoking it
+consents to feature-branch push and PR creation), `/spec-verify`, `/commit`,
+`/cross-repo-audit`,
 `/linear-project-setup`, `/pr-feedback`, `/pre-commit`, `/tests-iso`,
 `/front-quality`, `/ui-debug`, `/recap`. The Playwright QA chain lives in the
 `claude/skills/playwright-*` skills and `claude/agents/playwright-*`
