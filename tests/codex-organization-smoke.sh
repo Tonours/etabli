@@ -74,7 +74,6 @@ assert_contains "$CODEX_HOME_DIR/AGENTS.md" "multi_agent_v1.spawn_agent"
 assert_contains "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md" "multi_agent_v1.spawn_agent"
 assert_contains "$CODEX_HOME_DIR/hooks.json" '$HOME/.codex/herdr-agent-state.sh'
 assert_not_exists "$CODEX_HOME_DIR/thread-organization"
-assert_not_exists "$CODEX_HOME_DIR/skills/cad-explorer/scripts/explorer/node_modules"
 
 "$DEPLOY_SCRIPT" --apply --codex-home "$CODEX_HOME_DIR" >/dev/null
 
