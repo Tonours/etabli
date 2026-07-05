@@ -42,6 +42,12 @@
 - Preserve unrelated user changes.
 - Pi extensions such as `filter-output`, `block-google-providers`, and `rtk` are guardrails. Do not bypass them.
 
+## Personal Knowledge Base
+- Durable personal workflow knowledge goes to `~/work/obvault`, not legacy vault paths.
+- Before writing there, read `~/work/obvault/CLAUDE.md` and follow its frontmatter, provenance, dedupe, and no-secret rules.
+- Persist only verified, reusable knowledge; do not dump raw conversations, transcripts, credentials, or project-private data.
+- Prefer updating an existing `kb/` note over creating a near-duplicate.
+
 ## Reviews
 - Lead with findings, ordered by severity.
 - Include file and line references when available.
