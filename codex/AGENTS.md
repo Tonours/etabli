@@ -31,6 +31,7 @@
 - If the target is ambiguous, ask one concise clarification instead of guessing.
 - For `/goal`, automation, or multi-session implementation work, maintain a compact local task state when useful: current repo, branch, issue/PR, validated commands, blockers, and next action.
 - For recurring automations, read the provided memory file first when available, avoid repeating recent work, then update it before the final response with the run summary, decisions, blockers, and timestamp.
+- Durable personal workflow knowledge belongs in `~/work/obvault`, not legacy vault paths. Before writing there, read `~/work/obvault/CLAUDE.md`, persist only verified reusable knowledge, avoid raw chats/secrets, and update existing `kb/` notes before creating new ones.
 - At the start of any substantial task, identify:
   - repository or workspace
   - objective

@@ -14,6 +14,7 @@ are only Claude-specific additions or overrides.
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Local execution artifact: `PLAN.md`
+- Personal knowledge vault: `~/work/obvault` (`~/work/obvault/CLAUDE.md`)
 
 ## Workflow
 - Follow `workflow/spec.md`; Claude hooks inject the selected route.
