@@ -47,16 +47,23 @@ Run `plan-loop` behavior when `$ARGUMENTS` is present, then follow
 This command is the full-auto workflow. Run every phase in one uninterrupted
 flow — never stop between phases to ask "continue?":
 
-1. Plan: create/refresh `PLAN.md`, self-critique to `READY` or `CHALLENGED`.
-2. Adversary: run the cross-model pass non-interactively (`codex exec
+1. Understand: scoped recon of the affected area (subagent scouts when
+   available); carry sourced findings into the plan.
+2. Plan: create/refresh `PLAN.md`, self-critique to `READY` or `CHALLENGED`.
+3. Adversary: run the cross-model pass non-interactively (`codex exec
    --sandbox read-only` piping `PLAN.md`, per `/adversary`); fold accepted
    findings; continue only if still `READY`. If Codex is unavailable, run the
    adversary contract yourself and record that the pass was same-model.
-3. Implement the `READY` plan steps in order.
-4. Run the plan checks.
-5. Fresh-context review: dispatch a read-only reviewer subagent on the diff
+4. Implement the `READY` plan steps in order; code behavior changes ship with
+   their tests, bug fixes start from a failing test.
+5. Run the plan checks, then a simplification pass (re-run checks if it
+   edited anything).
+6. Fresh-context review: dispatch a read-only reviewer subagent on the diff
    (per `workflow/spec.md`); fold blockers, rerun checks if edits were needed.
-6. Archive to `docs/plan/`, delete root `PLAN.md`, report the final handoff.
+7. Code-diff adversary: run the adversary Code diff mode cross-model on the
+   implementation diff; in an autonomous run without a cross-model runner,
+   stop as `blocked`.
+8. Archive to `docs/plan/`, delete root `PLAN.md`, report the final handoff.
 
 Record the event ledger (`.workflow/<slug>/events.jsonl`) across the run and
 respect the no-progress and cap rules from `workflow/spec.md`.
