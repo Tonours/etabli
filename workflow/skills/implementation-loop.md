@@ -7,6 +7,10 @@ details in the adapters; keep the phase order and completion evidence here.
 
 ## Required Sequence
 
+0. Understand before planning: run a scoped recon of the affected area —
+   subagent scouts when available so the main context stays lean — and carry
+   sourced findings (file:line) into the plan. Scale it down to a quick read
+   for small tasks; never skip it entirely.
 1. If a task is provided, run the `plan-loop` behavior first.
 2. If no task is provided, read the existing root `PLAN.md`.
 3. Continue only when the actual root `PLAN.md` has `Status: READY`; prompt
@@ -16,16 +20,25 @@ details in the adapters; keep the phase order and completion evidence here.
 5. Run the adversary contract in `workflow/skills/adversary.md` before editing.
 6. Fold accepted adversary findings into `PLAN.md`.
 7. If blockers remain, set `Status: CHALLENGED` and stop.
-8. Implement the still-`READY` plan steps in order with minimal, scoped changes.
+8. Implement the still-`READY` plan steps in order with minimal, scoped
+   changes. A code behavior change ships with its tests per
+   `workflow/spec.md`; a bug fix starts from a failing test that reproduces
+   the issue.
 9. Update `PLAN.md` only for progress or newly discovered facts.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
 11. Run focused checks from the plan.
+11b. Simplification pass once checks are green: remove needless abstraction,
+    dead branches, and duplication introduced by the change, without behavior
+    change; re-run the focused checks if it edited anything.
 12. Review the diff against `PLAN.md`. In an autonomous run, this review comes
     from a fresh context (subagent reviewer or cross-model) per
     `workflow/spec.md`; without one, stop as `blocked` requesting external
     review.
+12b. In an autonomous run, follow with the adversary Code diff mode
+    (`workflow/skills/adversary.md`): cross-model, read-only, on the
+    implementation diff; fold accepted findings and re-run checks.
 13. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
     using `workflow/plan-archive.md`; distill it as memory, do not raw-copy
     `PLAN.md`.
@@ -42,6 +55,7 @@ Autonomous implementation loops are complete only when the final state contains
 evidence for all of:
 
 - adversary plan review;
+- adversary code-diff review in autonomous runs;
 - focused validation;
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
 - diff/code review;

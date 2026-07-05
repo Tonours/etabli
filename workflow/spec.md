@@ -107,7 +107,17 @@ Only `READY` authorizes implementation.
   (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose
-  duplicated across adapters. Instruction files stay maps, not manuals.
+  duplicated across adapters. Instruction files stay maps, not manuals. The
+  third occurrence of the same review finding becomes a mechanical check.
+- A code behavior change ships with tests written in the existing suite's
+  conventions; a bug fix starts from a failing test that reproduces the
+  issue. Docs and contract changes are validated by smoke pins or inspection
+  instead.
+- Reviewers flag only gaps that affect correctness or stated requirements;
+  style preferences and speculative robustness are optional notes, never
+  blockers.
+- A started migration is finished or explicitly handed off with a `handoff`
+  event; a half-migrated state is never left silent.
 
 ## Minimal READY gate
 
