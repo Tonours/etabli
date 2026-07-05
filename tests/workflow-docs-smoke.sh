@@ -186,9 +186,9 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
-assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'understand, plan-loop, plan
-   adversary, implement with tests, plan checks, simplification pass,
-   fresh-context review, code-diff adversary'
+assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'understand, plan-loop, plan'
+assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'adversary, implement with tests, plan checks, simplification pass,'
+assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'fresh-context review, code-diff adversary'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Understand before planning'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Simplification pass'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Code diff mode'
