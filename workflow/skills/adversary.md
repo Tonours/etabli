@@ -43,3 +43,22 @@ final handoff names:
 - rejected findings;
 - final `PLAN.md` status;
 - whether implementation may continue.
+
+## Code diff mode
+
+The same adversarial gate applies to the implementation diff, not only the
+plan. After the fresh-context review in an autonomous run:
+
+1. Input: the implementation diff against the branch base, plus the active
+   `PLAN.md` (or its acceptance criteria if already archived).
+2. The reviewer is cross-model and read-only; it judges, it never edits.
+3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
+   criteria not actually met, silent scope drift, and simpler or safer
+   implementations that were overlooked.
+4. Findings are decided accepted or rejected with concrete evidence by the
+   implementer, then folded as fixes; checks re-run after any fix.
+5. Verdict: `GO`, `GO WITH NOTES`, or `BLOCK`. A surviving blocker stops the
+   run as `blocked`.
+6. In an autonomous run with no cross-model runner available, stop as
+   `blocked` requesting external review. A supervised run may substitute a
+   same-model pass recorded as such.
