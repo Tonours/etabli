@@ -18,6 +18,10 @@ Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
 When that script is unavailable in a scaffolded project, an equivalent single
 validated append is acceptable. Do not edit earlier lines.
 
+Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
+metrics with `scripts/workflow-metrics`, and create sanitized replay/debug
+dossiers with `scripts/workflow-dossier`.
+
 ## Event Types
 
 | Type | Detail convention |
@@ -28,6 +32,7 @@ validated append is acceptable. Do not edit earlier lines.
 | `file_changed` | `{path, change}` |
 | `validation_run` | `{command, exit}` |
 | `validation_failed` | `{command, exit, failure}` |
+| `outcome_metric` | `{outcome, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
 | `handoff` | `{branch, sha, done, pending, next_action, do_not_redo}` |
@@ -35,3 +40,8 @@ validated append is acceptable. Do not edit earlier lines.
 | `archive_written` | `{path}` |
 | `completed` | `{summary}` |
 | `blocked` | `{reason, needed_input}` |
+
+`outcome_metric` fields are optional by design so older ledgers stay valid. Use
+`success: true` or an `outcome` such as `success`, `passed`, or `completed` for
+successful outcomes; `scripts/workflow-metrics` treats missing token counts as
+zero rather than inferring them.

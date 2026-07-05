@@ -43,6 +43,26 @@ jobs:
         if: ${{ !cancelled() }}
         run: bash tests/workflow-efficiency-report-smoke.sh
 
+      - name: workflow-monitor-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-monitor-smoke.sh
+
+      - name: workflow-metrics-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-metrics-smoke.sh
+
+      - name: workflow-dossier-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-dossier-smoke.sh
+
+      - name: research-proof-check-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/research-proof-check-smoke.sh
+
+      - name: lean-ctx-check-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/lean-ctx-check-smoke.sh
+
       - name: workflow-docs-smoke
         if: ${{ !cancelled() }}
         run: bash tests/workflow-docs-smoke.sh
@@ -130,6 +150,9 @@ jobs:
         run: |
           cd pi
           bun test ./extensions/__tests__/*.test.ts
+
+      - name: Run router eval smoke
+        run: bash tests/router-eval-smoke.sh
 
       - name: Verify skill lock
         run: |

@@ -10,6 +10,7 @@ ALLOWED_EVENTS=(
   file_changed
   validation_run
   validation_failed
+  outcome_metric
   retry_classified
   no_progress
   handoff

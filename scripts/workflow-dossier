@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKFLOW_DIR=".workflow"
+
+usage() {
+  cat <<EOF
+Usage: workflow-dossier [--dir path] <slug>
+
+Emit a sanitized JSON dossier for one workflow run. The dossier is intended for
+debugging and replay planning; it avoids raw command dumps where possible.
+EOF
+}
+
+if [ "${1:-}" = "--dir" ]; then
+  [ "$#" -ge 3 ] || { usage >&2; exit 2; }
+  WORKFLOW_DIR="$2"
+  shift 2
+fi
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+slug="${1:-}"
+if [ -z "$slug" ]; then
+  usage >&2
+  exit 2
+fi
+
+file="$WORKFLOW_DIR/$slug/events.jsonl"
+if [ ! -f "$file" ]; then
+  printf 'workflow events not found: %s\n' "$file" >&2
+  exit 1
+fi
+
+head_sha="$(git rev-parse --short HEAD 2>/dev/null || true)"
+
+jq -s \
+  --arg run "$slug" \
+  --arg file "$file" \
+  --arg head_sha "$head_sha" '
+    def scrub:
+      tostring
+      | gsub("(?i)[A-Z0-9_]*(api[_-]?key|access[_-]?token|refresh[_-]?token|token|client[_-]?secret|password|credential|secret)[A-Z0-9_]*=[^[:space:]]+"; "[REDACTED]")
+      | gsub("(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|credential|secret)[^[:space:]]*"; "[REDACTED]")
+      | if length > 160 then .[0:160] + "..." else . end;
+    def terminal: [.[] | select(.event == "completed" or .event == "blocked")] | last;
+    {
+      run: $run,
+      source_file: $file,
+      head_sha: (if $head_sha == "" then null else $head_sha end),
+      event_count: length,
+      terminal_event: (terminal.event // null),
+      terminal_detail: (terminal.detail // null),
+      event_counts: (group_by(.event) | map({event: .[0].event, count: length}) | sort_by(.event)),
+      route: ([.[] | select(.event == "route_decided") | .detail.route] | last // null),
+      validations: [
+        .[]
+        | select(.event == "validation_run" or .event == "validation_failed")
+        | {
+            event,
+            ts,
+            command_preview: (.detail.command // "" | scrub),
+            exit: (.detail.exit // null),
+            failure_preview: (.detail.failure // "" | scrub)
+          }
+      ],
+      retries: [
+        .[]
+        | select(.event == "retry_classified" or .event == "no_progress")
+        | {event, ts, detail}
+      ],
+      recommended_next_action:
+        (
+        if terminal.event == "completed" then "none"
+        elif terminal.event == "blocked" then (terminal.detail.needed_input // "resolve blocker")
+        elif ([.[] | select(.event == "validation_failed")] | length) > 0 then "inspect validation failure and rerun the narrowest check"
+        elif ([.[] | select(.event == "no_progress")] | length) > 0 then "stop retrying the same hypothesis and choose a new fix path"
+        else "resume from latest non-terminal event"
+        end
+        )
+    }
+  ' "$file"
