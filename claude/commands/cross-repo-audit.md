@@ -34,7 +34,7 @@ Phases:
 5. Report: the misalignment table first, then a short list of confirmed gaps with
    their `file:line` anchors, then open questions that code alone can't resolve.
 
-6. Memory (offer, don't force). If `~/work/brain/kb/` exists, offer to persist any
+6. Memory (offer, don't force). If `~/work/obvault/kb/` exists, offer to persist any
    confirmed mechanic as a `kb/` note per that vault's `CLAUDE.md` contract:
    strict frontmatter, `sources:` with `file:line`, update the existing note
    instead of duplicating. Only write what survived the adversarial pass.

@@ -31,7 +31,7 @@ Phases:
 7. List the spec's blind spots: claims with no code backing, and real behaviors
    the spec omits.
 
-8. Memory (offer, don't force). If `~/work/brain/kb/` exists, offer to persist any
+8. Memory (offer, don't force). If `~/work/obvault/kb/` exists, offer to persist any
    CONFIRMED mechanic as a `kb/` note per that vault's `CLAUDE.md` contract:
    strict frontmatter, `sources:` with `file:line`, update the existing note
    instead of duplicating. Never persist REFUTED/NUANCED claims.
