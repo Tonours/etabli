@@ -39,6 +39,8 @@ for key in \
   instruction_dup_sections \
   smoke_suites \
   smoke_total_lines \
+  documented_source_surfaces \
+  documented_source_surface_files \
   source_of_truth_conflicts; do
   printf '%s\n' "$json_output" | jq -e --arg key "$key" 'has($key)' >/dev/null
 done
@@ -46,9 +48,12 @@ done
 printf '%s\n' "$json_output" | jq -e '.router_adapter_lines[] | select(.path == "claude/hooks/workflow-router-lib.mjs")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.router_adapter_lines[] | select(.path == "pi/extensions/lib/workflow-router-runtime.ts")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.smoke_suites | length > 0' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.documented_source_surfaces >= 1' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.source_of_truth_conflicts == 0' >/dev/null
 
 assert_contains "$text_output" "shared_contract_files"
 assert_contains "$text_output" "router_adapter_lines"
 assert_contains "$text_output" "exact_duplicate_pairs"
+assert_contains "$text_output" "documented_source_surfaces"
 
 printf 'workflow efficiency report smoke test: ok\n'

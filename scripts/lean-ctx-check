@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+AGENTS_FILE="codex/AGENTS.md"
+JSON=0
+
+usage() {
+  cat <<EOF
+Usage: lean-ctx-check [--agents path] [--json]
+
+Check whether lean-ctx is available, and whether the Codex instructions document
+the required native fallback when it is unavailable. This command never installs
+or downloads anything.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --agents)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      AGENTS_FILE="$2"
+      shift
+      ;;
+    --json)
+      JSON=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if [ ! -f "$AGENTS_FILE" ]; then
+  printf 'agents file not found: %s\n' "$AGENTS_FILE" >&2
+  exit 1
+fi
+
+if command -v lean-ctx >/dev/null 2>&1; then
+  available=1
+  lean_ctx_path="$(command -v lean-ctx)"
+else
+  available=0
+  lean_ctx_path=""
+fi
+
+if grep -Eiq 'lean-ctx.*(unavailable|absent|fail|fallback|fall back)|fallback.*lean-ctx|fall back.*native' "$AGENTS_FILE"; then
+  fallback_documented=1
+else
+  fallback_documented=0
+fi
+
+if [ "$JSON" -eq 1 ]; then
+  jq -n \
+    --arg agents_file "$AGENTS_FILE" \
+    --arg lean_ctx_path "$lean_ctx_path" \
+    --argjson available "$available" \
+    --argjson fallback_documented "$fallback_documented" \
+    '{
+      agents_file: $agents_file,
+      available: ($available == 1),
+      path: (if $lean_ctx_path == "" then null else $lean_ctx_path end),
+      fallback_documented: ($fallback_documented == 1)
+    }'
+  if [ "$available" -eq 0 ] && [ "$fallback_documented" -eq 0 ]; then
+    exit 1
+  fi
+  exit 0
+fi
+
+if [ "$available" -eq 0 ] && [ "$fallback_documented" -eq 0 ]; then
+  printf 'lean-ctx unavailable and fallback is not documented in %s\n' "$AGENTS_FILE" >&2
+  exit 1
+fi
+
+if [ "$available" -eq 1 ]; then
+  printf 'lean-ctx available: %s\n' "$lean_ctx_path"
+else
+  printf 'lean-ctx unavailable; documented native fallback present\n'
+fi

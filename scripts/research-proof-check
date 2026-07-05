@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: research-proof-check <markdown-file>
+
+Validate that a research artifact contains source evidence and confidence labels.
+EOF
+}
+
+file="${1:-}"
+case "$file" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [ -z "$file" ]; then
+  usage >&2
+  exit 2
+fi
+
+if [ ! -f "$file" ]; then
+  printf 'research artifact not found: %s\n' "$file" >&2
+  exit 1
+fi
+
+if ! grep -Eiq '(https?://|Sources?:|Evidence:|file:[[:space:]]*|[[:alnum:]_./-]+:[0-9]+)' "$file"; then
+  printf 'research artifact has no explicit source evidence: %s\n' "$file" >&2
+  exit 1
+fi
+
+if ! grep -Eiq '\b(confirmed|approximate|proxy[-_ ]supported|blocked|unknown|inconclusive|verified|not verified)\b' "$file"; then
+  printf 'research artifact has no confidence/status labels: %s\n' "$file" >&2
+  exit 1
+fi
+
+if grep -Eiq '\b(i searched|j.?ai cherch[eé]|searched the web|recherche web effectu[eé]e)\b' "$file" &&
+  ! grep -Eiq 'https?://' "$file"; then
+  printf 'research artifact claims web search but has no URL source: %s\n' "$file" >&2
+  exit 1
+fi
+
+printf 'research proof check: ok\n'

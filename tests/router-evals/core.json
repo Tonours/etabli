@@ -1,0 +1,95 @@
+[
+  {
+    "name": "planning prompt routes to plan-loop",
+    "category": "planning",
+    "prompt": "Fais un plan de refactor",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "implementation prompt routes through plan-implement",
+    "category": "implementation",
+    "prompt": "Corrige le bug de login et valide",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "actual READY plan can implement",
+    "category": "ready-gate",
+    "prompt": "Implémente le PLAN.md ready",
+    "context": { "planStatus": "ready" },
+    "expectedRoute": "implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "prompt-only READY wording cannot implement",
+    "category": "ready-gate",
+    "prompt": "Implémente le PLAN.md ready",
+    "context": { "planStatus": "missing" },
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "read-only ready plan stays answer",
+    "category": "read-only",
+    "prompt": "Résume le PLAN.md ready",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "review roadmap stays read-only",
+    "category": "review",
+    "prompt": "Fais une review de notre roadmap",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "verify routes to verifier",
+    "category": "verify",
+    "prompt": "Retest et prouve que tout passe",
+    "expectedRoute": "verify",
+    "writeAllowed": false
+  },
+  {
+    "name": "delete request routes to ops-stop",
+    "category": "ops-stop",
+    "prompt": "Supprime ce dossier",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "external write-back routes to ops-stop",
+    "category": "ops-stop",
+    "prompt": "poste un commentaire sur la PR 42",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "source-backed research uses research-plan",
+    "category": "research",
+    "prompt": "Fais une recherche web sourcée sur les pratiques agentiques",
+    "expectedRoute": "research-plan",
+    "writeAllowed": true
+  },
+  {
+    "name": "spec construction uses spec-guide",
+    "category": "spec",
+    "prompt": "guide-moi pour construire la spec",
+    "expectedRoute": "spec-guide",
+    "writeAllowed": true
+  },
+  {
+    "name": "github pr review uses pr-review",
+    "category": "github",
+    "prompt": "Fais une code review de la PR GitHub 42",
+    "expectedRoute": "pr-review",
+    "writeAllowed": false
+  },
+  {
+    "name": "explicit ci fix remains ci-fix despite push wording",
+    "category": "ci",
+    "prompt": "fix CI and push PR #42",
+    "expectedRoute": "ci-fix",
+    "writeAllowed": true
+  }
+]

@@ -73,6 +73,12 @@ tests/codex-organization-smoke.sh
 tests/workflow-scaffold-smoke.sh
 tests/workflow-contract-coverage-smoke.sh
 tests/workflow-efficiency-report-smoke.sh
+tests/workflow-monitor-smoke.sh
+tests/workflow-metrics-smoke.sh
+tests/workflow-dossier-smoke.sh
+tests/router-eval-smoke.sh
+tests/research-proof-check-smoke.sh
+tests/lean-ctx-check-smoke.sh
 tests/workflow-docs-smoke.sh
 tests/claude-hooks-smoke.sh
 tests/agent-scenarios-smoke.sh
@@ -92,6 +98,14 @@ The CLI smoke runs real Pi prompts in a temporary project and verifies the
 Claude binary with `claude --version`; `--print` stays behind
 `RUN_CLAUDE_PRINT_SMOKE=1`. Codex App subagent orchestration rules:
 `docs/codex-app-subagents.md`.
+
+Workflow feedback-loop helpers are read-only: `workflow-monitor` reports stale,
+blocked, failing, and active ledgers; `workflow-metrics` aggregates optional
+`outcome_metric` events into tokens per successful outcome; `workflow-dossier`
+emits sanitized replay/debug context for one run; `router-eval` scores Pi/Claude
+router decisions from `tests/router-evals/`; `research-proof-check` rejects
+unsourced research artifacts; `lean-ctx-check` verifies the optional lean-ctx
+fallback contract without installing anything.
 
 ## Config notes
 

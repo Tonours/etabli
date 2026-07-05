@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+
+if ! command -v bun >/dev/null 2>&1; then
+  printf 'missing bun; router eval needs Bun to import the Pi TypeScript router\n' >&2
+  exit 2
+fi
+
+exec bun --silent "$ROOT_DIR/scripts/router-eval.mjs" "$@"
