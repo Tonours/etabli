@@ -72,7 +72,7 @@ Rules:
 - run focused checks
 - review before commit
 
-See `docs/workflow-101.md` for an introduction and `workflow/spec.md` for the
+See `workflow/spec.md` for the
 full contract.
 
 For long-running orchestration and subagent delegation rules, use

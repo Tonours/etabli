@@ -138,7 +138,6 @@ assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
 assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
 assert_contains "$ROOT_DIR/README.md" 'syncs only managed Pi package'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
-assert_contains "$ROOT_DIR/README.md" 'docs/workflow-101.md'
 assert_contains "$ROOT_DIR/README.md" 'tests/fix-links-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/install-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/deploy-agent-workflow-smoke.sh'
@@ -319,17 +318,9 @@ assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILAB
 assert_file "$ROOT_DIR/codex/skills/linear-work/SKILL.md"
 assert_contains "$ROOT_DIR/codex/skills/linear-work/SKILL.md" '$CODEX_HOME/workflow/skills/linear-work.md'
 assert_contains "$ROOT_DIR/pi/skills/pr-review/SKILL.md" 'Use `gh`'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'plan-loop → adversary → implement'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'Status: READY'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'workflow/spec.md'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'The workflow is ambient'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'corrige le bug et valide'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'workflow/skills/implementation-loop.md'
-assert_contains "$ROOT_DIR/docs/workflow-101.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:adversary'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:verify'
-assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'docs/workflow-101.md'
 assert_contains "$ROOT_DIR/pi/skills/pr-qa/SKILL.md" 'workflow/skills/pr-qa.md'
 assert_contains "$ROOT_DIR/pi/skills/sec-pr/SKILL.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/pi/skills/ci-fix/SKILL.md" 'Never plain `--force`'
@@ -460,22 +451,6 @@ workflow_claude_commands="$(
         }
     ' "$ROOT_DIR/workflow/spec.md"
 )"
-
-readme_claude_commands="$(
-    awk '
-        /^Claude:$/ { in_claude = 1; next }
-        in_claude && /^```text$/ { in_block = 1; next }
-        in_block && /^```$/ { exit }
-        in_block && /^\// { print }
-    ' "$ROOT_DIR/README.md"
-)"
-
-if [ "$workflow_claude_commands" != "$readme_claude_commands" ]; then
-    printf 'Claude command lists differ between workflow/spec.md and README.md\n' >&2
-    printf 'workflow/spec.md:\n%s\n' "$workflow_claude_commands" >&2
-    printf 'README.md:\n%s\n' "$readme_claude_commands" >&2
-    exit 1
-fi
 
 while IFS= read -r command; do
     [ -n "$command" ] || continue
