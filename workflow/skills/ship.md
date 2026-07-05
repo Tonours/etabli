@@ -12,8 +12,10 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 2. Branch: if on the default branch, create `feat/<slug>` (or `fix/<slug>`)
    from it. Never commit to the default branch directly.
 3. Run the full autonomous chain from
-   `workflow/skills/implementation-loop.md`: plan-loop, adversary, implement,
-   plan checks, fresh-context review, archive, root `PLAN.md` cleanup.
+   `workflow/skills/implementation-loop.md`: understand, plan-loop, plan
+   adversary, implement with tests, plan checks, simplification pass,
+   fresh-context review, code-diff adversary, archive, root `PLAN.md`
+   cleanup.
    During implementation, make a checkpoint commit on the ship branch after
    each coherent slice whose focused checks pass — never staging `PLAN*.md`.
    Checkpoints are revert points on a squash-mergeable branch, not release
