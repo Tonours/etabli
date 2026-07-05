@@ -195,6 +195,11 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'failing test that reproduces'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'correctness or stated requirements'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'finished or explicitly handed off'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'third occurrence of the same review finding'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'names its remediation'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skill-design.md'
+assert_file "$ROOT_DIR/workflow/skill-design.md"
+assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Delete-test'
+assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Separate steps from reference'
 
 assert_max_lines() {
   local file="$1"
