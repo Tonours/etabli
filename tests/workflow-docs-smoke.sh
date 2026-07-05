@@ -100,6 +100,18 @@ assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
+assert_file "$ROOT_DIR/tests/workflow-monitor-smoke.sh"
+assert_file "$ROOT_DIR/tests/workflow-metrics-smoke.sh"
+assert_file "$ROOT_DIR/tests/workflow-dossier-smoke.sh"
+assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
+assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
+assert_file "$ROOT_DIR/tests/lean-ctx-check-smoke.sh"
+assert_file "$ROOT_DIR/scripts/workflow-monitor"
+assert_file "$ROOT_DIR/scripts/workflow-metrics"
+assert_file "$ROOT_DIR/scripts/workflow-dossier"
+assert_file "$ROOT_DIR/scripts/router-eval"
+assert_file "$ROOT_DIR/scripts/research-proof-check"
+assert_file "$ROOT_DIR/scripts/lean-ctx-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 assert_file "$ROOT_DIR/tests/install-smoke.sh"
 assert_file "$ROOT_DIR/tests/deploy-agent-workflow-smoke.sh"
@@ -135,6 +147,10 @@ assert_contains "$ROOT_DIR/README.md" 'deploy-workflow'
 assert_contains "$ROOT_DIR/README.md" 'deploy-agent-workflow'
 assert_contains "$ROOT_DIR/README.md" 'docs/adr/'
 assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
+assert_contains "$ROOT_DIR/README.md" 'workflow-monitor'
+assert_contains "$ROOT_DIR/README.md" 'tokens per successful outcome'
+assert_contains "$ROOT_DIR/README.md" 'research-proof-check'
+assert_contains "$ROOT_DIR/README.md" 'lean-ctx-check'
 assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
 assert_contains "$ROOT_DIR/README.md" 'syncs only managed Pi package'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
@@ -182,6 +198,8 @@ assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" '## Stop condition
 assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" 'Keep project-specific scope'
 assert_same_file "$ROOT_DIR/workflow/ticket-template.md" "$ROOT_DIR/codex/workflow/ticket-template.md"
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/research-proof-check'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
@@ -248,6 +266,12 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md re
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implementation-bound autonomous loops are not complete until validation,'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'adversary evidence, review, implemented-plan archive under `docs/plan/`, and'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
+assert_contains "$ROOT_DIR/workflow/events.md" 'outcome_metric'
+assert_contains "$ROOT_DIR/workflow/events.md" 'workflow-dossier'
+assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
+assert_contains "$ROOT_DIR/scripts/workflow-efficiency-report" 'documented_source_surfaces'
+assert_contains "$ROOT_DIR/tests/workflow-efficiency-report-smoke.sh" 'source_of_truth_conflicts == 0'
+assert_contains "$ROOT_DIR/codex/AGENTS.md" 'lean-ctx is optional'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Read-only adversarial PLAN.md review'
 assert_contains "$ROOT_DIR/workflow/spec.md" '`spec-guide`'
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'

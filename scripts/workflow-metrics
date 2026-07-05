@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKFLOW_DIR=".workflow"
+JSON=0
+
+usage() {
+  cat <<EOF
+Usage: workflow-metrics [--dir path] [--json]
+
+Aggregate optional outcome_metric events and report tokens per successful outcome.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dir)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      WORKFLOW_DIR="$2"
+      shift
+      ;;
+    --json)
+      JSON=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if ! command -v jq >/dev/null 2>&1; then
+  printf 'missing jq; install jq to aggregate workflow metrics\n' >&2
+  exit 2
+fi
+
+if [ ! -d "$WORKFLOW_DIR" ]; then
+  if [ "$JSON" -eq 1 ]; then
+    printf '{"runs":[],"totals":{"outcomes":0,"successful_outcomes":0,"total_tokens":0,"tokens_per_successful_outcome":null}}\n'
+  else
+    printf 'no workflow runs found in %s\n' "$WORKFLOW_DIR"
+  fi
+  exit 0
+fi
+
+runs="$(
+  find "$WORKFLOW_DIR" -mindepth 2 -maxdepth 2 -name events.jsonl -type f -print |
+    sort |
+    while IFS= read -r file; do
+      run="$(basename "$(dirname "$file")")"
+      jq -s --arg run "$run" '
+        def metric_events: [.[] | select(.event == "outcome_metric") | .detail];
+        def tokens($m): (($m.total_tokens // (($m.input_tokens // 0) + ($m.output_tokens // 0))) | tonumber? // 0);
+        def success($m): (($m.success == true) or (($m.outcome // "") | ascii_downcase | IN("success", "successful", "passed", "complete", "completed")));
+        metric_events as $metrics |
+        {
+          run: $run,
+          outcomes: ($metrics | length),
+          successful_outcomes: ($metrics | map(select(success(.))) | length),
+          total_tokens: ($metrics | map(tokens(.)) | add // 0),
+          successful_tokens: ($metrics | map(select(success(.)) | tokens(.)) | add // 0),
+          tool_calls: ($metrics | map((.tool_calls // 0) | tonumber? // 0) | add // 0),
+          elapsed_ms: ($metrics | map((.elapsed_ms // 0) | tonumber? // 0) | add // 0)
+        }
+      ' "$file"
+    done
+)"
+
+summary="$(
+  printf '%s\n' "$runs" |
+    jq -s '{
+      runs: sort_by(.run),
+      totals: {
+        outcomes: (map(.outcomes) | add // 0),
+        successful_outcomes: (map(.successful_outcomes) | add // 0),
+        total_tokens: (map(.total_tokens) | add // 0),
+        successful_tokens: (map(.successful_tokens) | add // 0),
+        tool_calls: (map(.tool_calls) | add // 0),
+        elapsed_ms: (map(.elapsed_ms) | add // 0)
+      }
+    } | .totals.tokens_per_successful_outcome =
+      (if .totals.successful_outcomes == 0 then null else (.totals.successful_tokens / .totals.successful_outcomes) end)'
+)"
+
+if [ "$JSON" -eq 1 ]; then
+  printf '%s\n' "$summary"
+  exit 0
+fi
+
+printf '%s\n' "$summary" |
+  jq -r '.totals | "outcomes=\(.outcomes)\nsuccessful_outcomes=\(.successful_outcomes)\ntotal_tokens=\(.total_tokens)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)"'

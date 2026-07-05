@@ -66,6 +66,9 @@ Only `READY` authorizes implementation.
 - For broad/risky work, use `PLAN_TEMPLATE_FULL.md`.
 - Keep observed facts separate from assumptions in plans.
 - Record exact validation commands and results before claiming completion.
+- Source-backed research artifacts must include source evidence and confidence
+  labels; validate them with `scripts/research-proof-check` when they are
+  written to the repo.
 - Record route, role, stop condition, and required evidence in non-trivial plans.
 - Planning review updates `PLAN.md` in place.
 - Implementation-bound plans run an adversary pass before implementation.
@@ -88,6 +91,9 @@ Only `READY` authorizes implementation.
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
   terminal evidence.
+- `workflow-monitor`, `workflow-metrics`, and `workflow-dossier` are read-only
+  ledger readers for run health, tokens-per-successful-outcome metrics, and
+  sanitized replay/debug dossiers.
 - Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check

@@ -1,10 +1,11 @@
 # AGENTS.md — etabli (Codex)
 
 ## lean-ctx
-- Prefer lean-ctx MCP tools over native equivalents for token savings when they are available.
+- lean-ctx is optional but preferred: use lean-ctx MCP tools over native equivalents for token savings when they are available.
 - Route shell commands through `ctx_shell` or `lean-ctx -c "<cmd>"`, file reads through `ctx_read`, and code search through `ctx_search`.
 - If lean-ctx tools are unavailable, fail, or the active `cwd` is invalid, fall back immediately to native shell/read/search with absolute paths and state the fallback briefly.
 - Hook-driven auto-compression may also be active, but explicit MCP/CLI tools are the reliable path across Codex surfaces.
+- `scripts/lean-ctx-check` verifies availability/fallback without installing or downloading anything.
 - Full rules: `~/.codex/LEAN-CTX.md`
 
 ## Identity

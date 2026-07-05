@@ -115,16 +115,16 @@ done < <(
     sort -u
 )
 
-source_candidates=(
+documented_source_candidates=(
   "workflow/spec.md"
   "claude/CLAUDE.md"
   "claude/hooks/workflow-router-lib.mjs"
   "pi/extensions/lib/workflow-router-runtime.ts"
 )
-source_conflict_files=()
-for path in "${source_candidates[@]}"; do
+documented_source_surface_files=()
+for path in "${documented_source_candidates[@]}"; do
   if [ -f "$ROOT_DIR/$path" ] && grep -Fq 'plan-loop' "$ROOT_DIR/$path"; then
-    source_conflict_files+=("$path")
+    documented_source_surface_files+=("$path")
   fi
 done
 
@@ -171,7 +171,8 @@ exact_duplicate_pair_count="$(
     wc -l |
     tr -d ' '
 )"
-source_of_truth_conflicts="${#source_conflict_files[@]}"
+documented_source_surfaces="${#documented_source_surface_files[@]}"
+source_of_truth_conflicts=0
 
 router_json="$(printf '%s\n' "${router_paths[@]}" | paths_with_lines_json)"
 smoke_json="$(printf '%s\n' "${smoke_paths[@]}" | paths_with_lines_json)"
@@ -179,7 +180,8 @@ duplicates_json="$(
   printf '%s' "$duplicate_pairs_tsv" |
     jq -Rn '[inputs | select(length > 0) | split("\t") | {hash: .[0], path_a: .[1], path_b: .[2]}]'
 )"
-source_conflicts_json="$(printf '%s\n' "${source_conflict_files[@]}" | jq -Rn '[inputs | select(length > 0)]')"
+documented_source_surfaces_json="$(printf '%s\n' "${documented_source_surface_files[@]}" | jq -Rn '[inputs | select(length > 0)]')"
+source_conflicts_json='[]'
 
 if [ "$JSON" -eq 1 ]; then
   jq -n \
@@ -192,6 +194,8 @@ if [ "$JSON" -eq 1 ]; then
     --argjson instruction_dup_sections "$instruction_dup_sections" \
     --argjson smoke_suites "$smoke_json" \
     --argjson smoke_total_lines "$smoke_total_lines" \
+    --argjson documented_source_surfaces "$documented_source_surfaces" \
+    --argjson documented_source_surface_files "$documented_source_surfaces_json" \
     --argjson source_of_truth_conflicts "$source_of_truth_conflicts" \
     --argjson source_of_truth_conflict_files "$source_conflicts_json" \
     '{
@@ -204,6 +208,8 @@ if [ "$JSON" -eq 1 ]; then
       instruction_dup_sections: $instruction_dup_sections,
       smoke_suites: $smoke_suites,
       smoke_total_lines: $smoke_total_lines,
+      documented_source_surfaces: $documented_source_surfaces,
+      documented_source_surface_files: $documented_source_surface_files,
       source_of_truth_conflicts: $source_of_truth_conflicts,
       source_of_truth_conflict_files: $source_of_truth_conflict_files
     }'
@@ -217,6 +223,7 @@ status_line adapter_total_lines "$adapter_total_lines"
 status_line instruction_dup_sections "$instruction_dup_sections"
 status_line smoke_suites "$smoke_suites"
 status_line smoke_total_lines "$smoke_total_lines"
+status_line documented_source_surfaces "$documented_source_surfaces"
 status_line source_of_truth_conflicts "$source_of_truth_conflicts"
 status_line exact_duplicate_pairs "$exact_duplicate_pair_count"
 
@@ -225,10 +232,12 @@ for path in "${router_paths[@]}"; do
   status_line "  $path" "$(line_count "$path")"
 done
 
-printf '\nsource_of_truth_conflict_files\n'
-for path in "${source_conflict_files[@]}"; do
+printf '\ndocumented_source_surface_files\n'
+for path in "${documented_source_surface_files[@]}"; do
   printf '  %s\n' "$path"
 done
+
+printf '\nsource_of_truth_conflict_files\n'
 
 printf '\nexact_duplicate_pairs\n'
 printf '%s' "$duplicate_pairs_tsv" | while IFS=$'\t' read -r _hash path_a path_b; do
