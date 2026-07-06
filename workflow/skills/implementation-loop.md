@@ -28,24 +28,33 @@ details in the adapters; keep the phase order and completion evidence here.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
-11. Run focused checks from the plan.
-11b. Simplification pass once checks are green: remove needless abstraction,
+11. For material user-facing product-flow changes, or any explicit dogfood
+    request, run the product dogfood contract in
+    `workflow/skills/product-dogfood.md`: map flows, derive the scenario matrix,
+    execute the strongest available observable surface, record blocked external
+    legs honestly, and re-run failed plus adjacent scenarios after each
+    accepted fix. If the plan omitted dogfood evidence for such a change, stop
+    as plan drift and strengthen the checks before continuing.
+12. Run focused checks from the plan after dogfood and after any accepted
+    dogfood fix, so readiness is never based on checks that predate the latest
+    product-flow edit.
+12b. Simplification pass once checks are green: remove needless abstraction,
     dead branches, and duplication introduced by the change, without behavior
     change; re-run the focused checks if it edited anything.
-12. Review the diff against `PLAN.md`. In an autonomous run, this review comes
+13. Review the diff against `PLAN.md`. In an autonomous run, this review comes
     from a fresh context (subagent reviewer or cross-model) per
     `workflow/spec.md`; without one, stop as `blocked` requesting external
     review.
-12b. In an autonomous run, follow with the adversary Code diff mode
+13b. In an autonomous run, follow with the adversary Code diff mode
     (`workflow/skills/adversary.md`): cross-model, read-only, on the
     implementation diff; fold accepted findings and re-run checks.
-13. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
+14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
     using `workflow/plan-archive.md`; distill it as memory, do not raw-copy
     `PLAN.md`.
-14. After archive and validation succeed, delete only the current workspace root
+15. After archive and validation succeed, delete only the current workspace root
     `PLAN.md`.
-15. If archiving is skipped or fails, keep `PLAN.md` and report why.
-16. Return files changed, adversary result, validation, review result, risks,
+16. If archiving is skipped or fails, keep `PLAN.md` and report why.
+17. Return files changed, adversary result, validation, review result, risks,
     archive path, deleted `PLAN.md` status, remaining risks, next action if any,
     and final status.
 
@@ -57,6 +66,7 @@ evidence for all of:
 - adversary plan review;
 - adversary code-diff review in autonomous runs;
 - focused validation;
+- product dogfood scenario evidence when required by the plan;
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
 - diff/code review;
 - implemented-plan archive under `docs/plan/`;

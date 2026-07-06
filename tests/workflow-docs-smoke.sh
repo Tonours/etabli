@@ -62,6 +62,7 @@ assert_file "$ROOT_DIR/claude/skills/adr/scripts/adr-validation.mjs"
 assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
+assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
 for contract in \
     bug-check \
     ci-fix \
@@ -221,6 +222,7 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'correctness or stated requirements
 assert_contains "$ROOT_DIR/workflow/spec.md" 'finished or explicitly handed off'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'third occurrence of the same review finding'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'names its remediation'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/product-dogfood.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skill-design.md'
 assert_file "$ROOT_DIR/workflow/skill-design.md"
 assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Delete-test'
@@ -254,6 +256,18 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'fresh
 assert_contains "$ROOT_DIR/workflow/spec.md" 'recorded as a `handoff` event'
 assert_contains "$ROOT_DIR/workflow/events.md" '`no_progress`'
 assert_contains "$ROOT_DIR/workflow/events.md" '`handoff`'
+assert_contains "$ROOT_DIR/workflow/events.md" '`dogfood_matrix_created`'
+assert_contains "$ROOT_DIR/workflow/events.md" '`dogfood_scenario_run`'
+assert_contains "$ROOT_DIR/scripts/workflow-event" 'dogfood_fix_applied'
+assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" '## Product Dogfood'
+assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" '### Scenario Matrix'
+assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Map user flows before writing a checklist'
+assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Do not convert a blocked scenario into `pass`.'
+assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'cannot rely on validation that predates the latest product-flow edit.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'product dogfood contract'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'material user-facing product-flow changes'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'stop
+    as plan drift and strengthen the checks before continuing'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'explicit cap'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'

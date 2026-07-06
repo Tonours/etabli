@@ -32,6 +32,10 @@ dossiers with `scripts/workflow-dossier`.
 | `file_changed` | `{path, change}` |
 | `validation_run` | `{command, exit}` |
 | `validation_failed` | `{command, exit, failure}` |
+| `dogfood_matrix_created` | `{path, flows, scenarios}` |
+| `dogfood_scenario_run` | `{scenario, surface, status, artifacts}` |
+| `dogfood_fix_applied` | `{scenario, fix, evidence}` |
+| `dogfood_blocked` | `{scenario, reason, needed_input}` |
 | `outcome_metric` | `{outcome, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
