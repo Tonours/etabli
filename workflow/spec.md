@@ -96,9 +96,10 @@ Only `READY` authorizes implementation.
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
   terminal evidence.
-- `workflow-monitor`, `workflow-metrics`, and `workflow-dossier` are read-only
-  ledger readers for run health, tokens-per-successful-outcome metrics, and
-  sanitized replay/debug dossiers.
+- `workflow-monitor`, `workflow-metrics`, `workflow-dossier`, and
+  `workflow-retrospect` are read-only ledger/archive readers for run health,
+  tokens-per-successful-outcome metrics, sanitized replay/debug dossiers, and
+  recurring workflow-issue recommendations.
 - Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
@@ -122,6 +123,9 @@ Only `READY` authorizes implementation.
   third occurrence of the same review finding becomes a mechanical check.
   Every mechanical check fails with a message that names its remediation.
   A routing or guard failure observed in real use becomes a fixture.
+  Confirmed recurring findings from `workflow-retrospect` become reviewed
+  recommendations, router fixtures, contract patches, or mechanical checks;
+  the helper never applies patches or external write-back by itself.
 - Skills, commands, and agent instructions follow `workflow/skill-design.md`.
 - A code behavior change ships with tests written in the existing suite's
   conventions; a bug fix starts from a failing test that reproduces the
