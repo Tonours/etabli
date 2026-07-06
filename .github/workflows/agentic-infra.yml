@@ -55,6 +55,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bash tests/workflow-dossier-smoke.sh
 
+      - name: workflow-retrospect-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/workflow-retrospect-smoke.sh
+
       - name: research-proof-check-smoke
         if: ${{ !cancelled() }}
         run: bash tests/research-proof-check-smoke.sh

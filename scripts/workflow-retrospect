@@ -1,0 +1,301 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKFLOW_DIR=".workflow"
+PLAN_DIR="docs/plan"
+MIN_COUNT=2
+MAX_SAMPLES=3
+JSON=0
+
+usage() {
+  cat <<EOF
+Usage: workflow-retrospect [--dir path] [--plans path] [--min-count n] [--json]
+
+Mine local Etabli workflow ledgers and implemented-plan archives for recurring
+workflow issues. The command is read-only: it reports candidate recommendations,
+router fixtures, contract patches, or mechanical checks, but never applies them.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dir)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      WORKFLOW_DIR="$2"
+      shift
+      ;;
+    --plans)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      PLAN_DIR="$2"
+      shift
+      ;;
+    --min-count)
+      [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+      MIN_COUNT="$2"
+      case "$MIN_COUNT" in
+        ''|*[!0-9]*)
+          printf 'min-count must be a positive integer\n' >&2
+          exit 2
+          ;;
+        0)
+          printf 'min-count must be a positive integer\n' >&2
+          exit 2
+          ;;
+      esac
+      shift
+      ;;
+    --json)
+      JSON=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if ! command -v jq >/dev/null 2>&1; then
+  printf 'missing jq; install jq to run workflow retrospectives\n' >&2
+  exit 2
+fi
+
+tmp="$(mktemp)"
+cleanup() {
+  rm -f "$tmp"
+}
+trap cleanup EXIT
+
+normalize_issue() {
+  printf '%s' "$1" |
+    tr '[:upper:]' '[:lower:]' |
+    tr -cs '[:alnum:]' ' ' |
+    awk '{$1=$1; print}' |
+    cut -c 1-140
+}
+
+classify_issue() {
+  local default_category="$1"
+  local text_lc
+  text_lc="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
+
+  case "$text_lc" in
+    *adversary\ finding*|*accepted\ finding*)
+      printf 'adversary_finding'
+      return
+      ;;
+    *validation\ failed*|*validation\ failure*|*test\ failed*|*smoke\ failed*)
+      printf 'validation_failure'
+      return
+      ;;
+    *router\ miss*|*routing\ miss*|*wrong\ route*|*misroute*|*misclassified\ route*|*incorrect\ route*|*router\ fixture*)
+      printf 'router_miss'
+      return
+      ;;
+    *plan\ drift*|*drifted\ plan*|*drift\ evidence*|*scope\ drift*)
+      printf 'plan_drift'
+      return
+      ;;
+    *runtime\ capability\ overclaim*|*capability\ overclaim*|*overclaimed\ capability*|*unknown\ capability*|*unavailable\ runner*)
+      printf 'runtime_capability_overclaim'
+      return
+      ;;
+    *dogfood\ blocker*|*dogfood\ blocked*|*blocked-human-verify*)
+      printf 'dogfood_blocker'
+      return
+      ;;
+  esac
+
+  printf '%s' "$default_category"
+}
+
+emit_observation() {
+  local default_category="$1"
+  local text="$2"
+  local source="$3"
+  local category key
+
+  [ -n "$text" ] || return 0
+  category="$(classify_issue "$default_category" "$text")"
+  case "$category" in
+    adversary_finding|validation_failure|plan_drift|router_miss|dogfood_blocker|runtime_capability_overclaim) ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  key="$(normalize_issue "$text")"
+  [ -n "$key" ] || return 0
+
+  jq -nc \
+    --arg category "$category" \
+    --arg key "$key" \
+    --arg text "$text" \
+    --arg source "$source" \
+    '{category:$category,key:$key,text:$text,source:$source}' >> "$tmp"
+}
+
+scan_events() {
+  [ -d "$WORKFLOW_DIR" ] || return 0
+
+  find "$WORKFLOW_DIR" -mindepth 2 -maxdepth 2 -name events.jsonl -type f -print |
+    sort |
+    while IFS= read -r file; do
+      jq -r --arg source "$file" '
+        def compact:
+          if type == "array" then map(tostring) | join(": ")
+          elif type == "object" then to_entries | map(.value | tostring) | join(": ")
+          else tostring
+          end;
+        def row($category; $text): [$category, ($text | compact), $source] | @tsv;
+
+        . as $event |
+        if $event.event == "adversary_completed" then
+          ($event.detail.accepted_findings // [])[] | row("adversary_finding"; .)
+        elif $event.event == "validation_failed" then
+          row("validation_failure"; ($event.detail.failure // $event.detail.command // "validation failed"))
+        elif $event.event == "dogfood_blocked" then
+          row("dogfood_blocker"; [$event.detail.scenario, $event.detail.reason, $event.detail.needed_input])
+        elif $event.event == "no_progress" then
+          row("validation_failure"; [$event.detail.check_or_hypothesis, $event.detail.command, $event.detail.eliminated])
+        elif $event.event == "blocked" then
+          row("observed_blocker"; [$event.detail.reason, $event.detail.needed_input])
+        elif $event.event == "route_decided" then
+          row("observed_route"; ($event.detail.reason // $event.detail.route // "route decided"))
+        else
+          empty
+        end
+      ' "$file" |
+        while IFS=$'\t' read -r category text source; do
+          emit_observation "$category" "$text" "$source"
+        done
+    done
+}
+
+scan_plan_archives() {
+  [ -d "$PLAN_DIR" ] || return 0
+
+  find "$PLAN_DIR" -maxdepth 1 -name '*.md' -type f -print |
+    sort |
+    while IFS= read -r file; do
+      awk '
+        BEGIN { IGNORECASE = 1 }
+        /adversary.*finding|accepted finding|validation failed|validation failure|plan drift|scope drift|router miss|routing miss|wrong route|misroute|dogfood blocker|dogfood blocked|runtime capability overclaim|capability overclaim|unknown capability|unavailable runner/ {
+          gsub(/^[[:space:]>#*-]+/, "", $0)
+          if ($0 != "") print FILENAME ":" FNR "\t" $0
+        }
+      ' "$file" |
+        while IFS=$'\t' read -r source text; do
+          emit_observation "archive_signal" "$text" "$source"
+        done
+    done
+}
+
+build_summary() {
+  if [ ! -s "$tmp" ]; then
+    jq -nc --argjson min_count "$MIN_COUNT" '{
+      min_count: $min_count,
+      observed_issue_count: 0,
+      confirmed_issue_count: 0,
+      issues: []
+    }'
+    return
+  fi
+
+  jq -s \
+    --argjson min_count "$MIN_COUNT" \
+    --argjson max_samples "$MAX_SAMPLES" '
+      def scrub:
+        tostring
+        | gsub("(?i)[A-Z0-9_]*(api[_-]?key|access[_-]?token|refresh[_-]?token|token|client[_-]?secret|password|credential|secret)[A-Z0-9_]*=[^[:space:]]+"; "[REDACTED]")
+        | gsub("(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|credential|secret)[^[:space:]]*"; "[REDACTED]")
+        | if length > 180 then .[0:180] + "..." else . end;
+      def action($category; $count):
+        if $category == "router_miss" then "router_fixture"
+        elif $category == "validation_failure" then "mechanical_check"
+        elif $category == "plan_drift" then "contract_patch"
+        elif $category == "runtime_capability_overclaim" then "contract_patch"
+        elif $category == "dogfood_blocker" then "recommendation"
+        elif $category == "adversary_finding" and $count >= 3 then "mechanical_check"
+        elif $category == "adversary_finding" then "contract_patch"
+        else "recommendation"
+        end;
+      def recommendation($category; $action):
+        if $category == "router_miss" then "Add or update a router golden fixture, then verify Pi and Claude router alignment."
+        elif $category == "validation_failure" then "Add or strengthen a deterministic smoke check that fails with a remediation message."
+        elif $category == "plan_drift" then "Patch the workflow contract or template so the drift condition is named before implementation continues."
+        elif $category == "runtime_capability_overclaim" then "Patch runtime capability docs or guards so unsupported tools are labelled blocked or unknown."
+        elif $category == "dogfood_blocker" then "Record a product dogfood blocker and add a verification surface before claiming pass."
+        elif $category == "adversary_finding" and $action == "mechanical_check" then "Promote the repeated adversary finding into a mechanical check."
+        elif $category == "adversary_finding" then "Patch the relevant contract or template so the adversary finding is checked earlier."
+        else "Review the repeated workflow issue and decide whether it needs a contract patch or check."
+        end;
+
+      (sort_by(.category, .key) | group_by(.category, .key)) as $groups |
+      [
+        $groups[]
+        | . as $items
+        | ($items[0].category) as $category
+        | ($items | length) as $count
+        | (action($category; $count)) as $action
+        | {
+            category: $category,
+            key: $items[0].key,
+            count: $count,
+            confirmed: ($count >= $min_count),
+            action_kind: $action,
+            recommendation: recommendation($category; $action),
+            samples: (
+              $items
+              | map({source, text: (.text | scrub)})
+              | unique_by(.source, .text)
+              | .[0:$max_samples]
+            )
+          }
+      ] as $issues |
+      {
+        min_count: $min_count,
+        observed_issue_count: ($issues | length),
+        confirmed_issue_count: ($issues | map(select(.confirmed)) | length),
+        issues: ($issues | sort_by((.confirmed | not), -(.count), .category, .key))
+      }
+    ' "$tmp"
+}
+
+scan_events
+scan_plan_archives
+summary="$(build_summary)"
+
+if [ "$JSON" -eq 1 ]; then
+  printf '%s\n' "$summary"
+  exit 0
+fi
+
+confirmed_count="$(printf '%s\n' "$summary" | jq -r '.confirmed_issue_count')"
+if [ "$confirmed_count" -eq 0 ]; then
+  printf 'no confirmed recurring workflow issues (min_count=%s)\n' "$MIN_COUNT"
+  exit 0
+fi
+
+printf 'confirmed recurring workflow issues: %s (min_count=%s)\n' "$confirmed_count" "$MIN_COUNT"
+printf '%s\n' "$summary" |
+  jq -r '
+    .issues[]
+    | select(.confirmed)
+    | [
+        "",
+        ("category=" + .category + " count=" + (.count | tostring) + " action=" + .action_kind),
+        ("key=" + .key),
+        ("recommendation=" + .recommendation),
+        (
+          .samples[]
+          | "sample=" + .source + " :: " + .text
+        )
+      ]
+    | .[]
+  '

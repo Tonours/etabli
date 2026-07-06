@@ -104,12 +104,14 @@ assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-monitor-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-metrics-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-dossier-smoke.sh"
+assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
 assert_file "$ROOT_DIR/tests/lean-ctx-check-smoke.sh"
 assert_file "$ROOT_DIR/scripts/workflow-monitor"
 assert_file "$ROOT_DIR/scripts/workflow-metrics"
 assert_file "$ROOT_DIR/scripts/workflow-dossier"
+assert_file "$ROOT_DIR/scripts/workflow-retrospect"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
 assert_file "$ROOT_DIR/scripts/lean-ctx-check"
@@ -149,6 +151,7 @@ assert_contains "$ROOT_DIR/README.md" 'deploy-agent-workflow'
 assert_contains "$ROOT_DIR/README.md" 'docs/adr/'
 assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
 assert_contains "$ROOT_DIR/README.md" 'workflow-monitor'
+assert_contains "$ROOT_DIR/README.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/README.md" 'tokens per successful outcome'
 assert_contains "$ROOT_DIR/README.md" 'research-proof-check'
 assert_contains "$ROOT_DIR/README.md" 'lean-ctx-check'
@@ -208,6 +211,7 @@ assert_same_file "$ROOT_DIR/workflow/ticket-template.md" "$ROOT_DIR/codex/workfl
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/research-proof-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-monitor'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
@@ -221,6 +225,7 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'failing test that reproduces'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'correctness or stated requirements'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'finished or explicitly handed off'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'third occurrence of the same review finding'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Confirmed recurring findings from `workflow-retrospect`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'names its remediation'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/product-dogfood.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skill-design.md'
@@ -289,9 +294,13 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'adversary evidence, review, implem
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/events.md" 'outcome_metric'
 assert_contains "$ROOT_DIR/workflow/events.md" 'workflow-dossier'
+assert_contains "$ROOT_DIR/workflow/events.md" 'scripts/workflow-retrospect'
 assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
 assert_contains "$ROOT_DIR/scripts/workflow-efficiency-report" 'documented_source_surfaces'
 assert_contains "$ROOT_DIR/tests/workflow-efficiency-report-smoke.sh" 'source_of_truth_conflicts == 0'
+assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'correct loop primitive for the job'
+assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'outcome_metric'
+assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/agents/openai.yaml" 'right Codex loop prompt'
 assert_contains "$ROOT_DIR/codex/AGENTS.md" 'lean-ctx is optional'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Read-only adversarial PLAN.md review'
 assert_contains "$ROOT_DIR/workflow/spec.md" '`spec-guide`'

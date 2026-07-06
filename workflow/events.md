@@ -19,8 +19,9 @@ When that script is unavailable in a scaffolded project, an equivalent single
 validated append is acceptable. Do not edit earlier lines.
 
 Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
-metrics with `scripts/workflow-metrics`, and create sanitized replay/debug
-dossiers with `scripts/workflow-dossier`.
+metrics with `scripts/workflow-metrics`, create sanitized replay/debug dossiers
+with `scripts/workflow-dossier`, and mine recurring workflow issues with
+`scripts/workflow-retrospect`.
 
 ## Event Types
 

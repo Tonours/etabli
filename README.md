@@ -76,6 +76,7 @@ tests/workflow-efficiency-report-smoke.sh
 tests/workflow-monitor-smoke.sh
 tests/workflow-metrics-smoke.sh
 tests/workflow-dossier-smoke.sh
+tests/workflow-retrospect-smoke.sh
 tests/router-eval-smoke.sh
 tests/research-proof-check-smoke.sh
 tests/lean-ctx-check-smoke.sh
@@ -102,10 +103,12 @@ Claude binary with `claude --version`; `--print` stays behind
 Workflow feedback-loop helpers are read-only: `workflow-monitor` reports stale,
 blocked, failing, and active ledgers; `workflow-metrics` aggregates optional
 `outcome_metric` events into tokens per successful outcome; `workflow-dossier`
-emits sanitized replay/debug context for one run; `router-eval` scores Pi/Claude
-router decisions from `tests/router-evals/`; `research-proof-check` rejects
-unsourced research artifacts; `lean-ctx-check` verifies the optional lean-ctx
-fallback contract without installing anything.
+emits sanitized replay/debug context for one run; `workflow-retrospect` mines
+ledgers and plan archives for recurring issues and reports candidate
+recommendations, router fixtures, contract patches, or mechanical checks;
+`router-eval` scores Pi/Claude router decisions from `tests/router-evals/`;
+`research-proof-check` rejects unsourced research artifacts; `lean-ctx-check`
+verifies the optional lean-ctx fallback contract without installing anything.
 
 ## Config notes
 
