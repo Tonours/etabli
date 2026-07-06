@@ -55,6 +55,31 @@ Describe in 1-3 sentences what will change and why it matters.
 Describe the selected approach and why it is proportionate.
 Mention rejected options only when they changed the decision.
 
+## Product Dogfood
+Use this section only for user-facing/UI/browser-impacting work.
+
+### User Flows
+- Flow:
+  - Entry point:
+  - Actions:
+  - Branches:
+  - Side effects:
+  - True end state:
+
+### Scenario Matrix
+| Scenario | Flow branch | Preconditions | Steps | Expected result | Evidence | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### Product Lens
+- Primary users/personas:
+- Paper cuts to check:
+- Sharp paper cuts that should enter the fix loop:
+
+### Browser/UI Evidence
+- Observable surface:
+- Artifacts:
+- Blocked external legs:
+
 ## Execution Slices
 ### Slice 1
 - Goal:

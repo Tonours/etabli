@@ -87,6 +87,11 @@ Only `READY` authorizes implementation.
   plan drift instead of silently continuing.
 - Review checks correctness, regressions, safety, validation, and plan drift.
 - Prefer focused checks over full-suite ritual.
+- User-facing changes that materially affect product flows use the shared
+  product dogfood contract in `workflow/skills/product-dogfood.md`: map flows
+  before a scenario matrix, exercise observable UI/browser reality when
+  available, and record `blocked` instead of claiming pass when decisive legs
+  need human verification or no validation surface exists.
 - Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
@@ -199,6 +204,7 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/commands/`
 - Shared skill contracts: `workflow/skills/`
+- Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
