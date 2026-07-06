@@ -1,0 +1,23 @@
+{
+  "pr": 103,
+  "latest_head_sha": "def789",
+  "reviews": [
+    {
+      "source": "codex-bot",
+      "head_sha": "def789",
+      "status": "actionable_findings"
+    }
+  ],
+  "checks": [
+    {
+      "name": "unit",
+      "head_sha": "def789",
+      "status": "success"
+    },
+    {
+      "name": "integration",
+      "head_sha": "def789",
+      "status": "failure"
+    }
+  ]
+}

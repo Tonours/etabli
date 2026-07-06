@@ -92,6 +92,12 @@ Only `READY` authorizes implementation.
   before a scenario matrix, exercise observable UI/browser reality when
   available, and record `blocked` instead of claiming pass when decisive legs
   need human verification or no validation surface exists.
+- Supervised single-PR maintenance loops use the shared pilot contract in
+  `workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
+  latest pushed head evidence via `scripts/pr-latest-head-status`,
+  fresh-context review, explicit worktree cleanup, and no external
+  write-back/deploy/push/merge unless another active command contract
+  explicitly authorizes that action.
 - Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
@@ -115,6 +121,13 @@ Only `READY` authorizes implementation.
   context (subagent reviewer or cross-model), never from the context that
   implemented. If no fresh-context runner is available, stop as `blocked`
   requesting external review instead of self-reviewing.
+- Explicit authorization for read-only fresh-context review is reusable inside
+  the active run: when a user plainly authorizes subagents, delegation,
+  reviewers, or "all", and a runner is available, launch one read-only reviewer
+  and record the reviewer id/verdict instead of stopping for another
+  checkpoint. This authorization is for read-only fresh-context review only; it
+  does not authorize destructive, secret, production, billing, deploy, push,
+  merge, or external write actions.
 - Session handoffs in autonomous runs are recorded as a `handoff` event
   (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
 - Golden principles: a new transverse invariant ships with a mechanical check
@@ -190,6 +203,7 @@ journal checkpoint decisions as `human_checkpoint` events in
 | history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
 | external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
+| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | explicit user authorization in the active run plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | any write before root `PLAN.md` is `READY` | `plan-ready-guard` hook for Claude; READY gate rule for all adapters | tool call denied |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: the agent must name the resolved target and get confirmation when >=2 targets are plausible | ask, do not guess |
 | missing validation surface | change with no runnable check or inspectable proof | prose rule: stop as `blocked: no validation surface` instead of claiming completion | report blocked |
@@ -209,9 +223,11 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Claude commands: `claude/commands/`
 - Shared skill contracts: `workflow/skills/`
 - Product dogfood contract: `workflow/skills/product-dogfood.md`
+- Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
+- Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)

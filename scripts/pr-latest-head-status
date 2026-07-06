@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: pr-latest-head-status [--json] <snapshot.json>
+
+Classify PR review/check evidence against the latest pushed head SHA.
+EOF
+}
+
+json_output=false
+
+case "${1:-}" in
+  --json)
+    json_output=true
+    shift
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+[ "$#" -eq 1 ] || {
+  usage >&2
+  exit 2
+}
+
+snapshot="$1"
+[ -f "$snapshot" ] || {
+  printf 'snapshot not found: %s\n' "$snapshot" >&2
+  exit 2
+}
+
+result="$(
+  jq -c '
+    def lower:
+      tostring | ascii_downcase | gsub("[ -]"; "_");
+
+    def as_array:
+      if . == null then []
+      elif type == "array" then .
+      elif type == "object" and (.nodes | type) == "array" then .nodes
+      elif type == "object" and (.items | type) == "array" then .items
+      else []
+      end;
+
+    def item_sha($default):
+      (.head_sha // .headSha // .commit_sha // .commitSha // .commit_id //
+        .commitId // .oid // .sha // $default // "");
+
+    def review_status:
+      (.status // .state // .verdict // .conclusion // .decision // "unknown")
+      | lower;
+
+    def check_status:
+      (.conclusion // .status // .state // .result // "unknown") | lower;
+
+    def clean_review:
+      review_status as $s |
+      ["clean", "approved", "approval", "pass", "passed", "success",
+       "no_actionable_findings", "no_findings"] | index($s);
+
+    def actionable_review:
+      review_status as $s |
+      ["changes_requested", "actionable_findings", "failed", "failure",
+       "error", "rejected", "block", "blocked"] | index($s);
+
+    def clean_check:
+      check_status as $s |
+      ["success", "passed", "pass", "clean"] | index($s);
+
+    def failing_check:
+      check_status as $s |
+      ["failed", "failure", "error", "cancelled", "timed_out",
+       "action_required"] | index($s);
+
+    (.latest_head_sha // .latestHeadSha // .head_sha // .headSha //
+      .head.sha // .pull_request.head.sha // .pr.latest_head_sha //
+      .pr.head.sha // "") as $latest |
+    (.reviews_head_sha // .reviewsHeadSha // "") as $reviews_default_sha |
+    (.checks_head_sha // .checksHeadSha // "") as $checks_default_sha |
+    ((.reviews // .review_decisions // .review_statuses // []) | as_array) as $reviews |
+    ((.checks // .check_runs // .status_checks // .statusCheckRollup // []) | as_array) as $checks |
+    ($reviews | map(. + {
+      normalized_sha: item_sha($reviews_default_sha),
+      normalized_status: review_status
+    })) as $normalized_reviews |
+    ($checks | map(. + {
+      normalized_sha: item_sha($checks_default_sha),
+      normalized_status: check_status
+    })) as $normalized_checks |
+    ($normalized_reviews | map(select(.normalized_sha == $latest))) as $latest_reviews |
+    ($normalized_checks | map(select(.normalized_sha == $latest))) as $latest_checks |
+    ($normalized_reviews | map(select(.normalized_sha != "" and .normalized_sha != $latest and clean_review))) as $stale_clean_reviews |
+    ($latest_reviews | map(select(clean_review))) as $latest_clean_reviews |
+    ($latest_reviews | map(select(actionable_review))) as $latest_actionable_reviews |
+    ($latest_checks | map(select(clean_check))) as $latest_clean_checks |
+    ($latest_checks | map(select(failing_check))) as $latest_failing_checks |
+    ($normalized_checks | map(select(.normalized_sha != "" and .normalized_sha != $latest))) as $stale_checks |
+    if $latest == "" then
+      {
+        status: "needs_rerun",
+        reason: "missing_latest_head_sha",
+        latest_head_sha: $latest,
+        latest_review_count: 0,
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: 0,
+        stale_check_count: ($stale_checks | length)
+      }
+    elif ($latest_actionable_reviews | length) > 0 then
+      {
+        status: "needs_rerun",
+        reason: "latest_head_has_actionable_review_findings",
+        latest_head_sha: $latest,
+        latest_review_count: ($latest_reviews | length),
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: ($latest_checks | length),
+        stale_check_count: ($stale_checks | length)
+      }
+    elif ($latest_failing_checks | length) > 0 then
+      {
+        status: "needs_rerun",
+        reason: "latest_head_has_failing_checks",
+        latest_head_sha: $latest,
+        latest_review_count: ($latest_reviews | length),
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: ($latest_checks | length),
+        stale_check_count: ($stale_checks | length)
+      }
+    elif ($latest_checks | length) == 0 then
+      {
+        status: "needs_rerun",
+        reason: "latest_head_missing_checks",
+        latest_head_sha: $latest,
+        latest_review_count: ($latest_reviews | length),
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: ($latest_checks | length),
+        stale_check_count: ($stale_checks | length)
+      }
+    elif ($latest_clean_reviews | length) > 0 and
+         ($latest_checks | length) > 0 and
+         ($latest_clean_checks | length) == ($latest_checks | length) then
+      {
+        status: "clean_latest_head",
+        reason: "latest_head_has_clean_review_and_green_checks",
+        latest_head_sha: $latest,
+        latest_review_count: ($latest_reviews | length),
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: ($latest_checks | length),
+        stale_check_count: ($stale_checks | length)
+      }
+    elif ($stale_clean_reviews | length) > 0 and ($latest_clean_reviews | length) == 0 then
+      {
+        status: "stale_review",
+        reason: "clean_review_does_not_apply_to_latest_head",
+        latest_head_sha: $latest,
+        latest_review_count: ($latest_reviews | length),
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: ($latest_checks | length),
+        stale_check_count: ($stale_checks | length)
+      }
+    else
+      {
+        status: "needs_rerun",
+        reason: "latest_head_missing_clean_review_or_green_checks",
+        latest_head_sha: $latest,
+        latest_review_count: ($latest_reviews | length),
+        stale_review_count: ($stale_clean_reviews | length),
+        latest_check_count: ($latest_checks | length),
+        stale_check_count: ($stale_checks | length)
+      }
+    end
+  ' "$snapshot"
+)"
+
+if [ "$json_output" = true ]; then
+  printf '%s\n' "$result"
+else
+  printf '%s\n' "$result" |
+    jq -r '"status=\(.status) reason=\(.reason) latest_head_sha=\(.latest_head_sha)"'
+fi

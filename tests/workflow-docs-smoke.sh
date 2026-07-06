@@ -63,12 +63,16 @@ assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
 assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
+assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
+assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
+assert_file "$ROOT_DIR/tests/fixtures/pr-maintenance/stale-review.json"
 for contract in \
     bug-check \
     ci-fix \
     linear-project-setup \
     linear-ticket-create \
     linear-work \
+    pr-maintenance-loop \
     pr-qa \
     pr-review \
     review \
@@ -154,10 +158,12 @@ assert_contains "$ROOT_DIR/README.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/README.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/README.md" 'tokens per successful outcome'
 assert_contains "$ROOT_DIR/README.md" 'research-proof-check'
+assert_contains "$ROOT_DIR/README.md" 'pr-latest-head-status'
 assert_contains "$ROOT_DIR/README.md" 'lean-ctx-check'
 assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
 assert_contains "$ROOT_DIR/README.md" 'syncs only managed Pi package'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
+assert_contains "$ROOT_DIR/README.md" 'tests/pr-latest-head-status-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/fix-links-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/install-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'tests/deploy-agent-workflow-smoke.sh'
@@ -169,6 +175,11 @@ assert_contains "$ROOT_DIR/README.md" 'RUN_CLAUDE_PRINT_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_REAL_AGENT_SCENARIOS=1'
 assert_contains "$ROOT_DIR/README.md" 'tests/workflow-real-agent-scenarios.sh'
 assert_contains "$ROOT_DIR/README.md" 'docs/codex-app-subagents.md'
+assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
+assert_contains "$ROOT_DIR/README.md" 'scripts/pr-latest-head-status'
+assert_contains "$ROOT_DIR/README.md" 'clean_latest_head'
+assert_contains "$ROOT_DIR/README.md" 'stale_review'
+assert_contains "$ROOT_DIR/README.md" 'needs_rerun'
 assert_contains "$ROOT_DIR/README.md" 'claude --version'
 assert_contains "$ROOT_DIR/README.md" '/skill:bug-check'
 assert_contains "$ROOT_DIR/README.md" '/skill:linear-ticket-create'
@@ -258,6 +269,8 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'explicit cap
   (iterations or wall-clock)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'fresh
   context (subagent reviewer or cross-model)'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'read-only fresh-context review only'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'does not authorize destructive, secret, production'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'recorded as a `handoff` event'
 assert_contains "$ROOT_DIR/workflow/events.md" '`no_progress`'
 assert_contains "$ROOT_DIR/workflow/events.md" '`handoff`'
@@ -275,6 +288,8 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'stop
     as plan drift and strengthen the checks before continuing'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'explicit cap'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'spawn exactly one read-only reviewer'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'record the agent'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'should not need to write "use the Etabli workflow"'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/memory.md'
@@ -287,6 +302,11 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'sec-pr'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'ci-fix'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'claude/settings.workflow-hooks.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" '/goal <measurable condition>'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/pr-maintenance-loop.md'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/pr-latest-head-status'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'one PR, one worktree, one loop'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'no external'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'write-back/deploy/push/merge'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Autonomous plan-loop requests use `plan-implement`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implementation-bound autonomous loops are not complete until validation,'
@@ -310,6 +330,8 @@ assert_contains "$ROOT_DIR/workflow/spec.md" '`human_checkpoint`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Shared skill contracts: `workflow/skills/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Orchestration contract: `workflow/skills/orchestration.md`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Latest-head PR evidence helper: `scripts/pr-latest-head-status`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/runtime-capabilities.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implemented plan archives: `docs/plan/`'
@@ -335,6 +357,27 @@ assert_contains "$ROOT_DIR/workflow/skills/linear-project-setup.md" 'Confirm wit
 assert_contains "$ROOT_DIR/workflow/skills/linear-ticket-create.md" 'Use Linear MCP as the Linear integration'
 assert_contains "$ROOT_DIR/workflow/skills/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/workflow/skills/pr-review.md" 'Use `gh`'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'One PR, one worktree, one loop.'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Never trust a clean review or green check'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'head SHA.'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" '`clean_latest_head`'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" '`stale_review`'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" '`needs_rerun`'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not post PR comments.'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Clean up the PR worktree explicitly'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'git status --short'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'one isolated worktree, branch, and thread'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not edit sibling worktrees.'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not push.'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not merge.'
+assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not deploy.'
+assert_contains "$ROOT_DIR/scripts/pr-latest-head-status" 'clean_review_does_not_apply_to_latest_head'
+assert_contains "$ROOT_DIR/scripts/pr-latest-head-status" 'latest_head_missing_checks'
+assert_contains "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh" 'stale_review'
+assert_contains "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh" 'missing-latest-checks'
+assert_contains "$ROOT_DIR/tests/fixtures/pr-maintenance/stale-review.json" '"head_sha": "old123"'
+assert_contains "$ROOT_DIR/tests/fixtures/pr-maintenance/stale-review.json" '"latest_head_sha": "new456"'
+assert_contains "$ROOT_DIR/tests/fixtures/pr-maintenance/missing-latest-checks.json" '"latest_head_sha": "zzz999"'
 assert_contains "$ROOT_DIR/workflow/skills/pr-qa.md" 'QA Plan'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" 'do not wrap it in severity/file fields'
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
