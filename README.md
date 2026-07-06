@@ -44,6 +44,13 @@ Adapters expose the same routes: Pi as `/skill:*`
 `/review`, `/verify-workflow`, `/bug-check`, `/linear-ticket-create`,
 `/linear-work`, `/pr-review`, `/pr-qa`, `/sec-pr`, `/ci-fix`).
 
+Single-PR maintenance loops are a supervised pilot contract in
+`workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
+fresh-context review, explicit cleanup, and latest-head review/check truth via
+`scripts/pr-latest-head-status`. The helper returns `clean_latest_head`,
+`stale_review`, or `needs_rerun`; it is local/read-only and does not push,
+merge, deploy, post comments, or request bot reviews.
+
 Neovim review runs through Hunk (`:ReviewInbox`, `:ReviewClaudeReview`,
 `:ReviewPiReview`), opening
 `hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg`.
@@ -72,6 +79,7 @@ node scripts/validate-adrs .
 tests/codex-organization-smoke.sh
 tests/workflow-scaffold-smoke.sh
 tests/workflow-contract-coverage-smoke.sh
+tests/pr-latest-head-status-smoke.sh
 tests/workflow-efficiency-report-smoke.sh
 tests/workflow-monitor-smoke.sh
 tests/workflow-metrics-smoke.sh
@@ -107,8 +115,10 @@ emits sanitized replay/debug context for one run; `workflow-retrospect` mines
 ledgers and plan archives for recurring issues and reports candidate
 recommendations, router fixtures, contract patches, or mechanical checks;
 `router-eval` scores Pi/Claude router decisions from `tests/router-evals/`;
-`research-proof-check` rejects unsourced research artifacts; `lean-ctx-check`
-verifies the optional lean-ctx fallback contract without installing anything.
+`research-proof-check` rejects unsourced research artifacts;
+`pr-latest-head-status` classifies PR review/check evidence against the latest
+pushed head SHA; `lean-ctx-check` verifies the optional lean-ctx fallback
+contract without installing anything.
 
 ## Config notes
 

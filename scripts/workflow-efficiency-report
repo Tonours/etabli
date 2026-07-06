@@ -39,6 +39,16 @@ line_count() {
   wc -l < "$ROOT_DIR/$1" | tr -d ' '
 }
 
+char_count() {
+  wc -c < "$ROOT_DIR/$1" | tr -d ' '
+}
+
+estimated_tokens() {
+  local chars
+  chars="$(char_count "$1")"
+  printf '%s\n' $(((chars + 3) / 4))
+}
+
 total_lines() {
   local total=0
   local path
@@ -58,11 +68,38 @@ paths_with_lines_json() {
   done | jq -Rn '[inputs | split("\t") | {path: .[0], lines: (.[1] | tonumber)}]'
 }
 
+paths_with_budget_json() {
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    [ -f "$ROOT_DIR/$path" ] || continue
+    printf '%s\t%s\t%s\t%s\n' \
+      "$path" \
+      "$(line_count "$path")" \
+      "$(char_count "$path")" \
+      "$(estimated_tokens "$path")"
+  done | jq -Rn '[inputs | split("\t") | {path: .[0], lines: (.[1] | tonumber), chars: (.[2] | tonumber), estimated_tokens: (.[3] | tonumber)}]'
+}
+
 status_line() {
   local metric="$1"
   local value="$2"
   printf '%-30s %s\n' "$metric" "$value"
 }
+
+instruction_budget_baseline_tokens=9455
+instruction_budget_target_ratio="0.25"
+instruction_budget_target_tokens=$((instruction_budget_baseline_tokens / 4))
+instruction_budget_stretch_target_ratio="0.20"
+instruction_budget_stretch_target_tokens=$((instruction_budget_baseline_tokens / 5))
+instruction_budget_paths=(
+  "codex/AGENTS.md"
+  "pi/AGENTS.md"
+  "claude/CLAUDE.md"
+  "workflow-scaffold/templates/AGENTS.md"
+  "workflow-scaffold/templates/CLAUDE.md"
+  "workflow-scaffold/templates/docs/agent-workflow.md"
+  "workflow-scaffold/templates/docs/claude-code-workflow.md"
+)
 
 shared_contract_paths=()
 while IFS= read -r path; do
@@ -182,6 +219,29 @@ duplicates_json="$(
 )"
 documented_source_surfaces_json="$(printf '%s\n' "${documented_source_surface_files[@]}" | jq -Rn '[inputs | select(length > 0)]')"
 source_conflicts_json='[]'
+instruction_budget_files_json="$(printf '%s\n' "${instruction_budget_paths[@]}" | paths_with_budget_json)"
+instruction_budget_current_tokens="$(
+  printf '%s\n' "$instruction_budget_files_json" |
+    jq 'map(.estimated_tokens) | add // 0'
+)"
+instruction_budget_current_ratio="$(
+  jq -n \
+    --argjson current "$instruction_budget_current_tokens" \
+    --argjson baseline "$instruction_budget_baseline_tokens" \
+    'if $baseline == 0 then null else ($current / $baseline) end'
+)"
+instruction_budget_within_target="$(
+  jq -n \
+    --argjson current "$instruction_budget_current_tokens" \
+    --argjson target "$instruction_budget_target_tokens" \
+    '$current <= $target'
+)"
+instruction_budget_within_stretch_target="$(
+  jq -n \
+    --argjson current "$instruction_budget_current_tokens" \
+    --argjson target "$instruction_budget_stretch_target_tokens" \
+    '$current <= $target'
+)"
 
 if [ "$JSON" -eq 1 ]; then
   jq -n \
@@ -198,6 +258,14 @@ if [ "$JSON" -eq 1 ]; then
     --argjson documented_source_surface_files "$documented_source_surfaces_json" \
     --argjson source_of_truth_conflicts "$source_of_truth_conflicts" \
     --argjson source_of_truth_conflict_files "$source_conflicts_json" \
+    --argjson instruction_budget_files "$instruction_budget_files_json" \
+    --argjson instruction_budget_baseline_tokens "$instruction_budget_baseline_tokens" \
+    --argjson instruction_budget_current_tokens "$instruction_budget_current_tokens" \
+    --argjson instruction_budget_target_tokens "$instruction_budget_target_tokens" \
+    --argjson instruction_budget_stretch_target_tokens "$instruction_budget_stretch_target_tokens" \
+    --argjson instruction_budget_current_ratio "$instruction_budget_current_ratio" \
+    --argjson instruction_budget_within_target "$instruction_budget_within_target" \
+    --argjson instruction_budget_within_stretch_target "$instruction_budget_within_stretch_target" \
     '{
       shared_contract_files: $shared_contract_files,
       shared_contract_lines: $shared_contract_lines,
@@ -211,7 +279,20 @@ if [ "$JSON" -eq 1 ]; then
       documented_source_surfaces: $documented_source_surfaces,
       documented_source_surface_files: $documented_source_surface_files,
       source_of_truth_conflicts: $source_of_truth_conflicts,
-      source_of_truth_conflict_files: $source_of_truth_conflict_files
+      source_of_truth_conflict_files: $source_of_truth_conflict_files,
+      instruction_budget: {
+        files: $instruction_budget_files,
+        baseline_tokens: $instruction_budget_baseline_tokens,
+        current_tokens: $instruction_budget_current_tokens,
+        target_tokens: $instruction_budget_target_tokens,
+        stretch_target_tokens: $instruction_budget_stretch_target_tokens,
+        target_ratio: 0.25,
+        stretch_target_ratio: 0.20,
+        current_ratio: $instruction_budget_current_ratio,
+        within_target: $instruction_budget_within_target,
+        within_stretch_target: $instruction_budget_within_stretch_target,
+        estimate: "ceil(chars / 4)"
+      }
     }'
   exit 0
 fi
@@ -226,6 +307,12 @@ status_line smoke_total_lines "$smoke_total_lines"
 status_line documented_source_surfaces "$documented_source_surfaces"
 status_line source_of_truth_conflicts "$source_of_truth_conflicts"
 status_line exact_duplicate_pairs "$exact_duplicate_pair_count"
+status_line instruction_budget_tokens "$instruction_budget_current_tokens/$instruction_budget_baseline_tokens"
+status_line instruction_budget_ratio "$instruction_budget_current_ratio"
+status_line instruction_budget_target "$instruction_budget_target_tokens"
+status_line instruction_budget_stretch "$instruction_budget_stretch_target_tokens"
+status_line instruction_budget_ok "$instruction_budget_within_target"
+status_line instruction_budget_stretch_ok "$instruction_budget_within_stretch_target"
 
 printf '\nrouter_adapter_lines\n'
 for path in "${router_paths[@]}"; do
@@ -238,6 +325,10 @@ for path in "${documented_source_surface_files[@]}"; do
 done
 
 printf '\nsource_of_truth_conflict_files\n'
+
+printf '\ninstruction_budget_files\n'
+printf '%s\n' "$instruction_budget_files_json" |
+  jq -r '.[] | "  \(.path) estimated_tokens=\(.estimated_tokens) chars=\(.chars)"'
 
 printf '\nexact_duplicate_pairs\n'
 printf '%s' "$duplicate_pairs_tsv" | while IFS=$'\t' read -r _hash path_a path_b; do

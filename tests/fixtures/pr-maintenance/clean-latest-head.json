@@ -1,0 +1,23 @@
+{
+  "pr": 101,
+  "latest_head_sha": "abc123",
+  "reviews": [
+    {
+      "source": "codex-bot",
+      "head_sha": "abc123",
+      "status": "clean"
+    }
+  ],
+  "checks": [
+    {
+      "name": "unit",
+      "head_sha": "abc123",
+      "status": "success"
+    },
+    {
+      "name": "lint",
+      "head_sha": "abc123",
+      "status": "success"
+    }
+  ]
+}

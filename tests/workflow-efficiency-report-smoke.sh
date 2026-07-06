@@ -45,6 +45,25 @@ for key in \
   printf '%s\n' "$json_output" | jq -e --arg key "$key" 'has($key)' >/dev/null
 done
 
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.baseline_tokens == 9455' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.current_tokens <= .instruction_budget.target_tokens' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.within_target == true' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.current_tokens <= .instruction_budget.stretch_target_tokens' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.within_stretch_target == true' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.files | length == 7' >/dev/null
+printf '%s\n' "$json_output" | jq -e '
+  (.instruction_budget.files | map(.path) | sort) == [
+    "claude/CLAUDE.md",
+    "codex/AGENTS.md",
+    "pi/AGENTS.md",
+    "workflow-scaffold/templates/AGENTS.md",
+    "workflow-scaffold/templates/CLAUDE.md",
+    "workflow-scaffold/templates/docs/agent-workflow.md",
+    "workflow-scaffold/templates/docs/claude-code-workflow.md"
+  ]
+' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.instruction_budget.files[] | select(.path == "codex/AGENTS.md")' >/dev/null
+
 printf '%s\n' "$json_output" | jq -e '.router_adapter_lines[] | select(.path == "claude/hooks/workflow-router-lib.mjs")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.router_adapter_lines[] | select(.path == "pi/extensions/lib/workflow-router-runtime.ts")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.smoke_suites | length > 0' >/dev/null
@@ -55,5 +74,7 @@ assert_contains "$text_output" "shared_contract_files"
 assert_contains "$text_output" "router_adapter_lines"
 assert_contains "$text_output" "exact_duplicate_pairs"
 assert_contains "$text_output" "documented_source_surfaces"
+assert_contains "$text_output" "instruction_budget_tokens"
+assert_contains "$text_output" "instruction_budget_stretch_ok"
 
 printf 'workflow efficiency report smoke test: ok\n'
