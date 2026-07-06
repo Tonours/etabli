@@ -39,6 +39,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bash tests/workflow-contract-coverage-smoke.sh
 
+      - name: pr-latest-head-status-smoke
+        if: ${{ !cancelled() }}
+        run: bash tests/pr-latest-head-status-smoke.sh
+
       - name: workflow-efficiency-report-smoke
         if: ${{ !cancelled() }}
         run: bash tests/workflow-efficiency-report-smoke.sh

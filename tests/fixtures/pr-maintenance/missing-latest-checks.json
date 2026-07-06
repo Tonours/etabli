@@ -1,0 +1,12 @@
+{
+  "pr": 104,
+  "latest_head_sha": "zzz999",
+  "reviews": [
+    {
+      "source": "codex-bot",
+      "head_sha": "old123",
+      "status": "clean"
+    }
+  ],
+  "checks": []
+}

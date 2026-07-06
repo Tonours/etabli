@@ -1,0 +1,18 @@
+{
+  "pr": 102,
+  "latest_head_sha": "new456",
+  "reviews": [
+    {
+      "source": "codex-bot",
+      "head_sha": "old123",
+      "status": "clean"
+    }
+  ],
+  "checks": [
+    {
+      "name": "unit",
+      "head_sha": "new456",
+      "status": "success"
+    }
+  ]
+}

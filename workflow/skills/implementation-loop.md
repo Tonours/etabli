@@ -43,8 +43,12 @@ details in the adapters; keep the phase order and completion evidence here.
     change; re-run the focused checks if it edited anything.
 13. Review the diff against `PLAN.md`. In an autonomous run, this review comes
     from a fresh context (subagent reviewer or cross-model) per
-    `workflow/spec.md`; without one, stop as `blocked` requesting external
-    review.
+    `workflow/spec.md`. If a read-only fresh-context runner is available and
+    the user has explicitly authorized subagents, delegation, reviewers, or
+    "all" for this run, spawn exactly one read-only reviewer, record the agent
+    id and verdict, and continue from its result instead of asking again.
+    Without a runner or explicit authorization, stop as `blocked` requesting
+    external review.
 13b. In an autonomous run, follow with the adversary Code diff mode
     (`workflow/skills/adversary.md`): cross-model, read-only, on the
     implementation diff; fold accepted findings and re-run checks.
