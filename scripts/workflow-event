@@ -10,6 +10,10 @@ ALLOWED_EVENTS=(
   file_changed
   validation_run
   validation_failed
+  dogfood_matrix_created
+  dogfood_scenario_run
+  dogfood_fix_applied
+  dogfood_blocked
   outcome_metric
   retry_classified
   no_progress
