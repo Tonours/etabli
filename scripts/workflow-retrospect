@@ -121,9 +121,13 @@ emit_observation() {
   local category key
 
   [ -n "$text" ] || return 0
-  category="$(classify_issue "$default_category" "$text")"
+  if [ "$default_category" = "harness_failure_pattern" ]; then
+    category="$default_category"
+  else
+    category="$(classify_issue "$default_category" "$text")"
+  fi
   case "$category" in
-    adversary_finding|validation_failure|plan_drift|router_miss|dogfood_blocker|runtime_capability_overclaim) ;;
+    adversary_finding|validation_failure|plan_drift|router_miss|dogfood_blocker|runtime_capability_overclaim|harness_failure_pattern) ;;
     *)
       return 0
       ;;
@@ -161,6 +165,8 @@ scan_events() {
           row("validation_failure"; ($event.detail.failure // $event.detail.command // "validation failed"))
         elif $event.event == "dogfood_blocked" then
           row("dogfood_blocker"; [$event.detail.scenario, $event.detail.reason, $event.detail.needed_input])
+        elif $event.event == "harness_failure_pattern" then
+          row("harness_failure_pattern"; [$event.detail.terminal_cause, $event.detail.causal_status, $event.detail.mechanism, $event.detail.verifier])
         elif $event.event == "no_progress" then
           row("validation_failure"; [$event.detail.check_or_hypothesis, $event.detail.command, $event.detail.eliminated])
         elif $event.event == "blocked" then
@@ -221,6 +227,7 @@ build_summary() {
         elif $category == "plan_drift" then "contract_patch"
         elif $category == "runtime_capability_overclaim" then "contract_patch"
         elif $category == "dogfood_blocker" then "recommendation"
+        elif $category == "harness_failure_pattern" then "contract_patch"
         elif $category == "adversary_finding" and $count >= 3 then "mechanical_check"
         elif $category == "adversary_finding" then "contract_patch"
         else "recommendation"
@@ -231,6 +238,7 @@ build_summary() {
         elif $category == "plan_drift" then "Patch the workflow contract or template so the drift condition is named before implementation continues."
         elif $category == "runtime_capability_overclaim" then "Patch runtime capability docs or guards so unsupported tools are labelled blocked or unknown."
         elif $category == "dogfood_blocker" then "Record a product dogfood blocker and add a verification surface before claiming pass."
+        elif $category == "harness_failure_pattern" then "Patch the self-improvement contract or checks so the weakness pattern is mined before another proposal is accepted."
         elif $category == "adversary_finding" and $action == "mechanical_check" then "Promote the repeated adversary finding into a mechanical check."
         elif $category == "adversary_finding" then "Patch the relevant contract or template so the adversary finding is checked earlier."
         else "Review the repeated workflow issue and decide whether it needs a contract patch or check."
