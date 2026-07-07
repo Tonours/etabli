@@ -39,6 +39,12 @@ Before saying a workflow source is missing, resolve sources in this order:
 Run `plan-loop` behavior when a task is provided, then follow
 `workflow/skills/implementation-loop.md`.
 
+If the task is self-improvement of Etabli itself, also read
+`workflow/skills/self-improvement-loop.md`. If the task is an ambitious or
+A-to-Z project, also read `workflow/skills/ambitious-project-loop.md`. These
+contracts add evidence and slicing requirements; they do not replace the
+`READY` gate.
+
 Rules:
 - Do not ask for confirmation once the plan is `READY`.
 - Do not create `REVIEW.md`.

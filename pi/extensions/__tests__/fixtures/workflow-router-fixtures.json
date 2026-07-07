@@ -109,6 +109,54 @@
     "stopCondition": "READY plan implemented, verified/reviewed, archived, and root PLAN.md deleted; or CHALLENGED/blocked with evidence"
   },
   {
+    "name": "self-improvement request routes through plan implement",
+    "prompt": "Améliore le workflow Etabli à partir des findings récurrents",
+    "route": "plan-implement",
+    "mustNotRoute": "answer",
+    "writeAllowed": true,
+    "stopCondition": "validated archive written and root PLAN.md deleted; or explicit no-op/blocker with evidence"
+  },
+  {
+    "name": "self-improvement evidence request routes through plan implement",
+    "prompt": "Improve the Etabli workflow from run evidence and recurring failures",
+    "route": "plan-implement",
+    "mustNotRoute": "verify",
+    "writeAllowed": true,
+    "stopCondition": "validated archive written and root PLAN.md deleted; or explicit no-op/blocker with evidence"
+  },
+  {
+    "name": "self-improvement proof request routes through plan implement",
+    "prompt": "Améliore le workflow Etabli à partir de la preuve de run et des failures récurrents",
+    "route": "plan-implement",
+    "mustNotRoute": "verify",
+    "writeAllowed": true,
+    "stopCondition": "validated archive written and root PLAN.md deleted; or explicit no-op/blocker with evidence"
+  },
+  {
+    "name": "ambitious project request routes through plan implement",
+    "prompt": "Réalise ce projet ambitieux de a à z",
+    "route": "plan-implement",
+    "mustNotRoute": "answer",
+    "writeAllowed": true,
+    "stopCondition": "validated archive and handoff, or blocked with exact missing decision/evidence"
+  },
+  {
+    "name": "read-only self-improvement explanation stays answer",
+    "prompt": "Explique le self-improvement loop",
+    "route": "answer",
+    "mustNotRoute": "plan-implement",
+    "writeAllowed": false,
+    "stopCondition": "answer delivered"
+  },
+  {
+    "name": "explicit self-improvement review stays review",
+    "prompt": "Fais une review du self-improvement loop",
+    "route": "review",
+    "mustNotRoute": "plan-implement",
+    "writeAllowed": false,
+    "stopCondition": "GO, GO WITH NOTES, or BLOCK"
+  },
+  {
     "name": "broad fix routes through plan implement",
     "prompt": "Corrige tout y compris les warnings",
     "route": "plan-implement",

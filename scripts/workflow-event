@@ -14,6 +14,12 @@ ALLOWED_EVENTS=(
   dogfood_scenario_run
   dogfood_fix_applied
   dogfood_blocked
+  self_improvement_candidate
+  harness_failure_pattern
+  harness_proposal
+  harness_candidate_rejected
+  project_slice_planned
+  project_slice_completed
   outcome_metric
   retry_classified
   no_progress

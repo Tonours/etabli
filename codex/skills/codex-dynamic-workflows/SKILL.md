@@ -19,6 +19,10 @@ Use dynamic orchestration when at least two are true:
 - Verification benefits from a separate pass from implementation.
 - The workflow could become a reusable recipe for future tasks.
 - The user explicitly asks for a dynamic workflow, swarm, subagents, parallel agents, or Claude Code-style workflow.
+- The user asks for an ambitious A-to-Z project; use the local shared contract
+  `workflow/skills/ambitious-project-loop.md` when it exists.
+- The user asks Etabli to improve itself from workflow evidence; use
+  `workflow/skills/self-improvement-loop.md` when it exists.
 
 If the task is small, do it directly and mention that full workflow orchestration was unnecessary.
 

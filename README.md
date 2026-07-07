@@ -35,6 +35,19 @@ Canonical contract: `workflow/spec.md` — routing table, statuses, autonomous
 loop rules, and the full command list live there, not here. `PLAN.md` is the
 only execution artifact; implement only from `Status: READY`.
 
+Self-improvement runs use `workflow/skills/self-improvement-loop.md`: local
+evidence such as ledgers, plan archives, validation failures, router misses,
+and review/adversary findings becomes a no-op, recommendation, router fixture,
+contract patch, or mechanical check. Ambitious project runs use
+`workflow/skills/ambitious-project-loop.md` to move from rough intent through
+spec, decisions, slices, implementation, review, validation, handoff, and
+retrospective learning without implying push, PR, deploy, or external
+write-back consent.
+
+Self-improvement candidates use harness-style evidence: weakness patterns,
+bounded proposals, held-in and held-out validation, and rejected-candidate logs
+stay in the local ledger before any workflow contract change is accepted.
+
 Adapters expose the same routes: Pi as `/skill:*`
 (`/skill:plan-loop`, `/skill:plan-implement`, `/skill:adversary`,
 `/skill:implement`, `/skill:review`, `/skill:verify`, `/skill:bug-check`,

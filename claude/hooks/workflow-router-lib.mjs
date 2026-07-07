@@ -5,10 +5,11 @@ export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 
 const REVIEW_TERMS = "review(?:er|ing)?|revue|relis|audit|critique|findings?";
 const REVIEW_PATTERN = new RegExp(`\\b(${REVIEW_TERMS})\\b`, "i");
+const EXPLICIT_REVIEW_PATTERN = /\b(review(?:er|ing)?|revue|relis|audit|critique)\b/i;
 const ADVERSARY_PATTERN = /\b(adversary|adversarial|contre[- ]?review|contre[- ]?revue|cross[- ]?model|plan hardening|hardens? le plan|durcis le plan)\b/i;
 const ADVERSARY_PLAN_CONTEXT_PATTERN = /\b(plan\.md|plan|plan hardening|hardens? le plan|durcis le plan)\b/i;
 const READ_ONLY_REVIEW_OVERRIDE_PATTERN = /\b(read[- ]?only|lecture seule|sans modifier|sans [eé]diter|do not edit|do not modify|ne modifie pas|n['’]?edite pas|n['’]?édite pas)\b/i;
-const VERIFY_PATTERN = /\b(verify|v[eé]rifie|prouve|preuve|retest|relance les tests|completion audit|evidence)\b/i;
+const VERIFY_PATTERN = /\b(verify|v[eé]rifie|prouve|retest|relance les tests|completion audit)\b/i;
 const PLAN_PATTERN = /\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/i;
 const SPEC_GUIDE_PATTERN = /(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
 const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
@@ -16,6 +17,8 @@ const SPEC_CREATE_VERB_PATTERN = /(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|
 const IMPLEMENT_PATTERN = /\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/i;
 const READY_PLAN_PATTERN = /\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/i;
 const AUTONOMOUS_PLAN_LOOP_PATTERN = /\b(plan-loop|plan loop|plan puis impl[eé]mente|plan[- ]?implement|jusqu[' ]?au bout|jusqu[' ]?[aà] la fin|en autonomie|tout seul|encha[iî]ne|encha[iî]ner|continue jusqu)\b/i;
+const SELF_IMPROVEMENT_PATTERN = /\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospective\s+(?:loop|findings)|recurring\s+(?:findings|failures|issues))\b/i;
+const AMBITIOUS_PROJECT_PATTERN = /\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/i;
 const RESEARCH_PATTERN = /\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/i;
 const OPS_STOP_PATTERN = /(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
@@ -211,6 +214,32 @@ export function classifyWorkflowRoute(prompt, context = {}) {
     };
   }
 
+  if (SELF_IMPROVEMENT_PATTERN.test(prompt) && !(READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed) || EXPLICIT_REVIEW_PATTERN.test(prompt))) {
+    if (planStatus === "ready") {
+      return {
+        route: "implement",
+        reason: "self-improvement request with READY plan",
+        command: "/implement",
+        artifact: "workflow contract/router/check changes plus implemented plan archive",
+        stopCondition: "validated archive written and root PLAN.md deleted",
+        requiredEvidence: "self-improvement evidence sources, accepted/rejected candidates, focused checks, review evidence, docs/plan archive, and root PLAN.md deletion",
+        writeAllowed: true,
+        planChain: buildAutonomousPlanChain(planStatus),
+      };
+    }
+
+    return {
+      route: "plan-implement",
+      reason: "self-improvement request from workflow evidence",
+      command: "/plan-implement",
+      artifact: "PLAN.md plus reviewed workflow contract/router/check changes",
+      stopCondition: "validated archive written and root PLAN.md deleted; or explicit no-op/blocker with evidence",
+      requiredEvidence: "inspectable evidence sources, accepted/rejected candidates, focused validation, review evidence, archive, and root PLAN.md deletion",
+      writeAllowed: true,
+      planChain: buildAutonomousPlanChain(planStatus),
+    };
+  }
+
   if (REVIEW_PATTERN.test(prompt)) {
     return {
       route: "review",
@@ -237,6 +266,32 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 
   if ((READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) && !IMPLEMENT_PATTERN.test(prompt)) {
     return answerDecision("read-only, question, or summary request", "None", "answer delivered", "None");
+  }
+
+  if (AMBITIOUS_PROJECT_PATTERN.test(prompt)) {
+    if (planStatus === "ready") {
+      return {
+        route: "implement",
+        reason: "ambitious project request with READY plan",
+        command: "/implement",
+        artifact: "project slices, code/docs/workflow artifacts, validation, and implemented plan archive",
+        stopCondition: "validated archive and handoff; root PLAN.md deleted after archive",
+        requiredEvidence: "actual READY plan, slice validation, review/dogfood evidence when relevant, archive, and handoff",
+        writeAllowed: true,
+        planChain: buildAutonomousPlanChain(planStatus),
+      };
+    }
+
+    return {
+      route: "plan-implement",
+      reason: "ambitious end-to-end project request",
+      command: "/plan-implement",
+      artifact: "PLAN.md, project lifecycle artifacts, slices, code/docs changes, validation, and handoff",
+      stopCondition: "validated archive and handoff, or blocked with exact missing decision/evidence",
+      requiredEvidence: "goal/spec/slice contract, focused validation, product dogfood evidence when relevant, review evidence, event ledger, archive, and handoff",
+      writeAllowed: true,
+      planChain: buildAutonomousPlanChain(planStatus),
+    };
   }
 
   if (planStatus === "ready" && (READY_PLAN_PATTERN.test(prompt) || IMPLEMENT_PATTERN.test(prompt))) {

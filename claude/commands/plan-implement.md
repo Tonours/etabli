@@ -42,6 +42,12 @@ Before saying a workflow source is missing, resolve sources in this order:
 Run `plan-loop` behavior when `$ARGUMENTS` is present, then follow
 `workflow/skills/implementation-loop.md`.
 
+If `$ARGUMENTS` is self-improvement of Etabli itself, also read
+`workflow/skills/self-improvement-loop.md`. If it is an ambitious or A-to-Z
+project, also read `workflow/skills/ambitious-project-loop.md`. These contracts
+add evidence and slicing requirements; they do not replace the `READY` gate or
+authorize push, PR, deploy, release, or external write-back.
+
 ## Autonomous chain
 
 This command is the full-auto workflow. Run every phase in one uninterrupted
