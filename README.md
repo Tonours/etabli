@@ -25,7 +25,7 @@ cd etabli
 - `claude/` - Claude Code commands, hooks, skills (`claude/README.md`)
 - `workflow/` - canonical workflow contract (`workflow/spec.md`)
 - `docs/adr/` - Architecture Decision Records (`node scripts/validate-adrs .`)
-- `docs/plan/` - implemented plan archives
+- `docs/plan/` - implemented plan archives (`docs/plan/README.md`)
 - `scripts/` - installer, deploy, and maintenance scripts
 - `tests/` - smoke tests
 
