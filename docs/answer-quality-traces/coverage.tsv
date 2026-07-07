@@ -1,0 +1,8 @@
+category	status	trace	note
+audit-handoff	covered	20260707-answer-quality-audit-handoff.md	Validated concise implementation handoff with audit evidence.
+coverage-gap	covered	20260707-answer-quality-coverage-gap.md	Validated honest non-pass coverage-gap reporting.
+source-backed-cross-project-handoff	covered	20260707-cross-project-research-grounding-handoff.md	Validated source-backed Etabli plus obvault handoff.
+direct-repo-explanation	covered	20260707-etabli-obvault-functioning-explanation.md	Validated a direct explanation of how Etabli, obvault, and answer quality work together.
+obvault-backed-memory-answer	covered	20260707-obvault-backed-memory-answer.md	Validated an answer that queries obvault entrypoints as durable memory.
+blocked-or-inconclusive-answer	covered	20260707-goal-completion-not-verified.md	Validated an answer that kept the broad goal open because completion evidence was insufficient.
+large-diff-implementation-handoff	covered	20260707-large-diff-implementation-handoff.md	Validated a concise handoff after substantial Etabli plus obvault workflow changes.

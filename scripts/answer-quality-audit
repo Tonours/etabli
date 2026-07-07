@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+obvault_dir=""
+skip_obvault=0
+
+usage() {
+  cat <<EOF
+Usage: answer-quality-audit [--skip-obvault | --obvault path]
+
+Run the local answer-quality validation suite.
+
+Options:
+  --skip-obvault   Run only Etabli-local checks.
+  --obvault path   Also validate the obvault answer-quality note and KB hygiene.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --skip-obvault)
+      skip_obvault=1
+      shift
+      ;;
+    --obvault)
+      [ "$#" -ge 2 ] || {
+        usage >&2
+        exit 2
+      }
+      obvault_dir="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ "$skip_obvault" -eq 1 ] && [ -n "$obvault_dir" ]; then
+  printf 'use either --skip-obvault or --obvault, not both\n' >&2
+  exit 2
+fi
+
+run() {
+  printf '==> %s\n' "$*"
+  "$@"
+}
+
+run_in() {
+  local dir="$1"
+  shift
+  printf '==> (cd %s && %s)\n' "$dir" "$*"
+  (cd "$dir" && "$@")
+}
+
+run_shell_in() {
+  local dir="$1"
+  local command="$2"
+  printf '==> (cd %s && %s)\n' "$dir" "$command"
+  (cd "$dir" && bash -c "$command")
+}
+
+run bash -n \
+  "$ROOT_DIR/scripts/answer-quality-check" \
+  "$ROOT_DIR/scripts/answer-quality-eval" \
+  "$ROOT_DIR/scripts/answer-quality-trace-coverage" \
+  "$ROOT_DIR/scripts/answer-quality-trace-eval" \
+  "$ROOT_DIR/tests/answer-quality-check-smoke.sh" \
+  "$ROOT_DIR/tests/answer-quality-eval-smoke.sh" \
+  "$ROOT_DIR/tests/answer-quality-trace-coverage-smoke.sh" \
+  "$ROOT_DIR/tests/answer-quality-trace-eval-smoke.sh"
+
+run "$ROOT_DIR/scripts/answer-quality-eval" \
+  "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
+run bash "$ROOT_DIR/tests/answer-quality-check-smoke.sh"
+run bash "$ROOT_DIR/tests/answer-quality-eval-smoke.sh"
+run bash "$ROOT_DIR/tests/answer-quality-trace-coverage-smoke.sh"
+run bash "$ROOT_DIR/tests/answer-quality-trace-eval-smoke.sh"
+run bash "$ROOT_DIR/tests/workflow-docs-smoke.sh"
+run "$ROOT_DIR/scripts/answer-quality-trace-coverage" \
+  "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv"
+run "$ROOT_DIR/scripts/answer-quality-trace-eval" "$ROOT_DIR/docs/answer-quality-traces"
+
+run "$ROOT_DIR/scripts/research-proof-check" "$ROOT_DIR/workflow/answer-quality.md"
+run "$ROOT_DIR/scripts/research-proof-check" "$ROOT_DIR/docs/source-grounded-answer-quality-research.md"
+run "$ROOT_DIR/scripts/research-proof-check" "$ROOT_DIR/docs/cross-project-research-grounding.md"
+run "$ROOT_DIR/scripts/research-proof-check" "$ROOT_DIR/docs/answer-quality-eval-cases.md"
+
+run "$ROOT_DIR/scripts/answer-quality-check" --mode research "$ROOT_DIR/workflow/answer-quality.md"
+run "$ROOT_DIR/scripts/answer-quality-check" --mode research "$ROOT_DIR/docs/source-grounded-answer-quality-research.md"
+run "$ROOT_DIR/scripts/answer-quality-check" --mode research "$ROOT_DIR/docs/cross-project-research-grounding.md"
+run "$ROOT_DIR/scripts/answer-quality-check" --mode research "$ROOT_DIR/docs/answer-quality-eval-cases.md"
+
+if [ "$skip_obvault" -eq 0 ]; then
+  if [ -z "$obvault_dir" ]; then
+    printf 'obvault path required unless --skip-obvault is set\n' >&2
+    exit 2
+  fi
+
+  if [ ! -d "$obvault_dir" ]; then
+    printf 'obvault directory not found: %s\n' "$obvault_dir" >&2
+    exit 1
+  fi
+
+  run_shell_in "$obvault_dir" 'bash -n _meta/*.sh'
+  run_in "$obvault_dir" _meta/validate-kb.sh
+  run_in "$obvault_dir" _meta/refresh-kb.sh query "answer quality"
+  run "$ROOT_DIR/scripts/answer-quality-check" --mode obvault \
+    "$obvault_dir/kb/source-grounded-answer-quality.md"
+fi
+
+printf 'answer quality audit: ok\n'

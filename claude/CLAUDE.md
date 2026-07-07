@@ -14,6 +14,10 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 - `/goal` only for measurable long loops with validation evidence and a cap.
 - Use root `PLAN.md` only; implement only from `Status: READY`.
 - After validation, archive to `docs/plan/YYYYMMDD-short-slug.md`, then delete root `PLAN.md`.
+- Answers/handoffs follow `workflow/answer-quality.md`; durable artifacts can
+  use `scripts/answer-quality-check`.
+- Final answers apply the live gate in `workflow/answer-quality.md`: answer the
+  newest request, name unverified gaps, and do not promise a perfect score.
 - Use `/verify-workflow` for workflow evidence; do not shadow native `/verify`.
 - Orchestration parity: `workflow/skills/orchestration.md`; Pi Task* state is
   Pi-only unless equivalent runtime capability is exposed.
