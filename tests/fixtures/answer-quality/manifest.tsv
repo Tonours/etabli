@@ -1,0 +1,11 @@
+# id	mode	expected	category	file	description
+research-good	research	pass	typical	research-good.md	research answer with URL source and verified label
+research-web-claim-no-url	research	fail	adversarial	research-web-claim-no-url.md	web-search claim without URL source must fail
+repo-good	repo	pass	typical	repo-good.md	repo answer with local file and command evidence
+repo-memory-only	repo	fail	adversarial	repo-memory-only.md	repo answer from memory lacks local evidence
+handoff-good	handoff	pass	typical	handoff-good.md	handoff includes validation and remaining risk
+handoff-no-risk	handoff	fail	edge	handoff-no-risk.md	handoff with checks but no risk or uncertainty marker
+obvault-good	obvault	pass	typical	obvault-good.md	obvault answer uses wikilink entrypoints and status
+obvault-no-entrypoint	obvault	fail	adversarial	obvault-no-entrypoint.md	obvault answer lacks query entrypoint or validator
+general-simple	general	pass	edge	general-simple.md	simple stable answer should not require source markers
+general-overclaim	general	fail	adversarial	general-overclaim.md	unsupported perfection overclaim must fail

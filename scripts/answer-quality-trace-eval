@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: answer-quality-trace-eval <trace-dir>
+
+Validate saved answer-quality trace reviews.
+
+Each Markdown trace must include:
+  Status: verified|approximate|inconclusive|blocked|not verified
+  Verdict: pass|needs-work|blocked
+  ## User Request
+  ## Answer Under Review
+  ## Evidence
+  ## Validation
+  ## Quality Verdict
+  ## Gaps / Follow-up
+EOF
+}
+
+trace_dir="${1:-}"
+
+case "$trace_dir" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [ -z "$trace_dir" ]; then
+  usage >&2
+  exit 2
+fi
+
+if [ ! -d "$trace_dir" ]; then
+  printf 'trace directory not found: %s\n' "$trace_dir" >&2
+  exit 1
+fi
+
+failures=0
+count=0
+
+check_file() {
+  local file="$1"
+  local missing=0
+
+  count=$((count + 1))
+
+  require() {
+    local pattern="$1"
+    local message="$2"
+    if ! grep -Eiq -- "$pattern" "$file"; then
+      printf '%s: %s\n' "$file" "$message" >&2
+      missing=1
+    fi
+  }
+
+  require '^Status:[[:space:]]*(verified|approximate|inconclusive|blocked|not verified)\b' \
+    'missing supported Status label'
+  require '^Verdict:[[:space:]]*(pass|needs-work|blocked)\b' \
+    'missing supported Verdict label'
+  require '^## User Request[[:space:]]*$' 'missing User Request section'
+  require '^## Answer Under Review[[:space:]]*$' 'missing Answer Under Review section'
+  require '^## Evidence[[:space:]]*$' 'missing Evidence section'
+  require '^## Validation[[:space:]]*$' 'missing Validation section'
+  require '^## Quality Verdict[[:space:]]*$' 'missing Quality Verdict section'
+  require '^## Gaps / Follow-up[[:space:]]*$' 'missing Gaps / Follow-up section'
+  require '(https?://|/Volumes/|/Users/|~/|[[:alnum:]_.@/-]+:[0-9]+|command:)' \
+    'missing source, path, or command evidence'
+
+  if grep -Eiq '\b(guaranteed|guarantee|garanti(e|s)?|garantit)\b.{0,40}\b(10/10|perfect|parfait|correct)\b|\b(objectively perfect|always correct|toujours correct|r[eé]ponse parfaite garantie)\b' "$file"; then
+    printf '%s: contains unsupported perfection or correctness overclaim\n' "$file" >&2
+    missing=1
+  fi
+
+  if [ "$missing" -ne 0 ]; then
+    failures=$((failures + 1))
+  fi
+}
+
+while IFS= read -r file; do
+  case "$(basename "$file")" in
+    README.md) continue ;;
+  esac
+  check_file "$file"
+done < <(find "$trace_dir" -type f -name '*.md' | sort)
+
+if [ "$count" -eq 0 ]; then
+  printf 'no trace files found in %s\n' "$trace_dir" >&2
+  exit 1
+fi
+
+if [ "$failures" -gt 0 ]; then
+  printf 'answer quality trace eval: %s/%s trace files failed\n' "$failures" "$count" >&2
+  exit 1
+fi
+
+printf 'answer quality trace eval: %s trace files ok\n' "$count"

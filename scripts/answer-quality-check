@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: answer-quality-check [--mode general|research|handoff|repo|obvault] <markdown-file>
+
+Validate objective markers from workflow/answer-quality.md.
+
+This is a quality floor. It rejects missing evidence markers and obvious
+overclaims; it does not score an answer as objectively 10/10.
+EOF
+}
+
+mode="general"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --mode)
+      [ "$#" -ge 2 ] || {
+        usage >&2
+        exit 2
+      }
+      mode="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+file="${1:-}"
+
+case "$mode" in
+  general|research|handoff|repo|obvault) ;;
+  *)
+    printf 'unknown mode: %s\n' "$mode" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+if [ -z "$file" ]; then
+  usage >&2
+  exit 2
+fi
+
+if [ ! -f "$file" ]; then
+  printf 'answer artifact not found: %s\n' "$file" >&2
+  exit 1
+fi
+
+fail() {
+  printf 'answer quality check failed for %s: %s\n' "$file" "$1" >&2
+  exit 1
+}
+
+has() {
+  grep -Eiq -- "$1" "$file"
+}
+
+if has '\b(guaranteed|guarantee|garanti(e|s)?|garantit)\b.{0,40}\b(10/10|perfect|parfait|correct)\b|\b(objectively perfect|always correct|toujours correct|r[eé]ponse parfaite garantie)\b'; then
+  fail 'contains unsupported perfection or correctness overclaim'
+fi
+
+if has '\b(i searched|searched the web|j.?ai cherch[eé]|recherche web effectu[eé]e)\b' &&
+  ! has 'https?://'; then
+  fail 'claims web research but has no URL source'
+fi
+
+evidence_pattern='(https?://|Sources?:|Evidence:|Validation|Validated|Checks?:|command:|/Volumes/|/Users/|~/|[[:alnum:]_.@/-]+:[0-9]+)'
+status_pattern='\b(verified|stale|inconclusive|assumption|blocked|not verified|confirmed|approximate|proxy[-_ ]supported|unknown|accepted|validated|passed|failed)\b'
+validation_pattern='(Validation|Validated|Checks?:|command:|last run:|result:)'
+risk_pattern='(Remaining risks?|Risks?|not verified|inconclusive|blocked|unknown|stale|Parking lot)'
+local_pattern='(/Volumes/|/Users/|~/|command:|Validation|Checks?:|[[:alnum:]_.@/-]+:[0-9]+)'
+obvault_pattern='(kb/_index\.md|ref/second-brain-operating-model\.md|CLAUDE\.md|_meta/validate-kb\.sh|validate-kb|\[\[(second-brain-operating-model|_index)\]\])'
+
+case "$mode" in
+  general)
+    ;;
+  research)
+    has "$evidence_pattern" || fail 'missing explicit source evidence'
+    has "$status_pattern" || fail 'missing confidence or uncertainty label'
+    ;;
+  handoff)
+    has "$validation_pattern" || fail 'missing validation or check evidence'
+    has "$risk_pattern" || fail 'missing remaining-risk or uncertainty marker'
+    ;;
+  repo)
+    has "$local_pattern" || fail 'missing local path, command, or validation evidence'
+    has "$status_pattern" || fail 'missing confidence or uncertainty label'
+    ;;
+  obvault)
+    has "$obvault_pattern" || fail 'missing obvault entrypoint or validator reference'
+    has "$status_pattern" || fail 'missing confidence or uncertainty label'
+    ;;
+esac
+
+printf 'answer quality check: ok\n'
