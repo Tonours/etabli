@@ -11,6 +11,10 @@
 - Smallest route with evidence: understand -> plan small -> implement -> prove.
 - One artifact: root `PLAN.md`; implement only from `Status: READY`;
   archive implemented/validated plans in `docs/plan/`.
+- Answers/handoffs follow `workflow/answer-quality.md`; durable artifacts can
+  use `scripts/answer-quality-check`.
+- Final answers apply the live gate in `workflow/answer-quality.md`: answer the
+  newest request, name unverified gaps, and do not promise a perfect score.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
 - Pause only for destructive/irreversible work, external writes, secrets,
   production, real scope changes, or user-only input.

@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+
+usage() {
+  cat <<EOF
+Usage: answer-quality-eval [manifest.tsv]
+
+Run versioned answer-quality fixtures through scripts/answer-quality-check.
+
+Manifest columns:
+  id<TAB>mode<TAB>expected<TAB>category<TAB>file<TAB>description
+
+expected must be pass or fail.
+EOF
+}
+
+manifest="${1:-$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv}"
+
+case "$manifest" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [ ! -f "$manifest" ]; then
+  printf 'answer quality eval manifest not found: %s\n' "$manifest" >&2
+  exit 1
+fi
+
+manifest_dir="$(cd "$(dirname "$manifest")" >/dev/null 2>&1 && pwd)"
+check="$ROOT_DIR/scripts/answer-quality-check"
+
+if [ ! -x "$check" ]; then
+  printf 'answer quality check helper is not executable: %s\n' "$check" >&2
+  exit 1
+fi
+
+total=0
+matched=0
+failed=0
+
+while IFS=$'\t' read -r id mode expected category file description || [ -n "${id:-}" ]; do
+  case "${id:-}" in
+    ''|'#'*) continue ;;
+  esac
+
+  total=$((total + 1))
+
+  case "$expected" in
+    pass|fail) ;;
+    *)
+      printf 'case %s has invalid expected value: %s\n' "$id" "$expected" >&2
+      failed=$((failed + 1))
+      continue
+      ;;
+  esac
+
+  case "$mode" in
+    general|research|handoff|repo|obvault) ;;
+    *)
+      printf 'case %s has invalid mode: %s\n' "$id" "$mode" >&2
+      failed=$((failed + 1))
+      continue
+      ;;
+  esac
+
+  case "$category" in
+    typical|edge|adversarial) ;;
+    *)
+      printf 'case %s has invalid category: %s\n' "$id" "$category" >&2
+      failed=$((failed + 1))
+      continue
+      ;;
+  esac
+
+  artifact="$manifest_dir/$file"
+  if [ ! -f "$artifact" ]; then
+    printf 'case %s missing artifact: %s\n' "$id" "$artifact" >&2
+    failed=$((failed + 1))
+    continue
+  fi
+
+  if "$check" --mode "$mode" "$artifact" >/dev/null 2>&1; then
+    actual="pass"
+  else
+    actual="fail"
+  fi
+
+  if [ "$actual" = "$expected" ]; then
+    matched=$((matched + 1))
+  else
+    failed=$((failed + 1))
+    printf 'case %s expected %s but got %s (%s: %s)\n' \
+      "$id" "$expected" "$actual" "$category" "$description" >&2
+  fi
+done < "$manifest"
+
+if [ "$total" -eq 0 ]; then
+  printf 'answer quality eval manifest has no cases: %s\n' "$manifest" >&2
+  exit 1
+fi
+
+if [ "$failed" -gt 0 ]; then
+  printf 'answer quality eval: %s/%s matched, %s failed\n' "$matched" "$total" "$failed" >&2
+  exit 1
+fi
+
+printf 'answer quality eval: %s/%s cases matched expectations\n' "$matched" "$total"

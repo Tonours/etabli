@@ -69,6 +69,19 @@ Only `READY` authorizes implementation.
 - Source-backed research artifacts must include source evidence and confidence
   labels; validate them with `scripts/research-proof-check` when they are
   written to the repo.
+- Answers and handoffs follow `workflow/answer-quality.md`: use the smallest
+  evidence-backed response that satisfies the user's goal, labels uncertainty,
+  and avoids unsupported claims.
+- Durable answer, handoff, research, and obvault-backed artifacts can be checked
+  with `scripts/answer-quality-check`; it is a quality floor, not a subjective
+  10/10 scorer.
+- Answer-quality helper behavior is pinned by
+  `scripts/answer-quality-eval` and the versioned fixtures under
+  `tests/fixtures/answer-quality/`.
+- Run `scripts/answer-quality-audit --obvault <path>` when a handoff needs one
+  command proving the Etabli answer-quality contract and obvault note hygiene.
+- Saved answer and handoff reviews live under `docs/answer-quality-traces/` and
+  are validated with `scripts/answer-quality-trace-eval`.
 - Record route, role, stop condition, and required evidence in non-trivial plans.
 - Planning review updates `PLAN.md` in place.
 - Implementation-bound plans run an adversary pass before implementation.
@@ -238,6 +251,11 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
+- Answer quality contract: `workflow/answer-quality.md`
+- Answer quality helper: `scripts/answer-quality-check`
+- Answer quality eval: `scripts/answer-quality-eval`
+- Answer quality audit: `scripts/answer-quality-audit`
+- Answer quality trace eval: `scripts/answer-quality-trace-eval`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`

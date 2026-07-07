@@ -100,6 +100,11 @@ tests/workflow-dossier-smoke.sh
 tests/workflow-retrospect-smoke.sh
 tests/router-eval-smoke.sh
 tests/research-proof-check-smoke.sh
+tests/answer-quality-check-smoke.sh
+tests/answer-quality-eval-smoke.sh
+tests/answer-quality-audit-smoke.sh
+tests/answer-quality-trace-coverage-smoke.sh
+tests/answer-quality-trace-eval-smoke.sh
 tests/lean-ctx-check-smoke.sh
 tests/workflow-docs-smoke.sh
 tests/claude-hooks-smoke.sh
@@ -129,6 +134,19 @@ ledgers and plan archives for recurring issues and reports candidate
 recommendations, router fixtures, contract patches, or mechanical checks;
 `router-eval` scores Pi/Claude router decisions from `tests/router-evals/`;
 `research-proof-check` rejects unsourced research artifacts;
+`answer-quality-check` validates objective evidence markers for durable
+answer, research, handoff, repo, and obvault-backed artifacts;
+`answer-quality-eval` runs versioned typical, edge, and adversarial fixtures
+from `tests/fixtures/answer-quality/`;
+`answer-quality-audit` runs the full local answer-quality suite and can include
+obvault with `--obvault <path>`;
+`answer-quality-trace-coverage` validates the saved trace coverage matrix and
+keeps uncovered response categories visible as `needs-work`;
+`answer-quality-trace-eval` validates saved answer/handoff reviews under
+`docs/answer-quality-traces/`;
+`docs/cross-project-research-grounding.md` maps Etabli and obvault to the
+external sources that justify the current workflow, memory, retrieval, and eval
+shape;
 `pr-latest-head-status` classifies PR review/check evidence against the latest
 pushed head SHA; `lean-ctx-check` verifies the optional lean-ctx fallback
 contract without installing anything.

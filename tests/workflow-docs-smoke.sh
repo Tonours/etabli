@@ -52,6 +52,31 @@ assert_same_file() {
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/workflow/plan-archive.md"
+assert_file "$ROOT_DIR/workflow/answer-quality.md"
+assert_file "$ROOT_DIR/docs/source-grounded-answer-quality-research.md"
+assert_file "$ROOT_DIR/docs/cross-project-research-grounding.md"
+assert_file "$ROOT_DIR/docs/answer-quality-eval-cases.md"
+assert_file "$ROOT_DIR/docs/answer-quality-goal-completion-audit.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/README.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-audit-handoff.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-coverage-gap.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-goal-completion-not-verified.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-obvault-backed-memory-answer.md"
+assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-large-diff-implementation-handoff.md"
+assert_file "$ROOT_DIR/scripts/answer-quality-check"
+assert_file "$ROOT_DIR/scripts/answer-quality-eval"
+assert_file "$ROOT_DIR/scripts/answer-quality-audit"
+assert_file "$ROOT_DIR/scripts/answer-quality-trace-coverage"
+assert_file "$ROOT_DIR/scripts/answer-quality-trace-eval"
+assert_file "$ROOT_DIR/tests/answer-quality-check-smoke.sh"
+assert_file "$ROOT_DIR/tests/answer-quality-eval-smoke.sh"
+assert_file "$ROOT_DIR/tests/answer-quality-audit-smoke.sh"
+assert_file "$ROOT_DIR/tests/answer-quality-trace-coverage-smoke.sh"
+assert_file "$ROOT_DIR/tests/answer-quality-trace-eval-smoke.sh"
+assert_file "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
 assert_file "$ROOT_DIR/docs/plan/README.md"
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/workflow/runtime-capabilities.json"
@@ -163,8 +188,49 @@ assert_contains "$ROOT_DIR/README.md" 'tokens per successful outcome'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/self-improvement-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'research-proof-check'
+assert_contains "$ROOT_DIR/README.md" 'answer-quality-check'
+assert_contains "$ROOT_DIR/README.md" 'answer-quality-eval'
+assert_contains "$ROOT_DIR/README.md" 'answer-quality-audit'
+assert_contains "$ROOT_DIR/README.md" 'answer-quality-trace-coverage'
+assert_contains "$ROOT_DIR/README.md" 'answer-quality-trace-eval'
+assert_contains "$ROOT_DIR/README.md" 'docs/cross-project-research-grounding.md'
 assert_contains "$ROOT_DIR/README.md" 'pr-latest-head-status'
 assert_contains "$ROOT_DIR/README.md" 'lean-ctx-check'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-check'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-audit'
+assert_contains "$ROOT_DIR/README.md" 'tests/answer-quality-trace-coverage-smoke.sh'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-trace-eval'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-check'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-eval'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-audit'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-trace-coverage'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-trace-eval'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Live Final Answer Gate'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'avoid promising a perfect numeric score'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'quality floor'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'obvault-backed-memory-answer'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'obvault-backed-memory-answer	covered'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'large-diff-implementation-handoff	covered'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'direct-repo-explanation	covered'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'blocked-or-inconclusive-answer	covered'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-coverage-gap.md" 'Verdict: needs-work'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-coverage-gap.md" 'Category: coverage-gap'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md" 'Verdict: pass'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md" 'Category: source-backed-cross-project-handoff'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Verdict: pass'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Category: direct-repo-explanation'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-goal-completion-not-verified.md" 'Verdict: pass'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-goal-completion-not-verified.md" 'Category: blocked-or-inconclusive-answer'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-obvault-backed-memory-answer.md" 'Verdict: pass'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-obvault-backed-memory-answer.md" 'Category: obvault-backed-memory-answer'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-large-diff-implementation-handoff.md" 'Verdict: pass'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-large-diff-implementation-handoff.md" 'Category: large-diff-implementation-handoff'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Category: <category>'
+assert_contains "$ROOT_DIR/tests/answer-quality-check-smoke.sh" 'bad-overclaim'
+assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'adversarial'
+assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'general-simple'
 assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
 assert_contains "$ROOT_DIR/README.md" 'syncs only managed Pi package'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
@@ -201,10 +267,16 @@ assert_contains "$ROOT_DIR/README.md" 'does not install `nvm`'
 assert_contains "$ROOT_DIR/README.md" 'ambiently. Users can write ordinary prompts'
 assert_contains "$ROOT_DIR/README.md" 'corrige le bug et valide'
 assert_contains "$ROOT_DIR/AGENTS.md" 'Ambient activation'
+assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/answer-quality.md'
+assert_contains "$ROOT_DIR/AGENTS.md" 'Final answers: apply the live gate'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'Architecture Decision Records'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'docs/adr/'
 assert_contains "$ROOT_DIR/codex/AGENTS.md" 'This activation is ambient'
+assert_contains "$ROOT_DIR/codex/AGENTS.md" 'workflow/answer-quality.md'
+assert_contains "$ROOT_DIR/codex/AGENTS.md" 'Final answers: apply the live gate'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'activate the Etabli workflow automatically'
+assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/answer-quality.md'
+assert_contains "$ROOT_DIR/pi/AGENTS.md" 'Final answers apply the live gate'
 assert_contains "$ROOT_DIR/codex/AGENTS.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" '~/work/obvault'
@@ -214,6 +286,8 @@ assert_not_contains "$ROOT_DIR/claude/commands/cross-repo-audit.md" '~/work/brai
 assert_not_contains "$ROOT_DIR/claude/commands/spec-verify.md" '~/work/brain'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Follow `workflow/spec.md`; Claude hooks inject the selected route.'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'workflow/answer-quality.md'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Final answers apply the live gate'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Decision Log'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
@@ -226,6 +300,19 @@ assert_contains "$ROOT_DIR/codex/workflow/ticket-template.md" 'Keep project-spec
 assert_same_file "$ROOT_DIR/workflow/ticket-template.md" "$ROOT_DIR/codex/workflow/ticket-template.md"
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/research-proof-check'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'A "10/10" answer is not a promise of omniscience.'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'OpenAI evaluation best practices'
+assert_contains "$ROOT_DIR/docs/source-grounded-answer-quality-research.md" 'Status: verified for the design principles'
+assert_contains "$ROOT_DIR/docs/source-grounded-answer-quality-research.md" 'https://arxiv.org/abs/2005.11401'
+assert_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f'
+assert_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'not verified for global future'
+assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'Status: verified for the fixture strategy'
+assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'https://developers.openai.com/api/docs/guides/evaluation-best-practices'
+assert_contains "$ROOT_DIR/docs/answer-quality-goal-completion-audit.md" 'Requirement Audit'
+assert_contains "$ROOT_DIR/docs/answer-quality-goal-completion-audit.md" 'not mechanically provable for all future live answer outcomes'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Required fields'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-audit-handoff.md" 'Verdict: pass'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
@@ -353,6 +440,9 @@ assert_contains "$ROOT_DIR/workflow/spec.md" '`human_checkpoint`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Shared skill contracts: `workflow/skills/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Orchestration contract: `workflow/skills/orchestration.md`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Answer quality contract: `workflow/answer-quality.md`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Answer quality audit: `scripts/answer-quality-audit`'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Answer quality trace eval: `scripts/answer-quality-trace-eval`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Latest-head PR evidence helper: `scripts/pr-latest-head-status`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/runtime-capabilities.json'

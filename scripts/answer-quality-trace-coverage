@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: answer-quality-trace-coverage <coverage.tsv>
+
+Validate answer-quality trace category coverage.
+
+The TSV header must be:
+  category<TAB>status<TAB>trace<TAB>note
+
+Supported status values:
+  covered
+  needs-work
+EOF
+}
+
+file="${1:-}"
+
+case "$file" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [ -z "$file" ]; then
+  usage >&2
+  exit 2
+fi
+
+if [ ! -f "$file" ]; then
+  printf 'trace coverage file not found: %s\n' "$file" >&2
+  exit 1
+fi
+
+required_categories=(
+  audit-handoff
+  coverage-gap
+  source-backed-cross-project-handoff
+  direct-repo-explanation
+  obvault-backed-memory-answer
+  blocked-or-inconclusive-answer
+  large-diff-implementation-handoff
+)
+
+header="$(sed -n '1p' "$file")"
+expected_header=$'category\tstatus\ttrace\tnote'
+if [ "$header" != "$expected_header" ]; then
+  printf 'invalid coverage header in %s\n' "$file" >&2
+  exit 1
+fi
+
+base_dir="$(cd "$(dirname "$file")" >/dev/null 2>&1 && pwd -P)"
+seen_categories=""
+covered=0
+needs_work=0
+fail=0
+line_no=0
+
+err() {
+  printf '%s:%s: %s\n' "$file" "$line_no" "$*" >&2
+  fail=1
+}
+
+while IFS=$'\t' read -r category status trace note extra; do
+  line_no=$((line_no + 1))
+  [ "$line_no" -eq 1 ] && continue
+
+  if [ -n "${extra:-}" ]; then
+    err 'too many columns'
+    continue
+  fi
+
+  if [ -z "${category:-}" ] || [ -z "${status:-}" ] || [ -z "${trace:-}" ] || [ -z "${note:-}" ]; then
+    err 'all columns are required'
+    continue
+  fi
+
+  if printf '%s\n' "$seen_categories" | grep -Fxq "$category"; then
+    err "duplicate category: $category"
+  fi
+  seen_categories="${seen_categories}${category}
+"
+
+  case "$status" in
+    covered)
+      covered=$((covered + 1))
+      if [ "$trace" = "-" ]; then
+        err "covered category requires a trace file: $category"
+      elif [ ! -f "$base_dir/$trace" ]; then
+        err "trace file not found for $category: $trace"
+      elif ! grep -Eq "^Category:[[:space:]]*$category[[:space:]]*$" "$base_dir/$trace"; then
+        err "trace file for $category missing matching Category metadata: $trace"
+      fi
+      ;;
+    needs-work)
+      needs_work=$((needs_work + 1))
+      ;;
+    *)
+      err "unsupported status for $category: $status"
+      ;;
+  esac
+done < "$file"
+
+for category in "${required_categories[@]}"; do
+  if ! printf '%s\n' "$seen_categories" | grep -Fxq "$category"; then
+    line_no='?'
+    err "missing required category: $category"
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  exit 1
+fi
+
+printf 'answer quality trace coverage: %s covered, %s needs-work\n' "$covered" "$needs_work"
