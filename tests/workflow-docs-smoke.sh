@@ -52,6 +52,7 @@ assert_same_file() {
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/workflow/plan-archive.md"
+assert_file "$ROOT_DIR/docs/plan/README.md"
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/workflow/runtime-capabilities.json"
 assert_dir "$ROOT_DIR/docs/adr"
@@ -357,6 +358,8 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Latest-head PR evidence helper: `s
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/runtime-capabilities.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Implemented plan archives: `docs/plan/`'
+assert_contains "$ROOT_DIR/docs/plan/README.md" 'Canonical contract: [`workflow/plan-archive.md`](../../workflow/plan-archive.md).'
+assert_contains "$ROOT_DIR/docs/plan/README.md" 'It is a memory shelf, not an active planning workspace.'
 assert_contains "$ROOT_DIR/workflow/plan-archive.md" 'Archive a plan if and only if it was implemented and validation ran.'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Do not implement.'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Keep `Status: READY` only if no blocker or high-severity issue remains.'
