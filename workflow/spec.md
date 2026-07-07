@@ -106,6 +106,13 @@ Only `READY` authorizes implementation.
   `workflow-retrospect` are read-only ledger/archive readers for run health,
   tokens-per-successful-outcome metrics, sanitized replay/debug dossiers, and
   recurring workflow-issue recommendations.
+- Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
+  start from inspectable evidence, classify candidates, implement only through
+  reviewed `PLAN.md`, and never auto-apply retrospective output.
+- Ambitious project work follows `workflow/skills/ambitious-project-loop.md`:
+  turn rough intent into spec/decisions/slices/execution/review/handoff without
+  turning push, PR, deploy, release, or external write-back into implicit
+  consent.
 - Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
@@ -175,6 +182,8 @@ A plan is `READY` when it has:
 | Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Existing `READY PLAN.md` plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
+| Self-improvement request from run evidence, retrospect output, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
+| Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff; no push/PR/deploy without explicit command contract |
 | Create or draft a Linear ticket | `linear-ticket-create` | Linear issue | created issue or MCP blocker |
 | Analyze a Linear bug without implementing | `bug-check` | adversarial root-cause report | `CERTAIN`, `HIGH CONFIDENCE`, or `UNCERTAIN` |
 | Bug fix or feature described by Linear ticket | `linear-work` | `PLAN.md` + code/docs + validation | ticket acceptance criteria validated or blocked |
@@ -222,6 +231,8 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/commands/`
 - Shared skill contracts: `workflow/skills/`
+- Self-improvement contract: `workflow/skills/self-improvement-loop.md`
+- Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
 - Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with

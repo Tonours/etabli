@@ -14,6 +14,48 @@
     "writeAllowed": true
   },
   {
+    "name": "self-improvement prompt routes through plan-implement",
+    "category": "self-improvement",
+    "prompt": "Améliore le workflow Etabli à partir des findings récurrents",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "self-improvement from run evidence routes through plan-implement",
+    "category": "self-improvement",
+    "prompt": "Improve the Etabli workflow from run evidence and recurring failures",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "self-improvement from run proof routes through plan-implement",
+    "category": "self-improvement",
+    "prompt": "Améliore le workflow Etabli à partir de la preuve de run et des failures récurrents",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "ambitious project prompt routes through plan-implement",
+    "category": "ambitious-project",
+    "prompt": "Réalise ce projet ambitieux de a à z",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "self-improvement explanation stays answer",
+    "category": "read-only",
+    "prompt": "Explique le self-improvement loop",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "explicit self-improvement review stays review",
+    "category": "review",
+    "prompt": "Fais une review du self-improvement loop",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
     "name": "actual READY plan can implement",
     "category": "ready-gate",
     "prompt": "Implémente le PLAN.md ready",

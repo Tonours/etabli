@@ -37,6 +37,12 @@ with `scripts/workflow-dossier`, and mine recurring workflow issues with
 | `dogfood_scenario_run` | `{scenario, surface, status, artifacts}` |
 | `dogfood_fix_applied` | `{scenario, fix, evidence}` |
 | `dogfood_blocked` | `{scenario, reason, needed_input}` |
+| `self_improvement_candidate` | `{source, category, outcome, confidence, evidence, held_in?, held_out?}` |
+| `harness_failure_pattern` | `{terminal_cause, causal_status, mechanism, verifier, traces}` |
+| `harness_proposal` | `{candidate, editable_surfaces, preserve, held_in, held_out}` |
+| `harness_candidate_rejected` | `{candidate, reason, regressions, evidence}` |
+| `project_slice_planned` | `{slice, owner, validation, dependencies}` |
+| `project_slice_completed` | `{slice, validation, evidence, remaining}` |
 | `outcome_metric` | `{outcome, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |

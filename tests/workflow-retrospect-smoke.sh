@@ -28,6 +28,8 @@ mkdir -p "$EVENT_DIR/bad-run-a" "$EVENT_DIR/bad-run-b" "$EVENT_DIR/bad-run-c" "$
 
 cat >"$EVENT_DIR/bad-run-a/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T10:00:00Z","event":"route_decided","run":"bad-run-a","detail":{"route":"plan-implement","reason":"router miss: read-only adversary prompt incorrectly routed to plan-implement"}}
+{"ts":"2026-07-06T10:00:30Z","event":"harness_failure_pattern","run":"bad-run-a","detail":{"terminal_cause":"router miss: harness failure pattern shadowed self-improvement route","causal_status":"confirmed","mechanism":"generic review pattern won before self-improvement routing","verifier":"router eval"}}
+{"ts":"2026-07-06T10:00:45Z","event":"harness_failure_pattern","run":"bad-run-a","detail":{"terminal_cause":"oversight moved inside mutation loop","causal_status":"confirmed","mechanism":"proposal validation delegated to evolving harness","verifier":"plan review"}}
 {"ts":"2026-07-06T10:01:00Z","event":"adversary_completed","run":"bad-run-a","detail":{"verdict":"BLOCK","accepted_findings":["runtime capability overclaim: claimed subagents were available without checking runtime","missing archive cleanup before completion"],"rejected_findings":[]}}
 {"ts":"2026-07-06T10:02:00Z","event":"validation_failed","run":"bad-run-a","detail":{"command":"bash tests/workflow-docs-smoke.sh","exit":1,"failure":"plan drift: archived plan omitted validation evidence"}}
 {"ts":"2026-07-06T10:03:00Z","event":"validation_failed","run":"bad-run-a","detail":{"command":"bash tests/workflow-docs-smoke.sh","exit":1,"failure":"smoke pin missing remediation message"}}
@@ -35,6 +37,8 @@ JSONL
 
 cat >"$EVENT_DIR/bad-run-b/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T11:00:00Z","event":"route_decided","run":"bad-run-b","detail":{"route":"review","reason":"router miss: read-only adversary prompt incorrectly routed to plan-implement"}}
+{"ts":"2026-07-06T11:00:30Z","event":"harness_failure_pattern","run":"bad-run-b","detail":{"terminal_cause":"router miss: harness failure pattern shadowed self-improvement route","causal_status":"confirmed","mechanism":"generic review pattern won before self-improvement routing","verifier":"router eval"}}
+{"ts":"2026-07-06T11:00:45Z","event":"harness_failure_pattern","run":"bad-run-b","detail":{"terminal_cause":"oversight moved inside mutation loop","causal_status":"confirmed","mechanism":"proposal validation delegated to evolving harness","verifier":"plan review"}}
 {"ts":"2026-07-06T11:01:00Z","event":"validation_failed","run":"bad-run-b","detail":{"command":"bash tests/workflow-docs-smoke.sh","exit":1,"failure":"plan drift: archived plan omitted validation evidence"}}
 {"ts":"2026-07-06T11:02:00Z","event":"dogfood_blocked","run":"bad-run-b","detail":{"scenario":"browser-checkout","reason":"dogfood blocker: no observable UI evidence","needed_input":"browser trace"}}
 {"ts":"2026-07-06T11:03:00Z","event":"validation_failed","run":"bad-run-b","detail":{"command":"bash tests/workflow-docs-smoke.sh","exit":1,"failure":"smoke pin missing remediation message"}}
@@ -75,6 +79,8 @@ fi
 
 printf '%s\n' "$json_output" | jq -e '.confirmed_issue_count >= 6' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "router_miss" and .confirmed == true and .action_kind == "router_fixture")' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "harness_failure_pattern" and .confirmed == true and (.key | contains("harness failure pattern shadowed")))' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "harness_failure_pattern" and .confirmed == true and .action_kind == "contract_patch" and (.key | contains("oversight moved inside mutation loop")))' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "plan_drift" and .confirmed == true and .action_kind == "contract_patch")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "runtime_capability_overclaim" and .confirmed == true and .action_kind == "contract_patch")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "dogfood_blocker" and .confirmed == true and .action_kind == "recommendation")' >/dev/null
