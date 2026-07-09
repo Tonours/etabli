@@ -9,42 +9,20 @@ ISSUES=0
 FIXED=0
 UNRESOLVED=0
 OS="$(uname -s)"
-PI_CORE_SKILLS=(
-  "plan-loop"
-  "plan-implement"
-  "adversary"
-  "review"
-  "implement"
-  "verify"
-  "bug-check"
-  "linear-ticket-create"
-  "linear-work"
-  "pr-review"
-  "pr-qa"
-  "sec-pr"
-  "ci-fix"
-  "github-pr-review"
-  "caveman"
-  "grill-me"
-)
-CODEX_VISIBLE_PI_SKILLS=(
-  "plan-loop"
-  "plan-implement"
-  "adversary"
-  "implement"
-  "verify"
-  "bug-check"
-  "linear-ticket-create"
-  "linear-work"
-  "pr-review"
-  "pr-qa"
-  "sec-pr"
-  "ci-fix"
-  "github-pr-review"
-)
-CODEX_VISIBLE_CODEX_SKILLS=(
-  "goal-prompt-rewriter"
-)
+SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
+SKILL_CATALOG_MISSING=0
+if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; then
+  . "$REPO_DIR/scripts/lib/skill-catalog.sh"
+  PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
+  CODEX_VISIBLE_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi codex_visible) )
+  CODEX_VISIBLE_CODEX_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" codex codex_visible) )
+else
+  SKILL_CATALOG_MISSING=1
+  # Bash 3 with `set -u` treats an empty array expansion as unbound.
+  PI_CORE_SKILLS=("")
+  CODEX_VISIBLE_PI_SKILLS=("")
+  CODEX_VISIBLE_CODEX_SKILLS=("")
+fi
 
 usage() {
   cat <<EOF
@@ -73,6 +51,11 @@ status_line() {
   local message="$2"
   printf '%-6s %s\n' "$status" "$message"
 }
+
+if [ "$SKILL_CATALOG_MISSING" -eq 1 ]; then
+  UNRESOLVED=$((UNRESOLVED + 1))
+  status_line WARN "skill catalog source missing; expected $SKILL_CATALOG"
+fi
 
 ensure_parent_dir() {
   local path="$1"
@@ -190,6 +173,7 @@ check_script_link() {
 check_pi_skill_links() {
   local skill_name
   for skill_name in "${PI_CORE_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
     check_link "$HOME/.pi/agent/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "pi skill $skill_name"
   done
 }
@@ -197,6 +181,7 @@ check_pi_skill_links() {
 check_codex_visible_pi_skill_links() {
   local skill_name
   for skill_name in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
     check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "codex-visible pi skill $skill_name"
   done
 }
@@ -204,6 +189,7 @@ check_codex_visible_pi_skill_links() {
 check_codex_visible_codex_skill_links() {
   local skill_name
   for skill_name in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
     check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/codex/skills/$skill_name" "codex-visible codex skill $skill_name"
   done
 }

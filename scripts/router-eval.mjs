@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { classifyWorkflowRoute as classifyPi } from "../pi/extensions/lib/workflow-router-runtime.ts";
 
-const { classifyWorkflowRoute: classifyClaude } = await import("../claude/hooks/workflow-router-lib.mjs");
+const { classifyWorkflowRoute: classifyClaude } = await import("../workflow/runtime/workflow-router-core.mjs");
 
 const args = process.argv.slice(2);
 let datasetPath = "tests/router-evals";

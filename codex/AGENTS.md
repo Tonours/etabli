@@ -9,7 +9,7 @@
 - Repo: `AGENTS.md`; workflow: `workflow/spec.md`; review:
   `workflow/review-rubric.md`; tickets: `workflow/ticket-template.md`;
   plans: `PLAN_TEMPLATE*.md`; archives: `workflow/plan-archive.md`.
-- Durable knowledge: `~/work/obvault` after its `CLAUDE.md`.
+- Memory: follow `workflow/skills/obvault-memory.md` with `~/work/obvault`.
 
 ## Workflow
 - This activation is ambient when `workflow/spec.md` exists; use the smallest
@@ -17,10 +17,8 @@
 - One artifact: `PLAN.md`. Implement only from `Status: READY`.
 - Broad/unclear: plan-loop. Plan+implement: plan-implement. READY: implement.
   Verify/retest: verify without edits.
-- Answers/handoffs: follow `workflow/answer-quality.md`; use
-  `scripts/answer-quality-check` for durable artifacts.
-- Final answers: apply the live gate in `workflow/answer-quality.md`; answer
-  the newest request, name unverified gaps, and do not promise a perfect score.
+- Answers/handoffs: follow `workflow/answer-quality.md` and its live final gate;
+  use `scripts/answer-quality-check` only for durable artifacts.
 - `/goal` needs measurable success, validation, scope, cap, stop condition, and
   `.workflow/<slug>/events.jsonl`.
 - Evaluate subagents only when useful and allowed. In Codex App,

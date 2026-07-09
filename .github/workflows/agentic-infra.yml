@@ -123,6 +123,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: node scripts/validate-adrs
 
+      - name: Canonical shell/docs parity group
+        if: ${{ !cancelled() }}
+        run: scripts/verify-agentic-infra shell-docs
+
   verify-pi-typescript:
     runs-on: ubuntu-latest
 
@@ -176,6 +180,9 @@ jobs:
             "./extensions/rtk.ts",
           ]) await import(path)'
 
+      - name: Canonical Pi parity group
+        run: scripts/verify-agentic-infra pi
+
   verify-neovim-smoke:
     runs-on: ubuntu-latest
 
@@ -211,3 +218,6 @@ jobs:
           bash tests/fix-links-smoke.sh
           bash tests/install-smoke.sh
           bash tests/nvim-smoke.sh
+
+      - name: Canonical Neovim parity group
+        run: scripts/verify-agentic-infra nvim

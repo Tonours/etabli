@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+
+run_check() {
+  local label="$1"
+  shift
+  local started=$SECONDS
+  printf 'RUN  %s\n' "$label"
+  if "$@"; then
+    printf 'PASS %s (%ss)\n' "$label" "$((SECONDS - started))"
+  else
+    local status=$?
+    printf 'FAIL %s (%ss)\nRemediation: run the displayed command directly, fix the first failure, then rerun this group.\n' "$label" "$((SECONDS - started))" >&2
+    return "$status"
+  fi
+}
+
+shell_syntax() {
+  while IFS= read -r -d '' file; do
+    if head -n 1 "$file" | grep -Eq '^#!.*(bash|sh)'; then bash -n "$file"; fi
+  done < <(find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -maxdepth 1 -type f -print0)
+}
+
+shell_docs() {
+  run_check shell-syntax shell_syntax
+  local test
+  for test in \
+    codex-organization-smoke workflow-contract-coverage-smoke workflow-efficiency-report-smoke \
+    workflow-monitor-smoke workflow-metrics-smoke workflow-dossier-smoke workflow-retrospect-smoke \
+    workflow-docs-smoke workflow-scaffold-smoke claude-hooks-smoke agent-scenarios-smoke \
+    claude-skills-smoke workflow-cli-smoke workflow-event-smoke runtime-capabilities-smoke \
+    router-eval-smoke browser-full-page-capture-smoke; do
+    run_check "$test" bash "$ROOT_DIR/tests/$test.sh"
+  done
+}
+
+pi_group() {
+  run_check pi-tests bash -c "cd '$ROOT_DIR/pi' && bun test ./extensions/__tests__/*.test.ts"
+  run_check router-eval "$ROOT_DIR/scripts/router-eval" --min-accuracy 1 --require-alignment
+  run_check skill-lock bash -c "cd '$ROOT_DIR/pi' && bun run verify:skills"
+}
+
+nvim_group() {
+  run_check fix-links-smoke bash "$ROOT_DIR/tests/fix-links-smoke.sh"
+  run_check install-smoke bash "$ROOT_DIR/tests/install-smoke.sh"
+  run_check nvim-smoke bash "$ROOT_DIR/tests/nvim-smoke.sh"
+}
+
+case "${1:-all}" in
+  shell-docs) shell_docs ;;
+  pi) pi_group ;;
+  nvim) nvim_group ;;
+  all) shell_docs; pi_group; nvim_group ;;
+  *) printf 'Usage: verify-agentic-infra [shell-docs|pi|nvim|all]\n' >&2; exit 2 ;;
+esac

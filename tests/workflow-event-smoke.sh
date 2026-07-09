@@ -67,6 +67,42 @@ assert_contains "$out" "Allowed events"
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-b route_decided '{bad')"
 assert_contains "$out" "invalid json detail"
 
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate missing-run)"
+assert_contains "$out" "missing ledger"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate missing-run --allow-missing)"
+assert_contains "$out" "legacy allow-missing"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-b route_decided '{"route":"plan-loop"}')"
+assert_contains "$out" "required fields"
+
+mkdir -p "$EVENT_DIR/run-terminal"
+printf '%s\n' \
+  '{"schema_version":1,"ts":"2026-07-09T10:00:00Z","event":"completed","run":"run-terminal","detail":{"summary":"done"}}' \
+  '{"schema_version":1,"ts":"2026-07-09T10:00:01Z","event":"validation_run","run":"run-terminal","detail":{"command":"true","exit":0}}' \
+  > "$EVENT_DIR/run-terminal/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-terminal)"
+assert_contains "$out" "follows terminal"
+
+for event_detail in \
+  'route_decided {"route":"plan-implement","reason":"implementation"}' \
+  'plan_created {"path":"PLAN.md","status":"READY"}' \
+  'adversary_completed {"mode":"plan","verdict":"READY","accepted_findings":[],"rejected_findings":[]}' \
+  'file_changed {"path":"src/example.ts","change":"updated"}' \
+  'validation_run {"command":"true","exit":0}' \
+  'simplification_completed {"status":"passed","evidence":"diff inspected"}' \
+  'review_completed {"status":"GO","evidence":"review"}' \
+  'adversary_completed {"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}' \
+  'archive_written {"path":"docs/plan/test.md"}' \
+  'outcome_metric {"outcome":"success","success":true,"measured":false}' \
+  'plan_removed {"path":"PLAN.md"}' \
+  'completed {"summary":"done"}'; do
+  event="${event_detail%% *}"
+  detail="${event_detail#* }"
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-complete "$event" "$detail"
+done
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-complete --profile autonomous-completed)"
+assert_contains "$out" "12 events, ok"
+
 printf '{bad\n' >> "$EVENT_DIR/run-a/events.jsonl"
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-a)"
 assert_contains "$out" "line 4"

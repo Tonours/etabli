@@ -88,7 +88,7 @@ while IFS= read -r contract_path; do
   assert_file "$NEW_PROJECT/workflow/skills/$contract_name"
   assert_same "$contract_path" "$NEW_PROJECT/workflow/skills/$contract_name"
 done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sort)
-assert_contains "$NEW_PROJECT/AGENTS.md" "Treat this file as a map"
+assert_contains "$NEW_PROJECT/AGENTS.md" "Ambient activation"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/agent-memory/"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/plan/"
 assert_contains "$NEW_PROJECT/CLAUDE.md" "Claude Code-specific adapter"

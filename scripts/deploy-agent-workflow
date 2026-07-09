@@ -8,26 +8,11 @@ DRY_RUN=1
 HOME_DIR="$HOME"
 CODEX_HOME_INPUT=""
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+. "$SCRIPT_DIR/lib/skill-catalog.sh"
+SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
-CODEX_VISIBLE_PI_SKILLS=(
-  "plan-loop"
-  "plan-implement"
-  "adversary"
-  "implement"
-  "verify"
-  "bug-check"
-  "linear-ticket-create"
-  "linear-work"
-  "pr-review"
-  "pr-qa"
-  "sec-pr"
-  "ci-fix"
-  "github-pr-review"
-)
-
-CODEX_VISIBLE_CODEX_SKILLS=(
-  "goal-prompt-rewriter"
-)
+CODEX_VISIBLE_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi codex_visible) )
+CODEX_VISIBLE_CODEX_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" codex codex_visible) )
 
 usage() {
   cat <<EOF
@@ -192,12 +177,7 @@ json_list() {
 }
 
 pi_core_skills() {
-  json_list '
-const fs = require("fs");
-const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-const local = settings.packages.find((entry) => entry && typeof entry === "object" && entry.source === "local:etabli-workflow");
-for (const skill of local?.skills ?? []) console.log(skill);
-'
+  skill_catalog_names "$SKILL_CATALOG" pi pi_core
 }
 
 is_core_pi_skill() {

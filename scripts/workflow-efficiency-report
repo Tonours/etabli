@@ -167,7 +167,9 @@ done
 
 duplicate_pairs_tsv="$(
   git -C "$ROOT_DIR" ls-files -s |
-    awk '{print $2 "\t" $4}' |
+    while read -r mode hash stage path; do
+      if [ -f "$ROOT_DIR/$path" ]; then printf '%s\t%s\n' "$hash" "$path"; fi
+    done |
     sort |
     awk '
       function flush_group(i, j) {
@@ -209,7 +211,21 @@ exact_duplicate_pair_count="$(
     tr -d ' '
 )"
 documented_source_surfaces="${#documented_source_surface_files[@]}"
-source_of_truth_conflicts=0
+source_conflicts_json='[]'
+router_owner_count="$(
+  { grep -l 'const REVIEW_PATTERN' \
+      "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" \
+      "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" \
+      "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 2>/dev/null || true; } |
+    wc -l | tr -d ' '
+)"
+if [ "$router_owner_count" -ne 1 ]; then
+  source_conflicts_json="$(jq -nc --arg count "$router_owner_count" '[{surface:"router-classifier",problem:("expected one pattern owner, found " + $count),remediation:"keep patterns in the declared canonical owner and adapters as delegates"}]')"
+fi
+if [ -f "$ROOT_DIR/codex/workflow/ticket-template.md" ]; then
+  source_conflicts_json="$(printf '%s\n' "$source_conflicts_json" | jq '. + [{surface:"ticket-template",problem:"tracked deployment copy exists",remediation:"deploy workflow/ticket-template.md directly"}]')"
+fi
+source_of_truth_conflicts="$(printf '%s\n' "$source_conflicts_json" | jq 'length')"
 
 router_json="$(printf '%s\n' "${router_paths[@]}" | paths_with_lines_json)"
 smoke_json="$(printf '%s\n' "${smoke_paths[@]}" | paths_with_lines_json)"
@@ -218,7 +234,6 @@ duplicates_json="$(
     jq -Rn '[inputs | select(length > 0) | split("\t") | {hash: .[0], path_a: .[1], path_b: .[2]}]'
 )"
 documented_source_surfaces_json="$(printf '%s\n' "${documented_source_surface_files[@]}" | jq -Rn '[inputs | select(length > 0)]')"
-source_conflicts_json='[]'
 instruction_budget_files_json="$(printf '%s\n' "${instruction_budget_paths[@]}" | paths_with_budget_json)"
 instruction_budget_current_tokens="$(
   printf '%s\n' "$instruction_budget_files_json" |

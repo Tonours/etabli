@@ -7,6 +7,8 @@ ALLOWED_EVENTS=(
   route_decided
   plan_created
   adversary_completed
+  review_completed
+  simplification_completed
   file_changed
   validation_run
   validation_failed
@@ -26,6 +28,7 @@ ALLOWED_EVENTS=(
   handoff
   human_checkpoint
   archive_written
+  plan_removed
   completed
   blocked
 )
@@ -33,7 +36,7 @@ ALLOWED_EVENTS=(
 usage() {
   cat <<EOF
 Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
-       workflow-event [--dir path] validate <slug>
+       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|blocked-terminal]
 EOF
 }
 
@@ -48,6 +51,21 @@ is_allowed_event() {
     [ "$event" = "$allowed" ] && return 0
   done
   return 1
+}
+
+detail_valid() {
+  local event="$1" detail="$2" expression='type == "object"'
+  case "$event" in
+    route_decided) expression+=' and (.route | type == "string") and (.reason | type == "string")' ;;
+    validation_run) expression+=' and (.command | type == "string") and (.exit | type == "number")' ;;
+    validation_failed) expression+=' and (.command | type == "string") and (.exit | type == "number") and (.failure | type == "string")' ;;
+    completed) expression+=' and (.summary | type == "string")' ;;
+    blocked) expression+=' and (.reason | type == "string") and (.needed_input | type == "string")' ;;
+    adversary_completed) expression+=' and (.mode | IN("plan", "code_diff")) and (.verdict | type == "string")' ;;
+    review_completed|simplification_completed) expression+=' and (.status | type == "string") and ((.evidence | type) == "string" or (.evidence | type) == "array")' ;;
+    plan_removed) expression+=' and (.path == "PLAN.md")' ;;
+  esac
+  printf '%s\n' "$detail" | jq -e "$expression" >/dev/null 2>&1
 }
 
 die_usage() {
@@ -79,8 +97,8 @@ case "$command" in
       printf 'unknown event type: %s\nAllowed events:\n%s\n' "$event" "$(allowed_list)" >&2
       exit 2
     fi
-    if ! printf '%s\n' "$detail" | jq empty >/dev/null 2>&1; then
-      printf 'invalid json detail for event %s\n' "$event" >&2
+    if ! detail_valid "$event" "$detail"; then
+      printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2
       exit 2
     fi
 
@@ -91,18 +109,30 @@ case "$command" in
       --arg event "$event" \
       --arg run "$slug" \
       --argjson detail "$detail" \
-      '{ts:$ts,event:$event,run:$run,detail:$detail}' >> "$run_dir/events.jsonl"
+      '{schema_version:1,ts:$ts,event:$event,run:$run,detail:$detail}' >> "$run_dir/events.jsonl"
     ;;
   validate)
-    [ "$#" -eq 1 ] || die_usage
+    [ "$#" -ge 1 ] || die_usage
     slug="$1"
+    shift
+    allow_missing=0
+    profile="structural"
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --allow-missing|--legacy) allow_missing=1 ;;
+        --profile) [ "$#" -ge 2 ] || die_usage; profile="$2"; shift ;;
+        *) die_usage ;;
+      esac
+      shift
+    done
     file="$WORKFLOW_DIR/$slug/events.jsonl"
     count=0
     previous_ts=""
 
     if [ ! -f "$file" ]; then
-      printf '0 events, ok\n'
-      exit 0
+      if [ "$allow_missing" -eq 1 ]; then printf '0 events, legacy allow-missing\n'; exit 0; fi
+      printf 'missing ledger: %s (use --allow-missing only for explicit legacy compatibility)\n' "$file" >&2
+      exit 1
     fi
 
     while IFS= read -r line || [ -n "$line" ]; do
@@ -113,6 +143,9 @@ case "$command" in
       fi
       ts="$(printf '%s\n' "$parsed" | jq -r '.ts // empty')"
       event="$(printf '%s\n' "$parsed" | jq -r '.event // empty')"
+      run="$(printf '%s\n' "$parsed" | jq -r '.run // empty')"
+      detail="$(printf '%s\n' "$parsed" | jq -c '.detail // null')"
+      schema_version="$(printf '%s\n' "$parsed" | jq -r '.schema_version // "legacy"')"
       if ! printf '%s\n' "$ts" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
         printf 'line %s: invalid timestamp\n' "$count" >&2
         exit 1
@@ -125,8 +158,41 @@ case "$command" in
         printf 'line %s: unknown event type %s\n' "$count" "$event" >&2
         exit 1
       fi
+      if [ "$schema_version" != "legacy" ] && [ "$schema_version" != "1" ]; then
+        printf 'line %s: unsupported schema_version %s\n' "$count" "$schema_version" >&2
+        exit 1
+      fi
+      if [ -n "${terminal_line:-}" ]; then
+        printf 'line %s: event follows terminal %s at line %s\n' "$count" "$terminal" "$terminal_line" >&2
+        exit 1
+      fi
+      if [ "$run" != "$slug" ]; then printf 'line %s: run does not match %s\n' "$count" "$slug" >&2; exit 1; fi
+      if ! detail_valid "$event" "$detail"; then printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2; exit 1; fi
+      if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then terminal="$event"; terminal_line="$count"; fi
       previous_ts="$ts"
     done < "$file"
+
+    if [ -n "${terminal_line:-}" ] && [ "$terminal_line" -ne "$count" ]; then
+      printf 'terminal event must be last (line %s of %s)\n' "$terminal_line" "$count" >&2
+      exit 1
+    fi
+    case "$profile" in
+      structural) ;;
+      autonomous-completed)
+        [ "${terminal:-}" = "completed" ] || { printf 'profile autonomous-completed requires final completed event\n' >&2; exit 1; }
+        for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed outcome_metric archive_written plan_removed; do
+          jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile autonomous-completed missing %s\n' "$required" >&2; exit 1; }
+        done
+        for mode in plan code_diff; do
+          jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed missing adversary mode %s\n' "$mode" >&2; exit 1; }
+        done
+        last_change="$(grep -n '"event":"file_changed"' "$file" | tail -1 | cut -d: -f1)"
+        last_validation="$(grep -n '"event":"validation_run"' "$file" | tail -1 | cut -d: -f1)"
+        [ "$last_validation" -gt "$last_change" ] || { printf 'profile autonomous-completed requires validation after last file change\n' >&2; exit 1; }
+        ;;
+      blocked-terminal) [ "${terminal:-}" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; exit 1; } ;;
+      *) printf 'unknown validation profile: %s\n' "$profile" >&2; exit 2 ;;
+    esac
 
     printf '%s events, ok\n' "$count"
     ;;

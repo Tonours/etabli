@@ -42,7 +42,7 @@ fi
 
 if [ ! -d "$WORKFLOW_DIR" ]; then
   if [ "$JSON" -eq 1 ]; then
-    printf '{"runs":[],"totals":{"outcomes":0,"successful_outcomes":0,"total_tokens":0,"tokens_per_successful_outcome":null}}\n'
+    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measured_outcomes":0,"unmeasured_outcomes":0,"measurement_coverage":0,"successful_outcomes":0,"total_tokens":0,"tokens_per_successful_outcome":null}}\n'
   else
     printf 'no workflow runs found in %s\n' "$WORKFLOW_DIR"
   fi
@@ -56,15 +56,23 @@ runs="$(
       run="$(basename "$(dirname "$file")")"
       jq -s --arg run "$run" '
         def metric_events: [.[] | select(.event == "outcome_metric") | .detail];
-        def tokens($m): (($m.total_tokens // (($m.input_tokens // 0) + ($m.output_tokens // 0))) | tonumber? // 0);
+        def tokens($m):
+          if ($m.total_tokens? != null) then ($m.total_tokens | tonumber?)
+          elif ($m.input_tokens? != null and $m.output_tokens? != null) then (($m.input_tokens | tonumber?) + ($m.output_tokens | tonumber?))
+          else null end;
         def success($m): (($m.success == true) or (($m.outcome // "") | ascii_downcase | IN("success", "successful", "passed", "complete", "completed")));
         metric_events as $metrics |
+        ([.[] | select(.event == "completed" or .event == "blocked")] | last // null) as $terminal |
         {
           run: $run,
+          terminal: ($terminal.event // null),
           outcomes: ($metrics | length),
+          measured_outcomes: ($metrics | map(select(.measured == true)) | length),
+          unmeasured_outcomes: (if ($metrics | length) == 0 and $terminal != null then 1 else ($metrics | map(select(.measured != true)) | length) end),
           successful_outcomes: ($metrics | map(select(success(.))) | length),
-          total_tokens: ($metrics | map(tokens(.)) | add // 0),
-          successful_tokens: ($metrics | map(select(success(.)) | tokens(.)) | add // 0),
+          measured_successful_outcomes: ($metrics | map(select(success(.) and tokens(.) != null)) | length),
+          total_tokens: ($metrics | map(tokens(.)) | map(select(. != null)) | add // 0),
+          successful_tokens: ($metrics | map(select(success(.)) | tokens(.)) | map(select(. != null)) | add // 0),
           tool_calls: ($metrics | map((.tool_calls // 0) | tonumber? // 0) | add // 0),
           elapsed_ms: ($metrics | map((.elapsed_ms // 0) | tonumber? // 0) | add // 0)
         }
@@ -77,15 +85,22 @@ summary="$(
     jq -s '{
       runs: sort_by(.run),
       totals: {
+        runs: length,
+        terminal_runs: (map(select(.terminal != null)) | length),
         outcomes: (map(.outcomes) | add // 0),
+        measured_outcomes: (map(.measured_outcomes) | add // 0),
+        unmeasured_outcomes: (map(.unmeasured_outcomes) | add // 0),
         successful_outcomes: (map(.successful_outcomes) | add // 0),
+        measured_successful_outcomes: (map(.measured_successful_outcomes) | add // 0),
         total_tokens: (map(.total_tokens) | add // 0),
         successful_tokens: (map(.successful_tokens) | add // 0),
         tool_calls: (map(.tool_calls) | add // 0),
         elapsed_ms: (map(.elapsed_ms) | add // 0)
       }
-    } | .totals.tokens_per_successful_outcome =
-      (if .totals.successful_outcomes == 0 then null else (.totals.successful_tokens / .totals.successful_outcomes) end)'
+    }
+    | .totals.measurement_coverage = (if (.totals.measured_outcomes + .totals.unmeasured_outcomes) == 0 then 0 else (.totals.measured_outcomes / (.totals.measured_outcomes + .totals.unmeasured_outcomes)) end)
+    | .totals.tokens_per_successful_outcome =
+      (if .totals.measured_successful_outcomes == 0 then null else (.totals.successful_tokens / .totals.measured_successful_outcomes) end)'
 )"
 
 if [ "$JSON" -eq 1 ]; then
@@ -94,4 +109,4 @@ if [ "$JSON" -eq 1 ]; then
 fi
 
 printf '%s\n' "$summary" |
-  jq -r '.totals | "outcomes=\(.outcomes)\nsuccessful_outcomes=\(.successful_outcomes)\ntotal_tokens=\(.total_tokens)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)"'
+  jq -r '.totals | "runs=\(.runs)\nterminal_runs=\(.terminal_runs)\noutcomes=\(.outcomes)\nmeasured_outcomes=\(.measured_outcomes)\nunmeasured_outcomes=\(.unmeasured_outcomes)\nmeasurement_coverage=\(.measurement_coverage)\nsuccessful_outcomes=\(.successful_outcomes)\ntotal_tokens=\(.total_tokens)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)"'

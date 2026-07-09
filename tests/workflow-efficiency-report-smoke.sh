@@ -17,6 +17,15 @@ assert_contains() {
   esac
 }
 
+assert_jq() {
+  local expression="$1"
+
+  if ! printf '%s\n' "$json_output" | jq -e "$expression" >/dev/null; then
+    printf 'jq assertion failed: %s\nreport:\n%s\n' "$expression" "$json_output" >&2
+    exit 1
+  fi
+}
+
 before_status="$(git -C "$ROOT_DIR" status --porcelain)"
 text_output="$("$SCRIPT")"
 json_output="$("$SCRIPT" --json)"
@@ -42,16 +51,19 @@ for key in \
   documented_source_surfaces \
   documented_source_surface_files \
   source_of_truth_conflicts; do
-  printf '%s\n' "$json_output" | jq -e --arg key "$key" 'has($key)' >/dev/null
+  if ! printf '%s\n' "$json_output" | jq -e --arg key "$key" 'has($key)' >/dev/null; then
+    printf 'missing report key: %s\nreport:\n%s\n' "$key" "$json_output" >&2
+    exit 1
+  fi
 done
 
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.baseline_tokens == 9455' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.current_tokens <= .instruction_budget.target_tokens' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.within_target == true' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.current_tokens <= .instruction_budget.stretch_target_tokens' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.within_stretch_target == true' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.files | length == 7' >/dev/null
-printf '%s\n' "$json_output" | jq -e '
+assert_jq '.instruction_budget.baseline_tokens == 9455'
+assert_jq '.instruction_budget.current_tokens <= .instruction_budget.target_tokens'
+assert_jq '.instruction_budget.within_target == true'
+assert_jq '.instruction_budget.current_tokens <= .instruction_budget.stretch_target_tokens'
+assert_jq '.instruction_budget.within_stretch_target == true'
+assert_jq '.instruction_budget.files | length == 7'
+assert_jq '
   (.instruction_budget.files | map(.path) | sort) == [
     "claude/CLAUDE.md",
     "codex/AGENTS.md",
@@ -61,14 +73,14 @@ printf '%s\n' "$json_output" | jq -e '
     "workflow-scaffold/templates/docs/agent-workflow.md",
     "workflow-scaffold/templates/docs/claude-code-workflow.md"
   ]
-' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.instruction_budget.files[] | select(.path == "codex/AGENTS.md")' >/dev/null
+'
+assert_jq '.instruction_budget.files[] | select(.path == "codex/AGENTS.md")'
 
-printf '%s\n' "$json_output" | jq -e '.router_adapter_lines[] | select(.path == "claude/hooks/workflow-router-lib.mjs")' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.router_adapter_lines[] | select(.path == "pi/extensions/lib/workflow-router-runtime.ts")' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.smoke_suites | length > 0' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.documented_source_surfaces >= 1' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.source_of_truth_conflicts == 0' >/dev/null
+assert_jq '.router_adapter_lines[] | select(.path == "claude/hooks/workflow-router-lib.mjs")'
+assert_jq '.router_adapter_lines[] | select(.path == "pi/extensions/lib/workflow-router-runtime.ts")'
+assert_jq '.smoke_suites | length > 0'
+assert_jq '.documented_source_surfaces >= 1'
+assert_jq '.source_of_truth_conflicts == 0'
 
 assert_contains "$text_output" "shared_contract_files"
 assert_contains "$text_output" "router_adapter_lines"

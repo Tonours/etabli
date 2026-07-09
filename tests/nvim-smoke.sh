@@ -5,6 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
+  if [ -f "$TMP_DIR/nvim-pack-lock.json" ]; then
+    cp "$TMP_DIR/nvim-pack-lock.json" "$ROOT_DIR/nvim/nvim-pack-lock.json"
+  fi
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -29,6 +32,7 @@ run_lua_file() {
 
 require_tool nvim
 require_tool git
+cp "$ROOT_DIR/nvim/nvim-pack-lock.json" "$TMP_DIR/nvim-pack-lock.json"
 
 run_nvim "+lua if not vim.startswith(vim.fn.stdpath('state'), vim.env.XDG_STATE_HOME) then vim.api.nvim_err_writeln('nvim smoke state is not isolated: ' .. vim.fn.stdpath('state')); vim.cmd('cquit 1') end" +qa
 run_lua_file "$ROOT_DIR/scripts/nvim_ui_smoke.lua"

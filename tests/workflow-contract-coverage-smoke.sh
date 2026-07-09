@@ -55,20 +55,6 @@ assert_contract_referenced() {
   exit 1
 }
 
-assert_ticket_template_identity() {
-  local unique_hash_count
-  unique_hash_count="$(
-    git -C "$ROOT_DIR" hash-object codex/workflow/ticket-template.md workflow/ticket-template.md |
-      sort -u |
-      wc -l |
-      tr -d ' '
-  )"
-  if [ "$unique_hash_count" != "1" ]; then
-    printf 'ticket template copies diverged; edit workflow/ticket-template.md (source of truth) and re-copy to codex/workflow/, or make divergence deliberate by removing this assertion with a rationale\n' >&2
-    exit 1
-  fi
-}
-
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path" .md)"
   assert_contract_referenced "$contract_name"
@@ -80,13 +66,11 @@ while IFS= read -r contract_path; do
   assert_file "$DEPLOY_TARGET/workflow/skills/$(basename "$contract_path")"
 done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort)
 
-assert_ticket_template_identity
-
 actual_codex_workflow_files="$(
   find "$ROOT_DIR/codex/workflow" -maxdepth 1 -type f -exec basename {} \; | sort
 )"
 expected_codex_workflow_files="$(
-  printf '%s\n' dynamic-workflow-triggers.md ticket-template.md | sort
+  printf '%s\n' dynamic-workflow-triggers.md | sort
 )"
 if ! diff -u <(printf '%s\n' "$expected_codex_workflow_files") <(printf '%s\n' "$actual_codex_workflow_files"); then
   printf 'unexpected codex/workflow file set\n' >&2
@@ -100,7 +84,7 @@ assert_not_exists "$DRY_HOME"
 tmp_ticket_a="$TMP_DIR/ticket-a.md"
 tmp_ticket_b="$TMP_DIR/ticket-b.md"
 cp "$ROOT_DIR/workflow/ticket-template.md" "$tmp_ticket_a"
-cp "$ROOT_DIR/codex/workflow/ticket-template.md" "$tmp_ticket_b"
+cp "$ROOT_DIR/workflow/ticket-template.md" "$tmp_ticket_b"
 printf 'negative spot check\n' >> "$tmp_ticket_b"
 if cmp -s "$tmp_ticket_a" "$tmp_ticket_b"; then
   printf 'negative duplicate-identity spot check failed to create divergence\n' >&2
