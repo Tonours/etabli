@@ -16,6 +16,11 @@ Describe in 1-3 sentences what will change and why it matters.
 
 ## Workflow Contract
 - Router decision:
+- Pattern:
+- Goal verifier:
+- Iteration / time / token-tool budget:
+- Context reset threshold:
+- Escalation:
 - Planner output:
 - Challenger focus:
 - Implementer boundaries:

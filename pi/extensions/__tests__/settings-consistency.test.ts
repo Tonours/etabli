@@ -15,7 +15,7 @@ const settings = JSON.parse(
   packages: Array<string | LocalPackage>;
 };
 
-const installScript = readFileSync(new URL("../../../scripts/install.sh", import.meta.url), "utf-8");
+const installScript = readFileSync(new URL("../../../scripts/lib/install-main.sh", import.meta.url), "utf-8");
 const deployAgentWorkflowScript = readFileSync(
   new URL("../../../scripts/deploy-agent-workflow", import.meta.url),
   "utf-8",
@@ -24,6 +24,16 @@ const checkFixSymlinksScript = readFileSync(
   new URL("../../../scripts/check-fix-symlinks.sh", import.meta.url),
   "utf-8",
 );
+const skillCatalog = readFileSync(
+  new URL("../../../workflow/runtime/skill-surface.tsv", import.meta.url),
+  "utf-8",
+)
+  .split("\n")
+  .filter((line) => line && !line.startsWith("#"))
+  .map((line) => {
+    const [name, source, piCore, codexVisible, locked] = line.split("\t");
+    return { name, source, piCore: piCore === "1", codexVisible: codexVisible === "1", locked: locked === "1" };
+  });
 
 function localPackage(): LocalPackage {
   const pkg = packageBySource("local:etabli-workflow");
@@ -38,14 +48,7 @@ function packageBySource(source: string): LocalPackage | undefined {
 }
 
 function installCoreSkills(): string[] {
-  return shellArray(installScript, "PI_CORE_SKILLS");
-}
-
-function shellArray(source: string, name: string): string[] {
-  const match = source.match(new RegExp(`(?:readonly\\s+)?${name}=\\(\\n([\\s\\S]*?)\\n\\)`));
-  if (!match) throw new Error(`${name} declaration missing`);
-
-  return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+  return skillCatalog.filter((skill) => skill.source === "pi" && skill.piCore).map((skill) => skill.name);
 }
 
 describe("Pi settings consistency", () => {
@@ -69,15 +72,17 @@ describe("Pi settings consistency", () => {
 
   test("keeps Codex-visible skill lists synchronized across bootstrap scripts", () => {
     const scripts = [installScript, deployAgentWorkflowScript, checkFixSymlinksScript];
-    const piSkillLists = scripts.map((source) => shellArray(source, "CODEX_VISIBLE_PI_SKILLS"));
-    const codexSkillLists = scripts.map((source) => shellArray(source, "CODEX_VISIBLE_CODEX_SKILLS"));
+    for (const source of scripts) expect(source).toContain("skill_catalog_names");
 
-    expect(piSkillLists[1]).toEqual(piSkillLists[0]);
-    expect(piSkillLists[2]).toEqual(piSkillLists[0]);
-    expect(codexSkillLists[1]).toEqual(codexSkillLists[0]);
-    expect(codexSkillLists[2]).toEqual(codexSkillLists[0]);
-    expect(piSkillLists[0].every((skill) => (localPackage().skills ?? []).includes(skill))).toBe(true);
-    expect(codexSkillLists[0]).toEqual(["goal-prompt-rewriter"]);
+    const piSkills = skillCatalog.filter((skill) => skill.source === "pi" && skill.codexVisible).map((skill) => skill.name);
+    const codexSkills = skillCatalog.filter((skill) => skill.source === "codex" && skill.codexVisible).map((skill) => skill.name);
+    expect(piSkills.every((skill) => (localPackage().skills ?? []).includes(skill))).toBe(true);
+    expect(codexSkills).toEqual([
+      "browser-full-page-capture",
+      "frontend-motion-performance",
+      "goal-prompt-rewriter",
+      "ui-reference-capture",
+    ]);
   });
 
   test("loads only the curated third-party Pi package surface", () => {

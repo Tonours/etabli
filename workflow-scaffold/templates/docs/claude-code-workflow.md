@@ -1,24 +1,12 @@
 # Claude Code Workflow
 
-Use the simplest workflow that can finish with evidence.
-
-```text
-plan -> implement -> review -> validate
-```
-
-Escalate only when one context may miss scope, UI quality, or risk:
-
-```text
-planner -> builder -> evaluator -> builder fixes -> evaluator signoff
-```
+Use the simplest evidence-backed route: plan -> implement -> review -> validate.
+Escalate when one context may miss scope, UI quality, or risk.
+Escalated shape: planner -> builder -> evaluator -> bounded repair.
 
 ## Goal Loop
-Use Claude Code `/goal` only for measurable "keep working until done" tasks
-with named validation and an explicit cap.
-
-For Etabli parity, follow `workflow/skills/orchestration.md`: Claude uses
-`/goal`, commands, hooks, and current runtime capability evidence; Pi Task*
-semantics are Pi-only unless exposed.
+Use `/goal` only for measurable long tasks with named validation and a cap.
+Follow `workflow/skills/orchestration.md`; Pi Task* semantics stay Pi-only.
 
 ## Guardrails
 - Ground progress in current-session tool results.

@@ -133,5 +133,75 @@
     "prompt": "fix CI and push PR #42",
     "expectedRoute": "ci-fix",
     "writeAllowed": true
+  },
+  {
+    "name": "linear bug analysis stays read-only",
+    "category": "linear-negative-control",
+    "prompt": "Analyse le bug Linear PRD-387 sans coder",
+    "expectedRoute": "bug-check",
+    "writeAllowed": false
+  },
+  {
+    "name": "linear creation uses its dedicated route",
+    "category": "linear",
+    "prompt": "Crée un ticket Linear pour ce bug de login",
+    "expectedRoute": "linear-ticket-create",
+    "writeAllowed": true
+  },
+  {
+    "name": "linear implementation uses its dedicated route",
+    "category": "linear",
+    "prompt": "Corrige le bug décrit dans Linear LIN-123",
+    "expectedRoute": "linear-work",
+    "writeAllowed": true
+  },
+  {
+    "name": "PR QA stays read-only",
+    "category": "github",
+    "prompt": "Comment tester la PR GitHub 42 ?",
+    "expectedRoute": "pr-qa",
+    "writeAllowed": false
+  },
+  {
+    "name": "security PR stays read-only",
+    "category": "github",
+    "prompt": "Audite la PR Dependabot #1606",
+    "expectedRoute": "sec-pr",
+    "writeAllowed": false
+  },
+  {
+    "name": "adversarial code review is not plan adversary",
+    "category": "negative-control",
+    "prompt": "fais une code-review complète puis une code-review adversary",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "read-only adversarial plan review stays review",
+    "category": "mixed-intent",
+    "prompt": "Read-only adversarial PLAN.md review. Do not edit files.",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "French implementation question routes ambiently",
+    "category": "multilingual",
+    "prompt": "peux-tu implémenter le fix du login ?",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "read then fix is implementation",
+    "category": "mixed-intent",
+    "prompt": "montre puis corrige le bug",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "plain explanation stays answer",
+    "category": "negative-control",
+    "prompt": "explique comment fonctionne le hook",
+    "expectedRoute": "answer",
+    "writeAllowed": false
   }
 ]

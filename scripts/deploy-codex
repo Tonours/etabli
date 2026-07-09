@@ -143,6 +143,7 @@ codex_files() {
     -print | sort
 
   find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort
+  printf '%s\n' "$REPO_DIR/workflow/ticket-template.md"
 }
 
 relative_path_for_source() {

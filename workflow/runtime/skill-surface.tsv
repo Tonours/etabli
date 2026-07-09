@@ -1,0 +1,21 @@
+# name	source	pi_core	codex_visible	locked
+plan-loop	pi	1	1	1
+plan-implement	pi	1	1	1
+adversary	pi	1	1	1
+review	pi	1	0	1
+implement	pi	1	1	1
+verify	pi	1	1	1
+bug-check	pi	1	1	1
+linear-ticket-create	pi	1	1	1
+linear-work	pi	1	1	1
+pr-review	pi	1	1	1
+pr-qa	pi	1	1	1
+sec-pr	pi	1	1	1
+ci-fix	pi	1	1	1
+github-pr-review	pi	1	1	1
+caveman	pi	1	0	1
+grill-me	pi	1	0	1
+browser-full-page-capture	codex	0	1	1
+frontend-motion-performance	codex	0	1	1
+goal-prompt-rewriter	codex	0	1	1
+ui-reference-capture	codex	0	1	1

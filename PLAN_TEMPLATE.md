@@ -10,7 +10,12 @@
 
 ## Workflow Contract
 - Route:
+- Pattern: direct | localize-repair-validate | react | self-refine | planner-builder-evaluator | parallel-sections | tree-search | scheduled-idempotent
 - Role:
+- Goal verifier:
+- Budget (iterations / time / tokens or tools):
+- Context reset:
+- Escalation:
 - Stop condition:
 - Required evidence:
 

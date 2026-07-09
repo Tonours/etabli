@@ -9,7 +9,7 @@
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "e44b7da2831b7f08ec8935c699eba06db46a1e1566f2e11708c4c623aedf8f8f"
+      "computedHash": "f7c8bed037d87d7e3460058e9645f5db39e3f66dffab31641d580b0761d60d41"
     },
     "review": {
       "source": "local",
@@ -80,6 +80,26 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "183e4e7b2352ac494333372fcc9de1ee9aa560f0ef3fc2c021778ba4c36cf35d"
+    },
+    "browser-full-page-capture": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "052e366cd3a635dd8a266dae32182029c75f2457b476d22be7c5afad779e1590"
+    },
+    "frontend-motion-performance": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "cb55f6d84acd56dd7e63027b4b9debdfff3bc4ecf8a6d8315c3ee41b3ec79b53"
+    },
+    "goal-prompt-rewriter": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "5c161edadc617f08020932264b1fe45b2b6d7ff7bbc9ff286a9fd840f9fa580a"
+    },
+    "ui-reference-capture": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a3de222f984d2b983da5ab220416d6f9a614aa60cd3061daffbf9b8bc7370322"
     }
   }
 }
