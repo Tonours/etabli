@@ -61,7 +61,10 @@ assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
 assert_link "$HOME_DIR/.agents/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
+assert_link "$HOME_DIR/.agents/skills/browser-full-page-capture" "$ROOT_DIR/codex/skills/browser-full-page-capture"
+assert_link "$HOME_DIR/.agents/skills/frontend-motion-performance" "$ROOT_DIR/codex/skills/frontend-motion-performance"
 assert_link "$HOME_DIR/.agents/skills/goal-prompt-rewriter" "$ROOT_DIR/codex/skills/goal-prompt-rewriter"
+assert_link "$HOME_DIR/.agents/skills/ui-reference-capture" "$ROOT_DIR/codex/skills/ui-reference-capture"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
 
 node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'

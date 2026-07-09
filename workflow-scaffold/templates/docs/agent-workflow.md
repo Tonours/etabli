@@ -2,7 +2,7 @@
 
 This project includes the Etabli agent workflow.
 
-## Source Map
+## Sources
 - Entry points: `AGENTS.md`, `CLAUDE.md`
 - Canonical loop: `workflow/spec.md`
 - Shared contracts: `workflow/skills/`
@@ -15,23 +15,14 @@ This project includes the Etabli agent workflow.
   `workflow/plan-archive.md`, `docs/plan/README.md`
 - Project facts: `docs/project-context.md`
 
-## Activation is ambient
-`workflow/spec.md` activates the workflow. Normal prompts use the smallest
-route; explicit `/goal`, `workflow`, `subagents`, or `plan-loop` means heavier
-orchestration.
+## Activation
+`workflow/spec.md` activates the smallest applicable route. Explicit `/goal`,
+`subagents`, or `plan-loop` requests heavier orchestration. READY remains the
+implementation gate; push, PR, deploy, release, and external writes still need
+consent.
 
-Self-improvement and ambitious project prompts still use the normal READY gate.
-They add stronger evidence and slicing contracts; they do not imply push, PR,
-deploy, release, or external write-back consent.
-Self-improvement candidates keep weakness patterns, bounded proposals,
-held-in/held-out validation, and rejected candidates in the local ledger.
-
-## Pi Coding Agent
-Pi uses `AGENTS.md` as the project map.
-
-## Claude Code
-Claude uses `CLAUDE.md` plus `docs/claude-code-workflow.md`.
+Adapters: Pi Coding Agent reads `AGENTS.md`; Claude Code reads `CLAUDE.md`.
 
 ## Maintenance
-Keep entrypoints short; move project facts to docs, shared behavior to
-`workflow/skills/`, and hard boundaries to hooks/tests/CI/sandbox settings.
+Keep entrypoints short; put shared behavior in `workflow/skills/` and enforce
+hard boundaries with hooks, tests, CI, or sandbox settings.

@@ -4,34 +4,30 @@ import { classifyWorkflowRoute, type WorkflowRoute } from "../lib/workflow-route
 
 type WorkflowRouterFixture = {
   name: string;
+  category: string;
   prompt: string;
-  route: WorkflowRoute;
-  mustNotRoute?: WorkflowRoute;
+  expectedRoute: WorkflowRoute;
   writeAllowed: boolean;
-  stopCondition: string;
+  context?: { planStatus?: "missing" | "draft" | "challenged" | "ready" | "unknown" };
 };
 
 const fixtures = JSON.parse(
-  readFileSync(new URL("./fixtures/workflow-router-fixtures.json", import.meta.url), "utf-8"),
+  readFileSync(new URL("../../../tests/router-evals/core.json", import.meta.url), "utf-8"),
 ) as WorkflowRouterFixture[];
 
 describe("workflow router golden prompt fixtures", () => {
   test("contains at least one anti-drift guard", () => {
-    expect(fixtures.some((fixture) => fixture.mustNotRoute !== undefined)).toBe(true);
+    expect(fixtures.some((fixture) => fixture.category === "negative-control")).toBe(true);
   });
 
   for (const fixture of fixtures) {
     test(fixture.name, () => {
-      const decision = classifyWorkflowRoute(fixture.prompt);
+      const decision = classifyWorkflowRoute(fixture.prompt, fixture.context);
 
       expect(decision).toMatchObject({
-        route: fixture.route,
+        route: fixture.expectedRoute,
         writeAllowed: fixture.writeAllowed,
-        stopCondition: fixture.stopCondition,
       });
-      if (fixture.mustNotRoute) {
-        expect(decision.route).not.toBe(fixture.mustNotRoute);
-      }
     });
   }
 });

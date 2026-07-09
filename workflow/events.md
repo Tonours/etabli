@@ -7,11 +7,11 @@ The file is append-only: one JSON object per line, never rewritten. Event
 shape:
 
 ```json
-{"ts":"2026-07-03T12:00:00Z","event":"route_decided","run":"slug","detail":{}}
+{"schema_version":1,"ts":"2026-07-03T12:00:00Z","event":"route_decided","run":"slug","detail":{"route":"plan-loop","reason":"broad task"}}
 ```
 
-Resume by reading `state.json` for structure and replaying `events.jsonl` for
-history. The last `completed` or `blocked` event is terminal evidence; a run
+Resume by replaying `events.jsonl`; derived summaries are disposable, not a
+second source of truth. The last `completed` or `blocked` event is terminal evidence; a run
 with neither is in progress.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
@@ -29,7 +29,9 @@ with `scripts/workflow-dossier`, and mine recurring workflow issues with
 | --- | --- |
 | `route_decided` | `{route, reason}` |
 | `plan_created` | `{path, status}` |
-| `adversary_completed` | `{verdict, accepted_findings, rejected_findings}` |
+| `adversary_completed` | `{mode: plan|code_diff, verdict, accepted_findings, rejected_findings}` |
+| `review_completed` | `{status, evidence}` |
+| `simplification_completed` | `{status, evidence}` |
 | `file_changed` | `{path, change}` |
 | `validation_run` | `{command, exit}` |
 | `validation_failed` | `{command, exit, failure}` |
@@ -49,10 +51,12 @@ with `scripts/workflow-dossier`, and mine recurring workflow issues with
 | `handoff` | `{branch, sha, done, pending, next_action, do_not_redo}` |
 | `human_checkpoint` | `{category, decision, target}` |
 | `archive_written` | `{path}` |
+| `plan_removed` | `{path:"PLAN.md"}` |
 | `completed` | `{summary}` |
 | `blocked` | `{reason, needed_input}` |
 
-`outcome_metric` fields are optional by design so older ledgers stay valid. Use
+New autonomous ledgers use `validate --profile autonomous-completed`; missing
+ledgers fail unless explicit `--allow-missing` legacy compatibility is selected.
+Unavailable telemetry is recorded with `measured:false`, never as zero. Use
 `success: true` or an `outcome` such as `success`, `passed`, or `completed` for
-successful outcomes; `scripts/workflow-metrics` treats missing token counts as
-zero rather than inferring them.
+successful outcomes; historical ledgers remain readable as `legacy_unmeasured`.

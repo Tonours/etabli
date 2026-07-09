@@ -61,6 +61,9 @@ details in the adapters; keep the phase order and completion evidence here.
 17. Return files changed, adversary result, validation, review result, risks,
     archive path, deleted `PLAN.md` status, remaining risks, next action if any,
     and final status.
+18. Before any separately authorized push, run the complete relevant
+    `scripts/verify-agentic-infra` group on the final diff. A red group blocks
+    push even when focused checks passed.
 
 ## Completion Evidence
 

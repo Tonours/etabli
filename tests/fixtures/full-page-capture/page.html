@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 20px system-ui; }
+    header { position: fixed; inset: 0 0 auto; height: 64px; background: #111; color: white; z-index: 3; }
+    section { min-height: 700px; padding: 90px 30px 30px; }
+    .sticky { position: sticky; top: 64px; padding: 12px; background: gold; }
+    .reveal { opacity: 0; transition: opacity .2s; }
+    .reveal.visible { opacity: 1; }
+    footer { min-height: 240px; padding: 40px; background: #234; color: white; }
+  </style>
+</head>
+<body>
+  <header>Persistent header</header>
+  <section><div class="sticky">Scoped sticky</div><p>Top</p></section>
+  <section><p class="reveal">Lazy and animated middle content</p></section>
+  <footer>Footer evidence</footer>
+  <script>
+    const reveal = document.querySelector('.reveal');
+    new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) reveal.classList.add('visible');
+    }).observe(reveal);
+  </script>
+</body>
+</html>

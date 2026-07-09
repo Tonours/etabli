@@ -44,6 +44,29 @@ if [ -n "$missing_proofs" ]; then
   exit 1
 fi
 
+missing_freshness="$(jq -r '
+  .runtimes | to_entries[] as $runtime |
+  $runtime.value | to_entries[] |
+  select((.value.verified_at // "") == "" or (.value.proof_result // "") == "" or ((.value.expires_after_days // 0) <= 0)) |
+  "\($runtime.key).\(.key)"
+' "$MATRIX")"
+if [ -n "$missing_freshness" ]; then
+  printf 'missing capability freshness evidence:\n%s\n' "$missing_freshness" >&2
+  exit 1
+fi
+
+stale_claims="$(jq -r --argjson now "$(date -u +%s)" '
+  .runtimes | to_entries[] as $runtime |
+  $runtime.value | to_entries[] |
+  select(.value.label == "confirmed" or .value.label == "proxy_supported") |
+  select((((.value.verified_at + "T00:00:00Z") | fromdateiso8601) + (.value.expires_after_days * 86400)) < $now) |
+  "\($runtime.key).\(.key)"
+' "$MATRIX")"
+if [ -n "$stale_claims" ]; then
+  printf 'stale capability claims must be re-verified or relabelled unknown:\n%s\n' "$stale_claims" >&2
+  exit 1
+fi
+
 doc_labels="$(grep -Eo '`(confirmed|proxy_supported|blocked|unknown)`' "$ROOT_DIR/workflow/skills/orchestration.md" | tr -d '`' | sort -u)"
 expected_labels="$(printf '%s\n' blocked confirmed proxy_supported unknown | sort)"
 assert_equal_sets "$expected_labels" "$doc_labels" "label vocabulary"

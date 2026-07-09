@@ -69,7 +69,11 @@ assert_contains "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md" "multi_a
 assert_file "$CODEX_HOME_DIR/prompts/opsx-apply.md"
 assert_file "$CODEX_HOME_DIR/automations/templates/repo-hygiene.template.toml"
 assert_file "$CODEX_HOME_DIR/automations/templates/thread-checkpoint.template.toml"
+assert_file "$CODEX_HOME_DIR/skills/browser-full-page-capture/SKILL.md"
+assert_file "$CODEX_HOME_DIR/skills/browser-full-page-capture/scripts/stitch-full-page-capture.mjs"
 assert_file "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md"
+assert_file "$CODEX_HOME_DIR/skills/frontend-motion-performance/SKILL.md"
+assert_file "$CODEX_HOME_DIR/skills/ui-reference-capture/SKILL.md"
 assert_contains "$CODEX_HOME_DIR/AGENTS.md" "multi_agent_v1.spawn_agent"
 assert_contains "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md" "multi_agent_v1.spawn_agent"
 assert_contains "$CODEX_HOME_DIR/hooks.json" '$HOME/.codex/herdr-agent-state.sh'
