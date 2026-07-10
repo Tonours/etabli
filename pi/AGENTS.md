@@ -22,6 +22,7 @@
 - TypeScript strict, no `any`, ES modules, local runner.
 - Run focused checks; type-check code changes when available.
 - Reviews lead with severity-ordered findings and file/line evidence.
-- Memory: follow `workflow/skills/obvault-memory.md` with `~/work/obvault`.
+- Memory: proactively consult `~/work/obvault` per
+  `workflow/skills/obvault-memory.md`.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
 - Do not rewrite, amend, push, or credit AI tools unless requested.

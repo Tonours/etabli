@@ -8,6 +8,7 @@ import {
   WORKFLOW_ROUTER_EXTENSION_VERSION,
   type PlanStatus,
 } from "./lib/workflow-router-runtime.ts";
+import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -44,17 +45,24 @@ export default function (pi: ExtensionAPI) {
     if (!shouldInjectWorkflowRouter(event.prompt)) return undefined;
 
     const planStatus = readPlanStatus(eventCwd(event));
-    const decision = classifyWorkflowRoute(event.prompt, {
+    const routeContext = {
       planStatus: planStatus === "missing" ? promptPlanStatusFallback(event.prompt) : planStatus,
       hasTaskTools: pi.getActiveTools().some((toolName) => toolName.startsWith("Task")),
-    });
+    };
+    let decision = classifyWorkflowRoute(event.prompt, routeContext);
+    if (!decision.knowledgeContext) {
+      decision = classifyWorkflowRoute(event.prompt, {
+        ...routeContext,
+        dynamicKnowledgeContext: resolveDynamicKnowledgeContext(event.prompt) ?? undefined,
+      });
+    }
 
     routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
       version: WORKFLOW_ROUTER_EXTENSION_VERSION,
       decision,
     });
 
-    if (decision.route === "answer") return undefined;
+    if (decision.route === "answer" && !decision.knowledgeContext) return undefined;
 
     return {
       systemPrompt: appendWorkflowRouterGuidance(event.systemPrompt, decision),

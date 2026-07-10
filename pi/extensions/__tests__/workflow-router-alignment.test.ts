@@ -14,6 +14,12 @@ type ClaudeDecision = {
     nextRoute: string;
     requiredEvidence: string[];
   };
+  knowledgeContext?: {
+    topics: string[];
+    query: string;
+    reason: string;
+    command: string;
+  };
 };
 
 const { classifyWorkflowRoute: classifyClaude } = await import("../../../workflow/runtime/workflow-router-core.mjs") as {
@@ -36,6 +42,7 @@ function normalizeDecision(decision: ClaudeDecision) {
     requiredEvidence: decision.requiredEvidence,
     writeAllowed: decision.writeAllowed,
     planChain: decision.planChain ?? null,
+    knowledgeContext: decision.knowledgeContext ?? null,
   };
 }
 

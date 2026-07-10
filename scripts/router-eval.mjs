@@ -54,6 +54,7 @@ function normalizeDecision(decision) {
     route: normalizeRoute(decision.route),
     writeAllowed: Boolean(decision.writeAllowed),
     stopCondition: String(decision.stopCondition || "").replace(/Verdict: /g, ""),
+    knowledgeTopics: decision.knowledgeContext?.topics ?? [],
   };
 }
 
@@ -91,11 +92,14 @@ const results = cases.map((testCase) => {
   const pi = normalizeDecision(classifyPi(testCase.prompt, context));
   const claude = normalizeDecision(classifyClaude(testCase.prompt, context));
   const expectedWriteAllowed = testCase.writeAllowed;
+  const expectedKnowledgeTopics = testCase.expectedKnowledgeTopics;
   const piRouteOk = pi.route === expectedRoute;
   const claudeRouteOk = claude.route === expectedRoute;
   const piWriteOk = expectedWriteAllowed === undefined || pi.writeAllowed === expectedWriteAllowed;
   const claudeWriteOk = expectedWriteAllowed === undefined || claude.writeAllowed === expectedWriteAllowed;
-  const aligned = pi.route === claude.route && pi.writeAllowed === claude.writeAllowed;
+  const piKnowledgeOk = expectedKnowledgeTopics === undefined || JSON.stringify(pi.knowledgeTopics) === JSON.stringify(expectedKnowledgeTopics);
+  const claudeKnowledgeOk = expectedKnowledgeTopics === undefined || JSON.stringify(claude.knowledgeTopics) === JSON.stringify(expectedKnowledgeTopics);
+  const aligned = pi.route === claude.route && pi.writeAllowed === claude.writeAllowed && JSON.stringify(pi.knowledgeTopics) === JSON.stringify(claude.knowledgeTopics);
 
   return {
     name: testCase.name,
@@ -103,9 +107,10 @@ const results = cases.map((testCase) => {
     prompt: testCase.prompt,
     expectedRoute,
     expectedWriteAllowed,
+    expectedKnowledgeTopics,
     pi,
     claude,
-    pass: piRouteOk && claudeRouteOk && piWriteOk && claudeWriteOk,
+    pass: piRouteOk && claudeRouteOk && piWriteOk && claudeWriteOk && piKnowledgeOk && claudeKnowledgeOk,
     aligned,
   };
 });

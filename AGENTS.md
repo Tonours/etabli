@@ -52,6 +52,14 @@ Repo-specific instructions for this dotfiles repo.
 - Final answers: apply the live gate in `workflow/answer-quality.md`; answer
   the newest request, name unverified gaps, and do not promise a perfect score.
 
+## Knowledge Base
+
+- Before answering or planning anything that depends on prior research,
+  decisions, conventions, preferences, or recurring incidents, consult the
+  canonical `obvault` knowledge base; do not wait for the user to mention it.
+- Follow `workflow/skills/obvault-memory.md` with `~/work/obvault`; read the
+  vault `AGENTS.md` entrypoint before querying or proposing a durable write.
+
 ## Code
 
 - TypeScript strict, no `any`, ES modules.

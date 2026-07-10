@@ -85,8 +85,43 @@ assert_not_contains "$router_output" 'Route: plan-loop'
 router_output="$(fixture_input router-roadmap-summary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_empty "$router_output" "roadmap summary"
 
+router_output="$(fixture_input router-knowledge-saas.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: research-plan'
+assert_contains "$router_output" 'Knowledge topics: saas'
+assert_contains "$router_output" '~/work/obvault/_meta/obvault context --json --max-tokens 2500'
+assert_not_contains "$router_output" 'rentables"'
+
+router_output="$(fixture_input router-knowledge-none.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_empty "$router_output" "unrelated answer"
+
+dynamic_vault="$TMP_DIR/dynamic-obvault"
+mkdir -p "$dynamic_vault/kb" "$dynamic_vault/ref"
+ln -s "$ROOT_DIR/../obvault/_meta" "$dynamic_vault/_meta"
+printf '# Test vault\n' > "$dynamic_vault/AGENTS.md"
+printf '# Index\n\n- [[finops-cost-controls]]\n' > "$dynamic_vault/kb/_index.md"
+cat > "$dynamic_vault/kb/finops-cost-controls.md" <<'EOF'
+---
+type: synthesis
+status: verified
+summary: "Cloud cost controls."
+sources:
+  - "repo:billing.md"
+created: 2026-07-10
+updated: 2026-07-10
+tags:
+  - finops
+---
+# FinOps Cost Controls
+EOF
+router_output="$(fixture_input router-knowledge-finops.json | OBVAULT_ROOT="$dynamic_vault" node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
+assert_contains "$router_output" 'Route: answer'
+assert_contains "$router_output" 'Knowledge topics: finops'
+assert_contains "$router_output" 'Knowledge notes: kb/finops-cost-controls.md'
+assert_contains "$router_output" 'matched live obvault metadata'
+
 router_output="$(fixture_input router-spec-read.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "spec read"
+assert_contains "$router_output" 'Route: answer'
+assert_contains "$router_output" 'Knowledge topics: web-security'
 
 write_plan "READY"
 router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"

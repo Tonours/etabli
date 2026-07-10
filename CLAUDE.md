@@ -1,5 +1,11 @@
 @AGENTS.md
 
+## Knowledge Base
+
+Before answering or planning from durable memory, consult `~/work/obvault`
+through `workflow/skills/obvault-memory.md`; read its `AGENTS.md` entrypoint and
+do not wait for an explicit request to use the knowledge base.
+
 <!-- ADR:INDEX:START -->
 ## Architecture Decision Records
 
