@@ -9,7 +9,8 @@
 - Repo: `AGENTS.md`; workflow: `workflow/spec.md`; review:
   `workflow/review-rubric.md`; tickets: `workflow/ticket-template.md`;
   plans: `PLAN_TEMPLATE*.md`; archives: `workflow/plan-archive.md`.
-- Memory: follow `workflow/skills/obvault-memory.md` with `~/work/obvault`.
+- Memory: proactively consult `~/work/obvault` per
+  `workflow/skills/obvault-memory.md`.
 
 ## Workflow
 - This activation is ambient when `workflow/spec.md` exists; use the smallest

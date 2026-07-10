@@ -202,6 +202,31 @@
     "category": "negative-control",
     "prompt": "explique comment fonctionne le hook",
     "expectedRoute": "answer",
-    "writeAllowed": false
+    "writeAllowed": false,
+    "expectedKnowledgeTopics": []
+  },
+  {
+    "name": "SaaS research receives targeted knowledge context",
+    "category": "knowledge-routing",
+    "prompt": "Je recherche des idées de SaaS rentables",
+    "expectedRoute": "research-plan",
+    "writeAllowed": true,
+    "expectedKnowledgeTopics": ["saas"]
+  },
+  {
+    "name": "French apostrophe does not trigger the AI topic",
+    "category": "knowledge-routing-negative",
+    "prompt": "J’ai une question simple",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "expectedKnowledgeTopics": []
+  },
+  {
+    "name": "frontend SaaS implementation receives both knowledge topics",
+    "category": "knowledge-routing",
+    "prompt": "Corrige le bug CSS dans notre SaaS",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "expectedKnowledgeTopics": ["saas", "frontend-css"]
   }
 ]
