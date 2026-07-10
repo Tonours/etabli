@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+DEPLOY_SCRIPT="$ROOT_DIR/scripts/deploy-agent-workflow"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -9,13 +10,18 @@ HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
 mkdir -p "$HOME_DIR"
 
-"$ROOT_DIR/scripts/deploy-agent-workflow" --dry-run --home "$DRY_HOME_DIR" >/dev/null
+grep -Fq 'pi_node_modules="$HOME_DIR/.pi/agent/npm/node_modules"' "$DEPLOY_SCRIPT" || {
+  printf 'deploy script must use the Pi agent npm directory\n' >&2
+  exit 1
+}
+
+"$DEPLOY_SCRIPT" --dry-run --home "$DRY_HOME_DIR" >/dev/null
 if [ -e "$DRY_HOME_DIR" ]; then
   printf 'dry-run created target home: %s\n' "$DRY_HOME_DIR" >&2
   exit 1
 fi
 
-"$ROOT_DIR/scripts/deploy-agent-workflow" --apply --home "$HOME_DIR" >/dev/null
+"$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
 
 assert_link() {
   local path="$1"
