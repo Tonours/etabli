@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 INSTALL_MAIN="$ROOT_DIR/scripts/lib/install-main.sh"
+CODEX_AGENTS="$ROOT_DIR/codex/AGENTS.md"
 
 assert_file() {
     [ -f "$1" ] || {
@@ -77,6 +78,18 @@ assert_file "$ROOT_DIR/tests/answer-quality-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/answer-quality-audit-smoke.sh"
 assert_file "$ROOT_DIR/tests/answer-quality-trace-coverage-smoke.sh"
 assert_file "$ROOT_DIR/tests/answer-quality-trace-eval-smoke.sh"
+assert_contains "$CODEX_AGENTS" "Prefer RTK for shell commands"
+
+for harness_instructions in \
+    "$ROOT_DIR/AGENTS.md" \
+    "$ROOT_DIR/CLAUDE.md" \
+    "$ROOT_DIR/codex/AGENTS.md" \
+    "$ROOT_DIR/claude/CLAUDE.md" \
+    "$ROOT_DIR/pi/AGENTS.md" \
+    "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" \
+    "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"; do
+    assert_not_contains "$harness_instructions" "lean-ctx"
+done
 assert_file "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
 assert_file "$ROOT_DIR/docs/plan/README.md"
 assert_file "$ROOT_DIR/workflow/events.md"
@@ -434,7 +447,7 @@ assert_contains "$ROOT_DIR/tests/workflow-efficiency-report-smoke.sh" 'source_of
 assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'correct loop primitive for the job'
 assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'outcome_metric'
 assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/agents/openai.yaml" 'right Codex loop prompt'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'lean-ctx is optional'
+assert_contains "$ROOT_DIR/codex/AGENTS.md" 'Prefer RTK for shell commands'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Read-only adversarial PLAN.md review'
 assert_contains "$ROOT_DIR/workflow/spec.md" '`spec-guide`'
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'

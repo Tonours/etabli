@@ -2,7 +2,7 @@
 
 ## Runtime
 - French chat; English code/commands/commits. Evidence-first.
-- `lean-ctx is optional`: prefer it; if missing/failed/bad cwd, use native
+- Prefer RTK for shell commands; if unavailable or unsuitable, use native
   shell/read/search with absolute paths.
 
 ## Sources

@@ -352,7 +352,7 @@ deploy_pi() {
   link_path "$REPO_DIR/pi/themes" "$HOME_DIR/.pi/themes" "Pi themes"
 
   if [ "$HOME_DIR" = "$HOME" ]; then
-    pi_node_modules="$HOME_DIR/.pi/npm/node_modules"
+    pi_node_modules="$HOME_DIR/.pi/agent/npm/node_modules"
     if [ "$DRY_RUN" -eq 1 ]; then
       if same_link "$pi_node_modules" "$REPO_DIR/pi/extensions/node_modules"; then
         status_line OK "Pi extension node_modules"
