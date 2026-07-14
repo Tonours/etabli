@@ -132,5 +132,15 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("npm:@tintinweb/pi-tasks")).toMatchObject({
       source: "npm:@tintinweb/pi-tasks",
     });
+
+    expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toMatchObject({
+      extensions: ["src/extension.ts"],
+      skills: ["workflow-guide", "execution-router"],
+      prompts: [],
+      themes: [],
+    });
+    expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
+    expect(installScript).toContain("npm:@agwab/pi-workflow@0.8.1");
+    expect(deployAgentWorkflowScript).toContain("npm:@agwab/pi-workflow@0.8.1");
   });
 });

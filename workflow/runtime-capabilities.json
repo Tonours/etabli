@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-07-03",
+  "updated_at": "2026-07-14",
   "runtimes": {
     "pi": {
       "supports_hooks": {
@@ -34,6 +34,14 @@
         "expires_after_days": 30,
         "proof_command": "cd pi && bun test ./extensions/__tests__/tasks-till-done*.test.ts",
         "notes": "structured task details are covered by runtime and extension tests"
+      },
+      "supports_named_workflow_graphs": {
+        "label": "proxy_supported",
+        "verified_at": "2026-07-14",
+        "proof_result": "pinned package configuration and deploy smoke passed; live Pi run not observed",
+        "expires_after_days": 14,
+        "proof_command": "cd pi && bun test ./extensions/__tests__/settings-consistency.test.ts && cd .. && bash tests/deploy-agent-workflow-smoke.sh",
+        "notes": "explicit-use @agwab/pi-workflow adapter; independent from Pi Task* and not an OS sandbox"
       }
     },
     "claude": {
@@ -68,6 +76,14 @@
         "expires_after_days": 30,
         "proof_command": "none - no Pi Task* equivalent exposed",
         "notes": "Claude hooks do not provide structured task state"
+      },
+      "supports_named_workflow_graphs": {
+        "label": "blocked",
+        "verified_at": "2026-07-14",
+        "proof_result": "no Etabli named-workflow graph adapter configured",
+        "expires_after_days": 30,
+        "proof_command": "none - no Claude adapter for the Pi workflow package",
+        "notes": "Claude may orchestrate with native mechanisms but this specific adapter is Pi-only"
       }
     },
     "codex": {
@@ -102,6 +118,14 @@
         "expires_after_days": 30,
         "proof_command": "none - simulate packets under .workflow/<slug>/",
         "notes": "no Pi Task* equivalent is exposed"
+      },
+      "supports_named_workflow_graphs": {
+        "label": "blocked",
+        "verified_at": "2026-07-14",
+        "proof_result": "no Etabli named-workflow graph adapter configured",
+        "expires_after_days": 30,
+        "proof_command": "none - no Codex adapter for the Pi workflow package",
+        "notes": "Codex may use its own goal/subagent runtime but this specific adapter is Pi-only"
       }
     }
   }

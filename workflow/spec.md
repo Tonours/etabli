@@ -59,6 +59,15 @@ Only `READY` authorizes implementation.
 ## Rules
 
 - Read code directly before planning or editing.
+- If shell startup or cwd resolution fails, retry from `/` with an explicit
+  shell before declaring the tool or filesystem unavailable.
+- For broad external research, repo-pattern, or fresh-context review, name the
+  chosen slice first and prefer source claims, local contracts, memory, recent
+  diffs, and existing docs before rereading the whole repository.
+- When asked whether a source implies repository changes, answer `no change`,
+  `change`, or `blocked` against the local contract before editing.
+- Before mutable local-device or server actions, identify the exact target and
+  control path, backup or rollback when relevant, and the post-check.
 - Keep one execution artifact: `PLAN.md`.
 - Archive implemented plans in `docs/plan/` only after implementation and validation.
 - Do not create `REVIEW.md` or secondary mandatory planning docs.
@@ -258,6 +267,7 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Answer quality trace eval: `scripts/answer-quality-trace-eval`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
+- Explicit-use Pi named-workflow adapter: `workflow/pi-workflow-adapter.md`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
@@ -274,6 +284,10 @@ behavior.
 
 Pi:
 
+- `/workflow ...` is an explicit-use third-party Pi adapter, never an ambient Etabli
+  route. Its first approved slice is the bundled read-only `spec-review` and
+  `impact-review` workflows; see `workflow/pi-workflow-adapter.md` for state,
+  delegation, and non-sandbox boundaries.
 - `/skill:plan-loop <task>`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/skill:plan-implement <task>`: plan, then implement if `READY`
 - `/skill:adversary`: adversarially review `PLAN.md` before implementation
