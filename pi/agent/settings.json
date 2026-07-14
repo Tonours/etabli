@@ -78,6 +78,18 @@
     },
     {
       "source": "npm:@tintinweb/pi-tasks"
+    },
+    {
+      "source": "npm:@agwab/pi-workflow@0.8.1",
+      "extensions": [
+        "src/extension.ts"
+      ],
+      "skills": [
+        "workflow-guide",
+        "execution-router"
+      ],
+      "prompts": [],
+      "themes": []
     }
   ],
   "lsp": {

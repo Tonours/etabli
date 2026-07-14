@@ -45,6 +45,7 @@ with `scripts/workflow-dossier`, and mine recurring workflow issues with
 | `harness_candidate_rejected` | `{candidate, reason, regressions, evidence}` |
 | `project_slice_planned` | `{slice, owner, validation, dependencies}` |
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
+| `runtime_run_attached` | `{adapter:"pi-workflow", run_id, workflow, state_path:".pi/workflows/<run-id>", status, usage_measured}` |
 | `outcome_metric` | `{outcome, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
@@ -60,3 +61,9 @@ ledgers fail unless explicit `--allow-missing` legacy compatibility is selected.
 Unavailable telemetry is recorded with `measured:false`, never as zero. Use
 `success: true` or an `outcome` such as `success`, `passed`, or `completed` for
 successful outcomes; historical ledgers remain readable as `legacy_unmeasured`.
+
+`runtime_run_attached` links adapter-owned evidence to the Etabli run; it does
+not make `.pi/workflows/<run-id>/` a second planning or progress source of
+truth. Its `state_path` must be exactly `.pi/workflows/<run_id>`, its status must
+match a pi-workflow run status, and unavailable usage is represented by
+`usage_measured:false` rather than zero-valued token fields.

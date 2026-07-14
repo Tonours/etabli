@@ -22,6 +22,7 @@ ALLOWED_EVENTS=(
   harness_candidate_rejected
   project_slice_planned
   project_slice_completed
+  runtime_run_attached
   outcome_metric
   retry_classified
   no_progress
@@ -63,6 +64,7 @@ detail_valid() {
     blocked) expression+=' and (.reason | type == "string") and (.needed_input | type == "string")' ;;
     adversary_completed) expression+=' and (.mode | IN("plan", "code_diff")) and (.verdict | type == "string")' ;;
     review_completed|simplification_completed) expression+=' and (.status | type == "string") and ((.evidence | type) == "string" or (.evidence | type) == "array")' ;;
+    runtime_run_attached) expression+=' and (.adapter == "pi-workflow") and (.run_id | type == "string") and (.run_id | test("^workflow_[A-Za-z0-9_-]+$")) and (.workflow | type == "string") and ((.workflow | length) > 0) and (.state_path == (".pi/workflows/" + .run_id)) and (.status | IN("running", "blocked", "completed", "failed", "interrupted")) and (.usage_measured | type == "boolean")' ;;
     plan_removed) expression+=' and (.path == "PLAN.md")' ;;
   esac
   printf '%s\n' "$detail" | jq -e "$expression" >/dev/null 2>&1
