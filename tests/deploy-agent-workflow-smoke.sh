@@ -8,7 +8,20 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
-mkdir -p "$HOME_DIR"
+mkdir -p "$HOME_DIR/.pi/agent"
+
+node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
+const fs = require("node:fs");
+const path = process.argv[2];
+fs.writeFileSync(path, `${JSON.stringify({
+  packages: [
+    "npm:@agwab/pi-workflow",
+    { source: "npm:@agwab/pi-workflow@0.7.0" },
+    { source: "npm:@agwab/pi-workflow-helper" },
+    { source: "npm:pi-subagents" },
+  ],
+}, null, 2)}\n`);
+NODE
 
 grep -Fq 'pi_node_modules="$HOME_DIR/.pi/agent/npm/node_modules"' "$DEPLOY_SCRIPT" || {
   printf 'deploy script must use the Pi agent npm directory\n' >&2
@@ -88,6 +101,10 @@ function hasObjectSource(source) {
   return packages.some((entry) => entry && typeof entry === "object" && entry.source === source);
 }
 
+function packageBySource(source) {
+  return packages.find((entry) => entry && typeof entry === "object" && entry.source === source);
+}
+
 if (!hasObjectSource("npm:@tintinweb/pi-subagents")) {
   throw new Error("missing scoped Pi subagents package");
 }
@@ -96,8 +113,30 @@ if (!hasObjectSource("npm:@tintinweb/pi-tasks")) {
   throw new Error("missing scoped Pi tasks package");
 }
 
+const piWorkflow = packageBySource("npm:@agwab/pi-workflow@0.8.1");
+if (!piWorkflow) {
+  throw new Error("missing pinned pi-workflow package");
+}
+if (JSON.stringify(piWorkflow.extensions) !== JSON.stringify(["src/extension.ts"]) ||
+    JSON.stringify(piWorkflow.skills) !== JSON.stringify(["workflow-guide", "execution-router"])) {
+  throw new Error("pi-workflow package resources are not curated");
+}
+
 if (packages.some((entry) => sourceOf(entry) === "npm:pi-subagents")) {
   throw new Error("legacy unscoped pi-subagents package was kept");
+}
+
+if (packages.some((entry) => {
+  const source = sourceOf(entry);
+  return typeof source === "string" &&
+    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
+    source !== "npm:@agwab/pi-workflow@0.8.1";
+})) {
+  throw new Error("legacy pi-workflow package source was kept");
+}
+
+if (!hasObjectSource("npm:@agwab/pi-workflow-helper")) {
+  throw new Error("unrelated package with a similar prefix was removed");
 }
 NODE
 

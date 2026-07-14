@@ -245,8 +245,15 @@ const managedSources = new Set([
   "npm:glimpseui",
   "npm:@tintinweb/pi-subagents",
   "npm:@tintinweb/pi-tasks",
+  "npm:@agwab/pi-workflow@0.8.1",
 ]);
 const legacySources = new Set(["npm:pi-subagents"]);
+
+function isLegacySource(source) {
+  return legacySources.has(source) ||
+    ((source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
+      source !== "npm:@agwab/pi-workflow@0.8.1");
+}
 
 function sourceOf(entry) {
   if (typeof entry === "string") return entry;
@@ -270,7 +277,7 @@ const changes = [];
 
 const filteredPackages = localPackages.filter((entry) => {
   const source = sourceOf(entry);
-  if (source && legacySources.has(source)) {
+  if (source && isLegacySource(source)) {
     changes.push(`remove ${source}`);
     return false;
   }

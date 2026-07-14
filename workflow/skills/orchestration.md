@@ -11,6 +11,8 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
 
 - Pi may use Task* tools and `tasks-till-done` when available.
+- Pi may use the version-pinned pi-workflow adapter for explicitly
+  requested named workflow graphs under `workflow/pi-workflow-adapter.md`.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
 - Claude should use Claude Code `/goal` for long-running completion loops.
@@ -19,6 +21,8 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
 - Subagents are optional sidecar evaluators or workers, not the default workflow.
+- Named pi-workflow graphs are a separate capability from Task* subagent state;
+  neither capability proves the other.
 
 ## Capability Labels
 
@@ -99,6 +103,10 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 
 Pi:
 
+- The explicit-use `@agwab/pi-workflow@0.8.1` adapter starts as
+  `proxy_supported`. Use only explicit, approved runs and follow
+  `workflow/pi-workflow-adapter.md`; package presence is not delegation or
+  mutation authorization.
 - `tasks-till-done` may continue Task* work until done, blocked, stalled, or at
   its limit.
 - `TaskExecute` requires explicit subagent tracking capability; package presence

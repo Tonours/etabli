@@ -156,6 +156,11 @@ contract without installing anything.
 - `pi/agent/settings.json` is a tracked bootstrap; the live copy stays local.
   `@tintinweb/pi-tasks` is paired with `@tintinweb/pi-subagents`
   (`TaskExecute` needs the `subagents:rpc:*` protocol).
+- The bootstrap curates the exact pin `@agwab/pi-workflow@0.8.1` as an
+  explicit-use Pi-only named-workflow adapter. It is initially limited by
+  policy to bundled read-only pilots, and does not replace `PLAN.md`, the
+  `.workflow` ledger, Task*, or OS sandboxing; see
+  `workflow/pi-workflow-adapter.md`.
 - Secrets and auth files stay local and untracked.
 
 Projects scaffolded with `workflow/spec.md` activate the Etabli workflow

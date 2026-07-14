@@ -21,7 +21,7 @@ expected_runtimes="$(printf '%s\n' claude codex pi | sort)"
 actual_runtimes="$(jq -r '.runtimes | keys[]' "$MATRIX" | sort)"
 assert_equal_sets "$expected_runtimes" "$actual_runtimes" "runtime"
 
-expected_capabilities="$(printf '%s\n' supports_hooks supports_subagents supports_goal_state supports_structured_task_state | sort)"
+expected_capabilities="$(printf '%s\n' supports_hooks supports_subagents supports_goal_state supports_structured_task_state supports_named_workflow_graphs | sort)"
 for runtime in $actual_runtimes; do
   actual_capabilities="$(jq -r --arg runtime "$runtime" '.runtimes[$runtime] | keys[]' "$MATRIX" | sort)"
   assert_equal_sets "$expected_capabilities" "$actual_capabilities" "$runtime capability"

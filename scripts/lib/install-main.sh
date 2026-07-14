@@ -347,8 +347,10 @@ const managedSources = new Set([
   "npm:glimpseui",
   "npm:@tintinweb/pi-subagents",
   "npm:@tintinweb/pi-tasks",
+  "npm:@agwab/pi-workflow@0.8.1",
 ]);
-const localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
+const legacySources = new Set(["npm:pi-subagents"]);
+let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
 
 function packageSource(entry) {
@@ -357,6 +359,17 @@ function packageSource(entry) {
   return null;
 }
 
+function isLegacySource(source) {
+  return legacySources.has(source) ||
+    ((source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
+      source !== "npm:@agwab/pi-workflow@0.8.1");
+}
+
+localPackages = localPackages.filter((entry) => {
+  const source = packageSource(entry);
+  return !source || !isLegacySource(source);
+});
+
 const trackedBySource = new Map();
 for (const entry of trackedPackages) {
   if (entry && typeof entry === "object" && managedSources.has(entry.source)) {
@@ -364,7 +377,7 @@ for (const entry of trackedPackages) {
   }
 }
 
-let changed = false;
+let changed = localPackages.length !== (Array.isArray(localSettings.packages) ? localSettings.packages.length : 0);
 for (const [source, trackedEntry] of trackedBySource) {
   const localIndex = localPackages.findIndex((entry) => packageSource(entry) === source);
 
@@ -558,6 +571,28 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         print_error "ensure_local_bin_shell_path did not update the symlink target"
         exit 1
     fi
+
+    smoke_home="$tmp_dir/home"
+    mkdir -p "$smoke_home/.pi/agent"
+    printf '%s\n' '{"packages":["npm:@agwab/pi-workflow",{"source":"npm:@agwab/pi-workflow@0.7.0"},{"source":"npm:@agwab/pi-workflow-helper"}]}' \
+        > "$smoke_home/.pi/agent/settings.json"
+    HOME="$smoke_home"
+    REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
+    sync_pi_agent_settings_resources >/dev/null
+    "${NODE_CMD[@]}" - "$smoke_home/.pi/agent/settings.json" <<'NODE'
+const fs = require("node:fs");
+const settings = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const sources = settings.packages.map((entry) => typeof entry === "string" ? entry : entry.source);
+if (!sources.includes("npm:@agwab/pi-workflow@0.8.1")) {
+  throw new Error("settings sync did not add the pinned pi-workflow source");
+}
+if (sources.includes("npm:@agwab/pi-workflow") || sources.includes("npm:@agwab/pi-workflow@0.7.0")) {
+  throw new Error("settings sync kept a legacy pi-workflow source");
+}
+if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
+  throw new Error("settings sync removed a similarly named user package");
+}
+NODE
 
     printf 'install helper smoke test: ok\n'
     exit 0
