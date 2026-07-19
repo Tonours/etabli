@@ -203,10 +203,13 @@ scan_plan_archives() {
     sort |
     while IFS= read -r file; do
       awk '
-        BEGIN { IGNORECASE = 1 }
-        /adversary.*finding|accepted finding|validation failed|validation failure|plan drift|scope drift|router miss|routing miss|wrong route|misroute|dogfood blocker|dogfood blocked|runtime capability overclaim|capability overclaim|unknown capability|unavailable runner/ {
-          gsub(/^[[:space:]>#*-]+/, "", $0)
-          if ($0 != "") print FILENAME ":" FNR "\t" $0
+        {
+          line = $0
+          lower = tolower(line)
+        }
+        lower ~ /adversary.*finding|accepted finding|validation failed|validation failure|plan drift|scope drift|router miss|routing miss|wrong route|misroute|dogfood blocker|dogfood blocked|runtime capability overclaim|capability overclaim|unknown capability|unavailable runner/ {
+          gsub(/^[[:space:]>#*-]+/, "", line)
+          if (line != "") print FILENAME ":" FNR "\t" line
         }
       ' "$file" |
         while IFS=$'\t' read -r source text; do
