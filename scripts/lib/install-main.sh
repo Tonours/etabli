@@ -8,6 +8,7 @@
 set -e
 
 BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
+. "$BOOTSTRAP_DIR/lib/pi-paths.sh"
 . "$BOOTSTRAP_DIR/lib/skill-catalog.sh"
 SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
 
@@ -453,7 +454,9 @@ sync_nvim_plugins() {
 
 ensure_pi_extension_node_modules_link() {
     local link_path="$REPO_DIR/pi/extensions/node_modules"
-    local target_path="$HOME/.pi/agent/npm/node_modules"
+    local target_path
+
+    target_path="$(pi_agent_node_modules_dir "$HOME")"
 
     mkdir -p "$target_path"
 
@@ -516,7 +519,9 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
 }
 
 install_pi_agent_npm_pins() {
-    local package_dir="$HOME/.pi/agent/npm"
+    local package_dir
+
+    package_dir="$(pi_agent_npm_dir "$HOME")"
 
     if ! node_runtime_available; then
         print_warning "Node.js not available - skipping Pi agent npm pins"

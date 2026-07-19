@@ -341,7 +341,7 @@ describe("workflow router runtime", () => {
     ] as const;
 
     for (const [prompt, topics] of cases) {
-      expect(classifyWorkflowRoute(prompt).knowledgeContext?.topics).toEqual(topics);
+      expect(classifyWorkflowRoute(prompt).knowledgeContext?.topics).toEqual([...topics]);
     }
   });
 

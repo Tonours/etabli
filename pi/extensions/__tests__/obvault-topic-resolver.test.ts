@@ -29,7 +29,7 @@ aliases:
 ---
 # FinOps Cost Controls
 `);
-  symlinkSync(resolve(import.meta.dir, "../../../../obvault/_meta"), resolve(root, "_meta"), "dir");
+  symlinkSync(resolve(import.meta.dir, "../../../tests/fixtures/obvault-meta"), resolve(root, "_meta"), "dir");
   return root;
 }
 

@@ -4,6 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 CODEX_DIR="$REPO_DIR/codex"
+umask 077
+AUDIT_TMP="$(mktemp)"
+
+cleanup() {
+  rm -f "$AUDIT_TMP"
+}
+trap cleanup EXIT
 
 ERRORS=0
 
@@ -83,35 +90,30 @@ done < <(
   find "$CODEX_DIR" -type d -name generated
 )
 
-if grep -RIE -n 'Bearer[[:space:]]+[A-Za-z0-9._~+/-]{16,}' "$CODEX_DIR" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
-  sed 's/^/SECRET /' /tmp/etabli-codex-audit.$$ >&2
+if grep -RIE -n 'Bearer[[:space:]]+[A-Za-z0-9._~+/-]{16,}' "$CODEX_DIR" >"$AUDIT_TMP" 2>/dev/null; then
+  sed 's/^/SECRET /' "$AUDIT_TMP" >&2
   fail "possible bearer credential in codex tree"
 fi
-rm -f /tmp/etabli-codex-audit.$$
 
-if grep -RIE -n '(api[_-]?key|authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']+["'\'']' "$CODEX_DIR" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
-  sed 's/^/SECRET /' /tmp/etabli-codex-audit.$$ >&2
+if grep -RIE -n '(api[_-]?key|authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']+["'\'']' "$CODEX_DIR" >"$AUDIT_TMP" 2>/dev/null; then
+  sed 's/^/SECRET /' "$AUDIT_TMP" >&2
   fail "possible key or token assignment in codex tree"
 fi
-rm -f /tmp/etabli-codex-audit.$$
 
-if grep -RIE -n 'sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}' "$CODEX_DIR" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
-  sed 's/^/SECRET /' /tmp/etabli-codex-audit.$$ >&2
+if grep -RIE -n 'sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}' "$CODEX_DIR" >"$AUDIT_TMP" 2>/dev/null; then
+  sed 's/^/SECRET /' "$AUDIT_TMP" >&2
   fail "possible API token in codex tree"
 fi
-rm -f /tmp/etabli-codex-audit.$$
 
-if grep -RIE -n '/Users/[^[:space:]`"'\''<>]+|/Volumes/[^[:space:]`"'\''<>]+' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
-  sed 's/^/PRIVATE /' /tmp/etabli-codex-audit.$$ >&2
+if grep -RIE -n '/Users/[^[:space:]`"'\''<>]+|/Volumes/[^[:space:]`"'\''<>]+' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" >"$AUDIT_TMP" 2>/dev/null; then
+  sed 's/^/PRIVATE /' "$AUDIT_TMP" >&2
   fail "local absolute path in tracked Codex organization"
 fi
-rm -f /tmp/etabli-codex-audit.$$
 
-if grep -RIE -n '019e[0-9a-f-]{31,}|ssh-ed25519[[:space:]]+[A-Za-z0-9+/=]{32,}' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" >/tmp/etabli-codex-audit.$$ 2>/dev/null; then
-  sed 's/^/PRIVATE /' /tmp/etabli-codex-audit.$$ >&2
+if grep -RIE -n '019e[0-9a-f-]{31,}|ssh-ed25519[[:space:]]+[A-Za-z0-9+/=]{32,}' "$CODEX_DIR" "$REPO_DIR/docs/codex-organization.md" >"$AUDIT_TMP" 2>/dev/null; then
+  sed 's/^/PRIVATE /' "$AUDIT_TMP" >&2
   fail "thread identifier or public key in tracked Codex organization"
 fi
-rm -f /tmp/etabli-codex-audit.$$
 
 if grep -Eq '^\[(mcp_servers|projects|hooks\.state)' "$CODEX_DIR/config.managed.toml"; then
   fail "config.managed.toml must not track local MCP, project trust, or hook state"

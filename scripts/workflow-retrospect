@@ -118,6 +118,8 @@ emit_observation() {
   local default_category="$1"
   local text="$2"
   local source="$3"
+  local origin="$4"
+  local initiative="$5"
   local category key
 
   [ -n "$text" ] || return 0
@@ -144,7 +146,13 @@ emit_observation() {
     --arg key "$key" \
     --arg text "$text" \
     --arg source "$source" \
-    '{category:$category,key:$key,text:$text,source:$source}' >> "$tmp"
+    --arg origin "$origin" \
+    --arg initiative "$initiative" \
+    '{category:$category,key:$key,text:$text,source:$source,origin:$origin,initiative:$initiative}' >> "$tmp"
+}
+
+normalize_initiative() {
+  printf '%s' "$1" | sed -E 's/-(v|retry|attempt|rerun)[0-9]+$//'
 }
 
 scan_events() {
@@ -153,13 +161,15 @@ scan_events() {
   find "$WORKFLOW_DIR" -mindepth 2 -maxdepth 2 -name events.jsonl -type f -print |
     sort |
     while IFS= read -r file; do
-      jq -r --arg source "$file" '
+      run="$(basename "$(dirname "$file")")"
+      initiative="$(normalize_initiative "$run")"
+      jq -r --arg source "$file" --arg initiative "$initiative" '
         def compact:
           if type == "array" then map(tostring) | join(": ")
           elif type == "object" then to_entries | map(.value | tostring) | join(": ")
           else tostring
           end;
-        def row($category; $text): [$category, ($text | compact), $source] | @tsv;
+        def row($category; $text): [$category, ($text | compact), $source, "ledger", $initiative] | @tsv;
 
         . as $event |
         if $event.event == "adversary_completed" then
@@ -180,8 +190,8 @@ scan_events() {
           empty
         end
       ' "$file" |
-        while IFS=$'\t' read -r category text source; do
-          emit_observation "$category" "$text" "$source"
+        while IFS=$'\t' read -r category text source origin initiative; do
+          emit_observation "$category" "$text" "$source" "$origin" "$initiative"
         done
     done
 }
@@ -200,7 +210,7 @@ scan_plan_archives() {
         }
       ' "$file" |
         while IFS=$'\t' read -r source text; do
-          emit_observation "archive_signal" "$text" "$source"
+          emit_observation "archive_signal" "$text" "$source" "archive" "$source"
         done
     done
 }
@@ -252,18 +262,22 @@ build_summary() {
         $groups[]
         | . as $items
         | ($items[0].category) as $category
-        | ($items | length) as $count
+        | ($items | map(select(.origin == "ledger") | .initiative) | unique) as $ledger_initiatives
+        | ($items | map(select(.origin == "archive") | .source) | unique) as $archive_sources
+        | (if ($ledger_initiatives | length) > 0 then ($ledger_initiatives | length) else ($archive_sources | length) end) as $count
         | (action($category; $count)) as $action
         | {
             category: $category,
             key: $items[0].key,
             count: $count,
+            evidence_count: ($items | length),
+            initiatives: $ledger_initiatives,
             confirmed: ($count >= $min_count),
             action_kind: $action,
             recommendation: recommendation($category; $action),
             samples: (
               $items
-              | map({source, text: (.text | scrub)})
+              | map({source, origin, initiative, text: (.text | scrub)})
               | unique_by(.source, .text)
               | .[0:$max_samples]
             )
@@ -300,7 +314,7 @@ printf '%s\n' "$summary" |
     | select(.confirmed)
     | [
         "",
-        ("category=" + .category + " count=" + (.count | tostring) + " action=" + .action_kind),
+        ("category=" + .category + " initiatives=" + (.count | tostring) + " evidence=" + (.evidence_count | tostring) + " action=" + .action_kind),
         ("key=" + .key),
         ("recommendation=" + .recommendation),
         (

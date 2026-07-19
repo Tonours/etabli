@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$REPO_DIR/scripts/lib/pi-paths.sh"
 FIX=0
 VERBOSE=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -251,7 +252,7 @@ check_link "$HOME/.pi/agent/workflow" "$REPO_DIR/workflow" "pi workflow sources"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "pi PLAN_TEMPLATE.md"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "pi PLAN_TEMPLATE_FULL.md"
 check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
-check_link "$REPO_DIR/pi/extensions/node_modules" "$HOME/.pi/agent/npm/node_modules" "pi extension node_modules"
+check_link "$REPO_DIR/pi/extensions/node_modules" "$(pi_agent_node_modules_dir "$HOME")" "pi extension node_modules"
 check_absent "$HOME/.pi/extensions" "legacy pi extensions"
 check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
 check_link "$HOME/.pi/agent/subagents.json" "$REPO_DIR/pi/agent/subagents.json" "pi subagents.json"

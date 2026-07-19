@@ -96,7 +96,7 @@ assert_empty "$router_output" "unrelated answer"
 
 dynamic_vault="$TMP_DIR/dynamic-obvault"
 mkdir -p "$dynamic_vault/kb" "$dynamic_vault/ref"
-ln -s "$ROOT_DIR/../obvault/_meta" "$dynamic_vault/_meta"
+ln -s "$ROOT_DIR/tests/fixtures/obvault-meta" "$dynamic_vault/_meta"
 printf '# Test vault\n' > "$dynamic_vault/AGENTS.md"
 printf '# Index\n\n- [[finops-cost-controls]]\n' > "$dynamic_vault/kb/_index.md"
 cat > "$dynamic_vault/kb/finops-cost-controls.md" <<'EOF'

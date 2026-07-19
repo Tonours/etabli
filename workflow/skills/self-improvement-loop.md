@@ -37,9 +37,17 @@ router, memory, permissions, checks, or harness code:
    and previously attempted edits.
 3. Proposal validation: accept only candidates that resolve the held-in failure
    evidence and do not regress held-out router, docs, event, or workflow smoke
-   checks.
+   checks. When baseline and candidate use the same comparable population,
+   record `harness_validation_completed` with the same stable population
+   identifier on both sides, integer pass counts, checks, and evidence. An
+   accepted comparison needs a strict held-in gain and held-out non-regression.
 4. Rejection logging: record rejected candidates and negative results with the
    reason, regressions, and evidence so future runs do not repeat them.
+
+Do not collapse unrelated candidate suites into one harness-improvement
+average. Report proposal coverage, verdicts, and percentage-point deltas per
+candidate; unavailable or non-comparable evidence remains `null` or uses the
+non-comparative candidate events.
 
 ## Candidate Outcomes
 

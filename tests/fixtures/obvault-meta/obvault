@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+const [command, ...args] = process.argv.slice(2);
+const root = process.env.OBVAULT_ROOT;
+
+function hasNote(name) {
+  return Boolean(root && existsSync(resolve(root, "kb", `${name}.md`)));
+}
+
+function write(value) {
+  process.stdout.write(`${JSON.stringify(value)}\n`);
+}
+
+if (command === "validate") {
+  process.exit(root && existsSync(resolve(root, "AGENTS.md")) ? 0 : 1);
+}
+
+const prompt = args.at(-1) ?? "";
+
+if (command === "route") {
+  if (/finops/i.test(prompt) && hasNote("finops-cost-controls")) {
+    write({
+      abstained: false,
+      topics: ["finops"],
+      query: "finops aws billing controls cloud cost",
+      matched_notes: [{ path: "kb/finops-cost-controls.md" }],
+    });
+  } else {
+    write({ abstained: true, topics: [], query: "", matched_notes: [] });
+  }
+  process.exit(0);
+}
+
+if (command === "query" && hasNote("llm-wiki-second-brain-architecture")) {
+  write([{ path: "kb/llm-wiki-second-brain-architecture.md", score: 1 }]);
+  process.exit(0);
+}
+
+if (command === "context" && hasNote("llm-wiki-second-brain-architecture")) {
+  write({
+    estimated_tokens: 32,
+    max_tokens: Number(args[args.indexOf("--max-tokens") + 1] ?? 250),
+    results: [{ path: "kb/llm-wiki-second-brain-architecture.md" }],
+  });
+  process.exit(0);
+}
+
+process.exit(1);

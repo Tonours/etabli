@@ -7,6 +7,16 @@ import { spawnSync } from "node:child_process";
 const SAFE_QUERY_PATTERN = /^[a-z0-9 _-]{4,240}$/;
 const SAFE_TOPIC_PATTERN = /^[a-z0-9 _-]{4,80}$/;
 
+/**
+ * @typedef {object} DynamicKnowledgeContext
+ * @property {string[]} topics
+ * @property {string} query
+ * @property {string} reason
+ * @property {string} command
+ * @property {"obvault-metadata"} source
+ * @property {string[]} matchedNotes
+ */
+
 function defaultRoots() {
   return [
     process.env.OBVAULT_ROOT,
@@ -29,6 +39,11 @@ export function resolveObvaultRoot(roots = defaultRoots()) {
   return null;
 }
 
+/**
+ * @param {unknown} prompt
+ * @param {{ roots?: string[], timeoutMs?: number }} [options]
+ * @returns {DynamicKnowledgeContext | null}
+ */
 export function resolveDynamicKnowledgeContext(prompt, { roots, timeoutMs = 1200 } = {}) {
   const trimmed = String(prompt || "").trim();
   if (!trimmed || trimmed.startsWith("/")) return null;

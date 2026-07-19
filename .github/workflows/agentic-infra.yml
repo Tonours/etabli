@@ -14,117 +14,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Bash syntax check
-        run: |
-          while IFS= read -r -d '' file; do
-            if head -n 1 "$file" | grep -Eq '^#!.*\b(bash|sh)\b'; then
-              bash -n "$file"
-            fi
-          done < <(find scripts tests -maxdepth 1 -type f -print0)
-
-      - name: Validate JSON config files
-        run: |
-          jq empty pi/settings.json
-          jq empty pi/agent/settings.json
-          jq empty pi/models.json
-          jq empty workflow/runtime-capabilities.json
-
-      - name: codex-organization-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/codex-organization-smoke.sh
-
-      - name: workflow-contract-coverage-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-contract-coverage-smoke.sh
-
-      - name: pr-latest-head-status-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/pr-latest-head-status-smoke.sh
-
-      - name: workflow-efficiency-report-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-efficiency-report-smoke.sh
-
-      - name: workflow-monitor-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-monitor-smoke.sh
-
-      - name: workflow-metrics-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-metrics-smoke.sh
-
-      - name: workflow-dossier-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-dossier-smoke.sh
-
-      - name: workflow-retrospect-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-retrospect-smoke.sh
-
-      - name: research-proof-check-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/research-proof-check-smoke.sh
-
-      - name: lean-ctx-check-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/lean-ctx-check-smoke.sh
-
-      - name: workflow-docs-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-docs-smoke.sh
-
-      - name: workflow-scaffold-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-scaffold-smoke.sh
-
-      - name: claude-hooks-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/claude-hooks-smoke.sh
-
-      - name: agent-scenarios-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/agent-scenarios-smoke.sh
-
-      - name: claude-skills-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/claude-skills-smoke.sh
-
-      - name: workflow-cli-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-cli-smoke.sh
-
-      - name: workflow-event-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/workflow-event-smoke.sh
-
-      - name: runtime-capabilities-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/runtime-capabilities-smoke.sh
-
-      - name: adr-hook-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/adr-hook-smoke.sh
-
-      - name: adr-validate-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/adr-validate-smoke.sh
-
-      - name: adr-validation-golden
-        if: ${{ !cancelled() }}
-        run: bash tests/adr-validation-golden.sh
-
-      - name: adr-helper-smoke
-        if: ${{ !cancelled() }}
-        run: bash tests/adr-helper-smoke.sh
-
-      - name: validate-adrs
-        if: ${{ !cancelled() }}
-        run: node scripts/validate-adrs
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Canonical shell/docs parity group
-        if: ${{ !cancelled() }}
         run: scripts/verify-agentic-infra shell-docs
 
   verify-pi-typescript:
@@ -132,16 +24,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('pi/bun.lock*') }}
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       - name: Configure git
         run: |
@@ -158,28 +50,6 @@ jobs:
           cd pi
           bun install --frozen-lockfile
 
-      - name: Run Pi TypeScript test suite
-        run: |
-          cd pi
-          bun test ./extensions/__tests__/*.test.ts
-
-      - name: Run router eval smoke
-        run: bash tests/router-eval-smoke.sh
-
-      - name: Verify skill lock
-        run: |
-          cd pi
-          bun run verify:skills
-
-      - name: Run Pi extension import smoke
-        run: |
-          cd pi
-          bun -e 'for (const path of [
-            "./extensions/block-google-providers.ts",
-            "./extensions/filter-output.ts",
-            "./extensions/rtk.ts",
-          ]) await import(path)'
-
       - name: Canonical Pi parity group
         run: scripts/verify-agentic-infra pi
 
@@ -188,36 +58,30 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       - name: Setup Neovim
-        uses: rhysd/action-setup-vim@v1
+        uses: rhysd/action-setup-vim@febef33995d6649302e9d88dda81e071b68f16a7 # v1.6.1
         with:
           neovim: true
           version: v0.12.2
 
       - name: Cache npm global
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.npm
           key: npm-global-hunkdiff-${{ runner.os }}
 
       - name: Install Hunk CLI
-        run: npm install --global hunkdiff
+        run: npm install --global hunkdiff@0.17.3
 
       - name: Configure git
         run: |
           git config --global user.email "ci@example.com"
           git config --global user.name "CI"
-
-      - name: Run local OPS and Neovim smoke suite
-        run: |
-          bash tests/fix-links-smoke.sh
-          bash tests/install-smoke.sh
-          bash tests/nvim-smoke.sh
 
       - name: Canonical Neovim parity group
         run: scripts/verify-agentic-infra nvim

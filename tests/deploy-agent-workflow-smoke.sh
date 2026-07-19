@@ -30,8 +30,9 @@ fs.writeFileSync(path, `${JSON.stringify({
 }, null, 2)}\n`);
 NODE
 
-grep -Fq 'pi_node_modules="$HOME_DIR/.pi/agent/npm/node_modules"' "$DEPLOY_SCRIPT" || {
-  printf 'deploy script must use the Pi agent npm directory\n' >&2
+grep -Fq '. "$SCRIPT_DIR/lib/pi-paths.sh"' "$DEPLOY_SCRIPT" &&
+  grep -Fq 'pi_agent_node_modules_dir "$HOME_DIR"' "$DEPLOY_SCRIPT" || {
+  printf 'deploy script must use the shared Pi path helper\n' >&2
   exit 1
 }
 

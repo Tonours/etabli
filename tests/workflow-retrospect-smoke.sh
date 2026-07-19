@@ -25,6 +25,7 @@ assert_contains() {
 }
 
 mkdir -p "$EVENT_DIR/bad-run-a" "$EVENT_DIR/bad-run-b" "$EVENT_DIR/bad-run-c" "$EVENT_DIR/good-run-a" "$EVENT_DIR/good-run-b" "$PLAN_DIR"
+mkdir -p "$EVENT_DIR/repeated-initiative" "$EVENT_DIR/repeated-initiative-v2"
 
 cat >"$EVENT_DIR/bad-run-a/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T10:00:00Z","event":"route_decided","run":"bad-run-a","detail":{"route":"plan-implement","reason":"router miss: read-only adversary prompt incorrectly routed to plan-implement"}}
@@ -58,6 +59,14 @@ cat >"$EVENT_DIR/good-run-b/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T14:00:00Z","event":"route_decided","run":"good-run-b","detail":{"route":"plan-implement","reason":"normal implementation request"}}
 JSONL
 
+cat >"$EVENT_DIR/repeated-initiative/events.jsonl" <<'JSONL'
+{"ts":"2026-07-06T15:00:00Z","event":"route_decided","run":"repeated-initiative","detail":{"route":"review","reason":"router miss: versioned retry duplicated one initiative"}}
+JSONL
+
+cat >"$EVENT_DIR/repeated-initiative-v2/events.jsonl" <<'JSONL'
+{"ts":"2026-07-06T15:10:00Z","event":"route_decided","run":"repeated-initiative-v2","detail":{"route":"review","reason":"router miss: versioned retry duplicated one initiative"}}
+JSONL
+
 cat >"$PLAN_DIR/20260706-bad-run-retro.md" <<'MD'
 # Bad Run Archive
 
@@ -65,6 +74,7 @@ cat >"$PLAN_DIR/20260706-bad-run-retro.md" <<'MD'
 - Router miss: read-only adversary prompt incorrectly routed to plan-implement.
 - Runtime capability overclaim: claimed subagents were available without checking runtime.
 - Dogfood blocker: no observable UI evidence.
+- Router miss: versioned retry duplicated one initiative.
 MD
 
 before_status="$(git -C "$ROOT_DIR" status --porcelain)"
@@ -86,6 +96,8 @@ printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "runtime_c
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "dogfood_blocker" and .confirmed == true and .action_kind == "recommendation")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "validation_failure" and .confirmed == true and .action_kind == "mechanical_check")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "adversary_finding" and .confirmed == true and (.samples[0].text | contains("missing archive cleanup")))' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "runtime_capability_overclaim") | .count == 2 and .evidence_count == 3 and (.samples | any(.origin == "archive"))' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "router_miss" and (.key | contains("versioned retry duplicated"))) | .count == 1 and .evidence_count == 2 and .confirmed == false and .initiatives == ["repeated-initiative"]' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.confirmed == false and .category == "validation_failure")' >/dev/null
 if printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "observed_route")' >/dev/null; then
   printf 'normal route_decided events should not become retrospect issues\n%s\n' "$json_output" >&2

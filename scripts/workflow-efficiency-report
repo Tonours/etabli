@@ -147,8 +147,8 @@ smoke_paths=()
 while IFS= read -r path; do
   smoke_paths+=("$path")
 done < <(
-  grep -Eho 'bash tests/[A-Za-z0-9._/-]+\.sh' "$ROOT_DIR/.github/workflows/agentic-infra.yml" |
-    awk '{print $2}' |
+  awk -F '\t' '!/^#/ && $3 ~ /^tests\/.+\.sh$/ {print $3}' \
+    "$ROOT_DIR/workflow/runtime/agentic-infra-checks.tsv" |
     sort -u
 )
 

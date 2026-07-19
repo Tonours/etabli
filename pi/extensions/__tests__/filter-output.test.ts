@@ -36,7 +36,7 @@ function setupExtension(): ToolResultHandler {
     },
   };
 
-  filterOutput(pi as Parameters<typeof filterOutput>[0]);
+  filterOutput(pi as unknown as Parameters<typeof filterOutput>[0]);
 
   if (!handler) throw new Error("tool_result handler not registered");
   return handler;
