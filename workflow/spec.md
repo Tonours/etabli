@@ -46,6 +46,16 @@ Roles are contracts, not mandatory separate agents:
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
+Ordinary work remains single-agent. On eligible non-trivial planning,
+reconnaissance, research, and review phases, the deterministic adaptive profile
+uses no sidecar at score zero, one route-appropriate scout at score one, and a
+two-agent council for one critical or two distinct medium signals. Explicit
+multi-model intent forces the bounded council and explicit opt-out forces the
+parent only. The prior blind quality gate still rejects automatic full panels;
+the canonical signals, conversation caps, one-writer rule, model portfolio,
+fallbacks, and evidence contract live in
+`workflow/skills/multi-model-orchestration.md`.
+
 ## Statuses
 
 `PLAN.md` uses one status:
@@ -150,11 +160,11 @@ Only `READY` authorizes implementation.
   context (subagent reviewer or cross-model), never from the context that
   implemented. If no fresh-context runner is available, stop as `blocked`
   requesting external review instead of self-reviewing.
-- Explicit authorization for read-only fresh-context review is reusable inside
-  the active run: when a user plainly authorizes subagents, delegation,
-  reviewers, or "all", and a runner is available, launch one read-only reviewer
-  and record the reviewer id/verdict instead of stopping for another
-  checkpoint. This authorization is for read-only fresh-context review only; it
+- The canonical adaptive profile or explicit authorization for read-only
+  fresh-context review is reusable inside the active run: when the profile
+  applies, or a user plainly authorizes subagents/delegation/reviewers, launch
+  one read-only reviewer when a runner is available and record its id/verdict.
+  This authorization is for read-only fresh-context review only; it
   does not authorize destructive, secret, production, billing, deploy, push,
   merge, or external write actions.
 - Session handoffs in autonomous runs are recorded as a `handoff` event
@@ -234,7 +244,7 @@ journal checkpoint decisions as `human_checkpoint` events in
 | history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
 | external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
-| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | explicit user authorization in the active run plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
+| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | canonical adaptive profile or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | any write before root `PLAN.md` is `READY` | `plan-ready-guard` hook for Claude; READY gate rule for all adapters | tool call denied |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: the agent must name the resolved target and get confirmation when >=2 targets are plausible | ask, do not guess |
 | missing validation surface | change with no runnable check or inspectable proof | prose rule: stop as `blocked: no validation surface` instead of claiming completion | report blocked |

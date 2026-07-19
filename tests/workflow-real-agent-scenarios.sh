@@ -549,7 +549,7 @@ if [ "${RUN_REAL_AGENT_CODEX:-1}" = "1" ]; then
   assert_exact \
     "Codex subagent contract" \
     "CODEX_SUBAGENTS=current-runtime-only" \
-    "$(run_codex_prompt "$PROJECT" 'Read AGENTS.md and workflow/skills/orchestration.md. Is a visible multi_agent_v1 runner evidence for this current Codex runtime only, or a universal Codex guarantee? Reply exactly CODEX_SUBAGENTS=current-runtime-only or CODEX_SUBAGENTS=universal-guarantee.')"
+    "$(run_codex_prompt "$PROJECT" 'Read AGENTS.md and workflow/skills/orchestration.md. Is a visible collaboration runner evidence for this current Codex runtime only, or a universal Codex guarantee? Reply exactly CODEX_SUBAGENTS=current-runtime-only or CODEX_SUBAGENTS=universal-guarantee.')"
 fi
 printf 'PASS: codex-subagents-contract scenario\n'
 

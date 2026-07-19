@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "frozenAt": "2026-07-19",
+  "description": "Harness-only scoring key. Never copy this file into the agent benchmark cwd.",
+  "fixtures": [
+    {
+      "id": "tenant-cache",
+      "expected": ["CACHE_TENANT_SCOPE", "CACHE_REJECTION_STICKY", "CACHE_TTL_FROM_START"]
+    },
+    {
+      "id": "webhook-verification",
+      "expected": ["WEBHOOK_RAW_BODY", "WEBHOOK_LENGTH_THROW", "WEBHOOK_REPLAY_WINDOW"]
+    },
+    {
+      "id": "account-transfer",
+      "expected": ["TRANSFER_NEGATIVE_AMOUNT", "TRANSFER_LOST_UPDATE", "TRANSFER_PARTIAL_COMMIT"]
+    }
+  ]
+}

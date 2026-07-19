@@ -79,8 +79,9 @@ deploy-workflow . --check               # OK / DRIFT / MISSING report
 
 `deploy-codex` deploys `config.managed.toml` (never the live `config.toml`,
 which can hold secrets). `deploy-agent-workflow` links Claude/Pi/Codex
-workflow surfaces and syncs only managed Pi package resources in
-`~/.pi/agent/settings.json`. `scaffold-project` wraps `deploy-workflow` to
+workflow surfaces, Pi multi-model agents/policy, and conservatively syncs
+managed Pi package and model entries in `~/.pi/agent/settings.json`.
+`scaffold-project` wraps `deploy-workflow` to
 install the workflow scaffold (`workflow-scaffold/templates/` plus live
 `workflow/` files) into a project; existing files are never overwritten by
 default.

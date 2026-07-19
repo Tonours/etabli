@@ -22,9 +22,8 @@
   use `scripts/answer-quality-check` only for durable artifacts.
 - `/goal` needs measurable success, validation, scope, cap, stop condition, and
   `.workflow/<slug>/events.jsonl`.
-- Evaluate subagents only when useful and allowed. In Codex App,
-  `multi_agent_v1.spawn_agent` is for internal sidecar workers/reviewers, not
-  Pi Task* tools or user-owned Codex threads.
+- Adaptive multi-model work follows `workflow/skills/multi-model-orchestration.md`;
+  sidecars inherit parent posture and are not user threads.
 
 ## Safety
 - Preserve unrelated user changes; run `git status --short` before edits.

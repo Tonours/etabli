@@ -65,7 +65,7 @@ done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sor
 assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Start here"
 assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Stop conditions"
 assert_contains "$CODEX_HOME_DIR/workflow/skills/linear-work.md" "LINEAR_MCP_UNAVAILABLE"
-assert_contains "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md" "multi_agent_v1.spawn_agent"
+assert_contains "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md" "collaboration.spawn_agent"
 assert_file "$CODEX_HOME_DIR/prompts/opsx-apply.md"
 assert_file "$CODEX_HOME_DIR/automations/templates/repo-hygiene.template.toml"
 assert_file "$CODEX_HOME_DIR/automations/templates/thread-checkpoint.template.toml"
@@ -74,8 +74,8 @@ assert_file "$CODEX_HOME_DIR/skills/browser-full-page-capture/scripts/stitch-ful
 assert_file "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md"
 assert_file "$CODEX_HOME_DIR/skills/frontend-motion-performance/SKILL.md"
 assert_file "$CODEX_HOME_DIR/skills/ui-reference-capture/SKILL.md"
-assert_contains "$CODEX_HOME_DIR/AGENTS.md" "multi_agent_v1.spawn_agent"
-assert_contains "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md" "multi_agent_v1.spawn_agent"
+assert_contains "$CODEX_HOME_DIR/AGENTS.md" "multi-model-orchestration.md"
+assert_contains "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md" "collaboration.spawn_agent"
 assert_contains "$CODEX_HOME_DIR/hooks.json" '$HOME/.codex/herdr-agent-state.sh'
 assert_not_exists "$CODEX_HOME_DIR/thread-organization"
 

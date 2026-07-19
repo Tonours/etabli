@@ -31,7 +31,8 @@ shell_docs() {
     workflow-monitor-smoke workflow-metrics-smoke workflow-dossier-smoke workflow-retrospect-smoke \
     workflow-docs-smoke workflow-scaffold-smoke claude-hooks-smoke agent-scenarios-smoke \
     claude-skills-smoke workflow-cli-smoke workflow-event-smoke runtime-capabilities-smoke \
-    router-eval-smoke browser-full-page-capture-smoke; do
+    router-eval-smoke multi-model-quality-score-smoke deploy-agent-workflow-smoke \
+    browser-full-page-capture-smoke; do
     run_check "$test" bash "$ROOT_DIR/tests/$test.sh"
   done
 }

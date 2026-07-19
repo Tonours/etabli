@@ -35,7 +35,7 @@ When using this skill:
 3. Ask for approval before risky, expensive, external, or destructive steps.
 4. Enter goal mode when the user explicitly requests sustained execution or when the invoked task clearly requires multi-turn completion.
 5. Split work into disjoint packets with clear ownership.
-6. Spawn subagents only when the current environment allows it and the user has authorized delegated or parallel agent work.
+6. Spawn subagents only when the environment allows it and the canonical adaptive profile applies or the user authorized delegation.
 7. Simulate subagents with isolated packet notes when no subagent runner is available.
 8. Integrate results explicitly; do not paste raw subagent dumps as the final answer.
 9. Verify with checks matched to the task's blast radius.
@@ -143,10 +143,9 @@ When a subagent runner is available:
 - Avoid duplicate work across agents.
 - Ask workers to edit directly only when their write scope is disjoint and clear.
 - Wait for subagents only when their result is needed for the next critical-path step.
-- In Codex App, treat `multi_agent_v1.spawn_agent`, `wait_agent`, and
-  `close_agent` as confirmed evidence for the current runtime only; record agent
-  id/nickname, packet ownership, result status, and close agents after
-  integration.
+- In Codex App, treat `collaboration.spawn_agent`, `wait_agent`, and status
+  inspection as confirmed evidence for the current runtime only; record agent
+  id/nickname, model override, packet ownership, result, and final status.
 - Do not create user-owned Codex threads for subagent packets. Use the internal
   subagent runner when it is exposed, otherwise use simulated packet notes.
 - Do not describe Codex subagents as Pi Task* tools or a Claude Task* primitive.

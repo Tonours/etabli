@@ -65,6 +65,132 @@ jq -e 'select(.event == "harness_candidate_rejected") | .detail.regressions[0] a
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-runtime)"
 assert_contains "$out" "1 events, ok"
 
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel multi_execution_completed '{"participants":[{"id":"agent-terra","model":"openai-codex/gpt-5.6-terra","family":"openai"},{"id":"agent-glm","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"elapsed_ms":100},"fallback_status":"none"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_base='{"protocol_version":2,"participants":[{"id":"agent-luna","model":"openai-codex/gpt-5.6-luna","family":"openai"},{"id":"agent-glm","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":100,"output_tokens":500,"total_tokens":600,"elapsed_ms":1000},"fallback_status":"none","trigger":"adaptive","strategy":"council","signals":["critical-risk"],"rounds":{"first_pass":1,"rebuttal":0,"adjudication":0},"claim_count":2,"disagreement_count":0,"stop_reason":"agreement","budget":{"max_claims":6,"first_pass_output_tokens":1800,"rebuttal_output_tokens":700,"adjudication_output_tokens":650,"total_output_tokens":3500},"stage_usage":{"first_pass":{"measured":true,"input_tokens":100,"output_tokens":500,"total_tokens":600,"elapsed_ms":900},"rebuttal":{"measured":false},"adjudication":{"measured":false}}}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2 multi_execution_completed "$protocol_v2_base"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel-v2)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_budget_cap="$(printf '%s\n' "$protocol_v2_base" | jq -c '.verdict="degraded" | .stop_reason="budget_cap" | .usage.output_tokens=3600 | .usage.total_tokens=3700')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-cap multi_execution_completed "$protocol_v2_budget_cap"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel-v2-cap)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_scout="$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants=[.participants[0]] | .strategy="scout" | .signals=["system-complexity"] | .claim_count=1 | .budget={"max_claims":6,"first_pass_output_tokens":600,"rebuttal_output_tokens":0,"adjudication_output_tokens":0,"total_output_tokens":600}')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-scout-v2 multi_execution_completed "$protocol_v2_scout"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-scout-v2)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_scout_fallback="$(printf '%s\n' "$protocol_v2_scout" | jq -c '.participants=[{"id":"agent-kimi","model":"kimi-coding/k3","family":"kimi"}] | .verdict="degraded" | .stop_reason="agreement" | .fallback_status="degraded"')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-scout-v2-fallback multi_execution_completed "$protocol_v2_scout_fallback"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-scout-v2-fallback)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_council_fallback="$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[0]={"id":"agent-kimi","model":"kimi-coding/k3","family":"kimi"} | .verdict="degraded" | .stop_reason="agreement" | .fallback_status="degraded"')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback multi_execution_completed "$protocol_v2_council_fallback"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_fallback_deterministic="$(printf '%s\n' "$protocol_v2_council_fallback" | jq -c '.stop_reason="deterministic_check"')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-deterministic multi_execution_completed "$protocol_v2_fallback_deterministic"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-deterministic)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_fallback_rebuttal="$(printf '%s\n' "$protocol_v2_council_fallback" | jq -c '.stop_reason="rebuttal_resolved" | .rounds.rebuttal=1 | .disagreement=true | .disagreement_count=1')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-rebuttal multi_execution_completed "$protocol_v2_fallback_rebuttal"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-rebuttal)"
+assert_contains "$out" "1 events, ok"
+
+protocol_v2_fallback_adjudicated="$(printf '%s\n' "$protocol_v2_fallback_rebuttal" | jq -c '.stop_reason="adjudicated" | .rounds.adjudication=1 | .adjudicator="etabli-sol-judge"')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-adjudicated multi_execution_completed "$protocol_v2_fallback_adjudicated"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-adjudicated)"
+assert_contains "$out" "1 events, ok"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-over-accepted multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.usage.output_tokens=3600 | .usage.total_tokens=3700')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-over-stage multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.stage_usage.first_pass.output_tokens=1900 | .stage_usage.first_pass.total_tokens=2000')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-over-claims multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.claim_count=7')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-duplicate-signals multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.signals=["critical-risk","critical-risk"]')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-bad-round multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.rounds.adjudication=1 | .stop_reason="adjudicated"')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-bad-stop-shape multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.rounds.rebuttal=1')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-raised-budget multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.budget.total_output_tokens=999999')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-dependent-passes multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.independent_first_passes=false')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-accepted-fallback multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[1]={"id":"agent-kimi","model":"kimi-coding/k3","family":"kimi"} | .fallback_status="degraded"')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-accepted-blocked multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.stop_reason="blocked"')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-too-many-disagreements multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.disagreement=true | .disagreement_count=3')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-one-councillor multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants=[.participants[0]]')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-bad-adaptive-score multi_execution_completed "$(printf '%s\n' "$protocol_v2_scout" | jq -c '.signals=["critical-risk"]')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-rollback-verdict multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.verdict="rollback_to_opt_in"')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-unused-stage-usage multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.stage_usage.rebuttal={"measured":true,"input_tokens":0,"output_tokens":0,"total_tokens":0,"elapsed_ms":0}')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-duplicate-agent-id multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[1].id=.participants[0].id')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-duplicate-glm multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[0]={"id":"agent-glm-second","model":"zai/glm-5.2","family":"zai"}')")"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-scout-v2-duplicate-luna multi_execution_completed "$(printf '%s\n' "$protocol_v2_scout" | jq -c '.participants += [{"id":"agent-luna-second","model":"openai-codex/gpt-5.6-luna","family":"openai"}]')")"
+assert_contains "$out" "required fields"
+
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-kimi multi_execution_completed '{"participants":[{"id":"agent-kimi","model":"kimi-coding/k3","family":"kimi"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"degraded","usage":{"measured":false},"fallback_status":"degraded"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel-kimi)"
+assert_contains "$out" "1 events, ok"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-retired-kimi multi_execution_completed '{"participants":[{"id":"agent-kimi","model":"opencode-go/kimi-k2.6","family":"kimi"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"degraded","usage":{"measured":false},"fallback_status":"degraded"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad multi_execution_completed '{"participants":[],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-model multi_execution_completed '{"participants":[{"id":"agent","model":"unknown/model","family":"openai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-family multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"openai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-usage multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-total multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":14,"elapsed_ms":1},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-too-many multi_execution_completed '{"participants":[{"id":"one","model":"zai/glm-5.2","family":"zai"},{"id":"two","model":"zai/glm-5.2","family":"zai"},{"id":"three","model":"zai/glm-5.2","family":"zai"},{"id":"four","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-judge multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":true,"adjudicator":"arbitrary-judge","verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
+assert_contains "$out" "required fields"
+
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime-bad runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_bad","workflow":"spec-review","state_path":".pi/workflows/another-run","status":"running","usage_measured":false}')"
 assert_contains "$out" "required fields"
 

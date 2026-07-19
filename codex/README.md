@@ -14,7 +14,7 @@ Tracked Codex operating surface for this machine.
 
 `codex-dynamic-workflows` is the Codex App orchestration entry point for
 `/goal`, subagent, delegation, parallel-agent, and dynamic-workflow requests. A
-visible `multi_agent_v1` runner is confirmed evidence only for the active Codex
+visible `collaboration` runner is confirmed evidence only for the active Codex
 runtime; otherwise the workflow falls back to simulated `.workflow/<slug>/`
 packets.
 
