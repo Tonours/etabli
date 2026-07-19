@@ -31,7 +31,7 @@ function setupExtension() {
     },
   };
 
-  tasksTillDone(pi as Parameters<typeof tasksTillDone>[0]);
+  tasksTillDone(pi as unknown as Parameters<typeof tasksTillDone>[0]);
 
   return {
     entries,

@@ -42,7 +42,20 @@ assert_not_exists() {
   }
 }
 
+assert_contains "$AUDIT_SCRIPT" 'AUDIT_TMP="$(mktemp)"'
+assert_contains "$AUDIT_SCRIPT" 'trap cleanup EXIT'
+if grep -Fq '/tmp/etabli-codex-audit.$$' "$AUDIT_SCRIPT"; then
+  printf 'audit script must not use a predictable temporary path\n' >&2
+  exit 1
+fi
+
 "$AUDIT_SCRIPT" >/dev/null
+"$AUDIT_SCRIPT" >/dev/null &
+first_audit_pid=$!
+"$AUDIT_SCRIPT" >/dev/null &
+second_audit_pid=$!
+wait "$first_audit_pid"
+wait "$second_audit_pid"
 
 DRY_HOME="$TMP_DIR/dry-home"
 DRY_OUTPUT="$TMP_DIR/dry-run.out"

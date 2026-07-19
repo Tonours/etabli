@@ -8,7 +8,10 @@ usage() {
   cat <<EOF
 Usage: workflow-metrics [--dir path] [--json]
 
-Aggregate optional outcome_metric events and report tokens per successful outcome.
+Aggregate explicit outcome metrics, separately reported runtime usage, and
+comparative harness validations. Runtime usage never implies outcome success.
+Report tokens per measured successful outcome plus per-candidate validation
+coverage, verdicts, and percentage-point deltas.
 EOF
 }
 
@@ -42,7 +45,7 @@ fi
 
 if [ ! -d "$WORKFLOW_DIR" ]; then
   if [ "$JSON" -eq 1 ]; then
-    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measured_outcomes":0,"unmeasured_outcomes":0,"measurement_coverage":0,"successful_outcomes":0,"total_tokens":0,"tokens_per_successful_outcome":null}}\n'
+    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measured_outcomes":0,"usage_measured_outcomes":0,"unmeasured_outcomes":0,"legacy_outcomes":0,"measurement_coverage":0,"successful_outcomes":0,"measured_successful_outcomes":0,"total_tokens":0,"legacy_total_tokens":0,"successful_tokens":0,"tokens_per_successful_outcome":null,"tool_calls":0,"elapsed_ms":0,"runtime_usage_records":0,"runtime_total_tokens":0,"runtime_elapsed_ms":0},"harness":{"proposed_candidates":0,"validated_candidates":0,"validated_proposals":0,"unmatched_validations":0,"accepted_candidates":0,"rejected_candidates":0,"validation_coverage":null,"candidates":[]}}\n'
   else
     printf 'no workflow runs found in %s\n' "$WORKFLOW_DIR"
   fi
@@ -56,25 +59,94 @@ runs="$(
       run="$(basename "$(dirname "$file")")"
       jq -s --arg run "$run" '
         def metric_events: [.[] | select(.event == "outcome_metric") | .detail];
+        def runtime_usage_events: [.[] | select(.event == "multi_execution_completed" and .detail.usage.measured == true) | .detail.usage];
+        def harness_proposal_events: [.[] | select(.event == "harness_proposal") | .detail];
+        def harness_validation_events: [to_entries[] | select(.value.event == "harness_validation_completed") | (.value.detail + {_event_index: .key})];
         def tokens($m):
           if ($m.total_tokens? != null) then ($m.total_tokens | tonumber?)
           elif ($m.input_tokens? != null and $m.output_tokens? != null) then (($m.input_tokens | tonumber?) + ($m.output_tokens | tonumber?))
           else null end;
         def success($m): (($m.success == true) or (($m.outcome // "") | ascii_downcase | IN("success", "successful", "passed", "complete", "completed")));
+        def rate($result):
+          if (($result.total // 0) > 0) then ($result.passed / $result.total) else null end;
+        def delta_pp($comparison):
+          (rate($comparison.baseline)) as $baseline
+          | (rate($comparison.candidate)) as $candidate
+          | if $baseline == null or $candidate == null then null else (($candidate - $baseline) * 100) end;
         metric_events as $metrics |
+        ($metrics | map(select(.measured == true))) as $measured_metrics |
+        ($metrics | map(select(.measured == true and tokens(.) != null))) as $usage_measured_metrics |
+        ($metrics | map(select(.measured == false))) as $unmeasured_metrics |
+        ($metrics | map(select(has("measured") | not))) as $legacy_metrics |
+        runtime_usage_events as $runtime_usage |
+        (harness_proposal_events | map(.candidate) | unique) as $proposal_candidates |
+        (harness_validation_events | sort_by(.candidate, ._event_index) | group_by(.candidate) | map(last)) as $validations |
+        ($validations | map(.candidate) | unique) as $validation_candidates |
+        (($proposal_candidates + $validation_candidates) | unique) as $candidate_names |
+        ([$proposal_candidates[] as $candidate | select(($validation_candidates | index($candidate)) != null) | $candidate]) as $validated_proposals |
+        ([$validation_candidates[] as $candidate | select(($proposal_candidates | index($candidate)) == null) | $candidate]) as $unmatched_validations |
         ([.[] | select(.event == "completed" or .event == "blocked")] | last // null) as $terminal |
         {
           run: $run,
           terminal: ($terminal.event // null),
           outcomes: ($metrics | length),
-          measured_outcomes: ($metrics | map(select(.measured == true)) | length),
-          unmeasured_outcomes: (if ($metrics | length) == 0 and $terminal != null then 1 else ($metrics | map(select(.measured != true)) | length) end),
+          measured_outcomes: ($measured_metrics | length),
+          usage_measured_outcomes: ($usage_measured_metrics | length),
+          unmeasured_outcomes: (if ($metrics | length) == 0 and $terminal != null then 1 else ($unmeasured_metrics | length) end),
+          legacy_outcomes: ($legacy_metrics | length),
           successful_outcomes: ($metrics | map(select(success(.))) | length),
-          measured_successful_outcomes: ($metrics | map(select(success(.) and tokens(.) != null)) | length),
-          total_tokens: ($metrics | map(tokens(.)) | map(select(. != null)) | add // 0),
-          successful_tokens: ($metrics | map(select(success(.)) | tokens(.)) | map(select(. != null)) | add // 0),
-          tool_calls: ($metrics | map((.tool_calls // 0) | tonumber? // 0) | add // 0),
-          elapsed_ms: ($metrics | map((.elapsed_ms // 0) | tonumber? // 0) | add // 0)
+          measured_successful_outcomes: ($usage_measured_metrics | map(select(success(.))) | length),
+          total_tokens: ($usage_measured_metrics | map(tokens(.)) | add // 0),
+          legacy_total_tokens: ($legacy_metrics | map(tokens(.)) | map(select(. != null)) | add // 0),
+          successful_tokens: ($usage_measured_metrics | map(select(success(.)) | tokens(.)) | add // 0),
+          tool_calls: ($usage_measured_metrics | map(.tool_calls // 0) | add // 0),
+          elapsed_ms: ($usage_measured_metrics | map(.elapsed_ms // 0) | add // 0),
+          runtime_usage_records: ($runtime_usage | length),
+          runtime_total_tokens: ($runtime_usage | map(tokens(.)) | add // 0),
+          runtime_elapsed_ms: ($runtime_usage | map(.elapsed_ms) | add // 0),
+          harness: {
+            proposed_candidates: ($proposal_candidates | length),
+            validated_candidates: ($validation_candidates | length),
+            validated_proposals: ($validated_proposals | length),
+            unmatched_validations: ($unmatched_validations | length),
+            accepted_candidates: ($validations | map(select(.verdict == "accepted")) | length),
+            rejected_candidates: ($validations | map(select(.verdict == "rejected")) | length),
+            validation_coverage: (
+              if ($proposal_candidates | length) == 0
+              then null
+              else (($validated_proposals | length) / ($proposal_candidates | length))
+              end
+            ),
+            candidates: (
+              $candidate_names
+              | map(
+                  . as $candidate
+                  | ($validations | map(select(.candidate == $candidate)) | last // null) as $validation
+                  | if $validation == null
+                    then {
+                      candidate: $candidate,
+                      verdict: null,
+                      reason: null,
+                      proposed: true,
+                      held_in_delta_pp: null,
+                      held_out_delta_pp: null,
+                      checks: null,
+                      evidence: null
+                    }
+                    else {
+                      candidate: $validation.candidate,
+                      verdict: $validation.verdict,
+                      reason: $validation.reason,
+                      proposed: (($proposal_candidates | index($validation.candidate)) != null),
+                      held_in_delta_pp: delta_pp($validation.held_in),
+                      held_out_delta_pp: delta_pp($validation.held_out),
+                      checks: $validation.checks,
+                      evidence: $validation.evidence
+                    }
+                    end
+                )
+            )
+          }
         }
       ' "$file"
     done
@@ -82,25 +154,58 @@ runs="$(
 
 summary="$(
   printf '%s\n' "$runs" |
-    jq -s '{
-      runs: sort_by(.run),
-      totals: {
-        runs: length,
-        terminal_runs: (map(select(.terminal != null)) | length),
-        outcomes: (map(.outcomes) | add // 0),
-        measured_outcomes: (map(.measured_outcomes) | add // 0),
-        unmeasured_outcomes: (map(.unmeasured_outcomes) | add // 0),
-        successful_outcomes: (map(.successful_outcomes) | add // 0),
-        measured_successful_outcomes: (map(.measured_successful_outcomes) | add // 0),
-        total_tokens: (map(.total_tokens) | add // 0),
-        successful_tokens: (map(.successful_tokens) | add // 0),
-        tool_calls: (map(.tool_calls) | add // 0),
-        elapsed_ms: (map(.elapsed_ms) | add // 0)
-      }
-    }
-    | .totals.measurement_coverage = (if (.totals.measured_outcomes + .totals.unmeasured_outcomes) == 0 then 0 else (.totals.measured_outcomes / (.totals.measured_outcomes + .totals.unmeasured_outcomes)) end)
-    | .totals.tokens_per_successful_outcome =
-      (if .totals.measured_successful_outcomes == 0 then null else (.totals.successful_tokens / .totals.measured_successful_outcomes) end)'
+    jq -s '
+      (sort_by(.run)) as $runs
+      | {
+          runs: $runs,
+          totals: {
+            runs: ($runs | length),
+            terminal_runs: ($runs | map(select(.terminal != null)) | length),
+            outcomes: ($runs | map(.outcomes) | add // 0),
+            measured_outcomes: ($runs | map(.measured_outcomes) | add // 0),
+            usage_measured_outcomes: ($runs | map(.usage_measured_outcomes) | add // 0),
+            unmeasured_outcomes: ($runs | map(.unmeasured_outcomes) | add // 0),
+            legacy_outcomes: ($runs | map(.legacy_outcomes) | add // 0),
+            successful_outcomes: ($runs | map(.successful_outcomes) | add // 0),
+            measured_successful_outcomes: ($runs | map(.measured_successful_outcomes) | add // 0),
+            total_tokens: ($runs | map(.total_tokens) | add // 0),
+            legacy_total_tokens: ($runs | map(.legacy_total_tokens) | add // 0),
+            successful_tokens: ($runs | map(.successful_tokens) | add // 0),
+            tool_calls: ($runs | map(.tool_calls) | add // 0),
+            elapsed_ms: ($runs | map(.elapsed_ms) | add // 0),
+            runtime_usage_records: ($runs | map(.runtime_usage_records) | add // 0),
+            runtime_total_tokens: ($runs | map(.runtime_total_tokens) | add // 0),
+            runtime_elapsed_ms: ($runs | map(.runtime_elapsed_ms) | add // 0)
+          },
+          harness: {
+            proposed_candidates: ($runs | map(.harness.proposed_candidates) | add // 0),
+            validated_candidates: ($runs | map(.harness.validated_candidates) | add // 0),
+            validated_proposals: ($runs | map(.harness.validated_proposals) | add // 0),
+            unmatched_validations: ($runs | map(.harness.unmatched_validations) | add // 0),
+            accepted_candidates: ($runs | map(.harness.accepted_candidates) | add // 0),
+            rejected_candidates: ($runs | map(.harness.rejected_candidates) | add // 0),
+            candidates: [
+              $runs[] as $run
+              | $run.harness.candidates[]
+              | . + {run: $run.run}
+            ]
+          }
+        }
+      | .totals.measurement_coverage =
+        (if (.totals.measured_outcomes + .totals.unmeasured_outcomes + .totals.legacy_outcomes) == 0
+         then 0
+         else (.totals.measured_outcomes / (.totals.measured_outcomes + .totals.unmeasured_outcomes + .totals.legacy_outcomes))
+         end)
+      | .totals.tokens_per_successful_outcome =
+        (if .totals.measured_successful_outcomes == 0
+         then null
+         else (.totals.successful_tokens / .totals.measured_successful_outcomes)
+         end)
+      | .harness.validation_coverage =
+        (if .harness.proposed_candidates == 0
+         then null
+         else (.harness.validated_proposals / .harness.proposed_candidates)
+         end)'
 )"
 
 if [ "$JSON" -eq 1 ]; then
@@ -109,4 +214,4 @@ if [ "$JSON" -eq 1 ]; then
 fi
 
 printf '%s\n' "$summary" |
-  jq -r '.totals | "runs=\(.runs)\nterminal_runs=\(.terminal_runs)\noutcomes=\(.outcomes)\nmeasured_outcomes=\(.measured_outcomes)\nunmeasured_outcomes=\(.unmeasured_outcomes)\nmeasurement_coverage=\(.measurement_coverage)\nsuccessful_outcomes=\(.successful_outcomes)\ntotal_tokens=\(.total_tokens)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)"'
+  jq -r '. as $summary | $summary.totals | "runs=\(.runs)\nterminal_runs=\(.terminal_runs)\noutcomes=\(.outcomes)\nmeasured_outcomes=\(.measured_outcomes)\nusage_measured_outcomes=\(.usage_measured_outcomes)\nunmeasured_outcomes=\(.unmeasured_outcomes)\nlegacy_outcomes=\(.legacy_outcomes)\nmeasurement_coverage=\(.measurement_coverage)\nsuccessful_outcomes=\(.successful_outcomes)\ntotal_tokens=\(.total_tokens)\nlegacy_total_tokens=\(.legacy_total_tokens)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)\nruntime_usage_records=\(.runtime_usage_records)\nruntime_total_tokens=\(.runtime_total_tokens)\nruntime_elapsed_ms=\(.runtime_elapsed_ms)\nharness_proposed_candidates=\($summary.harness.proposed_candidates)\nharness_validated_candidates=\($summary.harness.validated_candidates)\nharness_validated_proposals=\($summary.harness.validated_proposals)\nharness_unmatched_validations=\($summary.harness.unmatched_validations)\nharness_accepted_candidates=\($summary.harness.accepted_candidates)\nharness_rejected_candidates=\($summary.harness.rejected_candidates)\nharness_validation_coverage=\($summary.harness.validation_coverage // "n/a")"'

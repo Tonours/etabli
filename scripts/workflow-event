@@ -2,6 +2,8 @@
 set -euo pipefail
 
 WORKFLOW_DIR=".workflow"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 
 ALLOWED_EVENTS=(
   route_decided
@@ -19,6 +21,7 @@ ALLOWED_EVENTS=(
   self_improvement_candidate
   harness_failure_pattern
   harness_proposal
+  harness_validation_completed
   harness_candidate_rejected
   project_slice_planned
   project_slice_completed
@@ -56,80 +59,13 @@ is_allowed_event() {
 }
 
 detail_valid() {
-  local event="$1" detail="$2" expression='def usage_valid: (.measured | type == "boolean") and (if .measured then (.input_tokens | type == "number") and (.input_tokens >= 0) and (.output_tokens | type == "number") and (.output_tokens >= 0) and (.total_tokens | type == "number") and (.total_tokens >= (.input_tokens + .output_tokens)) and (.elapsed_ms | type == "number") and (.elapsed_ms >= 0) else true end); type == "object"'
-  case "$event" in
-    route_decided) expression+=' and (.route | type == "string") and (.reason | type == "string")' ;;
-    validation_run) expression+=' and (.command | type == "string") and (.exit | type == "number")' ;;
-    validation_failed) expression+=' and (.command | type == "string") and (.exit | type == "number") and (.failure | type == "string")' ;;
-    completed) expression+=' and (.summary | type == "string")' ;;
-    blocked) expression+=' and (.reason | type == "string") and (.needed_input | type == "string")' ;;
-    adversary_completed) expression+=' and (.mode | IN("plan", "code_diff")) and (.verdict | type == "string")' ;;
-    review_completed|simplification_completed) expression+=' and (.status | type == "string") and ((.evidence | type) == "string" or (.evidence | type) == "array")' ;;
-    runtime_run_attached) expression+=' and (.adapter == "pi-workflow") and (.run_id | type == "string") and (.run_id | test("^workflow_[A-Za-z0-9_-]+$")) and (.workflow | type == "string") and ((.workflow | length) > 0) and (.state_path == (".pi/workflows/" + .run_id)) and (.status | IN("running", "blocked", "completed", "failed", "interrupted")) and (.usage_measured | type == "boolean")' ;;
-    multi_execution_completed) expression+=' and (.participants | type == "array") and ((.participants | length) > 0) and ((.participants | length) <= 3) and (all(.participants[]; (.id | type == "string") and ((.id | length) > 0) and (.model | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra", "openai-codex/gpt-5.6-sol", "zai/glm-5.2", "kimi-coding/k3")) and (.family | IN("openai", "zai", "kimi")) and (if (.model | startswith("openai-codex/")) then .family == "openai" elif (.model | startswith("zai/")) then .family == "zai" else .family == "kimi" end))) and (.independent_first_passes | type == "boolean") and (.disagreement | type == "boolean") and ((.adjudicator == null) or (.adjudicator == "etabli-sol-judge")) and (.verdict | IN("accepted", "degraded", "blocked", "rollback_to_opt_in")) and (.usage | type == "object") and (.usage | usage_valid) and (.fallback_status | IN("none", "degraded", "blocked")) and (if (.protocol_version // 1) == 1 then ((.protocol_version == null) or (.protocol_version == 1)) elif .protocol_version == 2 then (.trigger | IN("explicit", "adaptive")) and (.strategy | IN("scout", "council")) and (.signals | type == "array") and (all(.signals[]; . | IN("critical-risk", "system-complexity", "uncertainty", "prompt-failure-history"))) and ((.signals | unique | length) == (.signals | length)) and (if .trigger == "adaptive" then (.signals | length) > 0 else true end) and (.rounds | type == "object") and (.rounds.first_pass == 1) and (.rounds.rebuttal | IN(0, 1)) and (.rounds.adjudication | IN(0, 1)) and (.claim_count | type == "number") and (.claim_count >= 0) and (.disagreement_count | type == "number") and (.disagreement_count >= 0) and (.stop_reason | IN("agreement", "deterministic_check", "rebuttal_resolved", "budget_cap", "adjudicated", "degraded", "blocked")) and (.budget | type == "object") and (.budget.max_claims == 6) and (.budget.first_pass_output_tokens | type == "number") and (.budget.first_pass_output_tokens >= 0) and (.budget.rebuttal_output_tokens | type == "number") and (.budget.rebuttal_output_tokens >= 0) and (.budget.adjudication_output_tokens | type == "number") and (.budget.adjudication_output_tokens >= 0) and (.budget.total_output_tokens | type == "number") and (.budget.total_output_tokens >= 0) and (.stage_usage | type == "object") and (.stage_usage.first_pass | usage_valid) and (.stage_usage.rebuttal | usage_valid) and (.stage_usage.adjudication | usage_valid) and (if .strategy == "scout" then (.rounds.rebuttal == 0) and (.rounds.adjudication == 0) and (.adjudicator == null) else (if .rounds.adjudication == 1 then .adjudicator == "etabli-sol-judge" else .adjudicator == null end) end) and (((.claim_count > .budget.max_claims) or ((.stage_usage.first_pass.measured == true) and (.stage_usage.first_pass.output_tokens > .budget.first_pass_output_tokens)) or ((.stage_usage.rebuttal.measured == true) and (.stage_usage.rebuttal.output_tokens > .budget.rebuttal_output_tokens)) or ((.stage_usage.adjudication.measured == true) and (.stage_usage.adjudication.output_tokens > .budget.adjudication_output_tokens)) or ((.usage.measured == true) and (.usage.output_tokens > .budget.total_output_tokens))) as $over_budget | (($over_budget == (.stop_reason == "budget_cap")) and (if $over_budget then (.verdict | IN("degraded", "blocked")) else true end))) else false end)' ;;
-    plan_removed) expression+=' and (.path == "PLAN.md")' ;;
-  esac
-  if [ "$event" = "multi_execution_completed" ]; then
-    expression+=' and (if .protocol_version == 2 then (if (.stop_reason | IN("agreement", "deterministic_check")) then (.rounds.rebuttal == 0) and (.rounds.adjudication == 0) elif .stop_reason == "rebuttal_resolved" then (.rounds.rebuttal == 1) and (.rounds.adjudication == 0) elif .stop_reason == "adjudicated" then (.rounds.rebuttal == 1) and (.rounds.adjudication == 1) else true end) else true end)'
-    expression+=' and (if .protocol_version == 2 then
-      (.independent_first_passes == true)
-      and (.verdict | IN("accepted", "degraded", "blocked"))
-      and (.disagreement == (.disagreement_count > 0))
-      and (.disagreement_count <= .claim_count)
-      and (([.participants[].id] | unique | length) == (.participants | length))
-      and (all(.participants[]; .model != "openai-codex/gpt-5.6-sol"))
-      and (([.participants[].model]) as $models
-        | (($models | unique | length) == ($models | length))
-        and (if .strategy == "scout"
-          then (if .fallback_status == "none"
-            then ($models | length) == 1 and ($models[0] | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra"))
-            else (($models | index("kimi-coding/k3")) != null)
-              and (($models | length) <= 2)
-              and (all($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra", "kimi-coding/k3")))
-            end)
-          else (if .fallback_status == "none"
-            then ($models | length) == 2
-              and (($models | index("zai/glm-5.2")) != null)
-              and (any($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra")))
-            elif ($models | length) == 2
-            then (($models | index("kimi-coding/k3")) != null)
-              and (any($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra", "zai/glm-5.2")))
-            else ($models | length) == 3
-              and (($models | index("kimi-coding/k3")) != null)
-              and (($models | index("zai/glm-5.2")) != null)
-              and (any($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra")))
-            end)
-          end))
-      and (if .strategy == "scout"
-        then ((.participants | length) >= 1) and ((.participants | length) <= 2)
-          and (.budget == {max_claims:6, first_pass_output_tokens:600, rebuttal_output_tokens:0, adjudication_output_tokens:0, total_output_tokens:600})
-        else ((.participants | length) >= 2) and ((.participants | length) <= 3)
-          and (.budget == {max_claims:6, first_pass_output_tokens:1800, rebuttal_output_tokens:700, adjudication_output_tokens:650, total_output_tokens:3500})
-        end)
-      and (if .trigger == "explicit" then .strategy == "council"
-        elif .strategy == "scout" then (.signals | length) == 1 and (.signals[0] != "critical-risk")
-        else ((.signals | index("critical-risk")) != null) or ((.signals | length) >= 2)
-        end)
-      and ((any(.participants[]; .model == "kimi-coding/k3")) == (.fallback_status != "none"))
-      and (if .fallback_status == "degraded" then .verdict == "degraded"
-        elif .fallback_status == "blocked" then .verdict == "blocked"
-        else true
-        end)
-      and (if .verdict == "accepted" then (.stop_reason | IN("agreement", "deterministic_check", "rebuttal_resolved", "adjudicated")) and (.fallback_status == "none")
-        elif .verdict == "degraded" then (.stop_reason | IN("agreement", "deterministic_check", "rebuttal_resolved", "adjudicated", "budget_cap", "degraded"))
-        else (.stop_reason | IN("budget_cap", "blocked"))
-        end)
-      and (if (.stop_reason | IN("agreement", "deterministic_check")) then .disagreement_count == 0
-        elif (.stop_reason | IN("rebuttal_resolved", "adjudicated")) then .disagreement_count > 0
-        else true
-        end)
-      and (if .rounds.rebuttal == 0 then .stage_usage.rebuttal.measured == false else true end)
-      and (if .rounds.adjudication == 0 then .stage_usage.adjudication.measured == false else true end)
-    else true end)'
-  fi
-  printf '%s\n' "$detail" | jq -e "$expression" >/dev/null 2>&1
-}
+  local event="$1" detail="$2" schema_version="${3:-2}"
+  local strict=false
 
+  [ "$schema_version" = "2" ] && strict=true
+  printf '%s\n' "$detail" |
+    jq -e --arg event "$event" --argjson strict "$strict" -f "$DETAIL_SCHEMA" >/dev/null 2>&1
+}
 die_usage() {
   usage >&2
   exit 2
@@ -159,7 +95,7 @@ case "$command" in
       printf 'unknown event type: %s\nAllowed events:\n%s\n' "$event" "$(allowed_list)" >&2
       exit 2
     fi
-    if ! detail_valid "$event" "$detail"; then
+    if ! detail_valid "$event" "$detail" 2; then
       printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2
       exit 2
     fi
@@ -171,7 +107,7 @@ case "$command" in
       --arg event "$event" \
       --arg run "$slug" \
       --argjson detail "$detail" \
-      '{schema_version:1,ts:$ts,event:$event,run:$run,detail:$detail}' >> "$run_dir/events.jsonl"
+      '{schema_version:2,ts:$ts,event:$event,run:$run,detail:$detail}' >> "$run_dir/events.jsonl"
     ;;
   validate)
     [ "$#" -ge 1 ] || die_usage
@@ -190,6 +126,7 @@ case "$command" in
     file="$WORKFLOW_DIR/$slug/events.jsonl"
     count=0
     previous_ts=""
+    legacy_post_terminal=0
 
     if [ ! -f "$file" ]; then
       if [ "$allow_missing" -eq 1 ]; then printf '0 events, legacy allow-missing\n'; exit 0; fi
@@ -220,21 +157,28 @@ case "$command" in
         printf 'line %s: unknown event type %s\n' "$count" "$event" >&2
         exit 1
       fi
-      if [ "$schema_version" != "legacy" ] && [ "$schema_version" != "1" ]; then
+      if [ "$schema_version" != "legacy" ] && [ "$schema_version" != "1" ] && [ "$schema_version" != "2" ]; then
         printf 'line %s: unsupported schema_version %s\n' "$count" "$schema_version" >&2
         exit 1
       fi
       if [ -n "${terminal_line:-}" ]; then
-        printf 'line %s: event follows terminal %s at line %s\n' "$count" "$terminal" "$terminal_line" >&2
-        exit 1
+        if [ "$schema_version" = "2" ] || [ "${terminal_schema_version:-}" = "2" ]; then
+          printf 'line %s: event follows terminal %s at line %s\n' "$count" "$terminal" "$terminal_line" >&2
+          exit 1
+        fi
+        legacy_post_terminal=1
       fi
       if [ "$run" != "$slug" ]; then printf 'line %s: run does not match %s\n' "$count" "$slug" >&2; exit 1; fi
-      if ! detail_valid "$event" "$detail"; then printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2; exit 1; fi
-      if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then terminal="$event"; terminal_line="$count"; fi
+      if ! detail_valid "$event" "$detail" "$schema_version"; then printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2; exit 1; fi
+      if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then
+        terminal="$event"
+        terminal_line="$count"
+        terminal_schema_version="$schema_version"
+      fi
       previous_ts="$ts"
     done < "$file"
 
-    if [ -n "${terminal_line:-}" ] && [ "$terminal_line" -ne "$count" ]; then
+    if [ "$legacy_post_terminal" -eq 0 ] && [ -n "${terminal_line:-}" ] && [ "$terminal_line" -ne "$count" ]; then
       printf 'terminal event must be last (line %s of %s)\n' "$terminal_line" "$count" >&2
       exit 1
     fi
@@ -256,7 +200,11 @@ case "$command" in
       *) printf 'unknown validation profile: %s\n' "$profile" >&2; exit 2 ;;
     esac
 
-    printf '%s events, ok\n' "$count"
+    if [ "$legacy_post_terminal" -eq 1 ]; then
+      printf '%s events, ok (legacy post-terminal compatibility)\n' "$count"
+    else
+      printf '%s events, ok\n' "$count"
+    fi
     ;;
   -h|--help)
     usage

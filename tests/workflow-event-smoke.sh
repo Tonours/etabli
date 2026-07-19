@@ -5,6 +5,15 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 TMP_DIR="$(mktemp -d)"
 EVENT_DIR="$TMP_DIR/.workflow"
 
+grep -Fq 'elif $event == "multi_execution_completed" then' "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" || {
+  printf 'multi_execution_completed must use the extracted detail validator\n' >&2
+  exit 1
+}
+if grep -Fq 'local expression=' "$ROOT_DIR/scripts/workflow-event"; then
+  printf 'workflow-event must not keep an inline detail schema\n' >&2
+  exit 1
+fi
+
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -53,13 +62,44 @@ assert_contains "$out" "4 events, ok"
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning self_improvement_candidate '{"source":"events.jsonl","category":"router_miss","outcome":"router_fixture","confidence":"confirmed","evidence":["fixture"],"held_in":["misrouted prompt fixture"],"held_out":["read-only explanation fixture"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_failure_pattern '{"terminal_cause":"router miss","causal_status":"confirmed","mechanism":"review pattern shadowed self-improvement route","verifier":"router eval","traces":["tests/router-evals/core.json"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_proposal '{"candidate":"split explicit review guard","editable_surfaces":["pi/extensions/lib/workflow-router-runtime.ts","claude/hooks/workflow-router-lib.mjs"],"preserve":["read-only explanations stay answer"],"held_in":["self-improvement prompt routes plan-implement"],"held_out":["explicit self-improvement review stays review"]}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_validation_completed '{"candidate":"split explicit review guard","verdict":"accepted","reason":"reproduced routes fixed without held-out regression","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_validation_completed '{"candidate":"broad review keyword","verdict":"rejected","reason":"held-out route regression","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_candidate_rejected '{"candidate":"auto-apply workflow-retrospect patches","reason":"bypasses reviewed PLAN.md gate","regressions":["external write-back risk","permission boundary weakened"],"evidence":["workflow/skills/self-improvement-loop.md"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning project_slice_planned '{"slice":"spec","owner":"planner","validation":"review","dependencies":[]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning project_slice_completed '{"slice":"spec","validation":"passed","evidence":["docs/spec.md"],"remaining":[]}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-learning)"
-assert_contains "$out" "6 events, ok"
+assert_contains "$out" "8 events, ok"
 jq -e 'select(.event == "harness_proposal") | .detail.held_in[0] and .detail.held_out[0]' "$EVENT_DIR/run-learning/events.jsonl" >/dev/null
+jq -e 'select(.event == "harness_validation_completed" and .detail.verdict == "accepted") | .detail.held_in.candidate.passed == 2 and .detail.held_out.candidate.passed == 4' "$EVENT_DIR/run-learning/events.jsonl" >/dev/null
 jq -e 'select(.event == "harness_candidate_rejected") | .detail.regressions[0] and .detail.evidence[0]' "$EVENT_DIR/run-learning/events.jsonl" >/dev/null
+
+while IFS=$'\t' read -r event required detail; do
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-valid-$event" "$event" "$detail"
+  invalid_detail="$(printf '%s\n' "$detail" | jq -c --arg required "$required" 'del(.[$required])')"
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-invalid-$event" "$event" "$invalid_detail")"
+  assert_contains "$out" "required fields"
+done < "$ROOT_DIR/tests/fixtures/workflow-events-v2.tsv"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"false accepted regression","verdict":"accepted","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"false accepted no gain","verdict":"accepted","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":1,"total":2},"candidate":{"population":"router-misses-v1","passed":1,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"invalid counts","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":3,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"mismatched population","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"different-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"mismatched totals","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":3}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"zero total","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":0},"candidate":{"population":"router-misses-v1","passed":0,"total":0}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"fractional count","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0.5,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
+assert_contains "$out" "required fields"
 
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_mq224pi8_775e71","workflow":"spec-review","state_path":".pi/workflows/workflow_mq224pi8_775e71","status":"running","usage_measured":false}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-runtime)"
@@ -216,7 +256,15 @@ printf '%s\n' \
   '{"schema_version":1,"ts":"2026-07-09T10:00:00Z","event":"completed","run":"run-terminal","detail":{"summary":"done"}}' \
   '{"schema_version":1,"ts":"2026-07-09T10:00:01Z","event":"validation_run","run":"run-terminal","detail":{"command":"true","exit":0}}' \
   > "$EVENT_DIR/run-terminal/events.jsonl"
-out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-terminal)"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-terminal)"
+assert_contains "$out" "legacy post-terminal compatibility"
+
+mkdir -p "$EVENT_DIR/run-terminal-v2"
+printf '%s\n' \
+  '{"schema_version":2,"ts":"2026-07-09T10:00:00Z","event":"completed","run":"run-terminal-v2","detail":{"summary":"done"}}' \
+  '{"schema_version":2,"ts":"2026-07-09T10:00:01Z","event":"validation_run","run":"run-terminal-v2","detail":{"command":"true","exit":0}}' \
+  > "$EVENT_DIR/run-terminal-v2/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-terminal-v2)"
 assert_contains "$out" "follows terminal"
 
 for event_detail in \
@@ -229,7 +277,7 @@ for event_detail in \
   'review_completed {"status":"GO","evidence":"review"}' \
   'adversary_completed {"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}' \
   'archive_written {"path":"docs/plan/test.md"}' \
-  'outcome_metric {"outcome":"success","success":true,"measured":false}' \
+  'outcome_metric {"outcome":"success","success":true,"measured":false,"reason":"telemetry unavailable in smoke"}' \
   'plan_removed {"path":"PLAN.md"}' \
   'completed {"summary":"done"}'; do
   event="${event_detail%% *}"
