@@ -3,7 +3,7 @@
 ## Purpose
 
 Codex App uses the same Etabli orchestration semantics as Pi and Claude, but
-with Codex-native mechanics. When the active runtime exposes `multi_agent_v1`,
+with Codex-native mechanics. When the active runtime exposes `collaboration`,
 Codex may delegate bounded sidecar packets to internal subagents. When it does
 not, Codex keeps the same `.workflow/<slug>/` ledger and simulates packets with
 isolated notes.
@@ -12,12 +12,14 @@ isolated notes.
 
 For this repo, a Codex App subagent setup is `confirmed` only when all are true:
 
-- the active tool surface exposes `multi_agent_v1.spawn_agent`;
-- the active tool surface exposes `multi_agent_v1.wait_agent`;
-- the active tool surface exposes `multi_agent_v1.close_agent`;
+- the active tool surface exposes `collaboration.spawn_agent`;
+- the active tool surface exposes `collaboration.wait_agent`;
+- the active tool surface exposes status inspection such as
+  `collaboration.list_agents`;
 - a bounded subagent packet runs and returns a verifiable result;
 - the orchestrator records the agent id or nickname, result status, integration
-  decision, sandbox/approval posture, and close status in `.workflow/<slug>/`.
+  decision, inherited sandbox/approval posture, and final status in
+  `.workflow/<slug>/`.
 
 This proves the current Codex App runtime only. It does not prove Pi
 `TaskExecute`, Claude Task* support, or future Codex surfaces.
@@ -31,7 +33,10 @@ This proves the current Codex App runtime only. It does not prove Pi
 - Delegate only bounded, independent sidecar packets with clear ownership.
 - Account for inherited sandbox/approval policy and extra token/tool cost before
   spawning.
-- Close agents after their result is integrated.
+- Collect final status after integration; do not invent a close operation when
+  the current surface omits one.
+- Select Terra/Sol with direct model and reasoning overrides. Use Luna only
+  after a live spawn proves Luna provenance; otherwise label it `blocked`.
 - Do not create user-owned Codex threads for subagent packets.
 - Do not describe Codex subagents as Pi Task* tools.
 

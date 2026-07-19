@@ -15,7 +15,7 @@
 6. Delegate bounded sidecar packets when authorized and useful.
 7. Integrate results, resolve conflicts, and verify.
 
-Codex App note: `multi_agent_v1.spawn_agent`, `wait_agent`, and `close_agent`
+Codex App note: `collaboration.spawn_agent`, `wait_agent`, and status inspection
 are confirmed runner evidence only for the active runtime that exposes them.
 When they are absent, keep the same plan shape and simulate packets under
 `.workflow/<slug>/`.
@@ -29,9 +29,9 @@ When they are absent, keep the same plan shape and simulate packets under
 
 ## Verification Checklist
 - Workflow artifact has goal, criteria, context, risks, packets, integration policy, and verification.
-- Subagents were spawned only when authorized and useful.
-- Codex App subagent runs record agent id/nickname, packet ownership, accepted or
-  rejected result, inherited sandbox/approval posture, and close status.
+- Subagents were spawned only when the adaptive profile or user authorization applied and the packet was useful.
+- Codex App subagent runs record agent id/nickname, model override, packet
+  ownership, accepted/rejected result, inherited posture, and final status.
 - Retry attempts record observation, failure hypothesis, next action, and the
   validation that will prove or reject recovery.
 - Packet ownership was disjoint.

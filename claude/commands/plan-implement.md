@@ -53,8 +53,9 @@ authorize push, PR, deploy, release, or external write-back.
 This command is the full-auto workflow. Run every phase in one uninterrupted
 flow — never stop between phases to ask "continue?":
 
-1. Understand: scoped recon of the affected area (subagent scouts when
-   available); carry sourced findings into the plan.
+1. Understand: scoped local recon of the affected area; dispatch scouts only
+   for an explicitly selected multi-model profile, then carry sourced findings
+   into the plan.
 2. Plan: create/refresh `PLAN.md`, self-critique to `READY` or `CHALLENGED`.
 3. Adversary: run the cross-model pass non-interactively (`codex exec
    --sandbox read-only` piping `PLAN.md`, per `/adversary`); fold accepted

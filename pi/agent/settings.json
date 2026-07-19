@@ -74,10 +74,10 @@
       "themes": []
     },
     {
-      "source": "npm:@tintinweb/pi-subagents"
+      "source": "npm:@tintinweb/pi-subagents@0.13.0"
     },
     {
-      "source": "npm:@tintinweb/pi-tasks"
+      "source": "npm:@tintinweb/pi-tasks@0.7.1"
     },
     {
       "source": "npm:@agwab/pi-workflow@0.8.1",
@@ -118,7 +118,10 @@
     "local-mlx//Volumes/Crucial/models/mlx/gemma-4-12B-it-4bit",
     "openai-codex/gpt-5.3-codex-spark",
     "openai-codex/gpt-5.5",
-    "opencode-go/kimi-k2.6",
+    "openai-codex/gpt-5.6-luna",
+    "openai-codex/gpt-5.6-terra",
+    "openai-codex/gpt-5.6-sol",
+    "kimi-coding/k3",
     "opencode-go/mimo-v2.5",
     "opencode-go/mimo-v2.5-pro",
     "opencode-go/minimax-m2.7",

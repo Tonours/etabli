@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-07-14",
+  "updated_at": "2026-07-19",
   "runtimes": {
     "pi": {
       "supports_hooks": {
@@ -12,12 +12,20 @@
         "notes": "extensions are the hook surface"
       },
       "supports_subagents": {
-        "label": "blocked",
-        "verified_at": "2026-07-09",
-        "proof_result": "runtime protocol unavailable",
+        "label": "confirmed",
+        "verified_at": "2026-07-19",
+        "proof_result": "live bounded council agreement stopped after two first passes with zero resumes; live rebuttal preserved exact Luna and GLM role/model provenance plus the same agent ids across one resume each, with zero Sol calls, 1962 reported sidecar tokens, 34902 ms elapsed, and no worktree mutation",
         "expires_after_days": 7,
-        "proof_command": "check subagents:rpc:ping/spawn/stop in the active Pi runtime",
-        "notes": "TaskExecute blocked until rpc protocol is confirmed"
+        "proof_command": "RUN_REAL_MULTI_MODEL=1 PI_BIN=/Users/tonours/.asdf/shims/pi bash tests/multi-model-real-smoke.sh --conversation",
+        "notes": "direct Agent supports deterministic adaptive scout/council admission and one targeted resume per council participant; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
+      },
+      "supports_taskexecute_tracking": {
+        "label": "proxy_supported",
+        "verified_at": "2026-07-19",
+        "proof_result": "live generic non-portfolio TaskExecute spawn, completion, and TaskGet result retrieval passed in 31837 ms with 12262 non-cache coordinator tokens; deterministic TaskStop proof remains inconclusive",
+        "expires_after_days": 7,
+        "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --task-rpc",
+        "notes": "generic non-portfolio Task RPC probe; keep separate from direct Agent capability until ping/spawn/stop lifecycle is fully proven"
       },
       "supports_goal_state": {
         "label": "proxy_supported",
@@ -54,17 +62,17 @@
         "notes": "local hook behavior is deterministic and smoke-tested"
       },
       "supports_subagents": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-09",
-        "proof_result": "live proof not run",
+        "label": "unknown",
+        "verified_at": "2026-07-19",
+        "proof_result": "not revalidated in the current run",
         "expires_after_days": 7,
         "proof_command": "live Agent-tool dispatch in a Claude Code session",
         "notes": "do not claim Pi Task* tracking semantics"
       },
       "supports_goal_state": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-09",
-        "proof_result": "live proof not run",
+        "label": "unknown",
+        "verified_at": "2026-07-19",
+        "proof_result": "not revalidated in the current run",
         "expires_after_days": 7,
         "proof_command": "live /goal run in the current Claude session",
         "notes": "do not claim Pi Task* semantics"
@@ -76,6 +84,14 @@
         "expires_after_days": 30,
         "proof_command": "none - no Pi Task* equivalent exposed",
         "notes": "Claude hooks do not provide structured task state"
+      },
+      "supports_taskexecute_tracking": {
+        "label": "blocked",
+        "verified_at": "2026-07-19",
+        "proof_result": "Pi TaskExecute RPC is not a Claude capability",
+        "expires_after_days": 30,
+        "proof_command": "none - no Pi TaskExecute adapter exposed",
+        "notes": "Claude-native delegation must not be described as Pi task tracking"
       },
       "supports_named_workflow_graphs": {
         "label": "blocked",
@@ -97,16 +113,16 @@
       },
       "supports_subagents": {
         "label": "unknown",
-        "verified_at": "2026-07-09",
-        "proof_result": "not authorized in this run",
+        "verified_at": "2026-07-19",
+        "proof_result": "current collaboration session spawned bounded reconnaissance agents; persistent capability remains session-scoped",
         "expires_after_days": 7,
-        "proof_command": "check multi_agent_v1 runner (spawn_agent/wait_agent/close_agent) in the active Codex App",
-        "notes": "confirmed evidence is runtime-session-scoped only"
+        "proof_command": "check collaboration spawn_agent/wait_agent/list_agents in the active Codex App and run a bounded packet",
+        "notes": "current-session evidence can be confirmed in the ledger; the durable matrix stays unknown across sessions"
       },
       "supports_goal_state": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-09",
-        "proof_result": "live proof not run",
+        "label": "unknown",
+        "verified_at": "2026-07-19",
+        "proof_result": "not revalidated in the current run",
         "expires_after_days": 7,
         "proof_command": "live /goal run in Codex",
         "notes": "goal state is runtime-controlled"
@@ -118,6 +134,14 @@
         "expires_after_days": 30,
         "proof_command": "none - simulate packets under .workflow/<slug>/",
         "notes": "no Pi Task* equivalent is exposed"
+      },
+      "supports_taskexecute_tracking": {
+        "label": "blocked",
+        "verified_at": "2026-07-19",
+        "proof_result": "Pi TaskExecute RPC is not a Codex collaboration capability",
+        "expires_after_days": 30,
+        "proof_command": "none - no Pi TaskExecute adapter exposed",
+        "notes": "Codex collaboration agents are sidecars, not Pi task owners"
       },
       "supports_named_workflow_graphs": {
         "label": "blocked",

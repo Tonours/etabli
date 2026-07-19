@@ -254,6 +254,13 @@ check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions
 check_link "$REPO_DIR/pi/extensions/node_modules" "$HOME/.pi/agent/npm/node_modules" "pi extension node_modules"
 check_absent "$HOME/.pi/extensions" "legacy pi extensions"
 check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
+check_link "$HOME/.pi/agent/subagents.json" "$REPO_DIR/pi/agent/subagents.json" "pi subagents.json"
+for agent_file in "$REPO_DIR/pi/agents"/*.md; do
+  if [ -f "$agent_file" ]; then
+    agent_name="$(basename "$agent_file")"
+    check_link "$HOME/.pi/agent/agents/$agent_name" "$agent_file" "pi agent $agent_name"
+  fi
+done
 check_link "$HOME/.pi/settings.json" "$REPO_DIR/pi/settings.json" "pi settings.json"
 check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
 check_link "$HOME/.claude/CLAUDE.md" "$REPO_DIR/claude/CLAUDE.md" "claude CLAUDE.md"
