@@ -345,13 +345,25 @@ const managedSources = new Set([
   "git:github.com/badlogic/pi-skills",
   "npm:pi-interview",
   "npm:glimpseui",
-  "npm:@tintinweb/pi-subagents",
-  "npm:@tintinweb/pi-tasks",
+  "npm:@tintinweb/pi-subagents@0.13.0",
+  "npm:@tintinweb/pi-tasks@0.7.1",
   "npm:@agwab/pi-workflow@0.8.1",
 ]);
-const legacySources = new Set(["npm:pi-subagents"]);
+const legacySources = new Set([
+  "npm:pi-subagents",
+  "npm:@tintinweb/pi-subagents",
+  "npm:@tintinweb/pi-tasks",
+]);
 let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
+let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
+const managedModels = new Set([
+  "openai-codex/gpt-5.6-luna",
+  "openai-codex/gpt-5.6-terra",
+  "openai-codex/gpt-5.6-sol",
+  "kimi-coding/k3",
+]);
+const legacyModels = new Set(["openai-codex/gpt-5.6"]);
 
 function packageSource(entry) {
   if (typeof entry === "string") return entry;
@@ -361,6 +373,8 @@ function packageSource(entry) {
 
 function isLegacySource(source) {
   return legacySources.has(source) ||
+    ((source.startsWith("npm:@tintinweb/pi-subagents@")) && source !== "npm:@tintinweb/pi-subagents@0.13.0") ||
+    ((source.startsWith("npm:@tintinweb/pi-tasks@")) && source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
     ((source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
       source !== "npm:@agwab/pi-workflow@0.8.1");
 }
@@ -395,8 +409,16 @@ for (const [source, trackedEntry] of trackedBySource) {
   }
 }
 
+const beforeModels = JSON.stringify(localModels);
+localModels = localModels.filter((model) => !legacyModels.has(model));
+for (const model of trackedSettings.enabledModels ?? []) {
+  if (managedModels.has(model) && !localModels.includes(model)) localModels.push(model);
+}
+if (JSON.stringify(localModels) !== beforeModels) changed = true;
+
 if (changed) {
   localSettings.packages = localPackages;
+  localSettings.enabledModels = localModels;
   fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
 }
 NODE
@@ -574,7 +596,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     smoke_home="$tmp_dir/home"
     mkdir -p "$smoke_home/.pi/agent"
-    printf '%s\n' '{"packages":["npm:@agwab/pi-workflow",{"source":"npm:@agwab/pi-workflow@0.7.0"},{"source":"npm:@agwab/pi-workflow-helper"}]}' \
+    printf '%s\n' '{"defaultProvider":"custom","defaultModel":"personal-model","defaultThinkingLevel":"low","enabledModels":["custom/personal-model"],"packages":["npm:@agwab/pi-workflow",{"source":"npm:@agwab/pi-workflow@0.7.0"},{"source":"npm:@agwab/pi-workflow-helper"}]}' \
         > "$smoke_home/.pi/agent/settings.json"
     HOME="$smoke_home"
     REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
@@ -591,6 +613,12 @@ if (sources.includes("npm:@agwab/pi-workflow") || sources.includes("npm:@agwab/p
 }
 if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
   throw new Error("settings sync removed a similarly named user package");
+}
+if (!settings.enabledModels.includes("custom/personal-model") || !settings.enabledModels.includes("kimi-coding/k3")) {
+  throw new Error("settings sync did not preserve the user model and add the managed K3 model");
+}
+if (settings.defaultProvider !== "custom" || settings.defaultModel !== "personal-model" || settings.defaultThinkingLevel !== "low") {
+  throw new Error("settings sync overwrote personal Pi defaults");
 }
 NODE
 
@@ -908,7 +936,7 @@ fi
 # ============================================================================
 print_step "Setting up Pi Coding Agent..."
 
-mkdir -p ~/.pi ~/.pi/agent/skills ~/.pi/agent/themes ~/.pi/agent/extensions
+mkdir -p ~/.pi ~/.pi/agent/agents ~/.pi/agent/skills ~/.pi/agent/themes ~/.pi/agent/extensions
 
 # AGENTS.md
 if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
@@ -944,6 +972,25 @@ if [ -f "$REPO_DIR/pi/models.json" ]; then
     ln -sf "$REPO_DIR/pi/models.json" ~/.pi/agent/models.json
     print_success "Pi models.json linked"
 fi
+
+if [ -f "$REPO_DIR/pi/agent/subagents.json" ]; then
+    if [ -f ~/.pi/agent/subagents.json ] && [ ! -L ~/.pi/agent/subagents.json ]; then
+        backup_file "$HOME/.pi/agent/subagents.json"
+    fi
+    ln -sf "$REPO_DIR/pi/agent/subagents.json" ~/.pi/agent/subagents.json
+    print_success "Pi subagents.json linked"
+fi
+
+for agent_file in "$REPO_DIR/pi/agents"/*.md; do
+    if [ -f "$agent_file" ]; then
+        agent_name="$(basename "$agent_file")"
+        if [ -f "$HOME/.pi/agent/agents/$agent_name" ] && [ ! -L "$HOME/.pi/agent/agents/$agent_name" ]; then
+            backup_file "$HOME/.pi/agent/agents/$agent_name"
+        fi
+        ln -sf "$agent_file" "$HOME/.pi/agent/agents/$agent_name"
+        print_success "Pi agent '$agent_name' linked"
+    fi
+done
 
 # Link extensions directory (agent path only — ~/.pi/extensions auto-scans and would cause conflicts)
 if [ -d "$REPO_DIR/pi/extensions" ]; then

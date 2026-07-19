@@ -20,7 +20,10 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
   otherwise it should simulate packets through `.workflow/<slug>/`.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
-- Subagents are optional sidecar evaluators or workers, not the default workflow.
+- Multi-execution uses deterministic adaptive admission on eligible phases
+  under `workflow/skills/multi-model-orchestration.md`; the blind latency gate
+  keeps ordinary work parent-only while critical or combined signals can
+  trigger a bounded council.
 - Named pi-workflow graphs are a separate capability from Task* subagent state;
   neither capability proves the other.
 
@@ -53,8 +56,9 @@ Prefer structured task state over text:
 
 Delegate only when all are true:
 
-- the user asked for delegation, subagents, a dynamic workflow, or the task is
-  broad enough that a separate evaluator materially improves evidence;
+- the user asked for delegation/subagents, or the canonical adaptive profile
+  marks the route and phase eligible because separate evaluators materially
+  improve evidence;
 - the subtask is bounded and independent;
 - ownership is clear;
 - the runtime exposes a supported runner;
@@ -111,9 +115,9 @@ Pi:
   its limit.
 - `TaskExecute` requires explicit subagent tracking capability; package presence
   alone is not enough.
-- Treat `TaskExecute` as blocked until the `subagents:rpc:ping`,
-  `subagents:rpc:spawn`, and `subagents:rpc:stop` protocol is confirmed in the
-  active Pi runtime. A standalone `subagent` tool can still be useful, but it
+- Treat full `TaskExecute` tracking as unconfirmed until `subagents:rpc:ping`,
+  `subagents:rpc:spawn`, and `subagents:rpc:stop` are all confirmed in the
+  active Pi runtime. A direct `Agent` tool can still be confirmed separately; it
   does not prove that `pi-tasks` can track status, cascade dependencies, or serve
   `TaskOutput`.
 
@@ -133,8 +137,9 @@ Codex:
 
 - `codex-dynamic-workflows` is the orchestration front door for `/goal`,
   subagents, delegation, and dynamic workflow requests.
-- In Codex App, a visible `multi_agent_v1` runner with `spawn_agent`,
-  `wait_agent`, and `close_agent` is `confirmed` evidence for this runtime only.
+- In Codex App, a visible collaboration runner with `spawn_agent`, `wait_agent`,
+  and status inspection is `confirmed` evidence for this runtime only; do not
+  require or invent a `close_agent` operation when the active surface omits it.
 - Codex subagents are internal sidecar workers or reviewers. They are not Pi
   Task* tools, and they are not user-owned Codex threads.
 - Codex subagents inherit the current sandbox/approval posture and can consume

@@ -10,7 +10,7 @@ Access date: 2026-07-03.
 
 | Source | Relevant claim | Etabli rule |
 | --- | --- | --- |
-| OpenAI Codex subagents docs, https://developers.openai.com/codex/subagents | Codex subagents are explicit, orchestrated, may consume extra model/tool work, and inherit sandbox policy. | Spawn only on explicit/authorized delegation, record runner evidence, sandbox/approval posture, result, and close status. |
+| OpenAI Codex subagents docs, https://developers.openai.com/codex/subagents | Codex subagents are explicit, orchestrated, may consume extra model/tool work, and inherit sandbox policy. | Spawn only on explicit/authorized delegation; record runner evidence, sandbox/approval posture, result, and the final status the active surface exposes. |
 | OpenAI Codex Goals cookbook, https://developers.openai.com/cookbook/examples/codex/using_goals_in_codex | Goals are scoped completion contracts with outcome, evidence, constraints, and blocker conditions. | `/goal` prompts must state a verifiable end state and cannot be marked complete from weak or indirect evidence. |
 | Claude Code subagents docs, https://code.claude.com/docs/en/sub-agents | Subagents preserve main context, can specialize behavior, and run with configured tools/permissions. | Use Claude subagents only as side contexts; do not claim Pi Task* state unless a runtime exposes it. |
 | Claude Code hooks docs, https://code.claude.com/docs/en/hooks-guide and https://code.claude.com/docs/en/hooks | Hooks provide deterministic lifecycle control for blocking, injecting context, and auditing. | Hooks may route and guard Claude workflows, but final completion still requires task or validation evidence. |
@@ -29,5 +29,5 @@ Access date: 2026-07-03.
 - **Keep completion auditable.** A workflow is complete only when tests, runtime
   state, or generated artifacts prove the original acceptance criteria.
 - **Preserve adapter honesty.** Pi Task* state, Claude hooks/subagents, and
-  Codex `multi_agent_v1` are different runtime surfaces; use capability labels
+  Codex `collaboration` agents are different runtime surfaces; use capability labels
   instead of flattening them into one generic "subagent" claim.

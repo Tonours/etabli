@@ -48,6 +48,31 @@
           }
         }
       ]
+    },
+    "kimi-coding": {
+      "models": [
+        {
+          "id": "k3",
+          "name": "Kimi K3",
+          "api": "anthropic-messages",
+          "baseUrl": "https://api.kimi.com/coding",
+          "headers": {
+            "User-Agent": "KimiCLI/1.5"
+          },
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": "high",
+            "high": "high",
+            "xhigh": "max"
+          },
+          "input": ["text", "image"],
+          "contextWindow": 262144,
+          "maxTokens": 32768
+        }
+      ]
     }
   }
 }

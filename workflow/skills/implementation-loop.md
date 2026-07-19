@@ -7,10 +7,11 @@ details in the adapters; keep the phase order and completion evidence here.
 
 ## Required Sequence
 
-0. Understand before planning: run a scoped recon of the affected area —
-   subagent scouts when available so the main context stays lean — and carry
-   sourced findings (file:line) into the plan. Scale it down to a quick read
-   for small tasks; never skip it entirely.
+0. Understand before planning: run a scoped local recon of the affected area
+   and carry sourced findings (file:line) into the plan. Dispatch sidecars only
+   when the deterministic adaptive profile selects a scout/council or the user
+   explicitly forces the profile. Scale recon down to a quick read for small
+   tasks; never skip it entirely.
 1. If a task is provided, run the `plan-loop` behavior first.
 2. If no task is provided, read the existing root `PLAN.md`.
 3. Continue only when the actual root `PLAN.md` has `Status: READY`; prompt
@@ -44,11 +45,10 @@ details in the adapters; keep the phase order and completion evidence here.
 13. Review the diff against `PLAN.md`. In an autonomous run, this review comes
     from a fresh context (subagent reviewer or cross-model) per
     `workflow/spec.md`. If a read-only fresh-context runner is available and
-    the user has explicitly authorized subagents, delegation, reviewers, or
-    "all" for this run, spawn exactly one read-only reviewer, record the agent
-    id and verdict, and continue from its result instead of asking again.
-    Without a runner or explicit authorization, stop as `blocked` requesting
-    external review.
+    the canonical adaptive profile applies or the user explicitly authorized
+    subagents/delegation/reviewers, spawn exactly one read-only reviewer, record the agent
+    id and verdict, and continue from its result. Without an eligible
+    profile, runner, or authorization, stop as `blocked` requesting review.
 13b. In an autonomous run, follow with the adversary Code diff mode
     (`workflow/skills/adversary.md`): cross-model, read-only, on the
     implementation diff; fold accepted findings and re-run checks.

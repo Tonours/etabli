@@ -14,6 +14,13 @@ node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
 const path = process.argv[2];
 fs.writeFileSync(path, `${JSON.stringify({
+  defaultProvider: "kimi-for-coding",
+  defaultModel: "kimi-k2.6",
+  defaultThinkingLevel: "high",
+  enabledModels: [
+    "custom/provider-model",
+    "openai-codex/gpt-5.6",
+  ],
   packages: [
     "npm:@agwab/pi-workflow",
     { source: "npm:@agwab/pi-workflow@0.7.0" },
@@ -77,6 +84,12 @@ assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/skills/adr"
 assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
+assert_link "$HOME_DIR/.pi/agent/subagents.json" "$ROOT_DIR/pi/agent/subagents.json"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-luna-scout.md" "$ROOT_DIR/pi/agents/etabli-luna-scout.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-terra-analyst.md" "$ROOT_DIR/pi/agents/etabli-terra-analyst.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-glm-challenger.md" "$ROOT_DIR/pi/agents/etabli-glm-challenger.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-sol-judge.md" "$ROOT_DIR/pi/agents/etabli-sol-judge.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-kimi-fallback.md" "$ROOT_DIR/pi/agents/etabli-kimi-fallback.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
 assert_link "$HOME_DIR/.agents/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
@@ -105,11 +118,11 @@ function packageBySource(source) {
   return packages.find((entry) => entry && typeof entry === "object" && entry.source === source);
 }
 
-if (!hasObjectSource("npm:@tintinweb/pi-subagents")) {
+if (!hasObjectSource("npm:@tintinweb/pi-subagents@0.13.0")) {
   throw new Error("missing scoped Pi subagents package");
 }
 
-if (!hasObjectSource("npm:@tintinweb/pi-tasks")) {
+if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
   throw new Error("missing scoped Pi tasks package");
 }
 
@@ -126,6 +139,10 @@ if (packages.some((entry) => sourceOf(entry) === "npm:pi-subagents")) {
   throw new Error("legacy unscoped pi-subagents package was kept");
 }
 
+if (packages.some((entry) => ["npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-tasks"].includes(sourceOf(entry)))) {
+  throw new Error("unpinned Pi subagent package was kept");
+}
+
 if (packages.some((entry) => {
   const source = sourceOf(entry);
   return typeof source === "string" &&
@@ -138,7 +155,35 @@ if (packages.some((entry) => {
 if (!hasObjectSource("npm:@agwab/pi-workflow-helper")) {
   throw new Error("unrelated package with a similar prefix was removed");
 }
+
+if (settings.defaultProvider !== "kimi-for-coding" ||
+    settings.defaultModel !== "kimi-k2.6" ||
+    settings.defaultThinkingLevel !== "high") {
+  throw new Error("local Pi defaults were overwritten");
+}
+
+const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
+for (const model of [
+  "custom/provider-model",
+  "openai-codex/gpt-5.6-luna",
+  "openai-codex/gpt-5.6-terra",
+  "openai-codex/gpt-5.6-sol",
+  "kimi-coding/k3",
+]) {
+  if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
+}
+if (enabledModels.includes("openai-codex/gpt-5.6")) {
+  throw new Error("legacy generic GPT-5.6 alias was kept");
+}
 NODE
+
+settings_before="$(shasum -a 256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
+"$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
+settings_after="$(shasum -a 256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
+if [ "$settings_before" != "$settings_after" ]; then
+  printf 'second deploy changed Pi settings; sync is not idempotent\n' >&2
+  exit 1
+fi
 
 "$ROOT_DIR/scripts/deploy-codex" --dry-run --prefer-links --codex-home "$HOME_DIR/.codex" >/dev/null
 

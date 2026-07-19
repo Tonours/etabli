@@ -46,6 +46,7 @@ with `scripts/workflow-dossier`, and mine recurring workflow issues with
 | `project_slice_planned` | `{slice, owner, validation, dependencies}` |
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
 | `runtime_run_attached` | `{adapter:"pi-workflow", run_id, workflow, state_path:".pi/workflows/<run-id>", status, usage_measured}` |
+| `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted|degraded|blocked|rollback_to_opt_in, usage:{measured,...}, fallback_status:none|degraded|blocked}` |
 | `outcome_metric` | `{outcome, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
@@ -67,3 +68,29 @@ not make `.pi/workflows/<run-id>/` a second planning or progress source of
 truth. Its `state_path` must be exactly `.pi/workflows/<run_id>`, its status must
 match a pi-workflow run status, and unavailable usage is represented by
 `usage_measured:false` rather than zero-valued token fields.
+
+`multi_execution_completed` accepts only the tracked portfolio model IDs and
+their matching `openai`, `zai`, or `kimi` family. When `usage.measured` is true,
+non-negative `input_tokens`, `output_tokens`, `total_tokens`, and `elapsed_ms`
+are required; `total_tokens` cannot be lower than input plus output.
+
+Historical events without `protocol_version` remain valid. Protocol v2 adds
+`trigger`, `strategy`, deduplicated bounded `signals`, `rounds`, `claim_count`,
+`disagreement_count`, `stop_reason`, numeric requested `budget`, and measured or
+explicitly unmeasured `stage_usage` for first pass, rebuttal, and adjudication.
+Adaptive v2 evidence needs at least one signal. Scouts cannot rebut or judge;
+an adjudication round requires `etabli-sol-judge`. If claims or any measured
+stage/total output exceed the requested budget, only `stop_reason: budget_cap`
+with a `degraded` or `blocked` verdict validates; an accepted overage is
+rejected. V2 budgets are canonical rather than caller-selected: scout uses
+`600/0/0/600` and council uses `1800/700/650/3500` for
+first-pass/rebuttal/adjudication/total output, both with six claims. The
+validator also binds adaptive signals to the selected strategy, keeps Sol out
+of participants, requires unique participant IDs and models, and validates the
+portfolio shape: one Luna/Terra scout, or Luna/Terra plus GLM for a normal
+council, with Kimi admitted only as the explicit replacement. It also rejects
+contradictions between disagreement counts, fallback, verdict, stop reason,
+and executed rounds. `fallback_status` carries replacement degradation, so a
+degraded fallback run keeps its real resolution reason such as `agreement`,
+`rebuttal_resolved`, or `adjudicated` instead of overwriting it with
+`stop_reason: degraded`.

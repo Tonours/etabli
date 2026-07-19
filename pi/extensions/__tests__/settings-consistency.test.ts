@@ -125,12 +125,12 @@ describe("Pi settings consistency", () => {
       themes: [],
     });
 
-    expect(packageBySource("npm:@tintinweb/pi-subagents")).toMatchObject({
-      source: "npm:@tintinweb/pi-subagents",
+    expect(packageBySource("npm:@tintinweb/pi-subagents@0.13.0")).toMatchObject({
+      source: "npm:@tintinweb/pi-subagents@0.13.0",
     });
 
-    expect(packageBySource("npm:@tintinweb/pi-tasks")).toMatchObject({
-      source: "npm:@tintinweb/pi-tasks",
+    expect(packageBySource("npm:@tintinweb/pi-tasks@0.7.1")).toMatchObject({
+      source: "npm:@tintinweb/pi-tasks@0.7.1",
     });
 
     expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toMatchObject({
@@ -142,5 +142,18 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
     expect(installScript).toContain("npm:@agwab/pi-workflow@0.8.1");
     expect(deployAgentWorkflowScript).toContain("npm:@agwab/pi-workflow@0.8.1");
+    expect(installScript).toContain("npm:@tintinweb/pi-subagents@0.13.0");
+    expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
+  });
+
+  test("enables the exact managed model portfolio without retired aliases", () => {
+    const enabledModels = (settings as typeof settings & { enabledModels: string[] }).enabledModels;
+
+    expect(enabledModels).toContain("openai-codex/gpt-5.6-luna");
+    expect(enabledModels).toContain("openai-codex/gpt-5.6-terra");
+    expect(enabledModels).toContain("openai-codex/gpt-5.6-sol");
+    expect(enabledModels).toContain("kimi-coding/k3");
+    expect(enabledModels).not.toContain("openai-codex/gpt-5.6");
+    expect(enabledModels).not.toContain("opencode-go/kimi-k2.6");
   });
 });

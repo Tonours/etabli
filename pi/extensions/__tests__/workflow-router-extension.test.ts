@@ -6,7 +6,7 @@ import workflowRouter from "../workflow-router.ts";
 
 type Handler = (event: Record<string, unknown>) => unknown;
 
-function setupExtension() {
+function setupExtension(activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"]) {
   const handlers = new Map<string, Handler[]>();
   const entries: unknown[] = [];
 
@@ -15,7 +15,7 @@ function setupExtension() {
       handlers.set(eventName, [...(handlers.get(eventName) ?? []), handler]);
     },
     getActiveTools() {
-      return ["TaskCreate", "TaskList"];
+      return activeTools;
     },
     appendEntry(_customType: string, data?: unknown) {
       entries.push(data);
@@ -136,7 +136,7 @@ describe("workflow router extension", () => {
       systemPrompt: expect.stringContaining("Knowledge topics: saas"),
     });
     expect(runtime.entries[0]).toMatchObject({
-      version: "0.4.0",
+      version: "0.6.0",
       decision: { route: "answer", knowledgeContext: { topics: ["saas"] } },
     });
   });
@@ -150,6 +150,151 @@ describe("workflow router extension", () => {
 
     expect(results).toEqual([undefined]);
     expect(runtime.entries[0]).toMatchObject({ decision: { route: "answer" } });
+  });
+
+  test("injects pending or degraded panel guidance from active tools", () => {
+    const pending = setupExtension();
+    const pendingResults = pending.emit("before_agent_start", {
+      prompt: "Fais un plan d'architecture avec un panel multi-modèle",
+      systemPrompt: "Base prompt",
+    });
+    expect(pendingResults[0]).toEqual({
+      systemPrompt: expect.stringContaining("Multi-execution request: pending explicit council"),
+    });
+
+    const degraded = setupExtension(["TaskCreate", "TaskList"]);
+    const degradedResults = degraded.emit("before_agent_start", {
+      prompt: "Fais un plan d'architecture avec un panel multi-modèle",
+      systemPrompt: "Base prompt",
+    });
+    expect(degradedResults[0]).toEqual({
+      systemPrompt: expect.stringContaining("Multi-execution request: degraded"),
+    });
+  });
+
+  test("mechanically bounds Etabli portfolio calls for an active council", () => {
+    const runtime = setupExtension();
+    runtime.emit("before_agent_start", {
+      prompt: "Fais une review de sécurité de cette race condition",
+      systemPrompt: "Base prompt",
+    });
+    runtime.emit("before_agent_start", { prompt: "", systemPrompt: "Base prompt" });
+
+    const call = (toolCallId: string, subagent_type: string, extra: Record<string, unknown> = {}) =>
+      runtime.emit("tool_call", { toolName: "Agent", toolCallId, input: { subagent_type, ...extra } })[0];
+    const result = (toolCallId: string, subagentType: string, agentId: string, status = "background") =>
+      runtime.emit("tool_result", {
+        toolName: "Agent",
+        toolCallId,
+        input: { subagent_type: subagentType },
+        content: [],
+        details: { subagentType, agentId, status },
+        isError: false,
+      });
+    const retrieve = (agentId: string, status: string) =>
+      runtime.emit("tool_result", {
+        toolName: "get_subagent_result",
+        toolCallId: `get-${agentId}-${status}`,
+        input: { agent_id: agentId, wait: true },
+        content: [{ type: "text", text: `Agent: ${agentId}\nType: test | Status: ${status}` }],
+        isError: false,
+      });
+
+    expect(call("start-luna", "etabli-luna-scout")).toBeUndefined();
+    result("start-luna", "etabli-luna-scout", "luna-id");
+    expect(call("start-glm", "etabli-glm-challenger")).toBeUndefined();
+    result("start-glm", "etabli-glm-challenger", "glm-id");
+    expect(call("early-sol", "etabli-sol-judge")).toMatchObject({ block: true });
+    expect(call("cross-role-resume", "etabli-glm-challenger", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("premature-luna", "etabli-luna-scout", { resume: "luna-id" })).toMatchObject({ block: true });
+    retrieve("luna-id", "completed");
+    retrieve("glm-id", "completed");
+    expect(call("resume-luna", "etabli-luna-scout", { resume: "luna-id" })).toBeUndefined();
+    expect(call("repeat-luna", "etabli-luna-scout", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("resume-glm", "etabli-glm-challenger", { resume: "glm-id" })).toBeUndefined();
+    expect(call("sol-before-results", "etabli-sol-judge")).toMatchObject({ block: true });
+    result("resume-luna", "etabli-luna-scout", "luna-id", "completed");
+    expect(call("sol-before-glm-result", "etabli-sol-judge")).toMatchObject({ block: true });
+    result("resume-glm", "etabli-glm-challenger", "glm-id", "completed");
+    expect(call("sol", "etabli-sol-judge")).toBeUndefined();
+    expect(call("repeat-sol", "etabli-sol-judge")).toMatchObject({ block: true });
+    expect(call("healthy-kimi", "etabli-kimi-fallback")).toMatchObject({ block: true });
+    expect(call("terra", "etabli-terra-analyst")).toMatchObject({ block: true });
+  });
+
+  test("admits Kimi only after an observed primary failure", () => {
+    const runtime = setupExtension();
+    runtime.emit("before_agent_start", {
+      prompt: "Fais une review de sécurité de cette race condition",
+      systemPrompt: "Base prompt",
+    });
+
+    const call = (toolCallId: string, subagent_type: string, extra: Record<string, unknown> = {}) =>
+      runtime.emit("tool_call", { toolName: "Agent", toolCallId, input: { subagent_type, ...extra } })[0];
+    const result = (toolCallId: string, subagentType: string, agentId: string, status = "background") =>
+      runtime.emit("tool_result", {
+        toolName: "Agent",
+        toolCallId,
+        input: { subagent_type: subagentType },
+        content: [],
+        details: { subagentType, agentId, status },
+        isError: false,
+      });
+    const retrieve = (agentId: string, status: string) => runtime.emit("tool_result", {
+      toolName: "get_subagent_result",
+      toolCallId: `get-${agentId}-${status}`,
+      input: { agent_id: agentId, wait: true },
+      content: [{ type: "text", text: `Agent: ${agentId}\nType: test | Status: ${status}` }],
+      isError: false,
+    });
+
+    expect(call("start-luna", "etabli-luna-scout")).toBeUndefined();
+    result("start-luna", "etabli-luna-scout", "luna-id");
+    retrieve("luna-id", "error");
+    expect(call("start-kimi", "etabli-kimi-fallback")).toBeUndefined();
+    result("start-kimi", "etabli-kimi-fallback", "kimi-id");
+    expect(call("repeat-kimi", "etabli-kimi-fallback")).toMatchObject({ block: true });
+    expect(call("start-glm", "etabli-glm-challenger")).toBeUndefined();
+    result("start-glm", "etabli-glm-challenger", "glm-id");
+    retrieve("kimi-id", "completed");
+    retrieve("glm-id", "completed");
+    expect(call("resume-failed-luna", "etabli-luna-scout", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("resume-kimi", "etabli-kimi-fallback", { resume: "kimi-id" })).toBeUndefined();
+    expect(call("resume-glm", "etabli-glm-challenger", { resume: "glm-id" })).toBeUndefined();
+    result("resume-kimi", "etabli-kimi-fallback", "kimi-id", "completed");
+    result("resume-glm", "etabli-glm-challenger", "glm-id", "completed");
+    expect(call("sol", "etabli-sol-judge")).toBeUndefined();
+  });
+
+  test("blocks Etabli portfolio roles on the unguarded Task RPC surface", () => {
+    const runtime = setupExtension();
+    runtime.emit("before_agent_start", { prompt: "Fais une review concise", systemPrompt: "Base prompt" });
+    const taskCall = (toolName: string, input: Record<string, unknown>) =>
+      runtime.emit("tool_call", { toolName, toolCallId: `${toolName}-call`, input })[0];
+
+    expect(taskCall("TaskCreate", { agentType: "etabli-luna-scout" })).toMatchObject({ block: true });
+    expect(taskCall("TaskCreate", { metadata: { agentType: "etabli-glm-challenger" } })).toMatchObject({ block: true });
+    expect(taskCall("TaskUpdate", { taskId: "1", metadata: { agentType: "etabli-sol-judge" } })).toMatchObject({ block: true });
+    expect(taskCall("TaskExecute", { task_ids: ["1"], model: "kimi-coding/k3" })).toMatchObject({ block: true });
+    expect(taskCall("TaskCreate", { agentType: "generic-explorer" })).toBeUndefined();
+    expect(taskCall("TaskExecute", { task_ids: ["2"], model: "other/model" })).toBeUndefined();
+  });
+
+  test("bounds scouts but ignores unrelated generic Agent calls", () => {
+    const runtime = setupExtension();
+    runtime.emit("before_agent_start", {
+      prompt: "Fais un plan d'architecture",
+      systemPrompt: "Base prompt",
+    });
+
+    let toolCallSequence = 0;
+    const emitAgent = (input: Record<string, unknown>) =>
+      runtime.emit("tool_call", { toolName: "Agent", toolCallId: `call-${toolCallSequence += 1}`, input })[0];
+    expect(emitAgent({ subagent_type: "generic-explorer" })).toBeUndefined();
+    expect(emitAgent({ subagent_type: "etabli-terra-analyst" })).toBeUndefined();
+    expect(emitAgent({ subagent_type: "etabli-terra-analyst", resume: "terra-id" })).toMatchObject({ block: true });
+    expect(emitAgent({ subagent_type: "etabli-glm-challenger" })).toMatchObject({ block: true });
+    expect(emitAgent({ subagent_type: "etabli-kimi-fallback" })).toMatchObject({ block: true });
   });
 
   test("injects a newly discovered Obvault metadata topic", () => {

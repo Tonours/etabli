@@ -243,14 +243,20 @@ const managedSources = new Set([
   "git:github.com/badlogic/pi-skills",
   "npm:pi-interview",
   "npm:glimpseui",
-  "npm:@tintinweb/pi-subagents",
-  "npm:@tintinweb/pi-tasks",
+  "npm:@tintinweb/pi-subagents@0.13.0",
+  "npm:@tintinweb/pi-tasks@0.7.1",
   "npm:@agwab/pi-workflow@0.8.1",
 ]);
-const legacySources = new Set(["npm:pi-subagents"]);
+const legacySources = new Set([
+  "npm:pi-subagents",
+  "npm:@tintinweb/pi-subagents",
+  "npm:@tintinweb/pi-tasks",
+]);
 
 function isLegacySource(source) {
   return legacySources.has(source) ||
+    ((source.startsWith("npm:@tintinweb/pi-subagents@")) && source !== "npm:@tintinweb/pi-subagents@0.13.0") ||
+    ((source.startsWith("npm:@tintinweb/pi-tasks@")) && source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
     ((source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
       source !== "npm:@agwab/pi-workflow@0.8.1");
 }
@@ -273,7 +279,15 @@ function backupPath(path) {
 
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
 let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
+let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
 const changes = [];
+const managedModels = new Set([
+  "openai-codex/gpt-5.6-luna",
+  "openai-codex/gpt-5.6-terra",
+  "openai-codex/gpt-5.6-sol",
+  "kimi-coding/k3",
+]);
+const legacyModels = new Set(["openai-codex/gpt-5.6"]);
 
 const filteredPackages = localPackages.filter((entry) => {
   const source = sourceOf(entry);
@@ -302,6 +316,17 @@ for (const trackedEntry of trackedPackages) {
   }
 }
 
+localModels = localModels.filter((model) => {
+  if (!legacyModels.has(model)) return true;
+  changes.push(`remove ${model}`);
+  return false;
+});
+for (const model of trackedSettings.enabledModels ?? []) {
+  if (!managedModels.has(model) || localModels.includes(model)) continue;
+  localModels.push(model);
+  changes.push(`add ${model}`);
+}
+
 if (changes.length === 0) {
   console.log("OK             Pi agent settings resources");
   process.exit(0);
@@ -315,6 +340,7 @@ if (dryRun) {
 const backup = backupPath(localPath);
 fs.copyFileSync(localPath, backup);
 localSettings.packages = localPackages;
+localSettings.enabledModels = localModels;
 fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
 console.log(`BACKUP         ${backup}`);
 console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);
@@ -333,6 +359,8 @@ deploy_codex() {
 }
 
 deploy_pi() {
+  local agent_file
+  local agent_name
   local skill
   local theme_file
   local theme_name
@@ -344,7 +372,7 @@ deploy_pi() {
   status_line SECTION "Pi"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.pi/agent/themes" "$HOME_DIR/.agents/skills"
+    mkdir -p "$HOME_DIR/.pi/agent/agents" "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.pi/agent/themes" "$HOME_DIR/.agents/skills"
   fi
 
   link_path "$REPO_DIR/pi/AGENTS.md" "$HOME_DIR/.pi/agent/AGENTS.md" "Pi AGENTS.md"
@@ -352,7 +380,14 @@ deploy_pi() {
   link_path "$REPO_DIR/PLAN_TEMPLATE.md" "$HOME_DIR/.pi/agent/PLAN_TEMPLATE.md" "Pi PLAN_TEMPLATE.md"
   link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "$HOME_DIR/.pi/agent/PLAN_TEMPLATE_FULL.md" "Pi PLAN_TEMPLATE_FULL.md"
   link_path "$REPO_DIR/pi/models.json" "$HOME_DIR/.pi/agent/models.json" "Pi models.json"
+  link_path "$REPO_DIR/pi/agent/subagents.json" "$HOME_DIR/.pi/agent/subagents.json" "Pi subagents.json"
   link_path "$REPO_DIR/pi/settings.json" "$HOME_DIR/.pi/settings.json" "Pi settings.json"
+
+  for agent_file in "$REPO_DIR/pi/agents"/*.md; do
+    [ -f "$agent_file" ] || continue
+    agent_name="$(basename "$agent_file")"
+    link_path "$agent_file" "$HOME_DIR/.pi/agent/agents/$agent_name" "Pi agent $agent_name"
+  done
 
   remove_managed_path "$HOME_DIR/.pi/extensions" "Pi root extensions path"
   link_path "$REPO_DIR/pi/extensions" "$HOME_DIR/.pi/agent/extensions" "Pi agent extensions"
