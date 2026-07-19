@@ -22,7 +22,7 @@ function setupExtension(activeTools = ["TaskCreate", "TaskList", "Agent", "get_s
     },
   };
 
-  workflowRouter(pi as Parameters<typeof workflowRouter>[0]);
+  workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
 
   return {
     entries,
@@ -320,7 +320,7 @@ tags:
 ---
 # FinOps Cost Controls
 `);
-      symlinkSync(join(import.meta.dir, "../../../../obvault/_meta"), join(root, "_meta"), "dir");
+      symlinkSync(join(import.meta.dir, "../../../tests/fixtures/obvault-meta"), join(root, "_meta"), "dir");
       process.env.OBVAULT_ROOT = root;
 
       const results = runtime.emit("before_agent_start", {

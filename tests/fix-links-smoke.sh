@@ -117,8 +117,9 @@ fi
 FAKE_REPO="$TMP_HOME/fake-repo"
 FAKE_HOME="$TMP_HOME/fake-home"
 MISSING_SOURCE_OUTPUT="$TMP_HOME/missing-source.out"
-mkdir -p "$FAKE_REPO/scripts" "$FAKE_HOME"
+mkdir -p "$FAKE_REPO/scripts/lib" "$FAKE_HOME"
 cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
+cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
 chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then

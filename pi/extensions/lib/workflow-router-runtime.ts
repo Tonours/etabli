@@ -96,7 +96,9 @@ export function classifyWorkflowRoute(
   prompt: string,
   context: WorkflowRouteContext = {},
 ): WorkflowRouteDecision {
-  const core = classifyWorkflowRouteCore(prompt, context) as WorkflowRouteDecision & { route: WorkflowRoute | "verify-workflow" };
+  const core = classifyWorkflowRouteCore(prompt, context) as Omit<WorkflowRouteDecision, "route"> & {
+    route: WorkflowRoute | "verify-workflow";
+  };
   const route = core.route === "verify-workflow" ? "verify" : core.route;
   return {
     ...core,

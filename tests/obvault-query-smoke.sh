@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
-OBVAULT="${OBVAULT_ROOT:-$HOME/work/obvault}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+TMP_DIR="$(mktemp -d)"
+
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+if [ "${RUN_LIVE_OBVAULT_SMOKE:-0}" = "1" ]; then
+  OBVAULT="${OBVAULT_ROOT:-$HOME/work/obvault}"
+else
+  OBVAULT="$TMP_DIR/obvault"
+  mkdir -p "$OBVAULT/kb" "$OBVAULT/ref"
+  printf '# Test vault\n' > "$OBVAULT/AGENTS.md"
+  printf '# Second Brain Architecture\n' > "$OBVAULT/kb/llm-wiki-second-brain-architecture.md"
+  ln -s "$ROOT_DIR/tests/fixtures/obvault-meta" "$OBVAULT/_meta"
+fi
+
+export OBVAULT_ROOT="$OBVAULT"
 CLI="$OBVAULT/_meta/obvault"
 
 test -x "$CLI"

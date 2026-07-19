@@ -47,6 +47,8 @@ write-back consent.
 Self-improvement candidates use harness-style evidence: weakness patterns,
 bounded proposals, held-in and held-out validation, and rejected-candidate logs
 stay in the local ledger before any workflow contract change is accepted.
+Comparable baseline/candidate runs use `harness_validation_completed`; an
+accepted result requires held-in improvement and held-out non-regression.
 
 Adapters expose the same routes: Pi as `/skill:*`
 (`/skill:plan-loop`, `/skill:plan-implement`, `/skill:adversary`,
@@ -129,7 +131,9 @@ Claude binary with `claude --version`; `--print` stays behind
 
 Workflow feedback-loop helpers are read-only: `workflow-monitor` reports stale,
 blocked, failing, and active ledgers; `workflow-metrics` aggregates optional
-`outcome_metric` events into tokens per successful outcome; `workflow-dossier`
+`outcome_metric` events into tokens per successful outcome and reports
+per-candidate harness validation coverage, verdicts, and deltas without
+averaging heterogeneous suites; `workflow-dossier`
 emits sanitized replay/debug context for one run; `workflow-retrospect` mines
 ledgers and plan archives for recurring issues and reports candidate
 recommendations, router fixtures, contract patches, or mechanical checks;

@@ -8,6 +8,7 @@ DRY_RUN=1
 HOME_DIR="$HOME"
 CODEX_HOME_INPUT=""
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+. "$SCRIPT_DIR/lib/pi-paths.sh"
 . "$SCRIPT_DIR/lib/skill-catalog.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
@@ -394,7 +395,7 @@ deploy_pi() {
   link_path "$REPO_DIR/pi/themes" "$HOME_DIR/.pi/themes" "Pi themes"
 
   if [ "$HOME_DIR" = "$HOME" ]; then
-    pi_node_modules="$HOME_DIR/.pi/agent/npm/node_modules"
+    pi_node_modules="$(pi_agent_node_modules_dir "$HOME_DIR")"
     if [ "$DRY_RUN" -eq 1 ]; then
       if same_link "$pi_node_modules" "$REPO_DIR/pi/extensions/node_modules"; then
         status_line OK "Pi extension node_modules"

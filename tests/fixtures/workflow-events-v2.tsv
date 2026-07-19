@@ -1,0 +1,30 @@
+route_decided	reason	{"route":"plan-implement","reason":"broad implementation"}
+plan_created	status	{"path":"PLAN.md","status":"READY"}
+adversary_completed	mode	{"mode":"plan","verdict":"GO","accepted_findings":[],"rejected_findings":[]}
+review_completed	status	{"status":"GO","evidence":["review"]}
+simplification_completed	status	{"status":"passed","evidence":"diff inspected"}
+file_changed	path	{"path":"src/example.ts","change":"updated"}
+validation_run	command	{"command":"true","exit":0}
+validation_failed	failure	{"command":"false","exit":1,"failure":"expected failure"}
+dogfood_matrix_created	path	{"path":"docs/dogfood.md","flows":1,"scenarios":2}
+dogfood_scenario_run	scenario	{"scenario":"checkout","surface":"browser","status":"passed","artifacts":["trace.zip"]}
+dogfood_fix_applied	fix	{"scenario":"checkout","fix":"fixed link","evidence":"rerun passed"}
+dogfood_blocked	needed_input	{"scenario":"checkout","reason":"human verification","needed_input":"browser session"}
+self_improvement_candidate	source	{"source":"events.jsonl","category":"router_miss","outcome":"router_fixture","confidence":"confirmed","evidence":["fixture"]}
+harness_failure_pattern	traces	{"terminal_cause":"router miss","causal_status":"confirmed","mechanism":"route order","verifier":"router eval","traces":["tests/router-evals/core.json"]}
+harness_proposal	candidate	{"candidate":"route guard","editable_surfaces":["router"],"preserve":["answers"],"held_in":["miss"],"held_out":["golden"]}
+harness_validation_completed	checks	{"candidate":"route guard","verdict":"accepted","reason":"gain without regression","held_in":{"baseline":{"population":"misses","passed":0,"total":1},"candidate":{"population":"misses","passed":1,"total":1}},"held_out":{"baseline":{"population":"goldens","passed":1,"total":1},"candidate":{"population":"goldens","passed":1,"total":1}},"checks":["router smoke"],"evidence":["fixture"]}
+harness_candidate_rejected	reason	{"candidate":"auto apply","reason":"unsafe","regressions":["permission drift"],"evidence":["contract"]}
+project_slice_planned	slice	{"slice":"spec","owner":"planner","validation":"review","dependencies":[]}
+project_slice_completed	slice	{"slice":"spec","validation":"passed","evidence":["docs/spec.md"],"remaining":[]}
+runtime_run_attached	run_id	{"adapter":"pi-workflow","run_id":"workflow_fixture","workflow":"spec-review","state_path":".pi/workflows/workflow_fixture","status":"running","usage_measured":false}
+multi_execution_completed	participants	{"participants":[{"id":"agent-terra","model":"openai-codex/gpt-5.6-terra","family":"openai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}
+outcome_metric	reason	{"outcome":"completed","success":true,"measured":false,"reason":"runtime telemetry unavailable"}
+retry_classified	failure_class	{"failure_class":"timeout","next_action":"bounded retry"}
+no_progress	attempts	{"check_or_hypothesis":"typecheck","command":"bun run typecheck","attempts":2,"head_sha":"deadbeef","eliminated":["missing compiler"]}
+handoff	branch	{"branch":"main","sha":"deadbeef","done":["implementation"],"pending":["push approval"],"next_action":"review","do_not_redo":["baseline"]}
+human_checkpoint	decision	{"category":"external_write","decision":"not authorized","target":"GitHub settings"}
+archive_written	path	{"path":"docs/plan/fixture.md"}
+plan_removed	path	{"path":"PLAN.md"}
+completed	summary	{"summary":"done"}
+blocked	needed_input	{"reason":"external approval required","needed_input":"approve GitHub mutation"}

@@ -1,5 +1,9 @@
-# Handoff: Etabli vNext - Machine de Guerre Dev Workflow (19 juillet 2026)
+# Handoff Etabli Machine de Guerre — superseded
 
-[Full detailed content as previously drafted by Henry, including all research, phases, Self-Harness integration, etc.]
+Ce document du lot `20260719` est conservé comme pointeur historique.
 
-Ce fichier a été généré et pushé via tools pour répondre à ta demande.
+Voir le handoff audité :
+`docs/handoffs/20260719-etabli-war-machine-handoff.md`.
+
+Le contrat workflow reste `workflow/spec.md`. Ce pointeur n'autorise aucune
+mutation externe.

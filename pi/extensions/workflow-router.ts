@@ -251,8 +251,11 @@ function readPlanStatus(cwd: string): PlanStatus {
   }
 }
 
-function eventCwd(event: { cwd?: unknown }): string {
-  if (typeof event.cwd === "string" && event.cwd.trim() !== "") return event.cwd;
+function eventCwd(event: unknown): string {
+  if (typeof event === "object" && event !== null && "cwd" in event) {
+    const cwd = (event as { cwd?: unknown }).cwd;
+    if (typeof cwd === "string" && cwd.trim() !== "") return cwd;
+  }
   if (typeof process.cwd === "function") return process.cwd();
   return ".";
 }

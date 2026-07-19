@@ -1,4 +1,3 @@
-/// <reference path="./node-runtime.d.ts" />
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
