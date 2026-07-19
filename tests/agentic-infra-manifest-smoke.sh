@@ -45,6 +45,18 @@ for group in shell-docs pi nvim; do
   [ "$count" -eq 1 ] || fail "CI must call canonical group $group exactly once, found $count"
 done
 
+shell_docs_job="$(
+  awk '
+    /^  verify-shell-and-docs:/ { capture = 1 }
+    /^  verify-pi-typescript:/ { capture = 0 }
+    capture
+  ' "$WORKFLOW"
+)"
+case "$shell_docs_job" in
+  *'uses: oven-sh/setup-bun@'*) ;;
+  *) fail "shell/docs CI job must install Bun for Bun-backed smoke tests" ;;
+esac
+
 if grep -Eq 'run:[[:space:]]+(bash tests/|bun test|node scripts/validate-adrs)' "$WORKFLOW"; then
   fail "CI duplicates a manifest-owned check instead of calling the canonical runner"
 fi
