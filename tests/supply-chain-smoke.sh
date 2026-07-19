@@ -16,6 +16,10 @@ while IFS= read -r reference; do
     fail "GitHub Action is not pinned to a full commit SHA: $reference"
 done < <(sed -nE 's/^[[:space:]]*uses:[[:space:]]*([^[:space:]#]+).*/\1/p' "$WORKFLOW")
 
+if grep -Eq 'uses:[[:space:]]+actions/cache@[0-9a-f]{40}[[:space:]]+# v[1-4]([.]|$)' "$WORKFLOW"; then
+  fail "actions/cache must use a Node.js 24-compatible major version"
+fi
+
 grep -Fq 'npm install --global hunkdiff@0.17.3' "$WORKFLOW" ||
   fail "hunkdiff must be pinned to 0.17.3"
 
