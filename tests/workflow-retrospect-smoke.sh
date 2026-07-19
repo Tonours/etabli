@@ -6,6 +6,11 @@ TMP_DIR="$(mktemp -d)"
 EVENT_DIR="$TMP_DIR/.workflow"
 PLAN_DIR="$TMP_DIR/docs/plan"
 
+if grep -Fq 'IGNORECASE' "$ROOT_DIR/scripts/workflow-retrospect"; then
+  printf 'workflow-retrospect must use POSIX awk case folding\n' >&2
+  exit 1
+fi
+
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -97,7 +102,7 @@ printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "dogfood_b
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "validation_failure" and .confirmed == true and .action_kind == "mechanical_check")' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "adversary_finding" and .confirmed == true and (.samples[0].text | contains("missing archive cleanup")))' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "runtime_capability_overclaim") | .count == 2 and .evidence_count == 3 and (.samples | any(.origin == "archive"))' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "router_miss" and (.key | contains("versioned retry duplicated"))) | .count == 1 and .evidence_count == 2 and .confirmed == false and .initiatives == ["repeated-initiative"]' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "router_miss" and (.key | contains("versioned retry duplicated"))) | .count == 1 and .evidence_count == 3 and .confirmed == false and .initiatives == ["repeated-initiative"] and (.samples | any(.origin == "archive"))' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.issues[] | select(.confirmed == false and .category == "validation_failure")' >/dev/null
 if printf '%s\n' "$json_output" | jq -e '.issues[] | select(.category == "observed_route")' >/dev/null; then
   printf 'normal route_decided events should not become retrospect issues\n%s\n' "$json_output" >&2
