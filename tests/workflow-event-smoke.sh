@@ -80,6 +80,31 @@ while IFS=$'\t' read -r event required detail; do
   assert_contains "$out" "required fields"
 done < "$ROOT_DIR/tests/fixtures/workflow-events-v2.tsv"
 
+mkdir -p "$EVENT_DIR/target-a"
+target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
+printf '%s\n' "$target_line" > "$EVENT_DIR/target-a/events.jsonl"
+target_ledger_sha="$(shasum -a 256 "$EVENT_DIR/target-a/events.jsonl" | awk '{print $1}')"
+target_terminal_sha="$(printf '%s' "$target_line" | shasum -a 256 | awk '{print $1}')"
+measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
+manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
+population_id="terminal-runs-v1-${manifest_sha:0:16}"
+measurement_population="$(jq -nc --arg population "$population_id" --arg manifest "$manifest_sha" --argjson targets "$measurement_targets" '{population_id:$population,manifest_sha256:$manifest,terminal_runs:1,targets:$targets}')"
+measurement_import="$(jq -nc --arg population "$population_id" --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '{population_id:$population,import_id:"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,source_adapter:"codex",source_scope:"primary_session_window",selection:"shortest_enclosing_primary_session",session_fingerprint:"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",window_started_at:"2026-07-01T00:00:00Z",window_ended_at:"2026-07-01T00:02:00Z",sample_started_at:"2026-07-01T00:00:00.000Z",sample_ended_at:"2026-07-01T00:02:30.000Z",sample_count:2,success:true,input_tokens:100,output_tokens:20,total_tokens:120,tool_calls:1,elapsed_ms:150000}')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement outcome_measurement_population "$measurement_population"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement outcome_measurement_imported "$measurement_import"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-measurement)"
+assert_contains "$out" "2 events, ok"
+
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement outcome_measurement_imported "$measurement_import"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-measurement)"
+assert_contains "$out" "must be unique members"
+
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement-unmatched outcome_measurement_population "$measurement_population"
+unmatched_import="$(printf '%s\n' "$measurement_import" | jq -c '.target_run="target-missing" | .import_id="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement-unmatched outcome_measurement_imported "$unmatched_import"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-measurement-unmatched)"
+assert_contains "$out" "must be unique members"
+
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"false accepted regression","verdict":"accepted","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
 assert_contains "$out" "required fields"
 

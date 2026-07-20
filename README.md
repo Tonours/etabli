@@ -99,6 +99,7 @@ tests/pr-latest-head-status-smoke.sh
 tests/workflow-efficiency-report-smoke.sh
 tests/workflow-monitor-smoke.sh
 tests/workflow-metrics-smoke.sh
+tests/workflow-telemetry-recover-smoke.sh
 tests/workflow-dossier-smoke.sh
 tests/workflow-retrospect-smoke.sh
 tests/router-eval-smoke.sh
@@ -129,14 +130,19 @@ Claude binary with `claude --version`; `--print` stays behind
 `RUN_CLAUDE_PRINT_SMOKE=1`. Codex App subagent orchestration rules:
 `docs/codex-app-subagents.md`.
 
-Workflow feedback-loop helpers are read-only: `workflow-monitor` reports stale,
-blocked, failing, and active ledgers; `workflow-metrics` aggregates optional
-`outcome_metric` events into tokens per successful outcome and reports
+Workflow feedback-loop readers are read-only: `workflow-monitor` reports stale,
+blocked, failing, and active ledgers; `workflow-metrics` aggregates native and
+conservatively recovered outcome usage into tokens per successful outcome,
+source-verifies each import against current local session envelopes, reports
+actual `usage_measurement_coverage`, and reports
 per-candidate harness validation coverage, verdicts, and deltas without
 averaging heterogeneous suites; `workflow-dossier`
 emits sanitized replay/debug context for one run; `workflow-retrospect` mines
 ledgers and plan archives for recurring issues and reports candidate
 recommendations, router fixtures, contract patches, or mechanical checks;
+`workflow-telemetry-recover` previews local Codex aggregate usage recovery and
+only appends fingerprinted population/import events when explicitly given
+`--apply` and an active ledger;
 `router-eval` scores Pi/Claude router decisions from `tests/router-evals/`;
 `research-proof-check` rejects unsourced research artifacts;
 `answer-quality-check` validates objective evidence markers for durable

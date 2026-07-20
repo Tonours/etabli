@@ -150,6 +150,7 @@ assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-monitor-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-metrics-smoke.sh"
+assert_file "$ROOT_DIR/tests/workflow-telemetry-recover-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-dossier-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
@@ -157,6 +158,8 @@ assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
 assert_file "$ROOT_DIR/tests/lean-ctx-check-smoke.sh"
 assert_file "$ROOT_DIR/scripts/workflow-monitor"
 assert_file "$ROOT_DIR/scripts/workflow-metrics"
+assert_file "$ROOT_DIR/scripts/workflow-telemetry-recover"
+assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
 assert_file "$ROOT_DIR/scripts/workflow-dossier"
 assert_file "$ROOT_DIR/scripts/workflow-retrospect"
 assert_file "$ROOT_DIR/scripts/router-eval"
@@ -448,6 +451,9 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Implementation-bound autonomous lo
 assert_contains "$ROOT_DIR/workflow/spec.md" 'adversary evidence, review, implemented-plan archive under `docs/plan/`, and'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/events.md" 'outcome_metric'
+assert_contains "$ROOT_DIR/workflow/events.md" 'outcome_measurement_population'
+assert_contains "$ROOT_DIR/workflow/events.md" 'usage_measurement_coverage'
+assert_contains "$ROOT_DIR/workflow/events.md" 'full detail exactly matches'
 assert_contains "$ROOT_DIR/workflow/events.md" 'schema_version:2'
 assert_contains "$ROOT_DIR/workflow/events.md" 'post-terminal compatibility path'
 assert_contains "$ROOT_DIR/workflow/events.md" 'never counts as a successful outcome'
@@ -455,6 +461,8 @@ assert_contains "$ROOT_DIR/workflow/events.md" 'independent ledger initiatives'
 assert_contains "$ROOT_DIR/workflow/events.md" 'workflow-dossier'
 assert_contains "$ROOT_DIR/workflow/events.md" 'scripts/workflow-retrospect'
 assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
+assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_measurement_imported'
+assert_contains "$ROOT_DIR/scripts/workflow-telemetry-recover" 'shortest_enclosing_primary_session'
 assert_contains "$ROOT_DIR/scripts/workflow-efficiency-report" 'documented_source_surfaces'
 assert_contains "$ROOT_DIR/tests/workflow-efficiency-report-smoke.sh" 'source_of_truth_conflicts == 0'
 assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'correct loop primitive for the job'

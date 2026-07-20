@@ -138,6 +138,12 @@ Only `READY` authorizes implementation.
   `workflow-retrospect` are read-only ledger/archive readers for run health,
   tokens-per-successful-outcome metrics, sanitized replay/debug dossiers, and
   recurring workflow-issue recommendations.
+- `workflow-telemetry-recover` is read-only by default and may append only a
+  fingerprinted historical population plus aggregate imports to the active
+  local ledger when explicitly invoked with `--apply`; it never rewrites target
+  ledgers or persists conversation content, raw session IDs, or session paths.
+  Recovered metrics count only while a read-only source recomputation exactly
+  reproduces the stored import and current target fingerprints.
 - Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
   start from inspectable evidence, classify candidates, implement only through
   reviewed `PLAN.md`, and never auto-apply retrospective output.

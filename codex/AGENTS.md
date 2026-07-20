@@ -2,8 +2,7 @@
 
 ## Runtime
 - French chat; English code/commands/commits. Evidence-first.
-- Prefer RTK for shell commands; if unavailable or unsuitable, use native
-  shell/read/search with absolute paths.
+- Prefer RTK for shell commands; otherwise use native tools with absolute paths.
 
 ## Sources
 - Repo: `AGENTS.md`; workflow: `workflow/spec.md`; review:
@@ -22,8 +21,8 @@
   use `scripts/answer-quality-check` only for durable artifacts.
 - `/goal` needs measurable success, validation, scope, cap, stop condition, and
   `.workflow/<slug>/events.jsonl`.
-- Adaptive multi-model work follows `workflow/skills/multi-model-orchestration.md`;
-  sidecars inherit parent posture and are not user threads.
+- Use `workflow/skills/multi-model-orchestration.md`; sidecars inherit parent posture, not user threads.
+- More than two sidecars need explicit approval; else narrow the plan.
 
 ## Safety
 - Preserve unrelated user changes; run `git status --short` before edits.
