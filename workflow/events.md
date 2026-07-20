@@ -21,7 +21,9 @@ validated append is acceptable. Do not edit earlier lines.
 Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
 metrics with `scripts/workflow-metrics`, create sanitized replay/debug dossiers
 with `scripts/workflow-dossier`, and mine recurring workflow issues with
-`scripts/workflow-retrospect`.
+`scripts/workflow-retrospect`. Use `scripts/workflow-telemetry-recover` to
+preview conservative local Codex usage recovery; only explicit `--apply` writes
+the pinned population and imports to the active ledger.
 
 ## Event Types
 
@@ -48,6 +50,8 @@ with `scripts/workflow-dossier`, and mine recurring workflow issues with
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
 | `runtime_run_attached` | `{adapter:"pi-workflow", run_id, workflow, state_path:".pi/workflows/<run-id>", status, usage_measured}` |
 | `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted|degraded|blocked|rollback_to_opt_in, usage:{measured,...}, fallback_status:none|degraded|blocked}` |
+| `outcome_measurement_population` | `{population_id, manifest_sha256, terminal_runs, targets:[{target_run, target_ledger_sha256, target_terminal, target_terminal_event_sha256, target_outcome_event_sha256, baseline_measured, baseline_usage_measured}]}` |
+| `outcome_measurement_imported` | `{population_id, import_id, target_run, target fingerprints, source_adapter:"codex", source_scope:"primary_session_window", selection:"shortest_enclosing_primary_session", session_fingerprint, window/sample bounds, sample_count, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `outcome_metric` | measured: `{outcome, success, measured:true, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}`; unavailable: `{outcome, success, measured:false, reason}` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
@@ -116,8 +120,31 @@ degraded fallback run keeps its real resolution reason such as `agreement`,
 `rebuttal_resolved`, or `adjudicated` instead of overwriting it with
 `stop_reason: degraded`.
 
-`workflow-metrics` keeps four evidence classes separate: measured outcomes,
-explicitly unmeasured outcomes, legacy outcomes, and measured runtime usage.
+Historical usage recovery is an evidence overlay, not a rewrite. A single
+`outcome_measurement_population` pins the exact terminal-run manifest and its
+content fingerprints. Each `outcome_measurement_imported` must be a unique
+member of exactly one matching population and carries only aggregate usage,
+time bounds, counts, and an opaque SHA-256 session fingerprint. The recovery
+helper reads only session envelopes, cumulative token counters, timestamps,
+user-message boundaries, and tool-call types; it never persists prompts,
+responses, reasoning, raw session IDs, or filesystem paths. It accepts only a
+primary session that fully encloses a run, has a baseline no older than 120
+seconds, has monotone counters, includes a sample inside the run, has a
+post-terminal sample within 120 seconds, has no
+new user message before that final sample, and does not overlap another
+accepted token slice.
+Runs under 60 seconds, ambiguous sessions, counter resets, multiple outcome
+events, and conflicts remain unmeasured. Reapplying the same import is
+idempotent; changed fingerprints or duplicate target imports fail validation.
+The aggregator independently reruns the local extractor and overlays only an
+import whose full detail exactly matches that source-derived result. Missing
+sessions, forged aggregates, or stale target fingerprints therefore stay
+unmeasured even when the stored event is structurally valid.
+
+`workflow-metrics` keeps native, recovered, explicitly unmeasured, legacy, and
+separately measured runtime usage evidence distinct. `measurement_coverage`
+retains the generic measured flag, while `usage_measurement_coverage` counts
+only outcomes with actual token totals over the full outcome denominator.
 Runtime usage from `multi_execution_completed` is reported independently and
 never counts as a successful outcome without an `outcome_metric`. Historical
 metrics that claimed `measured:true` without usage fields remain outcome

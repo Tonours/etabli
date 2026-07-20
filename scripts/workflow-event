@@ -4,6 +4,7 @@ set -euo pipefail
 WORKFLOW_DIR=".workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
+MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
 
 ALLOWED_EVENTS=(
   route_decided
@@ -27,6 +28,8 @@ ALLOWED_EVENTS=(
   project_slice_completed
   runtime_run_attached
   multi_execution_completed
+  outcome_measurement_population
+  outcome_measurement_imported
   outcome_metric
   retry_classified
   no_progress
@@ -180,6 +183,36 @@ case "$command" in
 
     if [ "$legacy_post_terminal" -eq 0 ] && [ -n "${terminal_line:-}" ] && [ "$terminal_line" -ne "$count" ]; then
       printf 'terminal event must be last (line %s of %s)\n' "$terminal_line" "$count" >&2
+      exit 1
+    fi
+
+    if ! jq -se '
+      def populations: [.[] | select(.event == "outcome_measurement_population") | .detail];
+      def imports: [.[] | select(.event == "outcome_measurement_imported") | .detail];
+      populations as $populations
+      | imports as $imports
+      | (all($populations[];
+          ([.targets[].target_run] | unique | length) == (.targets | length))) and
+        (($imports | map(.import_id) | unique | length) == ($imports | length)) and
+        (all($imports[];
+          . as $import |
+          ([$populations[] | select(.population_id == $import.population_id)] | length) == 1 and
+          ([$populations[]
+            | select(.population_id == $import.population_id)
+            | .targets[]
+            | select(
+                .target_run == $import.target_run and
+                .target_ledger_sha256 == $import.target_ledger_sha256 and
+                .target_terminal == $import.target_terminal and
+                .target_terminal_event_sha256 == $import.target_terminal_event_sha256 and
+                .target_outcome_event_sha256 == $import.target_outcome_event_sha256
+              )] | length) == 1)) and
+        (($imports | group_by(.target_run) | all(.[]; length == 1)))
+    ' "$file" >/dev/null; then
+      printf 'measurement imports must be unique members of exactly one matching population\n' >&2
+      exit 1
+    fi
+    if ! "$MEASUREMENT_INTEGRITY" "$WORKFLOW_DIR" "$file"; then
       exit 1
     fi
     case "$profile" in

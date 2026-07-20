@@ -20,6 +20,8 @@ Use evidence that can be inspected again:
 - runtime capability overclaims;
 - harness failure records with terminal cause, causal status, mechanism,
   verifier, and trace links.
+- pinned historical outcome populations and conservative aggregate usage
+  imports produced by `scripts/workflow-telemetry-recover`.
 
 Do not use vibes, stale memory, or a single anecdote as enough proof for a
 workflow invariant.
@@ -91,6 +93,9 @@ pushes, posts, deploys, or changes external systems.
 
 - Never weaken checks to make self-improvement pass.
 - Never auto-apply `workflow-retrospect` output.
+- Never synthesize token usage or treat `measured:true` without token totals as
+  usage coverage. Historical recovery requires an explicit dry-run review and
+  `--apply` against the active non-terminal ledger.
 - Never accept a candidate on held-in evidence alone when a relevant held-out
   smoke, fixture, or review surface exists.
 - Never convert `proxy_supported`, `blocked`, or `unknown` runtime capability

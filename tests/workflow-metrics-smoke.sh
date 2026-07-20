@@ -32,12 +32,15 @@ text_output="$("$ROOT_DIR/scripts/workflow-metrics" --dir "$EVENT_DIR")"
 
 printf '%s\n' "$json_output" | jq -e '.totals.outcomes == 5' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.measured_outcomes == 3 and .totals.usage_measured_outcomes == 3' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.measurement_denominator == 6 and .totals.recovered_outcomes == 0' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.unmeasured_outcomes == 2 and .totals.legacy_outcomes == 1 and .totals.measurement_coverage == 0.5' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.usage_measurement_coverage == 0.5' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.successful_outcomes == 4 and .totals.measured_successful_outcomes == 2' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.tokens_per_successful_outcome == 225' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.total_tokens == 675 and .totals.legacy_total_tokens == 90' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.runtime_usage_records == 1 and .totals.runtime_total_tokens == 60 and .totals.runtime_elapsed_ms == 70' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.runs[] | select(.run == "run-runtime") | .successful_outcomes == 0 and .runtime_usage_records == 1 and .unmeasured_outcomes == 1' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.telemetry == {population_events:0,imported_events:0,source_verified_imports:0,unverified_imports:0,recovered_outcomes:0,duplicate_target_imports:0,unmatched_imports:0,populations:[]}' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.harness.proposed_candidates == 2' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.harness.validated_candidates == 2' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.harness.validated_proposals == 1' >/dev/null

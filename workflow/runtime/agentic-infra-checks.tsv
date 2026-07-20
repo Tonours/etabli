@@ -7,6 +7,7 @@ shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
 shell-docs	workflow-efficiency-report-smoke	tests/workflow-efficiency-report-smoke.sh
 shell-docs	workflow-monitor-smoke	tests/workflow-monitor-smoke.sh
 shell-docs	workflow-metrics-smoke	tests/workflow-metrics-smoke.sh
+shell-docs	workflow-telemetry-recover-smoke	tests/workflow-telemetry-recover-smoke.sh
 shell-docs	workflow-dossier-smoke	tests/workflow-dossier-smoke.sh
 shell-docs	workflow-retrospect-smoke	tests/workflow-retrospect-smoke.sh
 shell-docs	research-proof-check-smoke	tests/research-proof-check-smoke.sh
