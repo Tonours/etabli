@@ -3,6 +3,9 @@ def boolean: type == "boolean";
 def nonnegative_number: type == "number" and . >= 0;
 def nonnegative_integer: nonnegative_number and floor == .;
 def positive_integer: nonnegative_integer and . > 0;
+def sha256: type == "string" and test("^[a-f0-9]{64}$");
+def optional_sha256: . == null or sha256;
+def iso_timestamp: type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$");
 def string_array: type == "array" and all(.[]; nonempty_string);
 def evidence: nonempty_string or string_array;
 def optional_string($value): $value == null or ($value | nonempty_string);
@@ -138,6 +141,43 @@ def multi_execution_completed_detail:
   else false
   end;
 
+def outcome_measurement_target:
+  type == "object" and
+  ((keys | sort) == (["baseline_measured", "baseline_usage_measured", "target_ledger_sha256", "target_outcome_event_sha256", "target_run", "target_terminal", "target_terminal_event_sha256"] | sort)) and
+  (.target_run | test("^[a-z0-9][a-z0-9-]*$")) and
+  (.target_ledger_sha256 | sha256) and
+  (.target_terminal | IN("completed", "blocked")) and
+  (.target_terminal_event_sha256 | sha256) and
+  (.target_outcome_event_sha256 | optional_sha256) and
+  (.baseline_measured | boolean) and (.baseline_usage_measured | boolean) and
+  (if .baseline_usage_measured then .baseline_measured else true end);
+
+def outcome_measurement_population_detail:
+  type == "object" and
+  ((keys | sort) == (["manifest_sha256", "population_id", "targets", "terminal_runs"] | sort)) and
+  (.population_id | test("^terminal-runs-v1-[a-f0-9]{16}$")) and (.manifest_sha256 | sha256) and
+  (.terminal_runs | positive_integer) and
+  (.targets | type == "array") and (.targets | length) == .terminal_runs and
+  all(.targets[]; outcome_measurement_target);
+
+def outcome_measurement_imported_detail:
+  type == "object" and
+  ((keys | sort) == (["elapsed_ms", "import_id", "input_tokens", "output_tokens", "population_id", "sample_count", "sample_ended_at", "sample_started_at", "selection", "session_fingerprint", "source_adapter", "source_scope", "success", "target_ledger_sha256", "target_outcome_event_sha256", "target_run", "target_terminal", "target_terminal_event_sha256", "tool_calls", "total_tokens", "window_ended_at", "window_started_at"] | sort)) and
+  (.population_id | test("^terminal-runs-v1-[a-f0-9]{16}$")) and (.import_id | sha256) and
+  (.target_run | test("^[a-z0-9][a-z0-9-]*$")) and (.target_ledger_sha256 | sha256) and
+  (.target_terminal | IN("completed", "blocked")) and
+  (.target_terminal_event_sha256 | sha256) and
+  (.target_outcome_event_sha256 | optional_sha256) and
+  (.source_adapter == "codex") and (.source_scope == "primary_session_window") and
+  (.selection == "shortest_enclosing_primary_session") and
+  (.session_fingerprint | sha256) and
+  (.window_started_at | iso_timestamp) and (.window_ended_at | iso_timestamp) and
+  (.sample_started_at | iso_timestamp) and (.sample_ended_at | iso_timestamp) and
+  (.sample_count | positive_integer) and (.success | boolean) and
+  (.input_tokens | nonnegative_integer) and (.output_tokens | nonnegative_integer) and
+  (.total_tokens | nonnegative_integer) and (.total_tokens >= (.input_tokens + .output_tokens)) and
+  (.tool_calls | nonnegative_integer) and (.elapsed_ms | nonnegative_integer);
+
 def strict_detail($event):
   type == "object" and
   if $event == "route_decided" then
@@ -196,6 +236,10 @@ def strict_detail($event):
     (.status | IN("running", "blocked", "completed", "failed", "interrupted")) and (.usage_measured | boolean)
   elif $event == "multi_execution_completed" then
     multi_execution_completed_detail
+  elif $event == "outcome_measurement_population" then
+    outcome_measurement_population_detail
+  elif $event == "outcome_measurement_imported" then
+    outcome_measurement_imported_detail
   elif $event == "outcome_metric" then
     (.outcome | nonempty_string) and (.success | boolean) and (.measured | boolean) and
     if .measured then

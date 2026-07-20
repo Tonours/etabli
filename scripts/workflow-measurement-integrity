@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+
+const crypto = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex')
+}
+
+function stable(value) {
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+function fail(message) {
+  process.stderr.write(`${message}\n`)
+  process.exit(1)
+}
+
+function parseLines(file) {
+  return fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).map((raw) => ({ raw, value: JSON.parse(raw) }))
+}
+
+function targetEvidence(workflowDir, target) {
+  const targetFile = path.join(workflowDir, target.target_run, 'events.jsonl')
+  if (!fs.existsSync(targetFile)) fail(`measurement target is absent: ${target.target_run}`)
+  const raw = fs.readFileSync(targetFile, 'utf8')
+  const entries = parseLines(targetFile)
+  const terminal = [...entries].reverse().find(({ value }) => value.event === 'completed' || value.event === 'blocked')
+  const outcome = [...entries].reverse().find(({ value }) => value.event === 'outcome_metric') || null
+  if (!terminal) fail(`measurement target is not terminal: ${target.target_run}`)
+  const metrics = entries.filter(({ value }) => value.event === 'outcome_metric').map(({ value }) => value.detail || {})
+  const baselineMeasured = metrics.some((metric) => metric.measured === true)
+  const baselineUsageMeasured = metrics.some((metric) => metric.measured === true && Number.isInteger(metric.total_tokens))
+  const actual = {
+    target_ledger_sha256: sha256(raw),
+    target_terminal: terminal.value.event,
+    target_terminal_event_sha256: sha256(terminal.raw),
+    target_outcome_event_sha256: outcome ? sha256(outcome.raw) : null,
+    baseline_measured: baselineMeasured,
+    baseline_usage_measured: baselineUsageMeasured,
+  }
+  for (const [field, value] of Object.entries(actual)) {
+    if (target[field] !== value) fail(`measurement target fingerprint mismatch: ${target.target_run} ${field}`)
+  }
+}
+
+function main() {
+  const [workflowDirArgument, ledgerFileArgument] = process.argv.slice(2)
+  if (!workflowDirArgument || !ledgerFileArgument) fail('usage: workflow-measurement-integrity <workflow-dir> <ledger-file>')
+  const workflowDir = path.resolve(workflowDirArgument)
+  const events = parseLines(path.resolve(ledgerFileArgument)).map(({ value }) => value)
+  const populations = events.filter(({ event }) => event === 'outcome_measurement_population').map(({ detail }) => detail)
+  const imports = events.filter(({ event }) => event === 'outcome_measurement_imported').map(({ detail }) => detail)
+  if (populations.length === 0 && imports.length === 0) return
+  if (populations.length !== 1) fail('measurement ledger must contain exactly one population')
+  const population = populations[0]
+  const manifest = sha256(stable(population.targets))
+  if (population.manifest_sha256 !== manifest || population.population_id !== `terminal-runs-v1-${manifest.slice(0, 16)}`) {
+    fail('measurement population manifest hash does not match its targets')
+  }
+  for (const target of population.targets) targetEvidence(workflowDir, target)
+  for (const imported of imports) {
+    const windowStart = Date.parse(imported.window_started_at)
+    const windowEnd = Date.parse(imported.window_ended_at)
+    const sampleStart = Date.parse(imported.sample_started_at)
+    const sampleEnd = Date.parse(imported.sample_ended_at)
+    if (!(sampleStart <= windowStart && windowStart <= windowEnd && windowEnd <= sampleEnd)) {
+      fail(`measurement bounds are inconsistent: ${imported.target_run}`)
+    }
+    if (sampleEnd - windowEnd > 120000 || imported.elapsed_ms !== sampleEnd - windowStart) {
+      fail(`measurement terminal lag or elapsed time is inconsistent: ${imported.target_run}`)
+    }
+  }
+}
+
+main()
