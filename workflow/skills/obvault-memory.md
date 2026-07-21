@@ -14,6 +14,13 @@ Use the same local read interface from Claude, Codex, and Pi:
 ~/work/obvault/_meta/obvault context --json --max-tokens 2500 "<question>"
 ```
 
+`context` remains the default integration because it is bounded, cited, and
+works without a persistent process. The optional obvault MCP server is a local
+`stdio`, read-only interface for a host that explicitly opts in; do not add it
+to Etabli's managed Codex configuration or use it for writes, reindexing, or
+automation. When diagnosing retrieval behavior, use `obvault health --json` to
+inspect the active backend, canonical snapshot, and explicit semantic fallback.
+
 ## Retrieve when
 
 - the request depends on a past decision, durable preference, recurring incident,
