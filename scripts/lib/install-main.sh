@@ -124,8 +124,12 @@ has_valid_rtk() {
     command -v rtk &> /dev/null && rtk gain > /dev/null 2>&1
 }
 
+node_available() {
+    "${NODE_CMD[@]}" -v > /dev/null 2>&1
+}
+
 node_runtime_available() {
-    "${NODE_CMD[@]}" -v > /dev/null 2>&1 && "${NPM_CMD[@]}" -v > /dev/null 2>&1
+    node_available && "${NPM_CMD[@]}" -v > /dev/null 2>&1
 }
 
 prepend_asdf_shims() {
@@ -327,7 +331,7 @@ sync_pi_agent_settings_resources() {
         return 0
     fi
 
-    if ! node_runtime_available; then
+    if ! node_available; then
         print_warning "Node.js not available - skipping Pi agent settings resource sync"
         return 0
     fi
