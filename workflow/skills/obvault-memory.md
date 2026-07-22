@@ -8,18 +8,35 @@ obvault first; do not wait for the user to mention the knowledge base. Read
 command below. The vault contract, status, freshness, and abstention rules take
 precedence over retrieved prose.
 
-Use the same local read interface from Claude, Codex, and Pi:
+Use the same local read interface from Claude, Codex, Pi, Grok, and Cursor:
 
 ```bash
+# Preferred session bootstrap (route + bounded context + entry reminders)
+~/work/obvault/_meta/obvault session --json --max-tokens 2500 "<question>"
+
+# Equivalent direct pack
 ~/work/obvault/_meta/obvault context --json --max-tokens 2500 "<question>"
+
+# Living-loop dashboard (pending reviews, feedback totals, apply unlock)
+~/work/obvault/_meta/obvault status --json
+~/work/obvault/_meta/obvault loop --json
 ```
 
-`context` remains the default integration because it is bounded, cited, and
-works without a persistent process. The optional obvault MCP server is a local
-`stdio`, read-only interface for a host that explicitly opts in; do not add it
+`session` / `context` remain the default integration because they are bounded,
+cited, and work without a persistent process. The optional obvault MCP server is
+a local `stdio`, read-only interface (`vault_search`, `vault_context`,
+`vault_read`, `vault_health`) for a host that explicitly opts in; do not add it
 to Etabli's managed Codex configuration or use it for writes, reindexing, or
 automation. When diagnosing retrieval behavior, use `obvault health --json` to
 inspect the active backend, canonical snapshot, and explicit semantic fallback.
+After a retrieval outcome, record only aggregate feedback:
+
+```bash
+~/work/obvault/_meta/obvault feedback --status hit|miss|stale|wrong
+```
+
+Self-improvement contract: `kb/obvault-self-improvement-loop.md` (miss → review
+→ promote → check). Multi-harness recipe: `kb/obvault-multi-harness-access.md`.
 
 ## Retrieve when
 
