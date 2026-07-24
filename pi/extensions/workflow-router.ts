@@ -10,6 +10,7 @@ import {
   type WorkflowMultiExecution,
 } from "./lib/workflow-router-runtime.ts";
 import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
+import { planReadyGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -305,7 +306,24 @@ export default function (pi: ExtensionAPI) {
     if (event.toolName === "Agent") {
       return guardPortfolioCall(portfolioCallState, event.toolCallId, event.input);
     }
-    return guardPortfolioTaskCall(event.toolName, event.input);
+    const portfolioBlock = guardPortfolioTaskCall(event.toolName, event.input);
+    if (portfolioBlock) return portfolioBlock;
+
+    // READY mutation parity with Claude plan-ready-guard (shared decision helper).
+    const readyGuard = planReadyGuardDecision({
+      cwd: eventCwd(event),
+      tool_name: event.toolName,
+      tool_input: event.input || {},
+    }) as { hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string } } | null;
+    if (readyGuard?.hookSpecificOutput?.permissionDecision === "deny") {
+      return {
+        block: true,
+        reason:
+          readyGuard.hookSpecificOutput.permissionDecisionReason ||
+          "PLAN.md is not READY; mutating tools are blocked",
+      };
+    }
+    return undefined;
   });
 
   pi.on("tool_result", (event) => {

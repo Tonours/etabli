@@ -1,0 +1,23 @@
+{
+  "status": "done",
+  "recorded_at": "2026-07-23T21:59:00Z",
+  "scope": "deterministic_vnext_package",
+  "user_decision": "User explicitly waived LIVE_EVAL_BUDGET_USD as a completion gate (2026-07-23): finish without live spend.",
+  "live_effectiveness": {
+    "verified": false,
+    "claimed": false,
+    "required_for_goal": false,
+    "mechanical_gate": "scripts/vnext-suite --live-status still reports can_run_live=false when budget unset"
+  },
+  "deterministic_gates": {
+    "vnext_suite": "pass",
+    "verify_agentic_infra_all": "pass",
+    "baseline_candidate_inspectable": true,
+    "residual_risks_inspectable": true,
+    "no_silent_p0": true,
+    "fresh_context_review": "GO",
+    "archive": "docs/plan/20260723-etabli-vnext-proved.md",
+    "root_plan_md": "absent",
+    "git_diff_check": "pass"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "population_id": "etabli-vnext-initial-v1",
+  "schema_version": 1,
+  "frozen_at": "2026-07-23",
+  "description": "Initial frozen outcome suite for Etabli vNext: final-state graders, held-out seals, security matrix, context/ACI, long-horizon. Graders and seals must not be weakened after candidate mutations.",
+  "min_tasks": 24,
+  "min_held_out_fraction": 0.25,
+  "required_categories": [
+    "route",
+    "positive",
+    "negative",
+    "permissions",
+    "search_memory",
+    "tool_use",
+    "adversarial_security",
+    "context_aci",
+    "long_horizon"
+  ],
+  "trial_required_fields": [
+    "task_id",
+    "verifier_result",
+    "success",
+    "tokens",
+    "tool_calls",
+    "duration_ms",
+    "strategy",
+    "model_provenance",
+    "artefacts"
+  ],
+  "live_policy": {
+    "requires_env": "LIVE_EVAL_BUDGET_USD",
+    "min_live_tasks": 6,
+    "reps_per_strategy": 3,
+    "metrics": ["pass@1", "pass^3"]
+  },
+  "tasks_path": "workflow/vnext/tasks.json"
+}

@@ -10,8 +10,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":100,"output_tokens":50,"total_tokens":150,"tool_calls":3,"elapsed_ms":1200}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":100,"output_tokens":50,"total_tokens":150,"tool_calls":3,"elapsed_ms":1200,"success_kind":"run_terminal"}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"failed","success":false,"measured":true,"input_tokens":200,"output_tokens":25,"total_tokens":225,"tool_calls":1,"elapsed_ms":800}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"tool_calls":0,"elapsed_ms":50,"success_kind":"task_grader","grader_success":true}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a harness_proposal '{"candidate":"router guard","editable_surfaces":["router"],"preserve":["answer routes"],"held_in":["miss"],"held_out":["goldens"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a harness_proposal '{"candidate":"router guard","editable_surfaces":["router"],"preserve":["answer routes"],"held_in":["miss"],"held_out":["goldens"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a harness_validation_completed '{"candidate":"router guard","verdict":"rejected","reason":"first candidate revision regressed held-out","held_in":{"baseline":{"population":"router-misses-v1","passed":1,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["router smoke"],"evidence":["first revision"]}'
@@ -30,14 +31,14 @@ JSONL
 json_output="$("$ROOT_DIR/scripts/workflow-metrics" --dir "$EVENT_DIR" --json)"
 text_output="$("$ROOT_DIR/scripts/workflow-metrics" --dir "$EVENT_DIR")"
 
-printf '%s\n' "$json_output" | jq -e '.totals.outcomes == 5' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.measured_outcomes == 3 and .totals.usage_measured_outcomes == 3' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.measurement_denominator == 6 and .totals.recovered_outcomes == 0' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.unmeasured_outcomes == 2 and .totals.legacy_outcomes == 1 and .totals.measurement_coverage == 0.5' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.usage_measurement_coverage == 0.5' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.successful_outcomes == 4 and .totals.measured_successful_outcomes == 2' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.tokens_per_successful_outcome == 225' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.total_tokens == 675 and .totals.legacy_total_tokens == 90' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.outcomes == 6' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.measured_outcomes == 4 and .totals.usage_measured_outcomes == 4' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.measurement_denominator == 7 and .totals.recovered_outcomes == 0' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.unmeasured_outcomes == 2 and .totals.legacy_outcomes == 1' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.successful_outcomes == 5 and .totals.measured_successful_outcomes == 3' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.run_terminal_successful_outcomes == 4 and .totals.task_grader_successful_outcomes == 1' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.tokens_per_successful_outcome == 155' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.total_tokens == 690 and .totals.legacy_total_tokens == 90' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.runtime_usage_records == 1 and .totals.runtime_total_tokens == 60 and .totals.runtime_elapsed_ms == 70' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.runs[] | select(.run == "run-runtime") | .successful_outcomes == 0 and .runtime_usage_records == 1 and .unmeasured_outcomes == 1' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.telemetry == {population_events:0,imported_events:0,source_verified_imports:0,unverified_imports:0,recovered_outcomes:0,duplicate_target_imports:0,unmatched_imports:0,populations:[]}' >/dev/null
@@ -53,7 +54,7 @@ printf '%s\n' "$json_output" | jq -e '.runs[] | select(.run == "run-c") | .harne
 printf '%s\n' "$json_output" | jq -e '.harness.candidates[] | select(.run == "run-c" and .candidate == "unvalidated candidate") | .proposed == true and .verdict == null and .reason == null and .held_in_delta_pp == null and .held_out_delta_pp == null and .checks == null and .evidence == null' >/dev/null
 
 case "$text_output" in
-  *tokens_per_successful_outcome=225*harness_validation_coverage=0.5*) ;;
+  *tokens_per_successful_outcome=155*harness_validation_coverage=0.5*) ;;
   *)
     printf 'expected token metric in text output\n%s\n' "$text_output" >&2
     exit 1

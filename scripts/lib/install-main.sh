@@ -607,6 +607,13 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     mkdir -p "$smoke_home/.pi/agent"
     printf '%s\n' '{"defaultProvider":"custom","defaultModel":"personal-model","defaultThinkingLevel":"low","enabledModels":["custom/personal-model"],"packages":["npm:@agwab/pi-workflow",{"source":"npm:@agwab/pi-workflow@0.7.0"},{"source":"npm:@agwab/pi-workflow-helper"}]}' \
         > "$smoke_home/.pi/agent/settings.json"
+    # Resolve a real Node binary before HOME override. asdf shims exit 126 when HOME
+    # points at a disposable tree; that is unrelated to settings-sync portability.
+    smoke_node_bin="$("${NODE_CMD[@]}" -e 'process.stdout.write(process.execPath)' 2>/dev/null || true)"
+    if [ -z "$smoke_node_bin" ] || [ ! -x "$smoke_node_bin" ]; then
+        smoke_node_bin="$(command -v node)"
+    fi
+    NODE_CMD=("$smoke_node_bin")
     HOME="$smoke_home"
     REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
     sync_pi_agent_settings_resources >/dev/null

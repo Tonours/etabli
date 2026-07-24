@@ -1,0 +1,19 @@
+{
+  "status": "blocked: live effectiveness not verified",
+  "LIVE_EVAL_BUDGET_USD": null,
+  "needed_input": "LIVE_EVAL_BUDGET_USD=<positive USD amount>",
+  "also_required": "explicit user authorization to spend",
+  "budget_usd": null,
+  "can_run_live": false,
+  "reason": "LIVE_EVAL_BUDGET_USD unset or empty",
+  "min_protocol": {
+    "live_tasks": 6,
+    "baseline_reps": 3,
+    "candidate_reps": 3,
+    "metrics": [
+      "pass@1",
+      "pass^3"
+    ],
+    "success_definition": "final-state grader only"
+  }
+}

@@ -1,0 +1,8 @@
+default_hops=1
+max_hops=2
+decision=keep_default_1_hop_for_MVC
+evidence=tests/graph-neighborhood-smoke.sh proves hop1 includes neighbor-note-beta and excludes second-hop-gamma; hop2 includes gamma
+helper=scripts/graph-neighborhood --hops 2
+neo4j=not_required
+markdown_canonical=true
+date=2026-07-24

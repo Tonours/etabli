@@ -379,7 +379,9 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'must record
 assert_contains "$ROOT_DIR/workflow/spec.md" 'ordinary work may record it'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'No-progress stop'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'stays red three times with no new diff'
+# Behavioral coverage: tests/plan-check-freeze-smoke.sh (C1 mechanical check-freeze)
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Check-freeze'
+test -x "$ROOT_DIR/scripts/plan-check-freeze" || { printf 'missing plan-check-freeze helper\n' >&2; exit 1; }
 assert_contains "$ROOT_DIR/workflow/spec.md" 'demoting the plan to `CHALLENGED` with a Decision Log'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'explicit cap
   (iterations or wall-clock)'
@@ -851,5 +853,12 @@ if [ -n "$duplicate_adapters" ]; then
     printf 'exact duplicate harness adapter bodies are not allowed:\n%s\n' "$duplicate_adapters" >&2
     exit 1
 fi
+
+assert_file "$ROOT_DIR/workflow/project-autonomy-envelope.md"
+assert_file "$ROOT_DIR/workflow/project-autonomy-envelope.schema.json"
+assert_file "$ROOT_DIR/workflow/templates/project-autonomy-envelope.json"
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/project-autonomy-envelope.md'
+assert_contains "$ROOT_DIR/workflow/project-autonomy-envelope.md" 'never launches agents'
+assert_contains "$ROOT_DIR/workflow/project-autonomy-envelope.md" 'can auto-apply a patch'
 
 printf 'workflow docs smoke test: ok\n'

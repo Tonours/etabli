@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Shadow-only promotion template for Etabli → obvault bridge.
+# Default: dry-run / --shadow. Never writes durable verified/accepted kb.
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+TEMPLATE="$ROOT_DIR/workflow/templates/shadow-promotion-finding.md"
+
+usage() {
+  cat <<EOF
+Usage: obvault-shadow-promote [--dry-run|--shadow] [--json] \\
+  --decision TEXT --preconditions TEXT --outcome TEXT \\
+  [--wikilinks "a,b,c"] [--route ROUTE] [--checks TEXT] [--archive PATH]
+
+Default mode is dry-run/shadow: print a promotion payload only.
+Does not call distill --apply. Does not write kb/ notes as verified/accepted.
+EOF
+}
+
+mode="shadow"
+json=0
+decision=""
+preconditions=""
+outcome=""
+wikilinks=""
+route=""
+checks=""
+archive=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dry-run|--shadow) mode="shadow"; shift ;;
+    --apply)
+      printf 'obvault-shadow-promote: --apply is forbidden in this helper; use explicit human gate outside Etabli\n' >&2
+      exit 2
+      ;;
+    --json) json=1; shift ;;
+    --decision) decision="${2:-}"; shift 2 ;;
+    --preconditions) preconditions="${2:-}"; shift 2 ;;
+    --outcome) outcome="${2:-}"; shift 2 ;;
+    --wikilinks) wikilinks="${2:-}"; shift 2 ;;
+    --route) route="${2:-}"; shift 2 ;;
+    --checks) checks="${2:-}"; shift 2 ;;
+    --archive) archive="${2:-}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      printf 'unknown arg: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ -z "$decision" ] || [ -z "$preconditions" ] || [ -z "$outcome" ]; then
+  printf 'decision, preconditions, and outcome are required\n' >&2
+  exit 2
+fi
+
+# Reject dual-write / secret-ish payloads in shadow template
+payload_blob="$decision $preconditions $outcome $checks $archive"
+if printf '%s' "$payload_blob" | grep -Eiq 'PLAN\.md|/\.env|BEGIN PRIVATE|api_key|password=|secret='; then
+  printf 'obvault-shadow-promote: refuses PLAN dual-write or secret-like content\n' >&2
+  exit 2
+fi
+
+# Build candidate wikilink list
+IFS=',' read -r -a wl_arr <<<"$wikilinks"
+wl_json="[]"
+if [ -n "$wikilinks" ]; then
+  wl_json="$(printf '%s\n' "${wl_arr[@]}" | jq -R . | jq -s 'map(gsub("^ +| +$";"")) | map(select(length>0))')"
+fi
+
+if [ ! -f "$TEMPLATE" ]; then
+  printf 'missing template: %s\n' "$TEMPLATE" >&2
+  exit 1
+fi
+
+rendered="$(
+  sed \
+    -e "s|{{DECISION}}|$decision|g" \
+    -e "s|{{PRECONDITIONS}}|$preconditions|g" \
+    -e "s|{{OUTCOME}}|$outcome|g" \
+    -e "s|{{ROUTE}}|${route:-none}|g" \
+    -e "s|{{CHECKS}}|${checks:-none}|g" \
+    -e "s|{{ARCHIVE}}|${archive:-none}|g" \
+    -e "s|{{WIKILINKS}}|${wikilinks:-none}|g" \
+    -e "s|{{MODE}}|$mode|g" \
+    -e "s|{{DATE}}|$(date -u +%Y-%m-%d)|g" \
+    "$TEMPLATE"
+)"
+
+if [ "$json" -eq 1 ]; then
+  jq -nc \
+    --arg mode "$mode" \
+    --arg decision "$decision" \
+    --arg preconditions "$preconditions" \
+    --arg outcome "$outcome" \
+    --arg route "${route:-}" \
+    --arg checks "${checks:-}" \
+    --arg archive "${archive:-}" \
+    --argjson wikilinks "$wl_json" \
+    --arg rendered "$rendered" \
+    --arg template "$TEMPLATE" \
+    '{
+      mode: $mode,
+      shadow_only: true,
+      apply_allowed: false,
+      durable_kb_write: false,
+      decision: $decision,
+      preconditions: $preconditions,
+      outcome: $outcome,
+      route: $route,
+      checks: $checks,
+      archive: $archive,
+      wikilinks: $wikilinks,
+      template: $template,
+      rendered: $rendered,
+      next_step: "human or separate gate may run obvault capture/distill --shadow; never --apply from this helper"
+    }'
+else
+  printf '%s\n' "$rendered"
+  printf '\n# shadow_only=true durable_kb_write=false apply_allowed=false\n'
+fi
