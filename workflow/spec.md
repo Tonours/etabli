@@ -151,6 +151,10 @@ Only `READY` authorizes implementation.
   turn rough intent into spec/decisions/slices/execution/review/handoff without
   turning push, PR, deploy, release, or external write-back into implicit
   consent.
+- An explicitly authorized bounded project may use
+  `workflow/project-autonomy-envelope.md`: its controller is read-only, advances
+  only declared verifiable slices from the ledger, and never replaces READY,
+  checkpoint, no-progress, final-state-grader, or sealed-held-out gates.
 - Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
@@ -159,7 +163,8 @@ Only `READY` authorizes implementation.
 - Check-freeze: once `PLAN.md` is `READY`, its Checks and Acceptance Criteria
   may only be strengthened or extended during implementation. Weakening or
   removing one requires demoting the plan to `CHALLENGED` with a Decision Log
-  rationale, never a silent edit.
+  rationale, never a silent edit. Mechanical helper:
+  `scripts/plan-check-freeze` (smoke: `tests/plan-check-freeze-smoke.sh`).
 - Autonomous loop stop conditions pair the measurable goal with an explicit cap
   (iterations or wall-clock). `ci-fix` keeps its existing attempt and time caps.
 - The final review of an autonomous `plan-implement` run comes from a fresh
@@ -271,6 +276,8 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Shared skill contracts: `workflow/skills/`
 - Self-improvement contract: `workflow/skills/self-improvement-loop.md`
 - Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
+- Bounded project autonomy envelope: `workflow/project-autonomy-envelope.md`
+- Bounded project autonomy controller: `scripts/project-autonomy`
 - Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with

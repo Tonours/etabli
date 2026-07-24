@@ -310,6 +310,9 @@ tmp_home="$TMP_DIR/home"
 mkdir -p "$tmp_home/.claude/skills/adr/scripts" "$TMP_DIR/copied-scripts"
 cp "$ROOT_DIR/claude/skills/adr/scripts/adr-validation.mjs" "$tmp_home/.claude/skills/adr/scripts/adr-validation.mjs"
 cp "$VALIDATOR" "$TMP_DIR/copied-scripts/validate-adrs"
-HOME="$tmp_home" node "$TMP_DIR/copied-scripts/validate-adrs" "$repo" >/dev/null
+# Capture the real Node binary before overriding HOME. asdf/shims break when HOME
+# points at a disposable tree (exit 126), which is unrelated to validator portability.
+NODE_BIN="$(node -e 'process.stdout.write(process.execPath)')"
+HOME="$tmp_home" "$NODE_BIN" "$TMP_DIR/copied-scripts/validate-adrs" "$repo" >/dev/null
 
 printf 'adr helper smoke test: ok\n'

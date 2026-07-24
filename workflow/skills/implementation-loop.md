@@ -78,3 +78,6 @@ evidence for all of:
 - diff/code review;
 - implemented-plan archive under `docs/plan/`;
 - root `PLAN.md` cleanup after successful archive and validation.
+## Autonomous evidence
+
+Autonomous `plan-implement` runs must append `.workflow/<slug>/events.jsonl` and pass `scripts/workflow-event validate --profile autonomous-completed` before claiming completion.

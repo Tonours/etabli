@@ -685,20 +685,35 @@ export function isMutatingBashCommand(command) {
   return MUTATING_BASH_PATTERN.test(command) || REDIRECT_WRITE_PATTERN.test(command);
 }
 
+/** Normalize Claude / Pi tool names for shared READY mutation guard. */
+export function normalizeToolName(toolName) {
+  const raw = String(toolName || "");
+  const lower = raw.toLowerCase();
+  if (lower === "write" || lower === "edit" || lower === "multiedit") {
+    return lower === "multiedit" ? "MultiEdit" : lower === "write" ? "Write" : "Edit";
+  }
+  if (lower === "bash" || lower === "shell" || lower === "run_terminal_command") {
+    return "Bash";
+  }
+  return raw;
+}
+
 export function planReadyGuardDecision(event) {
   const cwd = event.cwd || process.cwd();
   const planStatus = readPlanStatus(cwd);
   if (planStatus === "missing" || planStatus === "ready") return null;
 
-  const toolName = event.tool_name;
-  const toolInput = event.tool_input || {};
+  const toolName = normalizeToolName(event.tool_name || event.toolName);
+  const toolInput = event.tool_input || event.input || {};
+  const filePath = toolInput.file_path || toolInput.path || toolInput.filePath || "";
+  const command = toolInput.command || toolInput.cmd || "";
 
   if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
-    if (isPlanFile(toolInput.file_path, cwd)) return null;
+    if (isPlanFile(filePath, cwd)) return null;
     return deny(`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY.`);
   }
 
-  if (toolName === "Bash" && isMutatingBashCommand(toolInput.command || "")) {
+  if (toolName === "Bash" && isMutatingBashCommand(command)) {
     return deny(`PLAN.md is ${planStatus.toUpperCase()}; mutating Bash commands are blocked until the plan is READY.`);
   }
 

@@ -25,7 +25,9 @@ shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
 shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 shell-docs	workflow-event-smoke	tests/workflow-event-smoke.sh
 shell-docs	workflow-autonomous-plan-loop-smoke	tests/workflow-autonomous-plan-loop-smoke.sh
+shell-docs	project-autonomy-smoke	tests/project-autonomy-smoke.sh
 shell-docs	runtime-capabilities-smoke	tests/runtime-capabilities-smoke.sh
+shell-docs	-suite-smoke	tests/-suite-smoke.sh
 shell-docs	adr-hook-smoke	tests/adr-hook-smoke.sh
 shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
 shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
@@ -49,3 +51,10 @@ pi	pi-import-smoke	builtin:pi-import-smoke
 nvim	fix-links-smoke	tests/fix-links-smoke.sh
 nvim	install-smoke	tests/install-smoke.sh
 nvim	nvim-smoke	tests/nvim-smoke.sh
+shell-docs	graph-contract-smoke	tests/graph-contract-smoke.sh
+shell-docs	graph-neighborhood-smoke	tests/graph-neighborhood-smoke.sh
+shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
+shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.sh
+shell-docs	plan-check-freeze-smoke	tests/plan-check-freeze-smoke.sh
+shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
+shell-docs	dual-runtime-guard-matrix-smoke	tests/dual-runtime-guard-matrix-smoke.sh

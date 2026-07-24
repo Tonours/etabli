@@ -74,10 +74,20 @@ run_group() {
   }
 }
 
+# C3: honesty about live multi-runtime agent proof (opt-in RUN_* smokes).
+# Default local/CI stays fast; never claim live agents proven when skipped.
+live_agent_proof() {
+  if [ "${RUN_REAL_AGENT_SCENARIOS:-}" = "1" ] || [ "${RUN_AGENT_CLI_SMOKE:-}" = "1" ]; then
+    printf 'live_agent_proof: ran\n'
+  else
+    printf 'live_agent_proof: skipped\n'
+  fi
+}
+
 case "${1:-all}" in
-  shell-docs) run_group shell-docs ;;
-  pi) run_group pi ;;
-  nvim) run_group nvim ;;
-  all) run_group shell-docs; run_group pi; run_group nvim ;;
+  shell-docs) live_agent_proof; run_group shell-docs ;;
+  pi) live_agent_proof; run_group pi ;;
+  nvim) live_agent_proof; run_group nvim ;;
+  all) live_agent_proof; run_group shell-docs; run_group pi; run_group nvim ;;
   *) printf 'Usage: verify-agentic-infra [shell-docs|pi|nvim|all]\n' >&2; exit 2 ;;
 esac

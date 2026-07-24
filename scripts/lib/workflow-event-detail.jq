@@ -242,6 +242,9 @@ def strict_detail($event):
     outcome_measurement_imported_detail
   elif $event == "outcome_metric" then
     (.outcome | nonempty_string) and (.success | boolean) and (.measured | boolean) and
+    # success_kind is additive: run_terminal (default historical) vs task_grader (final-state grader)
+    ((.success_kind? == null) or (.success_kind == "run_terminal") or (.success_kind == "task_grader")) and
+    ((.grader_success? == null) or (.grader_success | type) == "boolean") and
     if .measured then
       (.input_tokens | nonnegative_integer) and (.output_tokens | nonnegative_integer) and
       (.total_tokens | nonnegative_integer) and (.total_tokens >= (.input_tokens + .output_tokens)) and
