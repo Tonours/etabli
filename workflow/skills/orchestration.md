@@ -16,11 +16,11 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
 - Claude should use Claude Code `/goal` for long-running completion loops.
-- Codex App may use its multi-agent runner when the active runtime exposes one;
-  otherwise it should simulate packets through `.workflow/<slug>/`.
+- Codex runtime-specific team configuration lives in
+  `codex/workflow/team-orchestration.md`.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
-- Multi-execution uses deterministic adaptive admission on eligible phases
+- Pi multi-execution uses deterministic adaptive admission on eligible phases
   under `workflow/skills/multi-model-orchestration.md`; the blind latency gate
   keeps ordinary work parent-only while critical or combined signals can
   trigger a bounded council.
@@ -56,9 +56,9 @@ Prefer structured task state over text:
 
 Delegate only when all are true:
 
-- the user asked for delegation/subagents, or the canonical adaptive profile
-  marks the route and phase eligible because separate evaluators materially
-  improve evidence;
+- the user asked for delegation/subagents, or the active runtime profile marks
+  the route and phase eligible because separate evaluators materially improve
+  evidence;
 - the subtask is bounded and independent;
 - ownership is clear;
 - the runtime exposes a supported runner;
@@ -135,15 +135,5 @@ Claude:
 
 Codex:
 
-- `codex-dynamic-workflows` is the orchestration front door for `/goal`,
-  subagents, delegation, and dynamic workflow requests.
-- In Codex App, a visible collaboration runner with `spawn_agent`, `wait_agent`,
-  and status inspection is `confirmed` evidence for this runtime only; do not
-  require or invent a `close_agent` operation when the active surface omits it.
-- Codex subagents are internal sidecar workers or reviewers. They are not Pi
-  Task* tools, and they are not user-owned Codex threads.
-- Codex subagents inherit the current sandbox/approval posture and can consume
-  extra model/tool budget. Record that posture when accepting a real subagent
-  result.
-- If the runner is absent, use simulated packets under `.workflow/<slug>/` and
-  label the runtime claim `blocked` rather than pretending delegation happened.
+- Activation, models, collaboration mechanics, capability proof, and fallback
+  live in `codex/workflow/team-orchestration.md`.

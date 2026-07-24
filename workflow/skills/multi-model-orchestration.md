@@ -1,8 +1,8 @@
-# Adaptive Multi-Model Orchestration
+# Pi Adaptive Multi-Model Orchestration
 
-This is the bounded adaptive Etabli profile for eligible work. It refines an
+This is the bounded adaptive Pi profile for eligible work. It refines an
 existing route; it is not a new route or an ambient pi-workflow graph. Ordinary
-work remains parent-only, while narrow deterministic signals escalate to one
+Pi work remains parent-only, while narrow deterministic signals escalate to one
 scout or a two-agent council. This preserves the 2026-07-19 blind quality gate,
 which rejected automatic full panels after four of six repetitions exceeded
 4x baseline latency without a quality gain.
@@ -56,9 +56,7 @@ The router does not infer hidden history or spend another model call to decide.
 - Deterministic checks outrank model judgments. Sol is used only once, after
   fan-in, for material unresolved disagreement or high-risk ambiguity.
 - No sidecar writes in the shared worktree. Pi roles enforce this by excluding
-  `bash`, `edit`, and `write`. Current Codex children inherit the parent's
-  filesystem posture, so the restriction is contractual and guarded by a
-  before/after diff check rather than described as a sandbox.
+  `bash`, `edit`, and `write`.
 - A missing role, provider error, silent model fallback, or missing provenance
   produces `degraded` or `blocked`, never an unqualified panel success.
 - Do not rebroadcast full transcripts, perform all-to-all rankings, recurse,
@@ -89,13 +87,6 @@ the provider may otherwise route to K2.6. Exact runtime provenance, thinking
 evidence, and the isolated multi-turn probe are mandatory; any mismatch is
 `blocked`, never a silent downgrade.
 Official contract: https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents.
-
-Codex uses direct `spawn_agent` model and reasoning overrides from the active
-collaboration surface. Terra and Sol are current supported tiers. Luna is used
-only when a live spawn returns Luna provenance; otherwise it is `blocked`.
-GLM/Kimi remain Pi-only until Codex has a proven Responses-compatible transport
-and user-owned authentication. Sol, Terra, and Luna are one provider family and
-must not be treated as three independent votes.
 
 ## Pi Execution
 

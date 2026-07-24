@@ -1,11 +1,18 @@
 # Codex App Subagents
 
+Canonical Codex configuration:
+`codex/workflow/team-orchestration.md`.
+
 ## Purpose
 
 Codex App uses the same Etabli orchestration semantics as Pi and Claude, but
-with Codex-native mechanics. When the active runtime exposes `collaboration`,
-Codex may delegate bounded sidecar packets to internal subagents. When it does
-not, Codex keeps the same `.workflow/<slug>/` ledger and simulates packets with
+keeps its runtime configuration separate under `codex/workflow/`. Its team
+profile is ambient: every request is
+automatically classified as `parent-only`, `scout`, `council`, or
+`fresh-review`, without requiring the user to name a skill or delegation
+keyword. When the active runtime exposes `collaboration`, Codex delegates
+bounded sidecar packets under that classification. When it does not, Codex
+keeps the same `.workflow/<slug>/` ledger and simulates required packets with
 isolated notes.
 
 ## Confirmed Runtime Evidence
@@ -26,8 +33,13 @@ This proves the current Codex App runtime only. It does not prove Pi
 
 ## Usage Rules
 
-- Use `codex-dynamic-workflows` for `/goal`, dynamic workflow, delegation,
-  subagent, parallel-agent, or swarm-style requests.
+- Apply `codex-dynamic-workflows` ambiently to ordinary requests as well as
+  `/goal`, dynamic workflow, delegation, subagent, parallel-agent, or
+  swarm-style requests.
+- Automatically launch a read-only scout for non-trivial eligible work when a
+  useful independent packet exists and the runner is available.
+- Keep trivial, ineligible, tightly coupled, sensitive, and explicit opt-out
+  work parent-only.
 - Create or update `.workflow/<slug>/` before spawning.
 - Keep the immediate critical path local.
 - Delegate only bounded, independent sidecar packets with clear ownership.
@@ -35,8 +47,9 @@ This proves the current Codex App runtime only. It does not prove Pi
   spawning.
 - Collect final status after integration; do not invent a close operation when
   the current surface omits one.
-- Select Terra/Sol with direct model and reasoning overrides. Use Luna only
-  after a live spawn proves Luna provenance; otherwise label it `blocked`.
+- Apply model effort, context inheritance, council capability, leaf-agent,
+  messaging, and write ownership rules from
+  `codex/workflow/team-orchestration.md`.
 - Do not create user-owned Codex threads for subagent packets.
 - Do not describe Codex subagents as Pi Task* tools.
 

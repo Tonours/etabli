@@ -35,6 +35,16 @@ assert_contains() {
   }
 }
 
+assert_not_contains() {
+  local path="$1"
+  local needle="$2"
+
+  if grep -Fq -- "$needle" "$path"; then
+    printf 'unexpected %s in %s\n' "$needle" "$path" >&2
+    exit 1
+  fi
+}
+
 assert_not_exists() {
   [ ! -e "$1" ] || {
     printf 'expected path not to exist: %s\n' "$1" >&2
@@ -70,6 +80,7 @@ assert_symlink "$CODEX_HOME_DIR/AGENTS.md"
 assert_symlink "$CODEX_HOME_DIR/config.managed.toml"
 assert_symlink "$CODEX_HOME_DIR/hooks.json"
 assert_file "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md"
+assert_file "$CODEX_HOME_DIR/workflow/team-orchestration.md"
 assert_file "$CODEX_HOME_DIR/workflow/ticket-template.md"
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path")"
@@ -79,6 +90,9 @@ assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Start here"
 assert_contains "$CODEX_HOME_DIR/workflow/ticket-template.md" "## Stop conditions"
 assert_contains "$CODEX_HOME_DIR/workflow/skills/linear-work.md" "LINEAR_MCP_UNAVAILABLE"
 assert_contains "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md" "collaboration.spawn_agent"
+assert_contains "$CODEX_HOME_DIR/workflow/team-orchestration.md" "Apply this profile on every Codex request"
+assert_contains "$CODEX_HOME_DIR/workflow/team-orchestration.md" 'Terra `low`'
+assert_contains "$CODEX_HOME_DIR/workflow/team-orchestration.md" "The parent is the only writer"
 assert_file "$CODEX_HOME_DIR/prompts/opsx-apply.md"
 assert_file "$CODEX_HOME_DIR/automations/templates/repo-hygiene.template.toml"
 assert_file "$CODEX_HOME_DIR/automations/templates/thread-checkpoint.template.toml"
@@ -87,8 +101,11 @@ assert_file "$CODEX_HOME_DIR/skills/browser-full-page-capture/scripts/stitch-ful
 assert_file "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md"
 assert_file "$CODEX_HOME_DIR/skills/frontend-motion-performance/SKILL.md"
 assert_file "$CODEX_HOME_DIR/skills/ui-reference-capture/SKILL.md"
-assert_contains "$CODEX_HOME_DIR/AGENTS.md" "multi-model-orchestration.md"
+assert_contains "$CODEX_HOME_DIR/AGENTS.md" "workflow/team-orchestration.md"
+assert_not_contains "$CODEX_HOME_DIR/AGENTS.md" "multi-model-orchestration.md"
 assert_contains "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md" "collaboration.spawn_agent"
+assert_contains "$CODEX_HOME_DIR/skills/codex-dynamic-workflows/SKILL.md" "Apply this skill ambiently on every Codex request"
+assert_contains "$CODEX_HOME_DIR/workflow/dynamic-workflow-triggers.md" "ambient on every Codex request"
 assert_contains "$CODEX_HOME_DIR/hooks.json" '$HOME/.codex/herdr-agent-state.sh'
 assert_not_exists "$CODEX_HOME_DIR/thread-organization"
 
