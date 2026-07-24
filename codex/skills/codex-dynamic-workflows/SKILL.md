@@ -1,17 +1,23 @@
 ---
 name: codex-dynamic-workflows
-description: Plan and run AI-agent dynamic workflows for complex tasks that benefit from explicit orchestration, goal mode, subagents or simulated work packets, approval gates, integration, verification, and reusable workflow artifacts. Use when the user invokes this skill, asks for a swarm, subagents, parallel agents, a dynamic workflow, a large migration or audit, multi-track research plus implementation, or Claude Code-style workflow orchestration.
+description: Ambient Codex orchestration adapter that classifies every request as parent-only, scout, council, or fresh-review and automatically delegates bounded read-only packets for eligible non-trivial work. Also handles explicit goal mode, subagents, swarms, large migrations, audits, and multi-track workflows.
 ---
 
 # AI Agent Dynamic Workflows
 
-Use this skill to turn a large task into a supervised AI-agent workflow: draft an orchestration artifact, enter goal mode when sustained execution is requested, delegate disjoint work to subagents when available, integrate results, verify the outcome, and save reusable workflow artifacts.
+Apply this skill ambiently on every Codex request when the local `AGENTS.md`
+points to `workflow/team-orchestration.md`. Read that Codex-specific profile
+before choosing a mode, model, reasoning effort, context inheritance, or
+sidecar count. The user does not need to invoke the skill or mention agents.
 
 This skill works in agents that support skills. Do not claim that a local script can call subagent tools unless the current environment exposes such a runner. When no programmable runner exists, create a human-readable orchestration script and operate it through the available agent tools.
 
-## Decision Rule
+## Ambient Decision Rule
 
-Use dynamic orchestration when at least two are true:
+Always evaluate the team mode under `workflow/team-orchestration.md`.
+
+Use the following only to identify useful independent packets, not to select a
+council:
 
 - The task has independent research, coding, review, migration, QA, docs, or design tracks.
 - The task is broad enough that an explicit success contract would reduce drift.
@@ -24,7 +30,12 @@ Use dynamic orchestration when at least two are true:
 - The user asks Etabli to improve itself from workflow evidence; use
   `workflow/skills/self-improvement-loop.md` when it exists.
 
-If the task is small, do it directly and mention that full workflow orchestration was unnecessary.
+Council selection belongs exclusively to the Codex signals, exclusions, and
+proven participant portfolio in `workflow/team-orchestration.md`. Never infer a
+council from a local count of broadness, risk, or reusable-workflow criteria.
+
+If the task is small, do it directly. Parent-only is a valid result of the
+ambient classification, not a failure to apply the policy.
 
 ## Operating Contract
 
@@ -35,7 +46,8 @@ When using this skill:
 3. Ask for approval before risky, expensive, external, or destructive steps.
 4. Enter goal mode when the user explicitly requests sustained execution or when the invoked task clearly requires multi-turn completion.
 5. Split work into disjoint packets with clear ownership.
-6. Spawn subagents only when the environment allows it and the canonical adaptive profile applies or the user authorized delegation.
+6. Apply the automatic admission, roles, context, and council capability rules
+   from `workflow/team-orchestration.md`.
 7. Simulate subagents with isolated packet notes when no subagent runner is available.
 8. Integrate results explicitly; do not paste raw subagent dumps as the final answer.
 9. Verify with checks matched to the task's blast radius.
@@ -131,7 +143,7 @@ Prefer packets with disjoint ownership:
 - security or risk review
 - final verification
 
-For code-edit packets, assign non-overlapping files or modules. Tell workers they are not alone in the codebase, must not revert others' edits, and must adapt to concurrent changes.
+Write ownership follows `workflow/team-orchestration.md`.
 
 ## Subagents
 
@@ -141,7 +153,8 @@ When a subagent runner is available:
 - Keep immediate blocking work local.
 - Delegate sidecar work that can run while the main agent makes progress.
 - Avoid duplicate work across agents.
-- Ask workers to edit directly only when their write scope is disjoint and clear.
+- Apply the Codex-specific model, context, leaf, messaging, write, and sidecar
+  ceiling rules from `workflow/team-orchestration.md`.
 - Wait for subagents only when their result is needed for the next critical-path step.
 - In Codex App, treat `collaboration.spawn_agent`, `wait_agent`, and status
   inspection as confirmed evidence for the current runtime only; record agent

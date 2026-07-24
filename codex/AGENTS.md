@@ -21,7 +21,8 @@
   use `scripts/answer-quality-check` only for durable artifacts.
 - `/goal` needs measurable success, validation, scope, cap, stop condition, and
   `.workflow/<slug>/events.jsonl`.
-- Use `workflow/skills/multi-model-orchestration.md`; sidecars inherit parent posture, not user threads.
+- Apply `workflow/team-orchestration.md` automatically; it owns Codex team
+  configuration and fallback.
 - More than two sidecars need explicit approval; else narrow the plan.
 
 ## Safety
