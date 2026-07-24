@@ -12,6 +12,7 @@ Use $codex-dynamic-workflows to fix a typo in README.md.
 
 Expected behavior:
 
+- Apply the ambient classifier without requiring the skill invocation.
 - Decide full orchestration is unnecessary.
 - Make the edit directly.
 - Verify the diff.
@@ -27,6 +28,8 @@ Use $codex-dynamic-workflows to migrate all API clients from REST to GraphQL and
 
 Expected behavior:
 
+- Automatically admit read-only discovery and risk scouts when independent
+  packets are useful.
 - Draft plan and success criteria.
 - Mark deletion and broad migration as approval-gated.
 - Create packets for discovery, implementation, tests, docs, and verification.
@@ -57,6 +60,8 @@ Use $codex-dynamic-workflows to audit this repo for slow startup and fix the big
 
 Expected behavior:
 
+- Automatically classify and delegate without requiring explicit subagent
+  wording.
 - Create audit packets for entrypoint tracing, dependency loading, test/build evidence, and fix candidates.
 - Keep immediate blocking investigation local.
 - Use subagents only for sidecar analysis.

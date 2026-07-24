@@ -46,15 +46,15 @@ Roles are contracts, not mandatory separate agents:
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
-Ordinary work remains single-agent. On eligible non-trivial planning,
-reconnaissance, research, and review phases, the deterministic adaptive profile
-uses no sidecar at score zero, one route-appropriate scout at score one, and a
-two-agent council for one critical or two distinct medium signals. Explicit
-multi-model intent forces the bounded council and explicit opt-out forces the
-parent only. The prior blind quality gate still rejects automatic full panels;
-the canonical signals, conversation caps, one-writer rule, model portfolio,
-fallbacks, and evidence contract live in
-`workflow/skills/multi-model-orchestration.md`.
+Ordinary work remains single-agent unless an active runtime profile admits a
+sidecar. Pi uses the deterministic adaptive profile in
+`workflow/skills/multi-model-orchestration.md`: no sidecar at score zero, one
+route-appropriate scout at score one, and a two-agent council for one critical
+or two distinct medium signals. Codex uses its separate ambient configuration
+in `codex/workflow/team-orchestration.md`. Explicit opt-out forces the parent
+only. Runtime-specific model portfolios and mechanics stay in their respective
+profiles; shared workflow and evidence invariants stay in
+`workflow/skills/orchestration.md`.
 
 ## Statuses
 

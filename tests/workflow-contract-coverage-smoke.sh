@@ -70,7 +70,7 @@ actual_codex_workflow_files="$(
   find "$ROOT_DIR/codex/workflow" -maxdepth 1 -type f -exec basename {} \; | sort
 )"
 expected_codex_workflow_files="$(
-  printf '%s\n' dynamic-workflow-triggers.md | sort
+  printf '%s\n' dynamic-workflow-triggers.md team-orchestration.md | sort
 )"
 if ! diff -u <(printf '%s\n' "$expected_codex_workflow_files") <(printf '%s\n' "$actual_codex_workflow_files"); then
   printf 'unexpected codex/workflow file set\n' >&2
