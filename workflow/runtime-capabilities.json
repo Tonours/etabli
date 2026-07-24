@@ -1,52 +1,52 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-07-19",
+  "updated_at": "2026-07-24",
   "runtimes": {
     "pi": {
       "supports_hooks": {
         "label": "confirmed",
-        "verified_at": "2026-07-09",
-        "proof_result": "passed",
+        "verified_at": "2026-07-24",
+        "proof_result": "re-proved 2026-07-24: cd pi && bun test ./extensions/__tests__/*.test.ts exit 0",
         "expires_after_days": 30,
         "proof_command": "cd pi && bun test ./extensions/__tests__/*.test.ts",
         "notes": "extensions are the hook surface"
       },
       "supports_subagents": {
-        "label": "confirmed",
-        "verified_at": "2026-07-19",
-        "proof_result": "live bounded council agreement stopped after two first passes with zero resumes; live rebuttal preserved exact Luna and GLM role/model provenance plus the same agent ids across one resume each, with zero Sol calls, 1962 reported sidecar tokens, 34902 ms elapsed, and no worktree mutation",
+        "label": "unknown",
+        "verified_at": "2026-07-24",
+        "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 + PI_BIN live session; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
         "expires_after_days": 7,
         "proof_command": "RUN_REAL_MULTI_MODEL=1 PI_BIN=/Users/tonours/.asdf/shims/pi bash tests/multi-model-real-smoke.sh --conversation",
         "notes": "direct Agent supports deterministic adaptive scout/council admission and one targeted resume per council participant; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
       },
       "supports_taskexecute_tracking": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-19",
-        "proof_result": "live generic non-portfolio TaskExecute spawn, completion, and TaskGet result retrieval passed in 31837 ms with 12262 non-cache coordinator tokens; deterministic TaskStop proof remains inconclusive",
+        "label": "unknown",
+        "verified_at": "2026-07-24",
+        "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 task-rpc; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
         "expires_after_days": 7,
         "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --task-rpc",
         "notes": "generic non-portfolio Task RPC probe; keep separate from direct Agent capability until ping/spawn/stop lifecycle is fully proven"
       },
       "supports_goal_state": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-09",
-        "proof_result": "proxy contract only",
+        "label": "unknown",
+        "verified_at": "2026-07-23",
+        "proof_result": "proof_command is session-scoped (tasks-till-done loop), not runnable offline; relabelled unknown rather than date-refresh; attempt recorded 2026-07-23",
         "expires_after_days": 14,
         "proof_command": "tasks-till-done loop with structured TaskList details",
         "notes": "Pi continuation support depends on active Task* runtime evidence"
       },
       "supports_structured_task_state": {
         "label": "confirmed",
-        "verified_at": "2026-07-09",
-        "proof_result": "passed",
+        "verified_at": "2026-07-24",
+        "proof_result": "re-proved 2026-07-24: bun test tasks-till-done*.test.ts exit 0",
         "expires_after_days": 30,
         "proof_command": "cd pi && bun test ./extensions/__tests__/tasks-till-done*.test.ts",
         "notes": "structured task details are covered by runtime and extension tests"
       },
       "supports_named_workflow_graphs": {
         "label": "proxy_supported",
-        "verified_at": "2026-07-14",
-        "proof_result": "pinned package configuration and deploy smoke passed; live Pi run not observed",
+        "verified_at": "2026-07-24",
+        "proof_result": "re-proved 2026-07-24: settings-consistency + deploy-agent-workflow-smoke exit 0",
         "expires_after_days": 14,
         "proof_command": "cd pi && bun test ./extensions/__tests__/settings-consistency.test.ts && cd .. && bash tests/deploy-agent-workflow-smoke.sh",
         "notes": "explicit-use @agwab/pi-workflow adapter; independent from Pi Task* and not an OS sandbox"
@@ -55,8 +55,8 @@
     "claude": {
       "supports_hooks": {
         "label": "confirmed",
-        "verified_at": "2026-07-09",
-        "proof_result": "passed",
+        "verified_at": "2026-07-24",
+        "proof_result": "re-proved 2026-07-24: bash tests/claude-hooks-smoke.sh exit 0",
         "expires_after_days": 30,
         "proof_command": "bash tests/claude-hooks-smoke.sh",
         "notes": "local hook behavior is deterministic and smoke-tested"
@@ -105,8 +105,8 @@
     "codex": {
       "supports_hooks": {
         "label": "proxy_supported",
-        "verified_at": "2026-07-09",
-        "proof_result": "organization smoke passed",
+        "verified_at": "2026-07-24",
+        "proof_result": "re-proved 2026-07-24: bash tests/codex-organization-smoke.sh exit 0",
         "expires_after_days": 14,
         "proof_command": "bash tests/codex-organization-smoke.sh",
         "notes": "Codex surface is validated through repo organization and deploy checks"

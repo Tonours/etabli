@@ -339,4 +339,51 @@ tags:
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("blocks mutating write/bash while PLAN is DRAFT (READY guard parity)", () => {
+    const runtime = setupExtension(["Write", "Bash", "Agent"]);
+    const cwd = mkdtempSync(join(tmpdir(), "etabli-draft-guard-"));
+    try {
+      writeFileSync(
+        join(cwd, "PLAN.md"),
+        ["# PLAN.md", "", "## Meta", "- Status: DRAFT", ""].join("\n"),
+      );
+      const writeBlock = runtime.emit("tool_call", {
+        toolName: "Write",
+        toolCallId: "1",
+        cwd,
+        input: { file_path: join(cwd, "src/x.ts"), content: "x" },
+      });
+      expect(writeBlock[0]).toMatchObject({ block: true });
+      const bashBlock = runtime.emit("tool_call", {
+        toolName: "Bash",
+        toolCallId: "2",
+        cwd,
+        input: { command: "rm -rf ./out" },
+      });
+      expect(bashBlock[0]).toMatchObject({ block: true });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("allows write while PLAN is READY", () => {
+    const runtime = setupExtension(["Write", "Bash"]);
+    const cwd = mkdtempSync(join(tmpdir(), "etabli-ready-guard-"));
+    try {
+      writeFileSync(
+        join(cwd, "PLAN.md"),
+        ["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
+      );
+      const writeAllow = runtime.emit("tool_call", {
+        toolName: "Write",
+        toolCallId: "1",
+        cwd,
+        input: { file_path: join(cwd, "src/x.ts"), content: "x" },
+      });
+      expect(writeAllow[0]).toBeUndefined();
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
 });

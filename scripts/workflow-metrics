@@ -52,7 +52,7 @@ fi
 
 if [ ! -d "$WORKFLOW_DIR" ]; then
   if [ "$JSON" -eq 1 ]; then
-    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measurement_denominator":0,"measured_outcomes":0,"usage_measured_outcomes":0,"recovered_outcomes":0,"unmeasured_outcomes":0,"legacy_outcomes":0,"measurement_coverage":0,"usage_measurement_coverage":0,"successful_outcomes":0,"measured_successful_outcomes":0,"total_tokens":0,"legacy_total_tokens":0,"successful_tokens":0,"tokens_per_successful_outcome":null,"tool_calls":0,"elapsed_ms":0,"runtime_usage_records":0,"runtime_total_tokens":0,"runtime_elapsed_ms":0},"telemetry":{"population_events":0,"imported_events":0,"source_verified_imports":0,"unverified_imports":0,"recovered_outcomes":0,"duplicate_target_imports":0,"unmatched_imports":0,"populations":[]},"harness":{"proposed_candidates":0,"validated_candidates":0,"validated_proposals":0,"unmatched_validations":0,"accepted_candidates":0,"rejected_candidates":0,"validation_coverage":null,"candidates":[]}}\n'
+    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measurement_denominator":0,"measured_outcomes":0,"usage_measured_outcomes":0,"recovered_outcomes":0,"unmeasured_outcomes":0,"legacy_outcomes":0,"measurement_coverage":0,"usage_measurement_coverage":0,"successful_outcomes":0,"measured_successful_outcomes":0,"run_terminal_successful_outcomes":0,"task_grader_successful_outcomes":0,"total_tokens":0,"legacy_total_tokens":0,"successful_tokens":0,"tokens_per_successful_outcome":null,"tool_calls":0,"elapsed_ms":0,"runtime_usage_records":0,"runtime_total_tokens":0,"runtime_elapsed_ms":0},"telemetry":{"population_events":0,"imported_events":0,"source_verified_imports":0,"unverified_imports":0,"recovered_outcomes":0,"duplicate_target_imports":0,"unmatched_imports":0,"populations":[]},"harness":{"proposed_candidates":0,"validated_candidates":0,"validated_proposals":0,"unmatched_validations":0,"accepted_candidates":0,"rejected_candidates":0,"validation_coverage":null,"candidates":[]}}\n'
   else
     printf 'no workflow runs found in %s\n' "$WORKFLOW_DIR"
   fi
@@ -100,6 +100,10 @@ runs="$(
           elif ($m.input_tokens? != null and $m.output_tokens? != null) then (($m.input_tokens | tonumber?) + ($m.output_tokens | tonumber?))
           else null end;
         def success($m): (($m.success == true) or (($m.outcome // "") | ascii_downcase | IN("success", "successful", "passed", "complete", "completed")));
+        # Historical outcomes default to run_terminal; task_grader is opt-in via success_kind or grader_success.
+        def is_task_grader($m): (($m.success_kind // "") == "task_grader") or ($m.grader_success == true);
+        def is_run_terminal_success($m): success($m) and (is_task_grader($m) | not);
+        def is_task_grader_success($m): success($m) and is_task_grader($m);
         def matching_population_target($import):
           [$populations[]
             | select(.population_id == $import.population_id)
@@ -175,6 +179,8 @@ runs="$(
           legacy_outcomes: ($legacy_metrics | length),
           successful_outcomes: ($metrics | map(select(success(.))) | length),
           measured_successful_outcomes: ($usage_measured_metrics | map(select(success(.))) | length),
+          run_terminal_successful_outcomes: ($metrics | map(select(is_run_terminal_success(.))) | length),
+          task_grader_successful_outcomes: ($metrics | map(select(is_task_grader_success(.))) | length),
           total_tokens: ($usage_measured_metrics | map(tokens(.)) | add // 0),
           legacy_total_tokens: ($legacy_metrics | map(tokens(.)) | map(select(. != null)) | add // 0),
           successful_tokens: ($usage_measured_metrics | map(select(success(.)) | tokens(.)) | add // 0),
@@ -265,6 +271,8 @@ summary="$(
             legacy_outcomes: ($runs | map(.legacy_outcomes) | add // 0),
             successful_outcomes: ($runs | map(.successful_outcomes) | add // 0),
             measured_successful_outcomes: ($runs | map(.measured_successful_outcomes) | add // 0),
+            run_terminal_successful_outcomes: ($runs | map(.run_terminal_successful_outcomes // 0) | add // 0),
+            task_grader_successful_outcomes: ($runs | map(.task_grader_successful_outcomes // 0) | add // 0),
             total_tokens: ($runs | map(.total_tokens) | add // 0),
             legacy_total_tokens: ($runs | map(.legacy_total_tokens) | add // 0),
             successful_tokens: ($runs | map(.successful_tokens) | add // 0),

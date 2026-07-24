@@ -17,6 +17,11 @@ requested ship task, `/ship` keeps its separate push and PR consent contract.
 4. Decisions: add ADRs only for durable architectural choices.
 5. Slicing: split the project into shippable vertical slices with ownership,
    validation, and rollback/handoff points.
+   - When the user explicitly authorizes bounded autonomy for one project, use
+     `workflow/project-autonomy-envelope.md` to declare the allowed files/tools,
+     caps, checkpoints, forbidden actions, and final-state/held-out proof before
+     continuing. Its controller reports ledger-derived transitions only; it does
+     not execute a slice or broaden authorization.
 6. Orchestration: use `.workflow/<slug>/` packets or runtime subagents only
    when the active runtime supports them and the user authorized delegation.
 7. Implementation: follow `workflow/skills/implementation-loop.md` from a
@@ -41,6 +46,9 @@ requested ship task, `/ship` keeps its separate push and PR consent contract.
   document them.
 - Stop as `blocked` when required product, account, secret, production, billing,
   hardware, or live-provider evidence is unavailable.
+- Preserve the two-failed-hypothesis / three-red-check no-progress stop and the
+  eight-candidate maximum; write the existing `no_progress` event rather than
+  silently retrying or creating a ninth proposal.
 
 ## Work Packets
 
