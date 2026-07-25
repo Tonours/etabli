@@ -49,8 +49,9 @@ Roles are contracts, not mandatory separate agents:
 Ordinary work remains single-agent unless an active runtime profile admits a
 sidecar. Pi uses the deterministic adaptive profile in
 `workflow/skills/multi-model-orchestration.md`: no sidecar at score zero, one
-route-appropriate scout at score one, and a two-agent council for one critical
-or two distinct medium signals. Codex uses its separate ambient configuration
+route-appropriate scout for material uncertainty or failure history, and a
+two-agent council for one critical or two distinct medium signals. System
+complexity alone stays parent-only. Codex uses its separate ambient configuration
 in `codex/workflow/team-orchestration.md`. Explicit opt-out forces the parent
 only. Runtime-specific model portfolios and mechanics stay in their respective
 profiles; shared workflow and evidence invariants stay in
@@ -97,10 +98,8 @@ Only `READY` authorizes implementation.
 - Answer-quality helper behavior is pinned by
   `scripts/answer-quality-eval` and the versioned fixtures under
   `tests/fixtures/answer-quality/`.
-- Run `scripts/answer-quality-audit --obvault <path>` when a handoff needs one
-  command proving the Etabli answer-quality contract and obvault note hygiene.
-- Saved answer and handoff reviews live under `docs/answer-quality-traces/` and
-  are validated with `scripts/answer-quality-trace-eval`.
+- Saved answer and handoff reviews under `docs/answer-quality-traces/` are
+  historical evidence, not another active validation layer.
 - Record route, role, stop condition, and required evidence in non-trivial plans.
 - Planning review updates `PLAN.md` in place.
 - Implementation-bound plans run an adversary pass before implementation.
@@ -135,9 +134,10 @@ Only `READY` authorizes implementation.
   ledger instead of chat history, and `completed` or `blocked` events are
   terminal evidence.
 - `workflow-monitor`, `workflow-metrics`, `workflow-dossier`, and
-  `workflow-retrospect` are read-only ledger/archive readers for run health,
-  tokens-per-successful-outcome metrics, sanitized replay/debug dossiers, and
-  recurring workflow-issue recommendations.
+  `workflow-retrospect` are experimental, on-demand, read-only ledger/archive
+  readers. They support diagnostics and retrospective hypotheses; they are not
+  part of the core gate. Telemetry does not establish user value until at least
+  10 representative real tasks have task-grader outcomes.
 - `workflow-telemetry-recover` is read-only by default and may append only a
   fingerprinted historical population plus aggregate imports to the active
   local ledger when explicitly invoked with `--apply`; it never rewrites target
@@ -151,7 +151,7 @@ Only `READY` authorizes implementation.
   turn rough intent into spec/decisions/slices/execution/review/handoff without
   turning push, PR, deploy, release, or external write-back into implicit
   consent.
-- An explicitly authorized bounded project may use
+- As an experimental opt-in, an explicitly authorized bounded project may use
   `workflow/project-autonomy-envelope.md`: its controller is read-only, advances
   only declared verifiable slices from the ledger, and never replaces READY,
   checkpoint, no-progress, final-state-grader, or sealed-held-out gates.
@@ -286,8 +286,6 @@ Pi and Claude wrappers are thin runtime adapters over this contract.
 - Answer quality contract: `workflow/answer-quality.md`
 - Answer quality helper: `scripts/answer-quality-check`
 - Answer quality eval: `scripts/answer-quality-eval`
-- Answer quality audit: `scripts/answer-quality-audit`
-- Answer quality trace eval: `scripts/answer-quality-trace-eval`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Explicit-use Pi named-workflow adapter: `workflow/pi-workflow-adapter.md`

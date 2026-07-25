@@ -1,5 +1,9 @@
 # Answer-Quality Goal Completion Audit
 
+Historical artifact: the former aggregate audit command is no longer an active
+workflow gate; current validation uses `scripts/answer-quality-check` and its
+versioned fixture eval.
+
 Status: verified for implemented artifacts and current validation evidence;
 not mechanically provable for all future live answer outcomes.
 
@@ -24,8 +28,8 @@ prove, and it does not claim that future live answers can be pre-scored.
 | Analyze Etabli | verified | `docs/cross-project-research-grounding.md`, `workflow/spec.md`, `workflow/answer-quality.md`, `README.md` | Future repo changes can stale the analysis. |
 | Analyze obvault | verified | `/Volumes/Crucial/work/obvault/CLAUDE.md`, `/Volumes/Crucial/work/obvault/ref/second-brain-operating-model.md`, `/Volumes/Crucial/work/obvault/kb/etabli-obvault-project-grounding.md`, `/Volumes/Crucial/work/obvault/kb/_index.md` | Future vault notes can stale the synthesis. |
 | Document each project with web and research grounding | verified | `docs/cross-project-research-grounding.md`, `/Volumes/Crucial/work/obvault/kb/etabli-obvault-project-grounding.md`, `docs/source-grounded-answer-quality-research.md`; current web opens succeeded for the cited gist, Anthropic article, OpenAI eval docs, and arXiv papers. | Source interpretation may need refresh when cited docs change. |
-| Install an answer-quality system | verified | `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval`, `scripts/answer-quality-audit`, `tests/fixtures/answer-quality/manifest.tsv` | Mechanical checks are a floor, not a human satisfaction metric. |
-| Cover real answer categories with traces | verified | `docs/answer-quality-traces/coverage.tsv`; command result: `answer quality trace coverage: 7 covered, 0 needs-work` | Future answer categories may appear and need new traces. |
+| Install an answer-quality system | verified | `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval`, `tests/fixtures/answer-quality/manifest.tsv` | Mechanical checks are a floor, not a human satisfaction metric. |
+| Preserve historical answer reviews | archived | `docs/answer-quality-traces/` | These reviews are provenance, not an active validation layer. |
 | Make live final answers harder to drift | validated control | `workflow/answer-quality.md` live final-answer gate, plus adapter pins in `AGENTS.md`, `codex/AGENTS.md`, `pi/AGENTS.md`, and `claude/CLAUDE.md` | A process gate reduces risk; it cannot prove every future response outcome. |
 | Keep safety boundaries | verified | runtime adapters preserve no push/deploy/external-write behavior without explicit approval; current run performed no commit or push. | Future external actions still require explicit user consent. |
 
@@ -54,16 +58,12 @@ The sources support the implemented shape: persistent wiki memory, simple and
 transparent agent workflows, retrieval with provenance, representative evals,
 trace evidence, and clear agent-computer interfaces.
 
-## Validation Evidence
+## Historical Validation Evidence
 
-- command: `scripts/answer-quality-trace-coverage docs/answer-quality-traces/coverage.tsv`
-  - result: `answer quality trace coverage: 7 covered, 0 needs-work`
-- command: `scripts/answer-quality-trace-eval docs/answer-quality-traces`
-  - result: `answer quality trace eval: 7 trace files ok`
-- command: `scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault`
-  - result: `answer quality audit: ok`
+- retired trace/audit commands previously passed for this 2026-07-07 snapshot;
+  those helpers are no longer installed or runnable.
 - command: `(cd /Volumes/Crucial/work/obvault && _meta/validate-kb.sh)`
-  - result: `validate-kb: ok` inside the consolidated audit
+  - historical result: `validate-kb: ok`
 - command: `bash tests/workflow-docs-smoke.sh`
   - result: `workflow docs smoke test: ok`
 - command: `git diff --check`
@@ -76,9 +76,9 @@ The implemented system satisfies the actionable parts of the goal:
 - Etabli and obvault have current local analysis.
 - Both projects have external research grounding.
 - obvault stores the durable project synthesis.
-- Etabli has an answer-quality contract, eval fixtures, audit command, trace
-  corpus, trace coverage matrix, and live final-answer gate.
+- Etabli has an answer-quality contract, active checker, versioned eval
+  fixtures, live final-answer gate, and archived trace provenance.
 
 The only residual risk is future live-answer outcome quality. That is not
 mechanically provable ahead of time; it is controlled through the live gate,
-trace corpus, audits, and continued near-miss capture.
+the checker/eval regression floor, and continued near-miss capture.

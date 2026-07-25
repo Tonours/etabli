@@ -503,6 +503,9 @@ export function classifyMultiExecution(prompt, route) {
   if (score === 0) {
     return singleMultiExecution("no bounded adaptive escalation signal matched");
   }
+  if (score === 1 && signals.length === 1 && signals[0] === "system-complexity") {
+    return singleMultiExecution("system complexity alone does not justify a sidecar");
+  }
   if (score === 1) {
     return panelMultiExecution(route, [roles[0]], "adaptive", "scout", signals, score);
   }

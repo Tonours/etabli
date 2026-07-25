@@ -1,60 +1,57 @@
-# group	label	target
-shell-docs	shell-syntax	builtin:shell-syntax
-shell-docs	json-config	builtin:json-config
-shell-docs	codex-organization-smoke	tests/codex-organization-smoke.sh
-shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
-shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
-shell-docs	workflow-efficiency-report-smoke	tests/workflow-efficiency-report-smoke.sh
-shell-docs	workflow-monitor-smoke	tests/workflow-monitor-smoke.sh
-shell-docs	workflow-metrics-smoke	tests/workflow-metrics-smoke.sh
-shell-docs	workflow-telemetry-recover-smoke	tests/workflow-telemetry-recover-smoke.sh
-shell-docs	workflow-dossier-smoke	tests/workflow-dossier-smoke.sh
-shell-docs	workflow-retrospect-smoke	tests/workflow-retrospect-smoke.sh
-shell-docs	research-proof-check-smoke	tests/research-proof-check-smoke.sh
-shell-docs	lean-ctx-check-smoke	tests/lean-ctx-check-smoke.sh
-shell-docs	answer-quality-audit-smoke	tests/answer-quality-audit-smoke.sh
-shell-docs	answer-quality-check-smoke	tests/answer-quality-check-smoke.sh
-shell-docs	answer-quality-eval-smoke	tests/answer-quality-eval-smoke.sh
-shell-docs	answer-quality-trace-coverage-smoke	tests/answer-quality-trace-coverage-smoke.sh
-shell-docs	answer-quality-trace-eval-smoke	tests/answer-quality-trace-eval-smoke.sh
-shell-docs	workflow-docs-smoke	tests/workflow-docs-smoke.sh
-shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
-shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
-shell-docs	agent-scenarios-smoke	tests/agent-scenarios-smoke.sh
-shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
-shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
-shell-docs	workflow-event-smoke	tests/workflow-event-smoke.sh
-shell-docs	workflow-autonomous-plan-loop-smoke	tests/workflow-autonomous-plan-loop-smoke.sh
-shell-docs	project-autonomy-smoke	tests/project-autonomy-smoke.sh
-shell-docs	runtime-capabilities-smoke	tests/runtime-capabilities-smoke.sh
-shell-docs	-suite-smoke	tests/-suite-smoke.sh
-shell-docs	adr-hook-smoke	tests/adr-hook-smoke.sh
-shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
-shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
-shell-docs	adr-helper-smoke	tests/adr-helper-smoke.sh
-shell-docs	validate-adrs	builtin:validate-adrs
-shell-docs	router-eval-smoke	tests/router-eval-smoke.sh
-shell-docs	multi-model-quality-score-smoke	tests/multi-model-quality-score-smoke.sh
-shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
-shell-docs	browser-full-page-capture-smoke	tests/browser-full-page-capture-smoke.sh
-shell-docs	obvault-routing-smoke	tests/obvault-routing-smoke.sh
-shell-docs	obvault-query-smoke	tests/obvault-query-smoke.sh
-shell-docs	agentic-infra-manifest-smoke	tests/agentic-infra-manifest-smoke.sh
-shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
-shell-docs	pi-paths-smoke	tests/pi-paths-smoke.sh
-pi	pi-typecheck	tests/pi-typecheck-smoke.sh
-pi	pi-audit	builtin:pi-audit
-pi	pi-tests	builtin:pi-tests
-pi	router-eval	builtin:router-eval
-pi	skill-lock	builtin:skill-lock
-pi	pi-import-smoke	builtin:pi-import-smoke
-nvim	fix-links-smoke	tests/fix-links-smoke.sh
-nvim	install-smoke	tests/install-smoke.sh
-nvim	nvim-smoke	tests/nvim-smoke.sh
-shell-docs	graph-contract-smoke	tests/graph-contract-smoke.sh
-shell-docs	graph-neighborhood-smoke	tests/graph-neighborhood-smoke.sh
-shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
-shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.sh
-shell-docs	plan-check-freeze-smoke	tests/plan-check-freeze-smoke.sh
-shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
-shell-docs	dual-runtime-guard-matrix-smoke	tests/dual-runtime-guard-matrix-smoke.sh
+# profile	group	label	target
+core	shell-docs	shell-syntax	builtin:shell-syntax
+core	shell-docs	json-config	builtin:json-config
+core	pi	pi-audit	builtin:pi-audit
+core	pi	pi-typecheck	tests/pi-typecheck-smoke.sh
+core	pi	pi-tests	builtin:pi-tests
+core	pi	router-eval	builtin:router-eval
+core	shell-docs	router-eval-smoke	tests/router-eval-smoke.sh
+core	shell-docs	agent-scenarios-smoke	tests/agent-scenarios-smoke.sh
+core	shell-docs	-suite-smoke	tests/-suite-smoke.sh
+core	shell-docs	plan-check-freeze-smoke	tests/plan-check-freeze-smoke.sh
+core	shell-docs	dual-runtime-guard-matrix-smoke	tests/dual-runtime-guard-matrix-smoke.sh
+core	shell-docs	codex-organization-smoke	tests/codex-organization-smoke.sh
+core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
+core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
+core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
+full	shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
+full	shell-docs	workflow-efficiency-report-smoke	tests/workflow-efficiency-report-smoke.sh
+full	shell-docs	workflow-monitor-smoke	tests/workflow-monitor-smoke.sh
+full	shell-docs	workflow-metrics-smoke	tests/workflow-metrics-smoke.sh
+full	shell-docs	workflow-telemetry-recover-smoke	tests/workflow-telemetry-recover-smoke.sh
+full	shell-docs	workflow-dossier-smoke	tests/workflow-dossier-smoke.sh
+full	shell-docs	workflow-retrospect-smoke	tests/workflow-retrospect-smoke.sh
+full	shell-docs	research-proof-check-smoke	tests/research-proof-check-smoke.sh
+full	shell-docs	answer-quality-check-smoke	tests/answer-quality-check-smoke.sh
+full	shell-docs	answer-quality-eval-smoke	tests/answer-quality-eval-smoke.sh
+full	shell-docs	workflow-docs-smoke	tests/workflow-docs-smoke.sh
+full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
+full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
+full	shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
+full	shell-docs	workflow-event-smoke	tests/workflow-event-smoke.sh
+full	shell-docs	workflow-autonomous-plan-loop-smoke	tests/workflow-autonomous-plan-loop-smoke.sh
+full	shell-docs	project-autonomy-smoke	tests/project-autonomy-smoke.sh
+full	shell-docs	runtime-capabilities-smoke	tests/runtime-capabilities-smoke.sh
+full	shell-docs	adr-hook-smoke	tests/adr-hook-smoke.sh
+full	shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
+full	shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
+full	shell-docs	adr-helper-smoke	tests/adr-helper-smoke.sh
+full	shell-docs	validate-adrs	builtin:validate-adrs
+full	shell-docs	multi-model-quality-score-smoke	tests/multi-model-quality-score-smoke.sh
+full	shell-docs	browser-full-page-capture-smoke	tests/browser-full-page-capture-smoke.sh
+full	shell-docs	obvault-routing-smoke	tests/obvault-routing-smoke.sh
+full	shell-docs	obvault-query-smoke	tests/obvault-query-smoke.sh
+full	shell-docs	agentic-infra-manifest-smoke	tests/agentic-infra-manifest-smoke.sh
+full	shell-docs	pi-paths-smoke	tests/pi-paths-smoke.sh
+full	pi	skill-lock	builtin:skill-lock
+full	pi	pi-import-smoke	builtin:pi-import-smoke
+full	nvim	fix-links-smoke	tests/fix-links-smoke.sh
+full	nvim	install-smoke	tests/install-smoke.sh
+full	nvim	nvim-smoke	tests/nvim-smoke.sh
+full	shell-docs	graph-contract-smoke	tests/graph-contract-smoke.sh
+full	shell-docs	graph-neighborhood-smoke	tests/graph-neighborhood-smoke.sh
+full	shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
+full	shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.sh
+full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
+live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
+live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh

@@ -186,6 +186,24 @@ if [ "$settings_before" != "$settings_after" ]; then
   exit 1
 fi
 
-"$ROOT_DIR/scripts/deploy-codex" --dry-run --prefer-links --codex-home "$HOME_DIR/.codex" >/dev/null
+TOPOLOGY_HOME="$TMP_DIR/topology-codex"
+mkdir -p "$TOPOLOGY_HOME"
+cp "$ROOT_DIR/codex/AGENTS.md" "$TOPOLOGY_HOME/AGENTS.md"
+
+default_topology="$("$ROOT_DIR/scripts/deploy-codex" --dry-run --codex-home "$TOPOLOGY_HOME")"
+printf '%s\n' "$default_topology" | grep -Fq 'OK           AGENTS.md' || {
+  printf 'identical regular AGENTS.md must be accepted by default\n' >&2
+  exit 1
+}
+if printf '%s\n' "$default_topology" | grep -Fq 'WOULD_RELINK AGENTS.md'; then
+  printf 'default deployment must not relink identical content\n' >&2
+  exit 1
+fi
+
+preferred_topology="$("$ROOT_DIR/scripts/deploy-codex" --dry-run --prefer-links --codex-home "$TOPOLOGY_HOME")"
+printf '%s\n' "$preferred_topology" | grep -Fq 'WOULD_RELINK AGENTS.md' || {
+  printf 'explicit --prefer-links must request a relink for identical regular content\n' >&2
+  exit 1
+}
 
 printf 'deploy agent workflow smoke test: ok\n'

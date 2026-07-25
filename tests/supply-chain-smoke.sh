@@ -29,7 +29,7 @@ jq -e '
   .devDependencies["@types/bun"] == "1.3.14" and
   .overrides == {
     "@protobufjs/utf8": "1.1.2",
-    "brace-expansion": "5.0.7",
+    "brace-expansion": "5.0.8",
     "protobufjs": "7.6.5",
     "ws": "8.21.1"
   }

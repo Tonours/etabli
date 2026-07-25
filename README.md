@@ -1,12 +1,8 @@
 # Etabli
 
-Personal dev environment for AI-assisted workflows across Codex, Neovim,
-Claude Code, Pi Coding Agent, Ghostty, and tmux. The repo is the source of
-truth for tracked config; `scripts/install.sh` links or bootstraps local
-files into the expected tool locations.
-
-The installer uses an existing Node.js runtime (prefers `asdf`; it does not install `nvm`). Pi comes from `@earendil-works/pi-coding-agent`, Hunk from
-`hunkdiff` (https://www.hunk.dev/).
+Personal source of truth for Codex, Pi, Claude Code, Neovim, Ghostty, and tmux
+configuration. The repository keeps agent workflow policy explicit,
+deployments conservative, and validation claims proportional to the evidence.
 
 ## Quick start
 
@@ -16,164 +12,80 @@ cd etabli
 ./scripts/install.sh
 ```
 
-## Repo map
+The installer uses the existing Node.js runtime, preferring `asdf`; it does not
+install `nvm`. Pi comes from `@earendil-works/pi-coding-agent`, and Neovim
+review uses `hunkdiff` (https://www.hunk.dev/).
 
-- `nvim/` - Neovim config (`nvim/README.md`)
-- `ghostty/`, `tmux.conf` - terminal config
-- `codex/` - Codex organization surface (`docs/codex-organization.md`)
-- `pi/` - Pi config, extensions, skills, themes (`docs/pi-cheatsheet.md`)
-- `claude/` - Claude Code commands, hooks, skills (`claude/README.md`)
-- `workflow/` - canonical workflow contract (`workflow/spec.md`)
-- `docs/adr/` - Architecture Decision Records (`node scripts/validate-adrs .`)
-- `docs/plan/` - implemented plan archives (`docs/plan/README.md`)
-- `scripts/` - installer, deploy, and maintenance scripts
-- `tests/` - smoke tests
+## Map
 
-## Workflow
+- `workflow/spec.md` — canonical routing, safety, planning, and completion
+  contract
+- `workflow/answer-quality.md` — live final-answer gate and durable-artifact
+  checker contract
+- `codex/`, `pi/`, `claude/` — runtime-specific adapters and configuration
+- `nvim/`, `ghostty/`, `tmux.conf` — editor and terminal configuration
+- `scripts/`, `tests/` — deployment, validation, and focused regression checks
+- `docs/adr/` — architecture decisions (`node scripts/validate-adrs .`)
+- `docs/plan/` — distilled archives of completed plans
 
-Canonical contract: `workflow/spec.md` — routing table, statuses, autonomous
-loop rules, and the full command list live there, not here. `PLAN.md` is the
-only execution artifact; implement only from `Status: READY`.
+Projects containing `workflow/spec.md` activate the workflow ambiently. Use
+ordinary prompts; `PLAN.md` is the only active execution artifact, and
+implementation starts only from `Status: READY`. The parent is the only
+writer. Push, deploy, destructive actions, secrets, production changes, and
+external write-back still require explicit authority.
 
-Self-improvement runs use `workflow/skills/self-improvement-loop.md`: local
-evidence such as ledgers, plan archives, validation failures, router misses,
-and review/adversary findings becomes a no-op, recommendation, router fixture,
-contract patch, or mechanical check. Ambitious project runs use
-`workflow/skills/ambitious-project-loop.md` to move from rough intent through
-spec, decisions, slices, implementation, review, validation, handoff, and
-retrospective learning without implying push, PR, deploy, or external
-write-back consent.
-
-Self-improvement candidates use harness-style evidence: weakness patterns,
-bounded proposals, held-in and held-out validation, and rejected-candidate logs
-stay in the local ledger before any workflow contract change is accepted.
-Comparable baseline/candidate runs use `harness_validation_completed`; an
-accepted result requires held-in improvement and held-out non-regression.
-
-Adapters expose the same routes: Pi as `/skill:*`
-(`/skill:plan-loop`, `/skill:plan-implement`, `/skill:adversary`,
-`/skill:implement`, `/skill:review`, `/skill:verify`, `/skill:bug-check`,
-`/skill:linear-ticket-create`, `/skill:linear-work`, `/skill:pr-review`,
-`/skill:pr-qa`, `/skill:sec-pr`, `/skill:ci-fix`), Claude as slash commands
-(`/plan-loop`, `/plan-implement`, `/ship`, `/adversary`, `/implement`,
-`/review`, `/verify-workflow`, `/bug-check`, `/linear-ticket-create`,
-`/linear-work`, `/pr-review`, `/pr-qa`, `/sec-pr`, `/ci-fix`).
-
-Single-PR maintenance loops are a supervised pilot contract in
-`workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
-fresh-context review, explicit cleanup, and latest-head review/check truth via
-`scripts/pr-latest-head-status`. The helper returns `clean_latest_head`,
-`stale_review`, or `needs_rerun`; it is local/read-only and does not push,
-merge, deploy, post comments, or request bot reviews.
-
-Neovim review runs through Hunk (`:ReviewInbox`, `:ReviewClaudeReview`,
-`:ReviewPiReview`), opening
-`hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg`.
-
-## Deployment
-
-```bash
-scripts/deploy-codex --dry-run          # tracked Codex files into ~/.codex
-scripts/deploy-agent-workflow --apply   # Three-harness workflow deployment
-scaffold-project ~/code/my-project --new
-deploy-workflow . --check               # OK / DRIFT / MISSING report
-```
-
-`deploy-codex` deploys `config.managed.toml` (never the live `config.toml`,
-which can hold secrets). `deploy-agent-workflow` links Claude/Pi/Codex
-workflow surfaces, Pi multi-model agents/policy, and conservatively syncs
-managed Pi package and model entries in `~/.pi/agent/settings.json`.
-`scaffold-project` wraps `deploy-workflow` to
-install the workflow scaffold (`workflow-scaffold/templates/` plus live
-`workflow/` files) into a project; existing files are never overwritten by
-default.
+For deeper work, start from
+`workflow/skills/self-improvement-loop.md`,
+`workflow/skills/ambitious-project-loop.md`, or
+`workflow/skills/pr-maintenance-loop.md`. Pi's named-workflow adapter remains
+explicit-use and is documented in `workflow/pi-workflow-adapter.md`.
 
 ## Validation
 
 ```bash
-node scripts/validate-adrs .
-tests/codex-organization-smoke.sh
-tests/workflow-scaffold-smoke.sh
-tests/workflow-contract-coverage-smoke.sh
-tests/pr-latest-head-status-smoke.sh
-tests/workflow-efficiency-report-smoke.sh
-tests/workflow-monitor-smoke.sh
-tests/workflow-metrics-smoke.sh
-tests/workflow-telemetry-recover-smoke.sh
-tests/workflow-dossier-smoke.sh
-tests/workflow-retrospect-smoke.sh
-tests/router-eval-smoke.sh
-tests/research-proof-check-smoke.sh
-tests/answer-quality-check-smoke.sh
-tests/answer-quality-eval-smoke.sh
-tests/answer-quality-audit-smoke.sh
-tests/answer-quality-trace-coverage-smoke.sh
-tests/answer-quality-trace-eval-smoke.sh
-tests/lean-ctx-check-smoke.sh
-tests/workflow-docs-smoke.sh
-tests/claude-hooks-smoke.sh
-tests/agent-scenarios-smoke.sh
-tests/fix-links-smoke.sh
-tests/install-smoke.sh
-tests/deploy-agent-workflow-smoke.sh
-tests/workflow-event-smoke.sh
-tests/runtime-capabilities-smoke.sh
-tests/nvim-smoke.sh
-RUN_AGENT_CLI_SMOKE_SELF_TEST=1 tests/workflow-cli-smoke.sh
-RUN_AGENT_CLI_SMOKE=1 tests/workflow-cli-smoke.sh
-RUN_AGENT_CLI_SMOKE=1 RUN_CLAUDE_PRINT_SMOKE=1 tests/workflow-cli-smoke.sh
-RUN_REAL_AGENT_SCENARIOS=1 tests/workflow-real-agent-scenarios.sh
+scripts/verify-agentic-infra core
+scripts/verify-agentic-infra full
+scripts/-suite --json
 ```
 
-The CLI smoke runs real Pi prompts in a temporary project and verifies the
-Claude binary with `claude --version`; `--print` stays behind
-`RUN_CLAUDE_PRINT_SMOKE=1`. Codex App subagent orchestration rules:
-`docs/codex-app-subagents.md`.
+- `core` runs the small daily health and safety gate, including `bun audit`,
+  router/guard regressions, deployment, and held-out  checks.
+- `full` adds every deterministic repository check.
+- `live` is separate and never reports a skipped run as success:
 
-Workflow feedback-loop readers are read-only: `workflow-monitor` reports stale,
-blocked, failing, and active ledgers; `workflow-metrics` aggregates native and
-conservatively recovered outcome usage into tokens per successful outcome,
-source-verifies each import against current local session envelopes, reports
-actual `usage_measurement_coverage`, and reports
-per-candidate harness validation coverage, verdicts, and deltas without
-averaging heterogeneous suites; `workflow-dossier`
-emits sanitized replay/debug context for one run; `workflow-retrospect` mines
-ledgers and plan archives for recurring issues and reports candidate
-recommendations, router fixtures, contract patches, or mechanical checks;
-`workflow-telemetry-recover` previews local Codex aggregate usage recovery and
-only appends fingerprinted population/import events when explicitly given
-`--apply` and an active ledger;
-`router-eval` scores Pi/Claude router decisions from `tests/router-evals/`;
-`research-proof-check` rejects unsourced research artifacts;
-`answer-quality-check` validates objective evidence markers for durable
-answer, research, handoff, repo, and obvault-backed artifacts;
-`answer-quality-eval` runs versioned typical, edge, and adversarial fixtures
-from `tests/fixtures/answer-quality/`;
-`answer-quality-audit` runs the full local answer-quality suite and can include
-obvault with `--obvault <path>`;
-`answer-quality-trace-coverage` validates the saved trace coverage matrix and
-keeps uncovered response categories visible as `needs-work`;
-`answer-quality-trace-eval` validates saved answer/handoff reviews under
-`docs/answer-quality-traces/`;
-`docs/cross-project-research-grounding.md` maps Etabli and obvault to the
-external sources that justify the current workflow, memory, retrieval, and eval
-shape;
-`pr-latest-head-status` classifies PR review/check evidence against the latest
-pushed head SHA; `lean-ctx-check` verifies the optional lean-ctx fallback
-contract without installing anything.
+```bash
+RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 \
+  scripts/verify-agentic-infra live
+```
 
-## Config notes
+The  suite is deterministic host regression proof, not live-model
+effectiveness evidence. `answer-quality-check` and `answer-quality-eval`
+protect durable answer/research/handoff artifacts and their versioned
+fixtures. `research-proof-check` rejects unsourced durable research.
 
-- `pi/agent/settings.json` is a tracked bootstrap; the live copy stays local.
-  `@tintinweb/pi-tasks` is paired with `@tintinweb/pi-subagents`
-  (`TaskExecute` needs the `subagents:rpc:*` protocol).
-- The bootstrap curates the exact pin `@agwab/pi-workflow@0.8.1` as an
-  explicit-use Pi-only named-workflow adapter. It is initially limited by
-  policy to bundled read-only pilots, and does not replace `PLAN.md`, the
-  `.workflow` ledger, Task*, or OS sandboxing; see
-  `workflow/pi-workflow-adapter.md`.
-- Secrets and auth files stay local and untracked.
+Optional read-only diagnostics include `workflow-monitor`,
+`workflow-metrics`, `workflow-dossier`, and `workflow-retrospect`.
+`workflow-telemetry-recover` writes only with explicit `--apply`; telemetry is
+experimental and does not establish user value until at least 10 representative
+real tasks have task-grader outcomes. The project-autonomy envelope is also
+experimental, opt-in, and outside `core`.
+`scripts/pr-latest-head-status` remains the source for latest-head PR evidence.
+See `docs/cross-project-research-grounding.md` for research context.
 
-Projects scaffolded with `workflow/spec.md` activate the Etabli workflow
-ambiently. Users can write ordinary prompts such as "corrige le bug et valide";
-explicit workflow wording is only for heavier orchestration.
+## Deployment
+
+```bash
+scripts/deploy-codex --dry-run
+scripts/deploy-agent-workflow --dry-run
+scaffold-project ~/code/my-project --new
+deploy-workflow . --check
+```
+
+Use `--apply` only when the local deployment mutation is intended.
+`deploy-codex` never manages the live `config.toml`, which may contain secrets.
+`deploy-agent-workflow` aligns Claude, Pi, and Codex surfaces and conservatively
+syncs managed Pi package/model entries. `scaffold-project` never overwrites
+existing files by default.
+
+`pi/agent/settings.json` is only a tracked bootstrap; the live copy remains
+local. Secrets and authentication files stay local and untracked.
