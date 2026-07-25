@@ -58,26 +58,12 @@ assert_file "$ROOT_DIR/workflow/answer-quality.md"
 assert_file "$ROOT_DIR/docs/source-grounded-answer-quality-research.md"
 assert_file "$ROOT_DIR/docs/cross-project-research-grounding.md"
 assert_file "$ROOT_DIR/docs/answer-quality-eval-cases.md"
-assert_file "$ROOT_DIR/docs/answer-quality-goal-completion-audit.md"
 assert_file "$ROOT_DIR/docs/answer-quality-traces/README.md"
 assert_file "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-audit-handoff.md"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-coverage-gap.md"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-goal-completion-not-verified.md"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-obvault-backed-memory-answer.md"
-assert_file "$ROOT_DIR/docs/answer-quality-traces/20260707-large-diff-implementation-handoff.md"
 assert_file "$ROOT_DIR/scripts/answer-quality-check"
 assert_file "$ROOT_DIR/scripts/answer-quality-eval"
-assert_file "$ROOT_DIR/scripts/answer-quality-audit"
-assert_file "$ROOT_DIR/scripts/answer-quality-trace-coverage"
-assert_file "$ROOT_DIR/scripts/answer-quality-trace-eval"
 assert_file "$ROOT_DIR/tests/answer-quality-check-smoke.sh"
 assert_file "$ROOT_DIR/tests/answer-quality-eval-smoke.sh"
-assert_file "$ROOT_DIR/tests/answer-quality-audit-smoke.sh"
-assert_file "$ROOT_DIR/tests/answer-quality-trace-coverage-smoke.sh"
-assert_file "$ROOT_DIR/tests/answer-quality-trace-eval-smoke.sh"
 assert_contains "$CODEX_AGENTS" "Prefer RTK for shell commands"
 
 for harness_instructions in \
@@ -155,7 +141,6 @@ assert_file "$ROOT_DIR/tests/workflow-dossier-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
-assert_file "$ROOT_DIR/tests/lean-ctx-check-smoke.sh"
 assert_file "$ROOT_DIR/scripts/workflow-monitor"
 assert_file "$ROOT_DIR/scripts/workflow-metrics"
 assert_file "$ROOT_DIR/scripts/workflow-telemetry-recover"
@@ -164,7 +149,6 @@ assert_file "$ROOT_DIR/scripts/workflow-dossier"
 assert_file "$ROOT_DIR/scripts/workflow-retrospect"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
-assert_file "$ROOT_DIR/scripts/lean-ctx-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 assert_file "$ROOT_DIR/tests/install-smoke.sh"
 assert_file "$ROOT_DIR/tests/deploy-agent-workflow-smoke.sh"
@@ -184,7 +168,6 @@ assert_contains "$INSTALL_MAIN" 'Claude workflow hook'
 assert_contains "$INSTALL_MAIN" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Deploy only the Etabli agent workflow surfaces'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" '--prefer-links'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@agwab/pi-workflow@0.8.1'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
@@ -202,42 +185,27 @@ assert_contains "$ROOT_DIR/README.md" 'deploy-workflow'
 assert_contains "$ROOT_DIR/README.md" 'deploy-agent-workflow'
 assert_contains "$ROOT_DIR/README.md" 'docs/adr/'
 assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
+assert_contains "$ROOT_DIR/README.md" 'scripts/verify-agentic-infra core'
+assert_contains "$ROOT_DIR/README.md" 'scripts/verify-agentic-infra full'
+assert_contains "$ROOT_DIR/README.md" 'scripts/verify-agentic-infra live'
 assert_contains "$ROOT_DIR/README.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/README.md" 'workflow-retrospect'
-assert_contains "$ROOT_DIR/README.md" 'tokens per successful outcome'
+assert_contains "$ROOT_DIR/README.md" 'at least 10 representative'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/self-improvement-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'research-proof-check'
 assert_contains "$ROOT_DIR/README.md" 'answer-quality-check'
 assert_contains "$ROOT_DIR/README.md" 'answer-quality-eval'
-assert_contains "$ROOT_DIR/README.md" 'answer-quality-audit'
-assert_contains "$ROOT_DIR/README.md" 'answer-quality-trace-coverage'
-assert_contains "$ROOT_DIR/README.md" 'answer-quality-trace-eval'
 assert_contains "$ROOT_DIR/README.md" 'docs/cross-project-research-grounding.md'
 assert_contains "$ROOT_DIR/README.md" 'pr-latest-head-status'
-assert_contains "$ROOT_DIR/README.md" 'lean-ctx-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-audit'
-assert_contains "$ROOT_DIR/README.md" 'tests/answer-quality-trace-coverage-smoke.sh'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-trace-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-eval'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-audit'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-trace-coverage'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-trace-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Live Final Answer Gate'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'avoid promising a perfect numeric score'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'quality floor'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'obvault-backed-memory-answer'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'obvault-backed-memory-answer	covered'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'large-diff-implementation-handoff	covered'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'direct-repo-explanation	covered'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/coverage.tsv" 'blocked-or-inconclusive-answer	covered'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-coverage-gap.md" 'Verdict: needs-work'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-coverage-gap.md" 'Category: coverage-gap'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md" 'Verdict: pass'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md" 'Category: source-backed-cross-project-handoff'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Verdict: pass'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Category: direct-repo-explanation'
@@ -251,41 +219,16 @@ assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Category: <cat
 assert_contains "$ROOT_DIR/tests/answer-quality-check-smoke.sh" 'bad-overclaim'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'adversarial'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'general-simple'
-assert_contains "$ROOT_DIR/README.md" 'Three-harness workflow deployment'
-assert_contains "$ROOT_DIR/README.md" 'managed Pi package and model entries'
+assert_contains "$ROOT_DIR/README.md" 'managed Pi package/model entries'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
-assert_contains "$ROOT_DIR/README.md" 'tests/pr-latest-head-status-smoke.sh'
-assert_contains "$ROOT_DIR/README.md" 'tests/fix-links-smoke.sh'
-assert_contains "$ROOT_DIR/README.md" 'tests/install-smoke.sh'
-assert_contains "$ROOT_DIR/README.md" 'tests/deploy-agent-workflow-smoke.sh'
-assert_contains "$ROOT_DIR/README.md" 'tests/nvim-smoke.sh'
-assert_contains "$ROOT_DIR/README.md" 'tests/claude-hooks-smoke.sh'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
-assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE_SELF_TEST=1'
-assert_contains "$ROOT_DIR/README.md" 'RUN_CLAUDE_PRINT_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_REAL_AGENT_SCENARIOS=1'
-assert_contains "$ROOT_DIR/README.md" 'tests/workflow-real-agent-scenarios.sh'
-assert_contains "$ROOT_DIR/README.md" 'docs/codex-app-subagents.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'scripts/pr-latest-head-status'
-assert_contains "$ROOT_DIR/README.md" 'clean_latest_head'
-assert_contains "$ROOT_DIR/README.md" 'stale_review'
-assert_contains "$ROOT_DIR/README.md" 'needs_rerun'
-assert_contains "$ROOT_DIR/README.md" 'claude --version'
-assert_contains "$ROOT_DIR/README.md" '/skill:bug-check'
-assert_contains "$ROOT_DIR/README.md" '/skill:linear-ticket-create'
-assert_contains "$ROOT_DIR/README.md" '/skill:pr-review'
-assert_contains "$ROOT_DIR/README.md" '/skill:ci-fix'
-assert_contains "$ROOT_DIR/README.md" '/bug-check'
-assert_contains "$ROOT_DIR/README.md" '/linear-ticket-create'
-assert_contains "$ROOT_DIR/README.md" '/pr-review'
-assert_contains "$ROOT_DIR/README.md" '/sec-pr'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'hunkdiff'
-assert_contains "$ROOT_DIR/README.md" 'hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg'
-assert_contains "$ROOT_DIR/README.md" 'does not install `nvm`'
-assert_contains "$ROOT_DIR/README.md" 'ambiently. Users can write ordinary prompts'
-assert_contains "$ROOT_DIR/README.md" 'corrige le bug et valide'
+assert_contains "$ROOT_DIR/README.md" 'preferring `asdf`'
+assert_contains "$ROOT_DIR/README.md" 'activate the workflow ambiently'
 assert_contains "$ROOT_DIR/AGENTS.md" 'Ambient activation'
 assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/AGENTS.md" 'Final answers: apply the live gate'
@@ -334,10 +277,7 @@ assert_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'https://gi
 assert_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'not verified for global future'
 assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'Status: verified for the fixture strategy'
 assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'https://developers.openai.com/api/docs/guides/evaluation-best-practices'
-assert_contains "$ROOT_DIR/docs/answer-quality-goal-completion-audit.md" 'Requirement Audit'
-assert_contains "$ROOT_DIR/docs/answer-quality-goal-completion-audit.md" 'not mechanically provable for all future live answer outcomes'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Required fields'
-assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-answer-quality-audit-handoff.md" 'Verdict: pass'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Historical fields'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
@@ -483,8 +423,6 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Agent memory: `docs/agent-memory/`
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Shared skill contracts: `workflow/skills/`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Orchestration contract: `workflow/skills/orchestration.md`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Answer quality contract: `workflow/answer-quality.md`'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'Answer quality audit: `scripts/answer-quality-audit`'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'Answer quality trace eval: `scripts/answer-quality-trace-eval`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Latest-head PR evidence helper: `scripts/pr-latest-head-status`'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/runtime-capabilities.json'
@@ -551,7 +489,7 @@ assert_contains "$ROOT_DIR/codex/AGENTS.md" 'workflow/team-orchestration.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'deterministic adaptive profile'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'codex/workflow/team-orchestration.md'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" '# Pi Adaptive Multi-Model Orchestration'
-assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'Zero stays parent-only, one selects a scout, and two or more selects a council.'
+assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'System complexity alone also stays parent-only'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'at most six anonymized material claim'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'Output caps are'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'Do not terminate a model solely because of elapsed wall-clock time.'

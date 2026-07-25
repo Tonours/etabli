@@ -283,7 +283,7 @@ describe("workflow router extension", () => {
   test("bounds scouts but ignores unrelated generic Agent calls", () => {
     const runtime = setupExtension();
     runtime.emit("before_agent_start", {
-      prompt: "Fais un plan d'architecture",
+      prompt: "Fais une review de la root cause",
       systemPrompt: "Base prompt",
     });
 
@@ -291,8 +291,8 @@ describe("workflow router extension", () => {
     const emitAgent = (input: Record<string, unknown>) =>
       runtime.emit("tool_call", { toolName: "Agent", toolCallId: `call-${toolCallSequence += 1}`, input })[0];
     expect(emitAgent({ subagent_type: "generic-explorer" })).toBeUndefined();
-    expect(emitAgent({ subagent_type: "etabli-terra-analyst" })).toBeUndefined();
-    expect(emitAgent({ subagent_type: "etabli-terra-analyst", resume: "terra-id" })).toMatchObject({ block: true });
+    expect(emitAgent({ subagent_type: "etabli-luna-scout" })).toBeUndefined();
+    expect(emitAgent({ subagent_type: "etabli-luna-scout", resume: "luna-id" })).toMatchObject({ block: true });
     expect(emitAgent({ subagent_type: "etabli-glm-challenger" })).toMatchObject({ block: true });
     expect(emitAgent({ subagent_type: "etabli-kimi-fallback" })).toMatchObject({ block: true });
   });

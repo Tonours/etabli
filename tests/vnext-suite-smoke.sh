@@ -21,6 +21,9 @@ printf '%s\n' "$inv" | jq -e '.ok == true' >/dev/null || fail "inventory not ok:
 printf '%s\n' "$inv" | jq -e '.task_count >= 24' >/dev/null || fail "need >=24 tasks"
 printf '%s\n' "$inv" | jq -e '.sealed_held_out_fraction >= 0.25' >/dev/null || fail "held-out sealed fraction < 25%"
 printf '%s\n' "$inv" | jq -e '(.missing_categories | length) == 0' >/dev/null || fail "missing categories"
+printf '%s\n' "$inv" | jq -e \
+  '.tasks_sha256 == "4ae440269c06b17afb2289ecad9713e696d7ba0a55495b74ef31175f59c82526"' \
+  >/dev/null || fail "task corpus hash drifted"
 
 # Full suite must be green; graders are source of truth
 run1="$("$SUITE" --json --strategy baseline)"
