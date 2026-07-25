@@ -108,20 +108,12 @@ describe("workflow router runtime", () => {
       signals: [],
     });
     expect(classifyWorkflowRoute("Fais un plan d'architecture", { hasAgentTools: true }).multiExecution).toMatchObject({
-      mode: "panel",
-      trigger: "adaptive",
-      strategy: "scout",
-      signals: ["system-complexity"],
-      score: 1,
-      roles: ["etabli-terra-analyst"],
-      budget: {
-        maxFirstPassAgents: 1,
-        maxFallbackAgents: 1,
-        maxResumesPerPrimary: 0,
-        maxAdjudications: 0,
-        maxClaims: 6,
-        requestedOutputTokens: { scout: 600, total: 600 },
-      },
+      mode: "single",
+      strategy: "single",
+      signals: [],
+      score: 0,
+      roles: [],
+      reason: "system complexity alone does not justify a sidecar",
     });
     expect(classifyWorkflowRoute("Fais une review de sécurité de cette race condition", { hasAgentTools: true }).multiExecution).toMatchObject({
       mode: "panel",
@@ -228,9 +220,9 @@ describe("workflow router runtime", () => {
       signals: ["critical-risk"],
     });
     expect(classifyWorkflowRoute("Fais une recherche sur une architecture avec des agents autonomes", { hasAgentTools: true }).multiExecution).toMatchObject({
-      trigger: "adaptive",
-      strategy: "scout",
-      signals: ["system-complexity"],
+      trigger: "none",
+      strategy: "single",
+      signals: [],
     });
   });
 

@@ -12,7 +12,7 @@ which rejected automatic full panels after four of six repetitions exceeded
 | Work shape | Execution |
 | --- | --- |
 | Ineligible route, no signal, or explicit opt-out | Parent only |
-| One medium signal on planning/architecture work | Terra scout |
+| System complexity alone | Parent only |
 | One medium signal on research/diagnosis/review work | Luna scout |
 | One critical signal or two distinct medium signals | Route-specific two-agent council |
 | Explicit multi-model intent on an eligible route | Route-specific two-agent council |
@@ -41,8 +41,10 @@ The accent- and case-insensitive V1 signals are category-deduplicated:
 - literal prompt failure history scores 1: two failures, still failing after
   two attempts, or repeated regression.
 
-Zero stays parent-only, one selects a scout, and two or more selects a council.
-The router does not infer hidden history or spend another model call to decide.
+Zero stays parent-only. System complexity alone also stays parent-only;
+uncertainty or literal failure history alone selects a scout. A critical signal
+or two distinct medium signals selects a council. The router does not infer
+hidden history or spend another model call to decide.
 
 ## Invariants
 

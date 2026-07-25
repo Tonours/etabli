@@ -352,11 +352,11 @@ deploy_codex() {
   status_line SECTION "Codex"
 
   if [ "$DRY_RUN" -eq 1 ]; then
-    "$REPO_DIR/scripts/deploy-codex" --dry-run --prefer-links --codex-home "$CODEX_HOME_INPUT"
+    "$REPO_DIR/scripts/deploy-codex" --dry-run --codex-home "$CODEX_HOME_INPUT"
     return 0
   fi
 
-  "$REPO_DIR/scripts/deploy-codex" --apply --prefer-links --codex-home "$CODEX_HOME_INPUT"
+  "$REPO_DIR/scripts/deploy-codex" --apply --codex-home "$CODEX_HOME_INPUT"
 }
 
 deploy_pi() {

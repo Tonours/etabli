@@ -14,9 +14,10 @@ skill or mention agents. Classify execution as `parent-only`, `scout`,
 - Use `parent-only` for simple answers, trivial edits, ineligible or sensitive
   routes, tightly coupled work, explicit opt-out, or when no independent packet
   would materially improve evidence.
-- For non-trivial eligible work with a useful independent packet, automatically
-  launch at least one read-only scout when the collaboration runner is
-  available.
+- Architecture, cross-module scope, or general non-triviality alone stays
+  `parent-only`. Launch a read-only scout only for material uncertainty,
+  repeated failure, explicit multi-agent intent, critical risk, or a required
+  fresh-context review.
 - After implementation, use a fresh-context read-only reviewer when the
   implementation-loop contract requires it.
 - `single-agent`, `agent unique`, `no-panel`, or `sans panel` opts out.
@@ -74,7 +75,8 @@ Council selection is deterministic and Codex-specific:
   trade-off, or conflicting evidence;
 - medium failure-history signal: two failed attempts or a repeated regression.
 
-One medium signal keeps the automatic Terra scout. One critical signal or two
+One system-complexity signal stays parent-only. One uncertainty or
+failure-history signal admits a Terra scout. One critical signal or two
 distinct medium signals requests a council. Explicit multi-agent intent may
 request a council but cannot make an unsupported participant portfolio valid.
 Sensitive or externally mutating routes remain parent-only.

@@ -1,19 +1,17 @@
 # Answer Quality Traces
 
-Saved answer reviews live here when a response or handoff is important enough
-to audit after the fact.
+These saved answer reviews are historical evidence from the earlier
+answer-quality audit layer.
 
 Use concise summaries, local paths, source URLs, commands, and explicit gaps.
 Do not paste raw transcripts, secrets, environment dumps, tokens, cookies, or
 private keys.
 
-Validate with:
+The active contract now uses `scripts/answer-quality-check` plus its versioned
+fixture regression eval. These files are retained for provenance and are not a
+canonical validation input.
 
-```bash
-scripts/answer-quality-trace-eval docs/answer-quality-traces
-```
-
-Required fields:
+Historical fields:
 
 - `Status: verified|approximate|inconclusive|blocked|not verified`
 - `Verdict: pass|needs-work|blocked`
@@ -24,8 +22,6 @@ Required fields:
 - `## Quality Verdict`
 - `## Gaps / Follow-up`
 
-Coverage metadata:
+Historical coverage metadata:
 
-- `Category: <category>` is required when `coverage.tsv` marks a trace as
-  `covered`. The coverage validator checks that the category in the matrix and
-  the trace metadata match.
+- `Category: <category>` corresponds to the archived `coverage.tsv` matrix.

@@ -73,17 +73,9 @@ and adversarial examples for research, repo, handoff, obvault-backed, simple,
 and overclaim behavior. This is a deterministic regression eval for the helper,
 not a live-model eval or subjective score.
 
-Use `scripts/answer-quality-audit --skip-obvault` for repo-local validation and
-`scripts/answer-quality-audit --obvault <path>` when the obvault repo should be
-included in the same pass.
-
-Use `scripts/answer-quality-trace-eval docs/answer-quality-traces` for saved
-answer or handoff reviews. Trace files record the user request, answer under
-review, evidence, validation, verdict, and gaps without storing raw transcripts.
-
-Use `scripts/answer-quality-trace-coverage docs/answer-quality-traces/coverage.tsv`
-to validate the maintained category coverage matrix. `needs-work` categories
-are allowed and should stay visible until real traces cover them.
+Historical answer reviews remain under `docs/answer-quality-traces/` as
+inspectable evidence. They are not an active gate and do not add another
+checker layer.
 
 ## Evidence Base
 

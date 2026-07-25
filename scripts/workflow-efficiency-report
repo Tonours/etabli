@@ -147,7 +147,7 @@ smoke_paths=()
 while IFS= read -r path; do
   smoke_paths+=("$path")
 done < <(
-  awk -F '\t' '!/^#/ && $3 ~ /^tests\/.+\.sh$/ {print $3}' \
+  awk -F '\t' '!/^#/ && $4 ~ /^tests\/.+\.sh$/ {print $4}' \
     "$ROOT_DIR/workflow/runtime/agentic-infra-checks.tsv" |
     sort -u
 )

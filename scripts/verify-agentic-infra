@@ -57,37 +57,47 @@ run_target() {
   esac
 }
 
-run_group() {
-  local selected_group="$1"
+run_selection() {
+  local selection_kind="$1"
+  local selection="$2"
   local found=0
-  local group label target
+  local profile group label target
 
-  while IFS=$'\t' read -r group label target; do
-    [ "$group" = "$selected_group" ] || continue
+  while IFS=$'\t' read -r profile group label target; do
+    case "$selection_kind:$selection" in
+      profile:core) [ "$profile" = "core" ] || continue ;;
+      profile:full) [ "$profile" = "core" ] || [ "$profile" = "full" ] || continue ;;
+      profile:live) [ "$profile" = "live" ] || continue ;;
+      group:*)
+        if [ "$group" != "$selection" ] || [ "$profile" = "live" ]; then
+          continue
+        fi
+        ;;
+      *) printf 'Unknown selection: %s %s\n' "$selection_kind" "$selection" >&2; return 2 ;;
+    esac
     found=1
     run_check "$label" run_target "$target"
   done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 
   [ "$found" -eq 1 ] || {
-    printf 'No checks configured for agentic-infra group: %s\n' "$selected_group" >&2
+    printf 'No checks configured for agentic-infra %s: %s\n' "$selection_kind" "$selection" >&2
     return 2
   }
 }
 
-# C3: honesty about live multi-runtime agent proof (opt-in RUN_* smokes).
-# Default local/CI stays fast; never claim live agents proven when skipped.
-live_agent_proof() {
-  if [ "${RUN_REAL_AGENT_SCENARIOS:-}" = "1" ] || [ "${RUN_AGENT_CLI_SMOKE:-}" = "1" ]; then
-    printf 'live_agent_proof: ran\n'
-  else
-    printf 'live_agent_proof: skipped\n'
+run_live() {
+  if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ] || [ "${RUN_REAL_AGENT_SCENARIOS:-}" != "1" ]; then
+    printf 'SKIP live agent proof: set RUN_AGENT_CLI_SMOKE=1 and RUN_REAL_AGENT_SCENARIOS=1\n'
+    return 3
   fi
+
+  run_selection profile live
 }
 
 case "${1:-all}" in
-  shell-docs) live_agent_proof; run_group shell-docs ;;
-  pi) live_agent_proof; run_group pi ;;
-  nvim) live_agent_proof; run_group nvim ;;
-  all) live_agent_proof; run_group shell-docs; run_group pi; run_group nvim ;;
-  *) printf 'Usage: verify-agentic-infra [shell-docs|pi|nvim|all]\n' >&2; exit 2 ;;
+  core) run_selection profile core ;;
+  full|all) run_selection profile full ;;
+  live) run_live ;;
+  shell-docs|pi|nvim) run_selection group "$1" ;;
+  *) printf 'Usage: verify-agentic-infra [core|full|live|shell-docs|pi|nvim|all]\n' >&2; exit 2 ;;
 esac
