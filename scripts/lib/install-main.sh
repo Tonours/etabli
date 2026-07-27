@@ -980,6 +980,25 @@ for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
     fi
 done
 
+# Codex/Grok-visible plan + workflow sources (~/.agents/skills uses ../../).
+mkdir -p "$HOME/.agents"
+if [ -d "$REPO_DIR/workflow" ]; then
+    if [ -e "$HOME/.agents/workflow" ] && [ ! -L "$HOME/.agents/workflow" ]; then
+        backup_path_move "$HOME/.agents/workflow"
+    fi
+    ln -sfn "$REPO_DIR/workflow" "$HOME/.agents/workflow"
+    print_success "Agents workflow sources linked"
+fi
+for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
+    if [ -f "$REPO_DIR/$template_file" ]; then
+        if [ -e "$HOME/.agents/$template_file" ] && [ ! -L "$HOME/.agents/$template_file" ]; then
+            backup_path_move "$HOME/.agents/$template_file"
+        fi
+        ln -sf "$REPO_DIR/$template_file" "$HOME/.agents/$template_file"
+        print_success "Agents $template_file linked"
+    fi
+done
+
 # models.json (backup existing if not a symlink)
 if [ -f "$REPO_DIR/pi/models.json" ]; then
     if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then

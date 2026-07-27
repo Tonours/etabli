@@ -31,8 +31,14 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.pi/agent/settings.json` stays local, bootstrapped from `pi/agent/settings.json`
 - `~/.pi/agent/models.json` -> `pi/models.json`
 - `~/.pi/agent/AGENTS.md` -> `pi/AGENTS.md`
+- `~/.pi/agent/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
+- `~/.pi/agent/workflow/` -> `workflow/`
 - `~/.pi/settings.json` -> `pi/settings.json`
 - `~/.pi/themes/` -> `pi/themes/`
+- `~/.claude/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
+- `~/.claude/workflow/` -> `workflow/`
+- `~/.agents/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
+- `~/.agents/workflow/` -> `workflow/`
 - `~/.config/ghostty/config` -> `ghostty/config`
 - `~/.codex/` receives managed Codex files via `scripts/deploy-codex --apply`
 - do not create `~/.pi/extensions/`; it causes double-loading
