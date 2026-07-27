@@ -12,22 +12,23 @@ Follow `workflow/spec.md`.
 
 ## Source resolution
 
-Before saying a workflow source is missing, resolve sources in this order:
+Before saying a workflow source is missing, resolve sources in this order.
+Try each path with a direct read; do not stop at the first miss.
 
 1. Prefer the current workspace copies:
    - `workflow/spec.md`
    - `PLAN_TEMPLATE.md`
    - `PLAN_TEMPLATE_FULL.md`
-2. If one of those files is missing in the current workspace, fall back to the Claude shared copies when this command is loaded through `~/.claude/commands`:
-   - `../workflow/spec.md`
-   - `../PLAN_TEMPLATE.md`
-   - `../PLAN_TEMPLATE_FULL.md`
-3. If those are unavailable, fall back to the Etabli repo copies when this command is loaded from the repo target path:
-   - `../../workflow/spec.md`
-   - `../../PLAN_TEMPLATE.md`
-   - `../../PLAN_TEMPLATE_FULL.md`
-4. If any fallback files exist, read them and continue. Do not tell the user the template/spec is missing.
-5. If all workspace and fallback copies are missing, create `PLAN.md` from the template shape embedded in this command and report the missing source paths as a warning, not as a blocker.
+2. Prefer absolute installed home copies (stable when command paths are realpath'd):
+   - `~/.claude/PLAN_TEMPLATE.md`, `~/.claude/PLAN_TEMPLATE_FULL.md`, `~/.claude/workflow/spec.md`
+   - `~/.pi/agent/PLAN_TEMPLATE.md`, `~/.pi/agent/PLAN_TEMPLATE_FULL.md`, `~/.pi/agent/workflow/spec.md`
+   - `~/.agents/PLAN_TEMPLATE.md`, `~/.agents/PLAN_TEMPLATE_FULL.md`, `~/.agents/workflow/spec.md`
+3. Relative install-surface fallbacks (logical path only; do not realpath the command dir first):
+   - From `~/.claude/commands`: `../PLAN_TEMPLATE.md`, `../PLAN_TEMPLATE_FULL.md`, `../workflow/spec.md`
+4. Relative Etabli-repo fallbacks after realpath into `claude/commands/`:
+   - `../../PLAN_TEMPLATE.md`, `../../PLAN_TEMPLATE_FULL.md`, `../../workflow/spec.md`
+5. If any fallback file exists, read it and continue. Do not tell the user the template/spec is missing.
+6. If all workspace and fallback copies are missing, create `PLAN.md` from the template shape embedded in this command and report the missing source paths as a warning, not as a blocker.
 
 Embedded fallback shape:
 
