@@ -172,12 +172,19 @@ export async function driveTask(task, options = {}) {
         tool_calls = 1;
         const router = join(ROOT_DIR, "claude/hooks/workflow-router.mjs");
         const out = runNodeModule(router, { prompt: task.input.prompt, cwd: tmp });
-        driver_finished = out.exit === 0 || out.stdout.length > 0 || out.exit === null;
-        // router may exit 0 with empty when answer injects nothing
+        // Hook exits 0 with empty stdout when route is pure answer (no inject).
         driver_finished = true;
-        const routeMatch = out.stdout.match(/Route:\s*([a-z0-9-]+)/i);
+        const routeMatch = String(out.stdout || "").match(/Route:\s*([a-z0-9-]+)/i);
+        let route = routeMatch ? routeMatch[1] : null;
+        if (
+          route == null &&
+          out.exit === 0 &&
+          !String(out.stdout || "").trim()
+        ) {
+          route = "answer";
+        }
         finalState = {
-          route: routeMatch ? routeMatch[1] : null,
+          route,
           stdout: out.stdout,
           stderr: out.stderr,
           exit: out.exit,
