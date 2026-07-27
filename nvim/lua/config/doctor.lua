@@ -171,6 +171,8 @@ function M.lines(cwd)
     symlink_line("pi-themes", "~/.pi/themes", dotfiles_root .. "/pi/themes"),
     symlink_line("claude-md", "~/.claude/CLAUDE.md", dotfiles_root .. "/claude/CLAUDE.md"),
     symlink_line("claude-plan", "~/.claude/PLAN_TEMPLATE.md", dotfiles_root .. "/PLAN_TEMPLATE.md"),
+    symlink_line("pi-plan", "~/.pi/agent/PLAN_TEMPLATE.md", dotfiles_root .. "/PLAN_TEMPLATE.md"),
+    symlink_line("agents-plan", "~/.agents/PLAN_TEMPLATE.md", dotfiles_root .. "/PLAN_TEMPLATE.md"),
     symlink_line("claude-rubric", "~/.claude/review-rubric.md", dotfiles_root .. "/workflow/review-rubric.md"),
     symlink_line("claude-review", "~/.claude/commands/review.md", dotfiles_root .. "/claude/commands/review.md"),
     "",

@@ -440,6 +440,15 @@ deploy_pi() {
     link_path "$REPO_DIR/codex/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Codex-visible Codex skill $skill"
   done
 
+  # Shared plan/workflow sources for Codex/Grok skills under ~/.agents/skills
+  # (../../PLAN_TEMPLATE.md and ../../workflow resolve here).
+  if [ "$DRY_RUN" -eq 0 ]; then
+    mkdir -p "$HOME_DIR/.agents"
+  fi
+  link_path "$REPO_DIR/PLAN_TEMPLATE.md" "$HOME_DIR/.agents/PLAN_TEMPLATE.md" "Agents PLAN_TEMPLATE.md"
+  link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "$HOME_DIR/.agents/PLAN_TEMPLATE_FULL.md" "Agents PLAN_TEMPLATE_FULL.md"
+  link_path "$REPO_DIR/workflow" "$HOME_DIR/.agents/workflow" "Agents workflow"
+
   for theme_file in "$REPO_DIR/pi/themes"/*.json; do
     [ -f "$theme_file" ] || continue
     theme_name="$(basename "$theme_file")"
