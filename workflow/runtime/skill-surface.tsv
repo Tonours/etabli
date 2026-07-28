@@ -1,4 +1,4 @@
-# name	source	pi_core	codex_visible	locked
+# name	source	pi_core	agents_visible	locked
 plan-loop	pi	1	1	1
 plan-implement	pi	1	1	1
 adversary	pi	1	1	1
@@ -6,6 +6,7 @@ review	pi	1	0	1
 implement	pi	1	1	1
 verify	pi	1	1	1
 bug-check	pi	1	1	1
+linear-project-setup	pi	1	1	1
 linear-ticket-create	pi	1	1	1
 linear-work	pi	1	1	1
 pr-review	pi	1	1	1
@@ -15,7 +16,34 @@ ci-fix	pi	1	1	1
 github-pr-review	pi	1	1	1
 caveman	pi	1	0	1
 grill-me	pi	1	0	1
-browser-full-page-capture	codex	0	1	1
-frontend-motion-performance	codex	0	1	1
-goal-prompt-rewriter	codex	0	1	1
-ui-reference-capture	codex	0	1	1
+browser-full-page-capture	pi	0	1	1
+frontend-motion-performance	pi	0	1	1
+goal-prompt-rewriter	pi	0	1	1
+ui-reference-capture	pi	0	1	1
+adonisjs-architecture	pi	0	0	0
+adonisjs-backend	pi	0	0	0
+adonisjs-review	pi	0	0	0
+adonisjs-suite	pi	0	0	0
+adonisjs-testing	pi	0	0	0
+adonisjs-tuyau	pi	0	0	0
+maintainer-orchestrator	pi	0	0	0
+react-doctor-100	pi	0	0	0
+tanstack-query	pi	0	0	0
+tanstack-start-auth	pi	0	0	0
+tanstack-start-better-auth	pi	0	0	0
+tanstack-start-bootstrap	pi	0	0	0
+tanstack-start-clerk	pi	0	0	0
+tanstack-start-database	pi	0	0	0
+tanstack-start-deployment-recipes	pi	0	0	0
+tanstack-start-drizzle	pi	0	0	0
+tanstack-start-file-uploads	pi	0	0	0
+tanstack-start-hosting	pi	0	0	0
+tanstack-start-middleware	pi	0	0	0
+tanstack-start-prisma	pi	0	0	0
+tanstack-start-public-private-route-trees	pi	0	0	0
+tanstack-start-query-invalidation	pi	0	0	0
+tanstack-start-resource-ownership	pi	0	0	0
+tanstack-start-route-patterns	pi	0	0	0
+tanstack-start-seo	pi	0	0	0
+tanstack-start-server-functions	pi	0	0	0
+tanstack-start-teams-and-orgs	pi	0	0	0

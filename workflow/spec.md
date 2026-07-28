@@ -51,8 +51,7 @@ sidecar. Pi uses the deterministic adaptive profile in
 `workflow/skills/multi-model-orchestration.md`: no sidecar at score zero, one
 route-appropriate scout for material uncertainty or failure history, and a
 two-agent council for one critical or two distinct medium signals. System
-complexity alone stays parent-only. Codex uses its separate ambient configuration
-in `codex/workflow/team-orchestration.md`. Explicit opt-out forces the parent
+complexity alone stays parent-only. Explicit opt-out forces the parent
 only. Runtime-specific model portfolios and mechanics stay in their respective
 profiles; shared workflow and evidence invariants stay in
 `workflow/skills/orchestration.md`.

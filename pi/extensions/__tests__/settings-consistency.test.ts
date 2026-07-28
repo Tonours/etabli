@@ -31,8 +31,8 @@ const skillCatalog = readFileSync(
   .split("\n")
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
-    const [name, source, piCore, codexVisible, locked] = line.split("\t");
-    return { name, source, piCore: piCore === "1", codexVisible: codexVisible === "1", locked: locked === "1" };
+    const [name, source, piCore, agentsVisible, locked] = line.split("\t");
+    return { name, source, piCore: piCore === "1", agentsVisible: agentsVisible === "1", locked: locked === "1" };
   });
 
 function localPackage(): LocalPackage {
@@ -70,14 +70,18 @@ describe("Pi settings consistency", () => {
     expect(installCoreSkills().sort()).toEqual([...(localPackage().skills ?? [])].sort());
   });
 
-  test("keeps Codex-visible skill lists synchronized across bootstrap scripts", () => {
+  test("keeps agents-visible skill lists synchronized across bootstrap scripts", () => {
     const scripts = [installScript, deployAgentWorkflowScript, checkFixSymlinksScript];
     for (const source of scripts) expect(source).toContain("skill_catalog_names");
 
-    const piSkills = skillCatalog.filter((skill) => skill.source === "pi" && skill.codexVisible).map((skill) => skill.name);
-    const codexSkills = skillCatalog.filter((skill) => skill.source === "codex" && skill.codexVisible).map((skill) => skill.name);
-    expect(piSkills.every((skill) => (localPackage().skills ?? []).includes(skill))).toBe(true);
-    expect(codexSkills).toEqual([
+    const agentsVisible = skillCatalog.filter((skill) => skill.agentsVisible);
+    expect(agentsVisible.every((skill) => skill.source === "pi")).toBe(true);
+
+    const coreVisible = agentsVisible.filter((skill) => skill.piCore).map((skill) => skill.name);
+    expect(coreVisible.every((skill) => (localPackage().skills ?? []).includes(skill))).toBe(true);
+
+    const packVisible = agentsVisible.filter((skill) => !skill.piCore).map((skill) => skill.name);
+    expect(packVisible).toEqual([
       "browser-full-page-capture",
       "frontend-motion-performance",
       "goal-prompt-rewriter",

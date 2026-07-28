@@ -15,14 +15,12 @@ SKILL_CATALOG_MISSING=0
 if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; then
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
-  CODEX_VISIBLE_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi codex_visible) )
-  CODEX_VISIBLE_CODEX_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" codex codex_visible) )
+  AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
 else
   SKILL_CATALOG_MISSING=1
   # Bash 3 with `set -u` treats an empty array expansion as unbound.
   PI_CORE_SKILLS=("")
-  CODEX_VISIBLE_PI_SKILLS=("")
-  CODEX_VISIBLE_CODEX_SKILLS=("")
+  AGENTS_VISIBLE_SKILLS=("")
 fi
 
 usage() {
@@ -179,19 +177,11 @@ check_pi_skill_links() {
   done
 }
 
-check_codex_visible_pi_skill_links() {
+check_agents_visible_skill_links() {
   local skill_name
-  for skill_name in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
+  for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     [ -n "$skill_name" ] || continue
-    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "codex-visible pi skill $skill_name"
-  done
-}
-
-check_codex_visible_codex_skill_links() {
-  local skill_name
-  for skill_name in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/codex/skills/$skill_name" "codex-visible codex skill $skill_name"
+    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "agents-visible skill $skill_name"
   done
 }
 
@@ -276,8 +266,7 @@ check_claude_command_links
 check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
 check_claude_hook_links
 check_pi_skill_links
-check_codex_visible_pi_skill_links
-check_codex_visible_codex_skill_links
+check_agents_visible_skill_links
 check_claude_skill_links
 
 check_script_link "dev-spawn"

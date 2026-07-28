@@ -17,7 +17,7 @@ assert_equal_sets() {
 
 jq empty "$MATRIX"
 
-expected_runtimes="$(printf '%s\n' claude codex pi | sort)"
+expected_runtimes="$(printf '%s\n' claude pi | sort)"
 actual_runtimes="$(jq -r '.runtimes | keys[]' "$MATRIX" | sort)"
 assert_equal_sets "$expected_runtimes" "$actual_runtimes" "runtime"
 

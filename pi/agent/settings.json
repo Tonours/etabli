@@ -37,6 +37,7 @@
         "implement",
         "verify",
         "bug-check",
+        "linear-project-setup",
         "linear-ticket-create",
         "linear-work",
         "pr-review",

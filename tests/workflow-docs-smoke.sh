@@ -4,7 +4,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 INSTALL_MAIN="$ROOT_DIR/scripts/lib/install-main.sh"
-CODEX_AGENTS="$ROOT_DIR/codex/AGENTS.md"
 
 assert_file() {
     [ -f "$1" ] || {
@@ -64,12 +63,10 @@ assert_file "$ROOT_DIR/scripts/answer-quality-check"
 assert_file "$ROOT_DIR/scripts/answer-quality-eval"
 assert_file "$ROOT_DIR/tests/answer-quality-check-smoke.sh"
 assert_file "$ROOT_DIR/tests/answer-quality-eval-smoke.sh"
-assert_contains "$CODEX_AGENTS" "Prefer RTK for shell commands"
 
 for harness_instructions in \
     "$ROOT_DIR/AGENTS.md" \
     "$ROOT_DIR/CLAUDE.md" \
-    "$ROOT_DIR/codex/AGENTS.md" \
     "$ROOT_DIR/claude/CLAUDE.md" \
     "$ROOT_DIR/pi/AGENTS.md" \
     "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" \
@@ -110,7 +107,6 @@ for contract in \
 done
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
-assert_file "$ROOT_DIR/docs/codex-app-subagents.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md"
@@ -238,20 +234,12 @@ assert_contains "$ROOT_DIR/AGENTS.md" 'canonical `obvault` knowledge base'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'Architecture Decision Records'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'docs/adr/'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'This activation is ambient'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'workflow/team-orchestration.md'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'owns Codex team'
-assert_not_contains "$ROOT_DIR/codex/AGENTS.md" 'multi-model-orchestration.md'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'workflow/answer-quality.md'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'live final gate'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'activate the Etabli workflow automatically'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'live final gate'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'proactively consult `~/work/obvault`'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'proactively consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'proactively consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/workflow/skills/obvault-memory.md" 'Mandatory first check'
 assert_contains "$ROOT_DIR/claude/commands/cross-repo-audit.md" '~/work/obvault/kb/'
@@ -412,10 +400,8 @@ assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_measurement_imported
 assert_contains "$ROOT_DIR/scripts/workflow-telemetry-recover" 'shortest_enclosing_primary_session'
 assert_contains "$ROOT_DIR/scripts/workflow-efficiency-report" 'documented_source_surfaces'
 assert_contains "$ROOT_DIR/tests/workflow-efficiency-report-smoke.sh" 'source_of_truth_conflicts == 0'
-assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'correct loop primitive for the job'
-assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/SKILL.md" 'outcome_metric'
-assert_contains "$ROOT_DIR/codex/skills/goal-prompt-rewriter/agents/openai.yaml" 'right Codex loop prompt'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'Prefer RTK for shell commands'
+assert_contains "$ROOT_DIR/pi/skills/goal-prompt-rewriter/SKILL.md" 'correct loop primitive for the job'
+assert_contains "$ROOT_DIR/pi/skills/goal-prompt-rewriter/SKILL.md" 'outcome_metric'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Read-only adversarial PLAN.md review'
 assert_contains "$ROOT_DIR/workflow/spec.md" '`spec-guide`'
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'
@@ -444,7 +430,6 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Review the d
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'implemented-plan archive under `docs/plan/`'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Task* tools are Pi-only'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'subagents:rpc:spawn'
-assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'codex/workflow/team-orchestration.md'
 assert_not_contains "$ROOT_DIR/workflow/skills/orchestration.md" '## Codex Ambient Team Profile'
 assert_not_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'fork_turns'
 assert_not_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'spawn_agent'
@@ -487,9 +472,7 @@ assert_contains "$ROOT_DIR/tests/fixtures/pr-maintenance/missing-latest-checks.j
 assert_contains "$ROOT_DIR/workflow/skills/pr-qa.md" 'QA Plan'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" 'do not wrap it in severity/file fields'
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
-assert_contains "$ROOT_DIR/codex/AGENTS.md" 'workflow/team-orchestration.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'deterministic adaptive profile'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'codex/workflow/team-orchestration.md'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" '# Pi Adaptive Multi-Model Orchestration'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'System complexity alone also stays parent-only'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'at most six anonymized material claim'
@@ -499,36 +482,12 @@ assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'portfo
 assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'Codex'
 assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'spawn_agent'
 assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'fork_turns'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" '# Codex Team Orchestration Profile'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'Apply this profile on every Codex request'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'Terra `low`'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'fork_turns: "none"'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'Every sidecar is a leaf'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'The parent is the only writer'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'A Codex council requires a live protocol-compatible second participant'
-assert_not_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'multi-model-orchestration.md'
 assert_contains "$ROOT_DIR/tests/multi-model-real-smoke.mjs" 'timeoutMs = null'
 assert_not_contains "$ROOT_DIR/tests/multi-model-real-smoke.mjs" 'timeoutMs: 180_000'
 assert_not_contains "$ROOT_DIR/tests/multi-model-real-smoke.mjs" 'run.elapsedMs <= 180_000'
 assert_contains "$ROOT_DIR/workflow/events.md" 'Protocol v2 adds'
 assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'protocol_version'
 assert_contains "$ROOT_DIR/pi/extensions/workflow-router.ts" 'Etabli adaptive council budget'
-assert_contains "$ROOT_DIR/codex/workflow/team-orchestration.md" 'user-owned'
-assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'collaboration.spawn_agent'
-assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'Do not create user-owned Codex threads'
-assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'Apply this skill ambiently on every Codex request'
-assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'workflow/team-orchestration.md'
-assert_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'Council selection belongs exclusively'
-assert_not_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'workflow/skills/multi-model-orchestration.md'
-assert_not_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'Ask workers to edit directly'
-assert_not_contains "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md" 'Escalate beyond one scout when at least two are true'
-assert_contains "$ROOT_DIR/codex/workflow/dynamic-workflow-triggers.md" 'collaboration.spawn_agent'
-assert_contains "$ROOT_DIR/codex/workflow/dynamic-workflow-triggers.md" 'ambient on every Codex request'
-assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'collaboration.spawn_agent'
-assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'automatically classified'
-assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'codex/workflow/team-orchestration.md'
-assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'sandbox/approval posture'
-assert_contains "$ROOT_DIR/docs/codex-app-subagents.md" 'simulated `.workflow/<slug>/` packets'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'ReAct paper'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'Retry with evidence'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'final status the active surface exposes'
@@ -564,8 +523,6 @@ assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'workflow/skills/advers
 assert_contains "$ROOT_DIR/pi/skills/bug-check/SKILL.md" 'workflow/skills/bug-check.md'
 assert_contains "$ROOT_DIR/pi/skills/linear-ticket-create/SKILL.md" 'workflow/skills/linear-ticket-create.md'
 assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_file "$ROOT_DIR/codex/skills/linear-work/SKILL.md"
-assert_contains "$ROOT_DIR/codex/skills/linear-work/SKILL.md" '$CODEX_HOME/workflow/skills/linear-work.md'
 assert_contains "$ROOT_DIR/pi/skills/pr-review/SKILL.md" 'Use `gh`'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" '/skill:adversary'
 assert_contains "$ROOT_DIR/docs/pi-cheatsheet.md" 'workflow/skills/orchestration.md'
@@ -782,9 +739,7 @@ for adapter in \
     "pi/skills/pr-review/SKILL.md:workflow/skills/pr-review.md" \
     "pi/skills/review/SKILL.md:workflow/skills/review.md" \
     "pi/skills/sec-pr/SKILL.md:workflow/skills/sec-pr.md" \
-    "codex/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
-    "codex/skills/linear-ticket-create/SKILL.md:workflow/skills/linear-ticket-create.md" \
-    "codex/skills/linear-work/SKILL.md:workflow/skills/linear-work.md" \
+    "pi/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
     "claude/commands/implement.md:workflow/skills/implementation-loop.md" \
     "claude/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
     "claude/commands/adversary.md:workflow/skills/adversary.md" \
@@ -806,7 +761,6 @@ duplicate_adapters="$(
     {
         find "$ROOT_DIR/pi/skills" -maxdepth 2 -type f -name 'SKILL.md'
         find "$ROOT_DIR/claude/commands" -maxdepth 1 -type f -name '*.md'
-        find "$ROOT_DIR/codex/skills" -mindepth 2 -maxdepth 2 -type f -name 'SKILL.md'
     } | sort | xargs shasum | sort -k1,1 | awk '
         previous_hash == $1 {
             if (!printed) {

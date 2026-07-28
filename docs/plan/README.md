@@ -29,7 +29,8 @@ Canonical contract: [`workflow/plan-archive.md`](../../workflow/plan-archive.md)
 Recent archives mostly cluster around:
 
 - workflow routing, implementation loops, and self-improvement harnesses;
-- Codex, Claude, and Pi adapter alignment;
+- Claude and Pi adapter alignment (Codex harness removed 2026-07-28, see
+  `20260728-harness-recenter-pi-claude.md`);
 - PR maintenance, review, CI, and validation helpers;
 - ADR capture and project-scaffold behavior;
 - local knowledge-base and durable-memory conventions.

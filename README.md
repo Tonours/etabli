@@ -1,6 +1,6 @@
 # Etabli
 
-Personal source of truth for Codex, Pi, Claude Code, Neovim, Ghostty, and tmux
+Personal source of truth for Pi, Claude Code, Neovim, Ghostty, and tmux
 configuration. The repository keeps agent workflow policy explicit,
 deployments conservative, and validation claims proportional to the evidence.
 
@@ -22,7 +22,7 @@ review uses `hunkdiff` (https://www.hunk.dev/).
   contract
 - `workflow/answer-quality.md` — live final-answer gate and durable-artifact
   checker contract
-- `codex/`, `pi/`, `claude/` — runtime-specific adapters and configuration
+- `pi/`, `claude/` — runtime-specific adapters and configuration
 - `nvim/`, `ghostty/`, `tmux.conf` — editor and terminal configuration
 - `scripts/`, `tests/` — deployment, validation, and focused regression checks
 - `docs/adr/` — architecture decisions (`node scripts/validate-adrs .`)
@@ -75,17 +75,15 @@ See `docs/cross-project-research-grounding.md` for research context.
 ## Deployment
 
 ```bash
-scripts/deploy-codex --dry-run
 scripts/deploy-agent-workflow --dry-run
 scaffold-project ~/code/my-project --new
 deploy-workflow . --check
 ```
 
 Use `--apply` only when the local deployment mutation is intended.
-`deploy-codex` never manages the live `config.toml`, which may contain secrets.
-`deploy-agent-workflow` aligns Claude, Pi, and Codex surfaces and conservatively
-syncs managed Pi package/model entries. `scaffold-project` never overwrites
-existing files by default.
+`deploy-agent-workflow` aligns Claude, Pi, and shared `~/.agents` surfaces and
+conservatively syncs managed Pi package/model entries. `scaffold-project`
+never overwrites existing files by default.
 
 `pi/agent/settings.json` is only a tracked bootstrap; the live copy remains
 local. Secrets and authentication files stay local and untracked.

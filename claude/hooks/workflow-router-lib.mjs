@@ -445,7 +445,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
       stopCondition: "READY or CHALLENGED",
       requiredEvidence: "route, role, stop condition, checks, risks, facts, and assumptions",
       writeAllowed: true,
-      suggestion: "As-tu pensé à /adversary ? Une fois le plan READY, une passe Codex cross-modèle catch les angles morts qu'une critique même-famille rate.",
+      suggestion: "As-tu pensé à /adversary ? Une fois le plan READY, une passe cross-modèle via pi -p (modèle openai-codex/*) catch les angles morts qu'une critique même-famille rate.",
     };
   }
 

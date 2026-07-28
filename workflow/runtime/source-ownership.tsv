@@ -1,4 +1,4 @@
 # surface	canonical	deployed_or_adapter_surfaces
 router-classifier	claude/hooks/workflow-router-lib.mjs	workflow/runtime/workflow-router-core.mjs,pi/extensions/lib/workflow-router-runtime.ts
 skill-surface	workflow/runtime/skill-surface.tsv	scripts/install.sh,scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh
-ticket-template	workflow/ticket-template.md	$CODEX_HOME/workflow/ticket-template.md
+ticket-template	workflow/ticket-template.md	none (deployed copies removed with the codex harness)

@@ -11,7 +11,8 @@ Claude Code-specific files for `etabli`.
 - `../PLAN_TEMPLATE_FULL.md` -> `~/.claude/PLAN_TEMPLATE_FULL.md`
 - `../workflow/` -> `~/.claude/workflow`
 - the same plan templates and `workflow/` are also linked under
-  `~/.pi/agent/` and `~/.agents/` so Pi/Codex/Grok relative fallbacks resolve
+  `~/.pi/agent/` and `~/.agents/` so Pi and shared-agent (Grok and future
+  harness) relative fallbacks resolve
 - `commands/*.md` -> `~/.claude/commands/`
 - `skills/*` -> `~/.claude/skills/`
 - `hooks/*.mjs` -> `~/.claude/hooks/`
