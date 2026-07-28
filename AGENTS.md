@@ -45,6 +45,8 @@ Repo-specific instructions for this dotfiles repo.
 ## Workflow
 
 - Canonical workflow: `workflow/spec.md`
+- Explicit topology (Graph Engineering surface): `workflow/topology.md`
+- Daily usage guide (commands + process): `docs/using-the-workflow.md`
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
@@ -59,7 +61,7 @@ Repo-specific instructions for this dotfiles repo.
 ## Knowledge Base
 
 - Before answering or planning anything that depends on prior research,
-  decisions, conventions, preferences, or recurring incidents, consult the
+  decisions, architectures, preferences, or recurring incidents, consult the
   canonical `obvault` knowledge base; do not wait for the user to mention it.
 - Follow `workflow/skills/obvault-memory.md` with `~/work/obvault`; read the
   vault `AGENTS.md` entrypoint before querying or proposing a durable write.

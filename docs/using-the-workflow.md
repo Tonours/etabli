@@ -1,151 +1,184 @@
-# Using the Etabli Workflow in Daily Development
+# Using the Etabli workflow in daily development
 
-This guide explains how to use the Etabli agent workflow in everyday development.
-It complements the canonical contract (`workflow/spec.md`) and the topology map
-(`workflow/topology.md`).
+Practical guide for humans and agents. Canonical contracts live in
+`workflow/spec.md` and `workflow/topology.md`. This page is the short path.
 
 ## Activation
 
-The workflow is **ambient**. Any project that contains `workflow/spec.md`
-activates it automatically.
+Any project that contains `workflow/spec.md` activates the workflow **ambiently**.
 
-You do **not** need to write “use the Etabli workflow” in ordinary prompts.
-Just describe the task; the router selects the smallest matching route.
+- You do **not** need to write “use the Etabli workflow”.
+- Ordinary prompts are enough for small fixes, features, reviews, and verification.
+- Explicit markers (`/plan-loop`, `/plan-implement`, `/goal`, `review`, `verify`…)
+  select specialized routes when you want more control.
 
-Rules that always apply:
+`PLAN.md` at the project root is the **only** active execution artifact.
+Implementation is allowed only when its status is `READY`.
 
-- One execution artifact: root `PLAN.md`
-- Implementation starts only when `Status: READY`
-- The parent agent is the only writer of durable mutations
-- Push, deploy, destructive actions, secrets, production changes, and external
-  write-back require explicit authority (or an explicit command contract such as
-  `/ci-fix` or `/ship`)
+## Golden rules
 
-## Golden path (daily loop)
+1. One writer: the parent agent. Sidecars (scout/council) are read-only.
+2. One plan: root `PLAN.md`. Archive finished work under `docs/plan/`, then delete the root file.
+3. READY is the gate. Draft or Challenged plans do not authorize code changes.
+4. Prefer the smallest route that can finish with evidence.
+5. Destructive / secret / production / external write-back → human checkpoint (`ops-stop`).
+6. Claims stay proportional to evidence (`confirmed` / `proxy_supported` / `blocked` / `unknown`).
 
-1. Inspect repo state and read the relevant files.
-2. If the work is non-trivial → create / refresh `PLAN.md`.
-3. Get the plan to `READY` (plan-loop + adversary when needed).
-4. Implement only from a `READY` plan.
-5. Run focused checks.
-6. Review the diff against the plan.
-7. Archive the implemented plan under `docs/plan/` and delete the root `PLAN.md`.
-8. Commit only when verified (and when you asked for a commit).
+## Commands cheat-sheet
 
-## When to use which route
+### Claude Code (slash commands)
 
-| Situation | Route / command | Notes |
+| Command | When to use | Stops at |
 | --- | --- | --- |
-| Simple question / explanation | just ask (route `answer`) | No plan required |
-| “Fais un plan”, unclear scope, broad task | `plan-loop` | Stops at `READY` or `CHALLENGED` |
-| Plan then implement autonomously | `plan-implement` | Continues only if root `PLAN.md` is actually `READY` |
-| Existing `READY` plan + “implémente” | `implement` | Guarded by READY gate |
-| Review current diff / PR | `review` / `pr-review` | Findings only |
-| Verify claims / checks | `verify` | No editing |
-| Destructive / secrets / prod / external write | `ops-stop` | Human checkpoint |
-| CI red, explicit repair | `ci-fix` | Explicit consent for push |
-| Linear ticket | `linear-work` / `linear-ticket-create` | MCP |
-| Self-improvement from evidence | `plan-implement` + self-improvement skill | No auto-apply |
+| *(normal prompt)* | Small bug, simple change, question | Answer or minimal change |
+| `/plan` | Create a plan only | `DRAFT` |
+| `/plan-loop` | Plan + challenge until ready or blocked | `READY` or `CHALLENGED` |
+| `/adversary` | Stress-test an existing plan before coding | Updated `PLAN.md` |
+| `/implement` | Execute an existing `READY` plan | Validated archive + root `PLAN.md` removed |
+| `/plan-implement` | Full autonomous chain (plan → adversary → implement → review → archive) | Same as implement |
+| `/review` | Review current diff | `GO` / `GO WITH NOTES` / `BLOCK` |
+| `/verify-workflow` | Prove claims or re-run checks without editing | `VERIFIED` / … |
+| `/pr-review` | Review a GitHub PR | Findings only |
+| `/pr-qa` | QA plan for a PR | Executable test plan |
+| `/sec-pr` | Dependabot / security PR audit | `PASS` / `FAIL` / `INVESTIGATE` |
+| `/ci-fix` | Explicit autonomous CI repair | CI green or blocked / cap |
+| `/linear-ticket-create` | Create a Linear ticket | Issue created |
+| `/linear-work` | Work from a Linear ticket | Acceptance validated or blocked |
+| `/bug-check` | Root-cause a Linear bug without coding | Confidence label |
+| `/goal <condition>` | Long-running completion loop (with explicit cap) | Goal met or blocked |
+| `/ship` | Explicit A-to-Z delivery (consents to branch push + PR) | Ship contract |
 
-## Commands reference
+Manual-only (never ambient): `/commit`, `/pre-commit`, `/recap`, `/ui-debug`, …
 
-### Claude Code
+### Pi (skills)
 
-Main workflow commands (slash):
-
-| Command | Purpose |
+| Skill | Equivalent intent |
 | --- | --- |
-| `/plan` | Create `PLAN.md` only (stops at `DRAFT`) |
-| `/plan-loop` | Create/review plan → `READY` or `CHALLENGED` |
-| `/plan-implement` | Full autonomous chain: plan → adversary → implement → checks → archive |
-| `/implement` | Implement an existing `READY` plan |
-| `/adversary` | Stress-test `PLAN.md` before implementation |
-| `/review` | Review current diff |
-| `/verify-workflow` | Verify checks/claims without editing |
-| `/pr-review` | Review a GitHub PR (`gh`) |
-| `/pr-qa` | QA plan for a PR |
-| `/sec-pr` | Dependabot / security PR audit |
-| `/ci-fix` | Explicit autonomous CI repair |
-| `/bug-check` | Analyze Linear bug root cause (no edit) |
-| `/linear-ticket-create` | Create Linear ticket |
-| `/linear-work` | Work from Linear ticket |
-| `/ship` | A-to-Z delivery (explicit consent for branch + PR) |
-| `/goal <condition>` | Long-running till-done loop with measurable stop |
+| `/skill:plan-loop <task>` | Same as Claude `/plan-loop` |
+| `/skill:plan-implement <task>` | Same as Claude `/plan-implement` |
+| `/skill:adversary` | Same as `/adversary` |
+| `/skill:implement` | Same as `/implement` |
+| `/skill:review` | Same as `/review` |
+| `/skill:verify` | Same as `/verify-workflow` |
+| `/skill:pr-review`, `/skill:pr-qa`, `/skill:sec-pr`, `/skill:ci-fix` | PR / CI routes |
+| `/skill:linear-ticket-create`, `/skill:linear-work`, `/skill:bug-check` | Linear routes |
 
-Useful manual / recurring commands: `/pre-commit`, `/pr-feedback`, `/tests-iso`,
-`/front-quality`, `/ui-debug`, `/recap`, `/adr`, `/spec-guide`.
+Pi also has adaptive multi-model (scout / council) under
+`workflow/skills/multi-model-orchestration.md`. Parent stays the only writer.
 
-Hooks (when `settings.workflow-hooks.json` is active):
-
-- Router injects route context on prompt
-- `plan-ready-guard` blocks writes while plan is not `READY`
-- `plan-commit-guard` prevents committing root `PLAN*.md`
-
-### Pi
-
-| Skill | Purpose |
-| --- | --- |
-| `/skill:plan-loop <task>` | Create/review `PLAN.md` |
-| `/skill:plan-implement <task>` | Plan then implement if `READY` |
-| `/skill:adversary` | Adversarial plan review |
-| `/skill:implement` | Implement existing `READY` plan |
-| `/skill:review` | Review current diff |
-| `/skill:verify` | Verify without editing |
-| `/skill:pr-review` | GitHub PR review |
-| `/skill:bug-check` | Linear bug analysis |
-| `/skill:ci-fix` | Explicit CI repair |
-
-See also `docs/pi-cheatsheet.md`.
-
-## Typical daily scenarios
-
-### Small safe fix
-Just describe the change. The router usually picks a direct implement path
-(or a very light plan). Focused checks + review before commit.
-
-### Feature or non-trivial change
-1. `/plan-loop` (or natural language “fais un plan pour …”)
-2. Review / challenge until `READY`
-3. `/implement` or continue with `/plan-implement`
-4. Focused tests → review → archive → commit
-
-### Autonomous end-to-end
-`/plan-implement <task>` or `/goal <measurable condition + cap>`.
-The run records the event ledger; final review should come from a fresh context.
-
-### PR maintenance
-Use the shared `pr-maintenance-loop` skill / contract: one PR, one worktree,
-latest-head evidence via `scripts/pr-latest-head-status`, explicit cleanup.
-
-### Self-improvement of the harness itself
-Start from inspectable evidence (retrospect, failures, vNext, metrics),
-classify candidates, implement only through a reviewed `READY` plan.
-Never auto-apply retrospect output.
-
-## Human checkpoints (do not skip)
-
-- Destructive / secrets / production / billing / force-push → `ops-stop`
-- External write-back (PR comments, Linear status, publish) → explicit command or `ops-stop`
-- Premature implementation before `READY` → blocked by guards
-- Missing validation surface → stop as blocked, do not claim completion
-
-## Where to look next
-
-| Need | Document |
-| --- | --- |
-| Full contract & routing table | `workflow/spec.md` |
-| Graph / topology view | `workflow/topology.md` |
-| Loop patterns | `workflow/loop-patterns.md` |
-| Answer quality | `workflow/answer-quality.md` |
-| Claude surface | `claude/README.md` |
-| Pi surface | `docs/pi-cheatsheet.md` |
-| Multi-model orchestration | `workflow/skills/multi-model-orchestration.md` |
-| Deploy / install | `README.md` (Quick start + Deployment) |
-
-## Validation of the harness itself
+### Host scripts (outside the agent)
 
 ```bash
 scripts/verify-agentic-infra core   # daily health
 scripts/verify-agentic-infra full   # all deterministic checks
 scripts/vnext-suite --json          # control-plane regression
+scripts/plan-check-freeze --current PLAN.md --previous PLAN.snapshot.md
+scripts/answer-quality-check path/to/artifact.md
+scripts/deploy-agent-workflow --dry-run
 ```
+
+## Typical daily flows
+
+### 1. Tiny fix / clear bug (ambient)
+
+Just ask:
+
+> Fix the null check in `src/foo.ts` and run the focused test.
+
+Router picks a small path. No `PLAN.md` required if the change is obviously bounded.
+
+### 2. Non-trivial feature or refactor
+
+```text
+You: "Add X. Plan first."
+→ /plan-loop (or ambient plan-loop)
+→ review PLAN.md until Status: READY
+→ /implement   (or continue with plan-implement)
+→ focused checks + review
+→ archive under docs/plan/ ; root PLAN.md deleted
+```
+
+### 3. Autonomous end-to-end
+
+```text
+You: /plan-implement Add user export CSV with tests
+```
+
+or on Claude:
+
+```text
+You: /goal Export users as CSV; stop after tests green or 4 attempts
+```
+
+Autonomous routes must leave an event ledger under `.workflow/<slug>/`.
+
+### 4. Review only
+
+```text
+You: /review
+# or
+You: Review the current diff against the plan; do not edit
+```
+
+### 5. PR / CI / Linear
+
+Use the dedicated commands (`/pr-review`, `/ci-fix`, `/linear-work`…).  
+They carry their own HITL contracts for external write-back.
+
+### 6. Risky or irreversible work
+
+Anything destructive, secret-related, production, or broad external write is
+routed to **ops-stop**. The agent produces a risk brief and waits for you.
+
+## How to choose the route
+
+| Situation | Prefer |
+| --- | --- |
+| One-line fix, obvious check | Ambient prompt |
+| Scope unclear or multi-file | `/plan-loop` then `/implement` |
+| You want the agent to finish the whole loop | `/plan-implement` or `/goal` |
+| Plan already `READY` | `/implement` |
+| You only want findings | `/review`, `/verify-workflow`, `/pr-review` |
+| CI red and you explicitly want auto-repair | `/ci-fix` |
+| Linear ticket driven work | `/linear-work` |
+
+## Statuses of `PLAN.md`
+
+- `DRAFT` — not ready to code
+- `CHALLENGED` — blockers or weak checks; fix the plan
+- `READY` — implementation authorized
+
+Once `READY`, **check-freeze** applies: Checks may only be strengthened.
+To remove or weaken a check, demote to `CHALLENGED` and record a Decision Log
+rationale (`scripts/plan-check-freeze` enforces this mechanically).
+
+## After the work is done
+
+1. Focused checks green
+2. Review against the plan
+3. Archive distilled plan under `docs/plan/`
+4. Delete root `PLAN.md`
+5. Commit only when you asked for a commit
+
+## Where to go deeper
+
+| Need | File |
+| --- | --- |
+| Full contract | `workflow/spec.md` |
+| Graph of nodes & edges | `workflow/topology.md` |
+| Loop patterns | `workflow/loop-patterns.md` |
+| Answer quality floor | `workflow/answer-quality.md` |
+| Self-improvement | `workflow/skills/self-improvement-loop.md` |
+| Ambitious project | `workflow/skills/ambitious-project-loop.md` |
+| PR maintenance | `workflow/skills/pr-maintenance-loop.md` |
+| Multi-model | `workflow/skills/multi-model-orchestration.md` |
+| Capabilities honesty | `workflow/runtime-capabilities.json` |
+
+## Short daily checklist
+
+1. Open the project (workflow ambient if `workflow/spec.md` exists).
+2. State the goal in plain language (or use an explicit slash skill).
+3. If scope is large → force a plan until `READY`.
+4. Let implement run only on `READY`.
+5. Demand focused evidence, not full-suite theatre.
+6. Keep irreversible actions behind your explicit OK.

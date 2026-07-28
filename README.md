@@ -16,23 +16,47 @@ The installer uses the existing Node.js runtime, preferring `asdf`; it does not
 install `nvm`. Pi comes from `@earendil-works/pi-coding-agent`, and Neovim
 review uses `hunkdiff` (https://www.hunk.dev/).
 
+## Daily development (how to use the workflow)
+
+Projects that contain `workflow/spec.md` activate the workflow **ambiently**.
+You can talk normally; agents route to the smallest safe path.
+
+**Most common commands**
+
+| Intent | Claude | Pi |
+| --- | --- | --- |
+| Plan until ready | `/plan-loop` | `/skill:plan-loop` |
+| Plan then implement | `/plan-implement` | `/skill:plan-implement` |
+| Implement a READY plan | `/implement` | `/skill:implement` |
+| Review diff | `/review` | `/skill:review` |
+| Verify without editing | `/verify-workflow` | `/skill:verify` |
+| PR review / QA / security | `/pr-review`, `/pr-qa`, `/sec-pr` | same `/skill:…` |
+| Long autonomous loop | `/goal <cap>` | plan-implement + Task* when available |
+
+**Rules of thumb**
+
+- `PLAN.md` is the only active execution artifact.
+- Code changes require `Status: READY`.
+- Parent agent is the only writer; sidecars are read-only.
+- Destructive / secret / production / external write-back → human checkpoint.
+
+Full practical guide (flows, cheat-sheet, checklist):
+**[docs/using-the-workflow.md](docs/using-the-workflow.md)**
+
+Topology of the control plane (Graph Engineering surface):
+**[workflow/topology.md](workflow/topology.md)**
+
 ## Map
 
-- `workflow/spec.md` — canonical routing, safety, planning, and completion
-  contract
-- `workflow/answer-quality.md` — live final-answer gate and durable-artifact
-  checker contract
+- `workflow/spec.md` — canonical routing, safety, planning, and completion contract
+- `workflow/topology.md` — explicit Graph Engineering surface (nodes, edges, shared state)
+- `docs/using-the-workflow.md` — daily commands and process guide
+- `workflow/answer-quality.md` — live final-answer gate and durable-artifact checker
 - `pi/`, `claude/` — runtime-specific adapters and configuration
 - `nvim/`, `ghostty/`, `tmux.conf` — editor and terminal configuration
 - `scripts/`, `tests/` — deployment, validation, and focused regression checks
 - `docs/adr/` — architecture decisions (`node scripts/validate-adrs .`)
 - `docs/plan/` — distilled archives of completed plans
-
-Projects containing `workflow/spec.md` activate the workflow ambiently. Use
-ordinary prompts; `PLAN.md` is the only active execution artifact, and
-implementation starts only from `Status: READY`. The parent is the only
-writer. Push, deploy, destructive actions, secrets, production changes, and
-external write-back still require explicit authority.
 
 For deeper work, start from
 `workflow/skills/self-improvement-loop.md`,
