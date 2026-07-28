@@ -2,7 +2,8 @@
   "plugins": {
     "bufferline.nvim": {
       "rev": "655133c3b4c3e5e05ec549b9f8cc2894ac6f51b3",
-      "src": "https://github.com/akinsho/bufferline.nvim"
+      "src": "https://github.com/akinsho/bufferline.nvim",
+      "version": "'v4.9.1'"
     },
     "cmp-buffer": {
       "rev": "b74fab3656eea9de20a9b8116afa3cfc4ec09657",
@@ -18,11 +19,13 @@
     },
     "conform.nvim": {
       "rev": "619363c30309d29ffa631e67c8183f2a72caa373",
-      "src": "https://github.com/stevearc/conform.nvim"
+      "src": "https://github.com/stevearc/conform.nvim",
+      "version": "'619363c30309'"
     },
     "gitsigns.nvim": {
       "rev": "eb60cc7b94c46005237fd34170d76f3a089a90aa",
-      "src": "https://github.com/lewis6991/gitsigns.nvim"
+      "src": "https://github.com/lewis6991/gitsigns.nvim",
+      "version": "'eb60cc7b94c4'"
     },
     "grug-far.nvim": {
       "rev": "c69859c1d5427ab5fc7ed12380ab521b4e336691",
@@ -35,7 +38,7 @@
     "neo-tree.nvim": {
       "rev": "ebd66767191714e008ce73b769518a763ff31bdc",
       "src": "https://github.com/nvim-neo-tree/neo-tree.nvim",
-      "version": "'v3.x'"
+      "version": "'ebd667671917'"
     },
     "nui.nvim": {
       "rev": "de740991c12411b663994b2860f1a4fd0937c130",
@@ -43,11 +46,13 @@
     },
     "nvim-cmp": {
       "rev": "a1d504892f2bc56c2e79b65c6faded2fd21f3eca",
-      "src": "https://github.com/hrsh7th/nvim-cmp"
+      "src": "https://github.com/hrsh7th/nvim-cmp",
+      "version": "'a1d504892f2b'"
     },
     "nvim-lspconfig": {
       "rev": "d224a1920728ba129880efc700d4a0180ac4ecbb",
-      "src": "https://github.com/neovim/nvim-lspconfig"
+      "src": "https://github.com/neovim/nvim-lspconfig",
+      "version": "'d224a1920728'"
     },
     "nvim-treesitter": {
       "rev": "4916d6592ede8c07973490d9322f187e07dfefac",
@@ -71,7 +76,8 @@
     },
     "telescope.nvim": {
       "rev": "427b576c16792edad01a92b89721d923c19ad60f",
-      "src": "https://github.com/nvim-telescope/telescope.nvim"
+      "src": "https://github.com/nvim-telescope/telescope.nvim",
+      "version": "'427b576c1679'"
     },
     "vim-ember-hbs": {
       "rev": "777095c1b25f334cef9db5504c7d409d52843aa9",
