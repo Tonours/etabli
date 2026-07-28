@@ -34,8 +34,8 @@ Before saying a workflow source is missing, resolve sources in this order:
 Claude specifics:
 
 - The autonomous chain phases are described in `/plan-implement`; reuse them
-  verbatim, including the non-interactive Codex adversary pass and the
-  fresh-context reviewer subagent.
+  verbatim, including the non-interactive cross-model adversary pass via
+  `pi -p` and the fresh-context reviewer subagent.
 - Use `gh` for push status, PR creation, and CI checks.
 - Explicit invocation of `/ship` is consent for the feature-branch push and PR
   creation only; every other human-checkpoint category still stops the run.

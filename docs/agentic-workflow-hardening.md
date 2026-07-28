@@ -1,7 +1,7 @@
 # Agentic Workflow Hardening Notes
 
 Source-backed notes for the Etabli orchestration contract. This is not a new
-workflow; it explains why the current Pi, Claude, and Codex adapters are kept
+workflow; it explains why the current Pi and Claude adapters are kept
 thin and what evidence each loop must leave behind.
 
 Access date: 2026-07-03.
@@ -28,6 +28,6 @@ Access date: 2026-07-03.
   next action, and the validation signal that will close the loop.
 - **Keep completion auditable.** A workflow is complete only when tests, runtime
   state, or generated artifacts prove the original acceptance criteria.
-- **Preserve adapter honesty.** Pi Task* state, Claude hooks/subagents, and
-  Codex `collaboration` agents are different runtime surfaces; use capability labels
+- **Preserve adapter honesty.** Pi Task* state and Claude hooks/subagents are
+  different runtime surfaces; use capability labels
   instead of flattening them into one generic "subagent" claim.

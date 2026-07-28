@@ -62,11 +62,10 @@ assert_jq '.instruction_budget.current_tokens <= .instruction_budget.target_toke
 assert_jq '.instruction_budget.within_target == true'
 assert_jq '.instruction_budget.current_tokens <= .instruction_budget.stretch_target_tokens'
 assert_jq '.instruction_budget.within_stretch_target == true'
-assert_jq '.instruction_budget.files | length == 7'
+assert_jq '.instruction_budget.files | length == 6'
 assert_jq '
   (.instruction_budget.files | map(.path) | sort) == [
     "claude/CLAUDE.md",
-    "codex/AGENTS.md",
     "pi/AGENTS.md",
     "workflow-scaffold/templates/AGENTS.md",
     "workflow-scaffold/templates/CLAUDE.md",
@@ -74,7 +73,6 @@ assert_jq '
     "workflow-scaffold/templates/docs/claude-code-workflow.md"
   ]
 '
-assert_jq '.instruction_budget.files[] | select(.path == "codex/AGENTS.md")'
 
 assert_jq '.router_adapter_lines[] | select(.path == "claude/hooks/workflow-router-lib.mjs")'
 assert_jq '.router_adapter_lines[] | select(.path == "pi/extensions/lib/workflow-router-runtime.ts")'

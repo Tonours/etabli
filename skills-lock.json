@@ -84,7 +84,7 @@
     "browser-full-page-capture": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "052e366cd3a635dd8a266dae32182029c75f2457b476d22be7c5afad779e1590"
+      "computedHash": "b2e586ace47859974017df96cf5e2b746d2e96ea92d7f27f8f57c66589426342"
     },
     "frontend-motion-performance": {
       "source": "local",
@@ -94,12 +94,17 @@
     "goal-prompt-rewriter": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "5c161edadc617f08020932264b1fe45b2b6d7ff7bbc9ff286a9fd840f9fa580a"
+      "computedHash": "9f43785093b74e451912a1d743b44dbd1e59ff2a99230be8d695dce0ab82c7d7"
     },
     "ui-reference-capture": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "a3de222f984d2b983da5ab220416d6f9a614aa60cd3061daffbf9b8bc7370322"
+    },
+    "linear-project-setup": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "1b1229fadf2f0a780e5cb39afbb8edce0231d74aacc50964157e172890ac7151"
     }
   }
 }

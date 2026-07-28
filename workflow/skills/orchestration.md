@@ -1,7 +1,6 @@
 # Orchestration Contract
 
-Shared contract for long-running Etabli orchestration across Pi, Claude, and
-Codex.
+Shared contract for long-running Etabli orchestration across Pi and Claude.
 
 Runtime adapters may differ in mechanics. They must preserve the same workflow
 semantics, evidence requirements, stop conditions, and honesty labels.
@@ -16,8 +15,6 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
 - Claude should use Claude Code `/goal` for long-running completion loops.
-- Codex runtime-specific team configuration lives in
-  `codex/workflow/team-orchestration.md`.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
 - Pi multi-execution uses deterministic adaptive admission on eligible phases
@@ -132,8 +129,3 @@ Claude:
   injection. They do not replace task state or completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.
-
-Codex:
-
-- Activation, models, collaboration mechanics, capability proof, and fallback
-  live in `codex/workflow/team-orchestration.md`.

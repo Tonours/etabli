@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-07-24",
+  "updated_at": "2026-07-28",
   "runtimes": {
     "pi": {
       "supports_hooks": {
@@ -100,56 +100,6 @@
         "expires_after_days": 30,
         "proof_command": "none - no Claude adapter for the Pi workflow package",
         "notes": "Claude may orchestrate with native mechanisms but this specific adapter is Pi-only"
-      }
-    },
-    "codex": {
-      "supports_hooks": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: bash tests/codex-organization-smoke.sh exit 0",
-        "expires_after_days": 14,
-        "proof_command": "bash tests/codex-organization-smoke.sh",
-        "notes": "Codex surface is validated through repo organization and deploy checks"
-      },
-      "supports_subagents": {
-        "label": "unknown",
-        "verified_at": "2026-07-19",
-        "proof_result": "current collaboration session spawned bounded reconnaissance agents; persistent capability remains session-scoped",
-        "expires_after_days": 7,
-        "proof_command": "check collaboration spawn_agent/wait_agent/list_agents in the active Codex App and run a bounded packet",
-        "notes": "current-session evidence can be confirmed in the ledger; the durable matrix stays unknown across sessions"
-      },
-      "supports_goal_state": {
-        "label": "unknown",
-        "verified_at": "2026-07-19",
-        "proof_result": "not revalidated in the current run",
-        "expires_after_days": 7,
-        "proof_command": "live /goal run in Codex",
-        "notes": "goal state is runtime-controlled"
-      },
-      "supports_structured_task_state": {
-        "label": "blocked",
-        "verified_at": "2026-07-09",
-        "proof_result": "no equivalent exposed",
-        "expires_after_days": 30,
-        "proof_command": "none - simulate packets under .workflow/<slug>/",
-        "notes": "no Pi Task* equivalent is exposed"
-      },
-      "supports_taskexecute_tracking": {
-        "label": "blocked",
-        "verified_at": "2026-07-19",
-        "proof_result": "Pi TaskExecute RPC is not a Codex collaboration capability",
-        "expires_after_days": 30,
-        "proof_command": "none - no Pi TaskExecute adapter exposed",
-        "notes": "Codex collaboration agents are sidecars, not Pi task owners"
-      },
-      "supports_named_workflow_graphs": {
-        "label": "blocked",
-        "verified_at": "2026-07-14",
-        "proof_result": "no Etabli named-workflow graph adapter configured",
-        "expires_after_days": 30,
-        "proof_command": "none - no Codex adapter for the Pi workflow package",
-        "notes": "Codex may use its own goal/subagent runtime but this specific adapter is Pi-only"
       }
     }
   }

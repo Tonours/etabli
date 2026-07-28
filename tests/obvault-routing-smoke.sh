@@ -7,7 +7,6 @@ test -f "$contract"
 for adapter in \
   "$ROOT_DIR/AGENTS.md" \
   "$ROOT_DIR/CLAUDE.md" \
-  "$ROOT_DIR/codex/AGENTS.md" \
   "$ROOT_DIR/claude/CLAUDE.md" \
   "$ROOT_DIR/pi/AGENTS.md"; do
   grep -Fq 'workflow/skills/obvault-memory.md' "$adapter"

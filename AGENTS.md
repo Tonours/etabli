@@ -6,9 +6,9 @@ Repo-specific instructions for this dotfiles repo.
 
 - `.github/workflows/` — CI workflows
 - `claude/` — Claude Code commands and local instructions
-- `codex/` — Codex organization, prompts, automations, hooks, and personal skills
 - `docs/` — focused user docs
 - `ghostty/` — Ghostty config
+- `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`)
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `nvim/` — Neovim config
 - `pi/` — Pi config, extensions, skills, themes
@@ -40,7 +40,6 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.agents/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.agents/workflow/` -> `workflow/`
 - `~/.config/ghostty/config` -> `ghostty/config`
-- `~/.codex/` receives managed Codex files via `scripts/deploy-codex --apply`
 - do not create `~/.pi/extensions/`; it causes double-loading
 
 ## Workflow
@@ -49,7 +48,6 @@ Repo-specific instructions for this dotfiles repo.
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
-- Codex organization: `docs/codex-organization.md`
 - Ambient activation: when a project contains `workflow/spec.md`, agents should
   use the Etabli workflow automatically. Users should not need to write "use the
   Etabli workflow" in ordinary prompts.
@@ -75,7 +73,7 @@ Repo-specific instructions for this dotfiles repo.
 ## Testing
 
 ```bash
-bash tests/codex-organization-smoke.sh
+scripts/verify-agentic-infra core
 bun test pi/extensions/__tests__/
 ```
 

@@ -2,11 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-HELPER="$ROOT_DIR/codex/skills/browser-full-page-capture/scripts/stitch-full-page-capture.mjs"
+HELPER="$ROOT_DIR/pi/skills/browser-full-page-capture/scripts/stitch-full-page-capture.mjs"
 FIXTURE="$ROOT_DIR/tests/fixtures/full-page-capture/page.html"
 
 node --check "$HELPER"
-node --test "$ROOT_DIR"/codex/skills/browser-full-page-capture/scripts/*.test.mjs
+node --test "$ROOT_DIR"/pi/skills/browser-full-page-capture/scripts/*.test.mjs
 node "$HELPER" --help | grep -q -- '--viewport'
 grep -q 'position: fixed' "$FIXTURE"
 grep -q 'position: sticky' "$FIXTURE"

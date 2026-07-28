@@ -83,22 +83,6 @@ if (ops.route !== "ops-stop") {
   process.exit(1);
 }
 
-// Honest: codex.supports_hooks is proxy_supported not confirmed
-const labels = JSON.parse(
-  await import("node:fs").then((fs) =>
-    fs.readFileSync("$MATRIX", "utf8"),
-  ),
-);
-if (labels.runtimes.codex.supports_hooks.label === "confirmed") {
-  // Allowed only if truly confirmed — do not fail, but record
-  console.log("note: codex.supports_hooks is confirmed");
-} else if (labels.runtimes.codex.supports_hooks.label !== "proxy_supported" &&
-           labels.runtimes.codex.supports_hooks.label !== "unknown" &&
-           labels.runtimes.codex.supports_hooks.label !== "blocked") {
-  console.error("unexpected codex.supports_hooks label");
-  process.exit(1);
-}
-
 console.log("dual-runtime guard matrix smoke test: ok");
 console.log("claude.plan_ready_guard: deny_on_draft confirmed");
 console.log("pi.plan_ready_guard: deny_on_draft confirmed (shared helper)");
