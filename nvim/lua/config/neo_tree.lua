@@ -67,13 +67,11 @@ local function ensure_editor_window()
 end
 
 local function ensure_loaded()
-  local ok_lazy, lazy = pcall(require, "lazy")
-  if ok_lazy then
-    lazy.load({ plugins = { "neo-tree.nvim" } })
-  end
-
-  local ok_command, command = pcall(require, "neo-tree.command")
-  if not ok_command then
+  -- This config uses a custom pack manager (config.pack), not lazy.nvim.
+  -- Load the optional neo-tree plugin (packadd + setup) before requiring its
+  -- command module, otherwise require("neo-tree.command") fails on VimEnter.
+  local command = require("config.pack").require("nvim-neo-tree/neo-tree.nvim", "neo-tree.command")
+  if not command then
     vim.notify("neo-tree not available", vim.log.levels.ERROR)
     return nil
   end

@@ -74,7 +74,6 @@ o.jumpoptions = "stack"
 o.maxmapdepth = 1000
 o.showcmd = false
 o.cmdheight = 0
-o.laststatus = 3
 o.ruler = false
 o.numberwidth = 2
 o.signcolumn = "yes:1"
