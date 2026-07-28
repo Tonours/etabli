@@ -92,7 +92,6 @@ instruction_budget_target_tokens=$((instruction_budget_baseline_tokens / 4))
 instruction_budget_stretch_target_ratio="0.20"
 instruction_budget_stretch_target_tokens=$((instruction_budget_baseline_tokens / 5))
 instruction_budget_paths=(
-  "codex/AGENTS.md"
   "pi/AGENTS.md"
   "claude/CLAUDE.md"
   "workflow-scaffold/templates/AGENTS.md"
@@ -221,9 +220,6 @@ router_owner_count="$(
 )"
 if [ "$router_owner_count" -ne 1 ]; then
   source_conflicts_json="$(jq -nc --arg count "$router_owner_count" '[{surface:"router-classifier",problem:("expected one pattern owner, found " + $count),remediation:"keep patterns in the declared canonical owner and adapters as delegates"}]')"
-fi
-if [ -f "$ROOT_DIR/codex/workflow/ticket-template.md" ]; then
-  source_conflicts_json="$(printf '%s\n' "$source_conflicts_json" | jq '. + [{surface:"ticket-template",problem:"tracked deployment copy exists",remediation:"deploy workflow/ticket-template.md directly"}]')"
 fi
 source_of_truth_conflicts="$(printf '%s\n' "$source_conflicts_json" | jq 'length')"
 

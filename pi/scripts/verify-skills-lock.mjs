@@ -12,8 +12,8 @@ const catalog = (await readFile(join(repoDir, "workflow", "runtime", "skill-surf
   .split("\n")
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
-    const [name, source, piCore, codexVisible, locked] = line.split("\t");
-    return { name, source, piCore: piCore === "1", codexVisible: codexVisible === "1", locked: locked === "1" };
+    const [name, source, piCore, agentsVisible, locked] = line.split("\t");
+    return { name, source, piCore: piCore === "1", agentsVisible: agentsVisible === "1", locked: locked === "1" };
   });
 
 function configuredLocalSkills() {

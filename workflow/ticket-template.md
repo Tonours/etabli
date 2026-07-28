@@ -17,7 +17,7 @@ Examples:
 ## Body
 
 ```md
-<!-- Source of truth: workflow/ticket-template.md when present in the repo, otherwise $CODEX_HOME/workflow/ticket-template.md. If a GitHub issue template is added later, keep its markdown body synchronized with this file. -->
+<!-- Source of truth: workflow/ticket-template.md when present in the repo. If a GitHub issue template is added later, keep its markdown body synchronized with this file. -->
 
 ## Outcome
 

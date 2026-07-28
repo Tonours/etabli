@@ -1,0 +1,53 @@
+{
+  "$comment": "Sanitized template of the Etabli MCP server set, mirroring the Claude user-scope shape (~/.claude.json mcpServers). Copy entries into your live config and export the referenced environment variables; never commit real tokens. See docs/mcp-strategy.md. Pi consumes this set through ~/.pi/agent/mcp.json imports:[\"claude-code\"] — do not duplicate server definitions on the Pi side.",
+  "mcpServers": {
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["chrome-devtools-mcp@latest"],
+      "env": {}
+    },
+    "mobbin": {
+      "type": "http",
+      "url": "https://api.mobbin.com/mcp"
+    },
+    "uidotsh": {
+      "type": "http",
+      "url": "https://ui.sh/mcp?agent=claude",
+      "headers": {
+        "Authorization": "Bearer ${UIDOTSH_TOKEN}"
+      }
+    },
+    "web-reader": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer ${Z_AI_API_KEY}"
+      }
+    },
+    "web-search-prime": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer ${Z_AI_API_KEY}"
+      }
+    },
+    "zai-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@z_ai/mcp-server"],
+      "env": {
+        "Z_AI_API_KEY": "${Z_AI_API_KEY}",
+        "Z_AI_MODE": "ZAI"
+      }
+    },
+    "zread": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/zread/mcp",
+      "headers": {
+        "Authorization": "Bearer ${Z_AI_API_KEY}"
+      }
+    }
+  },
+  "$linear_gap": "The linear-* skills require a Linear MCP server, which is intentionally not preconfigured (OAuth + workspace-specific). To enable: add a user-scope http server \"linear\" with url https://mcp.linear.app/mcp and complete OAuth in the host. See docs/mcp-strategy.md."
+}

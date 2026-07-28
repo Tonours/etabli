@@ -18,8 +18,7 @@ SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
 readonly NERD_FONT_VERSION="v3.4.0"
 readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
-readonly CODEX_VISIBLE_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi codex_visible) )
-readonly CODEX_VISIBLE_CODEX_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" codex codex_visible) )
+readonly AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -1111,23 +1110,13 @@ for skill_name in "${PI_CORE_SKILLS[@]}"; do
 done
 
 mkdir -p ~/.agents/skills
-for skill_name in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
+for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     skill_dir="$REPO_DIR/pi/skills/$skill_name"
     if [ -d "$skill_dir" ]; then
         ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
-        print_success "Codex-visible Pi skill '$skill_name' linked"
+        print_success "Agents-visible skill '$skill_name' linked"
     else
-        print_warning "Codex-visible Pi skill '$skill_name' missing from repo"
-    fi
-done
-
-for skill_name in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
-    skill_dir="$REPO_DIR/codex/skills/$skill_name"
-    if [ -d "$skill_dir" ]; then
-        ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
-        print_success "Codex-visible Codex skill '$skill_name' linked"
-    else
-        print_warning "Codex-visible Codex skill '$skill_name' missing from repo"
+        print_warning "Agents-visible skill '$skill_name' missing from repo"
     fi
 done
 

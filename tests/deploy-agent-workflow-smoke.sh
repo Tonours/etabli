@@ -67,10 +67,6 @@ assert_file() {
   }
 }
 
-assert_link "$HOME_DIR/.codex/skills/codex-dynamic-workflows/SKILL.md" "$ROOT_DIR/codex/skills/codex-dynamic-workflows/SKILL.md"
-assert_link "$HOME_DIR/.codex/workflow/dynamic-workflow-triggers.md" "$ROOT_DIR/codex/workflow/dynamic-workflow-triggers.md"
-assert_link "$HOME_DIR/.codex/workflow/skills/linear-work.md" "$ROOT_DIR/workflow/skills/linear-work.md"
-
 assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
@@ -101,10 +97,10 @@ assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.agents/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.agents/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
-assert_link "$HOME_DIR/.agents/skills/browser-full-page-capture" "$ROOT_DIR/codex/skills/browser-full-page-capture"
-assert_link "$HOME_DIR/.agents/skills/frontend-motion-performance" "$ROOT_DIR/codex/skills/frontend-motion-performance"
-assert_link "$HOME_DIR/.agents/skills/goal-prompt-rewriter" "$ROOT_DIR/codex/skills/goal-prompt-rewriter"
-assert_link "$HOME_DIR/.agents/skills/ui-reference-capture" "$ROOT_DIR/codex/skills/ui-reference-capture"
+assert_link "$HOME_DIR/.agents/skills/browser-full-page-capture" "$ROOT_DIR/pi/skills/browser-full-page-capture"
+assert_link "$HOME_DIR/.agents/skills/frontend-motion-performance" "$ROOT_DIR/pi/skills/frontend-motion-performance"
+assert_link "$HOME_DIR/.agents/skills/goal-prompt-rewriter" "$ROOT_DIR/pi/skills/goal-prompt-rewriter"
+assert_link "$HOME_DIR/.agents/skills/ui-reference-capture" "$ROOT_DIR/pi/skills/ui-reference-capture"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
 
 node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
@@ -192,25 +188,5 @@ if [ "$settings_before" != "$settings_after" ]; then
   printf 'second deploy changed Pi settings; sync is not idempotent\n' >&2
   exit 1
 fi
-
-TOPOLOGY_HOME="$TMP_DIR/topology-codex"
-mkdir -p "$TOPOLOGY_HOME"
-cp "$ROOT_DIR/codex/AGENTS.md" "$TOPOLOGY_HOME/AGENTS.md"
-
-default_topology="$("$ROOT_DIR/scripts/deploy-codex" --dry-run --codex-home "$TOPOLOGY_HOME")"
-printf '%s\n' "$default_topology" | grep -Fq 'OK           AGENTS.md' || {
-  printf 'identical regular AGENTS.md must be accepted by default\n' >&2
-  exit 1
-}
-if printf '%s\n' "$default_topology" | grep -Fq 'WOULD_RELINK AGENTS.md'; then
-  printf 'default deployment must not relink identical content\n' >&2
-  exit 1
-fi
-
-preferred_topology="$("$ROOT_DIR/scripts/deploy-codex" --dry-run --prefer-links --codex-home "$TOPOLOGY_HOME")"
-printf '%s\n' "$preferred_topology" | grep -Fq 'WOULD_RELINK AGENTS.md' || {
-  printf 'explicit --prefer-links must request a relink for identical regular content\n' >&2
-  exit 1
-}
 
 printf 'deploy agent workflow smoke test: ok\n'

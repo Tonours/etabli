@@ -43,7 +43,7 @@ obvault first; do not wait for the user to mention the knowledge base. Read
 command below. The vault contract, status, freshness, and abstention rules take
 precedence over retrieved prose.
 
-Use the same local read interface from Claude, Codex, Pi, Grok, and Cursor:
+Use the same local read interface from Claude, Pi, Grok, and Cursor:
 
 ```bash
 # Preferred session bootstrap (route + bounded context + entry reminders)
@@ -60,9 +60,9 @@ Use the same local read interface from Claude, Codex, Pi, Grok, and Cursor:
 `session` / `context` remain the default integration because they are bounded,
 cited, and work without a persistent process. The optional obvault MCP server is
 a local `stdio`, read-only interface (`vault_search`, `vault_context`,
-`vault_read`, `vault_health`) for a host that explicitly opts in; do not add it
-to Etabli's managed Codex configuration or use it for writes, reindexing, or
-automation. When diagnosing retrieval behavior, use `obvault health --json` to
+`vault_read`, `vault_health`) for a host that explicitly opts in; do not use it
+for writes, reindexing, or automation. When diagnosing retrieval behavior, use
+`obvault health --json` to
 inspect the active backend, canonical snapshot, and explicit semantic fallback.
 After a retrieval outcome, record only aggregate feedback:
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Goal Prompt Rewriter"
-  short_description: "Turn rough requests into strong Codex loop prompts."
-  default_prompt: "Use $goal-prompt-rewriter to turn this unstructured task into the right Codex loop prompt, usually a /goal when the stop condition is the right handoff. Ask concise clarification questions first if success criteria, scope, validation, loop trigger, or safety boundaries are missing."

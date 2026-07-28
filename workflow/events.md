@@ -21,9 +21,10 @@ validated append is acceptable. Do not edit earlier lines.
 Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
 metrics with `scripts/workflow-metrics`, create sanitized replay/debug dossiers
 with `scripts/workflow-dossier`, and mine recurring workflow issues with
-`scripts/workflow-retrospect`. Use `scripts/workflow-telemetry-recover` to
-preview conservative local Codex usage recovery; only explicit `--apply` writes
-the pinned population and imports to the active ledger.
+`scripts/workflow-retrospect`. `scripts/workflow-telemetry-recover` is dormant
+historical tooling for recovering usage from pre-recenter Codex session logs;
+only explicit `--apply` writes the pinned population and imports to the active
+ledger.
 
 ## Event Types
 

@@ -9,7 +9,7 @@ skill_catalog_names() {
     $0 !~ /^#/ && NF >= 5 &&
     (source == "any" || $2 == source) &&
     (flag == "any" || (flag == "pi_core" && $3 == "1") ||
-      (flag == "codex_visible" && $4 == "1") || (flag == "locked" && $5 == "1")) {
+      (flag == "agents_visible" && $4 == "1") || (flag == "locked" && $5 == "1")) {
       print $1
     }
   ' "$catalog"

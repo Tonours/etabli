@@ -6,26 +6,24 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 
 DRY_RUN=1
 HOME_DIR="$HOME"
-CODEX_HOME_INPUT=""
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/pi-paths.sh"
 . "$SCRIPT_DIR/lib/skill-catalog.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
-CODEX_VISIBLE_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi codex_visible) )
-CODEX_VISIBLE_CODEX_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" codex codex_visible) )
+AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR] [--codex-home DIR]
+Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
 
-Deploy only the Etabli agent workflow surfaces for Codex, Claude Code, and Pi.
+Deploy only the Etabli agent workflow surfaces for Claude Code, Pi, and the
+shared ~/.agents surface.
 
 Options:
   --dry-run         Show planned changes without touching local harness files (default)
   --apply           Apply local symlinks and safe Pi settings resource sync
   --home DIR        Target home directory, defaults to HOME
-  --codex-home DIR  Target Codex home, defaults to HOME/.codex
   -h, --help        Show this help
 EOF
 }
@@ -46,14 +44,6 @@ while [ "$#" -gt 0 ]; do
       HOME_DIR="$2"
       shift
       ;;
-    --codex-home)
-      if [ "$#" -lt 2 ]; then
-        printf 'missing value for --codex-home\n' >&2
-        exit 2
-      fi
-      CODEX_HOME_INPUT="$2"
-      shift
-      ;;
     -h|--help)
       usage
       exit 0
@@ -71,10 +61,6 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
-
-if [ -z "$CODEX_HOME_INPUT" ]; then
-  CODEX_HOME_INPUT="$HOME_DIR/.codex"
-fi
 
 status_line() {
   local status="$1"
@@ -348,17 +334,6 @@ console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`
 NODE
 }
 
-deploy_codex() {
-  status_line SECTION "Codex"
-
-  if [ "$DRY_RUN" -eq 1 ]; then
-    "$REPO_DIR/scripts/deploy-codex" --dry-run --codex-home "$CODEX_HOME_INPUT"
-    return 0
-  fi
-
-  "$REPO_DIR/scripts/deploy-codex" --apply --codex-home "$CODEX_HOME_INPUT"
-}
-
 deploy_pi() {
   local agent_file
   local agent_name
@@ -432,15 +407,11 @@ deploy_pi() {
     done
   fi
 
-  for skill in "${CODEX_VISIBLE_PI_SKILLS[@]}"; do
-    link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Codex-visible Pi skill $skill"
+  for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
+    link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Agents-visible skill $skill"
   done
 
-  for skill in "${CODEX_VISIBLE_CODEX_SKILLS[@]}"; do
-    link_path "$REPO_DIR/codex/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Codex-visible Codex skill $skill"
-  done
-
-  # Shared plan/workflow sources for Codex/Grok skills under ~/.agents/skills
+  # Shared plan/workflow sources for ~/.agents skills
   # (../../PLAN_TEMPLATE.md and ../../workflow resolve here).
   if [ "$DRY_RUN" -eq 0 ]; then
     mkdir -p "$HOME_DIR/.agents"
@@ -527,7 +498,6 @@ deploy_claude() {
   link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"
 }
 
-deploy_codex
 deploy_pi
 deploy_claude
 
