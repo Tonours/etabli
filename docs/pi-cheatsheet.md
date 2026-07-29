@@ -1,5 +1,8 @@
 # Pi Coding Agent Cheatsheet
 
+Workflow map (routes, PLAN, loops): [`docs/workflow-guide.md`](workflow-guide.md).
+Agent one-pager: `workflow/agent-quick-card.md`.
+
 ## Start
 
 ```bash

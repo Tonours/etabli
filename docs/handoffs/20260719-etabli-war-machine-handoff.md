@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-19). Not operational. Canonical: workflow/spec.md
+
 # Handoff audité — Etabli War Machine
 
 ## Statut et verdict
