@@ -90,3 +90,13 @@ never overwrites existing files by default.
 
 `pi/agent/settings.json` is only a tracked bootstrap; the live copy remains
 local. Secrets and authentication files stay local and untracked.
+
+## Public repository hygiene
+
+This tree is intended to be safe to publish: MCP templates use `${VAR}`
+placeholders only (`docs/mcp-strategy.md`), env files and key material are
+gitignored, and machine-local auth stores (for example Copilot `auth.db`) are
+not tracked. See `SECURITY.md` for the pre-public checklist.
+
+After clone, point the optional local MLX model id in `pi/models.json` at your
+weights path (tracked default is a `/path/to/models/...` placeholder).

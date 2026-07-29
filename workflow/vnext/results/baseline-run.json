@@ -1307,7 +1307,7 @@
         "runner": "scripts/vnext-suite"
       },
       "artefacts": [
-        "/Volumes/Crucial/work/etabli/tests/fixtures/graph-neighborhood",
+        "tests/fixtures/graph-neighborhood",
         "scripts/lib/graph-neighborhood.mjs"
       ]
     },
@@ -1346,7 +1346,7 @@
         "runner": "scripts/vnext-suite"
       },
       "artefacts": [
-        "/Volumes/Crucial/work/etabli/tests/fixtures/graph-neighborhood",
+        "tests/fixtures/graph-neighborhood",
         "scripts/lib/graph-neighborhood.mjs"
       ]
     },
@@ -1385,7 +1385,7 @@
         "runner": "scripts/vnext-suite"
       },
       "artefacts": [
-        "/Volumes/Crucial/work/etabli/tests/fixtures/graph-neighborhood",
+        "tests/fixtures/graph-neighborhood",
         "scripts/lib/graph-neighborhood.mjs"
       ]
     },

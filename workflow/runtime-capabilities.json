@@ -32,7 +32,7 @@
         "verified_at": "2026-07-24",
         "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 + PI_BIN live session; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
         "expires_after_days": 7,
-        "proof_command": "RUN_REAL_MULTI_MODEL=1 PI_BIN=/Users/tonours/.asdf/shims/pi bash tests/multi-model-real-smoke.sh --conversation",
+        "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --conversation",
         "notes": "direct Agent supports deterministic adaptive scout/council admission and one targeted resume per council participant; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
       },
       "supports_taskexecute_tracking": {

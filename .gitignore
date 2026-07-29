@@ -15,8 +15,21 @@ settings.local.json
 *.key
 *.p12
 *.pfx
+id_rsa
+id_ed25519
+*.ppk
 
-# IDE
+# Local auth / token stores (never commit)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+auth.json
+credentials.json
+**/auth.db*
+
+# IDE / editor private state
 .idea/
 .vscode/
 *.swp
@@ -42,3 +55,6 @@ ops-roadmap.md
 
 # Local Pi runtime state
 .pi/
+
+# Machine-local model weight paths / overlays (keep secrets and host layout out of git)
+pi/models.local.json
