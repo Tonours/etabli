@@ -10,6 +10,7 @@ core	shell-docs	agent-scenarios-smoke	tests/agent-scenarios-smoke.sh
 core	shell-docs	-suite-smoke	tests/-suite-smoke.sh
 core	shell-docs	plan-check-freeze-smoke	tests/plan-check-freeze-smoke.sh
 core	shell-docs	dual-runtime-guard-matrix-smoke	tests/dual-runtime-guard-matrix-smoke.sh
+core	shell-docs	no-progress-mutate-deny-smoke	tests/no-progress-mutate-deny-smoke.sh
 core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
 core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh

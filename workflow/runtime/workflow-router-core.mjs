@@ -6,6 +6,7 @@ export {
   planReadyGuardDecision,
   planCheckFreezeGuardDecision,
   planCheckFreezeBashGuardDecision,
+  planNoProgressGuardDecision,
   planMutationGuardDecision,
   proposedPlanTextFromToolInput,
   isMutatingBashCommand,

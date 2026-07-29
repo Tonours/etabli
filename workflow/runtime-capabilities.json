@@ -17,7 +17,7 @@
         "proof_result": "re-proved 2026-07-29 adversary-10: dual-runtime-guard-matrix + workflow-router-extension READY tool_call tests via planMutationGuardDecision",
         "expires_after_days": 30,
         "proof_command": "bash tests/dual-runtime-guard-matrix-smoke.sh && cd pi && bun test ./extensions/__tests__/workflow-router-extension.test.ts",
-        "notes": "Pi tool_call uses shared planMutationGuardDecision (same core as Claude plan-ready-guard); DRAFT/CHALLENGED deny write/edit/mutating bash; PLAN.md-only edits allowed pre-READY; missing PLAN allows ordinary work; parent-only multi-model writer is protocol/proxy not an OS lock"
+        "notes": "Pi tool_call uses shared planMutationGuardDecision (same core as Claude plan-ready-guard); DRAFT/CHALLENGED deny write/edit/mutating bash; PLAN.md-only edits allowed pre-READY; missing PLAN allows ordinary work; active ledger no_progress/derived thresholds deny ordinary code mutations (escape: PLAN.md + scripts/workflow-event; no auto-emit — non-ledger remains protocol/proxy); parent-only multi-model writer is protocol/proxy not an OS lock"
       },
       "check_freeze_guard": {
         "label": "confirmed",
@@ -83,7 +83,7 @@
         "proof_result": "re-proved 2026-07-29 adversary-10: plan-ready-guard process path + dual-runtime matrix exit 0",
         "expires_after_days": 30,
         "proof_command": "bash tests/dual-runtime-guard-matrix-smoke.sh && bash tests/claude-hooks-smoke.sh",
-        "notes": "PreToolUse plan-ready-guard.mjs calls shared planMutationGuardDecision; missing PLAN ordinary work allowed"
+        "notes": "PreToolUse plan-ready-guard.mjs calls shared planMutationGuardDecision; missing PLAN ordinary work allowed; ledger no_progress mutate-deny + escape hatch same as Pi (tests/no-progress-mutate-deny-smoke.sh)"
       },
       "check_freeze_guard": {
         "label": "confirmed",
