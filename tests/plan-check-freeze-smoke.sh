@@ -38,4 +38,20 @@ ch_status=$?
 set -e
 [ "$ch_status" -eq 0 ] || fail "challenged weaken with rationale should pass: $(cat "$TMP/ch.json")"
 
+# Acceptance Criteria are frozen the same way as Checks
+set +e
+"$CLI" --previous "$FIX/ready-with-ac-baseline.md" --current "$FIX/ready-ac-weakened.md" >"$TMP/ac-bad.json" 2>"$TMP/ac-bad.err"
+ac_bad=$?
+set -e
+[ "$ac_bad" -ne 0 ] || fail "Acceptance Criteria weaken READY should fail"
+jq -e '.ok == false and (.removed | length) >= 1' "$TMP/ac-bad.json" >/dev/null ||
+  fail "expected removed acceptance criteria: $(cat "$TMP/ac-bad.json")"
+
+set +e
+"$CLI" --previous "$FIX/ready-with-ac-baseline.md" --current "$FIX/ready-ac-strengthened.md" >"$TMP/ac-ok.json" 2>"$TMP/ac-ok.err"
+ac_ok=$?
+set -e
+[ "$ac_ok" -eq 0 ] || fail "Acceptance Criteria strengthen should pass: $(cat "$TMP/ac-ok.json")"
+jq -e '.ok == true' "$TMP/ac-ok.json" >/dev/null
+
 printf 'plan-check-freeze smoke test: ok\n'

@@ -40,8 +40,8 @@ Archive under `docs/plan/` after validation; then delete root `PLAN.md`.
 
 ## One-writer
 
-Parent is the only writer. Multi-model sidecars are read-only (scout/council).
-See `workflow/skills/multi-model-orchestration.md`.
+Parent is the only writer (**protocol**, not an OS lock). Multi-model sidecars
+are read-only (scout/council). See `workflow/skills/multi-model-orchestration.md`.
 
 ## Routes (common)
 

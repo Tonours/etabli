@@ -216,6 +216,76 @@ if (bashPlanDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
   process.exit(1);
 }
 
+// Restore full READY baseline on disk for Edit/MultiEdit/AC cases
+writeFileSync(join(tmp, "PLAN.md"), [
+  "# PLAN",
+  "",
+  "## Meta",
+  "- Status: READY",
+  "",
+  "## Checks",
+  "- command: bash tests/a.sh",
+  "- command: bash tests/b.sh",
+  "",
+  "## Acceptance Criteria",
+  "- Given x, when y, then z",
+  "- Given a, when b, then c",
+  "",
+].join("\\n"));
+
+const editWeaken = mod.planMutationGuardDecision({
+  cwd: tmp,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(tmp, "PLAN.md"),
+    old_string: "- command: bash tests/b.sh\\n",
+    new_string: "",
+  },
+});
+if (editWeaken?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("READY Edit weaken must deny");
+  process.exit(1);
+}
+
+const multiEditWeaken = mod.planMutationGuardDecision({
+  cwd: tmp,
+  tool_name: "MultiEdit",
+  tool_input: {
+    file_path: join(tmp, "PLAN.md"),
+    edits: [{ old_string: "- command: bash tests/b.sh\\n", new_string: "" }],
+  },
+});
+if (multiEditWeaken?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("READY MultiEdit weaken must deny");
+  process.exit(1);
+}
+
+const acWeaken = mod.planMutationGuardDecision({
+  cwd: tmp,
+  tool_name: "Write",
+  tool_input: {
+    file_path: join(tmp, "PLAN.md"),
+    content: [
+      "# PLAN",
+      "",
+      "## Meta",
+      "- Status: READY",
+      "",
+      "## Checks",
+      "- command: bash tests/a.sh",
+      "- command: bash tests/b.sh",
+      "",
+      "## Acceptance Criteria",
+      "- Given x, when y, then z",
+      "",
+    ].join("\\n"),
+  },
+});
+if (acWeaken?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("READY Acceptance Criteria weaken must deny");
+  process.exit(1);
+}
+
 const ops = mod.classifyWorkflowRoute("supprime ce dossier et force-push la branche", {
   planStatus: "missing",
 });
@@ -228,5 +298,6 @@ console.log("dual-runtime guard matrix smoke test: ok");
 console.log("claude.plan_ready_guard: deny_on_draft confirmed");
 console.log("pi.plan_ready_guard: deny_on_draft confirmed (shared helper)");
 console.log("check_freeze: deny_weaken_allow_strengthen confirmed");
+console.log("check_freeze: edit_multiedit_ac_weaken deny confirmed");
 console.log("ops_stop.route: confirmed via classifier");
 EOF
