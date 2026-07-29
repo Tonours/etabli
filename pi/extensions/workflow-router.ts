@@ -15,7 +15,7 @@ import {
   inferBashFailureFromToolResult,
   isBashToolName,
   recordBashValidationFailure,
-} from "../../scripts/lib/ledger-auto-emit.mjs";
+} from "./lib/ledger-auto-emit.ts";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
