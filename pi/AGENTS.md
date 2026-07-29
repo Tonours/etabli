@@ -6,7 +6,7 @@
 
 ## Workflow
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs,
-  `workflow/spec.md`.
+  `workflow/agent-quick-card.md`, then `workflow/spec.md`.
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
 - Run pi-workflow only when explicitly requested; follow
   `workflow/pi-workflow-adapter.md`.

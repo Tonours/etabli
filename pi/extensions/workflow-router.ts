@@ -10,7 +10,7 @@ import {
   type WorkflowMultiExecution,
 } from "./lib/workflow-router-runtime.ts";
 import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
-import { planReadyGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
+import { planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -309,18 +309,19 @@ export default function (pi: ExtensionAPI) {
     const portfolioBlock = guardPortfolioTaskCall(event.toolName, event.input);
     if (portfolioBlock) return portfolioBlock;
 
-    // READY mutation parity with Claude plan-ready-guard (shared decision helper).
-    const readyGuard = planReadyGuardDecision({
+    // READY mutation + check-freeze parity with Claude plan-ready-guard
+    // (shared planMutationGuardDecision; no divergent classifier).
+    const mutationGuard = planMutationGuardDecision({
       cwd: eventCwd(event),
       tool_name: event.toolName,
       tool_input: event.input || {},
     }) as { hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string } } | null;
-    if (readyGuard?.hookSpecificOutput?.permissionDecision === "deny") {
+    if (mutationGuard?.hookSpecificOutput?.permissionDecision === "deny") {
       return {
         block: true,
         reason:
-          readyGuard.hookSpecificOutput.permissionDecisionReason ||
-          "PLAN.md is not READY; mutating tools are blocked",
+          mutationGuard.hookSpecificOutput.permissionDecisionReason ||
+          "PLAN.md guard: mutating tools are blocked",
       };
     }
     return undefined;

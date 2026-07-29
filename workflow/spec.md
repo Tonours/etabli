@@ -1,6 +1,7 @@
 # Workflow Spec
 
-Canonical workflow contract for `etabli`.
+Canonical workflow **map** for `etabli`. Long rules and command lists live in
+`workflow/contract-details.md`. Agent one-pager: `workflow/agent-quick-card.md`.
 
 ## Flow
 
@@ -19,42 +20,15 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 
 ## Agentic workflow loop
 
-Pi remains the primary user-facing tool. The deterministic layer is a small set
-of role contracts, templates, skills, extensions, checks, and stop conditions
-composed inside Pi. Keep harness-specific mechanics in thin adapters; keep the
-shared behavior in tracked workflow sources.
-
-Use the smallest workflow that can finish with evidence:
+Pi remains the primary user-facing tool. Thin adapters over shared contracts
+(ADR-0006). Role chain and multi-model policy: see `workflow/contract-details.md`
+and the deterministic adaptive profile in
+`workflow/skills/multi-model-orchestration.md`. Shared orchestration:
+`workflow/skills/orchestration.md`.
 
 ```text
 user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
 ```
-
-Roles are contracts, not mandatory separate agents:
-
-- `router`: classify the request into the smallest valid workflow.
-- `planner`: create or refresh `PLAN.md` and stop at `READY` or `CHALLENGED`.
-- `challenger`: reject vague scope, missing checks, hidden assumptions, and weak
-  stop conditions before implementation.
-- `adversary`: stress-test `PLAN.md` before implementation, fold accepted
-  findings into the active plan, and keep `READY` only when no blocker remains.
-- `implementer`: execute only a `READY` plan, in order, with minimal drift.
-- `verifier`: prove or reject completion from checks, artifacts, sources, or
-  command output without editing.
-- `reviewer`: inspect diff correctness, regressions, safety, validation, and
-  plan drift without editing.
-- `reporter`: leave durable state through final handoff and implemented plan
-  archives when applicable.
-
-Ordinary work remains single-agent unless an active runtime profile admits a
-sidecar. Pi uses the deterministic adaptive profile in
-`workflow/skills/multi-model-orchestration.md`: no sidecar at score zero, one
-route-appropriate scout for material uncertainty or failure history, and a
-two-agent council for one critical or two distinct medium signals. System
-complexity alone stays parent-only. Explicit opt-out forces the parent
-only. Runtime-specific model portfolios and mechanics stay in their respective
-profiles; shared workflow and evidence invariants stay in
-`workflow/skills/orchestration.md`.
 
 ## Statuses
 
@@ -66,138 +40,61 @@ profiles; shared workflow and evidence invariants stay in
 
 Only `READY` authorizes implementation.
 
-## Rules
+## Rules (map)
 
-- Read code directly before planning or editing.
-- If shell startup or cwd resolution fails, retry from `/` with an explicit
-  shell before declaring the tool or filesystem unavailable.
+Full prose: `workflow/contract-details.md`. Non-negotiables:
+
+- Read code before planning or editing; retry from `/` with an explicit shell if
+  cwd fails.
 - For broad external research, repo-pattern, or fresh-context review, name the
-  chosen slice first and prefer source claims, local contracts, memory, recent
-  diffs, and existing docs before rereading the whole repository.
+  slice first.
 - When asked whether a source implies repository changes, answer `no change`,
   `change`, or `blocked` against the local contract before editing.
-- Before mutable local-device or server actions, identify the exact target and
-  control path, backup or rollback when relevant, and the post-check.
-- Keep one execution artifact: `PLAN.md`.
-- Archive implemented plans in `docs/plan/` only after implementation and validation.
-- Do not create `REVIEW.md` or secondary mandatory planning docs.
-- For small safe tasks, use the simple `PLAN_TEMPLATE.md` shape.
-- For broad/risky work, use `PLAN_TEMPLATE_FULL.md`.
-- Keep observed facts separate from assumptions in plans.
-- Record exact validation commands and results before claiming completion.
-- Source-backed research artifacts must include source evidence and confidence
-  labels; validate them with `scripts/research-proof-check` when they are
-  written to the repo.
-- Answers and handoffs follow `workflow/answer-quality.md`: use the smallest
-  evidence-backed response that satisfies the user's goal, labels uncertainty,
-  and avoids unsupported claims.
-- Durable answer, handoff, research, and obvault-backed artifacts can be checked
-  with `scripts/answer-quality-check`; it is a quality floor, not a subjective
-  10/10 scorer.
-- Answer-quality helper behavior is pinned by
-  `scripts/answer-quality-eval` and the versioned fixtures under
-  `tests/fixtures/answer-quality/`.
-- Saved answer and handoff reviews under `docs/answer-quality-traces/` are
-  historical evidence, not another active validation layer.
-- Record route, role, stop condition, and required evidence in non-trivial plans.
-- Planning review updates `PLAN.md` in place.
-- Implementation-bound plans run an adversary pass before implementation.
-- Implementation follows plan steps in order.
-- Implementation commands archive the final implemented plan as a distilled memory record, not a raw `PLAN.md` copy.
-- Autonomous plan-loop requests use `plan-implement`: first run the `plan-loop`
-  behavior, then continue to implementation only after the actual root
-  `PLAN.md` is `READY`.
-- Prompt wording such as "PLAN.md ready" is routing context, not proof; the
-  implementation gate is the status recorded in the actual root `PLAN.md`.
+- Before mutable local-device or server actions, name target, control path, and
+  post-check.
+- One execution artifact: `PLAN.md`. No `REVIEW.md` second plan.
+- Keep facts separate from assumptions; use `PLAN_TEMPLATE.md` /
+  `PLAN_TEMPLATE_FULL.md` as appropriate.
+- Source research: `scripts/research-proof-check`. Answers/handoffs:
+  `workflow/answer-quality.md`; durable floor:
+  `scripts/answer-quality-check` / `scripts/answer-quality-eval`.
+- Autonomous plan-loop requests use `plan-implement`. Prompt wording such as "PLAN.md ready" is routing context, not proof.
 - Implementation-bound autonomous loops are not complete until validation,
   adversary evidence, review, implemented-plan archive under `docs/plan/`, and
   root `PLAN.md` cleanup are evidenced.
-- If new facts invalidate the plan, update it before continuing.
-- If new facts materially invalidate the implementation route or checks, stop as
-  plan drift instead of silently continuing.
-- Review checks correctness, regressions, safety, validation, and plan drift.
-- Prefer focused checks over full-suite ritual.
-- User-facing changes that materially affect product flows use the shared
-  product dogfood contract in `workflow/skills/product-dogfood.md`: map flows
-  before a scenario matrix, exercise observable UI/browser reality when
-  available, and record `blocked` instead of claiming pass when decisive legs
-  need human verification or no validation surface exists.
-- Supervised single-PR maintenance loops use the shared pilot contract in
-  `workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
-  latest pushed head evidence via `scripts/pr-latest-head-status`,
-  fresh-context review, explicit worktree cleanup, and no external
-  write-back/deploy/push/merge unless another active command contract
-  explicitly authorizes that action.
-- Long or multi-packet runs may record durable progress as events in
-  `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
-  ledger instead of chat history, and `completed` or `blocked` events are
-  terminal evidence.
-- `workflow-monitor`, `workflow-metrics`, `workflow-dossier`, and
-  `workflow-retrospect` are experimental, on-demand, read-only ledger/archive
-  readers. They support diagnostics and retrospective hypotheses; they are not
-  part of the core gate. Telemetry does not establish user value until at least
-  10 representative real tasks have task-grader outcomes.
-- `workflow-telemetry-recover` is read-only by default and may append only a
-  fingerprinted historical population plus aggregate imports to the active
-  local ledger when explicitly invoked with `--apply`; it never rewrites target
-  ledgers or persists conversation content, raw session IDs, or session paths.
-  Recovered metrics count only while a read-only source recomputation exactly
-  reproduces the stored import and current target fingerprints.
-- Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
-  start from inspectable evidence, classify candidates, implement only through
-  reviewed `PLAN.md`, and never auto-apply retrospective output.
-- Ambitious project work follows `workflow/skills/ambitious-project-loop.md`:
-  turn rough intent into spec/decisions/slices/execution/review/handoff without
-  turning push, PR, deploy, release, or external write-back into implicit
-  consent.
-- As an experimental opt-in, an explicitly authorized bounded project may use
-  `workflow/project-autonomy-envelope.md`: its controller is read-only, advances
-  only declared verifiable slices from the ledger, and never replaces READY,
-  checkpoint, no-progress, final-state-grader, or sealed-held-out gates.
-- Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
+- Product dogfood: `workflow/skills/product-dogfood.md`. Single-PR pilot:
+  `workflow/skills/pr-maintenance-loop.md` — one PR, one worktree, one loop;
+  `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge
+  without another explicit command contract.
+- Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
+- Experimental read-only: `workflow-monitor`, `workflow-metrics`,
+  `workflow-dossier`, `workflow-retrospect` (not core gate; ≥10 task-grader
+  outcomes before claiming telemetry value).
+- Self-improvement: `workflow/skills/self-improvement-loop.md`. Ambitious
+  projects: `workflow/skills/ambitious-project-loop.md`. Opt-in autonomy:
+  `workflow/project-autonomy-envelope.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
-  stays red three times with no new diff between runs, stop as `blocked`, emit a
-  `no_progress` event, and list the eliminated hypotheses instead of iterating.
-- Check-freeze: once `PLAN.md` is `READY`, its Checks and Acceptance Criteria
-  may only be strengthened or extended during implementation. Weakening or
-  removing one requires demoting the plan to `CHALLENGED` with a Decision Log
-  rationale, never a silent edit. Mechanical helper:
-  `scripts/plan-check-freeze` (smoke: `tests/plan-check-freeze-smoke.sh`).
+  stays red three times with no new diff between runs, stop as `blocked`.
+- Check-freeze: once READY, Checks/Acceptance Criteria strengthen-only;
+  demoting the plan to `CHALLENGED` with a Decision Log rationale required to
+  weaken. Runtime: shared `planMutationGuardDecision` on PLAN.md writes
+  (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`.
 - Autonomous loop stop conditions pair the measurable goal with an explicit cap
-  (iterations or wall-clock). `ci-fix` keeps its existing attempt and time caps.
-- The final review of an autonomous `plan-implement` run comes from a fresh
-  context (subagent reviewer or cross-model), never from the context that
-  implemented. If no fresh-context runner is available, stop as `blocked`
-  requesting external review instead of self-reviewing.
-- The canonical adaptive profile or explicit authorization for read-only
-  fresh-context review is reusable inside the active run: when the profile
-  applies, or a user plainly authorizes subagents/delegation/reviewers, launch
-  one read-only reviewer when a runner is available and record its id/verdict.
-  This authorization is for read-only fresh-context review only; it
+  (iterations or wall-clock). The final review of an autonomous `plan-implement`
+  run comes from a fresh
+  context (subagent reviewer or cross-model). This authorization is for
+  read-only fresh-context review only; it
   does not authorize destructive, secret, production, billing, deploy, push,
-  merge, or external write actions.
-- Session handoffs in autonomous runs are recorded as a `handoff` event
-  (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
-- Golden principles: a new transverse invariant ships with a mechanical check
-  (hook, lint, or smoke assertion) in the same change, instead of prose
-  duplicated across adapters. Instruction files stay maps, not manuals. The
+  merge, or external write actions. Handoffs are recorded as a `handoff` event.
+- Golden principles: every mechanical check fails with a message that names its remediation.
+  Instruction files stay maps, not manuals. The
   third occurrence of the same review finding becomes a mechanical check.
-  Every mechanical check fails with a message that names its remediation.
-  A routing or guard failure observed in real use becomes a fixture.
   Confirmed recurring findings from `workflow-retrospect` become reviewed
-  recommendations, router fixtures, contract patches, or mechanical checks;
-  the helper never applies patches or external write-back by itself.
-- Skills, commands, and agent instructions follow `workflow/skill-design.md`.
-- A code behavior change ships with tests written in the existing suite's
-  conventions; a bug fix starts from a failing test that reproduces the
-  issue. Docs and contract changes are validated by smoke pins or inspection
-  instead.
-- Reviewers flag only gaps that affect correctness or stated requirements;
-  style preferences and speculative robustness are optional notes, never
-  blockers.
-- A started migration is finished or explicitly handed off with a `handoff`
-  event; a half-migrated state is never left silent.
+  recommendations, never auto-applied.
+  Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
+  the issue. Reviewers flag only gaps that affect correctness or stated requirements.
+  A started migration is finished or explicitly handed off with a `handoff` event.
 
 ## Minimal READY gate
 
@@ -239,6 +136,9 @@ A plan is `READY` when it has:
 | Destructive, secret, production, billing, deployment, or broad irreversible work | `ops-stop` | risk brief | user decision |
 | Task tools active and actionable request | `tasks-till-done` assists selected route | TaskList | all tasks done, blocked, stalled, or limit |
 
+`spec-guide` is ambient. Linear routes require Linear MCP or stop with
+`LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
+
 ## Human checkpoints
 
 Checkpoints sit at irreversibility boundaries, not every step. A checkpoint
@@ -255,127 +155,34 @@ journal checkpoint decisions as `human_checkpoint` events in
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
 | external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | canonical adaptive profile or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
-| premature implementation | any write before root `PLAN.md` is `READY` | `plan-ready-guard` hook for Claude; READY gate rule for all adapters | tool call denied |
-| ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: the agent must name the resolved target and get confirmation when >=2 targets are plausible | ask, do not guess |
-| missing validation surface | change with no runnable check or inspectable proof | prose rule: stop as `blocked: no validation surface` instead of claiming completion | report blocked |
+| premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED` (missing PLAN exempt for ordinary work) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
+| check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
+| ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
+| missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
 
-Adapter coverage: all routes are shared by the Pi extension router and the
-Claude hook router, except `tasks-till-done` (Pi-only Task* runtime). The
-executable source of truth for classification is
-`claude/hooks/workflow-router-lib.mjs` and
-`pi/extensions/lib/workflow-router-runtime.ts`; this table documents intent,
-the code decides.
+Adapter coverage: routes shared by Pi extension and Claude hooks except
+`tasks-till-done` (Pi-only). Executable classifier:
+`claude/hooks/workflow-router-lib.mjs` via `workflow/runtime/workflow-router-core.mjs`.
 
-## Runtime surfaces
+## Runtime surfaces (index)
 
-Pi and Claude wrappers are thin runtime adapters over this contract.
-
-- Pi skills: `pi/skills/`
-- Claude commands: `claude/commands/`
 - Shared skill contracts: `workflow/skills/`
-- Self-improvement contract: `workflow/skills/self-improvement-loop.md`
-- Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
-- Bounded project autonomy envelope: `workflow/project-autonomy-envelope.md`
-- Bounded project autonomy controller: `scripts/project-autonomy`
-- Product dogfood contract: `workflow/skills/product-dogfood.md`
-- Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
-- Claude optional hooks: `claude/hooks/` with
-  `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
 - Answer quality contract: `workflow/answer-quality.md`
-- Answer quality helper: `scripts/answer-quality-check`
-- Answer quality eval: `scripts/answer-quality-eval`
+- Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Explicit-use Pi named-workflow adapter: `workflow/pi-workflow-adapter.md`
-- Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
-- Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
-- Project context: `docs/project-context.md` in workflow-scaffolded projects
-- Agent memory: `docs/agent-memory/` in workflow-scaffolded projects (`workflow/memory.md`)
-- Review rubric: `workflow/review-rubric.md`
-- Ticket template: `workflow/ticket-template.md`
-- Linear ticket template: `workflow/linear-ticket-template.md`
-
-Runtime adapters should point to shared contracts instead of duplicating phase
-order. Add a shared contract only when two harnesses must preserve the same
-behavior.
-
-## Default commands
-
-Pi:
-
-- `/workflow ...` is an explicit-use third-party Pi adapter, never an ambient Etabli
-  route. Its first approved slice is the bundled read-only `spec-review` and
-  `impact-review` workflows; see `workflow/pi-workflow-adapter.md` for state,
-  delegation, and non-sandbox boundaries.
-- `/skill:plan-loop <task>`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
-- `/skill:plan-implement <task>`: plan, then implement if `READY`
-- `/skill:adversary`: adversarially review `PLAN.md` before implementation
-- `/skill:implement`: implement existing `READY` plan
-- `/skill:review`: review current diff
-- `/skill:verify`: verify checks, claims, or current work without editing
-- `/skill:bug-check`: analyze Linear bug root cause without editing
-- `/skill:linear-ticket-create`: create Linear tickets through Linear MCP
-- `/skill:linear-work`: work from Linear tickets through Linear MCP
-- `/skill:pr-review`: review GitHub PRs through `gh`
-- `/skill:pr-qa`: create PR QA test plans through `gh`
-- `/skill:sec-pr`: audit Dependabot/security PRs through `gh`
-- `/skill:ci-fix`: explicitly requested autonomous CI repair through `gh`
-- `/skill:github-pr-review`: compatibility alias for `pr-review`
-
-Claude:
-
-- `/plan`: create `PLAN.md` only, stop at `DRAFT`
-- `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
-- `/plan-implement`: full autonomous chain — plan, adversary, implement, checks, fresh-context review, archive — in one flow; the manual `/plan-loop` -> `/adversary` -> `/implement` sequence is for step-by-step control only
-- `/adversary`: cross-model adversarial review of `PLAN.md` before implementation
-- `/implement`: implement existing `READY` plan
-- `/review`: review current diff
-- `/verify-workflow`: verify checks, claims, or current work without editing
-- `/bug-check`: analyze Linear bug root cause without editing
-- `/linear-ticket-create`: create Linear tickets through Linear MCP
-- `/linear-work`: work from Linear tickets through Linear MCP
-- `/pr-review`: review GitHub PRs through `gh`
-- `/pr-qa`: create PR QA test plans through `gh`
-- `/sec-pr`: audit Dependabot/security PRs through `gh`
-- `/ci-fix`: explicitly requested autonomous CI repair through `gh`
-- `/github-pr-review`: compatibility alias for `/pr-review`
-
-Manual-only Claude commands (invoked by explicit slash only, never ambiently
-routed): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`; invoking it
-consents to feature-branch push and PR creation), `/spec-verify`, `/commit`,
-`/cross-repo-audit`,
-`/linear-project-setup`, `/pr-feedback`, `/pre-commit`, `/tests-iso`,
-`/front-quality`, `/ui-debug`, `/recap`. The Playwright QA chain lives in the
-`claude/skills/playwright-*` skills and `claude/agents/playwright-*`
-subagents, not in slash commands.
-`/spec-guide` is routed ambiently (see routing table). `/plan` maps to
-`claude/commands/plan-create.md`.
-
-Claude-native loop:
-
-- Use `/goal <measurable condition>` for long-running completion loops instead
-  of recreating Pi's Task* continuation layer. The goal statement must pair the
-  measurable condition with an explicit cap (iterations or wall-clock), and the
-  run must record the event ledger per `workflow/events.md`.
-- Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
-  routing context and READY-gate hook enforcement.
-- Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
-  Do not claim Claude has Pi Task* semantics.
+- Implemented plan archives: `docs/plan/` (`workflow/plan-archive.md`)
+- Agent memory: `docs/agent-memory/` (`workflow/memory.md`)
+- Claude hooks fragment: `claude/settings.workflow-hooks.json`
+- Pi `/workflow`: `workflow/pi-workflow-adapter.md`
+- Project autonomy: `workflow/project-autonomy-envelope.md`
+- Claude `/verify-workflow`; Pi `/skill:verify`
+- Commands detail (Pi/Claude lists, `/goal <measurable condition>`):
+  `workflow/contract-details.md`
 
 ## Daily loop
 
-1. inspect repo state
-2. read relevant files
-3. create or refresh `PLAN.md`
-4. review plan to `READY` or `CHALLENGED`
-5. run adversary against implementation-bound `PLAN.md`; fold accepted findings
-   and keep `READY` only if no blocker remains
-6. if the selected route is `plan-implement` and the actual root `PLAN.md` is
-   `READY`, continue without asking for another prompt
-7. implement small steps
-8. run focused checks
-9. review diff against the plan
-10. archive the implemented plan in `docs/plan/`
-11. delete only the root `PLAN.md` after archive and validation
-12. commit once verified when the user asked for a commit
+See `workflow/contract-details.md` § Daily loop (inspect → plan → READY →
+adversary → implement → checks → review → archive → delete root PLAN.md).

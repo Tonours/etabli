@@ -44,7 +44,9 @@ Repo-specific instructions for this dotfiles repo.
 
 ## Workflow
 
-- Canonical workflow: `workflow/spec.md`
+- Agent one-pager: `workflow/agent-quick-card.md`
+- Canonical workflow map: `workflow/spec.md`
+- Long rules / commands: `workflow/contract-details.md`
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
