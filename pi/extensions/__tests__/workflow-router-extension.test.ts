@@ -348,6 +348,75 @@ describe("workflow router extension", () => {
     }
   });
 
+  test("tool_call no_progress denies code Write under active ledger and allows PLAN / workflow-event escape", () => {
+    const runtime = setupExtension();
+    const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-no-progress-"));
+    try {
+      writeFileSync(
+        join(cwd, "PLAN.md"),
+        ["# PLAN.md", "", "## Meta", "- Status: READY", "", "## Checks", "- command: bash tests/a.sh", ""].join("\n"),
+      );
+      mkdirSync(join(cwd, ".workflow", "run-a"), { recursive: true });
+      writeFileSync(
+        join(cwd, ".workflow", "run-a", "events.jsonl"),
+        `${JSON.stringify({
+          schema_version: 2,
+          event: "no_progress",
+          detail: {
+            check_or_hypothesis: "stuck",
+            command: "bash tests/a.sh",
+            attempts: 2,
+            eliminated: ["stuck"],
+          },
+        })}\n`,
+      );
+
+      const codeWrite = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "np1",
+        cwd,
+        input: { path: join(cwd, "src/x.ts"), content: "x" },
+      })[0];
+      expect(codeWrite).toMatchObject({
+        block: true,
+        reason: expect.stringMatching(/no_progress/i),
+      });
+
+      const planWrite = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "np2",
+        cwd,
+        input: {
+          path: join(cwd, "PLAN.md"),
+          content: [
+            "# PLAN.md",
+            "",
+            "## Meta",
+            "- Status: CHALLENGED",
+            "",
+            "## Checks",
+            "- command: bash tests/a.sh",
+            "",
+            "## Decision Log",
+            "- check-freeze demote: no_progress stop",
+            "",
+          ].join("\n"),
+        },
+      })[0];
+      expect(planWrite).toBeUndefined();
+
+      const eventCli = runtime.emit("tool_call", {
+        toolName: "bash",
+        toolCallId: "np3",
+        cwd,
+        input: { command: "scripts/workflow-event append --event blocked" },
+      })[0];
+      expect(eventCli).toBeUndefined();
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   test("tool_call check-freeze denies READY plan weaken and allows strengthen or CHALLENGED demote", () => {
     const runtime = setupExtension();
     const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-check-freeze-"));

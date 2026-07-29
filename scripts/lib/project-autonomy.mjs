@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { derivedNoProgress } from "./no-progress-guard.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -295,51 +296,6 @@ function checkpointDecision(events, checkpoint) {
   if (latest.detail.decision === "authorized" || latest.detail.decision === "approved") return "authorized";
   if (latest) return "denied";
   return "missing";
-}
-
-function derivedNoProgress(events, stopConditions) {
-  const latestDiff = events.reduce(
-    (last, event, index) => event.event === "file_changed" ? index : last,
-    -1,
-  );
-  const failures = events.slice(latestDiff + 1).filter((event) =>
-    event.event === "validation_failed" && isNonEmptyString(event.detail.failure) && isNonEmptyString(event.detail.command),
-  );
-  const byFailure = new Map();
-  const byCommand = new Map();
-  for (const failure of failures) {
-    const hypothesis = `${failure.detail.command}\u0000${failure.detail.failure}`;
-    byFailure.set(hypothesis, (byFailure.get(hypothesis) || 0) + 1);
-    byCommand.set(failure.detail.command, (byCommand.get(failure.detail.command) || 0) + 1);
-  }
-  for (const [hypothesis, attempts] of byFailure) {
-    if (attempts >= stopConditions.same_hypothesis_failures) {
-      const matching = failures.find((event) => `${event.detail.command}\u0000${event.detail.failure}` === hypothesis);
-      return {
-        reason: "same_hypothesis_failure_limit",
-        no_progress: {
-          check_or_hypothesis: matching.detail.failure,
-          command: matching.detail.command,
-          attempts,
-          eliminated: [matching.detail.failure],
-        },
-      };
-    }
-  }
-  for (const [command, attempts] of byCommand) {
-    if (attempts >= stopConditions.red_checks_without_diff) {
-      return {
-        reason: "red_check_without_diff_limit",
-        no_progress: {
-          check_or_hypothesis: command,
-          command,
-          attempts,
-          eliminated: [`repeat ${command} only after a new diff`],
-        },
-      };
-    }
-  }
-  return null;
 }
 
 export function decideProjectAutonomy(envelope, events, now = new Date()) {
