@@ -36,6 +36,11 @@ strengthened. Weaken/remove → demote to `CHALLENGED` + Decision Log rationale
 if content cannot be reconstructed) and on mutating shell that names `PLAN.md`.
 CLI: `scripts/plan-check-freeze`.
 
+**no_progress (ledger):** active non-terminal `.workflow/*/events.jsonl` with
+`no_progress` or derived 2-hyp/3-red thresholds → host denies code mutations
+(shared guard). Escape: root `PLAN.md` + `scripts/workflow-event` only. Does not
+auto-emit events (still agent/CLI). Smoke: `tests/no-progress-mutate-deny-smoke.sh`.
+
 Archive under `docs/plan/` after validation; then delete root `PLAN.md`.
 
 ## One-writer
@@ -72,6 +77,7 @@ scripts/verify-agentic-infra core
 cd pi && bun test ./extensions/__tests__/
 bash tests/dual-runtime-guard-matrix-smoke.sh
 bash tests/plan-check-freeze-smoke.sh
+bash tests/no-progress-mutate-deny-smoke.sh
 ```
 
 Focused checks over full-suite ritual. Record commands + results before

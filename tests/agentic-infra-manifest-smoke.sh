@@ -52,6 +52,7 @@ agent-scenarios-smoke
 vnext-suite-smoke
 plan-check-freeze-smoke
 dual-runtime-guard-matrix-smoke
+no-progress-mutate-deny-smoke
 deploy-agent-workflow-smoke
 supply-chain-smoke
 workflow-contract-coverage-smoke'
