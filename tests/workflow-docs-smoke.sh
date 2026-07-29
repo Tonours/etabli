@@ -653,6 +653,7 @@ assert_contains "$ROOT_DIR/pi/extensions/lib/tasks-till-done-runtime.ts" 'comple
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'permissionDecision: "deny"'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'UserPromptSubmit'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
+assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'
 assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-tasks'

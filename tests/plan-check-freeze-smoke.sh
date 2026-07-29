@@ -37,6 +37,17 @@ set +e
 ch_status=$?
 set -e
 [ "$ch_status" -eq 0 ] || fail "challenged weaken with rationale should pass: $(cat "$TMP/ch.json")"
+jq -e '.demote_mode == "keyword"' "$TMP/ch.json" >/dev/null ||
+  fail "expected demote_mode keyword: $(cat "$TMP/ch.json")"
+
+# Structured check_freeze_demote: line
+set +e
+"$CLI" --previous "$FIX/ready-baseline.md" --current "$FIX/challenged-weaken-structured-ok.md" >"$TMP/st.json" 2>"$TMP/st.err"
+st_status=$?
+set -e
+[ "$st_status" -eq 0 ] || fail "structured demote should pass: $(cat "$TMP/st.json")"
+jq -e '.demote_mode == "structured" and (.demote_reason | type) == "string" and (.demote_reason | length) > 0' "$TMP/st.json" >/dev/null ||
+  fail "expected structured demote fields: $(cat "$TMP/st.json")"
 
 # Acceptance Criteria are frozen the same way as Checks
 set +e
