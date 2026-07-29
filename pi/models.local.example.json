@@ -1,0 +1,20 @@
+{
+  "$comment": "Example machine-local MLX overlay. Copy fields into pi/models.json (or maintain a local-only fork of the model id). Do not commit real host paths if you want a fully portable public tree.",
+  "providers": {
+    "local-mlx": {
+      "baseUrl": "http://localhost:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "models": [
+        {
+          "id": "/path/to/models/mlx/gemma-4-12B-it-4bit",
+          "name": "Gemma 4 12B IT (MLX 4-bit)",
+          "input": ["text", "image"],
+          "contextWindow": 8192,
+          "maxTokens": 4096,
+          "reasoning": false
+        }
+      ]
+    }
+  }
+}

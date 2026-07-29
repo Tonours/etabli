@@ -116,7 +116,7 @@
   "doubleEscapeAction": "tree",
   "enabledModels": [
     "zai/glm-5.2",
-    "local-mlx//Volumes/Crucial/models/mlx/gemma-4-12B-it-4bit",
+    "local-mlx//path/to/models/mlx/gemma-4-12B-it-4bit",
     "openai-codex/gpt-5.3-codex-spark",
     "openai-codex/gpt-5.5",
     "openai-codex/gpt-5.6-luna",
