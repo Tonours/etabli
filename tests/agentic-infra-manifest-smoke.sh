@@ -65,6 +65,9 @@ expected_full='pr-latest-head-status-smoke
 workflow-efficiency-report-smoke
 workflow-monitor-smoke
 workflow-metrics-smoke
+one-writer-portfolio-smoke
+leap-harness-validation-smoke
+ledger-auto-emit-smoke
 workflow-telemetry-recover-smoke
 workflow-dossier-smoke
 workflow-retrospect-smoke

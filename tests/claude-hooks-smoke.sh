@@ -448,9 +448,13 @@ fi
 router_output="$(fixture_input router-ticket-mention.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
 assert_empty "$router_output" "ticket mention without Linear context"
 
-for hook in workflow-router plan-ready-guard plan-commit-guard detect-adr-signal; do
+for hook in workflow-router plan-ready-guard plan-commit-guard detect-adr-signal ledger-auto-emit; do
   malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
   assert_empty "$malformed_output" "$hook on malformed stdin"
 done
+
+# PostToolUse ledger auto-emit path is registered
+assert_contains "$(cat "$ROOT_DIR/claude/settings.workflow-hooks.json")" 'PostToolUse'
+assert_contains "$(cat "$ROOT_DIR/claude/settings.workflow-hooks.json")" 'ledger-auto-emit.mjs'
 
 printf 'claude hooks smoke test: ok\n'

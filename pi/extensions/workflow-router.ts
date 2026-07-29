@@ -11,6 +11,11 @@ import {
 } from "./lib/workflow-router-runtime.ts";
 import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
 import { planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
+import {
+  inferBashFailureFromToolResult,
+  isBashToolName,
+  recordBashValidationFailure,
+} from "../../scripts/lib/ledger-auto-emit.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -337,6 +342,25 @@ export default function (pi: ExtensionAPI) {
       );
     } else if (event.toolName === "get_subagent_result") {
       recordPortfolioRetrieval(portfolioCallState, event.input, event.content, event.isError);
+    } else if (isBashToolName(event.toolName)) {
+      // Ledger-scoped auto-emit: only when an active non-terminal ledger exists.
+      try {
+        const inferred = inferBashFailureFromToolResult(event.content, Boolean(event.isError));
+        if (inferred.failed && typeof inferred.exit === "number") {
+          const command = String(
+            (event.input as { command?: string; cmd?: string } | undefined)?.command ||
+              (event.input as { command?: string; cmd?: string } | undefined)?.cmd ||
+              "bash",
+          );
+          recordBashValidationFailure(eventCwd(event), {
+            command,
+            exit: inferred.exit,
+            failure: inferred.failure || `exit ${inferred.exit}`,
+          });
+        }
+      } catch {
+        // Never break the tool_result pipeline on ledger I/O.
+      }
     }
     return undefined;
   });

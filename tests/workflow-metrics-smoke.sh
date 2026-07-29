@@ -35,9 +35,11 @@ printf '%s\n' "$json_output" | jq -e '.totals.outcomes == 6' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.measured_outcomes == 4 and .totals.usage_measured_outcomes == 4' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.measurement_denominator == 7 and .totals.recovered_outcomes == 0' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.unmeasured_outcomes == 2 and .totals.legacy_outcomes == 1' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.successful_outcomes == 5 and .totals.measured_successful_outcomes == 3' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.successful_outcomes == 5' >/dev/null
+# Productivity ratio uses task_grader only (15 tokens / 1) — run_terminal successes excluded.
+printf '%s\n' "$json_output" | jq -e '.totals.measured_successful_outcomes == 1' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.run_terminal_successful_outcomes == 4 and .totals.task_grader_successful_outcomes == 1' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.totals.tokens_per_successful_outcome == 155' >/dev/null
+printf '%s\n' "$json_output" | jq -e '.totals.tokens_per_successful_outcome == 15' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.total_tokens == 690 and .totals.legacy_total_tokens == 90' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.totals.runtime_usage_records == 1 and .totals.runtime_total_tokens == 60 and .totals.runtime_elapsed_ms == 70' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.runs[] | select(.run == "run-runtime") | .successful_outcomes == 0 and .runtime_usage_records == 1 and .unmeasured_outcomes == 1' >/dev/null
@@ -54,9 +56,9 @@ printf '%s\n' "$json_output" | jq -e '.runs[] | select(.run == "run-c") | .harne
 printf '%s\n' "$json_output" | jq -e '.harness.candidates[] | select(.run == "run-c" and .candidate == "unvalidated candidate") | .proposed == true and .verdict == null and .reason == null and .held_in_delta_pp == null and .held_out_delta_pp == null and .checks == null and .evidence == null' >/dev/null
 
 case "$text_output" in
-  *tokens_per_successful_outcome=155*harness_validation_coverage=0.5*) ;;
+  *tokens_per_successful_outcome=15*harness_validation_coverage=0.5*) ;;
   *)
-    printf 'expected token metric in text output\n%s\n' "$text_output" >&2
+    printf 'expected task_grader-only token metric in text output\n%s\n' "$text_output" >&2
     exit 1
     ;;
 esac
