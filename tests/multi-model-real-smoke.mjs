@@ -11,8 +11,6 @@ const AGENT_FIXTURES_PATH = join(ROOT, "tests/fixtures/multi-model-quality/agent
 const SCORE_KEY_PATH = join(ROOT, "tests/fixtures/multi-model-quality/score-key.json");
 const DEFAULT_PI_CANDIDATES = [
   process.env.PI_BIN,
-  "/Users/tonours/.asdf/shims/pi",
-  "/Users/tonours/.asdf/installs/nodejs/24.6.0/bin/pi",
   "pi",
 ].filter(Boolean);
 

@@ -12,7 +12,7 @@
       },
       "models": [
         {
-          "id": "/Volumes/Crucial/models/mlx/gemma-4-12B-it-4bit",
+          "id": "/path/to/models/mlx/gemma-4-12B-it-4bit",
           "name": "Gemma 4 12B IT (MLX 4-bit)",
           "input": [
             "text",
