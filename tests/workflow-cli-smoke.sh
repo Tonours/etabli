@@ -102,7 +102,7 @@ if [ "${PI_SKIP_VERSION_CHECK:-}" != "1" ]; then
   exit 42
 fi
 
-printf 'map/manual\n'
+printf 'maps/manuals\n'
 SH
   chmod +x "$STUB_BIN/pi"
   cat >"$STUB_BIN/claude" <<'SH'
@@ -134,19 +134,24 @@ if [ -n "$PI_BIN" ]; then
   if pi_supports_flag "$PI_BIN" "--approve"; then
     pi_args+=(--approve)
   fi
+  # Aligned with scaffold AGENTS.md + workflow/spec.md: "Instruction files stay maps, not manuals."
   pi_args+=(
-    'According to the local project instructions, complete this sentence with the two missing words: Treat this file as a ___, not a ___. Reply only as word/word.'
+    'From AGENTS.md Workflow section, complete exactly: Instruction files stay ___, not ___. Reply with only the two words as word/word lowercase. No other text.'
   )
 
   pi_output="$(
     cd "$PROJECT"
     PI_SKIP_VERSION_CHECK=1 run_bounded 45 "$PI_BIN" "${pi_args[@]}"
   )"
-  pi_output="$(printf '%s' "$pi_output" | trim_output)"
-  if [ "$pi_output" != "map/manual" ]; then
-    printf 'unexpected Pi output: %s\n' "$pi_output" >&2
-    exit 1
-  fi
+  pi_output="$(printf '%s' "$pi_output" | trim_output | tr '[:upper:]' '[:lower:]')"
+  # Accept plural (canonical) or singular paraphrase.
+  case "$pi_output" in
+    maps/manuals|map/manual) ;;
+    *)
+      printf 'unexpected Pi output: %s (expected maps/manuals)\n' "$pi_output" >&2
+      exit 1
+      ;;
+  esac
   printf 'Pi CLI workflow smoke: ok\n'
 else
   printf 'Pi CLI workflow smoke: skipped (pi not found)\n'

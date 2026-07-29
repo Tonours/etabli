@@ -53,8 +53,13 @@ pi_supports_flag() {
 }
 
 normalize_agent_output() {
+  # Last non-noise content line. Do not scrape path fragments like users/tonours
+  # from SessionEnd hook errors (false word/word matches).
   awk '
-    NF && $0 !~ /^Warning: No models match pattern / && $0 !~ /^⚠ / {
+    /Warning: No models match pattern / || /^⚠ / || /SessionEnd hook/ || /failed: bash:/ {
+      next
+    }
+    NF {
       line = $0
     }
     END {
@@ -134,7 +139,8 @@ EOF
 
 PI_TIMEOUT="${REAL_AGENT_PI_TIMEOUT:-90}"
 PI_TASKEXECUTE_TIMEOUT="${REAL_AGENT_TASKEXECUTE_TIMEOUT:-240}"
-PI_MODEL="${REAL_AGENT_PI_MODEL:-openai-codex/gpt-5.3-codex-spark}"
+# Empty = Pi default model (more stable for scaffold fidelity than a forced spark model).
+PI_MODEL="${REAL_AGENT_PI_MODEL:-}"
 CLAUDE_TIMEOUT="${REAL_AGENT_CLAUDE_TIMEOUT:-90}"
 CLAUDE_MODEL="${REAL_AGENT_CLAUDE_MODEL:-haiku}"
 CLAUDE_EFFORT="${REAL_AGENT_CLAUDE_EFFORT:-low}"
@@ -162,7 +168,10 @@ run_pi_prompt() {
   local status
   local normalized
   local attempt
-  local args=(--print --no-session --no-tools --thinking off --model "$PI_MODEL")
+  local args=(--print --no-session --no-tools --thinking off)
+  if [ -n "$PI_MODEL" ]; then
+    args+=(--model "$PI_MODEL")
+  fi
 
   if pi_supports_flag "$PI_BIN" "--approve"; then
     args+=(--approve)
@@ -388,8 +397,9 @@ fi
 PROJECT="$(new_project scaffold-map)"
 if [ "${RUN_REAL_AGENT_PI:-1}" = "1" ]; then
   assert_one_of \
-    "Pi scaffold map/manual" \
-    "$(run_pi_prompt "$PROJECT" 'According to the local project instructions, complete this sentence with the two missing words: Treat this file as a ___, not a ___. Reply only as word/word.')" \
+    "Pi scaffold maps/manuals" \
+    "$(run_pi_prompt "$PROJECT" 'From AGENTS.md Workflow section, complete exactly: Instruction files stay ___, not ___. Reply with only the two words as word/word lowercase. No other text.' | tr '[:upper:]' '[:lower:]')" \
+    "maps/manuals" \
     "map/manual" \
     "carte/manual" \
     "carte/manuelle"
