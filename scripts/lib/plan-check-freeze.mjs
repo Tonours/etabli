@@ -107,15 +107,38 @@ export function evaluateCheckFreeze({ previousChecks, currentText }) {
   }
 
   const demoted = status === "challenged";
-  const rationale =
+  // Structured demote (preferred): "- check_freeze_demote: <nonempty reason>"
+  const structuredMatch = decisionLog.match(
+    /^\s*[-*]\s*check_freeze_demote:\s*(.+?)\s*$/im,
+  );
+  const structuredReason =
+    structuredMatch && structuredMatch[1].trim() !== ""
+      ? structuredMatch[1].trim()
+      : null;
+  // Legacy keyword path kept for existing plans (G1 residual).
+  const keywordRationale =
     /check-freeze|weaken|weakened|removed check|demot/i.test(decisionLog);
 
-  if (demoted && rationale) {
+  if (demoted && structuredReason) {
+    return {
+      ok: true,
+      status,
+      removed,
+      reason: "weakening allowed: CHALLENGED with structured check_freeze_demote",
+      demote_mode: "structured",
+      demote_reason: structuredReason,
+      currentChecks,
+    };
+  }
+
+  if (demoted && keywordRationale) {
     return {
       ok: true,
       status,
       removed,
       reason: "weakening allowed: CHALLENGED with Decision Log rationale",
+      demote_mode: "keyword",
+      demote_reason: null,
       currentChecks,
     };
   }
@@ -125,7 +148,9 @@ export function evaluateCheckFreeze({ previousChecks, currentText }) {
     status,
     removed,
     reason:
-      "check-freeze violation: READY checks may only be strengthened; demote to CHALLENGED and record Decision Log rationale to remove/weaken",
+      "check-freeze violation: READY checks may only be strengthened; demote to CHALLENGED and record Decision Log rationale (check_freeze_demote: … or legacy check-freeze/weaken keywords) to remove/weaken",
+    demote_mode: null,
+    demote_reason: null,
     currentChecks,
   };
 }

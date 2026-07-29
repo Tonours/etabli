@@ -38,8 +38,10 @@ CLI: `scripts/plan-check-freeze`.
 
 **no_progress (ledger):** active non-terminal `.workflow/*/events.jsonl` with
 `no_progress` or derived 2-hyp/3-red thresholds → host denies code mutations
-(shared guard). Escape: root `PLAN.md` + `scripts/workflow-event` only. Does not
-auto-emit events (still agent/CLI). Smoke: `tests/no-progress-mutate-deny-smoke.sh`.
+(shared guard). Escape: root `PLAN.md` + `scripts/workflow-event`. With an
+active ledger, bash failures auto-append `validation_failed` (and may append
+`no_progress`); no ledger → still protocol/proxy. Smoke:
+`tests/no-progress-mutate-deny-smoke.sh`, `tests/ledger-auto-emit-smoke.sh`.
 
 Archive under `docs/plan/` after validation; then delete root `PLAN.md`.
 
