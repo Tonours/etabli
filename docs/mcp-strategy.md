@@ -34,16 +34,35 @@ Rules:
 6. **`~/.agents` consumers read the CLI surfaces**, not MCP; nothing to deploy
    there.
 
-## Linear MCP gap
+## Linear MCP gap (option A — enable when needed)
 
-`workflow/skills/linear-*.md` and the matching skills require a Linear MCP
-server, and none is configured today (skills degrade to
-`LINEAR_MCP_UNAVAILABLE`). The official endpoint is the streamable-HTTP server
-at `https://mcp.linear.app/mcp` with OAuth done in the host. Because the OAuth
-flow and workspace choice are user actions, Linear is intentionally absent
-from the template's active set; `mcp/servers.template.json` documents the
-exact entry to add under `$linear_gap`. Once added at Claude user scope, Pi
-picks it up through the existing `claude-code` import with zero extra config.
+`workflow/skills/linear-*.md` and the matching Pi/Claude skills **do not claim
+Linear is preconfigured**. If no Linear MCP tool is available at runtime, they
+must stop with `LINEAR_MCP_UNAVAILABLE` (never invent issues or use the REST API
+with guessed tokens). Linear is intentionally absent from the template's active
+set because OAuth and workspace choice are user actions.
+
+### Enable Linear MCP (secret-free path)
+
+1. Open Claude Code user MCP config (`~/.claude.json` → `mcpServers`).
+2. Add this entry (no tokens in the repo; OAuth is handled by the host):
+
+```json
+"linear": {
+  "type": "http",
+  "url": "https://mcp.linear.app/mcp"
+}
+```
+
+3. Restart Claude Code (or reload MCP servers) and complete the Linear OAuth
+   consent for the target workspace when prompted by the host.
+4. Confirm tools appear (e.g. list MCP tools / call a harmless Linear read).
+5. Pi needs **zero extra config** if `~/.pi/agent/mcp.json` already has
+   `"imports": ["claude-code"]` — it imports Claude user-scope servers.
+
+Template reminder: `mcp/servers.template.json` → `$linear_gap`. Do not commit
+OAuth tokens, API keys, or workspace secrets. To leave Linear disabled, keep
+the entry absent; skills continue to degrade to `LINEAR_MCP_UNAVAILABLE`.
 
 ## Drift control
 

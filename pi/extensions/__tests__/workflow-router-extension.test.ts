@@ -297,6 +297,172 @@ describe("workflow router extension", () => {
     expect(emitAgent({ subagent_type: "etabli-kimi-fallback" })).toMatchObject({ block: true });
   });
 
+  test("tool_call READY guard blocks write/edit/mutating bash under DRAFT and CHALLENGED", () => {
+    const runtime = setupExtension();
+    const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-ready-guard-"));
+    try {
+      writeFileSync(join(cwd, "PLAN.md"), ["# PLAN.md", "", "## Meta", "- Status: DRAFT", ""].join("\n"));
+      const draftWrite = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "w1",
+        cwd,
+        input: { path: join(cwd, "src/x.ts"), content: "export {}" },
+      })[0];
+      expect(draftWrite).toMatchObject({ block: true, reason: expect.stringMatching(/DRAFT/i) });
+
+      const draftPlanEdit = runtime.emit("tool_call", {
+        toolName: "edit",
+        toolCallId: "e1",
+        cwd,
+        input: { path: join(cwd, "PLAN.md"), old_string: "DRAFT", new_string: "READY" },
+      })[0];
+      expect(draftPlanEdit).toBeUndefined();
+
+      const draftBash = runtime.emit("tool_call", {
+        toolName: "bash",
+        toolCallId: "b1",
+        cwd,
+        input: { command: "rm -rf src" },
+      })[0];
+      expect(draftBash).toMatchObject({ block: true, reason: expect.stringMatching(/DRAFT|mutating/i) });
+
+      writeFileSync(join(cwd, "PLAN.md"), ["# PLAN.md", "", "## Meta", "- Status: CHALLENGED", ""].join("\n"));
+      const challengedWrite = runtime.emit("tool_call", {
+        toolName: "Write",
+        toolCallId: "w2",
+        cwd,
+        input: { file_path: join(cwd, "src/y.ts"), content: "y" },
+      })[0];
+      expect(challengedWrite).toMatchObject({ block: true, reason: expect.stringMatching(/CHALLENGED/i) });
+
+      writeFileSync(join(cwd, "PLAN.md"), ["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"));
+      const readyWrite = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "w3",
+        cwd,
+        input: { path: join(cwd, "src/z.ts"), content: "z" },
+      })[0];
+      expect(readyWrite).toBeUndefined();
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("tool_call check-freeze denies READY plan weaken and allows strengthen or CHALLENGED demote", () => {
+    const runtime = setupExtension();
+    const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-check-freeze-"));
+    try {
+      const readyBaseline = [
+        "# PLAN.md",
+        "",
+        "## Meta",
+        "- Status: READY",
+        "",
+        "## Checks",
+        "- command: bash tests/a.sh",
+        "- command: bash tests/b.sh",
+        "",
+      ].join("\n");
+      writeFileSync(join(cwd, "PLAN.md"), readyBaseline);
+
+      const weaken = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "cf1",
+        cwd,
+        input: {
+          path: join(cwd, "PLAN.md"),
+          content: [
+            "# PLAN.md",
+            "",
+            "## Meta",
+            "- Status: READY",
+            "",
+            "## Checks",
+            "- command: bash tests/a.sh",
+            "",
+          ].join("\n"),
+        },
+      })[0];
+      expect(weaken).toMatchObject({
+        block: true,
+        reason: expect.stringMatching(/check-freeze/i),
+      });
+
+      const strengthen = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "cf2",
+        cwd,
+        input: {
+          path: join(cwd, "PLAN.md"),
+          content: [
+            "# PLAN.md",
+            "",
+            "## Meta",
+            "- Status: READY",
+            "",
+            "## Checks",
+            "- command: bash tests/a.sh",
+            "- command: bash tests/b.sh",
+            "- command: bash tests/c.sh",
+            "",
+          ].join("\n"),
+        },
+      })[0];
+      expect(strengthen).toBeUndefined();
+
+      const demoted = runtime.emit("tool_call", {
+        toolName: "write",
+        toolCallId: "cf3",
+        cwd,
+        input: {
+          path: join(cwd, "PLAN.md"),
+          content: [
+            "# PLAN.md",
+            "",
+            "## Meta",
+            "- Status: CHALLENGED",
+            "",
+            "## Checks",
+            "- command: bash tests/a.sh",
+            "",
+            "## Decision Log",
+            "- check-freeze demote: removed b after scope cut",
+            "",
+          ].join("\n"),
+        },
+      })[0];
+      expect(demoted).toBeUndefined();
+
+      const bashPlan = runtime.emit("tool_call", {
+        toolName: "bash",
+        toolCallId: "cf4",
+        cwd,
+        input: { command: "sed -i '' 's/b.sh/gone/' PLAN.md" },
+      })[0];
+      expect(bashPlan).toMatchObject({
+        block: true,
+        reason: expect.stringMatching(/check-freeze|PLAN\.md/i),
+      });
+
+      const badEdit = runtime.emit("tool_call", {
+        toolName: "edit",
+        toolCallId: "cf5",
+        cwd,
+        input: {
+          path: join(cwd, "PLAN.md"),
+          old_string: "this-string-is-not-in-the-file",
+          new_string: "noop",
+        },
+      })[0];
+      expect(badEdit).toMatchObject({
+        block: true,
+        reason: expect.stringMatching(/check-freeze|reconstruct/i),
+      });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   test("injects a newly discovered Obvault metadata topic", () => {
     const runtime = setupExtension();
     const root = mkdtempSync(join(tmpdir(), "etabli-pi-dynamic-vault-"));

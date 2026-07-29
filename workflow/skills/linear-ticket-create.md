@@ -93,7 +93,8 @@ Do not push the full task body onto an Epic.
 2. Use Linear MCP to resolve the team, project, cycle, labels, assignee, and
    parent issue when the user provides partial context.
 3. If no Linear MCP tool is available, stop with `LINEAR_MCP_UNAVAILABLE`
-   unless the user explicitly asked for a draft only.
+   unless the user explicitly asked for a draft only. To enable Linear MCP
+   (OAuth, no secrets in repo), follow `docs/mcp-strategy.md` § Linear MCP gap.
 4. Ask one blocking question only when the target Linear team or project cannot
    be inferred.
 5. Fill the body by level: an Epic stays light; an implementation task uses the

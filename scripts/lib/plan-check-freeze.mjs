@@ -13,28 +13,43 @@ export function parsePlanStatus(text) {
   return m ? m[1].toLowerCase() : "unknown";
 }
 
-/** Extract bullet/check lines under ## Checks until next ## heading. */
+/**
+ * Extract frozen items under ## Checks and ## Acceptance Criteria until the
+ * next ## heading of another kind. command: lines count as check identifiers.
+ */
 export function parseChecks(text) {
   const lines = String(text).split(/\r?\n/);
   const checks = [];
-  let inChecks = false;
+  let inFreezeSection = false;
   for (const line of lines) {
-    if (/^##\s+Checks\b/i.test(line)) {
-      inChecks = true;
+    if (/^##\s+(Checks|Acceptance Criteria)\b/i.test(line)) {
+      inFreezeSection = true;
       continue;
     }
-    if (inChecks && /^##\s+/.test(line)) break;
-    if (!inChecks) continue;
-    const bullet = line.match(/^\s*[-*]\s+(?:\[[ xX]\]\s+)?(.+?)\s*$/);
-    if (bullet) {
-      const item = bullet[1].replace(/\s+/g, " ").trim();
-      if (item) checks.push(item);
+    if (inFreezeSection && /^##\s+/.test(line)) {
+      if (/^##\s+(Checks|Acceptance Criteria)\b/i.test(line)) {
+        continue;
+      }
+      inFreezeSection = false;
+      continue;
     }
-    // command: lines also count as check identifiers
-    const cmd = line.match(/^\s*-\s*command:\s*(.+?)\s*$/i);
+    if (!inFreezeSection) continue;
+    const cmd = line.match(/^\s*[-*]\s+command:\s*(.+?)\s*$/i);
     if (cmd) {
       const item = `command:${cmd[1].replace(/\s+/g, " ").trim()}`;
       if (item !== "command:") checks.push(item);
+      continue;
+    }
+    const bullet = line.match(/^\s*[-*]\s+(?:\[[ xX]\]\s+)?(.+?)\s*$/);
+    if (bullet) {
+      const item = bullet[1].replace(/\s+/g, " ").trim();
+      if (
+        item &&
+        !/^expected:/i.test(item) &&
+        !/^last run:/i.test(item)
+      ) {
+        checks.push(item);
+      }
     }
   }
   return checks;

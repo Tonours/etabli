@@ -23,7 +23,8 @@ Read, when available:
 5. relevant repo files.
 
 If no Linear MCP tool is available, stop with `LINEAR_MCP_UNAVAILABLE`. Do not
-work from memory when the user asked to use Linear.
+work from memory when the user asked to use Linear. To enable Linear MCP
+(OAuth, no secrets in repo), follow `docs/mcp-strategy.md` § Linear MCP gap.
 
 ## Contract
 
