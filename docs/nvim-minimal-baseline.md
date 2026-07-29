@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-29). Not operational. Canonical: nvim/README.md + ADR-0012
+
 # Neovim minimal code-IDE — pre-mutation baseline
 
 Captured: 2026-07-29 on this machine. Scratch: goal implementer dir (`nvim-baseline-inventory.txt`, `nvim-smoke-baseline.log`, `nvim-perf-baseline.log`).

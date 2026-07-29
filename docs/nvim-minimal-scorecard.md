@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-29). Not operational. Canonical: nvim/README.md + ADR-0012
+
 # Neovim minimal code-IDE — adversary scorecard
 
 Date: 2026-07-29  

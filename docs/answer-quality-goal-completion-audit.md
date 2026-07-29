@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-07). Not operational. Canonical: workflow/answer-quality.md
+
 # Answer-Quality Goal Completion Audit
 
 Historical artifact: the former aggregate audit command is no longer an active
@@ -30,7 +32,7 @@ prove, and it does not claim that future live answers can be pre-scored.
 | Document each project with web and research grounding | verified | `docs/cross-project-research-grounding.md`, `/Volumes/Crucial/work/obvault/kb/etabli-obvault-project-grounding.md`, `docs/source-grounded-answer-quality-research.md`; current web opens succeeded for the cited gist, Anthropic article, OpenAI eval docs, and arXiv papers. | Source interpretation may need refresh when cited docs change. |
 | Install an answer-quality system | verified | `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval`, `tests/fixtures/answer-quality/manifest.tsv` | Mechanical checks are a floor, not a human satisfaction metric. |
 | Preserve historical answer reviews | archived | `docs/answer-quality-traces/` | These reviews are provenance, not an active validation layer. |
-| Make live final answers harder to drift | validated control | `workflow/answer-quality.md` live final-answer gate, plus adapter pins in `AGENTS.md`, `codex/AGENTS.md`, `pi/AGENTS.md`, and `claude/CLAUDE.md` | A process gate reduces risk; it cannot prove every future response outcome. |
+| Make live final answers harder to drift | validated control | `workflow/answer-quality.md` live final-answer gate, plus adapter pins in `AGENTS.md`, `pi/AGENTS.md`, and `claude/CLAUDE.md` | A process gate reduces risk; it cannot prove every future response outcome. |
 | Keep safety boundaries | verified | runtime adapters preserve no push/deploy/external-write behavior without explicit approval; current run performed no commit or push. | Future external actions still require explicit user consent. |
 
 ## External Source Evidence

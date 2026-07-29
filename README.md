@@ -1,8 +1,28 @@
 # Etabli
 
-Personal source of truth for Pi, Claude Code, Neovim, Ghostty, and tmux
-configuration. The repository keeps agent workflow policy explicit,
-deployments conservative, and validation claims proportional to the evidence.
+Personal source of truth for an **agentic development harness** and matching
+dotfiles: **Pi**, **Claude Code**, **Neovim**, **Ghostty**, and **tmux**.
+
+Etabli keeps a shared workflow contract explicit (`workflow/`), deploys adapters
+conservatively, and treats validation claims as proportional to evidence.
+
+## What it is
+
+- A **workflow contract** agents apply ambiently when a project has
+  `workflow/spec.md` (routes, PLAN.md, guards, loops).
+- **Thin adapters** for Pi (`pi/`) and Claude (`claude/`) over that contract.
+- **Editor/terminal** configs: Neovim as a code-first minimal IDE (Catppuccin
+  Mocha, aligned with Ghostty/tmux), not an agent or review cockpit.
+- **Installers and checks** under `scripts/` and `tests/`.
+
+## What it is not
+
+- Not a hosted SaaS or multi-tenant product.
+- Not an in-Neovim agent dashboard or Hunk review inbox (product diff review,
+  if used, is an **optional external** CLI such as `hunkdiff`, not an nvim
+  subsystem).
+- Not a multi-harness Codex/Kimi Code tree in-repo (removed; see ADR-0011).
+  `openai-codex/*` names are **model providers**, not a tracked harness layout.
 
 ## Quick start
 
@@ -13,35 +33,56 @@ cd etabli
 ```
 
 The installer uses the existing Node.js runtime, preferring `asdf`; it does not
-install `nvm`. Pi comes from `@earendil-works/pi-coding-agent`, and Neovim
-review uses `hunkdiff` (https://www.hunk.dev/).
+install `nvm`. Pi comes from `@earendil-works/pi-coding-agent`. Optional
+terminal diff tooling may install `hunkdiff` (https://www.hunk.dev/) for use
+**outside** Neovim (CLI / tmux pane).
 
-## Map
+## Layout
 
-- `workflow/agent-quick-card.md` — one-page agent entry (routes, READY,
-  check-freeze, ops-stop, validation)
-- `workflow/spec.md` — canonical routing, safety, planning, and completion map
-- `workflow/contract-details.md` — long rules and command lists
-- `workflow/answer-quality.md` — live final-answer gate and durable-artifact
-  checker contract
-- `pi/`, `claude/` — runtime-specific adapters and configuration
-- `nvim/`, `ghostty/`, `tmux.conf` — editor and terminal configuration
-- `scripts/`, `tests/` — deployment, validation, and focused regression checks
-- `docs/adr/` — architecture decisions (`node scripts/validate-adrs .`)
-- `docs/plan/` — distilled archives of completed plans
+| Path | Role |
+|------|------|
+| `workflow/` | Canonical contract (`spec.md`, skills, loops) |
+| `workflow/agent-quick-card.md` | One-page agent entry |
+| `workflow/contract-details.md` | Long rules and command lists |
+| `docs/workflow-guide.md` | Human guide with schemas (routes, PLAN, loops) |
+| `pi/`, `claude/` | Runtime adapters |
+| `nvim/`, `ghostty/`, `tmux.conf` | Editor and terminal |
+| `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
+| `scripts/`, `tests/` | Deploy, validation, regression |
+| `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |
+| `docs/plan/` | Archives of completed plans (not active work) |
+| `SECURITY.md` | Public-repo / secrets hygiene |
 
-Projects containing `workflow/spec.md` activate the workflow ambiently. Use
-ordinary prompts; start from `workflow/agent-quick-card.md` then the map.
-`PLAN.md` is the only active execution artifact, and implementation starts only
-from `Status: READY`. The parent is the only writer (protocol, not an OS lock).
-Push, deploy, destructive actions, secrets, production changes, and external
-write-back still require explicit authority.
+## Workflow in 60 seconds
 
-For deeper work, start from
-`workflow/skills/self-improvement-loop.md`,
-`workflow/skills/ambitious-project-loop.md`, or
-`workflow/skills/pr-maintenance-loop.md`. Pi's named-workflow adapter remains
-explicit-use and is documented in `workflow/pi-workflow-adapter.md`.
+Projects containing `workflow/spec.md` **activate the workflow ambiently**. Use
+ordinary prompts; start from `workflow/agent-quick-card.md`, then
+`docs/workflow-guide.md` for diagrams, then `workflow/spec.md` as authority.
+
+```text
+learn -> plan -> implement -> review -> validate
+```
+
+- Root **`PLAN.md`** is the only active execution artifact.
+- Implement only from **`Status: READY`** (after adversary when required).
+- Parent is the only writer (**protocol, not an OS lock**).
+- Push, deploy, destructive actions, secrets, production changes, and external
+  write-back still require explicit authority (`ops-stop`).
+
+Deeper loops:
+
+- `workflow/skills/self-improvement-loop.md`
+- `workflow/skills/ambitious-project-loop.md`
+- `workflow/skills/pr-maintenance-loop.md`
+- `workflow/skills/ship.md`
+
+Pi's named-workflow adapter is explicit-use:
+`workflow/pi-workflow-adapter.md`.
+
+Answer quality: `workflow/answer-quality.md`; durable artifacts use
+`answer-quality-check` / `answer-quality-eval`. Research claims:
+`research-proof-check`. Cross-project research notes:
+`docs/cross-project-research-grounding.md`.
 
 ## Validation
 
@@ -51,9 +92,9 @@ scripts/verify-agentic-infra full
 scripts/-suite --json
 ```
 
-- `core` runs the small daily health and safety gate, including `bun audit`,
-  router/guard regressions, deployment, and held-out  checks.
-- `full` adds every deterministic repository check.
+- `core` — daily health and safety gate (router/guards, deploy surfaces, held-out
+  checks, including `bun audit` where configured).
+- `full` — every deterministic repository check.
 - `live` is separate and never reports a skipped run as success:
 
 ```bash
@@ -61,19 +102,13 @@ RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 \
   scripts/verify-agentic-infra live
 ```
 
-The  suite is deterministic host regression proof, not live-model
-effectiveness evidence. `answer-quality-check` and `answer-quality-eval`
-protect durable answer/research/handoff artifacts and their versioned
-fixtures. `research-proof-check` rejects unsourced durable research.
+Optional read-only diagnostics: `workflow-monitor`, `workflow-metrics`,
+`workflow-dossier`, and `workflow-retrospect`. Telemetry is experimental and
+does not establish user value until **at least 10 representative** real tasks
+have task-grader outcomes. `workflow-telemetry-recover` writes only with
+explicit `--apply`.
 
-Optional read-only diagnostics include `workflow-monitor`,
-`workflow-metrics`, `workflow-dossier`, and `workflow-retrospect`.
-`workflow-telemetry-recover` writes only with explicit `--apply`; telemetry is
-experimental and does not establish user value until at least 10 representative
-real tasks have task-grader outcomes. The project-autonomy envelope is also
-experimental, opt-in, and outside `core`.
 `scripts/pr-latest-head-status` remains the source for latest-head PR evidence.
-See `docs/cross-project-research-grounding.md` for research context.
 
 ## Deployment
 
@@ -85,18 +120,25 @@ deploy-workflow . --check
 
 Use `--apply` only when the local deployment mutation is intended.
 `deploy-agent-workflow` aligns Claude, Pi, and shared `~/.agents` surfaces and
-conservatively syncs managed Pi package/model entries. `scaffold-project`
+conservatively syncs **managed Pi package/model entries**. `scaffold-project`
 never overwrites existing files by default.
 
-`pi/agent/settings.json` is only a tracked bootstrap; the live copy remains
-local. Secrets and authentication files stay local and untracked.
+`pi/agent/settings.json` is a tracked bootstrap; the live copy can stay local.
+Secrets and authentication files stay local and untracked (`SECURITY.md`).
 
 ## Public repository hygiene
 
 This tree is intended to be safe to publish: MCP templates use `${VAR}`
 placeholders only (`docs/mcp-strategy.md`), env files and key material are
-gitignored, and machine-local auth stores (for example Copilot `auth.db`) are
-not tracked. See `SECURITY.md` for the pre-public checklist.
+gitignored, and machine-local auth stores are not tracked. See `SECURITY.md`.
 
-After clone, point the optional local MLX model id in `pi/models.json` at your
+After clone, point optional local MLX model ids in `pi/models.json` at your
 weights path (tracked default is a `/path/to/models/...` placeholder).
+
+## Where to go next
+
+1. `docs/workflow-guide.md` — schemas for routes, PLAN lifecycle, guards, loops  
+2. `workflow/agent-quick-card.md` — agent one-pager  
+3. `workflow/spec.md` — full contract (wins on conflict)  
+4. `nvim/README.md` — code-first editor map  
+5. `docs/adr/` — decision log  
