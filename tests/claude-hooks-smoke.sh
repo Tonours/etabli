@@ -285,6 +285,78 @@ if [ -n "$ready_output" ]; then
   exit 1
 fi
 
+# Check-freeze through the real Claude PreToolUse entry (plan-ready-guard process).
+cat >"$TMP_DIR/PLAN.md" <<'PLAN'
+# PLAN.md
+
+## Meta
+- Status: READY
+
+## Checks
+- command: bash tests/a.sh
+- command: bash tests/b.sh
+
+## Acceptance Criteria
+- Given freeze, when weaken, then deny
+PLAN
+cat >"$TMP_DIR/plan-weaken.md" <<'PLAN'
+# PLAN.md
+
+## Meta
+- Status: READY
+
+## Checks
+- command: bash tests/a.sh
+
+## Acceptance Criteria
+- Given freeze, when weaken, then deny
+PLAN
+freeze_payload="$(node --input-type=module -e '
+import { readFileSync } from "node:fs";
+const cwd = process.argv[1];
+const content = readFileSync(process.argv[2], "utf8");
+process.stdout.write(JSON.stringify({
+  cwd,
+  hook_event_name: "PreToolUse",
+  tool_name: "Write",
+  tool_input: { file_path: cwd + "/PLAN.md", content },
+}) + "\n");
+' "$TMP_DIR" "$TMP_DIR/plan-weaken.md")"
+freeze_output="$(printf '%s' "$freeze_payload" | node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs")"
+assert_contains "$freeze_output" '"permissionDecision":"deny"'
+assert_contains "$freeze_output" 'check-freeze'
+
+# Edit path through the same hook process
+freeze_edit_payload="$(node --input-type=module -e '
+const cwd = process.argv[1];
+process.stdout.write(JSON.stringify({
+  cwd,
+  hook_event_name: "PreToolUse",
+  tool_name: "Edit",
+  tool_input: {
+    file_path: cwd + "/PLAN.md",
+    old_string: "- command: bash tests/b.sh\n",
+    new_string: "",
+  },
+}) + "\n");
+' "$TMP_DIR")"
+freeze_edit_output="$(printf '%s' "$freeze_edit_payload" | node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs")"
+assert_contains "$freeze_edit_output" '"permissionDecision":"deny"'
+assert_contains "$freeze_edit_output" 'check-freeze'
+
+bash_plan_payload="$(node --input-type=module -e '
+const cwd = process.argv[1];
+process.stdout.write(JSON.stringify({
+  cwd,
+  hook_event_name: "PreToolUse",
+  tool_name: "Bash",
+  tool_input: { command: "sed -i \"\" \"/b.sh/d\" PLAN.md" },
+}) + "\n");
+' "$TMP_DIR")"
+bash_plan_output="$(printf '%s' "$bash_plan_payload" | node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs")"
+assert_contains "$bash_plan_output" '"permissionDecision":"deny"'
+assert_contains "$bash_plan_output" 'check-freeze'
+
 guard_repo="$TMP_DIR/plan-commit-guard-repo"
 mkdir -p "$guard_repo"
 git -C "$guard_repo" init -q

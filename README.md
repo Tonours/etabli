@@ -18,8 +18,10 @@ review uses `hunkdiff` (https://www.hunk.dev/).
 
 ## Map
 
-- `workflow/spec.md` — canonical routing, safety, planning, and completion
-  contract
+- `workflow/agent-quick-card.md` — one-page agent entry (routes, READY,
+  check-freeze, ops-stop, validation)
+- `workflow/spec.md` — canonical routing, safety, planning, and completion map
+- `workflow/contract-details.md` — long rules and command lists
 - `workflow/answer-quality.md` — live final-answer gate and durable-artifact
   checker contract
 - `pi/`, `claude/` — runtime-specific adapters and configuration
@@ -29,10 +31,11 @@ review uses `hunkdiff` (https://www.hunk.dev/).
 - `docs/plan/` — distilled archives of completed plans
 
 Projects containing `workflow/spec.md` activate the workflow ambiently. Use
-ordinary prompts; `PLAN.md` is the only active execution artifact, and
-implementation starts only from `Status: READY`. The parent is the only
-writer. Push, deploy, destructive actions, secrets, production changes, and
-external write-back still require explicit authority.
+ordinary prompts; start from `workflow/agent-quick-card.md` then the map.
+`PLAN.md` is the only active execution artifact, and implementation starts only
+from `Status: READY`. The parent is the only writer (protocol, not an OS lock).
+Push, deploy, destructive actions, secrets, production changes, and external
+write-back still require explicit authority.
 
 For deeper work, start from
 `workflow/skills/self-improvement-loop.md`,
