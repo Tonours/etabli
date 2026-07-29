@@ -1,7 +1,8 @@
-import { planReadyGuardDecision, readHookInput } from "./workflow-router-lib.mjs";
+import { planMutationGuardDecision, readHookInput } from "./workflow-router-lib.mjs";
 
 const input = readHookInput();
-const decision = planReadyGuardDecision(input);
+// READY mutation gate + check-freeze on PLAN.md writes (shared core).
+const decision = planMutationGuardDecision(input);
 
 if (decision) {
   process.stdout.write(`${JSON.stringify(decision)}\n`);

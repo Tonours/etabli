@@ -1,15 +1,31 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-07-28",
+  "updated_at": "2026-07-29",
   "runtimes": {
     "pi": {
       "supports_hooks": {
         "label": "confirmed",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: cd pi && bun test ./extensions/__tests__/*.test.ts exit 0",
+        "verified_at": "2026-07-29",
+        "proof_result": "re-proved 2026-07-29: cd pi && bun test ./extensions/__tests__/*.test.ts exit 0",
         "expires_after_days": 30,
         "proof_command": "cd pi && bun test ./extensions/__tests__/*.test.ts",
         "notes": "extensions are the hook surface"
+      },
+      "plan_ready_mutation_guard": {
+        "label": "confirmed",
+        "verified_at": "2026-07-29",
+        "proof_result": "re-proved 2026-07-29: dual-runtime-guard-matrix + workflow-router-extension READY tool_call tests via planMutationGuardDecision",
+        "expires_after_days": 30,
+        "proof_command": "bash tests/dual-runtime-guard-matrix-smoke.sh && cd pi && bun test ./extensions/__tests__/workflow-router-extension.test.ts",
+        "notes": "Pi tool_call uses shared planMutationGuardDecision (same core as Claude plan-ready-guard); DRAFT/CHALLENGED deny write/edit/mutating bash; PLAN.md-only edits allowed pre-READY; missing PLAN allows ordinary work"
+      },
+      "check_freeze_guard": {
+        "label": "confirmed",
+        "verified_at": "2026-07-29",
+        "proof_result": "re-proved 2026-07-29: plan-check-freeze CLI + planMutationGuardDecision runtime path deny weaken READY",
+        "expires_after_days": 30,
+        "proof_command": "bash tests/plan-check-freeze-smoke.sh && bash tests/dual-runtime-guard-matrix-smoke.sh && cd pi && bun test ./extensions/__tests__/workflow-router-extension.test.ts",
+        "notes": "READY Checks/Acceptance Criteria strengthen-only; weaken requires CHALLENGED + Decision Log rationale; enforced on PLAN.md Write/Edit for Pi and Claude via shared core"
       },
       "supports_subagents": {
         "label": "unknown",
@@ -55,11 +71,27 @@
     "claude": {
       "supports_hooks": {
         "label": "confirmed",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: bash tests/claude-hooks-smoke.sh exit 0",
+        "verified_at": "2026-07-29",
+        "proof_result": "re-proved 2026-07-29: bash tests/claude-hooks-smoke.sh exit 0",
         "expires_after_days": 30,
         "proof_command": "bash tests/claude-hooks-smoke.sh",
         "notes": "local hook behavior is deterministic and smoke-tested"
+      },
+      "plan_ready_mutation_guard": {
+        "label": "confirmed",
+        "verified_at": "2026-07-29",
+        "proof_result": "re-proved 2026-07-29: plan-ready-guard uses planMutationGuardDecision; dual-runtime matrix exit 0",
+        "expires_after_days": 30,
+        "proof_command": "bash tests/dual-runtime-guard-matrix-smoke.sh && bash tests/claude-hooks-smoke.sh",
+        "notes": "PreToolUse plan-ready-guard.mjs calls shared planMutationGuardDecision"
+      },
+      "check_freeze_guard": {
+        "label": "confirmed",
+        "verified_at": "2026-07-29",
+        "proof_result": "re-proved 2026-07-29: planMutationGuardDecision check-freeze path + plan-check-freeze CLI",
+        "expires_after_days": 30,
+        "proof_command": "bash tests/plan-check-freeze-smoke.sh && bash tests/dual-runtime-guard-matrix-smoke.sh",
+        "notes": "same evaluateCheckFreeze core as scripts/plan-check-freeze"
       },
       "supports_subagents": {
         "label": "unknown",

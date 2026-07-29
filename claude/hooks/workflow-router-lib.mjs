@@ -1,5 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  evaluateCheckFreeze,
+  parseChecks,
+} from "../../scripts/lib/plan-check-freeze.mjs";
 
 export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 
@@ -704,6 +708,8 @@ export function normalizeToolName(toolName) {
 export function planReadyGuardDecision(event) {
   const cwd = event.cwd || process.cwd();
   const planStatus = readPlanStatus(cwd);
+  // missing: ordinary work without an active plan is allowed (not a pre-READY gate).
+  // ready: implementation mutations allowed; check-freeze runs separately on PLAN.md writes.
   if (planStatus === "missing" || planStatus === "ready") return null;
 
   const toolName = normalizeToolName(event.tool_name || event.toolName);
@@ -721,6 +727,127 @@ export function planReadyGuardDecision(event) {
   }
 
   return null;
+}
+
+/**
+ * Build proposed PLAN.md text from Write / Edit / MultiEdit tool inputs.
+ * Returns null when the tool is not a plan-file content mutation we can evaluate.
+ */
+export function proposedPlanTextFromToolInput(toolName, toolInput, previousText) {
+  const name = normalizeToolName(toolName);
+  if (name === "Write") {
+    const content = toolInput.content ?? toolInput.contents ?? toolInput.new_string ?? toolInput.newString;
+    return typeof content === "string" ? content : null;
+  }
+  if (name === "Edit") {
+    const oldStr = toolInput.old_string ?? toolInput.oldString ?? "";
+    const newStr = toolInput.new_string ?? toolInput.newString ?? "";
+    if (typeof previousText !== "string") return null;
+    if (typeof oldStr !== "string" || typeof newStr !== "string") return null;
+    if (oldStr && previousText.includes(oldStr)) {
+      return previousText.replace(oldStr, newStr);
+    }
+    // Full-file replace style used by some hosts
+    if (!oldStr && typeof newStr === "string" && newStr.length > 0) return newStr;
+    return null;
+  }
+  if (name === "MultiEdit") {
+    if (typeof previousText !== "string") return null;
+    let text = previousText;
+    const edits = Array.isArray(toolInput.edits) ? toolInput.edits : [];
+    for (const edit of edits) {
+      const oldStr = edit?.old_string ?? edit?.oldString ?? "";
+      const newStr = edit?.new_string ?? edit?.newString ?? "";
+      if (typeof oldStr === "string" && oldStr && text.includes(oldStr)) {
+        text = text.replace(oldStr, typeof newStr === "string" ? newStr : "");
+      }
+    }
+    return text;
+  }
+  return null;
+}
+
+/**
+ * Check-freeze on PLAN.md tool mutations. Uses scripts/lib/plan-check-freeze
+ * evaluateCheckFreeze so CLI and runtime share one rule.
+ * Deny when a prior freeze snapshot (Checks / Acceptance Criteria) is weakened
+ * without demoting to CHALLENGED + Decision Log rationale.
+ */
+export function planCheckFreezeGuardDecision(event) {
+  const cwd = event.cwd || process.cwd();
+  const toolName = normalizeToolName(event.tool_name || event.toolName);
+  if (toolName !== "Write" && toolName !== "Edit" && toolName !== "MultiEdit") {
+    return null;
+  }
+  const toolInput = event.tool_input || event.input || {};
+  const filePath = toolInput.file_path || toolInput.path || toolInput.filePath || "";
+  if (!isPlanFile(filePath, cwd)) return null;
+
+  const planPath = resolve(cwd, "PLAN.md");
+  let previousText = "";
+  if (existsSync(planPath)) {
+    try {
+      previousText = readFileSync(planPath, "utf8");
+    } catch {
+      previousText = "";
+    }
+  }
+
+  const previousStatus = previousText ? readPlanStatus(cwd) : "missing";
+  // Only enforce freeze when the on-disk plan is READY (strengthen-only rule).
+  if (previousStatus !== "ready") return null;
+
+  const proposed = proposedPlanTextFromToolInput(toolName, toolInput, previousText);
+  const previousChecks = parseChecks(previousText);
+  if (previousChecks.length === 0) return null;
+
+  // Fail closed when the host mutates PLAN.md but we cannot reconstruct text
+  // (unknown Edit payload shape, old_string miss, etc.).
+  if (proposed == null) {
+    return deny(
+      "check-freeze: cannot reconstruct proposed PLAN.md content from this tool call; use a full Write of PLAN.md or demote to CHALLENGED with Decision Log rationale before weakening checks",
+    );
+  }
+
+  const result = evaluateCheckFreeze({
+    previousChecks,
+    currentText: proposed,
+  });
+  if (result.ok) return null;
+
+  return deny(result.reason || "check-freeze violation on PLAN.md write");
+}
+
+/**
+ * Under READY, mutating bash/shell that targets PLAN.md bypasses Write/Edit
+ * freeze reconstruction — deny and force the file-tool path.
+ */
+export function planCheckFreezeBashGuardDecision(event) {
+  const cwd = event.cwd || process.cwd();
+  if (readPlanStatus(cwd) !== "ready") return null;
+
+  const toolName = normalizeToolName(event.tool_name || event.toolName);
+  if (toolName !== "Bash") return null;
+
+  const toolInput = event.tool_input || event.input || {};
+  const command = String(toolInput.command || toolInput.cmd || "");
+  if (!command || !isMutatingBashCommand(command)) return null;
+
+  // Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
+  if (!/\bPLAN\.md\b/i.test(command)) return null;
+
+  return deny(
+    "check-freeze: mutating shell commands that target PLAN.md are blocked while the plan is READY; edit PLAN.md via Write/Edit so Checks freeze can be evaluated, or demote to CHALLENGED with Decision Log rationale",
+  );
+}
+
+/** Combined PreToolUse / tool_call decision: READY gate then check-freeze. */
+export function planMutationGuardDecision(event) {
+  return (
+    planReadyGuardDecision(event) ||
+    planCheckFreezeGuardDecision(event) ||
+    planCheckFreezeBashGuardDecision(event)
+  );
 }
 
 export function userPromptSubmitDecision(event) {

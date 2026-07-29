@@ -307,6 +307,15 @@ assert_max_lines() {
 assert_max_lines "$ROOT_DIR/AGENTS.md" 120
 assert_max_lines "$ROOT_DIR/claude/CLAUDE.md" 90
 assert_max_lines "$ROOT_DIR/pi/AGENTS.md" 120
+assert_file "$ROOT_DIR/workflow/agent-quick-card.md"
+assert_file "$ROOT_DIR/workflow/contract-details.md"
+assert_max_lines "$ROOT_DIR/workflow/agent-quick-card.md" 120
+assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/agent-quick-card.md'
+assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/agent-quick-card.md'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/contract-details.md'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'planMutationGuardDecision'
+assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
+assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'must record
   the event ledger'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'ordinary work may record it'
