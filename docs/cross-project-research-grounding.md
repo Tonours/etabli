@@ -4,7 +4,7 @@ Status: verified for current local file evidence and cited source existence,
 approximate for future architecture choices, not verified for global future
 answer quality.
 
-Access date: 2026-07-07.
+Access date: 2026-07-07 (local roles row refreshed 2026-07-29 for ADR-0011 Pi+Claude-only harness fleet).
 
 ## Purpose
 
@@ -22,8 +22,8 @@ and answer quality.
 
 | Project | Local role | Primary local evidence | What it should optimize |
 | --- | --- | --- | --- |
-| Etabli | Workflow/control plane for Codex, Pi, Claude, repo checks, plans, routes, and handoffs. | `workflow/spec.md`, `workflow/answer-quality.md`, `scripts/answer-quality-check`, `tests/answer-quality-check-smoke.sh` | Evidence-first execution, minimal route selection, auditable validation, and safe handoff boundaries. |
-| obvault | Durable personal knowledge base with source, compiled wiki, reference, and validation layers. | `/Volumes/Crucial/work/obvault/CLAUDE.md`, `/Volumes/Crucial/work/obvault/ref/second-brain-operating-model.md`, `/Volumes/Crucial/work/obvault/kb/_index.md`, `/Volumes/Crucial/work/obvault/_meta/validate-kb.sh` | Reusable sourced knowledge, dedupe, wikilinks, no raw transcript storage, and query-first entrypoints. |
+| Etabli | Workflow/control plane for Pi and Claude adapters, repo checks, plans, routes, and handoffs (Codex harness tree removed; see ADR-0011). | `workflow/spec.md`, `workflow/answer-quality.md`, `scripts/answer-quality-check`, `tests/answer-quality-check-smoke.sh` | Evidence-first execution, minimal route selection, auditable validation, and safe handoff boundaries. |
+| obvault | Durable personal knowledge base with source, compiled wiki, reference, and validation layers. | `~/work/obvault/CLAUDE.md`, `~/work/obvault/ref/second-brain-operating-model.md`, `~/work/obvault/kb/_index.md`, `~/work/obvault/_meta/validate-kb.sh` | Reusable sourced knowledge, dedupe, wikilinks, no raw transcript storage, and query-first entrypoints. |
 
 ## External Grounding Matrix
 
@@ -112,7 +112,7 @@ For future answers that touch these projects:
 - https://arxiv.org/abs/2310.11511
 - https://arxiv.org/abs/2404.16130
 - https://arxiv.org/abs/2405.15793
-- `/Volumes/Crucial/work/etabli/workflow/spec.md`
-- `/Volumes/Crucial/work/etabli/workflow/answer-quality.md`
-- `/Volumes/Crucial/work/obvault/CLAUDE.md`
-- `/Volumes/Crucial/work/obvault/ref/second-brain-operating-model.md`
+- `./workflow/spec.md`
+- `./workflow/answer-quality.md`
+- `~/work/obvault/CLAUDE.md`
+- `~/work/obvault/ref/second-brain-operating-model.md`

@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-24). Not operational. Canonical: workflow/spec.md + ADR-0011
+
 # Audit de fiabilisation — harness Etabli
 
 **Date:** 2026-07-24

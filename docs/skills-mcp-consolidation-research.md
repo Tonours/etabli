@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-28). Not operational. Canonical: docs/mcp-strategy.md + ADR-0011
+
 # Skills and MCP Consolidation Research
 
 Research backing the 2026-07-28 harness recenter: skills consolidated under

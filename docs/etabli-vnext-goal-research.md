@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-23). Not operational. Canonical: workflow/spec.md + scripts/vnext-suite
+
 # Etabli vNext — du contrôle procédural à l’efficacité prouvée
 
 Status: **verified** pour l’état local observé le 2026-07-23, **confirmed** pour les principes soutenus par plusieurs sources, **approximate** pour leur transfert à Etabli tant qu’un benchmark local ne l’a pas mesuré, **not verified** pour toute promesse de « perfection ».

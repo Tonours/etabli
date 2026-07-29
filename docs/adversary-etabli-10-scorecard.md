@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-29). Not operational. Canonical: workflow/spec.md
+
 # Adversary Etabli 10/10 — final scorecard
 
 **Date:** 2026-07-29  

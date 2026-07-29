@@ -1,3 +1,5 @@
+> Historical snapshot (2026-07-29). Not operational. Canonical: docs/adversary-etabli-10-scorecard.md
+
 # Adversary Etabli 10/10 — baseline scorecard
 
 **Date:** 2026-07-29  
