@@ -59,7 +59,7 @@
 
 | Cand | Decision | Why |
 | --- | --- | --- |
-| G6 docs-smoke thin-out | P2 | Hygiene only after behavioral coverage |
+| G6 docs-smoke thin-out | **done** (2026-07-29) | Thinned workflow-docs-smoke; behavioral smokes own phrase contracts |
 | G10 named workflow graphs expand | **reject** | C-12, C-15 — second stack / low coding ROI |
 | Multi-agent permanent swarm | **reject** | C-12, C-14 |
 | Auto-apply self-improve | **reject** | C-16 |
