@@ -8,6 +8,7 @@ local plugin_files = {
   "plugins.markdown",
   "plugins.search",
   "plugins.telescope",
+  "plugins.theme",
   "plugins.treesitter",
   "plugins.ui",
   "plugins.which-key",
@@ -15,6 +16,7 @@ local plugin_files = {
 
 local main_modules = {
   ["bufferline.nvim"] = "bufferline",
+  ["catppuccin.nvim"] = "catppuccin",
   ["conform.nvim"] = "conform",
   ["gitsigns.nvim"] = "gitsigns",
   ["grug-far.nvim"] = "grug-far",
@@ -40,7 +42,7 @@ local function normalize(entry, parent_lazy)
   end
 
   local short = entry[1]
-  local name = plugin_name(short)
+  local name = entry.name or plugin_name(short)
   if registry[name] then
     return registry[name]
   end
@@ -60,6 +62,7 @@ local function normalize(entry, parent_lazy)
     event = type(entry.event) == "string" and { entry.event } or entry.event,
     ft = type(entry.ft) == "string" and { entry.ft } or entry.ft,
     keys = entry.keys,
+    priority = entry.priority,
   }
   registry[name] = spec
   table.insert(order, spec)
@@ -225,7 +228,11 @@ function M.setup()
   local missing = {}
   for _, spec in ipairs(order) do
     if not vim.uv.fs_stat(vim.fs.joinpath(opt_root, spec.name)) then
-      table.insert(missing, { src = spec.src, version = spec.version })
+      table.insert(missing, {
+        src = spec.src,
+        version = spec.version,
+        name = spec.name,
+      })
     end
   end
   if #missing > 0 then
@@ -240,6 +247,13 @@ function M.setup()
     on_event(spec)
     on_ft(spec)
     on_keys(spec)
+  end
+
+  -- Only plugins with lazy == false load at startup (colorscheme).
+  for _, spec in ipairs(order) do
+    if spec.lazy == false then
+      M.load(spec.name)
+    end
   end
 
   vim.api.nvim_create_autocmd("User", {

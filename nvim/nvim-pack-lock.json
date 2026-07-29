@@ -5,6 +5,10 @@
       "src": "https://github.com/akinsho/bufferline.nvim",
       "version": "'v4.9.1'"
     },
+    "catppuccin.nvim": {
+      "rev": "79e2049a0fdf7ec840f8463fe1d962c94493196b",
+      "src": "https://github.com/catppuccin/nvim"
+    },
     "cmp-buffer": {
       "rev": "b74fab3656eea9de20a9b8116afa3cfc4ec09657",
       "src": "https://github.com/hrsh7th/cmp-buffer"

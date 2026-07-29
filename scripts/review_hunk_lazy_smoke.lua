@@ -1,5 +1,6 @@
+-- Asserts the in-nvim review/ADE surface is gone (post code-first minimal IDE).
 local function fail(message)
-  vim.api.nvim_err_writeln("hunk lazy smoke failed: " .. message)
+  vim.api.nvim_err_writeln("review absence smoke failed: " .. message)
   vim.cmd("cquit 1")
 end
 
@@ -9,75 +10,61 @@ local function assert_true(condition, message)
   end
 end
 
-local function assert_not_loaded(name)
-  assert_true(package.loaded[name] == nil, name .. " should not be loaded by the default Hunk path")
-end
-
 vim.api.nvim_exec_autocmds("User", { pattern = "VeryLazy", modeline = false })
-vim.cmd("cd " .. vim.fn.fnameescape(vim.env.XDG_CONFIG_HOME or vim.fn.getcwd()))
 
-assert_not_loaded("config.review")
-assert_not_loaded("config.review.hunk_local_adapter")
-assert_not_loaded("config.review.items")
-assert_not_loaded("config.review.providers")
-assert_not_loaded("config.review.state")
+local review_modules = {
+  "config.review",
+  "config.review.hunk",
+  "config.review.hunk_flow",
+  "config.review.hunk_rail",
+  "config.review.hunk_comment_editor",
+  "config.review.providers",
+  "config.review.util",
+  "config.review.items",
+  "config.review.state",
+  "config.review.hunk_local_adapter",
+}
 
-local hunk = require("config.review.hunk")
-local hunk_flow = require("config.review.hunk_flow")
-local original_is_available = hunk.is_available
-local original_open_or_reload = hunk.open_or_reload
-local original_session_exists = hunk.session_exists
-local original_add_comment = hunk.add_comment
-local original_review_prompt = hunk.review_prompt
-local opened = 0
-local add_attempted = false
-local prompt_attempted = false
-
-hunk.is_available = function()
-  return true
-end
-hunk.session_exists = function()
-  return false
-end
-hunk.add_comment = function()
-  add_attempted = true
-  return { result = { commentId = "unexpected" } }
-end
-hunk.review_prompt = function()
-  prompt_attempted = true
-  return "unexpected"
+for _, name in ipairs(review_modules) do
+  assert_true(package.loaded[name] == nil, name .. " must not be loaded")
+  local ok = pcall(require, name)
+  assert_true(not ok, name .. " must not be require-able")
 end
 
-hunk.open_or_reload = function(context, raw_args)
-  assert_true(context.repo ~= nil and context.repo ~= "", "Hunk inbox should resolve a git repo directly")
-  assert_true(raw_args == hunk.default_diff_command(), "Hunk inbox should open the moodboard-aligned watched diff")
-  opened = opened + 1
-  return true
+local banned_commands = {
+  "ReviewInbox",
+  "ReviewCurrentHunk",
+  "ReviewAnnotate",
+  "ReviewHunk",
+  "ReviewHunkNextComment",
+  "ReviewHunkPrevComment",
+  "ReviewHelp",
+  "ReviewContext",
+  "ReviewClaudeReview",
+  "ReviewPiReview",
+}
+
+local registered = vim.api.nvim_get_commands({})
+for _, command in ipairs(banned_commands) do
+  assert_true(registered[command] == nil, ":" .. command .. " must not exist")
 end
 
-local ok, err = pcall(function()
-  hunk_flow.open_inbox()
-  hunk_flow.open_inbox({ status = "needs-rework" })
-  vim.cmd.edit(vim.fn.fnameescape((vim.env.XDG_CONFIG_HOME or vim.fn.getcwd()) .. "/README.md"))
-  vim.api.nvim_win_set_cursor(0, { 1, 0 })
-  hunk_flow.annotate_current_hunk()
-  hunk_flow.prepare_review("claude")
-end)
+-- which-key must not declare a Review group
+local which_key_specs = require("plugins.which-key")
+local spec = which_key_specs[1].opts.spec
+for _, entry in ipairs(spec) do
+  if type(entry) == "table" and entry.group == "Review" then
+    fail("which-key must not define a Review group")
+  end
+end
 
-hunk.review_prompt = original_review_prompt
-hunk.add_comment = original_add_comment
-hunk.session_exists = original_session_exists
-hunk.open_or_reload = original_open_or_reload
-hunk.is_available = original_is_available
+-- bufferline must not special-case hunkreview
+local ui_specs = require("plugins.ui")
+for _, plugin in ipairs(ui_specs) do
+  local opts = plugin.opts
+  if type(opts) == "table" and opts.options and opts.options.name_formatter then
+    fail("bufferline must not keep a review name_formatter")
+  end
+end
 
-assert_true(ok, err or "default Hunk inbox failed")
-assert_true(opened == 4, "Hunk inbox, no-session annotation, and no-session agent review should open the live watched diff")
-assert_true(not add_attempted, "Hunk annotation should not add a comment before a live session exists")
-assert_true(not prompt_attempted, "Hunk agent review should not dispatch a prompt before a live session exists")
-assert_not_loaded("config.review")
-assert_not_loaded("config.review.hunk_local_adapter")
-assert_not_loaded("config.review.items")
-assert_not_loaded("config.review.providers")
-assert_not_loaded("config.review.state")
-
-print("hunk lazy smoke ok")
+print("review absence smoke ok")

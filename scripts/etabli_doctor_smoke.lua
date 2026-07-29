@@ -25,6 +25,16 @@ local expected_commands = {
   "CopilotEnable",
   "CopilotDisable",
   "CopilotToggle",
+  "PackUpdate",
+}
+
+local registered_commands = vim.api.nvim_get_commands({})
+
+for _, command in ipairs(expected_commands) do
+  assert_true(registered_commands[command] ~= nil, "expected :" .. command .. " command")
+end
+
+local banned_review_commands = {
   "ReviewInbox",
   "ReviewCurrentHunk",
   "ReviewAnnotate",
@@ -35,15 +45,6 @@ local expected_commands = {
   "ReviewContext",
   "ReviewClaudeReview",
   "ReviewPiReview",
-}
-
-local registered_commands = vim.api.nvim_get_commands({})
-
-for _, command in ipairs(expected_commands) do
-  assert_true(registered_commands[command] ~= nil, "expected :" .. command .. " command")
-end
-
-local hidden_legacy_commands = {
   "ReviewLegacyInbox",
   "ReviewLegacyCurrentHunk",
   "ReviewLegacyAnnotate",
@@ -67,117 +68,17 @@ local hidden_legacy_commands = {
   "ReviewPiBatch",
 }
 
-for _, command in ipairs(hidden_legacy_commands) do
-  assert_true(registered_commands[command] == nil, "legacy :" .. command .. " command should be hidden by default")
+for _, command in ipairs(banned_review_commands) do
+  assert_true(registered_commands[command] == nil, ":" .. command .. " must not exist (review surface removed)")
 end
 
-assert_true(package.loaded["config.review"] == nil, "legacy review module should not load during default startup")
-assert_true(package.loaded["config.review.state"] == nil, "review state module should not load during default startup")
-assert_true(package.loaded["config.review.items"] == nil, "review items module should not load during default startup")
-assert_true(package.loaded["config.review.providers"] == nil, "review providers module should not load during default startup")
+assert_true(package.loaded["config.review"] == nil, "config.review must not load")
+assert_true(package.loaded["config.review.hunk"] == nil, "config.review.hunk must not load")
+assert_true(package.loaded["config.review.hunk_flow"] == nil, "config.review.hunk_flow must not load")
+assert_true(package.loaded["config.review.providers"] == nil, "config.review.providers must not load")
 
-do
-  local hunk = require("config.review.hunk")
-  local hunk_flow = require("config.review.hunk_flow")
-  local original_input = vim.ui.input
-  local original_available = hunk.is_available
-  local original_session_exists = hunk.session_exists
-  local original_add_comment = hunk.add_comment
-  local original_open_or_reload = hunk.open_or_reload
-  local opened_hunk = false
-  local added_comment = false
-
-  hunk.is_available = function()
-    return true
-  end
-  hunk.session_exists = function(repo)
-    return repo == doctor.config_root()
-  end
-  hunk.open_or_reload = function(context, raw_args)
-    opened_hunk = context.repo == doctor.config_root() and raw_args == hunk.default_diff_command()
-    return true
-  end
-  hunk.add_comment = function(context, attrs)
-    added_comment = context.repo == doctor.config_root()
-      and attrs.file == "README.md"
-      and attrs.line == 1
-      and attrs.body == "Hunk-only annotation."
-      and attrs.id == nil
-    return { result = { commentId = "direct-note" } }
-  end
-  vim.ui.input = function(_, on_confirm)
-    on_confirm("Hunk-only annotation.")
-  end
-
-  hunk_flow.open_inbox()
-  vim.cmd.edit(vim.fn.fnameescape(doctor.config_root() .. "/README.md"))
-  vim.api.nvim_win_set_cursor(0, { 1, 0 })
-  hunk_flow.annotate_current_hunk()
-
-  vim.ui.input = original_input
-  hunk.open_or_reload = original_open_or_reload
-  hunk.add_comment = original_add_comment
-  hunk.session_exists = original_session_exists
-  hunk.is_available = original_available
-
-  assert_true(opened_hunk, "default Hunk inbox should open through Hunk")
-  assert_true(added_comment, "active Hunk annotation should write directly to Hunk without a local id")
-  assert_true(package.loaded["config.review.hunk_local_adapter"] == nil, "Hunk inbox should not load a local durability adapter")
-  assert_true(package.loaded["config.review.providers"] == nil, "Hunk inbox should not load review providers")
-end
-
-do
-  local hunk = require("config.review.hunk")
-  local hunk_flow = require("config.review.hunk_flow")
-  local providers = require("config.review.providers")
-  local original_available = hunk.is_available
-  local original_session_exists = hunk.session_exists
-  local original_reload = hunk.reload
-  local original_review_prompt = hunk.review_prompt
-  local original_dispatch_prompt = providers.dispatch_prompt
-  local dispatched_prompt = false
-  local reloaded_hunk = false
-
-  hunk.is_available = function()
-    return true
-  end
-  hunk.session_exists = function(repo)
-    return repo == doctor.config_root()
-  end
-  hunk.reload = function(context, raw_args)
-    reloaded_hunk = context.repo == doctor.config_root() and raw_args == hunk.default_diff_command()
-    return true
-  end
-  hunk.review_prompt = function(provider, context, opts)
-    return table.concat({ provider, context.repo, opts.target_label }, "\n")
-  end
-  providers.dispatch_prompt = function(provider, prompt, opts)
-    dispatched_prompt = provider == "claude"
-      and prompt:find("changed since last review", 1, true) ~= nil
-      and opts.cwd == doctor.config_root()
-      and opts.env ~= nil
-      and type(opts.env.XDG_CONFIG_HOME) == "string"
-      and opts.env.XDG_CONFIG_HOME ~= ""
-    return prompt
-  end
-
-  hunk_flow.prepare_review("claude", "changed-only")
-  local before_signature = hunk_flow.repo_change_signature(doctor.config_root())
-  hunk_flow.refresh_after_external_edit(doctor.config_root(), {
-    before_signature = before_signature,
-    provider = "Claude",
-  })
-
-  providers.dispatch_prompt = original_dispatch_prompt
-  hunk.review_prompt = original_review_prompt
-  hunk.reload = original_reload
-  hunk.session_exists = original_session_exists
-  hunk.is_available = original_available
-
-  assert_true(dispatched_prompt, "Hunk Claude review should dispatch without the legacy review UI")
-  assert_true(reloaded_hunk, "Hunk Claude review refresh should reload Hunk")
-  assert_true(package.loaded["config.review"] == nil, "Hunk Claude review should not load the legacy review UI")
-end
+local require_ok = pcall(require, "config.review.hunk_flow")
+assert_true(not require_ok, "config.review.hunk_flow must not be require-able")
 
 local lines = doctor.lines(vim.fn.getcwd())
 local output = joined(lines)
@@ -244,5 +145,18 @@ assert_true(vim.fn.filereadable(atomic_path) == 1, "atomic state file should be 
 local ok_decode, decoded = pcall(vim.json.decode, joined(vim.fn.readfile(atomic_path)))
 assert_true(ok_decode and decoded.value == "ok", "atomic state file should contain valid JSON")
 assert_true(vim.tbl_isempty(vim.fn.glob(atomic_path .. ".tmp.*", false, true)), "atomic state write should clean temp files")
+
+-- Theme: Catppuccin Mocha (or fallback pin), never habamax default
+local colors = vim.g.colors_name or ""
+assert_true(colors ~= "habamax", "default colorscheme must not be habamax")
+assert_true(
+  colors:find("catppuccin", 1, true) ~= nil or colors == "etabli-mocha-fallback",
+  "colorscheme should be catppuccin mocha (or mocha fallback), got: " .. colors
+)
+
+local palette = require("config.palette")
+assert_true(palette.flavor == "mocha", "palette flavor must be mocha")
+assert_true(palette.base == "#1e1e2e", "palette base must match ghostty background")
+assert_true(palette.mauve == "#cba6f7", "palette mauve must match terminal accent")
 
 print("etabli doctor smoke ok")

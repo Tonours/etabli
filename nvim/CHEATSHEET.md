@@ -58,6 +58,7 @@ Leader: `<Space>`
 - format: `<leader>cf`
 - document symbols: `<leader>ss`
 - workspace symbols: `<leader>sS`
+- git hunks (gitsigns): `[h` previous, `]h` next
 - Copilot native sign in: `:LspCopilotSignIn`
 - Copilot inline: `Tab` or `<A-l>` accept, `<A-]>` next, `<A-[>` previous
 - Copilot controls: `:CopilotStatus`, `:CopilotDisable`, `:CopilotEnable`, `:CopilotToggle`
@@ -71,22 +72,10 @@ Leader: `<Space>`
 - previous diagnostic: `[d`
 - next diagnostic: `]d`
 
-## Review
-
-- inbox: `<leader>ri` or `:ReviewInbox` opens Hunk
-- current hunk: `<leader>rh` focuses the current line in Hunk, `<leader>ra` comments the current line/range in an active Hunk session
-- comment editor: `<C-s>`/`ZZ` save, `ZQ`/`q`/`Esc` cancel
-- Hunk viewer: `<leader>rH` or `:ReviewHunk` opens `hunk diff --watch --mode auto --theme custom --no-wrap --line-numbers --agent-notes --no-transparent-bg`
-- Hunk context rail: `<leader>rx` or `:ReviewContext`
-- Hunk comments: `<leader>rj` next, `<leader>rk` previous
-- navigate hunks: `[h` previous, `]h` next
-- Claude review: `<leader>rc` or `:ReviewClaudeReview changed-only` after Hunk is open
-- Pi review: `<leader>rp` or `:ReviewPiReview changed-only` after Hunk is open
-
-
 ## Tip
 
-- Use Neovim as the review and editing surface, not as an agent cockpit.
+- Neovim is a code editor, not an agent or review cockpit. Use Pi/Claude/workflow outside nvim; optional product diff review via Hunk CLI/tmux.
+- Theme is Catppuccin Mocha (aligned with Ghostty + tmux).
 - Copilot runs through Neovim's native LSP inline completion, not as an `nvim-cmp` source.
 - `Tab` first accepts a visible Copilot inline suggestion, then falls back to completion or a literal tab.
 - Press `<leader>` to let `which-key` remind you of grouped shortcuts.

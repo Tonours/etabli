@@ -16,7 +16,6 @@ return {
         { "<leader>d", group = "Diagnostics" },
         { "<leader>f", group = "Files" },
         { "<leader>p", group = "Projects" },
-        { "<leader>r", group = "Review" },
         { "<leader>s", group = "Symbols" },
         { "<leader>t", group = "Tabs" },
         { "<leader>w", group = "Windows" },

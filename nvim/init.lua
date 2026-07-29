@@ -6,7 +6,6 @@ if vim.loader and vim.loader.enable then
 end
 
 require("config.options")
-vim.cmd.colorscheme("habamax")
 require("config.autocmds")
 
 vim.api.nvim_create_user_command("PackUpdate", function()
@@ -30,43 +29,6 @@ lazy_cmd("CopilotToggle", "config.copilot", "toggle", { desc = "Toggle Copilot i
 lazy_cmd("ProjectInfo", "config.project_runtime", "project_info", {})
 lazy_cmd("PI", "config.project_runtime", "project_info", {})
 
-lazy_cmd("ReviewInbox", "config.review.hunk_flow", "cmd_open_inbox", {
-  complete = function()
-    return { "all" }
-  end,
-  desc = "Open the Hunk review inbox", nargs = "?",
-})
-lazy_cmd("ReviewCurrentHunk", "config.review.hunk_flow", "show_current_hunk", { desc = "Focus the current line in Hunk review" })
-lazy_cmd("ReviewAnnotate", "config.review.hunk_flow", "cmd_annotate", { desc = "Comment the current review line or range", range = true })
-lazy_cmd("ReviewHunk", "config.review.hunk_flow", "cmd_open_hunk", {
-  complete = function() return { "diff", "diff --watch", "show", "show HEAD" } end,
-  desc = "Open Hunk diff viewer", nargs = "*",
-})
-lazy_cmd("ReviewHunkNextComment", "config.review.hunk_flow", "cmd_hunk_next_comment", {
-  desc = "Move Hunk to the next review comment",
-})
-lazy_cmd("ReviewHunkPrevComment", "config.review.hunk_flow", "cmd_hunk_prev_comment", {
-  desc = "Move Hunk to the previous review comment",
-})
-lazy_cmd("ReviewHelp", "config.review.hunk_flow", "cmd_help", {
-  desc = "Show Hunk review workflow help",
-})
-lazy_cmd("ReviewContext", "config.review.hunk_flow", "open_context_rail", {
-  desc = "Open the Hunk review context rail",
-})
-lazy_cmd("ReviewClaudeReview", "config.review.hunk_flow", "cmd_claude_review", {
-  complete = function()
-    return { "all", "changed-only" }
-  end,
-  desc = "Launch Claude for a first-pass Hunk code review", nargs = "?",
-})
-lazy_cmd("ReviewPiReview", "config.review.hunk_flow", "cmd_pi_review", {
-  complete = function()
-    return { "all", "changed-only" }
-  end,
-  desc = "Launch Pi for a first-pass Hunk code review", nargs = "?",
-})
-
 -- Priority 1: keymaps needed for immediate editing
 vim.schedule(function()
   require("config.keymaps")
@@ -82,3 +44,4 @@ vim.api.nvim_create_autocmd("User", {
 })
 
 require("config.pack").setup()
+require("config.theme").setup()
