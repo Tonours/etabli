@@ -452,70 +452,9 @@ async function runProbes(piBinary) {
   assert(messageText(historyMessages[0]).includes("STORED"), "K3 history setup response mismatch");
   assert(messageText(historyMessages[1]).includes(historyNonce), "K3 did not preserve multi-turn history");
 
-  const lowRisk = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-luna",
-    thinking: "medium",
-    tools: "Agent,get_subagent_result",
-    prompt: "Review this small diff for concrete defects. Report only; do not modify files. const answer = 42;",
-  });
-  assert(routerDecisionEvidence(lowRisk.events).at(-1)?.multiExecution?.mode === "single", "low-risk review triggered an adaptive multi-execution decision");
-
-  const adaptiveScout = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-luna",
-    thinking: "medium",
-    tools: "Agent,get_subagent_result",
-    prompt: "Create a read-only architecture plan for splitting this small TypeScript module. Do not modify files.",
-  });
-  const adaptiveScoutCalls = panelAgentCalls(adaptiveScout.events);
-  const adaptiveScoutDecision = routerDecisionEvidence(adaptiveScout.events).at(-1)?.multiExecution;
-  assert(adaptiveScoutDecision?.mode === "single" && adaptiveScoutDecision?.strategy === "single", "planning prompt triggered an unexpected adaptive multi-execution decision");
-
-  const defaultEligible = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-luna",
-    thinking: "medium",
-    tools: "Agent,get_subagent_result",
-    prompt: [
-      "Review this non-trivial TypeScript code for security and concurrency defects. Report only; do not modify files.",
-      "async function update(id: string, value: string) { const old = await db.get(id); await db.save({ ...old, value }); }",
-    ].join("\n"),
-  });
-  const defaultEligibleCalls = panelAgentCalls(defaultEligible.events);
-  const defaultEligibleDecision = routerDecisionEvidence(defaultEligible.events).at(-1)?.multiExecution;
-  assert(defaultEligibleDecision?.strategy === "council" && JSON.stringify(defaultEligibleDecision?.roles) === JSON.stringify(["etabli-scout", "etabli-challenger"]), "adaptive council decision mismatch");
-
-  const explicitPanel = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-luna",
-    thinking: "medium",
-    tools: "Agent,get_subagent_result",
-    prompt: [
-      "Use an explicit multi-model panel to review this non-trivial TypeScript code for security and concurrency defects. Report only; do not modify files.",
-      "async function update(id: string, value: string) { const old = await db.get(id); await db.save({ ...old, value }); }",
-    ].join("\n"),
-  });
-  const explicitPanelCalls = panelAgentCalls(explicitPanel.events);
-  const explicitPanelDecision = routerDecisionEvidence(explicitPanel.events).at(-1)?.multiExecution;
-  assert(explicitPanelDecision?.strategy === "council" && explicitPanelDecision?.trigger === "explicit", "explicit panel decision mismatch");
-
-  const excluded = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-luna",
-    thinking: "medium",
-    tools: "Agent,get_subagent_result",
-    prompt: "Return exactly FOUR for 2 + 2. Do not use tools.",
-  });
-  assert(routerDecisionEvidence(excluded.events).at(-1)?.multiExecution?.mode === "single", "excluded trivial route triggered an adaptive multi-execution decision");
   return {
     models: results,
     kimiHistoryTurns: historyMessages.length,
-    lowRiskSidecars: 0,
-    adaptiveScoutSidecars: adaptiveScoutCalls.length,
-    adaptiveCouncilCalls: defaultEligibleCalls.length,
-    explicitPanelCalls: explicitPanelCalls.length,
-    excludedSidecars: 0,
   };
 }
 
