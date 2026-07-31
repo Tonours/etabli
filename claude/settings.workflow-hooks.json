@@ -55,6 +55,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/outcome-metric-emit.mjs\"",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }

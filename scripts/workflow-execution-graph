@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Derived execution graph over a ledger (blueprint G1). Read-only view.
+set -euo pipefail
+
+WORKFLOW_DIR=".workflow"
+JSON=1
+
+usage() {
+  cat <<EOF
+Usage: workflow-execution-graph [--dir path] [--text] <slug>
+
+Emit a derived execution graph (nodes/edges) from ledger events.
+The ledger remains the source of truth; this output is disposable.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dir)
+      WORKFLOW_DIR="${2:-}"
+      shift 2
+      ;;
+    --text)
+      JSON=0
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+slug="${1:-}"
+if [ -z "$slug" ]; then
+  usage >&2
+  exit 2
+fi
+
+file="$WORKFLOW_DIR/$slug/events.jsonl"
+if [ ! -f "$file" ]; then
+  printf 'ledger not found: %s\n' "$file" >&2
+  exit 1
+fi
+
+graph="$(
+  jq -s --arg slug "$slug" --arg source "$file" '
+    def node_id($i; $event): ($event + "#" + ($i|tostring));
+    [
+      range(0; length) as $i
+      | .[$i] as $e
+      | {
+          id: node_id($i; $e.event),
+          type: (
+            if $e.event == "route_decided" then "Route"
+            elif $e.event == "plan_created" then "PlanSlice"
+            elif $e.event == "file_changed" then "Artifact"
+            elif $e.event | test("validation_|dogfood_|review_|adversary_|outcome_|archive_|plan_removed|completed|blocked|no_progress|handoff") then
+              if $e.event == "completed" or $e.event == "blocked" or $e.event == "no_progress" then "Terminal"
+              elif $e.event == "file_changed" or $e.event == "archive_written" or $e.event == "plan_removed" then "Artifact"
+              elif $e.event | test("validation_|review_|adversary_|outcome_") then "Check"
+              else "Task"
+              end
+            else "Task"
+            end
+          ),
+          event: $e.event,
+          ts: $e.ts,
+          detail: $e.detail
+        }
+    ] as $nodes
+    | [
+        range(1; ($nodes|length)) as $i
+        | {
+            from: $nodes[$i-1].id,
+            to: $nodes[$i].id,
+            edge: (
+              if $nodes[$i].event == "validation_run" or $nodes[$i].event == "validation_failed" then "validates"
+              elif $nodes[$i].event == "file_changed" then "produces"
+              elif $nodes[$i].event == "no_progress" or $nodes[$i].event == "blocked" then "blocks"
+              elif $nodes[$i].event == "retry_classified" then "retries"
+              else "requires"
+              end
+            )
+          }
+      ] as $edges
+    | {
+        source_of_truth: $source,
+        run: $slug,
+        derived: true,
+        node_count: ($nodes|length),
+        edge_count: ($edges|length),
+        nodes: $nodes,
+        edges: $edges,
+        event_sequence: [$nodes[].id],
+        invariants: {
+          derived_only: true,
+          acyclic_claimed: false,
+          single_writer_enforced_here: false,
+          fingerprint_source: $source,
+          note: "Sequential event view only; not a semantic DAG or OS single-writer proof"
+        }
+      }
+  ' "$file"
+)"
+
+if [ "$JSON" -eq 1 ]; then
+  printf '%s\n' "$graph"
+else
+  printf '%s\n' "$graph" | jq -r '"run=\(.run)\nnodes=\(.node_count)\nedges=\(.edge_count)\nsource=\(.source_of_truth)\n" + (.nodes|map("- \(.id) [\(.type)]")|join("\n"))'
+fi
