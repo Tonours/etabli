@@ -361,13 +361,24 @@ const legacySources = new Set([
 let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
 let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
+// Role-critical pins always forced into local settings (also asserted by
+// deploy-agent-workflow smoke). Full tracked portfolio is merged below.
 const managedModels = new Set([
   "openai-codex/gpt-5.6-luna",
   "openai-codex/gpt-5.6-terra",
   "openai-codex/gpt-5.6-sol",
   "kimi-coding/k3",
 ]);
-const legacyModels = new Set(["openai-codex/gpt-5.6"]);
+// Retired aliases / catalog IDs that must not stay in local cycling lists.
+const legacyModels = new Set([
+  "openai-codex/gpt-5.6",
+  "opencode-go/kimi-k2.6",
+  "kimi-coding/kimi-for-coding",
+  "kimi-coding/kimi-for-coding-highspeed",
+  "github-copilot/claude-opus-4.7",
+  "opencode-go/minimax-m2.7",
+  "opencode-go/qwen3.6-plus",
+]);
 
 function packageSource(entry) {
   if (typeof entry === "string") return entry;
@@ -415,8 +426,13 @@ for (const [source, trackedEntry] of trackedBySource) {
 
 const beforeModels = JSON.stringify(localModels);
 localModels = localModels.filter((model) => !legacyModels.has(model));
+// Keep personal extras, but ensure the tracked portfolio is present after
+// catalog upgrades (not only the multi-model role pins).
 for (const model of trackedSettings.enabledModels ?? []) {
-  if (managedModels.has(model) && !localModels.includes(model)) localModels.push(model);
+  if (!localModels.includes(model)) localModels.push(model);
+}
+for (const model of managedModels) {
+  if (!localModels.includes(model)) localModels.push(model);
 }
 if (JSON.stringify(localModels) !== beforeModels) changed = true;
 
