@@ -1,10 +1,10 @@
 ---
 description: High-confidence adjudicator for material unresolved disagreement
-display_name: Etabli Sol Judge
+display_name: Etabli Judge
 tools: read, grep, find, ls
 extensions: false
 skills: false
-model: openai-codex/gpt-5.6-sol
+model: kimi-coding/k3
 thinking: xhigh
 max_turns: 12
 inherit_context: false

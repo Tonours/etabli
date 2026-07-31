@@ -106,18 +106,18 @@ const MULTI_EXECUTION_SIGNAL_RULES = [
 ];
 
 const MULTI_EXECUTION_ROUTE_PROFILES = new Map([
-	["plan-loop", ["etabli-terra-analyst", "etabli-glm-challenger"]],
-	["plan-implement", ["etabli-terra-analyst", "etabli-glm-challenger"]],
-	["implement", ["etabli-terra-analyst", "etabli-glm-challenger"]],
-	["spec-guide", ["etabli-terra-analyst", "etabli-glm-challenger"]],
-	["linear-work", ["etabli-terra-analyst", "etabli-glm-challenger"]],
-	["adversary", ["etabli-luna-scout", "etabli-glm-challenger"]],
-	["bug-check", ["etabli-luna-scout", "etabli-glm-challenger"]],
-	["review", ["etabli-luna-scout", "etabli-glm-challenger"]],
-	["pr-review", ["etabli-luna-scout", "etabli-glm-challenger"]],
-	["pr-qa", ["etabli-luna-scout", "etabli-glm-challenger"]],
-	["sec-pr", ["etabli-luna-scout", "etabli-glm-challenger"]],
-	["research-plan", ["etabli-luna-scout", "etabli-glm-challenger"]],
+	["plan-loop", ["etabli-analyst", "etabli-challenger"]],
+	["plan-implement", ["etabli-analyst", "etabli-challenger"]],
+	["implement", ["etabli-analyst", "etabli-challenger"]],
+	["spec-guide", ["etabli-analyst", "etabli-challenger"]],
+	["linear-work", ["etabli-analyst", "etabli-challenger"]],
+	["adversary", ["etabli-scout", "etabli-challenger"]],
+	["bug-check", ["etabli-scout", "etabli-challenger"]],
+	["review", ["etabli-scout", "etabli-challenger"]],
+	["pr-review", ["etabli-scout", "etabli-challenger"]],
+	["pr-qa", ["etabli-scout", "etabli-challenger"]],
+	["sec-pr", ["etabli-scout", "etabli-challenger"]],
+	["research-plan", ["etabli-scout", "etabli-challenger"]],
 ]);
 
 const KNOWLEDGE_TOPIC_RULES = [
@@ -763,8 +763,8 @@ function panelMultiExecution(route, roles, trigger, strategy, signals, score) {
 					strategy +
 					" selected from deterministic prompt signals",
 		roles,
-		fallbackRoles: ["etabli-kimi-fallback"],
-		adjudicator: scout ? null : "etabli-sol-judge",
+		fallbackRoles: ["etabli-fallback"],
+		adjudicator: scout ? null : "etabli-judge",
 		maxSidecars: scout ? 2 : 3,
 		maxDepth: 1,
 		independentFirstPasses: true,

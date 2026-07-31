@@ -24,17 +24,17 @@ type RoutablePi = ExtensionAPI & {
 };
 
 const ETABLI_PORTFOLIO_ROLES = new Set([
-  "etabli-luna-scout",
-  "etabli-terra-analyst",
-  "etabli-glm-challenger",
-  "etabli-kimi-fallback",
-  "etabli-sol-judge",
+  "etabli-scout",
+  "etabli-analyst",
+  "etabli-challenger",
+  "etabli-fallback",
+  "etabli-judge",
 ]);
 const ETABLI_PORTFOLIO_MODELS = new Set([
-  "openai-codex/gpt-5.6-luna",
-  "openai-codex/gpt-5.6-terra",
-  "openai-codex/gpt-5.6-sol",
   "zai/glm-5.2",
+  "zai/glm-5.1",
+  "zai/glm-5-turbo",
+  "xai/grok-4.5",
   "kimi-coding/k3",
 ]);
 
@@ -84,7 +84,7 @@ function guardPortfolioCall(state: PortfolioCallState, toolCallId: string, input
   }
 
   const resumed = typeof input.resume === "string" && input.resume.trim() !== "";
-  if (role === "etabli-sol-judge") {
+  if (role === "etabli-judge") {
     if (resumed) return blockPortfolioCall("the Sol adjudicator cannot be resumed");
     if (decision.budget.maxAdjudications === 0 || state.adjudicationCalls >= decision.budget.maxAdjudications) {
       return blockPortfolioCall("the adjudication call cap is exhausted");
@@ -125,7 +125,7 @@ function guardPortfolioCall(state: PortfolioCallState, toolCallId: string, input
     return undefined;
   }
 
-  if (role === "etabli-kimi-fallback") {
+  if (role === "etabli-fallback") {
     if (state.fallbackCalls >= decision.budget.maxFallbackAgents) {
       return blockPortfolioCall("the Kimi fallback replacement cap is exhausted");
     }
@@ -174,7 +174,7 @@ function recordPortfolioAgentResult(
   if (!expectedRole) return;
   state.pendingInitialRoles.delete(toolCallId);
   if (isError || typeof details !== "object" || details === null) {
-    if (expectedRole !== "etabli-kimi-fallback") state.failedFirstPassRoles.add(expectedRole);
+    if (expectedRole !== "etabli-fallback") state.failedFirstPassRoles.add(expectedRole);
     return;
   }
 
@@ -189,7 +189,7 @@ function recordPortfolioAgentResult(
     if (result.status === "completed" || result.status === "steered") {
       state.completedAgentIds.add(agentId);
     } else if (
-      expectedRole !== "etabli-kimi-fallback"
+      expectedRole !== "etabli-fallback"
       && (result.status === "error" || result.status === "stopped" || result.status === "aborted")
     ) {
       state.failedFirstPassRoles.add(expectedRole);
@@ -224,7 +224,7 @@ function recordPortfolioRetrieval(
   if (!status || status === "running" || status === "queued" || status === "background") return;
   if (status === "error" || status === "stopped" || status === "aborted") {
     state.completedAgentIds.delete(agentId);
-    if (role !== "etabli-kimi-fallback") state.failedFirstPassRoles.add(role);
+    if (role !== "etabli-fallback") state.failedFirstPassRoles.add(role);
     return;
   }
   state.completedAgentIds.add(agentId);

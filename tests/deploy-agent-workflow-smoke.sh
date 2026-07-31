@@ -20,6 +20,9 @@ fs.writeFileSync(path, `${JSON.stringify({
   enabledModels: [
     "custom/provider-model",
     "openai-codex/gpt-5.6",
+    "openai-codex/gpt-5.6-luna",
+    "openai-codex/gpt-5.6-terra",
+    "openai-codex/gpt-5.6-sol",
   ],
   packages: [
     "npm:@agwab/pi-workflow",
@@ -87,11 +90,12 @@ assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_link "$HOME_DIR/.pi/agent/subagents.json" "$ROOT_DIR/pi/agent/subagents.json"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-luna-scout.md" "$ROOT_DIR/pi/agents/etabli-luna-scout.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-terra-analyst.md" "$ROOT_DIR/pi/agents/etabli-terra-analyst.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-glm-challenger.md" "$ROOT_DIR/pi/agents/etabli-glm-challenger.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-sol-judge.md" "$ROOT_DIR/pi/agents/etabli-sol-judge.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-kimi-fallback.md" "$ROOT_DIR/pi/agents/etabli-kimi-fallback.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-scout.md" "$ROOT_DIR/pi/agents/etabli-scout.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-analyst.md" "$ROOT_DIR/pi/agents/etabli-analyst.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-challenger.md" "$ROOT_DIR/pi/agents/etabli-challenger.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-judge.md" "$ROOT_DIR/pi/agents/etabli-judge.md"
+assert_link "$HOME_DIR/.pi/agent/agents/etabli-fallback.md" "$ROOT_DIR/pi/agents/etabli-fallback.md"
+assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
 assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
@@ -170,15 +174,21 @@ if (settings.defaultProvider !== "kimi-for-coding" ||
 const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
 for (const model of [
   "custom/provider-model",
-  "openai-codex/gpt-5.6-luna",
-  "openai-codex/gpt-5.6-terra",
-  "openai-codex/gpt-5.6-sol",
+  "zai/glm-5.2",
+  "zai/glm-5.1",
+  "zai/glm-5-turbo",
+  "xai/grok-4.5",
   "kimi-coding/k3",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
 }
-if (enabledModels.includes("openai-codex/gpt-5.6")) {
-  throw new Error("legacy generic GPT-5.6 alias was kept");
+for (const model of [
+  "openai-codex/gpt-5.6",
+  "openai-codex/gpt-5.6-luna",
+  "openai-codex/gpt-5.6-terra",
+  "openai-codex/gpt-5.6-sol",
+]) {
+  if (enabledModels.includes(model)) throw new Error(`legacy model was kept: ${model}`);
 }
 NODE
 
