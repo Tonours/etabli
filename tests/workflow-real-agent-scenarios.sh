@@ -137,6 +137,22 @@ Validate workflow routing in a temporary real-agent scenario.
 EOF
 }
 
+# Surface transient-error retries as a structured, parseable metric so the
+# previously-hidden retry loops are observable. Writes to stderr (never
+# captured by the command substitutions wrapping the run_* helpers) and, when
+# REAL_AGENT_METRICS_FILE is set, appends a JSONL ledger line in the same
+# append-only ledger pattern as tests/adr-skill-stress.sh, but a distinct
+# schema: {"metric":"retried","kind":...,"retries":...}.
+emit_retry_metric() {
+  local retries="$1"
+  local kind="$2"
+  [ "${retries:-0}" -gt 0 ] || return 0
+  printf 'RETRIED=%d kind=%s\n' "$retries" "$kind" >&2
+  if [ -n "${REAL_AGENT_METRICS_FILE:-}" ]; then
+    printf '{"metric":"retried","kind":"%s","retries":%d}\n' "$kind" "$retries" >> "$REAL_AGENT_METRICS_FILE"
+  fi
+}
+
 PI_TIMEOUT="${REAL_AGENT_PI_TIMEOUT:-90}"
 PI_TASKEXECUTE_TIMEOUT="${REAL_AGENT_TASKEXECUTE_TIMEOUT:-240}"
 # Empty = Pi default model (more stable for scaffold fidelity than a forced spark model).
@@ -190,6 +206,7 @@ run_pi_prompt() {
     normalized="$(printf '%s\n' "$output" | normalize_agent_output)"
     if [ "$status" -eq 0 ] \
       && ! printf '%s\n' "$normalized" | grep -Eiq 'Codex error|error occurred while processing|rate limit|temporar|timeout|timed out'; then
+      emit_retry_metric "$((attempt - 1))" pi_prompt
       printf '%s\n' "$normalized"
       return 0
     fi
@@ -199,6 +216,7 @@ run_pi_prompt() {
     fi
   done
 
+  emit_retry_metric "$((REAL_AGENT_RETRIES - 1))" pi_prompt
   printf '%s\n' "$normalized"
 }
 
@@ -282,6 +300,7 @@ run_pi_taskexecute_e2e() {
       && grep -Fq 'Status: implemented' "$archive_path" \
       && [ ! -e "$project/PLAN.md" ] \
       && printf '%s\n' "$output" | grep -Eq 'subagents:rpc:spawn|spawn:ok|spawn:call'; then
+      emit_retry_metric "$((attempt - 1))" pi_taskexecute
       printf '%s\n' "$output"
       return 0
     fi
@@ -291,6 +310,7 @@ run_pi_taskexecute_e2e() {
     fi
   done
 
+  emit_retry_metric "$((REAL_AGENT_RETRIES - 1))" pi_taskexecute
   printf 'FAIL: Pi TaskExecute subagent e2e did not produce expected archive/delete evidence\n' >&2
   printf 'project: %s\n' "$project" >&2
   printf 'output:\n%s\n' "$output" >&2
@@ -325,6 +345,7 @@ run_claude_answer() {
     normalized="$(printf '%s\n' "$output" | normalize_agent_output)"
     if [ "$status" -eq 0 ] \
       && ! printf '%s\n' "$normalized" | grep -Eiq 'error occurred while processing|rate limit|temporar|timeout|timed out|Exceeded USD budget'; then
+      emit_retry_metric "$((attempt - 1))" claude_answer
       printf '%s\n' "$normalized"
       return 0
     fi
@@ -334,6 +355,7 @@ run_claude_answer() {
     fi
   done
 
+  emit_retry_metric "$((REAL_AGENT_RETRIES - 1))" claude_answer
   printf '%s\n' "$normalized"
 }
 

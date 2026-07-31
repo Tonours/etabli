@@ -53,7 +53,7 @@ ledger.
 | `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted | degraded | blocked | rollback_to_opt_in, usage:{measured,...}, fallback_status:none | degraded | blocked}` |
 | `outcome_measurement_population` | `{population_id, manifest_sha256, terminal_runs, targets:[{target_run, target_ledger_sha256, target_terminal, target_terminal_event_sha256, target_outcome_event_sha256, baseline_measured, baseline_usage_measured}]}` |
 | `outcome_measurement_imported` | `{population_id, import_id, target_run, target fingerprints, source_adapter:"codex", source_scope:"primary_session_window", selection:"shortest_enclosing_primary_session", session_fingerprint, window/sample bounds, sample_count, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
-| `outcome_metric` | measured: `{outcome, success, measured:true, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}`; unavailable: `{outcome, success, measured:false, reason}` |
+| `outcome_metric` | measured: `{outcome, success, measured:true, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}`; unavailable: `{outcome, success, measured:false, reason}`. Additive optional runtime fields in either branch (validated when present, ignored when absent): `runtime` (provider/runtime id string), `turn_count`, `auto_continue_count`, `token_estimate`, `wall_clock_ms` |
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
 | `handoff` | `{branch, sha, done, pending, next_action, do_not_redo}` |
