@@ -1,10 +1,10 @@
 ---
 description: Fast evidence scout for independent repository reconnaissance
-display_name: Etabli Luna Scout
+display_name: Etabli Scout
 tools: read, grep, find, ls
 extensions: false
 skills: false
-model: openai-codex/gpt-5.6-luna
+model: zai/glm-5-turbo
 thinking: medium
 max_turns: 12
 inherit_context: false

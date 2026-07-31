@@ -1,10 +1,10 @@
 ---
 description: Deep planner and architecture analyst for independent proposals
-display_name: Etabli Terra Analyst
+display_name: Etabli Analyst
 tools: read, grep, find, ls
 extensions: false
 skills: false
-model: openai-codex/gpt-5.6-terra
+model: xai/grok-4.5
 thinking: high
 max_turns: 16
 inherit_context: false

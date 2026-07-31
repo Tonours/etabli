@@ -1,6 +1,6 @@
 ---
 description: Cross-provider adversarial challenger for plans and findings
-display_name: Etabli GLM Challenger
+display_name: Etabli Challenger
 tools: read, grep, find, ls
 extensions: false
 skills: false

@@ -22,11 +22,10 @@ def usage_valid:
   end;
 def participant_valid:
   (.id | nonempty_string) and
-  (.model | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra", "openai-codex/gpt-5.6-sol", "zai/glm-5.2", "kimi-coding/k3")) and
-  (.family | IN("openai", "zai", "kimi")) and
-  if (.model | startswith("openai-codex/")) then .family == "openai"
-  elif (.model | startswith("zai/")) then .family == "zai"
-  else .family == "kimi"
+  (.model | IN("zai/glm-5-turbo", "xai/grok-4.5", "zai/glm-5.2", "zai/glm-5.1")) and
+  (.family | IN("zai", "xai")) and
+  if (.model | startswith("zai/")) then .family == "zai"
+  else .family == "xai"
   end;
 def protocol_v2_shape:
   (.trigger | IN("explicit", "adaptive")) and
@@ -51,7 +50,7 @@ def protocol_v2_shape:
   (if .strategy == "scout" then
     (.rounds.rebuttal == 0) and (.rounds.adjudication == 0) and (.adjudicator == null)
   else
-    if .rounds.adjudication == 1 then .adjudicator == "etabli-sol-judge" else .adjudicator == null end
+    if .rounds.adjudication == 1 then .adjudicator == "etabli-judge" else .adjudicator == null end
   end) and
   (((.claim_count > .budget.max_claims) or
     ((.stage_usage.first_pass.measured == true) and (.stage_usage.first_pass.output_tokens > .budget.first_pass_output_tokens)) or
@@ -66,27 +65,24 @@ def protocol_v2_consistent:
   (.disagreement == (.disagreement_count > 0)) and
   (.disagreement_count <= .claim_count) and
   (([.participants[].id] | unique | length) == (.participants | length)) and
-  (all(.participants[]; .model != "openai-codex/gpt-5.6-sol")) and
+  (all(.participants[]; .model != "kimi-coding/k3")) and
   (([.participants[].model]) as $models |
     (($models | unique | length) == ($models | length)) and
+    (all($models[]; . | IN("zai/glm-5-turbo", "xai/grok-4.5", "zai/glm-5.2", "zai/glm-5.1"))) and
+    (($models | index("zai/glm-5.1")) != null) == (.fallback_status != "none") and
     if .strategy == "scout" then
       if .fallback_status == "none" then
-        ($models | length) == 1 and ($models[0] | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra"))
+        ($models | length) == 1 and ($models[0] | IN("zai/glm-5-turbo", "xai/grok-4.5", "zai/glm-5.2"))
       else
-        (($models | index("kimi-coding/k3")) != null) and (($models | length) <= 2) and
-        (all($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra", "kimi-coding/k3")))
+        ($models | length) <= 2
       end
     else
       if .fallback_status == "none" then
-        ($models | length) == 2 and (($models | index("zai/glm-5.2")) != null) and
-        (any($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra")))
+        ($models | length) == 2
       elif ($models | length) == 2 then
-        (($models | index("kimi-coding/k3")) != null) and
-        (any($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra", "zai/glm-5.2")))
+        true
       else
-        ($models | length) == 3 and (($models | index("kimi-coding/k3")) != null) and
-        (($models | index("zai/glm-5.2")) != null) and
-        (any($models[]; . | IN("openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-terra")))
+        ($models | length) == 3
       end
     end) and
   (if .strategy == "scout" then
@@ -100,7 +96,6 @@ def protocol_v2_consistent:
   elif .strategy == "scout" then (.signals | length) == 1 and (.signals[0] != "critical-risk")
   else ((.signals | index("critical-risk")) != null) or ((.signals | length) >= 2)
   end) and
-  ((any(.participants[]; .model == "kimi-coding/k3")) == (.fallback_status != "none")) and
   (if .fallback_status == "degraded" then .verdict == "degraded"
   elif .fallback_status == "blocked" then .verdict == "blocked"
   else true
@@ -130,7 +125,7 @@ def multi_execution_completed_detail:
   (.participants | type == "array") and ((.participants | length) > 0) and ((.participants | length) <= 3) and
   (all(.participants[]; participant_valid)) and
   (.independent_first_passes | boolean) and (.disagreement | boolean) and
-  ((.adjudicator == null) or (.adjudicator == "etabli-sol-judge")) and
+  ((.adjudicator == null) or (.adjudicator == "etabli-judge")) and
   (.verdict | IN("accepted", "degraded", "blocked", "rollback_to_opt_in")) and
   (.usage | type == "object") and (.usage | usage_valid) and
   (.fallback_status | IN("none", "degraded", "blocked")) and

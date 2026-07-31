@@ -4,28 +4,28 @@ import { readFileSync } from "node:fs";
 type AgentFrontmatter = Record<string, string>;
 
 const AGENTS = {
-  "etabli-luna-scout.md": {
-    model: "openai-codex/gpt-5.6-luna",
+  "etabli-scout.md": {
+    model: "zai/glm-5-turbo",
     thinking: "medium",
     maxTurns: "12",
   },
-  "etabli-terra-analyst.md": {
-    model: "openai-codex/gpt-5.6-terra",
+  "etabli-analyst.md": {
+    model: "xai/grok-4.5",
     thinking: "high",
     maxTurns: "16",
   },
-  "etabli-glm-challenger.md": {
+  "etabli-challenger.md": {
     model: "zai/glm-5.2",
     thinking: "xhigh",
     maxTurns: "16",
   },
-  "etabli-sol-judge.md": {
-    model: "openai-codex/gpt-5.6-sol",
+  "etabli-judge.md": {
+    model: "kimi-coding/k3",
     thinking: "xhigh",
     maxTurns: "12",
   },
-  "etabli-kimi-fallback.md": {
-    model: "kimi-coding/k3",
+  "etabli-fallback.md": {
+    model: "zai/glm-5.1",
     thinking: "xhigh",
     maxTurns: "12",
   },

@@ -162,7 +162,7 @@ describe("workflow router runtime", () => {
 			strategy: "council",
 			signals: ["critical-risk"],
 			score: 2,
-			roles: ["etabli-luna-scout", "etabli-glm-challenger"],
+			roles: ["etabli-scout", "etabli-challenger"],
 			budget: {
 				maxFirstPassAgents: 2,
 				maxFallbackAgents: 1,
@@ -186,8 +186,8 @@ describe("workflow router runtime", () => {
 			mode: "panel",
 			trigger: "explicit",
 			strategy: "council",
-			roles: ["etabli-terra-analyst", "etabli-glm-challenger"],
-			adjudicator: "etabli-sol-judge",
+			roles: ["etabli-analyst", "etabli-challenger"],
+			adjudicator: "etabli-judge",
 			maxSidecars: 3,
 			maxDepth: 1,
 			writer: "parent-only",
@@ -197,7 +197,7 @@ describe("workflow router runtime", () => {
 			classifyWorkflowRoute("Fais une review cross-model de ce diff", {
 				hasAgentTools: true,
 			}).multiExecution.roles,
-		).toEqual(["etabli-luna-scout", "etabli-glm-challenger"]);
+		).toEqual(["etabli-scout", "etabli-challenger"]);
 		expect(
 			classifyWorkflowRoute("Bonjour, comment vas-tu ?").multiExecution.mode,
 		).toBe("single");
@@ -260,7 +260,7 @@ describe("workflow router runtime", () => {
 			}).multiExecution,
 		).toMatchObject({
 			strategy: "scout",
-			roles: ["etabli-luna-scout"],
+			roles: ["etabli-scout"],
 			signals: ["uncertainty"],
 		});
 		expect(
@@ -270,7 +270,7 @@ describe("workflow router runtime", () => {
 			).multiExecution,
 		).toMatchObject({
 			strategy: "scout",
-			roles: ["etabli-luna-scout"],
+			roles: ["etabli-scout"],
 			signals: ["prompt-failure-history"],
 		});
 	});

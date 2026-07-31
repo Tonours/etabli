@@ -200,26 +200,26 @@ describe("workflow router extension", () => {
         isError: false,
       });
 
-    expect(call("start-luna", "etabli-luna-scout")).toBeUndefined();
-    result("start-luna", "etabli-luna-scout", "luna-id");
-    expect(call("start-glm", "etabli-glm-challenger")).toBeUndefined();
-    result("start-glm", "etabli-glm-challenger", "glm-id");
-    expect(call("early-sol", "etabli-sol-judge")).toMatchObject({ block: true });
-    expect(call("cross-role-resume", "etabli-glm-challenger", { resume: "luna-id" })).toMatchObject({ block: true });
-    expect(call("premature-luna", "etabli-luna-scout", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("start-luna", "etabli-scout")).toBeUndefined();
+    result("start-luna", "etabli-scout", "luna-id");
+    expect(call("start-glm", "etabli-challenger")).toBeUndefined();
+    result("start-glm", "etabli-challenger", "glm-id");
+    expect(call("early-sol", "etabli-judge")).toMatchObject({ block: true });
+    expect(call("cross-role-resume", "etabli-challenger", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("premature-luna", "etabli-scout", { resume: "luna-id" })).toMatchObject({ block: true });
     retrieve("luna-id", "completed");
     retrieve("glm-id", "completed");
-    expect(call("resume-luna", "etabli-luna-scout", { resume: "luna-id" })).toBeUndefined();
-    expect(call("repeat-luna", "etabli-luna-scout", { resume: "luna-id" })).toMatchObject({ block: true });
-    expect(call("resume-glm", "etabli-glm-challenger", { resume: "glm-id" })).toBeUndefined();
-    expect(call("sol-before-results", "etabli-sol-judge")).toMatchObject({ block: true });
-    result("resume-luna", "etabli-luna-scout", "luna-id", "completed");
-    expect(call("sol-before-glm-result", "etabli-sol-judge")).toMatchObject({ block: true });
-    result("resume-glm", "etabli-glm-challenger", "glm-id", "completed");
-    expect(call("sol", "etabli-sol-judge")).toBeUndefined();
-    expect(call("repeat-sol", "etabli-sol-judge")).toMatchObject({ block: true });
-    expect(call("healthy-kimi", "etabli-kimi-fallback")).toMatchObject({ block: true });
-    expect(call("terra", "etabli-terra-analyst")).toMatchObject({ block: true });
+    expect(call("resume-luna", "etabli-scout", { resume: "luna-id" })).toBeUndefined();
+    expect(call("repeat-luna", "etabli-scout", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("resume-glm", "etabli-challenger", { resume: "glm-id" })).toBeUndefined();
+    expect(call("sol-before-results", "etabli-judge")).toMatchObject({ block: true });
+    result("resume-luna", "etabli-scout", "luna-id", "completed");
+    expect(call("sol-before-glm-result", "etabli-judge")).toMatchObject({ block: true });
+    result("resume-glm", "etabli-challenger", "glm-id", "completed");
+    expect(call("sol", "etabli-judge")).toBeUndefined();
+    expect(call("repeat-sol", "etabli-judge")).toMatchObject({ block: true });
+    expect(call("healthy-kimi", "etabli-fallback")).toMatchObject({ block: true });
+    expect(call("terra", "etabli-analyst")).toMatchObject({ block: true });
   });
 
   test("admits Kimi only after an observed primary failure", () => {
@@ -248,22 +248,22 @@ describe("workflow router extension", () => {
       isError: false,
     });
 
-    expect(call("start-luna", "etabli-luna-scout")).toBeUndefined();
-    result("start-luna", "etabli-luna-scout", "luna-id");
+    expect(call("start-luna", "etabli-scout")).toBeUndefined();
+    result("start-luna", "etabli-scout", "luna-id");
     retrieve("luna-id", "error");
-    expect(call("start-kimi", "etabli-kimi-fallback")).toBeUndefined();
-    result("start-kimi", "etabli-kimi-fallback", "kimi-id");
-    expect(call("repeat-kimi", "etabli-kimi-fallback")).toMatchObject({ block: true });
-    expect(call("start-glm", "etabli-glm-challenger")).toBeUndefined();
-    result("start-glm", "etabli-glm-challenger", "glm-id");
+    expect(call("start-kimi", "etabli-fallback")).toBeUndefined();
+    result("start-kimi", "etabli-fallback", "kimi-id");
+    expect(call("repeat-kimi", "etabli-fallback")).toMatchObject({ block: true });
+    expect(call("start-glm", "etabli-challenger")).toBeUndefined();
+    result("start-glm", "etabli-challenger", "glm-id");
     retrieve("kimi-id", "completed");
     retrieve("glm-id", "completed");
-    expect(call("resume-failed-luna", "etabli-luna-scout", { resume: "luna-id" })).toMatchObject({ block: true });
-    expect(call("resume-kimi", "etabli-kimi-fallback", { resume: "kimi-id" })).toBeUndefined();
-    expect(call("resume-glm", "etabli-glm-challenger", { resume: "glm-id" })).toBeUndefined();
-    result("resume-kimi", "etabli-kimi-fallback", "kimi-id", "completed");
-    result("resume-glm", "etabli-glm-challenger", "glm-id", "completed");
-    expect(call("sol", "etabli-sol-judge")).toBeUndefined();
+    expect(call("resume-failed-luna", "etabli-scout", { resume: "luna-id" })).toMatchObject({ block: true });
+    expect(call("resume-kimi", "etabli-fallback", { resume: "kimi-id" })).toBeUndefined();
+    expect(call("resume-glm", "etabli-challenger", { resume: "glm-id" })).toBeUndefined();
+    result("resume-kimi", "etabli-fallback", "kimi-id", "completed");
+    result("resume-glm", "etabli-challenger", "glm-id", "completed");
+    expect(call("sol", "etabli-judge")).toBeUndefined();
   });
 
   test("blocks Etabli portfolio roles on the unguarded Task RPC surface", () => {
@@ -272,9 +272,9 @@ describe("workflow router extension", () => {
     const taskCall = (toolName: string, input: Record<string, unknown>) =>
       runtime.emit("tool_call", { toolName, toolCallId: `${toolName}-call`, input })[0];
 
-    expect(taskCall("TaskCreate", { agentType: "etabli-luna-scout" })).toMatchObject({ block: true });
-    expect(taskCall("TaskCreate", { metadata: { agentType: "etabli-glm-challenger" } })).toMatchObject({ block: true });
-    expect(taskCall("TaskUpdate", { taskId: "1", metadata: { agentType: "etabli-sol-judge" } })).toMatchObject({ block: true });
+    expect(taskCall("TaskCreate", { agentType: "etabli-scout" })).toMatchObject({ block: true });
+    expect(taskCall("TaskCreate", { metadata: { agentType: "etabli-challenger" } })).toMatchObject({ block: true });
+    expect(taskCall("TaskUpdate", { taskId: "1", metadata: { agentType: "etabli-judge" } })).toMatchObject({ block: true });
     expect(taskCall("TaskExecute", { task_ids: ["1"], model: "kimi-coding/k3" })).toMatchObject({ block: true });
     expect(taskCall("TaskCreate", { agentType: "generic-explorer" })).toBeUndefined();
     expect(taskCall("TaskExecute", { task_ids: ["2"], model: "other/model" })).toBeUndefined();
@@ -291,10 +291,10 @@ describe("workflow router extension", () => {
     const emitAgent = (input: Record<string, unknown>) =>
       runtime.emit("tool_call", { toolName: "Agent", toolCallId: `call-${toolCallSequence += 1}`, input })[0];
     expect(emitAgent({ subagent_type: "generic-explorer" })).toBeUndefined();
-    expect(emitAgent({ subagent_type: "etabli-luna-scout" })).toBeUndefined();
-    expect(emitAgent({ subagent_type: "etabli-luna-scout", resume: "luna-id" })).toMatchObject({ block: true });
-    expect(emitAgent({ subagent_type: "etabli-glm-challenger" })).toMatchObject({ block: true });
-    expect(emitAgent({ subagent_type: "etabli-kimi-fallback" })).toMatchObject({ block: true });
+    expect(emitAgent({ subagent_type: "etabli-scout" })).toBeUndefined();
+    expect(emitAgent({ subagent_type: "etabli-scout", resume: "luna-id" })).toMatchObject({ block: true });
+    expect(emitAgent({ subagent_type: "etabli-challenger" })).toMatchObject({ block: true });
+    expect(emitAgent({ subagent_type: "etabli-fallback" })).toMatchObject({ block: true });
   });
 
   test("tool_call READY guard blocks write/edit/mutating bash under DRAFT and CHALLENGED", () => {
