@@ -49,6 +49,21 @@
           "maxTokens": 32768
         }
       ]
+    },
+    "local-mlx": {
+      "baseUrl": "http://localhost:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "models": [
+        {
+          "id": "/Volumes/Crucial/models/mlx/gemma-4-12B-it-4bit",
+          "name": "Gemma 4 12B IT (MLX 4-bit)",
+          "input": ["text"],
+          "contextWindow": 8192,
+          "maxTokens": 4096,
+          "reasoning": false
+        }
+      ]
     }
   }
 }
