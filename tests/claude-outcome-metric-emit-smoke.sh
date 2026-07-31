@@ -20,7 +20,7 @@ JSONL
 printf '%s' "{\"cwd\":\"$TMP\",\"transcript_path\":\"$TMP/transcript.jsonl\"}" | node "$HOOK"
 # Should have measured outcome with parent+sidecar = 45
 jq -e 'select(.event=="outcome_metric" and .detail.measured==true and .detail.total_tokens==45 and .detail.success_kind!="task_grader")' \
-  "$TMP/.workflow/run-a/events.jsonl" >/dev/null
+	"$TMP/.workflow/run-a/events.jsonl" >/dev/null
 
 # Dedupe on second Stop
 printf '%s' "{\"cwd\":\"$TMP\",\"transcript_path\":\"$TMP/transcript.jsonl\"}" | node "$HOOK"

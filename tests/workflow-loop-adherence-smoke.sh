@@ -9,8 +9,8 @@ trap 'rm -rf "$TMP"' EXIT
 DIR="$TMP/.workflow"
 
 fail() {
-  printf 'workflow-loop-adherence smoke: %s\n' "$1" >&2
-  exit 1
+	printf 'workflow-loop-adherence smoke: %s\n' "$1" >&2
+	exit 1
 }
 
 [ -x "$CHECK" ] || chmod +x "$CHECK"
@@ -46,7 +46,7 @@ status=$?
 set -e
 [ "$status" -ne 0 ] || fail "false completed should fail"
 jq -e '.ok == false and (.false_completed == true or (.missing|length) > 0)' "$TMP/loop-false.json" >/dev/null ||
-  fail "expected false_completed or missing transitions"
+	fail "expected false_completed or missing transitions"
 
 # Read-only profile rejects file_changed
 "$EVENT" --dir "$DIR" append ro-bad route_decided '{"route":"review","reason":"smoke"}'

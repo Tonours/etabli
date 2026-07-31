@@ -14,7 +14,10 @@ set +e
 "$CHECK" --json "$ROOT_DIR/tests/fixtures/claim-evidence/bad.md" >"$TMP/ce-bad.json" 2>"$TMP/ce-bad.err"
 st=$?
 set -e
-[ "$st" -ne 0 ] || { echo 'bad fixture should fail'; exit 1; }
+[ "$st" -ne 0 ] || {
+	echo 'bad fixture should fail'
+	exit 1
+}
 jq -e '.ok == false and .failed >= 1 and .graph.derived == true' "$TMP/ce-bad.json" >/dev/null
 
 printf 'claim-evidence-check smoke test: ok\n'
