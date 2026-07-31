@@ -249,7 +249,7 @@ async function runPi(piBinary, { provider, model, thinking, prompt, prompts, too
       tools,
       ...messages,
     ],
-    { cwd },
+    { cwd, timeoutMs: 900_000 },
   );
   return { ...result, events: parseJsonLines(result.stdout) };
 }
