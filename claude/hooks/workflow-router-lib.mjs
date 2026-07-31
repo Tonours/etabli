@@ -8,6 +8,7 @@ import {
   isNoProgressEscapeHatch,
   shouldDenyMutationForNoProgress,
 } from "../../scripts/lib/no-progress-guard.mjs";
+import { formatRouteContextGuidance } from "../../scripts/lib/route-context-manifest.mjs";
 
 export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 
@@ -883,6 +884,10 @@ export function buildRouteContext(decision) {
 				: "Multi-execution policy: blind independent first passes; ≤6 anonymized material claims with evidence references; deterministic checks/agreement stop before dialogue; ≤1 targeted resume per completed participant; no transcript rebroadcast, all-to-all ranking, recursive delegation, forced consensus, or majority vote; parent-only writer; one Sol adjudication only if disagreement persists after completed rebuttals. Output caps are requested/measured, not provider-hard; elapsed wall-clock is telemetry, not a termination gate.",
 			"Use runtime-native agents only when the active surface proves them; else report degraded/blocked.",
 		);
+	}
+	const routeManifest = formatRouteContextGuidance(decision.route);
+	if (routeManifest) {
+		lines.push("", routeManifest);
 	}
 	lines.push(
 		"",

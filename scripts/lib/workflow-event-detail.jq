@@ -27,6 +27,31 @@ def participant_valid:
   if (.model | startswith("zai/")) then .family == "zai"
   else .family == "xai"
   end;
+# Optional per-participant usage on outcome_metric (blueprint M1). Distinct from
+# multi_execution portfolio participants: ids/roles are free-form strings.
+def outcome_participant_usage_entry:
+  (.id | nonempty_string) and
+  ((.role? == null) or (.role | nonempty_string)) and
+  (.input_tokens | nonnegative_integer) and
+  (.output_tokens | nonnegative_integer) and
+  (.total_tokens | nonnegative_integer) and
+  (.total_tokens >= (.input_tokens + .output_tokens));
+def outcome_participant_usage_valid:
+  (.participant_usage? == null) or (
+    (.participant_usage | type == "array") and
+    ((.participant_usage | length) > 0) and
+    (all(.participant_usage[]; outcome_participant_usage_entry)) and
+    (([.participant_usage[].id] | unique | length) == (.participant_usage | length)) and
+    (if .measured then
+      (([.participant_usage[].total_tokens] | add) == .total_tokens)
+     else true end)
+  );
+def outcome_batch_fields_valid:
+  ((.batch_wall_clock_ms? == null) or ((.batch_wall_clock_ms | nonnegative_number) and .batch_wall_clock_ms > 0)) and
+  ((.batch_started_at? == null) or (.batch_started_at | iso_timestamp)) and
+  ((.batch_terminal_at? == null) or (.batch_terminal_at | iso_timestamp)) and
+  ((.batch_started_at? == null) or (.batch_terminal_at? == null) or
+    (.batch_terminal_at >= .batch_started_at));
 def protocol_v2_shape:
   (.trigger | IN("explicit", "adaptive")) and
   (.strategy | IN("scout", "council")) and
@@ -257,7 +282,10 @@ def strict_detail($event):
     ((.turn_count? == null) or (.turn_count | nonnegative_integer)) and
     ((.auto_continue_count? == null) or (.auto_continue_count | nonnegative_integer)) and
     ((.token_estimate? == null) or (.token_estimate | nonnegative_integer)) and
-    ((.wall_clock_ms? == null) or (.wall_clock_ms | nonnegative_number))
+    ((.wall_clock_ms? == null) or (.wall_clock_ms | nonnegative_number)) and
+    # Blueprint M1 additive fields: all-participant breakdown + batch makespan.
+    outcome_participant_usage_valid and
+    outcome_batch_fields_valid
   elif $event == "retry_classified" then
     (.failure_class | nonempty_string) and (.next_action | nonempty_string)
   elif $event == "no_progress" then
