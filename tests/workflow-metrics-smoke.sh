@@ -10,7 +10,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":100,"output_tokens":50,"total_tokens":150,"tool_calls":3,"elapsed_ms":1200,"success_kind":"run_terminal"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":100,"output_tokens":50,"total_tokens":150,"tool_calls":3,"elapsed_ms":1200,"success_kind":"run_terminal","runtime":"pi/glm-5.2","turn_count":8,"auto_continue_count":2,"token_estimate":150,"wall_clock_ms":1234.5}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"failed","success":false,"measured":true,"input_tokens":200,"output_tokens":25,"total_tokens":225,"tool_calls":1,"elapsed_ms":800}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"tool_calls":0,"elapsed_ms":50,"success_kind":"task_grader","grader_success":true}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-a harness_proposal '{"candidate":"router guard","editable_surfaces":["router"],"preserve":["answer routes"],"held_in":["miss"],"held_out":["goldens"]}'
@@ -20,7 +20,7 @@ trap cleanup EXIT
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-b outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":200,"output_tokens":100,"total_tokens":300,"tool_calls":2,"elapsed_ms":1000}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-b harness_validation_completed '{"candidate":"orphan candidate","verdict":"rejected","reason":"no matching proposal in this run","held_in":{"baseline":{"population":"workflow-failures-v1","passed":0,"total":2},"candidate":{"population":"workflow-failures-v1","passed":1,"total":2}},"held_out":{"baseline":{"population":"workflow-smokes-v1","passed":4,"total":4},"candidate":{"population":"workflow-smokes-v1","passed":3,"total":4}},"checks":["workflow smoke"],"evidence":["held-out regression"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-c harness_proposal '{"candidate":"unvalidated candidate","editable_surfaces":["workflow"],"preserve":["gates"],"held_in":["failure"],"held_out":["smokes"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-d outcome_metric '{"outcome":"success","success":true,"measured":false,"reason":"runtime telemetry unavailable"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-d outcome_metric '{"outcome":"success","success":true,"measured":false,"reason":"runtime telemetry unavailable","turn_count":4,"wall_clock_ms":900}'
 mkdir -p "$EVENT_DIR/run-legacy"
 cat > "$EVENT_DIR/run-legacy/events.jsonl" <<'JSONL'
 {"schema_version":1,"ts":"2026-07-01T00:00:00Z","event":"outcome_metric","run":"run-legacy","detail":{"outcome":"success","success":true,"total_tokens":90,"tool_calls":1,"elapsed_ms":500}}

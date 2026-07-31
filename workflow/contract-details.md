@@ -178,6 +178,32 @@ profiles; shared workflow and evidence invariants stay in
 - A started migration is finished or explicitly handed off with a `handoff`
   event; a half-migrated state is never left silent.
 
+## Human checkpoints (detail)
+
+Checkpoints sit at irreversibility boundaries, not every step. A checkpoint
+consumed by explicit user invocation, such as `/linear-ticket-create`, is
+consent for that command's external write contract. When a run ledger exists,
+journal checkpoint decisions as `human_checkpoint` events in
+`.workflow/<slug>/events.jsonl` per `workflow/events.md`. The routing decision
+itself (destructive, secret, production, billing, external write-back →
+`ops-stop`) lives in the Routing rules table in `workflow/spec.md`; this table
+documents the enforcement behind each boundary.
+
+| Category | Examples | Enforcement | Behavior |
+| --- | --- | --- | --- |
+| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
+| production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
+| history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
+| secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
+| external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
+| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | canonical adaptive profile or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
+| premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED` (missing PLAN exempt for ordinary work) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
+| check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
+| no_progress ledger stop | active non-terminal `.workflow/*/events.jsonl` with explicit `no_progress` or derived 2/3 thresholds | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `scripts/workflow-event` escape allowed |
+| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress`; no emit without ledger |
+| ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
+| missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
+
 ## Runtime surfaces (detail)
 
 Pi and Claude wrappers are thin runtime adapters over the shared contract.

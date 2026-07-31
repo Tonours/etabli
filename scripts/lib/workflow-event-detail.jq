@@ -248,7 +248,16 @@ def strict_detail($event):
       ((.reason // .measurement_reason) | nonempty_string) and
       (.input_tokens? == null) and (.output_tokens? == null) and (.total_tokens? == null) and
       (.tool_calls? == null) and (.elapsed_ms? == null)
-    end
+    end and
+    # Additive optional runtime-outcome fields (X2): type-checked when present,
+    # accepted in both measured and unavailable branches, ignored when absent.
+    # Producers (tasks-till-done runtime loop, telemetry-recover) populate these
+    # where observed; absence never blocks a valid core outcome_metric.
+    ((.runtime? == null) or (.runtime | nonempty_string)) and
+    ((.turn_count? == null) or (.turn_count | nonnegative_integer)) and
+    ((.auto_continue_count? == null) or (.auto_continue_count | nonnegative_integer)) and
+    ((.token_estimate? == null) or (.token_estimate | nonnegative_integer)) and
+    ((.wall_clock_ms? == null) or (.wall_clock_ms | nonnegative_number))
   elif $event == "retry_classified" then
     (.failure_class | nonempty_string) and (.next_action | nonempty_string)
   elif $event == "no_progress" then

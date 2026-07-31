@@ -49,9 +49,11 @@ a last-pass discipline, not a new artifact or subjective scoring step.
   research artifacts with `scripts/research-proof-check`.
 - Implementation handoff: report files changed, checks run, results, remaining
   risks, archive state, and whether `PLAN.md` still exists.
-- obvault-backed answer: read `~/work/obvault/AGENTS.md`, then
-  `CLAUDE.md`, `ref/second-brain-operating-model.md`, and `kb/_index.md`;
-  search `kb/` and `ref/` before falling back to `docs/`.
+- obvault-backed answer: consult obvault via the bounded context contract in
+  `workflow/skills/obvault-memory.md` — read `~/work/obvault/AGENTS.md`, then run
+  the bounded `obvault context/session` command (cited, token-capped) instead of
+  reading the full wiki index. Search `kb/` and `ref/` directly only when the
+  bounded pack is insufficient.
 
 ## Mechanical Check
 
