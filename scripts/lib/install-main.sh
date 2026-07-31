@@ -364,14 +364,18 @@ let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.ena
 // Role-critical pins always forced into local settings (also asserted by
 // deploy-agent-workflow smoke). Full tracked portfolio is merged below.
 const managedModels = new Set([
-  "openai-codex/gpt-5.6-luna",
-  "openai-codex/gpt-5.6-terra",
-  "openai-codex/gpt-5.6-sol",
+  "zai/glm-5.2",
+  "zai/glm-5.1",
+  "zai/glm-5-turbo",
+  "xai/grok-4.5",
   "kimi-coding/k3",
 ]);
 // Retired aliases / catalog IDs that must not stay in local cycling lists.
 const legacyModels = new Set([
   "openai-codex/gpt-5.6",
+  "openai-codex/gpt-5.6-luna",
+  "openai-codex/gpt-5.6-terra",
+  "openai-codex/gpt-5.6-sol",
   "opencode-go/kimi-k2.6",
   "kimi-coding/kimi-for-coding",
   "kimi-coding/kimi-for-coding-highspeed",

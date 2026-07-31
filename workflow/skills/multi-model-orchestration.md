@@ -13,11 +13,11 @@ which rejected automatic full panels after four of six repetitions exceeded
 | --- | --- |
 | Ineligible route, no signal, or explicit opt-out | Parent only |
 | System complexity alone | Parent only |
-| One medium signal on research/diagnosis/review work | Luna scout |
+| One medium signal on research/diagnosis/review work | scout |
 | One critical signal or two distinct medium signals | Route-specific two-agent council |
 | Explicit multi-model intent on an eligible route | Route-specific two-agent council |
 | Primary role unavailable | Kimi K3 at maximum effort may replace it on Pi, with `degraded` status |
-| Material disagreement after deterministic checks and one rebuttal round | Sol adjudicates once |
+| Material disagreement after deterministic checks and one rebuttal round | the judge adjudicates once |
 | Mutation | Parent is the only writer |
 
 Eligible routes are `plan-loop`, `plan-implement`, `implement`, `spec-guide`,
@@ -51,11 +51,11 @@ hidden history or spend another model call to decide.
 - Launch first passes blind: no agent receives another first-pass result.
 - A scout is one primary plus at most one replacement, with no resume or judge.
 - A council is two primaries, at most one replacement, one resume per admitted
-  participant, and one Sol call; delegation depth stays one.
+  participant, and one judge call; delegation depth stays one.
 - Give every packet an owned question, evidence format, budget, and stop rule.
 - The parent integrates and owns the final verdict; there is no majority vote or
   forced consensus.
-- Deterministic checks outrank model judgments. Sol is used only once, after
+- Deterministic checks outrank model judgments. The judge is used only once, after
   fan-in, for material unresolved disagreement or high-risk ambiguity.
 - No sidecar writes in the shared worktree. Pi roles enforce this by excluding
   `bash`, `edit`, and `write`.
@@ -66,7 +66,7 @@ hidden history or spend another model call to decide.
   IDs with evidence references.
 - Structural call and round caps are enforced by the Pi router. Output caps are
   requested and measured after completion: scout 600; council first pass 900
-  per agent, rebuttal 350 per agent, Sol 650, and 3,500 total. An overage cannot
+  per agent, rebuttal 350 per agent, judge 650, and 3,500 total. An overage cannot
   produce an accepted protocol-v2 event.
 - Do not terminate a model solely because of elapsed wall-clock time. Record
   elapsed time as telemetry, while structural turn/call caps, explicit user
@@ -77,18 +77,18 @@ hidden history or spend another model call to decide.
 
 Pi uses exact pinned roles:
 
-- `etabli-luna-scout`: `openai-codex/gpt-5.6-luna`, `medium`;
-- `etabli-terra-analyst`: `openai-codex/gpt-5.6-terra`, `high`;
-- `etabli-glm-challenger`: `zai/glm-5.2`, `xhigh` (provider `max`);
-- `etabli-sol-judge`: `openai-codex/gpt-5.6-sol`, `xhigh`;
-- `etabli-kimi-fallback`: `kimi-coding/k3`, `xhigh` (provider `max`), fallback only.
+- `etabli-scout`: `zai/glm-5-turbo`, `medium`;
+- `etabli-analyst`: `xai/grok-4.5`, `high`;
+- `etabli-challenger`: `zai/glm-5.2`, `xhigh` (provider `max`);
+- `etabli-judge`: `kimi-coding/k3`, `xhigh`;
+- `etabli-fallback`: `zai/glm-5.1`, `xhigh`, fallback only (distinct from primaries; judge stays the unique Kimi).
 
 Kimi K3 is supplied as a custom model on Pi's built-in `kimi-coding` transport.
 Its official API ID is `k3`; thinking `off` and `minimal` are disabled because
 the provider may otherwise route to K2.6. Exact runtime provenance, thinking
 evidence, and the isolated multi-turn probe are mandatory; any mismatch is
 `blocked`, never a silent downgrade.
-Official contract: https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents.
+Official contract: <https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents>.
 
 ## Pi Execution
 
@@ -96,7 +96,7 @@ For a council, issue both `Agent` background calls in the same assistant turn,
 then wait for each id with `get_subagent_result(wait=true)`. Normalize no more
 than six material claims. Stop on agreement or deterministic resolution. Only
 when material disagreement remains, resume each exact original id once with
-the compact opposing claim packet. Sol sees only the resulting dispute ledger.
+the compact opposing claim packet. The judge sees only the resulting dispute ledger.
 `TaskExecute` is for tracked DAG work, not short council fan-out/fan-in. Etabli
 portfolio roles and exact portfolio-model overrides are rejected on
 `TaskCreate`, `TaskUpdate`, and `TaskExecute`; use the guarded `Agent` surface.

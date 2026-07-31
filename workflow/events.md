@@ -32,7 +32,7 @@ ledger.
 | --- | --- |
 | `route_decided` | `{route, reason}` |
 | `plan_created` | `{path, status}` |
-| `adversary_completed` | `{mode: plan|code_diff, verdict, accepted_findings, rejected_findings}` |
+| `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings}` |
 | `review_completed` | `{status, evidence}` |
 | `simplification_completed` | `{status, evidence}` |
 | `file_changed` | `{path, change}` |
@@ -45,12 +45,12 @@ ledger.
 | `self_improvement_candidate` | `{source, category, outcome, confidence, evidence, held_in?, held_out?}` |
 | `harness_failure_pattern` | `{terminal_cause, causal_status, mechanism, verifier, traces}` |
 | `harness_proposal` | `{candidate, editable_surfaces, preserve, held_in, held_out}` |
-| `harness_validation_completed` | `{candidate, verdict:accepted|rejected, reason, held_in:{baseline:{population,passed,total},candidate:{population,passed,total}}, held_out:{...}, checks, evidence}` |
+| `harness_validation_completed` | `{candidate, verdict:accepted | rejected, reason, held_in:{baseline:{population,passed,total},candidate:{population,passed,total}}, held_out:{...}, checks, evidence}` |
 | `harness_candidate_rejected` | `{candidate, reason, regressions, evidence}` |
 | `project_slice_planned` | `{slice, owner, validation, dependencies}` |
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
 | `runtime_run_attached` | `{adapter:"pi-workflow", run_id, workflow, state_path:".pi/workflows/<run-id>", status, usage_measured}` |
-| `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted|degraded|blocked|rollback_to_opt_in, usage:{measured,...}, fallback_status:none|degraded|blocked}` |
+| `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted | degraded | blocked | rollback_to_opt_in, usage:{measured,...}, fallback_status:none | degraded | blocked}` |
 | `outcome_measurement_population` | `{population_id, manifest_sha256, terminal_runs, targets:[{target_run, target_ledger_sha256, target_terminal, target_terminal_event_sha256, target_outcome_event_sha256, baseline_measured, baseline_usage_measured}]}` |
 | `outcome_measurement_imported` | `{population_id, import_id, target_run, target fingerprints, source_adapter:"codex", source_scope:"primary_session_window", selection:"shortest_enclosing_primary_session", session_fingerprint, window/sample bounds, sample_count, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |
 | `outcome_metric` | measured: `{outcome, success, measured:true, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}`; unavailable: `{outcome, success, measured:false, reason}` |
@@ -105,7 +105,7 @@ Historical events without `protocol_version` remain valid. Protocol v2 adds
 `disagreement_count`, `stop_reason`, numeric requested `budget`, and measured or
 explicitly unmeasured `stage_usage` for first pass, rebuttal, and adjudication.
 Adaptive v2 evidence needs at least one signal. Scouts cannot rebut or judge;
-an adjudication round requires `etabli-sol-judge`. If claims or any measured
+an adjudication round requires `etabli-judge`. If claims or any measured
 stage/total output exceed the requested budget, only `stop_reason: budget_cap`
 with a `degraded` or `blocked` verdict validates; an accepted overage is
 rejected. V2 budgets are canonical rather than caller-selected: scout uses

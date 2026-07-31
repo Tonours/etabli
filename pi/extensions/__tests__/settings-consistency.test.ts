@@ -153,14 +153,18 @@ describe("Pi settings consistency", () => {
   test("enables the exact managed model portfolio without retired aliases", () => {
     const enabledModels = (settings as typeof settings & { enabledModels: string[] }).enabledModels;
 
-    expect(enabledModels).toContain("openai-codex/gpt-5.6-luna");
-    expect(enabledModels).toContain("openai-codex/gpt-5.6-terra");
-    expect(enabledModels).toContain("openai-codex/gpt-5.6-sol");
+    expect(enabledModels).toContain("zai/glm-5.2");
+    expect(enabledModels).toContain("zai/glm-5.1");
+    expect(enabledModels).toContain("zai/glm-5-turbo");
+    expect(enabledModels).toContain("xai/grok-4.5");
     expect(enabledModels).toContain("kimi-coding/k3");
     expect(enabledModels).toContain("opencode-go/minimax-m3");
     expect(enabledModels).toContain("opencode-go/qwen3.7-plus");
     expect(enabledModels).toContain("github-copilot/claude-sonnet-5");
     expect(enabledModels).toContain("github-copilot/claude-sonnet-4.6");
+    expect(enabledModels).not.toContain("openai-codex/gpt-5.6-luna");
+    expect(enabledModels).not.toContain("openai-codex/gpt-5.6-terra");
+    expect(enabledModels).not.toContain("openai-codex/gpt-5.6-sol");
     expect(enabledModels).not.toContain("openai-codex/gpt-5.6");
     expect(enabledModels).not.toContain("opencode-go/kimi-k2.6");
     expect(enabledModels).not.toContain("kimi-coding/kimi-for-coding");

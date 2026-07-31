@@ -269,12 +269,18 @@ let localPackages = Array.isArray(localSettings.packages) ? localSettings.packag
 let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
 const changes = [];
 const managedModels = new Set([
+  "zai/glm-5.2",
+  "zai/glm-5.1",
+  "zai/glm-5-turbo",
+  "xai/grok-4.5",
+  "kimi-coding/k3",
+]);
+const legacyModels = new Set([
+  "openai-codex/gpt-5.6",
   "openai-codex/gpt-5.6-luna",
   "openai-codex/gpt-5.6-terra",
   "openai-codex/gpt-5.6-sol",
-  "kimi-coding/k3",
 ]);
-const legacyModels = new Set(["openai-codex/gpt-5.6"]);
 
 const filteredPackages = localPackages.filter((entry) => {
   const source = sourceOf(entry);
