@@ -167,5 +167,6 @@ describe("Pi settings consistency", () => {
     expect(enabledModels).not.toContain("github-copilot/claude-opus-4.7");
     expect(enabledModels).not.toContain("opencode-go/minimax-m2.7");
     expect(enabledModels).not.toContain("opencode-go/qwen3.6-plus");
+    expect(enabledModels.some((model) => model.startsWith("local-mlx/"))).toBe(false);
   });
 });
