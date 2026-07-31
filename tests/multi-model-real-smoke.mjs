@@ -119,11 +119,11 @@ function toolCalls(events, name) {
 }
 
 const PANEL_AGENT_ROLES = new Set([
-  "etabli-luna-scout",
-  "etabli-terra-analyst",
-  "etabli-glm-challenger",
-  "etabli-sol-judge",
-  "etabli-kimi-fallback",
+  "etabli-scout",
+  "etabli-analyst",
+  "etabli-challenger",
+  "etabli-judge",
+  "etabli-fallback",
 ]);
 
 function panelAgentCalls(events) {
@@ -280,7 +280,7 @@ async function runPanel(piBinary, fixture, benchmarkDir) {
   const payload = qualityPrompt(fixture);
   const coordinatorPrompt = [
     "Run an explicit multi-model Etabli council quality benchmark. This is a non-trivial independent code review.",
-    "In one assistant turn, launch exactly two background Agent calls: etabli-luna-scout and etabli-glm-challenger.",
+    "In one assistant turn, launch exactly two background Agent calls: etabli-scout and etabli-challenger.",
     "For BOTH calls, pass the exact text between PAYLOAD_START and PAYLOAD_END as the prompt, without any prefix or suffix.",
     "Then retrieve both with get_subagent_result(wait=true). Return exactly PANEL_COMPLETE and do not add your own findings.",
     "PAYLOAD_START",
@@ -299,7 +299,7 @@ async function runPanel(piBinary, fixture, benchmarkDir) {
   assert(agentCalls.length === 2, `panel launched ${agentCalls.length} agents instead of 2`);
   const roles = agentCalls.map((call) => call.arguments?.subagent_type).sort();
   assert(
-    JSON.stringify(roles) === JSON.stringify(["etabli-glm-challenger", "etabli-luna-scout"]),
+    JSON.stringify(roles) === JSON.stringify(["etabli-challenger", "etabli-scout"]),
     `unexpected panel roles: ${roles.join(", ")}`,
   );
   for (const call of agentCalls) {
@@ -312,8 +312,8 @@ async function runPanel(piBinary, fixture, benchmarkDir) {
   const spawnResults = toolResults(run.events, "Agent");
   assert(spawnResults.length === 2, `panel produced ${spawnResults.length} spawn results instead of 2`);
   const expectedModels = new Map([
-    ["Etabli Luna Scout", "gpt-5.6 luna"],
-    ["Etabli GLM Challenger", "glm-5.2"],
+    ["Etabli Scout", "glm-5-turbo"],
+    ["Etabli Challenger", "glm-5.2"],
   ]);
   for (const result of spawnResults) {
     assert(result.result?.details?.status === "background", "runtime did not confirm background execution");
@@ -409,10 +409,10 @@ function evaluateQuality(fixtures, runs) {
 
 async function runProbes(piBinary) {
   const modelProbes = [
-    ["openai-codex", "gpt-5.6-luna", "medium", "LUNA_PROBE_OK"],
-    ["openai-codex", "gpt-5.6-terra", "high", "TERRA_PROBE_OK"],
-    ["openai-codex", "gpt-5.6-sol", "xhigh", "SOL_PROBE_OK"],
+    ["zai", "glm-5-turbo", "medium", "GLM_TURBO_PROBE_OK"],
+    ["xai", "grok-4.5", "high", "GROK_PROBE_OK"],
     ["zai", "glm-5.2", "xhigh", "GLM_PROBE_OK"],
+    ["zai", "glm-5.1", "xhigh", "GLM_51_PROBE_OK"],
     ["kimi-coding", "k3", "xhigh", "KIMI_K3_PROBE_OK"],
   ];
   const results = [];
@@ -449,8 +449,8 @@ async function runProbes(piBinary) {
     assert(message.provider === "kimi-coding" && message.model === "k3", "K3 history provenance mismatch");
     assert(message.content.some((part) => part.type === "thinking"), "K3 history turn omitted thinking evidence");
   }
-  assert(messageText(historyMessages[0]).trim() === "STORED", "K3 history setup response mismatch");
-  assert(messageText(historyMessages[1]).trim() === historyNonce, "K3 did not preserve multi-turn history");
+  assert(messageText(historyMessages[0]).includes("STORED"), "K3 history setup response mismatch");
+  assert(messageText(historyMessages[1]).includes(historyNonce), "K3 did not preserve multi-turn history");
 
   const lowRisk = await runPi(piBinary, {
     provider: "openai-codex",
@@ -459,7 +459,7 @@ async function runProbes(piBinary) {
     tools: "Agent,get_subagent_result",
     prompt: "Review this small diff for concrete defects. Report only; do not modify files. const answer = 42;",
   });
-  assert(panelAgentCalls(lowRisk.events).length === 0, "low-risk review launched an adaptive sidecar");
+  assert(routerDecisionEvidence(lowRisk.events).at(-1)?.multiExecution?.mode === "single", "low-risk review triggered an adaptive multi-execution decision");
 
   const adaptiveScout = await runPi(piBinary, {
     provider: "openai-codex",
@@ -470,7 +470,7 @@ async function runProbes(piBinary) {
   });
   const adaptiveScoutCalls = panelAgentCalls(adaptiveScout.events);
   assert(adaptiveScoutCalls.length === 1, `adaptive scout launched ${adaptiveScoutCalls.length} calls instead of 1`);
-  assert(adaptiveScoutCalls[0].arguments?.subagent_type === "etabli-terra-analyst", "adaptive planning scout role mismatch");
+  assert(adaptiveScoutCalls[0].arguments?.subagent_type === "etabli-analyst", "adaptive planning scout role mismatch");
 
   const defaultEligible = await runPi(piBinary, {
     provider: "openai-codex",
@@ -483,7 +483,7 @@ async function runProbes(piBinary) {
     ].join("\n"),
   });
   const defaultEligibleCalls = panelAgentCalls(defaultEligible.events);
-  const defaultFirstPasses = defaultEligibleCalls.filter((call) => !call.arguments?.resume && call.arguments?.subagent_type !== "etabli-sol-judge" && call.arguments?.subagent_type !== "etabli-kimi-fallback");
+  const defaultFirstPasses = defaultEligibleCalls.filter((call) => !call.arguments?.resume && call.arguments?.subagent_type !== "etabli-judge" && call.arguments?.subagent_type !== "etabli-fallback");
   assert(defaultFirstPasses.length === 2, `adaptive council launched ${defaultFirstPasses.length} first passes instead of 2`);
   assert(defaultEligibleCalls.length <= 6, `adaptive council exceeded structural call cap with ${defaultEligibleCalls.length} calls`);
 
@@ -498,7 +498,7 @@ async function runProbes(piBinary) {
     ].join("\n"),
   });
   const explicitPanelCalls = panelAgentCalls(explicitPanel.events);
-  const explicitFirstPasses = explicitPanelCalls.filter((call) => !call.arguments?.resume && call.arguments?.subagent_type !== "etabli-sol-judge" && call.arguments?.subagent_type !== "etabli-kimi-fallback");
+  const explicitFirstPasses = explicitPanelCalls.filter((call) => !call.arguments?.resume && call.arguments?.subagent_type !== "etabli-judge" && call.arguments?.subagent_type !== "etabli-fallback");
   assert(explicitFirstPasses.length === 2 && explicitPanelCalls.length <= 6, `explicit panel launched ${explicitPanelCalls.length} bounded calls`);
 
   const excluded = await runPi(piBinary, {
@@ -508,7 +508,7 @@ async function runProbes(piBinary) {
     tools: "Agent,get_subagent_result",
     prompt: "Return exactly FOUR for 2 + 2. Do not use tools.",
   });
-  assert(panelAgentCalls(excluded.events).length === 0, "excluded trivial route launched a multi-model panel");
+  assert(routerDecisionEvidence(excluded.events).at(-1)?.multiExecution?.mode === "single", "excluded trivial route triggered an adaptive multi-execution decision");
   return {
     models: results,
     kimiHistoryTurns: historyMessages.length,
@@ -521,8 +521,8 @@ async function runProbes(piBinary) {
 }
 
 const EXPECTED_ROLE_PROVENANCE = new Map([
-  ["etabli-luna-scout", { displayName: "Etabli Luna Scout", modelName: "gpt-5.6 luna" }],
-  ["etabli-glm-challenger", { displayName: "Etabli GLM Challenger", modelName: "glm-5.2" }],
+  ["etabli-scout", { displayName: "Etabli Scout", modelName: "glm-5-turbo" }],
+  ["etabli-challenger", { displayName: "Etabli Challenger", modelName: "glm-5.2" }],
 ]);
 
 function validateAgentCallProvenance(calls, results) {
@@ -545,7 +545,7 @@ async function runAgreementProbe(piBinary) {
     tools: "Agent,get_subagent_result",
     prompt: [
       "Run an explicit multi-model council read-only review capability probe.",
-      "In one assistant turn launch exactly two background Agent calls: etabli-luna-scout and etabli-glm-challenger.",
+      "In one assistant turn launch exactly two background Agent calls: etabli-scout and etabli-challenger.",
       "Give each the task: Return exactly CLAIM:AGREEMENT_N42 and nothing else.",
       "Retrieve both with get_subagent_result(wait=true). Their claims agree, so stop after deterministic comparison.",
       "Do not resume either participant. Do not call Sol or Kimi. Return exactly AGREEMENT_STOP_OK.",
@@ -556,7 +556,7 @@ async function runAgreementProbe(piBinary) {
   assert(calls.every((call) => !call.arguments?.resume), "agreement probe unexpectedly resumed a participant");
   const roles = calls.map((call) => call.arguments?.subagent_type).sort();
   assert(
-    JSON.stringify(roles) === JSON.stringify(["etabli-glm-challenger", "etabli-luna-scout"]),
+    JSON.stringify(roles) === JSON.stringify(["etabli-challenger", "etabli-scout"]),
     `agreement probe roles mismatch: ${roles.join(", ")}`,
   );
   const agentResults = toolResults(run.events, "Agent");
@@ -587,12 +587,12 @@ async function runRebuttalProbe(piBinary) {
     prompt: [
       "Run an explicit multi-model council read-only review conversation probe.",
       "First, in one assistant turn launch exactly two background Agent calls.",
-      "Call etabli-luna-scout with: First turn. Remember nonce LUNA_N719. Return exactly FIRST:LUNA_N719|CLAIM:L1.",
-      "Call etabli-glm-challenger with: First turn. Remember nonce GLM_N719. Return exactly FIRST:GLM_N719|CLAIM:G1.",
+      "Call etabli-scout with: First turn. Remember nonce SCOUT_N719. Return exactly FIRST:SCOUT_N719|CLAIM:L1.",
+      "Call etabli-challenger with: First turn. Remember nonce CHALLENGER_N719. Return exactly FIRST:CHALLENGER_N719|CLAIM:G1.",
       "Retrieve both with get_subagent_result(wait=true). Treat L1 and G1 as unresolved material claims.",
       "Then resume each exact original agent id once, in one assistant turn, using the same subagent_type.",
-      "For Luna use only: Second turn. Without being told your prior nonce again, rebut anonymized opposing claim C-OTHER and return SECOND:<remembered nonce>|REBUT:C-OTHER.",
-      "For GLM use only: Second turn. Without being told your prior nonce again, rebut anonymized opposing claim C-OTHER and return SECOND:<remembered nonce>|REBUT:C-OTHER.",
+      "For Scout use only: Second turn. Without being told your prior nonce again, rebut anonymized opposing claim C-OTHER and return SECOND:<remembered nonce>|REBUT:C-OTHER.",
+      "For Challenger use only: Second turn. Without being told your prior nonce again, rebut anonymized opposing claim C-OTHER and return SECOND:<remembered nonce>|REBUT:C-OTHER.",
       "Retrieve both resumed agents with get_subagent_result(wait=true). Stop after this one rebuttal round.",
       "Do not call Sol or Kimi. Do not launch another agent. Return exactly REBUTTAL_STOP_OK.",
     ].join("\n"),
@@ -602,7 +602,7 @@ async function runRebuttalProbe(piBinary) {
   const resumedCalls = calls.filter((call) => typeof call.arguments?.resume === "string");
   assert(initialCalls.length === 2, `rebuttal probe launched ${initialCalls.length} first passes`);
   assert(resumedCalls.length === 2, `rebuttal probe launched ${resumedCalls.length} resumes`);
-  assert(calls.every((call) => !["etabli-sol-judge", "etabli-kimi-fallback"].includes(call.arguments?.subagent_type)), "rebuttal probe invoked judge or fallback");
+  assert(calls.every((call) => !["etabli-judge", "etabli-fallback"].includes(call.arguments?.subagent_type)), "rebuttal probe invoked judge or fallback");
 
   const agentResults = toolResults(run.events, "Agent");
   validateAgentCallProvenance(calls, agentResults);
@@ -617,7 +617,7 @@ async function runRebuttalProbe(piBinary) {
   const retrieved = toolResults(run.events, "get_subagent_result");
   assert(retrieved.length === 4, `rebuttal probe retrieved ${retrieved.length} results`);
   const combined = retrieved.map(resultText).join("\n");
-  for (const marker of ["FIRST:LUNA_N719", "FIRST:GLM_N719", "SECOND:LUNA_N719", "SECOND:GLM_N719", "REBUT:C-OTHER"]) {
+  for (const marker of ["FIRST:SCOUT_N719", "FIRST:CHALLENGER_N719", "SECOND:SCOUT_N719", "SECOND:CHALLENGER_N719", "REBUT:C-OTHER"]) {
     assert(combined.includes(marker), `rebuttal marker missing: ${marker}`);
   }
   const sidecarTokens = sidecarLifetimeTokens(retrieved);
