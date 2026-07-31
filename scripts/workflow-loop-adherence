@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# Derived loop-adherence checker over a ledger (blueprint L1).
+# Does not mutate ledgers. Exit 0 only when the selected profile is satisfied.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+WORKFLOW_DIR=".workflow"
+PROFILE="autonomous"
+JSON=0
+
+usage() {
+  cat <<EOF
+Usage: workflow-loop-adherence [--dir path] [--profile autonomous|read_only|review] [--json] <slug>
+
+Compute loop adherence from ledger events against the blueprint §7.2 mapping.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dir)
+      WORKFLOW_DIR="${2:-}"
+      shift 2
+      ;;
+    --profile)
+      PROFILE="${2:-}"
+      shift 2
+      ;;
+    --json)
+      JSON=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+slug="${1:-}"
+if [ -z "$slug" ]; then
+  usage >&2
+  exit 2
+fi
+
+file="$WORKFLOW_DIR/$slug/events.jsonl"
+if [ ! -f "$file" ]; then
+  printf 'ledger not found: %s\n' "$file" >&2
+  exit 1
+fi
+
+case "$PROFILE" in
+  autonomous|read_only|review) ;;
+  *)
+    printf 'unknown profile: %s\n' "$PROFILE" >&2
+    exit 2
+    ;;
+esac
+
+result="$(
+  jq -s --arg profile "$PROFILE" '
+    def has($e): any(.[]; .event == $e);
+    def has_mode($mode): any(.[]; .event == "adversary_completed" and (.detail.mode // "") == $mode);
+    def first_idx(pred):
+      ([range(0; length) as $i | select(.[$i] | pred) | $i] | first // null);
+    def last_idx(pred):
+      ([range(0; length) as $i | select(.[$i] | pred) | $i] | last // null);
+    def terminal:
+      ([.[] | select(.event == "completed" or .event == "blocked" or .event == "no_progress")] | last // null);
+    def reqs:
+      if $profile == "autonomous" then
+        [
+          {id:"route_decided", ok:(has("route_decided"))},
+          {id:"plan_created_ready", ok:(any(.[]; .event == "plan_created" and ((.detail.status // "") == "READY")))},
+          {id:"adversary_plan_nonblocking", ok:(any(.[]; .event == "adversary_completed" and (.detail.mode // "") == "plan" and ((.detail.verdict // "") | test("(?i)^(GO|PASS|pass|GO WITH NOTES)"; "i"))))},
+          {id:"file_changed", ok:(has("file_changed"))},
+          {id:"validation_run", ok:(has("validation_run"))},
+          {id:"simplification_completed", ok:(has("simplification_completed"))},
+          {id:"review_completed", ok:(has("review_completed"))},
+          {id:"adversary_code_diff_nonblocking", ok:(any(.[]; .event == "adversary_completed" and (.detail.mode // "") == "code_diff" and ((.detail.verdict // "") | test("(?i)^(GO|PASS|pass|GO WITH NOTES)"; "i"))))},
+          {id:"outcome_metric_task_grader", ok:(any(.[]; .event == "outcome_metric" and (((.detail.success_kind // "") == "task_grader") or (.detail.grader_success == true))))},
+          {id:"archive_written", ok:(has("archive_written"))},
+          {id:"plan_removed", ok:(has("plan_removed"))},
+          {id:"terminal_completed", ok:((terminal.event // "") == "completed")}
+        ]
+      elif $profile == "review" then
+        [
+          {id:"route_decided", ok:(has("route_decided"))},
+          {id:"review_or_validation", ok:(has("review_completed") or has("validation_run"))},
+          {id:"terminal", ok:(terminal != null)}
+        ]
+      else
+        [
+          {id:"route_decided", ok:(has("route_decided"))},
+          {id:"validation_or_review", ok:(has("validation_run") or has("review_completed"))},
+          {id:"terminal", ok:(terminal != null)},
+          {id:"no_file_changed", ok:(has("file_changed") | not)}
+        ]
+      end;
+    def order_ok:
+      if $profile != "autonomous" then true
+      else
+        (first_idx(.event == "route_decided")) as $r
+        | (first_idx(.event == "plan_created")) as $p
+        | (first_idx(.event == "adversary_completed" and (.detail.mode // "") == "plan")) as $ap
+        | (first_idx(.event == "file_changed")) as $fc0
+        | (last_idx(.event == "file_changed")) as $fc
+        | (last_idx(.event == "validation_run")) as $v
+        | (first_idx(.event == "review_completed")) as $rev
+        | (first_idx(.event == "adversary_completed" and (.detail.mode // "") == "code_diff")) as $ac
+        | (first_idx(.event == "outcome_metric")) as $om
+        | (first_idx(.event == "archive_written")) as $a
+        | (first_idx(.event == "plan_removed")) as $pr
+        | (first_idx(.event == "completed")) as $c
+        | (last_idx(.event == "completed" or .event == "blocked" or .event == "no_progress")) as $term
+        | ($r == 0)
+          and ($r != null and $p != null and $ap != null and $fc0 != null and $v != null and $rev != null and $ac != null and $om != null and $a != null and $pr != null and $c != null)
+          and ($r < $p) and ($p < $ap) and ($ap < $fc0) and ($fc < $v)
+          and ($v < $rev) and ($rev < $ac) and ($ac < $om) and ($om < $a) and ($a < $pr) and ($pr < $c)
+          and ($term == $c)
+      end;
+    def false_completed:
+      (terminal.event // "") == "completed" and (
+        (any(.[]; .event == "outcome_metric" and ((.detail.success // false) == true) and ((.detail.success_kind // "run_terminal") != "task_grader") and ((.detail.grader_success // false) != true))
+          and (any(.[]; .event == "outcome_metric" and (((.detail.success_kind // "") == "task_grader") or (.detail.grader_success == true))) | not))
+        or (($profile == "autonomous") and ((has("archive_written") | not) or (has("plan_removed") | not)))
+      );
+    def post_stop_mutation:
+      (last_idx(.event == "completed" or .event == "blocked" or .event == "no_progress")) as $t
+      | if $t == null then false
+        else any(.[($t + 1):][]; .event == "file_changed")
+        end;
+    (reqs) as $requirements
+    | ($requirements | map(select(.ok)) | length) as $observed
+    | ($requirements | length) as $expected
+    | {
+        profile: $profile,
+        expected_transitions: $expected,
+        observed_transitions: $observed,
+        adherence: (if $expected == 0 then 1 else ($observed / $expected) end),
+        missing: [$requirements[] | select(.ok | not) | .id],
+        order_ok: order_ok,
+        false_completed: false_completed,
+        post_stop_mutation: post_stop_mutation,
+        terminal: (terminal.event // null),
+        ok: (
+          ($observed == $expected) and order_ok and (false_completed | not) and (post_stop_mutation | not)
+        )
+      }
+  ' "$file"
+)"
+
+if [ "$JSON" -eq 1 ]; then
+  printf '%s\n' "$result"
+else
+  printf '%s\n' "$result" | jq -r '"profile=\(.profile)\nadherence=\(.adherence)\nobserved=\(.observed_transitions)/\(.expected_transitions)\nmissing=\(.missing|join(","))\norder_ok=\(.order_ok)\nfalse_completed=\(.false_completed)\npost_stop_mutation=\(.post_stop_mutation)\nok=\(.ok)"'
+fi
+
+printf '%s\n' "$result" | jq -e '.ok == true' >/dev/null

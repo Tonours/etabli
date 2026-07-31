@@ -85,7 +85,10 @@ metrics="$("$ROOT_DIR/scripts/workflow-metrics" --dir "$EVENT_DIR" --sessions-di
 printf '%s\n' "$metrics" | jq -e '.totals.terminal_runs == 5 and .totals.recovered_outcomes == 4 and .totals.usage_measured_outcomes == 4 and .totals.usage_measurement_coverage == 0.8' >/dev/null
 printf '%s\n' "$metrics" | jq -e '.telemetry.population_events == 1 and .telemetry.imported_events == 4 and .telemetry.source_verified_imports == 4 and .telemetry.unverified_imports == 0 and .telemetry.unmatched_imports == 0' >/dev/null
 printf '%s\n' "$metrics" | jq -e '.telemetry.populations[0] | .terminal_runs == 5 and .baseline_usage_measured_outcomes == 0 and .recovered_outcomes == 4 and .usage_measurement_coverage == 0.8' >/dev/null
-printf '%s\n' "$metrics" | jq -e '.totals.tokens_per_successful_outcome != null' >/dev/null
+# Productivity ratio is task_grader-only (G7). Recovered historical runs are run_terminal,
+# so tokens_per_successful_outcome stays null while recovered usage coverage remains real.
+printf '%s\n' "$metrics" | jq -e '.totals.tokens_per_successful_outcome == null' >/dev/null
+printf '%s\n' "$metrics" | jq -e '.totals.run_terminal_successful_outcomes == 4 and .totals.task_grader_successful_outcomes == 0' >/dev/null
 
 FORGED_DIR="$TMP_DIR/forged-workflow"
 cp -R "$EVENT_DIR" "$FORGED_DIR"
