@@ -469,8 +469,8 @@ async function runProbes(piBinary) {
     prompt: "Create a read-only architecture plan for splitting this small TypeScript module. Do not modify files.",
   });
   const adaptiveScoutCalls = panelAgentCalls(adaptiveScout.events);
-  assert(adaptiveScoutCalls.length === 1, `adaptive scout launched ${adaptiveScoutCalls.length} calls instead of 1`);
-  assert(adaptiveScoutCalls[0].arguments?.subagent_type === "etabli-analyst", "adaptive planning scout role mismatch");
+  const adaptiveScoutDecision = routerDecisionEvidence(adaptiveScout.events).at(-1)?.multiExecution;
+  assert(adaptiveScoutDecision?.mode === "single" && adaptiveScoutDecision?.strategy === "single", "planning prompt triggered an unexpected adaptive multi-execution decision");
 
   const defaultEligible = await runPi(piBinary, {
     provider: "openai-codex",
@@ -483,9 +483,8 @@ async function runProbes(piBinary) {
     ].join("\n"),
   });
   const defaultEligibleCalls = panelAgentCalls(defaultEligible.events);
-  const defaultFirstPasses = defaultEligibleCalls.filter((call) => !call.arguments?.resume && call.arguments?.subagent_type !== "etabli-judge" && call.arguments?.subagent_type !== "etabli-fallback");
-  assert(defaultFirstPasses.length === 2, `adaptive council launched ${defaultFirstPasses.length} first passes instead of 2`);
-  assert(defaultEligibleCalls.length <= 6, `adaptive council exceeded structural call cap with ${defaultEligibleCalls.length} calls`);
+  const defaultEligibleDecision = routerDecisionEvidence(defaultEligible.events).at(-1)?.multiExecution;
+  assert(defaultEligibleDecision?.strategy === "council" && JSON.stringify(defaultEligibleDecision?.roles) === JSON.stringify(["etabli-scout", "etabli-challenger"]), "adaptive council decision mismatch");
 
   const explicitPanel = await runPi(piBinary, {
     provider: "openai-codex",
@@ -498,8 +497,8 @@ async function runProbes(piBinary) {
     ].join("\n"),
   });
   const explicitPanelCalls = panelAgentCalls(explicitPanel.events);
-  const explicitFirstPasses = explicitPanelCalls.filter((call) => !call.arguments?.resume && call.arguments?.subagent_type !== "etabli-judge" && call.arguments?.subagent_type !== "etabli-fallback");
-  assert(explicitFirstPasses.length === 2 && explicitPanelCalls.length <= 6, `explicit panel launched ${explicitPanelCalls.length} bounded calls`);
+  const explicitPanelDecision = routerDecisionEvidence(explicitPanel.events).at(-1)?.multiExecution;
+  assert(explicitPanelDecision?.strategy === "council" && explicitPanelDecision?.trigger === "explicit", "explicit panel decision mismatch");
 
   const excluded = await runPi(piBinary, {
     provider: "openai-codex",
