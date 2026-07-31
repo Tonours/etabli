@@ -378,7 +378,11 @@ const legacyModels = new Set([
   "github-copilot/claude-opus-4.7",
   "opencode-go/minimax-m2.7",
   "opencode-go/qwen3.6-plus",
+  "local-mlx//path/to/models/mlx/gemma-4-12B-it-4bit",
 ]);
+const isLegacyModel = (model) =>
+  legacyModels.has(model) ||
+  (typeof model === "string" && model.startsWith("local-mlx/"));
 
 function packageSource(entry) {
   if (typeof entry === "string") return entry;
@@ -425,7 +429,7 @@ for (const [source, trackedEntry] of trackedBySource) {
 }
 
 const beforeModels = JSON.stringify(localModels);
-localModels = localModels.filter((model) => !legacyModels.has(model));
+localModels = localModels.filter((model) => !isLegacyModel(model));
 // Keep personal extras, but ensure the tracked portfolio is present after
 // catalog upgrades (not only the multi-model role pins).
 for (const model of trackedSettings.enabledModels ?? []) {

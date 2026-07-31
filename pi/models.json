@@ -1,29 +1,5 @@
 {
   "providers": {
-    "local-mlx": {
-      "baseUrl": "http://localhost:8080/v1",
-      "api": "openai-completions",
-      "apiKey": "local",
-      "compat": {
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": false,
-        "supportsUsageInStreaming": false,
-        "maxTokensField": "max_tokens"
-      },
-      "models": [
-        {
-          "id": "/path/to/models/mlx/gemma-4-12B-it-4bit",
-          "name": "Gemma 4 12B IT (MLX 4-bit)",
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 8192,
-          "maxTokens": 4096,
-          "reasoning": false
-        }
-      ]
-    },
     "zai": {
       "models": [
         {
