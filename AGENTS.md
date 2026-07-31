@@ -54,10 +54,9 @@ Repo-specific instructions for this dotfiles repo.
 - Ambient activation: when a project contains `workflow/spec.md`, agents should
   use the Etabli workflow automatically. Users should not need to write "use the
   Etabli workflow" in ordinary prompts.
-- Answer quality: `workflow/answer-quality.md`; use
-  `scripts/answer-quality-check` for durable answer/research/handoff artifacts.
-- Final answers: apply the live gate in `workflow/answer-quality.md`; answer
-  the newest request, name unverified gaps, and do not promise a perfect score.
+- Final answers: apply the live gate in `workflow/answer-quality.md` (answer
+  the newest request, name unverified gaps, do not promise a perfect score);
+  use `scripts/answer-quality-check` only for durable artifacts.
 
 ## Knowledge Base
 

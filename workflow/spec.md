@@ -141,48 +141,20 @@ A plan is `READY` when it has:
 
 ## Human checkpoints
 
-Checkpoints sit at irreversibility boundaries, not every step. A checkpoint
-consumed by explicit user invocation, such as `/linear-ticket-create`, is
-consent for that command's external write contract. When a run ledger exists,
-journal checkpoint decisions as `human_checkpoint` events in
-`.workflow/<slug>/events.jsonl` per `workflow/events.md`.
-
-| Category | Examples | Enforcement | Behavior |
-| --- | --- | --- | --- |
-| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
-| production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
-| history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
-| secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
-| external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
-| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | canonical adaptive profile or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
-| premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED` (missing PLAN exempt for ordinary work) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
-| check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
-| no_progress ledger stop | active non-terminal `.workflow/*/events.jsonl` with explicit `no_progress` or derived 2/3 thresholds | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `scripts/workflow-event` escape allowed |
-| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress`; no emit without ledger |
-| ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
-| missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
-
-Adapter coverage: routes shared by Pi extension and Claude hooks except
-`tasks-till-done` (Pi-only). Executable classifier:
+Checkpoints sit at irreversibility boundaries (deletion, production/billing,
+history rewrite, secrets, external write-back), not every step; the Routing
+rules table above routes these to `ops-stop`. Full enforcement matrix and
+event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
+coverage: routes shared by Pi extension and Claude hooks except
+`tasks-till-done` (Pi-only); executable classifier
 `claude/hooks/workflow-router-lib.mjs` via `workflow/runtime/workflow-router-core.mjs`.
 
-## Runtime surfaces (index)
+## Runtime surfaces
 
-- Shared skill contracts: `workflow/skills/`
-- Orchestration contract: `workflow/skills/orchestration.md`
-- Answer quality contract: `workflow/answer-quality.md`
-- Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
-- Latest-head PR evidence helper: `scripts/pr-latest-head-status`
-- Runtime capability matrix: `workflow/runtime-capabilities.json`
-- Explicit-use Pi named-workflow adapter: `workflow/pi-workflow-adapter.md`
-- Implemented plan archives: `docs/plan/` (`workflow/plan-archive.md`)
-- Agent memory: `docs/agent-memory/` (`workflow/memory.md`)
-- Claude hooks fragment: `claude/settings.workflow-hooks.json`
-- Pi `/workflow`: `workflow/pi-workflow-adapter.md`
-- Project autonomy: `workflow/project-autonomy-envelope.md`
-- Claude `/verify-workflow`; Pi `/skill:verify`
-- Commands detail (Pi/Claude lists, `/goal <measurable condition>`):
-  `workflow/contract-details.md`
+Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key
+surfaces referenced by routing/guards: Claude hooks fragment
+`claude/settings.workflow-hooks.json`, `workflow/plan-archive.md`, and
+`workflow/project-autonomy-envelope.md`.
 
 ## Daily loop
 

@@ -126,6 +126,17 @@ assert_contains "$out" "required fields"
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"fractional count","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0.5,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
 assert_contains "$out" "required fields"
 
+# X2: additive optional outcome_metric runtime fields are accepted (positive)
+# and type-checked when present (negative). Proves the schema is additive, not
+# a silent ignore: a valid core metric with the additive fields validates, and
+# a non-integer turn_count is rejected.
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-additive outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"tool_calls":1,"elapsed_ms":500,"runtime":"pi/glm-5.2","turn_count":5,"auto_continue_count":1,"token_estimate":60,"wall_clock_ms":512.5}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-outcome-additive)"
+assert_contains "$out" "1 events, ok"
+
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-additive-bad outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"tool_calls":1,"elapsed_ms":500,"turn_count":"not-a-number"}')"
+assert_contains "$out" "required fields"
+
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_mq224pi8_775e71","workflow":"spec-review","state_path":".pi/workflows/workflow_mq224pi8_775e71","status":"running","usage_measured":false}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-runtime)"
 assert_contains "$out" "1 events, ok"
