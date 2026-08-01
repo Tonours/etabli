@@ -430,7 +430,7 @@ function evaluateQuality(fixtures, runs) {
 async function runProbes(piBinary) {
   const modelProbes = [
     ["opencode-go", "deepseek-v4-flash", "medium", "FLASH_PROBE_OK"],
-    ["openai-codex", "gpt-5.6-terra", "high", "TERRA_PROBE_OK"],
+    ["xai", "grok-4.5", "high", "GROK_PROBE_OK"],
     ["zai", "glm-5.2", "xhigh", "GLM_PROBE_OK"],
     ["openai-codex", "gpt-5.6-sol", "xhigh", "SOL_PROBE_OK"],
     ["openai-codex", "gpt-5.6-luna", "high", "LUNA_PROBE_OK"],
@@ -450,10 +450,10 @@ async function runProbes(piBinary) {
     results.push({ provider, model, elapsedMs: run.elapsedMs, nonCacheTokens: evidence.nonCacheTokens });
   }
 
-  const historyNonce = "TERRA_HISTORY_7319";
+  const historyNonce = "GROK_HISTORY_7319";
   const historyRun = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-terra",
+    provider: "xai",
+    model: "grok-4.5",
     thinking: "high",
     tools: "read,grep,find,ls",
     prompts: [
@@ -464,16 +464,16 @@ async function runProbes(piBinary) {
   const historyMessages = historyRun.events
     .filter((event) => event.type === "message_end" && event.message?.role === "assistant")
     .map((event) => event.message);
-  assert(historyMessages.length === 2, `Terra history probe returned ${historyMessages.length} assistant turns`);
+  assert(historyMessages.length === 2, `Grok history probe returned ${historyMessages.length} assistant turns`);
   for (const message of historyMessages) {
-    assert(message.provider === "openai-codex" && message.model === "gpt-5.6-terra", "Terra history provenance mismatch");
+    assert(message.provider === "xai" && message.model === "grok-4.5", "Grok history provenance mismatch");
   }
-  assert(messageText(historyMessages[0]).includes("STORED"), "Terra history setup response mismatch");
-  assert(messageText(historyMessages[1]).includes(historyNonce), "Terra did not preserve multi-turn history");
+  assert(messageText(historyMessages[0]).includes("STORED"), "Grok history setup response mismatch");
+  assert(messageText(historyMessages[1]).includes(historyNonce), "Grok did not preserve multi-turn history");
 
   return {
     models: results,
-    terraHistoryTurns: historyMessages.length,
+    grokHistoryTurns: historyMessages.length,
   };
 }
 

@@ -10,7 +10,7 @@ const AGENTS = {
     maxTurns: "12",
   },
   "etabli-analyst.md": {
-    model: "openai-codex/gpt-5.6-terra",
+    model: "xai/grok-4.5",
     thinking: "high",
     maxTurns: "16",
   },

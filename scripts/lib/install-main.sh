@@ -364,9 +364,9 @@ let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.ena
 // Role-critical pins always forced into local settings (also asserted by
 // deploy-agent-workflow smoke). Full tracked portfolio is merged below.
 const managedModels = new Set([
-  // Portfolio A role pins
+  // Portfolio A' role pins (Grok analyst; Codex Sol/Luna rare path)
   "opencode-go/deepseek-v4-flash",
-  "openai-codex/gpt-5.6-terra",
+  "xai/grok-4.5",
   "zai/glm-5.2",
   "openai-codex/gpt-5.6-sol",
   "openai-codex/gpt-5.6-luna",
@@ -666,7 +666,7 @@ if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
 if (
   !settings.enabledModels.includes("custom/personal-model") ||
   !settings.enabledModels.includes("opencode-go/deepseek-v4-flash") ||
-  !settings.enabledModels.includes("openai-codex/gpt-5.6-terra")
+  !settings.enabledModels.includes("xai/grok-4.5")
 ) {
   throw new Error("settings sync did not preserve the user model and add managed portfolio pins");
 }

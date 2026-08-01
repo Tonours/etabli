@@ -75,19 +75,21 @@ hidden history or spend another model call to decide.
 
 ## Runtime Portfolios
 
-Pi uses exact pinned roles (portfolio A — opencode-go flash + Codex L/T/S + ZAI):
+Pi uses exact pinned roles (portfolio A' — flash + Grok analyst + ZAI + Codex
+Sol/Luna only for judge/fallback):
 
 - `etabli-scout`: `opencode-go/deepseek-v4-flash`, `medium`;
-- `etabli-analyst`: `openai-codex/gpt-5.6-terra`, `high`;
+- `etabli-analyst`: `xai/grok-4.5`, `high`;
 - `etabli-challenger`: `zai/glm-5.2`, `xhigh` (provider `max`);
 - `etabli-judge`: `openai-codex/gpt-5.6-sol`, `xhigh`;
 - `etabli-fallback`: `openai-codex/gpt-5.6-luna`, `high`, fallback only
   (distinct from primaries; Sol remains the unique adjudicator pin).
 
-Cross-family first passes stay mandatory: OpenCode DeepSeek scout or Codex Terra
-analyst pair with the ZAI challenger. Exact runtime provenance is mandatory; a
-provider error, silent model fallback, or missing provenance is `blocked`, never
-an unqualified panel success.
+Cross-family first passes stay mandatory: OpenCode DeepSeek scout or xAI Grok
+analyst pair with the ZAI challenger. Codex is reserved for rare Sol
+adjudication and Luna degraded fallback (lighter on a $20 OpenAI plan). Exact
+runtime provenance is mandatory; a provider error, silent model fallback, or
+missing provenance is `blocked`, never an unqualified panel success.
 
 ## Pi Execution
 

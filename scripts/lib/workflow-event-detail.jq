@@ -23,14 +23,14 @@ def usage_valid:
 def portfolio_participant_models:
   [
     "opencode-go/deepseek-v4-flash",
-    "openai-codex/gpt-5.6-terra",
+    "xai/grok-4.5",
     "zai/glm-5.2",
     "openai-codex/gpt-5.6-luna"
   ];
 def portfolio_primary_models:
   [
     "opencode-go/deepseek-v4-flash",
-    "openai-codex/gpt-5.6-terra",
+    "xai/grok-4.5",
     "zai/glm-5.2"
   ];
 def portfolio_fallback_model: "openai-codex/gpt-5.6-luna";
