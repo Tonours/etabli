@@ -1266,6 +1266,7 @@ install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
+install_script "model-network-tune" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness
@@ -1276,6 +1277,16 @@ fi
 for rcfile in ~/.bashrc ~/.zshrc; do
     ensure_local_bin_shell_path "$rcfile"
 done
+
+# Prefer IPv4 for Node/Pi model API DNS (measured win on api.z.ai vs IPv6-first).
+if [ -x "$SCRIPT_DIR/model-network-tune" ]; then
+    print_step "Tuning model API network (IPv4-first DNS for Node/Pi)..."
+    if "$SCRIPT_DIR/model-network-tune" install; then
+        print_success "Model network tune applied (NODE_OPTIONS dns ipv4first)"
+    else
+        print_warning "Model network tune failed (non-fatal)"
+    fi
+fi
 
 print_success "Dev scripts installed"
 

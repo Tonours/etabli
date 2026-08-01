@@ -45,6 +45,7 @@ full	shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
 full	shell-docs	adr-helper-smoke	tests/adr-helper-smoke.sh
 full	shell-docs	validate-adrs	builtin:validate-adrs
 full	shell-docs	multi-model-quality-score-smoke	tests/multi-model-quality-score-smoke.sh
+full	shell-docs	model-network-tune-smoke	tests/model-network-tune-smoke.sh
 full	shell-docs	browser-full-page-capture-smoke	tests/browser-full-page-capture-smoke.sh
 full	shell-docs	obvault-routing-smoke	tests/obvault-routing-smoke.sh
 full	shell-docs	obvault-query-smoke	tests/obvault-query-smoke.sh

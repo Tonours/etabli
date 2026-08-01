@@ -57,6 +57,7 @@ describe("Pi settings consistency", () => {
       "rtk.ts",
       "filter-output.ts",
       "block-google-providers.ts",
+      "prefer-ipv4-dns.ts",
       "workflow-router.ts",
       "tasks-till-done.ts",
     ]);
