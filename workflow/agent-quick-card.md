@@ -80,6 +80,10 @@ cd pi && bun test ./extensions/__tests__/
 bash tests/dual-runtime-guard-matrix-smoke.sh
 bash tests/plan-check-freeze-smoke.sh
 bash tests/no-progress-mutate-deny-smoke.sh
+bash tests/workflow-loop-adherence-smoke.sh
+bash tests/route-context-manifest-smoke.sh
+bash tests/workflow-execution-graph-smoke.sh
+bash tests/workflow-outcome-metric-smoke.sh
 ```
 
 Focused checks over full-suite ritual. Record commands + results before

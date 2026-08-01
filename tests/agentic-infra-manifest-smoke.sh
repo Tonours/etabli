@@ -102,7 +102,13 @@ graph-contract-smoke
 graph-neighborhood-smoke
 action-graph-smoke
 obvault-shadow-promote-smoke
-autonomous-ledger-hygiene-smoke'
+autonomous-ledger-hygiene-smoke
+workflow-loop-adherence-smoke
+route-context-manifest-smoke
+workflow-execution-graph-smoke
+workflow-outcome-metric-smoke
+claude-outcome-metric-emit-smoke
+claim-evidence-check-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 

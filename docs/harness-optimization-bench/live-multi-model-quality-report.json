@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "startedAt": "2026-07-31T23:46:40.535Z",
+  "piBinary": "/Users/tonours/.asdf/installs/nodejs/26.5.0/bin/pi",
+  "agentFixtures": "/Users/tonours/work/etabli/tests/fixtures/multi-model-quality/agent-fixtures.json",
+  "scoreKey": "/Users/tonours/work/etabli/tests/fixtures/multi-model-quality/score-key.json",
+  "probes": null,
+  "conversation": null,
+  "taskRpc": null,
+  "quality": {
+    "benchmarkDir": "/var/folders/53/532kmp5x1hv7w8535qj9h2n40000gn/T/etabli-multi-model-blind-rxNHNk",
+    "runs": [
+      {
+        "fixtureId": "tenant-cache",
+        "kind": "baseline",
+        "repetition": 1,
+        "findings": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "foundExpected": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 15619,
+        "nonCacheTokens": 6017,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra"
+      },
+      {
+        "fixtureId": "tenant-cache",
+        "kind": "baseline",
+        "repetition": 2,
+        "findings": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "foundExpected": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 16342,
+        "nonCacheTokens": 1498,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra"
+      },
+      {
+        "fixtureId": "tenant-cache",
+        "kind": "panel",
+        "repetition": 1,
+        "findings": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "foundExpected": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 58497,
+        "nonCacheTokens": 17271,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "roles": [
+          "etabli-challenger",
+          "etabli-scout"
+        ]
+      },
+      {
+        "fixtureId": "tenant-cache",
+        "kind": "panel",
+        "repetition": 2,
+        "findings": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "foundExpected": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 64242,
+        "nonCacheTokens": 13600,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "roles": [
+          "etabli-challenger",
+          "etabli-scout"
+        ]
+      },
+      {
+        "fixtureId": "tenant-cache",
+        "kind": "sol-ceiling",
+        "repetition": 1,
+        "findings": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "foundExpected": [
+          "CACHE_TENANT_SCOPE",
+          "CACHE_REJECTION_STICKY",
+          "CACHE_TTL_FROM_START"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 16225,
+        "nonCacheTokens": 10665,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-sol"
+      },
+      {
+        "fixtureId": "webhook-verification",
+        "kind": "baseline",
+        "repetition": 1,
+        "findings": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "foundExpected": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 20524,
+        "nonCacheTokens": 9700,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra"
+      },
+      {
+        "fixtureId": "webhook-verification",
+        "kind": "baseline",
+        "repetition": 2,
+        "findings": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "foundExpected": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 22362,
+        "nonCacheTokens": 8051,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra"
+      },
+      {
+        "fixtureId": "webhook-verification",
+        "kind": "panel",
+        "repetition": 1,
+        "findings": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "foundExpected": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 33791,
+        "nonCacheTokens": 10524,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "roles": [
+          "etabli-challenger",
+          "etabli-scout"
+        ]
+      },
+      {
+        "fixtureId": "webhook-verification",
+        "kind": "panel",
+        "repetition": 2,
+        "findings": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "foundExpected": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 43988,
+        "nonCacheTokens": 10795,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "roles": [
+          "etabli-challenger",
+          "etabli-scout"
+        ]
+      },
+      {
+        "fixtureId": "webhook-verification",
+        "kind": "sol-ceiling",
+        "repetition": 1,
+        "findings": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "foundExpected": [
+          "WEBHOOK_RAW_BODY",
+          "WEBHOOK_LENGTH_THROW",
+          "WEBHOOK_REPLAY_WINDOW"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 18925,
+        "nonCacheTokens": 7857,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-sol"
+      },
+      {
+        "fixtureId": "account-transfer",
+        "kind": "baseline",
+        "repetition": 1,
+        "findings": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "foundExpected": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 16341,
+        "nonCacheTokens": 6010,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra"
+      },
+      {
+        "fixtureId": "account-transfer",
+        "kind": "baseline",
+        "repetition": 2,
+        "findings": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "foundExpected": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 15362,
+        "nonCacheTokens": 6009,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra"
+      },
+      {
+        "fixtureId": "account-transfer",
+        "kind": "panel",
+        "repetition": 1,
+        "findings": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "foundExpected": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 36742,
+        "nonCacheTokens": 11485,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "roles": [
+          "etabli-challenger",
+          "etabli-scout"
+        ]
+      },
+      {
+        "fixtureId": "account-transfer",
+        "kind": "panel",
+        "repetition": 2,
+        "findings": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "foundExpected": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 38828,
+        "nonCacheTokens": 9826,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "roles": [
+          "etabli-challenger",
+          "etabli-scout"
+        ]
+      },
+      {
+        "fixtureId": "account-transfer",
+        "kind": "sol-ceiling",
+        "repetition": 1,
+        "findings": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "foundExpected": [
+          "TRANSFER_NEGATIVE_AMOUNT",
+          "TRANSFER_LOST_UPDATE",
+          "TRANSFER_PARTIAL_COMMIT"
+        ],
+        "falsePositives": [],
+        "recall": 1,
+        "elapsedMs": 15489,
+        "nonCacheTokens": 10600,
+        "provider": "openai-codex",
+        "model": "gpt-5.6-sol"
+      }
+    ],
+    "evaluation": {
+      "verdict": "ROLLBACK_TO_OPT_IN",
+      "failures": [
+        "tenant-cache: panel tokens exceed 4x baseline",
+        "tenant-cache: panel latency exceeds 4x baseline"
+      ],
+      "solDominates": false,
+      "aggregate": {
+        "baseline": {
+          "recall": 1,
+          "falsePositives": 0
+        },
+        "panel": {
+          "recall": 1,
+          "falsePositives": 0
+        },
+        "sol": {
+          "recall": 1,
+          "falsePositives": 0
+        }
+      }
+    }
+  },
+  "completedAt": "2026-07-31T23:53:54.106Z"
+}
