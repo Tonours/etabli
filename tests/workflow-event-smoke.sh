@@ -137,6 +137,13 @@ assert_contains "$out" "1 events, ok"
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-additive-bad outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"tool_calls":1,"elapsed_ms":500,"turn_count":"not-a-number"}')"
 assert_contains "$out" "required fields"
 
+# M1: participant_usage + batch makespan accepted when participant totals match total_tokens
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-m1 outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":70,"output_tokens":30,"total_tokens":100,"tool_calls":2,"elapsed_ms":800,"success_kind":"task_grader","grader_success":true,"participant_usage":[{"id":"parent","role":"parent","input_tokens":40,"output_tokens":20,"total_tokens":60},{"id":"scout","role":"sidecar","input_tokens":30,"output_tokens":10,"total_tokens":40}],"batch_wall_clock_ms":1800,"batch_started_at":"2026-07-31T12:00:00Z","batch_terminal_at":"2026-07-31T12:00:01.800Z"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-outcome-m1)"
+assert_contains "$out" "1 events, ok"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-m1-bad outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":70,"output_tokens":30,"total_tokens":100,"tool_calls":2,"elapsed_ms":800,"participant_usage":[{"id":"parent","input_tokens":40,"output_tokens":20,"total_tokens":60},{"id":"scout","input_tokens":10,"output_tokens":5,"total_tokens":15}]}')"
+assert_contains "$out" "required fields"
+
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_mq224pi8_775e71","workflow":"spec-review","state_path":".pi/workflows/workflow_mq224pi8_775e71","status":"running","usage_measured":false}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-runtime)"
 assert_contains "$out" "1 events, ok"

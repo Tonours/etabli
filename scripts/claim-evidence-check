@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# Offline claim→evidence checker (blueprint H1/G2). Quality floor, not a model UCR scorer.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+JSON=0
+
+usage() {
+  cat <<EOF
+Usage: claim-evidence-check [--json] <markdown-file>
+
+Validates durable claim tables of the form:
+| Claim | Evidence | Status |
+with Status in verified|confirmed|approximate|proxy-supported|blocked|unknown|not verified|inconclusive|assumption
+
+Also accepts fenced claim blocks:
+<!-- claim
+subject: ...
+evidence: path or URL
+status: verified
+-->
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --json) JSON=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -*) printf 'unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+
+file="${1:-}"
+if [ -z "$file" ] || [ ! -f "$file" ]; then
+  usage >&2
+  exit 2
+fi
+
+export CE_FILE="$file"
+export CE_JSON="$JSON"
+export CE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+node --input-type=module <<'NODE'
+import { readFileSync, existsSync } from "node:fs"
+import { resolve } from "node:path"
+
+const file = process.env.CE_FILE
+const text = readFileSync(file, "utf8")
+const allowed = new Set([
+  "verified", "confirmed", "approximate", "proxy-supported", "proxy_supported",
+  "blocked", "unknown", "not verified", "inconclusive", "assumption", "accepted",
+])
+
+/** @type {Array<{claim:string,evidence:string,status:string,ok:boolean,reason?:string}>} */
+const claims = []
+
+// Table rows: | claim | evidence | status |
+for (const line of text.split("\n")) {
+  if (!/^\|/.test(line)) continue
+  if (/^\|\s*-+/.test(line)) continue
+  const cells = line.split("|").slice(1, -1).map((c) => c.trim())
+  if (cells.length < 3) continue
+  const header = cells.map((c) => c.toLowerCase())
+  if (header[0] === "claim" && header[1].includes("evidence")) continue
+  if (!/claim/i.test(cells[0]) && cells[0].length < 3) continue
+  // Heuristic: third cell looks like a status label
+  const status = cells[2].toLowerCase().replace(/\*\*/g, "").trim()
+  if (![...allowed].some((s) => status === s || status.includes(s))) continue
+  const claim = cells[0]
+  const evidence = cells[1]
+  let ok = true
+  let reason
+  if (!evidence || evidence === "-" || evidence.toLowerCase() === "none") {
+    ok = false
+    reason = "missing_evidence"
+  } else if (status === "verified" || status === "confirmed") {
+    const pathish = evidence.replace(/`/g, "").split(/\s+/)[0]
+    if (pathish.startsWith("http://") || pathish.startsWith("https://")) {
+      // URL accepted as external evidence pointer
+    } else if (pathish.includes(":") || pathish.includes("/")) {
+      const bare = pathish.split(":")[0]
+      const root = process.env.CE_ROOT || process.cwd()
+      if (!existsSync(resolve(root, bare)) && !existsSync(resolve(process.cwd(), bare)) && !existsSync(bare)) {
+        ok = false
+        reason = "local_evidence_missing"
+      }
+    } else {
+      ok = false
+      reason = "evidence_not_path_or_url"
+    }
+  }
+  claims.push({ claim, evidence, status, ok, reason })
+}
+
+// Fenced <!-- claim ... -->
+const fenceRe = /<!--\s*claim\s*([\s\S]*?)-->/gi
+let m
+while ((m = fenceRe.exec(text)) !== null) {
+  const body = m[1]
+  const get = (k) => {
+    const mm = body.match(new RegExp(`^\\s*${k}\\s*:\\s*(.+)$`, "im"))
+    return mm ? mm[1].trim() : ""
+  }
+  const claim = get("subject") || get("claim")
+  const evidence = get("evidence")
+  const status = (get("status") || "").toLowerCase()
+  if (!claim) continue
+  let ok = allowed.has(status) && Boolean(evidence)
+  let reason
+  if (!allowed.has(status)) {
+    ok = false
+    reason = "bad_status"
+  } else if (!evidence) {
+    ok = false
+    reason = "missing_evidence"
+  }
+  claims.push({ claim, evidence, status, ok, reason })
+}
+
+const total = claims.length
+const passed = claims.filter((c) => c.ok).length
+const failed = claims.filter((c) => !c.ok)
+const graph = {
+  derived: true,
+  nodes: claims.flatMap((c, i) => [
+    { id: `claim-${i}`, type: "Claim", label: c.claim },
+    { id: `evidence-${i}`, type: "Evidence", label: c.evidence },
+    { id: `status-${i}`, type: "Confidence", label: c.status },
+  ]),
+  edges: claims.flatMap((_, i) => [
+    { from: `evidence-${i}`, to: `claim-${i}`, edge: "supports" },
+    { from: `status-${i}`, to: `claim-${i}`, edge: "labels" },
+  ]),
+}
+
+const result = {
+  file,
+  total,
+  passed,
+  failed: failed.length,
+  unsupported_claim_rate: total === 0 ? null : failed.length / total,
+  claims,
+  graph,
+  ok: failed.length === 0 && total > 0,
+}
+
+if (process.env.CE_JSON === "1") {
+  console.log(JSON.stringify(result, null, 2))
+} else {
+  console.log(`claims=${total} passed=${passed} failed=${failed.length} ucr=${result.unsupported_claim_rate ?? "n/a"} ok=${result.ok}`)
+  for (const f of failed) {
+    console.log(`FAIL: ${f.claim} (${f.reason || "unknown"}) evidence=${f.evidence}`)
+  }
+}
+
+if (total === 0) {
+  console.error("claim-evidence-check: no claim table or claim fences found")
+  process.exit(1)
+}
+process.exit(result.ok ? 0 : 1)
+NODE

@@ -56,5 +56,11 @@ full	shell-docs	graph-neighborhood-smoke	tests/graph-neighborhood-smoke.sh
 full	shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
 full	shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.sh
 full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
+full	shell-docs	workflow-loop-adherence-smoke	tests/workflow-loop-adherence-smoke.sh
+full	shell-docs	route-context-manifest-smoke	tests/route-context-manifest-smoke.sh
+full	shell-docs	workflow-execution-graph-smoke	tests/workflow-execution-graph-smoke.sh
+full	shell-docs	workflow-outcome-metric-smoke	tests/workflow-outcome-metric-smoke.sh
+full	shell-docs	claude-outcome-metric-emit-smoke	tests/claude-outcome-metric-emit-smoke.sh
+full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh

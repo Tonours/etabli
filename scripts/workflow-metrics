@@ -52,7 +52,7 @@ fi
 
 if [ ! -d "$WORKFLOW_DIR" ]; then
   if [ "$JSON" -eq 1 ]; then
-    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measurement_denominator":0,"measured_outcomes":0,"usage_measured_outcomes":0,"recovered_outcomes":0,"unmeasured_outcomes":0,"legacy_outcomes":0,"measurement_coverage":0,"usage_measurement_coverage":0,"successful_outcomes":0,"measured_successful_outcomes":0,"run_terminal_successful_outcomes":0,"task_grader_successful_outcomes":0,"total_tokens":0,"legacy_total_tokens":0,"successful_tokens":0,"tokens_per_successful_outcome":null,"tool_calls":0,"elapsed_ms":0,"runtime_usage_records":0,"runtime_total_tokens":0,"runtime_elapsed_ms":0},"telemetry":{"population_events":0,"imported_events":0,"source_verified_imports":0,"unverified_imports":0,"recovered_outcomes":0,"duplicate_target_imports":0,"unmatched_imports":0,"populations":[]},"harness":{"proposed_candidates":0,"validated_candidates":0,"validated_proposals":0,"unmatched_validations":0,"accepted_candidates":0,"rejected_candidates":0,"validation_coverage":null,"candidates":[]}}\n'
+    printf '{"runs":[],"totals":{"runs":0,"terminal_runs":0,"outcomes":0,"measurement_denominator":0,"measured_outcomes":0,"usage_measured_outcomes":0,"recovered_outcomes":0,"unmeasured_outcomes":0,"legacy_outcomes":0,"measurement_coverage":0,"usage_measurement_coverage":0,"successful_outcomes":0,"measured_successful_outcomes":0,"run_terminal_successful_outcomes":0,"task_grader_successful_outcomes":0,"participant_breakdown_outcomes":0,"batch_makespan_outcomes":0,"batch_makespan_ms":0,"total_tokens":0,"legacy_total_tokens":0,"successful_tokens":0,"tokens_per_successful_outcome":null,"verified_throughput_per_hour":null,"tool_calls":0,"elapsed_ms":0,"runtime_usage_records":0,"runtime_total_tokens":0,"runtime_elapsed_ms":0},"telemetry":{"population_events":0,"imported_events":0,"source_verified_imports":0,"unverified_imports":0,"recovered_outcomes":0,"duplicate_target_imports":0,"unmatched_imports":0,"populations":[]},"harness":{"proposed_candidates":0,"validated_candidates":0,"validated_proposals":0,"unmatched_validations":0,"accepted_candidates":0,"rejected_candidates":0,"validation_coverage":null,"candidates":[]}}\n'
   else
     printf 'no workflow runs found in %s\n' "$WORKFLOW_DIR"
   fi
@@ -104,6 +104,10 @@ runs="$(
         def is_task_grader($m): (($m.success_kind // "") == "task_grader") or ($m.grader_success == true);
         def is_run_terminal_success($m): success($m) and (is_task_grader($m) | not);
         def is_task_grader_success($m): success($m) and is_task_grader($m);
+        def has_participant_usage($m): ($m.participant_usage | type == "array") and (($m.participant_usage | length) > 0);
+        def batch_ms($m):
+          if ($m.batch_wall_clock_ms? != null) then ($m.batch_wall_clock_ms | tonumber?)
+          else null end;
         def matching_population_target($import):
           [$populations[]
             | select(.population_id == $import.population_id)
@@ -182,6 +186,11 @@ runs="$(
           measured_successful_outcomes: ($usage_measured_metrics | map(select(is_task_grader_success(.))) | length),
           run_terminal_successful_outcomes: ($metrics | map(select(is_run_terminal_success(.))) | length),
           task_grader_successful_outcomes: ($metrics | map(select(is_task_grader_success(.))) | length),
+          participant_breakdown_outcomes: ($usage_measured_metrics | map(select(is_task_grader_success(.) and has_participant_usage(.))) | length),
+          # Makespan includes failed measured outcomes with batch_wall_clock_ms (blueprint §10.2).
+          # Throughput numerator stays task_grader successes that carry batch_wall_clock_ms.
+          batch_makespan_outcomes: ($usage_measured_metrics | map(select(is_task_grader_success(.) and (batch_ms(.) != null))) | length),
+          batch_makespan_ms: ($usage_measured_metrics | map(batch_ms(.)) | map(select(. != null)) | add // 0),
           total_tokens: ($usage_measured_metrics | map(tokens(.)) | add // 0),
           legacy_total_tokens: ($legacy_metrics | map(tokens(.)) | map(select(. != null)) | add // 0),
           successful_tokens: ($usage_measured_metrics | map(select(is_task_grader_success(.)) | tokens(.)) | add // 0),
@@ -274,6 +283,9 @@ summary="$(
             measured_successful_outcomes: ($runs | map(.measured_successful_outcomes) | add // 0),
             run_terminal_successful_outcomes: ($runs | map(.run_terminal_successful_outcomes // 0) | add // 0),
             task_grader_successful_outcomes: ($runs | map(.task_grader_successful_outcomes // 0) | add // 0),
+            participant_breakdown_outcomes: ($runs | map(.participant_breakdown_outcomes // 0) | add // 0),
+            batch_makespan_outcomes: ($runs | map(.batch_makespan_outcomes // 0) | add // 0),
+            batch_makespan_ms: ($runs | map(.batch_makespan_ms // 0) | add // 0),
             total_tokens: ($runs | map(.total_tokens) | add // 0),
             legacy_total_tokens: ($runs | map(.legacy_total_tokens) | add // 0),
             successful_tokens: ($runs | map(.successful_tokens) | add // 0),
@@ -344,6 +356,11 @@ summary="$(
          then null
          else (.totals.successful_tokens / .totals.measured_successful_outcomes)
          end)
+      | .totals.verified_throughput_per_hour =
+        (if (.totals.batch_makespan_ms // 0) == 0 or (.totals.batch_makespan_outcomes // 0) == 0
+         then null
+         else ((.totals.batch_makespan_outcomes) / (.totals.batch_makespan_ms / 3600000))
+         end)
       | .harness.validation_coverage =
         (if .harness.proposed_candidates == 0
          then null
@@ -357,4 +374,4 @@ if [ "$JSON" -eq 1 ]; then
 fi
 
 printf '%s\n' "$summary" |
-  jq -r '. as $summary | $summary.totals | "runs=\(.runs)\nterminal_runs=\(.terminal_runs)\noutcomes=\(.outcomes)\nmeasurement_denominator=\(.measurement_denominator)\nmeasured_outcomes=\(.measured_outcomes)\nusage_measured_outcomes=\(.usage_measured_outcomes)\nrecovered_outcomes=\(.recovered_outcomes)\nunmeasured_outcomes=\(.unmeasured_outcomes)\nlegacy_outcomes=\(.legacy_outcomes)\nmeasurement_coverage=\(.measurement_coverage)\nusage_measurement_coverage=\(.usage_measurement_coverage)\nsuccessful_outcomes=\(.successful_outcomes)\ntotal_tokens=\(.total_tokens)\nlegacy_total_tokens=\(.legacy_total_tokens)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)\nruntime_usage_records=\(.runtime_usage_records)\nruntime_total_tokens=\(.runtime_total_tokens)\nruntime_elapsed_ms=\(.runtime_elapsed_ms)\ntelemetry_population_events=\($summary.telemetry.population_events)\ntelemetry_imported_events=\($summary.telemetry.imported_events)\ntelemetry_source_verified_imports=\($summary.telemetry.source_verified_imports)\ntelemetry_unverified_imports=\($summary.telemetry.unverified_imports)\ntelemetry_unmatched_imports=\($summary.telemetry.unmatched_imports)\nharness_proposed_candidates=\($summary.harness.proposed_candidates)\nharness_validated_candidates=\($summary.harness.validated_candidates)\nharness_validated_proposals=\($summary.harness.validated_proposals)\nharness_unmatched_validations=\($summary.harness.unmatched_validations)\nharness_accepted_candidates=\($summary.harness.accepted_candidates)\nharness_rejected_candidates=\($summary.harness.rejected_candidates)\nharness_validation_coverage=\($summary.harness.validation_coverage // "n/a")"'
+  jq -r '. as $summary | $summary.totals | "runs=\(.runs)\nterminal_runs=\(.terminal_runs)\noutcomes=\(.outcomes)\nmeasurement_denominator=\(.measurement_denominator)\nmeasured_outcomes=\(.measured_outcomes)\nusage_measured_outcomes=\(.usage_measured_outcomes)\nrecovered_outcomes=\(.recovered_outcomes)\nunmeasured_outcomes=\(.unmeasured_outcomes)\nlegacy_outcomes=\(.legacy_outcomes)\nmeasurement_coverage=\(.measurement_coverage)\nusage_measurement_coverage=\(.usage_measurement_coverage)\nsuccessful_outcomes=\(.successful_outcomes)\ntokens_per_successful_outcome=\(.tokens_per_successful_outcome // "n/a")\nparticipant_breakdown_outcomes=\(.participant_breakdown_outcomes)\nbatch_makespan_outcomes=\(.batch_makespan_outcomes)\nverified_throughput_per_hour=\(.verified_throughput_per_hour // "n/a")\ntotal_tokens=\(.total_tokens)\nlegacy_total_tokens=\(.legacy_total_tokens)\ntool_calls=\(.tool_calls)\nelapsed_ms=\(.elapsed_ms)\nruntime_usage_records=\(.runtime_usage_records)\nruntime_total_tokens=\(.runtime_total_tokens)\nruntime_elapsed_ms=\(.runtime_elapsed_ms)\ntelemetry_population_events=\($summary.telemetry.population_events)\ntelemetry_imported_events=\($summary.telemetry.imported_events)\ntelemetry_source_verified_imports=\($summary.telemetry.source_verified_imports)\ntelemetry_unverified_imports=\($summary.telemetry.unverified_imports)\ntelemetry_unmatched_imports=\($summary.telemetry.unmatched_imports)\nharness_proposed_candidates=\($summary.harness.proposed_candidates)\nharness_validated_candidates=\($summary.harness.validated_candidates)\nharness_validated_proposals=\($summary.harness.validated_proposals)\nharness_unmatched_validations=\($summary.harness.unmatched_validations)\nharness_accepted_candidates=\($summary.harness.accepted_candidates)\nharness_rejected_candidates=\($summary.harness.rejected_candidates)\nharness_validation_coverage=\($summary.harness.validation_coverage // "n/a")"'
