@@ -16,8 +16,12 @@ final event; a valid run with neither is in progress. Legacy ledgers remain
 readable but are not authoritative for new strict profiles.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
-When more than one valid run is active, select exactly one with
-`scripts/workflow-event activate <slug>`; terminal append clears that pointer.
+Before a run relies on runtime receipts or mutation/no-progress authority, select
+it with `scripts/workflow-event activate <slug>`; the runtime then inspects only
+that ledger. Without a pointer, the compatibility fallback considers only valid
+non-terminal ledgers; an invalid historical record that already contains a
+terminal event is not an active run, while an invalid non-terminal candidate
+still fails closed. Terminal append clears the matching pointer.
 If a ledger is corrupt, use `scripts/workflow-event recover <slug> <reason-code>`:
 it preserves the original as `events.invalid-*.jsonl` and writes a blocked
 replacement instead of deleting history. When that script is unavailable in a

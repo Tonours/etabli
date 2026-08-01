@@ -19,6 +19,34 @@ import { join } from "node:path";
 const mod = await import(pathToFileURL("$ROOT_DIR/scripts/lib/ledger-auto-emit.mjs").href);
 const tmp = "$TMP";
 
+if (mod.isLikelyValidationCommand("npm install test")) {
+  console.error("mutating npm install lookalike must not count as validation");
+  process.exit(1);
+}
+if (mod.isLikelyValidationCommand("node tools/build-cache.js")) {
+  console.error("mutating build helper must not count as validation");
+  process.exit(1);
+}
+if (!mod.isLikelyValidationCommand("npm test")) {
+  console.error("npm test must count as validation");
+  process.exit(1);
+}
+for (const command of [
+  "npm test && rm -rf out",
+  "bash tests/a.sh | tee out",
+  "scripts/verify-agentic-infra core; touch out",
+  "npm test\nrm -rf out",
+  "bash scripts/check-fix-symlinks.sh --fix",
+  "bash tests/../scripts/check-fix-symlinks.sh --fix",
+  "node test",
+  "cd ../outside && npm test",
+]) {
+  if (mod.isLikelyValidationCommand(command)) {
+    console.error("shell suffix must invalidate validation command: " + command);
+    process.exit(1);
+  }
+}
+
 // No ledger → no emit
 const none = mod.recordBashValidationFailure(tmp, {
   command: "bash tests/a.sh",
