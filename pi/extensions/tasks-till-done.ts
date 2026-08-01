@@ -20,6 +20,9 @@ import {
   type TaskRuntimeCapabilityIssue,
   type ImplementationRuntimeEvidence,
 } from "./lib/tasks-till-done-runtime.ts";
+import { isAutonomousRun } from "./lib/autonomous-run.ts";
+import { recordTaskLoopAutoContinueCount } from "./lib/task-loop-metrics.ts";
+import { readTasksTillDoneConfig } from "./lib/pi-runtime.ts";
 import { classifyWorkflowRoute, type WorkflowRoute } from "./lib/workflow-router-runtime.ts";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.tasks-till-done";
@@ -85,6 +88,12 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("before_agent_start", (event) => {
     taskToolUsedThisRun = false;
+    const config = readTasksTillDoneConfig();
+    if (!config.enabled) {
+      active = false;
+      return undefined;
+    }
+
     const isExtensionContinuation =
       event.prompt.includes(TASK_TILL_DONE_CONTINUE_PROMPT.slice(0, 24)) ||
       event.prompt.includes(TASK_TILL_DONE_VALIDATION_PROMPT.slice(0, 24)) ||
@@ -104,9 +113,14 @@ export default function (pi: ExtensionAPI) {
         : process.cwd?.() ?? ".";
       taskLoopStartedAtMs = Date.now();
       archiveSeen = false;
-      validationRequired = workflowRoute === "implement" || workflowRoute === "plan-implement";
-      implementationCompletionRequired = workflowRoute === "implement" || workflowRoute === "plan-implement";
+      const implementRoute =
+        workflowRoute === "implement" || workflowRoute === "plan-implement";
+      validationRequired = implementRoute;
+      // Full completion evidence (adversary/archive/PLAN cleanup) only on autonomous ledger runs.
+      implementationCompletionRequired =
+        implementRoute && isAutonomousRun(currentCwd);
       runtimeCapabilityIssue = undefined;
+      recordTaskLoopAutoContinueCount(0);
     }
 
     if (!shouldInjectTaskLoop(event.prompt, pi.getActiveTools())) return undefined;
@@ -146,13 +160,14 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("agent_end", () => {
+    const config = readTasksTillDoneConfig();
     let implementationRuntimeEvidence: ImplementationRuntimeEvidence | undefined;
     if (implementationCompletionRequired) {
       archiveSeen = archiveSeen || hasImplementedPlanArchive(currentCwd, taskLoopStartedAtMs);
       implementationRuntimeEvidence = getImplementationRuntimeEvidence(currentCwd, archiveSeen);
     }
     const decision = decideAutoContinue({
-      active,
+      active: active && config.enabled && config.autoContinue,
       taskToolUsed: taskToolUsedThisRun,
       summary: lastSummary,
       autoContinueCount,
@@ -172,6 +187,7 @@ export default function (pi: ExtensionAPI) {
     taskToolUsedThisRun = false;
 
     if (!decision.continue) {
+      recordTaskLoopAutoContinueCount(autoContinueCount);
       if (decision.reason === "complete" || decision.reason === "blocked" || decision.reason === "limit" || decision.reason === "stalled" || decision.reason === "runtime_capability_blocked") {
         if (decision.reason === "blocked" || decision.reason === "limit" || decision.reason === "stalled" || decision.reason === "runtime_capability_blocked") {
           sendablePi.sendMessage?.(
@@ -199,6 +215,7 @@ export default function (pi: ExtensionAPI) {
     }
 
     autoContinueCount += 1;
+    recordTaskLoopAutoContinueCount(autoContinueCount);
     if (decision.reason === "validation_required") validationContinueCount += 1;
     if (decision.reason === "completion_evidence_required") completionEvidenceContinueCount += 1;
     sendablePi.appendEntry(CUSTOM_MESSAGE_TYPE, {

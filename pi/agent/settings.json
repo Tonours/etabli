@@ -45,9 +45,7 @@
         "pr-qa",
         "sec-pr",
         "ci-fix",
-        "github-pr-review",
-        "caveman",
-        "grill-me"
+        "github-pr-review"
       ]
     },
     {
@@ -102,6 +100,10 @@
   "defaultModel": "glm-5.2",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
+  "tasksTillDone": {
+    "enabled": true,
+    "autoContinue": true
+  },
   "rtk": {
     "enabled": true,
     "mode": "always",

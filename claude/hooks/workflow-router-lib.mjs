@@ -86,8 +86,10 @@ const MULTI_EXECUTION_SIGNAL_RULES = [
 	{
 		id: "critical-risk",
 		score: 2,
+		// Bare "auth" is too broad (e.g. "fix auth typo"); require authz/authentication
+		// or security-adjacent tokens so multi-exec councils stay proportional.
 		pattern:
-			/\b(security|securite|vulnerability|vulnerabilite|auth|authz|authorization|race condition|deadlock|concurrenc(?:y|e)|transaction|atomicity|data loss|perte de donnees|destructive migration)\b/,
+			/\b(security|securite|vulnerability|vulnerabilite|authz|authorization|authentication|authentification|race condition|deadlock|concurrenc(?:y|e)|transaction|atomicity|data loss|perte de donnees|destructive migration)\b/,
 	},
 	{
 		id: "system-complexity",

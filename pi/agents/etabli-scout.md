@@ -6,7 +6,7 @@ extensions: false
 skills: false
 model: opencode-go/deepseek-v4-flash
 thinking: medium
-max_turns: 12
+max_turns: 8
 inherit_context: false
 run_in_background: true
 isolated: true
