@@ -505,18 +505,12 @@ describe("workflow router runtime", () => {
 
 		expect(first).toContain("# Etabli Workflow Router");
 		expect(first).toContain("Route: plan-loop");
-		expect(first).toContain(
-			"Launch the first-pass agents independently and in parallel",
-		);
-		expect(first).toContain("at most six anonymized material claims");
-		expect(first).toContain(
-			"resume each exact original participant once after its completed first pass",
-		);
-		expect(first).toContain("only after an observed failed primary result");
-		expect(first).toContain(
-			"Do not terminate a healthy model solely for elapsed wall-clock time",
-		);
-		expect(first).toContain("Do not rebroadcast full transcripts");
+		expect(first).toContain("Parallel independent Agent first passes");
+		expect(first).toContain("≤6 anonymized claims+evidence");
+		expect(first).toContain("one resume/participant");
+		expect(first).toContain("once after failed primary");
+		expect(first).toContain("wall-clock is not a stop");
+		expect(first).toContain("no rebroadcast");
 		expect(second).toBe(first);
 	});
 

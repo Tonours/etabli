@@ -1,6 +1,14 @@
 {
-  "generated_at": "2026-07-31T23:54:19Z",
+  "generated_at": "2026-08-01T00:26:13Z",
   "source_report": "docs/harness-optimization-bench/live-multi-model-quality-report.json",
+  "live_path": {
+    "command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --quality",
+    "report_startedAt": "2026-08-01T00:19:06.082Z",
+    "report_completedAt": "2026-08-01T00:25:37.473Z",
+    "piBinary": "pi",
+    "exit_code_from_smoke": 1,
+    "exit_note": "exit 1 because evaluation.verdict !== GO (ROLLBACK_TO_OPT_IN); metrics still live-measured"
+  },
   "population": {
     "id": "multi-model-quality-fixtures-v1",
     "fixtures": 3,
@@ -16,7 +24,7 @@
   },
   "quality_gate_verdict": "ROLLBACK_TO_OPT_IN",
   "quality_gate_failures": [
-    "tenant-cache: panel tokens exceed 4x baseline",
+    "tenant-cache: panel latency exceeds 4x baseline",
     "tenant-cache: panel latency exceeds 4x baseline"
   ],
   "floors": {
@@ -31,48 +39,54 @@
       "kind": "baseline",
       "runs": 6,
       "successes": 6,
-      "tokens_sum_success": 37285,
-      "TokensParSucc\u00e8s": 6214.166666666667,
-      "makespan_ms_all_runs": 106550,
-      "D\u00e9bitV\u00e9rifi\u00e9_per_hour": 202.72172688878462,
-      "mean_elapsed_ms": 17758.333333333332,
-      "mean_tokens_all": 6214.166666666667,
+      "tokens_sum_success": 56206,
+      "TokensParSuccès": 9367.666666666666,
+      "makespan_ms_all_runs": 77397,
+      "DébitVérifié_per_hour": 279.0805845187798,
+      "mean_elapsed_ms": 12899.5,
+      "mean_tokens_all": 9367.666666666666,
       "mean_recall": 1
     },
     "panel": {
       "kind": "panel",
       "runs": 6,
       "successes": 6,
-      "tokens_sum_success": 73501,
-      "TokensParSucc\u00e8s": 12250.166666666666,
-      "makespan_ms_all_runs": 276088,
-      "D\u00e9bitV\u00e9rifi\u00e9_per_hour": 78.23592477760714,
-      "mean_elapsed_ms": 46014.666666666664,
-      "mean_tokens_all": 12250.166666666666,
+      "tokens_sum_success": 62315,
+      "TokensParSuccès": 10385.833333333334,
+      "makespan_ms_all_runs": 257052,
+      "DébitVérifié_per_hour": 84.02969049064002,
+      "mean_elapsed_ms": 42842,
+      "mean_tokens_all": 10385.833333333334,
       "mean_recall": 1
     },
     "sol_ceiling": {
       "kind": "sol-ceiling",
       "runs": 3,
       "successes": 3,
-      "tokens_sum_success": 29122,
-      "TokensParSucc\u00e8s": 9707.333333333334,
-      "makespan_ms_all_runs": 50639,
-      "D\u00e9bitV\u00e9rifi\u00e9_per_hour": 213.2743537589605,
-      "mean_elapsed_ms": 16879.666666666668,
-      "mean_tokens_all": 9707.333333333334,
+      "tokens_sum_success": 46638,
+      "TokensParSuccès": 15546,
+      "makespan_ms_all_runs": 56920,
+      "DébitVérifié_per_hour": 189.73998594518622,
+      "mean_elapsed_ms": 18973.333333333332,
+      "mean_tokens_all": 15546,
       "mean_recall": 1
     }
   },
   "ab_panel_vs_baseline": {
-    "tokens_ratio_panel_over_baseline": 1.9713289526619282,
-    "throughput_ratio_panel_over_baseline": 0.38592767523398336,
+    "tokens_ratio_panel_over_baseline": 1.1086894637583178,
+    "throughput_ratio_panel_over_baseline": 0.3010947201344475,
     "target_tokens_le_0_5x": false,
     "target_throughput_ge_2x": false
   },
   "claims": {
     "minus_50_percent_tokens": false,
     "plus_100_percent_verified_throughput": false,
-    "notes": "Panel did not beat baseline on tokens or throughput; quality gate ROLLBACK_TO_OPT_IN on tenant-cache latency/tokens 4x."
+    "notes": "Fresh live A/B; panel vs baseline on same population. Promotion targets are experiment targets (goal non-goal if unmet)."
+  },
+  "verdict": "measured-fail-targets",
+  "formula_check": {
+    "TokensParSuccès": "Σ nonCacheTokens(success runs) / Σ successes",
+    "DébitVérifié": "Σ successes / (Σ elapsedMs / 3.6e6) per hour",
+    "blueprint": "docs/harness-optimization-blueprint.md §2.1"
   }
 }

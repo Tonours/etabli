@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "startedAt": "2026-07-31T23:46:40.535Z",
-  "piBinary": "/Users/tonours/.asdf/installs/nodejs/26.5.0/bin/pi",
-  "agentFixtures": "/Users/tonours/work/etabli/tests/fixtures/multi-model-quality/agent-fixtures.json",
-  "scoreKey": "/Users/tonours/work/etabli/tests/fixtures/multi-model-quality/score-key.json",
+  "startedAt": "2026-08-01T00:19:06.082Z",
+  "piBinary": "pi",
+  "agentFixtures": "/Volumes/Crucial/work/etabli/tests/fixtures/multi-model-quality/agent-fixtures.json",
+  "scoreKey": "/Volumes/Crucial/work/etabli/tests/fixtures/multi-model-quality/score-key.json",
   "probes": null,
   "conversation": null,
   "taskRpc": null,
   "quality": {
-    "benchmarkDir": "/var/folders/53/532kmp5x1hv7w8535qj9h2n40000gn/T/etabli-multi-model-blind-rxNHNk",
+    "benchmarkDir": "/var/folders/xq/60sh3_0d3sb9hyy42rdf20hh0000gn/T/etabli-multi-model-blind-CDg9wn",
     "runs": [
       {
         "fixtureId": "tenant-cache",
@@ -26,8 +26,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 15619,
-        "nonCacheTokens": 6017,
+        "elapsedMs": 11352,
+        "nonCacheTokens": 9694,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra"
       },
@@ -47,8 +47,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 16342,
-        "nonCacheTokens": 1498,
+        "elapsedMs": 11463,
+        "nonCacheTokens": 9636,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra"
       },
@@ -68,8 +68,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 58497,
-        "nonCacheTokens": 17271,
+        "elapsedMs": 83869,
+        "nonCacheTokens": 14343,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra",
         "roles": [
@@ -93,8 +93,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 64242,
-        "nonCacheTokens": 13600,
+        "elapsedMs": 54614,
+        "nonCacheTokens": 13238,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra",
         "roles": [
@@ -118,8 +118,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 16225,
-        "nonCacheTokens": 10665,
+        "elapsedMs": 11937,
+        "nonCacheTokens": 9579,
         "provider": "openai-codex",
         "model": "gpt-5.6-sol"
       },
@@ -139,8 +139,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 20524,
-        "nonCacheTokens": 9700,
+        "elapsedMs": 13246,
+        "nonCacheTokens": 10454,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra"
       },
@@ -160,8 +160,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 22362,
-        "nonCacheTokens": 8051,
+        "elapsedMs": 17338,
+        "nonCacheTokens": 6928,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra"
       },
@@ -181,8 +181,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 33791,
-        "nonCacheTokens": 10524,
+        "elapsedMs": 29723,
+        "nonCacheTokens": 8432,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra",
         "roles": [
@@ -206,8 +206,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 43988,
-        "nonCacheTokens": 10795,
+        "elapsedMs": 39243,
+        "nonCacheTokens": 9204,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra",
         "roles": [
@@ -231,8 +231,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 18925,
-        "nonCacheTokens": 7857,
+        "elapsedMs": 32084,
+        "nonCacheTokens": 27475,
         "provider": "openai-codex",
         "model": "gpt-5.6-sol"
       },
@@ -252,8 +252,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 16341,
-        "nonCacheTokens": 6010,
+        "elapsedMs": 11010,
+        "nonCacheTokens": 9646,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra"
       },
@@ -273,8 +273,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 15362,
-        "nonCacheTokens": 6009,
+        "elapsedMs": 12988,
+        "nonCacheTokens": 9848,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra"
       },
@@ -294,8 +294,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 36742,
-        "nonCacheTokens": 11485,
+        "elapsedMs": 24045,
+        "nonCacheTokens": 7837,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra",
         "roles": [
@@ -319,8 +319,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 38828,
-        "nonCacheTokens": 9826,
+        "elapsedMs": 25558,
+        "nonCacheTokens": 9261,
         "provider": "openai-codex",
         "model": "gpt-5.6-terra",
         "roles": [
@@ -344,8 +344,8 @@
         ],
         "falsePositives": [],
         "recall": 1,
-        "elapsedMs": 15489,
-        "nonCacheTokens": 10600,
+        "elapsedMs": 12899,
+        "nonCacheTokens": 9584,
         "provider": "openai-codex",
         "model": "gpt-5.6-sol"
       }
@@ -353,7 +353,7 @@
     "evaluation": {
       "verdict": "ROLLBACK_TO_OPT_IN",
       "failures": [
-        "tenant-cache: panel tokens exceed 4x baseline",
+        "tenant-cache: panel latency exceeds 4x baseline",
         "tenant-cache: panel latency exceeds 4x baseline"
       ],
       "solDominates": false,
@@ -373,5 +373,5 @@
       }
     }
   },
-  "completedAt": "2026-07-31T23:53:54.106Z"
+  "completedAt": "2026-08-01T00:25:37.473Z"
 }

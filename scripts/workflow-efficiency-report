@@ -254,6 +254,127 @@ instruction_budget_within_stretch_target="$(
     '$current <= $target'
 )"
 
+# Additive always-on / lazy-load footprint (does not alter instruction_budget pin set).
+# Token estimate matches instruction_budget: ceil(chars / 4).
+# Cache model is a documented amortization proxy, not a live provider measurement.
+budget_file_entry_json() {
+  local abs="$1"
+  local label="$2"
+  if [ ! -f "$abs" ]; then
+    return 1
+  fi
+  local chars lines tokens
+  chars="$(wc -c < "$abs" | tr -d ' ')"
+  lines="$(wc -l < "$abs" | tr -d ' ')"
+  tokens=$(( (chars + 3) / 4 ))
+  jq -nc \
+    --arg path "$label" \
+    --argjson lines "$lines" \
+    --argjson chars "$chars" \
+    --argjson tokens "$tokens" \
+    '{path:$path, lines:$lines, chars:$chars, estimated_tokens:$tokens}'
+}
+
+always_on_context_block_json() {
+  local files_json="$1"
+  jq -nc --argjson files "$files_json" '
+    def uncached: ($files | map(.estimated_tokens) | add // 0);
+    {
+      files: $files,
+      file_count: ($files | length),
+      total_chars: ($files | map(.chars) | add // 0),
+      total_tokens_uncached: uncached,
+      total_tokens_cached_amortized: ((uncached * 0.1) | floor),
+      cache_model: "uncached=full estimated tokens; cached_amortized=floor(0.1*uncached) prompt-cache read proxy (not live-measured)"
+    }
+  '
+}
+
+always_on_dev_entries=()
+if entry="$(budget_file_entry_json "${HOME}/.claude/CLAUDE.md" "~/.claude/CLAUDE.md")"; then
+  always_on_dev_entries+=("$entry")
+fi
+if entry="$(budget_file_entry_json "$ROOT_DIR/CLAUDE.md" "CLAUDE.md")"; then
+  always_on_dev_entries+=("$entry")
+fi
+if entry="$(budget_file_entry_json "$ROOT_DIR/AGENTS.md" "AGENTS.md")"; then
+  always_on_dev_entries+=("$entry")
+fi
+always_on_dev_files_json="$(printf '%s\n' "${always_on_dev_entries[@]:-}" | jq -s '.')"
+always_on_dev_json="$(always_on_context_block_json "$always_on_dev_files_json")"
+
+always_on_deployed_claude_entries=()
+if entry="$(budget_file_entry_json "$ROOT_DIR/claude/CLAUDE.md" "claude/CLAUDE.md")"; then
+  always_on_deployed_claude_entries+=("$entry")
+fi
+always_on_deployed_claude_files_json="$(printf '%s\n' "${always_on_deployed_claude_entries[@]:-}" | jq -s '.')"
+always_on_deployed_claude_json="$(always_on_context_block_json "$always_on_deployed_claude_files_json")"
+
+always_on_deployed_pi_entries=()
+if entry="$(budget_file_entry_json "$ROOT_DIR/pi/AGENTS.md" "pi/AGENTS.md")"; then
+  always_on_deployed_pi_entries+=("$entry")
+fi
+always_on_deployed_pi_files_json="$(printf '%s\n' "${always_on_deployed_pi_entries[@]:-}" | jq -s '.')"
+always_on_deployed_pi_json="$(always_on_context_block_json "$always_on_deployed_pi_files_json")"
+
+always_on_context_json="$(
+  jq -nc \
+    --argjson dev_repo "$always_on_dev_json" \
+    --argjson deployed_claude "$always_on_deployed_claude_json" \
+    --argjson deployed_pi "$always_on_deployed_pi_json" \
+    '{
+      estimate: "ceil(chars / 4)",
+      note: "Additive always-on footprint for real per-turn context; independent of the pinned 6-file instruction_budget set. Dev-repo includes user CLAUDE.md + project CLAUDE.md + AGENTS.md (imported). Deployed surfaces are thin adapters only.",
+      dev_repo: $dev_repo,
+      deployed: {
+        claude: $deployed_claude,
+        pi: $deployed_pi
+      }
+    }'
+)"
+
+lazy_load_paths=()
+while IFS= read -r path; do
+  lazy_load_paths+=("$path")
+done < <(
+  cd "$ROOT_DIR"
+  find workflow -type f -name '*.md' -print | sort
+)
+lazy_load_files_json="$(printf '%s\n' "${lazy_load_paths[@]}" | paths_with_budget_json)"
+lazy_load_file_count="${#lazy_load_paths[@]}"
+lazy_load_total_chars="$(
+  printf '%s\n' "$lazy_load_files_json" | jq 'map(.chars) | add // 0'
+)"
+lazy_load_total_tokens="$(
+  printf '%s\n' "$lazy_load_files_json" | jq 'map(.estimated_tokens) | add // 0'
+)"
+always_on_dev_tokens="$(
+  printf '%s\n' "$always_on_dev_json" | jq '.total_tokens_uncached'
+)"
+lazy_load_ratio="$(
+  jq -n \
+    --argjson lazy "$lazy_load_total_tokens" \
+    --argjson always "$always_on_dev_tokens" \
+    'if ($lazy + $always) == 0 then null else ($lazy / ($lazy + $always)) end'
+)"
+lazy_load_json="$(
+  jq -nc \
+    --argjson file_count "$lazy_load_file_count" \
+    --argjson total_chars "$lazy_load_total_chars" \
+    --argjson total_tokens "$lazy_load_total_tokens" \
+    --argjson always_on_dev_tokens "$always_on_dev_tokens" \
+    --argjson lazy_load_ratio "$lazy_load_ratio" \
+    '{
+      scope: "workflow/**/*.md (on-demand; not always-on)",
+      file_count: $file_count,
+      total_chars: $total_chars,
+      total_tokens: $total_tokens,
+      always_on_dev_tokens_for_ratio: $always_on_dev_tokens,
+      lazy_load_ratio: $lazy_load_ratio,
+      note: "lazy_load_ratio = lazy_tokens / (lazy_tokens + always_on_dev_tokens); higher means more corpus stays on-demand (decay architecture)"
+    }'
+)"
+
 if [ "$JSON" -eq 1 ]; then
   jq -n \
     --argjson shared_contract_files "$shared_contract_files" \
@@ -277,6 +398,8 @@ if [ "$JSON" -eq 1 ]; then
     --argjson instruction_budget_current_ratio "$instruction_budget_current_ratio" \
     --argjson instruction_budget_within_target "$instruction_budget_within_target" \
     --argjson instruction_budget_within_stretch_target "$instruction_budget_within_stretch_target" \
+    --argjson always_on_context "$always_on_context_json" \
+    --argjson lazy_load "$lazy_load_json" \
     '{
       shared_contract_files: $shared_contract_files,
       shared_contract_lines: $shared_contract_lines,
@@ -303,7 +426,9 @@ if [ "$JSON" -eq 1 ]; then
         within_target: $instruction_budget_within_target,
         within_stretch_target: $instruction_budget_within_stretch_target,
         estimate: "ceil(chars / 4)"
-      }
+      },
+      always_on_context: $always_on_context,
+      lazy_load: $lazy_load
     }'
   exit 0
 fi
@@ -324,6 +449,10 @@ status_line instruction_budget_target "$instruction_budget_target_tokens"
 status_line instruction_budget_stretch "$instruction_budget_stretch_target_tokens"
 status_line instruction_budget_ok "$instruction_budget_within_target"
 status_line instruction_budget_stretch_ok "$instruction_budget_within_stretch_target"
+status_line always_on_context_tokens "$(printf '%s\n' "$always_on_dev_json" | jq -r '"dev_uncached=" + (.total_tokens_uncached|tostring) + " cached_amortized=" + (.total_tokens_cached_amortized|tostring)')"
+status_line always_on_deployed_tokens "$(printf '%s\n' "$always_on_deployed_claude_json" | jq -r '"claude=" + (.total_tokens_uncached|tostring)') / $(printf '%s\n' "$always_on_deployed_pi_json" | jq -r '"pi=" + (.total_tokens_uncached|tostring)')"
+status_line lazy_load_tokens "$lazy_load_total_tokens"
+status_line lazy_load_ratio "$lazy_load_ratio"
 
 printf '\nrouter_adapter_lines\n'
 for path in "${router_paths[@]}"; do
@@ -340,6 +469,10 @@ printf '\nsource_of_truth_conflict_files\n'
 printf '\ninstruction_budget_files\n'
 printf '%s\n' "$instruction_budget_files_json" |
   jq -r '.[] | "  \(.path) estimated_tokens=\(.estimated_tokens) chars=\(.chars)"'
+
+printf '\nalways_on_context_files (dev_repo)\n'
+printf '%s\n' "$always_on_dev_json" |
+  jq -r '.files[] | "  \(.path) estimated_tokens=\(.estimated_tokens) chars=\(.chars)"'
 
 printf '\nexact_duplicate_pairs\n'
 printf '%s' "$duplicate_pairs_tsv" | while IFS=$'\t' read -r _hash path_a path_b; do

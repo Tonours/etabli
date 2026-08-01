@@ -159,7 +159,7 @@ describe("workflow router extension", () => {
       systemPrompt: "Base prompt",
     });
     expect(pendingResults[0]).toEqual({
-      systemPrompt: expect.stringContaining("Multi-execution request: pending explicit council"),
+      systemPrompt: expect.stringContaining("Multi-execution: pending explicit council"),
     });
 
     const degraded = setupExtension(["TaskCreate", "TaskList"]);
