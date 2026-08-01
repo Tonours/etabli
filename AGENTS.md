@@ -82,3 +82,7 @@ bun test pi/extensions/__tests__/
 ## Commit
 
 `feat|fix|refactor|test|docs|chore(scope): description`
+
+Commit messages are short, a single line max, no body: subject only in the
+conventional-commit format above. Keep the subject under ~72 characters.
+Do not rewrite, amend, or force-push history unless explicitly requested.
