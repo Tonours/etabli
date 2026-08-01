@@ -442,6 +442,18 @@ for (const model of trackedSettings.enabledModels ?? []) {
 for (const model of managedModels) {
   if (!localModels.includes(model)) localModels.push(model);
 }
+// Keep a personal default selectable even when it is outside the tracked pin set.
+if (
+  typeof localSettings.defaultProvider === "string" &&
+  typeof localSettings.defaultModel === "string" &&
+  localSettings.defaultProvider &&
+  localSettings.defaultModel
+) {
+  const defaultId = `${localSettings.defaultProvider}/${localSettings.defaultModel}`;
+  if (!localModels.includes(defaultId) && !isLegacyModel(defaultId)) {
+    localModels.push(defaultId);
+  }
+}
 if (JSON.stringify(localModels) !== beforeModels) changed = true;
 
 if (changed) {

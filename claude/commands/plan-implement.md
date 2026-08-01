@@ -61,10 +61,10 @@ flow — never stop between phases to ask "continue?":
    into the plan.
 2. Plan: create/refresh `PLAN.md`, self-critique to `READY` or `CHALLENGED`.
 3. Adversary: run the cross-model pass non-interactively (`pi -p --model
-   openai-codex/gpt-5.6-sol --tools read` piping `PLAN.md`, per `/adversary`);
-   fold accepted findings; continue only if still `READY`. If the GPT-family
-   model is unavailable, run the adversary contract yourself and record that
-   the pass was same-model.
+   openai-codex/gpt-5.5 --tools read` piping `PLAN.md`, per `/adversary`;
+   fallbacks `xai/grok-4.5` then `zai/glm-5.2`); fold accepted findings;
+   continue only if still `READY`. If no cross-family model is available, run
+   the adversary contract yourself and record that the pass was same-model.
 4. Implement the `READY` plan steps in order; code behavior changes ship with
    their tests, bug fixes start from a failing test.
 5. Run the plan checks, then a simplification pass (re-run checks if it

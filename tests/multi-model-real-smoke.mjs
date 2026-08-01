@@ -14,6 +14,17 @@ const DEFAULT_PI_CANDIDATES = [
   "pi",
 ].filter(Boolean);
 
+// Live parents must match the managed Pi portfolio in pi/agent/settings.json
+// (no retired openai-codex/gpt-5.6-* aliases). Sidecar roles stay pinned by
+// pi/agents/etabli-*.md (scout/challenger/judge/analyst).
+const PORTFOLIO = {
+  coordinator: { provider: "openai-codex", model: "gpt-5.5", thinking: "high" },
+  baseline: { provider: "openai-codex", model: "gpt-5.5", thinking: "high" },
+  // Strong single-model ceiling arm (historical "sol" role); K3 is the portfolio adjudicator pin.
+  ceiling: { provider: "kimi-coding", model: "k3", thinking: "xhigh" },
+  taskRpc: { provider: "openai-codex", model: "gpt-5.3-codex-spark", thinking: "medium" },
+};
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -254,18 +265,18 @@ async function runPi(piBinary, { provider, model, thinking, prompt, prompts, too
   return { ...result, events: parseJsonLines(result.stdout) };
 }
 
-async function runStandalone(piBinary, fixture, model, thinking, benchmarkDir) {
+async function runStandalone(piBinary, fixture, arm, benchmarkDir) {
   const prompt = qualityPrompt(fixture);
   const run = await runPi(piBinary, {
-    provider: "openai-codex",
-    model,
-    thinking,
+    provider: arm.provider,
+    model: arm.model,
+    thinking: arm.thinking,
     prompt,
     cwd: benchmarkDir,
   });
   const evidence = finalModelEvidence(run.events);
-  assert(evidence.provider === "openai-codex", `unexpected provider ${evidence.provider}`);
-  assert(evidence.model === model, `unexpected model ${evidence.model}; wanted ${model}`);
+  assert(evidence.provider === arm.provider, `unexpected provider ${evidence.provider}; wanted ${arm.provider}`);
+  assert(evidence.model === arm.model, `unexpected model ${evidence.model}; wanted ${arm.model}`);
   const parsed = extractJsonObject(evidence.text);
   return {
     ...scoreFindings(fixture, parsed.findings),
@@ -288,9 +299,9 @@ async function runPanel(piBinary, fixture, benchmarkDir) {
     "PAYLOAD_END",
   ].join("\n");
   const run = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-terra",
-    thinking: "high",
+    provider: PORTFOLIO.coordinator.provider,
+    model: PORTFOLIO.coordinator.model,
+    thinking: PORTFOLIO.coordinator.thinking,
     tools: "Agent,get_subagent_result",
     prompt: coordinatorPrompt,
     cwd: benchmarkDir,
@@ -332,7 +343,10 @@ async function runPanel(piBinary, fixture, benchmarkDir) {
     sidecarTokens += compactTokenCount(text);
   }
   const parent = finalModelEvidence(run.events);
-  assert(parent.provider === "openai-codex" && parent.model === "gpt-5.6-terra", "panel coordinator provenance mismatch");
+  assert(
+    parent.provider === PORTFOLIO.coordinator.provider && parent.model === PORTFOLIO.coordinator.model,
+    "panel coordinator provenance mismatch",
+  );
   return {
     ...scoreFindings(fixture, findings),
     elapsedMs: run.elapsedMs,
@@ -376,7 +390,8 @@ function evaluateQuality(fixtures, runs) {
 
   const baseline = runs.filter((run) => run.kind === "baseline");
   const panel = runs.filter((run) => run.kind === "panel");
-  const sol = runs.filter((run) => run.kind === "sol-ceiling");
+  // Accept historical kind name from prior reports for offline re-eval fixtures.
+  const ceiling = runs.filter((run) => run.kind === "ceiling" || run.kind === "sol-ceiling");
   const baselineRecall = mean(baseline.map((run) => run.recall));
   const panelRecall = mean(panel.map((run) => run.recall));
   const baselineFp = mean(baseline.map((run) => run.falsePositives.length));
@@ -387,21 +402,28 @@ function evaluateQuality(fixtures, runs) {
     failures.push("aggregate panel recall gain is below 0.10 while baseline recall is below 0.90");
   }
 
-  const solDominates =
-    mean(sol.map((run) => run.recall)) > panelRecall &&
-    mean(sol.map((run) => run.falsePositives.length)) < panelFp &&
-    mean(sol.map((run) => run.elapsedMs)) < mean(panel.map((run) => run.elapsedMs)) &&
-    mean(sol.map((run) => run.nonCacheTokens)) < mean(panel.map((run) => run.nonCacheTokens));
+  const ceilingDominates =
+    ceiling.length > 0 &&
+    mean(ceiling.map((run) => run.recall)) > panelRecall &&
+    mean(ceiling.map((run) => run.falsePositives.length)) < panelFp &&
+    mean(ceiling.map((run) => run.elapsedMs)) < mean(panel.map((run) => run.elapsedMs)) &&
+    mean(ceiling.map((run) => run.nonCacheTokens)) < mean(panel.map((run) => run.nonCacheTokens));
   return {
-    verdict: failures.length === 0 && !solDominates ? "GO" : "ROLLBACK_TO_OPT_IN",
+    verdict: failures.length === 0 && !ceilingDominates ? "GO" : "ROLLBACK_TO_OPT_IN",
     failures,
-    solDominates,
+    ceilingDominates,
+    // Keep legacy key for older consumers of quality reports.
+    solDominates: ceilingDominates,
     aggregate: {
       baseline: { recall: baselineRecall, falsePositives: baselineFp },
       panel: { recall: panelRecall, falsePositives: panelFp },
+      ceiling: {
+        recall: ceiling.length ? mean(ceiling.map((run) => run.recall)) : null,
+        falsePositives: ceiling.length ? mean(ceiling.map((run) => run.falsePositives.length)) : null,
+      },
       sol: {
-        recall: mean(sol.map((run) => run.recall)),
-        falsePositives: mean(sol.map((run) => run.falsePositives.length)),
+        recall: ceiling.length ? mean(ceiling.map((run) => run.recall)) : null,
+        falsePositives: ceiling.length ? mean(ceiling.map((run) => run.falsePositives.length)) : null,
       },
     },
   };
@@ -477,16 +499,16 @@ function validateAgentCallProvenance(calls, results) {
 
 async function runAgreementProbe(piBinary) {
   const run = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-terra",
-    thinking: "high",
+    provider: PORTFOLIO.coordinator.provider,
+    model: PORTFOLIO.coordinator.model,
+    thinking: PORTFOLIO.coordinator.thinking,
     tools: "Agent,get_subagent_result",
     prompt: [
       "Run an explicit multi-model council read-only review capability probe.",
       "In one assistant turn launch exactly two background Agent calls: etabli-scout and etabli-challenger.",
       "Give each the task: Return exactly CLAIM:AGREEMENT_N42 and nothing else.",
       "Retrieve both with get_subagent_result(wait=true). Their claims agree, so stop after deterministic comparison.",
-      "Do not resume either participant. Do not call Sol or Kimi. Return exactly AGREEMENT_STOP_OK.",
+      "Do not resume either participant. Do not call the judge or Kimi. Return exactly AGREEMENT_STOP_OK.",
     ].join("\n"),
   });
   const calls = panelAgentCalls(run.events);
@@ -518,9 +540,9 @@ async function runAgreementProbe(piBinary) {
 
 async function runRebuttalProbe(piBinary) {
   const run = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-terra",
-    thinking: "high",
+    provider: PORTFOLIO.coordinator.provider,
+    model: PORTFOLIO.coordinator.model,
+    thinking: PORTFOLIO.coordinator.thinking,
     tools: "Agent,get_subagent_result",
     prompt: [
       "Run an explicit multi-model council read-only review conversation probe.",
@@ -532,7 +554,7 @@ async function runRebuttalProbe(piBinary) {
       "For Scout use only: Second turn. Without being told your prior nonce again, rebut anonymized opposing claim C-OTHER and return SECOND:<remembered nonce>|REBUT:C-OTHER.",
       "For Challenger use only: Second turn. Without being told your prior nonce again, rebut anonymized opposing claim C-OTHER and return SECOND:<remembered nonce>|REBUT:C-OTHER.",
       "Retrieve both resumed agents with get_subagent_result(wait=true). Stop after this one rebuttal round.",
-      "Do not call Sol or Kimi. Do not launch another agent. Return exactly REBUTTAL_STOP_OK.",
+      "Do not call the judge or Kimi. Do not launch another agent. Return exactly REBUTTAL_STOP_OK.",
     ].join("\n"),
   });
   const calls = panelAgentCalls(run.events);
@@ -583,9 +605,9 @@ async function runConversation(piBinary) {
 
 async function runTaskRpc(piBinary) {
   const run = await runPi(piBinary, {
-    provider: "openai-codex",
-    model: "gpt-5.6-luna",
-    thinking: "medium",
+    provider: PORTFOLIO.taskRpc.provider,
+    model: PORTFOLIO.taskRpc.model,
+    thinking: PORTFOLIO.taskRpc.thinking,
     tools: "TaskCreate,TaskExecute,TaskOutput,TaskGet",
     prompt: [
       "Run a read-only Pi task tracking/RPC probe.",
@@ -640,7 +662,7 @@ async function runQuality(piBinary, fixtures, agentFixtures) {
         fixtureId: fixture.id,
         kind: "baseline",
         repetition,
-        ...(await runStandalone(piBinary, fixture, "gpt-5.6-terra", "high", benchmarkDir)),
+        ...(await runStandalone(piBinary, fixture, PORTFOLIO.baseline, benchmarkDir)),
       });
     }
     for (let repetition = 1; repetition <= 2; repetition += 1) {
@@ -648,9 +670,9 @@ async function runQuality(piBinary, fixtures, agentFixtures) {
     }
     runs.push({
       fixtureId: fixture.id,
-      kind: "sol-ceiling",
+      kind: "ceiling",
       repetition: 1,
-      ...(await runStandalone(piBinary, fixture, "gpt-5.6-sol", "xhigh", benchmarkDir)),
+      ...(await runStandalone(piBinary, fixture, PORTFOLIO.ceiling, benchmarkDir)),
     });
   }
   return { benchmarkDir, runs, evaluation: evaluateQuality(fixtures, runs) };
