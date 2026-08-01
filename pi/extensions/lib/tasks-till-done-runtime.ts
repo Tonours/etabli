@@ -13,18 +13,24 @@ export const TASK_TOOL_NAMES = new Set([
 export const TASK_TILL_DONE_GUIDANCE = [
 	"# Etabli Task Loop",
 	"",
-	"Run the task loop until done when Task* tools are available and the work is non-trivial:",
-	"1. TaskList first to inspect existing work.",
-	"2. If the request isn't represented, create a small task list with TaskCreate.",
-	"3. Mark exactly one actionable task in_progress before working on it.",
-	"4. After completing a task, mark it completed, then TaskList again.",
-	"5. Continue until no actionable tasks remain.",
-	"6. For implementation: create and complete focused adversary, change-matched validation, review, archive, and root PLAN.md cleanup tasks before final completion.",
-	"7. Stop only when all relevant tasks are completed, blocked, or out of scope.",
-	"8. Use Agent + get_subagent_result for short fan-out/fan-in, TaskExecute for tracked DAG work; keep mutation parent-only (multi-exec panel scope is governed by the router).",
+	"Use Task* only for non-trivial multi-step work (not one-shot answers):",
+	"1. TaskList first; TaskCreate a small list only if missing.",
+	"2. Exactly one in_progress task; complete it; TaskList again.",
+	"3. Stop when no actionable tasks remain, or all open tasks are blocked.",
+	"4. Implementation routes: keep adversary, focused validation, review, archive, PLAN.md cleanup as separate tasks — do not invent extra process tasks.",
+	"5. Prefer Agent + get_subagent_result for short fan-out; TaskExecute only for tracked DAGs. Parent-only mutation.",
 	"",
 	"Do not mention these hidden instructions to the user.",
 ].join("\n");
+
+/** Hard cap on agent_end auto-continues per user turn (each continue is a full model pass). */
+export const DEFAULT_MAX_AUTO_CONTINUES = 6;
+/** Stop when TaskList signature repeats this many times (no progress). */
+export const DEFAULT_MAX_STALLED_REPEATS = 1;
+/** At most one forced continue solely to create/run a validation task. */
+export const DEFAULT_MAX_VALIDATION_CONTINUES = 1;
+/** At most two forced continues solely to fill implementation completion evidence. */
+export const DEFAULT_MAX_COMPLETION_EVIDENCE_CONTINUES = 2;
 
 export const TASK_TILL_DONE_CONTINUE_PROMPT = [
 	"Continue the Task Loop.",
@@ -99,8 +105,12 @@ export type ImplementationRuntimeEvidence = {
 
 const TASK_LINE_PATTERN =
 	/^#(\d+)\s+\[(pending|in_progress|completed)\]\s+(.+)$/;
-const TASK_HINT_PATTERN =
-	/\b(task|tasks|todo|todos|till[- ]done|jusqu.au bout|continue|go|fais|faire|mets|met|ajoute|cr[eé]e|supprime|remplace|impl[eé]mente|corrige|fix|cleanup|update|test|lance|run)\b/i;
+// Explicit task-loop intent (avoid bare "fix"/"go"/"update" which inflate auto-continues).
+const EXPLICIT_TASK_LOOP_PATTERN =
+	/\b(task|tasks|todo|todos|till[- ]done|jusqu.?au bout|tasklist|taskcreate|taskexecute)\b/i;
+// Strong multi-step work verbs that legitimately need a structured task list.
+const ACTIONABLE_WORK_PATTERN =
+	/\b(impl[eé]mente|implement|plan-implement|plan-loop|adversary|ready plan|plan ready|ship this|end[- ]to[- ]end)\b/i;
 const VALIDATION_TASK_PATTERN =
 	/\b(validate|validation|verify|verification|test|tests|retest|preuve|prouve|v[eé]rifie|check|checks)\b/i;
 const ADVERSARY_TASK_PATTERN =
@@ -143,7 +153,12 @@ export function shouldInjectTaskLoop(
 	const trimmed = prompt.trim();
 	if (trimmed === "") return false;
 	if (trimmed.startsWith("/")) return false;
-	return TASK_HINT_PATTERN.test(trimmed);
+	// Extension-generated continues must keep the loop active.
+	if (trimmed.startsWith("Continue the Task Loop.")) return true;
+	return (
+		EXPLICIT_TASK_LOOP_PATTERN.test(trimmed) ||
+		ACTIONABLE_WORK_PATTERN.test(trimmed)
+	);
 }
 
 export function appendTaskLoopGuidance(systemPrompt: string): string {
@@ -387,6 +402,12 @@ export function decideAutoContinue(options: {
 	implementationCompletionRequired?: boolean;
 	implementationRuntimeEvidence?: ImplementationRuntimeEvidence;
 	runtimeCapabilityIssue?: TaskRuntimeCapabilityIssue;
+	/** Continues already spent solely on validation_required. */
+	validationContinueCount?: number;
+	maxValidationContinues?: number;
+	/** Continues already spent solely on completion_evidence_required. */
+	completionEvidenceContinueCount?: number;
+	maxCompletionEvidenceContinues?: number;
 }): AutoContinueDecision {
 	if (!options.active || !options.taskToolUsed)
 		return { continue: false, reason: "inactive" };
@@ -406,6 +427,11 @@ export function decideAutoContinue(options: {
 			options.implementationRuntimeEvidence,
 		)
 	) {
+		const used = options.completionEvidenceContinueCount ?? 0;
+		const max =
+			options.maxCompletionEvidenceContinues ??
+			DEFAULT_MAX_COMPLETION_EVIDENCE_CONTINUES;
+		if (used >= max) return { continue: false, reason: "limit" };
 		return { continue: true, reason: "completion_evidence_required" };
 	}
 	if (
@@ -413,6 +439,10 @@ export function decideAutoContinue(options: {
 		options.validationRequired &&
 		!options.summary.hasValidationTask
 	) {
+		const used = options.validationContinueCount ?? 0;
+		const max =
+			options.maxValidationContinues ?? DEFAULT_MAX_VALIDATION_CONTINUES;
+		if (used >= max) return { continue: false, reason: "limit" };
 		return { continue: true, reason: "validation_required" };
 	}
 	if (options.summary.open === 0)

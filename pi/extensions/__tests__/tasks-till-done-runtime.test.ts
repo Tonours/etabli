@@ -16,6 +16,12 @@ describe("tasks till-done runtime", () => {
     expect(shouldInjectTaskLoop("Implémente le plan ready", ["TaskCreate"])).toBe(true);
     expect(shouldInjectTaskLoop("Implémente le plan ready", ["bash"])).toBe(false);
     expect(shouldInjectTaskLoop("/tasks", ["TaskCreate"])).toBe(false);
+    // Bare fix/update/go must not arm the auto-continue loop.
+    expect(shouldInjectTaskLoop("fix typo in README", ["TaskCreate"])).toBe(false);
+    expect(shouldInjectTaskLoop("go", ["TaskCreate"])).toBe(false);
+    expect(shouldInjectTaskLoop("update the docs", ["TaskCreate"])).toBe(false);
+    expect(shouldInjectTaskLoop("create a todo list for this feature", ["TaskCreate"])).toBe(true);
+    expect(shouldInjectTaskLoop("Continue the Task Loop. TaskList again.", ["TaskCreate"])).toBe(true);
   });
 
   test("appends guidance once", () => {
@@ -360,10 +366,10 @@ describe("tasks till-done runtime", () => {
       active: true,
       taskToolUsed: true,
       summary,
-      autoContinueCount: 12,
-      maxAutoContinues: 12,
+      autoContinueCount: 6,
+      maxAutoContinues: 6,
       stalledCount: 0,
-      maxStalledRepeats: 2,
+      maxStalledRepeats: 1,
     })).toEqual({ continue: false, reason: "limit" });
 
     expect(decideAutoContinue({
@@ -371,10 +377,64 @@ describe("tasks till-done runtime", () => {
       taskToolUsed: true,
       summary,
       autoContinueCount: 0,
-      maxAutoContinues: 12,
-      stalledCount: 2,
-      maxStalledRepeats: 2,
+      maxAutoContinues: 6,
+      stalledCount: 1,
+      maxStalledRepeats: 1,
     })).toEqual({ continue: false, reason: "stalled" });
+  });
+
+  test("caps forced validation and completion-evidence continues", () => {
+    const empty = {
+      total: 0,
+      open: 0,
+      actionable: 0,
+      blocked: 0,
+      hasValidationTask: false,
+      hasAdversaryTask: false,
+      hasReviewTask: false,
+      hasArchiveTask: false,
+      hasPlanCleanupTask: false,
+      signature: "empty",
+    };
+
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: empty,
+      autoContinueCount: 0,
+      maxAutoContinues: 6,
+      stalledCount: 0,
+      maxStalledRepeats: 1,
+      validationRequired: true,
+      validationContinueCount: 0,
+      maxValidationContinues: 1,
+    })).toEqual({ continue: true, reason: "validation_required" });
+
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: empty,
+      autoContinueCount: 1,
+      maxAutoContinues: 6,
+      stalledCount: 0,
+      maxStalledRepeats: 1,
+      validationRequired: true,
+      validationContinueCount: 1,
+      maxValidationContinues: 1,
+    })).toEqual({ continue: false, reason: "limit" });
+
+    expect(decideAutoContinue({
+      active: true,
+      taskToolUsed: true,
+      summary: empty,
+      autoContinueCount: 2,
+      maxAutoContinues: 6,
+      stalledCount: 0,
+      maxStalledRepeats: 1,
+      implementationCompletionRequired: true,
+      completionEvidenceContinueCount: 2,
+      maxCompletionEvidenceContinues: 2,
+    })).toEqual({ continue: false, reason: "limit" });
   });
 
   test("builds visible stop summaries", () => {
