@@ -25,7 +25,7 @@ Evidence classes: `offline` | `live` | `blocked-with-evidence`
 | G1-exec-graph | derived execution graph | already-shipped | offline | scripts/workflow-execution-graph |
 | G2-claim-graph | claim→evidence graph view | already-shipped | offline | claim-evidence-check --json .graph |
 | BENCH-A | core+full targeted +  + new smokes | already-shipped | offline | docs/harness-optimization-benchmark.md |
-| BENCH-B | live A/B TokensParSuccès + DébitVérifié | blocked | blocked-with-evidence | docs/harness-optimization-benchmark.md §B; RUN_REAL_* unset |
+| BENCH-B | live A/B TokensParSuccès + DébitVérifié | already-shipped | live | docs/harness-optimization-bench/live-ab-tokens-throughput.json; panel vs baseline measured; targets not met |
 | INV-exhaust | this inventory exhaustive classification | already-shipped | offline | docs/harness-optimization-inventory.md |
 | NO-swarm | reject permanent multi-agent swarm | already-shipped | offline | multi-model-orchestration.md |
 | NO-graphdb | reject Neo4j day-1 | already-shipped | offline | obvault-memory.md derived graph |

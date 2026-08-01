@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-07-31T23:54:19Z",
+  "source_report": "docs/harness-optimization-bench/live-multi-model-quality-report.json",
+  "population": {
+    "id": "multi-model-quality-fixtures-v1",
+    "fixtures": 3,
+    "repetitions_per_arm": 2,
+    "arms": [
+      "baseline",
+      "panel",
+      "sol-ceiling"
+    ],
+    "success_definition": "recall==1 and falsePositives==[]",
+    "token_definition": "nonCacheTokens from pi JSON events (parent session; panel includes multi-role parent orchestration cost as reported)",
+    "makespan_definition": "sum of per-run elapsedMs within arm (serial batch)"
+  },
+  "quality_gate_verdict": "ROLLBACK_TO_OPT_IN",
+  "quality_gate_failures": [
+    "tenant-cache: panel tokens exceed 4x baseline",
+    "tenant-cache: panel latency exceeds 4x baseline"
+  ],
+  "floors": {
+    "baseline_recall": 1,
+    "panel_recall": 1,
+    "baseline_falsePositives": 0,
+    "panel_falsePositives": 0,
+    "floors_non_regressed_on_recall_fp": true
+  },
+  "arms": {
+    "baseline": {
+      "kind": "baseline",
+      "runs": 6,
+      "successes": 6,
+      "tokens_sum_success": 37285,
+      "TokensParSucc\u00e8s": 6214.166666666667,
+      "makespan_ms_all_runs": 106550,
+      "D\u00e9bitV\u00e9rifi\u00e9_per_hour": 202.72172688878462,
+      "mean_elapsed_ms": 17758.333333333332,
+      "mean_tokens_all": 6214.166666666667,
+      "mean_recall": 1
+    },
+    "panel": {
+      "kind": "panel",
+      "runs": 6,
+      "successes": 6,
+      "tokens_sum_success": 73501,
+      "TokensParSucc\u00e8s": 12250.166666666666,
+      "makespan_ms_all_runs": 276088,
+      "D\u00e9bitV\u00e9rifi\u00e9_per_hour": 78.23592477760714,
+      "mean_elapsed_ms": 46014.666666666664,
+      "mean_tokens_all": 12250.166666666666,
+      "mean_recall": 1
+    },
+    "sol_ceiling": {
+      "kind": "sol-ceiling",
+      "runs": 3,
+      "successes": 3,
+      "tokens_sum_success": 29122,
+      "TokensParSucc\u00e8s": 9707.333333333334,
+      "makespan_ms_all_runs": 50639,
+      "D\u00e9bitV\u00e9rifi\u00e9_per_hour": 213.2743537589605,
+      "mean_elapsed_ms": 16879.666666666668,
+      "mean_tokens_all": 9707.333333333334,
+      "mean_recall": 1
+    }
+  },
+  "ab_panel_vs_baseline": {
+    "tokens_ratio_panel_over_baseline": 1.9713289526619282,
+    "throughput_ratio_panel_over_baseline": 0.38592767523398336,
+    "target_tokens_le_0_5x": false,
+    "target_throughput_ge_2x": false
+  },
+  "claims": {
+    "minus_50_percent_tokens": false,
+    "plus_100_percent_verified_throughput": false,
+    "notes": "Panel did not beat baseline on tokens or throughput; quality gate ROLLBACK_TO_OPT_IN on tenant-cache latency/tokens 4x."
+  }
+}
