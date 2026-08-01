@@ -7,17 +7,25 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
-const target = pathToFileURL(join(here, "../../../scripts/lib/ledger-auto-emit.mjs")).href;
+const target = pathToFileURL(
+	join(here, "../../../scripts/lib/ledger-auto-emit.mjs"),
+).href;
 const mod = await import(target);
 
-export const inferBashFailureFromToolResult = mod.inferBashFailureFromToolResult as (
-  content: unknown,
-  isError?: boolean,
-) => { failed: boolean; exit?: number; failure?: string };
+export const inferBashFailureFromToolResult =
+	mod.inferBashFailureFromToolResult as (
+		content: unknown,
+		isError?: boolean,
+	) => { failed: boolean; exit?: number; failure?: string };
 
 export const isBashToolName = mod.isBashToolName as (name: unknown) => boolean;
 
 export const recordBashValidationFailure = mod.recordBashValidationFailure as (
-  cwd: string,
-  input: { command: string; exit: number; failure?: string; head_sha?: string },
+	cwd: string,
+	input: { command: string; exit: number; failure?: string; head_sha?: string },
 ) => { emitted: boolean; reason: string; ledger?: string; events?: string[] };
+
+export const recordBashValidationReceipt = mod.recordBashValidationReceipt as (
+	cwd: string,
+	input: { command: string },
+) => { emitted: boolean; reason: string; ledger?: string };

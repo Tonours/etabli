@@ -226,13 +226,15 @@ def strict_detail($event):
   elif $event == "self_improvement_candidate" then
     (.source | nonempty_string) and (.category | nonempty_string) and (.outcome | nonempty_string) and
     (.confidence | nonempty_string) and (.evidence | string_array) and
-    optional_string_array(.held_in) and optional_string_array(.held_out)
+    optional_string_array(.held_in) and optional_string_array(.held_out) and
+    ((.supersedes? == null) or (.supersedes | string_array))
   elif $event == "harness_failure_pattern" then
     (.terminal_cause | nonempty_string) and (.causal_status | nonempty_string) and
     (.mechanism | nonempty_string) and (.verifier | nonempty_string) and (.traces | string_array)
   elif $event == "harness_proposal" then
     (.candidate | nonempty_string) and (.editable_surfaces | string_array) and (.preserve | string_array) and
-    (.held_in | string_array) and (.held_out | string_array)
+    (.held_in | string_array) and (.held_out | string_array) and
+    ((.supersedes? == null) or (.supersedes | string_array))
   elif $event == "harness_validation_completed" then
     (.candidate | nonempty_string) and (.verdict | IN("accepted", "rejected")) and (.reason | nonempty_string) and
     (.checks | string_array) and ((.checks | length) > 0) and (.evidence | string_array) and ((.evidence | length) > 0) and
@@ -242,7 +244,12 @@ def strict_detail($event):
     (.held_out.baseline.population == .held_out.candidate.population) and (.held_out.baseline.total == .held_out.candidate.total) and
     (if .verdict == "accepted" then
       (.held_in.candidate.passed > .held_in.baseline.passed) and (.held_out.candidate.passed >= .held_out.baseline.passed)
-    else true end)
+    else true end) and
+    # Additive self-improvement provenance (optional here; enforced by the strict
+    # profile and workflow-self-improvement-integrity, never by legacy callers).
+    ((.candidate_fingerprint? == null) or (.candidate_fingerprint | sha256)) and
+    ((.evaluator_manifest_sha256? == null) or (.evaluator_manifest_sha256 | sha256)) and
+    ((.revision? == null) or (.revision | nonempty_string))
   elif $event == "harness_candidate_rejected" then
     (.candidate | nonempty_string) and (.reason | nonempty_string) and
     (.regressions | string_array) and (.evidence | string_array)
@@ -286,6 +293,16 @@ def strict_detail($event):
     # Blueprint M1 additive fields: all-participant breakdown + batch makespan.
     outcome_participant_usage_valid and
     outcome_batch_fields_valid
+  elif $event == "runtime_receipt" then
+    (.receipt_for | nonempty_string) and
+    (.source | nonempty_string) and
+    (.kind | IN("file_change","validation","review","archive","completion")) and
+    (.subject_sha256 | sha256) and
+    ((.exit? == null) or (.exit | nonnegative_integer)) and
+    ((.worktree_sha256? == null) or (.worktree_sha256 | sha256)) and
+    ((.artifact_sha256? == null) or (.artifact_sha256 | sha256)) and
+    (.observed_by == "parent-process") and
+    (.cryptographic == false)
   elif $event == "retry_classified" then
     (.failure_class | nonempty_string) and (.next_action | nonempty_string)
   elif $event == "no_progress" then

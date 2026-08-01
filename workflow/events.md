@@ -11,12 +11,18 @@ shape:
 ```
 
 Resume by replaying `events.jsonl`; derived summaries are disposable, not a
-second source of truth. The last `completed` or `blocked` event is terminal evidence; a run
-with neither is in progress.
+second source of truth. A schema-v2 `completed` or `blocked` event must be the
+final event; a valid run with neither is in progress. Legacy ledgers remain
+readable but are not authoritative for new strict profiles.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
-When that script is unavailable in a scaffolded project, an equivalent single
-validated append is acceptable. Do not edit earlier lines.
+When more than one valid run is active, select exactly one with
+`scripts/workflow-event activate <slug>`; terminal append clears that pointer.
+If a ledger is corrupt, use `scripts/workflow-event recover <slug> <reason-code>`:
+it preserves the original as `events.invalid-*.jsonl` and writes a blocked
+replacement instead of deleting history. When that script is unavailable in a
+scaffolded project, an equivalent single validated append is acceptable. Do not
+edit earlier lines.
 
 Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
 metrics with `scripts/workflow-metrics`, create sanitized replay/debug dossiers
@@ -42,14 +48,15 @@ ledger.
 | `dogfood_scenario_run` | `{scenario, surface, status, artifacts}` |
 | `dogfood_fix_applied` | `{scenario, fix, evidence}` |
 | `dogfood_blocked` | `{scenario, reason, needed_input}` |
-| `self_improvement_candidate` | `{source, category, outcome, confidence, evidence, held_in?, held_out?}` |
+| `self_improvement_candidate` | `{source, category, outcome, confidence, evidence, held_in?, held_out?, supersedes?}` |
 | `harness_failure_pattern` | `{terminal_cause, causal_status, mechanism, verifier, traces}` |
-| `harness_proposal` | `{candidate, editable_surfaces, preserve, held_in, held_out}` |
+| `harness_proposal` | `{candidate, editable_surfaces, preserve, held_in, held_out, supersedes?}` — a proposal whose `candidate` matches a prior `harness_candidate_rejected.candidate` must list it in `supersedes`; enforced by `scripts/workflow-supersession-check` |
 | `harness_validation_completed` | `{candidate, verdict:accepted | rejected, reason, held_in:{baseline:{population,passed,total},candidate:{population,passed,total}}, held_out:{...}, checks, evidence}` |
 | `harness_candidate_rejected` | `{candidate, reason, regressions, evidence}` |
 | `project_slice_planned` | `{slice, owner, validation, dependencies}` |
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
 | `runtime_run_attached` | `{adapter:"pi-workflow", run_id, workflow, state_path:".pi/workflows/<run-id>", status, usage_measured}` |
+| `runtime_receipt` | `{receipt_for, source, kind:file_change\|validation\|review\|archive\|completion, subject_sha256, exit?, worktree_sha256?, artifact_sha256?, observed_by:"parent-process", cryptographic:false}` — non-cryptographic parent-process observation binding a ledger assertion to a hashed subject (path or command) and exit; stores only allowlisted hashes, never raw output or secret-bearing text |
 | `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted | degraded | blocked | rollback_to_opt_in, usage:{measured,...}, fallback_status:none | degraded | blocked}` |
 | `outcome_measurement_population` | `{population_id, manifest_sha256, terminal_runs, targets:[{target_run, target_ledger_sha256, target_terminal, target_terminal_event_sha256, target_outcome_event_sha256, baseline_measured, baseline_usage_measured}]}` |
 | `outcome_measurement_imported` | `{population_id, import_id, target_run, target fingerprints, source_adapter:"codex", source_scope:"primary_session_window", selection:"shortest_enclosing_primary_session", session_fingerprint, window/sample bounds, sample_count, success, input_tokens, output_tokens, total_tokens, tool_calls, elapsed_ms}` |

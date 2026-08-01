@@ -45,7 +45,13 @@ function writePlan(status) {
 function writeLedger(slug, lines) {
   const dir = join(tmp, ".workflow", slug);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "events.jsonl"), lines.map((o) => JSON.stringify(o)).join("\\n") + "\\n");
+  const canonical = lines.map((event, index) => ({
+    schema_version: 2,
+    ts: "2026-08-01T00:00:" + String(index).padStart(2, "0") + "Z",
+    run: slug,
+    ...event,
+  }));
+  writeFileSync(join(dir, "events.jsonl"), canonical.map((event) => JSON.stringify(event)).join("\\n") + "\\n");
 }
 
 function assertDeny(label, decision) {
@@ -63,6 +69,15 @@ function assertDeny(label, decision) {
 function assertAllow(label, decision) {
   if (decision != null) {
     console.error(label, "expected allow (null), got", decision);
+    process.exit(1);
+  }
+}
+
+function assertDenyReason(label, decision, expectedReason) {
+  assertDeny(label, decision);
+  const reason = decision.hookSpecificOutput.permissionDecisionReason || "";
+  if (!reason.includes(expectedReason)) {
+    console.error(label, "expected " + expectedReason + " in reason:", reason);
     process.exit(1);
   }
 }
@@ -173,6 +188,14 @@ assertAllow(
     input: { command: "node scripts/workflow-event validate --profile autonomous-completed" },
   }),
 );
+assertAllow(
+  "escape narrow plan cleanup",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    toolName: "Bash",
+    tool_input: { command: "scripts/plan-cleanup --archive docs/plan/implemented.md" },
+  }),
+);
 
 // non-mutating bash still allowed
 assertAllow(
@@ -247,6 +270,84 @@ if (!twoHyp || twoHyp.reason !== "same_hypothesis_failure_limit") {
   console.error("expected same_hypothesis_failure_limit", twoHyp);
   process.exit(1);
 }
+
+// Strict authority: malformed, post-terminal, and misbound v2 ledgers cannot
+// be silently ignored. Close the earlier valid run before each isolated case.
+writeLedger("derived-reset", [{ event: "completed", detail: { summary: "closed" } }]);
+writeLedger("corrupt", [{ event: "route_decided", detail: { route: "implement" } }]);
+writeFileSync(join(tmp, ".workflow", "corrupt", "events.jsonl"), "{bad\n");
+assertDenyReason(
+  "corrupt active ledger Write",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/corrupt.ts"), content: "x" },
+  }),
+  "invalid_active_ledger",
+);
+
+writeLedger("corrupt", [{ event: "completed", detail: { summary: "closed" } }]);
+writeLedger("invalid-terminal", [{ event: "completed", detail: {} }]);
+assertDenyReason(
+  "malformed terminal ledger Write",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/invalid-terminal.ts"), content: "x" },
+  }),
+  "invalid_active_ledger",
+);
+writeLedger("invalid-terminal", [{ event: "completed", detail: { summary: "closed" } }]);
+writeLedger("post-terminal", [
+  { event: "completed", detail: { summary: "done" } },
+  { event: "validation_run", detail: { command: "true", exit: 0 } },
+]);
+assertDenyReason(
+  "post-terminal active ledger Write",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/post-terminal.ts"), content: "x" },
+  }),
+  "invalid_active_ledger",
+);
+
+writeLedger("post-terminal", [{ event: "completed", detail: { summary: "closed" } }]);
+writeLedger("misbound", [{ run: "other-run", event: "route_decided", detail: { route: "implement" } }]);
+assertDenyReason(
+  "misbound active ledger Write",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/misbound.ts"), content: "x" },
+  }),
+  "invalid_active_ledger",
+);
+
+writeLedger("misbound", [{ event: "completed", detail: { summary: "closed" } }]);
+writeLedger("active-a", [{ event: "route_decided", detail: { route: "implement" } }]);
+writeLedger("active-b", [{ event: "route_decided", detail: { route: "implement" } }]);
+assertDenyReason(
+  "ambiguous active ledgers Write",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/ambiguous.ts"), content: "x" },
+  }),
+  "ambiguous_active_ledgers",
+);
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "active-a" }),
+);
+assertAllow(
+  "active pointer selects one non-stopped ledger",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/selected.ts"), content: "x" },
+  }),
+);
 
 console.log("no-progress-mutate-deny smoke test: ok");
 EOF

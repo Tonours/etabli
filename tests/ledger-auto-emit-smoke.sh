@@ -34,7 +34,7 @@ if (none.emitted) {
 mkdirSync(join(tmp, ".workflow", "run-a"), { recursive: true });
 writeFileSync(
   join(tmp, ".workflow", "run-a", "events.jsonl"),
-  JSON.stringify({ schema_version: 2, event: "route_decided", detail: { route: "implement" } }) + "\\n",
+  JSON.stringify({ schema_version: 2, ts: "2026-08-01T00:00:00Z", run: "run-a", event: "route_decided", detail: { route: "implement" } }) + "\\n",
 );
 
 const one = mod.recordBashValidationFailure(tmp, {
@@ -73,7 +73,7 @@ if (!text.includes('"event":"no_progress"')) {
 // Terminal ledger → no emit
 writeFileSync(
   join(tmp, ".workflow", "run-a", "events.jsonl"),
-  JSON.stringify({ schema_version: 2, event: "completed", detail: { summary: "done" } }) + "\\n",
+  JSON.stringify({ schema_version: 2, ts: "2026-08-01T00:00:00Z", run: "run-a", event: "completed", detail: { summary: "done" } }) + "\\n",
 );
 const term = mod.recordBashValidationFailure(tmp, {
   command: "bash tests/a.sh",

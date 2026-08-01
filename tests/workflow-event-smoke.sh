@@ -52,6 +52,26 @@ expect_status() {
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-a)"
 assert_contains "$out" "3 events, ok"
 
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-active route_decided '{"route":"plan-loop","reason":"active pointer test"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-active)"
+assert_contains "$out" "active run: run-active"
+jq -e '.schema_version == 1 and .run == "run-active"' "$EVENT_DIR/.active-run.json" >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-active completed '{"summary":"active pointer closed"}'
+[ ! -e "$EVENT_DIR/.active-run.json" ] || fail "terminal append must clear its active-run pointer"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-a)"
+assert_contains "$out" "cannot activate a terminal ledger"
+
+mkdir -p "$EVENT_DIR/run-recover"
+printf '{bad\n' > "$EVENT_DIR/run-recover/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" recover run-recover corrupt-ledger)"
+assert_contains "$out" "recovered run-recover"
+find "$EVENT_DIR/run-recover" -name 'events.invalid-*.jsonl' -print -quit | grep -q . ||
+  fail "recovery did not preserve invalid raw ledger"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-recover)"
+assert_contains "$out" "1 events, ok"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" recover run-a corrupt-ledger)"
+assert_contains "$out" "already valid ledger"
+
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_matrix_created '{"path":"docs/dogfood.md","flows":1,"scenarios":2}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_scenario_run '{"scenario":"reply-email-link","surface":"browser","status":"fail","artifacts":["trace.zip"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_fix_applied '{"scenario":"reply-email-link","fix":"correct reply anchor","evidence":"rerun passed"}'

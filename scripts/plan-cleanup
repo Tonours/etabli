@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import { existsSync, lstatSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { relative, resolve, sep } from "node:path";
+
+function fail(message) {
+  process.stderr.write(`plan-cleanup: ${message}\n`);
+  process.exit(2);
+}
+
+function usage() {
+  fail("usage: scripts/plan-cleanup --archive docs/plan/<implemented-plan>.md");
+}
+
+const [flag, archiveArgument, ...rest] = process.argv.slice(2);
+if (flag !== "--archive" || !archiveArgument || rest.length !== 0) usage();
+
+const cwd = resolve(process.cwd());
+const planPath = resolve(cwd, "PLAN.md");
+const archivePath = resolve(cwd, archiveArgument);
+const archiveRoot = `${resolve(cwd, "docs", "plan")}${sep}`;
+if (!archivePath.startsWith(archiveRoot) || !archivePath.endsWith(".md")) {
+  fail("archive must be a Markdown file directly below docs/plan/");
+}
+if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
+  fail("root PLAN.md must exist as a regular file");
+}
+if (!existsSync(archivePath) || !lstatSync(archivePath).isFile()) {
+  fail("implemented archive must exist as a regular file");
+}
+
+const plan = readFileSync(planPath, "utf8");
+const archive = readFileSync(archivePath, "utf8");
+const hash = createHash("sha256").update(plan).digest("hex");
+if (!/^# Implemented:/m.test(archive)) fail("archive must start with an Implemented title");
+if (!/^- Source plan: `PLAN\.md`/m.test(archive)) fail("archive must name root PLAN.md as source");
+if (!/^- Status: IMPLEMENTED\s*$/m.test(archive)) fail("archive must declare Status: IMPLEMENTED");
+const expectedHashLine = `- Source plan SHA-256: \`${hash}\``;
+if (!archive.split(/\r?\n/).some((line) => line.trimEnd() === expectedHashLine)) {
+  fail("archive source-plan hash does not match current PLAN.md");
+}
+
+rmSync(planPath);
+process.stdout.write(`${JSON.stringify({ removed: "PLAN.md", archive: relative(cwd, archivePath) })}\n`);

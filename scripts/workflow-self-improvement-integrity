@@ -1,0 +1,125 @@
+#!/usr/bin/env node
+/**
+ * Validate self-improvement provenance in a ledger against a frozen-public
+ * manifest. Enforces:
+ *  - population IDs are registered in the manifest
+ *  - sample totals meet the manifest minimum
+ *  - candidate fingerprints are present (no text-only promotion)
+ *  - evaluator manifest hash matches (grader immutability)
+ *  - visibility is frozen_public; isolated/sealed promotion is a blocked
+ *    external-evaluator boundary, never simulated
+ *
+ * Legacy ledgers without harness_validation_completed validate cleanly.
+ * Read-only: never edits ledgers or manifests.
+ */
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_MANIFEST = resolve(ROOT, "workflow/self-improvement/manifests/core-v1.json");
+
+function fail(message) {
+  process.stderr.write(`workflow-self-improvement-integrity: ${message}\n`);
+  process.exit(1);
+}
+
+function usage() {
+  fail("usage: workflow-self-improvement-integrity [--manifest path] <ledger-events.jsonl>");
+}
+
+const args = process.argv.slice(2);
+let manifestPath = DEFAULT_MANIFEST;
+const positional = [];
+for (let i = 0; i < args.length; i += 1) {
+  if (args[i] === "--manifest") {
+    manifestPath = args[++i];
+    if (!manifestPath) usage();
+  } else {
+    positional.push(args[i]);
+  }
+}
+if (positional.length !== 1) usage();
+const ledgerPath = resolve(positional[0]);
+
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+} catch (error) {
+  fail(`cannot read manifest ${manifestPath}: ${error.message}`);
+}
+if (!Array.isArray(manifest.population_ids) || manifest.visibility !== "frozen_public") {
+  fail("manifest must declare frozen_public visibility and population_ids");
+}
+
+let text;
+try {
+  text = readFileSync(ledgerPath, "utf8");
+} catch (error) {
+  fail(`cannot read ledger ${ledgerPath}: ${error.message}`);
+}
+
+const populations = new Set(manifest.population_ids);
+const minimum = Number.isInteger(manifest.minimum_sample_per_split)
+  ? manifest.minimum_sample_per_split
+  : 1;
+const evaluatorSha = manifest.evaluator?.sha256;
+
+const validations = [];
+for (const line of text.split("\n")) {
+  if (!line.trim()) continue;
+  let event;
+  try {
+    event = JSON.parse(line);
+  } catch {
+    continue;
+  }
+  if (event?.event === "harness_validation_completed") validations.push(event);
+}
+
+if (manifest.visibility !== "frozen_public") {
+  fail(`manifest visibility must be frozen_public (got ${manifest.visibility})`);
+}
+
+const errors = [];
+for (const [index, event] of validations.entries()) {
+  const detail = event.detail || {};
+  const label = `harness_validation_completed #${index + 1} (candidate: ${detail.candidate || "?"})`;
+
+  for (const split of ["held_in", "held_out"]) {
+    const baseline = detail[split]?.baseline;
+    const candidate = detail[split]?.candidate;
+    if (!baseline || !candidate) {
+      errors.push(`${label}: ${split} missing baseline/candidate result`);
+      continue;
+    }
+    if (!populations.has(baseline.population)) {
+      errors.push(`${label}: ${split} baseline population '${baseline.population}' is not registered in manifest ${manifest.manifest_id}`);
+    }
+    if (!populations.has(candidate.population)) {
+      errors.push(`${label}: ${split} candidate population '${candidate.population}' is not registered in manifest ${manifest.manifest_id}`);
+    }
+    if (Number.isInteger(baseline.total) && baseline.total < minimum) {
+      errors.push(`${label}: ${split} baseline total ${baseline.total} below manifest minimum ${minimum}`);
+    }
+    if (Number.isInteger(candidate.total) && candidate.total < minimum) {
+      errors.push(`${label}: ${split} candidate total ${candidate.total} below manifest minimum ${minimum}`);
+    }
+  }
+
+  if (!detail.candidate_fingerprint) {
+    errors.push(`${label}: missing candidate_fingerprint (text-only promotion is not allowed)`);
+  }
+  if (evaluatorSha && detail.evaluator_manifest_sha256 !== evaluatorSha) {
+    errors.push(`${label}: evaluator_manifest_sha256 does not match manifest; the grader surface changed and the comparison is non-comparable`);
+  }
+}
+
+if (errors.length > 0) {
+  for (const error of errors) process.stderr.write(`workflow-self-improvement-integrity: ${error}\n`);
+  process.exit(1);
+}
+
+process.stdout.write(
+  `${validations.length} harness validation(s), manifest ${manifest.manifest_id} (${manifest.visibility}), ok\n`,
+);
