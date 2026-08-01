@@ -874,26 +874,21 @@ export function buildRouteContext(decision) {
 	}
 	if (decision.multiExecution?.mode === "panel") {
 		const budget = decision.multiExecution.budget;
+		const me = decision.multiExecution;
 		lines.push(
 			"",
-			`Multi-execution: ${decision.multiExecution.trigger} ${decision.multiExecution.strategy} (${decision.multiExecution.roles.join(" + ")}); stages ${decision.multiExecution.panelStages.join(", ")}; signals ${decision.multiExecution.signals.join(", ") || "explicit override"}.`,
-			`Multi-execution budget: ${budget.maxFirstPassAgents} first passes, ${budget.maxFallbackAgents} fallback, ${budget.maxResumesPerPrimary} resume/participant, ${budget.maxAdjudications} adjudication, ${budget.maxClaims} claims, ≤${budget.requestedOutputTokens.total} total output tokens.`,
-			`Multi-execution fallback: ${decision.multiExecution.fallbackRoles.join(", ")} only after an observed failed primary result; adjudicator ${decision.multiExecution.adjudicator || "none"} only for persistent material disagreement after completed rebuttals.`,
-			decision.multiExecution.strategy === "scout"
-				? "Multi-execution policy: one independent read-only scout, parent-only writer/integrator, no resume, no judge, no primary+fallback voting."
-				: "Multi-execution policy: blind independent first passes; ≤6 anonymized material claims with evidence references; deterministic checks/agreement stop before dialogue; ≤1 targeted resume per completed participant; no transcript rebroadcast, all-to-all ranking, recursive delegation, forced consensus, or majority vote; parent-only writer; one Sol adjudication only if disagreement persists after completed rebuttals. Output caps are requested/measured, not provider-hard; elapsed wall-clock is telemetry, not a termination gate.",
-			"Use runtime-native agents only when the active surface proves them; else report degraded/blocked.",
+			`Multi-execution: ${me.trigger} ${me.strategy} (${me.roles.join(" + ")}); stages ${me.panelStages.join(", ")}; signals ${me.signals.join(", ") || "explicit override"}; budget ${budget.maxFirstPassAgents}/${budget.maxFallbackAgents}/${budget.maxResumesPerPrimary}/${budget.maxAdjudications}/${budget.maxClaims} (fp/fb/resume/adj/claims), ≤${budget.requestedOutputTokens.total} out tokens.`,
+			`Multi-execution fallback: ${me.fallbackRoles.join(", ")} only after failed primary; adjudicator ${me.adjudicator || "none"} only after completed rebuttals on persistent material disagreement.`,
+			me.strategy === "scout"
+				? "Multi-execution policy: one independent read-only scout; parent-only writer; no resume/judge/primary+fallback vote."
+				: "Multi-execution policy: blind first passes; ≤6 claims+evidence; checks/agreement before dialogue; ≤1 resume/participant; no rebroadcast/ranking/recurse/forced consensus/vote; parent-only writer; Sol adjudicate only after rebuttals if disagreement remains; soft output caps; wall-clock is telemetry not a stop.",
+			"Runtime-native agents only when surface proves them; else report degraded/blocked.",
 		);
 	}
 	const routeManifest = formatRouteContextGuidance(decision.route);
 	if (routeManifest) {
 		lines.push("", routeManifest);
 	}
-	lines.push(
-		"",
-		"Follow this route unless another command was invoked or new evidence contradicts it.",
-		"Use Claude Code native surfaces; no wrapper.",
-	);
 	return lines.join("\n");
 }
 
