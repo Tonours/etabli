@@ -61,21 +61,43 @@ PASS claim-evidence-check-smoke (0s)
 
 ## Benchmark B (live A/B)
 
-| Probe | Exit | Output tail |
-| --- | ---: | --- |
-| workflow-real-agent-scenarios | 0 | `workflow real agent scenarios: skipped (set RUN_REAL_AGENT_SCENARIOS=1 to run real Pi and Claude CLIs)` |
-| multi-model-real-smoke | 0 | `multi-model real smoke: SKIP (set RUN_REAL_MULTI_MODEL=1 and choose --probe-only, --quality, --conversation, --task-rpc, --panel-debug, or --all)` |
+Generated: 2026-08-01T00:08:53Z
 
-### Live TokensParSuccès / DébitVérifié
+**Status: measured (live)** — population `multi-model-quality-fixtures-v1` via `RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --quality`.
 
-**Status: blocked-with-evidence**
+Artifacts:
+- `docs/harness-optimization-bench/live-multi-model-quality-report.json`
+- `docs/harness-optimization-bench/live-ab-tokens-throughput.json`
 
-- No live baseline/candidate population executed with measured parent+sidecar tokens and batch makespan.
-- Opt-in env `RUN_REAL_AGENT_SCENARIOS` / `RUN_REAL_MULTI_MODEL` not set; probes skipped honestly (exit 0 skip).
-- Offline producers proven (Pi `agent_settled`, Claude Stop hook, CLI). No invented −50% / ×2 claims.
+### Arms (success = recall==1 ∧ FP==0)
 
-**Needed input:** `RUN_REAL_AGENT_SCENARIOS=1` and/or `RUN_REAL_MULTI_MODEL=1` with provider auth + frozen population id.
+| Arm | Successes/runs | TokensParSuccès | DébitVérifié /h | mean elapsed ms |
+| --- | ---: | ---: | ---: | ---: |
+| baseline (single gpt-5.6-terra) | 6/6 | 6214.2 | 202.72 | 17758 |
+| panel (council) | 6/6 | 12250.2 | 78.24 | 46015 |
+| sol-ceiling | 3/3 | 9707.3 | 213.27 | 16880 |
 
-## Inventory gate
+### Panel vs baseline
 
-`docs/harness-optimization-inventory.md` has **0** `implement-now` rows remaining (T3 hard caps remain `blocked` with evidence).
+| Metric | Ratio panel/baseline | Target | Met? |
+| --- | ---: | --- | --- |
+| TokensParSuccès | 1.971× | ≤0.50× | False |
+| DébitVérifié | 0.386× | ≥2.00× | False |
+
+### Floors (quality)
+
+- baseline recall=1, FP=0
+- panel recall=1, FP=0
+- non-regression recall/FP: **True**
+- multi-model quality gate verdict: **ROLLBACK_TO_OPT_IN**
+- failures: tenant-cache: panel tokens exceed 4x baseline, tenant-cache: panel latency exceeds 4x baseline
+
+### Claims
+
+- −50% tokens: **false** (panel uses ~1.97× baseline tokens/success)
+- +100% verified throughput: **false** (panel throughput ~0.39× baseline)
+- Real agent scenarios: `RUN_REAL_AGENT_SCENARIOS=1` → **ok** (Pi+Claude CLIs)
+
+### Inventory gate
+
+`docs/harness-optimization-inventory.md` has **0** `implement-now` rows; T3 hard caps remain blocked-with-evidence; live B is now **measured**.
