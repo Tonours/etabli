@@ -28,6 +28,7 @@ ALLOWED_EVENTS=(
   project_slice_completed
   runtime_run_attached
   multi_execution_completed
+  runtime_receipt
   outcome_measurement_population
   outcome_measurement_imported
   outcome_metric
@@ -44,7 +45,9 @@ ALLOWED_EVENTS=(
 usage() {
   cat <<EOF
 Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
-       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|blocked-terminal]
+       workflow-event [--dir path] activate <slug>
+       workflow-event [--dir path] recover <slug> <reason-code>
+       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|autonomous-completed-strict|blocked-terminal]
 EOF
 }
 
@@ -59,6 +62,10 @@ is_allowed_event() {
     [ "$event" = "$allowed" ] && return 0
   done
   return 1
+}
+
+is_valid_slug() {
+  [[ "$1" =~ ^[a-z0-9][a-z0-9_-]*$ ]]
 }
 
 detail_valid() {
@@ -89,6 +96,7 @@ case "$command" in
     [ "$#" -ge 2 ] || die_usage
     slug="$1"
     event="$2"
+    is_valid_slug "$slug" || { printf 'invalid run slug: %s\n' "$slug" >&2; exit 2; }
     detail="{}"
     if [ "$#" -ge 3 ]; then
       detail="$3"
@@ -111,6 +119,62 @@ case "$command" in
       --arg run "$slug" \
       --argjson detail "$detail" \
       '{schema_version:2,ts:$ts,event:$event,run:$run,detail:$detail}' >> "$run_dir/events.jsonl"
+    if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then
+      pointer="$WORKFLOW_DIR/.active-run.json"
+      if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
+        rm -f "$pointer"
+      fi
+    fi
+    ;;
+  activate)
+    [ "$#" -eq 1 ] || die_usage
+    slug="$1"
+    is_valid_slug "$slug" || { printf 'invalid run slug: %s\n' "$slug" >&2; exit 2; }
+    file="$WORKFLOW_DIR/$slug/events.jsonl"
+    [ -f "$file" ] || { printf 'missing ledger: %s\n' "$file" >&2; exit 1; }
+    "$0" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null || {
+      printf 'cannot activate an invalid ledger: %s\n' "$slug" >&2
+      exit 1
+    }
+    terminal_event="$(tail -n 1 "$file" | jq -r '.event')"
+    if [ "$terminal_event" = "completed" ] || [ "$terminal_event" = "blocked" ]; then
+      printf 'cannot activate a terminal ledger: %s\n' "$slug" >&2
+      exit 1
+    fi
+    pointer="$WORKFLOW_DIR/.active-run.json"
+    temporary_pointer="$WORKFLOW_DIR/.active-run.json.$$"
+    jq -nc --arg run "$slug" '{schema_version:1,run:$run}' > "$temporary_pointer"
+    mv "$temporary_pointer" "$pointer"
+    printf 'active run: %s\n' "$slug"
+    ;;
+  recover)
+    [ "$#" -eq 2 ] || die_usage
+    slug="$1"
+    reason_code="$2"
+    is_valid_slug "$slug" || { printf 'invalid run slug: %s\n' "$slug" >&2; exit 2; }
+    [[ "$reason_code" =~ ^[a-z0-9][a-z0-9-]{2,63}$ ]] || { printf 'invalid recovery reason code\n' >&2; exit 2; }
+    run_dir="$WORKFLOW_DIR/$slug"
+    file="$run_dir/events.jsonl"
+    [ -f "$file" ] || { printf 'missing ledger: %s\n' "$file" >&2; exit 1; }
+    if "$0" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null 2>&1; then
+      printf 'refusing recovery for an already valid ledger: %s\n' "$slug" >&2
+      exit 1
+    fi
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    quarantine="$run_dir/events.invalid-$stamp.jsonl"
+    [ ! -e "$quarantine" ] || { printf 'quarantine target already exists: %s\n' "$quarantine" >&2; exit 1; }
+    mv "$file" "$quarantine"
+    jq -nc \
+      --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --arg run "$slug" \
+      --arg reason "$reason_code" \
+      --arg quarantine "${quarantine#$WORKFLOW_DIR/}" \
+      '{schema_version:2,ts:$ts,event:"blocked",run:$run,detail:{reason:("ledger recovered: " + $reason),needed_input:("inspect preserved " + $quarantine + " before starting a new run")}}' > "$file"
+    pointer="$WORKFLOW_DIR/.active-run.json"
+    if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
+      rm -f "$pointer"
+    fi
+    printf 'recovered %s; preserved %s\n' "$slug" "$quarantine"
     ;;
   validate)
     [ "$#" -ge 1 ] || die_usage
@@ -228,6 +292,27 @@ case "$command" in
         last_change="$(grep -n '"event":"file_changed"' "$file" | tail -1 | cut -d: -f1)"
         last_validation="$(grep -n '"event":"validation_run"' "$file" | tail -1 | cut -d: -f1)"
         [ "$last_validation" -gt "$last_change" ] || { printf 'profile autonomous-completed requires validation after last file change\n' >&2; exit 1; }
+        ;;
+      autonomous-completed-strict)
+        [ "${terminal:-}" = "completed" ] || { printf 'profile autonomous-completed-strict requires final completed event\n' >&2; exit 1; }
+        for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed outcome_metric archive_written plan_removed; do
+          jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing %s\n' "$required" >&2; exit 1; }
+        done
+        for mode in plan code_diff; do
+          jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing adversary mode %s\n' "$mode" >&2; exit 1; }
+        done
+        # Runtime receipts bind validation, review, archive, and completion to
+        # parent-process observations (hashes + exit), never text-only claims.
+        for kind in validation review archive completion; do
+          jq -e --arg kind "$kind" 'select(.event == "runtime_receipt" and .detail.kind == $kind and .detail.cryptographic == false and .detail.observed_by == "parent-process")' "$file" >/dev/null ||
+            { printf 'profile autonomous-completed-strict missing runtime_receipt kind %s\n' "$kind" >&2; exit 1; }
+        done
+        # Self-improvement provenance: any comparative validation must carry a
+        # candidate fingerprint and an evaluator manifest hash (grader immutability).
+        if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
+          jq -e 'select(.event == "harness_validation_completed") | .detail.candidate_fingerprint and .detail.evaluator_manifest_sha256' "$file" >/dev/null ||
+            { printf 'profile autonomous-completed-strict requires candidate_fingerprint and evaluator_manifest_sha256 on every harness_validation_completed\n' >&2; exit 1; }
+        fi
         ;;
       blocked-terminal) [ "${terminal:-}" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; exit 1; } ;;
       *) printf 'unknown validation profile: %s\n' "$profile" >&2; exit 2 ;;

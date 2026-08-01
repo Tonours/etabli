@@ -15,6 +15,7 @@ import {
 	inferBashFailureFromToolResult,
 	isBashToolName,
 	recordBashValidationFailure,
+	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
 import { maybeEmitOutcomeMetric } from "./lib/outcome-metric-emit.ts";
 
@@ -446,23 +447,27 @@ export default function (pi: ExtensionAPI) {
 		} else if (isBashToolName(event.toolName)) {
 			// Ledger-scoped auto-emit: only when an active non-terminal ledger exists.
 			try {
+				const command = String(
+					(event.input as { command?: string; cmd?: string } | undefined)
+						?.command ||
+						(event.input as { command?: string; cmd?: string } | undefined)
+							?.cmd ||
+						"bash",
+				);
 				const inferred = inferBashFailureFromToolResult(
 					event.content,
 					Boolean(event.isError),
 				);
 				if (inferred.failed && typeof inferred.exit === "number") {
-					const command = String(
-						(event.input as { command?: string; cmd?: string } | undefined)
-							?.command ||
-							(event.input as { command?: string; cmd?: string } | undefined)
-								?.cmd ||
-							"bash",
-					);
 					recordBashValidationFailure(eventCwd(event), {
 						command,
 						exit: inferred.exit,
 						failure: inferred.failure || `exit ${inferred.exit}`,
 					});
+				} else {
+					// Bind observed successful validations to the active ledger as a
+					// non-cryptographic runtime receipt (command hash + exit 0).
+					recordBashValidationReceipt(eventCwd(event), { command });
 				}
 			} catch {
 				// Never break the tool_result pipeline on ledger I/O.

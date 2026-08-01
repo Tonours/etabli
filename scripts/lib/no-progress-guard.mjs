@@ -4,8 +4,12 @@
  * Pure thresholds align with project-autonomy stop_conditions defaults.
  * Does not auto-emit events — only reads existing ledger evidence.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  findValidActiveLedgers,
+  inspectLedgerFile,
+  selectActiveLedger,
+} from "./ledger-integrity.mjs";
+import { isNarrowPlanCleanupCommand } from "./plan-cleanup-command.mjs";
 
 export const DEFAULT_NO_PROGRESS_THRESHOLDS = Object.freeze({
   same_hypothesis_failures: 2,
@@ -17,7 +21,7 @@ function isNonEmptyString(value) {
 }
 
 /**
- * Parse events.jsonl text into event objects (invalid lines skipped).
+ * Legacy best-effort parser for reporting; never use it for mutation authority.
  * @param {string} text
  * @returns {Array<{event?: string, detail?: Record<string, unknown>}>}
  */
@@ -29,35 +33,30 @@ export function parseLedgerEvents(text) {
     if (!trimmed) continue;
     try {
       const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        events.push(parsed);
-      }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) events.push(parsed);
     } catch {
-      // skip corrupt lines
+      // Compatibility parser: callers must not use this result for authority.
     }
   }
   return events;
 }
 
 /**
- * Load and parse a ledger path. Missing file → [].
+ * Load an integrity-valid ledger path. Missing or malformed data → [].
  * @param {string} ledgerPath
  */
 export function loadLedgerEvents(ledgerPath) {
-  if (!ledgerPath || !existsSync(ledgerPath)) return [];
-  try {
-    return parseLedgerEvents(readFileSync(ledgerPath, "utf8"));
-  } catch {
-    return [];
-  }
+  const inspection = inspectLedgerFile(ledgerPath);
+  return inspection.valid ? inspection.events : [];
 }
 
 /**
- * Terminal ledger: contains completed or blocked (project-autonomy spirit).
+ * Terminal ledger: its final event is completed or blocked.
  * @param {Array<{event?: string}>} events
  */
 export function isTerminalLedger(events) {
-  return events.some((event) => event.event === "completed" || event.event === "blocked");
+  const final = events.at(-1);
+  return final?.event === "completed" || final?.event === "blocked";
 }
 
 /**
@@ -140,49 +139,42 @@ export function evaluateNoProgressStop(events, thresholds = DEFAULT_NO_PROGRESS_
 }
 
 /**
- * Non-terminal ledgers under cwd / .workflow / slug / events.jsonl
+ * Non-terminal, integrity-valid ledgers under cwd / .workflow / slug.
+ * Kept for compatibility; security-sensitive selection uses selectActiveLedger.
  * @param {string} cwd
  * @returns {Array<{path: string, events: object[]}>}
  */
 export function findActiveLedgers(cwd) {
-  const root = join(cwd || process.cwd(), ".workflow");
-  if (!existsSync(root)) return [];
-  let names;
-  try {
-    names = readdirSync(root);
-  } catch {
-    return [];
-  }
-  const active = [];
-  for (const name of names) {
-    if (!name || name.startsWith(".")) continue;
-    const ledgerPath = join(root, name, "events.jsonl");
-    if (!existsSync(ledgerPath)) continue;
-    const events = loadLedgerEvents(ledgerPath);
-    if (isTerminalLedger(events)) continue;
-    active.push({ path: ledgerPath, events });
-  }
-  return active;
+  return findValidActiveLedgers(cwd).map(({ path, events }) => ({ path, events }));
 }
 
 /**
- * If any active ledger signals stop, return deny payload; else null.
- * Multi-slug: deny if any triggers stop.
+ * Fail closed when ledger integrity or active-run selection is ambiguous, then
+ * evaluate no_progress only on the deterministically selected active ledger.
  * @param {string} cwd
- * @returns {null | {reason: string, detail: object, ledger: string}}
+ * @returns {null | {reason: string, detail: object, ledger?: string}}
  */
 export function shouldDenyMutationForNoProgress(cwd, thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS) {
-  for (const { path, events } of findActiveLedgers(cwd)) {
-    const stop = evaluateNoProgressStop(events, thresholds);
-    if (stop) {
-      return {
-        reason: stop.reason,
-        detail: stop.detail,
-        ledger: path,
-      };
-    }
+  const selected = selectActiveLedger(cwd);
+  if (selected.reason) {
+    return {
+      reason: selected.reason,
+      detail: {
+        ledger_state: selected.reason,
+        active_runs: selected.active?.map((entry) => entry.run) || [],
+      },
+      ledger: selected.ledger?.path,
+    };
   }
-  return null;
+  if (!selected.ledger) return null;
+
+  const stop = evaluateNoProgressStop(selected.ledger.events, thresholds);
+  if (!stop) return null;
+  return {
+    reason: stop.reason,
+    detail: stop.detail,
+    ledger: selected.ledger.path,
+  };
 }
 
 /**
@@ -200,7 +192,8 @@ export function isWorkflowEventEscapeCommand(command) {
 /**
  * Escape hatch while no_progress stop is active:
  * - PLAN.md Write/Edit/MultiEdit
- * - workflow-event-only bash
+ * - workflow-event-only Bash
+ * - validated scripts/plan-cleanup Bash
  *
  * @param {string} toolName normalized (Write|Edit|MultiEdit|Bash)
  * @param {Record<string, unknown>} toolInput
@@ -215,7 +208,7 @@ export function isNoProgressEscapeHatch(toolName, toolInput, isPlanFileFn, cwd) 
   }
   if (toolName === "Bash") {
     const command = String(input.command || input.cmd || "");
-    return isWorkflowEventEscapeCommand(command);
+    return isWorkflowEventEscapeCommand(command) || isNarrowPlanCleanupCommand(command);
   }
   return false;
 }

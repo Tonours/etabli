@@ -359,7 +359,7 @@ assert_contains "$bash_plan_output" 'check-freeze'
 
 # no_progress ledger mutate-deny through the same PreToolUse entry
 mkdir -p "$TMP_DIR/.workflow/np-run"
-printf '%s\n' '{"schema_version":2,"event":"no_progress","detail":{"check_or_hypothesis":"stuck","command":"bash tests/a.sh","attempts":2,"eliminated":["stuck"]}}' \
+printf '%s\n' '{"schema_version":2,"ts":"2026-08-01T00:00:00Z","run":"np-run","event":"no_progress","detail":{"check_or_hypothesis":"stuck","command":"bash tests/a.sh","attempts":2,"eliminated":["stuck"]}}' \
   >"$TMP_DIR/.workflow/np-run/events.jsonl"
 cat >"$TMP_DIR/PLAN.md" <<'PLAN'
 # PLAN.md

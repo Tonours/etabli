@@ -22,8 +22,13 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const routerUrl = pathToFileURL(process.env.ROUTER_LIB).href;
-const { classifyWorkflowRoute, planReadyGuardDecision, isMutatingBashCommand } =
-  await import(routerUrl);
+const {
+  classifyWorkflowRoute,
+  isMutatingBashCommand,
+  isReadOnlyBashCommand,
+  planMutationGuardDecision,
+  planReadyGuardDecision,
+} = await import(routerUrl);
 const tmp = process.env.TMP;
 
 function writePlan(status) {
@@ -83,6 +88,51 @@ if (allow != null) {
 
 if (!isMutatingBashCommand("rm -rf ./out")) {
   console.error("mutating bash not detected");
+  process.exit(1);
+}
+
+const readOnlySearch = "rg -n 'rm|mv' docs | head -n 1";
+if (!isReadOnlyBashCommand(readOnlySearch) || isMutatingBashCommand(readOnlySearch)) {
+  console.error("quoted read-only search was not recognized", readOnlySearch);
+  process.exit(1);
+}
+
+writePlan("draft");
+for (const command of [
+  "node -e \"require('node:fs').writeFileSync('x', 'x')\"",
+  "python3 -c \"from pathlib import Path; Path('x').write_text('x')\"",
+  "git apply patch.diff",
+  "install source target",
+  "scripts/plan-cleanup --archive docs/plan/implemented.md",
+]) {
+  const decision = planReadyGuardDecision({
+    cwd: tmp,
+    tool_name: "Bash",
+    tool_input: { command },
+  });
+  if (decision?.hookSpecificOutput?.permissionDecision !== "deny") {
+    console.error("DRAFT bypass was allowed", command, decision);
+    process.exit(1);
+  }
+}
+const safeDecision = planReadyGuardDecision({
+  cwd: tmp,
+  tool_name: "Bash",
+  tool_input: { command: readOnlySearch },
+});
+if (safeDecision != null) {
+  console.error("DRAFT read-only search was denied", safeDecision);
+  process.exit(1);
+}
+
+writePlan("ready");
+const cleanupDecision = planMutationGuardDecision({
+  cwd: tmp,
+  tool_name: "Bash",
+  tool_input: { command: "scripts/plan-cleanup --archive docs/plan/implemented.md" },
+});
+if (cleanupDecision != null) {
+  console.error("narrow READY cleanup was denied", cleanupDecision);
   process.exit(1);
 }
 
