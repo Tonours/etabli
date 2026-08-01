@@ -1,0 +1,289 @@
+{
+  "$comment": "Blueprint T1: progressive context budgets per route. required_sources are maps/contracts, not full manuals. max_estimated_tokens is a soft loader budget (ceil(chars/4) style).",
+  "version": 1,
+  "defaults": {
+    "always_loaded": [
+      "workflow/agent-quick-card.md"
+    ],
+    "untrusted_retrieval": true,
+    "progressive_disclosure": [
+      "route required_sources",
+      "symbol/outline before full file",
+      "tool output projection/pagination",
+      "conditional_sources only on miss"
+    ]
+  },
+  "routes": {
+    "adversary": {
+      "required_sources": [
+        "workflow/skills/adversary.md",
+        "PLAN.md"
+      ],
+      "conditional_sources": [
+        "workflow/review-rubric.md"
+      ],
+      "max_estimated_tokens": 1800,
+      "stop": "READY, CHALLENGED, or blocker",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "answer": {
+      "required_sources": [
+        "workflow/answer-quality.md"
+      ],
+      "conditional_sources": [
+        "workflow/skills/obvault-memory.md"
+      ],
+      "max_estimated_tokens": 1200,
+      "stop": "answer delivered",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "bug-check": {
+      "required_sources": [
+        "workflow/skills/bug-check.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 1600,
+      "stop": "CERTAIN, HIGH CONFIDENCE, or UNCERTAIN",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "ci-fix": {
+      "required_sources": [
+        "workflow/skills/ci-fix.md",
+        "workflow/events.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 2200,
+      "stop": "CI green, blocked, time cap, or max attempts",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "implement": {
+      "required_sources": [
+        "workflow/skills/implementation-loop.md",
+        "workflow/skills/adversary.md",
+        "workflow/plan-archive.md"
+      ],
+      "conditional_sources": [
+        "workflow/events.md"
+      ],
+      "max_estimated_tokens": 3000,
+      "stop": "validated archive and root PLAN.md deleted",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "linear-ticket-create": {
+      "required_sources": [
+        "workflow/skills/linear-ticket-create.md",
+        "workflow/linear-ticket-template.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 1400,
+      "stop": "created issue or MCP blocker",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "linear-work": {
+      "required_sources": [
+        "workflow/skills/linear-work.md",
+        "workflow/skills/implementation-loop.md"
+      ],
+      "conditional_sources": [
+        "workflow/ticket-template.md"
+      ],
+      "max_estimated_tokens": 2800,
+      "stop": "ticket acceptance criteria validated or blocked",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "ops-stop": {
+      "required_sources": [
+        "workflow/spec.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 800,
+      "stop": "user decision",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "plan-implement": {
+      "required_sources": [
+        "workflow/spec.md",
+        "workflow/skills/implementation-loop.md",
+        "workflow/skills/adversary.md",
+        "workflow/events.md"
+      ],
+      "conditional_sources": [
+        "workflow/skills/self-improvement-loop.md",
+        "workflow/skills/ambitious-project-loop.md",
+        "workflow/plan-archive.md"
+      ],
+      "max_estimated_tokens": 3500,
+      "stop": "validated archive and root PLAN.md deleted",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "plan-loop": {
+      "required_sources": [
+        "workflow/spec.md",
+        "PLAN_TEMPLATE.md"
+      ],
+      "conditional_sources": [
+        "PLAN_TEMPLATE_FULL.md",
+        "workflow/skills/adversary.md"
+      ],
+      "max_estimated_tokens": 2500,
+      "stop": "READY or CHALLENGED",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "pr-qa": {
+      "required_sources": [
+        "workflow/skills/pr-qa.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 1500,
+      "stop": "executable test plan delivered",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "pr-review": {
+      "required_sources": [
+        "workflow/skills/pr-review.md",
+        "workflow/review-rubric.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 1800,
+      "stop": "GO, GO WITH NOTES, or BLOCK",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "research-plan": {
+      "required_sources": [
+        "workflow/answer-quality.md"
+      ],
+      "conditional_sources": [
+        "workflow/skills/obvault-memory.md"
+      ],
+      "max_estimated_tokens": 2000,
+      "stop": "cited artifact complete",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "review": {
+      "required_sources": [
+        "workflow/skills/review.md",
+        "workflow/review-rubric.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 1500,
+      "stop": "GO, GO WITH NOTES, or BLOCK",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "sec-pr": {
+      "required_sources": [
+        "workflow/skills/sec-pr.md"
+      ],
+      "conditional_sources": [],
+      "max_estimated_tokens": 1600,
+      "stop": "PASS, FAIL, or INVESTIGATE",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "spec-guide": {
+      "required_sources": [
+        "workflow/spec.md"
+      ],
+      "conditional_sources": [
+        "PLAN_TEMPLATE_FULL.md"
+      ],
+      "max_estimated_tokens": 1800,
+      "stop": "spec solid, hands off to /spec",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    },
+    "verify-workflow": {
+      "required_sources": [
+        "pi/skills/verify/SKILL.md"
+      ],
+      "conditional_sources": [
+        "workflow/events.md"
+      ],
+      "max_estimated_tokens": 1200,
+      "stop": "VERIFIED, NOT VERIFIED, or INCONCLUSIVE",
+      "progressive_disclosure": [
+        "route required_sources",
+        "symbol/outline before full file",
+        "tool output projection/pagination",
+        "conditional_sources only on miss"
+      ]
+    }
+  }
+}

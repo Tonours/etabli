@@ -5,9 +5,10 @@ import {
 	parseChecks,
 } from "../../scripts/lib/plan-check-freeze.mjs";
 import {
-  isNoProgressEscapeHatch,
-  shouldDenyMutationForNoProgress,
+	isNoProgressEscapeHatch,
+	shouldDenyMutationForNoProgress,
 } from "../../scripts/lib/no-progress-guard.mjs";
+import { formatRouteContextGuidance } from "../../scripts/lib/route-context-manifest.mjs";
 
 export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
 
@@ -884,6 +885,10 @@ export function buildRouteContext(decision) {
 			"Use runtime-native agents only when the active surface proves them; else report degraded/blocked.",
 		);
 	}
+	const routeManifest = formatRouteContextGuidance(decision.route);
+	if (routeManifest) {
+		lines.push("", routeManifest);
+	}
 	lines.push(
 		"",
 		"Follow this route unless another command was invoked or new evidence contradicts it.",
@@ -1085,43 +1090,43 @@ export function planCheckFreezeBashGuardDecision(event) {
  * Escape hatch: PLAN.md edits + workflow-event-only bash. Does not auto-emit events.
  */
 export function planNoProgressGuardDecision(event) {
-  const cwd = event.cwd || process.cwd();
-  const toolName = normalizeToolName(event.tool_name || event.toolName);
-  const toolInput = event.tool_input || event.input || {};
+	const cwd = event.cwd || process.cwd();
+	const toolName = normalizeToolName(event.tool_name || event.toolName);
+	const toolInput = event.tool_input || event.input || {};
 
-  const isMutatingWrite =
-    toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit";
-  const command = String(toolInput.command || toolInput.cmd || "");
-  const isMutatingBash = toolName === "Bash" && isMutatingBashCommand(command);
+	const isMutatingWrite =
+		toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit";
+	const command = String(toolInput.command || toolInput.cmd || "");
+	const isMutatingBash = toolName === "Bash" && isMutatingBashCommand(command);
 
-  // Always allow explicit escape hatch even when bash is not classified mutating
-  // (workflow-event CLI) so recovery cannot be bricked by pattern drift.
-  if (isNoProgressEscapeHatch(toolName, toolInput, isPlanFile, cwd)) {
-    return null;
-  }
+	// Always allow explicit escape hatch even when bash is not classified mutating
+	// (workflow-event CLI) so recovery cannot be bricked by pattern drift.
+	if (isNoProgressEscapeHatch(toolName, toolInput, isPlanFile, cwd)) {
+		return null;
+	}
 
-  if (!isMutatingWrite && !isMutatingBash) return null;
+	if (!isMutatingWrite && !isMutatingBash) return null;
 
-  const stop = shouldDenyMutationForNoProgress(cwd);
-  if (!stop) return null;
+	const stop = shouldDenyMutationForNoProgress(cwd);
+	if (!stop) return null;
 
-  const detailHint =
-    stop.detail && typeof stop.detail === "object" && stop.detail.command
-      ? ` (command: ${stop.detail.command})`
-      : "";
-  return deny(
-    `no_progress: ${stop.reason}${detailHint}; ordinary code mutations are blocked while an active ledger signals no progress. Append a terminal ledger event via scripts/workflow-event, or edit root PLAN.md to record stop / demote.`,
-  );
+	const detailHint =
+		stop.detail && typeof stop.detail === "object" && stop.detail.command
+			? ` (command: ${stop.detail.command})`
+			: "";
+	return deny(
+		`no_progress: ${stop.reason}${detailHint}; ordinary code mutations are blocked while an active ledger signals no progress. Append a terminal ledger event via scripts/workflow-event, or edit root PLAN.md to record stop / demote.`,
+	);
 }
 
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze, no_progress. */
 export function planMutationGuardDecision(event) {
-  return (
-    planReadyGuardDecision(event) ||
-    planCheckFreezeGuardDecision(event) ||
-    planCheckFreezeBashGuardDecision(event) ||
-    planNoProgressGuardDecision(event)
-  );
+	return (
+		planReadyGuardDecision(event) ||
+		planCheckFreezeGuardDecision(event) ||
+		planCheckFreezeBashGuardDecision(event) ||
+		planNoProgressGuardDecision(event)
+	);
 }
 
 export function userPromptSubmitDecision(event) {
