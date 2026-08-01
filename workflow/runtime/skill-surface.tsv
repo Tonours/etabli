@@ -14,8 +14,8 @@ pr-qa	pi	1	1	1
 sec-pr	pi	1	1	1
 ci-fix	pi	1	1	1
 github-pr-review	pi	1	1	1
-caveman	pi	1	0	1
-grill-me	pi	1	0	1
+caveman	pi	0	0	0
+grill-me	pi	0	0	0
 browser-full-page-capture	pi	0	1	1
 frontend-motion-performance	pi	0	1	1
 goal-prompt-rewriter	pi	0	1	1

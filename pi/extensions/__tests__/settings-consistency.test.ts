@@ -88,6 +88,9 @@ describe("Pi settings consistency", () => {
       "goal-prompt-rewriter",
       "ui-reference-capture",
     ]);
+    // Fluidity: caveman/grill-me stay optional (not piCore, not agents-visible).
+    expect(skillCatalog.find((s) => s.name === "caveman")?.piCore).toBe(false);
+    expect(skillCatalog.find((s) => s.name === "grill-me")?.piCore).toBe(false);
   });
 
   test("loads only the curated third-party Pi package surface", () => {

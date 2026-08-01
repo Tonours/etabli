@@ -7,7 +7,7 @@ const AGENTS = {
   "etabli-scout.md": {
     model: "opencode-go/deepseek-v4-flash",
     thinking: "medium",
-    maxTurns: "12",
+    maxTurns: "8",
   },
   "etabli-analyst.md": {
     model: "xai/grok-4.5",
