@@ -101,7 +101,7 @@
   "defaultProvider": "zai",
   "defaultModel": "glm-5.2",
   "theme": "catppuccin-mocha",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "high",
   "rtk": {
     "enabled": true,
     "mode": "always",

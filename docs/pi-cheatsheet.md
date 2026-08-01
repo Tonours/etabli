@@ -20,6 +20,24 @@ export ANTHROPIC_API_KEY=...
 export ZAI_API_KEY=...
 ```
 
+## Fluidity (task loop + thinking)
+
+`tasks-till-done` only arms when Task* tools exist **and** the prompt is explicit
+task work (`todo`/`till-done`) or strong multi-step work (`implémente`,
+`plan-implement`, …). Bare `fix` / `go` / `update` no longer inject the loop.
+
+Caps per user turn (each auto-continue is a full model pass):
+
+| Cap | Value |
+|-----|------:|
+| Total auto-continues | 6 |
+| Stall (same TaskList signature) | 1 |
+| Forced validation-only continues | 1 |
+| Forced completion-evidence continues | 2 |
+
+Parent default thinking is **`high`** (not `xhigh`) for day-to-day latency; raise
+with `Shift+Tab` when you need max depth. Sidecar `defaultMaxTurns` is 12.
+
 ## Network latency (z.ai / model APIs)
 
 Etabli prefers **IPv4-first DNS for Node/Pi**. On this network, `api.z.ai` often

@@ -4,6 +4,10 @@ import { join } from "node:path";
 import {
   appendTaskLoopGuidance,
   decideAutoContinue,
+  DEFAULT_MAX_AUTO_CONTINUES,
+  DEFAULT_MAX_COMPLETION_EVIDENCE_CONTINUES,
+  DEFAULT_MAX_STALLED_REPEATS,
+  DEFAULT_MAX_VALIDATION_CONTINUES,
   detectTaskRuntimeCapabilityIssue,
   parseTaskToolResult,
   shouldInjectTaskLoop,
@@ -19,8 +23,10 @@ import {
 import { classifyWorkflowRoute, type WorkflowRoute } from "./lib/workflow-router-runtime.ts";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.tasks-till-done";
-const MAX_AUTO_CONTINUES = 12;
-const MAX_STALLED_REPEATS = 2;
+const MAX_AUTO_CONTINUES = DEFAULT_MAX_AUTO_CONTINUES;
+const MAX_STALLED_REPEATS = DEFAULT_MAX_STALLED_REPEATS;
+const MAX_VALIDATION_CONTINUES = DEFAULT_MAX_VALIDATION_CONTINUES;
+const MAX_COMPLETION_EVIDENCE_CONTINUES = DEFAULT_MAX_COMPLETION_EVIDENCE_CONTINUES;
 
 type SendablePi = ExtensionAPI & {
   sendMessage?: <T = unknown>(
@@ -67,6 +73,8 @@ export default function (pi: ExtensionAPI) {
   let lastSignature = "";
   let stalledCount = 0;
   let autoContinueCount = 0;
+  let validationContinueCount = 0;
+  let completionEvidenceContinueCount = 0;
   let workflowRoute: WorkflowRoute = "answer";
   let validationRequired = false;
   let implementationCompletionRequired = false;
@@ -77,10 +85,15 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("before_agent_start", (event) => {
     taskToolUsedThisRun = false;
-    const isExtensionContinuation = event.prompt.includes(TASK_TILL_DONE_CONTINUE_PROMPT.slice(0, 24));
+    const isExtensionContinuation =
+      event.prompt.includes(TASK_TILL_DONE_CONTINUE_PROMPT.slice(0, 24)) ||
+      event.prompt.includes(TASK_TILL_DONE_VALIDATION_PROMPT.slice(0, 24)) ||
+      event.prompt.includes(TASK_TILL_DONE_COMPLETION_EVIDENCE_PROMPT.slice(0, 24));
 
     if (!isExtensionContinuation) {
       autoContinueCount = 0;
+      validationContinueCount = 0;
+      completionEvidenceContinueCount = 0;
       stalledCount = 0;
       lastSummary = undefined;
       lastSignature = "";
@@ -150,6 +163,10 @@ export default function (pi: ExtensionAPI) {
       implementationCompletionRequired,
       implementationRuntimeEvidence,
       runtimeCapabilityIssue,
+      validationContinueCount,
+      maxValidationContinues: MAX_VALIDATION_CONTINUES,
+      completionEvidenceContinueCount,
+      maxCompletionEvidenceContinues: MAX_COMPLETION_EVIDENCE_CONTINUES,
     });
 
     taskToolUsedThisRun = false;
@@ -162,7 +179,16 @@ export default function (pi: ExtensionAPI) {
               customType: CUSTOM_MESSAGE_TYPE,
               content: `Task loop stopped: ${decision.reason}`,
               display: true,
-              details: { reason: decision.reason, workflowRoute, summary: lastSummary, runtimeCapabilityIssue, implementationRuntimeEvidence },
+              details: {
+                reason: decision.reason,
+                workflowRoute,
+                summary: lastSummary,
+                runtimeCapabilityIssue,
+                implementationRuntimeEvidence,
+                autoContinueCount,
+                validationContinueCount,
+                completionEvidenceContinueCount,
+              },
             },
             { triggerTurn: false },
           );
@@ -173,6 +199,8 @@ export default function (pi: ExtensionAPI) {
     }
 
     autoContinueCount += 1;
+    if (decision.reason === "validation_required") validationContinueCount += 1;
+    if (decision.reason === "completion_evidence_required") completionEvidenceContinueCount += 1;
     sendablePi.appendEntry(CUSTOM_MESSAGE_TYPE, {
       version: TASK_TILL_DONE_EXTENSION_VERSION,
       reason: decision.reason,
