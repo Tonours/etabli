@@ -270,7 +270,7 @@ let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.ena
 const changes = [];
 const managedModels = new Set([
   "opencode-go/deepseek-v4-flash",
-  "openai-codex/gpt-5.6-terra",
+  "xai/grok-4.5",
   "zai/glm-5.2",
   "openai-codex/gpt-5.6-sol",
   "openai-codex/gpt-5.6-luna",

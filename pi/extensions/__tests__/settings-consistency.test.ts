@@ -154,9 +154,9 @@ describe("Pi settings consistency", () => {
   test("enables the exact managed model portfolio without retired aliases", () => {
     const enabledModels = (settings as typeof settings & { enabledModels: string[] }).enabledModels;
 
-    // Portfolio A role pins
+    // Portfolio A' role pins (Grok analyst)
     expect(enabledModels).toContain("opencode-go/deepseek-v4-flash");
-    expect(enabledModels).toContain("openai-codex/gpt-5.6-terra");
+    expect(enabledModels).toContain("xai/grok-4.5");
     expect(enabledModels).toContain("zai/glm-5.2");
     expect(enabledModels).toContain("openai-codex/gpt-5.6-sol");
     expect(enabledModels).toContain("openai-codex/gpt-5.6-luna");

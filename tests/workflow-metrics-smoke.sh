@@ -25,7 +25,7 @@ mkdir -p "$EVENT_DIR/run-legacy"
 cat >"$EVENT_DIR/run-legacy/events.jsonl" <<'JSONL'
 {"schema_version":1,"ts":"2026-07-01T00:00:00Z","event":"outcome_metric","run":"run-legacy","detail":{"outcome":"success","success":true,"total_tokens":90,"tool_calls":1,"elapsed_ms":500}}
 JSONL
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime multi_execution_completed '{"participants":[{"id":"agent-analyst","model":"openai-codex/gpt-5.6-terra","family":"openai-codex"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"elapsed_ms":70},"fallback_status":"none"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime multi_execution_completed '{"participants":[{"id":"agent-analyst","model":"xai/grok-4.5","family":"xai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"elapsed_ms":70},"fallback_status":"none"}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime completed '{"summary":"runtime completed without an outcome metric"}'
 
 json_output="$("$ROOT_DIR/scripts/workflow-metrics" --dir "$EVENT_DIR" --json)"

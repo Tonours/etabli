@@ -35,7 +35,7 @@ const ETABLI_PORTFOLIO_ROLES = new Set([
 ]);
 const ETABLI_PORTFOLIO_MODELS = new Set([
 	"opencode-go/deepseek-v4-flash",
-	"openai-codex/gpt-5.6-terra",
+	"xai/grok-4.5",
 	"zai/glm-5.2",
 	"openai-codex/gpt-5.6-sol",
 	"openai-codex/gpt-5.6-luna",
