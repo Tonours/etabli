@@ -9,7 +9,7 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/.workflow/run-a"
 cat >"$TMP/.workflow/run-a/events.jsonl" <<'JSONL'
 {"schema_version":2,"ts":"2026-07-31T12:00:00Z","event":"route_decided","run":"run-a","detail":{"route":"answer","reason":"t"}}
-{"schema_version":2,"ts":"2026-07-31T12:00:01Z","event":"multi_execution_completed","run":"run-a","detail":{"participants":[{"id":"agent-scout","model":"zai/glm-5-turbo","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"elapsed_ms":10},"fallback_status":"none"}}
+{"schema_version":2,"ts":"2026-07-31T12:00:01Z","event":"multi_execution_completed","run":"run-a","detail":{"participants":[{"id":"agent-scout","model":"opencode-go/deepseek-v4-flash","family":"opencode-go"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"elapsed_ms":10},"fallback_status":"none"}}
 JSONL
 
 # Transcript with Claude-style usage

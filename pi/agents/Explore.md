@@ -13,7 +13,7 @@ description: >
 tools: read, bash, grep, find, ls
 extensions: true
 skills: true
-model: zai/glm-5-turbo
+model: opencode-go/deepseek-v4-flash
 thinking: low
 ---
 

@@ -175,21 +175,17 @@ if (settings.defaultProvider !== "kimi-for-coding" ||
 const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
 for (const model of [
   "custom/provider-model",
+  "opencode-go/deepseek-v4-flash",
+  "openai-codex/gpt-5.6-terra",
   "zai/glm-5.2",
-  "zai/glm-5.1",
-  "zai/glm-5-turbo",
-  "xai/grok-4.5",
-  "kimi-coding/k3",
+  "openai-codex/gpt-5.6-sol",
+  "openai-codex/gpt-5.6-luna",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
 }
-for (const model of [
-  "openai-codex/gpt-5.6",
-  "openai-codex/gpt-5.6-luna",
-  "openai-codex/gpt-5.6-terra",
-  "openai-codex/gpt-5.6-sol",
-]) {
-  if (enabledModels.includes(model)) throw new Error(`legacy model was kept: ${model}`);
+// Bare gpt-5.6 alias remains retired; exact L/T/S pins are managed portfolio A.
+if (enabledModels.includes("openai-codex/gpt-5.6")) {
+  throw new Error("legacy bare openai-codex/gpt-5.6 alias was kept");
 }
 NODE
 

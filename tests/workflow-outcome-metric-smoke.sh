@@ -16,7 +16,7 @@ fail() {
 chmod +x "$OM"
 
 "$EVENT" --dir "$DIR" append m1-prod route_decided '{"route":"plan-implement","reason":"producer"}'
-"$EVENT" --dir "$DIR" append m1-prod multi_execution_completed '{"participants":[{"id":"agent-scout","model":"zai/glm-5-turbo","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":30,"output_tokens":10,"total_tokens":40,"elapsed_ms":100},"fallback_status":"none"}'
+"$EVENT" --dir "$DIR" append m1-prod multi_execution_completed '{"participants":[{"id":"agent-scout","model":"opencode-go/deepseek-v4-flash","family":"opencode-go"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":30,"output_tokens":10,"total_tokens":40,"elapsed_ms":100},"fallback_status":"none"}'
 
 json="$("$OM" --dir "$DIR" --parent-input 70 --parent-output 30 --parent-total 100 --runtime pi/test m1-prod)"
 printf '%s\n' "$json" | jq -e '.detail.measured == true' >/dev/null || fail "expected measured"
@@ -68,7 +68,7 @@ const line = (event, detail) => JSON.stringify({
 writeFileSync(join(ledgerDir, "events.jsonl"), [
   line("route_decided", { route: "answer", reason: "t" }),
   line("multi_execution_completed", {
-    participants: [{ id: "agent-scout", model: "zai/glm-5-turbo", family: "zai" }],
+    participants: [{ id: "agent-scout", model: "opencode-go/deepseek-v4-flash", family: "opencode-go" }],
     independent_first_passes: true,
     disagreement: false,
     adjudicator: null,

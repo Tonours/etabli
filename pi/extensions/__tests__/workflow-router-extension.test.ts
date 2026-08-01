@@ -363,7 +363,7 @@ describe("workflow router extension", () => {
 			}),
 		).toMatchObject({ block: true });
 		expect(
-			taskCall("TaskExecute", { task_ids: ["1"], model: "kimi-coding/k3" }),
+			taskCall("TaskExecute", { task_ids: ["1"], model: "openai-codex/gpt-5.6-sol" }),
 		).toMatchObject({ block: true });
 		expect(
 			taskCall("TaskCreate", { agentType: "generic-explorer" }),
