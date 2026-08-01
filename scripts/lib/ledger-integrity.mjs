@@ -4,12 +4,13 @@
  * schema validator: a guard must fail closed before it decides whether a
  * ledger can be ignored or selected as active.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { basename, join, relative, resolve, sep } from "node:path";
 
 export const ACTIVE_RUN_POINTER = "active-run.json";
 
 const TERMINAL_EVENTS = new Set(["completed", "blocked"]);
+const RUN_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 const KNOWN_EVENTS = new Set([
   "route_decided",
   "plan_created",
@@ -35,6 +36,7 @@ const KNOWN_EVENTS = new Set([
   "outcome_measurement_population",
   "outcome_measurement_imported",
   "outcome_metric",
+  "runtime_receipt",
   "retry_classified",
   "no_progress",
   "handoff",
@@ -59,6 +61,20 @@ function isIsoTimestamp(value) {
 
 function isStringArray(value) {
   return Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString);
+}
+
+function isValidRunSlug(value) {
+  return typeof value === "string" && RUN_SLUG_PATTERN.test(value);
+}
+
+function isContainedPath(root, candidate) {
+  const relativePath = relative(resolve(root), resolve(candidate));
+  return (
+    relativePath !== "" &&
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${sep}`) &&
+    !relativePath.startsWith(sep)
+  );
 }
 
 /**
@@ -182,6 +198,9 @@ export function inspectLedgerText(text, expectedRun) {
 export function inspectLedgerFile(ledgerPath, expectedRun = basename(join(ledgerPath, ".."))) {
   if (!ledgerPath || !existsSync(ledgerPath)) return invalid("missing_ledger");
   try {
+    if (lstatSync(ledgerPath).isSymbolicLink() || lstatSync(join(ledgerPath, "..")).isSymbolicLink()) {
+      return invalid("symlinked_ledger");
+    }
     return inspectLedgerText(readFileSync(ledgerPath, "utf8"), expectedRun);
   } catch {
     return invalid("unreadable_ledger");
@@ -193,13 +212,18 @@ function readPointer(root) {
   if (!existsSync(pointerPath)) return { state: "absent", path: pointerPath };
   try {
     const parsed = JSON.parse(readFileSync(pointerPath, "utf8"));
-    if (!isObject(parsed) || parsed.schema_version !== 1 || !isNonEmptyString(parsed.run)) {
+    if (!isObject(parsed) || parsed.schema_version !== 1 || !isValidRunSlug(parsed.run)) {
       return { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
     }
     return { state: "present", path: pointerPath, run: parsed.run };
   } catch {
     return { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
   }
+}
+
+export function getActiveRunPointer(cwd) {
+  const root = join(cwd || process.cwd(), ".workflow");
+  return readPointer(root);
 }
 
 /**
@@ -247,27 +271,56 @@ export function findValidActiveLedgers(cwd) {
  * modification time.
  */
 export function selectActiveLedger(cwd) {
+	const root = join(cwd || process.cwd(), ".workflow");
+	const pointer = readPointer(root);
+	if (pointer.state === "invalid") {
+		return {
+			ledger: null,
+			reason: pointer.reason,
+			inspection: { root, pointer, records: [] },
+		};
+	}
+	if (pointer.state === "present") {
+		const path = join(root, pointer.run, "events.jsonl");
+		if (!isContainedPath(root, path)) {
+			return {
+				ledger: null,
+				reason: "invalid_active_run_pointer",
+				inspection: { root, pointer, records: [] },
+			};
+		}
+		const record = {
+			path,
+			run: pointer.run,
+			...inspectLedgerFile(path, pointer.run),
+		};
+		const inspection = { root, pointer, records: [record] };
+		if (!record.valid) {
+			return { ledger: null, reason: "invalid_active_ledger", inspection, invalid: [record] };
+		}
+		if (record.terminal) {
+			return { ledger: null, reason: "stale_active_run_pointer", inspection };
+		}
+		return { ledger: record, reason: null, inspection };
+	}
+
   const inspection = inspectLedgerRoot(cwd);
-  const invalid = inspection.records.filter((record) => !record.valid);
-  if (inspection.pointer.state === "invalid") {
-    return { ledger: null, reason: inspection.pointer.reason, inspection };
-  }
+	if (inspection.pointer.state === "invalid") {
+		return { ledger: null, reason: inspection.pointer.reason, inspection };
+	}
+	const invalid = inspection.records.filter(
+		(record) => !record.valid && !record.events.some((event) => TERMINAL_EVENTS.has(event.event)),
+	);
   if (invalid.length > 0) {
     return { ledger: null, reason: "invalid_active_ledger", inspection, invalid };
   }
 
-  const active = inspection.records.filter((record) => !record.terminal);
+  const active = inspection.records.filter((record) => record.valid && !record.terminal);
   if (active.length === 0) {
     if (inspection.pointer.state === "present") {
       return { ledger: null, reason: "stale_active_run_pointer", inspection };
     }
     return { ledger: null, reason: null, inspection };
-  }
-
-  if (inspection.pointer.state === "present") {
-    const selected = active.find((record) => record.run === inspection.pointer.run);
-    if (!selected) return { ledger: null, reason: "stale_active_run_pointer", inspection };
-    return { ledger: selected, reason: null, inspection };
   }
 
   if (active.length !== 1) {

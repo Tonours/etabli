@@ -400,7 +400,12 @@ fi
 guard_repo="$TMP_DIR/plan-commit-guard-repo"
 mkdir -p "$guard_repo"
 git -C "$guard_repo" init -q
-printf 'plan\n' > "$guard_repo/PLAN.md"
+cat > "$guard_repo/PLAN.md" <<'PLAN'
+# PLAN.md
+
+## Meta
+- Status: READY
+PLAN
 git -C "$guard_repo" add PLAN.md
 
 commit_guard_output="$(
@@ -416,6 +421,13 @@ add_guard_output="$(
 )"
 assert_contains "$add_guard_output" '"permissionDecision":"deny"'
 assert_contains "$add_guard_output" 'must not be staged or committed'
+
+combined_commit_guard_output="$(
+  printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"x\\""}}\n' "$guard_repo" |
+    node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_contains "$combined_commit_guard_output" '"permissionDecision":"deny"'
+assert_contains "$combined_commit_guard_output" 'must not be committed'
 
 git -C "$guard_repo" rm --cached -q PLAN.md
 clean_commit_output="$(
@@ -456,5 +468,14 @@ done
 # PostToolUse ledger auto-emit path is registered
 assert_contains "$(cat "$ROOT_DIR/claude/settings.workflow-hooks.json")" 'PostToolUse'
 assert_contains "$(cat "$ROOT_DIR/claude/settings.workflow-hooks.json")" 'ledger-auto-emit.mjs'
+pretool_count="$(jq '[.hooks.PreToolUse[] | .hooks[] | select(.command | contains("plan-ready-guard.mjs"))] | length' "$ROOT_DIR/claude/settings.workflow-hooks.json")"
+[ "$pretool_count" -eq 1 ] || {
+  printf 'expected one combined plan-ready PreToolUse hook, got %s\n' "$pretool_count" >&2
+  exit 1
+}
+if jq -e '[.hooks.PreToolUse[] | .hooks[] | select(.command | contains("plan-commit-guard.mjs"))] | length > 0' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null; then
+  printf 'plan-commit-guard must be composed into the plan-ready hook\n' >&2
+  exit 1
+fi
 
 printf 'claude hooks smoke test: ok\n'

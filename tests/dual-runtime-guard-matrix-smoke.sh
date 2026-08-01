@@ -42,6 +42,16 @@ import { join } from "node:path";
 
 const mod = await import(pathToFileURL("$CORE").href);
 const tmp = "$TMP";
+
+if (mod.isMutationRelevantTool("TaskList") !== false || mod.isMutationRelevantTool("read") !== false) {
+  console.error("non-mutating tools must be rejected before filesystem guard work");
+  process.exit(1);
+}
+if (mod.isMutationRelevantTool("Write") !== true || mod.isMutationRelevantTool("Bash") !== true) {
+  console.error("mutation-relevant tools must remain guarded");
+  process.exit(1);
+}
+
 writeFileSync(join(tmp, "PLAN.md"), "# PLAN\\n\\n## Meta\\n- Status: DRAFT\\n");
 
 const claudeDeny = mod.planMutationGuardDecision({

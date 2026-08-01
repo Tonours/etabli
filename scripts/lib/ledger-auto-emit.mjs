@@ -7,9 +7,8 @@ import { appendFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import {
 	evaluateNoProgressStop,
-	loadLedgerEvents,
 } from "./no-progress-guard.mjs";
-import { selectActiveLedger } from "./ledger-integrity.mjs";
+import { getActiveRunPointer, selectActiveLedger } from "./ledger-integrity.mjs";
 import { buildReceipt, issueReceipt } from "./workflow-receipts.mjs";
 
 function isNonEmptyString(value) {
@@ -69,6 +68,11 @@ function recentDuplicateValidation(events, command, failure) {
 	return count >= 8;
 }
 
+function pointerStillSelects(cwd, run) {
+	const pointer = getActiveRunPointer(cwd);
+	return pointer.state === "present" && pointer.run === run;
+}
+
 /**
  * Record a bash failure into the primary active ledger and optionally no_progress.
  *
@@ -96,8 +100,12 @@ export function recordBashValidationFailure(cwd, input) {
 	}
 	const primary = selection.ledger;
 	if (!primary) return { emitted: false, reason: "no_active_ledger" };
+	const pointerBacked = selection.inspection?.pointer?.state === "present";
+	if (pointerBacked && !pointerStillSelects(cwd, primary.run)) {
+		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
+	}
 
-	let events = loadLedgerEvents(primary.path);
+	let events = primary.events;
 	if (recentDuplicateValidation(events, command, failure)) {
 		return {
 			emitted: false,
@@ -112,6 +120,9 @@ export function recordBashValidationFailure(cwd, input) {
 		exit: exitCode,
 		failure,
 	};
+	if (pointerBacked && !pointerStillSelects(cwd, primary.run)) {
+		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
+	}
 	appendLedgerEvent(
 		primary.path,
 		"validation_failed",
@@ -120,7 +131,16 @@ export function recordBashValidationFailure(cwd, input) {
 	);
 	emitted.push("validation_failed");
 
-	events = loadLedgerEvents(primary.path);
+	events = [
+		...events,
+		{
+			schema_version: 2,
+			ts: isoTs(),
+			event: "validation_failed",
+			run: basename(dirname(primary.path)),
+			detail: vfDetail,
+		},
+	];
 	const stop = evaluateNoProgressStop(events);
 	const hasExplicit = events.some((e) => e.event === "no_progress");
 	if (stop && !hasExplicit) {
@@ -128,21 +148,23 @@ export function recordBashValidationFailure(cwd, input) {
 			(isNonEmptyString(input?.head_sha) && String(input.head_sha)) ||
 			"unknown";
 		const np = stop.detail || {};
-		appendLedgerEvent(
-			primary.path,
-			"no_progress",
-			{
-				check_or_hypothesis: String(np.check_or_hypothesis || failure),
-				command: String(np.command || command),
-				attempts: Number(np.attempts) > 0 ? Number(np.attempts) : 1,
-				head_sha: headSha,
-				eliminated: Array.isArray(np.eliminated)
-					? np.eliminated.map(String)
-					: [failure],
-			},
-			basename(dirname(primary.path)),
-		);
-		emitted.push("no_progress");
+		if (!pointerBacked || pointerStillSelects(cwd, primary.run)) {
+			appendLedgerEvent(
+				primary.path,
+				"no_progress",
+				{
+					check_or_hypothesis: String(np.check_or_hypothesis || failure),
+					command: String(np.command || command),
+					attempts: Number(np.attempts) > 0 ? Number(np.attempts) : 1,
+					head_sha: headSha,
+					eliminated: Array.isArray(np.eliminated)
+						? np.eliminated.map(String)
+						: [failure],
+				},
+				basename(dirname(primary.path)),
+			);
+			emitted.push("no_progress");
+		}
 	}
 
 	return {
@@ -198,6 +220,33 @@ export function isBashToolName(name) {
 	return n === "bash" || n === "shell" || n === "run_terminal_command";
 }
 
+const VALIDATION_SEGMENT_PATTERNS = [
+	/^(?:\.?\/)?scripts\/verify-agentic-infra(?:\s+(?:core|full|live))?$/i,
+	/^(?:\.?\/)?scripts\/workflow-event\s+validate\s+[a-z0-9][a-z0-9_-]*(?:\s+--profile\s+(?:structural|autonomous-completed|autonomous-completed-strict|blocked-terminal))?$/i,
+	/^(?:bun|npm|pnpm|yarn)\s+(?:test|lint|run\s+(?:test|lint|typecheck|check|verify|validate|audit|eval))\b[^;&|]*$/i,
+	/^node\s+(?:--check|--test)\b[^;&|]*$/i,
+	/^python3?\s+-m\s+(?:pytest|unittest)\b[^;&|]*$/i,
+	/^pytest(?:\s+[^;&|]+)?$/i,
+	/^(?:cargo|go)\s+test\b[^;&|]*$/i,
+	/^(?:bash|sh)\s+tests\/[a-z0-9][a-z0-9._/-]*$/i,
+	/^git\s+diff\s+[^;&|]*\bcheck\b[^;&|]*$/i,
+];
+
+function isValidationSegment(segment) {
+	const normalized = segment.trim().replace(/\s+2>&1\s*$/i, "");
+	if (normalized.includes("..")) return false;
+	return VALIDATION_SEGMENT_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+export function isLikelyValidationCommand(command) {
+	const value = String(command || "").trim();
+	if (!value || value.includes("..") || /[\r\n;|<>`]|\$\(/.test(value)) return false;
+	const segments = value.split(/\s+&&\s+/);
+	if (segments.length > 2) return false;
+	if (segments.length === 2 && !/^cd\s+[^;&|]+$/i.test(segments[0].trim())) return false;
+	return isValidationSegment(segments.at(-1));
+}
+
 /**
  * Record a non-cryptographic runtime receipt for an observed successful Bash
  * validation into the uniquely selected active ledger. Binds the command hash
@@ -211,13 +260,22 @@ export function isBashToolName(name) {
 export function recordBashValidationReceipt(cwd, input) {
 	const command = String(input?.command || "").trim();
 	if (!command) return { emitted: false, reason: "empty_command" };
+	if (!isLikelyValidationCommand(command)) {
+		return { emitted: false, reason: "not_validation_command" };
+	}
+	if (getActiveRunPointer(cwd).state !== "present") {
+		return { emitted: false, reason: "no_active_run_pointer" };
+	}
 
 	const selection = selectActiveLedger(cwd);
 	if (selection.reason) return { emitted: false, reason: selection.reason };
 	const primary = selection.ledger;
 	if (!primary) return { emitted: false, reason: "no_active_ledger" };
+	if (!pointerStillSelects(cwd, primary.run)) {
+		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
+	}
 
-	const events = loadLedgerEvents(primary.path);
+	const events = primary.events;
 	const latestDiff = events.reduce(
 		(last, event, index) => (event.event === "file_changed" ? index : last),
 		-1,
@@ -247,6 +305,9 @@ export function recordBashValidationReceipt(cwd, input) {
 			reason: "duplicate_receipt",
 			ledger: primary.path,
 		};
+	}
+	if (!pointerStillSelects(cwd, primary.run)) {
+		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
 	}
 	const line = issueReceipt(primary.path, primary.run, candidate);
 	return line

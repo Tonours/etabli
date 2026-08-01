@@ -17,7 +17,7 @@ fail() {
 
 node --input-type=module <<EOF
 import { pathToFileURL } from "node:url";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const mod = await import(pathToFileURL("$CORE").href);
@@ -302,6 +302,10 @@ writeLedger("post-terminal", [
   { event: "completed", detail: { summary: "done" } },
   { event: "validation_run", detail: { command: "true", exit: 0 } },
 ]);
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "post-terminal" }),
+);
 assertDenyReason(
   "post-terminal active ledger Write",
   mod.planMutationGuardDecision({
@@ -313,6 +317,7 @@ assertDenyReason(
 );
 
 writeLedger("post-terminal", [{ event: "completed", detail: { summary: "closed" } }]);
+rmSync(join(tmp, ".workflow", "active-run.json"), { force: true });
 writeLedger("misbound", [{ run: "other-run", event: "route_decided", detail: { route: "implement" } }]);
 assertDenyReason(
   "misbound active ledger Write",
@@ -347,6 +352,124 @@ assertAllow(
     tool_name: "Write",
     tool_input: { file_path: join(tmp, "src/selected.ts"), content: "x" },
   }),
+);
+
+// A historical post-terminal ledger may be structurally invalid because of
+// compatibility events, but it must not block a pointer-selected live run.
+writeLedger("historical-post-terminal", [
+  { event: "completed", detail: { summary: "historical done" } },
+  { event: "validation_run", detail: { command: "post-terminal-compat", exit: 0 } },
+]);
+writeLedger("pointer-live", [{ event: "route_decided", detail: { route: "implement" } }]);
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "pointer-live" }),
+);
+const ledgerIntegrity = await import(pathToFileURL("$ROOT_DIR/scripts/lib/ledger-integrity.mjs").href);
+const pointerSelection = ledgerIntegrity.selectActiveLedger(tmp);
+if (pointerSelection.reason || pointerSelection.inspection.records.length !== 1) {
+  console.error("pointer selection must inspect only the selected ledger", pointerSelection);
+  process.exit(1);
+}
+assertAllow(
+  "pointer-selected live run ignores historical post-terminal ledger",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/pointer-live.ts"), content: "x" },
+  }),
+);
+
+// Runtime receipts are authority-known events and must not invalidate selection.
+writeLedger("receipt-live", [
+  { event: "route_decided", detail: { route: "implement" } },
+  {
+    event: "runtime_receipt",
+    detail: {
+      receipt_for: "validation_run",
+      source: "Bash",
+      kind: "validation",
+      subject_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      exit: 0,
+      observed_by: "parent-process",
+      cryptographic: false,
+    },
+  },
+]);
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "receipt-live" }),
+);
+assertAllow(
+  "runtime receipt remains a valid authority event",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/receipt-live.ts"), content: "x" },
+  }),
+);
+
+// The legacy no-pointer fallback still ignores only terminal-invalid history.
+for (const slug of ["active-a", "active-b", "pointer-live", "receipt-live"]) {
+  writeLedger(slug, [{ event: "completed", detail: { summary: "closed" } }]);
+}
+rmSync(join(tmp, ".workflow", "active-run.json"), { force: true });
+writeLedger("legacy-historical", [
+  { event: "completed", detail: { summary: "historical done" } },
+  { event: "validation_run", detail: { command: "post-terminal-compat", exit: 0 } },
+]);
+writeLedger("legacy-live", [{ event: "route_decided", detail: { route: "implement" } }]);
+assertAllow(
+  "legacy valid run ignores terminal-invalid history without pointer",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/legacy-live.ts"), content: "x" },
+  }),
+);
+
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "../escape" }),
+);
+assertDenyReason(
+  "traversal active pointer",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/traversal.ts"), content: "x" },
+  }),
+  "invalid_active_run_pointer",
+);
+
+mkdirSync(join(tmp, "outside-ledger"), { recursive: true });
+writeFileSync(
+  join(tmp, "outside-ledger", "events.jsonl"),
+  JSON.stringify({
+    schema_version: 2,
+    ts: "2026-08-01T00:00:00Z",
+    run: "symlinked",
+    event: "route_decided",
+    detail: { route: "implement" },
+  }) + "\n",
+);
+symlinkSync(
+  join(tmp, "outside-ledger"),
+  join(tmp, ".workflow", "symlinked"),
+  "dir",
+);
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "symlinked" }),
+);
+assertDenyReason(
+  "symlinked active ledger",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/symlinked.ts"), content: "x" },
+  }),
+  "invalid_active_ledger",
 );
 
 console.log("no-progress-mutate-deny smoke test: ok");

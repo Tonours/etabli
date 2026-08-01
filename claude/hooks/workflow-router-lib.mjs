@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import {
 	evaluateCheckFreeze,
@@ -206,6 +207,10 @@ const READ_ONLY_GIT_SUBCOMMANDS = new Set([
 	"tag",
 	"worktree",
 ]);
+const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
+const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/;
+const GIT_COMMIT_PATTERN = /\bgit\b[^|;&]*\bcommit\b/;
+const GIT_ADD_PATTERN = /\bgit\b[^|;&]*\badd\b/;
 
 /** Split a simple shell pipeline while respecting quoted search expressions. */
 function splitReadOnlyPipeline(command) {
@@ -1053,14 +1058,57 @@ export function normalizeToolName(toolName) {
 	return raw;
 }
 
+export function isMutationRelevantTool(toolName) {
+	return MUTATION_RELEVANT_TOOLS.has(normalizeToolName(toolName));
+}
+
+function stagedPlanFiles(cwd) {
+	try {
+		const output = execFileSync(
+			"git",
+			["-C", cwd, "diff", "--cached", "--name-only"],
+			{ encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+		);
+		return output.split("\n").filter((line) => /^PLAN[\w.-]*\.md$/.test(line));
+	} catch {
+		return [];
+	}
+}
+
+export function planCommitGuardDecision(event) {
+	if (event.tool_name !== "Bash") return null;
+	const command = String(event.tool_input?.command || "");
+	if (!/\bgit\b/.test(command)) return null;
+
+	const namesPlanFile = PLAN_FILE_PATTERN.test(command);
+	if (namesPlanFile && (GIT_ADD_PATTERN.test(command) || GIT_COMMIT_PATTERN.test(command))) {
+		return deny(
+			"PLAN files are session artifacts and must not be staged or committed; archive to docs/plan/ instead. Run git yourself to bypass deliberately.",
+		);
+	}
+
+	if (GIT_COMMIT_PATTERN.test(command)) {
+		const staged = stagedPlanFiles(event.cwd || process.cwd());
+		if (staged.length > 0) {
+			return deny(
+				`PLAN files are session artifacts and must not be committed (staged: ${staged.join(", ")}); unstage them or archive to docs/plan/ first.`,
+			);
+		}
+	}
+
+	return null;
+}
+
 export function planReadyGuardDecision(event) {
+	const toolName = normalizeToolName(event.tool_name || event.toolName);
+	if (!MUTATION_RELEVANT_TOOLS.has(toolName)) return null;
+
 	const cwd = event.cwd || process.cwd();
 	const planStatus = readPlanStatus(cwd);
 	// missing: ordinary work without an active plan is allowed (not a pre-READY gate).
 	// ready: implementation mutations allowed; check-freeze runs separately on PLAN.md writes.
 	if (planStatus === "missing" || planStatus === "ready") return null;
 
-	const toolName = normalizeToolName(event.tool_name || event.toolName);
 	const toolInput = event.tool_input || event.input || {};
 	const filePath =
 		toolInput.file_path || toolInput.path || toolInput.filePath || "";
@@ -1193,11 +1241,11 @@ export function planCheckFreezeGuardDecision(event) {
  * freeze reconstruction — deny and force the file-tool path.
  */
 export function planCheckFreezeBashGuardDecision(event) {
-	const cwd = event.cwd || process.cwd();
-	if (readPlanStatus(cwd) !== "ready") return null;
-
 	const toolName = normalizeToolName(event.tool_name || event.toolName);
 	if (toolName !== "Bash") return null;
+
+	const cwd = event.cwd || process.cwd();
+	if (readPlanStatus(cwd) !== "ready") return null;
 
 	const toolInput = event.tool_input || event.input || {};
 	const command = String(toolInput.command || toolInput.cmd || "");

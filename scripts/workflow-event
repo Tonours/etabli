@@ -142,8 +142,22 @@ case "$command" in
       exit 1
     fi
     pointer="$WORKFLOW_DIR/.active-run.json"
+    if [ -f "$pointer" ]; then
+      current_run="$(jq -r '.run // empty' "$pointer" 2>/dev/null || true)"
+      if [ "$current_run" != "$slug" ]; then
+        printf 'active run already selected: %s\n' "$current_run" >&2
+        exit 1
+      fi
+      printf 'active run: %s\n' "$slug"
+      exit 0
+    fi
     temporary_pointer="$WORKFLOW_DIR/.active-run.json.$$"
     jq -nc --arg run "$slug" '{schema_version:1,run:$run}' > "$temporary_pointer"
+    if [ -e "$pointer" ]; then
+      rm -f "$temporary_pointer"
+      printf 'active run changed while activating: %s\n' "$pointer" >&2
+      exit 1
+    fi
     mv "$temporary_pointer" "$pointer"
     printf 'active run: %s\n' "$slug"
     ;;

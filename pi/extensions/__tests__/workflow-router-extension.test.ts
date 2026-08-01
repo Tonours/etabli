@@ -687,6 +687,10 @@ describe("workflow router extension", () => {
 					detail: { route: "implement" },
 				})}\n`,
 			);
+			writeFileSync(
+				join(cwd, ".workflow", "active-run.json"),
+				JSON.stringify({ schema_version: 1, run: "rcpt-run" }),
+			);
 
 			runtime.emit("tool_result", {
 				toolName: "bash",
@@ -722,6 +726,23 @@ describe("workflow router extension", () => {
 			// Raw command text must not leak into the persisted receipt.
 			expect(ledger).not.toContain("bash tests/a.sh");
 			expect(receipts[0].detail.subject_sha256).toMatch(/^[a-f0-9]{64}$/);
+
+			// Ordinary successful shell reads are not validation receipts.
+			runtime.emit("tool_result", {
+				toolName: "bash",
+				toolCallId: "read1",
+				cwd,
+				input: { command: "ls -la" },
+				content: [{ type: "text", text: "exit code: 0" }],
+				isError: false,
+			});
+			const afterRead = readFileSync(
+				join(cwd, ".workflow", "rcpt-run", "events.jsonl"),
+				"utf8",
+			);
+			expect(
+				afterRead.split("\n").filter((line) => line.includes('"runtime_receipt"')),
+			).toHaveLength(1);
 
 			// A repeated identical success does not double-emit.
 			runtime.emit("tool_result", {
