@@ -26,8 +26,9 @@ adversary → implementer → verifier → reviewer → reporter → stop.
 | `READY` | clear enough to execute |
 
 **Implement only from root `Status: READY`.** Prompt "PLAN.md ready" is not proof.
-Pre-READY: only root `PLAN.md` may be edited; write/edit/mutating bash to other
-paths are denied (Claude PreToolUse + Pi `tool_call` via shared
+Pre-READY: only root `PLAN.md` may be edited; write/edit and every Bash command
+except the structurally allowlisted read-only corpus or narrow `workflow-event`
+recovery path are denied (Claude PreToolUse + Pi `tool_call` via shared
 `planMutationGuardDecision`). Missing PLAN allows ordinary non-plan work.
 
 **Check-freeze (runtime):** once READY, Checks / Acceptance Criteria may only be
@@ -36,14 +37,19 @@ strengthened. Weaken/remove → demote to `CHALLENGED` + Decision Log rationale
 if content cannot be reconstructed) and on mutating shell that names `PLAN.md`.
 CLI: `scripts/plan-check-freeze`.
 
-**no_progress (ledger):** active non-terminal `.workflow/*/events.jsonl` with
-`no_progress` or derived 2-hyp/3-red thresholds → host denies code mutations
-(shared guard). Escape: root `PLAN.md` + `scripts/workflow-event`. With an
-active ledger, bash failures auto-append `validation_failed` (and may append
-`no_progress`); no ledger → still protocol/proxy. Smoke:
-`tests/no-progress-mutate-deny-smoke.sh`, `tests/ledger-auto-emit-smoke.sh`.
+**no_progress (ledger):** a malformed/misbound v2 ledger, non-final v2 terminal,
+or ambiguous active runs fail closed; select one run with
+`scripts/workflow-event activate <slug>`. A valid active ledger with `no_progress`
+or derived 2-hyp/3-red thresholds denies code mutations. Escape: root `PLAN.md`,
+narrow `scripts/plan-cleanup --archive docs/plan/<archive>.md`, and
+`scripts/workflow-event`; use `workflow-event recover <slug> <reason-code>` to
+quarantine (never delete) corrupted raw ledger data. With an active ledger, bash
+failures auto-append `validation_failed` (and may append `no_progress`); no ledger
+→ still protocol/proxy. Smokes: `tests/no-progress-mutate-deny-smoke.sh`,
+`tests/ledger-auto-emit-smoke.sh`, `tests/plan-cleanup-smoke.sh`.
 
-Archive under `docs/plan/` after validation; then delete root `PLAN.md`.
+Archive under `docs/plan/` after validation with the exact root plan SHA-256, then
+remove root `PLAN.md` only through `scripts/plan-cleanup`.
 
 ## One-writer
 
@@ -80,6 +86,8 @@ cd pi && bun test ./extensions/__tests__/
 bash tests/dual-runtime-guard-matrix-smoke.sh
 bash tests/plan-check-freeze-smoke.sh
 bash tests/no-progress-mutate-deny-smoke.sh
+bash tests/plan-cleanup-smoke.sh
+bash tests/workflow-receipts-smoke.sh
 bash tests/workflow-loop-adherence-smoke.sh
 bash tests/route-context-manifest-smoke.sh
 bash tests/workflow-execution-graph-smoke.sh

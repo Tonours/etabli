@@ -9,6 +9,7 @@ core	shell-docs	router-eval-smoke	tests/router-eval-smoke.sh
 core	shell-docs	agent-scenarios-smoke	tests/agent-scenarios-smoke.sh
 core	shell-docs	-suite-smoke	tests/-suite-smoke.sh
 core	shell-docs	plan-check-freeze-smoke	tests/plan-check-freeze-smoke.sh
+core	shell-docs	plan-cleanup-smoke	tests/plan-cleanup-smoke.sh
 core	shell-docs	dual-runtime-guard-matrix-smoke	tests/dual-runtime-guard-matrix-smoke.sh
 core	shell-docs	no-progress-mutate-deny-smoke	tests/no-progress-mutate-deny-smoke.sh
 core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
@@ -21,6 +22,8 @@ full	shell-docs	workflow-metrics-smoke	tests/workflow-metrics-smoke.sh
 full	shell-docs	one-writer-portfolio-smoke	tests/one-writer-portfolio-smoke.sh
 full	shell-docs	leap-harness-validation-smoke	tests/leap-harness-validation-smoke.sh
 full	shell-docs	ledger-auto-emit-smoke	tests/ledger-auto-emit-smoke.sh
+full	shell-docs	workflow-receipts-smoke	tests/workflow-receipts-smoke.sh
+full	shell-docs	workflow-supersession-smoke	tests/workflow-supersession-smoke.sh
 full	shell-docs	workflow-telemetry-recover-smoke	tests/workflow-telemetry-recover-smoke.sh
 full	shell-docs	workflow-dossier-smoke	tests/workflow-dossier-smoke.sh
 full	shell-docs	workflow-retrospect-smoke	tests/workflow-retrospect-smoke.sh

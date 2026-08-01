@@ -6,8 +6,10 @@ import {
 } from "../../scripts/lib/plan-check-freeze.mjs";
 import {
 	isNoProgressEscapeHatch,
+	isWorkflowEventEscapeCommand,
 	shouldDenyMutationForNoProgress,
 } from "../../scripts/lib/no-progress-guard.mjs";
+import { isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
 import { formatRouteContextGuidance } from "../../scripts/lib/route-context-manifest.mjs";
 
 export const ROUTER_MARKER = "# Etabli Claude Workflow Router";
@@ -170,9 +172,136 @@ const KNOWLEDGE_TOPIC_RULES = [
 	},
 ];
 
-const MUTATING_BASH_PATTERN =
-	/(^|[;&|()]\s*)(rm|mv|cp|mkdir|rmdir|touch|chmod|chown|git\s+(commit|push|merge|rebase|reset|clean|checkout|switch)|npm\s+(install|i|add)|pnpm\s+(install|i|add)|yarn\s+(install|add)|bun\s+(install|add)|sed\s+-i|perl\s+-pi|tee\s+)/i;
-const REDIRECT_WRITE_PATTERN = /(^|[^<>])>{1,2}\s*[^&\s]/;
+const READ_ONLY_BASH_COMMANDS = new Set([
+	"basename",
+	"cat",
+	"cut",
+	"diff",
+	"dirname",
+	"grep",
+	"head",
+	"jq",
+	"ls",
+	"pwd",
+	"rg",
+	"sha256sum",
+	"shasum",
+	"sort",
+	"stat",
+	"tail",
+	"tr",
+	"uniq",
+	"wc",
+]);
+const READ_ONLY_GIT_SUBCOMMANDS = new Set([
+	"branch",
+	"diff",
+	"grep",
+	"log",
+	"ls-files",
+	"remote",
+	"rev-parse",
+	"show",
+	"status",
+	"tag",
+	"worktree",
+]);
+
+/** Split a simple shell pipeline while respecting quoted search expressions. */
+function splitReadOnlyPipeline(command) {
+	const value = String(command || "").trim();
+	if (!value) return [];
+	const segments = [];
+	let current = "";
+	let quote = "";
+	let escaped = false;
+
+	for (let index = 0; index < value.length; index += 1) {
+		const character = value[index];
+		if (escaped) {
+			current += character;
+			escaped = false;
+			continue;
+		}
+		if (character === "\\") {
+			current += character;
+			escaped = true;
+			continue;
+		}
+		if (quote) {
+			current += character;
+			if (character === quote) quote = "";
+			continue;
+		}
+		if (character === "'" || character === '"') {
+			quote = character;
+			current += character;
+			continue;
+		}
+		// Two-char logical operators (&&, ||) join read-only segments.
+		if (
+			(character === "&" || character === "|") &&
+			value[index + 1] === character
+		) {
+			if (current.trim() === "") return null;
+			segments.push(current.trim());
+			current = "";
+			index += 1;
+			continue;
+		}
+		if (
+			character === "\n" ||
+			character === ";" ||
+			character === "&" ||
+			character === "`" ||
+			character === "<" ||
+			character === ">" ||
+			(character === "$" && value[index + 1] === "(")
+		) {
+			return null;
+		}
+		if (character === "|") {
+			if (current.trim() === "") return null;
+			segments.push(current.trim());
+			current = "";
+			continue;
+		}
+		current += character;
+	}
+	if (quote || escaped || current.trim() === "") return null;
+	segments.push(current.trim());
+	return segments;
+}
+
+function isReadOnlyPipelineSegment(segment) {
+	const trimmed = segment.trim();
+	const executable = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
+	if (!executable) return false;
+	if (executable === "git") {
+		const subcommand = trimmed.match(/^git\s+([A-Za-z0-9-]+)/)?.[1];
+		return Boolean(subcommand && READ_ONLY_GIT_SUBCOMMANDS.has(subcommand));
+	}
+	if (executable === "find") {
+		return !/(^|\s)-(delete|exec|execdir|ok|okdir|fprint|fls)(?:\s|$)/.test(
+			trimmed,
+		);
+	}
+	if (executable === "sed") {
+		return !/(^|\s)(?:-i\S*|--in-place(?:=\S*)?)(?:\s|$)/.test(trimmed);
+	}
+	if (executable === "node" || executable === "nodejs") {
+		return /^(?:node|nodejs)\s+(?:--check\b|-p\b|--version\b)/.test(trimmed);
+	}
+	if (executable === "bash" || executable === "sh") {
+		return /^(?:bash|sh)\s+(?:-n\b|--version\b)/.test(trimmed);
+	}
+	return READ_ONLY_BASH_COMMANDS.has(executable);
+}
+
+export function isReadOnlyBashCommand(command) {
+	const segments = splitReadOnlyPipeline(command);
+	return Boolean(segments && segments.every(isReadOnlyPipelineSegment));
+}
 
 export function readHookInput() {
 	try {
@@ -898,10 +1027,9 @@ export function isPlanFile(filePath, cwd) {
 }
 
 export function isMutatingBashCommand(command) {
-	if (!command) return false;
-	return (
-		MUTATING_BASH_PATTERN.test(command) || REDIRECT_WRITE_PATTERN.test(command)
-	);
+	if (!String(command || "").trim()) return false;
+	if (isNarrowPlanCleanupCommand(command)) return true;
+	return !isReadOnlyBashCommand(command);
 }
 
 /** Normalize Claude / Pi tool names for shared READY mutation guard. */
@@ -945,10 +1073,13 @@ export function planReadyGuardDecision(event) {
 		);
 	}
 
-	if (toolName === "Bash" && isMutatingBashCommand(command)) {
-		return deny(
-			`PLAN.md is ${planStatus.toUpperCase()}; mutating Bash commands are blocked until the plan is READY.`,
-		);
+	if (toolName === "Bash") {
+		if (isWorkflowEventEscapeCommand(command)) return null;
+		if (isMutatingBashCommand(command)) {
+			return deny(
+				`PLAN.md is ${planStatus.toUpperCase()}; mutating Bash commands are blocked until the plan is READY.`,
+			);
+		}
 	}
 
 	return null;
@@ -1071,6 +1202,7 @@ export function planCheckFreezeBashGuardDecision(event) {
 	const toolInput = event.tool_input || event.input || {};
 	const command = String(toolInput.command || toolInput.cmd || "");
 	if (!command || !isMutatingBashCommand(command)) return null;
+	if (isNarrowPlanCleanupCommand(command)) return null;
 
 	// Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
 	if (!/\bPLAN\.md\b/i.test(command)) return null;
