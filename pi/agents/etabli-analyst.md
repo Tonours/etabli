@@ -4,7 +4,7 @@ display_name: Etabli Analyst
 tools: read, grep, find, ls
 extensions: false
 skills: false
-model: xai/grok-4.5
+model: openai-codex/gpt-5.6-terra
 thinking: high
 max_turns: 16
 inherit_context: false

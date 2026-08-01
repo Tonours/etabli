@@ -364,18 +364,16 @@ let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.ena
 // Role-critical pins always forced into local settings (also asserted by
 // deploy-agent-workflow smoke). Full tracked portfolio is merged below.
 const managedModels = new Set([
+  // Portfolio A role pins
+  "opencode-go/deepseek-v4-flash",
+  "openai-codex/gpt-5.6-terra",
   "zai/glm-5.2",
-  "zai/glm-5.1",
-  "zai/glm-5-turbo",
-  "xai/grok-4.5",
-  "kimi-coding/k3",
+  "openai-codex/gpt-5.6-sol",
+  "openai-codex/gpt-5.6-luna",
 ]);
 // Retired aliases / catalog IDs that must not stay in local cycling lists.
 const legacyModels = new Set([
   "openai-codex/gpt-5.6",
-  "openai-codex/gpt-5.6-luna",
-  "openai-codex/gpt-5.6-terra",
-  "openai-codex/gpt-5.6-sol",
   "opencode-go/kimi-k2.6",
   "kimi-coding/kimi-for-coding",
   "kimi-coding/kimi-for-coding-highspeed",
@@ -665,8 +663,12 @@ if (sources.includes("npm:@agwab/pi-workflow") || sources.includes("npm:@agwab/p
 if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
   throw new Error("settings sync removed a similarly named user package");
 }
-if (!settings.enabledModels.includes("custom/personal-model") || !settings.enabledModels.includes("kimi-coding/k3")) {
-  throw new Error("settings sync did not preserve the user model and add the managed K3 model");
+if (
+  !settings.enabledModels.includes("custom/personal-model") ||
+  !settings.enabledModels.includes("opencode-go/deepseek-v4-flash") ||
+  !settings.enabledModels.includes("openai-codex/gpt-5.6-terra")
+) {
+  throw new Error("settings sync did not preserve the user model and add managed portfolio pins");
 }
 if (settings.defaultProvider !== "custom" || settings.defaultModel !== "personal-model" || settings.defaultThinkingLevel !== "low") {
   throw new Error("settings sync overwrote personal Pi defaults");

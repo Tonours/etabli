@@ -16,7 +16,7 @@ which rejected automatic full panels after four of six repetitions exceeded
 | One medium signal on research/diagnosis/review work | scout |
 | One critical signal or two distinct medium signals | Route-specific two-agent council |
 | Explicit multi-model intent on an eligible route | Route-specific two-agent council |
-| Primary role unavailable | Kimi K3 at maximum effort may replace it on Pi, with `degraded` status |
+| Primary role unavailable | Codex Luna (`gpt-5.6-luna`) may replace it on Pi, with `degraded` status |
 | Material disagreement after deterministic checks and one rebuttal round | the judge adjudicates once |
 | Mutation | Parent is the only writer |
 
@@ -75,20 +75,19 @@ hidden history or spend another model call to decide.
 
 ## Runtime Portfolios
 
-Pi uses exact pinned roles:
+Pi uses exact pinned roles (portfolio A — opencode-go flash + Codex L/T/S + ZAI):
 
-- `etabli-scout`: `zai/glm-5-turbo`, `medium`;
-- `etabli-analyst`: `xai/grok-4.5`, `high`;
+- `etabli-scout`: `opencode-go/deepseek-v4-flash`, `medium`;
+- `etabli-analyst`: `openai-codex/gpt-5.6-terra`, `high`;
 - `etabli-challenger`: `zai/glm-5.2`, `xhigh` (provider `max`);
-- `etabli-judge`: `kimi-coding/k3`, `xhigh`;
-- `etabli-fallback`: `zai/glm-5.1`, `xhigh`, fallback only (distinct from primaries; judge stays the unique Kimi).
+- `etabli-judge`: `openai-codex/gpt-5.6-sol`, `xhigh`;
+- `etabli-fallback`: `openai-codex/gpt-5.6-luna`, `high`, fallback only
+  (distinct from primaries; Sol remains the unique adjudicator pin).
 
-Kimi K3 is supplied as a custom model on Pi's built-in `kimi-coding` transport.
-Its official API ID is `k3`; thinking `off` and `minimal` are disabled because
-the provider may otherwise route to K2.6. Exact runtime provenance, thinking
-evidence, and the isolated multi-turn probe are mandatory; any mismatch is
-`blocked`, never a silent downgrade.
-Official contract: <https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents>.
+Cross-family first passes stay mandatory: OpenCode DeepSeek scout or Codex Terra
+analyst pair with the ZAI challenger. Exact runtime provenance is mandatory; a
+provider error, silent model fallback, or missing provenance is `blocked`, never
+an unqualified panel success.
 
 ## Pi Execution
 
