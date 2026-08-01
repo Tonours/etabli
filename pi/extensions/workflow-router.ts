@@ -14,6 +14,7 @@ import { planMutationGuardDecision } from "../../workflow/runtime/workflow-route
 import {
 	inferBashFailureFromToolResult,
 	isBashToolName,
+	isLikelyValidationCommand,
 	recordBashValidationFailure,
 	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
@@ -464,7 +465,7 @@ export default function (pi: ExtensionAPI) {
 						exit: inferred.exit,
 						failure: inferred.failure || `exit ${inferred.exit}`,
 					});
-				} else {
+				} else if (isLikelyValidationCommand(command)) {
 					// Bind observed successful validations to the active ledger as a
 					// non-cryptographic runtime receipt (command hash + exit 0).
 					recordBashValidationReceipt(eventCwd(event), { command });

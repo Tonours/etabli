@@ -8,9 +8,11 @@ export {
   planCheckFreezeBashGuardDecision,
   planNoProgressGuardDecision,
   planMutationGuardDecision,
+  planCommitGuardDecision,
   proposedPlanTextFromToolInput,
   isMutatingBashCommand,
   isPlanFile,
   normalizeToolName,
+  isMutationRelevantTool,
   readPlanStatus,
 } from "../../claude/hooks/workflow-router-lib.mjs";

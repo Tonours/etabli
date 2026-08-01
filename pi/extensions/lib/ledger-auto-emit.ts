@@ -20,6 +20,10 @@ export const inferBashFailureFromToolResult =
 
 export const isBashToolName = mod.isBashToolName as (name: unknown) => boolean;
 
+export const isLikelyValidationCommand = mod.isLikelyValidationCommand as (
+	command: string,
+) => boolean;
+
 export const recordBashValidationFailure = mod.recordBashValidationFailure as (
 	cwd: string,
 	input: { command: string; exit: number; failure?: string; head_sha?: string },

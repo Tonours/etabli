@@ -56,6 +56,10 @@ assert_contains "$out" "3 events, ok"
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-active)"
 assert_contains "$out" "active run: run-active"
 jq -e '.schema_version == 1 and .run == "run-active"' "$EVENT_DIR/.active-run.json" >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-other route_decided '{"route":"plan-loop","reason":"competing pointer test"}'
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-other)"
+assert_contains "$out" "active run already selected"
+jq -e '.run == "run-active"' "$EVENT_DIR/.active-run.json" >/dev/null
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-active completed '{"summary":"active pointer closed"}'
 [ ! -e "$EVENT_DIR/.active-run.json" ] || fail "terminal append must clear its active-run pointer"
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-a)"

@@ -70,6 +70,7 @@ one-writer-portfolio-smoke
 leap-harness-validation-smoke
 ledger-auto-emit-smoke
 workflow-receipts-smoke
+ledger-selection-performance-smoke
 workflow-supersession-smoke
 workflow-telemetry-recover-smoke
 workflow-dossier-smoke
