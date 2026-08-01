@@ -61,7 +61,7 @@ PASS claim-evidence-check-smoke (0s)
 
 ## Benchmark B (live A/B)
 
-Generated: 2026-08-01T00:08:53Z
+Generated: 2026-08-01T00:25:37Z (fresh re-run; prior measured sample 2026-08-01T00:08:53Z)
 
 **Status: measured (live)** — population `multi-model-quality-fixtures-v1` via `RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --quality`.
 
@@ -73,16 +73,16 @@ Artifacts:
 
 | Arm | Successes/runs | TokensParSuccès | DébitVérifié /h | mean elapsed ms |
 | --- | ---: | ---: | ---: | ---: |
-| baseline (single gpt-5.6-terra) | 6/6 | 6214.2 | 202.72 | 17758 |
-| panel (council) | 6/6 | 12250.2 | 78.24 | 46015 |
-| sol-ceiling | 3/3 | 9707.3 | 213.27 | 16880 |
+| baseline (single gpt-5.6-terra) | 6/6 | 9367.7 | 279.08 | 12900 |
+| panel (council) | 6/6 | 10385.8 | 84.03 | 42842 |
+| sol-ceiling | 3/3 | 15546.0 | 189.74 | 18973 |
 
 ### Panel vs baseline
 
 | Metric | Ratio panel/baseline | Target | Met? |
 | --- | ---: | --- | --- |
-| TokensParSuccès | 1.971× | ≤0.50× | False |
-| DébitVérifié | 0.386× | ≥2.00× | False |
+| TokensParSuccès | 1.109× | ≤0.50× | False |
+| DébitVérifié | 0.301× | ≥2.00× | False |
 
 ### Floors (quality)
 
@@ -90,14 +90,15 @@ Artifacts:
 - panel recall=1, FP=0
 - non-regression recall/FP: **True**
 - multi-model quality gate verdict: **ROLLBACK_TO_OPT_IN**
-- failures: tenant-cache: panel tokens exceed 4x baseline, tenant-cache: panel latency exceeds 4x baseline
+- failures: tenant-cache: panel latency exceeds 4x baseline (×2)
 
 ### Claims
 
-- −50% tokens: **false** (panel uses ~1.97× baseline tokens/success)
-- +100% verified throughput: **false** (panel throughput ~0.39× baseline)
-- Real agent scenarios: `RUN_REAL_AGENT_SCENARIOS=1` → **ok** (Pi+Claude CLIs)
+- −50% tokens: **false** (panel uses ~1.11× baseline tokens/success)
+- +100% verified throughput: **false** (panel throughput ~0.30× baseline)
+- A/B goal verdict: **measured-fail-targets** (live measured; promotion targets not met — expected per non-goals of measure-only goal)
+- Gating: flags unset → skip exit 0; flags set + openai-codex auth → live non-skip
 
 ### Inventory gate
 
-`docs/harness-optimization-inventory.md` has **0** `implement-now` rows; T3 hard caps remain blocked-with-evidence; live B is now **measured**.
+`docs/harness-optimization-inventory.md` has **0** `implement-now` rows; T3 hard caps remain blocked-with-evidence; live B is **measured** (fresh).

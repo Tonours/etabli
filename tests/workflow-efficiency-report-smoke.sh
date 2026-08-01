@@ -80,11 +80,36 @@ assert_jq '.smoke_suites | length > 0'
 assert_jq '.documented_source_surfaces >= 1'
 assert_jq '.source_of_truth_conflicts == 0'
 
+# Additive always-on / lazy-load metrics (strengthen-only; independent of pinned budget set).
+assert_jq 'has("always_on_context")'
+assert_jq 'has("lazy_load")'
+assert_jq '.always_on_context.estimate == "ceil(chars / 4)"'
+assert_jq '.always_on_context.dev_repo.total_tokens_uncached | type == "number"'
+assert_jq '.always_on_context.dev_repo.total_tokens_uncached > 0'
+assert_jq '.always_on_context.dev_repo.total_tokens_cached_amortized | type == "number"'
+assert_jq '.always_on_context.dev_repo.file_count >= 1'
+assert_jq '.always_on_context.deployed.claude.total_tokens_uncached | type == "number"'
+assert_jq '.always_on_context.deployed.claude.total_tokens_uncached > 0'
+assert_jq '.always_on_context.deployed.pi.total_tokens_uncached | type == "number"'
+assert_jq '.always_on_context.deployed.pi.total_tokens_uncached > 0'
+assert_jq '.always_on_context.deployed.claude.files | map(.path) | index("claude/CLAUDE.md") != null'
+assert_jq '.always_on_context.deployed.pi.files | map(.path) | index("pi/AGENTS.md") != null'
+assert_jq '.lazy_load.total_tokens | type == "number"'
+assert_jq '.lazy_load.total_tokens > 0'
+assert_jq '.lazy_load.file_count | type == "number"'
+assert_jq '.lazy_load.file_count > 0'
+assert_jq '.lazy_load.lazy_load_ratio | type == "number"'
+assert_jq '.lazy_load.lazy_load_ratio > 0 and .lazy_load.lazy_load_ratio < 1'
+# Decay architecture: majority of workflow corpus stays on-demand vs always-on.
+assert_jq '.lazy_load.lazy_load_ratio >= 0.5'
+
 assert_contains "$text_output" "shared_contract_files"
 assert_contains "$text_output" "router_adapter_lines"
 assert_contains "$text_output" "exact_duplicate_pairs"
 assert_contains "$text_output" "documented_source_surfaces"
 assert_contains "$text_output" "instruction_budget_tokens"
 assert_contains "$text_output" "instruction_budget_stretch_ok"
+assert_contains "$text_output" "always_on_context_tokens"
+assert_contains "$text_output" "lazy_load_ratio"
 
 printf 'workflow efficiency report smoke test: ok\n'
