@@ -176,14 +176,14 @@ const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledMo
 for (const model of [
   "custom/provider-model",
   "opencode-go/deepseek-v4-flash",
-  "openai-codex/gpt-5.6-terra",
+  "xai/grok-4.5",
   "zai/glm-5.2",
   "openai-codex/gpt-5.6-sol",
   "openai-codex/gpt-5.6-luna",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
 }
-// Bare gpt-5.6 alias remains retired; exact L/T/S pins are managed portfolio A.
+// Bare gpt-5.6 alias remains retired; Sol/Luna stay managed portfolio pins.
 if (enabledModels.includes("openai-codex/gpt-5.6")) {
   throw new Error("legacy bare openai-codex/gpt-5.6 alias was kept");
 }
