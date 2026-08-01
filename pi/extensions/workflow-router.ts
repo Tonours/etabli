@@ -19,6 +19,7 @@ import {
 	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
 import { maybeEmitOutcomeMetric } from "./lib/outcome-metric-emit.ts";
+import { takeTaskLoopAutoContinueCount } from "./lib/task-loop-metrics.ts";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -357,6 +358,24 @@ export default function (pi: ExtensionAPI) {
 	let portfolioCallState = newPortfolioCallState();
 
 	pi.on("before_agent_start", (event) => {
+		// Soft route-adaptive thinking (no-op if user already at target).
+		try {
+			const route = classifyWorkflowRoute(event.prompt).route;
+			const desired = thinkingLevelForRoute(route);
+			if (
+				typeof pi.getThinkingLevel === "function" &&
+				typeof pi.setThinkingLevel === "function" &&
+				pi.getThinkingLevel() !== desired
+			) {
+				// Skip extension auto-continues (task loop follow-ups).
+				if (!/^Continue the Task Loop\./.test(event.prompt.trim())) {
+					pi.setThinkingLevel(desired);
+				}
+			}
+		} catch {
+			// Never block the turn on thinking controls.
+		}
+
 		if (!shouldInjectWorkflowRouter(event.prompt)) return undefined;
 		portfolioCallState = newPortfolioCallState();
 
@@ -540,10 +559,14 @@ export default function (pi: ExtensionAPI) {
 				| undefined;
 			const runtime =
 				model?.provider && model?.id ? `${model.provider}/${model.id}` : "pi";
+			const autoContinueCount = takeTaskLoopAutoContinueCount();
 			await maybeEmitOutcomeMetric(cwd, {
 				parentUsage: parentUsageAcc,
 				runtime,
 				success_kind: "run_terminal",
+				...(autoContinueCount > 0
+					? { auto_continue_count: autoContinueCount }
+					: {}),
 			});
 		} catch {
 			// Never break the agent lifecycle on ledger I/O.
@@ -551,4 +574,27 @@ export default function (pi: ExtensionAPI) {
 			parentUsageAcc = null;
 		}
 	});
+}
+
+function thinkingLevelForRoute(
+	route: string,
+): "medium" | "high" | "xhigh" {
+	if (route === "answer" || route === "verify") return "medium";
+	if (
+		route === "adversary" ||
+		route === "sec-pr" ||
+		route === "bug-check" ||
+		route === "pr-review"
+	) {
+		return "xhigh";
+	}
+	if (
+		route === "implement" ||
+		route === "plan-implement" ||
+		route === "plan-loop" ||
+		route === "review"
+	) {
+		return "high";
+	}
+	return "high";
 }

@@ -22,9 +22,22 @@ export ZAI_API_KEY=...
 
 ## Fluidity (task loop + thinking)
 
-`tasks-till-done` only arms when Task* tools exist **and** the prompt is explicit
-task work (`todo`/`till-done`) or strong multi-step work (`implémente`,
-`plan-implement`, …). Bare `fix` / `go` / `update` no longer inject the loop.
+`tasksTillDone` in `~/.pi/agent/settings.json` (defaults on):
+
+```json
+"tasksTillDone": { "enabled": true, "autoContinue": true }
+```
+
+- `enabled: false` — no Task Loop guidance, no auto-continues
+- `autoContinue: false` — guidance ok, but no `agent_end` follow-ups
+
+Injection only when Task* tools exist **and** the prompt is explicit task work
+(`todo`/`till-done`) or strong multi-step work (`implémente`, `plan-implement`, …).
+Bare `fix` / `go` / `update` do not arm the loop.
+
+**Completion evidence** (adversary + archive + PLAN cleanup auto-continues) runs
+only when an active `.workflow/active-run.json` ledger exists (autonomous). Interactive
+implement still may force a single validation continue.
 
 Caps per user turn (each auto-continue is a full model pass):
 
@@ -33,10 +46,11 @@ Caps per user turn (each auto-continue is a full model pass):
 | Total auto-continues | 6 |
 | Stall (same TaskList signature) | 1 |
 | Forced validation-only continues | 1 |
-| Forced completion-evidence continues | 2 |
+| Forced completion-evidence continues | 2 (autonomous only) |
 
-Parent default thinking is **`high`** (not `xhigh`) for day-to-day latency; raise
-with `Shift+Tab` when you need max depth. Sidecar `defaultMaxTurns` is 12.
+Route-adaptive thinking (soft): `answer`→medium, implement/plan→high,
+adversary/sec-pr/bug-check→xhigh. Override anytime with `Shift+Tab`.
+Sidecar `defaultMaxTurns` is 12; scout role pin is 8.
 
 ## Network latency (z.ai / model APIs)
 

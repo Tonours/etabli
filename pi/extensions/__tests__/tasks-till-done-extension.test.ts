@@ -49,6 +49,16 @@ function createImplementationCwd(): string {
   return cwd;
 }
 
+/** Mark cwd as an autonomous Etabli run (active ledger pointer). */
+function activateAutonomousLedger(cwd: string, run = "auto-run"): void {
+  mkdirSync(join(cwd, ".workflow", run), { recursive: true });
+  writeFileSync(
+    join(cwd, ".workflow", "active-run.json"),
+    JSON.stringify({ schema_version: 1, run }) + "\n",
+  );
+  writeFileSync(join(cwd, ".workflow", run, "events.jsonl"), "{}\n");
+}
+
 function implementedPlanArchivePath(cwd: string): string {
   return join(cwd, "docs", "plan", "20260702-implemented-plan.md");
 }
@@ -158,22 +168,57 @@ describe("tasks till-done extension", () => {
 
   test("requires adversary, validation, review, archive, and cleanup before completing implementation task loops", () => {
     const runtime = setupExtension();
+    const cwd = createImplementationCwd();
+    activateAutonomousLedger(cwd);
 
-    runtime.emit("before_agent_start", {
-      prompt: "Implémente ce changement",
-      systemPrompt: "Base prompt",
-    });
-    runtime.emit("tool_result", {
-      toolName: "TaskList",
-      content: [{ type: "text", text: "#1 [completed] Patch extension" }],
-    });
-    runtime.emit("agent_end", {});
+    try {
+      runtime.emit("before_agent_start", {
+        prompt: "Implémente ce changement",
+        systemPrompt: "Base prompt",
+        cwd,
+      });
+      runtime.emit("tool_result", {
+        toolName: "TaskList",
+        content: [{ type: "text", text: "#1 [completed] Patch extension" }],
+      });
+      runtime.emit("agent_end", {});
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
 
     expect(runtime.sentUserMessages).toHaveLength(1);
     expect(runtime.sentUserMessages[0]).toContain("needs completion evidence");
     expect(runtime.sentUserMessages[0]).toContain("adversarial plan review");
     expect(runtime.sentUserMessages[0]).toContain("implemented-plan archive under docs/plan");
     expect(runtime.entries[0]).toMatchObject({ reason: "completion_evidence_required", workflowRoute: "plan-implement" });
+  });
+
+  test("interactive implement without active ledger does not force completion evidence", () => {
+    const runtime = setupExtension();
+    const cwd = createImplementationCwd();
+
+    try {
+      runtime.emit("before_agent_start", {
+        prompt: "Implémente ce changement",
+        systemPrompt: "Base prompt",
+        cwd,
+      });
+      runtime.emit("tool_result", {
+        toolName: "TaskList",
+        content: [{ type: "text", text: "#1 [completed] Patch extension" }],
+      });
+      runtime.emit("agent_end", {});
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+
+    // May still ask for validation once; must not demand full autonomous completion package.
+    if (runtime.sentUserMessages.length > 0) {
+      expect(runtime.sentUserMessages[0]).not.toContain("adversarial plan review");
+      expect(runtime.entries[0]).toMatchObject({ reason: "validation_required" });
+    } else {
+      expect(runtime.sentUserMessages).toEqual([]);
+    }
   });
 
   test("sends a visible stop message when blocked", () => {
@@ -232,6 +277,7 @@ describe("tasks till-done extension", () => {
   test("continues when completion tasks cite only a stale implemented-plan archive", () => {
     const runtime = setupExtension();
     const cwd = createImplementationCwd();
+    activateAutonomousLedger(cwd);
 
     try {
       writeImplementedPlanArchive(cwd, new Date(Date.now() - 60_000));
@@ -273,6 +319,7 @@ describe("tasks till-done extension", () => {
   test("keeps implemented-plan archive evidence once seen during a loop", () => {
     const runtime = setupExtension();
     const cwd = createImplementationCwd();
+    activateAutonomousLedger(cwd);
 
     try {
       runtime.emit("before_agent_start", {
