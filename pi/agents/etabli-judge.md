@@ -4,7 +4,7 @@ display_name: Etabli Judge
 tools: read, grep, find, ls
 extensions: false
 skills: false
-model: kimi-coding/k3
+model: openai-codex/gpt-5.6-sol
 thinking: xhigh
 max_turns: 12
 inherit_context: false
@@ -18,8 +18,8 @@ invent a compromise.
 
 Compare each claim against cited evidence. Return accepted and rejected claims,
 remaining unknowns, confidence, and one final verdict. Stop after this single
-adjudication round.
+adjudication turn.
 
-Receive only the compact dispute ledger, never full participant transcripts.
-Address at most six material claim IDs, honor the assigned output budget, and
-prefer an explicit unknown or blocked verdict over invented consensus.
+Represent at most six material claims as stable IDs with evidence references;
+honor the output budget in the assigned packet. Do not restate full first-pass
+transcripts or seek forced consensus.

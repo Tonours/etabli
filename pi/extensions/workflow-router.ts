@@ -34,11 +34,11 @@ const ETABLI_PORTFOLIO_ROLES = new Set([
 	"etabli-judge",
 ]);
 const ETABLI_PORTFOLIO_MODELS = new Set([
+	"opencode-go/deepseek-v4-flash",
+	"openai-codex/gpt-5.6-terra",
 	"zai/glm-5.2",
-	"zai/glm-5.1",
-	"zai/glm-5-turbo",
-	"xai/grok-4.5",
-	"kimi-coding/k3",
+	"openai-codex/gpt-5.6-sol",
+	"openai-codex/gpt-5.6-luna",
 ]);
 
 type PortfolioCallState = {

@@ -5,12 +5,12 @@ type AgentFrontmatter = Record<string, string>;
 
 const AGENTS = {
   "etabli-scout.md": {
-    model: "zai/glm-5-turbo",
+    model: "opencode-go/deepseek-v4-flash",
     thinking: "medium",
     maxTurns: "12",
   },
   "etabli-analyst.md": {
-    model: "xai/grok-4.5",
+    model: "openai-codex/gpt-5.6-terra",
     thinking: "high",
     maxTurns: "16",
   },
@@ -20,13 +20,13 @@ const AGENTS = {
     maxTurns: "16",
   },
   "etabli-judge.md": {
-    model: "kimi-coding/k3",
+    model: "openai-codex/gpt-5.6-sol",
     thinking: "xhigh",
     maxTurns: "12",
   },
   "etabli-fallback.md": {
-    model: "zai/glm-5.1",
-    thinking: "xhigh",
+    model: "openai-codex/gpt-5.6-luna",
+    thinking: "high",
     maxTurns: "12",
   },
 } as const;

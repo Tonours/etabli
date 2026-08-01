@@ -189,16 +189,16 @@ Codex harness tree (ADR-0011).
 
 | Role | Typical model id | Effort |
 |------|------------------|--------|
-| Scout | `zai/glm-5-turbo` | medium |
-| Analyst | `xai/grok-4.5` | high |
+| Scout | `opencode-go/deepseek-v4-flash` | medium |
+| Analyst | `openai-codex/gpt-5.6-terra` | high |
 | Challenger | `zai/glm-5.2` | xhigh |
-| Judge | `kimi-coding/k3` | xhigh |
-| Fallback | `zai/glm-5.1` | xhigh |
+| Judge | `openai-codex/gpt-5.6-sol` | xhigh |
+| Fallback | `openai-codex/gpt-5.6-luna` | high |
 
 ```mermaid
 flowchart TB
-  Parent[Parent writer] --> Scout[glm-5-turbo scout RO]
-  Parent --> Council[grok-4.5 / glm-5.2 / k3 RO]
+  Parent[Parent writer] --> Scout[deepseek-v4-flash scout RO]
+  Parent --> Council[terra / glm-5.2 / sol RO]
   Scout --> Parent
   Council --> Parent
   Parent --> Git[Repo mutations]

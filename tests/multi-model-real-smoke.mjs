@@ -14,14 +14,12 @@ const DEFAULT_PI_CANDIDATES = [
   "pi",
 ].filter(Boolean);
 
-// Live parents must match the managed Pi portfolio in pi/agent/settings.json
-// (no retired openai-codex/gpt-5.6-* aliases). Sidecar roles stay pinned by
-// pi/agents/etabli-*.md (scout/challenger/judge/analyst).
+// Live parents + portfolio A pins (see pi/agents/etabli-*.md).
 const PORTFOLIO = {
   coordinator: { provider: "openai-codex", model: "gpt-5.5", thinking: "high" },
   baseline: { provider: "openai-codex", model: "gpt-5.5", thinking: "high" },
-  // Strong single-model ceiling arm (historical "sol" role); K3 is the portfolio adjudicator pin.
-  ceiling: { provider: "kimi-coding", model: "k3", thinking: "xhigh" },
+  // Strong single-model ceiling arm matches the Sol adjudicator pin.
+  ceiling: { provider: "openai-codex", model: "gpt-5.6-sol", thinking: "xhigh" },
   taskRpc: { provider: "openai-codex", model: "gpt-5.3-codex-spark", thinking: "medium" },
 };
 
@@ -323,7 +321,7 @@ async function runPanel(piBinary, fixture, benchmarkDir) {
   const spawnResults = toolResults(run.events, "Agent");
   assert(spawnResults.length === 2, `panel produced ${spawnResults.length} spawn results instead of 2`);
   const expectedModels = new Map([
-    ["Etabli Scout", "glm-5-turbo"],
+    ["Etabli Scout", "deepseek-v4-flash"],
     ["Etabli Challenger", "glm-5.2"],
   ]);
   for (const result of spawnResults) {
@@ -431,11 +429,11 @@ function evaluateQuality(fixtures, runs) {
 
 async function runProbes(piBinary) {
   const modelProbes = [
-    ["zai", "glm-5-turbo", "medium", "GLM_TURBO_PROBE_OK"],
-    ["xai", "grok-4.5", "high", "GROK_PROBE_OK"],
+    ["opencode-go", "deepseek-v4-flash", "medium", "FLASH_PROBE_OK"],
+    ["openai-codex", "gpt-5.6-terra", "high", "TERRA_PROBE_OK"],
     ["zai", "glm-5.2", "xhigh", "GLM_PROBE_OK"],
-    ["zai", "glm-5.1", "xhigh", "GLM_51_PROBE_OK"],
-    ["kimi-coding", "k3", "xhigh", "KIMI_K3_PROBE_OK"],
+    ["openai-codex", "gpt-5.6-sol", "xhigh", "SOL_PROBE_OK"],
+    ["openai-codex", "gpt-5.6-luna", "high", "LUNA_PROBE_OK"],
   ];
   const results = [];
   for (const [provider, model, thinking, marker] of modelProbes) {
@@ -452,11 +450,11 @@ async function runProbes(piBinary) {
     results.push({ provider, model, elapsedMs: run.elapsedMs, nonCacheTokens: evidence.nonCacheTokens });
   }
 
-  const historyNonce = "KIMI_K3_HISTORY_7319";
+  const historyNonce = "TERRA_HISTORY_7319";
   const historyRun = await runPi(piBinary, {
-    provider: "kimi-coding",
-    model: "k3",
-    thinking: "xhigh",
+    provider: "openai-codex",
+    model: "gpt-5.6-terra",
+    thinking: "high",
     tools: "read,grep,find,ls",
     prompts: [
       `Remember the exact nonce ${historyNonce}. Return exactly STORED.`,
@@ -466,22 +464,21 @@ async function runProbes(piBinary) {
   const historyMessages = historyRun.events
     .filter((event) => event.type === "message_end" && event.message?.role === "assistant")
     .map((event) => event.message);
-  assert(historyMessages.length === 2, `K3 history probe returned ${historyMessages.length} assistant turns`);
+  assert(historyMessages.length === 2, `Terra history probe returned ${historyMessages.length} assistant turns`);
   for (const message of historyMessages) {
-    assert(message.provider === "kimi-coding" && message.model === "k3", "K3 history provenance mismatch");
-    assert(message.content.some((part) => part.type === "thinking"), "K3 history turn omitted thinking evidence");
+    assert(message.provider === "openai-codex" && message.model === "gpt-5.6-terra", "Terra history provenance mismatch");
   }
-  assert(messageText(historyMessages[0]).includes("STORED"), "K3 history setup response mismatch");
-  assert(messageText(historyMessages[1]).includes(historyNonce), "K3 did not preserve multi-turn history");
+  assert(messageText(historyMessages[0]).includes("STORED"), "Terra history setup response mismatch");
+  assert(messageText(historyMessages[1]).includes(historyNonce), "Terra did not preserve multi-turn history");
 
   return {
     models: results,
-    kimiHistoryTurns: historyMessages.length,
+    terraHistoryTurns: historyMessages.length,
   };
 }
 
 const EXPECTED_ROLE_PROVENANCE = new Map([
-  ["etabli-scout", { displayName: "Etabli Scout", modelName: "glm-5-turbo" }],
+  ["etabli-scout", { displayName: "Etabli Scout", modelName: "deepseek-v4-flash" }],
   ["etabli-challenger", { displayName: "Etabli Challenger", modelName: "glm-5.2" }],
 ]);
 

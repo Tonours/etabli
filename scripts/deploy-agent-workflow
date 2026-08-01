@@ -269,17 +269,14 @@ let localPackages = Array.isArray(localSettings.packages) ? localSettings.packag
 let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
 const changes = [];
 const managedModels = new Set([
+  "opencode-go/deepseek-v4-flash",
+  "openai-codex/gpt-5.6-terra",
   "zai/glm-5.2",
-  "zai/glm-5.1",
-  "zai/glm-5-turbo",
-  "xai/grok-4.5",
-  "kimi-coding/k3",
+  "openai-codex/gpt-5.6-sol",
+  "openai-codex/gpt-5.6-luna",
 ]);
 const legacyModels = new Set([
   "openai-codex/gpt-5.6",
-  "openai-codex/gpt-5.6-luna",
-  "openai-codex/gpt-5.6-terra",
-  "openai-codex/gpt-5.6-sol",
 ]);
 
 const filteredPackages = localPackages.filter((entry) => {

@@ -4,7 +4,7 @@ display_name: Etabli Scout
 tools: read, grep, find, ls
 extensions: false
 skills: false
-model: zai/glm-5-turbo
+model: opencode-go/deepseek-v4-flash
 thinking: medium
 max_turns: 12
 inherit_context: false
@@ -18,7 +18,7 @@ not observed.
 
 Return a compact packet with: observed facts and paths, findings, unknowns,
 confidence, and verdict. Stop when the packet is sufficient for the parent to
-integrate.
+integrate. Prefer repository paths and commands over narrative summary.
 
 Represent at most six material claims as stable IDs with evidence references;
 honor the output budget in the assigned packet. On a resumed rebuttal turn,
