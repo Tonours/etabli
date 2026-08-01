@@ -270,7 +270,11 @@ run_pi_taskexecute_e2e() {
   local args
 
   subagent_extension="$(resolve_tintinweb_subagents_extension)"
-  args=(--print --no-session --no-builtin-tools --tools TaskCreate,TaskList,TaskExecute,TaskOutput,TaskGet --thinking off --model "$PI_MODEL")
+  args=(--print --no-session --no-builtin-tools --tools TaskCreate,TaskList,TaskExecute,TaskOutput,TaskGet --thinking off)
+  # Empty PI_MODEL = Pi default; never pass --model "".
+  if [ -n "$PI_MODEL" ]; then
+    args+=(--model "$PI_MODEL")
+  fi
   if [ -n "$subagent_extension" ]; then
     args=(--extension "$subagent_extension" "${args[@]}")
   fi
@@ -278,7 +282,11 @@ run_pi_taskexecute_e2e() {
     args+=(--approve)
   fi
 
-  prompt="You are in a temporary Etabli workflow project. Use only Task* tools. Create exactly one pending task with metadata {\"agentType\":\"worker\"}. The task description must tell the worker to work in the current directory, create subagent-proof.txt with exactly SUBAGENT_E2E_OK and a trailing newline, create docs/plan/20260702-pi-task-subagent-e2e.md containing '# Pi Task subagent e2e archive' and 'Status: implemented', delete the root PLAN.md, and avoid changing other files. Then TaskExecute that task with model $PI_MODEL and max_turns 12. Then call TaskOutput with block=true and timeout=180000. Finish with a concise status."
+  local task_model_clause="the default Pi model"
+  if [ -n "$PI_MODEL" ]; then
+    task_model_clause="model $PI_MODEL"
+  fi
+  prompt="You are in a temporary Etabli workflow project. Use only Task* tools. Create exactly one pending task with metadata {\"agentType\":\"worker\"}. The task description must tell the worker to work in the current directory, create subagent-proof.txt with exactly SUBAGENT_E2E_OK and a trailing newline, create docs/plan/20260702-pi-task-subagent-e2e.md containing '# Pi Task subagent e2e archive' and 'Status: implemented', delete the root PLAN.md, and avoid changing other files. Then TaskExecute that task with ${task_model_clause} and max_turns 12. Then call TaskOutput with block=true and timeout=180000. Finish with a concise status."
 
   for attempt in $(seq 1 "$REAL_AGENT_RETRIES"); do
     rm -f "$proof_path" "$archive_path"
