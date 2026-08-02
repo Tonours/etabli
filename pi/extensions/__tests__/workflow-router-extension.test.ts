@@ -516,6 +516,37 @@ describe("workflow router extension", () => {
 
 		// A TUI renderer is registered for the custom type.
 		expect(runtime.renderers.has("etabli.workflow-router")).toBe(true);
+
+		// The registered renderer renders the role and wraps the long reason so
+		// the remediation is readable instead of truncated at terminal width.
+		const renderer = runtime.renderers.get(
+			"etabli.workflow-router",
+		) as (entry: { data?: unknown }, opts: unknown, theme: unknown) => {
+			children: Array<{ text?: string }>;
+		};
+		const out = renderer(
+			{
+				data: {
+					kind: "portfolio-block",
+					version: "test",
+					toolName: "Agent",
+					toolCallId: "t1",
+					role: "etabli-challenger",
+					reason:
+						"Etabli adaptive council budget: no portfolio sidecar is admitted for the active route " +
+						"Remediation: continue parent-only; ask the user for explicit multi-model/panel intent; " +
+						"or run the adversary route. Never present a same-family substitute as a cross-model pass.",
+				},
+			},
+			{},
+			{ fg: (_color: string, text: string) => text, bold: (text: string) => text },
+		);
+		const rendered = out.children.map((child) => child.text ?? "").join("\n");
+		expect(rendered).toContain("Etabli block");
+		expect(rendered).toContain("[etabli-challenger]");
+		expect(rendered).toContain("Remediation:");
+		// Long reason: wrapped onto several lines, not a single truncated line.
+		expect(out.children.length).toBeGreaterThanOrEqual(3);
 	});
 
 	test("admitted portfolio calls emit no block entry", () => {
