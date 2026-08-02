@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import { Box, Text } from "@earendil-works/pi-tui";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -155,14 +155,33 @@ function portfolioBlockRenderer(
 ) {
 	const data = (entry.data ?? {}) as Partial<PortfolioBlockEntry>;
 	const role = data.role ? ` [${data.role}]` : "";
-	return new Text(
-		theme.fg("error", theme.bold("Etabli block")) +
-			role +
-			": " +
-			(data.reason ?? ""),
-		0,
-		0,
+	const box = new Box(0, 0);
+	box.addChild(
+		new Text(
+			theme.fg("error", theme.bold("Etabli block")) + role + ":",
+			0,
+			0,
+		),
 	);
+	// Wrap the (long) reason so the remediation is readable in the TUI
+	// instead of being truncated at the terminal width.
+	for (const line of chunkText(data.reason ?? "", 76)) {
+		box.addChild(new Text(theme.fg("dim", line), 0, 0));
+	}
+	return box;
+}
+
+function chunkText(text: string, width: number): string[] {
+	const lines: string[] = [];
+	let rest = text.trim();
+	while (rest.length > width) {
+		let cut = rest.lastIndexOf(" ", width);
+		if (cut <= 0) cut = width;
+		lines.push(rest.slice(0, cut));
+		rest = rest.slice(cut).trimStart();
+	}
+	if (rest !== "") lines.push(rest);
+	return lines;
 }
 
 function guardPortfolioCall(
