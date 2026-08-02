@@ -106,6 +106,22 @@ Direct Agent success does not prove TaskExecute stop/tracking semantics.
 Each result packet must state observed facts, findings, unknowns, confidence,
 and verdict. The parent records accepted/rejected findings and any fallback.
 
+## Guard Coverage And Provenance
+
+The structural guard (`workflow-router` extension) covers exactly the five
+pinned portfolio roles on the `Agent` surface and the exact portfolio model
+overrides on `TaskExecute`; any other `Agent` call (e.g. `general-purpose`,
+explore, task-loop helpers) passes unguarded. A blocked call must not be
+silently re-issued through a non-portfolio role: a same-family sidecar is
+labeled same-family and is never reported as a cross-family council or
+challenger pass — that would be a provenance failure, not a council.
+
+Escalation is user-owned or route-owned, never agent-declared. The three
+sanctioned exits after a block are: continue parent-only; ask the user for
+explicit `multi-model`/`panel`/`cross-model`/`plusieurs agents` intent; or run
+the `adversary` route. An agent cannot authorize a council by editing
+`PLAN.md` or by re-labeling a same-family substitute.
+
 ## Evidence Event
 
 Record a `multi_execution_completed` event when the run has a ledger. Its detail
