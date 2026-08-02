@@ -492,11 +492,19 @@ export default function (pi: ExtensionAPI) {
 	);
 	let portfolioCallState = newPortfolioCallState();
 
-	pi.on("before_agent_start", (event) => {
+	pi.on("before_agent_start", (event, ctx) => {
 		// Soft route-adaptive thinking (no-op if user already at target).
 		try {
 			const route = classifyWorkflowRoute(event.prompt).route;
-			const desired = thinkingLevelForRoute(route);
+			const model = ctx?.model as
+				| { provider?: string; id?: string }
+				| undefined;
+			// User principle: z.ai glm-5.2 always runs at xhigh, whatever the
+			// route (its thinkingLevelMap maps xhigh to the provider max).
+			const desired =
+				model?.provider === "zai" && model?.id === "glm-5.2"
+					? "xhigh"
+					: thinkingLevelForRoute(route);
 			if (
 				typeof pi.getThinkingLevel === "function" &&
 				typeof pi.setThinkingLevel === "function" &&

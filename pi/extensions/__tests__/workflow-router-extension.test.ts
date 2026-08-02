@@ -11,7 +11,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import workflowRouter from "../workflow-router.ts";
 
-type Handler = (event: Record<string, unknown>) => unknown;
+type Handler = (
+	event: Record<string, unknown>,
+	ctx?: Record<string, unknown>,
+) => unknown;
 
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
@@ -19,6 +22,7 @@ function setupExtension(
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
 	const renderers = new Map<string, unknown>();
+	let thinkingLevel: string | undefined;
 
 	const pi = {
 		on(eventName: string, handler: Handler) {
@@ -33,6 +37,12 @@ function setupExtension(
 		registerEntryRenderer(customType: string, renderer: unknown) {
 			renderers.set(customType, renderer);
 		},
+		getThinkingLevel() {
+			return thinkingLevel;
+		},
+		setThinkingLevel(level: string) {
+			thinkingLevel = level;
+		},
 	};
 
 	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
@@ -40,8 +50,13 @@ function setupExtension(
 	return {
 		entries,
 		renderers,
-		emit(eventName: string, event: Record<string, unknown>) {
-			return (handlers.get(eventName) ?? []).map((handler) => handler(event));
+		get thinkingLevel() {
+			return thinkingLevel;
+		},
+		emit(eventName: string, event: Record<string, unknown>, ctx?: Record<string, unknown>) {
+			return (handlers.get(eventName) ?? []).map((handler) =>
+				handler(event, ctx),
+			);
 		},
 	};
 }
@@ -147,6 +162,40 @@ describe("workflow router extension", () => {
 			version: "0.6.0",
 			decision: { route: "answer", knowledgeContext: { topics: ["saas"] } },
 		});
+	});
+
+	test("keeps z.ai glm-5.2 at xhigh regardless of route", () => {
+		const runtime = setupExtension();
+		// A route that would normally force medium must not downgrade glm-5.2.
+		runtime.emit(
+			"before_agent_start",
+			{
+				prompt: "Peux tu me donner un résumé ?",
+				systemPrompt: "Base prompt",
+			},
+			{ model: { provider: "zai", id: "glm-5.2" } },
+		);
+		expect(runtime.thinkingLevel).toBe("xhigh");
+
+		// Another provider on the same route still follows the route target.
+		const other = setupExtension();
+		other.emit(
+			"before_agent_start",
+			{
+				prompt: "Peux tu me donner un résumé ?",
+				systemPrompt: "Base prompt",
+			},
+			{ model: { provider: "opencode-go", id: "deepseek-v4-flash" } },
+		);
+		expect(other.thinkingLevel).toBe("medium");
+
+		// No ctx (model unknown): the route target applies.
+		const noModel = setupExtension();
+		noModel.emit("before_agent_start", {
+			prompt: "Peux tu me donner un résumé ?",
+			systemPrompt: "Base prompt",
+		});
+		expect(noModel.thinkingLevel).toBe("medium");
 	});
 
 	test("keeps unrelated answers free of router injection", () => {
