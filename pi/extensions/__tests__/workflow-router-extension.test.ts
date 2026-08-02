@@ -18,6 +18,7 @@ function setupExtension(
 ) {
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
+	const renderers = new Map<string, unknown>();
 
 	const pi = {
 		on(eventName: string, handler: Handler) {
@@ -29,12 +30,16 @@ function setupExtension(
 		appendEntry(_customType: string, data?: unknown) {
 			entries.push(data);
 		},
+		registerEntryRenderer(customType: string, renderer: unknown) {
+			renderers.set(customType, renderer);
+		},
 	};
 
 	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
 
 	return {
 		entries,
+		renderers,
 		emit(eventName: string, event: Record<string, unknown>) {
 			return (handlers.get(eventName) ?? []).map((handler) => handler(event));
 		},
@@ -363,7 +368,10 @@ describe("workflow router extension", () => {
 			}),
 		).toMatchObject({ block: true });
 		expect(
-			taskCall("TaskExecute", { task_ids: ["1"], model: "openai-codex/gpt-5.6-sol" }),
+			taskCall("TaskExecute", {
+				task_ids: ["1"],
+				model: "openai-codex/gpt-5.6-sol",
+			}),
 		).toMatchObject({ block: true });
 		expect(
 			taskCall("TaskCreate", { agentType: "generic-explorer" }),
@@ -371,6 +379,286 @@ describe("workflow router extension", () => {
 		expect(
 			taskCall("TaskExecute", { task_ids: ["2"], model: "other/model" }),
 		).toBeUndefined();
+	});
+
+	test("every portfolio block reason names its remediation", () => {
+		const runtime = setupExtension();
+		runtime.emit("before_agent_start", {
+			prompt: "Peux tu me donner un résumé ?",
+			systemPrompt: "Base prompt",
+		});
+
+		const call = (toolCallId: string, input: Record<string, unknown>) =>
+			runtime.emit("tool_call", {
+				toolName: "Agent",
+				toolCallId,
+				input,
+			})[0];
+
+		// Single-strategy route: the incident shape. The reason must name the
+		// three sanctioned exits and the same-family labeling rule.
+		const singleBlock = call("single-route", {
+			subagent_type: "etabli-challenger",
+		}) as { block: boolean; reason: string };
+		expect(singleBlock).toMatchObject({ block: true });
+		const singleReason = singleBlock.reason as string;
+		expect(singleReason).toContain("Remediation:");
+		expect(singleReason).toContain("parent-only");
+		expect(singleReason).toContain("multi-model");
+		expect(singleReason).toContain("adversary route");
+		expect(singleReason).toContain("same-family");
+
+		// Task RPC surface blocks carry the Agent-surface remediation.
+		const taskBlock = runtime.emit("tool_call", {
+			toolName: "TaskCreate",
+			toolCallId: "task-create",
+			input: { agentType: "etabli-scout" },
+		})[0] as { block: boolean; reason: string };
+		expect(taskBlock).toMatchObject({ block: true });
+		expect(taskBlock.reason).toContain("Remediation:");
+		expect(taskBlock.reason).toContain("guarded Agent surface");
+
+		// Budget-cap blocks inside an active council carry the fixed-budget clause.
+		const council = setupExtension();
+		council.emit("before_agent_start", {
+			prompt: "Fais une review de sécurité de cette race condition",
+			systemPrompt: "Base prompt",
+		});
+		const capBlock = council.emit("tool_call", {
+			toolName: "Agent",
+			toolCallId: "early-sol",
+			input: { subagent_type: "etabli-judge" },
+		})[0] as { block: boolean; reason: string };
+		expect(capBlock).toMatchObject({ block: true });
+		expect(capBlock.reason).toContain("Remediation:");
+		expect(capBlock.reason).toContain("run the admitted first passes");
+	});
+
+	test("records each blocked portfolio call as a visible block entry", () => {
+		const runtime = setupExtension();
+		runtime.emit("before_agent_start", {
+			prompt: "Peux tu me donner un résumé ?",
+			systemPrompt: "Base prompt",
+		});
+
+		const call = (toolCallId: string, input: Record<string, unknown>) =>
+			runtime.emit("tool_call", {
+				toolName: "Agent",
+				toolCallId,
+				input,
+			})[0];
+
+		const blocks = () =>
+			runtime.entries.filter(
+				(
+					entry,
+				): entry is {
+					kind: string;
+					toolCallId: string;
+					role?: string;
+					reason?: string;
+					toolName?: string;
+					version?: string;
+				} =>
+					typeof entry === "object" &&
+					entry !== null &&
+					(entry as { kind?: unknown }).kind === "portfolio-block",
+			);
+
+		// Blocked portfolio role: exactly one entry with all four fields.
+		expect(call("t1", { subagent_type: "etabli-challenger" })).toMatchObject({
+			block: true,
+		});
+		expect(blocks()).toHaveLength(1);
+		expect(blocks()[0]).toMatchObject({
+			kind: "portfolio-block",
+			toolName: "Agent",
+			toolCallId: "t1",
+			role: "etabli-challenger",
+		});
+		expect(blocks()[0].reason).toContain("Remediation:");
+
+		// Task RPC surface: entry carries the role or model pin.
+		runtime.emit("tool_call", {
+			toolName: "TaskCreate",
+			toolCallId: "t2",
+			input: { agentType: "etabli-scout" },
+		});
+		expect(blocks()).toHaveLength(2);
+		expect(blocks()[1]).toMatchObject({
+			toolName: "TaskCreate",
+			toolCallId: "t2",
+			role: "etabli-scout",
+		});
+
+		// TaskExecute model-pin block: the entry labels the pin, not a role.
+		runtime.emit("tool_call", {
+			toolName: "TaskExecute",
+			toolCallId: "t2b",
+			input: { task_ids: ["1"], model: "openai-codex/gpt-5.6-sol" },
+		});
+		expect(blocks()).toHaveLength(3);
+		expect(blocks()[2]).toMatchObject({
+			toolName: "TaskExecute",
+			toolCallId: "t2b",
+			role: "model:openai-codex/gpt-5.6-sol",
+		});
+
+		// Re-firing the same blocked call id emits no duplicate entry.
+		expect(call("t1", { subagent_type: "etabli-challenger" })).toMatchObject({
+			block: true,
+		});
+		expect(blocks()).toHaveLength(3);
+
+		// Non-portfolio Agent call: no entry.
+		expect(call("t3", { subagent_type: "generic-explorer" })).toBeUndefined();
+		expect(blocks()).toHaveLength(3);
+
+		// A TUI renderer is registered for the custom type.
+		expect(runtime.renderers.has("etabli.workflow-router")).toBe(true);
+	});
+
+	test("admitted portfolio calls emit no block entry", () => {
+		const runtime = setupExtension();
+		runtime.emit("before_agent_start", {
+			prompt: "Fais une review de sécurité de cette race condition",
+			systemPrompt: "Base prompt",
+		});
+
+		const call = (toolCallId: string, subagent_type: string) =>
+			runtime.emit("tool_call", {
+				toolName: "Agent",
+				toolCallId,
+				input: { subagent_type },
+			})[0];
+
+		expect(call("ok-luna", "etabli-scout")).toBeUndefined();
+		const blockEntries = runtime.entries.filter(
+			(entry) =>
+				typeof entry === "object" &&
+				entry !== null &&
+				(entry as { kind?: unknown }).kind === "portfolio-block",
+		);
+		expect(blockEntries).toHaveLength(0);
+	});
+
+	test("does not throw when the renderer surface is absent", () => {
+		const handlers = new Map<string, Handler[]>();
+		const pi = {
+			on(eventName: string, handler: Handler) {
+				handlers.set(eventName, [...(handlers.get(eventName) ?? []), handler]);
+			},
+			getActiveTools() {
+				return ["Agent"];
+			},
+		};
+		workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
+		const emit = (eventName: string, event: Record<string, unknown>) =>
+			(handlers.get(eventName) ?? []).map((handler) => handler(event));
+
+		emit("before_agent_start", {
+			prompt: "Peux tu me donner un résumé ?",
+			systemPrompt: "Base prompt",
+		});
+		const block = emit("tool_call", {
+			toolName: "Agent",
+			toolCallId: "bare",
+			input: { subagent_type: "etabli-challenger" },
+		})[0];
+		expect(block).toMatchObject({ block: true });
+	});
+
+	test("guard state survives agent_end and is cleared on agent_settled", async () => {
+		const runtime = setupExtension();
+		runtime.emit("before_agent_start", {
+			prompt: "Fais une review de sécurité de cette race condition",
+			systemPrompt: "Base prompt",
+		});
+
+		const call = (toolCallId: string, input: Record<string, unknown>) =>
+			runtime.emit("tool_call", {
+				toolName: "Agent",
+				toolCallId,
+				input,
+			})[0];
+		const result = (
+			toolCallId: string,
+			subagentType: string,
+			agentId: string,
+			status = "background",
+		) =>
+			runtime.emit("tool_result", {
+				toolName: "Agent",
+				toolCallId,
+				input: { subagent_type: subagentType },
+				content: [],
+				details: { subagentType, agentId, status },
+				isError: false,
+			});
+
+		// Admit a scout first pass.
+		expect(
+			call("pass-luna", { subagent_type: "etabli-scout" }),
+		).toBeUndefined();
+		result("pass-luna", "etabli-scout", "luna-id");
+
+		// A low-level run ends (auto-retry/compaction boundary): state must survive.
+		runtime.emit("agent_end", {
+			messages: [{ role: "assistant", content: "x" }],
+		});
+
+		// Same role is still capped by the same decision.
+		expect(call("dup-luna", { subagent_type: "etabli-scout" })).toMatchObject({
+			block: true,
+		});
+		// The admitted agentId is still bound: a resume of it is admitted.
+		runtime.emit("tool_result", {
+			toolName: "get_subagent_result",
+			toolCallId: "get-luna-id-completed",
+			input: { agent_id: "luna-id", wait: true },
+			content: [
+				{
+					type: "text",
+					text: "Agent: luna-id\nType: test | Status: completed",
+				},
+			],
+			isError: false,
+		});
+		expect(
+			call("resume-luna", { subagent_type: "etabli-scout", resume: "luna-id" }),
+		).toBeUndefined();
+
+		// The turn settles: the state is cleared. agent_settled handlers are
+		// async, so await the emitted promises before asserting.
+		await Promise.all(runtime.emit("agent_settled", {}) as Promise<unknown>[]);
+		expect(
+			call("after-settled", { subagent_type: "etabli-scout" }),
+		).toMatchObject({ block: true });
+	});
+
+	test("guard state is cleared by the next injected before_agent_start", () => {
+		const runtime = setupExtension();
+		runtime.emit("before_agent_start", {
+			prompt: "Fais une review de sécurité de cette race condition",
+			systemPrompt: "Base prompt",
+		});
+
+		const call = (toolCallId: string, subagent_type: string) =>
+			runtime.emit("tool_call", {
+				toolName: "Agent",
+				toolCallId,
+				input: { subagent_type },
+			})[0];
+
+		expect(call("pass-luna", "etabli-scout")).toBeUndefined();
+		expect(call("dup-luna", "etabli-scout")).toMatchObject({ block: true });
+
+		// New user turn: injected before_agent_start rebuilds the state.
+		runtime.emit("before_agent_start", {
+			prompt: "Fais une review de sécurité de cette autre race condition",
+			systemPrompt: "Base prompt",
+		});
+		expect(call("fresh-luna", "etabli-scout")).toBeUndefined();
 	});
 
 	test("bounds scouts but ignores unrelated generic Agent calls", () => {
@@ -741,7 +1029,9 @@ describe("workflow router extension", () => {
 				"utf8",
 			);
 			expect(
-				afterRead.split("\n").filter((line) => line.includes('"runtime_receipt"')),
+				afterRead
+					.split("\n")
+					.filter((line) => line.includes('"runtime_receipt"')),
 			).toHaveLength(1);
 
 			// A repeated identical success does not double-emit.
