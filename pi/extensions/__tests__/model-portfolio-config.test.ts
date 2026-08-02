@@ -109,7 +109,7 @@ describe("adaptive multi-model portfolio", () => {
     expect(settings).toMatchObject({
       maxConcurrent: 3,
       defaultMaxTurns: 12,
-      graceTurns: 1,
+      graceTurns: 2,
       defaultJoinMode: "smart",
       schedulingEnabled: false,
       scopeModels: true,
