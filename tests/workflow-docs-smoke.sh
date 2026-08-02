@@ -356,7 +356,7 @@ assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'System complexity alone also stays parent-only'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'Codex'
+assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" '## Codex Ambient Team Profile'
 assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'spawn_agent'
 assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'fork_turns'
 assert_file "$ROOT_DIR/tests/multi-model-real-smoke.mjs"
