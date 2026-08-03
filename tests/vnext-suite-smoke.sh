@@ -22,7 +22,7 @@ printf '%s\n' "$inv" | jq -e '.task_count >= 24' >/dev/null || fail "need >=24 t
 printf '%s\n' "$inv" | jq -e '.sealed_held_out_fraction >= 0.25' >/dev/null || fail "held-out sealed fraction < 25%"
 printf '%s\n' "$inv" | jq -e '(.missing_categories | length) == 0' >/dev/null || fail "missing categories"
 printf '%s\n' "$inv" | jq -e \
-  '.tasks_sha256 == "4ae440269c06b17afb2289ecad9713e696d7ba0a55495b74ef31175f59c82526"' \
+  '.tasks_sha256 == "4b8c681e0d01e08d330b486fc33481a4d8fc6bf480c619c652185f9b77f62786"' \
   >/dev/null || fail "task corpus hash drifted"
 
 # Full suite must be green; graders are source of truth

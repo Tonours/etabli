@@ -134,19 +134,11 @@ assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-monitor-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-metrics-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-telemetry-recover-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-dossier-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
-assert_file "$ROOT_DIR/scripts/workflow-monitor"
-assert_file "$ROOT_DIR/scripts/workflow-metrics"
-assert_file "$ROOT_DIR/scripts/workflow-telemetry-recover"
-assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
-assert_file "$ROOT_DIR/scripts/workflow-dossier"
 assert_file "$ROOT_DIR/scripts/workflow-retrospect"
+assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
@@ -193,7 +185,6 @@ assert_contains "$ROOT_DIR/README.md" 'scripts/verify-agentic-infra live'
 assert_contains "$ROOT_DIR/README.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/contract-details.md'
 assert_contains "$ROOT_DIR/README.md" 'protocol, not an OS lock'
-assert_contains "$ROOT_DIR/README.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/README.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/README.md" 'at least 10 representative'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/self-improvement-loop.md'
@@ -275,7 +266,6 @@ assert_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'not verifi
 assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'Status: verified for the fixture strategy'
 assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'https://developers.openai.com/api/docs/guides/evaluation-best-practices'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Historical fields'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
@@ -332,8 +322,6 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/events.md" 'schema_version:2'
 assert_contains "$ROOT_DIR/workflow/events.md" 'never counts as a successful outcome'
 assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
-assert_file "$ROOT_DIR/scripts/workflow-telemetry-recover"
-assert_file "$ROOT_DIR/scripts/workflow-efficiency-report"
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/docs/plan/README.md" 'It is a memory shelf, not an active planning workspace.'

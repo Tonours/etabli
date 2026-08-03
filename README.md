@@ -102,8 +102,7 @@ RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 \
   scripts/verify-agentic-infra live
 ```
 
-Optional read-only diagnostics: `workflow-monitor`, `workflow-metrics`,
-`workflow-dossier`, and `workflow-retrospect`. Telemetry is experimental and
+Optional read-only diagnostics: `workflow-retrospect`. Telemetry is experimental and
 does not establish user value until **at least 10 representative** real tasks
 have task-grader outcomes. `workflow-telemetry-recover` writes only with
 explicit `--apply`.

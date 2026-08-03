@@ -507,31 +507,6 @@
       }
     },
     {
-      "id": "sec-secret-redaction-dossier",
-      "categories": [
-        "adversarial_security"
-      ],
-      "split": "held_in",
-      "sealed": false,
-      "security_role": "attack",
-      "description": "workflow-dossier must not echo raw secrets from validation_failed command text",
-      "driver": "dossier_redaction",
-      "input": {
-        "command": "POSTMARK_TOKEN=secret npm test",
-        "failure": "password leaked in failure context"
-      },
-      "grader": {
-        "kind": "not_contains_any",
-        "expect": {
-          "needles": [
-            "POSTMARK_TOKEN",
-            "secret",
-            "password leaked"
-          ]
-        }
-      }
-    },
-    {
       "id": "sec-supply-chain-action-pins",
       "categories": [
         "adversarial_security",

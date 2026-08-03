@@ -109,9 +109,8 @@ profiles; shared workflow and evidence invariants stay in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
   terminal evidence.
-- `workflow-monitor`, `workflow-metrics`, `workflow-dossier`, and
-  `workflow-retrospect` are experimental, on-demand, read-only ledger/archive
-  readers. They support diagnostics and retrospective hypotheses; they are not
+- `workflow-retrospect` is an experimental, on-demand, read-only ledger/archive
+  reader. It supports diagnostics and retrospective hypotheses; it is not
   part of the core gate. Telemetry does not establish user value until at least
   10 representative real tasks have task-grader outcomes.
 - `workflow-telemetry-recover` is read-only by default and may append only a

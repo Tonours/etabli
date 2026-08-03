@@ -28,9 +28,7 @@ replacement instead of deleting history. When that script is unavailable in a
 scaffolded project, an equivalent single validated append is acceptable. Do not
 edit earlier lines.
 
-Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
-metrics with `scripts/workflow-metrics`, create sanitized replay/debug dossiers
-with `scripts/workflow-dossier`, and mine recurring workflow issues with
+Mine recurring workflow issues with
 `scripts/workflow-retrospect`. `scripts/workflow-telemetry-recover` is dormant
 historical tooling for recovering usage from pre-recenter Codex session logs;
 only explicit `--apply` writes the pinned population and imports to the active
@@ -152,14 +150,8 @@ import whose full detail exactly matches that source-derived result. Missing
 sessions, forged aggregates, or stale target fingerprints therefore stay
 unmeasured even when the stored event is structurally valid.
 
-`workflow-metrics` keeps native, recovered, explicitly unmeasured, legacy, and
-separately measured runtime usage evidence distinct. `measurement_coverage`
-retains the generic measured flag, while `usage_measurement_coverage` counts
-only outcomes with actual token totals over the full outcome denominator.
 Runtime usage from `multi_execution_completed` is reported independently and
-never counts as a successful outcome without an `outcome_metric`. Historical
-metrics that claimed `measured:true` without usage fields remain outcome
-evidence, but do not enter tokens-per-successful-outcome.
+never counts as a successful outcome without an `outcome_metric`.
 
 `workflow-retrospect` confirms recurrence from independent ledger initiatives,
 not raw occurrences. A terminal `-vN`, `-retryN`, `-attemptN`, or `-rerunN`
