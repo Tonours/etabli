@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { CONFIGURED_DEFAULT_MODEL } from "../block-google-providers.ts";
 import { UNKNOWN_MODEL_SPEC, readDefaultModelSpec } from "../lib/pi-runtime.ts";
 
 describe("Pi runtime settings", () => {
   test("reads the default model spec from agent settings", () => {
     expect(
       readDefaultModelSpec(`${import.meta.dir}/../../agent/settings.json`),
-    ).toBe(`${CONFIGURED_DEFAULT_MODEL.provider}/${CONFIGURED_DEFAULT_MODEL.id}`);
+    ).toBe("zai/glm-5.2");
   });
 
   test("returns the unknown sentinel when settings are unavailable", () => {

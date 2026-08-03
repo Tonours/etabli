@@ -139,7 +139,8 @@ Default extensions:
 
 - `rtk.ts`
 - `filter-output.ts`
-- `block-google-providers.ts`
+- `prefer-ipv4-dns.ts`
+- `workflow-router.ts`
 
 Curated packages:
 
