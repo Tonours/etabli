@@ -31,14 +31,13 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Large file protection
+-- Protect editing responsiveness without hiding syntax in medium-sized source files.
 local large_file_threshold = 3 * 1024 * 1024
 local medium_file_threshold = 512 * 1024
 
-local function mark_large_file(bufnr)
+local function mark_performance_file(bufnr)
   local bo = vim.bo[bufnr]
 
-  bo.syntax = "off"
   bo.undolevels = -1
   bo.swapfile = false
   bo.bufhidden = "unload"
@@ -49,13 +48,18 @@ local function mark_large_file(bufnr)
   end
 end
 
+local function mark_large_file(bufnr)
+  mark_performance_file(bufnr)
+  vim.b[bufnr].disable_syntax = true
+end
+
 vim.api.nvim_create_autocmd("BufReadPre", {
   group = group,
   callback = function(args)
     local bufnr = args.buf
     local bo = vim.bo[bufnr]
 
-    if bo.buftype ~= "" or not bo.buflisted then
+    if bo.buftype ~= "" then
       return
     end
 
@@ -71,17 +75,23 @@ vim.api.nvim_create_autocmd("BufReadPre", {
 
     if stats.size > large_file_threshold then
       mark_large_file(bufnr)
+    elseif stats.size > medium_file_threshold then
+      mark_performance_file(bufnr)
+    end
+  end,
+})
+
+vim.api.nvim_create_autocmd("BufReadPost", {
+  group = group,
+  callback = function(args)
+    if not vim.b[args.buf].disable_syntax then
       return
     end
 
-    if stats.size > medium_file_threshold then
-      vim.schedule(function()
-        if not vim.api.nvim_buf_is_valid(bufnr) then
-          return
-        end
-
-        mark_large_file(bufnr)
-      end)
-    end
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(args.buf) and vim.b[args.buf].disable_syntax then
+        vim.bo[args.buf].syntax = "off"
+      end
+    end)
   end,
 })
