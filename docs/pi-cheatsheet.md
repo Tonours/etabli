@@ -147,7 +147,6 @@ Curated packages:
 - `pi-hooks` for LSP
 - `mitsupi` for `github` and `commit`
 - `brave-search`
-- `pi-interview`
 - `glimpseui` without standalone skill
 
 ## tmux note

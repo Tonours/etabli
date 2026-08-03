@@ -56,15 +56,6 @@
       "themes": []
     },
     {
-      "source": "npm:pi-interview",
-      "extensions": [
-        "index.ts"
-      ],
-      "skills": [],
-      "prompts": [],
-      "themes": []
-    },
-    {
       "source": "npm:glimpseui",
       "extensions": [],
       "skills": [],
@@ -76,18 +67,6 @@
     },
     {
       "source": "npm:@tintinweb/pi-tasks@0.7.1"
-    },
-    {
-      "source": "npm:@agwab/pi-workflow@0.8.1",
-      "extensions": [
-        "src/extension.ts"
-      ],
-      "skills": [
-        "workflow-guide",
-        "execution-router"
-      ],
-      "prompts": [],
-      "themes": []
     }
   ],
   "lsp": {

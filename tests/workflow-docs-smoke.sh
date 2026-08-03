@@ -81,7 +81,6 @@ assert_file "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
 assert_file "$ROOT_DIR/docs/plan/README.md"
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/workflow/runtime-capabilities.json"
-assert_file "$ROOT_DIR/workflow/pi-workflow-adapter.md"
 assert_dir "$ROOT_DIR/docs/adr"
 assert_file "$ROOT_DIR/CLAUDE.md"
 assert_file "$ROOT_DIR/scripts/validate-adrs"
@@ -162,7 +161,6 @@ assert_contains "$INSTALL_MAIN" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Deploy only the Etabli agent workflow surfaces'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@tintinweb/pi-subagents'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@agwab/pi-workflow@0.8.1'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
 assert_contains "$INSTALL_MAIN" 'hunkdiff'
 assert_contains "$INSTALL_MAIN" 'install_npm_global_binary_link "hunk"'
@@ -404,11 +402,7 @@ assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'
 assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
-assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@agwab/pi-workflow@0.8.1'
 assert_contains "$INSTALL_MAIN" 'npm:@tintinweb/pi-subagents'
-assert_contains "$ROOT_DIR/README.md" 'workflow/pi-workflow-adapter.md'
-assert_contains "$ROOT_DIR/workflow/pi-workflow-adapter.md" 'This is an execution adapter, not a replacement workflow contract.'
-assert_contains "$ROOT_DIR/pi/AGENTS.md" 'Run pi-workflow only when explicitly requested'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/plan-archive.md'
 

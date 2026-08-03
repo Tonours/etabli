@@ -228,14 +228,13 @@ const managedSources = new Set([
   "npm:pi-hooks",
   "npm:mitsupi",
   "git:github.com/badlogic/pi-skills",
-  "npm:pi-interview",
   "npm:glimpseui",
   "npm:@tintinweb/pi-subagents@0.13.0",
   "npm:@tintinweb/pi-tasks@0.7.1",
-  "npm:@agwab/pi-workflow@0.8.1",
 ]);
 const legacySources = new Set([
   "npm:pi-subagents",
+  "npm:pi-interview",
   "npm:@tintinweb/pi-subagents",
   "npm:@tintinweb/pi-tasks",
 ]);
@@ -244,8 +243,7 @@ function isLegacySource(source) {
   return legacySources.has(source) ||
     ((source.startsWith("npm:@tintinweb/pi-subagents@")) && source !== "npm:@tintinweb/pi-subagents@0.13.0") ||
     ((source.startsWith("npm:@tintinweb/pi-tasks@")) && source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
-    ((source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
-      source !== "npm:@agwab/pi-workflow@0.8.1");
+    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"));
 }
 
 function sourceOf(entry) {

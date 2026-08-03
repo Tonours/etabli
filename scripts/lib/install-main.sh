@@ -347,14 +347,13 @@ const managedSources = new Set([
   "npm:pi-hooks",
   "npm:mitsupi",
   "git:github.com/badlogic/pi-skills",
-  "npm:pi-interview",
   "npm:glimpseui",
   "npm:@tintinweb/pi-subagents@0.13.0",
   "npm:@tintinweb/pi-tasks@0.7.1",
-  "npm:@agwab/pi-workflow@0.8.1",
 ]);
 const legacySources = new Set([
   "npm:pi-subagents",
+  "npm:pi-interview",
   "npm:@tintinweb/pi-subagents",
   "npm:@tintinweb/pi-tasks",
 ]);
@@ -386,8 +385,7 @@ function isLegacySource(source) {
   return legacySources.has(source) ||
     ((source.startsWith("npm:@tintinweb/pi-subagents@")) && source !== "npm:@tintinweb/pi-subagents@0.13.0") ||
     ((source.startsWith("npm:@tintinweb/pi-tasks@")) && source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
-    ((source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
-      source !== "npm:@agwab/pi-workflow@0.8.1");
+    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"));
 }
 
 localPackages = localPackages.filter((entry) => {
@@ -639,11 +637,11 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 const fs = require("node:fs");
 const settings = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const sources = settings.packages.map((entry) => typeof entry === "string" ? entry : entry.source);
-if (!sources.includes("npm:@agwab/pi-workflow@0.8.1")) {
-  throw new Error("settings sync did not add the pinned pi-workflow source");
+if (!sources.includes("npm:@tintinweb/pi-tasks@0.7.1")) {
+  throw new Error("settings sync did not add a pinned tracked source");
 }
-if (sources.includes("npm:@agwab/pi-workflow") || sources.includes("npm:@agwab/pi-workflow@0.7.0")) {
-  throw new Error("settings sync kept a legacy pi-workflow source");
+if (sources.some((source) => source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"))) {
+  throw new Error("settings sync kept a removed pi-workflow source");
 }
 if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
   throw new Error("settings sync removed a similarly named user package");

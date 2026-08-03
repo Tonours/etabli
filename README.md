@@ -76,9 +76,6 @@ Deeper loops:
 - `workflow/skills/pr-maintenance-loop.md`
 - `workflow/skills/ship.md`
 
-Pi's named-workflow adapter is explicit-use:
-`workflow/pi-workflow-adapter.md`.
-
 Answer quality: `workflow/answer-quality.md`; durable artifacts use
 `answer-quality-check` / `answer-quality-eval`. Research claims:
 `research-proof-check`. Cross-project research notes:

@@ -60,12 +60,12 @@
         "notes": "host Task* tools may still carry structured details; the local coverage that proved it is gone"
       },
       "supports_named_workflow_graphs": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: settings-consistency + deploy-agent-workflow-smoke exit 0",
-        "expires_after_days": 14,
-        "proof_command": "cd pi && bun test ./extensions/__tests__/settings-consistency.test.ts && cd .. && bash tests/deploy-agent-workflow-smoke.sh",
-        "notes": "explicit-use @agwab/pi-workflow adapter; independent from Pi Task* and not an OS sandbox"
+        "label": "unknown",
+        "verified_at": "2026-08-03",
+        "proof_result": "unprovable since 2026-08-03: the @agwab/pi-workflow adapter that backed this claim was removed",
+        "expires_after_days": 30,
+        "proof_command": "false # unprovable: @agwab/pi-workflow was removed 2026-08-03; wire a new named-workflow adapter before relabelling",
+        "notes": "no named-workflow adapter is configured for Pi; this is not a claim that graphs work"
       }
     },
     "claude": {

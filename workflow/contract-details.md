@@ -220,7 +220,6 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Answer quality eval: `scripts/answer-quality-eval`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
-- Explicit-use Pi named-workflow adapter: `workflow/pi-workflow-adapter.md`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
@@ -233,10 +232,6 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 
 Pi:
 
-- `/workflow ...` is an explicit-use third-party Pi adapter, never an ambient Etabli
-  route. Its first approved slice is the bundled read-only `spec-review` and
-  `impact-review` workflows; see `workflow/pi-workflow-adapter.md` for state,
-  delegation, and non-sandbox boundaries.
 - `/skill:plan-loop <task>`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/skill:plan-implement <task>`: plan, then implement if `READY`
 - `/skill:adversary`: adversarially review `PLAN.md` before implementation

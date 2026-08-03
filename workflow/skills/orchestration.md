@@ -10,8 +10,6 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
 
 - Pi may use Task* tools when available.
-- Pi may use the version-pinned pi-workflow adapter for explicitly
-  requested named workflow graphs under `workflow/pi-workflow-adapter.md`.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
 - Claude should use Claude Code `/goal` for long-running completion loops.
@@ -20,8 +18,6 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 - Work is parent-only. The deterministic multi-model council was removed
   (ADR-0013) after the 2026-07-19 blind latency gate found no quality gain;
   subagent delegation remains an ordinary tool call, judged case by case.
-- Named pi-workflow graphs are a separate capability from Task* subagent state;
-  neither capability proves the other.
 
 ## Capability Labels
 
@@ -103,10 +99,6 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 
 Pi:
 
-- The explicit-use `@agwab/pi-workflow@0.8.1` adapter starts as
-  `proxy_supported`. Use only explicit, approved runs and follow
-  `workflow/pi-workflow-adapter.md`; package presence is not delegation or
-  mutation authorization.
 - `TaskExecute` requires explicit subagent tracking capability; package presence
   alone is not enough.
 - Treat full `TaskExecute` tracking as unconfirmed until `subagents:rpc:ping`,

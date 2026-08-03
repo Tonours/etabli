@@ -130,15 +130,6 @@ if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
   throw new Error("missing scoped Pi tasks package");
 }
 
-const piWorkflow = packageBySource("npm:@agwab/pi-workflow@0.8.1");
-if (!piWorkflow) {
-  throw new Error("missing pinned pi-workflow package");
-}
-if (JSON.stringify(piWorkflow.extensions) !== JSON.stringify(["src/extension.ts"]) ||
-    JSON.stringify(piWorkflow.skills) !== JSON.stringify(["workflow-guide", "execution-router"])) {
-  throw new Error("pi-workflow package resources are not curated");
-}
-
 if (packages.some((entry) => sourceOf(entry) === "npm:pi-subagents")) {
   throw new Error("legacy unscoped pi-subagents package was kept");
 }
@@ -150,10 +141,9 @@ if (packages.some((entry) => ["npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-
 if (packages.some((entry) => {
   const source = sourceOf(entry);
   return typeof source === "string" &&
-    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
-    source !== "npm:@agwab/pi-workflow@0.8.1";
+    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"));
 })) {
-  throw new Error("legacy pi-workflow package source was kept");
+  throw new Error("removed pi-workflow package source was kept");
 }
 
 if (!hasObjectSource("npm:@agwab/pi-workflow-helper")) {

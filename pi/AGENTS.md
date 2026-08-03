@@ -8,8 +8,6 @@
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs,
   `workflow/agent-quick-card.md`, then `workflow/spec.md`.
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
-- Run pi-workflow only when explicitly requested; follow
-  `workflow/pi-workflow-adapter.md`.
 - Smallest route; parent-only execution and mutation.
 - One artifact: root `PLAN.md`; implement only from `Status: READY`;
   archive implemented/validated plans in `docs/plan/`.

@@ -92,7 +92,7 @@ describe("Pi settings consistency", () => {
   });
 
   test("loads only the curated third-party Pi package surface", () => {
-    expect(settings.packages).not.toContain("npm:pi-interview");
+    expect(packageBySource("npm:pi-interview")).toBeUndefined();
     expect(settings.packages).not.toContain("https://github.com/davebcn87/pi-autoresearch");
     expect(settings.packages).not.toContain("npm:glimpseui");
 
@@ -117,13 +117,6 @@ describe("Pi settings consistency", () => {
       themes: [],
     });
 
-    expect(packageBySource("npm:pi-interview")).toMatchObject({
-      extensions: ["index.ts"],
-      skills: [],
-      prompts: [],
-      themes: [],
-    });
-
     expect(packageBySource("npm:glimpseui")).toMatchObject({
       extensions: [],
       skills: [],
@@ -139,15 +132,10 @@ describe("Pi settings consistency", () => {
       source: "npm:@tintinweb/pi-tasks@0.7.1",
     });
 
-    expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toMatchObject({
-      extensions: ["src/extension.ts"],
-      skills: ["workflow-guide", "execution-router"],
-      prompts: [],
-      themes: [],
-    });
+    expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toBeUndefined();
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
-    expect(installScript).toContain("npm:@agwab/pi-workflow@0.8.1");
-    expect(deployAgentWorkflowScript).toContain("npm:@agwab/pi-workflow@0.8.1");
+    expect(installScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
+    expect(deployAgentWorkflowScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
     expect(installScript).toContain("npm:@tintinweb/pi-subagents@0.13.0");
     expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
   });
