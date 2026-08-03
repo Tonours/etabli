@@ -10,8 +10,7 @@
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
 - Run pi-workflow only when explicitly requested; follow
   `workflow/pi-workflow-adapter.md`.
-- Smallest route; adaptive multi-model work follows
-  `workflow/skills/multi-model-orchestration.md`; parent-only mutation.
+- Smallest route; parent-only execution and mutation.
 - One artifact: root `PLAN.md`; implement only from `Status: READY`;
   archive implemented/validated plans in `docs/plan/`.
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate;

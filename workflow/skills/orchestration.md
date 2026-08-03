@@ -17,10 +17,9 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 - Claude should use Claude Code `/goal` for long-running completion loops.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
-- Pi multi-execution uses deterministic adaptive admission on eligible phases
-  under `workflow/skills/multi-model-orchestration.md`; the blind latency gate
-  keeps ordinary work parent-only while critical or combined signals can
-  trigger a bounded council.
+- Work is parent-only. The deterministic multi-model council was removed
+  (ADR-0013) after the 2026-07-19 blind latency gate found no quality gain;
+  subagent delegation remains an ordinary tool call, judged case by case.
 - Named pi-workflow graphs are a separate capability from Task* subagent state;
   neither capability proves the other.
 

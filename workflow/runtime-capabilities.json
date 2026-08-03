@@ -30,18 +30,18 @@
       "supports_subagents": {
         "label": "unknown",
         "verified_at": "2026-07-24",
-        "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 + PI_BIN live session; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
+        "proof_result": "unprovable offline: the live multi-model probe was removed with the portfolio (ADR-0013); re-establish a probe before relabelling",
         "expires_after_days": 7,
-        "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --conversation",
-        "notes": "direct Agent supports deterministic adaptive scout/council admission and one targeted resume per council participant; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
+        "proof_command": "false # unprovable: the live multi-model probe was removed with the portfolio (ADR-0013); write a new subagent probe before relabelling",
+        "notes": "direct Agent supports direct subagent calls; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
       },
       "supports_taskexecute_tracking": {
         "label": "unknown",
         "verified_at": "2026-07-24",
-        "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 task-rpc; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
+        "proof_result": "unprovable offline: the live multi-model probe was removed with the portfolio (ADR-0013); re-establish a probe before relabelling",
         "expires_after_days": 7,
-        "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --task-rpc",
-        "notes": "generic non-portfolio Task RPC probe; keep separate from direct Agent capability until ping/spawn/stop lifecycle is fully proven"
+        "proof_command": "false # unprovable: the live multi-model probe was removed with the portfolio (ADR-0013); write a new subagent probe before relabelling",
+        "notes": "generic non-portfolio Task RPC probe; generic Task RPC probe; lifecycle unproven"
       },
       "supports_goal_state": {
         "label": "unknown",

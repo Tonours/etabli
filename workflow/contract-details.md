@@ -33,15 +33,11 @@ Roles are contracts, not mandatory separate agents:
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
-Ordinary work remains single-agent unless an active runtime profile admits a
-sidecar. Pi uses the deterministic adaptive profile in
-`workflow/skills/multi-model-orchestration.md`: no sidecar at score zero, one
-route-appropriate scout for material uncertainty or failure history, and a
-two-agent council for one critical or two distinct medium signals. System
-complexity alone stays parent-only. Explicit opt-out forces the parent only.
-Runtime-specific model portfolios and mechanics stay in their respective
-profiles; shared workflow and evidence invariants stay in
-`workflow/skills/orchestration.md`.
+Work is parent-only. The deterministic multi-model council (scout / analyst /
+challenger / judge / fallback) was removed in ADR-0013; `classifyMultiExecution`
+always returns single. Delegating to a subagent stays available as an ordinary
+tool call, judged case by case, not as a routed profile. Shared workflow and
+evidence invariants stay in `workflow/skills/orchestration.md`.
 
 ## Rules (detail)
 
