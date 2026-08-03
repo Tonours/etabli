@@ -9,7 +9,7 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 
 Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
 
-- Pi may use Task* tools and `tasks-till-done` when available.
+- Pi may use Task* tools when available.
 - Pi may use the version-pinned pi-workflow adapter for explicitly
   requested named workflow graphs under `workflow/pi-workflow-adapter.md`.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
@@ -107,8 +107,6 @@ Pi:
   `proxy_supported`. Use only explicit, approved runs and follow
   `workflow/pi-workflow-adapter.md`; package presence is not delegation or
   mutation authorization.
-- `tasks-till-done` may continue Task* work until done, blocked, stalled, or at
-  its limit.
 - `TaskExecute` requires explicit subagent tracking capability; package presence
   alone is not enough.
 - Treat full `TaskExecute` tracking as unconfirmed until `subagents:rpc:ping`,

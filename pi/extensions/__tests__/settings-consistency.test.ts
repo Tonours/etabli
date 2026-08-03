@@ -59,7 +59,6 @@ describe("Pi settings consistency", () => {
       "block-google-providers.ts",
       "prefer-ipv4-dns.ts",
       "workflow-router.ts",
-      "tasks-till-done.ts",
     ]);
   });
 

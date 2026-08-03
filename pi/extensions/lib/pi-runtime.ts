@@ -17,19 +17,6 @@ type AgentSettings = {
   defaultProvider?: unknown;
   defaultModel?: unknown;
   rtk?: unknown;
-  tasksTillDone?: unknown;
-};
-
-export type TasksTillDoneConfig = {
-  /** When false, never inject Task Loop guidance or auto-continue. Default true. */
-  enabled: boolean;
-  /** When false, inject guidance but do not send agent_end follow-ups. Default true. */
-  autoContinue: boolean;
-};
-
-export const DEFAULT_TASKS_TILL_DONE_CONFIG: TasksTillDoneConfig = {
-  enabled: true,
-  autoContinue: true,
 };
 
 type FileCacheEntry<T> = {
@@ -110,27 +97,6 @@ export function readRtkConfig(settingsPath = getAgentSettingsPath()): RtkConfig 
       typeof config.dangerousCommandBypass === "boolean"
         ? config.dangerousCommandBypass
         : DEFAULT_RTK_CONFIG.dangerousCommandBypass,
-  };
-}
-
-export function readTasksTillDoneConfig(
-  settingsPath = getAgentSettingsPath(),
-): TasksTillDoneConfig {
-  const settings = readAgentSettings(settingsPath);
-  const raw = settings?.tasksTillDone;
-  if (!raw || typeof raw !== "object" || raw === null) {
-    return { ...DEFAULT_TASKS_TILL_DONE_CONFIG };
-  }
-  const config = raw as Record<string, unknown>;
-  return {
-    enabled:
-      typeof config.enabled === "boolean"
-        ? config.enabled
-        : DEFAULT_TASKS_TILL_DONE_CONFIG.enabled,
-    autoContinue:
-      typeof config.autoContinue === "boolean"
-        ? config.autoContinue
-        : DEFAULT_TASKS_TILL_DONE_CONFIG.autoContinue,
   };
 }
 

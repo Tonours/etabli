@@ -20,33 +20,7 @@ export ANTHROPIC_API_KEY=...
 export ZAI_API_KEY=...
 ```
 
-## Fluidity (task loop + thinking)
-
-`tasksTillDone` in `~/.pi/agent/settings.json` (defaults on):
-
-```json
-"tasksTillDone": { "enabled": true, "autoContinue": true }
-```
-
-- `enabled: false` — no Task Loop guidance, no auto-continues
-- `autoContinue: false` — guidance ok, but no `agent_end` follow-ups
-
-Injection only when Task* tools exist **and** the prompt is explicit task work
-(`todo`/`till-done`) or strong multi-step work (`implémente`, `plan-implement`, …).
-Bare `fix` / `go` / `update` do not arm the loop.
-
-**Completion evidence** (adversary + archive + PLAN cleanup auto-continues) runs
-only when an active `.workflow/active-run.json` ledger exists (autonomous). Interactive
-implement still may force a single validation continue.
-
-Caps per user turn (each auto-continue is a full model pass):
-
-| Cap | Value |
-|-----|------:|
-| Total auto-continues | 6 |
-| Stall (same TaskList signature) | 1 |
-| Forced validation-only continues | 1 |
-| Forced completion-evidence continues | 2 (autonomous only) |
+## Fluidity (thinking)
 
 Route-adaptive thinking (soft): `answer`→medium, implement/plan→high,
 adversary/sec-pr/bug-check→xhigh. Override anytime with `Shift+Tab`.

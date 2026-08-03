@@ -46,18 +46,18 @@
       "supports_goal_state": {
         "label": "unknown",
         "verified_at": "2026-07-23",
-        "proof_result": "proof_command is session-scoped (tasks-till-done loop), not runnable offline; relabelled unknown rather than date-refresh; attempt recorded 2026-07-23",
+        "proof_result": "no offline proof: the auto-continue loop extension was removed 2026-08-03; stays unknown until a new probe exists",
         "expires_after_days": 14,
-        "proof_command": "tasks-till-done loop with structured TaskList details",
+        "proof_command": "false # unprovable: the auto-continue loop extension was removed 2026-08-03; write a new probe before relabelling",
         "notes": "Pi continuation support depends on active Task* runtime evidence"
       },
       "supports_structured_task_state": {
-        "label": "confirmed",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: bun test tasks-till-done*.test.ts exit 0",
+        "label": "unknown",
+        "verified_at": "2026-08-03",
+        "proof_result": "prior proof was the task-loop runtime and extension tests, removed 2026-08-03; no offline proof remains",
         "expires_after_days": 30,
-        "proof_command": "cd pi && bun test ./extensions/__tests__/tasks-till-done*.test.ts",
-        "notes": "structured task details are covered by runtime and extension tests"
+        "proof_command": "false # unprovable: the local task-loop tests that proved this were removed 2026-08-03; write a new probe before relabelling",
+        "notes": "host Task* tools may still carry structured details; the local coverage that proved it is gone"
       },
       "supports_named_workflow_graphs": {
         "label": "proxy_supported",

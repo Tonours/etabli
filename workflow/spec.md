@@ -132,7 +132,6 @@ A plan is `READY` when it has:
 | Verify, retest, prove, or completion audit | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
 | Research with sources | `research-plan` | cited doc under `docs/` | cited artifact complete |
 | Destructive, secret, production, billing, deployment, or broad irreversible work | `ops-stop` | risk brief | user decision |
-| Task tools active and actionable request | `tasks-till-done` assists selected route | TaskList | all tasks done, blocked, stalled, or limit |
 
 `spec-guide` is ambient. Linear routes require Linear MCP or stop with
 `LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
@@ -143,8 +142,7 @@ Checkpoints sit at irreversibility boundaries (deletion, production/billing,
 history rewrite, secrets, external write-back), not every step; the Routing
 rules table above routes these to `ops-stop`. Full enforcement matrix and
 event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
-coverage: routes shared by Pi extension and Claude hooks except
-`tasks-till-done` (Pi-only); executable classifier
+coverage: routes shared by Pi extension and Claude hooks; executable classifier
 `claude/hooks/workflow-router-lib.mjs` via `workflow/runtime/workflow-router-core.mjs`.
 
 ## Runtime surfaces
