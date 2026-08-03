@@ -164,38 +164,35 @@ describe("workflow router extension", () => {
 		});
 	});
 
-	test("keeps z.ai glm-5.2 at xhigh regardless of route", () => {
+	test("raises thinking to xhigh on heavy-reasoning routes", () => {
+		for (const prompt of [
+			"Analyse ce bug depuis le ticket Linear",
+			"audit sécurité de la PR 42",
+		]) {
+			const runtime = setupExtension();
+			runtime.emit("before_agent_start", { prompt, systemPrompt: "Base prompt" });
+			expect(runtime.thinkingLevel).toBe("xhigh");
+		}
+	});
+
+	test("leaves the user thinking level untouched on other routes", () => {
+		for (const prompt of [
+			"Peux tu me donner un résumé ?",
+			"Implémente le plan READY",
+		]) {
+			const runtime = setupExtension();
+			runtime.emit("before_agent_start", { prompt, systemPrompt: "Base prompt" });
+			expect(runtime.thinkingLevel).toBeUndefined();
+		}
+	});
+
+	test("never overrides thinking on task-loop auto-continues", () => {
 		const runtime = setupExtension();
-		// A route that would normally force medium must not downgrade glm-5.2.
-		runtime.emit(
-			"before_agent_start",
-			{
-				prompt: "Peux tu me donner un résumé ?",
-				systemPrompt: "Base prompt",
-			},
-			{ model: { provider: "zai", id: "glm-5.2" } },
-		);
-		expect(runtime.thinkingLevel).toBe("xhigh");
-
-		// Another provider on the same route still follows the route target.
-		const other = setupExtension();
-		other.emit(
-			"before_agent_start",
-			{
-				prompt: "Peux tu me donner un résumé ?",
-				systemPrompt: "Base prompt",
-			},
-			{ model: { provider: "opencode-go", id: "deepseek-v4-flash" } },
-		);
-		expect(other.thinkingLevel).toBe("medium");
-
-		// No ctx (model unknown): the route target applies.
-		const noModel = setupExtension();
-		noModel.emit("before_agent_start", {
-			prompt: "Peux tu me donner un résumé ?",
+		runtime.emit("before_agent_start", {
+			prompt: "Continue the Task Loop. Analyse ce bug depuis le ticket Linear",
 			systemPrompt: "Base prompt",
 		});
-		expect(noModel.thinkingLevel).toBe("medium");
+		expect(runtime.thinkingLevel).toBeUndefined();
 	});
 
 	test("keeps unrelated answers free of router injection", () => {

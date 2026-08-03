@@ -492,32 +492,16 @@ export default function (pi: ExtensionAPI) {
 	);
 	let portfolioCallState = newPortfolioCallState();
 
-	pi.on("before_agent_start", (event, ctx) => {
-		// Soft route-adaptive thinking (no-op if user already at target).
+	pi.on("before_agent_start", (event) => {
 		try {
-			const route = classifyWorkflowRoute(event.prompt).route;
-			const model = ctx?.model as
-				| { provider?: string; id?: string }
-				| undefined;
-			// User principle: z.ai glm-5.2 always runs at xhigh, whatever the
-			// route (its thinkingLevelMap maps xhigh to the provider max).
-			const desired =
-				model?.provider === "zai" && model?.id === "glm-5.2"
-					? "xhigh"
-					: thinkingLevelForRoute(route);
 			if (
-				typeof pi.getThinkingLevel === "function" &&
+				requiresMaxThinking(classifyWorkflowRoute(event.prompt).route) &&
 				typeof pi.setThinkingLevel === "function" &&
-				pi.getThinkingLevel() !== desired
+				!/^Continue the Task Loop\./.test(event.prompt.trim())
 			) {
-				// Skip extension auto-continues (task loop follow-ups).
-				if (!/^Continue the Task Loop\./.test(event.prompt.trim())) {
-					pi.setThinkingLevel(desired);
-				}
+				pi.setThinkingLevel("xhigh");
 			}
-		} catch {
-			// Never block the turn on thinking controls.
-		}
+		} catch {}
 
 		if (!shouldInjectWorkflowRouter(event.prompt)) return undefined;
 		portfolioCallState = newPortfolioCallState();
@@ -750,23 +734,13 @@ export default function (pi: ExtensionAPI) {
 	});
 }
 
-function thinkingLevelForRoute(route: string): "medium" | "high" | "xhigh" {
-	if (route === "answer" || route === "verify") return "medium";
-	if (
-		route === "adversary" ||
-		route === "sec-pr" ||
-		route === "bug-check" ||
-		route === "pr-review"
-	) {
-		return "xhigh";
-	}
-	if (
-		route === "implement" ||
-		route === "plan-implement" ||
-		route === "plan-loop" ||
-		route === "review"
-	) {
-		return "high";
-	}
-	return "high";
+const MAX_THINKING_ROUTES = new Set([
+	"adversary",
+	"sec-pr",
+	"bug-check",
+	"pr-review",
+]);
+
+function requiresMaxThinking(route: string): boolean {
+	return MAX_THINKING_ROUTES.has(route);
 }
