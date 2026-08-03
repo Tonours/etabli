@@ -35,8 +35,9 @@ json_config() {
 pi_import_smoke() {
   cd "$ROOT_DIR/pi"
   bun -e 'for (const path of [
-    "./extensions/block-google-providers.ts",
+    "./extensions/workflow-router.ts",
     "./extensions/filter-output.ts",
+    "./extensions/prefer-ipv4-dns.ts",
     "./extensions/rtk.ts",
   ]) await import(path)'
 }

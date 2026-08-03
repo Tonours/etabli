@@ -20,33 +20,7 @@ export ANTHROPIC_API_KEY=...
 export ZAI_API_KEY=...
 ```
 
-## Fluidity (task loop + thinking)
-
-`tasksTillDone` in `~/.pi/agent/settings.json` (defaults on):
-
-```json
-"tasksTillDone": { "enabled": true, "autoContinue": true }
-```
-
-- `enabled: false` — no Task Loop guidance, no auto-continues
-- `autoContinue: false` — guidance ok, but no `agent_end` follow-ups
-
-Injection only when Task* tools exist **and** the prompt is explicit task work
-(`todo`/`till-done`) or strong multi-step work (`implémente`, `plan-implement`, …).
-Bare `fix` / `go` / `update` do not arm the loop.
-
-**Completion evidence** (adversary + archive + PLAN cleanup auto-continues) runs
-only when an active `.workflow/active-run.json` ledger exists (autonomous). Interactive
-implement still may force a single validation continue.
-
-Caps per user turn (each auto-continue is a full model pass):
-
-| Cap | Value |
-|-----|------:|
-| Total auto-continues | 6 |
-| Stall (same TaskList signature) | 1 |
-| Forced validation-only continues | 1 |
-| Forced completion-evidence continues | 2 (autonomous only) |
+## Fluidity (thinking)
 
 Route-adaptive thinking (soft): `answer`→medium, implement/plan→high,
 adversary/sec-pr/bug-check→xhigh. Override anytime with `Shift+Tab`.
@@ -60,16 +34,9 @@ around ~370–575 ms vs ~55–95 ms on IPv4. Cloudflare-backed hosts (x.ai, kimi
 are already fast; the mainland `open.bigmodel.cn` path is worse from EU and is
 **not** used by Pi’s coding endpoint (`https://api.z.ai/api/coding/paas/v4`).
 
-```bash
-# Applied by ./scripts/install.sh; re-run anytime:
-model-network-tune apply     # NODE_OPTIONS + ~/.zshrc|~/.bashrc
-model-network-tune status    # current order + quick api.z.ai handshake
-model-network-tune measure   # ipv4first vs verbatim per host
-model-network-tune warm      # parallel TLS warm-up of portfolio hosts
-```
-
-After `apply`, open a new shell (or `source ~/.zshrc`) so `pi` inherits
-`NODE_OPTIONS=--dns-result-order=ipv4first`.
+The `pi/extensions/prefer-ipv4-dns.ts` extension applies
+`dns.setDefaultResultOrder("ipv4first")` at load, so Pi inherits the preference
+with no shell setup. Nothing to run.
 
 ## Interactive commands
 
@@ -172,14 +139,14 @@ Default extensions:
 
 - `rtk.ts`
 - `filter-output.ts`
-- `block-google-providers.ts`
+- `prefer-ipv4-dns.ts`
+- `workflow-router.ts`
 
 Curated packages:
 
 - `pi-hooks` for LSP
 - `mitsupi` for `github` and `commit`
 - `brave-search`
-- `pi-interview`
 - `glimpseui` without standalone skill
 
 ## tmux note

@@ -75,7 +75,6 @@ assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.claude/commands/plan.md" "$ROOT_DIR/claude/commands/plan-create.md"
-assert_link "$HOME_DIR/.claude/hooks/workflow-router.mjs" "$ROOT_DIR/claude/hooks/workflow-router.mjs"
 assert_link "$HOME_DIR/.claude/hooks/workflow-router-lib.mjs" "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_link "$HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_link "$HOME_DIR/.claude/hooks/plan-commit-guard.mjs" "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
@@ -91,11 +90,6 @@ assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_link "$HOME_DIR/.pi/agent/subagents.json" "$ROOT_DIR/pi/agent/subagents.json"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-scout.md" "$ROOT_DIR/pi/agents/etabli-scout.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-analyst.md" "$ROOT_DIR/pi/agents/etabli-analyst.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-challenger.md" "$ROOT_DIR/pi/agents/etabli-challenger.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-judge.md" "$ROOT_DIR/pi/agents/etabli-judge.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-fallback.md" "$ROOT_DIR/pi/agents/etabli-fallback.md"
 assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
@@ -136,15 +130,6 @@ if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
   throw new Error("missing scoped Pi tasks package");
 }
 
-const piWorkflow = packageBySource("npm:@agwab/pi-workflow@0.8.1");
-if (!piWorkflow) {
-  throw new Error("missing pinned pi-workflow package");
-}
-if (JSON.stringify(piWorkflow.extensions) !== JSON.stringify(["src/extension.ts"]) ||
-    JSON.stringify(piWorkflow.skills) !== JSON.stringify(["workflow-guide", "execution-router"])) {
-  throw new Error("pi-workflow package resources are not curated");
-}
-
 if (packages.some((entry) => sourceOf(entry) === "npm:pi-subagents")) {
   throw new Error("legacy unscoped pi-subagents package was kept");
 }
@@ -156,10 +141,9 @@ if (packages.some((entry) => ["npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-
 if (packages.some((entry) => {
   const source = sourceOf(entry);
   return typeof source === "string" &&
-    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@")) &&
-    source !== "npm:@agwab/pi-workflow@0.8.1";
+    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"));
 })) {
-  throw new Error("legacy pi-workflow package source was kept");
+  throw new Error("removed pi-workflow package source was kept");
 }
 
 if (!hasObjectSource("npm:@agwab/pi-workflow-helper")) {
@@ -175,15 +159,11 @@ if (settings.defaultProvider !== "kimi-for-coding" ||
 const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
 for (const model of [
   "custom/provider-model",
-  "opencode-go/deepseek-v4-flash",
-  "xai/grok-4.5",
   "zai/glm-5.2",
-  "openai-codex/gpt-5.6-sol",
-  "openai-codex/gpt-5.6-luna",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
 }
-// Bare gpt-5.6 alias remains retired; Sol/Luna stay managed portfolio pins.
+// Bare gpt-5.6 alias remains retired.
 if (enabledModels.includes("openai-codex/gpt-5.6")) {
   throw new Error("legacy bare openai-codex/gpt-5.6 alias was kept");
 }

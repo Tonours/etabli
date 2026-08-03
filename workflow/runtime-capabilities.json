@@ -30,42 +30,42 @@
       "supports_subagents": {
         "label": "unknown",
         "verified_at": "2026-07-24",
-        "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 + PI_BIN live session; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
+        "proof_result": "unprovable offline: the live multi-model probe was removed with the portfolio (ADR-0013); re-establish a probe before relabelling",
         "expires_after_days": 7,
-        "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --conversation",
-        "notes": "direct Agent supports deterministic adaptive scout/council admission and one targeted resume per council participant; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
+        "proof_command": "false # unprovable: the live multi-model probe was removed with the portfolio (ADR-0013); write a new subagent probe before relabelling",
+        "notes": "direct Agent supports direct subagent calls; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
       },
       "supports_taskexecute_tracking": {
         "label": "unknown",
         "verified_at": "2026-07-24",
-        "proof_result": "offline re-run not possible without RUN_REAL_MULTI_MODEL=1 task-rpc; relabelled unknown rather than date-refresh; attempt 2026-07-24 recorded in scratch c4/",
+        "proof_result": "unprovable offline: the live multi-model probe was removed with the portfolio (ADR-0013); re-establish a probe before relabelling",
         "expires_after_days": 7,
-        "proof_command": "RUN_REAL_MULTI_MODEL=1 bash tests/multi-model-real-smoke.sh --task-rpc",
-        "notes": "generic non-portfolio Task RPC probe; keep separate from direct Agent capability until ping/spawn/stop lifecycle is fully proven"
+        "proof_command": "false # unprovable: the live multi-model probe was removed with the portfolio (ADR-0013); write a new subagent probe before relabelling",
+        "notes": "generic non-portfolio Task RPC probe; generic Task RPC probe; lifecycle unproven"
       },
       "supports_goal_state": {
         "label": "unknown",
         "verified_at": "2026-07-23",
-        "proof_result": "proof_command is session-scoped (tasks-till-done loop), not runnable offline; relabelled unknown rather than date-refresh; attempt recorded 2026-07-23",
+        "proof_result": "no offline proof: the auto-continue loop extension was removed 2026-08-03; stays unknown until a new probe exists",
         "expires_after_days": 14,
-        "proof_command": "tasks-till-done loop with structured TaskList details",
+        "proof_command": "false # unprovable: the auto-continue loop extension was removed 2026-08-03; write a new probe before relabelling",
         "notes": "Pi continuation support depends on active Task* runtime evidence"
       },
       "supports_structured_task_state": {
-        "label": "confirmed",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: bun test tasks-till-done*.test.ts exit 0",
+        "label": "unknown",
+        "verified_at": "2026-08-03",
+        "proof_result": "prior proof was the task-loop runtime and extension tests, removed 2026-08-03; no offline proof remains",
         "expires_after_days": 30,
-        "proof_command": "cd pi && bun test ./extensions/__tests__/tasks-till-done*.test.ts",
-        "notes": "structured task details are covered by runtime and extension tests"
+        "proof_command": "false # unprovable: the local task-loop tests that proved this were removed 2026-08-03; write a new probe before relabelling",
+        "notes": "host Task* tools may still carry structured details; the local coverage that proved it is gone"
       },
       "supports_named_workflow_graphs": {
-        "label": "proxy_supported",
-        "verified_at": "2026-07-24",
-        "proof_result": "re-proved 2026-07-24: settings-consistency + deploy-agent-workflow-smoke exit 0",
-        "expires_after_days": 14,
-        "proof_command": "cd pi && bun test ./extensions/__tests__/settings-consistency.test.ts && cd .. && bash tests/deploy-agent-workflow-smoke.sh",
-        "notes": "explicit-use @agwab/pi-workflow adapter; independent from Pi Task* and not an OS sandbox"
+        "label": "unknown",
+        "verified_at": "2026-08-03",
+        "proof_result": "unprovable since 2026-08-03: the @agwab/pi-workflow adapter that backed this claim was removed",
+        "expires_after_days": 30,
+        "proof_command": "false # unprovable: @agwab/pi-workflow was removed 2026-08-03; wire a new named-workflow adapter before relabelling",
+        "notes": "no named-workflow adapter is configured for Pi; this is not a claim that graphs work"
       }
     },
     "claude": {

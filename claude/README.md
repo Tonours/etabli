@@ -82,8 +82,6 @@ the `gh` CLI, not the GitHub MCP/app connector, unless explicitly overridden.
 
 Optional hooks:
 
-- `workflow-router.mjs` injects compact route context through
-  `UserPromptSubmit`.
 - `plan-ready-guard.mjs` blocks implementation writes and mutating Bash commands
   when a root `PLAN.md` exists but is not `READY`; it also composes the
   plan-commit guard so Bash has one PreToolUse process.
@@ -98,7 +96,7 @@ Optional hooks:
 - `settings.workflow-hooks.json` is a merge fragment. It is linked for manual
   activation and is not merged into `~/.claude/settings.json` by the installer,
   because the live settings file can contain secrets. Activating it enables the
-  `UserPromptSubmit`, `PreToolUse`, and `Stop` hooks above.
+  `PreToolUse`, `PostToolUse`, and `Stop` hooks above.
 
 Use Claude Code `/goal` for till-done loops:
 

@@ -7,11 +7,6 @@ Interview me relentlessly about every aspect of this plan until we reach a share
 
 ## Interview mode
 
-Use the interactive interview mode to ask questions:
-
-- **Pi**: use the `interview` tool (pi-interview) for each question. Prefer inline JSON format when possible. One question per call.
-- **Claude Code**: ask questions one by one directly in the chat. One question at a time.
-
-Ask the questions one at a time.
+Ask questions one by one directly in the chat. One question at a time.
 
 If a question can be answered by exploring the codebase, explore the codebase instead.

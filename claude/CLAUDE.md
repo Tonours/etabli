@@ -11,7 +11,8 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
   `workflow/skills/obvault-memory.md`.
 
 ## Claude Workflow
-- Follow `workflow/spec.md`; Claude hooks inject the selected route.
+- Follow `workflow/spec.md`; infer the route yourself. Claude hooks guard
+  writes only; route classification is library-only (ADR-0014).
 - `/goal` only for measurable long loops with validation evidence and a cap.
 - Use root `PLAN.md` only; implement only from `Status: READY`.
 - After validation, archive to `docs/plan/YYYYMMDD-short-slug.md`, then delete root `PLAN.md`.
