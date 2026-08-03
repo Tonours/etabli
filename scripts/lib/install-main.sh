@@ -361,16 +361,6 @@ const legacySources = new Set([
 let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
 const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
 let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
-// Role-critical pins always forced into local settings (also asserted by
-// deploy-agent-workflow smoke). Full tracked portfolio is merged below.
-const managedModels = new Set([
-  // Portfolio A' role pins (Grok analyst; Codex Sol/Luna rare path)
-  "opencode-go/deepseek-v4-flash",
-  "xai/grok-4.5",
-  "zai/glm-5.2",
-  "openai-codex/gpt-5.6-sol",
-  "openai-codex/gpt-5.6-luna",
-]);
 // Retired aliases / catalog IDs that must not stay in local cycling lists.
 const legacyModels = new Set([
   "openai-codex/gpt-5.6",
@@ -432,12 +422,7 @@ for (const [source, trackedEntry] of trackedBySource) {
 
 const beforeModels = JSON.stringify(localModels);
 localModels = localModels.filter((model) => !isLegacyModel(model));
-// Keep personal extras, but ensure the tracked portfolio is present after
-// catalog upgrades (not only the multi-model role pins).
 for (const model of trackedSettings.enabledModels ?? []) {
-  if (!localModels.includes(model)) localModels.push(model);
-}
-for (const model of managedModels) {
   if (!localModels.includes(model)) localModels.push(model);
 }
 // Keep a personal default selectable even when it is outside the tracked pin set.
@@ -665,10 +650,9 @@ if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
 }
 if (
   !settings.enabledModels.includes("custom/personal-model") ||
-  !settings.enabledModels.includes("opencode-go/deepseek-v4-flash") ||
-  !settings.enabledModels.includes("xai/grok-4.5")
+  !settings.enabledModels.includes("zai/glm-5.2")
 ) {
-  throw new Error("settings sync did not preserve the user model and add managed portfolio pins");
+  throw new Error("settings sync did not preserve the user model and add tracked model pins");
 }
 if (settings.defaultProvider !== "custom" || settings.defaultModel !== "personal-model" || settings.defaultThinkingLevel !== "low") {
   throw new Error("settings sync overwrote personal Pi defaults");
@@ -1268,7 +1252,6 @@ install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
-install_script "model-network-tune" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness
@@ -1279,16 +1262,6 @@ fi
 for rcfile in ~/.bashrc ~/.zshrc; do
     ensure_local_bin_shell_path "$rcfile"
 done
-
-# Prefer IPv4 for Node/Pi model API DNS (measured win on api.z.ai vs IPv6-first).
-if [ -x "$SCRIPT_DIR/model-network-tune" ]; then
-    print_step "Tuning model API network (IPv4-first DNS for Node/Pi)..."
-    if "$SCRIPT_DIR/model-network-tune" install; then
-        print_success "Model network tune applied (NODE_OPTIONS dns ipv4first)"
-    else
-        print_warning "Model network tune failed (non-fatal)"
-    fi
-fi
 
 print_success "Dev scripts installed"
 

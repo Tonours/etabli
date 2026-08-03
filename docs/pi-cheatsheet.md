@@ -60,16 +60,9 @@ around ~370–575 ms vs ~55–95 ms on IPv4. Cloudflare-backed hosts (x.ai, kimi
 are already fast; the mainland `open.bigmodel.cn` path is worse from EU and is
 **not** used by Pi’s coding endpoint (`https://api.z.ai/api/coding/paas/v4`).
 
-```bash
-# Applied by ./scripts/install.sh; re-run anytime:
-model-network-tune apply     # NODE_OPTIONS + ~/.zshrc|~/.bashrc
-model-network-tune status    # current order + quick api.z.ai handshake
-model-network-tune measure   # ipv4first vs verbatim per host
-model-network-tune warm      # parallel TLS warm-up of portfolio hosts
-```
-
-After `apply`, open a new shell (or `source ~/.zshrc`) so `pi` inherits
-`NODE_OPTIONS=--dns-result-order=ipv4first`.
+The `pi/extensions/prefer-ipv4-dns.ts` extension applies
+`dns.setDefaultResultOrder("ipv4first")` at load, so Pi inherits the preference
+with no shell setup. Nothing to run.
 
 ## Interactive commands
 

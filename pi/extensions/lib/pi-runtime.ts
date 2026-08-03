@@ -2,7 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const FALLBACK_MODEL = "zai/glm-5.2";
+export const UNKNOWN_MODEL_SPEC = "unknown";
 export type RtkMode = "always" | "off";
 export type RtkConfig = {
   enabled: boolean;
@@ -82,7 +82,7 @@ function normalizeRtkMode(value: unknown): RtkMode {
   return value === "off" ? "off" : "always";
 }
 
-export function readDefaultModelSpec(settingsPath: string, fallback = FALLBACK_MODEL): string {
+export function readDefaultModelSpec(settingsPath: string, fallback = UNKNOWN_MODEL_SPEC): string {
   const raw = readAgentSettings(settingsPath);
   if (raw) {
     const provider = typeof raw.defaultProvider === "string" ? raw.defaultProvider.trim() : "";
