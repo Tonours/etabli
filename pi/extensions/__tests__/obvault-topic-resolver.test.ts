@@ -65,6 +65,24 @@ describe("dynamic Obvault topic resolver", () => {
     expect(resolveDynamicKnowledgeContext("FinOps", { roots: [root] })).toBeNull();
   });
 
+  test("treats an explicit OBVAULT_ROOT as exclusive, never falling back to ~/work/obvault", () => {
+    const root = makeVault();
+    const previous = process.env.OBVAULT_ROOT;
+    process.env.OBVAULT_ROOT = resolve(root, "opted-out");
+    try {
+      // A machine that opts out must resolve to nothing even when a real vault
+      // sits at the hardcoded fallback path.
+      expect(resolveObvaultRoot()).toBeNull();
+      expect(resolveDynamicKnowledgeContext("FinOps")).toBeNull();
+
+      process.env.OBVAULT_ROOT = root;
+      expect(resolveObvaultRoot()).toBe(realpathSync(root));
+    } finally {
+      if (previous === undefined) delete process.env.OBVAULT_ROOT;
+      else process.env.OBVAULT_ROOT = previous;
+    }
+  });
+
   test("fails open when the metadata resolver times out", () => {
     const root = mkdtempSync(resolve(tmpdir(), "etabli-slow-obvault-router-"));
     temporaryRoots.push(root);

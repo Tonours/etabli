@@ -18,11 +18,13 @@ const SAFE_TOPIC_PATTERN = /^[a-z0-9 _-]{4,80}$/;
  */
 
 function defaultRoots() {
+  // An explicit OBVAULT_ROOT is exclusive: a machine that points somewhere else
+  // (or nowhere) must not silently fall back to a vault it opted out of.
+  if (process.env.OBVAULT_ROOT) return [process.env.OBVAULT_ROOT];
   return [
-    process.env.OBVAULT_ROOT,
     resolve(homedir(), "work/obvault"),
     fileURLToPath(new URL("../../../obvault", import.meta.url)),
-  ].filter(Boolean);
+  ];
 }
 
 export function resolveObvaultRoot(roots = defaultRoots()) {
