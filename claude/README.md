@@ -96,7 +96,7 @@ Optional hooks:
 - `settings.workflow-hooks.json` is a merge fragment. It is linked for manual
   activation and is not merged into `~/.claude/settings.json` by the installer,
   because the live settings file can contain secrets. Activating it enables the
-  `UserPromptSubmit`, `PreToolUse`, and `Stop` hooks above.
+  `PreToolUse`, `PostToolUse`, and `Stop` hooks above.
 
 Use Claude Code `/goal` for till-done loops:
 

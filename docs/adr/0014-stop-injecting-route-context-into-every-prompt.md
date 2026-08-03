@@ -46,9 +46,10 @@ do. They are kept for exactly that reason.
 - Route classification is now library-only. Its coverage is `scripts/router-eval`
   (53 cases, accuracy 1.0, including knowledge-routing), plus the Pi extension
   tests that observe the decision object.
-- `tests/claude-hooks-smoke.sh` drops from 482 to 313 lines: ~40 router
+- `tests/claude-hooks-smoke.sh` drops from 481 to 295 lines: ~40 router
   assertions removed, every guard section kept — those back the proofs in
-  `workflow/runtime-capabilities.json:17-27`.
+  `workflow/runtime-capabilities.json:17-27`. Its 36 request fixtures under
+  `tests/fixtures/claude-hooks/` went with them.
 - `tests/agent-scenarios-smoke.sh` was **rewritten, not deleted**. It is the
   Claude/Pi route-parity matrix; a `claude_route_probe` helper now renders the
   same fields from `classifyWorkflowRoute` directly, so all 11 scenarios and
@@ -73,6 +74,14 @@ alone if routing quality degrades.
 
 ## Validation
 
-`scripts/verify-agentic-infra full`: 44 PASS, 1 FAIL (`skill-lock`, pre-existing
-on `main`). `scripts/router-eval`: 53/53, accuracy 1.0. `bun test
-pi/extensions/__tests__/`: 192 pass.
+`scripts/router-eval`: 53/53, accuracy 1.0. `bun test pi/extensions/__tests__/`:
+192 pass. `scripts/verify-agentic-infra full`: 44 PASS, 1 FAIL (`skill-lock`,
+pre-existing on `main`).
+
+Correction recorded deliberately: the first version of this ADR claimed that
+same suite result while `pi-import-smoke` was in fact broken — it still imported
+the deleted `block-google-providers.ts`. The failure was invisible because
+`skill-lock` fails earlier in the `pi` group and stops the run. A fresh-context
+review caught it. The lesson is that a known pre-existing failure can mask a new
+one: when a group already has a red check, run the specific target too, not just
+the group.
