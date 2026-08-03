@@ -66,7 +66,6 @@ expected_full='pr-latest-head-status-smoke
 workflow-efficiency-report-smoke
 workflow-monitor-smoke
 workflow-metrics-smoke
-one-writer-portfolio-smoke
 leap-harness-validation-smoke
 ledger-auto-emit-smoke
 workflow-receipts-smoke
@@ -91,7 +90,6 @@ adr-validate-smoke
 adr-validation-golden
 adr-helper-smoke
 validate-adrs
-multi-model-quality-score-smoke
 browser-full-page-capture-smoke
 obvault-routing-smoke
 obvault-query-smoke

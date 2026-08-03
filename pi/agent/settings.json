@@ -119,10 +119,6 @@
   "doubleEscapeAction": "tree",
   "enabledModels": [
     "zai/glm-5.2",
-    "opencode-go/deepseek-v4-flash",
-    "xai/grok-4.5",
-    "openai-codex/gpt-5.6-sol",
-    "openai-codex/gpt-5.6-luna",
     "openai-codex/gpt-5.3-codex-spark",
     "openai-codex/gpt-5.5",
     "openai-codex/gpt-5.6-terra",

@@ -80,7 +80,7 @@ export function buildParticipantUsage(parts = {}) {
  * Extract measured sidecar usage from multi_execution_completed ledger events.
  * @param {Array<{ event?: string, detail?: any }>} events
  */
-export function sidecarsFromMultiExecution(events) {
+export function sidecarsFromLedgerEvents(events) {
 	/** @type {Array<{ id: string, role?: string, input_tokens: number, output_tokens: number, total_tokens: number }>} */
 	const sidecars = [];
 	let index = 0;
@@ -299,7 +299,7 @@ export function isLedgerOpen(events) {
  * @param {{ parent?: any, success?: boolean, success_kind?: string, grader_success?: boolean, runtime?: string, tool_calls?: number, elapsed_ms?: number, turn_count?: number, auto_continue_count?: number }} opts
  */
 export function buildFromLedgerEvents(events, opts = {}) {
-	const sidecars = sidecarsFromMultiExecution(events);
+	const sidecars = sidecarsFromLedgerEvents(events);
 	const batch = batchWindowFromEvents(events);
 	return buildOutcomeMetricDetail({
 		success: opts.success,

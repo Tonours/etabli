@@ -16,7 +16,7 @@ which rejected automatic full panels after four of six repetitions exceeded
 | One medium signal on research/diagnosis/review work | scout |
 | One critical signal or two distinct medium signals | Route-specific two-agent council |
 | Explicit multi-model intent on an eligible route | Route-specific two-agent council |
-| Primary role unavailable | Codex Luna (`gpt-5.6-luna`) may replace it on Pi, with `degraded` status |
+| Primary role unavailable | A configured replacement may stand in, with `degraded` status |
 | Material disagreement after deterministic checks and one rebuttal round | the judge adjudicates once |
 | Mutation | Parent is the only writer |
 
@@ -75,19 +75,10 @@ hidden history or spend another model call to decide.
 
 ## Runtime Portfolios
 
-Pi uses exact pinned roles (portfolio A' — flash + Grok analyst + ZAI + Codex
-Sol/Luna only for judge/fallback):
+No pinned role portfolio ships with this repo. Any multi-model pass is
+explicitly requested and configured per run.
 
-- `etabli-scout`: `opencode-go/deepseek-v4-flash`, `medium`;
-- `etabli-analyst`: `xai/grok-4.5`, `high`;
-- `etabli-challenger`: `zai/glm-5.2`, `xhigh` (provider `max`);
-- `etabli-judge`: `openai-codex/gpt-5.6-sol`, `xhigh`;
-- `etabli-fallback`: `openai-codex/gpt-5.6-luna`, `high`, fallback only
-  (distinct from primaries; Sol remains the unique adjudicator pin).
-
-Cross-family first passes stay mandatory: OpenCode DeepSeek scout or xAI Grok
-analyst pair with the ZAI challenger. Codex is reserved for rare Sol
-adjudication and Luna degraded fallback (lighter on a $20 OpenAI plan). Exact
+Cross-family first passes stay mandatory when a panel does run. Exact
 runtime provenance is mandatory; a provider error, silent model fallback, or
 missing provenance is `blocked`, never an unqualified panel success.
 

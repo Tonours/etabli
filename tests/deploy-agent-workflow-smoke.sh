@@ -91,11 +91,6 @@ assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_link "$HOME_DIR/.pi/agent/subagents.json" "$ROOT_DIR/pi/agent/subagents.json"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-scout.md" "$ROOT_DIR/pi/agents/etabli-scout.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-analyst.md" "$ROOT_DIR/pi/agents/etabli-analyst.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-challenger.md" "$ROOT_DIR/pi/agents/etabli-challenger.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-judge.md" "$ROOT_DIR/pi/agents/etabli-judge.md"
-assert_link "$HOME_DIR/.pi/agent/agents/etabli-fallback.md" "$ROOT_DIR/pi/agents/etabli-fallback.md"
 assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
@@ -175,15 +170,11 @@ if (settings.defaultProvider !== "kimi-for-coding" ||
 const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
 for (const model of [
   "custom/provider-model",
-  "opencode-go/deepseek-v4-flash",
-  "xai/grok-4.5",
   "zai/glm-5.2",
-  "openai-codex/gpt-5.6-sol",
-  "openai-codex/gpt-5.6-luna",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
 }
-// Bare gpt-5.6 alias remains retired; Sol/Luna stay managed portfolio pins.
+// Bare gpt-5.6 alias remains retired.
 if (enabledModels.includes("openai-codex/gpt-5.6")) {
   throw new Error("legacy bare openai-codex/gpt-5.6 alias was kept");
 }

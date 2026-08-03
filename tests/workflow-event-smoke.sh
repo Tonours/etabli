@@ -211,7 +211,7 @@ protocol_v2_fallback_rebuttal="$(printf '%s\n' "$protocol_v2_council_fallback" |
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-rebuttal)"
 assert_contains "$out" "1 events, ok"
 
-protocol_v2_fallback_adjudicated="$(printf '%s\n' "$protocol_v2_fallback_rebuttal" | jq -c '.stop_reason="adjudicated" | .rounds.adjudication=1 | .adjudicator="etabli-judge"')"
+protocol_v2_fallback_adjudicated="$(printf '%s\n' "$protocol_v2_fallback_rebuttal" | jq -c '.stop_reason="adjudicated" | .rounds.adjudication=1 | .adjudicator="adjudicator-agent"')"
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-adjudicated multi_execution_completed "$protocol_v2_fallback_adjudicated"
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-adjudicated)"
 assert_contains "$out" "1 events, ok"
@@ -295,7 +295,7 @@ assert_contains "$out" "required fields"
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-too-many multi_execution_completed '{"participants":[{"id":"one","model":"zai/glm-5.2","family":"zai"},{"id":"two","model":"zai/glm-5.2","family":"zai"},{"id":"three","model":"zai/glm-5.2","family":"zai"},{"id":"four","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
 assert_contains "$out" "required fields"
 
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-judge multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":true,"adjudicator":"arbitrary-judge","verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-judge multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":true,"adjudicator":"","verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
 assert_contains "$out" "required fields"
 
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime-bad runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_bad","workflow":"spec-review","state_path":".pi/workflows/another-run","status":"running","usage_measured":false}')"

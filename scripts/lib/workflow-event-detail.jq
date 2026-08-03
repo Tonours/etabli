@@ -20,21 +20,6 @@ def usage_valid:
     (.elapsed_ms | nonnegative_number)
   else true
   end;
-def portfolio_participant_models:
-  [
-    "opencode-go/deepseek-v4-flash",
-    "xai/grok-4.5",
-    "zai/glm-5.2",
-    "openai-codex/gpt-5.6-luna"
-  ];
-def portfolio_primary_models:
-  [
-    "opencode-go/deepseek-v4-flash",
-    "xai/grok-4.5",
-    "zai/glm-5.2"
-  ];
-def portfolio_fallback_model: "openai-codex/gpt-5.6-luna";
-def portfolio_adjudicator_models: ["openai-codex/gpt-5.6-sol", "kimi-coding/k3"];
 def family_matches_model:
   if (.model | startswith("zai/")) then .family == "zai"
   elif (.model | startswith("xai/")) then .family == "xai"
@@ -45,7 +30,7 @@ def family_matches_model:
   end;
 def participant_valid:
   (.id | nonempty_string) and
-  (.model | IN(portfolio_participant_models[])) and
+  (.model | nonempty_string) and
   (.family | IN("zai", "xai", "openai-codex", "opencode-go", "kimi-coding")) and
   family_matches_model;
 # Optional per-participant usage on outcome_metric (blueprint M1). Distinct from
@@ -96,7 +81,7 @@ def protocol_v2_shape:
   (if .strategy == "scout" then
     (.rounds.rebuttal == 0) and (.rounds.adjudication == 0) and (.adjudicator == null)
   else
-    if .rounds.adjudication == 1 then .adjudicator == "etabli-judge" else .adjudicator == null end
+    if .rounds.adjudication == 1 then (.adjudicator | nonempty_string) else .adjudicator == null end
   end) and
   (((.claim_count > .budget.max_claims) or
     ((.stage_usage.first_pass.measured == true) and (.stage_usage.first_pass.output_tokens > .budget.first_pass_output_tokens)) or
@@ -111,14 +96,11 @@ def protocol_v2_consistent:
   (.disagreement == (.disagreement_count > 0)) and
   (.disagreement_count <= .claim_count) and
   (([.participants[].id] | unique | length) == (.participants | length)) and
-  (all(.participants[]; .model as $m | all(portfolio_adjudicator_models[]; . != $m))) and
   (([.participants[].model]) as $models |
     (($models | unique | length) == ($models | length)) and
-    (all($models[]; . | IN(portfolio_participant_models[]))) and
-    (($models | index(portfolio_fallback_model)) != null) == (.fallback_status != "none") and
     if .strategy == "scout" then
       if .fallback_status == "none" then
-        ($models | length) == 1 and ($models[0] | IN(portfolio_primary_models[]))
+        ($models | length) == 1
       else
         ($models | length) <= 2
       end
@@ -171,7 +153,7 @@ def multi_execution_completed_detail:
   (.participants | type == "array") and ((.participants | length) > 0) and ((.participants | length) <= 3) and
   (all(.participants[]; participant_valid)) and
   (.independent_first_passes | boolean) and (.disagreement | boolean) and
-  ((.adjudicator == null) or (.adjudicator == "etabli-judge")) and
+  ((.adjudicator == null) or (.adjudicator | nonempty_string)) and
   (.verdict | IN("accepted", "degraded", "blocked", "rollback_to_opt_in")) and
   (.usage | type == "object") and (.usage | usage_valid) and
   (.fallback_status | IN("none", "degraded", "blocked")) and

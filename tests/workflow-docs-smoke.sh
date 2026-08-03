@@ -355,14 +355,8 @@ assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not merge
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
-assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'System complexity alone also stays parent-only'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" '## Codex Ambient Team Profile'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'spawn_agent'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'fork_turns'
-assert_file "$ROOT_DIR/tests/multi-model-real-smoke.mjs"
 assert_contains "$ROOT_DIR/workflow/events.md" 'Protocol v2 adds'
 assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'protocol_version'
-assert_contains "$ROOT_DIR/pi/extensions/workflow-router.ts" 'Etabli adaptive council budget'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'ReAct paper'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'Retry with evidence'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'final status the active surface exposes'

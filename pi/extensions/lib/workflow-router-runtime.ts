@@ -167,19 +167,9 @@ export function appendWorkflowRouterGuidance(
 function buildMultiExecutionGuidance(
 	multiExecution: WorkflowMultiExecution,
 ): string {
-	if (multiExecution.mode === "single") {
-		return multiExecution.trigger === "explicit"
-			? `\nMulti-execution: single agent (explicit opt-out).`
-			: `\nMulti-execution: single agent.`;
-	}
-	if (multiExecution.runtimeStatus !== "pending") {
-		return "\nMulti-execution request: degraded: Agent plus get_subagent_result are not both active. Parent only; don't claim a panel ran; report the missing runtime surface.";
-	}
-	const budget = multiExecution.budget;
-	if (multiExecution.strategy === "scout") {
-		return `\nMulti-execution: pending scout ${multiExecution.roles.join(" + ")} @ ${multiExecution.panelStages.join(", ")}; signals ${multiExecution.signals.join(", ")}. Exactly one independent read-only first pass (≤${budget.requestedOutputTokens.scout} out tokens); get_subagent_result(wait=true); verify role/model; parent-only writer; no resume/adjudicate; fallback ${multiExecution.fallbackRoles.join(", ")} once only after failed primary (degraded); no primary+fallback vote; wall-clock is not a stop.`;
-	}
-	return `\nMulti-execution: pending ${multiExecution.trigger} council ${multiExecution.roles.join(" + ")} @ ${multiExecution.panelStages.join(", ")}; signals ${multiExecution.signals.join(", ") || "explicit override"}. Parallel independent Agent first passes (never share results); ≤${budget.requestedOutputTokens.firstPassPerAgent} tokens/pass; ≤6 anonymized claims+evidence; get_subagent_result(wait=true) + verify role/model; deterministic checks before dialogue; stop on agreement/deterministic resolution. On material disagreement only: one resume/participant with opposing claim packet (≤${budget.requestedOutputTokens.rebuttalPerAgent} tokens); no rebroadcast/rank/forced consensus/recurse; parent-only writer; fallback ${multiExecution.fallbackRoles.join(", ")} once after failed primary (degraded); ${multiExecution.adjudicator} once after rebuttals (≤${budget.requestedOutputTokens.adjudication} tokens); total sidecar cap ${budget.requestedOutputTokens.total} (overages → budget_cap degraded/blocked); wall-clock is not a stop.`;
+	return multiExecution.trigger === "explicit"
+		? `\nMulti-execution: single agent (explicit opt-out).`
+		: `\nMulti-execution: single agent.`;
 }
 
 export function shouldInjectWorkflowRouter(prompt: string): boolean {
