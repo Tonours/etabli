@@ -127,7 +127,6 @@ assert_file "$ROOT_DIR/claude/commands/pr-qa.md"
 assert_file "$ROOT_DIR/claude/commands/sec-pr.md"
 assert_file "$ROOT_DIR/claude/commands/ci-fix.md"
 assert_file "$ROOT_DIR/claude/commands/github-pr-review.md"
-assert_file "$ROOT_DIR/claude/hooks/workflow-router.mjs"
 assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
@@ -401,7 +400,6 @@ assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/workflow'
 assert_contains "$ROOT_DIR/claude/README.md" '/verify-workflow'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'actual PLAN.md status is not proven READY'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'permissionDecision: "deny"'
-assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'UserPromptSubmit'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'

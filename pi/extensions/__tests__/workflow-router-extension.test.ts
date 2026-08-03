@@ -78,9 +78,7 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			expect(results[0]).toEqual({
-				systemPrompt: expect.stringContaining("Route: implement"),
-			});
+			expect(results[0]).toBeUndefined();
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "implement" },
 			});
@@ -100,9 +98,7 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			expect(results[0]).toEqual({
-				systemPrompt: expect.stringContaining("Route: plan-implement"),
-			});
+			expect(results[0]).toBeUndefined();
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "plan-implement" },
 			});
@@ -148,16 +144,14 @@ describe("workflow router extension", () => {
 		expect(runtime.entries).toEqual([]);
 	});
 
-	test("injects Obvault guidance for a topic-aware answer", () => {
+	test("resolves Obvault knowledge context for a topic-aware answer", () => {
 		const runtime = setupExtension();
 		const results = runtime.emit("before_agent_start", {
 			prompt: "Donne-moi des idées de SaaS",
 			systemPrompt: "Base prompt",
 		});
 
-		expect(results[0]).toEqual({
-			systemPrompt: expect.stringContaining("Knowledge topics: saas"),
-		});
+		expect(results[0]).toBeUndefined();
 		expect(runtime.entries[0]).toMatchObject({
 			version: "0.6.0",
 			decision: { route: "answer", knowledgeContext: { topics: ["saas"] } },
@@ -639,18 +633,15 @@ tags:
 				systemPrompt: "Base prompt",
 			});
 
-			expect(results[0]).toEqual({
-				systemPrompt: expect.stringContaining("Knowledge topics: finops"),
-			});
-			expect(results[0]).toEqual({
-				systemPrompt: expect.stringContaining(
-					"Knowledge notes: kb/finops-cost-controls.md",
-				),
-			});
+			expect(results[0]).toBeUndefined();
 			expect(runtime.entries[0]).toMatchObject({
 				decision: {
 					route: "answer",
-					knowledgeContext: { source: "obvault-metadata" },
+					knowledgeContext: {
+						source: "obvault-metadata",
+						topics: ["finops"],
+						matchedNotes: ["kb/finops-cost-controls.md"],
+					},
 				},
 			});
 		} finally {

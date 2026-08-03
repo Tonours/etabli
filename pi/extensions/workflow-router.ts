@@ -2,9 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-	appendWorkflowRouterGuidance,
 	classifyWorkflowRoute,
-	shouldInjectWorkflowRouter,
 	WORKFLOW_ROUTER_EXTENSION_VERSION,
 	type PlanStatus,
 } from "./lib/workflow-router-runtime.ts";
@@ -67,7 +65,8 @@ export default function (pi: ExtensionAPI) {
 			}
 		} catch {}
 
-		if (!shouldInjectWorkflowRouter(event.prompt)) return undefined;
+		const trimmedPrompt = event.prompt.trim();
+		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;
 
 		const planStatus = readPlanStatus(eventCwd(event));
 		const routeContext = {
@@ -96,12 +95,7 @@ export default function (pi: ExtensionAPI) {
 			decision,
 		});
 
-		if (decision.route === "answer" && !decision.knowledgeContext)
-			return undefined;
-
-		return {
-			systemPrompt: appendWorkflowRouterGuidance(event.systemPrompt, decision),
-		};
+		return undefined;
 	});
 
 	pi.on("tool_call", (event) => {

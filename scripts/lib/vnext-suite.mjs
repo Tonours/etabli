@@ -113,24 +113,6 @@ function writePlan(cwd, status) {
   );
 }
 
-function runNodeModule(modulePath, stdinObj) {
-  const result = spawnSync(
-    process.execPath,
-    [modulePath],
-    {
-      input: JSON.stringify(stdinObj),
-      encoding: "utf8",
-      cwd: ROOT_DIR,
-      env: process.env,
-    },
-  );
-  return {
-    exit: result.status ?? 1,
-    stdout: result.stdout || "",
-    stderr: result.stderr || "",
-  };
-}
-
 function runBash(args, opts = {}) {
   const result = spawnSync("bash", args, {
     encoding: "utf8",
@@ -170,26 +152,18 @@ export async function driveTask(task, options = {}) {
     switch (task.driver) {
       case "claude_route": {
         tool_calls = 1;
-        const router = join(ROOT_DIR, "claude/hooks/workflow-router.mjs");
-        const out = runNodeModule(router, { prompt: task.input.prompt, cwd: tmp });
-        // Hook exits 0 with empty stdout when route is pure answer (no inject).
+        const lib = await loadRouterLib();
+        const decision = lib.classifyWorkflowRoute(task.input.prompt, {
+          planStatus: lib.readPlanStatus(tmp),
+        });
         driver_finished = true;
-        const routeMatch = String(out.stdout || "").match(/Route:\s*([a-z0-9-]+)/i);
-        let route = routeMatch ? routeMatch[1] : null;
-        if (
-          route == null &&
-          out.exit === 0 &&
-          !String(out.stdout || "").trim()
-        ) {
-          route = "answer";
-        }
         finalState = {
-          route,
-          stdout: out.stdout,
-          stderr: out.stderr,
-          exit: out.exit,
+          route: decision.route,
+          stdout: `Route: ${decision.route}\nReason: ${decision.reason}`,
+          stderr: "",
+          exit: 0,
         };
-        artefacts.push("claude/hooks/workflow-router.mjs");
+        artefacts.push("claude/hooks/workflow-router-lib.mjs");
         break;
       }
       case "claude_route_context": {

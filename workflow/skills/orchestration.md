@@ -120,9 +120,10 @@ Claude:
 - `/goal` is the native till-done mechanism. Pair the measurable condition
   with an explicit cap (iterations or wall-clock) and record the event ledger
   per `workflow/events.md`, as required by `workflow/spec.md`.
-- `workflow-router.mjs` and `plan-ready-guard.mjs` are opt-in local hooks that
-  prove route/guard behavior in smoke tests.
-- Hooks are deterministic guardrails for routing, blocking, and context
-  injection. They do not replace task state or completion evidence.
+- `plan-ready-guard.mjs` is an opt-in local hook that proves guard behavior in
+  smoke tests. Route classification stays library-only
+  (`claude/hooks/workflow-router-lib.mjs`), covered by `scripts/router-eval`.
+- Hooks are deterministic guardrails for blocking. They do not inject route
+  context, and they do not replace task state or completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.
