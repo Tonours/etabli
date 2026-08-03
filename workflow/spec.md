@@ -21,10 +21,9 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 ## Agentic workflow loop
 
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
-(ADR-0006). Role chain and multi-model policy: see `workflow/contract-details.md`
-and the deterministic adaptive profile in
-`workflow/skills/multi-model-orchestration.md`. Shared orchestration:
-`workflow/skills/orchestration.md`.
+(ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
+orchestration: `workflow/skills/orchestration.md`. Work is parent-only; the
+multi-model council was removed (ADR-0013).
 
 ```text
 user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
@@ -68,8 +67,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   without another explicit command contract.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
-- Experimental read-only: `workflow-monitor`, `workflow-metrics`,
-  `workflow-dossier`, `workflow-retrospect` (not core gate; ≥10 task-grader
+- Experimental read-only: `workflow-retrospect` (not core gate; ≥10 task-grader
   outcomes before claiming telemetry value).
 - Self-improvement: `workflow/skills/self-improvement-loop.md`. Ambitious
   projects: `workflow/skills/ambitious-project-loop.md`. Opt-in autonomy:
@@ -134,7 +132,6 @@ A plan is `READY` when it has:
 | Verify, retest, prove, or completion audit | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
 | Research with sources | `research-plan` | cited doc under `docs/` | cited artifact complete |
 | Destructive, secret, production, billing, deployment, or broad irreversible work | `ops-stop` | risk brief | user decision |
-| Task tools active and actionable request | `tasks-till-done` assists selected route | TaskList | all tasks done, blocked, stalled, or limit |
 
 `spec-guide` is ambient. Linear routes require Linear MCP or stop with
 `LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
@@ -145,8 +142,7 @@ Checkpoints sit at irreversibility boundaries (deletion, production/billing,
 history rewrite, secrets, external write-back), not every step; the Routing
 rules table above routes these to `ops-stop`. Full enforcement matrix and
 event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
-coverage: routes shared by Pi extension and Claude hooks except
-`tasks-till-done` (Pi-only); executable classifier
+coverage: routes shared by Pi extension and Claude hooks; executable classifier
 `claude/hooks/workflow-router-lib.mjs` via `workflow/runtime/workflow-router-core.mjs`.
 
 ## Runtime surfaces

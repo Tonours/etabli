@@ -16,17 +16,11 @@ core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
 core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
 full	shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
-full	shell-docs	workflow-efficiency-report-smoke	tests/workflow-efficiency-report-smoke.sh
-full	shell-docs	workflow-monitor-smoke	tests/workflow-monitor-smoke.sh
-full	shell-docs	workflow-metrics-smoke	tests/workflow-metrics-smoke.sh
-full	shell-docs	one-writer-portfolio-smoke	tests/one-writer-portfolio-smoke.sh
 full	shell-docs	leap-harness-validation-smoke	tests/leap-harness-validation-smoke.sh
 full	shell-docs	ledger-auto-emit-smoke	tests/ledger-auto-emit-smoke.sh
 full	shell-docs	workflow-receipts-smoke	tests/workflow-receipts-smoke.sh
 full	shell-docs	ledger-selection-performance-smoke	tests/ledger-selection-performance-smoke.sh
 full	shell-docs	workflow-supersession-smoke	tests/workflow-supersession-smoke.sh
-full	shell-docs	workflow-telemetry-recover-smoke	tests/workflow-telemetry-recover-smoke.sh
-full	shell-docs	workflow-dossier-smoke	tests/workflow-dossier-smoke.sh
 full	shell-docs	workflow-retrospect-smoke	tests/workflow-retrospect-smoke.sh
 full	shell-docs	research-proof-check-smoke	tests/research-proof-check-smoke.sh
 full	shell-docs	answer-quality-check-smoke	tests/answer-quality-check-smoke.sh
@@ -44,8 +38,6 @@ full	shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
 full	shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
 full	shell-docs	adr-helper-smoke	tests/adr-helper-smoke.sh
 full	shell-docs	validate-adrs	builtin:validate-adrs
-full	shell-docs	multi-model-quality-score-smoke	tests/multi-model-quality-score-smoke.sh
-full	shell-docs	model-network-tune-smoke	tests/model-network-tune-smoke.sh
 full	shell-docs	browser-full-page-capture-smoke	tests/browser-full-page-capture-smoke.sh
 full	shell-docs	obvault-routing-smoke	tests/obvault-routing-smoke.sh
 full	shell-docs	obvault-query-smoke	tests/obvault-query-smoke.sh
@@ -61,9 +53,7 @@ full	shell-docs	graph-neighborhood-smoke	tests/graph-neighborhood-smoke.sh
 full	shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
 full	shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.sh
 full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
-full	shell-docs	workflow-loop-adherence-smoke	tests/workflow-loop-adherence-smoke.sh
 full	shell-docs	route-context-manifest-smoke	tests/route-context-manifest-smoke.sh
-full	shell-docs	workflow-execution-graph-smoke	tests/workflow-execution-graph-smoke.sh
 full	shell-docs	workflow-outcome-metric-smoke	tests/workflow-outcome-metric-smoke.sh
 full	shell-docs	claude-outcome-metric-emit-smoke	tests/claude-outcome-metric-emit-smoke.sh
 full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh

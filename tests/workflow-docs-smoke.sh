@@ -81,7 +81,6 @@ assert_file "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
 assert_file "$ROOT_DIR/docs/plan/README.md"
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/workflow/runtime-capabilities.json"
-assert_file "$ROOT_DIR/workflow/pi-workflow-adapter.md"
 assert_dir "$ROOT_DIR/docs/adr"
 assert_file "$ROOT_DIR/CLAUDE.md"
 assert_file "$ROOT_DIR/scripts/validate-adrs"
@@ -127,26 +126,17 @@ assert_file "$ROOT_DIR/claude/commands/pr-qa.md"
 assert_file "$ROOT_DIR/claude/commands/sec-pr.md"
 assert_file "$ROOT_DIR/claude/commands/ci-fix.md"
 assert_file "$ROOT_DIR/claude/commands/github-pr-review.md"
-assert_file "$ROOT_DIR/claude/hooks/workflow-router.mjs"
 assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-monitor-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-metrics-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-telemetry-recover-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-dossier-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
-assert_file "$ROOT_DIR/scripts/workflow-monitor"
-assert_file "$ROOT_DIR/scripts/workflow-metrics"
-assert_file "$ROOT_DIR/scripts/workflow-telemetry-recover"
-assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
-assert_file "$ROOT_DIR/scripts/workflow-dossier"
 assert_file "$ROOT_DIR/scripts/workflow-retrospect"
+assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
@@ -171,7 +161,6 @@ assert_contains "$INSTALL_MAIN" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Deploy only the Etabli agent workflow surfaces'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@tintinweb/pi-subagents'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@agwab/pi-workflow@0.8.1'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
 assert_contains "$INSTALL_MAIN" 'hunkdiff'
 assert_contains "$INSTALL_MAIN" 'install_npm_global_binary_link "hunk"'
@@ -193,7 +182,6 @@ assert_contains "$ROOT_DIR/README.md" 'scripts/verify-agentic-infra live'
 assert_contains "$ROOT_DIR/README.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/contract-details.md'
 assert_contains "$ROOT_DIR/README.md" 'protocol, not an OS lock'
-assert_contains "$ROOT_DIR/README.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/README.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/README.md" 'at least 10 representative'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/self-improvement-loop.md'
@@ -254,7 +242,7 @@ assert_contains "$ROOT_DIR/claude/commands/spec-verify.md" '~/work/obvault/kb/'
 assert_not_contains "$ROOT_DIR/claude/commands/cross-repo-audit.md" '~/work/brain'
 assert_not_contains "$ROOT_DIR/claude/commands/spec-verify.md" '~/work/brain'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Follow `workflow/spec.md`; Claude hooks inject the selected route.'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'route classification is library-only (ADR-0014)'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'live final gate'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
@@ -275,7 +263,6 @@ assert_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'not verifi
 assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'Status: verified for the fixture strategy'
 assert_contains "$ROOT_DIR/docs/answer-quality-eval-cases.md" 'https://developers.openai.com/api/docs/guides/evaluation-best-practices'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Historical fields'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-monitor'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
@@ -332,8 +319,6 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/events.md" 'schema_version:2'
 assert_contains "$ROOT_DIR/workflow/events.md" 'never counts as a successful outcome'
 assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
-assert_file "$ROOT_DIR/scripts/workflow-telemetry-recover"
-assert_file "$ROOT_DIR/scripts/workflow-efficiency-report"
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/docs/plan/README.md" 'It is a memory shelf, not an active planning workspace.'
@@ -355,14 +340,8 @@ assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not merge
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
-assert_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'System complexity alone also stays parent-only'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" '## Codex Ambient Team Profile'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'spawn_agent'
-assert_not_contains "$ROOT_DIR/workflow/skills/multi-model-orchestration.md" 'fork_turns'
-assert_file "$ROOT_DIR/tests/multi-model-real-smoke.mjs"
 assert_contains "$ROOT_DIR/workflow/events.md" 'Protocol v2 adds'
 assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'protocol_version'
-assert_contains "$ROOT_DIR/pi/extensions/workflow-router.ts" 'Etabli adaptive council budget'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'ReAct paper'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'Retry with evidence'
 assert_contains "$ROOT_DIR/docs/agentic-workflow-hardening.md" 'final status the active surface exposes'
@@ -419,16 +398,11 @@ assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/workflow'
 assert_contains "$ROOT_DIR/claude/README.md" '/verify-workflow'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'actual PLAN.md status is not proven READY'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'permissionDecision: "deny"'
-assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'UserPromptSubmit'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'
 assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
-assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@agwab/pi-workflow@0.8.1'
 assert_contains "$INSTALL_MAIN" 'npm:@tintinweb/pi-subagents'
-assert_contains "$ROOT_DIR/README.md" 'workflow/pi-workflow-adapter.md'
-assert_contains "$ROOT_DIR/workflow/pi-workflow-adapter.md" 'This is an execution adapter, not a replacement workflow contract.'
-assert_contains "$ROOT_DIR/pi/AGENTS.md" 'Run pi-workflow only when explicitly requested'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/plan-archive.md'
 

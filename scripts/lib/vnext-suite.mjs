@@ -113,24 +113,6 @@ function writePlan(cwd, status) {
   );
 }
 
-function runNodeModule(modulePath, stdinObj) {
-  const result = spawnSync(
-    process.execPath,
-    [modulePath],
-    {
-      input: JSON.stringify(stdinObj),
-      encoding: "utf8",
-      cwd: ROOT_DIR,
-      env: process.env,
-    },
-  );
-  return {
-    exit: result.status ?? 1,
-    stdout: result.stdout || "",
-    stderr: result.stderr || "",
-  };
-}
-
 function runBash(args, opts = {}) {
   const result = spawnSync("bash", args, {
     encoding: "utf8",
@@ -170,26 +152,18 @@ export async function driveTask(task, options = {}) {
     switch (task.driver) {
       case "claude_route": {
         tool_calls = 1;
-        const router = join(ROOT_DIR, "claude/hooks/workflow-router.mjs");
-        const out = runNodeModule(router, { prompt: task.input.prompt, cwd: tmp });
-        // Hook exits 0 with empty stdout when route is pure answer (no inject).
+        const lib = await loadRouterLib();
+        const decision = lib.classifyWorkflowRoute(task.input.prompt, {
+          planStatus: lib.readPlanStatus(tmp),
+        });
         driver_finished = true;
-        const routeMatch = String(out.stdout || "").match(/Route:\s*([a-z0-9-]+)/i);
-        let route = routeMatch ? routeMatch[1] : null;
-        if (
-          route == null &&
-          out.exit === 0 &&
-          !String(out.stdout || "").trim()
-        ) {
-          route = "answer";
-        }
         finalState = {
-          route,
-          stdout: out.stdout,
-          stderr: out.stderr,
-          exit: out.exit,
+          route: decision.route,
+          stdout: `Route: ${decision.route}\nReason: ${decision.reason}`,
+          stderr: "",
+          exit: 0,
         };
-        artefacts.push("claude/hooks/workflow-router.mjs");
+        artefacts.push("claude/hooks/workflow-router-lib.mjs");
         break;
       }
       case "claude_route_context": {
@@ -262,40 +236,6 @@ export async function driveTask(task, options = {}) {
         driver_finished = true;
         finalState = { mutating };
         artefacts.push("claude/hooks/workflow-router-lib.mjs#isMutatingBashCommand");
-        break;
-      }
-      case "dossier_redaction": {
-        tool_calls = 2;
-        const eventDir = join(tmp, ".workflow");
-        mkdirSync(join(eventDir, "sec-redact"), { recursive: true });
-        const append = spawnSync(
-          join(ROOT_DIR, "scripts/workflow-event"),
-          [
-            "--dir",
-            eventDir,
-            "append",
-            "sec-redact",
-            "validation_failed",
-            JSON.stringify({
-              command: task.input.command,
-              exit: 1,
-              failure: task.input.failure,
-            }),
-          ],
-          { encoding: "utf8", cwd: ROOT_DIR },
-        );
-        const dossier = spawnSync(
-          join(ROOT_DIR, "scripts/workflow-dossier"),
-          ["--dir", eventDir, "sec-redact"],
-          { encoding: "utf8", cwd: ROOT_DIR },
-        );
-        driver_finished = true;
-        finalState = {
-          append_exit: append.status,
-          dossier_exit: dossier.status,
-          dossier: `${dossier.stdout}\n${dossier.stderr}`,
-        };
-        artefacts.push("scripts/workflow-dossier", join(eventDir, "sec-redact/events.jsonl"));
         break;
       }
       case "supply_chain_pins": {

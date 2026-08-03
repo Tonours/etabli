@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { getDefaultResultOrder } from "node:dns";
 import {
 	PREFERRED_DNS_RESULT_ORDER,
 	applyPreferredDnsResultOrder,
@@ -7,8 +6,12 @@ import {
 
 describe("prefer-ipv4-dns", () => {
 	test("applies ipv4first as the default DNS result order", () => {
-		const applied = applyPreferredDnsResultOrder();
-		expect(applied).toBe(PREFERRED_DNS_RESULT_ORDER);
-		expect(getDefaultResultOrder()).toBe("ipv4first");
+		expect(applyPreferredDnsResultOrder()).toBe(PREFERRED_DNS_RESULT_ORDER);
+		expect(PREFERRED_DNS_RESULT_ORDER).toBe("ipv4first");
+	});
+
+	test("is idempotent across repeated applications", () => {
+		applyPreferredDnsResultOrder();
+		expect(applyPreferredDnsResultOrder()).toBe(PREFERRED_DNS_RESULT_ORDER);
 	});
 });

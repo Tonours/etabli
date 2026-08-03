@@ -33,15 +33,11 @@ Roles are contracts, not mandatory separate agents:
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
-Ordinary work remains single-agent unless an active runtime profile admits a
-sidecar. Pi uses the deterministic adaptive profile in
-`workflow/skills/multi-model-orchestration.md`: no sidecar at score zero, one
-route-appropriate scout for material uncertainty or failure history, and a
-two-agent council for one critical or two distinct medium signals. System
-complexity alone stays parent-only. Explicit opt-out forces the parent only.
-Runtime-specific model portfolios and mechanics stay in their respective
-profiles; shared workflow and evidence invariants stay in
-`workflow/skills/orchestration.md`.
+Work is parent-only. The deterministic multi-model council (scout / analyst /
+challenger / judge / fallback) was removed in ADR-0013; `classifyMultiExecution`
+always returns single. Delegating to a subagent stays available as an ordinary
+tool call, judged case by case, not as a routed profile. Shared workflow and
+evidence invariants stay in `workflow/skills/orchestration.md`.
 
 ## Rules (detail)
 
@@ -109,9 +105,8 @@ profiles; shared workflow and evidence invariants stay in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger instead of chat history, and `completed` or `blocked` events are
   terminal evidence.
-- `workflow-monitor`, `workflow-metrics`, `workflow-dossier`, and
-  `workflow-retrospect` are experimental, on-demand, read-only ledger/archive
-  readers. They support diagnostics and retrospective hypotheses; they are not
+- `workflow-retrospect` is an experimental, on-demand, read-only ledger/archive
+  reader. It supports diagnostics and retrospective hypotheses; it is not
   part of the core gate. Telemetry does not establish user value until at least
   10 representative real tasks have task-grader outcomes.
 - `workflow-telemetry-recover` is read-only by default and may append only a
@@ -225,7 +220,6 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Answer quality eval: `scripts/answer-quality-eval`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
-- Explicit-use Pi named-workflow adapter: `workflow/pi-workflow-adapter.md`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
@@ -238,10 +232,6 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 
 Pi:
 
-- `/workflow ...` is an explicit-use third-party Pi adapter, never an ambient Etabli
-  route. Its first approved slice is the bundled read-only `spec-review` and
-  `impact-review` workflows; see `workflow/pi-workflow-adapter.md` for state,
-  delegation, and non-sandbox boundaries.
 - `/skill:plan-loop <task>`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/skill:plan-implement <task>`: plan, then implement if `READY`
 - `/skill:adversary`: adversarially review `PLAN.md` before implementation

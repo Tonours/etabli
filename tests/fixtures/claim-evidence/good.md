@@ -6,7 +6,7 @@
 | Outcome metrics documented | `workflow/events.md` | confirmed |
 
 <!-- claim
-subject: Loop adherence helper ships offline
-evidence: scripts/workflow-loop-adherence
+subject: Ledger event helper ships offline
+evidence: scripts/workflow-event
 status: verified
 -->

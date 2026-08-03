@@ -56,10 +56,8 @@ describe("Pi settings consistency", () => {
     expect(localPackage().extensions).toEqual([
       "rtk.ts",
       "filter-output.ts",
-      "block-google-providers.ts",
       "prefer-ipv4-dns.ts",
       "workflow-router.ts",
-      "tasks-till-done.ts",
     ]);
   });
 
@@ -94,7 +92,7 @@ describe("Pi settings consistency", () => {
   });
 
   test("loads only the curated third-party Pi package surface", () => {
-    expect(settings.packages).not.toContain("npm:pi-interview");
+    expect(packageBySource("npm:pi-interview")).toBeUndefined();
     expect(settings.packages).not.toContain("https://github.com/davebcn87/pi-autoresearch");
     expect(settings.packages).not.toContain("npm:glimpseui");
 
@@ -119,13 +117,6 @@ describe("Pi settings consistency", () => {
       themes: [],
     });
 
-    expect(packageBySource("npm:pi-interview")).toMatchObject({
-      extensions: ["index.ts"],
-      skills: [],
-      prompts: [],
-      themes: [],
-    });
-
     expect(packageBySource("npm:glimpseui")).toMatchObject({
       extensions: [],
       skills: [],
@@ -141,28 +132,18 @@ describe("Pi settings consistency", () => {
       source: "npm:@tintinweb/pi-tasks@0.7.1",
     });
 
-    expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toMatchObject({
-      extensions: ["src/extension.ts"],
-      skills: ["workflow-guide", "execution-router"],
-      prompts: [],
-      themes: [],
-    });
+    expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toBeUndefined();
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
-    expect(installScript).toContain("npm:@agwab/pi-workflow@0.8.1");
-    expect(deployAgentWorkflowScript).toContain("npm:@agwab/pi-workflow@0.8.1");
+    expect(installScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
+    expect(deployAgentWorkflowScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
     expect(installScript).toContain("npm:@tintinweb/pi-subagents@0.13.0");
     expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
   });
 
-  test("enables the exact managed model portfolio without retired aliases", () => {
+  test("enables the exact managed model set without retired aliases", () => {
     const enabledModels = (settings as typeof settings & { enabledModels: string[] }).enabledModels;
 
-    // Portfolio A' role pins (Grok analyst)
-    expect(enabledModels).toContain("opencode-go/deepseek-v4-flash");
-    expect(enabledModels).toContain("xai/grok-4.5");
     expect(enabledModels).toContain("zai/glm-5.2");
-    expect(enabledModels).toContain("openai-codex/gpt-5.6-sol");
-    expect(enabledModels).toContain("openai-codex/gpt-5.6-luna");
     expect(enabledModels).toContain("opencode-go/minimax-m3");
     expect(enabledModels).toContain("opencode-go/qwen3.7-plus");
     expect(enabledModels).toContain("github-copilot/claude-sonnet-5");
@@ -175,5 +156,16 @@ describe("Pi settings consistency", () => {
     expect(enabledModels).not.toContain("opencode-go/minimax-m2.7");
     expect(enabledModels).not.toContain("opencode-go/qwen3.6-plus");
     expect(enabledModels.some((model) => model.startsWith("local-mlx/"))).toBe(false);
+  });
+
+  test("keeps the default model selectable", () => {
+    const typed = settings as typeof settings & {
+      enabledModels: string[];
+      defaultProvider: string;
+      defaultModel: string;
+    };
+    expect(typed.enabledModels).toContain(
+      `${typed.defaultProvider}/${typed.defaultModel}`,
+    );
   });
 });
