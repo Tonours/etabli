@@ -63,17 +63,11 @@ actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 	fail "core profile exceeds 16 checks"
 
 expected_full='pr-latest-head-status-smoke
-workflow-efficiency-report-smoke
-workflow-monitor-smoke
-workflow-metrics-smoke
-one-writer-portfolio-smoke
 leap-harness-validation-smoke
 ledger-auto-emit-smoke
 workflow-receipts-smoke
 ledger-selection-performance-smoke
 workflow-supersession-smoke
-workflow-telemetry-recover-smoke
-workflow-dossier-smoke
 workflow-retrospect-smoke
 research-proof-check-smoke
 answer-quality-check-smoke
@@ -91,7 +85,6 @@ adr-validate-smoke
 adr-validation-golden
 adr-helper-smoke
 validate-adrs
-multi-model-quality-score-smoke
 browser-full-page-capture-smoke
 obvault-routing-smoke
 obvault-query-smoke
@@ -107,9 +100,7 @@ graph-neighborhood-smoke
 action-graph-smoke
 obvault-shadow-promote-smoke
 autonomous-ledger-hygiene-smoke
-workflow-loop-adherence-smoke
 route-context-manifest-smoke
-workflow-execution-graph-smoke
 workflow-outcome-metric-smoke
 claude-outcome-metric-emit-smoke
 claim-evidence-check-smoke'

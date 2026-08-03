@@ -35,13 +35,6 @@ DETAIL='{
 
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate leap-g3-p0 --profile structural
 
-json="$("$ROOT_DIR/scripts/workflow-metrics" --dir "$EVENT_DIR" --json)"
-printf '%s\n' "$json" | jq -e '
-  .harness.accepted_candidates == 1 and
-  (.harness.candidates[] | select(.candidate == "leap-g3-no-progress-mutate-deny") |
-    .verdict == "accepted" and .held_in_delta_pp == 100 and .held_out_delta_pp == 0)
-' >/dev/null || fail "metrics harness acceptance: $json"
-
 # Reject fake accepted without held-in gain
 set +e
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append leap-bad harness_validation_completed \

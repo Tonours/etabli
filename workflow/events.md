@@ -28,9 +28,7 @@ replacement instead of deleting history. When that script is unavailable in a
 scaffolded project, an equivalent single validated append is acceptable. Do not
 edit earlier lines.
 
-Read ledgers with `scripts/workflow-monitor`, aggregate optional token/outcome
-metrics with `scripts/workflow-metrics`, create sanitized replay/debug dossiers
-with `scripts/workflow-dossier`, and mine recurring workflow issues with
+Mine recurring workflow issues with
 `scripts/workflow-retrospect`. `scripts/workflow-telemetry-recover` is dormant
 historical tooling for recovering usage from pre-recenter Codex session logs;
 only explicit `--apply` writes the pinned population and imports to the active
@@ -106,8 +104,8 @@ keep using `harness_candidate_rejected`. Metrics report per-candidate
 percentage-point deltas and never average heterogeneous suites into a global
 improvement score.
 
-`multi_execution_completed` accepts only the tracked portfolio model IDs and
-their matching `openai`, `zai`, or `kimi` family. When `usage.measured` is true,
+`multi_execution_completed` requires a non-empty model ID whose prefix matches
+its declared family. When `usage.measured` is true,
 non-negative `input_tokens`, `output_tokens`, `total_tokens`, and `elapsed_ms`
 are required; `total_tokens` cannot be lower than input plus output.
 
@@ -116,16 +114,15 @@ Historical events without `protocol_version` remain valid. Protocol v2 adds
 `disagreement_count`, `stop_reason`, numeric requested `budget`, and measured or
 explicitly unmeasured `stage_usage` for first pass, rebuttal, and adjudication.
 Adaptive v2 evidence needs at least one signal. Scouts cannot rebut or judge;
-an adjudication round requires `etabli-judge`. If claims or any measured
+an adjudication round requires a named adjudicator. If claims or any measured
 stage/total output exceed the requested budget, only `stop_reason: budget_cap`
 with a `degraded` or `blocked` verdict validates; an accepted overage is
 rejected. V2 budgets are canonical rather than caller-selected: scout uses
 `600/0/0/600` and council uses `1800/700/650/3500` for
 first-pass/rebuttal/adjudication/total output, both with six claims. The
-validator also binds adaptive signals to the selected strategy, keeps Sol out
-of participants, requires unique participant IDs and models, and validates the
-portfolio shape: one Luna/Terra scout, or Luna/Terra plus GLM for a normal
-council, with Kimi admitted only as the explicit replacement. It also rejects
+validator also binds adaptive signals to the selected strategy, requires unique
+participant IDs and models, and validates the participant count per strategy:
+one for a scout without fallback, two for a council without fallback. It also rejects
 contradictions between disagreement counts, fallback, verdict, stop reason,
 and executed rounds. `fallback_status` carries replacement degradation, so a
 degraded fallback run keeps its real resolution reason such as `agreement`,
@@ -153,14 +150,8 @@ import whose full detail exactly matches that source-derived result. Missing
 sessions, forged aggregates, or stale target fingerprints therefore stay
 unmeasured even when the stored event is structurally valid.
 
-`workflow-metrics` keeps native, recovered, explicitly unmeasured, legacy, and
-separately measured runtime usage evidence distinct. `measurement_coverage`
-retains the generic measured flag, while `usage_measurement_coverage` counts
-only outcomes with actual token totals over the full outcome denominator.
 Runtime usage from `multi_execution_completed` is reported independently and
-never counts as a successful outcome without an `outcome_metric`. Historical
-metrics that claimed `measured:true` without usage fields remain outcome
-evidence, but do not enter tokens-per-successful-outcome.
+never counts as a successful outcome without an `outcome_metric`.
 
 `workflow-retrospect` confirms recurrence from independent ledger initiatives,
 not raw occurrences. A terminal `-vN`, `-retryN`, `-attemptN`, or `-rerunN`

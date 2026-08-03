@@ -23,4 +23,6 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0010](docs/adr/0010-replace-lazy-nvim-with-vim-pack.md) — Replace lazy.nvim with vim.pack [accepted]
 - [0011](docs/adr/0011-remove-the-codex-and-kimi-code-harnesses-and-recenter-on-pi-and-claude.md) — Remove the Codex and Kimi Code harnesses and recenter on Pi and Claude [accepted]
 - [0012](docs/adr/0012-nvim-is-a-code-first-minimal-ide.md) — Neovim is a code-first minimal IDE [accepted]
+- [0013](docs/adr/0013-remove-the-multi-model-council-and-telemetry-reporters.md) — Remove the multi-model council and the telemetry reporters [accepted]
+- [0014](docs/adr/0014-stop-injecting-route-context-into-every-prompt.md) — Stop injecting route context into every prompt [accepted]
 <!-- ADR:INDEX:END -->

@@ -2,7 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const FALLBACK_MODEL = "zai/glm-5.2";
+export const UNKNOWN_MODEL_SPEC = "unknown";
 export type RtkMode = "always" | "off";
 export type RtkConfig = {
   enabled: boolean;
@@ -17,19 +17,6 @@ type AgentSettings = {
   defaultProvider?: unknown;
   defaultModel?: unknown;
   rtk?: unknown;
-  tasksTillDone?: unknown;
-};
-
-export type TasksTillDoneConfig = {
-  /** When false, never inject Task Loop guidance or auto-continue. Default true. */
-  enabled: boolean;
-  /** When false, inject guidance but do not send agent_end follow-ups. Default true. */
-  autoContinue: boolean;
-};
-
-export const DEFAULT_TASKS_TILL_DONE_CONFIG: TasksTillDoneConfig = {
-  enabled: true,
-  autoContinue: true,
 };
 
 type FileCacheEntry<T> = {
@@ -82,7 +69,7 @@ function normalizeRtkMode(value: unknown): RtkMode {
   return value === "off" ? "off" : "always";
 }
 
-export function readDefaultModelSpec(settingsPath: string, fallback = FALLBACK_MODEL): string {
+export function readDefaultModelSpec(settingsPath: string, fallback = UNKNOWN_MODEL_SPEC): string {
   const raw = readAgentSettings(settingsPath);
   if (raw) {
     const provider = typeof raw.defaultProvider === "string" ? raw.defaultProvider.trim() : "";
@@ -110,27 +97,6 @@ export function readRtkConfig(settingsPath = getAgentSettingsPath()): RtkConfig 
       typeof config.dangerousCommandBypass === "boolean"
         ? config.dangerousCommandBypass
         : DEFAULT_RTK_CONFIG.dangerousCommandBypass,
-  };
-}
-
-export function readTasksTillDoneConfig(
-  settingsPath = getAgentSettingsPath(),
-): TasksTillDoneConfig {
-  const settings = readAgentSettings(settingsPath);
-  const raw = settings?.tasksTillDone;
-  if (!raw || typeof raw !== "object" || raw === null) {
-    return { ...DEFAULT_TASKS_TILL_DONE_CONFIG };
-  }
-  const config = raw as Record<string, unknown>;
-  return {
-    enabled:
-      typeof config.enabled === "boolean"
-        ? config.enabled
-        : DEFAULT_TASKS_TILL_DONE_CONFIG.enabled,
-    autoContinue:
-      typeof config.autoContinue === "boolean"
-        ? config.autoContinue
-        : DEFAULT_TASKS_TILL_DONE_CONFIG.autoContinue,
   };
 }
 

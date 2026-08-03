@@ -22,31 +22,14 @@ assert_contains() {
   esac
 }
 
-assert_not_contains() {
-  local text="$1"
-  local needle="$2"
-
-  case "$text" in
-    *"$needle"*)
-      printf 'did not expect output to contain: %s\noutput was:\n%s\n' "$needle" "$text" >&2
-      exit 1
-      ;;
-  esac
-}
-
 assert_empty() {
   local text="$1"
   local label="$2"
 
   if [ -n "$text" ]; then
-    printf '%s should not receive injected router context; got: %s\n' "$label" "$text" >&2
+    printf '%s should produce no output; got: %s\n' "$label" "$text" >&2
     exit 1
   fi
-}
-
-fixture_input() {
-  local fixture="$1"
-  sed "s#__CWD__#$TMP_DIR#g" "$ROOT_DIR/tests/fixtures/claude-hooks/$fixture"
 }
 
 write_plan() {
@@ -70,172 +53,6 @@ write_plan() {
 - Required evidence: smoke test
 EOF
 }
-
-router_output="$(fixture_input router-review.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" '"hookEventName":"UserPromptSubmit"'
-assert_contains "$router_output" 'Route: review'
-assert_contains "$router_output" 'Command: /review'
-assert_not_contains "$router_output" 'Route: plan-implement'
-
-router_output="$(fixture_input router-architecture-review.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: review'
-assert_contains "$router_output" 'Command: /review'
-assert_not_contains "$router_output" 'Route: plan-loop'
-
-router_output="$(fixture_input router-roadmap-summary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "roadmap summary"
-
-router_output="$(fixture_input router-knowledge-saas.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: research-plan'
-assert_contains "$router_output" 'Knowledge topics: saas'
-assert_contains "$router_output" '~/work/obvault/_meta/obvault context --json --max-tokens 2500'
-assert_not_contains "$router_output" 'rentables"'
-
-router_output="$(fixture_input router-knowledge-none.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "unrelated answer"
-
-dynamic_vault="$TMP_DIR/dynamic-obvault"
-mkdir -p "$dynamic_vault/kb" "$dynamic_vault/ref"
-ln -s "$ROOT_DIR/tests/fixtures/obvault-meta" "$dynamic_vault/_meta"
-printf '# Test vault\n' > "$dynamic_vault/AGENTS.md"
-printf '# Index\n\n- [[finops-cost-controls]]\n' > "$dynamic_vault/kb/_index.md"
-cat > "$dynamic_vault/kb/finops-cost-controls.md" <<'EOF'
----
-type: synthesis
-status: verified
-summary: "Cloud cost controls."
-sources:
-  - "repo:billing.md"
-created: 2026-07-10
-updated: 2026-07-10
-tags:
-  - finops
----
-# FinOps Cost Controls
-EOF
-router_output="$(fixture_input router-knowledge-finops.json | OBVAULT_ROOT="$dynamic_vault" node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_contains "$router_output" 'Knowledge topics: finops'
-assert_contains "$router_output" 'Knowledge notes: kb/finops-cost-controls.md'
-assert_contains "$router_output" 'matched live obvault metadata'
-
-router_output="$(fixture_input router-spec-read.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: answer'
-assert_contains "$router_output" 'Knowledge topics: web-security'
-
-write_plan "READY"
-router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: implement'
-assert_contains "$router_output" 'validated archive written and root PLAN.md deleted'
-rm -f "$TMP_DIR/PLAN.md"
-
-router_output="$(fixture_input router-ready-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_contains "$router_output" 'actual PLAN.md status is not proven READY'
-assert_not_contains "$router_output" 'Route: implement'
-
-write_plan "READY"
-router_output="$(fixture_input router-ready-read-only.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "ready read-only"
-rm -f "$TMP_DIR/PLAN.md"
-
-router_output="$(fixture_input router-linear-ticket.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: linear-ticket-create'
-assert_contains "$router_output" 'Command: /linear-ticket-create'
-assert_not_contains "$router_output" 'Route: linear-work'
-
-router_output="$(fixture_input router-linear-ticket-infinitive.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: linear-ticket-create'
-assert_contains "$router_output" 'Command: /linear-ticket-create'
-assert_not_contains "$router_output" 'Route: plan-loop'
-
-router_output="$(fixture_input router-linear-read.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "linear read"
-
-router_output="$(fixture_input router-bug-check.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: bug-check'
-assert_contains "$router_output" 'Command: /bug-check'
-assert_not_contains "$router_output" 'Route: linear-work'
-
-router_output="$(fixture_input router-github-pr-review.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: pr-review'
-assert_contains "$router_output" 'Command: /pr-review'
-assert_not_contains "$router_output" 'Command: /review'
-
-router_output="$(fixture_input router-pr-qa.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: pr-qa'
-assert_contains "$router_output" 'Command: /pr-qa'
-
-router_output="$(fixture_input router-sec-pr.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: sec-pr'
-assert_contains "$router_output" 'Command: /sec-pr'
-
-router_output="$(fixture_input router-ci-fix.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: ci-fix'
-assert_contains "$router_output" 'Command: /ci-fix'
-
-router_output="$(fixture_input router-ci-fix-push.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: ci-fix'
-assert_contains "$router_output" 'Command: /ci-fix'
-assert_not_contains "$router_output" 'Route: ops-stop'
-
-router_output="$(fixture_input router-remove.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: ops-stop'
-assert_contains "$router_output" 'sensitive or destructive action requested'
-
-router_output="$(fixture_input router-implement-verb.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_not_contains "$router_output" 'Route: answer'
-
-router_output="$(fixture_input router-question-implement.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_not_contains "$router_output" 'Route: answer'
-
-router_output="$(fixture_input router-read-then-fix.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_not_contains "$router_output" 'Route: answer'
-
-router_output="$(fixture_input router-ambient-implementation.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_not_contains "$router_output" 'Route: answer'
-
-router_output="$(fixture_input router-autonomous-plan-loop.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_contains "$router_output" 'autonomous plan-loop request'
-assert_contains "$router_output" 'Plan chain: planning -> plan-loop'
-assert_contains "$router_output" 'Autonomous completion evidence:'
-assert_contains "$router_output" 'Runtime loop: use Claude Code `/goal`'
-assert_contains "$router_output" 'workflow/runtime-capabilities.json'
-assert_not_contains "$router_output" 'TaskCreate'
-assert_not_contains "$router_output" 'TaskList'
-assert_not_contains "$router_output" 'Route: plan-loop'
-
-router_output="$(fixture_input router-adversary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: adversary'
-assert_contains "$router_output" 'Command: /adversary'
-assert_not_contains "$router_output" 'Route: review'
-
-router_output="$(fixture_input router-adversarial-code-review.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: review'
-assert_not_contains "$router_output" 'Route: adversary'
-
-router_output="$(fixture_input router-read-only-adversary.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: review'
-assert_contains "$router_output" 'read-only adversarial review request'
-assert_not_contains "$router_output" 'Route: adversary'
-
-router_output="$(fixture_input router-delete-text.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_contains "$router_output" 'Route: plan-implement'
-assert_not_contains "$router_output" 'Route: ops-stop'
-
-router_output="$(fixture_input router-spec-question.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "spec question"
-
-slash_output="$(fixture_input router-slash-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$slash_output" "slash commands"
-
-slash_goal_output="$(fixture_input router-goal-command.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$slash_goal_output" "Claude /goal commands"
 
 write_plan "DRAFT"
 guard_output="$(
@@ -457,10 +274,7 @@ if [ -n "$non_git_output" ]; then
   exit 1
 fi
 
-router_output="$(fixture_input router-ticket-mention.json | node "$ROOT_DIR/claude/hooks/workflow-router.mjs")"
-assert_empty "$router_output" "ticket mention without Linear context"
-
-for hook in workflow-router plan-ready-guard plan-commit-guard detect-adr-signal ledger-auto-emit; do
+for hook in plan-ready-guard plan-commit-guard detect-adr-signal ledger-auto-emit; do
   malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
   assert_empty "$malformed_output" "$hook on malformed stdin"
 done

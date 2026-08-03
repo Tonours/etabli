@@ -9,20 +9,15 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 
 Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
 
-- Pi may use Task* tools and `tasks-till-done` when available.
-- Pi may use the version-pinned pi-workflow adapter for explicitly
-  requested named workflow graphs under `workflow/pi-workflow-adapter.md`.
+- Pi may use Task* tools when available.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
 - Claude should use Claude Code `/goal` for long-running completion loops.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
-- Pi multi-execution uses deterministic adaptive admission on eligible phases
-  under `workflow/skills/multi-model-orchestration.md`; the blind latency gate
-  keeps ordinary work parent-only while critical or combined signals can
-  trigger a bounded council.
-- Named pi-workflow graphs are a separate capability from Task* subagent state;
-  neither capability proves the other.
+- Work is parent-only. The deterministic multi-model council was removed
+  (ADR-0013) after the 2026-07-19 blind latency gate found no quality gain;
+  subagent delegation remains an ordinary tool call, judged case by case.
 
 ## Capability Labels
 
@@ -104,12 +99,6 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 
 Pi:
 
-- The explicit-use `@agwab/pi-workflow@0.8.1` adapter starts as
-  `proxy_supported`. Use only explicit, approved runs and follow
-  `workflow/pi-workflow-adapter.md`; package presence is not delegation or
-  mutation authorization.
-- `tasks-till-done` may continue Task* work until done, blocked, stalled, or at
-  its limit.
 - `TaskExecute` requires explicit subagent tracking capability; package presence
   alone is not enough.
 - Treat full `TaskExecute` tracking as unconfirmed until `subagents:rpc:ping`,
@@ -123,9 +112,10 @@ Claude:
 - `/goal` is the native till-done mechanism. Pair the measurable condition
   with an explicit cap (iterations or wall-clock) and record the event ledger
   per `workflow/events.md`, as required by `workflow/spec.md`.
-- `workflow-router.mjs` and `plan-ready-guard.mjs` are opt-in local hooks that
-  prove route/guard behavior in smoke tests.
-- Hooks are deterministic guardrails for routing, blocking, and context
-  injection. They do not replace task state or completion evidence.
+- `plan-ready-guard.mjs` is an opt-in local hook that proves guard behavior in
+  smoke tests. Route classification stays library-only
+  (`claude/hooks/workflow-router-lib.mjs`), covered by `scripts/router-eval`.
+- Hooks are deterministic guardrails for blocking. They do not inject route
+  context, and they do not replace task state or completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.

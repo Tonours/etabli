@@ -76,9 +76,6 @@ Deeper loops:
 - `workflow/skills/pr-maintenance-loop.md`
 - `workflow/skills/ship.md`
 
-Pi's named-workflow adapter is explicit-use:
-`workflow/pi-workflow-adapter.md`.
-
 Answer quality: `workflow/answer-quality.md`; durable artifacts use
 `answer-quality-check` / `answer-quality-eval`. Research claims:
 `research-proof-check`. Cross-project research notes:
@@ -102,8 +99,7 @@ RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 \
   scripts/verify-agentic-infra live
 ```
 
-Optional read-only diagnostics: `workflow-monitor`, `workflow-metrics`,
-`workflow-dossier`, and `workflow-retrospect`. Telemetry is experimental and
+Optional read-only diagnostics: `workflow-retrospect`. Telemetry is experimental and
 does not establish user value until **at least 10 representative** real tasks
 have task-grader outcomes. `workflow-telemetry-recover` writes only with
 explicit `--apply`.

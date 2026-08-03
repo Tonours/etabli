@@ -75,14 +75,24 @@ else
   printf 'SKIP pi parity (bun missing)\n'
 fi
 
-answer_probe="$(
-  jq -n --arg prompt "quelle heure est-il ?" --arg cwd "$TMP_ROOT" '{prompt:$prompt,cwd:$cwd}' |
-    node "$ROOT_DIR/claude/hooks/workflow-router.mjs"
-)"
-ANSWER_INJECTS=0
-case "$answer_probe" in
-  *"Route: answer"*) ANSWER_INJECTS=1 ;;
-esac
+claude_route_probe() {
+  node --input-type=module -e '
+const lib = await import(process.argv[1]);
+const d = lib.classifyWorkflowRoute(process.argv[2], {
+  planStatus: lib.readPlanStatus(process.argv[3]),
+});
+process.stdout.write(
+  [
+    `Route: ${d.route}`,
+    `Reason: ${d.reason}`,
+    `Command: ${d.command || "none"}`,
+    `Artifact: ${d.artifact}`,
+    `Stop: ${d.stopCondition}`,
+    `Evidence: ${d.requiredEvidence}`,
+  ].join("\n"),
+);
+' "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" "$1" "$2"
+}
 
 for scenario_dir in "$ROOT_DIR"/tests/agent-scenarios/*/; do
   name="$(basename "$scenario_dir")"
@@ -100,16 +110,9 @@ for scenario_dir in "$ROOT_DIR"/tests/agent-scenarios/*/; do
     write_plan "$scen_tmp" "$plan_status"
   fi
 
-  router_output="$(
-    jq -n --arg prompt "$prompt" --arg cwd "$scen_tmp" '{prompt:$prompt,cwd:$cwd}' |
-      node "$ROOT_DIR/claude/hooks/workflow-router.mjs"
-  )"
+  router_output="$(claude_route_probe "$prompt" "$scen_tmp")"
 
-  if [ "$claude_route" = "answer" ] && [ "$ANSWER_INJECTS" -eq 0 ]; then
-    assert_empty "$router_output" "$name router output"
-  else
-    assert_contains "$router_output" "Route: $claude_route"
-  fi
+  assert_contains "$router_output" "Route: $claude_route"
 
   while IFS= read -r needle; do
     [ -z "$needle" ] && continue
