@@ -1,11 +1,12 @@
 {
-  "maxConcurrent": 3,
-  "defaultMaxTurns": 12,
-  "graceTurns": 2,
+  "maxConcurrent": 0,
+  "defaultMaxTurns": 0,
+  "graceTurns": 0,
   "defaultJoinMode": "smart",
   "schedulingEnabled": false,
-  "scopeModels": true,
-  "disableDefaultAgents": false,
-  "fleetView": true,
-  "widgetMode": "background"
+  "scopeModels": false,
+  "disableDefaultAgents": true,
+  "fleetView": false,
+  "widgetMode": "off",
+  "_comment": "Disabled: quasi-vanilla Pi profile keeps tasks only, no subagents package."
 }
