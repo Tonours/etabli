@@ -1,16 +1,6 @@
 {
   "packages": [
     {
-      "source": "npm:pi-hooks",
-      "extensions": [
-        "lsp/lsp.ts",
-        "lsp/lsp-tool.ts"
-      ],
-      "skills": [],
-      "prompts": [],
-      "themes": []
-    },
-    {
       "source": "npm:mitsupi",
       "extensions": [],
       "skills": [
@@ -22,12 +12,7 @@
     },
     {
       "source": "local:etabli-workflow",
-      "extensions": [
-        "rtk.ts",
-        "filter-output.ts",
-        "prefer-ipv4-dns.ts",
-        "workflow-router.ts"
-      ],
+      "extensions": [],
       "skills": [
         "plan-loop",
         "plan-implement",
@@ -56,35 +41,14 @@
       "themes": []
     },
     {
-      "source": "npm:glimpseui",
-      "extensions": [],
-      "skills": [],
-      "prompts": [],
-      "themes": []
-    },
-    {
-      "source": "npm:@tintinweb/pi-subagents@0.13.0"
-    },
-    {
       "source": "npm:@tintinweb/pi-tasks@0.7.1"
     }
   ],
-  "lsp": {
-    "hookMode": "agent_end"
-  },
   "lastChangelogVersion": "0.80.3",
   "defaultProvider": "zai",
   "defaultModel": "glm-5.2",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
-  "rtk": {
-    "enabled": true,
-    "mode": "always",
-    "timeoutMs": 2500,
-    "maxCacheEntries": 256,
-    "maxCommandLength": 4000,
-    "dangerousCommandBypass": true
-  },
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,
