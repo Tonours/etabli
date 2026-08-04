@@ -20,23 +20,21 @@ export ANTHROPIC_API_KEY=...
 export ZAI_API_KEY=...
 ```
 
-## Fluidity (thinking)
+## Thinking level
 
-Route-adaptive thinking (soft): `answer`→medium, implement/plan→high,
-adversary/sec-pr/bug-check→xhigh. Override anytime with `Shift+Tab`.
-Sidecar `defaultMaxTurns` is 12; scout role pin is 8.
+Default is high. Override anytime with `Shift+Tab`.
 
 ## Network latency (z.ai / model APIs)
 
 Etabli prefers **IPv4-first DNS for Node/Pi**. On this network, `api.z.ai` often
-resolves IPv6 first under Node’s default `verbatim` order; cold TLS then sits
+resolves IPv6 first under Node's default `verbatim` order; cold TLS then sits
 around ~370–575 ms vs ~55–95 ms on IPv4. Cloudflare-backed hosts (x.ai, kimi)
 are already fast; the mainland `open.bigmodel.cn` path is worse from EU and is
-**not** used by Pi’s coding endpoint (`https://api.z.ai/api/coding/paas/v4`).
+**not** used by Pi's coding endpoint (`https://api.z.ai/api/coding/paas/v4`).
 
-The `pi/extensions/prefer-ipv4-dns.ts` extension applies
-`dns.setDefaultResultOrder("ipv4first")` at load, so Pi inherits the preference
-with no shell setup. Nothing to run.
+If `pi/extensions/prefer-ipv4-dns.ts` is loaded, it applies
+`dns.setDefaultResultOrder("ipv4first")` at load. The quasi-vanilla profile
+does not ship it by default; set the order in your shell or Node env if needed.
 
 ## Interactive commands
 
@@ -95,17 +93,10 @@ Rules:
 - run focused checks
 - review before commit
 
-See `workflow/spec.md` for the
-full contract.
+See `workflow/spec.md` for the full contract.
 
-For long-running orchestration and subagent delegation rules, use
-`workflow/skills/orchestration.md`. Prefer structured Task* state when Pi
-exposes it; treat TaskList text parsing as a fallback.
-
-`TaskExecute` needs `@tintinweb/pi-subagents` loaded with `@tintinweb/pi-tasks`
-so Pi can use `subagents:rpc:ping`, `subagents:rpc:spawn`, and
-`subagents:rpc:stop`. The `npm:pi-subagents` package exposes a standalone
-subagent tool, but it does not provide the Task* tracking RPC protocol.
+Task tracking uses `@tintinweb/pi-tasks`. Subagents are disabled in the
+quasi-vanilla profile (`pi/agent/subagents.json` stubs concurrency to 0).
 
 ## Local checks
 
@@ -135,19 +126,16 @@ Installed/local:
 - `~/.pi/agent/auth.json`
 - `~/.pi/agent/{extensions,skills,themes}/`
 
-Default extensions:
+## Quasi-vanilla packages
 
-- `rtk.ts`
-- `filter-output.ts`
-- `prefer-ipv4-dns.ts`
-- `workflow-router.ts`
+Tracked in `pi/agent/settings.json`:
 
-Curated packages:
+- `npm:mitsupi` — skills `github`, `commit`
+- `local:etabli-workflow` — workflow skills only (no extensions)
+- `git:github.com/badlogic/pi-skills` — `brave-search`
+- `npm:@tintinweb/pi-tasks@0.7.1` — task tracking
 
-- `pi-hooks` for LSP
-- `mitsupi` for `github` and `commit`
-- `brave-search`
-- `glimpseui` without standalone skill
+Subagents, MCP, pi-hooks, and glimpseui are out of the default profile.
 
 ## tmux note
 
