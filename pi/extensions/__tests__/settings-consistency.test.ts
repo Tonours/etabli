@@ -51,17 +51,15 @@ function installCoreSkills(): string[] {
   return skillCatalog.filter((skill) => skill.source === "pi" && skill.piCore).map((skill) => skill.name);
 }
 
-describe("Pi settings consistency", () => {
-  test("loads the maintained local extension surface", () => {
-    expect(localPackage().extensions).toEqual([
-      "rtk.ts",
-      "filter-output.ts",
-      "prefer-ipv4-dns.ts",
-      "workflow-router.ts",
-    ]);
-  });
+function packageSources(): string[] {
+  return settings.packages.map((entry) =>
+    typeof entry === "string" ? entry : entry.source,
+  );
+}
 
-  test("keeps damage-control disabled by default", () => {
+describe("Pi settings consistency", () => {
+  test("quasi-vanilla local package has skills only (no extensions)", () => {
+    expect(localPackage().extensions).toEqual([]);
     expect(localPackage().extensions ?? []).not.toContain("damage-control.ts");
   });
 
@@ -91,53 +89,45 @@ describe("Pi settings consistency", () => {
     expect(skillCatalog.find((s) => s.name === "grill-me")?.piCore).toBe(false);
   });
 
-  test("loads only the curated third-party Pi package surface", () => {
-    expect(packageBySource("npm:pi-interview")).toBeUndefined();
-    expect(settings.packages).not.toContain("https://github.com/davebcn87/pi-autoresearch");
-    expect(settings.packages).not.toContain("npm:glimpseui");
+  test("loads only the quasi-vanilla Pi package surface", () => {
+    const sources = packageSources();
 
-    expect(packageBySource("npm:pi-hooks")).toMatchObject({
-      extensions: ["lsp/lsp.ts", "lsp/lsp-tool.ts"],
-      skills: [],
-      prompts: [],
-      themes: [],
-    });
-
+    // Present
     expect(packageBySource("npm:mitsupi")).toMatchObject({
       extensions: [],
       skills: ["github", "commit"],
       prompts: [],
       themes: [],
     });
-
+    expect(packageBySource("local:etabli-workflow")).toBeDefined();
     expect(packageBySource("git:github.com/badlogic/pi-skills")).toMatchObject({
       extensions: [],
       skills: ["brave-search"],
       prompts: [],
       themes: [],
     });
+    expect(sources).toContain("npm:@tintinweb/pi-tasks@0.7.1");
 
-    expect(packageBySource("npm:glimpseui")).toMatchObject({
-      extensions: [],
-      skills: [],
-      prompts: [],
-      themes: [],
-    });
-
-    expect(packageBySource("npm:@tintinweb/pi-subagents@0.13.0")).toMatchObject({
-      source: "npm:@tintinweb/pi-subagents@0.13.0",
-    });
-
-    expect(packageBySource("npm:@tintinweb/pi-tasks@0.7.1")).toMatchObject({
-      source: "npm:@tintinweb/pi-tasks@0.7.1",
-    });
-
+    // Removed from quasi-vanilla profile
+    expect(packageBySource("npm:pi-hooks")).toBeUndefined();
+    expect(packageBySource("npm:glimpseui")).toBeUndefined();
+    expect(packageBySource("npm:pi-interview")).toBeUndefined();
+    expect(packageBySource("npm:@tintinweb/pi-subagents@0.13.0")).toBeUndefined();
+    expect(settings.packages).not.toContain("https://github.com/davebcn87/pi-autoresearch");
+    expect(settings.packages).not.toContain("npm:glimpseui");
     expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toBeUndefined();
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
+
+    // Install/deploy scripts manage the pin set and purge legacy sources
+    expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
+    expect(deployAgentWorkflowScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
+    expect(installScript).toContain('"npm:mitsupi"');
+    expect(installScript).not.toContain('"npm:@tintinweb/pi-subagents@0.13.0"');
+    // Legacy purge list still names dropped packages so local settings are cleaned
+    expect(installScript).toContain('"npm:pi-hooks"');
+    expect(installScript).toContain('"npm:glimpseui"');
     expect(installScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
     expect(deployAgentWorkflowScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
-    expect(installScript).toContain("npm:@tintinweb/pi-subagents@0.13.0");
-    expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
   });
 
   test("enables the exact managed model set without retired aliases", () => {
