@@ -67,6 +67,11 @@ assert_file "$NEW_PROJECT/workflow/ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/linear-ticket-template.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
+assert_file "$NEW_PROJECT/scripts/plan-cleanup"
+[ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
+  printf 'expected deployed plan-cleanup to be executable\n' >&2
+  exit 1
+}
 assert_same "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" "$NEW_PROJECT/AGENTS.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" "$NEW_PROJECT/CLAUDE.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" "$NEW_PROJECT/docs/agent-workflow.md"
@@ -82,6 +87,21 @@ assert_same "$ROOT_DIR/workflow/ticket-template.md" "$NEW_PROJECT/workflow/ticke
 assert_same "$ROOT_DIR/workflow/linear-ticket-template.md" "$NEW_PROJECT/workflow/linear-ticket-template.md"
 assert_same "$ROOT_DIR/PLAN_TEMPLATE.md" "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_same "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
+assert_same "$ROOT_DIR/scripts/plan-cleanup" "$NEW_PROJECT/scripts/plan-cleanup"
+
+cat >"$NEW_PROJECT/PLAN.md" <<'PLAN'
+# PLAN.md
+
+## Meta
+- Subject: scaffold cleanup smoke
+- Status: DRAFT
+PLAN
+(
+  cd "$NEW_PROJECT"
+  scripts/plan-cleanup --discard scaffold-smoke >/dev/null
+)
+assert_not_exists "$NEW_PROJECT/PLAN.md"
+assert_file "$NEW_PROJECT/docs/plan/$(date +%Y%m%d)-discarded-scaffold-smoke.md"
 
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path")"
