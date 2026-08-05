@@ -196,6 +196,30 @@ assertAllow(
     tool_input: { command: "scripts/plan-cleanup --archive docs/plan/implemented.md" },
   }),
 );
+assertAllow(
+  "escape narrow plan discard",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    toolName: "Bash",
+    tool_input: { command: "scripts/plan-cleanup --discard unrelated-scope" },
+  }),
+);
+assertAllow(
+  "escape absolute workflow-event path",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Bash",
+    tool_input: { command: "/Users/example/etabli/scripts/workflow-event recover active-np user-rescope" },
+  }),
+);
+assertAllow(
+  "escape absolute plan-cleanup path",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Bash",
+    tool_input: { command: "/Users/example/etabli/scripts/plan-cleanup --discard stale-plan" },
+  }),
+);
 
 // non-mutating bash still allowed
 assertAllow(
@@ -271,31 +295,43 @@ if (!twoHyp || twoHyp.reason !== "same_hypothesis_failure_limit") {
   process.exit(1);
 }
 
-// Strict authority: malformed, post-terminal, and misbound v2 ledgers cannot
-// be silently ignored. Close the earlier valid run before each isolated case.
+// Orphan invalid ledgers without a pointer do not lock mutations. An explicit
+// active-run pointer to invalid/post-terminal data still fails closed.
 writeLedger("derived-reset", [{ event: "completed", detail: { summary: "closed" } }]);
 writeLedger("corrupt", [{ event: "route_decided", detail: { route: "implement" } }]);
 writeFileSync(join(tmp, ".workflow", "corrupt", "events.jsonl"), "{bad\n");
-assertDenyReason(
-  "corrupt active ledger Write",
+assertAllow(
+  "orphan corrupt ledger without pointer does not lock",
   mod.planMutationGuardDecision({
     cwd: tmp,
     tool_name: "Write",
     tool_input: { file_path: join(tmp, "src/corrupt.ts"), content: "x" },
   }),
+);
+writeFileSync(
+  join(tmp, ".workflow", "active-run.json"),
+  JSON.stringify({ schema_version: 1, run: "corrupt" }),
+);
+assertDenyReason(
+  "pointer to corrupt ledger still fails closed",
+  mod.planMutationGuardDecision({
+    cwd: tmp,
+    tool_name: "Write",
+    tool_input: { file_path: join(tmp, "src/corrupt-pointer.ts"), content: "x" },
+  }),
   "invalid_active_ledger",
 );
+rmSync(join(tmp, ".workflow", "active-run.json"), { force: true });
 
 writeLedger("corrupt", [{ event: "completed", detail: { summary: "closed" } }]);
 writeLedger("invalid-terminal", [{ event: "completed", detail: {} }]);
-assertDenyReason(
-  "malformed terminal ledger Write",
+assertAllow(
+  "orphan malformed terminal without pointer does not lock",
   mod.planMutationGuardDecision({
     cwd: tmp,
     tool_name: "Write",
     tool_input: { file_path: join(tmp, "src/invalid-terminal.ts"), content: "x" },
   }),
-  "invalid_active_ledger",
 );
 writeLedger("invalid-terminal", [{ event: "completed", detail: { summary: "closed" } }]);
 writeLedger("post-terminal", [
@@ -319,14 +355,13 @@ assertDenyReason(
 writeLedger("post-terminal", [{ event: "completed", detail: { summary: "closed" } }]);
 rmSync(join(tmp, ".workflow", "active-run.json"), { force: true });
 writeLedger("misbound", [{ run: "other-run", event: "route_decided", detail: { route: "implement" } }]);
-assertDenyReason(
-  "misbound active ledger Write",
+assertAllow(
+  "orphan misbound ledger without pointer does not lock",
   mod.planMutationGuardDecision({
     cwd: tmp,
     tool_name: "Write",
     tool_input: { file_path: join(tmp, "src/misbound.ts"), content: "x" },
   }),
-  "invalid_active_ledger",
 );
 
 writeLedger("misbound", [{ event: "completed", detail: { summary: "closed" } }]);

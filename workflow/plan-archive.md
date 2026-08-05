@@ -16,13 +16,27 @@ The singular directory name is intentional.
 
 Archive a plan if and only if it was implemented and validation ran.
 
-- Do not archive `DRAFT` plans.
-- Do not archive `CHALLENGED` plans.
-- Do not archive abandoned `READY` plans.
+- Do not archive `DRAFT` plans as implemented.
+- Do not archive `CHALLENGED` plans as implemented.
+- Do not archive abandoned `READY` plans as implemented.
 - Do not archive during planning commands.
 - Do archive after implementation commands finish the planned work and run focused checks.
 
 `PLAN.md` remains the only execution artifact while work is in progress. Files in `docs/plan/` are post-implementation memory records, not active plans.
+
+## When To Discard (unrelated / abandoned)
+
+If root `PLAN.md` does not match the current user request, do not stay blocked.
+Discard it and continue (or write a new plan for the new scope):
+
+```bash
+scripts/plan-cleanup --discard <reason-slug>
+```
+
+- Allowed from any plan status (`DRAFT`, `CHALLENGED`, `READY`, unknown).
+- Writes `docs/plan/YYYYMMDD-discarded-<reason-slug>.md` with `Status: DISCARDED`.
+- Removes root `PLAN.md` so ordinary work or a fresh plan can proceed.
+- Do **not** use `--discard` after a successful implementation — use `--archive` with a validated implemented record instead.
 
 ## Archive Format
 

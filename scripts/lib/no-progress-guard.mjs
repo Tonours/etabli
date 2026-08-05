@@ -186,7 +186,8 @@ export function isWorkflowEventEscapeCommand(command) {
   if (!c) return false;
   // No shell chaining, pipes, or redirects that could mutate elsewhere.
   if (/[;&|<>`]/.test(c) || /\n/.test(c) || /\$\(/.test(c)) return false;
-  return /^(?:node\s+|bun\s+|bash\s+)?(?:\.\/)?(?:scripts\/)?workflow-event(?:\s+|$)/.test(c);
+  // Relative scripts/workflow-event, bare workflow-event, or absolute .../workflow-event.
+  return /^(?:node\s+|bun\s+|bash\s+)?(?:(?:\.\/)?(?:scripts\/)?workflow-event|\/(?:[A-Za-z0-9._-]+\/)*workflow-event)(?:\s+|$)/.test(c);
 }
 
 /**
