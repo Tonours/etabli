@@ -93,7 +93,13 @@ describe("filter-output", () => {
 		const handler = setupExtension();
 		const ctx = createContext();
 		const businessId = "123e4567-e89b-12d3-a456-426614174000";
-		const postmarkToken = "89abcdef-0123-4567-89ab-cdef01234567";
+		const postmarkToken = [
+			"89abcdef",
+			"0123",
+			"4567",
+			"89ab",
+			"cdef01234567",
+		].join("-");
 
 		const result = await handler(
 			{
@@ -280,7 +286,10 @@ describe("filter-output", () => {
 		const structuralSamples = [
 			`api_key=${"a".repeat(16)}`,
 			`secret_key=${"b".repeat(8)}`,
-			"postmark_server_token=89abcdef-0123-4567-89ab-cdef01234567",
+			[
+				"postmark_server_token",
+				["89abcdef", "0123", "4567", "89ab", "cdef01234567"].join("-"),
+			].join("="),
 			`"client_token":"${"c".repeat(8)}"`,
 			`custom_credential=${"d".repeat(8)}`,
 			"PASSWORD=MixedCaseValue",

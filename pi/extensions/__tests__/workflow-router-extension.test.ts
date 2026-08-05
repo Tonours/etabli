@@ -253,6 +253,18 @@ describe("workflow router extension", () => {
 			})[0];
 			expect(draftPlanEdit).toBeUndefined();
 
+			const relativeDraftPlanEdit = runtime.emit("tool_call", {
+				toolName: "edit",
+				toolCallId: "e-relative",
+				cwd,
+				input: {
+					path: "PLAN.md",
+					old_string: "DRAFT",
+					new_string: "READY",
+				},
+			})[0];
+			expect(relativeDraftPlanEdit).toBeUndefined();
+
 			const draftBash = runtime.emit("tool_call", {
 				toolName: "bash",
 				toolCallId: "b1",
@@ -436,6 +448,33 @@ describe("workflow router extension", () => {
 				},
 			})[0];
 			expect(strengthen).toBeUndefined();
+
+			const piSchemaNeutralEdit = runtime.emit("tool_call", {
+				toolName: "edit",
+				toolCallId: "cf-pi-neutral",
+				cwd,
+				input: {
+					path: join(cwd, "PLAN.md"),
+					edits: [{ oldText: "# PLAN.md\n", newText: "# PLAN updated\n" }],
+				},
+			})[0];
+			expect(piSchemaNeutralEdit).toBeUndefined();
+
+			const piSchemaWeaken = runtime.emit("tool_call", {
+				toolName: "edit",
+				toolCallId: "cf-pi-weaken",
+				cwd,
+				input: {
+					path: join(cwd, "PLAN.md"),
+					edits: [
+						{ oldText: "- command: bash tests/b.sh\n", newText: "" },
+					],
+				},
+			})[0];
+			expect(piSchemaWeaken).toMatchObject({
+				block: true,
+				reason: expect.stringMatching(/check-freeze/i),
+			});
 
 			const demoted = runtime.emit("tool_call", {
 				toolName: "write",
