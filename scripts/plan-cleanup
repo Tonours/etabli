@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, lstatSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { relative, resolve, sep } from "node:path";
 
@@ -9,36 +9,117 @@ function fail(message) {
 }
 
 function usage() {
-  fail("usage: scripts/plan-cleanup --archive docs/plan/<implemented-plan>.md");
+  fail(
+    "usage: scripts/plan-cleanup --archive docs/plan/<implemented-plan>.md | scripts/plan-cleanup --discard <reason-slug>",
+  );
 }
 
-const [flag, archiveArgument, ...rest] = process.argv.slice(2);
-if (flag !== "--archive" || !archiveArgument || rest.length !== 0) usage();
+function isReasonSlug(value) {
+  return typeof value === "string" && /^[a-z0-9][a-z0-9_-]{0,80}$/.test(value);
+}
+
+function removeRootPlan(cwd) {
+  const planPath = resolve(cwd, "PLAN.md");
+  if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
+    fail("root PLAN.md must exist as a regular file");
+  }
+  rmSync(planPath);
+  return planPath;
+}
+
+function archiveMode(cwd, archiveArgument) {
+  const planPath = resolve(cwd, "PLAN.md");
+  const archivePath = resolve(cwd, archiveArgument);
+  const archiveRoot = `${resolve(cwd, "docs", "plan")}${sep}`;
+  if (!archivePath.startsWith(archiveRoot) || !archivePath.endsWith(".md")) {
+    fail("archive must be a Markdown file directly below docs/plan/");
+  }
+  if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
+    fail("root PLAN.md must exist as a regular file");
+  }
+  if (!existsSync(archivePath) || !lstatSync(archivePath).isFile()) {
+    fail("implemented archive must exist as a regular file");
+  }
+
+  const plan = readFileSync(planPath, "utf8");
+  const archive = readFileSync(archivePath, "utf8");
+  const hash = createHash("sha256").update(plan).digest("hex");
+  if (!/^# Implemented:/m.test(archive)) fail("archive must start with an Implemented title");
+  if (!/^- Source plan: `PLAN\.md`/m.test(archive)) fail("archive must name root PLAN.md as source");
+  if (!/^- Status: IMPLEMENTED\s*$/m.test(archive)) fail("archive must declare Status: IMPLEMENTED");
+  const expectedHashLine = `- Source plan SHA-256: \`${hash}\``;
+  if (!archive.split(/\r?\n/).some((line) => line.trimEnd() === expectedHashLine)) {
+    fail("archive source-plan hash does not match current PLAN.md");
+  }
+
+  rmSync(planPath);
+  process.stdout.write(
+    `${JSON.stringify({ removed: "PLAN.md", mode: "archive", archive: relative(cwd, archivePath) })}\n`,
+  );
+}
+
+function discardMode(cwd, reason) {
+  if (!isReasonSlug(reason)) {
+    fail("discard reason must match [a-z0-9][a-z0-9_-]{0,80}");
+  }
+
+  const planPath = resolve(cwd, "PLAN.md");
+  if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
+    fail("root PLAN.md must exist as a regular file");
+  }
+  const plan = readFileSync(planPath, "utf8");
+  const subject =
+    plan.match(/^\s*-\s*Subject:\s*(.+)\s*$/m)?.[1]?.trim() ||
+    plan.match(/^#\s+(.+)$/m)?.[1]?.trim() ||
+    "unspecified";
+  const status =
+    plan.match(/^\s*-\s*Status:\s*(.+)\s*$/m)?.[1]?.trim() || "unknown";
+  const day = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const archiveDir = resolve(cwd, "docs", "plan");
+  mkdirSync(archiveDir, { recursive: true });
+  const discardedName = `${day}-discarded-${reason}.md`;
+  const discardedPath = resolve(archiveDir, discardedName);
+  if (existsSync(discardedPath)) {
+    fail(`discarded record already exists: docs/plan/${discardedName}`);
+  }
+
+  const body = [
+    `# Discarded: ${subject}`,
+    "",
+    "## Metadata",
+    `- Discarded: ${new Date().toISOString().slice(0, 10)}`,
+    "- Source plan: `PLAN.md`",
+    "- Status: DISCARDED",
+    `- Reason: ${reason}`,
+    `- Prior status: ${status}`,
+    "",
+    "## Note",
+    "Root PLAN.md was discarded because it did not match the current request.",
+    "This is not an implemented-plan archive.",
+    "",
+  ].join("\n");
+  writeFileSync(discardedPath, body);
+  removeRootPlan(cwd);
+  process.stdout.write(
+    `${JSON.stringify({
+      removed: "PLAN.md",
+      mode: "discard",
+      reason,
+      record: relative(cwd, discardedPath),
+    })}\n`,
+  );
+}
+
+const [flag, argument, ...rest] = process.argv.slice(2);
+if (!flag || rest.length !== 0) usage();
 
 const cwd = resolve(process.cwd());
-const planPath = resolve(cwd, "PLAN.md");
-const archivePath = resolve(cwd, archiveArgument);
-const archiveRoot = `${resolve(cwd, "docs", "plan")}${sep}`;
-if (!archivePath.startsWith(archiveRoot) || !archivePath.endsWith(".md")) {
-  fail("archive must be a Markdown file directly below docs/plan/");
+if (flag === "--archive") {
+  if (!argument) usage();
+  archiveMode(cwd, argument);
+} else if (flag === "--discard") {
+  if (!argument) usage();
+  discardMode(cwd, argument);
+} else {
+  usage();
 }
-if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
-  fail("root PLAN.md must exist as a regular file");
-}
-if (!existsSync(archivePath) || !lstatSync(archivePath).isFile()) {
-  fail("implemented archive must exist as a regular file");
-}
-
-const plan = readFileSync(planPath, "utf8");
-const archive = readFileSync(archivePath, "utf8");
-const hash = createHash("sha256").update(plan).digest("hex");
-if (!/^# Implemented:/m.test(archive)) fail("archive must start with an Implemented title");
-if (!/^- Source plan: `PLAN\.md`/m.test(archive)) fail("archive must name root PLAN.md as source");
-if (!/^- Status: IMPLEMENTED\s*$/m.test(archive)) fail("archive must declare Status: IMPLEMENTED");
-const expectedHashLine = `- Source plan SHA-256: \`${hash}\``;
-if (!archive.split(/\r?\n/).some((line) => line.trimEnd() === expectedHashLine)) {
-  fail("archive source-plan hash does not match current PLAN.md");
-}
-
-rmSync(planPath);
-process.stdout.write(`${JSON.stringify({ removed: "PLAN.md", archive: relative(cwd, archivePath) })}\n`);
