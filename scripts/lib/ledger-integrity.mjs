@@ -308,13 +308,10 @@ export function selectActiveLedger(cwd) {
 	if (inspection.pointer.state === "invalid") {
 		return { ledger: null, reason: inspection.pointer.reason, inspection };
 	}
-	const invalid = inspection.records.filter(
-		(record) => !record.valid && !record.events.some((event) => TERMINAL_EVENTS.has(event.event)),
-	);
-  if (invalid.length > 0) {
-    return { ledger: null, reason: "invalid_active_ledger", inspection, invalid };
-  }
 
+  // Without an explicit pointer, orphan invalid/corrupt ledgers do not hold
+  // mutation authority. Only valid non-terminal runs can lock the host; junk
+  // left from prior sessions must not brick ordinary work.
   const active = inspection.records.filter((record) => record.valid && !record.terminal);
   if (active.length === 0) {
     if (inspection.pointer.state === "present") {

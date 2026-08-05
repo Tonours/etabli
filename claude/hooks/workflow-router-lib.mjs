@@ -877,9 +877,16 @@ export function planReadyGuardDecision(event) {
 
 	const cwd = event.cwd || process.cwd();
 	const planStatus = readPlanStatus(cwd);
-	// missing: ordinary work without an active plan is allowed (not a pre-READY gate).
+	// missing/unknown: no recognized planning lock — ordinary work is allowed.
 	// ready: implementation mutations allowed; check-freeze runs separately on PLAN.md writes.
-	if (planStatus === "missing" || planStatus === "ready") return null;
+	// Only DRAFT/CHALLENGED freeze non-plan mutations (intentional pre-READY gate).
+	if (
+		planStatus === "missing" ||
+		planStatus === "unknown" ||
+		planStatus === "ready"
+	) {
+		return null;
+	}
 
 	const toolInput = event.tool_input || event.input || {};
 	const filePath =
@@ -889,15 +896,16 @@ export function planReadyGuardDecision(event) {
 	if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
 		if (isPlanFile(filePath, cwd)) return null;
 		return deny(
-			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY.`,
+			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
 		);
 	}
 
 	if (toolName === "Bash") {
 		if (isWorkflowEventEscapeCommand(command)) return null;
+		if (isNarrowPlanCleanupCommand(command)) return null;
 		if (isMutatingBashCommand(command)) {
 			return deny(
-				`PLAN.md is ${planStatus.toUpperCase()}; mutating Bash commands are blocked until the plan is READY.`,
+				`PLAN.md is ${planStatus.toUpperCase()}; mutating Bash commands are blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
 			);
 		}
 	}

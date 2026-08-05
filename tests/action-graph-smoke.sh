@@ -103,7 +103,6 @@ for (const command of [
   "python3 -c \"from pathlib import Path; Path('x').write_text('x')\"",
   "git apply patch.diff",
   "install source target",
-  "scripts/plan-cleanup --archive docs/plan/implemented.md",
 ]) {
   const decision = planReadyGuardDecision({
     cwd: tmp,
@@ -112,6 +111,21 @@ for (const command of [
   });
   if (decision?.hookSpecificOutput?.permissionDecision !== "deny") {
     console.error("DRAFT bypass was allowed", command, decision);
+    process.exit(1);
+  }
+}
+for (const command of [
+  "scripts/plan-cleanup --archive docs/plan/implemented.md",
+  "scripts/plan-cleanup --discard unrelated-scope",
+  "/Users/example/etabli/scripts/plan-cleanup --discard stale-plan",
+]) {
+  const decision = planReadyGuardDecision({
+    cwd: tmp,
+    tool_name: "Bash",
+    tool_input: { command },
+  });
+  if (decision != null) {
+    console.error("DRAFT plan-cleanup escape was denied", command, decision);
     process.exit(1);
   }
 }
@@ -125,6 +139,17 @@ if (safeDecision != null) {
   process.exit(1);
 }
 
+writePlan("stop — not a lock status");
+const unknownDecision = planReadyGuardDecision({
+  cwd: tmp,
+  tool_name: "Write",
+  tool_input: { file_path: join(tmp, "src/free.ts"), content: "ok" },
+});
+if (unknownDecision != null) {
+  console.error("unknown plan status must not lock mutations", unknownDecision);
+  process.exit(1);
+}
+
 writePlan("ready");
 const cleanupDecision = planMutationGuardDecision({
   cwd: tmp,
@@ -133,6 +158,15 @@ const cleanupDecision = planMutationGuardDecision({
 });
 if (cleanupDecision != null) {
   console.error("narrow READY cleanup was denied", cleanupDecision);
+  process.exit(1);
+}
+const discardDecision = planMutationGuardDecision({
+  cwd: tmp,
+  tool_name: "Bash",
+  tool_input: { command: "scripts/plan-cleanup --discard unrelated-to-pr" },
+});
+if (discardDecision != null) {
+  console.error("narrow READY discard was denied", discardDecision);
   process.exit(1);
 }
 

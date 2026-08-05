@@ -10,7 +10,9 @@
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
 - Smallest route; parent-only execution and mutation.
 - One artifact: root `PLAN.md`; implement only from `Status: READY`;
-  archive implemented/validated plans in `docs/plan/`.
+  archive implemented/validated plans in `docs/plan/`; discard unrelated/
+  abandoned root plans with `scripts/plan-cleanup --discard <reason-slug>`
+  instead of staying blocked.
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate;
   use `scripts/answer-quality-check` only for durable artifacts.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
