@@ -10,8 +10,8 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 fail() {
-  printf 'dual-runtime guard matrix smoke: %s\n' "$1" >&2
-  exit 1
+	printf 'dual-runtime guard matrix smoke: %s\n' "$1" >&2
+	exit 1
 }
 
 [ -f "$MATRIX" ] || fail "missing capabilities matrix"
@@ -81,6 +81,73 @@ const planEditAllowed = mod.planMutationGuardDecision({
 });
 if (planEditAllowed != null) {
   console.error("PLAN.md edit under DRAFT must be allowed");
+  process.exit(1);
+}
+
+const relativePlanEditAllowed = mod.planMutationGuardDecision({
+  cwd: tmp,
+  tool_name: "Edit",
+  tool_input: { file_path: "PLAN.md", old_string: "DRAFT", new_string: "READY" },
+});
+if (relativePlanEditAllowed != null) {
+  console.error("relative root PLAN.md edit under DRAFT must resolve against event cwd");
+  process.exit(1);
+}
+
+for (const command of [
+  "cd " + tmp + " && ls -la",
+  "test -f PLAN.md",
+  "git -C . status --short",
+  "git branch --show-current",
+  "git remote -v",
+  "git tag --list",
+  "git worktree list",
+]) {
+  const readOnlyAllowed = mod.planMutationGuardDecision({
+    cwd: tmp,
+    toolName: "bash",
+    input: { command },
+  });
+  if (readOnlyAllowed != null) {
+    console.error("proven read-only Bash must be allowed under DRAFT: " + command);
+    process.exit(1);
+  }
+}
+
+for (const command of [
+  "cd " + tmp + " && touch escaped",
+  "git branch stale-branch",
+  "git branch -D stale-branch",
+  "git remote remove origin",
+  "git tag -d v0",
+  "git worktree remove ../stale",
+  "node -p \"require('node:fs').writeFileSync('escaped', 'x')\"",
+  "sort -o escaped input.txt",
+  "sort -ro escaped input.txt",
+  "diff --output=escaped a b",
+  "sed -ni '' 's/x/y/' input.txt",
+  "find . -fprintf escaped x",
+  "find . -fprint0 escaped",
+]) {
+  const mutationDeny = mod.planMutationGuardDecision({
+    cwd: tmp,
+    toolName: "bash",
+    input: { command },
+  });
+  if (mutationDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+    console.error("write-capable command must be denied under DRAFT: " + command);
+    process.exit(1);
+  }
+}
+
+const quotedSubstitution = "rg \"" + String.fromCharCode(36) + "(touch escaped)\" docs";
+const quotedSubstitutionDeny = mod.planMutationGuardDecision({
+  cwd: tmp,
+  toolName: "bash",
+  input: { command: quotedSubstitution },
+});
+if (quotedSubstitutionDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("quoted command substitution must be denied under DRAFT");
   process.exit(1);
 }
 
@@ -242,6 +309,58 @@ writeFileSync(join(tmp, "PLAN.md"), [
   "- Given a, when b, then c",
   "",
 ].join("\\n"));
+
+const piSchemaNeutralEdit = mod.planMutationGuardDecision({
+  cwd: tmp,
+  toolName: "edit",
+  input: {
+    path: join(tmp, "PLAN.md"),
+    edits: [{ oldText: "# PLAN\n", newText: "# PLAN updated\n" }],
+  },
+});
+if (piSchemaNeutralEdit != null) {
+  console.error("Pi edits[].oldText/newText schema must reconstruct a neutral READY edit");
+  process.exit(1);
+}
+
+const piSchemaWeaken = mod.planMutationGuardDecision({
+  cwd: tmp,
+  toolName: "edit",
+  input: {
+    path: join(tmp, "PLAN.md"),
+    edits: [{ oldText: "- command: bash tests/b.sh\n", newText: "" }],
+  },
+});
+if (piSchemaWeaken?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("Pi edits[].oldText/newText weaken must remain denied");
+  process.exit(1);
+}
+
+const relativePiSchemaWeaken = mod.planMutationGuardDecision({
+  cwd: tmp,
+  toolName: "edit",
+  input: {
+    path: "PLAN.md",
+    edits: [{ oldText: "- command: bash tests/b.sh\n", newText: "" }],
+  },
+});
+if (relativePiSchemaWeaken?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("relative Pi PLAN.md weaken must remain guarded");
+  process.exit(1);
+}
+
+const piSchemaUnmatched = mod.planMutationGuardDecision({
+  cwd: tmp,
+  toolName: "edit",
+  input: {
+    path: join(tmp, "PLAN.md"),
+    edits: [{ oldText: "not present in plan", newText: "replacement" }],
+  },
+});
+if (piSchemaUnmatched?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("Pi unmatched edit schema must fail closed");
+  process.exit(1);
+}
 
 const editWeaken = mod.planMutationGuardDecision({
   cwd: tmp,

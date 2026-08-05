@@ -129,6 +129,7 @@ const KNOWLEDGE_TOPIC_RULES = [
 const READ_ONLY_BASH_COMMANDS = new Set([
 	"basename",
 	"cat",
+	"cd",
 	"cut",
 	"diff",
 	"dirname",
@@ -143,23 +144,33 @@ const READ_ONLY_BASH_COMMANDS = new Set([
 	"sort",
 	"stat",
 	"tail",
+	"test",
 	"tr",
 	"uniq",
 	"wc",
 ]);
-const READ_ONLY_GIT_SUBCOMMANDS = new Set([
-	"branch",
+const ALWAYS_READ_ONLY_GIT_SUBCOMMANDS = new Set([
 	"diff",
 	"grep",
 	"log",
 	"ls-files",
-	"remote",
 	"rev-parse",
 	"show",
 	"status",
-	"tag",
-	"worktree",
 ]);
+const READ_ONLY_GIT_BRANCH_ARGS = new Set([
+	"--all",
+	"--list",
+	"--remotes",
+	"--show-current",
+	"--verbose",
+	"-a",
+	"-r",
+	"-v",
+	"-vv",
+]);
+const UNSAFE_GIT_INSPECTION_ARG =
+	/^(?:--output(?:=|$)|--ext-diff$|--textconv$|--open-files-in-pager(?:=|$)|-O)/;
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
 const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/;
 const GIT_COMMIT_PATTERN = /\bgit\b[^|;&]*\bcommit\b/;
@@ -187,6 +198,12 @@ function splitReadOnlyPipeline(command) {
 			continue;
 		}
 		if (quote) {
+			if (
+				quote === '"' &&
+				(character === "`" || (character === "$" && value[index + 1] === "("))
+			) {
+				return null;
+			}
 			current += character;
 			if (character === quote) quote = "";
 			continue;
@@ -231,24 +248,113 @@ function splitReadOnlyPipeline(command) {
 	return segments;
 }
 
+function splitShellWords(segment) {
+	const words = [];
+	let current = "";
+	let quote = "";
+	let escaped = false;
+
+	for (const character of segment.trim()) {
+		if (escaped) {
+			current += character;
+			escaped = false;
+			continue;
+		}
+		if (character === "\\") {
+			escaped = true;
+			continue;
+		}
+		if (quote) {
+			if (character === quote) quote = "";
+			else current += character;
+			continue;
+		}
+		if (character === "'" || character === '"') {
+			quote = character;
+			continue;
+		}
+		if (/\s/.test(character)) {
+			if (current) {
+				words.push(current);
+				current = "";
+			}
+			continue;
+		}
+		current += character;
+	}
+	if (escaped || quote) return null;
+	if (current) words.push(current);
+	return words;
+}
+
+function isReadOnlyGitSegment(segment) {
+	const words = splitShellWords(segment);
+	if (!words || words[0] !== "git") return false;
+
+	let index = 1;
+	while (words[index] === "-C") {
+		if (!words[index + 1]) return false;
+		index += 2;
+	}
+	const subcommand = words[index];
+	if (!subcommand) return false;
+	const args = words.slice(index + 1);
+	if (args.some((argument) => UNSAFE_GIT_INSPECTION_ARG.test(argument)))
+		return false;
+
+	if (ALWAYS_READ_ONLY_GIT_SUBCOMMANDS.has(subcommand)) return true;
+	if (subcommand === "branch") {
+		return (
+			args.length === 0 ||
+			args.every((argument) => READ_ONLY_GIT_BRANCH_ARGS.has(argument))
+		);
+	}
+	if (subcommand === "remote") {
+		return (
+			args.length === 0 ||
+			(args.length === 1 && ["-v", "--verbose"].includes(args[0])) ||
+			["get-url", "show"].includes(args[0])
+		);
+	}
+	if (subcommand === "tag") {
+		return args.length === 0 || ["-l", "--list"].includes(args[0]);
+	}
+	if (subcommand === "worktree") return args[0] === "list";
+	return false;
+}
+
+function hasPotentialWriteOption(segment, shortOption, longOption) {
+	const words = splitShellWords(segment);
+	if (!words) return true;
+	return words.slice(1).some((argument) => {
+		if (
+			argument === `--${longOption}` ||
+			argument.startsWith(`--${longOption}=`)
+		) {
+			return true;
+		}
+		return /^-[^-]/.test(argument) && argument.slice(1).includes(shortOption);
+	});
+}
+
 function isReadOnlyPipelineSegment(segment) {
 	const trimmed = segment.trim();
 	const executable = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
 	if (!executable) return false;
-	if (executable === "git") {
-		const subcommand = trimmed.match(/^git\s+([A-Za-z0-9-]+)/)?.[1];
-		return Boolean(subcommand && READ_ONLY_GIT_SUBCOMMANDS.has(subcommand));
-	}
+	if (executable === "git") return isReadOnlyGitSegment(trimmed);
 	if (executable === "find") {
-		return !/(^|\s)-(delete|exec|execdir|ok|okdir|fprint|fls)(?:\s|$)/.test(
+		return !/(^|\s)-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)(?:\s|$)/.test(
 			trimmed,
 		);
 	}
 	if (executable === "sed") {
-		return !/(^|\s)(?:-i\S*|--in-place(?:=\S*)?)(?:\s|$)/.test(trimmed);
+		return !hasPotentialWriteOption(trimmed, "i", "in-place");
+	}
+	if (executable === "sort" || executable === "diff") {
+		return !hasPotentialWriteOption(trimmed, "o", "output");
 	}
 	if (executable === "node" || executable === "nodejs") {
-		return /^(?:node|nodejs)\s+(?:--check\b|-p\b|--version\b)/.test(trimmed);
+		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(trimmed);
 	}
 	if (executable === "bash" || executable === "sh") {
 		return /^(?:bash|sh)\s+(?:-n\b|--version\b)/.test(trimmed);
@@ -800,7 +906,8 @@ export function buildAutonomousPlanChain(planStatus) {
 
 export function isPlanFile(filePath, cwd) {
 	if (!filePath) return false;
-	return resolve(filePath) === resolve(cwd || process.cwd(), "PLAN.md");
+	const projectCwd = cwd || process.cwd();
+	return resolve(projectCwd, filePath) === resolve(projectCwd, "PLAN.md");
 }
 
 export function isMutatingBashCommand(command) {
@@ -853,7 +960,10 @@ export function planCommitGuardDecision(event) {
 	if (!/\bgit\b/.test(command)) return null;
 
 	const namesPlanFile = PLAN_FILE_PATTERN.test(command);
-	if (namesPlanFile && (GIT_ADD_PATTERN.test(command) || GIT_COMMIT_PATTERN.test(command))) {
+	if (
+		namesPlanFile &&
+		(GIT_ADD_PATTERN.test(command) || GIT_COMMIT_PATTERN.test(command))
+	) {
 		return deny(
 			"PLAN files are session artifacts and must not be staged or committed; archive to docs/plan/ instead. Run git yourself to bypass deliberately.",
 		);
@@ -905,7 +1015,7 @@ export function planReadyGuardDecision(event) {
 		if (isNarrowPlanCleanupCommand(command)) return null;
 		if (isMutatingBashCommand(command)) {
 			return deny(
-				`PLAN.md is ${planStatus.toUpperCase()}; mutating Bash commands are blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
 			);
 		}
 	}
@@ -917,6 +1027,32 @@ export function planReadyGuardDecision(event) {
  * Build proposed PLAN.md text from Write / Edit / MultiEdit tool inputs.
  * Returns null when the tool is not a plan-file content mutation we can evaluate.
  */
+function planEditStrings(edit) {
+	return {
+		oldStr: edit?.old_string ?? edit?.oldString ?? edit?.oldText ?? "",
+		newStr: edit?.new_string ?? edit?.newString ?? edit?.newText ?? "",
+	};
+}
+
+function applyPlanTextEdits(previousText, edits) {
+	if (typeof previousText !== "string" || !edits.length) return null;
+	let text = previousText;
+
+	for (const edit of edits) {
+		const { oldStr, newStr } = planEditStrings(edit);
+		if (typeof oldStr !== "string" || typeof newStr !== "string") return null;
+		if (!oldStr) {
+			if (edits.length !== 1 || !newStr) return null;
+			return newStr;
+		}
+		const firstMatch = text.indexOf(oldStr);
+		if (firstMatch === -1 || text.indexOf(oldStr, firstMatch + 1) !== -1)
+			return null;
+		text = `${text.slice(0, firstMatch)}${newStr}${text.slice(firstMatch + oldStr.length)}`;
+	}
+	return text;
+}
+
 export function proposedPlanTextFromToolInput(
 	toolName,
 	toolInput,
@@ -931,31 +1067,11 @@ export function proposedPlanTextFromToolInput(
 			toolInput.newString;
 		return typeof content === "string" ? content : null;
 	}
-	if (name === "Edit") {
-		const oldStr = toolInput.old_string ?? toolInput.oldString ?? "";
-		const newStr = toolInput.new_string ?? toolInput.newString ?? "";
-		if (typeof previousText !== "string") return null;
-		if (typeof oldStr !== "string" || typeof newStr !== "string") return null;
-		if (oldStr && previousText.includes(oldStr)) {
-			return previousText.replace(oldStr, newStr);
-		}
-		// Full-file replace style used by some hosts
-		if (!oldStr && typeof newStr === "string" && newStr.length > 0)
-			return newStr;
-		return null;
-	}
-	if (name === "MultiEdit") {
-		if (typeof previousText !== "string") return null;
-		let text = previousText;
-		const edits = Array.isArray(toolInput.edits) ? toolInput.edits : [];
-		for (const edit of edits) {
-			const oldStr = edit?.old_string ?? edit?.oldString ?? "";
-			const newStr = edit?.new_string ?? edit?.newString ?? "";
-			if (typeof oldStr === "string" && oldStr && text.includes(oldStr)) {
-				text = text.replace(oldStr, typeof newStr === "string" ? newStr : "");
-			}
-		}
-		return text;
+	if (name === "Edit" || name === "MultiEdit") {
+		const edits = Array.isArray(toolInput.edits)
+			? toolInput.edits
+			: [toolInput];
+		return applyPlanTextEdits(previousText, edits);
 	}
 	return null;
 }

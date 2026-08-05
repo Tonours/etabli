@@ -34,6 +34,7 @@ FILES=(
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
+  "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
 )
 
 while IFS= read -r contract_path; do
