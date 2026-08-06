@@ -81,6 +81,10 @@ describe("Pi settings consistency", () => {
     expect(packVisible).toEqual([
       "browser-full-page-capture",
       "frontend-motion-performance",
+      "frontend-css-ui-ux",
+      "css-layout-primitives",
+      "css-only-components",
+      "css-debugging",
       "goal-prompt-rewriter",
       "ui-reference-capture",
     ]);

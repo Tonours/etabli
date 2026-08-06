@@ -209,7 +209,7 @@ check_claude_skill_links() {
     while IFS= read -r skill_dir; do
       skill_name="$(basename "$skill_dir")"
       check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
-    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type d | sort)
+    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) | sort)
   done
 }
 
