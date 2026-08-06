@@ -14,11 +14,54 @@ Run a production-minded review.
 - check scope, non-goals, invariants, done criteria, and changed-file alignment
 - flag complexity drift or unplanned surface area
 
-### 3. Adversarial review
+### 3. Context retrieval, before judging
+Reviewers fail on out-of-diff context far more than on reasoning. Before forming a
+verdict, open what decides it:
+- the resolution code when a value can come from several sources: read the order,
+  never infer precedence from a name, a comment, or a description
+- callers and callees of each changed function: a guard added in one place is a
+  defect if siblings route around it
+- sibling implementations: the other routes, fields, or switch cases
+- the tests pinning current behavior
+- files historically changed alongside these (`git log --oneline -20 -- <path>`)
+
+Stop when further reading stops changing your mind. Piling on context past that
+point measurably lowers accuracy.
+
+### 4. Adversarial review
 - look for edge cases, regressions, safety issues, and future recovery pain
 - assume the happy path is already covered and search for what breaks around it
 
-### 4. Human checkpoint trigger
+Run these relational lenses, and state what each found, including nothing.
+Severity-first scanning finds only what looks wrong; these ask what scanning
+never asks:
+- **precedence**: two sources for one value, which wins?
+- **degraded modes**: dependency absent, unconfigured, unreachable, slow?
+- **impossible states**: can the types represent a combination the code never
+  produces? correlated fields modelled as independent?
+- **prose versus machine-readable**: does the human description match the
+  structured declaration, not just the code?
+- **exhaustive reachability**: every reachable outcome declared, every declared
+  outcome reachable? both directions
+- **asymmetry**: inverse operations round-trip; a rule applied to one sibling and
+  not the others
+- **boundary drift**: one concept in two places, still in agreement, and which is
+  authoritative
+
+### 5. Refute before reporting
+For each candidate, argue the opposite and try to make it stick. What would have to
+be true for this to be correct? Is there a caller, default, guard, or test that
+already prevents it?
+
+Then apply the evidence bar: a finding ships only with a concrete failure —
+specific input or state, the path it takes, the wrong output. "Looks fragile",
+"could break if", "consider hardening" are open questions, not findings.
+
+Do not re-sweep the same diff hunting for more findings: measured, that lifts
+recall slightly and false positives much more. The second pass attacks the
+findings you have.
+
+### 6. Human checkpoint trigger
 - explicitly say when a human should arbitrate
 - use this for accepted risk, ambiguous tradeoffs, rollback/replan decisions, or broad-impact changes
 
