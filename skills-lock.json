@@ -95,6 +95,26 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "1b1229fadf2f0a780e5cb39afbb8edce0231d74aacc50964157e172890ac7151"
+    },
+    "frontend-css-ui-ux": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a55e951655468441ad8e5f866d98532d7140521e887413cf60bfa2d3e8f3743e"
+    },
+    "css-layout-primitives": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d9dc6e11f1bc4132a968ca6f69d30ae777e445ad849d69ab120c18b7bcd0ed8b"
+    },
+    "css-only-components": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "b4581179d698e9a1ee1379b3fd389d4f54b68c706df0777c2921f66bef4a4113"
+    },
+    "css-debugging": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "e5d29bfbf5a4171012f858e4d828e20976788b684b07a755d4f3972ce2378385"
     }
   }
 }
