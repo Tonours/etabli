@@ -56,9 +56,10 @@ authorize push, PR, deploy, release, or external write-back.
 This command is the full-auto workflow. Run every phase in one uninterrupted
 flow — never stop between phases to ask "continue?":
 
-1. Understand: scoped local recon of the affected area; dispatch scouts only
-   for an explicitly selected multi-model profile, then carry sourced findings
-   into the plan.
+1. Understand: scoped local recon of the affected area. Dispatch a `scout` when
+   the area is unfamiliar enough that reading it would load files the plan does
+   not need to keep; read it yourself when it is small. Carry the sourced
+   findings into the plan either way.
 2. Plan: create/refresh `PLAN.md`, self-critique to `READY` or `CHALLENGED`.
 3. Adversary: run the cross-model pass non-interactively (`pi -p --model
    openai-codex/gpt-5.5 --tools read` piping `PLAN.md`, per `/adversary`;
@@ -66,7 +67,12 @@ flow — never stop between phases to ask "continue?":
    continue only if still `READY`. If no cross-family model is available, run
    the adversary contract yourself and record that the pass was same-model.
 4. Implement the `READY` plan steps in order; code behavior changes ship with
-   their tests, bug fixes start from a failing test.
+   their tests, bug fixes start from a failing test. Per step, either write it
+   yourself or delegate it to one `worker`: delegate when the step needs files
+   you have not read, keep it when you already hold the context. Name the choice
+   and its reason in the ledger for every step. At most one `worker` runs at a
+   time, and you take the pen back between steps. After each `worker`, read
+   `git diff` yourself: its report says where to look, the diff is what happened.
 5. Run the plan checks, then a simplification pass (re-run checks if it
    edited anything).
 6. Fresh-context review: dispatch a read-only reviewer subagent on the diff
