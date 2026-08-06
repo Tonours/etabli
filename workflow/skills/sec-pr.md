@@ -44,7 +44,7 @@ Stop with `GITHUB_CLI_UNAVAILABLE`, `GITHUB_AUTH_REQUIRED`, or
    - patched version of reference is Dependabot `first_patched_version`;
      compare with GHSA and flag divergences;
    - `state: open` before merge is normal.
-3. Isolated worktree:
+3. Isolated worktree, per `workflow/skills/worktree-isolation.md`:
    - create a dedicated `git worktree`, never mutate the active clone;
    - detect package manager and lockfile;
    - align Node in the same shell as install when `.nvmrc` or engines require
