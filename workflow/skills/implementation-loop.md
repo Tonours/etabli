@@ -26,8 +26,10 @@ details in the adapters; keep the phase order and completion evidence here.
    `workflow/spec.md`; a bug fix starts from a failing test that reproduces
    the issue. Writing a step may be delegated to at most one implementation
    subagent at a time when the runtime exposes one, never two in parallel, with
-   the parent taking the pen back between steps. The parent reads the resulting
-   diff itself: a subagent's report locates the work, it does not evidence it.
+   the worker running in the foreground or the parent waiting without writing
+   until it finishes. The parent then takes the pen back between steps and reads
+   the resulting diff itself: a subagent's report locates the work, it does not
+   evidence it.
 9. Update `PLAN.md` only for progress or newly discovered facts.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it

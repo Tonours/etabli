@@ -15,9 +15,14 @@ Current capability labels and proof commands: `workflow/runtime-capabilities.jso
 - Claude should use Claude Code `/goal` for long-running completion loops.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
-- Work is parent-only. The deterministic multi-model council was removed
-  (ADR-0013) after the 2026-07-19 blind latency gate found no quality gain;
-  subagent delegation remains an ordinary tool call, judged case by case.
+- One writer at any instant. The parent writes, or an implementation route may
+  delegate one bounded READY plan step to one supported `worker`. Run that
+  worker in the foreground or wait for it before the parent writes again, then
+  inspect its diff and take the pen back. The current Pi profile remains
+  parent-only while its subagent capability is `unknown`.
+- The deterministic multi-model council was removed (ADR-0013) after the
+  2026-07-19 blind latency gate found no quality gain; other subagent delegation
+  remains an ordinary tool call, judged case by case.
 
 ## Capability Labels
 
@@ -48,9 +53,9 @@ Prefer structured task state over text:
 
 Delegate only when all are true:
 
-- the user asked for delegation/subagents, or the active runtime profile marks
-  the route and phase eligible because separate evaluators materially improve
-  evidence;
+- the user asked for delegation/subagents, or the active implementation route
+  explicitly permits one bounded worker, or the runtime profile marks the phase
+  eligible because a separate evaluator materially improves evidence;
 - the subtask is bounded and independent;
 - ownership is clear;
 - the runtime exposes a supported runner;

@@ -141,7 +141,6 @@ const READ_ONLY_BASH_COMMANDS = new Set([
 	"rg",
 	"sha256sum",
 	"shasum",
-	"sort",
 	"stat",
 	"tail",
 	"test",
@@ -343,14 +342,29 @@ function isReadOnlyPipelineSegment(segment) {
 	if (!executable) return false;
 	if (executable === "git") return isReadOnlyGitSegment(trimmed);
 	if (executable === "find") {
-		return !/(^|\s)-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)(?:\s|$)/.test(
-			trimmed,
-		);
+		const words = splitShellWords(trimmed);
+		if (!words) return false;
+		const mutatingFindActions = new Set([
+			"-delete",
+			"-exec",
+			"-execdir",
+			"-ok",
+			"-okdir",
+			"-fprint",
+			"-fprint0",
+			"-fprintf",
+			"-fls",
+		]);
+		return !words.slice(1).some((word) => mutatingFindActions.has(word));
 	}
-	if (executable === "sed") {
-		return !hasPotentialWriteOption(trimmed, "i", "in-place");
-	}
-	if (executable === "sort" || executable === "diff") {
+	// sed programs can write (`w`) or execute (`e`) without an in-place flag.
+	// The read-only agents already have Read/Grep, so deny sed rather than parse
+	// its full command language here.
+	if (executable === "sed") return false;
+	// sort may spill temporary files or execute --compress-program. Deny it
+	// instead of maintaining a fragile option denylist.
+	if (executable === "sort") return false;
+	if (executable === "diff") {
 		return !hasPotentialWriteOption(trimmed, "o", "output");
 	}
 	if (executable === "node" || executable === "nodejs") {

@@ -87,6 +87,9 @@ paths.each do |path|
     unless body.include?("workflow/skills/obvault-memory.md")
       raise "#{path}: memory routing must point to workflow/skills/obvault-memory.md."
     end
+    unless body.include?("~/.claude/workflow/skills/obvault-memory.md") && body.match?(/unavailable/i)
+      raise "#{path}: memory routing needs the installed ~/.claude/workflow fallback and an explicit unavailable outcome."
+    end
   else
     %w[Read Edit Write Bash].each do |tool|
       raise "#{path}: worker requires #{tool}." unless tools.map(&:to_s).include?(tool)
@@ -109,6 +112,9 @@ end
 install_main = File.read(File.join(root, "scripts/lib/install-main.sh"))
 unless install_main.include?('"$REPO_DIR/claude/scopes/shared/agents"/*.md') && install_main.include?("~/.claude/agents")
   raise "primary installer omits Claude agents. Remediation: link claude/scopes/shared/agents/*.md into ~/.claude/agents/."
+end
+unless install_main.include?("prune_stale_managed_claude_agent_links")
+  raise "primary installer does not prune stale Etabli-managed Claude agent links."
 end
 
 fix_links = File.read(File.join(root, "scripts/check-fix-symlinks.sh"))

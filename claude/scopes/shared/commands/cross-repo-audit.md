@@ -1,7 +1,7 @@
 ---
 description: "Sourced read-only audit across the Forest repos — misalignment table with file:line evidence and an adversarial pass"
 argument-hint: "[topic/behavior to audit] [optional: subset of repos]"
-allowed-tools: [Read, Glob, Grep, Bash, Agent]
+allowed-tools: [Read, Glob, Grep, Agent]
 ---
 
 # Cross-Repo Audit

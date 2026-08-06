@@ -182,6 +182,32 @@ remove_managed_path() {
   status_line REMOVE "$label"
 }
 
+prune_stale_managed_claude_agent_links() {
+  local legacy_managed_dir="$REPO_DIR/claude/agents"
+  local scoped_managed_root="$REPO_DIR/claude/scopes"
+  local installed_dir="$HOME_DIR/.claude/agents"
+  local agent_link agent_target
+
+  [ -d "$installed_dir" ] || return 0
+
+  for agent_link in "$installed_dir"/*.md; do
+    [ -L "$agent_link" ] || continue
+    agent_target="$(readlink "$agent_link")"
+    case "$agent_target" in
+      "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
+      *) continue ;;
+    esac
+    [ -e "$agent_target" ] && continue
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      status_line WOULD_REMOVE "stale managed Claude agent $(basename "$agent_link")"
+    else
+      rm -f "$agent_link"
+      status_line REMOVE "stale managed Claude agent $(basename "$agent_link")"
+    fi
+  done
+}
+
 node_available() {
   command -v node >/dev/null 2>&1
 }
@@ -515,6 +541,8 @@ deploy_claude() {
   done
 
   link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "$HOME_DIR/.claude/settings.workflow-hooks.json" "Claude workflow hooks fragment"
+
+  prune_stale_managed_claude_agent_links
 
   for scope in $(active_scopes); do
     for skill_dir in "$REPO_DIR/claude/scopes/$scope/skills"/*; do

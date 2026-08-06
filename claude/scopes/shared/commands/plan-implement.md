@@ -71,8 +71,10 @@ flow — never stop between phases to ask "continue?":
    yourself or delegate it to one `worker`: delegate when the step needs files
    you have not read, keep it when you already hold the context. Name the choice
    and its reason in the ledger for every step. At most one `worker` runs at a
-   time, and you take the pen back between steps. After each `worker`, read
-   `git diff` yourself: its report says where to look, the diff is what happened.
+   time. Invoke it in the foreground; if the runtime backgrounds it, wait for the
+   worker to finish and do not write until it returns. Then take the pen back and
+   read `git diff` yourself: its report says where to look; the diff is what
+   happened.
 5. Run the plan checks, then a simplification pass (re-run checks if it
    edited anything).
 6. Fresh-context review: dispatch a read-only reviewer subagent on the diff
