@@ -7,7 +7,7 @@ ruby - "$ROOT_DIR" <<'RUBY'
 require "yaml"
 
 root = ARGV.fetch(0)
-paths = Dir.glob(File.join(root, "claude/commands/*.md")).sort
+paths = Dir.glob(File.join(root, "claude/scopes/*/commands/*.md")).sort
 raise "no Claude commands found" if paths.empty?
 
 allowed_keys = %w[name description argument-hint allowed-tools model disable-model-invocation]
@@ -56,7 +56,7 @@ paths.each do |path|
   end
 end
 
-commit_path = File.join(root, "claude/commands/commit.md")
+commit_path = File.join(root, "claude/scopes/shared/commands/commit.md")
 commit_body = File.read(commit_path)
 unless commit_body.match?(/do not push/i)
   raise "#{commit_path}: /commit must explicitly forbid push by default."
@@ -65,7 +65,7 @@ if commit_body.include?("gh pr create") || commit_body.match?(/force-with-lease|
   raise "#{commit_path}: /commit must not create PRs or rewrite history. Remediation: keep external write/history operations in separately authorized commands."
 end
 
-plan_implement = File.read(File.join(root, "claude/commands/plan-implement.md"))
+plan_implement = File.read(File.join(root, "claude/scopes/shared/commands/plan-implement.md"))
 unless plan_implement.include?("scout") && plan_implement.include?("worker") && plan_implement.include?("reviewer")
   raise "plan-implement must retain the bounded scout/worker/reviewer orchestration references."
 end

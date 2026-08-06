@@ -246,17 +246,15 @@ check_claude_hook_links() {
 }
 
 check_claude_agent_links() {
-  local agent_file agent_name
+  local scope scope_root agent_file agent_name
 
-  if [ ! -d "$REPO_DIR/claude/agents" ]; then
-    return
-  fi
-
-  for agent_file in "$REPO_DIR/claude/agents"/*.md; do
-    if [ -f "$agent_file" ]; then
+  for scope in $(deployed_scopes); do
+    scope_root="$REPO_DIR/claude/scopes/$scope/agents"
+    [ -d "$scope_root" ] || continue
+    while IFS= read -r agent_file; do
       agent_name="$(basename "$agent_file")"
       check_link "$HOME/.claude/agents/$agent_name" "$agent_file" "claude agent $agent_name"
-    fi
+    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type f -name '*.md' | sort)
   done
 }
 

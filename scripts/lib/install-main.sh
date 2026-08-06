@@ -1139,7 +1139,7 @@ for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
     fi
 done
 
-for command_file in "$REPO_DIR/claude/commands"/*.md; do
+for command_file in "$REPO_DIR/claude/scopes/shared/commands"/*.md; do
     if [ -f "$command_file" ]; then
         command_name=$(basename "$command_file")
         target_name="$command_name"
@@ -1175,9 +1175,9 @@ if [ -f "$REPO_DIR/claude/settings.workflow-hooks.json" ]; then
     print_success "Claude workflow hook settings fragment linked"
 fi
 
-if [ -d "$REPO_DIR/claude/skills" ]; then
+if [ -d "$REPO_DIR/claude/scopes/shared/skills" ]; then
     mkdir -p ~/.claude/skills
-    for skill_dir in "$REPO_DIR/claude/skills"/*; do
+    for skill_dir in "$REPO_DIR/claude/scopes/shared/skills"/*; do
         if [ -d "$skill_dir" ]; then
             skill_name=$(basename "$skill_dir")
             ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
@@ -1186,9 +1186,9 @@ if [ -d "$REPO_DIR/claude/skills" ]; then
     done
 fi
 
-if [ -d "$REPO_DIR/claude/agents" ]; then
+if [ -d "$REPO_DIR/claude/scopes/shared/agents" ]; then
     mkdir -p ~/.claude/agents
-    for agent_file in "$REPO_DIR/claude/agents"/*.md; do
+    for agent_file in "$REPO_DIR/claude/scopes/shared/agents"/*.md; do
         if [ -f "$agent_file" ]; then
             agent_name=$(basename "$agent_file")
             ln -sf "$agent_file" ~/.claude/agents/"$agent_name"
