@@ -234,6 +234,21 @@ check_claude_hook_links() {
   done
 }
 
+check_claude_agent_links() {
+  local agent_file agent_name
+
+  if [ ! -d "$REPO_DIR/claude/agents" ]; then
+    return
+  fi
+
+  for agent_file in "$REPO_DIR/claude/agents"/*.md; do
+    if [ -f "$agent_file" ]; then
+      agent_name="$(basename "$agent_file")"
+      check_link "$HOME/.claude/agents/$agent_name" "$agent_file" "claude agent $agent_name"
+    fi
+  done
+}
+
 check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
 check_link "$HOME/.tmux.conf" "$REPO_DIR/tmux.conf" "tmux config"
 check_link "$HOME/.config/ghostty/config" "$REPO_DIR/ghostty/config" "ghostty config"
@@ -265,6 +280,7 @@ check_link "$HOME/.claude/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md
 check_claude_command_links
 check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
 check_claude_hook_links
+check_claude_agent_links
 check_pi_skill_links
 check_agents_visible_skill_links
 check_claude_skill_links

@@ -1,7 +1,7 @@
 ---
 description: Work from an existing Linear ticket through Linear MCP
 argument-hint: [Linear issue URL/key or task]
-allowed-tools: [Read, Glob, Grep, Bash, Edit, MultiEdit, Write, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion]
 ---
 
 # Linear Work
@@ -23,6 +23,7 @@ Resolve the shared contract before acting:
    `SHARED_CONTRACT_MISSING: workflow/skills/linear-work.md`.
 
 Rules:
+
 - Use Linear MCP as the source of truth.
 - If no Linear MCP tool is available, stop with `LINEAR_MCP_UNAVAILABLE`.
 - Never implement from a `DRAFT` or `CHALLENGED` plan.

@@ -58,7 +58,7 @@ Unrelated/abandoned root plans: `scripts/plan-cleanup --discard <reason-slug>`
 ## One-writer
 
 One writer at any instant (**protocol**, not an OS lock): the parent, or one
-`worker` per step, never two in parallel. `scout`/`reviewer`: read-only via `tools`.
+`worker` per step, never two in parallel. `scout`/`reviewer`: read-only tools plus a scoped Bash `PreToolUse` allowlist guard.
 
 ## Routes (common)
 

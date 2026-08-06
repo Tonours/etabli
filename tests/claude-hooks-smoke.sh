@@ -214,6 +214,33 @@ if [ -n "$np_escape_output" ]; then
 	exit 1
 fi
 
+# Read-only subagents keep Git/file inspection but deny shell mutation.
+readonly_git_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git diff --stat"}}\n' "$TMP_DIR" |
+		node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
+)"
+assert_empty "$readonly_git_output" "read-only agent guard on git diff"
+
+readonly_rtk_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"rtk ls -la claude/hooks/read-only-agent-guard.mjs"}}\n' "$TMP_DIR" |
+		node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
+)"
+assert_empty "$readonly_rtk_output" "read-only agent guard on rtk-wrapped ls"
+
+readonly_rtk_mutation_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"rtk rm changed.txt"}}\n' "$TMP_DIR" |
+		node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
+)"
+assert_contains "$readonly_rtk_mutation_output" '"permissionDecision":"deny"'
+
+readonly_mutation_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"printf x > changed.txt"}}\n' "$TMP_DIR" |
+		node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
+)"
+assert_contains "$readonly_mutation_output" '"permissionDecision":"deny"'
+assert_contains "$readonly_mutation_output" 'agent is read-only'
+assert_contains "$readonly_mutation_output" 'return to the parent'
+
 guard_repo="$TMP_DIR/plan-commit-guard-repo"
 mkdir -p "$guard_repo"
 git -C "$guard_repo" init -q
@@ -274,7 +301,7 @@ if [ -n "$non_git_output" ]; then
 	exit 1
 fi
 
-for hook in plan-ready-guard plan-commit-guard detect-adr-signal ledger-auto-emit; do
+for hook in plan-ready-guard plan-commit-guard read-only-agent-guard detect-adr-signal ledger-auto-emit; do
 	malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
 	assert_empty "$malformed_output" "$hook on malformed stdin"
 done

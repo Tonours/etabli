@@ -1,15 +1,16 @@
 ---
 name: spec-guide
-description: Socratic, adaptive interview that extracts a solid spec from your head one question at a time, then fills the /spec template. Use BEFORE writing a spec when the design is still in your head — it builds the spec WITH you (vs /grill-me which challenges an already-written plan, /spec which formats one).
+description: Socratic, adaptive interview that extracts a solid spec from your head one question at a time, then fills the /spec template. Use before writing a spec when the design is still in your head; it builds the spec with you before /plan-loop or /adversary hardens it.
 argument-hint: "[optional: a sentence on what you want to spec]"
+allowed-tools: [Read, Write, Edit, Glob, Grep, Skill, AskUserQuestion]
 ---
 
 # /spec-guide — build a spec by guided interview
 
 Lead a Socratic interview that pulls a solid spec out of the user's head, then
 hand the result to `/spec` for formatting. You ask, the user answers, you build.
-This is the upstream piece: it constructs the spec; `/grill-me` challenges a
-written one; `/spec` formats it.
+This is the upstream piece: it constructs the spec; `/spec` formats it;
+`/plan-loop` and `/adversary` harden the resulting draft.
 
 The user is terse and direct. A 20-question quiz annoys them. Be adaptive,
 ask ONE question at a time, fill obvious gaps yourself, and STOP the moment you
@@ -66,7 +67,7 @@ explicitly: "J'ai assez pour une spec solide." Do not pad with extra questions.
 2. On confirmation, invoke the `spec` skill to write the real spec into the right
    Forest template (product or technical), in English, filling the sections from
    the interview. Sourced mechanisms get `file.ts:line` or "to confirm".
-3. Leave the spec at `Status: Draft`. Suggest the next step: `/grill-me` or
-   `/plan-loop` to harden it, then `/adversary` for the cross-model pass.
+3. Leave the spec at `Status: Draft`. Suggest `/plan-loop` to harden it, then
+   `/adversary` for the cross-model pass.
 
 Never write code here. This produces a spec, not an implementation.

@@ -75,6 +75,8 @@ answer-quality-eval-smoke
 workflow-docs-smoke
 workflow-scaffold-smoke
 claude-hooks-smoke
+claude-agents-smoke
+claude-commands-smoke
 claude-skills-smoke
 workflow-event-smoke
 workflow-autonomous-plan-loop-smoke
