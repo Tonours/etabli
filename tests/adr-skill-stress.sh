@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-SKILL_SRC="$ROOT_DIR/claude/skills/adr"
+SKILL_SRC="$ROOT_DIR/claude/scopes/shared/skills/adr"
 SKILL_LINK="$HOME/.claude/skills/adr"
 TMP_DIR="$(mktemp -d)"
 METRICS_FILE="$TMP_DIR/metrics.jsonl"

@@ -74,7 +74,7 @@ assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-assert_link "$HOME_DIR/.claude/commands/plan.md" "$ROOT_DIR/claude/commands/plan-create.md"
+assert_link "$HOME_DIR/.claude/commands/plan.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-create.md"
 assert_link "$HOME_DIR/.claude/hooks/workflow-router-lib.mjs" "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_link "$HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_link "$HOME_DIR/.claude/hooks/plan-commit-guard.mjs" "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
@@ -83,14 +83,25 @@ assert_link "$HOME_DIR/.claude/hooks/ledger-auto-emit.mjs" "$ROOT_DIR/claude/hoo
 assert_link "$HOME_DIR/.claude/hooks/outcome-metric-emit.mjs" "$ROOT_DIR/claude/hooks/outcome-metric-emit.mjs"
 assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
-assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/skills/adr"
-assert_link "$HOME_DIR/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/skills/frontend-css-ui-ux"
-assert_link "$HOME_DIR/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/skills/css-layout-primitives"
-assert_link "$HOME_DIR/.claude/skills/css-only-components" "$ROOT_DIR/claude/skills/css-only-components"
-assert_link "$HOME_DIR/.claude/skills/css-debugging" "$ROOT_DIR/claude/skills/css-debugging"
-assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/agents/scout.md"
-assert_link "$HOME_DIR/.claude/agents/worker.md" "$ROOT_DIR/claude/agents/worker.md"
-assert_link "$HOME_DIR/.claude/agents/reviewer.md" "$ROOT_DIR/claude/agents/reviewer.md"
+assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
+assert_link "$HOME_DIR/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/scopes/shared/skills/frontend-css-ui-ux"
+assert_link "$HOME_DIR/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/scopes/shared/skills/css-layout-primitives"
+assert_link "$HOME_DIR/.claude/skills/css-only-components" "$ROOT_DIR/claude/scopes/shared/skills/css-only-components"
+assert_link "$HOME_DIR/.claude/skills/css-debugging" "$ROOT_DIR/claude/scopes/shared/skills/css-debugging"
+assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/scopes/shared/agents/scout.md"
+assert_link "$HOME_DIR/.claude/agents/worker.md" "$ROOT_DIR/claude/scopes/shared/agents/worker.md"
+assert_link "$HOME_DIR/.claude/agents/reviewer.md" "$ROOT_DIR/claude/scopes/shared/agents/reviewer.md"
+
+if [ -e "$HOME_DIR/.claude/skills/ember-forestadmin-suite" ]; then
+  printf 'work-scope skill deployed without a declared scope: %s\n' \
+    "$HOME_DIR/.claude/skills/ember-forestadmin-suite" >&2
+  exit 1
+fi
+
+if ETABLI_SCOPE=bogus "$ROOT_DIR/scripts/deploy-agent-workflow" --dry-run --home "$HOME_DIR" >/dev/null 2>&1; then
+  printf 'deploy accepted an invalid ETABLI_SCOPE instead of failing\n' >&2
+  exit 1
+fi
 
 assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"

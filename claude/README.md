@@ -13,9 +13,9 @@ Claude Code-specific files for `etabli`.
 - the same plan templates and `workflow/` are also linked under
   `~/.pi/agent/` and `~/.agents/` so Pi and shared-agent (Grok and future
   harness) relative fallbacks resolve
-- `commands/*.md` -> `~/.claude/commands/`
-- `skills/*` -> `~/.claude/skills/`
-- `agents/*.md` -> `~/.claude/agents/`
+- `scopes/<scope>/commands/*.md` -> `~/.claude/commands/`
+- `scopes/<scope>/skills/*` -> `~/.claude/skills/`
+- `scopes/<scope>/agents/*.md` -> `~/.claude/agents/`
 - `hooks/*.mjs` -> `~/.claude/hooks/`
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
 - selected shared docs from `../workflow/` -> `~/.claude/`
@@ -23,6 +23,26 @@ Claude Code-specific files for `etabli`.
 Re-run `scripts/install.sh` any time to refresh links; it is idempotent. When
 links look stale or broken (missing command, drift after an update), run
 `scripts/check-fix-symlinks.sh` to validate and repair the installed surface.
+
+## Scopes
+
+Commands, skills and agents live under `claude/scopes/<scope>/`:
+
+| Scope | Holds | Deployed |
+|---|---|---|
+| `shared` | Anything that does not name an employer or a private project | Always |
+| `work` | Employer-specific surfaces (Forest stack, its repos, its conventions) | Only where the machine declares it |
+| `personal` | Private-project surfaces | Only where the machine declares it |
+
+A machine declares one scope in `~/.etabli-scope`, containing exactly `work` or
+`personal`. `ETABLI_SCOPE` overrides it for one run. No file and no variable
+means `shared` alone, which is the safe default: a new machine never receives
+another context's surfaces by accident. An unrecognised value fails the deploy
+with exit 2 rather than deploying a partial surface.
+
+Put a surface in `shared` only if it would still make sense at a different
+employer. A skill that names a repo, a product, or an internal service belongs
+in `work`.
 
 ## Workflow
 
