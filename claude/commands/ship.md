@@ -1,7 +1,7 @@
 ---
 description: Deliver one task A to Z - plan, implement, review, commit, push, PR, CI green
 argument-hint: [task description]
-allowed-tools: [Read, Glob, Grep, Bash, Edit, MultiEdit, Write, AskUserQuestion, Task]
+allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent]
 ---
 
 # Ship

@@ -153,8 +153,9 @@ coverage: routes shared by Pi extension and Claude hooks; executable classifier
 
 Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key
 surfaces referenced by routing/guards: Claude hooks fragment
-`claude/settings.workflow-hooks.json`, `workflow/plan-archive.md`, and
-`workflow/project-autonomy-envelope.md`.
+`claude/settings.workflow-hooks.json`, `workflow/plan-archive.md`,
+`workflow/project-autonomy-envelope.md`, and the bounded reviewer evolution
+contract `workflow/skills/reviewer-improvement-loop.md`.
 
 ## Daily loop
 

@@ -62,8 +62,10 @@ One anecdote is not evidence for changing an invariant. A repeated pattern is.
 
 ### 1. Record the miss
 
-For each escaped defect, capture, in `~/work/brain/kb/` if it is a stack mechanic
-worth keeping, otherwise in the run's notes:
+For each escaped defect, keep the run evidence local first. If it is a reusable
+stack mechanic, consult `workflow/skills/obvault-memory.md` and prepare only a
+bounded shadow candidate after validation; never write raw review traces into the
+vault:
 
 - the diff and commit the reviewer passed
 - the defect, sourced `file:line`
@@ -79,7 +81,7 @@ That third item is the whole point. "Missed a precedence bug" is actionable.
 Every miss lands in exactly one bucket, and the bucket decides the response:
 
 | Bucket | Meaning | Response |
-|---|---|---|
+| --- | --- | --- |
 | `lens_existed_not_run` | A lens covered it; the agent skipped it | Tighten the output contract so skipping is visible. No new lens. |
 | `retrieval_gap` | The deciding code was never opened | Strengthen Phase 1 retrieval for that shape of change. |
 | `lens_missing` | No lens asks this question | Candidate for a new lens. See the budget below. |

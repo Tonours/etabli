@@ -1,32 +1,33 @@
-Review staged and unstaged changes:
+---
+description: Create one scoped conventional commit from the current worktree; never push or open a PR
+argument-hint: [optional scope or intent]
+allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+---
 
-```bash
-git status --short
-git diff --stat
-git log --oneline -5
-```
+# Commit
 
-Then:
-1. Stage relevant changes with `git add` (be specific, avoid `git add -A`)
-2. Write conventional commit message — subject line only, no body, no trailers,
-   max 72 chars, lowercase, imperative:
-   - feat(scope): new feature
-   - fix(scope): bug fix
-   - refactor(scope): code refactoring
-   - test(scope): test changes
-   - docs(scope): documentation
-   - chore(scope): maintenance
-3. Commit with the message
-4. Push to current branch
+User request: $ARGUMENTS
 
-Squash mode (when the request says "squash", "un seul commit", "1-2 commits max",
-"tidy commits"):
-- Soft-reset the branch's own commits and recommit as one (or two) clean commits,
-  subject-only. Never touch commits already on the base branch.
-- Push with `--force-with-lease`.
-5. If no PR exists, create with `gh pr create`:
-   - Title matches commit message
-   - Body summarizes branch changes
-   - Add relevant labels
+Create one reviewable commit and stop.
 
-Show PR URL when done.
+## Procedure
+
+1. Inspect `git status --short`, staged and unstaged diffs, and
+   `git log --oneline -5`. Preserve unrelated user changes.
+2. Identify the files that belong to the requested change. If ownership is
+   ambiguous, ask one narrow question before staging.
+3. Run the narrowest relevant validation that has not already passed on the
+   final diff. A failing required check blocks the commit.
+4. Stage exact paths with `git add -- <paths>`; never use `git add -A` or `git add .`.
+5. Verify no root `PLAN.md` or `PLAN*.md` is staged.
+6. Commit with one English conventional-commit subject, no body or trailers:
+   `feat|fix|refactor|test|docs|chore(scope): description`. Keep it lowercase,
+   imperative, and under about 72 characters.
+7. Show the new commit subject and final `git status --short`.
+
+## Boundaries
+
+- Do not push, create a PR, merge, amend, squash, rebase, or rewrite history.
+- Do not stage unrelated files or discard working-tree changes.
+- Do not add AI attribution.
+- If there is nothing relevant to commit, stop without creating an empty commit.

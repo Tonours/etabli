@@ -1,6 +1,6 @@
 ---
 description: Implement the existing READY PLAN.md without rerunning planning
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent]
 ---
 
 # Implement
@@ -34,5 +34,6 @@ Read the existing root `PLAN.md`, then follow
 `workflow/skills/implementation-loop.md`.
 
 Rules:
+
 - Do not rerun full planning.
 - Do not create `REVIEW.md`.
