@@ -17,28 +17,15 @@ orchestration contract.
 ## Preconditions
 
 1. Resolve exactly one PR target.
-2. Confirm the base worktree is clean before creating or entering a PR
-   worktree:
-
-   ```bash
-   git status --short
-   ```
-
-3. Stop if the base worktree has uncommitted or untracked changes that are not
-   explicitly owned by this run.
-4. Create or select one isolated worktree, branch, and thread for this PR.
-5. Record the PR URL, branch, worktree path, base SHA, latest pushed head SHA,
+2. Apply the preconditions in `workflow/skills/worktree-isolation.md`, then
+   create or select one isolated worktree, branch, and thread for this PR.
+3. Record the PR URL, branch, worktree path, base SHA, latest pushed head SHA,
    and planned validation commands.
 
 ## Isolation Rules
 
-- One PR, one worktree, one loop.
-- Do not touch `main` unless the workflow explicitly requires a read-only
-  comparison.
-- Do not edit sibling worktrees.
-- Do not borrow unstaged changes from the base worktree.
-- Do not mix fixes for several PRs in the same branch or thread.
-- Clean up the PR worktree explicitly at the end, or report why it was kept.
+Follow `workflow/skills/worktree-isolation.md`. One PR, one worktree, one loop.
+Additionally, do not mix fixes for several PRs in the same branch or thread.
 
 ## Loop Phases
 
