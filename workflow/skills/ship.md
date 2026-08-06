@@ -24,8 +24,10 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    scope drift; run targeted tests for the touched code.
 5. Final sweep commit with the project's commit style; never stage
    `PLAN*.md`.
-6. Push the feature branch and open a PR using the project's PR template.
-   Fill placeholders; leave checklists unchecked; no AI attribution.
+6. Push the feature branch and open a PR. Write the body per
+   `workflow/pr-body-contract.md`: English, the project's template intact,
+   placeholders filled, checklists unchecked, no AI attribution. State the
+   stack explicitly when the base is not the default branch.
 7. CI: follow the `ci-fix` contract (existing attempt and time caps) until
    checks are green, blocked, or capped.
 8. If reviewer or bot feedback already exists on the PR when CI settles,

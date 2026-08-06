@@ -1,0 +1,81 @@
+# PR Body Contract
+
+How to write a pull request description. Applies whenever a PR body is authored
+or rewritten, whether through `workflow/skills/ship.md`, a runtime command that
+opens a PR, or a direct request to redo a description. It does not govern
+mechanical edits to an existing body, such as `sec-pr` ticking its checkboxes.
+
+The reader is a busy human reviewer, not a changelog. They decide in about
+thirty seconds whether they can review this now.
+
+## Non-negotiables
+
+- **English.** Always, whatever language the conversation is in. Same rule as
+  commits, code, and identifiers.
+- **The repo's template is law.** Use `.github/PULL_REQUEST_TEMPLATE.md` (or
+  the equivalent). Keep every section and checklist intact, fill only the
+  placeholders, leave author/reviewer checklists unchecked.
+- **No AI attribution.** No "Generated with", no robot emoji, no co-author
+  trailer, nowhere in the body.
+- **Link the ticket** when there is one: `fixes PRD-123` on its own line, so
+  the tracker picks it up.
+
+## Shape
+
+Lead with what changed, not with a story about the problem. One line of
+context is enough when it carries weight; the reviewer reads the diff for the
+rest.
+
+Sections earn their place. A three-line fix needs no `## Scope` heading. Adapt
+to the change instead of filling a fixed skeleton:
+
+- **What** — the change, in one or two sentences.
+- **Why / decisions** — only choices a reviewer would otherwise question, and
+  the reason. Skip the obvious ones.
+- **Scope and safety** — what this deliberately does *not* touch. Valuable on
+  anything near auth, permissions, or data.
+- **How to test** — runnable commands, then the behavior to exercise by hand.
+- **Known limitation** — a ceiling you accepted on purpose. State it; a
+  reviewer finding it themselves reads as an oversight.
+
+Facts belong in tables or lists: status-code matrices, before/after, touched
+packages. Prose is for the reasoning that a table cannot hold.
+
+## Anti-slop
+
+The style rules from `write-direct` apply to the narrative parts, in English.
+Contracts stay literal: routes, payloads, signatures, error types, commands,
+and security warnings are never restyled for tone.
+
+Cut on sight:
+
+- Decorative em-dashes used as repeated breathing room. A period works.
+- Recap conclusions ("In summary", "To sum up"). The reader just read it.
+- Openers that announce the plan ("This PR will describe..."). Start.
+- Filler adjectives: robust, seamless, comprehensive, crucial, significant.
+  Say what makes it solid instead.
+- `leverage` → use. `delve into` → dig into. `moreover` / `furthermore` → "and",
+  or nothing. `it's worth noting that` → say the thing.
+- Mechanical parallelism: every bullet cast in the same mould. Vary or merge.
+- Defending a decision across a paragraph. State it in a sentence and move on;
+  a long defense reads as doubt.
+
+Shorter wins. Between two drafts, ship the denser one.
+
+## Stacked PRs
+
+When the base branch is not the default branch, say so in the first lines,
+before anything else:
+
+- which PR it is stacked on, and that the base is that branch, not `main`
+- that the parent must be reviewed and merged first
+- whether it stays draft until then
+
+A reviewer who misses this reviews the parent's diff twice and reports
+phantom problems.
+
+## Honest status
+
+Describe what the branch *is*. "Draft, the endpoint is not wired to a route
+yet" beats "complete implementation". Never claim a check that did not run:
+name the tests and commands you actually executed, with their result.
