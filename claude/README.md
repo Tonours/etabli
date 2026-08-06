@@ -94,6 +94,10 @@ Custom agents stay bounded:
 read-only Bash/Git commands. `worker` is the only writing agent and never spawns
 another agent.
 
+Command `allowed-tools` entries are permission pre-approvals, not a sandbox.
+Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
+`Bash`; the enforced shell boundary belongs to `scout` and `reviewer`.
+
 Playwright QA is packaged as three skills, not extra agents:
 `playwright-agentic-testing`, `playwright-test-generation`, and
 `playwright-failure-dossier`.

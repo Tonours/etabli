@@ -1,7 +1,7 @@
 ---
 description: Analyze a Linear bug with adversarial root-cause rigor
 argument-hint: [Linear URL/key]
-allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---
 
 # Bug Check

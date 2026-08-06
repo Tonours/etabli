@@ -1,7 +1,7 @@
 ---
 description: Review uncommitted changes, a branch diff, or a specific commit using the shared rubric
 argument-hint: [uncommitted | branch <base> | commit <sha>]
-allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---
 
 # Review

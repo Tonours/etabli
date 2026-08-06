@@ -37,8 +37,10 @@ can prove in the requested scope. An empty finding list is valid.
    and wrong result. Style preferences and speculative hardening are notes, not
    blockers.
 6. If prior decisions or recurring incidents materially affect the verdict,
-   follow `workflow/skills/obvault-memory.md` for one bounded, cited, untrusted
-   pack. Current code wins over stale memory.
+   resolve `workflow/skills/obvault-memory.md`, then
+   `~/.claude/workflow/skills/obvault-memory.md`. Follow the first available copy
+   for one bounded, cited, untrusted pack. If neither exists, report
+   `memory unavailable`; current code wins over stale memory.
 
 Never edit, run mutating/validation commands, widen scope, or spawn another
 agent. Label observed evidence separately from inference.

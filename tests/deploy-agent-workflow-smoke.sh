@@ -8,7 +8,10 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
-mkdir -p "$HOME_DIR/.pi/agent"
+mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$TMP_DIR/personal-agents"
+printf 'personal agent\n' >"$TMP_DIR/personal-agents/personal.md"
+ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$HOME_DIR/.claude/agents/playwright-generator.md"
+ln -s "$TMP_DIR/personal-agents/personal.md" "$HOME_DIR/.claude/agents/personal.md"
 
 node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -70,6 +73,13 @@ assert_file() {
   }
 }
 
+assert_absent() {
+  if [ -e "$1" ] || [ -L "$1" ]; then
+    printf 'expected path to be absent: %s\n' "$1" >&2
+    exit 1
+  fi
+}
+
 assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
@@ -91,6 +101,8 @@ assert_link "$HOME_DIR/.claude/skills/css-debugging" "$ROOT_DIR/claude/scopes/sh
 assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/scopes/shared/agents/scout.md"
 assert_link "$HOME_DIR/.claude/agents/worker.md" "$ROOT_DIR/claude/scopes/shared/agents/worker.md"
 assert_link "$HOME_DIR/.claude/agents/reviewer.md" "$ROOT_DIR/claude/scopes/shared/agents/reviewer.md"
+assert_absent "$HOME_DIR/.claude/agents/playwright-generator.md"
+assert_link "$HOME_DIR/.claude/agents/personal.md" "$TMP_DIR/personal-agents/personal.md"
 
 if [ -e "$HOME_DIR/.claude/skills/ember-forestadmin-suite" ]; then
   printf 'work-scope skill deployed without a declared scope: %s\n' \

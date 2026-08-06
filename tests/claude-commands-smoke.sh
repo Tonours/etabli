@@ -12,8 +12,8 @@ raise "no Claude commands found" if paths.empty?
 
 allowed_keys = %w[name description argument-hint allowed-tools model disable-model-invocation]
 allowed_tools = %w[Read Write Edit Glob Grep Bash AskUserQuestion Agent Skill WebFetch]
-delegating_commands = %w[ci-fix cross-repo-audit implement plan-implement ship spec-verify]
-read_only_commands = %w[bug-check cross-repo-audit github-pr-review pr-qa pr-review recap review sec-pr spec-verify verify-workflow]
+commands_declaring_agent_preapproval = %w[ci-fix cross-repo-audit implement plan-implement ship spec-verify]
+commands_without_mutation_preapproval = %w[bug-check cross-repo-audit github-pr-review pr-qa pr-review recap review sec-pr spec-verify verify-workflow]
 
 paths.each do |path|
   content = File.read(path)
@@ -40,11 +40,11 @@ paths.each do |path|
   end
 
   command = File.basename(path, ".md")
-  if delegating_commands.include?(command) && !tool_names.include?("Agent")
-    raise "#{path}: command delegates work but does not allow Agent. Remediation: add Agent to allowed-tools."
+  if commands_declaring_agent_preapproval.include?(command) && !tool_names.include?("Agent")
+    raise "#{path}: delegating command must declare the current Agent tool pre-approval."
   end
-  if read_only_commands.include?(command) && !(tool_names & %w[Write Edit]).empty?
-    raise "#{path}: read-only command exposes mutation tools."
+  if commands_without_mutation_preapproval.include?(command) && !(tool_names & %w[Write Edit Bash]).empty?
+    raise "#{path}: source-read-only command pre-approves a mutation-capable tool. Remediation: allowed-tools grants permission; it is not a sandbox."
   end
 
   body = content[match[0].length..] || ""
@@ -68,6 +68,9 @@ end
 plan_implement = File.read(File.join(root, "claude/scopes/shared/commands/plan-implement.md"))
 unless plan_implement.include?("scout") && plan_implement.include?("worker") && plan_implement.include?("reviewer")
   raise "plan-implement must retain the bounded scout/worker/reviewer orchestration references."
+end
+unless plan_implement.match?(/foreground/i) && plan_implement.match?(/wait\s+for\s+the\s+worker/i)
+  raise "plan-implement must require a foreground-or-awaited worker before the parent writes again."
 end
 RUBY
 

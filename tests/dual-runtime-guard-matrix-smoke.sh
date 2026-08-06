@@ -124,9 +124,12 @@ for (const command of [
   "node -p \"require('node:fs').writeFileSync('escaped', 'x')\"",
   "sort -o escaped input.txt",
   "sort -ro escaped input.txt",
+  "sort --compress-program=sh input.txt",
   "diff --output=escaped a b",
   "sed -ni '' 's/x/y/' input.txt",
+  "sed -n 'w escaped' input.txt",
   "find . -fprintf escaped x",
+  "find . '-exec' touch escaped ';'",
   "find . -fprint0 escaped",
 ]) {
   const mutationDeny = mod.planMutationGuardDecision({

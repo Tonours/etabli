@@ -258,6 +258,35 @@ check_claude_agent_links() {
   done
 }
 
+check_stale_managed_claude_agent_links() {
+  local legacy_managed_dir="$REPO_DIR/claude/agents"
+  local scoped_managed_root="$REPO_DIR/claude/scopes"
+  local installed_dir="$HOME/.claude/agents"
+  local agent_link agent_target
+
+  if [ ! -d "$installed_dir" ]; then
+    return
+  fi
+
+  for agent_link in "$installed_dir"/*.md; do
+    [ -L "$agent_link" ] || continue
+    agent_target="$(readlink "$agent_link")"
+    case "$agent_target" in
+      "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
+      *) continue ;;
+    esac
+    [ -e "$agent_target" ] && continue
+
+    ISSUES=$((ISSUES + 1))
+    status_line WARN "stale managed Claude agent $(basename "$agent_link") -> $agent_target"
+    if [ "$FIX" -eq 1 ]; then
+      rm -f "$agent_link"
+      FIXED=$((FIXED + 1))
+      status_line FIXED "removed stale managed Claude agent $(basename "$agent_link")"
+    fi
+  done
+}
+
 check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
 check_link "$HOME/.tmux.conf" "$REPO_DIR/tmux.conf" "tmux config"
 check_link "$HOME/.config/ghostty/config" "$REPO_DIR/ghostty/config" "ghostty config"
@@ -289,6 +318,7 @@ check_link "$HOME/.claude/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md
 check_claude_command_links
 check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
 check_claude_hook_links
+check_stale_managed_claude_agent_links
 check_claude_agent_links
 check_pi_skill_links
 check_agents_visible_skill_links
