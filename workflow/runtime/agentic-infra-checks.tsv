@@ -28,6 +28,8 @@ full	shell-docs	answer-quality-eval-smoke	tests/answer-quality-eval-smoke.sh
 full	shell-docs	workflow-docs-smoke	tests/workflow-docs-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
+full	shell-docs	claude-agents-smoke	tests/claude-agents-smoke.sh
+full	shell-docs	claude-commands-smoke	tests/claude-commands-smoke.sh
 full	shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
 full	shell-docs	workflow-event-smoke	tests/workflow-event-smoke.sh
 full	shell-docs	workflow-autonomous-plan-loop-smoke	tests/workflow-autonomous-plan-loop-smoke.sh

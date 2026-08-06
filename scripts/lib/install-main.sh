@@ -1186,6 +1186,17 @@ if [ -d "$REPO_DIR/claude/skills" ]; then
     done
 fi
 
+if [ -d "$REPO_DIR/claude/agents" ]; then
+    mkdir -p ~/.claude/agents
+    for agent_file in "$REPO_DIR/claude/agents"/*.md; do
+        if [ -f "$agent_file" ]; then
+            agent_name=$(basename "$agent_file")
+            ln -sf "$agent_file" ~/.claude/agents/"$agent_name"
+            print_success "Claude agent '$agent_name' linked"
+        fi
+    done
+fi
+
 for shared_doc in review-rubric.md; do
     if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
         ln -sf "$REPO_DIR/workflow/$shared_doc" ~/.claude/"$shared_doc"

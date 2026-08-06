@@ -15,6 +15,7 @@ Claude Code-specific files for `etabli`.
   harness) relative fallbacks resolve
 - `commands/*.md` -> `~/.claude/commands/`
 - `skills/*` -> `~/.claude/skills/`
+- `agents/*.md` -> `~/.claude/agents/`
 - `hooks/*.mjs` -> `~/.claude/hooks/`
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
 - selected shared docs from `../workflow/` -> `~/.claude/`
@@ -63,8 +64,19 @@ Recurring-work commands (from the 2026-07 usage audit; manual-only):
 - `/ui-debug` — repro-first UI debugging, one hypothesis per measurement
 - `/recap` — evidence-based session/day recap (standup or Slack format)
 
-Playwright QA wrappers (agentic test loop):
+Custom agents stay bounded:
 
+- `scout` — read-only reconnaissance for one unfamiliar area;
+- `worker` — one implementation step from a `READY` plan;
+- `reviewer` — fresh-context, findings-first diff review.
+
+`scout` and `reviewer` use an agent-local `PreToolUse` hook to allow only proven
+read-only Bash/Git commands. `worker` is the only writing agent and never spawns
+another agent.
+
+Playwright QA is packaged as three skills, not extra agents:
+`playwright-agentic-testing`, `playwright-test-generation`, and
+`playwright-failure-dossier`.
 
 `/verify-workflow` is the Etabli workflow verifier. Keep Claude Code's native
 `/verify` free for app/runtime verification.
@@ -88,6 +100,9 @@ Optional hooks:
 - `plan-commit-guard.mjs` denies `git add`/`git commit` calls that would stage
   or commit a root `PLAN*.md`; plans are session artifacts, archives belong in
   `docs/plan/`. Running git manually bypasses it deliberately.
+- `read-only-agent-guard.mjs` is wired directly by `scout` and `reviewer`; it
+  denies Bash that is not proven read-only even when the optional settings
+  fragment is not active.
 - `detect-adr-signal.mjs` runs on `Stop`. When a structural file changed and the
   last assistant message reads like a decision, it surfaces a `systemMessage`
   suggesting `/adr`. It never writes, never calls an LLM, and uses `systemMessage`
@@ -96,7 +111,8 @@ Optional hooks:
 - `settings.workflow-hooks.json` is a merge fragment. It is linked for manual
   activation and is not merged into `~/.claude/settings.json` by the installer,
   because the live settings file can contain secrets. Activating it enables the
-  `PreToolUse`, `PostToolUse`, and `Stop` hooks above.
+  session-wide READY, ledger, ADR, and outcome hooks; the read-only agent hook is
+  scoped from agent frontmatter instead.
 
 Use Claude Code `/goal` for till-done loops:
 

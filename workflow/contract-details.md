@@ -38,9 +38,10 @@ One writer at any instant. The parent writes, or delegates writing to at most on
 parallel. The deterministic multi-model council (scout / analyst / challenger /
 judge / fallback) was removed in ADR-0013; `classifyMultiExecution` always returns
 single. Delegating to a subagent stays available as an ordinary tool call, judged
-case by case, not as a routed profile. `scout` and `reviewer` are read-only by
-their `tools` allowlist rather than by prose. Shared workflow and
-evidence invariants stay in `workflow/skills/orchestration.md`.
+case by case, not as a routed profile. `scout` and `reviewer` combine an
+explicit read-only tool set, `dontAsk`, and a scoped Bash `PreToolUse` allowlist
+guard; this is stronger than prose but still not an OS sandbox. Shared workflow
+and evidence invariants stay in `workflow/skills/orchestration.md`.
 
 ## Rules (detail)
 
@@ -233,6 +234,7 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
 - Agent memory: `docs/agent-memory/` in workflow-scaffolded projects (`workflow/memory.md`)
 - Review rubric: `workflow/review-rubric.md`
+- Reviewer improvement loop: `workflow/skills/reviewer-improvement-loop.md`
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
 - PR body contract: `workflow/pr-body-contract.md`
@@ -280,8 +282,7 @@ consents to feature-branch push and PR creation), `/spec-verify`, `/commit`,
 `/cross-repo-audit`,
 `/linear-project-setup`, `/pr-feedback`, `/pre-commit`, `/tests-iso`,
 `/front-quality`, `/ui-debug`, `/recap`. The Playwright QA chain lives in the
-`claude/skills/playwright-*` skills and `claude/agents/playwright-*`
-subagents, not in slash commands.
+`claude/skills/playwright-*` skills, not in slash commands or separate agents.
 `/spec-guide` is routed ambiently (see routing table). `/plan` maps to
 `claude/commands/plan-create.md`.
 
@@ -292,7 +293,8 @@ Claude-native loop:
   measurable condition with an explicit cap (iterations or wall-clock), and the
   run must record the event ledger per `workflow/events.md`.
 - Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
-  routing context and READY-gate hook enforcement.
+  READY/check-freeze, ledger, ADR, and outcome hooks. Route classification stays
+  library-only and injects no prompt context (ADR-0014).
 - Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
   Do not claim Claude has Pi Task* semantics.
 

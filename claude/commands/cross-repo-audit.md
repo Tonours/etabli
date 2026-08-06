@@ -1,7 +1,7 @@
 ---
-description: Sourced read-only audit across the employer repos — misalignment table with file:line evidence and an adversarial pass
-argument-hint: [topic/behavior to audit] [optional: subset of repos]
-allowed-tools: [Read, Glob, Grep, Bash, Task]
+description: "Sourced read-only audit across the employer repos — misalignment table with file:line evidence and an adversarial pass"
+argument-hint: "[topic/behavior to audit] [optional: subset of repos]"
+allowed-tools: [Read, Glob, Grep, Bash, Agent]
 ---
 
 # Cross-Repo Audit
@@ -12,14 +12,16 @@ Audit one behavior across the employer stack and surface where the repos disagre
 Read-only on source. Never code. The output is evidence, not opinion.
 
 Default repos (override if the request narrows them):
+
 - Front: `~/work/employer-bugfixes`
 - Orchestrator: `~/work/employer-server`
 - Executor / agent: `~/work/agent-nodejs`
 
 Invariants (non-negotiable):
+
 - Every finding sourced with `file:line`. No assumption, only certainty.
 - After the first pass, run an adversarial pass that challenges each finding.
-- Delegate breadth to subagents (Task tool) — one per repo or per sub-question —
+- Delegate breadth to subagents (Agent tool) — one per repo or per sub-question —
   and have each return `file:line` excerpts, not prose summaries.
 
 Phases:

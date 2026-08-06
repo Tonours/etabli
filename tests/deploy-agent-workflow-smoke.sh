@@ -81,8 +81,12 @@ assert_link "$HOME_DIR/.claude/hooks/plan-commit-guard.mjs" "$ROOT_DIR/claude/ho
 assert_link "$HOME_DIR/.claude/hooks/detect-adr-signal.mjs" "$ROOT_DIR/claude/hooks/detect-adr-signal.mjs"
 assert_link "$HOME_DIR/.claude/hooks/ledger-auto-emit.mjs" "$ROOT_DIR/claude/hooks/ledger-auto-emit.mjs"
 assert_link "$HOME_DIR/.claude/hooks/outcome-metric-emit.mjs" "$ROOT_DIR/claude/hooks/outcome-metric-emit.mjs"
+assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/skills/adr"
+assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/agents/scout.md"
+assert_link "$HOME_DIR/.claude/agents/worker.md" "$ROOT_DIR/claude/agents/worker.md"
+assert_link "$HOME_DIR/.claude/agents/reviewer.md" "$ROOT_DIR/claude/agents/reviewer.md"
 
 assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"

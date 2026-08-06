@@ -1,7 +1,7 @@
 ---
 description: Plan, review, then implement only when PLAN.md is READY
 argument-hint: [task description]
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent]
 ---
 
 # Plan Implement
@@ -90,6 +90,7 @@ no-progress rule, missing validation surface, or a human checkpoint category
 (destructive, production, secrets, external write-back).
 
 Rules:
+
 - Do not ask for confirmation once the plan is `READY`.
 - Do not pause between phases for a go-ahead; the stop list above is exhaustive.
 - Do not create `REVIEW.md`.

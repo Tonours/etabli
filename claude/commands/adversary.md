@@ -2,6 +2,7 @@
 name: adversary
 description: Cross-model adversarial review of the current PLAN.md via Pi on a non-Claude model (read-only second opinion). Run after /plan-loop to catch blind spots a same-family critique misses.
 argument-hint: "[optional: path to the plan file, defaults to ./PLAN.md]"
+allowed-tools: [Read, Edit, Glob, Bash]
 ---
 
 # /adversary — cross-model plan review via pi -p
