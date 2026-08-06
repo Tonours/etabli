@@ -1,7 +1,7 @@
 ---
 description: Verify checks, claims, or workflow completion without editing
 argument-hint: [target claim or checks]
-allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---
 
 # Verify Workflow

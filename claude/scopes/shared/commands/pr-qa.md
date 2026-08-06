@@ -1,7 +1,7 @@
 ---
 description: Generate a QA impact analysis and test plan for a GitHub PR
 argument-hint: [PR URL/number/repo alias]
-allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---
 
 # PR QA

@@ -1,7 +1,7 @@
 ---
 description: Audit a Dependabot or security PR through gh CLI
 argument-hint: [PR URL/number/repo]
-allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---
 
 # Sec PR

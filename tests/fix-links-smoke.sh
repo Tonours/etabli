@@ -38,7 +38,7 @@ assert_link() {
 }
 
 assert_not_exists() {
-  [ ! -e "$1" ] || {
+  { [ ! -e "$1" ] && [ ! -L "$1" ]; } || {
     printf 'expected path not to exist: %s\n' "$1" >&2
     exit 1
   }
@@ -59,6 +59,10 @@ backup_count() {
 }
 
 mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules"
+mkdir -p "$TMP_HOME/.claude/agents" "$TMP_HOME/personal-agents"
+printf 'personal agent\n' >"$TMP_HOME/personal-agents/personal.md"
+ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$TMP_HOME/.claude/agents/playwright-generator.md"
+ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/agents/personal.md"
 
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 HOME="$TMP_HOME" "$SCRIPT" --verbose >/dev/null
@@ -100,6 +104,8 @@ assert_link "$TMP_HOME/.claude/commands/ci-fix.md" "$ROOT_DIR/claude/scopes/shar
 assert_link "$TMP_HOME/.claude/agents/scout.md" "$ROOT_DIR/claude/scopes/shared/agents/scout.md"
 assert_link "$TMP_HOME/.claude/agents/worker.md" "$ROOT_DIR/claude/scopes/shared/agents/worker.md"
 assert_link "$TMP_HOME/.claude/agents/reviewer.md" "$ROOT_DIR/claude/scopes/shared/agents/reviewer.md"
+assert_not_exists "$TMP_HOME/.claude/agents/playwright-generator.md"
+assert_link "$TMP_HOME/.claude/agents/personal.md" "$TMP_HOME/personal-agents/personal.md"
 assert_link "$TMP_HOME/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$TMP_HOME/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"

@@ -1,7 +1,7 @@
 ---
 description: Session or day recap from git/gh evidence - standup or team-message format
 argument-hint: "[standup | slack | <free period, e.g. today or this week>]"
-allowed-tools: [Read, Glob, Grep, Bash]
+allowed-tools: [Read, Glob, Grep]
 ---
 
 # Recap

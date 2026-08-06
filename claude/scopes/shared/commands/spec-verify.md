@@ -1,7 +1,7 @@
 ---
 description: "Adversarially verify a spec against the real code — every claim CONFIRMED/REFUTED/NUANCED with file:line and a certainty"
 argument-hint: "[spec path or Slite/Linear URL] [repos to check]"
-allowed-tools: [Read, Glob, Grep, Bash, WebFetch, Agent]
+allowed-tools: [Read, Glob, Grep, WebFetch, Agent]
 ---
 
 # Spec Verify

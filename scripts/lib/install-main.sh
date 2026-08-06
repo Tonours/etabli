@@ -40,6 +40,30 @@ print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
 
+prune_stale_managed_claude_agent_links() {
+    local repo_dir="$1"
+    local home_dir="$2"
+    local legacy_managed_dir="$repo_dir/claude/agents"
+    local scoped_managed_root="$repo_dir/claude/scopes"
+    local installed_dir="$home_dir/.claude/agents"
+    local agent_link agent_target
+
+    [ -d "$installed_dir" ] || return 0
+
+    for agent_link in "$installed_dir"/*.md; do
+        [ -L "$agent_link" ] || continue
+        agent_target="$(readlink "$agent_link")"
+        case "$agent_target" in
+            "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
+            *) continue ;;
+        esac
+        [ -e "$agent_target" ] && continue
+
+        rm -f "$agent_link"
+        print_success "Removed stale managed Claude agent '$(basename "$agent_link")'"
+    done
+}
+
 backup_path() {
     local path="$1"
     local candidate="${path}.bak.${TIMESTAMP}"
@@ -569,6 +593,25 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     computed_backup="$(backup_path "$tmp_dir/settings.json")"
     if [ "$computed_backup" != "$second_backup" ]; then
         print_error "backup_path did not avoid an existing backup path"
+        exit 1
+    fi
+
+    smoke_repo_dir="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
+    smoke_agent_home="$tmp_dir/agent-home"
+    smoke_personal_target="$tmp_dir/personal-agent.md"
+    mkdir -p "$smoke_agent_home/.claude/agents"
+    printf '%s\n' 'personal agent' > "$smoke_personal_target"
+    ln -s "$smoke_repo_dir/claude/agents/removed-agent.md" \
+        "$smoke_agent_home/.claude/agents/removed-agent.md"
+    ln -s "$smoke_personal_target" \
+        "$smoke_agent_home/.claude/agents/personal.md"
+    prune_stale_managed_claude_agent_links "$smoke_repo_dir" "$smoke_agent_home"
+    if [ -L "$smoke_agent_home/.claude/agents/removed-agent.md" ]; then
+        print_error "stale managed Claude agent link was not removed"
+        exit 1
+    fi
+    if [ ! -L "$smoke_agent_home/.claude/agents/personal.md" ]; then
+        print_error "personal Claude agent link was removed"
         exit 1
     fi
 
@@ -1188,6 +1231,7 @@ fi
 
 if [ -d "$REPO_DIR/claude/scopes/shared/agents" ]; then
     mkdir -p ~/.claude/agents
+    prune_stale_managed_claude_agent_links "$REPO_DIR" "$HOME"
     for agent_file in "$REPO_DIR/claude/scopes/shared/agents"/*.md; do
         if [ -f "$agent_file" ]; then
             agent_name=$(basename "$agent_file")

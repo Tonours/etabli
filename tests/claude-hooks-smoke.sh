@@ -241,6 +241,30 @@ assert_contains "$readonly_mutation_output" '"permissionDecision":"deny"'
 assert_contains "$readonly_mutation_output" 'agent is read-only'
 assert_contains "$readonly_mutation_output" 'return to the parent'
 
+readonly_guard_output() {
+	local command="$1"
+	node - "$TMP_DIR" "$command" <<'NODE' |
+const [cwd, command] = process.argv.slice(2);
+process.stdout.write(`${JSON.stringify({
+  cwd,
+  hook_event_name: "PreToolUse",
+  tool_name: "Bash",
+  tool_input: { command },
+})}\n`);
+NODE
+		node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
+}
+
+for unsafe_readonly_command in \
+	"sed -n 'w changed.txt' input.txt" \
+	"rtk sed -n 'w changed.txt' input.txt" \
+	"sort --compress-program=sh input.txt" \
+	"rtk sort --compress-program=sh input.txt" \
+	"find . '-exec' touch changed.txt ';'"; do
+	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
+	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
+done
+
 guard_repo="$TMP_DIR/plan-commit-guard-repo"
 mkdir -p "$guard_repo"
 git -C "$guard_repo" init -q

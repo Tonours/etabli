@@ -1,7 +1,7 @@
 ---
 description: Review a GitHub PR through gh CLI with human-in-the-loop posting
 argument-hint: [PR URL/number/repo alias]
-allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---
 
 # PR Review
