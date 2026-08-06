@@ -57,8 +57,8 @@ Unrelated/abandoned root plans: `scripts/plan-cleanup --discard <reason-slug>`
 
 ## One-writer
 
-Parent is the only writer (**protocol**, not an OS lock). Multi-model sidecars
-are read-only (scout/council). See `workflow/skills/multi-model-orchestration.md`.
+One writer at any instant (**protocol**, not an OS lock): the parent, or one
+`worker` per step, never two in parallel. `scout`/`reviewer`: read-only via `tools`.
 
 ## Routes (common)
 

@@ -33,10 +33,13 @@ Roles are contracts, not mandatory separate agents:
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
-Work is parent-only. The deterministic multi-model council (scout / analyst /
-challenger / judge / fallback) was removed in ADR-0013; `classifyMultiExecution`
-always returns single. Delegating to a subagent stays available as an ordinary
-tool call, judged case by case, not as a routed profile. Shared workflow and
+One writer at any instant. The parent writes, or delegates writing to at most one
+`worker` at a time, taking the pen back between plan steps; never two writers in
+parallel. The deterministic multi-model council (scout / analyst / challenger /
+judge / fallback) was removed in ADR-0013; `classifyMultiExecution` always returns
+single. Delegating to a subagent stays available as an ordinary tool call, judged
+case by case, not as a routed profile. `scout` and `reviewer` are read-only by
+their `tools` allowlist rather than by prose. Shared workflow and
 evidence invariants stay in `workflow/skills/orchestration.md`.
 
 ## Rules (detail)
