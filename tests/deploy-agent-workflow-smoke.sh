@@ -122,20 +122,19 @@ function packageBySource(source) {
   return packages.find((entry) => entry && typeof entry === "object" && entry.source === source);
 }
 
-if (!hasObjectSource("npm:@tintinweb/pi-subagents@0.13.0")) {
-  throw new Error("missing scoped Pi subagents package");
-}
-
 if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
   throw new Error("missing scoped Pi tasks package");
 }
 
-if (packages.some((entry) => sourceOf(entry) === "npm:pi-subagents")) {
-  throw new Error("legacy unscoped pi-subagents package was kept");
+if (packages.some((entry) => {
+  const source = sourceOf(entry);
+  return source === "npm:pi-subagents" || (typeof source === "string" && source.startsWith("npm:@tintinweb/pi-subagents"));
+})) {
+  throw new Error("dropped Pi subagents package was kept");
 }
 
-if (packages.some((entry) => ["npm:@tintinweb/pi-subagents", "npm:@tintinweb/pi-tasks"].includes(sourceOf(entry)))) {
-  throw new Error("unpinned Pi subagent package was kept");
+if (packages.some((entry) => sourceOf(entry) === "npm:@tintinweb/pi-tasks")) {
+  throw new Error("unpinned Pi tasks package was kept");
 }
 
 if (packages.some((entry) => {

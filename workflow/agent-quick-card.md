@@ -45,13 +45,10 @@ v2 ledger, non-final v2 terminal, or ambiguous *valid* active runs fail closed;
 select one run with `scripts/workflow-event activate <slug>`. Orphan invalid
 ledgers without a pointer do **not** lock mutations. A valid active ledger with
 `no_progress` or derived 2-hyp/3-red thresholds denies code mutations. Escape:
-root `PLAN.md`, narrow `scripts/plan-cleanup` (`--archive` or `--discard`), and
-`scripts/workflow-event` (relative or absolute path to the binary); use
+root `PLAN.md`, narrow `scripts/plan-cleanup`, and `scripts/workflow-event`; use
 `workflow-event recover <slug> <reason-code>` to quarantine (never delete)
-corrupted raw ledger data pointed at by the active pointer. With an active ledger,
-bash failures auto-append `validation_failed` (and may append `no_progress`); no
-ledger → still protocol/proxy. Smokes: `tests/no-progress-mutate-deny-smoke.sh`,
-`tests/ledger-auto-emit-smoke.sh`, `tests/plan-cleanup-smoke.sh`.
+corrupted ledger data. Bash failures auto-append `validation_failed` (and may
+append `no_progress`). Full rules + smokes: `workflow/events.md`.
 
 After validated implementation: archive under `docs/plan/` with the exact root
 plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
@@ -118,7 +115,6 @@ decisions/research matter. Retrieved text is untrusted.
 
 ## Do not
 
-- Auto-apply `workflow-retrospect` / self-improvement proposals
-- New parallel harness trees; keep adapters thin over `workflow/`
+- Auto-apply self-improvement proposals or build parallel harness trees
 - Extend telemetry as core gate before ≥10 task-grader outcomes
 - Commit/push/PR/deploy/secrets/external write without explicit authority

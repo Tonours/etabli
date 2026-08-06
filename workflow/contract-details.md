@@ -227,6 +227,7 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Review rubric: `workflow/review-rubric.md`
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
+- PR body contract: `workflow/pr-body-contract.md`
 
 ## Default commands (detail)
 

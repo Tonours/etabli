@@ -29,8 +29,9 @@ jq -e '
   .devDependencies["@types/bun"] == "1.3.14" and
   .overrides == {
     "@protobufjs/utf8": "1.1.2",
-    "brace-expansion": "5.0.8",
+    "brace-expansion": "5.0.9",
     "protobufjs": "7.6.5",
+    "undici": "8.10.0",
     "ws": "8.21.1"
   }
 ' "$PACKAGE" >/dev/null || fail "Pi dependency and security override pins drifted"
