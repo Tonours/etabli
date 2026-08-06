@@ -9,8 +9,8 @@ const modulePath = resolveValidationModule(scriptDir);
 
 if (!modulePath) {
   console.error("ADR validation error: cannot locate adr-validation.mjs.");
-  console.error("Expected it in this repository's claude/skills/adr/scripts/ or in ~/.claude/skills/adr/scripts/.");
-  console.error("Install the ADR skill or copy adr-validation.mjs with this wrapper; see claude/skills/adr/scripts/VALIDATOR-PORTABILITY.md.");
+  console.error("Expected it in this repository's claude/scopes/shared/skills/adr/scripts/ or in ~/.claude/skills/adr/scripts/.");
+  console.error("Install the ADR skill or copy adr-validation.mjs with this wrapper; see claude/scopes/shared/skills/adr/scripts/VALIDATOR-PORTABILITY.md.");
   process.exit(1);
 }
 
@@ -41,6 +41,7 @@ console.log(`ADR validation ok: ${records.length} record(s), next ADR-${String(n
 
 function resolveValidationModule(baseDir) {
   const candidates = [
+    join(baseDir, "..", "claude", "scopes", "shared", "skills", "adr", "scripts", "adr-validation.mjs"),
     join(baseDir, "..", "claude", "skills", "adr", "scripts", "adr-validation.mjs"),
   ];
 

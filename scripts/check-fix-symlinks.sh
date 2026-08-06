@@ -185,37 +185,48 @@ check_agents_visible_skill_links() {
   done
 }
 
-check_claude_skill_links() {
-  local skill_dir skill_name
+deployed_scopes() {
+  local declared=""
 
-  if [ ! -d "$REPO_DIR/claude/skills" ]; then
-    return
+  if [ -n "${ETABLI_SCOPE:-}" ]; then
+    declared="$ETABLI_SCOPE"
+  elif [ -f "$HOME/.etabli-scope" ]; then
+    declared="$(tr -d '[:space:]' <"$HOME/.etabli-scope")"
   fi
 
-  for skill_dir in "$REPO_DIR/claude/skills"/*; do
-    if [ -d "$skill_dir" ]; then
+  case "$declared" in
+    work|personal) printf 'shared %s\n' "$declared" ;;
+    *) printf 'shared\n' ;;
+  esac
+}
+
+check_claude_skill_links() {
+  local scope scope_root skill_dir skill_name
+
+  for scope in $(deployed_scopes); do
+    scope_root="$REPO_DIR/claude/scopes/$scope/skills"
+    [ -d "$scope_root" ] || continue
+    while IFS= read -r skill_dir; do
       skill_name="$(basename "$skill_dir")"
       check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
-    fi
+    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type d | sort)
   done
 }
 
 check_claude_command_links() {
-  local command_file command_name target_name
+  local scope scope_root command_file command_name target_name
 
-  if [ ! -d "$REPO_DIR/claude/commands" ]; then
-    return
-  fi
-
-  for command_file in "$REPO_DIR/claude/commands"/*.md; do
-    if [ -f "$command_file" ]; then
+  for scope in $(deployed_scopes); do
+    scope_root="$REPO_DIR/claude/scopes/$scope/commands"
+    [ -d "$scope_root" ] || continue
+    while IFS= read -r command_file; do
       command_name="$(basename "$command_file")"
       target_name="$command_name"
       if [ "$command_name" = "plan-create.md" ]; then
         target_name="plan.md"
       fi
       check_link "$HOME/.claude/commands/$target_name" "$command_file" "claude command $target_name"
-    fi
+    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type f -name '*.md' | sort)
   done
 }
 
