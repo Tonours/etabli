@@ -62,6 +62,32 @@ Cut on sight:
 
 Shorter wins. Between two drafts, ship the denser one.
 
+### No AI artifacts
+
+Typography is the tell. The body must contain **no non-ASCII character** outside
+code blocks, tables, and quoted output: no `—`, no `→`, no curly quotes, no `…`.
+Write `,` or a period instead of an em-dash, and `so` or `becomes` instead of an
+arrow. This is checkable, so check it instead of trusting the draft:
+
+```bash
+gh pr view <N> --json body -q .body | grep -oP '[^\x00-\x7F]' | sort | uniq -c
+```
+
+Empty output means clean. Run it after writing the body, not before.
+
+### Write the dense version first
+
+A body that needs two rounds of "shorter please" was too long on the first pass.
+Before publishing, cut every sentence that defends, restates, or announces. Two
+sections covering the same decision are one section. If a heading sits above a
+single short paragraph, drop the heading.
+
+Signals the draft is still too long:
+
+- A `## What` heading above a paragraph that already says what changed.
+- The same reasoning appearing in both `## Why` and `## Scope and safety`.
+- A sentence explaining why a decision was cheap, right, or obvious.
+
 ## Stacked PRs
 
 When the base branch is not the default branch, say so in the first lines,
