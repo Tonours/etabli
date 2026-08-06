@@ -27,4 +27,7 @@
 - Memory: proactively consult `~/work/obvault` per
   `workflow/skills/obvault-memory.md`.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
+- PR bodies: `workflow/pr-body-contract.md`. English always, repo template
+  intact, lead with what changed, densest draft wins, state the stack when the
+  base is not the default branch.
 - Do not rewrite, amend, push, or credit AI tools unless requested.

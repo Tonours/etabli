@@ -66,16 +66,6 @@
       "sourceType": "repo",
       "computedHash": "91e054a094b549462c4615ec12ef84fb00f118f813a167add3cb43187a773a15"
     },
-    "caveman": {
-      "source": "JuliusBrussee/caveman",
-      "sourceType": "github",
-      "computedHash": "ad62aafbacfa68d254ef18f755548698200d50e050019437c94480629a74c087"
-    },
-    "grill-me": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "04a99790c6b3a192779ef25550c427dcec93235a454202b2fa363077ae5dea5f"
-    },
     "adversary": {
       "source": "local",
       "sourceType": "repo",

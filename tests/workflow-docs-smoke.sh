@@ -401,7 +401,7 @@ assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'permissionDeci
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'
-assert_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
+assert_not_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
 assert_contains "$INSTALL_MAIN" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/plan-archive.md'
