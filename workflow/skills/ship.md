@@ -36,7 +36,9 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 7. Push the feature branch and open a PR. Write the body per
    `workflow/pr-body-contract.md`: English, the project's template intact,
    placeholders filled, checklists unchecked, no AI attribution. State the
-   stack explicitly when the base is not the default branch.
+   stack explicitly when the base is not the default branch. Publish the dense
+   version, then run that contract's non-ASCII check against the live body.
+   The draft is not the evidence, the published body is.
 8. CI: follow the `ci-fix` contract (existing attempt and time caps) until
    checks are green, blocked, or capped.
 9. If reviewer or bot feedback already exists on the PR when CI settles,
@@ -46,6 +48,31 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 11. Report: branch, commits, PR URL, CI state, archive path, worktree cleanup
     status, remaining risks. When the branch carries checkpoint commits, say
     the branch is squash-merge-only so its checkpoints never become history.
+
+## Test Evidence
+
+An empty grep is not a pass. Many runners (Jest among them) print their summary
+on stderr, so a filtered pipeline can return nothing while the suite failed.
+Trust the **exit code**, and quote the summary line the run actually printed.
+Capture output to a file when running several packages in a loop, then read the
+summaries back:
+
+```bash
+for p in a b c; do
+  <runner> "$p" > "$LOG/$p.log" 2>&1
+  echo "$p exit=$?"
+done
+grep -E '^Tests:|^Test Suites:' "$LOG"/*.log
+```
+
+When a suite fails, establish whether it is **yours** before reporting or fixing
+it. Stash the diff, reinstall if dependencies moved, re-run the same suite on the
+untouched base, and compare. A failure that reproduces identically on the base is
+pre-existing: say so with the evidence, list it under the PR's known limitations,
+and do not fix it in this branch. A failure that disappears on the base is yours.
+
+Re-run once before calling a single failure a flake, and name the mechanism
+(port race, timeout, shared fixture). "Flaky" without a mechanism is a guess.
 
 ## Hard Limits
 
