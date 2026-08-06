@@ -61,6 +61,9 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Implementation-bound autonomous loops are not complete until validation,
   adversary evidence, review, implemented-plan archive under `docs/plan/`, and
   root `PLAN.md` cleanup are evidenced.
+- Branch-mutating routes (`/ship`, single-PR pilot, `sec-pr`) isolate per
+  `workflow/skills/worktree-isolation.md`: one run, one worktree, root `PLAN.md`
+  inside it, explicit cleanup.
 - Product dogfood: `workflow/skills/product-dogfood.md`. Single-PR pilot:
   `workflow/skills/pr-maintenance-loop.md` — one PR, one worktree, one loop;
   `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge

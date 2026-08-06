@@ -95,6 +95,11 @@ evidence invariants stay in `workflow/skills/orchestration.md`.
   before a scenario matrix, exercise observable UI/browser reality when
   available, and record `blocked` instead of claiming pass when decisive legs
   need human verification or no validation surface exists.
+- Routes that mutate code on a dedicated branch (`/ship`, single-PR maintenance,
+  `sec-pr`) isolate through `workflow/skills/worktree-isolation.md`: clean base
+  worktree, one run per worktree and branch, no sibling-worktree edits, the run's
+  root `PLAN.md` inside its own worktree, environment contention reported as
+  `blocked`, and explicit cleanup or a stated reason for keeping it.
 - Supervised single-PR maintenance loops use the shared pilot contract in
   `workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
   latest pushed head evidence via `scripts/pr-latest-head-status`,
