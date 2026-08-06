@@ -140,6 +140,31 @@ Both are now fixed on the branch. R-003 stays open: the prose-vs-declaration len
 ran and reported, but did not catch its case. One miss, so it becomes an eval case
 and does not justify a lens change. Revisit if it recurs.
 
+## Run 2026-08-06 (b) — reviews on the merge-ready heads
+
+Three reviews on the final commits of PRs #1809, #1810, #1811, with the hardened
+agent (fable, xhigh, read-only tools) and the mandatory lens table.
+
+### H-007 — #1809, dependency resolution: GO with zero findings
+
+Held-out case. The reviewer independently semver-checked 4.3.6 against all nine
+zod declarers in the installed tree, established the yarn v1 mechanism behind the
+rejected alternative (the lockfile is keyed by exact spec string and never
+re-resolves an existing entry, so a new `^4.3.6` spec resolves fresh to latest
+while old entries persist), and confirmed the bare-name pin follows the eight
+existing bare pins in the resolutions block.
+
+It also surfaced a scope-correct open question the author had only half-stated: the
+dual-copy hazard survives **downstream**, because `resolutions` is not published.
+Follow-up check (main session): neither `ai-proxy` nor `mcp-server` declares zod as
+a **peer** dependency, so the classic dual-package failure needs a consumer to pass
+a zod schema built by one package into the other, which no exposed API does today.
+Real but latent; manifest harmonisation to exact `4.3.6` remains a cheap follow-up.
+
+Signal worth keeping: a review that returns no findings but a precise open question
+is doing its job. Zero findings on a one-line diff is the expected result, not a
+weak review.
+
 ## Rejected candidates
 
 | Candidate | Why rejected |
