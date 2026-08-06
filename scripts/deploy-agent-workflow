@@ -13,6 +13,33 @@ SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
 
+ACTIVE_SCOPES="shared"
+
+resolve_scopes() {
+  local scope_file="$HOME_DIR/.etabli-scope"
+  local declared=""
+
+  if [ -n "${ETABLI_SCOPE:-}" ]; then
+    declared="$ETABLI_SCOPE"
+  elif [ -f "$scope_file" ]; then
+    declared="$(tr -d '[:space:]' <"$scope_file")"
+  fi
+
+  case "$declared" in
+    work|personal) ACTIVE_SCOPES="shared $declared" ;;
+    "") ACTIVE_SCOPES="shared" ;;
+    *)
+      printf 'unknown scope %q in %s: expected work or personal; fix the file or unset ETABLI_SCOPE\n' \
+        "$declared" "$scope_file" >&2
+      exit 2
+      ;;
+  esac
+}
+
+active_scopes() {
+  printf '%s\n' "$ACTIVE_SCOPES"
+}
+
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
@@ -61,6 +88,8 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
+
+resolve_scopes
 
 status_line() {
   local status="$1"
@@ -450,14 +479,16 @@ deploy_claude() {
   link_path "$REPO_DIR/PLAN_TEMPLATE.md" "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "Claude PLAN_TEMPLATE.md"
   link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "Claude PLAN_TEMPLATE_FULL.md"
 
-  for command_file in "$REPO_DIR/claude/commands"/*.md; do
-    [ -f "$command_file" ] || continue
-    command_name="$(basename "$command_file")"
-    target_name="$command_name"
-    if [ "$command_name" = "plan-create.md" ]; then
-      target_name="plan.md"
-    fi
-    link_path "$command_file" "$HOME_DIR/.claude/commands/$target_name" "Claude command $target_name"
+  for scope in $(active_scopes); do
+    for command_file in "$REPO_DIR/claude/scopes/$scope/commands"/*.md; do
+      [ -f "$command_file" ] || continue
+      command_name="$(basename "$command_file")"
+      target_name="$command_name"
+      if [ "$command_name" = "plan-create.md" ]; then
+        target_name="plan.md"
+      fi
+      link_path "$command_file" "$HOME_DIR/.claude/commands/$target_name" "Claude command $target_name"
+    done
   done
 
   for stale_command in \
@@ -485,16 +516,18 @@ deploy_claude() {
 
   link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "$HOME_DIR/.claude/settings.workflow-hooks.json" "Claude workflow hooks fragment"
 
-  for skill_dir in "$REPO_DIR/claude/skills"/*; do
-    [ -d "$skill_dir" ] || continue
-    skill_name="$(basename "$skill_dir")"
-    link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude skill $skill_name"
-  done
+  for scope in $(active_scopes); do
+    for skill_dir in "$REPO_DIR/claude/scopes/$scope/skills"/*; do
+      [ -d "$skill_dir" ] || continue
+      skill_name="$(basename "$skill_dir")"
+      link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude skill $skill_name"
+    done
 
-  for agent_file in "$REPO_DIR/claude/agents"/*.md; do
-    [ -f "$agent_file" ] || continue
-    agent_name="$(basename "$agent_file")"
-    link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name" "Claude agent $agent_name"
+    for agent_file in "$REPO_DIR/claude/scopes/$scope/agents"/*.md; do
+      [ -f "$agent_file" ] || continue
+      agent_name="$(basename "$agent_file")"
+      link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name" "Claude agent $agent_name"
+    done
   done
 
   link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"

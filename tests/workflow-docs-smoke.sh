@@ -84,8 +84,8 @@ assert_file "$ROOT_DIR/workflow/runtime-capabilities.json"
 assert_dir "$ROOT_DIR/docs/adr"
 assert_file "$ROOT_DIR/CLAUDE.md"
 assert_file "$ROOT_DIR/scripts/validate-adrs"
-assert_file "$ROOT_DIR/claude/skills/adr/scripts/apply-adr.mjs"
-assert_file "$ROOT_DIR/claude/skills/adr/scripts/adr-validation.mjs"
+assert_file "$ROOT_DIR/claude/scopes/shared/skills/adr/scripts/apply-adr.mjs"
+assert_file "$ROOT_DIR/claude/scopes/shared/skills/adr/scripts/adr-validation.mjs"
 assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
@@ -117,15 +117,15 @@ assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/project-context.md"
 assert_file "$ROOT_DIR/scripts/deploy-workflow"
 assert_file "$ROOT_DIR/scripts/deploy-agent-workflow"
-assert_file "$ROOT_DIR/claude/commands/verify-workflow.md"
-assert_file "$ROOT_DIR/claude/commands/bug-check.md"
-assert_file "$ROOT_DIR/claude/commands/linear-ticket-create.md"
-assert_file "$ROOT_DIR/claude/commands/linear-work.md"
-assert_file "$ROOT_DIR/claude/commands/pr-review.md"
-assert_file "$ROOT_DIR/claude/commands/pr-qa.md"
-assert_file "$ROOT_DIR/claude/commands/sec-pr.md"
-assert_file "$ROOT_DIR/claude/commands/ci-fix.md"
-assert_file "$ROOT_DIR/claude/commands/github-pr-review.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/verify-workflow.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/bug-check.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/linear-ticket-create.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/pr-review.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/pr-qa.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/ci-fix.md"
+assert_file "$ROOT_DIR/claude/scopes/shared/commands/github-pr-review.md"
 assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
@@ -237,10 +237,10 @@ assert_contains "$ROOT_DIR/claude/CLAUDE.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'proactively consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'proactively consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/workflow/skills/obvault-memory.md" 'Mandatory first check'
-assert_contains "$ROOT_DIR/claude/commands/cross-repo-audit.md" '~/work/obvault/kb/'
-assert_contains "$ROOT_DIR/claude/commands/spec-verify.md" '~/work/obvault/kb/'
-assert_not_contains "$ROOT_DIR/claude/commands/cross-repo-audit.md" '~/work/brain'
-assert_not_contains "$ROOT_DIR/claude/commands/spec-verify.md" '~/work/brain'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/cross-repo-audit.md" '~/work/obvault/kb/'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/spec-verify.md" '~/work/obvault/kb/'
+assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/cross-repo-audit.md" '~/work/brain'
+assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/spec-verify.md" '~/work/brain'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'route classification is library-only (ADR-0014)'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'workflow/answer-quality.md'
@@ -371,17 +371,17 @@ assert_contains "$ROOT_DIR/docs/workflow-guide.md" 'the spec wins'
 assert_contains "$ROOT_DIR/docs/workflow-guide.md" 'Check-freeze'
 assert_not_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'control plane for Codex, Pi, Claude'
 assert_contains "$ROOT_DIR/README.md" 'docs/workflow-guide.md'
-assert_contains "$ROOT_DIR/claude/commands/plan-loop.md" 'Source resolution'
-assert_contains "$ROOT_DIR/claude/commands/plan-implement.md" 'workflow/skills/implementation-loop.md'
-assert_contains "$ROOT_DIR/claude/commands/implement.md" 'workflow/skills/implementation-loop.md'
-assert_contains "$ROOT_DIR/claude/commands/adversary.md" 'workflow/skills/adversary.md'
-assert_contains "$ROOT_DIR/claude/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_contains "$ROOT_DIR/claude/commands/sec-pr.md" 'Never merge automatically'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" 'Source resolution'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/implement.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'workflow/skills/adversary.md'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'plan drift detected'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Never use `OK`, `APPROVED`, `PASS`'
 assert_not_contains "$ROOT_DIR/workflow/review-rubric.md" 'write exactly'
-assert_contains "$ROOT_DIR/claude/commands/review.md" 'Verdict: GO'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'Verdict: GO'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'claude/review-rubric.md'
 assert_contains "$ROOT_DIR/pi/package.json" '@earendil-works/pi-coding-agent'
@@ -391,9 +391,9 @@ assert_file "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh"
 assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'RUN_REAL_AGENT_SCENARIOS'
 assert_not_contains "$ROOT_DIR/scripts/profile-nvim.sh" '+lua dofile'
 assert_not_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" '+lua dofile'
-assert_not_contains "$ROOT_DIR/claude/commands/plan-create.md" './claude/PLAN_TEMPLATE.md'
-assert_not_contains "$ROOT_DIR/claude/commands/plan-loop.md" './claude/PLAN_TEMPLATE.md'
-assert_not_contains "$ROOT_DIR/claude/commands/plan-implement.md" './claude/PLAN_TEMPLATE.md'
+assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-create.md" './claude/PLAN_TEMPLATE.md'
+assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" './claude/PLAN_TEMPLATE.md'
+assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" './claude/PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/workflow'
 assert_contains "$ROOT_DIR/claude/README.md" '/verify-workflow'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'actual PLAN.md status is not proven READY'
@@ -433,7 +433,7 @@ workflow_claude_commands="$(
 while IFS= read -r command; do
     [ -n "$command" ] || continue
     command_file="$(command_file_for "$command")"
-    assert_file "$ROOT_DIR/claude/commands/$command_file"
+    assert_file "$ROOT_DIR/claude/scopes/shared/commands/$command_file"
 done <<< "$workflow_claude_commands"
 
 while IFS= read -r command_path; do
@@ -448,7 +448,7 @@ while IFS= read -r command_path; do
     esac
 
     assert_contains "$ROOT_DIR/claude/README.md" "- \`$command\`"
-done < <(find "$ROOT_DIR/claude/commands" -maxdepth 1 -type f -name '*.md' | sort)
+done < <(find "$ROOT_DIR/claude/scopes/shared/commands" -maxdepth 1 -type f -name '*.md' | sort)
 
 if [ -f "$ROOT_DIR/claude/PLAN_TEMPLATE.md" ] || [ -f "$ROOT_DIR/pi/PLAN_TEMPLATE.md" ]; then
     printf 'PLAN_TEMPLATE.md must stay canonical at repo root only\n' >&2
@@ -469,7 +469,7 @@ extract_plan_fallback() {
 }
 
 pi_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/pi/skills/plan-loop/SKILL.md")"
-claude_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/claude/commands/plan-loop.md")"
+claude_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md")"
 if [ -z "$pi_plan_fallback" ] || [ -z "$claude_plan_fallback" ]; then
     printf 'embedded PLAN.md fallback shape missing from a plan-loop adapter\n' >&2
     exit 1
@@ -498,18 +498,18 @@ for adapter in \
     "pi/skills/review/SKILL.md:workflow/skills/review.md" \
     "pi/skills/sec-pr/SKILL.md:workflow/skills/sec-pr.md" \
     "pi/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
-    "claude/commands/implement.md:workflow/skills/implementation-loop.md" \
-    "claude/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
-    "claude/commands/adversary.md:workflow/skills/adversary.md" \
-    "claude/commands/bug-check.md:workflow/skills/bug-check.md" \
-    "claude/commands/ci-fix.md:workflow/skills/ci-fix.md" \
-    "claude/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
-    "claude/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
-    "claude/commands/linear-work.md:workflow/skills/linear-work.md" \
-    "claude/commands/pr-qa.md:workflow/skills/pr-qa.md" \
-    "claude/commands/pr-review.md:workflow/skills/pr-review.md" \
-    "claude/commands/review.md:workflow/skills/review.md" \
-    "claude/commands/sec-pr.md:workflow/skills/sec-pr.md"; do
+    "claude/scopes/shared/commands/implement.md:workflow/skills/implementation-loop.md" \
+    "claude/scopes/shared/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
+    "claude/scopes/shared/commands/adversary.md:workflow/skills/adversary.md" \
+    "claude/scopes/shared/commands/bug-check.md:workflow/skills/bug-check.md" \
+    "claude/scopes/shared/commands/ci-fix.md:workflow/skills/ci-fix.md" \
+    "claude/scopes/shared/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
+    "claude/scopes/shared/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
+    "claude/scopes/shared/commands/linear-work.md:workflow/skills/linear-work.md" \
+    "claude/scopes/shared/commands/pr-qa.md:workflow/skills/pr-qa.md" \
+    "claude/scopes/shared/commands/pr-review.md:workflow/skills/pr-review.md" \
+    "claude/scopes/shared/commands/review.md:workflow/skills/review.md" \
+    "claude/scopes/shared/commands/sec-pr.md:workflow/skills/sec-pr.md"; do
     adapter_path="${adapter%%:*}"
     contract_ref="${adapter##*:}"
     assert_contains "$ROOT_DIR/$adapter_path" "$contract_ref"
@@ -518,7 +518,7 @@ done
 duplicate_adapters="$(
     {
         find "$ROOT_DIR/pi/skills" -maxdepth 2 -type f -name 'SKILL.md'
-        find "$ROOT_DIR/claude/commands" -maxdepth 1 -type f -name '*.md'
+        find "$ROOT_DIR/claude/scopes/shared/commands" -maxdepth 1 -type f -name '*.md'
     } | sort | xargs shasum | sort -k1,1 | awk '
         previous_hash == $1 {
             if (!printed) {

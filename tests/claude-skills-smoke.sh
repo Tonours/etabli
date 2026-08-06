@@ -13,9 +13,12 @@ allowed_keys = %w[
   disable-model-invocation
   argument-hint
   allowed-tools
+  version
+  author
+  license
 ]
 
-Dir.glob(File.join(root, "claude/skills/*/SKILL.md")).sort.each do |path|
+Dir.glob(File.join(root, "claude/scopes/*/skills/*/SKILL.md")).sort.each do |path|
   content = File.read(path)
   match = content.match(/\A---\n(.*?)\n---\n/m)
   raise "#{path}: missing YAML frontmatter" unless match

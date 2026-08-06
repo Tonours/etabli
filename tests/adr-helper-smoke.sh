@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-HELPER="$ROOT_DIR/claude/skills/adr/scripts/apply-adr.mjs"
+HELPER="$ROOT_DIR/claude/scopes/shared/skills/adr/scripts/apply-adr.mjs"
 VALIDATOR="$ROOT_DIR/scripts/validate-adrs"
 TMP_DIR="$(mktemp -d)"
 
@@ -308,7 +308,7 @@ date: 2026-06-26
 # One"
 tmp_home="$TMP_DIR/home"
 mkdir -p "$tmp_home/.claude/skills/adr/scripts" "$TMP_DIR/copied-scripts"
-cp "$ROOT_DIR/claude/skills/adr/scripts/adr-validation.mjs" "$tmp_home/.claude/skills/adr/scripts/adr-validation.mjs"
+cp "$ROOT_DIR/claude/scopes/shared/skills/adr/scripts/adr-validation.mjs" "$tmp_home/.claude/skills/adr/scripts/adr-validation.mjs"
 cp "$VALIDATOR" "$TMP_DIR/copied-scripts/validate-adrs"
 # Capture the real Node binary before overriding HOME. asdf/shims break when HOME
 # points at a disposable tree (exit 126), which is unrelated to validator portability.
