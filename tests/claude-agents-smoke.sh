@@ -7,7 +7,7 @@ ruby - "$ROOT_DIR" <<'RUBY'
 require "yaml"
 
 root = ARGV.fetch(0)
-agents_dir = File.join(root, "claude/agents")
+agents_dir = File.join(root, "claude/scopes/shared/agents")
 expected_agents = %w[reviewer scout worker]
 paths = Dir.glob(File.join(agents_dir, "*.md")).sort
 names = paths.map { |path| File.basename(path, ".md") }
@@ -107,13 +107,13 @@ paths.each do |path|
 end
 
 install_main = File.read(File.join(root, "scripts/lib/install-main.sh"))
-unless install_main.include?('"$REPO_DIR/claude/agents"/*.md') && install_main.include?("~/.claude/agents")
-  raise "primary installer omits Claude agents. Remediation: link claude/agents/*.md into ~/.claude/agents/."
+unless install_main.include?('"$REPO_DIR/claude/scopes/shared/agents"/*.md') && install_main.include?("~/.claude/agents")
+  raise "primary installer omits Claude agents. Remediation: link claude/scopes/shared/agents/*.md into ~/.claude/agents/."
 end
 
 fix_links = File.read(File.join(root, "scripts/check-fix-symlinks.sh"))
-unless fix_links.include?("check_claude_agent_links") && fix_links.include?('"$REPO_DIR/claude/agents"/*.md')
-  raise "symlink repair omits Claude agents. Remediation: add and invoke check_claude_agent_links."
+unless fix_links.include?("check_claude_agent_links") && fix_links.include?("claude/scopes/$scope/agents")
+  raise "symlink repair omits Claude agents. Remediation: add and invoke check_claude_agent_links over claude/scopes/<scope>/agents."
 end
 
 hook = File.join(root, "claude/hooks/read-only-agent-guard.mjs")
