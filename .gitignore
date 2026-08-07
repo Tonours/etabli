@@ -40,6 +40,9 @@ github-copilot/
 node_modules/
 pi/extensions/node_modules
 
+# Herdr integration hook (written into linked pi/extensions by herdr install)
+pi/extensions/herdr-agent-state.ts
+
 # Logs
 *.log
 

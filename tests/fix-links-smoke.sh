@@ -70,6 +70,7 @@ HOME="$TMP_HOME" "$SCRIPT" --verbose >/dev/null
 assert_link "$TMP_HOME/.config/nvim" "$ROOT_DIR/nvim"
 assert_link "$TMP_HOME/.tmux.conf" "$ROOT_DIR/tmux.conf"
 assert_link "$TMP_HOME/.config/ghostty/config" "$ROOT_DIR/ghostty/config"
+assert_link "$TMP_HOME/.config/herdr/config.toml" "$ROOT_DIR/herdr/config.toml"
 assert_link "$TMP_HOME/.pi/agent/skills/review" "$ROOT_DIR/pi/skills/review"
 assert_link "$TMP_HOME/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$TMP_HOME/.pi/agent/skills/adversary" "$ROOT_DIR/pi/skills/adversary"
