@@ -92,3 +92,22 @@ Linked into claude / pi / agents / codex skill trees by install notes in
 
 - `macmini` — historical tmux attach via remote zshrc; prefer Herdr remote for agents
 - `macmini-shell` — plain shell (`ETABLI_NO_TMUX=1`) for admin
+
+### macmini: git SSH passphrase loop (fixed 2026-08-08)
+
+**Symptom:** `git fetch` / `git@github.com` asks for the key passphrase in Herdr
+panes or SSH sessions, but not in a local Terminal.app session on the mini.
+
+**Cause:** macOS loads `SSH_AUTH_SOCK` only into the GUI login environment
+(launchd `com.openssh.ssh-agent` + Keychain). Herdr panes and remote SSH shells
+do not inherit it, so OpenSSH cannot see the already-loaded `id_rsa` and prompts.
+
+**Fix (on the mini):** `.zprofile` reattaches to the GUI agent (see block
+`etabli macOS ssh-agent (Keychain)`). After a reboot, once in a GUI terminal:
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/id_rsa
+ssh-add -l   # should list the key
+```
+
+`Host *` already has `AddKeysToAgent yes` and `UseKeychain yes`.
