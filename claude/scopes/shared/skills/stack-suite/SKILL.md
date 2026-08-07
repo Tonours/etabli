@@ -33,6 +33,12 @@ the language or framework.
 | Web UI review: accessibility, interface guidelines, UX audit | `web-design-guidelines` |
 | A React project's overall health, chasing a react-doctor score to 100 | `react-doctor-100` |
 | Documentation structure: tutorial vs how-to vs reference vs explanation, Diátaxis | `documentation` |
+| A TanStack Start or TanStack Query app | `tanstack-start-suite`, itself a router over 19 skills |
+| An AdonisJS 7 app | `adonisjs-suite`, itself a router over 5 skills |
+
+The last two rows are themselves routers, and they ship in the `personal` scope.
+On a machine that does not declare it they are simply absent — fall back to the
+generic rows above rather than reporting a missing skill.
 
 ## Rules
 
