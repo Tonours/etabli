@@ -1,7 +1,7 @@
 ---
 description: Plan, review, then implement only when PLAN.md is READY
 argument-hint: [task description]
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent]
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent, Skill]
 ---
 
 # Plan Implement
@@ -56,6 +56,12 @@ authorize push, PR, deploy, release, or external write-back.
 This command is the full-auto workflow. Run every phase in one uninterrupted
 flow — never stop between phases to ask "continue?":
 
+0. Skill selection: invoke the domain skill covering the task before recon —
+   `forest-backend-suite` (BFF, auth, permissions, MCP, capabilities, Zendesk,
+   workflow executor/orchestrator), `ember-forestadmin-suite` (Ember frontend),
+   or a task-shaped one such as `bug-check`, `pr-qa`, `sec-pr`. It routes the
+   recon to what is already known instead of rediscovering it. Name the skill
+   used, or `none`, in the plan's `Notes / Handoff`.
 1. Understand: scoped local recon of the affected area. Dispatch a `scout` when
    the area is unfamiliar enough that reading it would load files the plan does
    not need to keep; read it yourself when it is small. Carry the sourced

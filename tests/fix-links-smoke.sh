@@ -141,6 +141,7 @@ MISSING_SOURCE_OUTPUT="$TMP_HOME/missing-source.out"
 mkdir -p "$FAKE_REPO/scripts/lib" "$FAKE_HOME"
 cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
+cp "$ROOT_DIR/scripts/lib/etabli-scope.sh" "$FAKE_REPO/scripts/lib/etabli-scope.sh"
 chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then

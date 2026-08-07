@@ -1,7 +1,7 @@
 ---
 description: Create/review PLAN.md and stop at CHALLENGED or READY
 argument-hint: <task description>
-allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion]
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Skill]
 ---
 
 # Plan Loop
@@ -89,7 +89,13 @@ Embedded fallback shape:
 -
 ```
 
-1. Inspect repo state and relevant files.
+1. Inspect repo state and relevant files. Invoke the domain skill covering the
+   task first when one applies — `forest-backend-suite` (BFF, auth, permissions,
+   MCP, capabilities, Zendesk, workflow executor/orchestrator),
+   `ember-forestadmin-suite` (Ember frontend), or a task-shaped one such as
+   `bug-check`. It points at what is already known, so the plan starts from
+   evidence instead of rediscovery. Name the skill used, or `none`, in
+   `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad/risky work.
 4. Set `Status: DRAFT` first.
