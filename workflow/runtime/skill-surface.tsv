@@ -26,3 +26,10 @@ goal-prompt-rewriter	pi	0	1	1
 ui-reference-capture	pi	0	1	1
 maintainer-orchestrator	pi	0	0	0
 react-doctor-100	pi	0	0	0
+node	vendor	0	1	1
+nodejs-core	vendor	0	1	1
+typescript-magician	vendor	0	1	1
+linting-neostandard-eslint9	vendor	0	1	1
+fastify	vendor	0	1	1
+oauth	vendor	0	1	1
+documentation	vendor	0	1	1
