@@ -9,6 +9,7 @@ HOME_DIR="$HOME"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/pi-paths.sh"
 . "$SCRIPT_DIR/lib/skill-catalog.sh"
+. "$SCRIPT_DIR/lib/etabli-scope.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
@@ -16,24 +17,7 @@ AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible
 ACTIVE_SCOPES="shared"
 
 resolve_scopes() {
-  local scope_file="$HOME_DIR/.etabli-scope"
-  local declared=""
-
-  if [ -n "${ETABLI_SCOPE:-}" ]; then
-    declared="$ETABLI_SCOPE"
-  elif [ -f "$scope_file" ]; then
-    declared="$(tr -d '[:space:]' <"$scope_file")"
-  fi
-
-  case "$declared" in
-    work|personal) ACTIVE_SCOPES="shared $declared" ;;
-    "") ACTIVE_SCOPES="shared" ;;
-    *)
-      printf 'unknown scope %q in %s: expected work or personal; fix the file or unset ETABLI_SCOPE\n' \
-        "$declared" "$scope_file" >&2
-      exit 2
-      ;;
-  esac
+  ACTIVE_SCOPES="$(etabli_active_scopes "$HOME_DIR")"
 }
 
 active_scopes() {

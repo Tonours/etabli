@@ -10,6 +10,7 @@ set -e
 BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
 . "$BOOTSTRAP_DIR/lib/pi-paths.sh"
 . "$BOOTSTRAP_DIR/lib/skill-catalog.sh"
+. "$BOOTSTRAP_DIR/lib/etabli-scope.sh"
 SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
 
 # ============================================================================
@@ -1149,13 +1150,28 @@ done
 
 mkdir -p ~/.agents/skills
 for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    skill_dir="$REPO_DIR/pi/skills/$skill_name"
-    if [ -d "$skill_dir" ]; then
+    skill_dir="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
+    if [ -n "$skill_dir" ] && [ -d "$skill_dir" ]; then
         ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
         print_success "Agents-visible skill '$skill_name' linked"
     else
         print_warning "Agents-visible skill '$skill_name' missing from repo"
     fi
+done
+
+VENDOR_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" vendor any) )
+
+mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
+for skill_name in "${VENDOR_SKILLS[@]}"; do
+    skill_dir="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
+    if [ -z "$skill_dir" ] || [ ! -d "$skill_dir" ]; then
+        print_warning "Vendored skill '$skill_name' missing from repo"
+        continue
+    fi
+    ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
+    ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
+    ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
+    print_success "Vendored skill '$skill_name' linked for Claude, Pi and Codex"
 done
 
 mkdir -p ~/.claude/commands
@@ -1182,7 +1198,10 @@ for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
     fi
 done
 
-for command_file in "$REPO_DIR/claude/scopes/shared/commands"/*.md; do
+ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
+
+for scope in $ETABLI_ACTIVE_SCOPES; do
+for command_file in $(find "$REPO_DIR/claude/scopes/$scope/commands" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
     if [ -f "$command_file" ]; then
         command_name=$(basename "$command_file")
         target_name="$command_name"
@@ -1192,6 +1211,7 @@ for command_file in "$REPO_DIR/claude/scopes/shared/commands"/*.md; do
         ln -sf "$command_file" ~/.claude/commands/"$target_name"
         print_success "Claude command '$target_name' linked"
     fi
+done
 done
 rm -f ~/.claude/commands/verify.md
 rm -f ~/.claude/commands/plan-create.md
@@ -1218,28 +1238,22 @@ if [ -f "$REPO_DIR/claude/settings.workflow-hooks.json" ]; then
     print_success "Claude workflow hook settings fragment linked"
 fi
 
-if [ -d "$REPO_DIR/claude/scopes/shared/skills" ]; then
-    mkdir -p ~/.claude/skills
-    for skill_dir in "$REPO_DIR/claude/scopes/shared/skills"/*; do
-        if [ -d "$skill_dir" ]; then
-            skill_name=$(basename "$skill_dir")
-            ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
-            print_success "Claude skill '$skill_name' linked"
-        fi
-    done
-fi
+mkdir -p ~/.claude/skills ~/.claude/agents
+prune_stale_managed_claude_agent_links "$REPO_DIR" "$HOME"
 
-if [ -d "$REPO_DIR/claude/scopes/shared/agents" ]; then
-    mkdir -p ~/.claude/agents
-    prune_stale_managed_claude_agent_links "$REPO_DIR" "$HOME"
-    for agent_file in "$REPO_DIR/claude/scopes/shared/agents"/*.md; do
-        if [ -f "$agent_file" ]; then
-            agent_name=$(basename "$agent_file")
-            ln -sf "$agent_file" ~/.claude/agents/"$agent_name"
-            print_success "Claude agent '$agent_name' linked"
-        fi
+for scope in $ETABLI_ACTIVE_SCOPES; do
+    for skill_dir in $(find "$REPO_DIR/claude/scopes/$scope/skills" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) 2>/dev/null | sort); do
+        skill_name=$(basename "$skill_dir")
+        ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
+        print_success "Claude skill '$skill_name' linked"
     done
-fi
+
+    for agent_file in $(find "$REPO_DIR/claude/scopes/$scope/agents" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
+        agent_name=$(basename "$agent_file")
+        ln -sf "$agent_file" ~/.claude/agents/"$agent_name"
+        print_success "Claude agent '$agent_name' linked"
+    done
+done
 
 for shared_doc in review-rubric.md; do
     if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
