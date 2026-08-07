@@ -27,7 +27,9 @@ the delegation prompt and return evidence the parent can use in `PLAN.md`.
    where to look and what is already known, which is exactly a scout's job:
    `forest-backend-suite` for BFF, auth, permissions, MCP, capabilities, Zendesk,
    or workflow executor/orchestrator; `ember-forestadmin-suite` for Ember
-   frontend. Name the skill you used, or `none`, in your report.
+   frontend; `stack-suite` for language- and framework-level work (Node.js,
+   TypeScript, Fastify, OAuth, React/Next.js, web UI). Name the skill you used,
+   or `none`, in your report.
 3. Open relevant code and tests before making a claim. Every factual claim needs
    a `file:line` you actually read.
 4. Trace only the callers, callees, siblings, and config needed to settle the
