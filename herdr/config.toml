@@ -130,6 +130,43 @@ description = "gh pr/ci status"
 width = "80%"
 height = "70%"
 
+# ── Plugin actions (community + etabli) ───────────────────────────────────
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "sessionizer.open"
+description = "sessionizer projects"
+
+[[keys.command]]
+key = "prefix+up"
+type = "plugin_action"
+command = "sessionizer.worktree-open"
+description = "sessionizer worktrees"
+
+[[keys.command]]
+key = "prefix+alt+r"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"
+description = "reviewr toggle"
+
+[[keys.command]]
+key = "prefix+alt+v"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer"
+description = "file viewer"
+
+[[keys.command]]
+key = "prefix+alt+m"
+type = "plugin_action"
+command = "nicosuave.memex.toggle"
+description = "memex transcripts"
+
+[[keys.command]]
+key = "prefix+alt+o"
+type = "plugin_action"
+command = "etabli.obvault.obvault-session"
+description = "obvault session pack"
+
 [worktrees]
 # Parallel agent branches next to real repos under ~/work
 directory = "~/work/worktrees"

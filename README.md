@@ -46,7 +46,7 @@ terminal diff tooling may install `hunkdiff` (https://www.hunk.dev/) for use
 | `workflow/contract-details.md` | Long rules and command lists |
 | `docs/workflow-guide.md` | Human guide with schemas (routes, PLAN, loops) |
 | `pi/`, `claude/` | Runtime adapters |
-| `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (incl. Herdr agent workspace) |
+| `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
 | `scripts/`, `tests/` | Deploy, validation, regression |
 | `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |
