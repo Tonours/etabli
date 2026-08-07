@@ -65,6 +65,73 @@ prune_stale_managed_claude_agent_links() {
     done
 }
 
+managed_skill_roots() {
+    local repo_dir="$1"
+    local candidate resolved
+
+    while IFS= read -r candidate; do
+        resolved="$(cd "$candidate" >/dev/null 2>&1 && pwd -P)" || continue
+        printf '%s\n' "$resolved"
+    done < <(
+        printf '%s/pi/skills\n' "$repo_dir"
+        find "$repo_dir/vendor" "$repo_dir/claude/scopes" \
+            -mindepth 1 -maxdepth 1 -type d 2>/dev/null |
+            while IFS= read -r group_dir; do
+                printf '%s/skills\n' "$group_dir"
+            done
+    )
+}
+
+skill_target_is_managed() {
+    local repo_dir="$1"
+    local managed_roots="$2"
+    local skill_target="$3"
+    local skill_parent
+
+    skill_parent="$(cd "$(dirname "$skill_target")" >/dev/null 2>&1 && pwd -P)"
+    if [ -n "$skill_parent" ]; then
+        printf '%s\n' "$managed_roots" | grep -qxF "$skill_parent"
+        return
+    fi
+
+    case "$skill_target" in
+        "$repo_dir/pi/skills/"?* | \
+        "$repo_dir/vendor/"?*"/skills/"?* | \
+        "$repo_dir/claude/scopes/"?*"/skills/"?*) return 0 ;;
+    esac
+
+    return 1
+}
+
+prune_stale_managed_skill_links() {
+    local repo_dir="$1"
+    local home_dir="$2"
+    local managed_roots surface skill_link skill_target
+
+    managed_roots="$(managed_skill_roots "$repo_dir")"
+
+    for surface in \
+        "$home_dir/.claude/skills" \
+        "$home_dir/.pi/agent/skills" \
+        "$home_dir/.codex/skills" \
+        "$home_dir/.agents/skills"; do
+        [ -d "$surface" ] || continue
+
+        while IFS= read -r skill_link; do
+            [ -n "$skill_link" ] || continue
+            skill_target="$(readlink "$skill_link")"
+            if [ "${skill_target#/}" = "$skill_target" ]; then
+                skill_target="$(dirname "$skill_link")/$skill_target"
+            fi
+            skill_target_is_managed "$repo_dir" "$managed_roots" "$skill_target" || continue
+            [ -e "$skill_target" ] && continue
+
+            rm -f "$skill_link"
+            print_success "Removed stale managed skill '$(basename "$skill_link")' from $surface"
+        done < <(find "$surface" -mindepth 1 -maxdepth 1 -type l | sort)
+    done
+}
+
 backup_path() {
     local path="$1"
     local candidate="${path}.bak.${TIMESTAMP}"
@@ -616,6 +683,120 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         exit 1
     fi
 
+    smoke_skill_home="$tmp_dir/skill-home"
+    smoke_unmanaged_skill="$tmp_dir/unmanaged-skill"
+    mkdir -p "$smoke_skill_home/.claude/skills" "$smoke_unmanaged_skill"
+    ln -s "$smoke_repo_dir/claude/scopes/shared/skills/removed-skill" \
+        "$smoke_skill_home/.claude/skills/removed-scope-skill"
+    ln -s "$smoke_repo_dir/vendor/mcollina-skills/skills/removed-skill" \
+        "$smoke_skill_home/.claude/skills/removed-vendor-skill"
+    ln -s "$smoke_repo_dir/pi/skills/removed-skill" \
+        "$smoke_skill_home/.claude/skills/removed-pi-skill"
+    ln -s "$smoke_unmanaged_skill" \
+        "$smoke_skill_home/.claude/skills/unmanaged-skill"
+    smoke_relative_target="$smoke_skill_home/.agents/skills/relative-live"
+    mkdir -p "$smoke_relative_target"
+    ln -s "../../.agents/skills/relative-live" \
+        "$smoke_skill_home/.claude/skills/relative-live"
+    ln -s "../../.agents/skills/relative-gone" \
+        "$smoke_skill_home/.claude/skills/relative-dangling"
+    smoke_relative_managed_root="$smoke_skill_home/relative-repo/pi/skills"
+    mkdir -p "$smoke_relative_managed_root"
+    ln -s "../../relative-repo/pi/skills/relative-managed-gone" \
+        "$smoke_skill_home/.claude/skills/relative-managed-dangling"
+    for smoke_live_skill in \
+        "claude/scopes/shared/skills/stack-suite" \
+        "vendor/mcollina-skills/skills/node" \
+        "pi/skills/react-doctor-100"; do
+        ln -s "$smoke_repo_dir/$smoke_live_skill" \
+            "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
+    done
+
+    for smoke_other_surface in .pi/agent/skills .codex/skills .agents/skills; do
+        mkdir -p "$smoke_skill_home/$smoke_other_surface"
+        ln -s "$smoke_repo_dir/vendor/mcollina-skills/skills/removed-skill" \
+            "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill"
+        ln -s "$smoke_repo_dir/vendor/mcollina-skills/skills/node" \
+            "$smoke_skill_home/$smoke_other_surface/node"
+    done
+
+    prune_stale_managed_skill_links "$smoke_repo_dir" "$smoke_skill_home"
+
+    for smoke_other_surface in .pi/agent/skills .codex/skills .agents/skills; do
+        if [ -L "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill" ]; then
+            print_error "stale vendor skill link survived in $smoke_other_surface"
+            exit 1
+        fi
+        if [ ! -L "$smoke_skill_home/$smoke_other_surface/node" ]; then
+            print_error "live vendor skill link was removed from $smoke_other_surface"
+            exit 1
+        fi
+    done
+
+    for smoke_stale_skill in removed-scope-skill removed-vendor-skill removed-pi-skill; do
+        if [ -L "$smoke_skill_home/.claude/skills/$smoke_stale_skill" ]; then
+            print_error "stale managed Claude skill link '$smoke_stale_skill' was not removed"
+            exit 1
+        fi
+    done
+    if [ ! -L "$smoke_skill_home/.claude/skills/unmanaged-skill" ]; then
+        print_error "unmanaged Claude skill link was removed"
+        exit 1
+    fi
+    for smoke_relative_link in relative-live relative-dangling relative-managed-dangling; do
+        if [ ! -L "$smoke_skill_home/.claude/skills/$smoke_relative_link" ]; then
+            print_error "relative link '$smoke_relative_link' was removed by an unrelated repo root"
+            exit 1
+        fi
+    done
+
+    prune_stale_managed_skill_links "$smoke_skill_home/relative-repo" "$smoke_skill_home"
+
+    if [ -L "$smoke_skill_home/.claude/skills/relative-managed-dangling" ]; then
+        print_error "stale relative link under a managed root was not removed"
+        exit 1
+    fi
+
+    smoke_symlinked_repo="$tmp_dir/symlinked-repo"
+    ln -s "$smoke_skill_home/relative-repo" "$smoke_symlinked_repo"
+    ln -s "$smoke_symlinked_repo/pi/skills/symlinked-gone" \
+        "$smoke_skill_home/.claude/skills/symlinked-repo-dangling"
+    prune_stale_managed_skill_links "$smoke_skill_home/relative-repo" "$smoke_skill_home"
+    if [ -L "$smoke_skill_home/.claude/skills/symlinked-repo-dangling" ]; then
+        print_error "stale link reached through a symlinked repo path was not removed"
+        exit 1
+    fi
+
+    smoke_wholesale_repo="$tmp_dir/wholesale-repo"
+    mkdir -p "$smoke_wholesale_repo/pi/skills" "$smoke_wholesale_repo/claude/scopes" \
+        "$smoke_wholesale_repo/vendor/gone-vendor/skills/orphan"
+    ln -s "$smoke_wholesale_repo/vendor/gone-vendor/skills/orphan" \
+        "$smoke_skill_home/.claude/skills/wholesale-orphan"
+    ln -s "$tmp_dir/outside-any-repo/skills/keep-me" \
+        "$smoke_skill_home/.claude/skills/outside-repo-dangling"
+    rm -rf "$smoke_wholesale_repo/vendor/gone-vendor"
+    prune_stale_managed_skill_links "$smoke_wholesale_repo" "$smoke_skill_home"
+    if [ -L "$smoke_skill_home/.claude/skills/wholesale-orphan" ]; then
+        print_error "stale link under a wholesale-removed vendor tree was not removed"
+        exit 1
+    fi
+    if [ ! -L "$smoke_skill_home/.claude/skills/outside-repo-dangling" ]; then
+        print_error "dangling link outside every managed repo root was removed"
+        exit 1
+    fi
+    for smoke_relative_link in relative-live relative-dangling; do
+        if [ ! -L "$smoke_skill_home/.claude/skills/$smoke_relative_link" ]; then
+            print_error "unmanaged relative link '$smoke_relative_link' was removed"
+            exit 1
+        fi
+    done
+    for smoke_kept_skill in stack-suite node react-doctor-100; do
+        if [ ! -L "$smoke_skill_home/.claude/skills/$smoke_kept_skill" ]; then
+            print_error "live managed Claude skill link '$smoke_kept_skill' was removed"
+            exit 1
+        fi
+    done
+
     PATH="/tmp/asdf-shims:/usr/bin"
     append_path_entry "/tmp/local-bin"
     if [ "$PATH" != "/tmp/asdf-shims:/usr/bin:/tmp/local-bin" ]; then
@@ -1162,6 +1343,9 @@ done
 ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
 mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
+
+mkdir -p ~/.agents/skills
+prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
 
 CROSS_HARNESS_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi cross_harness) )
 
