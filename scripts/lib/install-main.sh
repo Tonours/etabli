@@ -1179,6 +1179,29 @@ else
 fi
 
 # ============================================================================
+# SETUP HERDR (agent terminal workspace)
+# ============================================================================
+print_step "Setting up Herdr config..."
+
+HERDR_CONFIG_DIR="$HOME/.config/herdr"
+HERDR_CONFIG_LINK="$HERDR_CONFIG_DIR/config.toml"
+HERDR_CONFIG_TARGET="$REPO_DIR/herdr/config.toml"
+
+if [ -f "$HERDR_CONFIG_TARGET" ]; then
+    mkdir -p "$HERDR_CONFIG_DIR"
+    if [ -f "$HERDR_CONFIG_LINK" ] && [ ! -L "$HERDR_CONFIG_LINK" ]; then
+        backup_file "$HERDR_CONFIG_LINK"
+    fi
+    if ln -sf "$HERDR_CONFIG_TARGET" "$HERDR_CONFIG_LINK"; then
+        print_success "Herdr config linked"
+    else
+        print_warning "Failed to link Herdr config"
+    fi
+else
+    print_warning "Herdr config not found in $REPO_DIR/herdr/config.toml"
+fi
+
+# ============================================================================
 # SETUP PI CODING AGENT
 # ============================================================================
 print_step "Setting up Pi Coding Agent..."
