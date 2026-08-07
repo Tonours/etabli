@@ -27,7 +27,9 @@ can prove in the requested scope. An empty finding list is valid.
    `~/.claude/review-rubric.md`. Select the domain skill too when one covers the
    changed area — `forest-backend-suite` for BFF, auth, permissions, MCP,
    capabilities, Zendesk, or workflow executor/orchestrator;
-   `ember-forestadmin-suite` for Ember frontend. It carries known failure modes a
+   `ember-forestadmin-suite` for Ember frontend; `stack-suite` for language- and
+   framework-level work (Node.js, TypeScript, Fastify, OAuth, React/Next.js, web
+   UI). It carries known failure modes a
    cold read would miss. Its conventions inform the verdict; they never override
    the rubric, and a finding still needs a concrete failure in the diff.
 2. Before judging each changed behavior, retrieve only the deciding context:

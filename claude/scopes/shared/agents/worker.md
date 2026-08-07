@@ -30,7 +30,10 @@ describe a change you did not make or claim a check you did not run. An honest
 
 Select the domain skill first when one covers the area you are editing —
 `forest-backend-suite` for BFF, auth, permissions, MCP, capabilities, Zendesk,
-or workflow executor/orchestrator; `ember-forestadmin-suite` for Ember frontend.
+or workflow executor/orchestrator; `ember-forestadmin-suite` for Ember frontend;
+`stack-suite` for language- and framework-level work (Node.js, TypeScript,
+Fastify, OAuth, React/Next.js, web UI). Project suites win over `stack-suite`
+when the task is about this codebase rather than the language.
 Follow its conventions for the code you write. It does not widen your step: a
 skill that suggests adjacent work is out of scope, and `PLAN.md` still decides
 what you implement.

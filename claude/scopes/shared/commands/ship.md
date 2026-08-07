@@ -39,8 +39,9 @@ Claude specifics:
 - Skill selection comes first, before isolation and recon: invoke the domain
   skill covering the task — `forest-backend-suite` (BFF, auth, permissions, MCP,
   capabilities, Zendesk, workflow executor/orchestrator),
-  `ember-forestadmin-suite` (Ember frontend), or a task-shaped one such as
-  `bug-check`, `pr-qa`, `sec-pr`. It routes the work to what is already known
+  `ember-forestadmin-suite` (Ember frontend), `stack-suite` (Node.js,
+  TypeScript, Fastify, OAuth, React/Next.js, web UI), or a task-shaped one such
+  as `bug-check`, `pr-qa`, `sec-pr`. It routes the work to what is already known
   instead of rediscovering it. Name the skill used, or `none`, in the handoff.
 - Isolation: use the native `EnterWorktree` / `ExitWorktree` tools when the
   runtime exposes them; otherwise `git worktree add ../<repo>-ship-<slug>
