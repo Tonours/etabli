@@ -28,11 +28,48 @@ skill_source_root() {
   local repo_dir="$1"
   local source="$2"
 
-  case "$source" in
-    pi) printf '%s/pi/skills\n' "$repo_dir" ;;
-    vendor) printf '%s/vendor/mcollina-skills/skills\n' "$repo_dir" ;;
-    *) return 1 ;;
-  esac
+  if [ "$source" = "pi" ]; then
+    printf '%s/pi/skills\n' "$repo_dir"
+    return 0
+  fi
+
+  if [ -d "$repo_dir/vendor/$source/skills" ]; then
+    printf '%s/vendor/%s/skills\n' "$repo_dir" "$source"
+    return 0
+  fi
+
+  return 1
+}
+
+skill_declared_name() {
+  local skill_dir="$1"
+  local declared
+
+  declared="$(awk '
+    NR == 1 && $0 != "---" { exit }
+    NR > 1 && $0 == "---" { exit }
+    /^name:[[:space:]]/ {
+      sub(/^name:[[:space:]]*/, "")
+      gsub(/^["'"'"']|["'"'"']$/, "")
+      print
+      exit
+    }
+  ' "$skill_dir/SKILL.md" 2>/dev/null)"
+
+  if [ -n "$declared" ]; then
+    printf '%s\n' "$declared"
+  else
+    basename "$skill_dir"
+  fi
+}
+
+skill_vendor_scope() {
+  local repo_dir="$1"
+  local vendor="$2"
+
+  awk -F '\t' -v vendor="$vendor" '
+    $0 !~ /^#/ && NF >= 5 && $1 == vendor { print $4; exit }
+  ' "$repo_dir/vendor/sources.tsv"
 }
 
 skill_catalog_dir() {
