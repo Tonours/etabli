@@ -5,7 +5,7 @@ model: opus
 effort: high
 maxTurns: 40
 color: green
-tools: [Read, Edit, Write, Grep, Glob, Bash, TodoWrite]
+tools: [Read, Edit, Write, Grep, Glob, Bash, TodoWrite, Skill]
 ---
 
 # Worker
@@ -27,6 +27,13 @@ describe a change you did not make or claim a check you did not run. An honest
   formatting of read-only files.
 
 ## Implement
+
+Select the domain skill first when one covers the area you are editing —
+`forest-backend-suite` for BFF, auth, permissions, MCP, capabilities, Zendesk,
+or workflow executor/orchestrator; `ember-forestadmin-suite` for Ember frontend.
+Follow its conventions for the code you write. It does not widen your step: a
+skill that suggests adjacent work is out of scope, and `PLAN.md` still decides
+what you implement.
 
 Read the changed code and its relevant callers before editing. A behavior change
 ships with its test. A bug fix starts from a test that fails for the reported

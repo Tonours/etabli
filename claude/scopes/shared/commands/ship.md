@@ -1,7 +1,7 @@
 ---
 description: Deliver one task A to Z - plan, implement, review, commit, push, PR, CI green
 argument-hint: [task description]
-allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent]
+allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent, Skill]
 ---
 
 # Ship
@@ -36,6 +36,12 @@ Before saying a workflow source is missing, resolve sources in this order:
 
 Claude specifics:
 
+- Skill selection comes first, before isolation and recon: invoke the domain
+  skill covering the task — `forest-backend-suite` (BFF, auth, permissions, MCP,
+  capabilities, Zendesk, workflow executor/orchestrator),
+  `ember-forestadmin-suite` (Ember frontend), or a task-shaped one such as
+  `bug-check`, `pr-qa`, `sec-pr`. It routes the work to what is already known
+  instead of rediscovering it. Name the skill used, or `none`, in the handoff.
 - Isolation: use the native `EnterWorktree` / `ExitWorktree` tools when the
   runtime exposes them; otherwise `git worktree add ../<repo>-ship-<slug>
   -b <branch>` and `git worktree remove` at the end. Either way the
