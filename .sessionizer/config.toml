@@ -1,0 +1,29 @@
+# Repo-local Sessionizer layout for etabli itself
+# Applied only when Sessionizer creates a new workspace for this repo/worktree.
+
+[layout]
+focus = "shell"
+
+[tabs.dev]
+label = "dev"
+
+[[tabs.dev.panes]]
+id = "shell"
+title = "shell"
+command = "/bin/zsh -l"
+
+[[tabs.dev.panes]]
+id = "agent"
+from = "shell"
+title = "agent"
+split = "right"
+ratio = 0.45
+command = "claude"
+
+[tabs.checks]
+label = "checks"
+
+[[tabs.checks.panes]]
+id = "checks"
+title = "checks"
+command = "/bin/zsh -lc 'echo etabli checks:; ls scripts tests | head; exec /bin/zsh -l'"

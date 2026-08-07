@@ -8,7 +8,7 @@ Repo-specific instructions for this dotfiles repo.
 - `claude/` — Claude Code commands and local instructions
 - `docs/` — focused user docs
 - `ghostty/` — Ghostty config
-- `herdr/` — Herdr config (agent terminal workspace; Catppuccin Mocha)
+- `herdr/` — Herdr config, layouts, skills, multihost docs, etabli-obvault plugin
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`)
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `nvim/` — Neovim config
@@ -42,9 +42,11 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.agents/workflow/` -> `workflow/`
 - `~/.config/ghostty/config` -> `ghostty/config`
 - `~/.config/herdr/config.toml` -> `herdr/config.toml`
+- `~/.config/herdr/plugins/config/sessionizer/config.toml` -> `herdr/layouts/sessionizer.config.toml` (manual link; see `herdr/docs/multihost.md`)
+- `herdr/skills/herdr` linked into `~/.claude/skills/herdr`, `~/.codex/skills/herdr`, `~/.agents/skills/herdr`, `~/.pi/agent/skills/herdr`
 - do not create `~/.pi/extensions/`; it causes double-loading
 - do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)
-
+- macmini deploy: rsync `herdr/` → `~/work/etabli-herdr/` (see `herdr/docs/multihost.md`)
 ## Workflow
 
 - Human guide + schemas: `docs/workflow-guide.md`

@@ -1,0 +1,33 @@
+# Global Sessionizer config — etabli / work / worktrees
+# Installed to: ~/.config/herdr/plugins/config/sessionizer/config.toml
+# Source of truth: etabli/herdr/layouts/sessionizer.config.toml
+
+[projects]
+roots = ["~/work", "~/work/worktrees"]
+git_only = true
+depth = 2
+
+[ui]
+placement = "overlay"
+
+# Default bootstrap for new project / worktree workspaces:
+# shell (cwd) + agent pane on the right (single reasoner host, not multi-hop).
+[layout]
+focus = "shell"
+
+[tabs.dev]
+label = "dev"
+
+[[tabs.dev.panes]]
+id = "shell"
+title = "shell"
+command = "/bin/zsh -l"
+
+[[tabs.dev.panes]]
+id = "agent"
+from = "shell"
+title = "agent"
+split = "right"
+ratio = 0.45
+# Prefer claude when present; user can swap command per project via .sessionizer/
+command = "claude"
