@@ -140,6 +140,15 @@ A plan is `READY` when it has:
 `spec-guide` is ambient. Linear routes require Linear MCP or stop with
 `LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
 
+A route says what to produce and when to stop; it does not say what the area
+already taught us. Where the runtime exposes skills, select the domain skill for
+the subject alongside the route — they are orthogonal, and the skill is what
+keeps a route from rediscovering known ground. Routers exist per domain
+(`forest-backend-suite`, `ember-forestadmin-suite`) and per stack (`stack-suite`
+for Node.js, TypeScript, Fastify, OAuth, React/Next.js, web UI); a domain router
+wins over the stack one when the task is about the codebase rather than the
+language. Selection stays with the model, never injected per prompt (ADR-0014).
+
 ## Human checkpoints
 
 Checkpoints sit at irreversibility boundaries (deletion, production/billing,
