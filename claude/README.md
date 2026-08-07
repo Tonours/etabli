@@ -118,9 +118,17 @@ Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
 
 Domain work routes through a suite skill before the repos are opened:
 `employer-backend-suite` (BFF, auth/permissions, MCP, capabilities, Zendesk,
-workflow executor/orchestrator) and `ember-employer-suite` (Ember frontend).
+workflow executor/orchestrator), `ember-employer-suite` (Ember frontend), and
+`stack-suite` (Node.js, TypeScript, Fastify, OAuth, React/Next.js, web UI).
 `employer-backend-suite` points into `~/work/brain/kb`; it cites note names and
 never copies their content, so the vault stays the source of truth.
+
+`stack-suite` is a pure router over the vendored libraries in `vendor/` — it
+holds no rules of its own. The project suites win over it when the task is about
+this codebase rather than about the language or framework. Adding a vendored
+skill means adding its row to the `stack-suite` table; a skill no agent is told
+to reach for is a skill no agent uses. See `vendor/README.md` for the manifest
+and the sync command.
 
 `scout`, `worker`, and `reviewer` declare `Skill` and pick the domain skill
 themselves. `/ship`, `/plan-loop`, and `/plan-implement` do the same as their
