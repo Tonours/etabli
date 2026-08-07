@@ -1159,20 +1159,34 @@ for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     fi
 done
 
-VENDOR_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" vendor any) )
+ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
 mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
-for skill_name in "${VENDOR_SKILLS[@]}"; do
-    skill_dir="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
-    if [ -z "$skill_dir" ] || [ ! -d "$skill_dir" ]; then
-        print_warning "Vendored skill '$skill_name' missing from repo"
-        continue
-    fi
-    ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
-    ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
-    ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
-    print_success "Vendored skill '$skill_name' linked for Claude, Pi and Codex"
-done
+
+while IFS=$'\t' read -r vendor_name vendor_repo vendor_ref vendor_scope vendor_skills; do
+    case "$vendor_name" in ''|\#*) continue ;; esac
+
+    case " $ETABLI_ACTIVE_SCOPES " in
+        *" $vendor_scope "*) ;;
+        *)
+            print_step "Skipping vendor '$vendor_name' (scope $vendor_scope not active)"
+            continue
+            ;;
+    esac
+
+    for skill_dir_name in $(skill_catalog_names "$SKILL_CATALOG" "$vendor_name" any); do
+        skill_dir="$REPO_DIR/vendor/$vendor_name/skills/$skill_dir_name"
+        if [ ! -d "$skill_dir" ]; then
+            print_warning "Vendored skill '$skill_dir_name' missing from $vendor_name"
+            continue
+        fi
+        skill_name="$(skill_declared_name "$skill_dir")"
+        ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
+        ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
+        ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
+        print_success "Vendored skill '$skill_name' linked for Claude, Pi and Codex"
+    done
+done <"$REPO_DIR/vendor/sources.tsv"
 
 mkdir -p ~/.claude/commands
 if [ -f "$REPO_DIR/claude/CLAUDE.md" ]; then
@@ -1197,8 +1211,6 @@ for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
         print_success "Claude $template_file linked"
     fi
 done
-
-ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
 for scope in $ETABLI_ACTIVE_SCOPES; do
 for command_file in $(find "$REPO_DIR/claude/scopes/$scope/commands" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
