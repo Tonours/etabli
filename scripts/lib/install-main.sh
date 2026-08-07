@@ -1163,6 +1163,19 @@ ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
 mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
 
+CROSS_HARNESS_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi cross_harness) )
+
+for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
+    skill_dir="$REPO_DIR/pi/skills/$skill_name"
+    if [ ! -d "$skill_dir" ]; then
+        print_warning "Cross-harness Pi skill '$skill_name' missing from repo"
+        continue
+    fi
+    ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
+    ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
+    print_success "Pi skill '$skill_name' also linked for Claude and Codex"
+done
+
 while IFS=$'\t' read -r vendor_name vendor_repo vendor_ref vendor_scope vendor_skills; do
     case "$vendor_name" in ''|\#*) continue ;; esac
 

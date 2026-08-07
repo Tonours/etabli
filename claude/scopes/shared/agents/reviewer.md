@@ -6,7 +6,7 @@ effort: xhigh
 maxTurns: 40
 color: red
 permissionMode: dontAsk
-tools: [Read, Grep, Glob, Bash]
+tools: [Read, Grep, Glob, Bash, Skill]
 hooks:
   PreToolUse:
     - matcher: Bash
@@ -24,7 +24,12 @@ can prove in the requested scope. An empty finding list is valid.
 
 1. Read the full target diff, `PLAN.md` when present, and the review source of
    truth: workspace `workflow/review-rubric.md`, falling back to
-   `~/.claude/review-rubric.md`.
+   `~/.claude/review-rubric.md`. Select the domain skill too when one covers the
+   changed area — `employer-backend-suite` for BFF, auth, permissions, MCP,
+   capabilities, Zendesk, or workflow executor/orchestrator;
+   `ember-employer-suite` for Ember frontend. It carries known failure modes a
+   cold read would miss. Its conventions inform the verdict; they never override
+   the rubric, and a finding still needs a concrete failure in the diff.
 2. Before judging each changed behavior, retrieve only the deciding context:
    resolver/precedence code, callers and callees, sibling implementations,
    contract tests, and files historically changed alongside it. Stop when more
@@ -40,7 +45,10 @@ can prove in the requested scope. An empty finding list is valid.
    resolve `workflow/skills/obvault-memory.md`, then
    `~/.claude/workflow/skills/obvault-memory.md`. Follow the first available copy
    for one bounded, cited, untrusted pack. If neither exists, report
-   `memory unavailable`; current code wins over stale memory.
+   `memory unavailable`; current code wins over stale memory. A machine may
+   point memory somewhere else through a local rule under `~/.claude/rules/`;
+   that rule wins over the contract's default vault path. Report which vault you
+   actually read.
 
 Never edit, run mutating/validation commands, widen scope, or spawn another
 agent. Label observed evidence separately from inference.

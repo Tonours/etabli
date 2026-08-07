@@ -44,6 +44,24 @@ Put a surface in `shared` only if it would still make sense at a different
 employer. A skill that names a repo, a product, or an internal service belongs
 in `work`.
 
+### Contracts and skills carry the same name on purpose
+
+Five names exist three times over: `bug-check`, `pr-qa`, `pr-review`, `sec-pr`,
+and `review` each have a `workflow/skills/<name>.md` contract, a
+`scopes/*/commands/<name>.md` command, and a `scopes/*/skills/<name>/` skill.
+That is not drift to clean up:
+
+- the **contract** is the cross-runtime source of truth — Pi reads it too
+  (`pi/skills/pr-review/SKILL.md`), and Pi cannot see Claude skills;
+- the **skill** is the Claude-side procedure, free to go further than the
+  contract but never against it. Each one names its contract in its opening
+  lines;
+- the **command** is the thin `/name` entry point.
+
+Change the contract when the rule is true for every runtime. Change the skill
+when only Claude's procedure moves. `tests/workflow-contract-coverage-smoke.sh`
+enforces that every contract stays referenced somewhere.
+
 ## Workflow
 
 Canonical contract: `../workflow/spec.md`.
@@ -97,6 +115,17 @@ another agent.
 Command `allowed-tools` entries are permission pre-approvals, not a sandbox.
 Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
 `Bash`; the enforced shell boundary belongs to `scout` and `reviewer`.
+
+Domain work routes through a suite skill before the repos are opened:
+`employer-backend-suite` (BFF, auth/permissions, MCP, capabilities, Zendesk,
+workflow executor/orchestrator) and `ember-employer-suite` (Ember frontend).
+`employer-backend-suite` points into `~/work/brain/kb`; it cites note names and
+never copies their content, so the vault stays the source of truth.
+
+`scout`, `worker`, and `reviewer` declare `Skill` and pick the domain skill
+themselves. `/ship`, `/plan-loop`, and `/plan-implement` do the same as their
+first step. There is no hook that suggests a skill — selection is the model's,
+per ADR-0014.
 
 Playwright QA is packaged as three skills, not extra agents:
 `playwright-agentic-testing`, `playwright-test-generation`, and
