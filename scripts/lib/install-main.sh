@@ -1518,6 +1518,7 @@ mkdir -p ~/.local/bin
 append_path_entry "$HOME/.local/bin"
 
 install_script "dev-spawn" || true
+install_script "herdr-sync-mini" || true
 install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
