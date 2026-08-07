@@ -46,10 +46,8 @@ window-padding-color = background
 macos-titlebar-style = native
 macos-window-buttons = visible
 
-# Disable shell integration title override — keeps tmux window names fixed
+# Shell integration (path + cursor ; pas d’override titre / ssh env)
 shell-integration-features = cursor,no-sudo,no-ssh-env,no-ssh-terminfo,path
 
-# Chaque surface ghostty (fenêtre / onglet) démarre dans sa propre session tmux.
-# Shell de login pour que `tmux` soit résolu quel que soit le prefix brew
-# (/usr/local/bin sur Intel, /opt/homebrew/bin sur Apple Silicon).
-command = /bin/zsh -lc 'exec tmux new-session'
+# Pas de `command = …` : shell de login par défaut (zsh plain, sans tmux).
+# Pour tmux : lancer `tmux` manuellement.

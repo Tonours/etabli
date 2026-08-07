@@ -1,7 +1,7 @@
 # Etabli
 
 Personal source of truth for an **agentic development harness** and matching
-dotfiles: **Pi**, **Claude Code**, **Neovim**, **Ghostty**, and **tmux**.
+dotfiles: **Pi**, **Claude Code**, **Neovim**, **Ghostty**, **tmux**, and **Herdr**.
 
 Etabli keeps a shared workflow contract explicit (`workflow/`), deploys adapters
 conservatively, and treats validation claims as proportional to evidence.
@@ -12,7 +12,7 @@ conservatively, and treats validation claims as proportional to evidence.
   `workflow/spec.md` (routes, PLAN.md, guards, loops).
 - **Thin adapters** for Pi (`pi/`) and Claude (`claude/`) over that contract.
 - **Editor/terminal** configs: Neovim as a code-first minimal IDE (Catppuccin
-  Mocha, aligned with Ghostty/tmux), not an agent or review cockpit.
+  Mocha, aligned with Ghostty/tmux/Herdr), not an agent or review cockpit.
 - **Installers and checks** under `scripts/` and `tests/`.
 
 ## What it is not
@@ -46,7 +46,7 @@ terminal diff tooling may install `hunkdiff` (https://www.hunk.dev/) for use
 | `workflow/contract-details.md` | Long rules and command lists |
 | `docs/workflow-guide.md` | Human guide with schemas (routes, PLAN, loops) |
 | `pi/`, `claude/` | Runtime adapters |
-| `nvim/`, `ghostty/`, `tmux.conf` | Editor and terminal |
+| `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (incl. Herdr agent workspace) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
 | `scripts/`, `tests/` | Deploy, validation, regression |
 | `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |

@@ -8,6 +8,7 @@ Repo-specific instructions for this dotfiles repo.
 - `claude/` — Claude Code commands and local instructions
 - `docs/` — focused user docs
 - `ghostty/` — Ghostty config
+- `herdr/` — Herdr config (agent terminal workspace; Catppuccin Mocha)
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`)
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `nvim/` — Neovim config
@@ -40,7 +41,9 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.agents/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.agents/workflow/` -> `workflow/`
 - `~/.config/ghostty/config` -> `ghostty/config`
+- `~/.config/herdr/config.toml` -> `herdr/config.toml`
 - do not create `~/.pi/extensions/`; it causes double-loading
+- do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)
 
 ## Workflow
 
