@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+VENDOR_ROOT="$REPO_DIR/vendor"
+MANIFEST="$VENDOR_ROOT/sources.tsv"
+ONLY="${1:-}"
+
+if [ ! -f "$MANIFEST" ]; then
+  printf 'missing manifest %s\n' "$MANIFEST" >&2
+  exit 1
+fi
+
+if ! git -C "$REPO_DIR" diff --quiet -- "$VENDOR_ROOT" ||
+   ! git -C "$REPO_DIR" diff --cached --quiet -- "$VENDOR_ROOT"; then
+  printf 'refusing to sync: %s has uncommitted changes\n' "$VENDOR_ROOT" >&2
+  printf 'commit or discard them first; sync overwrites vendored trees\n' >&2
+  exit 1
+fi
+
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+synced=0
+
+while IFS=$'\t' read -r vendor repo ref scope skills; do
+  case "$vendor" in ''|\#*) continue ;; esac
+  if [ -n "$ONLY" ] && [ "$ONLY" != "$vendor" ]; then
+    continue
+  fi
+
+  printf '\n==> %s (%s, scope=%s)\n' "$vendor" "$ref" "$scope"
+  if ! git clone --depth 1 --branch "$ref" -q "$repo" "$WORK_DIR/$vendor"; then
+    printf 'clone failed for %s; check SSH access to %s\n' "$vendor" "$repo" >&2
+    exit 1
+  fi
+  sha="$(git -C "$WORK_DIR/$vendor" rev-parse HEAD)"
+
+  dest="$VENDOR_ROOT/$vendor/skills"
+  mkdir -p "$dest"
+
+  IFS=',' read -r -a wanted <<<"$skills"
+  for skill in "${wanted[@]}"; do
+    src="$WORK_DIR/$vendor/skills/$skill"
+    if [ ! -d "$src" ]; then
+      printf 'upstream %s no longer ships skill %q at %s\n' "$vendor" "$skill" "$ref" >&2
+      exit 1
+    fi
+    rm -rf "$dest/$skill"
+    cp -R "$src" "$dest/$skill"
+  done
+
+  for extra in LICENSE LICENSE.md; do
+    if [ -f "$WORK_DIR/$vendor/$extra" ]; then
+      cp "$WORK_DIR/$vendor/$extra" "$VENDOR_ROOT/$vendor/$extra"
+    fi
+  done
+
+  printf '%s\n' "$sha" >"$VENDOR_ROOT/$vendor/UPSTREAM_SHA"
+  printf '    %d skills at %s\n' "${#wanted[@]}" "${sha:0:12}"
+  synced=$((synced + 1))
+done <"$MANIFEST"
+
+if [ "$synced" -eq 0 ]; then
+  printf 'no vendor matched %q in %s\n' "$ONLY" "$MANIFEST" >&2
+  exit 1
+fi
+
+printf '\nsynced %d vendor(s)\n' "$synced"
+git -C "$REPO_DIR" --no-pager diff --stat -- "$VENDOR_ROOT"

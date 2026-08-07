@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$REPO_DIR/scripts/lib/pi-paths.sh"
+. "$REPO_DIR/scripts/lib/etabli-scope.sh"
 FIX=0
 VERBOSE=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -186,18 +187,7 @@ check_agents_visible_skill_links() {
 }
 
 deployed_scopes() {
-  local declared=""
-
-  if [ -n "${ETABLI_SCOPE:-}" ]; then
-    declared="$ETABLI_SCOPE"
-  elif [ -f "$HOME/.etabli-scope" ]; then
-    declared="$(tr -d '[:space:]' <"$HOME/.etabli-scope")"
-  fi
-
-  case "$declared" in
-    work|personal) printf 'shared %s\n' "$declared" ;;
-    *) printf 'shared\n' ;;
-  esac
+  etabli_active_scopes "$HOME"
 }
 
 check_claude_skill_links() {
