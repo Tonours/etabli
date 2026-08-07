@@ -102,12 +102,35 @@ panes or SSH sessions, but not in a local Terminal.app session on the mini.
 (launchd `com.openssh.ssh-agent` + Keychain). Herdr panes and remote SSH shells
 do not inherit it, so OpenSSH cannot see the already-loaded `id_rsa` and prompts.
 
-**Fix (on the mini):** `.zprofile` reattaches to the GUI agent (see block
-`etabli macOS ssh-agent (Keychain)`). After a reboot, once in a GUI terminal:
+**Fix (on the mini):** `.zprofile` reattaches to the GUI agent and runs
+`ssh-add --apple-load-keychain` (block `etabli macOS ssh-agent (Keychain)`).
+`Host github.com` uses `UseKeychain` / `AddKeysToAgent`. The key is stored in
+the login Keychain so it reloads after unlock without re-prompting.
 
 ```bash
-ssh-add --apple-use-keychain ~/.ssh/id_rsa
-ssh-add -l   # should list the key
+ssh-add -l
+git ls-remote git@github.com:Tonours/etabli.git HEAD
 ```
 
-`Host *` already has `AddKeysToAgent yes` and `UseKeychain yes`.
+### Sync laptop → mini
+
+```bash
+# from etabli root (also linked to ~/.local/bin by install.sh)
+./scripts/herdr-sync-mini
+```
+
+Copies `herdr/` + plugin checkouts and re-links plugins/skills/config.
+
+### Mirror (laptop)
+
+- Config: `~/.config/herdr-mirror/hosts.toml` (`hosts.macmini`)
+- LaunchAgent: `~/Library/LaunchAgents/com.tonours.herdr-mirror.plist`
+- Manual start: `herdr-mirror-start`
+- Expect workspace label `macmini: ~` in the local Herdr sidebar
+
+### Remote attach (laptop Ghostty)
+
+```bash
+herdr --remote macmini
+# detach: prefix+q — remote server keeps panes
+```
