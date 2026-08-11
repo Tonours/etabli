@@ -5,7 +5,7 @@ describe("Pi runtime settings", () => {
   test("reads the default model spec from agent settings", () => {
     expect(
       readDefaultModelSpec(`${import.meta.dir}/../../agent/settings.json`),
-    ).toBe("zai/glm-5.2");
+    ).toBe("xai/grok-4.5");
   });
 
   test("returns the unknown sentinel when settings are unavailable", () => {
