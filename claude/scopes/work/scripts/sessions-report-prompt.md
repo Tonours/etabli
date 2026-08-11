@@ -1,0 +1,9 @@
+Tâche automatisée "sessions-claude-code" (lancée par launchd dans un tmux jetable, alimente le standup cloud de 8h30) : résume mes sessions Claude Code des dernières 24h et poste-le dans Slack #routines. Ne pose aucune question, travaille en autonomie.
+
+1. Trouve les sessions récentes : fichiers .jsonl modifiés dans les dernières 24h sous ~/.claude/projects/*/ (ignore les sous-dossiers tool-results, memory, tasks et ce job lui-même). Regroupe par projet (le nom du dossier encode le chemin, ex: -Users-aguimard-work-employer-server → ~/work/employer-server).
+2. Pour chaque projet actif : extrais l'essentiel SANS lire les fichiers en entier (ils peuvent être énormes) — lis les premiers messages user de chaque session (champ "message" des lignes type user, via head/grep/jq) et le summary s'il existe, pour reconstituer en 1-2 lignes ce qui a été fait (feature, fix, exploration, review...).
+3. Poste UN message Slack dans le canal privé #routines (channel ID C0BA49W3U6Q) via l'outil MCP mcp__claude_ai_Slack__slack_send_message. EN-TÊTE STANDARD (toutes les routines de #routines le suivent — première ligne EXACTEMENT cette forme, puis une ligne vide) : `:computer: *SESSIONS CLAUDE CODE* · {jj/mm} · 🔵 — {N} projet(s)`. Puis le corps :
+• <projet> — <ce qui a été fait, 1-2 lignes>
+(une puce par projet actif, max 8 ; si aucune session dans les 24h, poste "• Aucune session locale dans les dernières 24h." avec N=0)
+4. Ne poste RIEN d'autre, pas de DM. Contenu factuel uniquement, en français, identifiants en anglais. Ne cite JAMAIS de contenu sensible (tokens, secrets, emails clients) même s'il apparaît dans les transcripts.
+5. ÉTAPE FINALE OBLIGATOIRE : quand le message Slack est envoyé (ou si l'envoi échoue après 2 tentatives), exécute via Bash : `touch /tmp/claude-sessions-report.done` — c'est le signal de fin pour le wrapper qui fermera cette session tmux. Ne fais plus rien après.

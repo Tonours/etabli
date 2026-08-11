@@ -16,6 +16,7 @@ Claude Code-specific files for `etabli`.
 - `scopes/<scope>/commands/*.md` -> `~/.claude/commands/`
 - `scopes/<scope>/skills/*` -> `~/.claude/skills/`
 - `scopes/<scope>/agents/*.md` -> `~/.claude/agents/`
+- `scopes/<scope>/scripts/*` -> `~/.claude/scripts/`
 - `hooks/*.mjs` -> `~/.claude/hooks/`
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
 - selected shared docs from `../workflow/` -> `~/.claude/`
@@ -26,7 +27,7 @@ links look stale or broken (missing command, drift after an update), run
 
 ## Scopes
 
-Commands, skills and agents live under `claude/scopes/<scope>/`:
+Commands, skills, agents and scripts live under `claude/scopes/<scope>/`:
 
 | Scope | Holds | Deployed |
 |---|---|---|
@@ -39,6 +40,12 @@ A machine declares one scope in `~/.etabli-scope`, containing exactly `work` or
 means `shared` alone, which is the safe default: a new machine never receives
 another context's surfaces by accident. An unrecognised value fails the deploy
 with exit 2 rather than deploying a partial surface.
+
+`scripts/` holds the local cron routines (`routines/`, `sessions-report*`) and
+`claude-bin.sh`, which resolves the `claude` binary for non-interactive
+contexts where no shell profile is loaded. Their launchd plists stay outside
+this repo, in `~/Library/LaunchAgents/`: linking the scripts installs them but
+does not schedule them.
 
 Put a surface in `shared` only if it would still make sense at a different
 employer. A skill that names a repo, a product, or an internal service belongs
