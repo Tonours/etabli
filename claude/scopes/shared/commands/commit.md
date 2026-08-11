@@ -20,9 +20,10 @@ Create one reviewable commit and stop.
    final diff. A failing required check blocks the commit.
 4. Stage exact paths with `git add -- <paths>`; never use `git add -A` or `git add .`.
 5. Verify no root `PLAN.md` or `PLAN*.md` is staged.
-6. Commit with one English conventional-commit subject, no body or trailers:
-   `feat|fix|refactor|test|docs|chore(scope): description`. Keep it lowercase,
-   imperative, and under about 72 characters.
+6. Commit per `workflow/git-contract.md`: one English conventional-commit
+   subject, `<type>(<scope>): <description>`, no body and no trailers.
+   Lowercase, imperative, under 72 characters, straight to the point — state
+   the change, no narrative or justification.
 7. Show the new commit subject and final `git status --short`.
 
 ## Boundaries
