@@ -206,3 +206,21 @@ Rules:
 ## Notes
 
 `commands/plan-create.md` installs as `/plan` because `PLAN.md` is gitignored and case-insensitive filesystems are common.
+
+## PR autoreview
+
+`scopes/work/scripts/pr-autoreview/` reviews the user's own PRs on the four
+employer repos. A `pre-push` hook detaches a background runner; the runner waits
+for nothing, checks that an open PR authored by `Tonours` exists for the pushed
+branch, and reviews it against `profiles/<repo>.md` plus the repo's own
+`CLAUDE.md` and the `~/work/brain` knowledge base.
+
+It currently runs in break-in mode: findings go to Slack `#routines` only,
+nothing is posted to GitHub. The mode lives in `prompt.md`.
+
+Guards: PR younger than 30 days, author must be `Tonours`, one pass per
+`repo#pr@headSha`, kill switch at `~/.claude/state/pr-autoreview.off`.
+
+The hook entry points (`~/.huskyrc`, `~/.config/husky/init.sh`) and the two
+generated `.husky/pre-push` files are local only — `~/.gitignore_global` keeps
+the latter invisible to git. Run `pr-autoreview/install.sh` to wire a machine.
