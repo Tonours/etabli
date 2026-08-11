@@ -1485,6 +1485,16 @@ for scope in $ETABLI_ACTIVE_SCOPES; do
         ln -sf "$agent_file" ~/.claude/agents/"$agent_name"
         print_success "Claude agent '$agent_name' linked"
     done
+
+    scope_scripts_dir="$REPO_DIR/claude/scopes/$scope/scripts"
+    if [ -d "$scope_scripts_dir" ]; then
+        mkdir -p ~/.claude/scripts
+        for script_entry in $(find "$scope_scripts_dir" -mindepth 1 -maxdepth 1 2>/dev/null | sort); do
+            entry_name=$(basename "$script_entry")
+            ln -sfn "$script_entry" ~/.claude/scripts/"$entry_name"
+            print_success "Claude script '$entry_name' linked"
+        done
+    fi
 done
 
 for shared_doc in review-rubric.md; do
