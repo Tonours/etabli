@@ -8,8 +8,9 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 ## Required Sequence
 
 1. Isolate the run per `workflow/skills/worktree-isolation.md`: confirm the base
-   worktree is clean, then create one dedicated worktree and branch
-   `feat/<slug>` (or `fix/<slug>`) from the default branch, or from the named
+   worktree is clean, then create one dedicated worktree and branch named per
+   `workflow/git-contract.md` (`<type>/<ticket-id>-<short-slug>`, slug 3 words
+   max, whole name under 50 characters) from the default branch, or from the named
    parent branch when the user asked to stack. Never commit to the default
    branch directly. Refuse to start from a dirty base worktree unless the user
    names what to do with the existing changes.
@@ -28,8 +29,8 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    passes never saw as a whole: sweep debug artifacts, leftover checkpoint
    scaffolding, and scope drift across slices; run targeted tests for the
    touched code. Skip only when the branch holds a single slice, and say so.
-5. Final sweep commit with the project's commit style; never stage
-   `PLAN*.md`.
+5. Final sweep commit per `workflow/git-contract.md` (subject only, no body);
+   never stage `PLAN*.md`.
 6. Run the complete relevant `scripts/verify-agentic-infra` group on the final
    diff per `workflow/skills/implementation-loop.md`. A red group blocks the
    push.

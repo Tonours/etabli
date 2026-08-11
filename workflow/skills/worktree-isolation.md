@@ -19,7 +19,9 @@ cleanup reporting rule.
 
 2. Stop if the base worktree has uncommitted or untracked changes that are not
    explicitly owned by this run.
-3. Create or select exactly one worktree and branch for the run.
+3. Create or select exactly one worktree and branch for the run. Name the
+   branch per `workflow/git-contract.md`: `<type>/<ticket-id>-<short-slug>`,
+   slug 3 words max, whole name under 50 characters.
 4. Record the worktree path, branch, and base SHA before the first edit.
 
 ## Isolation Rules
