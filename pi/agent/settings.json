@@ -1,6 +1,9 @@
 {
   "packages": [
     {
+      "source": "npm:@tintinweb/pi-tasks@0.7.1"
+    },
+    {
       "source": "npm:mitsupi",
       "extensions": [],
       "skills": [
@@ -39,16 +42,24 @@
       ],
       "prompts": [],
       "themes": []
-    },
-    {
-      "source": "npm:@tintinweb/pi-tasks@0.7.1"
     }
   ],
-  "lastChangelogVersion": "0.80.3",
-  "defaultProvider": "zai",
-  "defaultModel": "glm-5.2",
+  "lsp": {
+    "hookMode": "agent_end"
+  },
+  "lastChangelogVersion": "0.84.0",
+  "defaultProvider": "xai",
+  "defaultModel": "grok-4.5",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
+  "rtk": {
+    "enabled": true,
+    "mode": "always",
+    "timeoutMs": 2500,
+    "maxCacheEntries": 256,
+    "maxCommandLength": 4000,
+    "dangerousCommandBypass": true
+  },
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,
@@ -58,13 +69,17 @@
     "zai/glm-5.2",
     "openai-codex/gpt-5.3-codex-spark",
     "openai-codex/gpt-5.5",
-    "openai-codex/gpt-5.6-terra",
     "opencode-go/mimo-v2.5",
     "opencode-go/mimo-v2.5-pro",
+    "github-copilot/claude-sonnet-4.6",
+    "opencode-go/deepseek-v4-flash",
+    "xai/grok-4.5",
+    "openai-codex/gpt-5.6-sol",
+    "openai-codex/gpt-5.6-luna",
+    "openai-codex/gpt-5.6-terra",
     "opencode-go/minimax-m3",
     "opencode-go/qwen3.7-plus",
     "github-copilot/claude-sonnet-5",
-    "github-copilot/claude-sonnet-4.6",
     "kimi-coding/k3"
   ],
   "showHardwareCursor": false
