@@ -27,8 +27,9 @@ are applied directly; findings that change behavior are reported, not fixed.
 5. Verify no `PLAN.md` / `PLAN-*.md` is staged; unstage it if found.
 6. Run the narrowest test command covering the changed behavior and the
    project's typecheck/lint if configured. Report exact commands and output.
-7. Report findings by severity, then propose the conventional commit message
-   (subject only, max 72 chars, lowercase, imperative).
+7. Report findings by severity, then propose the commit message per
+   `workflow/git-contract.md`: subject only, max 72 chars, lowercase,
+   imperative, no body or trailers.
 
 ## Rules
 

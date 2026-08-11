@@ -84,10 +84,12 @@ scripts/verify-agentic-infra core
 bun test pi/extensions/__tests__/
 ```
 
-## Commit
+## Git
 
-`feat|fix|refactor|test|docs|chore(scope): description`
+Branch names and commit messages: `workflow/git-contract.md`.
 
-Commit messages are short, a single line max, no body: subject only in the
-conventional-commit format above. Keep the subject under ~72 characters.
-Do not rewrite, amend, or force-push history unless explicitly requested.
+- Branch: `<type>/<ticket-id>-<short-slug>`, slug 3 words max, whole name under
+  50 characters.
+- Commit: `<type>(<scope>): <description>`, subject only, no body, no trailers,
+  lowercase imperative under 72 characters.
+- Do not rewrite, amend, or force-push history unless explicitly requested.

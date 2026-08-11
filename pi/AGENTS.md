@@ -27,6 +27,9 @@
 - Memory: proactively consult `~/work/obvault` per
   `workflow/skills/obvault-memory.md`.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
+- Branches and commits: `workflow/git-contract.md`. Branch
+  `<type>/<ticket-id>-<short-slug>`, slug 3 words max, under 50 chars. Commit
+  subject only, conventional, lowercase imperative, no body, no trailers.
 - PR bodies: `workflow/pr-body-contract.md`. English always, repo template
   intact, lead with what changed, densest draft wins, state the stack when the
   base is not the default branch.
