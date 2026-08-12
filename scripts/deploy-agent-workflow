@@ -13,6 +13,7 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
+CROSS_HARNESS_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi cross_harness) )
 
 ACTIVE_SCOPES="shared"
 
@@ -28,8 +29,8 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
 
-Deploy only the Etabli agent workflow surfaces for Claude Code, Pi, and the
-shared ~/.agents surface.
+Deploy only the Etabli-managed workflow and skill surfaces for Claude Code,
+Pi, Codex, and Grok (through the shared ~/.agents surface).
 
 Options:
   --dry-run         Show planned changes without touching local harness files (default)
@@ -447,7 +448,7 @@ deploy_pi() {
   fi
 
   for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Agents-visible skill $skill"
+    link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Grok/agents-visible skill $skill"
   done
 
   # Shared plan/workflow sources for ~/.agents skills
@@ -464,6 +465,42 @@ deploy_pi() {
     theme_name="$(basename "$theme_file")"
     link_path "$theme_file" "$HOME_DIR/.pi/agent/themes/$theme_name" "Pi theme $theme_name"
   done
+}
+
+deploy_cross_harness_skills() {
+  local skill skill_name skill_dir surface skill_link
+
+  status_line SECTION "Cross-harness skills"
+
+  if [ "$DRY_RUN" -eq 0 ]; then
+    mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.agents/skills"
+  fi
+
+  while IFS=$'\t' read -r skill_name skill_dir; do
+    [ -n "$skill_name" ] || continue
+    for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+      skill_link="$HOME_DIR/$surface/$skill_name"
+      # Raw-target equality is intentional: never remove an equivalent-looking
+      # external or user-owned link while converging managed vendor scopes.
+      if same_link "$skill_dir" "$skill_link"; then
+        remove_managed_path "$skill_link" "inactive vendor skill $skill_name from $surface"
+      fi
+    done
+  done < <(skill_catalog_inactive_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ACTIVE_SCOPES")
+
+  for skill in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
+    [ -n "$skill" ] || continue
+    skill_dir="$REPO_DIR/pi/skills/$skill"
+    link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill" "Claude cross-harness skill $skill"
+    link_path "$skill_dir" "$HOME_DIR/.codex/skills/$skill" "Codex cross-harness skill $skill"
+  done
+
+  while IFS=$'\t' read -r skill_name skill_dir; do
+    [ -n "$skill_name" ] || continue
+    link_path "$skill_dir" "$HOME_DIR/.pi/agent/skills/$skill_name" "Pi vendor skill $skill_name"
+    link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude vendor skill $skill_name"
+    link_path "$skill_dir" "$HOME_DIR/.codex/skills/$skill_name" "Codex vendor skill $skill_name"
+  done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ACTIVE_SCOPES")
 }
 
 deploy_claude() {
@@ -554,6 +591,7 @@ deploy_claude() {
 }
 
 deploy_pi
+deploy_cross_harness_skills
 deploy_claude
 
 if [ "$DRY_RUN" -eq 1 ]; then

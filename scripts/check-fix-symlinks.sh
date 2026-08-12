@@ -17,11 +17,13 @@ if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; t
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
   AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
+  CROSS_HARNESS_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi cross_harness) )
 else
   SKILL_CATALOG_MISSING=1
   # Bash 3 with `set -u` treats an empty array expansion as unbound.
   PI_CORE_SKILLS=("")
   AGENTS_VISIBLE_SKILLS=("")
+  CROSS_HARNESS_PI_SKILLS=("")
 fi
 
 usage() {
@@ -182,8 +184,45 @@ check_agents_visible_skill_links() {
   local skill_name
   for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     [ -n "$skill_name" ] || continue
-    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "agents-visible skill $skill_name"
+    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "grok/agents-visible skill $skill_name"
   done
+}
+
+check_cross_harness_skill_links() {
+  local skill_name skill_dir active_scopes surface skill_link
+
+  for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
+    skill_dir="$REPO_DIR/pi/skills/$skill_name"
+    check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude cross-harness skill $skill_name"
+    check_link "$HOME/.codex/skills/$skill_name" "$skill_dir" "codex cross-harness skill $skill_name"
+  done
+
+  [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
+  active_scopes="$(deployed_scopes)"
+  while IFS=$'\t' read -r skill_name skill_dir; do
+    [ -n "$skill_name" ] || continue
+    check_link "$HOME/.pi/agent/skills/$skill_name" "$skill_dir" "pi vendor skill $skill_name"
+    check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude vendor skill $skill_name"
+    check_link "$HOME/.codex/skills/$skill_name" "$skill_dir" "codex vendor skill $skill_name"
+  done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$active_scopes")
+
+  while IFS=$'\t' read -r skill_name skill_dir; do
+    [ -n "$skill_name" ] || continue
+    for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+      skill_link="$HOME/$surface/$skill_name"
+      # Match the exact managed target; a same-name external link is not ours.
+      if [ -L "$skill_link" ] && [ "$(readlink "$skill_link")" = "$skill_dir" ]; then
+        ISSUES=$((ISSUES + 1))
+        status_line WARN "inactive vendor skill $skill_name remains in $surface"
+        if [ "$FIX" -eq 1 ]; then
+          rm -f "$skill_link"
+          FIXED=$((FIXED + 1))
+          status_line FIXED "removed inactive vendor skill $skill_name from $surface"
+        fi
+      fi
+    done
+  done < <(skill_catalog_inactive_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$active_scopes")
 }
 
 deployed_scopes() {
@@ -327,6 +366,7 @@ check_claude_agent_links
 check_claude_script_links
 check_pi_skill_links
 check_agents_visible_skill_links
+check_cross_harness_skill_links
 check_claude_skill_links
 
 check_script_link "dev-spawn"

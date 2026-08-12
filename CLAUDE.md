@@ -26,4 +26,5 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0013](docs/adr/0013-remove-the-multi-model-council-and-telemetry-reporters.md) — Remove the multi-model council and the telemetry reporters [accepted]
 - [0014](docs/adr/0014-stop-injecting-route-context-into-every-prompt.md) — Stop injecting route context into every prompt [accepted]
 - [0015](docs/adr/0015-treat-codex-skills-as-a-managed-link-surface-without-restoring-the-harness.md) — Treat ~/.codex/skills as a managed link surface without restoring the Codex harness [accepted]
+- [0016](docs/adr/0016-record-work-mcp-inventory-per-runtime.md) — Record the work MCP inventory per runtime [accepted]
 <!-- ADR:INDEX:END -->

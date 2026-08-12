@@ -1,73 +1,74 @@
 # MCP Strategy
 
-How Etabli consolidates Model Context Protocol configuration after the
-2026-07-28 harness recenter (Pi + Claude only).
+How Etabli records the sanitized MCP inventory for the active `work` scope.
+The repository documents portable names and endpoints; it does not deploy live
+MCP configuration or credentials.
 
-## Sources of truth
+## Current work inventory
 
-| Surface | Role | Tracked in git |
+Verified from name-only local introspection on 2026-08-12:
+
+| Runtime | Live store | Active servers |
 | --- | --- | --- |
-| `mcp/servers.template.json` | Sanitized reference inventory of the shared server set (`${VAR}` placeholders) | yes |
-| `~/.claude.json` `mcpServers` | Live user-scope server definitions, holds real tokens | no |
-| `~/.pi/agent/mcp.json` | Pi entrypoint: `{ "mcpServers": {}, "imports": ["claude-code"] }` | no |
-| Project `.mcp.json` | Project-scope servers for one repo, committable when sanitized | per project |
+| Claude | `~/.claude.json` → `mcpServers` | `chrome-devtools`, `lean-ctx` |
+| Pi | `~/.pi/agent/mcp.json` → `mcpServers` | `lean-ctx` |
+| Codex | `~/.codex/config.toml` → `mcp_servers.*` | `chrome-devtools`, `lean-ctx`, `datadog`, `linear` |
+| Grok | Grok user configuration | none |
 
-Rules:
+`mcp/servers.template.json` is the sanitized union plus this runtime assignment
+matrix. It is reference data, not a file to symlink wholesale into each
+runtime. In particular, Pi's direct `lean-ctx` definition is intentional; it no
+longer imports the complete Claude user scope.
 
-1. **Claude user scope is the single definition store.** The seven shared
-   servers (`chrome-devtools`, `mobbin`, `uidotsh`, `web-reader`,
-   `web-search-prime`, `zai-mcp-server`, `zread`) live only in `~/.claude.json`.
-2. **Pi imports, never duplicates.** `~/.pi/agent/mcp.json` keeps
-   `mcpServers: {}` and `imports: ["claude-code"]`. A server that must be
-   Pi-only is the documented exception, not the default.
-3. **No secrets in this repo.** `mcp/servers.template.json` uses `${VAR}`
-   placeholders only. Live tokens stay in the local Claude config or the shell
-   environment.
-4. **Project scope for project-specific servers.** Servers that only make
-   sense inside one repo (for example `context7`, `next-devtools`,
-   `playwright`) belong in that repo's `.mcp.json`, with `${VAR}`
-   placeholders, one entry per project — not duplicated across user scope.
-5. **Prefer CLIs where they exist.** GitHub work goes through `gh`, not a
-   GitHub MCP server, unless explicitly overridden. obvault access is the CLI;
-   the optional read-only stdio obvault MCP (`vault_*` tools) is opt-in per
-   `workflow/skills/obvault-memory.md` and is never part of a managed config.
-6. **`~/.agents` consumers read the CLI surfaces**, not MCP; nothing to deploy
-   there.
+## Ownership and scope
 
-## Linear MCP gap (option A — enable when needed)
+1. **Live configuration stays runtime-local.** Claude, Pi, Codex, and Grok may
+   use different native shapes and authentication flows. Etabli does not merge
+   or overwrite those files.
+2. **The tracked template is sanitized inventory.** It contains server names,
+   portable commands, public endpoints, and environment-variable placeholders
+   only.
+3. **`work` means `shared + work`.** `chrome-devtools` and `lean-ctx` are shared
+   local tooling. The current Datadog and Linear endpoints are work-scoped and
+   enabled only in Codex.
+4. **No runtime-wide availability claim.** A skill that needs Linear must still
+   stop with `LINEAR_MCP_UNAVAILABLE` when its current runtime exposes no Linear
+   tools. The current public endpoint is `https://mcp.linear.app/mcp`; Codex
+   availability does not imply Claude, Pi, or Grok availability.
+5. **Project-specific MCP stays with the project.** Sanitized project servers
+   belong in that repository's `.mcp.json` or native equivalent, not in this
+   user-scope inventory.
+6. **Prefer CLIs when they are the source of truth.** GitHub uses `gh`; obvault
+   uses its bounded local CLI. The optional read-only obvault MCP remains
+   opt-in and is not part of this inventory.
 
-`workflow/skills/linear-*.md` and the matching Pi/Claude skills **do not claim
-Linear is preconfigured**. If no Linear MCP tool is available at runtime, they
-must stop with `LINEAR_MCP_UNAVAILABLE` (never invent issues or use the REST API
-with guessed tokens). Linear is intentionally absent from the template's active
-set because OAuth and workspace choice are user actions.
+## Security boundary
 
-### Enable Linear MCP (secret-free path)
+Never commit or print OAuth material, API keys, auth headers, cookies, project
+trust state, or full live configuration. `${HOME}`, `${LEAN_CTX_DATA_DIR}`, and
+other placeholders in the template are resolved only in local runtime config.
+Datadog and Linear authentication remains runtime-managed.
 
-1. Open Claude Code user MCP config (`~/.claude.json` → `mcpServers`).
-2. Add this entry (no tokens in the repo; OAuth is handled by the host):
+The following stay local and untracked:
 
-```json
-"linear": {
-  "type": "http",
-  "url": "https://mcp.linear.app/mcp"
-}
-```
-
-3. Restart Claude Code (or reload MCP servers) and complete the Linear OAuth
-   consent for the target workspace when prompted by the host.
-4. Confirm tools appear (e.g. list MCP tools / call a harmless Linear read).
-5. Pi needs **zero extra config** if `~/.pi/agent/mcp.json` already has
-   `"imports": ["claude-code"]` — it imports Claude user-scope servers.
-
-Template reminder: `mcp/servers.template.json` → `$linear_gap`. Do not commit
-OAuth tokens, API keys, or workspace secrets. To leave Linear disabled, keep
-the entry absent; skills continue to degrade to `LINEAR_MCP_UNAVAILABLE`.
+- `~/.claude.json` beyond name-only inspection;
+- `~/.pi/agent/mcp.json`;
+- `~/.codex/config.toml`;
+- Grok's user configuration, auth, session, and plugin state.
 
 ## Drift control
 
-- Run `jq '.mcpServers | keys' ~/.claude.json` and diff against the template
-  when the set changes; update the template in the same commit as the strategy
-  doc if the inventory changes.
-- Do not re-introduce per-harness MCP copies. Historical Codex/Kimi surfaces
-  were removed in the 2026-07-28 recenter (see `docs/adr/0011-*.md`).
+Inspect names only; do not dump complete live files:
+
+```bash
+jq -r '.mcpServers | keys[]' ~/.claude.json
+jq -r '.mcpServers | keys[]' ~/.pi/agent/mcp.json
+sed -n 's/^\[mcp_servers\.\([^]]*\)\]$/\1/p' ~/.codex/config.toml | tr -d '"'
+grok mcp list --json | jq -r '.[].name'
+jq -r '.runtimeAssignments | to_entries[] | "\(.key):\(.value | join(","))"' \
+  mcp/servers.template.json
+```
+
+When the intended name set changes, update the template, this table, and the
+ownership ADR together. Validate JSON and run the repository secret scan. A
+local mismatch alone does not authorize copying the live file into Git.
