@@ -1,6 +1,16 @@
 ---
 name: sec-pr
-description: Verification automatisee d'une PR de securite Dependabot ForestAdmin (body structure Fixed/Ignored/Deferred/Resolutions). Verifie que les alertes Fixed sont reellement patchees (bump/resolution >= patched version, chaine parente plausible, version saine resolue dans le lockfile via worktree isole), que les resolutions removed sont redondantes, que les justifications Ignored tiennent, surface les Deferred, et confirme la CI verte. Produit un rapport + verdict PASS/FAIL. Si PASS : coche les checkboxes du body, approuve la PR, et affiche le lien pour squash & merge manuel. Ne merge jamais automatiquement. Utiliser quand on demande de verifier/auditer une PR de securite, valider une PR Dependabot, ou /sec-pr <PR_ID>.
+description: >-
+  Verification automatisee d'une PR de securite Dependabot ForestAdmin (body
+  structure Fixed/Ignored/Deferred/Resolutions). Verifie que les alertes Fixed
+  sont reellement patchees (bump/resolution >= patched version, chaine parente
+  plausible, version saine resolue dans le lockfile via worktree isole), que les
+  resolutions removed sont redondantes, que les justifications Ignored tiennent,
+  surface les Deferred, et confirme la CI verte. Produit un rapport + verdict
+  PASS/FAIL. Si PASS : coche les checkboxes du body, approuve la PR, et affiche
+  le lien pour squash & merge manuel. Ne merge jamais automatiquement. Utiliser
+  quand on demande de verifier/auditer une PR de securite, valider une PR
+  Dependabot, ou /sec-pr PR_ID.
 ---
 
 # sec-pr — Verification de PR de securite Dependabot

@@ -1,6 +1,6 @@
 ---
 name: pr-qa
-description: Analyse QA d'une PR GitHub pour comprendre son impact et generer un plan de test complet. Execute en 3 phases - comprehension, analyse d'impact, generation du plan de test (happy path + edge cases). Utiliser quand on demande comment tester une PR, analyser l'impact d'une PR, ou /pr-qa <PR_ID>.
+description: Analyse QA d'une PR GitHub pour comprendre son impact et generer un plan de test complet. Execute en 3 phases - comprehension, analyse d'impact, generation du plan de test (happy path + edge cases). Utiliser quand on demande comment tester une PR, analyser l'impact d'une PR, ou /pr-qa PR_ID.
 ---
 
 # PR QA Skill
