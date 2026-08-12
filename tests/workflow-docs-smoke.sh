@@ -92,6 +92,16 @@ assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
 assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
 assert_file "$ROOT_DIR/workflow/skills/self-improvement-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/ambitious-project-loop.md"
+assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
+assert_file "$ROOT_DIR/workflow/skills/skill-evaluation.md"
+assert_file "$ROOT_DIR/scripts/conversation-retrospect"
+assert_file "$ROOT_DIR/scripts/skill-eval"
+assert_file "$ROOT_DIR/scripts/runtime-skill-canary"
+assert_file "$ROOT_DIR/scripts/session-handoff"
+assert_file "$ROOT_DIR/tests/conversation-retrospect-smoke.sh"
+assert_file "$ROOT_DIR/tests/skill-eval-smoke.sh"
+assert_file "$ROOT_DIR/tests/runtime-skill-canary-smoke.sh"
+assert_file "$ROOT_DIR/tests/session-handoff-smoke.sh"
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_file "$ROOT_DIR/tests/fixtures/pr-maintenance/stale-review.json"
@@ -216,6 +226,11 @@ assert_contains "$ROOT_DIR/README.md" 'managed Pi package/model entries'
 assert_contains "$ROOT_DIR/README.md" 'scaffold-project'
 assert_contains "$ROOT_DIR/README.md" 'RUN_AGENT_CLI_SMOKE=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_REAL_AGENT_SCENARIOS=1'
+assert_contains "$ROOT_DIR/README.md" 'RUN_SKILL_RUNTIME_CANARY=1'
+assert_contains "$ROOT_DIR/README.md" 'scripts/conversation-retrospect'
+assert_contains "$ROOT_DIR/README.md" 'scripts/skill-eval'
+assert_contains "$ROOT_DIR/README.md" 'scripts/runtime-skill-canary'
+assert_contains "$ROOT_DIR/README.md" 'scripts/session-handoff'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'scripts/pr-latest-head-status'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'

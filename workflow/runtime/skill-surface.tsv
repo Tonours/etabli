@@ -23,6 +23,10 @@ css-layout-primitives	pi	0	1	1
 css-only-components	pi	0	1	1
 css-debugging	pi	0	1	1
 goal-prompt-rewriter	pi	0	1	1
+conversation-retrospect	pi	0	1	1
+recurring-run	pi	0	1	1
+runtime-skill-canary	pi	0	1	1
+session-handoff	pi	0	1	1
 ui-reference-capture	pi	0	1	1
 maintainer-orchestrator	pi	0	0	0
 react-doctor-100	pi	0	1	1	1

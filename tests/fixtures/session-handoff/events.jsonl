@@ -1,0 +1,8 @@
+{"schema_version":2,"ts":"2026-08-10T08:00:00Z","event":"route_decided","run":"handoff-fixture","detail":{"route":"plan-implement","reason":"fixture"}}
+{"schema_version":2,"ts":"2026-08-10T08:01:00Z","event":"plan_created","run":"handoff-fixture","detail":{"path":"PLAN.md","status":"READY"}}
+{"schema_version":2,"ts":"2026-08-10T08:02:00Z","event":"adversary_completed","run":"handoff-fixture","detail":{"mode":"plan","verdict":"GO","accepted_findings":["preserve the current validator","bound resume output"],"rejected_findings":[]}}
+{"schema_version":2,"ts":"2026-08-10T08:03:00Z","event":"validation_failed","run":"handoff-fixture","detail":{"command":"bash tests/old-parser.sh","exit":1,"failure":"obsolete parser hypothesis"}}
+{"schema_version":2,"ts":"2026-08-10T08:04:00Z","event":"validation_run","run":"handoff-fixture","detail":{"command":"bash tests/session-handoff-smoke.sh","exit":0}}
+{"schema_version":2,"ts":"2026-08-10T08:04:30Z","event":"validation_run","run":"handoff-fixture","detail":{"command":"bash tests/old-parser.sh","exit":0}}
+{"schema_version":2,"ts":"2026-08-10T08:05:00Z","event":"project_slice_completed","run":"handoff-fixture","detail":{"slice":"2","validation":"passed","evidence":["session parser fixture","resume output fixture"],"remaining":["runtime visibility fixture","full validation"]}}
+{"schema_version":2,"ts":"2026-08-10T08:06:00Z","event":"handoff","run":"handoff-fixture","detail":{"branch":"main","sha":"abc123","done":["session parser fixture","resume output fixture"],"pending":["runtime visibility fixture","full validation"],"next_action":"implement the runtime visibility fixture","do_not_redo":["obsolete parser hypothesis"]}}

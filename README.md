@@ -74,6 +74,8 @@ Deeper loops:
 - `workflow/skills/self-improvement-loop.md`
 - `workflow/skills/ambitious-project-loop.md`
 - `workflow/skills/pr-maintenance-loop.md`
+- `workflow/skills/recurring-run.md`
+- `workflow/skills/skill-evaluation.md`
 - `workflow/skills/ship.md`
 
 Answer quality: `workflow/answer-quality.md`; durable artifacts use
@@ -95,7 +97,7 @@ scripts/vnext-suite --json
 - `live` is separate and never reports a skipped run as success:
 
 ```bash
-RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 \
+RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 RUN_SKILL_RUNTIME_CANARY=1 \
   scripts/verify-agentic-infra live
 ```
 
@@ -103,6 +105,13 @@ Optional read-only diagnostics: `workflow-retrospect`. Telemetry is experimental
 does not establish user value until **at least 10 representative** real tasks
 have task-grader outcomes. `workflow-telemetry-recover` writes only with
 explicit `--apply`.
+
+Conversation-derived workflow candidates remain read-only and aggregate-only:
+`scripts/conversation-retrospect`. Compare real baseline/candidate skill runs
+with `scripts/skill-eval`; tracked held-out fixtures are frozen/public, not
+confidentially isolated. Use `scripts/runtime-skill-canary` for offline
+source/link proof and opt-in live invocation, and `scripts/session-handoff` for
+a compact projection of the active plan, ledger, and Git state.
 
 `scripts/pr-latest-head-status` remains the source for latest-head PR evidence.
 

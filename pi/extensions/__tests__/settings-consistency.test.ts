@@ -86,6 +86,10 @@ describe("Pi settings consistency", () => {
       "css-only-components",
       "css-debugging",
       "goal-prompt-rewriter",
+      "conversation-retrospect",
+      "recurring-run",
+      "runtime-skill-canary",
+      "session-handoff",
       "ui-reference-capture",
       "react-doctor-100",
     ]);

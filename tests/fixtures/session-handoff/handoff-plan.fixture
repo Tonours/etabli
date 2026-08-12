@@ -1,0 +1,14 @@
+# PLAN.md
+
+## Meta
+- Status: READY
+
+## Goal
+Finish the synthetic handoff capability and prove a cold resume can select the
+next action without rereading chat history.
+
+## Handoff State
+- Current state: READY; two slices complete.
+- Last validated state: focused checks passed.
+- Known failures: obsolete parser hypothesis rejected.
+- Next action: implement the final visibility canary fixture.

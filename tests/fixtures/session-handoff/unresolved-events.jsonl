@@ -1,0 +1,3 @@
+{"schema_version":2,"ts":"2026-08-10T09:00:00Z","event":"route_decided","run":"handoff-unresolved","detail":{"route":"plan-implement","reason":"fixture"}}
+{"schema_version":2,"ts":"2026-08-10T09:01:00Z","event":"validation_failed","run":"handoff-unresolved","detail":{"command":"bash tests/privacy-boundary.sh","exit":1,"failure":"privacy boundary remains open"}}
+{"schema_version":2,"ts":"2026-08-10T09:02:00Z","event":"validation_run","run":"handoff-unresolved","detail":{"command":"bash tests/unrelated-green.sh","exit":0}}
