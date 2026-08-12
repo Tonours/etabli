@@ -1,0 +1,4 @@
+interface:
+  display_name: "Conversation Retrospect"
+  short_description: "Analyze local chats without exposing content"
+  default_prompt: "Use $conversation-retrospect to analyze recent local conversations as aggregate, read-only evidence."

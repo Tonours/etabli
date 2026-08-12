@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recurring Run"
+  short_description: "Run recurring work safely and idempotently"
+  default_prompt: "Use $recurring-run to execute this recurring task as a bounded delta from the last verified run."

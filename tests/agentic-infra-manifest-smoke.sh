@@ -105,12 +105,18 @@ autonomous-ledger-hygiene-smoke
 route-context-manifest-smoke
 workflow-outcome-metric-smoke
 claude-outcome-metric-emit-smoke
-claim-evidence-check-smoke'
+claim-evidence-check-smoke
+conversation-retrospect-smoke
+recurring-run-goal-pattern-smoke
+skill-eval-smoke
+runtime-skill-canary-smoke
+session-handoff-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
 expected_live='workflow-cli-smoke
-workflow-real-agent-scenarios'
+workflow-real-agent-scenarios
+runtime-skill-canary-live'
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
 
@@ -132,7 +138,7 @@ actual_nvim="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "nvim" {print $3}' "$
 live_output_file="$(mktemp)"
 trap 'rm -f "$live_output_file"' EXIT
 set +e
-env -u RUN_AGENT_CLI_SMOKE -u RUN_REAL_AGENT_SCENARIOS \
+env -u RUN_AGENT_CLI_SMOKE -u RUN_REAL_AGENT_SCENARIOS -u RUN_SKILL_RUNTIME_CANARY \
 	"$ROOT_DIR/scripts/verify-agentic-infra" live >"$live_output_file" 2>&1
 live_status=$?
 set -e

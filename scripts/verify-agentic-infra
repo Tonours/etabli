@@ -87,8 +87,8 @@ run_selection() {
 }
 
 run_live() {
-  if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ] || [ "${RUN_REAL_AGENT_SCENARIOS:-}" != "1" ]; then
-    printf 'SKIP live agent proof: set RUN_AGENT_CLI_SMOKE=1 and RUN_REAL_AGENT_SCENARIOS=1\n'
+  if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ] || [ "${RUN_REAL_AGENT_SCENARIOS:-}" != "1" ] || [ "${RUN_SKILL_RUNTIME_CANARY:-}" != "1" ]; then
+    printf 'SKIP live agent proof: set RUN_AGENT_CLI_SMOKE=1, RUN_REAL_AGENT_SCENARIOS=1, and RUN_SKILL_RUNTIME_CANARY=1\n'
     printf 'live_agent_proof: skipped\n'
     return 3
   fi

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Handoff"
+  short_description: "Create a compact evidence-backed resume pack"
+  default_prompt: "Use $session-handoff to create a compact resume pack for the current work."

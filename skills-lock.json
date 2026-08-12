@@ -84,7 +84,7 @@
     "goal-prompt-rewriter": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "9f43785093b74e451912a1d743b44dbd1e59ff2a99230be8d695dce0ab82c7d7"
+      "computedHash": "7b7f5054549e1e845ed68a9c57501fcc9db53c295300bf0c1167df233e1cb6e7"
     },
     "ui-reference-capture": {
       "source": "local",
@@ -370,6 +370,26 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "8407d5f39609f67028bf577aa040b23b300a407759827732b14cef027909dc9d"
+    },
+    "conversation-retrospect": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9e56c78a3d5199d415777f4e157168df3371205ff243952f14eafaa4baf34014"
+    },
+    "recurring-run": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "256e98d4e63bb998c34f09351397dcda2f6911a5bbf098caf8015997746961b3"
+    },
+    "runtime-skill-canary": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "981ccf3c38ec9f47659f13bcc560740b26c067859e6c3f4f1341c4a99989b291"
+    },
+    "session-handoff": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "90472adcb60f8f2a58d327d2df53d36a0eed8b90f7c279c11b99fe7254b4e22f"
     }
   }
 }

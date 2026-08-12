@@ -59,5 +59,11 @@ full	shell-docs	route-context-manifest-smoke	tests/route-context-manifest-smoke.
 full	shell-docs	workflow-outcome-metric-smoke	tests/workflow-outcome-metric-smoke.sh
 full	shell-docs	claude-outcome-metric-emit-smoke	tests/claude-outcome-metric-emit-smoke.sh
 full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh
+full	shell-docs	conversation-retrospect-smoke	tests/conversation-retrospect-smoke.sh
+full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-pattern-smoke.sh
+full	shell-docs	skill-eval-smoke	tests/skill-eval-smoke.sh
+full	shell-docs	runtime-skill-canary-smoke	tests/runtime-skill-canary-smoke.sh
+full	shell-docs	session-handoff-smoke	tests/session-handoff-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
+live	shell-docs	runtime-skill-canary-live	tests/runtime-skill-canary-live.sh

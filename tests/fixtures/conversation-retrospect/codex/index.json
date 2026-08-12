@@ -1,0 +1,30 @@
+[
+  {
+    "id": "codex-parent-a",
+    "rollout_path": "rollouts/a.jsonl",
+    "created_at": "2026-08-10T08:00:00Z",
+    "updated_at": "2026-08-10T08:30:00Z",
+    "title": "Dependency maintenance"
+  },
+  {
+    "id": "codex-parent-b",
+    "rollout_path": "rollouts/b.jsonl",
+    "created_at": "2026-08-10T09:00:00Z",
+    "updated_at": "2026-08-10T09:30:00Z",
+    "title": "Duplicate opener"
+  },
+  {
+    "id": "codex-parent-injected",
+    "rollout_path": "rollouts/injected.jsonl",
+    "created_at": "2026-08-10T10:00:00Z",
+    "updated_at": "2026-08-10T10:30:00Z",
+    "title": "<system-reminder> injected context"
+  },
+  {
+    "id": "codex-parent-skill-info",
+    "rollout_path": "rollouts/skill-info.jsonl",
+    "created_at": "2026-08-10T10:40:00Z",
+    "updated_at": "2026-08-10T10:45:00Z",
+    "title": "Read-only report"
+  }
+]
