@@ -8,6 +8,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
+WORK_HOME_DIR="$TMP_DIR/work-home"
 mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$TMP_DIR/personal-agents"
 printf 'personal agent\n' >"$TMP_DIR/personal-agents/personal.md"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$HOME_DIR/.claude/agents/playwright-generator.md"
@@ -103,6 +104,7 @@ assert_link "$HOME_DIR/.claude/agents/worker.md" "$ROOT_DIR/claude/scopes/shared
 assert_link "$HOME_DIR/.claude/agents/reviewer.md" "$ROOT_DIR/claude/scopes/shared/agents/reviewer.md"
 assert_absent "$HOME_DIR/.claude/agents/playwright-generator.md"
 assert_link "$HOME_DIR/.claude/agents/personal.md" "$TMP_DIR/personal-agents/personal.md"
+assert_absent "$HOME_DIR/.claude/scripts/claude-bin.sh"
 
 if [ -e "$HOME_DIR/.claude/skills/ember-forestadmin-suite" ]; then
   printf 'work-scope skill deployed without a declared scope: %s\n' \
@@ -114,6 +116,14 @@ if ETABLI_SCOPE=bogus "$ROOT_DIR/scripts/deploy-agent-workflow" --dry-run --home
   printf 'deploy accepted an invalid ETABLI_SCOPE instead of failing\n' >&2
   exit 1
 fi
+
+ETABLI_SCOPE=work "$DEPLOY_SCRIPT" --apply --home "$WORK_HOME_DIR" >/dev/null
+assert_link "$WORK_HOME_DIR/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
+assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
+assert_link "$WORK_HOME_DIR/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
+assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-inner.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-inner.sh"
+assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-prompt.md" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-prompt.md"
+assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report.sh"
 
 assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"
