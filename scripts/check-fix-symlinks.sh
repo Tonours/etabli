@@ -248,6 +248,19 @@ check_claude_agent_links() {
   done
 }
 
+check_claude_script_links() {
+  local scope scope_root script_entry script_name
+
+  for scope in $(deployed_scopes); do
+    scope_root="$REPO_DIR/claude/scopes/$scope/scripts"
+    [ -d "$scope_root" ] || continue
+    while IFS= read -r script_entry; do
+      script_name="$(basename "$script_entry")"
+      check_link "$HOME/.claude/scripts/$script_name" "$script_entry" "claude script $script_name"
+    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 | sort)
+  done
+}
+
 check_stale_managed_claude_agent_links() {
   local legacy_managed_dir="$REPO_DIR/claude/agents"
   local scoped_managed_root="$REPO_DIR/claude/scopes"
@@ -311,6 +324,7 @@ check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settin
 check_claude_hook_links
 check_stale_managed_claude_agent_links
 check_claude_agent_links
+check_claude_script_links
 check_pi_skill_links
 check_agents_visible_skill_links
 check_claude_skill_links
