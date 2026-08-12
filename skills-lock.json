@@ -115,6 +115,261 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "e5d29bfbf5a4171012f858e4d828e20976788b684b07a755d4f3972ce2378385"
+    },
+    "react-doctor-100": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "2c9eb98bf1b568a54e0ce18a8a1f0374535dbef3731371c6baa4d5497c0052a2"
+    },
+    "node": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "aba2163ddb3fcf3e6a9d101ac370fabc94055b3e628b125dd084969f1a945993"
+    },
+    "nodejs-core": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "5b49f42919feddb2d1258338e7e84856ff941ca8f9fa92b009bce18d0cf504cf"
+    },
+    "typescript-magician": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "99e61d29c107b3c52adbb70c6ee8cfbfb7830ea0649dba4ec89557fdf5c46b54"
+    },
+    "linting-neostandard-eslint9": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "752557ba728543623393c86a4190ce2f4dd712222c72c5d22796fb961a2567a3"
+    },
+    "fastify": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "269924684709b8c6f50a569ef988e66031efb822ef92cba6c8dfa160e54ed4d4"
+    },
+    "oauth": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "cf0ec2396dbf94504eb74ac7191c7b7b082dba3ef080a42688e79ca5c856eddc"
+    },
+    "documentation": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9a43f2e8ebb01dbc162ad78d865ff9e20bf20270e0514095c3bf3f1ac43599c6"
+    },
+    "ember-forestadmin-architecture": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "392fae24f789d08e79c618e015733c3e3b1b8fab3086e3c90bc10c55908536d7"
+    },
+    "ember-forestadmin-components": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "b3528723a00f0baef385a4af0650726737a8b6a2dc062abdef41e7b3d65d7b50"
+    },
+    "ember-forestadmin-data": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "0380830f16e5021d1e3ef32dcf9a3ce9b85118e9d35bfbc1d6a97bdd69e3cba3"
+    },
+    "ember-forestadmin-debug": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ae6add10c15acfad7eb91a824e38c7ae21b865abd49854439e425ed8360564a3"
+    },
+    "ember-forestadmin-lint-style": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "f8415cbeef71a8cb44f2d49881a1004badc304f866b4836048a7572f481fe033"
+    },
+    "ember-forestadmin-migration": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "277484ec9e549f3bc9203a2a6b674c6399f8e05dcefe1f86a20b0aae61005dc6"
+    },
+    "ember-forestadmin-react-mfe": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "0bb3a46d4d6f73d7db8b6b3361f4b5131ba809800077dfeb389ee5a20b59f1cf"
+    },
+    "ember-forestadmin-routes": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "41bf18dbf12b60160c21c682e6711421563e83617690e2e8635fa518e84af131"
+    },
+    "ember-forestadmin-services-state": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "833b4001e935bc4925f093fe1322a01e4cae2f4190d16f4fa7a577f851279f9b"
+    },
+    "ember-forestadmin-suite": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "13303348d445d67915ca0a54442e4f97578950f5d7b14c3122dadf4d8b8ba71c"
+    },
+    "ember-forestadmin-testing": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "e664567cc9bb723b8266a940f659d149f8b607f7a5f964d4b4363df758ae1742"
+    },
+    "ember-forestadmin-workflow-visualizer": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8bd933055eb227270d7b9d859c8fb00e688d603ca6630661c2c8867bd6037bca"
+    },
+    "ember-standalone-workflow-package": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "93816545efe6727b1b84c84ced9005e81d118c267fd0e232f2b0827abe12ba09"
+    },
+    "adonisjs-architecture": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "6d2bffafacbf35af26ea499f7d976f7b8d91e9791be4bfe24159103aff42575f"
+    },
+    "adonisjs-backend": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "0c40802e81085199e2282b55c60573295b3e54edb8fdb8871f7a37bec4a45457"
+    },
+    "adonisjs-review": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "570010bbde83c2aa0218c8e5b763f2af98364c3ab0009017dabc7f05a3e46151"
+    },
+    "adonisjs-suite": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8d8d0b0b44e6b32c9dfe1b6173f3ebb27d6abdcb2af7e14acdb068c36271687c"
+    },
+    "adonisjs-testing": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "84f45f9b8460e2d7a19bd3dd2d8afe58de55b93cd0bc23dac11d31ec73f28156"
+    },
+    "adonisjs-tuyau": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8c6329839d25a0528f163fdee1e988187acaf63c0dcf9d8542c3fe1e3029516c"
+    },
+    "tanstack-query": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "55fa4e248b6d0696491643ee5a89621cc242dadc055ba29dc260d742934f11dd"
+    },
+    "tanstack-start-auth": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "69f1da9a3ce5e3bb33171ba464ee605ff25421fd2f7c949d285a488ff722e7bf"
+    },
+    "tanstack-start-better-auth": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "e0b8b1d115492058eb253cdfb48b1cd82e4b08ab4e40a4ed68f2d9ae4bc57e19"
+    },
+    "tanstack-start-bootstrap": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "30a935900aafa5aac0f436c4ed2bb9420fa963914d86cdde8798b91553b4ad2d"
+    },
+    "tanstack-start-clerk": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4f9479e439e5fccf317773b06b5a35c131bc9a3e2b60f73894c27ad4d964af7f"
+    },
+    "tanstack-start-database": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "85801b7f6342e1c6de42c0fd0d04895279b809da352c8fa529fda8ddcb63977c"
+    },
+    "tanstack-start-deployment-recipes": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "76e05c4e9a358f98a6e3a49e19af3afc0b05eb1c449778c37b847928e91f9dcf"
+    },
+    "tanstack-start-drizzle": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ced261f475ca9a462ee57e0a9cc580055a889243873c31aee14c30e418c90ba6"
+    },
+    "tanstack-start-file-uploads": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d29b70452021334b1335d3672282d2aa081e5785aebc1836f8925ba4f813d1b3"
+    },
+    "tanstack-start-hosting": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "f17473c4e469ffe04f40a4733e4c8fe18785d8c462d0509e5653c0e2bf2d816c"
+    },
+    "tanstack-start-middleware": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "bd80c84ead7f752f8025bf8163b9c9c796e65067eeb9e6c0927c0dc088ed61d1"
+    },
+    "tanstack-start-prisma": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "5ae9fec5888a5bc8a170ea38e4258d45cba3456ae33afb445a19287e3c4362e4"
+    },
+    "tanstack-start-public-private-route-trees": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ac48bfd57b58d36ce1ee906b12c0a9c8eb2237ead60e9cd99298098af7410add"
+    },
+    "tanstack-start-query-invalidation": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "63d936a1df48b5025abf371b2ace166547083d65acc14767eb51533d1485f9aa"
+    },
+    "tanstack-start-resource-ownership": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "dc3ceb18d7574a44656ab2cd6106bf2448b682f295a65163ed15b3a44c6592e1"
+    },
+    "tanstack-start-route-patterns": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "1240d8085715375a5419928b7e75b67ceb173b412e58b075e02063b6670d8077"
+    },
+    "tanstack-start-seo": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9637e5f41e72c5cd82ca114ce333386a0b3e84036b74ceffa123da2339f074a4"
+    },
+    "tanstack-start-server-functions": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "816de131fc451096a411b16ff9578330ebdffcf5b984242f1879bca77831ee9d"
+    },
+    "tanstack-start-teams-and-orgs": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d9fddd3ec6bab97bd6bbf0aaf8a873c82d9d6fe0b6beb03ddd37824e2585ee14"
+    },
+    "composition-patterns": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
+    },
+    "react-best-practices": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+    },
+    "react-view-transitions": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ad6fc4f349bd4d9afd770af7f9ac86f4586eab7f1a2b6bc56e26d55a2bc9650a"
+    },
+    "web-design-guidelines": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    },
+    "tanstack-start-suite": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8407d5f39609f67028bf577aa040b23b300a407759827732b14cef027909dc9d"
     }
   }
 }

@@ -40,7 +40,8 @@ async function files(dir, base = dir) {
 
 async function hashSkill(name, source = "pi") {
   const hash = createHash("sha256");
-  for (const file of await files(join(repoDir, source, "skills", name))) {
+  const sourceRoot = source === "pi" ? join(repoDir, "pi") : join(repoDir, "vendor", source);
+  for (const file of await files(join(sourceRoot, "skills", name))) {
     hash.update(file.path);
     hash.update(file.content);
   }
