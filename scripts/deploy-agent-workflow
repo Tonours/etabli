@@ -477,6 +477,8 @@ deploy_claude() {
   local stale_command
   local agent_file
   local agent_name
+  local script_entry
+  local script_name
 
   status_line SECTION "Claude"
 
@@ -539,6 +541,12 @@ deploy_claude() {
       [ -f "$agent_file" ] || continue
       agent_name="$(basename "$agent_file")"
       link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name" "Claude agent $agent_name"
+    done
+
+    for script_entry in "$REPO_DIR/claude/scopes/$scope/scripts"/*; do
+      [ -e "$script_entry" ] || [ -L "$script_entry" ] || continue
+      script_name="$(basename "$script_entry")"
+      link_path "$script_entry" "$HOME_DIR/.claude/scripts/$script_name" "Claude script $script_name"
     done
   done
 

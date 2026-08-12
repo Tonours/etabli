@@ -112,6 +112,13 @@ assert_link "$TMP_HOME/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_not_exists "$TMP_HOME/.claude/skills/grill-me"
+assert_not_exists "$TMP_HOME/.claude/scripts/claude-bin.sh"
+
+mkdir -p "$TMP_HOME/.claude/scripts"
+ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/scripts/claude-bin.sh"
+ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
+assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
+assert_link "$TMP_HOME/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
 
 mkdir -p "$TMP_HOME/.pi/extensions"
 printf 'legacy extension\n' > "$TMP_HOME/.pi/extensions/legacy.txt"
