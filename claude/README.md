@@ -41,6 +41,10 @@ means `shared` alone, which is the safe default: a new machine never receives
 another context's surfaces by accident. An unrecognised value fails the deploy
 with exit 2 rather than deploying a partial surface.
 
+The same active scope gates vendored skills linked into Pi, Claude, and Codex.
+Grok receives only catalog entries explicitly marked `agents_visible` through
+`~/.agents/skills`; personal vendor directories are never copied there.
+
 `scripts/` holds the local cron routines (`routines/`, `sessions-report*`) and
 `claude-bin.sh`, which resolves the `claude` binary for non-interactive
 contexts where no shell profile is loaded. Their launchd plists stay outside

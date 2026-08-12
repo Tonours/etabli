@@ -1,7 +1,8 @@
 # Etabli
 
 Personal source of truth for an **agentic development harness** and matching
-dotfiles: **Pi**, **Claude Code**, **Neovim**, **Ghostty**, **tmux**, and **Herdr**.
+dotfiles: **Pi**, **Claude Code**, managed **Codex** skills, the shared **Grok**
+surface, **Neovim**, **Ghostty**, **tmux**, and **Herdr**.
 
 Etabli keeps a shared workflow contract explicit (`workflow/`), deploys adapters
 conservatively, and treats validation claims as proportional to evidence.
@@ -10,7 +11,8 @@ conservatively, and treats validation claims as proportional to evidence.
 
 - A **workflow contract** agents apply ambiently when a project has
   `workflow/spec.md` (routes, PLAN.md, guards, loops).
-- **Thin adapters** for Pi (`pi/`) and Claude (`claude/`) over that contract.
+- **Thin adapters** for Pi (`pi/`) and Claude (`claude/`), plus catalog-driven
+  skill links for Codex and Grok's `~/.agents` discovery surface.
 - **Editor/terminal** configs: Neovim as a code-first minimal IDE (Catppuccin
   Mocha, aligned with Ghostty/tmux/Herdr), not an agent or review cockpit.
 - **Installers and checks** under `scripts/` and `tests/`.
@@ -21,7 +23,7 @@ conservatively, and treats validation claims as proportional to evidence.
 - Not an in-Neovim agent dashboard or Hunk review inbox (product diff review,
   if used, is an **optional external** CLI such as `hunkdiff`, not an nvim
   subsystem).
-- Not a multi-harness Codex/Kimi Code tree in-repo (removed; see ADR-0011).
+- Not a full Codex/Grok/Kimi harness tree in-repo (removed; see ADR-0011).
   `openai-codex/*` names are **model providers**, not a tracked harness layout.
 
 ## Quick start
@@ -124,9 +126,12 @@ deploy-workflow . --check
 ```
 
 Use `--apply` only when the local deployment mutation is intended.
-`deploy-agent-workflow` aligns Claude, Pi, and shared `~/.agents` surfaces and
-conservatively syncs **managed Pi package/model entries**. `scaffold-project`
-never overwrites existing files by default.
+`deploy-agent-workflow` aligns Claude, Pi, the skill-only Codex surface, and
+Grok's shared `~/.agents` surface. It activates `shared` plus the machine scope
+from `~/.etabli-scope` (`work` on the current workstation), and conservatively
+syncs **managed Pi package/model entries**. Runtime auth, MCP configuration,
+plugins, histories, and private settings stay local. `scaffold-project` never
+overwrites existing files by default.
 
 `pi/agent/settings.json` is a tracked bootstrap; the live copy can stay local.
 Secrets and authentication files stay local and untracked (`SECURITY.md`).
