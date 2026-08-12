@@ -16,7 +16,7 @@ raise "Claude agents must be exactly #{expected_agents.join(", ")}; got #{names.
 allowed_keys = %w[name description model effort color tools permissionMode maxTurns hooks]
 allowed_models = %w[sonnet opus haiku fable inherit]
 allowed_efforts = %w[low medium high xhigh max]
-allowed_tools = %w[Read Grep Glob Bash Edit Write TodoWrite]
+allowed_tools = %w[Read Grep Glob Bash Edit Write TodoWrite Skill]
 read_only_agents = %w[reviewer scout]
 lenses = [
   "Precedence",
@@ -72,7 +72,7 @@ paths.each do |path|
   end
 
   if read_only_agents.include?(name)
-    expected_tools = %w[Bash Glob Grep Read]
+    expected_tools = %w[Bash Glob Grep Read Skill]
     unless tools.map(&:to_s).sort == expected_tools
       raise "#{path}: read-only tools must be exactly #{expected_tools.join(", ")}."
     end
@@ -110,8 +110,10 @@ paths.each do |path|
 end
 
 install_main = File.read(File.join(root, "scripts/lib/install-main.sh"))
-unless install_main.include?('"$REPO_DIR/claude/scopes/shared/agents"/*.md') && install_main.include?("~/.claude/agents")
-  raise "primary installer omits Claude agents. Remediation: link claude/scopes/shared/agents/*.md into ~/.claude/agents/."
+unless install_main.include?("for scope in $ETABLI_ACTIVE_SCOPES") &&
+       install_main.include?('claude/scopes/$scope/agents') &&
+       install_main.include?('ln -sf "$agent_file" ~/.claude/agents/"$agent_name"')
+  raise "primary installer omits scoped Claude agents. Remediation: link active claude/scopes/<scope>/agents/*.md into ~/.claude/agents/."
 end
 unless install_main.include?("prune_stale_managed_claude_agent_links")
   raise "primary installer does not prune stale Etabli-managed Claude agent links."
