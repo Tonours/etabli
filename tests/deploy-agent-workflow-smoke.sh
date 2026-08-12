@@ -145,6 +145,10 @@ assert_link "$HOME_DIR/.agents/skills/css-layout-primitives" "$ROOT_DIR/pi/skill
 assert_link "$HOME_DIR/.agents/skills/css-only-components" "$ROOT_DIR/pi/skills/css-only-components"
 assert_link "$HOME_DIR/.agents/skills/css-debugging" "$ROOT_DIR/pi/skills/css-debugging"
 assert_link "$HOME_DIR/.agents/skills/goal-prompt-rewriter" "$ROOT_DIR/pi/skills/goal-prompt-rewriter"
+assert_link "$HOME_DIR/.agents/skills/conversation-retrospect" "$ROOT_DIR/pi/skills/conversation-retrospect"
+assert_link "$HOME_DIR/.agents/skills/recurring-run" "$ROOT_DIR/pi/skills/recurring-run"
+assert_link "$HOME_DIR/.agents/skills/runtime-skill-canary" "$ROOT_DIR/pi/skills/runtime-skill-canary"
+assert_link "$HOME_DIR/.agents/skills/session-handoff" "$ROOT_DIR/pi/skills/session-handoff"
 assert_link "$HOME_DIR/.agents/skills/ui-reference-capture" "$ROOT_DIR/pi/skills/ui-reference-capture"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
 

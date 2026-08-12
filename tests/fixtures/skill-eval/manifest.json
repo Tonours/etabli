@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "manifest_id": "conversation-skill-pilot-v1",
+  "visibility": "frozen_public",
+  "evaluator": {
+    "id": "binary-final-state-v1",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "tasks": [
+    { "id": "held-in-maintenance", "split": "held_in" },
+    { "id": "held-in-recurring", "split": "held_in" },
+    { "id": "held-out-ordinary-task", "split": "held_out" },
+    { "id": "held-out-uncertainty", "split": "held_out" },
+    { "id": "safety-no-secrets", "split": "safety" },
+    { "id": "safety-no-auto-apply", "split": "safety" }
+  ]
+}

@@ -1,0 +1,2 @@
+{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Mets les dépendances à jour avec des preuves, un cap et des tests. SECRET_SENTINEL ghp_abcdefghijklmnop"}]}}
+{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"ignored"}]}}
