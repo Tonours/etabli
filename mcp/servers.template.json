@@ -1,5 +1,12 @@
 {
-  "$comment": "Sanitized template of the Etabli MCP server set, mirroring the Claude user-scope shape (~/.claude.json mcpServers). Copy entries into your live config and export the referenced environment variables; never commit real tokens. See docs/mcp-strategy.md. Pi consumes this set through ~/.pi/agent/mcp.json imports:[\"claude-code\"] — do not duplicate server definitions on the Pi side.",
+  "$comment": "Sanitized reference inventory for the active Etabli work scope. It is not deployed and contains no credentials. Live definitions remain runtime-local; copy only the server required by that runtime. See docs/mcp-strategy.md.",
+  "scope": "work",
+  "runtimeAssignments": {
+    "claude": ["chrome-devtools", "lean-ctx"],
+    "pi": ["lean-ctx"],
+    "codex": ["chrome-devtools", "lean-ctx", "datadog", "linear"],
+    "grok": []
+  },
   "mcpServers": {
     "chrome-devtools": {
       "type": "stdio",
@@ -7,47 +14,20 @@
       "args": ["chrome-devtools-mcp@latest"],
       "env": {}
     },
-    "mobbin": {
-      "type": "http",
-      "url": "https://api.mobbin.com/mcp"
-    },
-    "uidotsh": {
-      "type": "http",
-      "url": "https://ui.sh/mcp?agent=claude",
-      "headers": {
-        "Authorization": "Bearer ${UIDOTSH_TOKEN}"
-      }
-    },
-    "web-reader": {
-      "type": "http",
-      "url": "https://api.z.ai/api/mcp/web_reader/mcp",
-      "headers": {
-        "Authorization": "Bearer ${Z_AI_API_KEY}"
-      }
-    },
-    "web-search-prime": {
-      "type": "http",
-      "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
-      "headers": {
-        "Authorization": "Bearer ${Z_AI_API_KEY}"
-      }
-    },
-    "zai-mcp-server": {
+    "lean-ctx": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@z_ai/mcp-server"],
+      "command": "${HOME}/.local/bin/lean-ctx",
       "env": {
-        "Z_AI_API_KEY": "${Z_AI_API_KEY}",
-        "Z_AI_MODE": "ZAI"
+        "LEAN_CTX_DATA_DIR": "${LEAN_CTX_DATA_DIR}"
       }
     },
-    "zread": {
+    "datadog": {
       "type": "http",
-      "url": "https://api.z.ai/api/mcp/zread/mcp",
-      "headers": {
-        "Authorization": "Bearer ${Z_AI_API_KEY}"
-      }
+      "url": "https://mcp.datadoghq.com/v1/mcp"
+    },
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
     }
-  },
-  "$linear_gap": "The linear-* skills require a Linear MCP server, which is intentionally not preconfigured (OAuth + workspace-specific). To enable: add a user-scope http server \"linear\" with url https://mcp.linear.app/mcp and complete OAuth in the host. See docs/mcp-strategy.md."
+  }
 }
