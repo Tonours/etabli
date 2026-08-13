@@ -390,6 +390,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "90472adcb60f8f2a58d327d2df53d36a0eed8b90f7c279c11b99fe7254b4e22f"
+    },
+    "show-me": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "258c662730a2898dd42ae5dd1cdb80de373d37bc43167c6035c2241a56d299d3"
     }
   }
 }
