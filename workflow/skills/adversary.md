@@ -1,15 +1,16 @@
-# Adversary Plan Review Contract
+# Adversary Review Contract
 
-Shared contract for adversarial review of the active root `PLAN.md`.
+Shared contract for adversarial review of the active root `PLAN.md` and of
+implementation diffs (code-diff mode).
 
 Runtime adapters may add tool syntax or source-resolution details. They must not
 change the review gate.
 
 ## Purpose
 
-Stress-test an implementation-bound plan before editing. The adversary pass
-catches blockers, weak assumptions, missing checks, edge cases, plan drift, and
-simpler or safer routes.
+Stress-test an implementation-bound plan before editing, and the implementation
+diff after review. The adversary pass catches blockers, weak assumptions, missing
+checks, edge cases, plan drift, and simpler or safer routes.
 
 ## Required Behavior
 
