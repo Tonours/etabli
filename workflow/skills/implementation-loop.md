@@ -52,25 +52,30 @@ details in the adapters; keep the phase order and completion evidence here.
     unavailable). Fix mechanical convention findings; report behavioral ones.
     Re-run focused checks if the pass edited anything. Skip only for pure docs
     or plan-only changes, and say so.
-13. Review the diff against `PLAN.md`. In an autonomous run, this review comes
-    from a fresh context (subagent reviewer or cross-model) per
-    `workflow/spec.md`. If a read-only fresh-context runner is available and
-    the canonical adaptive profile applies or the user explicitly authorized
-    subagents/delegation/reviewers, spawn exactly one read-only reviewer, record the agent
-    id and verdict, and continue from its result. Without an eligible
-    profile, runner, or authorization, stop as `blocked` requesting review.
-13b. In an autonomous run, follow with the adversary Code diff mode
-    (`workflow/skills/adversary.md`): cross-model, read-only, on the
-    implementation diff; fold accepted findings and re-run checks.
+13. Review the diff against `PLAN.md` in **two passes** per
+    `workflow/skills/review.md` and `workflow/review-rubric.md`:
+    (1) Break-first without PLAN — lens + deciding-code tables mandatory;
+    (2) Plan-fit with PLAN. In an autonomous run, pass 1 comes from a fresh
+    context (subagent reviewer or cross-model) per `workflow/spec.md`. Record
+    `reviewer_model` and whether deciding-code rows were complete. A `GO` with
+    empty runtime deciding-code is invalid — treat as `blocked` / re-review.
+    Without an eligible runner or authorization when required, stop as
+    `blocked` requesting review.
+13b. Code-diff adversary per `workflow/skills/adversary.md`: **cross-model
+    default**; only acceptable substitute is documented double-sample
+    same-family. Single same-family pass → `blocked` (full autonomy policy).
+    Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
+    **High** findings: accept/reject via cross-model (or second sample), not the
+    implementer alone. Fold accepted findings and re-run checks.
 14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
     using `workflow/plan-archive.md`; distill it as memory, do not raw-copy
     `PLAN.md`.
 15. After archive and validation succeed, delete only the current workspace root
     `PLAN.md`.
 16. If archiving is skipped or fails, keep `PLAN.md` and report why.
-17. Return files changed, adversary result, validation, review result, risks,
-    archive path, deleted `PLAN.md` status, remaining risks, next action if any,
-    and final status.
+17. Return files changed, adversary result, validation, review result
+    (including deciding-code completeness), risks, archive path, deleted
+    `PLAN.md` status, remaining risks, next action if any, and final status.
 18. Before any separately authorized push, run the complete relevant
     `scripts/verify-agentic-infra` group on the final diff. A red group blocks
     push even when focused checks passed.
@@ -81,14 +86,15 @@ Autonomous implementation loops are complete only when the final state contains
 evidence for all of:
 
 - adversary plan review;
-- adversary code-diff review in autonomous runs;
+- adversary code-diff review with named model (or documented double-sample);
 - focused validation;
 - product dogfood scenario evidence when required by the plan;
 - quality pass result (or explicit skip for docs/plan-only);
+- break-first + plan-fit review with complete deciding-code table for runtime diffs;
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
-- diff/code review;
 - implemented-plan archive under `docs/plan/`;
 - root `PLAN.md` cleanup after successful archive and validation.
+
 ## Autonomous evidence
 
 Autonomous `plan-implement` runs must append `.workflow/<slug>/events.jsonl` and pass `scripts/workflow-event validate --profile autonomous-completed` before claiming completion.
