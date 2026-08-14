@@ -4,8 +4,7 @@ description: >-
   Rédaction ou réécriture de documents et messages internes dans le ton direct
   d'Anthony : tutoiement, concret, zéro chichi, structuré et lisible par un
   collègue. Use when the user explicitly asks "écris ça avec mon ton", "réécris
-  dans mon style", or invokes /write-direct. Do not use for commits, PR
-  templates, code, or code comments.
+  dans mon style", or invokes /write-direct.
 ---
 
 # write-direct — ton direct pour docs et messages internes
