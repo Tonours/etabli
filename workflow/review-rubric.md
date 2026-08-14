@@ -2,6 +2,18 @@
 
 Run a production-minded review.
 
+## Two passes
+
+When both correctness and plan fit matter (implementation-loop, ship):
+
+1. **Break-first** — do **not** open `PLAN.md`. Hunt what breaks, lies, or fails
+   to round-trip. Fill the lens table and deciding-code table.
+2. **Plan-fit** — only after pass 1. Compare diff + pass-1 findings to `PLAN.md`
+   (scope, checks, drift). Do not re-hunt bugs freely.
+
+A solo `/review` request may combine both when the user did not ask for
+plan-fit; still fill deciding-code for runtime behaviors.
+
 ## Review stack
 
 ### 1. Self-check
@@ -9,7 +21,7 @@ Run a production-minded review.
 - verify focused validation actually ran
 - flag obviously incomplete or partial states
 
-### 2. Plan compliance review
+### 2. Plan compliance review (Plan-fit pass only)
 - compare the target diff against `PLAN.md` when present
 - check scope, non-goals, invariants, done criteria, and changed-file alignment
 - flag complexity drift or unplanned surface area
@@ -24,6 +36,11 @@ verdict, open what decides it:
 - sibling implementations: the other routes, fields, or switch cases
 - the tests pinning current behavior
 - files historically changed alongside these (`git log --oneline -20 -- <path>`)
+
+**Retrieval heuristic (runtime behaviors):**
+- multi-source value → open the **resolver**
+- status / error path → open **mapper + middleware / guard**
+- documented field → cross **prose + schema + runtime producer**
 
 Stop when further reading stops changing your mind. Piling on context past that
 point measurably lowers accuracy.
@@ -54,19 +71,10 @@ Load the domain skill that owns the changed surface (`suite-router` →
 dedicated quality pass). Compare the diff to **sibling implementations in this
 repo**, not to abstract industry taste.
 
-Check:
-- local conventions (naming, module boundaries, error handling, test shape)
-- established patterns the sibling files already use
-- stack practice skills only where they name a concrete rule the diff violates
-
 Evidence bar for a convention finding:
 - changed `file:line` in the target diff
 - sibling pattern `file:line` (or named skill rule when no sibling exists)
 - impact on correctness, operability, or maintenance — not preference
-
-Discard pure style opinions, formatter-owned nits, and “best practice” claims
-with no local anchor. This section informs the verdict; it never overrides a
-concrete correctness finding from sections 1–4.
 
 ### 6. Refute before reporting
 For each candidate, argue the opposite and try to make it stick. What would have to
@@ -85,11 +93,39 @@ findings you have.
 - explicitly say when a human should arbitrate
 - use this for accepted risk, ambiguous tradeoffs, rollback/replan decisions, or broad-impact changes
 
+## Mandatory output tables
+
+### Lens table
+Every row mandatory. A lens without a concrete opened `file:line` is `not run`,
+never a pass.
+
+| Lens | Checked (file:line) | Found |
+| --- | --- | --- |
+| Precedence | | |
+| Degraded modes | | |
+| Impossible states | | |
+| Prose vs machine-readable | | |
+| Exhaustive reachability | | |
+| Asymmetry | | |
+| Boundary drift | | |
+| Convention & pattern fit | | |
+
+### Deciding-code table
+One row per **runtime behavior** touched by the diff (API, auth, mapping,
+config, precedence, error path). Docs-only or pure rename rows may be omitted
+with an explicit `n/a — no runtime behavior`.
+
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+| --- | --- | --- | --- |
+
+A non-trivial runtime row with empty deciding code or `not run` **blocks
+`Verdict: GO`**. `GO WITH NOTES` is not a workaround for unopened deciding code.
+
 ## Inputs
 - `git status --short`
 - `git diff --stat`
 - full diff for the target scope
-- `PLAN.md` when present
+- `PLAN.md` when present (Plan-fit pass only for compliance)
 
 ## Evidence rules
 - Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.
@@ -128,6 +164,9 @@ End with a final line in this exact shape:
 - `Verdict: GO`
 - `Verdict: GO WITH NOTES`
 - `Verdict: BLOCK`
+
+**GO** requires: every runtime deciding-code row filled with a real `file:line`
+(or explicit `n/a — no runtime behavior` for the whole diff).
 
 ## Rules
 - Be direct.
