@@ -31,8 +31,8 @@ ui-reference-capture	pi	0	1	1
 maintainer-orchestrator	pi	0	0	0
 react-doctor-100	pi	0	1	1	1
 show-me	pi	0	1	1	1
-suite-router	pi	0	1	0	1
-design-suite	pi	0	1	0	1
+suite-router	pi	1	1	0	1
+design-suite	pi	1	1	0	1
 node	mcollina-skills	0	0	1
 nodejs-core	mcollina-skills	0	0	1
 typescript-magician	mcollina-skills	0	0	1
