@@ -52,6 +52,7 @@ Read `references/react-doctor-cli.md` when flags or output shape are unclear.
 example v22.12.0) fails the **install** with `EBADENGINE`; the binary itself
 still runs once installed. The script auto-selects a supported interpreter,
 preferring the current `node` and otherwise scanning `~/.nvm/versions/node/`
+and `$ASDF_DATA_DIR/installs/nodejs` (default `~/.asdf`) newest-first
 newest-first. If none qualifies it stops with an explicit message instead of
 producing an empty report.
 
