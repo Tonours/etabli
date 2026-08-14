@@ -76,6 +76,16 @@ One writer at any instant (**protocol**, not an OS lock): the parent, or one
 
 Full table: `workflow/spec.md` § Routing rules.
 
+## Review effectiveness
+
+- Break-first then plan-fit; **deciding-code table** mandatory for runtime diffs.
+- `GO` forbidden if deciding-code is empty/`not run` on a runtime row.
+- Code-diff adversary: **cross-model** or documented **double-sample**; single
+  same-family pass → `blocked` (full autonomy).
+- High adversary findings: cross-model arbitration, not implementer alone.
+- Escaped defect post-GO → `workflow/templates/escaped-defect.md` (obvault if
+  personal, brain if work) + bucket before treating the miss as done.
+
 ## ops-stop (HITL)
 
 `rm -rf`, force-push, deploy, prod, billing, secrets, broad irreversible,

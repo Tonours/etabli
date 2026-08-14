@@ -62,16 +62,19 @@ One anecdote is not evidence for changing an invariant. A repeated pattern is.
 
 ### 1. Record the miss
 
-For each escaped defect, keep the run evidence local first. If it is a reusable
-stack mechanic, consult `workflow/skills/obvault-memory.md` and prepare only a
-bounded shadow candidate after validation; never write raw review traces into the
-vault:
+For each escaped defect, fill `workflow/templates/escaped-defect.md` before or
+with the fix. Storage: **personal stack → obvault** (bounded shadow only);
+**work stack → brain**. Reusable cases also append
+`workflow/self-improvement/reviewer-eval-corpus.md`.
+
+Required fields (see template):
 
 - the diff and commit the reviewer passed
 - the defect, sourced `file:line`
 - **what the reviewer would have had to do to find it**: which file it had to open,
   which lens would have surfaced it, which retrieval step was skipped
 - whether an existing lens covered it and was not run, or no lens covered it
+- bucket + action
 
 That third item is the whole point. "Missed a precedence bug" is actionable.
 "Missed a bug" is not.
@@ -83,7 +86,7 @@ Every miss lands in exactly one bucket, and the bucket decides the response:
 | Bucket | Meaning | Response |
 | --- | --- | --- |
 | `lens_existed_not_run` | A lens covered it; the agent skipped it | Tighten the output contract so skipping is visible. No new lens. |
-| `retrieval_gap` | The deciding code was never opened | Strengthen Phase 1 retrieval for that shape of change. |
+| `retrieval_gap` | The deciding code was never opened | Strengthen deciding-code / retrieval heuristic for that shape. |
 | `lens_missing` | No lens asks this question | Candidate for a new lens. See the budget below. |
 | `evidence_bar` | Found it, discarded it as unprovable | Check the bar is calibrated, not that it is too high. |
 | `out_of_scope` | Not the reviewer's job (product decision, taste) | `no_op`. Record so it is not re-litigated. |
@@ -133,7 +136,7 @@ Each candidate ends as exactly one of:
 
 - `no_op` — weak, isolated, stale, out of scope, or already covered
 - `eval_case` — added to the corpus, no prompt change
-- `retrieval_change` — Phase 1 gains a specific thing to open
+- `retrieval_change` — deciding-code / Phase 1 gains a specific thing to open
 - `lens_change` — a lens added, merged, or reworded, within budget
 - `contract_change` — the output contract changes so a skipped step becomes visible
 - `rejected` — tried, regressed held-out, logged with evidence

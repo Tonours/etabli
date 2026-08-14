@@ -18,37 +18,45 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    there, which is what keeps concurrent ship runs from sharing one plan.
 3. Run the full autonomous chain from
    `workflow/skills/implementation-loop.md`: understand, plan-loop, plan
-   adversary, implement with tests, plan checks, simplification pass,
-   fresh-context review, code-diff adversary, archive, root `PLAN.md`
-   cleanup.
+   adversary, implement with tests, plan checks, simplification pass, quality
+   pass, break-first + plan-fit review, code-diff adversary, archive, root
+   `PLAN.md` cleanup.
    During implementation, make a checkpoint commit on the ship branch after
    each coherent slice whose focused checks pass — never staging `PLAN*.md`.
    Checkpoints are revert points on a squash-mergeable branch, not release
    history.
-4. Pre-commit pass on the cumulative branch diff, which the loop's per-slice
+4. **Cumulative review gate:** before push, ensure a break-first review ran on
+   `git diff <base>...HEAD` (merge-base with the PR base). Per-slice reviews do
+   not satisfy this. Record `cumulative_review: <base>...HEAD @ <sha>`.
+5. Pre-commit pass on the cumulative branch diff, which the loop's per-slice
    passes never saw as a whole: sweep debug artifacts, leftover checkpoint
    scaffolding, and scope drift across slices; run targeted tests for the
    touched code. Skip only when the branch holds a single slice, and say so.
-5. Final sweep commit per `workflow/git-contract.md` (subject only, no body);
+6. Final sweep commit per `workflow/git-contract.md` (subject only, no body);
    never stage `PLAN*.md`.
-6. Run the complete relevant `scripts/verify-agentic-infra` group on the final
+7. Run the complete relevant `scripts/verify-agentic-infra` group on the final
    diff per `workflow/skills/implementation-loop.md`. A red group blocks the
    push.
-7. Push the feature branch and open a PR. Write the body per
+8. Push the feature branch and open a PR. Write the body per
    `workflow/pr-body-contract.md`: English, the project's template intact,
    placeholders filled, checklists unchecked, no AI attribution. State the
    stack explicitly when the base is not the default branch. Publish the dense
    version, then run that contract's non-ASCII check against the live body.
    The draft is not the evidence, the published body is.
-8. CI: follow the `ci-fix` contract (existing attempt and time caps) until
+9. CI: follow the `ci-fix` contract (existing attempt and time caps) until
    checks are green, blocked, or capped.
-9. If reviewer or bot feedback already exists on the PR when CI settles,
-   report it; treating it is a separate explicit request.
-10. Remove the run's worktree, or report the path and why it was kept, per
+10. After CI-driven commits that touch runtime code: **delta re-review**
+    (break-first on the new diff only). Record `delta_rereview: yes|no|n/a`.
+11. If reviewer or bot feedback already exists on the PR when CI settles,
+    report it; treating it is a separate explicit request. Escaped defects
+    found post-GO follow `workflow/templates/escaped-defect.md`.
+12. Remove the run's worktree, or report the path and why it was kept, per
     `workflow/skills/worktree-isolation.md`.
-11. Report: branch, commits, PR URL, CI state, archive path, worktree cleanup
-    status, remaining risks. When the branch carries checkpoint commits, say
-    the branch is squash-merge-only so its checkpoints never become history.
+13. Report: branch, commits, PR URL, CI state, archive path, worktree cleanup
+    status, `cumulative_review`, `delta_rereview`, `reviewer_model`,
+    `adversary_model` (or `same-family-pass: double-sample`), remaining risks.
+    When the branch carries checkpoint commits, say the branch is
+    squash-merge-only so its checkpoints never become history.
 
 ## Test Evidence
 
@@ -82,6 +90,8 @@ Re-run once before calling a single failure a flake, and name the mechanism
 - Never push to the default branch.
 - All `workflow/spec.md` autonomous-loop rules apply: mandatory event ledger,
   no-progress stop, check-freeze, explicit cap, fresh-context review.
+- Code-diff adversary: cross-model or documented double-sample only; single
+  same-family pass blocks the ship (full autonomy).
 - Any stop from the implementation loop (CHALLENGED, blocker, no validation
   surface, human checkpoint outside this contract's consented writes) stops
   the whole ship run with a `blocked` event and a handoff.
@@ -90,4 +100,5 @@ Re-run once before calling a single failure a flake, and name the mechanism
 
 A ship run is complete only when the final report names: PR URL, green CI (or
 capped/blocked state), implemented-plan archive path, event ledger location,
-the fresh-context review verdict, and the worktree cleanup status.
+the fresh-context review verdict, `cumulative_review`, `adversary_model` (or
+double-sample), and the worktree cleanup status.
