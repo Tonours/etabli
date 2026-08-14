@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdonisJS Review"
+  short_description: "Review AdonisJS 7 changes for drift and bugs"
+  default_prompt: "Use $adonisjs-review to audit this AdonisJS 7 change for correctness and framework drift."

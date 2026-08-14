@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdonisJS Backend"
+  short_description: "Build idiomatic AdonisJS 7 backend features"
+  default_prompt: "Use $adonisjs-backend to implement this AdonisJS 7 backend change with framework-native patterns."
