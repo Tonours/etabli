@@ -48,7 +48,7 @@ If the request fights AdonisJS conventions, do not comply silently. Propose the 
 - bootstrapping: providers and `adonisrc.ts` hooks
 - background work: events, listeners, commands, and the first-party experimental `@adonisjs/queue` (jobs, worker, scheduler, dedup when retries can double-enqueue)
 - storage: Drive when relevant
-- cache / locks / SSE / health: `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, `@adonisjs/health`
+- cache / locks / SSE / health: `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, and `@adonisjs/core/health` plus integration-specific checks
 - security/integrations: official Adonis packages where relevant (limiter, encryption, open-redirect-safe redirects, intended-URL auth redirects)
 - tests: functional or integration tests first, focused unit tests when justified
 
