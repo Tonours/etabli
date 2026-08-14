@@ -143,7 +143,9 @@ A plan is `READY` when it has:
 A route says what to produce and when to stop; it does not say what the area
 already taught us. Where the runtime exposes skills, select the domain skill for
 the subject alongside the route — they are orthogonal, and the skill is what
-keeps a route from rediscovering known ground. Routers exist per domain
+keeps a route from rediscovering known ground. On `plan-loop`, `plan-implement`,
+and `/ship`, run `suite-router` first to activate `design-suite` (UI/UX, ui.sh)
+and/or `stack-suite` from context. Routers also exist per domain
 (`forest-backend-suite`, `ember-forestadmin-suite`) and per stack (`stack-suite`
 for Node.js, TypeScript, Fastify, OAuth, React/Next.js, web UI); a domain router
 wins over the stack one when the task is about the codebase rather than the

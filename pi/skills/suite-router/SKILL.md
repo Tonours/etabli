@@ -11,33 +11,28 @@ It carries no implementation rules. It only classifies the domain and points at 
 
 ## Detection signals
 
-Score the request from these signals (more than one suite may win):
+Match signals in this priority order (stop at the highest applicable set):
 
-| Signal | Points to |
-|--------|-----------|
-| Keywords: design, UI, UX, page, layout, dark mode, responsive, brand, figma, screenshot, mockup, visual, spacing, typography | `design-suite` |
-| Keywords / paths: React, component, hook, .tsx, RSC, Server Component, TanStack, Next, composition, re-render | `stack-suite` (React rows) + existing `react-doctor-100` |
-| Keywords / paths: API, route, middleware, server, Fastify, Express, Hono, Nest, Prisma, Drizzle, auth backend, worker, Node | `stack-suite` (Node / Fastify / oauth rows) |
-| Full-stack feature (UI + API + data) | Activate both `design-suite` and `stack-suite` |
-| ForestAdmin Ember / Forest backend | Prefer project suites (`ember-forestadmin-suite`, `forest-backend-suite`) over generic ones |
+1. **Project suites** — ForestAdmin Ember / Forest backend / Adonis / TanStack Start tasks → prefer `ember-forestadmin-suite`, `forest-backend-suite`, `adonisjs-suite`, or `tanstack-start-suite` over generic suites.
+2. **Design / UI** — keywords: design, UI, UX, page, layout, dark mode, responsive, brand, figma, screenshot, mockup, visual, spacing, typography; or `DESIGN.md` / design tokens present → `design-suite`.
+3. **React / frontend code** — `.tsx` / React / RSC / Next / TanStack component paths, or keywords tied to implementation (hook, re-render, composition) → `stack-suite` (React rows).
+4. **Node / backend** — API, route, middleware, server, Fastify, Express, Hono, Nest, Prisma, Drizzle, auth backend, worker, Node → `stack-suite` (Node / Fastify / oauth rows).
+5. **Full-stack** (UI + API + data) → activate both `design-suite` and `stack-suite` (design-suite first for visual generation, then stack-suite for implementation constraints).
 
-Also inspect:
-
-- `package.json` dependencies
-- Open / changed files (extensions and directories)
-- Presence of `DESIGN.md` or design tokens → boost design
+Also inspect `package.json` dependencies and open / changed files. Prefer path and dependency evidence over a bare keyword like "component" (which can mean pure CSS).
 
 ## Procedure
 
 1. Read the user brief + `git status --short` + relevant paths.
-2. Score domains.
+2. Match domains with the priority list above.
 3. Announce activated suite(s) in one short line, e.g. `Activated: design-suite + stack-suite (React)`.
-4. Hand control to the suite orchestrator(s). Do not implement yourself.
-5. If scores are ambiguous and the work is risky, ask one narrow clarification; otherwise load the highest-scoring suite(s) and continue.
+4. **Invoke** the matched suite skill(s) via the Skill tool (same model — suites are not subagents). Do not implement yourself.
+5. If matches are ambiguous and the work is risky, ask one narrow clarification; otherwise invoke the highest-priority suite(s) and continue.
 
 ## Rules
 
 - Prefer the narrowest accurate suite.
-- Project-specific suites win over generic ones when the codebase is Forest / Ember / Adonis / TanStack Start.
+- Project-specific suites win over generic ones when the task is about this codebase rather than the language or framework.
 - A suite does not widen scope; `PLAN.md` still decides what gets implemented.
+- Hand React/Node detail routing to `stack-suite` only (it already points at `react-doctor-100`, Fastify, etc.).
 - If nothing fits, say so and proceed without a domain suite rather than forcing a match.
