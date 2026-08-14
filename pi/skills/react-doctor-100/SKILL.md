@@ -30,13 +30,30 @@ Before editing:
 python3 scripts/run_react_doctor.py /path/to/react/repo
 ```
 
-If the script is unavailable, run:
+The script exits `0` only when it produced a real score. Exit `2` means bad
+input or no usable Node; exit `3` means react-doctor ran but no score came
+back, with the reason on stderr. A `score=None` is never a pass.
+
+If the script is unavailable, install the package into a scratch directory and
+call its binary directly — `npx react-doctor@latest` is unreliable on npm 11,
+which rejects the versioned name and swallows unknown flags as npm config:
 
 ```bash
-npx --yes react-doctor@latest --json --full --no-respect-inline-disables --fail-on none .
+cd "$(mktemp -d)" && npm i react-doctor@latest
+./node_modules/.bin/react-doctor /path/to/react/repo \
+  --json --scope full --no-respect-inline-disables --blocking none
 ```
 
 Read `references/react-doctor-cli.md` when flags or output shape are unclear.
+
+### Node prerequisite
+
+`react-doctor@0.9.12` declares `node ^20.19.0 || >=22.13.0`. Older Node (for
+example v22.12.0) fails the **install** with `EBADENGINE`; the binary itself
+still runs once installed. The script auto-selects a supported interpreter,
+preferring the current `node` and otherwise scanning `~/.nvm/versions/node/`
+newest-first. If none qualifies it stops with an explicit message instead of
+producing an empty report.
 
 ## Fix Loop
 
@@ -50,7 +67,12 @@ Repeat until the completion contract is proven:
 6. Rerun react-doctor and compare score/diagnostics against the previous report.
 7. Broaden validation before declaring completion.
 
-Use `npx --yes react-doctor@latest --explain <file:line>` when a diagnostic is unclear.
+When a diagnostic is unclear, use the `why` subcommand (`--explain` was removed
+in 0.9.x):
+
+```bash
+./node_modules/.bin/react-doctor why src/App.tsx:42
+```
 
 ## No Shortcuts
 
@@ -73,7 +95,9 @@ For workspaces:
 
 - If the user names a package/project, scan that target first.
 - If no target is named, run a full scan and let react-doctor detect projects.
-- Use `--project <name>` only after confirming the names from the report or project config.
+- Use `--project <name>` only after confirming the names from the report or
+  project config. It accepts workspace names or directory paths, comma-separated
+  for multiple targets.
 - Do not fix unrelated packages just because they share a workspace.
 
 ## Recommended Goal
@@ -81,7 +105,7 @@ For workspaces:
 Use this when the user asks for a reusable `/goal`:
 
 ```text
-/goal In the current React project, run `npx react-doctor@latest` in full audit mode, capture the baseline score/report, and iteratively fix real root-cause issues until react-doctor reports score 100 and the repo's relevant tests/typecheck/lint/build validations pass. Preserve existing behavior and user changes; do not suppress, hide, downgrade, disable, or remove functionality just to improve the score. After each fix slice, rerun the narrowest useful validation and react-doctor, then choose the next highest-impact diagnostic cluster. If score 100 is impossible because of no React project, tool failure, false positive, missing external dependency, or conflicting requirements, stop with the latest report, attempted fixes, evidence, remaining diagnostics, and the exact blocker.
+/goal In the current React project, run react-doctor in full audit mode (`--scope full`), capture the baseline score/report, and iteratively fix real root-cause issues until react-doctor reports score 100 and the repo's relevant tests/typecheck/lint/build validations pass. Preserve existing behavior and user changes; do not suppress, hide, downgrade, disable, or remove functionality just to improve the score. After each fix slice, rerun the narrowest useful validation and react-doctor, then choose the next highest-impact diagnostic cluster. If score 100 is impossible because of no React project, tool failure, false positive, missing external dependency, or conflicting requirements, stop with the latest report, attempted fixes, evidence, remaining diagnostics, and the exact blocker.
 ```
 
 ## Final Report
