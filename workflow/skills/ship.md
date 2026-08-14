@@ -51,7 +51,10 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     report it; treating it is a separate explicit request. Defects found
     **after** an internal GO (Macroscope, colleague, CI, prod) must be recorded
     with `workflow/templates/escaped-defect.md` before the miss is treated as
-    closed; append a row to `workflow/self-improvement/review-metrics.md`.
+    closed. **Update** the existing metrics row for this PR (`escaped_later`,
+    `buckets`) — do not append a second row. If no row exists yet, create one.
+    Metrics storage follows the stack rule in
+    `workflow/self-improvement/review-metrics.md` (etabli / obvault / brain).
 12. Remove the run's worktree, or report the path and why it was kept, per
     `workflow/skills/worktree-isolation.md`.
 13. Report: branch, commits, PR URL, CI state, archive path, worktree cleanup
@@ -60,9 +63,10 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     `deciding_code: complete|incomplete|n/a`, `escaped_defects_recorded: 0|<n>`,
     remaining risks. When the branch carries checkpoint commits, say the branch
     is squash-merge-only so its checkpoints never become history.
-14. Append one metrics row to
-    `workflow/self-improvement/review-metrics.md` for this PR (verdict + models
-    + deciding_code; `escaped_later` stays 0 until a later miss).
+14. **Metrics row (one per PR):** if no row exists yet for this PR, append one
+    (verdict + models + deciding_code; `escaped_later` starts at 0). If a row
+    already exists (e.g. from an earlier escape update), leave it — do not
+    duplicate. Storage: see `workflow/self-improvement/review-metrics.md`.
 
 ## Test Evidence
 
@@ -107,4 +111,5 @@ Re-run once before calling a single failure a flake, and name the mechanism
 A ship run is complete only when the final report names: PR URL, green CI (or
 capped/blocked state), implemented-plan archive path, event ledger location,
 the fresh-context review verdict, `cumulative_review`, `adversary_model` (or
-double-sample), `deciding_code`, and the worktree cleanup status.
+double-sample), `deciding_code`, `escaped_defects_recorded`, and the worktree
+cleanup status.

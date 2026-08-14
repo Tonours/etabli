@@ -3,8 +3,8 @@
 Shared contract for reviewing GitHub pull requests through `gh`.
 
 Runtime adapters may add tool syntax or source-resolution details. They must not
-change the read-only default, human-in-the-loop posting rule, finding format, or
-verdict labels.
+change the read-only default, human-in-the-loop posting rule, finding format,
+verdict labels, deciding-code gate, or two-pass order.
 
 ## Purpose
 
@@ -44,11 +44,25 @@ Present title, intent, author, branches, changed files, and perceived scope.
 
 ## Phase 2: Review
 
-Use `workflow/review-rubric.md` when available. Load `suite-router` /
-`code-quality` when the diff touches language, framework, or UI surface so
-convention findings are anchored in project patterns.
+Use `workflow/review-rubric.md` when available. Same gates as
+`workflow/skills/review.md` — the PR surface must not be weaker than local
+review.
 
-Review:
+### Two passes
+
+1. **Break-first** — do not treat the PR body or any plan as the authority for
+   correctness. Hunt what breaks. Fill the lens table and deciding-code table.
+2. **Plan-fit / intent-fit** — only after pass 1. Compare to PR intent (and
+   `PLAN.md` if present on the branch). Scope, checks, drift against pass-1
+   findings. No free second bug-hunt.
+
+### Domain practice
+
+Load `suite-router` / `code-quality` when the diff touches language, framework,
+or UI surface so convention findings are anchored in project patterns (rubric
+§ Convention & pattern fit).
+
+### What to cover
 
 - intent fit;
 - correctness;
@@ -57,8 +71,7 @@ Review:
 - performance;
 - security/privacy;
 - tests and validation;
-- architecture/pattern fit against sibling implementations (rubric § Convention
-  & pattern fit).
+- architecture/pattern fit against sibling implementations.
 
 Repository-specific checks:
 
@@ -71,6 +84,8 @@ Repository-specific checks:
   and unclear boundaries.
 - zendesk: strict TypeScript, no `any`, prefer Zendesk Garden components, no
   production `console.log`, sanitize HTML, no frontend API keys.
+
+### Finding format
 
 Report only actionable findings grounded in the diff. Each finding:
 
@@ -86,6 +101,13 @@ suggested_fix:
 
 If no actionable issue exists, output exactly `No findings.` as the only
 finding.
+
+Then the **lens table** and **deciding-code table** from the rubric
+(mandatory). Every lens row needs a concrete opened `file:line` or is
+`not run`. One deciding-code row per runtime behavior touched.
+
+`GO` is forbidden when any non-trivial runtime deciding-code row is empty or
+`not run`. `GO WITH NOTES` is not a workaround for that gate.
 
 End with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`.
 
@@ -130,3 +152,4 @@ findings.
 - Do not checkout, edit, commit, push, or merge.
 - Do not post to GitHub without explicit user approval.
 - Do not approve when tests are unverified unless that risk is explicit.
+- Convention findings need a sibling pattern `file:line` or a named skill rule.
