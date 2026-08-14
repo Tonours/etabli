@@ -3,14 +3,24 @@
 Shared contract for reviewing local changes, branch diffs, or commits.
 
 Runtime adapters may add tool syntax or source-resolution details. They must not
-change the read-only default, finding format, plan-compliance check, or verdict
-labels.
+change the read-only default, finding format, plan-compliance check, verdict
+labels, deciding-code gate, or two-pass order.
 
 ## Purpose
 
 Review changes for correctness, regressions, risks, validation gaps, convention
 or pattern drift, and plan drift. Use `workflow/review-rubric.md` as the source
 of truth when available.
+
+## Two passes
+
+1. **Break-first** — do not open `PLAN.md`. Fill lens table + deciding-code
+   table. Hunt what breaks.
+2. **Plan-fit** — open `PLAN.md` only after pass 1. Scope, checks, drift against
+   pass-1 findings. No free second bug-hunt.
+
+Solo review without an active plan may run a single combined pass; deciding-code
+still applies to runtime behaviors.
 
 ## Target Resolution
 
@@ -23,8 +33,7 @@ of truth when available.
    - `commit <sha>`: review `git show <sha>`.
 3. Read the shared rubric from `workflow/review-rubric.md`, or the harness
    fallback rubric only outside a workflow-scaffolded project.
-4. Read `PLAN.md` when present and use it for plan-compliance review.
-5. When the diff touches language, framework, or UI surface, load the matching
+4. When the diff touches language, framework, or UI surface, load the matching
    domain skill via `suite-router` / `code-quality` so convention findings are
    anchored in project patterns (see rubric § Convention & pattern fit).
 
@@ -33,12 +42,9 @@ of truth when available.
 Review only the target scope. Cover:
 
 - self-check;
-- plan compliance;
-- correctness;
-- regressions;
-- safety;
-- validation;
-- maintainability;
+- break-first correctness (lenses + deciding-code);
+- plan compliance (plan-fit pass);
+- regressions, safety, validation;
 - convention and pattern fit against sibling implementations;
 - plan drift;
 - human checkpoint trigger when needed.
@@ -63,12 +69,7 @@ review_comment:
 suggested_fix:
 ```
 
-Use `line_range:` instead of `line:` when the inline comment spans multiple
-changed lines. Keep `review_comment:` as one inline-ready GitHub-style review
-thread comment without code fences or tables.
-
-If the diff conflicts with the plan, say so explicitly. Verify every reported
-line or range exists in the supplied diff.
+Then the **lens table** and **deciding-code table** from the rubric (mandatory).
 
 If there are no actionable issues, put exactly `No findings.` as the only
 finding and do not wrap it in severity/file fields.
@@ -78,6 +79,9 @@ End with one final line in this exact shape:
 ```text
 Verdict: GO | GO WITH NOTES | BLOCK
 ```
+
+`GO` is forbidden when any non-trivial runtime deciding-code row is empty or
+`not run`. `GO WITH NOTES` is not a workaround for that gate.
 
 ## Rules
 

@@ -1,11 +1,12 @@
 ---
 name: review
-description: Review changes for correctness, regressions, risks, and plan drift
+description: Review changes for correctness, regressions, risks, plan drift, and convention fit. Break-first then plan-fit; mandatory deciding-code table.
 ---
 
 # Review
 
-Read and follow the shared contract in `workflow/skills/review.md`.
+Read and follow the shared contract in `workflow/skills/review.md` and the
+rubric in `workflow/review-rubric.md`.
 
 ## Source resolution
 
@@ -19,7 +20,14 @@ Resolve the shared contract before acting:
 4. If no copy exists, stop with
    `SHARED_CONTRACT_MISSING: workflow/skills/review.md`.
 
-Rules:
-- Use `workflow/review-rubric.md` when available.
+## Procedure
+
+1. **Break-first** — do not open `PLAN.md`; fill lens + deciding-code tables.
+2. **Plan-fit** — if `PLAN.md` is in play, open it only after pass 1.
+3. Load `suite-router` / `code-quality` when the surface needs domain practice.
+
+## Rules
+
 - Stay read-only unless the user explicitly asks for validation beyond review.
+- `GO` forbidden if a runtime deciding-code row is empty or `not run`.
 - End with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`.
