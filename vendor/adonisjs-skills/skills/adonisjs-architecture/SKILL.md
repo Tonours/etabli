@@ -48,7 +48,7 @@ Do not jump to code first. Decide:
 - events/listeners own reactions
 - commands and the experimental `@adonisjs/queue` scheduler own operational or recurring execution; `@adonisjs/queue` owns background jobs when the project accepts its experimental API surface
 - `@adonisjs/limiter` owns rate limiting on sensitive endpoints
-- `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, and `@adonisjs/health` own caching, mutexes, SSE push, and probes when those concerns appear
+- `@adonisjs/cache`, `@adonisjs/lock`, and `@adonisjs/transmit` own caching, mutexes, and SSE push; `@adonisjs/core/health` plus integration-specific checks own probes
 - Mail, Drive, Auth, Ally, and Bouncer own their native concerns
 
 ## Block when

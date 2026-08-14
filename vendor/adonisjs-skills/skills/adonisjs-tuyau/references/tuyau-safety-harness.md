@@ -1,4 +1,4 @@
-# Tuyau v1.2 safety harness
+# Tuyau 1.x safety harness
 
 Use this before and after any contract change.
 
@@ -9,14 +9,15 @@ A contract is safe only if runtime validation, serialization, and HTTP semantics
 
 ## Required checks
 
-1. Is input validation enforced with Vine?
-2. Are params, query, and body all validated at the boundary?
+1. Is input validation enforced with Vine through `request.validateUsing()` so generated types do not fall back to `any`?
+2. Are query and body validated at the boundary, and do route params have runtime constraints when their semantics require more than route-pattern matching?
 3. Is the response shape intentional rather than incidental?
 4. Could a Lucid model change break the client unexpectedly?
 5. Are hidden fields, computed props, and relations controlled deliberately?
 6. Does the endpoint remain understandable without knowing Tuyau internals?
-7. Are typed error branches handled deliberately when clients depend on them?
-8. Is there at least one contract-sensitive test?
+7. Are typed HTTP, validation, and network error branches handled deliberately when clients depend on them?
+8. Does a TanStack Query adapter own retry and invalidation without duplicating Ky retries or query keys?
+9. Is there at least one contract-sensitive test?
 
 ## Recommended response policy
 
@@ -34,6 +35,8 @@ Prefer transformer-backed responses when:
 - relying on raw model serialization by default,
 - letting inferred client types outrun backend validation,
 - treating `.safe()` or `isStatus()` branches as optional when the UI depends on failure payloads,
+- treating HTTP and network failures as the same recovery path when they are not,
+- duplicating retries or hand-writing TanStack query keys already owned by the Tuyau adapter,
 - spreading contract assumptions into frontend code without tests,
 - using Tuyau to hide weak controller/service boundaries.
 

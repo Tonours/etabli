@@ -1,4 +1,4 @@
-# Contract patterns for AdonisJS 7 + Tuyau v1.2
+# Contract patterns for AdonisJS 7 + Tuyau 1.x
 
 Use this file when designing a typed endpoint contract.
 
@@ -13,7 +13,7 @@ In v7 these layers are wired together by the framework: Vine validates input, th
 
 ## Stable endpoint pattern
 
-- validate params/query/body with Vine
+- validate body/query data with Vine through `request.validateUsing()` so Tuyau can infer the accepted shape; route params remain typed from the route pattern and still need runtime constraints when their semantics demand more than a string
 - keep controller as the route boundary
 - perform persistence through Lucid or domain actions
 - shape the response through a transformer (registered via the `generateRegistry` hook so it reaches the client)

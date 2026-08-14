@@ -44,7 +44,7 @@
 - Are operational flows using commands/scheduler appropriately?
 - Are background jobs run through the first-party experimental `@adonisjs/queue` rather than a hand-rolled worker when the project accepts its API-stability trade-off?
 - Where retries can double-enqueue work, is dispatch-time dedup considered?
-- Are cache/lock/SSE/health needs met with first-party modules before third-party substitutes?
+- Are cache/lock/SSE needs met with first-party modules, and are health probes composed from `@adonisjs/core/health` plus integration checks before custom substitutes?
 - Are events/listeners used as reactions rather than hidden main logic?
 
 ## 7. Config and env

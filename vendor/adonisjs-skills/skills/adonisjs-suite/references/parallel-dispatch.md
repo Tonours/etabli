@@ -1,28 +1,28 @@
-# Parallel dispatch guide
+# Coordination and parallel analysis guide
 
-When dispatching AdonisJS skills as concurrent subagents, use this matrix to decide which pairs can run safely in parallel.
+Use this guide when several AdonisJS specialists or subagents contribute to one task. Parallelism is for independent read-only evidence gathering. Writes to a shared worktree stay sequential under one explicit owner.
 
 ## Labels
 
-- **parallel-safe** — can run at the same time without conflict.
-- **sequential** — one must finish before the other starts.
+- **parallel-read-only** — may inspect independent evidence at the same time and return findings without editing.
+- **sequential** — a decision or write from the first phase feeds the next phase.
 
 ## Concurrency matrix
 
 | Pair | Label | Condition |
 |------|-------|-----------|
-| architecture + backend | sequential | architecture first |
-| architecture + tuyau | sequential | architecture first |
-| architecture + testing | sequential | architecture first |
-| architecture + review | sequential | review judges what architecture recommends |
-| backend + tuyau | parallel-safe | different features only |
-| backend + testing | sequential | testing after implementation |
-| backend + review | sequential | review after implementation |
-| tuyau + testing | sequential | testing after contracts |
-| tuyau + review | sequential | review after contracts |
-| review + testing | sequential | review first |
+| architecture + backend | sequential | architecture decision first |
+| architecture + Tuyau | sequential | architecture decision first |
+| architecture + testing | sequential | test proof follows the chosen design |
+| architecture + review | sequential | review judges the implemented design |
+| backend + Tuyau | sequential | same-feature routes, validators, and controllers overlap |
+| backend + testing | sequential | tests follow the implemented behavior |
+| backend + review | sequential | review follows implementation and focused tests |
+| Tuyau + testing | sequential | tests follow the final contract |
+| Tuyau + review | sequential | review follows the final contract and tests |
+| testing + review | sequential | testing first, then review with evidence |
 
-Any skill dispatched solo is always safe.
+Independent read-only scouts for different modules may use **parallel-read-only**. They must return file/line evidence and may not edit, install, or mutate external state.
 
 ## Write targets per skill
 
@@ -30,28 +30,22 @@ Use this to verify that parallel agents will not modify the same project files.
 
 | Skill | Typical write targets |
 |-------|----------------------|
-| architecture | none (advisory only, may produce a decision record) |
+| architecture | decision record only when requested |
 | backend | routes, controllers, validators, models, migrations, services, providers, config |
-| tuyau | routes, controllers, validators, response types |
+| Tuyau | routes, controllers, validators, registry/client integration, response types |
 | testing | test files, test helpers, factories |
 | review | none (advisory only, produces verdict) |
 
-## When backend + tuyau can run in parallel
+## Different features
 
-Only when working on **different features**. Example:
+Different features may be analyzed concurrently, but their implementation still needs explicit non-overlapping ownership and sequential writes in a shared worktree. If the runtime provides isolated worktrees, follow that runtime's merge and review contract instead of inventing one here.
 
-- Agent A runs `backend` on the `/users` endpoint
-- Agent B runs `tuyau` on the `/invoices` endpoint
+## Synthesis after parallel analysis
 
-If both agents touch the **same route, controller, or validator**, dispatch them sequentially — backend first, then tuyau.
-
-## Merge strategy for parallel results
-
-When two agents complete in parallel:
-
-1. Check for file conflicts (same file modified by both agents).
-2. If no conflicts, merge both outputs.
-3. If conflicts exist, prefer the agent whose skill owns the primary concern for that file, then reconcile manually.
+1. Verify each finding against the current worktree.
+2. Resolve disagreements before assigning a writer.
+3. Select one owner for the next write.
+4. Re-read the resulting diff before the next phase.
 
 ## Default workflow (sequential)
 
@@ -61,4 +55,4 @@ For a single feature flowing through the full suite:
 architecture → backend or tuyau → testing → review
 ```
 
-Parallel dispatch is most valuable when working on **multiple independent features** simultaneously.
+This order is the default for one feature. Do not reverse testing and review: the reviewer needs the focused test evidence.
