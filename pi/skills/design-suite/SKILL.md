@@ -9,10 +9,15 @@ Orchestrator for design taste + implementation.
 **ui.sh** (Adam Wathan / Steve Schoger) supplies the senior-designer layer.  
 Existing etabli skills supply CSS primitives, motion, and visual validation.
 
-Prerequisite: user has a ui.sh subscription and has run  
-`npx @uidotsh/install --token=...` (or skill-by-skill) so the ui.sh skills are available in the agent environment.
+Prerequisite: the ui.sh skills (design, ideas, brand-kit, componentize,
+canonicalize-tailwind, add-dark-mode, dark-mode-image, make-responsive,
+markup-from-image) are vendored in this repo under `pi/skills/` and linked onto
+the agent surfaces — no install step is needed at run time. To refresh them
+from upstream, a maintainer re-runs `npx @uidotsh/install` and commits the
+diff.
 
-**If ui.sh skills are missing:** announce the gap, fall through to `frontend-css-ui-ux` (+ `css-layout-primitives` / `css-only-components` / captures) only, and do not invent ui.sh steps.
+**If those skills are absent from the current environment** (not linked):
+announce the gap, fall through to `frontend-css-ui-ux` (+ `css-layout-primitives` / `css-only-components` / captures) only, and do not invent ui.sh steps.
 
 ## Modes
 
