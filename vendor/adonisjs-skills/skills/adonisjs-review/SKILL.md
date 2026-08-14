@@ -43,7 +43,7 @@ Answer:
 - auth/authorization: official path usage, guard consistency, explicit checks
 - mail/providers/events/commands: correct primitive, no hidden business flow
 - config/env: no scattered `process.env` in app code
-- testing: critical behavior covered without brittle implementation assertions
+- testing: the right Japa boundary (API, browser, console, or focused unit) covers critical behavior without brittle implementation assertions
 
 ## Likely blockers
 

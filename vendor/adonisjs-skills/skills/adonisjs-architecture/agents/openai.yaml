@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdonisJS Architecture"
+  short_description: "Design idiomatic AdonisJS 7 architecture"
+  default_prompt: "Use $adonisjs-architecture to choose the smallest idiomatic structure for this AdonisJS 7 change."

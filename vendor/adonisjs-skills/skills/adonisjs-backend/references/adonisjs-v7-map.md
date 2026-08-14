@@ -8,12 +8,12 @@ AdonisJS aims to be a batteries-included backend framework, closer to Laravel-st
 
 ## Runtime and tooling baseline
 
-- AdonisJS 7 requires the current runtime/tooling baseline: Node.js 24+, TypeScript 5.9+, and Vite 7 when Vite is in play. Check these before diagnosing v7-only failures as application bugs.
+- AdonisJS 7 requires Node.js 24+ and npm 11+, supports TypeScript 5.9 or 6.0 with ESLint 10, and uses Vite 7 when Vite is in play. Check the project's actual toolchain before diagnosing v7-only failures as application bugs.
 
 ## HTTP and application flow
 
 - Routing: define endpoints, group middleware, name resources cleanly. v7 auto-names controller-backed routes (`controller.method`) and exposes controllers/events/policies through generated barrel files (`#generated/*`), so prefer the barrel import over manual lazy imports.
-- URL building: use the type-safe `urlFor` helper (`@adonisjs/core/services/url_builder`) instead of the deprecated `router.makeUrl`. The Edge `route()` helper is also replaced by `urlFor`.
+- URL building: use the type-safe `urlFor` helper (`@adonisjs/core/services/url_builder`) instead of the deprecated `router.makeUrl`. Use `signedUrlFor` plus `request.hasValidSignature()` when externally shared URLs need tamper protection. The Edge `route()` helper is also replaced by `urlFor`.
 - Controllers: coordinate request -> validation -> domain action -> response. They may return platform-native `Response` instances directly (e.g. streaming from an AI SDK) — no manual conversion needed.
 - Middleware: cross-cutting HTTP concerns only.
 - Exception handling: use the framework error pipeline instead of ad hoc response logic. Status pages are skipped for JSON `Accept` clients; HTML exception messages are escaped.
@@ -79,7 +79,7 @@ AdonisJS aims to be a batteries-included backend framework, closer to Laravel-st
 - Scheduler/commands: recurring work and operational tasks.
 - Jobs/queues: v7 ships the first-party `@adonisjs/queue` (experimental). Jobs are typed `Job<T>` classes dispatched via `dispatch()` / `dispatchMany()`, run by a worker (`queue:work`) with heartbeats for long jobs, Redis/Database/Sync adapters, retries/backoff, batching, dispatch-time dedup (`.dedup()`), and scheduling (`start/scheduler.ts`). Ace commands that dispatch under the sync adapter should load jobs first. Reach for it before any third-party or hand-rolled queue, but pin the package and treat API drift as possible while it remains experimental.
 - Realtime push: `@adonisjs/transmit` (SSE) for server-to-client streams when websockets are overkill.
-- Health: framework health checks (`@adonisjs/health`, bundled in core) for readiness/liveness style probes.
+- Health: core checks from `@adonisjs/core/health` plus integration-specific checks such as `RedisCheck` from `@adonisjs/redis` for readiness/liveness probes.
 - Providers own boot-time wiring.
 
 ## Config and environment
@@ -117,7 +117,7 @@ AdonisJS aims to be a batteries-included backend framework, closer to Laravel-st
 
 Ask these questions during implementation:
 
-1. Is there an official Adonis module for this — including the v7 first-party set (queue, limiter, otel, transformers, content, cache, lock, transmit, health)?
+1. Is there an official Adonis module for this — including the v7 first-party set (queue, limiter, otel, transformers, content, cache, lock, transmit, and core/integration health checks)?
 2. Is this concern placed at the right layer?
 3. Does validation live in Vine?
 4. Does persistence use Lucid (schema classes) before raw SQL?

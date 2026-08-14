@@ -3,7 +3,7 @@
 ## Map the concern
 
 - Is this HTTP, validation, persistence, auth, bootstrapping, async reaction, command, scheduler, serialization, or contract design?
-- Which Adonis primitive should own it first — including the v7 first-party set (`@adonisjs/queue` when its experimental API is acceptable, `@adonisjs/limiter`, `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, `@adonisjs/otel`, `@adonisjs/health`, Transformers, `@adonisjs/content`)?
+- Which Adonis primitive should own it first — including the v7 first-party set (`@adonisjs/queue` when its experimental API is acceptable, `@adonisjs/limiter`, `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, `@adonisjs/otel`, core health checks, Transformers, `@adonisjs/content`)?
 
 ## Place the responsibility
 

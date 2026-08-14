@@ -9,12 +9,20 @@ Use unit tests selectively for isolated domain logic.
 
 ### HTTP endpoints
 
+- use Japa's API client against the running AdonisJS server
+- prefer `client.visit()` with generated route names so URL and HTTP-method drift is type-checked
 - success response
 - validation failure
 - auth failure
 - authorization failure
 - rate-limit behavior on abuse-prone endpoints (`@adonisjs/limiter`)
 - important edge case
+
+### Browser journeys
+
+- use Playwright-backed Japa browser tests for material Hypermedia or Inertia flows
+- prove the user-visible end state, navigation, and client-side interaction that API assertions cannot observe
+- keep pure API behavior in the faster API suite
 
 ### Lucid workflows
 
@@ -30,7 +38,7 @@ Use unit tests selectively for isolated domain logic.
 
 ### Commands, scheduler, and queues
 
-- command behavior and outcomes
+- command prompts, output, exit code, and side effects through Japa console tests when they matter
 - recurring flow safety for cleanup/import/batch tasks
 - job dispatch asserted with the queue fake (`QueueManager.fake()`, `assertPushed` / `assertNotPushed` / `assertPushedCount` / `assertNothingPushed`) without running the worker
 - retry/failure-path behavior for jobs that must not silently drop
@@ -50,6 +58,7 @@ Use unit tests selectively for isolated domain logic.
 - keep setup realistic but focused
 - use factories/seeders where they increase clarity
 - write regression tests for real bugs
+- isolate state with the project's Japa/Adonis test utilities and test-specific drivers instead of relying on suite order
 
 ## Review rule
 

@@ -1,6 +1,6 @@
 ---
 name: adonisjs-suite
-description: Route AdonisJS 7 work to the right skill. Use when a task touches AdonisJS but the main need—architecture, backend, Tuyau, testing, or review—is not yet clear.
+description: Route and maintain the AdonisJS 7 skill suite. Use when a task touches AdonisJS but the main need—architecture, backend, Tuyau, testing, or review—is unclear, or when auditing and refreshing the suite itself.
 ---
 
 # AdonisJS Suite
@@ -9,7 +9,8 @@ Use this skill as the router for the AdonisJS 7 skill set.
 
 Read [skill routing](references/skill-routing.md) first.
 Read [workflow order](references/workflow-order.md) when the task spans multiple phases.
-Read [parallel dispatch](references/parallel-dispatch.md) when dispatching concurrent subagents.
+Read [parallel dispatch](references/parallel-dispatch.md) before coordinating concurrent read-only analysis or any delegated implementation.
+Read [source baseline](references/source-baseline.md) only when auditing version-sensitive guidance or maintaining this suite.
 Read [examples and prompts](references/examples-and-prompts.md) when the user needs a ready-to-send meta prompt.
 
 ## Core rule
@@ -32,6 +33,10 @@ For non-trivial work:
 2. backend or Tuyau implementation,
 3. testing,
 4. review.
+
+## Coordination rule
+
+Parallelize independent read-only analysis only. Sequence architecture decisions, implementation, testing, and review for one feature, and keep a single writer in a shared worktree.
 
 ## Safety rule
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdonisJS Tuyau"
+  short_description: "Build safe typed AdonisJS 7 APIs with Tuyau"
+  default_prompt: "Use $adonisjs-tuyau to build or review this typed AdonisJS 7 API contract."

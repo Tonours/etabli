@@ -1,4 +1,4 @@
-# Tuyau v1.2 patterns with AdonisJS 7
+# Tuyau 1.x patterns with AdonisJS 7
 
 ## Core principle
 
@@ -31,10 +31,19 @@ Tuyau should strengthen a well-structured AdonisJS API. It should not become an 
 - v7 ships Tuyau as a first-party type-safe API client: the backend exports a generated registry, the frontend imports it via `@tuyau/core/client` (`createTuyau`), and `@tuyau/react-query` or `@tuyau/vue-query` wires it into TanStack Query (use the framework-specific package names on npm, not a generic tanstack package rename).
 - Prefer generated helpers over duplicated types: `client.api.*`, `client.request(...)`, `client.urlFor`, route introspection (`has` / `current`), and the `Path.*` / `Route.*` type helpers all come from the registry.
 - Handle typed failures intentionally with `.safe()`, `error.isStatus(...)`, and `error.isValidationError()` when the endpoint exposes meaningful non-2xx responses.
+- Branch on `error.kind === 'network'` when transport recovery differs from handling an HTTP response; network failures have no status or response payload.
 - When rich JS types must survive the HTTP boundary, prefer `@tuyau/superjson` (server middleware + client plugin) over a custom codec; teach SuperJSON any Luxon/custom classes both sides.
 - Let Tuyau reduce duplication, not eliminate design discipline.
 - If the frontend depends on a field, make that field part of the intentional contract (a transformer), not an incidental model field.
 - If the contract changes, update tests and consumers together.
+
+## TanStack Query integration
+
+- Use `@tuyau/react-query` or `@tuyau/vue-query` and keep its major/prerelease tag compatible with `@tuyau/core`.
+- Generate `queryOptions()`, `mutationOptions()`, and `infiniteQueryOptions()` from route names instead of duplicating query functions or keys.
+- Let TanStack Query own retries; the adapters disable Ky retries to prevent compounded attempts.
+- Use `queryKey()` for one exact query, `pathKey()` for one endpoint, and `pathFilter()` only when a mutation can stale a broader route subtree.
+- Match `pageParamKey` to the Vine-validated pagination query field for infinite queries.
 
 ## Lucid interaction
 
