@@ -28,10 +28,11 @@ ln -sfn \$HOME/work/etabli-herdr/config.toml ~/.config/herdr/config.toml
 mkdir -p ~/.config/herdr/plugins/config/sessionizer
 ln -sfn \$HOME/work/etabli-herdr/layouts/sessionizer.config.toml \
   ~/.config/herdr/plugins/config/sessionizer/config.toml
-mkdir -p ~/.claude/skills ~/.codex/skills ~/.agents/skills
-ln -sfn \$HOME/work/etabli-herdr/skills/herdr ~/.claude/skills/herdr
-ln -sfn \$HOME/work/etabli-herdr/skills/herdr ~/.codex/skills/herdr
-ln -sfn \$HOME/work/etabli-herdr/skills/herdr ~/.agents/skills/herdr
+for skill_dir in ~/.claude/skills ~/.codex/skills ~/.agents/skills ~/.pi/agent/skills; do
+  mkdir -p \"\$skill_dir\"
+  if [ -e \"\$skill_dir/herdr\" ] && [ ! -L \"\$skill_dir/herdr\" ]; then rm -rf \"\$skill_dir/herdr\"; fi
+  ln -sfn \$HOME/work/etabli-herdr/skills/herdr \"\$skill_dir/herdr\"
+done
 for d in ~/.config/herdr/plugins/github/*/; do
   [ -f \"\${d}herdr-plugin.toml\" ] || continue
   herdr plugin link \"\${d%/}\" >/dev/null 2>&1 || herdr plugin link \"\${d%/}\" || true

@@ -150,7 +150,7 @@ backup_file() {
     local backup
 
     backup="$(backup_path "$path")"
-    cp "$path" "$backup"
+    cp -R "$path" "$backup"
     print_warning "Existing file backed up to $backup"
 }
 
@@ -1205,6 +1205,30 @@ if [ -f "$HERDR_CONFIG_TARGET" ]; then
     fi
 else
     print_warning "Herdr config not found in $REPO_DIR/herdr/config.toml"
+fi
+
+HERDR_SKILL_TARGET="$REPO_DIR/herdr/skills/herdr"
+
+if [ -d "$HERDR_SKILL_TARGET" ]; then
+    for herdr_skill_dir in \
+        "$HOME/.claude/skills" \
+        "$HOME/.codex/skills" \
+        "$HOME/.agents/skills" \
+        "$HOME/.pi/agent/skills"; do
+        herdr_skill_link="$herdr_skill_dir/herdr"
+        mkdir -p "$herdr_skill_dir"
+        if [ -e "$herdr_skill_link" ] && [ ! -L "$herdr_skill_link" ]; then
+            backup_file "$herdr_skill_link"
+            rm -rf "$herdr_skill_link"
+        fi
+        if ln -sfn "$HERDR_SKILL_TARGET" "$herdr_skill_link"; then
+            print_success "Herdr skill linked into ${herdr_skill_dir/#$HOME/~}"
+        else
+            print_warning "Failed to link Herdr skill into ${herdr_skill_dir/#$HOME/~}"
+        fi
+    done
+else
+    print_warning "Herdr skill not found in $REPO_DIR/herdr/skills/herdr"
 fi
 
 # ============================================================================
