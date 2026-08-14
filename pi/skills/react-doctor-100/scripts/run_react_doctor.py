@@ -20,13 +20,22 @@ def fail(message: str, code: int = 2) -> int:
     return code
 
 
+def parse_version(text: str) -> tuple[int, int, int] | None:
+    match = re.match(r"v?(\d+)\.(\d+)\.(\d+)", text)
+    if not match:
+        return None
+    try:
+        return int(match[1]), int(match[2]), int(match[3])
+    except ValueError:
+        return None
+
+
 def node_version(node: str) -> tuple[int, int, int] | None:
     try:
         out = subprocess.run([node, "--version"], text=True, capture_output=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
-    match = re.match(r"v(\d+)\.(\d+)\.(\d+)", out.stdout.strip())
-    return tuple(int(part) for part in match.groups()) if match else None
+    return parse_version(out.stdout.strip())
 
 
 def supports_engine(version: tuple[int, int, int]) -> bool:
@@ -43,13 +52,18 @@ def discover_node() -> tuple[str, tuple[int, int, int]] | None:
     current = shutil.which("node")
     if current:
         candidates.append(current)
-    nvm_root = Path.home() / ".nvm" / "versions" / "node"
-    if nvm_root.is_dir():
-        def sort_key(path: Path) -> tuple[int, int, int]:
-            match = re.match(r"v(\d+)\.(\d+)\.(\d+)", path.name)
-            return tuple(int(part) for part in match.groups()) if match else (0, 0, 0)
 
-        for entry in sorted(nvm_root.iterdir(), key=sort_key, reverse=True):
+    def sort_key(path: Path) -> tuple[int, int, int]:
+        return parse_version(path.name) or (0, 0, 0)
+
+    roots = [
+        Path.home() / ".nvm" / "versions" / "node",
+        Path(os.environ.get("ASDF_DATA_DIR", Path.home() / ".asdf")) / "installs" / "nodejs",
+    ]
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for entry in sorted(root.iterdir(), key=sort_key, reverse=True):
             binary = entry / "bin" / "node"
             if binary.is_file():
                 candidates.append(str(binary))
@@ -75,8 +89,8 @@ def resolve_binary(cache_dir: Path, spec: str, node: str) -> tuple[str, str] | s
         capture_output=True,
         env=env,
     )
-    if not binary.is_file():
-        detail = (install.stderr or install.stdout or "no output").strip()
+    detail = (install.stderr or install.stdout or "no output").strip()
+    if install.returncode != 0 or not binary.is_file():
         return f"failed to install {PACKAGE}@{spec}: {detail[-800:]}"
     return str(binary), install.stderr
 
@@ -148,7 +162,7 @@ def main() -> int:
     try:
         parsed = json.loads(result.stdout)
     except json.JSONDecodeError:
-        pass
+        parsed = None
 
     score = diagnostics = ok = error_message = None
     if isinstance(parsed, dict):
