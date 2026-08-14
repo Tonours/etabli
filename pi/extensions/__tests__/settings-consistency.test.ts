@@ -15,7 +15,10 @@ const settings = JSON.parse(
   packages: Array<string | LocalPackage>;
 };
 
-const installScript = readFileSync(new URL("../../../scripts/lib/install-main.sh", import.meta.url), "utf-8");
+const installScript = readFileSync(
+  new URL("../../../scripts/lib/install-main.sh", import.meta.url),
+  "utf-8",
+);
 const deployAgentWorkflowScript = readFileSync(
   new URL("../../../scripts/deploy-agent-workflow", import.meta.url),
   "utf-8",
@@ -32,7 +35,13 @@ const skillCatalog = readFileSync(
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
     const [name, source, piCore, agentsVisible, locked] = line.split("\t");
-    return { name, source, piCore: piCore === "1", agentsVisible: agentsVisible === "1", locked: locked === "1" };
+    return {
+      name,
+      source,
+      piCore: piCore === "1",
+      agentsVisible: agentsVisible === "1",
+      locked: locked === "1",
+    };
   });
 
 function localPackage(): LocalPackage {
@@ -43,12 +52,16 @@ function localPackage(): LocalPackage {
 
 function packageBySource(source: string): LocalPackage | undefined {
   return settings.packages.find((entry): entry is LocalPackage => {
-    return typeof entry === "object" && entry !== null && entry.source === source;
+    return (
+      typeof entry === "object" && entry !== null && entry.source === source
+    );
   });
 }
 
 function installCoreSkills(): string[] {
-  return skillCatalog.filter((skill) => skill.source === "pi" && skill.piCore).map((skill) => skill.name);
+  return skillCatalog
+    .filter((skill) => skill.source === "pi" && skill.piCore)
+    .map((skill) => skill.name);
 }
 
 function packageSources(): string[] {
@@ -64,20 +77,35 @@ describe("Pi settings consistency", () => {
   });
 
   test("installer links every configured local skill", () => {
-    expect(installCoreSkills().sort()).toEqual([...(localPackage().skills ?? [])].sort());
+    expect(installCoreSkills().sort()).toEqual(
+      [...(localPackage().skills ?? [])].sort(),
+    );
   });
 
   test("keeps agents-visible skill lists synchronized across bootstrap scripts", () => {
-    const scripts = [installScript, deployAgentWorkflowScript, checkFixSymlinksScript];
-    for (const source of scripts) expect(source).toContain("skill_catalog_names");
+    const scripts = [
+      installScript,
+      deployAgentWorkflowScript,
+      checkFixSymlinksScript,
+    ];
+    for (const source of scripts)
+      expect(source).toContain("skill_catalog_names");
 
     const agentsVisible = skillCatalog.filter((skill) => skill.agentsVisible);
     expect(agentsVisible.every((skill) => skill.source === "pi")).toBe(true);
 
-    const coreVisible = agentsVisible.filter((skill) => skill.piCore).map((skill) => skill.name);
-    expect(coreVisible.every((skill) => (localPackage().skills ?? []).includes(skill))).toBe(true);
+    const coreVisible = agentsVisible
+      .filter((skill) => skill.piCore)
+      .map((skill) => skill.name);
+    expect(
+      coreVisible.every((skill) =>
+        (localPackage().skills ?? []).includes(skill),
+      ),
+    ).toBe(true);
 
-    const packVisible = agentsVisible.filter((skill) => !skill.piCore).map((skill) => skill.name);
+    const packVisible = agentsVisible
+      .filter((skill) => !skill.piCore)
+      .map((skill) => skill.name);
     expect(packVisible).toEqual([
       "browser-full-page-capture",
       "frontend-motion-performance",
@@ -93,6 +121,15 @@ describe("Pi settings consistency", () => {
       "ui-reference-capture",
       "react-doctor-100",
       "show-me",
+      "add-dark-mode",
+      "brand-kit",
+      "canonicalize-tailwind",
+      "componentize",
+      "dark-mode-image",
+      "design",
+      "ideas",
+      "make-responsive",
+      "markup-from-image",
     ]);
     // Fluidity: caveman/grill-me stay optional (not piCore, not agents-visible).
     expect(skillCatalog.find((s) => s.name === "caveman")?.piCore).toBe(false);
@@ -122,26 +159,36 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("npm:pi-hooks")).toBeUndefined();
     expect(packageBySource("npm:glimpseui")).toBeUndefined();
     expect(packageBySource("npm:pi-interview")).toBeUndefined();
-    expect(packageBySource("npm:@tintinweb/pi-subagents@0.13.0")).toBeUndefined();
-    expect(settings.packages).not.toContain("https://github.com/davebcn87/pi-autoresearch");
+    expect(
+      packageBySource("npm:@tintinweb/pi-subagents@0.13.0"),
+    ).toBeUndefined();
+    expect(settings.packages).not.toContain(
+      "https://github.com/davebcn87/pi-autoresearch",
+    );
     expect(settings.packages).not.toContain("npm:glimpseui");
     expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toBeUndefined();
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
 
     // Install/deploy scripts manage the pin set and purge legacy sources
     expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
-    expect(deployAgentWorkflowScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
+    expect(deployAgentWorkflowScript).toContain(
+      "npm:@tintinweb/pi-tasks@0.7.1",
+    );
     expect(installScript).toContain('"npm:mitsupi"');
     expect(installScript).not.toContain('"npm:@tintinweb/pi-subagents@0.13.0"');
     // Legacy purge list still names dropped packages so local settings are cleaned
     expect(installScript).toContain('"npm:pi-hooks"');
     expect(installScript).toContain('"npm:glimpseui"');
     expect(installScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
-    expect(deployAgentWorkflowScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
+    expect(deployAgentWorkflowScript).not.toContain(
+      '"npm:@agwab/pi-workflow@0.8.1",',
+    );
   });
 
   test("enables the exact managed model set without retired aliases", () => {
-    const enabledModels = (settings as typeof settings & { enabledModels: string[] }).enabledModels;
+    const enabledModels = (
+      settings as typeof settings & { enabledModels: string[] }
+    ).enabledModels;
 
     expect(enabledModels).toContain("zai/glm-5.2");
     expect(enabledModels).toContain("opencode-go/minimax-m3");
@@ -155,7 +202,9 @@ describe("Pi settings consistency", () => {
     expect(enabledModels).not.toContain("github-copilot/claude-opus-4.7");
     expect(enabledModels).not.toContain("opencode-go/minimax-m2.7");
     expect(enabledModels).not.toContain("opencode-go/qwen3.6-plus");
-    expect(enabledModels.some((model) => model.startsWith("local-mlx/"))).toBe(false);
+    expect(enabledModels.some((model) => model.startsWith("local-mlx/"))).toBe(
+      false,
+    );
   });
 
   test("keeps the default model selectable", () => {

@@ -34,6 +34,15 @@ react-doctor-100	pi	0	1	1	1
 show-me	pi	0	1	1	1
 design-suite	pi	1	1	0	1
 code-quality	pi	1	1	0	1
+add-dark-mode	pi	0	1	0	1
+brand-kit	pi	0	1	0	1
+canonicalize-tailwind	pi	0	1	0	1
+componentize	pi	0	1	0	1
+dark-mode-image	pi	0	1	0	1
+design	pi	0	1	0	1
+ideas	pi	0	1	0	1
+make-responsive	pi	0	1	0	1
+markup-from-image	pi	0	1	0	1
 node	mcollina-skills	0	0	1
 nodejs-core	mcollina-skills	0	0	1
 typescript-magician	mcollina-skills	0	0	1
