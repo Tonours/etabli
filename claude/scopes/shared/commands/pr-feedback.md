@@ -33,6 +33,21 @@ Present the triage as one compact table (author, file:line, summary, verdict)
 and wait for user confirmation before writing anything. The user can override
 any verdict.
 
+## Escaped defects
+
+When a **bot or human** finding is accepted (`apply`) and an internal review had
+already returned `GO` / `GO WITH NOTES` on the same commit (or an ancestor that
+contained the defect), treat it as an escaped defect:
+
+1. Fill `workflow/templates/escaped-defect.md` (one record per defect).
+2. Append or update the PR row in `workflow/self-improvement/review-metrics.md`
+   (`escaped_later`, `buckets`).
+3. Storage: personal → obvault; work → brain; reusable → also
+   `workflow/self-improvement/reviewer-eval-corpus.md`.
+
+Do this before or with the fix. Skipping the record closes the miss without
+learning from it.
+
 ## Apply
 
 1. Group accepted fixes by concern; one atomic conventional commit per group.
@@ -50,5 +65,5 @@ Every thread is fixed-and-resolved or answered, CI is green or its failure is
 diagnosed and reported. End with:
 
 ```text
-Feedback: <n> applied, <n> contested, <n> out-of-scope | CI: <state>
+Feedback: <n> applied, <n> contested, <n> out-of-scope | escaped recorded: <n> | CI: <state>
 ```

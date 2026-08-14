@@ -162,3 +162,10 @@ toward prompt growth, which is the failure mode.
 Report, per run: misses recorded, bucket counts, candidates and their outcomes,
 held-in/held-out results for anything accepted, and current lens count against the
 cap.
+
+## Metrics
+
+Append one row per reviewed PR to `workflow/self-improvement/review-metrics.md`
+(ship handoff does this). When an escaped defect is recorded, update that PR's
+`escaped_later` and `buckets` columns. The metric that matters is **escaped
+defects per GO**, not finding count.
