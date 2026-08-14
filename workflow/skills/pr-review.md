@@ -44,7 +44,9 @@ Present title, intent, author, branches, changed files, and perceived scope.
 
 ## Phase 2: Review
 
-Use `workflow/review-rubric.md` when available.
+Use `workflow/review-rubric.md` when available. Load `suite-router` /
+`code-quality` when the diff touches language, framework, or UI surface so
+convention findings are anchored in project patterns.
 
 Review:
 
@@ -55,7 +57,8 @@ Review:
 - performance;
 - security/privacy;
 - tests and validation;
-- architecture/pattern fit.
+- architecture/pattern fit against sibling implementations (rubric § Convention
+  & pattern fit).
 
 Repository-specific checks:
 

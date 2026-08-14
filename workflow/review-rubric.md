@@ -48,7 +48,27 @@ never asks:
 - **boundary drift**: one concept in two places, still in agreement, and which is
   authoritative
 
-### 5. Refute before reporting
+### 5. Convention & pattern fit
+Load the domain skill that owns the changed surface (`suite-router` →
+`stack-suite` / `design-suite` / project suite, or `code-quality` when running a
+dedicated quality pass). Compare the diff to **sibling implementations in this
+repo**, not to abstract industry taste.
+
+Check:
+- local conventions (naming, module boundaries, error handling, test shape)
+- established patterns the sibling files already use
+- stack practice skills only where they name a concrete rule the diff violates
+
+Evidence bar for a convention finding:
+- changed `file:line` in the target diff
+- sibling pattern `file:line` (or named skill rule when no sibling exists)
+- impact on correctness, operability, or maintenance — not preference
+
+Discard pure style opinions, formatter-owned nits, and “best practice” claims
+with no local anchor. This section informs the verdict; it never overrides a
+concrete correctness finding from sections 1–4.
+
+### 6. Refute before reporting
 For each candidate, argue the opposite and try to make it stick. What would have to
 be true for this to be correct? Is there a caller, default, guard, or test that
 already prevents it?
@@ -61,7 +81,7 @@ Do not re-sweep the same diff hunting for more findings: measured, that lifts
 recall slightly and false positives much more. The second pass attacks the
 findings you have.
 
-### 6. Human checkpoint trigger
+### 7. Human checkpoint trigger
 - explicitly say when a human should arbitrate
 - use this for accepted risk, ambiguous tradeoffs, rollback/replan decisions, or broad-impact changes
 
@@ -82,6 +102,7 @@ findings you have.
 - security or safety issues
 - missing validation or weak verification
 - maintainability issues that affect correctness or operability
+- convention or pattern drift against sibling implementations (with local anchor)
 - plan drift or review-time discovery that the work no longer matches the approved contract
 
 ## Findings format
