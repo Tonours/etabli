@@ -18,6 +18,7 @@
 - If the client needs Date/Map/Set/Luxon fidelity, is `@tuyau/superjson` configured both sides instead of a one-off codec?
 - For TanStack Query consumers, is the integration `@tuyau/react-query` or `@tuyau/vue-query`?
 - Are non-2xx responses typed and handled with `.safe()`, `isStatus()`, or `isValidationError()` where the client branches on them?
+- Are transport failures distinguished with `error.kind` when they need different recovery?
 
 ## Coupling risk
 
@@ -28,6 +29,7 @@
 
 - Is there at least one test path proving contract behavior?
 - Are validation, auth, and typed error responses covered where important?
+- For TanStack Query, is there one retry owner and the narrowest correct `queryKey()`, `pathKey()`, or `pathFilter()` invalidation?
 
 ## Final question
 

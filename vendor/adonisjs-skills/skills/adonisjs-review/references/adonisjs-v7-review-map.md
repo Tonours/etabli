@@ -64,7 +64,7 @@ Check whether the code ignored a documented Adonis convention for:
 - mail
 - serialization (Transformers + `serialize()`)
 - background work (queues)
-- cache / locks / transmit / health
+- cache / locks / transmit / core and integration health checks
 - observability (`@adonisjs/otel`)
 - testing
 - commands/scheduler/events

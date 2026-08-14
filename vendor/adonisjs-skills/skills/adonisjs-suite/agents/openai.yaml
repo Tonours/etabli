@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdonisJS Suite"
+  short_description: "Route work across AdonisJS 7 specialist skills"
+  default_prompt: "Use $adonisjs-suite to route this AdonisJS 7 task to the right specialist workflow."

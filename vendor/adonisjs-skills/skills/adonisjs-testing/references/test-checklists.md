@@ -2,12 +2,20 @@
 
 ## Endpoint checklist
 
+- generated route name used through the Japa API client when available
 - success path
 - invalid body
 - invalid params/query if relevant
 - unauthenticated path if relevant
 - unauthorized path if relevant
 - response contract check if relevant
+
+## Browser checklist
+
+- reserved for a material Hypermedia or Inertia user journey
+- true navigation and visible end state asserted
+- auth/session state uses the AdonisJS browser plugins when relevant
+- equivalent lower-cost API assertions are not duplicated without a regression reason
 
 ## Persistence checklist
 
@@ -32,6 +40,13 @@
 
 - config-dependent behavior covered where risky
 - startup or provider behavior covered indirectly through observable outcomes when needed
+
+## Ace command checklist
+
+- command executed through the Japa console-test surface
+- prompts and arguments covered when relevant
+- output and exit status asserted
+- persistence or external side effects asserted at their visible boundary
 
 ## Tuyau checklist
 

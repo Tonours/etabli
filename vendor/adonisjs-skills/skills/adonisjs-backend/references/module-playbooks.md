@@ -11,6 +11,7 @@ Use when exposing or changing HTTP behavior.
 - declare the route clearly; rely on v7 auto-naming (`controller.method`) instead of manual `.as()`
 - import controllers/events/policies from the generated barrel (`#generated/*`) rather than hand-written lazy imports
 - build URLs with the type-safe `urlFor` helper, not the deprecated `router.makeUrl`
+- use `signedUrlFor` and `request.hasValidSignature()` for tamper-resistant external links instead of hand-rolled signatures
 - attach middleware explicitly
 - keep controller methods action-oriented
 - validate at the boundary
@@ -224,7 +225,7 @@ Use when caching results, serializing critical sections, pushing realtime update
 - cache through `@adonisjs/cache` before inventing a store wrapper
 - mutex/critical sections through `@adonisjs/lock`
 - server-to-client push through `@adonisjs/transmit` (SSE) when full websockets are unnecessary
-- readiness-style checks through the framework health module instead of ad hoc `/health` hacks
+- readiness-style checks through `@adonisjs/core/health` plus package-specific checks (for example Redis or Lucid) instead of ad hoc `/health` hacks
 
 ### Watch for
 

@@ -42,4 +42,4 @@ Route names, response shapes, and client types are generated, not hand-written. 
 
 ## Principle 11: first-party modules before ecosystem substitutes
 
-Before adopting a third-party cache, lock, queue, rate limiter, SSE, or tracing stack, check the official set: experimental `@adonisjs/queue`, `@adonisjs/limiter`, `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, `@adonisjs/otel`, `@adonisjs/health`, Transformers, `@adonisjs/content`.
+Before adopting a third-party cache, lock, queue, rate limiter, SSE, tracing, or health stack, check the official set: experimental `@adonisjs/queue`, `@adonisjs/limiter`, `@adonisjs/cache`, `@adonisjs/lock`, `@adonisjs/transmit`, `@adonisjs/otel`, core health checks from `@adonisjs/core/health`, Transformers, and `@adonisjs/content`.
