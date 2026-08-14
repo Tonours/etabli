@@ -23,9 +23,9 @@ and compares the diff to **sibling implementations in this repo**.
 3. **Load practice skills** for the matched domain only:
 
    | Domain | Skills to apply |
-   |--------|-----------------|
-   | React / Next / TanStack UI | `stack-suite` React rows → `react-best-practices`, `composition-patterns`; optional `react-doctor-100` |
-   | Node / Fastify / API | `stack-suite` Node rows → `node`, `fastify`, `typescript-magician` |
+   | -------- | ----------------- |
+   | React / Next / TanStack UI | `stack-suite` React rows → `vercel-react-best-practices`, `vercel-composition-patterns`; optional `react-doctor-100` |
+   | Node / Fastify / API | `stack-suite` Node rows → `node`, `fastify-best-practices`, `typescript-magician` |
    | Lint / ESLint flat | `linting-neostandard-eslint9` |
    | CSS / layout / visual | `frontend-css-ui-ux` (+ primitives / debugging as needed) |
    | Project suites | Prefer `ember-employer-suite`, `employer-backend-suite`, `adonisjs-suite`, `tanstack-start-suite` when the codebase is theirs |
