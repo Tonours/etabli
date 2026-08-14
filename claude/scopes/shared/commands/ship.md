@@ -36,13 +36,14 @@ Before saying a workflow source is missing, resolve sources in this order:
 
 Claude specifics:
 
-- Skill selection comes first, before isolation and recon: invoke the domain
-  skill covering the task — `employer-backend-suite` (BFF, auth, permissions, MCP,
-  capabilities, Zendesk, workflow executor/orchestrator),
-  `ember-employer-suite` (Ember frontend), `stack-suite` (Node.js,
-  TypeScript, Fastify, OAuth, React/Next.js, web UI), or a task-shaped one such
-  as `bug-check`, `pr-qa`, `sec-pr`. It routes the work to what is already known
-  instead of rediscovering it. Name the skill used, or `none`, in the handoff.
+- Skill selection comes first, before isolation and recon: invoke `suite-router`
+  to detect domain(s), then the matching suite(s) — `design-suite` (UI/UX,
+  brand, responsive, dark mode, ui.sh), `stack-suite` (Node.js, TypeScript,
+  Fastify, OAuth, React/Next.js, web UI), `employer-backend-suite` (BFF, auth,
+  permissions, MCP, capabilities, Zendesk, workflow executor/orchestrator),
+  `ember-employer-suite` (Ember frontend), or a task-shaped one such as
+  `bug-check`, `pr-qa`, `sec-pr`. It routes the work to what is already known
+  instead of rediscovering it. Name the skill(s) used, or `none`, in the handoff.
 - Isolation: use the native `EnterWorktree` / `ExitWorktree` tools when the
   runtime exposes them; otherwise `git worktree add ../<repo>-ship-<slug>
   -b <branch>` and `git worktree remove` at the end. Either way the
