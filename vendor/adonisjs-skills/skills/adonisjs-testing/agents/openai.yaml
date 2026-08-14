@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdonisJS Testing"
+  short_description: "Design AdonisJS 7 tests that prove behavior"
+  default_prompt: "Use $adonisjs-testing to design the smallest test set that proves this AdonisJS 7 behavior."

@@ -1,6 +1,6 @@
 ---
 name: adonisjs-testing
-description: Plan, add, and review AdonisJS 7 tests. Use for HTTP flows, Vine validation, Lucid persistence, auth, mail, events, commands, scheduler work, and Tuyau contract safety.
+description: Plan, add, and review AdonisJS 7 tests. Use for Japa API and browser flows, Vine validation, Lucid persistence, auth, mail, events, Ace commands, scheduler work, and Tuyau contract safety.
 ---
 
 # AdonisJS Testing
@@ -16,17 +16,19 @@ Use [adonisjs-tuyau](../adonisjs-tuyau/SKILL.md) when the test plan must protect
 
 ## Core rule
 
-Prefer tests that validate behavior at framework boundaries over tests that mirror implementation details.
+Prefer tests that validate behavior at the narrowest real framework boundary over tests that mirror implementation details. Use the typed Japa API client for JSON endpoints, Playwright-backed browser tests for material Hypermedia/Inertia journeys, and console tests for Ace commands.
 
 ## Testing priorities
 
-1. HTTP behavior
-2. Vine validation success and failure paths
-3. Auth and authorization behavior
-4. Lucid persistence and transaction-sensitive flows
-5. Mail, events, or side effects at visible workflow boundaries
-6. Contract stability for Tuyau endpoints
-7. Focused unit tests only when isolated domain logic justifies them
+1. HTTP/API behavior through Japa's real server boundary and route names
+2. Browser behavior for material Hypermedia or Inertia user journeys
+3. Vine validation success and failure paths
+4. Auth and authorization behavior
+5. Lucid persistence and transaction-sensitive flows
+6. Mail, events, queues, or side effects at visible workflow boundaries
+7. Ace command behavior through console tests
+8. Contract stability for Tuyau endpoints
+9. Focused unit tests only when isolated domain logic justifies them
 
 ## Required checks
 
@@ -37,11 +39,15 @@ Before calling a change safe, verify:
 - auth or authorization failure is covered when relevant,
 - persistence side effects are covered when relevant,
 - contract-sensitive response shape is covered when relevant,
+- a browser test covers the true user end state when server-side assertions cannot prove it,
+- Ace commands are exercised through the console-test surface when command interaction or exit behavior matters,
 - regression tests exist for previously broken behavior when applicable.
 
 ## Smells
 
 - heavily unit-testing controllers instead of exercising real HTTP flow,
+- using browser tests for behavior that a faster API test proves completely,
+- testing an Ace command by calling internal methods while ignoring prompts, output, or exit code,
 - skipping denial or failure paths,
 - asserting internal method calls instead of observable outcomes,
 - missing tests around transactions, serialization, or typed contracts.

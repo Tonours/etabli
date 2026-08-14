@@ -6,6 +6,8 @@
 - Add framework-aligned tests for this AdonisJS 7 endpoint. Prefer functional/integration coverage over implementation-level unit tests.
 - Review this test suite as an AdonisJS safety harness and tell me whether the change is safe to ship.
 - Add contract-sensitive tests for this AdonisJS 7 + Tuyau endpoint.
+- Add a Playwright-backed Japa browser test for this material Inertia/Hypermedia journey, but keep pure API behavior in the API suite.
+- Test this Ace command through the console-test surface, including prompts, output, exit status, and observable side effects.
 
 ## Example asks
 
@@ -28,3 +30,11 @@ Design tests for this workflow covering:
 ### Contract tests
 
 Review whether this Tuyau endpoint has enough tests to trust the runtime contract, not only the inferred types.
+
+### Browser flow
+
+Test a signed-in user completing the primary Inertia flow and assert the true visible end state after navigation.
+
+### Ace command
+
+Test an import command with valid input, invalid input, expected output, exit behavior, and persisted results.

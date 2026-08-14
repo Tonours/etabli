@@ -1,10 +1,10 @@
 # AdonisJS Tuyau examples and prompts
 
-Use these prompts to trigger safe Tuyau v1.2 work in an AdonisJS 7 application.
+Use these prompts to trigger safe Tuyau 1.x work in an AdonisJS 7 application.
 
 ## Build prompts
 
-- Implement this typed endpoint with AdonisJS 7 + Tuyau v1.2. Keep Vine as validation authority and make the response contract explicit and stable.
+- Implement this typed endpoint with AdonisJS 7 + Tuyau 1.x. Keep Vine as validation authority and make the response contract explicit and stable.
 - Add a Tuyau endpoint and typed client flow, but stop if the design leaks Lucid internals or depends on unstable serialization.
 - Refactor this Tuyau route so the backend remains idiomatic AdonisJS and the client contract stays trustworthy.
 
@@ -13,6 +13,7 @@ Use these prompts to trigger safe Tuyau v1.2 work in an AdonisJS 7 application.
 - Review this Tuyau endpoint as a contract safety harness. Check validation, response stability, client coupling, and tests.
 - Audit this typed API flow and block it if typing is stronger than runtime guarantees.
 - Check whether this Tuyau usage bypasses normal Adonis route/controller/validator boundaries.
+- Review this Tuyau + TanStack Query flow for retry duplication, unstable query keys, and over-broad cache invalidation.
 
 ## Example asks
 
@@ -41,3 +42,7 @@ Review this Tuyau implementation and answer:
 - Is the response stable?
 - Could a Lucid model change break the client?
 - Is the contract safe to ship?
+
+### TanStack Query integration
+
+Add a typed Tuyau query and mutation using the framework-specific adapter. Keep TanStack Query as the sole retry owner and invalidate the narrowest key that can make stale data correct.
