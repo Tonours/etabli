@@ -165,7 +165,15 @@ cap.
 
 ## Metrics
 
-Append one row per reviewed PR to `workflow/self-improvement/review-metrics.md`
-(ship handoff does this). When an escaped defect is recorded, update that PR's
-`escaped_later` and `buckets` columns. The metric that matters is **escaped
-defects per GO**, not finding count.
+One row per reviewed PR. Storage follows
+`workflow/self-improvement/review-metrics.md`:
+
+| Stack | Log location |
+| --- | --- |
+| Etabli harness PR | `workflow/self-improvement/review-metrics.md` |
+| Personal | obvault |
+| Work | brain |
+
+Ship handoff **appends** if the row is absent. When an escaped defect is
+recorded, **update** that PR's `escaped_later` and `buckets` — never a second
+row. The metric that matters is **escaped defects per GO**, not finding count.

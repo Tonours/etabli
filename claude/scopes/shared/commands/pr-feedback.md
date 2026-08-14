@@ -40,9 +40,11 @@ already returned `GO` / `GO WITH NOTES` on the same commit (or an ancestor that
 contained the defect), treat it as an escaped defect:
 
 1. Fill `workflow/templates/escaped-defect.md` (one record per defect).
-2. Append or update the PR row in `workflow/self-improvement/review-metrics.md`
-   (`escaped_later`, `buckets`).
-3. Storage: personal → obvault; work → brain; reusable → also
+2. **Update** the existing metrics row for this PR (`escaped_later`, `buckets`).
+   Create the row only if missing — never a second row for the same PR.
+   Storage follows `workflow/self-improvement/review-metrics.md`:
+   etabli harness → repo log; personal → obvault; work → brain.
+3. Reusable cases also append
    `workflow/self-improvement/reviewer-eval-corpus.md`.
 
 Do this before or with the fix. Skipping the record closes the miss without
