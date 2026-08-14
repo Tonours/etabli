@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Adversarial review of the current PLAN.md. Use after plan-loop and before implementation to catch blockers, weak assumptions, missing checks, edge cases, and plan drift. Keeps PLAN.md as the only active artifact.
+description: Adversarial review of PLAN.md (plan mode) or of the implementation diff (code-diff mode). Cross-model or documented double-sample; single same-family pass is forbidden.
 ---
 
 # Adversary
@@ -28,10 +28,16 @@ Before saying a workflow source is missing, resolve sources in this order:
 
 ## Contract
 
-Read and follow `workflow/skills/adversary.md`.
+Read and follow `workflow/skills/adversary.md` (plan mode **and** code-diff mode).
 
 Rules:
-- `PLAN.md` remains the only active execution artifact.
-- The adversary pass is required before autonomous implementation completion.
-- Use `review` for post-implementation code review; this skill reviews the plan
-  before implementation.
+- `PLAN.md` remains the only active execution artifact in plan mode.
+- Code-diff mode runs after break-first + plan-fit review; independence gate is
+  **cross-model default**, or documented **double-sample**. A single same-family
+  pass is `blocked` (full autonomy).
+- Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
+- High findings: accept/reject via cross-model (or second sample), not the
+  implementer alone.
+- Plan-mode adversary is required before autonomous implementation completion.
+- Use `review` for the primary post-implementation code review; code-diff
+  adversary is the independent second pass on the same cumulative diff.

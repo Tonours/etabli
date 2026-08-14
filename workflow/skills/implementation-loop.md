@@ -52,8 +52,11 @@ details in the adapters; keep the phase order and completion evidence here.
     unavailable). Fix mechanical convention findings; report behavioral ones.
     Re-run focused checks if the pass edited anything. Skip only for pure docs
     or plan-only changes, and say so.
-13. Review the diff against `PLAN.md` in **two passes** per
-    `workflow/skills/review.md` and `workflow/review-rubric.md`:
+13. Review the **cumulative** implementation diff against `PLAN.md` in **two
+    passes** per `workflow/skills/review.md` and `workflow/review-rubric.md`:
+    scope is `git diff <merge-base-with-base-branch>...HEAD` when the branch has
+    more than one implementation commit; a single-commit branch may review that
+    commit alone. Per-slice reviews do not satisfy this step.
     (1) Break-first without PLAN — lens + deciding-code tables mandatory;
     (2) Plan-fit with PLAN. In an autonomous run, pass 1 comes from a fresh
     context (subagent reviewer or cross-model) per `workflow/spec.md`. Record
@@ -90,7 +93,8 @@ evidence for all of:
 - focused validation;
 - product dogfood scenario evidence when required by the plan;
 - quality pass result (or explicit skip for docs/plan-only);
-- break-first + plan-fit review with complete deciding-code table for runtime diffs;
+- break-first + plan-fit review on the cumulative merge-base...HEAD scope with
+  complete deciding-code table for runtime diffs;
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
 - implemented-plan archive under `docs/plan/`;
 - root `PLAN.md` cleanup after successful archive and validation.
