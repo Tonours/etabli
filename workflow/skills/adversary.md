@@ -47,18 +47,25 @@ final handoff names:
 ## Code diff mode
 
 The same adversarial gate applies to the implementation diff, not only the
-plan. After the fresh-context review in an autonomous run:
+plan. After the fresh-context review (break-first + plan-fit):
 
-1. Input: the implementation diff against the branch base, plus the active
-   `PLAN.md` (or its acceptance criteria if already archived).
-2. The reviewer is cross-model and read-only; it judges, it never edits.
+1. Input: the implementation diff against the branch base (`git diff <base>...HEAD`
+   when shipping), plus the active `PLAN.md` (or acceptance criteria if archived).
+2. **Runner independence (hard gate):**
+   - **Default:** cross-model, read-only. Name `adversary_model` in the handoff.
+   - **Acceptable substitute** when no other family is available: **double-sample**
+     — two fresh same-family reviewers, independent contexts, merged findings;
+     record `same-family-pass: double-sample` and both run ids.
+   - **Forbidden:** a single same-family pass presented as independent review.
+     Stop as `blocked` (autonomous **and** supervised — full autonomy policy).
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
    criteria not actually met, silent scope drift, and simpler or safer
    implementations that were overlooked.
-4. Findings are decided accepted or rejected with concrete evidence by the
-   implementer, then folded as fixes; checks re-run after any fix.
-5. Verdict: `GO`, `GO WITH NOTES`, or `BLOCK`. A surviving blocker stops the
+4. **Arbitration of findings:**
+   - `low` / `medium`: implementer may accept or reject with concrete evidence.
+   - `high`: accept/reject via a **cross-model** pass (or the second sample in a
+     double-sample). The implementer alone must not close a high finding.
+   - Record decisions in Decision Log / handoff.
+5. Fold accepted findings as fixes; re-run checks after any fix.
+6. Verdict: `GO`, `GO WITH NOTES`, or `BLOCK`. A surviving blocker stops the
    run as `blocked`.
-6. In an autonomous run with no cross-model runner available, stop as
-   `blocked` requesting external review. A supervised run may substitute a
-   same-model pass recorded as such.
