@@ -9,8 +9,9 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
 WORK_HOME_DIR="$TMP_DIR/work-home"
-mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$TMP_DIR/personal-agents"
+mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$HOME_DIR/.codex/skills" "$TMP_DIR/personal-agents"
 printf 'personal agent\n' >"$TMP_DIR/personal-agents/personal.md"
+printf 'unmanaged skill\n' >"$HOME_DIR/.codex/skills/unmanaged-local"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$HOME_DIR/.claude/agents/playwright-generator.md"
 ln -s "$TMP_DIR/personal-agents/personal.md" "$HOME_DIR/.claude/agents/personal.md"
 
@@ -99,12 +100,24 @@ assert_link "$HOME_DIR/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/scop
 assert_link "$HOME_DIR/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/scopes/shared/skills/css-layout-primitives"
 assert_link "$HOME_DIR/.claude/skills/css-only-components" "$ROOT_DIR/claude/scopes/shared/skills/css-only-components"
 assert_link "$HOME_DIR/.claude/skills/css-debugging" "$ROOT_DIR/claude/scopes/shared/skills/css-debugging"
+assert_link "$HOME_DIR/.claude/skills/react-doctor-100" "$ROOT_DIR/pi/skills/react-doctor-100"
+assert_link "$HOME_DIR/.claude/skills/node" "$ROOT_DIR/vendor/mcollina-skills/skills/node"
+assert_link "$HOME_DIR/.claude/skills/vercel-composition-patterns" "$ROOT_DIR/vendor/vercel-agent-skills/skills/composition-patterns"
 assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/scopes/shared/agents/scout.md"
 assert_link "$HOME_DIR/.claude/agents/worker.md" "$ROOT_DIR/claude/scopes/shared/agents/worker.md"
 assert_link "$HOME_DIR/.claude/agents/reviewer.md" "$ROOT_DIR/claude/scopes/shared/agents/reviewer.md"
 assert_absent "$HOME_DIR/.claude/agents/playwright-generator.md"
 assert_link "$HOME_DIR/.claude/agents/personal.md" "$TMP_DIR/personal-agents/personal.md"
 assert_absent "$HOME_DIR/.claude/scripts/claude-bin.sh"
+assert_absent "$HOME_DIR/.claude/skills/ember-employer-suite"
+assert_absent "$HOME_DIR/.claude/skills/adonisjs-suite"
+
+assert_link "$HOME_DIR/.codex/skills/react-doctor-100" "$ROOT_DIR/pi/skills/react-doctor-100"
+assert_link "$HOME_DIR/.codex/skills/node" "$ROOT_DIR/vendor/mcollina-skills/skills/node"
+assert_link "$HOME_DIR/.codex/skills/vercel-composition-patterns" "$ROOT_DIR/vendor/vercel-agent-skills/skills/composition-patterns"
+assert_file "$HOME_DIR/.codex/skills/unmanaged-local"
+assert_absent "$HOME_DIR/.codex/skills/ember-employer-suite"
+assert_absent "$HOME_DIR/.codex/skills/adonisjs-suite"
 
 if [ -e "$HOME_DIR/.claude/skills/ember-employer-suite" ]; then
   printf 'work-scope skill deployed without a declared scope: %s\n' \
@@ -117,6 +130,18 @@ if ETABLI_SCOPE=bogus "$ROOT_DIR/scripts/deploy-agent-workflow" --dry-run --home
   exit 1
 fi
 
+mkdir -p \
+  "$WORK_HOME_DIR/.pi/agent/skills" \
+  "$WORK_HOME_DIR/.claude/skills" \
+  "$WORK_HOME_DIR/.codex/skills" \
+  "$WORK_HOME_DIR/.agents/skills" \
+  "$WORK_HOME_DIR/external-skill"
+ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
+ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
+ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
+ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
+ln -s "$WORK_HOME_DIR/external-skill" "$WORK_HOME_DIR/.codex/skills/adonisjs-review"
+
 ETABLI_SCOPE=work "$DEPLOY_SCRIPT" --apply --home "$WORK_HOME_DIR" >/dev/null
 assert_link "$WORK_HOME_DIR/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
 assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
@@ -124,6 +149,20 @@ assert_link "$WORK_HOME_DIR/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/w
 assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-inner.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-inner.sh"
 assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-prompt.md" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-prompt.md"
 assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report.sh"
+assert_link "$WORK_HOME_DIR/.pi/agent/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
+assert_link "$WORK_HOME_DIR/.claude/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
+assert_link "$WORK_HOME_DIR/.codex/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
+assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
+assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
+assert_absent "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
+assert_absent "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
+assert_link "$WORK_HOME_DIR/.codex/skills/adonisjs-review" "$WORK_HOME_DIR/external-skill"
+assert_absent "$WORK_HOME_DIR/.grok"
+
+if find "$WORK_HOME_DIR/.codex" -mindepth 1 -maxdepth 1 ! -name skills | grep -q .; then
+  printf 'deploy created a Codex harness surface beyond skills\n' >&2
+  exit 1
+fi
 
 assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"
@@ -133,6 +172,7 @@ assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_link "$HOME_DIR/.pi/agent/subagents.json" "$ROOT_DIR/pi/agent/subagents.json"
 assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
+assert_link "$HOME_DIR/.pi/agent/skills/node" "$ROOT_DIR/vendor/mcollina-skills/skills/node"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
 assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
@@ -222,6 +262,14 @@ settings_before="$(shasum -a 256 "$HOME_DIR/.pi/agent/settings.json" | awk '{pri
 settings_after="$(shasum -a 256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
 if [ "$settings_before" != "$settings_after" ]; then
   printf 'second deploy changed Pi settings; sync is not idempotent\n' >&2
+  exit 1
+fi
+
+SECOND_DRY_RUN_OUTPUT="$TMP_DIR/second-dry-run.out"
+"$DEPLOY_SCRIPT" --dry-run --home "$HOME_DIR" >"$SECOND_DRY_RUN_OUTPUT"
+if grep -q '^WOULD_' "$SECOND_DRY_RUN_OUTPUT"; then
+  printf 'second deploy dry run still reports drift\n' >&2
+  cat "$SECOND_DRY_RUN_OUTPUT" >&2
   exit 1
 fi
 

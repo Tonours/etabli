@@ -169,7 +169,7 @@ assert_contains "$INSTALL_MAIN" 'Claude skill'
 assert_contains "$INSTALL_MAIN" 'Claude workflow hook'
 assert_contains "$INSTALL_MAIN" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Deploy only the Etabli agent workflow surfaces'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Pi, Codex, and Grok (through the shared ~/.agents surface)'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@tintinweb/pi-subagents'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
 assert_contains "$INSTALL_MAIN" 'hunkdiff'
@@ -312,6 +312,14 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/contract-details.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'planMutationGuardDecision'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
+jq -e '
+  .scope == "work" and
+  .runtimeAssignments.claude == ["chrome-devtools", "lean-ctx"] and
+  .runtimeAssignments.pi == ["lean-ctx"] and
+  .runtimeAssignments.codex == ["chrome-devtools", "lean-ctx", "datadog", "linear"] and
+  .runtimeAssignments.grok == [] and
+  (.mcpServers | keys | sort) == ["chrome-devtools", "datadog", "lean-ctx", "linear"]
+' "$ROOT_DIR/mcp/servers.template.json" >/dev/null
 # Behavioral coverage lives in dedicated smokes (plan-check-freeze, no-progress,
 # workflow-event, dual-runtime). Docs smoke keeps map structure + anti-drift only.
 assert_contains "$ROOT_DIR/workflow/spec.md" 'No-progress stop'

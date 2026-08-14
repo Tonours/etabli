@@ -83,3 +83,48 @@ skill_catalog_dir() {
   [ -n "$source" ] || return 1
   printf '%s/%s\n' "$(skill_source_root "$repo_dir" "$source")" "$name"
 }
+
+skill_catalog_vendor_records() {
+  local catalog="$1"
+  local repo_dir="$2"
+  local vendor vendor_repo vendor_ref vendor_scope vendor_skills
+  local catalog_name skill_dir skill_name
+
+  while IFS=$'\t' read -r vendor vendor_repo vendor_ref vendor_scope vendor_skills || [ -n "$vendor" ]; do
+    case "$vendor" in ''|\#*) continue ;; esac
+
+    while IFS= read -r catalog_name; do
+      [ -n "$catalog_name" ] || continue
+      skill_dir="$repo_dir/vendor/$vendor/skills/$catalog_name"
+      skill_name="$(skill_declared_name "$skill_dir")"
+      printf '%s\t%s\t%s\n' "$vendor_scope" "$skill_name" "$skill_dir"
+    done < <(skill_catalog_names "$catalog" "$vendor" any)
+  done <"$repo_dir/vendor/sources.tsv"
+}
+
+skill_catalog_active_vendor_records() {
+  local catalog="$1"
+  local repo_dir="$2"
+  local active_scopes="$3"
+  local vendor_scope skill_name skill_dir
+
+  while IFS=$'\t' read -r vendor_scope skill_name skill_dir; do
+    case " $active_scopes " in
+      *" $vendor_scope "*) printf '%s\t%s\n' "$skill_name" "$skill_dir" ;;
+    esac
+  done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
+}
+
+skill_catalog_inactive_vendor_records() {
+  local catalog="$1"
+  local repo_dir="$2"
+  local active_scopes="$3"
+  local vendor_scope skill_name skill_dir
+
+  while IFS=$'\t' read -r vendor_scope skill_name skill_dir; do
+    case " $active_scopes " in
+      *" $vendor_scope "*) ;;
+      *) printf '%s\t%s\n' "$skill_name" "$skill_dir" ;;
+    esac
+  done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
+}
