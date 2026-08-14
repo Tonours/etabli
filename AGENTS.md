@@ -40,6 +40,12 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.claude/workflow/` -> `workflow/`
 - `~/.agents/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.agents/workflow/` -> `workflow/`
+- `~/.agents/skills/` receives catalog entries marked `agents_visible`; Grok
+  discovers this shared surface
+- `~/.codex/skills/` receives active-scope vendored skills plus catalog entries
+  marked `cross_harness`; no other Codex harness state is tracked
+- `~/.etabli-scope` selects `work` or `personal`; the active set is always
+  `shared` plus that declared scope
 - `~/.config/ghostty/config` -> `ghostty/config`
 - `~/.config/herdr/config.toml` -> `herdr/config.toml`
 - `~/.config/herdr/plugins/config/sessionizer/config.toml` -> `herdr/layouts/sessionizer.config.toml` (manual link; see `herdr/docs/multihost.md`)
