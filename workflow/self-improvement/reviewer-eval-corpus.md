@@ -7,7 +7,9 @@ Each case: the commit reviewed, the defect with its location, the bucket, and wh
 a correct review would have had to do. Held-in cases motivated a change; held-out
 cases must keep passing.
 
-Current lens count: **7 / 8**.
+Current lens count: **8 / 8** (includes Convention & pattern fit; the relational
+seven are held-in; the eighth is active and provisional until ≥2 independent
+convention misses if a merge is needed).
 
 ---
 
