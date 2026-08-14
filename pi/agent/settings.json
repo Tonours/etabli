@@ -34,7 +34,8 @@
         "github-pr-review",
         "suite-router",
         "design-suite",
-        "code-quality"
+        "code-quality",
+        "stack-suite"
       ]
     },
     {

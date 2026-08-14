@@ -15,16 +15,18 @@ does.
 Project-specific work routes elsewhere: `ember-employer-suite` for the
 employer Ember frontend, `employer-backend-suite` for the employer backend and
 integrations. Those win when the task is about *this* codebase rather than about
-the language or framework.
+the language or framework. They ship in the Claude `work` scope only; on a
+surface where they are not linked, say so and use the generic rows below
+instead of reporting a missing skill.
 
 ## Route by subject
 
 | Task touches | Use |
-|---|---|
+| --- | --- |
 | Node.js runtime: async, streams, error handling, graceful shutdown, env config, profiling, flaky tests, type stripping | `node` |
 | Node core internals: C++ addons, N-API, V8, libuv, node-gyp, segfaults, native leaks, a `nodejs/node` PR | `nodejs-core` |
 | TypeScript types: generics, `infer`, conditional and mapped types, type guards, removing `any`, compiler errors | `typescript-magician` |
-| Fastify: routes, plugins, hooks, JSON Schema validation, serialization, Pino logging, a REST API | `fastify` |
+| Fastify: routes, plugins, hooks, JSON Schema validation, serialization, Pino logging, a REST API | `fastify-best-practices` |
 | OAuth 2.0/2.1: authorization code with PKCE, client credentials, device flow, refresh rotation, JWT validation, introspection | `oauth` |
 | ESLint v9 flat config, neostandard, migrating off `.eslintrc`, lint in CI | `linting-neostandard-eslint9` |
 | React or Next.js performance: waterfalls, bundle size, memoization, data fetching, re-render cost | `vercel-react-best-practices` |
@@ -44,7 +46,7 @@ generic rows above rather than reporting a missing skill.
 
 Pick from the dominant risk, not from the first file you opened. A React
 performance problem in a Fastify-served app is a `vercel-react-best-practices`
-task, not a `fastify` one.
+task, not a `fastify-best-practices` one.
 
 More than one row can apply. Read them in the order the task needs, and stop as
 soon as you have what the change requires.
