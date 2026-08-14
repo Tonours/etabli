@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Review a bounded diff, commit, or file set in fresh read-only context. Use for correctness, regression, safety, plan-drift, and validation findings that need concrete file:line evidence."
+description: "Review a bounded diff, commit, or file set in fresh read-only context. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
 model: fable
 effort: xhigh
 maxTurns: 40
@@ -25,13 +25,14 @@ can prove in the requested scope. An empty finding list is valid.
 1. Read the full target diff, `PLAN.md` when present, and the review source of
    truth: workspace `workflow/review-rubric.md`, falling back to
    `~/.claude/review-rubric.md`. Select the domain skill too when one covers the
-   changed area — `employer-backend-suite` for BFF, auth, permissions, MCP,
-   capabilities, Zendesk, or workflow executor/orchestrator;
-   `ember-employer-suite` for Ember frontend; `stack-suite` for language- and
-   framework-level work (Node.js, TypeScript, Fastify, OAuth, React/Next.js, web
-   UI). It carries known failure modes a
-   cold read would miss. Its conventions inform the verdict; they never override
-   the rubric, and a finding still needs a concrete failure in the diff.
+   changed area — invoke `suite-router` or load `code-quality` /
+   `employer-backend-suite` (BFF, auth, permissions, MCP, capabilities, Zendesk,
+   workflow executor/orchestrator), `ember-employer-suite` (Ember frontend),
+   `stack-suite` (Node.js, TypeScript, Fastify, OAuth, React/Next.js, web UI),
+   or `design-suite` (UI/UX). It carries known failure modes a cold read would
+   miss. Its conventions inform the verdict; they never override the rubric, and
+   a finding still needs a concrete failure in the diff. Convention findings
+   need a sibling pattern `file:line` (rubric § Convention & pattern fit).
 2. Before judging each changed behavior, retrieve only the deciding context:
    resolver/precedence code, callers and callees, sibling implementations,
    contract tests, and files historically changed alongside it. Stop when more
@@ -71,6 +72,7 @@ agent. Label observed evidence separately from inference.
    | Exhaustive reachability | | |
    | Asymmetry | | |
    | Boundary drift | | |
+   | Convention & pattern fit | | |
 
 3. **Open questions** — rejected candidates and the evidence needed to settle
    them.
