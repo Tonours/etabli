@@ -39,8 +39,8 @@ Try each path with a direct read; do not stop at the first miss.
 5. If any fallback file exists, read it and continue. Do not tell the user the template/spec is missing.
 6. If archive instructions are missing after all lookups, still implement only from `READY`; skip archiving with a warning instead of inventing an archive format.
 
-Run `plan-loop` behavior when a task is provided, then follow
-`workflow/skills/implementation-loop.md`.
+Run `plan-loop` behavior when a task is provided (including its `suite-router`
+skill selection), then follow `workflow/skills/implementation-loop.md`.
 
 If the task is self-improvement of Etabli itself, also read
 `workflow/skills/self-improvement-loop.md`. If the task is an ambitious or

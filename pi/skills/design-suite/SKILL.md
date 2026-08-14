@@ -12,13 +12,14 @@ Existing etabli skills supply CSS primitives, motion, and visual validation.
 Prerequisite: user has a ui.sh subscription and has run  
 `npx @uidotsh/install --token=...` (or skill-by-skill) so the ui.sh skills are available in the agent environment.
 
+**If ui.sh skills are missing:** announce the gap, fall through to `frontend-css-ui-ux` (+ `css-layout-primitives` / `css-only-components` / captures) only, and do not invent ui.sh steps.
+
 ## Modes
 
 - **new-ui** — brand → ideas → design → structure → adapt → polish
 - **redesign** — start from existing UI, then ideas/design/polish
 - **polish** — canonicalize, responsive, dark mode, css polish only
 - **from-image** — markup-from-image → design → structure
-- **from-figma** — (when Figma MCP present) import → design → implement
 
 ## Phases (execute in order unless mode skips)
 
