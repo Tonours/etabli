@@ -48,15 +48,21 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 10. After CI-driven commits that touch runtime code: **delta re-review**
     (break-first on the new diff only). Record `delta_rereview: yes|no|n/a`.
 11. If reviewer or bot feedback already exists on the PR when CI settles,
-    report it; treating it is a separate explicit request. Escaped defects
-    found post-GO follow `workflow/templates/escaped-defect.md`.
+    report it; treating it is a separate explicit request. Defects found
+    **after** an internal GO (Macroscope, colleague, CI, prod) must be recorded
+    with `workflow/templates/escaped-defect.md` before the miss is treated as
+    closed; append a row to `workflow/self-improvement/review-metrics.md`.
 12. Remove the run's worktree, or report the path and why it was kept, per
     `workflow/skills/worktree-isolation.md`.
 13. Report: branch, commits, PR URL, CI state, archive path, worktree cleanup
     status, `cumulative_review`, `delta_rereview`, `reviewer_model`,
-    `adversary_model` (or `same-family-pass: double-sample`), remaining risks.
-    When the branch carries checkpoint commits, say the branch is
-    squash-merge-only so its checkpoints never become history.
+    `adversary_model` (or `same-family-pass: double-sample`),
+    `deciding_code: complete|incomplete|n/a`, `escaped_defects_recorded: 0|<n>`,
+    remaining risks. When the branch carries checkpoint commits, say the branch
+    is squash-merge-only so its checkpoints never become history.
+14. Append one metrics row to
+    `workflow/self-improvement/review-metrics.md` for this PR (verdict + models
+    + deciding_code; `escaped_later` stays 0 until a later miss).
 
 ## Test Evidence
 
@@ -101,4 +107,4 @@ Re-run once before calling a single failure a flake, and name the mechanism
 A ship run is complete only when the final report names: PR URL, green CI (or
 capped/blocked state), implemented-plan archive path, event ledger location,
 the fresh-context review verdict, `cumulative_review`, `adversary_model` (or
-double-sample), and the worktree cleanup status.
+double-sample), `deciding_code`, and the worktree cleanup status.
