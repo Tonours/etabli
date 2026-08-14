@@ -23,22 +23,27 @@ echo "[herdr-sync-mini] tar plugins (github checkouts + config)..."
 
 echo "[herdr-sync-mini] remote links + plugin register..."
 ssh -o BatchMode=yes "$HOST" "export PATH=\"\$HOME/.local/bin:\$PATH\"
+HERDR_MINI_TREE_SPEC='$REMOTE_HERDR'
 set -e
-ln -sfn \$HOME/work/etabli-herdr/config.toml ~/.config/herdr/config.toml
+TREE=\"\$HERDR_MINI_TREE_SPEC\"
+case \"\$TREE\" in '~'*) TREE=\"\$HOME\${TREE#\~}\" ;; esac
+ln -sfn \"\$TREE/config.toml\" ~/.config/herdr/config.toml
 mkdir -p ~/.config/herdr/plugins/config/sessionizer
-ln -sfn \$HOME/work/etabli-herdr/layouts/sessionizer.config.toml \
+ln -sfn \"\$TREE/layouts/sessionizer.config.toml\" \
   ~/.config/herdr/plugins/config/sessionizer/config.toml
 for skill_dir in ~/.claude/skills ~/.codex/skills ~/.agents/skills ~/.pi/agent/skills; do
   mkdir -p \"\$skill_dir\"
-  if [ -e \"\$skill_dir/herdr\" ] && [ ! -L \"\$skill_dir/herdr\" ]; then rm -rf \"\$skill_dir/herdr\"; fi
-  ln -sfn \$HOME/work/etabli-herdr/skills/herdr \"\$skill_dir/herdr\"
+  if [ -e \"\$skill_dir/herdr\" ] && [ ! -L \"\$skill_dir/herdr\" ]; then
+    mv \"\$skill_dir/herdr\" \"\$skill_dir/herdr.bak.\$(date +%Y%m%d-%H%M%S)\"
+  fi
+  ln -sfn \"\$TREE/skills/herdr\" \"\$skill_dir/herdr\"
 done
 for d in ~/.config/herdr/plugins/github/*/; do
   [ -f \"\${d}herdr-plugin.toml\" ] || continue
   herdr plugin link \"\${d%/}\" >/dev/null 2>&1 || herdr plugin link \"\${d%/}\" || true
 done
-herdr plugin link \$HOME/work/etabli-herdr/plugins/etabli-obvault >/dev/null 2>&1 || \
-  herdr plugin link \$HOME/work/etabli-herdr/plugins/etabli-obvault || true
+herdr plugin link \"\$TREE/plugins/etabli-obvault\" >/dev/null 2>&1 || \
+  herdr plugin link \"\$TREE/plugins/etabli-obvault\" || true
 herdr config check
 herdr server reload-config 2>/dev/null || true
 herdr --version
