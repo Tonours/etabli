@@ -711,7 +711,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     ln -s "../../relative-repo/pi/skills/relative-managed-gone" \
         "$smoke_skill_home/.claude/skills/relative-managed-dangling"
     for smoke_live_skill in \
-        "claude/scopes/shared/skills/stack-suite" \
+        "pi/skills/stack-suite" \
         "vendor/mcollina-skills/skills/node" \
         "pi/skills/react-doctor-100"; do
         ln -s "$smoke_repo_dir/$smoke_live_skill" \

@@ -13,7 +13,7 @@ It carries no implementation rules. It only classifies the domain and points at 
 
 Match signals in this priority order (stop at the highest applicable set):
 
-1. **Project suites** — ForestAdmin Ember / Forest backend / Adonis / TanStack Start tasks → prefer `ember-forestadmin-suite`, `forest-backend-suite`, `adonisjs-suite`, or `tanstack-start-suite` over generic suites.
+1. **Project suites** — ForestAdmin Ember / Forest backend / Adonis / TanStack Start tasks → prefer `ember-forestadmin-suite`, `forest-backend-suite`, `adonisjs-suite`, or `tanstack-start-suite` over generic suites. Project suites are scope-gated (work or personal): when one is not linked on the current surface, say so and fall back to the generic suites instead of reporting a missing skill.
 2. **Design / UI** — keywords: design, UI, UX, page, layout, dark mode, responsive, brand, figma, screenshot, mockup, visual, spacing, typography; or `DESIGN.md` / design tokens present → `design-suite`.
 3. **React / frontend code** — `.tsx` / React / RSC / Next / TanStack component paths, or keywords tied to implementation (hook, re-render, composition) → `stack-suite` (React rows).
 4. **Node / backend** — API, route, middleware, server, Fastify, Express, Hono, Nest, Prisma, Drizzle, auth backend, worker, Node → `stack-suite` (Node / Fastify / oauth rows).

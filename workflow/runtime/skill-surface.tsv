@@ -34,6 +34,7 @@ react-doctor-100	pi	0	1	1	1
 show-me	pi	0	1	1	1
 design-suite	pi	1	1	0	1
 code-quality	pi	1	1	0	1
+stack-suite	pi	1	1	0	1
 add-dark-mode	pi	0	1	0	1
 brand-kit	pi	0	1	0	1
 canonicalize-tailwind	pi	0	1	0	1
