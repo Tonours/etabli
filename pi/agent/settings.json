@@ -32,7 +32,9 @@
         "sec-pr",
         "ci-fix",
         "github-pr-review",
-        "suite-router"
+        "suite-router",
+        "design-suite",
+        "code-quality"
       ]
     },
     {
