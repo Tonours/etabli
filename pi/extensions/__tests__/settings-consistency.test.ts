@@ -92,6 +92,7 @@ describe("Pi settings consistency", () => {
       "session-handoff",
       "ui-reference-capture",
       "react-doctor-100",
+      "show-me",
     ]);
     // Fluidity: caveman/grill-me stay optional (not piCore, not agents-visible).
     expect(skillCatalog.find((s) => s.name === "caveman")?.piCore).toBe(false);
