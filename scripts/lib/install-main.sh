@@ -623,6 +623,12 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
 
     printf '%s\n' "$package_sources" | while IFS= read -r package_source; do
         [ -z "$package_source" ] && continue
+        case "$package_source" in
+            local:*)
+                print_step "Skipping '$package_source' (skills linked from this repo)"
+                continue
+                ;;
+        esac
         if pi install "$package_source" > /dev/null 2>&1; then
             print_success "Pi package '$package_source' installed"
         else
