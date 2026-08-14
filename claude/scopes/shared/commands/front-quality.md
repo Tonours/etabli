@@ -8,17 +8,20 @@ allowed-tools: [Read, Glob, Grep, Bash, Edit, Skill]
 
 User request: $ARGUMENTS
 
-Run the three-pass front-end quality chain the user otherwise types manually.
+Run the three-pass front-end quality chain. Prefer the shared `code-quality`
+skill when available (it generalizes this command across React, Node, and CSS);
+otherwise run the passes below.
 
 ## Passes
 
 1. **Review** — review the current diff with `workflow/review-rubric.md` when
    available, focused on React/frontend correctness (hooks rules, state
-   ownership, render loops, effect dependencies).
-2. **Best practices** — apply the `vercel-react-best-practices` skill to the
-   changed files when the skill is available; otherwise check the diff against
-   React performance basics (memoization only where measured, stable deps,
-   no derived-state duplication).
+   ownership, render loops, effect dependencies) and convention/pattern fit
+   against sibling components.
+2. **Best practices** — apply the `vercel-react-best-practices` skill (via
+   `stack-suite` or `code-quality`) to the changed files when available;
+   otherwise check the diff against React performance basics (memoization only
+   where measured, stable deps, no derived-state duplication).
 3. **Doctor** — run `npx react-doctor@latest` on the target package; triage its
    output against the diff.
 
@@ -28,5 +31,7 @@ Run the three-pass front-end quality chain the user otherwise types manually.
 - Only the requested path/packages; do not audit the whole repo.
 - Re-run the failing pass after fixes until no blocking finding remains or a
   finding needs a user decision.
+- Convention findings need a sibling pattern `file:line` (rubric § Convention &
+  pattern fit).
 
 End with one line per pass: `review | best-practices | doctor: <clean | n findings>`.

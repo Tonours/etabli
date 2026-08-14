@@ -47,6 +47,11 @@ details in the adapters; keep the phase order and completion evidence here.
 12b. Simplification pass once checks are green: remove needless abstraction,
     dead branches, and duplication introduced by the change, without behavior
     change; re-run the focused checks if it edited anything.
+12c. Quality pass on the cumulative diff: invoke `code-quality` (or
+    `suite-router` → `stack-suite` / `design-suite` when `code-quality` is
+    unavailable). Fix mechanical convention findings; report behavioral ones.
+    Re-run focused checks if the pass edited anything. Skip only for pure docs
+    or plan-only changes, and say so.
 13. Review the diff against `PLAN.md`. In an autonomous run, this review comes
     from a fresh context (subagent reviewer or cross-model) per
     `workflow/spec.md`. If a read-only fresh-context runner is available and
@@ -79,6 +84,7 @@ evidence for all of:
 - adversary code-diff review in autonomous runs;
 - focused validation;
 - product dogfood scenario evidence when required by the plan;
+- quality pass result (or explicit skip for docs/plan-only);
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
 - diff/code review;
 - implemented-plan archive under `docs/plan/`;

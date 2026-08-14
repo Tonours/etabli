@@ -8,8 +8,9 @@ labels.
 
 ## Purpose
 
-Review changes for correctness, regressions, risks, validation gaps, and plan
-drift. Use `workflow/review-rubric.md` as the source of truth when available.
+Review changes for correctness, regressions, risks, validation gaps, convention
+or pattern drift, and plan drift. Use `workflow/review-rubric.md` as the source
+of truth when available.
 
 ## Target Resolution
 
@@ -23,6 +24,9 @@ drift. Use `workflow/review-rubric.md` as the source of truth when available.
 3. Read the shared rubric from `workflow/review-rubric.md`, or the harness
    fallback rubric only outside a workflow-scaffolded project.
 4. Read `PLAN.md` when present and use it for plan-compliance review.
+5. When the diff touches language, framework, or UI surface, load the matching
+   domain skill via `suite-router` / `code-quality` so convention findings are
+   anchored in project patterns (see rubric § Convention & pattern fit).
 
 ## Review Scope
 
@@ -35,6 +39,7 @@ Review only the target scope. Cover:
 - safety;
 - validation;
 - maintainability;
+- convention and pattern fit against sibling implementations;
 - plan drift;
 - human checkpoint trigger when needed.
 
@@ -77,6 +82,7 @@ Verdict: GO | GO WITH NOTES | BLOCK
 ## Rules
 
 - No style nitpicks unless they affect correctness or maintenance.
+- Convention findings need a sibling pattern `file:line` or a named skill rule.
 - Prefer minimal fixes.
 - If a human should arbitrate risk, replan, or broad-impact tradeoffs, say so
   explicitly.
