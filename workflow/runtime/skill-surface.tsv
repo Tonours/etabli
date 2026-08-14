@@ -14,6 +14,7 @@ pr-qa	pi	1	1	1
 sec-pr	pi	1	1	1
 ci-fix	pi	1	1	1
 github-pr-review	pi	1	1	1
+suite-router	pi	1	1	0	1
 caveman	pi	0	0	0
 grill-me	pi	0	0	0
 browser-full-page-capture	pi	0	1	1
@@ -31,8 +32,7 @@ ui-reference-capture	pi	0	1	1
 maintainer-orchestrator	pi	0	0	0
 react-doctor-100	pi	0	1	1	1
 show-me	pi	0	1	1	1
-suite-router	pi	1	1	0	1
-design-suite	pi	1	1	0	1
+design-suite	pi	0	1	0	1
 node	mcollina-skills	0	0	1
 nodejs-core	mcollina-skills	0	0	1
 typescript-magician	mcollina-skills	0	0	1

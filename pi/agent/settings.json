@@ -31,7 +31,8 @@
         "pr-qa",
         "sec-pr",
         "ci-fix",
-        "github-pr-review"
+        "github-pr-review",
+        "suite-router"
       ]
     },
     {
