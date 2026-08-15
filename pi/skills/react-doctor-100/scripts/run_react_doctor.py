@@ -32,7 +32,9 @@ def parse_version(text: str) -> tuple[int, int, int] | None:
 
 def node_version(node: str) -> tuple[int, int, int] | None:
     try:
-        out = subprocess.run([node, "--version"], text=True, capture_output=True, timeout=30)
+        out = subprocess.run(
+            [node, "--version"], text=True, capture_output=True, timeout=30
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     return parse_version(out.stdout.strip())
@@ -58,7 +60,9 @@ def discover_node() -> tuple[str, tuple[int, int, int]] | None:
 
     roots = [
         Path.home() / ".nvm" / "versions" / "node",
-        Path(os.environ.get("ASDF_DATA_DIR", Path.home() / ".asdf")) / "installs" / "nodejs",
+        Path(os.environ.get("ASDF_DATA_DIR", Path.home() / ".asdf"))
+        / "installs"
+        / "nodejs",
     ]
     for root in roots:
         if not root.is_dir():
@@ -83,7 +87,15 @@ def resolve_binary(cache_dir: Path, spec: str, node: str) -> tuple[str, str] | s
     if npm is None:
         return "npm not found on PATH; cannot install react-doctor"
     install = subprocess.run(
-        [npm, "install", "--no-fund", "--no-audit", "--no-package-lock", "--silent", f"{PACKAGE}@{spec}"],
+        [
+            npm,
+            "install",
+            "--no-fund",
+            "--no-audit",
+            "--no-package-lock",
+            "--silent",
+            f"{PACKAGE}@{spec}",
+        ],
         cwd=cache_dir,
         text=True,
         capture_output=True,
@@ -96,7 +108,15 @@ def resolve_binary(cache_dir: Path, spec: str, node: str) -> tuple[str, str] | s
 
 
 def build_command(binary: str, args: argparse.Namespace, directory: Path) -> list[str]:
-    command = [binary, str(directory), "--json", "--blocking", "none", "--scope", args.scope]
+    command = [
+        binary,
+        str(directory),
+        "--json",
+        "--blocking",
+        "none",
+        "--scope",
+        args.scope,
+    ]
     if args.audit_inline_disables:
         command.append("--no-respect-inline-disables")
     if args.project:
@@ -107,13 +127,21 @@ def build_command(binary: str, args: argparse.Namespace, directory: Path) -> lis
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run react-doctor and persist a JSON report.")
-    parser.add_argument("directory", nargs="?", default=".", help="React project directory")
+    parser = argparse.ArgumentParser(
+        description="Run react-doctor and persist a JSON report."
+    )
+    parser.add_argument(
+        "directory", nargs="?", default=".", help="React project directory"
+    )
     parser.add_argument("--out-dir", default=".react-doctor", help="output directory")
     parser.add_argument("--project", help="react-doctor workspace project name or path")
-    parser.add_argument("--scope", default="full", choices=["full", "files", "changed", "lines"])
+    parser.add_argument(
+        "--scope", default="full", choices=["full", "files", "changed", "lines"]
+    )
     parser.add_argument("--base", help="base git ref for files/changed/lines scope")
-    parser.add_argument("--version-spec", default="latest", help="react-doctor version to install")
+    parser.add_argument(
+        "--version-spec", default="latest", help="react-doctor version to install"
+    )
     parser.add_argument(
         "--respect-inline-disables",
         action="store_false",
@@ -135,7 +163,9 @@ def main() -> int:
         )
     node, version = found
 
-    cache_dir = Path(os.environ.get(CACHE_ENV) or Path.home() / ".cache" / "react-doctor-runner")
+    cache_dir = Path(
+        os.environ.get(CACHE_ENV) or Path.home() / ".cache" / "react-doctor-runner"
+    )
     resolved = resolve_binary(cache_dir, args.version_spec, node)
     if isinstance(resolved, str):
         return fail(resolved)
@@ -147,8 +177,13 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     command = build_command(binary, args, directory)
-    env = {**os.environ, "PATH": str(Path(node).parent) + os.pathsep + os.environ.get("PATH", "")}
-    result = subprocess.run(command, cwd=directory, text=True, capture_output=True, env=env)
+    env = {
+        **os.environ,
+        "PATH": str(Path(node).parent) + os.pathsep + os.environ.get("PATH", ""),
+    }
+    result = subprocess.run(
+        command, cwd=directory, text=True, capture_output=True, env=env
+    )
 
     raw_path = out_dir / "react-doctor-stdout.txt"
     stderr_path = out_dir / "react-doctor-stderr.txt"

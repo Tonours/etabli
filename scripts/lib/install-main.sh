@@ -18,8 +18,8 @@ SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
 # ============================================================================
 readonly NERD_FONT_VERSION="v3.4.0"
 readonly MIN_NVIM_VERSION="0.12.2"
-readonly PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
-readonly AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
+readonly PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
+readonly AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -55,8 +55,8 @@ prune_stale_managed_claude_agent_links() {
         [ -L "$agent_link" ] || continue
         agent_target="$(readlink "$agent_link")"
         case "$agent_target" in
-            "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
-            *) continue ;;
+        "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
+        *) continue ;;
         esac
         [ -e "$agent_target" ] && continue
 
@@ -95,7 +95,7 @@ skill_target_is_managed() {
     fi
 
     case "$skill_target" in
-        "$repo_dir/pi/skills/"?* | \
+    "$repo_dir/pi/skills/"?* | \
         "$repo_dir/vendor/"?*"/skills/"?* | \
         "$repo_dir/claude/scopes/"?*"/skills/"?*) return 0 ;;
     esac
@@ -212,15 +212,15 @@ ensure_nvim_version() {
 }
 
 has_valid_rtk() {
-    command -v rtk &> /dev/null && rtk gain > /dev/null 2>&1
+    command -v rtk &>/dev/null && rtk gain >/dev/null 2>&1
 }
 
 node_available() {
-    "${NODE_CMD[@]}" -v > /dev/null 2>&1
+    "${NODE_CMD[@]}" -v >/dev/null 2>&1
 }
 
 node_runtime_available() {
-    node_available && "${NPM_CMD[@]}" -v > /dev/null 2>&1
+    node_available && "${NPM_CMD[@]}" -v >/dev/null 2>&1
 }
 
 prepend_asdf_shims() {
@@ -228,8 +228,8 @@ prepend_asdf_shims() {
 
     if [ -d "$shims_dir" ]; then
         case ":$PATH:" in
-            *":$shims_dir:"*) ;;
-            *) export PATH="$shims_dir:$PATH" ;;
+        *":$shims_dir:"*) ;;
+        *) export PATH="$shims_dir:$PATH" ;;
         esac
     fi
 }
@@ -238,14 +238,14 @@ append_path_entry() {
     local entry="$1"
 
     case ":${PATH:-}:" in
-        *":$entry:"*) ;;
-        *)
-            if [ -n "${PATH:-}" ]; then
-                export PATH="$PATH:$entry"
-            else
-                export PATH="$entry"
-            fi
-            ;;
+    *":$entry:"*) ;;
+    *)
+        if [ -n "${PATH:-}" ]; then
+            export PATH="$PATH:$entry"
+        else
+            export PATH="$entry"
+        fi
+        ;;
     esac
 }
 
@@ -286,7 +286,7 @@ ensure_local_bin_shell_path() {
                 print desired
             }
         }
-    ' "$rcfile" > "$tmp_file" && cp "$tmp_file" "$rcfile"; then
+    ' "$rcfile" >"$tmp_file" && cp "$tmp_file" "$rcfile"; then
         rm -f "$tmp_file"
     else
         rm -f "$tmp_file"
@@ -296,15 +296,15 @@ ensure_local_bin_shell_path() {
 
 reshim_asdf_node() {
     if [ "${NODE_CMD[0]}" = "asdf" ]; then
-        asdf reshim nodejs > /dev/null 2>&1 || true
+        asdf reshim nodejs >/dev/null 2>&1 || true
     fi
 }
 
 select_node_runtime() {
     print_step "Checking Node.js runtime..."
 
-    if command -v asdf &> /dev/null; then
-        if asdf exec node -v > /dev/null 2>&1 && asdf exec npm -v > /dev/null 2>&1; then
+    if command -v asdf &>/dev/null; then
+        if asdf exec node -v >/dev/null 2>&1 && asdf exec npm -v >/dev/null 2>&1; then
             prepend_asdf_shims
             NODE_CMD=(asdf exec node)
             NPM_CMD=(asdf exec npm)
@@ -313,7 +313,7 @@ select_node_runtime() {
         fi
     fi
 
-    if command -v node &> /dev/null && command -v npm &> /dev/null; then
+    if command -v node &>/dev/null && command -v npm &>/dev/null; then
         NODE_CMD=(node)
         NPM_CMD=(npm)
         print_success "Node.js $("${NODE_CMD[@]}" -v) ready (via PATH)"
@@ -361,7 +361,7 @@ install_npm_global_binary_link() {
     local binary="$1"
     local prefix target
 
-    if command -v "$binary" > /dev/null 2>&1; then
+    if command -v "$binary" >/dev/null 2>&1; then
         print_success "$binary available"
         return 0
     fi
@@ -402,14 +402,14 @@ prune_managed_pi_skills() {
         local target
         target="$(readlink "$skill_link")"
         case "$target" in
-            "$REPO_DIR/pi/skills/"*)
-                local skill_name
-                skill_name="$(basename "$skill_link")"
-                if ! is_core_pi_skill "$skill_name"; then
-                    rm -f "$skill_link"
-                    print_success "Removed stale Pi skill '$skill_name'"
-                fi
-                ;;
+        "$REPO_DIR/pi/skills/"*)
+            local skill_name
+            skill_name="$(basename "$skill_link")"
+            if ! is_core_pi_skill "$skill_name"; then
+                rm -f "$skill_link"
+                print_success "Removed stale Pi skill '$skill_name'"
+            fi
+            ;;
         esac
     done
 }
@@ -427,7 +427,7 @@ sync_pi_agent_settings_resources() {
         return 0
     fi
 
-    if "${NODE_CMD[@]}" - "$local_settings" "$tracked_settings" <<'NODE'
+    if "${NODE_CMD[@]}" - "$local_settings" "$tracked_settings" <<'NODE'; then
 const fs = require("node:fs");
 
 const [localPath, trackedPath] = process.argv.slice(2);
@@ -534,7 +534,6 @@ if (changed) {
   fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
 }
 NODE
-    then
         print_success "Pi agent settings resource filters synced"
     else
         print_warning "Pi agent settings resource sync failed"
@@ -542,7 +541,7 @@ NODE
 }
 
 sync_nvim_plugins() {
-    if ! command -v nvim &> /dev/null; then
+    if ! command -v nvim &>/dev/null; then
         print_warning "Neovim not available - skipping plugin sync"
         return 0
     fi
@@ -550,13 +549,13 @@ sync_nvim_plugins() {
     ensure_nvim_version || print_warning "Install Neovim $MIN_NVIM_VERSION+ before relying on this config"
 
     print_step "Installing Neovim plugins through vim.pack..."
-    if nvim --headless +qa > /dev/null 2>&1; then
+    if nvim --headless +qa >/dev/null 2>&1; then
         print_success "Neovim plugins installed"
     else
         print_warning "Neovim plugin install failed - run: nvim --headless +qa"
     fi
 
-    if nvim --headless "+lua vim.notify = function() end" +qa > /dev/null 2>&1; then
+    if nvim --headless "+lua vim.notify = function() end" +qa >/dev/null 2>&1; then
         print_success "Neovim config loads"
     else
         print_warning "Neovim config load check failed - run: nvim --headless +qa"
@@ -599,7 +598,7 @@ install_pi_packages_from_settings() {
 
     package_sources="$(
         {
-        "${NODE_CMD[@]}" -e '
+            "${NODE_CMD[@]}" -e '
 const fs = require("fs");
 const settingsPath = process.argv[1];
 const raw = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
@@ -624,12 +623,12 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
     printf '%s\n' "$package_sources" | while IFS= read -r package_source; do
         [ -z "$package_source" ] && continue
         case "$package_source" in
-            local:*)
-                print_step "Skipping '$package_source' (skills linked from this repo)"
-                continue
-                ;;
+        local:*)
+            print_step "Skipping '$package_source' (skills linked from this repo)"
+            continue
+            ;;
         esac
-        if pi install "$package_source" > /dev/null 2>&1; then
+        if pi install "$package_source" >/dev/null 2>&1; then
             print_success "Pi package '$package_source' installed"
         else
             print_warning "Failed to install Pi package: $package_source"
@@ -648,7 +647,7 @@ install_pi_agent_npm_pins() {
     fi
 
     mkdir -p "$package_dir"
-    if (cd "$package_dir" && "${NPM_CMD[@]}" install --save-exact "${PI_AGENT_NPM_PINS[@]}" > /dev/null 2>&1); then
+    if (cd "$package_dir" && "${NPM_CMD[@]}" install --save-exact "${PI_AGENT_NPM_PINS[@]}" >/dev/null 2>&1); then
         print_success "Pi agent npm pins installed"
     else
         print_warning "Failed to install Pi agent npm pins"
@@ -662,7 +661,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     first_backup="$tmp_dir/settings.json.bak.${TIMESTAMP}"
     second_backup="$tmp_dir/settings.json.bak.${TIMESTAMP}.1"
-    : > "$first_backup"
+    : >"$first_backup"
 
     computed_backup="$(backup_path "$tmp_dir/settings.json")"
     if [ "$computed_backup" != "$second_backup" ]; then
@@ -674,7 +673,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     smoke_agent_home="$tmp_dir/agent-home"
     smoke_personal_target="$tmp_dir/personal-agent.md"
     mkdir -p "$smoke_agent_home/.claude/agents"
-    printf '%s\n' 'personal agent' > "$smoke_personal_target"
+    printf '%s\n' 'personal agent' >"$smoke_personal_target"
     ln -s "$smoke_repo_dir/claude/agents/removed-agent.md" \
         "$smoke_agent_home/.claude/agents/removed-agent.md"
     ln -s "$smoke_personal_target" \
@@ -825,7 +824,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     PATH="$original_path"
 
     rcfile="$tmp_dir/zshrc"
-    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' > "$rcfile"
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' >"$rcfile"
     ensure_local_bin_shell_path "$rcfile"
     desired_rc_line='case ":${PATH:-}:" in *":$HOME/.local/bin:"*) ;; *) export PATH="${PATH:+$PATH:}$HOME/.local/bin" ;; esac'
     if ! grep -Fxq "$desired_rc_line" "$rcfile"; then
@@ -839,7 +838,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     symlink_target="$tmp_dir/linked-zshrc-target"
     symlink_rc="$tmp_dir/linked-zshrc"
-    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' > "$symlink_target"
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' >"$symlink_target"
     ln -s "$symlink_target" "$symlink_rc"
     ensure_local_bin_shell_path "$symlink_rc"
     if [ ! -L "$symlink_rc" ]; then
@@ -854,7 +853,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     smoke_home="$tmp_dir/home"
     mkdir -p "$smoke_home/.pi/agent"
     printf '%s\n' '{"defaultProvider":"custom","defaultModel":"personal-model","defaultThinkingLevel":"low","enabledModels":["custom/personal-model"],"packages":["npm:@agwab/pi-workflow",{"source":"npm:@agwab/pi-workflow@0.7.0"},{"source":"npm:@agwab/pi-workflow-helper"}]}' \
-        > "$smoke_home/.pi/agent/settings.json"
+        >"$smoke_home/.pi/agent/settings.json"
     # Resolve a real Node binary before HOME override. asdf shims exit 126 when HOME
     # points at a disposable tree; that is unrelated to settings-sync portability.
     smoke_node_bin="$("${NODE_CMD[@]}" -e 'process.stdout.write(process.execPath)' 2>/dev/null || true)"
@@ -931,8 +930,8 @@ check_disk_space
 mkdir -p ~/.config ~/.local/share ~/.local/bin ~/.local/state
 
 # Get script and repo directories
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-REPO_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Validate repo structure
 if [ ! -f "$REPO_DIR/tmux.conf" ]; then
@@ -956,7 +955,7 @@ echo ""
 print_step "Installing dependencies..."
 
 if [[ "$OS" == "mac" ]]; then
-    if ! command -v brew &> /dev/null; then
+    if ! command -v brew &>/dev/null; then
         print_step "Installing Homebrew..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
@@ -978,11 +977,11 @@ elif [[ "$OS" == "debian" ]]; then
         print_warning "lua-language-server package unavailable from apt"
     }
 
-    if command -v fdfind &> /dev/null && ! command -v fd &> /dev/null; then
+    if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
         sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd || print_warning "Could not create fd symlink"
     fi
 
-    if ! command -v lazygit &> /dev/null; then
+    if ! command -v lazygit &>/dev/null; then
         print_step "Installing Lazygit..."
         LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p')
         if [ -n "$LAZYGIT_VERSION" ]; then
@@ -1026,10 +1025,10 @@ print_step "Installing RTK..."
 if has_valid_rtk; then
     print_success "RTK already installed"
 else
-    if [[ "$OS" == "mac" ]] && command -v brew &> /dev/null; then
+    if [[ "$OS" == "mac" ]] && command -v brew &>/dev/null; then
         brew install rtk || print_warning "RTK brew install failed"
     else
-        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh || \
+        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh ||
             print_warning "RTK install script failed"
     fi
 
@@ -1089,7 +1088,7 @@ mkdir -p ~/.local/share/fonts
         if download_with_retry \
             "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONT_VERSION}/CascadiaMono.zip" \
             "CascadiaMono.zip"; then
-            if unzip -tq CascadiaMono.zip > /dev/null 2>&1; then
+            if unzip -tq CascadiaMono.zip >/dev/null 2>&1; then
                 unzip -qo CascadiaMono.zip
                 rm -f CascadiaMono.zip
             else
@@ -1101,7 +1100,7 @@ mkdir -p ~/.local/share/fonts
 )
 
 if [[ "$OS" != "mac" ]]; then
-    fc-cache -fv > /dev/null 2>&1 || true
+    fc-cache -fv >/dev/null 2>&1 || true
 fi
 
 print_success "Nerd Font installed"
@@ -1400,7 +1399,7 @@ mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
 mkdir -p ~/.agents/skills
 prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
 
-CROSS_HARNESS_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi cross_harness) )
+CROSS_HARNESS_PI_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi cross_harness))
 
 for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
     skill_dir="$REPO_DIR/pi/skills/$skill_name"
@@ -1414,14 +1413,14 @@ for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
 done
 
 while IFS=$'\t' read -r vendor_name vendor_repo vendor_ref vendor_scope vendor_skills; do
-    case "$vendor_name" in ''|\#*) continue ;; esac
+    case "$vendor_name" in '' | \#*) continue ;; esac
 
     case " $ETABLI_ACTIVE_SCOPES " in
-        *" $vendor_scope "*) ;;
-        *)
-            print_step "Skipping vendor '$vendor_name' (scope $vendor_scope not active)"
-            continue
-            ;;
+    *" $vendor_scope "*) ;;
+    *)
+        print_step "Skipping vendor '$vendor_name' (scope $vendor_scope not active)"
+        continue
+        ;;
     esac
 
     for skill_dir_name in $(skill_catalog_names "$SKILL_CATALOG" "$vendor_name" any); do
@@ -1463,17 +1462,17 @@ for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
 done
 
 for scope in $ETABLI_ACTIVE_SCOPES; do
-for command_file in $(find "$REPO_DIR/claude/scopes/$scope/commands" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
-    if [ -f "$command_file" ]; then
-        command_name=$(basename "$command_file")
-        target_name="$command_name"
-        if [ "$command_name" = "plan-create.md" ]; then
-            target_name="plan.md"
+    for command_file in $(find "$REPO_DIR/claude/scopes/$scope/commands" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
+        if [ -f "$command_file" ]; then
+            command_name=$(basename "$command_file")
+            target_name="$command_name"
+            if [ "$command_name" = "plan-create.md" ]; then
+                target_name="plan.md"
+            fi
+            ln -sf "$command_file" ~/.claude/commands/"$target_name"
+            print_success "Claude command '$target_name' linked"
         fi
-        ln -sf "$command_file" ~/.claude/commands/"$target_name"
-        print_success "Claude command '$target_name' linked"
-    fi
-done
+    done
 done
 rm -f ~/.claude/commands/verify.md
 rm -f ~/.claude/commands/plan-create.md
@@ -1534,15 +1533,15 @@ for shared_doc in review-rubric.md; do
     fi
 done
 
-if ! command -v pi &> /dev/null; then
+if ! command -v pi &>/dev/null; then
     print_step "Installing Pi Coding Agent..."
-    "${NPM_CMD[@]}" install -g --ignore-scripts @earendil-works/pi-coding-agent && \
-        reshim_asdf_node && \
-        print_success "Pi installed" || \
+    "${NPM_CMD[@]}" install -g --ignore-scripts @earendil-works/pi-coding-agent &&
+        reshim_asdf_node &&
+        print_success "Pi installed" ||
         print_warning "Pi install failed (npm install -g --ignore-scripts @earendil-works/pi-coding-agent)"
 fi
 
-if command -v pi &> /dev/null; then
+if command -v pi &>/dev/null; then
     print_step "Installing Pi packages from tracked settings..."
     install_pi_packages_from_settings
     install_pi_agent_npm_pins
