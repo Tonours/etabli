@@ -6,5 +6,8 @@
   "prompts": [
     "prompts"
   ],
-  "editorPaddingX": 1
+  "editorPaddingX": 1,
+  "markdown": {
+    "mermaid": "streaming"
+  }
 }
