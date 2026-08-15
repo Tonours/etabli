@@ -1,9 +1,6 @@
 {
   "packages": [
     {
-      "source": "npm:@tintinweb/pi-tasks@0.7.1"
-    },
-    {
       "source": "npm:mitsupi",
       "extensions": [],
       "skills": [
@@ -46,45 +43,73 @@
       ],
       "prompts": [],
       "themes": []
+    },
+    "npm:pi-autoresearch",
+    "npm:pi-cursor-sdk",
+    "npm:pi-mcp-adapter",
+    "npm:@narumitw/pi-goal",
+    "npm:pi-lens",
+    "npm:pi-simplify",
+    {
+      "source": "npm:@tintinweb/pi-tasks@0.7.1"
     }
   ],
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.84.0",
-  "defaultProvider": "xai",
-  "defaultModel": "grok-4.5",
+  "lastChangelogVersion": "0.84.2",
+  "defaultProvider": "zai",
+  "defaultModel": "glm-5.3",
   "theme": "catppuccin-mocha",
   "defaultThinkingLevel": "high",
-  "rtk": {
-    "enabled": true,
-    "mode": "always",
-    "timeoutMs": 2500,
-    "maxCacheEntries": 256,
-    "maxCommandLength": 4000,
-    "dangerousCommandBypass": true
-  },
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,
   "quietStartup": true,
   "doubleEscapeAction": "tree",
   "enabledModels": [
+    "zai/glm-5.3",
     "zai/glm-5.2",
-    "openai-codex/gpt-5.3-codex-spark",
-    "openai-codex/gpt-5.5",
-    "opencode-go/mimo-v2.5",
-    "opencode-go/mimo-v2.5-pro",
-    "github-copilot/claude-sonnet-4.6",
-    "opencode-go/deepseek-v4-flash",
+    "zai/glm-5.2-highspeed",
+    "zai/glm-5-turbo",
+    "cursor/composer-2.5",
+    "cursor/claude-opus-5@300k",
+    "cursor/claude-fable-5@300k",
+    "cursor/claude-sonnet-5@300k",
+    "cursor/gpt-5.6-sol@272k",
+    "cursor/grok-4.6",
+    "xai/grok-4.6",
     "xai/grok-4.5",
     "openai-codex/gpt-5.6-sol",
-    "openai-codex/gpt-5.6-luna",
     "openai-codex/gpt-5.6-terra",
-    "opencode-go/minimax-m3",
-    "opencode-go/qwen3.7-plus",
+    "openai-codex/gpt-5.6-luna",
+    "openai-codex/gpt-5.5",
+    "openai-codex/gpt-5.3-codex-spark",
     "github-copilot/claude-sonnet-5",
+    "github-copilot/gpt-5.6-luna",
+    "opencode-go/qwen3.8-max",
+    "opencode-go/qwen3.7-max",
+    "opencode-go/qwen3.7-plus",
+    "opencode-go/deepseek-v4-pro",
+    "opencode-go/deepseek-v4-flash",
+    "opencode-go/minimax-m3",
+    "opencode-go/mimo-v2.5-pro",
+    "opencode-go/mimo-v2.5",
     "kimi-coding/k3"
   ],
-  "showHardwareCursor": false
+  "showHardwareCursor": false,
+  "treeFilterMode": "default",
+  "steeringMode": "one-at-a-time",
+  "tasksTillDone": {
+    "enabled": true,
+    "autoContinue": true
+  },
+  "rtk": {
+    "dangerousCommandBypass": true,
+    "enabled": true,
+    "maxCacheEntries": 256,
+    "maxCommandLength": 4000,
+    "mode": "always",
+    "timeoutMs": 2500
+  }
 }
