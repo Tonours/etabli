@@ -10,8 +10,64 @@ function fail(message) {
 
 function usage() {
   fail(
-    "usage: scripts/plan-cleanup --archive docs/plan/<implemented-plan>.md | scripts/plan-cleanup --discard <reason-slug>",
+    "usage: scripts/plan-cleanup --archive docs/plan/<implemented-plan>.md | scripts/plan-cleanup --discard <reason-slug> | scripts/plan-cleanup --status [--max-age-days <n>]",
   );
+}
+
+const KNOWN_PLAN_STATUSES = ["DRAFT", "CHALLENGED", "READY"];
+const DEFAULT_MAX_AGE_DAYS = 30;
+
+function readPlanStatusLabel(plan) {
+  const gateMatch = plan.match(
+    new RegExp(`^\\s*-\\s*Status:\\s*(${KNOWN_PLAN_STATUSES.join("|")})\\s*$`, "im"),
+  );
+  if (gateMatch) return gateMatch[1].toLowerCase();
+  return /^\s*-\s*Status:/im.test(plan) ? "invalid" : "missing-status";
+}
+
+function readPlanAgeDays(plan, today) {
+  const match = plan.match(/^\s*-\s*Last revised:\s*(\d{4})-(\d{2})-(\d{2})\b/im);
+  if (!match) return null;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const revised = Date.UTC(year, month - 1, day);
+  if (Number.isNaN(revised)) return null;
+  const round = new Date(revised);
+  if (round.getUTCFullYear() !== year || round.getUTCMonth() !== month - 1 || round.getUTCDate() !== day) {
+    return null;
+  }
+  return Math.floor((today - revised) / 86_400_000);
+}
+
+function statusMode(cwd, maxAgeDays, today) {
+  const planPath = resolve(cwd, "PLAN.md");
+  if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
+    process.stdout.write(
+      `${JSON.stringify({
+        status: "missing",
+        gateVisible: true,
+        lastRevised: null,
+        ageDays: null,
+        stale: false,
+        futureDated: false,
+        maxAgeDays,
+      })}\n`,
+    );
+    return 0;
+  }
+
+  const plan = readFileSync(planPath, "utf8");
+  const status = readPlanStatusLabel(plan);
+  const ageDays = readPlanAgeDays(plan, today);
+  const revisedLine = plan.match(/^\s*-\s*Last revised:\s*(.+?)\s*$/im)?.[1]?.trim();
+  const lastRevised = revisedLine || null;
+  const stale = ageDays !== null && ageDays > maxAgeDays;
+  const futureDated = ageDays !== null && ageDays < -1;
+  const gateVisible = KNOWN_PLAN_STATUSES.includes(status.toUpperCase());
+
+  process.stdout.write(
+    `${JSON.stringify({ status, gateVisible, lastRevised, ageDays, stale, futureDated, maxAgeDays })}\n`,
+  );
+  return gateVisible && !stale && !futureDated ? 0 : 1;
 }
 
 function isReasonSlug(value) {
@@ -111,9 +167,20 @@ function discardMode(cwd, reason) {
 }
 
 const [flag, argument, ...rest] = process.argv.slice(2);
-if (!flag || rest.length !== 0) usage();
+if (!flag) usage();
 
 const cwd = resolve(process.cwd());
+if (flag === "--status") {
+  let maxAgeDays = DEFAULT_MAX_AGE_DAYS;
+  if (argument !== undefined) {
+    if (argument !== "--max-age-days" || rest.length !== 1) usage();
+    if (!/^\d+$/.test(rest[0])) fail("--max-age-days must be a non-negative integer");
+    maxAgeDays = Number(rest[0]);
+  }
+  process.exit(statusMode(cwd, maxAgeDays, Date.now()));
+}
+
+if (rest.length !== 0) usage();
 if (flag === "--archive") {
   if (!argument) usage();
   archiveMode(cwd, argument);
