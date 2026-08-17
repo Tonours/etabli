@@ -1,14 +1,10 @@
 {
   "mcpServers": {
-    "obvault": {
-      "command": "node",
-      "args": ["/Users/tonours/work/obvault/_meta/mcp/server.mjs"]
-    },
     "brain": {
       "command": "node",
-      "args": ["/Users/tonours/work/obvault/_meta/mcp/server.mjs"],
+      "args": ["/Users/aguimard/work/brain/_meta/mcp/server.mjs"],
       "env": {
-        "OBVAULT_ROOT": "/Users/tonours/work/brain"
+        "OBVAULT_ROOT": "/Users/aguimard/work/brain"
       }
     }
   }
