@@ -38,16 +38,60 @@ scripts/plan-cleanup --discard <reason-slug>
 - Removes root `PLAN.md` so ordinary work or a fresh plan can proceed.
 - Do **not** use `--discard` after a successful implementation — use `--archive` with a validated implemented record instead.
 
+## Stale Plans
+
+A root `PLAN.md` that nobody finished is not harmless. A stale `READY` plan is a
+**permanently open implementation gate**, and a plan carrying a status outside
+`DRAFT` / `CHALLENGED` / `READY` is invisible to the gate entirely — the router
+maps anything else to `unknown`, which allows ordinary work.
+
+`Status: DONE` is **not** a valid status. Finished work is archived, not relabelled.
+
+Surface the state of the current repo's plan:
+
+```bash
+scripts/plan-cleanup --status                    # default threshold: 30 days
+scripts/plan-cleanup --status --max-age-days 90  # long-running plan
+```
+
+It reads only the current repo, never writes, and never deletes. No `PLAN.md` is a
+valid state and exits 0. It exits non-zero when any of these hold:
+
+- the plan is older than the threshold (`stale`);
+- the router cannot read its status (`gateVisible: false`) — an unknown word, a
+  decorated line such as `Status: READY — all slices done`, or no `Status:` line at
+  all. The gate matches `- Status: DRAFT|CHALLENGED|READY` and nothing else, so a
+  decorated status silently disables gating;
+- the date is in the future by more than a day (`futureDated`).
+
+A missing or impossible `Last revised:` date reports `ageDays: null` rather than
+guessing an age. Keep the status line bare and put commentary elsewhere.
+
+When it flags a plan, pick one:
+
+- implemented and validated → archive it (`--archive`), then delete the root plan;
+- unrelated, superseded, or abandoned → `--discard <reason-slug>`;
+- genuinely still active → update `Last revised:`, or raise `--max-age-days`.
+
+Staleness is surfaced, not enforced: nothing blocks on it today.
+
 ## Archive Format
 
-Do not raw-copy `PLAN.md` by default. Distill it into a memory-first implementation record:
+Do not raw-copy `PLAN.md` by default. Distill it into a memory-first implementation record.
+
+Three lines are enforced by `scripts/plan-cleanup --archive`, not just conventional:
+the `# Implemented:` title, `- Source plan: \`PLAN.md\``, and `- Status: IMPLEMENTED`,
+plus a `- Source plan SHA-256: \`<hash>\`` line matching the exact bytes of the root
+plan being archived. Get the hash with `shasum -a 256 PLAN.md`. A mismatch is
+refused, which is the point: an archive cannot silently describe a different plan.
 
 ```md
 # Implemented: <outcome>
 
 ## Metadata
 - Archived: YYYY-MM-DD
-- Source plan: <PLAN.md subject>
+- Source plan: `PLAN.md` — <subject>
+- Source plan SHA-256: `<sha256 of the exact root PLAN.md bytes>`
 - Status: IMPLEMENTED
 - Commit / branch: <when available>
 
@@ -88,6 +132,49 @@ Do not raw-copy `PLAN.md` by default. Distill it into a memory-first implementat
 - step-by-step progress logs unless they explain a decision;
 - rollback notes that no longer matter after validation;
 - chat-only context that cannot be verified from repo state or cited sources.
+
+## Multi-Repo Plans
+
+One piece of work spanning two or more repos still gets **one plan**.
+
+- Exactly one repo is the **owner**: it holds root `PLAN.md` and, later, the single
+  archive under its `docs/plan/`.
+- Every other repo is a **satellite**: named in the plan, never holding its own root
+  plan for the same work.
+- The archive is **never duplicated**. One implemented plan, one record, one place.
+
+Picking the owner — the rule, since nothing enforces it:
+
+> The owner is the repo holding the artifact the user asked for. If you are working
+> in a repo you believe is a satellite and you find a root `PLAN.md` there, stop and
+> reconcile before writing a second one.
+
+Declare the repos in the plan so the information has one home instead of being
+spread across prose:
+
+```md
+## Repos
+- Owner: `<repo-name>` (this repo)
+- Satellite: `<repo-name>` — <what changes there>
+```
+
+No `## Repos` section means single-repo. No script parses this block; it is written
+for the next reader.
+
+Two consequences worth stating plainly:
+
+- **The satellite side has no gate.** The READY gate resolves `PLAN.md` from the
+  current directory only. In a satellite repo there is no root plan, so the guard
+  allows everything — weaker than single-repo work. Do not assume the owner's
+  `READY` protects the satellite.
+- **A satellite remainder is new work.** If the owner archives while satellite work
+  is deliberately unfinished, record it in the archive and treat the remainder as a
+  *new* task. The former satellite may then open its own single-repo plan; it is no
+  longer the same work.
+
+Anything in `scripts/plan-cleanup` reaches a project only after `deploy-workflow`
+runs there again — the script is copied per project, not linked. In a project that
+has not been redeployed, the written discipline above is the only thing holding.
 
 ## Relationship To Agent Memory
 
