@@ -33,6 +33,16 @@ assert_contains() {
     }
 }
 
+assert_contains_wrapped() {
+    local path="$1"
+    local needle="$2"
+
+    tr '\n' ' ' <"$path" | tr -s ' ' | grep -Fq -- "$needle" || {
+        printf 'expected %s (allowing line wraps) in %s\n' "$needle" "$path" >&2
+        exit 1
+    }
+}
+
 assert_not_contains() {
     local path="$1"
     local needle="$2"
@@ -314,11 +324,11 @@ assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
 jq -e '
   .scope == "work" and
-  .runtimeAssignments.claude == ["chrome-devtools", "lean-ctx"] and
-  .runtimeAssignments.pi == ["lean-ctx"] and
-  .runtimeAssignments.codex == ["chrome-devtools", "lean-ctx", "datadog", "linear"] and
+  .runtimeAssignments.claude == ["chrome-devtools", "lean-ctx", "brain"] and
+  .runtimeAssignments.pi == ["lean-ctx", "brain"] and
+  .runtimeAssignments.codex == ["chrome-devtools", "lean-ctx", "datadog", "linear", "brain"] and
   .runtimeAssignments.grok == [] and
-  (.mcpServers | keys | sort) == ["chrome-devtools", "datadog", "lean-ctx", "linear"]
+  (.mcpServers | keys | sort) == ["brain", "chrome-devtools", "datadog", "lean-ctx", "linear"]
 ' "$ROOT_DIR/mcp/servers.template.json" >/dev/null
 # Behavioral coverage lives in dedicated smokes (plan-check-freeze, no-progress,
 # workflow-event, dual-runtime). Docs smoke keeps map structure + anti-drift only.
@@ -334,7 +344,7 @@ assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Do not convert a
 assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'never applies patches'
 assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'strict held-in gain'
 assert_contains "$ROOT_DIR/workflow/skills/ambitious-project-loop.md" 'Push, PR, merge, deploy'
-assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'claude/settings.workflow-hooks.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
