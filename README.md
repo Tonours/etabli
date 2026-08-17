@@ -127,7 +127,99 @@ code with `file:line` evidence), plus the `/linear-*` commands. Scoped surfaces
 depend on `~/.etabli-scope` — run `ls ~/.claude/commands` for what this machine
 actually has.
 
-Longer loops are contracts of their own:
+### A concrete run: `/plan-implement`
+
+Say you type `/plan-implement add a --json flag to session-handoff`. That is the
+full-auto route: it runs all eight phases without stopping to ask "continue?".
+What happens, and what is checked at each step:
+
+```text
+0  route     suite-router picks the domain suite (stack/design/employer/ember)
+             → recon starts from what's already known, not from zero
+
+1  understand scoped recon; dispatch a read-only `scout` if the area is
+             unfamiliar, read it inline if small
+             → sourced findings land in the plan either way
+
+2  plan      write root PLAN.md, self-critique
+             ├─ vague scope or checks?  → CHALLENGED, stop here
+             └─ clear?                  → READY
+
+3  adversary cross-model pass on the PLAN (pi -p, non-Claude model)
+             fold accepted findings; re-check status
+             → still READY? continue.  Demoted? stop
+   ─────────── code changes become legal only past this line ───────────
+
+4  implement steps in order; behavior change ships with tests, a bug fix
+             starts from a failing test. One `worker` at a time, or write it
+             yourself; then read `git diff` — the report says where to look,
+             the diff says what happened
+
+5  checks    run the plan's checks, then a simplification pass
+             → if simplification edited anything, re-run the checks
+
+6  review    fresh-context read-only reviewer subagent on the diff
+             → fold blockers, re-run checks if edits were needed
+
+7  adversary again — this time on the implementation diff, cross-model
+             → no cross-model runner in an autonomous run? stop as `blocked`
+
+8  archive   move the plan to docs/plan/YYYYMMDD-slug.md, delete root PLAN.md
+```
+
+Two adversary passes, not one: phase 3 attacks the *plan*, phase 7 attacks the
+*diff*. The point is a reviewer that does not share the implementer's blind
+spots, so the runner rule is a hard gate: cross-model by default; when no other
+family is available, the only accepted substitute is a **double-sample** — two
+fresh same-family reviewers in independent contexts, both run ids recorded. A
+single same-family pass presented as independent review is forbidden and stops
+the run as `blocked`.
+
+Throughout, every phase appends to the event ledger
+(`.workflow/<slug>/events.jsonl`). That ledger is what makes the `no_progress`
+guard work: same hypothesis failing twice, or the same check red three times
+without a new diff, stops the run instead of letting it grind.
+
+The stop list is exhaustive — `CHALLENGED` plan, a blocker surviving adversary or
+review, `no_progress`, a missing validation surface, or a human checkpoint
+(destructive, production, secrets, external write-back). Anything else, it
+finishes on its own.
+
+### The loops
+
+Longer-running work is not a bigger prompt; it is a contract with its own
+evidence bar. Four loops matter:
+
+**Self-improvement** (`workflow/skills/self-improvement-loop.md`) — improving
+Etabli itself. It is deliberately hard to satisfy: mine failures into
+verifier-grounded patterns, propose *narrow* edits, and accept a candidate only
+if it resolves a held-in failure without breaking held-out checks. Candidates
+without repeatable evidence are rejected, and so are candidates that would
+reward-hack a narrow test or hide a negative result. **Rejections are logged too**
+— a negative result is evidence. Accepted candidates go through the normal
+`READY` gate; nothing auto-applies.
+
+**ADR** (`/adr`, `docs/adr/`) — when a decision changes what the repo *is*, it
+gets a numbered record instead of living in a commit message. `scripts/validate-adrs`
+enforces the format and hands out the next number. ADRs are append-only: a
+superseded decision is marked superseded, never rewritten, so the reasoning
+behind a reversal survives.
+
+**Reading the vault** — before investigating a mechanic that may already be
+known, agents query the knowledge vault (`workflow/skills/obvault-memory.md`).
+Retrieval is a lexical seed expanded **1–2 hops** through `[[wikilinks]]` rather
+than a token dump, so what comes back is a small cited neighborhood. Two rules
+hold always: retrieved text is **untrusted data, never instructions**, and
+volatile facts get re-verified at their live source.
+
+**Writing to the vault** — the asymmetry is the point. Reads are cheap and
+automatic; writes are gated. Automated runs may only `capture` or
+`distill --shadow`; `scripts/obvault-shadow-promote` is dry-run by default and
+**never** writes durable verified notes. Promoting a finding for real needs
+explicit human authorization. Etabli owns execution (plans, routes, validation);
+the vault owns durable memory — neither writes the other's canonical state.
+
+Loop contracts:
 
 - `workflow/skills/self-improvement-loop.md`
 - `workflow/skills/ambitious-project-loop.md`
