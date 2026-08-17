@@ -22,6 +22,10 @@
 ## Acceptance Criteria
 -
 
+## Repos
+- Owner: this repo
+- Satellite: none / `<repo-name>` — <what changes there>
+
 ## Scope
 ### In
 -
