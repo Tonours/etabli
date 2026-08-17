@@ -6,14 +6,18 @@ MCP configuration or credentials.
 
 ## Current work inventory
 
-Verified from name-only local introspection on 2026-08-12:
+Verified from name-only local introspection on 2026-08-17:
 
 | Runtime | Live store | Active servers |
 | --- | --- | --- |
-| Claude | `~/.claude.json` → `mcpServers` | `chrome-devtools`, `lean-ctx` |
-| Pi | `~/.pi/agent/mcp.json` → `mcpServers` | `lean-ctx` |
-| Codex | `~/.codex/config.toml` → `mcp_servers.*` | `chrome-devtools`, `lean-ctx`, `datadog`, `linear` |
+| Claude | `~/.claude.json` → `mcpServers`; project `.mcp.json` | `chrome-devtools`, `lean-ctx`, `brain` |
+| Pi | `~/.pi/agent/mcp.json` → `mcpServers` | `lean-ctx`, `brain` |
+| Codex | `~/.codex/config.toml` → `mcp_servers.*` | `chrome-devtools`, `lean-ctx`, `datadog`, `linear`, `brain` |
 | Grok | Grok user configuration | none |
+
+`brain` is project-scoped in Claude (declared in this repository's `.mcp.json`),
+so Claude reports it as pending approval until the user approves it once. Pi and
+Codex declare it in their own user-scope stores.
 
 `mcp/servers.template.json` is the sanitized union plus this runtime assignment
 matrix. It is reference data, not a file to symlink wholesale into each
@@ -38,9 +42,17 @@ longer imports the complete Claude user scope.
 5. **Project-specific MCP stays with the project.** Sanitized project servers
    belong in that repository's `.mcp.json` or native equivalent, not in this
    user-scope inventory.
-6. **Prefer CLIs when they are the source of truth.** GitHub uses `gh`; obvault
-   uses its bounded local CLI. The optional read-only obvault MCP remains
-   opt-in and is not part of this inventory.
+6. **Prefer CLIs when they are the source of truth.** GitHub uses `gh`; each
+   vault also keeps its bounded local CLI and validator.
+7. **`brain` is the work knowledge vault, and it is standalone.** It serves
+   `~/work/brain` through its own vendored engine at
+   `~/work/brain/_meta/mcp/server.mjs`, with no dependency on the personal
+   `obvault` checkout. It exposes four read-only tools (`vault_search`,
+   `vault_context`, `vault_read`, `vault_health`); writes go through the vault's
+   own contract, never through MCP. `OBVAULT_ROOT` keeps its historical name and
+   pins the served vault root.
+8. **The personal `obvault` MCP is out of scope here.** A work machine does not
+   register it. Do not add it to this inventory or to any runtime store.
 
 ## Security boundary
 
@@ -62,11 +74,18 @@ Inspect names only; do not dump complete live files:
 
 ```bash
 jq -r '.mcpServers | keys[]' ~/.claude.json
+jq -r '.mcpServers | keys[]' .mcp.json
 jq -r '.mcpServers | keys[]' ~/.pi/agent/mcp.json
 sed -n 's/^\[mcp_servers\.\([^]]*\)\]$/\1/p' ~/.codex/config.toml | tr -d '"'
 grok mcp list --json | jq -r '.[].name'
 jq -r '.runtimeAssignments | to_entries[] | "\(.key):\(.value | join(","))"' \
   mcp/servers.template.json
+```
+
+Check that the `brain` engine answers before blaming a skill for empty recall:
+
+```bash
+cd ~/work/brain && _meta/mcp-smoke.test.sh && _meta/validate-kb.sh
 ```
 
 When the intended name set changes, update the template, this table, and the
