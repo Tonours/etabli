@@ -97,7 +97,9 @@ Re-run once before calling a single failure a flake, and name the mechanism
 
 - Never merge the PR.
 - Never force-push.
-- Never push to the default branch.
+- Never push to the default branch from `/ship`. Direct default-branch
+  integration is outside `/ship` and requires a separate current user request
+  satisfying `workflow/git-contract.md`.
 - All `workflow/spec.md` autonomous-loop rules apply: mandatory event ledger,
   no-progress stop, check-freeze, explicit cap, fresh-context review.
 - Code-diff adversary: cross-model or documented double-sample only; single
