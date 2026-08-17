@@ -290,6 +290,17 @@ add_guard_output="$(
 assert_contains "$add_guard_output" '"permissionDecision":"deny"'
 assert_contains "$add_guard_output" 'must not be staged or committed'
 
+template_guard_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git add PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md"}}\n' "$guard_repo" |
+		node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+case "$template_guard_output" in
+	*"must not be staged or committed"*)
+		printf 'claude hooks smoke: tracked plan templates must not trip the PLAN commit guard\n' >&2
+		exit 1
+		;;
+esac
+
 combined_commit_guard_output="$(
 	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"x\\""}}\n' "$guard_repo" |
 		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
