@@ -28,8 +28,14 @@ function configuredLocalSkills() {
   return [...result].sort();
 }
 
+const UNHASHED_ENTRIES = new Set(["__pycache__", ".DS_Store", "node_modules", ".pytest_cache", ".ruff_cache"]);
+
+function isHashable(entry) {
+  return !UNHASHED_ENTRIES.has(entry.name) && !entry.name.endsWith(".pyc");
+}
+
 async function files(dir, base = dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
+  const entries = (await readdir(dir, { withFileTypes: true })).filter(isHashable);
   const nested = await Promise.all(entries.map(async (entry) => {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) return files(full, base);
