@@ -24,7 +24,7 @@ grep -Fq 'npm install --global hunkdiff@0.17.3' "$WORKFLOW" ||
   fail "hunkdiff must be pinned to 0.17.3"
 
 jq -e '
-  .dependencies["@earendil-works/pi-coding-agent"] == "0.80.10" and
+  .dependencies["@earendil-works/pi-coding-agent"] == "0.84.1" and
   .devDependencies.typescript == "7.0.2" and
   .devDependencies["@types/bun"] == "1.3.14" and
   .overrides == {
