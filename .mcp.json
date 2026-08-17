@@ -2,9 +2,9 @@
   "mcpServers": {
     "brain": {
       "command": "node",
-      "args": ["/Users/aguimard/work/brain/_meta/mcp/server.mjs"],
+      "args": ["${HOME}/work/brain/_meta/mcp/server.mjs"],
       "env": {
-        "OBVAULT_ROOT": "/Users/aguimard/work/brain"
+        "OBVAULT_ROOT": "${HOME}/work/brain"
       }
     }
   }
