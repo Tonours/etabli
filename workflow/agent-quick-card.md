@@ -26,29 +26,20 @@ adversary → implementer → verifier → reviewer → reporter → stop.
 | `READY` | clear enough to execute |
 
 **Implement only from root `Status: READY`.** Prompt "PLAN.md ready" is not proof.
-Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited; write/edit
-and every Bash command except the structurally allowlisted read-only corpus,
-narrow `workflow-event` recovery, or narrow `plan-cleanup` are denied (Claude
-PreToolUse + Pi `tool_call` via shared `planMutationGuardDecision`). Missing or
-unknown-status PLAN allows ordinary non-plan work. If root `PLAN.md` is unrelated
-to the current request, discard it (`scripts/plan-cleanup --discard <reason-slug>`)
-or rewrite it for the new scope — do not stay blocked on a stale plan.
+Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited; other
+write/edit and mutating Bash are denied. Missing or unknown-status PLAN allows
+ordinary non-plan work. A stale root plan unrelated to the request is not a
+blocker — discard (`scripts/plan-cleanup --discard <reason-slug>`) or rewrite it.
 
-**Check-freeze (runtime):** once READY, Checks / Acceptance Criteria may only be
-strengthened. Weaken/remove → demote to `CHALLENGED` + Decision Log rationale
-(`check-freeze` / `weaken` / `demot`). Enforced on PLAN.md Write/Edit (fail-closed
-if content cannot be reconstructed) and on mutating shell that names `PLAN.md`.
+**Check-freeze:** once READY, Checks / Acceptance Criteria may only be
+strengthened. Weaken/remove → demote to `CHALLENGED` + Decision Log rationale.
 CLI: `scripts/plan-check-freeze`.
 
-**no_progress (ledger):** an explicit active-run pointer to a malformed/misbound
-v2 ledger, non-final v2 terminal, or ambiguous *valid* active runs fail closed;
-select one run with `scripts/workflow-event activate <slug>`. Orphan invalid
-ledgers without a pointer do **not** lock mutations. A valid active ledger with
-`no_progress` or derived 2-hyp/3-red thresholds denies code mutations. Escape:
-root `PLAN.md`, narrow `scripts/plan-cleanup`, and `scripts/workflow-event`; use
-`workflow-event recover <slug> <reason-code>` to quarantine (never delete)
-corrupted ledger data. Bash failures auto-append `validation_failed` (and may
-append `no_progress`). Full rules + smokes: `workflow/events.md`.
+**no_progress (ledger):** a valid active ledger with `no_progress` or derived
+2-hyp/3-red thresholds denies code mutations; ambiguous or malformed active runs
+fail closed (`scripts/workflow-event activate <slug>` to pick one). Escapes: root
+`PLAN.md`, narrow `plan-cleanup`, `workflow-event`. Quarantine corrupt data with
+`workflow-event recover` — never delete it. Full rules: `workflow/events.md`.
 
 After validated implementation: archive under `docs/plan/` with the exact root
 plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
@@ -99,14 +90,9 @@ push for CI repair only under its contract.
 ```bash
 scripts/verify-agentic-infra core
 cd pi && bun test ./extensions/__tests__/
-bash tests/dual-runtime-guard-matrix-smoke.sh
-bash tests/plan-check-freeze-smoke.sh
-bash tests/no-progress-mutate-deny-smoke.sh
-bash tests/plan-cleanup-smoke.sh
-bash tests/workflow-receipts-smoke.sh
-bash tests/route-context-manifest-smoke.sh
-bash tests/workflow-outcome-metric-smoke.sh
 ```
+
+Narrower guard/ledger smokes live in `tests/`; run the ones your diff touches.
 
 Focused checks over full-suite ritual. Record commands + results before
 claiming done. Answers: `workflow/answer-quality.md` live gate.
