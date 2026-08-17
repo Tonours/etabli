@@ -190,16 +190,17 @@ describe("Pi settings consistency", () => {
       settings as typeof settings & { enabledModels: string[] }
     ).enabledModels;
 
+    expect(enabledModels).toContain("zai/glm-5.3");
     expect(enabledModels).toContain("zai/glm-5.2");
     expect(enabledModels).toContain("opencode-go/minimax-m3");
     expect(enabledModels).toContain("opencode-go/qwen3.7-plus");
     expect(enabledModels).toContain("github-copilot/claude-sonnet-5");
-    expect(enabledModels).toContain("github-copilot/claude-sonnet-4.6");
     // Bare alias retired; exact L/T/S pins stay managed.
     expect(enabledModels).not.toContain("openai-codex/gpt-5.6");
     expect(enabledModels).not.toContain("opencode-go/kimi-k2.6");
     expect(enabledModels).not.toContain("kimi-coding/kimi-for-coding");
     expect(enabledModels).not.toContain("github-copilot/claude-opus-4.7");
+    expect(enabledModels).not.toContain("github-copilot/claude-sonnet-4.6");
     expect(enabledModels).not.toContain("opencode-go/minimax-m2.7");
     expect(enabledModels).not.toContain("opencode-go/qwen3.6-plus");
     expect(enabledModels.some((model) => model.startsWith("local-mlx/"))).toBe(
