@@ -36,6 +36,10 @@ Describe in 1-3 sentences what will change and why it matters.
 - Expected behavior:
 - User impact:
 
+## Repos
+- Owner: this repo
+- Satellite: none / `<repo-name>` — <what changes there>
+
 ## Scope
 ### In scope
 -
