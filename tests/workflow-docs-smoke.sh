@@ -323,6 +323,15 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'planMutationGuardDecision'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
 jq -e '
+  .mcpServers == {
+    "brain": {
+      "command": "node",
+      "args": ["${HOME}/work/brain/_meta/mcp/server.mjs"],
+      "env": {"OBVAULT_ROOT": "${HOME}/work/brain"}
+    }
+  }
+' "$ROOT_DIR/.mcp.json" >/dev/null
+jq -e '
   .scope == "work" and
   .runtimeAssignments.claude == ["chrome-devtools", "lean-ctx", "brain"] and
   .runtimeAssignments.pi == ["lean-ctx", "brain"] and
