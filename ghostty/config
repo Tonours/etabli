@@ -2,7 +2,7 @@
 
 # Font
 font-family = Monaco
-font-size = 20
+font-size = 14
 adjust-cell-height = 8%
 
 # Theme colors aligned with tmux Catppuccin Mocha
