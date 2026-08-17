@@ -62,6 +62,10 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Implementation-bound autonomous loops are not complete until validation,
   adversary evidence, review, implemented-plan archive under `docs/plan/`, and
   root `PLAN.md` cleanup are evidenced.
+- Work spanning several repos still uses one plan: one owner repo holds root
+  `PLAN.md` and the single archive, other repos are declared satellites, and the
+  archive is never duplicated. Stale and invalid-status plans are surfaced by
+  `scripts/plan-cleanup --status`. Both rules: `workflow/plan-archive.md`.
 - Branch-mutating routes (`/ship`, single-PR pilot, `sec-pr`) isolate per
   `workflow/skills/worktree-isolation.md`: one run, one worktree, root `PLAN.md`
   inside it, explicit cleanup.
