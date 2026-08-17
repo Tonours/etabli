@@ -171,7 +171,11 @@ const READ_ONLY_GIT_BRANCH_ARGS = new Set([
 const UNSAFE_GIT_INSPECTION_ARG =
 	/^(?:--output(?:=|$)|--ext-diff$|--textconv$|--open-files-in-pager(?:=|$)|-O)/;
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
-const PLAN_FILE_PATTERN = /\bPLAN(?!_TEMPLATE)[\w.-]*\.md\b/;
+const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/g;
+const TRACKED_PLAN_TEMPLATE_NAMES = new Set([
+	"PLAN_TEMPLATE.md",
+	"PLAN_TEMPLATE_FULL.md",
+]);
 const GIT_COMMIT_PATTERN = /\bgit\b[^|;&]*\bcommit\b/;
 const GIT_ADD_PATTERN = /\bgit\b[^|;&]*\badd\b/;
 
@@ -955,6 +959,16 @@ export function isMutationRelevantTool(toolName) {
 	return MUTATION_RELEVANT_TOOLS.has(normalizeToolName(toolName));
 }
 
+function isSessionPlanName(name) {
+	return (
+		/^PLAN[\w.-]*\.md$/.test(name) && !TRACKED_PLAN_TEMPLATE_NAMES.has(name)
+	);
+}
+
+function commandNamesSessionPlan(command) {
+	return (command.match(PLAN_FILE_PATTERN) || []).some(isSessionPlanName);
+}
+
 function stagedPlanFiles(cwd) {
 	try {
 		const output = execFileSync(
@@ -962,7 +976,7 @@ function stagedPlanFiles(cwd) {
 			["-C", cwd, "diff", "--cached", "--name-only"],
 			{ encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
 		);
-		return output.split("\n").filter((line) => /^PLAN[\w.-]*\.md$/.test(line));
+		return output.split("\n").filter(isSessionPlanName);
 	} catch {
 		return [];
 	}
@@ -973,7 +987,7 @@ export function planCommitGuardDecision(event) {
 	const command = String(event.tool_input?.command || "");
 	if (!/\bgit\b/.test(command)) return null;
 
-	const namesPlanFile = PLAN_FILE_PATTERN.test(command);
+	const namesPlanFile = commandNamesSessionPlan(command);
 	if (
 		namesPlanFile &&
 		(GIT_ADD_PATTERN.test(command) || GIT_COMMIT_PATTERN.test(command))
