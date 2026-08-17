@@ -171,7 +171,7 @@ const READ_ONLY_GIT_BRANCH_ARGS = new Set([
 const UNSAFE_GIT_INSPECTION_ARG =
 	/^(?:--output(?:=|$)|--ext-diff$|--textconv$|--open-files-in-pager(?:=|$)|-O)/;
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
-const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/;
+const PLAN_FILE_PATTERN = /\bPLAN(?!_TEMPLATE)[\w.-]*\.md\b/;
 const GIT_COMMIT_PATTERN = /\bgit\b[^|;&]*\bcommit\b/;
 const GIT_ADD_PATTERN = /\bgit\b[^|;&]*\badd\b/;
 
