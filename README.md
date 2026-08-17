@@ -57,23 +57,77 @@ terminal diff tooling may install `hunkdiff` (https://www.hunk.dev/) for use
 | `docs/plan/` | Archives of completed plans (not active work) |
 | `SECURITY.md` | Public-repo / secrets hygiene |
 
-## Workflow in 60 seconds
+## How it works
 
-Projects containing `workflow/spec.md` **activate the workflow ambiently**. Use
-ordinary prompts; start from `workflow/agent-quick-card.md`, then
-`docs/workflow-guide.md` for diagrams, then `workflow/spec.md` as authority.
+Etabli is not a tool you invoke. It is a **contract that agents read**, plus the
+symlinks that put it where each runtime looks.
+
+`scripts/install.sh` links one tracked source into every runtime: the workflow
+contract lands in `~/.claude/workflow`, `~/.pi/agent/workflow`, and
+`~/.agents/workflow`; commands, skills, and agents are linked from
+`claude/scopes/<scope>/`. One edit in this repo changes every agent's behavior —
+there is no per-runtime copy to keep in sync.
+
+From there, three mechanisms do the work:
+
+**1. Ambient activation.** Projects containing `workflow/spec.md`
+**activate the workflow ambiently**. You write ordinary prompts; you never write
+"use the Etabli workflow". Slash commands select a *specific* route when you want
+more control than the default.
+
+**2. One plan, one gate.** Root `PLAN.md` is the only active execution artifact,
+and it carries a status:
 
 ```text
-learn -> plan -> implement -> review -> validate
+DRAFT ──▶ CHALLENGED ──▶ READY ──▶ implement ──▶ archive under docs/plan/
+                                   ▲
+                        code changes allowed only here
 ```
 
-- Root **`PLAN.md`** is the only active execution artifact.
-- Implement only from **`Status: READY`** (after adversary when required).
-- Parent is the only writer (**protocol, not an OS lock**).
-- Push, deploy, destructive actions, secrets, production changes, and external
-  write-back still require explicit authority (`ops-stop`).
+Pre-READY, only `PLAN.md` itself may be edited — other writes and mutating shell
+are **denied by hooks**, not by convention. Once READY, checks may only be
+strengthened; weakening one demotes the plan back to `CHALLENGED`.
 
-Deeper loops:
+**3. Guards that fail closed.** Claude `PreToolUse` hooks and Pi `tool_call`
+share one decision function (`planMutationGuardDecision`), so both runtimes deny
+the same thing. Repeated failure trips a `no_progress` stop instead of letting an
+agent grind. One writer holds the plan at any instant:
+a **protocol, not an OS lock** — sidecar scouts and reviewers stay read-only.
+Push, deploy, secrets, production, and external write-back always need explicit
+authority (`ops-stop`).
+
+What that buys you: an agent cannot start coding from a vague plan, cannot
+quietly lower the bar it agreed to, cannot loop forever on a red check, and
+cannot push or deploy on its own.
+
+## Using it
+
+Nothing to run for ordinary work — ask for what you want. Reach for a command
+when you want a specific route and a specific stopping point.
+
+| Command | Use it when | Stops at |
+| --- | --- | --- |
+| *(plain prompt)* | Small fix, question, focused change | Answer or minimal diff |
+| `/plan-loop` | Shape and challenge a plan before any code | `READY` or `CHALLENGED` |
+| `/adversary` | Stress-test a plan or a diff, cross-model | Findings folded into `PLAN.md` |
+| `/implement` | Execute an existing `READY` plan | Archived plan, root `PLAN.md` gone |
+| `/plan-implement` | Plan → adversary → implement in one autonomous chain | Same as `/implement` |
+| `/ship` | One task A to Z, including PR and green CI | Merged-ready PR |
+| `/review` | Review the diff, a branch, or a commit | `GO` / `GO WITH NOTES` / `BLOCK` |
+| `/pre-commit` | Last pass: review, strip debug, targeted tests | Commit message |
+| `/commit` | One scoped conventional commit (never pushes) | Commit |
+| `/verify-workflow` | Prove a claim or re-run checks, no edits | Verdict with evidence |
+| `/pr-review`, `/pr-qa` | Review a PR, or build its test plan | Findings / test plan |
+| `/sec-pr` | Audit a Dependabot or security PR | `PASS` / `FAIL` |
+| `/ci-fix` | Repair failing CI autonomously | CI green, or blocked at cap |
+| `/recap` | Standup or team message from git evidence | Recap text |
+
+Also shared: `/spec-verify` and `/cross-repo-audit` (verify claims against real
+code with `file:line` evidence), plus the `/linear-*` commands. Scoped surfaces
+depend on `~/.etabli-scope` — run `ls ~/.claude/commands` for what this machine
+actually has.
+
+Longer loops are contracts of their own:
 
 - `workflow/skills/self-improvement-loop.md`
 - `workflow/skills/ambitious-project-loop.md`
@@ -82,8 +136,8 @@ Deeper loops:
 - `workflow/skills/skill-evaluation.md`
 - `workflow/skills/ship.md`
 
-Answer quality: `workflow/answer-quality.md`; durable artifacts use
-`answer-quality-check` / `answer-quality-eval`. Research claims:
+Answer quality is a contract too (`workflow/answer-quality.md`): durable
+artifacts run `answer-quality-check` / `answer-quality-eval`, research claims run
 `research-proof-check`. Cross-project research notes:
 `docs/cross-project-research-grounding.md`.
 
@@ -149,12 +203,6 @@ overwrites existing files by default.
 
 `pi/agent/settings.json` is a tracked bootstrap; the live copy can stay local.
 Secrets and authentication files stay local and untracked (`SECURITY.md`).
-
-## Public repository hygiene
-
-This tree is intended to be safe to publish: MCP templates use `${VAR}`
-placeholders only (`docs/mcp-strategy.md`), env files and key material are
-gitignored, and machine-local auth stores are not tracked. See `SECURITY.md`.
 
 After clone, point optional local MLX model ids in `pi/models.json` at your
 weights path (tracked default is a `/path/to/models/...` placeholder).
