@@ -50,6 +50,8 @@ terminal diff tooling may install `hunkdiff` (https://www.hunk.dev/) for use
 | `pi/`, `claude/` | Runtime adapters |
 | `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
+| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated) |
+| `workflow-scaffold/` | Project templates `deploy-workflow` copies into a repo |
 | `scripts/`, `tests/` | Deploy, validation, regression |
 | `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |
 | `docs/plan/` | Archives of completed plans (not active work) |
@@ -84,6 +86,18 @@ Answer quality: `workflow/answer-quality.md`; durable artifacts use
 `answer-quality-check` / `answer-quality-eval`. Research claims:
 `research-proof-check`. Cross-project research notes:
 `docs/cross-project-research-grounding.md`.
+
+## Knowledge vault
+
+Durable technical findings live outside this repo, in a vault served read-only
+over MCP. On a work machine that vault is `~/work/brain`; it runs its own
+standalone engine and exposes `vault_search`, `vault_context`, `vault_read`, and
+`vault_health` (ADR-0017, `docs/mcp-strategy.md`). Agents consult it before
+re-investigating a known mechanic; writes go through the vault's own contract and
+validator, never through MCP.
+
+Runtime availability is per-runtime and not guaranteed — check before relying on
+it, as with any MCP server.
 
 ## Validation
 
