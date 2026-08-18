@@ -301,6 +301,13 @@ case "$template_guard_output" in
 		;;
 esac
 
+template_like_guard_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git add PLAN_TEMPLATE_DRAFT.md"}}\n' "$guard_repo" |
+		node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+assert_contains "$template_like_guard_output" '"permissionDecision":"deny"'
+assert_contains "$template_like_guard_output" 'must not be staged or committed'
+
 combined_commit_guard_output="$(
 	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"x\\""}}\n' "$guard_repo" |
 		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
@@ -309,6 +316,19 @@ assert_contains "$combined_commit_guard_output" '"permissionDecision":"deny"'
 assert_contains "$combined_commit_guard_output" 'must not be committed'
 
 git -C "$guard_repo" rm --cached -q PLAN.md
+printf 'template\n' >"$guard_repo/PLAN_TEMPLATE.md"
+printf 'full template\n' >"$guard_repo/PLAN_TEMPLATE_FULL.md"
+git -C "$guard_repo" add PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md
+staged_template_commit_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"templates\\""}}\n' "$guard_repo" |
+		node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
+)"
+if [ -n "$staged_template_commit_output" ]; then
+	printf 'commits containing only tracked plan templates should pass the plan-commit-guard; got: %s\n' "$staged_template_commit_output" >&2
+	exit 1
+fi
+git -C "$guard_repo" rm --cached -q PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md
+
 clean_commit_output="$(
 	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \\"x\\""}}\n' "$guard_repo" |
 		node "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
