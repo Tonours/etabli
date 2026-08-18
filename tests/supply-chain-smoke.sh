@@ -16,6 +16,16 @@ while IFS= read -r reference; do
     fail "GitHub Action is not pinned to a full commit SHA: $reference"
 done < <(sed -nE 's/^[[:space:]]*uses:[[:space:]]*([^[:space:]#]+).*/\1/p' "$WORKFLOW")
 
+checkout_sha="3d3c42e5aac5ba805825da76410c181273ba90b1"
+checkout_count="$(grep -Ec 'uses:[[:space:]]+actions/checkout@' "$WORKFLOW")"
+annotated_checkout_count="$(grep -Ec "uses:[[:space:]]+actions/checkout@${checkout_sha}[[:space:]]+# v7[.]0[.]1$" "$WORKFLOW")"
+persist_credentials_count="$(grep -Ec '^[[:space:]]+persist-credentials:[[:space:]]+false$' "$WORKFLOW")"
+[ "$checkout_count" -eq 3 ] || fail "expected exactly three checkout steps"
+[ "$annotated_checkout_count" -eq "$checkout_count" ] ||
+  fail "checkout steps must use the pinned v7.0.1 SHA and annotation"
+[ "$persist_credentials_count" -eq "$checkout_count" ] ||
+  fail "every checkout step must disable credential persistence"
+
 if grep -Eq 'uses:[[:space:]]+actions/cache@[0-9a-f]{40}[[:space:]]+# v[1-4]([.]|$)' "$WORKFLOW"; then
   fail "actions/cache must use a Node.js 24-compatible major version"
 fi
