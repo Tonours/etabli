@@ -43,6 +43,23 @@ Prefer, in this order:
 2. constrain what must be **retrieved** (name the file to open)
 3. only then, add or reword an instruction
 
+### The limit of that lever
+
+Measured 2026-08-21, on 12 escaped defects across 4 repos: an output contract
+fixes an **invisible skip**. It does not fix **visible wrong reasoning**.
+
+On R-005 the lens ran, the row was filled, the deciding code was opened and
+cited, and the conclusion was wrong. A proposed "counter-case tried" column was
+rejected because a reviewer can write a confident, concrete counter-case that
+satisfies the column and still misses the defect — the row already written was
+counter-case-shaped and wrong.
+
+So when a miss lands in `evidence_bar` rather than `lens_existed_not_run`, the
+output contract is the wrong lever. Reach for `retrieval_change` (name the thing
+to open) and, failing that, leave it as an eval case until the class recurs.
+Adding prose the agent can satisfy without changing what it examined buys
+nothing and costs precision.
+
 ## Inputs
 
 Evidence that can be inspected again:
