@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: "Review a bounded diff, commit, or file set in fresh read-only context. Break-first then plan-fit. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
-model: fable
+model: opus
 effort: xhigh
 maxTurns: 40
 color: red
