@@ -16,5 +16,10 @@ If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, t
 - Use `gh` for GitHub unless the user explicitly overrides this.
 - Default is read-only.
 - Do not post comments or approve without explicit user approval.
-- Break-first then plan-fit/intent-fit; lens + deciding-code tables mandatory.
-- `GO` forbidden if a runtime deciding-code row is empty or `not run`.
+- Parent pins `gh pr diff` once to a non-empty temp file, then Logic hunter
+  via `scripts/pi-review-hunter` (or the argv in `workflow/skills/review.md`).
+  Spawn/nonzero → `HUNTER_SPAWN_UNAVAILABLE`. Timeout → `HUNTER_TIMEOUT`.
+  Either sentinel is a hard stop. Spec runs in the parent after Logic
+  (`spec: parent`), or `spec: n/a`.
+- `GO` forbidden if a runtime deciding-code row is empty or `not run`, or if
+  `isolation: none`.

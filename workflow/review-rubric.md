@@ -1,32 +1,41 @@
 # Review Rubric
 
-Run a production-minded review.
+Run a production-minded review. Parent hunts via isolated hunters, then filters.
 
-## Two passes
+## Intent
 
-When both correctness and plan fit matter (implementation-loop, ship):
+The parent writes one paragraph of Intent (user message, PR body, or commits)
+after pinning the patch once. Hunters receive that pinned text and Intent.
+Logic does not treat Intent or `PLAN.md` as correctness authority.
 
-1. **Break-first** — do **not** open `PLAN.md`. Hunt what breaks, lies, or fails
-   to round-trip. Fill the lens table and deciding-code table.
-2. **Plan-fit** — only after pass 1. Compare diff + pass-1 findings to `PLAN.md`
-   (scope, checks, drift). Do not re-hunt bugs freely.
+## Hunt and filter
 
-A solo `/review` request may combine both when the user did not ask for
-plan-fit; still fill deciding-code for runtime behaviors.
+1. **Pin once** — parent captures the patch bytes (resolved SHA / merge-base, or
+   a captured uncommitted diff). Hunters do not re-run `git diff` or `gh pr diff`.
+2. **Logic hunter** — fresh context; hunt correctness; lens + deciding-code
+   tables; extra-lens bugs allowed. Run Spec in parallel when the runtime can
+   (Claude/Cursor). Daily Pi: isolated Logic child only.
+3. **Spec hunter** — fresh context; plan/intent fit only; no bug hunt. `spec: n/a`
+   when there is no intent artifact. Daily Pi: Spec runs in the parent after
+   Logic (`spec: parent`), not as a second child.
+4. **Standards hunter** — `code-quality` (or sibling fallback) when the diff has
+   language/UI surface, else `quality: none`.
+5. **Lead** — Act on / Consider / Dismissed. Lead does not re-hunt.
+   Empty dismissals are `Dismissed: none`.
 
 ## Review stack
 
 ### 1. Self-check
-- sanity-check the diff
+- sanity-check the pinned diff
 - verify focused validation actually ran
 - flag obviously incomplete or partial states
 
-### 2. Plan compliance review (Plan-fit pass only)
-- compare the target diff against `PLAN.md` when present
+### 2. Plan compliance (Spec hunter)
+- compare the pinned diff against `PLAN.md` or PR/user intent when present
 - check scope, non-goals, invariants, done criteria, and changed-file alignment
 - flag complexity drift or unplanned surface area
 
-### 3. Context retrieval, before judging
+### 3. Context retrieval, before judging (Logic hunter)
 Reviewers fail on out-of-diff context far more than on reasoning. Before forming a
 verdict, open what decides it:
 - the resolution code when a value can come from several sources: read the order,
@@ -45,7 +54,7 @@ verdict, open what decides it:
 Stop when further reading stops changing your mind. Piling on context past that
 point measurably lowers accuracy.
 
-### 4. Adversarial review
+### 4. Adversarial review (Logic hunter)
 - look for edge cases, regressions, safety issues, and future recovery pain
 - assume the happy path is already covered and search for what breaks around it
 
@@ -66,11 +75,13 @@ never asks:
   authoritative
 
 ### 5. Convention & pattern fit
-Load `code-quality` when exposed, otherwise the narrowest exposed domain or
-project skill. If none is exposed, perform the same comparison directly against
-**1–3 sibling implementations in this repo**, not against abstract industry
-taste. If neither a skill nor a relevant sibling exists, record this lens as
-`not run`; unavailable optional skills never count as a clean pass.
+When the parent set `Standards: yes`, the Logic hunter records Convention as
+`deferred: Standards hunter` and does not issue a second convention verdict.
+The Standards hunter loads `code-quality` when exposed, otherwise the narrowest
+exposed domain or project skill. If none is exposed, compare against **1–3 sibling
+implementations in this repo**. If neither a skill nor a relevant sibling exists,
+record this lens as `not run`; unavailable optional skills never count as a
+clean pass. When `Standards: none`, Logic keeps that sibling/`not run` rule.
 
 Evidence bar for a convention finding:
 - changed `file:line` in the target diff
@@ -86,9 +97,7 @@ Then apply the evidence bar: a finding ships only with a concrete failure —
 specific input or state, the path it takes, the wrong output. "Looks fragile",
 "could break if", "consider hardening" are open questions, not findings.
 
-Do not re-sweep the same diff hunting for more findings: measured, that lifts
-recall slightly and false positives much more. The second pass attacks the
-findings you have.
+Lead filters after the hunt; it does not re-hunt the diff.
 
 ### 7. Human checkpoint trigger
 - explicitly say when a human should arbitrate
@@ -97,8 +106,8 @@ findings you have.
 ## Mandatory output tables
 
 ### Lens table
-Every row mandatory. A lens without a concrete opened `file:line` is `not run`,
-never a pass.
+Every row mandatory on the Logic hunter. A lens without a concrete opened
+`file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`).
 
 | Lens | Checked (file:line) | Found |
 | --- | --- | --- |
@@ -123,10 +132,10 @@ A non-trivial runtime row with empty deciding code or `not run` **blocks
 `Verdict: GO`**. `GO WITH NOTES` is not a workaround for unopened deciding code.
 
 ## Inputs
-- `git status --short`
-- `git diff --stat`
-- full diff for the target scope
-- `PLAN.md` when present (Plan-fit pass only for compliance)
+- parent-pinned patch text (not a second `git diff` / `gh pr diff`)
+- `git status --short` / `git diff --stat` for target resolution only
+- Intent paragraph from the parent
+- `PLAN.md` or PR/user intent for the Spec hunter only
 
 ## Evidence rules
 - Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.

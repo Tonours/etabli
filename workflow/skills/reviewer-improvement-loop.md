@@ -103,6 +103,9 @@ Lenses are capped. The cap is the mechanism that stops checklist rot.
 - A new lens must be justified by **at least two independent misses**. One miss
   becomes an eval case, not a lens.
 - Merge aggressively. Two lenses that would fire on the same diffs are one lens.
+- Extra-lens Logic misses (a real bug the eight lenses did not name) are
+  `eval_case` on the Logic axis. They are not a ninth lens unless this budget
+  rule is already met.
 
 ### 4. Eval corpus
 

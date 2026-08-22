@@ -47,6 +47,7 @@ full	shell-docs	obvault-routing-smoke	tests/obvault-routing-smoke.sh
 full	shell-docs	obvault-query-smoke	tests/obvault-query-smoke.sh
 full	shell-docs	agentic-infra-manifest-smoke	tests/agentic-infra-manifest-smoke.sh
 full	shell-docs	pi-paths-smoke	tests/pi-paths-smoke.sh
+full	shell-docs	pi-review-hunter-smoke	tests/pi-review-hunter-smoke.sh
 full	pi	skill-lock	builtin:skill-lock
 full	pi	pi-import-smoke	builtin:pi-import-smoke
 full	nvim	fix-links-smoke	tests/fix-links-smoke.sh

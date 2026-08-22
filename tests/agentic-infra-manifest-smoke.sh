@@ -94,6 +94,7 @@ obvault-routing-smoke
 obvault-query-smoke
 agentic-infra-manifest-smoke
 pi-paths-smoke
+pi-review-hunter-smoke
 skill-lock
 pi-import-smoke
 fix-links-smoke

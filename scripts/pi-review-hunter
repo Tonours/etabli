@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# Print or exec the isolated Pi Logic-hunter argv.
+# --print-argv never invokes pi or timeout.
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: pi-review-hunter --print-argv --prompt-file FILE --patch FILE [--model ID] [--timeout SECS]
+       pi-review-hunter --prompt-file FILE --patch FILE [--model ID] [--timeout SECS]
+
+Default timeout is 600 seconds (PI_REVIEW_HUNTER_TIMEOUT).
+EOF
+}
+
+PRINT_ARGV=0
+TIMEOUT_SECS="${PI_REVIEW_HUNTER_TIMEOUT:-600}"
+MODEL=""
+PROMPT_FILE=""
+PATCH_FILE=""
+
+require_value() {
+  if [ "$#" -lt 2 ]; then
+    printf 'HUNTER_SPAWN_UNAVAILABLE: %s requires a value\n' "$1" >&2
+    exit 2
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --print-argv)
+      PRINT_ARGV=1
+      shift
+      ;;
+    --prompt-file)
+      require_value "$@"
+      PROMPT_FILE="$2"
+      shift 2
+      ;;
+    --patch)
+      require_value "$@"
+      PATCH_FILE="$2"
+      shift 2
+      ;;
+    --model)
+      require_value "$@"
+      MODEL="$2"
+      shift 2
+      ;;
+    --timeout)
+      require_value "$@"
+      TIMEOUT_SECS="$2"
+      shift 2
+      ;;
+    *)
+      printf 'unknown argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ -z "$PROMPT_FILE" ] || [ -z "$PATCH_FILE" ]; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: --prompt-file and --patch are required\n' >&2
+  exit 2
+fi
+
+if ! [[ "$TIMEOUT_SECS" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: timeout must be a positive integer\n' >&2
+  exit 2
+fi
+
+if [ -n "$MODEL" ] && [[ "$MODEL" == cursor/* ]]; then
+  MODEL=""
+fi
+
+build_pi_args() {
+  PI_ARGS=(
+    --mode text
+    -p
+    --no-session
+    --no-skills
+    --no-extensions
+    --no-context-files
+    --tools read,grep
+    --append-system-prompt "$PROMPT_FILE"
+  )
+  if [ -n "$MODEL" ]; then
+    PI_ARGS+=(--model "$MODEL")
+  fi
+  PI_ARGS+=("@${PATCH_FILE}")
+}
+
+print_argv() {
+  build_pi_args
+  printf 'TIMEOUT=%s\n' "$TIMEOUT_SECS"
+  printf '%s\n' "${PI_ARGS[@]}"
+}
+
+if [ "$PRINT_ARGV" -eq 1 ]; then
+  print_argv
+  exit 0
+fi
+
+if [ ! -f "$PROMPT_FILE" ] || [ ! -s "$PROMPT_FILE" ]; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: empty prompt is not a clean hunt\n' >&2
+  exit 2
+fi
+
+if [ ! -f "$PATCH_FILE" ] || [ ! -s "$PATCH_FILE" ]; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: empty patch is not a clean hunt\n' >&2
+  exit 2
+fi
+
+build_pi_args
+
+timeout_bin=""
+if command -v timeout >/dev/null 2>&1; then
+  timeout_bin="timeout"
+elif command -v gtimeout >/dev/null 2>&1; then
+  timeout_bin="gtimeout"
+fi
+
+if [ -z "$timeout_bin" ] && ! command -v perl >/dev/null 2>&1; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: no timeout, gtimeout, or perl\n' >&2
+  exit 2
+fi
+
+if ! command -v pi >/dev/null 2>&1; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: pi not on PATH\n' >&2
+  exit 2
+fi
+
+set +e
+if [ -n "$timeout_bin" ]; then
+  "$timeout_bin" "$TIMEOUT_SECS" pi "${PI_ARGS[@]}"
+  status=$?
+else
+  # alarm+exec drops the timer on some Unix execve implementations (stock macOS).
+  # Fork the child, keep the alarm in the parent, then kill on expiry.
+  perl -e '
+    my $secs = shift @ARGV;
+    my $pid = fork();
+    exit 127 unless defined $pid;
+    if ($pid == 0) {
+      exec @ARGV;
+      exit 127;
+    }
+    $SIG{ALRM} = sub {
+      kill "TERM", $pid;
+      sleep 1;
+      kill "KILL", $pid;
+      exit 142;
+    };
+    alarm $secs;
+    waitpid $pid, 0;
+    alarm 0;
+    my $code = $? >> 8;
+    my $sig = $? & 127;
+    exit($sig ? 128 + $sig : $code);
+  ' "$TIMEOUT_SECS" pi "${PI_ARGS[@]}"
+  status=$?
+fi
+set -e
+
+if [ "$status" -eq 124 ] || [ "$status" -eq 142 ]; then
+  printf 'HUNTER_TIMEOUT\n' >&2
+  exit 3
+fi
+
+if [ "$status" -ne 0 ]; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: pi exited %s\n' "$status" >&2
+  exit 2
+fi
+
+exit 0

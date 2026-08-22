@@ -23,7 +23,7 @@ repo command.
 ## Modes
 
 - **Plan mode (default):** review `PLAN.md` before implementation.
-- **Code-diff mode:** after break-first + plan-fit review, review
+- **Code-diff mode:** after Logic+Spec lead review, review
   `git diff <base>...HEAD` (cumulative). Name `adversary_model` in the handoff.
   High findings must not be closed by the implementer alone.
 
