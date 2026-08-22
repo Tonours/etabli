@@ -65,13 +65,28 @@ assert_file "$NEW_PROJECT/workflow/spec.md"
 assert_file "$NEW_PROJECT/workflow/review-rubric.md"
 assert_file "$NEW_PROJECT/workflow/ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/linear-ticket-template.md"
+assert_file "$NEW_PROJECT/workflow/events.md"
+assert_file "$NEW_PROJECT/workflow/evidence-pack.schema.json"
+assert_file "$NEW_PROJECT/workflow/program.schema.json"
+assert_file "$NEW_PROJECT/workflow/templates/evidence-pack.json"
+assert_file "$NEW_PROJECT/workflow/templates/benchmark-declaration.json"
+assert_file "$NEW_PROJECT/workflow/templates/program.json"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
+assert_file "$NEW_PROJECT/scripts/evidence-proof"
+assert_file "$NEW_PROJECT/scripts/program-state"
+assert_file "$NEW_PROJECT/scripts/workflow-event"
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1
 }
+for executable in evidence-proof program-state workflow-event workflow-measurement-integrity; do
+  [ -x "$NEW_PROJECT/scripts/$executable" ] || {
+    printf 'expected deployed %s to be executable\n' "$executable" >&2
+    exit 1
+  }
+done
 assert_same "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" "$NEW_PROJECT/AGENTS.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" "$NEW_PROJECT/CLAUDE.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" "$NEW_PROJECT/docs/agent-workflow.md"
@@ -101,7 +116,7 @@ PLAN
   scripts/plan-cleanup --discard scaffold-smoke >/dev/null
 )
 assert_not_exists "$NEW_PROJECT/PLAN.md"
-assert_file "$NEW_PROJECT/docs/plan/$(date +%Y%m%d)-discarded-scaffold-smoke.md"
+assert_file "$NEW_PROJECT/docs/plan/$(date -u +%Y%m%d)-discarded-scaffold-smoke.md"
 
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path")"

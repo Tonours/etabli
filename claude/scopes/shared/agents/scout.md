@@ -23,13 +23,12 @@ the delegation prompt and return evidence the parent can use in `PLAN.md`.
 ## Method
 
 1. Restate the included and excluded scope.
-2. Select the domain skill before reading, when one covers the area. It tells you
-   where to look and what is already known, which is exactly a scout's job:
-   `employer-backend-suite` for BFF, auth, permissions, MCP, capabilities, Zendesk,
-   or workflow executor/orchestrator; `ember-employer-suite` for Ember
-   frontend; `stack-suite` for language- and framework-level work (Node.js,
-   TypeScript, Fastify, OAuth, React/Next.js, web UI). Name the skill you used,
-   or `none`, in your report.
+2. Select the narrowest matching skill that this runtime exposes before
+   reading. Prefer an exposed project skill for its codebase; otherwise use a
+   direct language/framework skill such as `node`, `fastify-best-practices`, or
+   `vercel-react-best-practices`. If none is exposed, inspect 1–3 local sibling
+   implementations directly. Name the skill you used, or `none`, in your
+   report.
 3. Open relevant code and tests before making a claim. Every factual claim needs
    a `file:line` you actually read.
 4. Trace only the callers, callees, siblings, and config needed to settle the

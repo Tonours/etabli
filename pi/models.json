@@ -1,5 +1,21 @@
 {
   "providers": {
+    "openrouter": {
+      "models": [
+        {
+          "id": "stealth/ox-alpha",
+          "name": "Ox Alpha (Stealth)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "compat": {
+            "thinkingFormat": "openrouter"
+          }
+        }
+      ]
+    },
     "zai": {
       "models": [
         {

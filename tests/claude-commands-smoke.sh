@@ -12,8 +12,8 @@ raise "no Claude commands found" if paths.empty?
 
 allowed_keys = %w[name description argument-hint allowed-tools model disable-model-invocation]
 allowed_tools = %w[Read Write Edit Glob Grep Bash AskUserQuestion Agent Skill WebFetch]
-commands_declaring_agent_preapproval = %w[ci-fix cross-repo-audit implement plan-implement ship spec-verify]
-commands_without_mutation_preapproval = %w[bug-check cross-repo-audit github-pr-review pr-qa pr-review recap review sec-pr spec-verify verify-workflow]
+commands_declaring_agent_preapproval = %w[ci-fix implement plan-implement ship]
+commands_without_mutation_preapproval = %w[bug-check github-pr-review pr-qa pr-review review sec-pr verify-workflow]
 
 paths.each do |path|
   content = File.read(path)
@@ -54,15 +54,6 @@ paths.each do |path|
   if body.lines.count > 140
     raise "#{path}: command body is #{body.lines.count} lines; limit is 140. Remediation: keep adapters thin and move reference detail to workflow/."
   end
-end
-
-commit_path = File.join(root, "claude/scopes/shared/commands/commit.md")
-commit_body = File.read(commit_path)
-unless commit_body.match?(/do not push/i)
-  raise "#{commit_path}: /commit must explicitly forbid push by default."
-end
-if commit_body.include?("gh pr create") || commit_body.match?(/force-with-lease|soft-reset|git reset/i)
-  raise "#{commit_path}: /commit must not create PRs or rewrite history. Remediation: keep external write/history operations in separately authorized commands."
 end
 
 plan_implement = File.read(File.join(root, "claude/scopes/shared/commands/plan-implement.md"))

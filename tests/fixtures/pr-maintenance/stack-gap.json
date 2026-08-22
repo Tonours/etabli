@@ -1,0 +1,30 @@
+{
+  "prs": [
+    {
+      "number": 301,
+      "head_ref": "stack/a",
+      "base_ref": "main",
+      "latest_head_sha": "head301",
+      "reviews": [{"head_sha": "head301", "status": "clean"}],
+      "checks": [{"head_sha": "head301", "status": "success"}]
+    },
+    {
+      "number": 302,
+      "parent_number": 301,
+      "head_ref": "stack/b",
+      "base_ref": "stack/a",
+      "latest_head_sha": "head302",
+      "reviews": [{"head_sha": "head302", "status": "clean"}],
+      "checks": [{"head_sha": "head302", "status": "success"}]
+    },
+    {
+      "number": 303,
+      "parent_number": 302,
+      "head_ref": "stack/c",
+      "base_ref": "stack/b",
+      "latest_head_sha": "head303",
+      "reviews": [{"head_sha": "old303", "status": "clean"}],
+      "checks": [{"head_sha": "head303", "status": "success"}]
+    }
+  ]
+}

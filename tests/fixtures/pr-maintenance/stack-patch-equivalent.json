@@ -1,0 +1,13 @@
+{
+  "prs": [
+    {
+      "number": 401,
+      "head_ref": "stack/rewritten",
+      "base_ref": "main",
+      "latest_head_sha": "new401",
+      "patch_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reviews": [{"head_sha": "old401", "patch_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "clean"}],
+      "checks": [{"head_sha": "new401", "status": "success"}]
+    }
+  ]
+}

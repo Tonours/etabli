@@ -33,9 +33,12 @@ still applies to runtime behaviors.
    - `commit <sha>`: review `git show <sha>`.
 3. Read the shared rubric from `workflow/review-rubric.md`, or the harness
    fallback rubric only outside a workflow-scaffolded project.
-4. When the diff touches language, framework, or UI surface, load the matching
-   domain skill via `suite-router` / `code-quality` so convention findings are
-   anchored in project patterns (see rubric § Convention & pattern fit).
+4. When the diff touches language, framework, or UI surface, load
+   `code-quality` when exposed, otherwise the narrowest exposed domain or
+   project skill. If none is exposed, compare the diff directly with 1–3 local
+   sibling implementations. If neither a skill nor a relevant sibling exists,
+   report the convention lens as `not run`; never present it as clean (see
+   rubric § Convention & pattern fit).
 
 ## Review Scope
 

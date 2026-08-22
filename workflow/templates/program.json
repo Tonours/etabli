@@ -1,0 +1,46 @@
+{
+  "schema_version": 2,
+  "program_id": "replace-me",
+  "goal": "replace-me",
+  "coordinator_id": "parent",
+  "artifact_root": ".workflow/replace-me/artifacts",
+  "authorization": {
+    "max_in_flight": 2,
+    "allowed_files": ["replace-me"],
+    "allowed_tools": ["replace-me"],
+    "forbidden_actions": [
+      "external_write",
+      "push",
+      "pull_request",
+      "deploy",
+      "production",
+      "billing",
+      "secrets",
+      "destructive_cleanup"
+    ],
+    "worktree_policy": "required",
+    "independent_verifier": {
+      "required": true,
+      "distinct_model_family": true
+    },
+    "pilot_unit_id": "replace-me"
+  },
+  "units": [
+    {
+      "id": "replace-me",
+      "objective": "replace-me",
+      "dependencies": [],
+      "allowed_files": ["replace-me"],
+      "allowed_tools": ["replace-me"],
+      "verification": {
+        "command": ["replace-me"],
+        "evidence": "replace-me"
+      },
+      "retry_limit": 1,
+      "context": ["replace-me"],
+      "acceptance": ["replace-me"],
+      "timebox_minutes": 30,
+      "report_artifact_prefix": ".workflow/replace-me/artifacts/replace-me"
+    }
+  ]
+}

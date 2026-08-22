@@ -1,6 +1,6 @@
 ---
 name: nodejs-core
-description: Contributes to and debugs Node.js core, including nodejs/node commit and PR tone, contribution workflows, native crashes, V8 performance, node-gyp builds, N-API bindings, and libuv issues. Use when drafting or reviewing a Node.js core commit or pull request, working in nodejs/node, or diagnosing C++ addons, binding.gyp failures, segfaults, native leaks, V8 deoptimizations, and event-loop internals.
+description: "Use for nodejs/node, V8, libuv, N-API, C++ addons, native crashes, core tests, commits, or PRs."
 metadata:
   tags: nodejs, nodejs-core, contributing, commit-message, pull-request, v8, libuv, cpp, native-addons, performance, debugging, internals
 ---

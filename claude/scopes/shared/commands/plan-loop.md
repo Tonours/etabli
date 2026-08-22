@@ -89,14 +89,8 @@ Embedded fallback shape:
 -
 ```
 
-1. Inspect repo state and relevant files. Skill selection comes first: invoke
-   `suite-router` to detect domain(s), then the matching suite(s) —
-   `design-suite` (UI/UX, brand, responsive, dark mode, ui.sh),
-   `stack-suite` (Node/TS/React/web UI), `employer-backend-suite` (BFF, auth,
-   permissions, MCP, capabilities, Zendesk, workflow executor/orchestrator),
-   `ember-employer-suite` (Ember frontend), or a task-shaped one such as
-   `bug-check`. It points at what is already known, so the plan starts from
-   evidence instead of rediscovery. Name the skill(s) used, or `none`, in
+1. Inspect repo state and relevant files. Load a domain suite only if the
+   brief clearly matches one. Name the skill(s) used, or `none`, in
    `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad/risky work.

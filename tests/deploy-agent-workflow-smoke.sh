@@ -9,11 +9,22 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
 WORK_HOME_DIR="$TMP_DIR/work-home"
-mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$HOME_DIR/.codex/skills" "$TMP_DIR/personal-agents"
+mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$HOME_DIR/.claude/skills" \
+  "$HOME_DIR/.claude/commands" "$HOME_DIR/.codex/skills" \
+  "$TMP_DIR/personal-agents" "$TMP_DIR/external-skill"
 printf 'personal agent\n' >"$TMP_DIR/personal-agents/personal.md"
 printf 'unmanaged skill\n' >"$HOME_DIR/.codex/skills/unmanaged-local"
+printf 'personal command\n' >"$HOME_DIR/.claude/commands/recap.md"
+printf 'external command\n' >"$TMP_DIR/external-command.md"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$HOME_DIR/.claude/agents/playwright-generator.md"
 ln -s "$TMP_DIR/personal-agents/personal.md" "$HOME_DIR/.claude/agents/personal.md"
+ln -s "$TMP_DIR/external-command.md" "$HOME_DIR/.claude/commands/commit.md"
+ln -s "$ROOT_DIR/claude/commands/plan.md" "$HOME_DIR/.claude/commands/plan.md"
+ln -s "$ROOT_DIR/claude/scopes/shared/commands/front-quality.md" "$HOME_DIR/.claude/commands/front-quality.md"
+ln -s "$ROOT_DIR/claude/handoff-template.md" "$HOME_DIR/.claude/handoff-template.md"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.claude/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.codex/skills/suite-router"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/external-skill"
 
 node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -49,6 +60,9 @@ if [ -e "$DRY_HOME_DIR" ]; then
   printf 'dry-run created target home: %s\n' "$DRY_HOME_DIR" >&2
   exit 1
 fi
+
+mkdir -p "$HOME_DIR/.agents/skills"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.agents/skills/suite-router"
 
 "$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
 
@@ -86,7 +100,13 @@ assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-assert_link "$HOME_DIR/.claude/commands/plan.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-create.md"
+assert_link "$HOME_DIR/.claude/commands/plan-loop.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"
+assert_absent "$HOME_DIR/.claude/commands/plan.md"
+assert_absent "$HOME_DIR/.claude/commands/front-quality.md"
+assert_absent "$HOME_DIR/.claude/handoff-template.md"
+assert_file "$HOME_DIR/.claude/commands/recap.md"
+grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
+assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"
 assert_link "$HOME_DIR/.claude/hooks/workflow-router-lib.mjs" "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_link "$HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_link "$HOME_DIR/.claude/hooks/plan-commit-guard.mjs" "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
@@ -100,7 +120,8 @@ assert_link "$HOME_DIR/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/scop
 assert_link "$HOME_DIR/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/scopes/shared/skills/css-layout-primitives"
 assert_link "$HOME_DIR/.claude/skills/css-only-components" "$ROOT_DIR/claude/scopes/shared/skills/css-only-components"
 assert_link "$HOME_DIR/.claude/skills/css-debugging" "$ROOT_DIR/claude/scopes/shared/skills/css-debugging"
-assert_link "$HOME_DIR/.claude/skills/react-doctor-100" "$ROOT_DIR/pi/skills/react-doctor-100"
+assert_absent "$HOME_DIR/.claude/skills/react-doctor-100"
+assert_absent "$HOME_DIR/.claude/skills/suite-router"
 assert_link "$HOME_DIR/.claude/skills/node" "$ROOT_DIR/vendor/mcollina-skills/skills/node"
 assert_link "$HOME_DIR/.claude/skills/vercel-composition-patterns" "$ROOT_DIR/vendor/vercel-agent-skills/skills/composition-patterns"
 assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/scopes/shared/agents/scout.md"
@@ -112,10 +133,12 @@ assert_absent "$HOME_DIR/.claude/scripts/claude-bin.sh"
 assert_absent "$HOME_DIR/.claude/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.claude/skills/adonisjs-suite"
 
-assert_link "$HOME_DIR/.codex/skills/react-doctor-100" "$ROOT_DIR/pi/skills/react-doctor-100"
+assert_absent "$HOME_DIR/.codex/skills/react-doctor-100"
+assert_absent "$HOME_DIR/.codex/skills/suite-router"
 assert_link "$HOME_DIR/.codex/skills/node" "$ROOT_DIR/vendor/mcollina-skills/skills/node"
 assert_link "$HOME_DIR/.codex/skills/vercel-composition-patterns" "$ROOT_DIR/vendor/vercel-agent-skills/skills/composition-patterns"
 assert_file "$HOME_DIR/.codex/skills/unmanaged-local"
+assert_link "$HOME_DIR/.codex/skills/external-skill" "$TMP_DIR/external-skill"
 assert_absent "$HOME_DIR/.codex/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.codex/skills/adonisjs-suite"
 
@@ -178,18 +201,12 @@ assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.agents/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.agents/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.agents/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
-assert_link "$HOME_DIR/.agents/skills/browser-full-page-capture" "$ROOT_DIR/pi/skills/browser-full-page-capture"
-assert_link "$HOME_DIR/.agents/skills/frontend-motion-performance" "$ROOT_DIR/pi/skills/frontend-motion-performance"
-assert_link "$HOME_DIR/.agents/skills/frontend-css-ui-ux" "$ROOT_DIR/pi/skills/frontend-css-ui-ux"
-assert_link "$HOME_DIR/.agents/skills/css-layout-primitives" "$ROOT_DIR/pi/skills/css-layout-primitives"
-assert_link "$HOME_DIR/.agents/skills/css-only-components" "$ROOT_DIR/pi/skills/css-only-components"
-assert_link "$HOME_DIR/.agents/skills/css-debugging" "$ROOT_DIR/pi/skills/css-debugging"
-assert_link "$HOME_DIR/.agents/skills/goal-prompt-rewriter" "$ROOT_DIR/pi/skills/goal-prompt-rewriter"
-assert_link "$HOME_DIR/.agents/skills/conversation-retrospect" "$ROOT_DIR/pi/skills/conversation-retrospect"
-assert_link "$HOME_DIR/.agents/skills/recurring-run" "$ROOT_DIR/pi/skills/recurring-run"
-assert_link "$HOME_DIR/.agents/skills/runtime-skill-canary" "$ROOT_DIR/pi/skills/runtime-skill-canary"
-assert_link "$HOME_DIR/.agents/skills/session-handoff" "$ROOT_DIR/pi/skills/session-handoff"
-assert_link "$HOME_DIR/.agents/skills/ui-reference-capture" "$ROOT_DIR/pi/skills/ui-reference-capture"
+assert_link "$HOME_DIR/.agents/skills/review" "$ROOT_DIR/pi/skills/review"
+assert_absent "$HOME_DIR/.agents/skills/browser-full-page-capture"
+assert_absent "$HOME_DIR/.agents/skills/goal-prompt-rewriter"
+assert_absent "$HOME_DIR/.agents/skills/github-pr-review"
+assert_absent "$HOME_DIR/.agents/skills/suite-router"
+assert_absent "$HOME_DIR/.agents/skills/linear-project-setup"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
 
 node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'

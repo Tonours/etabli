@@ -11,18 +11,8 @@ User request: $ARGUMENTS
 Read and follow the shared contract in
 `workflow/skills/linear-project-setup.md`.
 
-## Source resolution
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Resolve the shared contract before acting:
-
-1. Prefer the current workspace copy:
-   `workflow/skills/linear-project-setup.md`.
-2. If missing, fall back to the Claude shared copy:
-   `../workflow/skills/linear-project-setup.md`.
-3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
-   target path: `../../workflow/skills/linear-project-setup.md`.
-4. If no copy exists, stop with
-   `SHARED_CONTRACT_MISSING: workflow/skills/linear-project-setup.md`.
 
 Rules:
 - Use Linear MCP only.

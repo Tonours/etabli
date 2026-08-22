@@ -114,16 +114,12 @@ when you want a specific route and a specific stopping point.
 | `/plan-implement` | Plan → adversary → implement in one autonomous chain | Same as `/implement` |
 | `/ship` | One task A to Z, including PR and green CI | Merged-ready PR |
 | `/review` | Review the diff, a branch, or a commit | `GO` / `GO WITH NOTES` / `BLOCK` |
-| `/pre-commit` | Last pass: review, strip debug, targeted tests | Commit message |
-| `/commit` | One scoped conventional commit (never pushes) | Commit |
 | `/verify-workflow` | Prove a claim or re-run checks, no edits | Verdict with evidence |
 | `/pr-review`, `/pr-qa` | Review a PR, or build its test plan | Findings / test plan |
 | `/sec-pr` | Audit a Dependabot or security PR | `PASS` / `FAIL` |
 | `/ci-fix` | Repair failing CI autonomously | CI green, or blocked at cap |
-| `/recap` | Standup or team message from git evidence | Recap text |
 
-Also shared: `/spec-verify` and `/cross-repo-audit` (verify claims against real
-code with `file:line` evidence), plus the `/linear-*` commands. Scoped surfaces
+Also shared: `/spec-guide` and the `/linear-*` commands. Scoped surfaces
 depend on `~/.etabli-scope` — run `ls ~/.claude/commands` for what this machine
 actually has.
 
@@ -134,8 +130,8 @@ full-auto route: it runs all eight phases without stopping to ask "continue?".
 What happens, and what is checked at each step:
 
 ```text
-0  route     suite-router picks the domain suite (stack/design/employer/ember)
-             → recon starts from what's already known, not from zero
+0  skills    load a domain suite only if the brief clearly matches one
+             (opt-in; no mandatory global skill router)
 
 1  understand scoped recon; dispatch a read-only `scout` if the area is
              unfamiliar, read it inline if small
@@ -227,6 +223,14 @@ Loop contracts:
 - `workflow/skills/recurring-run.md`
 - `workflow/skills/skill-evaluation.md`
 - `workflow/skills/ship.md`
+- `workflow/skills/investigation.md`
+- `workflow/skills/program-orchestration.md`
+
+`scripts/evidence-proof` captures explicit argv with parent-observed receipts
+and validates closed product, UI, investigation, and performance packs.
+`scripts/program-state` replays large-program manifests and canonical events;
+it never launches agents and keeps live runtime provenance explicitly
+unconfirmed.
 
 Answer quality is a contract too (`workflow/answer-quality.md`): durable
 artifacts run `answer-quality-check` / `answer-quality-eval`, research claims run

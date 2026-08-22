@@ -201,6 +201,52 @@ def outcome_measurement_imported_detail:
   (.total_tokens | nonnegative_integer) and (.total_tokens >= (.input_tokens + .output_tokens)) and
   (.tool_calls | nonnegative_integer) and (.elapsed_ms | nonnegative_integer);
 
+def exact_keys($expected):
+  (keys | sort) == ($expected | sort);
+def program_id: type == "string" and test("^[a-z0-9][a-z0-9-]{1,62}$");
+def program_emitter:
+  type == "object" and exact_keys(["id", "role"]) and
+  (.id | nonempty_string) and .role == "coordinator";
+def program_worker:
+  type == "object" and exact_keys(["branch", "head", "id", "model_family", "worktree"]) and
+  (.id | nonempty_string) and (.model_family | nonempty_string) and
+  ((.worktree == null) or (.worktree | nonempty_string)) and (.branch | nonempty_string) and
+  (.head | test("^[a-f0-9]{40,64}$"));
+def program_artifact:
+  type == "object" and exact_keys(["path", "sha256"]) and
+  (.path | nonempty_string) and (.sha256 | sha256);
+def program_common:
+  (.event_id | sha256) and (.program_id | program_id) and
+  (.manifest_sha256 | sha256) and (.unit_id | nonempty_string) and
+  (.attempt_id | nonempty_string) and (.emitter | program_emitter);
+def program_detail($event):
+  type == "object" and program_common and
+  if $event == "program_initialized" then
+    exact_keys(["attempt_id", "emitter", "event_id", "manifest_path", "manifest_sha256", "program_id", "runtime_capability", "unit_id"]) and
+    (.manifest_path | nonempty_string) and (.runtime_capability | IN("proxy_supported", "blocked"))
+  elif $event == "program_unit_started" then
+    exact_keys(["attempt_id", "emitter", "event_id", "files", "manifest_sha256", "program_id", "tools", "unit_id", "worker"]) and
+    (.files | string_array) and (.tools | string_array) and (.worker | program_worker)
+  elif $event == "program_unit_result" then
+    exact_keys(["artifact", "attempt_id", "emitter", "event_id", "head", "manifest_sha256", "program_id", "status", "unit_id", "worker_id"]) and
+    (.worker_id | nonempty_string) and (.head | test("^[a-f0-9]{40,64}$")) and
+    (.status | IN("passed", "failed")) and (.artifact | program_artifact)
+  elif $event == "program_unit_verdict" then
+    exact_keys(["attempt_id", "emitter", "event_id", "evidence", "head", "manifest_sha256", "program_id", "unit_id", "verdict", "verifier"]) and
+    (.head | test("^[a-f0-9]{40,64}$")) and (.verdict | IN("passed", "failed")) and
+    (.evidence | program_artifact) and
+    (.verifier | type == "object" and exact_keys(["id", "model_family"]) and (.id | nonempty_string) and (.model_family | nonempty_string))
+  elif $event == "program_unit_head_changed" then
+    exact_keys(["attempt_id", "emitter", "event_id", "manifest_sha256", "new_head", "previous_head", "program_id", "unit_id", "worker_id"]) and
+    (.worker_id | nonempty_string) and (.previous_head | test("^[a-f0-9]{40,64}$")) and (.new_head | test("^[a-f0-9]{40,64}$"))
+  elif $event == "program_unit_retry" then
+    exact_keys(["attempt_id", "emitter", "event_id", "manifest_sha256", "previous_attempt_id", "program_id", "reason", "unit_id"]) and
+    (.previous_attempt_id | nonempty_string) and (.reason | nonempty_string)
+  elif $event == "program_unit_reconciled" then
+    exact_keys(["attempt_id", "disposition", "emitter", "event_id", "manifest_sha256", "program_id", "reason", "unit_id", "zombie_attempt_id"]) and
+    (.zombie_attempt_id | nonempty_string) and (.disposition | IN("ignored", "accepted")) and (.reason | nonempty_string)
+  else false end;
+
 def strict_detail($event):
   type == "object" and
   if $event == "route_decided" then
@@ -260,6 +306,8 @@ def strict_detail($event):
     (.slice | nonempty_string) and (.owner | nonempty_string) and (.validation | nonempty_string) and (.dependencies | string_array)
   elif $event == "project_slice_completed" then
     (.slice | nonempty_string) and (.validation | nonempty_string) and (.evidence | string_array) and (.remaining | string_array)
+  elif ($event | startswith("program_")) then
+    program_detail($event)
   elif $event == "runtime_run_attached" then
     (.adapter == "pi-workflow") and (.run_id | test("^workflow_[A-Za-z0-9_-]+$")) and (.workflow | nonempty_string) and
     (.state_path == (".pi/workflows/" + .run_id)) and

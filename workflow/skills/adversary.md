@@ -60,8 +60,9 @@ plan. After the fresh-context review (break-first + plan-fit):
    - **Forbidden:** a single same-family pass presented as independent review.
      Stop as `blocked` (autonomous **and** supervised — full autonomy policy).
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
-   criteria not actually met, silent scope drift, and simpler or safer
-   implementations that were overlooked.
+   criteria not actually met, silent scope drift, unrequested abstraction or
+   new dependency, reinvented stdlib/native feature, and simpler or safer
+   implementations that were overlooked (same rungs as implementation-loop 12b).
 4. **Arbitration of findings:**
    - `low` / `medium`: implementer may accept or reject with concrete evidence.
    - `high`: accept/reject via a **cross-model** pass (or the second sample in a

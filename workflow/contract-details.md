@@ -222,6 +222,10 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Bounded project autonomy envelope: `workflow/project-autonomy-envelope.md`
 - Bounded project autonomy controller: `scripts/project-autonomy`
 - Product dogfood contract: `workflow/skills/product-dogfood.md`
+- Investigation/evidence contract: `workflow/skills/investigation.md`
+- Evidence capture and validator: `scripts/evidence-proof`
+- Large-program control plane: `workflow/skills/program-orchestration.md`
+- Large-program reducer: `scripts/program-state`
 - Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
@@ -262,7 +266,6 @@ Pi:
 
 Claude:
 
-- `/plan`: create `PLAN.md` only, stop at `DRAFT`
 - `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/plan-implement`: full autonomous chain — plan, adversary, implement, checks, fresh-context review, archive — in one flow; the manual `/plan-loop` -> `/adversary` -> `/implement` sequence is for step-by-step control only
 - `/adversary`: cross-model adversarial review of `PLAN.md` before implementation
@@ -280,13 +283,10 @@ Claude:
 
 Manual-only Claude commands (invoked by explicit slash only, never ambiently
 routed): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`; invoking it
-consents to feature-branch push and PR creation), `/spec-verify`, `/commit`,
-`/cross-repo-audit`,
-`/linear-project-setup`, `/pr-feedback`, `/pre-commit`, `/tests-iso`,
-`/front-quality`, `/ui-debug`, `/recap`. The Playwright QA chain lives in the
-`claude/skills/playwright-*` skills, not in slash commands or separate agents.
-`/spec-guide` is routed ambiently (see routing table). `/plan` maps to
-`claude/commands/plan-create.md`.
+consents to feature-branch push and PR creation), `/linear-project-setup`.
+The Playwright QA chain lives in the `claude/skills/playwright-*` skills, not
+in slash commands or separate agents. `/spec-guide` is routed ambiently (see
+routing table).
 
 Claude-native loop:
 

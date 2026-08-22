@@ -8,6 +8,13 @@ Branch names and commit messages. English always.
 <type>/<ticket-id>-<short-slug>
 ```
 
+**Precedence rule:** when the user's current request explicitly names a branch
+(`branch item1 off main`, `stay on feature-x`, `call it hotfix-login`), use the
+user's exact name. The scheme below is the default for agent-chosen names
+only; it never renames or "corrects" a name the user explicitly gave. When
+explicitly named branches and the default scheme must coexist, keep the user's
+names verbatim and apply the scheme only to the others.
+
 - `type`: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `build`, `perf`, `style`.
 - `ticket-id`: lowercase issue key when one exists (`prd-123`), omitted otherwise.
 - `short-slug`: kebab-case, **3 words max**, the subject of the change.

@@ -1,0 +1,33 @@
+{
+  "prs": [
+    {
+      "number": 201,
+      "head_ref": "stack/one",
+      "base_ref": "main",
+      "latest_head_sha": "head201",
+      "patch_id": "patch201",
+      "reviews": [{"head_sha": "head201", "status": "clean"}],
+      "checks": [{"head_sha": "head201", "status": "success"}]
+    },
+    {
+      "number": 202,
+      "parent_number": 201,
+      "head_ref": "stack/two",
+      "base_ref": "stack/one",
+      "latest_head_sha": "head202",
+      "patch_id": "patch202",
+      "reviews": [{"head_sha": "head202", "status": "approved"}],
+      "checks": [{"head_sha": "head202", "status": "success"}]
+    },
+    {
+      "number": 203,
+      "parent_number": 202,
+      "head_ref": "stack/three",
+      "base_ref": "stack/two",
+      "latest_head_sha": "head203",
+      "patch_id": "patch203",
+      "reviews": [{"head_sha": "head203", "status": "clean"}],
+      "checks": [{"head_sha": "head203", "status": "passed"}]
+    }
+  ]
+}

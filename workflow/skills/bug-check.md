@@ -22,6 +22,9 @@ cannot be read, stop with `LINEAR_MCP_UNAVAILABLE` or
 
 ## Evidence Rule
 
+Use the shared mechanics in `workflow/skills/investigation.md`. The Linear
+source-of-truth and this contract's read-only boundary remain unchanged.
+
 For every claim, ask: do I know this, or am I assuming it?
 
 - If known, cite the evidence: Linear field/comment, file, line, command, or git
@@ -57,10 +60,8 @@ For every claim, ask: do I know this, or am I assuming it?
    - blind spots: inspect tests, config, generated code, migrations, env vars,
      and git history (`git log -p -S` or `git blame`) before concluding.
 4. Verdict:
-   - `CERTAIN`: root cause proven by code reading, logical reproduction, and
-     alternatives rejected with evidence.
-   - `HIGH CONFIDENCE`: root cause very likely but one or two alternatives
-     remain.
+   - `CERTAIN`: maps only from `CAUSE_CONFIRMED`.
+   - `HIGH CONFIDENCE`: maps only from `CAUSE_SUPPORTED`.
    - `UNCERTAIN`: do not conclude; list the next evidence needed.
 5. Fix plan:
    - only if verdict is `CERTAIN`;
@@ -100,3 +101,9 @@ Justification:
 - Do not implement.
 - If verdict is not `CERTAIN`, stop after the analysis and name the missing
   evidence.
+
+Public compatibility mapping:
+
+- `CAUSE_CONFIRMED -> CERTAIN`
+- `CAUSE_SUPPORTED -> HIGH CONFIDENCE`
+- `NOT_REPRODUCED | INCONCLUSIVE -> UNCERTAIN`

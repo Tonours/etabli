@@ -47,6 +47,11 @@ criteria require UI/browser proof.
 7. Record artifacts or exact evidence for each scenario: URL, command,
    screenshot, trace, console/network result, email preview, log line, or
    explicit reason the leg is blocked.
+   - For durable claims, capture a closed pack with `scripts/evidence-proof`.
+     Bind the target/environment hashes and every action, result, and declared
+     side effect to a non-empty hashed artifact.
+   - `integrity_valid` means the pack is internally intact. Only an explicit
+     parent-observed receipt can yield `parent_observed_execution`.
 8. Run the fix loop only for failures or sharp product paper cuts that are clear
    and low-risk.
 9. Re-run the failed scenario after each fix, then re-check adjacent flows that
@@ -79,6 +84,15 @@ Statuses:
   can prove the scenario.
 
 Do not convert a blocked scenario into `pass`.
+
+When only a screenshot fixture, mocked adapter, or hand-authored artifact is
+available, report `proxy_supported`. When no observable artifact exists,
+report `blocked`. Neither label is a live product pass.
+
+For UI scope, record exact viewports plus keyboard, focus, accessibility,
+console, network, responsive, and reduced-motion outcomes. Responsive claims
+need at least one viewport at or below 480px and one at or above 1024px.
+Motion scope needs reduced-motion evidence.
 
 ## Product Lens
 

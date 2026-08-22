@@ -1,0 +1,21 @@
+{
+  "prs": [
+    {
+      "number": 501,
+      "head_ref": "stack/root",
+      "base_ref": "stack/root",
+      "latest_head_sha": "head501",
+      "reviews": [{"head_sha": "head501", "status": "clean"}],
+      "checks": [{"head_sha": "head501", "status": "success"}]
+    },
+    {
+      "number": 502,
+      "parent_number": 999,
+      "head_ref": "stack/detached",
+      "base_ref": "main",
+      "latest_head_sha": "head502",
+      "reviews": [{"head_sha": "head502", "status": "clean"}],
+      "checks": [{"head_sha": "head502", "status": "success"}]
+    }
+  ]
+}

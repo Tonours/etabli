@@ -42,7 +42,13 @@ const SELF_IMPROVEMENT_PATTERN =
 const AMBITIOUS_PROJECT_PATTERN =
 	/\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/i;
 const RESEARCH_PATTERN =
-	/\b(recherche|sourc[eé]|fact[- ]?check|sources?|web|benchmark|github|existe d[eé]j[aà])\b/i;
+	/\b(recherche|sourc[eé]|fact[- ]?check|sources?|benchmark|github|existe d[eé]j[aà])\b/i;
+const IMPLEMENT_NEGATION_PATTERN =
+	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/i;
+const WORK_EMBEDDED_VERIFY_PATTERN =
+	/\b(merge|handoff|remaining work|inherited claims|each unit)\b/i;
+const PREPARE_FOR_REVIEW_PATTERN =
+	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/i;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/i;
 const OPS_STOP_PATTERN =
 	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
@@ -406,6 +412,20 @@ export function readPlanStatus(cwd) {
 	return match[1].toLowerCase();
 }
 
+function isImplementRequest(prompt) {
+	return (
+		IMPLEMENT_PATTERN.test(prompt) && !IMPLEMENT_NEGATION_PATTERN.test(prompt)
+	);
+}
+
+function isStandaloneVerifyRequest(prompt) {
+	return (
+		VERIFY_PATTERN.test(prompt) &&
+		!isImplementRequest(prompt) &&
+		!WORK_EMBEDDED_VERIFY_PATTERN.test(prompt)
+	);
+}
+
 function classifyWorkflowRouteBase(prompt, context = {}) {
 	const trimmed = prompt.trim();
 	const planStatus = context.planStatus || "missing";
@@ -487,7 +507,11 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (PR_REVIEW_PATTERN.test(prompt) && PR_CONTEXT_PATTERN.test(prompt)) {
+	if (
+		PR_REVIEW_PATTERN.test(prompt) &&
+		PR_CONTEXT_PATTERN.test(prompt) &&
+		!PREPARE_FOR_REVIEW_PATTERN.test(prompt)
+	) {
 		return {
 			route: "pr-review",
 			reason: "GitHub PR review request",
@@ -559,7 +583,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		);
 	}
 
-	if (VERIFY_PATTERN.test(prompt)) {
+	if (isStandaloneVerifyRequest(prompt)) {
 		return {
 			route: "verify-workflow",
 			reason: "workflow verification request",
@@ -645,7 +669,10 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (REVIEW_PATTERN.test(prompt)) {
+	if (
+		REVIEW_PATTERN.test(prompt) &&
+		!PREPARE_FOR_REVIEW_PATTERN.test(prompt)
+	) {
 		return {
 			route: "review",
 			reason: "review request",
@@ -673,7 +700,8 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 
 	if (
 		(READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) &&
-		!IMPLEMENT_PATTERN.test(prompt)
+		!isImplementRequest(prompt) &&
+		!PREPARE_FOR_REVIEW_PATTERN.test(prompt)
 	) {
 		return answerDecision(
 			"read-only, question, or summary request",
@@ -717,7 +745,9 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 
 	if (
 		planStatus === "ready" &&
-		(READY_PLAN_PATTERN.test(prompt) || IMPLEMENT_PATTERN.test(prompt))
+		(READY_PLAN_PATTERN.test(prompt) ||
+			isImplementRequest(prompt) ||
+			PREPARE_FOR_REVIEW_PATTERN.test(prompt))
 	) {
 		return {
 			route: "implement",
@@ -763,7 +793,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (IMPLEMENT_PATTERN.test(prompt)) {
+	if (isImplementRequest(prompt) || PREPARE_FOR_REVIEW_PATTERN.test(prompt)) {
 		return {
 			route: "plan-implement",
 			reason: "implementation without a proven READY plan",

@@ -1,6 +1,7 @@
 # PR Maintenance Loop Contract
 
-Shared contract for a supervised single-PR maintenance loop.
+Shared contract for a supervised PR maintenance loop and read-only stacked-PR
+frontier projection.
 
 Runtime adapters may add command syntax, GitHub snapshot collection, or UI
 details. They must not change the isolation rule, latest-head evidence rule,
@@ -9,10 +10,12 @@ fresh-context review requirement, or human-controlled external write boundary.
 ## Purpose
 
 Move one pull request through an implementation, review, cleanup, and reporting
-loop without mixing branches or trusting stale review evidence.
+loop without mixing branches or trusting stale review evidence. For an ordered
+stack, calculate how far latest-head evidence remains continuously valid from
+the root; this projection does not execute maintenance across several PRs.
 
-This is a pilot contract for one PR at a time. It is not a multi-PR overnight
-orchestration contract.
+Implementation remains one PR at a time. Stack mode is a provider-neutral,
+read-only evidence projection, not a multi-PR overnight orchestration contract.
 
 ## Preconditions
 
@@ -60,6 +63,28 @@ classify the current snapshot:
 
 An old clean review must never count as done after a new push.
 
+When a provider rewrites a head without changing the diff, a clean review may
+bind by an explicit matching patch identity. Checks still must bind to the exact
+latest head. Patch identity never overrides current actionable findings.
+
+## Ordered Stack Frontier
+
+An optional snapshot may provide `prs` in root-to-tip order. Every entry must
+have a unique PR number and head ref, and each entry after the root must identify
+the preceding PR by `parent_number` or use its head ref as `base_ref`.
+
+`scripts/pr-latest-head-status` then returns:
+
+- `clean_contiguous_run` when every PR has applicable clean review evidence and
+  exact-latest-head green checks;
+- `partial_contiguous_run` when a clean root run stops at a later gap;
+- `blocked_at_root` when the root itself is not clean;
+- `invalid_snapshot` when ordering, identity, or adjacency is ambiguous.
+
+Only PRs in `verified_run` are marked `landable`. `ceiling_pr` is the last PR in
+that run and `next_gap` is the first PR that needs attention. These fields are
+evidence only: they do not authorize push, comment, merge, or provider writes.
+
 ## External Write Boundary
 
 Default mode is supervised and local.
@@ -85,7 +110,9 @@ Close the loop with:
 - Files changed.
 - Tests and checks run.
 - Fresh-context review result.
-- Latest-head status: `clean_latest_head`, `stale_review`, or `needs_rerun`.
+- Latest-head status: `clean_latest_head`, `stale_review`, or `needs_rerun`; for
+  a stack, include the contiguous status, `verified_run`, `ceiling_pr`, and
+  `next_gap`.
 - Worktree cleanup status.
 - Remaining risks, blockers, or next input needed.
 

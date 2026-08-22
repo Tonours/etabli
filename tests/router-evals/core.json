@@ -59,7 +59,9 @@
     "name": "actual READY plan can implement",
     "category": "ready-gate",
     "prompt": "Implémente le PLAN.md ready",
-    "context": { "planStatus": "ready" },
+    "context": {
+      "planStatus": "ready"
+    },
     "expectedRoute": "implement",
     "writeAllowed": true
   },
@@ -67,7 +69,9 @@
     "name": "prompt-only READY wording cannot implement",
     "category": "ready-gate",
     "prompt": "Implémente le PLAN.md ready",
-    "context": { "planStatus": "missing" },
+    "context": {
+      "planStatus": "missing"
+    },
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -211,7 +215,9 @@
     "prompt": "Je recherche des idées de SaaS rentables",
     "expectedRoute": "research-plan",
     "writeAllowed": true,
-    "expectedKnowledgeTopics": ["saas"]
+    "expectedKnowledgeTopics": [
+      "saas"
+    ]
   },
   {
     "name": "French apostrophe does not trigger the AI topic",
@@ -227,6 +233,239 @@
     "prompt": "Corrige le bug CSS dans notre SaaS",
     "expectedRoute": "plan-implement",
     "writeAllowed": true,
-    "expectedKnowledgeTopics": ["saas", "frontend-css"]
+    "expectedKnowledgeTopics": [
+      "saas",
+      "frontend-css"
+    ]
+  },
+  {
+    "name": "organic -investigation is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "The `tasker list --sort=priority` output looks wrong: medium tasks sometimes appear above high ones, but only when some tasks share a due date. I can't see a pattern. Figure out what is actually causing the wrong ordering and explain it with evidence from the code. Don't fix anything yet, just tell me the root cause and how you proved it.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -bug-fix is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "`npm test` fails with 2 errors in test/stats.test.ts: `tasker stats` reports wrong completion percentages (I saw 187% once). The percentage logic was touched recently. Find the root cause, fix it properly, and make the whole test suite pass.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -perf-issue is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "`tasker list` takes several seconds once I have a few thousand tasks in data/tasks.json. Make listing fast again. I want a measured before/after comparison on the same data, not a hunch.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -hillclimb is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Coverage of src/ is around 60%. Raise it as high as you can while keeping the suite green and behavior unchanged. Keep improving iteratively and show me the progression run by run; stop honestly when you can't push it further.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -runtime-forensics is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "`tasker serve` sometimes dies with a non-zero exit after being left running for a while, and I only see it in the terminal scrollback. Instrument it, reproduce the failure locally, and isolate the actual cause. I need the observed evidence, not a theory.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -trace-forensics is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "I captured logs/serve-debug.log while serve was burning CPU. Read the trace and tell me where the time goes and why. If the trace alone cannot prove the cause, say exactly what's missing instead of guessing.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -eval is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "docs/compare-a.md and docs/compare-b.md are two implementations of the same fuzzy-search helper. Evaluate both fairly on correctness and speed with real measurements, then tell me which one we should keep and why. Blind yourself to which author wrote which if possible.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -authoring-a-skill is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Our team keeps re-explaining the release checklist (see docs/release-checklist.md). Turn it into a reusable skill for this agent harness so future sessions apply it automatically when we ask for a release. It must be discoverable, minimal, and not duplicate what the harness already provides.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -feature is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Add a `tasker tag <id> <tag>` command. Data shape: tags are stored as a lowercase string array on the task; duplicate tags are rejected silently; `tasker show <id>` must display them; add tests covering add, dedupe, and show.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -refactoring is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "src/commands.js has grown into a monolith where every command lives together with duplicated usage text, validation, and formatting. Refactor it into a sane structure without changing any behavior. The suite must stay green and the diff should be a net simplification, not a reshuffle.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -worktree-cleanup is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "`git worktree list` shows several worktrees from aborted experiments. Classify which are safe to delete and which contain unmerged work, then clean up only the safe ones. I do not want to lose anything that isn't merged.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -autopilot-full is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Implement ROADMAP.md items 1 and 2 as two independent pieces of work, each landing as its own clean commit with its own verification. They must not depend on each other. Do not merge anything to main.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -multi-phase-plan is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "MIGRATION.md sketches a move from callbacks to async/await across src/. Turn it into a multi-phase plan we can execute across several sessions: exact scopes, per-phase checks, dependencies, and restart points. Planning only — implement nothing yet.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -prototype is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "I'm considering moving storage from one JSON file to JSON-lines append-only. Build a quick disposable prototype that answers whether write amplification and load time actually improve at 5k tasks. Mark it clearly as throwaway; I only need the decision evidence.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -autopilot-stack is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Implement ROADMAP.md items 1, 2, and 3 as a stacked series: branch item1 off main, item2 off item1, item3 off item2. Verify each level before starting the next. Don't merge anything.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -session-pickup is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "A previous session was interrupted mid-task; it left HANDOFF.md at the repo root. Read it, recover the exact state it describes, and finish the remaining work without redoing what's already done. Verify the inherited claims before trusting them.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -shipping is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Branches `feature-a` then `feature-b` are stacked (b builds on a). Verify each is actually green and safe to land in that order against main, then merge them locally into main one at a time, stopping at the first real problem. Don't force anything.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -babysit is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Branch `flaky-fix` has a test that fails about one run in three (test/purge.test.ts). Drive it to a real fix: reproduce, understand, fix, and verify the suite passes repeatedly (at least 3 consecutive full runs). Don't paper over it by deleting the test.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -orchestrate is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "WORK-SPLIT.md describes 3 changes that touch different files. Split the work into independently verifiable units, execute them, and verify each unit on its own before declaring anything done.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -autonomous-run is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "ROADMAP.md lists 4 unchecked items for this project. Work through them autonomously, in order, verifying each item's stated check before moving on. Stop only when all items are done and verified, or when you hit a genuine blocker — then say exactly what blocks you.",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -pause-safely is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Make progress on ROADMAP.md item 2 only, then stop at a clean, recoverable boundary: leave the tree in a state where a fresh session can pick up exactly where you stopped, with durable notes. Do not commit-and-push anywhere; a local checkpoint is fine if it helps resumption.",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -opening-a-pr is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "Branch `feature-x` looks ready. Prepare it for review: confirm it's based on the current main, push it to the origin remote on the right branch name, and write the PR title + summary (what changed, why, how verified) ready to paste. Do not touch main.",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "organic -visual-parity is not stolen by verify/research/pr-review",
+    "category": "organic-",
+    "prompt": "The filter dropdown in the web UI (public/index.html) doesn't match the intended design: read docs/ui-sketch.md and make the rendered page match it, including keyboard focus and reduced-motion behavior. Show me the rendered result, not just the diff.",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "missing"
+    }
   }
 ]

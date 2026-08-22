@@ -10,40 +10,16 @@ User request: $ARGUMENTS
 
 Follow the shared contract in `workflow/skills/ship.md`.
 
-## Source resolution
-
-Before saying a workflow source is missing, resolve sources in this order:
-
-1. Prefer the current workspace copies:
-   - `workflow/skills/ship.md`
-   - `workflow/skills/worktree-isolation.md`
-   - `workflow/skills/implementation-loop.md`
-   - `workflow/skills/ci-fix.md`
-   - `workflow/spec.md`
-2. If missing, fall back to the Claude shared copies when this command is loaded through `~/.claude/commands`:
-   - `../workflow/skills/ship.md`
-   - `../workflow/skills/worktree-isolation.md`
-   - `../workflow/skills/implementation-loop.md`
-   - `../workflow/skills/ci-fix.md`
-   - `../workflow/spec.md`
-3. If those are unavailable, fall back to the Etabli repo copies when this command is loaded from the repo target path:
-   - `../../workflow/skills/ship.md`
-   - `../../workflow/skills/worktree-isolation.md`
-   - `../../workflow/skills/implementation-loop.md`
-   - `../../workflow/skills/ci-fix.md`
-   - `../../workflow/spec.md`
-4. If any fallback files exist, read them and continue. Do not tell the user the contract is missing.
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 Claude specifics:
 
-- Skill selection comes first, before isolation and recon: invoke `suite-router`
-  to detect domain(s), then the matching suite(s) — `design-suite` (UI/UX,
-  brand, responsive, dark mode, ui.sh), `stack-suite` (Node.js, TypeScript,
-  Fastify, OAuth, React/Next.js, web UI), `employer-backend-suite` (BFF, auth,
-  permissions, MCP, capabilities, Zendesk, workflow executor/orchestrator),
-  `ember-employer-suite` (Ember frontend), or a task-shaped one such as
-  `bug-check`, `pr-qa`, `sec-pr`. It routes the work to what is already known
-  instead of rediscovering it. Name the skill(s) used, or `none`, in the handoff.
+- Skill selection: load the narrowest matching skill that Claude actually
+  exposes, such as `frontend-css-ui-ux`, `node`,
+  `vercel-react-best-practices`, an exposed project skill, or a task-shaped one
+  such as `bug-check`, `pr-qa`, or `sec-pr`. If none is exposed, use the route
+  contract's local-source fallback. Name the skill(s) used, or `none`, in the
+  handoff.
 - Isolation: use the native `EnterWorktree` / `ExitWorktree` tools when the
   runtime exposes them; otherwise `git worktree add ../<repo>-ship-<slug>
   -b <branch>` and `git worktree remove` at the end. Either way the

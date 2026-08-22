@@ -1,6 +1,6 @@
 ---
 name: linear-ticket-create
-description: Create Linear tickets from rough context, bug reports, feature ideas, roadmap notes, or user requests. Use when the user asks to create, draft, split, write, or open Linear tickets/issues.
+description: Create or split Linear tickets from rough requests.
 ---
 
 # Linear Ticket Create
@@ -8,18 +8,8 @@ description: Create Linear tickets from rough context, bug reports, feature idea
 Read and follow the shared contract in
 `workflow/skills/linear-ticket-create.md`.
 
-## Source resolution
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Resolve the shared contract before acting:
-
-1. Prefer the current workspace copy:
-   `workflow/skills/linear-ticket-create.md`.
-2. If missing, fall back to the Pi agent shared copy:
-   `../../workflow/skills/linear-ticket-create.md`.
-3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
-   target path: `../../../workflow/skills/linear-ticket-create.md`.
-4. If no copy exists, stop with
-   `SHARED_CONTRACT_MISSING: workflow/skills/linear-ticket-create.md`.
 
 Rules:
 - Use Linear MCP as the Linear integration.

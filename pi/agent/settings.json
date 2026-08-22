@@ -18,21 +18,16 @@
         "plan-implement",
         "adversary",
         "review",
+        "code-quality",
         "implement",
         "verify",
         "bug-check",
-        "linear-project-setup",
         "linear-ticket-create",
         "linear-work",
         "pr-review",
         "pr-qa",
         "sec-pr",
-        "ci-fix",
-        "github-pr-review",
-        "suite-router",
-        "design-suite",
-        "code-quality",
-        "stack-suite"
+        "ci-fix"
       ]
     },
     {
@@ -61,7 +56,7 @@
   "defaultProvider": "zai",
   "defaultModel": "glm-5.3",
   "theme": "catppuccin-mocha",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "medium",
   "editorPaddingX": 1,
   "hideThinkingBlock": true,
   "collapseChangelog": true,

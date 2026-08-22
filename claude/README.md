@@ -79,7 +79,6 @@ Canonical contract: `../workflow/spec.md`.
 
 Claude commands are thin wrappers over that contract:
 
-- `/plan` from `commands/plan-create.md`
 - `/plan-loop`
 - `/plan-implement`
 - `/ship`
@@ -89,29 +88,14 @@ Claude commands are thin wrappers over that contract:
 - `/bug-check`
 - `/linear-ticket-create`
 - `/linear-work`
+- `/linear-project-setup`
 - `/pr-review`
 - `/pr-qa`
 - `/sec-pr`
 - `/ci-fix`
 - `/github-pr-review`
-
-Additional local wrappers:
-
 - `/adversary`
-- `/commit`
-- `/cross-repo-audit`
-- `/linear-project-setup`
 - `/spec-guide`
-- `/spec-verify`
-
-Recurring-work commands (from the 2026-07 usage audit; manual-only):
-
-- `/pr-feedback` — fetch, triage, and resolve review feedback on your own PR
-- `/pre-commit` — final pass before committing: review, sweep, targeted tests
-- `/tests-iso` — add tests indistinguishable from the existing suite
-- `/front-quality` — review → React best practices → react-doctor chain
-- `/ui-debug` — repro-first UI debugging, one hypothesis per measurement
-- `/recap` — evidence-based session/day recap (standup or Slack format)
 
 Custom agents stay bounded:
 
@@ -127,24 +111,20 @@ Command `allowed-tools` entries are permission pre-approvals, not a sandbox.
 Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
 `Bash`; the enforced shell boundary belongs to `scout` and `reviewer`.
 
-Domain work routes through a suite skill before the repos are opened:
-`employer-backend-suite` (BFF, auth/permissions, MCP, capabilities, Zendesk,
-workflow executor/orchestrator), `ember-employer-suite` (Ember frontend), and
-`stack-suite` (Node.js, TypeScript, Fastify, OAuth, React/Next.js, web UI).
-`employer-backend-suite` points into `~/work/brain/kb`; it cites note names and
-never copies their content, so the vault stays the source of truth.
-
-`stack-suite` is a pure router over the vendored libraries in `vendor/` — it
-holds no rules of its own. The project suites win over it when the task is about
-this codebase rather than about the language or framework. Adding a vendored
-skill means adding its row to the `stack-suite` table; a skill no agent is told
-to reach for is a skill no agent uses. See `vendor/README.md` for the manifest
-and the sync command.
+Load only a matching skill that the active Claude surface actually exposes.
+Prefer an exposed project skill when the task is about its codebase; otherwise
+use a direct language/framework skill from the managed vendor surface, such as
+`node`, `fastify-best-practices`, or `vercel-react-best-practices`. For UI work,
+the shared Claude surface exposes `frontend-css-ui-ux`. Skill selection is not a
+mandatory first step on `/plan-loop`, `/plan-implement`, or `/ship`; when no
+matching skill is exposed, the route uses its local-source fallback instead of
+silently skipping the phase. See `vendor/README.md` for the manifest and sync
+command.
 
 `scout`, `worker`, and `reviewer` declare `Skill` and pick the domain skill
-themselves. `/ship`, `/plan-loop`, and `/plan-implement` do the same as their
-first step. There is no hook that suggests a skill — selection is the model's,
-per ADR-0014.
+themselves when the brief matches. There is no hook that suggests a skill —
+selection is the model's, per ADR-0014. There is no additional global skill
+router.
 
 Playwright QA is packaged as three skills, not extra agents:
 `playwright-agentic-testing`, `playwright-test-generation`, and
@@ -206,10 +186,6 @@ Rules:
 - implement only from `Status: READY`
 - no `REVIEW.md`
 - review with `../workflow/review-rubric.md`
-
-## Notes
-
-`commands/plan-create.md` installs as `/plan` because `PLAN.md` is gitignored and case-insensitive filesystems are common.
 
 ## PR autoreview
 

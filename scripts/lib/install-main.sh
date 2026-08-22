@@ -65,6 +65,24 @@ prune_stale_managed_claude_agent_links() {
     done
 }
 
+remove_exact_managed_link() {
+    local target_path="$1"
+    local label="$2"
+    local link_target
+    local expected_target
+
+    shift 2
+    [ -L "$target_path" ] || return 0
+
+    link_target="$(readlink "$target_path")"
+    for expected_target in "$@"; do
+        [ "$link_target" = "$expected_target" ] || continue
+        rm -f "$target_path"
+        print_success "Removed $label"
+        return 0
+    done
+}
+
 managed_skill_roots() {
     local repo_dir="$1"
     local candidate resolved
@@ -385,12 +403,62 @@ install_npm_global_binary_link() {
 
 is_core_pi_skill() {
     local skill="$1"
+    [ -n "$skill" ] || return 1
     for core_skill in "${PI_CORE_SKILLS[@]}"; do
+        [ -n "$core_skill" ] || continue
         if [ "$core_skill" = "$skill" ]; then
             return 0
         fi
     done
     return 1
+}
+
+is_agents_visible_skill() {
+    local skill="$1"
+    [ -n "$skill" ] || return 1
+    local visible
+    for visible in "${AGENTS_VISIBLE_SKILLS[@]}"; do
+        [ -n "$visible" ] || continue
+        if [ "$visible" = "$skill" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+is_cross_harness_pi_skill() {
+    local candidate="$1"
+    local skill_name
+
+    [ -n "$candidate" ] || return 1
+    while IFS= read -r skill_name; do
+        [ -n "$skill_name" ] || continue
+        [ "$candidate" = "$skill_name" ] && return 0
+    done < <(skill_catalog_names "$SKILL_CATALOG" pi cross_harness)
+    return 1
+}
+
+prune_demoted_cross_harness_pi_skills() {
+    local repo_dir="$1"
+    local home_dir="$2"
+    local surface skill_link skill_target skill_name
+
+    for surface in "$home_dir/.claude/skills" "$home_dir/.codex/skills"; do
+        [ -d "$surface" ] || continue
+        for skill_link in "$surface"/*; do
+            [ -L "$skill_link" ] || continue
+            skill_target="$(readlink "$skill_link")"
+            case "$skill_target" in
+            "$repo_dir/pi/skills/"*) ;;
+            *) continue ;;
+            esac
+            skill_name="$(basename "$skill_link")"
+            if ! is_cross_harness_pi_skill "$skill_name"; then
+                rm -f "$skill_link"
+                print_success "Removed demoted Pi cross-harness skill '$skill_name' from $surface"
+            fi
+        done
+    done
 }
 
 prune_managed_pi_skills() {
@@ -408,6 +476,27 @@ prune_managed_pi_skills() {
             if ! is_core_pi_skill "$skill_name"; then
                 rm -f "$skill_link"
                 print_success "Removed stale Pi skill '$skill_name'"
+            fi
+            ;;
+        esac
+    done
+}
+
+prune_managed_agents_skills() {
+    local skills_dir="$HOME/.agents/skills"
+    [ -d "$skills_dir" ] || return 0
+
+    for skill_link in "$skills_dir"/*; do
+        [ -L "$skill_link" ] || continue
+        local target
+        target="$(readlink "$skill_link")"
+        case "$target" in
+        "$REPO_DIR/pi/skills/"*)
+            local skill_name
+            skill_name="$(basename "$skill_link")"
+            if ! is_agents_visible_skill "$skill_name"; then
+                rm -f "$skill_link"
+                print_success "Removed stale agents-visible skill '$skill_name'"
             fi
             ;;
         esac
@@ -688,6 +777,43 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         exit 1
     fi
 
+    smoke_command_home="$tmp_dir/command-home"
+    smoke_external_command="$tmp_dir/external-command.md"
+    mkdir -p "$smoke_command_home/.claude/commands"
+    printf '%s\n' 'personal command' >"$smoke_command_home/.claude/commands/recap.md"
+    printf '%s\n' 'external command' >"$smoke_external_command"
+    ln -s "$smoke_external_command" \
+        "$smoke_command_home/.claude/commands/commit.md"
+    ln -s "$smoke_repo_dir/claude/commands/plan.md" \
+        "$smoke_command_home/.claude/commands/plan.md"
+    remove_exact_managed_link \
+        "$smoke_command_home/.claude/commands/plan.md" \
+        "stale Claude command plan.md" \
+        "$smoke_repo_dir/claude/commands/plan.md" \
+        "$smoke_repo_dir/claude/scopes/shared/commands/plan.md"
+    remove_exact_managed_link \
+        "$smoke_command_home/.claude/commands/commit.md" \
+        "stale Claude command commit.md" \
+        "$smoke_repo_dir/claude/commands/commit.md" \
+        "$smoke_repo_dir/claude/scopes/shared/commands/commit.md"
+    remove_exact_managed_link \
+        "$smoke_command_home/.claude/commands/recap.md" \
+        "stale Claude command recap.md" \
+        "$smoke_repo_dir/claude/commands/recap.md" \
+        "$smoke_repo_dir/claude/scopes/shared/commands/recap.md"
+    if [ -L "$smoke_command_home/.claude/commands/plan.md" ]; then
+        print_error "stale managed Claude command link was not removed"
+        exit 1
+    fi
+    if [ ! -L "$smoke_command_home/.claude/commands/commit.md" ]; then
+        print_error "external Claude command link was removed"
+        exit 1
+    fi
+    if [ ! -f "$smoke_command_home/.claude/commands/recap.md" ]; then
+        print_error "personal Claude command file was removed"
+        exit 1
+    fi
+
     smoke_skill_home="$tmp_dir/skill-home"
     smoke_unmanaged_skill="$tmp_dir/unmanaged-skill"
     mkdir -p "$smoke_skill_home/.claude/skills" "$smoke_unmanaged_skill"
@@ -801,6 +927,24 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             exit 1
         fi
     done
+
+    ln -s "$smoke_repo_dir/pi/skills/suite-router" \
+        "$smoke_skill_home/.codex/skills/suite-router"
+    prune_demoted_cross_harness_pi_skills "$smoke_repo_dir" "$smoke_skill_home"
+    for smoke_demoted_skill in stack-suite react-doctor-100; do
+        if [ -L "$smoke_skill_home/.claude/skills/$smoke_demoted_skill" ]; then
+            print_error "demoted Pi cross-harness skill '$smoke_demoted_skill' was not removed"
+            exit 1
+        fi
+    done
+    if [ -L "$smoke_skill_home/.codex/skills/suite-router" ]; then
+        print_error "demoted Pi cross-harness skill 'suite-router' was not removed"
+        exit 1
+    fi
+    if [ ! -L "$smoke_skill_home/.claude/skills/unmanaged-skill" ]; then
+        print_error "unmanaged Claude skill link was removed by cross-harness pruning"
+        exit 1
+    fi
 
     PATH="/tmp/asdf-shims:/usr/bin"
     append_path_entry "/tmp/local-bin"
@@ -1383,6 +1527,7 @@ done
 
 mkdir -p ~/.agents/skills
 for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
     skill_dir="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
     if [ -n "$skill_dir" ] && [ -d "$skill_dir" ]; then
         ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
@@ -1391,6 +1536,7 @@ for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
         print_warning "Agents-visible skill '$skill_name' missing from repo"
     fi
 done
+prune_managed_agents_skills
 
 ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
@@ -1398,10 +1544,18 @@ mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
 
 mkdir -p ~/.agents/skills
 prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
+prune_demoted_cross_harness_pi_skills "$REPO_DIR" "$HOME"
 
-CROSS_HARNESS_PI_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi cross_harness))
+# Bash 3 with `set -u` treats an empty array expansion as unbound.
+CROSS_HARNESS_PI_SKILLS=("")
+cross_harness_names="$(skill_catalog_names "$SKILL_CATALOG" pi cross_harness || true)"
+if [ -n "$cross_harness_names" ]; then
+  # shellcheck disable=SC2206
+  CROSS_HARNESS_PI_SKILLS=( $cross_harness_names )
+fi
 
 for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
     skill_dir="$REPO_DIR/pi/skills/$skill_name"
     if [ ! -d "$skill_dir" ]; then
         print_warning "Cross-harness Pi skill '$skill_name' missing from repo"
@@ -1465,23 +1619,39 @@ for scope in $ETABLI_ACTIVE_SCOPES; do
     for command_file in $(find "$REPO_DIR/claude/scopes/$scope/commands" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
         if [ -f "$command_file" ]; then
             command_name=$(basename "$command_file")
-            target_name="$command_name"
-            if [ "$command_name" = "plan-create.md" ]; then
-                target_name="plan.md"
-            fi
-            ln -sf "$command_file" ~/.claude/commands/"$target_name"
-            print_success "Claude command '$target_name' linked"
+            ln -sf "$command_file" ~/.claude/commands/"$command_name"
+            print_success "Claude command '$command_name' linked"
         fi
     done
 done
-rm -f ~/.claude/commands/verify.md
-rm -f ~/.claude/commands/plan-create.md
-rm -f ~/.claude/commands/plan-review.md
-rm -f ~/.claude/commands/handoff.md
-rm -f ~/.claude/commands/handoff-implement.md
-rm -f ~/.claude/commands/ops-status.md
-rm -f ~/.claude/commands/ops-pi-status.md
-rm -f ~/.claude/handoff-template.md
+for stale_command in \
+    verify.md \
+    plan.md \
+    plan-create.md \
+    plan-review.md \
+    handoff.md \
+    handoff-implement.md \
+    ops-status.md \
+    ops-pi-status.md \
+    commit.md \
+    cross-repo-audit.md \
+    front-quality.md \
+    pr-feedback.md \
+    pre-commit.md \
+    recap.md \
+    spec-verify.md \
+    tests-iso.md \
+    ui-debug.md; do
+    remove_exact_managed_link \
+        "$HOME/.claude/commands/$stale_command" \
+        "stale Claude command '$stale_command'" \
+        "$REPO_DIR/claude/commands/$stale_command" \
+        "$REPO_DIR/claude/scopes/shared/commands/$stale_command"
+done
+remove_exact_managed_link \
+    "$HOME/.claude/handoff-template.md" \
+    "stale Claude handoff template" \
+    "$REPO_DIR/claude/handoff-template.md"
 
 if [ -d "$REPO_DIR/claude/hooks" ]; then
     mkdir -p ~/.claude/hooks

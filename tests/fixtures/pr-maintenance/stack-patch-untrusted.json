@@ -1,0 +1,13 @@
+{
+  "prs": [
+    {
+      "number": 402,
+      "head_ref": "stack/untrusted-patch",
+      "base_ref": "main",
+      "latest_head_sha": "new402",
+      "patch_id": "same-label",
+      "reviews": [{"head_sha": "old402", "patch_id": "same-label", "status": "clean"}],
+      "checks": [{"head_sha": "new402", "status": "success"}]
+    }
+  ]
+}

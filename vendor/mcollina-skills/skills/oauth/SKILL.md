@@ -1,6 +1,6 @@
 ---
 name: oauth
-description: Implements OAuth 2.0/2.1 authorization flows in Fastify applications — configures authorization code with PKCE, client credentials, device flow, refresh token rotation, JWT validation, and token introspection/revocation endpoints. Use when setting up authentication, authorization, login flows, access tokens, API security, or securing Fastify routes with OAuth; also applies when troubleshooting token validation errors, mismatched redirect URIs, CSRF issues, scope problems, or RFC 6749/6750/7636/8252/8628 compliance questions.
+description: "Use for OAuth 2.0/2.1: PKCE, client credentials, device flow, refresh rotation, JWT, scopes, or introspection."
 metadata:
   tags: oauth, oauth2, security, authentication, authorization, jwt, fastify
 ---

@@ -10,17 +10,8 @@ User request: $ARGUMENTS
 
 Read and follow the shared contract in `workflow/skills/review.md`.
 
-## Source resolution
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Resolve the shared contract before acting:
-
-1. Prefer the current workspace copy: `workflow/skills/review.md`.
-2. If missing, fall back to the Claude shared copy:
-   `../workflow/skills/review.md`.
-3. If unavailable, fall back to the Etabli repo copy when loaded from the repo
-   target path: `../../workflow/skills/review.md`.
-4. If no copy exists, stop with
-   `SHARED_CONTRACT_MISSING: workflow/skills/review.md`.
 
 Rules:
 - Use `workflow/review-rubric.md` when available.

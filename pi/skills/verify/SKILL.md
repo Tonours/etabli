@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Verify checks, claims, or current work without editing. Use when the user asks to verify, retest, prove completion, audit evidence, or when a workflow needs a verifier role.
+description: Verify or retest claims without editing.
 ---
 
 # Verify
@@ -8,25 +8,8 @@ description: Verify checks, claims, or current work without editing. Use when th
 Follow `workflow/spec.md` and use `workflow/verification-report-template.md`
 when available.
 
-## Source resolution
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Before saying a workflow source is missing, resolve sources in this order:
-
-1. Prefer the current workspace copies:
-   - `workflow/spec.md`
-   - `workflow/verification-report-template.md`
-   - `PLAN.md`
-2. If one of the workflow files is missing in the current workspace, fall back
-   to the Pi agent shared copies when this skill is loaded through
-   `~/.pi/agent/skills`:
-   - `../../workflow/spec.md`
-   - `../../workflow/verification-report-template.md`
-3. If those are unavailable, fall back to the Etabli repo copies when this skill
-   is loaded from the repo target path:
-   - `../../../workflow/spec.md`
-   - `../../../workflow/verification-report-template.md`
-4. If workflow sources exist through any fallback, read them and continue. Do
-   not report them missing.
 
 ## Contract
 

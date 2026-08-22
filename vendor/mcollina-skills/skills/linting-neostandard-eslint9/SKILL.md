@@ -1,6 +1,6 @@
 ---
 name: linting-neostandard-eslint9
-description: Configures ESLint v9 flat config and neostandard for JavaScript and TypeScript projects, including migrating from legacy `.eslintrc*` files or the `standard` package. Use when you need to set up or fix linting with `eslint.config.js` or `eslint.config.mjs`, troubleshoot lint errors, configure neostandard rules, migrate from `.eslintrc` to flat config, or integrate linting into CI pipelines and pre-commit hooks.
+description: "Use for ESLint 9 flat config, neostandard, legacy migration, TypeScript linting, monorepos, or CI."
 metadata:
   tags: linting, neostandard, eslint, eslint9, flat-config, javascript, typescript
 ---

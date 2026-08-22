@@ -66,10 +66,11 @@ never asks:
   authoritative
 
 ### 5. Convention & pattern fit
-Load the domain skill that owns the changed surface (`suite-router` →
-`stack-suite` / `design-suite` / project suite, or `code-quality` when running a
-dedicated quality pass). Compare the diff to **sibling implementations in this
-repo**, not to abstract industry taste.
+Load `code-quality` when exposed, otherwise the narrowest exposed domain or
+project skill. If none is exposed, perform the same comparison directly against
+**1–3 sibling implementations in this repo**, not against abstract industry
+taste. If neither a skill nor a relevant sibling exists, record this lens as
+`not run`; unavailable optional skills never count as a clean pass.
 
 Evidence bar for a convention finding:
 - changed `file:line` in the target diff
@@ -140,6 +141,8 @@ A non-trivial runtime row with empty deciding code or `not run` **blocks
 - maintainability issues that affect correctness or operability
 - convention or pattern drift against sibling implementations (with local anchor)
 - plan drift or review-time discovery that the work no longer matches the approved contract
+- unrequested abstraction, new dependency, reinvented stdlib/native feature, or
+  comments/`any`/try-catch added only to paper over the change (implementation-loop 12b)
 
 ## Findings format
 For each issue include:

@@ -17,7 +17,24 @@ learn -> plan -> implement -> review -> validate
 Roles (contracts, not mandatory agents): router → planner → challenger →
 adversary → implementer → verifier → reviewer → reporter → stop.
 
-## PLAN.md (only execution artifact)
+## No-PLAN work
+
+Diagnosis, compare, and pre-existing-capture forensics use route `answer`: do
+not write `PLAN.md`, run adversary, or archive. Ordinary coding may edit when
+root `PLAN.md` is missing. Do not skip READY/`plan-implement` when the user
+asked for a plan or the work is multi-slice.
+
+## Reply shapes
+
+Last message follows `workflow/answer-quality.md` live gate shapes: diagnosis,
+compare (user-named paths even when blinding authors), hillclimb, implementation.
+
+## Long-loop
+
+Freeze one documented metric command, not a live HTTP coverage runner. Log ≥3
+rows and stop before an external cap. After two red serve/coverage attempts or a ~60s hang, abort that command and answer with the rows you have.
+
+## PLAN.md (plan-loop / plan-implement / implement)
 
 | Status | Meaning |
 | --- | --- |
@@ -26,36 +43,29 @@ adversary → implementer → verifier → reviewer → reporter → stop.
 | `READY` | clear enough to execute |
 
 **Implement only from root `Status: READY`.** Prompt "PLAN.md ready" is not proof.
-Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited; other
-write/edit and mutating Bash are denied. Missing or unknown-status PLAN allows
-ordinary non-plan work. A stale root plan unrelated to the request is not a
-blocker — discard (`scripts/plan-cleanup --discard <reason-slug>`) or rewrite it.
+Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited. Missing or
+unknown-status PLAN allows ordinary non-plan work. Discard a stale root plan
+with `scripts/plan-cleanup --discard <reason-slug>`.
 
-**Check-freeze:** once READY, Checks / Acceptance Criteria may only be
-strengthened. Weaken/remove → demote to `CHALLENGED` + Decision Log rationale.
-CLI: `scripts/plan-check-freeze`.
+**Check-freeze:** READY Checks / Acceptance Criteria strengthen-only; weaken →
+`CHALLENGED` + Decision Log. CLI: `scripts/plan-check-freeze`.
 
-**no_progress (ledger):** a valid active ledger with `no_progress` or derived
-2-hyp/3-red thresholds denies code mutations; ambiguous or malformed active runs
-fail closed (`scripts/workflow-event activate <slug>` to pick one). Escapes: root
-`PLAN.md`, narrow `plan-cleanup`, `workflow-event`. Quarantine corrupt data with
-`workflow-event recover` — never delete it. Full rules: `workflow/events.md`.
+**no_progress:** 2-hyp/3-red denies code mutations (`workflow/events.md`).
+Escapes: root `PLAN.md`, narrow `plan-cleanup`, `workflow-event`.
 
 After validated implementation: archive under `docs/plan/` with the exact root
 plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
-Unrelated/abandoned root plans: `scripts/plan-cleanup --discard <reason-slug>`
-(writes a discarded record under `docs/plan/`, removes root `PLAN.md`).
 
 ## One-writer
 
-One writer at any instant (**protocol**, not an OS lock): the parent, or one
-`worker` per step, never two in parallel. `scout`/`reviewer`: read-only tools plus a scoped Bash `PreToolUse` allowlist guard.
+One writer at any instant (**protocol**, not an OS lock): the parent or one
+`worker` per step. `scout`/`reviewer`: read-only plus Bash `PreToolUse` allowlist.
 
 ## Routes (common)
 
 | Need | Route |
 | --- | --- |
-| Question | `answer` |
+| Question / diagnosis / compare / pre-existing capture | `answer` |
 | Plan | `plan-loop` |
 | Plan then code | `plan-implement` |
 | READY plan code | `implement` |
@@ -69,15 +79,10 @@ Full table: `workflow/spec.md` § Routing rules.
 
 ## Review effectiveness
 
-- Break-first then plan-fit; **deciding-code table** mandatory for runtime diffs
-  (local **and** `pr-review`).
+- Break-first then plan-fit; **deciding-code table** mandatory for runtime diffs.
 - `GO` forbidden if deciding-code is empty/`not run` on a runtime row.
-- Code-diff adversary: **cross-model** or documented **double-sample**; single
-  same-family pass → `blocked` (full autonomy).
-- High adversary findings: cross-model arbitration, not implementer alone.
-- Escaped defect post-GO → `workflow/templates/escaped-defect.md` + metrics row
-  update (etabli repo log / obvault personal / brain work) before treating the
-  miss as done. One metrics row per PR.
+- Code-diff adversary: **cross-model** or documented **double-sample**.
+- Escaped defect post-GO → `workflow/templates/escaped-defect.md` + metrics row.
 
 ## ops-stop (HITL)
 
@@ -92,19 +97,16 @@ scripts/verify-agentic-infra core
 cd pi && bun test ./extensions/__tests__/
 ```
 
-Narrower guard/ledger smokes live in `tests/`; run the ones your diff touches.
-
-Focused checks over full-suite ritual. Record commands + results before
-claiming done. Answers: `workflow/answer-quality.md` live gate.
+Focused checks over full-suite ritual. After checks: implementation-loop 12b
+on this diff, then review. Record commands + results. Answers: live gate.
 
 ## Stop conditions
 
 - No-progress: same hypothesis fails twice, or same check red 3× without new
   diff → `blocked` + `no_progress` event.
 - Autonomous loops: measurable goal + **explicit cap** (iterations/wall-clock).
-- Autonomous `plan-implement`: fresh-context review required; ledger under
-  `.workflow/<slug>/events.jsonl` (`workflow/events.md`).
-- Linear without MCP: stop `LINEAR_MCP_UNAVAILABLE` (see `docs/mcp-strategy.md`).
+- Autonomous `plan-implement`: fresh-context review; ledger `.workflow/<slug>/events.jsonl`.
+- Linear without MCP: stop `LINEAR_MCP_UNAVAILABLE`.
 
 ## Memory
 

@@ -31,12 +31,13 @@ can prove in the requested scope. An empty finding list is valid.
 
 ## Method
 
-1. Select the domain skill when one covers the changed area — invoke
-   `suite-router` or load `code-quality` / `employer-backend-suite` /
-   `ember-employer-suite` / `stack-suite` / `design-suite`. Conventions
-   inform the verdict; they never override the rubric. A finding still needs a
-   concrete failure in the diff. Convention findings need a sibling pattern
-   `file:line`.
+1. Select the narrowest matching skill that this runtime exposes. Prefer an
+   exposed project skill for its codebase; otherwise use a direct
+   language/framework skill. If none is exposed, compare the diff with 1–3
+   local sibling implementations. If neither a skill nor a relevant sibling
+   exists, mark the convention lens `not run`, never clean. Conventions inform
+   the verdict; they never override the rubric. A finding still needs a concrete
+   failure in the diff. Convention findings need a sibling pattern `file:line`.
 2. Before judging each changed **runtime** behavior, open the deciding code:
    - multi-source value → resolver
    - status / error → mapper + middleware / guard

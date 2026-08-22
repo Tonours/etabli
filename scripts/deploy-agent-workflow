@@ -13,7 +13,13 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
-CROSS_HARNESS_PI_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi cross_harness) )
+# Bash 3 with `set -u` treats an empty array expansion as unbound.
+CROSS_HARNESS_PI_SKILLS=("")
+cross_harness_names="$(skill_catalog_names "$SKILL_CATALOG" pi cross_harness || true)"
+if [ -n "$cross_harness_names" ]; then
+  # shellcheck disable=SC2206
+  CROSS_HARNESS_PI_SKILLS=( $cross_harness_names )
+fi
 
 ACTIVE_SCOPES="shared"
 
@@ -167,6 +173,37 @@ remove_managed_path() {
   status_line REMOVE "$label"
 }
 
+remove_exact_managed_link() {
+  local target_path="$1"
+  local label="$2"
+  local link_target
+  local expected_target
+
+  shift 2
+  if [ ! -e "$target_path" ] && [ ! -L "$target_path" ]; then
+    status_line OK "$label absent"
+    return 0
+  fi
+  if [ ! -L "$target_path" ]; then
+    status_line KEEP "$label unmanaged"
+    return 0
+  fi
+
+  link_target="$(readlink "$target_path")"
+  for expected_target in "$@"; do
+    [ "$link_target" = "$expected_target" ] || continue
+    if [ "$DRY_RUN" -eq 1 ]; then
+      status_line WOULD_REMOVE "$label"
+    else
+      rm -f "$target_path"
+      status_line REMOVE "$label"
+    fi
+    return 0
+  done
+
+  status_line KEEP "$label unmanaged"
+}
+
 prune_stale_managed_claude_agent_links() {
   local legacy_managed_dir="$REPO_DIR/claude/agents"
   local scoped_managed_root="$REPO_DIR/claude/scopes"
@@ -211,11 +248,57 @@ is_core_pi_skill() {
   local candidate="$1"
   local skill
 
+  [ -n "$candidate" ] || return 1
   while IFS= read -r skill; do
+    [ -n "$skill" ] || continue
     [ "$candidate" = "$skill" ] && return 0
   done < <(pi_core_skills)
 
   return 1
+}
+
+is_agents_visible_skill() {
+  local candidate="$1"
+  local skill
+
+  [ -n "$candidate" ] || return 1
+  for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
+    [ -n "$skill" ] || continue
+    [ "$candidate" = "$skill" ] && return 0
+  done
+  return 1
+}
+
+is_cross_harness_pi_skill() {
+  local candidate="$1"
+  local skill
+
+  [ -n "$candidate" ] || return 1
+  for skill in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
+    [ -n "$skill" ] || continue
+    [ "$candidate" = "$skill" ] && return 0
+  done
+  return 1
+}
+
+prune_demoted_cross_harness_pi_skills() {
+  local surface skill_link skill_target skill_name
+
+  for surface in "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills"; do
+    [ -d "$surface" ] || continue
+    for skill_link in "$surface"/*; do
+      [ -L "$skill_link" ] || continue
+      skill_target="$(readlink "$skill_link")"
+      case "$skill_target" in
+        "$REPO_DIR/pi/skills/"*) ;;
+        *) continue ;;
+      esac
+      skill_name="$(basename "$skill_link")"
+      if ! is_cross_harness_pi_skill "$skill_name"; then
+        remove_managed_path "$skill_link" "demoted Pi cross-harness skill $skill_name"
+      fi
+    done
+  done
 }
 
 sync_pi_agent_settings() {
@@ -448,8 +531,24 @@ deploy_pi() {
   fi
 
   for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
+    [ -n "$skill" ] || continue
     link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Grok/agents-visible skill $skill"
   done
+
+  if [ -d "$HOME_DIR/.agents/skills" ]; then
+    for skill_link in "$HOME_DIR/.agents/skills"/*; do
+      [ -L "$skill_link" ] || continue
+      skill_target="$(readlink "$skill_link")"
+      case "$skill_target" in
+        "$REPO_DIR/pi/skills/"*)
+          skill_name="$(basename "$skill_link")"
+          if ! is_agents_visible_skill "$skill_name"; then
+            remove_managed_path "$skill_link" "stale Grok/agents-visible skill $skill_name"
+          fi
+          ;;
+      esac
+    done
+  fi
 
   # Shared plan/workflow sources for ~/.agents skills
   # (../../PLAN_TEMPLATE.md and ../../workflow resolve here).
@@ -475,6 +574,8 @@ deploy_cross_harness_skills() {
   if [ "$DRY_RUN" -eq 0 ]; then
     mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.agents/skills"
   fi
+
+  prune_demoted_cross_harness_pi_skills
 
   while IFS=$'\t' read -r skill_name skill_dir; do
     [ -n "$skill_name" ] || continue
@@ -532,11 +633,7 @@ deploy_claude() {
     for command_file in "$REPO_DIR/claude/scopes/$scope/commands"/*.md; do
       [ -f "$command_file" ] || continue
       command_name="$(basename "$command_file")"
-      target_name="$command_name"
-      if [ "$command_name" = "plan-create.md" ]; then
-        target_name="plan.md"
-      fi
-      link_path "$command_file" "$HOME_DIR/.claude/commands/$target_name" "Claude command $target_name"
+      link_path "$command_file" "$HOME_DIR/.claude/commands/$command_name" "Claude command $command_name"
     done
   done
 
@@ -547,15 +644,32 @@ deploy_claude() {
     qa-reviewer.md \
     qa-failure-dossier.md \
     verify.md \
+    plan.md \
     plan-create.md \
     plan-review.md \
     handoff.md \
     handoff-implement.md \
     ops-status.md \
-    ops-pi-status.md; do
-    remove_managed_path "$HOME_DIR/.claude/commands/$stale_command" "stale Claude command $stale_command"
+    ops-pi-status.md \
+    commit.md \
+    cross-repo-audit.md \
+    front-quality.md \
+    pr-feedback.md \
+    pre-commit.md \
+    recap.md \
+    spec-verify.md \
+    tests-iso.md \
+    ui-debug.md; do
+    remove_exact_managed_link \
+      "$HOME_DIR/.claude/commands/$stale_command" \
+      "stale Claude command $stale_command" \
+      "$REPO_DIR/claude/commands/$stale_command" \
+      "$REPO_DIR/claude/scopes/shared/commands/$stale_command"
   done
-  remove_managed_path "$HOME_DIR/.claude/handoff-template.md" "stale Claude handoff template"
+  remove_exact_managed_link \
+    "$HOME_DIR/.claude/handoff-template.md" \
+    "stale Claude handoff template" \
+    "$REPO_DIR/claude/handoff-template.md"
 
   for hook_file in "$REPO_DIR/claude/hooks"/*.mjs; do
     [ -f "$hook_file" ] || continue

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "run_id": "replace-me",
+  "mode": "product",
+  "target": {
+    "name": "replace-me",
+    "ref": "replace-me",
+    "subject_path": "path/to/subject",
+    "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "environment_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "artifacts": [],
+  "execution": {
+    "status": "blocked",
+    "receipt_artifact": null,
+    "launch": { "status": "blocked", "evidence": [], "reason": "replace-me" },
+    "doctor": { "status": "blocked", "evidence": [], "reason": "replace-me" },
+    "isolation": { "status": "blocked", "evidence": [], "reason": "replace-me" },
+    "cleanup": { "status": "blocked", "evidence": [], "reason": "replace-me" }
+  },
+  "scenarios": [
+    {
+      "id": "replace-me",
+      "outcome": "replace-me",
+      "status": "blocked",
+      "action_evidence": [],
+      "result_evidence": [],
+      "side_effect_expected": false,
+      "side_effect_evidence": [],
+      "reason": "replace-me"
+    }
+  ]
+}

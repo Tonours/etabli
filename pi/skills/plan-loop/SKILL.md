@@ -1,6 +1,6 @@
 ---
 name: plan-loop
-description: Create/review PLAN.md and stop at CHALLENGED or READY
+description: Create or review PLAN.md; stop at CHALLENGED or READY.
 ---
 
 # Plan Loop
@@ -86,10 +86,9 @@ Embedded fallback shape:
 -
 ```
 
-1. Inspect `git status --short` and relevant files. Skill selection comes first:
-   invoke `suite-router` when the brief may touch design/UI, React/frontend, or
-   Node/backend; then load the matching suite(s) (`design-suite`, `stack-suite`,
-   or a project suite). Name the skill(s) used, or `none`, in `Notes / Handoff`.
+1. Inspect `git status --short` and relevant files. Load a domain suite only if
+   the brief clearly matches one. Name the skill(s) used, or `none`, in
+   `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad/risky work.
 4. Set `Status: DRAFT` first.

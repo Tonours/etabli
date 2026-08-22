@@ -13,7 +13,7 @@
 - Pattern: direct | localize-repair-validate | react | self-refine | planner-builder-evaluator | parallel-sections | tree-search | scheduled-idempotent
 - Role:
 - Goal verifier:
-- Budget (iterations / time / tokens or tools):
+- Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
 - Context reset:
 - Escalation:
 - Stop condition:
