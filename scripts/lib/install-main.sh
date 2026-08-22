@@ -11,6 +11,7 @@ BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
 . "$BOOTSTRAP_DIR/lib/pi-paths.sh"
 . "$BOOTSTRAP_DIR/lib/skill-catalog.sh"
 . "$BOOTSTRAP_DIR/lib/etabli-scope.sh"
+. "$BOOTSTRAP_DIR/lib/prefer-cursor-agent.sh"
 SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
 
 # ============================================================================
@@ -994,6 +995,82 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         exit 1
     fi
 
+    smoke_grok_home="$tmp_dir/grok-home"
+    mkdir -p "$smoke_grok_home/.grok/bin" "$smoke_grok_home/.local/bin"
+    printf 'grok-bin\n' >"$smoke_grok_home/.grok/bin/grok-macos"
+    ln -s grok-macos "$smoke_grok_home/.grok/bin/grok"
+    ln -s grok-macos "$smoke_grok_home/.grok/bin/agent"
+    printf 'cursor-agent\n' >"$smoke_grok_home/.local/bin/agent"
+    prefer_cursor_agent_remove_grok_collision "$smoke_grok_home"
+    if [ -e "$smoke_grok_home/.grok/bin/agent" ] || [ -L "$smoke_grok_home/.grok/bin/agent" ]; then
+        print_error "prefer_cursor_agent_remove_grok_collision left Grok's agent name"
+        exit 1
+    fi
+    if [ ! -L "$smoke_grok_home/.grok/bin/grok" ]; then
+        print_error "prefer_cursor_agent_remove_grok_collision removed Grok's grok launcher"
+        exit 1
+    fi
+
+    smoke_custom_agent="$tmp_dir/custom-grok-agent"
+    mkdir -p "$smoke_custom_agent/.grok/bin"
+    printf 'custom-agent\n' >"$smoke_custom_agent/.grok/bin/agent"
+    printf 'grok-bin\n' >"$smoke_custom_agent/.grok/bin/grok"
+    prefer_cursor_agent_remove_grok_collision "$smoke_custom_agent"
+    if [ ! -f "$smoke_custom_agent/.grok/bin/agent" ]; then
+        print_error "prefer_cursor_agent_remove_grok_collision removed a custom agent file"
+        exit 1
+    fi
+
+    grok_rc="$tmp_dir/grok-zshrc"
+    printf '%s\n' 'export PATH="$HOME/.grok/bin:$PATH"' '# <<< grok installer <<<' >"$grok_rc"
+    prefer_cursor_agent_ensure_shell_hook "$grok_rc"
+    if ! grep -Fq "$prefer_cursor_agent_hook_begin" "$grok_rc"; then
+        print_error "prefer_cursor_agent_ensure_shell_hook did not install the Cursor agent hook"
+        exit 1
+    fi
+    if ! awk -v grok_end="$prefer_cursor_agent_grok_installer_end" -v begin="$prefer_cursor_agent_hook_begin" '
+        $0 == grok_end { saw_grok = 1 }
+        $0 == begin && saw_grok { found = 1 }
+        END { exit !found }
+    ' "$grok_rc"; then
+        print_error "prefer_cursor_agent_ensure_shell_hook did not follow the Grok installer block"
+        exit 1
+    fi
+    prefer_cursor_agent_ensure_shell_hook "$grok_rc"
+    if [ "$(grep -Fc "$prefer_cursor_agent_hook_begin" "$grok_rc")" -ne 1 ]; then
+        print_error "prefer_cursor_agent_ensure_shell_hook duplicated the Cursor agent hook"
+        exit 1
+    fi
+
+    symlink_hook_target="$tmp_dir/linked-hook-zshrc-target"
+    symlink_hook_rc="$tmp_dir/linked-hook-zshrc"
+    printf '%s\n' 'export PATH="$HOME/.grok/bin:$PATH"' >"$symlink_hook_target"
+    ln -s "$symlink_hook_target" "$symlink_hook_rc"
+    prefer_cursor_agent_ensure_shell_hook "$symlink_hook_rc"
+    if [ ! -L "$symlink_hook_rc" ]; then
+        print_error "prefer_cursor_agent_ensure_shell_hook replaced an rcfile symlink"
+        exit 1
+    fi
+    if ! grep -Fq "$prefer_cursor_agent_hook_begin" "$symlink_hook_target"; then
+        print_error "prefer_cursor_agent_ensure_shell_hook did not update the symlink target"
+        exit 1
+    fi
+
+    truncated_rc="$tmp_dir/truncated-zshrc"
+    printf '%s\n' 'keep-this-line' "$prefer_cursor_agent_hook_begin" 'export STAY=/should-remain' >"$truncated_rc"
+    if prefer_cursor_agent_ensure_shell_hook "$truncated_rc"; then
+        print_error "prefer_cursor_agent_ensure_shell_hook accepted a hook with no end marker"
+        exit 1
+    fi
+    if ! grep -Fxq 'keep-this-line' "$truncated_rc" || ! grep -Fxq 'export STAY=/should-remain' "$truncated_rc"; then
+        print_error "prefer_cursor_agent_ensure_shell_hook destroyed a truncated rcfile"
+        exit 1
+    fi
+    if grep -Fq "$prefer_cursor_agent_hook_end" "$truncated_rc"; then
+        print_error "prefer_cursor_agent_ensure_shell_hook rewrote a truncated hook"
+        exit 1
+    fi
+
     smoke_home="$tmp_dir/home"
     mkdir -p "$smoke_home/.pi/agent"
     printf '%s\n' '{"defaultProvider":"custom","defaultModel":"personal-model","defaultThinkingLevel":"low","enabledModels":["custom/personal-model"],"packages":["npm:@agwab/pi-workflow",{"source":"npm:@agwab/pi-workflow@0.7.0"},{"source":"npm:@agwab/pi-workflow-helper"}]}' \
@@ -1738,8 +1815,11 @@ if [ -L ~/.local/bin/deploy-harness ]; then
     print_success "Removed legacy deploy-harness link"
 fi
 
+prefer_cursor_agent_remove_grok_collision "$HOME"
 for rcfile in ~/.bashrc ~/.zshrc; do
     ensure_local_bin_shell_path "$rcfile"
+    prefer_cursor_agent_ensure_shell_hook "$rcfile" \
+        || print_warning "could not refresh Cursor agent PATH hook in $rcfile"
 done
 
 print_success "Dev scripts installed"

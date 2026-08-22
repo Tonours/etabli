@@ -190,18 +190,22 @@ function validateManifest(raw) {
 
 function readEvents(path) {
   const lines = readFileSync(path, "utf8").split("\n").filter((line) => line.trim() !== "");
-  return lines.map((line, index) => {
+  const events = [];
+  for (const [index, line] of lines.entries()) {
     let event;
     try {
       event = JSON.parse(line);
     } catch {
       throw new ProgramError(`events line ${index + 1} is not valid JSON`);
     }
+    const eventName = typeof event?.event === "string" ? event.event : "";
+    if (!eventName.startsWith("program_")) continue;
     exactObject(event, ["schema_version", "ts", "event", "run", "detail"], [], `events[${index}]`);
     invariant(event.schema_version === 2 && nonemptyString(event.ts) && nonemptyString(event.run), `events line ${index + 1} has an invalid envelope`);
-    invariant(!event.event.startsWith("program_") || PROGRAM_EVENTS.has(event.event), `events line ${index + 1} has an unknown program event`);
-    return event;
-  });
+    invariant(PROGRAM_EVENTS.has(event.event), `events line ${index + 1} has an unknown program event`);
+    events.push(event);
+  }
+  return events;
 }
 
 function validateEmitter(raw, coordinatorId, label) {

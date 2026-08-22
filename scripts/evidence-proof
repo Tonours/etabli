@@ -559,7 +559,7 @@ function validateUi(raw, artifacts) {
     invariant(viewports.some((viewport) => viewport.width <= 480), "responsive UI proof needs a viewport <= 480px");
     invariant(viewports.some((viewport) => viewport.width >= 1024), "responsive UI proof needs a viewport >= 1024px");
   }
-  const checks = exactObject(ui.checks, ["keyboard", "focus", "accessibility", "console", "network", "responsive", "reduced_motion"], [], "ui.checks");
+  const checks = exactObject(ui.checks, ["keyboard", "focus", "accessibility", "console", "network", "responsive", "reduced_motion", "reference"], [], "ui.checks");
   const checked = {};
   for (const name of Object.keys(checks)) checked[name] = validateStep(checks[name], artifacts, `ui.checks.${name}`);
   const requiredKinds = {
@@ -570,6 +570,7 @@ function validateUi(raw, artifacts) {
     network: new Set(["network", "trace"]),
     responsive: new Set(["screenshot", "trace"]),
     reduced_motion: new Set(["screenshot", "trace"]),
+    reference: new Set(["screenshot", "trace"]),
   };
   for (const [name, check] of Object.entries(checked)) {
     if (check.status === "passed") invariant(check.evidence.some((artifact) => requiredKinds[name].has(artifact.kind)), `ui.checks.${name} has no modality-specific evidence`);
@@ -578,6 +579,8 @@ function validateUi(raw, artifacts) {
   else invariant(checked.responsive.status === "not_applicable", "responsive check must be not_applicable when out of scope");
   if (ui.motion_in_scope) invariant(checked.reduced_motion.status === "passed", "motion scope needs a passed reduced-motion check");
   else invariant(checked.reduced_motion.status === "not_applicable", "reduced-motion check must be not_applicable when out of scope");
+  if (ui.reference_in_scope) invariant(checked.reference.status === "passed", "reference scope needs a passed reference check");
+  else invariant(checked.reference.status === "not_applicable", "reference check must be not_applicable when out of scope");
   return { ...ui, viewports, checks: checked };
 }
 
@@ -769,7 +772,7 @@ function validatePack(packPath, rootPath) {
     const investigation = validateInvestigation(pack.investigation, execution, artifacts);
     invariant(pack.scenarios === undefined && pack.ui === undefined && pack.performance === undefined, "investigation pack contains another mode section");
     result = {
-      verdict: investigation.verdict === "CAUSE_CONFIRMED" ? "VERIFIED" : investigation.verdict === "CAUSE_SUPPORTED" ? "INCONCLUSIVE" : investigation.verdict,
+      verdict: investigation.verdict === "CAUSE_CONFIRMED" ? "VERIFIED" : investigation.verdict === "NOT_REPRODUCED" ? "NOT_VERIFIED" : "INCONCLUSIVE",
       investigation_verdict: investigation.verdict,
       execution: execution?.status === "parent_observed" ? "parent_observed_execution" : execution?.status || "integrity_only",
     };

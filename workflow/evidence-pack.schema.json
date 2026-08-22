@@ -50,7 +50,7 @@
     {
       "if": { "properties": { "mode": { "const": "performance" } } },
       "then": {
-        "required": ["performance"],
+        "required": ["execution", "performance"],
         "not": { "anyOf": [{ "required": ["scenarios"] }, { "required": ["ui"] }, { "required": ["investigation"] }] }
       }
     }
@@ -145,7 +145,7 @@
         "checks": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["keyboard", "focus", "accessibility", "console", "network", "responsive", "reduced_motion"],
+          "required": ["keyboard", "focus", "accessibility", "console", "network", "responsive", "reduced_motion", "reference"],
           "properties": {
             "keyboard": { "$ref": "#/$defs/step" },
             "focus": { "$ref": "#/$defs/step" },
@@ -153,7 +153,8 @@
             "console": { "$ref": "#/$defs/step" },
             "network": { "$ref": "#/$defs/step" },
             "responsive": { "$ref": "#/$defs/step" },
-            "reduced_motion": { "$ref": "#/$defs/step" }
+            "reduced_motion": { "$ref": "#/$defs/step" },
+            "reference": { "$ref": "#/$defs/step" }
           }
         }
       }

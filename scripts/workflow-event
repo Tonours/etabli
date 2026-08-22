@@ -556,7 +556,9 @@ append_locked_body() {
   trap release_current_append_owner EXIT
 
   if [ -f "$file" ]; then
-    if ! is_program_event "$event" || ! ledger_cache_matches "$file" "$integrity_cache"; then
+    if ! is_program_event "$event" \
+      || ! ledger_cache_matches "$file" "$integrity_cache" \
+      || grep -Fq '"event":"outcome_measurement_' "$file"; then
       "$SCRIPT_PATH" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null || {
         printf 'refusing append to an invalid ledger: %s\n' "$slug" >&2
         return 1

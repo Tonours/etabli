@@ -262,7 +262,6 @@ Pi:
 - `/skill:pr-qa`: create PR QA test plans through `gh`
 - `/skill:sec-pr`: audit Dependabot/security PRs through `gh`
 - `/skill:ci-fix`: explicitly requested autonomous CI repair through `gh`
-- `/skill:github-pr-review`: compatibility alias for `pr-review`
 
 Claude:
 

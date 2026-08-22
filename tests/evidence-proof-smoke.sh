@@ -318,13 +318,30 @@ jq --arg sha "$UI_SHA" --arg accessibility_sha "$UI_ACCESSIBILITY_SHA" --arg con
         console:{status:"passed",evidence:["ui-console"]},
         network:{status:"passed",evidence:["ui-network"]},
         responsive:{status:"passed",evidence:["ui-screenshot"]},
-        reduced_motion:{status:"not_applicable",evidence:[],reason:"motion out of scope"}
+        reduced_motion:{status:"not_applicable",evidence:[],reason:"motion out of scope"},
+        reference:{status:"not_applicable",evidence:[],reason:"reference out of scope"}
       }
     }
   ' "$UI_CASE/pack.json" >"$UI_CASE/pack.next"
 mv "$UI_CASE/pack.next" "$UI_CASE/pack.json"
 UI_RESULT="$("$TOOL" validate --pack "$UI_CASE/pack.json" --root "$ROOT_DIR")"
 jq -e '.verdict == "INCONCLUSIVE" and .execution == "proxy_supported"' <<<"$UI_RESULT" >/dev/null
+
+UI_REFERENCE_CASE="$(copy_case ui-reference-in-scope)"
+cp "$UI_CASE/screenshot.bin" "$UI_REFERENCE_CASE/screenshot.bin"
+cp "$UI_CASE/accessibility.txt" "$UI_REFERENCE_CASE/accessibility.txt"
+cp "$UI_CASE/console.txt" "$UI_REFERENCE_CASE/console.txt"
+cp "$UI_CASE/network.txt" "$UI_REFERENCE_CASE/network.txt"
+cp "$UI_CASE/pack.json" "$UI_REFERENCE_CASE/pack.json"
+jq '.ui.reference_in_scope = true | .ui.checks.reference = {status:"passed",evidence:["ui-screenshot"]}' \
+  "$UI_REFERENCE_CASE/pack.json" >"$UI_REFERENCE_CASE/pack.next"
+mv "$UI_REFERENCE_CASE/pack.next" "$UI_REFERENCE_CASE/pack.json"
+UI_REFERENCE_RESULT="$("$TOOL" validate --pack "$UI_REFERENCE_CASE/pack.json" --root "$ROOT_DIR")"
+jq -e '.verdict == "INCONCLUSIVE" and .execution == "proxy_supported"' <<<"$UI_REFERENCE_RESULT" >/dev/null
+jq '.ui.checks.reference.status = "not_applicable" | .ui.checks.reference.reason = "missing"' \
+  "$UI_REFERENCE_CASE/pack.json" >"$UI_REFERENCE_CASE/pack.next"
+mv "$UI_REFERENCE_CASE/pack.next" "$UI_REFERENCE_CASE/pack.json"
+assert_rejected ui-reference-in-scope-without-pass "$UI_REFERENCE_CASE/pack.json"
 
 UI_NARROW_ONLY_CASE="$(copy_case ui-missing-desktop)"
 cp "$UI_CASE/screenshot.bin" "$UI_NARROW_ONLY_CASE/screenshot.bin"
@@ -369,6 +386,14 @@ jq '.investigation.verdict = "CAUSE_SUPPORTED"' "$SUPPORTED_CASE/pack.json" >"$S
 mv "$SUPPORTED_CASE/pack.next" "$SUPPORTED_CASE/pack.json"
 SUPPORTED_RESULT="$("$TOOL" validate --pack "$SUPPORTED_CASE/pack.json" --root "$ROOT_DIR")"
 jq -e '.verdict == "INCONCLUSIVE" and .investigation_verdict == "CAUSE_SUPPORTED"' <<<"$SUPPORTED_RESULT" >/dev/null
+
+NOT_REPRODUCED_CASE="$(copy_case investigation-not-reproduced)"
+cp "$SUPPORTED_CASE/pack.json" "$NOT_REPRODUCED_CASE/pack.json"
+jq '.investigation.reproduction.status = "not_reproduced" | .investigation.verdict = "NOT_REPRODUCED"' \
+  "$NOT_REPRODUCED_CASE/pack.json" >"$NOT_REPRODUCED_CASE/pack.next"
+mv "$NOT_REPRODUCED_CASE/pack.next" "$NOT_REPRODUCED_CASE/pack.json"
+NOT_REPRODUCED_RESULT="$("$TOOL" validate --pack "$NOT_REPRODUCED_CASE/pack.json" --root "$ROOT_DIR")"
+jq -e '.verdict == "NOT_VERIFIED" and .investigation_verdict == "NOT_REPRODUCED"' <<<"$NOT_REPRODUCED_RESULT" >/dev/null
 
 PERF_WORK="$OWNED_ROOT/performance-work"
 PERFORMANCE_CASE="$CASES_DIR/performance"

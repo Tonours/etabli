@@ -1,6 +1,6 @@
 ---
 name: herdr
-description: "Use only for Herdr sessions, panes, workspaces, commands, agents, or multihost control."
+description: Use only when the user names Herdr or HERDR_ENV=1 to control panes, workspaces, or multihost. Do not use for ordinary agent or shell commands.
 ---
 
 # Herdr

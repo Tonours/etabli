@@ -131,6 +131,8 @@ A plan is `READY` when it has:
 | Trigger | Route | Artifact | Stop |
 | --- | --- | --- | --- |
 | Simple question or explanation | `answer` | none | answer delivered |
+| Diagnosis, compare, or pre-existing-capture forensics | `answer` | none | answer delivered; do not write `PLAN.md` |
+| Ordinary coding with no root `PLAN.md` and no explicit plan request | `answer` | code/docs | edit complete; do not skip READY/`plan-implement` when the user asked for a plan or the work is multi-slice |
 | Broad task, unclear implementation, or "fais un plan" | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
 | Guided spec construction ("rédige une spec", "guide-moi pour la spec") | `spec-guide` | spec drafted via `/spec` template | spec solid, hands off to `/spec` |
 | Read-only adversarial PLAN.md review, or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |

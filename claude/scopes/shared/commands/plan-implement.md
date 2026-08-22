@@ -46,12 +46,20 @@ flow — never stop between phases to ask "continue?":
 5. Run the plan checks, then the implementation-loop 12b simplification
    ladder (re-run checks if it edited anything). Record `simplify: clean` or
    `simplify: removed N`.
-6. Fresh-context review: dispatch a read-only reviewer subagent on the diff
+6. Quality pass (implementation-loop 12c): invoke `code-quality` when this
+   runtime exposes it. Otherwise load the narrowest exposed domain or project
+   skill, else compare the diff with 1-3 local siblings. If neither a skill
+   nor a sibling exists, record `quality: unavailable` and stop before
+   completion. Fix mechanical findings; report behavioral ones. Skip only for
+   pure docs or plan-only changes, and say so.
+7. Product dogfood when the plan requires it or the change is a user-facing
+   product-flow (`workflow/skills/product-dogfood.md`).
+8. Fresh-context review: dispatch a read-only reviewer subagent on the diff
    (per `workflow/spec.md`); fold blockers, rerun checks if edits were needed.
-7. Code-diff adversary: run the adversary Code diff mode cross-model on the
+9. Code-diff adversary: run the adversary Code diff mode cross-model on the
    implementation diff; in an autonomous run without a cross-model runner,
    stop as `blocked`.
-8. Archive to `docs/plan/`, delete root `PLAN.md`, report the final handoff.
+10. Archive to `docs/plan/`, delete root `PLAN.md`, report the final handoff.
 
 Record the event ledger (`.workflow/<slug>/events.jsonl`) across the run and
 respect the no-progress and cap rules from `workflow/spec.md`.
