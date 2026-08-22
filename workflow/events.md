@@ -20,6 +20,7 @@ New appends are serialized behind a five-second `lockf`, `flock`, or `shlock`
 lock. The writer validates the ledger and re-checks terminal state while the
 lock is held. Program event IDs are idempotent; a reused ID with different
 content is rejected.
+
 Native internal append execution proves that its actual `lockf`/`flock` parent
 is the trusted system executable and was invoked on the fixed descriptor `9`
 from the canonical run directory. That descriptor must resolve to the current
@@ -35,17 +36,20 @@ writer rechecks contention and FD-to-inode identity immediately before the
 append syscall. This is a cooperative-writer integrity boundary, not a security
 boundary against a same-UID actor that can mutate files or processes inside
 that final syscall interval.
+
 For a schema-v2 run that has ever declared the `plan-implement` route,
 `completed` is also preflighted while holding that lock: the writer validates
 an exact temporary candidate with `--profile autonomous-completed` before it
 appends the same terminal line. Missing evidence therefore leaves the canonical
 ledger and active-run pointer untouched. Schema-v1 and non-`plan-implement`
 ledgers retain structural completion compatibility.
+
 For consecutive program events, a disposable checksum/count cache avoids
 re-running the historical schema scan on every unit update. A matching cache
 still does not skip `workflow-measurement-integrity` when the ledger contains
 measurement events. A missing or mismatched cache forces full validation; it
 never stores program state or replaces `events.jsonl`.
+
 Before a run relies on runtime receipts or mutation/no-progress authority, select
 it with `scripts/workflow-event activate <slug>`; the runtime then inspects only
 that ledger. Without a pointer, the compatibility fallback considers only valid
