@@ -21,6 +21,8 @@
 
 ## Code, Review, Git
 - YAGNI, KISS, DRY. Preserve unrelated user changes.
+- Implement routes apply the simplification pass in
+  `workflow/skills/implementation-loop.md` section 12b.
 - TypeScript strict, no `any`, ES modules, local runner.
 - Run focused checks; type-check code changes when available.
 - Reviews lead with severity-ordered findings and file/line evidence.

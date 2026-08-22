@@ -27,6 +27,6 @@ scripts/session-handoff --run <ledger-slug>
 5. Keep the result to one screen. Link to source artifacts instead of copying
    logs or transcript content.
 
-This skill is distinct from `/recap`: recap summarizes a period from Git/GitHub;
-handoff transfers the restart state of one active run. Do not create a second
-progress file, archive a task, mutate the ledger, or claim completion.
+This skill transfers the restart state of one active run. It is not a standup
+recap. Do not create a second progress file, archive a task, mutate the ledger,
+or claim completion.

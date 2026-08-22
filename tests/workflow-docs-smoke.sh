@@ -53,6 +53,16 @@ assert_not_contains() {
     fi
 }
 
+assert_not_word() {
+    local path="$1"
+    local word="$2"
+
+    if grep -Eq -- "(^|[^[:alnum:]_-])${word}([^[:alnum:]_-]|$)" "$path"; then
+        printf 'did not expect word %s in %s\n' "$word" "$path" >&2
+        exit 1
+    fi
+}
+
 assert_same_file() {
     local expected="$1"
     local actual="$2"
@@ -100,6 +110,17 @@ assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
 assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
+assert_file "$ROOT_DIR/workflow/skills/investigation.md"
+assert_file "$ROOT_DIR/workflow/evidence-pack.schema.json"
+assert_file "$ROOT_DIR/workflow/templates/evidence-pack.json"
+assert_file "$ROOT_DIR/workflow/templates/benchmark-declaration.json"
+assert_file "$ROOT_DIR/workflow/program.schema.json"
+assert_file "$ROOT_DIR/workflow/templates/program.json"
+assert_file "$ROOT_DIR/workflow/skills/program-orchestration.md"
+assert_file "$ROOT_DIR/scripts/evidence-proof"
+assert_file "$ROOT_DIR/scripts/program-state"
+assert_file "$ROOT_DIR/tests/evidence-proof-smoke.sh"
+assert_file "$ROOT_DIR/tests/program-state-smoke.sh"
 assert_file "$ROOT_DIR/workflow/skills/self-improvement-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/ambitious-project-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
@@ -214,6 +235,10 @@ assert_contains "$ROOT_DIR/README.md" 'pr-latest-head-status'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/evidence-proof'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/program-state'
+assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'workflow/skills/program-orchestration.md'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'scripts/evidence-proof'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Live Final Answer Gate'
@@ -262,10 +287,6 @@ assert_contains "$ROOT_DIR/claude/CLAUDE.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'proactively consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'proactively consult `~/work/obvault`'
 assert_contains "$ROOT_DIR/workflow/skills/obvault-memory.md" 'Mandatory first check'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/cross-repo-audit.md" '~/work/obvault/kb/'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/spec-verify.md" '~/work/obvault/kb/'
-assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/cross-repo-audit.md" '~/work/brain'
-assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/spec-verify.md" '~/work/brain'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'route classification is library-only (ADR-0014)'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'workflow/answer-quality.md'
@@ -273,6 +294,12 @@ assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'live final gate'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Decision Log'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
+assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'model-token totals are telemetry, never a stop condition'
+assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'model-token totals are telemetry, never a stop condition'
+assert_not_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'tokens or tools'
+assert_not_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'token-tool budget'
+assert_contains_wrapped "$ROOT_DIR/workflow/spec.md" 'Global model-token totals are telemetry, never plan/goal stop conditions'
+assert_contains_wrapped "$ROOT_DIR/workflow/spec.md" 'Bounded payload contracts and explicit billing authorization remain separate.'
 assert_contains "$ROOT_DIR/workflow/ticket-template.md" '## Start here'
 assert_contains "$ROOT_DIR/workflow/ticket-template.md" '## Stop conditions'
 assert_contains "$ROOT_DIR/workflow/ticket-template.md" 'Keep project-specific scope'
@@ -316,6 +343,29 @@ assert_max_lines "$ROOT_DIR/pi/AGENTS.md" 120
 assert_file "$ROOT_DIR/workflow/agent-quick-card.md"
 assert_file "$ROOT_DIR/workflow/contract-details.md"
 assert_max_lines "$ROOT_DIR/workflow/agent-quick-card.md" 120
+assert_contains_wrapped "$ROOT_DIR/workflow/agent-quick-card.md" 'do not write `PLAN.md`, run adversary, or archive'
+assert_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Freeze one documented metric command'
+assert_contains_wrapped "$ROOT_DIR/workflow/agent-quick-card.md" 'user-named paths even when blinding authors'
+assert_contains_wrapped "$ROOT_DIR/workflow/agent-quick-card.md" 'After two red serve/coverage attempts'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Diagnosis: question, artifact filename'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Compare: both artifact names'
+assert_contains_wrapped "$ROOT_DIR/workflow/answer-quality.md" 'even when blinding authors'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Hillclimb: frozen command'
+assert_contains_wrapped "$ROOT_DIR/workflow/answer-quality.md" 'being killed is not a progression'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Implementation: files, checks'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'never a single-run p95'
+assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'cite `file:line`'
+assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'Ceiling is `CAUSE_SUPPORTED`'
+assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'Do not apply the capture-only'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Freeze one metric command'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'at least three measured values in the final answer'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'stop before an external cap'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'not an experimental coverage runner over a live HTTP'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'After two red serve-or-coverage attempts'
+assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'isStandaloneVerifyRequest'
+assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'IMPLEMENT_NEGATION_PATTERN'
+assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'PREPARE_FOR_REVIEW_PATTERN'
+assert_contains "$ROOT_DIR/tests/router-evals/core.json" 'organic-'
 assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/contract-details.md'
@@ -330,6 +380,11 @@ assert_contains "$ROOT_DIR/workflow/git-contract.md" 'Each operation requires it
 assert_contains "$ROOT_DIR/workflow/git-contract.md" 'Final relevant checks must pass before the write.'
 assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'never overrides a stricter skill contract'
 assert_contains "$ROOT_DIR/workflow/git-contract.md" 'History-rewriting operations keep their separate rules.'
+assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" "when the user's current request explicitly names a branch"
+assert_contains "$ROOT_DIR/AGENTS.md" '<type>/<ticket-id>-<short-slug>'
+assert_contains "$ROOT_DIR/pi/AGENTS.md" '<type>/<ticket-id>-<short-slug>'
+assert_contains "$ROOT_DIR/workflow/skills/worktree-isolation.md" '<type>/<ticket-id>-<short-slug>'
+assert_contains "$ROOT_DIR/workflow/skills/ship.md" '<type>/<ticket-id>-<short-slug>'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/ship.md" 'Direct default-branch integration is outside `/ship`'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
@@ -414,12 +469,14 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'workflow/linear-ticket-template.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'Ambient activation'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" 'Ambient activation'
-# Thin adapters must point at shared contracts (full matrix later). One path pin
-# each is enough; full source-resolution path lists are adapter tests' job.
-assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'Source resolution'
+# Thin adapters must point at shared contracts (full matrix later). Do not pin
+# duplicated Source resolution path lists here; those freeze adapter boilerplate.
 assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'Do not create or update `docs/plan/` archives during planning.'
 assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'workflow/skills/implementation-loop.md'
+assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'simplify: clean'
+assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" 'simplify: clean'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/implement.md" 'simplify: clean'
 assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_file "$ROOT_DIR/docs/pi-cheatsheet.md"
@@ -428,19 +485,203 @@ assert_contains "$ROOT_DIR/docs/workflow-guide.md" 'the spec wins'
 assert_contains "$ROOT_DIR/docs/workflow-guide.md" 'Check-freeze'
 assert_not_contains "$ROOT_DIR/docs/cross-project-research-grounding.md" 'control plane for Codex, Pi, Claude'
 assert_contains "$ROOT_DIR/README.md" 'docs/workflow-guide.md'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" 'Source resolution'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/implement.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'plan drift detected'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Does this addition need to exist'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'simplify: clean'
+assert_not_contains "$ROOT_DIR/claude/README.md" 'before the repos are opened'
+assert_not_contains "$ROOT_DIR/claude/scopes/work/skills/sec-pr/references/forest-dependabot.md" 'Read-only sortant'
+assert_contains_wrapped "$INSTALL_MAIN" 'for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do [ -n "$skill_name" ] || continue'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Never use `OK`, `APPROVED`, `PASS`'
 assert_not_contains "$ROOT_DIR/workflow/review-rubric.md" 'write exactly'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'Verdict: GO'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'claude/review-rubric.md'
+
+# Core quality/review paths must not require optional Pi suites that are absent
+# from managed runtime surfaces. Every route keeps a local-source degraded mode,
+# and Pi code-quality names only direct shared vendor leaves we can resolve.
+for quality_path in \
+    workflow/spec.md \
+    workflow/review-rubric.md \
+    workflow/skills/implementation-loop.md \
+    workflow/skills/review.md \
+    workflow/skills/pr-review.md \
+    pi/skills/code-quality/SKILL.md \
+    pi/skills/review/SKILL.md \
+    claude/scopes/shared/commands/plan-implement.md \
+    claude/scopes/shared/commands/ship.md \
+    claude/scopes/shared/agents/scout.md \
+    claude/scopes/shared/agents/reviewer.md \
+    claude/scopes/shared/agents/worker.md \
+    claude/README.md; do
+    for inactive_skill in suite-router stack-suite design-suite; do
+        assert_not_word "$ROOT_DIR/$quality_path" "$inactive_skill"
+    done
+done
+
+# These CSS skills are distributed cross-harness but are not part of Pi's core
+# package surface. Pi quality adapters must not route to them until the catalog
+# marks them pi_core; Claude adapters may still name cross-harness skills.
+inactive_pi_css_skills="$(
+    awk -F '\t' '
+        $0 !~ /^#/ && $2 == "pi" && $3 == "0" &&
+        ($1 == "frontend-css-ui-ux" || $1 ~ /^css-/) { print $1 }
+    ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
+)"
+[ -n "$inactive_pi_css_skills" ] || {
+    printf 'expected at least one non-core Pi CSS skill in the managed catalog\n' >&2
+    exit 1
+}
+for pi_quality_path in \
+    pi/skills/code-quality/SKILL.md \
+    pi/skills/implement/SKILL.md \
+    pi/skills/plan-implement/SKILL.md \
+    pi/skills/pr-review/SKILL.md \
+    pi/skills/review/SKILL.md; do
+    while IFS= read -r inactive_pi_css_skill; do
+        [ -n "$inactive_pi_css_skill" ] || continue
+        assert_not_word "$ROOT_DIR/$pi_quality_path" "$inactive_pi_css_skill"
+    done <<<"$inactive_pi_css_skills"
+done
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'quality: unavailable'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'report the convention lens as `not run`'
+assert_contains "$ROOT_DIR/pi/skills/code-quality/SKILL.md" 'quality: unavailable'
+assert_contains "$ROOT_DIR/pi/skills/code-quality/SKILL.md" 'status: clean|findings|unavailable'
+assert_not_contains "$ROOT_DIR/pi/skills/code-quality/SKILL.md" '| findings: N | clean'
+
+# shellcheck source=../scripts/lib/skill-catalog.sh
+source "$ROOT_DIR/scripts/lib/skill-catalog.sh"
+
+catalog_schema_issues="$(
+    awk -F '\t' '
+        $0 !~ /^#/ && NF != 6 { print NR ": expected 6 fields, got " NF }
+        $0 !~ /^#/ && NF == 6 && ($3 !~ /^[01]$/ || $4 !~ /^[01]$/ || $5 !~ /^[01]$/ || $6 !~ /^[01]$/) {
+            print NR ": visibility and lock flags must be explicit 0 or 1"
+        }
+    ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
+)"
+[ -z "$catalog_schema_issues" ] || {
+    printf 'skill catalog schema drift:\n%s\nremediation: keep six explicit fields per record\n' "$catalog_schema_issues" >&2
+    exit 1
+}
+
+catalog_counts="$(
+    awk -F '\t' '
+        $0 !~ /^#/ { total++; pi_core += ($3 == 1); agents_visible += ($4 == 1) }
+        END { printf "%d %d %d", total, pi_core, agents_visible }
+    ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
+)"
+read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
+[ "$catalog_total" -le 95 ] || { printf 'skill catalog grew beyond baseline: %s > 95\n' "$catalog_total" >&2; exit 1; }
+[ "$pi_core_total" -le 14 ] || { printf 'pi_core grew beyond baseline: %s > 14\n' "$pi_core_total" >&2; exit 1; }
+[ "$agents_visible_total" -le 14 ] || { printf 'agents_visible grew beyond baseline: %s > 14\n' "$agents_visible_total" >&2; exit 1; }
+
+duplicate_catalog_names="$(skill_catalog_names "$ROOT_DIR/workflow/runtime/skill-surface.tsv" | sort | uniq -d)"
+[ -z "$duplicate_catalog_names" ] || {
+    printf 'duplicate skill catalog names:\n%s\nremediation: keep one canonical catalog owner\n' "$duplicate_catalog_names" >&2
+    exit 1
+}
+
+single_line_skill_description() {
+    local skill_file="$1" label="$2" count description
+    count="$(grep -Ec '^description:' "$skill_file")"
+    [ "$count" -eq 1 ] || {
+        printf 'prompt-visible skill must declare exactly one description: %s\n' "$label" >&2
+        return 1
+    }
+    description="$(awk '/^description:[[:space:]]/{sub(/^description:[[:space:]]*/, ""); print; exit}' "$skill_file")"
+    case "$description" in
+        ""|\'*|\"*|\|*|\>*)
+            printf 'prompt-visible skill uses an unmeasurable description scalar: %s\n' "$label" >&2
+            return 1
+            ;;
+    esac
+    if printf '%s\n' "$description" | grep -Eq '(^|[[:space:]])#|:[[:space:]]'; then
+        printf 'prompt-visible skill description needs YAML decoding: %s\n' "$label" >&2
+        return 1
+    fi
+    if awk '
+        /^description:/ { after_description = 1; next }
+        after_description && /^---[[:space:]]*$/ { exit }
+        after_description && /^[^[:space:]]/ { exit }
+        after_description && /^[[:space:]]/ { multiline = 1; exit }
+        END { exit(multiline ? 0 : 1) }
+    ' "$skill_file"; then
+        printf 'prompt-visible skill uses a multiline description continuation: %s\n' "$label" >&2
+        return 1
+    fi
+    printf '%s\n' "$description"
+}
+
+if single_line_skill_description "$ROOT_DIR/tests/fixtures/codex-skill-multiline-description.fixture.md" "multiline-fixture" >/dev/null 2>&1; then
+    printf 'multiline quoted YAML descriptions must be rejected\n' >&2
+    exit 1
+fi
+
+surface_descriptions() {
+    local flag="$1" name skill_dir description
+    while IFS= read -r name; do
+        [ -n "$name" ] || continue
+        skill_dir="$(skill_catalog_dir "$ROOT_DIR/workflow/runtime/skill-surface.tsv" "$ROOT_DIR" "$name")"
+        description="$(single_line_skill_description "$skill_dir/SKILL.md" "$name")" || return 1
+        printf '%s\t%s\n' "$name" "$description"
+    done < <(skill_catalog_names "$ROOT_DIR/workflow/runtime/skill-surface.tsv" pi "$flag")
+}
+
+for prompt_surface in pi_core agents_visible; do
+    surface_rows="$(surface_descriptions "$prompt_surface")"
+    duplicate_descriptions="$(printf '%s\n' "$surface_rows" | awk -F '\t' '{d=tolower($2); gsub(/[[:space:]]+/, " ", d); print d}' | sort | uniq -d)"
+    [ -z "$duplicate_descriptions" ] || {
+        printf 'duplicate normalized %s descriptions:\n%s\nremediation: consolidate overlapping entrypoints\n' "$prompt_surface" "$duplicate_descriptions" >&2
+        exit 1
+    }
+    surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
+    case "$prompt_surface" in
+        pi_core) max_bytes=767 ;;
+        agents_visible) max_bytes=1020 ;;
+    esac
+    [ "$surface_bytes" -le "$max_bytes" ] || {
+        printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
+        exit 1
+    }
+done
+
+shared_vendor_skill_names="$(
+    skill_catalog_vendor_records "$ROOT_DIR/workflow/runtime/skill-surface.tsv" "$ROOT_DIR" |
+        awk -F '\t' '$1 == "shared" { print $2 }'
+)"
+direct_quality_skills="$(
+    awk '
+        /\| Domain \| Skills to apply \|/ { in_skill_table = 1; next }
+        in_skill_table && /^[[:space:]]*\|/ {
+            if ($0 ~ /\|[[:space:]-]+\|/) next
+            line = $0
+            while (match(line, /`[^`]+`/)) {
+                print substr(line, RSTART + 1, RLENGTH - 2)
+                line = substr(line, RSTART + RLENGTH)
+            }
+            next
+        }
+        in_skill_table { exit }
+    ' "$ROOT_DIR/pi/skills/code-quality/SKILL.md"
+)"
+[ -n "$direct_quality_skills" ] || {
+    printf 'code-quality Skills to apply table has no direct skill leaves\n' >&2
+    exit 1
+}
+while IFS= read -r direct_quality_skill; do
+    [ -n "$direct_quality_skill" ] || continue
+    grep -Fxq "$direct_quality_skill" <<<"$shared_vendor_skill_names" || {
+        printf 'unresolved direct code-quality skill: %s\n' "$direct_quality_skill" >&2
+        exit 1
+    }
+done <<<"$direct_quality_skills"
 assert_contains "$ROOT_DIR/pi/package.json" '@earendil-works/pi-coding-agent'
 assert_not_contains "$ROOT_DIR/pi/package.json" '@mariozechner/pi-coding-agent'
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
@@ -448,7 +689,6 @@ assert_file "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh"
 assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'RUN_REAL_AGENT_SCENARIOS'
 assert_not_contains "$ROOT_DIR/scripts/profile-nvim.sh" '+lua dofile'
 assert_not_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" '+lua dofile'
-assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-create.md" './claude/PLAN_TEMPLATE.md'
 assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" './claude/PLAN_TEMPLATE.md'
 assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" './claude/PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/workflow'
@@ -465,7 +705,6 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '
 
 command_file_for() {
     case "$1" in
-        /plan) printf '%s\n' 'plan-create.md' ;;
         /*) printf '%s.md\n' "${1#/}" ;;
         *)
             printf 'unexpected command format: %s\n' "$1" >&2
@@ -496,7 +735,6 @@ done <<< "$workflow_claude_commands"
 while IFS= read -r command_path; do
     command_file="$(basename "$command_path")"
     case "$command_file" in
-        plan-create.md) command='/plan' ;;
         *.md) command="/${command_file%.md}" ;;
         *)
             printf 'unexpected command file: %s\n' "$command_file" >&2

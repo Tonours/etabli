@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-07-29",
+  "updated_at": "2026-08-20",
   "runtimes": {
     "pi": {
       "supports_hooks": {
@@ -36,12 +36,12 @@
         "notes": "direct Agent supports direct subagent calls; K3 remains a maximum-effort replacement only; this does not prove TaskExecute tracking"
       },
       "supports_taskexecute_tracking": {
-        "label": "unknown",
-        "verified_at": "2026-07-24",
-        "proof_result": "unprovable offline: the live multi-model probe was removed with the portfolio (ADR-0013); re-establish a probe before relabelling",
+        "label": "blocked",
+        "verified_at": "2026-08-20",
+        "proof_result": "active installed preflight: ~/.pi/agent/settings.json loads @tintinweb/pi-tasks@0.7.1 and omits pi-subagents; the installed package is version 0.7.1 and its README reports that TaskExecute cannot launch or track workers without pi-subagents",
         "expires_after_days": 7,
-        "proof_command": "false # unprovable: the live multi-model probe was removed with the portfolio (ADR-0013); write a new subagent probe before relabelling",
-        "notes": "generic non-portfolio Task RPC probe; generic Task RPC probe; lifecycle unproven"
+        "proof_command": "jq -e '([.packages[] | if type == \"object\" then .source else . end] | index(\"npm:@tintinweb/pi-tasks@0.7.1\") != null and all(.[]; ((if type == \"object\" then .source else . end) | contains(\"pi-subagents\") | not)))' ~/.pi/agent/settings.json && jq -e '.name == \"@tintinweb/pi-tasks\" and .version == \"0.7.1\"' ~/.pi/agent/npm/node_modules/@tintinweb/pi-tasks/package.json && rg -q 'If .*pi-subagents.*not installed, everything works except `TaskExecute`' ~/.pi/agent/npm/node_modules/@tintinweb/pi-tasks/README.md",
+        "notes": "Task metadata tools remain installed; live TaskExecute tracking is blocked until an explicitly approved worker adapter is installed and re-proved"
       },
       "supports_goal_state": {
         "label": "unknown",

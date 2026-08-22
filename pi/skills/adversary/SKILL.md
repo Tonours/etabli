@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Adversarial review of PLAN.md (plan mode) or of the implementation diff (code-diff mode). Cross-model or documented double-sample; single same-family pass is forbidden.
+description: Challenge PLAN.md or diffs; code-diff mode requires cross-model review.
 ---
 
 # Adversary
@@ -8,23 +8,8 @@ description: Adversarial review of PLAN.md (plan mode) or of the implementation 
 Follow `workflow/spec.md` and the shared contract in
 `workflow/skills/adversary.md`.
 
-## Source resolution
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Before saying a workflow source is missing, resolve sources in this order:
-
-1. Prefer the current workspace copies:
-   - `workflow/spec.md`
-   - `workflow/skills/adversary.md`
-   - `PLAN.md`
-2. If the workflow spec is missing in the current workspace, fall back to the Pi
-   agent shared copy when this skill is loaded through `~/.pi/agent/skills`:
-   - `../../workflow/spec.md`
-   - `../../workflow/skills/adversary.md`
-3. If unavailable, fall back to the Etabli repo copy when this skill is loaded
-   from the repo target path:
-   - `../../../workflow/spec.md`
-   - `../../../workflow/skills/adversary.md`
-4. If a fallback spec exists, read it and continue. Do not report it missing.
 
 ## Contract
 

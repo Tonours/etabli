@@ -58,9 +58,11 @@ review.
 
 ### Domain practice
 
-Load `suite-router` / `code-quality` when the diff touches language, framework,
-or UI surface so convention findings are anchored in project patterns (rubric
-§ Convention & pattern fit).
+Load `code-quality` when exposed, otherwise the narrowest exposed domain or
+project skill. If none is exposed, compare the diff directly with 1–3 local
+sibling implementations. If neither a skill nor a relevant sibling exists,
+report the convention lens as `not run`; never present it as clean (rubric §
+Convention & pattern fit).
 
 ### What to cover
 

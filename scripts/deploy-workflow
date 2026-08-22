@@ -32,9 +32,20 @@ FILES=(
   "$REPO_DIR/workflow/review-rubric.md|workflow/review-rubric.md"
   "$REPO_DIR/workflow/ticket-template.md|workflow/ticket-template.md"
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
+  "$REPO_DIR/workflow/events.md|workflow/events.md"
+  "$REPO_DIR/workflow/evidence-pack.schema.json|workflow/evidence-pack.schema.json"
+  "$REPO_DIR/workflow/program.schema.json|workflow/program.schema.json"
+  "$REPO_DIR/workflow/templates/evidence-pack.json|workflow/templates/evidence-pack.json"
+  "$REPO_DIR/workflow/templates/benchmark-declaration.json|workflow/templates/benchmark-declaration.json"
+  "$REPO_DIR/workflow/templates/program.json|workflow/templates/program.json"
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
+  "$REPO_DIR/scripts/evidence-proof|scripts/evidence-proof"
+  "$REPO_DIR/scripts/program-state|scripts/program-state"
+  "$REPO_DIR/scripts/workflow-event|scripts/workflow-event"
+  "$REPO_DIR/scripts/workflow-measurement-integrity|scripts/workflow-measurement-integrity"
+  "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
 )
 
 while IFS= read -r contract_path; do

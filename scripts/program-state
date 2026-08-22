@@ -1,0 +1,678 @@
+#!/usr/bin/env node
+import { createHash } from "node:crypto";
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import { spawnSync } from "node:child_process";
+
+const PROGRAM_EVENTS = new Set([
+  "program_initialized",
+  "program_unit_started",
+  "program_unit_result",
+  "program_unit_verdict",
+  "program_unit_head_changed",
+  "program_unit_retry",
+  "program_unit_reconciled",
+]);
+const REQUIRED_FORBIDDEN_ACTIONS = [
+  "external_write",
+  "push",
+  "pull_request",
+  "deploy",
+  "production",
+  "billing",
+  "secrets",
+  "destructive_cleanup",
+];
+const SHA256 = /^[a-f0-9]{64}$/;
+const HEAD = /^[a-f0-9]{40,64}$/;
+const ID = /^[a-z0-9][a-z0-9-]{1,62}$/;
+
+class ProgramError extends Error {}
+
+function invariant(condition, message) {
+  if (!condition) throw new ProgramError(message);
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function nonemptyString(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function exactObject(value, required, optional, label) {
+  invariant(isObject(value), `${label} must be an object`);
+  const allowed = new Set([...required, ...optional]);
+  for (const key of Object.keys(value)) invariant(allowed.has(key), `${label}.${key} is not allowed`);
+  for (const key of required) invariant(Object.hasOwn(value, key), `${label}.${key} is required`);
+  return value;
+}
+
+function stringArray(value, label, minimum = 0) {
+  invariant(Array.isArray(value) && value.length >= minimum, `${label} needs at least ${minimum} item(s)`);
+  invariant(value.every(nonemptyString), `${label} must contain non-empty strings`);
+  invariant(new Set(value).size === value.length, `${label} contains duplicates`);
+  return value;
+}
+
+function commandArray(value, label) {
+  invariant(Array.isArray(value) && value.length > 0, `${label} needs at least 1 item`);
+  invariant(value.every(nonemptyString), `${label} must contain non-empty strings`);
+  return value;
+}
+
+function boundedStringArray(value, label, maximumItems, maximumItemLength) {
+  const items = stringArray(value, label, 1);
+  invariant(items.length <= maximumItems, `${label} must not exceed ${maximumItems} items`);
+  invariant(items.every((item) => item.length <= maximumItemLength), `${label} items must not exceed ${maximumItemLength} characters`);
+  return items;
+}
+
+function positiveInteger(value, label) {
+  invariant(Number.isInteger(value) && value > 0, `${label} must be a positive integer`);
+  return value;
+}
+
+function boundedPositiveInteger(value, label, maximum) {
+  positiveInteger(value, label);
+  invariant(value <= maximum, `${label} must not exceed ${maximum}`);
+  return value;
+}
+
+function nonnegativeInteger(value, label) {
+  invariant(Number.isInteger(value) && value >= 0, `${label} must be a non-negative integer`);
+  return value;
+}
+
+function safeRelativePath(value, label) {
+  invariant(nonemptyString(value) && !isAbsolute(value), `${label} must be a non-empty relative path`);
+  invariant(value.split(/[\\/]/).every((part) => part !== "" && part !== "." && part !== ".."), `${label} contains an unsafe segment`);
+  return value.replaceAll("\\", "/");
+}
+
+function contained(root, candidate) {
+  const rel = relative(resolve(root), resolve(candidate));
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function readJson(path, label) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new ProgramError(`${label} is not valid JSON: ${error.message}`);
+  }
+}
+
+function allowedPath(allowed, candidate) {
+  return allowed.some((base) => candidate === base || candidate.startsWith(`${base}/`));
+}
+
+function scopesOverlap(left, right) {
+  return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
+}
+
+function validateManifest(raw) {
+  const manifest = exactObject(raw, ["schema_version", "program_id", "goal", "coordinator_id", "artifact_root", "authorization", "units"], [], "manifest");
+  invariant([1, 2].includes(manifest.schema_version), "manifest.schema_version must be 1 or 2");
+  invariant(ID.test(manifest.program_id), "manifest.program_id is invalid");
+  invariant(nonemptyString(manifest.goal) && nonemptyString(manifest.coordinator_id), "manifest goal and coordinator_id are required");
+  manifest.artifact_root = safeRelativePath(manifest.artifact_root, "manifest.artifact_root");
+  const authorizationRequired = ["max_in_flight", "allowed_files", "allowed_tools", "forbidden_actions", "worktree_policy", "independent_verifier"];
+  if (manifest.schema_version === 2) authorizationRequired.push("pilot_unit_id");
+  const authorization = exactObject(manifest.authorization, authorizationRequired, [], "manifest.authorization");
+  positiveInteger(authorization.max_in_flight, "manifest.authorization.max_in_flight");
+  authorization.allowed_files = stringArray(authorization.allowed_files, "manifest.authorization.allowed_files", 1).map((path) => safeRelativePath(path, "manifest authorization path"));
+  authorization.allowed_tools = stringArray(authorization.allowed_tools, "manifest.authorization.allowed_tools", 1);
+  const forbidden = stringArray(authorization.forbidden_actions, "manifest.authorization.forbidden_actions", REQUIRED_FORBIDDEN_ACTIONS.length);
+  for (const action of REQUIRED_FORBIDDEN_ACTIONS) invariant(forbidden.includes(action), `manifest must forbid ${action}`);
+  invariant(["required", "optional"].includes(authorization.worktree_policy), "manifest.authorization.worktree_policy is invalid");
+  const independent = exactObject(authorization.independent_verifier, ["required", "distinct_model_family"], [], "manifest.authorization.independent_verifier");
+  invariant(typeof independent.required === "boolean" && typeof independent.distinct_model_family === "boolean", "independent verifier flags must be boolean");
+  invariant(!independent.distinct_model_family || independent.required, "distinct_model_family requires an independent verifier");
+
+  invariant(Array.isArray(manifest.units) && manifest.units.length > 0, "manifest.units must be a non-empty array");
+  const unitIds = new Set();
+  const units = new Map();
+  for (const [index, rawUnit] of manifest.units.entries()) {
+    const unitRequired = ["id", "objective", "dependencies", "allowed_files", "allowed_tools", "verification", "retry_limit"];
+    const v2BriefFields = ["context", "acceptance", "timebox_minutes", "report_artifact_prefix"];
+    if (manifest.schema_version === 2) unitRequired.push(...v2BriefFields);
+    const unit = exactObject(rawUnit, unitRequired, [], `manifest.units[${index}]`);
+    invariant(ID.test(unit.id) && !unitIds.has(unit.id), `unit id is invalid or duplicated: ${unit.id}`);
+    unitIds.add(unit.id);
+    invariant(nonemptyString(unit.objective), `unit ${unit.id} objective is required`);
+    stringArray(unit.dependencies, `unit ${unit.id} dependencies`);
+    unit.allowed_files = stringArray(unit.allowed_files, `unit ${unit.id} allowed_files`).map((path) => safeRelativePath(path, `unit ${unit.id} path`));
+    stringArray(unit.allowed_tools, `unit ${unit.id} allowed_tools`, 1);
+    invariant(unit.allowed_files.every((path) => allowedPath(authorization.allowed_files, path)), `unit ${unit.id} file scope exceeds program authority`);
+    invariant(unit.allowed_tools.every((tool) => authorization.allowed_tools.includes(tool)), `unit ${unit.id} tool scope exceeds program authority`);
+    const verification = exactObject(unit.verification, ["command", "evidence"], [], `unit ${unit.id} verification`);
+    commandArray(verification.command, `unit ${unit.id} verification.command`);
+    invariant(nonemptyString(verification.evidence), `unit ${unit.id} verification.evidence is required`);
+    nonnegativeInteger(unit.retry_limit, `unit ${unit.id} retry_limit`);
+    if (manifest.schema_version === 2) {
+      boundedStringArray(unit.context, `unit ${unit.id} context`, 12, 1000);
+      boundedStringArray(unit.acceptance, `unit ${unit.id} acceptance`, 12, 1000);
+      boundedPositiveInteger(unit.timebox_minutes, `unit ${unit.id} timebox_minutes`, 1440);
+      unit.report_artifact_prefix = safeRelativePath(unit.report_artifact_prefix, `unit ${unit.id} report_artifact_prefix`);
+      invariant(
+        unit.report_artifact_prefix.startsWith(`${manifest.artifact_root}/`),
+        `unit ${unit.id} report_artifact_prefix must be inside manifest.artifact_root`,
+      );
+    }
+    units.set(unit.id, unit);
+  }
+  for (const unit of units.values()) {
+    for (const dependency of unit.dependencies) invariant(units.has(dependency) && dependency !== unit.id, `unit ${unit.id} has an unknown or self dependency: ${dependency}`);
+  }
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (unitId) => {
+    invariant(!visiting.has(unitId), `manifest dependency cycle includes ${unitId}`);
+    if (visited.has(unitId)) return;
+    visiting.add(unitId);
+    for (const dependency of units.get(unitId).dependencies) visit(dependency);
+    visiting.delete(unitId);
+    visited.add(unitId);
+  };
+  for (const unitId of units.keys()) visit(unitId);
+  if (manifest.schema_version === 2) {
+    invariant(nonemptyString(authorization.pilot_unit_id) && units.has(authorization.pilot_unit_id), "manifest.authorization.pilot_unit_id must name a unit");
+    invariant(units.get(authorization.pilot_unit_id).dependencies.length === 0, "pilot unit must not have dependencies");
+  }
+  return { manifest, units };
+}
+
+function readEvents(path) {
+  const lines = readFileSync(path, "utf8").split("\n").filter((line) => line.trim() !== "");
+  return lines.map((line, index) => {
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      throw new ProgramError(`events line ${index + 1} is not valid JSON`);
+    }
+    exactObject(event, ["schema_version", "ts", "event", "run", "detail"], [], `events[${index}]`);
+    invariant(event.schema_version === 2 && nonemptyString(event.ts) && nonemptyString(event.run), `events line ${index + 1} has an invalid envelope`);
+    invariant(!event.event.startsWith("program_") || PROGRAM_EVENTS.has(event.event), `events line ${index + 1} has an unknown program event`);
+    return event;
+  });
+}
+
+function validateEmitter(raw, coordinatorId, label) {
+  const emitter = exactObject(raw, ["id", "role"], [], label);
+  invariant(emitter.id === coordinatorId && emitter.role === "coordinator", `${label} is not the manifest coordinator`);
+}
+
+function validateWorker(raw, label) {
+  const worker = exactObject(raw, ["id", "model_family", "worktree", "branch", "head"], [], label);
+  invariant(nonemptyString(worker.id) && nonemptyString(worker.model_family), `${label} identity is invalid`);
+  invariant((worker.worktree === null || nonemptyString(worker.worktree)) && nonemptyString(worker.branch) && HEAD.test(worker.head), `${label} Git declaration is invalid`);
+  return worker;
+}
+
+function validateArtifact(raw, root, artifactRoot, label) {
+  const artifact = exactObject(raw, ["path", "sha256"], [], label);
+  const safePath = safeRelativePath(artifact.path, `${label}.path`);
+  invariant(SHA256.test(artifact.sha256), `${label}.sha256 is invalid`);
+  const allowedRoot = resolve(root, artifactRoot);
+  const path = resolve(root, safePath);
+  invariant(contained(allowedRoot, path), `${label} is outside manifest.artifact_root`);
+  invariant(existsSync(path) && lstatSync(path).isFile() && !lstatSync(path).isSymbolicLink(), `${label} must be a regular non-symlink file`);
+  const real = realpathSync(path);
+  invariant(contained(allowedRoot, real), `${label} escapes manifest.artifact_root`);
+  invariant(statSync(real).size > 0, `${label} is empty`);
+  invariant(sha256File(real) === artifact.sha256, `${label} hash mismatch`);
+  return { path: safePath, sha256: artifact.sha256 };
+}
+
+function validateWorkerReport(artifact, root, unit, detail, reservedFiles) {
+  invariant(
+    artifact.path.startsWith(`${unit.report_artifact_prefix}/`),
+    `unit ${unit.id} result artifact is outside its report_artifact_prefix`,
+  );
+  const report = readJson(resolve(root, artifact.path), `unit ${unit.id} worker report`);
+  exactObject(
+    report,
+    ["schema_version", "unit_id", "attempt_id", "head", "status", "summary", "changed_files", "validation", "blockers"],
+    [],
+    `unit ${unit.id} worker report`,
+  );
+  invariant(report.schema_version === 1, `unit ${unit.id} worker report schema_version must be 1`);
+  invariant(report.unit_id === unit.id, `unit ${unit.id} worker report unit_id mismatch`);
+  invariant(report.attempt_id === detail.attempt_id, `unit ${unit.id} worker report attempt_id mismatch`);
+  invariant(report.head === detail.head, `unit ${unit.id} worker report head mismatch`);
+  invariant(report.status === detail.status, `unit ${unit.id} worker report status mismatch`);
+  invariant(nonemptyString(report.summary) && report.summary.length <= 2000, `unit ${unit.id} worker report summary is invalid`);
+  const changedFiles = stringArray(report.changed_files, `unit ${unit.id} worker report changed_files`)
+    .map((path) => safeRelativePath(path, `unit ${unit.id} worker report changed file`));
+  invariant(changedFiles.every((path) => allowedPath(reservedFiles, path)), `unit ${unit.id} worker report changed_files exceed its reserved start scope`);
+  invariant(Array.isArray(report.validation) && report.validation.length > 0, `unit ${unit.id} worker report validation must be non-empty`);
+  const validations = report.validation.map((raw, index) => {
+    const validation = exactObject(raw, ["command", "exit", "evidence"], [], `unit ${unit.id} worker report validation[${index}]`);
+    commandArray(validation.command, `unit ${unit.id} worker report validation[${index}].command`);
+    nonnegativeInteger(validation.exit, `unit ${unit.id} worker report validation[${index}].exit`);
+    invariant(nonemptyString(validation.evidence), `unit ${unit.id} worker report validation[${index}].evidence is required`);
+    return validation;
+  });
+  const blockers = stringArray(report.blockers, `unit ${unit.id} worker report blockers`);
+  if (detail.status === "passed") {
+    invariant(blockers.length === 0, `unit ${unit.id} passing worker report cannot contain blockers`);
+    invariant(
+      validations.some((validation) => validation.exit === 0 && JSON.stringify(validation.command) === JSON.stringify(unit.verification.command)),
+      `unit ${unit.id} passing worker report lacks its declared verification command`,
+    );
+  } else invariant(blockers.length > 0, `unit ${unit.id} failed worker report must contain a blocker`);
+}
+
+function commonDetail(raw, eventName, manifest, manifestSha) {
+  invariant(isObject(raw), `${eventName} detail must be an object`);
+  invariant(SHA256.test(raw.event_id), `${eventName}.event_id is invalid`);
+  invariant(raw.program_id === manifest.program_id, `${eventName} program_id mismatch`);
+  invariant(raw.manifest_sha256 === manifestSha, `${eventName} manifest hash mismatch`);
+  invariant(nonemptyString(raw.unit_id) && nonemptyString(raw.attempt_id), `${eventName} unit_id and attempt_id are required`);
+  validateEmitter(raw.emitter, manifest.coordinator_id, `${eventName}.emitter`);
+}
+
+function exactProgramDetail(raw, eventName) {
+  const common = ["event_id", "program_id", "manifest_sha256", "unit_id", "attempt_id", "emitter"];
+  const extra = {
+    program_initialized: ["manifest_path", "runtime_capability"],
+    program_unit_started: ["worker", "files", "tools"],
+    program_unit_result: ["worker_id", "head", "status", "artifact"],
+    program_unit_verdict: ["verifier", "head", "verdict", "evidence"],
+    program_unit_head_changed: ["worker_id", "previous_head", "new_head"],
+    program_unit_retry: ["previous_attempt_id", "reason"],
+    program_unit_reconciled: ["zombie_attempt_id", "disposition", "reason"],
+  }[eventName];
+  exactObject(raw, [...common, ...extra], [], eventName);
+}
+
+function activeStates(states) {
+  return [...states.values()].filter((state) => state.status === "running");
+}
+
+function reservedStates(states) {
+  return [...states.values()].filter((state) => state.worker !== null && !["pending", "verified"].includes(state.status));
+}
+
+function unitDependsOn(units, manifest, unitId, ancestorId, seen = new Set()) {
+  if (unitId === ancestorId || seen.has(unitId)) return false;
+  if (manifest.schema_version === 2
+      && ancestorId === manifest.authorization.pilot_unit_id
+      && unitId !== ancestorId) return true;
+  seen.add(unitId);
+  return units.get(unitId).dependencies.some((dependency) => (
+    dependency === ancestorId || unitDependsOn(units, manifest, dependency, ancestorId, new Set(seen))
+  ));
+}
+
+function normalizeState(state) {
+  return {
+    id: state.id,
+    status: state.status,
+    attempt: state.attemptNumber,
+    retries: state.retryCount,
+    attempt_id: state.currentAttemptId,
+    worker: state.worker ? { id: state.worker.id, model_family: state.worker.model_family, worktree: state.worker.worktree, branch: state.worker.branch } : null,
+    head: state.head,
+    result: state.result ? { status: state.result.status, head: state.result.head, artifact: state.result.artifact } : null,
+    verdict: state.verdict ? { verdict: state.verdict.verdict, head: state.verdict.head, verifier: state.verdict.verifier, evidence: state.verdict.evidence } : null,
+    prerequisite_heads: state.prerequisiteHeads,
+    zombies: [...state.zombies]
+      .map((zombie) => ({ attempt_id: zombie.attemptId, status: zombie.status, head: zombie.head, artifact: zombie.artifact, disposition: zombie.disposition }))
+      .sort((left, right) => left.attempt_id.localeCompare(right.attempt_id)),
+  };
+}
+
+function gitValue(path, args) {
+  const result = spawnSync("git", ["-C", path, ...args], { encoding: "utf8", shell: false, timeout: 10_000 });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function liveGitChecks(states, root) {
+  return [...states.values()]
+    .filter((state) => state.worker !== null)
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((state) => {
+      const declared = state.worker;
+      if (declared.worktree === null) return { unit_id: state.id, valid: false, reason: "worktree_not_declared" };
+      const path = isAbsolute(declared.worktree) ? declared.worktree : resolve(root, declared.worktree);
+      if (!existsSync(path)) return { unit_id: state.id, valid: false, reason: "missing_worktree" };
+      const actualRoot = gitValue(path, ["rev-parse", "--show-toplevel"]);
+      const branch = gitValue(path, ["branch", "--show-current"]);
+      const head = gitValue(path, ["rev-parse", "HEAD"]);
+      const valid = actualRoot !== null && realpathSync(actualRoot) === realpathSync(path) && branch === declared.branch && head === state.head;
+      return { unit_id: state.id, valid, path, branch, head, reason: valid ? null : "declared_git_state_mismatch" };
+    });
+}
+
+function reduceProgram(manifestPath, eventsPath, root, checkLiveGit) {
+  const absoluteManifest = realpathSync(manifestPath);
+  const manifestSha = sha256File(absoluteManifest);
+  const { manifest, units } = validateManifest(readJson(absoluteManifest, "program manifest"));
+  const manifestRelativePath = relative(root, absoluteManifest).split(sep).join("/");
+  invariant(contained(root, absoluteManifest) && manifestRelativePath !== "", "program manifest must be inside --root");
+  const artifactRoot = resolve(root, manifest.artifact_root);
+  invariant(contained(root, artifactRoot), "manifest.artifact_root escapes root");
+  const events = readEvents(eventsPath).filter((event) => PROGRAM_EVENTS.has(event.event));
+  invariant(events.length > 0, "ledger has no program events");
+  const eventIds = new Set();
+  const attemptIds = new Set();
+  const attemptRecords = new Map();
+  const artifactPaths = new Set();
+  const claimArtifact = (raw, label) => {
+    const artifact = validateArtifact(raw, root, manifest.artifact_root, label);
+    invariant(!artifactPaths.has(artifact.path), `${label} reuses an existing immutable artifact path`);
+    artifactPaths.add(artifact.path);
+    return artifact;
+  };
+  const states = new Map([...units.keys()].map((id) => [id, {
+    id,
+    status: "pending",
+    attemptNumber: 0,
+    retryCount: 0,
+    currentAttemptId: null,
+    worker: null,
+    files: [],
+    tools: [],
+    head: null,
+    result: null,
+    verdict: null,
+    prerequisiteHeads: {},
+    zombies: [],
+  }]));
+  const prerequisitesCurrent = (unit, prerequisiteHeads) => {
+    const required = [...unit.dependencies];
+    if (manifest.schema_version === 2 && unit.id !== manifest.authorization.pilot_unit_id) {
+      required.push(manifest.authorization.pilot_unit_id);
+    }
+    return required.every((dependency) => {
+      const dependencyState = states.get(dependency);
+      return dependencyState.status === "verified"
+        && dependencyState.verdict?.head === dependencyState.head
+        && prerequisiteHeads[dependency] === dependencyState.head;
+    });
+  };
+  let initialized = false;
+
+  for (const [index, event] of events.entries()) {
+    const detail = event.detail;
+    exactProgramDetail(detail, event.event);
+    commonDetail(detail, event.event, manifest, manifestSha);
+    invariant(!eventIds.has(detail.event_id), `duplicate program event_id at program event ${index + 1}`);
+    eventIds.add(detail.event_id);
+
+    if (event.event === "program_initialized") {
+      invariant(!initialized && index === 0, "program_initialized must be the first and only initialization event");
+      invariant(detail.unit_id === "__program__" && detail.attempt_id === "__program__", "program_initialized uses reserved unit and attempt ids");
+      invariant(detail.manifest_path === manifestRelativePath, "program_initialized.manifest_path does not match the manifest under --root");
+      invariant(["proxy_supported", "blocked"].includes(detail.runtime_capability), "program_initialized.runtime_capability is invalid");
+      initialized = true;
+      continue;
+    }
+
+    invariant(initialized, `${event.event} appears before program_initialized`);
+    const unit = units.get(detail.unit_id);
+    invariant(unit, `${event.event} references unknown unit ${detail.unit_id}`);
+    const state = states.get(unit.id);
+
+    if (event.event === "program_unit_started") {
+      invariant(["pending", "stale"].includes(state.status), `unit ${unit.id} cannot start from ${state.status}`);
+      const staleRestart = state.status === "stale";
+      if (state.currentAttemptId === null) {
+        invariant(!attemptIds.has(detail.attempt_id), `attempt_id is already used: ${detail.attempt_id}`);
+        state.currentAttemptId = detail.attempt_id;
+        state.attemptNumber += 1;
+        attemptIds.add(detail.attempt_id);
+      } else {
+        invariant(!staleRestart, `unit ${unit.id} stale restart must use a new attempt_id`);
+        invariant(detail.attempt_id === state.currentAttemptId, `unit ${unit.id} start attempt does not match its scheduled retry`);
+      }
+      for (const dependency of unit.dependencies) {
+        const dependencyState = states.get(dependency);
+        invariant(dependencyState.status === "verified" && dependencyState.verdict?.head === dependencyState.head, `unit ${unit.id} started before dependency ${dependency} verified its latest head`);
+      }
+      if (manifest.schema_version === 2 && unit.id !== manifest.authorization.pilot_unit_id) {
+        const pilotState = states.get(manifest.authorization.pilot_unit_id);
+        invariant(
+          pilotState.status === "verified" && pilotState.verdict?.head === pilotState.head,
+          `unit ${unit.id} started before pilot ${manifest.authorization.pilot_unit_id} verified its latest head`,
+        );
+      }
+      const worker = validateWorker(detail.worker, `unit ${unit.id} worker`);
+      if (manifest.authorization.worktree_policy === "required") invariant(worker.worktree !== null, `unit ${unit.id} must declare a worktree`);
+      const files = stringArray(detail.files, `unit ${unit.id} start files`).map((path) => safeRelativePath(path, `unit ${unit.id} start path`));
+      const tools = stringArray(detail.tools, `unit ${unit.id} start tools`, 1);
+      invariant(files.every((path) => allowedPath(unit.allowed_files, path)), `unit ${unit.id} start file scope exceeds unit authority`);
+      invariant(tools.every((tool) => unit.allowed_tools.includes(tool)), `unit ${unit.id} start tool scope exceeds unit authority`);
+      const active = activeStates(states);
+      const reserved = reservedStates(states);
+      invariant(active.length < manifest.authorization.max_in_flight, "program max_in_flight exceeded");
+      invariant(reserved.every((other) => other.worker.id !== worker.id), `reserved worker is reused: ${worker.id}`);
+      if (worker.worktree !== null) invariant(reserved.every((other) => other.worker.worktree !== worker.worktree), `reserved worktree is reused: ${worker.worktree}`);
+      for (const other of active) {
+        invariant(!files.some((path) => other.files.some((otherPath) => scopesOverlap(path, otherPath))), `active writer scopes overlap: ${unit.id} and ${other.id}`);
+      }
+      state.status = "running";
+      state.worker = worker;
+      state.files = files;
+      state.tools = tools;
+      state.head = worker.head;
+      state.prerequisiteHeads = Object.fromEntries(unit.dependencies.map((dependency) => [dependency, states.get(dependency).head]));
+      if (manifest.schema_version === 2 && unit.id !== manifest.authorization.pilot_unit_id) {
+        state.prerequisiteHeads[manifest.authorization.pilot_unit_id] = states.get(manifest.authorization.pilot_unit_id).head;
+      }
+      attemptRecords.set(detail.attempt_id, {
+        unitId: unit.id,
+        number: state.attemptNumber,
+        worker,
+        files,
+        tools,
+        prerequisiteHeads: { ...state.prerequisiteHeads },
+      });
+      continue;
+    }
+
+    if (event.event === "program_unit_result") {
+      invariant(["passed", "failed"].includes(detail.status) && HEAD.test(detail.head), `unit ${unit.id} result is invalid`);
+      invariant(nonemptyString(detail.worker_id), `unit ${unit.id} result worker_id is required`);
+      const artifact = claimArtifact(detail.artifact, `unit ${unit.id} result artifact`);
+      const prior = attemptRecords.get(detail.attempt_id);
+      if (manifest.schema_version === 2) validateWorkerReport(artifact, root, unit, detail, prior?.files || []);
+      if (detail.attempt_id !== state.currentAttemptId) {
+        invariant(prior?.unitId === unit.id && prior.worker.id === detail.worker_id, `unit ${unit.id} late result has no matching prior attempt`);
+        invariant(!state.zombies.some((zombie) => zombie.attemptId === detail.attempt_id), `unit ${unit.id} duplicate zombie result`);
+        state.zombies.push({ attemptId: detail.attempt_id, status: detail.status, head: detail.head, artifact, disposition: null });
+        continue;
+      }
+      invariant(state.status === "running" && state.worker.id === detail.worker_id, `unit ${unit.id} result has no active matching worker`);
+      invariant(detail.head === state.head, `unit ${unit.id} result is for a stale head`);
+      state.result = { status: detail.status, head: detail.head, artifact };
+      state.verdict = null;
+      state.status = detail.status === "passed" ? "result_passed" : "result_failed";
+      continue;
+    }
+
+    if (event.event === "program_unit_head_changed") {
+      invariant(detail.attempt_id === state.currentAttemptId && state.worker?.id === detail.worker_id, `unit ${unit.id} head change has no matching attempt and worker`);
+      invariant(HEAD.test(detail.previous_head) && HEAD.test(detail.new_head) && detail.previous_head !== detail.new_head, `unit ${unit.id} head change is invalid`);
+      invariant(state.head === detail.previous_head, `unit ${unit.id} head change previous_head is stale`);
+      const descendants = [...units.values()].filter((candidate) => unitDependsOn(units, manifest, candidate.id, unit.id));
+      invariant(
+        descendants.every((candidate) => states.get(candidate.id).status !== "running"),
+        `unit ${unit.id} head cannot change while a dependent unit is running`,
+      );
+      const active = activeStates(states).filter((other) => other.id !== unit.id);
+      const reserved = reservedStates(states).filter((other) => other.id !== unit.id);
+      invariant(active.length < manifest.authorization.max_in_flight, "program max_in_flight exceeded after head change");
+      invariant(reserved.every((other) => other.worker.id !== state.worker.id), `unit ${unit.id} cannot reactivate a reserved worker`);
+      if (state.worker.worktree !== null) invariant(reserved.every((other) => other.worker.worktree !== state.worker.worktree), `unit ${unit.id} cannot reactivate a reserved worktree`);
+      for (const other of active) {
+        invariant(!state.files.some((path) => other.files.some((otherPath) => scopesOverlap(path, otherPath))), `reactivated writer scopes overlap: ${unit.id} and ${other.id}`);
+      }
+      state.head = detail.new_head;
+      state.result = null;
+      state.verdict = null;
+      state.status = "running";
+      for (const descendant of descendants) {
+        const dependentState = states.get(descendant.id);
+        if ((dependentState.status === "pending" && dependentState.currentAttemptId === null)
+            || dependentState.status === "stale") continue;
+        dependentState.status = "stale";
+        dependentState.currentAttemptId = null;
+        dependentState.worker = null;
+        dependentState.files = [];
+        dependentState.tools = [];
+        dependentState.head = null;
+        dependentState.result = null;
+        dependentState.verdict = null;
+        dependentState.prerequisiteHeads = {};
+      }
+      continue;
+    }
+
+    if (event.event === "program_unit_verdict") {
+      invariant(detail.attempt_id === state.currentAttemptId, `unit ${unit.id} verdict attempt is stale`);
+      invariant(state.status === "result_passed" && state.result?.head === detail.head && state.head === detail.head, `unit ${unit.id} verdict needs a passing result for the latest head`);
+      invariant(prerequisitesCurrent(unit, state.prerequisiteHeads), `unit ${unit.id} verdict prerequisites are stale`);
+      const verifier = exactObject(detail.verifier, ["id", "model_family"], [], `unit ${unit.id} verifier`);
+      invariant(nonemptyString(verifier.id) && nonemptyString(verifier.model_family), `unit ${unit.id} verifier is invalid`);
+      if (manifest.authorization.independent_verifier.required) invariant(verifier.id !== state.worker.id, `unit ${unit.id} verifier reused the worker identity`);
+      if (manifest.authorization.independent_verifier.distinct_model_family) invariant(verifier.model_family !== state.worker.model_family, `unit ${unit.id} verifier reused the worker model family`);
+      invariant(["passed", "failed"].includes(detail.verdict), `unit ${unit.id} verdict is invalid`);
+      const evidence = claimArtifact(detail.evidence, `unit ${unit.id} verdict evidence`);
+      state.verdict = { verdict: detail.verdict, head: detail.head, verifier, evidence };
+      state.status = detail.verdict === "passed" ? "verified" : "verdict_failed";
+      continue;
+    }
+
+    if (event.event === "program_unit_retry") {
+      invariant(["result_failed", "verdict_failed"].includes(state.status), `unit ${unit.id} retry needs a failed result or verdict`);
+      invariant(detail.previous_attempt_id === state.currentAttemptId, `unit ${unit.id} retry previous_attempt_id mismatch`);
+      invariant(nonemptyString(detail.reason), `unit ${unit.id} retry reason is required`);
+      invariant(state.retryCount < unit.retry_limit, `unit ${unit.id} retry limit exceeded`);
+      invariant(!attemptIds.has(detail.attempt_id), `attempt_id is already used: ${detail.attempt_id}`);
+      attemptIds.add(detail.attempt_id);
+      state.currentAttemptId = detail.attempt_id;
+      state.attemptNumber += 1;
+      state.retryCount += 1;
+      state.status = "pending";
+      state.worker = null;
+      state.files = [];
+      state.tools = [];
+      state.head = null;
+      state.result = null;
+      state.verdict = null;
+      state.prerequisiteHeads = {};
+      continue;
+    }
+
+    if (event.event === "program_unit_reconciled") {
+      invariant(detail.attempt_id === state.currentAttemptId, `unit ${unit.id} reconciliation must bind the current attempt`);
+      invariant(["ignored", "accepted"].includes(detail.disposition) && nonemptyString(detail.reason), `unit ${unit.id} reconciliation is invalid`);
+      const zombie = state.zombies.find((candidate) => candidate.attemptId === detail.zombie_attempt_id);
+      invariant(zombie && zombie.disposition === null, `unit ${unit.id} reconciliation references no unresolved zombie`);
+      if (detail.disposition === "accepted") {
+        invariant(state.status === "pending", `unit ${unit.id} can accept a zombie only before the current retry starts`);
+        const prior = attemptRecords.get(zombie.attemptId);
+        invariant(prerequisitesCurrent(unit, prior.prerequisiteHeads), `unit ${unit.id} zombie prerequisites are stale`);
+        state.currentAttemptId = zombie.attemptId;
+        state.attemptNumber = prior.number;
+        state.worker = prior.worker;
+        state.files = prior.files;
+        state.tools = prior.tools;
+        state.head = zombie.head;
+        state.result = { status: zombie.status, head: zombie.head, artifact: zombie.artifact };
+        state.verdict = null;
+        state.prerequisiteHeads = { ...prior.prerequisiteHeads };
+        state.status = zombie.status === "passed" ? "result_passed" : "result_failed";
+      }
+      zombie.disposition = detail.disposition;
+    }
+  }
+
+  invariant(initialized, "program was not initialized");
+  const normalizedUnits = [...states.values()].map(normalizeState).sort((left, right) => left.id.localeCompare(right.id));
+  const replayComplete = normalizedUnits.every((unit) => (
+    unit.status === "verified"
+    && unit.verdict?.head === unit.head
+    && prerequisitesCurrent(units.get(unit.id), unit.prerequisite_heads)
+  ));
+  const pilotState = manifest.schema_version === 2 ? states.get(manifest.authorization.pilot_unit_id) : null;
+  const pilotVerified = pilotState === null || (pilotState.status === "verified" && pilotState.verdict?.head === pilotState.head);
+  const readyUnits = [...units.values()]
+    .filter((unit) => {
+      const state = states.get(unit.id);
+      if (!["pending", "stale"].includes(state.status)) return false;
+      if (manifest.schema_version === 2 && unit.id !== manifest.authorization.pilot_unit_id && !pilotVerified) return false;
+      return unit.dependencies.every((dependency) => {
+        const dependencyState = states.get(dependency);
+        return dependencyState.status === "verified" && dependencyState.verdict?.head === dependencyState.head;
+      });
+    })
+    .map((unit) => unit.id)
+    .sort()
+    .slice(0, Math.max(0, manifest.authorization.max_in_flight - activeStates(states).length));
+  const gitChecks = checkLiveGit ? liveGitChecks(states, root) : [];
+  return {
+    schema_version: 1,
+    program_id: manifest.program_id,
+    manifest_sha256: manifestSha,
+    replay_valid: true,
+    replay_complete: replayComplete,
+    runtime_confirmed: false,
+    execution: "proxy_supported",
+    runtime_reason: checkLiveGit
+      ? (gitChecks.every((check) => check.valid) ? "git state observed; worker and model provenance remain unverified" : "declared Git state mismatch; worker and model provenance remain unverified")
+      : "no live runtime or model provenance was observed",
+    counts: {
+      units: normalizedUnits.length,
+      verified: normalizedUnits.filter((unit) => unit.status === "verified").length,
+      active: normalizedUnits.filter((unit) => unit.status === "running").length,
+      unresolved_zombies: normalizedUnits.reduce((total, unit) => total + unit.zombies.filter((zombie) => zombie.disposition === null).length, 0),
+    },
+    ready_units: readyUnits,
+    live_git_checks: gitChecks,
+    units: normalizedUnits,
+  };
+}
+
+function parseArguments(args) {
+  let manifest = null;
+  let events = null;
+  let root = process.cwd();
+  let liveGit = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--live-git") {
+      liveGit = true;
+      continue;
+    }
+    if (["--manifest", "--events", "--root"].includes(arg)) {
+      const next = args[index + 1];
+      invariant(next !== undefined, `${arg} needs a value`);
+      if (arg === "--manifest") manifest = next;
+      if (arg === "--events") events = next;
+      if (arg === "--root") root = next;
+      index += 1;
+      continue;
+    }
+    throw new ProgramError(`unknown option: ${arg}`);
+  }
+  invariant(nonemptyString(manifest) && nonemptyString(events), "usage: program-state --manifest <file> --events <events.jsonl> [--root <dir>] [--live-git]");
+  return { manifest: resolve(manifest), events: resolve(events), root: realpathSync(resolve(root)), liveGit };
+}
+
+try {
+  const options = parseArguments(process.argv.slice(2));
+  process.stdout.write(`${JSON.stringify(reduceProgram(options.manifest, options.events, options.root, options.liveGit))}\n`);
+} catch (error) {
+  process.stderr.write(`program-state: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.exit(error instanceof ProgramError ? 2 : 1);
+}

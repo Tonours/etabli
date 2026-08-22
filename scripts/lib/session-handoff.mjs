@@ -2,7 +2,8 @@
 
 import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
-import { basename, join, resolve } from "node:path"
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
+import { fileURLToPath } from "node:url"
 
 function usage(exitCode = 0) {
   const output = exitCode === 0 ? process.stdout : process.stderr
@@ -174,6 +175,80 @@ function asArray(value) {
   return [compact(value)].filter(Boolean)
 }
 
+function contained(root, candidate) {
+  const path = relative(resolve(root), resolve(candidate))
+  return path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+}
+
+function projectProgram(options, events, ledgerPath) {
+  const initialized = lastOf(events, "program_initialized")
+  if (!initialized) return null
+
+  const manifestRelative = initialized.detail?.manifest_path
+  if (typeof manifestRelative !== "string" || manifestRelative === "" || isAbsolute(manifestRelative)) {
+    return { replay_valid: false, error: "program manifest path is missing or unsafe" }
+  }
+  const manifestPath = resolve(options.repo, manifestRelative)
+  if (!contained(options.repo, manifestPath) || !existsSync(manifestPath)) {
+    return { replay_valid: false, error: "program manifest is unavailable inside the repository" }
+  }
+
+  const programState = resolve(dirname(process.argv[1]), "../program-state")
+  const result = spawnSync(programState, [
+    "--manifest", manifestPath,
+    "--events", ledgerPath,
+    "--root", options.repo,
+  ], { encoding: "utf8", timeout: 15_000 })
+  if (result.status !== 0) {
+    return {
+      replay_valid: false,
+      error: compact(result.stderr || result.error?.message || `program-state exited ${result.status}`, 500),
+    }
+  }
+
+  let state
+  try {
+    state = JSON.parse(result.stdout)
+  } catch {
+    return { replay_valid: false, error: "program-state returned invalid JSON" }
+  }
+  if (state?.replay_valid !== true || !Array.isArray(state.ready_units) || !Array.isArray(state.units)) {
+    return { replay_valid: false, error: "program-state returned an invalid projection" }
+  }
+  return {
+    program_id: state.program_id,
+    replay_valid: state.replay_valid === true,
+    replay_complete: state.replay_complete === true,
+    execution: state.execution,
+    runtime_confirmed: state.runtime_confirmed === true,
+    counts: state.counts,
+    ready_units: state.ready_units,
+    verified_units: state.units
+      .filter((unit) => unit.status === "verified")
+      .map((unit) => unit.id),
+    frontier: state.units
+      .filter((unit) => unit.status !== "verified")
+      .map((unit) => ({
+        unit_id: unit.id,
+        status: unit.status,
+        head: unit.head,
+        result_head: unit.result?.head || null,
+        verdict_head: unit.verdict?.head || null,
+      })),
+    error: null,
+  }
+}
+
+export function programNextAction(program) {
+  if (!program) return null
+  if (program.error) return `resolve program replay error: ${compact(program.error, 160)}`
+  if (program.replay_complete) return "program replay complete; continue with planned validation"
+  if (program.ready_units.length > 0) return `start program unit ${program.ready_units[0]}`
+  const active = program.frontier.find((unit) => ["running", "result_passed", "result_failed", "verdict_failed"].includes(unit.status))
+  if (active) return `continue program unit ${active.unit_id} from ${active.status}`
+  return "inspect program frontier; no executable unit is ready"
+}
+
 function buildHandoff(options) {
   const run = resolveRun(options)
   const ledgerPath = join(options.workflowDir, run, "events.jsonl")
@@ -182,10 +257,17 @@ function buildHandoff(options) {
   const planPath = join(options.repo, "PLAN.md")
   const plan = existsSync(planPath) ? readFileSync(planPath, "utf8") : ""
   const handoffSection = planSection(plan, "Handoff State")
-  const explicit = lastOf(events, "handoff")?.detail || null
+  const explicitEvent = lastOf(events, "handoff")
+  const explicitIndex = explicitEvent ? events.lastIndexOf(explicitEvent) : -1
+  const latestProgramIndex = events.reduce(
+    (latest, event, index) => event.event.startsWith("program_") ? index : latest,
+    -1,
+  )
+  const explicit = explicitIndex >= latestProgramIndex ? explicitEvent?.detail || null : null
   const slice = lastOf(events, "project_slice_completed")?.detail || null
   const adversary = lastOf(events, "adversary_completed")?.detail || null
   const blockerEvent = latestBlockingEvent(events)
+  const program = projectProgram(options, events, ledgerPath)
   const validations = events
     .filter((event) => event.event === "validation_run" || event.event === "validation_failed")
     .slice(-3)
@@ -195,9 +277,10 @@ function buildHandoff(options) {
       status: event.event === "validation_run" && event.detail?.exit === 0 ? "passed" : "failed",
     }))
 
-  const blocker = blockerEvent
+  const eventBlocker = blockerEvent
     ? blockerEvent.detail?.reason || blockerEvent.detail?.failure || blockerEvent.detail?.check_or_hypothesis || blockerEvent.event
     : null
+  const blocker = eventBlocker || program?.error || null
   const doNotRedo = explicit?.do_not_redo
     || (blockerEvent?.event === "no_progress" ? asArray(blockerEvent.detail?.eliminated) : [])
 
@@ -213,8 +296,9 @@ function buildHandoff(options) {
     pending: asArray(explicit?.pending || slice?.remaining).slice(0, 8),
     validations,
     blocker: blocker ? compact(blocker, 500) : null,
-    next_action: explicit?.next_action || planField(handoffSection, "Next action") || "unavailable",
+    next_action: programNextAction(program) || explicit?.next_action || planField(handoffSection, "Next action") || "unavailable",
     do_not_redo: asArray(doNotRedo).slice(0, 8),
+    program,
     git: gitEvidence(options.repo),
     sources: {
       plan: existsSync(planPath) ? "PLAN.md" : null,
@@ -241,6 +325,17 @@ function markdown(pack) {
       ? pack.validations.map((item) => `- ${item.status}: \`${item.command}\``)
       : ["- No validation evidence available."]),
     "",
+    ...(pack.program ? [
+      "## Program frontier",
+      "",
+      `- Program: \`${pack.program.program_id || "unavailable"}\``,
+      `- Replay: ${pack.program.replay_valid ? (pack.program.replay_complete ? "complete" : "valid") : "invalid"}`,
+      `- Execution: ${pack.program.execution || "unavailable"}; runtime confirmed: ${pack.program.runtime_confirmed === true}`,
+      `- Ready: ${pack.program.ready_units?.join(", ") || "none"}`,
+      `- Verified: ${pack.program.verified_units?.join(", ") || "none"}`,
+      ...((pack.program.frontier || []).map((unit) => `- Frontier: ${unit.unit_id} (${unit.status})`)),
+      "",
+    ] : []),
     `## Blocker\n\n${pack.blocker || "None observed after the latest validation."}`,
     "",
     `## Next action\n\n${pack.next_action}`,
@@ -262,4 +357,5 @@ function main() {
   }
 }
 
-main()
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMain) main()

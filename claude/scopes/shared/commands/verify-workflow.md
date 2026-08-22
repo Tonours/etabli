@@ -14,25 +14,8 @@ when available.
 This command intentionally uses `/verify-workflow` instead of `/verify` because
 Claude Code ships a native `/verify` skill for running and checking apps.
 
-## Source resolution
+If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Before saying a workflow source is missing, resolve sources in this order:
-
-1. Prefer the current workspace copies:
-   - `workflow/spec.md`
-   - `workflow/verification-report-template.md`
-   - `PLAN.md`
-2. If one of the workflow files is missing in the current workspace, fall back
-   to the Claude shared copies when this command is loaded through
-   `~/.claude/commands`:
-   - `../workflow/spec.md`
-   - `../workflow/verification-report-template.md`
-3. If those are unavailable, fall back to the Etabli repo copies when this
-   command is loaded from the repo target path:
-   - `../../workflow/spec.md`
-   - `../../workflow/verification-report-template.md`
-4. If workflow sources exist through any fallback, read them and continue. Do
-   not report them missing.
 
 ## Contract
 

@@ -18,7 +18,13 @@ Before answering, check the smallest applicable set:
    external, niche, high-stakes, or explicitly requested.
 3. Grounding: separate observed facts, source-backed claims, and assumptions.
 4. Specificity: include concrete paths, commands, dates, counts, statuses,
-   links, or validation output when they affect the decision.
+   links, or validation output when they affect the decision. When the answer
+   rests on artifacts you inspected or produced — traces, logs, benchmark
+   outputs, compared files, screenshots — name those artifacts by their exact
+   filename and quote the decisive measured numbers (with units) in the final
+   answer itself. A decision that cites its evidence by name is checkable; one
+   that paraphrases it away is not. Apply the same rule to comparisons: name
+   both compared artifacts and each side's measured result.
 5. Completeness: answer every explicit requirement; name what remains
    incomplete instead of implying it is done.
 6. Efficiency: prefer the shortest response that preserves the decision,
@@ -38,6 +44,19 @@ For live chat answers, apply the quality gate just before the final response:
 answer the newest user request, keep only evidence that changes the decision,
 state what is unverified, and avoid promising a perfect numeric score. This is
 a last-pass discipline, not a new artifact or subjective scoring step.
+
+Emit the matching reply shape in the last message:
+
+- Diagnosis: question, artifact filename, quoted numbers, verdict label, next
+  action. Performance adds the frozen command, sample count, and an honest
+  p95/median ceiling — never a single-run p95.
+- Compare: both artifact names (keep user-named paths such as
+  `docs/compare-a.md` even when blinding authors), both measured results,
+  verdict.
+- Hillclimb: frozen command, budget, ≥3 measured rows, stop reason, next lever.
+  If the metric command hangs or a serve/coverage check fails twice, abort it
+  and answer with the rows you have — being killed is not a progression.
+- Implementation: files, checks `N/N`, `simplify: clean|removed N`.
 
 ## Route Rules
 
@@ -83,18 +102,18 @@ checker layer.
 
 Status: verified for the design principle, approximate for future eval scores.
 
-- RAG: https://arxiv.org/abs/2005.11401
-- Self-RAG: https://arxiv.org/abs/2310.11511
-- ReAct: https://arxiv.org/abs/2210.03629
-- Reflexion: https://arxiv.org/abs/2303.11366
-- Generative Agents: https://arxiv.org/abs/2304.03442
-- SWE-agent ACI: https://arxiv.org/abs/2405.15793
-- GraphRAG: https://arxiv.org/abs/2404.16130
+- RAG: <https://arxiv.org/abs/2005.11401>
+- Self-RAG: <https://arxiv.org/abs/2310.11511>
+- ReAct: <https://arxiv.org/abs/2210.03629>
+- Reflexion: <https://arxiv.org/abs/2303.11366>
+- Generative Agents: <https://arxiv.org/abs/2304.03442>
+- SWE-agent ACI: <https://arxiv.org/abs/2405.15793>
+- GraphRAG: <https://arxiv.org/abs/2404.16130>
 - Anthropic effective agents:
-  https://www.anthropic.com/engineering/building-effective-agents
+  <https://www.anthropic.com/engineering/building-effective-agents>
 - Anthropic contextual retrieval:
-  https://www.anthropic.com/engineering/contextual-retrieval
+  <https://www.anthropic.com/engineering/contextual-retrieval>
 - OpenAI evaluation best practices:
-  https://developers.openai.com/api/docs/guides/evaluation-best-practices
+  <https://developers.openai.com/api/docs/guides/evaluation-best-practices>
 - OpenAI agent evals:
-  https://developers.openai.com/api/docs/guides/agent-evals
+  <https://developers.openai.com/api/docs/guides/agent-evals>

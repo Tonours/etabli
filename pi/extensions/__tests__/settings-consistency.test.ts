@@ -34,13 +34,15 @@ const skillCatalog = readFileSync(
   .split("\n")
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
-    const [name, source, piCore, agentsVisible, locked] = line.split("\t");
+    const [name, source, piCore, agentsVisible, locked, crossHarness] =
+      line.split("\t");
     return {
       name,
       source,
       piCore: piCore === "1",
       agentsVisible: agentsVisible === "1",
       locked: locked === "1",
+      crossHarness: crossHarness === "1",
     };
   });
 
@@ -106,34 +108,44 @@ describe("Pi settings consistency", () => {
     const packVisible = agentsVisible
       .filter((skill) => !skill.piCore)
       .map((skill) => skill.name);
-    expect(packVisible).toEqual([
-      "browser-full-page-capture",
-      "frontend-motion-performance",
-      "frontend-css-ui-ux",
-      "css-layout-primitives",
-      "css-only-components",
-      "css-debugging",
-      "goal-prompt-rewriter",
-      "conversation-retrospect",
-      "recurring-run",
-      "runtime-skill-canary",
-      "session-handoff",
-      "ui-reference-capture",
-      "react-doctor-100",
-      "show-me",
-      "add-dark-mode",
-      "brand-kit",
-      "canonicalize-tailwind",
-      "componentize",
-      "dark-mode-image",
-      "design",
-      "ideas",
-      "make-responsive",
-      "markup-from-image",
-    ]);
+    expect(packVisible).toEqual(["runtime-skill-canary"]);
     // Fluidity: caveman/grill-me stay optional (not piCore, not agents-visible).
     expect(skillCatalog.find((s) => s.name === "caveman")?.piCore).toBe(false);
     expect(skillCatalog.find((s) => s.name === "grill-me")?.piCore).toBe(false);
+
+    const keepList = [
+      "plan-loop",
+      "plan-implement",
+      "adversary",
+      "review",
+      "code-quality",
+      "implement",
+      "verify",
+      "bug-check",
+      "linear-ticket-create",
+      "linear-work",
+      "pr-review",
+      "pr-qa",
+      "sec-pr",
+      "ci-fix",
+    ];
+    expect(installCoreSkills().sort()).toEqual([...keepList].sort());
+    expect([...(localPackage().skills ?? [])].sort()).toEqual(
+      [...keepList].sort(),
+    );
+    expect(coreVisible.sort()).toEqual(
+      keepList.filter((skill) => skill !== "code-quality").sort(),
+    );
+    expect(skillCatalog.find((skill) => skill.name === "code-quality")).toMatchObject({
+      piCore: true,
+      agentsVisible: false,
+      crossHarness: false,
+    });
+    expect(keepList).toHaveLength(14);
+    for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
+      expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);
+      expect(localPackage().skills ?? []).not.toContain(banned);
+    }
   });
 
   test("loads only the quasi-vanilla Pi package surface", () => {

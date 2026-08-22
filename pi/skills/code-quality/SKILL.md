@@ -1,6 +1,6 @@
 ---
 name: code-quality
-description: Enforce project conventions, patterns, and stack best practices on a bounded diff. Routes to stack-suite, design-suite, linting, react-doctor, and frontend-css skills. Use during implement quality pass, review, front-quality, or when asked to check conventions/patterns/best practices.
+description: Run the bounded convention and stack-quality pass after implementation or during review.
 ---
 
 # Code Quality
@@ -14,23 +14,28 @@ and compares the diff to **sibling implementations in this repo**.
 - After the simplification pass in `implementation-loop`
 - During `review` / `pr-review` when the diff touches language or UI surface
 - Explicit user request for quality, conventions, patterns, or best practices
-- Claude `/front-quality` (React subset of this skill)
+- React convention pass on a bounded diff
 
 ## Procedure
 
 1. **Bound the target** — current uncommitted diff, named paths, or PR diff. Never whole-repo audit unless asked.
-2. **Detect domain** — invoke `suite-router` (or match signals yourself if already loaded). Activate `design-suite` and/or `stack-suite` as appropriate.
+2. **Detect domain** — match signals from the diff directly. This skill does
+   not depend on another router or suite.
 3. **Load practice skills** for the matched domain only:
 
    | Domain | Skills to apply |
    | -------- | ----------------- |
-   | React / Next / TanStack UI | `stack-suite` React rows → `vercel-react-best-practices`, `vercel-composition-patterns`; optional `react-doctor-100` |
-   | Node / Fastify / API | `stack-suite` Node rows → `node`, `fastify-best-practices`, `typescript-magician` |
+   | React / Next / TanStack UI | `vercel-react-best-practices`, `vercel-composition-patterns` |
+   | Node / Fastify / API | `node`, `fastify-best-practices`, `typescript-magician` |
    | Lint / ESLint flat | `linting-neostandard-eslint9` |
-   | CSS / layout / visual | `frontend-css-ui-ux` (+ primitives / debugging as needed) |
-   | Project suites | Prefer `ember-forestadmin-suite`, `forest-backend-suite`, `adonisjs-suite`, `tanstack-start-suite` when the codebase is theirs |
+   | CSS / layout / visual | Local sibling components and styles; apply a narrower CSS skill only when the runtime exposes one |
+   | Project-specific code | Prefer the matching project skill when the runtime exposes one |
 
-4. **Compare to local convention** — open 1–3 sibling files that already implement the same kind of change. The pattern to match is what the repo does, not a generic blog post.
+4. **Compare to local convention** — open 1–3 sibling files that already
+   implement the same kind of change. The pattern to match is what the repo
+   does, not a generic blog post. If a named practice skill is unavailable,
+   continue with these siblings. If no relevant sibling exists either, report
+   `quality: unavailable` and stop; do not call the pass clean.
 5. **Classify findings**:
    - **Mechanical** — clear, local, no behavior change (import order already enforced by lint, missing `type` import, dead branch introduced by this diff, obvious composition smell with a sibling pattern). Fix directly when running inside implement.
    - **Behavioral** — would change runtime behavior or API. Report only; do not fix in a pure review.
@@ -44,20 +49,18 @@ and compares the diff to **sibling implementations in this repo**.
 7. **Report** one line per pass run:
 
 ```text
-quality: <domains> | mechanical fixed: N | findings: N | clean
+quality: <domains> | mechanical fixed: N | findings: N | status: clean|findings|unavailable
 ```
 
 ## Rules
 
-- Prefer the narrowest skill. Do not load every stack-suite row.
+- Prefer the narrowest exposed skill.
 - No style nits that the project's linter or formatter already owns unless the tool is broken on this diff.
 - Do not widen scope to unrelated files.
 - Quality pass does not replace correctness review or tests.
-- If no domain skill applies, say `quality: none` and stop.
+- If the diff has no language/UI convention surface, say `quality: none` and stop.
 
 ## Related
 
-- `suite-router`, `stack-suite`, `design-suite`
 - `workflow/review-rubric.md` § Convention & pattern fit
 - `workflow/skills/implementation-loop.md` quality pass
-- Claude `/front-quality` (React-focused entry point)

@@ -16,6 +16,35 @@ final event; a valid run with neither is in progress. Legacy ledgers remain
 readable but are not authoritative for new strict profiles.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
+New appends are serialized behind a five-second `lockf`, `flock`, or `shlock`
+lock. The writer validates the ledger and re-checks terminal state while the
+lock is held. Program event IDs are idempotent; a reused ID with different
+content is rejected.
+Native internal append execution proves that its actual `lockf`/`flock` parent
+is the trusted system executable and was invoked on the fixed descriptor `9`
+from the canonical run directory. That descriptor must resolve to the current
+canonical `events.lock` inode, which is then separately proven locked.
+Executable, directory, arguments, descriptor, and lock state are read only
+through fixed system binaries plus `/proc` on Linux or `lsof` on macOS;
+caller-controlled `PATH` helpers are not authoritative. Descriptor locking
+keeps the lock file and preserves kernel lock ordering. Merely opening the
+canonical file on another descriptor, replacing its pathname, placing
+`_append-locked` beneath an unrelated lock process, or minting a caller-owned
+JSON marker confers no authority; missing process proof fails closed. The
+writer rechecks contention and FD-to-inode identity immediately before the
+append syscall. This is a cooperative-writer integrity boundary, not a security
+boundary against a same-UID actor that can mutate files or processes inside
+that final syscall interval.
+For a schema-v2 run that has ever declared the `plan-implement` route,
+`completed` is also preflighted while holding that lock: the writer validates
+an exact temporary candidate with `--profile autonomous-completed` before it
+appends the same terminal line. Missing evidence therefore leaves the canonical
+ledger and active-run pointer untouched. Schema-v1 and non-`plan-implement`
+ledgers retain structural completion compatibility.
+For consecutive program events, a disposable checksum/count cache avoids
+re-running the historical schema scan on every unit update. A missing or
+mismatched cache forces full validation; it never stores program state or
+replaces `events.jsonl`.
 Before a run relies on runtime receipts or mutation/no-progress authority, select
 it with `scripts/workflow-event activate <slug>`; the runtime then inspects only
 that ledger. Without a pointer, the compatibility fallback considers only valid
@@ -57,6 +86,13 @@ ledger.
 | `harness_candidate_rejected` | `{candidate, reason, regressions, evidence}` |
 | `project_slice_planned` | `{slice, owner, validation, dependencies}` |
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
+| `program_initialized` | common program identity + `{manifest_path, runtime_capability:proxy_supported | blocked}` |
+| `program_unit_started` | common program identity + `{worker:{id,model_family,worktree,branch,head}, files, tools}` |
+| `program_unit_result` | common program identity + `{worker_id, head, status:passed | failed, artifact:{path,sha256}}` |
+| `program_unit_verdict` | common program identity + `{verifier:{id,model_family}, head, verdict:passed | failed, evidence:{path,sha256}}` |
+| `program_unit_head_changed` | common program identity + `{worker_id, previous_head, new_head}` |
+| `program_unit_retry` | common program identity + `{previous_attempt_id, reason}` |
+| `program_unit_reconciled` | common program identity + `{zombie_attempt_id, disposition:ignored | accepted, reason}` |
 | `runtime_run_attached` | `{adapter:"pi-workflow", run_id, workflow, state_path:".pi/workflows/<run-id>", status, usage_measured}` |
 | `runtime_receipt` | `{receipt_for, source, kind:file_change\|validation\|review\|archive\|completion, subject_sha256, exit?, worktree_sha256?, artifact_sha256?, observed_by:"parent-process", cryptographic:false}` — non-cryptographic parent-process observation binding a ledger assertion to a hashed subject (path or command) and exit; stores only allowlisted hashes, never raw output or secret-bearing text |
 | `multi_execution_completed` | `{participants:[{id,model,family}], independent_first_passes, disagreement, adjudicator, verdict:accepted | degraded | blocked | rollback_to_opt_in, usage:{measured,...}, fallback_status:none | degraded | blocked}` |
@@ -78,6 +114,10 @@ envelopes remain readable through named detail shapes and a bounded
 post-terminal compatibility path. Any v2 terminal or following event keeps
 strict terminal ordering, and newly appended events cannot use the weaker
 historical shapes.
+
+Every program event includes `event_id`, `program_id`, `manifest_sha256`,
+`unit_id`, `attempt_id`, and `emitter:{id,role:"coordinator"}`. Workers never
+append these events directly; see `workflow/skills/program-orchestration.md`.
 
 New autonomous ledgers use `validate --profile autonomous-completed`; missing
 ledgers fail unless explicit `--allow-missing` legacy compatibility is selected.

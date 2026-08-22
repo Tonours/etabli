@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "metric": {
+    "name": "replace-me",
+    "unit": "milliseconds",
+    "direction": "lower",
+    "minimum_improvement_pct": 0,
+    "maximum_observed_p95_regression_pct": 0,
+    "tail_gate": true,
+    "quantile": "nearest-rank-observed-p95"
+  },
+  "design": {
+    "order": "interleaved",
+    "seed": "replace-me",
+    "outlier_policy": "none",
+    "warmups": { "baseline": 2, "candidate": 2 },
+    "runner_command": ["replace-me"]
+  },
+  "baseline": {
+    "command": ["replace-me"],
+    "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "candidate": {
+    "command": ["replace-me"],
+    "subject_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

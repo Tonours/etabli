@@ -22,9 +22,11 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
 (ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
-orchestration: `workflow/skills/orchestration.md`. One writer at any instant: the
-parent writes, or delegates to at most one `worker` at a time; the multi-model
-council was removed (ADR-0013).
+orchestration: `workflow/skills/orchestration.md`. The parent is the one
+canonical writer. Delegation defaults to one worker; a READY manifest may opt
+into isolated non-overlapping units through
+`workflow/skills/program-orchestration.md`. The multi-model council was removed
+(ADR-0013).
 
 ```text
 user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
@@ -73,6 +75,12 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `workflow/skills/pr-maintenance-loop.md` — one PR, one worktree, one loop;
   `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge
   without another explicit command contract.
+- Evidence and investigations: `workflow/skills/investigation.md`,
+  `workflow/evidence-pack.schema.json`, and `scripts/evidence-proof`. Integrity,
+  parent-observed execution, proxy support, and blocked surfaces stay distinct.
+- Large programs: `workflow/skills/program-orchestration.md`,
+  `workflow/program.schema.json`, and read-only `scripts/program-state`. This is
+  a restartable control plane, not an agent runner or delegation authorization.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - Experimental read-only: `workflow-retrospect` (not core gate; ≥10 task-grader
@@ -86,9 +94,11 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   demoting the plan to `CHALLENGED` with a Decision Log rationale required to
   weaken. Runtime: shared `planMutationGuardDecision` on PLAN.md writes
   (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`.
-- Autonomous loop stop conditions pair the measurable goal with an explicit cap
-  (iterations or wall-clock). The final review of an autonomous `plan-implement`
-  run comes from a fresh
+- Autonomous loop stop conditions pair the measurable goal with an explicit
+  operational cap (iterations or wall-clock). Global model-token totals are
+  telemetry, never plan/goal stop conditions. Bounded payload contracts and
+  explicit billing authorization remain separate. The final review of an
+  autonomous `plan-implement` run comes from a fresh
   context (subagent reviewer or cross-model). This authorization is for
   read-only fresh-context review only; it
   does not authorize destructive, secret, production, billing, deploy, push,
@@ -145,15 +155,16 @@ A plan is `READY` when it has:
 `LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
 
 A route says what to produce and when to stop; it does not say what the area
-already taught us. Where the runtime exposes skills, select the domain skill for
-the subject alongside the route — they are orthogonal, and the skill is what
-keeps a route from rediscovering known ground. On `plan-loop`, `plan-implement`,
-and `/ship`, run `suite-router` first to activate `design-suite` (UI/UX, ui.sh)
-and/or `stack-suite` from context. Routers also exist per domain
-(`forest-backend-suite`, `ember-forestadmin-suite`) and per stack (`stack-suite`
-for Node.js, TypeScript, Fastify, OAuth, React/Next.js, web UI); a domain router
-wins over the stack one when the task is about the codebase rather than the
-language. Selection stays with the model, never injected per prompt (ADR-0014).
+already taught us. Where the runtime exposes skills, select the narrowest domain
+or project skill for the subject alongside the route — they are orthogonal, and
+the skill keeps a route from rediscovering known ground. Optional domain skills
+are **opt-in**: load one only when the runtime exposes it and the brief clearly
+matches, never as a mandatory first step on `plan-loop`, `plan-implement`, or
+`/ship`. A project skill wins over a generic language/framework skill when the
+task is about the codebase. When no matching skill is exposed, the route still
+follows its local-source fallback instead of silently skipping the phase.
+Selection stays with the model, never injected per prompt (ADR-0014). There is
+no additional global skill router.
 
 ## Human checkpoints
 

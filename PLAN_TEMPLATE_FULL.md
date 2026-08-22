@@ -18,7 +18,7 @@ Describe in 1-3 sentences what will change and why it matters.
 - Router decision:
 - Pattern:
 - Goal verifier:
-- Iteration / time / token-tool budget:
+- Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
 - Context reset threshold:
 - Escalation:
 - Planner output:
@@ -87,7 +87,23 @@ Use this section only for user-facing/UI/browser-impacting work.
 ### Browser/UI Evidence
 - Observable surface:
 - Artifacts:
+- Evidence pack path / target hash / environment fingerprint:
+- Execution provenance: parent_observed_execution | proxy_supported | blocked
 - Blocked external legs:
+
+## Large Program Manifest
+Use only when the READY plan explicitly authorizes sidecars and independently
+ownable units. Otherwise delete this section.
+
+- Manifest path:
+- Coordinator / canonical ledger writer:
+- Artifact root:
+- Positive max in flight:
+- Unit DAG and non-overlapping scopes:
+- Worktree policy:
+- Independent verifier policy:
+- Retry / zombie reconciliation:
+- Runtime capability: confirmed | proxy_supported | blocked | unknown
 
 ## Execution Slices
 ### Slice 1

@@ -173,34 +173,26 @@ flowchart TD
 | PR maintenance | `workflow/skills/pr-maintenance-loop.md` | One PR, one worktree, one loop |
 | Ship | `workflow/skills/ship.md` | End-to-end deliver with review + CI posture |
 | Product dogfood | `workflow/skills/product-dogfood.md` | User-flow matrix before claiming done |
+| Investigation | `workflow/skills/investigation.md` | Causal/runtime/UI/performance evidence without overclaiming |
+| Large program | `workflow/skills/program-orchestration.md` | Restartable scoped unit DAG when sidecars are authorized |
 
 Generic LLM loop patterns (ReAct, tree-search, …): `workflow/loop-patterns.md`.
 
 ---
 
-## 7. One-writer and multi-model
+## 7. One-writer
 
 The **parent** session is the only writer (**protocol**, not an OS lock).
-Scout/council sidecars are read-only.
-
-Pi adaptive portfolio (see `workflow/skills/multi-model-orchestration.md`).
-Model ids such as `openai-codex/*` are **provider/model** names, not a tracked
-Codex harness tree (ADR-0011).
-
-| Role | Typical model id | Effort |
-|------|------------------|--------|
-| Scout | `opencode-go/deepseek-v4-flash` | medium |
-| Analyst | `xai/grok-4.5` | high |
-| Challenger | `zai/glm-5.2` | xhigh |
-| Judge | `openai-codex/gpt-5.6-sol` | xhigh |
-| Fallback | `openai-codex/gpt-5.6-luna` | high |
+Read-only scouts and reviewers stay read-only. The deterministic multi-model
+council was removed (ADR-0013). Model ids such as `openai-codex/*` are
+**provider/model** names, not a tracked Codex harness tree (ADR-0011).
 
 ```mermaid
 flowchart TB
-  Parent[Parent writer] --> Scout[deepseek-v4-flash scout RO]
-  Parent --> Council[grok-4.5 / glm-5.2 / sol RO]
+  Parent[Parent writer] --> Scout[read-only scout]
+  Parent --> Reviewer[read-only reviewer]
   Scout --> Parent
-  Council --> Parent
+  Reviewer --> Parent
   Parent --> Git[Repo mutations]
 ```
 

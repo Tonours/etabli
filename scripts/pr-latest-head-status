@@ -5,7 +5,7 @@ usage() {
   cat <<EOF
 Usage: pr-latest-head-status [--json] <snapshot.json>
 
-Classify PR review/check evidence against the latest pushed head SHA.
+Classify one PR or an ordered PR stack against latest-head evidence.
 EOF
 }
 
@@ -50,6 +50,12 @@ result="$(
       (.head_sha // .headSha // .commit_sha // .commitSha // .commit_id //
         .commitId // .oid // .sha // $default // "");
 
+    def item_patch:
+      (.patch_id // .patchId // .patch_sha // .patchSha // "");
+
+    def valid_patch_id:
+      test("^([a-f0-9]{40}|[a-f0-9]{64})$");
+
     def review_status:
       (.status // .state // .verdict // .conclusion // .decision // "unknown")
       | lower;
@@ -76,101 +82,134 @@ result="$(
       ["failed", "failure", "error", "cancelled", "timed_out",
        "action_required"] | index($s);
 
-    (.latest_head_sha // .latestHeadSha // .head_sha // .headSha //
-      .head.sha // .pull_request.head.sha // .pr.latest_head_sha //
-      .pr.head.sha // "") as $latest |
-    (.reviews_head_sha // .reviewsHeadSha // "") as $reviews_default_sha |
-    (.checks_head_sha // .checksHeadSha // "") as $checks_default_sha |
-    ((.reviews // .review_decisions // .review_statuses // []) | as_array) as $reviews |
-    ((.checks // .check_runs // .status_checks // .statusCheckRollup // []) | as_array) as $checks |
-    ($reviews | map(. + {
-      normalized_sha: item_sha($reviews_default_sha),
-      normalized_status: review_status
-    })) as $normalized_reviews |
-    ($checks | map(. + {
-      normalized_sha: item_sha($checks_default_sha),
-      normalized_status: check_status
-    })) as $normalized_checks |
-    ($normalized_reviews | map(select(.normalized_sha == $latest))) as $latest_reviews |
-    ($normalized_checks | map(select(.normalized_sha == $latest))) as $latest_checks |
-    ($normalized_reviews | map(select(.normalized_sha != "" and .normalized_sha != $latest and clean_review))) as $stale_clean_reviews |
-    ($latest_reviews | map(select(clean_review))) as $latest_clean_reviews |
-    ($latest_reviews | map(select(actionable_review))) as $latest_actionable_reviews |
-    ($latest_checks | map(select(clean_check))) as $latest_clean_checks |
-    ($latest_checks | map(select(failing_check))) as $latest_failing_checks |
-    ($normalized_checks | map(select(.normalized_sha != "" and .normalized_sha != $latest))) as $stale_checks |
-    if $latest == "" then
+    def pr_number:
+      (.number // .pr_number // (if (.pr | type) == "number" then .pr else null end));
+
+    def head_ref:
+      (.head_ref // .headRef // .head.ref // .pull_request.head.ref // "");
+
+    def base_ref:
+      (.base_ref // .baseRef // .base.ref // .pull_request.base.ref // "");
+
+    def classify_pr:
+      . as $pr |
+      ($pr.latest_head_sha // $pr.latestHeadSha // $pr.head_sha // $pr.headSha //
+        $pr.head.sha // $pr.pull_request.head.sha // $pr.pr.latest_head_sha //
+        $pr.pr.head.sha // "") as $latest |
+      ($pr.patch_id // $pr.patchId // $pr.patch_sha // $pr.patchSha // "") as $patch |
+      ($pr.reviews_head_sha // $pr.reviewsHeadSha // "") as $reviews_default_sha |
+      ($pr.checks_head_sha // $pr.checksHeadSha // "") as $checks_default_sha |
+      (($pr.reviews // $pr.review_decisions // $pr.review_statuses // []) | as_array) as $reviews |
+      (($pr.checks // $pr.check_runs // $pr.status_checks // $pr.statusCheckRollup // []) | as_array) as $checks |
+      ($reviews | map(. + {
+        normalized_sha: item_sha($reviews_default_sha),
+        normalized_patch: item_patch,
+        normalized_status: review_status
+      })) as $normalized_reviews |
+      ($checks | map(. + {
+        normalized_sha: item_sha($checks_default_sha),
+        normalized_status: check_status
+      })) as $normalized_checks |
+      ($normalized_reviews | map(select(.normalized_sha == $latest))) as $latest_reviews |
+      ($normalized_reviews | map(select(($patch | valid_patch_id) and .normalized_patch == $patch))) as $patch_reviews |
+      ($latest_reviews + $patch_reviews | unique_by([.normalized_sha, .normalized_patch, .normalized_status])) as $applicable_reviews |
+      ($normalized_checks | map(select(.normalized_sha == $latest))) as $latest_checks |
+      ($normalized_reviews | map(select(.normalized_sha != "" and .normalized_sha != $latest and clean_review))) as $stale_clean_reviews |
+      ($latest_reviews | map(select(clean_review))) as $latest_clean_reviews |
+      ($patch_reviews | map(select(clean_review))) as $patch_clean_reviews |
+      ($applicable_reviews | map(select(actionable_review))) as $applicable_actionable_reviews |
+      ($latest_reviews | map(select(actionable_review))) as $latest_actionable_reviews |
+      ($latest_checks | map(select(clean_check))) as $latest_clean_checks |
+      ($latest_checks | map(select(failing_check))) as $latest_failing_checks |
+      ($normalized_checks | map(select(.normalized_sha != "" and .normalized_sha != $latest))) as $stale_checks |
       {
-        status: "needs_rerun",
-        reason: "missing_latest_head_sha",
         latest_head_sha: $latest,
-        latest_review_count: 0,
-        stale_review_count: ($stale_clean_reviews | length),
-        latest_check_count: 0,
-        stale_check_count: ($stale_checks | length)
-      }
-    elif ($latest_actionable_reviews | length) > 0 then
-      {
-        status: "needs_rerun",
-        reason: "latest_head_has_actionable_review_findings",
-        latest_head_sha: $latest,
+        latest_patch_id: $patch,
         latest_review_count: ($latest_reviews | length),
+        applicable_review_count: ($applicable_reviews | length),
         stale_review_count: ($stale_clean_reviews | length),
         latest_check_count: ($latest_checks | length),
-        stale_check_count: ($stale_checks | length)
-      }
-    elif ($latest_failing_checks | length) > 0 then
-      {
-        status: "needs_rerun",
-        reason: "latest_head_has_failing_checks",
-        latest_head_sha: $latest,
-        latest_review_count: ($latest_reviews | length),
-        stale_review_count: ($stale_clean_reviews | length),
-        latest_check_count: ($latest_checks | length),
-        stale_check_count: ($stale_checks | length)
-      }
-    elif ($latest_checks | length) == 0 then
-      {
-        status: "needs_rerun",
-        reason: "latest_head_missing_checks",
-        latest_head_sha: $latest,
-        latest_review_count: ($latest_reviews | length),
-        stale_review_count: ($stale_clean_reviews | length),
-        latest_check_count: ($latest_checks | length),
-        stale_check_count: ($stale_checks | length)
-      }
-    elif ($latest_clean_reviews | length) > 0 and
-         ($latest_checks | length) > 0 and
-         ($latest_clean_checks | length) == ($latest_checks | length) then
-      {
-        status: "clean_latest_head",
-        reason: "latest_head_has_clean_review_and_green_checks",
-        latest_head_sha: $latest,
-        latest_review_count: ($latest_reviews | length),
-        stale_review_count: ($stale_clean_reviews | length),
-        latest_check_count: ($latest_checks | length),
-        stale_check_count: ($stale_checks | length)
-      }
-    elif ($stale_clean_reviews | length) > 0 and ($latest_clean_reviews | length) == 0 then
-      {
-        status: "stale_review",
-        reason: "clean_review_does_not_apply_to_latest_head",
-        latest_head_sha: $latest,
-        latest_review_count: ($latest_reviews | length),
-        stale_review_count: ($stale_clean_reviews | length),
-        latest_check_count: ($latest_checks | length),
-        stale_check_count: ($stale_checks | length)
-      }
+        stale_check_count: ($stale_checks | length),
+        review_basis: (
+          if ($latest_clean_reviews | length) > 0 then "exact_head"
+          elif ($patch_clean_reviews | length) > 0 then "patch_id_equivalent"
+          else null
+          end
+        )
+      } as $evidence |
+      (if $latest == "" then
+        {status: "needs_rerun", reason: "missing_latest_head_sha"}
+      elif ($latest_actionable_reviews | length) > 0 then
+        {status: "needs_rerun", reason: "latest_head_has_actionable_review_findings"}
+      elif ($applicable_actionable_reviews | length) > 0 then
+        {status: "needs_rerun", reason: "patch_equivalent_review_has_actionable_findings"}
+      elif ($latest_failing_checks | length) > 0 then
+        {status: "needs_rerun", reason: "latest_head_has_failing_checks"}
+      elif ($latest_checks | length) == 0 then
+        {status: "needs_rerun", reason: "latest_head_missing_checks"}
+      elif ($latest_clean_reviews | length) > 0 and
+           ($latest_clean_checks | length) == ($latest_checks | length) then
+        {status: "clean_latest_head", reason: "latest_head_has_clean_review_and_green_checks"}
+      elif ($patch_clean_reviews | length) > 0 and
+           ($latest_clean_checks | length) == ($latest_checks | length) then
+        {status: "clean_latest_head", reason: "patch_equivalent_review_and_latest_checks_are_clean"}
+      elif ($stale_clean_reviews | length) > 0 and ($applicable_reviews | map(select(clean_review)) | length) == 0 then
+        {status: "stale_review", reason: "clean_review_does_not_apply_to_latest_head"}
+      else
+        {status: "needs_rerun", reason: "latest_head_missing_clean_review_or_green_checks"}
+      end) + $evidence;
+
+    def valid_stack_shape($prs):
+      (($prs | length) > 0) and
+      ([ $prs[] | pr_number ] | all(. != null)) and
+      (([ $prs[] | pr_number ] | length) == ([ $prs[] | pr_number ] | unique | length)) and
+      ([ $prs[] | head_ref ] | all(. != "")) and
+      (([ $prs[] | head_ref ] | length) == ([ $prs[] | head_ref ] | unique | length)) and
+      ([range(1; ($prs | length)) as $index |
+        ($prs[$index].parent_number // $prs[$index].parentNumber // null) as $parent |
+        ($prs[$index] | base_ref) as $base |
+        ($prs[$index - 1] | pr_number) as $previous_number |
+        ($prs[$index - 1] | head_ref) as $previous_head |
+        (($parent != null or $base != "") and
+         ($parent == null or $parent == $previous_number) and
+         ($base == "" or $base == $previous_head))
+      ] | all);
+
+    if has("prs") then
+      if (.prs | type) != "array" or (valid_stack_shape(.prs) | not) then
+        {mode: "stack", status: "invalid_snapshot", reason: "stack_relationship_is_not_contiguous", verified_run: [], ceiling_pr: null, next_gap: null, prs: []}
+      else
+        .prs as $source_prs |
+        ($source_prs | map(. as $pr | ($pr | classify_pr) + {
+          pr_number: ($pr | pr_number),
+          head_ref: ($pr | head_ref),
+          base_ref: ($pr | base_ref)
+        })) as $classified |
+        ([range(0; ($classified | length)) as $index |
+          select($classified[$index].status != "clean_latest_head") | $index
+        ] | first) as $first_gap |
+        ($first_gap // ($classified | length)) as $run_length |
+        {
+          mode: "stack",
+          status: (
+            if $run_length == ($classified | length) then "clean_contiguous_run"
+            elif $run_length == 0 then "blocked_at_root"
+            else "partial_contiguous_run"
+            end
+          ),
+          reason: (
+            if $run_length == ($classified | length) then "all_prs_have_contiguous_latest_head_evidence"
+            else "contiguous_run_stops_at_first_unverified_pr"
+            end
+          ),
+          verified_run: ($classified[0:$run_length] | map(.pr_number)),
+          ceiling_pr: (if $run_length > 0 then $classified[$run_length - 1].pr_number else null end),
+          next_gap: (if $run_length < ($classified | length) then $classified[$run_length] else null end),
+          prs: [range(0; ($classified | length)) as $index | $classified[$index] + {landable: ($index < $run_length)}]
+        }
+      end
     else
-      {
-        status: "needs_rerun",
-        reason: "latest_head_missing_clean_review_or_green_checks",
-        latest_head_sha: $latest,
-        latest_review_count: ($latest_reviews | length),
-        stale_review_count: ($stale_clean_reviews | length),
-        latest_check_count: ($latest_checks | length),
-        stale_check_count: ($stale_checks | length)
-      }
+      classify_pr
     end
   ' "$snapshot"
 )"
@@ -179,5 +218,5 @@ if [ "$json_output" = true ]; then
   printf '%s\n' "$result"
 else
   printf '%s\n' "$result" |
-    jq -r '"status=\(.status) reason=\(.reason) latest_head_sha=\(.latest_head_sha)"'
+    jq -r 'if .mode == "stack" then "status=\(.status) reason=\(.reason) ceiling_pr=\(.ceiling_pr // "none")" else "status=\(.status) reason=\(.reason) latest_head_sha=\(.latest_head_sha)" end'
 fi

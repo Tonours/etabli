@@ -49,7 +49,6 @@ pi-tests
 router-eval
 router-eval-smoke
 agent-scenarios-smoke
--suite-smoke
 plan-check-freeze-smoke
 plan-cleanup-smoke
 dual-runtime-guard-matrix-smoke
@@ -62,7 +61,8 @@ actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 16 ] ||
 	fail "core profile exceeds 16 checks"
 
-expected_full='pr-latest-head-status-smoke
+expected_full='-suite-smoke
+pr-latest-head-status-smoke
 leap-harness-validation-smoke
 ledger-auto-emit-smoke
 workflow-receipts-smoke
@@ -73,6 +73,8 @@ research-proof-check-smoke
 answer-quality-check-smoke
 answer-quality-eval-smoke
 workflow-docs-smoke
+evidence-proof-smoke
+program-state-smoke
 workflow-scaffold-smoke
 claude-hooks-smoke
 claude-agents-smoke
@@ -109,6 +111,7 @@ claim-evidence-check-smoke
 conversation-retrospect-smoke
 recurring-run-goal-pattern-smoke
 skill-eval-smoke
+codex-skill-description-smoke
 runtime-skill-canary-smoke
 session-handoff-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
