@@ -268,6 +268,7 @@ function buildHandoff(options) {
   const adversary = lastOf(events, "adversary_completed")?.detail || null
   const blockerEvent = latestBlockingEvent(events)
   const program = projectProgram(options, events, ledgerPath)
+  const handoffFields = program ? null : explicit
   const validations = events
     .filter((event) => event.event === "validation_run" || event.event === "validation_failed")
     .slice(-3)
@@ -288,12 +289,12 @@ function buildHandoff(options) {
     schema_version: 1,
     run,
     objective: firstParagraph(planSection(plan, "Goal")),
-    state: explicit?.done
+    state: handoffFields?.done
       ? "handoff event recorded"
       : planField(handoffSection, "Current state") || events.at(-1).event,
     decisions: asArray(adversary?.accepted_findings).slice(0, 5),
-    done: asArray(explicit?.done || slice?.evidence).slice(0, 8),
-    pending: asArray(explicit?.pending || slice?.remaining).slice(0, 8),
+    done: asArray(handoffFields?.done || slice?.evidence).slice(0, 8),
+    pending: asArray(handoffFields?.pending || slice?.remaining).slice(0, 8),
     validations,
     blocker: blocker ? compact(blocker, 500) : null,
     next_action: programNextAction(program) || explicit?.next_action || planField(handoffSection, "Next action") || "unavailable",

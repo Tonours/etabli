@@ -50,6 +50,7 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.config/herdr/config.toml` -> `herdr/config.toml`
 - `~/.config/herdr/plugins/config/sessionizer/config.toml` -> `herdr/layouts/sessionizer.config.toml` (manual link; see `herdr/docs/multihost.md`)
 - `herdr/skills/herdr` linked into `~/.claude/skills/herdr`, `~/.codex/skills/herdr`, `~/.agents/skills/herdr`, `~/.pi/agent/skills/herdr`
+- `agent` on PATH is Cursor (`~/.local/bin/agent`); Grok is `grok` only — do not restore `~/.grok/bin/agent`
 - do not create `~/.pi/extensions/`; it causes double-loading
 - do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)
 - macmini deploy: rsync `herdr/` → `~/work/etabli-herdr/` (see `herdr/docs/multihost.md`)

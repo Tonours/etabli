@@ -15,4 +15,6 @@ Rules:
 - Do not rerun full planning.
 - Do not create `REVIEW.md`.
 - After focused checks, run implementation-loop 12b on this diff and record
-  `simplify: clean` or `simplify: removed N`.
+  `simplify: clean` or `simplify: removed N`. Then run 12c (`code-quality` when
+  exposed, else the narrowest domain skill or 1-3 local siblings). Record
+  `quality: unavailable` and stop before completion if neither exists.

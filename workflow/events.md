@@ -42,9 +42,10 @@ appends the same terminal line. Missing evidence therefore leaves the canonical
 ledger and active-run pointer untouched. Schema-v1 and non-`plan-implement`
 ledgers retain structural completion compatibility.
 For consecutive program events, a disposable checksum/count cache avoids
-re-running the historical schema scan on every unit update. A missing or
-mismatched cache forces full validation; it never stores program state or
-replaces `events.jsonl`.
+re-running the historical schema scan on every unit update. A matching cache
+still does not skip `workflow-measurement-integrity` when the ledger contains
+measurement events. A missing or mismatched cache forces full validation; it
+never stores program state or replaces `events.jsonl`.
 Before a run relies on runtime receipts or mutation/no-progress authority, select
 it with `scripts/workflow-event activate <slug>`; the runtime then inspects only
 that ledger. Without a pointer, the compatibility fallback considers only valid

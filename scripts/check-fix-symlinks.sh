@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$REPO_DIR/scripts/lib/pi-paths.sh"
 . "$REPO_DIR/scripts/lib/etabli-scope.sh"
+. "$REPO_DIR/scripts/lib/prefer-cursor-agent.sh"
 FIX=0
 VERBOSE=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -178,12 +179,66 @@ check_script_link() {
   check_link "$link_path" "$target_path" "script $script_name"
 }
 
+is_core_pi_skill() {
+  local candidate="$1"
+  local skill_name
+
+  [ -n "$candidate" ] || return 1
+  for skill_name in "${PI_CORE_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
+    [ "$candidate" = "$skill_name" ] && return 0
+  done
+  return 1
+}
+
+is_agents_visible_skill() {
+  local candidate="$1"
+  local skill_name
+
+  [ -n "$candidate" ] || return 1
+  for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
+    [ -n "$skill_name" ] || continue
+    [ "$candidate" = "$skill_name" ] && return 0
+  done
+  return 1
+}
+
+prune_unlisted_pi_source_skills() {
+  local surface="$1"
+  local keep_fn="$2"
+  local label="$3"
+  local skill_link skill_target skill_name
+
+  [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
+  [ -d "$HOME/$surface" ] || return 0
+
+  for skill_link in "$HOME/$surface"/*; do
+    [ -L "$skill_link" ] || continue
+    skill_target="$(readlink "$skill_link")"
+    case "$skill_target" in
+      "$REPO_DIR/pi/skills/"*) ;;
+      *) continue ;;
+    esac
+    skill_name="$(basename "$skill_link")"
+    if ! "$keep_fn" "$skill_name"; then
+      ISSUES=$((ISSUES + 1))
+      status_line WARN "demoted $label skill $skill_name remains in $surface"
+      if [ "$FIX" -eq 1 ]; then
+        rm -f "$skill_link"
+        FIXED=$((FIXED + 1))
+        status_line FIXED "removed demoted $label skill $skill_name from $surface"
+      fi
+    fi
+  done
+}
+
 check_pi_skill_links() {
   local skill_name
   for skill_name in "${PI_CORE_SKILLS[@]}"; do
     [ -n "$skill_name" ] || continue
     check_link "$HOME/.pi/agent/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "pi skill $skill_name"
   done
+  prune_unlisted_pi_source_skills ".pi/agent/skills" is_core_pi_skill "Pi"
 }
 
 check_agents_visible_skill_links() {
@@ -192,6 +247,7 @@ check_agents_visible_skill_links() {
     [ -n "$skill_name" ] || continue
     check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "grok/agents-visible skill $skill_name"
   done
+  prune_unlisted_pi_source_skills ".agents/skills" is_agents_visible_skill "Grok/agents-visible"
 }
 
 is_cross_harness_pi_skill() {
@@ -415,6 +471,21 @@ check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-workflow"
 check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"
+
+if prefer_cursor_agent_is_grok_collision "$HOME/.grok/bin/agent" "$HOME/.grok/bin/grok"; then
+  ISSUES=$((ISSUES + 1))
+  status_line WARN "grok colliding agent launcher exists; keep agent for Cursor"
+  if [ "$FIX" -eq 1 ]; then
+    rm -f "$HOME/.grok/bin/agent"
+    FIXED=$((FIXED + 1))
+    status_line FIXED "removed ~/.grok/bin/agent (Grok stays on grok)"
+  fi
+elif [ -e "$HOME/.grok/bin/agent" ] || [ -L "$HOME/.grok/bin/agent" ]; then
+  UNRESOLVED=$((UNRESOLVED + 1))
+  status_line WARN "custom ~/.grok/bin/agent left in place"
+elif [ "$VERBOSE" -eq 1 ]; then
+  status_line OK "grok colliding agent launcher absent"
+fi
 check_script_link "scaffold-project"
 
 printf '\nSummary: %d issue(s), %d fix(es) applied, %d unresolved\n' "$ISSUES" "$FIXED" "$UNRESOLVED"

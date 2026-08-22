@@ -106,7 +106,8 @@ jq -e '
     {unit_id: "pilot", status: "pending", head: null, result_head: null, verdict_head: null},
     {unit_id: "unit-b", status: "pending", head: null, result_head: null, verdict_head: null}
   ] and
-  .next_action == "start program unit pilot"
+  .next_action == "start program unit pilot" and
+  (.done | index("stale program projection") | not)
 ' "$TMP_DIR/program.json" >/dev/null
 
 node --input-type=module - "$ROOT_DIR" "$PROJECT" <<'NODE'

@@ -58,7 +58,8 @@ backup_count() {
   find "$(dirname "$1")" -maxdepth 1 -name "$(basename "$1").bak.*" | wc -l | tr -d ' '
 }
 
-mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules"
+mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules" \
+  "$TMP_HOME/.pi/agent/skills" "$TMP_HOME/.agents/skills"
 mkdir -p "$TMP_HOME/.claude/agents" "$TMP_HOME/.claude/skills" \
   "$TMP_HOME/.codex/skills" "$TMP_HOME/personal-agents" "$TMP_HOME/external-skill"
 printf 'personal agent\n' >"$TMP_HOME/personal-agents/personal.md"
@@ -66,6 +67,12 @@ ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$TMP_HOME/.claude/agent
 ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/agents/personal.md"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.claude/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.codex/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.pi/agent/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.agents/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/github-pr-review" "$TMP_HOME/.pi/agent/skills/github-pr-review"
+ln -s "$ROOT_DIR/pi/skills/github-pr-review" "$TMP_HOME/.agents/skills/github-pr-review"
+ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.pi/agent/skills/design"
+ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.agents/skills/design"
 ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.codex/skills/external-skill"
 
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
@@ -90,6 +97,10 @@ assert_not_exists "$TMP_HOME/.agents/skills/browser-full-page-capture"
 assert_not_exists "$TMP_HOME/.agents/skills/goal-prompt-rewriter"
 assert_not_exists "$TMP_HOME/.agents/skills/github-pr-review"
 assert_not_exists "$TMP_HOME/.agents/skills/suite-router"
+assert_not_exists "$TMP_HOME/.agents/skills/design"
+assert_not_exists "$TMP_HOME/.pi/agent/skills/github-pr-review"
+assert_not_exists "$TMP_HOME/.pi/agent/skills/suite-router"
+assert_not_exists "$TMP_HOME/.pi/agent/skills/design"
 assert_link "$TMP_HOME/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/scopes/shared/skills/frontend-css-ui-ux"
 assert_link "$TMP_HOME/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/scopes/shared/skills/css-layout-primitives"
 assert_link "$TMP_HOME/.claude/skills/css-only-components" "$ROOT_DIR/claude/scopes/shared/skills/css-only-components"
@@ -143,6 +154,17 @@ assert_not_exists "$TMP_HOME/.claude/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.agents/skills/adonisjs-suite"
 
+mkdir -p "$TMP_HOME/.grok/bin"
+printf 'grok-bin\n' > "$TMP_HOME/.grok/bin/grok-macos"
+ln -s grok-macos "$TMP_HOME/.grok/bin/grok"
+ln -s grok-macos "$TMP_HOME/.grok/bin/agent"
+HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
+assert_not_exists "$TMP_HOME/.grok/bin/agent"
+if [ ! -L "$TMP_HOME/.grok/bin/grok" ]; then
+  printf 'expected ~/.grok/bin/grok to remain after removing colliding agent\n' >&2
+  exit 1
+fi
+
 mkdir -p "$TMP_HOME/.pi/extensions"
 printf 'legacy extension\n' > "$TMP_HOME/.pi/extensions/legacy.txt"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
@@ -173,6 +195,7 @@ mkdir -p "$FAKE_REPO/scripts/lib" "$FAKE_HOME"
 cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
 cp "$ROOT_DIR/scripts/lib/etabli-scope.sh" "$FAKE_REPO/scripts/lib/etabli-scope.sh"
+cp "$ROOT_DIR/scripts/lib/prefer-cursor-agent.sh" "$FAKE_REPO/scripts/lib/prefer-cursor-agent.sh"
 chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then

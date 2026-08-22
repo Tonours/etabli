@@ -438,6 +438,12 @@ V2_RESULT="$("$PROGRAM_STATE" --manifest "$TMP_DIR/v2-valid/manifest.json" --eve
 jq -e '.replay_complete == true and .counts.verified == 2 and .ready_units == []' <<<"$V2_RESULT" >/dev/null
 V2_INIT_RESULT="$("$PROGRAM_STATE" --manifest "$TMP_DIR/v2-init/manifest.json" --events "$TMP_DIR/v2-init/events.jsonl" --root "$TMP_DIR/v2-init")"
 jq -e '.replay_complete == false and .ready_units == ["pilot"]' <<<"$V2_INIT_RESULT" >/dev/null
+{
+  printf '%s\n' '{"schema_version":1,"ts":"2026-01-01T00:00:00Z","event":"route_decided","run":"v2-init","detail":{"route":"plan-implement","reason":"legacy sibling"},"extra":"ignored"}'
+  cat "$TMP_DIR/v2-init/events.jsonl"
+} >"$TMP_DIR/v2-init/events-mixed.jsonl"
+MIXED_RESULT="$("$PROGRAM_STATE" --manifest "$TMP_DIR/v2-init/manifest.json" --events "$TMP_DIR/v2-init/events-mixed.jsonl" --root "$TMP_DIR/v2-init")"
+jq -e '.replay_complete == false and .ready_units == ["pilot"]' <<<"$MIXED_RESULT" >/dev/null
 ARGV_RESULT="$("$PROGRAM_STATE" --manifest "$TMP_DIR/argv-repeat/manifest.json" --events "$TMP_DIR/argv-repeat/events.jsonl" --root "$TMP_DIR/argv-repeat")"
 jq -e '.replay_valid == true and .ready_units == ["unit-a"]' <<<"$ARGV_RESULT" >/dev/null
 CAPACITY_RESULT="$("$PROGRAM_STATE" --manifest "$TMP_DIR/ready-capacity/manifest.json" --events "$TMP_DIR/ready-capacity/events.jsonl" --root "$TMP_DIR/ready-capacity")"
@@ -514,6 +520,27 @@ INIT_DETAIL="$(init_detail "$INIT_ID")"
   printf 'idempotent program append duplicated an event\n' >&2
   exit 1
 }
+
+MEASURE_ROOT="$TMP_DIR/measure-program"
+mkdir -p "$MEASURE_ROOT/target-a"
+target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
+printf '%s\n' "$target_line" >"$MEASURE_ROOT/target-a/events.jsonl"
+target_ledger_sha="$(shasum -a 256 "$MEASURE_ROOT/target-a/events.jsonl" | awk '{print $1}')"
+target_terminal_sha="$(printf '%s' "$target_line" | shasum -a 256 | awk '{print $1}')"
+measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
+manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
+population_id="terminal-runs-v1-${manifest_sha:0:16}"
+measurement_population="$(jq -nc --arg population "$population_id" --arg manifest "$manifest_sha" --argjson targets "$measurement_targets" '{population_id:$population,manifest_sha256:$manifest,terminal_runs:1,targets:$targets}')"
+measurement_import="$(jq -nc --arg population "$population_id" --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '{population_id:$population,import_id:"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,source_adapter:"codex",source_scope:"primary_session_window",selection:"shortest_enclosing_primary_session",session_fingerprint:"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",window_started_at:"2026-07-01T00:00:00Z",window_ended_at:"2026-07-01T00:02:00Z",sample_started_at:"2026-07-01T00:00:00.000Z",sample_ended_at:"2026-07-01T00:02:30.000Z",sample_count:2,success:true,input_tokens:100,output_tokens:20,total_tokens:120,tool_calls:1,elapsed_ms:150000}')"
+"$WORKFLOW_EVENT" --dir "$MEASURE_ROOT" append measured-program outcome_measurement_population "$measurement_population"
+"$WORKFLOW_EVENT" --dir "$MEASURE_ROOT" append measured-program outcome_measurement_imported "$measurement_import"
+MEASURE_INIT="$(init_detail "$(event_id measure-init)")"
+"$WORKFLOW_EVENT" --dir "$MEASURE_ROOT" append measured-program program_initialized "$MEASURE_INIT"
+printf '\n' >>"$MEASURE_ROOT/target-a/events.jsonl"
+if "$WORKFLOW_EVENT" --dir "$MEASURE_ROOT" append measured-program program_unit_started "$(start_detail "$(event_id measure-start)" unit-a)" >/dev/null 2>&1; then
+  printf 'program cache skipped measurement integrity after a pinned target drifted\n' >&2
+  exit 1
+fi
 COLLISION_DETAIL="$(jq '.runtime_capability = "blocked"' <<<"$INIT_DETAIL")"
 if "$WORKFLOW_EVENT" --dir "$WRITER_ROOT" append writer program_initialized "$COLLISION_DETAIL" >/dev/null 2>&1; then
   printf 'writer accepted a conflicting program event_id\n' >&2
