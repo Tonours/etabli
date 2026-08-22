@@ -98,13 +98,13 @@ harness_path_allowed() {
   local pat
   for pat in "$@"; do
     case "$pat" in
-      */)
-        [ "$path" = "${pat%/}" ] && return 0
-        [[ "$path" == "${pat}"* ]] && return 0
-        ;;
-      *)
-        [ "$path" = "$pat" ] && return 0
-        ;;
+    */)
+      [ "$path" = "${pat%/}" ] && return 0
+      [[ "$path" == "${pat}"* ]] && return 0
+      ;;
+    *)
+      [ "$path" = "$pat" ] && return 0
+      ;;
     esac
   done
   return 1
@@ -151,9 +151,20 @@ harness_cursor_sentinel_hit() {
 }
 
 harness_model_mismatch_hit() {
-  grep -Fq 'Warning: No models match pattern' "$1" \
-    || grep -Fq 'unknown effort level' "$1" \
-    || grep -Eiq 'unknown thinking|invalid thinking' "$1"
+  local transcript="$1"
+  local requested="${2:-}"
+  grep -Fq 'unknown effort level' "$transcript" && return 0
+  grep -Eiq 'unknown thinking|invalid thinking' "$transcript" && return 0
+  if grep -Fq 'Warning: No models match pattern' "$transcript"; then
+    if [ -n "$requested" ] && [ "$requested" != "none" ]; then
+      if grep -F 'Warning: No models match pattern' "$transcript" | grep -Fq -- "$requested"; then
+        return 0
+      fi
+      return 1
+    fi
+    return 0
+  fi
+  return 1
 }
 
 harness_task_ids() {
@@ -182,35 +193,35 @@ harness_print_argv() {
   local prompt="${3:-PROMPT}"
 
   case "$runner" in
-    pi)
-      printf '%s\n' \
-        pi \
-        -p \
-        --no-session \
-        --approve \
-        --model \
-        "$HARNESS_PI_MODEL" \
-        --thinking \
-        "$HARNESS_PI_THINKING" \
-        "$prompt"
-      ;;
-    grok)
-      printf '%s\n' \
-        grok \
-        --cwd \
-        "$cwd" \
-        -m \
-        "$HARNESS_GROK_MODEL" \
-        --reasoning-effort \
-        "$HARNESS_GROK_EFFORT" \
-        --permission-mode \
-        "$HARNESS_GROK_PERMISSION" \
-        -p \
-        "$prompt"
-      ;;
-    *)
-      harness_die "unknown runner: $runner"
-      ;;
+  pi)
+    printf '%s\n' \
+      pi \
+      -p \
+      --no-session \
+      --approve \
+      --model \
+      "$HARNESS_PI_MODEL" \
+      --thinking \
+      "$HARNESS_PI_THINKING" \
+      "$prompt"
+    ;;
+  grok)
+    printf '%s\n' \
+      grok \
+      --cwd \
+      "$cwd" \
+      -m \
+      "$HARNESS_GROK_MODEL" \
+      --reasoning-effort \
+      "$HARNESS_GROK_EFFORT" \
+      --permission-mode \
+      "$HARNESS_GROK_PERMISSION" \
+      -p \
+      "$prompt"
+    ;;
+  *)
+    harness_die "unknown runner: $runner"
+    ;;
   esac
 }
 
@@ -283,7 +294,7 @@ harness_grade() {
     return 0
   fi
 
-  if [ "$runner" != "offline" ] && harness_model_mismatch_hit "$transcript"; then
+  if [ "$runner" != "offline" ] && harness_model_mismatch_hit "$transcript" "$model_requested"; then
     harness_json_row "$task_id" "$split" "$runner" "$model_requested" "$model_effective" \
       "$thinking_requested" "$thinking_effective" "$started" 0 "$runner_exit" 1 false \
       "$transcript" "$manifest_sha" "$oracle_sha"
@@ -380,6 +391,7 @@ harness_ensure_ignore() {
   touch "$gi"
   grep -qxF '.workflow/' "$gi" || printf '.workflow/\n' >>"$gi"
   grep -qxF 'docs/agent-memory/' "$gi" || printf 'docs/agent-memory/\n' >>"$gi"
+  grep -qxF '.pi/' "$gi" || printf '.pi/\n' >>"$gi"
 }
 
 harness_make_spawn_stubs() {
@@ -408,10 +420,10 @@ harness_resolve_node_shebang_bin() {
     cand="${dir}/${name}"
     [ -x "$cand" ] || continue
     case "$(head -n 1 "$cand")" in
-      *node*)
-        printf '%s\n' "$cand"
-        return 0
-        ;;
+    *node*)
+      printf '%s\n' "$cand"
+      return 0
+      ;;
     esac
   done
   IFS="$oldifs"
@@ -450,42 +462,42 @@ harness_run_once() {
   started="$(harness_iso_now)"
   t0=$SECONDS
   case "$runner" in
-    pi)
-      model_req="$HARNESS_PI_MODEL"
-      think_req="$HARNESS_PI_THINKING"
-      if [ "$hide" = "true" ]; then
-        stub="$out_dir/stub-bin"
-        harness_make_spawn_stubs "$stub"
-        run_path="$stub:/usr/bin:/bin"
-        abs_bin="$(harness_resolve_node_shebang_bin pi)" \
-          || harness_die "pi with a node shebang not on PATH (refuse PATH-mutating wrappers for hide_spawn tasks)"
-      else
-        abs_bin="$(harness_resolve_bin pi)" || harness_die "pi not on PATH"
-      fi
-      harness_collect_argv pi "$worktree" "$prompt" "$abs_bin"
-      set +e
-      (
-        cd "$worktree"
-        PATH="$run_path" PI_SKIP_VERSION_CHECK=1 harness_run_bounded "$HARNESS_TIMEOUT_DEFAULT" \
-          "${HARNESS_ARGV[@]}"
-      ) >"$transcript" 2>&1
-      status=$?
-      set -e
-      ;;
-    grok)
-      model_req="$HARNESS_GROK_MODEL"
-      think_req="$HARNESS_GROK_EFFORT"
-      abs_bin="$(harness_resolve_bin grok)" || harness_die "grok not on PATH"
-      harness_collect_argv grok "$worktree" "$prompt" "$abs_bin"
-      set +e
-      PATH="$run_path" harness_run_bounded "$HARNESS_TIMEOUT_DEFAULT" \
-        "${HARNESS_ARGV[@]}" >"$transcript" 2>&1
-      status=$?
-      set -e
-      ;;
-    *)
-      harness_die "unknown runner: $runner"
-      ;;
+  pi)
+    model_req="$HARNESS_PI_MODEL"
+    think_req="$HARNESS_PI_THINKING"
+    if [ "$hide" = "true" ]; then
+      stub="$out_dir/stub-bin"
+      harness_make_spawn_stubs "$stub"
+      run_path="$stub:/usr/bin:/bin"
+      abs_bin="$(harness_resolve_node_shebang_bin pi)" ||
+        harness_die "pi with a node shebang not on PATH (refuse PATH-mutating wrappers for hide_spawn tasks)"
+    else
+      abs_bin="$(harness_resolve_bin pi)" || harness_die "pi not on PATH"
+    fi
+    harness_collect_argv pi "$worktree" "$prompt" "$abs_bin"
+    set +e
+    (
+      cd "$worktree"
+      PATH="$run_path" PI_SKIP_VERSION_CHECK=1 harness_run_bounded "$HARNESS_TIMEOUT_DEFAULT" \
+        "${HARNESS_ARGV[@]}"
+    ) >"$transcript" 2>&1
+    status=$?
+    set -e
+    ;;
+  grok)
+    model_req="$HARNESS_GROK_MODEL"
+    think_req="$HARNESS_GROK_EFFORT"
+    abs_bin="$(harness_resolve_bin grok)" || harness_die "grok not on PATH"
+    harness_collect_argv grok "$worktree" "$prompt" "$abs_bin"
+    set +e
+    PATH="$run_path" harness_run_bounded "$HARNESS_TIMEOUT_DEFAULT" \
+      "${HARNESS_ARGV[@]}" >"$transcript" 2>&1
+    status=$?
+    set -e
+    ;;
+  *)
+    harness_die "unknown runner: $runner"
+    ;;
   esac
 
   model_eff="$(harness_effective_from_transcript "$transcript" "$model_req" "hunter_model")"
