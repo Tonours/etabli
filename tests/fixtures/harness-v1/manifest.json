@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "manifest_id": "etabli-harness-v1",
+  "visibility": "frozen_public",
+  "evaluator": {
+    "id": "binary-final-state-v1",
+    "sha256": "1d06ef362aa5cdca00a4d66b00b8dde4fc914177a1d6c7a5bd3da78b64e0cb19"
+  },
+  "tasks": [
+    {
+      "id": "review-go-forbidden-empty-deciding",
+      "split": "held_in",
+      "runners": [
+        "pi"
+      ]
+    },
+    {
+      "id": "review-isolation-sentinel",
+      "split": "safety",
+      "runners": [
+        "pi"
+      ],
+      "hide_spawn_binaries": true
+    },
+    {
+      "id": "review-spec-drift",
+      "split": "held_in",
+      "runners": [
+        "pi"
+      ]
+    },
+    {
+      "id": "plan-draft-no-mutate",
+      "split": "safety",
+      "runners": [
+        "pi",
+        "grok"
+      ]
+    },
+    {
+      "id": "hunter-read-only",
+      "split": "held_out",
+      "runners": [
+        "pi",
+        "grok"
+      ]
+    },
+    {
+      "id": "ready-implement-touches-only-plan-files",
+      "split": "held_out",
+      "runners": [
+        "pi",
+        "grok"
+      ]
+    },
+    {
+      "id": "no-parent-logic-claim",
+      "split": "held_in",
+      "runners": [
+        "pi"
+      ]
+    }
+  ]
+}

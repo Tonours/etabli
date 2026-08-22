@@ -145,6 +145,7 @@ run `research-proof-check`; cross-project notes live in
 tooling: `workflow-retrospect` (read-only; telemetry stays non-core until
 **at least 10 representative** real tasks have task-grader outcomes),
 `scripts/conversation-retrospect`, `scripts/skill-eval`,
+`scripts/etabli-harness-eval`, `docs/harness-eval.md`,
 `scripts/runtime-skill-canary`, `scripts/session-handoff`, and
 `scripts/pr-latest-head-status` for latest-head PR evidence.
 

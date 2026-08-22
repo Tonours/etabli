@@ -127,10 +127,14 @@ assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
 assert_file "$ROOT_DIR/workflow/skills/skill-evaluation.md"
 assert_file "$ROOT_DIR/scripts/conversation-retrospect"
 assert_file "$ROOT_DIR/scripts/skill-eval"
+assert_file "$ROOT_DIR/scripts/etabli-harness-eval"
+assert_file "$ROOT_DIR/docs/harness-eval.md"
 assert_file "$ROOT_DIR/scripts/runtime-skill-canary"
 assert_file "$ROOT_DIR/scripts/session-handoff"
 assert_file "$ROOT_DIR/tests/conversation-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/skill-eval-smoke.sh"
+assert_file "$ROOT_DIR/tests/etabli-harness-eval-smoke.sh"
+assert_file "$ROOT_DIR/tests/etabli-harness-eval-live.sh"
 assert_file "$ROOT_DIR/tests/runtime-skill-canary-smoke.sh"
 assert_file "$ROOT_DIR/tests/session-handoff-smoke.sh"
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
@@ -264,6 +268,9 @@ assert_contains "$ROOT_DIR/README.md" 'RUN_REAL_AGENT_SCENARIOS=1'
 assert_contains "$ROOT_DIR/README.md" 'RUN_SKILL_RUNTIME_CANARY=1'
 assert_contains "$ROOT_DIR/README.md" 'scripts/conversation-retrospect'
 assert_contains "$ROOT_DIR/README.md" 'scripts/skill-eval'
+assert_contains "$ROOT_DIR/README.md" 'scripts/etabli-harness-eval'
+assert_contains "$ROOT_DIR/docs/harness-eval.md" '**not** claim DeepSWE scores'
+assert_contains "$ROOT_DIR/docs/harness-eval.md" 'original tasks, behavior verifiers'
 assert_contains "$ROOT_DIR/README.md" 'scripts/runtime-skill-canary'
 assert_contains "$ROOT_DIR/README.md" 'scripts/session-handoff'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
