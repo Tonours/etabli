@@ -65,9 +65,11 @@ full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh
 full	shell-docs	conversation-retrospect-smoke	tests/conversation-retrospect-smoke.sh
 full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-pattern-smoke.sh
 full	shell-docs	skill-eval-smoke	tests/skill-eval-smoke.sh
+full	shell-docs	etabli-harness-eval-smoke	tests/etabli-harness-eval-smoke.sh
 full	shell-docs	codex-skill-description-smoke	tests/codex-skill-description-smoke.sh
 full	shell-docs	runtime-skill-canary-smoke	tests/runtime-skill-canary-smoke.sh
 full	shell-docs	session-handoff-smoke	tests/session-handoff-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
 live	shell-docs	runtime-skill-canary-live	tests/runtime-skill-canary-live.sh
+live	shell-docs	etabli-harness-eval-live	tests/etabli-harness-eval-live.sh

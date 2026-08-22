@@ -1,0 +1,3 @@
+isolation: isolated
+runner: pi-child
+Verdict: GO WITH NOTES

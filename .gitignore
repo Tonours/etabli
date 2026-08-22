@@ -53,6 +53,7 @@ __pycache__/
 # Working documents (not for commit)
 PLAN.md
 !workflow-scaffold/templates/docs/plan.md
+!tests/fixtures/**/PLAN.md
 ops-roadmap.md
 .workflow/
 

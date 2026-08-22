@@ -112,6 +112,7 @@ claim-evidence-check-smoke
 conversation-retrospect-smoke
 recurring-run-goal-pattern-smoke
 skill-eval-smoke
+etabli-harness-eval-smoke
 codex-skill-description-smoke
 runtime-skill-canary-smoke
 session-handoff-smoke'
@@ -120,7 +121,8 @@ actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 
 expected_live='workflow-cli-smoke
 workflow-real-agent-scenarios
-runtime-skill-canary-live'
+runtime-skill-canary-live
+etabli-harness-eval-live'
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
 
