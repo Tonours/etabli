@@ -19,13 +19,13 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 3. Run the full autonomous chain from
    `workflow/skills/implementation-loop.md`: understand, plan-loop, plan
    adversary, implement with tests, plan checks, simplification pass, quality
-   pass, break-first + plan-fit review, code-diff adversary, archive, root
+   pass, Logic+Spec lead review, code-diff adversary, archive, root
    `PLAN.md` cleanup.
    During implementation, make a checkpoint commit on the ship branch after
    each coherent slice whose focused checks pass — never staging `PLAN*.md`.
    Checkpoints are revert points on a squash-mergeable branch, not release
    history.
-4. **Cumulative review gate:** before push, ensure a break-first review ran on
+4. **Cumulative review gate:** before push, ensure a Logic+Spec lead review ran on
    `git diff <base>...HEAD` (merge-base with the PR base). Per-slice reviews do
    not satisfy this. Record `cumulative_review: <base>...HEAD @ <sha>`.
 5. Pre-commit pass on the cumulative branch diff, which the loop's per-slice
@@ -46,7 +46,7 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 9. CI: follow the `ci-fix` contract (existing attempt and time caps) until
    checks are green, blocked, or capped.
 10. After CI-driven commits that touch runtime code: **delta re-review**
-    (break-first on the new diff only). Record `delta_rereview: yes|no|n/a`.
+    (Logic hunter on the new diff only). Record `delta_rereview: yes|no|n/a`.
 11. If reviewer or bot feedback already exists on the PR when CI settles,
     report it; treating it is a separate explicit request. Defects found
     **after** an internal GO (Macroscope, colleague, CI, prod) must be recorded

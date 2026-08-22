@@ -505,6 +505,35 @@ assert_contains_wrapped "$INSTALL_MAIN" 'for skill_name in "${CROSS_HARNESS_PI_S
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Never use `OK`, `APPROVED`, `PASS`'
 assert_not_contains "$ROOT_DIR/workflow/review-rubric.md" 'write exactly'
+assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Dismissed: none'
+assert_contains "$ROOT_DIR/workflow/review-rubric.md" '## Intent'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'Logic hunter'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'Spec hunter'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" '--no-session'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" '--no-skills'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'HUNTER_TIMEOUT'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'claude-opus-5-thinking-high'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'spec: parent'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'isolation: none'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" '@<patchfile>'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" 'same runner and model'
+assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'hunter_model:'
+assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'HUNTER_TIMEOUT'
+assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'spec: parent'
+assert_file "$ROOT_DIR/workflow/templates/review-logic-hunter.md"
+assert_file "$ROOT_DIR/workflow/templates/review-spec-hunter.md"
+assert_file "$ROOT_DIR/workflow/templates/review-lead.md"
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Agent'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/pr-review.md" 'Agent'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/github-pr-review.md" 'Agent'
+assert_not_contains "$ROOT_DIR/workflow/skills/review.md" 'No free second bug-hunt'
+assert_not_contains "$ROOT_DIR/workflow/skills/pr-review.md" 'No free second bug-hunt'
+assert_not_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Break-first then plan-fit'
+if [ -f "$ROOT_DIR/claude/scopes/shared/agents/spec-reviewer.md" ]; then
+    printf 'unexpected %s\nRemediation: keep reviewer scout worker only; dispatch two briefs on reviewer.\n' \
+        "$ROOT_DIR/claude/scopes/shared/agents/spec-reviewer.md" >&2
+    exit 1
+fi
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'Verdict: GO'
 assert_not_contains "$ROOT_DIR/pi/skills/review/SKILL.md" 'claude/review-rubric.md'

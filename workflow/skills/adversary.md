@@ -48,7 +48,7 @@ final handoff names:
 ## Code diff mode
 
 The same adversarial gate applies to the implementation diff, not only the
-plan. After the fresh-context review (break-first + plan-fit):
+plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
 
 1. Input: the implementation diff against the branch base (`git diff <base>...HEAD`
    when shipping), plus the active `PLAN.md` (or acceptance criteria if archived).

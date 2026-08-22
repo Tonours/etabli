@@ -13,10 +13,22 @@ If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, t
 
 ## Procedure
 
-1. **Break-first** — do not open `PLAN.md`; fill lens + deciding-code tables.
-2. **Plan-fit** — if `PLAN.md` is in play, open it only after pass 1.
-3. Load `code-quality` when exposed. Otherwise use the narrowest exposed domain
-   skill or the shared contract's local-sibling fallback.
+1. Pin the patch once to a non-empty temp file; write Intent.
+2. Dispatch the Logic hunter with `scripts/pi-review-hunter` when present,
+   else `pi --mode text -p --no-session --no-skills --no-extensions
+   --no-context-files --tools read,grep --append-system-prompt
+   workflow/templates/review-logic-hunter.md @<patchfile>`. The prompt file
+   is the hunter template plus `Axis: Logic`, Intent, and
+   `Standards: yes|none`. Timeout 600s
+   (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn/nonzero → `HUNTER_SPAWN_UNAVAILABLE`.
+   Timeout → `HUNTER_TIMEOUT`. Either sentinel is a hard stop. Record
+   `hunter_model:` (or `hunter_model: default` when `--model` is omitted).
+   Do not hunt Logic in the parent.
+3. After Logic returns, run Spec in the parent (`spec: parent`), or
+   `spec: n/a`.
+4. Standards via `code-quality` when the diff has language/UI surface.
+5. Lead filter. `isolation: isolated` only if the Logic child ran.
+   `GO` forbidden if `isolation: none`.
 
 ## Rules
 

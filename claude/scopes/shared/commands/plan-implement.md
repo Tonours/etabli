@@ -54,8 +54,9 @@ flow — never stop between phases to ask "continue?":
    pure docs or plan-only changes, and say so.
 7. Product dogfood when the plan requires it or the change is a user-facing
    product-flow (`workflow/skills/product-dogfood.md`).
-8. Fresh-context review: dispatch a read-only reviewer subagent on the diff
-   (per `workflow/spec.md`); fold blockers, rerun checks if edits were needed.
+8. Fresh-context review: pin the diff once, then dispatch the `reviewer` agent
+   twice (Logic hunter template, Spec hunter template; parallel when the runtime
+   can) per `workflow/skills/review.md`; fold blockers, rerun checks if needed.
 9. Code-diff adversary: run the adversary Code diff mode cross-model on the
    implementation diff; in an autonomous run without a cross-model runner,
    stop as `blocked`.

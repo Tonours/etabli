@@ -79,7 +79,7 @@ Full table: `workflow/spec.md` § Routing rules.
 
 ## Review effectiveness
 
-- Break-first then plan-fit; **deciding-code table** mandatory for runtime diffs.
+- Logic hunter then Spec hunter; **deciding-code table** mandatory for runtime diffs.
 - `GO` forbidden if deciding-code is empty/`not run` on a runtime row.
 - Code-diff adversary: **cross-model** or documented **double-sample**.
 - Escaped defect post-GO → `workflow/templates/escaped-defect.md` + metrics row.

@@ -17,7 +17,7 @@ Read and follow `workflow/skills/adversary.md` (plan mode **and** code-diff mode
 
 Rules:
 - `PLAN.md` remains the only active execution artifact in plan mode.
-- Code-diff mode runs after break-first + plan-fit review; independence gate is
+- Code-diff mode runs after Logic+Spec lead review; independence gate is
   **cross-model default**, or documented **double-sample**. A single same-family
   pass is `blocked` (full autonomy).
 - Name `adversary_model` (or `same-family-pass: double-sample` + run ids).

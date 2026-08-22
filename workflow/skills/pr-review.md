@@ -4,7 +4,7 @@ Shared contract for reviewing GitHub pull requests through `gh`.
 
 Runtime adapters may add tool syntax or source-resolution details. They must not
 change the read-only default, human-in-the-loop posting rule, finding format,
-verdict labels, deciding-code gate, or two-pass order.
+verdict labels, deciding-code gate, or hunt/filter split.
 
 ## Purpose
 
@@ -48,13 +48,11 @@ Use `workflow/review-rubric.md` when available. Same gates as
 `workflow/skills/review.md` — the PR surface must not be weaker than local
 review.
 
-### Two passes
-
-1. **Break-first** — do not treat the PR body or any plan as the authority for
-   correctness. Hunt what breaks. Fill the lens table and deciding-code table.
-2. **Plan-fit / intent-fit** — only after pass 1. Compare to PR intent (and
-   `PLAN.md` if present on the branch). Scope, checks, drift against pass-1
-   findings. No free second bug-hunt.
+Parent pins `gh pr diff` once during Phase 1. Hunters receive that patch and
+do not re-run `gh pr diff`. Then dispatch Logic hunter and Spec hunter per
+`workflow/skills/review.md` (Pi child argv, Cursor Opus 5 high, isolation/GO).
+Intent from the PR body; Spec uses PR intent and `PLAN.md` when present. If
+the PR body is empty and there is no `PLAN.md`, Spec is `spec: n/a`.
 
 ### Domain practice
 
@@ -105,11 +103,13 @@ If no actionable issue exists, output exactly `No findings.` as the only
 finding.
 
 Then the **lens table** and **deciding-code table** from the rubric
-(mandatory). Every lens row needs a concrete opened `file:line` or is
-`not run`. One deciding-code row per runtime behavior touched.
+(mandatory on the Logic hunter). Every lens row needs a concrete opened
+`file:line` or is `not run` (Convention may be `deferred: Standards hunter`).
+One deciding-code row per runtime behavior touched.
 
 `GO` is forbidden when any non-trivial runtime deciding-code row is empty or
-`not run`. `GO WITH NOTES` is not a workaround for that gate.
+`not run`, or when `isolation: none`. `GO WITH NOTES` is not a workaround for
+those gates.
 
 End with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`.
 

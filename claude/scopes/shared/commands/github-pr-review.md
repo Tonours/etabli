@@ -1,7 +1,7 @@
 ---
 description: Compatibility alias for /pr-review
 argument-hint: [PR URL/number/repo alias]
-allowed-tools: [Read, Glob, Grep, AskUserQuestion]
+allowed-tools: [Read, Glob, Grep, AskUserQuestion, Agent]
 ---
 
 # GitHub PR Review
