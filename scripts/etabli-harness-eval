@@ -124,6 +124,7 @@ case "$cmd" in
       mkdir -p "$results_dir"
     fi
     printf 'etabli-harness-eval: keeping cells in %s\n' "$results_dir" >&2
+    red_cells=0
     for r in "${runners[@]}"; do
       harness_resolve_bin "$r" >/dev/null || harness_die "$r not on PATH"
     done

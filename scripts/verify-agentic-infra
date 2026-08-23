@@ -19,11 +19,16 @@ run_check() {
 }
 
 shell_syntax() {
+  local errors=0
   while IFS= read -r -d '' file; do
     if head -n 1 "$file" | grep -Eq '^#!.*(bash|sh)'; then
-      bash -n "$file" || { printf 'syntax error in %s\n' "$file" >&2; continue; }
+      if ! bash -n "$file"; then
+        printf 'syntax error in %s\n' "$file" >&2
+        errors=1
+      fi
     fi
   done < <(find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -type f -print0)
+  return "$errors"
 }
 
 json_config() {

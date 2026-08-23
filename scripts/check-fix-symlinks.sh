@@ -18,10 +18,13 @@ if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; t
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
   AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
-  # A present-but-degenerate catalog must degrade to the missing-catalog
-  # mode, not crash (or worse, prune with an empty keep-list).
-  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; }; then
-    SKILL_CATALOG_MISSING=1
+  # A present-but-degenerate catalog is corruption, not degradation:
+  # fail loudly. (A genuinely absent catalog keeps the missing-catalog
+  # degraded mode below.)
+  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; } || \
+     [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 0 ] || { [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 1 ] && [ -z "${AGENTS_VISIBLE_SKILLS[0]}" ]; }; then
+    printf 'check-fix-symlinks: skill catalog present but degenerate (empty pi_core or agents_visible); aborting\n' >&2
+    exit 1
   fi
 else
   SKILL_CATALOG_MISSING=1
