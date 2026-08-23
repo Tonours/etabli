@@ -136,6 +136,15 @@ Segment 1 (current): corrected baseline measured for real via
   duplication across implementation-loop (178) / pr-maintenance-loop (131) /
   recurring-run (70) — distinct lifecycles, each coverage-smoke-guarded.
   ideas.md deleted per exhausted-paths rule.
+- **Iteration 6 (run 5, KEEP, deployment completion)**: repo was terminal but
+  the DEPLOYED home surfaces still advertised 33 dangling skill links from
+  the removed vendor packs (11 skills x 3 surfaces) to every agent session.
+  check-fix-symlinks.sh has no prune; full install.sh has unrelated network
+  branches — pruned surgically with the exact prune_stale_managed_skill_links
+  semantics (target under repo roots + missing -> rm). 71->38 dangling
+  (remaining 38 are external ~/.codex/vendor_imports links, outside repo
+  authority). Repo metric unchanged by design — value is deployed-surface
+  state, deliberately NOT folded into the benchmark.
 
 ## Final summary
 
