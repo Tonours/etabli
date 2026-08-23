@@ -86,7 +86,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - Experimental read-only: `workflow-retrospect` (not core gate; ≥10 task-grader
-  outcomes before claiming telemetry value).
+  outcomes before claiming telemetry value). Skill evaluation:
+  `workflow/skills/skill-evaluation.md`.
 - Self-improvement: `workflow/skills/self-improvement-loop.md`. Ambitious
   projects: `workflow/skills/ambitious-project-loop.md`. Opt-in autonomy:
   `workflow/project-autonomy-envelope.md`.

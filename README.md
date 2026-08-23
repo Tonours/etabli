@@ -42,7 +42,6 @@ terminal diff tooling may install `hunkdiff` (<https://www.hunk.dev/>) for use
 | `workflow/` | Canonical contract (`spec.md`, skills, loops) |
 | `workflow/agent-quick-card.md` | One-page agent entry |
 | `workflow/contract-details.md` | Long rules and command lists |
-| `docs/workflow-guide.md` | Human guide with schemas (routes, PLAN, loops) |
 | `pi/`, `claude/` | Runtime adapters |
 | `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
@@ -78,8 +77,7 @@ Long-running loops have their own contracts — self-improvement
 (`workflow/skills/self-improvement-loop.md`), ambitious project
 (`workflow/skills/ambitious-project-loop.md`), PR maintenance
 (`workflow/skills/pr-maintenance-loop.md`), ship, investigation, programs —
-and so does the knowledge vault: walkthrough in
-**[docs/how-it-works.md](docs/how-it-works.md)**.
+and so does the knowledge vault.
 
 ## Using it
 
@@ -104,81 +102,11 @@ Also shared: `/spec-guide` and the `/linear-*` commands. Scoped surfaces
 depend on `~/.etabli-scope` — run `ls ~/.claude/commands` for what this machine
 actually has.
 
-## Benchmark posture: 
-
-Etabli is measured against ****, the Cursor agent plugin suite pinned at
-0.14.1: its 23 public playbook scenarios are frozen as a benchmark population
-(`workflow///`, structural coverage only — live prompts, fixtures,
-and graders stay out of this repo).
-
-- **Structural run — verified**: 23/23 scenarios route and pass ownership
-  checks with the default surface, zero skills added.
-- **Distillation source**: 's reply shapes and hillclimb stopping rule
-  were distilled into `workflow/answer-quality.md`; its skill catalog, prose,
-  and file layout were deliberately not copied.
-- **Live comparison — abandoned, not claimed**: the dominance protocol
-  (138 gated live runs) was shelved on 2026-08-23 (user decision after the
-  direction council): it is not executable at frontier prices, and the
-  comparison that matters is etabli(t) vs etabli(t-1) on its own frozen
-  tasks. The ingest gate spec stays (`scripts/-suite --ingest-live`)
-  in case a new event reopens it; the structural pin (23/23) is retained.
-
-Details and result files: [docs/how-it-works.md](docs/how-it-works.md#benchmark-posture-).
-
-## Validation
-
-```bash
-scripts/verify-agentic-infra core   # daily health and safety gate
-scripts/verify-agentic-infra full   # every deterministic repository check
-scripts/-suite --json          # held-out /  host suite
-```
-
-`live` is separate and never reports a skipped run as success:
-
-```bash
-RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1 RUN_SKILL_RUNTIME_CANARY=1 \
-  scripts/verify-agentic-infra live
-```
-
-Answer quality is a contract too (`workflow/answer-quality.md`): durable
-artifacts run `answer-quality-check` / `answer-quality-eval`, research claims
-run `research-proof-check`; cross-project notes live in
-`docs/cross-project-research-grounding.md`. Diagnostics and evaluation
-tooling: `workflow-retrospect` (read-only; telemetry stays non-core until
-**at least 10 representative** real tasks have task-grader outcomes),
-`scripts/conversation-retrospect`, `scripts/skill-eval`,
-`scripts/etabli-harness-eval`, `docs/harness-eval.md`,
-`scripts/runtime-skill-canary`, `scripts/session-handoff`, and
-`scripts/pr-latest-head-status` for latest-head PR evidence.
-
-## Deployment
-
-```bash
-scripts/deploy-agent-workflow --dry-run
-scaffold-project ~/code/my-project --new
-deploy-workflow . --check
-```
-
-Use `--apply` only when the local deployment mutation is intended.
-`deploy-agent-workflow` aligns Claude, Pi, the skill-only Codex surface, and
-Grok's shared `~/.agents` surface. It activates `shared` plus the machine
-scope from `~/.etabli-scope` (`work` on the current workstation), and
-conservatively syncs **managed Pi package/model entries**. Runtime auth, MCP
-configuration, plugins, histories, and private settings stay local.
-`scaffold-project` never overwrites existing files by default.
-
-`pi/agent/settings.json` is a tracked bootstrap; the live copy can stay local.
-Secrets and authentication files stay local and untracked (`SECURITY.md`).
-
-After clone, point optional local MLX model ids in `pi/models.json` at your
-weights path (tracked default is a `/path/to/models/...` placeholder).
-
 ## Where to go next
 
-1. `docs/how-it-works.md` — mechanisms, `/plan-implement` walkthrough, loops,
-   benchmark posture
-2. `docs/workflow-guide.md` — schemas for routes, PLAN lifecycle, guards
-3. `workflow/agent-quick-card.md` — agent one-pager
-4. `workflow/spec.md` — full contract (wins on conflict)
+1. `workflow/agent-quick-card.md` — agent one-pager
+2. `workflow/spec.md` — full contract (wins on conflict)
+3. `docs/harness-eval.md` — behavioral eval suite
+4. `docs/mcp-strategy.md` — MCP inventory and scope
 5. `nvim/README.md` — code-first editor map
 6. `docs/adr/` — decision log
