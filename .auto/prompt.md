@@ -172,6 +172,18 @@ Segment 1 (current): corrected baseline measured for real via
   with the script's banner instead of a stack trace. Zero surface cost —
   pi/scripts/ is outside the metric. The gap this closes is now a smoke-
   enforced invariant, not a YAGNI note.
+- **Iteration 10 (run 9, audit-only, clean bill)**: deployed-state integrity
+  audit vs catalog+scope under `work` scope. ALL expectations met: 14/14
+  piCore on ~/.pi, 14/14 agents_visible on ~/.agents (incl canary), work-
+  scope correctly deployed. Every live link classified — repo-managed correct;
+  user externals deliberate (standalone clones adonisjs/tanstack bridged
+  onto surfaces, skills.disabled archive, real-dir shared surface).
+  Honest correction to iteration 1: tanstack skills ARE consumed daily, via
+  the user's clone — never via the deleted vendored snapshot (zero deployed
+  links pointed at vendor paths); deletion rationale holds. Deliverable:
+  `.auto/deployed-inventory.md` — user decision packet (38 dangling
+  externals, 12 personal-scope-under-work links). No repo-authority
+  violations; nothing pruned autonomously.
 
 ## Final summary
 
