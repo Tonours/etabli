@@ -111,7 +111,7 @@ harness_path_allowed() {
 }
 
 harness_porcelain_paths() {
-  git -C "$WORKTREE" status --porcelain | awk '{
+  git -C "$WORKTREE" status --porcelain -uall | awk '{
     if ($1 == "R" || $1 == "C") {
       print $NF
     } else {
@@ -505,6 +505,17 @@ harness_run_once() {
   duration=$((SECONDS - t0))
   harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
     "$model_req" "$model_eff" "$think_req" "$think_eff" "$status" "$started" "$duration"
+}
+
+harness_null_baseline_once() {
+  local task_id="$1" out_dir="$2"
+  local worktree transcript
+  worktree="$out_dir/worktree"
+  transcript="$out_dir/transcript.txt"
+  mkdir -p "$worktree" "$out_dir"
+  harness_prepare_worktree "$task_id" "$worktree"
+  : >"$transcript"
+  harness_grade "$task_id" "$worktree" "$transcript" "null" none none none none 0 "$(harness_iso_now)" 0
 }
 
 harness_report() {
