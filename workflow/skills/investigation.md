@@ -17,7 +17,9 @@ Use the strongest available evidence and name the ceiling when it is absent:
 Source reading can support a mechanism, but it cannot by itself confirm that
 the mechanism caused an observed runtime symptom. Hash durable artifacts with
 `scripts/evidence-proof` (etabli repo only; scaffolded projects resolve it
-from the etabli checkout); pack integrity and execution provenance are separate.
+from the etabli checkout). `validate` is a gate by default: a non-VERIFIED
+verdict exits non-zero — pass `--no-assert` only for inspection. Pack
+integrity and execution provenance are separate.
 
 ## Sequence
 

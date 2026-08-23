@@ -324,7 +324,7 @@ jq --arg sha "$UI_SHA" --arg accessibility_sha "$UI_ACCESSIBILITY_SHA" --arg con
     }
   ' "$UI_CASE/pack.json" >"$UI_CASE/pack.next"
 mv "$UI_CASE/pack.next" "$UI_CASE/pack.json"
-UI_RESULT="$("$TOOL" validate --pack "$UI_CASE/pack.json" --root "$ROOT_DIR")"
+UI_RESULT="$("$TOOL" validate --pack "$UI_CASE/pack.json" --root "$ROOT_DIR" --no-assert)"
 jq -e '.verdict == "INCONCLUSIVE" and .execution == "proxy_supported"' <<<"$UI_RESULT" >/dev/null
 
 UI_REFERENCE_CASE="$(copy_case ui-reference-in-scope)"
@@ -336,7 +336,7 @@ cp "$UI_CASE/pack.json" "$UI_REFERENCE_CASE/pack.json"
 jq '.ui.reference_in_scope = true | .ui.checks.reference = {status:"passed",evidence:["ui-screenshot"]}' \
   "$UI_REFERENCE_CASE/pack.json" >"$UI_REFERENCE_CASE/pack.next"
 mv "$UI_REFERENCE_CASE/pack.next" "$UI_REFERENCE_CASE/pack.json"
-UI_REFERENCE_RESULT="$("$TOOL" validate --pack "$UI_REFERENCE_CASE/pack.json" --root "$ROOT_DIR")"
+UI_REFERENCE_RESULT="$("$TOOL" validate --pack "$UI_REFERENCE_CASE/pack.json" --root "$ROOT_DIR" --no-assert)"
 jq -e '.verdict == "INCONCLUSIVE" and .execution == "proxy_supported"' <<<"$UI_REFERENCE_RESULT" >/dev/null
 jq '.ui.checks.reference.status = "not_applicable" | .ui.checks.reference.reason = "missing"' \
   "$UI_REFERENCE_CASE/pack.json" >"$UI_REFERENCE_CASE/pack.next"
@@ -384,7 +384,7 @@ SUPPORTED_CASE="$(copy_case investigation-supported)"
 cp "$NO_INTERVENTION_CASE/pack.json" "$SUPPORTED_CASE/pack.json"
 jq '.investigation.verdict = "CAUSE_SUPPORTED"' "$SUPPORTED_CASE/pack.json" >"$SUPPORTED_CASE/pack.next"
 mv "$SUPPORTED_CASE/pack.next" "$SUPPORTED_CASE/pack.json"
-SUPPORTED_RESULT="$("$TOOL" validate --pack "$SUPPORTED_CASE/pack.json" --root "$ROOT_DIR")"
+SUPPORTED_RESULT="$("$TOOL" validate --pack "$SUPPORTED_CASE/pack.json" --root "$ROOT_DIR" --no-assert)"
 jq -e '.verdict == "INCONCLUSIVE" and .investigation_verdict == "CAUSE_SUPPORTED"' <<<"$SUPPORTED_RESULT" >/dev/null
 
 NOT_REPRODUCED_CASE="$(copy_case investigation-not-reproduced)"
@@ -392,7 +392,7 @@ cp "$SUPPORTED_CASE/pack.json" "$NOT_REPRODUCED_CASE/pack.json"
 jq '.investigation.reproduction.status = "not_reproduced" | .investigation.verdict = "NOT_REPRODUCED"' \
   "$NOT_REPRODUCED_CASE/pack.json" >"$NOT_REPRODUCED_CASE/pack.next"
 mv "$NOT_REPRODUCED_CASE/pack.next" "$NOT_REPRODUCED_CASE/pack.json"
-NOT_REPRODUCED_RESULT="$("$TOOL" validate --pack "$NOT_REPRODUCED_CASE/pack.json" --root "$ROOT_DIR")"
+NOT_REPRODUCED_RESULT="$("$TOOL" validate --pack "$NOT_REPRODUCED_CASE/pack.json" --root "$ROOT_DIR" --no-assert)"
 jq -e '.verdict == "NOT_VERIFIED" and .investigation_verdict == "NOT_REPRODUCED"' <<<"$NOT_REPRODUCED_RESULT" >/dev/null
 
 PERF_WORK="$OWNED_ROOT/performance-work"
@@ -462,7 +462,7 @@ INCOMPARABLE_CASE="$CASES_DIR/performance-incomparable"
 cp -R "$PERFORMANCE_CASE" "$INCOMPARABLE_CASE"
 jq '.performance.baseline_environment_sha256 = ("b" * 64)' "$INCOMPARABLE_CASE/pack.json" >"$INCOMPARABLE_CASE/pack.next"
 mv "$INCOMPARABLE_CASE/pack.next" "$INCOMPARABLE_CASE/pack.json"
-INCOMPARABLE_RESULT="$("$TOOL" validate --pack "$INCOMPARABLE_CASE/pack.json" --root "$PERF_WORK")"
+INCOMPARABLE_RESULT="$("$TOOL" validate --pack "$INCOMPARABLE_CASE/pack.json" --root "$PERF_WORK" --no-assert)"
 jq -e '.verdict == "INCONCLUSIVE" and .comparable == false' <<<"$INCOMPARABLE_RESULT" >/dev/null
 
 SHORT_SAMPLE_CASE="$CASES_DIR/performance-too-few-samples"
