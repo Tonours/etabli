@@ -306,17 +306,28 @@ Segment 1 (current): corrected baseline measured for real via
 ### Closure
 
 Every hypothesis class within repo authority is fixed, refuted with
-  evidence, or proven clean. Remaining actions are USER-ONLY decisions (38
-  external dangling links, 12 personal-scope-under-work links — packet in
-  `.auto/deployed-inventory.md`). Continuing would manufacture work.
-  Recommended next step: review + merge `autoresearch/simplify-etabli-20260823`.
+evidence, or proven clean — including the session's own claims (restore
+procedure verified end-to-end, iteration 23) and contracts (git-contract
+self-audit, iteration 18; deliverables pass answer-quality gates,
+iteration 20). Session memory persisted to the obvault distill queue.
+User actions that remain (all gated on explicit authorization):
+1. squash-merge `autoresearch/simplify-etabli-20260823` (verified
+   conflict-free; also resolves the 8 oversized auto-commit subjects);
+2. `obvault distill` — two candidates queued (6dbd726a + da917e14);
+3. the 38 external dangling links + 12 personal-scope links + herdr
+   version check — decision packet `.auto/deployed-inventory.md`;
+4. optionally push a backup ref (branch is local-only until merged).
+Continuing the loop without new facts would manufacture work.
 
 ## Final summary
 
-**All targets exceeded** (segment 2): surface 65 134 → 19 303 (−70.4%, target
-≤ 32 567) · verify_s 41 → 10-17 s (target ≤ 20) · skills_md 373 → 166 (−55%,
-target ≤ 186) · skill_kb 1 696 → 497 KB (−70.7%). Core profile green at every
-keep; full profile 68/68 after iteration 3 fix-ups; extension tests 242/242.
+**All targets exceeded** (segment 2, final state after 24 iterations): surface
+65 134 → 19 283 (−70.4%, target ≤ 32 567) · verify_s 41 → 12-15 s (target
+≤ 20) · skills_md 373 → 166 (−55%, target ≤ 186) · skill_kb 1 696 → 497 KB
+(−70.7%). Core profile green at every keep; full profile 68/68 (live profile
+classified: env-gated real-CLI checks, deliberately not run — see How to Run);
+extension tests 242/242; all three session guards negative-tested LIVE
+(iteration 21), not just green.
 
 **What was cut**: 3 vendor packs (mcollina generic, tanstack undeployed,
 vercel React — all restorable; the verified full procedure lives in
