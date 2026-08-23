@@ -201,6 +201,19 @@ Segment 1 (current): corrected baseline measured for real via
   exits 2 cleanly (negative-tested) + dead existsSync import removed.
   script_lines 8054→8028, surface 19303→19277 (organic, metric unchanged).
   All consumer smokes green (event, ledger-hygiene, autonomy, freeze).
+- **Iteration 13 (run 12, validation + FORMAL CLOSURE)**: full 68/68 profile
+  green on the final tree (first full run since iteration-10 tree —
+  retroactively validates iterations 11-12). CI audit clean (3 manifest-group
+  jobs, SHA-pinned actions, contents:read, zero stale refs to removed
+  surfaces). All unverified items now verified.
+
+### Closure
+
+Every hypothesis class within repo authority is fixed, refuted with
+  evidence, or proven clean. Remaining actions are USER-ONLY decisions (38
+  external dangling links, 12 personal-scope-under-work links — packet in
+  `.auto/deployed-inventory.md`). Continuing would manufacture work.
+  Recommended next step: review + merge `autoresearch/simplify-etabli-20260823`.
 
 ## Final summary
 
