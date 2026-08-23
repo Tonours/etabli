@@ -34,15 +34,13 @@ const skillCatalog = readFileSync(
   .split("\n")
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
-    const [name, source, piCore, agentsVisible, locked, crossHarness] =
-      line.split("\t");
+    const [name, source, piCore, agentsVisible, locked] = line.split("\t");
     return {
       name,
       source,
       piCore: piCore === "1",
       agentsVisible: agentsVisible === "1",
       locked: locked === "1",
-      crossHarness: crossHarness === "1",
     };
   });
 
@@ -139,7 +137,6 @@ describe("Pi settings consistency", () => {
     expect(skillCatalog.find((skill) => skill.name === "code-quality")).toMatchObject({
       piCore: true,
       agentsVisible: false,
-      crossHarness: false,
     });
     expect(keepList).toHaveLength(14);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {

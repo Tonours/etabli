@@ -245,6 +245,24 @@ check_agents_visible_skill_links() {
 check_vendor_skill_links() {
   local skill_name skill_dir active_scopes surface skill_link
 
+  for surface in .claude/skills .codex/skills; do
+    [ -d "$HOME/$surface" ] || continue
+    for skill_link in "$HOME/$surface"/*; do
+      [ -L "$skill_link" ] || continue
+      case "$(readlink "$skill_link")" in
+        "$REPO_DIR/pi/skills/"*)
+          ISSUES=$((ISSUES + 1))
+          status_line WARN "Pi-sourced skill link $(basename "$skill_link") on $surface"
+          if [ "$FIX" -eq 1 ]; then
+            rm -f "$skill_link"
+            FIXED=$((FIXED + 1))
+            status_line FIXED "removed Pi-sourced skill link $(basename "$skill_link") from $surface"
+          fi
+          ;;
+      esac
+    done
+  done
+
   [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
 
   active_scopes="$(deployed_scopes)"
@@ -291,7 +309,7 @@ check_claude_skill_links() {
 }
 
 check_claude_command_links() {
-  local scope scope_root command_file command_name target_name
+  local scope scope_root command_file command_name
 
   for scope in $(deployed_scopes); do
     scope_root="$REPO_DIR/claude/scopes/$scope/commands"

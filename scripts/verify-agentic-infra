@@ -13,7 +13,7 @@ run_check() {
     printf 'PASS %s (%ss)\n' "$label" "$((SECONDS - started))"
   else
     local status=$?
-    printf 'FAIL %s (%ss)\nRemediation: run the displayed command directly, fix the first failure, then rerun this group.\n' "$label" "$((SECONDS - started))" >&2
+    printf 'FAIL %s (%ss)\nRemediation: run the displayed command directly, fix the reported failures, then rerun this group.\n' "$label" "$((SECONDS - started))" >&2
     return "$status"
   fi
 }

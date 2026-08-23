@@ -61,6 +61,9 @@ do. They are kept for exactly that reason.
 - `scripts/lib/route-context-manifest.mjs` is now orphaned (its only consumer
   was the injection path). Left in place; `workflow/route-context-manifests.json`
   and its bash checker are a separate call.
+  *(2026-08-23 update: the orphaned artifacts — lib, manifest JSON, checker,
+  and smoke — were removed by the 7-round review follow-up; see
+  `docs/archive/README.md` and the plan archive for that pass.)*
 - The Pi `appendEntry` decision record is kept. With no injection it is no
   longer a UI feature but the only observation point for the Pi-side classifier,
   and five extension tests assert through it.

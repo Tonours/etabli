@@ -122,6 +122,14 @@ expected_live='workflow-cli-smoke
 workflow-real-agent-scenarios
 runtime-skill-canary-live
 etabli-harness-eval-live'
+
+# The runner must accumulate failures instead of aborting on the first one
+# (ADR-0014 lesson); pin the construct so a revert cannot pass silently.
+runner_source="$(cat "$ROOT_DIR/scripts/verify-agentic-infra")"
+printf '%s\n' "$runner_source" | grep -Fq 'failed=$((failed + 1))' \
+  || fail "verify-agentic-infra lost FAIL accumulation"
+printf '%s\n' "$runner_source" | grep -Fq 'SUMMARY:' \
+  || fail "verify-agentic-infra lost the failure summary"
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
 
