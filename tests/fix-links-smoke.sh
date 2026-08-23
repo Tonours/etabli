@@ -155,7 +155,7 @@ assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.agents/skills/adonisjs-suite"
 
 mkdir -p "$TMP_HOME/.grok/bin"
-printf 'grok-bin\n' > "$TMP_HOME/.grok/bin/grok-macos"
+printf 'grok-bin\n' >"$TMP_HOME/.grok/bin/grok-macos"
 ln -s grok-macos "$TMP_HOME/.grok/bin/grok"
 ln -s grok-macos "$TMP_HOME/.grok/bin/agent"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
@@ -166,7 +166,7 @@ if [ ! -L "$TMP_HOME/.grok/bin/grok" ]; then
 fi
 
 mkdir -p "$TMP_HOME/.pi/extensions"
-printf 'legacy extension\n' > "$TMP_HOME/.pi/extensions/legacy.txt"
+printf 'legacy extension\n' >"$TMP_HOME/.pi/extensions/legacy.txt"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_not_exists "$TMP_HOME/.pi/extensions"
 
@@ -176,11 +176,11 @@ if [ "$(backup_count "$TMP_HOME/.pi/extensions")" -lt 1 ]; then
 fi
 
 rm "$TMP_HOME/.pi/settings.json"
-printf 'custom one\n' > "$TMP_HOME/.pi/settings.json"
+printf 'custom one\n' >"$TMP_HOME/.pi/settings.json"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 
 rm "$TMP_HOME/.pi/settings.json"
-printf 'custom two\n' > "$TMP_HOME/.pi/settings.json"
+printf 'custom two\n' >"$TMP_HOME/.pi/settings.json"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 
 if [ "$(backup_count "$TMP_HOME/.pi/settings.json")" -lt 2 ]; then

@@ -1744,8 +1744,8 @@ fi
 prefer_cursor_agent_remove_grok_collision "$HOME"
 for rcfile in ~/.bashrc ~/.zshrc; do
     ensure_local_bin_shell_path "$rcfile"
-    prefer_cursor_agent_ensure_shell_hook "$rcfile" \
-        || print_warning "could not refresh Cursor agent PATH hook in $rcfile"
+    prefer_cursor_agent_ensure_shell_hook "$rcfile" ||
+        print_warning "could not refresh Cursor agent PATH hook in $rcfile"
 done
 
 print_success "Dev scripts installed"

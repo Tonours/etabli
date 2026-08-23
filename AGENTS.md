@@ -54,6 +54,7 @@ Repo-specific instructions for this dotfiles repo.
 - do not create `~/.pi/extensions/`; it causes double-loading
 - do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)
 - macmini deploy: rsync `herdr/` → `~/work/etabli-herdr/` (see `herdr/docs/multihost.md`)
+
 ## Workflow
 
 - Human guide + schemas: `docs/workflow-guide.md`

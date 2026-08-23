@@ -134,7 +134,9 @@ describe("Pi settings consistency", () => {
     expect(coreVisible.sort()).toEqual(
       keepList.filter((skill) => skill !== "code-quality").sort(),
     );
-    expect(skillCatalog.find((skill) => skill.name === "code-quality")).toMatchObject({
+    expect(
+      skillCatalog.find((skill) => skill.name === "code-quality"),
+    ).toMatchObject({
       piCore: true,
       agentsVisible: false,
     });
