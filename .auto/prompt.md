@@ -98,3 +98,25 @@ Segment 1 (current): corrected baseline measured for real via
 `./.auto/measure.sh` (exit 0): `surface=65134`, `skills_md=373`,
 `skill_kb=1696`, `vendor_lines=49953`, `ts_lines=1927`, `script_lines=8054`,
 `workflow_lines=5200`, `verify_s=41`.
+
+- **Run 2 (KEEP, −51.2%)**: removed `vendor/mcollina-skills` (7 generic
+  skills, 29.4k lines) + `vendor/tanstack-start-skills` (18 skills, 4.1k
+  lines, undeployed in work scope). Catalog 95→68 rows, skills-lock 79→52,
+  smoke fixtures repointed to vercel-react-best-practices, prose refs
+  cleaned in suite-router/stack-suite. Both packs restorable via
+  `vendor/sources.tsv` + `scripts/sync-vendor-skills`.
+- **Run 3 (KEEP, verify −72.5%)**: `workflow-contract-coverage-smoke` now
+  builds ONE grep index of `workflow/skills/*.md` mentions instead of one
+  recursive grep per contract (24 walks over `pi/node_modules` = 21k files
+  dominated core). Orphan-probe negative case verified still caught.
+- **Runs 4-6 (confirmation)**: surface=31819 deterministic ×3; verify_s =
+  10/11/10 s. Both targets met with margin.
+
+## Final summary
+
+**Targets achieved** (segment 1): surface 65 134 → 31 819 (−51.2%, target
+≤ 32 567) · verify_s 41 → ~10.3 s (−75%, target ≤ 20) · skills_md 373 → 263
+(−29.5%) · skill_kb 1696 → 866 KB (−49%). Verify core green at every step;
+extension tests 242/242 green at every keep. Remaining candidates in
+`.auto/ideas.md` (vercel pack, dead scripts, linear/review merges, workflow
+docs) — session can stop here or continue on the backlog.
