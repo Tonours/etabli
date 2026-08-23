@@ -66,7 +66,7 @@ function usage() {
   return [
     "Usage:",
     "  evidence-proof capture --out <new-dir> --cwd <dir> --subject <file> [--predeclared <file>] [--stdout-kind command_stdout|benchmark_samples] [--observe-tree <relative-dir>] [--timeout-ms <n>] -- <argv...>",
-    "  evidence-proof validate --pack <file> [--root <repo>] [--assert]",
+    "  evidence-proof validate --pack <file> [--root <repo>] [--no-assert]",
   ].join("\n");
 }
 
@@ -799,11 +799,16 @@ function validatePack(packPath, rootPath) {
 function validateCommand(args) {
   let pack = null;
   let root = process.cwd();
-  let assertVerdict = false;
+  let noAssert = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === "--no-assert") {
+      // Validate is a gate by default: a non-VERIFIED pack must fail the
+      // caller. --no-assert opts into inspection-only use.
+      noAssert = true;
+      continue;
+    }
     if (arg === "--assert") {
-      assertVerdict = true;
       continue;
     }
     if (arg === "--pack" || arg === "--root") {
@@ -819,7 +824,7 @@ function validateCommand(args) {
   invariant(nonemptyString(pack), "validate needs --pack");
   const result = validatePack(resolve(pack), resolve(root));
   process.stdout.write(`${JSON.stringify(result)}\n`);
-  if (assertVerdict && result.verdict !== "VERIFIED") process.exit(1);
+  if (!noAssert && result.verdict !== "VERIFIED") process.exit(1);
 }
 
 try {
