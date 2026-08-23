@@ -254,6 +254,14 @@ Segment 1 (current): corrected baseline measured for real via
   conflict-free; vault: healthy (222 notes, 0 errors, 0 pending reviews),
   session finding candidate 6dbd726a alive in the distill queue. All
   handoff preconditions verified green.
+- **Iteration 20 (run 19, deliverable quality gates)**: exercised the last
+  never-used repo-contract tool — `scripts/answer-quality-check` — on the
+  session's durable deliverables. Real finding: the decision packet failed
+  handoff mode (no validation evidence, no risks). Fixed substantively:
+  Validation section added (the actual census/cross-check/diff/merge-tree
+  commands + results), Remaining risks added (point-in-time caveat, clone
+  volatility, inconclusive scope intent). Both artifacts now pass. Every
+  repo contract tool has now been exercised against this session's outputs.
 
 ### Closure
 
