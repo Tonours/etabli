@@ -20,7 +20,7 @@ ensuite. Aucune de ces propositions ne doit être auto-appliquée depuis les cha
 | La matrice de capacités active a un contrôle mécanique de fraîcheur | `tests/runtime-capabilities-smoke.sh:45` | verified |
 | La rétrospective actuelle mine les ledgers et plans, pas les conversations multi-runtime | `scripts/workflow-retrospect:1` | verified |
 | Le moteur de self-improvement exige une preuve répétable et interdit l'auto-apply | `workflow/skills/self-improvement-loop.md:8` | verified |
-| Les skills n'ont pas encore de lane d'évaluation dédiée avec population et fingerprint de candidate | `docs/harness-self-improvement-analysis-20260801.md:113` | confirmed |
+| Les skills n'ont pas encore de lane d'évaluation dédiée avec population et fingerprint de candidate | `docs/archive/harness-self-improvement-analysis-20260801.md:113` | confirmed |
 | Le pattern de routine existe, mais seulement comme règle compacte sans adapter multi-runtime dédié | `workflow/loop-patterns.md:15` | confirmed |
 | Le catalogue de patterns de `goal-prompt-rewriter` n'a pas de recette maintenance/dependency-upgrade | `pi/skills/goal-prompt-rewriter/references/patterns.md:5` | confirmed |
 | Un harness Codex ou Grok complet serait contraire au recentrage actuel; seuls les liens de skills Codex sont repris en charge | `docs/adr/0015-treat-codex-skills-as-a-managed-link-surface-without-restoring-the-harness.md:8` | accepted |
@@ -262,8 +262,8 @@ bonne prochaine action et les validations déjà faites sans relire le transcrip
 - Preuves runtime et drift : `scripts/check-fix-symlinks.sh`,
   `tests/runtime-capabilities-smoke.sh`, `scripts/verify-agentic-infra`.
 - Design antérieur toujours pertinent :
-  `docs/harness-self-improvement-analysis-20260801.md`,
-  `docs/harness-surface-map-20260801.md`, ADR-0011, ADR-0013 et ADR-0015.
+  `docs/archive/harness-self-improvement-analysis-20260801.md`,
+  `docs/archive/harness-surface-map-20260801.md`, ADR-0011, ADR-0013 et ADR-0015.
 - Mémoire obvault consultée en pack borné, notamment
   `kb/obvault-multi-harness-access.md` et
   `kb/harness-engineering-integration-points.md`; contenu traité comme

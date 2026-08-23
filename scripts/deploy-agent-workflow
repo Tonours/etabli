@@ -262,6 +262,25 @@ is_agents_visible_skill() {
   return 1
 }
 
+prune_pi_sourced_skill_links() {
+  local surface skill_link skill_target
+
+  # Policy: Pi-authored skills live on Pi and shared agents surfaces only.
+  # A pi/skills link on the Claude or Codex surface is drift; remove it.
+  for surface in "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills"; do
+    [ -d "$surface" ] || continue
+    for skill_link in "$surface"/*; do
+      [ -L "$skill_link" ] || continue
+      skill_target="$(readlink "$skill_link")"
+      case "$skill_target" in
+        "$REPO_DIR/pi/skills/"*)
+          remove_managed_path "$skill_link" "Pi-sourced skill link $(basename "$skill_link") on $surface"
+          ;;
+      esac
+    done
+  done
+}
+
 sync_pi_agent_settings() {
   local local_settings="$HOME_DIR/.pi/agent/settings.json"
   local tracked_settings="$REPO_DIR/pi/agent/settings.json"
@@ -535,6 +554,8 @@ deploy_vendor_skills() {
   if [ "$DRY_RUN" -eq 0 ]; then
     mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.agents/skills"
   fi
+
+  prune_pi_sourced_skill_links
 
   while IFS=$'\t' read -r skill_name skill_dir; do
     [ -n "$skill_name" ] || continue
