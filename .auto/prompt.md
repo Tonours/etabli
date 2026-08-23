@@ -214,6 +214,14 @@ Segment 1 (current): corrected baseline measured for real via
   diffuse spawn overhead inherent to bash integration tests. Restructuring
   the safety net for ~1 min of parallel-CI gain = disproportionate risk.
   Closure recommendation REAFFIRMED; core metric unchanged (19277/14 s).
+- **Iteration 15 (run 14, final sweep, clean bill)**: analyzer pass over
+  claude/ + herdr/ — the last never-analyzed surfaces (router lib runs per
+  Claude session). 593 warnings triaged: ~95% typos FPs on intentional
+  French (incl. the router's own French detection patterns); `reviewr` =
+  real tool name (persiyanov.reviewr.toggle); `docs/answer-quality-traces` =
+  smoke-pinned provenance fixtures, not debt; 4 real-but-marginal style
+  items skipped (out-of-metric, zero behavior gain). Every debt class in
+  repo authority now examined. Third independent closure confirmation.
 
 ### Closure
 
