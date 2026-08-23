@@ -215,3 +215,11 @@ vercel React — all restorable via `vendor/sources.tsv` +
 files. **What survived evidence**: ember + adonisjs packs (scope-deployed,
 user's daily stacks), design-suite, all scripts (each has a living consumer),
 workflow contracts (the repo's product).
+
+**Metric-scope disclosure** (iteration 12): the surface metric deliberately
+counts workflow/ + pi/extensions + scripts/ + vendor/ only. Other tracked
+surfaces were never in the session's declared scope: tests/ ~12.8k, claude/
+~6.1k, nvim/ ~4.6k, herdr/ ~0.75k, workflow-scaffold/ ~0.19k, mcp/ ~0.04k
+(≈24.5k lines total). The −70% claim applies to the measured scope, not the
+whole tree. Tests are deliberately uncounted so shrinking them can never
+pay; adapters/configs were out of the original "skills + code" goal.
