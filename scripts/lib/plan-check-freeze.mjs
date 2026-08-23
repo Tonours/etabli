@@ -4,7 +4,7 @@
  * Once READY, Checks may only be strengthened (added) unless demoted to
  * CHALLENGED with a Decision Log rationale mentioning check-freeze or weaken.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -178,7 +178,12 @@ function main(argv) {
   const currentText = readFileSync(resolve(currentPath), "utf8");
   let previousChecks = [];
   if (previousJson) {
-    previousChecks = JSON.parse(previousJson);
+    try {
+      previousChecks = JSON.parse(previousJson);
+    } catch (error) {
+      console.error(`plan-check-freeze: --previous-json is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(2);
+    }
   } else if (previousPath) {
     previousChecks = parseChecks(readFileSync(resolve(previousPath), "utf8"));
   }

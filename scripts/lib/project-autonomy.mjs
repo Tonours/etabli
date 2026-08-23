@@ -4,6 +4,7 @@ import { basename, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { derivedNoProgress } from "./no-progress-guard.mjs";
+import { WORKFLOW_EVENTS } from "./workflow-events.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -18,48 +19,7 @@ const REQUIRED_FORBIDDEN_ACTIONS = [
 	"obvault_write",
 ];
 
-const ALLOWED_EVENTS = new Set([
-	"route_decided",
-	"plan_created",
-	"adversary_completed",
-	"review_completed",
-	"simplification_completed",
-	"file_changed",
-	"validation_run",
-	"validation_failed",
-	"dogfood_matrix_created",
-	"dogfood_scenario_run",
-	"dogfood_fix_applied",
-	"dogfood_blocked",
-	"self_improvement_candidate",
-	"harness_failure_pattern",
-	"harness_proposal",
-	"harness_validation_completed",
-	"harness_candidate_rejected",
-	"project_slice_planned",
-	"project_slice_completed",
-	"program_initialized",
-	"program_unit_started",
-	"program_unit_result",
-	"program_unit_verdict",
-	"program_unit_head_changed",
-	"program_unit_retry",
-	"program_unit_reconciled",
-	"runtime_run_attached",
-	"multi_execution_completed",
-	"runtime_receipt",
-	"outcome_measurement_population",
-	"outcome_measurement_imported",
-	"outcome_metric",
-	"retry_classified",
-	"no_progress",
-	"handoff",
-	"human_checkpoint",
-	"archive_written",
-	"plan_removed",
-	"completed",
-	"blocked",
-]);
+const ALLOWED_EVENTS = new Set(WORKFLOW_EVENTS);
 
 function isObject(value) {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
