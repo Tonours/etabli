@@ -6,53 +6,13 @@
  */
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
+import { WORKFLOW_EVENTS } from "./workflow-events.mjs";
 
 export const ACTIVE_RUN_POINTER = "active-run.json";
 
 const TERMINAL_EVENTS = new Set(["completed", "blocked"]);
 const RUN_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
-const KNOWN_EVENTS = new Set([
-  "route_decided",
-  "plan_created",
-  "adversary_completed",
-  "review_completed",
-  "simplification_completed",
-  "file_changed",
-  "validation_run",
-  "validation_failed",
-  "dogfood_matrix_created",
-  "dogfood_scenario_run",
-  "dogfood_fix_applied",
-  "dogfood_blocked",
-  "self_improvement_candidate",
-  "harness_failure_pattern",
-  "harness_proposal",
-  "harness_validation_completed",
-  "harness_candidate_rejected",
-  "project_slice_planned",
-  "project_slice_completed",
-  "program_initialized",
-  "program_unit_started",
-  "program_unit_result",
-  "program_unit_verdict",
-  "program_unit_head_changed",
-  "program_unit_retry",
-  "program_unit_reconciled",
-  "runtime_run_attached",
-  "multi_execution_completed",
-  "outcome_measurement_population",
-  "outcome_measurement_imported",
-  "outcome_metric",
-  "runtime_receipt",
-  "retry_classified",
-  "no_progress",
-  "handoff",
-  "human_checkpoint",
-  "archive_written",
-  "plan_removed",
-  "completed",
-  "blocked",
-]);
+const KNOWN_EVENTS = new Set(WORKFLOW_EVENTS);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
