@@ -167,6 +167,55 @@ Signal worth keeping: a review that returns no findings but a precise open quest
 is doing its job. Zero findings on a one-line diff is the expected result, not a
 weak review.
 
+## 2026-08-20 — PRD-none, save-time field completion (forestadmin#9917)
+
+Work stack. Two `reviewer` passes (Standards + Spec, fable/xhigh, mandatory lens
+table filled) returned GO WITH NOTES on `fa5b6e00e0`. Macroscope then found a 🟠
+High defect on the same commit. Full record: brain `reviewer-miss-await-snapshot`.
+
+### R-005 — state captured across an await
+
+- **Bucket**: `lens_missing` (adjudicated 2026-08-20: eval case, no prompt change.
+  A later attempt to re-file it as `evidence_bar` to justify an output-contract
+  change was rejected — see the rejected-candidates table.)
+- **Defect**: `crud-handler.ts:513-535` captured `record.changedAttributes()`
+  before an `await this.fetchRecord(...)` and reapplied the snapshot
+  unconditionally after it. An edit typed while the request was in flight is
+  overwritten by the pre-click value, and `upsertRecord` persists the stale one.
+- **Impact**: silent loss of a user edit — the same defect class the restore was
+  written to prevent, displaced by one step.
+- **What the reviewer did**: opened the deciding code and reported it. Precedence
+  row: "restore wins; local edits preserved". Deciding-code row: "Dirty restore →
+  sound". Both passes independently cleared it.
+- **What it had to do**: ask what can change *between* the capture and the
+  reapplication, not only whether the reapplication beats the server payload.
+- **Not a `retrieval_gap`**: the deciding code was opened and cited by both passes.
+
+### Harvest attempt and why it was rejected
+
+To test whether this class is transverse, 39 Macroscope findings were collected
+across 4 repos (forestadmin 6, forestadmin-server 18, agent-nodejs 10,
+forest-for-zendesk 5) and classified against the 8 lenses. A candidate lens
+"Interleaving" (8 findings, 3 repos) was proposed, with `Precedence` merged into
+`Boundary drift` to stay within budget. **Rejected in adversarial review**, on
+three grounds worth keeping:
+
+1. **Wrong population.** The harvest took every Macroscope finding, not findings
+   on PRs a `reviewer` pass had already cleared. The loop's input is escaped
+   defects; most of the 39 were never reviewed by the agent at all.
+2. **The class bundled three questions.** Three findings (`lago-service.ts:786`,
+   `layout-configuration-service.ts:145`, `oauth-store.ts:88`) are Degraded modes
+   run on a write path. Four more live in one file across two sibling PRs of the
+   same billing domain — one independent miss, not four. Removing the misfits
+   collapsed the claimed 3-repo breadth to one repo.
+3. **The merge would have regressed a held-in case.** The merged wording still
+   covers R-001 textually, but the corpus already proved wording is inert and the
+   mandatory per-lens row is the causal mechanism. Merging deletes the row that
+   flipped R-001 to caught; on a diff carrying both a drift and a precedence
+   question, one citation satisfies the merged row and the other skips invisibly.
+
+Lens count stays **8 / 8**. R-005 is an eval case, no prompt change.
+
 ## Rejected candidates
 
 | Candidate | Why rejected |
@@ -175,3 +224,5 @@ weak review.
 | Multiple review personas | Measured: no gain (MARS ablation). Gains attributed to multi-agent review come from multiple samples plus aggregation, not from role assignment. |
 | LLM self-rated severity as a filter | Measured: verbalized confidence is miscalibrated and overconfident. Greptile found LLM severity rating did not work in production. |
 | Re-sweep the same diff for more findings | Measured: recall up ~6pp, signal-to-noise down ~2.6x. The second pass must attack existing findings, not hunt new ones. |
+| An "Interleaving" lens from a Macroscope-wide harvest | Rejected 2026-08-20. Population was wrong (findings on PRs the reviewer never reviewed), the class bundled three questions, and the required merge (Precedence into Boundary drift) would have deleted the mandatory row that is the only proven mechanism for R-001. See the 2026-08-20 entry. |
+| A mandatory "Counter-case tried" column on every lens row | Rejected 2026-08-21. Held-in failed: on R-005 a reviewer writes a confident, concrete counter-case about a snapshot-vs-server race that satisfies the column and still misses the in-flight mutation — the row actually written ("restore wins; local edits preserved") already *was* a counter-case-shaped refutation, visible and wrong. Motivating evidence also thinned to one genuine miss (R-001 was flipped to caught in v2, not 0/4; f-f-z#45 is `retrieval_gap`). Forces unverifiable prose where the existing column forces a verifiable act, pressuring manufactured findings on clean diffs (H-006, H-007). |

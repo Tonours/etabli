@@ -8,7 +8,7 @@ require "yaml"
 
 root = ARGV.fetch(0)
 agents_dir = File.join(root, "claude/scopes/shared/agents")
-expected_agents = %w[reviewer scout worker]
+expected_agents = %w[adversary reviewer scout worker]
 paths = Dir.glob(File.join(agents_dir, "*.md")).sort
 names = paths.map { |path| File.basename(path, ".md") }
 raise "Claude agents must be exactly #{expected_agents.join(", ")}; got #{names.join(", ")}. Remediation: keep the bounded scout/worker/reviewer role set." unless names == expected_agents
@@ -17,7 +17,7 @@ allowed_keys = %w[name description model effort color tools permissionMode maxTu
 allowed_models = %w[sonnet opus haiku fable inherit]
 allowed_efforts = %w[low medium high xhigh max]
 allowed_tools = %w[Read Grep Glob Bash Edit Write TodoWrite Skill]
-read_only_agents = %w[reviewer scout]
+read_only_agents = %w[adversary reviewer scout]
 lenses = [
   "Precedence",
   "Degraded modes",
