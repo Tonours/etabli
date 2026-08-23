@@ -1,3 +1,4 @@
 HUNTER_SPAWN_UNAVAILABLE: pi not on PATH
 isolation: none
 runner: not run
+Verdict: BLOCK

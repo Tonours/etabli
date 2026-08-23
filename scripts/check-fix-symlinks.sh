@@ -18,19 +18,11 @@ if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; t
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
   AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
-  # Bash 3 with `set -u` treats an empty array expansion as unbound.
-  CROSS_HARNESS_PI_SKILLS=("")
-  cross_harness_names="$(skill_catalog_names "$SKILL_CATALOG" pi cross_harness || true)"
-  if [ -n "$cross_harness_names" ]; then
-    # shellcheck disable=SC2206
-    CROSS_HARNESS_PI_SKILLS=( $cross_harness_names )
-  fi
 else
   SKILL_CATALOG_MISSING=1
   # Bash 3 with `set -u` treats an empty array expansion as unbound.
   PI_CORE_SKILLS=("")
   AGENTS_VISIBLE_SKILLS=("")
-  CROSS_HARNESS_PI_SKILLS=("")
 fi
 
 usage() {
@@ -250,51 +242,10 @@ check_agents_visible_skill_links() {
   prune_unlisted_pi_source_skills ".agents/skills" is_agents_visible_skill "Grok/agents-visible"
 }
 
-is_cross_harness_pi_skill() {
-  local candidate="$1"
-  local skill_name
-
-  [ -n "$candidate" ] || return 1
-  for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    [ "$candidate" = "$skill_name" ] && return 0
-  done
-  return 1
-}
-
-check_cross_harness_skill_links() {
-  local skill_name skill_dir active_scopes surface skill_link skill_target
-
-  for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    skill_dir="$REPO_DIR/pi/skills/$skill_name"
-    check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude cross-harness skill $skill_name"
-    check_link "$HOME/.codex/skills/$skill_name" "$skill_dir" "codex cross-harness skill $skill_name"
-  done
+check_vendor_skill_links() {
+  local skill_name skill_dir active_scopes surface skill_link
 
   [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
-
-  for surface in .claude/skills .codex/skills; do
-    [ -d "$HOME/$surface" ] || continue
-    for skill_link in "$HOME/$surface"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      case "$skill_target" in
-        "$REPO_DIR/pi/skills/"*) ;;
-        *) continue ;;
-      esac
-      skill_name="$(basename "$skill_link")"
-      if ! is_cross_harness_pi_skill "$skill_name"; then
-        ISSUES=$((ISSUES + 1))
-        status_line WARN "demoted Pi cross-harness skill $skill_name remains in $surface"
-        if [ "$FIX" -eq 1 ]; then
-          rm -f "$skill_link"
-          FIXED=$((FIXED + 1))
-          status_line FIXED "removed demoted Pi cross-harness skill $skill_name from $surface"
-        fi
-      fi
-    done
-  done
 
   active_scopes="$(deployed_scopes)"
   while IFS=$'\t' read -r skill_name skill_dir; do
@@ -463,7 +414,7 @@ check_claude_agent_links
 check_claude_script_links
 check_pi_skill_links
 check_agents_visible_skill_links
-check_cross_harness_skill_links
+check_vendor_skill_links
 check_claude_skill_links
 
 check_script_link "dev-spawn"

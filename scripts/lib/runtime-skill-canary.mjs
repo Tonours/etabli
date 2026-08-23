@@ -78,7 +78,7 @@ function catalogEntry(catalogPath, name) {
   if (!existsSync(catalogPath)) return null
   for (const line of readFileSync(catalogPath, "utf8").split("\n")) {
     if (!line || line.startsWith("#")) continue
-    const [entryName, source, piCore, agentsVisible, locked, crossHarness = ""] = line.split("\t")
+    const [entryName, source, piCore, agentsVisible, locked] = line.split("\t")
     if (entryName === name) {
       return {
         name: entryName,
@@ -86,7 +86,6 @@ function catalogEntry(catalogPath, name) {
         pi_core: piCore === "1",
         agents_visible: agentsVisible === "1",
         locked: locked === "1",
-        cross_harness: crossHarness === "1",
       }
     }
   }

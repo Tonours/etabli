@@ -427,41 +427,6 @@ is_agents_visible_skill() {
     return 1
 }
 
-is_cross_harness_pi_skill() {
-    local candidate="$1"
-    local skill_name
-
-    [ -n "$candidate" ] || return 1
-    while IFS= read -r skill_name; do
-        [ -n "$skill_name" ] || continue
-        [ "$candidate" = "$skill_name" ] && return 0
-    done < <(skill_catalog_names "$SKILL_CATALOG" pi cross_harness)
-    return 1
-}
-
-prune_demoted_cross_harness_pi_skills() {
-    local repo_dir="$1"
-    local home_dir="$2"
-    local surface skill_link skill_target skill_name
-
-    for surface in "$home_dir/.claude/skills" "$home_dir/.codex/skills"; do
-        [ -d "$surface" ] || continue
-        for skill_link in "$surface"/*; do
-            [ -L "$skill_link" ] || continue
-            skill_target="$(readlink "$skill_link")"
-            case "$skill_target" in
-            "$repo_dir/pi/skills/"*) ;;
-            *) continue ;;
-            esac
-            skill_name="$(basename "$skill_link")"
-            if ! is_cross_harness_pi_skill "$skill_name"; then
-                rm -f "$skill_link"
-                print_success "Removed demoted Pi cross-harness skill '$skill_name' from $surface"
-            fi
-        done
-    done
-}
-
 prune_managed_pi_skills() {
     local skills_dir="$HOME/.pi/agent/skills"
     [ -d "$skills_dir" ] || return 0
@@ -928,24 +893,6 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             exit 1
         fi
     done
-
-    ln -s "$smoke_repo_dir/pi/skills/suite-router" \
-        "$smoke_skill_home/.codex/skills/suite-router"
-    prune_demoted_cross_harness_pi_skills "$smoke_repo_dir" "$smoke_skill_home"
-    for smoke_demoted_skill in stack-suite react-doctor-100; do
-        if [ -L "$smoke_skill_home/.claude/skills/$smoke_demoted_skill" ]; then
-            print_error "demoted Pi cross-harness skill '$smoke_demoted_skill' was not removed"
-            exit 1
-        fi
-    done
-    if [ -L "$smoke_skill_home/.codex/skills/suite-router" ]; then
-        print_error "demoted Pi cross-harness skill 'suite-router' was not removed"
-        exit 1
-    fi
-    if [ ! -L "$smoke_skill_home/.claude/skills/unmanaged-skill" ]; then
-        print_error "unmanaged Claude skill link was removed by cross-harness pruning"
-        exit 1
-    fi
 
     PATH="/tmp/asdf-shims:/usr/bin"
     append_path_entry "/tmp/local-bin"
@@ -1621,27 +1568,6 @@ mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
 
 mkdir -p ~/.agents/skills
 prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
-prune_demoted_cross_harness_pi_skills "$REPO_DIR" "$HOME"
-
-# Bash 3 with `set -u` treats an empty array expansion as unbound.
-CROSS_HARNESS_PI_SKILLS=("")
-cross_harness_names="$(skill_catalog_names "$SKILL_CATALOG" pi cross_harness || true)"
-if [ -n "$cross_harness_names" ]; then
-  # shellcheck disable=SC2206
-  CROSS_HARNESS_PI_SKILLS=( $cross_harness_names )
-fi
-
-for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    skill_dir="$REPO_DIR/pi/skills/$skill_name"
-    if [ ! -d "$skill_dir" ]; then
-        print_warning "Cross-harness Pi skill '$skill_name' missing from repo"
-        continue
-    fi
-    ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
-    ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
-    print_success "Pi skill '$skill_name' also linked for Claude and Codex"
-done
 
 while IFS=$'\t' read -r vendor_name vendor_repo vendor_ref vendor_scope vendor_skills; do
     case "$vendor_name" in '' | \#*) continue ;; esac

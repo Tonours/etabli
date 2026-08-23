@@ -55,7 +55,8 @@ dual-runtime-guard-matrix-smoke
 no-progress-mutate-deny-smoke
 deploy-agent-workflow-smoke
 supply-chain-smoke
-workflow-contract-coverage-smoke'
+workflow-contract-coverage-smoke
+skill-lock'
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
 [ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 16 ] ||
@@ -95,7 +96,6 @@ obvault-query-smoke
 agentic-infra-manifest-smoke
 pi-paths-smoke
 pi-review-hunter-smoke
-skill-lock
 pi-import-smoke
 fix-links-smoke
 install-smoke
@@ -105,7 +105,6 @@ graph-neighborhood-smoke
 action-graph-smoke
 obvault-shadow-promote-smoke
 autonomous-ledger-hygiene-smoke
-route-context-manifest-smoke
 workflow-outcome-metric-smoke
 claude-outcome-metric-emit-smoke
 claim-evidence-check-smoke

@@ -13,13 +13,6 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
-# Bash 3 with `set -u` treats an empty array expansion as unbound.
-CROSS_HARNESS_PI_SKILLS=("")
-cross_harness_names="$(skill_catalog_names "$SKILL_CATALOG" pi cross_harness || true)"
-if [ -n "$cross_harness_names" ]; then
-  # shellcheck disable=SC2206
-  CROSS_HARNESS_PI_SKILLS=( $cross_harness_names )
-fi
 
 ACTIVE_SCOPES="shared"
 
@@ -267,38 +260,6 @@ is_agents_visible_skill() {
     [ "$candidate" = "$skill" ] && return 0
   done
   return 1
-}
-
-is_cross_harness_pi_skill() {
-  local candidate="$1"
-  local skill
-
-  [ -n "$candidate" ] || return 1
-  for skill in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
-    [ -n "$skill" ] || continue
-    [ "$candidate" = "$skill" ] && return 0
-  done
-  return 1
-}
-
-prune_demoted_cross_harness_pi_skills() {
-  local surface skill_link skill_target skill_name
-
-  for surface in "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills"; do
-    [ -d "$surface" ] || continue
-    for skill_link in "$surface"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      case "$skill_target" in
-        "$REPO_DIR/pi/skills/"*) ;;
-        *) continue ;;
-      esac
-      skill_name="$(basename "$skill_link")"
-      if ! is_cross_harness_pi_skill "$skill_name"; then
-        remove_managed_path "$skill_link" "demoted Pi cross-harness skill $skill_name"
-      fi
-    done
-  done
 }
 
 sync_pi_agent_settings() {
@@ -566,16 +527,14 @@ deploy_pi() {
   done
 }
 
-deploy_cross_harness_skills() {
-  local skill skill_name skill_dir surface skill_link
+deploy_vendor_skills() {
+  local skill_name skill_dir surface skill_link
 
-  status_line SECTION "Cross-harness skills"
+  status_line SECTION "Vendor skills"
 
   if [ "$DRY_RUN" -eq 0 ]; then
     mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.agents/skills"
   fi
-
-  prune_demoted_cross_harness_pi_skills
 
   while IFS=$'\t' read -r skill_name skill_dir; do
     [ -n "$skill_name" ] || continue
@@ -588,13 +547,6 @@ deploy_cross_harness_skills() {
       fi
     done
   done < <(skill_catalog_inactive_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ACTIVE_SCOPES")
-
-  for skill in "${CROSS_HARNESS_PI_SKILLS[@]}"; do
-    [ -n "$skill" ] || continue
-    skill_dir="$REPO_DIR/pi/skills/$skill"
-    link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill" "Claude cross-harness skill $skill"
-    link_path "$skill_dir" "$HOME_DIR/.codex/skills/$skill" "Codex cross-harness skill $skill"
-  done
 
   while IFS=$'\t' read -r skill_name skill_dir; do
     [ -n "$skill_name" ] || continue
@@ -705,7 +657,7 @@ deploy_claude() {
 }
 
 deploy_pi
-deploy_cross_harness_skills
+deploy_vendor_skills
 deploy_claude
 
 if [ "$DRY_RUN" -eq 1 ]; then
