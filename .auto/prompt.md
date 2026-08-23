@@ -294,6 +294,14 @@ Segment 1 (current): corrected baseline measured for real via
   also needs catalog rows + skills-lock update — vendor/README.md now
   carries the verified 4-step procedure (+6 surface lines, honest cost);
   vault addendum queued (candidate da917e14).
+- **Iteration 24 (run 23, artifact health)**: examined the last invisible
+  artifact — pi/extensions/herdr-agent-state.ts (untracked, installed by
+  herdr, seen by no check). Import smoke: loads cleanly in the current
+  runtime, inert top level; version freshness (8) needs herdr invocation
+  (skill-gated) → user check documented in the decision packet. .gitignore
+  audit: no provably-stale entries — globs are defensive; PLAN.md /
+  ops-roadmap.md zero-history is the expected signature of local scratch
+  files, not staleness. Gate re-passed.
 
 ### Closure
 
