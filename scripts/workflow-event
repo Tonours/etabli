@@ -65,7 +65,7 @@ allowed_list() {
 
 is_allowed_event() {
   local event="$1"
-  local allowed
+  local allowed=""
   for allowed in "${ALLOWED_EVENTS[@]}"; do
     [ "$event" = "$allowed" ] && return 0
   done
@@ -160,8 +160,8 @@ validate_ledger_file() {
   local slug="$1" file="$2" allow_missing="$3" profile="$4" measurement_root="$5"
   local count=0 previous_ts="" legacy_post_terminal=0
   local terminal="" terminal_line="" terminal_schema_version=""
-  local line parsed ts event run detail schema_version required mode
-  local last_change last_validation
+  local line parsed ts event run detail schema_version required mode=""
+  local last_change="" last_validation=""
 
   if [ ! -f "$file" ]; then
     if [ "$allow_missing" -eq 1 ]; then
@@ -334,10 +334,13 @@ native_lock_is_held() {
   true_bin="$(system_lock_tool true)" || return 1
   case "$backend" in
     lockf)
-      ! "$native_bin" -k -t 0 "$lock_file" "$true_bin" >/dev/null 2>&1
+      # 9>&- : the verifier must NOT inherit the locked descriptor — a process
+      # holding the lock via an inherited OFD can re-acquire it via a fresh
+      # open on some kernels (observed on Linux 6.17), defeating the probe.
+      ! "$native_bin" -k -t 0 "$lock_file" "$true_bin" 9>&- >/dev/null 2>&1
       ;;
     flock)
-      ! "$native_bin" -n "$lock_file" "$true_bin" >/dev/null 2>&1
+      ! "$native_bin" -n "$lock_file" "$true_bin" 9>&- >/dev/null 2>&1
       ;;
     *)
       return 1
@@ -393,25 +396,30 @@ parent_is_native_lock_tool() {
 }
 
 parent_descriptor_is_canonical_lock() {
-  local parent_pid="$1" lock_file="$2" descriptor="$3"
-  local descriptor_path lsof_bin lsof_line
-  descriptor_path="/proc/$parent_pid/fd/$descriptor"
-  if [ -e "$descriptor_path" ]; then
-    [ "$descriptor_path" -ef "$lock_file" ]
-    return $?
+  # The native parent holds the lock file open on some descriptor (fd 9 in
+  # lockf fd-mode; an internal fd in flock file-mode). Prove that SOME
+  # descriptor of the parent references the lock file. /proc first; lsof
+  # fallback for systems without /proc (macOS).
+  local parent_pid="$1" lock_file="$2" fd fd_path lsof_bin lsof_line
+  if [ -d "/proc/$parent_pid/fd" ]; then
+    for fd in 0 1 2 3 4 5 6 7 8 9; do
+      fd_path="/proc/$parent_pid/fd/$fd"
+      if [ -e "$fd_path" ] && [ "$fd_path" -ef "$lock_file" ]; then
+        return 0
+      fi
+    done
+    return 1
   fi
   lsof_bin="$(system_lock_tool lsof)" || {
     printf 'cannot prove the native parent lock descriptor\n' >&2
     return 1
   }
-  descriptor_path=""
   while IFS= read -r lsof_line; do
     case "$lsof_line" in
-      n*) descriptor_path="${lsof_line#n}"; break ;;
+      n*) [ "${lsof_line#n}" -ef "$lock_file" ] && return 0 ;;
     esac
-  done < <("$lsof_bin" -a -p "$parent_pid" -d "$descriptor" -Fn 2>/dev/null)
-  [ -n "$descriptor_path" ] || return 1
-  [ "$descriptor_path" -ef "$lock_file" ]
+  done < <("$lsof_bin" -a -p "$parent_pid" -Fn 2>/dev/null)
+  return 1
 }
 
 trusted_parent_process_args() {
@@ -436,25 +444,29 @@ native_backend_path() {
 
 parent_targets_canonical_lock() {
   local parent_pid="$1" backend="$2" run_dir="$3"
-  local expected_cwd parent_cwd parent_args parent_tail expected_prefix
-  expected_cwd="$(cd "$run_dir" >/dev/null 2>&1 && pwd -P)" || return 1
-  parent_cwd="$(parent_working_directory "$parent_pid")" || return 1
-  parent_cwd="$(cd "$parent_cwd" >/dev/null 2>&1 && pwd -P)" || return 1
-  [ "$parent_cwd" = "$expected_cwd" ] || return 1
-
+  local lock_file="" expected_cwd="" parent_cwd="" parent_args="" parent_tail=""
+  lock_file="$run_dir/events.lock"
   parent_args="$(trusted_parent_process_args "$parent_pid" || true)"
   parent_args="${parent_args#"${parent_args%%[![:space:]]*}"}"
   [ "$parent_args" != "${parent_args#* }" ] || return 1
   parent_tail="${parent_args#* }"
   case "$backend" in
-    lockf) expected_prefix='-t 5 /dev/fd/9 ' ;;
-    flock) expected_prefix='-w 5 9 ' ;;
+    lockf)
+      # lockf keeps the subshell cwd contract: cwd must be the run dir.
+      expected_cwd="$(cd "$run_dir" >/dev/null 2>&1 && pwd -P)" || return 1
+      parent_cwd="$(parent_working_directory "$parent_pid")" || return 1
+      parent_cwd="$(cd "$parent_cwd" >/dev/null 2>&1 && pwd -P)" || return 1
+      [ "$parent_cwd" = "$expected_cwd" ] || return 1
+      case "$parent_tail" in "-t 5 /dev/fd/9 "*) return 0 ;; esac
+      ;;
+    flock)
+      # flock file-mode passes the absolute lock path in argv; the path is
+      # the canonicality proof (no cwd contract).
+      case "$parent_tail" in "-w 5 $lock_file "*) return 0 ;; esac
+      ;;
     *) return 1 ;;
   esac
-  case "$parent_tail" in
-    "$expected_prefix"*) return 0 ;;
-    *) return 1 ;;
-  esac
+  return 1
 }
 
 verify_native_canonical_lock() {
@@ -500,7 +512,7 @@ verify_native_commit_lock() {
 
 validate_autonomous_completion_candidate() (
   local slug="$1" run_dir="$2" file="$3" event_line="$4"
-  local candidate_dir candidate_file
+  local candidate_dir="" candidate_file=""
   candidate_dir="$(mktemp -d "$run_dir/.completion-candidate.XXXXXX")" || {
     printf 'failed to create autonomous completion candidate directory\n' >&2
     return 1
@@ -525,7 +537,8 @@ append_locked_body() {
   local file="$run_dir/events.jsonl"
   local lock_file="$run_dir/events.lock" owner_file="$run_dir/events.lock.owner.json"
   local integrity_cache="$run_dir/events.integrity.json"
-  local current_host owner_tmp terminal event_id existing_same lock_pid event_line
+  local current_host="" owner_tmp="" event_id="" existing_same="" lock_pid="" event_line=""
+  local terminal=""
 
   if [ "$backend" = "lockf" ] || [ "$backend" = "flock" ]; then
     verify_native_canonical_lock "$lock_file" "$backend" || return 1
@@ -649,7 +662,12 @@ append_with_lock() {
       ;;
     flock)
       native_bin="$(native_backend_path flock)" || { printf 'requested flock backend is unavailable\n' >&2; return 1; }
-      (cd "$absolute_run_dir" && exec 9>>events.lock && "$native_bin" -w 5 9 "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" flock) || {
+      # File-mode (not fd-mode): on Linux 6.17 runners, a lock taken on an
+      # inherited fd does not contend with a fresh open of the same file, so
+      # the in-child verification probe could never observe it. File-mode
+      # opens the lock file inside the flock process itself; contention then
+      # works (verified on the CI runner, 2026-08-23).
+      ("$native_bin" -w 5 "$absolute_run_dir/events.lock" "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" flock) || {
         printf 'flock append failed or timed out after 5 seconds\n' >&2
         return 1
       }
