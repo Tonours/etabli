@@ -516,7 +516,6 @@ harness_run_once() {
   transcript="$out_dir/transcript.txt"
   harness_require_cell_dir_empty "$out_dir"
   mkdir -p "$worktree" "$out_dir"
-  harness_require_cell_dir_empty "$out_dir"
   harness_prepare_worktree "$task_id" "$worktree"
   # Driver-held baseline: never written inside the cell, so a subject with
   # write access cannot overwrite the pin (file fallback stays for offline
