@@ -30,8 +30,8 @@ describe a change you did not make or claim a check you did not run. An honest
 
 Select the narrowest matching skill that this runtime exposes. Prefer an
 exposed project skill when the task is about its codebase; otherwise use a
-direct language/framework skill such as `node`, `fastify-best-practices`, or
-`vercel-react-best-practices`. If none is exposed, compare with 1–3 local
+scope-gated vendor skill such as `ember-forestadmin-suite` (work) or
+`adonisjs-suite` (personal). If none is exposed, compare with 1–3 local
 sibling implementations. Follow those conventions for the code you write.
 They do not widen your step: adjacent work remains out of scope, and `PLAN.md`
 still decides what you implement.

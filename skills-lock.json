@@ -216,26 +216,6 @@
       "sourceType": "repo",
       "computedHash": "6bd89a2f4472afff8c6137dfcc9d65658ed55834eba8e2c23d577965eca5e1ba"
     },
-    "composition-patterns": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
-    },
-    "react-best-practices": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
-    },
-    "react-view-transitions": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "ffc004289dde6c4769ad4757b3af1dd14dd52e36deec12b79b19f81b80519580"
-    },
-    "web-design-guidelines": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
-    },
     "conversation-retrospect": {
       "source": "local",
       "sourceType": "repo",

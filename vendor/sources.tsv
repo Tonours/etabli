@@ -1,4 +1,3 @@
 # vendor	repo	ref	scope	skills
-vercel-agent-skills	https://github.com/vercel-labs/agent-skills.git	main	shared	react-best-practices,composition-patterns,react-view-transitions,web-design-guidelines
 ember-skills	git@github.com:Tonours/ember-skills.git	main	work	ember-forestadmin-architecture,ember-forestadmin-components,ember-forestadmin-data,ember-forestadmin-debug,ember-forestadmin-lint-style,ember-forestadmin-migration,ember-forestadmin-react-mfe,ember-forestadmin-routes,ember-forestadmin-services-state,ember-forestadmin-suite,ember-forestadmin-testing,ember-forestadmin-workflow-visualizer,ember-standalone-workflow-package
 adonisjs-skills	git@github.com:Tonours/adonisjs-skills.git	main	personal	adonisjs-architecture,adonisjs-backend,adonisjs-review,adonisjs-suite,adonisjs-testing,adonisjs-tuyau

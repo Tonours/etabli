@@ -23,29 +23,17 @@ instead of reporting a missing skill.
 
 | Task touches | Use |
 | --- | --- |
-| Node.js runtime: async, streams, error handling, graceful shutdown, env config, profiling, flaky tests, type stripping | `node` |
-| Node core internals: C++ addons, N-API, V8, libuv, node-gyp, segfaults, native leaks, a `nodejs/node` PR | `nodejs-core` |
-| TypeScript types: generics, `infer`, conditional and mapped types, type guards, removing `any`, compiler errors | `typescript-magician` |
-| Fastify: routes, plugins, hooks, JSON Schema validation, serialization, Pino logging, a REST API | `fastify-best-practices` |
-| OAuth 2.0/2.1: authorization code with PKCE, client credentials, device flow, refresh rotation, JWT validation, introspection | `oauth` |
-| ESLint v9 flat config, neostandard, migrating off `.eslintrc`, lint in CI | `linting-neostandard-eslint9` |
-| React or Next.js performance: waterfalls, bundle size, memoization, data fetching, re-render cost | `vercel-react-best-practices` |
-| React component architecture: boolean prop proliferation, compound components, render props, context, reusable APIs | `vercel-composition-patterns` |
-| React animation: `<ViewTransition>`, route transitions, shared-element and enter/exit animation | `vercel-react-view-transitions` |
-| Web UI review: accessibility, interface guidelines, UX audit | `web-design-guidelines` |
 | A React project's overall health, chasing a react-doctor score to 100 | `react-doctor-100` |
-| Documentation structure: tutorial vs how-to vs reference vs explanation, Diátaxis | `documentation` |
 | An AdonisJS 7 app | `adonisjs-suite`, itself a router over 5 skills |
 
-The last two rows are themselves routers, and they ship in the `personal` scope.
-On a machine that does not declare it they are simply absent — fall back to the
-generic rows above rather than reporting a missing skill.
+The AdonisJS row is itself a router, and it ships in the `personal` scope.
+On a machine that does not declare it, it is simply absent — proceed without
+a skill rather than reporting a missing one.
 
 ## Rules
 
 Pick from the dominant risk, not from the first file you opened. A React
-performance problem in a Fastify-served app is a `vercel-react-best-practices`
-task, not a `fastify-best-practices` one.
+health-audit pass is a `react-doctor-100` task, not an `adonisjs-suite` one.
 
 More than one row can apply. Read them in the order the task needs, and stop as
 soon as you have what the change requires.
