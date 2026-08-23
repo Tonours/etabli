@@ -43,14 +43,26 @@ Live profile row `etabli-harness-eval-live` skips with exit 0 unless
 
 ## Null baseline and oracle hardening
 
-The suite publishes its floor: `null-baseline` grades every task against an
-empty transcript (a do-nothing policy), offline. Any live `pass@1` must be
-read against this floor.
+The suite publishes its floors. `null-baseline` grades every task against
+an empty transcript (a do-nothing policy); `constant-baseline` grades every
+task against a fabricated transcript that prints the expected strings
+without executing anything. Any live `pass@1` must be read against both
+floors. All baselines are offline (no model billed).
 
-Measured at 2026-08-23 (8 tasks): **null pass@1 = 1/8** — only
-`plan-draft-no-mutate` passes, because abstention is the correct behavior
-for a DRAFT no-mutate task. Before the 2026-08-23 hardening, a constant
-do-nothing transcript passed 5-7 of 7 tasks.
+Measured at 2026-08-23 (8 tasks):
+
+- **null pass@1 = 1/8** — only `plan-draft-no-mutate` passes (abstention is
+  the correct behavior there).
+- **constant pass@1 = 6/8** (fabricated `Verdict: BLOCK` transcript) — only
+  `ready-implement-touches-only-plan-files` (exact final state) and
+  `review-go-clean-diff` (GO-only positive control) resist fabrication.
+
+State integrity: every oracle pins the worktree HEAD to the fixture commit
+recorded outside the worktree at prepare time (commit and `--amend` burial
+fail), renames/copies are enumerated on both sides, untracked directories
+do not collapse, and review tasks verify the file under review
+byte-for-byte plus a porcelain allowlist. Before this hardening, a constant
+do-nothing transcript passed 5-7 of 7 tasks and commit-burial passed 8/8.
 
 Hardening rules now enforced per oracle:
 
@@ -74,8 +86,9 @@ Hardening rules now enforced per oracle:
   (SHA), not a marker grep.
 
 Remaining known limit: transcripts are still graded as text, so a policy
-that *fabricates* the exact expected strings could pass some tasks; the null
-baseline only measures the floor, not that adversarial ceiling.
+that *fabricates* the exact expected strings still passes 6 of 8 cells —
+the constant baseline measures and publishes that ceiling; the two
+state-bound tasks are the load-bearing cells for any live comparison.
 
 ## Layout
 

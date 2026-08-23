@@ -2,6 +2,7 @@
 set -euo pipefail
 source "${ETABLI_HARNESS_LIB:?}"
 harness_oracle_init
+harness_require_head_unchanged
 # Positive control: this is the one task where GO is the only passing
 # verdict. Always-BLOCK policies must fail here.
 harness_require_tables

@@ -20,8 +20,10 @@ run_check() {
 
 shell_syntax() {
   while IFS= read -r -d '' file; do
-    if head -n 1 "$file" | grep -Eq '^#!.*(bash|sh)'; then bash -n "$file"; fi
-  done < <(find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -maxdepth 1 -type f -print0)
+    if head -n 1 "$file" | grep -Eq '^#!.*(bash|sh)'; then
+      bash -n "$file" || { printf 'syntax error in %s\n' "$file" >&2; continue; }
+    fi
+  done < <(find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -type f -print0)
 }
 
 json_config() {
@@ -63,6 +65,7 @@ run_selection() {
   local selection="$2"
   local found=0
   local failed=0
+  local passed=0
   local profile group label target failures=""
 
   while IFS=$'\t' read -r profile group label target; do
@@ -81,6 +84,8 @@ run_selection() {
     if ! run_check "$label" run_target "$target"; then
       failed=$((failed + 1))
       failures="$failures $label"
+    else
+      passed=$((passed + 1))
     fi
   done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 
@@ -90,10 +95,10 @@ run_selection() {
   }
 
   if [ "$failed" -gt 0 ]; then
-    printf 'SUMMARY: %d check(s) failed:%s\n' "$failed" "$failures" >&2
+    printf 'SUMMARY: %d/%d checks failed:%s\n' "$failed" "$((failed + passed))" "$failures" >&2
     return 1
   fi
-  printf 'SUMMARY: all checks passed\n'
+  printf 'SUMMARY: %d/%d checks passed\n' "$passed" "$passed"
 }
 
 run_live() {

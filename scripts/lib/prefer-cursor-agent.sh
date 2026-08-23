@@ -15,7 +15,12 @@ prefer_cursor_agent_is_grok_collision() {
     return 1
   fi
   if [ -L "$agent_path" ]; then
-    return 0
+    # A symlink is a collision only if it resolves to the grok binary;
+    # a user-managed link to something else must survive.
+    if [ -e "$grok_path" ] && [ "$(readlink -f "$agent_path" 2>/dev/null)" = "$(readlink -f "$grok_path" 2>/dev/null)" ]; then
+      return 0
+    fi
+    return 1
   fi
   if [ -e "$grok_path" ] && [ "$agent_path" -ef "$grok_path" ]; then
     return 0
@@ -39,7 +44,7 @@ prefer_cursor_agent_hook_text() {
 # Grok CLI also ships `agent`; keep that name for Cursor (`~/.local/bin/agent`).
 # Launch Grok with `grok`.
 if [ -e "${HOME}/.grok/bin/agent" ] || [ -L "${HOME}/.grok/bin/agent" ]; then
-  if [ -L "${HOME}/.grok/bin/agent" ] || { [ -e "${HOME}/.grok/bin/grok" ] && [ "${HOME}/.grok/bin/agent" -ef "${HOME}/.grok/bin/grok" ]; }; then
+  if { [ -L "${HOME}/.grok/bin/agent" ] && [ -e "${HOME}/.grok/bin/grok" ] && [ "$(readlink -f "${HOME}/.grok/bin/agent" 2>/dev/null)" = "$(readlink -f "${HOME}/.grok/bin/grok" 2>/dev/null)" ]; } || { [ ! -L "${HOME}/.grok/bin/agent" ] && [ -e "${HOME}/.grok/bin/grok" ] && [ "${HOME}/.grok/bin/agent" -ef "${HOME}/.grok/bin/grok" ]; }; then
     rm -f "${HOME}/.grok/bin/agent"
     hash -r 2>/dev/null || true
   fi
@@ -59,9 +64,9 @@ prefer_cursor_agent_ensure_shell_hook() {
     return 0
   fi
 
-  touch "$rcfile" 2>/dev/null || return 0
-  hook="$(prefer_cursor_agent_hook_text)" || return 0
-  tmp_file="$(mktemp)" || return 0
+  touch "$rcfile" 2>/dev/null || return 1
+  hook="$(prefer_cursor_agent_hook_text)" || return 1
+  tmp_file="$(mktemp)" || return 1
 
   if grep -Fxq "$begin" "$rcfile"; then
     if HOOK="$hook" BEGIN="$begin" END="$end" awk '

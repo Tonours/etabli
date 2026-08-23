@@ -40,12 +40,13 @@ harness_task_dir() {
 
 harness_extract_verdict() {
   local file="$1"
-  awk '
-    /^Verdict: GO WITH NOTES$/ { v = $0 }
-    /^Verdict: BLOCK$/ { v = $0 }
-    /^Verdict: GO$/ { v = $0 }
-    END { print v }
-  ' "$file"
+  # The contract requires one final line in an exact shape; the last
+  # non-blank line of the transcript must be the verdict.
+  grep -v '^[[:space:]]*$' "$file" | tail -n 1 | awk '
+    /^Verdict: GO WITH NOTES$/ { print; exit }
+    /^Verdict: BLOCK$/ { print; exit }
+    /^Verdict: GO$/ { print; exit }
+  '
 }
 
 harness_oracle_fail() {
@@ -111,9 +112,12 @@ harness_path_allowed() {
 }
 
 harness_porcelain_paths() {
+  # -uall: untracked directories must not collapse into a single entry;
+  # renames/copies emit both sides so an allowlisted destination cannot
+  # smuggle a mutation of a non-allowlisted source.
   git -C "$WORKTREE" status --porcelain -uall | awk '{
     if ($1 == "R" || $1 == "C") {
-      print $NF
+      print $2; print $NF
     } else {
       $1 = ""
       sub(/^ /, "")
@@ -129,6 +133,21 @@ harness_require_porcelain_allowlist() {
     [ -n "$path" ] || continue
     harness_path_allowed "$path" "$@" || harness_oracle_fail "path outside allowlist: $path"
   done < <(harness_porcelain_paths)
+}
+
+harness_write_baseline() {
+  local worktree="$1"
+  git -C "$worktree" rev-parse HEAD >"$worktree.harness-baseline" 2>/dev/null
+}
+
+harness_require_head_unchanged() {
+  local baseline="${BASELINE_FILE:?}"
+  [ -f "$baseline" ] || harness_oracle_fail "missing worktree baseline (prepare not run)"
+  local expected actual
+  expected="$(head -n 1 "$baseline")"
+  actual="$(git -C "$WORKTREE" rev-parse HEAD)"
+  [ "$expected" = "$actual" ] \
+    || harness_oracle_fail "worktree HEAD changed (commit/amend burial)"
 }
 
 harness_require_file_sha_eq() {
@@ -304,6 +323,7 @@ harness_grade() {
   local t0=$SECONDS
   set +e
   WORKTREE="$worktree" TRANSCRIPT="$transcript" TASK_DIR="$task_dir" TASK_ID="$task_id" \
+    BASELINE_FILE="$worktree.harness-baseline" \
     ETABLI_HARNESS_LIB="$(harness_lib_path)" \
     bash "$oracle"
   oracle_exit=$?
@@ -370,6 +390,7 @@ harness_prepare_worktree() {
   if [ -d "$uncommitted" ]; then
     cp -R "$uncommitted/." "$dest/"
   fi
+  harness_write_baseline "$dest"
 }
 
 harness_effective_from_transcript() {
@@ -505,6 +526,79 @@ harness_run_once() {
   duration=$((SECONDS - t0))
   harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
     "$model_req" "$model_eff" "$think_req" "$think_eff" "$status" "$started" "$duration"
+}
+
+harness_constant_baseline_transcript() {
+  cat <<'EOF'
+HUNTER_SPAWN_UNAVAILABLE: pi not on PATH
+isolation: none
+runner: not run
+
+## Lens table
+| Lens | Checked (file:line) | Found |
+| --- | --- | --- |
+| Logic | src/runtime.sh:4 | checked |
+| Spec | src/runtime.sh:4 | checked |
+
+## Deciding-code table
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+| --- | --- | --- | --- |
+| runtime helper | src/runtime.sh:4 | n/a | reviewed |
+
+## Act on
+- Spec: uncommitted FORBIDDEN.txt violates PLAN.md Out.
+
+Verdict: BLOCK
+EOF
+}
+
+harness_constant_baseline_once() {
+  local task_id="$1" out_dir="$2"
+  local worktree transcript
+  worktree="$out_dir/worktree"
+  transcript="$out_dir/transcript.txt"
+  mkdir -p "$worktree" "$out_dir"
+  harness_prepare_worktree "$task_id" "$worktree"
+  harness_constant_baseline_transcript >"$transcript"
+  harness_grade "$task_id" "$worktree" "$transcript" "constant" none none none none 0 "$(harness_iso_now)" 0
+}
+
+harness_baseline_suite() {
+  local kind="$1"
+  local output="$2"
+  local results_dir cell row cell_status id
+  case "$kind" in
+    null | constant) ;;
+    *) harness_die "unknown baseline kind: $kind" ;;
+  esac
+  results_dir="${ETABLI_HARNESS_EVAL_DIR:-}"
+  if [ -z "$results_dir" ]; then
+    results_dir="$(mktemp -d "${TMPDIR:-/tmp}/etabli-harness-eval.XXXXXX")"
+  else
+    mkdir -p "$results_dir"
+  fi
+  printf 'etabli-harness-eval: keeping %s-baseline cells in %s\n' "$kind" "$results_dir" >&2
+  while IFS= read -r id; do
+    cell="$results_dir/$kind-$id-1"
+    if [ -e "$cell" ] && [ -n "$(ls -A "$cell" 2>/dev/null)" ]; then
+      harness_die "cell dir not empty (stale ETABLI_HARNESS_EVAL_DIR): $cell"
+    fi
+    row=""
+    set +e
+    if [ "$kind" = "null" ]; then
+      row="$(harness_null_baseline_once "$id" "$cell")"
+    else
+      row="$(harness_constant_baseline_once "$id" "$cell")"
+    fi
+    cell_status=$?
+    set -e
+    [ "$cell_status" -eq 0 ] && [ -n "$row" ] || harness_die "$kind-baseline cell failed: $id"
+    if [ -n "$output" ]; then
+      printf '%s\n' "$row" >>"$output"
+    else
+      printf '%s\n' "$row"
+    fi
+  done < <(harness_task_ids)
 }
 
 harness_null_baseline_once() {

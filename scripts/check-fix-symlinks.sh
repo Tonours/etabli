@@ -18,8 +18,15 @@ if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; t
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
   AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
+  # A present-but-degenerate catalog must degrade to the missing-catalog
+  # mode, not crash (or worse, prune with an empty keep-list).
+  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; }; then
+    SKILL_CATALOG_MISSING=1
+  fi
 else
   SKILL_CATALOG_MISSING=1
+fi
+if [ "$SKILL_CATALOG_MISSING" -eq 1 ]; then
   # Bash 3 with `set -u` treats an empty array expansion as unbound.
   PI_CORE_SKILLS=("")
   AGENTS_VISIBLE_SKILLS=("")
