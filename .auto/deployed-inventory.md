@@ -62,6 +62,12 @@ iteration 10; re-verified iteration 19):
   exists only on this machine — no remote copy. A disk loss before merge
   loses the work; merging (or pushing a backup ref, user-gated) removes
   that risk.
+- `pi/extensions/herdr-agent-state.ts` (untracked, installed by
+  `herdr integration install pi`) loads cleanly in the current Pi runtime
+  (import smoke passed, inert top level) but carries
+  `HERDR_INTEGRATION_VERSION=8`; confirming 8 matches the installed herdr
+  requires invoking herdr — user check: `herdr --version` vs the integration
+  version, or re-run `herdr integration install pi` to refresh.
 
 - The 38 dangling links detail (from the census above): 26 on pi surface
   (old ui.sh/taste design set), 6 french business skills on codex, 6 on
