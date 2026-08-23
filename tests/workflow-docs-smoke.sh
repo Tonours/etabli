@@ -334,14 +334,14 @@ assert_file "$ROOT_DIR/workflow/skill-design.md"
 assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Delete-test'
 
 assert_max_lines() {
-  local file="$1"
-  local cap="$2"
-  local lines
-  lines="$(wc -l < "$file" | tr -d ' ')"
-  if [ "$lines" -gt "$cap" ]; then
-    printf 'map-not-manual: %s has %s lines, cap is %s; trim it or move detail to pointed docs\n' "$file" "$lines" "$cap" >&2
-    exit 1
-  fi
+    local file="$1"
+    local cap="$2"
+    local lines
+    lines="$(wc -l <"$file" | tr -d ' ')"
+    if [ "$lines" -gt "$cap" ]; then
+        printf 'map-not-manual: %s has %s lines, cap is %s; trim it or move detail to pointed docs\n' "$file" "$lines" "$cap" >&2
+        exit 1
+    fi
 }
 
 assert_max_lines "$ROOT_DIR/AGENTS.md" 120
@@ -416,7 +416,10 @@ jq -e '
 # workflow-event, dual-runtime). Docs smoke keeps map structure + anti-drift only.
 assert_contains "$ROOT_DIR/workflow/spec.md" 'No-progress stop'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Check-freeze'
-test -x "$ROOT_DIR/scripts/plan-check-freeze" || { printf 'missing plan-check-freeze helper\n' >&2; exit 1; }
+test -x "$ROOT_DIR/scripts/plan-check-freeze" || {
+    printf 'missing plan-check-freeze helper\n' >&2
+    exit 1
+}
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/scripts/workflow-event"
 assert_contains "$ROOT_DIR/scripts/workflow-event" 'harness_validation_completed'
@@ -619,9 +622,18 @@ catalog_counts="$(
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
 read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
-[ "$catalog_total" -le 95 ] || { printf 'skill catalog grew beyond baseline: %s > 95\n' "$catalog_total" >&2; exit 1; }
-[ "$pi_core_total" -le 14 ] || { printf 'pi_core grew beyond baseline: %s > 14\n' "$pi_core_total" >&2; exit 1; }
-[ "$agents_visible_total" -le 14 ] || { printf 'agents_visible grew beyond baseline: %s > 14\n' "$agents_visible_total" >&2; exit 1; }
+[ "$catalog_total" -le 95 ] || {
+    printf 'skill catalog grew beyond baseline: %s > 95\n' "$catalog_total" >&2
+    exit 1
+}
+[ "$pi_core_total" -le 14 ] || {
+    printf 'pi_core grew beyond baseline: %s > 14\n' "$pi_core_total" >&2
+    exit 1
+}
+[ "$agents_visible_total" -le 14 ] || {
+    printf 'agents_visible grew beyond baseline: %s > 14\n' "$agents_visible_total" >&2
+    exit 1
+}
 
 duplicate_catalog_names="$(skill_catalog_names "$ROOT_DIR/workflow/runtime/skill-surface.tsv" | sort | uniq -d)"
 [ -z "$duplicate_catalog_names" ] || {
@@ -638,10 +650,10 @@ single_line_skill_description() {
     }
     description="$(awk '/^description:[[:space:]]/{sub(/^description:[[:space:]]*/, ""); print; exit}' "$skill_file")"
     case "$description" in
-        ""|\'*|\"*|\|*|\>*)
-            printf 'prompt-visible skill uses an unmeasurable description scalar: %s\n' "$label" >&2
-            return 1
-            ;;
+    "" | \'* | \"* | \|* | \>*)
+        printf 'prompt-visible skill uses an unmeasurable description scalar: %s\n' "$label" >&2
+        return 1
+        ;;
     esac
     if printf '%s\n' "$description" | grep -Eq '(^|[[:space:]])#|:[[:space:]]'; then
         printf 'prompt-visible skill description needs YAML decoding: %s\n' "$label" >&2
@@ -684,8 +696,8 @@ for prompt_surface in pi_core agents_visible; do
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
     case "$prompt_surface" in
-        pi_core) max_bytes=767 ;;
-        agents_visible) max_bytes=1020 ;;
+    pi_core) max_bytes=767 ;;
+    agents_visible) max_bytes=1020 ;;
     esac
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
@@ -746,11 +758,11 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '
 
 command_file_for() {
     case "$1" in
-        /*) printf '%s.md\n' "${1#/}" ;;
-        *)
-            printf 'unexpected command format: %s\n' "$1" >&2
-            exit 1
-            ;;
+    /*) printf '%s.md\n' "${1#/}" ;;
+    *)
+        printf 'unexpected command format: %s\n' "$1" >&2
+        exit 1
+        ;;
     esac
 }
 
@@ -771,16 +783,16 @@ while IFS= read -r command; do
     [ -n "$command" ] || continue
     command_file="$(command_file_for "$command")"
     assert_file "$ROOT_DIR/claude/scopes/shared/commands/$command_file"
-done <<< "$workflow_claude_commands"
+done <<<"$workflow_claude_commands"
 
 while IFS= read -r command_path; do
     command_file="$(basename "$command_path")"
     case "$command_file" in
-        *.md) command="/${command_file%.md}" ;;
-        *)
-            printf 'unexpected command file: %s\n' "$command_file" >&2
-            exit 1
-            ;;
+    *.md) command="/${command_file%.md}" ;;
+    *)
+        printf 'unexpected command file: %s\n' "$command_file" >&2
+        exit 1
+        ;;
     esac
 
     assert_contains "$ROOT_DIR/claude/README.md" "- \`$command\`"

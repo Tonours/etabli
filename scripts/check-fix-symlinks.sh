@@ -16,8 +16,8 @@ SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 SKILL_CATALOG_MISSING=0
 if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; then
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
-  PI_CORE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi pi_core) )
-  AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
+  PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
+  AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
 else
   SKILL_CATALOG_MISSING=1
   # Bash 3 with `set -u` treats an empty array expansion as unbound.
@@ -39,10 +39,17 @@ EOF
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --fix) FIX=1 ;;
-    --verbose) VERBOSE=1 ;;
-    -h|--help) usage; exit 0 ;;
-    *) echo "Unknown argument: $1" >&2; usage; exit 1 ;;
+  --fix) FIX=1 ;;
+  --verbose) VERBOSE=1 ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "Unknown argument: $1" >&2
+    usage
+    exit 1
+    ;;
   esac
   shift
 done
@@ -208,8 +215,8 @@ prune_unlisted_pi_source_skills() {
     [ -L "$skill_link" ] || continue
     skill_target="$(readlink "$skill_link")"
     case "$skill_target" in
-      "$REPO_DIR/pi/skills/"*) ;;
-      *) continue ;;
+    "$REPO_DIR/pi/skills/"*) ;;
+    *) continue ;;
     esac
     skill_name="$(basename "$skill_link")"
     if ! "$keep_fn" "$skill_name"; then
@@ -250,15 +257,15 @@ check_vendor_skill_links() {
     for skill_link in "$HOME/$surface"/*; do
       [ -L "$skill_link" ] || continue
       case "$(readlink "$skill_link")" in
-        "$REPO_DIR/pi/skills/"*)
-          ISSUES=$((ISSUES + 1))
-          status_line WARN "Pi-sourced skill link $(basename "$skill_link") on $surface"
-          if [ "$FIX" -eq 1 ]; then
-            rm -f "$skill_link"
-            FIXED=$((FIXED + 1))
-            status_line FIXED "removed Pi-sourced skill link $(basename "$skill_link") from $surface"
-          fi
-          ;;
+      "$REPO_DIR/pi/skills/"*)
+        ISSUES=$((ISSUES + 1))
+        status_line WARN "Pi-sourced skill link $(basename "$skill_link") on $surface"
+        if [ "$FIX" -eq 1 ]; then
+          rm -f "$skill_link"
+          FIXED=$((FIXED + 1))
+          status_line FIXED "removed Pi-sourced skill link $(basename "$skill_link") from $surface"
+        fi
+        ;;
       esac
     done
   done
@@ -376,8 +383,8 @@ check_stale_managed_claude_agent_links() {
     [ -L "$agent_link" ] || continue
     agent_target="$(readlink "$agent_link")"
     case "$agent_target" in
-      "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
-      *) continue ;;
+    "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
+    *) continue ;;
     esac
     [ -e "$agent_target" ] && continue
 
