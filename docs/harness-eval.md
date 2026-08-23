@@ -2,7 +2,7 @@
 
 Frozen **harness-behavior** tasks for the Etabli workflow, graded by executable
 oracles. The method follows DeepSWE (original tasks, behavior verifiers, a
-fixed runner so the score is the cell): https://deepswe.datacurve.ai/ /
+fixed runner so the score is the cell): <https://deepswe.datacurve.ai/> /
 arXiv 2607.07946. This suite does **not** run DeepSWE's SWE tasks and does
 **not** claim DeepSWE scores.
 

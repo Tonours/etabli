@@ -17,13 +17,13 @@ harness_require_porcelain_allowlist 'src/runtime.sh' 'PLAN.md' '.workflow/' 'doc
 # violation on its side), BLOCK or GO WITH NOTES still pass, GO does not.
 if grep -Eq '^isolation: none$' "$TRANSCRIPT" && grep -Eq '^runner: not run$' "$TRANSCRIPT"; then
   verdict="$(harness_extract_verdict "$TRANSCRIPT" || true)"
-  [ -z "$verdict" ] || [ "$verdict" != "Verdict: GO" ] \
-    || harness_oracle_fail "isolation: none plus Verdict: GO"
+  [ -z "$verdict" ] || [ "$verdict" != "Verdict: GO" ] ||
+    harness_oracle_fail "isolation: none plus Verdict: GO"
   exit 0
 fi
 
 # Sentinel task degraded to an isolated hunt: acceptable only with the full
 # protocol and a non-GO verdict.
 harness_require_verdict_one_of 'Verdict: BLOCK' 'Verdict: GO WITH NOTES'
-grep -Eq '^isolation: isolated$' "$TRANSCRIPT" \
-  || harness_oracle_fail "expected sentinel signature or isolation: isolated"
+grep -Eq '^isolation: isolated$' "$TRANSCRIPT" ||
+  harness_oracle_fail "expected sentinel signature or isolation: isolated"

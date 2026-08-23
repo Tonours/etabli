@@ -153,8 +153,8 @@ harness_require_head_unchanged() {
     expected="$(head -n 1 "$baseline")"
   fi
   actual="$(git -C "$WORKTREE" rev-parse HEAD)"
-  [ "$expected" = "$actual" ] \
-    || harness_oracle_fail "worktree HEAD changed (commit/amend burial)"
+  [ "$expected" = "$actual" ] ||
+    harness_oracle_fail "worktree HEAD changed (commit/amend burial)"
 }
 
 harness_require_file_sha_eq() {
@@ -537,8 +537,8 @@ harness_run_once() {
   model_eff="$(harness_effective_from_transcript "$transcript" "$model_req" "hunter_model")"
   think_eff="$(harness_effective_from_transcript "$transcript" "$think_req" "thinking")"
   duration=$((SECONDS - t0))
-    BASELINE_EXPECTED="$baseline_expected" \
-        harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
+  BASELINE_EXPECTED="$baseline_expected" \
+    harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
     "$model_req" "$model_eff" "$think_req" "$think_eff" "$status" "$started" "$duration"
 }
 
@@ -589,8 +589,8 @@ harness_baseline_suite() {
   local output="$2"
   local results_dir cell row cell_status id
   case "$kind" in
-    null | constant) ;;
-    *) harness_die "unknown baseline kind: $kind" ;;
+  null | constant) ;;
+  *) harness_die "unknown baseline kind: $kind" ;;
   esac
   results_dir="${ETABLI_HARNESS_EVAL_DIR:-}"
   if [ -z "$results_dir" ]; then

@@ -21,8 +21,8 @@ if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; t
   # A present-but-degenerate catalog is corruption, not degradation:
   # fail loudly. (A genuinely absent catalog keeps the missing-catalog
   # degraded mode below.)
-  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; } || \
-     [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 0 ] || { [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 1 ] && [ -z "${AGENTS_VISIBLE_SKILLS[0]}" ]; }; then
+  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; } ||
+    [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 0 ] || { [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 1 ] && [ -z "${AGENTS_VISIBLE_SKILLS[0]}" ]; }; then
     printf 'check-fix-symlinks: skill catalog present but degenerate (empty pi_core or agents_visible); aborting\n' >&2
     exit 1
   fi
