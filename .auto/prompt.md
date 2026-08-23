@@ -302,6 +302,12 @@ Segment 1 (current): corrected baseline measured for real via
   audit: no provably-stale entries — globs are defensive; PLAN.md /
   ops-roadmap.md zero-history is the expected signature of local scratch
   files, not staleness. Gate re-passed.
+- **Iteration 25 (run 24, summary refresh)**: found my own Final summary
+  block stale — written at iteration-13 era, never refreshed across 11
+  iterations (quoted 19303 vs real 19283; 10-17 s vs 12-15 s; omitted the
+  post-13 arc entirely). Updated to the true final state, Closure section
+  now lists all 4 user actions. Research gate re-passed. The session record
+  is internally consistent end-to-end.
 
 ### Closure
 
