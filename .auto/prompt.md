@@ -317,6 +317,7 @@ procedure verified end-to-end, iteration 23) and contracts (git-contract
 self-audit, iteration 18; deliverables pass answer-quality gates,
 iteration 20). Session memory persisted to the obvault distill queue.
 User actions that remain (all gated on explicit authorization):
+
 1. squash-merge `autoresearch/simplify-etabli-20260823` (verified
    conflict-free; also resolves the 8 oversized auto-commit subjects);
 2. `obvault distill` — two candidates queued (6dbd726a + da917e14);
