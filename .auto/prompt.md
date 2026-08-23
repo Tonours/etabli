@@ -191,6 +191,16 @@ Segment 1 (current): corrected baseline measured for real via
   `docs/workflow-guide.md`, deleted by consolidation commit 9466974 —
   repointed to README.md with provenance. All entrypoint path references
   now verified to resolve.
+- **Iteration 12 (run 11, KEEP, analyzer-driven)**: lens mode=full pass over
+  in-metric code (pi/extensions + scripts). Triage rejected FPs (French test
+  fixtures, string sort, HashiCorp comment, style churn). Real finds fixed:
+  (a) hand-synced 40-event vocabulary duplicated in ledger-integrity +
+  project-autonomy → single `scripts/lib/workflow-events.mjs`, generated
+  programmatically from the existing set (mutual drift now impossible);
+  (b) plan-check-freeze.mjs blocking defect — unguarded CLI JSON.parse now
+  exits 2 cleanly (negative-tested) + dead existsSync import removed.
+  script_lines 8054→8028, surface 19303→19277 (organic, metric unchanged).
+  All consumer smokes green (event, ledger-hygiene, autonomy, freeze).
 
 ## Final summary
 
