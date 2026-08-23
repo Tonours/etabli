@@ -28,12 +28,41 @@ classified. Repo-managed deployment is COMPLETE and contract-conform.
 - Cross-surface bridges: `obsidian` (codex→claude), relative `../../.agents/*`
   bridges (impeccable, brave-search, code-review, …).
 
-## Open item (user decision only)
+## Validation
 
-38 dangling symlinks whose targets are already gone (26 on pi surface: old
-ui.sh/taste design set; 6 french business skills on codex; 6 on agents).
-Zero data at risk (symlink targets deleted, not content), but the links are
-user-created → not pruned autonomously. Say the word and I prune all 38.
+How the claims above were established (last run: 2026-08-23, session
+iteration 10; re-verified iteration 19):
+
+- Dangling-link census — command: `find <surface> -maxdepth 1 -type l ! -exec
+  test -e {} \; -print` per surface (~/.pi/agent/skills, ~/.claude/skills,
+  ~/.codex/skills, ~/.agents/skills), then `readlink` on each; result: 71
+  dangling, 42 repo-managed (pruned, 0 remain repo-managed), 38 external.
+- Catalog conformance — cross-check of `workflow/runtime/skill-surface.tsv`
+  flags against live links: piCore 14/14 on pi, agents_visible 14/14 on
+  agents; result: passed.
+- Scope — read `~/.etabli-scope`; result: `work`.
+- Clone health — `find <clone> -type f | wc -l` + `diff -rq` vendored vs
+  clone; result: adonisjs diff=0 (curated), tanstack clone live at 348 files.
+- Vault/merge facts — `obvault loop --json` (222 notes, 0 errors) and
+  `git merge-tree --write-tree main HEAD`; result: rc=0.
+
+## Remaining risks
+
+- Point-in-time census: nothing prevents new dangling links after this run;
+  repo-managed ones are caught by the next `scripts/install.sh` prune pass,
+  external ones by nothing (no checker owns user-created links).
+- The 38 external links are user decisions pending; if pruned without review,
+  any tooling still referencing them by name will report missing skills.
+- The adonisjs personal-scope question (12 links under work scope) is
+  inconclusive from repo evidence alone — only the user knows intent.
+- `/Volumes/Crucial/work/*` clones are external state: they can move or be
+  deleted independently of this repo; re-run the readlink census before
+  relying on the classification.
+
+- The 38 dangling links detail (from the census above): 26 on pi surface
+  (old ui.sh/taste design set), 6 french business skills on codex, 6 on
+  agents. Zero data at risk (targets deleted, not content); user-created,
+  so not pruned autonomously — say the word and all 38 go.
 
 ## Scope observation (user decision only)
 
