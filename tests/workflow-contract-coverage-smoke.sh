@@ -35,24 +35,24 @@ assert_contains() {
 
 assert_contract_referenced() {
   local contract_name="$1"
-  local reference="workflow/skills/$contract_name.md"
 
-  if grep -Rsl -- "$reference" \
-    "$ROOT_DIR/claude" \
-    "$ROOT_DIR/pi" \
-    "$ROOT_DIR/docs" \
-    "$ROOT_DIR/README.md" \
-    "$ROOT_DIR/workflow/spec.md" >/dev/null; then
-    return 0
+  if ! grep -Fxq -- "workflow/skills/$contract_name.md" "$REFERENCES_INDEX"; then
+    printf 'unreferenced workflow contract: %s\n' "workflow/skills/$contract_name.md" >&2
+    exit 1
   fi
-
-  if grep -F -- "$reference" "$ROOT_DIR/workflow/spec.md" | grep -Fq "shared-only"; then
-    return 0
-  fi
-
-  printf 'unreferenced workflow contract: %s\n' "$reference" >&2
-  exit 1
 }
+
+# One tree pass collects every `workflow/skills/*.md` mention (was: one
+# recursive grep per contract — N walks over pi/node_modules dominated the
+# core profile wall time).
+REFERENCES_INDEX="$TMP_DIR/contract-references.txt"
+grep -Roh -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
+  "$ROOT_DIR/claude" \
+  "$ROOT_DIR/pi" \
+  "$ROOT_DIR/docs" \
+  "$ROOT_DIR/README.md" \
+  "$ROOT_DIR/workflow/spec.md" >"$REFERENCES_INDEX" || true
+sort -u "$REFERENCES_INDEX" -o "$REFERENCES_INDEX"
 
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path" .md)"
