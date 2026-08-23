@@ -308,6 +308,13 @@ Segment 1 (current): corrected baseline measured for real via
   post-13 arc entirely). Updated to the true final state, Closure section
   now lists all 4 user actions. Research gate re-passed. The session record
   is internally consistent end-to-end.
+- **Iteration 26 (run 25, TERMINAL no-op)**: no testable hypothesis remains;
+  logged rule-faithfully as `discard` (metric unchanged, no code changes).
+  Handoff freshness re-verified (tree clean, merge-tree rc=0). Correction:
+  vault queue holds **3** candidates, not 2 — 9e5391ae (Aug 20, macmini
+  SSH-stall diagnosis) predates this session; the user distill gate covers
+  all three. Session enters sustained no-op state; only user-authorized
+  actions can change the state (merge / distill / link decisions / push).
 
 ### Closure
 
