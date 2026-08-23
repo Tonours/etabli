@@ -141,10 +141,17 @@ harness_write_baseline() {
 }
 
 harness_require_head_unchanged() {
-  local baseline="${BASELINE_FILE:?}"
-  [ -f "$baseline" ] || harness_oracle_fail "missing worktree baseline (prepare not run)"
+  # Preferred source: BASELINE_EXPECTED, held by the driver process and
+  # passed at grade time — outside the subject's write reach. Fallback:
+  # the prepare-time baseline file (offline/manual grading only).
   local expected actual
-  expected="$(head -n 1 "$baseline")"
+  if [ -n "${BASELINE_EXPECTED:-}" ]; then
+    expected="$BASELINE_EXPECTED"
+  else
+    local baseline="${BASELINE_FILE:?}"
+    [ -f "$baseline" ] || harness_oracle_fail "missing worktree baseline (prepare not run)"
+    expected="$(head -n 1 "$baseline")"
+  fi
   actual="$(git -C "$WORKTREE" rev-parse HEAD)"
   [ "$expected" = "$actual" ] \
     || harness_oracle_fail "worktree HEAD changed (commit/amend burial)"
@@ -323,7 +330,7 @@ harness_grade() {
   local t0=$SECONDS
   set +e
   WORKTREE="$worktree" TRANSCRIPT="$transcript" TASK_DIR="$task_dir" TASK_ID="$task_id" \
-    BASELINE_FILE="$worktree.harness-baseline" \
+    BASELINE_FILE="$worktree.harness-baseline" BASELINE_EXPECTED="${BASELINE_EXPECTED:-}" \
     ETABLI_HARNESS_LIB="$(harness_lib_path)" \
     bash "$oracle"
   oracle_exit=$?
@@ -468,12 +475,18 @@ harness_run_once() {
   local task_id="$2"
   local out_dir="$3"
   local worktree transcript prompt_file prompt hide abs_bin status model_req think_req
-  local model_eff think_eff run_path stub started t0 duration
+  local model_eff think_eff run_path stub started t0 duration baseline_expected
 
   worktree="$out_dir/worktree"
   transcript="$out_dir/transcript.txt"
+  harness_require_cell_dir_empty "$out_dir"
   mkdir -p "$worktree" "$out_dir"
+  harness_require_cell_dir_empty "$out_dir"
   harness_prepare_worktree "$task_id" "$worktree"
+  # Driver-held baseline: never written inside the cell, so a subject with
+  # write access cannot overwrite the pin (file fallback stays for offline
+  # grade invocations).
+  baseline_expected="$(git -C "$worktree" rev-parse HEAD)"
   prompt_file="$(harness_task_dir "$task_id")/prompt.md"
   [ -f "$prompt_file" ] || harness_die "missing prompt: $prompt_file"
   prompt="$(cat "$prompt_file")"
@@ -524,7 +537,8 @@ harness_run_once() {
   model_eff="$(harness_effective_from_transcript "$transcript" "$model_req" "hunter_model")"
   think_eff="$(harness_effective_from_transcript "$transcript" "$think_req" "thinking")"
   duration=$((SECONDS - t0))
-  harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
+    BASELINE_EXPECTED="$baseline_expected" \
+        harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
     "$model_req" "$model_eff" "$think_req" "$think_eff" "$status" "$started" "$duration"
 }
 
@@ -563,6 +577,13 @@ harness_constant_baseline_once() {
   harness_grade "$task_id" "$worktree" "$transcript" "constant" none none none none 0 "$(harness_iso_now)" 0
 }
 
+harness_require_cell_dir_empty() {
+  local cell="$1"
+  if [ -e "$cell" ] && [ -n "$(ls -A "$cell" 2>/dev/null)" ]; then
+    harness_die "cell dir not empty (stale ETABLI_HARNESS_EVAL_DIR): $cell"
+  fi
+}
+
 harness_baseline_suite() {
   local kind="$1"
   local output="$2"
@@ -580,9 +601,7 @@ harness_baseline_suite() {
   printf 'etabli-harness-eval: keeping %s-baseline cells in %s\n' "$kind" "$results_dir" >&2
   while IFS= read -r id; do
     cell="$results_dir/$kind-$id-1"
-    if [ -e "$cell" ] && [ -n "$(ls -A "$cell" 2>/dev/null)" ]; then
-      harness_die "cell dir not empty (stale ETABLI_HARNESS_EVAL_DIR): $cell"
-    fi
+    harness_require_cell_dir_empty "$cell"
     row=""
     set +e
     if [ "$kind" = "null" ]; then
