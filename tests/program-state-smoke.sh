@@ -600,7 +600,13 @@ if "$WORKFLOW_EVENT" --dir "$WRITER_ROOT" append foreign route_decided '{"route"
 fi
 
 mkdir -p "$WRITER_ROOT/held"
-lockf "$WRITER_ROOT/held/events.lock" sleep 6 &
+# Hold the lock with the platform's native backend (lockf on BSD/macOS,
+# flock on Linux); the append must refuse to steal a live lock either way.
+if command -v lockf >/dev/null 2>&1; then
+  lockf "$WRITER_ROOT/held/events.lock" sleep 6 &
+else
+  flock "$WRITER_ROOT/held/events.lock" sleep 6 &
+fi
 LOCK_HOLDER=$!
 sleep 0.2
 if "$WORKFLOW_EVENT" --dir "$WRITER_ROOT" append held route_decided '{"route":"verify","reason":"live lock"}' >/dev/null 2>&1; then
