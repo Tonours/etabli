@@ -508,7 +508,6 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Does this ad
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'simplify: clean'
 assert_not_contains "$ROOT_DIR/claude/README.md" 'before the repos are opened'
 assert_not_contains "$ROOT_DIR/claude/scopes/work/skills/sec-pr/references/employer-dependabot.md" 'Read-only sortant'
-assert_contains_wrapped "$INSTALL_MAIN" 'for skill_name in "${CROSS_HARNESS_PI_SKILLS[@]}"; do [ -n "$skill_name" ] || continue'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Never use `OK`, `APPROVED`, `PASS`'
 assert_not_contains "$ROOT_DIR/workflow/review-rubric.md" 'write exactly'
@@ -602,14 +601,14 @@ source "$ROOT_DIR/scripts/lib/skill-catalog.sh"
 
 catalog_schema_issues="$(
     awk -F '\t' '
-        $0 !~ /^#/ && NF != 6 { print NR ": expected 6 fields, got " NF }
-        $0 !~ /^#/ && NF == 6 && ($3 !~ /^[01]$/ || $4 !~ /^[01]$/ || $5 !~ /^[01]$/ || $6 !~ /^[01]$/) {
+        $0 !~ /^#/ && NF != 5 { print NR ": expected 5 fields, got " NF }
+        $0 !~ /^#/ && NF == 5 && ($3 !~ /^[01]$/ || $4 !~ /^[01]$/ || $5 !~ /^[01]$/) {
             print NR ": visibility and lock flags must be explicit 0 or 1"
         }
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
 [ -z "$catalog_schema_issues" ] || {
-    printf 'skill catalog schema drift:\n%s\nremediation: keep six explicit fields per record\n' "$catalog_schema_issues" >&2
+    printf 'skill catalog schema drift:\n%s\nremediation: keep five explicit fields per record\n' "$catalog_schema_issues" >&2
     exit 1
 }
 

@@ -117,19 +117,37 @@ done < <(jq -r '.tasks[].id' "$FIXTURES/manifest.json")
 
 notes="$TMP_DIR/go-with-notes.txt"
 cat >"$notes" <<'EOF'
-| Lens | Checked (file:line) | Found |
-| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+## Act on
+- Spec: uncommitted FORBIDDEN.txt violates PLAN.md Out.
+
 Verdict: GO WITH NOTES
 EOF
-prepare_synthetic review-go-forbidden-empty-deciding pass "$TMP_DIR/notes-wt"
+prepare_synthetic review-spec-drift pass "$TMP_DIR/notes-wt"
 notes_json="$(
   PATH="$HERMETIC_PATH" "$DRIVER" grade \
-    --task review-go-forbidden-empty-deciding \
+    --task review-spec-drift \
     --worktree "$TMP_DIR/notes-wt" \
     --transcript "$notes"
 )"
 printf '%s\n' "$notes_json" | jq -e '.pass == true' >/dev/null \
   || fail "Verdict: GO WITH NOTES must not be treated as GO"
+
+degenerate="$TMP_DIR/go-with-notes-degenerate.txt"
+cat >"$degenerate" <<'EOF'
+| Lens | Checked (file:line) | Found |
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+Verdict: GO WITH NOTES
+EOF
+prepare_synthetic review-go-forbidden-empty-deciding pass "$TMP_DIR/degenerate-wt"
+degenerate_json="$(
+  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+    --task review-go-forbidden-empty-deciding \
+    --worktree "$TMP_DIR/degenerate-wt" \
+    --transcript "$degenerate" \
+    2>"$TMP_DIR/degenerate.err"
+)"
+printf '%s\n' "$degenerate_json" | jq -e '.pass == false' >/dev/null \
+  || fail "GO WITH NOTES over an empty deciding-code table must fail"
 
 pipe="$TMP_DIR/pipe-template.txt"
 cat >"$pipe" <<'EOF'

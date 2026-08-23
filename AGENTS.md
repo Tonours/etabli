@@ -42,8 +42,8 @@ Repo-specific instructions for this dotfiles repo.
 - `~/.agents/workflow/` -> `workflow/`
 - `~/.agents/skills/` receives catalog entries marked `agents_visible`; Grok
   discovers this shared surface
-- `~/.codex/skills/` receives active-scope vendored skills plus catalog entries
-  marked `cross_harness`; no other Codex harness state is tracked
+- `~/.codex/skills/` receives active-scope vendored skills; no other Codex
+  harness state is tracked
 - `~/.etabli-scope` selects `work` or `personal`; the active set is always
   `shared` plus that declared scope
 - `~/.config/ghostty/config` -> `ghostty/config`

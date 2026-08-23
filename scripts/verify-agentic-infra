@@ -62,7 +62,8 @@ run_selection() {
   local selection_kind="$1"
   local selection="$2"
   local found=0
-  local profile group label target
+  local failed=0
+  local profile group label target failures=""
 
   while IFS=$'\t' read -r profile group label target; do
     case "$selection_kind:$selection" in
@@ -77,13 +78,22 @@ run_selection() {
       *) printf 'Unknown selection: %s %s\n' "$selection_kind" "$selection" >&2; return 2 ;;
     esac
     found=1
-    run_check "$label" run_target "$target"
+    if ! run_check "$label" run_target "$target"; then
+      failed=$((failed + 1))
+      failures="$failures $label"
+    fi
   done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 
   [ "$found" -eq 1 ] || {
     printf 'No checks configured for agentic-infra %s: %s\n' "$selection_kind" "$selection" >&2
     return 2
   }
+
+  if [ "$failed" -gt 0 ]; then
+    printf 'SUMMARY: %d check(s) failed:%s\n' "$failed" "$failures" >&2
+    return 1
+  fi
+  printf 'SUMMARY: all checks passed\n'
 }
 
 run_live() {

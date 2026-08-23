@@ -150,7 +150,7 @@ for (const row of rows) {
   }
 }
 
-if (descriptionBytes !== 901 || descriptionBytes > 1036) {
+if (descriptionBytes !== 956 || descriptionBytes > 1036) {
   throw new Error(`description total drifted: ${descriptionBytes}`)
 }
 
