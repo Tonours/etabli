@@ -278,6 +278,13 @@ Segment 1 (current): corrected baseline measured for real via
   rc=1. All restored green — the safety net is live, not just passing.
   Added handoff risk to the decision packet: the 38-commit branch is
   local-only (disk loss before merge loses the work; push is user-gated).
+- **Iteration 22 (run 21, closure record completed)**: classified the last
+  never-addressed piece — the `live` profile. Its 4 checks are env-gated
+  because they spawn real Pi/Claude CLIs and invoke providers (token cost,
+  external effects) — verified from the test sources themselves, not
+  assumed. Documented in the playbook alongside core/full coverage; the
+  manual command for a human-budgeted live run is recorded. All three
+  profiles now have an evidence-backed status in the session record.
 
 ### Closure
 
