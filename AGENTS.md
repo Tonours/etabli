@@ -57,7 +57,7 @@ Repo-specific instructions for this dotfiles repo.
 
 ## Workflow
 
-- Human guide + schemas: `docs/workflow-guide.md`
+- Human guide + schemas: `README.md` (docs consolidated there; see commit 9466974)
 - Agent one-pager: `workflow/agent-quick-card.md`
 - Canonical workflow map: `workflow/spec.md`
 - Long rules / commands: `workflow/contract-details.md`
