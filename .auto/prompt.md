@@ -33,6 +33,15 @@ and descriptions injected into every agent session).
 `scripts/verify-agentic-infra core` once per iteration and times it; if verify
 fails, the script exits nonzero (log as `checks_failed`).
 
+Profile coverage (session-final): `core` green on every run (in measure.sh);
+`full` 68/68 on the final tree + profiled in iteration 14 (top-4 cost =
+deliberate lock-contention waits + spawn overhead, by design); `live`
+deliberately NOT run — its 4 checks are env-gated because they spawn real
+Pi/Claude CLIs and invoke providers (token cost, external effects); run them
+manually via `RUN_AGENT_CLI_SMOKE=1 RUN_REAL_AGENT_SCENARIOS=1
+RUN_SKILL_RUNTIME_CANARY=1 scripts/verify-agentic-infra live` when a human
+budgets the run.
+
 ## Files in Scope
 
 - `workflow/skills/*.md` — 20+ flat skill docs; heavy duplication with
