@@ -201,6 +201,11 @@ Segment 1 (current): corrected baseline measured for real via
   exits 2 cleanly (negative-tested) + dead existsSync import removed.
   script_lines 8054→8028, surface 19303→19277 (organic, metric unchanged).
   All consumer smokes green (event, ledger-hygiene, autonomy, freeze).
+- **Iteration 13 (run 12, validation + FORMAL CLOSURE)**: full 68/68 profile
+  green on the final tree (first full run since iteration-10 tree —
+  retroactively validates iterations 11-12). CI audit clean (3 manifest-group
+  jobs, SHA-pinned actions, contents:read, zero stale refs to removed
+  surfaces). All unverified items now verified.
 - **Iteration 14 (run 13, profiling, REFUTED)**: profiled the never-tested
   FULL profile (172 s per push): top-4 checks = 114 s, decomposed via
   per-check timing + ps child sampling. No it.2-class waste — appends are
@@ -209,11 +214,6 @@ Segment 1 (current): corrected baseline measured for real via
   diffuse spawn overhead inherent to bash integration tests. Restructuring
   the safety net for ~1 min of parallel-CI gain = disproportionate risk.
   Closure recommendation REAFFIRMED; core metric unchanged (19277/14 s).
-- **Iteration 13 (run 12, validation + FORMAL CLOSURE)**: full 68/68 profile
-  green on the final tree (first full run since iteration-10 tree —
-  retroactively validates iterations 11-12). CI audit clean (3 manifest-group
-  jobs, SHA-pinned actions, contents:read, zero stale refs to removed
-  surfaces). All unverified items now verified.
 
 ### Closure
 
