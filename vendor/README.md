@@ -15,9 +15,15 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
 
 No `shared` vendor pack is currently vendored; generic language packs
-(mcollina) and React packs (vercel, tanstack) were removed as unused surface —
-restore them by re-adding their `sources.tsv` row and re-running
-`scripts/sync-vendor-skills`.
+(mcollina) and React packs (vercel, tanstack) were removed as unused surface.
+Full restore procedure (all inputs recoverable from git history — e.g.
+`git show 18bc2f0^:vendor/sources.tsv`):
+
+1. re-add the pack's row to `vendor/sources.tsv`;
+2. re-add its skill rows to `workflow/runtime/skill-surface.tsv`;
+3. run `scripts/sync-vendor-skills <pack>` (idempotent; refuses a dirty
+   `vendor/` tree);
+4. run `cd pi && bun run update:skills-lock`, review the diff, commit.
 
 Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 `personal` only where the machine declares that scope in `~/.etabli-scope`.

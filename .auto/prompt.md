@@ -302,8 +302,8 @@ target ≤ 186) · skill_kb 1 696 → 497 KB (−70.7%). Core profile green at e
 keep; full profile 68/68 after iteration 3 fix-ups; extension tests 242/242.
 
 **What was cut**: 3 vendor packs (mcollina generic, tanstack undeployed,
-vercel React — all restorable via `vendor/sources.tsv` +
-`scripts/sync-vendor-skills`), 1 hollow router, stale prose across 8 contract
+vercel React — all restorable; the verified full procedure lives in
+`vendor/README.md`), 1 hollow router, stale prose across 8 contract
 files. **What survived evidence**: ember + adonisjs packs (scope-deployed,
 user's daily stacks), design-suite, all scripts (each has a living consumer),
 workflow contracts (the repo's product).
