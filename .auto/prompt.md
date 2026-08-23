@@ -262,6 +262,13 @@ Segment 1 (current): corrected baseline measured for real via
   commands + results), Remaining risks added (point-in-time caveat, clone
   volatility, inconclusive scope intent). Both artifacts now pass. Every
   repo contract tool has now been exercised against this session's outputs.
+- **Iteration 21 (run 20, guard regression)**: re-tested the three session
+  guards' FAILURE paths after subsequent tree changes (green proves
+  nothing about guards). Catalog existence: fake row → rc=1. plan-check-
+  freeze JSON: invalid input → rc=2. Orphan-contract: fake contract →
+  rc=1. All restored green — the safety net is live, not just passing.
+  Added handoff risk to the decision packet: the 38-commit branch is
+  local-only (disk loss before merge loses the work; push is user-gated).
 
 ### Closure
 
