@@ -13,7 +13,6 @@ Follow `workflow/spec.md` and the shared contract in
 
 If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-
 ## Autonomous chain
 
 This command is the full-auto workflow. Run every phase in one uninterrupted

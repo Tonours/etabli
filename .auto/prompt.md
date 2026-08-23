@@ -125,6 +125,17 @@ Segment 1 (current): corrected baseline measured for real via
   design-suite kept (dense live orchestrator). Also: dead-scripts hypothesis
   REFUTED — full reference map shows every scripts/* entry has a living
   consumer (smoke, installer, manifest, config). surface=19303, skills_md=166.
+- **Iteration 5 (closure, refutations)**: all remaining backlog hypotheses
+  refuted by evidence — (a) linear-* merge: routes are wired into the router
+  engine (workflow-router-lib.mjs + workflow-router-runtime.ts), pinned by
+  router-eval --min-accuracy 1 and an agent-scenario fixture; merging the
+  create vs implement intents would degrade routing precision (daily-
+  efficiency loss the surface metric would reward = overfitting);
+  (b) review family: three genuinely distinct contracts (diff review /
+  gh-CLI PR flow with HITL / security PR audit); (c) loop-docs merge: no true
+  duplication across implementation-loop (178) / pr-maintenance-loop (131) /
+  recurring-run (70) — distinct lifecycles, each coverage-smoke-guarded.
+  ideas.md deleted per exhausted-paths rule.
 
 ## Final summary
 
