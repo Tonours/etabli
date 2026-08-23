@@ -184,6 +184,13 @@ Segment 1 (current): corrected baseline measured for real via
   `.auto/deployed-inventory.md` — user decision packet (38 dangling
   externals, 12 personal-scope-under-work links). No repo-authority
   violations; nothing pruned autonomously.
+- **Iteration 11 (run 10, KEEP, entrypoint truth)**: audited the docs every
+  session reads. herdr-agent-state.ts contract RESPECTED (on disk,
+  untracked, gitignored). CLAUDE.md + global pi/AGENTS.md clean. One
+  pre-session stale ref found and fixed: root AGENTS.md:60 pointed to
+  `docs/workflow-guide.md`, deleted by consolidation commit 9466974 —
+  repointed to README.md with provenance. All entrypoint path references
+  now verified to resolve.
 
 ## Final summary
 
