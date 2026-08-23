@@ -574,8 +574,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			route: "linear-work",
 			reason: "Linear ticket implementation request",
 			command: "/linear-work",
-			artifact:
-				"PLAN.md, code/docs changes, validation, and Linear update draft",
+			artifact: "PLAN.md, code/docs changes, validation, and Linear update draft",
 			stopCondition:
 				"ticket acceptance criteria validated or blocked with Linear evidence",
 			requiredEvidence:
@@ -679,10 +678,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (
-		REVIEW_PATTERN.test(prompt) &&
-		!PREPARE_FOR_REVIEW_PATTERN.test(prompt)
-	) {
+	if (REVIEW_PATTERN.test(prompt) && !PREPARE_FOR_REVIEW_PATTERN.test(prompt)) {
 		return {
 			route: "review",
 			reason: "review request",
@@ -875,7 +871,10 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (isImplementRequest(prompt) && (planStatus === "missing" || planStatus === "unknown")) {
+	if (
+		isImplementRequest(prompt) &&
+		(planStatus === "missing" || planStatus === "unknown")
+	) {
 		// Ordinary bounded coding with no recognized planning lock (missing or
 		// unknown — the adapter maps absent plans to "unknown"): direct edit
 		// per spec routing. An active plan cycle (draft or challenged) never
@@ -1185,9 +1184,7 @@ export function proposedPlanTextFromToolInput(
 		return typeof content === "string" ? content : null;
 	}
 	if (name === "Edit" || name === "MultiEdit") {
-		const edits = Array.isArray(toolInput.edits)
-			? toolInput.edits
-			: [toolInput];
+		const edits = Array.isArray(toolInput.edits) ? toolInput.edits : [toolInput];
 		return applyPlanTextEdits(previousText, edits);
 	}
 	return null;

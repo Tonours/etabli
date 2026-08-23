@@ -5,7 +5,7 @@
 # Compatible: macOS, Linux (Ubuntu/Debian), Remote (SSH)
 # ============================================================================
 
-set -e
+set -euo pipefail
 
 BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
 . "$BOOTSTRAP_DIR/lib/pi-paths.sh"
@@ -677,7 +677,7 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
   }
 }
 ' "$settings_path"
-        } 2>/dev/null | awk 'NF && !seen[$0]++'
+        } 2>/dev/null | awk 'NF && !seen[$0]++' || true
     )"
 
     if [ -z "$package_sources" ]; then
@@ -1161,7 +1161,7 @@ elif [[ "$OS" == "debian" ]]; then
 
     if ! command -v lazygit &>/dev/null; then
         print_step "Installing Lazygit..."
-        LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p')
+        LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' || true)
         if [ -n "$LAZYGIT_VERSION" ]; then
             (
                 cd /tmp || exit 1

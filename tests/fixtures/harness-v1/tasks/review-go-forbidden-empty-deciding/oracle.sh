@@ -9,8 +9,8 @@ harness_require_tables
 # review.md: when a non-trivial deciding-code row is empty or `not run`,
 # GO and GO WITH NOTES are both forbidden — only BLOCK is acceptable.
 harness_require_verdict_one_of 'Verdict: BLOCK'
-grep -Eq '^isolation: isolated$' "$TRANSCRIPT" \
-  || harness_oracle_fail "review tasks require isolation: isolated"
+grep -Eq '^isolation: isolated$' "$TRANSCRIPT" ||
+  harness_oracle_fail "review tasks require isolation: isolated"
 harness_require_spawn_evidence
 # the review must have actually opened deciding code: the deciding-code
 # section itself (not the lens table) must carry a file:line reference.

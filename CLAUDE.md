@@ -29,4 +29,5 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0015](docs/adr/0015-treat-codex-skills-as-a-managed-link-surface-without-restoring-the-harness.md) — Treat ~/.codex/skills as a managed link surface without restoring the Codex harness [accepted]
 - [0016](docs/adr/0016-record-work-mcp-inventory-per-runtime.md) — Record the work MCP inventory per runtime [accepted]
 - [0017](docs/adr/0017-serve-the-work-knowledge-vault-through-a-standalone-brain-mcp.md) — Serve the work knowledge vault through a standalone brain MCP [accepted]
+- [0018](docs/adr/0018-unify-agent-surface-convergence-behind-deploy-agent-workflow.md) — Unify agent-surface convergence behind deploy-agent-workflow [accepted]
 <!-- ADR:INDEX:END -->

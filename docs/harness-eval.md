@@ -92,11 +92,14 @@ Hardening rules now enforced per oracle:
 - `ready-implement-touches-only-plan-files` requires the exact expected file
   (SHA), not a marker grep.
 
-Remaining known limit: transcripts are still graded as text. A fabricator
-that discovers the wrapper and forges a spawn log could defeat the
-isolation evidence; the two state-bound tasks (`ready-implement`,
-`review-go-clean-diff` combined with spawn evidence) remain the
-load-bearing cells for any live comparison.
+Remaining known limit: transcripts are still graded as text. The spawn log
+must carry the hunter argv markers from the contract (`--no-session`,
+`--append-system-prompt`), so a generic forged line fails — but a fabricator
+that knows the contract argv can still forge a conforming line. The two
+state-bound tasks (`ready-implement` final-state SHA, `review-go-clean-diff`
+GO-only) do not depend on spawn evidence and remain the load-bearing cells
+for any live comparison. Closing this fully requires OS-level sandboxing
+(same-user POSIX cannot hide an evaluator-read path from the subject).
 
 ## Layout
 
