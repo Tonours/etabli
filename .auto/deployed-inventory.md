@@ -58,6 +58,10 @@ iteration 10; re-verified iteration 19):
 - `/Volumes/Crucial/work/*` clones are external state: they can move or be
   deleted independently of this repo; re-run the readlink census before
   relying on the classification.
+- The session branch `autoresearch/simplify-etabli-20260823` (38 commits)
+  exists only on this machine — no remote copy. A disk loss before merge
+  loses the work; merging (or pushing a backup ref, user-gated) removes
+  that risk.
 
 - The 38 dangling links detail (from the census above): 26 on pi surface
   (old ui.sh/taste design set), 6 french business skills on codex, 6 on
