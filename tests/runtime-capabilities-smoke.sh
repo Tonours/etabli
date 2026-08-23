@@ -17,13 +17,13 @@ assert_equal_sets() {
 
 jq empty "$MATRIX"
 
-expected_runtimes="$(printf '%s\n' claude pi | sort)"
+expected_runtimes="$(printf '%s\n' claude codex grok pi | sort)"
 actual_runtimes="$(jq -r '.runtimes | keys[]' "$MATRIX" | sort)"
 assert_equal_sets "$expected_runtimes" "$actual_runtimes" "runtime"
 
 expected_capabilities="$(printf '%s\n' supports_hooks supports_subagents supports_taskexecute_tracking supports_goal_state supports_structured_task_state supports_named_workflow_graphs plan_ready_mutation_guard check_freeze_guard | sort)"
 for runtime in $actual_runtimes; do
-  actual_capabilities="$(jq -r --arg runtime "$runtime" '.runtimes[$runtime] | keys[]' "$MATRIX" | sort)"
+  actual_capabilities="$(jq -r --arg runtime "$runtime" '.runtimes[$runtime] | keys[] | select(. != "surface_class")' "$MATRIX" | sort)"
   assert_equal_sets "$expected_capabilities" "$actual_capabilities" "$runtime capability"
 done
 
@@ -36,6 +36,7 @@ fi
 missing_proofs="$(jq -r '
   .runtimes | to_entries[] as $runtime |
   $runtime.value | to_entries[] |
+  select((.value | type) == "object") |
   select((.value.proof_command // "") == "") |
   "\($runtime.key).\(.key)"
 ' "$MATRIX")"
@@ -47,6 +48,7 @@ fi
 missing_freshness="$(jq -r '
   .runtimes | to_entries[] as $runtime |
   $runtime.value | to_entries[] |
+  select((.value | type) == "object") |
   select((.value.verified_at // "") == "" or (.value.proof_result // "") == "" or ((.value.expires_after_days // 0) <= 0)) |
   "\($runtime.key).\(.key)"
 ' "$MATRIX")"
@@ -58,6 +60,7 @@ fi
 stale_claims="$(jq -r --argjson now "$(date -u +%s)" '
   .runtimes | to_entries[] as $runtime |
   $runtime.value | to_entries[] |
+  select((.value | type) == "object") |
   select(.value.label == "confirmed" or .value.label == "proxy_supported") |
   select((((.value.verified_at + "T00:00:00Z") | fromdateiso8601) + (.value.expires_after_days * 86400)) < $now) |
   "\($runtime.key).\(.key)"

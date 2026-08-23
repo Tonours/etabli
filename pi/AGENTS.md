@@ -27,7 +27,7 @@
 - TypeScript strict, no `any`, ES modules, local runner.
 - Run focused checks; type-check code changes when available.
 - Reviews lead with severity-ordered findings and file/line evidence.
-- Memory: proactively consult `~/work/obvault` per
+- Memory: proactively consult the memory vault (scope-resolved root: work -> ~/work/brain when present, else ~/work/obvault) per
   `workflow/skills/obvault-memory.md`.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
 - Branches and commits: `workflow/git-contract.md`. Branch

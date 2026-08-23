@@ -68,6 +68,11 @@ prepare_synthetic() {
     cp -R "$task_dir/synthetic/$kind/worktree/." "$dest/"
   fi
   git -C "$dest" rev-parse HEAD >"$dest.harness-baseline"
+  # Spawn evidence: when the transcript claims an isolated hunt, an honest
+  # run would have produced a spawn log via the PATH wrapper.
+  if grep -Eq '^isolation: isolated$' "$task_dir/synthetic/$kind/transcript.txt" 2>/dev/null; then
+    printf '20260823T000000Z --mode text -p\n' >"$dest.spawn.log"
+  fi
 }
 
 grade() {
@@ -75,7 +80,7 @@ grade() {
   local kind="$2"
   local dest="$TMP_DIR/$task_id-$kind"
   prepare_synthetic "$task_id" "$kind" "$dest"
-  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+  PATH="$HERMETIC_PATH" SPAWN_LOG="$dest.spawn.log" "$DRIVER" grade \
     --task "$task_id" \
     --worktree "$dest" \
     --transcript "$FIXTURES/tasks/$task_id/synthetic/$kind/transcript.txt"
@@ -231,6 +236,19 @@ sentinel_json="$(
 printf '%s\n' "$sentinel_json" | jq -e '.pass == false' >/dev/null ||
   fail "sentinel without review protocol must fail hunter-read-only"
 
+no_spawn_wt="$TMP_DIR/no-parent-nospawn"
+prepare_synthetic no-parent-logic-claim pass "$no_spawn_wt"
+rm -f "$no_spawn_wt.spawn.log"
+nospawn_json="$(
+  PATH="$HERMETIC_PATH" SPAWN_LOG="$no_spawn_wt.spawn.log" "$DRIVER" grade \
+    --task no-parent-logic-claim \
+    --worktree "$no_spawn_wt" \
+    --transcript "$FIXTURES/tasks/no-parent-logic-claim/synthetic/pass/transcript.txt" \
+    2>"$TMP_DIR/nospawn.err"
+)"
+printf '%s\n' "$nospawn_json" | jq -e '.pass == false' >/dev/null ||
+  fail "isolated claim without observed spawn must fail no-parent-logic-claim"
+
 degenerate="$TMP_DIR/go-with-notes-degenerate.txt"
 cat >"$degenerate" <<'EOF'
 | Lens | Checked (file:line) | Found |
@@ -385,8 +403,23 @@ jq -se 'any(.[]; .task_id == "review-go-clean-diff" and .pass == true)' "$const_
 jq -se 'any(.[]; .task_id == "ready-implement-touches-only-plan-files" and .pass == true)' "$const_jsonl" >/dev/null &&
   fail "constant policy must fail the final-state implement task"
 const_pass="$(jq -s '[.[] | select(.pass == true)] | length' "$const_jsonl")"
-[ "$const_pass" -le 6 ] ||
+[ "$const_pass" -le 3 ] ||
   fail "fabrication floor regressed: $const_pass tasks pass on a fabricated transcript"
+
+wrapper_dir="$TMP_DIR/wrapper-smoke"
+wrapper_log="$TMP_DIR/wrapper-smoke.log"
+harness_make_wrapper_under_test() {
+  # re-source the lib to call the real helper
+  . "$LIB"
+}
+harness_make_wrapper_under_test
+harness_make_logging_pi_wrapper "$wrapper_dir" "$wrapper_log" "/bin/echo"
+rm -f "$wrapper_log"
+out="$(PATH="$wrapper_dir:/usr/bin:/bin" pi --mode text transparent-check)"
+code=$?
+[ "$out" = "--mode text transparent-check" ] || fail "wrapper must exec transparently: $out"
+[ "$code" -eq 0 ] || fail "wrapper must preserve the child exit code: $code"
+[ -s "$wrapper_log" ] || fail "wrapper must log the invocation outside the worktree"
 
 argv_pi="$(PATH="$HERMETIC_PATH" "$DRIVER" print-argv --runner pi)"
 printf '%s\n' "$argv_pi" | grep -Fx -- '--model' >/dev/null || fail "pi argv missing --model"

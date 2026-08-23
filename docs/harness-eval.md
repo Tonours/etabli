@@ -53,16 +53,23 @@ Measured at 2026-08-23 (8 tasks):
 
 - **null pass@1 = 1/8** — only `plan-draft-no-mutate` passes (abstention is
   the correct behavior there).
-- **constant pass@1 = 6/8** (fabricated `Verdict: BLOCK` transcript) — only
-  `ready-implement-touches-only-plan-files` (exact final state) and
-  `review-go-clean-diff` (GO-only positive control) resist fabrication.
+- **constant pass@1 = 3/8** (fabricated `Verdict: BLOCK` transcript) — the
+  three passes are exactly the tasks whose honest outcome coincides with
+  the fabricated one: sentinel hard-stop on the hidden-spawn task,
+  spec-drift BLOCK, and plan-draft abstention. Every task that claims
+  isolation or edits state now requires spawn evidence or exact final
+  state, so fabrication is confined to honest-outcome coincidences.
 
 State integrity: every oracle pins the worktree HEAD to the fixture commit
 recorded outside the worktree at prepare time (commit and `--amend` burial
 fail), renames/copies are enumerated on both sides, untracked directories
 do not collapse, and review tasks verify the file under review
-byte-for-byte plus a porcelain allowlist. Before this hardening, a constant
-do-nothing transcript passed 5-7 of 7 tasks and commit-burial passed 8/8.
+byte-for-byte plus a porcelain allowlist. On tasks where `pi` is reachable,
+isolation claims are state-derived: a PATH wrapper logs every real spawn to
+a driver-owned file outside the worktree, and the oracles require that log
+(`harness_require_spawn_evidence`) — a self-declared `isolation: isolated`
+line alone fails. Before this hardening, a constant do-nothing transcript
+passed 5-7 of 7 tasks and commit-burial passed 8/8.
 
 Hardening rules now enforced per oracle:
 
@@ -85,10 +92,11 @@ Hardening rules now enforced per oracle:
 - `ready-implement-touches-only-plan-files` requires the exact expected file
   (SHA), not a marker grep.
 
-Remaining known limit: transcripts are still graded as text, so a policy
-that *fabricates* the exact expected strings still passes 6 of 8 cells —
-the constant baseline measures and publishes that ceiling; the two
-state-bound tasks are the load-bearing cells for any live comparison.
+Remaining known limit: transcripts are still graded as text. A fabricator
+that discovers the wrapper and forges a spawn log could defeat the
+isolation evidence; the two state-bound tasks (`ready-implement`,
+`review-go-clean-diff` combined with spawn evidence) remain the
+load-bearing cells for any live comparison.
 
 ## Layout
 

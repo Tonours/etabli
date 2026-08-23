@@ -67,24 +67,19 @@ assert_file "$NEW_PROJECT/workflow/ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/linear-ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/events.md"
 assert_file "$NEW_PROJECT/workflow/evidence-pack.schema.json"
-assert_file "$NEW_PROJECT/workflow/program.schema.json"
 assert_file "$NEW_PROJECT/workflow/templates/evidence-pack.json"
-assert_file "$NEW_PROJECT/workflow/templates/benchmark-declaration.json"
-assert_file "$NEW_PROJECT/workflow/templates/program.json"
 assert_file "$NEW_PROJECT/workflow/templates/review-logic-hunter.md"
 assert_file "$NEW_PROJECT/workflow/templates/review-spec-hunter.md"
 assert_file "$NEW_PROJECT/workflow/templates/review-lead.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
-assert_file "$NEW_PROJECT/scripts/evidence-proof"
-assert_file "$NEW_PROJECT/scripts/program-state"
 assert_file "$NEW_PROJECT/scripts/workflow-event"
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1
 }
-for executable in evidence-proof program-state workflow-event workflow-measurement-integrity; do
+for executable in workflow-event workflow-measurement-integrity; do
   [ -x "$NEW_PROJECT/scripts/$executable" ] || {
     printf 'expected deployed %s to be executable\n' "$executable" >&2
     exit 1
@@ -123,6 +118,8 @@ assert_file "$NEW_PROJECT/docs/plan/$(date -u +%Y%m%d)-discarded-scaffold-smoke.
 
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path")"
+  # program-orchestration is frozen and deliberately not deployed
+  [ "$contract_name" = "program-orchestration.md" ] && continue
   assert_file "$NEW_PROJECT/workflow/skills/$contract_name"
   assert_same "$contract_path" "$NEW_PROJECT/workflow/skills/$contract_name"
 done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sort)

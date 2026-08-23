@@ -58,16 +58,13 @@ describe("workflow router runtime", () => {
 		});
 	});
 
-	test("routes implementation without ready plan to plan-implement", () => {
+	test("routes ordinary coding to direct edit without a plan", () => {
 		const decision = classifyWorkflowRoute(
 			"Corrige tout y compris les warnings",
 		);
 
 		expect(decision).toMatchObject({
-			route: "plan-implement",
-			skill: "plan-implement",
-			requiredEvidence:
-				"root PLAN.md Status: READY before implementation; adversary; focused validation; review; docs/plan archive; root PLAN.md deletion; handoff",
+			route: "answer",
 			writeAllowed: true,
 		});
 	});
@@ -251,7 +248,7 @@ describe("workflow router runtime", () => {
 		expect(
 			classifyWorkflowRoute("Corrige le bug CSS dans notre SaaS"),
 		).toMatchObject({
-			route: "plan-implement",
+			route: "answer",
 			knowledgeContext: { topics: ["saas", "frontend-css"] },
 		});
 		expect(

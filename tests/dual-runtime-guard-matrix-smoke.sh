@@ -21,6 +21,7 @@ fail() {
 bad="$(jq -r '
   .runtimes | to_entries[] as $r |
   $r.value | to_entries[] |
+  select((.value | type) == "object") |
   select(.value.label != "confirmed" and .value.label != "proxy_supported" and .value.label != "blocked" and .value.label != "unknown") |
   "\($r.key).\(.key)=\(.value.label)"
 ' "$MATRIX")"
@@ -31,6 +32,7 @@ printf 'runtime_capability_matrix:\n'
 jq -r '
   .runtimes | to_entries[] as $r |
   $r.value | to_entries[] |
+  select((.value | type) == "object") |
   "  \($r.key).\(.key)\t\(.value.label)"
 ' "$MATRIX"
 

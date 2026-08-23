@@ -1,4 +1,6 @@
 # name	source	pi_core	agents_visible	locked
+# all-zero rows (0 0 0) are the opt-in shelf: catalog-tracked but not
+# deployed to any surface; invoke manually or promote flags before deploying.
 plan-loop	pi	1	1	1
 plan-implement	pi	1	1	1
 adversary	pi	1	1	1

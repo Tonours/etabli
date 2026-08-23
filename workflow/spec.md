@@ -76,11 +76,13 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge
   without another explicit command contract.
 - Evidence and investigations: `workflow/skills/investigation.md`,
-  `workflow/evidence-pack.schema.json`, and `scripts/evidence-proof`. Integrity,
-  parent-observed execution, proxy support, and blocked surfaces stay distinct.
-- Large programs: `workflow/skills/program-orchestration.md`,
-  `workflow/program.schema.json`, and read-only `scripts/program-state`. This is
-  a restartable control plane, not an agent runner or delegation authorization.
+  `workflow/evidence-pack.schema.json`, and `scripts/evidence-proof`
+  (etabli repo only; scaffolded projects resolve these binaries from the
+  etabli checkout). Integrity, parent-observed execution, proxy support, and
+  blocked surfaces stay distinct.
+- Large programs: frozen control plane (`workflow/skills/program-orchestration.md`,
+  `workflow/program.schema.json`, read-only `scripts/program-state`) — etabli
+  repo only; kept for the  structural pin, not deployed to scaffolds.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - Experimental read-only: `workflow-retrospect` (not core gate; ≥10 task-grader
@@ -103,6 +105,10 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   read-only fresh-context review only; it
   does not authorize destructive, secret, production, billing, deploy, push,
   merge, or external write actions. Handoffs are recorded as a `handoff` event.
+- Implementation depth is risk-tiered (`small` / `standard` / `high-risk`)
+  per `workflow/skills/implementation-loop.md`: cross-model code-diff
+  adversary is reserved for high-risk; standard accepts a documented
+  same-family double-sample; small runs checks plus self-review.
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals. The
   third occurrence of the same review finding becomes a mechanical check.

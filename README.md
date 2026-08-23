@@ -116,10 +116,12 @@ and graders stay out of this repo).
 - **Distillation source**: 's reply shapes and hillclimb stopping rule
   were distilled into `workflow/answer-quality.md`; its skill catalog, prose,
   and file layout were deliberately not copied.
-- **Live comparison — blocked, not claimed**: the ingest gate exists
-  (`scripts/-suite --ingest-live`), but live runs need
-  `LIVE_EVAL_BUDGET_USD` and explicit spend authorization. Official status:
-  `not_established` — no behavioral superiority is claimed.
+- **Live comparison — abandoned, not claimed**: the dominance protocol
+  (138 gated live runs) was shelved on 2026-08-23 (user decision after the
+  direction council): it is not executable at frontier prices, and the
+  comparison that matters is etabli(t) vs etabli(t-1) on its own frozen
+  tasks. The ingest gate spec stays (`scripts/-suite --ingest-live`)
+  in case a new event reopens it; the structural pin (23/23) is retained.
 
 Details and result files: [docs/how-it-works.md](docs/how-it-works.md#benchmark-posture-).
 

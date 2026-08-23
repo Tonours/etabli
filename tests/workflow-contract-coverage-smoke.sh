@@ -62,6 +62,8 @@ done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -prin
 DEPLOY_TARGET="$TMP_DIR/deployed-project"
 "$ROOT_DIR/scripts/deploy-workflow" "$DEPLOY_TARGET" >/dev/null
 while IFS= read -r contract_path; do
+  # program-orchestration is frozen and deliberately not deployed
+  [ "$(basename "$contract_path")" = "program-orchestration.md" ] && continue
   assert_file "$DEPLOY_TARGET/workflow/skills/$(basename "$contract_path")"
 done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort)
 

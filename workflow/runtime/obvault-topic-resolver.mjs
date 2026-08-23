@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,10 +21,25 @@ function defaultRoots() {
   // An explicit OBVAULT_ROOT is exclusive: a machine that points somewhere else
   // (or nowhere) must not silently fall back to a vault it opted out of.
   if (process.env.OBVAULT_ROOT) return [process.env.OBVAULT_ROOT];
-  return [
-    resolve(homedir(), "work/obvault"),
-    fileURLToPath(new URL("../../../obvault", import.meta.url)),
-  ];
+  // Scope-aware resolution (decision 2026-08-23, ratifying ADR-0017's
+  // direction without breaking machines where `brain` does not exist yet):
+  //   work scope     -> brain first, obvault as documented fallback
+  //   personal scope -> obvault only
+  // `~/.etabli-scope` selects the scope; absence means the shared default
+  // (obvault), which is the live reality on machines without brain.
+  const roots = [];
+  let scope = "personal";
+  try {
+    scope = readFileSync(resolve(homedir(), ".etabli-scope"), "utf8").trim() || "personal";
+  } catch {
+    // no scope file: personal default
+  }
+  if (scope === "work") {
+    roots.push(resolve(homedir(), "work/brain"));
+  }
+  roots.push(resolve(homedir(), "work/obvault"));
+  roots.push(fileURLToPath(new URL("../../../obvault", import.meta.url)));
+  return roots;
 }
 
 export function resolveObvaultRoot(roots = defaultRoots()) {
@@ -77,7 +92,7 @@ export function resolveDynamicKnowledgeContext(prompt, { roots, timeoutMs = 1200
       topics,
       query: routed.query,
       reason: `matched live obvault metadata: ${topics.join(", ")}`,
-      command: `~/work/obvault/_meta/obvault context --json --max-tokens 2500 "${routed.query}"`,
+      command: `${root}/_meta/obvault context --json --max-tokens 2500 "${routed.query}"`,
       source: "obvault-metadata",
       matchedNotes,
     };

@@ -34,24 +34,22 @@ FILES=(
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
   "$REPO_DIR/workflow/events.md|workflow/events.md"
   "$REPO_DIR/workflow/evidence-pack.schema.json|workflow/evidence-pack.schema.json"
-  "$REPO_DIR/workflow/program.schema.json|workflow/program.schema.json"
   "$REPO_DIR/workflow/templates/evidence-pack.json|workflow/templates/evidence-pack.json"
-  "$REPO_DIR/workflow/templates/benchmark-declaration.json|workflow/templates/benchmark-declaration.json"
-  "$REPO_DIR/workflow/templates/program.json|workflow/templates/program.json"
   "$REPO_DIR/workflow/templates/review-logic-hunter.md|workflow/templates/review-logic-hunter.md"
   "$REPO_DIR/workflow/templates/review-spec-hunter.md|workflow/templates/review-spec-hunter.md"
   "$REPO_DIR/workflow/templates/review-lead.md|workflow/templates/review-lead.md"
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
-  "$REPO_DIR/scripts/evidence-proof|scripts/evidence-proof"
-  "$REPO_DIR/scripts/program-state|scripts/program-state"
   "$REPO_DIR/scripts/workflow-event|scripts/workflow-event"
   "$REPO_DIR/scripts/workflow-measurement-integrity|scripts/workflow-measurement-integrity"
   "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
 )
 
 while IFS= read -r contract_path; do
+  # program-orchestration is frozen and references etabli-repo-only binaries;
+  # scaffolded projects do not carry the program control plane.
+  [ "$(basename "$contract_path")" = "program-orchestration.md" ] && continue
   FILES+=("$contract_path|workflow/skills/$(basename "$contract_path")")
 done < <(find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort)
 

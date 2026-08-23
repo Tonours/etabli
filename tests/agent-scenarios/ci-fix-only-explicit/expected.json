@@ -1,1 +1,12 @@
-{"claude_route":"plan-implement","pi_route":"plan-implement","write_allowed":true,"guard":null,"context_contains":["Route: plan-implement"],"context_not_contains":["Route: ci-fix"]}
+{
+  "claude_route": "answer",
+  "pi_route": "answer",
+  "write_allowed": true,
+  "guard": null,
+  "context_contains": [
+    "Route: answer"
+  ],
+  "context_not_contains": [
+    "Route: ci-fix"
+  ]
+}
