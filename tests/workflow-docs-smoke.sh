@@ -682,10 +682,14 @@ direct_quality_skills="$(
         in_skill_table { exit }
     ' "$ROOT_DIR/pi/skills/code-quality/SKILL.md"
 )"
-[ -n "$direct_quality_skills" ] || {
+[ -n "$direct_quality_skills" ] || [ -z "$shared_vendor_skill_names" ] || {
     printf 'code-quality Skills to apply table has no direct skill leaves\n' >&2
     exit 1
 }
+if [ -z "$shared_vendor_skill_names" ] && [ -n "$direct_quality_skills" ]; then
+    printf 'code-quality lists direct leaves but no shared vendor pack exists: %s\n' "$direct_quality_skills" >&2
+    exit 1
+fi
 while IFS= read -r direct_quality_skill; do
     [ -n "$direct_quality_skill" ] || continue
     grep -Fxq "$direct_quality_skill" <<<"$shared_vendor_skill_names" || {
