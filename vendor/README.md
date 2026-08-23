@@ -11,10 +11,9 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
-| `mcollina-skills` | `mcollina/skills` (MIT) | `shared` | 7 — Node, TypeScript, Fastify, OAuth, linting, docs |
+| `vercel-agent-skills` | `vercel-labs/agent-skills` | `shared` | 4 — React performance, composition, view transitions, web guidelines |
 | `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — employer Ember frontend |
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
-| `tanstack-start-skills` | `Tonours/tanstack-start-skills` (private) | `personal` | 19 — TanStack Start and Query |
 
 Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 `personal` only where the machine declares that scope in `~/.etabli-scope`.
