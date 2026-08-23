@@ -222,6 +222,16 @@ Segment 1 (current): corrected baseline measured for real via
   smoke-pinned provenance fixtures, not debt; 4 real-but-marginal style
   items skipped (out-of-metric, zero behavior gain). Every debt class in
   repo authority now examined. Third independent closure confirmation.
+- **Iteration 16 (run 15, memory persistence)**: followed the repo memory
+  contract never exercised in 15 iterations — session decisions lived only
+  in .auto/ on an unmerged branch. Vault entrypoint read (root resolved to
+  ~/work/obvault, brain absent); queued a dense finding via the only
+  sanctioned automated channel (`obvault capture --surface pi` → shadow
+  candidate sha256 6dbd726a): pack removals + restore paths, evidence
+  preconditions, catalog guard, and the durable insight — vendored presence
+  does NOT imply consumption, consumption does NOT imply vendored presence
+  (check deployed symlink targets before any pack decision). kb/ promotion
+  stays a human gate per contract. Repo unchanged (19277/14 s).
 
 ### Closure
 
