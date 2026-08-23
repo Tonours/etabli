@@ -14,7 +14,6 @@ core	shell-docs	no-progress-mutate-deny-smoke	tests/no-progress-mutate-deny-smok
 core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
 core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
-full	shell-docs	-suite-smoke	tests/-suite-smoke.sh
 full	shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
 full	shell-docs	leap-harness-validation-smoke	tests/leap-harness-validation-smoke.sh
 full	shell-docs	ledger-auto-emit-smoke	tests/ledger-auto-emit-smoke.sh

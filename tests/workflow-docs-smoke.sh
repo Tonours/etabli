@@ -340,7 +340,7 @@ assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Afte
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'isStandaloneVerifyRequest'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'IMPLEMENT_NEGATION_PATTERN'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'PREPARE_FOR_REVIEW_PATTERN'
-assert_contains "$ROOT_DIR/tests/router-evals/core.json" 'organic-'
+assert_contains "$ROOT_DIR/tests/router-evals/core.json" 'organic investigation is not stolen'
 assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/contract-details.md'

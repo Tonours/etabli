@@ -70,12 +70,12 @@ assert_decision await_checkpoint checkpoint_required
 
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" human_checkpoint '{"category":"fresh_context_review","decision":"authorized","target":"fixture-autonomy:verification"}'
 assert_decision plan_slice next_verifiable_slice
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/-suite --json --strategy baseline","dependencies":["contract"]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/verify-agentic-infra full","dependencies":["contract"]}'
 assert_decision execute_slice planned_slice_needs_evidence
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" project_slice_completed '{"slice":"verification","validation":"passed","evidence":["fresh review authorized"],"remaining":[]}'
 assert_decision await_verification evaluation_runner_missing
 
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" validation_run '{"command":"scripts/-suite --json --strategy baseline","exit":0}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" validation_run '{"command":"scripts/verify-agentic-infra full","exit":0}'
 assert_decision await_verification final_state_grader_missing
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$RUN" outcome_metric '{"outcome":"fixture-final-state-grader","success":true,"measured":false,"reason":"deterministic fixture"}'
 assert_decision completion_ready all_slices_and_final_state_evidence_passed
@@ -84,7 +84,7 @@ assert_decision stop terminal_completed
 "$EVENT_TOOL" --dir "$EVENT_DIR" validate "$RUN" >/dev/null
 
 NO_PROGRESS_RUN="fixture-no-progress"
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$NO_PROGRESS_RUN" no_progress '{"check_or_hypothesis":"missing final-state evidence","command":"scripts/-suite --json --strategy baseline","attempts":2,"head_sha":"deadbeef","eliminated":["claim driver completion is enough"]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$NO_PROGRESS_RUN" no_progress '{"check_or_hypothesis":"missing final-state evidence","command":"scripts/verify-agentic-infra full","attempts":2,"head_sha":"deadbeef","eliminated":["claim driver completion is enough"]}'
 no_progress_envelope="$(envelope_for_run "$NO_PROGRESS_RUN")"
 no_progress_output="$("$CONTROLLER" --envelope "$no_progress_envelope" --events "$EVENT_DIR/$NO_PROGRESS_RUN/events.jsonl" --now 2026-07-24T10:05:00Z)"
 printf '%s\n' "$no_progress_output" | jq -e '.decision == "stop" and .reason == "no_progress"' >/dev/null ||
@@ -186,12 +186,12 @@ printf '%s\n' "$unknown_output" | jq -e '.decision == "stop" and .reason == "unk
   fail "unknown slice was accepted: $unknown_output"
 
 STALE_RUN="fixture-stale-evaluation"
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" validation_run '{"command":"scripts/-suite --json --strategy baseline","exit":0}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" validation_run '{"command":"scripts/verify-agentic-infra full","exit":0}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" outcome_metric '{"outcome":"fixture-final-state-grader","success":true,"measured":false,"reason":"stale fixture"}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" project_slice_planned '{"slice":"contract","owner":"implementer","validation":"node --check scripts/lib/project-autonomy.mjs","dependencies":[]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" project_slice_completed '{"slice":"contract","validation":"passed","evidence":["fixture"],"remaining":["verification"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" human_checkpoint '{"category":"fresh_context_review","decision":"authorized","target":"fixture-autonomy:verification"}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/-suite --json --strategy baseline","dependencies":["contract"]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/verify-agentic-infra full","dependencies":["contract"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$STALE_RUN" project_slice_completed '{"slice":"verification","validation":"passed","evidence":["fixture"],"remaining":[]}'
 stale_envelope="$(envelope_for_run "$STALE_RUN")"
 stale_output="$("$CONTROLLER" --envelope "$stale_envelope" --events "$EVENT_DIR/$STALE_RUN/events.jsonl" --now 2026-07-24T10:05:00Z)"
@@ -201,7 +201,7 @@ printf '%s\n' "$stale_output" | jq -e '.decision == "await_verification" and .re
 CHECKPOINT_BYPASS_RUN="fixture-checkpoint-bypass"
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$CHECKPOINT_BYPASS_RUN" project_slice_planned '{"slice":"contract","owner":"implementer","validation":"node --check scripts/lib/project-autonomy.mjs","dependencies":[]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$CHECKPOINT_BYPASS_RUN" project_slice_completed '{"slice":"contract","validation":"passed","evidence":["fixture"],"remaining":["verification"]}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$CHECKPOINT_BYPASS_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/-suite --json --strategy baseline","dependencies":["contract"]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$CHECKPOINT_BYPASS_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/verify-agentic-infra full","dependencies":["contract"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$CHECKPOINT_BYPASS_RUN" project_slice_completed '{"slice":"verification","validation":"passed","evidence":["fixture"],"remaining":[]}'
 checkpoint_bypass_envelope="$(envelope_for_run "$CHECKPOINT_BYPASS_RUN")"
 checkpoint_bypass_output="$("$CONTROLLER" --envelope "$checkpoint_bypass_envelope" --events "$EVENT_DIR/$CHECKPOINT_BYPASS_RUN/events.jsonl" --now 2026-07-24T10:05:00Z)"
@@ -209,7 +209,7 @@ printf '%s\n' "$checkpoint_bypass_output" | jq -e '.decision == "stop" and .reas
   fail "checkpoint bypass was accepted: $checkpoint_bypass_output"
 
 OUT_OF_ORDER_RUN="fixture-out-of-order"
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$OUT_OF_ORDER_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/-suite --json --strategy baseline","dependencies":[]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$OUT_OF_ORDER_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/verify-agentic-infra full","dependencies":[]}'
 out_of_order_envelope="$(envelope_for_run "$OUT_OF_ORDER_RUN")"
 out_of_order_output="$("$CONTROLLER" --envelope "$out_of_order_envelope" --events "$EVENT_DIR/$OUT_OF_ORDER_RUN/events.jsonl" --now 2026-07-24T10:05:00Z)"
 printf '%s\n' "$out_of_order_output" | jq -e '.decision == "stop" and .reason == "slice_lifecycle_out_of_order"' >/dev/null ||
@@ -219,9 +219,9 @@ MUTATION_AFTER_PROOF_RUN="fixture-mutation-after-proof"
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" project_slice_planned '{"slice":"contract","owner":"implementer","validation":"node --check scripts/lib/project-autonomy.mjs","dependencies":[]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" project_slice_completed '{"slice":"contract","validation":"passed","evidence":["fixture"],"remaining":["verification"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" human_checkpoint '{"category":"fresh_context_review","decision":"authorized","target":"fixture-autonomy:verification"}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/-suite --json --strategy baseline","dependencies":["contract"]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/verify-agentic-infra full","dependencies":["contract"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" project_slice_completed '{"slice":"verification","validation":"passed","evidence":["fixture"],"remaining":[]}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" validation_run '{"command":"scripts/-suite --json --strategy baseline","exit":0}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" validation_run '{"command":"scripts/verify-agentic-infra full","exit":0}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" outcome_metric '{"outcome":"fixture-final-state-grader","success":true,"measured":false,"reason":"fixture"}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$MUTATION_AFTER_PROOF_RUN" file_changed '{"path":"workflow/project-autonomy-envelope.md","change":"post-proof mutation"}'
 mutation_after_proof_envelope="$(envelope_for_run "$MUTATION_AFTER_PROOF_RUN")"
@@ -230,7 +230,7 @@ printf '%s\n' "$mutation_after_proof_output" | jq -e '.decision == "stop" and .r
   fail "post-proof mutation was accepted without an active slice: $mutation_after_proof_output"
 
 CROSS_RUN="fixture-cross-run"
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$CROSS_RUN" validation_run '{"command":"scripts/-suite --json --strategy baseline","exit":0}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$CROSS_RUN" validation_run '{"command":"scripts/verify-agentic-infra full","exit":0}'
 cross_run_output="$("$CONTROLLER" --envelope "$ENVELOPE" --events "$EVENT_DIR/$CROSS_RUN/events.jsonl" --now 2026-07-24T10:05:00Z)"
 printf '%s\n' "$cross_run_output" | jq -e '.decision == "stop" and .reason == "invalid_ledger"' >/dev/null ||
   fail "cross-run ledger was accepted: $cross_run_output"
@@ -294,11 +294,11 @@ FAILED_EVALUATION_RUN="fixture-latest-evaluation-failure"
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" project_slice_planned '{"slice":"contract","owner":"implementer","validation":"node --check scripts/lib/project-autonomy.mjs","dependencies":[]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" project_slice_completed '{"slice":"contract","validation":"passed","evidence":["fixture"],"remaining":["verification"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" human_checkpoint '{"category":"fresh_context_review","decision":"authorized","target":"fixture-autonomy:verification"}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/-suite --json --strategy baseline","dependencies":["contract"]}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" project_slice_planned '{"slice":"verification","owner":"verifier","validation":"scripts/verify-agentic-infra full","dependencies":["contract"]}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" project_slice_completed '{"slice":"verification","validation":"passed","evidence":["fixture"],"remaining":[]}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" validation_run '{"command":"scripts/-suite --json --strategy baseline","exit":0}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" validation_run '{"command":"scripts/verify-agentic-infra full","exit":0}'
 "$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" outcome_metric '{"outcome":"fixture-final-state-grader","success":true,"measured":false,"reason":"fixture"}'
-"$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" validation_failed '{"command":"scripts/-suite --json --strategy baseline","exit":1,"failure":"latest final-state run failed"}'
+"$EVENT_TOOL" --dir "$EVENT_DIR" append "$FAILED_EVALUATION_RUN" validation_failed '{"command":"scripts/verify-agentic-infra full","exit":1,"failure":"latest final-state run failed"}'
 failed_evaluation_envelope="$(envelope_for_run "$FAILED_EVALUATION_RUN")"
 failed_evaluation_output="$("$CONTROLLER" --envelope "$failed_evaluation_envelope" --events "$EVENT_DIR/$FAILED_EVALUATION_RUN/events.jsonl" --now 2026-07-24T10:05:00Z)"
 printf '%s\n' "$failed_evaluation_output" | jq -e '.decision == "stop" and .reason == "evaluation_runner_failed"' >/dev/null ||

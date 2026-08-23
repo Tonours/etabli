@@ -20,7 +20,7 @@ emit() { "$EVENT" --dir "$EVENT_DIR" append "$@"; }
 
 # A proposal that supersedes an earlier rejection with rationale is accepted.
 emit ss-ok harness_proposal '{"candidate":"split-review-guard","editable_surfaces":["a.ts"],"preserve":["b"],"held_in":["x"],"held_out":["y"]}'
-emit ss-ok harness_validation_completed '{"candidate":"split-review-guard","verdict":"rejected","reason":"regression","held_in":{"baseline":{"population":"etabli--initial-v1","passed":0,"total":2},"candidate":{"population":"etabli--initial-v1","passed":1,"total":2}},"held_out":{"baseline":{"population":"etabli--initial-v1","passed":4,"total":4},"candidate":{"population":"etabli--initial-v1","passed":3,"total":4}},"checks":["t"],"evidence":["e"]}'
+emit ss-ok harness_validation_completed '{"candidate":"split-review-guard","verdict":"rejected","reason":"regression","held_in":{"baseline":{"population":"etabli-core-v1","passed":0,"total":2},"candidate":{"population":"etabli-core-v1","passed":1,"total":2}},"held_out":{"baseline":{"population":"etabli-core-v1","passed":4,"total":4},"candidate":{"population":"etabli-core-v1","passed":3,"total":4}},"checks":["t"],"evidence":["e"]}'
 emit ss-ok harness_candidate_rejected '{"candidate":"split-review-guard","reason":"held-out regression","regressions":["y"],"evidence":["e"]}'
 emit ss-ok harness_proposal '{"candidate":"split-review-guard","editable_surfaces":["a.ts"],"preserve":["b"],"held_in":["x"],"held_out":["y"],"supersedes":["split-review-guard"]}'
 out="$("$CHECK" "$EVENT_DIR/ss-ok/events.jsonl")"

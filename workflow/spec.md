@@ -82,7 +82,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   blocked surfaces stay distinct.
 - Large programs: frozen control plane (`workflow/skills/program-orchestration.md`,
   `workflow/program.schema.json`, read-only `scripts/program-state`) — etabli
-  repo only; kept for the  structural pin, not deployed to scaffolds.
+  repo only; frozen, not deployed to scaffolds.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - Experimental read-only: `workflow-retrospect` (not core gate; ≥10 task-grader

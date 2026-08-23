@@ -1,9 +1,8 @@
 # Large Program Control-Plane Contract
 
-> **FROZEN (2026-08-23, direction council):** no live program currently
-> depends on this control plane's recovery semantics. Kept because the
->  structural pin references it; do not extend it. A recurring program
-> with real recovery needs reopens it.
+> **FROZEN (2026-08-23):** no live program currently depends on this
+> control plane's recovery semantics. Kept frozen; do not extend it. A
+> recurring program with real recovery needs reopens it.
 
 Use this contract only when a program has independently ownable units and the
 active workflow authorizes sidecars. It strengthens restart and verification;

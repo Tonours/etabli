@@ -111,7 +111,7 @@ assert_contains "$out" "missing runtime_receipt kind review"
 	fail "legacy autonomous-completed must remain readable without receipts"
 
 # --- self-improvement integrity: rejects arbitrary population, missing fingerprint, grader drift ---
-emit si-valid harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":\"accepted\",\"reason\":\"gain\",\"held_in\":{\"baseline\":{\"population\":\"etabli--initial-v1\",\"passed\":0,\"total\":2},\"candidate\":{\"population\":\"etabli--initial-v1\",\"passed\":2,\"total\":2}},\"held_out\":{\"baseline\":{\"population\":\"etabli--initial-v1\",\"passed\":4,\"total\":4},\"candidate\":{\"population\":\"etabli--initial-v1\",\"passed\":4,\"total\":4}},\"checks\":[\"t\"],\"evidence\":[\"e\"],\"candidate_fingerprint\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"evaluator_manifest_sha256\":\"$EVAL_SHA\"}"
+emit si-valid harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":\"accepted\",\"reason\":\"gain\",\"held_in\":{\"baseline\":{\"population\":\"etabli-core-v1\",\"passed\":0,\"total\":2},\"candidate\":{\"population\":\"etabli-core-v1\",\"passed\":2,\"total\":2}},\"held_out\":{\"baseline\":{\"population\":\"etabli-core-v1\",\"passed\":4,\"total\":4},\"candidate\":{\"population\":\"etabli-core-v1\",\"passed\":4,\"total\":4}},\"checks\":[\"t\"],\"evidence\":[\"e\"],\"candidate_fingerprint\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"evaluator_manifest_sha256\":\"$EVAL_SHA\"}"
 out="$("$INTEGRITY" "$EVENT_DIR/si-valid/events.jsonl")"
 assert_contains "$out" "ok"
 
@@ -119,11 +119,11 @@ emit si-bad-pop harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":
 out="$(expect_status 1 "$INTEGRITY" "$EVENT_DIR/si-bad-pop/events.jsonl")"
 assert_contains "$out" "not registered"
 
-emit si-no-fp harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":\"accepted\",\"reason\":\"gain\",\"held_in\":{\"baseline\":{\"population\":\"etabli--initial-v1\",\"passed\":0,\"total\":2},\"candidate\":{\"population\":\"etabli--initial-v1\",\"passed\":2,\"total\":2}},\"held_out\":{\"baseline\":{\"population\":\"etabli--initial-v1\",\"passed\":4,\"total\":4},\"candidate\":{\"population\":\"etabli--initial-v1\",\"passed\":4,\"total\":4}},\"checks\":[\"t\"],\"evidence\":[\"e\"],\"evaluator_manifest_sha256\":\"$EVAL_SHA\"}"
+emit si-no-fp harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":\"accepted\",\"reason\":\"gain\",\"held_in\":{\"baseline\":{\"population\":\"etabli-core-v1\",\"passed\":0,\"total\":2},\"candidate\":{\"population\":\"etabli-core-v1\",\"passed\":2,\"total\":2}},\"held_out\":{\"baseline\":{\"population\":\"etabli-core-v1\",\"passed\":4,\"total\":4},\"candidate\":{\"population\":\"etabli-core-v1\",\"passed\":4,\"total\":4}},\"checks\":[\"t\"],\"evidence\":[\"e\"],\"evaluator_manifest_sha256\":\"$EVAL_SHA\"}"
 out="$(expect_status 1 "$INTEGRITY" "$EVENT_DIR/si-no-fp/events.jsonl")"
 assert_contains "$out" "candidate_fingerprint"
 
-emit si-drift harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":\"accepted\",\"reason\":\"gain\",\"held_in\":{\"baseline\":{\"population\":\"etabli--initial-v1\",\"passed\":0,\"total\":2},\"candidate\":{\"population\":\"etabli--initial-v1\",\"passed\":2,\"total\":2}},\"held_out\":{\"baseline\":{\"population\":\"etabli--initial-v1\",\"passed\":4,\"total\":4},\"candidate\":{\"population\":\"etabli--initial-v1\",\"passed\":4,\"total\":4}},\"checks\":[\"t\"],\"evidence\":[\"e\"],\"candidate_fingerprint\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"evaluator_manifest_sha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"}"
+emit si-drift harness_validation_completed "{\"candidate\":\"c1\",\"verdict\":\"accepted\",\"reason\":\"gain\",\"held_in\":{\"baseline\":{\"population\":\"etabli-core-v1\",\"passed\":0,\"total\":2},\"candidate\":{\"population\":\"etabli-core-v1\",\"passed\":2,\"total\":2}},\"held_out\":{\"baseline\":{\"population\":\"etabli-core-v1\",\"passed\":4,\"total\":4},\"candidate\":{\"population\":\"etabli-core-v1\",\"passed\":4,\"total\":4}},\"checks\":[\"t\"],\"evidence\":[\"e\"],\"candidate_fingerprint\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"evaluator_manifest_sha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"}"
 out="$(expect_status 1 "$INTEGRITY" "$EVENT_DIR/si-drift/events.jsonl")"
 assert_contains "$out" "non-comparable"
 

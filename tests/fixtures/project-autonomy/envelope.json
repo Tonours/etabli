@@ -38,9 +38,9 @@
     "red_checks_without_diff": 3
   },
   "evaluation": {
-    "runner": "scripts/-suite --json --strategy baseline",
+    "runner": "scripts/verify-agentic-infra full",
     "final_state_grader": "fixture-final-state-grader",
-    "held_out_surface": "workflow//population.json#sealed-held-out",
+    "held_out_surface": "tests/fixtures/harness-v1/manifest.json#sealed",
     "sealed_held_out": true
   },
   "slices": [
@@ -61,7 +61,7 @@
       "allowed_tools": ["node", "bash"],
       "checkpoint_id": "fresh-review",
       "verification": {
-        "command": "scripts/-suite --json --strategy baseline",
+        "command": "scripts/verify-agentic-infra full",
         "evidence": "frozen held-out final-state run"
       }
     }

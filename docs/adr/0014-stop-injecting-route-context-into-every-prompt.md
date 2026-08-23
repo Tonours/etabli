@@ -54,10 +54,9 @@ do. They are kept for exactly that reason.
   Claude/Pi route-parity matrix; a `claude_route_probe` helper now renders the
   same fields from `classifyWorkflowRoute` directly, so all 11 scenarios and
   their needles survive.
-- `scripts/lib/-suite.mjs`'s `claude_route` driver calls the library
-  instead of spawning the deleted hook. All 14 `claude_route` tasks stay
-  driveable and `workflow//tasks.json` is unchanged, so the corpus hash pin
-  holds.
+- The behavioral suite's `claude_route` driver calls the library directly
+  instead of spawning the deleted hook, so all routing tasks stay driveable
+  and the corpus hash pin holds.
 - `scripts/lib/route-context-manifest.mjs` is now orphaned (its only consumer
   was the injection path). Left in place; `workflow/route-context-manifests.json`
   and its bash checker are a separate call.
