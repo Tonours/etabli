@@ -9,12 +9,12 @@ duplicated surface — never behavior.
 
 **Targets (vs baseline, re-measure at session start):**
 
-| Metric | Baseline (measured) | Target |
+| Metric | Baseline (measured, segment 1) | Target |
 |---|---|---|
-| `surface` (total lines, primary) | 15 181 | ≤ 7 590 |
-| `skills_md` (skill md files) | 113 | ≤ 56 |
-| `verify_s` (verify core wall time) | 39 s | ≤ 19 s (= +100% speed) |
-| `skill_kb` (skill content size) | 337 KB | ≤ 168 KB |
+| `surface` (total lines incl. vendor, primary) | 65 134 | ≤ 32 567 |
+| `skills_md` (skill md files) | 373 | ≤ 186 |
+| `verify_s` (verify core wall time) | 41 s | ≤ 20 s (= +100% speed) |
+| `skill_kb` (skill content size) | 1696 KB | ≤ 848 KB |
 
 "100% more efficiency" is measured by these two proxies only: verify core
 runtime halved, and per-session skill tax halved (fewer + smaller skill files
@@ -42,8 +42,14 @@ fails, the script exits nonzero (log as `checks_failed`).
   flags). Deleting/merging a skill MUST update this file (verify guards it).
 - `workflow/*.md` — 63 files; consolidation candidates (e.g. per-loop docs).
 - `pi/extensions/**/*.ts` (excluding `__tests__/`) — ~1 927 lines.
-- `scripts/*` — ~7 898 lines; likely dead code, run `lens_diagnostics
+- `scripts/*` — ~8 054 lines; likely dead code, run `lens_diagnostics
   mode=full` / dead-code analyzer to find it before cutting.
+- `vendor/*/skills/*` — ~50 000 lines / 260 md files of pinned upstream
+  skill snapshots (mcollina, ember-forestadmin, adonisjs, tanstack-start,
+  vercel). Restorable from upstream via `vendor/sources.tsv` + `UPSTREAM_SHA`.
+  Most sit on the opt-in shelf (`0 0` in the catalog) yet every locked skill
+  is sha256-hashed by `verify-skills-lock` on every core run — cutting vendor
+  shrinks BOTH `surface` and `verify_s`.
 
 ## Off Limits
 
@@ -84,6 +90,11 @@ fails, the script exits nonzero (log as `checks_failed`).
 
 ## What's Been Tried
 
-Session bootstrap: baseline measured for real by running `./.auto/measure.sh`
-(exit 0): `surface=15181`, `skills_md=113`, `skill_kb=337`, `ts_lines=1927`,
-`script_lines=8054`, `workflow_lines=5200`, `verify_s=39`.
+Segment 0 (superseded): metric excluded `vendor/`; baseline surface=15181,
+verify_s between 36-81s (noisy). Re-scoped at run 0 — no optimization
+iterations were logged on the old metric.
+
+Segment 1 (current): corrected baseline measured for real via
+`./.auto/measure.sh` (exit 0): `surface=65134`, `skills_md=373`,
+`skill_kb=1696`, `vendor_lines=49953`, `ts_lines=1927`, `script_lines=8054`,
+`workflow_lines=5200`, `verify_s=41`.
