@@ -1,12 +1,29 @@
 import { createHash } from "node:crypto";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const piDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const repoDir = dirname(piDir);
-const lock = JSON.parse(await readFile(join(repoDir, "skills-lock.json"), "utf8"));
-const settings = JSON.parse(await readFile(join(piDir, "agent", "settings.json"), "utf8"));
+
+const fail = (message) => {
+  console.error(`skills-lock.json verification failed:\n${message}`);
+  process.exit(1);
+};
+
+let lock;
+try {
+  lock = JSON.parse(await readFile(join(repoDir, "skills-lock.json"), "utf8"));
+} catch (error) {
+  fail(`invalid skills-lock.json: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+let settings;
+try {
+  settings = JSON.parse(await readFile(join(piDir, "agent", "settings.json"), "utf8"));
+} catch (error) {
+  fail(`invalid pi/agent/settings.json: ${error instanceof Error ? error.message : String(error)}`);
+}
 const write = process.argv.includes("--write");
 const catalog = (await readFile(join(repoDir, "workflow", "runtime", "skill-surface.tsv"), "utf8"))
   .split("\n")
@@ -55,6 +72,24 @@ async function hashSkill(name, source = "pi") {
 }
 
 const failures = [];
+
+// Every catalog row must point at an existing skill directory. Locked rows
+// are covered by hashing below; this also covers shelf rows (non-locked),
+// which nothing else checks — a deleted skill dir with a surviving catalog
+// row would otherwise drift silently.
+for (const entry of catalog) {
+  const skillDir = join(
+    repoDir,
+    entry.source === "pi" ? "pi" : join("vendor", entry.source),
+    "skills",
+    entry.name,
+  );
+  try {
+    await stat(skillDir);
+  } catch {
+    failures.push(`${entry.name}: catalog row has no skill directory (${skillDir})`);
+  }
+}
 const configured = configuredLocalSkills();
 const catalogPiCore = catalog.filter((entry) => entry.source === "pi" && entry.piCore).map((entry) => entry.name).sort();
 if (JSON.stringify(configured) !== JSON.stringify(catalogPiCore)) {
