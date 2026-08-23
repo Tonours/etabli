@@ -429,6 +429,12 @@ is_agents_visible_skill() {
 
 prune_managed_pi_skills() {
     local skills_dir="$HOME/.pi/agent/skills"
+    # Fail-closed: a degenerate catalog (present but filtering to zero
+    # pi_core rows) must never turn the keep-list into "remove everything".
+    if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; }; then
+        print_error "Skill catalog produced an empty pi_core list; refusing to prune managed Pi skill links"
+        exit 1
+    fi
     [ -d "$skills_dir" ] || return 0
 
     for skill_link in "$skills_dir"/*; do
@@ -450,6 +456,10 @@ prune_managed_pi_skills() {
 
 prune_managed_agents_skills() {
     local skills_dir="$HOME/.agents/skills"
+    if [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 0 ] || { [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 1 ] && [ -z "${AGENTS_VISIBLE_SKILLS[0]}" ]; }; then
+        print_error "Skill catalog produced an empty agents_visible list; refusing to prune managed agents skill links"
+        exit 1
+    fi
     [ -d "$skills_dir" ] || return 0
 
     for skill_link in "$skills_dir"/*; do
@@ -1569,7 +1579,7 @@ mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
 mkdir -p ~/.agents/skills
 prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
 
-while IFS=$'\t' read -r vendor_name vendor_repo vendor_ref vendor_scope vendor_skills; do
+while IFS=$'\t' read -r vendor_name _vendor_repo _vendor_ref vendor_scope _vendor_skills; do
     case "$vendor_name" in '' | \#*) continue ;; esac
 
     case " $ETABLI_ACTIVE_SCOPES " in

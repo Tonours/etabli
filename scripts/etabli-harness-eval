@@ -12,11 +12,14 @@ Usage:
   etabli-harness-eval grade --task ID --worktree DIR --transcript FILE [--runner NAME] [--runner-exit N]
   etabli-harness-eval run --runner pi|grok|all [--task ID] [--repeats N] [--output FILE]
   etabli-harness-eval null-baseline [--output FILE]
+  etabli-harness-eval constant-baseline [--output FILE]
   etabli-harness-eval report FILE.jsonl
 
-run invokes models only when ETABLI_HARNESS_EVAL=1.
-null-baseline never invokes models: it grades every task against an empty
-transcript (a do-nothing policy) to publish the suite's floor.
+run invokes models only when ETABLI_HARNESS_EVAL=1; it exits non-zero when
+any graded cell fails.
+null-baseline and constant-baseline never invoke models: they grade every
+task respectively against an empty transcript (do-nothing policy) and a
+fabricated-strings transcript (print-only policy) to publish the suite floor.
 print-argv and grade never invoke pi or grok.
 EOF
 }
@@ -144,10 +147,14 @@ case "$cmd" in
           set -e
           [ "$cell_status" -eq 0 ] && [ -n "$row" ] || harness_die "cell failed: $r/$id"
           emit "$row"
+          printf '%s\n' "$row" | jq -e '.pass == true' >/dev/null || red_cells=$((red_cells + 1))
           n=$((n + 1))
         done
       done
     done
+    if [ "${red_cells:-0}" -gt 0 ]; then
+      harness_die "run finished with $red_cells failing cell(s)"
+    fi
     ;;
   null-baseline)
     output=""
@@ -157,30 +164,17 @@ case "$cmd" in
         *) harness_die "unknown null-baseline option: $1" ;;
       esac
     done
-    results_dir="${ETABLI_HARNESS_EVAL_DIR:-}"
-    if [ -z "$results_dir" ]; then
-      results_dir="$(mktemp -d "${TMPDIR:-/tmp}/etabli-harness-eval.XXXXXX")"
-    else
-      mkdir -p "$results_dir"
-    fi
-    printf 'etabli-harness-eval: keeping null-baseline cells in %s\n' "$results_dir" >&2
-    null_emit() {
-      if [ -n "$output" ]; then
-        printf '%s\n' "$1" >>"$output"
-      else
-        printf '%s\n' "$1"
-      fi
-    }
-    while IFS= read -r id; do
-      cell="$results_dir/null-$id-1"
-      row=""
-      set +e
-      row="$(harness_null_baseline_once "$id" "$cell")"
-      cell_status=$?
-      set -e
-      [ "$cell_status" -eq 0 ] && [ -n "$row" ] || harness_die "null-baseline cell failed: $id"
-      null_emit "$row"
-    done < <(harness_task_ids)
+    ETABLI_HARNESS_EVAL_DIR="${ETABLI_HARNESS_EVAL_DIR:-}" harness_baseline_suite null "$output"
+    ;;
+  constant-baseline)
+    output=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --output) output="${2:?}"; shift 2 ;;
+        *) harness_die "unknown constant-baseline option: $1" ;;
+      esac
+    done
+    ETABLI_HARNESS_EVAL_DIR="${ETABLI_HARNESS_EVAL_DIR:-}" harness_baseline_suite constant "$output"
     ;;
   report)
     [ "$#" -eq 1 ] || harness_die "report requires a jsonl path"

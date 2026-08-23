@@ -4,7 +4,7 @@
   "visibility": "frozen_public",
   "evaluator": {
     "id": "binary-final-state-v1",
-    "sha256": "937e0eab274b627025185367e6a8058676af3bcd4aafb8c3541369043bd221aa"
+    "sha256": "eb817e43462802904968fadbc0b1b47ccfbcdcee31f714050c4de3e41637f510"
   },
   "tasks": [
     {
@@ -41,8 +41,7 @@
       "id": "hunter-read-only",
       "split": "held_out",
       "runners": [
-        "pi",
-        "grok"
+        "pi"
       ]
     },
     {

@@ -2,6 +2,7 @@
 set -euo pipefail
 source "${ETABLI_HARNESS_LIB:?}"
 harness_oracle_init
+harness_require_head_unchanged
 harness_require_contains "$WORKTREE/src/fixture.sh" '# harness-eval-marker'
 # final state must be the exact expected file, not just a grep hit:
 # a broken implementation that keeps the marker (e.g. `exit 1`) must fail.

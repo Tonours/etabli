@@ -11,7 +11,7 @@ Distilled archive of the root PLAN.md implemented as `f35d672` (+ hunter/adversa
 
 ## Evidence
 
-- `verify-agentic-infra full`: **80/80 PASS** (first green full since rounds measured it red+masking).
+- `verify-agentic-infra full`: **69/69 PASS** (first green full since rounds measured it red+masking).
 - Focused: harness-eval smoke, manifest smoke (now pins the accumulation construct), fix-links, deploy, pi tests (238+56), `verify:skills` — all green.
 - simplify: clean (deletions + minimal constructs only).
 - quality: shell+mjs+ts | mechanical fixed: 4 | findings: 0 open | status: clean.

@@ -12,7 +12,7 @@ Distilled archive of the root PLAN.md "Fermer les trous d'oracles restants (C1) 
 ## Evidence
 
 - `tests/etabli-harness-eval-smoke.sh`: ok — includes degenerate cases for all four hardened oracles + contradictory-transcript pins + GO/GWN pair + null-baseline structural asserts.
-- `verify-agentic-infra full`: 80/80 PASS.
+- `verify-agentic-infra full`: 69/69 PASS (denominator printed by the runner).
 - simplify: clean (rewrites only). quality: bash-harness | findings folded.
 - Logic hunter (fresh ctx): GO. Spec hunter (fresh ctx): 4 findings folded (−uall declared in Decision Log; overlay PLAN.md added; fail fixture verdict-only delta; formatter split committed separately as b088791).
 - Adversary cross-model (cursor/grok-4.6 xhigh): GO WITH NOTES — none+GO regression + GO-task isolation exclusivity + comment/comment-mode nits, all folded and pinned by new smoke cases.

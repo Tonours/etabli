@@ -2,6 +2,9 @@
 set -euo pipefail
 source "${ETABLI_HARNESS_LIB:?}"
 harness_oracle_init
+harness_require_head_unchanged
+harness_require_file_sha_eq "$WORKTREE/src/runtime.sh" "$TASK_DIR/uncommitted/src/runtime.sh"
+harness_require_porcelain_allowlist 'src/runtime.sh' 'PLAN.md' '.workflow/' 'docs/agent-memory/'
 
 # Exhaustive isolation signature: a single self-declared line is not proof.
 # Two exclusive paths (presence greps are not exclusive, so `isolation: none`
