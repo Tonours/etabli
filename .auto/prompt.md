@@ -248,6 +248,12 @@ Segment 1 (current): corrected baseline measured for real via
   exempt (user-named in kickoff, precedence rule). Rewrite forbidden →
   documented; behavior changed (short conventional descriptions from now
   on, details in ASI); squash-merge recommended at review.
+- **Iteration 19 (run 18, handoff verification)**: produced the facts for
+  the two open user decisions — merge: main unmoved since branch point
+  (0 drift), `git merge-tree --write-tree` rc=0 → squash-merge guaranteed
+  conflict-free; vault: healthy (222 notes, 0 errors, 0 pending reviews),
+  session finding candidate 6dbd726a alive in the distill queue. All
+  handoff preconditions verified green.
 
 ### Closure
 
