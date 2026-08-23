@@ -285,6 +285,15 @@ Segment 1 (current): corrected baseline measured for real via
   assumed. Documented in the playbook alongside core/full coverage; the
   manual command for a human-budgeted live run is recorded. All three
   profiles now have an evidence-backed status in the session record.
+- **Iteration 23 (run 22, restore-path verification)**: tested the restore
+  claim baked into 3 durable artifacts. Rows recoverable from git history
+  (exact 3 rows); public upstreams reachable (read-only ls-remote); the sync
+  script ran end-to-end on the post-session tree — accidentally, via a
+  flawed probe (touch ≠ content change → no refusal), and proved fully
+  idempotent (tree stayed clean). Claim CORRECTED and completed: restore
+  also needs catalog rows + skills-lock update — vendor/README.md now
+  carries the verified 4-step procedure (+6 surface lines, honest cost);
+  vault addendum queued (candidate da917e14).
 
 ### Closure
 
