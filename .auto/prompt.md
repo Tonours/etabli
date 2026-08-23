@@ -163,6 +163,15 @@ Segment 1 (current): corrected baseline measured for real via
   design; pi/skills/herdr = documented symlink. Iterations 1-4 left no
   dangling references. Gap recorded (not fixed, YAGNI): non-locked catalog
   rows have no existence check in any smoke.
+- **Iteration 9 (run 8, KEEP, guard)**: closed the iteration-8 gap —
+  verify-skills-lock.mjs now requires every catalog row's skill dir to exist
+  (one-directional: reverse would false-positive on the documented
+  pi/skills/herdr symlink). Runs in core profile, catches shelf-row drift
+  nothing else checked. Negative-tested (fake ghost row → clean failure,
+  exit 1). Bonus hardening: the two unguarded JSON.parse entry reads now fail
+  with the script's banner instead of a stack trace. Zero surface cost —
+  pi/scripts/ is outside the metric. The gap this closes is now a smoke-
+  enforced invariant, not a YAGNI note.
 
 ## Final summary
 
