@@ -111,12 +111,31 @@ Segment 1 (current): corrected baseline measured for real via
   dominated core). Orphan-probe negative case verified still caught.
 - **Runs 4-6 (confirmation)**: surface=31819 deterministic ×3; verify_s =
   10/11/10 s. Both targets met with margin.
+- **Iteration 3 (segment-2 runs 1-2, KEEP)**: removed
+  `vendor/vercel-agent-skills` (4 skills, 12.5k lines, 100 files). Catalog
+  68→64, lock 52→48. Repointed smoke fixtures to ember paths; flipped
+  shared-scope vendor assertions to absent (work-scope phase already asserts
+  ember links). Fixed hidden iter-1 debt: codex-skill-description-smoke
+  (full profile) expected sets shrunk to herdr; install-main kept-skill list
+  referenced deleted `node`; stale prose (claude/README, code-quality,
+  stack-suite, scout, worker, plan-implement, ship) repointed to surviving
+  skills. Full profile 68/68. surface=19304, skills_md=167 (≤186 target met).
+- **Iteration 4 (run 3, KEEP)**: deleted hollow `stack-suite` router (2 live
+  rows folded into suite-router; Node/backend row retired honestly).
+  design-suite kept (dense live orchestrator). Also: dead-scripts hypothesis
+  REFUTED — full reference map shows every scripts/* entry has a living
+  consumer (smoke, installer, manifest, config). surface=19303, skills_md=166.
 
 ## Final summary
 
-**Targets achieved** (segment 1): surface 65 134 → 31 819 (−51.2%, target
-≤ 32 567) · verify_s 41 → ~10.3 s (−75%, target ≤ 20) · skills_md 373 → 263
-(−29.5%) · skill_kb 1696 → 866 KB (−49%). Verify core green at every step;
-extension tests 242/242 green at every keep. Remaining candidates in
-`.auto/ideas.md` (vercel pack, dead scripts, linear/review merges, workflow
-docs) — session can stop here or continue on the backlog.
+**All targets exceeded** (segment 2): surface 65 134 → 19 303 (−70.4%, target
+≤ 32 567) · verify_s 41 → 10-17 s (target ≤ 20) · skills_md 373 → 166 (−55%,
+target ≤ 186) · skill_kb 1 696 → 497 KB (−70.7%). Core profile green at every
+keep; full profile 68/68 after iteration 3 fix-ups; extension tests 242/242.
+
+**What was cut**: 3 vendor packs (mcollina generic, tanstack undeployed,
+vercel React — all restorable via `vendor/sources.tsv` +
+`scripts/sync-vendor-skills`), 1 hollow router, stale prose across 8 contract
+files. **What survived evidence**: ember + adonisjs packs (scope-deployed,
+user's daily stacks), design-suite, all scripts (each has a living consumer),
+workflow contracts (the repo's product).
