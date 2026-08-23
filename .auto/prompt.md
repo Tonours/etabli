@@ -232,6 +232,15 @@ Segment 1 (current): corrected baseline measured for real via
   does NOT imply consumption, consumption does NOT imply vendored presence
   (check deployed symlink targets before any pack decision). kb/ promotion
   stays a human gate per contract. Repo unchanged (19277/14 s).
+- **Iteration 17 (run 16, evidence test, REFUTED)**: tested the adonisjs-
+  vendored-pack-as-tanstack-pattern hypothesis. Machine inventory: only
+  laptop (work) + mac mini (herdr subset) documented — no personal-scope
+  host. But the decisive freshness test inverted the verdict: vendored copy
+  is exactly synced with the user's active clone (diff=0, same UPSTREAM_SHA
+  ec886b7, synced 2026-08-12) = deliberately curated distribution for the
+  documented personal-scope class, not abandoned tax. Deletion refuted.
+  Refined the it.16 insight: pack decisions need consumption topology AND
+  sync freshness (vendored+synced=curated; vendored+stale+user-upstream=tax).
 
 ### Closure
 
