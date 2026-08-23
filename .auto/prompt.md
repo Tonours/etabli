@@ -241,6 +241,13 @@ Segment 1 (current): corrected baseline measured for real via
   documented personal-scope class, not abandoned tax. Deletion refuted.
   Refined the it.16 insight: pack decisions need consumption topology AND
   sync freshness (vendored+synced=curated; vendored+stale+user-upstream=tax).
+- **Iteration 18 (run 17, self-audit, git contract)**: audited my own
+  branch against `workflow/git-contract.md` — 8/34 commits violate the
+  subject rules (all are log_experiment auto-commits: iteration descriptions
+  100-547 chars, non-conventional; all 26 manual commits pass). Branch name
+  exempt (user-named in kickoff, precedence rule). Rewrite forbidden →
+  documented; behavior changed (short conventional descriptions from now
+  on, details in ASI); squash-merge recommended at review.
 
 ### Closure
 
