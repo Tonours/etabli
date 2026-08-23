@@ -113,8 +113,8 @@ Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
 
 Load only a matching skill that the active Claude surface actually exposes.
 Prefer an exposed project skill when the task is about its codebase; otherwise
-use a direct language/framework skill from the managed vendor surface, such as
-`node`, `fastify-best-practices`, or `vercel-react-best-practices`. For UI work,
+use a scope-gated vendor skill such as `ember-employer-suite` (work) or
+`adonisjs-suite` (personal) when the machine declares that scope. For UI work,
 the shared Claude surface exposes `frontend-css-ui-ux`. Skill selection is not a
 mandatory first step on `/plan-loop`, `/plan-implement`, or `/ship`; when no
 matching skill is exposed, the route uses its local-source fallback instead of

@@ -25,9 +25,6 @@ and compares the diff to **sibling implementations in this repo**.
 
    | Domain | Skills to apply |
    | -------- | ----------------- |
-   | React / Next / TanStack UI | `vercel-react-best-practices`, `vercel-composition-patterns` |
-   | Node / Fastify / API | `node`, `fastify-best-practices`, `typescript-magician` |
-   | Lint / ESLint flat | `linting-neostandard-eslint9` |
    | CSS / layout / visual | Local sibling components and styles; apply a narrower CSS skill only when the runtime exposes one |
    | Project-specific code | Prefer the matching project skill when the runtime exposes one |
 

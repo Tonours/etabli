@@ -20,8 +20,9 @@ This command is the full-auto workflow. Run every phase in one uninterrupted
 flow — never stop between phases to ask "continue?":
 
 0. Skill selection: load the narrowest matching skill that this runtime
-   actually exposes (for example a project skill, `frontend-css-ui-ux`, `node`,
-   `vercel-react-best-practices`, or a task skill such as `bug-check`). If none
+   actually exposes (for example a project skill, `frontend-css-ui-ux`,
+   `ember-employer-suite` when the work scope is active, or a task skill
+   such as `bug-check`). If none
    is exposed, use the route contract's local-source fallback. Name the skill(s)
    used, or `none`, in the plan's `Notes / Handoff`.
 1. Understand: scoped local recon of the affected area. Dispatch a `scout` when

@@ -41,31 +41,14 @@ const rows = readFileSync(fixturePath, 'utf8')
   })
 
 const expectedNames = [
-  'documentation',
-  'fastify-best-practices',
   'herdr',
-  'linting-neostandard-eslint9',
-  'node',
-  'nodejs-core',
-  'oauth',
-  'typescript-magician',
-  'vercel-react-view-transitions',
 ]
 const actualNames = rows.map(row => row.runtimeName).sort()
 if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
   throw new Error(`target set drifted: ${actualNames.join(',')}`)
 }
 
-const expectedLockKeys = [
-  'documentation',
-  'fastify',
-  'linting-neostandard-eslint9',
-  'node',
-  'nodejs-core',
-  'oauth',
-  'react-view-transitions',
-  'typescript-magician',
-]
+const expectedLockKeys = []
 const actualLockKeys = rows.filter(row => row.lockKey !== '-').map(row => row.lockKey).sort()
 if (JSON.stringify(actualLockKeys) !== JSON.stringify(expectedLockKeys)) {
   throw new Error(`lock key set drifted: ${actualLockKeys.join(',')}`)
@@ -150,11 +133,11 @@ for (const row of rows) {
   }
 }
 
-if (descriptionBytes !== 956 || descriptionBytes > 1036) {
+if (descriptionBytes !== 142 || descriptionBytes > 1036) {
   throw new Error(`description total drifted: ${descriptionBytes}`)
 }
 
 process.stdout.write(
-  `codex skill description smoke: ok (9 skills, ${descriptionBytes} bytes, proxy_supported)\n`,
+  `codex skill description smoke: ok (1 skill, ${descriptionBytes} bytes, proxy_supported)\n`,
 )
 NODE

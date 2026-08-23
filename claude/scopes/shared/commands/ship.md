@@ -15,8 +15,9 @@ If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, t
 Claude specifics:
 
 - Skill selection: load the narrowest matching skill that Claude actually
-  exposes, such as `frontend-css-ui-ux`, `node`,
-  `vercel-react-best-practices`, an exposed project skill, or a task-shaped one
+  exposes, such as `frontend-css-ui-ux`,
+  `ember-employer-suite` when the work scope is active, an exposed project
+  skill, or a task-shaped one
   such as `bug-check`, `pr-qa`, or `sec-pr`. If none is exposed, use the route
   contract's local-source fallback. Name the skill(s) used, or `none`, in the
   handoff.

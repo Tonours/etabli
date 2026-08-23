@@ -11,9 +11,13 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
-| `vercel-agent-skills` | `vercel-labs/agent-skills` | `shared` | 4 — React performance, composition, view transitions, web guidelines |
 | `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — employer Ember frontend |
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
+
+No `shared` vendor pack is currently vendored; generic language packs
+(mcollina) and React packs (vercel, tanstack) were removed as unused surface —
+restore them by re-adding their `sources.tsv` row and re-running
+`scripts/sync-vendor-skills`.
 
 Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 `personal` only where the machine declares that scope in `~/.etabli-scope`.
