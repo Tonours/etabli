@@ -5,6 +5,26 @@ Shared contract for implementation from `PLAN.md`.
 Pi skills and Claude commands are runtime adapters over this file. Keep harness
 details in the adapters; keep the phase order and completion evidence here.
 
+## Risk tiers
+
+Depth is proportional to risk. Pick the tier before step 1 and record it
+(`tier: small|standard|high-risk`); upgrade at any step if the diff outgrows
+the tier — never downgrade mid-run.
+
+- **small** — docs-only, config-only, or a bounded single-surface edit with no
+  runtime behavior change. Runs **outside the plan gate**: scoped recon
+  (step 0), implement (step 8 semantics), checks (12), simplify (12b),
+  quality (12c), report (17). One self-review of the cumulative diff
+  replaces hunters and adversary passes. No plan file and no READY gate unless
+  the surface is contractual — in which case the tier is not small.
+- **standard** (default) — runtime code change on a known surface. Full
+  sequence below, except step 13b accepts a documented same-family
+  double-sample instead of cross-model.
+- **high-risk** — kernel guards, installer/deploy scripts, harness eval
+  infrastructure, security, multi-surface contract changes, or a third
+  recurrence of the same failure. Full sequence, cross-model adversary
+  mandatory (13b), both hunters mandatory (13).
+
 ## Required Sequence
 
 0. Understand before planning: run a scoped local recon of the affected area
@@ -18,7 +38,8 @@ details in the adapters; keep the phase order and completion evidence here.
    wording such as "PLAN.md ready" is not proof.
 4. Stop from `DRAFT`, `CHALLENGED`, missing `PLAN.md`, or missing concrete
    checks/required evidence.
-5. Run the adversary contract in `workflow/skills/adversary.md` before editing.
+5. Run the adversary contract in `workflow/skills/adversary.md` before editing
+   (standard/high-risk; optional for small).
 6. Fold accepted adversary findings into `PLAN.md`.
 7. If blockers remain, set `Status: CHALLENGED` and stop.
 8. Implement the still-`READY` plan steps in order with minimal, scoped
@@ -43,7 +64,8 @@ details in the adapters; keep the phase order and completion evidence here.
     legs honestly, and re-run failed plus adjacent scenarios after each
     accepted fix. If the plan omitted dogfood evidence for such a change, stop
     as plan drift and strengthen the checks before continuing.
-    Durable product/UI claims use `scripts/evidence-proof`; pack integrity alone
+    Durable product/UI claims use `scripts/evidence-proof` (etabli repo
+only); pack integrity alone
     never counts as parent-observed execution.
 12. Run focused checks from the plan after dogfood and after any accepted
     dogfood fix, so readiness is never based on checks that predate the latest
@@ -84,25 +106,29 @@ details in the adapters; keep the phase order and completion evidence here.
     more than one implementation commit; a single-commit branch may review that
     commit alone. Per-slice reviews do not satisfy this step.
     Pin the patch once, then dispatch Logic hunter and Spec hunter in fresh
-    context. In an autonomous run, hunters come from a fresh context (subagent
-    reviewer or cross-model) per `workflow/spec.md`. Record `reviewer_model` and
-    whether deciding-code rows were complete. A `GO` with empty runtime
-    deciding-code is invalid — treat as `blocked` / re-review.
+    context (both mandatory for high-risk; standard may follow the Daily Pi
+    exception in `workflow/skills/review.md`). In an autonomous run, hunters
+    come from a fresh context (subagent reviewer or cross-model) per
+    `workflow/spec.md`. Record `reviewer_model` and whether deciding-code rows
+    were complete. A `GO` with empty runtime deciding-code is invalid — treat
+    as `blocked` / re-review. For **small** tier, a single documented
+    self-review of the cumulative diff replaces this step.
     Without an eligible runner or authorization when required, stop as
     `blocked` requesting review.
-13b. Code-diff adversary per `workflow/skills/adversary.md`: **cross-model
-    default**; only acceptable substitute is documented double-sample
-    same-family. Single same-family pass → `blocked` (full autonomy policy).
-    Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
-    **High** findings: accept/reject via cross-model (or second sample), not the
-    implementer alone. Fold accepted findings and re-run checks.
+13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
+    **high-risk requires cross-model**; **standard accepts a documented
+    double-sample same-family pass**; **small skips**. Single same-family pass
+    alone → `blocked` (full autonomy policy).
+    Name `adversary_model` (or `same-family-pass` ids).
+    **High** findings: accept/reject via cross-model (or second sample), not
+    the implementer alone. Fold accepted findings and re-run checks.
 14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
     using `workflow/plan-archive.md`; distill it as memory, do not raw-copy
     `PLAN.md`.
 15. After archive and validation succeed, delete only the current workspace root
     `PLAN.md`.
 16. If archiving is skipped or fails, keep `PLAN.md` and report why.
-17. Return files changed, adversary result, validation, review result
+17. Return files changed, tier, adversary result, validation, review result
     (including deciding-code completeness), risks, archive path, deleted
     `PLAN.md` status, remaining risks, next action if any, and final status.
 18. Before any separately authorized push, run the complete relevant
@@ -130,17 +156,22 @@ iteration proves nothing.
 Autonomous implementation loops are complete only when the final state contains
 evidence for all of:
 
-- adversary plan review;
-- adversary code-diff review with named model (or documented double-sample);
+- recorded risk tier;
+- adversary plan review (standard/high-risk);
+- adversary code-diff review with named model (or documented double-sample;
+  skipped only for small tier);
 - focused validation;
 - product dogfood scenario evidence when required by the plan;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);
 - Logic+Spec lead review on the cumulative merge-base...HEAD scope with
-  complete deciding-code table for runtime diffs;
+  complete deciding-code table for runtime diffs (self-review only for small
+  tier);
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
-- implemented-plan archive under `docs/plan/`;
-- root `PLAN.md` cleanup after successful archive and validation.
+- implemented-plan archive under `docs/plan/` (when a plan existed;
+  skipped for the small tier, which requires no PLAN.md);
+- root `PLAN.md` cleanup after successful archive and validation (when a
+  plan existed; skipped for the small tier).
 
 ## Autonomous evidence
 

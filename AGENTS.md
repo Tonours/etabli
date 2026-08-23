@@ -76,7 +76,9 @@ Repo-specific instructions for this dotfiles repo.
 - Before answering or planning anything that depends on prior research,
   decisions, conventions, preferences, or recurring incidents, consult the
   canonical `obvault` knowledge base; do not wait for the user to mention it.
-- Follow `workflow/skills/obvault-memory.md` with `~/work/obvault`; read the
+- Follow `workflow/skills/obvault-memory.md`; the vault root is resolved per
+  scope (`workflow/runtime/obvault-topic-resolver.mjs`: work -> `~/work/brain`
+  when present, else `~/work/obvault`; personal -> `~/work/obvault`); read the
   vault `AGENTS.md` entrypoint before querying or proposing a durable write.
 
 ## Code

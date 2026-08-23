@@ -54,7 +54,8 @@ Prefer structured task state over text:
    the evidence.
 
 For a multi-unit program, derive restart state from the immutable manifest and
-canonical ledger with `scripts/program-state`; do not treat its
+canonical ledger with `scripts/program-state` (etabli repo only; the program control plane is
+frozen — see program-orchestration.md); do not treat its
 `replay_complete` output as live runtime confirmation.
 
 ## Delegation

@@ -197,15 +197,17 @@ Three distinct uses, with distinct evidence classes:
   implementation reply shapes) and the quick card's long-loop rule. Its
   prose, skill catalog, file layout, Cursor/Graphite coupling, and
   external-write model were deliberately not copied.
-- **Live comparison — blocked, not claimed.** A mechanical ingest gate
-  enforces a frozen dominance rule (`scripts/-suite --ingest-live`,
-  138 candidate runs, `pass@1` / `pass^3`, sealed assets, independent
-  judging): `workflow//results/-live-ingest-gate.json`. Live runs
-  require `LIVE_EVAL_BUDGET_USD` and explicit spend authorization, neither of
-  which is set — so the lane is `BLOCKED` and the comparison verdict stays
-  `INCONCLUSIVE`. A manual lane-2 pass scored 2 AHEAD / 12 TIE / 1 BEHIND /
-  8 INCONCLUSIVE; the official status is `not_established`, and no
-  behavioral, speed, cost, or token superiority is claimed.
+- **Live comparison — abandoned (2026-08-23).** The mechanical ingest gate
+  and its frozen dominance rule (`scripts/-suite --ingest-live`, 138
+  candidate runs, `pass@1` / `pass^3`, sealed assets, independent judging)
+  are retained as a dormant specification, but the protocol was shelved by
+  user decision after the 2026-08-23 direction council: not executable at
+  frontier prices, and the informative comparison is etabli(t) vs
+  etabli(t-1) on its own frozen harness tasks. A manual lane-2 pass scored
+  2 AHEAD / 12 TIE / 1 BEHIND / 8 INCONCLUSIVE; the official status stays
+  `not_established`, and no behavioral, speed, cost, or token superiority is
+  claimed. Reopen only on a new event (budget, tooling, or a competitor
+  claim that must be answered).
 
 Regenerate the deterministic baseline with `scripts/-suite --json
 --strategy baseline --out workflow//results/baseline-run.json`. The

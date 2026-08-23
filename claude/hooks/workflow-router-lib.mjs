@@ -26,6 +26,10 @@ const VERIFY_PATTERN =
 	/\b(verify|v[eé]rifie|prouve|retest|relance les tests|completion audit)\b/i;
 const PLAN_PATTERN =
 	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/i;
+// An explicit planning ask ("fais un plan", "draft a roadmap") outranks every
+// implementation signal: the user asked for a plan, not for an edit.
+const PLAN_REQUEST_PATTERN =
+	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b[\s\S]{0,24}\b(plan|roadmap|strat[eé]gie)\b|\b(plan|roadmap)\s+(seul|only)\b/i;
 const SPEC_GUIDE_PATTERN =
 	/(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
 const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
@@ -45,6 +49,12 @@ const RESEARCH_PATTERN =
 	/\b(recherche|sourc[eé]|fact[- ]?check|sources?|benchmark|github|existe d[eé]j[aà])\b/i;
 const IMPLEMENT_NEGATION_PATTERN =
 	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/i;
+// Explicit large-work signals: these are the only implement-phrased requests
+// that still route to plan-implement without an existing READY plan or an
+// explicit plan ask. Ordinary bounded fixes edit directly (spec routing row:
+// "Ordinary coding ... -> answer | code/docs").
+const LARGE_CHANGE_PATTERN =
+	/\b(refactor(?:ing|ise|isez|iser|isons)?|refonte|r[eé][eé]crit|rewrite|rewriting|redesign|recon[cç]oit|migration|architect(?:ure|e|ons)?\s+(?:le|la|les|the|this)?[\s\S]{0,30}(?:syst[eè]me|system|code|module|app)|multi[- ]?slice|items?\s+\d|de\s+bout\s+en\s+bout|vaste\s+(?:refonte|chang|rework)|large\s+(?:refactor|rework|chang)|many\s+files)\b/i;
 const WORK_EMBEDDED_VERIFY_PATTERN =
 	/\b(merge|handoff|remaining work|inherited claims|each unit)\b/i;
 const PREPARE_FOR_REVIEW_PATTERN =
@@ -793,20 +803,6 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (isImplementRequest(prompt) || PREPARE_FOR_REVIEW_PATTERN.test(prompt)) {
-		return {
-			route: "plan-implement",
-			reason: "implementation without a proven READY plan",
-			command: "/plan-implement",
-			artifact: "PLAN.md then scoped implementation",
-			stopCondition: "READY plan implemented, blocked reported, or plan drift",
-			requiredEvidence:
-				"root PLAN.md Status: READY before implementation; adversary; focused validation; review; docs/plan archive; root PLAN.md deletion; handoff",
-			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
-		};
-	}
-
 	if (
 		SPEC_GUIDE_PATTERN.test(prompt) ||
 		(SPEC_INTENT_PATTERN.test(prompt) &&
@@ -829,7 +825,25 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (PLAN_PATTERN.test(prompt)) {
+	if (PLAN_REQUEST_PATTERN.test(prompt)) {
+		return {
+			route: "plan-loop",
+			reason: "explicit planning request",
+			command: "/plan-loop",
+			artifact: "PLAN.md",
+			stopCondition: "READY or CHALLENGED",
+			requiredEvidence: "route, role, stop, checks, risks, facts, assumptions",
+			writeAllowed: true,
+			suggestion:
+				"As-tu pensé à /adversary ? Au READY, une passe cross-modèle (pi -p openai-codex/*) catche les angles morts d'une critique même-famille.",
+		};
+	}
+
+	if (
+		PLAN_PATTERN.test(prompt) &&
+		!isImplementRequest(prompt) &&
+		!LARGE_CHANGE_PATTERN.test(prompt)
+	) {
 		return {
 			route: "plan-loop",
 			reason: "planning request",
@@ -840,6 +854,51 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			writeAllowed: true,
 			suggestion:
 				"As-tu pensé à /adversary ? Au READY, une passe cross-modèle (pi -p openai-codex/*) catche les angles morts d'une critique même-famille.",
+		};
+	}
+
+	if (
+		PREPARE_FOR_REVIEW_PATTERN.test(prompt) ||
+		LARGE_CHANGE_PATTERN.test(prompt) ||
+		(isImplementRequest(prompt) && AUTONOMOUS_PLAN_LOOP_PATTERN.test(prompt))
+	) {
+		return {
+			route: "plan-implement",
+			reason: "large or multi-slice implementation without a proven READY plan",
+			command: "/plan-implement",
+			artifact: "PLAN.md then scoped implementation",
+			stopCondition: "READY plan implemented, blocked reported, or plan drift",
+			requiredEvidence:
+				"root PLAN.md Status: READY before implementation; adversary; focused validation; review; docs/plan archive; root PLAN.md deletion; handoff",
+			writeAllowed: true,
+			planChain: buildAutonomousPlanChain(planStatus),
+		};
+	}
+
+	if (isImplementRequest(prompt) && (planStatus === "missing" || planStatus === "unknown")) {
+		// Ordinary bounded coding with no recognized planning lock (missing or
+		// unknown — the adapter maps absent plans to "unknown"): direct edit
+		// per spec routing. An active plan cycle (draft or challenged) never
+		// bypasses the plan; explicit plan asks and multi-slice signals never
+		// reach this branch.
+		return directEditDecision(
+			"ordinary coding request: direct edit without a plan",
+		);
+	}
+
+	if (isImplementRequest(prompt)) {
+		// An implement request while a plan cycle is active (draft or
+		// challenged): resume the plan cycle instead of editing around it.
+		return {
+			route: "plan-implement",
+			reason: "implementation request with an active plan cycle",
+			command: "/plan-implement",
+			artifact: "PLAN.md then scoped implementation",
+			stopCondition: "READY plan implemented, blocked reported, or plan drift",
+			requiredEvidence:
+				"root PLAN.md Status: READY before implementation; adversary; focused validation; review; docs/plan archive; root PLAN.md deletion; handoff",
+			writeAllowed: true,
+			planChain: buildAutonomousPlanChain(planStatus),
 		};
 	}
 
@@ -1267,6 +1326,19 @@ function answerDecision(reason, artifact, stopCondition, requiredEvidence) {
 		stopCondition,
 		requiredEvidence,
 		writeAllowed: false,
+	};
+}
+
+function directEditDecision(reason) {
+	return {
+		route: "answer",
+		reason,
+		command: "none",
+		artifact: "code/docs",
+		stopCondition:
+			"edit complete; plan only when the user asked for a plan or the work is multi-slice",
+		requiredEvidence: "focused checks on the edited surface",
+		writeAllowed: true,
 	};
 }
 

@@ -331,6 +331,7 @@ harness_grade() {
   set +e
   WORKTREE="$worktree" TRANSCRIPT="$transcript" TASK_DIR="$task_dir" TASK_ID="$task_id" \
     BASELINE_FILE="$worktree.harness-baseline" BASELINE_EXPECTED="${BASELINE_EXPECTED:-}" \
+    SPAWN_LOG="${SPAWN_LOG:-/nonexistent-spawn-log}" \
     ETABLI_HARNESS_LIB="$(harness_lib_path)" \
     bash "$oracle"
   oracle_exit=$?
@@ -438,6 +439,33 @@ EOF
   ln -sf "$node" "$dir/node"
 }
 
+harness_make_logging_pi_wrapper() {
+  local dir="$1"
+  local log_path="$2"
+  local real_pi="$3"
+  mkdir -p "$dir"
+  # The log path and the real binary are baked into the wrapper (not in
+  # the environment): a subject that never spawns pi cannot discover the
+  # path from its own env. exec keeps exit code and signals transparent.
+  cat >"$dir/pi" <<EOF
+#!/bin/sh
+printf '%s %s\n' "\$(date -u +%Y%m%dT%H%M%SZ)" "\$*" >>"$log_path"
+exec "$real_pi" "\$@"
+EOF
+  chmod +x "$dir/pi"
+}
+
+harness_require_spawn_evidence() {
+  # State-derived isolation: a transcript may claim `isolation: isolated`
+  # + `runner: pi-child`, but on a task where pi is reachable the claim is
+  # only worth what the spawn log proves. The log lives in the cell dir,
+  # written exclusively by the PATH wrapper.
+  local log="${SPAWN_LOG:-}"
+  [ -n "$log" ] || harness_oracle_fail "spawn evidence required but SPAWN_LOG not provided (driver misuse)"
+  [ -s "$log" ] \
+    || harness_oracle_fail "transcript claims an isolated child hunt but no pi spawn was observed"
+}
+
 harness_resolve_node_shebang_bin() {
   local name="$1"
   local dir cand
@@ -507,6 +535,12 @@ harness_run_once() {
         harness_die "pi with a node shebang not on PATH (refuse PATH-mutating wrappers for hide_spawn tasks)"
     else
       abs_bin="$(harness_resolve_bin pi)" || harness_die "pi not on PATH"
+      # Spawn-evidence wrapper: pi stays reachable, but every invocation is
+      # logged outside the worktree so `isolation: isolated` claims become
+      # state-derived instead of self-declared.
+      stub="$out_dir/spawn-bin"
+      harness_make_logging_pi_wrapper "$stub" "$out_dir/spawn.log" "$abs_bin"
+      run_path="$stub:${PATH}"
     fi
     harness_collect_argv pi "$worktree" "$prompt" "$abs_bin"
     set +e
@@ -537,7 +571,7 @@ harness_run_once() {
   model_eff="$(harness_effective_from_transcript "$transcript" "$model_req" "hunter_model")"
   think_eff="$(harness_effective_from_transcript "$transcript" "$think_req" "thinking")"
   duration=$((SECONDS - t0))
-  BASELINE_EXPECTED="$baseline_expected" \
+  BASELINE_EXPECTED="$baseline_expected" SPAWN_LOG="$out_dir/spawn.log" \
     harness_grade "$task_id" "$worktree" "$transcript" "$runner" \
     "$model_req" "$model_eff" "$think_req" "$think_eff" "$status" "$started" "$duration"
 }

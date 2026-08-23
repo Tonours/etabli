@@ -10,12 +10,12 @@ for adapter in \
   "$ROOT_DIR/claude/CLAUDE.md" \
   "$ROOT_DIR/pi/AGENTS.md"; do
   grep -Fq 'workflow/skills/obvault-memory.md' "$adapter"
-  grep -Fq '~/work/obvault' "$adapter"
+  grep -Fq 'work/brain' "$adapter"
 done
 grep -Fq 'Mandatory first check' "$contract"
 grep -Fq 'do not wait for the user to mention the knowledge base' "$contract"
-grep -Fq '~/work/obvault/AGENTS.md' "$contract"
-grep -Fq '~/work/obvault/_meta/obvault context' "$contract"
+grep -Fq 'resolved per scope' "$contract"
+grep -Fq 'AGENTS.md' "$contract"
 grep -Fq 'Retrieve when' "$contract"
 grep -Fq 'Topic-aware routing' "$contract"
 grep -Fq 'raw prompt text must never be copied' "$contract"

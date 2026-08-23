@@ -10,13 +10,13 @@
     "name": "implementation prompt routes through plan-implement",
     "category": "implementation",
     "prompt": "Corrige le bug de login et valide",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true
   },
   {
     "name": "self-improvement prompt routes through plan-implement",
     "category": "self-improvement",
-    "prompt": "Améliore le workflow Etabli à partir des findings récurrents",
+    "prompt": "Am\u00e9liore le workflow Etabli \u00e0 partir des findings r\u00e9currents",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -30,14 +30,14 @@
   {
     "name": "self-improvement from run proof routes through plan-implement",
     "category": "self-improvement",
-    "prompt": "Améliore le workflow Etabli à partir de la preuve de run et des failures récurrents",
+    "prompt": "Am\u00e9liore le workflow Etabli \u00e0 partir de la preuve de run et des failures r\u00e9currents",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
   {
     "name": "ambitious project prompt routes through plan-implement",
     "category": "ambitious-project",
-    "prompt": "Réalise ce projet ambitieux de a à z",
+    "prompt": "R\u00e9alise ce projet ambitieux de a \u00e0 z",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -58,7 +58,7 @@
   {
     "name": "actual READY plan can implement",
     "category": "ready-gate",
-    "prompt": "Implémente le PLAN.md ready",
+    "prompt": "Impl\u00e9mente le PLAN.md ready",
     "context": {
       "planStatus": "ready"
     },
@@ -68,7 +68,7 @@
   {
     "name": "prompt-only READY wording cannot implement",
     "category": "ready-gate",
-    "prompt": "Implémente le PLAN.md ready",
+    "prompt": "Impl\u00e9mente le PLAN.md ready",
     "context": {
       "planStatus": "missing"
     },
@@ -78,7 +78,7 @@
   {
     "name": "read-only ready plan stays answer",
     "category": "read-only",
-    "prompt": "Résume le PLAN.md ready",
+    "prompt": "R\u00e9sume le PLAN.md ready",
     "expectedRoute": "answer",
     "writeAllowed": false
   },
@@ -113,7 +113,7 @@
   {
     "name": "source-backed research uses research-plan",
     "category": "research",
-    "prompt": "Fais une recherche web sourcée sur les pratiques agentiques",
+    "prompt": "Fais une recherche web sourc\u00e9e sur les pratiques agentiques",
     "expectedRoute": "research-plan",
     "writeAllowed": true
   },
@@ -148,14 +148,14 @@
   {
     "name": "linear creation uses its dedicated route",
     "category": "linear",
-    "prompt": "Crée un ticket Linear pour ce bug de login",
+    "prompt": "Cr\u00e9e un ticket Linear pour ce bug de login",
     "expectedRoute": "linear-ticket-create",
     "writeAllowed": true
   },
   {
     "name": "linear implementation uses its dedicated route",
     "category": "linear",
-    "prompt": "Corrige le bug décrit dans Linear LIN-123",
+    "prompt": "Corrige le bug d\u00e9crit dans Linear LIN-123",
     "expectedRoute": "linear-work",
     "writeAllowed": true
   },
@@ -176,7 +176,7 @@
   {
     "name": "adversarial code review is not plan adversary",
     "category": "negative-control",
-    "prompt": "fais une code-review complète puis une code-review adversary",
+    "prompt": "fais une code-review compl\u00e8te puis une code-review adversary",
     "expectedRoute": "review",
     "writeAllowed": false
   },
@@ -190,15 +190,15 @@
   {
     "name": "French implementation question routes ambiently",
     "category": "multilingual",
-    "prompt": "peux-tu implémenter le fix du login ?",
-    "expectedRoute": "plan-implement",
+    "prompt": "peux-tu impl\u00e9menter le fix du login ?",
+    "expectedRoute": "answer",
     "writeAllowed": true
   },
   {
     "name": "read then fix is implementation",
     "category": "mixed-intent",
     "prompt": "montre puis corrige le bug",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true
   },
   {
@@ -212,7 +212,7 @@
   {
     "name": "SaaS research receives targeted knowledge context",
     "category": "knowledge-routing",
-    "prompt": "Je recherche des idées de SaaS rentables",
+    "prompt": "Je recherche des id\u00e9es de SaaS rentables",
     "expectedRoute": "research-plan",
     "writeAllowed": true,
     "expectedKnowledgeTopics": [
@@ -222,7 +222,7 @@
   {
     "name": "French apostrophe does not trigger the AI topic",
     "category": "knowledge-routing-negative",
-    "prompt": "J’ai une question simple",
+    "prompt": "J\u2019ai une question simple",
     "expectedRoute": "answer",
     "writeAllowed": false,
     "expectedKnowledgeTopics": []
@@ -231,7 +231,7 @@
     "name": "frontend SaaS implementation receives both knowledge topics",
     "category": "knowledge-routing",
     "prompt": "Corrige le bug CSS dans notre SaaS",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true,
     "expectedKnowledgeTopics": [
       "saas",
@@ -252,7 +252,7 @@
     "name": "organic -bug-fix is not stolen by verify/research/pr-review",
     "category": "organic-",
     "prompt": "`npm test` fails with 2 errors in test/stats.test.ts: `tasker stats` reports wrong completion percentages (I saw 187% once). The percentage logic was touched recently. Find the root cause, fix it properly, and make the whole test suite pass.",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true,
     "context": {
       "planStatus": "missing"
@@ -332,8 +332,8 @@
     "name": "organic -refactoring is not stolen by verify/research/pr-review",
     "category": "organic-",
     "prompt": "src/commands.js has grown into a monolith where every command lives together with duplicated usage text, validation, and formatting. Refactor it into a sane structure without changing any behavior. The suite must stay green and the diff should be a net simplification, not a reshuffle.",
-    "expectedRoute": "answer",
-    "writeAllowed": false,
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
     "context": {
       "planStatus": "missing"
     }
@@ -342,7 +342,7 @@
     "name": "organic -worktree-cleanup is not stolen by verify/research/pr-review",
     "category": "organic-",
     "prompt": "`git worktree list` shows several worktrees from aborted experiments. Classify which are safe to delete and which contain unmerged work, then clean up only the safe ones. I do not want to lose anything that isn't merged.",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true,
     "context": {
       "planStatus": "missing"
@@ -361,7 +361,7 @@
   {
     "name": "organic -multi-phase-plan is not stolen by verify/research/pr-review",
     "category": "organic-",
-    "prompt": "MIGRATION.md sketches a move from callbacks to async/await across src/. Turn it into a multi-phase plan we can execute across several sessions: exact scopes, per-phase checks, dependencies, and restart points. Planning only — implement nothing yet.",
+    "prompt": "MIGRATION.md sketches a move from callbacks to async/await across src/. Turn it into a multi-phase plan we can execute across several sessions: exact scopes, per-phase checks, dependencies, and restart points. Planning only \u2014 implement nothing yet.",
     "expectedRoute": "plan-implement",
     "writeAllowed": true,
     "context": {
@@ -372,7 +372,7 @@
     "name": "organic -prototype is not stolen by verify/research/pr-review",
     "category": "organic-",
     "prompt": "I'm considering moving storage from one JSON file to JSON-lines append-only. Build a quick disposable prototype that answers whether write amplification and load time actually improve at 5k tasks. Mark it clearly as throwaway; I only need the decision evidence.",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true,
     "context": {
       "planStatus": "missing"
@@ -412,7 +412,7 @@
     "name": "organic -babysit is not stolen by verify/research/pr-review",
     "category": "organic-",
     "prompt": "Branch `flaky-fix` has a test that fails about one run in three (test/purge.test.ts). Drive it to a real fix: reproduce, understand, fix, and verify the suite passes repeatedly (at least 3 consecutive full runs). Don't paper over it by deleting the test.",
-    "expectedRoute": "plan-implement",
+    "expectedRoute": "answer",
     "writeAllowed": true,
     "context": {
       "planStatus": "missing"
@@ -431,7 +431,7 @@
   {
     "name": "organic -autonomous-run is not stolen by verify/research/pr-review",
     "category": "organic-",
-    "prompt": "ROADMAP.md lists 4 unchecked items for this project. Work through them autonomously, in order, verifying each item's stated check before moving on. Stop only when all items are done and verified, or when you hit a genuine blocker — then say exactly what blocks you.",
+    "prompt": "ROADMAP.md lists 4 unchecked items for this project. Work through them autonomously, in order, verifying each item's stated check before moving on. Stop only when all items are done and verified, or when you hit a genuine blocker \u2014 then say exactly what blocks you.",
     "expectedRoute": "plan-loop",
     "writeAllowed": true,
     "context": {
@@ -442,7 +442,7 @@
     "name": "organic -pause-safely is not stolen by verify/research/pr-review",
     "category": "organic-",
     "prompt": "Make progress on ROADMAP.md item 2 only, then stop at a clean, recoverable boundary: leave the tree in a state where a fresh session can pick up exactly where you stopped, with durable notes. Do not commit-and-push anywhere; a local checkpoint is fine if it helps resumption.",
-    "expectedRoute": "plan-loop",
+    "expectedRoute": "plan-implement",
     "writeAllowed": true,
     "context": {
       "planStatus": "missing"

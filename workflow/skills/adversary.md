@@ -52,13 +52,18 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
 
 1. Input: the implementation diff against the branch base (`git diff <base>...HEAD`
    when shipping), plus the active `PLAN.md` (or acceptance criteria if archived).
-2. **Runner independence (hard gate):**
-   - **Default:** cross-model, read-only. Name `adversary_model` in the handoff.
-   - **Acceptable substitute** when no other family is available: **double-sample**
-     — two fresh same-family reviewers, independent contexts, merged findings;
-     record `same-family-pass: double-sample` and both run ids.
-   - **Forbidden:** a single same-family pass presented as independent review.
-     Stop as `blocked` (autonomous **and** supervised — full autonomy policy).
+2. **Runner independence (tiered hard gate, per implementation-loop risk
+   tiers):**
+   - **high-risk tier: cross-model required.** Read-only, name
+     `adversary_model` in the handoff.
+   - **standard tier:** cross-model preferred; a documented **double-sample**
+     — two fresh same-family reviewers, independent contexts, merged
+     findings — is acceptable. Record `same-family-pass` ids.
+   - **small tier:** code-diff adversary is skipped (the loop's self-review
+     covers it); a single same-family pass is never a substitute.
+   - **Forbidden at every tier:** a single same-family pass presented as
+     independent review. Stop as `blocked` (autonomous **and** supervised —
+     full autonomy policy).
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
    criteria not actually met, silent scope drift, unrequested abstraction or
    new dependency, reinvented stdlib/native feature, and simpler or safer

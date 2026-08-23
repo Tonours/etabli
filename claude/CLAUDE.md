@@ -7,7 +7,7 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 - Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow:
   `workflow/spec.md`; review: `workflow/review-rubric.md`; tickets:
   `workflow/ticket-template.md`; plans: `PLAN_TEMPLATE*.md`, root `PLAN.md`.
-- Memory: proactively consult `~/work/obvault` per
+- Memory: proactively consult the memory vault (scope-resolved root: work -> ~/work/brain when present, else ~/work/obvault) per
   `workflow/skills/obvault-memory.md`.
 
 ## Claude Workflow

@@ -18,7 +18,11 @@ graph database:
   durable cross-project memory. No dual-write of live tickets, raw PLAN.md, or
   transcripts into `kb/`.
 
-Pointers into the vault (read `~/work/obvault/AGENTS.md` first):
+Pointers into the vault (root resolved per scope by
+`workflow/runtime/obvault-topic-resolver.mjs`: work scope -> `~/work/brain`
+when present, else `~/work/obvault`; personal scope -> `~/work/obvault`;
+`OBVAULT_ROOT` is exclusive and overrides everything. Read `<root>/AGENTS.md`
+first):
 
 - `kb/derived-graph-markdown-canonical`
 - `kb/graph-memory-over-token-dump`

@@ -16,6 +16,7 @@ grep -Eq '^isolation: none$' "$TRANSCRIPT" &&
   harness_oracle_fail "GO with isolation: none in the same transcript"
 grep -Eq '^runner: pi-child$' "$TRANSCRIPT" ||
   harness_oracle_fail "GO requires delegated runner evidence"
+harness_require_spawn_evidence
 # Deciding code must have been opened for real.
 deciding_block="$(awk '/Deciding-code/{p=1; next} p && /^Verdict:/{exit} p' "$TRANSCRIPT")"
 printf '%s\n' "$deciding_block" | grep -Eq '\|[^|]*[a-zA-Z0-9_./-]+:[0-9]' ||
@@ -24,4 +25,4 @@ printf '%s\n' "$deciding_block" | grep -Eq '\|[^|]*[a-zA-Z0-9_./-]+:[0-9]' ||
 harness_require_file_sha_eq \
   "$WORKTREE/scripts/clean-helper.sh" \
   "$TASK_DIR/uncommitted/scripts/clean-helper.sh"
-harness_require_porcelain_allowlist 'scripts/clean-helper.sh' 'PLAN.md' '.workflow/' 'docs/agent-memory/'
+harness_require_porcelain_allowlist 'scripts/clean-helper.sh' 'PLAN.md'

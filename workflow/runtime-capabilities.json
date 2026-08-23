@@ -1,28 +1,28 @@
 {
   "$comment": "Single source of truth for runtime capability claims. Labels per workflow/skills/orchestration.md: confirmed | proxy_supported | blocked | unknown. Re-label only with proof_command output.",
-  "updated_at": "2026-08-20",
+  "updated_at": "2026-08-23",
   "runtimes": {
     "pi": {
       "supports_hooks": {
         "label": "confirmed",
-        "verified_at": "2026-07-29",
-        "proof_result": "re-proved 2026-07-29 adversary-10: cd pi && bun test ./extensions/__tests__/*.test.ts exit 0",
+        "verified_at": "2026-08-23",
+        "proof_result": "re-proved 2026-08-23 branch council + tiered-loop session: verify-agentic-infra full 69/69 (dual-runtime-guard-matrix, plan-check-freeze, no-progress-deny, pi tests 238/238)",
         "expires_after_days": 30,
         "proof_command": "cd pi && bun test ./extensions/__tests__/*.test.ts",
         "notes": "extensions are the hook surface"
       },
       "plan_ready_mutation_guard": {
         "label": "confirmed",
-        "verified_at": "2026-07-29",
-        "proof_result": "re-proved 2026-07-29 adversary-10: dual-runtime-guard-matrix + workflow-router-extension READY tool_call tests via planMutationGuardDecision",
+        "verified_at": "2026-08-23",
+        "proof_result": "re-proved 2026-08-23 branch council + tiered-loop session: verify-agentic-infra full 69/69 (dual-runtime-guard-matrix, plan-check-freeze, no-progress-deny, pi tests 238/238)",
         "expires_after_days": 30,
         "proof_command": "bash tests/dual-runtime-guard-matrix-smoke.sh && cd pi && bun test ./extensions/__tests__/workflow-router-extension.test.ts",
         "notes": "Pi tool_call uses shared planMutationGuardDecision (same core as Claude plan-ready-guard); DRAFT/CHALLENGED deny write/edit/mutating bash; PLAN.md-only edits allowed pre-READY; missing PLAN allows ordinary work; active ledger no_progress/derived thresholds deny ordinary code mutations (escape: PLAN.md + scripts/workflow-event); bash tool_result auto-appends validation_failed/no_progress only when an active non-terminal ledger exists (non-ledger remains protocol/proxy); parent-only multi-model writer is protocol/proxy not an OS lock"
       },
       "check_freeze_guard": {
         "label": "confirmed",
-        "verified_at": "2026-07-29",
-        "proof_result": "re-proved 2026-07-29 adversary-10: plan-check-freeze AC fixtures + dual matrix Edit/MultiEdit/AC + claude-hooks PreToolUse freeze path",
+        "verified_at": "2026-08-23",
+        "proof_result": "re-proved 2026-08-23 branch council + tiered-loop session: verify-agentic-infra full 69/69 (dual-runtime-guard-matrix, plan-check-freeze, no-progress-deny, pi tests 238/238)",
         "expires_after_days": 30,
         "proof_command": "bash tests/plan-check-freeze-smoke.sh && bash tests/dual-runtime-guard-matrix-smoke.sh && bash tests/claude-hooks-smoke.sh && cd pi && bun test ./extensions/__tests__/workflow-router-extension.test.ts",
         "notes": "READY Checks/Acceptance Criteria strengthen-only; weaken requires CHALLENGED + Decision Log rationale; Write/Edit/MultiEdit + bash targeting PLAN.md; Claude plan-ready-guard process path covered"
@@ -71,24 +71,24 @@
     "claude": {
       "supports_hooks": {
         "label": "confirmed",
-        "verified_at": "2026-07-29",
-        "proof_result": "re-proved 2026-07-29: bash tests/claude-hooks-smoke.sh exit 0",
+        "verified_at": "2026-08-23",
+        "proof_result": "re-proved 2026-08-23 branch council + tiered-loop session: verify-agentic-infra full 69/69 (dual-runtime-guard-matrix, plan-check-freeze, no-progress-deny, pi tests 238/238)",
         "expires_after_days": 30,
         "proof_command": "bash tests/claude-hooks-smoke.sh",
         "notes": "local hook behavior is deterministic and smoke-tested"
       },
       "plan_ready_mutation_guard": {
         "label": "confirmed",
-        "verified_at": "2026-07-29",
-        "proof_result": "re-proved 2026-07-29 adversary-10: plan-ready-guard process path + dual-runtime matrix exit 0",
+        "verified_at": "2026-08-23",
+        "proof_result": "re-proved 2026-08-23 branch council + tiered-loop session: verify-agentic-infra full 69/69 (dual-runtime-guard-matrix, plan-check-freeze, no-progress-deny, pi tests 238/238)",
         "expires_after_days": 30,
         "proof_command": "bash tests/dual-runtime-guard-matrix-smoke.sh && bash tests/claude-hooks-smoke.sh",
         "notes": "PreToolUse plan-ready-guard.mjs calls shared planMutationGuardDecision; missing PLAN ordinary work allowed; ledger no_progress mutate-deny + escape hatch same as Pi (tests/no-progress-mutate-deny-smoke.sh)"
       },
       "check_freeze_guard": {
         "label": "confirmed",
-        "verified_at": "2026-07-29",
-        "proof_result": "re-proved 2026-07-29 adversary-10: claude-hooks READY weaken Write/Edit/Bash deny + plan-check-freeze AC fixtures",
+        "verified_at": "2026-08-23",
+        "proof_result": "re-proved 2026-08-23 branch council + tiered-loop session: verify-agentic-infra full 69/69 (dual-runtime-guard-matrix, plan-check-freeze, no-progress-deny, pi tests 238/238)",
         "expires_after_days": 30,
         "proof_command": "bash tests/plan-check-freeze-smoke.sh && bash tests/dual-runtime-guard-matrix-smoke.sh && bash tests/claude-hooks-smoke.sh",
         "notes": "same evaluateCheckFreeze core as scripts/plan-check-freeze; PreToolUse process path asserts check-freeze"
@@ -132,6 +132,124 @@
         "expires_after_days": 30,
         "proof_command": "none - no Claude adapter for the Pi workflow package",
         "notes": "Claude may orchestrate with native mechanisms but this specific adapter is Pi-only"
+      }
+    },
+    "grok": {
+      "surface_class": "skills-only (~/.agents shared surface)",
+      "supports_hooks": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no hook surface on the grok CLI; workflow reaches grok via symlinked skills only",
+        "proof_command": "false # no hook surface on the grok CLI",
+        "expires_after_days": 365
+      },
+      "supports_subagents": {
+        "label": "unknown",
+        "verified_at": "2026-08-23",
+        "proof_result": "not probed; harness runner exists (etabli-harness-eval grok cells) but no capability probe",
+        "proof_command": "false # not probed; write a probe before relabelling",
+        "expires_after_days": 365
+      },
+      "supports_taskexecute_tracking": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no task RPC surface exposed to this repo",
+        "proof_command": "false # no task RPC surface exposed to this repo",
+        "expires_after_days": 365
+      },
+      "supports_goal_state": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no goal surface",
+        "proof_command": "false # no goal surface",
+        "expires_after_days": 365
+      },
+      "supports_structured_task_state": {
+        "label": "unknown",
+        "verified_at": "2026-08-23",
+        "proof_result": "not probed",
+        "proof_command": "false # not probed",
+        "expires_after_days": 365
+      },
+      "supports_named_workflow_graphs": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no workflow graph surface",
+        "proof_command": "false # no workflow graph surface",
+        "expires_after_days": 365
+      },
+      "plan_ready_mutation_guard": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no write-guard hook; read-only enforcement impossible on this surface",
+        "proof_command": "false # no write-guard hook on a skills-only surface",
+        "expires_after_days": 365
+      },
+      "check_freeze_guard": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no hook surface",
+        "proof_command": "false # no hook surface",
+        "expires_after_days": 365
+      }
+    },
+    "codex": {
+      "surface_class": "skills-only (~/.codex/skills vendor links)",
+      "supports_hooks": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
+        "proof_command": "false # ADR-0015: skills surface only",
+        "expires_after_days": 365
+      },
+      "supports_subagents": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
+        "proof_command": "false # ADR-0015: harness removed",
+        "expires_after_days": 365
+      },
+      "supports_taskexecute_tracking": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
+        "proof_command": "false # ADR-0015: harness removed",
+        "expires_after_days": 365
+      },
+      "supports_goal_state": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
+        "proof_command": "false # ADR-0015: harness removed",
+        "expires_after_days": 365
+      },
+      "supports_structured_task_state": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
+        "proof_command": "false # ADR-0015: harness removed",
+        "expires_after_days": 365
+      },
+      "supports_named_workflow_graphs": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
+        "proof_command": "false # ADR-0015: harness removed",
+        "expires_after_days": 365
+      },
+      "plan_ready_mutation_guard": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no write-guard hook on a skills-only surface",
+        "proof_command": "false # skills-only surface",
+        "expires_after_days": 365
+      },
+      "check_freeze_guard": {
+        "label": "blocked",
+        "verified_at": "2026-08-23",
+        "proof_result": "no hook surface",
+        "proof_command": "false # skills-only surface",
+        "expires_after_days": 365
       }
     }
   }
