@@ -47,9 +47,9 @@ for (let index = 0; index < 50; index += 1) {
 
 // This mirrors the Mac mini ledger that was invalid only because compatibility
 // events followed a terminal event.
-writeLedger("etabli--proved", [
-  event("etabli--proved", "completed", { summary: "historical done" }),
-  event("etabli--proved", "validation_run", { command: "post-terminal", exit: 0 }),
+writeLedger("etabli-core-proved", [
+  event("etabli-core-proved", "completed", { summary: "historical done" }),
+  event("etabli-core-proved", "validation_run", { command: "post-terminal", exit: 0 }),
 ]);
 
 writeLedger("pointer-live", [event("pointer-live", "route_decided", { route: "implement" })]);

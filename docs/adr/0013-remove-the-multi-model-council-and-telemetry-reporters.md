@@ -67,5 +67,5 @@ a `prefer-ipv4-dns` test asserting a Node getter Bun does not implement. Any
 "harness efficiency" figure resting on that baseline is unverified. Second,
 `scripts/workflow-event` executes `workflow-measurement-integrity` on every
 append, so deleting it silently broke all ledger validation; the failure
-surfaced only through `-suite --strategy baseline`, not through the smoke
+surfaced only through the behavioral suite baseline, not through the smoke
 that was supposed to cover it.

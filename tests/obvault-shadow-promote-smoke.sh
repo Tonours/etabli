@@ -14,7 +14,7 @@ fail() {
 out="$("$HELPER" --json --shadow \
   --decision "Accept graph-neighborhood helper" \
   --preconditions "plan READY; router-eval green" \
-  --outcome "smokes passed;  multi-hop tasks green" \
+  --outcome "smokes passed; routing tasks green" \
   --route "plan-implement" \
   --checks "tests/graph-neighborhood-smoke.sh" \
   --archive "docs/plan/example.md" \

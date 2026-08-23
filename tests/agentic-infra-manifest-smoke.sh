@@ -62,8 +62,7 @@ actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 16 ] ||
 	fail "core profile exceeds 16 checks"
 
-expected_full='-suite-smoke
-pr-latest-head-status-smoke
+expected_full='pr-latest-head-status-smoke
 leap-harness-validation-smoke
 ledger-auto-emit-smoke
 workflow-receipts-smoke

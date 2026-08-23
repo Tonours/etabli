@@ -2,14 +2,17 @@
   "schema_version": 1,
   "manifest_id": "core-v1",
   "visibility": "frozen_public",
-  "description": "Local Etabli  evaluation corpus. These fixtures are tracked and readable in the worktree; they are NOT a confidentially sealed or isolated held-out set. Promotion to isolated/sealed visibility requires an external isolated evaluator, which remains a named blocked boundary.",
-  "population_ids": ["etabli--initial-v1"],
+  "description": "Local Etabli evaluation corpus. These fixtures are tracked and readable in the worktree; they are NOT a confidentially sealed or isolated held-out set. Promotion to isolated/sealed visibility requires an external isolated evaluator, which remains a named blocked boundary.",
+  "population_ids": [
+    "etabli-core-v1",
+    "etabli-harness-v1"
+  ],
   "population_corpus": {
     "tasks_sha256": "9df86117770dfbe933ad884aa336a3078303e2051374af843609b135dd07636e",
     "population_sha256": "cb585e4566997dddc721335b8d049b14e4ae7f21664632f88b3f0f1d458c7eb1"
   },
   "evaluator": {
-    "path": "scripts/-suite",
+    "path": "scripts/etabli-harness-eval",
     "sha256": "2c44acf90ab3ba0d6db84b869056ca2e5c30cc61a9de30c07cb28ece2d157425"
   },
   "minimum_sample_per_split": 1,
