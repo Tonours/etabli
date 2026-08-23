@@ -459,11 +459,18 @@ harness_require_spawn_evidence() {
   # State-derived isolation: a transcript may claim `isolation: isolated`
   # + `runner: pi-child`, but on a task where pi is reachable the claim is
   # only worth what the spawn log proves. The log lives in the cell dir,
-  # written exclusively by the PATH wrapper.
+  # written exclusively by the PATH wrapper, and a valid line must carry the
+  # hunter argv markers from the contract (`--no-session` and
+  # `--append-system-prompt`): a generic forged line without the hunter
+  # invocation shape fails. Ceiling (documented): a fabricator that knows
+  # the contract argv can still forge the line — the load-bearing cells
+  # (final-state SHA, GO-only) do not depend on this evidence.
   local log="${SPAWN_LOG:-}"
   [ -n "$log" ] || harness_oracle_fail "spawn evidence required but SPAWN_LOG not provided (driver misuse)"
-  [ -s "$log" ] \
-    || harness_oracle_fail "transcript claims an isolated child hunt but no pi spawn was observed"
+  [ -s "$log" ] ||
+    harness_oracle_fail "transcript claims an isolated child hunt but no pi spawn was observed"
+  grep -Eq -- '--no-session.*--append-system-prompt|--append-system-prompt.*--no-session' "$log" ||
+    harness_oracle_fail "spawn log has no hunter invocation (needs --no-session and --append-system-prompt on one line)"
 }
 
 harness_resolve_node_shebang_bin() {

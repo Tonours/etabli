@@ -59,9 +59,7 @@ describe("workflow router runtime", () => {
 	});
 
 	test("routes ordinary coding to direct edit without a plan", () => {
-		const decision = classifyWorkflowRoute(
-			"Corrige tout y compris les warnings",
-		);
+		const decision = classifyWorkflowRoute("Corrige tout y compris les warnings");
 
 		expect(decision).toMatchObject({
 			route: "answer",
@@ -197,9 +195,7 @@ describe("workflow router runtime", () => {
 			writeAllowed: false,
 		});
 
-		expect(
-			classifyWorkflowRoute("Audite la PR Dependabot #1606"),
-		).toMatchObject({
+		expect(classifyWorkflowRoute("Audite la PR Dependabot #1606")).toMatchObject({
 			route: "sec-pr",
 			skill: "sec-pr",
 			writeAllowed: false,
@@ -251,12 +247,12 @@ describe("workflow router runtime", () => {
 			route: "answer",
 			knowledgeContext: { topics: ["saas", "frontend-css"] },
 		});
-		expect(
-			classifyWorkflowRoute("Bonjour, comment vas-tu ?"),
-		).not.toHaveProperty("knowledgeContext");
-		expect(
-			classifyWorkflowRoute("J’ai une question simple"),
-		).not.toHaveProperty("knowledgeContext");
+		expect(classifyWorkflowRoute("Bonjour, comment vas-tu ?")).not.toHaveProperty(
+			"knowledgeContext",
+		);
+		expect(classifyWorkflowRoute("J’ai une question simple")).not.toHaveProperty(
+			"knowledgeContext",
+		);
 	});
 
 	test("maps every supported durable knowledge family", () => {

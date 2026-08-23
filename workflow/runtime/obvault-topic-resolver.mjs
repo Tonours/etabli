@@ -30,7 +30,9 @@ function defaultRoots() {
   const roots = [];
   let scope = "personal";
   try {
-    scope = readFileSync(resolve(homedir(), ".etabli-scope"), "utf8").trim() || "personal";
+    scope =
+      readFileSync(resolve(homedir(), ".etabli-scope"), "utf8").trim() ||
+      "personal";
   } catch {
     // no scope file: personal default
   }
@@ -61,25 +63,35 @@ export function resolveObvaultRoot(roots = defaultRoots()) {
  * @param {{ roots?: string[], timeoutMs?: number }} [options]
  * @returns {DynamicKnowledgeContext | null}
  */
-export function resolveDynamicKnowledgeContext(prompt, { roots, timeoutMs = 1200 } = {}) {
+export function resolveDynamicKnowledgeContext(
+  prompt,
+  { roots, timeoutMs = 1200 } = {},
+) {
   const trimmed = String(prompt || "").trim();
   if (!trimmed || trimmed.startsWith("/")) return null;
 
   const root = resolveObvaultRoot(roots);
   if (!root) return null;
   try {
-    const result = spawnSync(resolve(root, "_meta/obvault"), ["route", "--json", trimmed], {
-      encoding: "utf8",
-      env: { ...process.env, OBVAULT_ROOT: root },
-      maxBuffer: 1024 * 1024,
-      shell: false,
-      timeout: timeoutMs,
-    });
+    const result = spawnSync(
+      resolve(root, "_meta/obvault"),
+      ["route", "--json", trimmed],
+      {
+        encoding: "utf8",
+        env: { ...process.env, OBVAULT_ROOT: root },
+        maxBuffer: 1024 * 1024,
+        shell: false,
+        timeout: timeoutMs,
+      },
+    );
     if (result.status !== 0 || result.error || !result.stdout) return null;
     const routed = JSON.parse(result.stdout);
-    if (routed.abstained || !SAFE_QUERY_PATTERN.test(routed.query || "")) return null;
+    if (routed.abstained || !SAFE_QUERY_PATTERN.test(routed.query || ""))
+      return null;
     const topics = Array.isArray(routed.topics)
-      ? routed.topics.filter((topic) => SAFE_TOPIC_PATTERN.test(topic)).slice(0, 6)
+      ? routed.topics
+          .filter((topic) => SAFE_TOPIC_PATTERN.test(topic))
+          .slice(0, 6)
       : [];
     if (!topics.length) return null;
     const matchedNotes = Array.isArray(routed.matched_notes)

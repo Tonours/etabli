@@ -151,14 +151,14 @@ assert_contains "$CHECK_CLEAN_OUTPUT" "Summary: 0 drifted, 0 missing"
 CHECK_DRIFT_PROJECT="$TMP_DIR/check-drift-project"
 CHECK_DRIFT_OUTPUT="$TMP_DIR/check-drift.out"
 "$SCRIPT" "$CHECK_DRIFT_PROJECT" >/dev/null
-printf '\nlocal change\n' >> "$CHECK_DRIFT_PROJECT/workflow/spec.md"
+printf '\nlocal change\n' >>"$CHECK_DRIFT_PROJECT/workflow/spec.md"
 rm "$CHECK_DRIFT_PROJECT/PLAN_TEMPLATE.md"
-find "$CHECK_DRIFT_PROJECT" -print | sort > "$TMP_DIR/check-drift.before"
+find "$CHECK_DRIFT_PROJECT" -print | sort >"$TMP_DIR/check-drift.before"
 if "$SCRIPT" "$CHECK_DRIFT_PROJECT" --check >"$CHECK_DRIFT_OUTPUT" 2>&1; then
   printf 'expected deploy --check to fail on drifted project\n' >&2
   exit 1
 fi
-find "$CHECK_DRIFT_PROJECT" -print | sort > "$TMP_DIR/check-drift.after"
+find "$CHECK_DRIFT_PROJECT" -print | sort >"$TMP_DIR/check-drift.after"
 if ! diff -u "$TMP_DIR/check-drift.before" "$TMP_DIR/check-drift.after"; then
   printf 'deploy --check mutated the checked project\n' >&2
   exit 1
@@ -194,7 +194,7 @@ fi
 
 CONVERT_PROJECT="$TMP_DIR/convert-project"
 mkdir -p "$CONVERT_PROJECT"
-printf 'existing project\n' > "$CONVERT_PROJECT/README.md"
+printf 'existing project\n' >"$CONVERT_PROJECT/README.md"
 "$SCAFFOLD_SCRIPT" "$CONVERT_PROJECT" --convert >/dev/null
 assert_file "$CONVERT_PROJECT/AGENTS.md"
 assert_contains "$CONVERT_PROJECT/README.md" "existing project"
@@ -211,7 +211,7 @@ assert_not_exists "$DRY_PROJECT"
 
 CONFLICT_PROJECT="$TMP_DIR/conflict-project"
 mkdir -p "$CONFLICT_PROJECT"
-printf 'custom instructions\n' > "$CONFLICT_PROJECT/AGENTS.md"
+printf 'custom instructions\n' >"$CONFLICT_PROJECT/AGENTS.md"
 
 if "$SCRIPT" "$CONFLICT_PROJECT" >/dev/null 2>&1; then
   printf 'expected conflict deploy to fail\n' >&2
@@ -226,7 +226,7 @@ assert_not_exists "$CONFLICT_PROJECT/.gitignore"
 
 PARENT_CONFLICT_PROJECT="$TMP_DIR/parent-conflict-project"
 mkdir -p "$PARENT_CONFLICT_PROJECT"
-printf 'not a directory\n' > "$PARENT_CONFLICT_PROJECT/docs"
+printf 'not a directory\n' >"$PARENT_CONFLICT_PROJECT/docs"
 
 if "$SCRIPT" "$PARENT_CONFLICT_PROJECT" >/dev/null 2>&1; then
   printf 'expected parent path conflict deploy to fail\n' >&2
@@ -249,7 +249,7 @@ assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/CLAUDE.md"
 
 TARGET_FILE_PROJECT="$TMP_DIR/target-file-project"
 TARGET_FILE_OUTPUT="$TMP_DIR/target-file-project.out"
-printf 'not a directory\n' > "$TARGET_FILE_PROJECT"
+printf 'not a directory\n' >"$TARGET_FILE_PROJECT"
 
 if "$SCRIPT" "$TARGET_FILE_PROJECT" --force >"$TARGET_FILE_OUTPUT" 2>&1; then
   printf 'expected deploy to fail when target path is a file, even with --force\n' >&2
@@ -280,7 +280,7 @@ if ! ls "$CONFLICT_PROJECT"/AGENTS.md.bak.* >/dev/null 2>&1; then
   exit 1
 fi
 
-printf 'custom instructions again\n' > "$CONFLICT_PROJECT/AGENTS.md"
+printf 'custom instructions again\n' >"$CONFLICT_PROJECT/AGENTS.md"
 "$SCRIPT" "$CONFLICT_PROJECT" --force >/dev/null
 if [ "$(find "$CONFLICT_PROJECT" -maxdepth 1 -name 'AGENTS.md.bak.*' | wc -l | tr -d ' ')" -lt 2 ]; then
   printf 'expected repeated --force deploys to keep distinct AGENTS.md backups\n' >&2

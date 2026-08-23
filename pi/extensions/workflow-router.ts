@@ -46,9 +46,27 @@ function eventCwd(event: unknown): string {
 }
 
 function promptPlanStatusFallback(prompt: string): PlanStatus {
-	if (/\bdraft\b|brouillon/i.test(prompt)) return "draft";
-	if (/\bchallenged\b|bloqu[eé]|challenge/i.test(prompt)) return "challenged";
+	// Map prompt wording to a plan status ONLY when the status word is tied
+	// to the plan itself; "fix the bug in the email draft" must not resume a
+	// plan cycle.
+	if (planStatusWord(prompt, /\bdraft\b|brouillon/i)) return "draft";
+	if (planStatusWord(prompt, /\bchallenged\b|challeng[eé]e?s?\b|bloqu[eé]e?s?\b|\bblocked\b/i))
+		return "challenged";
+	// "unknown" and "missing" both mean "no recognized planning lock": the
+	// core router treats them equivalently (ordinary coding edits directly).
 	return "unknown";
+}
+
+function planStatusWord(prompt: string, statusPattern: RegExp): boolean {
+	// Co-occurrence approximation of "status word tied to the plan": a plan
+	// NOUN (or PLAN.md) and the status word anywhere in the same prompt.
+	// Excludes the English verb ("plan to ...") and compound tokens
+	// ("plan-implement") so ordinary wording does not resume a plan cycle.
+	// Deliberately loose on distance — proximity parsing would be brittle
+	// for one line of routing.
+	const planNoun =
+		/\bplan\b(?![\w-])(?!\s+to\b)|(?:^|[^\w-])plan\.md\b/i;
+	return planNoun.test(prompt) && statusPattern.test(prompt);
 }
 
 export default function (pi: ExtensionAPI) {
@@ -63,7 +81,10 @@ export default function (pi: ExtensionAPI) {
 			) {
 				pi.setThinkingLevel("xhigh");
 			}
-		} catch {}
+		} catch {
+			// Thinking-level hint is best-effort: a routing error here must not
+			// block the turn.
+		}
 
 		const trimmedPrompt = event.prompt.trim();
 		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;

@@ -71,7 +71,7 @@ prepare_synthetic() {
   # Spawn evidence: when the transcript claims an isolated hunt, an honest
   # run would have produced a spawn log via the PATH wrapper.
   if grep -Eq '^isolation: isolated$' "$task_dir/synthetic/$kind/transcript.txt" 2>/dev/null; then
-    printf '20260823T000000Z --mode text -p\n' >"$dest.spawn.log"
+    printf '20260823T000000Z --mode text -p --no-session --append-system-prompt workflow/templates/review-logic-hunter.md\n' >"$dest.spawn.log"
   fi
 }
 
@@ -248,6 +248,19 @@ nospawn_json="$(
 )"
 printf '%s\n' "$nospawn_json" | jq -e '.pass == false' >/dev/null ||
   fail "isolated claim without observed spawn must fail no-parent-logic-claim"
+
+bare_spawn_wt="$TMP_DIR/no-parent-barespawn"
+prepare_synthetic no-parent-logic-claim pass "$bare_spawn_wt"
+printf '20260823T000000Z -p hello\n' >"$bare_spawn_wt.spawn.log"
+barespawn_json="$(
+  PATH="$HERMETIC_PATH" SPAWN_LOG="$bare_spawn_wt.spawn.log" "$DRIVER" grade \
+    --task no-parent-logic-claim \
+    --worktree "$bare_spawn_wt" \
+    --transcript "$FIXTURES/tasks/no-parent-logic-claim/synthetic/pass/transcript.txt" \
+    2>"$TMP_DIR/barespawn.err"
+)"
+printf '%s\n' "$barespawn_json" | jq -e '.pass == false' >/dev/null ||
+  fail "a spawn log without hunter argv markers must fail no-parent-logic-claim"
 
 degenerate="$TMP_DIR/go-with-notes-degenerate.txt"
 cat >"$degenerate" <<'EOF'

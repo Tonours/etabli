@@ -71,7 +71,7 @@ tmp_ticket_a="$TMP_DIR/ticket-a.md"
 tmp_ticket_b="$TMP_DIR/ticket-b.md"
 cp "$ROOT_DIR/workflow/ticket-template.md" "$tmp_ticket_a"
 cp "$ROOT_DIR/workflow/ticket-template.md" "$tmp_ticket_b"
-printf 'negative spot check\n' >> "$tmp_ticket_b"
+printf 'negative spot check\n' >>"$tmp_ticket_b"
 if cmp -s "$tmp_ticket_a" "$tmp_ticket_b"; then
   printf 'negative duplicate-identity spot check failed to create divergence\n' >&2
   exit 1

@@ -87,6 +87,100 @@ describe("workflow router extension", () => {
 		}
 	});
 
+	test("does not resume a plan cycle from a non-plan draft mention", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-draft-word-"));
+
+		try {
+			const results = runtime.emit("before_agent_start", {
+				prompt: "Corrige le bug du brouillon d'email dans le composeur",
+				systemPrompt: "Base prompt",
+				cwd,
+			});
+
+			expect(runtime.entries[0]).toMatchObject({
+				decision: {
+					route: "answer",
+					writeAllowed: true,
+				},
+			});
+			expect(results[0]).toBeUndefined();
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("resumes the plan cycle only when the draft word is tied to the plan", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-draft-plan-"));
+
+		try {
+			runtime.emit("before_agent_start", {
+				prompt: "Le plan est encore en brouillon, améliore-le puis corrige le bug",
+				systemPrompt: "Base prompt",
+				cwd,
+			});
+
+			expect(runtime.entries[0]).toMatchObject({
+				decision: { route: "plan-implement" },
+			});
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("english plan-verb and compound tokens do not resume a plan cycle", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-plan-verb-"));
+
+		try {
+			runtime.emit("before_agent_start", {
+				prompt: "We plan to fix the email draft in the composer",
+				systemPrompt: "Base prompt",
+				cwd,
+			});
+			expect(runtime.entries[0]).toMatchObject({
+				decision: { route: "answer", writeAllowed: true },
+			});
+
+			runtime.emit("before_agent_start", {
+				prompt: "Fix the draft comment in plan-implement.md docs",
+				systemPrompt: "Base prompt",
+				cwd,
+			});
+			// Mentioning the plan-implement token routes via the classifier's
+			// autonomous pattern (intended: naming the command invokes it) — the
+			// fallback must NOT be the reason (no "active plan cycle" resume).
+			expect(runtime.entries[1]).toMatchObject({
+				decision: { route: "plan-implement" },
+			});
+			expect(String((runtime.entries[1] as { decision?: { reason?: string } }).decision?.reason)).not.toMatch(
+				/active plan cycle/,
+			);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("plural plan-blocked wording still resumes the plan cycle", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-bloques-plan-"));
+
+		try {
+			runtime.emit("before_agent_start", {
+				prompt: "Les étapes du plan sont bloquées, corrige-les",
+				systemPrompt: "Base prompt",
+				cwd,
+			});
+
+			expect(runtime.entries[0]).toMatchObject({
+				decision: { route: "plan-implement" },
+			});
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("does not route prompt-only READY wording directly to implement", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-missing-plan-"));
