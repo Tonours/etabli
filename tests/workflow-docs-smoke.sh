@@ -522,7 +522,7 @@ for quality_path in \
     claude/scopes/shared/agents/reviewer.md \
     claude/scopes/shared/agents/worker.md \
     claude/README.md; do
-    for inactive_skill in suite-router stack-suite design-suite; do
+    for inactive_skill in suite-router design-suite; do
         assert_not_word "$ROOT_DIR/$quality_path" "$inactive_skill"
     done
 done

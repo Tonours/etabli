@@ -15,9 +15,8 @@ Match signals in this priority order (stop at the highest applicable set):
 
 1. **Project suites** — employer Ember / employer backend / Adonis tasks → prefer `ember-employer-suite`, `employer-backend-suite`, or `adonisjs-suite` over generic suites. Project suites are scope-gated (work or personal): when one is not linked on the current surface, say so and fall back to the generic suites instead of reporting a missing skill.
 2. **Design / UI** — keywords: design, UI, UX, page, layout, dark mode, responsive, brand, figma, screenshot, mockup, visual, spacing, typography; or `DESIGN.md` / design tokens present → `design-suite`.
-3. **React / frontend code** — `.tsx` / React / RSC / Next / TanStack component paths, or keywords tied to implementation (hook, re-render, composition) → `stack-suite` (React rows).
-4. **Node / backend** — API, route, middleware, server, Fastify, Express, Hono, Nest, Prisma, Drizzle, auth backend, worker, Node → `stack-suite` (Node / Fastify / oauth rows).
-5. **Full-stack** (UI + API + data) → activate both `design-suite` and `stack-suite` (design-suite first for visual generation, then stack-suite for implementation constraints).
+3. **React implementation or health** — `.tsx` / React / RSC / Next component work, re-render cost, or a react-doctor audit → `react-doctor-100` (combine with `design-suite` when visual generation comes first).
+4. **Node / backend** — no dedicated suite is vendored anymore; proceed with the workflow contracts and the model's native Node knowledge rather than forcing a match.
 
 Also inspect `package.json` dependencies and open / changed files. Prefer path and dependency evidence over a bare keyword like "component" (which can mean pure CSS).
 
@@ -25,7 +24,7 @@ Also inspect `package.json` dependencies and open / changed files. Prefer path a
 
 1. Read the user brief + `git status --short` + relevant paths.
 2. Match domains with the priority list above.
-3. Announce activated suite(s) in one short line, e.g. `Activated: design-suite + stack-suite (React)`.
+3. Announce activated suite(s) in one short line, e.g. `Activated: design-suite + react-doctor-100`.
 4. **Invoke** the matched suite skill(s) via the Skill tool (same model — suites are not subagents). Do not implement yourself.
 5. If matches are ambiguous and the work is risky, ask one narrow clarification; otherwise invoke the highest-priority suite(s) and continue.
 
@@ -34,5 +33,5 @@ Also inspect `package.json` dependencies and open / changed files. Prefer path a
 - Prefer the narrowest accurate suite.
 - Project-specific suites win over generic ones when the task is about this codebase rather than the language or framework.
 - A suite does not widen scope; `PLAN.md` still decides what gets implemented.
-- Hand React/Node detail routing to `stack-suite` only (it already points at `react-doctor-100`, Fastify, etc.).
+- Hand design-system and CSS detail routing to `design-suite`; it already sequences the ui.sh skills and local CSS skills.
 - If nothing fits, say so and proceed without a domain suite rather than forcing a match.

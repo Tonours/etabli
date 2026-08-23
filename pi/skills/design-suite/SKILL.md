@@ -71,5 +71,5 @@ announce the gap, fall through to `frontend-css-ui-ux` (+ `css-layout-primitives
 
 - `frontend-css-ui-ux`, `css-layout-primitives`, `css-only-components`, `css-debugging`, `frontend-motion-performance`
 - `ui-reference-capture`, `browser-full-page-capture`, `show-me`
-- `stack-suite` / `react-doctor-100` when React implementation follows design
+- `react-doctor-100` when React implementation follows design
 - ui.sh skills: design, ideas, brand-kit, componentize, canonicalize-tailwind, add-dark-mode, dark-mode-image, make-responsive, markup-from-image
