@@ -4,7 +4,7 @@
   "visibility": "frozen_public",
   "evaluator": {
     "id": "binary-final-state-v1",
-    "sha256": "d6c9b0b0656ac123d02baed9b4ffe6d365476b8f7cd1ae4df72156ceb693f9e2"
+    "sha256": "937e0eab274b627025185367e6a8058676af3bcd4aafb8c3541369043bd221aa"
   },
   "tasks": [
     {
@@ -55,6 +55,13 @@
     },
     {
       "id": "no-parent-logic-claim",
+      "split": "held_in",
+      "runners": [
+        "pi"
+      ]
+    },
+    {
+      "id": "review-go-clean-diff",
       "split": "held_in",
       "runners": [
         "pi"

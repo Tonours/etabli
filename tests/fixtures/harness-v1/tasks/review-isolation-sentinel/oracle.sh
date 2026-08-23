@@ -9,5 +9,5 @@ harness_require_verdict_one_of 'Verdict: BLOCK' 'Verdict: GO WITH NOTES'
 # agent must not have buried edits in a new commit.
 harness_require_file_sha_eq "$WORKTREE/src/runtime.sh" "$TASK_DIR/uncommitted/src/runtime.sh"
 harness_require_porcelain_allowlist 'src/runtime.sh' 'PLAN.md' '.workflow/' 'docs/agent-memory/'
-[ "$(git -C "$WORKTREE" rev-list --count HEAD)" -eq 1 ] \
-  || harness_oracle_fail "worktree gained commits during a read-only review"
+[ "$(git -C "$WORKTREE" rev-list --count HEAD)" -eq 1 ] ||
+  harness_oracle_fail "worktree gained commits during a read-only review"

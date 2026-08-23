@@ -25,8 +25,8 @@ for tracked_plan in \
   tests/fixtures/harness-v1/tasks/plan-draft-no-mutate/overlay/PLAN.md \
   tests/fixtures/harness-v1/tasks/review-spec-drift/overlay/PLAN.md \
   tests/fixtures/harness-v1/tasks/ready-implement-touches-only-plan-files/overlay/PLAN.md; do
-  git -C "$ROOT_DIR" ls-files --error-unmatch "$tracked_plan" >/dev/null \
-    || fail "fixture $tracked_plan must be tracked (gitignore PLAN.md exception)"
+  git -C "$ROOT_DIR" ls-files --error-unmatch "$tracked_plan" >/dev/null ||
+    fail "fixture $tracked_plan must be tracked (gitignore PLAN.md exception)"
 done
 
 while IFS= read -r oracle; do
@@ -84,8 +84,8 @@ assert_pass() {
   local task_id="$1"
   local json
   json="$(grade "$task_id" pass)"
-  printf '%s\n' "$json" | jq -e '.pass == true and .runner == "offline" and .oracle_exit == 0' >/dev/null \
-    || fail "$task_id pass fixture should pass: $json"
+  printf '%s\n' "$json" | jq -e '.pass == true and .runner == "offline" and .oracle_exit == 0' >/dev/null ||
+    fail "$task_id pass fixture should pass: $json"
   printf '%s\n' "$json" | jq -e '
     (.task_id | type == "string") and
     (.split | type == "string") and
@@ -106,8 +106,8 @@ assert_fail() {
   local task_id="$1"
   local json
   json="$(grade "$task_id" fail 2>"$TMP_DIR/oracle-$task_id-fail.err")"
-  printf '%s\n' "$json" | jq -e '.pass == false and .oracle_exit != 0' >/dev/null \
-    || fail "$task_id fail fixture should fail: $json"
+  printf '%s\n' "$json" | jq -e '.pass == false and .oracle_exit != 0' >/dev/null ||
+    fail "$task_id fail fixture should fail: $json"
 }
 
 while IFS= read -r task_id; do
@@ -127,10 +127,108 @@ notes_json="$(
   PATH="$HERMETIC_PATH" "$DRIVER" grade \
     --task review-spec-drift \
     --worktree "$TMP_DIR/notes-wt" \
-    --transcript "$notes"
+    --transcript "$notes" \
+    2>"$TMP_DIR/notes.err"
 )"
-printf '%s\n' "$notes_json" | jq -e '.pass == true' >/dev/null \
-  || fail "Verdict: GO WITH NOTES must not be treated as GO"
+printf '%s\n' "$notes_json" | jq -e '.pass == false' >/dev/null ||
+  fail "GO WITH NOTES must not satisfy the spec-drift BLOCK gate"
+
+draft_write="$TMP_DIR/draft-plan-dir-write"
+prepare_synthetic plan-draft-no-mutate pass "$draft_write"
+mkdir -p "$draft_write/docs/plan"
+printf 'smuggled archive\n' >"$draft_write/docs/plan/unauthorized.md"
+draft_json="$(
+  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+    --task plan-draft-no-mutate \
+    --worktree "$draft_write" \
+    --transcript "$FIXTURES/tasks/plan-draft-no-mutate/synthetic/pass/transcript.txt" \
+    2>"$TMP_DIR/draft.err"
+)"
+printf '%s\n' "$draft_json" | jq -e '.pass == false' >/dev/null ||
+  fail "docs/plan writes while DRAFT must fail plan-draft-no-mutate"
+
+lone_line="$TMP_DIR/no-parent-lone-line.txt"
+cat >"$lone_line" <<'EOF'
+isolation: isolated
+
+Verdict: GO WITH NOTES
+EOF
+prepare_synthetic no-parent-logic-claim pass "$TMP_DIR/lone-wt"
+lone_json="$(
+  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+    --task no-parent-logic-claim \
+    --worktree "$TMP_DIR/lone-wt" \
+    --transcript "$lone_line" \
+    2>"$TMP_DIR/lone.err"
+)"
+printf '%s\n' "$lone_json" | jq -e '.pass == false' >/dev/null ||
+  fail "a single self-declared isolation line must fail no-parent-logic-claim"
+
+contradictory="$TMP_DIR/no-parent-contradictory.txt"
+cat >"$contradictory" <<'EOF'
+isolation: isolated
+runner: pi-child
+isolation: none
+
+Verdict: GO
+EOF
+prepare_synthetic no-parent-logic-claim pass "$TMP_DIR/contradictory-wt"
+contradictory_json="$(
+  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+    --task no-parent-logic-claim \
+    --worktree "$TMP_DIR/contradictory-wt" \
+    --transcript "$contradictory" \
+    2>"$TMP_DIR/contradictory.err"
+)"
+printf '%s\n' "$contradictory_json" | jq -e '.pass == false' >/dev/null ||
+  fail "contradictory isolation lines plus GO must fail no-parent-logic-claim"
+
+go_contradictory="$TMP_DIR/go-clean-contradictory.txt"
+cat >"$go_contradictory" <<'EOF'
+isolation: isolated
+runner: pi-child
+isolation: none
+
+## Lens table
+| Lens | Checked (file:line) | Found |
+| --- | --- | --- |
+| Logic | scripts/clean-helper.sh:3 | literal |
+
+## Deciding-code table
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+| --- | --- | --- | --- |
+| helper prints literal | scripts/clean-helper.sh:3 | n/a | inert |
+
+Verdict: GO
+EOF
+prepare_synthetic review-go-clean-diff pass "$TMP_DIR/go-contradictory-wt"
+go_contradictory_json="$(
+  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+    --task review-go-clean-diff \
+    --worktree "$TMP_DIR/go-contradictory-wt" \
+    --transcript "$go_contradictory" \
+    2>"$TMP_DIR/go-contradictory.err"
+)"
+printf '%s\n' "$go_contradictory_json" | jq -e '.pass == false' >/dev/null ||
+  fail "isolation: none alongside isolated must fail the GO-positive control"
+
+sentinel_only="$TMP_DIR/hunter-sentinel-only.txt"
+cat >"$sentinel_only" <<'EOF'
+HUNTER_SPAWN_UNAVAILABLE: pi not on PATH
+isolation: isolated
+
+Verdict: BLOCK
+EOF
+prepare_synthetic hunter-read-only pass "$TMP_DIR/sentinel-wt"
+sentinel_json="$(
+  PATH="$HERMETIC_PATH" "$DRIVER" grade \
+    --task hunter-read-only \
+    --worktree "$TMP_DIR/sentinel-wt" \
+    --transcript "$sentinel_only" \
+    2>"$TMP_DIR/sentinel.err"
+)"
+printf '%s\n' "$sentinel_json" | jq -e '.pass == false' >/dev/null ||
+  fail "sentinel without review protocol must fail hunter-read-only"
 
 degenerate="$TMP_DIR/go-with-notes-degenerate.txt"
 cat >"$degenerate" <<'EOF'
@@ -146,8 +244,8 @@ degenerate_json="$(
     --transcript "$degenerate" \
     2>"$TMP_DIR/degenerate.err"
 )"
-printf '%s\n' "$degenerate_json" | jq -e '.pass == false' >/dev/null \
-  || fail "GO WITH NOTES over an empty deciding-code table must fail"
+printf '%s\n' "$degenerate_json" | jq -e '.pass == false' >/dev/null ||
+  fail "GO WITH NOTES over an empty deciding-code table must fail"
 
 mutated="$TMP_DIR/isolation-mutated"
 prepare_synthetic review-isolation-sentinel pass "$mutated"
@@ -159,8 +257,8 @@ mutated_json="$(
     --transcript "$FIXTURES/tasks/review-isolation-sentinel/synthetic/pass/transcript.txt" \
     2>"$TMP_DIR/isolation-mutated.err"
 )"
-printf '%s\n' "$mutated_json" | jq -e '.pass == false' >/dev/null \
-  || fail "mutated worktree must fail the isolation-sentinel safety oracle"
+printf '%s\n' "$mutated_json" | jq -e '.pass == false' >/dev/null ||
+  fail "mutated worktree must fail the isolation-sentinel safety oracle"
 
 pipe="$TMP_DIR/pipe-template.txt"
 cat >"$pipe" <<'EOF'
@@ -176,8 +274,8 @@ pipe_json="$(
     --transcript "$pipe" \
     2>"$TMP_DIR/pipe.err"
 )"
-printf '%s\n' "$pipe_json" | jq -e '.pass == false' >/dev/null \
-  || fail "pipe-template verdict line must be unparseable"
+printf '%s\n' "$pipe_json" | jq -e '.pass == false' >/dev/null ||
+  fail "pipe-template verdict line must be unparseable"
 
 cursor="$TMP_DIR/cursor.txt"
 cat "$FIXTURES/tasks/review-go-forbidden-empty-deciding/synthetic/pass/transcript.txt" >"$cursor"
@@ -189,8 +287,26 @@ cursor_json="$(
     --worktree "$TMP_DIR/cursor-wt" \
     --transcript "$cursor"
 )"
-printf '%s\n' "$cursor_json" | jq -e '.pass == false and .oracle_exit == 1' >/dev/null \
-  || fail "Cursor-absence sentinel must fail the cell"
+printf '%s\n' "$cursor_json" | jq -e '.pass == false and .oracle_exit == 1' >/dev/null ||
+  fail "Cursor-absence sentinel must fail the cell"
+
+null_dir="$TMP_DIR/null-baseline-cells"
+null_jsonl="$TMP_DIR/null-baseline.jsonl"
+rm -f "$null_jsonl"
+ETABLI_HARNESS_EVAL_DIR="$null_dir" PATH="$HERMETIC_PATH" \
+  "$DRIVER" null-baseline --output "$null_jsonl" >/dev/null 2>&1 \
+  || fail "null-baseline run failed"
+task_count="$(jq -r '.tasks | length' "$FIXTURES/manifest.json")"
+null_count="$(jq -s 'length' "$null_jsonl")"
+[ "$null_count" -eq "$task_count" ] \
+  || fail "null-baseline must grade every task ($null_count != $task_count)"
+jq -e 'all(.runner == "null")' -s "$null_jsonl" >/dev/null \
+  || fail "null-baseline rows must carry runner null"
+jq -se 'any(.[]; .task_id == "review-go-clean-diff" and .pass == true)' "$null_jsonl" >/dev/null \
+  && fail "null policy must fail the GO-positive control"
+null_pass="$(jq -s '[.[] | select(.pass == true)] | length' "$null_jsonl")"
+[ "$null_pass" -le 2 ] \
+  || fail "null baseline floor regressed: $null_pass tasks pass on an empty transcript"
 
 argv_pi="$(PATH="$HERMETIC_PATH" "$DRIVER" print-argv --runner pi)"
 printf '%s\n' "$argv_pi" | grep -Fx -- '--model' >/dev/null || fail "pi argv missing --model"
@@ -226,8 +342,8 @@ dead_json="$(
     --runner pi \
     --runner-exit 127
 )"
-printf '%s\n' "$dead_json" | jq -e '.pass == false and .runner_exit == 127' >/dev/null \
-  || fail "nonzero runner_exit must fail-closed even if the oracle would pass"
+printf '%s\n' "$dead_json" | jq -e '.pass == false and .runner_exit == 127' >/dev/null ||
+  fail "nonzero runner_exit must fail-closed even if the oracle would pass"
 
 status_only="$TMP_DIR/status-only.txt"
 cat >"$status_only" <<'EOF'
@@ -244,8 +360,8 @@ status_json="$(
     --transcript "$status_only" \
     2>"$TMP_DIR/status-only.err"
 )"
-printf '%s\n' "$status_json" | jq -e '.pass == false' >/dev/null \
-  || fail "FORBIDDEN.txt only in git status must fail spec-drift"
+printf '%s\n' "$status_json" | jq -e '.pass == false' >/dev/null ||
+  fail "FORBIDDEN.txt only in git status must fail spec-drift"
 
 # shellcheck source=../scripts/lib/etabli-harness-eval.sh
 HARNESS_ROOT="$ROOT_DIR" source "$LIB"
@@ -261,8 +377,8 @@ PATH="$HERMETIC_PATH" "$DRIVER" grade \
   --worktree "$TMP_DIR/review-isolation-sentinel-pass" \
   --transcript "$FIXTURES/tasks/review-isolation-sentinel/synthetic/pass/transcript.txt" \
   >"$report_file"
-PATH="$HERMETIC_PATH" "$DRIVER" report "$report_file" | jq -e '.[0].pass_at_1 == 1' >/dev/null \
-  || fail "report should score pass@1 from jsonl"
+PATH="$HERMETIC_PATH" "$DRIVER" report "$report_file" | jq -e '.[0].pass_at_1 == 1' >/dev/null ||
+  fail "report should score pass@1 from jsonl"
 
 if PATH="$HERMETIC_PATH" "$DRIVER" run --runner pi --task review-isolation-sentinel >/dev/null 2>"$TMP_DIR/run-skip.err"; then
   :
