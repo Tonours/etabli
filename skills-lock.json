@@ -121,41 +121,6 @@
       "sourceType": "repo",
       "computedHash": "68ece3fc43f49e803ba45897623d433e921dba9b224de8af0f0d8728bd02296b"
     },
-    "node": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "6b392f9c95cfb4b0956f3da22ebd036f4e859d6f7043a88a25e2a9d48176d0e7"
-    },
-    "nodejs-core": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "a30e240a98902fb75d906f27ffb1308e27d3244464acf030c91bbd44780984e5"
-    },
-    "typescript-magician": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "249c37c01aab7ed2af42f83c4677a7a26b7e14b775bb1c9d04b099ddb38fbaba"
-    },
-    "linting-neostandard-eslint9": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "bcb113ba713890d4494fb1bbdb64462d7bbc87949ef6fed4c10bea679dfdda50"
-    },
-    "fastify": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "a9d12998c3c5a91470f5942bcf5eb95b0d1dea7f2b1a98ba0fdf5ad2eb93414c"
-    },
-    "oauth": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "86efe02936d74c2bdfdac6b754778812124c92639f831c6b12512959635efefa"
-    },
-    "documentation": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "f7513ddbd8d55ba07c232b2153f48eb9ef3ff736b11811b0fb1151464c2f4b30"
-    },
     "ember-forestadmin-architecture": {
       "source": "local",
       "sourceType": "repo",
@@ -251,101 +216,6 @@
       "sourceType": "repo",
       "computedHash": "6bd89a2f4472afff8c6137dfcc9d65658ed55834eba8e2c23d577965eca5e1ba"
     },
-    "tanstack-query": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "55fa4e248b6d0696491643ee5a89621cc242dadc055ba29dc260d742934f11dd"
-    },
-    "tanstack-start-auth": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "69f1da9a3ce5e3bb33171ba464ee605ff25421fd2f7c949d285a488ff722e7bf"
-    },
-    "tanstack-start-better-auth": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "e0b8b1d115492058eb253cdfb48b1cd82e4b08ab4e40a4ed68f2d9ae4bc57e19"
-    },
-    "tanstack-start-bootstrap": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "30a935900aafa5aac0f436c4ed2bb9420fa963914d86cdde8798b91553b4ad2d"
-    },
-    "tanstack-start-clerk": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "4f9479e439e5fccf317773b06b5a35c131bc9a3e2b60f73894c27ad4d964af7f"
-    },
-    "tanstack-start-database": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "85801b7f6342e1c6de42c0fd0d04895279b809da352c8fa529fda8ddcb63977c"
-    },
-    "tanstack-start-deployment-recipes": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "76e05c4e9a358f98a6e3a49e19af3afc0b05eb1c449778c37b847928e91f9dcf"
-    },
-    "tanstack-start-drizzle": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "ced261f475ca9a462ee57e0a9cc580055a889243873c31aee14c30e418c90ba6"
-    },
-    "tanstack-start-file-uploads": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "d29b70452021334b1335d3672282d2aa081e5785aebc1836f8925ba4f813d1b3"
-    },
-    "tanstack-start-hosting": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "f17473c4e469ffe04f40a4733e4c8fe18785d8c462d0509e5653c0e2bf2d816c"
-    },
-    "tanstack-start-middleware": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "bd80c84ead7f752f8025bf8163b9c9c796e65067eeb9e6c0927c0dc088ed61d1"
-    },
-    "tanstack-start-prisma": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "5ae9fec5888a5bc8a170ea38e4258d45cba3456ae33afb445a19287e3c4362e4"
-    },
-    "tanstack-start-public-private-route-trees": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "ac48bfd57b58d36ce1ee906b12c0a9c8eb2237ead60e9cd99298098af7410add"
-    },
-    "tanstack-start-query-invalidation": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "63d936a1df48b5025abf371b2ace166547083d65acc14767eb51533d1485f9aa"
-    },
-    "tanstack-start-resource-ownership": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "dc3ceb18d7574a44656ab2cd6106bf2448b682f295a65163ed15b3a44c6592e1"
-    },
-    "tanstack-start-route-patterns": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "1240d8085715375a5419928b7e75b67ceb173b412e58b075e02063b6670d8077"
-    },
-    "tanstack-start-seo": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "9637e5f41e72c5cd82ca114ce333386a0b3e84036b74ceffa123da2339f074a4"
-    },
-    "tanstack-start-server-functions": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "816de131fc451096a411b16ff9578330ebdffcf5b984242f1879bca77831ee9d"
-    },
-    "tanstack-start-teams-and-orgs": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "d9fddd3ec6bab97bd6bbf0aaf8a873c82d9d6fe0b6beb03ddd37824e2585ee14"
-    },
     "composition-patterns": {
       "source": "local",
       "sourceType": "repo",
@@ -365,11 +235,6 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
-    },
-    "tanstack-start-suite": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8407d5f39609f67028bf577aa040b23b300a407759827732b14cef027909dc9d"
     },
     "conversation-retrospect": {
       "source": "local",
