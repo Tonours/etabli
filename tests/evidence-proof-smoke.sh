@@ -51,8 +51,8 @@ rebind_target_pack() {
 
 PACK_DIR="${EVIDENCE_PROOF_DOGFOOD_DIR:-$OWNED_ROOT/pack}"
 case "$PACK_DIR" in
-  /*) ;;
-  *) PACK_DIR="$ROOT_DIR/$PACK_DIR" ;;
+/*) ;;
+*) PACK_DIR="$ROOT_DIR/$PACK_DIR" ;;
 esac
 [ ! -e "$PACK_DIR" ] || {
   printf 'write-once dogfood output already exists: %s\n' "$PACK_DIR" >&2

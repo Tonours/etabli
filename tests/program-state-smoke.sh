@@ -585,7 +585,7 @@ fi
 
 mkdir -p "$WRITER_ROOT/crash"
 CRASH_HOST="$(hostname)"
-( lockf "$WRITER_ROOT/crash/events.lock" sh -c 'printf "%s\n" "$1" >"$2"; kill -9 $$' sh "$(jq -nc --arg host "$CRASH_HOST" '{schema_version:1,token:"dead0000000000000000000000000000",pid:999999,hostname:$host,acquired_at:"2026-01-01T00:00:00Z",backend:"lockf"}')" "$WRITER_ROOT/crash/events.lock.owner.json" ) >/dev/null 2>&1 || true
+(lockf "$WRITER_ROOT/crash/events.lock" sh -c 'printf "%s\n" "$1" >"$2"; kill -9 $$' sh "$(jq -nc --arg host "$CRASH_HOST" '{schema_version:1,token:"dead0000000000000000000000000000",pid:999999,hostname:$host,acquired_at:"2026-01-01T00:00:00Z",backend:"lockf"}')" "$WRITER_ROOT/crash/events.lock.owner.json") >/dev/null 2>&1 || true
 "$WORKFLOW_EVENT" --dir "$WRITER_ROOT" append crash route_decided '{"route":"verify","reason":"recover native lock after owner death"}'
 [ ! -e "$WRITER_ROOT/crash/events.lock.owner.json" ] || {
   printf 'native crash recovery left stale owner metadata\n' >&2
