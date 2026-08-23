@@ -50,7 +50,12 @@ function promptPlanStatusFallback(prompt: string): PlanStatus {
 	// to the plan itself; "fix the bug in the email draft" must not resume a
 	// plan cycle.
 	if (planStatusWord(prompt, /\bdraft\b|brouillon/i)) return "draft";
-	if (planStatusWord(prompt, /\bchallenged\b|challeng[eé]e?s?\b|bloqu[eé]e?s?\b|\bblocked\b/i))
+	if (
+		planStatusWord(
+			prompt,
+			/\bchallenged\b|challeng[eé]e?s?\b|bloqu[eé]e?s?\b|\bblocked\b/i,
+		)
+	)
 		return "challenged";
 	// "unknown" and "missing" both mean "no recognized planning lock": the
 	// core router treats them equivalently (ordinary coding edits directly).
@@ -64,8 +69,7 @@ function planStatusWord(prompt: string, statusPattern: RegExp): boolean {
 	// ("plan-implement") so ordinary wording does not resume a plan cycle.
 	// Deliberately loose on distance — proximity parsing would be brittle
 	// for one line of routing.
-	const planNoun =
-		/\bplan\b(?![\w-])(?!\s+to\b)|(?:^|[^\w-])plan\.md\b/i;
+	const planNoun = /\bplan\b(?![\w-])(?!\s+to\b)|(?:^|[^\w-])plan\.md\b/i;
 	return planNoun.test(prompt) && statusPattern.test(prompt);
 }
 
@@ -150,10 +154,8 @@ export default function (pi: ExtensionAPI) {
 			// Ledger-scoped auto-emit: only when an active non-terminal ledger exists.
 			try {
 				const command = String(
-					(event.input as { command?: string; cmd?: string } | undefined)
-						?.command ||
-						(event.input as { command?: string; cmd?: string } | undefined)
-							?.cmd ||
+					(event.input as { command?: string; cmd?: string } | undefined)?.command ||
+						(event.input as { command?: string; cmd?: string } | undefined)?.cmd ||
 						"bash",
 				);
 				const inferred = inferBashFailureFromToolResult(
@@ -195,8 +197,7 @@ export default function (pi: ExtensionAPI) {
 				if (!msg || typeof msg !== "object") continue;
 				const role = (msg as { role?: unknown }).role;
 				const usage = (msg as { usage?: unknown }).usage;
-				if (role !== "assistant" || !usage || typeof usage !== "object")
-					continue;
+				if (role !== "assistant" || !usage || typeof usage !== "object") continue;
 				const u = usage as Record<string, unknown>;
 				const i = Number(u.input);
 				const o = Number(u.output);
@@ -235,9 +236,7 @@ export default function (pi: ExtensionAPI) {
 				typeof ctx?.cwd === "string" && ctx.cwd.trim() !== ""
 					? ctx.cwd
 					: process.cwd();
-			const model = ctx?.model as
-				| { provider?: string; id?: string }
-				| undefined;
+			const model = ctx?.model as { provider?: string; id?: string } | undefined;
 			const runtime =
 				model?.provider && model?.id ? `${model.provider}/${model.id}` : "pi";
 			await maybeEmitOutcomeMetric(cwd, {
