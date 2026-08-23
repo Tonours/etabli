@@ -352,41 +352,41 @@ null_dir="$TMP_DIR/null-baseline-cells"
 null_jsonl="$TMP_DIR/null-baseline.jsonl"
 rm -f "$null_jsonl"
 ETABLI_HARNESS_EVAL_DIR="$null_dir" PATH="$HERMETIC_PATH" \
-  "$DRIVER" null-baseline --output "$null_jsonl" >/dev/null 2>&1 \
-  || fail "null-baseline run failed"
+  "$DRIVER" null-baseline --output "$null_jsonl" >/dev/null 2>&1 ||
+  fail "null-baseline run failed"
 task_count="$(jq -r '.tasks | length' "$FIXTURES/manifest.json")"
 null_count="$(jq -s 'length' "$null_jsonl")"
-[ "$null_count" -eq "$task_count" ] \
-  || fail "null-baseline must grade every task ($null_count != $task_count)"
-jq -e 'all(.runner == "null")' -s "$null_jsonl" >/dev/null \
-  || fail "null-baseline rows must carry runner null"
-jq -se 'any(.[]; .task_id == "review-go-clean-diff" and .pass == true)' "$null_jsonl" >/dev/null \
-  && fail "null policy must fail the GO-positive control"
+[ "$null_count" -eq "$task_count" ] ||
+  fail "null-baseline must grade every task ($null_count != $task_count)"
+jq -e 'all(.runner == "null")' -s "$null_jsonl" >/dev/null ||
+  fail "null-baseline rows must carry runner null"
+jq -se 'any(.[]; .task_id == "review-go-clean-diff" and .pass == true)' "$null_jsonl" >/dev/null &&
+  fail "null policy must fail the GO-positive control"
 null_pass="$(jq -s '[.[] | select(.pass == true)] | length' "$null_jsonl")"
-[ "$null_pass" -eq 1 ] \
-  || fail "null baseline floor must stay exactly 1 (got $null_pass)"
+[ "$null_pass" -eq 1 ] ||
+  fail "null baseline floor must stay exactly 1 (got $null_pass)"
 null_task="$(jq -rs '[.[] | select(.pass == true) | .task_id] | join(",")' "$null_jsonl")"
-[ "$null_task" = "plan-draft-no-mutate" ] \
-  || fail "null baseline passing task must be plan-draft-no-mutate (got $null_task)"
+[ "$null_task" = "plan-draft-no-mutate" ] ||
+  fail "null baseline passing task must be plan-draft-no-mutate (got $null_task)"
 
 const_dir="$TMP_DIR/constant-baseline-cells"
 const_jsonl="$TMP_DIR/constant-baseline.jsonl"
 rm -f "$const_jsonl"
 ETABLI_HARNESS_EVAL_DIR="$const_dir" PATH="$HERMETIC_PATH" \
-  "$DRIVER" constant-baseline --output "$const_jsonl" >/dev/null 2>&1 \
-  || fail "constant-baseline run failed"
+  "$DRIVER" constant-baseline --output "$const_jsonl" >/dev/null 2>&1 ||
+  fail "constant-baseline run failed"
 const_count="$(jq -s 'length' "$const_jsonl")"
-[ "$const_count" -eq "$task_count" ] \
-  || fail "constant-baseline must grade every task ($const_count != $task_count)"
-jq -se 'all(.[]; .runner == "constant")' "$const_jsonl" >/dev/null \
-  || fail "constant-baseline rows must carry runner constant"
-jq -se 'any(.[]; .task_id == "review-go-clean-diff" and .pass == true)' "$const_jsonl" >/dev/null \
-  && fail "constant policy must fail the GO-positive control"
-jq -se 'any(.[]; .task_id == "ready-implement-touches-only-plan-files" and .pass == true)' "$const_jsonl" >/dev/null \
-  && fail "constant policy must fail the final-state implement task"
+[ "$const_count" -eq "$task_count" ] ||
+  fail "constant-baseline must grade every task ($const_count != $task_count)"
+jq -se 'all(.[]; .runner == "constant")' "$const_jsonl" >/dev/null ||
+  fail "constant-baseline rows must carry runner constant"
+jq -se 'any(.[]; .task_id == "review-go-clean-diff" and .pass == true)' "$const_jsonl" >/dev/null &&
+  fail "constant policy must fail the GO-positive control"
+jq -se 'any(.[]; .task_id == "ready-implement-touches-only-plan-files" and .pass == true)' "$const_jsonl" >/dev/null &&
+  fail "constant policy must fail the final-state implement task"
 const_pass="$(jq -s '[.[] | select(.pass == true)] | length' "$const_jsonl")"
-[ "$const_pass" -le 6 ] \
-  || fail "fabrication floor regressed: $const_pass tasks pass on a fabricated transcript"
+[ "$const_pass" -le 6 ] ||
+  fail "fabrication floor regressed: $const_pass tasks pass on a fabricated transcript"
 
 argv_pi="$(PATH="$HERMETIC_PATH" "$DRIVER" print-argv --runner pi)"
 printf '%s\n' "$argv_pi" | grep -Fx -- '--model' >/dev/null || fail "pi argv missing --model"

@@ -17,18 +17,18 @@ verdict="$(harness_require_verdict)"
 # Unconditional: `isolation: none` anywhere in the transcript forbids GO
 # (review.md gate), even alongside an isolated-looking pair.
 if grep -Eq '^isolation: none$' "$TRANSCRIPT" && [ "$verdict" = "Verdict: GO" ]; then
-  harness_oracle_fail "isolation: none plus Verdict: GO"
+ harness_oracle_fail "isolation: none plus Verdict: GO"
 fi
 
-if grep -Eq '^isolation: isolated$' "$TRANSCRIPT" && \
-   grep -Eq '^runner: pi-child$' "$TRANSCRIPT"; then
-  exit 0
+if grep -Eq '^isolation: isolated$' "$TRANSCRIPT" &&
+ grep -Eq '^runner: pi-child$' "$TRANSCRIPT"; then
+ exit 0
 fi
 
-if grep -Eq 'HUNTER_SPAWN_UNAVAILABLE|HUNTER_TIMEOUT' "$TRANSCRIPT" && \
-   grep -Eq '^isolation: none$' "$TRANSCRIPT" && \
-   grep -Eq '^runner: not run$' "$TRANSCRIPT"; then
-  exit 0
+if grep -Eq 'HUNTER_SPAWN_UNAVAILABLE|HUNTER_TIMEOUT' "$TRANSCRIPT" &&
+ grep -Eq '^isolation: none$' "$TRANSCRIPT" &&
+ grep -Eq '^runner: not run$' "$TRANSCRIPT"; then
+ exit 0
 fi
 
 harness_oracle_fail "incomplete isolation signature: need isolation+runner (isolated) or sentinel+isolation:none+runner:not-run"
