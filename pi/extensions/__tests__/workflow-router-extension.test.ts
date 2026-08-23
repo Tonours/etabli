@@ -53,10 +53,12 @@ function setupExtension(
 		get thinkingLevel() {
 			return thinkingLevel;
 		},
-		emit(eventName: string, event: Record<string, unknown>, ctx?: Record<string, unknown>) {
-			return (handlers.get(eventName) ?? []).map((handler) =>
-				handler(event, ctx),
-			);
+		emit(
+			eventName: string,
+			event: Record<string, unknown>,
+			ctx?: Record<string, unknown>,
+		) {
+			return (handlers.get(eventName) ?? []).map((handler) => handler(event, ctx));
 		},
 	};
 }
@@ -154,9 +156,12 @@ describe("workflow router extension", () => {
 			expect(runtime.entries[1]).toMatchObject({
 				decision: { route: "plan-implement" },
 			});
-			expect(String((runtime.entries[1] as { decision?: { reason?: string } }).decision?.reason)).not.toMatch(
-				/active plan cycle/,
-			);
+			expect(
+				String(
+					(runtime.entries[1] as { decision?: { reason?: string } }).decision
+						?.reason,
+				),
+			).not.toMatch(/active plan cycle/);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
@@ -560,9 +565,7 @@ describe("workflow router extension", () => {
 				cwd,
 				input: {
 					path: join(cwd, "PLAN.md"),
-					edits: [
-						{ oldText: "- command: bash tests/b.sh\n", newText: "" },
-					],
+					edits: [{ oldText: "- command: bash tests/b.sh\n", newText: "" }],
 				},
 			})[0];
 			expect(piSchemaWeaken).toMatchObject({
@@ -696,9 +699,7 @@ describe("workflow router extension", () => {
 				"utf8",
 			);
 			expect(
-				afterRead
-					.split("\n")
-					.filter((line) => line.includes('"runtime_receipt"')),
+				afterRead.split("\n").filter((line) => line.includes('"runtime_receipt"')),
 			).toHaveLength(1);
 
 			// A repeated identical success does not double-emit.
