@@ -154,6 +154,15 @@ Segment 1 (current): corrected baseline measured for real via
   tracked file (no accumulation). `.workflow/` (87 dirs, 8MB) classified as
   PROTECTED gitignored runtime history (receipts/retrospects consumed by
   ledger/supersession hooks) — never delete in this session.
+- **Iteration 8 (run 7, audit-only, clean bill)**: ghost-route audit — cross-
+  checked every skill name referenced by routing surfaces (suite-router,
+  design-suite, workflow-router-lib.mjs, workflow-router-runtime.ts, spec.md,
+  quick-card, contract-details) plus catalog↔filesystem both directions and
+  agent/role refs. ZERO ghosts: forest-backend-suite = real claude-scope
+  skill; spec-guide = real command; research-plan = commandless route by
+  design; pi/skills/herdr = documented symlink. Iterations 1-4 left no
+  dangling references. Gap recorded (not fixed, YAGNI): non-locked catalog
+  rows have no existence check in any smoke.
 
 ## Final summary
 
