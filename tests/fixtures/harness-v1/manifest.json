@@ -4,7 +4,7 @@
   "visibility": "frozen_public",
   "evaluator": {
     "id": "binary-final-state-v1",
-    "sha256": "6751983b0ff0aafa7354b351c331e208c6b3dd7dcd8595e5881f103bbdc27b90"
+    "sha256": "19703e0344b414b55fdca0db25ea4d08b3e7562afa03632954d2be67d6ec1e07"
   },
   "tasks": [
     {

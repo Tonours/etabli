@@ -120,24 +120,37 @@ harness_porcelain_paths() {
   # -uall: untracked directories must not collapse into a single entry;
   # renames/copies emit both sides so an allowlisted destination cannot
   # smuggle a mutation of a non-allowlisted source.
-  git -C "$WORKTREE" status --porcelain -uall | awk '{
-    if ($1 == "R" || $1 == "C") {
-      print $2; print $NF
-    } else {
-      $1 = ""
-      sub(/^ /, "")
-      print
-    }
-  }'
+  # Parses in pure bash into HARNESS_PORCELAIN_PATHS (indexed array):
+  # no awk/pipe forks per oracle invocation.
+  HARNESS_PORCELAIN_PATHS=()
+  local line st path
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    st="${line:0:2}"
+    path="${line:3}"
+    case "$st" in
+    'R ' | 'C ')
+      HARNESS_PORCELAIN_PATHS+=("${path%% -> *}" "${path##* -> }")
+      ;;
+    *)
+      HARNESS_PORCELAIN_PATHS+=("$path")
+      ;;
+    esac
+  done < <(git -C "$WORKTREE" status --porcelain -uall)
 }
 
 harness_require_porcelain_allowlist() {
   local path
   [ -d "$WORKTREE/.git" ] || harness_oracle_fail "worktree is not a git repo"
-  while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    harness_path_allowed "$path" "$@" || harness_oracle_fail "path outside allowlist: $path"
-  done < <(harness_porcelain_paths)
+  harness_porcelain_paths
+  # bash 3.2 + set -u: expanding an empty indexed array is an error —
+  # guard the loop (empty porcelain is the common clean-worktree case)
+  if [ "${#HARNESS_PORCELAIN_PATHS[@]}" -gt 0 ]; then
+    for path in "${HARNESS_PORCELAIN_PATHS[@]}"; do
+      [ -n "$path" ] || continue
+      harness_path_allowed "$path" "$@" || harness_oracle_fail "path outside allowlist: $path"
+    done
+  fi
 }
 
 harness_write_baseline() {
@@ -167,10 +180,9 @@ harness_require_file_sha_eq() {
   local expected="$2"
   [ -f "$actual" ] || harness_oracle_fail "missing $actual"
   [ -f "$expected" ] || harness_oracle_fail "missing expected $expected"
-  local a e
-  a="$(harness_sha256 "$actual")"
-  e="$(harness_sha256 "$expected")"
-  [ "$a" = "$e" ] || harness_oracle_fail "SHA mismatch: $actual"
+  # byte-equality — the same decision as comparing SHA-256 digests, without
+  # two shasum (perl) processes per check
+  cmp -s "$actual" "$expected" || harness_oracle_fail "SHA mismatch: $actual"
 }
 
 harness_require_contains() {

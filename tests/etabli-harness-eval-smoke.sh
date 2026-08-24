@@ -108,9 +108,8 @@ assert_pass() {
   local task_id="$1"
   local json
   json="$(grade "$task_id" pass)"
-  printf '%s\n' "$json" | jq -e '.pass == true and .runner == "offline" and .oracle_exit == 0' >/dev/null ||
-    fail "$task_id pass fixture should pass: $json"
   printf '%s\n' "$json" | jq -e '
+    .pass == true and .runner == "offline" and .oracle_exit == 0 and
     (.task_id | type == "string") and
     (.split | type == "string") and
     (.model_requested | type == "string") and
@@ -123,7 +122,7 @@ assert_pass() {
     (.transcript_path | type == "string") and
     (.manifest_sha | test("^[a-f0-9]{64}$")) and
     (.oracle_sha | test("^[a-f0-9]{64}$"))
-  ' >/dev/null || fail "$task_id pass row missing pinned JSONL fields"
+  ' >/dev/null || fail "$task_id pass fixture should pass with pinned JSONL row fields"
 }
 
 assert_fail() {
