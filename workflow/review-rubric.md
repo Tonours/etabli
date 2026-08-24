@@ -113,7 +113,7 @@ Lead filters after the hunt; it does not re-hunt the diff.
 
 ### Lens table
 Every row mandatory on the Logic hunter. A lens without a concrete opened
-`file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`).
+`file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`). On a `Verdict: GO`, every lens row carries `file:line`, `absent`, or `deferred: Standards hunter` — a `not run` row blocks `Verdict: GO` the same way an empty deciding-code row does (Convention §5 excepted: its no-skill, no-sibling `not run` is a recorded gap, never a pass): a skip is not a result.
 The Prose vs machine-readable row cites one declaration `file:line` for **each
 behavior named in prose**, or `absent` when none exists.
 
@@ -132,6 +132,7 @@ behavior named in prose**, or `absent` when none exists.
 One row per **runtime behavior** touched by the diff (API, auth, mapping,
 config, precedence, error path). Docs-only or pure rename rows may be omitted
 with an explicit `n/a — no runtime behavior`.
+The whole-diff `n/a` is an artifact-backed claim: the row lists every changed path, and each must be a document or pure rename; any other changed path makes the rows mandatory and the bare `n/a` an invalid skip.
 A row whose behavior captures a value for reuse across a boundary names the
 writers that can change it in the window.
 
@@ -189,8 +190,7 @@ End with a final line in this exact shape:
 - `Verdict: GO WITH NOTES`
 - `Verdict: BLOCK`
 
-**GO** requires: every runtime deciding-code row filled with a real `file:line`
-(or explicit `n/a — no runtime behavior` for the whole diff).
+**GO** requires: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), and no lens row left `not run`.
 
 ## Rules
 - Be direct.

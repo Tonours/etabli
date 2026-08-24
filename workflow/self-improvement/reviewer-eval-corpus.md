@@ -346,3 +346,88 @@ missing-validation clause is deleted (no removal-gaming).
 can be satisfied by unverifiable prose on these clean diffs — it does not run a
 reviewer. A live spot-check (one clean PR through the skill with the new
 wording, expecting zero findings) remains the acceptance gate.
+
+---
+
+## Run 2026-08-24 (d) — CR-A3 escaped-per-GO campaign (autoresearch)
+
+Third replay campaign on the same surface, new question. CR-A1 asked *is the
+deciding act mandated?*; CR-A2 asked *can a clause be satisfied by unverifiable
+prose on a clean diff?*; CR-A3 asks **does the skip invalidate `Verdict: GO`?**
+— the metric the loop contract names as its target: escaped defects per GO.
+
+### Model
+
+An escaped defect is one that ships behind a GO the contract itself accepts:
+
+```
+escape(d) = NOT ( surface mandates d's deciding act
+                  AND  skipping that act invalidates Verdict: GO )
+```
+
+Pilot ledger: 20 real GO-marked review events — the two defect-carrying PRs
+above (#1810 with R-001..R-004, #9917 with R-005) plus 18 clean gate-passed PRs
+(H-007/#1809, C-01..C-08, and nine further etabli work commits). Defect events
+keep their historical GO WITH NOTES (caught defects become fixed-before-ship
+notes, as the corpus records for the two v2 findings); clean events must all
+still reach GO (`go_rate_clean` 1.00 — a contract that stops issuing GOs is
+broken, not better). No denominator is winnable by blocking clean diffs.
+
+### Baseline: escaped_per_go 0.25 (5/20)
+
+CR-A1's replay scored all five R-cases "caught" at the mandating level. At the
+GO level they were not: the surface offered two skips that kept `Verdict: GO`
+valid —
+
+1. every lens row could be left `not run` (the rubric blocked GO only on
+   *empty deciding-code rows*, never on `not run` lens rows), so R-001..R-004
+   could all ship behind a GO with the lens table visibly skipped;
+2. the whole-diff `n/a — no runtime behavior` was an unverifiable own-condition
+   (the same class CR-A2 barred for findings), so the deciding-code table —
+   the only catcher of R-005's capture-window writers row — was omittable.
+
+Same adversary as CR-A2, other direction: the checklist-reporting reviewer
+satisfying the letter of the output contract.
+
+### The two levers (both lever-1, output contract)
+
+- **Lens rows**: on a `Verdict: GO`, every lens row carries `file:line`,
+  `absent`, or `deferred: Standards hunter` — a `not run` row blocks GO the
+  same way an empty deciding-code row does (Convention §5's no-skill,
+  no-sibling `not run` stays a recorded gap, never a pass). A skip is not a
+  result.
+- **Whole-diff `n/a`**: now an artifact-backed claim — the row lists every
+  changed path, and each must be a document or pure rename; any other changed
+  path makes rows mandatory and the bare `n/a` an invalid skip.
+
+Mirrored compactly in the hunter template and the `code-review` skill. Result:
+**escaped_per_go 0.00 (0/20)**, `deciding_code_complete_rate` 0.00 → **1.00**
+(the GO gate now enforces complete deciding code), with recall 1.00,
+precision_clean 1.00, held_out 1.00, H-006/H-007 clean, lens budget 8/8, union
+surface 13 389 B (+8.7% over the CR-A1 base 12 321 B, cap 15%).
+
+Mutation-checked at clause level (wording-independent ablation): deleting every
+lens-block clause re-escapes R-001..R-004 (≥ 4); deleting every n/a-artifact
+clause re-escapes R-005. The v1 tree still anchors at 5 escapes.
+
+### Pipeline wiring (the "log vide" half of the topic)
+
+`review-metrics.md` had zero rows, so the metric read `—`. Seventeen real etabli
+GO events were backfilled (unknown fields left `n/a`/`unrecorded`, never
+invented; work-stack events stay out per the storage rule), the loop contract
+now appends the row **at the GO** (a GO with no row is an incomplete review
+output — an unlogged GO silently shrinks the denominator), and the
+escaped-defect template records its `metrics_row` side effect (update the PR's
+row, never a second row). The bench enforces all-or-nothing coverage,
+one-row-per-PR, and `escaped_later 0` on backfilled rows.
+
+### Limits
+
+Same as CR-A1/A2 (contract-level replay, no live reviewer; a live confirmation
+pass remains the acceptance gate), plus two CR-A3-specific ones: per-behavior
+deciding-code row enumeration is not mechanically forcible (a multi-behavior
+diff can carry one row; only the whole-diff `n/a` is bar-able), and the "row
+filled with a citation, conclusion wrong" shape (R-005's v2 miss, `evidence_bar`)
+remains beyond any output contract by the loop contract's own measurement.
+f-f-z#45 (`retrieval_gap`) is excluded from the ledger: the repo holds no case
+detail for it, so it cannot be replayed honestly.
