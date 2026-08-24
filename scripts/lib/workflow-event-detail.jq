@@ -419,4 +419,148 @@ def legacy_detail($event):
     false
   end;
 
-if $strict then strict_detail($event) else legacy_detail($event) end
+#
+# ---------------------------------------------------------------------------
+# Batch/ledger mode (--arg mode=batch): the whole-ledger structural check for
+# scripts/workflow-event validate. One jq invocation replaces the previous
+# per-line spawn loop (~7 jq per line) plus the measurement-uniqueness pass
+# plus the profile checks. Input is the RAW ledger text (jq -Rs); output is
+# seven plain lines consumed by validate_ledger_file():
+#   1 status (OK|ERR)
+#   2 error message ("-" when none)
+#   3 terminal event ("" when none)
+#   4 has_measurement (1|0)
+#   5 legacy_post_terminal (count of post-terminal lines)
+#   6 event count
+#   7 terminal line number (0 when none)
+# Per-line check order and message texts match the historic bash loop exactly:
+# invalid json, invalid timestamp, timestamp moved backwards, unknown event
+# type, unsupported schema_version, event follows terminal, run mismatch,
+# invalid detail. Single-detail mode (--arg mode=single) keeps the historic
+# one-detail contract used by detail_valid().
+# ---------------------------------------------------------------------------
+def ts_iso: type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$");
+
+def batch_line($entry; $st; $slug; $list):
+  $entry.n as $n
+  | $entry.v as $v
+  | if ($v | type) == "object" and $v.__parse_error == true
+    then {err: "line \($n): invalid json"}
+  elif ($v | type) != "object"
+    then {err: "line \($n): invalid timestamp"}
+  elif (($v.ts // null) | ts_iso) | not
+    then {err: "line \($n): invalid timestamp"}
+  elif $st.prev != null and $v.ts < $st.prev
+    then {err: "line \($n): timestamp moved backwards"}
+  else
+    (if ($v.event // null) == null then "" else ($v.event | tostring) end) as $event
+    | if ($event | IN($list[])) | not
+      then {err: "line \($n): unknown event type \($event)"}
+    else
+      (if ($v.schema_version // null) == null then "legacy" else ($v.schema_version | tostring) end) as $sv
+      | if ($sv | IN("legacy", "1", "2")) | not
+        then {err: "line \($n): unsupported schema_version \($sv)"}
+      elif $st.term_line > 0 and ($sv == "2" or $st.term_sv == "2")
+        then {err: "line \($n): event follows terminal \($st.term) at line \($st.term_line)"}
+      elif (if ($v.run // null) == null then "" else ($v.run | tostring) end) != $slug
+        then {err: "line \($n): run does not match \($slug)"}
+      elif (($v.detail // null) | if $sv == "2" then strict_detail($event) else legacy_detail($event) end) | not
+        then {err: "line \($n): invalid detail for \($event)"}
+      else
+        {ts: $v.ts, event: $event, sv: $sv,
+         legacy: ($st.term_line > 0),
+         terminal: ($event == "completed" or $event == "blocked")}
+      end
+    end
+  end;
+
+def autonomous_profile_error($values; $st; $label; $strict):
+  (["route_decided","plan_created","adversary_completed","file_changed","validation_run","simplification_completed","review_completed","outcome_metric","archive_written","plan_removed"]) as $required
+  | ([
+      (if $st.term != "completed" then "profile \($label) requires final completed event" else null end),
+      ($required | map(. as $req
+          | if ([$values[] | select(.event == $req)] | length) == 0
+            then "profile \($label) missing \($req)" else null end)),
+      (["plan", "code_diff"] | map(. as $mode
+          | if ([$values[] | select(.event == "adversary_completed" and .detail.mode == $mode)] | length) == 0
+            then "profile \($label) missing adversary mode \($mode)" else null end)),
+      (if $strict then
+        (["validation", "review", "archive", "completion"] | map(. as $kind
+            | if ([$values[] | select(.event == "runtime_receipt"
+                  and .detail.kind == $kind
+                  and .detail.cryptographic == false
+                  and .detail.observed_by == "parent-process")] | length) == 0
+              then "profile \($label) missing runtime_receipt kind \($kind)" else null end))
+        , (if (([$values[] | select(.event == "harness_validation_completed")] | length) > 0)
+          and (([$values[] | select(.event == "harness_validation_completed"
+                and (.detail.candidate_fingerprint // null) != null
+                and (.detail.evaluator_manifest_sha256 // null) != null)] | length)
+               != ([$values[] | select(.event == "harness_validation_completed")] | length))
+          then "profile \($label) requires candidate_fingerprint and evaluator_manifest_sha256 on every harness_validation_completed"
+          else null end)
+        else null end),
+      (if $strict then null
+       else
+         (([$values | to_entries[] | select(.value.event == "file_changed") | .key] | last // -1)) as $lc
+         | (([$values | to_entries[] | select(.value.event == "validation_run") | .key] | last // -1)) as $lv
+         | if $lc >= 0 and $lv <= $lc
+           then "profile \($label) requires validation after last file change" else null end
+       end)
+    ] | flatten | map(select(. != null)) | first) // null;
+
+def batch_ledger($slug; $profile; $list):
+  (split("\n") | if length > 0 and .[-1] == "" then .[:-1] else . end) as $lines
+  | ([range(0; ($lines | length)) as $i
+      | {n: ($i + 1), v: (try ($lines[$i] | fromjson) catch {__parse_error: true})}]) as $entries
+  | (reduce $entries[] as $entry (
+      {err: null, prev: null, term: "", term_line: 0, term_sv: "", legacy: 0};
+      if .err != null then .
+      else (batch_line($entry; .; $slug; $list)) as $r
+        | if $r.err != null then .err = $r.err
+          else
+            {err: null,
+             prev: $r.ts,
+             term: (if $r.terminal then $r.event else .term end),
+             term_line: (if $r.terminal then $entry.n else .term_line end),
+             term_sv: (if $r.terminal then $r.sv else .term_sv end),
+             legacy: (if $r.legacy then .legacy + 1 else .legacy end)}
+          end
+      end)) as $st
+  | ($entries | length) as $count
+  | ([$entries[] | .v | select((type == "object") and .__parse_error != true)]) as $values
+  | ([$values[] | select(.event == "outcome_measurement_population") | .detail]) as $pops
+  | ([$values[] | select(.event == "outcome_measurement_imported") | .detail]) as $imps
+  | ((($pops | length) + ($imps | length)) > 0) as $hasm
+  | (if ($pops | length) == 0 and ($imps | length) == 0 then null
+     elif (all($pops[]; ([.targets[].target_run] | unique | length) == (.targets | length)))
+      and (($imps | map(.import_id) | unique | length) == ($imps | length))
+      and (all($imps[]; . as $import
+          | ([$pops[] | select(.population_id == $import.population_id)] | length) == 1
+            and ([$pops[] | select(.population_id == $import.population_id) | .targets[]
+                 | select(.target_run == $import.target_run
+                     and .target_ledger_sha256 == $import.target_ledger_sha256
+                     and .target_terminal == $import.target_terminal
+                     and .target_terminal_event_sha256 == $import.target_terminal_event_sha256
+                     and .target_outcome_event_sha256 == $import.target_outcome_event_sha256)] | length) == 1))
+      and (($imps | group_by(.target_run) | all(.[]; length == 1)))
+     then null
+     else "measurement imports must be unique members of exactly one matching population"
+     end) as $measure_err
+  | (if $st.legacy == 0 and $st.term_line > 0 and $st.term_line != $count
+     then "terminal event must be last (line \($st.term_line) of \($count))" else null end) as $term_err
+  | (if $profile == "structural" then null
+     elif $profile == "autonomous-completed" then autonomous_profile_error($values; $st; "autonomous-completed"; false)
+     elif $profile == "autonomous-completed-strict" then autonomous_profile_error($values; $st; "autonomous-completed-strict"; true)
+     elif $profile == "blocked-terminal"
+     then (if $st.term != "blocked" then "profile blocked-terminal requires final blocked event" else null end)
+     else "unknown validation profile: \($profile)"
+     end) as $profile_err
+  | ([$st.err, $term_err, $measure_err, $profile_err] | map(select(. != null)) | first) as $err
+  | (([$values[] | select(.schema_version == 2 and .event == "route_decided" and .detail.route == "plan-implement")] | length) > 0) as $has_v2
+  | "\(if $err == null then "OK" else "ERR" end)\n\($err // "-")\n\($st.term)\n\(if $hasm then 1 else 0 end)\n\($st.legacy)\n\($count)\n\($st.term_line)\n\(if $has_v2 then 1 else 0 end)";
+
+if $mode == "batch" then
+  batch_ledger($slug; $profile; $allowed)
+else
+  if $strict then strict_detail($event) else legacy_detail($event) end
+end
