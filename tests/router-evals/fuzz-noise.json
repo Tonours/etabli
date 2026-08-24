@@ -1,0 +1,93 @@
+[
+  {
+    "name": "fuzz: long context lint fix is a direct edit",
+    "category": "fuzz-noise",
+    "prompt": "Contexte: on migre vers node 22, la CI casse sur le job lint depuis le commit abc123. Corrige le job lint.",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: code block then rename is a direct edit",
+    "category": "fuzz-noise",
+    "prompt": "```\nexport function foo() {}\n```\nrenomme foo en bar",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: multiline polite plan ask routes to plan-loop",
+    "category": "fuzz-noise",
+    "prompt": "Bonjour,\npeux-tu faire un plan pour la migration du module ?\nMerci",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: very long bounded off-by-one fix is a direct edit",
+    "category": "fuzz-noise",
+    "prompt": "Depuis la refonte du pipeline de données, le rapport hebdomadaire du lundi plante aléatoirement sur la deuxième page, le client est remonté, et le support a ouvert trois tickets. Corrige l'off-by-one dans la boucle de pagination.",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: franglais fix request is a direct edit",
+    "category": "fuzz-noise",
+    "prompt": "please corrige the bug in le parser",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: emoji-decorated fix request is a direct edit",
+    "category": "fuzz-noise",
+    "prompt": "🔥 corrige le crash au démarrage 🔥",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: polite PR review request routes to pr-review",
+    "category": "fuzz-noise",
+    "prompt": "Fais une review du PR s'il te plaît, merci !",
+    "expectedRoute": "pr-review",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: stp-prefixed fix is a direct edit",
+    "category": "fuzz-noise",
+    "prompt": "stp corrige le warning",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: polite show-me-how question stays answer",
+    "category": "fuzz-readonly-question",
+    "prompt": "peux-tu me montrer comment le fix fonctionne ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: polite summarize fix diff stays answer",
+    "category": "fuzz-readonly-question",
+    "prompt": "Pourrais-tu résumer la diff du fix de login ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: mid-prompt question then imperative fix is a direct edit",
+    "category": "fuzz-combined",
+    "prompt": "Pourquoi le build échoue ? corrige le maintenant",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: objective then detailed plan ask routes to plan-loop",
+    "category": "fuzz-noise",
+    "prompt": "objectif: refonte complète du module search\nfais-moi un plan détaillé",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: show last commit diff stays answer",
+    "category": "fuzz-readonly-question",
+    "prompt": "Montre le diff du dernier commit",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  }
+]

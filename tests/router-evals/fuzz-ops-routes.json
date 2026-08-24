@@ -1,0 +1,177 @@
+[
+  {
+    "name": "fuzz: rm -rf reinstall routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "rm -rf node_modules et réinstalle tout",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: git push origin main routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "git push origin main",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: force-with-lease push routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "git push --force-with-lease sur main",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: deploy to production tonight routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "deploy la nouvelle version en production ce soir",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: drop staging database routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "Supprime la base de données de staging",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: truncate sessions table routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "truncate la table sessions",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: rotate aws credentials routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "rotate les credentials AWS avant l'audit",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: delete from users routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "delete from users where stale=1",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: drop audit log table routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "drop table audit_log",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: remove obsolete comment line is a direct edit",
+    "category": "fuzz-ops-stop-negative",
+    "prompt": "Supprime le commentaire obsolète à la ligne 42 de src/a.ts",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: rename local branch is a direct edit",
+    "category": "fuzz-ops-stop-negative",
+    "prompt": "Renomme la branche locale feature-x en feature-y",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: delete applied migration file is a direct edit",
+    "category": "fuzz-ops-stop-negative",
+    "prompt": "Supprime la migration déjà appliquée du dossier migrations/",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: verify that the login fix passes routes to verify",
+    "category": "fuzz-verify",
+    "prompt": "Vérifie que le fix du login passe les tests",
+    "expectedRoute": "verify",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: verify that issue 12 fix works routes to verify",
+    "category": "fuzz-verify",
+    "prompt": "verify that the fix for issue 12 actually works",
+    "expectedRoute": "verify",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: prove timezone correction works routes to verify",
+    "category": "fuzz-verify",
+    "prompt": "Prouve que la correction du bug de timezone fonctionne",
+    "expectedRoute": "verify",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: retest suite after patch routes to verify",
+    "category": "fuzz-verify",
+    "prompt": "Retest la suite après le patch",
+    "expectedRoute": "verify",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: rerun unit tests routes to verify",
+    "category": "fuzz-verify",
+    "prompt": "Relance les tests unitaires sur le module cache",
+    "expectedRoute": "verify",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: proofread new architecture before merge routes to review",
+    "category": "fuzz-review",
+    "prompt": "Relis bien la nouvelle archi avant de merger",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: critique cache implementation without editing routes to review",
+    "category": "fuzz-review",
+    "prompt": "Critique mon implémentation du cache, sans éditer",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: harden plan with adversarial pass routes to adversary",
+    "category": "fuzz-adversary",
+    "prompt": "Durcis le plan avec une passe adversariale",
+    "expectedRoute": "adversary",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: counter-review the plan before implementing routes to adversary",
+    "category": "fuzz-adversary",
+    "prompt": "Fais un contre-review du plan avant d'implémenter",
+    "expectedRoute": "adversary",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: find sources of memory leak routes to research-plan",
+    "category": "fuzz-research",
+    "prompt": "Cherche les sources du leak mémoire et documente-les",
+    "expectedRoute": "research-plan",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fact-check latency benchmark claim routes to research-plan",
+    "category": "fuzz-research",
+    "prompt": "Fact-check ce claim sur le benchmark de latence",
+    "expectedRoute": "research-plan",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix broken github actions workflow is a direct edit",
+    "category": "fuzz-research-negative",
+    "prompt": "github actions ne passe plus, corrige le workflow",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: help me build the v2 spec routes to spec-guide",
+    "category": "fuzz-spec-guide",
+    "prompt": "Aide-moi à construire la spec de la v2",
+    "expectedRoute": "spec-guide",
+    "writeAllowed": true
+  }
+]

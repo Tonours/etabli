@@ -1,0 +1,83 @@
+[
+  {
+    "name": "fuzz: review PR 128 routes to pr-review",
+    "category": "fuzz-pr",
+    "prompt": "review la PR #128",
+    "expectedRoute": "pr-review",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: QA plan for PR 90 routes to pr-qa",
+    "category": "fuzz-pr",
+    "prompt": "Fais une QA plan de la PR 90",
+    "expectedRoute": "pr-qa",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: dependabot PR security analysis routes to sec-pr",
+    "category": "fuzz-pr",
+    "prompt": "analyse la sécurité de la PR dependabot #42",
+    "expectedRoute": "sec-pr",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: fix broken link in PR description is a direct edit",
+    "category": "fuzz-pr-negative",
+    "prompt": "corrige le lien cassé dans la description de la PR",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: summarize PR 55 stays answer",
+    "category": "fuzz-pr-negative",
+    "prompt": "summarize PR #55 for me",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: prepare for review routes to plan-implement",
+    "category": "fuzz-pr",
+    "prompt": "prepare it for review",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: slash command stays answer",
+    "category": "fuzz-misc",
+    "prompt": "/spec",
+    "expectedRoute": "answer"
+  },
+  {
+    "name": "fuzz: empty prompt stays answer",
+    "category": "fuzz-misc",
+    "prompt": "",
+    "expectedRoute": "answer"
+  },
+  {
+    "name": "fuzz: whitespace prompt stays answer",
+    "category": "fuzz-misc",
+    "prompt": "   ",
+    "expectedRoute": "answer"
+  },
+  {
+    "name": "fuzz: update CI config for node 22 is a direct edit",
+    "category": "fuzz-ci",
+    "prompt": "mets à jour la ci pour node 22",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: autonomous green CI request routes to ci-fix",
+    "category": "fuzz-ci",
+    "prompt": "ci verte stp, autonomie max",
+    "expectedRoute": "ci-fix",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: polite linear ticket creation routes to linear-ticket-create",
+    "category": "fuzz-linear",
+    "prompt": "Peux-tu créer un ticket Linear pour le crash au démarrage ?",
+    "expectedRoute": "linear-ticket-create",
+    "writeAllowed": true
+  }
+]
