@@ -1,12 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import {
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	symlinkSync,
-	writeFileSync,
-} from "node:fs";
+import { describe, beforeAll, afterAll, expect, test } from "bun:test";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import workflowRouter from "../workflow-router.ts";
@@ -15,6 +8,28 @@ type Handler = (
 	event: Record<string, unknown>,
 	ctx?: Record<string, unknown>,
 ) => unknown;
+
+// Minimal `obvault route` stub (same JSON contract as
+// tests/fixtures/obvault-meta/obvault) as a /bin/sh script: each spawn costs
+// ~5ms instead of a ~45ms node startup.
+const ROUTE_STUB = `#!/bin/sh
+set -eu
+if [ "\${1:-}" != "route" ] || [ "\${2:-}" != "--json" ]; then
+  exit 1
+fi
+prompt="\${3-}"
+if case "$prompt" in (*[Ff][Ii][Nn][Oo][Pp][Ss]*) true;; (*) false;; esac && [ -f "\${OBVAULT_ROOT:-/nonexistent}/kb/finops-cost-controls.md" ]; then
+  printf '%s\\n' '{"abstained":false,"topics":["finops"],"query":"finops aws billing controls cloud cost","matched_notes":[{"path":"kb/finops-cost-controls.md"}]}'
+else
+  printf '%s\\n' '{"abstained":true,"topics":[],"query":"","matched_notes":[]}'
+fi
+`;
+
+function writeRouteStub(root: string) {
+	mkdirSync(join(root, "_meta"), { recursive: true });
+	writeFileSync(join(root, "_meta", "obvault"), ROUTE_STUB, { mode: 0o755 });
+	chmodSync(join(root, "_meta", "obvault"), 0o755);
+}
 
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
@@ -64,6 +79,22 @@ function setupExtension(
 }
 
 describe("workflow router extension", () => {
+	// Hermeticity: default-root discovery would find the developer's real
+	// ~/work/obvault vault and spawn its node-based `_meta/obvault route`
+	// binary once per before_agent_start emit (~100ms each), making the suite
+	// both slow and environment-dependent. Point OBVAULT_ROOT at an opted-out
+	// path (exclusive semantics, see obvault-topic-resolver tests) so routing
+	// behaves exactly as on a machine without a vault. The dedicated dynamic
+	// test below overrides this with its own fixture root.
+	const previousObvaultRoot = process.env.OBVAULT_ROOT;
+	beforeAll(() => {
+		process.env.OBVAULT_ROOT = "/nonexistent-obvault-for-tests";
+	});
+	afterAll(() => {
+		if (previousObvaultRoot === undefined) delete process.env.OBVAULT_ROOT;
+		else process.env.OBVAULT_ROOT = previousObvaultRoot;
+	});
+
 	test("uses actual PLAN.md status before routing to implement", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-ready-plan-"));
@@ -755,11 +786,7 @@ tags:
 # FinOps Cost Controls
 `,
 			);
-			symlinkSync(
-				join(import.meta.dir, "../../../tests/fixtures/obvault-meta"),
-				join(root, "_meta"),
-				"dir",
-			);
+			writeRouteStub(root);
 			process.env.OBVAULT_ROOT = root;
 
 			const results = runtime.emit("before_agent_start", {
