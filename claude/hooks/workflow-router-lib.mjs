@@ -13,134 +13,209 @@ import {
 import { isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
 
 const REVIEW_TERMS = "review(?:er|ing)?|revue|relis|audit|critique|findings?";
-const REVIEW_PATTERN = new RegExp(`\\b(${REVIEW_TERMS})\\b`, "i");
+const REVIEW_PATTERN = new RegExp(`\\b(${REVIEW_TERMS})\\b`);
 const EXPLICIT_REVIEW_PATTERN =
-	/\b(review(?:er|ing)?|revue|relis|audit|critique)\b/i;
+	/\b(review(?:er|ing)?|revue|relis|audit|critique)\b/;
 const ADVERSARY_PATTERN =
-	/\b(adversary|adversarial|contre[- ]?review|contre[- ]?revue|cross[- ]?model|plan hardening|hardens? le plan|durcis le plan)\b/i;
+	/\b(adversary|adversarial|contre[- ]?review|contre[- ]?revue|cross[- ]?model|plan hardening|hardens? le plan|durcis le plan)\b/;
 const ADVERSARY_PLAN_CONTEXT_PATTERN =
-	/\b(plan\.md|plan|plan hardening|hardens? le plan|durcis le plan)\b/i;
+	/\b(plan\.md|plan|plan hardening|hardens? le plan|durcis le plan)\b/;
 const READ_ONLY_REVIEW_OVERRIDE_PATTERN =
-	/\b(read[- ]?only|lecture seule|sans modifier|sans [eé]diter|do not edit|do not modify|ne modifie pas|n['’]?edite pas|n['’]?édite pas)\b/i;
+	/\b(read[- ]?only|lecture seule|sans modifier|sans [eé]diter|do not edit|do not modify|ne modifie pas|n['’]?edite pas|n['’]?édite pas)\b/;
 const VERIFY_PATTERN =
-	/\b(verify|v[eé]rifie|prouve|retest|relance les tests|completion audit)\b/i;
+	/\b(verify|v[eé]rifie|prouve|retest|relance les tests|completion audit)\b/;
 const PLAN_PATTERN =
-	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/i;
+	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/;
 // An explicit planning ask ("fais un plan", "draft a roadmap") outranks every
 // implementation signal: the user asked for a plan, not for an edit.
 const PLAN_REQUEST_PATTERN =
-	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b[\s\S]{0,24}\b(plan|roadmap|strat[eé]gie)\b|\b(plan|roadmap)\s+(seul|only)\b/i;
+	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b[\s\S]{0,24}\b(plan|roadmap|strat[eé]gie)\b|\b(plan|roadmap)\s+(seul|only)\b/;
 const SPEC_GUIDE_PATTERN =
-	/(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/iu;
-const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/iu;
+	/(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/u;
+const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/u;
 const SPEC_CREATE_VERB_PATTERN =
-	/(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/iu;
+	/(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/u;
 const IMPLEMENT_PATTERN =
-	/\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/i;
+	/\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/;
 const READY_PLAN_PATTERN =
-	/\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/i;
+	/\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/;
 const AUTONOMOUS_PLAN_LOOP_PATTERN =
-	/\b(plan-loop|plan loop|plan puis impl[eé]mente|plan[- ]?implement|jusqu[' ]?au bout|jusqu[' ]?[aà] la fin|en autonomie|tout seul|encha[iî]ne|encha[iî]ner|continue jusqu)\b/i;
+	/\b(plan-loop|plan loop|plan puis impl[eé]mente|plan[- ]?implement|jusqu[' ]?au bout|jusqu[' ]?[aà] la fin|en autonomie|tout seul|encha[iî]ne|encha[iî]ner|continue jusqu)\b/;
 const SELF_IMPROVEMENT_PATTERN =
-	/\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospective\s+(?:loop|findings)|recurring\s+(?:findings|failures|issues))\b/i;
+	/\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospective\s+(?:loop|findings)|recurring\s+(?:findings|failures|issues))\b/;
 const AMBITIOUS_PROJECT_PATTERN =
-	/\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/i;
+	/\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/;
 const RESEARCH_PATTERN =
-	/\b(recherche|sourc[eé]|fact[- ]?check|sources?|benchmark|github|existe d[eé]j[aà])\b/i;
+	/\b(recherche|sourc[eé]|fact[- ]?check|sources?|benchmark|github|existe d[eé]j[aà])\b/;
 const IMPLEMENT_NEGATION_PATTERN =
-	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/i;
+	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/;
 // Explicit large-work signals: these are the only implement-phrased requests
 // that still route to plan-implement without an existing READY plan or an
 // explicit plan ask. Ordinary bounded fixes edit directly (spec routing row:
 // "Ordinary coding ... -> answer | code/docs").
 const LARGE_CHANGE_PATTERN =
-	/\b(refactor(?:ing|ise|isez|iser|isons)?|refonte|r[eé][eé]crit|rewrite|rewriting|redesign|recon[cç]oit|migration|architect(?:ure|e|ons)?\s+(?:le|la|les|the|this)?[\s\S]{0,30}(?:syst[eè]me|system|code|module|app)|multi[- ]?slice|items?\s+\d|de\s+bout\s+en\s+bout|vaste\s+(?:refonte|chang|rework)|large\s+(?:refactor|rework|chang)|many\s+files)\b/i;
+	/\b(refactor(?:ing|ise|isez|iser|isons)?|refonte|r[eé][eé]crit|rewrite|rewriting|redesign|recon[cç]oit|migration|architect(?:ure|e|ons)?\s+(?:le|la|les|the|this)?[\s\S]{0,30}(?:syst[eè]me|system|code|module|app)|multi[- ]?slice|items?\s+\d|de\s+bout\s+en\s+bout|vaste\s+(?:refonte|chang|rework)|large\s+(?:refactor|rework|chang)|many\s+files)\b/;
 const WORK_EMBEDDED_VERIFY_PATTERN =
-	/\b(merge|handoff|remaining work|inherited claims|each unit)\b/i;
+	/\b(merge|handoff|remaining work|inherited claims|each unit)\b/;
 const PREPARE_FOR_REVIEW_PATTERN =
-	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/i;
-const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/i;
+	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/;
+const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/;
 const OPS_STOP_PATTERN =
-	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/i;
+	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/;
 const EXTERNAL_WRITE_BACK_PATTERN =
-	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/i;
-const LINEAR_PATTERN = /\b(linear|linear\.app|[A-Z][A-Z0-9]{1,9}-[0-9]+)\b/i;
+	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/;
 const TICKET_CREATE_PATTERN =
-	/\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/i;
+	/\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/;
 const TICKET_WORK_PATTERN =
-	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/i;
+	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/;
 const LINEAR_EXECUTE_PATTERN =
-	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/i;
+	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/;
 const LINEAR_READ_PATTERN =
-	/\b(r[eé]sume|resume|ouvre|open|show|montre|analyse|explique|lis|read)\b/i;
+	/\b(r[eé]sume|resume|ouvre|open|show|montre|analyse|explique|lis|read)\b/;
 const READ_ONLY_PATTERN =
-	/\b(r[eé]sume|resume|summarize|explique|explain|lis|read|montre|show|d[eé]cris)\b/i;
+	/\b(r[eé]sume|resume|summarize|explique|explain|lis|read|montre|show|d[eé]cris)\b/;
+// Tested against the trimmed, lowercased prompt: no leading \s* and no
+// trailing \s* can exist, so both are dropped from the pattern.
 const QUESTION_PATTERN =
-	/^\s*(as[- ]?tu|a[- ]?t[- ]?on|as[- ]?ton|est[- ]?ce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux[- ]?tu m'expliquer|c'est quoi|y a[- ]?t[- ]?il)\b|\?\s*$/i;
+	/^(?:as-tu|as tu|astu|a-t-on|at-on|a-t on|a ton|at on|aton|as-ton|as ton|aston|est-ce|est ce|estce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux-tu m'expliquer|peux tu m'expliquer|peuxtu m'expliquer|c'est quoi|y a-t-il|y a t-il|y a t il|y at-il|y a il|ya-t-il|y a-t-il)\b|\?$/;
 const BUG_CHECK_PATTERN =
-	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/i;
+	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/;
 const PR_CONTEXT_PATTERN =
-	/\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/i;
+	/\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/;
 const PR_REVIEW_PATTERN = new RegExp(
 	`\\b(pr-review|code review|${REVIEW_TERMS})\\b`,
-	"i",
 );
 const PR_QA_PATTERN =
-	/\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/i;
+	/\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/;
 const SEC_PR_PATTERN =
-	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/i;
+	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/;
 const CI_FIX_PATTERN =
-	/\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/i;
+	/\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/;
 const MULTI_EXECUTION_OPT_OUT_PATTERN =
-	/\b(single[- ]agent|agent unique|no[- ]panel|sans panel)\b/i;
+	/\b(single[- ]agent|agent unique|no[- ]panel|sans panel)\b/;
 const KNOWLEDGE_TOPIC_RULES = [
 	{
-		topic: "saas",
+				topic: "saas",
 		pattern:
-			/\b(saas|micro[- ]?saas|mrr|arr|bootstrapp?(?:ed|ing)?|indie\s+hacker|id[eé]es?\s+(?:de\s+)?(?:startup|business|produit))\b/i,
+			/\b(saas|micro[- ]?saas|mrr|arr|bootstrapp?(?:ed|ing)?|indie\s+hacker|id[eé]es?\s+(?:de\s+)?(?:startup|business|produit))\b/,
 		query:
 			"saas opportunity product discovery buyer pain budget workflow validation",
 	},
 	{
-		topic: "ai-agents",
+				topic: "ai-agents",
 		pattern:
-			/(?<!['’])\b(ai|ia)\b|\b(llm|agents?\s+(?:ai|ia)|coding agents?|intelligence artificielle|artificial intelligence|claude|codex|mcp|rag|prompt engineering)\b/i,
+			/(?<!['’])\b(ai|ia)\b|\b(llm|agents?\s+(?:ai|ia)|coding agents?|intelligence artificielle|artificial intelligence|claude|codex|mcp|rag|prompt engineering)\b/,
 		query: "ai agents context engineering evals security interfaces economics",
 	},
 	{
 		topic: "frontend-css",
 		pattern:
-			/\b(frontend|front-end|css|react|next\.?(?:js)?|typescript|tanstack|web ui|interface utilisateur)\b/i,
+			/\b(frontend|front-end|css|react|next\.?(?:js)?|typescript|tanstack|web ui|interface utilisateur)\b/,
 		query:
 			"frontend react typescript modern css progressive enhancement user interface",
 	},
 	{
-		topic: "web-security",
+				topic: "web-security",
 		pattern:
-			/\b(auth(?:entication|orization)?|authentification|autorisation|jwt|api keys?|webhooks?|web security|s[eé]curit[eé] web|trust boundar(?:y|ies)|isolation)\b/i,
+			/\b(auth(?:entication|orization)?|authentification|autorisation|jwt|api keys?|webhooks?|web security|s[eé]curit[eé] web|trust boundar(?:y|ies)|isolation)\b/,
 		query:
 			"web application trust boundaries runtime validation authentication authorization webhook isolation",
 	},
 	{
 		topic: "software-design",
 		pattern:
-			/\b(system design|software design|architecture logicielle|design patterns?|couplage|coh[eé]sion|refactor(?:ing)?|domain model|clean code)\b/i,
+			/\b(system design|software design|architecture logicielle|design patterns?|couplage|coh[eé]sion|refactor(?:ing)?|domain model|clean code)\b/,
 		query:
 			"software design engineering judgment responsibilities domain concepts architecture",
 	},
 	{
-		topic: "voice",
+				topic: "voice",
 		pattern:
-			/\b(voice ai|voice agents?|speech[- ]?to[- ]?text|text[- ]?to[- ]?speech|stt|tts|audio transcription|transcription audio)\b/i,
+			/\b(voice ai|voice agents?|speech[- ]?to[- ]?text|text[- ]?to[- ]?speech|stt|tts|audio transcription|transcription audio)\b/,
 		query: "voice ai speech transcription realtime agents evaluation privacy",
 	},
 	{
 		topic: "second-brain",
 		pattern:
-			/\b(knowledge base|base de connaissances|second brain|second cerveau|obvault|obsidian|m[eé]moire durable|knowledge management)\b/i,
+			/\b(knowledge base|base de connaissances|second brain|second cerveau|obvault|obsidian|m[eé]moire durable|knowledge management)\b/,
 		query: "second brain knowledge management retrieval provenance freshness",
 	},
 ];
+
+// Necessary-literal gates: a gate matches a SUPERSET of its pattern (every
+// literal that must appear for the pattern to match). Testing the cheap gate
+// first lets the common non-matching prompt skip the full alternation scan.
+const ADVERSARY_GATE = /adversa|contre|cross|hard|durcis/;
+const SELF_IMPROVEMENT_GATE = /improve|méliore|meliore|retrospect|recurring/;
+const AMBITIOUS_PROJECT_GATE = /z|bout|end|ambitio|projet|running/;
+const OPS_STOP_GATE =
+	/-rf|push|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|repo|databas|branch|bas/;
+const READ_ONLY_GATE = /\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis\b|read|montre|show|cris/;
+const RESEARCH_GATE = /recherche|sourc|fact|benchmark|github|existe d/;
+/**
+ * Exact JS equivalent of /\b[a-z][a-z0-9]{1,9}-[0-9]+\b/ on a lowercased
+ * string (the ticket-key alternative of LINEAR_PATTERN): scans dash positions
+ * directly instead of attempting the regex at every letter position.
+ */
+function hasLinearTicketKey(low) {
+	for (let i = low.indexOf("-"); i !== -1; i = low.indexOf("-", i + 1)) {
+		const next = i + 1 < low.length ? low.charCodeAt(i + 1) : 0;
+		if (next < 48 || next > 57) continue; // must start with [0-9]
+		// count contiguous [a-z0-9] before the dash (2..10 chars => {1,9} after first)
+		let j = i - 1;
+		let count = 0;
+		while (j >= 0 && count < 11) {
+			const c = low.charCodeAt(j);
+			const isLower = c >= 97 && c <= 122;
+			const isDigit = c >= 48 && c <= 57;
+			if (!isLower && !isDigit) break;
+			j--;
+			count++;
+		}
+		if (count < 2 || count > 10) continue;
+		// first char of the key must be a letter ([a-z])
+		const first = low.charCodeAt(j + 1);
+		if (first < 97 || first > 122) continue;
+		// \b before the key: start of string or a non-word char
+		if (j >= 0) {
+			const before = low.charCodeAt(j);
+			const word =
+				(before >= 97 && before <= 122) ||
+				(before >= 48 && before <= 57) ||
+				before === 95;
+			if (word) continue;
+		}
+		// \b after the digit run
+		let k = i + 1;
+		while (k < low.length) {
+			const c = low.charCodeAt(k);
+			if (c < 48 || c > 57) break;
+			k++;
+		}
+		if (k < low.length) {
+			const c = low.charCodeAt(k);
+			const word =
+				(c >= 97 && c <= 122) ||
+				(c >= 48 && c <= 57) ||
+				c === 95 ||
+				(c >= 65 && c <= 90);
+			if (word) continue;
+		}
+		return true;
+	}
+	return false;
+}
+
+const LINEAR_WORD_PATTERN = /\blinear\b/;
+const QUESTION_FIRST_CHARS = "aeqpcy";
+const SPEC_GUIDE_GATE = /spec|spéc|guide|interroge|pose|aide/;
+const PREPARE_FOR_REVIEW_GATE = /pr[ée]par|ready to paste|pr title/;
+
+// One necessary-literal scan for the whole knowledge block: no rule can match
+// unless one of these literals appears (superset per alternative, exact word
+// boundaries where a bare substring would be far too broad).
+const KNOWLEDGE_GATE =
+	/\bai\b|\bia\b|\brag\b|\barr\b|llm|mrr|mcp|css|stt|tts|jwt|saas|bootstrapp|indie|id[ée]|startup|business|produit|agent|intelligen|claude|codex|engineering|front|react|next|typescript|tanstack|web ui|interface|auth|autorisation|api|webhook|s[ée]curit|trust|isol|design|logicielle|couplage|coh|refactor|domain|clean|voice|speech|transcription|audio|knowledge|connaiss|brain|cerveau|obvault|obsidian|moire/;
 
 const READ_ONLY_BASH_COMMANDS = new Set([
 	"basename",
@@ -422,47 +497,69 @@ export function readPlanStatus(cwd) {
 	return match[1].toLowerCase();
 }
 
-function isImplementRequest(prompt) {
-	return (
-		IMPLEMENT_PATTERN.test(prompt) && !IMPLEMENT_NEGATION_PATTERN.test(prompt)
-	);
-}
-
-function isStandaloneVerifyRequest(prompt) {
-	return (
-		VERIFY_PATTERN.test(prompt) &&
-		!isImplementRequest(prompt) &&
-		!WORK_EMBEDDED_VERIFY_PATTERN.test(prompt)
-	);
-}
-
-function classifyWorkflowRouteBase(prompt, context = {}) {
+function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	const trimmed = prompt.trim();
 	const planStatus = context.planStatus || "missing";
 
 	if (trimmed === "") {
-		return answerDecision(
-			"empty prompt",
-			"No artifact",
-			"Answer delivered",
-			"None",
-		);
+		return EMPTY_PROMPT_DECISION;
 	}
 
 	if (trimmed.startsWith("/")) {
-		return answerDecision(
-			"explicit slash command",
-			"Selected command output",
-			"Command contract stop condition",
-			"Command-defined evidence",
-		);
+		return SLASH_COMMAND_DECISION;
 	}
 
 	// LINEAR_PATTERN is tested in every Linear branch below; compute once so the
-	// ~95% non-Linear prompts pay a single regex test instead of four.
-	const isLinear = LINEAR_PATTERN.test(prompt);
+	// ~95% non-Linear prompts pay a single regex test instead of four. The
+	// pattern's ticket-key alternative admits any first letter, forcing regex
+	// attempts at nearly every position; gate on its necessary literals first.
+	const isLinear = LINEAR_WORD_PATTERN.test(low) || hasLinearTicketKey(low);
 
-	if (CI_FIX_PATTERN.test(prompt)) {
+	// Per-call pattern caches: several patterns are consulted by multiple
+	// branches below (IMPLEMENT up to 7x, PREPARE_FOR_REVIEW 5x, PR_CONTEXT 4x,
+	// PLAN/AUTONOMOUS/LARGE/READ_ONLY/QUESTION/READY_PLAN 2x each). Regex .test
+	// is pure, so lazy caching preserves exact semantics while the common
+	// deep-falling prompt pays each pattern once.
+	let isImplementResult;
+	const isImplement = () =>
+		(isImplementResult ??=
+			IMPLEMENT_PATTERN.test(low) &&
+			!IMPLEMENT_NEGATION_PATTERN.test(low));
+	let prepareForReviewResult;
+	const prepareForReview = () =>
+		(prepareForReviewResult ??=
+			PREPARE_FOR_REVIEW_GATE.test(low) &&
+			PREPARE_FOR_REVIEW_PATTERN.test(low));
+	let prContextResult;
+	const hasPrContext = () =>
+		(prContextResult ??= PR_CONTEXT_PATTERN.test(low));
+	let planWordResult;
+	const hasPlanWord = () => (planWordResult ??= PLAN_PATTERN.test(low));
+	let autonomousLoopResult;
+	const hasAutonomousLoop = () =>
+		(autonomousLoopResult ??= AUTONOMOUS_PLAN_LOOP_PATTERN.test(low));
+	let largeChangeResult;
+	const isLargeChange = () =>
+		(largeChangeResult ??= LARGE_CHANGE_PATTERN.test(low));
+	let readOnlyResult;
+	const hasReadOnlySignal = () =>
+		(readOnlyResult ??=
+			READ_ONLY_GATE.test(low) && READ_ONLY_PATTERN.test(low));
+	let questionResult;
+	const isQuestion = () =>
+		(questionResult ??=
+			low.endsWith("?") ||
+			(low.length > 0 &&
+				QUESTION_FIRST_CHARS.includes(low[0]) &&
+				QUESTION_PATTERN.test(low)));
+	let readyPlanResult;
+	const hasReadyPlan = () =>
+		(readyPlanResult ??= READY_PLAN_PATTERN.test(low));
+
+	if (
+		(low.includes("ci") || low.includes("check")) &&
+		CI_FIX_PATTERN.test(low)
+	) {
 		return {
 			route: "ci-fix",
 			reason: "autonomous CI fix request",
@@ -476,8 +573,8 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 	}
 
 	if (
-		OPS_STOP_PATTERN.test(prompt) ||
-		EXTERNAL_WRITE_BACK_PATTERN.test(prompt)
+		(OPS_STOP_GATE.test(low) && OPS_STOP_PATTERN.test(low)) ||
+		EXTERNAL_WRITE_BACK_PATTERN.test(low)
 	) {
 		return {
 			route: "ops-stop",
@@ -491,7 +588,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (SEC_PR_PATTERN.test(prompt) && PR_CONTEXT_PATTERN.test(prompt)) {
+	if (hasPrContext() && SEC_PR_PATTERN.test(low)) {
 		return {
 			route: "sec-pr",
 			reason: "security PR audit request",
@@ -504,7 +601,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (PR_QA_PATTERN.test(prompt) && PR_CONTEXT_PATTERN.test(prompt)) {
+	if (hasPrContext() && PR_QA_PATTERN.test(low)) {
 		return {
 			route: "pr-qa",
 			reason: "PR QA plan request",
@@ -518,9 +615,9 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 	}
 
 	if (
-		PR_REVIEW_PATTERN.test(prompt) &&
-		PR_CONTEXT_PATTERN.test(prompt) &&
-		!PREPARE_FOR_REVIEW_PATTERN.test(prompt)
+		hasPrContext() &&
+		PR_REVIEW_PATTERN.test(low) &&
+		!prepareForReview()
 	) {
 		return {
 			route: "pr-review",
@@ -536,8 +633,8 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 
 	if (
 		isLinear &&
-		TICKET_CREATE_PATTERN.test(prompt) &&
-		!LINEAR_EXECUTE_PATTERN.test(prompt)
+		TICKET_CREATE_PATTERN.test(low) &&
+		!LINEAR_EXECUTE_PATTERN.test(low)
 	) {
 		return {
 			route: "linear-ticket-create",
@@ -553,9 +650,9 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 
 	if (
 		isLinear &&
-		BUG_CHECK_PATTERN.test(prompt) &&
-		/\bbug|bugfix|erreur|r[eé]gression|issue\b/i.test(prompt) &&
-		!LINEAR_EXECUTE_PATTERN.test(prompt)
+		BUG_CHECK_PATTERN.test(low) &&
+		/\bbug|bugfix|erreur|r[eé]gression|issue\b/i.test(low) &&
+		!LINEAR_EXECUTE_PATTERN.test(low)
 	) {
 		return {
 			route: "bug-check",
@@ -569,7 +666,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (isLinear && TICKET_WORK_PATTERN.test(prompt)) {
+	if (isLinear && TICKET_WORK_PATTERN.test(low)) {
 		return {
 			route: "linear-work",
 			reason: "Linear ticket implementation request",
@@ -583,16 +680,15 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (isLinear && LINEAR_READ_PATTERN.test(prompt)) {
-		return answerDecision(
-			"Linear issue read-only request",
-			"Linear issue summary or analysis",
-			"answer delivered",
-			"Linear MCP issue data when available",
-		);
+	if (isLinear && LINEAR_READ_PATTERN.test(low)) {
+		return LINEAR_READ_DECISION;
 	}
 
-	if (isStandaloneVerifyRequest(prompt)) {
+	if (
+		VERIFY_PATTERN.test(low) &&
+		!isImplement() &&
+		!WORK_EMBEDDED_VERIFY_PATTERN.test(low)
+	) {
 		return {
 			route: "verify-workflow",
 			reason: "workflow verification request",
@@ -607,13 +703,15 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 
 	// ADVERSARY_PATTERN / ADVERSARY_PLAN_CONTEXT_PATTERN are each tested twice below;
 	// memoize so the common non-adversary prompt pays one test each instead of two.
-	const isAdversary = ADVERSARY_PATTERN.test(prompt);
-	const isAdversaryPlanContext = ADVERSARY_PLAN_CONTEXT_PATTERN.test(prompt);
+	const isAdversary =
+		ADVERSARY_GATE.test(low) && ADVERSARY_PATTERN.test(low);
+	const isAdversaryPlanContext =
+		low.includes("plan") && ADVERSARY_PLAN_CONTEXT_PATTERN.test(low);
 
 	if (
 		isAdversary &&
 		isAdversaryPlanContext &&
-		READ_ONLY_REVIEW_OVERRIDE_PATTERN.test(prompt)
+		READ_ONLY_REVIEW_OVERRIDE_PATTERN.test(low)
 	) {
 		return {
 			route: "review",
@@ -642,11 +740,12 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 	}
 
 	if (
-		SELF_IMPROVEMENT_PATTERN.test(prompt) &&
+		SELF_IMPROVEMENT_GATE.test(low) &&
+		SELF_IMPROVEMENT_PATTERN.test(low) &&
 		!(
-			READ_ONLY_PATTERN.test(prompt) ||
-			QUESTION_PATTERN.test(trimmed) ||
-			EXPLICIT_REVIEW_PATTERN.test(prompt)
+			hasReadOnlySignal() ||
+			isQuestion() ||
+			EXPLICIT_REVIEW_PATTERN.test(low)
 		)
 	) {
 		if (planStatus === "ready") {
@@ -660,7 +759,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 				requiredEvidence:
 					"self-improvement sources, accepted/rejected candidates, focused checks, review, docs/plan archive, root PLAN.md deletion",
 				writeAllowed: true,
-				planChain: buildAutonomousPlanChain(planStatus),
+				planChain: planChainFor(planStatus),
 			};
 		}
 
@@ -674,11 +773,11 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			requiredEvidence:
 				"inspectable sources, accepted/rejected candidates, focused validation, review, archive, root PLAN.md deletion",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
-	if (REVIEW_PATTERN.test(prompt) && !PREPARE_FOR_REVIEW_PATTERN.test(prompt)) {
+	if (REVIEW_PATTERN.test(low) && !prepareForReview()) {
 		return {
 			route: "review",
 			reason: "review request",
@@ -691,7 +790,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (RESEARCH_PATTERN.test(prompt)) {
+	if (RESEARCH_GATE.test(low) && RESEARCH_PATTERN.test(low)) {
 		return {
 			route: "research-plan",
 			reason: "source-backed research request",
@@ -705,19 +804,17 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 	}
 
 	if (
-		(READ_ONLY_PATTERN.test(prompt) || QUESTION_PATTERN.test(trimmed)) &&
-		!isImplementRequest(prompt) &&
-		!PREPARE_FOR_REVIEW_PATTERN.test(prompt)
+		(hasReadOnlySignal() || isQuestion()) &&
+		!isImplement() &&
+		!prepareForReview()
 	) {
-		return answerDecision(
-			"read-only, question, or summary request",
-			"None",
-			"answer delivered",
-			"None",
-		);
+		return READ_ONLY_ANSWER_DECISION;
 	}
 
-	if (AMBITIOUS_PROJECT_PATTERN.test(prompt)) {
+	if (
+		AMBITIOUS_PROJECT_GATE.test(low) &&
+		AMBITIOUS_PROJECT_PATTERN.test(low)
+	) {
 		if (planStatus === "ready") {
 			return {
 				route: "implement",
@@ -730,7 +827,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 				requiredEvidence:
 					"actual READY plan, slice validation, review/dogfood evidence when relevant, archive, and handoff",
 				writeAllowed: true,
-				planChain: buildAutonomousPlanChain(planStatus),
+				planChain: planChainFor(planStatus),
 			};
 		}
 
@@ -745,15 +842,13 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			requiredEvidence:
 				"goal/spec/slice contract, focused validation, product dogfood when relevant, review, event ledger, archive, handoff",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
 	if (
 		planStatus === "ready" &&
-		(READY_PLAN_PATTERN.test(prompt) ||
-			isImplementRequest(prompt) ||
-			PREPARE_FOR_REVIEW_PATTERN.test(prompt))
+		(hasReadyPlan() || isImplement() || prepareForReview())
 	) {
 		return {
 			route: "implement",
@@ -763,11 +858,11 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			stopCondition: "validated archive written and root PLAN.md deleted",
 			requiredEvidence: "PLAN.md checks passed and archive created",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
-	if (READY_PLAN_PATTERN.test(prompt)) {
+	if (hasReadyPlan()) {
 		return {
 			route: "plan-implement",
 			reason:
@@ -779,11 +874,11 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			requiredEvidence:
 				"root PLAN.md Status: READY before implementation, focused validation, review, archive, root PLAN.md deletion",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
-	if (PLAN_PATTERN.test(prompt) && AUTONOMOUS_PLAN_LOOP_PATTERN.test(prompt)) {
+	if (hasPlanWord() && hasAutonomousLoop()) {
 		return {
 			route: "plan-implement",
 			reason: "autonomous plan-loop request",
@@ -795,16 +890,16 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			requiredEvidence:
 				"actual PLAN.md status, focused validation, review, docs/plan archive, deleted root PLAN.md",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
 	if (
-		SPEC_GUIDE_PATTERN.test(prompt) ||
-		(SPEC_INTENT_PATTERN.test(prompt) &&
-			SPEC_CREATE_VERB_PATTERN.test(prompt) &&
-			!PR_CONTEXT_PATTERN.test(prompt) &&
-			!LINEAR_PATTERN.test(prompt))
+		(SPEC_GUIDE_GATE.test(low) && SPEC_GUIDE_PATTERN.test(low)) ||
+		(SPEC_INTENT_PATTERN.test(low) &&
+			SPEC_CREATE_VERB_PATTERN.test(low) &&
+			!hasPrContext() &&
+			!isLinear)
 	) {
 		return {
 			route: "spec-guide",
@@ -821,7 +916,7 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		};
 	}
 
-	if (PLAN_REQUEST_PATTERN.test(prompt)) {
+	if (PLAN_REQUEST_PATTERN.test(low)) {
 		return {
 			route: "plan-loop",
 			reason: "explicit planning request",
@@ -836,9 +931,9 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 	}
 
 	if (
-		PLAN_PATTERN.test(prompt) &&
-		!isImplementRequest(prompt) &&
-		!LARGE_CHANGE_PATTERN.test(prompt)
+		hasPlanWord() &&
+		!isImplement() &&
+		!isLargeChange()
 	) {
 		return {
 			route: "plan-loop",
@@ -854,9 +949,9 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 	}
 
 	if (
-		PREPARE_FOR_REVIEW_PATTERN.test(prompt) ||
-		LARGE_CHANGE_PATTERN.test(prompt) ||
-		(isImplementRequest(prompt) && AUTONOMOUS_PLAN_LOOP_PATTERN.test(prompt))
+		prepareForReview() ||
+		isLargeChange() ||
+		(isImplement() && hasAutonomousLoop())
 	) {
 		return {
 			route: "plan-implement",
@@ -867,12 +962,12 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			requiredEvidence:
 				"root PLAN.md Status: READY before implementation; adversary; focused validation; review; docs/plan archive; root PLAN.md deletion; handoff",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
 	if (
-		isImplementRequest(prompt) &&
+		isImplement() &&
 		(planStatus === "missing" || planStatus === "unknown")
 	) {
 		// Ordinary bounded coding with no recognized planning lock (missing or
@@ -880,12 +975,10 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 		// per spec routing. An active plan cycle (draft or challenged) never
 		// bypasses the plan; explicit plan asks and multi-slice signals never
 		// reach this branch.
-		return directEditDecision(
-			"ordinary coding request: direct edit without a plan",
-		);
+		return DIRECT_EDIT_DECISION;
 	}
 
-	if (isImplementRequest(prompt)) {
+	if (isImplement()) {
 		// An implement request while a plan cycle is active (draft or
 		// challenged): resume the plan cycle instead of editing around it.
 		return {
@@ -897,38 +990,35 @@ function classifyWorkflowRouteBase(prompt, context = {}) {
 			requiredEvidence:
 				"root PLAN.md Status: READY before implementation; adversary; focused validation; review; docs/plan archive; root PLAN.md deletion; handoff",
 			writeAllowed: true,
-			planChain: buildAutonomousPlanChain(planStatus),
+			planChain: planChainFor(planStatus),
 		};
 	}
 
-	if (PROMPT_ARTIFACT_PATTERN.test(prompt)) {
-		return answerDecision(
-			"prompt artifact request",
-			"prompt artifact",
-			"prompt delivered",
-			"User-facing prompt text",
-		);
+	if (PROMPT_ARTIFACT_PATTERN.test(low)) {
+		return PROMPT_ARTIFACT_DECISION;
 	}
 
-	return answerDecision(
-		"simple answer or unclear low-risk request",
-		"None",
-		"answer delivered",
-		"None",
-	);
+	return SIMPLE_ANSWER_DECISION;
 }
 
-export function classifyKnowledgeContext(prompt) {
+export function classifyKnowledgeContext(prompt, low) {
 	const trimmed = prompt.trim();
 	if (trimmed === "" || trimmed.startsWith("/")) return null;
 
-	const matches = KNOWLEDGE_TOPIC_RULES.filter((rule) =>
-		rule.pattern.test(prompt),
-	);
-	if (matches.length === 0) return null;
+	const lowered = low ?? trimmed.toLowerCase();
+	const topics = [];
+	const queries = [];
+	if (!KNOWLEDGE_GATE.test(lowered)) return null;
 
-	const topics = matches.map((match) => match.topic);
-	const query = matches.map((match) => match.query).join(" ");
+	for (const rule of KNOWLEDGE_TOPIC_RULES) {
+		if (rule.pattern.test(lowered)) {
+			topics.push(rule.topic);
+			queries.push(rule.query);
+		}
+	}
+	if (topics.length === 0) return null;
+
+	const query = queries.join(" ");
 	return {
 		topics,
 		query,
@@ -938,19 +1028,30 @@ export function classifyKnowledgeContext(prompt) {
 }
 
 export function classifyWorkflowRoute(prompt, context = {}) {
-	const decision = classifyWorkflowRouteBase(prompt, context);
+	const low = prompt.trim().toLowerCase();
+	const decision = classifyWorkflowRouteBase(prompt, low, context);
 	const knowledgeContext =
-		classifyKnowledgeContext(prompt) || context.dynamicKnowledgeContext || null;
-	const multiExecution = classifyMultiExecution(prompt, decision.route);
+		classifyKnowledgeContext(prompt, low) || context.dynamicKnowledgeContext || null;
+	const multiExecution = classifyMultiExecution(prompt, low, decision.route);
 	return knowledgeContext
 		? { ...decision, knowledgeContext, multiExecution }
 		: { ...decision, multiExecution };
 }
 
-export function classifyMultiExecution(prompt) {
-	return MULTI_EXECUTION_OPT_OUT_PATTERN.test(prompt)
-		? singleMultiExecution("explicit single-agent opt-out", "explicit")
-		: singleMultiExecution("multi-model portfolio removed");
+const MULTI_EXECUTION_SINGLE_DEFAULT = singleMultiExecution(
+	"multi-model portfolio removed",
+);
+const MULTI_EXECUTION_SINGLE_EXPLICIT = singleMultiExecution(
+	"explicit single-agent opt-out",
+	"explicit",
+);
+
+export function classifyMultiExecution(prompt, low) {
+	const lowered = low ?? prompt.toLowerCase();
+	return (lowered.includes("agent") || lowered.includes("panel")) &&
+		MULTI_EXECUTION_OPT_OUT_PATTERN.test(lowered)
+		? MULTI_EXECUTION_SINGLE_EXPLICIT
+		: MULTI_EXECUTION_SINGLE_DEFAULT;
 }
 
 function singleMultiExecution(reason, trigger = "none") {
@@ -1009,6 +1110,61 @@ export function buildAutonomousPlanChain(planStatus) {
 		],
 	};
 }
+
+// planStatus is a 5-value enum, so plan chains can be shared per status
+// instead of re-allocated on every classified turn.
+const PLAN_CHAIN_BY_STATUS = new Map();
+
+function planChainFor(planStatus) {
+	let chain = PLAN_CHAIN_BY_STATUS.get(planStatus);
+	if (!chain) {
+		chain = buildAutonomousPlanChain(planStatus);
+		PLAN_CHAIN_BY_STATUS.set(planStatus, chain);
+	}
+	return chain;
+}
+
+// Classification decisions are immutable constants: the same decision literal
+// was previously re-allocated on every matching turn.
+const EMPTY_PROMPT_DECISION = answerDecision(
+	"empty prompt",
+	"No artifact",
+	"Answer delivered",
+	"None",
+);
+const SLASH_COMMAND_DECISION = answerDecision(
+	"explicit slash command",
+	"Selected command output",
+	"Command contract stop condition",
+	"Command-defined evidence",
+);
+const LINEAR_READ_DECISION = answerDecision(
+	"Linear issue read-only request",
+	"Linear issue summary or analysis",
+	"answer delivered",
+	"Linear MCP issue data when available",
+);
+const READ_ONLY_ANSWER_DECISION = answerDecision(
+	"read-only, question, or summary request",
+	"None",
+	"answer delivered",
+	"None",
+);
+const PROMPT_ARTIFACT_DECISION = answerDecision(
+	"prompt artifact request",
+	"prompt artifact",
+	"prompt delivered",
+	"User-facing prompt text",
+);
+const SIMPLE_ANSWER_DECISION = answerDecision(
+	"simple answer or unclear low-risk request",
+	"None",
+	"answer delivered",
+	"None",
+);
+const DIRECT_EDIT_DECISION = directEditDecision(
+	"ordinary coding request: direct edit without a plan",
+);
 
 export function isPlanFile(filePath, cwd) {
 	if (!filePath) return false;
