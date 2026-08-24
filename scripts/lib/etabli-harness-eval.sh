@@ -46,12 +46,17 @@ harness_task_dir() {
 harness_extract_verdict() {
   local file="$1"
   # The contract requires one final line in an exact shape; the last
-  # non-blank line of the transcript must be the verdict.
-  grep -v '^[[:space:]]*$' "$file" | tail -n 1 | awk '
-    /^Verdict: GO WITH NOTES$/ { print; exit }
-    /^Verdict: BLOCK$/ { print; exit }
-    /^Verdict: GO$/ { print; exit }
-  '
+  # non-blank line of the transcript must be the verdict. Pure bash
+  # (was grep|tail|awk — three forks per oracle invocation).
+  local line last=""
+  while IFS= read -r line; do
+    [ -n "${line//[[:space:]]/}" ] && last="$line"
+  done <"$file"
+  case "$last" in
+  'Verdict: GO WITH NOTES' | 'Verdict: BLOCK' | 'Verdict: GO')
+    printf '%s\n' "$last"
+    ;;
+  esac
 }
 
 harness_oracle_fail() {
