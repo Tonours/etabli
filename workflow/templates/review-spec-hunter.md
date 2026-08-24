@@ -15,3 +15,4 @@ Spec
 
 severity / file / line / issue / impact / review_comment / suggested_fix
 (or exactly `No findings.` or `spec: n/a`)
+Sorted by severity — `high`, then `medium`, then `low`; unsorted is invalid.
