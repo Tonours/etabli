@@ -1,0 +1,4 @@
+
+# tsc incremental state
+tsconfig.tsbuildinfo
+*.tsbuildinfo
