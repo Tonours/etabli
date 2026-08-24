@@ -478,10 +478,15 @@ harness_effective_from_transcript() {
 harness_ensure_ignore() {
   local dest="$1"
   local gi="$dest/.gitignore"
-  touch "$gi"
-  grep -qxF '.workflow/' "$gi" || printf '.workflow/\n' >>"$gi"
-  grep -qxF 'docs/agent-memory/' "$gi" || printf 'docs/agent-memory/\n' >>"$gi"
-  grep -qxF '.pi/' "$gi" || printf '.pi/\n' >>"$gi"
+  # fresh cells have no .gitignore: write all three entries in one
+  # builtin printf instead of three grep probes (same end state)
+  if [ -f "$gi" ]; then
+    grep -qxF '.workflow/' "$gi" || printf '.workflow/\n' >>"$gi"
+    grep -qxF 'docs/agent-memory/' "$gi" || printf 'docs/agent-memory/\n' >>"$gi"
+    grep -qxF '.pi/' "$gi" || printf '.pi/\n' >>"$gi"
+  else
+    printf '.workflow/\ndocs/agent-memory/\n.pi/\n' >"$gi"
+  fi
 }
 
 harness_make_spawn_stubs() {
