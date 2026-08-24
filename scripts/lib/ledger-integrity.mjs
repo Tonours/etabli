@@ -124,6 +124,113 @@ function invalid(reason, events = [], extra = {}) {
 }
 
 /**
+ * Sequential scan state for one ledger. The per-line rules are order-
+ * dependent (timestamp monotonicity, terminal finality), so an append-only
+ * growth of the file can resume from a cached state instead of re-parsing
+ * the whole journal: after every workflow-event append, selectActiveLedger
+ * re-inspects the pointed ledger, and the prefix is provably unchanged
+ * (byte compare) while only the tail is new.
+ */
+function freshScanState() {
+  return {
+    events: [],
+    lineCount: 0,
+    previousTimestamp: "",
+    terminalIndex: -1,
+    terminalWasV2: false,
+    legacyPostTerminal: false,
+    error: null,
+  };
+}
+
+/** Scan one chunk of jsonl text into the state (first failure sticks). */
+function scanLedgerChunk(state, chunk, expectedRun) {
+  const lines = chunk.split("\n").filter((line) => line.trim() !== "");
+  for (const [index, line] of lines.entries()) {
+    const lineNumber = state.lineCount + index + 1;
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      state.error = invalid("invalid_json", state.events, { line: lineNumber });
+      return;
+    }
+    if (!isObject(event)) {
+      state.error = invalid("invalid_event_object", state.events, { line: lineNumber });
+      return;
+    }
+    if (!isNonEmptyString(event.event) || !KNOWN_EVENTS.has(event.event)) {
+      state.error = invalid("unknown_event", state.events, { line: lineNumber });
+      return;
+    }
+    if (!isObject(event.detail)) {
+      state.error = invalid("invalid_event_detail", state.events, { line: lineNumber });
+      return;
+    }
+
+    const isV2 = event.schema_version === 2;
+    if (isV2 && !hasAuthorityDetailShape(event)) {
+      state.error = invalid("invalid_authority_detail", state.events, { line: lineNumber });
+      return;
+    }
+    if (event.schema_version !== undefined && event.schema_version !== 1 && !isV2) {
+      state.error = invalid("unsupported_schema_version", state.events, { line: lineNumber });
+      return;
+    }
+    if (isNonEmptyString(event.run) && event.run !== expectedRun) {
+      state.error = invalid("run_mismatch", state.events, { line: lineNumber });
+      return;
+    }
+    if (isV2) {
+      if (event.run !== expectedRun) {
+        state.error = invalid("missing_or_misbound_run", state.events, { line: lineNumber });
+        return;
+      }
+      if (!isIsoTimestamp(event.ts)) {
+        state.error = invalid("invalid_timestamp", state.events, { line: lineNumber });
+        return;
+      }
+      if (state.previousTimestamp !== "" && event.ts < state.previousTimestamp) {
+        state.error = invalid("timestamp_moved_backwards", state.events, { line: lineNumber });
+        return;
+      }
+      state.previousTimestamp = event.ts;
+    }
+
+    if (state.terminalIndex !== -1) {
+      if (isV2 || state.terminalWasV2) {
+        state.error = invalid("terminal_not_final", state.events, {
+          line: lineNumber,
+          terminalLine: state.terminalIndex + 1,
+        });
+        return;
+      }
+      state.legacyPostTerminal = true;
+    }
+
+    state.events.push(event);
+    if (TERMINAL_EVENTS.has(event.event)) {
+      state.terminalIndex = state.events.length - 1;
+      state.terminalWasV2 = isV2;
+    }
+  }
+  state.lineCount += lines.length;
+}
+
+function scanResult(state) {
+  if (state.error !== null) return state.error;
+  return {
+    valid: true,
+    reason: null,
+    events: state.events,
+    terminal: state.terminalIndex !== -1,
+    terminalEvent: state.terminalIndex === -1 ? null : state.events[state.terminalIndex].event,
+    legacy: state.events.some((event) => event.schema_version !== 2),
+    legacyPostTerminal: state.legacyPostTerminal,
+  };
+}
+
+/**
  * Inspect an events.jsonl payload without silently dropping malformed data.
  * Schema v2 must bind every event to its directory slug and have an ordered,
  * final terminal. Pre-v2 ledgers remain readable for compatibility; an
@@ -134,72 +241,9 @@ export function inspectLedgerText(text, expectedRun) {
   if (typeof text !== "string" || text.trim() === "") {
     return invalid("empty_ledger");
   }
-
-  const lines = text.split("\n").filter((line) => line.trim() !== "");
-  const events = [];
-  let previousTimestamp = "";
-  let terminalIndex = -1;
-  let terminalWasV2 = false;
-  let legacyPostTerminal = false;
-
-  for (const [index, line] of lines.entries()) {
-    let event;
-    try {
-      event = JSON.parse(line);
-    } catch {
-      return invalid("invalid_json", events, { line: index + 1 });
-    }
-    if (!isObject(event)) return invalid("invalid_event_object", events, { line: index + 1 });
-    if (!isNonEmptyString(event.event) || !KNOWN_EVENTS.has(event.event)) {
-      return invalid("unknown_event", events, { line: index + 1 });
-    }
-    if (!isObject(event.detail)) return invalid("invalid_event_detail", events, { line: index + 1 });
-
-    const isV2 = event.schema_version === 2;
-    if (isV2 && !hasAuthorityDetailShape(event)) {
-      return invalid("invalid_authority_detail", events, { line: index + 1 });
-    }
-    if (event.schema_version !== undefined && event.schema_version !== 1 && !isV2) {
-      return invalid("unsupported_schema_version", events, { line: index + 1 });
-    }
-    if (isNonEmptyString(event.run) && event.run !== expectedRun) {
-      return invalid("run_mismatch", events, { line: index + 1 });
-    }
-    if (isV2) {
-      if (event.run !== expectedRun) return invalid("missing_or_misbound_run", events, { line: index + 1 });
-      if (!isIsoTimestamp(event.ts)) return invalid("invalid_timestamp", events, { line: index + 1 });
-      if (previousTimestamp !== "" && event.ts < previousTimestamp) {
-        return invalid("timestamp_moved_backwards", events, { line: index + 1 });
-      }
-      previousTimestamp = event.ts;
-    }
-
-    if (terminalIndex !== -1) {
-      if (isV2 || terminalWasV2) {
-        return invalid("terminal_not_final", events, {
-          line: index + 1,
-          terminalLine: terminalIndex + 1,
-        });
-      }
-      legacyPostTerminal = true;
-    }
-
-    events.push(event);
-    if (TERMINAL_EVENTS.has(event.event)) {
-      terminalIndex = index;
-      terminalWasV2 = isV2;
-    }
-  }
-
-  return {
-    valid: true,
-    reason: null,
-    events,
-    terminal: terminalIndex !== -1,
-    terminalEvent: terminalIndex === -1 ? null : events[terminalIndex].event,
-    legacy: events.some((event) => event.schema_version !== 2),
-    legacyPostTerminal,
-  };
+  const state = freshScanState();
+  scanLedgerChunk(state, text, expectedRun);
+  return scanResult(state);
 }
 
 /** @param {string} ledgerPath @param {string} [expectedRun] */
@@ -220,16 +264,83 @@ export function inspectLedgerFile(ledgerPath, expectedRun = basename(join(ledger
   } catch {
     return invalid("unreadable_ledger");
   }
+  return inspectLedgerStat(ledgerPath, expectedRun, stat);
+}
+
+/**
+ * Append-resumable inspection shared by inspectLedgerFile and the root scan.
+ * parseStates remembers the scan state of a fully line-terminated ledger
+ * text; when the same file identity later grew and the previous text is a
+ * byte-exact prefix of the new text, only the appended tail is parsed. Any
+ * other change (shrink, rewrite, mid-line tail, different expectedRun, a
+ * previous scan error) falls back to a full scan, so the result is always
+ * identical to parsing the whole file. Guarded by the same cache limits as
+ * the other caches; oversized journals simply always take the full path.
+ */
+const PARSE_STATE_CACHE_LIMIT = 2048;
+const PARSE_STATE_MAX_BYTES = 1_000_000;
+const parseStates = new Map(); // ledger path -> { dev, ino, expectedRun, text, state }
+
+function inspectLedgerStat(ledgerPath, expectedRun, stat) {
   const key = fingerprint(stat);
-  const cached = cacheLookup(ledgerCache, ledgerPath, key);
+  // Keyed by expectedRun too: the same path inspected under a different run
+  // binding must never reuse a cached verdict (e.g. a pointer whose run
+  // differs from the directory slug).
+  const cacheKey = `${ledgerPath}\0${expectedRun}`;
+  const cached = cacheLookup(ledgerCache, cacheKey, key);
   if (cached !== undefined) return cached;
-  let result;
+  let text;
   try {
-    result = inspectLedgerText(readFileSync(ledgerPath, "utf8"), expectedRun);
+    text = readFileSync(ledgerPath, "utf8");
   } catch {
-    result = invalid("unreadable_ledger");
+    return invalid("unreadable_ledger");
   }
-  cacheStore(ledgerCache, ledgerPath, key, result);
+  if (text.trim() === "") {
+    parseStates.delete(ledgerPath);
+    const empty = invalid("empty_ledger");
+    cacheStore(ledgerCache, cacheKey, key, empty);
+    return empty;
+  }
+  let result;
+  const previous = parseStates.get(ledgerPath);
+  const resumable =
+    previous !== undefined &&
+    previous.expectedRun === expectedRun &&
+    previous.dev === stat.dev &&
+    previous.ino === stat.ino &&
+    text.length >= previous.text.length &&
+    text.startsWith(previous.text);
+  if (resumable) {
+    // Scan a clone: the cached entry stays valid at its last line boundary.
+    // A poisoned tail (parse error, or a not-yet-terminated final line) then
+    // only affects this call's result, never a future resume.
+    const state = { ...previous.state, events: previous.state.events.slice() };
+    scanLedgerChunk(state, text.slice(previous.text.length), expectedRun);
+    result = scanResult(state);
+    if (state.error !== null) {
+      parseStates.delete(ledgerPath);
+    } else if (text.endsWith("\n") && text.length <= PARSE_STATE_MAX_BYTES) {
+      previous.text = text;
+      previous.state = state;
+    }
+  } else {
+    const state = freshScanState();
+    scanLedgerChunk(state, text, expectedRun);
+    result = scanResult(state);
+    if (result.valid && text.endsWith("\n") && text.length <= PARSE_STATE_MAX_BYTES) {
+      if (parseStates.size >= PARSE_STATE_CACHE_LIMIT) parseStates.clear();
+      parseStates.set(ledgerPath, {
+        dev: stat.dev,
+        ino: stat.ino,
+        expectedRun,
+        text,
+        state,
+      });
+    } else if (!result.valid) {
+      parseStates.delete(ledgerPath);
+    }
+  }
+  cacheStore(ledgerCache, cacheKey, key, result);
   return result;
 }
 
@@ -330,12 +441,7 @@ function scanRootEntries(root, entries) {
       records.push(cached.record);
       continue;
     }
-    let result;
-    try {
-      result = inspectLedgerText(readFileSync(path, "utf8"), entry.name);
-    } catch {
-      result = invalid("unreadable_ledger");
-    }
+    const result = inspectLedgerStat(path, entry.name, stat);
     const record = { path, run: entry.name, ...result };
     scanRecords.set(entry.name, {
       dev: stat.dev,
