@@ -431,3 +431,68 @@ filled with a citation, conclusion wrong" shape (R-005's v2 miss, `evidence_bar`
 remains beyond any output contract by the loop contract's own measurement.
 f-f-z#45 (`retrieval_gap`) is excluded from the ledger: the repo holds no case
 detail for it, so it cannot be replayed honestly.
+
+---
+
+## Run 2026-08-24 (e) — CR-A4 lens-skip campaign (autoresearch)
+
+Fourth replay campaign on the same surface. CR-A3 asked whether a skip
+invalidates `Verdict: GO`; CR-A4 asks the row-level question the
+`lens_existed_not_run` bucket names: can a checklist-reporting reviewer emit a
+lens-table row as `not run`, a bare `deferred`, or a misplaced `absent` and
+still produce an output the contract accepts, on **any** accepting verdict?
+
+### Model
+
+Per ledger event (the CR-A3 20-event ledger), the reviewer picks the accepting
+verdict vehicle that maximizes skips, then writes the cheapest cell per row the
+surface still accepts; the bench parses the emitted tables with the metric rule
+(skip = `not run` / unsanctioned `deferred` / `absent` outside the Prose row;
+fill = `file:line` or a sanctioned cell). `proseBehaviors` per event is computed
+from diff bytes (added comment/doc lines), never hand-assigned. Two deployment
+modes: full (rubric + template + skill) and skill-only (the foreign repo).
+
+### Baseline: enforced skip_rate 1.00 (160/160 rows skippable)
+
+The recorded cooperative runs show 0.00 — that was not enforcement. Three holes,
+all lever-1:
+
+1. **`GO WITH NOTES` vehicle** — the `not run` block named `Verdict: GO` only;
+   the explicit "GO WITH NOTES is not a workaround" extension existed for
+   deciding-code rows, never for lens rows. Both defect PRs shipped GO WITH NOTES.
+2. **`absent` anywhere** — the GO enumeration offered `absent` as a valid cell
+   for every row; it is defined only for the Prose row.
+3. **bare `deferred` anywhere** (skill surface) — the skill's GO bullet blessed
+   "`file:line`, `absent`, or `deferred`" on any row.
+
+### The levers
+
+Mirrored in rubric, hunter template, and `code-review` skill: the enumeration
+becomes `file:line`, `absent` (Prose row only, no behavior named in prose), or
+`deferred: Standards hunter` (Convention row only, `Standards: yes`); a `not
+run` row blocks `Verdict: GO` and `Verdict: GO WITH NOTES` alike (a notes
+verdict is not a workaround for a skipped lens); any other cell is a `not run`
+skip. Result: **skip_rate 1.00 → 0.00**, `fill_rate` **1.00**, `cite_rate`
+0.9812 (the three non-cite rows are the sanctioned cells: Prose `absent` on the
+two no-prose diffs, Convention `deferred: Standards hunter` on #9917);
+skill-only 0.00.
+
+Mutation-checked at clause level: ablating the family sentence re-opens 1.00;
+removing the Prose-row confinement re-opens ≥ 0.9; un-sanctioning
+`deferred: Standards hunter` re-opens ≥ 0.9 in both deployment modes. v1
+anchors at 1.00 (7 lenses listed → 0 run); v2 anchors at 1.00 — the mandatory
+table alone never enforced the skip rate, which is CR-A3's verdict-level finding
+restated at row level. Guards: CR-A1 recall 1.00 / held_out 1.00, CR-A2
+precision_clean 1.00 / findings 0, CR-A3 escaped_per_go 0.00 / go_rate_clean
+1.00 / metrics_row_coverage 1.00, lens budget 8/8, union surface 14 136 B (cap
+14 169 B, +15% over the CR-A1 base), no forced-prose clause.
+
+### Limits
+
+Same class as CR-A1/A2/A3: the replay proves no accepted output can carry a
+skipped lens row — it does not run a reviewer; a live confirmation pass (one GO
+WITH NOTES review through the new contract, all 8 rows cited) remains the
+acceptance gate. Row-level enforcement cannot force a *correct* citation (a row
+may cite code the reviewer never opened — the CR-A3 "citation, conclusion
+wrong" limit, unchanged), and the sanctioned cells stay trust-based until the
+Prose `absent` / Standards-deferred claims are themselves diff-checkable.
