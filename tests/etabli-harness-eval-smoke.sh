@@ -51,6 +51,19 @@ prepare_synthetic() {
   local kind="$2"
   local dest="$3"
   local task_dir="$FIXTURES/tasks/$task_id"
+  local cache="$TMP_DIR/syn-cache/$task_id-$kind"
+
+  # A (task, kind) worktree is deterministic: build it once, then serve
+  # later cases as a plain copy (mutating cases below only ever touch
+  # their copy). The baseline and spawn log ride along as siblings.
+  if [ -d "$cache" ]; then
+    cp -R "$cache" "$dest"
+    cp "$cache.harness-baseline" "$dest.harness-baseline"
+    if [ -f "$cache.spawn.log" ]; then
+      cp "$cache.spawn.log" "$dest.spawn.log"
+    fi
+    return 0
+  fi
 
   mkdir -p "$dest"
   if [ -d "$task_dir/overlay" ]; then
@@ -71,6 +84,12 @@ prepare_synthetic() {
   # run would have produced a spawn log via the PATH wrapper.
   if grep -Eq '^isolation: isolated$' "$task_dir/synthetic/$kind/transcript.txt" 2>/dev/null; then
     printf '20260823T000000Z --mode text -p --no-session --append-system-prompt workflow/templates/review-logic-hunter.md\n' >"$dest.spawn.log"
+  fi
+  mkdir -p "$TMP_DIR/syn-cache"
+  cp -R "$dest" "$cache"
+  cp "$dest.harness-baseline" "$cache.harness-baseline"
+  if [ -f "$dest.spawn.log" ]; then
+    cp "$dest.spawn.log" "$cache.spawn.log"
   fi
 }
 

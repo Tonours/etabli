@@ -427,8 +427,10 @@ harness_prepare_worktree() {
   fi
   harness_ensure_ignore "$dest"
   git -C "$dest" init -q
-  git -C "$dest" config user.email 'harness-eval@etabli.test'
-  git -C "$dest" config user.name 'harness-eval'
+  # one builtin append instead of two `git config` forks; appending a
+  # [user] section to the freshly initialised .git/config is exactly what
+  # the two config writes produced
+  printf '[user]\n\temail = harness-eval@etabli.test\n\tname = harness-eval\n' >>"$dest/.git/config"
   git -C "$dest" add -A
   git -C "$dest" -c commit.gpgsign=false commit --allow-empty -qm 'harness-eval fixture'
   if [ -d "$uncommitted" ]; then
