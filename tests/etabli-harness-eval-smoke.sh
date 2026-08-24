@@ -338,6 +338,10 @@ jq -e '.pass == false and .oracle_exit == 1' "$ROW" >/dev/null ||
 null_dir="$TMP_DIR/null-baseline-cells"
 null_jsonl="$TMP_DIR/null-baseline.jsonl"
 rm -f "$null_jsonl"
+# Both suites prepare byte-identical worktrees per task: share one
+# run-local prepare cache (second suite serves copies)
+export HARNESS_PREPARE_CACHE="$TMP_DIR/shared-prep-cache"
+mkdir -p "$HARNESS_PREPARE_CACHE"
 ETABLI_HARNESS_EVAL_DIR="$null_dir" PATH="$HERMETIC_PATH" \
   "$DRIVER" null-baseline --output "$null_jsonl" >/dev/null 2>&1 ||
   fail "null-baseline run failed"

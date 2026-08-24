@@ -454,6 +454,17 @@ harness_prepare_worktree() {
   task_dir="$(harness_task_dir "$task_id")"
   overlay="$task_dir/overlay"
   uncommitted="$task_dir/uncommitted"
+  # Optional run-local cache (e.g. the smoke shares one dir across the
+  # null/constant suites, whose worktrees are byte-identical): serve a
+  # previously prepared copy instead of rebuilding. Cache content is
+  # written by this same function in the same run — never cross-run.
+  local prep_cache="${HARNESS_PREPARE_CACHE:-}"
+  if [ -n "$prep_cache" ] && [ -d "$prep_cache/$task_id" ]; then
+    mkdir -p "$dest"
+    cp -R "$prep_cache/$task_id" "$dest"
+    cp "$prep_cache/$task_id.harness-baseline" "$dest.harness-baseline"
+    return 0
+  fi
   mkdir -p "$dest"
   # HARNESS_PREPARE_SCAFFOLD=0 (baseline suites): offline fabrication
   # floors never run a model, and no oracle reads scaffold files (they
@@ -478,6 +489,10 @@ harness_prepare_worktree() {
     cp -R "$uncommitted/." "$dest/"
   fi
   harness_write_baseline "$dest"
+  if [ -n "$prep_cache" ]; then
+    cp -R "$dest" "$prep_cache/$task_id"
+    cp "$dest.harness-baseline" "$prep_cache/$task_id.harness-baseline"
+  fi
 }
 
 harness_effective_from_transcript() {
