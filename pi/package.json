@@ -18,7 +18,7 @@
   },
   "scripts": {
     "test": "bun test ./extensions/__tests__/*.test.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node_modules/@typescript/*/lib/tsc --noEmit",
     "test:workflow": "bun test ./extensions/__tests__/rtk-runtime.test.ts ./extensions/__tests__/settings-consistency.test.ts",
     "test:workflow-coverage": "bun test --coverage ./extensions/__tests__/rtk-runtime.test.ts ./extensions/__tests__/settings-consistency.test.ts",
     "verify:skills": "bun ./scripts/verify-skills-lock.mjs",
