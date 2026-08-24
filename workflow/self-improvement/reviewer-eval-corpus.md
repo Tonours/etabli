@@ -267,3 +267,82 @@ foreign-repo deployment) moved 0/5 → 5/5.
 behaviour: it proves the acts are mandated and visible. A live confirmation
 pass on the original commits (b42eedcb, fa5b6e00e0) remains the acceptance
 gate before this counts as a held-in pass in the historical-table sense.
+
+---
+
+## Run 2026-08-24 (c) — CR-A2 precision campaign (autoresearch)
+
+Precision side of the same replay methodology: the surface evaluated is the
+rubric + hunter template + `code-review` skill snapshot, never a live reviewer.
+A clean diff **admits a manufactured finding** iff a clause matching one of its
+temptation shapes is *unbarred* — satisfiable by unverifiable prose (a
+subjective own-condition, a taste-only ignore discriminator, or forced
+unverifiable prose) instead of a verifiable act. This encodes the loop
+contract's measured failure mode ("reporting against the checklist") and the
+criterion the rejected counter-case column was judged by.
+
+### Clean corpus (10 cases)
+
+H-006 and H-007 (above) plus eight real etabli commits, each merged to main
+after the full gate stack (bun test + verify-agentic-infra core) with zero
+escaped-defect rows in `review-metrics.md`:
+
+| Case | Commit | Shape (computed from diff bytes) | Role |
+| --- | --- | --- | --- |
+| C-01 | b7a0112 | fs-entry readers, no added validators | missing-validation temptation |
+| C-02 | c8e939d | fs readers **and** validators added | control |
+| C-03 | bc2465a | `process.env` reads in tests, no validators | missing-validation temptation |
+| C-04 | 600b361 | `style:` formatter indent + fixture sha | style temptation |
+| C-05 | 5d5e3a7 | tsconfig flag | control |
+| C-06 | 51bb7f8 | launcher preference | control |
+| C-07 | 427666e | bitmap prefilter | control |
+| C-08 | 0fc33bc | pure-bash extraction | control |
+
+Shapes are computed mechanically (`git show` bytes: added-line readers without
+validators → missing-validation; whitespace-normalized add/remove equality or a
+`style:` subject → style), never hand-assigned per case.
+
+### Baseline and the two levers
+
+Baseline: precision_clean **0.70** (3/10 clean diffs admitted one manufactured
+finding each), findings_per_clean_diff 0.30 — while recall 1.00, held_out 1.00
+and H-006/H-007 1.00 all held. Exactly two production clauses on the surface
+carried subjective conditions:
+
+1. **Rubric, Evidence rules** — "Treat missing validation as a finding only
+   when the risk or blast radius justifies it." A subjective own-condition is
+   an exception the global evidence bar does not reach: a checklist-reporting
+   reviewer satisfies "risk justifies" by asserting risk. Now requires naming
+   the unvalidated input, the reachable entry point that passes it, and the
+   wrong output it produces downstream; otherwise it is an open question.
+   Bars C-01 and C-03 (0.70 → 0.90).
+2. **Skill `code-review`** (out-of-repo file, snapshot in `.auto/`) — "Ignore
+   trivial style nits, formatter issues…": a taste-only ignore discriminator
+   is unverifiable in both directions, so a style-shaped clean diff keeps the
+   nit. Now: "Ignore style and formatting findings whose fix cannot name a
+   concrete failure (input or state → wrong output); failures that CI or the
+   typechecker would catch anyway are not review findings either." Deploy
+   sync: copy this wording into `.config/opencode/skills/code-review/SKILL.md`.
+   Bars C-04 (0.90 → 1.00).
+
+Both are lever-1 output constraints (constrain what must be reported), the
+sanctioned fix per the loop contract. No lens change (8/8 kept); union surface
+growth +1.9% (cap 15%).
+
+### Anchors and guards
+
+Calibration reproduces recorded history and documented rejections: v1
+(`63fc88d`) recall 0/5 with H-006/H-007 clean; v2 (`3c4d163`) 3/5 with R-003 and
+R-005 the misses, clean held-out; the pre-contract skill (Goals/Workflow only)
+admits findings on **both** H-006 and H-007 — the untuned-population model
+behind "under 10% precision"; the rejected counter-case column pressures
+findings on both. Mutation-checked: deleting the evidence bar drops precision
+to 0.50; a 9th lens bullet and the rejected Precedence-into-Boundary-drift merge
+both fail the lens budget; a blanket "never report" fails the token scan;
+reverting either lever re-admits exactly its case; duty-coverage fails if every
+missing-validation clause is deleted (no removal-gaming).
+
+**Limit of this run.** Same as CR-A1: the replay proves no clause on the surface
+can be satisfied by unverifiable prose on these clean diffs — it does not run a
+reviewer. A live spot-check (one clean PR through the skill with the new
+wording, expecting zero findings) remains the acceptance gate.
