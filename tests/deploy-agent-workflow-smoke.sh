@@ -26,28 +26,30 @@ ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.claude/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.codex/skills/suite-router"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/external-skill"
 
-node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
-const fs = require("node:fs");
-const path = process.argv[2];
-fs.writeFileSync(path, `${JSON.stringify({
-  defaultProvider: "kimi-for-coding",
-  defaultModel: "kimi-k2.6",
-  defaultThinkingLevel: "high",
-  enabledModels: [
+printf '%s\n' '{
+  "defaultProvider": "kimi-for-coding",
+  "defaultModel": "kimi-k2.6",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
     "custom/provider-model",
     "openai-codex/gpt-5.6",
     "openai-codex/gpt-5.6-luna",
     "openai-codex/gpt-5.6-terra",
-    "openai-codex/gpt-5.6-sol",
+    "openai-codex/gpt-5.6-sol"
   ],
-  packages: [
+  "packages": [
     "npm:@agwab/pi-workflow",
-    { source: "npm:@agwab/pi-workflow@0.7.0" },
-    { source: "npm:@agwab/pi-workflow-helper" },
-    { source: "npm:pi-subagents" },
-  ],
-}, null, 2)}\n`);
-NODE
+    {
+      "source": "npm:@agwab/pi-workflow@0.7.0"
+    },
+    {
+      "source": "npm:@agwab/pi-workflow-helper"
+    },
+    {
+      "source": "npm:pi-subagents"
+    }
+  ]
+}' >"$HOME_DIR/.pi/agent/settings.json"
 
 grep -Fq '. "$SCRIPT_DIR/lib/pi-paths.sh"' "$DEPLOY_SCRIPT" &&
   grep -Fq 'pi_agent_node_modules_dir "$HOME_DIR"' "$DEPLOY_SCRIPT" || {
@@ -55,14 +57,23 @@ grep -Fq '. "$SCRIPT_DIR/lib/pi-paths.sh"' "$DEPLOY_SCRIPT" &&
   exit 1
 }
 
-"$DEPLOY_SCRIPT" --dry-run --home "$DRY_HOME_DIR" >/dev/null
-if [ -e "$DRY_HOME_DIR" ]; then
-  printf 'dry-run created target home: %s\n' "$DRY_HOME_DIR" >&2
-  exit 1
-fi
+# The dry-run probe touches only DRY_HOME_DIR, so it overlaps the shared-home
+# setup instead of blocking it.
+"$DEPLOY_SCRIPT" --dry-run --home "$DRY_HOME_DIR" >/dev/null &
+DRY_RUN_PID=$!
 
 mkdir -p "$HOME_DIR/.agents/skills"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.agents/skills/suite-router"
+
+# Scope validation fails before any home inspection, so the bogus-scope probe
+# can run concurrently with the shared-home apply below.
+(
+  if ETABLI_SCOPE=bogus "$ROOT_DIR/scripts/deploy-agent-workflow" --dry-run --home "$DRY_HOME_DIR" >/dev/null 2>&1; then
+    printf 'deploy accepted an invalid ETABLI_SCOPE instead of failing\n' >&2
+    exit 1
+  fi
+) &
+BOGUS_SCOPE_PID=$!
 
 "$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
 
@@ -148,11 +159,9 @@ if [ -e "$HOME_DIR/.claude/skills/ember-forestadmin-suite" ]; then
   exit 1
 fi
 
-if ETABLI_SCOPE=bogus "$ROOT_DIR/scripts/deploy-agent-workflow" --dry-run --home "$HOME_DIR" >/dev/null 2>&1; then
-  printf 'deploy accepted an invalid ETABLI_SCOPE instead of failing\n' >&2
-  exit 1
-fi
-
+# The work-scope deploy only touches WORK_HOME_DIR, so it runs concurrently
+# with the shared-home assertions; its failures propagate through wait.
+(
 mkdir -p \
   "$WORK_HOME_DIR/.pi/agent/skills" \
   "$WORK_HOME_DIR/.claude/skills" \
@@ -186,6 +195,8 @@ if find "$WORK_HOME_DIR/.codex" -mindepth 1 -maxdepth 1 ! -name skills | grep -q
   printf 'deploy created a Codex harness surface beyond skills\n' >&2
   exit 1
 fi
+) &
+WORK_SCOPE_PID=$!
 
 assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"
@@ -289,5 +300,14 @@ if grep -q '^WOULD_' "$SECOND_DRY_RUN_OUTPUT"; then
   cat "$SECOND_DRY_RUN_OUTPUT" >&2
   exit 1
 fi
+
+wait "$DRY_RUN_PID"
+if [ -e "$DRY_HOME_DIR" ]; then
+  printf 'dry-run created target home: %s\n' "$DRY_HOME_DIR" >&2
+  exit 1
+fi
+
+wait "$BOGUS_SCOPE_PID"
+wait "$WORK_SCOPE_PID"
 
 printf 'deploy agent workflow smoke test: ok\n'

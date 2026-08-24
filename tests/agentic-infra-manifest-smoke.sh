@@ -41,21 +41,23 @@ done
 awk -F '\t' '!/^#/ && $1 == "core" && $2 == "pi" && $3 == "pi-audit" && $4 == "builtin:pi-audit" {found=1} END {exit !found}' "$MANIFEST" ||
 	fail "Pi group must enforce bun audit"
 
-expected_core='shell-syntax
-json-config
-pi-audit
+# Core order doubles as launch priority: the runner caps concurrency, so the
+# slowest checks must start first (LPT scheduling).
+expected_core='pi-tests
+deploy-agent-workflow-smoke
+workflow-contract-coverage-smoke
+plan-cleanup-smoke
+agent-scenarios-smoke
 pi-typecheck
-pi-tests
+plan-check-freeze-smoke
+pi-audit
+shell-syntax
+json-config
 router-eval
 router-eval-smoke
-agent-scenarios-smoke
-plan-check-freeze-smoke
-plan-cleanup-smoke
 dual-runtime-guard-matrix-smoke
 no-progress-mutate-deny-smoke
-deploy-agent-workflow-smoke
 supply-chain-smoke
-workflow-contract-coverage-smoke
 skill-lock'
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
@@ -132,9 +134,11 @@ printf '%s\n' "$runner_source" | grep -Fq 'SUMMARY:' ||
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
 
-expected_pi='pi-audit
+# Core order doubles as launch priority (slowest first under the runner's
+# concurrency cap); the Pi group inherits that order.
+expected_pi='pi-tests
 pi-typecheck
-pi-tests
+pi-audit
 router-eval
 skill-lock
 pi-import-smoke'
