@@ -18,7 +18,7 @@ operability.
 
 ## Act on
 
-Axis-tagged findings the parent keeps.
+Axis-tagged findings the parent keeps, sorted by severity — `high`, then `medium`, then `low`.
 
 ## Consider
 
