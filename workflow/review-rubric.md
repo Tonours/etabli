@@ -113,7 +113,7 @@ Lead filters after the hunt; it does not re-hunt the diff.
 
 ### Lens table
 Every row mandatory on the Logic hunter. A lens without a concrete opened
-`file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`). On a `Verdict: GO`, every lens row carries `file:line`, `absent`, or `deferred: Standards hunter` — a `not run` row blocks `Verdict: GO` the same way an empty deciding-code row does (Convention §5 excepted: its no-skill, no-sibling `not run` is a recorded gap, never a pass): a skip is not a result.
+`file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`). On `Verdict: GO` or `Verdict: GO WITH NOTES`, every lens row carries `file:line`, `absent` (Prose row only, no behavior named in prose), or `deferred: Standards hunter` (Convention row only, `Standards: yes`). A `not run` row blocks `Verdict: GO` and `Verdict: GO WITH NOTES` alike: a notes verdict is not a workaround for a skipped lens. Any other cell is a `not run` skip, and a skip is not a result (Convention §5 excepted: its no-skill, no-sibling `not run` is a recorded gap, never a pass).
 The Prose vs machine-readable row cites one declaration `file:line` for **each
 behavior named in prose**, or `absent` when none exists.
 
@@ -190,7 +190,7 @@ End with a final line in this exact shape:
 - `Verdict: GO WITH NOTES`
 - `Verdict: BLOCK`
 
-**GO** requires: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), and no lens row left `not run`.
+**GO** and **GO WITH NOTES** require: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), and no lens row left `not run` or unsanctioned.
 
 ## Rules
 - Be direct.
