@@ -15,16 +15,27 @@ harness_die() {
 }
 
 harness_sha256() {
-  # single process: shasum only, strip the filename with a parameter
-  # expansion (was shasum | awk — one fork per digest adds up over ~70
-  # grade/oracle calls per smoke)
+  # openssl (a real binary) costs ~half of the shasum perl wrapper per
+  # digest — several dozen digests per smoke run. shasum stays as the
+  # fallback for hosts without openssl.
   local digest
-  digest="$(shasum -a 256 "$1")"
-  printf '%s\n' "${digest%% *}"
+  if digest="$(openssl dgst -sha256 "$1" 2>/dev/null)"; then
+    printf '%s\n' "${digest##*= }"
+  else
+    digest="$(shasum -a 256 "$1")"
+    printf '%s\n' "${digest%% *}"
+  fi
 }
 
+HARNESS_ISO_NOW_CACHE=""
+
 harness_iso_now() {
-  date -u +%Y-%m-%dT%H:%M:%SZ
+  # second-resolution anyway: reuse one date(1) fork per process (grade
+  # calls without an explicit start are offline cells seconds apart)
+  if [ -z "$HARNESS_ISO_NOW_CACHE" ]; then
+    HARNESS_ISO_NOW_CACHE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  fi
+  printf '%s\n' "$HARNESS_ISO_NOW_CACHE"
 }
 
 harness_fixtures_dir() {
@@ -141,7 +152,7 @@ harness_porcelain_paths() {
       HARNESS_PORCELAIN_PATHS+=("$path")
       ;;
     esac
-  done < <(git -C "$WORKTREE" status --porcelain -uall)
+  done < <(GIT_OPTIONAL_LOCKS=0 git -C "$WORKTREE" status --porcelain -uall)
 }
 
 harness_require_porcelain_allowlist() {
@@ -240,13 +251,61 @@ harness_model_mismatch_hit() {
   return 1
 }
 
+HARNESS_MANIFEST_LOADED=""
+
+harness_manifest_load() {
+  # one jq per process materialises the whole task table into parallel
+  # arrays (was: one jq fork per task-field lookup and per task_ids call)
+  local id split runners hide
+  HARNESS_TASK_IDS=()
+  HARNESS_TASK_SPLITS=()
+  HARNESS_TASK_RUNNERS=()
+  HARNESS_TASK_HIDE=()
+  while IFS=$'\t' read -r id split runners hide; do
+    HARNESS_TASK_IDS+=("$id")
+    HARNESS_TASK_SPLITS+=("$split")
+    HARNESS_TASK_RUNNERS+=("$runners")
+    HARNESS_TASK_HIDE+=("$hide")
+  done < <(jq -r '
+    .tasks[] |
+    [.id, .split, ((.runners // []) | join(",")), ((.hide_spawn_binaries // "") | tostring)] |
+    @tsv
+  ' "$(harness_manifest_path)")
+  HARNESS_MANIFEST_LOADED=1
+}
+
 harness_task_ids() {
-  jq -r '.tasks[].id' "$(harness_manifest_path)"
+  local id
+  [ -n "${HARNESS_MANIFEST_LOADED:-}" ] || harness_manifest_load
+  if [ "${#HARNESS_TASK_IDS[@]}" -gt 0 ]; then
+    for id in "${HARNESS_TASK_IDS[@]}"; do
+      printf '%s\n' "$id"
+    done
+  fi
 }
 
 harness_task_field() {
   local id="$1"
   local field="$2"
+  local i
+  [ -n "${HARNESS_MANIFEST_LOADED:-}" ] || harness_manifest_load
+  if [ "${#HARNESS_TASK_IDS[@]}" -gt 0 ]; then
+    for i in "${!HARNESS_TASK_IDS[@]}"; do
+      [ "${HARNESS_TASK_IDS[$i]}" = "$id" ] || continue
+      case "$field" in
+      split)
+        printf '%s\n' "${HARNESS_TASK_SPLITS[$i]}"
+        return 0
+        ;;
+      hide_spawn_binaries)
+        printf '%s\n' "${HARNESS_TASK_HIDE[$i]}"
+        return 0
+        ;;
+      esac
+      break
+    done
+  fi
+  # exotic fields keep jq as the single source of truth
   jq -r --arg id "$id" --arg field "$field" \
     '.tasks[] | select(.id == $id) | .[$field] | if type == "array" then join(" ") else tostring end' \
     "$(harness_manifest_path)"
@@ -255,9 +314,19 @@ harness_task_field() {
 harness_task_has_runner() {
   local id="$1"
   local runner="$2"
-  jq -e --arg id "$id" --arg runner "$runner" \
-    '.tasks[] | select(.id == $id) | .runners | index($runner)' \
-    "$(harness_manifest_path)" >/dev/null
+  local i r
+  [ -n "${HARNESS_MANIFEST_LOADED:-}" ] || harness_manifest_load
+  if [ "${#HARNESS_TASK_IDS[@]}" -gt 0 ]; then
+    for i in "${!HARNESS_TASK_IDS[@]}"; do
+      [ "${HARNESS_TASK_IDS[$i]}" = "$id" ] || continue
+      local IFS=','
+      for r in ${HARNESS_TASK_RUNNERS[$i]}; do
+        [ "$r" = "$runner" ] && return 0
+      done
+      return 1
+    done
+  fi
+  return 1
 }
 
 harness_print_argv() {
@@ -298,40 +367,43 @@ harness_print_argv() {
   esac
 }
 
+harness_json_escape_var() {
+  # $1 = variable name; its value is JSON-escaped in place (printf -v is
+  # bash-3.2-safe, no subshell/eval). Control chars below 0x20 that can
+  # appear in paths/values are covered; the rest of the row inputs are
+  # constrained (ids, model names, ISO stamps, hex shas).
+  local name="$1" val
+  val="${!name}"
+  val="${val//\\\\/\\\\\\\\}"
+  val="${val//\"/\\\"}"
+  val="${val//$'\n'/\\n}"
+  val="${val//$'\t'/\\t}"
+  val="${val//$'\r'/\\r}"
+  printf -v "$name" '%s' "$val"
+}
+
 harness_json_row() {
-  jq -n \
-    --arg task_id "$1" \
-    --arg split "$2" \
-    --arg runner "$3" \
-    --arg model_requested "$4" \
-    --arg model_effective "$5" \
-    --arg thinking_requested "$6" \
-    --arg thinking_effective "$7" \
-    --arg started_at "$8" \
-    --argjson duration_s "$9" \
-    --argjson runner_exit "${10}" \
-    --argjson oracle_exit "${11}" \
-    --argjson pass "${12}" \
-    --arg transcript_path "${13}" \
-    --arg manifest_sha "${14}" \
-    --arg oracle_sha "${15}" \
-    '{
-      task_id: $task_id,
-      split: $split,
-      runner: $runner,
-      model_requested: $model_requested,
-      model_effective: $model_effective,
-      thinking_requested: $thinking_requested,
-      thinking_effective: $thinking_effective,
-      started_at: $started_at,
-      duration_s: $duration_s,
-      runner_exit: $runner_exit,
-      oracle_exit: $oracle_exit,
-      pass: $pass,
-      transcript_path: $transcript_path,
-      manifest_sha: $manifest_sha,
-      oracle_sha: $oracle_sha
-    }'
+  # One printf, zero forks (was jq -n: one process per graded cell).
+  # Strings are escaped in place; numbers/booleans are emitted raw.
+  local task_id="$1" split="$2" runner="$3" model_requested="$4" model_effective="$5"
+  local thinking_requested="$6" thinking_effective="$7" started_at="$8" duration_s="$9"
+  local runner_exit="${10}" oracle_exit="${11}" pass="${12}" transcript_path="${13}"
+  local manifest_sha="${14}" oracle_sha="${15}"
+  harness_json_escape_var task_id
+  harness_json_escape_var split
+  harness_json_escape_var runner
+  harness_json_escape_var model_requested
+  harness_json_escape_var model_effective
+  harness_json_escape_var thinking_requested
+  harness_json_escape_var thinking_effective
+  harness_json_escape_var started_at
+  harness_json_escape_var transcript_path
+  harness_json_escape_var manifest_sha
+  harness_json_escape_var oracle_sha
+  printf '{"task_id":"%s","split":"%s","runner":"%s","model_requested":"%s","model_effective":"%s","thinking_requested":"%s","thinking_effective":"%s","started_at":"%s","duration_s":%s,"runner_exit":%s,"oracle_exit":%s,"pass":%s,"transcript_path":"%s","manifest_sha":"%s","oracle_sha":"%s"}\n' \
+    "$task_id" "$split" "$runner" "$model_requested" "$model_effective" \
+    "$thinking_requested" "$thinking_effective" "$started_at" "$duration_s" \
+    "$runner_exit" "$oracle_exit" "$pass" "$transcript_path" "$manifest_sha" "$oracle_sha"
 }
 
 harness_grade() {
@@ -772,7 +844,7 @@ harness_require_cell_dir_empty() {
 harness_baseline_suite() {
   local kind="$1"
   local output="$2"
-  local results_dir cell row cell_status id row_file suite_started
+  local results_dir cell row cell_status id suite_started
   case "$kind" in
   null | constant) ;;
   *) harness_die "unknown baseline kind: $kind" ;;
@@ -787,30 +859,43 @@ harness_baseline_suite() {
   # Offline fabrication floors: no model runs, oracles never read the
   # scaffold — prepare scaffold-less cells (see harness_prepare_worktree).
   HARNESS_PREPARE_SCAFFOLD=0
-  # Cells run in this shell (output redirected to a file, not captured in
-  # a $() subshell) so per-process caches like HARNESS_MANIFEST_SHA_CACHE
-  # survive from cell to cell.
-  row_file="$(mktemp "${TMPDIR:-/tmp}/etabli-harness-row.XXXXXX")"
+  # Cells are independent (own cell dir per task, read-only fixtures): run
+  # them concurrently and concatenate the rows in manifest order. A shared
+  # HARNESS_PREPARE_CACHE stays race-free because cache entries are keyed
+  # per task id and each task builds exactly once per suite.
   suite_started="$(harness_iso_now)"
+  local -a ids=() pids=() row_paths=()
+  local i id row_path cell_status row
   while IFS= read -r id; do
-    cell="$results_dir/$kind-$id-1"
-    harness_require_cell_dir_empty "$cell"
-    cell_status=0
-    : >"$row_file"
-    if [ "$kind" = "null" ]; then
-      harness_null_baseline_once "$id" "$cell" >"$row_file" || cell_status=$?
-    else
-      harness_constant_baseline_once "$id" "$cell" >"$row_file" || cell_status=$?
-    fi
-    row="$(<"$row_file")"
-    [ "$cell_status" -eq 0 ] && [ -n "$row" ] || harness_die "$kind-baseline cell failed: $id"
-    if [ -n "$output" ]; then
-      printf '%s\n' "$row" >>"$output"
-    else
-      printf '%s\n' "$row"
-    fi
+    ids+=("$id")
   done < <(harness_task_ids)
-  rm -f "$row_file"
+  if [ "${#ids[@]}" -gt 0 ]; then
+    for id in "${ids[@]}"; do
+      cell="$results_dir/$kind-$id-1"
+      harness_require_cell_dir_empty "$cell"
+      row_path="$cell.row"
+      row_paths+=("$row_path")
+      : >"$row_path"
+      if [ "$kind" = "null" ]; then
+        harness_null_baseline_once "$id" "$cell" >"$row_path" &
+      else
+        harness_constant_baseline_once "$id" "$cell" >"$row_path" &
+      fi
+      pids+=("$!")
+    done
+    for i in "${!ids[@]}"; do
+      cell_status=0
+      wait "${pids[$i]}" || cell_status=$?
+      row="$(<"${row_paths[$i]}")"
+      [ "$cell_status" -eq 0 ] && [ -n "$row" ] || harness_die "$kind-baseline cell failed: ${ids[$i]}"
+      rm -f "${row_paths[$i]}"
+      if [ -n "$output" ]; then
+        printf '%s\n' "$row" >>"$output"
+      else
+        printf '%s\n' "$row"
+      fi
+    done
+  fi
 }
 
 harness_null_baseline_once() {
