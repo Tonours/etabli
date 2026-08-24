@@ -421,7 +421,14 @@ harness_prepare_worktree() {
   overlay="$task_dir/overlay"
   uncommitted="$task_dir/uncommitted"
   mkdir -p "$dest"
-  cp -R "$(harness_scaffold_template)/." "$dest/"
+  # HARNESS_PREPARE_SCAFFOLD=0 (baseline suites): offline fabrication
+  # floors never run a model, and no oracle reads scaffold files (they
+  # check porcelain paths, HEAD, and overlay/uncommitted SHAs only), so
+  # the workflow scaffold is dead weight there. Real run cells keep the
+  # full scaffold — the model under evaluation works inside it.
+  if [ "${HARNESS_PREPARE_SCAFFOLD:-1}" != "0" ]; then
+    cp -R "$(harness_scaffold_template)/." "$dest/"
+  fi
   if [ -d "$overlay" ]; then
     cp -R "$overlay/." "$dest/"
   fi
@@ -677,7 +684,9 @@ harness_baseline_suite() {
     mkdir -p "$results_dir"
   fi
   printf 'etabli-harness-eval: keeping %s-baseline cells in %s\n' "$kind" "$results_dir" >&2
-  harness_scaffold_template >/dev/null # pre-warm: cells run via redirection
+  # Offline fabrication floors: no model runs, oracles never read the
+  # scaffold — prepare scaffold-less cells (see harness_prepare_worktree).
+  HARNESS_PREPARE_SCAFFOLD=0
   # Cells run in this shell (output redirected to a file, not captured in
   # a $() subshell) so per-process caches like HARNESS_MANIFEST_SHA_CACHE
   # survive from cell to cell.
