@@ -427,14 +427,26 @@ parent_descriptor_is_canonical_lock() {
 
 trusted_parent_process_args() {
   local parent_pid="$1" ps_bin
+  # One ps read serves both the name check (verify_native_canonical_lock) and
+  # the argv check (parent_targets_canonical_lock) within the same process.
+  if [ -n "${WORKFLOW_PARENT_COMMAND:-}" ] && [ "${WORKFLOW_PARENT_PID:-}" = "$parent_pid" ]; then
+    printf '%s\n' "$WORKFLOW_PARENT_COMMAND"
+    return 0
+  fi
   ps_bin="$(system_lock_tool ps)" || return 1
-  "$ps_bin" -ww -p "$parent_pid" -o command= 2>/dev/null
+  WORKFLOW_PARENT_COMMAND="$("$ps_bin" -ww -p "$parent_pid" -o command= 2>/dev/null)" || true
+  WORKFLOW_PARENT_PID="$parent_pid"
+  printf '%s\n' "$WORKFLOW_PARENT_COMMAND"
 }
 
 trusted_parent_process_name() {
-  local parent_pid="$1" ps_bin
-  ps_bin="$(system_lock_tool ps)" || return 1
-  "$ps_bin" -p "$parent_pid" -o comm= 2>/dev/null
+  local parent_pid="$1"
+  # Derive from the cached full command (single ps spawn); comm= adds no
+  # information the first token does not carry for this check.
+  local command
+  command="$(trusted_parent_process_args "$parent_pid")" || return 1
+  command="${command#"${command%%[![:space:]]*}"}"
+  printf '%s\n' "${command%%[[:space:]]*}"
 }
 
 native_backend_available() {
