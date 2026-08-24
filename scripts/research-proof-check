@@ -1,5 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
+
+# Pattern matching uses the shell's own ERE engine ([[ =~ ]] with the
+# nocasematch shell option) instead of spawning grep processes. Word-boundary
+# assertions use the POSIX [[:<:]] / [[:>:]] spellings; accented classes list
+# the uppercase form explicitly because nocasematch only folds ASCII.
+shopt -s nocasematch
 
 usage() {
   cat <<EOF
@@ -27,18 +33,24 @@ if [ ! -f "$file" ]; then
   exit 1
 fi
 
-if ! grep -Eiq '(https?://|Sources?:|Evidence:|file:[[:space:]]*|[[:alnum:]_./-]+:[0-9]+)' "$file"; then
+IFS= read -r -d '' content <"$file" || :
+
+has() {
+  [[ $content =~ $1 ]]
+}
+
+has '(https?://|Sources?:|Evidence:|file:[[:space:]]*|[[:alnum:]_./-]+:[0-9]+)' || {
   printf 'research artifact has no explicit source evidence: %s\n' "$file" >&2
   exit 1
-fi
+}
 
-if ! grep -Eiq '\b(confirmed|approximate|proxy[-_ ]supported|blocked|unknown|inconclusive|verified|not verified)\b' "$file"; then
+has '[[:<:]](confirmed|approximate|proxy[-_ ]supported|blocked|unknown|inconclusive|verified|not verified)[[:>:]]' || {
   printf 'research artifact has no confidence/status labels: %s\n' "$file" >&2
   exit 1
-fi
+}
 
-if grep -Eiq '\b(i searched|j.?ai cherch[eé]|searched the web|recherche web effectu[eé]e)\b' "$file" &&
-  ! grep -Eiq 'https?://' "$file"; then
+if has '[[:<:]](i searched|j.?ai cherch[eéÉ]|searched the web|recherche web effectu[eéÉ]e)[[:>:]]' &&
+  ! has 'https?://'; then
   printf 'research artifact claims web search but has no URL source: %s\n' "$file" >&2
   exit 1
 fi

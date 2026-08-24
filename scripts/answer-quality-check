@@ -1,5 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
+
+# Pattern matching below uses the shell's own ERE engine ([[ =~ ]] with the
+# nocasematch shell option) instead of spawning one grep process per check.
+# Word-boundary assertions are the POSIX spellings [[:<:]] / [[:>:]]; accented
+# classes list the uppercase form explicitly because nocasematch only folds
+# ASCII.
+shopt -s nocasematch
 
 usage() {
   cat <<EOF
@@ -69,21 +76,23 @@ fail() {
   exit 1
 }
 
+IFS= read -r -d '' content <"$file" || :
+
 has() {
-  grep -Eiq -- "$1" "$file"
+  [[ $content =~ $1 ]]
 }
 
-if has '\b(guaranteed|guarantee|garanti(e|s)?|garantit)\b.{0,40}\b(10/10|perfect|parfait|correct)\b|\b(objectively perfect|always correct|toujours correct|r[eé]ponse parfaite garantie)\b'; then
+if has '[[:<:]](guaranteed|guarantee|garanti(e|s)?|garantit)[[:>:]].{0,40}[[:<:]](10/10|perfect|parfait|correct)[[:>:]]|[[:<:]](objectively perfect|always correct|toujours correct|r[eéÉ]ponse parfaite garantie)[[:>:]]'; then
   fail 'contains unsupported perfection or correctness overclaim'
 fi
 
-if has '\b(i searched|searched the web|j.?ai cherch[eé]|recherche web effectu[eé]e)\b' &&
+if has '[[:<:]](i searched|searched the web|j.?ai cherch[eéÉ]|recherche web effectu[eéÉ]e)[[:>:]]' &&
   ! has 'https?://'; then
   fail 'claims web research but has no URL source'
 fi
 
 evidence_pattern='(https?://|Sources?:|Evidence:|Validation|Validated|Checks?:|command:|/Volumes/|/Users/|~/|[[:alnum:]_.@/-]+:[0-9]+)'
-status_pattern='\b(verified|stale|inconclusive|assumption|blocked|not verified|confirmed|approximate|proxy[-_ ]supported|unknown|accepted|validated|passed|failed)\b'
+status_pattern='[[:<:]](verified|stale|inconclusive|assumption|blocked|not verified|confirmed|approximate|proxy[-_ ]supported|unknown|accepted|validated|passed|failed)[[:>:]]'
 validation_pattern='(Validation|Validated|Checks?:|command:|last run:|result:)'
 risk_pattern='(Remaining risks?|Risks?|not verified|inconclusive|blocked|unknown|stale|Parking lot)'
 local_pattern='(/Volumes/|/Users/|~/|command:|Validation|Checks?:|[[:alnum:]_.@/-]+:[0-9]+)'
