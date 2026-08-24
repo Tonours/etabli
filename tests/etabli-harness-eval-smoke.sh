@@ -167,8 +167,9 @@ cat >"$notes" <<'EOF'
 
 Verdict: GO WITH NOTES
 EOF
-prepare_synthetic review-spec-drift pass "$TMP_DIR/notes-wt"
-grade_cell review-spec-drift "$TMP_DIR/notes-wt" "$notes"
+# transcript-only cells grade the shared cached pass worktree directly
+# (oracles and harness_grade are read-only; mutating cases keep copies)
+grade_cell review-spec-drift "$TMP_DIR/syn-cache/review-spec-drift-pass" "$notes"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "GO WITH NOTES must not satisfy the spec-drift BLOCK gate"
 
@@ -187,8 +188,7 @@ isolation: isolated
 
 Verdict: GO WITH NOTES
 EOF
-prepare_synthetic no-parent-logic-claim pass "$TMP_DIR/lone-wt"
-grade_cell no-parent-logic-claim "$TMP_DIR/lone-wt" "$lone_line"
+grade_cell no-parent-logic-claim "$TMP_DIR/syn-cache/no-parent-logic-claim-pass" "$lone_line"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "a single self-declared isolation line must fail no-parent-logic-claim"
 
@@ -200,8 +200,7 @@ isolation: none
 
 Verdict: GO
 EOF
-prepare_synthetic no-parent-logic-claim pass "$TMP_DIR/contradictory-wt"
-grade_cell no-parent-logic-claim "$TMP_DIR/contradictory-wt" "$contradictory"
+grade_cell no-parent-logic-claim "$TMP_DIR/syn-cache/no-parent-logic-claim-pass" "$contradictory"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "contradictory isolation lines plus GO must fail no-parent-logic-claim"
 
@@ -223,8 +222,7 @@ isolation: none
 
 Verdict: GO
 EOF
-prepare_synthetic review-go-clean-diff pass "$TMP_DIR/go-contradictory-wt"
-grade_cell review-go-clean-diff "$TMP_DIR/go-contradictory-wt" "$go_contradictory"
+grade_cell review-go-clean-diff "$TMP_DIR/syn-cache/review-go-clean-diff-pass" "$go_contradictory"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "isolation: none alongside isolated must fail the GO-positive control"
 
@@ -235,8 +233,7 @@ isolation: isolated
 
 Verdict: BLOCK
 EOF
-prepare_synthetic hunter-read-only pass "$TMP_DIR/sentinel-wt"
-grade_cell hunter-read-only "$TMP_DIR/sentinel-wt" "$sentinel_only"
+grade_cell hunter-read-only "$TMP_DIR/syn-cache/hunter-read-only-pass" "$sentinel_only"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "sentinel without review protocol must fail hunter-read-only"
 
@@ -265,8 +262,7 @@ cat >"$degenerate" <<'EOF'
 | Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
 Verdict: GO WITH NOTES
 EOF
-prepare_synthetic review-go-forbidden-empty-deciding pass "$TMP_DIR/degenerate-wt"
-grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/degenerate-wt" "$degenerate"
+grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$degenerate"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "GO WITH NOTES over an empty deciding-code table must fail"
 
@@ -322,16 +318,14 @@ cat >"$pipe" <<'EOF'
 | Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
 Verdict: GO | GO WITH NOTES | BLOCK
 EOF
-prepare_synthetic review-go-forbidden-empty-deciding pass "$TMP_DIR/pipe-wt"
-grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/pipe-wt" "$pipe"
+grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$pipe"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "pipe-template verdict line must be unparseable"
 
 cursor="$TMP_DIR/cursor.txt"
 cat "$FIXTURES/tasks/review-go-forbidden-empty-deciding/synthetic/pass/transcript.txt" >"$cursor"
 printf 'Cursor Task is absent\n' >>"$cursor"
-prepare_synthetic review-go-forbidden-empty-deciding pass "$TMP_DIR/cursor-wt"
-grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/cursor-wt" "$cursor"
+grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$cursor"
 jq -e '.pass == false and .oracle_exit == 1' "$ROW" >/dev/null ||
   fail "Cursor-absence sentinel must fail the cell"
 
@@ -421,8 +415,7 @@ cat >"$status_only" <<'EOF'
 unrelated
 Verdict: BLOCK
 EOF
-prepare_synthetic review-spec-drift pass "$TMP_DIR/status-only-wt"
-grade_cell review-spec-drift "$TMP_DIR/status-only-wt" "$status_only"
+grade_cell review-spec-drift "$TMP_DIR/syn-cache/review-spec-drift-pass" "$status_only"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "FORBIDDEN.txt only in git status must fail spec-drift"
 
