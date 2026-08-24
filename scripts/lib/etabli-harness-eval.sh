@@ -428,6 +428,24 @@ harness_scaffold_template() {
   printf '%s\n' "$HARNESS_SCAFFOLD_CACHE"
 }
 
+HARNESS_GIT_TEMPLATE=""
+
+harness_git_init() {
+  # `git init` costs ~8ms per fresh worktree (x ~32 per smoke). A copied
+  # empty .git (built once per process by a real init) is byte-equivalent
+  # on this machine — git infers the worktree from the .git location, and
+  # no template file carries absolute paths.
+  local dest="$1"
+  local tmpl_dir
+  if [ -z "$HARNESS_GIT_TEMPLATE" ]; then
+    tmpl_dir="$(mktemp -d "${TMPDIR:-/tmp}/etabli-harness-git.XXXXXX")"
+    HARNESS_GIT_TEMPLATE="$tmpl_dir/.git"
+    git init -q "$tmpl_dir"
+    rm -rf "$HARNESS_GIT_TEMPLATE/hooks"
+  fi
+  cp -R "$HARNESS_GIT_TEMPLATE" "$dest/.git"
+}
+
 harness_prepare_worktree() {
   local task_id="$1"
   local dest="$2"
@@ -449,7 +467,7 @@ harness_prepare_worktree() {
     cp -R "$overlay/." "$dest/"
   fi
   harness_ensure_ignore "$dest"
-  git -C "$dest" init -q
+  harness_git_init "$dest"
   # one builtin append instead of two `git config` forks; appending a
   # [user] section to the freshly initialised .git/config is exactly what
   # the two config writes produced
@@ -680,7 +698,7 @@ harness_constant_baseline_once() {
   mkdir -p "$worktree" "$out_dir"
   harness_prepare_worktree "$task_id" "$worktree"
   harness_constant_baseline_transcript >"$transcript"
-  harness_grade "$task_id" "$worktree" "$transcript" "constant" none none none none 0 "$(harness_iso_now)" 0
+  harness_grade "$task_id" "$worktree" "$transcript" "constant" none none none none 0 "$suite_started" 0
 }
 
 harness_require_cell_dir_empty() {
@@ -693,7 +711,7 @@ harness_require_cell_dir_empty() {
 harness_baseline_suite() {
   local kind="$1"
   local output="$2"
-  local results_dir cell row cell_status id row_file
+  local results_dir cell row cell_status id row_file suite_started
   case "$kind" in
   null | constant) ;;
   *) harness_die "unknown baseline kind: $kind" ;;
@@ -712,6 +730,7 @@ harness_baseline_suite() {
   # a $() subshell) so per-process caches like HARNESS_MANIFEST_SHA_CACHE
   # survive from cell to cell.
   row_file="$(mktemp "${TMPDIR:-/tmp}/etabli-harness-row.XXXXXX")"
+  suite_started="$(harness_iso_now)"
   while IFS= read -r id; do
     cell="$results_dir/$kind-$id-1"
     harness_require_cell_dir_empty "$cell"
@@ -741,7 +760,7 @@ harness_null_baseline_once() {
   mkdir -p "$worktree" "$out_dir"
   harness_prepare_worktree "$task_id" "$worktree"
   : >"$transcript"
-  harness_grade "$task_id" "$worktree" "$transcript" "null" none none none none 0 "$(harness_iso_now)" 0
+  harness_grade "$task_id" "$worktree" "$transcript" "null" none none none none 0 "$suite_started" 0
 }
 
 harness_report() {

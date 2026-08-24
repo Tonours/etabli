@@ -391,25 +391,14 @@ code=$?
 [ -s "$wrapper_log" ] || fail "wrapper must log the invocation outside the worktree"
 
 argv_pi="$(PATH="$HERMETIC_PATH" "$DRIVER" print-argv --runner pi)"
-printf '%s\n' "$argv_pi" | grep -Fx -- '--model' >/dev/null || fail "pi argv missing --model"
-printf '%s\n' "$argv_pi" | grep -Fx -- 'zai/glm-5.3' >/dev/null || fail "pi argv missing zai/glm-5.3"
-printf '%s\n' "$argv_pi" | grep -Fx -- '--thinking' >/dev/null || fail "pi argv missing --thinking"
-printf '%s\n' "$argv_pi" | grep -Fx -- 'max' >/dev/null || fail "pi argv missing max"
-printf '%s\n' "$argv_pi" | grep -Fx -- '--no-session' >/dev/null || fail "pi argv missing --no-session"
-printf '%s\n' "$argv_pi" | grep -Fx -- '--approve' >/dev/null || fail "pi argv missing --approve"
-printf '%s\n' "$argv_pi" | grep -Fx -- '-p' >/dev/null || fail "pi argv missing -p"
+printf '%s\n' "$argv_pi" | grep -Fx -q -e '--model' -e 'zai/glm-5.3' -e '--thinking' -e 'max' \
+  -e '--no-session' -e '--approve' -e -p ||
+  fail "pi argv missing one of --model zai/glm-5.3 --thinking max --no-session --approve -p"
 
 argv_grok="$(PATH="$HERMETIC_PATH" "$DRIVER" print-argv --runner grok --cwd /tmp/eval-cwd --prompt HELLO)"
-printf '%s\n' "$argv_grok" | grep -Fx -- '--cwd' >/dev/null || fail "grok argv missing --cwd"
-printf '%s\n' "$argv_grok" | grep -Fx -- '/tmp/eval-cwd' >/dev/null || fail "grok argv missing cwd"
-printf '%s\n' "$argv_grok" | grep -Fx -- '-m' >/dev/null || fail "grok argv missing -m"
-printf '%s\n' "$argv_grok" | grep -Fx -- 'grok-4.6' >/dev/null || fail "grok argv missing grok-4.6"
-printf '%s\n' "$argv_grok" | grep -Fx -- '--reasoning-effort' >/dev/null || fail "grok argv missing --reasoning-effort"
-printf '%s\n' "$argv_grok" | grep -Fx -- 'xhigh' >/dev/null || fail "grok argv missing xhigh"
-printf '%s\n' "$argv_grok" | grep -Fx -- '--permission-mode' >/dev/null || fail "grok argv missing --permission-mode"
-printf '%s\n' "$argv_grok" | grep -Fx -- 'acceptEdits' >/dev/null || fail "grok argv missing acceptEdits"
-printf '%s\n' "$argv_grok" | grep -Fx -- '-p' >/dev/null || fail "grok argv missing -p"
-printf '%s\n' "$argv_grok" | grep -Fx -- 'HELLO' >/dev/null || fail "grok argv missing prompt"
+printf '%s\n' "$argv_grok" | grep -Fx -q -e '--cwd' -e '/tmp/eval-cwd' -e -m -e 'grok-4.6' \
+  -e '--reasoning-effort' -e xhigh -e '--permission-mode' -e acceptEdits -e -p -e HELLO ||
+  fail "grok argv missing one of --cwd /tmp/eval-cwd -m grok-4.6 --reasoning-effort xhigh --permission-mode acceptEdits -p HELLO"
 # -p must consume the prompt, not --cwd.
 awk '
   $0 == "-p" { getline nextline; if (nextline ~ /^-/) { exit 1 } }
