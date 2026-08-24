@@ -17,8 +17,13 @@ export function parsePlanStatus(text) {
  * Extract frozen items under ## Checks and ## Acceptance Criteria until the
  * next ## heading of another kind. command: lines count as check identifiers.
  */
-export function parseChecks(text) {
-  const lines = String(text).split(/\r?\n/);
+let pcKeyA;
+let pcValA;
+let pcKeyB;
+let pcValB;
+
+function parseChecksUncached(text) {
+  const lines = text.split(/\r?\n/);
   const checks = [];
   let inFreezeSection = false;
   for (const line of lines) {
@@ -55,6 +60,31 @@ export function parseChecks(text) {
   return checks;
 }
 
+/**
+ * Memoized (2-slot LRU keyed on exact text content). Callers treat the
+ * returned array as read-only; identical text returns the same instance,
+ * which also lets evaluateCheckFreeze's WeakMap normalization cache hit.
+ */
+export function parseChecks(text) {
+  const s = String(text);
+  if (s === pcKeyA) return pcValA;
+  if (s === pcKeyB) {
+    const k = pcKeyB;
+    const v = pcValB;
+    pcKeyB = pcKeyA;
+    pcValB = pcValA;
+    pcKeyA = k;
+    pcValA = v;
+    return v;
+  }
+  const checks = parseChecksUncached(s);
+  pcKeyB = pcKeyA;
+  pcValB = pcValA;
+  pcKeyA = s;
+  pcValA = checks;
+  return checks;
+}
+
 export function parseDecisionLog(text) {
   const lines = String(text).split(/\r?\n/);
   const out = [];
@@ -75,37 +105,75 @@ function normalize(item) {
 }
 
 /**
+ * Hot-path caches. evaluateCheckFreeze runs on every Write/Edit/MultiEdit of
+ * PLAN.md while a plan is READY, and identical text recurs between mutations:
+ * - single-entry cache keyed on exact text content (`===` on strings of equal
+ *   length is a memcmp, still far cheaper than re-parsing);
+ * - WeakMap keyed on the previousChecks array identity for its normalized
+ *   form (callers pass parseChecks output, which is itself memoized).
+ */
+const prevNormalizedCache = new WeakMap();
+let parsedTextKey;
+let parsedTextVal;
+
+function parsedBundleFor(text) {
+  if (text === parsedTextKey) return parsedTextVal;
+  const val = {
+    status: parsePlanStatus(text),
+    checks: parseChecks(text),
+    normSet: null,
+    decisionLog: parseDecisionLog(text),
+  };
+  parsedTextKey = text;
+  parsedTextVal = val;
+  return val;
+}
+
+/**
  * @param {{ previousChecks: string[], currentText: string }} input
  * @returns {{ ok: boolean, status: string, removed: string[], reason: string }}
  */
 export function evaluateCheckFreeze({ previousChecks, currentText }) {
-  const status = parsePlanStatus(currentText);
-  const currentChecks = parseChecks(currentText);
-  const decisionLog = parseDecisionLog(currentText);
-  const prev = (previousChecks || []).map(normalize).filter(Boolean);
-  const curr = new Set(currentChecks.map(normalize));
+  const parsed = parsedBundleFor(String(currentText));
+  const prevRaw = previousChecks || [];
 
-  if (prev.length === 0) {
+  if (prevRaw.length === 0) {
     return {
       ok: true,
-      status,
+      status: parsed.status,
       removed: [],
       reason: "no previous freeze snapshot",
-      currentChecks,
+      currentChecks: parsed.checks,
     };
   }
 
-  const removed = prev.filter((c) => !curr.has(c));
+  let prev = prevNormalizedCache.get(prevRaw);
+  if (prev === undefined) {
+    prev = prevRaw.map(normalize).filter(Boolean);
+    prevNormalizedCache.set(prevRaw, prev);
+  }
+
+  let curr = parsed.normSet;
+  if (curr === null) {
+    curr = parsed.normSet = new Set(parsed.checks.map(normalize));
+  }
+
+  const removed = [];
+  for (let i = 0; i < prev.length; i++) {
+    if (!curr.has(prev[i])) removed.push(prev[i]);
+  }
   if (removed.length === 0) {
     return {
       ok: true,
-      status,
+      status: parsed.status,
       removed: [],
       reason: "checks preserved or strengthened",
-      currentChecks,
+      currentChecks: parsed.checks,
     };
   }
 
+  const status = parsed.status;
+  const decisionLog = parsed.decisionLog;
   const demoted = status === "challenged";
   // Structured demote (preferred): "- check_freeze_demote: <nonempty reason>"
   const structuredMatch = decisionLog.match(
@@ -127,7 +195,7 @@ export function evaluateCheckFreeze({ previousChecks, currentText }) {
       reason: "weakening allowed: CHALLENGED with structured check_freeze_demote",
       demote_mode: "structured",
       demote_reason: structuredReason,
-      currentChecks,
+      currentChecks: parsed.checks,
     };
   }
 
@@ -139,7 +207,7 @@ export function evaluateCheckFreeze({ previousChecks, currentText }) {
       reason: "weakening allowed: CHALLENGED with Decision Log rationale",
       demote_mode: "keyword",
       demote_reason: null,
-      currentChecks,
+      currentChecks: parsed.checks,
     };
   }
 
@@ -151,7 +219,7 @@ export function evaluateCheckFreeze({ previousChecks, currentText }) {
       "check-freeze violation: READY checks may only be strengthened; demote to CHALLENGED and record Decision Log rationale (check_freeze_demote: … or legacy check-freeze/weaken keywords) to remove/weaken",
     demote_mode: null,
     demote_reason: null,
-    currentChecks,
+    currentChecks: parsed.checks,
   };
 }
 
