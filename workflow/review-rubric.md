@@ -49,7 +49,7 @@ verdict, open what decides it:
 **Retrieval heuristic (runtime behaviors):**
 - multi-source value → open the **resolver**
 - status / error path → open **mapper + middleware / guard**
-- documented field → cross **prose + schema + runtime producer**
+- documented field → cross **prose + declaration + runtime producer**
 - value captured then reused across an `await` or async boundary (snapshot,
   cache, closure) → open **what can write or mutate it between capture and
   reuse** (event handlers, store setters, sibling writers)
@@ -69,10 +69,8 @@ never asks:
 - **impossible states**: can the types represent a combination the code never
   produces? correlated fields modelled as independent?
 - **prose versus machine-readable**: does the human description match the
-  structured declaration, not just the code? each behavior named in prose must
-  cite the machine-readable declaration that carries it — parameter, schema
-  entry, config key — `file:line`; a named behavior with no declaration is a
-  finding
+  structured declaration, not just the code? A runtime producer is not a
+  declaration
 - **exhaustive reachability**: every reachable outcome declared, every declared
   outcome reachable? both directions
 - **asymmetry**: inverse operations round-trip; a rule applied to one sibling and
@@ -114,8 +112,9 @@ Lead filters after the hunt; it does not re-hunt the diff.
 ### Lens table
 Every row mandatory on the Logic hunter. A lens without a concrete opened
 `file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`). On `Verdict: GO` or `Verdict: GO WITH NOTES`, every lens row carries `file:line`, `absent` (Prose row only, no behavior named in prose), or `deferred: Standards hunter` (Convention row only, `Standards: yes`). A `not run` row blocks `Verdict: GO` and `Verdict: GO WITH NOTES` alike: a notes verdict is not a workaround for a skipped lens. Any other cell is a `not run` skip, and a skip is not a result (Convention §5 excepted: its no-skill, no-sibling `not run` is a recorded gap, never a pass).
-The Prose vs machine-readable row cites one declaration `file:line` for **each
-behavior named in prose**, or `absent` when none exists.
+The Prose row lists **each behavior named in prose**: its declaration —
+parameter, schema entry, config key — `file:line`, or `no declaration →
+finding`; `absent` only when prose names none.
 
 | Lens | Checked (file:line) | Found |
 | --- | --- | --- |
