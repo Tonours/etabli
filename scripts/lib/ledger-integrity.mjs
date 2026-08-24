@@ -4,11 +4,52 @@
  * schema validator: a guard must fail closed before it decides whether a
  * ledger can be ignored or selected as active.
  */
-import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { WORKFLOW_EVENTS } from "./workflow-events.mjs";
 
 export const ACTIVE_RUN_POINTER = "active-run.json";
+
+/**
+ * Stat-keyed caches. selectActiveLedger runs on every tool_result and the
+ * ledger set is almost always unchanged between consecutive calls, so
+ * re-reading and re-parsing every journal is wasted work. Results are keyed
+ * by file identity + size + mtimeNs + ctimeNs (bigint stats): any append,
+ * rewrite, chmod, or replacement yields a new key and forces a fresh parse.
+ * Event watchers cannot replace this revalidation: the API is synchronous, so
+ * a watch event that has not been delivered yet must never mask a change that
+ * is already visible on disk.
+ */
+const CACHE_LIMIT = 4096;
+const ROOT_CACHE_LIMIT = 256;
+const ledgerCache = new Map(); // ledger path -> { fp, value } (parsed ledger result)
+const pointerCache = new Map(); // pointer path -> { fp, value }
+const scanCache = new Map(); // workflow root -> Map<run name, { fp, path, record }>
+
+/** File fingerprint: identity + size + mtime + ctime (ns, bigint stats). */
+function fingerprint(stat) {
+  return { dev: stat.dev, ino: stat.ino, size: stat.size, mtimeNs: stat.mtimeNs, ctimeNs: stat.ctimeNs };
+}
+
+function sameFingerprint(a, b) {
+  return (
+    a.dev === b.dev &&
+    a.ino === b.ino &&
+    a.size === b.size &&
+    a.mtimeNs === b.mtimeNs &&
+    a.ctimeNs === b.ctimeNs
+  );
+}
+
+function cacheLookup(cache, path, fp) {
+  const cached = cache.get(path);
+  return cached !== undefined && sameFingerprint(cached.fp, fp) ? cached.value : undefined;
+}
+
+function cacheStore(cache, path, fp, value) {
+  if (cache.size >= CACHE_LIMIT) cache.clear();
+  cache.set(path, { fp, value });
+}
 
 const TERMINAL_EVENTS = new Set(["completed", "blocked"]);
 const RUN_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
@@ -163,29 +204,61 @@ export function inspectLedgerText(text, expectedRun) {
 
 /** @param {string} ledgerPath @param {string} [expectedRun] */
 export function inspectLedgerFile(ledgerPath, expectedRun = basename(join(ledgerPath, ".."))) {
-  if (!ledgerPath || !existsSync(ledgerPath)) return invalid("missing_ledger");
+  if (!ledgerPath) return invalid("missing_ledger");
+  let stat;
   try {
-    if (lstatSync(ledgerPath).isSymbolicLink() || lstatSync(join(ledgerPath, "..")).isSymbolicLink()) {
-      return invalid("symlinked_ledger");
-    }
-    return inspectLedgerText(readFileSync(ledgerPath, "utf8"), expectedRun);
+    stat = lstatSync(ledgerPath, { bigint: true, throwIfNoEntry: false });
+  } catch {
+    return invalid("missing_ledger");
+  }
+  if (stat === undefined) return invalid("missing_ledger");
+  if (stat.isSymbolicLink()) return invalid("symlinked_ledger");
+  try {
+    const parent = lstatSync(join(ledgerPath, ".."), { bigint: true, throwIfNoEntry: false });
+    if (parent === undefined) return invalid("unreadable_ledger");
+    if (parent.isSymbolicLink()) return invalid("symlinked_ledger");
   } catch {
     return invalid("unreadable_ledger");
   }
+  const key = fingerprint(stat);
+  const cached = cacheLookup(ledgerCache, ledgerPath, key);
+  if (cached !== undefined) return cached;
+  let result;
+  try {
+    result = inspectLedgerText(readFileSync(ledgerPath, "utf8"), expectedRun);
+  } catch {
+    result = invalid("unreadable_ledger");
+  }
+  cacheStore(ledgerCache, ledgerPath, key, result);
+  return result;
 }
 
-function readPointer(root) {
+function readPointer(root, absentFromEntries = false) {
   const pointerPath = join(root, ACTIVE_RUN_POINTER);
-  if (!existsSync(pointerPath)) return { state: "absent", path: pointerPath };
+  if (absentFromEntries) return { state: "absent", path: pointerPath };
+  let stat;
+  try {
+    stat = statSync(pointerPath, { bigint: true, throwIfNoEntry: false });
+  } catch {
+    return { state: "absent", path: pointerPath };
+  }
+  if (stat === undefined) return { state: "absent", path: pointerPath };
+  const key = fingerprint(stat);
+  const cached = cacheLookup(pointerCache, pointerPath, key);
+  if (cached !== undefined) return cached;
+  let result;
   try {
     const parsed = JSON.parse(readFileSync(pointerPath, "utf8"));
     if (!isObject(parsed) || parsed.schema_version !== 1 || !isValidRunSlug(parsed.run)) {
-      return { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
+      result = { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
+    } else {
+      result = { state: "present", path: pointerPath, run: parsed.run };
     }
-    return { state: "present", path: pointerPath, run: parsed.run };
   } catch {
-    return { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
+    result = { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
   }
+  cacheStore(pointerCache, pointerPath, key, result);
+  return result;
 }
 
 export function getActiveRunPointer(cwd) {
@@ -197,16 +270,96 @@ export function getActiveRunPointer(cwd) {
  * Collect all root ledgers with their integrity status. Invalid records are
  * deliberately retained so callers can fail closed instead of ignoring them.
  */
-export function inspectLedgerRoot(cwd) {
-  const root = join(cwd || process.cwd(), ".workflow");
-  if (!existsSync(root)) {
-    return { root, pointer: { state: "absent", path: join(root, ACTIVE_RUN_POINTER) }, records: [] };
+/**
+ * Shared scan over a readdir result. Returns the records plus whether an
+ * active-run.json entry exists (so callers can skip a pointer stat probe).
+ * readdir Dirents prove each run directory is a real directory (symlinks
+ * report as symlinks), so the parent-symlink lstat from inspectLedgerFile is
+ * redundant on this path.
+ */
+function scanRootEntries(root, entries) {
+  let scanRecords = scanCache.get(root);
+  if (scanRecords === undefined) {
+    if (scanCache.size >= ROOT_CACHE_LIMIT) scanCache.clear();
+    scanRecords = new Map();
+    scanCache.set(root, scanRecords);
   }
 
+  const records = [];
+  let pointerInEntries = false;
+  for (const entry of entries) {
+    if (entry.name === ACTIVE_RUN_POINTER) pointerInEntries = true;
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const cached = scanRecords.get(entry.name);
+    const path = cached !== undefined ? cached.path : join(root, entry.name, "events.jsonl");
+    let stat;
+    try {
+      stat = lstatSync(path, { bigint: true, throwIfNoEntry: false });
+    } catch {
+      scanRecords.delete(entry.name);
+      continue;
+    }
+    if (stat === undefined) {
+      scanRecords.delete(entry.name);
+      continue;
+    }
+    if (stat.isSymbolicLink()) {
+      // A symlinked journal only counts as a record when its target exists
+      // (matching existsSync semantics); it is retained as invalid so callers
+      // fail closed instead of silently ignoring it.
+      let resolves;
+      try {
+        resolves = statSync(path, { throwIfNoEntry: false }) !== undefined;
+      } catch {
+        resolves = false;
+      }
+      scanRecords.delete(entry.name);
+      if (resolves) {
+        records.push({ path, run: entry.name, ...invalid("symlinked_ledger") });
+      }
+      continue;
+    }
+    if (
+      cached !== undefined &&
+      cached.dev === stat.dev &&
+      cached.ino === stat.ino &&
+      cached.size === stat.size &&
+      cached.mtimeNs === stat.mtimeNs &&
+      cached.ctimeNs === stat.ctimeNs
+    ) {
+      records.push(cached.record);
+      continue;
+    }
+    let result;
+    try {
+      result = inspectLedgerText(readFileSync(path, "utf8"), entry.name);
+    } catch {
+      result = invalid("unreadable_ledger");
+    }
+    const record = { path, run: entry.name, ...result };
+    scanRecords.set(entry.name, {
+      dev: stat.dev,
+      ino: stat.ino,
+      size: stat.size,
+      mtimeNs: stat.mtimeNs,
+      ctimeNs: stat.ctimeNs,
+      path,
+      record,
+    });
+    records.push(record);
+  }
+  return { records, pointerInEntries };
+}
+
+export function inspectLedgerRoot(cwd) {
+  const root = join(cwd || process.cwd(), ".workflow");
   let entries;
   try {
     entries = readdirSync(root, { withFileTypes: true });
-  } catch {
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return { root, pointer: { state: "absent", path: join(root, ACTIVE_RUN_POINTER) }, records: [] };
+    }
     return {
       root,
       pointer: { state: "invalid", path: join(root, ACTIVE_RUN_POINTER), reason: "unreadable_workflow_root" },
@@ -214,14 +367,8 @@ export function inspectLedgerRoot(cwd) {
     };
   }
 
-  const records = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-    const path = join(root, entry.name, "events.jsonl");
-    if (!existsSync(path)) continue;
-    records.push({ path, run: entry.name, ...inspectLedgerFile(path, entry.name) });
-  }
-  return { root, pointer: readPointer(root), records };
+  const { records, pointerInEntries } = scanRootEntries(root, entries);
+  return { root, pointer: readPointer(root, !pointerInEntries), records };
 }
 
 /**
