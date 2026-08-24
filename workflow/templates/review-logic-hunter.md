@@ -18,6 +18,7 @@ Logic
 
 severity / file / line / issue / impact / review_comment / suggested_fix
 (or exactly `No findings.`)
+impact names the concrete failure (input or state → wrong output); style, whitespace, and behavior-preserving renames → `No findings.`
 
 ## Lens table
 

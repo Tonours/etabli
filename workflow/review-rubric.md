@@ -5,8 +5,8 @@ Run a production-minded review. Parent hunts via isolated hunters, then filters.
 ## Intent
 
 The parent writes one paragraph of Intent (user message, PR body, or commits)
-after pinning the patch once. Hunters receive that pinned text and Intent.
-Logic does not treat Intent or `PLAN.md` as correctness authority.
+after pinning the patch once; hunters receive both. Logic does not treat
+Intent or `PLAN.md` as correctness authority.
 
 ## Hunt and filter
 
@@ -32,12 +32,10 @@ Logic does not treat Intent or `PLAN.md` as correctness authority.
 
 ### 2. Plan compliance (Spec hunter)
 - compare the pinned diff against `PLAN.md` or PR/user intent when present
-- check scope, non-goals, invariants, done criteria, and changed-file alignment
-- flag complexity drift or unplanned surface area
+- check scope, non-goals, invariants, done criteria, changed-file alignment, complexity drift
 
 ### 3. Context retrieval, before judging (Logic hunter)
-Reviewers fail on out-of-diff context far more than on reasoning. Before forming a
-verdict, open what decides it:
+Reviewers fail on out-of-diff context most. Before a verdict, open what decides it:
 - the resolution code when a value can come from several sources: read the order,
   never infer precedence from a name, a comment, or a description
 - callers and callees of each changed function: a guard added in one place is a
@@ -58,8 +56,7 @@ Stop when further reading stops changing your mind. Piling on context past that
 point measurably lowers accuracy.
 
 ### 4. Adversarial review (Logic hunter)
-- look for edge cases, regressions, safety issues, and future recovery pain
-- assume the happy path is already covered and search for what breaks around it
+- assume the happy path is covered; search around it: edge cases, regressions, safety issues, recovery pain
 
 Run these relational lenses, and state what each found, including nothing.
 Severity-first scanning finds only what looks wrong; these ask what scanning
@@ -90,7 +87,7 @@ clean pass. When `Standards: none`, Logic keeps that sibling/`not run` rule.
 Evidence bar for a convention finding:
 - changed `file:line` in the target diff
 - sibling pattern `file:line` (or named skill rule when no sibling exists)
-- impact on correctness, operability, or maintenance — not preference
+- impact on correctness or operability — the concrete failure (input or state → wrong output) — not preference or maintenance taste
 
 ### 6. Refute before reporting
 For each candidate, argue the opposite and try to make it stick. What would have to
@@ -98,14 +95,14 @@ be true for this to be correct? Is there a caller, default, guard, or test that
 already prevents it?
 
 Then apply the evidence bar: a finding ships only with a concrete failure —
-specific input or state, the path it takes, the wrong output. "Looks fragile",
-"could break if", "consider hardening" are open questions, not findings.
+specific input or state, the path it takes, the wrong output. "Looks fragile" or
+"consider hardening" are open questions, not findings.
 
 Lead filters after the hunt; it does not re-hunt the diff.
 
 ### 7. Human checkpoint trigger
 - explicitly say when a human should arbitrate
-- use this for accepted risk, ambiguous tradeoffs, rollback/replan decisions, or broad-impact changes
+- use this for accepted risk, ambiguous tradeoffs, replan decisions, broad impact
 
 ## Mandatory output tables
 
@@ -149,7 +146,7 @@ A non-trivial runtime row with empty deciding code or `not run` **blocks
 
 ## Evidence rules
 - Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.
-- Do not edit files, install dependencies, or run broad/slow validation unless the user explicitly asked for that level of review.
+- Do not edit files, install dependencies, or run broad/slow validation unless explicitly asked.
 - Treat missing validation as a finding only when you can name the unvalidated
   input, the reachable entry point that passes it, and the wrong output it
   produces downstream; otherwise it is an open question, not a finding.
@@ -162,8 +159,8 @@ A non-trivial runtime row with empty deciding code or `not run` **blocks
 - maintainability issues that affect correctness or operability
 - convention or pattern drift against sibling implementations (with local anchor)
 - plan drift or review-time discovery that the work no longer matches the approved contract
-- unrequested abstraction, new dependency, reinvented stdlib/native feature, or
-  comments/`any`/try-catch added only to paper over the change (implementation-loop 12b)
+- unrequested abstraction, new dependency, reinvented stdlib, or
+  comments/`any`/try-catch papering over the change
 
 ## Findings format
 For each issue include:
@@ -175,13 +172,13 @@ For each issue include:
 - `review_comment:` one concise inline-ready comment suitable for a GitHub-style review thread, without code fences or tables
 - `suggested_fix:`
 
-Use `line_range:` instead of `line:` when the finding applies to multiple changed lines.
+Use `line_range:` for multi-line findings.
 
 If human arbitration is needed, add:
 - `human_checkpoint: yes`
 - why the reviewer is escalating
 
-Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If there is no actionable issue, put exactly `No findings.` as the only finding and do not wrap it in severity/file fields.
+Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If no issue names its concrete failure (input or state → wrong output), put exactly `No findings.` as the only finding — style, whitespace, and behavior-preserving renames never qualify, at any severity — and do not wrap it in severity/file fields.
 
 ## Verdict
 End with a final line in this exact shape:
@@ -190,10 +187,11 @@ End with a final line in this exact shape:
 - `Verdict: BLOCK`
 
 **GO** and **GO WITH NOTES** require: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), and no lens row left `not run` or unsanctioned.
+Notes on `GO WITH NOTES` state remaining risk or test gaps only — never a style, naming, or formatting change request.
 
 ## Rules
 - Be direct.
-- No style nitpicks unless they impact correctness or maintenance.
+- No style nitpicks: naming, formatting, or whitespace without the concrete failure is not a finding at any severity.
 - Prefer minimal fixes.
 - Flag assumptions.
 - Never use `OK`, `APPROVED`, `PASS`, or other verdict words.
