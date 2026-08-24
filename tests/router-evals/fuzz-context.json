@@ -1,0 +1,155 @@
+[
+  {
+    "name": "fuzz: ready plan bug fix routes to implement",
+    "category": "fuzz-plan-context",
+    "prompt": "Corrige le bug de login décrit dans le plan",
+    "context": { "planStatus": "ready" },
+    "expectedRoute": "implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: apply the ready plan routes to implement",
+    "category": "fuzz-plan-context",
+    "prompt": "Applique le plan",
+    "context": { "planStatus": "ready" },
+    "expectedRoute": "implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix during active draft cycle routes to plan-implement",
+    "category": "fuzz-plan-context",
+    "prompt": "Corrige le bug de login",
+    "context": { "planStatus": "draft" },
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: plan ask with ready plan still routes to plan-loop",
+    "category": "fuzz-plan-context",
+    "prompt": "Rédige un plan pour la v3",
+    "context": { "planStatus": "ready" },
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: question about plan status stays answer",
+    "category": "fuzz-plan-context",
+    "prompt": "Où en est le plan ?",
+    "context": { "planStatus": "ready" },
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: continue plan to the end routes to plan-implement",
+    "category": "fuzz-plan-context",
+    "prompt": "Continue le plan jusqu'au bout",
+    "context": { "planStatus": "missing" },
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: show plan status stays answer",
+    "category": "fuzz-plan-context",
+    "prompt": "montre-moi le statut du plan",
+    "context": { "planStatus": "ready" },
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: fix blockers during challenged cycle routes to plan-implement",
+    "category": "fuzz-plan-context",
+    "prompt": "Corrige les blockers du review et finalise",
+    "context": { "planStatus": "challenged" },
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: explain domain model design gets software-design topic",
+    "category": "fuzz-knowledge",
+    "prompt": "Explique le design du domain model",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "expectedKnowledgeTopics": ["software-design"]
+  },
+  {
+    "name": "fuzz: fix button CSS gets frontend-css topic",
+    "category": "fuzz-knowledge",
+    "prompt": "Corrige le style CSS du bouton",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "expectedKnowledgeTopics": ["frontend-css"]
+  },
+  {
+    "name": "fuzz: secure payment webhook gets web-security topic",
+    "category": "fuzz-knowledge",
+    "prompt": "Sécurise le webhook de paiement",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "expectedKnowledgeTopics": ["web-security"]
+  },
+  {
+    "name": "fuzz: article on voice agents gets voice topic",
+    "category": "fuzz-knowledge",
+    "prompt": "Rédige un article sur les voice agents",
+    "expectedRoute": "answer",
+    "expectedKnowledgeTopics": ["voice"]
+  },
+  {
+    "name": "fuzz: optimize RAG pipeline latency gets ai-agents topic",
+    "category": "fuzz-knowledge",
+    "prompt": "Optimise la latence du pipeline RAG",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "expectedKnowledgeTopics": ["ai-agents"]
+  },
+  {
+    "name": "fuzz: JWT doc in README gets web-security topic",
+    "category": "fuzz-knowledge",
+    "prompt": "Ajoute la doc JWT au README",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "expectedKnowledgeTopics": ["web-security"]
+  },
+  {
+    "name": "fuzz: workflow retrospect with recurring fixes routes to plan-implement",
+    "category": "fuzz-self-improvement",
+    "prompt": "Fais une retrospect du workflow et applique les fixes récurrents",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: improve agents from recurring findings routes to plan-implement",
+    "category": "fuzz-self-improvement",
+    "prompt": "Améliore les agents du système à partir des findings récurrents",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: explain the retrospective loop stays answer",
+    "category": "fuzz-self-improvement",
+    "prompt": "Explique le retrospective loop du workflow",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: end-to-end module redesign routes to plan-implement",
+    "category": "fuzz-ambitious",
+    "prompt": "End-to-end redesign of the settings module",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: module-level refactor routes to plan-implement",
+    "category": "fuzz-ambitious",
+    "prompt": "Refactor the parser module",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: english scoped function refactor is a direct edit",
+    "category": "fuzz-ambitious",
+    "prompt": "Refactor the parse function in utils/date.ts",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  }
+]
