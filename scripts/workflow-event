@@ -96,19 +96,22 @@ is_program_event() {
 owner_host_compatible() {
   local owner_file="$1" current_host="$2" owner_host
   [ ! -f "$owner_file" ] && return 0
-  if ! jq -e '
-    type == "object" and
+  # Single jq pass: validate the owner record shape and extract the hostname
+  # in one spawn (was two jq calls).
+  owner_host="$(jq -r 'if (type == "object" and
     ((keys | sort) == (["acquired_at","backend","hostname","pid","schema_version","token"] | sort)) and
     .schema_version == 1 and (.token | type == "string" and length == 32) and
     (.pid | type == "number" and floor == . and . > 0) and
     (.hostname | type == "string" and length > 0) and
     (.acquired_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T")) and
-    (.backend | IN("lockf", "flock", "shlock"))
-  ' "$owner_file" >/dev/null 2>&1; then
+    (.backend | IN("lockf", "flock", "shlock"))) then .hostname else null end' "$owner_file" 2>/dev/null)" || {
     printf 'refusing malformed lock owner metadata: %s\n' "$owner_file" >&2
     return 1
-  fi
-  owner_host="$(jq -r '.hostname' "$owner_file")"
+  }
+  [ "$owner_host" != "null" ] || {
+    printf 'refusing malformed lock owner metadata: %s\n' "$owner_file" >&2
+    return 1
+  }
   if [ -n "$owner_host" ] && [ "$owner_host" != "$current_host" ]; then
     printf 'refusing cross-host lock recovery: owner=%s current=%s\n' "$owner_host" "$current_host" >&2
     return 1
@@ -550,7 +553,7 @@ append_locked_body() {
     }
   fi
 
-  current_host="$(hostname)"
+  current_host="${WORKFLOW_EVENT_HOST:-$(hostname)}"
   owner_host_compatible "$owner_file" "$current_host" || return 1
   owner_tmp="$owner_file.$token"
   jq -nc \
@@ -644,6 +647,8 @@ append_with_lock() {
   token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
   [ "${#token}" -eq 32 ] || { printf 'failed to create lock owner token\n' >&2; return 1; }
   current_host="$(hostname)"
+  # Passed to the inner process so it does not spawn hostname again.
+  export WORKFLOW_EVENT_HOST="$current_host"
   backend="${WORKFLOW_EVENT_LOCK_BACKEND:-auto}"
   if [ "$backend" = "auto" ]; then
     if native_backend_available lockf; then backend="lockf"
