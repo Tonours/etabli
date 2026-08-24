@@ -506,18 +506,103 @@ export const structuralGateNeedles = [
 	"aws_secret",
 ] as const;
 
-function containsAny(text: string, needles: readonly string[]): boolean {
-	return needles.some((needle) => text.includes(needle));
+// Compiled gate needles — the flat gate lists with a per-needle prefilter:
+// the distinct lowercase-folded char codes. A needle can only be a substring
+// of `text` when every one of its chars occurs in `text` (case-insensitively
+// for `ci` needles — a weaker but still sound necessary condition for the
+// case-sensitive ones), so the `includes` scan only runs for surviving
+// needles and truth values stay identical to the linear containsAny sweep.
+// This dedicated bitmap is cheaper than the pair-bitmap machinery because the
+// short gate needles are rejected by single-char checks almost everywhere.
+type GateNeedle = {
+	readonly needle: string;
+	readonly ci: boolean;
+	readonly chars: Uint8Array;
+};
+
+// 64K fold table (ASCII -> lowercase, everything else -> 128 sentinel) so the
+// scan is branch-free: one load + one store per char.
+const gateFoldTable = new Uint8Array(65536).map(
+	(_, i) => (i < 128 ? (i >= 65 && i <= 90 ? i + 32 : i) : 128),
+);
+
+function compileGateNeedles(
+	needles: readonly string[],
+	ci: boolean,
+): GateNeedle[] {
+	return needles.map((needle) => {
+		const seen = new Set<number>();
+		for (let i = 0; i < needle.length; i++) {
+			seen.add(gateFoldTable[needle.charCodeAt(i)]);
+		}
+		const chars = new Uint8Array(seen.size);
+		let j = 0;
+		for (const c of seen) chars[j++] = c;
+		return { needle, ci, chars };
+	});
+}
+
+const gateTokenNeedles = [
+	...compileGateNeedles(tokenGateNeedles, false),
+	...compileGateNeedles(caseInsensitiveTokenGateNeedles, true),
+];
+const gateStructuralNeedles = compileGateNeedles(structuralGateNeedles, true);
+
+const gateFoldedBits = new Uint8Array(129); // index 128 = non-ASCII sentinel
+let gateLowerText: string | undefined;
+
+function buildGateBits(text: string): void {
+	gateFoldedBits.fill(0);
+	gateLowerText = undefined;
+	// 8x unrolled: one table load + byte store per char.
+	const len = text.length;
+	let i = 0;
+	const n = len - 7;
+	for (; i < n; i += 8) {
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 1)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 2)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 3)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 4)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 5)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 6)]] = 1;
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i + 7)]] = 1;
+	}
+	for (; i < len; i++) {
+		gateFoldedBits[gateFoldTable[text.charCodeAt(i)]] = 1;
+	}
+}
+
+function gateContainsAny(text: string, entries: readonly GateNeedle[]): boolean {
+	for (let i = 0; i < entries.length; i++) {
+		const entry = entries[i];
+		const chars = entry.chars;
+		let possible = true;
+		for (let j = 0; j < chars.length; j++) {
+			if (gateFoldedBits[chars[j]] === 0) {
+				possible = false;
+				break;
+			}
+		}
+		if (!possible) continue;
+		let haystack = text;
+		if (entry.ci) {
+			if (gateLowerText === undefined) gateLowerText = text.toLowerCase();
+			haystack = gateLowerText;
+		}
+		if (haystack.includes(entry.needle)) return true;
+	}
+	return false;
 }
 
 export function shouldRedactTokens(text: string): boolean {
-	if (containsAny(text, tokenGateNeedles)) return true;
-	const lowerText = text.toLowerCase();
-	return containsAny(lowerText, caseInsensitiveTokenGateNeedles);
+	buildGateBits(text);
+	return gateContainsAny(text, gateTokenNeedles);
 }
 
 export function shouldRedactStructural(text: string): boolean {
-	return containsAny(text.toLowerCase(), structuralGateNeedles);
+	buildGateBits(text);
+	return gateContainsAny(text, gateStructuralNeedles);
 }
 
 /**
