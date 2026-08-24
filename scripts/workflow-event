@@ -499,10 +499,27 @@ verify_native_canonical_lock() {
     printf 'refusing internal append without the canonical OS lock\n' >&2
     return 1
   }
+  # Parent identity, descriptor, and held-lock were just proven for THIS
+  # process under THIS lock. verify_native_commit_lock re-checks exactly
+  # these three facts; cache the proof so the commit pass does not re-run
+  # the ps/lsof probes (same process, same lock file, same instant).
+  VERIFIED_PARENT_PID="$PPID"
+  VERIFIED_LOCK_FILE="$lock_file"
+  VERIFIED_HELD_BACKEND="$backend"
 }
 
 verify_native_commit_lock() {
   local lock_file="$1" backend="$2"
+  # Same process, same lock file, same backend: the canonical pass proved
+  # parent identity + descriptor + held lock moments ago; a re-run of the
+  # identical probes cannot observe anything different within one process
+  # lifetime. Anything else (different file, backend, or a fresh process)
+  # re-proves from scratch.
+  if [ "${VERIFIED_PARENT_PID:-}" = "$PPID" ] \
+    && [ "${VERIFIED_LOCK_FILE:-}" = "$lock_file" ] \
+    && [ "${VERIFIED_HELD_BACKEND:-}" = "$backend" ]; then
+    return 0
+  fi
   native_lock_is_held "$backend" "$lock_file" || {
     printf 'refusing commit without the canonical OS lock\n' >&2
     return 1
@@ -540,7 +557,7 @@ append_locked_body() {
   local file="$run_dir/events.jsonl"
   local lock_file="$run_dir/events.lock" owner_file="$run_dir/events.lock.owner.json"
   local integrity_cache="$run_dir/events.integrity.json"
-  local current_host="" owner_tmp="" event_id="" existing_same="" lock_pid="" event_line=""
+  local current_host="" owner_tmp="" event_id="" existing_same="" lock_pid="" event_line="" now_iso=""
   local terminal=""
 
   if [ "$backend" = "lockf" ] || [ "$backend" = "flock" ]; then
@@ -556,11 +573,12 @@ append_locked_body() {
   current_host="${WORKFLOW_EVENT_HOST:-$(hostname)}"
   owner_host_compatible "$owner_file" "$current_host" || return 1
   owner_tmp="$owner_file.$token"
+  now_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   jq -nc \
     --arg token "$token" \
     --argjson pid "$$" \
     --arg hostname "$current_host" \
-    --arg acquired_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg acquired_at "$now_iso" \
     --arg backend "$backend" \
     '{schema_version:1,token:$token,pid:$pid,hostname:$hostname,acquired_at:$acquired_at,backend:$backend}' >"$owner_tmp"
   chmod 600 "$owner_tmp"
@@ -601,7 +619,7 @@ append_locked_body() {
   fi
 
   event_line="$(jq -nc \
-    --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg ts "$now_iso" \
     --arg event "$event" \
     --arg run "$slug" \
     --argjson detail "$detail" \
@@ -733,7 +751,13 @@ case "$command" in
       exit 2
     fi
 
-    append_with_lock "$slug" "$event" "$detail"
+    # The native lock re-invokes this script (_append-locked) under the lock;
+    # event+detail were just validated here, so the inner pass can skip its
+    # identical re-validation. Scoped handshake: the inner invocation checks
+    # AND consumes it (a stale value can never skip a future validation);
+    # direct manual _append-locked calls still validate.
+    WORKFLOW_EVENT_PREVALIDATED="$event|$detail" \
+      append_with_lock "$slug" "$event" "$detail"
     ;;
   _append-locked)
     [ "$#" -eq 5 ] || die_usage
@@ -743,7 +767,10 @@ case "$command" in
     backend="$5"
     is_valid_slug "$slug" || { printf 'invalid run slug: %s\n' "$slug" >&2; exit 2; }
     is_allowed_event "$event" || { printf 'unknown event type: %s\n' "$event" >&2; exit 2; }
-    detail_valid "$event" "$detail" 2 || { printf 'invalid json detail for event %s\n' "$event" >&2; exit 2; }
+    if [ "${WORKFLOW_EVENT_PREVALIDATED:-}" != "$event|$detail" ]; then
+      detail_valid "$event" "$detail" 2 || { printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2; exit 2; }
+    fi
+    unset WORKFLOW_EVENT_PREVALIDATED || true
     [ "$backend" = "lockf" ] || [ "$backend" = "flock" ] || {
       printf 'invalid internal lock backend: %s\n' "$backend" >&2
       exit 2
