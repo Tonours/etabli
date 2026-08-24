@@ -200,6 +200,234 @@ export const structuralPatterns: StructuralPattern[] = [
 	},
 ];
 
+// ---------------------------------------------------------------------------
+// Required-literal prefilters — index-aligned with the pattern arrays above.
+// Each entry lists needle sets (outer OR, inner AND): the pattern can only
+// match the input when at least one needle set is fully present. Patterns whose
+// needles are absent are skipped without running their regex. `ci` entries
+// check needles against the lowercased input (patterns using the `i` flag).
+// ---------------------------------------------------------------------------
+export type PatternNeedles = {
+	readonly needleSets: readonly (readonly string[])[];
+	readonly ci: boolean;
+};
+
+export const tokenPatternNeedles: readonly PatternNeedles[] = [
+	{ needleSets: [["sk-"]], ci: false }, // sk-ant-
+	{ needleSets: [["sk-"]], ci: false }, // sk- / sk-proj-
+	{
+		needleSets: [["ghp_"], ["gho_"], ["ghs_"], ["ghu_"], ["ghr_"]],
+		ci: false,
+	},
+	{ needleSets: [["github_pat_"]], ci: false },
+	{ needleSets: [["xox"]], ci: false },
+	{ needleSets: [["AKIA"]], ci: false },
+	{ needleSets: [["ASIA"]], ci: false },
+	{ needleSets: [["k_live_"], ["k_test_"]], ci: false },
+	{ needleSets: [["pk_live_"], ["pk_test_"]], ci: false },
+	{ needleSets: [["rk_live_"], ["rk_test_"]], ci: false },
+	{ needleSets: [["whsec_"]], ci: false },
+	{ needleSets: [["vercel_"]], ci: true },
+	{ needleSets: [["sbp_"]], ci: false },
+	{
+		needleSets: [["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."]],
+		ci: false,
+	},
+	{ needleSets: [["cf_"]], ci: true },
+	{ needleSets: [["npm_"]], ci: false },
+	{ needleSets: [["pypi-"]], ci: false },
+	{ needleSets: [["SK"]], ci: false },
+	{ needleSets: [["SG."]], ci: false },
+	{ needleSets: [["AIza"]], ci: false },
+	{ needleSets: [["dp."]], ci: false },
+	{ needleSets: [["AGE-SECRET-KEY-"]], ci: false },
+	{ needleSets: [["glc_"]], ci: false },
+	{ needleSets: [["lin_api_"]], ci: false },
+	{ needleSets: [["re_"]], ci: false },
+	{ needleSets: [["glpat-"]], ci: false },
+	{ needleSets: [["hf_"]], ci: false },
+	{ needleSets: [["secret_"]], ci: false },
+	{ needleSets: [["dop_v1_"]], ci: false },
+	{ needleSets: [["key-"]], ci: false },
+	{
+		needleSets: [["shpat_"], ["shpss_"], ["shpca_"], ["shppa_"]],
+		ci: false,
+	},
+	{ needleSets: [["cmVmdGtu"]], ci: false },
+	{ needleSets: [["sq0atp-"], ["sq0csp-"]], ci: false },
+	{ needleSets: [["ATATT3"]], ci: false },
+	{ needleSets: [["eyJ"]], ci: false },
+	{ needleSets: [["LTAI"]], ci: false },
+	{ needleSets: [["AKID"]], ci: false },
+	{ needleSets: [["sntrys_"]], ci: false },
+	{ needleSets: [["dckr_pat_"]], ci: false },
+	{ needleSets: [["hvs."]], ci: false },
+	{ needleSets: [["hooks.slack.com/services"]], ci: false },
+	{ needleSets: [["ingest", "sentry.io"]], ci: true },
+	{ needleSets: [["ya29."]], ci: false },
+	{ needleSets: [["-us"]], ci: false },
+];
+
+export const structuralPatternNeedles: readonly PatternNeedles[] = [
+	{ needleSets: [["key"], ["api"]], ci: true }, // api_key / api_secret / access_key
+	{ needleSets: [["key"], ["token"]], ci: true }, // *_key / *_token
+	{ needleSets: [["postmark"]], ci: true },
+	{
+		needleSets: [["token"], ["secret"], ["credential"]],
+		ci: true,
+	}, // JSON fields
+	{
+		needleSets: [["token"], ["secret"], ["credential"]],
+		ci: true,
+	}, // generic assignments
+	{ needleSets: [["pass"], ["pwd"]], ci: true }, // password/passwd/pwd/pass
+	{ needleSets: [["bearer"]], ci: true },
+	{ needleSets: [["authorization"]], ci: true },
+	{ needleSets: [["://"]], ci: true }, // db connection strings
+	{ needleSets: [["-----BEGIN"]], ci: false }, // PEM blocks
+	{ needleSets: [["aws_secret"]], ci: true },
+];
+
+// ---------------------------------------------------------------------------
+// Compiled needle tables — per needle, the flat char-code sequence [c, alt, c,
+// alt, ...] where `alt` is the other-case variant for `ci` needles. A needle is
+// bitmap-rejected when any of its chars is absent from the input (both-case
+// check for `ci`), avoiding a full substring scan for most needles.
+// ---------------------------------------------------------------------------
+type CompiledNeedle = {
+	readonly needle: string;
+	readonly codes: Int32Array;
+	readonly pairCodes: Int32Array;
+};
+type CompiledNeedleSet = readonly CompiledNeedle[];
+export type CompiledPatternNeedles = {
+	readonly ci: boolean;
+	readonly sets: readonly CompiledNeedleSet[];
+};
+
+function lowerCode(c: number): number {
+	return c >= 65 && c <= 90 ? c + 32 : c;
+}
+
+function compileNeedles(
+	needles: readonly PatternNeedles[],
+): CompiledPatternNeedles[] {
+	return needles.map(({ needleSets, ci }) => ({
+		ci,
+		sets: needleSets.map((set) =>
+			set.map((needle) => {
+				const codes = new Int32Array(needle.length * 2);
+				const pairCodes = new Int32Array(Math.max(needle.length - 1, 0));
+				let prevLo = -1;
+				for (let i = 0; i < needle.length; i++) {
+					const c = needle.charCodeAt(i);
+					codes[i * 2] = c;
+					codes[i * 2 + 1] =
+						ci && c >= 97 && c <= 122 ? c - 32 : c;
+					const lo = lowerCode(c);
+					if (i > 0) pairCodes[i - 1] = prevLo * 128 + lo;
+					prevLo = lo;
+				}
+				return { needle, codes, pairCodes };
+			}),
+		),
+	}));
+}
+
+const compiledTokenNeedles = compileNeedles(tokenPatternNeedles);
+const compiledStructuralNeedles = compileNeedles(structuralPatternNeedles);
+
+// Scratch state for a single needle-evaluation pass (no reentrancy: replace
+// callbacks never call back into the redaction path). The pair bitmap uses a
+// generation counter so stale bits never need a 16KB clear per call.
+const charBits = new Uint8Array(128);
+const pairBits = new Uint8Array(128 * 128);
+let pairBitsGen = 0;
+const tokenFlags = new Uint8Array(tokenPatternNeedles.length);
+const structuralFlags = new Uint8Array(structuralPatternNeedles.length);
+let lowerText: string | undefined;
+
+/** One pass over `text` recording which ASCII chars and lowercased char pairs occur. */
+function buildCharBits(text: string): void {
+	charBits.fill(0);
+	if (pairBitsGen >= 255) {
+		pairBits.fill(0);
+		pairBitsGen = 0;
+	}
+	pairBitsGen++;
+	lowerText = undefined;
+	let prevLo = 0;
+	for (let i = 0; i < text.length; i++) {
+		const c = text.charCodeAt(i);
+		if (c < 128) {
+			charBits[c] = 1;
+			const lo = c >= 65 && c <= 90 ? c + 32 : c;
+			pairBits[prevLo * 128 + lo] = pairBitsGen;
+			prevLo = lo;
+		} else {
+			prevLo = 0;
+		}
+	}
+}
+
+function needleCharsPresent(
+	codes: Int32Array,
+	pairCodes: Int32Array,
+	ci: boolean,
+): boolean {
+	// Pairs (lowercase-folded) are the most selective check; run it first.
+	for (let i = 0; i < pairCodes.length; i++) {
+		if (pairBits[pairCodes[i]] !== pairBitsGen) return false;
+	}
+	if (ci) return true; // ci chars are lowercase-folded like the pairs: implied
+	for (let i = 0; i < codes.length; i += 2) {
+		if (!charBits[codes[i]]) return false;
+	}
+	return true;
+}
+
+/**
+ * For each needle group, mark which patterns could still match `text`.
+ * Requires buildCharBits(text) first. A pattern is inactive when none of its
+ * needle sets is fully present in the input.
+ */
+function activePatternFlags(
+	text: string,
+	needles: readonly (readonly CompiledPatternNeedles[])[],
+	flags: readonly Uint8Array[],
+): void {
+	for (let g = 0; g < needles.length; g++) {
+		const group = needles[g];
+		const groupFlags = flags[g];
+		for (let i = 0; i < group.length; i++) {
+			const { ci, sets } = group[i];
+			let active = 0;
+			for (let si = 0; si < sets.length && active === 0; si++) {
+				const set = sets[si];
+				let present = 1;
+				for (let ni = 0; ni < set.length; ni++) {
+					const { needle, codes, pairCodes } = set[ni];
+					if (!needleCharsPresent(codes, pairCodes, ci)) {
+						present = 0;
+						break;
+					}
+					let haystack = text;
+					if (ci) {
+						if (lowerText === undefined) lowerText = text.toLowerCase();
+						haystack = lowerText;
+					}
+					if (!haystack.includes(needle)) {
+						present = 0;
+						break;
+					}
+				}
+				if (present === 1) active = 1;
+			}
+			groupFlags[i] = active;
+		}
+	}
+}
+
 export const tokenGateNeedles = [
 	"sk-ant-",
 	"sk-",
@@ -292,13 +520,33 @@ export function shouldRedactStructural(text: string): boolean {
 	return containsAny(text.toLowerCase(), structuralGateNeedles);
 }
 
-export function redactTokens(
+/**
+ * For each needle group, compute which patterns could still match `text`.
+ * A pattern is inactive when none of its needle sets is fully present in the
+ * input. Needles of `ci` entries are checked against the lowercased input.
+ */
+function evaluateTokenFlags(text: string): Uint8Array {
+	buildCharBits(text);
+	activePatternFlags(text, [compiledTokenNeedles], [tokenFlags]);
+	return tokenFlags;
+}
+
+function evaluateStructuralFlags(text: string): Uint8Array {
+	buildCharBits(text);
+	activePatternFlags(text, [compiledStructuralNeedles], [structuralFlags]);
+	return structuralFlags;
+}
+
+function runTokenPatterns(
 	text: string,
-	patterns: TokenPattern[] = tokenPatterns,
+	patterns: readonly TokenPattern[],
+	active: Uint8Array | null,
 ): { result: string; count: number } {
 	let count = 0;
 	let result = text;
-	for (const { pattern, label } of patterns) {
+	for (let i = 0; i < patterns.length; i++) {
+		if (active && !active[i]) continue;
+		const { pattern, label } = patterns[i];
 		pattern.lastIndex = 0;
 		const newResult = result.replace(pattern, () => {
 			count++;
@@ -309,13 +557,16 @@ export function redactTokens(
 	return { result, count };
 }
 
-export function redactStructural(
+function runStructuralPatterns(
 	text: string,
-	patterns: StructuralPattern[] = structuralPatterns,
+	patterns: readonly StructuralPattern[],
+	active: Uint8Array | null,
 ): { result: string; count: number } {
 	let count = 0;
 	let result = text;
-	for (const { pattern, replacement } of patterns) {
+	for (let i = 0; i < patterns.length; i++) {
+		if (active && !active[i]) continue;
+		const { pattern, replacement } = patterns[i];
 		pattern.lastIndex = 0;
 		const newResult = result.replace(pattern, (...args) => {
 			const replacementText = replacement.replace(
@@ -332,23 +583,57 @@ export function redactStructural(
 	return { result, count };
 }
 
+export function redactTokens(
+	text: string,
+	patterns: TokenPattern[] = tokenPatterns,
+): { result: string; count: number } {
+	// Custom pattern lists run unfiltered (no index-aligned needle table).
+	const active =
+		patterns === tokenPatterns ? evaluateTokenFlags(text) : null;
+	return runTokenPatterns(text, patterns, active);
+}
+
+export function redactStructural(
+	text: string,
+	patterns: StructuralPattern[] = structuralPatterns,
+): { result: string; count: number } {
+	const active =
+		patterns === structuralPatterns
+			? evaluateStructuralFlags(text)
+			: null;
+	return runStructuralPatterns(text, patterns, active);
+}
+
 export function redactInlineSecrets(text: string): {
 	result: string;
 	count: number;
 } {
-	const runTokenRedaction = shouldRedactTokens(text);
-	const runStructuralRedaction = shouldRedactStructural(text);
+	// Both needle checks run against the ORIGINAL text (mirroring the original
+	// gate semantics): token redaction labels such as "[GITHUB_TOKEN_REDACTED]"
+	// introduce the words token/key, which must not trigger the structural pass.
+	buildCharBits(text);
+	activePatternFlags(
+		text,
+		[compiledTokenNeedles, compiledStructuralNeedles],
+		[tokenFlags, structuralFlags],
+	);
+	const tokenActive = tokenFlags;
+	const structuralActive = structuralFlags;
 	let count = 0;
 	let result = text;
 
-	if (runTokenRedaction) {
-		const tokens = redactTokens(result);
+	if (tokenActive.some(Boolean)) {
+		const tokens = runTokenPatterns(result, tokenPatterns, tokenActive);
 		result = tokens.result;
 		count += tokens.count;
 	}
 
-	if (runStructuralRedaction) {
-		const structural = redactStructural(result);
+	if (structuralActive.some(Boolean)) {
+		const structural = runStructuralPatterns(
+			result,
+			structuralPatterns,
+			structuralActive,
+		);
 		result = structural.result;
 		count += structural.count;
 	}
