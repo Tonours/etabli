@@ -317,9 +317,20 @@ describe("filter-output", () => {
 			...cleanSamples,
 			...extraSamples,
 		]) {
-			const gated = redactInlineSecrets(`before ${sample} after`).result;
-			const ungated = ungatedRedact(`before ${sample} after`);
+			const input = `before ${sample} after`;
+			const gated = redactInlineSecrets(input).result;
+			const ungated = ungatedRedact(input);
 			expect(gated).toBe(ungated);
+			// Every token/structural sample must actually be redacted — guards the
+			// required-literal prefilter tables against a needle that would skip
+			// a pattern that should have matched.
+			if (
+				tokenSamples.includes(sample) ||
+				structuralSamples.includes(sample) ||
+				extraSamples.includes(sample)
+			) {
+				expect(gated).not.toBe(input);
+			}
 		}
 	});
 
