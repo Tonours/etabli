@@ -343,10 +343,14 @@ harness_grade() {
   local run_started="${10:-}"
   local run_duration="${11:-}"
 
-  # one fork for the fixtures dir; task_dir/manifest/lib paths are plain
-  # expansions below (each $( ) helper chain costs a fork on bash 3.2,
-  # ~50 grade calls per smoke)
-  fixtures="$(harness_fixtures_dir)"
+  # one fork for the fixtures dir (constant per process); task_dir/
+  # manifest/lib paths are plain expansions below
+  if [ -n "${HARNESS_FIXTURES_DIR_CACHE:-}" ]; then
+    fixtures="$HARNESS_FIXTURES_DIR_CACHE"
+  else
+    fixtures="$(harness_fixtures_dir)"
+    HARNESS_FIXTURES_DIR_CACHE="$fixtures"
+  fi
   task_dir="$fixtures/tasks/$task_id"
   [ -d "$task_dir" ] || harness_die "unknown task: $task_id"
   oracle="$task_dir/oracle.sh"
@@ -365,7 +369,13 @@ harness_grade() {
     HARNESS_MANIFEST_SHA_CACHE="$(harness_sha256 "$fixtures/manifest.json")"
   fi
   manifest_sha="$HARNESS_MANIFEST_SHA_CACHE"
-  oracle_sha="$(harness_sha256 "$oracle")"
+  if [ "${HARNESS_ORACLE_SHA_CACHE_ID:-}" = "$task_id" ]; then
+    oracle_sha="$HARNESS_ORACLE_SHA_CACHE_VAL"
+  else
+    oracle_sha="$(harness_sha256 "$oracle")"
+    HARNESS_ORACLE_SHA_CACHE_ID="$task_id"
+    HARNESS_ORACLE_SHA_CACHE_VAL="$oracle_sha"
+  fi
   started="${run_started:-$(harness_iso_now)}"
 
   if harness_cursor_sentinel_hit "$transcript"; then
