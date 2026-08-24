@@ -4,8 +4,8 @@ Run a production-minded review. Parent hunts via isolated hunters, then filters.
 
 ## Intent
 
-The parent writes one paragraph of Intent (user message, PR body, or commits)
-after pinning the patch once; hunters receive both. Logic does not treat
+The parent writes one Intent paragraph (user message, PR body, or commits)
+after pinning the patch once; hunters receive it. Logic does not treat
 Intent or `PLAN.md` as correctness authority.
 
 ## Hunt and filter
@@ -17,7 +17,7 @@ Intent or `PLAN.md` as correctness authority.
    (Claude/Cursor). Daily Pi: isolated Logic child only.
 3. **Spec hunter** — fresh context; plan/intent fit only; no bug hunt. `spec: n/a`
    when there is no intent artifact. Daily Pi: Spec runs in the parent after
-   Logic (`spec: parent`), not as a second child.
+   Logic (`spec: parent`).
 4. **Standards hunter** — `code-quality` (or sibling fallback) when the diff has
    language/UI surface, else `quality: none`.
 5. **Lead** — Act on / Consider / Dismissed. Lead does not re-hunt.
@@ -28,7 +28,7 @@ Intent or `PLAN.md` as correctness authority.
 ### 1. Self-check
 - sanity-check the pinned diff
 - verify focused validation actually ran
-- flag obviously incomplete or partial states
+- flag incomplete or partial states
 
 ### 2. Plan compliance (Spec hunter)
 - compare the pinned diff against `PLAN.md` or PR/user intent when present
@@ -52,13 +52,13 @@ Reviewers fail on out-of-diff context most. Before a verdict, open what decides 
   cache, closure) → open **what can write or mutate it between capture and
   reuse** (event handlers, store setters, sibling writers)
 
-Stop when further reading stops changing your mind. Piling on context past that
+Stop when further reading stops changing your mind — piling on past that
 point measurably lowers accuracy.
 
 ### 4. Adversarial review (Logic hunter)
 - assume the happy path is covered; search around it: edge cases, regressions, safety issues, recovery pain
 
-Run these relational lenses, and state what each found, including nothing.
+Run these relational lenses, state what each found, including nothing.
 Severity-first scanning finds only what looks wrong; these ask what scanning
 never asks:
 - **precedence**: two sources for one value, which wins?
@@ -77,12 +77,12 @@ never asks:
 
 ### 5. Convention & pattern fit
 When the parent set `Standards: yes`, the Logic hunter records Convention as
-`deferred: Standards hunter` and does not issue a second convention verdict.
-The Standards hunter loads `code-quality` when exposed, otherwise the narrowest
-exposed domain or project skill. If none is exposed, compare against **1–3 sibling
+`deferred: Standards hunter`, issuing no second convention verdict.
+The Standards hunter loads `code-quality` when exposed, else the narrowest
+domain or project skill. If none is exposed, compare against **1–3 sibling
 implementations in this repo**. If neither a skill nor a relevant sibling exists,
-record this lens as `not run`; unavailable optional skills never count as a
-clean pass. When `Standards: none`, Logic keeps that sibling/`not run` rule.
+record this lens as `not run` (never a clean pass). When `Standards: none`, Logic
+keeps that sibling/`not run` rule.
 
 Evidence bar for a convention finding:
 - changed `file:line` in the target diff
@@ -139,7 +139,7 @@ A non-trivial runtime row with empty deciding code or `not run` **blocks
 `Verdict: GO`**. `GO WITH NOTES` is not a workaround for unopened deciding code.
 
 ## Inputs
-- parent-pinned patch text (not a second `git diff` / `gh pr diff`)
+- parent-pinned patch text
 - `git status --short` / `git diff --stat` for target resolution only
 - Intent paragraph from the parent
 - `PLAN.md` or PR/user intent for the Spec hunter only
@@ -169,10 +169,12 @@ For each issue include:
 - `line:` or `line_range:`
 - `issue:`
 - `impact:`
-- `review_comment:` one concise inline-ready comment suitable for a GitHub-style review thread, without code fences or tables
+- `review_comment:` one concise inline-ready comment suitable for a GitHub-style thread, without code fences or tables
 - `suggested_fix:`
 
 Use `line_range:` for multi-line findings.
+
+Emit findings sorted by severity — `high`, then `medium`, then `low`; any other order is invalid.
 
 If human arbitration is needed, add:
 - `human_checkpoint: yes`
