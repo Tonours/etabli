@@ -583,3 +583,70 @@ against the pinned diff, but the replay cannot verify referents (CR-A3's
 "citation, conclusion wrong" limit, restated). The `absent`-when-no-prose
 claim itself stays trust-based until prose lines are diff-enumerated in the
 row.
+
+---
+
+## Run 2026-08-24 (g) — CR-A6 nit-fpr campaign (autoresearch)
+
+Sixth replay campaign, Matt Pocock requirement: no style nits. CR-A2 had
+closed clause-level *pressure* toward nits (precision_clean 1.00); CR-A6 asks
+the question one level deeper, CR-A5-style, at the **finding level**: on a
+nit-only diff, does the output contract leave a **legal channel** for a nit?
+
+### Model
+
+The reviewer is table-driven: a nit rides the Convention row iff the diff
+**latches** — a sibling-pattern anchor for the old shape really exists,
+computed mechanically from `git show` bytes plus the post-tree (verbatim
+removed-line persistence, or the leading-whitespace + ALLCAPS-token shape for
+pure-reindent hunks; never hand-assigned). Corpus: 10 nit-only diffs — three
+real partial-formatter commits, one injected rename-drift with a real
+snake_case anchor, and six no-anchor controls including the real converging
+rename `9509df1` (`create-plan` → `plan-create`, old vocabulary gone
+everywhere). Channels: **C1** the lead keeps it (a maintenance/style shelter
+sentence, or a findings format that demands no failure), **C2** the hunter
+emits it (the template findings block is silent), **C3** the nit rides an
+unconfined `GO WITH NOTES` note.
+
+### Baseline: nit_fpr 0.40
+
+Exactly the shelter sentences carried the leak: the rubric's convention
+evidence bar ("impact on correctness, operability, **or maintenance** — not
+preference"), the Rules line ("unless they impact correctness **or
+maintenance**"), a findings format with fields but no failure bar, and notes
+with no semantics at all. `skill_only` was already 0.00 — the skill's own
+Contract failure bar holds in isolation; the leak opened when the rubric, the
+source of truth, blessed maintenance-only convention findings. v1 and v2
+anchors both replay the channel open (the recorded 7% reclassified nits), and
+the *deployed* skill (live `~/.config` copy still carrying the pre-CR-A2
+taste-ignore line) replayed 0.40 until synced.
+
+### The lever (output contract, mirrored: rubric + template + skill)
+
+The §5 evidence bar now requires the concrete failure ("impact on correctness
+or operability — the concrete failure (input or state → wrong output) — not
+preference or maintenance taste"); the Rules line bars naming/formatting/
+whitespace without the failure, **at any severity**; the findings format
+closes with `No findings.` when no issue names its failure (style, whitespace,
+behavior-preserving renames never qualify); `GO WITH NOTES` notes state
+remaining risk or test gaps only — never a style, naming, or formatting change
+request; the hunter template's findings block demands the failure; the skill
+Contract mirrors all of it. Growth funded inside the ≤15% union cap
+(14 160 → 14 103 B) by shrinking instruction-level prose whose duty the output
+contract now carries.
+
+### Results
+
+| Metric | Baseline | Final |
+|---|---|---|
+| nit_fpr | 0.40 | **0.00** |
+| nit_findings_per_diff | 0.40 | **0.00** |
+| skill_only / hunter_only / deployed nit_fpr | 0.00 / 0.40 / 0.40 | **0.00 / 0.00 / 0.00** |
+
+Guards: CR-A1 recall 1.00, CR-A2 precision_clean 1.00, CR-A3 escaped_per_go
+0.00, CR-A4 skip_rate 0.00, CR-A5 r003_caught 1.00, lens 8/8, no instance
+tokens. Mutations: restoring either shelter sentence, or dropping the format,
+template, or notes bar, each re-opens nit_fpr to 0.40. No-latch controls stay
+clean even with every channel forced open. Limit: contract-level replay, not a
+live reviewer — a live pass on a partial-formatter PR remains the acceptance
+gate.
