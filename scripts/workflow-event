@@ -2,7 +2,16 @@
 set -euo pipefail
 
 WORKFLOW_DIR=".workflow"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# Resolve the script directory without forks: this script re-enters itself
+# under the native lock for every append, so the historic
+# "$(cd "$(dirname ...)" && pwd)" pair (an external dirname + a subshell)
+# was paid twice per event.
+_workflow_event_src="${BASH_SOURCE[0]}"
+case "$_workflow_event_src" in
+  */*) cd -- "${_workflow_event_src%/*}" >/dev/null 2>&1 || exit 1 ;;
+esac
+SCRIPT_DIR="$PWD"
+cd -- "$OLDPWD" >/dev/null 2>&1 || exit 1
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
@@ -82,7 +91,9 @@ detail_valid() {
 
   [ "$schema_version" = "2" ] && strict=true
   printf '%s\n' "$detail" |
-    jq -e --arg event "$event" --argjson strict "$strict" -f "$DETAIL_SCHEMA" >/dev/null 2>&1
+    jq -e --arg mode single --arg event "$event" --argjson strict "$strict" \
+      --arg slug x --arg profile structural --argjson allowed '[]' \
+      -f "$DETAIL_SCHEMA" >/dev/null 2>&1
 }
 die_usage() {
   usage >&2
@@ -119,10 +130,18 @@ owner_host_compatible() {
 }
 
 release_append_owner() {
-  local owner_file="$1" lock_file="$2" token="$3" backend="$4"
-  if [ -f "$owner_file" ] && jq -e --arg token "$token" '.token == $token' "$owner_file" >/dev/null 2>&1; then
-    rm -f "$owner_file"
-    [ "$backend" != "shlock" ] || rm -f "$lock_file"
+  local owner_file="$1" lock_file="$2" token="$3" backend="$4" owner_line=""
+  # The owner file is a fixed-shape record written under our lock just now
+  # (or by a crashed prior holder); a byte-level token match is equivalent to
+  # the historic jq spawn. Only our own token can appear as a value.
+  if [ -f "$owner_file" ]; then
+    IFS= read -r owner_line <"$owner_file" || owner_line=""
+    case "$owner_line" in
+      *'"token":"'"$token"'"'*)
+        rm -f "$owner_file"
+        [ "$backend" != "shlock" ] || rm -f "$lock_file"
+        ;;
+    esac
   fi
 }
 
@@ -159,12 +178,19 @@ write_ledger_cache() {
   mv "$temporary" "$cache"
 }
 
+# Populated by validate_ledger_file: the terminal event ("" when none) of
+# the last validated ledger, so callers that just validated in-process
+# (append_locked_body, activate) skip a redundant tail|jq spawn.
+# LAST_HAS_V2_PLAN_IMPLEMENT mirrors has_v2_plan_implement_route for the same
+# file (1/0) to spare completed-appends a dedicated jq spawn.
+LAST_TERMINAL=""
+LAST_VALIDATED_FILE=""
+LAST_HAS_V2_PLAN_IMPLEMENT=0
+
 validate_ledger_file() {
   local slug="$1" file="$2" allow_missing="$3" profile="$4" measurement_root="$5"
-  local count=0 previous_ts="" legacy_post_terminal=0
-  local terminal="" terminal_line="" terminal_schema_version=""
-  local line parsed ts event run detail schema_version required mode=""
-  local last_change="" last_validation=""
+  local allowed_json="" entry="" batch_out=""
+  local ok_status="" err_message="" has_measurement="" legacy_post_terminal=0 count=0 terminal_line=0
 
   if [ ! -f "$file" ]; then
     if [ "$allow_missing" -eq 1 ]; then
@@ -175,130 +201,50 @@ validate_ledger_file() {
     return 1
   fi
 
-  while IFS= read -r line || [ -n "$line" ]; do
-    count=$((count + 1))
-    if ! parsed="$(printf '%s\n' "$line" | jq -ec . 2>/dev/null)"; then
-      printf 'line %s: invalid json\n' "$count" >&2
-      return 1
-    fi
-    ts="$(printf '%s\n' "$parsed" | jq -r '.ts // empty')"
-    event="$(printf '%s\n' "$parsed" | jq -r '.event // empty')"
-    run="$(printf '%s\n' "$parsed" | jq -r '.run // empty')"
-    detail="$(printf '%s\n' "$parsed" | jq -c '.detail // null')"
-    schema_version="$(printf '%s\n' "$parsed" | jq -r '.schema_version // "legacy"')"
-    if ! printf '%s\n' "$ts" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
-      printf 'line %s: invalid timestamp\n' "$count" >&2
-      return 1
-    fi
-    if [ -n "$previous_ts" ] && [[ "$ts" < "$previous_ts" ]]; then
-      printf 'line %s: timestamp moved backwards\n' "$count" >&2
-      return 1
-    fi
-    if ! is_allowed_event "$event"; then
-      printf 'line %s: unknown event type %s\n' "$count" "$event" >&2
-      return 1
-    fi
-    if [ "$schema_version" != "legacy" ] && [ "$schema_version" != "1" ] && [ "$schema_version" != "2" ]; then
-      printf 'line %s: unsupported schema_version %s\n' "$count" "$schema_version" >&2
-      return 1
-    fi
-    if [ -n "$terminal_line" ]; then
-      if [ "$schema_version" = "2" ] || [ "$terminal_schema_version" = "2" ]; then
-        printf 'line %s: event follows terminal %s at line %s\n' "$count" "$terminal" "$terminal_line" >&2
-        return 1
-      fi
-      legacy_post_terminal=1
-    fi
-    if [ "$run" != "$slug" ]; then
-      printf 'line %s: run does not match %s\n' "$count" "$slug" >&2
-      return 1
-    fi
-    if ! detail_valid "$event" "$detail" "$schema_version"; then
-      printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2
-      return 1
-    fi
-    if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then
-      terminal="$event"
-      terminal_line="$count"
-      terminal_schema_version="$schema_version"
-    fi
-    previous_ts="$ts"
-  done < "$file"
-
-  if [ "$legacy_post_terminal" -eq 0 ] && [ -n "$terminal_line" ] && [ "$terminal_line" -ne "$count" ]; then
-    printf 'terminal event must be last (line %s of %s)\n' "$terminal_line" "$count" >&2
-    return 1
-  fi
-
-  if ! jq -se '
-    def populations: [.[] | select(.event == "outcome_measurement_population") | .detail];
-    def imports: [.[] | select(.event == "outcome_measurement_imported") | .detail];
-    populations as $populations
-    | imports as $imports
-    | (all($populations[];
-        ([.targets[].target_run] | unique | length) == (.targets | length))) and
-      (($imports | map(.import_id) | unique | length) == ($imports | length)) and
-      (all($imports[];
-        . as $import |
-        ([$populations[] | select(.population_id == $import.population_id)] | length) == 1 and
-        ([$populations[]
-          | select(.population_id == $import.population_id)
-          | .targets[]
-          | select(
-              .target_run == $import.target_run and
-              .target_ledger_sha256 == $import.target_ledger_sha256 and
-              .target_terminal == $import.target_terminal and
-              .target_terminal_event_sha256 == $import.target_terminal_event_sha256 and
-              .target_outcome_event_sha256 == $import.target_outcome_event_sha256
-            )] | length) == 1)) and
-      (($imports | group_by(.target_run) | all(.[]; length == 1)))
-  ' "$file" >/dev/null; then
-    printf 'measurement imports must be unique members of exactly one matching population\n' >&2
-    return 1
-  fi
-  "$MEASUREMENT_INTEGRITY" "$measurement_root" "$file" || return 1
-
   case "$profile" in
-    structural) ;;
-    autonomous-completed)
-      [ "$terminal" = "completed" ] || { printf 'profile autonomous-completed requires final completed event\n' >&2; return 1; }
-      for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed outcome_metric archive_written plan_removed; do
-        jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile autonomous-completed missing %s\n' "$required" >&2; return 1; }
-      done
-      for mode in plan code_diff; do
-        jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed missing adversary mode %s\n' "$mode" >&2; return 1; }
-      done
-      last_change="$(grep -n '"event":"file_changed"' "$file" | tail -1 | cut -d: -f1)"
-      last_validation="$(grep -n '"event":"validation_run"' "$file" | tail -1 | cut -d: -f1)"
-      [ "$last_validation" -gt "$last_change" ] || { printf 'profile autonomous-completed requires validation after last file change\n' >&2; return 1; }
-      ;;
-    autonomous-completed-strict)
-      [ "$terminal" = "completed" ] || { printf 'profile autonomous-completed-strict requires final completed event\n' >&2; return 1; }
-      for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed outcome_metric archive_written plan_removed; do
-        jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing %s\n' "$required" >&2; return 1; }
-      done
-      for mode in plan code_diff; do
-        jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing adversary mode %s\n' "$mode" >&2; return 1; }
-      done
-      for required in validation review archive completion; do
-        jq -e --arg kind "$required" 'select(.event == "runtime_receipt" and .detail.kind == $kind and .detail.cryptographic == false and .detail.observed_by == "parent-process")' "$file" >/dev/null ||
-          { printf 'profile autonomous-completed-strict missing runtime_receipt kind %s\n' "$required" >&2; return 1; }
-      done
-      if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
-        jq -e 'select(.event == "harness_validation_completed") | .detail.candidate_fingerprint and .detail.evaluator_manifest_sha256' "$file" >/dev/null ||
-          { printf 'profile autonomous-completed-strict requires candidate_fingerprint and evaluator_manifest_sha256 on every harness_validation_completed\n' >&2; return 1; }
-      fi
-      ;;
-    blocked-terminal)
-      [ "$terminal" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; return 1; }
-      ;;
+    structural|autonomous-completed|autonomous-completed-strict|blocked-terminal) ;;
     *)
       printf 'unknown validation profile: %s\n' "$profile" >&2
       return 2
       ;;
   esac
 
-  if [ "$legacy_post_terminal" -eq 1 ]; then
+  for entry in "${ALLOWED_EVENTS[@]}"; do allowed_json+="\"$entry\","; done
+  allowed_json="[${allowed_json%,}]"
+
+  # One jq invocation validates every line (json, timestamp shape and order,
+  # event vocabulary, schema_version, terminal rules, run identity, detail
+  # schema), the measurement-uniqueness invariant, and the profile gates.
+  # (was: ~7 jq spawns per line + a jq -se pass + per-profile jq selects)
+  if ! batch_out="$(jq -Rs -r \
+      --arg mode batch \
+      --arg event x --argjson strict false \
+      --arg slug "$slug" --arg profile "$profile" \
+      --argjson allowed "$allowed_json" \
+      -f "$DETAIL_SCHEMA" "$file" 2>/dev/null)" || [ -z "$batch_out" ]; then
+    printf 'line 1: invalid json\n' >&2
+    return 1
+  fi
+  {
+    read -r ok_status
+    read -r err_message
+    read -r LAST_TERMINAL
+    read -r has_measurement
+    read -r legacy_post_terminal
+    read -r count
+    read -r terminal_line
+    read -r LAST_HAS_V2_PLAN_IMPLEMENT
+  } <<< "$batch_out"
+  LAST_VALIDATED_FILE="$file"
+  if [ "$ok_status" != "OK" ]; then
+    printf '%s\n' "$err_message" >&2
+    return 1
+  fi
+  if [ "$has_measurement" = "1" ]; then
+    "$MEASUREMENT_INTEGRITY" "$measurement_root" "$file" || return 1
+  fi
+
+  if [ "$legacy_post_terminal" -gt 0 ]; then
     printf '%s events, ok (legacy post-terminal compatibility)\n' "$count"
   else
     printf '%s events, ok\n' "$count"
@@ -312,6 +258,7 @@ has_v2_plan_implement_route() {
 
 system_lock_tool() {
   local tool="$1" candidate
+  SYSTEM_LOCK_TOOL_PATH=""
   case "$tool" in
     ps) set -- /bin/ps /usr/bin/ps ;;
     readlink) set -- /usr/bin/readlink /bin/readlink ;;
@@ -324,6 +271,7 @@ system_lock_tool() {
   esac
   for candidate in "$@"; do
     if [ -x "$candidate" ] && [ ! -L "$candidate" ]; then
+      SYSTEM_LOCK_TOOL_PATH="$candidate"
       printf '%s\n' "$candidate"
       return 0
     fi
@@ -333,8 +281,10 @@ system_lock_tool() {
 
 native_lock_is_held() {
   local backend="$1" lock_file="$2" native_bin true_bin
-  native_bin="$(system_lock_tool "$backend")" || return 1
-  true_bin="$(system_lock_tool true)" || return 1
+  system_lock_tool "$backend" >/dev/null || return 1
+  native_bin="$SYSTEM_LOCK_TOOL_PATH"
+  system_lock_tool true >/dev/null || return 1
+  true_bin="$SYSTEM_LOCK_TOOL_PATH"
   case "$backend" in
     lockf)
       # 9>&- : the verifier must NOT inherit the locked descriptor — a process
@@ -351,49 +301,78 @@ native_lock_is_held() {
   esac
 }
 
+# One lsof invocation per parent pid, cached for the process lifetime: the
+# canonical-lock proof needs the parent cwd, txt executable, and descriptors —
+# three lsof spawns collapsed into one (macOS path; Linux keeps /proc).
+LSOF_PROBE_PID=""
+LSOF_PROBE_CWD=""
+LSOF_PROBE_TXT=""
+LSOF_PROBE_PATHS=""
+
+lsof_probe_refresh() {
+  local pid="$1" lsof_bin line field="" value
+  [ "$LSOF_PROBE_PID" = "$pid" ] && return 0
+  system_lock_tool lsof >/dev/null || return 1
+  lsof_bin="$SYSTEM_LOCK_TOOL_PATH"
+  LSOF_PROBE_PID="$pid"
+  LSOF_PROBE_CWD=""
+  LSOF_PROBE_TXT=""
+  LSOF_PROBE_PATHS=""
+  while IFS= read -r line; do
+    case "$line" in
+      p*) ;;
+      f*) field="${line#f}" ;;
+      n*)
+        value="${line#n}"
+        [ -n "$field" ] || continue
+        if [ "$field" = "cwd" ]; then
+          LSOF_PROBE_CWD="$value"
+        elif [ "$field" = "txt" ]; then
+          [ -n "$LSOF_PROBE_TXT" ] || LSOF_PROBE_TXT="$value"
+        else
+          LSOF_PROBE_PATHS+="$value
+"
+        fi
+        ;;
+    esac
+  done < <("$lsof_bin" -a -p "$pid" -Fn 2>/dev/null)
+  return 0
+}
+
 parent_working_directory() {
-  local parent_pid="$1" cwd readlink_bin lsof_bin lsof_line
+  local parent_pid="$1" cwd readlink_bin
   if [ -e "/proc/$parent_pid/cwd" ]; then
-    readlink_bin="$(system_lock_tool readlink)" || return 1
-    "$readlink_bin" "/proc/$parent_pid/cwd" 2>/dev/null
+    system_lock_tool readlink >/dev/null || return 1
+    "$SYSTEM_LOCK_TOOL_PATH" "/proc/$parent_pid/cwd" 2>/dev/null
     return $?
   fi
-  lsof_bin="$(system_lock_tool lsof)" || {
+  lsof_probe_refresh "$parent_pid" || {
     printf 'cannot prove the native parent working directory\n' >&2
     return 1
   }
-  while IFS= read -r lsof_line; do
-    case "$lsof_line" in
-      n*) cwd="${lsof_line#n}"; break ;;
-    esac
-  done < <("$lsof_bin" -a -p "$parent_pid" -d cwd -Fn 2>/dev/null)
-  [ -n "$cwd" ] || return 1
-  printf '%s\n' "$cwd"
+  [ -n "$LSOF_PROBE_CWD" ] || return 1
+  printf '%s\n' "$LSOF_PROBE_CWD"
 }
 
 parent_executable() {
-  local parent_pid="$1" executable readlink_bin lsof_bin lsof_line
+  local parent_pid="$1" executable readlink_bin
   if [ -e "/proc/$parent_pid/exe" ]; then
-    readlink_bin="$(system_lock_tool readlink)" || return 1
-    "$readlink_bin" "/proc/$parent_pid/exe" 2>/dev/null
+    system_lock_tool readlink >/dev/null || return 1
+    "$SYSTEM_LOCK_TOOL_PATH" "/proc/$parent_pid/exe" 2>/dev/null
     return $?
   fi
-  lsof_bin="$(system_lock_tool lsof)" || {
+  lsof_probe_refresh "$parent_pid" || {
     printf 'cannot prove the native parent executable\n' >&2
     return 1
   }
-  while IFS= read -r lsof_line; do
-    case "$lsof_line" in
-      n*) executable="${lsof_line#n}"; break ;;
-    esac
-  done < <("$lsof_bin" -a -p "$parent_pid" -d txt -Fn 2>/dev/null)
-  [ -n "$executable" ] || return 1
-  printf '%s\n' "$executable"
+  [ -n "$LSOF_PROBE_TXT" ] || return 1
+  printf '%s\n' "$LSOF_PROBE_TXT"
 }
 
 parent_is_native_lock_tool() {
   local parent_pid="$1" backend="$2" native_bin executable
-  native_bin="$(system_lock_tool "$backend")" || return 1
+  system_lock_tool "$backend" >/dev/null || return 1
+  native_bin="$SYSTEM_LOCK_TOOL_PATH"
   executable="$(parent_executable "$parent_pid")" || return 1
   [ "$executable" -ef "$native_bin" ]
 }
@@ -403,7 +382,7 @@ parent_descriptor_is_canonical_lock() {
   # lockf fd-mode; an internal fd in flock file-mode). Prove that SOME
   # descriptor of the parent references the lock file. /proc first; lsof
   # fallback for systems without /proc (macOS).
-  local parent_pid="$1" lock_file="$2" fd fd_path lsof_bin lsof_line
+  local parent_pid="$1" lock_file="$2" fd fd_path
   if [ -d "/proc/$parent_pid/fd" ]; then
     for fd in 0 1 2 3 4 5 6 7 8 9; do
       fd_path="/proc/$parent_pid/fd/$fd"
@@ -413,15 +392,14 @@ parent_descriptor_is_canonical_lock() {
     done
     return 1
   fi
-  lsof_bin="$(system_lock_tool lsof)" || {
+  lsof_probe_refresh "$parent_pid" || {
     printf 'cannot prove the native parent lock descriptor\n' >&2
     return 1
   }
-  while IFS= read -r lsof_line; do
-    case "$lsof_line" in
-      n*) [ "${lsof_line#n}" -ef "$lock_file" ] && return 0 ;;
-    esac
-  done < <("$lsof_bin" -a -p "$parent_pid" -Fn 2>/dev/null)
+  while IFS= read -r fd_path; do
+    [ -n "$fd_path" ] || continue
+    [ "$fd_path" -ef "$lock_file" ] && return 0
+  done <<< "$LSOF_PROBE_PATHS"
   return 1
 }
 
@@ -433,8 +411,8 @@ trusted_parent_process_args() {
     printf '%s\n' "$WORKFLOW_PARENT_COMMAND"
     return 0
   fi
-  ps_bin="$(system_lock_tool ps)" || return 1
-  WORKFLOW_PARENT_COMMAND="$("$ps_bin" -ww -p "$parent_pid" -o command= 2>/dev/null)" || true
+  system_lock_tool ps >/dev/null || return 1
+  WORKFLOW_PARENT_COMMAND="$($SYSTEM_LOCK_TOOL_PATH -ww -p "$parent_pid" -o command= 2>/dev/null)" || true
   WORKFLOW_PARENT_PID="$parent_pid"
   printf '%s\n' "$WORKFLOW_PARENT_COMMAND"
 }
@@ -467,10 +445,12 @@ parent_targets_canonical_lock() {
   parent_tail="${parent_args#* }"
   case "$backend" in
     lockf)
-      # lockf keeps the subshell cwd contract: cwd must be the run dir.
-      expected_cwd="$(cd "$run_dir" >/dev/null 2>&1 && pwd -P)" || return 1
+      # lockf keeps the subshell cwd contract: cwd must be the run dir. The
+      # locked child receives a physical (-P) workflow dir from its parent,
+      # and lsof reports kernel-resolved (physical) paths, so both sides of
+      # the comparison are canonical without the historic cd+pwd -P forks.
+      expected_cwd="$run_dir"
       parent_cwd="$(parent_working_directory "$parent_pid")" || return 1
-      parent_cwd="$(cd "$parent_cwd" >/dev/null 2>&1 && pwd -P)" || return 1
       [ "$parent_cwd" = "$expected_cwd" ] || return 1
       case "$parent_tail" in "-t 5 /dev/fd/9 "*) return 0 ;; esac
       ;;
@@ -586,13 +566,22 @@ append_locked_body() {
   owner_host_compatible "$owner_file" "$current_host" || return 1
   owner_tmp="$owner_file.$token"
   now_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  jq -nc \
-    --arg token "$token" \
-    --argjson pid "$$" \
-    --arg hostname "$current_host" \
-    --arg acquired_at "$now_iso" \
-    --arg backend "$backend" \
-    '{schema_version:1,token:$token,pid:$pid,hostname:$hostname,acquired_at:$acquired_at,backend:$backend}' >"$owner_tmp"
+  # Fixed-shape owner record: every field is host-controlled (token is hex,
+  # pid numeric, timestamps ISO, backend from a fixed set), so printf is
+  # byte-identical to the previous jq -nc spawn unless the hostname needs
+  # JSON escaping, which falls back to jq.
+  if [[ "$current_host" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    printf '{"schema_version":1,"token":"%s","pid":%d,"hostname":"%s","acquired_at":"%s","backend":"%s"}\n' \
+      "$token" "$$" "$current_host" "$now_iso" "$backend" >"$owner_tmp"
+  else
+    jq -nc \
+      --arg token "$token" \
+      --argjson pid "$$" \
+      --arg hostname "$current_host" \
+      --arg acquired_at "$now_iso" \
+      --arg backend "$backend" \
+      '{schema_version:1,token:$token,pid:$pid,hostname:$hostname,acquired_at:$acquired_at,backend:$backend}' >"$owner_tmp"
+  fi
   chmod 600 "$owner_tmp"
   mv "$owner_tmp" "$owner_file"
   APPEND_OWNER_FILE="$owner_file"
@@ -602,15 +591,17 @@ append_locked_body() {
   trap release_current_append_owner EXIT
 
   if [ -f "$file" ]; then
-    if ! is_program_event "$event" \
-      || ! ledger_cache_matches "$file" "$integrity_cache" \
-      || grep -Fq '"event":"outcome_measurement_' "$file"; then
-      "$SCRIPT_PATH" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null || {
+    if is_program_event "$event" \
+      && ! grep -Fq '"event":"outcome_measurement_' "$file" \
+      && ledger_cache_matches "$file" "$integrity_cache"; then
+      terminal="$(tail -n 1 "$file" | jq -r '.event // empty')"
+    else
+      validate_ledger_file "$slug" "$file" 0 structural "$WORKFLOW_DIR" >/dev/null || {
         printf 'refusing append to an invalid ledger: %s\n' "$slug" >&2
         return 1
       }
+      terminal="$LAST_TERMINAL"
     fi
-    terminal="$(tail -n 1 "$file" | jq -r '.event // empty')"
   fi
 
   if is_program_event "$event" && [ -f "$file" ]; then
@@ -630,17 +621,38 @@ append_locked_body() {
     return 1
   fi
 
-  event_line="$(jq -nc \
-    --arg ts "$now_iso" \
-    --arg event "$event" \
-    --arg run "$slug" \
-    --argjson detail "$detail" \
-    '{schema_version:2,ts:$ts,event:$event,run:$run,detail:$detail}')"
-  if [ "$event" = "completed" ] && [ -f "$file" ] && has_v2_plan_implement_route "$file"; then
-    validate_autonomous_completion_candidate "$slug" "$run_dir" "$file" "$event_line" || {
-      printf 'refusing autonomous completed event before profile prerequisites pass\n' >&2
-      return 1
-    }
+  # Fixed-shape event line: ts/event/run are host-controlled (event from the
+  # allowed vocabulary, slug regex-validated, ISO timestamp) and detail is
+  # pre-validated JSON, so printf is byte-identical to the previous jq -nc
+  # spawn. Multi-line detail (pathological but legal JSON) still goes through
+  # jq so the ledger stays one-event-per-line.
+  case "$detail" in
+    *$'\n'*)
+      event_line="$(jq -nc \
+        --arg ts "$now_iso" \
+        --arg event "$event" \
+        --arg run "$slug" \
+        --argjson detail "$detail" \
+        '{schema_version:2,ts:$ts,event:$event,run:$run,detail:$detail}')"
+      ;;
+    *)
+      event_line="$(printf '{"schema_version":2,"ts":"%s","event":"%s","run":"%s","detail":%s}' \
+        "$now_iso" "$event" "$slug" "$detail")"
+      ;;
+  esac
+  if [ "$event" = "completed" ] && [ -f "$file" ]; then
+    local route_v2=0
+    if [ "${LAST_VALIDATED_FILE:-}" = "$file" ]; then
+      route_v2="$LAST_HAS_V2_PLAN_IMPLEMENT"
+    elif has_v2_plan_implement_route "$file"; then
+      route_v2=1
+    fi
+    if [ "$route_v2" = "1" ]; then
+      validate_autonomous_completion_candidate "$slug" "$run_dir" "$file" "$event_line" || {
+        printf 'refusing autonomous completed event before profile prerequisites pass\n' >&2
+        return 1
+      }
+    fi
   fi
   if [ "$backend" = "lockf" ] || [ "$backend" = "flock" ]; then
     verify_native_commit_lock "$lock_file" "$backend" || return 1
@@ -671,8 +683,12 @@ append_with_lock() {
   local lock_file="$run_dir/events.lock"
   local owner_file="$run_dir/events.lock.owner.json" backend token current_host attempt
   local absolute_workflow_dir absolute_run_dir native_bin
-  mkdir -p "$run_dir"
-  absolute_workflow_dir="$(cd "$WORKFLOW_DIR" >/dev/null 2>&1 && pwd -P)" || return 1
+  [ -d "$run_dir" ] || mkdir -p "$run_dir"
+  # Physical workflow dir for the locked child (no $(cd && pwd -P) fork): cd
+  # back afterwards because the shlock backend still uses $WORKFLOW_DIR paths.
+  cd -P -- "$WORKFLOW_DIR" >/dev/null 2>&1 || return 1
+  absolute_workflow_dir="$PWD"
+  cd -- "$OLDPWD" >/dev/null 2>&1 || return 1
   absolute_run_dir="$absolute_workflow_dir/$slug"
   token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
   [ "${#token}" -eq 32 ] || { printf 'failed to create lock owner token\n' >&2; return 1; }
@@ -689,14 +705,16 @@ append_with_lock() {
   fi
   case "$backend" in
     lockf)
-      native_bin="$(native_backend_path lockf)" || { printf 'requested lockf backend is unavailable\n' >&2; return 1; }
+      system_lock_tool lockf >/dev/null || { printf 'requested lockf backend is unavailable\n' >&2; return 1; }
+      native_bin="$SYSTEM_LOCK_TOOL_PATH"
       (cd "$absolute_run_dir" && exec 9>>events.lock && "$native_bin" -t 5 /dev/fd/9 "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" lockf) || {
         printf 'lockf append failed or timed out after 5 seconds\n' >&2
         return 1
       }
       ;;
     flock)
-      native_bin="$(native_backend_path flock)" || { printf 'requested flock backend is unavailable\n' >&2; return 1; }
+      system_lock_tool flock >/dev/null || { printf 'requested flock backend is unavailable\n' >&2; return 1; }
+      native_bin="$SYSTEM_LOCK_TOOL_PATH"
       # File-mode (not fd-mode): on Linux 6.17 runners, a lock taken on an
       # inherited fd does not contend with a fresh open of the same file, so
       # the in-child verification probe could never observe it. File-mode
@@ -795,11 +813,11 @@ case "$command" in
     is_valid_slug "$slug" || { printf 'invalid run slug: %s\n' "$slug" >&2; exit 2; }
     file="$WORKFLOW_DIR/$slug/events.jsonl"
     [ -f "$file" ] || { printf 'missing ledger: %s\n' "$file" >&2; exit 1; }
-    "$0" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null || {
+    validate_ledger_file "$slug" "$file" 0 structural "$WORKFLOW_DIR" >/dev/null || {
       printf 'cannot activate an invalid ledger: %s\n' "$slug" >&2
       exit 1
     }
-    terminal_event="$(tail -n 1 "$file" | jq -r '.event')"
+    terminal_event="$LAST_TERMINAL"
     if [ "$terminal_event" = "completed" ] || [ "$terminal_event" = "blocked" ]; then
       printf 'cannot activate a terminal ledger: %s\n' "$slug" >&2
       exit 1
@@ -815,7 +833,7 @@ case "$command" in
       exit 0
     fi
     temporary_pointer="$WORKFLOW_DIR/.active-run.json.$$"
-    jq -nc --arg run "$slug" '{schema_version:1,run:$run}' > "$temporary_pointer"
+    printf '{"schema_version":1,"run":"%s"}' "$slug" > "$temporary_pointer"
     if [ -e "$pointer" ]; then
       rm -f "$temporary_pointer"
       printf 'active run changed while activating: %s\n' "$pointer" >&2
@@ -833,7 +851,7 @@ case "$command" in
     run_dir="$WORKFLOW_DIR/$slug"
     file="$run_dir/events.jsonl"
     [ -f "$file" ] || { printf 'missing ledger: %s\n' "$file" >&2; exit 1; }
-    if "$0" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null 2>&1; then
+    if validate_ledger_file "$slug" "$file" 0 structural "$WORKFLOW_DIR" >/dev/null 2>&1; then
       printf 'refusing recovery for an already valid ledger: %s\n' "$slug" >&2
       exit 1
     fi
