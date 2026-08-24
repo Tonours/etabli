@@ -1,4 +1,5 @@
 import { delimiter } from "node:path";
+import { hash as cryptoHash } from "node:crypto";
 import type { RtkConfig } from "./pi-runtime.ts";
 
 export type RewriteEnv = Record<string, string | undefined> | undefined;
@@ -29,15 +30,13 @@ type ManagedRtkConfig = Pick<
   "enabled" | "mode" | "maxCacheEntries" | "maxCommandLength" | "dangerousCommandBypass"
 >;
 
-const runtimeState: RtkRuntimeState = {
-  cacheSize: 0,
-  cacheHits: 0,
-  cacheMisses: 0,
-  rewrites: 0,
-  bypasses: 0,
-  disabled: false,
-  lastBypassReason: null,
-};
+let cacheSize = 0;
+let cacheHits = 0;
+let cacheMisses = 0;
+let rewrites = 0;
+let bypasses = 0;
+let disabled = false;
+let lastBypassReason: string | null = null;
 
 function isMissingBinaryError(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as RewriteError).code === "ENOENT";
@@ -48,8 +47,8 @@ function isExpectedNoRewriteError(error: unknown): boolean {
 }
 
 function noteBypass(reason: string): void {
-  runtimeState.bypasses += 1;
-  runtimeState.lastBypassReason = reason;
+  bypasses += 1;
+  lastBypassReason = reason;
 }
 
 function commandFlags(command: string, pattern: RegExp): string[] {
@@ -85,57 +84,52 @@ function isDangerousCommand(command: string): boolean {
   );
 }
 
-function findBypassReason(command: string, config: ManagedRtkConfig): string | null {
+function isWsCharCode(code: number): boolean {
+  if (code === 32 || (code >= 9 && code <= 13)) return true;
+  if (code < 128) return false;
+  return (
+    code === 0x00a0
+    || code === 0x1680
+    || (code >= 0x2000 && code <= 0x200a)
+    || code === 0x2028
+    || code === 0x2029
+    || code === 0x202f
+    || code === 0x205f
+    || code === 0x3000
+    || code === 0xfeff
+  );
+}
+
+function findBypassReason(
+  command: string,
+  enabled: boolean,
+  mode: string,
+  maxCommandLength: number,
+  dangerousCommandBypass: boolean,
+): string | null {
   const trimmed = command.trim();
   if (trimmed.length === 0) return null;
-  if (!config.enabled || config.mode === "off") return "disabled";
+  if (!enabled || mode === "off") return "disabled";
   if (trimmed.includes("\n")) return "multiline";
   if (/(^|\s)<<-?\s*['"]?[A-Za-z0-9_]+['"]?/.test(trimmed)) return "heredoc";
-  if (trimmed.length > config.maxCommandLength) return "command-too-long";
+  if (trimmed.length > maxCommandLength) return "command-too-long";
   if (trimmed.includes("|")) return "pipeline";
-  if (config.dangerousCommandBypass && isDangerousCommand(trimmed)) {
+  if (dangerousCommandBypass && isDangerousCommand(trimmed)) {
     return "dangerous-command";
   }
   return null;
 }
 
-function remember(cache: Map<string, string>, key: string, value: string, maxEntries: number): void {
-  if (cache.has(key)) cache.delete(key);
-  cache.set(key, value);
-
-  while (cache.size > maxEntries) {
-    const oldest = cache.keys().next().value;
-    if (oldest === undefined) break;
-    cache.delete(oldest);
-  }
-
-  runtimeState.cacheSize = cache.size;
-}
-
-function updateFingerprint(hash: bigint, text: string): bigint {
-  let nextHash = hash;
-  for (let index = 0; index < text.length; index += 1) {
-    nextHash ^= BigInt(text.charCodeAt(index));
-    nextHash = BigInt.asUintN(64, nextHash * 1099511628211n);
-  }
-  return nextHash;
-}
-
 function envFingerprint(env: RewriteEnv): string {
   if (!env) return "none";
 
-  let hash = 14695981039346656037n;
+  let payload = "";
   for (const key of Object.keys(env).sort()) {
     const value = env[key];
-    hash = updateFingerprint(hash, `${key.length}:${key}`);
-    hash = updateFingerprint(hash, value === undefined ? ":-1:" : `:${value.length}:${value}`);
+    payload += `${key.length}:${key}:${value === undefined ? "" : `${value.length}:${value}`}`;
   }
 
-  return hash.toString(16).padStart(16, "0");
-}
-
-function cacheKeyFor(command: string, fingerprint: string): string {
-  return `${command}\0env:${fingerprint}`;
+  return cryptoHash("sha256", payload, "hex").slice(0, 16);
 }
 
 export function prependPathToEnv(env: RewriteEnv, pathPrefix: string | null): RewriteEnv {
@@ -147,69 +141,229 @@ export function prependPathToEnv(env: RewriteEnv, pathPrefix: string | null): Re
 }
 
 export function getRtkRuntimeState(): RtkRuntimeState {
-  return { ...runtimeState };
+  return {
+    cacheSize,
+    cacheHits,
+    cacheMisses,
+    rewrites,
+    bypasses,
+    disabled,
+    lastBypassReason,
+  };
 }
 
 export function resetRtkRuntimeState(): void {
-  runtimeState.cacheSize = 0;
-  runtimeState.cacheHits = 0;
-  runtimeState.cacheMisses = 0;
-  runtimeState.rewrites = 0;
-  runtimeState.bypasses = 0;
-  runtimeState.disabled = false;
-  runtimeState.lastBypassReason = null;
+  cacheSize = 0;
+  cacheHits = 0;
+  cacheMisses = 0;
+  rewrites = 0;
+  bypasses = 0;
+  disabled = false;
+  lastBypassReason = null;
 }
 
 export function createRtkCommandRewriter(
   runRewrite: RewriteRunner,
   config: ManagedRtkConfig,
 ): (command: string, env?: RewriteEnv) => string {
-  const cache = new Map<string, string>();
+  const { enabled, mode, maxCacheEntries, maxCommandLength, dangerousCommandBypass } = config;
+
+  type RewriterEntry = {
+    command: string;
+    bypass: string | null;
+    fingerprint: string | null;
+    value: string;
+    extra: Map<string, string> | null;
+    slotIdx: number;
+  };
+
+  type RewriterSlot = {
+    command: string;
+    fingerprint: string;
+    value: string;
+  };
+
+  // Single map keyed by command: memoized bypass decision + cached results.
+  // fingerprint/value act as a single-entry fast path (pointer-comparable
+  // fingerprint for the common one-env case); extra holds additional envs.
+  const entries = new Map<string, RewriterEntry>();
   const disabledFingerprints = new Set<string>();
+  let noneDisabled = false;
+  const bypassOnlyCap = Math.max(maxCacheEntries, 16);
+  let bypassOnlyCount = 0;
+  let cachePairCount = 0;
+  // L1 direct-mapped accelerator over the entries map (invalidated on pair
+  // eviction so it can never serve a value the LRU would have evicted).
+  const slots = Array.from({ length: 64 }, (): RewriterSlot | undefined => undefined);
   resetRtkRuntimeState();
 
-  return (command: string, env?: RewriteEnv): string => {
-    if (command.trim().length === 0) return command;
+  const slotIndex = (command: string): number => {
+    const length = command.length;
+    return (command.charCodeAt(0) * 31 + command.charCodeAt(length - 1) + length) & 63;
+  };
 
-    const bypassReason = findBypassReason(command, config);
-    if (bypassReason) {
-      noteBypass(bypassReason);
-      return command;
+  const rememberBypass = (command: string, reason: string): void => {
+    entries.set(command, { command, bypass: reason, fingerprint: null, value: "", extra: null, slotIdx: -1 });
+    bypassOnlyCount += 1;
+
+    while (bypassOnlyCount > bypassOnlyCap) {
+      let removed = false;
+      for (const [oldestCommand, oldestEntry] of entries) {
+        if (oldestEntry.bypass === null) continue;
+        entries.delete(oldestCommand);
+        removed = true;
+        break;
+      }
+      if (!removed) break;
+      bypassOnlyCount -= 1;
+    }
+  };
+
+  const rememberResult = (command: string, fingerprint: string, value: string): void => {
+    let entry = entries.get(command);
+    if (entry === undefined || entry.bypass !== null) {
+      entry = { command, bypass: null, fingerprint: null, value: "", extra: null, slotIdx: -1 };
+      entries.set(command, entry);
     }
 
-    const fingerprint = envFingerprint(env);
+    if (entry.fingerprint === fingerprint) {
+      entry.value = value;
+      if (entry.slotIdx >= 0) slots[entry.slotIdx]!.value = value;
+    } else if (entry.extra !== null && entry.extra.has(fingerprint)) {
+      entry.extra.set(fingerprint, value);
+    } else if (entry.fingerprint === null) {
+      entry.fingerprint = fingerprint;
+      entry.value = value;
+      cachePairCount += 1;
 
-    if (disabledFingerprints.has(fingerprint)) {
+      const idx = slotIndex(command);
+      const existing = slots[idx];
+      if (existing !== undefined) {
+        const other = entries.get(existing.command);
+        if (other !== undefined && other.slotIdx === idx) other.slotIdx = -1;
+      }
+      slots[idx] = { command, fingerprint, value };
+      entry.slotIdx = idx;
+    } else {
+      if (entry.extra === null) entry.extra = new Map();
+      entry.extra.set(fingerprint, value);
+      cachePairCount += 1;
+    }
+
+    while (cachePairCount > maxCacheEntries) {
+      let dropped = false;
+      for (const [oldestCommand, oldestEntry] of entries) {
+        if (oldestEntry.bypass !== null) continue;
+        if (oldestEntry.extra !== null && oldestEntry.extra.size > 0) {
+          const oldestFingerprint = oldestEntry.extra.keys().next().value;
+          if (oldestFingerprint === undefined) break;
+          oldestEntry.extra.delete(oldestFingerprint);
+          cachePairCount -= 1;
+          dropped = true;
+        } else if (oldestEntry.fingerprint !== null) {
+          const slotIdx = oldestEntry.slotIdx;
+          if (slotIdx >= 0) {
+            const slot = slots[slotIdx];
+            if (slot !== undefined && slot.command === oldestCommand) slots[slotIdx] = undefined;
+            oldestEntry.slotIdx = -1;
+          }
+          oldestEntry.fingerprint = null;
+          oldestEntry.value = "";
+          cachePairCount -= 1;
+          dropped = true;
+        }
+        if (dropped) {
+          if (oldestEntry.fingerprint === null && (oldestEntry.extra === null || oldestEntry.extra.size === 0)) {
+            entries.delete(oldestCommand);
+          }
+          break;
+        }
+      }
+      if (!dropped) break;
+    }
+
+    cacheSize = cachePairCount;
+  };
+
+  return (command: string, env?: RewriteEnv): string => {
+    const length = command.length;
+    const first = command.charCodeAt(0);
+    const last = command.charCodeAt(length - 1);
+    const fingerprint = env === undefined ? "none" : envFingerprint(env);
+
+    // L1 slot probe: slots only ever hold non-empty, non-bypassed cached pairs,
+    // so a hit also proves the whitespace check below unnecessary. The
+    // disabled-fingerprint flag can flip after insertion, so verify it here.
+    // (For the empty string, NaN & 63 === 0 and slot.command !== "".)
+    const disabledNow = env === undefined ? noneDisabled : disabledFingerprints.has(fingerprint);
+    if (!disabledNow) {
+      const slot = slots[(first * 31 + last + length) & 63];
+      if (
+        slot !== undefined
+        && slot.command === command
+        && slot.fingerprint === fingerprint
+      ) {
+        cacheHits += 1;
+        return slot.value;
+      }
+    }
+
+    if (length === 0 || isWsCharCode(first) || isWsCharCode(last)) {
+      if (command.trim().length === 0) return command;
+    }
+
+    const entry = entries.get(command);
+    if (entry !== undefined) {
+      if (entry.bypass !== null) {
+        noteBypass(entry.bypass);
+        return command;
+      }
+    } else {
+      const bypassReason = findBypassReason(command, enabled, mode, maxCommandLength, dangerousCommandBypass);
+      if (bypassReason !== null) {
+        rememberBypass(command, bypassReason);
+        noteBypass(bypassReason);
+        return command;
+      }
+    }
+
+    if (disabledNow) {
       noteBypass("missing-binary");
       return command;
     }
 
-    const cacheKey = cacheKeyFor(command, fingerprint);
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      runtimeState.cacheHits += 1;
-      return cached;
+    if (entry !== undefined) {
+      if (entry.fingerprint === fingerprint) {
+        cacheHits += 1;
+        return entry.value;
+      }
+      const cached = entry.extra !== null ? entry.extra.get(fingerprint) : undefined;
+      if (cached !== undefined) {
+        cacheHits += 1;
+        return cached;
+      }
     }
 
-    runtimeState.cacheMisses += 1;
+    cacheMisses += 1;
 
     try {
       const rewritten = runRewrite(command, env).trim();
       const resolved = rewritten.length > 0 && rewritten !== command ? rewritten : command;
-      if (resolved !== command) runtimeState.rewrites += 1;
-      remember(cache, cacheKey, resolved, config.maxCacheEntries);
+      if (resolved !== command) rewrites += 1;
+      rememberResult(command, fingerprint, resolved);
       return resolved;
     } catch (error) {
       if (isMissingBinaryError(error)) {
         disabledFingerprints.add(fingerprint);
-        runtimeState.disabled = true;
+        if (env === undefined) noneDisabled = true;
+        disabled = true;
         noteBypass("missing-binary");
-        remember(cache, cacheKey, command, config.maxCacheEntries);
+        rememberResult(command, fingerprint, command);
         return command;
       }
 
       if (isExpectedNoRewriteError(error)) {
-        remember(cache, cacheKey, command, config.maxCacheEntries);
+        rememberResult(command, fingerprint, command);
       }
 
       return command;
