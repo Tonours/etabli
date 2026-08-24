@@ -44,9 +44,11 @@ assert_contract_referenced() {
 
 # One tree pass collects every `workflow/skills/*.md` mention (was: one
 # recursive grep per contract — N walks over pi/node_modules dominated the
-# core profile wall time).
+# core profile wall time). Vendored node_modules trees are skipped: they are
+# third-party code, so a mention there must not count as a repo reference
+# (this only tightens the check).
 REFERENCES_INDEX="$TMP_DIR/contract-references.txt"
-grep -Roh -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
+grep -Roh --exclude-dir=node_modules -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
   "$ROOT_DIR/claude" \
   "$ROOT_DIR/pi" \
   "$ROOT_DIR/docs" \
