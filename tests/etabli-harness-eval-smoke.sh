@@ -78,7 +78,7 @@ prepare_synthetic() {
   if [ -d "$task_dir/synthetic/$kind/worktree" ]; then
     cp -R "$task_dir/synthetic/$kind/worktree/." "$dest/"
   fi
-  git -C "$dest" rev-parse HEAD >"$dest.harness-baseline"
+  harness_write_baseline "$dest"
   # Spawn evidence: when the transcript claims an isolated hunt, an honest
   # run would have produced a spawn log via the PATH wrapper.
   if grep -Eq '^isolation: isolated$' "$task_dir/synthetic/$kind/transcript.txt" 2>/dev/null; then
@@ -96,56 +96,10 @@ prepare_synthetic() {
   fi
 }
 
-grade() {
-  local task_id="$1"
-  local kind="$2"
-  local dest="$TMP_DIR/$task_id-$kind"
-  prepare_synthetic "$task_id" "$kind" "$dest"
-  PATH="$HERMETIC_PATH" SPAWN_LOG="$dest.spawn.log" "$DRIVER" grade \
-    --task "$task_id" \
-    --worktree "$dest" \
-    --transcript "$FIXTURES/tasks/$task_id/synthetic/$kind/transcript.txt"
-}
-
-assert_pass() {
-  local task_id="$1"
-  local json
-  json="$(grade "$task_id" pass)"
-  printf '%s\n' "$json" | jq -e '
-    .pass == true and .runner == "offline" and .oracle_exit == 0 and
-    (.task_id | type == "string") and
-    (.split | type == "string") and
-    (.model_requested | type == "string") and
-    (.model_effective | type == "string") and
-    (.thinking_requested | type == "string") and
-    (.thinking_effective | type == "string") and
-    (.started_at | type == "string") and
-    (.duration_s | type == "number") and
-    (.runner_exit | type == "number") and
-    (.transcript_path | type == "string") and
-    (.manifest_sha | test("^[a-f0-9]{64}$")) and
-    (.oracle_sha | test("^[a-f0-9]{64}$"))
-  ' >/dev/null || fail "$task_id pass fixture should pass with pinned JSONL row fields"
-}
-
-assert_fail() {
-  local task_id="$1"
-  local json
-  json="$(grade "$task_id" fail 2>"$TMP_DIR/oracle-$task_id-fail.err")"
-  printf '%s\n' "$json" | jq -e '.pass == false and .oracle_exit != 0' >/dev/null ||
-    fail "$task_id fail fixture should fail: $json"
-}
-
-while IFS= read -r task_id; do
-  assert_pass "$task_id"
-  assert_fail "$task_id"
-done < <(jq -r '.tasks[].id' "$FIXTURES/manifest.json")
-
-# In-process grading for the crafted (degenerate) cells below. The CLI
-# grade surface stays fully exercised by the task loop above (and the
-# baseline/report/run/print-argv subcommands); these cells assert ORACLE
-# semantics on crafted worktrees/transcripts, so they call harness_grade
-# in this shell — per-process caches persist and no driver process is
+# In-process grading helpers. The CLI grade surface stays exercised by the
+# first tasks of the loop below (plus the baseline/report/run/print-argv
+# subcommands); cells that assert ORACLE semantics call harness_grade in
+# this shell — per-process caches persist and no driver process is
 # respawned per case.
 # shellcheck source=../scripts/lib/etabli-harness-eval.sh
 # HARNESS_ROOT is consumed by the sourced lib; a plain assignment is
@@ -159,6 +113,81 @@ grade_cell() {
   harness_grade "$task_id" "$worktree" "$transcript" "$runner" none none none none "$rexit" \
     >"$ROW" 2>"$TMP_DIR/grade-cell.err"
 }
+
+grade() {
+  local task_id="$1"
+  local kind="$2"
+  local dest="$TMP_DIR/$task_id-$kind"
+  prepare_synthetic "$task_id" "$kind" "$dest"
+  PATH="$HERMETIC_PATH" SPAWN_LOG="$dest.spawn.log" "$DRIVER" grade \
+    --task "$task_id" \
+    --worktree "$dest" \
+    --transcript "$FIXTURES/tasks/$task_id/synthetic/$kind/transcript.txt"
+}
+
+# same lib code path as the driver's grade subcommand, minus the process
+grade_row() {
+  local task_id="$1"
+  local kind="$2"
+  local dest="$TMP_DIR/$task_id-$kind"
+  prepare_synthetic "$task_id" "$kind" "$dest"
+  SPAWN_LOG="$dest.spawn.log" harness_grade "$task_id" "$dest" \
+    "$FIXTURES/tasks/$task_id/synthetic/$kind/transcript.txt" \
+    >"$ROW" 2>"$TMP_DIR/oracle-$task_id-$kind.err"
+  unset SPAWN_LOG
+}
+
+assert_pass() {
+  local task_id="$1"
+  local transport="$2"
+  if [ "$transport" = cli ]; then
+    grade "$task_id" pass >"$ROW"
+  else
+    grade_row "$task_id" pass
+  fi
+  jq -e '
+    .pass == true and .runner == "offline" and .oracle_exit == 0 and
+    (.task_id | type == "string") and
+    (.split | type == "string") and
+    (.model_requested | type == "string") and
+    (.model_effective | type == "string") and
+    (.thinking_requested | type == "string") and
+    (.thinking_effective | type == "string") and
+    (.started_at | type == "string") and
+    (.duration_s | type == "number") and
+    (.runner_exit | type == "number") and
+    (.transcript_path | type == "string") and
+    (.manifest_sha | test("^[a-f0-9]{64}$")) and
+    (.oracle_sha | test("^[a-f0-9]{64}$"))
+  ' "$ROW" >/dev/null || fail "$task_id pass fixture should pass with pinned JSONL row fields"
+}
+
+assert_fail() {
+  local task_id="$1"
+  local transport="$2"
+  if [ "$transport" = cli ]; then
+    grade "$task_id" fail >"$ROW" 2>"$TMP_DIR/oracle-$task_id-fail.err"
+  else
+    grade_row "$task_id" fail
+  fi
+  jq -e '.pass == false and .oracle_exit != 0' "$ROW" >/dev/null ||
+    fail "$task_id fail fixture should fail"
+}
+
+# CLI grade coverage rides on the first tasks (deterministic manifest
+# order); the rest use the in-process transport — every per-task
+# assertion is identical either way
+cli_transport_left=2
+while IFS= read -r task_id; do
+  if [ "$cli_transport_left" -gt 0 ]; then
+    cli_transport_left=$((cli_transport_left - 1))
+    assert_pass "$task_id" cli
+    assert_fail "$task_id" cli
+  else
+    assert_pass "$task_id" inproc
+    assert_fail "$task_id" inproc
+  fi
+done < <(jq -r '.tasks[].id' "$FIXTURES/manifest.json")
 
 notes="$TMP_DIR/go-with-notes.txt"
 cat >"$notes" <<'EOF'
@@ -428,11 +457,9 @@ PATH="$TMP_DIR/stubs:/usr/bin:/bin" "$TMP_DIR/stubs/pi" >/dev/null 2>"$TMP_DIR/s
 grep -Fq 'HUNTER_SPAWN_UNAVAILABLE' "$TMP_DIR/stub.err" || fail "pi stub must print HUNTER_SPAWN_UNAVAILABLE"
 
 report_file="$TMP_DIR/rows.jsonl"
-PATH="$HERMETIC_PATH" "$DRIVER" grade \
-  --task review-isolation-sentinel \
-  --worktree "$TMP_DIR/review-isolation-sentinel-pass" \
-  --transcript "$FIXTURES/tasks/review-isolation-sentinel/synthetic/pass/transcript.txt" \
-  >"$report_file"
+harness_grade review-isolation-sentinel "$TMP_DIR/review-isolation-sentinel-pass" \
+  "$FIXTURES/tasks/review-isolation-sentinel/synthetic/pass/transcript.txt" \
+  >"$report_file" 2>"$TMP_DIR/report-grade.err"
 PATH="$HERMETIC_PATH" "$DRIVER" report "$report_file" | jq -e '.[0].pass_at_1 == 1' >/dev/null ||
   fail "report should score pass@1 from jsonl"
 

@@ -155,6 +155,19 @@ harness_require_porcelain_allowlist() {
 
 harness_write_baseline() {
   local worktree="$1"
+  # fresh single-commit repos keep HEAD in a loose ref file — read it
+  # directly (no rev-parse fork); fall back if the ref is packed/absent
+  local head_file sha
+  for head_file in "$worktree/.git/refs/heads/"*; do
+    if [ -f "$head_file" ]; then
+      read -r sha <"$head_file"
+      if [ -n "$sha" ]; then
+        printf '%s\n' "$sha" >"$worktree.harness-baseline"
+        return 0
+      fi
+    fi
+    break
+  done
   git -C "$worktree" rev-parse HEAD >"$worktree.harness-baseline" 2>/dev/null
 }
 
@@ -329,7 +342,13 @@ harness_grade() {
   [ -f "$transcript" ] || harness_die "missing transcript: $transcript"
   [ -d "$worktree" ] || harness_die "missing worktree: $worktree"
 
-  split="$(harness_task_field "$task_id" split)"
+  if [ "${HARNESS_SPLIT_CACHE_ID:-}" = "$task_id" ]; then
+    split="$HARNESS_SPLIT_CACHE_VAL"
+  else
+    split="$(harness_task_field "$task_id" split)"
+    HARNESS_SPLIT_CACHE_ID="$task_id"
+    HARNESS_SPLIT_CACHE_VAL="$split"
+  fi
   if [ -z "${HARNESS_MANIFEST_SHA_CACHE:-}" ]; then
     HARNESS_MANIFEST_SHA_CACHE="$(harness_sha256 "$fixtures/manifest.json")"
   fi
