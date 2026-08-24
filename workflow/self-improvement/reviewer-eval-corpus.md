@@ -650,3 +650,69 @@ template, or notes bar, each re-opens nit_fpr to 0.40. No-latch controls stay
 clean even with every channel forced open. Limit: contract-level replay, not a
 live reviewer — a live pass on a partial-formatter PR remains the acceptance
 gate.
+
+## Run 2026-08-24 (h) — CR-A7 severity-ordering campaign (autoresearch)
+
+Seventh replay campaign. Topic CR-A7: the lead template sorts post-hunt
+(`Act on / Consider / Dismissed`), so a findings list that arrives in
+discovery order means the human reads the lows first. The recorded baseline
+was ordering_accuracy ≈ 0.60 — the skill said "ordered by severity" but no
+output-contract position carried a *sorted* constraint.
+
+### Model
+
+The reviewer is contract-driven; each **writer re-derges its own list**, and
+the cheapest legal order without a bar at its own position is discovery order
+(hunk/file order of the diff). Judged lists (15): per repo diff, the Logic
+hunter report (governed by the hunter templates' `## Findings` block) and the
+lead `Act on` list (governed by the lead's own order duty **and** the rubric
+findings-format invalidity clause — a duty without invalidity stays soft, the
+CR-A6 lesson generalized); per skill-only diff, the skill findings list.
+Corpus: 10 injected diffs, exactly one high (security/data loss) + one medium
+(regression) + one low (maintainability with a concrete operability failure —
+CR-A6 bar compliant) bug each; 6/10 diffs are coincidentally
+discovery-sorted, so an unbarred surface replays the recorded 9/15 = 0.60.
+v1/v2 anchors both replay 0.60; `high_recall` and `findings_per_list` guard
+that ordering never trades findings away.
+
+### Baseline: ordering_accuracy 0.60
+
+Every writer emitted in discovery order: the hunter findings blocks named the
+seven fields but no order, the lead's `Act on` section kept findings in
+hunter/axis order, and the skill's "ordered by severity" was workflow prose —
+an instruction, not an output contract (the v2 lesson again). Inverted diffs
+(O-2, O-4, O-7, O-9) put a low or medium bug in the first hunk, so the human
+read the low first.
+
+### The lever (output contract, mirrored: rubric + both hunter templates + lead + skill)
+
+The rubric findings format now closes with "Emit findings sorted by severity
+— `high`, then `medium`, then `low`; any other order is invalid"; both hunter
+templates' findings blocks carry "Sorted by severity — `high`, then `medium`,
+then `low`; unsorted is invalid"; the lead `Act on` keeps "sorted by severity
+— `high`, then `medium`, then `low`" (axis tags preserved — the sort never
+flattens Logic into one ranked list); the skill Contract gains "Findings sort
+by severity — `high`, then `medium`, then `low`; any other order is invalid"
+and the Output section starts "Start with findings, sorted by severity".
+Growth funded inside the ≤15% union cap (14 103 → 14 165 B) by shrinking
+instruction-level prose whose duty the output contract already carries
+(inputs pin-once duplicate, §5 clean-pass note, "second child" note, the
+skill's explain-why Output bullet). Deployed skill synced byte-for-byte.
+
+### Results
+
+| Metric | Baseline | Final |
+|---|---|---|
+| ordering_accuracy | 0.60 | **1.00** |
+| repo_ordering_accuracy | 0.60 | **1.00** |
+| skill_only / deployed ordering_accuracy | 0.60 / 0.60 | **1.00 / 1.00** |
+| high_recall | 1.00 | **1.00** |
+| findings_per_list | 3.00 | **3.00** |
+
+Guards: CR-A1 recall 1.00, CR-A2 precision_clean 1.00, CR-A3 escaped_per_go
+0.00, CR-A4 skip_rate 0.00, CR-A5 r003_caught 1.00, CR-A6 nit_fpr 0.00, lens
+7 bullets, no instance tokens. Mutations: dropping the rubric bar, the hunter
+template bar, the lead duty, or the skill bar each re-opens ordering_accuracy
+to 0.8667 (its governed lists revert to discovery order). Limit:
+contract-level replay, not a live reviewer — a live pass on a mixed-severity
+PR remains the acceptance gate.
