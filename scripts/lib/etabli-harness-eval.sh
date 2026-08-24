@@ -153,22 +153,31 @@ harness_require_porcelain_allowlist() {
   fi
 }
 
+harness_head_sha() {
+  # Fast path: read HEAD's sha from the loose ref file (pure bash, no
+  # git fork). Falls back (empty output) for detached HEAD, packed refs,
+  # or any surprise — callers must use rev-parse then.
+  local wt="$1" head_target head_file sha
+  read -r head_target <"$wt/.git/HEAD" 2>/dev/null || return 1
+  case "$head_target" in
+  'ref: refs/heads/'*) ;;
+  *) return 1 ;;
+  esac
+  head_file="$wt/.git/${head_target#ref: }"
+  [ -f "$head_file" ] || return 1
+  read -r sha <"$head_file" || return 1
+  [ -n "$sha" ] || return 1
+  printf '%s\n' "$sha"
+}
+
 harness_write_baseline() {
-  local worktree="$1"
-  # fresh single-commit repos keep HEAD in a loose ref file — read it
-  # directly (no rev-parse fork); fall back if the ref is packed/absent
-  local head_file sha
-  for head_file in "$worktree/.git/refs/heads/"*; do
-    if [ -f "$head_file" ]; then
-      read -r sha <"$head_file"
-      if [ -n "$sha" ]; then
-        printf '%s\n' "$sha" >"$worktree.harness-baseline"
-        return 0
-      fi
-    fi
-    break
-  done
-  git -C "$worktree" rev-parse HEAD >"$worktree.harness-baseline" 2>/dev/null
+  local worktree="$1" sha
+  sha="$(harness_head_sha "$worktree")" || sha=""
+  if [ -z "$sha" ]; then
+    git -C "$worktree" rev-parse HEAD >"$worktree.harness-baseline" 2>/dev/null
+  else
+    printf '%s\n' "$sha" >"$worktree.harness-baseline"
+  fi
 }
 
 harness_require_head_unchanged() {
@@ -183,7 +192,10 @@ harness_require_head_unchanged() {
     [ -f "$baseline" ] || harness_oracle_fail "missing worktree baseline (prepare not run)"
     expected="$(head -n 1 "$baseline")"
   fi
-  actual="$(git -C "$WORKTREE" rev-parse HEAD)"
+  actual="$(harness_head_sha "$WORKTREE")" || actual=""
+  if [ -z "$actual" ]; then
+    actual="$(git -C "$WORKTREE" rev-parse HEAD)"
+  fi
   [ "$expected" = "$actual" ] ||
     harness_oracle_fail "worktree HEAD changed (commit/amend burial)"
 }
