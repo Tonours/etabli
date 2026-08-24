@@ -65,4 +65,3 @@ pi/models.local.json
 
 # archived skill sets kept locally, not tracked
 pi/skills-archive/
-.auto/
