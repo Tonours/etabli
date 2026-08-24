@@ -376,6 +376,22 @@ harness_resolve_bin() {
   return 1
 }
 
+HARNESS_SCAFFOLD_CACHE=""
+
+harness_scaffold_template() {
+  # deploy-workflow's output is static per harness checkout (verified
+  # byte-identical across runs) but costs ~300ms of shell work per call.
+  # Build it once per process and plain-copy per worktree: grading never
+  # mutates the scaffold, and each worktree still receives a full physical
+  # copy, so cells stay independent of the template.
+  if [ -z "$HARNESS_SCAFFOLD_CACHE" ]; then
+    HARNESS_SCAFFOLD_CACHE="$(mktemp -d "${TMPDIR:-/tmp}/etabli-harness-scaffold.XXXXXX")/scaffold"
+    export HARNESS_SCAFFOLD_CACHE
+    "${HARNESS_ROOT:?}/scripts/deploy-workflow" "$HARNESS_SCAFFOLD_CACHE" >/dev/null
+  fi
+  printf '%s\n' "$HARNESS_SCAFFOLD_CACHE"
+}
+
 harness_prepare_worktree() {
   local task_id="$1"
   local dest="$2"
@@ -385,7 +401,7 @@ harness_prepare_worktree() {
   overlay="$task_dir/overlay"
   uncommitted="$task_dir/uncommitted"
   mkdir -p "$dest"
-  "${HARNESS_ROOT:?}/scripts/deploy-workflow" "$dest" >/dev/null
+  cp -R "$(harness_scaffold_template)/." "$dest/"
   if [ -d "$overlay" ]; then
     cp -R "$overlay/." "$dest/"
   fi
@@ -639,6 +655,7 @@ harness_baseline_suite() {
     mkdir -p "$results_dir"
   fi
   printf 'etabli-harness-eval: keeping %s-baseline cells in %s\n' "$kind" "$results_dir" >&2
+  harness_scaffold_template >/dev/null # pre-warm: cells run in subshells
   while IFS= read -r id; do
     cell="$results_dir/$kind-$id-1"
     harness_require_cell_dir_empty "$cell"
