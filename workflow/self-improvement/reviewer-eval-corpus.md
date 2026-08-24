@@ -496,3 +496,90 @@ acceptance gate. Row-level enforcement cannot force a *correct* citation (a row
 may cite code the reviewer never opened — the CR-A3 "citation, conclusion
 wrong" limit, unchanged), and the sanctioned cells stay trust-based until the
 Prose `absent` / Standards-deferred claims are themselves diff-checkable.
+
+---
+
+## Run 2026-08-24 (f) — CR-A5 prose-catch campaign (autoresearch)
+
+Fifth replay campaign on the same surface. CR-A3 asked whether a skip
+invalidates `Verdict: GO`; CR-A4 asked it per row; CR-A5 asks the question the
+corpus had left open (line 141: the lens "ran and reported" and still did not
+catch): **at the finding level**, can a checklist-reporting reviewer fill the
+Prose row and emit an accepted output with no finding that names the
+prose-vs-declaration mismatch? CR-A1 had scored R-003 caught at the *mandate*
+level — a citation duty existed in the lens bullet — but the bullet is an
+instruction, and the v2 delta's own lesson is that instructions do not run.
+
+### Model
+
+Per case (prose behaviors each with a carrier kind and a declared flag), the
+bench generates the cheapest legal Prose-row cell the output contract still
+accepts, in adversary order, then parses it with the topic rule (caught iff a
+finding mentions the prose-named behavior and the missing declaration):
+
+1. `not run` — barred since CR-A3/A4 on accepting verdicts;
+2. `absent` — open while the Prose line offered it as "or `absent` when none
+   exists": the lazy reading takes *none* as *no declaration found* (Route A,
+   the recorded v2 shape: row reported, no finding);
+3. untyped citations — open while the cell contract accepted any `file:line`:
+   the producer or the prose location itself looks like work (Route B, also
+   "ran and reported");
+4. typed per-behavior cells — for a behavior with no declaration, the only
+   honest typed cell is `no declaration → finding`, but only if the contract
+   names it; otherwise an adjacent untyped cite remains an invisible violation.
+
+Features are read from output-contract positions only (rubric Mandatory output
+tables, hunter template, skill Contract), never from the lens bullet.
+
+### Baseline: r003_caught 0.00
+
+On the post-CR-A4 tree the adversary writes `absent` (Route A) and, if that
+were closed, untyped cites (Route B). v1 and v2 anchors both reproduce the
+recorded miss. The three injected carrier cases (config key, parameter, schema
+entry) all miss identically: `prose_findings_recall` 0.00.
+
+### The lever (output contract, mirrored across the three surfaces)
+
+The Prose row cell contract becomes: list **each behavior named in prose**
+with its declaration — *parameter, schema entry, config key* — `file:line`,
+or `no declaration → finding`; `absent` only when prose names none. The lens
+bullet shrank to the question plus the discriminator ("a runtime producer is
+not a declaration"), funding the row's growth inside the 15% cap (union
+14 136 → 14 160 B). The retrieval heuristic follows: documented field → cross
+**prose + declaration + runtime producer**.
+
+Bars Route A (the tie names *what* is absent), Route B (a typed citation
+names its carrier; runtime code is none of the three), and gives the
+no-declaration branch its only legal, finding-shaped cell. R-003's replayed
+row: `X-Forest-Timezone → no declaration → finding; CountResponse → schema
+entry file:line` — the sweep discriminates the declared sibling instead of
+flagging everything.
+
+### Results
+
+| Metric | Baseline | Final |
+|---|---|---|
+| r003_caught (full surface) | 0.00 | **1.00** |
+| prose_findings_recall (3 injected carriers) | 0.00 | **1.00** |
+| skill_only_r003_caught | 0.00 | **1.00** |
+
+Mutation-checked at clause level: ablating the absent-tie, the kind-typing, or
+the no-declaration cell each re-opens the miss. Guards all held: CR-A1 recall
+1.00 / held_out 1.00, CR-A2 precision_clean 1.00 with zero findings on clean
+diffs, CR-A3 escaped_per_go 0.00 / go_rate_clean 1.00, CR-A4 skip_rate 0.00
+/ fill_rate 1.00, lens budget 8/8, no instance tokens, no forced prose, and
+the declared-behavior + no-prose controls stay finding-free (`absent`
+remains the sanctioned no-prose cell, so CR-A4's cite_rate expectation is
+unchanged).
+
+### Limits
+
+Same class as CR-A1..A4: the replay proves no accepted output can fill the
+Prose row without the finding on these cases — it does not run a reviewer; a
+live confirmation pass on b42eedcb remains the acceptance gate. A reviewer can
+still fabricate a typed citation ("X → parameter file.ts:9" where none
+exists) — the kind label makes that mis-cite *visibly checkable* by the parent
+against the pinned diff, but the replay cannot verify referents (CR-A3's
+"citation, conclusion wrong" limit, restated). The `absent`-when-no-prose
+claim itself stays trust-based until prose lines are diff-enumerated in the
+row.
