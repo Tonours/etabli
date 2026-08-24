@@ -21,13 +21,17 @@ severity / file / line / issue / impact / review_comment / suggested_fix
 
 ## Lens table
 
-Eight rows, each with opened `file:line` or `not run` / `deferred: Standards hunter`.
+Eight rows, each with opened `file:line`, `absent` (Prose row only, no behavior
+named in prose), or `deferred: Standards hunter` (Convention row only,
+`Standards: yes`).
 Prose row: one cited declaration per behavior named in prose, or `absent`.
 
 ## Deciding-code
 
 One row per runtime behavior, or `n/a — no runtime behavior`.
-`not run` lens rows and an unlisted whole-diff `n/a` block GO: the `n/a` row lists changed paths that are all documents or pure renames.
+`not run` lens rows and an unlisted whole-diff `n/a` block `Verdict: GO` and
+`Verdict: GO WITH NOTES` alike: the `n/a` row lists changed paths that are all
+documents or pure renames.
 
 ## Extra-lens
 
