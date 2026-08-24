@@ -19,16 +19,32 @@ run_check() {
 }
 
 shell_syntax() {
-  local errors=0
-  while IFS= read -r -d '' file; do
-    if head -n 1 "$file" | grep -Eq '^#!.*(bash|sh)'; then
-      if ! bash -n "$file"; then
-        printf 'syntax error in %s\n' "$file" >&2
-        errors=1
-      fi
-    fi
-  done < <(find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -type f -print0)
-  return "$errors"
+  # One xargs-driven pass: the shebang prefilter is a shell-builtin read
+  # (was: a head+grep fork pair per file), and bash -n runs concurrently.
+  local parallel
+  parallel="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -type f -print0 |
+    xargs -0 -n 16 -P "$parallel" bash -c '
+      err=0
+      for file do
+        IFS= read -r shebang <"$file" || shebang=""
+        case "$shebang" in
+          \#!*) ;;
+          *) continue ;;
+        esac
+        case "$shebang" in
+          *bash*|*sh*) ;;
+          *) continue ;;
+        esac
+        if ! bash -n "$file"; then
+          printf "syntax error in %s\n" "$file" >&2
+          err=1
+        fi
+      done
+      exit "$err"
+    ' _
+  local status=$?
+  return "$status"
 }
 
 json_config() {
@@ -71,7 +87,24 @@ run_selection() {
   local found=0
   local failed=0
   local passed=0
-  local profile group label target failures=""
+  local profile group label target failures="" out
+
+  local idx=0
+  local -a pids=() outs=() labels=()
+  local out_root
+  out_root="$(mktemp -d "${TMPDIR:-/tmp}/agentic-infra.XXXXXX")"
+
+  # Checks run concurrently, but oversubscribing the machine starves
+  # wall-clock-sensitive checks (e.g. the obvault metadata resolver's spawn
+  # budget), so concurrency is capped a couple of slots below the core count.
+  local max_jobs
+  max_jobs="${AGENTIC_INFRA_JOBS:-$(($(sysctl -n hw.ncpu 2>/dev/null || echo 10) - 2))}"
+  [ "$max_jobs" -ge 1 ] || max_jobs=1
+  local slots="$out_root/slots"
+  mkfifo "$slots"
+  exec 9<>"$slots"
+  local slot
+  for ((slot = 0; slot < max_jobs; slot++)); do printf 'x' >&9; done
 
   while IFS=$'\t' read -r profile group label target; do
     case "$selection_kind:$selection" in
@@ -86,13 +119,37 @@ run_selection() {
       *) printf 'Unknown selection: %s %s\n' "$selection_kind" "$selection" >&2; return 2 ;;
     esac
     found=1
-    if ! run_check "$label" run_target "$target"; then
-      failed=$((failed + 1))
-      failures="$failures $label"
-    else
-      passed=$((passed + 1))
-    fi
+    # Checks are independent (each works inside its own mktemp tree and only
+    # reads the repo), so they run concurrently; per-check output is buffered
+    # and replayed in manifest order to keep the report deterministic.
+    out="$out_root/$idx.out"
+    IFS= read -r -n1 <&9
+    (
+      status=0
+      run_check "$label" run_target "$target" || status=$?
+      printf 'x' >&9
+      exit "$status"
+    ) >"$out" 2>&1 &
+    pids+=("$!")
+    outs+=("$out")
+    labels+=("$label")
+    idx=$((idx + 1))
   done < <(sed '/^#/d; /^$/d' "$MANIFEST")
+  exec 9>&-
+
+  local status i
+  for i in "${!pids[@]}"; do
+    status=0
+    wait "${pids[$i]}" || status=$?
+    cat "${outs[$i]}"
+    if [ "$status" -eq 0 ]; then
+      passed=$((passed + 1))
+    else
+      failed=$((failed + 1))
+      failures="$failures ${labels[$i]}"
+    fi
+  done
+  rm -rf "$out_root"
 
   [ "$found" -eq 1 ] || {
     printf 'No checks configured for agentic-infra %s: %s\n' "$selection_kind" "$selection" >&2
