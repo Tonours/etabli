@@ -50,6 +50,9 @@ verdict, open what decides it:
 - multi-source value → open the **resolver**
 - status / error path → open **mapper + middleware / guard**
 - documented field → cross **prose + schema + runtime producer**
+- value captured then reused across an `await` or async boundary (snapshot,
+  cache, closure) → open **what can write or mutate it between capture and
+  reuse** (event handlers, store setters, sibling writers)
 
 Stop when further reading stops changing your mind. Piling on context past that
 point measurably lowers accuracy.
@@ -66,7 +69,10 @@ never asks:
 - **impossible states**: can the types represent a combination the code never
   produces? correlated fields modelled as independent?
 - **prose versus machine-readable**: does the human description match the
-  structured declaration, not just the code?
+  structured declaration, not just the code? each behavior named in prose must
+  cite the machine-readable declaration that carries it — parameter, schema
+  entry, config key — `file:line`; a named behavior with no declaration is a
+  finding
 - **exhaustive reachability**: every reachable outcome declared, every declared
   outcome reachable? both directions
 - **asymmetry**: inverse operations round-trip; a rule applied to one sibling and
@@ -108,6 +114,8 @@ Lead filters after the hunt; it does not re-hunt the diff.
 ### Lens table
 Every row mandatory on the Logic hunter. A lens without a concrete opened
 `file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`).
+The Prose vs machine-readable row cites one declaration `file:line` for **each
+behavior named in prose**, or `absent` when none exists.
 
 | Lens | Checked (file:line) | Found |
 | --- | --- | --- |
@@ -124,6 +132,8 @@ Every row mandatory on the Logic hunter. A lens without a concrete opened
 One row per **runtime behavior** touched by the diff (API, auth, mapping,
 config, precedence, error path). Docs-only or pure rename rows may be omitted
 with an explicit `n/a — no runtime behavior`.
+A row whose behavior captures a value for reuse across a boundary names the
+writers that can change it in the window.
 
 | Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
 | --- | --- | --- | --- |
