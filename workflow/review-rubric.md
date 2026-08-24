@@ -150,7 +150,9 @@ A non-trivial runtime row with empty deciding code or `not run` **blocks
 ## Evidence rules
 - Use bounded read-only inspection of nearby code, tests, config, or docs only when it materially confirms or rejects a suspected finding.
 - Do not edit files, install dependencies, or run broad/slow validation unless the user explicitly asked for that level of review.
-- Treat missing validation as a finding only when the risk or blast radius justifies it.
+- Treat missing validation as a finding only when you can name the unvalidated
+  input, the reachable entry point that passes it, and the wrong output it
+  produces downstream; otherwise it is an open question, not a finding.
 
 ## Look for
 - correctness bugs
