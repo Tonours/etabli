@@ -309,7 +309,7 @@ harness_grade() {
   local worktree="$2"
   local transcript="$3"
   local runner="${4:-offline}"
-  local task_dir oracle started duration oracle_exit pass manifest_sha oracle_sha split
+  local task_dir oracle started duration oracle_exit pass manifest_sha oracle_sha split fixtures
   local model_requested="${5:-none}"
   local model_effective="${6:-none}"
   local thinking_requested="${7:-none}"
@@ -318,7 +318,11 @@ harness_grade() {
   local run_started="${10:-}"
   local run_duration="${11:-}"
 
-  task_dir="$(harness_task_dir "$task_id")"
+  # one fork for the fixtures dir; task_dir/manifest/lib paths are plain
+  # expansions below (each $( ) helper chain costs a fork on bash 3.2,
+  # ~50 grade calls per smoke)
+  fixtures="$(harness_fixtures_dir)"
+  task_dir="$fixtures/tasks/$task_id"
   [ -d "$task_dir" ] || harness_die "unknown task: $task_id"
   oracle="$task_dir/oracle.sh"
   [ -f "$oracle" ] || harness_die "missing oracle: $oracle"
@@ -327,7 +331,7 @@ harness_grade() {
 
   split="$(harness_task_field "$task_id" split)"
   if [ -z "${HARNESS_MANIFEST_SHA_CACHE:-}" ]; then
-    HARNESS_MANIFEST_SHA_CACHE="$(harness_sha256 "$(harness_manifest_path)")"
+    HARNESS_MANIFEST_SHA_CACHE="$(harness_sha256 "$fixtures/manifest.json")"
   fi
   manifest_sha="$HARNESS_MANIFEST_SHA_CACHE"
   oracle_sha="$(harness_sha256 "$oracle")"
@@ -350,10 +354,10 @@ harness_grade() {
   local t0=$SECONDS
   set +e
   WORKTREE="$worktree" TRANSCRIPT="$transcript" TASK_DIR="$task_dir" TASK_ID="$task_id" \
-    BASELINE_FILE="$worktree.harness-baseline" BASELINE_EXPECTED="${BASELINE_EXPECTED:-}" \
-    SPAWN_LOG="${SPAWN_LOG:-/nonexistent-spawn-log}" \
-    ETABLI_HARNESS_LIB="$(harness_lib_path)" \
-    bash "$oracle"
+  BASELINE_FILE="$worktree.harness-baseline" BASELINE_EXPECTED="${BASELINE_EXPECTED:-}" \
+  SPAWN_LOG="${SPAWN_LOG:-/nonexistent-spawn-log}" \
+  ETABLI_HARNESS_LIB="${HARNESS_ROOT:?}/scripts/lib/etabli-harness-eval.sh" \
+  bash "$oracle"
   oracle_exit=$?
   set -e
   if [ -n "$run_duration" ]; then
