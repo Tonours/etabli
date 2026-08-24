@@ -21,13 +21,12 @@ LIB_SHA="$(shasum -a 256 "$LIB" | awk '{print $1}')"
 MANIFEST_EVAL_SHA="$(jq -r '.evaluator.sha256' "$FIXTURES/manifest.json")"
 [ "$LIB_SHA" = "$MANIFEST_EVAL_SHA" ] || fail "manifest evaluator.sha256 must match scripts/lib/etabli-harness-eval.sh"
 
-for tracked_plan in \
+# every tracked PLAN.md fixture must stay tracked (gitignore exception)
+git -C "$ROOT_DIR" ls-files --error-unmatch \
   tests/fixtures/harness-v1/tasks/plan-draft-no-mutate/overlay/PLAN.md \
   tests/fixtures/harness-v1/tasks/review-spec-drift/overlay/PLAN.md \
-  tests/fixtures/harness-v1/tasks/ready-implement-touches-only-plan-files/overlay/PLAN.md; do
-  git -C "$ROOT_DIR" ls-files --error-unmatch "$tracked_plan" >/dev/null ||
-    fail "fixture $tracked_plan must be tracked (gitignore PLAN.md exception)"
-done
+  tests/fixtures/harness-v1/tasks/ready-implement-touches-only-plan-files/overlay/PLAN.md \
+  >/dev/null || fail "fixture PLAN.md files must be tracked (gitignore PLAN.md exception)"
 
 while IFS= read -r oracle; do
   bash -n "$oracle" || fail "bash -n failed: $oracle"
@@ -86,10 +85,14 @@ prepare_synthetic() {
     printf '20260823T000000Z --mode text -p --no-session --append-system-prompt workflow/templates/review-logic-hunter.md\n' >"$dest.spawn.log"
   fi
   mkdir -p "$TMP_DIR/syn-cache"
-  cp -R "$dest" "$cache"
-  cp "$dest.harness-baseline" "$cache.harness-baseline"
-  if [ -f "$dest.spawn.log" ]; then
-    cp "$dest.spawn.log" "$cache.spawn.log"
+  # only `pass` worktrees are reused by later cells; fail-kind builds
+  # skip the cache write (half the loop builds, never re-served)
+  if [ "$kind" = "pass" ]; then
+    cp -R "$dest" "$cache"
+    cp "$dest.harness-baseline" "$cache.harness-baseline"
+    if [ -f "$dest.spawn.log" ]; then
+      cp "$dest.spawn.log" "$cache.spawn.log"
+    fi
   fi
 }
 
