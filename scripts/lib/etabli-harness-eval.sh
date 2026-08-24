@@ -400,10 +400,10 @@ harness_grade() {
   local t0=$SECONDS
   set +e
   WORKTREE="$worktree" TRANSCRIPT="$transcript" TASK_DIR="$task_dir" TASK_ID="$task_id" \
-  BASELINE_FILE="$worktree.harness-baseline" BASELINE_EXPECTED="${BASELINE_EXPECTED:-}" \
-  SPAWN_LOG="${SPAWN_LOG:-/nonexistent-spawn-log}" \
-  ETABLI_HARNESS_LIB="${HARNESS_ROOT:?}/scripts/lib/etabli-harness-eval.sh" \
-  bash "$oracle"
+    BASELINE_FILE="$worktree.harness-baseline" BASELINE_EXPECTED="${BASELINE_EXPECTED:-}" \
+    SPAWN_LOG="${SPAWN_LOG:-/nonexistent-spawn-log}" \
+    ETABLI_HARNESS_LIB="${HARNESS_ROOT:?}/scripts/lib/etabli-harness-eval.sh" \
+    bash "$oracle"
   oracle_exit=$?
   set -e
   if [ -n "$run_duration" ]; then
