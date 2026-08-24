@@ -385,18 +385,30 @@ harness_resolve_bin() {
 }
 
 HARNESS_SCAFFOLD_CACHE=""
+HARNESS_SCAFFOLD_CACHE_DIR="${TMPDIR:-/tmp}/etabli-harness-scaffold-cache"
 
 harness_scaffold_template() {
-  # deploy-workflow's output is static per harness checkout (verified
-  # byte-identical across runs) but costs ~300ms of shell work per call.
-  # Build it once per process and plain-copy per worktree: grading never
-  # mutates the scaffold, and each worktree still receives a full physical
-  # copy, so cells stay independent of the template.
-  if [ -z "$HARNESS_SCAFFOLD_CACHE" ]; then
-    HARNESS_SCAFFOLD_CACHE="$(mktemp -d "${TMPDIR:-/tmp}/etabli-harness-scaffold.XXXXXX")/scaffold"
-    export HARNESS_SCAFFOLD_CACHE
-    "${HARNESS_ROOT:?}/scripts/deploy-workflow" "$HARNESS_SCAFFOLD_CACHE" >/dev/null
+  # deploy-workflow's output is static per harness checkout but costs
+  # ~300ms of shell work per call. Keep one shared scaffold under TMPDIR,
+  # freshness-validated with `deploy-workflow --check` (any template edit
+  # self-heals the cache; the check is ~1/3 of a rebuild). Each worktree
+  # still receives a full physical copy, so cells stay independent.
+  local tmp
+  if [ -n "$HARNESS_SCAFFOLD_CACHE" ]; then
+    printf '%s\n' "$HARNESS_SCAFFOLD_CACHE"
+    return 0
   fi
+  if [ ! -d "$HARNESS_SCAFFOLD_CACHE_DIR" ] ||
+    ! "${HARNESS_ROOT:?}/scripts/deploy-workflow" "$HARNESS_SCAFFOLD_CACHE_DIR" --check >/dev/null 2>&1; then
+    rm -rf "$HARNESS_SCAFFOLD_CACHE_DIR"
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/etabli-harness-scaffold.XXXXXX")"
+    "${HARNESS_ROOT:?}/scripts/deploy-workflow" "$tmp" >/dev/null
+    # Atomic publish; if a concurrent run won the race its complete
+    # scaffold is already in place — drop ours and reuse it.
+    mv "$tmp" "$HARNESS_SCAFFOLD_CACHE_DIR" 2>/dev/null || rm -rf "$tmp"
+  fi
+  HARNESS_SCAFFOLD_CACHE="$HARNESS_SCAFFOLD_CACHE_DIR"
+  export HARNESS_SCAFFOLD_CACHE
   printf '%s\n' "$HARNESS_SCAFFOLD_CACHE"
 }
 
