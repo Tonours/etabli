@@ -232,9 +232,36 @@ const VALIDATION_SEGMENT_PATTERNS = [
 	/^git\s+diff\s+[^;&|]*\bcheck\b[^;&|]*$/i,
 ];
 
+/*
+ * Flags that make a command mutating or non-terminating: auto-fix / write
+ * modes rewrite files, snapshot/golden updates regenerate fixtures, and watch
+ * modes never exit. None of them is a one-shot validation, so a command
+ * carrying one must not be treated as a validation run (else the ledger
+ * wrongly credits progress or, on failure, blocks via no_progress).
+ */
+const MUTATING_OR_WATCH_FLAG_PATTERNS = [
+	/^-{1,2}fix/i, // eslint/prettier/gofmt auto-fix (incl. --fix-dry-run)
+	/^--write\b/i, // formatter write mode
+	/^-u$/, // jest snapshot update
+	/^--update(-snapshots?)?$/i, // jest/pytest snapshot update
+	/^--updateSnapshots?$/i,
+	/^-update$/, // go golden-file update idiom
+	/^-{1,2}watch/i, // jest/vitest/node/tsc watch modes (incl. --watchAll)
+	/^-w$/, // short watch alias (tsc -w, vitest -w)
+];
+
+function hasMutatingOrWatchFlag(segment) {
+	return segment
+		.split(/\s+/)
+		.some((token) =>
+			MUTATING_OR_WATCH_FLAG_PATTERNS.some((pattern) => pattern.test(token)),
+		);
+}
+
 function isValidationSegment(segment) {
 	const normalized = segment.trim().replace(/\s+2>&1\s*$/i, "");
 	if (normalized.includes("..")) return false;
+	if (hasMutatingOrWatchFlag(normalized)) return false;
 	return VALIDATION_SEGMENT_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
