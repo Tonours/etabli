@@ -84,6 +84,59 @@ function isDangerousCommand(command: string): boolean {
   );
 }
 
+type PipelinePart = { raw: string; segment: string };
+
+/**
+ * Splits a command on single top-level `|` pipe separators. `||` (logical
+ * or), `|&`, escaped or quoted pipes, and pipes inside subshells are not
+ * split points. Returns null when no safe pipe split exists (no top-level
+ * single pipe, unbalanced quotes/parens, or an empty segment) — callers
+ * then keep the conservative pipeline bypass.
+ */
+function splitPipelineParts(command: string): PipelinePart[] | null {
+  const parts: PipelinePart[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  let pipes = 0;
+  for (let i = 0; i < command.length; i += 1) {
+    const ch = command[i];
+    if (quote !== null) {
+      if (ch === "\\" && quote !== "'") i += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === "`") {
+      quote = ch;
+      continue;
+    }
+    if (ch === "\\") {
+      i += 1;
+      continue;
+    }
+    if (ch === "(") depth += 1;
+    else if (ch === ")") {
+      depth -= 1;
+      if (depth < 0) return null;
+    } else if (ch === "|" && depth === 0) {
+      const next = command[i + 1];
+      if (next === "|" || next === "&") return null;
+      const raw = command.slice(start, i);
+      const segment = raw.trim();
+      if (segment.length === 0) return null;
+      parts.push({ raw, segment });
+      pipes += 1;
+      start = i + 1;
+    }
+  }
+  if (quote !== null || depth !== 0 || pipes === 0) return null;
+  const tail = command.slice(start);
+  const tailSegment = tail.trim();
+  if (tailSegment.length === 0) return null;
+  parts.push({ raw: tail, segment: tailSegment });
+  return parts;
+}
+
 function isWsCharCode(code: number): boolean {
   if (code === 32 || (code >= 9 && code <= 13)) return true;
   if (code < 128) return false;
@@ -203,6 +256,8 @@ export function createRtkCommandRewriter(
   };
 
   const rememberBypass = (command: string, reason: string): void => {
+    const existing = entries.get(command);
+    if (existing !== undefined && existing.bypass !== null) return;
     entries.set(command, { command, bypass: reason, fingerprint: null, value: "", extra: null, slotIdx: -1 });
     bypassOnlyCount += 1;
 
@@ -222,6 +277,7 @@ export function createRtkCommandRewriter(
   const rememberResult = (command: string, fingerprint: string, value: string): void => {
     let entry = entries.get(command);
     if (entry === undefined || entry.bypass !== null) {
+      if (entry !== undefined) bypassOnlyCount -= 1;
       entry = { command, bypass: null, fingerprint: null, value: "", extra: null, slotIdx: -1 };
       entries.set(command, entry);
     }
@@ -285,6 +341,100 @@ export function createRtkCommandRewriter(
     cacheSize = cachePairCount;
   };
 
+  // Two-tier pipeline handling. Piped commands (~30% of agent traffic) are
+  // still bypassed whenever any segment fails the standard safety checks,
+  // but (a) a pipeline whose segments all resolve from the value cache is
+  // rebuilt from cache without invoking the rewrite runner, and (b) a
+  // pipeline with at least one already-vetted (cached) segment — or one seen
+  // before — may rewrite its uncached segments individually. Pipelines with
+  // zero vetted segments on a first sighting are never split, so the runner
+  // is only ever invoked on segments already trusted standalone.
+  const rewritePipeline = (
+    command: string,
+    env: RewriteEnv,
+    fingerprint: string,
+    disabledNow: boolean,
+    seenBefore: boolean,
+  ): string | null => {
+    const parts = splitPipelineParts(command);
+    if (parts === null || parts.length < 2) return null;
+
+    for (const { segment } of parts) {
+      if (segment.includes("\n")) return null;
+      if (segment.includes("|")) return null; // subshell pipelines stay opaque
+      if (/(^|\s)<<-?\s*['"]?[A-Za-z0-9_]+['"]?/.test(segment)) return null;
+      if (segment.length > maxCommandLength) return null;
+      if (dangerousCommandBypass && isDangerousCommand(segment)) return null;
+    }
+    if (disabledNow) return null;
+
+    const cachedValues: (string | undefined)[] = [];
+    let cachedCount = 0;
+    for (const { segment } of parts) {
+      const segEntry = entries.get(segment);
+      if (segEntry !== undefined && segEntry.bypass === null) {
+        if (segEntry.fingerprint === fingerprint) {
+          cachedValues.push(segEntry.value);
+          cachedCount += 1;
+          continue;
+        }
+        const extra = segEntry.extra !== null ? segEntry.extra.get(fingerprint) : undefined;
+        if (extra !== undefined) {
+          cachedValues.push(extra);
+          cachedCount += 1;
+          continue;
+        }
+      }
+      cachedValues.push(undefined);
+    }
+    if (cachedCount < parts.length && !(seenBefore || cachedCount >= 1)) return null;
+
+    const values: string[] = [];
+    for (let i = 0; i < parts.length; i += 1) {
+      const segment = parts[i].segment;
+      const cached = cachedValues[i];
+      if (cached !== undefined) {
+        values.push(cached);
+        continue;
+      }
+      cacheMisses += 1;
+      let rewritten: string;
+      try {
+        rewritten = runRewrite(segment, env).trim();
+      } catch (error) {
+        if (isMissingBinaryError(error)) {
+          disabledFingerprints.add(fingerprint);
+          if (env === undefined) noneDisabled = true;
+          disabled = true;
+        }
+        return null;
+      }
+      const resolvedSegment = rewritten.length > 0 && rewritten !== segment ? rewritten : segment;
+      rememberResult(segment, fingerprint, resolvedSegment);
+      values.push(resolvedSegment);
+    }
+
+    let rebuilt = "";
+    let changed = false;
+    for (let i = 0; i < parts.length; i += 1) {
+      const { raw, segment } = parts[i];
+      const value = values[i];
+      if (value === segment) {
+        rebuilt += raw;
+      } else {
+        const lead = raw.length - raw.trimStart().length;
+        rebuilt += raw.slice(0, lead) + value + raw.slice(lead + segment.length);
+        changed = true;
+      }
+      if (i < parts.length - 1) rebuilt += "|";
+    }
+    const resolved = changed ? rebuilt : command;
+    if (resolved !== command) rewrites += 1;
+    rememberResult(command, fingerprint, resolved);
+    cacheHits += cachedCount;
+    return resolved;
+  };
+
   return (command: string, env?: RewriteEnv): string => {
     const length = command.length;
     const first = command.charCodeAt(0);
@@ -313,14 +463,20 @@ export function createRtkCommandRewriter(
     }
 
     const entry = entries.get(command);
-    if (entry !== undefined) {
-      if (entry.bypass !== null) {
-        noteBypass(entry.bypass);
-        return command;
-      }
-    } else {
-      const bypassReason = findBypassReason(command, enabled, mode, maxCommandLength, dangerousCommandBypass);
+    const pipelineRetry = entry !== undefined && entry.bypass === "pipeline";
+    if (entry !== undefined && entry.bypass !== null && !pipelineRetry) {
+      noteBypass(entry.bypass);
+      return command;
+    }
+    if (entry === undefined || pipelineRetry) {
+      const bypassReason = entry === undefined
+        ? findBypassReason(command, enabled, mode, maxCommandLength, dangerousCommandBypass)
+        : "pipeline";
       if (bypassReason !== null) {
+        if (bypassReason === "pipeline") {
+          const resolved = rewritePipeline(command, env, fingerprint, disabledNow, pipelineRetry);
+          if (resolved !== null) return resolved;
+        }
         rememberBypass(command, bypassReason);
         noteBypass(bypassReason);
         return command;
