@@ -24,7 +24,8 @@ severity / file / line / issue / impact / review_comment / suggested_fix
 Eight rows, each with opened `file:line`, `absent` (Prose row only, no behavior
 named in prose), or `deferred: Standards hunter` (Convention row only,
 `Standards: yes`).
-Prose row: one cited declaration per behavior named in prose, or `absent`.
+Prose row: per behavior named in prose — its declaration `file:line` or `no
+declaration → finding`; `absent` = prose names none.
 
 ## Deciding-code
 
