@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto"
-import { lstatSync, readFileSync, readdirSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import { relative, resolve, sep } from "node:path"
 
 const SHA256 = /^[0-9a-f]{64}$/
@@ -43,10 +43,11 @@ function walkArtifact(root) {
       if (rel.startsWith(`..${sep}`) || rel === ".." || rel.startsWith(sep)) {
         throw new Error("artifact traversal is not allowed")
       }
-      const stat = lstatSync(path)
-      if (stat.isSymbolicLink()) throw new Error(`artifact symlink is not allowed: ${rel}`)
-      if (stat.isDirectory()) stack.push(path)
-      else if (stat.isFile()) files.push({ path, rel })
+      // withFileTypes dirents already carry the lstat classification:
+      // avoids one lstat syscall per artifact entry.
+      if (entry.isSymbolicLink()) throw new Error(`artifact symlink is not allowed: ${rel}`)
+      if (entry.isDirectory()) stack.push(path)
+      else if (entry.isFile()) files.push({ path, rel })
     }
   }
   return files.sort((a, b) => a.rel.localeCompare(b.rel))
