@@ -299,8 +299,8 @@ function cleanUserText(text) {
 
   const lower = cleaned.toLocaleLowerCase("fr")
   let injectedAt = -1
-  for (const marker of injectedMarkers) {
-    const index = lower.indexOf(marker)
+  for (let i = 0; i < INJECTED_MARKER_COUNT; i += 1) {
+    const index = lower.indexOf(injectedMarkers[i])
     if (index === 0) return ""
     if (index > 0 && (injectedAt === -1 || index < injectedAt)) injectedAt = index
   }
@@ -361,22 +361,36 @@ function addTexts(target, candidates, budget) {
   }
 }
 
+const THEME_ENTRIES = Object.entries(themes)
+const PRACTICE_ENTRIES = Object.entries(practices)
+const INJECTED_MARKER_COUNT = injectedMarkers.length
+
 function markRecord(record) {
   const combined = canonicalText(record.texts.join("\n"))
   const opener = record.texts[0] ? canonicalText(record.texts[0].slice(0, 4_000)) : ""
   const probe = /\b(?:reply|respond|say) exactly\b/.test(combined)
     || /\bconnectivity probe\b/.test(combined)
     || (/^ping\b/.test(combined) && combined.length < 120)
+  const matchedThemes = []
+  for (let i = 0; i < THEME_ENTRIES.length; i += 1) {
+    const patterns = THEME_ENTRIES[i][1]
+    for (let j = 0; j < patterns.length; j += 1) {
+      if (patterns[j].test(combined)) { matchedThemes.push(THEME_ENTRIES[i][0]); break }
+    }
+  }
+  const matchedPractices = []
+  for (let i = 0; i < PRACTICE_ENTRIES.length; i += 1) {
+    const patterns = PRACTICE_ENTRIES[i][1]
+    for (let j = 0; j < patterns.length; j += 1) {
+      if (patterns[j].test(combined)) { matchedPractices.push(PRACTICE_ENTRIES[i][0]); break }
+    }
+  }
   return {
     ...record,
     openerHash: opener ? stableHash(opener) : "",
     probe,
-    themes: Object.entries(themes)
-      .filter(([, patterns]) => patterns.some((pattern) => pattern.test(combined)))
-      .map(([name]) => name),
-    practices: Object.entries(practices)
-      .filter(([, patterns]) => patterns.some((pattern) => pattern.test(combined)))
-      .map(([name]) => name),
+    themes: matchedThemes,
+    practices: matchedPractices,
   }
 }
 
