@@ -226,3 +226,44 @@ Lens count stays **8 / 8**. R-005 is an eval case, no prompt change.
 | Re-sweep the same diff for more findings | Measured: recall up ~6pp, signal-to-noise down ~2.6x. The second pass must attack existing findings, not hunt new ones. |
 | An "Interleaving" lens from a Macroscope-wide harvest | Rejected 2026-08-20. Population was wrong (findings on PRs the reviewer never reviewed), the class bundled three questions, and the required merge (Precedence into Boundary drift) would have deleted the mandatory row that is the only proven mechanism for R-001. See the 2026-08-20 entry. |
 | A mandatory "Counter-case tried" column on every lens row | Rejected 2026-08-21. Held-in failed: on R-005 a reviewer writes a confident, concrete counter-case about a snapshot-vs-server race that satisfies the column and still misses the in-flight mutation — the row actually written ("restore wins; local edits preserved") already *was* a counter-case-shaped refutation, visible and wrong. Motivating evidence also thinned to one genuine miss (R-001 was flipped to caught in v2, not 0/4; f-f-z#45 is `retrieval_gap`). Forces unverifiable prose where the existing column forces a verifiable act, pressuring manufactured findings on clean diffs (H-006, H-007). |
+
+## Run 2026-08-24 — CR-A1 replay campaign (autoresearch)
+
+Deterministic replay of this corpus through the reviewer contract surface
+(`workflow/review-rubric.md` + `workflow/templates/review-logic-hunter.md` +
+the `code-review` skill), calibrated on the two recorded runs above: the v1
+tree (`63fc88d`) must reproduce 0/4 with held-out intact, the v2 tree
+(`3c4d163`) must reproduce 3/4 with R-003 and R-005 missed and held-out
+intact. Both anchors reproduce exactly. No live LLM was run: the replay
+evaluates whether the contract mandates, visibly, the act each case's
+"what it had to do" names — the mechanism the v2 delta established as causal.
+
+### Candidates and outcomes
+
+| Case | Bucket (re-adjudicated) | Outcome | Change |
+| --- | --- | --- | --- |
+| R-003 | `contract_change` | **caught** | the prose lens row now requires one declaration `file:line` per behavior named in prose, or `absent` — a citation whose omission is visible, per the v2 lesson |
+| R-005 | `retrieval_change` | **caught** | new retrieval heuristic: a value captured then reused across an await/async boundary opens what can write or mutate it between capture and reuse |
+
+R-005 was re-adjudicated from `eval case` to `retrieval_change` on this
+campaign's authority (topic CR-A1), not on a second escaped defect: the lever
+chosen is the one the loop contract names for misses where the deciding code
+was opened and the conclusion wrong, and no output-contract column was added
+(the "counter-case" column stays rejected). The class still has one observed
+member; a second escaped capture-window defect should be recorded before any
+further change to this mechanism.
+
+Held-in: **5/5**. Held-out: **7/7** replayed (H-001..H-005 still mandated,
+H-006/H-007 still clean — the new duties produce citations or `n/a`, never
+findings). Contract growth: rubric +7.4%, template +14.1%, skill +47% from a
+1.5 KB base; union +13.6%, under the 15% budget. Lens count stays **8 / 8**.
+
+The `code-review` skill (opencode) adopted the same contract in compact form,
+including a delegation line: with `workflow/review-rubric.md` readable it
+fills the rubric tables verbatim. Skill-only replay (no rubric present, the
+foreign-repo deployment) moved 0/5 → 5/5.
+
+**Limit of this run.** The replay measures the contract, not reviewer
+behaviour: it proves the acts are mandated and visible. A live confirmation
+pass on the original commits (b42eedcb, fa5b6e00e0) remains the acceptance
+gate before this counts as a held-in pass in the historical-table sense.
