@@ -111,8 +111,10 @@ Verdict: GO | GO WITH NOTES | BLOCK
 ```
 
 `GO` is forbidden when any non-trivial runtime deciding-code row is empty or
-`not run`, or when `isolation: none`. `GO WITH NOTES` is not a workaround for
-those gates.
+`not run`, when any other lens row is `not run` (Convention §5's no-skill,
+no-sibling gap excepted), when the whole-diff `n/a` lists a changed path that
+is not a document or pure rename, or when `isolation: none`. `GO WITH NOTES`
+is not a workaround for those gates.
 
 ## Rules
 

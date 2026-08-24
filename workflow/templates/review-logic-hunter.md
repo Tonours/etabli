@@ -27,6 +27,7 @@ Prose row: one cited declaration per behavior named in prose, or `absent`.
 ## Deciding-code
 
 One row per runtime behavior, or `n/a — no runtime behavior`.
+`not run` lens rows and an unlisted whole-diff `n/a` block GO: the `n/a` row lists changed paths that are all documents or pure renames.
 
 ## Extra-lens
 
