@@ -1,10 +1,32 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { chmodSync, mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { resolveDynamicKnowledgeContext, resolveObvaultRoot } from "../../../workflow/runtime/obvault-topic-resolver.mjs";
 
 const temporaryRoots: string[] = [];
+
+// Minimal `obvault route` stub: same JSON contract as
+// tests/fixtures/obvault-meta/obvault, but a plain /bin/sh script so each
+// spawnSync costs ~5ms instead of a ~45ms node startup.
+const ROUTE_STUB = `#!/bin/sh
+set -eu
+if [ "\${1:-}" != "route" ] || [ "\${2:-}" != "--json" ]; then
+  exit 1
+fi
+prompt="\${3-}"
+if case "$prompt" in (*[Ff][Ii][Nn][Oo][Pp][Ss]*) true;; (*) false;; esac && [ -f "\${OBVAULT_ROOT:-/nonexistent}/kb/finops-cost-controls.md" ]; then
+  printf '%s\\n' '{"abstained":false,"topics":["finops"],"query":"finops aws billing controls cloud cost","matched_notes":[{"path":"kb/finops-cost-controls.md"}]}'
+else
+  printf '%s\\n' '{"abstained":true,"topics":[],"query":"","matched_notes":[]}'
+fi
+`;
+
+function writeRouteStub(root: string) {
+  mkdirSync(resolve(root, "_meta"));
+  writeFileSync(resolve(root, "_meta/obvault"), ROUTE_STUB, { mode: 0o755 });
+  chmodSync(resolve(root, "_meta/obvault"), 0o755);
+}
 
 function makeVault() {
   const root = mkdtempSync(resolve(tmpdir(), "etabli-obvault-router-"));
@@ -29,7 +51,7 @@ aliases:
 ---
 # FinOps Cost Controls
 `);
-  symlinkSync(resolve(import.meta.dir, "../../../tests/fixtures/obvault-meta"), resolve(root, "_meta"), "dir");
+  writeRouteStub(root);
   return root;
 }
 
@@ -88,9 +110,9 @@ describe("dynamic Obvault topic resolver", () => {
     temporaryRoots.push(root);
     mkdirSync(resolve(root, "_meta"));
     writeFileSync(resolve(root, "AGENTS.md"), "# Slow test vault\n");
-    writeFileSync(resolve(root, "_meta/obvault"), "#!/usr/bin/env node\nsetTimeout(() => {}, 5000);\n");
+    writeFileSync(resolve(root, "_meta/obvault"), "#!/bin/sh\nexec sleep 5\n");
     chmodSync(resolve(root, "_meta/obvault"), 0o755);
 
-    expect(resolveDynamicKnowledgeContext("FinOps", { roots: [root], timeoutMs: 20 })).toBeNull();
+    expect(resolveDynamicKnowledgeContext("FinOps", { roots: [root], timeoutMs: 10 })).toBeNull();
   });
 });
