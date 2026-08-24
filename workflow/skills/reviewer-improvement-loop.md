@@ -194,6 +194,17 @@ One row per reviewed PR. Storage follows
 | Personal | obvault |
 | Work | brain |
 
-Ship handoff **appends** if the row is absent. When an escaped defect is
-recorded, **update** that PR's `escaped_later` and `buckets` — never a second
-row. The metric that matters is **escaped defects per GO**, not finding count.
+The metric that matters is **escaped defects per GO**, not finding count:
+`escaped_per_go = Σ escaped_later / count(GO ∪ GO WITH NOTES rows)`.
+
+Ship handoff **appends** if the row is absent — at the GO, before the handoff
+is done; a GO with no row is an incomplete review output, because an unlogged
+GO silently shrinks the denominator. When an escaped defect is recorded,
+**update** that PR's `escaped_later` and `buckets` — never a second row. The
+escaped-defect record carries that side effect in its `metrics_row` field.
+
+Report, per run of this loop: `escaped_per_go` over the log, the share of GO
+rows with `deciding_code=complete`, misses recorded, bucket counts, candidates
+and their outcomes, held-in/held-out results for anything accepted, and current
+lens count against the cap. A log with zero rows is an unmeasured loop, not a
+clean one — report that as the first finding.
