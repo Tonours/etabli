@@ -1,0 +1,317 @@
+[
+  {
+    "name": "fuzz: plan puis implémente routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "Fais un plan puis implémente le refactoring du module parser",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: plan first then implement until the end routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "Plan d'abord, implémente ensuite, jusqu'au bout",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: draft plan then code the migration routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "D'abord un plan, puis code la migration jusqu'au bout",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: prepare plan and chain implementation routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "Prépare un plan et enchaîne l'implémentation sans t'arrêter",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: autonomous plan-loop on cache routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "plan-loop autonome sur le cache, vas-y tout seul",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: roadmap then end-to-end implement routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "Draft a roadmap then implement it end to end",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: plan and roll implementation to the end routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "Fais un plan et déroule l'implémentation jusqu'à la fin",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: plan puis implémente migration in full autonomy routes to plan-implement",
+    "category": "fuzz-plan-then-implement",
+    "prompt": "Plan puis implémente la migration en autonomie complète",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: plan ask without implementing routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Fais-moi un plan de migration sans implémenter",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: draft plan for bug without coding routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Rédige un plan pour le bug de login, ne code rien",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: propose strategy implemented later routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Propose une stratégie pour le dashboard, on implémentera plus tard",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: wanted plan for module rework without code routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Je veux un plan de refonte du module search, pas de code",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: draft plan for API v2 implementation later routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Draft a plan for the API v2, implementation comes later",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: sketch an attack plan for flaky tests routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Esquisse un plan d'attaque pour les tests flaky",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: architecture plan for notifications module routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Fais un plan d'architecture pour le module de notifications",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: roadmap needed can you prepare it routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "On a besoin d'une roadmap pour la refonte UX, peux-tu la préparer ?",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: prepare bundle-size strategy plan only routes to plan-loop",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Prepare a strategy for reducing the bundle size, plan only",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: build me a spec for the export module routes to spec-guide",
+    "category": "fuzz-explicit-plan",
+    "prompt": "Construis-moi une spec pour le module d'export CSV",
+    "expectedRoute": "spec-guide",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix typo in README is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Corrige la faute de frappe dans le README",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: add test for trim function is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Ajoute un test pour la fonction trim",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: rename variable in util file is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Renomme la variable foo en bar dans src/util.ts",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix eslint warning in hook is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Fix le warning eslint dans le hook",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: remove duplicated table line is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Supprime la ligne en double du tableau",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: bump version in package.json is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Bump la version à 1.2.0 dans package.json",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: raise retry timeout in client is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Augmente le timeout des retries à 5s dans client.ts",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix config file indentation is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Corrige l'indentation du fichier config",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: swap double quotes for single quotes is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Remplace les double quotes par des simple quotes dans le script",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: clean unused imports in app is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Nettoie les imports inutilisés dans app.js",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: enable experimental flag in tests is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Active le flag expérimental dans les tests",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: update install doc for node 20 is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Update la doc d'install pour mentionner node 20",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: add cancel button to settings is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Add a cancel button to the settings page",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: create a test for the validator is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Create a test for the new validator",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: scoped refactor of one function is a direct edit",
+    "category": "fuzz-bounded-edit",
+    "prompt": "Refactor la fonction parseDate dans utils/date.ts",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: how does the cache fix work is a question",
+    "category": "fuzz-readonly-question",
+    "prompt": "Comment fonctionne le fix du cache ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: why did the login fix break tests is a question",
+    "category": "fuzz-readonly-question",
+    "prompt": "Pourquoi le fix du login a-t-il cassé les tests ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: patch vs minor difference is a question",
+    "category": "fuzz-readonly-question",
+    "prompt": "Quelle est la différence entre patch et minor ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: how long does the build take is a question",
+    "category": "fuzz-readonly-question",
+    "prompt": "Combien de temps dure le build ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: where is the date-fixing function defined is a question",
+    "category": "fuzz-readonly-question",
+    "prompt": "Où est définie la fonction qui corrige les dates ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: explain what the security patch does is read-only",
+    "category": "fuzz-readonly-question",
+    "prompt": "Explique-moi ce que fait le patch de sécurité",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: explain the fix diff before merging is read-only",
+    "category": "fuzz-readonly-question",
+    "prompt": "Explique la diff du fix avant qu'on la merge",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: summarize the perf fix changes is read-only",
+    "category": "fuzz-readonly-question",
+    "prompt": "Résume les changements du fix de perf",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: show the bug correction diff is read-only",
+    "category": "fuzz-readonly-question",
+    "prompt": "Montre-moi le diff de la correction du bug",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: read the patch and tell if it fixes the bug is read-only",
+    "category": "fuzz-readonly-question",
+    "prompt": "Lis le patch et dis-moi s'il corrige le bug de timezone",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: what does the changelog update fix is a question",
+    "category": "fuzz-readonly-question",
+    "prompt": "What does the update in the changelog fix exactly?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: explain plan-loop vs plan-implement difference is read-only",
+    "category": "fuzz-readonly-question",
+    "prompt": "explique la différence entre plan-loop et plan-implement",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  }
+]

@@ -323,7 +323,7 @@
     "category": "organic",
     "prompt": "Add a `tasker tag <id> <tag>` command. Data shape: tags are stored as a lowercase string array on the task; duplicate tags are rejected silently; `tasker show <id>` must display them; add tests covering add, dedupe, and show.",
     "expectedRoute": "answer",
-    "writeAllowed": false,
+    "writeAllowed": true,
     "context": {
       "planStatus": "missing"
     }

@@ -1,0 +1,151 @@
+[
+  {
+    "name": "fuzz: uppercase direct edit still routes to answer",
+    "category": "fuzz-mutation",
+    "prompt": "FIX LE BUG DE LOGIN MAINTENANT",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: extra whitespace direct edit still routes to answer",
+    "category": "fuzz-mutation",
+    "prompt": "  Corrige   le bug   de login  ",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix then check it works is a direct edit",
+    "category": "fuzz-combined",
+    "prompt": "Corrige le bug de login et vérifie que ça marche",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: fix retest review combo is a direct edit",
+    "category": "fuzz-combined",
+    "prompt": "Corrige le bug, retest, et fais une review rapide",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: explain then implement corrected version is a direct edit",
+    "category": "fuzz-combined",
+    "prompt": "explique le fix du login puis implémente la version corrigée",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: sentence-start fix with verify clause is a direct edit",
+    "category": "fuzz-combined",
+    "prompt": "Le build casse. Corrige le workflow et vérifie que la CI passe.",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: plan of refactor then plan review routes to plan-loop",
+    "category": "fuzz-combined",
+    "prompt": "Fais un plan du refactoring global puis une review du plan",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: draft a plan then review it routes to plan-loop",
+    "category": "fuzz-combined",
+    "prompt": "draft a plan then review it",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: review of ready plan routes to review",
+    "category": "fuzz-combined",
+    "prompt": "Fais une revue du plan ready",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: fix then deploy to prod routes to ops-stop",
+    "category": "fuzz-combined",
+    "prompt": "corrige le bug puis deploy en prod",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: push commit to origin in french routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "peux-tu pousser le commit sur origin ?",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: publish comment on github issue routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "publie un commentaire sur l'issue github 42",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: delete remote branch routes to ops-stop",
+    "category": "fuzz-ops-stop",
+    "prompt": "supprime la branche distante origin/old-feature",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: question mentioning spec-guide stays answer",
+    "category": "fuzz-spec-guide-negative",
+    "prompt": "que veut dire spec-guide dans la doc ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: create spec for auth module routes to spec-guide",
+    "category": "fuzz-spec-guide",
+    "prompt": "crée une spec pour le module d'auth",
+    "expectedRoute": "spec-guide",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: how to create a spec is a question",
+    "category": "fuzz-spec-guide-negative",
+    "prompt": "comment créer une spec pour l'export ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "fuzz: explain auth flow in web ui gets web-security topic",
+    "category": "fuzz-knowledge",
+    "prompt": "explain the auth flow in the web ui",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "expectedKnowledgeTopics": ["frontend-css", "web-security"]
+  },
+  {
+    "name": "fuzz: improve workflow from last run routes to plan-implement",
+    "category": "fuzz-self-improvement",
+    "prompt": "Améliore le workflow à partir du dernier run",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: update roadmap file with Q3 items is a direct edit",
+    "category": "fuzz-plan-negative",
+    "prompt": "update the roadmap with the Q3 items",
+    "expectedRoute": "answer",
+    "writeAllowed": true
+  },
+  {
+    "name": "fuzz: startup idea gets saas topic",
+    "category": "fuzz-knowledge",
+    "prompt": "J'ai une idée de startup",
+    "expectedRoute": "answer",
+    "expectedKnowledgeTopics": ["saas"]
+  },
+  {
+    "name": "fuzz: RAG knowledge-base question gets ai-agents and second-brain topics",
+    "category": "fuzz-knowledge",
+    "prompt": "que penses-tu du RAG pour la base de connaissances ?",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "expectedKnowledgeTopics": ["ai-agents", "second-brain"]
+  }
+]

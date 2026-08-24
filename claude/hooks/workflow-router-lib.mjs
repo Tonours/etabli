@@ -24,35 +24,76 @@ const READ_ONLY_REVIEW_OVERRIDE_PATTERN =
 	/\b(read[- ]?only|lecture seule|sans modifier|sans [eé]diter|do not edit|do not modify|ne modifie pas|n['’]?edite pas|n['’]?édite pas)\b/;
 const VERIFY_PATTERN =
 	/\b(verify|v[eé]rifie|prouve|retest|relance les tests|completion audit)\b/;
+// "Vérifie QUE le fix passe" : the edit word is the object of verification,
+// not a command to edit. Same for the verify phrase "relance les tests"
+// which doubles as an implement verb in IMPLEMENT_PATTERN.
+const VERIFY_OBJECT_CLAUSE_PATTERN =
+	/\b(verify|v[eé]rifie|prouve|retest)\s+(?:que|if|whether|that)\b/;
+const RETEST_STRIP_PATTERN = /\brelance\s+les\s+tests\b/g;;
 const PLAN_PATTERN =
 	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/;
 // An explicit planning ask ("fais un plan", "draft a roadmap") outranks every
 // implementation signal: the user asked for a plan, not for an edit.
+// An implement word only blocks the read-only branch when used as an
+// imperative command (verb at prompt start, or second action after a
+// connector like "puis"/"et"/"then"). As a noun object ("le fix", "du fix")
+// or in a subordinate clause ("s'il corrige") it stays explanatory.
+// plan-implement/plan-loop compounds are stripped first: "explique la
+// différence entre plan-loop et plan-implement" mentions, never commands.
+const IMPLEMENT_COMPOUND_STRIP_PATTERN =
+	/plan[- ]?implement|plan[- ]?loop|code[- ]?review/g;
+const IMPERATIVE_IMPLEMENT_VERBS =
+	"impl[eé]mente|implemente|implement|[ck]r[eé]e|corrige|fix|r[eé]pare|ajoute|modifie|update|remplace|renomme|rename|active|nettoie|nettoyer|supprime|delete|remove|retire|code|build|optimise|bump|augmente|add|create|refactor(?:ise)?|applique|s[eé]curise|secure|mets? en place";
+const IMPERATIVE_IMPLEMENT_START_PATTERN = new RegExp(
+	"(?:^|[.!?]\\s*)(?:s['’]il te pla[iî]t|stp|please)?\\s*(?:" +
+		IMPERATIVE_IMPLEMENT_VERBS +
+		")\\b",
+);
+const CONNECTED_IMPLEMENT_PATTERN = new RegExp(
+	`\\b(?:puis|et|ensuite|après|and|then)\\s+(?:[a-zà-ÿ['’]-]{1,15}\\s+)?(?:${IMPERATIVE_IMPLEMENT_VERBS})\\b`,
+);
+// Scoped refactor of one function/method is bounded ordinary coding, not a
+// large change (spec row 3 vs the multi-slice plan-implement rows). Same for
+// a single migration FILE inside a migrations folder: only migration
+// PROJECTS ("migration of the codebase") are large changes.
+const SCOPED_REFACTOR_PATTERN =
+	/\brefactor(?:ise|isez)?\s+(?:[a-z0-9_-]+\s+){0,2}(?:fonction|function|m[eé]thode|method|helper|routine)\b/;
+const SCOPED_MIGRATION_PATTERN =
+	/\b(?:dossier|directory|folder|file|fichier)s?\s+migrations?\b|\bmigrations?\s*(?:\/|\.sql|\.js|\.ts)\b|\b(?:fichier\s+de\s+migration|migration\s+file)\b/;;
 const PLAN_REQUEST_PATTERN =
-	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b[\s\S]{0,24}\b(plan|roadmap|strat[eé]gie)\b|\b(plan|roadmap)\s+(seul|only)\b/;
+	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b(?:(?!\b(?:review|revue|audit|critique|relis)\b)[\s\S]){0,24}\b(plan|roadmap|strat[eé]gie|strategy)\b|\b(?:je |i )?(veux|voudrais|want|need)\s+(?:un |une |a |an |my |the )?(?:plan|roadmap|strat[eé]gie|strategy)\b|\b(plan|roadmap)\s+(seul|only)\b|\b(plan|roadmap|strat[eé]gie|strategy)\b[^.!?]{0,40}\b(?:la |le |l')?(pr[eé]parer|r[eé]diger|proposer|esquisser|drafte?r)\b/;
 const SPEC_GUIDE_PATTERN =
 	/(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/u;
 const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/u;
 const SPEC_CREATE_VERB_PATTERN =
 	/(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/u;
 const IMPLEMENT_PATTERN =
-	/\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire)\b/;
+	/\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire|bump|augmente|add|[ck]r[eé]e|create|refactor(?:ise)?|applique|s[eé]curise|secure)\b/;
 const READY_PLAN_PATTERN =
 	/\b(plan\.md|plan)\b[\s\S]{0,80}\b(ready|pr[eê]t)\b|\b(ready|pr[eê]t)\b[\s\S]{0,80}\b(plan\.md|plan)\b/;
 const AUTONOMOUS_PLAN_LOOP_PATTERN =
 	/\b(plan-loop|plan loop|plan puis impl[eé]mente|plan[- ]?implement|jusqu[' ]?au bout|jusqu[' ]?[aà] la fin|en autonomie|tout seul|encha[iî]ne|encha[iî]ner|continue jusqu)\b/;
 const SELF_IMPROVEMENT_PATTERN =
-	/\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospective\s+(?:loop|findings)|recurring\s+(?:findings|failures|issues))\b/;
+	/\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospect(?:ive)?\s+(?:du|de la|des|of)\s+(?:workflow|run|loop)|retrospective\s+(?:loop|findings)|fixes?\s+r[eé]currents?|(?:recurring|r[eé]currents?)\s+(?:findings|failures|issues))\b/;
 const AMBITIOUS_PROJECT_PATTERN =
 	/\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/;
 const RESEARCH_PATTERN =
-	/\b(recherche|sourc[eé]|fact[- ]?check|sources?|benchmark|github|existe d[eé]j[aà])\b/;
+	/\b(recherche|fact[- ]?check|benchmark|existe d[eé]j[aà]|sourc[eé]e[sr]?|sources? fiables?)\b/;
+// "Cherche les sources du leak" is research with sources; a bare "github" or
+// "source" mention inside a fix request ("corrige la source de l'erreur") is
+// ordinary coding, not research.
+const RESEARCH_SOURCES_PATTERN =
+	/\b(?:cherche|search|find|trouve)\b[^.!?]{0,40}\bsources?\b/;
 const IMPLEMENT_NEGATION_PATTERN =
 	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/;
 // Explicit large-work signals: these are the only implement-phrased requests
 // that still route to plan-implement without an existing READY plan or an
 // explicit plan ask. Ordinary bounded fixes edit directly (spec routing row:
 // "Ordinary coding ... -> answer | code/docs").
+// Large-change words inside a temporal/background clause ("Depuis la refonte
+// du pipeline, ... Corrige l'off-by-one") describe history, not the ask.
+const TEMPORAL_BACKGROUND_PATTERN =
+	/\b(?:depuis|après|avant|before|after|since)\b[^.!?]{0,60}\b(?:refonte|refactor(?:ing)?|r[eé][eé]crit|rewrite|rewriting|redesign|migration)\b/;
 const LARGE_CHANGE_PATTERN =
 	/\b(refactor(?:ing|ise|isez|iser|isons)?|refonte|r[eé][eé]crit|rewrite|rewriting|redesign|recon[cç]oit|migration|architect(?:ure|e|ons)?\s+(?:le|la|les|the|this)?[\s\S]{0,30}(?:syst[eè]me|system|code|module|app)|multi[- ]?slice|items?\s+\d|de\s+bout\s+en\s+bout|vaste\s+(?:refonte|chang|rework)|large\s+(?:refactor|rework|chang)|many\s+files)\b/;
 const WORK_EMBEDDED_VERIFY_PATTERN =
@@ -61,7 +102,7 @@ const PREPARE_FOR_REVIEW_PATTERN =
 	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/;
 const OPS_STOP_PATTERN =
-	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/;
+	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/;
 const EXTERNAL_WRITE_BACK_PATTERN =
 	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/;
 const TICKET_CREATE_PATTERN =
@@ -73,11 +114,17 @@ const LINEAR_EXECUTE_PATTERN =
 const LINEAR_READ_PATTERN =
 	/\b(r[eé]sume|resume|ouvre|open|show|montre|analyse|explique|lis|read)\b/;
 const READ_ONLY_PATTERN =
-	/\b(r[eé]sume|resume|summarize|explique|explain|lis|read|montre|show|d[eé]cris)\b/;
+	/\b(r[eé]sume[rz]?|resume|summarize|explique[rz]?|explain|lis|lire|read|montre[rz]?|show|d[eé]cris|d[eé]crire)\b/;
 // Tested against the trimmed, lowercased prompt: no leading \s* and no
 // trailing \s* can exist, so both are dropped from the pattern.
+// Information questions ("comment fonctionne le fix ?") are read-only even
+// when they embed edit words as objects; polite request forms ("peux-tu
+// implémenter X ?") are requests, not questions. Spec routing row 1: simple
+// question or explanation -> answer, no write.
 const QUESTION_PATTERN =
-	/^(?:as-tu|as tu|astu|a-t-on|at-on|a-t on|a ton|at on|aton|as-ton|as ton|aston|est-ce|est ce|estce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux-tu m'expliquer|peux tu m'expliquer|peuxtu m'expliquer|c'est quoi|y a-t-il|y a t-il|y a t il|y at-il|y a il|ya-t-il|y a-t-il)\b|\?$/;
+	/^(?:as-tu|as tu|astu|a-t-on|at-on|a-t on|a ton|at on|aton|as-ton|as ton|aston|est-ce|est ce|estce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux-tu m'expliquer|peux tu m'expliquer|peuxtu m'expliquer|c'est quoi|y a-t-il|y a t-il|y a t il|y at-il|y a il|ya-t-il|y a-t-il|o[uù]|o[uù] est|quand|qu['’ ]est[- ]ce|what|where|when|who|why|how)\b|\?$/;
+const POLITE_REQUEST_PATTERN =
+	/\b(?:peux[- ]tu|pouvez[- ]vous|pourrais[- ]tu|pourras[- ]tu|tu peux|vous pouvez|can you|could you|would you|will you)\b/;
 const BUG_CHECK_PATTERN =
 	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/;
 const PR_CONTEXT_PATTERN =
@@ -146,11 +193,11 @@ const KNOWLEDGE_TOPIC_RULES = [
 // literal that must appear for the pattern to match). Testing the cheap gate
 // first lets the common non-matching prompt skip the full alternation scan.
 const ADVERSARY_GATE = /adversa|contre|cross|hard|durcis/;
-const SELF_IMPROVEMENT_GATE = /improve|méliore|meliore|retrospect|recurring/;
+const SELF_IMPROVEMENT_GATE = /improve|méliore|meliore|retrospect|curr/;
 const AMBITIOUS_PROJECT_GATE = /z|bout|end|ambitio|projet|running/;
 const OPS_STOP_GATE =
-	/-rf|push|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|repo|databas|branch|bas/;
-const READ_ONLY_GATE = /\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis\b|read|montre|show|cris/;
+	/-rf|push|pouss|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|repo|databas|branch|bas/;
+const READ_ONLY_GATE = /\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis|lire|read|montre|show|cris|crir/;
 const RESEARCH_GATE = /recherche|sourc|fact|benchmark|github|existe d/;
 /**
  * Exact JS equivalent of /\b[a-z][a-z0-9]{1,9}-[0-9]+\b/ on a lowercased
@@ -207,7 +254,7 @@ function hasLinearTicketKey(low) {
 }
 
 const LINEAR_WORD_PATTERN = /\blinear\b/;
-const QUESTION_FIRST_CHARS = "aeqpcy";
+const QUESTION_FIRST_CHARS = "aeqpcyowh";
 const SPEC_GUIDE_GATE = /spec|spéc|guide|interroge|pose|aide/;
 const PREPARE_FOR_REVIEW_GATE = /pr[ée]par|ready to paste|pr title/;
 
@@ -540,7 +587,31 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		(autonomousLoopResult ??= AUTONOMOUS_PLAN_LOOP_PATTERN.test(low));
 	let largeChangeResult;
 	const isLargeChange = () =>
-		(largeChangeResult ??= LARGE_CHANGE_PATTERN.test(low));
+		(largeChangeResult ??=
+			LARGE_CHANGE_PATTERN.test(low) &&
+			!SCOPED_REFACTOR_PATTERN.test(low) &&
+			!SCOPED_MIGRATION_PATTERN.test(low) &&
+			!TEMPORAL_BACKGROUND_PATTERN.test(low));
+	let implementExceptVerifyResult;
+	const isImplementExceptVerify = () =>
+		(implementExceptVerifyResult ??=
+			IMPLEMENT_PATTERN.test(low.replace(RETEST_STRIP_PATTERN, " ")));
+	let imperativeImplementResult;
+	const hasImperativeImplement = () =>
+		(imperativeImplementResult ??= (() => {
+			const stripped = low.replace(IMPLEMENT_COMPOUND_STRIP_PATTERN, " ");
+			return (
+				IMPERATIVE_IMPLEMENT_START_PATTERN.test(stripped) ||
+				CONNECTED_IMPLEMENT_PATTERN.test(stripped)
+			);
+		})());
+	let informationQuestionResult;
+	const isInformationQuestion = () =>
+		(informationQuestionResult ??=
+			isQuestion() && !POLITE_REQUEST_PATTERN.test(low));
+	let planRequestResult;
+	const isPlanRequest = () =>
+		(planRequestResult ??= PLAN_REQUEST_PATTERN.test(low));
 	let readOnlyResult;
 	const hasReadOnlySignal = () =>
 		(readOnlyResult ??=
@@ -686,8 +757,10 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 
 	if (
 		VERIFY_PATTERN.test(low) &&
-		!isImplement() &&
-		!WORK_EMBEDDED_VERIFY_PATTERN.test(low)
+		!WORK_EMBEDDED_VERIFY_PATTERN.test(low) &&
+		(!isImplement() ||
+			!isImplementExceptVerify() ||
+			(VERIFY_OBJECT_CLAUSE_PATTERN.test(low) && !hasImperativeImplement()))
 	) {
 		return {
 			route: "verify-workflow",
@@ -777,7 +850,12 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (REVIEW_PATTERN.test(low) && !prepareForReview()) {
+	if (
+		REVIEW_PATTERN.test(low) &&
+		!prepareForReview() &&
+		!isPlanRequest() &&
+		!hasImperativeImplement()
+	) {
 		return {
 			route: "review",
 			reason: "review request",
@@ -790,7 +868,11 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (RESEARCH_GATE.test(low) && RESEARCH_PATTERN.test(low)) {
+	if (
+		RESEARCH_GATE.test(low) &&
+		(RESEARCH_PATTERN.test(low) || RESEARCH_SOURCES_PATTERN.test(low)) &&
+		!hasImperativeImplement()
+	) {
 		return {
 			route: "research-plan",
 			reason: "source-backed research request",
@@ -804,9 +886,11 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	}
 
 	if (
-		(hasReadOnlySignal() || isQuestion()) &&
-		!isImplement() &&
-		!prepareForReview()
+		!prepareForReview() &&
+		!isPlanRequest() &&
+		((hasReadOnlySignal() && !hasImperativeImplement()) ||
+			(isInformationQuestion() && !hasImperativeImplement()) ||
+			((hasReadOnlySignal() || isQuestion()) && !isImplement()))
 	) {
 		return READ_ONLY_ANSWER_DECISION;
 	}
