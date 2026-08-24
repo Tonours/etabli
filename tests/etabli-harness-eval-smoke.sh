@@ -57,10 +57,9 @@ prepare_synthetic() {
     cp -R "$task_dir/overlay/." "$dest/"
   fi
   git -C "$dest" init -q
-  git -C "$dest" config user.email 'harness-eval@etabli.test'
-  git -C "$dest" config user.name 'harness-eval'
   git -C "$dest" add -A
-  git -C "$dest" -c commit.gpgsign=false commit --allow-empty -qm 'fixture'
+  git -C "$dest" -c commit.gpgsign=false -c user.email='harness-eval@etabli.test' -c user.name='harness-eval' \
+    commit --allow-empty -qm 'fixture'
   if [ -d "$task_dir/uncommitted" ]; then
     cp -R "$task_dir/uncommitted/." "$dest/"
   fi
@@ -296,7 +295,7 @@ amend="$TMP_DIR/isolation-amend"
 prepare_synthetic review-isolation-sentinel pass "$amend"
 printf 'backdoor\n' >"$amend/src/backdoor.sh"
 git -C "$amend" add -A
-git -C "$amend" -c commit.gpgsign=false commit --amend --allow-empty -qm 'harness-eval fixture'
+git -C "$amend" -c commit.gpgsign=false -c user.email='harness-eval@etabli.test' -c user.name='harness-eval' commit --amend --allow-empty -qm 'harness-eval fixture'
 amend_json="$(
   PATH="$HERMETIC_PATH" "$DRIVER" grade \
     --task review-isolation-sentinel \
@@ -312,7 +311,7 @@ printf '%s\n' "$amend_json" | jq -e '.pass == false' >/dev/null ||
 pin="$TMP_DIR/isolation-pin-precedence"
 prepare_synthetic review-isolation-sentinel pass "$pin"
 expected_head="$(git -C "$pin" rev-parse HEAD)"
-git -C "$pin" -c commit.gpgsign=false commit --allow-empty -qm 'moved'
+git -C "$pin" -c commit.gpgsign=false -c user.email='harness-eval@etabli.test' -c user.name='harness-eval' commit --allow-empty -qm 'moved'
 moved_head="$(git -C "$pin" rev-parse HEAD)"
 echo "$moved_head" >"$pin.harness-baseline"
 pin_json="$(
@@ -338,7 +337,7 @@ committed_extra="$TMP_DIR/ready-implement-committed-extra"
 prepare_synthetic ready-implement-touches-only-plan-files pass "$committed_extra"
 printf 'pwned\n' >"$committed_extra/pwned.sh"
 git -C "$committed_extra" add -A
-git -C "$committed_extra" -c commit.gpgsign=false commit -qm 'smuggled'
+git -C "$committed_extra" -c commit.gpgsign=false -c user.email='harness-eval@etabli.test' -c user.name='harness-eval' commit -qm 'smuggled'
 committed_extra_json="$(
   PATH="$HERMETIC_PATH" "$DRIVER" grade \
     --task ready-implement-touches-only-plan-files \

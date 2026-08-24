@@ -15,7 +15,12 @@ harness_die() {
 }
 
 harness_sha256() {
-  shasum -a 256 "$1" | awk '{print $1}'
+  # single process: shasum only, strip the filename with a parameter
+  # expansion (was shasum | awk — one fork per digest adds up over ~70
+  # grade/oracle calls per smoke)
+  local digest
+  digest="$(shasum -a 256 "$1")"
+  printf '%s\n' "${digest%% *}"
 }
 
 harness_iso_now() {
@@ -309,7 +314,10 @@ harness_grade() {
   [ -d "$worktree" ] || harness_die "missing worktree: $worktree"
 
   split="$(harness_task_field "$task_id" split)"
-  manifest_sha="$(harness_sha256 "$(harness_manifest_path)")"
+  if [ -z "${HARNESS_MANIFEST_SHA_CACHE:-}" ]; then
+    HARNESS_MANIFEST_SHA_CACHE="$(harness_sha256 "$(harness_manifest_path)")"
+  fi
+  manifest_sha="$HARNESS_MANIFEST_SHA_CACHE"
   oracle_sha="$(harness_sha256 "$oracle")"
   started="${run_started:-$(harness_iso_now)}"
 
@@ -643,7 +651,7 @@ harness_require_cell_dir_empty() {
 harness_baseline_suite() {
   local kind="$1"
   local output="$2"
-  local results_dir cell row cell_status id
+  local results_dir cell row cell_status id row_file
   case "$kind" in
   null | constant) ;;
   *) harness_die "unknown baseline kind: $kind" ;;
@@ -655,19 +663,22 @@ harness_baseline_suite() {
     mkdir -p "$results_dir"
   fi
   printf 'etabli-harness-eval: keeping %s-baseline cells in %s\n' "$kind" "$results_dir" >&2
-  harness_scaffold_template >/dev/null # pre-warm: cells run in subshells
+  harness_scaffold_template >/dev/null # pre-warm: cells run via redirection
+  # Cells run in this shell (output redirected to a file, not captured in
+  # a $() subshell) so per-process caches like HARNESS_MANIFEST_SHA_CACHE
+  # survive from cell to cell.
+  row_file="$(mktemp "${TMPDIR:-/tmp}/etabli-harness-row.XXXXXX")"
   while IFS= read -r id; do
     cell="$results_dir/$kind-$id-1"
     harness_require_cell_dir_empty "$cell"
-    row=""
-    set +e
+    cell_status=0
+    : >"$row_file"
     if [ "$kind" = "null" ]; then
-      row="$(harness_null_baseline_once "$id" "$cell")"
+      harness_null_baseline_once "$id" "$cell" >"$row_file" || cell_status=$?
     else
-      row="$(harness_constant_baseline_once "$id" "$cell")"
+      harness_constant_baseline_once "$id" "$cell" >"$row_file" || cell_status=$?
     fi
-    cell_status=$?
-    set -e
+    row="$(<"$row_file")"
     [ "$cell_status" -eq 0 ] && [ -n "$row" ] || harness_die "$kind-baseline cell failed: $id"
     if [ -n "$output" ]; then
       printf '%s\n' "$row" >>"$output"
@@ -675,6 +686,7 @@ harness_baseline_suite() {
       printf '%s\n' "$row"
     fi
   done < <(harness_task_ids)
+  rm -f "$row_file"
 }
 
 harness_null_baseline_once() {
