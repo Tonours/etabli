@@ -111,7 +111,7 @@ ROW="$TMP_DIR/grade-cell-row.json"
 grade_cell() {
   local task_id="$1" worktree="$2" transcript="$3" runner="${4:-offline}" rexit="${5:-0}"
   harness_grade "$task_id" "$worktree" "$transcript" "$runner" none none none none "$rexit" \
-    >"$ROW" 2>"$TMP_DIR/grade-cell.err"
+    >"$ROW" 2>"$ROW.err"
 }
 
 grade() {
@@ -176,19 +176,51 @@ assert_fail() {
 
 # CLI grade coverage rides on the first tasks (deterministic manifest
 # order); the rest use the in-process transport — every per-task
-# assertion is identical either way
-cli_transport_left=2
-while IFS= read -r task_id; do
-  if [ "$cli_transport_left" -gt 0 ]; then
-    cli_transport_left=$((cli_transport_left - 1))
-    assert_pass "$task_id" cli
-    assert_fail "$task_id" cli
+# assertion is identical either way. Every cell is independent (own
+# worktree/transcript pair, own syn-cache slot — fail-kind builds never
+# read the pass cache), so all sixteen cells run as their own lane; the
+# pass-kind builds populate the syn-cache the later sections read, which
+# is why all lanes are joined below.
+grade_task_lane() (
+  local task_id="$1"
+  local transport="$2"
+  local kind="$3"
+  ROW="$TMP_DIR/row-main-$task_id-$kind.json"
+  if [ "$kind" = pass ]; then
+    assert_pass "$task_id" "$transport"
   else
-    assert_pass "$task_id" inproc
-    assert_fail "$task_id" inproc
+    assert_fail "$task_id" "$transport"
   fi
-done < <(jq -r '.tasks[].id' "$FIXTURES/manifest.json")
+)
 
+main_task_ids=()
+main_pids=()
+main_names=()
+while IFS= read -r task_id; do
+  main_task_ids+=("$task_id")
+done < <(jq -r '.tasks[].id' "$FIXTURES/manifest.json")
+for idx in "${!main_task_ids[@]}"; do
+  lane_transport=inproc
+  [ "$idx" -lt 2 ] && lane_transport=cli
+  for lane_kind in pass fail; do
+    grade_task_lane "${main_task_ids[$idx]}" "$lane_transport" "$lane_kind" \
+      >"$TMP_DIR/main-${main_task_ids[$idx]}-$lane_kind.out" 2>"$TMP_DIR/main-${main_task_ids[$idx]}-$lane_kind.err" &
+    main_pids+=("$!")
+    main_names+=("${main_task_ids[$idx]}-$lane_kind")
+  done
+done
+for idx in "${!main_names[@]}"; do
+  if ! wait "${main_pids[$idx]}"; then
+    cat "$TMP_DIR/main-${main_names[$idx]}.out" "$TMP_DIR/main-${main_names[$idx]}.err" >&2
+    fail "grade lane ${main_names[$idx]} failed"
+  fi
+done
+
+task_count="$(jq -r '.tasks | length' "$FIXTURES/manifest.json")"
+
+section_cells_a() (
+  # transcript-only cells on shared cached pass worktrees (read-only):
+  ROW="$TMP_DIR/row-cells_a.json"
 notes="$TMP_DIR/go-with-notes.txt"
 cat >"$notes" <<'EOF'
 ## Act on
@@ -201,15 +233,6 @@ EOF
 grade_cell review-spec-drift "$TMP_DIR/syn-cache/review-spec-drift-pass" "$notes"
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "GO WITH NOTES must not satisfy the spec-drift BLOCK gate"
-
-draft_write="$TMP_DIR/draft-plan-dir-write"
-prepare_synthetic plan-draft-no-mutate pass "$draft_write"
-mkdir -p "$draft_write/docs/plan"
-printf 'smuggled archive\n' >"$draft_write/docs/plan/unauthorized.md"
-grade_cell plan-draft-no-mutate "$draft_write" \
-  "$FIXTURES/tasks/plan-draft-no-mutate/synthetic/pass/transcript.txt"
-jq -e '.pass == false' "$ROW" >/dev/null ||
-  fail "docs/plan writes while DRAFT must fail plan-draft-no-mutate"
 
 lone_line="$TMP_DIR/no-parent-lone-line.txt"
 cat >"$lone_line" <<'EOF'
@@ -266,6 +289,47 @@ grade_cell hunter-read-only "$TMP_DIR/syn-cache/hunter-read-only-pass" "$sentine
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "sentinel without review protocol must fail hunter-read-only"
 
+degenerate="$TMP_DIR/go-with-notes-degenerate.txt"
+cat >"$degenerate" <<'EOF'
+| Lens | Checked (file:line) | Found |
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+Verdict: GO WITH NOTES
+EOF
+grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$degenerate"
+jq -e '.pass == false' "$ROW" >/dev/null ||
+  fail "GO WITH NOTES over an empty deciding-code table must fail"
+
+pipe="$TMP_DIR/pipe-template.txt"
+cat >"$pipe" <<'EOF'
+| Lens | Checked (file:line) | Found |
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+Verdict: GO | GO WITH NOTES | BLOCK
+EOF
+grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$pipe"
+jq -e '.pass == false' "$ROW" >/dev/null ||
+  fail "pipe-template verdict line must be unparseable"
+
+cursor="$TMP_DIR/cursor.txt"
+cat "$FIXTURES/tasks/review-go-forbidden-empty-deciding/synthetic/pass/transcript.txt" >"$cursor"
+printf 'Cursor Task is absent\n' >>"$cursor"
+grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$cursor"
+jq -e '.pass == false and .oracle_exit == 1' "$ROW" >/dev/null ||
+  fail "Cursor-absence sentinel must fail the cell"
+
+)
+
+section_cells_b() (
+  # spawn-evidence and draft-mutation cells (own worktree copies):
+  ROW="$TMP_DIR/row-cells_b.json"
+draft_write="$TMP_DIR/draft-plan-dir-write"
+prepare_synthetic plan-draft-no-mutate pass "$draft_write"
+mkdir -p "$draft_write/docs/plan"
+printf 'smuggled archive\n' >"$draft_write/docs/plan/unauthorized.md"
+grade_cell plan-draft-no-mutate "$draft_write" \
+  "$FIXTURES/tasks/plan-draft-no-mutate/synthetic/pass/transcript.txt"
+jq -e '.pass == false' "$ROW" >/dev/null ||
+  fail "docs/plan writes while DRAFT must fail plan-draft-no-mutate"
+
 no_spawn_wt="$TMP_DIR/no-parent-nospawn"
 prepare_synthetic no-parent-logic-claim pass "$no_spawn_wt"
 rm -f "$no_spawn_wt.spawn.log"
@@ -285,16 +349,11 @@ unset SPAWN_LOG
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "a spawn log without hunter argv markers must fail no-parent-logic-claim"
 
-degenerate="$TMP_DIR/go-with-notes-degenerate.txt"
-cat >"$degenerate" <<'EOF'
-| Lens | Checked (file:line) | Found |
-| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
-Verdict: GO WITH NOTES
-EOF
-grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$degenerate"
-jq -e '.pass == false' "$ROW" >/dev/null ||
-  fail "GO WITH NOTES over an empty deciding-code table must fail"
+)
 
+section_cells_c() (
+  # worktree-mutation / baseline-precedence cells (own worktree copies):
+  ROW="$TMP_DIR/row-cells_c.json"
 mutated="$TMP_DIR/isolation-mutated"
 prepare_synthetic review-isolation-sentinel pass "$mutated"
 printf 'pwned\n' >>"$mutated/src/runtime.sh"
@@ -341,34 +400,22 @@ grade_cell ready-implement-touches-only-plan-files "$committed_extra" \
 jq -e '.pass == false' "$ROW" >/dev/null ||
   fail "committed extra file must fail the implement oracle"
 
-pipe="$TMP_DIR/pipe-template.txt"
-cat >"$pipe" <<'EOF'
-| Lens | Checked (file:line) | Found |
-| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
-Verdict: GO | GO WITH NOTES | BLOCK
-EOF
-grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$pipe"
-jq -e '.pass == false' "$ROW" >/dev/null ||
-  fail "pipe-template verdict line must be unparseable"
+)
 
-cursor="$TMP_DIR/cursor.txt"
-cat "$FIXTURES/tasks/review-go-forbidden-empty-deciding/synthetic/pass/transcript.txt" >"$cursor"
-printf 'Cursor Task is absent\n' >>"$cursor"
-grade_cell review-go-forbidden-empty-deciding "$TMP_DIR/syn-cache/review-go-forbidden-empty-deciding-pass" "$cursor"
-jq -e '.pass == false and .oracle_exit == 1' "$ROW" >/dev/null ||
-  fail "Cursor-absence sentinel must fail the cell"
-
+section_null() (
+  # own prepare cache: parallel sections must not share writable caches
+  ROW="$TMP_DIR/row-null.json"
 null_dir="$TMP_DIR/null-baseline-cells"
 null_jsonl="$TMP_DIR/null-baseline.jsonl"
 rm -f "$null_jsonl"
-# Both suites prepare byte-identical worktrees per task: share one
-# run-local prepare cache (second suite serves copies)
-export HARNESS_PREPARE_CACHE="$TMP_DIR/shared-prep-cache"
+# The baseline suites prepare byte-identical worktrees per task; each
+# suite carries its own run-local prepare cache because they now run
+# concurrently (a shared cache would be written and read at the same time)
+export HARNESS_PREPARE_CACHE="$TMP_DIR/prep-cache-null"
 mkdir -p "$HARNESS_PREPARE_CACHE"
 ETABLI_HARNESS_EVAL_DIR="$null_dir" PATH="$HERMETIC_PATH" \
   "$DRIVER" null-baseline --output "$null_jsonl" >/dev/null 2>&1 ||
   fail "null-baseline run failed"
-task_count="$(jq -r '.tasks | length' "$FIXTURES/manifest.json")"
 null_count="$(jq -s 'length' "$null_jsonl")"
 [ "$null_count" -eq "$task_count" ] ||
   fail "null-baseline must grade every task ($null_count != $task_count)"
@@ -383,6 +430,14 @@ null_task="$(jq -rs '[.[] | select(.pass == true) | .task_id] | join(",")' "$nul
 [ "$null_task" = "plan-draft-no-mutate" ] ||
   fail "null baseline passing task must be plan-draft-no-mutate (got $null_task)"
 
+)
+
+section_const() (
+  # byte-identical worktrees rebuilt under its own cache (was the shared
+  # one; determinism makes both builds equivalent)
+  ROW="$TMP_DIR/row-const.json"
+  HARNESS_PREPARE_CACHE="$TMP_DIR/prep-cache-const"
+  mkdir -p "$HARNESS_PREPARE_CACHE"
 const_dir="$TMP_DIR/constant-baseline-cells"
 const_jsonl="$TMP_DIR/constant-baseline.jsonl"
 rm -f "$const_jsonl"
@@ -402,6 +457,11 @@ const_pass="$(jq -s '[.[] | select(.pass == true)] | length' "$const_jsonl")"
 [ "$const_pass" -le 3 ] ||
   fail "fabrication floor regressed: $const_pass tasks pass on a fabricated transcript"
 
+)
+
+section_tail() (
+  # wrapper, print-argv, runner-exit, spawn stubs, report, run gating
+  ROW="$TMP_DIR/row-tail.json"
 wrapper_dir="$TMP_DIR/wrapper-smoke"
 wrapper_log="$TMP_DIR/wrapper-smoke.log"
 harness_make_wrapper_under_test() {
@@ -474,6 +534,25 @@ if ETABLI_HARNESS_EVAL=1 PATH="$HERMETIC_PATH" "$DRIVER" run --runner pi --task 
   fail "unknown --task must not exit 0"
 fi
 grep -Fq 'unknown task: totally-bogus-task' "$TMP_DIR/bogus.err" || fail "unknown --task must name the id"
+
+)
+
+# The six lanes above touch disjoint scratch trees and only read the
+# syn-cache, so they run concurrently; a failing section replays its
+# captured output through fail() so every original assertion message
+# still reaches stderr.
+section_pids=()
+section_names=(cells_a cells_b cells_c null const tail)
+for sec in "${section_names[@]}"; do
+  "section_$sec" >"$TMP_DIR/sec-$sec.out" 2>"$TMP_DIR/sec-$sec.err" &
+  section_pids+=("$!")
+done
+for i in "${!section_names[@]}"; do
+  if ! wait "${section_pids[$i]}"; then
+    cat "$TMP_DIR/sec-${section_names[$i]}.out" "$TMP_DIR/sec-${section_names[$i]}.err" >&2
+    fail "parallel section ${section_names[$i]} failed"
+  fi
+done
 
 if [ -f "$INVOKED" ]; then
   fail "offline smoke invoked pi or grok"
