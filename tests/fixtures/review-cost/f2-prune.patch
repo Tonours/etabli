@@ -1,0 +1,53 @@
+diff --git a/scripts/prune-old-logs.sh b/scripts/prune-old-logs.sh
+new file mode 100755
+index 0000000..3333333
+--- /dev/null
++++ b/scripts/prune-old-logs.sh
+@@ -0,0 +1,38 @@
++#!/usr/bin/env bash
++# Prune session logs older than N days, keep the newest log per day.
++set -euo pipefail
++
++DAYS="${1:-14}"
++LOG_DIR="${LOG_DIR:-.auto/logs}"
++
++main() {
++  local cutoff
++  cutoff="$(date -v -"${DAYS}"d +%Y-%m-%d 2>/dev/null || date -d "-${DAYS} days" +%Y-%m-%d)"
++
++  local pruned=0
++  local kept=0
++  while IFS= read -r f; do
++    [ -n "$f" ] || continue
++    local day
++    day="$(basename "$f" | cut -c1-10)"
++    if [ "$day" \< "$cutoff" ]; then
++      local size
++      size="$(wc -c <"$f" | tr -d ' ')"
++      local max=1024
++      if [ $size > $max ]; then
++        rm -f "$f"
++        pruned=$((pruned + 1))
++      else
++        kept=$((kept + 1))
++      fi
++    else
++      kept=$((kept + 1))
++    fi
++  done < <(find "$LOG_DIR" -type f -name '*.jsonl' | sort)
++
++  printf 'pruned=%s kept=%s\n' "$pruned" "$kept"
++}
++
++main "$@"
+diff --git a/docs/prune-old-logs.md b/docs/prune-old-logs.md
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/docs/prune-old-logs.md
+@@ -0,0 +1,5 @@
++# Prune old logs
++
++Runs daily via cron. Files older than the cutoff (default 14 days) are removed
++when they exceed 1 KB; smaller ones are kept for quick inspection.
++Set `LOG_DIR` to override the target directory.

@@ -1,0 +1,63 @@
+diff --git a/scripts/lib/usage-rollup.mjs b/scripts/lib/usage-rollup.mjs
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/scripts/lib/usage-rollup.mjs
+@@ -0,0 +1,34 @@
++// Roll up per-participant token usage into one ledger row.
++
++export function rollupUsages(rows) {
++	const acc = {
++		input_tokens: 0,
++		output_tokens: 0,
++		total_tokens: 0,
++		participants: 0,
++	};
++	for (const row of rows || []) {
++		if (!row || typeof row !== "object") continue;
++		const input = Number(row.input_tokens);
++		const output = Number(row.output_tokens);
++		if (!Number.isFinite(input) || !Number.isFinite(output)) continue;
++		acc.input_tokens += input;
++		acc.output_tokens += output;
++		acc.total_tokens = acc.input_tokens + acc.output_tokens;
++		acc.participants = acc.participants + 1;
++	}
++	return acc;
++}
++
++export function formatRollup(acc, label) {
++	if (acc.participants = 0) {
++		return `${label}: no participants`;
++	}
++	const avg = acc.total_tokens / acc.participants;
++	return `${label}: ${acc.total_tokens} total (${avg.toFixed(1)} avg/participant)`;
++}
++
++export function mergeRollups(a, b) {
++	return {
++		input_tokens: a.input_tokens + b.input_tokens,
++		output_tokens: a.output_tokens + b.output_tokens,
++		total_tokens: a.total_tokens + b.total_tokens,
++		participants: a.participants + b.participants,
++	};
++}
+diff --git a/scripts/lib/usage-rollup.test.mjs b/scripts/lib/usage-rollup.test.mjs
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/scripts/lib/usage-rollup.test.mjs
+@@ -0,0 +1,12 @@
++import { rollupUsages, formatRollup } from "./usage-rollup.mjs";
++import { test } from "node:test";
++import assert from "node:assert/strict";
++
++test("rollup sums rows", () => {
++	const acc = rollupUsages([
++		{ input_tokens: 10, output_tokens: 5 },
++		{ input_tokens: 20, output_tokens: 5 },
++	]);
++	assert.equal(acc.input_tokens, 30);
++	assert.equal(acc.total_tokens, 40);
++	assert.equal(formatRollup(acc, "batch"), "batch: 40 total (20.0 avg/participant)");
++});

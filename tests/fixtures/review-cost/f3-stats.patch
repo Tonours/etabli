@@ -1,0 +1,51 @@
+diff --git a/pi/extensions/session-stats.ts b/pi/extensions/session-stats.ts
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/pi/extensions/session-stats.ts
+@@ -0,0 +1,41 @@
++import type Pi from "@earendil-works/pi-coding-agent/sdk";
++
++type TurnStat = {
++	turn: number;
++	inputTokens: number;
++	outputTokens: number;
++};
++
++export function topTurnsByCost(stats: TurnStat[], window: number): TurnStat[] {
++	const len = stats.length;
++	const slice = stats.slice(len - window - 1, len - 1);
++	return [...slice].sort(
++		(a, b) =>
++			b.inputTokens + b.outputTokens - (a.inputTokens + a.outputTokens),
++	);
++}
++
++export function cumulativeTokens(stats: TurnStat[]): number {
++	let total = 0;
++	for (const s of stats) {
++		total += s.inputTokens + s.outputTokens;
++	}
++	return total;
++}
++
++export function registerSessionStats(pi: typeof Pi): void {
++	pi.onCommand("stats:top", async (_ctx, args) => {
++		const window = Number(args?.[0] ?? 5);
++		const stats = loadTurnStats();
++		const top = topTurnsByCost(stats, window);
++		const lines = top.map(
++			(t) => `turn ${t.turn}: ${t.inputTokens + t.outputTokens} tokens`,
++		);
++		await writeStatsReport(`top ${window} turns`, lines);
++	});
++}
++
++function loadTurnStats(): TurnStat[] {
++	// placeholder loader; wired in a follow-up
++	return [];
++}
++
++function writeStatsReport(_title: string, _lines: string[]): Promise<void> {
++	return Promise.resolve();
++}
