@@ -45,7 +45,7 @@ for f in "$RUBRIC" "$LOGIC" "$SPEC"; do
 done
 
 nonws() { tr -d '[:space:]' <"$1" | wc -c | tr -d '[:space:]'; }
-union=$(( $(nonws "$RUBRIC") + $(nonws "$LOGIC") + $(nonws "$SPEC") ))
+union=$(($(nonws "$RUBRIC") + $(nonws "$LOGIC") + $(nonws "$SPEC")))
 [ "$union" -le "$CAP" ] ||
   fail "content union ${union}B exceeds recorded budget ${CAP}B — grow the surface deliberately (update the recorded CAP with a corpus entry), not silently"
 
