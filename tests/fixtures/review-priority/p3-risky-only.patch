@@ -1,0 +1,15 @@
+diff --git a/pi/extensions/session-stats.ts b/pi/extensions/session-stats.ts
+index 4444444..ccccccc 100644
+--- a/pi/extensions/session-stats.ts
++++ b/pi/extensions/session-stats.ts
+@@ -12,9 +12,12 @@ export function describeSession(stats: TurnRow[]): string {
+   return stats.map((t) => `turn ${t.n}`).join(", ");
+ }
+ 
++const cache: TurnRow[] = [];
++
+ export function topTurns(stats: TurnRow[], window: number): TurnRow[] {
+-  return stats.slice(-window);
++  cache.push(...stats.slice(-window));
++  return cache.slice(-window);
+ }
