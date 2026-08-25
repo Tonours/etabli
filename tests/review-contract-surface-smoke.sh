@@ -8,11 +8,14 @@ set -euo pipefail
 # invariants they protect durable at repo level (wired into
 # verify-agentic-infra core — the autoresearch driver's merge gate):
 #
-#  1. Byte budget: the union of the three surface files stays <= CAP.
-#     The CR-B4 terse-template merge (2026-08-25) silently pushed the union
-#     past the CR-A +15% cap because no durable check ran at merge time.
-#     Growing the surface past CAP requires updating the recorded number
-#     here — a recorded decision, not an accident.
+#  1. Content budget: the union of the three surface files, counting
+#     non-whitespace bytes only, stays <= CAP. Whitespace is excluded on
+#     purpose: the pi-lens/markdownlint autofix churns blank lines (MD022
+#     adds one after every heading) on every touch, and that formatting
+#     noise must never trip the content budget — the CR-B4 leak class was
+#     +1,161 B of real duty prose, which this still catches. Growing the
+#     surface past CAP requires updating the recorded number here — a
+#     recorded decision, not an accident.
 #  2. Duty anchors: the clauses the CR-A/CR-C guards certified (concrete-
 #     failure bar, severity sort with invalidity, seven-field findings,
 #     deciding-code omission bar, mandatory lens rows, not-run-blocks-GO,
@@ -26,30 +29,35 @@ RUBRIC="$ROOT_DIR/workflow/review-rubric.md"
 LOGIC="$ROOT_DIR/workflow/templates/review-logic-hunter.md"
 SPEC="$ROOT_DIR/workflow/templates/review-spec-hunter.md"
 
-# Recorded budget: measured at commit time (2026-08-25, post CR-C1/CR-C4):
-# 12,385 B, with a small working margin. The CR-B4 leak class was +1,161 B
-# past the CR-A cap; growth beyond this margin requires updating the
-# recorded CAP — a recorded decision, not an accident.
-CAP=12800
+# Recorded budget: 10,310 non-whitespace bytes measured 2026-08-25 (post
+# CR-C1/CR-C4), with a ~3.5% working margin — same ratio the raw-byte CAP
+# carried. Only non-whitespace growth counts; the CR-B4 leak class was
+# +1,161 B of content and trips this with margin to spare.
+CAP=10700
 
-fail() { printf 'review contract surface: %s\n' "$1" >&2; exit 1; }
+fail() {
+  printf 'review contract surface: %s\n' "$1" >&2
+  exit 1
+}
 
 for f in "$RUBRIC" "$LOGIC" "$SPEC"; do
   [ -s "$f" ] || fail "missing surface file $f"
 done
 
-union=$(( $(wc -c < "$RUBRIC") + $(wc -c < "$LOGIC") + $(wc -c < "$SPEC") ))
+nonws() { tr -d '[:space:]' <"$1" | wc -c | tr -d '[:space:]'; }
+union=$(( $(nonws "$RUBRIC") + $(nonws "$LOGIC") + $(nonws "$SPEC") ))
 [ "$union" -le "$CAP" ] ||
-  fail "union ${union}B exceeds recorded budget ${CAP}B — grow the surface deliberately (update the recorded CAP with a corpus entry), not silently"
+  fail "content union ${union}B exceeds recorded budget ${CAP}B — grow the surface deliberately (update the recorded CAP with a corpus entry), not silently"
 
 # Gap-tolerant matcher: the pattern words must appear in order, separated
 # by bounded non-sentence gaps (<= 120 non-period chars) over
 # newline-flattened text.
 anchor() { # <file> <pattern-words...>
-  local file="$1"; shift
+  local file="$1"
+  shift
   local re
   re="$(printf '%s' "$*" | sed -e 's/[.[\*^$()+?{|]/\\&/g' -e 's/ /[^.]{0,120}/g')"
-  tr '\n' ' ' < "$file" | grep -Eiq "$re"
+  tr '\n' ' ' <"$file" | grep -Eiq "$re"
 }
 
 # 1. Concrete-failure bar (nit bar; CR-A2/CR-A6 anchor).
