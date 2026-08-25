@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 EVENT="$ROOT_DIR/scripts/workflow-event"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -81,7 +82,7 @@ ledger="$DIR/$slug/events.jsonl"
 canonical_lock="$DIR/$slug/events.lock"
 lock_ready="$TMP/native-lock-ready"
 wrong_lock="$TMP/wrong-events.lock"
-before_sha="$(shasum -a 256 "$ledger" | awk '{print $1}')"
+before_sha="$(hash256 "$ledger" | awk '{print $1}')"
 if [ -n "$LOCKF_BIN" ]; then
   "$LOCKF_BIN" -k "$canonical_lock" sh -c 'touch "$1"; sleep 2' sh "$lock_ready" &
   holder_pid=$!
@@ -118,7 +119,7 @@ wrong_native_lock_attack() (
 out="$(expect_status 1 wrong_native_lock_attack)"
 printf '%s\n' "$out" | grep -Fq 'parent did not target the canonical lock invocation' || fail "wrong-lock attack did not fail at canonical invocation boundary"
 wait "$holder_pid"
-[ "$(shasum -a 256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "wrong-lock attack changed canonical ledger"
+[ "$(hash256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "wrong-lock attack changed canonical ledger"
 [ "$(jq -s '[.[] | select(.event == "completed")] | length' "$ledger")" -eq 0 ] || fail "wrong-lock attack appended a terminal"
 [ -f "$forged_capability" ] || fail "writer mutated the caller-owned forged file"
 [ ! -e "$forged_capability.used" ] || fail "writer consumed the forged capability"
@@ -133,10 +134,10 @@ printf '%s\n' '#!/bin/sh' 'printf "n%s\n" "$FAKE_PARENT_CWD"' > "$fake_bin/lsof"
 printf '%s\n' '#!/bin/sh' 'exit 1' > "$fake_bin/lockf"
 printf '%s\n' '#!/bin/sh' 'exit 1' > "$fake_bin/flock"
 chmod +x "$fake_bin/ps" "$fake_bin/readlink" "$fake_bin/lsof" "$fake_bin/lockf" "$fake_bin/flock"
-before_sha="$(shasum -a 256 "$ledger" | awk '{print $1}')"
+before_sha="$(hash256 "$ledger" | awk '{print $1}')"
 out="$(expect_status 1 env PATH="$fake_bin:$PATH" FAKE_PARENT_CWD="$DIR/$slug" "$EVENT" --dir "$DIR" _append-locked "$slug" completed '{"summary":"forged PATH bypass"}' "$token" "$backend")"
 printf '%s\n' "$out" | grep -Eq 'declared OS lock parent|trusted native lock executable' || fail "forged PATH attack did not fail at trusted process boundary"
-[ "$(shasum -a 256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "forged PATH attack changed canonical ledger"
+[ "$(hash256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "forged PATH attack changed canonical ledger"
 [ "$(jq -s '[.[] | select(.event == "completed")] | length' "$ledger")" -eq 0 ] || fail "forged PATH attack appended a terminal"
 assert_transients_clean
 
@@ -145,7 +146,7 @@ assert_transients_clean
 slug="replaced-native-lock"
 "$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"plan-loop","reason":"native pathname replacement attack"}'
 ledger="$DIR/$slug/events.jsonl"
-before_sha="$(shasum -a 256 "$ledger" | awk '{print $1}')"
+before_sha="$(hash256 "$ledger" | awk '{print $1}')"
 swap_ready="$TMP/swap-lock-ready"
 pathname_swap_attack() (
   cd "$DIR/$slug"
@@ -175,7 +176,7 @@ pathname_swap_attack() (
 )
 out="$(expect_status 1 pathname_swap_attack)"
 printf '%s\n' "$out" | grep -Fq 'parent lock descriptor is not canonical' || fail "pathname replacement attack did not fail at descriptor identity boundary"
-[ "$(shasum -a 256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "pathname replacement attack changed canonical ledger"
+[ "$(hash256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "pathname replacement attack changed canonical ledger"
 [ "$(jq -s '[.[] | select(.event == "completed")] | length' "$ledger")" -eq 0 ] || fail "pathname replacement attack appended a terminal"
 assert_transients_clean
 
@@ -188,16 +189,16 @@ append_autonomous_after_metric "$slug"
 "$EVENT" --dir "$DIR" activate "$slug" >/dev/null
 ledger="$DIR/$slug/events.jsonl"
 pointer="$DIR/.active-run.json"
-before_sha="$(shasum -a 256 "$ledger" | awk '{print $1}')"
+before_sha="$(hash256 "$ledger" | awk '{print $1}')"
 before_bytes="$(wc -c < "$ledger" | tr -d ' ')"
 before_lines="$(wc -l < "$ledger" | tr -d ' ')"
-pointer_sha="$(shasum -a 256 "$pointer" | awk '{print $1}')"
+pointer_sha="$(hash256 "$pointer" | awk '{print $1}')"
 out="$(expect_status 1 "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"must be rejected without outcome metric"}')"
 printf '%s\n' "$out" | grep -Fq 'before profile prerequisites pass' || fail "missing autonomous refusal message"
-[ "$(shasum -a 256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "refusal changed ledger hash"
+[ "$(hash256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "refusal changed ledger hash"
 [ "$(wc -c < "$ledger" | tr -d ' ')" = "$before_bytes" ] || fail "refusal changed ledger bytes"
 [ "$(wc -l < "$ledger" | tr -d ' ')" = "$before_lines" ] || fail "refusal changed ledger line count"
-[ "$(shasum -a 256 "$pointer" | awk '{print $1}')" = "$pointer_sha" ] || fail "refusal changed active pointer"
+[ "$(hash256 "$pointer" | awk '{print $1}')" = "$pointer_sha" ] || fail "refusal changed active pointer"
 assert_transients_clean
 
 # Appending the missing metric recovers the same run; the validated terminal line is the only byte suffix.
@@ -216,8 +217,8 @@ assert_transients_clean
 mkdir -p "$DIR/target-a"
 target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
 printf '%s\n' "$target_line" > "$DIR/target-a/events.jsonl"
-target_ledger_sha="$(shasum -a 256 "$DIR/target-a/events.jsonl" | awk '{print $1}')"
-target_terminal_sha="$(printf '%s' "$target_line" | shasum -a 256 | awk '{print $1}')"
+target_ledger_sha="$(hash256 "$DIR/target-a/events.jsonl" | awk '{print $1}')"
+target_terminal_sha="$(printf '%s' "$target_line" | hash256 | awk '{print $1}')"
 measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
 manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
 population_id="terminal-runs-v1-${manifest_sha:0:16}"

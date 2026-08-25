@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 DRIVER="$ROOT_DIR/scripts/etabli-harness-eval"
 FIXTURES="$ROOT_DIR/tests/fixtures/harness-v1"
 LIB="$ROOT_DIR/scripts/lib/etabli-harness-eval.sh"
@@ -17,7 +18,7 @@ fail() {
 bash -n "$DRIVER" || fail "bash -n failed: $DRIVER"
 bash -n "$LIB" || fail "bash -n failed: $LIB"
 
-LIB_SHA="$(shasum -a 256 "$LIB" | awk '{print $1}')"
+LIB_SHA="$(hash256 "$LIB" | awk '{print $1}')"
 MANIFEST_EVAL_SHA="$(jq -r '.evaluator.sha256' "$FIXTURES/manifest.json")"
 [ "$LIB_SHA" = "$MANIFEST_EVAL_SHA" ] || fail "manifest evaluator.sha256 must match scripts/lib/etabli-harness-eval.sh"
 

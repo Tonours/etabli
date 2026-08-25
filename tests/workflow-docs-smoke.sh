@@ -7,6 +7,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 INSTALL_MAIN="$ROOT_DIR/scripts/lib/install-main.sh"
 
 assert_file() {
@@ -720,6 +721,7 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '
 
 command_file_for() {
     case "$1" in
+    /plan) printf '%s\n' 'plan-create.md' ;;
     /*) printf '%s.md\n' "${1#/}" ;;
     *)
         printf 'unexpected command format: %s\n' "$1" >&2
@@ -750,6 +752,7 @@ done <<<"$workflow_claude_commands"
 while IFS= read -r command_path; do
     command_file="$(basename "$command_path")"
     case "$command_file" in
+    plan-create.md) command='/plan' ;;
     *.md) command="/${command_file%.md}" ;;
     *)
         printf 'unexpected command file: %s\n' "$command_file" >&2
@@ -829,7 +832,7 @@ duplicate_adapters="$(
     {
         find "$ROOT_DIR/pi/skills" -maxdepth 2 -type f -name 'SKILL.md'
         find "$ROOT_DIR/claude/scopes/shared/commands" -maxdepth 1 -type f -name '*.md'
-    } | sort | xargs shasum | sort -k1,1 | awk '
+    } | sort | xargs hash256 | sort -k1,1 | awk '
         previous_hash == $1 {
             if (!printed) {
                 print previous_line
