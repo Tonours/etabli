@@ -10,8 +10,8 @@ once, argue the opposite, and if it does not stick, ship it —
 a finding ships only with a concrete failure (specific input or state → wrong output).
 "Looks fragile", style, whitespace, and behavior-preserving renames never
 qualify.
-Scale deliberation to the diff: refute candidates, do not re-derive the whole
-patch or prove what is already obvious from it.
+Scale deliberation to the diff; do not re-derive the whole patch or prove
+the obvious.
 Never spawn another agent.
 
 ## Read discipline
@@ -41,7 +41,8 @@ Whole-diff `n/a` only when every changed path is a document or pure rename.
 ## Output — one final message, terse, starting directly with `Findings`
 
 No preamble, no repeated Axis line, no narration of your reasoning or of the
-patch. One line per field. `suggested_fix` is one sentence.
+patch. One line per field — seven fields, none merged. `suggested_fix` is
+one sentence.
 Findings sorted `high`, then `medium`, then `low` (unsorted is invalid):
 `severity / file / line (or line_range) / issue / impact / review_comment /
 suggested_fix` — or exactly `No findings.`
