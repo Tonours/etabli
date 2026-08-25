@@ -830,7 +830,7 @@ duplicate_adapters="$(
     {
         find "$ROOT_DIR/pi/skills" -maxdepth 2 -type f -name 'SKILL.md'
         find "$ROOT_DIR/claude/scopes/shared/commands" -maxdepth 1 -type f -name '*.md'
-    } | sort | xargs hash256 | sort -k1,1 | awk '
+    } | sort | xargs "${HASH256_BIN[@]}" | sort -k1,1 | awk '
         previous_hash == $1 {
             if (!printed) {
                 print previous_line
