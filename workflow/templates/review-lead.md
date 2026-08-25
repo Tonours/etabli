@@ -30,4 +30,7 @@ Axis-tagged notes that do not BLOCK.
 
 ## Verdict
 
+The review's final line, verbatim — no markdown decoration (no bold,
+no code fence), no prose after it:
+
 `Verdict: GO` | `Verdict: GO WITH NOTES` | `Verdict: BLOCK`
