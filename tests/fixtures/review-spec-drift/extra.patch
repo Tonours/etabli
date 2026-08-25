@@ -1,0 +1,23 @@
+diff --git a/scripts/prune-old-logs.sh b/scripts/prune-old-logs.sh
+index 2222222..3333333 100644
+--- a/scripts/prune-old-logs.sh
++++ b/scripts/prune-old-logs.sh
+@@ -14,10 +14,7 @@ report_header() {
+-printf '%-20s %-12s %s\n' "session-id" "runner-tag" "bytes-freed"
+-printf '%.0s-' {1..48}; echo
++printf '%-20s %s\n' "worktree" "bytes-freed"
++printf '%.0s-' {1..32}; echo
+ }
+ 
+ prune_one() {
+@@ -31,9 +28,6 @@ prune_one() {
+-  sid="$(jq -r '.sessionId' "$f")"
+-  tag="$(jq -r '.runnerTag' "$f")"
+-  printf '%-20s %-12s %s\n' "$sid" "$tag" "$freed"
++  printf '%-20s %s\n' "$(basename "$(dirname "$f")")" "$freed"
+ }
++
++PRUNE_DRY_RUN="${PRUNE_DRY_RUN:-0}"
++if [ "$PRUNE_DRY_RUN" = "1" ]; then
++  KEEP_FILES=1
++fi
