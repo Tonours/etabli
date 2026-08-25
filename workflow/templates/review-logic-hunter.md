@@ -43,15 +43,15 @@ Findings sorted `high`, then `medium`, then `low` (unsorted is invalid):
 `severity / file / line (or line_range) / issue / impact / review_comment /
 suggested_fix` — or exactly `No findings.`
 
-Then the lens table — header row verbatim
+Then `### Lens table` — header row verbatim
 `| Lens | Checked (file:line) | Found |`: one row per lens — opened
 `file:line`, `absent` (Prose row only, no behavior named in prose), or the
 sanctioned `deferred`/`not run` above. A `not run` row blocks
 `Verdict: GO` and `Verdict: GO WITH NOTES` alike, as does an empty
 deciding-code table on a runtime diff.
 
-Then the deciding-code table — header row verbatim
+Then `### Deciding-code table` — header verbatim
 `| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |`
-— then `Extra-lens: yes | no`.
+Then `Extra-lens: yes | no`.
 
 End with one final line: `Verdict: GO | GO WITH NOTES | BLOCK`.

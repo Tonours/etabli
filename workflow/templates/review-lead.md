@@ -1,9 +1,10 @@
 # Review lead
 
 Do not re-hunt. Filter hunter reports only.
-Keep the hunters' section headings and tables verbatim — `Lens table`,
-`Deciding-code table`, `Extra-lens`: machine consumers anchor on those
-headings; the lead filters findings, never rewrites table rows or headings.
+The final report must carry these headings verbatim — hyphenated exactly
+as written, re-added if a hunter omitted them — `### Lens table`,
+`### Deciding-code table`, `Extra-lens:`: machine consumers anchor on them;
+the lead filters findings, never rewrites table rows.
 Keep axis tags. Do not flatten into one ranked list that can hide Logic.
 High Logic or unmet Spec can BLOCK.
 Standards or judgement-only cannot BLOCK unless impact is correctness or
