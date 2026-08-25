@@ -32,7 +32,8 @@ declaration → finding`; `absent` = prose names none.
 ## Deciding-code
 
 One row per runtime behavior, or `n/a — no runtime behavior`.
-`not run` lens rows and an unlisted whole-diff `n/a` block `Verdict: GO` and
+`not run` lens rows, an empty deciding-code table on a runtime diff, and an
+unlisted whole-diff `n/a` block `Verdict: GO` and
 `Verdict: GO WITH NOTES` alike: the `n/a` row lists changed paths that are all
 documents or pure renames.
 
