@@ -19,8 +19,8 @@
     "zai": {
       "models": [
         {
-          "id": "glm-5.2",
-          "name": "GLM-5.2",
+          "id": "glm-5.3",
+          "name": "GLM-5.3",
           "reasoning": true,
           "thinkingLevelMap": {
             "minimal": null,
@@ -56,13 +56,14 @@
             "off": null,
             "minimal": null,
             "low": "low",
-            "medium": "high",
+            "medium": null,
             "high": "high",
-            "xhigh": "max"
+            "xhigh": null,
+            "max": "max"
           },
           "input": ["text", "image"],
-          "contextWindow": 262144,
-          "maxTokens": 32768
+          "contextWindow": 1048576,
+          "maxTokens": 131072
         }
       ]
     },
