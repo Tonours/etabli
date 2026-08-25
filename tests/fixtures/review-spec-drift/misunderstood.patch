@@ -1,0 +1,23 @@
+diff --git a/pi/extensions/session-stats.ts b/pi/extensions/session-stats.ts
+index 4444444..5555555 100644
+--- a/pi/extensions/session-stats.ts
++++ b/pi/extensions/session-stats.ts
+@@ -8,6 +8,22 @@ interface TurnRow {
+   ts: number;
++  cost: number;
+ }
++
++export function topTurns(stats: TurnRow[], window: number): TurnRow[] {
++  const len = stats.length;
++  if (len === 0) return [];
++  const start = Math.max(0, len - window);
++  return stats.slice(start).sort((a, b) => b.ts - a.ts);
++}
++
++export function describeTopTurns(stats: TurnRow[], window: number): string {
++  const top = topTurns(stats, window);
++  if (top.length === 0) return "no turns yet";
++  return top
++    .map((t, i) => `${i + 1}. turn@${new Date(t.ts).toISOString()} ts=${t.ts}`)
++    .join("\n");
++}

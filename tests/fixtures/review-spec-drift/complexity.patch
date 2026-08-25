@@ -1,0 +1,53 @@
+diff --git a/scripts/lib/usage-rollup.mjs b/scripts/lib/usage-rollup.mjs
+new file mode 100644
+index 0000000..8888888
+--- /dev/null
++++ b/scripts/lib/usage-rollup.mjs
+@@ -0,0 +1,44 @@
++export interface RollupDriver {
++  id: string;
++  collect(rows: RollupRow[]): RollupRow[];
++}
++
++export interface RollupRow {
++  participant: string;
++  totalTokens: number;
++}
++
++const drivers = new Map<string, RollupDriver>();
++
++export function registerRollupDriver(id: string, driver: RollupDriver): void {
++  if (drivers.has(id)) throw new Error(`driver ${id} already registered`);
++  drivers.set(id, driver);
++}
++
++export function listRollupDrivers(): string[] {
++  return [...drivers.keys()];
++}
++
++class SumDriver implements RollupDriver {
++  id = "sum";
++  collect(rows: RollupRow[]): RollupRow {
++    const total = rows.reduce((acc, r) => acc + r.totalTokens, 0);
++    return { participant: "*sum*", totalTokens: total };
++  }
++}
++
++class WindowedSumDriver implements RollupDriver {
++  id = "windowed-sum";
++  constructor(private readonly window: number) {}
++  collect(rows: RollupRow[]): RollupRow {
++    const slice = rows.slice(-this.window);
++    const total = slice.reduce((acc, r) => acc + r.totalTokens, 0);
++    return { participant: `*sum:${this.window}*`, totalTokens: total };
++  }
++}
++
++registerRollupDriver("sum", new SumDriver());
++registerRollupDriver("windowed-sum", new WindowedSumDriver(50));
++
++export function rollupParticipants(rows: RollupRow[], driverId = "sum"): RollupRow {
++  const driver = drivers.get(driverId);
++  if (!driver) throw new Error(`unknown driver ${driverId}`);
++  return driver.collect(rows);
++}
