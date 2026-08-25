@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 TMP_DIR="$(mktemp -d)"
 EVENT_DIR="$TMP_DIR/.workflow"
 
@@ -107,8 +108,8 @@ done < "$ROOT_DIR/tests/fixtures/workflow-events-v2.tsv"
 mkdir -p "$EVENT_DIR/target-a"
 target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
 printf '%s\n' "$target_line" > "$EVENT_DIR/target-a/events.jsonl"
-target_ledger_sha="$(shasum -a 256 "$EVENT_DIR/target-a/events.jsonl" | awk '{print $1}')"
-target_terminal_sha="$(printf '%s' "$target_line" | shasum -a 256 | awk '{print $1}')"
+target_ledger_sha="$(hash256 "$EVENT_DIR/target-a/events.jsonl" | awk '{print $1}')"
+target_terminal_sha="$(printf '%s' "$target_line" | hash256 | awk '{print $1}')"
 measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
 manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
 population_id="terminal-runs-v1-${manifest_sha:0:16}"

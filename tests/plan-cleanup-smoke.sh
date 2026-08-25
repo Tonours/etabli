@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 CLEANUP="$ROOT_DIR/scripts/plan-cleanup"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -28,7 +29,7 @@ PLAN
 
 write_plan
 mkdir -p "$TMP_DIR/docs/plan"
-hash="$(shasum -a 256 "$TMP_DIR/PLAN.md" | awk '{print $1}')"
+hash="$(hash256 "$TMP_DIR/PLAN.md" | awk '{print $1}')"
 cat >"$TMP_DIR/docs/plan/implemented.md" <<EOF
 # Implemented: bounded implementation
 
