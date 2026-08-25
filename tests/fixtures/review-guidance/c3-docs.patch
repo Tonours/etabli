@@ -1,0 +1,8 @@
+diff --git a/docs/rollup.md b/docs/rollup.md
+index 6667778..888999a 100644
+--- a/docs/rollup.md
++++ b/docs/rollup.md
+@@ -1,4 +1,6 @@
+ # Rollup helper
++The rollup sums per-participant token rows into one ledger row.
++See scripts/lib/usage-rollup.mjs.

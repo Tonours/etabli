@@ -1,0 +1,5 @@
+Repo guidance pinned by the parent (gathered from AGENTS.md near the touched files):
+- G1 AGENTS.md:31 "Code: TypeScript strict, no `any`, ES modules."
+- G2 AGENTS.md:24 "do not commit pi/extensions/herdr-agent-state.ts" (generated files stay untracked)
+- G3 AGENTS.md:33 "English code/commits; French only in chat."
+- G4 workflow/spec.md:12 "workflow/spec.md normative rows change only via superseding entry in docs/plan/."
