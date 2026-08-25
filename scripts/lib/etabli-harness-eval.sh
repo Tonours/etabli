@@ -1,6 +1,8 @@
 # Shared helpers for scripts/etabli-harness-eval and per-task oracle.sh.
 # Sourced only. Do not execute.
 
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/hash.sh"
+
 HARNESS_PI_MODEL="zai/glm-5.3"
 HARNESS_PI_THINKING="max"
 HARNESS_GROK_MODEL="grok-4.6"
@@ -15,11 +17,11 @@ harness_die() {
 }
 
 harness_sha256() {
-  # single process: shasum only, strip the filename with a parameter
-  # expansion (was shasum | awk — one fork per digest adds up over ~70
-  # grade/oracle calls per smoke)
+  # single process: hash256 only (sha256sum on Linux, shasum on macOS), strip
+  # the filename with a parameter expansion (was shasum | awk — one fork per
+  # digest adds up over ~70 grade/oracle calls per smoke)
   local digest
-  digest="$(shasum -a 256 "$1")"
+  digest="$(hash256 "$1")"
   printf '%s\n' "${digest%% *}"
 }
 

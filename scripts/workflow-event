@@ -3,6 +3,7 @@ set -euo pipefail
 
 WORKFLOW_DIR=".workflow"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+. "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
@@ -143,7 +144,7 @@ ledger_cache_matches() {
   fi
   expected_sha="$(jq -r '.sha256' "$cache")"
   expected_lines="$(jq -r '.lines' "$cache")"
-  actual_sha="$(shasum -a 256 "$file" | awk '{print $1}')"
+  actual_sha="$(hash256 "$file" | awk '{print $1}')"
   actual_lines="$(wc -l <"$file" | tr -d ' ')"
   [ "$actual_sha" = "$expected_sha" ] && [ "$actual_lines" = "$expected_lines" ]
 }
@@ -152,7 +153,7 @@ write_ledger_cache() {
   local file="$1" cache="$2" token="$3"
   local temporary="$cache.$token"
   jq -nc \
-    --arg sha256 "$(shasum -a 256 "$file" | awk '{print $1}')" \
+    --arg sha256 "$(hash256 "$file" | awk '{print $1}')" \
     --argjson lines "$(wc -l <"$file" | tr -d ' ')" \
     '{schema_version:1,sha256:$sha256,lines:$lines}' >"$temporary"
   chmod 600 "$temporary"
