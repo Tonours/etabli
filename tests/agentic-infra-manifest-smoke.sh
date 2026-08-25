@@ -58,11 +58,15 @@ router-eval-smoke
 dual-runtime-guard-matrix-smoke
 no-progress-mutate-deny-smoke
 supply-chain-smoke
-skill-lock'
+skill-lock
+review-contract-surface-smoke'
+# Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
+# review-contract-surface-smoke (<50 ms) — the merge gate that must catch
+# contract-surface regressions like the CR-B4 union-cap leak.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 16 ] ||
-	fail "core profile exceeds 16 checks"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 17 ] ||
+	fail "core profile exceeds 17 checks"
 
 expected_full='pr-latest-head-status-smoke
 leap-harness-validation-smoke

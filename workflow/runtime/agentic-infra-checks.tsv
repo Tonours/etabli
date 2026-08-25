@@ -71,3 +71,4 @@ live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
 live	shell-docs	runtime-skill-canary-live	tests/runtime-skill-canary-live.sh
 live	shell-docs	etabli-harness-eval-live	tests/etabli-harness-eval-live.sh
+core	shell-docs	review-contract-surface-smoke	tests/review-contract-surface-smoke.sh
