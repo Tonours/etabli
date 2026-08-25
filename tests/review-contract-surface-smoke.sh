@@ -128,4 +128,43 @@ anchor "$RUBRIC" "whole-diff" "n/a" "document" "rename" ||
 anchor "$LOGIC" "n/a" "document" "rename" ||
   fail "logic template lost the n/a artifact bar"
 
-printf 'review contract surface: union %dB/%dB, anchors 10/10\n' "$union" "$CAP"
+# 7. Emission-discipline anchors (2026-08-25 live held-out A/Bs: each pin
+#    flipped a chronic harness failure 0/3 -> 3/3; nothing durable guarded
+#    them until now). Files outside the CR-A union get presence anchors;
+#    the lead template also gets its own recorded content budget — it grew
+#    34% this session with no budget at all.
+LEAD="$ROOT_DIR/workflow/templates/review-lead.md"
+REVIEW_MD="$ROOT_DIR/workflow/skills/review.md"
+SCAFFOLD_AGENTS="$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"
+for f in "$LEAD" "$REVIEW_MD" "$SCAFFOLD_AGENTS"; do
+  [ -s "$f" ] || fail "missing emission-discipline file $f"
+done
+
+# lead: Status lines are bare (no bullets/backticks/bold) — the harness
+# greps ^isolation: isolated$ and kin
+anchor "$LEAD" "no bullets" "no backticks" "no bold" ||
+  fail "lead lost the bare Status-lines pin"
+# lead: colon-tight verdict prefix (French 'Verdict :' wobble guard)
+anchor "$LEAD" "colon tight against the word" ||
+  fail "lead lost the colon-tight Verdict pin"
+# lead: machine headings survive lead assembly (re-added when dropped)
+anchor "$LEAD" "re-added if a hunter omitted them" ||
+  fail "lead lost the heading re-add rule"
+# lead: a row that opened nothing outside the pinned diff is not run
+anchor "$LEAD" "opened nothing outside the pinned diff" ||
+  fail "lead lost the narrated-not-run rule"
+# shared contract: routing by act-nature, not request vocabulary
+anchor "$REVIEW_MD" "whatever words the request uses" ||
+  fail "review.md lost the routing-by-act-nature clause"
+# scaffold: ambient routing line for deployed projects
+anchor "$SCAFFOLD_AGENTS" "never free-form commentary" ||
+  fail "scaffold AGENTS.md lost the review routing line"
+
+# Recorded lead content budget: 1,517 non-whitespace bytes at commit
+# (2026-08-25); small working margin, same discipline as the union CAP.
+LEAD_CAP=1580
+lead_bytes=$(nonws "$LEAD")
+[ "$lead_bytes" -le "$LEAD_CAP" ] ||
+  fail "lead content ${lead_bytes}B exceeds recorded budget ${LEAD_CAP}B — grow it deliberately"
+
+printf 'review contract surface: union %dB/%dB, lead %dB/%dB, anchors 16/16\n' "$union" "$CAP" "$lead_bytes" "$LEAD_CAP"
