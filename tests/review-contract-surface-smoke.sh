@@ -60,6 +60,40 @@ anchor() { # <file> <pattern-words...>
   tr '\n' ' ' <"$file" | grep -Eiq "$re"
 }
 
+# --- self-validation: the gate must not trust its own matcher ------------
+# Unit probes on synthetic fixtures, independent of the target tree. These
+# exist because the anchor matcher once shipped joining words with '|' (OR)
+# — matching any single word — and passed green. A corrupted matcher now
+# fails here, before any real-tree verdict.
+self_validate() {
+  local d
+  d="$(mktemp -d)" || fail "self-validation: mktemp failed"
+  printf 'alpha beta\ngamma delta\n' >"$d/ok.txt"
+  printf 'beta alpha\ndelta gamma\n' >"$d/reordered.txt"
+  printf 'alpha\nbeta\ngamma\ndelta\n' >"$d/wrapped.txt"
+  printf 'unrelated words entirely\n' >"$d/absent.txt"
+
+  anchor "$d/ok.txt" alpha beta gamma delta ||
+    fail "self-validation: matcher rejects an in-order clause"
+  anchor "$d/wrapped.txt" alpha beta gamma delta ||
+    fail "self-validation: matcher rejects a hard-wrapped clause"
+  anchor "$d/reordered.txt" alpha beta gamma delta &&
+    fail "self-validation: matcher accepts REORDERED words (OR-join class)"
+  anchor "$d/absent.txt" alpha beta gamma delta &&
+    fail "self-validation: matcher accepts an absent clause"
+
+  # Budget counting must be whitespace-insensitive: blank-line padding
+  # adds zero content bytes (MD022 churn class).
+  printf 'abcdefgh' >"$d/b1.txt"
+  printf 'abcd\n\n\n\ne\n\nfgh' >"$d/b2.txt"
+  [ "$(tr -d '[:space:]' <"$d/b1.txt" | wc -c)" -eq 8 ] ||
+    fail "self-validation: content count wrong on plain fixture"
+  [ "$(tr -d '[:space:]' <"$d/b2.txt" | wc -c)" -eq 8 ] ||
+    fail "self-validation: blank-line padding changed the content count"
+  rm -rf "$d"
+}
+self_validate
+
 # 1. Concrete-failure bar (nit bar; CR-A2/CR-A6 anchor).
 anchor "$LOGIC" "a finding ships only with a concrete failure" ||
   fail "logic template lost the concrete-failure global bar"
