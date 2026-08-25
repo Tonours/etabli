@@ -35,7 +35,7 @@ Intent or `PLAN.md` as correctness authority.
 - check scope, non-goals, invariants, done criteria, changed-file alignment, complexity drift
 
 ### 3. Context retrieval, before judging (Logic hunter)
-Reviewers fail on out-of-diff context most. Before a verdict, open what decides it:
+Before a verdict, open what decides it:
 - the resolution code when a value can come from several sources: read the order,
   never infer precedence from a name, a comment, or a description
 - callers and callees of each changed function: a guard added in one place is a
@@ -52,15 +52,13 @@ Reviewers fail on out-of-diff context most. Before a verdict, open what decides 
   cache, closure) → open **what can write or mutate it between capture and
   reuse** (event handlers, store setters, sibling writers)
 
-Stop when further reading stops changing your mind — piling on past that
-point measurably lowers accuracy.
+Stop when further reading stops changing your mind.
 
 ### 4. Adversarial review (Logic hunter)
 - assume the happy path is covered; search around it: edge cases, regressions, safety issues, recovery pain
 
 Run these relational lenses, state what each found, including nothing.
-Severity-first scanning finds only what looks wrong; these ask what scanning
-never asks:
+Severity-first scanning never asks these:
 - **precedence**: two sources for one value, which wins?
 - **degraded modes**: dependency absent, unconfigured, unreachable, slow?
 - **impossible states**: can the types represent a combination the code never
@@ -80,7 +78,7 @@ When the parent set `Standards: yes`, the Logic hunter records Convention as
 `deferred: Standards hunter`, issuing no second convention verdict.
 The Standards hunter loads `code-quality` when exposed, else the narrowest
 domain or project skill. If none is exposed, compare against **1–3 sibling
-implementations in this repo**. If neither a skill nor a relevant sibling exists,
+implementations**. If neither a skill nor a relevant sibling exists,
 record this lens as `not run` (never a clean pass). When `Standards: none`, Logic
 keeps that sibling/`not run` rule.
 
@@ -102,7 +100,7 @@ Lead filters after the hunt; it does not re-hunt the diff.
 
 ### 7. Human checkpoint trigger
 - explicitly say when a human should arbitrate
-- use this for accepted risk, ambiguous tradeoffs, replan decisions, broad impact
+- use this for accepted risk, ambiguous tradeoffs, replans, broad impact
 
 ## Mandatory output tables
 
@@ -137,6 +135,8 @@ writers that can change it in the window.
 
 A non-trivial runtime row with empty deciding code or `not run` **blocks
 `Verdict: GO`**. `GO WITH NOTES` is not a workaround for unopened deciding code.
+A runtime behavior with no row, or a missing or empty deciding-code
+table, on a runtime diff blocks `Verdict: GO` too.
 
 ## Inputs
 - parent-pinned patch text
