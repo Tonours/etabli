@@ -1,0 +1,2 @@
+Add a simple helper that sums per-participant token rows into one ledger row.
+Keep it minimal.

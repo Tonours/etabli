@@ -1,0 +1,14 @@
+diff --git a/pi/extensions/__tests__/settings-consistency.test.ts b/pi/extensions/__tests__/settings-consistency.test.ts
+index 1234567..89abcde 100644
+--- a/pi/extensions/__tests__/settings-consistency.test.ts
++++ b/pi/extensions/__tests__/settings-consistency.test.ts
+@@ -73,6 +73,11 @@ function packageSources(): string[] {
+ 
+ describe("Pi settings consistency", () => {
++  test("local packages list has no duplicate sources", () => {
++    const sources = packageSources();
++    expect(new Set(sources).size).toBe(sources.length);
++  });
++
+   test("quasi-vanilla local package has skills only (no extensions)", () => {
+     expect(localPackage().extensions).toEqual([]);

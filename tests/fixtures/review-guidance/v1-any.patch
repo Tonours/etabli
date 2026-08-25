@@ -1,0 +1,10 @@
+diff --git a/pi/extensions/ledger-hints.ts b/pi/extensions/ledger-hints.ts
+index 1a2b3c4..5d6e7f8 100644
+--- a/pi/extensions/ledger-hints.ts
++++ b/pi/extensions/ledger-hints.ts
+@@ -12,7 +12,9 @@ export function hintFor(row: LedgerRow): string {
+   if (row.kind === "usage") return `usage ${row.tokens}`;
+-  return JSON.stringify(row.extra);
++  const extra: any = row.extra;
++  return JSON.stringify(extra ?? {});
+ }
