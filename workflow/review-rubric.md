@@ -25,14 +25,17 @@ Intent or `PLAN.md` as correctness authority.
 ## Review stack
 
 ### 1. Self-check
+
 - sanity-check the pinned diff; verify focused validation ran; flag
   incomplete or partial states
 
 ### 2. Plan compliance (Spec hunter)
+
 - compare the pinned diff against `PLAN.md` or PR/user intent: scope,
   non-goals, invariants, done criteria, changed-file alignment, complexity drift
 
-### 3. Context retrieval, before judging (Logic hunter)
+### 3. Context retrieval (Logic hunter)
+
 Before a verdict, open what decides it: the **resolver** for any multi-source
 value, **mapper/guard** for status and error paths, callers/callees and
 sibling implementations of each changed function, the pinning tests, and
@@ -40,9 +43,11 @@ whatever can write or mutate a captured value across an `await` or async
 boundary. Stop when further reading stops changing your mind.
 
 ### 4. Adversarial review (Logic hunter)
+
 Assume the happy path is covered; hunt around it: edge cases, regressions,
 safety, recovery. Run these relational lenses, state what each found,
 including nothing:
+
 - **precedence** — two sources for one value, which wins?
 - **degraded modes** — dependency absent, unconfigured, unreachable, slow?
 - **impossible states** — types representing combinations the code never produces?
@@ -52,6 +57,7 @@ including nothing:
 - **boundary drift** — one concept in two places, still in agreement, which is authoritative?
 
 ### 5. Convention & pattern fit
+
 When the parent set `Standards: yes`, the Logic hunter records Convention as
 `deferred: Standards hunter`, issuing no second convention verdict.
 The Standards hunter loads `code-quality` when exposed, else the narrowest
@@ -65,6 +71,7 @@ operability — the concrete failure (input or state → wrong output) — not
 preference or maintenance taste.
 
 ### 6. Refute before reporting
+
 For each candidate, argue the opposite and try to make it stick — what would
 have to be true for this to be correct? Is there a caller, default, guard,
 or test that already prevents it? Then apply the evidence bar:
@@ -74,12 +81,14 @@ open questions, not findings. Lead filters after the hunt; it does not
 re-hunt the diff.
 
 ### 7. Human checkpoint
+
 - explicitly say when a human should arbitrate: accepted risk, ambiguous
   tradeoffs, replans, broad impact
 
 ## Mandatory output tables
 
 ### Lens table
+
 Every row mandatory on the Logic hunter. A lens without a concrete opened
 `file:line` is `not run`, never a pass (Convention may be `deferred: Standards hunter`). On `Verdict: GO` or `Verdict: GO WITH NOTES`, every lens row carries `file:line`, `absent` (Prose row only, no behavior named in prose), or `deferred: Standards hunter` (Convention row only, `Standards: yes`). A `not run` row blocks `Verdict: GO` and `Verdict: GO WITH NOTES` alike: a notes verdict is not a workaround for a skipped lens. Any other cell is a `not run` skip, and a skip is not a result (Convention §5 excepted: its no-skill, no-sibling `not run` is a recorded gap, never a pass).
 The Prose row lists **each behavior named in prose**: its declaration —
@@ -98,6 +107,7 @@ finding`; `absent` only when prose names none.
 | Convention & pattern fit | | |
 
 ### Deciding-code table
+
 One row per **runtime behavior** touched by the diff (API, auth, mapping,
 config, precedence, error path). Docs-only or pure rename rows may be omitted
 with an explicit `n/a — no runtime behavior`.
@@ -114,10 +124,12 @@ A runtime behavior with no row, or a missing or empty deciding-code
 table, on a runtime diff blocks `Verdict: GO` too.
 
 ## Inputs
+
 - parent-pinned patch text; `git status --short` / `git diff --stat` for target resolution only
 - Intent paragraph from the parent; `PLAN.md` or PR/user intent for the Spec hunter only
 
 ## Evidence rules
+
 - Bounded read-only inspection of nearby code, tests, config, or docs — only
   to confirm or reject a suspected finding.
 - Do not edit files, install dependencies, or run broad/slow validation unless explicitly asked.
@@ -126,6 +138,7 @@ table, on a runtime diff blocks `Verdict: GO` too.
   produces; otherwise it is an open question, not a finding.
 
 ## Look for
+
 - correctness bugs, regressions, security or safety issues
 - missing validation or weak verification (evidence-barred)
 - maintainability issues that affect correctness or operability
@@ -135,7 +148,9 @@ table, on a runtime diff blocks `Verdict: GO` too.
   comments/`any`/try-catch papering over the change
 
 ## Findings format
+
 For each issue include:
+
 - `severity:` `high | medium | low`
 - `file:`
 - `line:` or `line_range:`
@@ -149,13 +164,16 @@ Use `line_range:` for multi-line findings.
 Emit findings sorted by severity — `high`, then `medium`, then `low`; any other order is invalid.
 
 If human arbitration is needed, add:
+
 - `human_checkpoint: yes`
 - why the reviewer is escalating
 
 Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If no issue names its concrete failure (input or state → wrong output), put exactly `No findings.` as the only finding — style, whitespace, and behavior-preserving renames never qualify, at any severity — and do not wrap it in severity/file fields.
 
 ## Verdict
+
 End with a final line in this exact shape:
+
 - `Verdict: GO`
 - `Verdict: GO WITH NOTES`
 - `Verdict: BLOCK`
@@ -164,5 +182,6 @@ End with a final line in this exact shape:
 Notes on `GO WITH NOTES` state remaining risk or test gaps only — never a style, naming, or formatting change request.
 
 ## Rules
+
 - No style nitpicks: naming, formatting, or whitespace without the concrete failure is not a finding at any severity.
 - Never use `OK`, `APPROVED`, `PASS`, or other verdict words.
