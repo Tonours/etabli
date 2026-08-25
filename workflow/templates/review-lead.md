@@ -19,11 +19,14 @@ failure (input or state → wrong output); that finding is `BLOCK`.
 
 ## Status
 
-`isolation: isolated|none`
-`runner: pi-child|cursor-task|claude-agent`
-`hunter_model:`
-`spec: n/a|parent|isolated`
-`quality: none|ran`
+Five bare lines, one per field — no bullets, no backticks, no bold, exact
+prefixes:
+
+isolation: isolated|none
+runner: pi-child|cursor-task|claude-agent
+hunter_model:
+spec: n/a|parent|isolated
+quality: none|ran
 
 ## Act on
 
