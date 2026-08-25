@@ -1,0 +1,2 @@
+Harden the session stats helper: optional filtering plus a small refactor of
+the accumulation loop. No other change.
