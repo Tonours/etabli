@@ -32,7 +32,9 @@ Same-session Logic self-review is forbidden.
      argv): `pi --mode text -p --no-session --no-skills --no-extensions
      --no-context-files --tools read,grep --append-system-prompt
      <hunter-template> @<patchfile>`. The prompt file is the hunter template
-     plus `Axis: Logic`, Intent, and `Standards: yes|none`. Pass `--model` only when it is not a
+     plus `Axis: Logic`, Intent, and `Standards: yes|none`. Hunter templates are
+   self-contained: hunters never read the rubric, docs, or SDK/framework
+   internals — the parent's rubric read is for filtering, not hunting. Pass `--model` only when it is not a
      `cursor/` id. Timeout default 600s (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn or
      nonzero → `HUNTER_SPAWN_UNAVAILABLE`. Timeout → `HUNTER_TIMEOUT`.
      Either sentinel is a hard stop: report it and stop; do not continue to a

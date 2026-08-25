@@ -1,0 +1,2 @@
+Add a cron-friendly script that prunes old session logs past a 14-day cutoff,
+keeping small files for inspection, with a short doc page.
