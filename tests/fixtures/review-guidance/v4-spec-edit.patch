@@ -1,0 +1,7 @@
+diff --git a/workflow/spec.md b/workflow/spec.md
+index aabbccd..1122334 100644
+--- a/workflow/spec.md
++++ b/workflow/spec.md
+@@ -40,7 +40,7 @@ Normative rows:
+-| review | hunters isolated | parent-only dispatch |
++| review | hunters inline | parent dispatch optional |

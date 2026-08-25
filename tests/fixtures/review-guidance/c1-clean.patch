@@ -1,0 +1,10 @@
+diff --git a/scripts/lib/usage-rollup.mjs b/scripts/lib/usage-rollup.mjs
+index 1111111..3333333 100644
+--- a/scripts/lib/usage-rollup.mjs
++++ b/scripts/lib/usage-rollup.mjs
+@@ -10,7 +10,7 @@ export function formatRollup(acc: RollupAcc): string {
+   if (acc.participants === 0) return "no participants";
+-  const avg = acc.tokens / acc.participants;
++  const avg = Math.round(acc.tokens / acc.participants);
+   return `${acc.label} total (${avg} avg/participant)`;
+ }
