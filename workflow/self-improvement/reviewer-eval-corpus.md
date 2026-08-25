@@ -716,3 +716,52 @@ template bar, the lead duty, or the skill bar each re-opens ordering_accuracy
 to 0.8667 (its governed lists revert to discovery order). Limit:
 contract-level replay, not a live reviewer — a live pass on a mixed-severity
 PR remains the acceptance gate.
+
+## Run 2026-08-25 — CR-B/C close-out + live held-out campaign (autoresearch)
+
+Session close-out after the driver-death incident (T0). Queue 38/38: CR-B4
+finished by hand (tokens/review 108,934 → 18,313, −83%; the in-flight
+`--system-prompt` prelude measured as noise — pi's default prompt with
+`--tools read,grep` is only ~954 tokens — and reverted); CR-B1 nogain
+(35s unreachable: inference-bound, trivial floor 6.6s, 167-line diff 198s);
+CR-B5/C2/C3 fixture suites committed (spec_recall 1.00 on 5 subtle drifts,
+guidance 4/4 + 0 FP, severity semantics); CR-C1 restored the CR-A growth
+budget main was already violating (CR-B4 merge had run no checks) and fixed
+a real template global-bar wrap bug; CR-C4 actionable_rate 0.85 → 1.00.
+
+### Live held-out (frozen harness-v1, glm-5.3)
+
+Pre-session 5/8 → closing 7/8. The three chronic failures were
+contract-FOLLOWING gaps, not clause-presence gaps, and each flipped via a pin
+at the emission point (the session's meta-lesson, five instances: exact-shape
+requirements live in the emitting template, not the distant rubric):
+
+- verdict-shape (no-parent-logic-claim) 0/3 → 3/3 — final line, verbatim,
+  colon-tight, no decoration, nothing after;
+- BLOCK-on-concrete-failure (review-go-forbidden-empty-deciding) 0/3 → 3/3 —
+  plus the not-run rule: a deciding row that opened nothing outside the
+  pinned diff IS `not run` even when it narrates the search; bars GO and
+  GO WITH NOTES alike;
+- routing-by-act-nature (hunter-read-only) routed 15/15 post-pin vs 0/18
+  pre — scaffold AGENTS.md line is the lever; skill descriptions do not
+  route (desc-only round: 0/3, 0 spawns) and the pi_core description budget
+  (767 B total) is exactly saturated.
+
+Residual, documented: French `Verdict :` spacing wobble strikes ~1 random
+cell per run (single-instance variance — deliberately NOT further pinned,
+overfit risk); `ready-implement` ~50/50 because its oracle pins a comment
+placement the prompt/plan never state (fixing the frozen fixture would be
+benchmark tampering); ambient-only routing ~2/3 vs 3/3 for
+contract-referencing prompts. The closing 7/8 rests on one full run
+(par-task A/Bs have 3 reps each); a confirmation run was started and
+intentionally aborted at session close.
+
+### Durable guards added this session
+
+`tests/review-contract-surface-smoke.sh` in the core merge gate: content-only
+union budget (formatter-churn immune), 16 duty anchors, self-validating
+matcher probes (catches its own OR-join corruption class), recorded lead
+budget; `tests/worker-recovery-smoke.sh` covers the driver's dirty-tree
+salvage (`scripts/worker-recovery`) that closes the T0 queue-halt class.
+Session benches (.auto/) are wrap-tolerant via shared ingestion flatten and
+carry the content-only growth budget.
