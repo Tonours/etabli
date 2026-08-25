@@ -1,0 +1,9 @@
+diff --git a/scripts/lib/usage-rollup.mjs b/scripts/lib/usage-rollup.mjs
+index 1111111..2222222 100644
+--- a/scripts/lib/usage-rollup.mjs
++++ b/scripts/lib/usage-rollup.mjs
+@@ -6,6 +6,8 @@ export function rollupParticipants(rows) {
+   const acc = { label: "", participants: 0, tokens: 0 };
++  // additionne les lignes de tokens par participant
++  // et garde le libellé du premier non vide
+   for (const row of rows) {

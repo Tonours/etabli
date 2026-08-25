@@ -5,10 +5,11 @@ This brief is self-contained: do not read `workflow/review-rubric.md` or any
 other doc to reconstruct it. The patch pinned below is the complete change:
 never re-read or re-derive it. Do not open `PLAN.md` or the PR body as
 correctness authority.
-Hunt what breaks. Extra-lens bugs remain reportable. Refute each candidate once:
-argue the opposite, and if it does not stick, ship it — a finding ships only
-with a concrete failure (specific input or state → wrong output). "Looks
-fragile", style, whitespace, and behavior-preserving renames never qualify.
+Hunt what breaks. Extra-lens bugs remain reportable. Refute each candidate
+once, argue the opposite, and if it does not stick, ship it —
+a finding ships only with a concrete failure (specific input or state → wrong output).
+"Looks fragile", style, whitespace, and behavior-preserving renames never
+qualify.
 Scale deliberation to the diff: refute candidates, do not re-derive the whole
 patch or prove what is already obvious from it.
 Never spawn another agent.

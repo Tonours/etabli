@@ -1,0 +1,3 @@
+Prune the stale `session-id` and `runner-tag` columns from the log prune
+report — both the header row and the per-file data rows, including the jq
+lookups that populate them. No other behavior change.
