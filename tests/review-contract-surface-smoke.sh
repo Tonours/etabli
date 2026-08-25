@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# review-contract-surface-smoke — durable CR-A discipline for the review
+# contract surface (rubric + hunter templates).
+#
+# The .auto guard benches are session-scoped; this smoke makes the two
+# invariants they protect durable at repo level (wired into
+# verify-agentic-infra core — the autoresearch driver's merge gate):
+#
+#  1. Byte budget: the union of the three surface files stays <= CAP.
+#     The CR-B4 terse-template merge (2026-08-25) silently pushed the union
+#     past the CR-A +15% cap because no durable check ran at merge time.
+#     Growing the surface past CAP requires updating the recorded number
+#     here — a recorded decision, not an accident.
+#  2. Duty anchors: the clauses the CR-A/CR-C guards certified (concrete-
+#     failure bar, severity sort with invalidity, seven-field findings,
+#     deciding-code omission bar, mandatory lens rows, not-run-blocks-GO,
+#     n/a artifact bar) are still present. Anchors match the pattern words
+#     in order, separated by bounded non-sentence gaps (<= 120 non-period
+#     chars) over newline-flattened text — tolerant of rewraps, backticks,
+#     and connector words; only removal or reordering fails.
+
+ROOT_DIR="${SURFACE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)}"
+RUBRIC="$ROOT_DIR/workflow/review-rubric.md"
+LOGIC="$ROOT_DIR/workflow/templates/review-logic-hunter.md"
+SPEC="$ROOT_DIR/workflow/templates/review-spec-hunter.md"
+
+# Recorded budget: measured at commit time (2026-08-25, post CR-C1/CR-C4):
+# 12,385 B, with a small working margin. The CR-B4 leak class was +1,161 B
+# past the CR-A cap; growth beyond this margin requires updating the
+# recorded CAP — a recorded decision, not an accident.
+CAP=12800
+
+fail() { printf 'review contract surface: %s\n' "$1" >&2; exit 1; }
+
+for f in "$RUBRIC" "$LOGIC" "$SPEC"; do
+  [ -s "$f" ] || fail "missing surface file $f"
+done
+
+union=$(( $(wc -c < "$RUBRIC") + $(wc -c < "$LOGIC") + $(wc -c < "$SPEC") ))
+[ "$union" -le "$CAP" ] ||
+  fail "union ${union}B exceeds recorded budget ${CAP}B — grow the surface deliberately (update the recorded CAP with a corpus entry), not silently"
+
+# Gap-tolerant matcher: the pattern words must appear in order, separated
+# by bounded non-sentence gaps (<= 120 non-period chars) over
+# newline-flattened text.
+anchor() { # <file> <pattern-words...>
+  local file="$1"; shift
+  local re
+  re="$(printf '%s' "$*" | sed -e 's/[.[\*^$()+?{|]/\\&/g' -e 's/ /[^.]{0,120}/g')"
+  tr '\n' ' ' < "$file" | grep -Eiq "$re"
+}
+
+# 1. Concrete-failure bar (nit bar; CR-A2/CR-A6 anchor).
+anchor "$LOGIC" "a finding ships only with a concrete failure" ||
+  fail "logic template lost the concrete-failure global bar"
+anchor "$RUBRIC" "a finding ships only with a concrete failure" ||
+  fail "rubric lost the concrete-failure global bar"
+
+# 2. Severity sort + invalidity (CR-A7 anchor; accepts both historic
+#    phrasings "Sorted by severity — high, then…" and "Findings sorted
+#    high, then… (unsorted is invalid)").
+anchor "$LOGIC" "sorted" "high" "medium" "low" "invalid" ||
+  fail "logic template lost the severity-sort bar"
+anchor "$SPEC" "sorted" "high" "medium" "low" "invalid" ||
+  fail "spec template lost the severity-sort bar"
+
+# 3. Seven-field findings discipline (CR-C4 anchor).
+anchor "$LOGIC" "one line per field" "seven fields" ||
+  fail "logic template lost the seven-field findings line"
+
+# 4. Deciding-code omission bar (CR-B2 anchor, whole-template property).
+anchor "$LOGIC" "empty deciding-code table" ||
+  fail "logic template lost the empty-table omission bar"
+
+# 5. Mandatory lens rows (CR-A1 anchor) and not-run-blocks-GO (CR-A4).
+anchor "$RUBRIC" "Every row mandatory" ||
+  fail "rubric lost the mandatory lens-row clause"
+anchor "$RUBRIC" "not run" "blocks" "Verdict: GO" ||
+  fail "rubric lost the not-run-blocks-GO gate"
+
+# 6. Whole-diff n/a artifact bar (CR-B2/A3 anchor).
+anchor "$RUBRIC" "whole-diff" "n/a" "document" "rename" ||
+  fail "rubric lost the n/a artifact bar"
+anchor "$LOGIC" "n/a" "document" "rename" ||
+  fail "logic template lost the n/a artifact bar"
+
+printf 'review contract surface: union %dB/%dB, anchors 10/10\n' "$union" "$CAP"
