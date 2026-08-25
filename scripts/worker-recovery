@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# worker-recovery — salvage a dirty tree left by a killed/failed autoresearch
+# worker instead of halting the driver queue (T0 incident class, 2026-08-25:
+# CR-B4 killed at wall timeout left tracked modifications; the driver's
+# `git checkout main` failed and the whole queue stopped before CR-B5).
+#
+# Usage: worker-recovery <topic-id> [reason]
+#
+# Behavior:
+#   - clean tree                -> no-op, exit 0, prints "clean"
+#   - dirty tree                -> creates autoresearch/recovery/<topic>-<ts>
+#                                  from the current HEAD, commits ALL
+#                                  non-ignored changes (tracked + untracked),
+#                                  checks out main, exit 0, prints the branch
+#   - merge/rebase in progress  -> exit 3, no action (driver halts as before)
+#   - checkout main still fails -> exit 4, salvage branch kept
+#
+# Gitignored files (.auto session state) are never committed. The salvage
+# branch preserves the in-flight experiment for later measurement instead of
+# destroying it (the old retry path ran `git checkout -- . && git clean -fd`).
+
+# WORKER_RECOVERY_ROOT overrides the repository root (default: the parent
+# of this script's directory). The autoresearch driver uses the default;
+# tests and external callers can point it at any git work tree.
+REPO_ROOT="${WORKER_RECOVERY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+cd "$REPO_ROOT"
+
+TOPIC="${1:-unknown}"
+REASON="${2:-salvaged by driver}"
+
+if [ -f .git/MERGE_HEAD ] || [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+  echo "worker-recovery: merge/rebase in progress — refusing to salvage" >&2
+  exit 3
+fi
+
+if [ -z "$(git status --porcelain)" ]; then
+  echo "clean"
+  exit 0
+fi
+
+BRANCH="autoresearch/recovery/${TOPIC}-$(date -u +%Y%m%d%H%M%S)"
+if ! git checkout -q -b "$BRANCH" 2>>/dev/null; then
+  echo "worker-recovery: cannot create $BRANCH" >&2
+  exit 4
+fi
+git add -A
+if ! git commit -q -m "recovery: ${TOPIC} in-flight work (${REASON})"; then
+  echo "worker-recovery: commit failed on $BRANCH" >&2
+  exit 4
+fi
+if ! git checkout -q main; then
+  echo "worker-recovery: salvage committed to $BRANCH but checkout main failed" >&2
+  exit 4
+fi
+if [ -n "$(git status --porcelain)" ]; then
+  echo "worker-recovery: tree still dirty after recovery on $BRANCH" >&2
+  exit 4
+fi
+echo "$BRANCH"
+exit 0

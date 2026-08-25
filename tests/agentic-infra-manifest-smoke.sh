@@ -59,14 +59,18 @@ dual-runtime-guard-matrix-smoke
 no-progress-mutate-deny-smoke
 supply-chain-smoke
 skill-lock
-review-contract-surface-smoke'
+review-contract-surface-smoke
+worker-recovery-smoke'
 # Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
 # review-contract-surface-smoke (<50 ms) — the merge gate that must catch
 # contract-surface regressions like the CR-B4 union-cap leak.
+# Core budget: 18 checks. Bumped from 17 (2026-08-25) to add
+# worker-recovery-smoke (~1s, hermetic) — the dirty-tree salvage contract
+# behind the autoresearch driver's queue-liveness guarantee.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 17 ] ||
-	fail "core profile exceeds 17 checks"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 18 ] ||
+	fail "core profile exceeds 18 checks"
 
 expected_full='pr-latest-head-status-smoke
 leap-harness-validation-smoke
