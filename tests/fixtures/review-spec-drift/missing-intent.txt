@@ -1,0 +1,3 @@
+Add a ledger rollup helper that sums per-participant token rows into one
+ledger row, add its unit test, and wire the rollup into the stats command
+output.

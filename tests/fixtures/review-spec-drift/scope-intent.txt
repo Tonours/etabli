@@ -1,0 +1,3 @@
+Update the rollup label format only in scripts/lib/usage-rollup.mjs:
+switch the avg suffix from "avg/participant" to "avg/row". Single-file change,
+no behavior change elsewhere.

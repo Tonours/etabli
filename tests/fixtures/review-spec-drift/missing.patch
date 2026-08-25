@@ -1,0 +1,28 @@
+diff --git a/scripts/lib/usage-rollup.mjs b/scripts/lib/usage-rollup.mjs
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/scripts/lib/usage-rollup.mjs
+@@ -0,0 +1,18 @@
++export function rollupParticipants(rows) {
++  const acc = { label: "", participants: 0, tokens: 0 };
++  for (const row of rows) {
++    acc.participants += 1;
++    acc.tokens += row.totalTokens;
++  }
++  return acc;
++}
++
++export function formatRollup(acc) {
++  if (acc.participants === 0) return "no participants";
++  const avg = Math.round(acc.tokens / acc.participants);
++  return `${acc.label} total (${avg} avg/participant)`;
++}
++
++export function mergeRollups(a, b) {
++  return {
++    label: a.label || b.label,
++    participants: a.participants + b.participants,
++    tokens: a.tokens + b.tokens,
++  };
++}
