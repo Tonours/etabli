@@ -337,7 +337,7 @@ assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'at l
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'stop before an external cap'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'not an experimental coverage runner over a live HTTP'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'After two red serve-or-coverage attempts'
-assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'isStandaloneVerifyRequest'
+assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'WORK_EMBEDDED_VERIFY_PATTERN'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'IMPLEMENT_NEGATION_PATTERN'
 assert_contains "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs" 'PREPARE_FOR_REVIEW_PATTERN'
 assert_contains "$ROOT_DIR/tests/router-evals/core.json" 'organic investigation is not stolen'

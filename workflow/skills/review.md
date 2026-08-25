@@ -12,6 +12,11 @@ Review changes for correctness, regressions, risks, validation gaps, convention
 or pattern drift, and plan drift. Use `workflow/review-rubric.md` as the source
 of truth when available.
 
+Routing: any uncommitted change, branch diff, or commit pinned for
+examination — whatever words the request uses (inspect, check, look at,
+review) — IS a review: resolve the target, dispatch hunters, end with a
+Verdict line. Free-form commentary without the contract is the failure mode.
+
 ## Hunt and filter
 
 Parent pins the patch and Intent, then dispatches hunters. Lead filters.

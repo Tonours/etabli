@@ -11,6 +11,10 @@
 
 ## Workflow
 - Ambient activation; use the smallest evidence-backed route.
+- Requests to inspect, examine, or look at uncommitted changes, a branch
+  diff, or a commit are reviews: route through `workflow/skills/review.md`
+  — dispatch an isolated Logic hunter (same-session self-review of Logic is
+  forbidden), tables, Verdict line; never free-form commentary.
 - Implement only from READY `PLAN.md`; archive validated plans in `docs/plan/`.
 - Preserve unrelated changes and report exact checks.
 - Instruction files stay maps, not manuals.
