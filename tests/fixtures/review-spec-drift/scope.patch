@@ -1,0 +1,19 @@
+diff --git a/scripts/lib/usage-rollup.mjs b/scripts/lib/usage-rollup.mjs
+index 1111111..6666666 100644
+--- a/scripts/lib/usage-rollup.mjs
++++ b/scripts/lib/usage-rollup.mjs
+@@ -12,7 +12,7 @@ export function formatRollup(acc) {
+   if (acc.participants === 0) return "no participants";
+   const avg = Math.round(acc.tokens / acc.participants);
+-  return `${acc.label} total (${avg} avg/participant)`;
++  return `${acc.label} total (${avg} avg/row)`;
+ }
+diff --git a/pi/extensions/session-stats.ts b/pi/extensions/session-stats.ts
+index 4444444..7777777 100644
+--- a/pi/extensions/session-stats.ts
++++ b/pi/extensions/session-stats.ts
+@@ -20,6 +20,10 @@ export function describeSession(stats: TurnRow[]): string {
+   if (stats.length === 0) return "no turns yet";
+-  return stats.map((t) => `turn ${t.n}`).join(", ");
++  return stats.map((t) => `turn ${t.n} (row)`).join(", ");
+ }
