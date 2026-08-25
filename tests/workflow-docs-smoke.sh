@@ -721,7 +721,6 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '
 
 command_file_for() {
     case "$1" in
-    /plan) printf '%s\n' 'plan-create.md' ;;
     /*) printf '%s.md\n' "${1#/}" ;;
     *)
         printf 'unexpected command format: %s\n' "$1" >&2
@@ -752,7 +751,6 @@ done <<<"$workflow_claude_commands"
 while IFS= read -r command_path; do
     command_file="$(basename "$command_path")"
     case "$command_file" in
-    plan-create.md) command='/plan' ;;
     *.md) command="/${command_file%.md}" ;;
     *)
         printf 'unexpected command file: %s\n' "$command_file" >&2
