@@ -2,12 +2,13 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 FIXTURES="$ROOT_DIR/tests/fixtures/skill-eval"
 CONTRACT="$ROOT_DIR/workflow/skills/skill-evaluation.md"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-MANIFEST_SHA="$(shasum -a 256 "$FIXTURES/manifest.json" | awk '{print $1}')"
+MANIFEST_SHA="$(hash256 "$FIXTURES/manifest.json" | awk '{print $1}')"
 mkdir -p "$TMP_DIR/artifact-a" "$TMP_DIR/artifact-b"
 printf '%s\n' 'skill fixture' >"$TMP_DIR/artifact-a/SKILL.md"
 printf '%s\n' 'skill fixture' 'candidate change' >"$TMP_DIR/artifact-b/SKILL.md"

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 TOOL="$ROOT_DIR/scripts/evidence-proof"
 OWNED_ROOT="$(mktemp -d)"
 RUN_TMP="$OWNED_ROOT/run"
@@ -14,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 sha256_file() {
-  shasum -a 256 "$1" | awk '{print $1}'
+  hash256 "$1" | awk '{print $1}'
 }
 
 assert_rejected() {
@@ -100,7 +101,7 @@ rm -rf "$RUN_TMP"
 }
 
 CAPTURED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-printf '{"owned_path_removed":true,"path_sha256":"%s"}\n' "$(printf '%s' "$RUN_TMP" | shasum -a 256 | awk '{print $1}')" >"$PACK_DIR/cleanup.json"
+printf '{"owned_path_removed":true,"path_sha256":"%s"}\n' "$(printf '%s' "$RUN_TMP" | hash256 | awk '{print $1}')" >"$PACK_DIR/cleanup.json"
 CLEANUP_SHA="$(sha256_file "$PACK_DIR/cleanup.json")"
 TARGET_REF="$(git -C "$ROOT_DIR" rev-parse HEAD)"
 

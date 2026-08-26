@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 FIXTURES="$ROOT_DIR/tests/fixtures/session-handoff"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -45,7 +46,7 @@ jq -n '{
     }
   ]
 }' >"$PROJECT/.workflow/handoff-program/program.json"
-program_manifest_sha="$(shasum -a 256 "$PROJECT/.workflow/handoff-program/program.json" | awk '{print $1}')"
+program_manifest_sha="$(hash256 "$PROJECT/.workflow/handoff-program/program.json" | awk '{print $1}')"
 jq -nc --arg manifest_sha "$program_manifest_sha" '{
   schema_version: 2,
   ts: "2026-08-20T12:00:00Z",
@@ -227,9 +228,9 @@ if grep -Fiq -- 'transcript' "$TMP_DIR/handoff.json"; then
   exit 1
 fi
 
-before_hash="$(shasum -a 256 "$PROJECT/.workflow/handoff-fixture/events.jsonl" | awk '{print $1}')"
+before_hash="$(hash256 "$PROJECT/.workflow/handoff-fixture/events.jsonl" | awk '{print $1}')"
 "$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run handoff-fixture >/dev/null
-after_hash="$(shasum -a 256 "$PROJECT/.workflow/handoff-fixture/events.jsonl" | awk '{print $1}')"
+after_hash="$(hash256 "$PROJECT/.workflow/handoff-fixture/events.jsonl" | awk '{print $1}')"
 [ "$before_hash" = "$after_hash" ] || { printf 'session handoff must not mutate the ledger\n' >&2; exit 1; }
 
 if "$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run missing >/dev/null 2>&1; then

@@ -46,12 +46,15 @@ jq -e '
   }
 ' "$PACKAGE" >/dev/null || fail "Pi dependency and security override pins drifted"
 
-ruby -e '
-  require "yaml"
-  updates = YAML.load_file(ARGV.fetch(0)).fetch("updates")
-  pairs = updates.map { |entry| [entry.fetch("package-ecosystem"), entry.fetch("directory")] }
-  abort "missing github-actions Dependabot surface" unless pairs.include?(["github-actions", "/"])
-  abort "missing Pi npm Dependabot surface" unless pairs.include?(["npm", "/pi"])
-' "$DEPENDABOT" || fail "Dependabot configuration is incomplete"
+dependabot_pairs="$(awk '
+  /^updates:/ { in_updates = 1; next }
+  in_updates && /^[^ ]/ { in_updates = 0 }
+  in_updates && /package-ecosystem:/ { eco = $NF }
+  in_updates && /directory:/ && eco != "" { printf "%s %s\n", eco, $NF; eco = "" }
+' "$DEPENDABOT")"
+printf '%s\n' "$dependabot_pairs" | grep -q '^github-actions /$' ||
+  fail "missing github-actions Dependabot surface"
+printf '%s\n' "$dependabot_pairs" | grep -q '^npm /pi$' ||
+  fail "missing Pi npm Dependabot surface"
 
 printf 'supply chain smoke test: ok\n'

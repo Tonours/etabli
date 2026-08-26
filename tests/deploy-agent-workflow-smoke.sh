@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 DEPLOY_SCRIPT="$ROOT_DIR/scripts/deploy-agent-workflow"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -285,9 +286,9 @@ if (enabledModels.includes("openai-codex/gpt-5.6")) {
 }
 NODE
 
-settings_before="$(shasum -a 256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
+settings_before="$(hash256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
 "$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
-settings_after="$(shasum -a 256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
+settings_after="$(hash256 "$HOME_DIR/.pi/agent/settings.json" | awk '{print $1}')"
 if [ "$settings_before" != "$settings_after" ]; then
   printf 'second deploy changed Pi settings; sync is not idempotent\n' >&2
   exit 1
