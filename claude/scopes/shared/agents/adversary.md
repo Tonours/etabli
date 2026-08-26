@@ -2,7 +2,7 @@
 name: adversary
 description: "Adversarial cross-model pass on a diff, commit, or file set. Re-derives intent from the diff alone with no plan or ticket context, then tries to break it. Use pre-push as the second, different-model sample against the reviewer's findings. Findings only — this agent never gives the final verdict."
 model: fable
-effort: high
+effort: medium
 maxTurns: 40
 color: yellow
 permissionMode: dontAsk
