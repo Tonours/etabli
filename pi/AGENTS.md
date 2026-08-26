@@ -9,6 +9,9 @@
   `workflow/agent-quick-card.md`, then `workflow/spec.md`.
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
 - Smallest route. Current Pi profile: parent-only execution and mutation.
+- Skills are instruction folders, NOT tools. To use a skill: read its SKILL.md,
+  then run its scripts with the bash tool (e.g. cd <skill-dir> && ./search.js "query").
+  Never invent a tool named after a skill; never claim bash cannot be used.
   Read-only `pi -p --no-session` review hunters are not writer subagents.
 - One artifact: root `PLAN.md`; implement only from `Status: READY`;
   archive implemented/validated plans in `docs/plan/`; discard unrelated/

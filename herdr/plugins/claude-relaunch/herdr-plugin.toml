@@ -1,0 +1,52 @@
+id = "etabli.claude-relaunch"
+name = "Etabli Claude Relaunch"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "Detect claude sessions that hit their usage limit, auto-schedule a relaunch at reset time, and manage the pending relaunch crons"
+platforms = ["macos", "linux"]
+
+# Scan every claude agent once and print the pending relaunch report.
+[[actions]]
+id = "check"
+title = "claude relaunch: check now"
+contexts = ["workspace", "pane"]
+command = ["bash", "scripts/check.sh"]
+
+# Open the manager popup: list / delete pending relaunches, toggle the watcher.
+[[actions]]
+id = "crons"
+title = "claude relaunch: crons"
+contexts = ["workspace", "pane"]
+command = ["bash", "scripts/open-manager.sh"]
+
+# Install the background watcher (launchd on macOS, cron elsewhere).
+[[actions]]
+id = "enable"
+title = "claude relaunch: enable watcher"
+contexts = ["workspace"]
+command = ["bash", "scripts/enable.sh"]
+
+# Remove the background watcher.
+[[actions]]
+id = "disable"
+title = "claude relaunch: disable watcher"
+contexts = ["workspace"]
+command = ["bash", "scripts/disable.sh"]
+
+# The interactive manager opened by the `crons` action.
+[[panes]]
+id = "manager"
+title = "claude relaunch crons"
+placement = "popup"
+width = "70%"
+height = 20
+command = ["bash", "scripts/manager.sh"]
+
+# Near-real-time detection: probe the changed pane when an agent settles.
+[[events]]
+on = "pane.agent_status_changed"
+command = ["bash", "scripts/on-event.sh"]
+
+# Restore the watcher after herdr restarts if the user had enabled it.
+[[startup]]
+command = ["bash", "scripts/startup.sh"]
