@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 PROGRAM_STATE="$ROOT_DIR/scripts/program-state"
 WORKFLOW_EVENT="$ROOT_DIR/scripts/workflow-event"
 TMP_DIR="$(mktemp -d)"
@@ -483,11 +484,11 @@ git -C "$LIVE_ROOT" add tracked.txt
 git -C "$LIVE_ROOT" commit -qm 'test: create live fixture'
 LIVE_HEAD="$(git -C "$LIVE_ROOT" rev-parse HEAD)"
 LIVE_BRANCH="$(git -C "$LIVE_ROOT" branch --show-current)"
-LIVE_RESULT_SHA="$(shasum -a 256 "$LIVE_ROOT/artifacts/unit-a/result.txt" | awk '{print $1}')"
-LIVE_VERDICT_SHA="$(shasum -a 256 "$LIVE_ROOT/artifacts/unit-a/verdict.txt" | awk '{print $1}')"
+LIVE_RESULT_SHA="$(hash256 "$LIVE_ROOT/artifacts/unit-a/result.txt" | awk '{print $1}')"
+LIVE_VERDICT_SHA="$(hash256 "$LIVE_ROOT/artifacts/unit-a/verdict.txt" | awk '{print $1}')"
 jq -n --arg root "$LIVE_ROOT" '{schema_version:1,program_id:"live-git-program",goal:"check declared Git state",coordinator_id:"parent",artifact_root:"artifacts",authorization:{max_in_flight:1,allowed_files:["work"],allowed_tools:["exec_command"],forbidden_actions:["external_write","push","pull_request","deploy","production","billing","secrets","destructive_cleanup"],worktree_policy:"required",independent_verifier:{required:true,distinct_model_family:true}},units:[{id:"unit-a",objective:"live check",dependencies:[],allowed_files:["work/unit-a"],allowed_tools:["exec_command"],verification:{command:["verify"],evidence:"verdict"},retry_limit:0}]}' >"$LIVE_ROOT/manifest.json"
-LIVE_MANIFEST_SHA="$(shasum -a 256 "$LIVE_ROOT/manifest.json" | awk '{print $1}')"
-event_id() { printf '%s' "$1" | shasum -a 256 | awk '{print $1}'; }
+LIVE_MANIFEST_SHA="$(hash256 "$LIVE_ROOT/manifest.json" | awk '{print $1}')"
+event_id() { printf '%s' "$1" | hash256 | awk '{print $1}'; }
 jq -nc --arg id "$(event_id live-init)" --arg manifest "$LIVE_MANIFEST_SHA" '{schema_version:2,ts:"2026-01-01T00:00:00Z",event:"program_initialized",run:"live",detail:{event_id:$id,program_id:"live-git-program",manifest_sha256:$manifest,unit_id:"__program__",attempt_id:"__program__",emitter:{id:"parent",role:"coordinator"},manifest_path:"manifest.json",runtime_capability:"proxy_supported"}}' >"$LIVE_ROOT/events.jsonl"
 jq -nc --arg id "$(event_id live-start)" --arg manifest "$LIVE_MANIFEST_SHA" --arg root "$LIVE_ROOT" --arg branch "$LIVE_BRANCH" --arg head "$LIVE_HEAD" '{schema_version:2,ts:"2026-01-01T00:00:00Z",event:"program_unit_started",run:"live",detail:{event_id:$id,program_id:"live-git-program",manifest_sha256:$manifest,unit_id:"unit-a",attempt_id:"unit-a-a1",emitter:{id:"parent",role:"coordinator"},worker:{id:"worker-a",model_family:"family-a",worktree:$root,branch:$branch,head:$head},files:["work/unit-a"],tools:["exec_command"]}}' >>"$LIVE_ROOT/events.jsonl"
 jq -nc --arg id "$(event_id live-result)" --arg manifest "$LIVE_MANIFEST_SHA" --arg head "$LIVE_HEAD" --arg sha "$LIVE_RESULT_SHA" '{schema_version:2,ts:"2026-01-01T00:00:00Z",event:"program_unit_result",run:"live",detail:{event_id:$id,program_id:"live-git-program",manifest_sha256:$manifest,unit_id:"unit-a",attempt_id:"unit-a-a1",emitter:{id:"parent",role:"coordinator"},worker_id:"worker-a",head:$head,status:"passed",artifact:{path:"artifacts/unit-a/result.txt",sha256:$sha}}}' >>"$LIVE_ROOT/events.jsonl"
@@ -496,8 +497,8 @@ LIVE_RESULT="$("$PROGRAM_STATE" --manifest "$LIVE_ROOT/manifest.json" --events "
 jq -e '.replay_complete == true and .runtime_confirmed == false and .execution == "proxy_supported" and .live_git_checks[0].valid == true' <<<"$LIVE_RESULT" >/dev/null
 
 WRITER_ROOT="$TMP_DIR/writer"
-PROGRAM_HASH="$(printf program | shasum -a 256 | awk '{print $1}')"
-ZERO_HEAD="$(printf head | shasum -a 256 | awk '{print $1}')"
+PROGRAM_HASH="$(printf program | hash256 | awk '{print $1}')"
+ZERO_HEAD="$(printf head | hash256 | awk '{print $1}')"
 init_detail() {
   local id="$1"
   jq -nc --arg id "$id" --arg manifest "$PROGRAM_HASH" '{event_id:$id,program_id:"writer-program",manifest_sha256:$manifest,unit_id:"__program__",attempt_id:"__program__",emitter:{id:"parent",role:"coordinator"},manifest_path:"manifest.json",runtime_capability:"proxy_supported"}'
@@ -525,8 +526,8 @@ MEASURE_ROOT="$TMP_DIR/measure-program"
 mkdir -p "$MEASURE_ROOT/target-a"
 target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
 printf '%s\n' "$target_line" >"$MEASURE_ROOT/target-a/events.jsonl"
-target_ledger_sha="$(shasum -a 256 "$MEASURE_ROOT/target-a/events.jsonl" | awk '{print $1}')"
-target_terminal_sha="$(printf '%s' "$target_line" | shasum -a 256 | awk '{print $1}')"
+target_ledger_sha="$(hash256 "$MEASURE_ROOT/target-a/events.jsonl" | awk '{print $1}')"
+target_terminal_sha="$(printf '%s' "$target_line" | hash256 | awk '{print $1}')"
 measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
 manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
 population_id="terminal-runs-v1-${manifest_sha:0:16}"

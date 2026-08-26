@@ -7,6 +7,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 INSTALL_MAIN="$ROOT_DIR/scripts/lib/install-main.sh"
 
 assert_file() {
@@ -829,7 +830,7 @@ duplicate_adapters="$(
     {
         find "$ROOT_DIR/pi/skills" -maxdepth 2 -type f -name 'SKILL.md'
         find "$ROOT_DIR/claude/scopes/shared/commands" -maxdepth 1 -type f -name '*.md'
-    } | sort | xargs shasum | sort -k1,1 | awk '
+    } | sort | xargs "${HASH256_BIN[@]}" | sort -k1,1 | awk '
         previous_hash == $1 {
             if (!printed) {
                 print previous_line

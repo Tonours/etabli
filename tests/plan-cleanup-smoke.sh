@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 CLEANUP="$ROOT_DIR/scripts/plan-cleanup"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
@@ -46,7 +47,7 @@ status_json() {
 case_archive_valid() {
   write_plan
   mkdir -p "$CASE_DIR/docs/plan"
-  hash="$(shasum -a 256 "$CASE_DIR/PLAN.md" | awk '{print $1}')"
+  hash="$(hash256 "$CASE_DIR/PLAN.md" | awk '{print $1}')"
   cat >"$CASE_DIR/docs/plan/implemented.md" <<EOF
 # Implemented: bounded implementation
 
