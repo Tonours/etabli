@@ -162,6 +162,12 @@ command = "nicosuave.memex.toggle"
 description = "memex transcripts"
 
 [[keys.command]]
+key = "prefix+alt+c"
+type = "plugin_action"
+command = "etabli.claude-relaunch.crons"
+description = "claude relaunch crons"
+
+[[keys.command]]
 key = "prefix+alt+o"
 type = "plugin_action"
 command = "etabli.obvault.obvault-session"
