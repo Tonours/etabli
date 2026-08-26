@@ -6,10 +6,18 @@
           "id": "stealth/ox-alpha",
           "name": "Ox Alpha (Stealth)",
           "reasoning": true,
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 1048576,
           "maxTokens": 131072,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
           "compat": {
             "thinkingFormat": "openrouter"
           }
@@ -29,7 +37,9 @@
             "high": "high",
             "xhigh": "max"
           },
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "contextWindow": 1000000,
           "maxTokens": 131072,
           "compat": {
@@ -61,7 +71,10 @@
             "xhigh": null,
             "max": "max"
           },
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 1048576,
           "maxTokens": 131072
         }
@@ -73,12 +86,82 @@
       "apiKey": "local",
       "models": [
         {
-          "id": "/Volumes/Crucial/models/mlx/gemma-4-12B-it-4bit",
-          "name": "Gemma 4 12B IT (MLX 4-bit)",
-          "input": ["text"],
-          "contextWindow": 8192,
-          "maxTokens": 4096,
-          "reasoning": false
+          "id": "LFM2.5-8B-A1B-MLX-4bit",
+          "name": "LFM2.5 8B A1B (local oMLX, MoE 1.5B actifs)",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 65536,
+          "maxTokens": 8192,
+          "reasoning": true
+        },
+        {
+          "id": "Ornith-1.5-9B-oQ4e-mtp",
+          "name": "Ornith 1.5 9B (local oMLX, dflash+turboKV)",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 65536,
+          "maxTokens": 8192,
+          "reasoning": true
+        },
+        {
+          "id": "gemma-4-E4B-it-oQ4-mtp",
+          "name": "Gemma 4 E4B IT oQ4 MTP (MLX)",
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 8192,
+          "reasoning": true
+        },
+        {
+          "id": "gemma-4-E4B-it-oQ4-mtp-txt",
+          "name": "Gemma 4 E4B IT oQ4 MTP text (MLX)",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 8192,
+          "reasoning": true
+        },
+        {
+          "id": "gemma-4-E2B-it-oQ4-mtp-txt",
+          "name": "Gemma 4 E2B IT oQ4 MTP text (MLX)",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 8192,
+          "reasoning": true
+        },
+        {
+          "id": "Qwen3.5-4B-MLX-4bit-txt",
+          "name": "Qwen3.5 4B MLX 4-bit (authentique)",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 65536,
+          "maxTokens": 8192,
+          "reasoning": false,
+          "samplingParams": {
+            "temperature": 0.2,
+            "repetition_penalty": 1.05
+          }
+        },
+        {
+          "id": "Qwen3.5-9B-oQ4e-mtp",
+          "name": "Qwen3.5 9B oQ4e MTP (mlx-works)",
+          "input": [
+            "text"
+          ],
+          "contextWindow": 65536,
+          "maxTokens": 8192,
+          "reasoning": false,
+          "samplingParams": {
+            "temperature": 0.0
+          }
         }
       ]
     }
