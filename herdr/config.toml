@@ -130,6 +130,24 @@ description = "gh pr/ci status"
 width = "80%"
 height = "70%"
 
+# PR id/url -> git worktree on that PR + claude session (gist: nbouliol/7281722)
+# alt+r is taken by reviewr; /code-review-inline does not exist here -> /pr-review
+[[keys.command]]
+key = "prefix+alt+w"
+type = "popup"
+command = "$HOME/work/etabli/herdr/scripts/review-pr.sh '/pr-review {pr}'"
+description = "review PR in worktree"
+width = "60%"
+height = "30%"
+
+[[keys.command]]
+key = "prefix+alt+q"
+type = "popup"
+command = "$HOME/work/etabli/herdr/scripts/review-pr.sh '/pr-qa {pr}'"
+description = "QA plan for PR in worktree"
+width = "60%"
+height = "30%"
+
 # ── Plugin actions (community + etabli) ───────────────────────────────────
 [[keys.command]]
 key = "prefix+f"
