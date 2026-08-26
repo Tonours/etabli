@@ -1,11 +1,3 @@
 {
-  "mcpServers": {
-    "brain": {
-      "command": "node",
-      "args": ["${HOME}/work/brain/_meta/mcp/server.mjs"],
-      "env": {
-        "OBVAULT_ROOT": "${HOME}/work/brain"
-      }
-    }
-  }
+  "mcpServers": {}
 }
