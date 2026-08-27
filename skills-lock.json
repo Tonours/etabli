@@ -231,6 +231,11 @@
       "sourceType": "repo",
       "computedHash": "1fbbf746c5ee88f035aa967a4630791af9d017fe24dd51bb6a5e3b12e878aed6"
     },
+    "grill-me": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ec3e1834844527e8c6b07ba1013208576f3cead9ddd2939e50d3a17919a0a08c"
+    },
     "runtime-skill-canary": {
       "source": "local",
       "sourceType": "repo",
