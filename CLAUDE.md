@@ -30,4 +30,5 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0016](docs/adr/0016-record-work-mcp-inventory-per-runtime.md) — Record the work MCP inventory per runtime [accepted]
 - [0017](docs/adr/0017-serve-the-work-knowledge-vault-through-a-standalone-brain-mcp.md) — Serve the work knowledge vault through a standalone brain MCP [accepted]
 - [0018](docs/adr/0018-unify-agent-surface-convergence-behind-deploy-agent-workflow.md) — Unify agent-surface convergence behind deploy-agent-workflow [accepted]
+- [0019](docs/adr/0019-measure-ambient-tooling-before-cutting-review-passes.md) — Measure ambient tooling before cutting review passes [accepted]
 <!-- ADR:INDEX:END -->
