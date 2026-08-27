@@ -83,7 +83,7 @@ detail_valid() {
 
   [ "$schema_version" = "2" ] && strict=true
   printf '%s\n' "$detail" |
-    jq -e --arg event "$event" --argjson strict "$strict" -f "$DETAIL_SCHEMA" >/dev/null 2>&1
+    jq -e --arg mode single --arg event "$event" --argjson strict "$strict" -f "$DETAIL_SCHEMA" >/dev/null 2>&1
 }
 die_usage() {
   usage >&2
