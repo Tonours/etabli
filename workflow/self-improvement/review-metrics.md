@@ -37,31 +37,33 @@ eval cases still land in `workflow/self-improvement/reviewer-eval-corpus.md`.
 | verdict | GO / GO WITH NOTES / BLOCK |
 | deciding_code | complete / incomplete / n/a |
 | reviewer_model | model id or `fresh-subagent` |
-| adversary_model | model id or `same-family-pass: double-sample` or `blocked` |
+| adversary_model | model id, or `same-family-pass: double-sample`, or `same-family-pass: plan-only` when the small tier skipped the code-diff pass, or `blocked` |
 | escaped_later | 0 / n (filled when Macroscope, colleague, CI, or prod finds a miss) |
+| adversary_unique | y / n / n/a — did the second sample (or cross-model pass) yield at least one finding the first sample missed |
 | buckets | comma-separated buckets from escaped-defect records, or `-` |
 
 ## Log (etabli harness only)
 
-| date | pr | verdict | deciding_code | reviewer_model | adversary_model | escaped_later | buckets |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-08-24 | etabli@b7a0112 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@c8e939d | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@bc2465a | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@600b361 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@5d5e3a7 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@51bb7f8 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@427666e | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@0fc33bc | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@1c1897a | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@03fe4d1 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@6a59829 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@cc041e3 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@84b1ad5 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@21eb509 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@1a9ec62 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@910b7b4 | GO | n/a | unrecorded | unrecorded | 0 | - |
-| 2026-08-24 | etabli@31f6d95 | GO | n/a | unrecorded | unrecorded | 0 | - |
+| date | pr | verdict | deciding_code | reviewer_model | adversary_model | escaped_later | adversary_unique | buckets |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-24 | etabli@b7a0112 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@c8e939d | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@bc2465a | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@600b361 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@5d5e3a7 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@51bb7f8 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@427666e | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@0fc33bc | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@1c1897a | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@03fe4d1 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@6a59829 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@cc041e3 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@84b1ad5 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@21eb509 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@1a9ec62 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@910b7b4 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-24 | etabli@31f6d95 | GO | n/a | unrecorded | unrecorded | 0 | n/a | - |
+| 2026-08-26 | etabli@main-adr0019 | GO WITH NOTES | complete | fresh-subagent (fable) | same-family-pass: plan-only | 0 | y | - |
 
 ### Backfill provenance (2026-08-24, CR-A3)
 
@@ -86,3 +88,8 @@ an unmeasured loop, not a clean one.
 - Escapes with `deciding_code=incomplete` → gate was skipped; fix the harness
   wiring, not the prompt.
 - Escapes after `adversary_model=blocked` or missing → independence gap.
+- `adversary_unique=n` across a run of double-sample rows → the second
+  same-family sample is not paying for itself; that is the evidence needed to
+  propose relaxing the double-sample requirement in
+  `workflow/skills/adversary.md`. Absent this column, the requirement can only
+  be argued from opinion. Do not cut the pass on a single `n`.
