@@ -250,6 +250,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "258c662730a2898dd42ae5dd1cdb80de373d37bc43167c6035c2241a56d299d3"
+    },
+    "project-hunt": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "2e6695d6c7207c52608cdfde2878c79e0f0f5f742d6a1081dd7be29ce8ca5e25"
     }
   }
 }

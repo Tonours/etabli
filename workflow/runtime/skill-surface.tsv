@@ -19,6 +19,7 @@ github-pr-review	pi	0	0	1
 suite-router	pi	0	0	0
 caveman	pi	0	0	0
 grill-me	pi	1	1	1
+project-hunt	pi	1	1	1
 browser-full-page-capture	pi	0	0	1
 frontend-motion-performance	pi	0	0	1
 frontend-css-ui-ux	pi	0	0	1

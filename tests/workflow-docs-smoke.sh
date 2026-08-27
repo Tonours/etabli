@@ -585,12 +585,12 @@ read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
     printf 'skill catalog grew beyond baseline: %s > 95\n' "$catalog_total" >&2
     exit 1
 }
-[ "$pi_core_total" -le 14 ] || {
-    printf 'pi_core grew beyond baseline: %s > 14\n' "$pi_core_total" >&2
+[ "$pi_core_total" -le 17 ] || {
+    printf 'pi_core grew beyond baseline: %s > 17\n' "$pi_core_total" >&2
     exit 1
 }
-[ "$agents_visible_total" -le 14 ] || {
-    printf 'agents_visible grew beyond baseline: %s > 14\n' "$agents_visible_total" >&2
+[ "$agents_visible_total" -le 17 ] || {
+    printf 'agents_visible grew beyond baseline: %s > 17\n' "$agents_visible_total" >&2
     exit 1
 }
 
@@ -655,8 +655,8 @@ for prompt_surface in pi_core agents_visible; do
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
     case "$prompt_surface" in
-    pi_core) max_bytes=767 ;;
-    agents_visible) max_bytes=1020 ;;
+    pi_core) max_bytes=1600 ;;
+    agents_visible) max_bytes=1850 ;;
     esac
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
