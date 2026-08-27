@@ -226,6 +226,11 @@
       "sourceType": "repo",
       "computedHash": "256e98d4e63bb998c34f09351397dcda2f6911a5bbf098caf8015997746961b3"
     },
+    "coolify": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "1fbbf746c5ee88f035aa967a4630791af9d017fe24dd51bb6a5e3b12e878aed6"
+    },
     "runtime-skill-canary": {
       "source": "local",
       "sourceType": "repo",
