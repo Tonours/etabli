@@ -35,6 +35,11 @@ Commands, skills, agents and scripts live under `claude/scopes/<scope>/`:
 | `work` | Employer-specific surfaces (employer stack, its repos, its conventions) | Only where the machine declares it |
 | `personal` | Private-project surfaces | Only where the machine declares it |
 
+A `shared` surface can still be withheld from one scope when something else on
+that machine owns its name: `SCOPE_SHADOWED_SKILLS` in
+`scripts/lib/install-main.sh` holds `<scope>:<skill>` pairs, currently
+`work:adr`.
+
 A machine declares one scope in `~/.etabli-scope`, containing exactly `work` or
 `personal`. `ETABLI_SCOPE` overrides it for one run. No file and no variable
 means `shared` alone, which is the safe default: a new machine never receives
@@ -139,6 +144,16 @@ the working diff, applies a three-condition test (hard to reverse, surprising
 without context, real trade-off), proposes a draft for approval, then writes an
 immutable `docs/adr/NNNN-slug.md` and updates a `CLAUDE.md` index. It never
 writes without explicit confirmation. See `skills/adr/ADR-FORMAT.md`.
+
+It is **not deployed on a `work` machine**: there `/adr` comes from the
+`employer@employer` plugin (`employer/claudine`), which owns the same name.
+`SCOPE_SHADOWED_SKILLS` in `scripts/lib/install-main.sh` lists that exclusion —
+a shared skill named there is skipped for the listed scope and its installed
+link removed. The two skills are not interchangeable: this one writes
+`docs/adr/NNNN-slug.md`, the plugin's writes `docs/adr/YYYY-MM-DD-slug.md`. So a
+`/adr` run inside this repo on a work machine produces a date id that its own
+`scripts/validate-adrs` rejects; record etabli ADRs from a `personal` machine,
+or write the file by hand in the numbered form.
 
 Linear commands use Linear MCP. PR review, QA, security PR audit, and CI fix use
 the `gh` CLI, not the GitHub MCP/app connector, unless explicitly overridden.

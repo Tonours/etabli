@@ -84,6 +84,24 @@ remove_exact_managed_link() {
     done
 }
 
+# Skills a scope deliberately does not deploy because something else owns the name
+# on that machine. Format: <scope>:<skill>, space separated.
+SCOPE_SHADOWED_SKILLS="work:adr"
+
+skill_is_shadowed() {
+    local skill_name="$1" active_scopes="$2" entry owning_scope
+
+    for entry in $SCOPE_SHADOWED_SKILLS; do
+        owning_scope="${entry%%:*}"
+        [ "${entry#*:}" = "$skill_name" ] || continue
+        case " $active_scopes " in
+        *" $owning_scope "*) return 0 ;;
+        esac
+    done
+
+    return 1
+}
+
 managed_skill_roots() {
     local repo_dir="$1"
     local candidate resolved
@@ -1066,6 +1084,36 @@ if (settings.defaultProvider !== "custom" || settings.defaultModel !== "personal
 }
 NODE
 
+    if ! skill_is_shadowed adr "shared work"; then
+        print_error "adr must be shadowed while scope work is active"
+        exit 1
+    fi
+    if skill_is_shadowed adr "shared personal"; then
+        print_error "adr must deploy when scope work is not active"
+        exit 1
+    fi
+    if skill_is_shadowed adr "shared"; then
+        print_error "adr must deploy on a shared-only machine"
+        exit 1
+    fi
+    if skill_is_shadowed conventions "shared work"; then
+        print_error "only listed skills are shadowed"
+        exit 1
+    fi
+
+    smoke_shadow_home="$tmp_dir/shadow-home"
+    smoke_shadow_target="$smoke_repo_dir/claude/scopes/shared/skills/adr"
+    mkdir -p "$smoke_shadow_home/.claude/skills"
+    ln -sfn "$smoke_shadow_target" "$smoke_shadow_home/.claude/skills/adr"
+    remove_exact_managed_link \
+        "$smoke_shadow_home/.claude/skills/adr" \
+        "shadowed Claude skill 'adr'" \
+        "$smoke_shadow_target" >/dev/null
+    if [ -L "$smoke_shadow_home/.claude/skills/adr" ]; then
+        print_error "a shadowed skill's installed link was not removed"
+        exit 1
+    fi
+
     printf 'install helper smoke test: ok\n'
     exit 0
 fi
@@ -1688,6 +1736,14 @@ prune_stale_managed_claude_agent_links "$REPO_DIR" "$HOME"
 for scope in $ETABLI_ACTIVE_SCOPES; do
     for skill_dir in $(find "$REPO_DIR/claude/scopes/$scope/skills" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) 2>/dev/null | sort); do
         skill_name=$(basename "$skill_dir")
+        if skill_is_shadowed "$skill_name" "$ETABLI_ACTIVE_SCOPES"; then
+            remove_exact_managed_link \
+                "$HOME/.claude/skills/$skill_name" \
+                "shadowed Claude skill '$skill_name'" \
+                "$skill_dir"
+            print_step "Skipping Claude skill '$skill_name' (shadowed on this scope)"
+            continue
+        fi
         ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
         print_success "Claude skill '$skill_name' linked"
     done
