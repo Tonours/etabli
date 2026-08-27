@@ -27,7 +27,9 @@
         "pr-review",
         "pr-qa",
         "sec-pr",
-        "ci-fix"
+        "ci-fix",
+        "coolify",
+        "grill-me"
       ]
     },
     {
