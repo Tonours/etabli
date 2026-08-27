@@ -421,7 +421,7 @@ def legacy_detail($event):
 
 #
 # ---------------------------------------------------------------------------
-# Batch/ledger mode (--arg mode=batch): the whole-ledger structural check for
+# Batch/ledger mode: the whole-ledger structural check for
 # scripts/workflow-event validate. One jq invocation replaces the previous
 # per-line spawn loop (~7 jq per line) plus the measurement-uniqueness pass
 # plus the profile checks. Input is the RAW ledger text (jq -Rs); output is
@@ -436,8 +436,12 @@ def legacy_detail($event):
 # Per-line check order and message texts match the historic bash loop exactly:
 # invalid json, invalid timestamp, timestamp moved backwards, unknown event
 # type, unsupported schema_version, event follows terminal, run mismatch,
-# invalid detail. Single-detail mode (--arg mode=single) keeps the historic
-# one-detail contract used by detail_valid().
+# invalid detail. Single-detail mode keeps the historic one-detail contract
+# used by detail_valid(). The tail dispatch reads mode and every mode argument
+# through $ARGS.named with per-mode defaults, so each caller passes only the
+# args it needs and the other mode's variables still resolve at compile time:
+#   batch  --arg mode batch --arg slug S --arg profile P --argjson allowed A
+#   single --arg mode single --arg event E --argjson strict true|false
 # ---------------------------------------------------------------------------
 def ts_iso: type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$");
 
@@ -559,8 +563,8 @@ def batch_ledger($slug; $profile; $list):
   | (([$values[] | select(.schema_version == 2 and .event == "route_decided" and .detail.route == "plan-implement")] | length) > 0) as $has_v2
   | "\(if $err == null then "OK" else "ERR" end)\n\($err // "-")\n\($st.term)\n\(if $hasm then 1 else 0 end)\n\($st.legacy)\n\($count)\n\($st.term_line)\n\(if $has_v2 then 1 else 0 end)";
 
-if $mode == "batch" then
-  batch_ledger($slug; $profile; $allowed)
+if ($ARGS.named.mode // "single") == "batch" then
+  batch_ledger($ARGS.named.slug // ""; $ARGS.named.profile // "structural"; $ARGS.named.allowed // [])
 else
-  if $strict then strict_detail($event) else legacy_detail($event) end
+  if ($ARGS.named.strict // false) then strict_detail($ARGS.named.event // "") else legacy_detail($ARGS.named.event // "") end
 end
