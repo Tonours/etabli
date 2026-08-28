@@ -255,6 +255,46 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "2e6695d6c7207c52608cdfde2878c79e0f0f5f742d6a1081dd7be29ce8ca5e25"
+    },
+    "how": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d11aeff842c72d80f03e09315c1e143fd9dee6d50b5883f02911086a04b2a51f"
+    },
+    "why": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "23c895a171c8be3a32d2e353a9e187d347240a375f61fa65014d4049d5437730"
+    },
+    "architect": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9a7bf5892c9211b1f7d996d5a3462d1d188be10d91f69c30cdad8081fda2dcc1"
+    },
+    "blast-radius": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "29c76d37a04163f5005cec955e4cdd0311783322d0c6bf478577955b6fefea40"
+    },
+    "tdd": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "33a8e530ff47e54b647966bc5d3e615352a0c7cb95220003313769fcfeda11ea"
+    },
+    "interrogate": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "37d22857bc0825ae6367920c263a0cc1a69d971e44a64e402ba07a5f4e220257"
+    },
+    "create-verification-skill": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a2e50d21892772174225073b3e4864f853883ae2bc13b33eca64c3b67fe06be5"
+    },
+    "maintain-verification-skill": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "283083c9547641392a58c38edeb147e75aa99912e7fba55edaa7b1a02021ffec"
     }
   }
 }
