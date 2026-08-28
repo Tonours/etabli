@@ -405,6 +405,16 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "527fa064a616d4aecb1b952624daae24c6229cbf9c28404233c1678f2488ce22"
+    },
+    "thermo-nuclear-code-quality-review": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
+    },
+    "unslop": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "3dfc2afeda677e12c6065497a40df7d895859de1c7d1cffb899b1559d129fe4f"
     }
   }
 }
