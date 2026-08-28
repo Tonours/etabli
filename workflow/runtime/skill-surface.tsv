@@ -1,6 +1,11 @@
 # name	source	pi_core	agents_visible	locked
 # all-zero rows (0 0 0) are the opt-in shelf: catalog-tracked but not
 # deployed to any surface; invoke manually or promote flags before deploying.
+# Provenance: rows with source pstack (Lauren Tan) or mattpocock (Matt
+# Pocock) are vendored suites — mattpocock rows are cataloged as
+# engineering/<name> but deploy by their frontmatter names (e.g.
+# `research`, `ask-matt`). Suite map and collision rules:
+# docs/vendor-skills.md.
 plan-loop	pi	1	1	1
 plan-implement	pi	1	1	1
 adversary	pi	1	1	1
