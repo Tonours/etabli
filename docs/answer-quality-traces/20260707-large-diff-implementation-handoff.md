@@ -21,9 +21,9 @@ future live-answer quality still needed more real traces.
 
 - docs/plan/20260707-cross-project-research-grounding.md:1
 - docs/cross-project-research-grounding.md:1
-- /Volumes/Crucial/work/obvault/kb/etabli-obvault-project-grounding.md:1
-- /Volumes/Crucial/work/obvault/kb/_index.md:1
-- /Volumes/Crucial/work/obvault/ref/current-work.md:1
+- ~/work/obvault/kb/etabli-obvault-project-grounding.md:1
+- ~/work/obvault/kb/_index.md:1
+- ~/work/obvault/ref/current-work.md:1
 - tests/workflow-docs-smoke.sh:52
 - scripts/answer-quality-audit:1
 - command: `git diff --stat` in Etabli showed tracked changes across seven
@@ -34,7 +34,7 @@ future live-answer quality still needed more real traces.
 
 ## Validation
 
-- command: `scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault`
+- command: `scripts/answer-quality-audit --obvault ~/work/obvault`
 - expected result: passes with `answer quality audit: ok`
 - command: `scripts/answer-quality-trace-eval docs/answer-quality-traces`
 - expected result: passes with this trace included

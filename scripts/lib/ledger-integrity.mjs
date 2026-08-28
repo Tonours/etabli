@@ -230,22 +230,6 @@ function scanResult(state) {
   };
 }
 
-/**
- * Inspect an events.jsonl payload without silently dropping malformed data.
- * Schema v2 must bind every event to its directory slug and have an ordered,
- * final terminal. Pre-v2 ledgers remain readable for compatibility; an
- * explicit legacy terminal still closes them, but they cannot make v2 data
- * after a terminal appear active.
- */
-export function inspectLedgerText(text, expectedRun) {
-  if (typeof text !== "string" || text.trim() === "") {
-    return invalid("empty_ledger");
-  }
-  const state = freshScanState();
-  scanLedgerChunk(state, text, expectedRun);
-  return scanResult(state);
-}
-
 /** @param {string} ledgerPath @param {string} [expectedRun] */
 export function inspectLedgerFile(ledgerPath, expectedRun = basename(join(ledgerPath, ".."))) {
   if (!ledgerPath) return invalid("missing_ledger");
