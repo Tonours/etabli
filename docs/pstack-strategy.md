@@ -25,7 +25,7 @@ License: `vendor/pstack/LICENSE` (MIT, Copyright Lauren Tan), copied from the
 
 ## Wave 2 (deployed 2026-08-28, ADR-0021)
 
-`poteto-mode` — the router skill with its 22 playbooks inline
+`poteto-mode` — the router skill with its 23 playbooks inline
 (`poteto-mode/playbooks/`) — plus the 21 `principle-*` skills. On etabli it
 is **opt-in**: type `/poteto-mode` to enter the mode; the ambient workflow
 contract stays canonical for ordinary prompts. `poteto-mode` declares
@@ -59,12 +59,12 @@ Cursor already run pstack natively; etabli does not duplicate it there.
   an unknown field elsewhere — residual self-trigger vector, documented in
   ADR-0021.
 - Not-vendored references inside poteto-mode (degrade to nearest local
-  behavior): `arena`, `swarm`, `recall`, `unslop`, `no-comments`,
-  `technical-writing`, `figure-it-out`, `reflect`, `automate-me`,
-  `make-bot-ui`, `teach`, `typescript-best-practices`, `show-me-your-work`,
-  `bro`; Cursor built-ins `create-skill`, `/loop`, `AskQuestion`;
-  cursor-team-kit `deslop`, `control-cli`, `control-ui`; Graphite for the
-  shipping playbooks.
+  behavior): `arena`, `swarm`, `recall`, `setup-pstack`, `unslop`,
+  `no-comments`, `technical-writing`, `figure-it-out`, `reflect`,
+  `automate-me`, `make-bot-ui`, `teach`, `typescript-best-practices`,
+  `show-me-your-work`, `bro`; Cursor built-ins `create-skill`, `/loop`,
+  `AskQuestion`; cursor-team-kit `deslop`, `control-cli`, `control-ui`;
+  Graphite for the shipping playbooks.
 - `create-verification-skill` / `maintain-verification-skill` hardcode
   `.cursor/skills/verify-<app>/` as the output location
   (`create-verification-skill/SKILL.md:9,25,36`). On Pi, Claude, and Codex
@@ -82,7 +82,7 @@ Cursor already run pstack natively; etabli does not duplicate it there.
 
 ## Wave 3 menu (not vendored; requires a follow-up ADR if adopted)
 
-- The remaining 14 skills: `arena` / `swarm` (fan-out; conflicts with the
+- The remaining 15 skills: `arena` / `swarm` (fan-out; conflicts with the
   parent-only Pi profile), `recall` (Cursor transcripts), `setup-pstack`
   (plugin config), `no-comments` (Comment Sicko subagent), `make-bot-ui`
   (Grok Bot webhook), `unslop` / `technical-writing` (overlap deslop +
