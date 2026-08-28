@@ -23,6 +23,23 @@ Eight runtime-agnostic task skills, synced verbatim from
 License: `vendor/pstack/LICENSE` (MIT, Copyright Lauren Tan), copied from the
 `pstack/` subpath — the monorepo root ships none.
 
+## Wave 3 (deployed 2026-08-28, user-directed)
+
+Six more skills: `figure-it-out`, `reflect`, `teach`, `show-me-your-work`,
+`automate-me`, `typescript-best-practices` — 37 pstack skills total.
+
+Deferred behind an explicit profile decision: `arena` + `swarm`
+(parallel subagent fan-out vs the parent-only Pi profile; etabli's
+orchestration contracts cover the need) and `recall` (Cursor transcript
+store does not exist on these surfaces).
+
+Skipped with reasons: `technical-writing` (answer-quality + write-direct +
+unslop already own the space), `bro` (grill-me and write-direct cover it),
+`setup-pstack` (no target under etabli vendoring), `no-comments` (its
+Comment Sicko subagent lives at `pstack/agents/`, outside the skills-only
+sync), `make-bot-ui` (Grok Bot surface is managed elsewhere; revisit on
+explicit request).
+
 ## Wave 2 (deployed 2026-08-28, ADR-0021)
 
 `poteto-mode` — the router skill with its 23 playbooks inline
@@ -59,12 +76,13 @@ Cursor already run pstack natively; etabli does not duplicate it there.
   an unknown field elsewhere — residual self-trigger vector, documented in
   ADR-0021.
 - Not-vendored references inside poteto-mode (degrade to nearest local
-  behavior): `arena`, `swarm`, `recall`, `setup-pstack`, `unslop`,
-  `no-comments`, `technical-writing`, `figure-it-out`, `reflect`,
-  `automate-me`, `make-bot-ui`, `teach`, `typescript-best-practices`,
-  `show-me-your-work`, `bro`; Cursor built-ins `create-skill`, `/loop`,
-  `AskQuestion`; cursor-team-kit `deslop`, `control-cli`, `control-ui`;
-  Graphite for the shipping playbooks.
+  behavior): `arena`, `swarm`, `recall`, `setup-pstack`, `no-comments`,
+  `technical-writing`, `make-bot-ui`, `bro`; Cursor built-ins
+  `create-skill`, `/loop`, `AskQuestion`; cursor-team-kit `deslop`,
+  `control-cli`, `control-ui`; Graphite for the shipping playbooks.
+  (`unslop`, `figure-it-out`, `reflect`, `teach`, `automate-me`,
+  `typescript-best-practices`, and `show-me-your-work` are vendored as of
+  wave 3.)
 - `create-verification-skill` / `maintain-verification-skill` hardcode
   `.cursor/skills/verify-<app>/` as the output location
   (`create-verification-skill/SKILL.md:9,25,36`). On Pi, Claude, and Codex
@@ -80,14 +98,11 @@ Cursor already run pstack natively; etabli does not duplicate it there.
 2. Review the diff, then commit `vendor/pstack/**` including the new
    `UPSTREAM_SHA`.
 
-## Wave 3 menu (not vendored; requires a follow-up ADR if adopted)
+## Wave 4 menu (deliberately not vendored)
 
-- The remaining 15 skills: `arena` / `swarm` (fan-out; conflicts with the
-  parent-only Pi profile), `recall` (Cursor transcripts), `setup-pstack`
-  (plugin config), `no-comments` (Comment Sicko subagent), `make-bot-ui`
-  (Grok Bot webhook), `unslop` / `technical-writing` (overlap deslop +
-  answer-quality), `figure-it-out`, `reflect`, `automate-me`, `teach`, `bro`,
-  `typescript-best-practices`, `show-me-your-work`.
-
-Adoption remains a `vendor/sources.tsv` row extension plus catalog-flag
-flip, nothing more.
+- `arena` / `swarm` — parallel subagent fan-out; conflicts with the
+  parent-only Pi profile. Revisit only if that profile decision changes.
+- `recall` — Cursor transcript search; no transcript store on
+  Pi/Claude/Codex.
+- `technical-writing`, `bro`, `setup-pstack`, `no-comments`,
+  `make-bot-ui` — skipped with reasons in the Wave 3 section above.
