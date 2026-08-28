@@ -295,6 +295,116 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "283083c9547641392a58c38edeb147e75aa99912e7fba55edaa7b1a02021ffec"
+    },
+    "poteto-mode": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "83aab1ba98a31299cccc086d608d1d1a6724976af33be019b6f7ea1ec6c3cbd1"
+    },
+    "principle-laziness-protocol": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "41259a71a7d6fec61fc309bdd72f1db8708a0dacaca034f5c30aa17f27e50ece"
+    },
+    "principle-foundational-thinking": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "7ada3330b2b883c8931a601cf53ef7035b31816facc948533a2d8a92905d938b"
+    },
+    "principle-redesign-from-first-principles": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d39b9050a13ebfa67afc0160057d6286d87dd86bda04da291e40e9c9cca0ba5b"
+    },
+    "principle-subtract-before-you-add": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "bc86d43626770c780551730a180de8ffb91ab16f193647047644c606d01874c8"
+    },
+    "principle-minimize-reader-load": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a02eb0ce1333d18aff133e8cdaab798bc8bf024e4b1f1bcc8bb834de5282d7d8"
+    },
+    "principle-outcome-oriented-execution": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8a353f45bd32f61e67702c0bdab668eb94d669afef038a75a4263ce272492169"
+    },
+    "principle-experience-first": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "35356c2e1e4b28fe76d3f9b9b6afa95bea2597d340ad615dd806a21a93d1d836"
+    },
+    "principle-exhaust-the-design-space": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "bf5f30c97afa75da12e1f982bffc3176d2172bd124072f6d9e74d06b0cf2b965"
+    },
+    "principle-build-the-lever": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "82daf34a1a020b16315df83341b7c98f821f757f4df93154507c016219359a37"
+    },
+    "principle-model-the-domain": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a94b6f9519c4cb6c79ba92c46030855bfd261c9270c97d6d33ae793a24221446"
+    },
+    "principle-boundary-discipline": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "e2dee8352e9780cc52413d65020193cb6e5e538175b1a32926ebd9080ea4bbda"
+    },
+    "principle-type-system-discipline": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "092d40b72a904d0a111acde944639e24c8fe1f912455d9c4b94295b9d07709ec"
+    },
+    "principle-make-operations-idempotent": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8293bf10530fdffa13216645432989a14b3ca4a1b6a6f0e12bf9a141ba48f802"
+    },
+    "principle-migrate-callers-then-delete-legacy-apis": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "5bd62197e64fa42f312bb1d5181da7724f154ccfc059ad2a3fb16d5e27514992"
+    },
+    "principle-separate-before-serializing-shared-state": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "00492c49afabc309c388ae0ae3045536045a2cbff599a500c945e6f2afcaee52"
+    },
+    "principle-prove-it-works": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "df5e2a3f8b71c39780a398a9cd4515356479f2862e554b3d7cbf6dd8d1a37db7"
+    },
+    "principle-fix-root-causes": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "b21d93ea5f651b83596bbd90187c87f40f4d33c9e5d105a1ad2be41b0d74bd97"
+    },
+    "principle-sequence-verifiable-units": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a5c25bdd95a1a5be383b6699ce2c9170f1a08deba14fb0414c4314fd50d800ac"
+    },
+    "principle-guard-the-context-window": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4ba70fa93ea45d353d411daa7458e15959e6369f388cff727f639587e67b2fed"
+    },
+    "principle-never-block-on-the-human": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "13f79ad8beba024928f4c06d2d6ecf6d31128beac5b392313287686922758604"
+    },
+    "principle-encode-lessons-in-structure": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "527fa064a616d4aecb1b952624daae24c6229cbf9c28404233c1678f2488ce22"
     }
   }
 }
