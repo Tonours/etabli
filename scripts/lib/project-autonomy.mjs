@@ -91,11 +91,7 @@ export function validateEnvelope(envelope, now = null) {
 
 	const authorization = envelope.authorization;
 	if (isObject(authorization)) {
-		for (const field of [
-			"allowed_files",
-			"allowed_tools",
-			"forbidden_actions",
-		]) {
+		for (const field of ["allowed_files", "allowed_tools", "forbidden_actions"]) {
 			if (!isStringArray(authorization[field]))
 				errors.push(`authorization.${field} needs a non-empty array`);
 		}
@@ -122,9 +118,7 @@ export function validateEnvelope(envelope, now = null) {
 		!positiveInteger(budget.max_iterations) ||
 		!positiveInteger(budget.max_duration_minutes)
 	) {
-		errors.push(
-			"budget needs positive max_iterations and max_duration_minutes",
-		);
+		errors.push("budget needs positive max_iterations and max_duration_minutes");
 	}
 	if (!positiveInteger(budget?.max_candidates) || budget.max_candidates > 8) {
 		errors.push("budget.max_candidates must be between 1 and 8");
@@ -239,9 +233,7 @@ export function validateEnvelope(envelope, now = null) {
 				if (!checkpointIds.has(slice.checkpoint_id)) {
 					errors.push(`slice ${sliceId} references an unknown checkpoint`);
 				} else if (
-					!beforeSlice.some(
-						(checkpoint) => checkpoint.id === slice.checkpoint_id,
-					)
+					!beforeSlice.some((checkpoint) => checkpoint.id === slice.checkpoint_id)
 				) {
 					errors.push(
 						`slice ${sliceId} checkpoint must name its own before_slice checkpoint`,
@@ -376,8 +368,7 @@ function checkpointDecision(events, checkpoint) {
 
 export function decideProjectAutonomy(envelope, events, now = new Date()) {
 	const errors = validateEnvelope(envelope, now);
-	if (errors.length > 0)
-		return decision("stop", "invalid_envelope", { errors });
+	if (errors.length > 0) return decision("stop", "invalid_envelope", { errors });
 
 	const terminal = events.find(
 		(event) => event.event === "completed" || event.event === "blocked",
@@ -546,8 +537,7 @@ export function decideProjectAutonomy(envelope, events, now = new Date()) {
 	);
 	const evaluationAttemptIndex = events.reduce(
 		(last, event, index) =>
-			(event.event === "validation_run" ||
-				event.event === "validation_failed") &&
+			(event.event === "validation_run" || event.event === "validation_failed") &&
 			event.detail.command === envelope.evaluation.runner
 				? index
 				: last,
@@ -637,9 +627,7 @@ function main() {
 		const now = options.now ? new Date(options.now) : new Date();
 		if (Number.isNaN(now.getTime()))
 			throw new Error("--now must be an ISO-8601 timestamp");
-		const envelope = JSON.parse(
-			readFileSync(resolve(options.envelope), "utf8"),
-		);
+		const envelope = JSON.parse(readFileSync(resolve(options.envelope), "utf8"));
 		const envelopeErrors = validateEnvelope(envelope, now);
 		if (envelopeErrors.length > 0) {
 			process.stdout.write(

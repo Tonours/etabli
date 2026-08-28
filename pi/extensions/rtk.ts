@@ -9,17 +9,21 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createBashTool } from "@earendil-works/pi-coding-agent";
 import { execFileSync } from "node:child_process";
 import { getAgentSettingsPath, readRtkConfig } from "./lib/pi-runtime.ts";
-import { createRtkCommandRewriter, createRtkSpawnHook } from "./lib/rtk-runtime.ts";
+import {
+  createRtkCommandRewriter,
+  createRtkSpawnHook,
+} from "./lib/rtk-runtime.ts";
 
 export default function (pi: ExtensionAPI) {
   const cwd = process.cwd();
   const rtkConfig = readRtkConfig(getAgentSettingsPath());
-  const rewriteCommand = createRtkCommandRewriter((command, env) =>
-    execFileSync("rtk", ["rewrite", command], {
-      encoding: "utf-8",
-      timeout: rtkConfig.timeoutMs,
-      env,
-    }),
+  const rewriteCommand = createRtkCommandRewriter(
+    (command, env) =>
+      execFileSync("rtk", ["rewrite", command], {
+        encoding: "utf-8",
+        timeout: rtkConfig.timeoutMs,
+        env,
+      }),
     rtkConfig,
   );
   const spawnHook = createRtkSpawnHook({ pathPrefix: null, rewriteCommand });

@@ -121,8 +121,7 @@ export const tokenPatterns: TokenPattern[] = [
 	},
 	// Sentry DSN
 	{
-		pattern:
-			/\bhttps:\/\/[a-f0-9]{32}@o\d+\.ingest\.[a-z.]*sentry\.io\/\d+\b/gi,
+		pattern: /\bhttps:\/\/[a-f0-9]{32}@o\d+\.ingest\.[a-z.]*sentry\.io\/\d+\b/gi,
 		label: "SENTRY_DSN",
 	},
 	// Google OAuth access token
@@ -322,8 +321,7 @@ function compileNeedles(
 				for (let i = 0; i < needle.length; i++) {
 					const c = needle.charCodeAt(i);
 					codes[i * 2] = c;
-					codes[i * 2 + 1] =
-						ci && c >= 97 && c <= 122 ? c - 32 : c;
+					codes[i * 2 + 1] = ci && c >= 97 && c <= 122 ? c - 32 : c;
 					const lo = lowerCode(c);
 					if (i > 0) pairCodes[i - 1] = prevLo * 128 + lo;
 					prevLo = lo;
@@ -522,8 +520,8 @@ type GateNeedle = {
 
 // 64K fold table (ASCII -> lowercase, everything else -> 128 sentinel) so the
 // scan is branch-free: one load + one store per char.
-const gateFoldTable = new Uint8Array(65536).map(
-	(_, i) => (i < 128 ? (i >= 65 && i <= 90 ? i + 32 : i) : 128),
+const gateFoldTable = new Uint8Array(65536).map((_, i) =>
+	i < 128 ? (i >= 65 && i <= 90 ? i + 32 : i) : 128,
 );
 
 function compileGateNeedles(
@@ -573,7 +571,10 @@ function buildGateBits(text: string): void {
 	}
 }
 
-function gateContainsAny(text: string, entries: readonly GateNeedle[]): boolean {
+function gateContainsAny(
+	text: string,
+	entries: readonly GateNeedle[],
+): boolean {
 	for (let i = 0; i < entries.length; i++) {
 		const entry = entries[i];
 		const chars = entry.chars;
@@ -673,8 +674,7 @@ export function redactTokens(
 	patterns: TokenPattern[] = tokenPatterns,
 ): { result: string; count: number } {
 	// Custom pattern lists run unfiltered (no index-aligned needle table).
-	const active =
-		patterns === tokenPatterns ? evaluateTokenFlags(text) : null;
+	const active = patterns === tokenPatterns ? evaluateTokenFlags(text) : null;
 	return runTokenPatterns(text, patterns, active);
 }
 
@@ -683,9 +683,7 @@ export function redactStructural(
 	patterns: StructuralPattern[] = structuralPatterns,
 ): { result: string; count: number } {
 	const active =
-		patterns === structuralPatterns
-			? evaluateStructuralFlags(text)
-			: null;
+		patterns === structuralPatterns ? evaluateStructuralFlags(text) : null;
 	return runStructuralPatterns(text, patterns, active);
 }
 
@@ -900,9 +898,7 @@ export default function (pi: ExtensionAPI) {
 				ripgrepSensitiveScopeOptionNames,
 				["u"],
 			);
-			return (
-				hasSensitiveScopeOption && (hasBroadPath || pathTokens.length === 0)
-			);
+			return hasSensitiveScopeOption && (hasBroadPath || pathTokens.length === 0);
 		}
 
 		return false;
@@ -1065,9 +1061,7 @@ export default function (pi: ExtensionAPI) {
 
 		// -- Block sensitive file reads --
 		if (event.toolName === "read") {
-			const filePath = (event.input.path ??
-				event.input.file_path ??
-				"") as string;
+			const filePath = (event.input.path ?? event.input.file_path ?? "") as string;
 			if (isSensitiveFile(filePath)) {
 				ctx.ui.notify(`Blocked read of sensitive file: ${filePath}`, "warning");
 				return {

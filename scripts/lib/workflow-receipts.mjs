@@ -56,8 +56,7 @@ export function buildReceipt(input) {
 		observed_by: "parent-process",
 		cryptographic: false,
 	};
-	if (Number.isInteger(input?.exit) && input.exit >= 0)
-		detail.exit = input.exit;
+	if (Number.isInteger(input?.exit) && input.exit >= 0) detail.exit = input.exit;
 	if (isNonEmptyString(input?.worktreeSha))
 		detail.worktree_sha256 = sha256(input.worktreeSha);
 	if (isNonEmptyString(input?.artifactSha))
