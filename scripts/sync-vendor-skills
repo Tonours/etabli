@@ -60,6 +60,7 @@ while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
       exit 1
     fi
     rm -rf "$dest/$skill"
+    mkdir -p "$(dirname "$dest/$skill")"
     cp -R "$src" "$dest/$skill"
   done
 

@@ -32,11 +32,14 @@ assert_contains() {
 up_sub="$TMP_DIR/upstream-sub"
 git -C "$TMP_DIR" init -q -b main upstream-sub
 mkdir -p "$up_sub/monorepo/plugins/mystack/skills/how" \
-  "$up_sub/monorepo/plugins/mystack/skills/why"
+         "$up_sub/monorepo/plugins/mystack/skills/why" \
+         "$up_sub/monorepo/plugins/mystack/skills/nested/one"
 printf -- '---\nname: how\ndescription: subpath fixture\n---\nbody how\n' \
   >"$up_sub/monorepo/plugins/mystack/skills/how/SKILL.md"
 printf -- '---\nname: why\ndescription: subpath fixture\n---\nbody why\n' \
   >"$up_sub/monorepo/plugins/mystack/skills/why/SKILL.md"
+printf -- '---\nname: one\ndescription: nested-name fixture\n---\nbody one\n' \
+  >"$up_sub/monorepo/plugins/mystack/skills/nested/one/SKILL.md"
 printf 'MIT fixture license (subpath)\n' >"$up_sub/monorepo/plugins/mystack/LICENSE"
 printf 'DIFFERENT root license that must not mix in\n' >"$up_sub/LICENSE.md"
 git -C "$up_sub" add -A
@@ -59,16 +62,17 @@ mkdir -p "$consumer/scripts" "$consumer/vendor"
 cp "$SYNC" "$consumer/scripts/sync-vendor-skills"
 printf '# vendor\trepo\tref\tscope\tskills\tsubpath\n' \
   >"$consumer/vendor/sources.tsv"
-printf 'mystack\t%s\tmain\tshared\thow,why\tmonorepo/plugins/mystack\n' \
+printf 'mystack\t%s\tmain\tshared\thow,why,nested/one\tmonorepo/plugins/mystack\n' \
   "$up_sub" >>"$consumer/vendor/sources.tsv"
 printf 'legacy\t%s\tmain\tshared\tsolo\t\n' "$up_root" >>"$consumer/vendor/sources.tsv"
 git -C "$consumer" add -A
 git -C "$consumer" -c user.email=f@f -c user.name=f commit -qm fixture
 
 out="$("$consumer/scripts/sync-vendor-skills" mystack)"
-assert_contains "$out" "2 skills at"
+assert_contains "$out" "3 skills at"
 [ -d "$consumer/vendor/mystack/skills/how" ] || fail "subpath skill how missing"
 [ -d "$consumer/vendor/mystack/skills/why" ] || fail "subpath skill why missing"
+[ -d "$consumer/vendor/mystack/skills/nested/one" ] || fail "nested-name skill missing"
 [ -f "$consumer/vendor/mystack/UPSTREAM_SHA" ] || fail "subpath UPSTREAM_SHA missing"
 [ -f "$consumer/vendor/mystack/LICENSE" ] || fail "subpath LICENSE not copied"
 grep -q "subpath)" "$consumer/vendor/mystack/LICENSE" ||
