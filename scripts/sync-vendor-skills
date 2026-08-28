@@ -24,7 +24,7 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 synced=0
 
-while IFS=$'\t' read -r vendor repo ref scope skills; do
+while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
   case "$vendor" in ''|\#*) continue ;; esac
   if [ -n "$ONLY" ] && [ "$ONLY" != "$vendor" ]; then
     continue
@@ -42,7 +42,7 @@ while IFS=$'\t' read -r vendor repo ref scope skills; do
 
   IFS=',' read -r -a wanted <<<"$skills"
   for skill in "${wanted[@]}"; do
-    src="$WORK_DIR/$vendor/skills/$skill"
+    src="$WORK_DIR/$vendor/${subpath:+$subpath/}skills/$skill"
     if [ ! -d "$src" ]; then
       printf 'upstream %s no longer ships skill %q at %s\n' "$vendor" "$skill" "$ref" >&2
       exit 1
