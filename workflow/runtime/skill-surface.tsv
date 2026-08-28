@@ -98,3 +98,17 @@ principle-never-block-on-the-human	pstack	0	0	1
 principle-encode-lessons-in-structure	pstack	0	0	1
 thermo-nuclear-code-quality-review	pi	1	1	1
 unslop	pstack	0	0	1
+engineering/ask-matt	mattpocock	0	0	1
+engineering/codebase-design	mattpocock	0	0	1
+engineering/diagnosing-bugs	mattpocock	0	0	1
+engineering/domain-modeling	mattpocock	0	0	1
+engineering/grill-with-docs	mattpocock	0	0	1
+engineering/improve-codebase-architecture	mattpocock	0	0	1
+engineering/prototype	mattpocock	0	0	1
+engineering/research	mattpocock	0	0	1
+engineering/resolving-merge-conflicts	mattpocock	0	0	1
+engineering/to-spec	mattpocock	0	0	1
+engineering/to-tickets	mattpocock	0	0	1
+engineering/triage	mattpocock	0	0	1
+engineering/wayfinder	mattpocock	0	0	1
+engineering/wizard	mattpocock	0	0	1
