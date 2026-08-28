@@ -12,7 +12,7 @@ TMUX_BIN="/opt/homebrew/bin/tmux"
 SESSION="claude-sessions-report"
 MARKER="/tmp/claude-sessions-report.done"
 LOG="$HOME/.claude/logs/sessions-report.log"
-TIMEOUT=1200  # 20 min hard cap
+TIMEOUT=1200 # 20 min hard cap
 
 mkdir -p "$(dirname "$LOG")"
 exec >>"$LOG" 2>&1

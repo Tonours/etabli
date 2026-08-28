@@ -67,7 +67,9 @@ export const DEFAULT_RTK_CONFIG: RtkConfig = {
 };
 
 export function getAgentDir(): string {
-  return process.env.PI_CODING_AGENT_DIR?.trim() || join(homedir(), ".pi", "agent");
+  return (
+    process.env.PI_CODING_AGENT_DIR?.trim() || join(homedir(), ".pi", "agent")
+  );
 }
 
 export function getAgentSettingsPath(): string {
@@ -134,7 +136,10 @@ function isEntryFresh(settingsPath: string, entry: FileCacheEntry): boolean {
   const state = entry.watchState;
   if (state?.watcher) {
     entry.clockTick = (entry.clockTick + 1) & CLOCK_CHECK_MASK;
-    if (entry.clockTick !== 0 || Date.now() - entry.validatedAt < STAT_RECHECK_INTERVAL_MS) {
+    if (
+      entry.clockTick !== 0 ||
+      Date.now() - entry.validatedAt < STAT_RECHECK_INTERVAL_MS
+    ) {
       // Watch-based invalidation: cache hit without a stat syscall.
       return true;
     }
@@ -169,7 +174,9 @@ function peekSettingsEntry(settingsPath: string): FileCacheEntry | undefined {
 function loadSettingsEntry(settingsPath: string): FileCacheEntry | undefined {
   try {
     const stats = fs.statSync(settingsPath);
-    const value = JSON.parse(fs.readFileSync(settingsPath, "utf-8")) as AgentSettings;
+    const value = JSON.parse(
+      fs.readFileSync(settingsPath, "utf-8"),
+    ) as AgentSettings;
     const entry: FileCacheEntry = {
       mtimeMs: stats.mtimeMs,
       size: stats.size,
@@ -193,23 +200,31 @@ function loadSettingsEntry(settingsPath: string): FileCacheEntry | undefined {
 }
 
 function readAgentSettings(settingsPath: string): AgentSettings | undefined {
-  const entry = peekSettingsEntry(settingsPath) ?? loadSettingsEntry(settingsPath);
+  const entry =
+    peekSettingsEntry(settingsPath) ?? loadSettingsEntry(settingsPath);
   return entry?.value;
 }
 
 function asPositiveInteger(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : fallback;
 }
 
 function normalizeRtkMode(value: unknown): RtkMode {
   return value === "off" ? "off" : "always";
 }
 
-export function readDefaultModelSpec(settingsPath: string, fallback = UNKNOWN_MODEL_SPEC): string {
+export function readDefaultModelSpec(
+  settingsPath: string,
+  fallback = UNKNOWN_MODEL_SPEC,
+): string {
   const raw = readAgentSettings(settingsPath);
   if (raw) {
-    const provider = typeof raw.defaultProvider === "string" ? raw.defaultProvider.trim() : "";
-    const model = typeof raw.defaultModel === "string" ? raw.defaultModel.trim() : "";
+    const provider =
+      typeof raw.defaultProvider === "string" ? raw.defaultProvider.trim() : "";
+    const model =
+      typeof raw.defaultModel === "string" ? raw.defaultModel.trim() : "";
     if (provider && model) return `${provider}/${model}`;
   }
   return fallback;
@@ -222,11 +237,23 @@ function deriveRtkConfig(raw: unknown): RtkConfig {
 
   const config = raw as Record<string, unknown>;
   return Object.freeze({
-    enabled: typeof config.enabled === "boolean" ? config.enabled : DEFAULT_RTK_CONFIG.enabled,
+    enabled:
+      typeof config.enabled === "boolean"
+        ? config.enabled
+        : DEFAULT_RTK_CONFIG.enabled,
     mode: normalizeRtkMode(config.mode),
-    timeoutMs: asPositiveInteger(config.timeoutMs, DEFAULT_RTK_CONFIG.timeoutMs),
-    maxCacheEntries: asPositiveInteger(config.maxCacheEntries, DEFAULT_RTK_CONFIG.maxCacheEntries),
-    maxCommandLength: asPositiveInteger(config.maxCommandLength, DEFAULT_RTK_CONFIG.maxCommandLength),
+    timeoutMs: asPositiveInteger(
+      config.timeoutMs,
+      DEFAULT_RTK_CONFIG.timeoutMs,
+    ),
+    maxCacheEntries: asPositiveInteger(
+      config.maxCacheEntries,
+      DEFAULT_RTK_CONFIG.maxCacheEntries,
+    ),
+    maxCommandLength: asPositiveInteger(
+      config.maxCommandLength,
+      DEFAULT_RTK_CONFIG.maxCommandLength,
+    ),
     dangerousCommandBypass:
       typeof config.dangerousCommandBypass === "boolean"
         ? config.dangerousCommandBypass
@@ -234,11 +261,16 @@ function deriveRtkConfig(raw: unknown): RtkConfig {
   });
 }
 
-export function readRtkConfig(settingsPath = getAgentSettingsPath()): RtkConfig {
-  const entry = peekSettingsEntry(settingsPath) ?? loadSettingsEntry(settingsPath);
+export function readRtkConfig(
+  settingsPath = getAgentSettingsPath(),
+): RtkConfig {
+  const entry =
+    peekSettingsEntry(settingsPath) ?? loadSettingsEntry(settingsPath);
   if (entry) {
     // Memoized on the entry: dropped automatically when the entry invalidates.
-    return entry.rtkConfig ?? (entry.rtkConfig = deriveRtkConfig(entry.value?.rtk));
+    return (
+      entry.rtkConfig ?? (entry.rtkConfig = deriveRtkConfig(entry.value?.rtk))
+    );
   }
   return { ...DEFAULT_RTK_CONFIG };
 }

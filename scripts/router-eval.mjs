@@ -2,7 +2,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { classifyWorkflowRoute as classifyPi } from "../pi/extensions/lib/workflow-router-runtime.ts";
 
-const { classifyWorkflowRoute: classifyClaude } = await import("../workflow/runtime/workflow-router-core.mjs");
+const { classifyWorkflowRoute: classifyClaude } = await import(
+  "../workflow/runtime/workflow-router-core.mjs"
+);
 
 const args = process.argv.slice(2);
 let datasetPath = "tests/router-evals";
@@ -53,7 +55,10 @@ function normalizeDecision(decision) {
   return {
     route: normalizeRoute(decision.route),
     writeAllowed: Boolean(decision.writeAllowed),
-    stopCondition: String(decision.stopCondition || "").replace(/Verdict: /g, ""),
+    stopCondition: String(decision.stopCondition || "").replace(
+      /Verdict: /g,
+      "",
+    ),
     knowledgeTopics: decision.knowledgeContext?.topics ?? [],
   };
 }
@@ -83,7 +88,9 @@ function loadCases(path) {
     }
     const entries = Array.isArray(parsed) ? parsed : parsed.cases;
     if (!Array.isArray(entries)) {
-      throw new Error(`dataset file must contain an array or { cases }: ${file}`);
+      throw new Error(
+        `dataset file must contain an array or { cases }: ${file}`,
+      );
     }
     for (const entry of entries) {
       cases.push({ ...entry, dataset: file });
@@ -102,11 +109,25 @@ const results = cases.map((testCase) => {
   const expectedKnowledgeTopics = testCase.expectedKnowledgeTopics;
   const piRouteOk = pi.route === expectedRoute;
   const claudeRouteOk = claude.route === expectedRoute;
-  const piWriteOk = expectedWriteAllowed === undefined || pi.writeAllowed === expectedWriteAllowed;
-  const claudeWriteOk = expectedWriteAllowed === undefined || claude.writeAllowed === expectedWriteAllowed;
-  const piKnowledgeOk = expectedKnowledgeTopics === undefined || JSON.stringify(pi.knowledgeTopics) === JSON.stringify(expectedKnowledgeTopics);
-  const claudeKnowledgeOk = expectedKnowledgeTopics === undefined || JSON.stringify(claude.knowledgeTopics) === JSON.stringify(expectedKnowledgeTopics);
-  const aligned = pi.route === claude.route && pi.writeAllowed === claude.writeAllowed && JSON.stringify(pi.knowledgeTopics) === JSON.stringify(claude.knowledgeTopics);
+  const piWriteOk =
+    expectedWriteAllowed === undefined ||
+    pi.writeAllowed === expectedWriteAllowed;
+  const claudeWriteOk =
+    expectedWriteAllowed === undefined ||
+    claude.writeAllowed === expectedWriteAllowed;
+  const piKnowledgeOk =
+    expectedKnowledgeTopics === undefined ||
+    JSON.stringify(pi.knowledgeTopics) ===
+      JSON.stringify(expectedKnowledgeTopics);
+  const claudeKnowledgeOk =
+    expectedKnowledgeTopics === undefined ||
+    JSON.stringify(claude.knowledgeTopics) ===
+      JSON.stringify(expectedKnowledgeTopics);
+  const aligned =
+    pi.route === claude.route &&
+    pi.writeAllowed === claude.writeAllowed &&
+    JSON.stringify(pi.knowledgeTopics) ===
+      JSON.stringify(claude.knowledgeTopics);
 
   return {
     name: testCase.name,
@@ -117,7 +138,13 @@ const results = cases.map((testCase) => {
     expectedKnowledgeTopics,
     pi,
     claude,
-    pass: piRouteOk && claudeRouteOk && piWriteOk && claudeWriteOk && piKnowledgeOk && claudeKnowledgeOk,
+    pass:
+      piRouteOk &&
+      claudeRouteOk &&
+      piWriteOk &&
+      claudeWriteOk &&
+      piKnowledgeOk &&
+      claudeKnowledgeOk,
     aligned,
   };
 });
@@ -140,7 +167,8 @@ const opsStopMisses = results.filter(
 const researchRouteMisses = results.filter(
   (result) =>
     result.expectedRoute === "research-plan" &&
-    (result.pi.route !== "research-plan" || result.claude.route !== "research-plan"),
+    (result.pi.route !== "research-plan" ||
+      result.claude.route !== "research-plan"),
 ).length;
 
 const report = {
@@ -178,7 +206,9 @@ if (json) {
 }
 
 if (minAccuracy !== null && accuracy < minAccuracy) {
-  console.error(`router eval accuracy ${accuracy} below minimum ${minAccuracy}`);
+  console.error(
+    `router eval accuracy ${accuracy} below minimum ${minAccuracy}`,
+  );
   process.exit(1);
 }
 
