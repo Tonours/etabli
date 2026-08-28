@@ -573,16 +573,19 @@ catalog_counts="$(
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
 read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
-[ "$catalog_total" -le 95 ] || {
-    printf 'skill catalog grew beyond baseline: %s > 95\n' "$catalog_total" >&2
+# Catalog baselines: raised 2026-08-28 with the deliberate additions of the
+# thermo-nuclear pi-core skill, pstack unslop, and the 14-skill mattpocock
+# engineering suite (user-directed). Revisit on every suite adoption.
+[ "$catalog_total" -le 120 ] || {
+    printf 'skill catalog grew beyond baseline: %s > 120\n' "$catalog_total" >&2
     exit 1
 }
-[ "$pi_core_total" -le 17 ] || {
-    printf 'pi_core grew beyond baseline: %s > 17\n' "$pi_core_total" >&2
+[ "$pi_core_total" -le 20 ] || {
+    printf 'pi_core grew beyond baseline: %s > 20\n' "$pi_core_total" >&2
     exit 1
 }
-[ "$agents_visible_total" -le 17 ] || {
-    printf 'agents_visible grew beyond baseline: %s > 17\n' "$agents_visible_total" >&2
+[ "$agents_visible_total" -le 20 ] || {
+    printf 'agents_visible grew beyond baseline: %s > 20\n' "$agents_visible_total" >&2
     exit 1
 }
 
