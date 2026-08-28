@@ -57,7 +57,9 @@ skill_declared_name() {
   ' "$skill_dir/SKILL.md" 2>/dev/null)"
 
   # Link names must be valid skill slugs; a display-case declaration
-  # (e.g. "Poteto Mode") falls back to the directory basename.
+  # (e.g. "Poteto Mode") falls back to the directory basename. Stricter than
+  # the workflow-event slug domain (which allows underscores): skill
+  # directories are lowercase-hyphen only.
   if [ -n "$declared" ] && printf '%s' "$declared" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
     printf '%s\n' "$declared"
   else
@@ -88,10 +90,11 @@ skill_catalog_dir() {
 skill_catalog_vendor_records() {
   local catalog="$1"
   local repo_dir="$2"
-  local vendor vendor_repo vendor_ref vendor_scope vendor_skills
+  local vendor _vendor_repo _vendor_ref vendor_scope _vendor_skills
   local catalog_name skill_dir skill_name
 
-  while IFS=$'\t' read -r vendor vendor_repo vendor_ref vendor_scope vendor_skills || [ -n "$vendor" ]; do
+  # shellcheck disable=SC2034
+  while IFS=$'\t' read -r vendor _vendor_repo _vendor_ref vendor_scope _vendor_skills || [ -n "$vendor" ]; do
     case "$vendor" in '' | \#*) continue ;; esac
 
     while IFS= read -r catalog_name; do
