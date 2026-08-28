@@ -83,12 +83,13 @@ Cursor already run pstack natively; etabli does not duplicate it there.
   (`unslop`, `figure-it-out`, `reflect`, `teach`, `automate-me`,
   `typescript-best-practices`, and `show-me-your-work` are vendored as of
   wave 3.)
-- `create-verification-skill` / `maintain-verification-skill` hardcode
-  `.cursor/skills/verify-<app>/` as the output location
-  (`create-verification-skill/SKILL.md:9,25,36`). On Pi, Claude, and Codex
-  that path is not a discovered skill surface — relocate the generated
-  `verify-<app>` folder to the runtime's project-local skills dir when the
-  skill is used there.
+- `create-verification-skill` / `maintain-verification-skill` now write
+  `.claude/skills/verify-<app>/` (ADR-0022 adaptation). Claude Code
+  discovers it natively in-project. Pi reads it via its documented bridge —
+  add to the project's `.pi/settings.json`:
+  `{ "skills": ["../.claude/skills"] }` (pi docs/skills.md pattern); Pi's
+  native project surfaces are `.pi/skills/` and `.agents/skills/`. Codex
+  reads it by path.
 - Vendored files are never edited; adaptation lives in this document.
 
 ## Updating
