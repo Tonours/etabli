@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { hashSkillTree } from "../../scripts/lib/skill-tree-hash.mjs";
 
 const piDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const repoDir = dirname(piDir);
@@ -62,47 +63,12 @@ function configuredLocalSkills() {
   return [...result].sort();
 }
 
-const UNHASHED_ENTRIES = new Set([
-  "__pycache__",
-  ".DS_Store",
-  "node_modules",
-  ".pytest_cache",
-  ".ruff_cache",
-  ".poteto-mode-tools-install-key",
-]);
-
-function isHashable(entry) {
-  return !UNHASHED_ENTRIES.has(entry.name) && !entry.name.endsWith(".pyc");
-}
-
-async function files(dir, base = dir) {
-  const entries = (await readdir(dir, { withFileTypes: true })).filter(
-    isHashable,
-  );
-  const nested = await Promise.all(
-    entries.map(async (entry) => {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) return files(full, base);
-      return [
-        {
-          path: relative(base, full).split("\\").join("/"),
-          content: await readFile(full),
-        },
-      ];
-    }),
-  );
-  return nested.flat().sort((a, b) => a.path.localeCompare(b.path));
-}
-
+// Thin root resolver over the shared hasher; every hashing rule lives in
+// scripts/lib/skill-tree-hash.mjs (also used by the runtime skill canary).
 async function hashSkill(name, source = "pi") {
-  const hash = createHash("sha256");
   const sourceRoot =
     source === "pi" ? join(repoDir, "pi") : join(repoDir, "vendor", source);
-  for (const file of await files(join(sourceRoot, "skills", name))) {
-    hash.update(file.path);
-    hash.update(file.content);
-  }
-  return hash.digest("hex");
+  return hashSkillTree(join(sourceRoot, "skills", name));
 }
 
 const failures = [];
