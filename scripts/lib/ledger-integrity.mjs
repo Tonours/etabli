@@ -28,7 +28,13 @@ const scanCache = new Map(); // workflow root -> Map<run name, { fp, path, recor
 
 /** File fingerprint: identity + size + mtime + ctime (ns, bigint stats). */
 function fingerprint(stat) {
-  return { dev: stat.dev, ino: stat.ino, size: stat.size, mtimeNs: stat.mtimeNs, ctimeNs: stat.ctimeNs };
+  return {
+    dev: stat.dev,
+    ino: stat.ino,
+    size: stat.size,
+    mtimeNs: stat.mtimeNs,
+    ctimeNs: stat.ctimeNs,
+  };
 }
 
 function sameFingerprint(a, b) {
@@ -43,7 +49,9 @@ function sameFingerprint(a, b) {
 
 function cacheLookup(cache, path, fp) {
   const cached = cache.get(path);
-  return cached !== undefined && sameFingerprint(cached.fp, fp) ? cached.value : undefined;
+  return cached !== undefined && sameFingerprint(cached.fp, fp)
+    ? cached.value
+    : undefined;
 }
 
 function cacheStore(cache, path, fp, value) {
@@ -64,11 +72,16 @@ function isNonEmptyString(value) {
 }
 
 function isIsoTimestamp(value) {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value);
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)
+  );
 }
 
 function isStringArray(value) {
-  return Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString);
+  return (
+    Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString)
+  );
 }
 
 function isValidRunSlug(value) {
@@ -94,7 +107,9 @@ function hasAuthorityDetailShape(event) {
   const detail = event.detail;
   if (event.event === "completed") return isNonEmptyString(detail.summary);
   if (event.event === "blocked") {
-    return isNonEmptyString(detail.reason) && isNonEmptyString(detail.needed_input);
+    return (
+      isNonEmptyString(detail.reason) && isNonEmptyString(detail.needed_input)
+    );
   }
   if (event.event === "no_progress") {
     return (
@@ -156,25 +171,39 @@ function scanLedgerChunk(state, chunk, expectedRun) {
       return;
     }
     if (!isObject(event)) {
-      state.error = invalid("invalid_event_object", state.events, { line: lineNumber });
+      state.error = invalid("invalid_event_object", state.events, {
+        line: lineNumber,
+      });
       return;
     }
     if (!isNonEmptyString(event.event) || !KNOWN_EVENTS.has(event.event)) {
-      state.error = invalid("unknown_event", state.events, { line: lineNumber });
+      state.error = invalid("unknown_event", state.events, {
+        line: lineNumber,
+      });
       return;
     }
     if (!isObject(event.detail)) {
-      state.error = invalid("invalid_event_detail", state.events, { line: lineNumber });
+      state.error = invalid("invalid_event_detail", state.events, {
+        line: lineNumber,
+      });
       return;
     }
 
     const isV2 = event.schema_version === 2;
     if (isV2 && !hasAuthorityDetailShape(event)) {
-      state.error = invalid("invalid_authority_detail", state.events, { line: lineNumber });
+      state.error = invalid("invalid_authority_detail", state.events, {
+        line: lineNumber,
+      });
       return;
     }
-    if (event.schema_version !== undefined && event.schema_version !== 1 && !isV2) {
-      state.error = invalid("unsupported_schema_version", state.events, { line: lineNumber });
+    if (
+      event.schema_version !== undefined &&
+      event.schema_version !== 1 &&
+      !isV2
+    ) {
+      state.error = invalid("unsupported_schema_version", state.events, {
+        line: lineNumber,
+      });
       return;
     }
     if (isNonEmptyString(event.run) && event.run !== expectedRun) {
@@ -183,15 +212,24 @@ function scanLedgerChunk(state, chunk, expectedRun) {
     }
     if (isV2) {
       if (event.run !== expectedRun) {
-        state.error = invalid("missing_or_misbound_run", state.events, { line: lineNumber });
+        state.error = invalid("missing_or_misbound_run", state.events, {
+          line: lineNumber,
+        });
         return;
       }
       if (!isIsoTimestamp(event.ts)) {
-        state.error = invalid("invalid_timestamp", state.events, { line: lineNumber });
+        state.error = invalid("invalid_timestamp", state.events, {
+          line: lineNumber,
+        });
         return;
       }
-      if (state.previousTimestamp !== "" && event.ts < state.previousTimestamp) {
-        state.error = invalid("timestamp_moved_backwards", state.events, { line: lineNumber });
+      if (
+        state.previousTimestamp !== "" &&
+        event.ts < state.previousTimestamp
+      ) {
+        state.error = invalid("timestamp_moved_backwards", state.events, {
+          line: lineNumber,
+        });
         return;
       }
       state.previousTimestamp = event.ts;
@@ -224,14 +262,20 @@ function scanResult(state) {
     reason: null,
     events: state.events,
     terminal: state.terminalIndex !== -1,
-    terminalEvent: state.terminalIndex === -1 ? null : state.events[state.terminalIndex].event,
+    terminalEvent:
+      state.terminalIndex === -1
+        ? null
+        : state.events[state.terminalIndex].event,
     legacy: state.events.some((event) => event.schema_version !== 2),
     legacyPostTerminal: state.legacyPostTerminal,
   };
 }
 
 /** @param {string} ledgerPath @param {string} [expectedRun] */
-export function inspectLedgerFile(ledgerPath, expectedRun = basename(join(ledgerPath, ".."))) {
+export function inspectLedgerFile(
+  ledgerPath,
+  expectedRun = basename(join(ledgerPath, "..")),
+) {
   if (!ledgerPath) return invalid("missing_ledger");
   let stat;
   try {
@@ -242,7 +286,10 @@ export function inspectLedgerFile(ledgerPath, expectedRun = basename(join(ledger
   if (stat === undefined) return invalid("missing_ledger");
   if (stat.isSymbolicLink()) return invalid("symlinked_ledger");
   try {
-    const parent = lstatSync(join(ledgerPath, ".."), { bigint: true, throwIfNoEntry: false });
+    const parent = lstatSync(join(ledgerPath, ".."), {
+      bigint: true,
+      throwIfNoEntry: false,
+    });
     if (parent === undefined) return invalid("unreadable_ledger");
     if (parent.isSymbolicLink()) return invalid("symlinked_ledger");
   } catch {
@@ -311,7 +358,11 @@ function inspectLedgerStat(ledgerPath, expectedRun, stat) {
     const state = freshScanState();
     scanLedgerChunk(state, text, expectedRun);
     result = scanResult(state);
-    if (result.valid && text.endsWith("\n") && text.length <= PARSE_STATE_MAX_BYTES) {
+    if (
+      result.valid &&
+      text.endsWith("\n") &&
+      text.length <= PARSE_STATE_MAX_BYTES
+    ) {
       if (parseStates.size >= PARSE_STATE_CACHE_LIMIT) parseStates.clear();
       parseStates.set(ledgerPath, {
         dev: stat.dev,
@@ -344,13 +395,25 @@ function readPointer(root, absentFromEntries = false) {
   let result;
   try {
     const parsed = JSON.parse(readFileSync(pointerPath, "utf8"));
-    if (!isObject(parsed) || parsed.schema_version !== 1 || !isValidRunSlug(parsed.run)) {
-      result = { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
+    if (
+      !isObject(parsed) ||
+      parsed.schema_version !== 1 ||
+      !isValidRunSlug(parsed.run)
+    ) {
+      result = {
+        state: "invalid",
+        path: pointerPath,
+        reason: "invalid_active_run_pointer",
+      };
     } else {
       result = { state: "present", path: pointerPath, run: parsed.run };
     }
   } catch {
-    result = { state: "invalid", path: pointerPath, reason: "invalid_active_run_pointer" };
+    result = {
+      state: "invalid",
+      path: pointerPath,
+      reason: "invalid_active_run_pointer",
+    };
   }
   cacheStore(pointerCache, pointerPath, key, result);
   return result;
@@ -386,7 +449,10 @@ function scanRootEntries(root, entries) {
     if (entry.name === ACTIVE_RUN_POINTER) pointerInEntries = true;
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
     const cached = scanRecords.get(entry.name);
-    const path = cached !== undefined ? cached.path : join(root, entry.name, "events.jsonl");
+    const path =
+      cached === undefined
+        ? join(root, entry.name, "events.jsonl")
+        : cached.path;
     let stat;
     try {
       stat = lstatSync(path, { bigint: true, throwIfNoEntry: false });
@@ -448,11 +514,19 @@ export function inspectLedgerRoot(cwd) {
     entries = readdirSync(root, { withFileTypes: true });
   } catch (error) {
     if (error && error.code === "ENOENT") {
-      return { root, pointer: { state: "absent", path: join(root, ACTIVE_RUN_POINTER) }, records: [] };
+      return {
+        root,
+        pointer: { state: "absent", path: join(root, ACTIVE_RUN_POINTER) },
+        records: [],
+      };
     }
     return {
       root,
-      pointer: { state: "invalid", path: join(root, ACTIVE_RUN_POINTER), reason: "unreadable_workflow_root" },
+      pointer: {
+        state: "invalid",
+        path: join(root, ACTIVE_RUN_POINTER),
+        reason: "unreadable_workflow_root",
+      },
       records: [],
     };
   }
@@ -466,7 +540,9 @@ export function inspectLedgerRoot(cwd) {
  * entries. Security-sensitive code should use selectActiveLedger instead.
  */
 export function findValidActiveLedgers(cwd) {
-  return inspectLedgerRoot(cwd).records.filter((record) => record.valid && !record.terminal);
+  return inspectLedgerRoot(cwd).records.filter(
+    (record) => record.valid && !record.terminal,
+  );
 }
 
 /**
@@ -475,48 +551,55 @@ export function findValidActiveLedgers(cwd) {
  * modification time.
  */
 export function selectActiveLedger(cwd) {
-	const root = join(cwd || process.cwd(), ".workflow");
-	const pointer = readPointer(root);
-	if (pointer.state === "invalid") {
-		return {
-			ledger: null,
-			reason: pointer.reason,
-			inspection: { root, pointer, records: [] },
-		};
-	}
-	if (pointer.state === "present") {
-		const path = join(root, pointer.run, "events.jsonl");
-		if (!isContainedPath(root, path)) {
-			return {
-				ledger: null,
-				reason: "invalid_active_run_pointer",
-				inspection: { root, pointer, records: [] },
-			};
-		}
-		const record = {
-			path,
-			run: pointer.run,
-			...inspectLedgerFile(path, pointer.run),
-		};
-		const inspection = { root, pointer, records: [record] };
-		if (!record.valid) {
-			return { ledger: null, reason: "invalid_active_ledger", inspection, invalid: [record] };
-		}
-		if (record.terminal) {
-			return { ledger: null, reason: "stale_active_run_pointer", inspection };
-		}
-		return { ledger: record, reason: null, inspection };
-	}
+  const root = join(cwd || process.cwd(), ".workflow");
+  const pointer = readPointer(root);
+  if (pointer.state === "invalid") {
+    return {
+      ledger: null,
+      reason: pointer.reason,
+      inspection: { root, pointer, records: [] },
+    };
+  }
+  if (pointer.state === "present") {
+    const path = join(root, pointer.run, "events.jsonl");
+    if (!isContainedPath(root, path)) {
+      return {
+        ledger: null,
+        reason: "invalid_active_run_pointer",
+        inspection: { root, pointer, records: [] },
+      };
+    }
+    const record = {
+      path,
+      run: pointer.run,
+      ...inspectLedgerFile(path, pointer.run),
+    };
+    const inspection = { root, pointer, records: [record] };
+    if (!record.valid) {
+      return {
+        ledger: null,
+        reason: "invalid_active_ledger",
+        inspection,
+        invalid: [record],
+      };
+    }
+    if (record.terminal) {
+      return { ledger: null, reason: "stale_active_run_pointer", inspection };
+    }
+    return { ledger: record, reason: null, inspection };
+  }
 
   const inspection = inspectLedgerRoot(cwd);
-	if (inspection.pointer.state === "invalid") {
-		return { ledger: null, reason: inspection.pointer.reason, inspection };
-	}
+  if (inspection.pointer.state === "invalid") {
+    return { ledger: null, reason: inspection.pointer.reason, inspection };
+  }
 
   // Without an explicit pointer, orphan invalid/corrupt ledgers do not hold
   // mutation authority. Only valid non-terminal runs can lock the host; junk
   // left from prior sessions must not brick ordinary work.
-  const active = inspection.records.filter((record) => record.valid && !record.terminal);
+  const active = inspection.records.filter(
+    (record) => record.valid && !record.terminal,
+  );
   if (active.length === 0) {
     if (inspection.pointer.state === "present") {
       return { ledger: null, reason: "stale_active_run_pointer", inspection };
@@ -525,7 +608,12 @@ export function selectActiveLedger(cwd) {
   }
 
   if (active.length !== 1) {
-    return { ledger: null, reason: "ambiguous_active_ledgers", inspection, active };
+    return {
+      ledger: null,
+      reason: "ambiguous_active_ledgers",
+      inspection,
+      active,
+    };
   }
   return { ledger: active[0], reason: null, inspection };
 }

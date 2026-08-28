@@ -32,28 +32,37 @@ export function loadLedgerEvents(ledgerPath) {
  * @param {{same_hypothesis_failures: number, red_checks_without_diff: number}} stopConditions
  * @returns {null | {reason: string, no_progress: object}}
  */
-export function derivedNoProgress(events, stopConditions = DEFAULT_NO_PROGRESS_THRESHOLDS) {
+export function derivedNoProgress(
+  events,
+  stopConditions = DEFAULT_NO_PROGRESS_THRESHOLDS,
+) {
   const latestDiff = events.reduce(
     (last, event, index) => (event.event === "file_changed" ? index : last),
     -1,
   );
-  const failures = events.slice(latestDiff + 1).filter(
-    (event) =>
-      event.event === "validation_failed" &&
-      isNonEmptyString(event.detail?.failure) &&
-      isNonEmptyString(event.detail?.command),
-  );
+  const failures = events
+    .slice(latestDiff + 1)
+    .filter(
+      (event) =>
+        event.event === "validation_failed" &&
+        isNonEmptyString(event.detail?.failure) &&
+        isNonEmptyString(event.detail?.command),
+    );
   const byFailure = new Map();
   const byCommand = new Map();
   for (const failure of failures) {
     const hypothesis = `${failure.detail.command}\u0000${failure.detail.failure}`;
     byFailure.set(hypothesis, (byFailure.get(hypothesis) || 0) + 1);
-    byCommand.set(failure.detail.command, (byCommand.get(failure.detail.command) || 0) + 1);
+    byCommand.set(
+      failure.detail.command,
+      (byCommand.get(failure.detail.command) || 0) + 1,
+    );
   }
   for (const [hypothesis, attempts] of byFailure) {
     if (attempts >= stopConditions.same_hypothesis_failures) {
       const matching = failures.find(
-        (event) => `${event.detail.command}\u0000${event.detail.failure}` === hypothesis,
+        (event) =>
+          `${event.detail.command}\u0000${event.detail.failure}` === hypothesis,
       );
       return {
         reason: "same_hypothesis_failure_limit",
@@ -86,12 +95,18 @@ export function derivedNoProgress(events, stopConditions = DEFAULT_NO_PROGRESS_T
  * Explicit no_progress event or derived thresholds.
  * @returns {null | {reason: string, detail: object}}
  */
-export function evaluateNoProgressStop(events, thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS) {
+export function evaluateNoProgressStop(
+  events,
+  thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS,
+) {
   const explicit = events.find((event) => event.event === "no_progress");
   if (explicit) {
     return {
       reason: "no_progress",
-      detail: explicit.detail && typeof explicit.detail === "object" ? explicit.detail : {},
+      detail:
+        explicit.detail && typeof explicit.detail === "object"
+          ? explicit.detail
+          : {},
     };
   }
   const derived = derivedNoProgress(events, thresholds);
@@ -110,7 +125,10 @@ export function evaluateNoProgressStop(events, thresholds = DEFAULT_NO_PROGRESS_
  * @param {string} cwd
  * @returns {null | {reason: string, detail: object, ledger?: string}}
  */
-export function shouldDenyMutationForNoProgress(cwd, thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS) {
+export function shouldDenyMutationForNoProgress(
+  cwd,
+  thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS,
+) {
   const selected = selectActiveLedger(cwd);
   if (selected.reason) {
     return {
@@ -143,7 +161,9 @@ export function isWorkflowEventEscapeCommand(command) {
   // No shell chaining, pipes, or redirects that could mutate elsewhere.
   if (/[;&|<>`]/.test(c) || /\n/.test(c) || /\$\(/.test(c)) return false;
   // Relative scripts/workflow-event, bare workflow-event, or absolute .../workflow-event.
-  return /^(?:node\s+|bun\s+|bash\s+)?(?:(?:\.\/)?(?:scripts\/)?workflow-event|\/(?:[A-Za-z0-9._-]+\/)*workflow-event)(?:\s+|$)/.test(c);
+  return /^(?:node\s+|bun\s+|bash\s+)?(?:(?:\.\/)?(?:scripts\/)?workflow-event|\/(?:[A-Za-z0-9._-]+\/)*workflow-event)(?:\s+|$)/.test(
+    c,
+  );
 }
 
 /**
@@ -157,15 +177,25 @@ export function isWorkflowEventEscapeCommand(command) {
  * @param {(path: string, cwd?: string) => boolean} isPlanFileFn
  * @param {string} cwd
  */
-export function isNoProgressEscapeHatch(toolName, toolInput, isPlanFileFn, cwd) {
+export function isNoProgressEscapeHatch(
+  toolName,
+  toolInput,
+  isPlanFileFn,
+  cwd,
+) {
   const input = toolInput || {};
   if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
-    const filePath = String(input.file_path || input.path || input.filePath || "");
+    const filePath = String(
+      input.file_path || input.path || input.filePath || "",
+    );
     return Boolean(isPlanFileFn && isPlanFileFn(filePath, cwd));
   }
   if (toolName === "Bash") {
     const command = String(input.command || input.cmd || "");
-    return isWorkflowEventEscapeCommand(command) || isNarrowPlanCleanupCommand(command);
+    return (
+      isWorkflowEventEscapeCommand(command) ||
+      isNarrowPlanCleanupCommand(command)
+    );
   }
   return false;
 }

@@ -153,9 +153,7 @@ let diskCache = null; // null until first load
 function routeCacheKey(root, prompt) {
   // Only a hash of the prompt is persisted: raw prompt text must never be
   // copied outside the turn (obvault-memory contract).
-  return createHash("sha256")
-    .update(`${root}\n${prompt}`)
-    .digest("hex");
+  return createHash("sha256").update(`${root}\n${prompt}`).digest("hex");
 }
 
 function loadDiskCache() {
