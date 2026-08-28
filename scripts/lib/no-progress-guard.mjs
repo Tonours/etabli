@@ -5,16 +5,13 @@
  * Does not auto-emit events — only reads existing ledger evidence.
  */
 import { inspectLedgerFile, selectActiveLedger } from "./ledger-integrity.mjs";
+import { isNonEmptyString } from "./predicates.mjs";
 import { isNarrowPlanCleanupCommand } from "./plan-cleanup-command.mjs";
 
 export const DEFAULT_NO_PROGRESS_THRESHOLDS = Object.freeze({
   same_hypothesis_failures: 2,
   red_checks_without_diff: 3,
 });
-
-function isNonEmptyString(value) {
-  return typeof value === "string" && value.trim() !== "";
-}
 
 /**
  * Load an integrity-valid ledger path. Missing or malformed data → [].
