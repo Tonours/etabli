@@ -68,6 +68,7 @@ const UNHASHED_ENTRIES = new Set([
   "node_modules",
   ".pytest_cache",
   ".ruff_cache",
+  ".poteto-mode-tools-install-key",
 ]);
 
 function isHashable(entry) {

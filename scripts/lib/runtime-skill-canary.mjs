@@ -110,18 +110,25 @@ function hashDirectory(root) {
   const hash = createHash("sha256");
   const files = [];
   const stack = [root];
+  // Dependency-install artifacts are generated at use time, not skill content;
+  // vendored skills that self-install helper scripts (poteto-mode bootstrap)
+  // must not drift the pinned lock hash on first invocation.
+  const EXCLUDED_DIRS = new Set(["node_modules"]);
+  const EXCLUDED_FILES = new Set([".poteto-mode-tools-install-key"]);
   while (stack.length > 0) {
     const current = stack.pop();
     const entries = readdirSync(current, { withFileTypes: true }).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
     for (const entry of entries) {
+      if (EXCLUDED_FILES.has(entry.name)) continue;
       const path = join(current, entry.name);
       const stat = lstatSync(path);
       if (stat.isSymbolicLink())
         throw new Error("skill source contains an unsupported symlink");
-      if (stat.isDirectory()) stack.push(path);
-      else if (stat.isFile()) files.push(path);
+      if (stat.isDirectory()) {
+        if (!EXCLUDED_DIRS.has(entry.name)) stack.push(path);
+      } else if (stat.isFile()) files.push(path);
     }
   }
   for (const path of files.sort((a, b) =>
