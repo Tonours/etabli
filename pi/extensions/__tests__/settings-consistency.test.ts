@@ -146,7 +146,7 @@ describe("Pi settings consistency", () => {
       piCore: true,
       agentsVisible: false,
     });
-    expect(keepList).toHaveLength(17);
+    expect(keepList).toHaveLength(18);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);
       expect(localPackage().skills ?? []).not.toContain(banned);
