@@ -131,6 +131,7 @@ describe("Pi settings consistency", () => {
       "coolify",
       "grill-me",
       "project-hunt",
+      "thermo-nuclear-code-quality-review",
     ];
     expect(installCoreSkills().sort()).toEqual([...keepList].sort());
     expect([...(localPackage().skills ?? [])].sort()).toEqual(
