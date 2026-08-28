@@ -2,7 +2,7 @@
 # watchdog.sh — checks that the local cron routines actually ran and succeeded.
 # Pure bash for the verdict; spawns a one-shot claude ONLY to post a Slack alert
 # when something is wrong. Silent when everything is healthy.
-# Scheduled by launchd (com.aguimard.routine-watchdog), runs late evening.
+# Scheduled by launchd (com.<account>.routine-watchdog), runs late evening.
 set -u
 
 LOGDIR="$HOME/.claude/logs"

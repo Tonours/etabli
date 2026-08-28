@@ -150,12 +150,6 @@ function vaultFingerprint(root) {
 // --- two-tier route cache -------------------------------------------------
 const memoryCache = new Map(); // key -> { f, x, v } (insertion order = LRU)
 let diskCache = null; // null until first load
-const stats = { memoryHits: 0, diskHits: 0, misses: 0, spawns: 0 };
-
-export function resolverCacheStats() {
-  return { ...stats, memorySize: memoryCache.size };
-}
-
 function routeCacheKey(root, prompt) {
   // Only a hash of the prompt is persisted: raw prompt text must never be
   // copied outside the turn (obvault-memory contract).
@@ -217,7 +211,6 @@ function cacheGet(key, fingerprint, now) {
     memoryCache.delete(key);
     memoryCache.set(key, memoryHit);
     if (memoryHit.x > now && memoryHit.f === fingerprint) {
-      stats.memoryHits++;
       return memoryHit.v;
     }
     memoryCache.delete(key);
@@ -225,11 +218,9 @@ function cacheGet(key, fingerprint, now) {
   const disk = loadDiskCache();
   const diskHit = disk.get(key);
   if (diskHit && diskHit.x > now && diskHit.f === fingerprint) {
-    stats.diskHits++;
     memoryCache.set(key, diskHit);
     return diskHit.v;
   }
-  stats.misses++;
   return undefined;
 }
 
@@ -268,7 +259,6 @@ export function resolveDynamicKnowledgeContext(
   }
 
   try {
-    stats.spawns++;
     const result = spawnSync(
       resolve(root, "_meta/obvault"),
       ["route", "--json", trimmed],

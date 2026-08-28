@@ -73,7 +73,14 @@ function loadCases(path) {
 
   const cases = [];
   for (const file of files) {
-    const parsed = JSON.parse(readFileSync(file, "utf8"));
+    let parsed;
+    try {
+      parsed = JSON.parse(readFileSync(file, "utf8"));
+    } catch (error) {
+      throw new Error(
+        `invalid JSON in dataset ${file}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     const entries = Array.isArray(parsed) ? parsed : parsed.cases;
     if (!Array.isArray(entries)) {
       throw new Error(`dataset file must contain an array or { cases }: ${file}`);

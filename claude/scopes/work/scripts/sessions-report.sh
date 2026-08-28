@@ -2,7 +2,7 @@
 # sessions-report.sh — posts a summary of yesterday's Claude Code sessions to
 # Slack #routines. Spawns a REAL interactive Claude instance in a disposable
 # tmux session (full MCP auth, unlike `claude -p`), waits for the done-marker,
-# then kills the tmux session. Scheduled by launchd (com.aguimard.claude-sessions-report).
+# then kills the tmux session. Scheduled by launchd (com.<account>.claude-sessions-report).
 set -u
 
 # Weekdays only (launchd fires daily; launchd catches up missed runs on wake)

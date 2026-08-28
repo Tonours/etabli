@@ -4,11 +4,7 @@
  * Pure thresholds align with project-autonomy stop_conditions defaults.
  * Does not auto-emit events — only reads existing ledger evidence.
  */
-import {
-  findValidActiveLedgers,
-  inspectLedgerFile,
-  selectActiveLedger,
-} from "./ledger-integrity.mjs";
+import { inspectLedgerFile, selectActiveLedger } from "./ledger-integrity.mjs";
 import { isNarrowPlanCleanupCommand } from "./plan-cleanup-command.mjs";
 
 export const DEFAULT_NO_PROGRESS_THRESHOLDS = Object.freeze({
@@ -21,42 +17,12 @@ function isNonEmptyString(value) {
 }
 
 /**
- * Legacy best-effort parser for reporting; never use it for mutation authority.
- * @param {string} text
- * @returns {Array<{event?: string, detail?: Record<string, unknown>}>}
- */
-export function parseLedgerEvents(text) {
-  if (typeof text !== "string" || text.trim() === "") return [];
-  const events = [];
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) events.push(parsed);
-    } catch {
-      // Compatibility parser: callers must not use this result for authority.
-    }
-  }
-  return events;
-}
-
-/**
  * Load an integrity-valid ledger path. Missing or malformed data → [].
  * @param {string} ledgerPath
  */
 export function loadLedgerEvents(ledgerPath) {
   const inspection = inspectLedgerFile(ledgerPath);
   return inspection.valid ? inspection.events : [];
-}
-
-/**
- * Terminal ledger: its final event is completed or blocked.
- * @param {Array<{event?: string}>} events
- */
-export function isTerminalLedger(events) {
-  const final = events.at(-1);
-  return final?.event === "completed" || final?.event === "blocked";
 }
 
 /**
@@ -136,16 +102,6 @@ export function evaluateNoProgressStop(events, thresholds = DEFAULT_NO_PROGRESS_
     };
   }
   return null;
-}
-
-/**
- * Non-terminal, integrity-valid ledgers under cwd / .workflow / slug.
- * Kept for compatibility; security-sensitive selection uses selectActiveLedger.
- * @param {string} cwd
- * @returns {Array<{path: string, events: object[]}>}
- */
-export function findActiveLedgers(cwd) {
-  return findValidActiveLedgers(cwd).map(({ path, events }) => ({ path, events }));
 }
 
 /**

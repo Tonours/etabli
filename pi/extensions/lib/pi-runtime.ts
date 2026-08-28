@@ -242,12 +242,3 @@ export function readRtkConfig(settingsPath = getAgentSettingsPath()): RtkConfig 
   }
   return { ...DEFAULT_RTK_CONFIG };
 }
-
-export function resetRuntimeCaches(): void {
-  agentSettingsCache.clear();
-  lastReadPath = undefined;
-  lastReadEntry = undefined;
-  for (const [settingsPath, state] of fileWatchers) {
-    releaseWatcher(settingsPath, state);
-  }
-}
