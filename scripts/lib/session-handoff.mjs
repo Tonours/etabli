@@ -309,6 +309,26 @@ function buildHandoff(options) {
   }
 }
 
+function replayState(program) {
+  if (!program.replay_valid) return "invalid";
+  return program.replay_complete ? "complete" : "valid";
+}
+
+function renderProgramSection(program) {
+  if (!program) return [];
+  return [
+    "## Program frontier",
+    "",
+    `- Program: \`${program.program_id || "unavailable"}\``,
+    `- Replay: ${replayState(program)}`,
+    `- Execution: ${program.execution || "unavailable"}; runtime confirmed: ${program.runtime_confirmed === true}`,
+    `- Ready: ${program.ready_units?.join(", ") || "none"}`,
+    `- Verified: ${program.verified_units?.join(", ") || "none"}`,
+    ...((program.frontier || []).map((unit) => `- Frontier: ${unit.unit_id} (${unit.status})`)),
+    "",
+  ];
+}
+
 function markdown(pack) {
   const lines = [
     "# Session handoff",
@@ -326,17 +346,7 @@ function markdown(pack) {
       ? pack.validations.map((item) => `- ${item.status}: \`${item.command}\``)
       : ["- No validation evidence available."]),
     "",
-    ...(pack.program ? [
-      "## Program frontier",
-      "",
-      `- Program: \`${pack.program.program_id || "unavailable"}\``,
-      `- Replay: ${pack.program.replay_valid ? (pack.program.replay_complete ? "complete" : "valid") : "invalid"}`,
-      `- Execution: ${pack.program.execution || "unavailable"}; runtime confirmed: ${pack.program.runtime_confirmed === true}`,
-      `- Ready: ${pack.program.ready_units?.join(", ") || "none"}`,
-      `- Verified: ${pack.program.verified_units?.join(", ") || "none"}`,
-      ...((pack.program.frontier || []).map((unit) => `- Frontier: ${unit.unit_id} (${unit.status})`)),
-      "",
-    ] : []),
+    ...renderProgramSection(pack.program),
     `## Blocker\n\n${pack.blocker || "None observed after the latest validation."}`,
     "",
     `## Next action\n\n${pack.next_action}`,
