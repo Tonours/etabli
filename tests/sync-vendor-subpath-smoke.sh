@@ -36,6 +36,8 @@ mkdir -p "$up_sub/monorepo/plugins/mystack/skills/how" \
        "$up_sub/monorepo/plugins/mystack/skills/nested/one"
 printf -- '---\nname: how\ndescription: subpath fixture\n---\nbody how\n' \
        >"$up_sub/monorepo/plugins/mystack/skills/how/SKILL.md"
+printf 'writes to .cursor/skills/verify-demo/ upstream\n' \
+       >>"$up_sub/monorepo/plugins/mystack/skills/how/SKILL.md"
 printf -- '---\nname: why\ndescription: subpath fixture\n---\nbody why\n' \
        >"$up_sub/monorepo/plugins/mystack/skills/why/SKILL.md"
 printf -- '---\nname: one\ndescription: nested-name fixture\n---\nbody one\n' \
@@ -73,6 +75,10 @@ assert_contains "$out" "3 skills at"
 [ -d "$consumer/vendor/mystack/skills/how" ] || fail "subpath skill how missing"
 [ -d "$consumer/vendor/mystack/skills/why" ] || fail "subpath skill why missing"
 [ -d "$consumer/vendor/mystack/skills/nested/one" ] || fail "nested-name skill missing"
+grep -q '.claude/skills/verify-demo/' "$consumer/vendor/mystack/skills/how/SKILL.md" ||
+  fail "adaptation table must rewrite .cursor/skills to .claude/skills"
+grep -q '\.cursor/skills' "$consumer/vendor/mystack/skills/how/SKILL.md" &&
+  fail "no .cursor/skills may survive the adaptation"
 [ -f "$consumer/vendor/mystack/UPSTREAM_SHA" ] || fail "subpath UPSTREAM_SHA missing"
 [ -f "$consumer/vendor/mystack/LICENSE" ] || fail "subpath LICENSE not copied"
 grep -q "subpath)" "$consumer/vendor/mystack/LICENSE" ||
