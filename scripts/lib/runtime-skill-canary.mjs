@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
   readFileSync,
-  readdirSync,
   realpathSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
+
+import { hashSkillTree } from "./skill-tree-hash.mjs";
 
 const RUNTIMES = ["codex", "pi", "claude", "grok"];
 const DEFAULT_SKILL = "runtime-skill-canary";
@@ -104,40 +104,6 @@ function catalogEntry(catalogPath, name) {
     }
   }
   return null;
-}
-
-function hashDirectory(root) {
-  const hash = createHash("sha256");
-  const files = [];
-  const stack = [root];
-  // Dependency-install artifacts are generated at use time, not skill content;
-  // vendored skills that self-install helper scripts (poteto-mode bootstrap)
-  // must not drift the pinned lock hash on first invocation.
-  const EXCLUDED_DIRS = new Set(["node_modules"]);
-  const EXCLUDED_FILES = new Set([".poteto-mode-tools-install-key"]);
-  while (stack.length > 0) {
-    const current = stack.pop();
-    const entries = readdirSync(current, { withFileTypes: true }).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-    for (const entry of entries) {
-      if (EXCLUDED_FILES.has(entry.name)) continue;
-      const path = join(current, entry.name);
-      const stat = lstatSync(path);
-      if (stat.isSymbolicLink())
-        throw new Error("skill source contains an unsupported symlink");
-      if (stat.isDirectory()) {
-        if (!EXCLUDED_DIRS.has(entry.name)) stack.push(path);
-      } else if (stat.isFile()) files.push(path);
-    }
-  }
-  for (const path of files.sort((a, b) =>
-    relative(root, a).localeCompare(relative(root, b)),
-  )) {
-    hash.update(relative(root, path));
-    hash.update(readFileSync(path));
-  }
-  return hash.digest("hex");
 }
 
 function lockEntry(lockPath, name) {
@@ -264,7 +230,7 @@ function main() {
   const sourcePath = join(options.repo, "pi/skills", options.skill);
   const skillPath = join(sourcePath, "SKILL.md");
   const sourceExists = existsSync(skillPath);
-  const sourceSha256 = sourceExists ? hashDirectory(sourcePath) : null;
+  const sourceSha256 = sourceExists ? hashSkillTree(sourcePath) : null;
   const lock = lockEntry(lockPath, options.skill);
   const lockMatches = Boolean(
     sourceSha256 && lock?.computedHash === sourceSha256,
