@@ -289,12 +289,12 @@
     "create-verification-skill": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a2e50d21892772174225073b3e4864f853883ae2bc13b33eca64c3b67fe06be5"
+      "computedHash": "68e83a7cf21e87d53868a7c54df1716dc501ce3e2aaea66c2449fecaa2c72217"
     },
     "maintain-verification-skill": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "283083c9547641392a58c38edeb147e75aa99912e7fba55edaa7b1a02021ffec"
+      "computedHash": "e0bd7c867c3c24a123a7916af40ad9616720ad5e83c97caacd18141a413c78d3"
     },
     "poteto-mode": {
       "source": "local",
@@ -494,7 +494,7 @@
     "reflect": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "4b0096ff450f4d557ebf2a5d9867acc1146ce47ab0446413072b393b39813e11"
+      "computedHash": "07eede845427ce118de92cb758b5aee4ba1a97d74e7c68eccf9b03397bf04501"
     },
     "teach": {
       "source": "local",
@@ -509,7 +509,7 @@
     "automate-me": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "46aa2f1b4a97dce48c1cdd57b5e412429f6c3493ada2bffdfc9c8ddcdc19aa7e"
+      "computedHash": "f3371d0bfedf55a6e867735f6b264f7ad1da72df2ef3c43b373d3e53e0ca622e"
     },
     "typescript-best-practices": {
       "source": "local",
