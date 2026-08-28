@@ -62,6 +62,7 @@ pi_import_smoke() {
     "./extensions/filter-output.ts",
     "./extensions/prefer-ipv4-dns.ts",
     "./extensions/rtk.ts",
+    "./extensions/no-comments.ts",
   ]) await import(path)'
 }
 
