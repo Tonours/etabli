@@ -24,7 +24,7 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 synced=0
 
-while IFS=$'\t' read -r vendor repo ref scope skills; do
+while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
   case "$vendor" in ''|\#*) continue ;; esac
   if [ -n "$ONLY" ] && [ "$ONLY" != "$vendor" ]; then
     continue
@@ -42,7 +42,7 @@ while IFS=$'\t' read -r vendor repo ref scope skills; do
 
   IFS=',' read -r -a wanted <<<"$skills"
   for skill in "${wanted[@]}"; do
-    src="$WORK_DIR/$vendor/skills/$skill"
+    src="$WORK_DIR/$vendor/${subpath:+$subpath/}skills/$skill"
     if [ ! -d "$src" ]; then
       printf 'upstream %s no longer ships skill %q at %s\n' "$vendor" "$skill" "$ref" >&2
       exit 1
@@ -51,11 +51,22 @@ while IFS=$'\t' read -r vendor repo ref scope skills; do
     cp -R "$src" "$dest/$skill"
   done
 
+  license_copied=0
   for extra in LICENSE LICENSE.md; do
-    if [ -f "$WORK_DIR/$vendor/$extra" ]; then
-      cp "$WORK_DIR/$vendor/$extra" "$VENDOR_ROOT/$vendor/$extra"
+    if [ -n "$subpath" ] && [ -f "$WORK_DIR/$vendor/$subpath/$extra" ]; then
+      cp "$WORK_DIR/$vendor/$subpath/$extra" "$VENDOR_ROOT/$vendor/$extra"
+      license_copied=1
     fi
   done
+  if [ "$license_copied" -eq 0 ]; then
+    for extra in LICENSE LICENSE.md; do
+      if [ -f "$WORK_DIR/$vendor/$extra" ]; then
+        cp "$WORK_DIR/$vendor/$extra" "$VENDOR_ROOT/$vendor/$extra"
+        license_copied=1
+        break
+      fi
+    done
+  fi
 
   printf '%s\n' "$sha" >"$VENDOR_ROOT/$vendor/UPSTREAM_SHA"
   printf '    %d skills at %s\n' "${#wanted[@]}" "${sha:0:12}"

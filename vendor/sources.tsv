@@ -1,3 +1,5 @@
-# vendor	repo	ref	scope	skills
+# vendor	repo	ref	scope	skills	subpath (optional; path prefix inside the upstream repo that holds skills/)
+# pstack skills live at the root of the cursor/plugins monorepo under pstack/.
+pstack	https://github.com/cursor/plugins.git	main	shared	how,why,architect,blast-radius,tdd,interrogate,create-verification-skill,maintain-verification-skill	pstack
 ember-skills	git@github.com:Tonours/ember-skills.git	main	work	ember-forestadmin-architecture,ember-forestadmin-components,ember-forestadmin-data,ember-forestadmin-debug,ember-forestadmin-lint-style,ember-forestadmin-migration,ember-forestadmin-react-mfe,ember-forestadmin-routes,ember-forestadmin-services-state,ember-forestadmin-suite,ember-forestadmin-testing,ember-forestadmin-workflow-visualizer,ember-standalone-workflow-package
 adonisjs-skills	git@github.com:Tonours/adonisjs-skills.git	main	personal	adonisjs-architecture,adonisjs-backend,adonisjs-review,adonisjs-suite,adonisjs-testing,adonisjs-tuyau
