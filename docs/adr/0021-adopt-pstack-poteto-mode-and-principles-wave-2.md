@@ -20,7 +20,7 @@ shared catalog helper needed a slug-validation fallback.
 
 ## Decision
 
-Vendor `poteto-mode` (its 22 playbooks ship inside the skill folder) and the
+Vendor `poteto-mode` (its 23 playbooks ship inside the skill folder) and the
 21 `principle-*` skills from the same `pstack` monorepo snapshot
 (`397c8660da6d`). Deploy via catalog rows (`source=pstack`, `0 0 1`) to
 `~/.pi/agent/skills`, `~/.claude/skills`, `~/.codex/skills` — 30 pstack
@@ -52,7 +52,7 @@ mitigation instead of waiting for a coverage failure.
 - The Pi/Claude/Codex skill catalogs grow by 22 (Pi list ~76 entries);
   reversible per-row.
 - poteto-mode references skills and mechanics that are not vendored
-  (arena, swarm, recall, unslop, no-comments, technical-writing,
+  (arena, swarm, recall, setup-pstack, unslop, no-comments, technical-writing,
   figure-it-out, reflect, automate-me, make-bot-ui, teach,
   typescript-best-practices, show-me-your-work, bro; Cursor built-ins
   create-skill, /loop, AskQuestion, Task model roles; cursor-team-kit
