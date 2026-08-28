@@ -485,6 +485,36 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "dee7f1a523994a1e063c69fe09c2f5b4da97a41ad68107722664e6e472cb2423"
+    },
+    "figure-it-out": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "67336d8f721357967b448d87993e40294fdedc76c5c659c1524a5aabeb65bdcd"
+    },
+    "reflect": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4b0096ff450f4d557ebf2a5d9867acc1146ce47ab0446413072b393b39813e11"
+    },
+    "teach": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "413210cf5a752fb2d4c73bca701ed16da723712251b74bdd8e39a5042f5cb6fb"
+    },
+    "show-me-your-work": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "eb8f3c13a657dd5b0ab5ed86275fe8a15a392c2fd2b2a3b7858800c9a2af7e07"
+    },
+    "automate-me": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "46aa2f1b4a97dce48c1cdd57b5e412429f6c3493ada2bffdfc9c8ddcdc19aa7e"
+    },
+    "typescript-best-practices": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "f1c25fcfc1616686f387465824b1f4458782d962e64ef2e217b3ffb02bf3650a"
     }
   }
 }
