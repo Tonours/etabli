@@ -12,15 +12,15 @@ import { join, relative, sep } from "node:path";
 // (poteto-mode bootstrap writes node_modules/ and an install key) must not
 // drift the pinned skills-lock hash on first use.
 const EXCLUDED_DIRS = new Set([
-  "__pycache__",
-  "node_modules",
-  ".pytest_cache",
-  ".ruff_cache",
+    "__pycache__",
+    "node_modules",
+    ".pytest_cache",
+    ".ruff_cache",
 ]);
 const EXCLUDED_FILES = new Set([".DS_Store", ".poteto-mode-tools-install-key"]);
 
 function isExcludedFile(name) {
-  return EXCLUDED_FILES.has(name) || name.endsWith(".pyc");
+    return EXCLUDED_FILES.has(name) || name.endsWith(".pyc");
 }
 
 /**
@@ -30,28 +30,29 @@ function isExcludedFile(name) {
  * any symlink inside the tree throws — hash inputs must be real files.
  */
 export function hashSkillTree(root) {
-  const hash = createHash("sha256");
-  const files = [];
-  const stack = [root];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      if (EXCLUDED_DIRS.has(entry.name) || isExcludedFile(entry.name)) continue;
-      const path = join(current, entry.name);
-      // lstat, not stat: a followed stat can never report the symlink this
-      // check exists to reject.
-      const stat = lstatSync(path);
-      if (stat.isSymbolicLink()) {
-        throw new Error("skill source contains an unsupported symlink");
-      }
-      if (stat.isDirectory()) stack.push(path);
-      else if (stat.isFile()) files.push(path);
+    const hash = createHash("sha256");
+    const files = [];
+    const stack = [root];
+    while (stack.length > 0) {
+        const current = stack.pop();
+        for (const entry of readdirSync(current, { withFileTypes: true })) {
+            if (EXCLUDED_DIRS.has(entry.name) || isExcludedFile(entry.name))
+                continue;
+            const path = join(current, entry.name);
+            // lstat, not stat: a followed stat can never report the symlink this
+            // check exists to reject.
+            const stat = lstatSync(path);
+            if (stat.isSymbolicLink()) {
+                throw new Error("skill source contains an unsupported symlink");
+            }
+            if (stat.isDirectory()) stack.push(path);
+            else if (stat.isFile()) files.push(path);
+        }
     }
-  }
-  const toKey = (path) => relative(root, path).split(sep).join("/");
-  for (const path of files.sort((a, b) => toKey(a).localeCompare(toKey(b)))) {
-    hash.update(toKey(path));
-    hash.update(readFileSync(path));
-  }
-  return hash.digest("hex");
+    const toKey = (path) => relative(root, path).split(sep).join("/");
+    for (const path of files.sort((a, b) => toKey(a).localeCompare(toKey(b)))) {
+        hash.update(toKey(path));
+        hash.update(readFileSync(path));
+    }
+    return hash.digest("hex");
 }
