@@ -17,7 +17,8 @@ git history or the working tree that is pushed.
 ## Before flipping the GitHub repo to public
 
 1. **Working tree scan** — no `.env`, `*.pem`, real `Bearer` tokens, or `ghp_` / `github_pat_` / `sk-ant-` values in tracked files.
-2. **MCP** — only `mcp/servers.template.json` (placeholders). See `docs/mcp-strategy.md`.
+2. **MCP** — only `mcp/servers.template.json` (placeholders). Repo `.mcp.json`
+   is empty on purpose. See `docs/mcp-strategy.md`.
 3. **Install secrets** — never put production tokens in `scripts/` or CI YAML; use GitHub Actions secrets if needed later.
 4. **Optional history review** — if you ever committed a real token (none expected), rotate it and rewrite history before going public.
 

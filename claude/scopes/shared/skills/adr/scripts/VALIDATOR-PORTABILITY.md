@@ -7,7 +7,7 @@ not standalone.
 
 The wrapper needs Node.js and one shared module:
 
-- repo-local module: `claude/skills/adr/scripts/adr-validation.mjs`
+- repo-local module: `claude/scopes/shared/skills/adr/scripts/adr-validation.mjs`
 - installed skill module: `~/.claude/skills/adr/scripts/adr-validation.mjs`
 
 It resolves the repo-local module first, then falls back to the installed Claude
@@ -19,7 +19,7 @@ For a repository that owns its ADR tooling, copy both files:
 
 ```bash
 scripts/validate-adrs
-claude/skills/adr/scripts/adr-validation.mjs
+claude/scopes/shared/skills/adr/scripts/adr-validation.mjs
 ```
 
 Then run:

@@ -60,23 +60,25 @@ Put a surface in `shared` only if it would still make sense at a different
 employer. A skill that names a repo, a product, or an internal service belongs
 in `work`.
 
-### Contracts and skills carry the same name on purpose
+### Contracts, commands, and skills
 
-Five names exist three times over: `bug-check`, `pr-qa`, `pr-review`, `sec-pr`,
-and `review` each have a `workflow/skills/<name>.md` contract, a
-`scopes/*/commands/<name>.md` command, and a `scopes/*/skills/<name>/` skill.
-That is not drift to clean up:
+Five names share a `workflow/skills/<name>.md` contract and a
+`scopes/*/commands/<name>.md` command: `bug-check`, `pr-qa`, `pr-review`,
+`sec-pr`, and `review`. That is not drift to clean up.
 
 - the **contract** is the cross-runtime source of truth — Pi reads it too
   (`pi/skills/pr-review/SKILL.md`), and Pi cannot see Claude skills;
-- the **skill** is the Claude-side procedure, free to go further than the
-  contract but never against it. Each one names its contract in its opening
-  lines;
-- the **command** is the thin `/name` entry point.
+- the **command** is the thin `/name` entry point;
+- a **Claude skill** exists only when Claude's procedure goes further than
+  the contract. Today that is `bug-check`, `pr-qa`, and `sec-pr` under
+  `scopes/work/skills/`. `review` and `pr-review` have Pi skills instead.
 
 Change the contract when the rule is true for every runtime. Change the skill
-when only Claude's procedure moves. `tests/workflow-contract-coverage-smoke.sh`
+when only that runtime's procedure moves. `tests/workflow-contract-coverage-smoke.sh`
 enforces that every contract stays referenced somewhere.
+
+The `personal` row in the scope table is the deploy gate. Personal vendor
+skills (AdonisJS) arrive through `vendor/`, not `claude/scopes/personal/`.
 
 ## Workflow
 

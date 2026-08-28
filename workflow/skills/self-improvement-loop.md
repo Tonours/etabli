@@ -20,8 +20,6 @@ Use evidence that can be inspected again:
 - runtime capability overclaims;
 - harness failure records with terminal cause, causal status, mechanism,
   verifier, and trace links.
-- pinned historical outcome populations and conservative aggregate usage
-  imports produced by `scripts/workflow-telemetry-recover`.
 
 Do not use vibes, stale memory, or a single anecdote as enough proof for a
 workflow invariant.

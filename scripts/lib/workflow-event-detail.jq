@@ -334,7 +334,7 @@ def strict_detail($event):
     end and
     # Additive optional runtime-outcome fields (X2): type-checked when present,
     # accepted in both measured and unavailable branches, ignored when absent.
-    # Producers (tasks-till-done runtime loop, telemetry-recover) populate these
+    # Producers (tasks-till-done runtime loop) populate these
     # where observed; absence never blocks a valid core outcome_metric.
     ((.runtime? == null) or (.runtime | nonempty_string)) and
     ((.turn_count? == null) or (.turn_count | nonnegative_integer)) and

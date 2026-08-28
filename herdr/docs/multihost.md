@@ -60,6 +60,7 @@ OS notifications: `[ui.toast] delivery = "system"` in config.
 | file-viewer | `prefix+alt+v` |
 | memex | `prefix+alt+m` |
 | etabli obvault pack | `prefix+alt+o` |
+| claude-relaunch | `prefix+alt+c` (pending relaunches) |
 | herdr-mirror | plugin actions `mirror.*` |
 
 Install:
@@ -71,6 +72,7 @@ herdr plugin install persiyanov/herdr-reviewr --yes
 herdr plugin install smarzban/herdr-file-viewer --yes
 herdr plugin install nicosuave/memex --yes
 herdr plugin link "$(pwd)/herdr/plugins/etabli-obvault"
+herdr plugin link "$(pwd)/herdr/plugins/claude-relaunch"
 ```
 
 Sessionizer layout:

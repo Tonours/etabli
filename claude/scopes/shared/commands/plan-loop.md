@@ -25,8 +25,8 @@ Try each path with a direct read; do not stop at the first miss.
    - `~/.agents/PLAN_TEMPLATE.md`, `~/.agents/PLAN_TEMPLATE_FULL.md`, `~/.agents/workflow/spec.md`
 3. Relative install-surface fallbacks (logical path only; do not realpath the command dir first):
    - From `~/.claude/commands`: `../PLAN_TEMPLATE.md`, `../PLAN_TEMPLATE_FULL.md`, `../workflow/spec.md`
-4. Relative Etabli-repo fallbacks after realpath into `claude/commands/`:
-   - `../../PLAN_TEMPLATE.md`, `../../PLAN_TEMPLATE_FULL.md`, `../../workflow/spec.md`
+4. Relative Etabli-repo fallbacks after realpath into `claude/scopes/shared/commands/`:
+   - `../../../../PLAN_TEMPLATE.md`, `../../../../PLAN_TEMPLATE_FULL.md`, `../../../../workflow/spec.md`
 5. If any fallback file exists, read it and continue. Do not tell the user the template/spec is missing.
 6. If all workspace and fallback copies are missing, create `PLAN.md` from the template shape embedded in this command and report the missing source paths as a warning, not as a blocker.
 

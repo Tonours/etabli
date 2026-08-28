@@ -2,7 +2,7 @@
 
 How etabli consumes [pstack](https://github.com/cursor/plugins/tree/main/pstack)
 (Lauren Tan's engineering skill set) without replacing its own workflow
-contract. Decision record: `docs/adr/0020-*.md`.
+contract. Decision records: `docs/adr/0020-*.md`, `docs/adr/0021-*.md`.
 
 ## What is vendored
 
