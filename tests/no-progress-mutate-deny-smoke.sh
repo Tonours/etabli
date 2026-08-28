@@ -504,7 +504,7 @@ assertDenyReason(
     tool_name: "Write",
     tool_input: { file_path: join(tmp, "src/symlinked.ts"), content: "x" },
   }),
-  "invalid_active_run_pointer",
+  "invalid_active_ledger",
 );
 
 console.log("no-progress-mutate-deny smoke test: ok");
