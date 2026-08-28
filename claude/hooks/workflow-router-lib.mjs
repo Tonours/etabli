@@ -1267,11 +1267,9 @@ export function normalizeToolName(toolName) {
 	const raw = String(toolName || "");
 	const lower = raw.toLowerCase();
 	if (lower === "write" || lower === "edit" || lower === "multiedit") {
-		return lower === "multiedit"
-			? "MultiEdit"
-			: lower === "write"
-				? "Write"
-				: "Edit";
+		if (lower === "multiedit") return "MultiEdit";
+		if (lower === "write") return "Write";
+		return "Edit";
 	}
 	if (
 		lower === "bash" ||

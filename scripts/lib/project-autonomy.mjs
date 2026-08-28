@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import { isObject, isNonEmptyString, isStringArray } from "./predicates.mjs";
 import { basename, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -20,22 +21,6 @@ const REQUIRED_FORBIDDEN_ACTIONS = [
 ];
 
 const ALLOWED_EVENTS = new Set(WORKFLOW_EVENTS);
-
-function isObject(value) {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isNonEmptyString(value) {
-	return typeof value === "string" && value.trim() !== "";
-}
-
-function isStringArray(value, minimum = 1) {
-	return (
-		Array.isArray(value) &&
-		value.length >= minimum &&
-		value.every(isNonEmptyString)
-	);
-}
 
 function positiveInteger(value) {
 	return Number.isInteger(value) && value > 0;
@@ -105,9 +90,7 @@ export function validateEnvelope(envelope, now = null) {
 	}
 
 	const authorization = envelope.authorization;
-	if (!isObject(authorization)) {
-		errors.push("authorization is required");
-	} else {
+	if (isObject(authorization)) {
 		for (const field of [
 			"allowed_files",
 			"allowed_tools",
@@ -129,6 +112,8 @@ export function validateEnvelope(envelope, now = null) {
 				errors.push(`authorization.forbidden_actions must include ${required}`);
 			}
 		}
+	} else {
+		errors.push("authorization is required");
 	}
 
 	const budget = envelope.budget;
@@ -219,9 +204,7 @@ export function validateEnvelope(envelope, now = null) {
 		}
 	}
 
-	if (!Array.isArray(envelope.checkpoints)) {
-		errors.push("checkpoints must be an array");
-	} else {
+	if (Array.isArray(envelope.checkpoints)) {
 		uniqueIds(envelope.checkpoints, "checkpoint", errors);
 		const sliceIds = new Set((envelope.slices || []).map((slice) => slice?.id));
 		for (const checkpoint of envelope.checkpoints) {
@@ -266,6 +249,8 @@ export function validateEnvelope(envelope, now = null) {
 				}
 			}
 		}
+	} else {
+		errors.push("checkpoints must be an array");
 	}
 
 	return errors;

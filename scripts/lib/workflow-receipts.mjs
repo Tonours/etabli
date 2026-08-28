@@ -10,6 +10,7 @@
  * attestation and must not be presented as proof of isolation.
  */
 import { createHash } from "node:crypto";
+import { isNonEmptyString } from "./predicates.mjs";
 import { appendFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
 
@@ -27,10 +28,6 @@ function isoTs() {
 
 function sha256(value) {
 	return createHash("sha256").update(String(value), "utf8").digest("hex");
-}
-
-function isNonEmptyString(value) {
-	return typeof value === "string" && value.trim() !== "";
 }
 
 /**

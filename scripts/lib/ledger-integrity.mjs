@@ -5,6 +5,7 @@
  * ledger can be ignored or selected as active.
  */
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { isObject, isNonEmptyString, isStringArray } from "./predicates.mjs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { WORKFLOW_EVENTS } from "./workflow-events.mjs";
 
@@ -63,24 +64,10 @@ const TERMINAL_EVENTS = new Set(["completed", "blocked"]);
 const RUN_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 const KNOWN_EVENTS = new Set(WORKFLOW_EVENTS);
 
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isNonEmptyString(value) {
-  return typeof value === "string" && value.trim() !== "";
-}
-
 function isIsoTimestamp(value) {
   return (
     typeof value === "string" &&
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)
-  );
-}
-
-function isStringArray(value) {
-  return (
-    Array.isArray(value) && value.length > 0 && value.every(isNonEmptyString)
   );
 }
 
