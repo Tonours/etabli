@@ -31,4 +31,6 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0017](docs/adr/0017-serve-the-work-knowledge-vault-through-a-standalone-brain-mcp.md) — Serve the work knowledge vault through a standalone brain MCP [accepted]
 - [0018](docs/adr/0018-unify-agent-surface-convergence-behind-deploy-agent-workflow.md) — Unify agent-surface convergence behind deploy-agent-workflow [accepted]
 - [0019](docs/adr/0019-measure-ambient-tooling-before-cutting-review-passes.md) — Measure ambient tooling before cutting review passes [accepted]
+- [0020](docs/adr/0020-adopt-pstack-as-vendored-task-skill-layer.md) — Adopt pstack as a vendored task-skill layer, not a workflow replacement [accepted]
+- [0021](docs/adr/0021-adopt-pstack-poteto-mode-and-principles-wave-2.md) — Adopt pstack poteto-mode and principles as wave 2, opt-in [accepted]
 <!-- ADR:INDEX:END -->

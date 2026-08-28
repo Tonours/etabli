@@ -44,7 +44,7 @@ Quick ref: `nvim/CHEATSHEET.md`
 - Default colorscheme: **Catppuccin Mocha** (not `habamax`).
 - Shared palette with terminal stack:
   - `ghostty/config` — background `#1e1e2e`, text `#cdd6f4`, mauve accent `#cba6f7`
-  - `tmux.conf` — `@catppuccin_flavor 'mocha'`, current window mauve
+  - `tmux.conf` — inline `@thm_*` Mocha palette (no TPM catppuccin plugin), current window mauve
   - `nvim/lua/config/palette.lua` — same hex pins for nvim chrome / docs
 - Plugin: `catppuccin.nvim` via vim.pack; statusline/float borders use surface0 + mauve accents.
 

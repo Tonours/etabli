@@ -29,7 +29,7 @@ the tier — never downgrade mid-run.
 
 0. Understand before planning: run a scoped local recon of the affected area
    and carry sourced findings (file:line) into the plan. Dispatch sidecars only
-   when the deterministic adaptive profile selects a scout/council or the user
+   when the deterministic adaptive profile selects a scout or the user
    explicitly forces the profile. Scale recon down to a quick read for small
    tasks; never skip it entirely.
 1. If a task is provided, run the `plan-loop` behavior first.

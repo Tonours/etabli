@@ -6,18 +6,21 @@ MCP configuration or credentials.
 
 ## Current work inventory
 
-Verified from name-only local introspection on 2026-08-17:
+Verified from the tracked template and this repository's `.mcp.json` on
+2026-08-28. Live user-scope names below match the last name-only inventory
+(2026-08-17), except Claude project `.mcp.json`, which is now empty.
 
 | Runtime | Live store | Active servers |
 | --- | --- | --- |
-| Claude | `~/.claude.json` → `mcpServers`; project `.mcp.json` | `chrome-devtools`, `lean-ctx`, `brain` |
+| Claude | `~/.claude.json` → `mcpServers` | `chrome-devtools`, `lean-ctx`, `brain` |
 | Pi | `~/.pi/agent/mcp.json` → `mcpServers` | `lean-ctx`, `brain` |
 | Codex | `~/.codex/config.toml` → `mcp_servers.*` | `chrome-devtools`, `lean-ctx`, `datadog`, `linear`, `brain` |
 | Grok | Grok user configuration | none |
 
-`brain` is project-scoped in Claude (declared in this repository's `.mcp.json`),
-so Claude reports it as pending approval until the user approves it once. Pi and
-Codex declare it in their own user-scope stores.
+This repository's `.mcp.json` is `{"mcpServers": {}}` on purpose. A
+project-scoped `brain` entry was dropped in `9ac3e10` after the local engine
+failed to start from etabli. Claude, Pi, and Codex declare `brain` in their
+own user-scope stores.
 
 `mcp/servers.template.json` is the sanitized union plus this runtime assignment
 matrix. It is reference data, not a file to symlink wholesale into each
@@ -41,7 +44,7 @@ longer imports the complete Claude user scope.
    availability does not imply Claude, Pi, or Grok availability.
 5. **Project-specific MCP stays with the project.** Sanitized project servers
    belong in that repository's `.mcp.json` or native equivalent, not in this
-   user-scope inventory.
+   user-scope inventory. Etabli itself declares none.
 6. **Prefer CLIs when they are the source of truth.** GitHub uses `gh`; each
    vault also keeps its bounded local CLI and validator.
 7. **`brain` is the work knowledge vault, and it is standalone.** It serves
@@ -82,7 +85,8 @@ jq -r '.runtimeAssignments | to_entries[] | "\(.key):\(.value | join(","))"' \
   mcp/servers.template.json
 ```
 
-Check that the `brain` engine answers before blaming a skill for empty recall:
+An empty `.mcp.json` key list is expected. Check that the `brain` engine
+answers in the user-scope store before blaming a skill for empty recall:
 
 ```bash
 cd ~/work/brain && _meta/mcp-smoke.test.sh && _meta/validate-kb.sh

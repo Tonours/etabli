@@ -123,7 +123,11 @@ skill-eval-smoke
 etabli-harness-eval-smoke
 codex-skill-description-smoke
 runtime-skill-canary-smoke
-session-handoff-smoke'
+session-handoff-smoke
+skill-catalog-name-smoke
+skill-tree-hash-smoke
+sync-vendor-subpath-smoke
+herdr-claude-relaunch-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
