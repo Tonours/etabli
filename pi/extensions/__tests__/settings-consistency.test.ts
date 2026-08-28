@@ -111,7 +111,9 @@ describe("Pi settings consistency", () => {
     // grill-me, coolify, and project-hunt are promoted piCore skills (tsv 1/1/1).
     expect(skillCatalog.find((s) => s.name === "caveman")?.piCore).toBe(false);
     expect(skillCatalog.find((s) => s.name === "grill-me")?.piCore).toBe(true);
-    expect(skillCatalog.find((s) => s.name === "project-hunt")?.piCore).toBe(true);
+    expect(skillCatalog.find((s) => s.name === "project-hunt")?.piCore).toBe(
+      true,
+    );
 
     const keepList = [
       "plan-loop",
