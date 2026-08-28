@@ -36,6 +36,22 @@ vendored files.
 - `research` delegates reading to a background agent — parent-only Pi
   degrades it to sequential reads in the main thread.
 
+## Research dispatch — which surface answers which need
+
+Three research surfaces coexist; route by the question:
+
+| Need | Surface | Why |
+| --- | --- | --- |
+| Investigate a topic against external primary sources, leave a cited file in the repo | mattpocock `research` (deploys as `research`) | background-agent reading legwork; pairs with `grill-with-docs` |
+| How does this codebase subsystem work / ownership / layering | pstack `how` | runtime tracing, critique mode |
+| Why was this built this way (history, intent) | pstack `why` | 7-category evidence via configured MCPs |
+| Learn a concept using the current directory | pstack `teach` weaves how+why into one explanation; mattpocock `teach` uses the dir as a stateful workspace over sessions | two complementary takes on teaching |
+| Source-grounded repo research under the etabli contract | `workflow/skills/investigation.md` route + `scripts/research-proof-check` | the ambient contract stays canonical |
+
+Overlap rule: the etabli routes own gating and evidence; the vendored
+skills are task-level entry points invoked explicitly or when a runtime
+exposes them.
+
 ## Update procedure (all suites)
 
 1. Edit `vendor/sources.tsv` (skills list; optional `subpath` column).
