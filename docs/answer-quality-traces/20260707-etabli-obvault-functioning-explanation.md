@@ -24,8 +24,8 @@ changes, and no commit or push was performed.
 - workflow/spec.md:49
 - workflow/answer-quality.md:1
 - workflow/answer-quality.md:35
-- /Volumes/Crucial/work/obvault/CLAUDE.md:1
-- /Volumes/Crucial/work/obvault/ref/second-brain-operating-model.md:15
+- ~/work/obvault/CLAUDE.md:1
+- ~/work/obvault/ref/second-brain-operating-model.md:15
 - command: git status --short --branch
 - command: test -f PLAN.md
 
@@ -35,7 +35,7 @@ changes, and no commit or push was performed.
 - expected result: passes with this trace included
 - command: scripts/answer-quality-trace-coverage docs/answer-quality-traces/coverage.tsv
 - expected result: reports `4 covered, 3 needs-work` after this trace is added
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 - expected result: passes with `answer quality audit: ok`
 
 ## Quality Verdict

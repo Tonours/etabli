@@ -26,13 +26,13 @@ enough evidence to claim broad coverage for future live answers.
 - docs/answer-quality-traces/20260707-answer-quality-audit-handoff.md:1
 - scripts/answer-quality-trace-eval:1
 - command: scripts/answer-quality-trace-eval docs/answer-quality-traces
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 
 ## Validation
 
 - command: scripts/answer-quality-trace-eval docs/answer-quality-traces
 - expected result: passes with two trace files after this trace is added
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 - expected result: passes with `answer quality audit: ok`
 - command: bash tests/workflow-docs-smoke.sh
 - expected result: passes with this trace pinned

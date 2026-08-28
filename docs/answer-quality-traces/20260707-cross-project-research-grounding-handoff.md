@@ -21,17 +21,17 @@ remained open.
 ## Evidence
 
 - docs/cross-project-research-grounding.md:1
-- /Volumes/Crucial/work/obvault/kb/etabli-obvault-project-grounding.md:1
+- ~/work/obvault/kb/etabli-obvault-project-grounding.md:1
 - docs/plan/20260707-cross-project-research-grounding.md:1
 - tests/workflow-docs-smoke.sh:1
 - scripts/answer-quality-audit:1
 - workflow/answer-quality.md:73
 - command: scripts/workflow-event validate cross-project-research-grounding
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 
 ## Validation
 
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 - result: passed with `answer quality audit: ok`
 - command: scripts/workflow-event validate cross-project-research-grounding
 - result: passed with `28 events, ok`
