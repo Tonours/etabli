@@ -23,8 +23,8 @@ fail() {
 assert_contains() {
   local text="$1" needle="$2"
   case "$text" in
-    *"$needle"*) ;;
-    *) fail "expected output to contain '$needle', got: $text" ;;
+  *"$needle"*) ;;
+  *) fail "expected output to contain '$needle', got: $text" ;;
   esac
 }
 
@@ -32,7 +32,7 @@ assert_contains() {
 up_sub="$TMP_DIR/upstream-sub"
 git -C "$TMP_DIR" init -q -b main upstream-sub
 mkdir -p "$up_sub/monorepo/plugins/mystack/skills/how" \
-         "$up_sub/monorepo/plugins/mystack/skills/why"
+  "$up_sub/monorepo/plugins/mystack/skills/why"
 printf -- '---\nname: how\ndescription: subpath fixture\n---\nbody how\n' \
   >"$up_sub/monorepo/plugins/mystack/skills/how/SKILL.md"
 printf -- '---\nname: why\ndescription: subpath fixture\n---\nbody why\n' \
