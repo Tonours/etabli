@@ -22,12 +22,12 @@ said no commit or push was performed.
 - tests/answer-quality-audit-smoke.sh:1
 - docs/plan/20260707-answer-quality-audit-command.md:1
 - workflow/answer-quality.md:51
-- /Volumes/Crucial/work/obvault/kb/source-grounded-answer-quality.md:1
+- ~/work/obvault/kb/source-grounded-answer-quality.md:1
 - command: scripts/workflow-event validate answer-quality-audit-command
 
 ## Validation
 
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 - result: passed with `answer quality audit: ok`
 - command: scripts/workflow-event validate answer-quality-audit-command
 - result: passed with `21 events, ok`

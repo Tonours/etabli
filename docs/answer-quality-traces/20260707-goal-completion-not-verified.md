@@ -24,7 +24,7 @@ answer categories.
 - workflow/answer-quality.md:22
 - workflow/answer-quality.md:28
 - command: scripts/answer-quality-trace-coverage docs/answer-quality-traces/coverage.tsv
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 
 ## Validation
 
@@ -32,7 +32,7 @@ answer categories.
 - expected result: passes with this trace included
 - command: scripts/answer-quality-trace-coverage docs/answer-quality-traces/coverage.tsv
 - expected result: reports `5 covered, 2 needs-work` after this trace is added
-- command: scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault
+- command: scripts/answer-quality-audit --obvault ~/work/obvault
 - expected result: passes with `answer quality audit: ok`
 
 ## Quality Verdict

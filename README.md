@@ -45,10 +45,11 @@ terminal diff tooling may install `hunkdiff` (<https://www.hunk.dev/>) for use
 | `pi/`, `claude/` | Runtime adapters |
 | `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
-| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated) |
+| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated; pstack per `docs/pstack-strategy.md`) |
 | `workflow-scaffold/` | Project templates `deploy-workflow` copies into a repo |
 | `scripts/`, `tests/` | Deploy, validation, regression |
 | `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |
+| `docs/pstack-strategy.md` | pstack vendoring: waves, surfaces, degradations, update procedure |
 | `docs/plan/` | Archives of completed plans (not active work) |
 | `SECURITY.md` | Public-repo / secrets hygiene |
 
@@ -108,5 +109,6 @@ actually has.
 2. `workflow/spec.md` — full contract (wins on conflict)
 3. `docs/harness-eval.md` — behavioral eval suite
 4. `docs/mcp-strategy.md` — MCP inventory and scope
-5. `nvim/README.md` — code-first editor map
-6. `docs/adr/` — decision log
+5. `docs/pstack-strategy.md` — pstack task-skill layer: waves, surfaces, degradations
+6. `nvim/README.md` — code-first editor map
+7. `docs/adr/` — decision log

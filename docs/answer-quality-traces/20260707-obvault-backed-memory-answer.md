@@ -20,14 +20,14 @@ broader goal was complete.
 
 ## Evidence
 
-- /Volumes/Crucial/work/obvault/AGENTS.md:1
-- /Volumes/Crucial/work/obvault/CLAUDE.md:1
-- /Volumes/Crucial/work/obvault/ref/second-brain-operating-model.md:15
-- /Volumes/Crucial/work/obvault/kb/_index.md:1
+- ~/work/obvault/AGENTS.md:1
+- ~/work/obvault/CLAUDE.md:1
+- ~/work/obvault/ref/second-brain-operating-model.md:15
+- ~/work/obvault/kb/_index.md:1
 - workflow/answer-quality.md:35
 - docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md:1
-- command: `sed -n '1,220p' /Volumes/Crucial/work/obvault/CLAUDE.md`
-- command: `sed -n '1,220p' /Volumes/Crucial/work/obvault/ref/second-brain-operating-model.md`
+- command: `sed -n '1,220p' ~/work/obvault/CLAUDE.md`
+- command: `sed -n '1,220p' ~/work/obvault/ref/second-brain-operating-model.md`
 
 ## Validation
 
@@ -36,7 +36,7 @@ broader goal was complete.
 - command: `scripts/answer-quality-trace-coverage docs/answer-quality-traces/coverage.tsv`
 - expected result: reports `7 covered, 0 needs-work` after both remaining
   traces are added
-- command: `scripts/answer-quality-audit --obvault /Volumes/Crucial/work/obvault`
+- command: `scripts/answer-quality-audit --obvault ~/work/obvault`
 - expected result: passes with `answer quality audit: ok`
 
 ## Quality Verdict
