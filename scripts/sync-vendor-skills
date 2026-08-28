@@ -52,7 +52,9 @@ while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
   done
 
   for extra in LICENSE LICENSE.md; do
-    if [ -f "$WORK_DIR/$vendor/$extra" ]; then
+    if [ -n "$subpath" ] && [ -f "$WORK_DIR/$vendor/$subpath/$extra" ]; then
+      cp "$WORK_DIR/$vendor/$subpath/$extra" "$VENDOR_ROOT/$vendor/$extra"
+    elif [ -f "$WORK_DIR/$vendor/$extra" ]; then
       cp "$WORK_DIR/$vendor/$extra" "$VENDOR_ROOT/$vendor/$extra"
     fi
   done

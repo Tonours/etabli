@@ -37,7 +37,7 @@ printf -- '---\nname: how\ndescription: subpath fixture\n---\nbody how\n' \
   >"$up_sub/monorepo/plugins/mystack/skills/how/SKILL.md"
 printf -- '---\nname: why\ndescription: subpath fixture\n---\nbody why\n' \
   >"$up_sub/monorepo/plugins/mystack/skills/why/SKILL.md"
-printf 'MIT fixture license\n' >"$up_sub/LICENSE"
+printf 'MIT fixture license (subpath)\n' >"$up_sub/monorepo/plugins/mystack/LICENSE"
 git -C "$up_sub" add -A
 git -C "$up_sub" -c user.email=f@f -c user.name=f commit -qm fixture
 
@@ -70,6 +70,8 @@ assert_contains "$out" "2 skills at"
 [ -d "$consumer/vendor/mystack/skills/why" ] || fail "subpath skill why missing"
 [ -f "$consumer/vendor/mystack/UPSTREAM_SHA" ] || fail "subpath UPSTREAM_SHA missing"
 [ -f "$consumer/vendor/mystack/LICENSE" ] || fail "subpath LICENSE not copied"
+grep -q "subpath)" "$consumer/vendor/mystack/LICENSE" ||
+  fail "LICENSE must come from the subpath, not the repo root"
 sha="$(cat "$consumer/vendor/mystack/UPSTREAM_SHA")"
 if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
   fail "UPSTREAM_SHA must be a 40-hex commit id, got: $sha"
