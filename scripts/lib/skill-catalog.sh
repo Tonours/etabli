@@ -56,7 +56,9 @@ skill_declared_name() {
     }
   ' "$skill_dir/SKILL.md" 2>/dev/null)"
 
-  if [ -n "$declared" ]; then
+  # Link names must be valid skill slugs; a display-case declaration
+  # (e.g. "Poteto Mode") falls back to the directory basename.
+  if [ -n "$declared" ] && printf '%s' "$declared" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
     printf '%s\n' "$declared"
   else
     basename "$skill_dir"
