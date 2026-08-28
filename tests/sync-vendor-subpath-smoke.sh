@@ -38,6 +38,7 @@ printf -- '---\nname: how\ndescription: subpath fixture\n---\nbody how\n' \
 printf -- '---\nname: why\ndescription: subpath fixture\n---\nbody why\n' \
   >"$up_sub/monorepo/plugins/mystack/skills/why/SKILL.md"
 printf 'MIT fixture license (subpath)\n' >"$up_sub/monorepo/plugins/mystack/LICENSE"
+printf 'DIFFERENT root license that must not mix in\n' >"$up_sub/LICENSE.md"
 git -C "$up_sub" add -A
 git -C "$up_sub" -c user.email=f@f -c user.name=f commit -qm fixture
 
@@ -72,6 +73,8 @@ assert_contains "$out" "2 skills at"
 [ -f "$consumer/vendor/mystack/LICENSE" ] || fail "subpath LICENSE not copied"
 grep -q "subpath)" "$consumer/vendor/mystack/LICENSE" ||
   fail "LICENSE must come from the subpath, not the repo root"
+[ ! -e "$consumer/vendor/mystack/LICENSE.md" ] ||
+  fail "root LICENSE.md must not mix in when the subpath ships its own license"
 sha="$(cat "$consumer/vendor/mystack/UPSTREAM_SHA")"
 if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
   fail "UPSTREAM_SHA must be a 40-hex commit id, got: $sha"

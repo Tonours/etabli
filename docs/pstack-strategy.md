@@ -39,6 +39,12 @@ Cursor already run pstack natively; etabli does not duplicate it there.
   model does the work.
 - `disable-model-invocation: true` frontmatter is a Cursor/Claude flag; if the
   runtime ignores it, skills may self-trigger — acceptable for wave 1.
+- `create-verification-skill` / `maintain-verification-skill` hardcode
+  `.cursor/skills/verify-<app>/` as the output location
+  (`create-verification-skill/SKILL.md:9,25,36`). On Pi, Claude, and Codex
+  that path is not a discovered skill surface — relocate the generated
+  `verify-<app>` folder to the runtime's project-local skills dir when the
+  skill is used there.
 - Vendored files are never edited; adaptation lives in this document.
 
 ## Updating

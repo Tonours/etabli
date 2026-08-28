@@ -28,8 +28,8 @@ Vendor eight runtime-agnostic, non-overlapping pstack skills
 (`how`, `why`, `architect`, `blast-radius`, `tdd`, `interrogate`,
 `create-verification-skill`, `maintain-verification-skill`) from
 `cursor/plugins` @ `main` through the existing vendor mechanism, extended with
-an optional `subpath` manifest column since the monorepo keeps pstack at
-`plugins/pstack` rather than the repo root. Deploy via catalog rows
+an optional `subpath` manifest column since the monorepo keeps pstack skills
+under `pstack/skills/` rather than a root-level `skills/` directory. Deploy via catalog rows
 `source=pstack` (`0 0 1`): the install vendor loop links them into
 `~/.pi/agent/skills`, `~/.claude/skills`, and `~/.codex/skills`.
 `agents_visible=0` keeps them off `~/.agents` because Grok and Cursor already

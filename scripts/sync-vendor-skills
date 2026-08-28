@@ -51,13 +51,22 @@ while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
     cp -R "$src" "$dest/$skill"
   done
 
+  license_copied=0
   for extra in LICENSE LICENSE.md; do
     if [ -n "$subpath" ] && [ -f "$WORK_DIR/$vendor/$subpath/$extra" ]; then
       cp "$WORK_DIR/$vendor/$subpath/$extra" "$VENDOR_ROOT/$vendor/$extra"
-    elif [ -f "$WORK_DIR/$vendor/$extra" ]; then
-      cp "$WORK_DIR/$vendor/$extra" "$VENDOR_ROOT/$vendor/$extra"
+      license_copied=1
     fi
   done
+  if [ "$license_copied" -eq 0 ]; then
+    for extra in LICENSE LICENSE.md; do
+      if [ -f "$WORK_DIR/$vendor/$extra" ]; then
+        cp "$WORK_DIR/$vendor/$extra" "$VENDOR_ROOT/$vendor/$extra"
+        license_copied=1
+        break
+      fi
+    done
+  fi
 
   printf '%s\n' "$sha" >"$VENDOR_ROOT/$vendor/UPSTREAM_SHA"
   printf '    %d skills at %s\n' "${#wanted[@]}" "${sha:0:12}"
