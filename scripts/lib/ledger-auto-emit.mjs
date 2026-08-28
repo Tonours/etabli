@@ -4,16 +4,13 @@
  * Does not invent slugs when no ledger is present.
  */
 import { appendFileSync } from "node:fs";
+import { isNonEmptyString } from "./predicates.mjs";
 import { basename, dirname } from "node:path";
 import {
 	evaluateNoProgressStop,
 } from "./no-progress-guard.mjs";
 import { getActiveRunPointer, selectActiveLedger } from "./ledger-integrity.mjs";
 import { buildReceipt, issueReceipt } from "./workflow-receipts.mjs";
-
-function isNonEmptyString(value) {
-	return typeof value === "string" && value.trim() !== "";
-}
 
 function isoTs() {
 	return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -180,17 +177,22 @@ export function recordBashValidationFailure(cwd, input) {
  * @param {unknown} content
  * @param {boolean} [isError]
  */
+/** Flatten a tool_result content payload to plain text. */
+function toolResultText(content) {
+	if (typeof content === "string") return content;
+	if (Array.isArray(content)) {
+		return content
+			.map((c) => (typeof c === "string" ? c : c?.text || ""))
+			.join("\n");
+	}
+	if (content && typeof content === "object" && "text" in content) {
+		return String(content.text);
+	}
+	return "";
+}
+
 export function inferBashFailureFromToolResult(content, isError) {
-	const text =
-		typeof content === "string"
-			? content
-			: Array.isArray(content)
-				? content
-						.map((c) => (typeof c === "string" ? c : c?.text || ""))
-						.join("\n")
-				: content && typeof content === "object" && "text" in content
-					? String(content.text)
-					: "";
+	const text = toolResultText(content);
 
 	const exitMatch = text.match(/exit(?:\s+code)?[=:\s]+(-?\d+)/i);
 	if (exitMatch) {

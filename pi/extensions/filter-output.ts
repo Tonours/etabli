@@ -656,7 +656,7 @@ function runStructuralPatterns(
 		const newResult = result.replace(pattern, (...args) => {
 			const replacementText = replacement.replace(
 				/\$(\d)/g,
-				(_, n) => args[parseInt(n)] || "",
+				(_, n) => args[parseInt(n, 10)] || "",
 			);
 			if (replacementText !== args[0]) {
 				count++;
@@ -1057,7 +1057,7 @@ export default function (pi: ExtensionAPI) {
 	// ---------------------------------------------------------------------------
 	// Hook: tool_result
 	// ---------------------------------------------------------------------------
-	pi.on("tool_result", async (event, ctx) => {
+	pi.on("tool_result", (event, ctx) => {
 		if (event.isError) return undefined;
 
 		const hasTextContent = event.content.some((c) => c.type === "text");
