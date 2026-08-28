@@ -29,7 +29,7 @@ const VERIFY_PATTERN =
 // which doubles as an implement verb in IMPLEMENT_PATTERN.
 const VERIFY_OBJECT_CLAUSE_PATTERN =
 	/\b(verify|v[eé]rifie|prouve|retest)\s+(?:que|if|whether|that)\b/;
-const RETEST_STRIP_PATTERN = /\brelance\s+les\s+tests\b/g;;
+const RETEST_STRIP_PATTERN = /\brelance\s+les\s+tests\b/g;
 const PLAN_PATTERN =
 	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/;
 // An explicit planning ask ("fais un plan", "draft a roadmap") outranks every
@@ -59,7 +59,7 @@ const CONNECTED_IMPLEMENT_PATTERN = new RegExp(
 const SCOPED_REFACTOR_PATTERN =
 	/\brefactor(?:ise|isez)?\s+(?:[a-z0-9_-]+\s+){0,2}(?:fonction|function|m[eé]thode|method|helper|routine)\b/;
 const SCOPED_MIGRATION_PATTERN =
-	/\b(?:dossier|directory|folder|file|fichier)s?\s+migrations?\b|\bmigrations?\s*(?:\/|\.sql|\.js|\.ts)\b|\b(?:fichier\s+de\s+migration|migration\s+file)\b/;;
+	/\b(?:dossier|directory|folder|file|fichier)s?\s+migrations?\b|\bmigrations?\s*(?:\/|\.sql|\.js|\.ts)\b|\b(?:fichier\s+de\s+migration|migration\s+file)\b/;
 const PLAN_REQUEST_PATTERN =
 	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b(?:(?!\b(?:review|revue|audit|critique|relis)\b)[\s\S]){0,24}\b(plan|roadmap|strat[eé]gie|strategy)\b|\b(?:je |i )?(veux|voudrais|want|need)\s+(?:un |une |a |an |my |the )?(?:plan|roadmap|strat[eé]gie|strategy)\b|\b(plan|roadmap)\s+(seul|only)\b|\b(plan|roadmap|strat[eé]gie|strategy)\b[^.!?]{0,40}\b(?:la |le |l')?(pr[eé]parer|r[eé]diger|proposer|esquisser|drafte?r)\b/;
 const SPEC_GUIDE_PATTERN =
@@ -142,14 +142,14 @@ const MULTI_EXECUTION_OPT_OUT_PATTERN =
 	/\b(single[- ]agent|agent unique|no[- ]panel|sans panel)\b/;
 const KNOWLEDGE_TOPIC_RULES = [
 	{
-				topic: "saas",
+		topic: "saas",
 		pattern:
 			/\b(saas|micro[- ]?saas|mrr|arr|bootstrapp?(?:ed|ing)?|indie\s+hacker|id[eé]es?\s+(?:de\s+)?(?:startup|business|produit))\b/,
 		query:
 			"saas opportunity product discovery buyer pain budget workflow validation",
 	},
 	{
-				topic: "ai-agents",
+		topic: "ai-agents",
 		pattern:
 			/(?<!['’])\b(ai|ia)\b|\b(llm|agents?\s+(?:ai|ia)|coding agents?|intelligence artificielle|artificial intelligence|claude|codex|mcp|rag|prompt engineering)\b/,
 		query: "ai agents context engineering evals security interfaces economics",
@@ -162,7 +162,7 @@ const KNOWLEDGE_TOPIC_RULES = [
 			"frontend react typescript modern css progressive enhancement user interface",
 	},
 	{
-				topic: "web-security",
+		topic: "web-security",
 		pattern:
 			/\b(auth(?:entication|orization)?|authentification|autorisation|jwt|api keys?|webhooks?|web security|s[eé]curit[eé] web|trust boundar(?:y|ies)|isolation)\b/,
 		query:
@@ -176,7 +176,7 @@ const KNOWLEDGE_TOPIC_RULES = [
 			"software design engineering judgment responsibilities domain concepts architecture",
 	},
 	{
-				topic: "voice",
+		topic: "voice",
 		pattern:
 			/\b(voice ai|voice agents?|speech[- ]?to[- ]?text|text[- ]?to[- ]?speech|stt|tts|audio transcription|transcription audio)\b/,
 		query: "voice ai speech transcription realtime agents evaluation privacy",
@@ -197,7 +197,8 @@ const SELF_IMPROVEMENT_GATE = /improve|méliore|meliore|retrospect|curr/;
 const AMBITIOUS_PROJECT_GATE = /z|bout|end|ambitio|projet|running/;
 const OPS_STOP_GATE =
 	/-rf|push|pouss|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|repo|databas|branch|bas/;
-const READ_ONLY_GATE = /\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis|lire|read|montre|show|cris|crir/;
+const READ_ONLY_GATE =
+	/\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis|lire|read|montre|show|cris|crir/;
 const RESEARCH_GATE = /recherche|sourc|fact|benchmark|github|existe d/;
 /**
  * Exact JS equivalent of /\b[a-z][a-z0-9]{1,9}-[0-9]+\b/ on a lowercased
@@ -570,16 +571,13 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	let isImplementResult;
 	const isImplement = () =>
 		(isImplementResult ??=
-			IMPLEMENT_PATTERN.test(low) &&
-			!IMPLEMENT_NEGATION_PATTERN.test(low));
+			IMPLEMENT_PATTERN.test(low) && !IMPLEMENT_NEGATION_PATTERN.test(low));
 	let prepareForReviewResult;
 	const prepareForReview = () =>
 		(prepareForReviewResult ??=
-			PREPARE_FOR_REVIEW_GATE.test(low) &&
-			PREPARE_FOR_REVIEW_PATTERN.test(low));
+			PREPARE_FOR_REVIEW_GATE.test(low) && PREPARE_FOR_REVIEW_PATTERN.test(low));
 	let prContextResult;
-	const hasPrContext = () =>
-		(prContextResult ??= PR_CONTEXT_PATTERN.test(low));
+	const hasPrContext = () => (prContextResult ??= PR_CONTEXT_PATTERN.test(low));
 	let planWordResult;
 	const hasPlanWord = () => (planWordResult ??= PLAN_PATTERN.test(low));
 	let autonomousLoopResult;
@@ -594,8 +592,9 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 			!TEMPORAL_BACKGROUND_PATTERN.test(low));
 	let implementExceptVerifyResult;
 	const isImplementExceptVerify = () =>
-		(implementExceptVerifyResult ??=
-			IMPLEMENT_PATTERN.test(low.replace(RETEST_STRIP_PATTERN, " ")));
+		(implementExceptVerifyResult ??= IMPLEMENT_PATTERN.test(
+			low.replace(RETEST_STRIP_PATTERN, " "),
+		));
 	let imperativeImplementResult;
 	const hasImperativeImplement = () =>
 		(imperativeImplementResult ??= (() => {
@@ -614,8 +613,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		(planRequestResult ??= PLAN_REQUEST_PATTERN.test(low));
 	let readOnlyResult;
 	const hasReadOnlySignal = () =>
-		(readOnlyResult ??=
-			READ_ONLY_GATE.test(low) && READ_ONLY_PATTERN.test(low));
+		(readOnlyResult ??= READ_ONLY_GATE.test(low) && READ_ONLY_PATTERN.test(low));
 	let questionResult;
 	const isQuestion = () =>
 		(questionResult ??=
@@ -624,8 +622,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 				QUESTION_FIRST_CHARS.includes(low[0]) &&
 				QUESTION_PATTERN.test(low)));
 	let readyPlanResult;
-	const hasReadyPlan = () =>
-		(readyPlanResult ??= READY_PLAN_PATTERN.test(low));
+	const hasReadyPlan = () => (readyPlanResult ??= READY_PLAN_PATTERN.test(low));
 
 	if (
 		(low.includes("ci") || low.includes("check")) &&
@@ -685,11 +682,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (
-		hasPrContext() &&
-		PR_REVIEW_PATTERN.test(low) &&
-		!prepareForReview()
-	) {
+	if (hasPrContext() && PR_REVIEW_PATTERN.test(low) && !prepareForReview()) {
 		return {
 			route: "pr-review",
 			reason: "GitHub PR review request",
@@ -776,8 +769,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 
 	// ADVERSARY_PATTERN / ADVERSARY_PLAN_CONTEXT_PATTERN are each tested twice below;
 	// memoize so the common non-adversary prompt pays one test each instead of two.
-	const isAdversary =
-		ADVERSARY_GATE.test(low) && ADVERSARY_PATTERN.test(low);
+	const isAdversary = ADVERSARY_GATE.test(low) && ADVERSARY_PATTERN.test(low);
 	const isAdversaryPlanContext =
 		low.includes("plan") && ADVERSARY_PLAN_CONTEXT_PATTERN.test(low);
 
@@ -815,11 +807,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	if (
 		SELF_IMPROVEMENT_GATE.test(low) &&
 		SELF_IMPROVEMENT_PATTERN.test(low) &&
-		!(
-			hasReadOnlySignal() ||
-			isQuestion() ||
-			EXPLICIT_REVIEW_PATTERN.test(low)
-		)
+		!(hasReadOnlySignal() || isQuestion() || EXPLICIT_REVIEW_PATTERN.test(low))
 	) {
 		if (planStatus === "ready") {
 			return {
@@ -895,10 +883,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		return READ_ONLY_ANSWER_DECISION;
 	}
 
-	if (
-		AMBITIOUS_PROJECT_GATE.test(low) &&
-		AMBITIOUS_PROJECT_PATTERN.test(low)
-	) {
+	if (AMBITIOUS_PROJECT_GATE.test(low) && AMBITIOUS_PROJECT_PATTERN.test(low)) {
 		if (planStatus === "ready") {
 			return {
 				route: "implement",
@@ -1014,11 +999,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (
-		hasPlanWord() &&
-		!isImplement() &&
-		!isLargeChange()
-	) {
+	if (hasPlanWord() && !isImplement() && !isLargeChange()) {
 		return {
 			route: "plan-loop",
 			reason: "planning request",
@@ -1050,10 +1031,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (
-		isImplement() &&
-		(planStatus === "missing" || planStatus === "unknown")
-	) {
+	if (isImplement() && (planStatus === "missing" || planStatus === "unknown")) {
 		// Ordinary bounded coding with no recognized planning lock (missing or
 		// unknown — the adapter maps absent plans to "unknown"): direct edit
 		// per spec routing. An active plan cycle (draft or challenged) never
@@ -1115,7 +1093,9 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 	const low = prompt.trim().toLowerCase();
 	const decision = classifyWorkflowRouteBase(prompt, low, context);
 	const knowledgeContext =
-		classifyKnowledgeContext(prompt, low) || context.dynamicKnowledgeContext || null;
+		classifyKnowledgeContext(prompt, low) ||
+		context.dynamicKnowledgeContext ||
+		null;
 	const multiExecution = classifyMultiExecution(prompt, low, decision.route);
 	return knowledgeContext
 		? { ...decision, knowledgeContext, multiExecution }

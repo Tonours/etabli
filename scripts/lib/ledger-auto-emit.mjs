@@ -6,10 +6,11 @@
 import { appendFileSync } from "node:fs";
 import { isNonEmptyString } from "./predicates.mjs";
 import { basename, dirname } from "node:path";
+import { evaluateNoProgressStop } from "./no-progress-guard.mjs";
 import {
-	evaluateNoProgressStop,
-} from "./no-progress-guard.mjs";
-import { getActiveRunPointer, selectActiveLedger } from "./ledger-integrity.mjs";
+	getActiveRunPointer,
+	selectActiveLedger,
+} from "./ledger-integrity.mjs";
 import { buildReceipt, issueReceipt } from "./workflow-receipts.mjs";
 
 function isoTs() {
@@ -142,8 +143,7 @@ export function recordBashValidationFailure(cwd, input) {
 	const hasExplicit = events.some((e) => e.event === "no_progress");
 	if (stop && !hasExplicit) {
 		const headSha =
-			(isNonEmptyString(input?.head_sha) && String(input.head_sha)) ||
-			"unknown";
+			(isNonEmptyString(input?.head_sha) && String(input.head_sha)) || "unknown";
 		const np = stop.detail || {};
 		if (!pointerBacked || pointerStillSelects(cwd, primary.run)) {
 			appendLedgerEvent(
@@ -269,10 +269,12 @@ function isValidationSegment(segment) {
 
 export function isLikelyValidationCommand(command) {
 	const value = String(command || "").trim();
-	if (!value || value.includes("..") || /[\r\n;|<>`]|\$\(/.test(value)) return false;
+	if (!value || value.includes("..") || /[\r\n;|<>`]|\$\(/.test(value))
+		return false;
 	const segments = value.split(/\s+&&\s+/);
 	if (segments.length > 2) return false;
-	if (segments.length === 2 && !/^cd\s+[^;&|]+$/i.test(segments[0].trim())) return false;
+	if (segments.length === 2 && !/^cd\s+[^;&|]+$/i.test(segments[0].trim()))
+		return false;
 	return isValidationSegment(segments.at(-1));
 }
 
