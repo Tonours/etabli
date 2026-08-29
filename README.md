@@ -46,7 +46,7 @@ terminal diff tooling may install `hunkdiff` (<https://www.hunk.dev/>) for use
 | `pi/`, `claude/` | Runtime adapters |
 | `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
-| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated; pstack per `docs/pstack-strategy.md`, suite map in `docs/vendor-skills.md`) |
+| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated; pstack migrated to the Pi port — `docs/pstack-strategy.md`; suite map in `docs/vendor-skills.md`) |
 | `skills-lock.json` | Skill-tree integrity lock (`cd pi && bun run verify:skills` / `update:skills-lock`) |
 | `workflow-scaffold/` | Project templates `deploy-workflow` copies into a repo |
 | `scripts/`, `tests/` | Deploy (`deploy-agent-workflow`, `install.sh`), validation, regression |
