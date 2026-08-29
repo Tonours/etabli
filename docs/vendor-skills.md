@@ -6,7 +6,7 @@ vendored files.
 
 | Suite | Upstream | Scope | Skills |
 | --- | --- | --- | --- |
-| pstack (Lauren Tan) | `cursor/plugins` @ `pstack/` | shared | 37 — see `docs/pstack-strategy.md` |
+| pstack (Lauren Tan) | **migrated** to `@zenspc/pi-pstack` npm port (ADR-0023) | Pi via pi install | 45 — see `docs/pstack-strategy.md` |
 | mattpocock (Matt Pocock) | `mattpocock/skills` @ `skills/engineering/` | shared | 14 (below) |
 | ember-skills / adonisjs-skills | Tonours forks | work / personal | domain suites |
 
