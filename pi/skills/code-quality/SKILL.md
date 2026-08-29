@@ -25,7 +25,7 @@ and compares the diff to **sibling implementations in this repo**.
 
    | Domain | Skills to apply |
    | -------- | ----------------- |
-   | TypeScript / implementation | `principle-type-system-discipline`, `principle-subtract-before-you-add`, `principle-prove-it-works` |
+   | TypeScript / implementation | `engineering/codebase-design` (vendored); pstack principles via the pi-pstack port (type-system-discipline, subtract-before-you-add, prove-it-works) |
    | CSS / layout / visual | Local sibling components and styles; apply a narrower CSS skill only when the runtime exposes one |
    | Project-specific code | Prefer the matching project skill when the runtime exposes one |
 
