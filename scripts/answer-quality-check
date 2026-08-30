@@ -3,10 +3,13 @@ set -euo pipefail
 
 # Pattern matching below uses the shell's own ERE engine ([[ =~ ]] with the
 # nocasematch shell option) instead of spawning one grep process per check.
-# Word-boundary assertions are the POSIX spellings [[:<:]] / [[:>:]]; accented
-# classes list the uppercase form explicitly because nocasematch only folds
-# ASCII.
+# Word boundaries are explicit edge groups: the POSIX [[:<:]] / [[:>:]]
+# spellings are BSD-only and never match under glibc ERE (Linux CI).
+# Accented classes list the uppercase form explicitly because nocasematch
+# only folds ASCII.
 shopt -s nocasematch
+wb_l='(^|[^[:alnum:]_])'
+wb_r='([^[:alnum:]_]|$)'
 
 usage() {
   cat <<EOF
@@ -82,17 +85,17 @@ has() {
   [[ $content =~ $1 ]]
 }
 
-if has '[[:<:]](guaranteed|guarantee|garanti(e|s)?|garantit)[[:>:]].{0,40}[[:<:]](10/10|perfect|parfait|correct)[[:>:]]|[[:<:]](objectively perfect|always correct|toujours correct|r[eéÉ]ponse parfaite garantie)[[:>:]]'; then
+if has "${wb_l}(guaranteed|guarantee|garanti(e|s)?|garantit)${wb_r}.{0,40}${wb_l}(10/10|perfect|parfait|correct)${wb_r}|${wb_l}(objectively perfect|always correct|toujours correct|r[eéÉ]ponse parfaite garantie)${wb_r}"; then
   fail 'contains unsupported perfection or correctness overclaim'
 fi
 
-if has '[[:<:]](i searched|searched the web|j.?ai cherch[eéÉ]|recherche web effectu[eéÉ]e)[[:>:]]' &&
+if has "${wb_l}(i searched|searched the web|j.?ai cherch[eéÉ]|recherche web effectu[eéÉ]e)${wb_r}" &&
   ! has 'https?://'; then
   fail 'claims web research but has no URL source'
 fi
 
 evidence_pattern='(https?://|Sources?:|Evidence:|Validation|Validated|Checks?:|command:|/Volumes/|/Users/|~/|[[:alnum:]_.@/-]+:[0-9]+)'
-status_pattern='[[:<:]](verified|stale|inconclusive|assumption|blocked|not verified|confirmed|approximate|proxy[-_ ]supported|unknown|accepted|validated|passed|failed)[[:>:]]'
+status_pattern="${wb_l}(verified|stale|inconclusive|assumption|blocked|not verified|confirmed|approximate|proxy[-_ ]supported|unknown|accepted|validated|passed|failed)${wb_r}"
 validation_pattern='(Validation|Validated|Checks?:|command:|last run:|result:)'
 risk_pattern='(Remaining risks?|Risks?|not verified|inconclusive|blocked|unknown|stale|Parking lot)'
 local_pattern='(/Volumes/|/Users/|~/|command:|Validation|Checks?:|[[:alnum:]_.@/-]+:[0-9]+)'

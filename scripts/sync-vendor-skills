@@ -30,9 +30,7 @@ synced=0
 # ~/.cursor/rules/ config (read as plain text), .cursor/worktrees/.
 adapt_vendored_paths() {
   find "$1" -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' -o -name '*.ts' \) -print0 |
-    xargs -0 sed -i '' \
-      -e 's|\.cursor/skills/|.claude/skills/|g' \
-      -e 's|\.cursor/plugins/|.claude/plugins/|g'
+    xargs -0 perl -pi -e 's|\.cursor/skills/|.claude/skills/|g; s|\.cursor/plugins/|.claude/plugins/|g'
 }
 
 # Copies LICENSE or LICENSE.md (first match) from $1 into the vendor root.
