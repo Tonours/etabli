@@ -36,7 +36,7 @@ grep -Fq 'npm install --global hunkdiff@0.17.3' "$WORKFLOW" ||
 jq -e '
   .dependencies["@earendil-works/pi-coding-agent"] == "0.84.2" and
   .devDependencies.typescript == "7.0.2" and
-  .devDependencies["@types/bun"] == "1.3.14" and
+  .devDependencies["@types/bun"] == "1.4.0" and
   .overrides == {
     "@protobufjs/utf8": "1.1.2",
     "brace-expansion": "5.0.9",
