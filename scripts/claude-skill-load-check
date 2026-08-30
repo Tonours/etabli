@@ -1,0 +1,343 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+
+GATE=6510
+ALERT=6490
+HOME_DIR="${CLAUDE_SKILL_LOAD_HOME:-$HOME}"
+REPO_OVERRIDE="${CLAUDE_SKILL_LOAD_REPO:-}"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--home DIR]
+
+Validates Claude's model-facing skill surface against the tracked
+skillOverrides map (claude/settings.skill-overrides.json):
+
+  C1  index chars <= $GATE (alert at >= $ALERT); metric: len(name) +
+      len(description) + 20 per listed entry, name+20 for name-only;
+      folded YAML descriptions (>- and |) are measured in full
+  C2  exhaustive partition: every discovered skill (two-level SKILL.md
+      discovery — skills/<name> and skills/<group>/<name>, matching Claude's
+      own loading depth; symlink-following; .DS_Store ignored; duplicate
+      declared names rejected) is a map key, and every map key exists on the
+      surface
+  C3  effective on-set (state "on" and not frontmatter-dmi) equals the
+      pinned keep-set exactly, failing in both directions
+  C4  zero dangling links; zero links into skills.disabled
+  C5  repo/live map equality (deploy applied)
+  C6  no enabled plugin ships SKILL.md files
+
+--home  skill root + settings root for the assertions (fixture homes)
+
+CLAUDE_SKILL_LOAD_HOME and CLAUDE_SKILL_LOAD_REPO redirect the surfaces for
+fixture-based smoke tests.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --home)
+    HOME_DIR="$2"
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    printf 'unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+command -v node >/dev/null 2>&1 || {
+  printf 'claude-skill-load-check: node is required\n' >&2
+  exit 1
+}
+
+node - "$HOME_DIR" "${REPO_OVERRIDE:-$REPO_DIR}" "$GATE" "$ALERT" <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const [homeDir, repoDir, gateRaw, alertRaw] = process.argv.slice(2);
+const GATE = Number(gateRaw);
+const ALERT = Number(alertRaw);
+const errors = [];
+const warnings = [];
+
+const PINNED_ON = new Set([
+  "bug-check",
+  "codebase-design",
+  "css-debugging",
+  "css-layout-primitives",
+  "css-only-components",
+  "diagnosing-bugs",
+  "domain-modeling",
+  "ember-employer-suite",
+  "employer-backend-suite",
+  "employer-mfe-qa",
+  "frontend-css-ui-ux",
+  "herdr",
+  "playwright-agentic-testing",
+  "playwright-failure-dossier",
+  "playwright-test-generation",
+  "pr-qa",
+  "prototype",
+  "research",
+  "resolving-merge-conflicts",
+  "sec-pr",
+  "spec",
+  "week-roadmap",
+  "wizard",
+  "write-direct",
+]);
+
+const skillsRoot = path.join(homeDir, ".claude/skills");
+
+function readText(file) {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    errors.push(`unreadable file under the skill surface: ${file} (${error.message}); fix its permissions`);
+    return null;
+  }
+}
+
+function frontmatterOf(skillDir) {
+  const text = readText(path.join(skillDir, "SKILL.md"));
+  if (text === null) return null;
+  const match = text.match(/^---\n([\s\S]*?)\n---/);
+  return { text, fm: match ? match[1] : "" };
+}
+
+function declaredName(skillDir, fallback) {
+  const fm = frontmatterOf(skillDir)?.fm ?? "";
+  const line = fm.split("\n").find((l) => /^name:\s/.test(l));
+  const declared = line ? line.replace(/^name:\s*/, "").replace(/^["']|["']$/g, "").trim() : "";
+  return /^[a-z0-9][a-z0-9-]*$/.test(declared) ? declared : fallback;
+}
+
+function isDmi(skillDir) {
+  const fm = frontmatterOf(skillDir)?.fm ?? "";
+  return /^disable-model-invocation:\s*true\s*(?:#.*)?$/m.test(fm);
+}
+
+function descriptionOf(skillDir) {
+  const fm = frontmatterOf(skillDir)?.fm ?? "";
+  const lines = fm.split("\n");
+  const i = lines.findIndex((l) => /^description:\s/.test(l));
+  if (i === -1) return "";
+  const first = lines[i].replace(/^description:\s*/, "");
+  if (first.trim() === "" || /^[>|][+-]?$/.test(first.trim())) {
+    let folded = "";
+    for (let j = i + 1; j < lines.length; j++) {
+      if (!/^\s/.test(lines[j]) && lines[j].trim() !== "") break;
+      folded += `${lines[j].trim()} `;
+    }
+    return folded.trim();
+  }
+  return first.trim();
+}
+
+function hitsDisabled(entryPath) {
+  try {
+    if (fs.readlinkSync(entryPath).includes("skills.disabled")) return true;
+  } catch {
+    /* not a symlink */
+  }
+  try {
+    return fs.realpathSync(entryPath).includes("/skills.disabled/");
+  } catch {
+    return false;
+  }
+}
+
+const discovered = [];
+if (fs.existsSync(skillsRoot)) {
+  for (const entry of fs.readdirSync(skillsRoot)) {
+    const entryPath = path.join(skillsRoot, entry);
+    let stat = null;
+    try {
+      stat = fs.statSync(entryPath);
+    } catch {
+      errors.push(`dangling link in ~/.claude/skills: ${entry} (remove it or relink to a live target)`);
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    if (hitsDisabled(entryPath)) {
+      errors.push(`link into skills.disabled: ${entry} (remove the retired link)`);
+      continue;
+    }
+    const hasSkillMd = fs.existsSync(path.join(entryPath, "SKILL.md"));
+    if (hasSkillMd) {
+      discovered.push({ dirName: entry, skillDir: entryPath });
+      continue;
+    }
+    for (const nested of fs.readdirSync(entryPath)) {
+      const nestedPath = path.join(entryPath, nested);
+      let nestedStat = null;
+      try {
+        nestedStat = fs.statSync(nestedPath);
+      } catch {
+        errors.push(`dangling nested link under ~/.claude/skills/${entry}: ${nested}`);
+        continue;
+      }
+      if (!nestedStat.isDirectory()) continue;
+      if (hitsDisabled(nestedPath)) {
+        errors.push(`link into skills.disabled: ${nested} (remove the retired link)`);
+        continue;
+      }
+      if (fs.existsSync(path.join(nestedPath, "SKILL.md"))) {
+        discovered.push({ dirName: nested, skillDir: nestedPath });
+      }
+    }
+  }
+}
+
+const byName = new Map();
+for (const item of discovered) {
+  const name = declaredName(item.skillDir, item.dirName);
+  item.name = name;
+  if (byName.has(name)) {
+    errors.push(`duplicate declared skill name: ${name} (${byName.get(name).dirName} and ${item.dirName}); rename one of the two skill directories`);
+    continue;
+  }
+  byName.set(name, item);
+}
+
+const liveSettingsPath = path.join(homeDir, ".claude/settings.json");
+const liveSettings = JSON.parse(readText(liveSettingsPath) ?? "{}");
+const liveMap = liveSettings.skillOverrides ?? null;
+
+const trackedFragment = JSON.parse(readText(path.join(repoDir, "claude/settings.skill-overrides.json")) ?? "null");
+const trackedMap = trackedFragment?.skillOverrides ?? null;
+
+if (trackedMap === null) {
+  errors.push("tracked fragment claude/settings.skill-overrides.json missing or malformed; restore it from git");
+}
+
+const mapForPartition = trackedMap ?? {};
+const VALID_STATES = new Set(["on", "name-only", "user-invocable-only", "off"]);
+for (const [name, state] of Object.entries(mapForPartition)) {
+  if (!VALID_STATES.has(state)) {
+    errors.push(`invalid skillOverrides state for ${name}: ${JSON.stringify(state)} (use on, name-only, user-invocable-only, or off)`);
+  }
+}
+const surfaceNames = new Set(discovered.map((d) => d.name));
+
+for (const name of surfaceNames) {
+  if (!Object.hasOwn(mapForPartition, name)) {
+    errors.push(`ungoverned skill on the surface: ${name} (add an explicit state for it in claude/settings.skill-overrides.json, then deploy)`);
+  }
+}
+for (const name of Object.keys(mapForPartition)) {
+  if (!surfaceNames.has(name)) {
+    errors.push(`map key with no surface skill: ${name} (remove the stale key or restore the skill)`);
+  }
+}
+
+if (liveMap === null) {
+  errors.push("live ~/.claude/settings.json has no skillOverrides key; run scripts/deploy-agent-workflow --apply");
+} else if (trackedMap && JSON.stringify(liveMap) !== JSON.stringify(trackedMap)) {
+  errors.push("repo/live skillOverrides maps diverge; run scripts/deploy-agent-workflow --apply (deploy not applied?)");
+}
+
+const stateHistogram = { on: 0, "name-only": 0, "user-invocable-only": 0, off: 0 };
+for (const state of Object.values(mapForPartition)) {
+  if (VALID_STATES.has(state)) stateHistogram[state] += 1;
+}
+const expectedHistogram = {
+  on: PINNED_ON.size,
+  "name-only": 0,
+  "user-invocable-only": Object.keys(mapForPartition).length - PINNED_ON.size,
+  off: 0,
+};
+for (const state of Object.keys(stateHistogram)) {
+  if (stateHistogram[state] !== expectedHistogram[state]) {
+    errors.push(`state histogram drifted: ${state} is ${stateHistogram[state]}, pinned ${expectedHistogram[state]} (silent map flips require a CHALLENGED Decision Log entry; restore the pinned state or re-pin via the demotion rule)`);
+  }
+}
+
+const effectiveOn = new Set(
+  discovered
+    .filter((d) => mapForPartition[d.name] === "on" && !isDmi(d.skillDir))
+    .map((d) => d.name),
+);
+for (const name of effectiveOn) {
+  if (!PINNED_ON.has(name)) {
+    errors.push(`skill listed to the model beyond the pinned keep-set: ${name} (demote it in the map, or re-pin the keep-set via a CHALLENGED Decision Log entry)`);
+  }
+}
+for (const name of PINNED_ON) {
+  if (!effectiveOn.has(name)) {
+    errors.push(`pinned keeper not effectively listed: ${name} (check its map state and frontmatter dmi, or re-pin the keep-set via a CHALLENGED Decision Log entry)`);
+  }
+}
+
+let indexChars = 0;
+let nameOnlyChars = 0;
+for (const d of discovered) {
+  const state = Object.hasOwn(mapForPartition, d.name) ? mapForPartition[d.name] : "on";
+  if (isDmi(d.skillDir)) continue;
+  if (state === "on") {
+    indexChars += d.name.length + descriptionOf(d.skillDir).length + 20;
+  } else if (state === "name-only") {
+    nameOnlyChars += d.name.length + 20;
+  }
+}
+
+if (indexChars + nameOnlyChars > GATE) {
+  errors.push(`C1: model-facing index ${indexChars + nameOnlyChars} chars exceeds gate ${GATE} (shorten descriptions or demote skills in the tracked map; re-pinning the gate requires a CHALLENGED Decision Log entry)`);
+} else if (indexChars + nameOnlyChars >= ALERT) {
+  warnings.push(`C1: model-facing index ${indexChars + nameOnlyChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
+}
+
+const pluginsFile = path.join(homeDir, ".claude/plugins/installed_plugins.json");
+const plugins = JSON.parse(readText(pluginsFile) ?? "{}");
+const enabled = liveSettings.enabledPlugins ?? {};
+for (const [key, on] of Object.entries(enabled)) {
+  if (on !== true) continue;
+  const records = plugins.plugins?.[key] ?? [];
+  for (const record of records) {
+    if (!record.installPath) continue;
+    const skillsDir = path.join(record.installPath, "skills");
+    if (!fs.existsSync(skillsDir)) continue;
+    const shipped = (function walk(dir, depth) {
+      if (depth > 5) return false;
+      for (const child of fs.readdirSync(dir)) {
+        if (child === "node_modules" || child === ".git") continue;
+        const childPath = path.join(dir, child);
+        let childStat = null;
+        try {
+          childStat = fs.statSync(childPath);
+        } catch {
+          continue;
+        }
+        if (childStat.isFile() && child === "SKILL.md") return true;
+        if (childStat.isDirectory() && walk(childPath, depth + 1)) return true;
+      }
+      return false;
+    })(skillsDir, 0);
+    if (shipped) {
+      errors.push(`enabled plugin ${key} ships skills, which skillOverrides cannot govern (disable the plugin or vendor its skills)`);
+    }
+  }
+}
+
+console.log(
+  `index_chars=${indexChars} name_only_chars=${nameOnlyChars} discovered=${discovered.length} on_set=${effectiveOn.size} pinned=${PINNED_ON.size} map_keys=${Object.keys(mapForPartition).length}`,
+);
+for (const warning of warnings) console.log(`WARN: ${warning}`);
+if (errors.length > 0) {
+  for (const error of errors) console.error(`FAIL: ${error}`);
+  process.exit(1);
+}
+console.log("claude-skill-load-check: ok");
+NODE

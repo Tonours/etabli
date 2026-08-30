@@ -127,6 +127,8 @@ session-handoff-smoke
 skill-catalog-name-smoke
 skill-tree-hash-smoke
 sync-vendor-subpath-smoke
+claude-skill-load-check-smoke
+pi-skill-load-check-smoke
 herdr-claude-relaunch-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"

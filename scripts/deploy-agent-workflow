@@ -322,6 +322,24 @@ sync_pi_agent_settings() {
     "$local_settings" "$tracked_settings" "$DRY_RUN" "$TIMESTAMP" deploy
 }
 
+sync_claude_skill_overrides() {
+  local local_settings="$HOME_DIR/.claude/settings.json"
+  local tracked_fragment="$REPO_DIR/claude/settings.skill-overrides.json"
+
+  if [ ! -f "$tracked_fragment" ]; then
+    status_line MISSING "Claude skill-overrides fragment source"
+    return 0
+  fi
+
+  if ! node_available; then
+    status_line SKIP "Node.js unavailable; Claude skill overrides sync skipped"
+    return 0
+  fi
+
+  node "$SCRIPT_DIR/lib/claude-settings-sync.mjs" \
+    "$local_settings" "$tracked_fragment" "$DRY_RUN" "$TIMESTAMP" deploy
+}
+
 deploy_pi() {
   local agent_file
   local agent_name
@@ -588,6 +606,13 @@ deploy_claude() {
 
   link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "$HOME_DIR/.claude/settings.workflow-hooks.json" "Claude workflow hooks fragment"
 
+  remove_exact_managed_link \
+    "$HOME_DIR/.claude/skills/audit" \
+    "retired Claude skill audit" \
+    "$HOME_DIR/.agents/skills.disabled/ui-pruned-2026-04-28/audit"
+
+  sync_claude_skill_overrides
+
   prune_stale_managed_claude_agent_links
 
   for scope in $(active_scopes); do
@@ -611,6 +636,14 @@ deploy_claude() {
   done
 
   link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"
+
+  if [ "$DRY_RUN" -eq 0 ] && [ "$HOME_DIR" = "$HOME" ] && [ -x "$SCRIPT_DIR/claude-skill-load-check" ]; then
+    if ! "$SCRIPT_DIR/claude-skill-load-check"; then
+      status_line FAIL "Claude skill load check after apply (see output above)"
+      exit 1
+    fi
+    status_line OK "Claude skill load check after apply"
+  fi
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
