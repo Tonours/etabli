@@ -518,6 +518,34 @@ sync_pi_agent_settings_resources() {
     fi
 }
 
+sync_claude_skill_overrides_resources() {
+    local local_settings="$HOME/.claude/settings.json"
+    local tracked_fragment="$REPO_DIR/claude/settings.skill-overrides.json"
+
+    if [ ! -f "$tracked_fragment" ]; then
+        return 0
+    fi
+
+    if ! node_available; then
+        print_warning "Node.js not available - skipping Claude skill overrides sync"
+        return 0
+    fi
+
+    if "${NODE_CMD[@]}" "$REPO_DIR/scripts/lib/claude-settings-sync.mjs" \
+        "$local_settings" "$tracked_fragment" 0 "$(date +%Y%m%d-%H%M%S)" install; then
+        print_success "Claude skill overrides synced"
+        if [ -x "$REPO_DIR/scripts/claude-skill-load-check" ]; then
+            if "$REPO_DIR/scripts/claude-skill-load-check"; then
+                print_success "Claude skill load check ok"
+            else
+                print_warning "Claude skill load check failed (surface diverges from the tracked map)"
+            fi
+        fi
+    else
+        print_warning "Claude skill overrides sync failed"
+    fi
+}
+
 sync_nvim_plugins() {
     if ! command -v nvim &>/dev/null; then
         print_warning "Neovim not available - skipping plugin sync"
@@ -1666,6 +1694,8 @@ for shared_doc in review-rubric.md; do
         print_success "Claude doc '$shared_doc' linked"
     fi
 done
+
+sync_claude_skill_overrides_resources
 
 if ! command -v pi &>/dev/null; then
     print_step "Installing Pi Coding Agent..."
