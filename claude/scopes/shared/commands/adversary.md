@@ -11,7 +11,7 @@ Follow the shared contract in `workflow/skills/adversary.md` (plan mode and
 code-diff mode).
 
 Get an independent adversarial review from a **different model family** than
-Claude, served by Pi. Prefer the managed portfolio pin `openai-codex/gpt-5.5`
+Claude, served by Pi. Prefer the pinned model `openai-codex/gpt-5.5`
 (GPT-family). Fallbacks when unavailable: `xai/grok-4.5`, then `zai/glm-5.2`.
 Same-family self-review shares blind spots and inflates confidence. A **single
 same-family pass is forbidden** — use cross-model or a documented double-sample.

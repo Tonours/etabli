@@ -2,7 +2,8 @@
 
 Personal source of truth for an **agentic development harness** and matching
 dotfiles: **Pi**, **Claude Code**, managed **Codex** skills, the shared **Grok**
-surface, **Neovim**, **Ghostty**, **tmux**, and **Herdr**.
+surface, **Cursor** (`agent` on PATH), **Neovim**, **Ghostty**, **tmux**, and
+**Herdr**.
 
 Etabli keeps a shared workflow contract explicit (`workflow/`), deploys adapters
 conservatively, and treats validation claims as proportional to evidence.
@@ -45,11 +46,12 @@ terminal diff tooling may install `hunkdiff` (<https://www.hunk.dev/>) for use
 | `pi/`, `claude/` | Runtime adapters |
 | `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
 | `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
-| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated; pstack per `docs/pstack-strategy.md`) |
+| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated; pstack migrated to the Pi port — `docs/pstack-strategy.md`; suite map in `docs/vendor-skills.md`) |
+| `skills-lock.json` | Skill-tree integrity lock (`cd pi && bun run verify:skills` / `update:skills-lock`) |
 | `workflow-scaffold/` | Project templates `deploy-workflow` copies into a repo |
-| `scripts/`, `tests/` | Deploy, validation, regression |
+| `scripts/`, `tests/` | Deploy (`deploy-agent-workflow`, `install.sh`), validation, regression |
 | `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |
-| `docs/pstack-strategy.md` | pstack vendoring: waves, surfaces, degradations, update procedure |
+| `docs/pstack-strategy.md` | pstack on Pi via the npm port: install state, context toggle, degradations |
 | `docs/plan/` | Archives of completed plans (not active work) |
 | `SECURITY.md` | Public-repo / secrets hygiene |
 
@@ -98,10 +100,12 @@ when you want a specific route and a specific stopping point.
 | `/pr-review`, `/pr-qa` | Review a PR, or build its test plan | Findings / test plan |
 | `/sec-pr` | Audit a Dependabot or security PR | `PASS` / `FAIL` |
 | `/ci-fix` | Repair failing CI autonomously | CI green, or blocked at cap |
+| `/poteto-mode` | Opt-in pstack task mode (ADR-0021, delivered by the pi-pstack port per ADR-0023); not the ambient router | User exits the mode |
 
 Also shared: `/spec-guide` and the `/linear-*` commands. Scoped surfaces
 depend on `~/.etabli-scope` — run `ls ~/.claude/commands` for what this machine
-actually has.
+actually has. Project `.mcp.json` is empty; live MCP stays in each runtime's
+user-scope store (`docs/mcp-strategy.md`).
 
 ## Where to go next
 
@@ -109,6 +113,6 @@ actually has.
 2. `workflow/spec.md` — full contract (wins on conflict)
 3. `docs/harness-eval.md` — behavioral eval suite
 4. `docs/mcp-strategy.md` — MCP inventory and scope
-5. `docs/pstack-strategy.md` — pstack task-skill layer: waves, surfaces, degradations
+5. `docs/pstack-strategy.md` — pstack on Pi via the npm port: install, context toggle, degradations
 6. `nvim/README.md` — code-first editor map
 7. `docs/adr/` — decision log

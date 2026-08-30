@@ -109,7 +109,7 @@ end
 
 assert_true(output:find(doctor.config_root() .. "/nvim", 1, true) ~= nil, "doctor should check the repo nvim config link")
 assert_true(output:find(doctor.config_root() .. "/ghostty/config", 1, true) ~= nil, "doctor should check the repo Ghostty config link")
-assert_true(output:find(doctor.config_root() .. "/claude/commands/review.md", 1, true) ~= nil, "doctor should check the Claude review command link")
+assert_true(output:find(doctor.config_root() .. "/claude/scopes/shared/commands/review.md", 1, true) ~= nil, "doctor should check the Claude review command link")
 
 local outside = vim.fn.tempname()
 vim.fn.mkdir(outside, "p")

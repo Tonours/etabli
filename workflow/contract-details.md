@@ -120,12 +120,6 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
   reader. It supports diagnostics and retrospective hypotheses; it is not
   part of the core gate. Telemetry does not establish user value until at least
   10 representative real tasks have task-grader outcomes.
-- `workflow-telemetry-recover` is read-only by default and may append only a
-  fingerprinted historical population plus aggregate imports to the active
-  local ledger when explicitly invoked with `--apply`; it never rewrites target
-  ledgers or persists conversation content, raw session IDs, or session paths.
-  Recovered metrics count only while a read-only source recomputation exactly
-  reproduces the stored import and current target fingerprints.
 - Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
   start from inspectable evidence, classify candidates, implement only through
   reviewed `PLAN.md`, and never auto-apply retrospective output.
@@ -215,7 +209,7 @@ documents the enforcement behind each boundary.
 Pi and Claude wrappers are thin runtime adapters over the shared contract.
 
 - Pi skills: `pi/skills/`
-- Claude commands: `claude/commands/`
+- Claude commands: `claude/scopes/<scope>/commands/`
 - Shared skill contracts: `workflow/skills/`
 - Self-improvement contract: `workflow/skills/self-improvement-loop.md`
 - Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
@@ -283,7 +277,7 @@ Claude:
 Manual-only Claude commands (invoked by explicit slash only, never ambiently
 routed): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`; invoking it
 consents to feature-branch push and PR creation), `/linear-project-setup`.
-The Playwright QA chain lives in the `claude/skills/playwright-*` skills, not
+The Playwright QA chain lives in the `claude/scopes/shared/skills/playwright-*` skills, not
 in slash commands or separate agents. `/spec-guide` is routed ambiently (see
 routing table).
 

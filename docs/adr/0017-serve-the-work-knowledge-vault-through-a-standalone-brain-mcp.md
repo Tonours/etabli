@@ -54,3 +54,11 @@ user-scope stores. Grok still receives no MCP server.
   A future engine change must be applied twice, and no test detects the drift.
 - Bad: `brain` now carries `package.json` and `node_modules`, so the vault needs
   an install step it did not need before.
+
+## Current wiring (amended 2026-08-28)
+
+Project `.mcp.json` is empty (`{"mcpServers": {}}`). The standalone `brain`
+engine decision above is unchanged; Claude, Pi, and Codex declare the server
+in their user-scope stores. `9ac3e10` dropped the project-scoped entry after
+the local engine failed to start from this repo. The sanitized assignment
+matrix stays in `mcp/servers.template.json`.

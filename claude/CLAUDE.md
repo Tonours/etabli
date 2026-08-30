@@ -25,5 +25,3 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 ## Safety
 - Runtime: Node.js/TypeScript, local tests. Secrets, production, destructive
   actions, deploys, billing, and external writes need approval.
-
-@RTK.md

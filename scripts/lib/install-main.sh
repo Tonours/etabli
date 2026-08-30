@@ -510,116 +510,39 @@ sync_pi_agent_settings_resources() {
         return 0
     fi
 
-    if "${NODE_CMD[@]}" - "$local_settings" "$tracked_settings" <<'NODE'; then
-const fs = require("node:fs");
-
-const [localPath, trackedPath] = process.argv.slice(2);
-const localSettings = JSON.parse(fs.readFileSync(localPath, "utf8"));
-const trackedSettings = JSON.parse(fs.readFileSync(trackedPath, "utf8"));
-
-const managedSources = new Set([
-  "local:etabli-workflow",
-  "npm:mitsupi",
-  "git:github.com/badlogic/pi-skills",
-  "npm:@tintinweb/pi-tasks@0.7.1",
-]);
-const legacySources = new Set([
-  "npm:pi-subagents",
-  "npm:pi-interview",
-  "npm:@tintinweb/pi-subagents",
-  "npm:@tintinweb/pi-tasks",
-  "npm:pi-hooks",
-  "npm:glimpseui",
-]);
-let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
-const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
-let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
-// Retired aliases / catalog IDs that must not stay in local cycling lists.
-const legacyModels = new Set([
-  "openai-codex/gpt-5.6",
-  "opencode-go/kimi-k2.6",
-  "kimi-coding/kimi-for-coding",
-  "kimi-coding/kimi-for-coding-highspeed",
-  "github-copilot/claude-opus-4.7",
-  "opencode-go/minimax-m2.7",
-  "opencode-go/qwen3.6-plus",
-  "local-mlx//path/to/models/mlx/gemma-4-12B-it-4bit",
-]);
-const isLegacyModel = (model) =>
-  legacyModels.has(model) ||
-  (typeof model === "string" && model.startsWith("local-mlx/"));
-
-function packageSource(entry) {
-  if (typeof entry === "string") return entry;
-  if (entry && typeof entry === "object" && typeof entry.source === "string") return entry.source;
-  return null;
-}
-
-function isLegacySource(source) {
-  return legacySources.has(source) ||
-    source.startsWith("npm:@tintinweb/pi-subagents@") ||
-    ((source.startsWith("npm:@tintinweb/pi-tasks@")) && source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
-    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"));
-}
-
-localPackages = localPackages.filter((entry) => {
-  const source = packageSource(entry);
-  return !source || !isLegacySource(source);
-});
-
-const trackedBySource = new Map();
-for (const entry of trackedPackages) {
-  if (entry && typeof entry === "object" && managedSources.has(entry.source)) {
-    trackedBySource.set(entry.source, entry);
-  }
-}
-
-let changed = localPackages.length !== (Array.isArray(localSettings.packages) ? localSettings.packages.length : 0);
-for (const [source, trackedEntry] of trackedBySource) {
-  const localIndex = localPackages.findIndex((entry) => packageSource(entry) === source);
-
-  if (localIndex === -1) {
-    localPackages.unshift(trackedEntry);
-    changed = true;
-    continue;
-  }
-
-  const before = JSON.stringify(localPackages[localIndex]);
-  const after = JSON.stringify(trackedEntry);
-  if (before !== after) {
-    localPackages[localIndex] = trackedEntry;
-    changed = true;
-  }
-}
-
-const beforeModels = JSON.stringify(localModels);
-localModels = localModels.filter((model) => !isLegacyModel(model));
-for (const model of trackedSettings.enabledModels ?? []) {
-  if (!localModels.includes(model)) localModels.push(model);
-}
-// Keep a personal default selectable even when it is outside the tracked pin set.
-if (
-  typeof localSettings.defaultProvider === "string" &&
-  typeof localSettings.defaultModel === "string" &&
-  localSettings.defaultProvider &&
-  localSettings.defaultModel
-) {
-  const defaultId = `${localSettings.defaultProvider}/${localSettings.defaultModel}`;
-  if (!localModels.includes(defaultId) && !isLegacyModel(defaultId)) {
-    localModels.push(defaultId);
-  }
-}
-if (JSON.stringify(localModels) !== beforeModels) changed = true;
-
-if (changed) {
-  localSettings.packages = localPackages;
-  localSettings.enabledModels = localModels;
-  fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
-}
-NODE
+    if "${NODE_CMD[@]}" "$REPO_DIR/scripts/lib/pi-agent-settings-sync.mjs" \
+        "$local_settings" "$tracked_settings" 0 "$(date +%Y%m%d-%H%M%S)" install; then
         print_success "Pi agent settings resource filters synced"
     else
         print_warning "Pi agent settings resource sync failed"
+    fi
+}
+
+sync_claude_skill_overrides_resources() {
+    local local_settings="$HOME/.claude/settings.json"
+    local tracked_fragment="$REPO_DIR/claude/settings.skill-overrides.json"
+
+    if [ ! -f "$tracked_fragment" ]; then
+        return 0
+    fi
+
+    if ! node_available; then
+        print_warning "Node.js not available - skipping Claude skill overrides sync"
+        return 0
+    fi
+
+    if "${NODE_CMD[@]}" "$REPO_DIR/scripts/lib/claude-settings-sync.mjs" \
+        "$local_settings" "$tracked_fragment" 0 "$(date +%Y%m%d-%H%M%S)" install; then
+        print_success "Claude skill overrides synced"
+        if [ -x "$REPO_DIR/scripts/claude-skill-load-check" ]; then
+            if "$REPO_DIR/scripts/claude-skill-load-check"; then
+                print_success "Claude skill load check ok"
+            else
+                print_warning "Claude skill load check failed (surface diverges from the tracked map)"
+            fi
+        fi
+    else
+        print_warning "Claude skill overrides sync failed"
     fi
 }
 
@@ -1771,6 +1694,8 @@ for shared_doc in review-rubric.md; do
         print_success "Claude doc '$shared_doc' linked"
     fi
 done
+
+sync_claude_skill_overrides_resources
 
 if ! command -v pi &>/dev/null; then
     print_step "Installing Pi Coding Agent..."

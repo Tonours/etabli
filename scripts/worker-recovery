@@ -46,7 +46,11 @@ if ! git checkout -q -b "$BRANCH" 2>>/dev/null; then
   exit 4
 fi
 git add -A
-if ! git commit -q -m "recovery: ${TOPIC} in-flight work (${REASON})"; then
+ident_args=''
+if [ -z "$(git config user.email 2>/dev/null)" ]; then
+  ident_args='-c user.name=worker-recovery -c user.email=recovery@etabli.invalid'
+fi
+if ! git $ident_args commit -q -m "recovery: ${TOPIC} in-flight work (${REASON})"; then
   echo "worker-recovery: commit failed on $BRANCH" >&2
   exit 4
 fi

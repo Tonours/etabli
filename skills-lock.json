@@ -239,7 +239,7 @@
     "runtime-skill-canary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "981ccf3c38ec9f47659f13bcc560740b26c067859e6c3f4f1341c4a99989b291"
+      "computedHash": "cfaa357c298f0a72b48755b72a8f6cc094ad7592e6e4fb76629d92e5ce4dba0c"
     },
     "session-handoff": {
       "source": "local",
@@ -254,157 +254,82 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "2e6695d6c7207c52608cdfde2878c79e0f0f5f742d6a1081dd7be29ce8ca5e25"
+      "computedHash": "b94cf8501aa0b64470e7409c9ec94f56538d6e6650714f9c8a2c90407210d001"
     },
-    "how": {
+    "thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "d11aeff842c72d80f03e09315c1e143fd9dee6d50b5883f02911086a04b2a51f"
+      "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
     },
-    "why": {
+    "engineering/ask-matt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "23c895a171c8be3a32d2e353a9e187d347240a375f61fa65014d4049d5437730"
+      "computedHash": "0cd14026efa0330083cbc7adf590976c162b60e02f696a8dcce96f0b4dab8a72"
     },
-    "architect": {
+    "engineering/codebase-design": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "9a7bf5892c9211b1f7d996d5a3462d1d188be10d91f69c30cdad8081fda2dcc1"
+      "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
     },
-    "blast-radius": {
+    "engineering/diagnosing-bugs": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "29c76d37a04163f5005cec955e4cdd0311783322d0c6bf478577955b6fefea40"
+      "computedHash": "37b5e9c624513551da790b52864dc8c84bff996a6d03a380cc6facdcc0a88354"
     },
-    "tdd": {
+    "engineering/domain-modeling": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "33a8e530ff47e54b647966bc5d3e615352a0c7cb95220003313769fcfeda11ea"
+      "computedHash": "a11713c0ff7870efa3c331b2e273f09116158485246edc89ae5088eefd1b0b48"
     },
-    "interrogate": {
+    "engineering/grill-with-docs": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "37d22857bc0825ae6367920c263a0cc1a69d971e44a64e402ba07a5f4e220257"
+      "computedHash": "35e62aa423aaeab6a414bcac273f56dfb17802ef2334b41b6a3b00f28196c8cf"
     },
-    "create-verification-skill": {
+    "engineering/improve-codebase-architecture": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a2e50d21892772174225073b3e4864f853883ae2bc13b33eca64c3b67fe06be5"
+      "computedHash": "2449db6ab1ded9581f69fcc56c1f64818112d05e271fd4c5da23c6523f9d3d9d"
     },
-    "maintain-verification-skill": {
+    "engineering/prototype": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "283083c9547641392a58c38edeb147e75aa99912e7fba55edaa7b1a02021ffec"
+      "computedHash": "d3fc74689bd993e39c44bfae510d014eecffbeec2922764b065377fd1327c0f6"
     },
-    "poteto-mode": {
+    "engineering/research": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "83aab1ba98a31299cccc086d608d1d1a6724976af33be019b6f7ea1ec6c3cbd1"
+      "computedHash": "c8c1cba327a6f824b554cd978079a3dadd7406d73174f8fb9bfef58824691970"
     },
-    "principle-laziness-protocol": {
+    "engineering/resolving-merge-conflicts": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "41259a71a7d6fec61fc309bdd72f1db8708a0dacaca034f5c30aa17f27e50ece"
+      "computedHash": "63b2dcadbe9124caeb3448f1378286fe18dcefb2494f60e136831b8b4986ca27"
     },
-    "principle-foundational-thinking": {
+    "engineering/to-spec": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "7ada3330b2b883c8931a601cf53ef7035b31816facc948533a2d8a92905d938b"
+      "computedHash": "3fa1a0695d4ea242fae9e569e4d22aa1788623197abb33bfadafae7315789bbf"
     },
-    "principle-redesign-from-first-principles": {
+    "engineering/to-tickets": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "d39b9050a13ebfa67afc0160057d6286d87dd86bda04da291e40e9c9cca0ba5b"
+      "computedHash": "bf5e6ebcb4f1272de0c188d5b3901f265a03d1fa9935a21a7a56938e21e2e761"
     },
-    "principle-subtract-before-you-add": {
+    "engineering/triage": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "bc86d43626770c780551730a180de8ffb91ab16f193647047644c606d01874c8"
+      "computedHash": "b954d74c219c805bf353d6642251a713c9b2e9cfdb11babfe588bcfe7dfd16d5"
     },
-    "principle-minimize-reader-load": {
+    "engineering/wayfinder": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a02eb0ce1333d18aff133e8cdaab798bc8bf024e4b1f1bcc8bb834de5282d7d8"
+      "computedHash": "fa790eb4255b13d24d7e33ff4891ccd3d621558cc0ab87ae226777538ea16a8f"
     },
-    "principle-outcome-oriented-execution": {
+    "engineering/wizard": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "8a353f45bd32f61e67702c0bdab668eb94d669afef038a75a4263ce272492169"
-    },
-    "principle-experience-first": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "35356c2e1e4b28fe76d3f9b9b6afa95bea2597d340ad615dd806a21a93d1d836"
-    },
-    "principle-exhaust-the-design-space": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "bf5f30c97afa75da12e1f982bffc3176d2172bd124072f6d9e74d06b0cf2b965"
-    },
-    "principle-build-the-lever": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "82daf34a1a020b16315df83341b7c98f821f757f4df93154507c016219359a37"
-    },
-    "principle-model-the-domain": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "a94b6f9519c4cb6c79ba92c46030855bfd261c9270c97d6d33ae793a24221446"
-    },
-    "principle-boundary-discipline": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "e2dee8352e9780cc52413d65020193cb6e5e538175b1a32926ebd9080ea4bbda"
-    },
-    "principle-type-system-discipline": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "092d40b72a904d0a111acde944639e24c8fe1f912455d9c4b94295b9d07709ec"
-    },
-    "principle-make-operations-idempotent": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8293bf10530fdffa13216645432989a14b3ca4a1b6a6f0e12bf9a141ba48f802"
-    },
-    "principle-migrate-callers-then-delete-legacy-apis": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "5bd62197e64fa42f312bb1d5181da7724f154ccfc059ad2a3fb16d5e27514992"
-    },
-    "principle-separate-before-serializing-shared-state": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "00492c49afabc309c388ae0ae3045536045a2cbff599a500c945e6f2afcaee52"
-    },
-    "principle-prove-it-works": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "df5e2a3f8b71c39780a398a9cd4515356479f2862e554b3d7cbf6dd8d1a37db7"
-    },
-    "principle-fix-root-causes": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b21d93ea5f651b83596bbd90187c87f40f4d33c9e5d105a1ad2be41b0d74bd97"
-    },
-    "principle-sequence-verifiable-units": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "a5c25bdd95a1a5be383b6699ce2c9170f1a08deba14fb0414c4314fd50d800ac"
-    },
-    "principle-guard-the-context-window": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "4ba70fa93ea45d353d411daa7458e15959e6369f388cff727f639587e67b2fed"
-    },
-    "principle-never-block-on-the-human": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "13f79ad8beba024928f4c06d2d6ecf6d31128beac5b392313287686922758604"
-    },
-    "principle-encode-lessons-in-structure": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "527fa064a616d4aecb1b952624daae24c6229cbf9c28404233c1678f2488ce22"
+      "computedHash": "dee7f1a523994a1e063c69fe09c2f5b4da97a41ad68107722664e6e472cb2423"
     }
   }
 }

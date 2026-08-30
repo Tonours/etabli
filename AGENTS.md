@@ -9,7 +9,9 @@ Repo-specific instructions for this dotfiles repo.
 - `docs/` — focused user docs
 - `ghostty/` — Ghostty config
 - `herdr/` — Herdr config, layouts, skills, multihost docs, etabli-obvault plugin
-- `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`)
+- `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
+- `vendor/` — vendored upstream skills (`vendor/sources.tsv`; mattpocock is the shared pack, migrated to vendoring after the pstack port move)
+- `skills-lock.json` — skill-tree integrity lock
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `nvim/` — Neovim config
 - `pi/` — Pi config, extensions, skills, themes
@@ -21,7 +23,7 @@ Repo-specific instructions for this dotfiles repo.
 - `pi/models.json` — custom model definitions
 - `pi/skills/` — local Pi skills
 - `pi/themes/` — Pi themes
-- `scripts/` — installer and dev scripts
+- `scripts/` — installer, `deploy-agent-workflow`, and validation helpers
 - `tests/` — smoke tests
 - `tmux.conf` — tmux config
 - `workflow/` — canonical workflow contract

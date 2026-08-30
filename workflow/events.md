@@ -63,10 +63,7 @@ scaffolded project, an equivalent single validated append is acceptable. Do not
 edit earlier lines.
 
 Mine recurring workflow issues with
-`scripts/workflow-retrospect`. `scripts/workflow-telemetry-recover` is dormant
-historical tooling for recovering usage from pre-recenter Codex session logs;
-only explicit `--apply` writes the pinned population and imports to the active
-ledger.
+`scripts/workflow-retrospect`.
 
 ## Event Types
 

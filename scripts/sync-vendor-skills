@@ -24,6 +24,15 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 synced=0
 
+# Vendored-path adaptation table (ADR-0022), applied after each copy so
+# Cursor-specific skill surfaces become Claude-discoverable ones.
+# Intentionally NOT transformed: ~/.cursor/projects/ transcript globs,
+# ~/.cursor/rules/ config (read as plain text), .cursor/worktrees/.
+adapt_vendored_paths() {
+  find "$1" -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' -o -name '*.ts' \) -print0 |
+    xargs -0 perl -pi -e 's|\.cursor/skills/|.claude/skills/|g; s|\.cursor/plugins/|.claude/plugins/|g'
+}
+
 # Copies LICENSE or LICENSE.md (first match) from $1 into the vendor root.
 copy_first_license() {
   local base="$1" extra
@@ -60,7 +69,9 @@ while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
       exit 1
     fi
     rm -rf "$dest/$skill"
+    mkdir -p "$(dirname "$dest/$skill")"
     cp -R "$src" "$dest/$skill"
+    adapt_vendored_paths "$dest/$skill"
   done
 
   if [ -n "$subpath" ]; then

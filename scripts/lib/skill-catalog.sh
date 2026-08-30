@@ -91,18 +91,18 @@ skill_catalog_vendor_records() {
   local catalog="$1"
   local repo_dir="$2"
   local vendor _vendor_repo _vendor_ref vendor_scope _vendor_skills
-  local catalog_name skill_dir skill_name
+  local catalog_name catalog_pi_core skill_dir skill_name
 
   # shellcheck disable=SC2034
   while IFS=$'\t' read -r vendor _vendor_repo _vendor_ref vendor_scope _vendor_skills || [ -n "$vendor" ]; do
     case "$vendor" in '' | \#*) continue ;; esac
 
-    while IFS= read -r catalog_name; do
+    while IFS=$'\t' read -r catalog_name catalog_pi_core; do
       [ -n "$catalog_name" ] || continue
       skill_dir="$repo_dir/vendor/$vendor/skills/$catalog_name"
       skill_name="$(skill_declared_name "$skill_dir")"
-      printf '%s\t%s\t%s\n' "$vendor_scope" "$skill_name" "$skill_dir"
-    done < <(skill_catalog_names "$catalog" "$vendor" any)
+      printf '%s\t%s\t%s\t%s\t%s\n' "$vendor_scope" "$skill_name" "$skill_dir" "$catalog_pi_core" "$vendor"
+    done < <(awk -F '\t' -v vendor="$vendor" '$0 !~ /^#/ && NF >= 5 && $2 == vendor { print $1 "\t" $3 }' "$catalog")
   done <"$repo_dir/vendor/sources.tsv"
 }
 
@@ -110,11 +110,11 @@ skill_catalog_active_vendor_records() {
   local catalog="$1"
   local repo_dir="$2"
   local active_scopes="$3"
-  local vendor_scope skill_name skill_dir
+  local vendor_scope skill_name skill_dir pi_core vendor
 
-  while IFS=$'\t' read -r vendor_scope skill_name skill_dir; do
+  while IFS=$'\t' read -r vendor_scope skill_name skill_dir pi_core vendor; do
     case " $active_scopes " in
-    *" $vendor_scope "*) printf '%s\t%s\n' "$skill_name" "$skill_dir" ;;
+    *" $vendor_scope "*) printf '%s\t%s\t%s\t%s\n' "$skill_name" "$skill_dir" "$pi_core" "$vendor" ;;
     esac
   done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
 }
@@ -123,12 +123,12 @@ skill_catalog_inactive_vendor_records() {
   local catalog="$1"
   local repo_dir="$2"
   local active_scopes="$3"
-  local vendor_scope skill_name skill_dir
+  local vendor_scope skill_name skill_dir pi_core vendor
 
-  while IFS=$'\t' read -r vendor_scope skill_name skill_dir; do
+  while IFS=$'\t' read -r vendor_scope skill_name skill_dir pi_core vendor; do
     case " $active_scopes " in
     *" $vendor_scope "*) ;;
-    *) printf '%s\t%s\n' "$skill_name" "$skill_dir" ;;
+    *) printf '%s\t%s\t%s\t%s\n' "$skill_name" "$skill_dir" "$pi_core" "$vendor" ;;
     esac
   done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
 }

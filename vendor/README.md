@@ -14,9 +14,13 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 | `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — ForestAdmin Ember frontend |
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
 
-No `shared` vendor pack is currently vendored; generic language packs
-(mcollina) and React packs (vercel, tanstack) were removed as unused surface.
-Full restore procedure (all inputs recoverable from git history — e.g.
+pstack was vendored here until ADR-0023 migrated Pi to the
+`@zenspc/pi-pstack` npm port (see `docs/pstack-strategy.md`); the vendoring
+mechanism itself stays for the suites above.
+
+Generic language packs (mcollina) and React packs (vercel, tanstack) were
+removed as unused surface. Full restore procedure for a dropped pack (all
+inputs recoverable from git history — e.g.
 `git show 18bc2f0^:vendor/sources.tsv`):
 
 1. re-add the pack's row to `vendor/sources.tsv`;
@@ -32,7 +36,7 @@ Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 
 ```bash
 scripts/sync-vendor-skills                  # every vendor
-scripts/sync-vendor-skills ember-skills     # one vendor
+scripts/sync-vendor-skills pstack           # one vendor
 ```
 
 The script refuses to run while `vendor/` has uncommitted changes, so a
@@ -41,6 +45,16 @@ each `UPSTREAM_SHA`, then prints a diffstat to review before committing.
 
 The private repos clone over SSH. `gh`'s OAuth token can list them but cannot
 read their contents, so HTTPS fails with a misleading 404.
+
+After a vendor sync, refresh `skills-lock.json` so the lock matches the
+vendored trees:
+
+```bash
+cd pi && bun run update:skills-lock
+```
+
+`bun run verify:skills` is the read-only check used by
+`scripts/verify-agentic-infra`.
 
 ## Upstream is the source of truth
 

@@ -203,7 +203,8 @@ assert_contains "$INSTALL_MAIN" 'Claude workflow hook'
 assert_contains "$INSTALL_MAIN" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Pi, Codex, and Grok (through the shared ~/.agents surface)'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'npm:@tintinweb/pi-subagents'
+assert_contains "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" 'npm:@tintinweb/pi-subagents'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'pi-agent-settings-sync.mjs'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
 assert_contains "$INSTALL_MAIN" 'hunkdiff'
 assert_contains "$INSTALL_MAIN" 'install_npm_global_binary_link "hunk"'
@@ -364,15 +365,7 @@ assert_contains "$ROOT_DIR/workflow/skills/ship.md" '<type>/<ticket-id>-<short-s
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/ship.md" 'Direct default-branch integration is outside `/ship`'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
-jq -e '
-  .mcpServers == {
-    "brain": {
-      "command": "node",
-      "args": ["${HOME}/work/brain/_meta/mcp/server.mjs"],
-      "env": {"OBVAULT_ROOT": "${HOME}/work/brain"}
-    }
-  }
-' "$ROOT_DIR/.mcp.json" >/dev/null
+jq -e '.mcpServers == {}' "$ROOT_DIR/.mcp.json" >/dev/null
 jq -e '
   .scope == "work" and
   .runtimeAssignments.claude == ["chrome-devtools", "lean-ctx", "brain"] and
@@ -581,16 +574,19 @@ catalog_counts="$(
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
 read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
-[ "$catalog_total" -le 95 ] || {
-    printf 'skill catalog grew beyond baseline: %s > 95\n' "$catalog_total" >&2
+# Catalog baselines: raised 2026-08-28 with the deliberate additions of the
+# thermo-nuclear pi-core skill, pstack unslop, and the 14-skill mattpocock
+# engineering suite (user-directed). Revisit on every suite adoption.
+[ "$catalog_total" -le 120 ] || {
+    printf 'skill catalog grew beyond baseline: %s > 120\n' "$catalog_total" >&2
     exit 1
 }
-[ "$pi_core_total" -le 17 ] || {
-    printf 'pi_core grew beyond baseline: %s > 17\n' "$pi_core_total" >&2
+[ "$pi_core_total" -le 20 ] || {
+    printf 'pi_core grew beyond baseline: %s > 20\n' "$pi_core_total" >&2
     exit 1
 }
-[ "$agents_visible_total" -le 17 ] || {
-    printf 'agents_visible grew beyond baseline: %s > 17\n' "$agents_visible_total" >&2
+[ "$agents_visible_total" -le 20 ] || {
+    printf 'agents_visible grew beyond baseline: %s > 20\n' "$agents_visible_total" >&2
     exit 1
 }
 
@@ -655,8 +651,10 @@ for prompt_surface in pi_core agents_visible; do
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
     case "$prompt_surface" in
-    pi_core) max_bytes=1600 ;;
-    agents_visible) max_bytes=1850 ;;
+    # Raised 2026-08-28 with the thermo-nuclear pi-core skill's long
+    # description (suite adoptions above).
+    pi_core) max_bytes=2000 ;;
+    agents_visible) max_bytes=2200 ;;
     esac
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
@@ -715,7 +713,7 @@ assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'
 assert_not_contains "$ROOT_DIR/pi/agent/settings.json" 'npm:@tintinweb/pi-subagents'
-assert_contains "$INSTALL_MAIN" 'npm:@tintinweb/pi-subagents'
+assert_contains "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/plan-archive.md'
 

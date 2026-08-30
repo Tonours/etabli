@@ -25,6 +25,7 @@ and compares the diff to **sibling implementations in this repo**.
 
    | Domain | Skills to apply |
    | -------- | ----------------- |
+   | TypeScript / implementation | `codebase-design` (vendored, matt pocock; Claude/Codex surfaces — prompt-hidden on Pi); pstack principles via /skill: invocation (pi-pstack port; prompt-hidden by /pstack off) |
    | CSS / layout / visual | Local sibling components and styles; apply a narrower CSS skill only when the runtime exposes one |
    | Project-specific code | Prefer the matching project skill when the runtime exposes one |
 

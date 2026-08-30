@@ -1,93 +1,60 @@
-# pstack vendoring strategy
+# pstack strategy — migrated to the Pi port
 
-How etabli consumes [pstack](https://github.com/cursor/plugins/tree/main/pstack)
-(Lauren Tan's engineering skill set) without replacing its own workflow
-contract. Decision record: `docs/adr/0020-*.md`.
+How etabli consumes pstack (Lauren Tan's engineering skill set). History:
+ADR-0020/0021/0022 built a vendored multi-runtime layer; ADR-0023 migrated
+Pi to the `@zenspc/pi-pstack` npm port after comparing both — the port's
+Pi-native advantages (subagents, context toggle, model roles, working
+recall) outweighed Claude/Codex coverage, which the user deprioritized.
 
-## What is vendored
+## Current state (since 2026-08-28)
 
-Eight runtime-agnostic task skills, synced verbatim from
-`cursor/plugins` @ `main` (`vendor/sources.tsv`, subpath `pstack`):
+- **Runtime**: `@zenspc/pi-pstack` 0.3.0 + `pi-subagents` peer, tracked in
+  `pi/agent/settings.json` (bare pstack entry; pi-subagents entry with
+  `skills: []` so its extension stays active for fan-out) and pushed to the
+  live settings by `scripts/deploy-agent-workflow` through
+  `scripts/lib/pi-agent-settings-sync.mjs`. 45 skills, `poteto-agent` and
+  `comment-sicko` subagents, an extension, and the `orch`/`watch-pr`
+  scripts (bun).
+- **Claude / Codex**: no pstack skills (user decision; reversible —
+  restore the catalog rows and vendor tree from git history per
+  ADR-0023).
+- The etabli vendoring mechanism stays (serves mattpocock); pstack rows
+  are gone from `vendor/sources.tsv` and the catalog.
 
-| Skill | Use | Notes |
-| --- | --- | --- |
-| `how` | "how does X work" walkthroughs, ownership/layering questions | partial overlap with `workflow/skills/investigation.md` route — skill is invocable, route stays canonical |
-| `why` | design rationale from git history + MCP evidence categories | categories depend on configured MCPs; empty categories reported honestly |
-| `architect` | caller-first design sketch before code | complements `/plan-loop` (contract planning) |
-| `blast-radius` | what else a small change could break, proven by running code | |
-| `tdd` | failing test first when a cheap local test path exists | |
-| `interrogate` | multi-model adversarial diff review, 4-bucket verdicts incl. dismissed | opt-in task skill; does not change `/review` route wiring (ADR-0013 stands for routes) |
-| `create-verification-skill` | generate a project-local verify skill + feature map | aligns with evidence-pack ethos |
-| `maintain-verification-skill` | keep that verify skill honest against source drift | |
+## Operating the port
 
-License: `vendor/pstack/LICENSE` (MIT, Copyright Lauren Tan), copied from the
-`pstack/` subpath — the monorepo root ships none.
+- First run: `/setup-pstack` to pick per-role models (optional; roles
+  inherit the parent session model otherwise). Config:
+  `~/.pi/agent/pstack/models.json`.
+- Context economy: `/pstack on|off|status` — `off` hides the ~40 pstack
+  skill descriptions from the system prompt and persists; `/skill:<name>`
+  keeps working. The repo pins `off` as the standing state
+  (`skillsEnabled: false` in `~/.pi/agent/pstack/models.json`);
+  `scripts/pi-skill-load-check` fails when pstack entries render without
+  that pin in effect and budgets them out of the model-facing block only
+  while it holds.
+- Slash syntax is `/skill:<name>` (e.g. `/skill:poteto-mode`), not
+  `/name`.
+- Subagent fan-out (`arena`, `swarm`, `interrogate` panels, `no-comments`)
+  requires the `pi-subagents` package — installed.
+- `recall` reads Pi session transcripts (`$PI_SESSION_FILE`, grouped by
+  cwd slug).
+- Model-role injection happens every turn via the port's extension —
+  accepted risk (ADR-0023), assess during real use.
 
-## Wave 2 (deployed 2026-08-28, ADR-0021)
+## Etabli contract interactions
 
-`poteto-mode` — the router skill with its 23 playbooks inline
-(`poteto-mode/playbooks/`) — plus the 21 `principle-*` skills. On etabli it
-is **opt-in**: type `/poteto-mode` to enter the mode; the ambient workflow
-contract stays canonical for ordinary prompts. `poteto-mode` declares
-`name: Poteto Mode`, so the installer links it by its directory basename via
-the slug-validation fallback in `skill-catalog.sh`
-(`tests/skill-catalog-name-smoke.sh`).
+- The ambient workflow contract stays canonical; pstack skills are
+  task-level entry points.
+- `/ship` step 9's `unslop` reference resolves via the port on Pi.
+- `/ship` phase 6's thermo-nuclear skill is etabli-native (`pi/skills`),
+  unaffected.
+- `/create-verification-skill` on the port writes to its own Pi-appropriate
+  location (the port removed the `.cursor` paths at the source).
 
-Principles are named, invocable one-rule skills (`principle-laziness-protocol`,
-`principle-prove-it-works`, …); poteto-mode reads them by name and requires a
-citation to trace to a real decision.
+## History: the vendored waves (2026-08-28, same day)
 
-## Deployment surfaces
-
-Catalog rows (`workflow/runtime/skill-surface.tsv`): `source=pstack`,
-`0 0 1`. The install vendor loop links each skill into
-`~/.pi/agent/skills`, `~/.claude/skills`, and `~/.codex/skills` whenever the
-`shared` scope is active (always). `agents_visible=0` on purpose: Grok and
-Cursor already run pstack natively; etabli does not duplicate it there.
-
-## Degradation on Pi (accepted)
-
-- Subagent fan-out instructions (how/why/interrogate/poteto-mode delegates,
-  explorers, investigators, reviewers) degrade to single-model sequential
-  passes; the `poteto-agent` subagent definition (`pstack/agents/`) is not
-  vendored by the skills-only sync.
-- Model-role references (sol/grok/fable/opus defaults, `Task` model tiers,
-  `/setup-pstack` overrides) are inert; the current model does the work.
-- `disable-model-invocation: true` is a Cursor/Claude flag; if the runtime
-  ignores it, skills may self-trigger — acceptable while wanted.
-- poteto-mode's `reminder:` frontmatter is an always-on nudge on Cursor and
-  an unknown field elsewhere — residual self-trigger vector, documented in
-  ADR-0021.
-- Not-vendored references inside poteto-mode (degrade to nearest local
-  behavior): `arena`, `swarm`, `recall`, `setup-pstack`, `unslop`,
-  `no-comments`, `technical-writing`, `figure-it-out`, `reflect`,
-  `automate-me`, `make-bot-ui`, `teach`, `typescript-best-practices`,
-  `show-me-your-work`, `bro`; Cursor built-ins `create-skill`, `/loop`,
-  `AskQuestion`; cursor-team-kit `deslop`, `control-cli`, `control-ui`;
-  Graphite for the shipping playbooks.
-- `create-verification-skill` / `maintain-verification-skill` hardcode
-  `.cursor/skills/verify-<app>/` as the output location
-  (`create-verification-skill/SKILL.md:9,25,36`). On Pi, Claude, and Codex
-  that path is not a discovered skill surface — relocate the generated
-  `verify-<app>` folder to the runtime's project-local skills dir when the
-  skill is used there.
-- Vendored files are never edited; adaptation lives in this document.
-
-## Updating
-
-1. `scripts/sync-vendor-skills pstack` (fails closed if a skill dir moves
-   upstream; refuses a dirty `vendor/` tree).
-2. Review the diff, then commit `vendor/pstack/**` including the new
-   `UPSTREAM_SHA`.
-
-## Wave 3 menu (not vendored; requires a follow-up ADR if adopted)
-
-- The remaining 15 skills: `arena` / `swarm` (fan-out; conflicts with the
-  parent-only Pi profile), `recall` (Cursor transcripts), `setup-pstack`
-  (plugin config), `no-comments` (Comment Sicko subagent), `make-bot-ui`
-  (Grok Bot webhook), `unslop` / `technical-writing` (overlap deslop +
-  answer-quality), `figure-it-out`, `reflect`, `automate-me`, `teach`, `bro`,
-  `typescript-best-practices`, `show-me-your-work`.
-
-Adoption remains a `vendor/sources.tsv` row extension plus catalog-flag
-flip, nothing more.
+Wave 1 (8 skills) → wave 2 (+poteto-mode, 21 principles) → wave 3 (+6
+closing skills) → path adaptation (ADR-0022) → migration (ADR-0023). The
+full lineage and the comparison that drove the migration live in the ADRs
+and `docs/vendor-skills.md`.

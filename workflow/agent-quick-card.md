@@ -94,7 +94,7 @@ push for CI repair only under its contract.
 
 ```bash
 scripts/verify-agentic-infra core
-cd pi && bun test ./extensions/__tests__/
+bun test pi/extensions/__tests__/
 ```
 
 Focused checks over full-suite ritual. After checks: implementation-loop 12b

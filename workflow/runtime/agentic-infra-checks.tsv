@@ -67,6 +67,12 @@ full	shell-docs	etabli-harness-eval-smoke	tests/etabli-harness-eval-smoke.sh
 full	shell-docs	codex-skill-description-smoke	tests/codex-skill-description-smoke.sh
 full	shell-docs	runtime-skill-canary-smoke	tests/runtime-skill-canary-smoke.sh
 full	shell-docs	session-handoff-smoke	tests/session-handoff-smoke.sh
+full	shell-docs	skill-catalog-name-smoke	tests/skill-catalog-name-smoke.sh
+full	shell-docs	skill-tree-hash-smoke	tests/skill-tree-hash-smoke.sh
+full	shell-docs	sync-vendor-subpath-smoke	tests/sync-vendor-subpath-smoke.sh
+full	shell-docs	claude-skill-load-check-smoke	tests/claude-skill-load-check-smoke.sh
+full	shell-docs	pi-skill-load-check-smoke	tests/pi-skill-load-check-smoke.sh
+full	shell-docs	herdr-claude-relaunch-smoke	tests/herdr-claude-relaunch-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
 live	shell-docs	runtime-skill-canary-live	tests/runtime-skill-canary-live.sh
