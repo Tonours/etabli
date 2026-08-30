@@ -318,119 +318,8 @@ sync_pi_agent_settings() {
     return 0
   fi
 
-  node - "$local_settings" "$tracked_settings" "$DRY_RUN" "$TIMESTAMP" <<'NODE'
-const fs = require("node:fs");
-
-const [localPath, trackedPath, dryRunRaw, timestamp] = process.argv.slice(2);
-const dryRun = dryRunRaw === "1";
-const localSettings = JSON.parse(fs.readFileSync(localPath, "utf8"));
-const trackedSettings = JSON.parse(fs.readFileSync(trackedPath, "utf8"));
-
-const managedSources = new Set([
-  "local:etabli-workflow",
-  "npm:mitsupi",
-  "git:github.com/badlogic/pi-skills",
-  "npm:@tintinweb/pi-tasks@0.7.1",
-]);
-const legacySources = new Set([
-  "npm:pi-subagents",
-  "npm:pi-interview",
-  "npm:@tintinweb/pi-subagents",
-  "npm:@tintinweb/pi-tasks",
-  "npm:pi-hooks",
-  "npm:glimpseui",
-]);
-
-function isLegacySource(source) {
-  return legacySources.has(source) ||
-    source.startsWith("npm:@tintinweb/pi-subagents@") ||
-    ((source.startsWith("npm:@tintinweb/pi-tasks@")) && source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
-    (source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"));
-}
-
-function sourceOf(entry) {
-  if (typeof entry === "string") return entry;
-  if (entry && typeof entry === "object" && typeof entry.source === "string") return entry.source;
-  return null;
-}
-
-function backupPath(path) {
-  let candidate = `${path}.bak.${timestamp}`;
-  let index = 1;
-  while (fs.existsSync(candidate)) {
-    candidate = `${path}.bak.${timestamp}.${index}`;
-    index += 1;
-  }
-  return candidate;
-}
-
-const trackedPackages = Array.isArray(trackedSettings.packages) ? trackedSettings.packages : [];
-let localPackages = Array.isArray(localSettings.packages) ? localSettings.packages : [];
-let localModels = Array.isArray(localSettings.enabledModels) ? localSettings.enabledModels : [];
-const changes = [];
-// Single source of truth for managed models (ADR-0018): the loop below
-// reads trackedSettings.enabledModels directly — the same list the installer
-// syncs. No separate roster exists.
-const legacyModels = new Set([
-  "openai-codex/gpt-5.6",
-]);
-
-const filteredPackages = localPackages.filter((entry) => {
-  const source = sourceOf(entry);
-  if (source && isLegacySource(source)) {
-    changes.push(`remove ${source}`);
-    return false;
-  }
-  return true;
-});
-localPackages = filteredPackages;
-
-for (const trackedEntry of trackedPackages) {
-  const source = sourceOf(trackedEntry);
-  if (!source || !managedSources.has(source)) continue;
-
-  const localIndex = localPackages.findIndex((entry) => sourceOf(entry) === source);
-  if (localIndex === -1) {
-    localPackages.push(trackedEntry);
-    changes.push(`add ${source}`);
-    continue;
-  }
-
-  if (JSON.stringify(localPackages[localIndex]) !== JSON.stringify(trackedEntry)) {
-    localPackages[localIndex] = trackedEntry;
-    changes.push(`sync ${source}`);
-  }
-}
-
-localModels = localModels.filter((model) => {
-  if (!legacyModels.has(model)) return true;
-  changes.push(`remove ${model}`);
-  return false;
-});
-for (const model of trackedSettings.enabledModels ?? []) {
-  if (localModels.includes(model)) continue;
-  localModels.push(model);
-  changes.push(`add ${model}`);
-}
-
-if (changes.length === 0) {
-  console.log("OK             Pi agent settings resources");
-  process.exit(0);
-}
-
-if (dryRun) {
-  console.log(`WOULD_SYNC     Pi agent settings resources (${changes.join(", ")})`);
-  process.exit(0);
-}
-
-const backup = backupPath(localPath);
-fs.copyFileSync(localPath, backup);
-localSettings.packages = localPackages;
-localSettings.enabledModels = localModels;
-fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
-console.log(`BACKUP         ${backup}`);
-console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);
-NODE
+  node "$SCRIPT_DIR/lib/pi-agent-settings-sync.mjs" \
+    "$local_settings" "$tracked_settings" "$DRY_RUN" "$TIMESTAMP" deploy
 }
 
 deploy_pi() {
@@ -542,8 +431,68 @@ deploy_pi() {
   done
 }
 
+vendor_link_expected_on_surface() {
+  local surface="$1"
+  local record_scope="$2"
+  local record_pi_core="$3"
+
+  case " $ACTIVE_SCOPES " in
+  *" $record_scope "*) ;;
+  *) return 1 ;;
+  esac
+  if [ "$surface" = ".pi/agent/skills" ] && [ "$record_pi_core" != "1" ]; then
+    return 1
+  fi
+  return 0
+}
+
+prune_vendor_skill_links() {
+  local surface skill_link skill_target link_name
+  local record_scope record_name record_dir record_pi_core record_vendor matched
+
+  for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+    [ -d "$HOME_DIR/$surface" ] || continue
+    for skill_link in "$HOME_DIR/$surface"/*; do
+      [ -L "$skill_link" ] || continue
+      skill_target="$(readlink "$skill_link")"
+      link_name="$(basename "$skill_link")"
+
+      case "$skill_target" in
+      */.agents/skills/* | */.claude/skills/* | */.codex/*)
+        if [ ! -e "$skill_link" ]; then
+          remove_managed_path "$skill_link" "broken cross-surface mirror $link_name from $surface"
+          continue
+        fi
+        ;;
+      esac
+
+      matched=""
+      while IFS=$'\t' read -r record_scope record_name record_dir record_pi_core record_vendor; do
+        [ "$record_name" = "$link_name" ] || continue
+        case "$skill_target" in
+        *"/$record_vendor/skills/"*) ;;
+        *) continue ;;
+        esac
+        matched=1
+        if ! vendor_link_expected_on_surface "$surface" "$record_scope" "$record_pi_core"; then
+          remove_managed_path "$skill_link" "vendor skill $link_name not expected in $surface"
+        fi
+        break
+      done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
+
+      if [ -z "$matched" ]; then
+        case "$skill_target" in
+        "$REPO_DIR"/vendor/*/skills/*)
+          remove_managed_path "$skill_link" "orphan vendor skill $link_name from $surface"
+          ;;
+        esac
+      fi
+    done
+  done
+}
+
 deploy_vendor_skills() {
-  local skill_name skill_dir surface skill_link
+  local skill_name skill_dir pi_core
 
   status_line SECTION "Vendor skills"
 
@@ -552,24 +501,15 @@ deploy_vendor_skills() {
   fi
 
   prune_pi_sourced_skill_links
+  prune_vendor_skill_links
 
-  while IFS=$'\t' read -r skill_name skill_dir; do
+  while IFS=$'\t' read -r skill_name skill_dir pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
-    for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
-      skill_link="$HOME_DIR/$surface/$skill_name"
-      # Raw-target equality is intentional: never remove an equivalent-looking
-      # external or user-owned link while converging managed vendor scopes.
-      if same_link "$skill_dir" "$skill_link"; then
-        remove_managed_path "$skill_link" "inactive vendor skill $skill_name from $surface"
-      fi
-    done
-  done < <(skill_catalog_inactive_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ACTIVE_SCOPES")
-
-  while IFS=$'\t' read -r skill_name skill_dir; do
-    [ -n "$skill_name" ] || continue
-    link_path "$skill_dir" "$HOME_DIR/.pi/agent/skills/$skill_name" "Pi vendor skill $skill_name"
     link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude vendor skill $skill_name"
     link_path "$skill_dir" "$HOME_DIR/.codex/skills/$skill_name" "Codex vendor skill $skill_name"
+    if [ "$pi_core" = "1" ]; then
+      link_path "$skill_dir" "$HOME_DIR/.pi/agent/skills/$skill_name" "Pi vendor skill $skill_name"
+    fi
   done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ACTIVE_SCOPES")
 }
 
@@ -673,12 +613,14 @@ deploy_claude() {
   link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"
 }
 
-deploy_pi
-deploy_vendor_skills
-deploy_claude
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  deploy_pi
+  deploy_vendor_skills
+  deploy_claude
 
-if [ "$DRY_RUN" -eq 1 ]; then
-  status_line SUMMARY "dry-run complete"
-else
-  status_line SUMMARY "agent workflow deployed"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    status_line SUMMARY "dry-run complete"
+  else
+    status_line SUMMARY "agent workflow deployed"
+  fi
 fi

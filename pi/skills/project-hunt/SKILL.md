@@ -1,6 +1,7 @@
 ---
 name: project-hunt
 description: Hunt dated SaaS and low-capital ecommerce opportunities from market pain. Use for a project idea, chasse de projet, or /project-hunt.
+disable-model-invocation: true
 ---
 
 # Project hunt

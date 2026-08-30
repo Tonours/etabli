@@ -163,39 +163,39 @@ fi
 # The work-scope deploy only touches WORK_HOME_DIR, so it runs concurrently
 # with the shared-home assertions; its failures propagate through wait.
 (
-mkdir -p \
-  "$WORK_HOME_DIR/.pi/agent/skills" \
-  "$WORK_HOME_DIR/.claude/skills" \
-  "$WORK_HOME_DIR/.codex/skills" \
-  "$WORK_HOME_DIR/.agents/skills" \
-  "$WORK_HOME_DIR/external-skill"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
-ln -s "$WORK_HOME_DIR/external-skill" "$WORK_HOME_DIR/.codex/skills/adonisjs-review"
+  mkdir -p \
+    "$WORK_HOME_DIR/.pi/agent/skills" \
+    "$WORK_HOME_DIR/.claude/skills" \
+    "$WORK_HOME_DIR/.codex/skills" \
+    "$WORK_HOME_DIR/.agents/skills" \
+    "$WORK_HOME_DIR/external-skill"
+  ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
+  ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
+  ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
+  ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
+  ln -s "$WORK_HOME_DIR/external-skill" "$WORK_HOME_DIR/.codex/skills/adonisjs-review"
 
-ETABLI_SCOPE=work "$DEPLOY_SCRIPT" --apply --home "$WORK_HOME_DIR" >/dev/null
-assert_link "$WORK_HOME_DIR/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
-assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
-assert_link "$WORK_HOME_DIR/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
-assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-inner.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-inner.sh"
-assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-prompt.md" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-prompt.md"
-assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report.sh"
-assert_link "$WORK_HOME_DIR/.pi/agent/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
-assert_link "$WORK_HOME_DIR/.claude/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
-assert_link "$WORK_HOME_DIR/.codex/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
-assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
-assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
-assert_absent "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
-assert_absent "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
-assert_link "$WORK_HOME_DIR/.codex/skills/adonisjs-review" "$WORK_HOME_DIR/external-skill"
-assert_absent "$WORK_HOME_DIR/.grok"
+  ETABLI_SCOPE=work "$DEPLOY_SCRIPT" --apply --home "$WORK_HOME_DIR" >/dev/null
+  assert_link "$WORK_HOME_DIR/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
+  assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
+  assert_link "$WORK_HOME_DIR/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
+  assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-inner.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-inner.sh"
+  assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-prompt.md" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-prompt.md"
+  assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report.sh"
+  assert_link "$WORK_HOME_DIR/.claude/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
+  assert_link "$WORK_HOME_DIR/.codex/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
+  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/ember-forestadmin-suite"
+  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
+  assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
+  assert_absent "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
+  assert_absent "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
+  assert_link "$WORK_HOME_DIR/.codex/skills/adonisjs-review" "$WORK_HOME_DIR/external-skill"
+  assert_absent "$WORK_HOME_DIR/.grok"
 
-if find "$WORK_HOME_DIR/.codex" -mindepth 1 -maxdepth 1 ! -name skills | grep -q .; then
-  printf 'deploy created a Codex harness surface beyond skills\n' >&2
-  exit 1
-fi
+  if find "$WORK_HOME_DIR/.codex" -mindepth 1 -maxdepth 1 ! -name skills | grep -q .; then
+    printf 'deploy created a Codex harness surface beyond skills\n' >&2
+    exit 1
+  fi
 ) &
 WORK_SCOPE_PID=$!
 
@@ -244,11 +244,25 @@ if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
   throw new Error("missing scoped Pi tasks package");
 }
 
-if (packages.some((entry) => {
-  const source = sourceOf(entry);
-  return source === "npm:pi-subagents" || (typeof source === "string" && source.startsWith("npm:@tintinweb/pi-subagents"));
-})) {
-  throw new Error("dropped Pi subagents package was kept");
+if (packages.some((entry) => typeof entry === "string" && entry === "npm:pi-subagents") ||
+    packages.some((entry) => {
+      const source = sourceOf(entry);
+      return typeof source === "string" && source.startsWith("npm:@tintinweb/pi-subagents");
+    })) {
+  throw new Error("pi-subagents must converge to the tracked object entry, tintinweb variants dropped");
+}
+
+const piSubagents = packageBySource("npm:pi-subagents");
+if (!piSubagents || JSON.stringify(piSubagents.skills) !== "[]") {
+  throw new Error("tracked npm:pi-subagents entry missing or not skill-silenced");
+}
+
+if (!hasObjectSource("npm:@zenspc/pi-pstack")) {
+  throw new Error("tracked npm:@zenspc/pi-pstack entry missing");
+}
+
+if (!Array.isArray(settings.skills) || !settings.skills.every((pattern) => pattern.startsWith("!"))) {
+  throw new Error("top-level skills deny-list missing or not deny-only");
 }
 
 if (packages.some((entry) => sourceOf(entry) === "npm:@tintinweb/pi-tasks")) {

@@ -10,7 +10,7 @@ Repo-specific instructions for this dotfiles repo.
 - `ghostty/` — Ghostty config
 - `herdr/` — Herdr config, layouts, skills, multihost docs, etabli-obvault plugin
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
-- `vendor/` — vendored upstream skills (`vendor/sources.tsv`; pstack is the shared pack)
+- `vendor/` — vendored upstream skills (`vendor/sources.tsv`; mattpocock is the shared pack, migrated to vendoring after the pstack port move)
 - `skills-lock.json` — skill-tree integrity lock
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `nvim/` — Neovim config

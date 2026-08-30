@@ -11,9 +11,12 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
-| `pstack` | `cursor/plugins` (`pstack/` subpath) | `shared` | 30 — task skills, poteto-mode, principles (see `docs/pstack-strategy.md`, ADR-0020, ADR-0021) |
 | `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — ForestAdmin Ember frontend |
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
+
+pstack was vendored here until ADR-0023 migrated Pi to the
+`@zenspc/pi-pstack` npm port (see `docs/pstack-strategy.md`); the vendoring
+mechanism itself stays for the suites above.
 
 Generic language packs (mcollina) and React packs (vercel, tanstack) were
 removed as unused surface. Full restore procedure for a dropped pack (all

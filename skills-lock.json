@@ -239,7 +239,7 @@
     "runtime-skill-canary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "981ccf3c38ec9f47659f13bcc560740b26c067859e6c3f4f1341c4a99989b291"
+      "computedHash": "cfaa357c298f0a72b48755b72a8f6cc094ad7592e6e4fb76629d92e5ce4dba0c"
     },
     "session-handoff": {
       "source": "local",
@@ -254,7 +254,7 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "2e6695d6c7207c52608cdfde2878c79e0f0f5f742d6a1081dd7be29ce8ca5e25"
+      "computedHash": "b94cf8501aa0b64470e7409c9ec94f56538d6e6650714f9c8a2c90407210d001"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
