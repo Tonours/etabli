@@ -146,7 +146,7 @@ ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.agent
 ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
 assert_link "$TMP_HOME/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
-assert_link "$TMP_HOME/.pi/agent/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
+assert_not_exists "$TMP_HOME/.pi/agent/skills/ember-employer-suite"
 assert_link "$TMP_HOME/.claude/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
 assert_link "$TMP_HOME/.codex/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"

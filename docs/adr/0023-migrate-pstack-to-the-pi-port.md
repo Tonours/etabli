@@ -57,3 +57,22 @@ adaptation policy) remain in force for what is still vendored.
   `thermo-nuclear` and `write-direct` are etabli-native.
 - Wave-4 deliberations (arena/swarm deferral) are superseded — the port
   ships them.
+
+## Amendment (2026-08-30): install half shipped
+
+The migration's install half is now repo-tracked instead of a manual
+`pi install`:
+
+- `pi/agent/settings.json` carries a bare `{ "source": "npm:@zenspc/pi-pstack" }`
+  entry (loads all port resources) and `{ "source": "npm:pi-subagents",
+  "skills": [] }` for the required peer (extension stays active for fan-out,
+  its two prompt skills hidden).
+- The standing context state is `/pstack off` (`skillsEnabled: false` in
+  `~/.pi/agent/pstack/models.json`): port skill descriptions stay out of the
+  system prompt while `/skill:<name>` keeps working — the designed relief,
+  now pinned and asserted by `scripts/pi-skill-load-check` (fails when pstack
+  entries render without the pin; budgets them out of the model-facing
+  block only while it holds).
+- `scripts/deploy-agent-workflow` and `install.sh` converge live settings
+  through the shared `scripts/lib/pi-agent-settings-sync.mjs`; pi-subagents
+  left the legacy purge list to keep the peer.

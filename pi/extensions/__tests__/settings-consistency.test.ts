@@ -27,6 +27,10 @@ const checkFixSymlinksScript = readFileSync(
   new URL("../../../scripts/check-fix-symlinks.sh", import.meta.url),
   "utf-8",
 );
+const settingsSyncModule = readFileSync(
+  new URL("../../../scripts/lib/pi-agent-settings-sync.mjs", import.meta.url),
+  "utf-8",
+);
 const skillCatalog = readFileSync(
   new URL("../../../workflow/runtime/skill-surface.tsv", import.meta.url),
   "utf-8",
@@ -168,11 +172,28 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("local:etabli-workflow")).toBeDefined();
     expect(packageBySource("git:github.com/badlogic/pi-skills")).toMatchObject({
       extensions: [],
-      skills: ["brave-search"],
+      skills: [],
       prompts: [],
       themes: [],
     });
     expect(sources).toContain("npm:@tintinweb/pi-tasks@0.7.1");
+    expect(packageBySource("npm:@tintinweb/pi-tasks@0.7.1")?.skills).toEqual(
+      [],
+    );
+    for (const silenced of [
+      "npm:pi-autoresearch",
+      "npm:pi-cursor-sdk",
+      "npm:@narumitw/pi-goal",
+      "npm:pi-lens",
+      "npm:pi-simplify",
+    ]) {
+      expect(packageBySource(silenced)?.skills).toEqual([]);
+    }
+    expect(packageBySource("npm:pi-mcp-adapter")?.skills).toEqual([
+      "mcp-scripting",
+    ]);
+    expect(packageBySource("npm:@zenspc/pi-pstack")?.skills).toBeUndefined();
+    expect(packageBySource("npm:pi-subagents")?.skills).toEqual([]);
 
     // Removed from quasi-vanilla profile
     expect(packageBySource("npm:pi-hooks")).toBeUndefined();
@@ -189,19 +210,12 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
 
     // Install/deploy scripts manage the pin set and purge legacy sources
-    expect(installScript).toContain("npm:@tintinweb/pi-tasks@0.7.1");
-    expect(deployAgentWorkflowScript).toContain(
-      "npm:@tintinweb/pi-tasks@0.7.1",
-    );
-    expect(installScript).toContain('"npm:mitsupi"');
-    expect(installScript).not.toContain('"npm:@tintinweb/pi-subagents@0.13.0"');
-    // Legacy purge list still names dropped packages so local settings are cleaned
-    expect(installScript).toContain('"npm:pi-hooks"');
-    expect(installScript).toContain('"npm:glimpseui"');
-    expect(installScript).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
-    expect(deployAgentWorkflowScript).not.toContain(
-      '"npm:@agwab/pi-workflow@0.8.1",',
-    );
+    expect(installScript).toContain("pi-agent-settings-sync.mjs");
+    expect(deployAgentWorkflowScript).toContain("pi-agent-settings-sync.mjs");
+    expect(settingsSyncModule).not.toContain('"npm:pi-subagents",');
+    expect(settingsSyncModule).toContain('"npm:@tintinweb/pi-subagents",');
+    expect(settingsSyncModule).toContain('"npm:pi-hooks",');
+    expect(settingsSyncModule).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
   });
 
   test("enables the exact managed model set without retired aliases", () => {

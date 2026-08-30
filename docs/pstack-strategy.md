@@ -8,8 +8,11 @@ recall) outweighed Claude/Codex coverage, which the user deprioritized.
 
 ## Current state (since 2026-08-28)
 
-- **Runtime**: `@zenspc/pi-pstack` 0.3.0 + `pi-subagents` peer, installed
-  via `pi install npm:@zenspc/pi-pstack`. 45 skills, `poteto-agent` and
+- **Runtime**: `@zenspc/pi-pstack` 0.3.0 + `pi-subagents` peer, tracked in
+  `pi/agent/settings.json` (bare pstack entry; pi-subagents entry with
+  `skills: []` so its extension stays active for fan-out) and pushed to the
+  live settings by `scripts/deploy-agent-workflow` through
+  `scripts/lib/pi-agent-settings-sync.mjs`. 45 skills, `poteto-agent` and
   `comment-sicko` subagents, an extension, and the `orch`/`watch-pr`
   scripts (bun).
 - **Claude / Codex**: no pstack skills (user decision; reversible —
@@ -25,7 +28,11 @@ recall) outweighed Claude/Codex coverage, which the user deprioritized.
   `~/.pi/agent/pstack/models.json`.
 - Context economy: `/pstack on|off|status` — `off` hides the ~40 pstack
   skill descriptions from the system prompt and persists; `/skill:<name>`
-  keeps working.
+  keeps working. The repo pins `off` as the standing state
+  (`skillsEnabled: false` in `~/.pi/agent/pstack/models.json`);
+  `scripts/pi-skill-load-check` fails when pstack entries render without
+  that pin in effect and budgets them out of the model-facing block only
+  while it holds.
 - Slash syntax is `/skill:<name>` (e.g. `/skill:poteto-mode`), not
   `/name`.
 - Subagent fan-out (`arena`, `swarm`, `interrogate` panels, `no-comments`)

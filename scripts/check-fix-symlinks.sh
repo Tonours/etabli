@@ -259,8 +259,25 @@ check_agents_visible_skill_links() {
   prune_unlisted_pi_source_skills ".agents/skills" is_agents_visible_skill "Grok/agents-visible"
 }
 
+vendor_link_expected_on_surface() {
+  local surface="$1"
+  local record_scope="$2"
+  local record_pi_core="$3"
+  local active_scopes="$4"
+
+  case " $active_scopes " in
+  *" $record_scope "*) ;;
+  *) return 1 ;;
+  esac
+  if [ "$surface" = ".pi/agent/skills" ] && [ "$record_pi_core" != "1" ]; then
+    return 1
+  fi
+  return 0
+}
+
 check_vendor_skill_links() {
-  local skill_name skill_dir active_scopes surface skill_link
+  local skill_name skill_dir pi_core active_scopes surface skill_link
+  local skill_target link_name record_scope record_name record_pi_core record_vendor matched
 
   for surface in .claude/skills .codex/skills; do
     [ -d "$HOME/$surface" ] || continue
@@ -283,29 +300,72 @@ check_vendor_skill_links() {
   [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
 
   active_scopes="$(deployed_scopes)"
-  while IFS=$'\t' read -r skill_name skill_dir; do
+  while IFS=$'\t' read -r skill_name skill_dir pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
-    check_link "$HOME/.pi/agent/skills/$skill_name" "$skill_dir" "pi vendor skill $skill_name"
     check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude vendor skill $skill_name"
     check_link "$HOME/.codex/skills/$skill_name" "$skill_dir" "codex vendor skill $skill_name"
+    if [ "$pi_core" = "1" ]; then
+      check_link "$HOME/.pi/agent/skills/$skill_name" "$skill_dir" "pi vendor skill $skill_name"
+    fi
   done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$active_scopes")
 
-  while IFS=$'\t' read -r skill_name skill_dir; do
-    [ -n "$skill_name" ] || continue
-    for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
-      skill_link="$HOME/$surface/$skill_name"
-      # Match the exact managed target; a same-name external link is not ours.
-      if [ -L "$skill_link" ] && [ "$(readlink "$skill_link")" = "$skill_dir" ]; then
-        ISSUES=$((ISSUES + 1))
-        status_line WARN "inactive vendor skill $skill_name remains in $surface"
-        if [ "$FIX" -eq 1 ]; then
-          rm -f "$skill_link"
-          FIXED=$((FIXED + 1))
-          status_line FIXED "removed inactive vendor skill $skill_name from $surface"
+  for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+    [ -d "$HOME/$surface" ] || continue
+    for skill_link in "$HOME/$surface"/*; do
+      [ -L "$skill_link" ] || continue
+      skill_target="$(readlink "$skill_link")"
+      link_name="$(basename "$skill_link")"
+
+      case "$skill_target" in
+      */.agents/skills/* | */.claude/skills/* | */.codex/*)
+        if [ ! -e "$skill_link" ]; then
+          ISSUES=$((ISSUES + 1))
+          status_line WARN "broken cross-surface mirror $link_name remains in $surface"
+          if [ "$FIX" -eq 1 ]; then
+            rm -f "$skill_link"
+            FIXED=$((FIXED + 1))
+            status_line FIXED "removed broken cross-surface mirror $link_name from $surface"
+          fi
+          continue
         fi
+        ;;
+      esac
+
+      matched=""
+      while IFS=$'\t' read -r record_scope record_name _record_dir record_pi_core record_vendor; do
+        [ "$record_name" = "$link_name" ] || continue
+        case "$skill_target" in
+        *"/$record_vendor/skills/"*) ;;
+        *) continue ;;
+        esac
+        matched=1
+        if ! vendor_link_expected_on_surface "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
+          ISSUES=$((ISSUES + 1))
+          status_line WARN "vendor skill $link_name not expected in $surface"
+          if [ "$FIX" -eq 1 ]; then
+            rm -f "$skill_link"
+            FIXED=$((FIXED + 1))
+            status_line FIXED "removed vendor skill $link_name from $surface"
+          fi
+        fi
+        break
+      done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
+
+      if [ -z "$matched" ]; then
+        case "$skill_target" in
+        "$REPO_DIR"/vendor/*/skills/*)
+          ISSUES=$((ISSUES + 1))
+          status_line WARN "orphan vendor skill $link_name remains in $surface"
+          if [ "$FIX" -eq 1 ]; then
+            rm -f "$skill_link"
+            FIXED=$((FIXED + 1))
+            status_line FIXED "removed orphan vendor skill $link_name from $surface"
+          fi
+          ;;
+        esac
       fi
     done
-  done < <(skill_catalog_inactive_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$active_scopes")
+  done
 }
 
 deployed_scopes() {

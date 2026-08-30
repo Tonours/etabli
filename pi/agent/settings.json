@@ -37,21 +37,80 @@
     {
       "source": "git:github.com/badlogic/pi-skills",
       "extensions": [],
-      "skills": [
-        "brave-search"
-      ],
+      "skills": [],
       "prompts": [],
       "themes": []
     },
-    "npm:pi-autoresearch",
-    "npm:pi-cursor-sdk",
-    "npm:pi-mcp-adapter",
-    "npm:@narumitw/pi-goal",
-    "npm:pi-lens",
-    "npm:pi-simplify",
     {
-      "source": "npm:@tintinweb/pi-tasks@0.7.1"
+      "source": "npm:pi-autoresearch",
+      "skills": []
+    },
+    {
+      "source": "npm:pi-cursor-sdk",
+      "skills": []
+    },
+    {
+      "source": "npm:pi-mcp-adapter",
+      "skills": [
+        "mcp-scripting"
+      ]
+    },
+    {
+      "source": "npm:@narumitw/pi-goal",
+      "skills": []
+    },
+    {
+      "source": "npm:pi-lens",
+      "skills": []
+    },
+    {
+      "source": "npm:pi-simplify",
+      "skills": []
+    },
+    {
+      "source": "npm:@tintinweb/pi-tasks@0.7.1",
+      "skills": []
+    },
+    {
+      "source": "npm:pi-subagents",
+      "skills": []
+    },
+    {
+      "source": "npm:@zenspc/pi-pstack"
     }
+  ],
+  "skills": [
+    "!adonisjs-best-practices",
+    "!brave-search",
+    "!bug-bounty",
+    "!check-compiler-errors",
+    "!code-review",
+    "!code-simplifier",
+    "!control-cli",
+    "!control-ui",
+    "!deslop",
+    "!electron-audit",
+    "!find-skills",
+    "!fix-ci",
+    "!fix-merge-conflicts",
+    "!full-output-enforcement",
+    "!get-pr-comments",
+    "!html-design-prototypes",
+    "!html-prototype",
+    "!impeccable",
+    "!loop-on-ci",
+    "!make-pr-easy-to-review",
+    "!markdown-converter",
+    "!new-branch-and-pr",
+    "!review-and-ship",
+    "!run-smoke-tests",
+    "!tanstack-start-best-practices",
+    "!ui",
+    "!verify-this",
+    "!web-audit",
+    "!weekly-review",
+    "!what-did-i-get-done",
+    "!workflow-from-chats"
   ],
   "lsp": {
     "hookMode": "agent_end"

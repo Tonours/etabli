@@ -1,11 +1,12 @@
 # name	source	pi_core	agents_visible	locked
 # all-zero rows (0 0 0) are the opt-in shelf: catalog-tracked but not
 # deployed to any surface; invoke manually or promote flags before deploying.
-# Provenance: rows with source pstack (Lauren Tan) or mattpocock (Matt
-# Pocock) are vendored suites — mattpocock rows are cataloged as
-# engineering/<name> but deploy by their frontmatter names (e.g.
-# `research`, `ask-matt`). Suite map and collision rules:
-# docs/vendor-skills.md.
+# Vendor rows honour pi_core: a vendor skill links to the Pi surface only
+# when pi_core=1; Claude and Codex stay scope-governed (workflow decision
+# 3/4/5). Provenance: rows with source mattpocock (Matt Pocock) are the
+# vendored shared suite — cataloged as engineering/<name> but deployed by
+# their frontmatter names (e.g. `research`, `ask-matt`). Suite map and
+# collision rules: docs/vendor-skills.md.
 plan-loop	pi	1	1	1
 plan-implement	pi	1	1	1
 adversary	pi	1	1	1
@@ -68,7 +69,7 @@ ember-standalone-workflow-package	ember-skills	0	0	1
 adonisjs-architecture	adonisjs-skills	0	0	1
 adonisjs-backend	adonisjs-skills	0	0	1
 adonisjs-review	adonisjs-skills	0	0	1
-adonisjs-suite	adonisjs-skills	0	0	1
+adonisjs-suite	adonisjs-skills	1	0	1
 adonisjs-testing	adonisjs-skills	0	0	1
 adonisjs-tuyau	adonisjs-skills	0	0	1
 thermo-nuclear-code-quality-review	pi	1	1	1
