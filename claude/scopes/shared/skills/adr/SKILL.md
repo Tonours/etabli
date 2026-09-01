@@ -5,7 +5,6 @@ description: >-
   session. Use when the user invokes /adr or asks to capture an architectural
   decision, trade-off, supersession, or why a non-obvious technical choice was
   made.
-disable-model-invocation: true
 argument-hint: "[optional: the decision to record]"
 ---
 
