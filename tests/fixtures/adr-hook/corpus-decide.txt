@@ -1,0 +1,35 @@
+Nous avons finalement décidé d'utiliser Redis
+nous avons decide
+Nous avons peut-être décidé de migrer
+les options que nous avons décidées
+j'ai decide
+j ai decide de partir sur postgres
+j’ai décidé d’utiliser Redis
+ils ont decide de migrer
+On a décidé de partir sur Postgres
+on a finalement décidé de migrer
+on a ecarte Mongo
+plutot qu'un autre SGBD
+On choisit Postgres plutôt que Mongo
+l'option choisie
+les options choisies
+NOUS AVONS DÉCIDÉ
+nous avons peut-etre decide de migrer
+les options que nous avons decidees
+j’ai decide de partir sur la BDD
+We decided to drop MongoDB.
+We chose Postgres.
+the chosen index is btree
+Postgres rather than Mongo
+a real trade-off to record
+We opted for Redis.
+Postgres instead of Mongo.
+Vous avez decide de migrer.
+Elles ont decide de partir.
+tu as decide d'arreter les exports
+IL A DÉCIDÉ DE PARTIR SUR LA BDD
+les points décidés en réunion
+Redis au lieu de Memcached.
+On a opté pour Redis.
+il a decide de migrer aussi
+elle a decide de partir
