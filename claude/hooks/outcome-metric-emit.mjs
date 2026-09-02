@@ -3,7 +3,7 @@
  * Claude Stop hook: emit measured outcome_metric when usage is recoverable.
  * Never invents tokens. Falls back to multi_execution-only emit via shared helper.
  */
-import { readFileSync } from "node:fs";
+import { parseJsonLine, readJsonLines } from "./transcript-lib.mjs";
 import { maybeEmitOutcomeMetric } from "../../scripts/lib/outcome-metric-emit.mjs";
 import { usageFromAssistantMessages } from "../../scripts/lib/outcome-metric-builder.mjs";
 import { readHookInput } from "./workflow-router-lib.mjs";
@@ -13,23 +13,12 @@ import { readHookInput } from "./workflow-router-lib.mjs";
  * @param {string | undefined} transcriptPath
  */
 function messagesFromTranscript(transcriptPath) {
-	if (!transcriptPath) return [];
-	let raw;
-	try {
-		raw = readFileSync(transcriptPath, "utf8");
-	} catch {
-		return [];
-	}
+	const { lines } = readJsonLines(transcriptPath);
 	/** @type {any[]} */
 	const messages = [];
-	for (const line of raw.split("\n")) {
-		if (!line.trim()) continue;
-		let entry;
-		try {
-			entry = JSON.parse(line);
-		} catch {
-			continue;
-		}
+	for (const line of lines) {
+		const entry = parseJsonLine(line);
+		if (!entry) continue;
 		const role = entry.role ?? entry.message?.role ?? entry.type;
 		const usage =
 			entry.usage ??

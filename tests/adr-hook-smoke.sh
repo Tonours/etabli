@@ -317,20 +317,19 @@ for f in package.json tsconfig.build.json vite.config.ts schema.prisma migration
   out="$(run_hook "$repo" "$DECISION")"
   assert_contains '"decision":"block"' "$out" "structural pattern no longer armed: $f"
 done
-PATTERN_COUNT="$(node -e '
-  const src = require("fs").readFileSync(process.argv[1], "utf8");
-  const body = src.slice(src.indexOf("const STRUCTURAL_PATTERNS = ["), src.indexOf("];", src.indexOf("const STRUCTURAL_PATTERNS = [")));
-  process.stdout.write(String([...body.matchAll(/^\s+\//gm)].length));
-' "$HOOK")"
+PATTERN_COUNT="$(node --input-type=module -e '
+  import { pathToFileURL } from "node:url";
+  const policy = await import(pathToFileURL(process.argv[1]).href);
+  process.stdout.write(String(policy.STRUCTURAL_PATTERNS.length));
+' "$POLICY")"
 if [ "$i" -ne "$PATTERN_COUNT" ]; then
   printf 'structural fixtures (%s) do not cover every pattern (%s); add a fixture\n' "$i" "$PATTERN_COUNT" >&2
   exit 1
 fi
 
 # 10b. a rename must arm the gate from EITHER side: keeping only the destination (the old
-#      parser) made removing a structural file invisible. The second case pins unquotePath
-#      instead — git quotes any path with a space, and the leading quote defeats every
-#      STRUCTURAL_PATTERNS anchor.
+#      parser) made removing a structural file invisible. Paths arrive raw from
+#      porcelain -z, so spaces match the anchors with no unquoting.
 repo="$(new_repo rename-source)"
 echo '{}' >"$repo/package.json"
 git -C "$repo" add package.json && git -C "$repo" commit -q -m "add package.json"
@@ -343,10 +342,10 @@ repo="$(new_repo quoted-path)"
 mkdir -p "$repo/migrations"
 echo 'x' >"$repo/migrations/002 space.sql"
 out="$(run_hook "$repo" "$DECISION")"
-assert_contains '"decision":"block"' "$out" "a quoted path must be unquoted before matching"
+assert_contains '"decision":"block"' "$out" "a path with a space must match the anchors"
 
-# 10b-bis. rename with a space (review scenario): git quotes each side
-# separately, both fully quoted, so either side must arm the gate.
+# 10b-bis. rename with a space on either side: -z records arrive raw,
+# so either side must arm the gate.
 repo="$(new_repo rename-space)"
 mkdir -p "$repo/migrations" "$repo/docs"
 echo 'x' >"$repo/migrations/001 init.sql"
@@ -363,16 +362,15 @@ git -C "$repo" mv README.md "migrations/001 init.sql"
 out="$(run_hook "$repo" "$DECISION")"
 assert_contains '"decision":"block"' "$out" "a rename onto a structural path with a space must arm the gate"
 
-# 10b-ter. non-ASCII path (git C-quotes as octal \NNN escapes): the gate
-# anchors are ASCII so it must arm, over the UTF-8 decoded path.
+# 10b-ter. non-ASCII path (raw UTF-8 under -z, never C-quoted): it must arm.
 repo="$(new_repo octal-path)"
 mkdir -p "$repo/migrations"
 node -e 'require("fs").writeFileSync(process.argv[1], "x")' "$repo/migrations/café.sql"
 out="$(run_hook "$repo" "$DECISION")"
 assert_contains '"decision":"block"' "$out" "a non-ASCII structural path must arm the gate"
 
-# 10b-quater. " -> " inside a NON-rename path must not split: only R/C
-# statuses carry "old -> new".
+# 10b-quater. " -> " inside a NON-rename path: NUL-separated records never
+# confuse it with a rename separator.
 repo="$(new_repo arrow-in-name)"
 echo 'x' >"$repo/a -> b.proto"
 out="$(run_hook "$repo" "$DECISION")"
