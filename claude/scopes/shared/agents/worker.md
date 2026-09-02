@@ -2,8 +2,8 @@
 name: worker
 description: "Implement one bounded step from a READY PLAN.md when isolating its file-reading and tool output will save parent context. Write, run the narrowest check, report, then stop."
 model: opus
-effort: medium
-maxTurns: 32
+effort: high
+maxTurns: 40
 color: green
 tools: [Read, Edit, Write, Grep, Glob, Bash, TodoWrite, Skill]
 ---
