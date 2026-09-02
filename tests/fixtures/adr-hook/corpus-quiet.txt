@@ -1,0 +1,31 @@
+let you decide
+the caller decides
+undecided
+The AI decides which model to route to.
+the AI decided to retry the request
+the front decides the layout
+there is a decided lack of tests here
+the media decide
+I'll let a human decide the rollback plan.
+we'll let a bot decide the retry policy.
+let a committee decide
+we insist that the AI decide promptly
+The ONT can decide which uplink to use.
+Have a worker decide whether to retry.
+it hinges on a flag we decide later
+The 'AI will decide' label is documentation.
+j ai renomme une variable
+les tests passent, rien de notable
+THE MEDIA DECIDE TODAY
+let you decide, any file works
+the caller decides, so we just wait
+undecided on naming, but the tests pass
+we will let the AI decide later today
+the uplink ONT can decide on its own
+have a worker decide the rollout plan
+it all hinges on a flag we decide next sprint
+the 'AI will decide' label stays in the docs
+maybe the front decides the layout too
+there is a decided lack of sleep on this team
+a committee will decide next week
+I will let you decide which approach to take
