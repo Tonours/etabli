@@ -17,6 +17,10 @@ const since = arg("--since", "");
 const asJson = process.argv.includes("--json");
 const sinceMs = since ? Date.parse(`${since}T00:00:00Z`) : 0;
 
+function num(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function sessionUsage(path) {
   const row = {
     session: path,
@@ -26,7 +30,7 @@ function sessionUsage(path) {
     thinking: 0,
     cacheRead: 0,
     cacheCreate: 0,
-    models: {},
+    models: Object.create(null),
   };
   for (const line of readFileSync(path, "utf8").split("\n")) {
     if (!line.trim()) continue;
@@ -38,13 +42,14 @@ function sessionUsage(path) {
     }
     if (typeof entry !== "object" || entry === null) continue;
     const usage = entry.message?.usage;
-    if (typeof usage !== "object" || usage === null) continue;
+    if (typeof usage !== "object" || usage === null || Array.isArray(usage))
+      continue;
     row.turns += 1;
-    row.input += usage.input_tokens ?? 0;
-    row.output += usage.output_tokens ?? 0;
-    row.thinking += usage.output_tokens_details?.thinking_tokens ?? 0;
-    row.cacheRead += usage.cache_read_input_tokens ?? 0;
-    row.cacheCreate += usage.cache_creation_input_tokens ?? 0;
+    row.input += num(usage.input_tokens);
+    row.output += num(usage.output_tokens);
+    row.thinking += num(usage.output_tokens_details?.thinking_tokens);
+    row.cacheRead += num(usage.cache_read_input_tokens);
+    row.cacheCreate += num(usage.cache_creation_input_tokens);
     const model = entry.model ?? entry.message?.model ?? "unknown";
     row.models[model] = (row.models[model] ?? 0) + 1;
   }
