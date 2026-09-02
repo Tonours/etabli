@@ -2,6 +2,8 @@
 // Usage: node token-battery.mjs [--projects <dir>] [--match <substr>] [--since <YYYY-MM-DD>] [--json]
 // Only type:"assistant" entries carrying message.usage count as turns.
 // thinking_tokens is a subset of output_tokens, reported separately, never added.
+// --since filters per-entry timestamps; entries without a timestamp are kept.
+// Unreadable session files are skipped with a warning, never fatal.
 import { createReadStream, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -93,11 +95,27 @@ const total = {
   cacheCreate: 0,
 };
 const rows = [];
-for (const dir of readdirSync(values.projects, { withFileTypes: true })) {
+let dirs;
+try {
+  dirs = readdirSync(values.projects, { withFileTypes: true });
+} catch (error) {
+  process.stderr.write(
+    `cannot read projects dir ${values.projects}: ${error.code ?? error.message}\n`,
+  );
+  process.exit(2);
+}
+for (const dir of dirs) {
   if (!dir.isDirectory() || !dir.name.includes(values.match)) continue;
   for (const file of readdirSync(join(values.projects, dir.name))) {
     if (!file.endsWith(".jsonl")) continue;
-    const row = await sessionUsage(join(values.projects, dir.name, file));
+    const path = join(values.projects, dir.name, file);
+    let row;
+    try {
+      row = await sessionUsage(path);
+    } catch (error) {
+      process.stderr.write(`skip ${path}: ${error.code ?? error.message}\n`);
+      continue;
+    }
     if (row.turns === 0) continue;
     row.project = dir.name;
     rows.push(row);
