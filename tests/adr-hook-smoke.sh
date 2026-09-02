@@ -345,6 +345,39 @@ echo 'x' >"$repo/migrations/002 space.sql"
 out="$(run_hook "$repo" "$DECISION")"
 assert_contains '"decision":"block"' "$out" "a quoted path must be unquoted before matching"
 
+# 10b-bis. rename with a space (review scenario): git quotes each side
+# separately, both fully quoted, so either side must arm the gate.
+repo="$(new_repo rename-space)"
+mkdir -p "$repo/migrations" "$repo/docs"
+echo 'x' >"$repo/migrations/001 init.sql"
+git -C "$repo" add . && git -C "$repo" commit -q -m "add migration"
+git -C "$repo" mv "migrations/001 init.sql" docs/001.sql
+out="$(run_hook "$repo" "$DECISION")"
+assert_contains '"decision":"block"' "$out" "a renamed-away structural file with a space must arm the gate"
+
+repo="$(new_repo rename-to-space)"
+echo hi >"$repo/README.md"
+git -C "$repo" add . && git -C "$repo" commit -q -m init
+mkdir -p "$repo/migrations"
+git -C "$repo" mv README.md "migrations/001 init.sql"
+out="$(run_hook "$repo" "$DECISION")"
+assert_contains '"decision":"block"' "$out" "a rename onto a structural path with a space must arm the gate"
+
+# 10b-ter. non-ASCII path (git C-quotes as octal \NNN escapes): the gate
+# anchors are ASCII so it must arm, over the UTF-8 decoded path.
+repo="$(new_repo octal-path)"
+mkdir -p "$repo/migrations"
+node -e 'require("fs").writeFileSync(process.argv[1], "x")' "$repo/migrations/café.sql"
+out="$(run_hook "$repo" "$DECISION")"
+assert_contains '"decision":"block"' "$out" "a non-ASCII structural path must arm the gate"
+
+# 10b-quater. " -> " inside a NON-rename path must not split: only R/C
+# statuses carry "old -> new".
+repo="$(new_repo arrow-in-name)"
+echo 'x' >"$repo/a -> b.proto"
+out="$(run_hook "$repo" "$DECISION")"
+assert_contains '"decision":"block"' "$out" "a non-rename path containing ' -> ' must not be split"
+
 # 10c. a closed stdout must stay silent and exit 0. Without an error listener the write
 #      raises an unhandled 'error' event: stack trace on stderr, exit 1, payload lost.
 #      Unreachable from the cases above, because out="$(...)" always drains to EOF.

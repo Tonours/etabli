@@ -30,10 +30,50 @@ const MODEL_INSTRUCTION = [
   "Only when all three hold, continue with the skill's grounding, draft and approval steps.",
 ].join(" ");
 
+// git C-quotes non-ASCII paths as octal UTF-8 bytes, e.g. café ->
+// "caf\303\251.sql". Decode escapes to bytes then UTF-8, so the gate sees
+// the real path instead of mangled digits ("caf303251.sql").
+function decodeCQuoted(inner) {
+  const bytes = [];
+  const simple = {
+    a: 7,
+    b: 8,
+    f: 12,
+    n: 10,
+    r: 13,
+    t: 9,
+    v: 11,
+    "\\": 92,
+    '"': 34,
+  };
+  for (let i = 0; i < inner.length; i++) {
+    if (inner[i] !== "\\" || i + 1 >= inner.length) {
+      for (const b of Buffer.from(inner[i], "utf8")) bytes.push(b);
+      continue;
+    }
+    const next = inner.slice(i + 1, i + 4);
+    if (/^[0-7]{3}$/.test(next)) {
+      bytes.push(parseInt(next, 8));
+      i += 3;
+      continue;
+    }
+    const esc = inner[i + 1];
+    if (esc in simple) bytes.push(simple[esc]);
+    else for (const b of Buffer.from(esc, "utf8")) bytes.push(b);
+    i += 1;
+  }
+  return Buffer.from(bytes).toString("utf8");
+}
+
 function unquotePath(path) {
-  if (!path.startsWith('"') || !path.endsWith('"') || path.length < 2)
-    return path;
-  return path.slice(1, -1).replace(/\\(.)/g, "$1");
+  // Each rename side is fully quoted, but strip quotes independently: a
+  // half-fragment must never keep a stray `"` that defeats the (^|\/) anchors.
+  const start = path.startsWith('"') ? 1 : 0;
+  const end =
+    path.length >= 2 && path.endsWith('"') ? path.length - 1 : path.length;
+  if (start === 0 && end === path.length) return path;
+  if (end <= start) return "";
+  return decodeCQuoted(path.slice(start, end));
 }
 
 function porcelainPaths(cwd) {
@@ -54,7 +94,10 @@ function porcelainPaths(cwd) {
     .filter((line) => line.trim() !== "")
     .flatMap((line) => {
       const rest = line.slice(3);
-      const arrow = rest.lastIndexOf(" -> ");
+      // Only rename/copy statuses carry "old -> new". Splitting every line
+      // breaks non-rename paths that contain " -> " (e.g. ?? "a -> b.proto").
+      const isRename = line[0] === "R" || line[0] === "C";
+      const arrow = isRename ? rest.lastIndexOf(" -> ") : -1;
       return arrow === -1
         ? [rest]
         : [rest.slice(0, arrow), rest.slice(arrow + 4)];
@@ -90,9 +133,7 @@ function parseEntry(line) {
   return typeof entry === "object" && entry !== null ? entry : null;
 }
 
-function alreadyNudgedThisSession(transcriptPath) {
-  const { lines, readable } = readTranscript(transcriptPath);
-  if (!readable) return true;
+function alreadyNudgedInLines(lines) {
   return lines.some((line) => {
     if (!line.includes("hook_blocking_error")) return false;
     const attachment = parseEntry(line)?.attachment;
@@ -106,8 +147,7 @@ function alreadyNudgedThisSession(transcriptPath) {
   });
 }
 
-function lastAssistantFromTranscript(transcriptPath) {
-  const { lines } = readTranscript(transcriptPath);
+function lastAssistantFromLines(lines) {
   for (let i = lines.length - 1; i >= 0; i--) {
     const entry = parseEntry(lines[i]);
     if (!entry) continue;
@@ -124,12 +164,28 @@ function lastAssistantFromTranscript(transcriptPath) {
   return "";
 }
 
+// The transcript grows without bound and this hook runs on every Stop:
+// read it at most once per process, reusing the result for the fallback
+// text and the already-nudged check. Laziness preserves short-circuiting:
+// a primary last_assistant_message with no signal never touches the file.
+let cachedTranscript = null;
+function transcript(input) {
+  if (!cachedTranscript) cachedTranscript = readTranscript(input.transcript_path);
+  return cachedTranscript;
+}
+
 function lastAssistantText(input) {
   const primary =
     typeof input.last_assistant_message === "string"
       ? input.last_assistant_message
       : "";
-  return primary || lastAssistantFromTranscript(input.transcript_path);
+  return primary || lastAssistantFromLines(transcript(input).lines);
+}
+
+function alreadyNudgedThisSession(input) {
+  const { lines, readable } = transcript(input);
+  if (!readable) return true;
+  return alreadyNudgedInLines(lines);
 }
 
 const input = readHookInput();
@@ -139,7 +195,7 @@ if (
   input.stop_hook_active !== true &&
   hasDecisionSignal(lastAssistantText(input)) &&
   hasStructuralChange(cwd) &&
-  !alreadyNudgedThisSession(input.transcript_path)
+  !alreadyNudgedThisSession(input)
 ) {
   // no listener makes a closed pipe an unhandled 'error': stack trace on stderr, exit 1
   process.stdout.on("error", () => process.exit(0));
