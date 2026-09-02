@@ -33,6 +33,22 @@ export const ACCENTLESS_SEQUENCES = [
 const ACCENTLESS_PARTICIPLES = ["decide", "decidee", "decidees"];
 const ADVERB_WINDOW = 2;
 
+// Structural paths, tested raw: the hook feeds git's -z output (never
+// quoted), so these patterns see real paths, not C-quoted fragments.
+export const STRUCTURAL_PATTERNS = [
+  /(^|\/)package\.json$/,
+  /(^|\/)tsconfig[^/]*\.json$/,
+  /(^|\/)[^/]*\.config\.(ts|js|mjs|cjs)$/,
+  /(^|\/)schema\.(prisma|sql|graphql)$/,
+  /(^|\/)migrations\//,
+  /(^|\/)Dockerfile$/,
+  /(^|\/)docker-compose[^/]*\.ya?ml$/,
+  /(^|\/)\.github\/workflows\//,
+  /\.proto$/,
+  /(^|\/)auth(\/|\.|$)/i,
+  /(^|\/)middleware(\/|\.|$)/i,
+];
+
 function hasAccentedDecision(lower) {
   return ACCENTED_MARKERS.some((marker) => lower.includes(marker));
 }

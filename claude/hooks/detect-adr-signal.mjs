@@ -1,23 +1,12 @@
-import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { readHookInput } from "./workflow-router-lib.mjs";
-import { hasDecisionSignal } from "./adr-signal-policy.mjs";
+import { parseJsonLine, readJsonLines } from "./transcript-lib.mjs";
+import {
+  STRUCTURAL_PATTERNS,
+  hasDecisionSignal,
+} from "./adr-signal-policy.mjs";
 
 const HOOK_FILENAME = "detect-adr-signal.mjs";
-
-const STRUCTURAL_PATTERNS = [
-  /(^|\/)package\.json$/,
-  /(^|\/)tsconfig[^/]*\.json$/,
-  /(^|\/)[^/]*\.config\.(ts|js|mjs|cjs)$/,
-  /(^|\/)schema\.(prisma|sql|graphql)$/,
-  /(^|\/)migrations\//,
-  /(^|\/)Dockerfile$/,
-  /(^|\/)docker-compose[^/]*\.ya?ml$/,
-  /(^|\/)\.github\/workflows\//,
-  /\.proto$/,
-  /(^|\/)auth(\/|\.|$)/i,
-  /(^|\/)middleware(\/|\.|$)/i,
-];
 
 const HUMAN_NOTE =
   "Possible architecture decision detected. /adr was handed to the model, which decides whether it qualifies.";
@@ -30,79 +19,35 @@ const MODEL_INSTRUCTION = [
   "Only when all three hold, continue with the skill's grounding, draft and approval steps.",
 ].join(" ");
 
-// git C-quotes non-ASCII paths as octal UTF-8 bytes, e.g. café ->
-// "caf\303\251.sql". Decode escapes to bytes then UTF-8, so the gate sees
-// the real path instead of mangled digits ("caf303251.sql").
-function decodeCQuoted(inner) {
-  const bytes = [];
-  const simple = {
-    a: 7,
-    b: 8,
-    f: 12,
-    n: 10,
-    r: 13,
-    t: 9,
-    v: 11,
-    "\\": 92,
-    '"': 34,
-  };
-  for (let i = 0; i < inner.length; i++) {
-    if (inner[i] !== "\\" || i + 1 >= inner.length) {
-      for (const b of Buffer.from(inner[i], "utf8")) bytes.push(b);
-      continue;
-    }
-    const next = inner.slice(i + 1, i + 4);
-    if (/^[0-7]{3}$/.test(next)) {
-      bytes.push(parseInt(next, 8));
-      i += 3;
-      continue;
-    }
-    const esc = inner[i + 1];
-    if (esc in simple) bytes.push(simple[esc]);
-    else for (const b of Buffer.from(esc, "utf8")) bytes.push(b);
-    i += 1;
-  }
-  return Buffer.from(bytes).toString("utf8");
-}
-
-function unquotePath(path) {
-  // Each rename side is fully quoted, but strip quotes independently: a
-  // half-fragment must never keep a stray `"` that defeats the (^|\/) anchors.
-  const start = path.startsWith('"') ? 1 : 0;
-  const end =
-    path.length >= 2 && path.endsWith('"') ? path.length - 1 : path.length;
-  if (start === 0 && end === path.length) return path;
-  if (end <= start) return "";
-  return decodeCQuoted(path.slice(start, end));
-}
-
 function porcelainPaths(cwd) {
   let out;
   try {
-    const args = ["status", "--porcelain", "--untracked-files=all"];
-    out = execFileSync("git", args, {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    out = execFileSync(
+      "git",
+      ["status", "--porcelain", "-z", "--untracked-files=all"],
+      {
+        cwd,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
   } catch {
     return [];
   }
-  return out
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    .flatMap((line) => {
-      const rest = line.slice(3);
-      // Only rename/copy statuses carry "old -> new". Splitting every line
-      // breaks non-rename paths that contain " -> " (e.g. ?? "a -> b.proto").
-      const isRename = line[0] === "R" || line[0] === "C";
-      const arrow = isRename ? rest.lastIndexOf(" -> ") : -1;
-      return arrow === -1
-        ? [rest]
-        : [rest.slice(0, arrow), rest.slice(arrow + 4)];
-    })
-    .map(unquotePath);
+  // -z: NUL-separated records, never quoted, raw UTF-8. A rename/copy
+  // status record ("R  <new>") is followed by a bare second record ("<old>").
+  const fields = out.split("\0").filter((field) => field !== "");
+  const paths = [];
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
+    paths.push(field.slice(3));
+    if ((field[0] === "R" || field[0] === "C") && i + 1 < fields.length) {
+      i += 1;
+      paths.push(fields[i]);
+    }
+  }
+  return paths;
 }
 
 function hasStructuralChange(cwd) {
@@ -111,32 +56,10 @@ function hasStructuralChange(cwd) {
   );
 }
 
-function readTranscript(transcriptPath) {
-  if (!transcriptPath) return { lines: [], readable: true };
-  try {
-    const lines = readFileSync(transcriptPath, "utf8")
-      .split("\n")
-      .filter((l) => l.trim() !== "");
-    return { lines, readable: true };
-  } catch {
-    return { lines: [], readable: false };
-  }
-}
-
-function parseEntry(line) {
-  let entry;
-  try {
-    entry = JSON.parse(line);
-  } catch {
-    return null;
-  }
-  return typeof entry === "object" && entry !== null ? entry : null;
-}
-
 function alreadyNudgedInLines(lines) {
   return lines.some((line) => {
     if (!line.includes("hook_blocking_error")) return false;
-    const attachment = parseEntry(line)?.attachment;
+    const attachment = parseJsonLine(line)?.attachment;
     if (
       attachment?.type !== "hook_blocking_error" ||
       attachment.hookEvent !== "Stop"
@@ -149,7 +72,7 @@ function alreadyNudgedInLines(lines) {
 
 function lastAssistantFromLines(lines) {
   for (let i = lines.length - 1; i >= 0; i--) {
-    const entry = parseEntry(lines[i]);
+    const entry = parseJsonLine(lines[i]);
     if (!entry) continue;
     const role = entry.role ?? entry.message?.role;
     if (role !== "assistant") continue;
@@ -170,7 +93,7 @@ function lastAssistantFromLines(lines) {
 // a primary last_assistant_message with no signal never touches the file.
 let cachedTranscript = null;
 function transcript(input) {
-  if (!cachedTranscript) cachedTranscript = readTranscript(input.transcript_path);
+  if (!cachedTranscript) cachedTranscript = readJsonLines(input.transcript_path);
   return cachedTranscript;
 }
 
