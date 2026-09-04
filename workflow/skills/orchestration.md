@@ -9,6 +9,14 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 
 Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
 
+The matrix describes Etabli's managed integrations unless an entry explicitly
+discusses native host tools. The Codex skills-only surface does not establish
+whether a particular Codex session exposes native subagents. Check that session's
+tools and record any observed execution with its scope; a successful local
+dispatch does not establish support across all hosts. Missing general evidence
+is `unknown`, not proof that the native capability is unavailable. Source
+inspection can correct the scope of a claim but cannot confirm runtime support.
+
 - Pi may use Task* tools when available.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.

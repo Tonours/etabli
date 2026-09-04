@@ -5,6 +5,14 @@ Shared contract for implementation from `PLAN.md`.
 Pi skills and Claude commands are runtime adapters over this file. Keep harness
 details in the adapters; keep the phase order and completion evidence here.
 
+Select the route from `workflow/spec.md` before applying this loop's risk tiers.
+The full sequence governs plan-based implementation. Ordinary no-plan coding
+keeps its existing route, even for a bounded runtime fix; that does not make the
+change **small**. An explicit plan request or multi-slice task uses the plan
+route, and an existing DRAFT/CHALLENGED plan still blocks implementation.
+High-risk contractual work requires the full sequence. Assess that risk from
+the work itself; the route classifier does not detect every high-risk change.
+
 ## Risk tiers
 
 Depth is proportional to risk. Pick the tier before step 1 and record it

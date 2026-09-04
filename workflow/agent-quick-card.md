@@ -42,7 +42,7 @@ rows and stop before an external cap. After two red serve/coverage attempts or a
 | `CHALLENGED` | blockers or vague scope/checks |
 | `READY` | clear enough to execute |
 
-**Implement only from root `Status: READY`.** Prompt "PLAN.md ready" is not proof.
+For plan routes, require root **Status: READY**. Prompt "PLAN.md ready" is not proof.
 Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited. Missing or
 unknown-status PLAN allows ordinary non-plan work. Discard a stale root plan
 with `scripts/plan-cleanup --discard <reason-slug>`.
@@ -81,7 +81,7 @@ Full table: `workflow/spec.md` § Routing rules.
 
 - Logic hunter then Spec hunter; **deciding-code table** mandatory for runtime diffs.
 - `GO` forbidden if deciding-code is empty/`not run` on a runtime row.
-- Code-diff adversary: **cross-model** or documented **double-sample**.
+- Code-diff adversary: use the tiered independence rules in `workflow/skills/adversary.md`.
 - Escaped defect post-GO → `workflow/templates/escaped-defect.md` + metrics row.
 
 ## ops-stop (HITL)

@@ -1,20 +1,22 @@
 ---
 name: adversary
-description: Cross-model adversarial review of PLAN.md (plan mode) or of the implementation diff (code-diff mode) via Pi on a non-Claude model. Single same-family pass is forbidden.
+description: Review PLAN.md via Pi; review implementation diffs using the shared risk-tiered independence rules.
 argument-hint: "[optional: path to the plan file, defaults to ./PLAN.md; or --code-diff for post-implementation]"
 allowed-tools: [Read, Edit, Glob, Bash]
 ---
 
-# /adversary — cross-model review via pi -p
+# /adversary — plan and code-diff review
 
 Follow the shared contract in `workflow/skills/adversary.md` (plan mode and
 code-diff mode).
 
-Get an independent adversarial review from a **different model family** than
-Claude, served by Pi. Prefer the pinned model `openai-codex/gpt-5.5`
+For plan mode and cross-model code-diff passes, prefer a **different model family**
+than Claude, served by Pi. Prefer the pinned model `openai-codex/gpt-5.5`
 (GPT-family). Fallbacks when unavailable: `xai/grok-4.5`, then `zai/glm-5.2`.
-Same-family self-review shares blind spots and inflates confidence. A **single
-same-family pass is forbidden** — use cross-model or a documented double-sample.
+Code-diff independence follows `workflow/skills/adversary.md`: **small** skips
+the pass; **standard** accepts cross-model or two fresh independent same-family
+samples; **high-risk** requires cross-model. A single same-family pass cannot
+replace a required independent review.
 
 The reviewer runs **read-only** here — it judges, it never edits. Claude reads
 the verdict and decides what to fold. This is local-only and does not modify any
@@ -62,19 +64,23 @@ repo command.
 
 ## Procedure (code-diff mode)
 
-1. Resolve base (`git merge-base HEAD <default-or-PR-base>`) and the cumulative
+1. Apply the shared risk-tier gate above; skip this mode for small changes.
+   Otherwise resolve base (`git merge-base HEAD <default-or-PR-base>`) and the cumulative
    diff `git diff <base>...HEAD`.
-2. Run Pi read-only on that diff (+ archived acceptance criteria if `PLAN.md` is
-   gone), same model preference as plan mode. Prompt: hunt correctness bugs,
+2. Run the selected independent reviewer(s) read-only on that diff (+ archived
+   acceptance criteria if `PLAN.md` is gone). For cross-model, use the plan-mode
+   model preference; for standard double-sample, use two fresh contexts and merge
+   their findings. Prompt: hunt correctness bugs,
    regressions, unhandled edge cases, unmet acceptance criteria, silent scope
    drift, simpler/safer routes overlooked. Severity-ordered findings + verdict.
-3. Name `adversary_model`. High findings: accept/reject only via this cross-model
-   pass (or a documented second sample) — not the implementer alone.
+3. Name `adversary_model` or both `same-family-pass` run IDs. High findings:
+   accept/reject via the cross-model pass (or the second sample when the tier
+   permits it), not the implementer alone.
 4. Fold accepted findings as code fixes; re-run focused checks.
 
 ## Notes
 
-- Cost: one `pi -p` run on a managed portfolio model (depends on plan/diff size).
+- Cost: one cross-model run or two standard same-family samples (depends on plan/diff size).
 - Read-only is non-negotiable: `--tools read` only; never widen the tool set.
 - Plan mode complements `/plan-loop`; code-diff mode is the independent second
   pass after `review`. Best sequence: `/plan-loop` → `/adversary` → implement →

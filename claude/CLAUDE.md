@@ -14,8 +14,8 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 - Follow `workflow/spec.md`; infer the route yourself. Claude hooks guard
   writes only; route classification is library-only (ADR-0014).
 - `/goal` only for measurable long loops with validation evidence and a cap.
-- Use root `PLAN.md` only; implement only from `Status: READY`.
-- After validation, archive to `docs/plan/YYYYMMDD-short-slug.md`, then delete root `PLAN.md`.
+- For routes with a plan, use only root `PLAN.md` and implement only from `Status: READY`.
+- After validating that plan's implementation, archive to `docs/plan/YYYYMMDD-short-slug.md`, then delete root `PLAN.md`.
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate;
   use `scripts/answer-quality-check` only for durable artifacts.
 - Use `/verify-workflow` for workflow evidence; do not shadow native `/verify`.

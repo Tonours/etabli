@@ -40,7 +40,8 @@ user intent -> router -> planner -> challenger -> adversary -> implementer -> ve
 - `CHALLENGED`: review found blockers or vague scope/checks.
 - `READY`: scope, steps, checks, and risks are clear enough to execute.
 
-Only `READY` authorizes implementation.
+For routes with a plan, only `READY` authorizes implementation. Ordinary no-plan
+work follows the Routing rules below; plan status and risk tier are not routes.
 
 ## Rules (map)
 
