@@ -75,6 +75,58 @@ assert_same_file() {
     fi
 }
 
+# Reject known unqualified rules; this is not a semantic parser of instructions.
+check_instruction_scope() {
+    local path="$1" content pattern
+    content="$(tr '\n' ' ' <"$path" | tr -s ' ')"
+    content="${content//\*\*/}"
+    for pattern in \
+        'code-diff mode requires cross-model review' \
+        'without a cross-model runner, stop as `blocked`' \
+        'cross-model default, or documented double-sample' \
+        'Only `READY` authorizes implementation' \
+        'and implement from `Status: READY`' \
+        '(^|; |- )[Ii]mplement only from (root )?(`Status: READY`|READY `PLAN.md`)' \
+        'READY remains the implementation gate'; do
+        if printf '%s\n' "$content" | grep -Eq -- "$pattern"; then
+            printf '%s: qualify READY by route and code-diff independence by risk tier; see workflow/spec.md and workflow/skills/adversary.md\n' "$path" >&2
+            return 1
+        fi
+    done
+}
+
+instruction_fixture="$(mktemp)"
+trap 'rm -f "$instruction_fixture"' EXIT
+# Exercise the same checker on copies containing historical regressions.
+for bad_rule in \
+    'description: code-diff mode requires cross-model review.' \
+    'Only `READY` authorizes implementation.' \
+    'For routes with a plan, use only root `PLAN.md` and implement from `Status: READY`.'; do
+    cp "$ROOT_DIR/pi/skills/adversary/SKILL.md" "$instruction_fixture"
+    printf '\n%s\n' "$bad_rule" >>"$instruction_fixture"
+    if check_instruction_scope "$instruction_fixture" >/dev/null 2>&1; then
+        printf 'instruction scope negative fixture escaped; repair check_instruction_scope\n' >&2
+        exit 1
+    fi
+done
+printf '%s\n' 'For routes with a plan, **implement only from' \
+    '`Status: READY`**. High-risk code-diff review requires cross-model;' \
+    'standard permits two fresh same-family samples; small skips it.' >"$instruction_fixture"
+check_instruction_scope "$instruction_fixture"
+
+for instruction in \
+    pi/skills/adversary/SKILL.md \
+    claude/scopes/shared/commands/adversary.md \
+    claude/scopes/shared/commands/plan-implement.md \
+    workflow/spec.md workflow/skills/implementation-loop.md \
+    workflow/agent-quick-card.md workflow/contract-details.md \
+    pi/AGENTS.md claude/CLAUDE.md \
+    workflow-scaffold/templates/AGENTS.md \
+    workflow-scaffold/templates/CLAUDE.md \
+    workflow-scaffold/templates/docs/agent-workflow.md; do
+    check_instruction_scope "$ROOT_DIR/$instruction"
+done
+
 assert_file "$ROOT_DIR/workflow/review-rubric.md"
 assert_file "$ROOT_DIR/workflow/memory.md"
 assert_file "$ROOT_DIR/workflow/plan-archive.md"

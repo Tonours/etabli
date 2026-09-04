@@ -194,7 +194,7 @@
       }
     },
     "codex": {
-      "surface_class": "skills-only (~/.codex/skills vendor links)",
+      "surface_class": "Etabli-managed skills-only integration (~/.codex/skills vendor links); native host tools are session-dependent",
       "supports_hooks": {
         "label": "blocked",
         "verified_at": "2026-08-23",
@@ -203,10 +203,10 @@
         "expires_after_days": 365
       },
       "supports_subagents": {
-        "label": "blocked",
-        "verified_at": "2026-08-23",
-        "proof_result": "skills-only surface (no harness tree restored); see ADR-0015/0016",
-        "proof_command": "false # ADR-0015: harness removed",
+        "label": "unknown",
+        "verified_at": "2026-09-04",
+        "proof_result": "Source inspection only: ADR-0015 limits Etabli ownership, not native Codex tools. A read-only dispatch succeeded in the 2026-09-04 planning session; no durable reproducible proof covers the intended hosts. This date records scope inspection, not a general runtime verification.",
+        "proof_command": "sed -n '8,22p' docs/adr/0015-treat-codex-skills-as-a-managed-link-surface-without-restoring-the-harness.md",
         "expires_after_days": 365
       },
       "supports_taskexecute_tracking": {

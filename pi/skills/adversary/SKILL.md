@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Challenge PLAN.md or diffs; code-diff mode requires cross-model review.
+description: Challenge PLAN.md or diffs using the shared risk-tiered review contract.
 ---
 
 # Adversary
@@ -17,9 +17,10 @@ Read and follow `workflow/skills/adversary.md` (plan mode **and** code-diff mode
 
 Rules:
 - `PLAN.md` remains the only active execution artifact in plan mode.
-- Code-diff mode runs after Logic+Spec lead review; independence gate is
-  **cross-model default**, or documented **double-sample**. A single same-family
-  pass is `blocked` (full autonomy).
+- Code-diff mode follows `workflow/skills/adversary.md` runner independence:
+  **small** skips it; **standard** accepts cross-model or two fresh independent
+  same-family samples; **high-risk** requires cross-model. Required passes run
+  after Logic+Spec lead review; a single same-family pass cannot replace them.
 - Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
 - High findings: accept/reject via cross-model (or second sample), not the
   implementer alone.

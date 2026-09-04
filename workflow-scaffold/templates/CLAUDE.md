@@ -11,7 +11,7 @@ Claude Code-specific adapter.
 
 ## Workflow
 - Ambient activation; use `/goal` only for measurable long tasks.
-- Implement only from READY `PLAN.md`; archive after validation, then remove it.
+- For routes with a plan, implement only from READY `PLAN.md`; archive after validation, then remove it.
 
 ## Safety
 - French chat, English code. Preserve unrelated changes. No push, rewrite,

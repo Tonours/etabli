@@ -4,6 +4,40 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 MATRIX="$ROOT_DIR/workflow/runtime-capabilities.json"
 
+# Source inspection cannot establish native support or native unavailability.
+# This catches known evidence mismatches, not authenticity of free-form proofs.
+check_codex_native_evidence() {
+  jq -e '
+    .runtimes.codex.supports_subagents as $claim |
+    (($claim.proof_command | test("^(false([ #]|$)|(cat|sed|rg|grep|git show).*docs/adr/)")) or
+     ($claim.proof_result | test("^Source inspection only"; "i"))) as $source_only |
+    if $source_only then $claim.label == "unknown" else true end
+  ' "$1" >/dev/null
+}
+
+capability_fixture="$(mktemp)"
+trap 'rm -f "$capability_fixture"' EXIT
+for label in confirmed blocked; do
+  jq --arg label "$label" '
+    .runtimes.codex.supports_subagents |=
+      (.label = $label | .proof_command = "false # ADR-0015: harness removed")
+  ' "$MATRIX" >"$capability_fixture"
+  if check_codex_native_evidence "$capability_fixture"; then
+    printf 'unsupported Codex capability fixture escaped; repair evidence-scope check\n' >&2
+    exit 1
+  fi
+done
+# A future actual probe may support confirmed; do not freeze the label unknown.
+jq '.runtimes.codex.supports_subagents |=
+  (.label = "confirmed" | .proof_command = "live read-only child dispatch in a Codex session" |
+   .proof_result = "Synthetic fixture: child completed; not a real runtime claim")' \
+  "$MATRIX" >"$capability_fixture"
+check_codex_native_evidence "$capability_fixture"
+check_codex_native_evidence "$MATRIX" || {
+  printf 'Codex native subagent claim uses source-only evidence; record unknown or supply an appropriate runtime proof\n' >&2
+  exit 1
+}
+
 assert_equal_sets() {
   local expected="$1"
   local actual="$2"

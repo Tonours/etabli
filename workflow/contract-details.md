@@ -25,7 +25,7 @@ Roles are contracts, not mandatory separate agents:
   stop conditions before implementation.
 - `adversary`: stress-test `PLAN.md` before implementation, fold accepted
   findings into the active plan, and keep `READY` only when no blocker remains.
-- `implementer`: execute only a `READY` plan, in order, with minimal drift.
+- `implementer`: on a plan route, execute only a `READY` plan, in order, with minimal drift.
 - `verifier`: prove or reject completion from checks, artifacts, sources, or
   command output without editing.
 - `reviewer`: inspect diff correctness, regressions, safety, validation, and
@@ -261,7 +261,7 @@ Claude:
 
 - `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
 - `/plan-implement`: full autonomous chain — plan, adversary, implement, checks, fresh-context review, archive — in one flow; the manual `/plan-loop` -> `/adversary` -> `/implement` sequence is for step-by-step control only
-- `/adversary`: cross-model adversarial review of `PLAN.md` before implementation
+- `/adversary`: review `PLAN.md` before implementation; code-diff mode follows the shared risk-tiered independence rules
 - `/implement`: implement existing `READY` plan
 - `/review`: review current diff
 - `/verify-workflow`: verify checks, claims, or current work without editing

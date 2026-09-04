@@ -69,7 +69,7 @@
     "adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "423e04eae258de4f38a91749d5ef547c6dc3d4aaa57ed8a8d3c14e43a3c193ee"
+      "computedHash": "080b4465f9f38ec9ad5644809e9a72f981d02552049740b7990cffb3402661c8"
     },
     "browser-full-page-capture": {
       "source": "local",

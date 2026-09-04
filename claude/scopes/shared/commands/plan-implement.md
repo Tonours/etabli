@@ -57,9 +57,10 @@ flow — never stop between phases to ask "continue?":
 8. Fresh-context review: pin the diff once, then dispatch the `reviewer` agent
    twice (Logic hunter template, Spec hunter template; parallel when the runtime
    can) per `workflow/skills/review.md`; fold blockers, rerun checks if needed.
-9. Code-diff adversary: run the adversary Code diff mode cross-model on the
-   implementation diff; in an autonomous run without a cross-model runner,
-   stop as `blocked`.
+9. Code-diff adversary: apply `workflow/skills/adversary.md` runner independence
+   to the implementation diff: small skips; standard accepts cross-model or two
+   fresh independent same-family samples; high-risk requires cross-model.
+   Stop as `blocked` if the runner(s) required by the selected tier are unavailable.
 10. Archive to `docs/plan/`, delete root `PLAN.md`, report the final handoff.
 
 Record the event ledger (`.workflow/<slug>/events.jsonl`) across the run and
