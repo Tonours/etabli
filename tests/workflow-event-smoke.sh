@@ -56,13 +56,53 @@ assert_contains "$out" "3 events, ok"
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-active route_decided '{"route":"plan-loop","reason":"active pointer test"}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-active)"
 assert_contains "$out" "active run: run-active"
-jq -e '.schema_version == 1 and .run == "run-active"' "$EVENT_DIR/.active-run.json" >/dev/null
+jq -e '.schema_version == 1 and .run == "run-active"' "$EVENT_DIR/active-run.json" >/dev/null
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-other route_decided '{"route":"plan-loop","reason":"competing pointer test"}'
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-other)"
 assert_contains "$out" "active run already selected"
-jq -e '.run == "run-active"' "$EVENT_DIR/.active-run.json" >/dev/null
+jq -e '.run == "run-active"' "$EVENT_DIR/active-run.json" >/dev/null
+export ROOT_DIR TMP_DIR
+node --input-type=module <<'EOF'
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const root = process.env.ROOT_DIR;
+const cwd = process.env.TMP_DIR;
+const { ACTIVE_RUN_POINTER, selectActiveLedger } = await import(
+  pathToFileURL(join(root, "scripts/lib/ledger-integrity.mjs")).href,
+);
+const { planMutationGuardDecision } = await import(
+  pathToFileURL(join(root, "workflow/runtime/workflow-router-core.mjs")).href,
+);
+
+const selection = selectActiveLedger(cwd);
+if (selection.reason) {
+  throw new Error(`selectActiveLedger missed activate pointer: ${selection.reason}`);
+}
+if (selection.ledger?.run !== "run-active") {
+  throw new Error(`expected activated run-active, got ${selection.ledger?.run}`);
+}
+const expectedPath = join(cwd, ".workflow", ACTIVE_RUN_POINTER);
+if (selection.inspection.pointer.path !== expectedPath) {
+  throw new Error(`pointer path ${selection.inspection.pointer.path} !== ${expectedPath}`);
+}
+if (selection.inspection.records.length !== 1) {
+  throw new Error("pointer selection must inspect only the activated ledger");
+}
+const decision = planMutationGuardDecision({
+  cwd,
+  tool_name: "Write",
+  tool_input: { file_path: join(cwd, "src/from-activate.ts"), content: "x" },
+});
+if (decision != null) {
+  throw new Error(`guards did not see activated run: ${JSON.stringify(decision)}`);
+}
+EOF
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-active completed '{"summary":"active pointer closed"}'
-[ ! -e "$EVENT_DIR/.active-run.json" ] || fail "terminal append must clear its active-run pointer"
+[ ! -e "$EVENT_DIR/active-run.json" ] || {
+  printf 'terminal append must clear its active-run pointer\n' >&2
+  exit 1
+}
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate run-a)"
 assert_contains "$out" "cannot activate a terminal ledger"
 

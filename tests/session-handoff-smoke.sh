@@ -10,7 +10,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 PROJECT="$TMP_DIR/project"
 mkdir -p "$PROJECT/.workflow/handoff-fixture" "$PROJECT/.workflow/handoff-unresolved" "$PROJECT/.workflow/handoff-program"
 cp "$FIXTURES/handoff-plan.fixture" "$PROJECT/PLAN.md"
-cp "$FIXTURES/active-run.json" "$PROJECT/.workflow/.active-run.json"
+cp "$FIXTURES/active-run.json" "$PROJECT/.workflow/active-run.json"
 cp "$FIXTURES/events.jsonl" "$PROJECT/.workflow/handoff-fixture/events.jsonl"
 cp "$FIXTURES/unresolved-events.jsonl" "$PROJECT/.workflow/handoff-unresolved/events.jsonl"
 
