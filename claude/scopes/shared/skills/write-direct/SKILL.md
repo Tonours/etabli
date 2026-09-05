@@ -1,10 +1,6 @@
 ---
 name: write-direct
-description: >-
-  Rédaction ou réécriture de documents et messages internes dans le ton direct
-  d'Anthony : tutoiement, concret, zéro chichi, structuré et lisible par un
-  collègue. Use when the user explicitly asks "écris ça avec mon ton", "réécris
-  dans mon style", or invokes /write-direct.
+description: Write or rewrite internal docs/messages in Anthony's direct, informal French voice; explicit tone/style requests or /write-direct only.
 ---
 
 # write-direct — ton direct pour docs et messages internes

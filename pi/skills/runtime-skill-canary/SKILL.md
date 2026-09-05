@@ -1,6 +1,6 @@
 ---
 name: runtime-skill-canary
-description: Verify that an Etabli skill is source-locked, linked through the managed shared skill surface, and optionally discovered and invoked by Codex, Pi, Claude, or Grok. Use after skill installation, catalog changes, runtime upgrades, symlink repairs, or config synchronization when file presence alone is insufficient proof of runtime visibility.
+description: Verify Etabli skill hashes, managed links and runtime discovery/invocation after installs, catalog changes, upgrades or sync.
 disable-model-invocation: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: week-roadmap
-description: Rafraîchit ~/work/brain/Todo.md en croisant Gmail, Google Calendar, Slack, Linear et GitHub. Use when the user asks to prepare/replan the week, catch up after time off, refresh the todo list, or invokes /week-roadmap. Ne remplace pas la routine standup #routines (quotidienne) — celle-ci est hebdomadaire et réécrit le fichier.
+description: Plan/replan the week or catch up; refresh ~/work/brain/Todo.md from Gmail, Calendar, Slack, Linear and GitHub. Separate from the daily standup.
 ---
 
 # week-roadmap

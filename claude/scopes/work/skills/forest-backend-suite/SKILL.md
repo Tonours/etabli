@@ -1,6 +1,6 @@
 ---
 name: forest-backend-suite
-description: Route Forest backend and integration work — BFF, auth/permissions, MCP, capabilities, Zendesk, workflow executor/orchestrator — to the knowledge base note that already holds the answer, before investigating across repos. Use when the task touches forestadmin-server, agent-nodejs, the BFF gateway, MCP tools, OAuth/JWT, permissions v4, or the Zendesk integration.
+description: Route Forest server, agent-nodejs, BFF, MCP, OAuth/JWT, permissions v4, workflow execution and Zendesk work to existing KB knowledge.
 version: 0.1.0
 author: Anthony Guimard
 license: Proprietary

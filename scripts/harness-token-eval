@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import { readFileSync, writeFileSync } from "node:fs";
+import { normalizeEvents, summarizeRuns } from "./lib/harness-token-usage.mjs";
+
+function jsonLines(path) {
+  return readFileSync(path, "utf8").split(/\r?\n/).filter((line) => line.trim()).map((line, index) => {
+    try { return JSON.parse(line); }
+    catch { throw new Error(`Invalid JSON in ${path}:${index + 1}`); }
+  });
+}
+
+try {
+  const [command, ...args] = process.argv.slice(2);
+  let output;
+  let destination;
+  if (command === "report" && args.length === 1) {
+    output = { schema_version: 1, groups: summarizeRuns(jsonLines(args[0])),
+      warning: "Population summaries alone do not establish a complete paired matrix or quality equivalence." };
+  } else if (command === "normalize") {
+    const options = {};
+    for (let i = 0; i < args.length; i += 2) {
+      if (!["--runner", "--transcript", "--out", "--coverage", "--exit-code"].includes(args[i]) || args[i + 1] === undefined) {
+        throw new Error(`Unknown or incomplete argument: ${args[i]}`);
+      }
+      if (options[args[i]] !== undefined) throw new Error(`Duplicate argument: ${args[i]}`);
+      options[args[i]] = args[i + 1];
+    }
+    if (!options["--runner"] || !options["--transcript"]) throw new Error("normalize requires --runner and --transcript");
+    const exitCode = Number(options["--exit-code"] ?? 0);
+    if (!Number.isInteger(exitCode) || exitCode < 0) throw new Error("--exit-code must be a nonnegative integer");
+    const coverage = options["--coverage"] ? JSON.parse(readFileSync(options["--coverage"], "utf8")) : undefined;
+    output = normalizeEvents(options["--runner"], jsonLines(options["--transcript"]), { exitCode, coverage });
+    destination = options["--out"];
+    if (!output.measured) process.exitCode = 1;
+  } else {
+    throw new Error("Usage: harness-token-eval report RUNS.jsonl | normalize --runner claude|codex|pi --transcript FILE [--coverage FILE] [--out FILE] [--exit-code N]");
+  }
+  const text = `${JSON.stringify(output, null, 2)}\n`;
+  if (destination) writeFileSync(destination, text, { flag: "wx" });
+  else process.stdout.write(text);
+} catch (error) {
+  process.stderr.write(`harness-token-eval: ${error.message}\n`);
+  process.exitCode = 2;
+}

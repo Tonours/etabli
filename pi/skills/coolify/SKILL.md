@@ -1,6 +1,6 @@
 ---
 name: coolify
-description: Manage the user's Coolify Cloud instance (app.coolify.io) through the official `coolify` CLI — servers, applications, databases, services, deployments, logs, env vars, backups. Use when the user mentions Coolify, coolify.io, their Coolify servers (vps-12g, vps-24g, Ikoula), deploying, restarting or stopping apps (n8n, Umami, portfolios, github-runners), or asks about deployment or server status.
+description: Manage Coolify Cloud via its official CLI; servers, apps, databases, deployments, logs, env vars and backups, including VPS and service status.
 ---
 
 # Coolify

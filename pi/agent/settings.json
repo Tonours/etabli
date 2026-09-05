@@ -80,7 +80,12 @@
     }
   ],
   "skills": [
+    "!adonisjs-architecture",
+    "!adonisjs-backend",
     "!adonisjs-best-practices",
+    "!adonisjs-review",
+    "!adonisjs-testing",
+    "!adonisjs-tuyau",
     "!brave-search",
     "!bug-bounty",
     "!check-compiler-errors",

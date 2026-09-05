@@ -1,5 +1,63 @@
 {
   "providers": {
+    "meta": {
+      "name": "Meta Model API",
+      "baseUrl": "https://api.meta.ai",
+      "api": "anthropic-messages",
+      "apiKey": "!cat /Users/tonours/.pi/secrets/meta-api-key",
+      "models": [
+        {
+          "id": "muse-spark-1.3-contributor",
+          "name": "Muse Spark 1.3 (contributor)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "xhigh": "max",
+            "max": "max"
+          },
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "cost": {
+            "input": 1.25,
+            "output": 4.25,
+            "cacheRead": 0.15,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsEagerToolInputStreaming": false,
+            "forceAdaptiveThinking": true
+          }
+        },
+        {
+          "id": "muse-spark-1.3",
+          "name": "Muse Spark 1.3",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "xhigh": "max",
+            "max": "max"
+          },
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "cost": {
+            "input": 1.25,
+            "output": 4.25,
+            "cacheRead": 0.15,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsEagerToolInputStreaming": false,
+            "forceAdaptiveThinking": true
+          }
+        }
+      ]
+    },
     "openrouter": {
       "models": [
         {

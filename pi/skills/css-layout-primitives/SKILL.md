@@ -1,6 +1,6 @@
 ---
 name: css-layout-primitives
-description: Compose resilient CSS layouts with Every Layout-style intrinsic primitives (Stack, Box, Center, Cluster, Sidebar, Switcher, Cover, Grid, Frame, Reel, Imposter, Icon, Container). Use for page structure, card grids, sidebars, wrapping chip groups, heroes, media frames, and reflow without exclusive breakpoint forks.
+description: Compose intrinsic CSS layouts for pages, grids, sidebars, wrapping groups, heroes and media using Every Layout primitives.
 ---
 
 # CSS Layout Primitives
