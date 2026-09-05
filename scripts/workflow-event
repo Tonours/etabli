@@ -2,6 +2,7 @@
 set -euo pipefail
 
 WORKFLOW_DIR=".workflow"
+ACTIVE_RUN_POINTER="active-run.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
@@ -659,7 +660,7 @@ append_locked_body() {
     rm -f "$integrity_cache"
   fi
   if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then
-    local pointer="$WORKFLOW_DIR/.active-run.json"
+    local pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER"
     if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
       rm -f "$pointer"
     fi
@@ -805,7 +806,7 @@ case "$command" in
       printf 'cannot activate a terminal ledger: %s\n' "$slug" >&2
       exit 1
     fi
-    pointer="$WORKFLOW_DIR/.active-run.json"
+    pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER"
     if [ -f "$pointer" ]; then
       current_run="$(jq -r '.run // empty' "$pointer" 2>/dev/null || true)"
       if [ "$current_run" != "$slug" ]; then
@@ -815,7 +816,7 @@ case "$command" in
       printf 'active run: %s\n' "$slug"
       exit 0
     fi
-    temporary_pointer="$WORKFLOW_DIR/.active-run.json.$$"
+    temporary_pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER.$$"
     jq -nc --arg run "$slug" '{schema_version:1,run:$run}' > "$temporary_pointer"
     if [ -e "$pointer" ]; then
       rm -f "$temporary_pointer"
@@ -848,7 +849,7 @@ case "$command" in
       --arg reason "$reason_code" \
       --arg quarantine "${quarantine#$WORKFLOW_DIR/}" \
       '{schema_version:2,ts:$ts,event:"blocked",run:$run,detail:{reason:("ledger recovered: " + $reason),needed_input:("inspect preserved " + $quarantine + " before starting a new run")}}' > "$file"
-    pointer="$WORKFLOW_DIR/.active-run.json"
+    pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER"
     if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
       rm -f "$pointer"
     fi

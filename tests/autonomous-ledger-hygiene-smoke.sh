@@ -188,7 +188,7 @@ append_autonomous_before_metric "$slug"
 append_autonomous_after_metric "$slug"
 "$EVENT" --dir "$DIR" activate "$slug" >/dev/null
 ledger="$DIR/$slug/events.jsonl"
-pointer="$DIR/.active-run.json"
+pointer="$DIR/active-run.json"
 before_sha="$(hash256 "$ledger" | awk '{print $1}')"
 before_bytes="$(wc -c < "$ledger" | tr -d ' ')"
 before_lines="$(wc -l < "$ledger" | tr -d ' ')"
