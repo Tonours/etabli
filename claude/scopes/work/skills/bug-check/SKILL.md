@@ -1,6 +1,6 @@
 ---
 name: bug-check
-description: Analyze a bug from a Linear issue with adversarial root-cause rigor. Use when the user asks to analyze, investigate, diagnose, or understand a bug from a Linear URL or issue key without implementing the fix.
+description: Diagnose a Linear bug from its URL or issue key with adversarial root-cause analysis; no implementation.
 ---
 
 # bug-check

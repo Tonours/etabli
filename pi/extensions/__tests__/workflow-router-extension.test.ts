@@ -33,11 +33,13 @@ function writeRouteStub(root: string) {
 
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
+	initialThinkingLevel?: string,
 ) {
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
 	const renderers = new Map<string, unknown>();
-	let thinkingLevel: string | undefined;
+	let thinkingLevel = initialThinkingLevel;
+	const thinkingChanges: string[] = [];
 
 	const pi = {
 		on(eventName: string, handler: Handler) {
@@ -56,6 +58,7 @@ function setupExtension(
 			return thinkingLevel;
 		},
 		setThinkingLevel(level: string) {
+			thinkingChanges.push(level);
 			thinkingLevel = level;
 		},
 	};
@@ -65,6 +68,7 @@ function setupExtension(
 	return {
 		entries,
 		renderers,
+		thinkingChanges,
 		get thinkingLevel() {
 			return thinkingLevel;
 		},
@@ -288,14 +292,21 @@ describe("workflow router extension", () => {
 		});
 	});
 
-	test("raises thinking to xhigh on heavy-reasoning routes", () => {
-		for (const prompt of [
-			"Analyse ce bug depuis le ticket Linear",
-			"audit sécurité de la PR 42",
-		]) {
-			const runtime = setupExtension();
-			runtime.emit("before_agent_start", { prompt, systemPrompt: "Base prompt" });
-			expect(runtime.thinkingLevel).toBe("xhigh");
+	test("preserves selected thinking across heavy routes and subsequent turns", () => {
+		for (const level of ["off", "low", "medium", "high", "xhigh"]) {
+			const runtime = setupExtension(undefined, level);
+			for (const prompt of [
+				"Analyse ce bug depuis le ticket Linear",
+				"Peux tu me donner un résumé ?",
+				"audit sécurité de la PR 42",
+				"Continue the Task Loop. Analyse ce bug depuis le ticket Linear",
+				"/adversary",
+				"/pr-review",
+			]) {
+				runtime.emit("before_agent_start", { prompt, systemPrompt: "Base prompt" });
+				expect(runtime.thinkingLevel).toBe(level);
+			}
+			expect(runtime.thinkingChanges).toEqual([]);
 		}
 	});
 

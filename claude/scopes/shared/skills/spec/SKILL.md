@@ -1,10 +1,6 @@
 ---
 name: spec
-description: >-
-  Rédaction, structuration et révision de specs / tech specs / Epics / design
-  docs employer (workflow, MCP, agent, BFF, plateforme). Use when the user asks
-  "écris une spec", "structure cette spec", or invokes /spec. Provides the two
-  employer templates and the method to fill them.
+description: Write, structure or revise employer specs, tech specs, Epics and design docs using its two templates. Use for /spec or spec-writing requests.
 ---
 
 # Création de spec employer

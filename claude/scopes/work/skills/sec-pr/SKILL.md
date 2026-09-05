@@ -1,6 +1,6 @@
 ---
 name: sec-pr
-description: Audit a Dependabot or security GitHub PR with gh CLI. Verifies fixed alerts against Dependabot/GHSA, lockfile resolution, ignored/deferred evidence, CI, and returns PASS/FAIL/INVESTIGATE. Use for security PR review, Dependabot validation, vulnerability PR audit, or /sec-pr.
+description: Audit security/Dependabot PRs with gh; verify GHSA fixes, lock resolution, ignored/deferred alerts and CI. Return PASS/FAIL/INVESTIGATE.
 ---
 
 # sec-pr

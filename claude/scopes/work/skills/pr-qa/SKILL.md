@@ -1,6 +1,6 @@
 ---
 name: pr-qa
-description: Generate a QA impact analysis and executable test plan for a GitHub PR through the gh CLI. Use when the user asks how to test a PR, asks for PR QA, impact analysis, happy path, edge cases, or a manual QA plan.
+description: Produce a GitHub PR QA impact analysis and executable test plan with gh, including happy paths and edge cases.
 ---
 
 # PR QA

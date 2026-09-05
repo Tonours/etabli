@@ -1,6 +1,6 @@
 ---
 name: css-only-components
-description: Implement interactive UI with HTML and modern CSS first (dialog, details, popover, :has, counters, scroll features, view transitions) before adding JavaScript. Use when the user wants no-JS or minimal-JS components, native overlays, CSS state, or progressive enhancement of controls.
+description: Build no-JS or minimal-JS controls with HTML/CSS, dialog, details, popover, :has, counters, scroll and view transitions.
 ---
 
 # CSS-Only / CSS-First Components

@@ -92,8 +92,16 @@ cat >"$TMP_DIR/check.mjs" <<'NODE'
 import fs from "node:fs";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { createRequire } from "node:module";
 
 const [dumpPath, homeDir, repoDir] = process.argv.slice(2);
+let parseYaml;
+try {
+  ({ parse: parseYaml } = createRequire(join(repoDir, "pi/package.json"))("yaml"));
+} catch {
+  console.error("FAIL: Pi's yaml dependency is unavailable; run bun install --cwd pi in the Etabli checkout");
+  process.exit(1);
+}
 const errors = [];
 const warnings = [];
 
@@ -162,8 +170,8 @@ function dmiCarriers(names) {
   for (const name of names) {
     for (const root of [piRoot, agentsRoot]) {
       try {
-        const head = readFileSync(join(root, name, "SKILL.md"), "utf8").slice(0, 1200);
-        if (/^---\n[\s\S]*?^disable-model-invocation:\s*true\s*$/m.test(head)) {
+        const head = frontmatterOf(join(root, name, "SKILL.md"));
+        if (isDmi(head)) {
           carriers.push(name);
           break;
         }
@@ -173,6 +181,18 @@ function dmiCarriers(names) {
     }
   }
   return carriers;
+}
+
+function frontmatterOf(file) {
+  const match = readFileSync(file, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) throw new Error("missing frontmatter");
+  const head = parseYaml(match[1]);
+  if (!head || typeof head !== "object" || Array.isArray(head)) throw new Error("frontmatter must be a mapping");
+  return head;
+}
+
+function isDmi(head) {
+  return head["disable-model-invocation"] === true;
 }
 
 const dmi = new Set(dmiCarriers([...universe]));
@@ -247,7 +267,43 @@ if (rendered.some((entry) => entry.name === "brave-search")) {
 const packageKeepers = [];
 for (const entry of settings.packages ?? []) {
   if (entry && typeof entry === "object" && Array.isArray(entry.skills)) {
-    packageKeepers.push(...entry.skills);
+    for (const name of entry.skills) {
+      if (typeof entry.source !== "string" || !entry.source.startsWith("npm:")) {
+        packageKeepers.push(name);
+        continue;
+      }
+      const packageName = /^npm:((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)(?:@[^/]+)?$/i.exec(entry.source)?.[1];
+      if (!packageName || !/^[a-z0-9][a-z0-9-]*$/.test(name)) {
+        errors.push(`B2(i): unsupported package keeper ${entry.source}/${name}; use an explicit skill name`);
+        continue;
+      }
+      const file = join(homeDir, ".pi/agent/npm/node_modules", packageName, "skills", name, "SKILL.md");
+      try {
+        const head = frontmatterOf(file);
+        if (head.name !== name || typeof head.description !== "string" || !head.description.trim()) {
+          errors.push(`B2(i): invalid package skill frontmatter ${file}; restore its name and description`);
+          continue;
+        }
+        const identity = fs.realpathSync(file);
+        for (const root of [piRoot, agentsRoot]) {
+          const rootFile = join(root, name, "SKILL.md");
+          if (fs.existsSync(rootFile) && fs.realpathSync(rootFile) !== identity) {
+            errors.push(`B2(i): package/default-root collision for ${name}; keep one skill identity`);
+          }
+        }
+        const rows = rendered.filter((row) => row.name === name);
+        if (isDmi(head)) {
+          if (rows.length) errors.push(`B2(iii): DMI package skill ${name} rendered; check its native visibility`);
+        } else {
+          packageKeepers.push(name);
+          if (!rows.some((row) => fs.existsSync(row.location) && fs.realpathSync(row.location) === identity)) {
+            errors.push(`B2(i): package keeper ${name} missing at ${file}; check the package filter`);
+          }
+        }
+      } catch {
+        errors.push(`B2(i): cannot read or parse package skill ${file}; restore the installed package`);
+      }
+    }
   }
 }
 

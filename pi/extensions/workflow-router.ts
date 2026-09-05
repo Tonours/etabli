@@ -77,19 +77,6 @@ export default function (pi: ExtensionAPI) {
 	const routablePi = pi as RoutablePi;
 
 	pi.on("before_agent_start", (event) => {
-		try {
-			if (
-				requiresMaxThinking(classifyWorkflowRoute(event.prompt).route) &&
-				typeof pi.setThinkingLevel === "function" &&
-				!/^Continue the Task Loop\./.test(event.prompt.trim())
-			) {
-				pi.setThinkingLevel("xhigh");
-			}
-		} catch {
-			// Thinking-level hint is best-effort: a routing error here must not
-			// block the turn.
-		}
-
 		const trimmedPrompt = event.prompt.trim();
 		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;
 
@@ -250,15 +237,4 @@ export default function (pi: ExtensionAPI) {
 			parentUsageAcc = null;
 		}
 	});
-}
-
-const MAX_THINKING_ROUTES = new Set([
-	"adversary",
-	"sec-pr",
-	"bug-check",
-	"pr-review",
-]);
-
-function requiresMaxThinking(route: string): boolean {
-	return MAX_THINKING_ROUTES.has(route);
 }
