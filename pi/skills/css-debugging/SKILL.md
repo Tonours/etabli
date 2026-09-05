@@ -1,6 +1,6 @@
 ---
 name: css-debugging
-description: Systematically debug CSS layout, cascade, stacking, overflow, and DevTools issues. Use when styles do not apply, elements overflow, z-index is wrong, flex/grid misbehave, or a UI bug needs isolation rather than a rewrite.
+description: Diagnose CSS cascade, stacking, overflow, flex/grid and DevTools issues; isolate layout bugs before rewriting.
 ---
 
 # CSS Debugging

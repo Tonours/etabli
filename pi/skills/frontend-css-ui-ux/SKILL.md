@@ -1,6 +1,6 @@
 ---
 name: frontend-css-ui-ux
-description: Orchestrate frontend CSS, UI, and UX work using progressive enhancement, layout primitives, CSS-first patterns, form UX, Tailwind theme discipline, and CSS debugging. Use when building or reviewing layouts, components, design tokens, forms, overlays, motion, responsive UI, or utility CSS.
+description: Route CSS, UI and UX work on layouts, components, tokens, forms, overlays, motion, responsive UI, Tailwind and progressive enhancement.
 ---
 
 # Frontend CSS / UI / UX (orchestrator)
