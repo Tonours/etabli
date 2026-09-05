@@ -16,7 +16,7 @@ scripts/session-handoff --run <ledger-slug>
 
 ## Workflow
 
-1. Resolve the active run from `.workflow/.active-run.json` or require an
+1. Resolve the active run from `.workflow/active-run.json` or require an
    explicit `--run` when selection is unavailable or ambiguous.
 2. Generate the pack from current artifacts. Do not use conversation memory as
    the source of truth.

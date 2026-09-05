@@ -12,6 +12,7 @@ import {
   sep,
 } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ACTIVE_RUN_POINTER } from "./ledger-integrity.mjs";
 
 function usage(exitCode = 0) {
   const output = exitCode === 0 ? process.stdout : process.stderr;
@@ -74,7 +75,7 @@ function readJson(path, label) {
 
 function resolveRun(options) {
   if (options.run) return options.run;
-  const pointerPath = join(options.workflowDir, ".active-run.json");
+  const pointerPath = join(options.workflowDir, ACTIVE_RUN_POINTER);
   if (!existsSync(pointerPath))
     throw new Error("active run pointer is unavailable; pass --run");
   const pointer = readJson(pointerPath, "active run pointer");
