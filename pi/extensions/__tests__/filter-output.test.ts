@@ -334,807 +334,219 @@ describe("filter-output", () => {
 		}
 	});
 
-	test("allows example env file command output", async () => {
+	const blockedOutput = "[Output redacted — command reads sensitive data]";
+	const blockNotify = {
+		message: "Redacting output of sensitive command",
+		level: "warning",
+	} as const;
+	const publicEnv = "PUBLIC_API_URL=https://example.test";
+	const postmarkDump = "POSTMARK_TOKEN=example-token";
+	const declareDump = 'declare -x POSTMARK_TOKEN="example-token"';
+
+	async function runBash(command: string, text: string) {
 		const handler = setupExtension();
 		const ctx = createContext();
-
 		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "cat .env.example" },
-				toolName: "bash",
-			},
+			{ content: [{ type: "text", text }], input: { command }, toolName: "bash" },
 			ctx,
 		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("blocks piped env dumps", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "env | grep POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks env dumps with inline assignments", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "POSTMARK_TOKEN=example-token\nFOO=bar" },
-				],
-				input: { command: "env FOO=bar | grep POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks env dumps after pipeline separators", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "true | env | grep POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks env dumps inside quoted subshell commands", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "bash -lc 'env | grep POSTMARK_TOKEN'" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks env dumps inside quoted login shell commands", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "bash -l -c 'env | grep POSTMARK_TOKEN'" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("allows commands that only print the word env", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "env" }],
-				input: { command: "echo env | cat" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("blocks shell variable dumps", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "set | grep POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks declared shell variable dumps", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: 'declare -x POSTMARK_TOKEN="example-token"' },
-				],
-				input: { command: "declare -p | grep POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks export dumps without explicit -p", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: 'declare -x POSTMARK_TOKEN="example-token"' },
-				],
-				input: { command: "export | grep POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("allows shell option setup commands", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "" }],
-				input: { command: "set -e" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("blocks local env file command output", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "cat .env.local" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks sensitive files read through process substitution", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "diff <(cat .env.local) README.md" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks direnv file command output", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "export SECRET_KEY=example" }],
-				input: { command: "cat .envrc" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks shell input redirection from sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "cat<.env.local" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks sourcing sensitive env files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: '. .env.local && echo "$PUBLIC_API_URL"' },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks search commands that read local env files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "rg PUBLIC_API_URL .env.local" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks search commands that include sensitive file globs", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "rg --glob .env.local PUBLIC_API_URL ." },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks search commands with attached sensitive short globs", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "rg -g.env.local PUBLIC_API_URL ." },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks search commands with equals-attached sensitive short globs", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "PUBLIC_API_URL=https://example.test" },
-				],
-				input: { command: "rg -g=.env.local PUBLIC_API_URL ." },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks ripgrep commands that read sensitive pattern files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "src/index.ts:match" }],
-				input: { command: "rg -f .env.local ." },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks grep commands that read sensitive pattern files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "README.md:match" }],
-				input: { command: "grep --file=.env.local README.md" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks search commands that read other sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: '"password":"example"' }],
-				input: { command: "grep password secrets.json" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks recursive grep over broad paths that may traverse sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "./.env.local:POSTMARK_TOKEN=example-token" },
-				],
-				input: { command: "grep -R POSTMARK_TOKEN ." },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks recursive grep without explicit paths", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "grep -Rh POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks hidden ripgrep over broad paths that may traverse sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: ".env.local:POSTMARK_TOKEN=example-token" },
-				],
-				input: { command: "rg --hidden POSTMARK_TOKEN ." },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks hidden ripgrep without explicit paths", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "rg --hidden --no-heading POSTMARK_TOKEN" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks search output that reports matches from sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{
-						type: "text",
-						text: 'config/secrets.json:1:{"password":"example"}',
-					},
-				],
-				input: { command: "rg password config" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks structured readers that read sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: '{"password":"example"}' }],
-				input: { command: "jq . secrets.json" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks encoded readers that read sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{ type: "text", text: "UE9TVE1BUktfVE9LRU49ZXhhbXBsZS10b2tlbgo=" },
-				],
-				input: { command: "base64 .env.local" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks hex and string readers that read sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [
-					{
-						type: "text",
-						text: "00000000: 504f 5354 4d41 524b 5f54 4f4b 454e",
-					},
-				],
-				input: { command: "xxd .env.local" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks inline Python reads of sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: { command: "python -c 'print(open(\".env.local\").read())'" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks inline Node reads of sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: {
-					command:
-						'node -e \'console.log(require("fs").readFileSync(".env.local", "utf8"))\'',
-				},
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks inline Node print-mode reads of sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: {
-					command:
-						'node -p \'require("fs").readFileSync(".env.local", "utf8")\'',
-				},
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks inline Node long-option reads of sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: {
-					command:
-						'node --eval \'console.log(require("fs").readFileSync(".env.local", "utf8"))\'',
-				},
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("blocks inline Node stream reads of sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: {
-					command:
-						'node -e \'require("fs").createReadStream(".env.local").pipe(process.stdout)\'',
-				},
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
+		return { result, ctx };
+	}
+
+	const bashBlockCases: { name: string; command: string; text: string }[] = [
+		{
+			name: "blocks piped env dumps",
+			command: "env | grep POSTMARK_TOKEN",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks env dumps with inline assignments",
+			command: "env FOO=bar | grep POSTMARK_TOKEN",
+			text: `${postmarkDump}\nFOO=bar`,
+		},
+		{
+			name: "blocks env dumps after pipeline separators",
+			command: "true | env | grep POSTMARK_TOKEN",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks env dumps inside quoted subshell commands",
+			command: "bash -lc 'env | grep POSTMARK_TOKEN'",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks env dumps inside quoted login shell commands",
+			command: "bash -l -c 'env | grep POSTMARK_TOKEN'",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks shell variable dumps",
+			command: "set | grep POSTMARK_TOKEN",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks declared shell variable dumps",
+			command: "declare -p | grep POSTMARK_TOKEN",
+			text: declareDump,
+		},
+		{
+			name: "blocks export dumps without explicit -p",
+			command: "export | grep POSTMARK_TOKEN",
+			text: declareDump,
+		},
+		{
+			name: "blocks local env file command output",
+			command: "cat .env.local",
+			text: publicEnv,
+		},
+		{
+			name: "blocks sensitive files read through process substitution",
+			command: "diff <(cat .env.local) README.md",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks direnv file command output",
+			command: "cat .envrc",
+			text: "export SECRET_KEY=example",
+		},
+		{
+			name: "blocks shell input redirection from sensitive files",
+			command: "cat<.env.local",
+			text: publicEnv,
+		},
+		{
+			name: "blocks sourcing sensitive env files",
+			command: '. .env.local && echo "$PUBLIC_API_URL"',
+			text: publicEnv,
+		},
+		{
+			name: "blocks search commands that read local env files",
+			command: "rg PUBLIC_API_URL .env.local",
+			text: publicEnv,
+		},
+		{
+			name: "blocks search commands that include sensitive file globs",
+			command: "rg --glob .env.local PUBLIC_API_URL .",
+			text: publicEnv,
+		},
+		{
+			name: "blocks search commands with attached sensitive short globs",
+			command: "rg -g.env.local PUBLIC_API_URL .",
+			text: publicEnv,
+		},
+		{
+			name: "blocks search commands with equals-attached sensitive short globs",
+			command: "rg -g=.env.local PUBLIC_API_URL .",
+			text: publicEnv,
+		},
+		{
+			name: "blocks ripgrep commands that read sensitive pattern files",
+			command: "rg -f .env.local .",
+			text: "src/index.ts:match",
+		},
+		{
+			name: "blocks grep commands that read sensitive pattern files",
+			command: "grep --file=.env.local README.md",
+			text: "README.md:match",
+		},
+		{
+			name: "blocks search commands that read other sensitive files",
+			command: "grep password secrets.json",
+			text: '"password":"example"',
+		},
+		{
+			name: "blocks recursive grep over broad paths that may traverse sensitive files",
+			command: "grep -R POSTMARK_TOKEN .",
+			text: "./.env.local:POSTMARK_TOKEN=example-token",
+		},
+		{
+			name: "blocks recursive grep without explicit paths",
+			command: "grep -Rh POSTMARK_TOKEN",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks hidden ripgrep over broad paths that may traverse sensitive files",
+			command: "rg --hidden POSTMARK_TOKEN .",
+			text: ".env.local:POSTMARK_TOKEN=example-token",
+		},
+		{
+			name: "blocks hidden ripgrep without explicit paths",
+			command: "rg --hidden --no-heading POSTMARK_TOKEN",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks search output that reports matches from sensitive files",
+			command: "rg password config",
+			text: 'config/secrets.json:1:{"password":"example"}',
+		},
+		{
+			name: "blocks structured readers that read sensitive files",
+			command: "jq . secrets.json",
+			text: '{"password":"example"}',
+		},
+		{
+			name: "blocks encoded readers that read sensitive files",
+			command: "base64 .env.local",
+			text: "UE9TVE1BUktfVE9LRU49ZXhhbXBsZS10b2tlbgo=",
+		},
+		{
+			name: "blocks hex and string readers that read sensitive files",
+			command: "xxd .env.local",
+			text: "00000000: 504f 5354 4d41 524b 5f54 4f4b 454e",
+		},
+		{
+			name: "blocks inline Python reads of sensitive files",
+			command: "python -c 'print(open(\".env.local\").read())'",
+			text: postmarkDump,
+		},
+		{
+			name: "blocks inline Node reads of sensitive files",
+			command:
+				'node -e \'console.log(require("fs").readFileSync(".env.local", "utf8"))\'',
+			text: postmarkDump,
+		},
+		{
+			name: "blocks inline Node print-mode reads of sensitive files",
+			command: 'node -p \'require("fs").readFileSync(".env.local", "utf8")\'',
+			text: postmarkDump,
+		},
+		{
+			name: "blocks inline Node long-option reads of sensitive files",
+			command:
+				'node --eval \'console.log(require("fs").readFileSync(".env.local", "utf8"))\'',
+			text: postmarkDump,
+		},
+		{
+			name: "blocks inline Node stream reads of sensitive files",
+			command:
+				'node -e \'require("fs").createReadStream(".env.local").pipe(process.stdout)\'',
+			text: postmarkDump,
+		},
+		{
+			name: "blocks interpreter heredocs that read sensitive files",
+			command: [
+				"python <<'PY'",
+				"print(open('.env.local').read())",
+				"PY",
+			].join("\n"),
+			text: postmarkDump,
+		},
+	];
+
+	for (const { name, command, text } of bashBlockCases) {
+		test(name, async () => {
+			const { result, ctx } = await runBash(command, text);
+			expect(result?.content[0]?.text).toBe(blockedOutput);
+			expect(ctx.ui.notifications).toEqual([blockNotify]);
+		});
+	}
 
 	test("blocks inline Deno and Bun reads of sensitive files", async () => {
 		const handler = setupExtension();
 		const ctx = createContext();
-
 		const denoResult = await handler(
 			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+				content: [{ type: "text", text: postmarkDump }],
 				input: {
 					command:
 						"deno eval 'console.log(await Deno.readTextFile(\".env.local\"))'",
@@ -1145,7 +557,7 @@ describe("filter-output", () => {
 		);
 		const bunResult = await handler(
 			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
+				content: [{ type: "text", text: postmarkDump }],
 				input: {
 					command:
 						"bun -e 'console.log(await Bun.file(\".env.local\").text())'",
@@ -1155,129 +567,59 @@ describe("filter-output", () => {
 			ctx,
 		);
 
-		expect(denoResult?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(bunResult?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
+		expect(denoResult?.content[0]?.text).toBe(blockedOutput);
+		expect(bunResult?.content[0]?.text).toBe(blockedOutput);
+		expect(ctx.ui.notifications).toEqual([blockNotify, blockNotify]);
 	});
 
-	test("allows inline interpreter commands that only mention sensitive filenames", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
+	const bashAllowCases: { name: string; command: string; text: string }[] = [
+		{
+			name: "allows example env file command output",
+			command: "cat .env.example",
+			text: publicEnv,
+		},
+		{
+			name: "allows commands that only print the word env",
+			command: "echo env | cat",
+			text: "env",
+		},
+		{
+			name: "allows shell option setup commands",
+			command: "set -e",
+			text: "",
+		},
+		{
+			name: "allows inline interpreter commands that only mention sensitive filenames",
+			command: "python -c 'print(\".env.local\")'",
+			text: ".env.local",
+		},
+		{
+			name: "allows inline Node print-mode commands that only mention sensitive filenames",
+			command: "node --print '\".env.local\"'",
+			text: ".env.local",
+		},
+		{
+			name: "allows interpreter heredocs that only mention sensitive filenames",
+			command: ["python <<'PY'", "print('.env.local')", "PY"].join("\n"),
+			text: ".env.local",
+		},
+		{
+			name: "allows search patterns that look like sensitive filenames when safe files are searched",
+			command: "rg secrets.json README.md",
+			text: "README.md:mentions secrets.json",
+		},
+		{
+			name: "allows focused code searches in ordinary source directories",
+			command: "rg TODO src",
+			text: "src/index.ts:TODO",
+		},
+	];
 
-		const result = await handler(
-			{
-				content: [{ type: "text", text: ".env.local" }],
-				input: { command: "python -c 'print(\".env.local\")'" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("allows inline Node print-mode commands that only mention sensitive filenames", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: ".env.local" }],
-				input: { command: "node --print '\".env.local\"'" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("blocks interpreter heredocs that read sensitive files", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "POSTMARK_TOKEN=example-token" }],
-				input: {
-					command: [
-						"python <<'PY'",
-						"print(open('.env.local').read())",
-						"PY",
-					].join("\n"),
-				},
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result?.content[0]?.text).toBe(
-			"[Output redacted — command reads sensitive data]",
-		);
-		expect(ctx.ui.notifications).toEqual([
-			{ message: "Redacting output of sensitive command", level: "warning" },
-		]);
-	});
-
-	test("allows interpreter heredocs that only mention sensitive filenames", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: ".env.local" }],
-				input: {
-					command: ["python <<'PY'", "print('.env.local')", "PY"].join("\n"),
-				},
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("allows search patterns that look like sensitive filenames when safe files are searched", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "README.md:mentions secrets.json" }],
-				input: { command: "rg secrets.json README.md" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
-
-	test("allows focused code searches in ordinary source directories", async () => {
-		const handler = setupExtension();
-		const ctx = createContext();
-
-		const result = await handler(
-			{
-				content: [{ type: "text", text: "src/index.ts:TODO" }],
-				input: { command: "rg TODO src" },
-				toolName: "bash",
-			},
-			ctx,
-		);
-
-		expect(result).toBeUndefined();
-		expect(ctx.ui.notifications).toEqual([]);
-	});
+	for (const { name, command, text } of bashAllowCases) {
+		test(name, async () => {
+			const { result, ctx } = await runBash(command, text);
+			expect(result).toBeUndefined();
+			expect(ctx.ui.notifications).toEqual([]);
+		});
+	}
 });
