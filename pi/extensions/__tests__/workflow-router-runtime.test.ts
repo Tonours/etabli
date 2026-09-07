@@ -125,7 +125,7 @@ describe("workflow router runtime", () => {
 			strategy: "single",
 			writer: "parent-only",
 			reason: "multi-model portfolio removed",
-		};
+		} as const;
 		expect(classifyWorkflowRoute("Corrige le bug").multiExecution).toEqual(
 			expected,
 		);
