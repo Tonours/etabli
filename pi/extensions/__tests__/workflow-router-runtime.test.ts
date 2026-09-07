@@ -119,16 +119,19 @@ describe("workflow router runtime", () => {
 		});
 	});
 
-	test("honors single-agent opt-out", () => {
-		expect(
-			classifyWorkflowRoute("Fais un plan sans panel", { hasAgentTools: true })
-				.multiExecution,
-		).toMatchObject({
+	test("always attaches parent-only multi-execution", () => {
+		const expected = {
 			mode: "single",
-			trigger: "explicit",
 			strategy: "single",
-			reason: "explicit single-agent opt-out",
-		});
+			writer: "parent-only",
+			reason: "multi-model portfolio removed",
+		} as const;
+		expect(classifyWorkflowRoute("Corrige le bug").multiExecution).toEqual(
+			expected,
+		);
+		expect(
+			classifyWorkflowRoute("Fais un plan sans panel").multiExecution,
+		).toEqual(expected);
 	});
 
 	test("routes Linear ticket creation and Linear work to dedicated skills", () => {

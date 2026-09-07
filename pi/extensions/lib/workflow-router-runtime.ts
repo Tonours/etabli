@@ -3,7 +3,7 @@ import {
 	classifyWorkflowRoute as classifyWorkflowRouteCore,
 } from "../../../workflow/runtime/workflow-router-core.mjs";
 
-export const WORKFLOW_ROUTER_EXTENSION_VERSION = "0.6.0";
+export const WORKFLOW_ROUTER_EXTENSION_VERSION = "0.7.0";
 
 export type WorkflowRoute =
 	| "answer"
@@ -64,51 +64,16 @@ export type WorkflowRouteDecision = {
 };
 
 export type WorkflowMultiExecution = {
-	mode: "single" | "panel";
-	trigger: "none" | "explicit" | "adaptive";
-	strategy: "single" | "scout" | "council";
-	signals: string[];
-	score: number;
-	reason: string;
-	roles: string[];
-	fallbackRoles: string[];
-	adjudicator: string | null;
-	maxSidecars: number;
-	maxDepth: number;
-	independentFirstPasses: boolean;
+	mode: "single";
+	strategy: "single";
 	writer: "parent-only";
-	panelStages: string[];
-	budget: {
-		maxFirstPassAgents: number;
-		maxFallbackAgents: number;
-		maxResumesPerPrimary: number;
-		maxAdjudications: number;
-		maxClaims: number;
-		requestedOutputTokens: {
-			scout?: number;
-			firstPassPerAgent?: number;
-			rebuttalPerAgent?: number;
-			adjudication?: number;
-			total: number;
-		};
-	};
-	runtimeStatus?: "pending" | "degraded" | "not_needed";
+	reason: string;
 };
 
 export type WorkflowRouteContext = {
 	planStatus?: PlanStatus;
-	hasTaskTools?: boolean;
-	hasAgentTools?: boolean;
 	dynamicKnowledgeContext?: WorkflowKnowledgeContext;
 };
-
-function runtimeStatusFor(
-	mode: WorkflowMultiExecution["mode"],
-	hasAgentTools: boolean | undefined,
-): NonNullable<WorkflowMultiExecution["runtimeStatus"]> {
-	if (mode === "single") return "not_needed";
-	return hasAgentTools === true ? "pending" : "degraded";
-}
 
 export function classifyWorkflowRoute(
 	prompt: string,
@@ -129,13 +94,6 @@ export function classifyWorkflowRoute(
 				? core.skill
 				: route,
 		stopCondition: core.stopCondition.replace(/Verdict: /g, ""),
-		multiExecution: {
-			...core.multiExecution,
-			runtimeStatus: runtimeStatusFor(
-				core.multiExecution.mode,
-				context.hasAgentTools,
-			),
-		},
 	};
 }
 
