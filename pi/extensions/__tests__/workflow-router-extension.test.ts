@@ -287,8 +287,17 @@ describe("workflow router extension", () => {
 
 		expect(results[0]).toBeUndefined();
 		expect(runtime.entries[0]).toMatchObject({
-			version: "0.6.0",
-			decision: { route: "answer", knowledgeContext: { topics: ["saas"] } },
+			version: "0.7.0",
+			decision: {
+				route: "answer",
+				knowledgeContext: { topics: ["saas"] },
+				multiExecution: {
+					mode: "single",
+					strategy: "single",
+					writer: "parent-only",
+					reason: "multi-model portfolio removed",
+				},
+			},
 		});
 	});
 
