@@ -86,12 +86,6 @@ export default function (pi: ExtensionAPI) {
 				planStatus === "missing"
 					? promptPlanStatusFallback(event.prompt)
 					: planStatus,
-			hasTaskTools: pi
-				.getActiveTools()
-				.some((toolName) => toolName.startsWith("Task")),
-			hasAgentTools: ["Agent", "get_subagent_result"].every((toolName) =>
-				pi.getActiveTools().includes(toolName),
-			),
 		};
 		let decision = classifyWorkflowRoute(event.prompt, routeContext);
 		if (!decision.knowledgeContext) {
