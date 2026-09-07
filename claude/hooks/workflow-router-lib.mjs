@@ -138,8 +138,6 @@ const SEC_PR_PATTERN =
 	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/;
 const CI_FIX_PATTERN =
 	/\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/;
-const MULTI_EXECUTION_OPT_OUT_PATTERN =
-	/\b(single[- ]agent|agent unique|no[- ]panel|sans panel)\b/;
 const KNOWLEDGE_TOPIC_RULES = [
 	{
 		topic: "saas",
@@ -1089,6 +1087,17 @@ export function classifyKnowledgeContext(prompt, low) {
 	};
 }
 
+const PARENT_ONLY_EXECUTION = Object.freeze({
+	mode: "single",
+	strategy: "single",
+	writer: "parent-only",
+	reason: "multi-model portfolio removed",
+});
+
+export function classifyMultiExecution() {
+	return PARENT_ONLY_EXECUTION;
+}
+
 export function classifyWorkflowRoute(prompt, context = {}) {
 	const low = prompt.trim().toLowerCase();
 	const decision = classifyWorkflowRouteBase(prompt, low, context);
@@ -1096,53 +1105,9 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 		classifyKnowledgeContext(prompt, low) ||
 		context.dynamicKnowledgeContext ||
 		null;
-	const multiExecution = classifyMultiExecution(prompt, low, decision.route);
 	return knowledgeContext
-		? { ...decision, knowledgeContext, multiExecution }
-		: { ...decision, multiExecution };
-}
-
-const MULTI_EXECUTION_SINGLE_DEFAULT = singleMultiExecution(
-	"multi-model portfolio removed",
-);
-const MULTI_EXECUTION_SINGLE_EXPLICIT = singleMultiExecution(
-	"explicit single-agent opt-out",
-	"explicit",
-);
-
-export function classifyMultiExecution(prompt, low) {
-	const lowered = low ?? prompt.toLowerCase();
-	return (lowered.includes("agent") || lowered.includes("panel")) &&
-		MULTI_EXECUTION_OPT_OUT_PATTERN.test(lowered)
-		? MULTI_EXECUTION_SINGLE_EXPLICIT
-		: MULTI_EXECUTION_SINGLE_DEFAULT;
-}
-
-function singleMultiExecution(reason, trigger = "none") {
-	return {
-		mode: "single",
-		trigger,
-		strategy: "single",
-		signals: [],
-		score: 0,
-		reason,
-		roles: [],
-		fallbackRoles: [],
-		adjudicator: null,
-		maxSidecars: 0,
-		maxDepth: 1,
-		independentFirstPasses: false,
-		writer: "parent-only",
-		panelStages: [],
-		budget: {
-			maxFirstPassAgents: 0,
-			maxFallbackAgents: 0,
-			maxResumesPerPrimary: 0,
-			maxAdjudications: 0,
-			maxClaims: 0,
-			requestedOutputTokens: { total: 0 },
-		},
-	};
+		? { ...decision, knowledgeContext, multiExecution: PARENT_ONLY_EXECUTION }
+		: { ...decision, multiExecution: PARENT_ONLY_EXECUTION };
 }
 
 export function buildAutonomousPlanChain(planStatus) {
