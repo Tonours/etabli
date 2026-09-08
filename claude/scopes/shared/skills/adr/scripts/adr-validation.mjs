@@ -103,6 +103,17 @@ export function validateProject(projectRoot) {
   return errors;
 }
 
+const INDEX_ENTRY_RE = /^\s*-\s+\[(\d{4})\]\((docs\/adr\/([^)\s]+\.md))\)/;
+
+export function parseClaudeIndexEntries(block) {
+  const entries = [];
+  for (const line of block.split("\n")) {
+    const match = line.match(INDEX_ENTRY_RE);
+    if (match) entries.push({ file: match[3] });
+  }
+  return entries;
+}
+
 export function validateClaudeIndex(projectRoot, errors) {
   const claudePath = join(projectRoot, "CLAUDE.md");
   if (!existsSync(claudePath)) return;
@@ -122,6 +133,58 @@ export function validateClaudeIndex(projectRoot, errors) {
       `CLAUDE.md contains ${startCount} ADR index blocks; expected at most one.`,
       "Merge the entries into one ADR index block and delete the extra marker pair."
     ));
+  }
+  if (startCount !== 1 || endCount !== 1) return;
+
+  const start = content.indexOf("<!-- ADR:INDEX:START -->");
+  const end = content.indexOf("<!-- ADR:INDEX:END -->");
+  if (end <= start) {
+    errors.push(withFix(
+      "CLAUDE.md ADR index END marker appears before START.",
+      "Place the START marker above the END marker."
+    ));
+    return;
+  }
+
+  validateIndexCompleteness(projectRoot, content.slice(start, end), errors);
+}
+
+export function validateIndexCompleteness(projectRoot, block, errors) {
+  const listed = parseClaudeIndexEntries(block);
+  const listedFiles = new Set();
+
+  for (const entry of listed) {
+    if (listedFiles.has(entry.file)) {
+      errors.push(withFix(
+        `CLAUDE.md ADR index lists ${entry.file} more than once.`,
+        "Keep a single list entry for that ADR."
+      ));
+      continue;
+    }
+    listedFiles.add(entry.file);
+  }
+
+  const diskFiles = readRecords(projectRoot)
+    .filter((record) => record.id)
+    .map((record) => record.file)
+    .sort();
+
+  for (const file of diskFiles) {
+    if (!listedFiles.has(file)) {
+      errors.push(withFix(
+        `CLAUDE.md ADR index is missing ${file}.`,
+        "Add a list entry for that file between the ADR index markers."
+      ));
+    }
+  }
+
+  for (const file of [...listedFiles].sort()) {
+    if (!diskFiles.includes(file)) {
+      errors.push(withFix(
+        `CLAUDE.md ADR index lists ${file}, which is not in docs/adr/.`,
+        "Remove the extra index entry or add the missing ADR file."
+      ));
+    }
   }
 }
 

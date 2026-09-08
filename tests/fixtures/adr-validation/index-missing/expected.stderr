@@ -1,0 +1,1 @@
+ADR validation error: CLAUDE.md ADR index is missing 0003-three.md. Fix: Add a list entry for that file between the ADR index markers.
