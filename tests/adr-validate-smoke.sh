@@ -147,4 +147,70 @@ if node "$VALIDATOR" "$repo" >"$TMP_DIR/index.out" 2>&1; then
 fi
 assert_contains "$(cat "$TMP_DIR/index.out")" "ADR index blocks"
 
+repo="$TMP_DIR/index-missing"
+mkdir -p "$repo"
+write_adr "$repo" "0001-one.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# One"
+write_adr "$repo" "0003-three.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# Three"
+cat > "$repo/CLAUDE.md" <<'EOF'
+<!-- ADR:INDEX:START -->
+- [0001](docs/adr/0001-one.md) — One [accepted]
+<!-- ADR:INDEX:END -->
+EOF
+if node "$VALIDATOR" "$repo" >"$TMP_DIR/index-missing.out" 2>&1; then
+  fail "index missing an on-disk ADR should fail validation"
+fi
+assert_contains "$(cat "$TMP_DIR/index-missing.out")" "missing 0003-three.md"
+
+repo="$TMP_DIR/index-extra"
+mkdir -p "$repo"
+write_adr "$repo" "0001-one.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# One"
+cat > "$repo/CLAUDE.md" <<'EOF'
+<!-- ADR:INDEX:START -->
+- [0001](docs/adr/0001-one.md) — One [accepted]
+- [0002](docs/adr/0002-ghost.md) — Ghost [accepted]
+<!-- ADR:INDEX:END -->
+EOF
+if node "$VALIDATOR" "$repo" >"$TMP_DIR/index-extra.out" 2>&1; then
+  fail "index listing a missing ADR file should fail validation"
+fi
+assert_contains "$(cat "$TMP_DIR/index-extra.out")" "0002-ghost.md, which is not in docs/adr/"
+
+repo="$TMP_DIR/index-complete"
+mkdir -p "$repo"
+write_adr "$repo" "0001-one.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# One"
+write_adr "$repo" "0003-three.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# Three"
+cat > "$repo/CLAUDE.md" <<'EOF'
+<!-- ADR:INDEX:START -->
+- [0001](docs/adr/0001-one.md) — One [accepted]
+- [0003](docs/adr/0003-three.md) — Three [accepted]
+<!-- ADR:INDEX:END -->
+EOF
+out="$(node "$VALIDATOR" "$repo")"
+assert_contains "$out" "next ADR-0004"
+
 printf 'adr validator smoke test: ok\n'
