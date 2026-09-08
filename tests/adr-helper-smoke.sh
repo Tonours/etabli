@@ -197,6 +197,26 @@ grep -q 'superseded_by: ADR-0002' "$repo/docs/adr/0001-rest-polling.md" || fail 
 grep -q 'supersedes: ADR-0001' "$repo/docs/adr/0002-use-graphql-subscriptions-for-notifications.md" || fail "new ADR missing supersedes"
 node "$VALIDATOR" "$repo" >/dev/null
 
+repo="$(new_repo stale-index)"
+write_adr "$repo" "0001-one.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# One"
+write_adr "$repo" "0003-three.md" "---
+status: accepted
+date: 2026-06-26
+---
+
+# Three"
+cat > "$repo/CLAUDE.md" <<'EOF'
+<!-- ADR:INDEX:START -->
+- [0001](docs/adr/0001-one.md) — One [accepted]
+<!-- ADR:INDEX:END -->
+EOF
+assert_preexisting_failure_matches_validator "stale-index" "$repo" "missing 0003-three.md"
+
 repo="$(new_repo broken-index)"
 write_adr "$repo" "0001-existing.md" "---
 status: accepted
