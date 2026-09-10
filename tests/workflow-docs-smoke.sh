@@ -119,6 +119,7 @@ for instruction in \
     claude/scopes/shared/commands/adversary.md \
     claude/scopes/shared/commands/plan-implement.md \
     workflow/spec.md workflow/skills/implementation-loop.md \
+    workflow/skills/plan-loop.md workflow/skills/verify.md \
     workflow/agent-quick-card.md workflow/contract-details.md \
     pi/AGENTS.md claude/CLAUDE.md \
     workflow-scaffold/templates/AGENTS.md \
@@ -197,8 +198,10 @@ for contract in \
     pr-maintenance-loop \
     pr-qa \
     pr-review \
+    plan-loop \
     review \
-    sec-pr; do
+    sec-pr \
+    verify; do
     assert_file "$ROOT_DIR/workflow/skills/$contract.md"
 done
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
@@ -489,7 +492,21 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'Ambient activ
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" 'Ambient activation'
 # Thin adapters must point at shared contracts (full matrix later). Do not pin
 # duplicated Source resolution path lists here; those freeze adapter boilerplate.
-assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'Do not create or update `docs/plan/` archives during planning.'
+assert_contains "$ROOT_DIR/workflow/skills/plan-loop.md" 'Do not create or update `docs/plan/` archives during planning.'
+assert_contains "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 'workflow/skills/plan-loop.md'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" 'workflow/skills/plan-loop.md'
+assert_contains "$ROOT_DIR/pi/skills/verify/SKILL.md" 'workflow/skills/verify.md'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/verify-workflow.md" 'workflow/skills/verify.md'
+assert_max_lines "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" 25
+assert_max_lines "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" 25
+assert_max_lines "$ROOT_DIR/pi/skills/verify/SKILL.md" 25
+assert_max_lines "$ROOT_DIR/claude/scopes/shared/commands/verify-workflow.md" 30
+assert_max_lines "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" 45
+assert_not_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'deterministic adaptive profile'
+assert_not_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'canonical adaptive profile'
+assert_not_contains "$ROOT_DIR/workflow/contract-details.md" 'canonical adaptive profile'
+assert_not_contains "$ROOT_DIR/workflow/contract-details.md" 'deterministic adaptive profile'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Recon is parent-only'
 assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" 'simplify: clean'
@@ -498,7 +515,7 @@ assert_contains "$ROOT_DIR/claude/scopes/shared/commands/implement.md" 'simplify
 assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/pi/skills/linear-work/SKILL.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" 'workflow/skills/implementation-loop.md'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" 'implementation-loop 12c'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" '12c'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/implement.md" 'workflow/skills/implementation-loop.md'
 assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" '12c'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '12c'
@@ -819,25 +836,30 @@ if [ -f "$ROOT_DIR/claude/review-rubric.md" ]; then
     exit 1
 fi
 
-# Anti-drift: the embedded PLAN.md fallback shape lives verbatim in both the Pi
-# plan-loop skill and the Claude plan-loop command. If they diverge, one adapter
-# silently creates plans with a different shape. Extract the fenced block and
-# require byte-equality.
+# Anti-drift: the embedded PLAN.md fallback shape lives once in the shared
+# plan-loop contract. Adapters must not re-embed it.
 extract_plan_fallback() {
     awk '/^```md$/{f=1;next} /^```$/{if(f){f=0}} f{print}' "$1"
 }
 
-pi_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/pi/skills/plan-loop/SKILL.md")"
-claude_plan_fallback="$(extract_plan_fallback "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md")"
-if [ -z "$pi_plan_fallback" ] || [ -z "$claude_plan_fallback" ]; then
-    printf 'embedded PLAN.md fallback shape missing from a plan-loop adapter\n' >&2
+plan_fallback="$(extract_plan_fallback "$ROOT_DIR/workflow/skills/plan-loop.md")"
+if [ -z "$plan_fallback" ]; then
+    printf 'embedded PLAN.md fallback shape missing from workflow/skills/plan-loop.md\n' >&2
     exit 1
 fi
-if [ "$pi_plan_fallback" != "$claude_plan_fallback" ]; then
-    printf 'embedded PLAN.md fallback shape diverged between Pi and Claude plan-loop adapters\n' >&2
-    diff <(printf '%s\n' "$pi_plan_fallback") <(printf '%s\n' "$claude_plan_fallback") >&2
+printf '%s\n' "$plan_fallback" | grep -Fq '# PLAN.md' || {
+    printf 'embedded PLAN.md fallback shape in workflow/skills/plan-loop.md is missing # PLAN.md\n' >&2
     exit 1
-fi
+}
+for adapter in \
+    "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" \
+    "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"; do
+    adapter_fallback="$(extract_plan_fallback "$adapter")"
+    if [ -n "$adapter_fallback" ]; then
+        printf 'plan-loop adapter re-embeds the PLAN.md fallback; keep it in workflow/skills/plan-loop.md: %s\n' "$adapter" >&2
+        exit 1
+    fi
+done
 
 # Anti-drift: thin adapters must delegate shared behavior to workflow/skills/
 # contracts instead of duplicating phase order. Each implementation-bound adapter
@@ -856,6 +878,8 @@ for adapter in \
     "pi/skills/pr-review/SKILL.md:workflow/skills/pr-review.md" \
     "pi/skills/review/SKILL.md:workflow/skills/review.md" \
     "pi/skills/sec-pr/SKILL.md:workflow/skills/sec-pr.md" \
+    "pi/skills/plan-loop/SKILL.md:workflow/skills/plan-loop.md" \
+    "pi/skills/verify/SKILL.md:workflow/skills/verify.md" \
     "pi/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
     "claude/scopes/shared/commands/implement.md:workflow/skills/implementation-loop.md" \
     "claude/scopes/shared/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
@@ -868,7 +892,9 @@ for adapter in \
     "claude/scopes/shared/commands/pr-qa.md:workflow/skills/pr-qa.md" \
     "claude/scopes/shared/commands/pr-review.md:workflow/skills/pr-review.md" \
     "claude/scopes/shared/commands/review.md:workflow/skills/review.md" \
-    "claude/scopes/shared/commands/sec-pr.md:workflow/skills/sec-pr.md"; do
+    "claude/scopes/shared/commands/sec-pr.md:workflow/skills/sec-pr.md" \
+    "claude/scopes/shared/commands/plan-loop.md:workflow/skills/plan-loop.md" \
+    "claude/scopes/shared/commands/verify-workflow.md:workflow/skills/verify.md"; do
     adapter_path="${adapter%%:*}"
     contract_ref="${adapter##*:}"
     assert_contains "$ROOT_DIR/$adapter_path" "$contract_ref"
