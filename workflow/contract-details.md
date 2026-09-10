@@ -149,13 +149,12 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
   context (subagent reviewer or cross-model), never from the context that
   implemented. If no fresh-context runner is available, stop as `blocked`
   requesting external review instead of self-reviewing.
-- The canonical adaptive profile or explicit authorization for read-only
-  fresh-context review is reusable inside the active run: when the profile
-  applies, or a user plainly authorizes subagents/delegation/reviewers, launch
-  one read-only reviewer when a runner is available and record its id/verdict.
-  This authorization is for read-only fresh-context review only; it
-  does not authorize destructive, secret, production, billing, deploy, push,
-  merge, or external write actions.
+- Explicit user authorization for subagents, delegation, or reviewers may
+  launch one read-only reviewer when a runner is available; record its
+  id/verdict. Autonomous `plan-implement` already requires this pass. This
+  authorization is for read-only fresh-context review only; it does not
+  authorize destructive, secret, production, billing, deploy, push, merge,
+  or external write actions.
 - Session handoffs in autonomous runs are recorded as a `handoff` event
   (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
 - Golden principles: a new transverse invariant ships with a mechanical check
@@ -196,7 +195,7 @@ documents the enforcement behind each boundary.
 | history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
 | external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
-| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | canonical adaptive profile or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
+| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED` (missing/unknown PLAN exempt; unrelated plan → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
 | no_progress ledger stop | valid active non-terminal ledger with explicit `no_progress` or derived 2/3 thresholds; pointer to invalid ledger / ambiguous valid actives fail closed (orphan invalids without pointer do not) | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `workflow-event` + `plan-cleanup` (`--archive`/`--discard`) escape allowed |

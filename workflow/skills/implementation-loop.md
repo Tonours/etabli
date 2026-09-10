@@ -36,11 +36,10 @@ the tier — never downgrade mid-run.
 ## Required Sequence
 
 0. Understand before planning: run a scoped local recon of the affected area
-   and carry sourced findings (file:line) into the plan. Dispatch sidecars only
-   when the deterministic adaptive profile selects a scout or the user
-   explicitly forces the profile. Scale recon down to a quick read for small
-   tasks; never skip it entirely.
-1. If a task is provided, run the `plan-loop` behavior first.
+   and carry sourced findings (file:line) into the plan. Recon is parent-only
+   by default. Dispatch a scout sidecar only when the user explicitly opts in.
+   Scale recon down to a quick read for small tasks; never skip it entirely.
+1. If a task is provided, run `workflow/skills/plan-loop.md` first.
 2. If no task is provided, read the existing root `PLAN.md`.
 3. Continue only when the actual root `PLAN.md` has `Status: READY`; prompt
    wording such as "PLAN.md ready" is not proof.
@@ -54,13 +53,14 @@ the tier — never downgrade mid-run.
    changes. A code behavior change ships with its tests per
    `workflow/spec.md`; a bug fix starts from a failing test that reproduces
    the issue. By default, writing a step may be delegated to at most one
-   implementation subagent at a time when the runtime exposes one, never two in
-   parallel. A READY plan may opt into
-   `workflow/skills/program-orchestration.md`; then its manifest concurrency,
-   isolated worktree, non-overlapping scope, artifact, and independent-verifier
-   rules replace that single-worker limit. The parent remains the only
-   canonical ledger writer and reads every integrated diff: a worker report
-   locates the work, it does not evidence it.
+   worker at a time when the runtime exposes one, never two in parallel.
+   Invoke that worker in the foreground; if the runtime backgrounds it, wait
+   for the worker to finish and do not write until it returns. A READY plan
+   may opt into `workflow/skills/program-orchestration.md`; then its manifest
+   concurrency, isolated worktree, non-overlapping scope, artifact, and
+   independent-verifier rules replace that single-worker limit. The parent
+   remains the only canonical ledger writer and reads every integrated diff:
+   a worker report locates the work, it does not evidence it.
 9. Update `PLAN.md` only for progress or newly discovered facts.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
