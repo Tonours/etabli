@@ -56,12 +56,12 @@ paths.each do |path|
   end
 end
 
-plan_implement = File.read(File.join(root, "claude/scopes/shared/commands/plan-implement.md"))
-unless plan_implement.include?("scout") && plan_implement.include?("worker") && plan_implement.include?("reviewer")
-  raise "plan-implement must retain the bounded scout/worker/reviewer orchestration references."
+implementation_loop = File.read(File.join(root, "workflow/skills/implementation-loop.md"))
+unless implementation_loop.include?("scout") && implementation_loop.include?("worker") && implementation_loop.include?("reviewer")
+  raise "workflow/skills/implementation-loop.md must retain the bounded scout/worker/reviewer orchestration references."
 end
-unless plan_implement.match?(/foreground/i) && plan_implement.match?(/wait\s+for\s+the\s+worker/i)
-  raise "plan-implement must require a foreground-or-awaited worker before the parent writes again."
+unless implementation_loop.match?(/foreground/i) && implementation_loop.match?(/wait\s+for\s+the\s+worker/i)
+  raise "workflow/skills/implementation-loop.md must require a foreground-or-awaited worker before the parent writes again."
 end
 RUBY
 

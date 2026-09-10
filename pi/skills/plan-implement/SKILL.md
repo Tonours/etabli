@@ -10,7 +10,7 @@ Follow `workflow/spec.md` and the shared contract in
 
 If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Run `plan-loop` behavior when a task is provided, then follow
+Run `workflow/skills/plan-loop.md` when a task is provided, then follow
 `workflow/skills/implementation-loop.md`. Load a domain suite only when the
 brief clearly matches one.
 
