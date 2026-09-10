@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -71,6 +71,46 @@ async function hashSkill(name, source = "pi") {
   return hashSkillTree(join(sourceRoot, "skills", name));
 }
 
+// Pinned non-catalog trees: the herdr skill and every Claude scoped skill
+// copy/link. Keys are namespaced so they cannot collide with catalog names.
+// Derived from the filesystem so a new scoped skill cannot ship unpinned.
+async function extraLockedRoots() {
+  const roots = [
+    { key: "herdr/herdr", root: join(repoDir, "herdr", "skills", "herdr") },
+  ];
+  const scopesRoot = join(repoDir, "claude", "scopes");
+  let scopes = [];
+  try {
+    scopes = await readdir(scopesRoot);
+  } catch {
+    scopes = [];
+  }
+  for (const scope of scopes.sort()) {
+    const skillsDir = join(scopesRoot, scope, "skills");
+    let entries = [];
+    try {
+      entries = await readdir(skillsDir);
+    } catch {
+      continue;
+    }
+    for (const name of entries.sort()) {
+      let isDir = false;
+      try {
+        isDir = (await stat(join(skillsDir, name))).isDirectory();
+      } catch {
+        isDir = false;
+      }
+      if (!isDir) continue;
+      roots.push({
+        key: `claude-scope/${scope}/${name}`,
+        root: join(skillsDir, name),
+      });
+    }
+  }
+  return roots;
+}
+const extraRoots = await extraLockedRoots();
+
 const failures = [];
 
 // Every catalog row must point at an existing skill directory. Locked rows
@@ -103,13 +143,16 @@ if (JSON.stringify(configured) !== JSON.stringify(catalogPiCore)) {
   );
 }
 
-const lockedNames = new Set(
-  catalog.filter((entry) => entry.locked).map((entry) => entry.name),
-);
+const lockedNames = new Set([
+  ...catalog.filter((entry) => entry.locked).map((entry) => entry.name),
+  ...extraRoots.map((entry) => entry.key),
+]);
 for (const name of Object.keys(lock.skills)) {
-  if (!lockedNames.has(name))
+  if (lockedNames.has(name)) continue;
+  if (write) delete lock.skills[name];
+  else
     failures.push(
-      `${name}: lock entry is not declared locked in skill-surface.tsv`,
+      `${name}: lock entry is not declared locked in skill-surface.tsv or extra roots`,
     );
 }
 
@@ -131,6 +174,32 @@ for (const skill of catalog.filter((entry) => entry.locked)) {
     failures.push(
       `${skill.name}: expected ${entry.computedHash}, got ${actual}`,
     );
+}
+
+for (const extra of extraRoots) {
+  let actual;
+  try {
+    actual = await hashSkillTree(extra.root);
+  } catch (error) {
+    failures.push(
+      `${extra.key}: unreadable pinned tree (${error instanceof Error ? error.message : String(error)})`,
+    );
+    continue;
+  }
+  const entry = lock.skills[extra.key];
+  if (write && !entry)
+    lock.skills[extra.key] = {
+      source: "local",
+      sourceType: "repo",
+      computedHash: actual,
+    };
+  else if (!entry)
+    failures.push(
+      `${extra.key}: locked skill tree missing from skills-lock.json`,
+    );
+  else if (write) entry.computedHash = actual;
+  else if (actual !== entry.computedHash)
+    failures.push(`${extra.key}: expected ${entry.computedHash}, got ${actual}`);
 }
 
 if (write && failures.length === 0) {

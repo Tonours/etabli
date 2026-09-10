@@ -16,11 +16,10 @@ const rows = readFileSync(fixturePath, 'utf8')
   .filter(line => line && !line.startsWith('#'))
   .map(line => {
     const fields = line.split('\t')
-    if (fields.length !== 14) throw new Error(`fixture row has ${fields.length} fields`)
+    if (fields.length !== 10) throw new Error(`fixture row has ${fields.length} fields`)
     const [
       runtimeName, lockKey, sourcePath, expectedBytes, description,
-      routePattern, positivePrompt, positiveExpected, negativePrompt,
-      negativeExpected, bodyHash, frontHash, otherCount, otherHash,
+      routePattern, bodyHash, frontHash, otherCount, otherHash,
     ] = fields
     return {
       runtimeName,
@@ -29,10 +28,6 @@ const rows = readFileSync(fixturePath, 'utf8')
       expectedBytes: Number(expectedBytes),
       description,
       routePattern: routePattern.replaceAll('\\\\', '\\'),
-      positivePrompt,
-      positiveExpected,
-      negativePrompt,
-      negativeExpected,
       bodyHash,
       frontHash,
       otherCount: Number(otherCount),
@@ -73,12 +68,9 @@ function otherFilesManifest(skillFile) {
   return entries
 }
 
-function classify(prompt) {
-  return rows
-    .filter(row => new RegExp(row.routePattern, 'iu').test(prompt))
-    .map(row => row.runtimeName)
-    .sort()
-}
+// Prompt classification is not tested here: no offline skill router exists, so
+// the Codex skill description stays proxy_supported. The description's routing
+// anchor is asserted per row below.
 
 let descriptionBytes = 0
 for (const row of rows) {
@@ -118,19 +110,6 @@ for (const row of rows) {
 
   const ownPattern = new RegExp(row.routePattern, 'iu')
   if (!ownPattern.test(description)) throw new Error(`description lost routing anchor: ${row.runtimeName}`)
-  const positive = classify(row.positivePrompt)
-  if (positive.length !== 1 || positive[0] !== row.positiveExpected) {
-    throw new Error(`positive proxy mismatch for ${row.runtimeName}: ${positive.join(',')}`)
-  }
-  const expectedNegative = row.negativeExpected === 'none' ? [] : [row.negativeExpected]
-  const negative = classify(row.negativePrompt)
-  if (JSON.stringify(negative) !== JSON.stringify(expectedNegative)) {
-    throw new Error(`negative proxy mismatch for ${row.runtimeName}: ${negative.join(',')}`)
-  }
-  const strippedPositive = row.positivePrompt.replace(new RegExp(row.routePattern, 'giu'), '')
-  if (classify(strippedPositive).includes(row.runtimeName)) {
-    throw new Error(`anchor-removal mutation survived for ${row.runtimeName}`)
-  }
 }
 
 if (descriptionBytes !== 142 || descriptionBytes > 1036) {

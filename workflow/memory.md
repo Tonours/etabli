@@ -25,5 +25,5 @@ Do not duplicate `PLAN.md`, `docs/project-context.md`, README content, or transi
 Use this prompt when adding memory to an existing project using the workflow scaffold:
 
 ```text
-Reflect on past sessions/handoffs in docs/agent-runs/, extract durable lessons into docs/agent-memory/, one per file.
+Reflect on past sessions/handoffs in docs/plan/ archives, extract durable lessons into docs/agent-memory/, one per file.
 ```

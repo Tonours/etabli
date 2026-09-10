@@ -84,6 +84,7 @@ run_target() {
     builtin:skill-lock) bash -c "cd '$ROOT_DIR/pi' && bun run verify:skills" ;;
     builtin:pi-import-smoke) pi_import_smoke ;;
     tests/*.sh) bash "$ROOT_DIR/$target" ;;
+    tests/*.mjs) node --test "$ROOT_DIR/$target" ;;
     *) printf 'Unknown agentic-infra target: %s\n' "$target" >&2; return 2 ;;
   esac
 }
@@ -126,9 +127,12 @@ run_selection() {
       *) printf 'Unknown selection: %s %s\n' "$selection_kind" "$selection" >&2; return 2 ;;
     esac
     found=1
-    # Checks are independent (each works inside its own mktemp tree and only
-    # reads the repo), so they run concurrently; per-check output is buffered
-    # and replayed in manifest order to keep the report deterministic.
+    # Checks run concurrently; per-check output is buffered and replayed in
+    # manifest order to keep the report deterministic. Most checks work inside
+    # their own mktemp tree and only read the repo. Two are known exceptions
+    # that mutate the repo and restore via trap: fix-links-smoke temporarily
+    # repoints pi/extensions/node_modules, and nvim-smoke snapshots/restores
+    # nvim/nvim-pack-lock.json. Do not add a third without the same discipline.
     out="$out_root/$idx.out"
     IFS= read -r -n1 <&9
     (

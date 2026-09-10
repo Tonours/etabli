@@ -330,6 +330,91 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "dee7f1a523994a1e063c69fe09c2f5b4da97a41ad68107722664e6e472cb2423"
+    },
+    "claude-scope/shared/adr": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a9e94d13c8631f9ccc2515d4a8f2b459839cd61dac26f40d07acde52de862318"
+    },
+    "claude-scope/shared/css-debugging": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "b7be55dbfcb9b818b34ee79e4cdda4c7cd14cb6c808b41576645a6c8029597de"
+    },
+    "claude-scope/shared/css-layout-primitives": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "8dd86c762ca6c493b5472c7804049a2d5c73f20e09b454129401a7724804b902"
+    },
+    "claude-scope/shared/css-only-components": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "e1a7a076666462f68566f876792540f10e70444b330ae41519df33f1ceca5739"
+    },
+    "claude-scope/shared/frontend-css-ui-ux": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "fbe3351c07a5cef2b375541d3b07b00bda9c6bd11f5029e64e2609b1e1acbc69"
+    },
+    "claude-scope/shared/playwright-agentic-testing": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "37c698f6703dbfea79db566b008b95b2c876f3127780d1124a47b23d62614bf6"
+    },
+    "claude-scope/shared/playwright-failure-dossier": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4faffe13db8d8bce3a054daca806619b88a38d38467634fb385d577444f168e6"
+    },
+    "claude-scope/shared/playwright-test-generation": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "dd9a28678fe786658c59ba9f90e61f1595af55b0b8d98a2b08f421dcd911369f"
+    },
+    "claude-scope/shared/spec": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "40bbf3956d9aa2f594b8f4b57dfd90297878f883aa53d55669663addd97e9890"
+    },
+    "claude-scope/shared/write-direct": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ee89ca0074cd0185a750e5342f60c7c1b865ccb2a0a56eac94c9b8571dcbd9ef"
+    },
+    "claude-scope/work/bug-check": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "c8f23e64d87f42aee2ed10e5d4710ef6741ce4e9ac6fc951f8118711e8b1a464"
+    },
+    "claude-scope/work/forest-backend-suite": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9d144fa7b98a0af02c62958f7ce4bedeef52272e44f0fc2d97f4d5fe8b78192d"
+    },
+    "claude-scope/work/forest-mfe-qa": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "585d234807c94a880327835df85d2637d459ba3f3bf496c5570fbc391b539007"
+    },
+    "claude-scope/work/pr-qa": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "f90161eb766b27ed4e852fef1be4e47a92ffb1273e156b0cafa8293f55c89bef"
+    },
+    "claude-scope/work/sec-pr": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "945100cb8c3f33d31131c1ccad1788beb53d63f73a450e71b87b01acc71fb5b8"
+    },
+    "claude-scope/work/week-roadmap": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "80d8b1536c30953a4693f26b154b9bc5626a381e0a08c6a058ee8f47802bc42e"
+    },
+    "herdr/herdr": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d55c3c35b0821c66ade8219b4efb8b2851ed57d37284c3ffdb1407b616c3f6a3"
     }
   }
 }

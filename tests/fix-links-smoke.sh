@@ -209,6 +209,7 @@ cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
 cp "$ROOT_DIR/scripts/lib/etabli-scope.sh" "$FAKE_REPO/scripts/lib/etabli-scope.sh"
 cp "$ROOT_DIR/scripts/lib/prefer-cursor-agent.sh" "$FAKE_REPO/scripts/lib/prefer-cursor-agent.sh"
+cp "$ROOT_DIR/scripts/lib/vendor-surfaces.sh" "$FAKE_REPO/scripts/lib/vendor-surfaces.sh"
 chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then

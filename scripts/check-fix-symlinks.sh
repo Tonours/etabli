@@ -5,6 +5,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$REPO_DIR/scripts/lib/pi-paths.sh"
 . "$REPO_DIR/scripts/lib/etabli-scope.sh"
 . "$REPO_DIR/scripts/lib/prefer-cursor-agent.sh"
+. "$REPO_DIR/scripts/lib/vendor-surfaces.sh"
 FIX=0
 VERBOSE=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -259,24 +260,8 @@ check_agents_visible_skill_links() {
   prune_unlisted_pi_source_skills ".agents/skills" is_agents_visible_skill "Grok/agents-visible"
 }
 
-vendor_link_expected_on_surface() {
-  local surface="$1"
-  local record_scope="$2"
-  local record_pi_core="$3"
-  local active_scopes="$4"
-
-  case " $active_scopes " in
-  *" $record_scope "*) ;;
-  *) return 1 ;;
-  esac
-  if [ "$surface" = ".pi/agent/skills" ] && [ "$record_pi_core" != "1" ]; then
-    return 1
-  fi
-  return 0
-}
-
 check_vendor_skill_links() {
-  local skill_name skill_dir pi_core active_scopes surface skill_link
+  local skill_name skill_dir active_scopes surface skill_link label
   local skill_target link_name record_scope record_name record_pi_core record_vendor matched
 
   for surface in .claude/skills .codex/skills .config/devin/skills; do
@@ -300,15 +285,20 @@ check_vendor_skill_links() {
   [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
 
   active_scopes="$(deployed_scopes)"
-  while IFS=$'\t' read -r skill_name skill_dir pi_core record_vendor; do
+  while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
-    check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude vendor skill $skill_name"
-    check_link "$HOME/.codex/skills/$skill_name" "$skill_dir" "codex vendor skill $skill_name"
-    check_link "$HOME/.config/devin/skills/$skill_name" "$skill_dir" "devin vendor skill $skill_name"
-    if [ "$pi_core" = "1" ]; then
-      check_link "$HOME/.pi/agent/skills/$skill_name" "$skill_dir" "pi vendor skill $skill_name"
-    fi
-  done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$active_scopes")
+    for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+      if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
+        case "$surface" in
+        .claude/skills) label="claude" ;;
+        .codex/skills) label="codex" ;;
+        .config/devin/skills) label="devin" ;;
+        .pi/agent/skills) label="pi" ;;
+        esac
+        check_link "$HOME/$surface/$skill_name" "$skill_dir" "$label vendor skill $skill_name"
+      fi
+    done
+  done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
 
   for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
     [ -d "$HOME/$surface" ] || continue
@@ -340,7 +330,7 @@ check_vendor_skill_links() {
         *) continue ;;
         esac
         matched=1
-        if ! vendor_link_expected_on_surface "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
+        if ! vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
           ISSUES=$((ISSUES + 1))
           status_line WARN "vendor skill $link_name not expected in $surface"
           if [ "$FIX" -eq 1 ]; then
