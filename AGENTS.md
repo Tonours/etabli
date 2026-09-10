@@ -46,6 +46,10 @@ Repo-specific instructions for this dotfiles repo.
   discovers this shared surface
 - `~/.codex/skills/` receives active-scope vendored skills; no other Codex
   harness state is tracked
+- `~/.config/devin/skills/` receives active-scope vendored skills plus
+  `herdr/skills/herdr`; Devin also reads `~/.agents/skills/` natively, so
+  `agents_visible` entries reach it through the shared surface. No other
+  Devin harness state is tracked
 - `~/.etabli-scope` selects `work` or `personal`; the active set is always
   `shared` plus that declared scope
 - `~/.config/ghostty/config` -> `ghostty/config`

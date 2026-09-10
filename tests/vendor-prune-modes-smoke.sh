@@ -25,7 +25,8 @@ REPO="$TMP_DIR/repo"
 HOME_DIR="$TMP_DIR/home"
 CATALOG="$REPO/catalog.tsv"
 mkdir -p "$REPO/vendor/suiteA/skills" "$REPO/vendor/suiteB/skills" "$REPO/pi/skills" \
-  "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.agents/skills"
+  "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" \
+  "$HOME_DIR/.config/devin/skills" "$HOME_DIR/.agents/skills"
 
 write_skill "$REPO/vendor/suiteA/skills/alpha" alpha
 write_skill "$REPO/vendor/suiteA/skills/beta" beta
@@ -58,8 +59,10 @@ run_deploy
 
 [ "$(link_count .pi/agent/skills alpha)" = 1 ] || fail "pi_core=1 vendor skill alpha missing on pi"
 [ "$(link_count .claude/skills alpha)" = 1 ] || fail "active vendor skill alpha missing on claude"
+[ "$(link_count .config/devin/skills alpha)" = 1 ] || fail "active vendor skill alpha missing on devin"
 [ "$(link_count .pi/agent/skills beta)" = 0 ] || fail "pi_core=0 vendor skill beta must not link on pi"
 [ "$(link_count .claude/skills beta)" = 1 ] || fail "active vendor skill beta missing on claude"
+[ "$(link_count .config/devin/skills beta)" = 1 ] || fail "active vendor skill beta missing on devin"
 
 mkdir -p "$TMP_DIR/foreign/suiteB/skills/gamma" "$TMP_DIR/foreign/suiteA/skills/beta"
 write_skill "$TMP_DIR/foreign/suiteB/skills/gamma" gamma
@@ -77,19 +80,20 @@ run_deploy
 
 grep -v '^gamma' "$CATALOG" >"$CATALOG.tmp" && mv "$CATALOG.tmp" "$CATALOG"
 run_deploy
-for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
   [ ! -L "$HOME_DIR/$surface/gamma" ] || fail "orphan vendor link gamma remains in $surface after row removal"
 done
 [ -d "$REPO/vendor/suiteB/skills/gamma" ] || fail "row removal must keep the vendor tree"
 
 ln -s "$REPO/vendor/suiteB/skills/gamma" "$HOME_DIR/.pi/agent/skills/gamma"
 ln -s "$REPO/vendor/suiteB/skills/gamma" "$HOME_DIR/.claude/skills/gamma"
+ln -s "$REPO/vendor/suiteB/skills/gamma" "$HOME_DIR/.config/devin/skills/gamma"
 rm -rf "$REPO/vendor/suiteB"
 run_deploy
-for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
   [ ! -L "$HOME_DIR/$surface/gamma" ] || fail "dangling gamma link remains in $surface after row+tree removal"
 done
-for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
   for link in "$HOME_DIR/$surface"/*; do
     [ -e "$link" ] || [ -L "$link" ] || continue
     [ -e "$link" ] || fail "dangling link $link remains in $surface after row+tree removal"

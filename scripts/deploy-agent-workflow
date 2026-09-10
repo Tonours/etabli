@@ -29,7 +29,7 @@ usage() {
 Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
 
 Deploy only the Etabli-managed workflow and skill surfaces for Claude Code,
-Pi, Codex, and Grok (through the shared ~/.agents surface).
+Pi, Codex, Devin, and Grok (through the shared ~/.agents surface).
 
 Options:
   --dry-run         Show planned changes without touching local harness files (default)
@@ -266,8 +266,8 @@ prune_pi_sourced_skill_links() {
   local surface skill_link skill_target
 
   # Policy: Pi-authored skills live on Pi and shared agents surfaces only.
-  # A pi/skills link on the Claude or Codex surface is drift; remove it.
-  for surface in "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills"; do
+  # A pi/skills link on the Claude, Codex or Devin surface is drift; remove it.
+  for surface in "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills"; do
     [ -d "$surface" ] || continue
     for skill_link in "$surface"/*; do
       [ -L "$skill_link" ] || continue
@@ -468,7 +468,7 @@ prune_vendor_skill_links() {
   local surface skill_link skill_target link_name
   local record_scope record_name record_dir record_pi_core record_vendor matched
 
-  for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+  for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
     [ -d "$HOME_DIR/$surface" ] || continue
     for skill_link in "$HOME_DIR/$surface"/*; do
       [ -L "$skill_link" ] || continue
@@ -476,7 +476,7 @@ prune_vendor_skill_links() {
       link_name="$(basename "$skill_link")"
 
       case "$skill_target" in
-      */.agents/skills/* | */.claude/skills/* | */.codex/*)
+      */.agents/skills/* | */.claude/skills/* | */.codex/* | */.config/devin/*)
         if [ ! -e "$skill_link" ]; then
           remove_managed_path "$skill_link" "broken cross-surface mirror $link_name from $surface"
           continue
@@ -515,7 +515,7 @@ deploy_vendor_skills() {
   status_line SECTION "Vendor skills"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.agents/skills"
+    mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills" "$HOME_DIR/.agents/skills"
   fi
 
   prune_pi_sourced_skill_links
@@ -525,6 +525,7 @@ deploy_vendor_skills() {
     [ -n "$skill_name" ] || continue
     link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude vendor skill $skill_name"
     link_path "$skill_dir" "$HOME_DIR/.codex/skills/$skill_name" "Codex vendor skill $skill_name"
+    link_path "$skill_dir" "$HOME_DIR/.config/devin/skills/$skill_name" "Devin vendor skill $skill_name"
     if [ "$pi_core" = "1" ]; then
       link_path "$skill_dir" "$HOME_DIR/.pi/agent/skills/$skill_name" "Pi vendor skill $skill_name"
     fi

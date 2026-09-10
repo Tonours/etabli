@@ -279,7 +279,7 @@ check_vendor_skill_links() {
   local skill_name skill_dir pi_core active_scopes surface skill_link
   local skill_target link_name record_scope record_name record_pi_core record_vendor matched
 
-  for surface in .claude/skills .codex/skills; do
+  for surface in .claude/skills .codex/skills .config/devin/skills; do
     [ -d "$HOME/$surface" ] || continue
     for skill_link in "$HOME/$surface"/*; do
       [ -L "$skill_link" ] || continue
@@ -304,12 +304,13 @@ check_vendor_skill_links() {
     [ -n "$skill_name" ] || continue
     check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude vendor skill $skill_name"
     check_link "$HOME/.codex/skills/$skill_name" "$skill_dir" "codex vendor skill $skill_name"
+    check_link "$HOME/.config/devin/skills/$skill_name" "$skill_dir" "devin vendor skill $skill_name"
     if [ "$pi_core" = "1" ]; then
       check_link "$HOME/.pi/agent/skills/$skill_name" "$skill_dir" "pi vendor skill $skill_name"
     fi
   done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$active_scopes")
 
-  for surface in .pi/agent/skills .claude/skills .codex/skills .agents/skills; do
+  for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
     [ -d "$HOME/$surface" ] || continue
     for skill_link in "$HOME/$surface"/*; do
       [ -L "$skill_link" ] || continue
@@ -317,7 +318,7 @@ check_vendor_skill_links() {
       link_name="$(basename "$skill_link")"
 
       case "$skill_target" in
-      */.agents/skills/* | */.claude/skills/* | */.codex/*)
+      */.agents/skills/* | */.claude/skills/* | */.codex/* | */.config/devin/*)
         if [ ! -e "$skill_link" ]; then
           ISSUES=$((ISSUES + 1))
           status_line WARN "broken cross-surface mirror $link_name remains in $surface"
@@ -474,6 +475,7 @@ check_link "$HOME/.config/ghostty/config" "$REPO_DIR/ghostty/config" "ghostty co
 check_link "$HOME/.config/herdr/config.toml" "$REPO_DIR/herdr/config.toml" "herdr config"
 check_link "$HOME/.claude/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (claude)"
 check_link "$HOME/.codex/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (codex)"
+check_link "$HOME/.config/devin/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (devin)"
 check_link "$HOME/.agents/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (agents)"
 check_link "$HOME/.pi/agent/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (pi)"
 check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"

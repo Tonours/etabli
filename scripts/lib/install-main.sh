@@ -151,6 +151,7 @@ prune_stale_managed_skill_links() {
         "$home_dir/.claude/skills" \
         "$home_dir/.pi/agent/skills" \
         "$home_dir/.codex/skills" \
+        "$home_dir/.config/devin/skills" \
         "$home_dir/.agents/skills"; do
         [ -d "$surface" ] || continue
 
@@ -760,7 +761,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
     done
 
-    for smoke_other_surface in .pi/agent/skills .codex/skills .agents/skills; do
+    for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
         mkdir -p "$smoke_skill_home/$smoke_other_surface"
         ln -s "$smoke_repo_dir/vendor/ember-skills/skills/removed-skill" \
             "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill"
@@ -770,7 +771,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     prune_stale_managed_skill_links "$smoke_repo_dir" "$smoke_skill_home"
 
-    for smoke_other_surface in .pi/agent/skills .codex/skills .agents/skills; do
+    for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
         if [ -L "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill" ]; then
             print_error "stale vendor skill link survived in $smoke_other_surface"
             exit 1
@@ -1361,6 +1362,7 @@ if [ -d "$HERDR_SKILL_TARGET" ]; then
     for herdr_skill_dir in \
         "$HOME/.claude/skills" \
         "$HOME/.codex/skills" \
+        "$HOME/.config/devin/skills" \
         "$HOME/.agents/skills" \
         "$HOME/.pi/agent/skills"; do
         herdr_skill_link="$herdr_skill_dir/herdr"
@@ -1545,7 +1547,7 @@ prune_managed_agents_skills
 
 ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
-mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
+mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills ~/.config/devin/skills
 
 mkdir -p ~/.agents/skills
 prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
@@ -1571,7 +1573,8 @@ while IFS=$'\t' read -r vendor_name _vendor_repo _vendor_ref vendor_scope _vendo
         ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
         ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
         ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
-        print_success "Vendored skill '$skill_name' linked for Claude, Pi and Codex"
+        ln -sfn "$skill_dir" ~/.config/devin/skills/"$skill_name"
+        print_success "Vendored skill '$skill_name' linked for Claude, Pi, Codex and Devin"
     done
 done <"$REPO_DIR/vendor/sources.tsv"
 
