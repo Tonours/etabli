@@ -1094,10 +1094,6 @@ const PARENT_ONLY_EXECUTION = Object.freeze({
 	reason: "multi-model portfolio removed",
 });
 
-export function classifyMultiExecution() {
-	return PARENT_ONLY_EXECUTION;
-}
-
 export function classifyWorkflowRoute(prompt, context = {}) {
 	const low = prompt.trim().toLowerCase();
 	const decision = classifyWorkflowRouteBase(prompt, low, context);

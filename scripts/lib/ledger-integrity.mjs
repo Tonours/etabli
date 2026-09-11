@@ -494,7 +494,7 @@ function scanRootEntries(root, entries) {
   return { records, pointerInEntries };
 }
 
-export function inspectLedgerRoot(cwd) {
+function inspectLedgerRoot(cwd) {
   const root = join(cwd || process.cwd(), ".workflow");
   let entries;
   try {
@@ -520,16 +520,6 @@ export function inspectLedgerRoot(cwd) {
 
   const { records, pointerInEntries } = scanRootEntries(root, entries);
   return { root, pointer: readPointer(root, !pointerInEntries), records };
-}
-
-/**
- * Backward-compatible helper for consumers that only need valid non-terminal
- * entries. Security-sensitive code should use selectActiveLedger instead.
- */
-export function findValidActiveLedgers(cwd) {
-  return inspectLedgerRoot(cwd).records.filter(
-    (record) => record.valid && !record.terminal,
-  );
 }
 
 /**
