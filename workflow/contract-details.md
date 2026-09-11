@@ -38,8 +38,8 @@ One writer at any instant. The parent writes, or delegates writing to at most on
 writing until it finishes, then takes the pen back between plan steps; never two
 writers in parallel. The deterministic multi-model council (scout / analyst /
 challenger / judge / fallback) was removed in ADR-0013;
-`classifyMultiExecution` always returns single. Delegating to a subagent stays
-available as an ordinary tool call, judged case by case, not as a routed profile.
+`classifyWorkflowRoute` always attaches parent-only `multiExecution`. Delegating
+to a subagent stays an ordinary tool call, judged case by case, not a routed profile.
 `scout` and `reviewer` combine an
 explicit read-only tool set, `dontAsk`, and a scoped Bash `PreToolUse` allowlist
 guard; this is stronger than prose but still not an OS sandbox. Shared workflow
