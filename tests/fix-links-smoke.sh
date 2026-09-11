@@ -61,12 +61,14 @@ backup_count() {
 mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules" \
   "$TMP_HOME/.pi/agent/skills" "$TMP_HOME/.agents/skills"
 mkdir -p "$TMP_HOME/.claude/agents" "$TMP_HOME/.claude/skills" \
-  "$TMP_HOME/.codex/skills" "$TMP_HOME/personal-agents" "$TMP_HOME/external-skill"
+  "$TMP_HOME/.codex/skills" "$TMP_HOME/.config/devin/skills" \
+  "$TMP_HOME/personal-agents" "$TMP_HOME/external-skill"
 printf 'personal agent\n' >"$TMP_HOME/personal-agents/personal.md"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$TMP_HOME/.claude/agents/playwright-generator.md"
 ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/agents/personal.md"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.claude/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.codex/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.config/devin/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.pi/agent/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$TMP_HOME/.agents/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/github-pr-review" "$TMP_HOME/.pi/agent/skills/github-pr-review"
@@ -74,6 +76,7 @@ ln -s "$ROOT_DIR/pi/skills/github-pr-review" "$TMP_HOME/.agents/skills/github-pr
 ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.pi/agent/skills/design"
 ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.agents/skills/design"
 ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.codex/skills/external-skill"
+ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.config/devin/skills/external-skill"
 
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 HOME="$TMP_HOME" "$SCRIPT" --verbose >/dev/null
@@ -114,6 +117,13 @@ assert_not_exists "$TMP_HOME/.codex/skills/vercel-react-best-practices"
 assert_link "$TMP_HOME/.codex/skills/external-skill" "$TMP_HOME/external-skill"
 assert_not_exists "$TMP_HOME/.codex/skills/ember-forestadmin-suite"
 assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
+assert_not_exists "$TMP_HOME/.config/devin/skills/react-doctor-100"
+assert_not_exists "$TMP_HOME/.config/devin/skills/suite-router"
+assert_link "$TMP_HOME/.config/devin/skills/external-skill" "$TMP_HOME/external-skill"
+assert_link "$TMP_HOME/.config/devin/skills/herdr" "$ROOT_DIR/herdr/skills/herdr"
+assert_link "$TMP_HOME/.config/devin/skills/ask-matt" "$ROOT_DIR/vendor/mattpocock/skills/engineering/ask-matt"
+assert_not_exists "$TMP_HOME/.config/devin/skills/ember-forestadmin-suite"
+assert_not_exists "$TMP_HOME/.config/devin/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.grok"
 assert_link "$TMP_HOME/.pi/agent/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
@@ -142,6 +152,7 @@ ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/scripts/claude-
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.claude/skills/adonisjs-suite"
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.codex/skills/adonisjs-suite"
+ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.config/devin/skills/adonisjs-suite"
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.agents/skills/adonisjs-suite"
 ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
@@ -149,9 +160,11 @@ assert_link "$TMP_HOME/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/s
 assert_not_exists "$TMP_HOME/.pi/agent/skills/ember-forestadmin-suite"
 assert_link "$TMP_HOME/.claude/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
 assert_link "$TMP_HOME/.codex/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
+assert_link "$TMP_HOME/.config/devin/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.claude/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
+assert_not_exists "$TMP_HOME/.config/devin/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.agents/skills/adonisjs-suite"
 
 mkdir -p "$TMP_HOME/.grok/bin"
@@ -196,6 +209,7 @@ cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
 cp "$ROOT_DIR/scripts/lib/etabli-scope.sh" "$FAKE_REPO/scripts/lib/etabli-scope.sh"
 cp "$ROOT_DIR/scripts/lib/prefer-cursor-agent.sh" "$FAKE_REPO/scripts/lib/prefer-cursor-agent.sh"
+cp "$ROOT_DIR/scripts/lib/vendor-surfaces.sh" "$FAKE_REPO/scripts/lib/vendor-surfaces.sh"
 chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then

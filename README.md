@@ -98,7 +98,7 @@ when you want a specific route and a specific stopping point.
 | `/review` | Review the diff, a branch, or a commit | `GO` / `GO WITH NOTES` / `BLOCK` |
 | `/verify-workflow` | Prove a claim or re-run checks, no edits | Verdict with evidence |
 | `/pr-review`, `/pr-qa` | Review a PR, or build its test plan | Findings / test plan |
-| `/sec-pr` | Audit a Dependabot or security PR | `PASS` / `FAIL` |
+| `/sec-pr` | Audit a Dependabot or security PR | `PASS` / `FAIL` / `INVESTIGATE` |
 | `/ci-fix` | Repair failing CI autonomously | CI green, or blocked at cap |
 | `/poteto-mode` | Opt-in pstack task mode (ADR-0021, delivered by the pi-pstack port per ADR-0023); not the ambient router | User exits the mode |
 

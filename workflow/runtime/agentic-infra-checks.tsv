@@ -73,6 +73,10 @@ full	shell-docs	sync-vendor-subpath-smoke	tests/sync-vendor-subpath-smoke.sh
 full	shell-docs	claude-skill-load-check-smoke	tests/claude-skill-load-check-smoke.sh
 full	shell-docs	pi-skill-load-check-smoke	tests/pi-skill-load-check-smoke.sh
 full	shell-docs	herdr-claude-relaunch-smoke	tests/herdr-claude-relaunch-smoke.sh
+full	shell-docs	vendor-surface-policy-smoke	tests/vendor-surface-policy-smoke.sh
+full	shell-docs	vendor-prune-modes-smoke	tests/vendor-prune-modes-smoke.sh
+full	shell-docs	harness-token-usage-test	tests/harness-token-usage.test.mjs
+full	shell-docs	skills-lock-coverage-smoke	tests/skills-lock-coverage-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
 live	shell-docs	runtime-skill-canary-live	tests/runtime-skill-canary-live.sh

@@ -12,9 +12,11 @@ DRY_HOME_DIR="$TMP_DIR/dry-home"
 WORK_HOME_DIR="$TMP_DIR/work-home"
 mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$HOME_DIR/.claude/skills" \
   "$HOME_DIR/.claude/commands" "$HOME_DIR/.codex/skills" \
+  "$HOME_DIR/.config/devin/skills" \
   "$TMP_DIR/personal-agents" "$TMP_DIR/external-skill"
 printf 'personal agent\n' >"$TMP_DIR/personal-agents/personal.md"
 printf 'unmanaged skill\n' >"$HOME_DIR/.codex/skills/unmanaged-local"
+printf 'unmanaged skill\n' >"$HOME_DIR/.config/devin/skills/unmanaged-local"
 printf 'personal command\n' >"$HOME_DIR/.claude/commands/recap.md"
 printf 'external command\n' >"$TMP_DIR/external-command.md"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$HOME_DIR/.claude/agents/playwright-generator.md"
@@ -26,6 +28,8 @@ ln -s "$ROOT_DIR/claude/handoff-template.md" "$HOME_DIR/.claude/handoff-template
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.claude/skills/suite-router"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.codex/skills/suite-router"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/external-skill"
+ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.config/devin/skills/suite-router"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.config/devin/skills/external-skill"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -154,6 +158,15 @@ assert_link "$HOME_DIR/.codex/skills/external-skill" "$TMP_DIR/external-skill"
 assert_absent "$HOME_DIR/.codex/skills/ember-forestadmin-suite"
 assert_absent "$HOME_DIR/.codex/skills/adonisjs-suite"
 
+assert_absent "$HOME_DIR/.config/devin/skills/react-doctor-100"
+assert_absent "$HOME_DIR/.config/devin/skills/suite-router"
+assert_absent "$HOME_DIR/.config/devin/skills/vercel-react-best-practices"
+assert_file "$HOME_DIR/.config/devin/skills/unmanaged-local"
+assert_link "$HOME_DIR/.config/devin/skills/external-skill" "$TMP_DIR/external-skill"
+assert_link "$HOME_DIR/.config/devin/skills/ask-matt" "$ROOT_DIR/vendor/mattpocock/skills/engineering/ask-matt"
+assert_absent "$HOME_DIR/.config/devin/skills/ember-forestadmin-suite"
+assert_absent "$HOME_DIR/.config/devin/skills/adonisjs-suite"
+
 if [ -e "$HOME_DIR/.claude/skills/ember-forestadmin-suite" ]; then
   printf 'work-scope skill deployed without a declared scope: %s\n' \
     "$HOME_DIR/.claude/skills/ember-forestadmin-suite" >&2
@@ -167,11 +180,13 @@ fi
     "$WORK_HOME_DIR/.pi/agent/skills" \
     "$WORK_HOME_DIR/.claude/skills" \
     "$WORK_HOME_DIR/.codex/skills" \
+    "$WORK_HOME_DIR/.config/devin/skills" \
     "$WORK_HOME_DIR/.agents/skills" \
     "$WORK_HOME_DIR/external-skill"
   ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
+  ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.config/devin/skills/adonisjs-suite"
   ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
   ln -s "$WORK_HOME_DIR/external-skill" "$WORK_HOME_DIR/.codex/skills/adonisjs-review"
 
@@ -184,16 +199,23 @@ fi
   assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report.sh"
   assert_link "$WORK_HOME_DIR/.claude/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
   assert_link "$WORK_HOME_DIR/.codex/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
+  assert_link "$WORK_HOME_DIR/.config/devin/skills/ember-forestadmin-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-forestadmin-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/ember-forestadmin-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.codex/skills/adonisjs-suite"
+  assert_absent "$WORK_HOME_DIR/.config/devin/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.agents/skills/adonisjs-suite"
   assert_link "$WORK_HOME_DIR/.codex/skills/adonisjs-review" "$WORK_HOME_DIR/external-skill"
   assert_absent "$WORK_HOME_DIR/.grok"
 
   if find "$WORK_HOME_DIR/.codex" -mindepth 1 -maxdepth 1 ! -name skills | grep -q .; then
     printf 'deploy created a Codex harness surface beyond skills\n' >&2
+    exit 1
+  fi
+
+  if find "$WORK_HOME_DIR/.config/devin" -mindepth 1 -maxdepth 1 ! -name skills | grep -q .; then
+    printf 'deploy created a Devin harness surface beyond skills\n' >&2
     exit 1
   fi
 ) &

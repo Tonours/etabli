@@ -40,6 +40,7 @@ jq -r '
 node --input-type=module <<EOF
 import { pathToFileURL } from "node:url";
 import { writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 const mod = await import(pathToFileURL("$CORE").href);
@@ -420,6 +421,73 @@ if (acWeaken?.hookSpecificOutput?.permissionDecision !== "deny") {
   process.exit(1);
 }
 
+// Commit guard parity: session PLAN.md is never a commit target, for
+// Claude-style and Pi-style events, named or already staged.
+const addPlanDeny = mod.planCommitGuardDecision({
+  cwd: tmp,
+  tool_name: "Bash",
+  tool_input: { command: "git add PLAN.md" },
+});
+if (addPlanDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("git add PLAN.md must deny");
+  process.exit(1);
+}
+
+const piNamedCommitDeny = mod.planCommitGuardDecision({
+  cwd: tmp,
+  toolName: "bash",
+  input: { command: "git commit -m wip PLAN.md" },
+});
+if (piNamedCommitDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("Pi-style git commit naming PLAN.md must deny");
+  process.exit(1);
+}
+
+// Commit guard is status-independent: DRAFT still denies.
+writeFileSync(join(tmp, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n");
+const draftCommitDeny = mod.planCommitGuardDecision({
+  cwd: tmp,
+  toolName: "bash",
+  input: { command: "git add PLAN.md" },
+});
+if (draftCommitDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("DRAFT PLAN.md add must deny via commit guard");
+  process.exit(1);
+}
+writeFileSync(join(tmp, "PLAN.md"), [
+  "# PLAN",
+  "",
+  "## Meta",
+  "- Status: READY",
+  "",
+  "## Checks",
+  "- command: bash tests/a.sh",
+  "- command: bash tests/b.sh",
+  "",
+].join("\\n"));
+
+execFileSync("git", ["-C", tmp, "init", "-q"]);
+execFileSync("git", ["-C", tmp, "add", "PLAN.md"]);
+const piStagedCommitDeny = mod.planCommitGuardDecision({
+  cwd: tmp,
+  toolName: "bash",
+  input: { command: "git commit -m wip" },
+});
+if (piStagedCommitDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("Pi-style git commit with staged PLAN.md must deny");
+  process.exit(1);
+}
+
+const addUnrelatedAllowed = mod.planCommitGuardDecision({
+  cwd: tmp,
+  toolName: "bash",
+  input: { command: "git add README.md" },
+});
+if (addUnrelatedAllowed != null) {
+  console.error("git add of a non-plan file must be allowed");
+  process.exit(1);
+}
+
 const ops = mod.classifyWorkflowRoute("supprime ce dossier et force-push la branche", {
   planStatus: "missing",
 });
@@ -433,5 +501,6 @@ console.log("claude.plan_ready_guard: deny_on_draft confirmed");
 console.log("pi.plan_ready_guard: deny_on_draft confirmed (shared helper)");
 console.log("check_freeze: deny_weaken_allow_strengthen confirmed");
 console.log("check_freeze: edit_multiedit_ac_weaken deny confirmed");
+console.log("plan_commit_guard: named and staged PLAN.md deny confirmed (Claude + Pi schemas)");
 console.log("ops_stop.route: confirmed via classifier");
 EOF

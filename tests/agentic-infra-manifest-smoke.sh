@@ -21,7 +21,7 @@ while IFS=$'\t' read -r profile group label target; do
 	[ -n "$label" ] && [ -n "$target" ] || fail "empty label or target"
 	case "$target" in
 	builtin:*) ;;
-	tests/*.sh) [ -f "$ROOT_DIR/$target" ] || fail "missing target for $label: $target" ;;
+	tests/*.sh | tests/*.mjs) [ -f "$ROOT_DIR/$target" ] || fail "missing target for $label: $target" ;;
 	*) fail "unsupported target for $label: $target" ;;
 	esac
 done < <(sed '/^#/d; /^$/d' "$MANIFEST")
@@ -129,7 +129,11 @@ skill-tree-hash-smoke
 sync-vendor-subpath-smoke
 claude-skill-load-check-smoke
 pi-skill-load-check-smoke
-herdr-claude-relaunch-smoke'
+herdr-claude-relaunch-smoke
+vendor-surface-policy-smoke
+vendor-prune-modes-smoke
+harness-token-usage-test
+skills-lock-coverage-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
@@ -145,6 +149,10 @@ printf '%s\n' "$runner_source" | grep -Fq 'failed=$((failed + 1))' ||
 	fail "verify-agentic-infra lost FAIL accumulation"
 printf '%s\n' "$runner_source" | grep -Fq 'SUMMARY:' ||
 	fail "verify-agentic-infra lost the failure summary"
+printf '%s\n' "$runner_source" | grep -Fq 'fix-links-smoke' ||
+	fail "verify-agentic-infra must name the repo-mutating checks"
+printf '%s\n' "$runner_source" | grep -Fq 'nvim-smoke' ||
+	fail "verify-agentic-infra must name the repo-mutating checks"
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
 

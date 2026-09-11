@@ -1,4 +1,5 @@
 import { describe, beforeAll, afterAll, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -327,6 +328,63 @@ describe("workflow router extension", () => {
 			const runtime = setupExtension();
 			runtime.emit("before_agent_start", { prompt, systemPrompt: "Base prompt" });
 			expect(runtime.thinkingLevel).toBeUndefined();
+		}
+	});
+
+	test("tool_call commit guard blocks staging a session PLAN.md", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-commit-guard-"));
+		try {
+			const commit = runtime.emit("tool_call", {
+				toolName: "bash",
+				toolCallId: "b-commit",
+				cwd,
+				input: { command: "git add PLAN.md" },
+			})[0];
+			expect(commit).toMatchObject({
+				block: true,
+				reason: expect.stringMatching(/session artifact/i),
+			});
+
+			const unrelated = runtime.emit("tool_call", {
+				toolName: "bash",
+				toolCallId: "b-status",
+				cwd,
+				input: { command: "git status --short" },
+			})[0];
+			expect(unrelated).toBeUndefined();
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("tool_call commit guard resolves the session cwd from the handler context", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-commit-ctx-"));
+		try {
+			execFileSync("git", ["-C", cwd, "init", "-q"]);
+			writeFileSync(
+				join(cwd, "PLAN.md"),
+				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
+			);
+			execFileSync("git", ["-C", cwd, "add", "PLAN.md"]);
+
+			// Production shape: no cwd on the event, session cwd on the context.
+			const commit = runtime.emit(
+				"tool_call",
+				{
+					toolName: "bash",
+					toolCallId: "b-staged",
+					input: { command: "git commit -m wip" },
+				},
+				{ cwd },
+			)[0];
+			expect(commit).toMatchObject({
+				block: true,
+				reason: expect.stringMatching(/staged/i),
+			});
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
 		}
 	});
 

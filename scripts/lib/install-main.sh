@@ -10,6 +10,7 @@ set -euo pipefail
 BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
 . "$BOOTSTRAP_DIR/lib/pi-paths.sh"
 . "$BOOTSTRAP_DIR/lib/skill-catalog.sh"
+. "$BOOTSTRAP_DIR/lib/vendor-surfaces.sh"
 . "$BOOTSTRAP_DIR/lib/etabli-scope.sh"
 . "$BOOTSTRAP_DIR/lib/prefer-cursor-agent.sh"
 SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
@@ -151,6 +152,7 @@ prune_stale_managed_skill_links() {
         "$home_dir/.claude/skills" \
         "$home_dir/.pi/agent/skills" \
         "$home_dir/.codex/skills" \
+        "$home_dir/.config/devin/skills" \
         "$home_dir/.agents/skills"; do
         [ -d "$surface" ] || continue
 
@@ -760,7 +762,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
     done
 
-    for smoke_other_surface in .pi/agent/skills .codex/skills .agents/skills; do
+    for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
         mkdir -p "$smoke_skill_home/$smoke_other_surface"
         ln -s "$smoke_repo_dir/vendor/ember-skills/skills/removed-skill" \
             "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill"
@@ -770,7 +772,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     prune_stale_managed_skill_links "$smoke_repo_dir" "$smoke_skill_home"
 
-    for smoke_other_surface in .pi/agent/skills .codex/skills .agents/skills; do
+    for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
         if [ -L "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill" ]; then
             print_error "stale vendor skill link survived in $smoke_other_surface"
             exit 1
@@ -1361,6 +1363,7 @@ if [ -d "$HERDR_SKILL_TARGET" ]; then
     for herdr_skill_dir in \
         "$HOME/.claude/skills" \
         "$HOME/.codex/skills" \
+        "$HOME/.config/devin/skills" \
         "$HOME/.agents/skills" \
         "$HOME/.pi/agent/skills"; do
         herdr_skill_link="$herdr_skill_dir/herdr"
@@ -1545,35 +1548,22 @@ prune_managed_agents_skills
 
 ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
 
-mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills
+mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills ~/.config/devin/skills
 
 mkdir -p ~/.agents/skills
 prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
 
-while IFS=$'\t' read -r vendor_name _vendor_repo _vendor_ref vendor_scope _vendor_skills; do
-    case "$vendor_name" in '' | \#*) continue ;; esac
-
-    case " $ETABLI_ACTIVE_SCOPES " in
-    *" $vendor_scope "*) ;;
-    *)
-        print_step "Skipping vendor '$vendor_name' (scope $vendor_scope not active)"
+while IFS=$'\t' read -r skill_name skill_dir skill_pi_core vendor_name; do
+    [ -n "$skill_name" ] || continue
+    if [ ! -d "$skill_dir" ]; then
+        print_warning "Vendored skill '$skill_name' missing from $vendor_name"
         continue
-        ;;
-    esac
-
-    for skill_dir_name in $(skill_catalog_names "$SKILL_CATALOG" "$vendor_name" any); do
-        skill_dir="$REPO_DIR/vendor/$vendor_name/skills/$skill_dir_name"
-        if [ ! -d "$skill_dir" ]; then
-            print_warning "Vendored skill '$skill_dir_name' missing from $vendor_name"
-            continue
-        fi
-        skill_name="$(skill_declared_name "$skill_dir")"
-        ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
-        ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
-        ln -sfn "$skill_dir" ~/.codex/skills/"$skill_name"
-        print_success "Vendored skill '$skill_name' linked for Claude, Pi and Codex"
-    done
-done <"$REPO_DIR/vendor/sources.tsv"
+    fi
+    vendor_scope="$(skill_vendor_scope "$REPO_DIR" "$vendor_name")"
+    vendor_link_skill_surfaces "$HOME" "$skill_dir" "$skill_name" "$skill_pi_core" "$vendor_scope" "$ETABLI_ACTIVE_SCOPES"
+    vendor_prune_unexpected_skill_surfaces "$HOME" "$skill_dir" "$skill_name" "$skill_pi_core" "$vendor_scope" "$ETABLI_ACTIVE_SCOPES"
+    print_success "Vendored skill '$skill_name' linked per surface policy"
+done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ETABLI_ACTIVE_SCOPES")
 
 mkdir -p ~/.claude/commands
 if [ -f "$REPO_DIR/claude/CLAUDE.md" ]; then

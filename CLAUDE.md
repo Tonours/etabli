@@ -35,4 +35,5 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0021](docs/adr/0021-adopt-pstack-poteto-mode-and-principles-wave-2.md) — Adopt pstack poteto-mode and principles as wave 2, opt-in [accepted]
 - [0022](docs/adr/0022-amend-vendored-verbatim-with-sync-time-path-adaptation.md) — Amend vendored-verbatim with a sync-time path-adaptation table [accepted]
 - [0023](docs/adr/0023-migrate-pstack-to-the-pi-port.md) — Migrate pstack to the @zenspc/pi-pstack port, Pi-only [accepted]
+- [0024](docs/adr/0024-treat-config-devin-skills-as-a-managed-link-surface.md) — Treat ~/.config/devin/skills as a managed link surface [accepted]
 <!-- ADR:INDEX:END -->

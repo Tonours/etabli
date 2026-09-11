@@ -1,39 +1,51 @@
-/**
- * Token Rate — shows the last LLM call's output speed (tok/s) in the footer.
- *
- * Each assistant message is timed from the end of the previous message
- * (user prompt or tool result) to the end of the streaming response, then
- * divided by the reported output tokens. Displayed via ctx.ui.setStatus().
- */
-import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+	AssistantMessage,
+	AssistantMessageEvent,
+} from "@earendil-works/pi-ai";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
+import { formatRate, TokenRateTracker } from "./lib/token-rate-runtime.ts";
 
 const STATUS_KEY = "token-rate";
-/** Ignore degenerate windows (cache hits, aborted retries). */
-const MIN_SECONDS = 0.5;
 
 const isAssistant = (m: { role?: string }): m is AssistantMessage =>
 	m.role === "assistant";
 
-const formatRate = (rate: number): string =>
-	rate >= 100 ? Math.round(rate).toString() : rate.toFixed(1);
+const streamedDelta = (event: AssistantMessageEvent): string | null =>
+	event.type === "text_delta" ||
+	event.type === "thinking_delta" ||
+	event.type === "toolcall_delta"
+		? event.delta
+		: null;
 
 export default function (pi: ExtensionAPI) {
-	/** Timestamp (ms) of the last finalized user/toolResult message. */
 	let previousEnd: number | null = null;
-	/** Timestamp (ms) captured when the current assistant stream started. */
-	let streamStart: number | null = null;
+	const tracker = new TokenRateTracker();
+
+	const statusText = (ctx: ExtensionContext, rate: number, estimated: boolean) =>
+		ctx.ui.theme.fg("accent", `⚡ ${estimated ? "~" : ""}${formatRate(rate)}`) +
+		ctx.ui.theme.fg("dim", " tok/s");
 
 	pi.on("session_start", (_event, ctx) => {
 		previousEnd = null;
-		streamStart = null;
+		tracker.reset();
 		ctx.ui.setStatus(STATUS_KEY, undefined);
 	});
 
 	pi.on("message_start", (event) => {
 		if (isAssistant(event.message)) {
-			streamStart = previousEnd ?? Date.now();
+			tracker.start(previousEnd ?? Date.now());
 		}
+	});
+
+	pi.on("message_update", (event, ctx) => {
+		const delta = streamedDelta(event.assistantMessageEvent);
+		if (delta === null) return;
+		const live = tracker.onDelta(delta, Date.now());
+		if (live === null) return;
+		ctx.ui.setStatus(STATUS_KEY, statusText(ctx, live.rate, true));
 	});
 
 	pi.on("message_end", (event, ctx) => {
@@ -44,22 +56,16 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		const startedAt = streamStart ?? Date.now();
-		streamStart = null;
-		const seconds = (Date.now() - startedAt) / 1000;
+		const exact =
+			message.stopReason === "error" || message.stopReason === "aborted"
+				? null
+				: tracker.finish(message.usage.output, Date.now());
 
-		const measurable =
-			message.usage.output > 0 &&
-			seconds >= MIN_SECONDS &&
-			message.stopReason !== "error" &&
-			message.stopReason !== "aborted";
-
-		if (measurable) {
-			const rate = message.usage.output / seconds;
-			const text =
-				ctx.ui.theme.fg("accent", `⚡ ${formatRate(rate)}`) +
-				ctx.ui.theme.fg("dim", " tok/s");
-			ctx.ui.setStatus(STATUS_KEY, text);
+		if (exact === null) {
+			ctx.ui.setStatus(STATUS_KEY, undefined);
+			return;
 		}
+
+		ctx.ui.setStatus(STATUS_KEY, statusText(ctx, exact, false));
 	});
 }
