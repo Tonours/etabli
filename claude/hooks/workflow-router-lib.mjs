@@ -1254,8 +1254,11 @@ function stagedPlanFiles(cwd) {
 }
 
 export function planCommitGuardDecision(event) {
-	if (event.tool_name !== "Bash") return null;
-	const command = String(event.tool_input?.command || "");
+	// Pi emits lowercase toolName/input; normalize so both runtimes share the
+	// same Bash commit guard.
+	const toolName = normalizeToolName(event.tool_name || event.toolName);
+	if (toolName !== "Bash") return null;
+	const command = String(event.tool_input?.command || event.input?.command || "");
 	if (!/\bgit\b/.test(command)) return null;
 
 	const namesPlanFile = commandNamesSessionPlan(command);

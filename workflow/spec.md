@@ -164,6 +164,9 @@ A plan is `READY` when it has:
 `spec-guide` is ambient. Linear routes require Linear MCP or stop with
 `LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
 
+`verify` is the contract route; the Claude command surface names it
+`/verify-workflow` and Pi presents `/skill:verify`.
+
 A route says what to produce and when to stop; it does not say what the area
 already taught us. Where the runtime exposes skills, select the narrowest domain
 or project skill for the subject alongside the route — they are orthogonal, and
@@ -191,7 +194,8 @@ Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key
 surfaces referenced by routing/guards: Claude hooks fragment
 `claude/settings.workflow-hooks.json`, `workflow/plan-archive.md`,
 `workflow/project-autonomy-envelope.md`, and the bounded reviewer evolution
-contract `workflow/skills/reviewer-improvement-loop.md`.
+contract `workflow/skills/reviewer-improvement-loop.md`. Shared-contract versus
+adapter source ownership: `workflow/runtime/source-ownership.tsv`.
 
 ## Daily loop
 

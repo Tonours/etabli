@@ -7,7 +7,7 @@ import {
 	type PlanStatus,
 } from "./lib/workflow-router-runtime.ts";
 import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
-import { planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
+import { planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
 import {
 	inferBashFailureFromToolResult,
 	isBashToolName,
@@ -36,7 +36,10 @@ function readPlanStatus(cwd: string): PlanStatus {
 	}
 }
 
-function eventCwd(event: unknown): string {
+function eventCwd(event: unknown, ctx?: { cwd?: unknown }): string {
+	// Pi tool_call events carry no cwd; the session cwd is on the handler
+	// context. Prefer it, keep the event fallback for tests and other events.
+	if (typeof ctx?.cwd === "string" && ctx.cwd.trim() !== "") return ctx.cwd;
 	if (typeof event === "object" && event !== null && "cwd" in event) {
 		const cwd = (event as { cwd?: unknown }).cwd;
 		if (typeof cwd === "string" && cwd.trim() !== "") return cwd;
@@ -76,11 +79,11 @@ function planStatusWord(prompt: string, statusPattern: RegExp): boolean {
 export default function (pi: ExtensionAPI) {
 	const routablePi = pi as RoutablePi;
 
-	pi.on("before_agent_start", (event) => {
+	pi.on("before_agent_start", (event, ctx) => {
 		const trimmedPrompt = event.prompt.trim();
 		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;
 
-		const planStatus = readPlanStatus(eventCwd(event));
+		const planStatus = readPlanStatus(eventCwd(event, ctx));
 		const routeContext = {
 			planStatus:
 				planStatus === "missing"
@@ -104,33 +107,32 @@ export default function (pi: ExtensionAPI) {
 		return undefined;
 	});
 
-	pi.on("tool_call", (event) => {
+	pi.on("tool_call", (event, ctx) => {
 		if (event.toolName === "Agent") return undefined;
 
 		// READY mutation + check-freeze parity with Claude plan-ready-guard
-		// (shared planMutationGuardDecision; no divergent classifier).
-		const mutationGuard = planMutationGuardDecision({
-			cwd: eventCwd(event),
+		// (shared planMutationGuardDecision; no divergent classifier). Commit
+		// guard parity: session PLAN.md must not be staged or committed.
+		const guardEvent = {
+			cwd: eventCwd(event, ctx),
 			tool_name: event.toolName,
 			tool_input: event.input || {},
-		}) as {
-			hookSpecificOutput?: {
-				permissionDecision?: string;
-				permissionDecisionReason?: string;
-			};
-		} | null;
-		if (mutationGuard?.hookSpecificOutput?.permissionDecision === "deny") {
+		};
+		const denied =
+			planMutationGuardDecision(guardEvent) ||
+			planCommitGuardDecision(guardEvent);
+		if (denied?.hookSpecificOutput?.permissionDecision === "deny") {
 			return {
 				block: true,
 				reason:
-					mutationGuard.hookSpecificOutput.permissionDecisionReason ||
+					denied.hookSpecificOutput.permissionDecisionReason ||
 					"PLAN.md guard: mutating tools are blocked",
 			};
 		}
 		return undefined;
 	});
 
-	pi.on("tool_result", (event) => {
+	pi.on("tool_result", (event, ctx) => {
 		if (isBashToolName(event.toolName)) {
 			// Ledger-scoped auto-emit: only when an active non-terminal ledger exists.
 			try {
@@ -144,7 +146,7 @@ export default function (pi: ExtensionAPI) {
 					Boolean(event.isError),
 				);
 				if (inferred.failed && typeof inferred.exit === "number") {
-					recordBashValidationFailure(eventCwd(event), {
+					recordBashValidationFailure(eventCwd(event, ctx), {
 						command,
 						exit: inferred.exit,
 						failure: inferred.failure || `exit ${inferred.exit}`,
@@ -152,7 +154,7 @@ export default function (pi: ExtensionAPI) {
 				} else if (isLikelyValidationCommand(command)) {
 					// Bind observed successful validations to the active ledger as a
 					// non-cryptographic runtime receipt (command hash + exit 0).
-					recordBashValidationReceipt(eventCwd(event), { command });
+					recordBashValidationReceipt(eventCwd(event, ctx), { command });
 				}
 			} catch {
 				// Never break the tool_result pipeline on ledger I/O.

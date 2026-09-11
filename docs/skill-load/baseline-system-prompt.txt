@@ -157,12 +157,16 @@ Repo-specific instructions for this dotfiles repo.
   discovers this shared surface
 - `~/.codex/skills/` receives active-scope vendored skills; no other Codex
   harness state is tracked
+- `~/.config/devin/skills/` receives active-scope vendored skills plus
+  `herdr/skills/herdr`; Devin also reads `~/.agents/skills/` natively, so
+  `agents_visible` entries reach it through the shared surface. No other
+  Devin harness state is tracked
 - `~/.etabli-scope` selects `work` or `personal`; the active set is always
   `shared` plus that declared scope
 - `~/.config/ghostty/config` -> `ghostty/config`
 - `~/.config/herdr/config.toml` -> `herdr/config.toml`
 - `~/.config/herdr/plugins/config/sessionizer/config.toml` -> `herdr/layouts/sessionizer.config.toml` (manual link; see `herdr/docs/multihost.md`)
-- `herdr/skills/herdr` linked into `~/.claude/skills/herdr`, `~/.codex/skills/herdr`, `~/.agents/skills/herdr`, `~/.pi/agent/skills/herdr`
+- `herdr/skills/herdr` linked into `~/.claude/skills/herdr`, `~/.codex/skills/herdr`, `~/.config/devin/skills/herdr`, `~/.agents/skills/herdr`, `~/.pi/agent/skills/herdr`
 - `agent` on PATH is Cursor (`~/.local/bin/agent`); Grok is `grok` only — do not restore `~/.grok/bin/agent`
 - do not create `~/.pi/extensions/`; it causes double-loading
 - do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)

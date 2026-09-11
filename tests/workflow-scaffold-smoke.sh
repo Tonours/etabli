@@ -62,6 +62,15 @@ assert_file "$NEW_PROJECT/docs/project-context.md"
 assert_file "$NEW_PROJECT/workflow/memory.md"
 assert_file "$NEW_PROJECT/workflow/plan-archive.md"
 assert_file "$NEW_PROJECT/workflow/spec.md"
+assert_file "$NEW_PROJECT/workflow/contract-details.md"
+assert_file "$NEW_PROJECT/workflow/agent-quick-card.md"
+assert_file "$NEW_PROJECT/workflow/answer-quality.md"
+assert_file "$NEW_PROJECT/workflow/skill-design.md"
+assert_file "$NEW_PROJECT/workflow/project-autonomy-envelope.md"
+assert_file "$NEW_PROJECT/workflow/git-contract.md"
+assert_file "$NEW_PROJECT/workflow/pr-body-contract.md"
+assert_file "$NEW_PROJECT/workflow/verification-report-template.md"
+assert_file "$NEW_PROJECT/workflow/templates/escaped-defect.md"
 assert_file "$NEW_PROJECT/workflow/review-rubric.md"
 assert_file "$NEW_PROJECT/workflow/ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/linear-ticket-template.md"
@@ -101,6 +110,25 @@ assert_same "$ROOT_DIR/workflow/linear-ticket-template.md" "$NEW_PROJECT/workflo
 assert_same "$ROOT_DIR/PLAN_TEMPLATE.md" "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_same "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
 assert_same "$ROOT_DIR/scripts/plan-cleanup" "$NEW_PROJECT/scripts/plan-cleanup"
+
+# Deployed docs must not dangle: every workflow/** reference resolves in the
+# scaffold unless the target is explicitly etabli-only.
+ETABLI_ONLY_REFS='^workflow/(skills/program-orchestration\.md$|program\.schema\.json$|runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
+deployed_refs="$(grep -rhEo --include='*.md' 'workflow/[A-Za-z0-9._/-]+\.(md|json)' "$NEW_PROJECT" | sort -u)"
+[ -n "$deployed_refs" ] || {
+  printf 'reference scan found no workflow refs; the check is broken\n' >&2
+  exit 1
+}
+while IFS= read -r ref; do
+  [ -n "$ref" ] || continue
+  if printf '%s\n' "$ref" | grep -Eq "$ETABLI_ONLY_REFS"; then
+    continue
+  fi
+  if [ ! -e "$NEW_PROJECT/$ref" ]; then
+    printf 'deployed doc references missing file: %s\n' "$ref" >&2
+    exit 1
+  fi
+done <<<"$deployed_refs"
 
 cat >"$NEW_PROJECT/PLAN.md" <<'PLAN'
 # PLAN.md

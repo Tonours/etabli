@@ -255,7 +255,7 @@ assert_contains "$INSTALL_MAIN" 'Claude skill'
 assert_contains "$INSTALL_MAIN" 'Claude workflow hook'
 assert_contains "$INSTALL_MAIN" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Pi, Codex, and Grok (through the shared ~/.agents surface)'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Pi, Codex, Devin, and Grok (through the shared ~/.agents surface)'
 assert_contains "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'pi-agent-settings-sync.mjs'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
@@ -372,6 +372,8 @@ assert_max_lines "$ROOT_DIR/claude/CLAUDE.md" 90
 assert_max_lines "$ROOT_DIR/pi/AGENTS.md" 120
 assert_file "$ROOT_DIR/workflow/agent-quick-card.md"
 assert_file "$ROOT_DIR/workflow/contract-details.md"
+assert_max_lines "$ROOT_DIR/workflow/spec.md" 220
+assert_max_lines "$ROOT_DIR/workflow/contract-details.md" 340
 assert_max_lines "$ROOT_DIR/workflow/agent-quick-card.md" 120
 assert_contains_wrapped "$ROOT_DIR/workflow/agent-quick-card.md" 'do not write `PLAN.md`, run adversary, or archive'
 assert_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Freeze one documented metric command'
