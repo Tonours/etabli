@@ -10,5 +10,5 @@ pane="$(printf '%s' "$payload" | grep -o '"pane_id"[[:space:]]*:[[:space:]]*"[^"
 [[ -n "$pane" ]] || exit 0
 agent_alive_claude "$pane" || exit 0
 
-with_lock scan_pane "$pane" "" ""
+with_lock scan_all >/dev/null
 exit 0

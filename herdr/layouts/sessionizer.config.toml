@@ -13,7 +13,7 @@ placement = "overlay"
 # Default bootstrap for new project / worktree workspaces:
 # shell (cwd) + agent pane on the right (single reasoner host, not multi-hop).
 [layout]
-focus = "shell"
+focus = "agent"
 
 [tabs.dev]
 label = "dev"
@@ -28,6 +28,6 @@ id = "agent"
 from = "shell"
 title = "agent"
 split = "right"
-ratio = 0.45
-# Prefer claude when present; user can swap command per project via .sessionizer/
-command = "claude"
+ratio = 0.65
+# Etabli uses Pi by default; projects may override via .sessionizer/.
+command = "pi"

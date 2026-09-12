@@ -38,6 +38,7 @@ default_shell = "/bin/zsh"
 shell_mode = "login"
 # New panes/tabs inherit the source pane cwd (agent splits stay in-project).
 new_cwd = "follow"
+kitty_graphics = false
 
 [update]
 channel = "stable"
@@ -227,34 +228,34 @@ accent = "#cba6f7"
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", "agent", "state_text"],
+  ["state_icon", "machine", "agent", "state_text"],
   ["workspace", "tab"],
   ["terminal_title_stripped"],
 ]
 
 [ui.sidebar.agents.rows_by_agent]
 claude = [
-  ["state_icon", "agent", "state_text"],
+  ["state_icon", "machine", "agent", "state_text"],
   ["terminal_title_stripped"],
   ["workspace", "tab"],
 ]
 codex = [
-  ["state_icon", "agent", "state_text"],
+  ["state_icon", "machine", "agent", "state_text"],
   ["terminal_title_stripped"],
   ["workspace", "tab"],
 ]
 grok = [
-  ["state_icon", "agent", "state_text"],
+  ["state_icon", "machine", "agent", "state_text"],
   ["terminal_title_stripped"],
   ["workspace", "tab"],
 ]
 opencode = [
-  ["state_icon", "agent", "state_text"],
+  ["state_icon", "machine", "agent", "state_text"],
   ["terminal_title_stripped"],
   ["workspace", "tab"],
 ]
 pi = [
-  ["state_icon", "agent", "state_text"],
+  ["state_icon", "machine", "agent", "state_text"],
   ["terminal_title_stripped"],
   ["workspace", "tab"],
 ]
@@ -269,7 +270,7 @@ rows = [
 # OS notifications when a background agent finishes / blocks
 [ui.toast]
 delivery = "system"
-delay_seconds = 1
+delay_seconds = 3
 
 [ui.toast.herdr]
 position = "bottom-right"
@@ -298,7 +299,6 @@ manage_ssh_config = true
 
 [experimental]
 allow_nested = false
-kitty_graphics = false
 # Do not persist pane screen contents across restarts (privacy)
 pane_history = false
 # Steady block cursor matches Ghostty cursor-style = block

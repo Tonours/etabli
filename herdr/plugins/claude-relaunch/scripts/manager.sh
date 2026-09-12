@@ -38,6 +38,10 @@ draw() {
       pane="$(entry_field "$line" 2)"
       cd="$(entry_field "$line" 5)"
       note="$(entry_field "$line" 7)"
+      if [[ "$note" == paused:* ]]; then
+        printf '  [%d] paused %s (%s)\n' "$idx" "$pane" "$note"
+        continue
+      fi
       printf '  [%d] %-9s %s %-18s (%s)\n' "$idx" "$(fmt_due "$due")" "$(human_countdown $((due - $(now_epoch))))" "$pane  ${cd##*/}" "$note"
     done <<<"$lines"
   fi
