@@ -1,0 +1,36 @@
+{
+  "held_in": [
+    "C01",
+    "C02",
+    "C03",
+    "C04",
+    "C05",
+    "C06",
+    "C07",
+    "C08"
+  ],
+  "held_out": [
+    "C09",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14"
+  ],
+  "expected": {
+    "C01": "No proven budget from E5; not ranked; payer/cost gap visible.",
+    "C02": "A is missing budget evidence (N/A); B observed spending ranks above a listed price; no invented renewal.",
+    "C03": "Watchlist, never market rejection solely due to inaccessible proof/cap.",
+    "C04": "Eligible and fully scoreable without review/trigger/pricing URL; optional emergence not a gate.",
+    "C05": "May use authorized included lookup_public without inventing per-call price.",
+    "C06": "Usable current official price; observed_at2026-09-11, published_at unknown; never invent publication date.",
+    "C07": "Counter-search before final ranking; material current exact-job contradiction prevents ranking, disclose it and falsifier.",
+    "C08": "Stay French/repair-shops; default discovery at most6 and reserve14+ for finalist verification, no forced outside angles.",
+    "C09": "Do not incur charge without approval; use free authorized fallback if useful.",
+    "C10": "Do not invoke unknown operation; blocked scope/side-effects.",
+    "C11": "One independent owner identity, cannot rank on copied evidence; watchlist gap.",
+    "C12": "Two distinct outputs/plans; ecommerce ranking/cards none and blocked plan plus watchlist; SaaS remains visible.",
+    "C13": "Cash at risk185EUR (20+3*50+3*5), above150; no low-capital shortlist and no spend.",
+    "C14": "Reject on supported disappearance of costly recurring job, stack fit cannot compensate."
+  }
+}
