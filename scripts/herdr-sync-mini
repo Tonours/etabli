@@ -44,6 +44,7 @@ for d in ~/.config/herdr/plugins/github/*/; do
 done
 herdr plugin link \"\$TREE/plugins/etabli-obvault\" >/dev/null 2>&1 || \
   herdr plugin link \"\$TREE/plugins/etabli-obvault\" || true
+herdr plugin link \"\$TREE/plugins/claude-relaunch\"
 herdr config check
 herdr server reload-config 2>/dev/null || true
 herdr --version
