@@ -68,9 +68,7 @@ for p in json.load(sys.stdin)["result"]["plugins"]:
     if p["plugin_id"]==sys.argv[1] and p.get("source",{}).get("kind")=="local":
         print(p["plugin_root"])
 ' "$id")"
-      # Legacy Mini sync registered copied checkouts as local plugins. Unlink
-      # only their registry entry; keep source/config/state and restore on failure.
-      if [[ -n "$previous_root" ]]; then "$HERDR_BIN" plugin unlink "$id"; fi
+      if [[ -n "$previous_root" ]]; then "$HERDR_BIN" plugin unlink "$id" || true; fi
       if ! "$HERDR_BIN" plugin install "$source" --ref "$pin" --yes; then
         if [[ -n "$previous_root" ]]; then "$HERDR_BIN" plugin link "$previous_root" || true; fi
         fail "installation failed for $id; inspect plugin list before retrying"
@@ -91,7 +89,12 @@ import sys
 tree=Path(sys.argv[1])
 home=Path.home()
 links={home/'.config/herdr/config.toml': tree/'config.toml',
-       home/'.config/herdr/plugins/config/sessionizer/config.toml': tree/'layouts/sessionizer.config.toml'}
+       home/'.config/herdr/plugins/config/sessionizer/config.toml': tree/'layouts/sessionizer.config.toml',
+       home/'.claude/skills/herdr': tree/'skills/herdr',
+       home/'.codex/skills/herdr': tree/'skills/herdr',
+       home/'.config/devin/skills/herdr': tree/'skills/herdr',
+       home/'.agents/skills/herdr': tree/'skills/herdr',
+       home/'.pi/agent/skills/herdr': tree/'skills/herdr'}
 for dest, src in links.items():
     if not dest.is_symlink() or dest.resolve() != src.resolve():
         sys.exit(f'{dest}: stale link; rerun setup.sh --links')

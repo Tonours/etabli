@@ -14,11 +14,12 @@ const root = resolveObvaultRoot();
 if (!root) throw new Error("No vault available for the current Etabli scope / OBVAULT_ROOT");
 const cli = join(root, "_meta/obvault");
 const mode = process.argv[2];
-const run = (args) => {
+const run = (args, { optional = false } = {}) => {
   const result = spawnSync(cli, args, {
-    stdio: "inherit",
+    stdio: optional ? "ignore" : "inherit",
     env: { ...process.env, OBVAULT_ROOT: root },
   });
+  if (optional) return;
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
@@ -27,7 +28,7 @@ if (mode === "session") {
   run(["session", "--json", "--max-tokens", "2500", `context for work in ${cwd}`]);
 } else if (mode === "status") {
   run(["status", "--json"]);
-  run(["loop", "--json"]);
+  run(["loop", "--json"], { optional: true });
 } else {
   throw new Error("Expected session or status");
 }
