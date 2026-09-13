@@ -11,6 +11,7 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
+| `mattpocock` | `mattpocock/skills` | `shared` | 14 — engineering pack (see `docs/vendor-skills.md`) |
 | `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — ForestAdmin Ember frontend |
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
 
@@ -36,7 +37,7 @@ Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 
 ```bash
 scripts/sync-vendor-skills                  # every vendor
-scripts/sync-vendor-skills pstack           # one vendor
+scripts/sync-vendor-skills mattpocock       # one vendor
 ```
 
 The script refuses to run while `vendor/` has uncommitted changes, so a

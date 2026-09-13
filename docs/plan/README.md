@@ -28,9 +28,9 @@ Canonical contract: [`workflow/plan-archive.md`](../../workflow/plan-archive.md)
 
 Recent archives mostly cluster around:
 
-- workflow routing, implementation loops, and self-improvement harnesses;
+- workflow routing, implementation loops, and the self-improvement loop;
 - Claude and Pi adapter alignment (Codex harness removed; see ADR-0011);
-- pstack task-skill vendoring (ADR-0020, ADR-0021);
+- pstack task-skill layer via the Pi port (ADR-0020, ADR-0021, ADR-0023);
 - PR maintenance, review, CI, and validation helpers;
 - ADR capture and project-scaffold behavior;
 - local knowledge-base and durable-memory conventions.
