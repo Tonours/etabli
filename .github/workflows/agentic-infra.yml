@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   verify-shell-and-docs:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","Linux","X64","vps-24g","ci-etabli"]' || '["ubuntu-latest"]') }}
 
     steps:
       - name: Checkout
@@ -33,7 +33,7 @@ jobs:
         run: scripts/verify-agentic-infra shell-docs
 
   verify-pi-typescript:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","Linux","X64","vps-24g","ci-etabli"]' || '["ubuntu-latest"]') }}
 
     steps:
       - name: Checkout
@@ -69,7 +69,7 @@ jobs:
         run: scripts/verify-agentic-infra pi
 
   verify-neovim-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","Linux","X64","vps-24g","ci-etabli"]' || '["ubuntu-latest"]') }}
 
     steps:
       - name: Checkout
