@@ -84,12 +84,14 @@ a software incumbent or an emerging event.
   establishes advertised price only, not payment or willingness to pay.
 - Emergence: official change, incident, regulation or repeated recent jobs;
   required only to support an explicit emerging claim, not shortlist eligibility.
-Counter-searching each finalist is required even when these optional source
-routes are absent: look for satisfied users, sufficient free/manual alternatives,
-native features and reasons to stay. Record the outcome even if no matching
-counterexample is found. Missing proof goes to watchlist, not market rejection.
+Counter-searching each finalist stays required even when these optional source
+routes are absent; apply the counter-search pack and disposition rule in
+[queries.md](queries.md).
 
-### Should (theme-matched)
+### Theme routes (optional)
+
+Optional theme-matched starting points for the coverage map; the required-fact
+table above stays the only mandatory coverage model.
 
 | Theme                | Sources                                                                                               |
 | -------------------- | ----------------------------------------------------------------------------------------------------- |

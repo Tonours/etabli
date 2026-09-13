@@ -55,15 +55,20 @@ authorizes a purchase, listing, advertisement, message, or account creation.
    read-only, no external writes, no paid calls without consent, and no
    ecommerce spend. Unless the user sets another cap, use at most 3 query
    batches per relevant family/language, 20 canonical page fetches per mode,
-   and 8 shortlist cards per mode. Within the default 20, use at most 6 for
-   discovery and reserve at least 14 for finalist verification, including
-   counter-searches. Unused discovery fetches transfer to verification. With a
-   different user cap, allocate a majority to verification before starting;
-   report insufficient capacity instead of forcing a shortlist. Search only
-   the requested verticals/languages; otherwise choose relevant themes and
-   FR/EN queries. These are ceilings, not quotas to fill.
+   and 8 shortlist cards per mode. These are ceilings, not quotas to fill.
    The €150 ecommerce cap is a **hypothetical test budget**, not permission to
-   spend.
+   spend. Allocation, transfer and scope rules live in the research budget
+   below.
+
+### Research budget
+
+- Within the default 20 fetches, use at most 6 for discovery and reserve at
+  least 14 for finalist verification, including counter-searches. Unused
+  discovery fetches transfer to verification.
+- With a different user cap, allocate a majority to verification before
+  starting; report insufficient capacity instead of forcing a shortlist.
+- Search only the requested verticals/languages; otherwise choose relevant
+  themes and FR/EN queries.
 
 ## Capability and safety preflight
 
@@ -148,13 +153,13 @@ Do this before any source search.
   seller, affiliate owner, or copied snippet is one identity. Reuse the
   `evidence_id` on the candidate card so the independence decision is auditable.
 - A SaaS shortlist candidate needs at least **three usable citations from two
-  independent owner/author identities**, including direct practitioner evidence.
-  Demonstrate the recurring job/pain, material cost or spending for that same
-  job, an identified payer/decision-maker, an existing alternative/workaround,
-  and the concrete access route. One citation may establish several facts;
-  several independent practitioners may establish all of them. A review site,
-  software incumbent or recent trigger is not required. Current official-page
-  exceptions do not replace dated user evidence.
+  independent owner/author identities**, including direct practitioner evidence,
+  covering every required fact in the
+  [required-fact table](references/sources.md#required-saas-facts-and-usable-source-routes).
+  One citation may establish several facts; several independent practitioners
+  may establish all of them. A review site, software incumbent or recent
+  trigger is not required. Current official-page exceptions do not replace
+  dated user evidence.
 - A listed price establishes an available offer, not actual spending or
   willingness to pay. Separate `reference_price`, `observed_spend`, and
   `proposed_solution_commitment`; identify whose budget each refers to. Quantified
@@ -228,17 +233,12 @@ For `ecommerce-cash`, seek:
 
 For every surviving pain, verify each citation and label what it proves. Spend
 verification capacity on the strongest 1–3 candidates before expanding the list.
-For each finalist, run a counter-search using `references/queries.md`: look for
-an existing solution that already suffices, satisfied users and switching costs.
-Record the query/outcome, `sufficient_alternative`, `switching_obstacle`, and a
+For each finalist, run the counter-search pack in `references/queries.md` and
+record the query/outcome, `sufficient_alternative`, `switching_obstacle`, and a
 concrete `falsifier` that would invalidate the proposed unmet job. Distinguish
-observations from hypotheses. A completed search with no counterexample is
-`zero`, not proof that none exists; do not invent an alternative or obstacle.
-An unperformed counter-search leaves the candidate in `watchlist`. A material
-unresolved contradiction also prevents ranking; uncontested current evidence
-that the costly recurring job is gone or already solved for the target can
-justify rejection. A satisfied user in another segment alone cannot.
-Then define the cheapest reachable validation.
+observations from hypotheses. Apply the disposition rule in
+`references/queries.md` to every counter-search outcome; do not invent an
+alternative or obstacle. Then define the cheapest reachable validation.
 
 ### SaaS access gate
 
@@ -300,9 +300,9 @@ cash outflow, break-even orders, payout delay, cash-at-risk, test, stop rule,
 differentiation, and
 legal/fulfillment risks.
 
-Reject in writing only when evidence establishes a hard incompatibility:
-forbidden cousins, commodity clones, regulated intermediaries, inventory-first
-or paid-ad-dependent bets, or nonviable economics. Missing citations, unknown
+Reject in writing only under the disposition rule in `references/queries.md`
+(a hard incompatibility, or uncontested material negative evidence that the
+job is gone or already solved for this buyer). Missing citations, unknown
 margin/cash timing or inaccessible sources are `watchlist` gaps, not negative
 market evidence. Preserve the cheapest next evidence/validation step, even
 when it requires another run or an authorized human action.
@@ -376,12 +376,11 @@ selection rule is the only aggregation rule.
 
 Count `evidence_count` as unique, opened `evidence_id`s after removing copied
 duplicates; count independent identities separately for the independence gate.
-Do not normalize `evidence_count` into the score. Use `watchlist` for missing or
-inaccessible facts, unresolved contradictions or an exhausted research budget;
-record the missing fact and next query/validation step, or `next_step: unknown`.
-Use `rejected` only for a supported hard incompatibility or uncontested material
-negative evidence about this target/job. Research capacity never establishes
-nonviability. Apply this rule before ranking, so `N/A` never receives a score.
+Do not normalize `evidence_count` into the score. Dispositions
+(`watchlist`/`rejected`) follow the single disposition rule in
+`references/queries.md`; record the missing fact and next query/validation
+step, or `next_step: unknown`. Apply that rule before ranking, so `N/A` never
+receives a score.
 
 SaaS weights: recurring pain 30%, buyer budget 20%, access 20%, wedge 15%,
 founder stack fit 15%.

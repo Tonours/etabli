@@ -74,11 +74,28 @@ site:github.com/{org}/{repo}/security/advisories after:{since}
 site:linkedin.com/jobs {topic} (manual OR drowning OR "new role") after:{since}
 ```
 
-Use these emergence queries when relevant to the brief. A trigger without
-recurring pain is not a SaaS candidate; an established costly job needs no
-recent trigger. For budget evidence, identify the payer and the same job in a
-spending statement or quantified recurring workaround; a pricing page alone
-is not buyer budget.
+Budget and dissatisfaction queries below belong to the default hunt.
+Trigger, changelog and job-posting queries are emergence-optional: run them
+only to support an explicit emerging claim. A trigger without recurring pain
+is not a SaaS candidate; an established costly job needs no recent trigger.
+For budget evidence, identify the payer and the same job in a spending
+statement or quantified recurring workaround; a pricing page alone is not
+buyer budget.
+
+Default hunt:
+
+```text
+"{incumbent}" ("too expensive" OR commission OR "cancelled because") review after:{since}
+site:github.com/{org}/{repo}/issues (backup OR restore OR expensive OR slow OR "doesn't work") after:{since}
+```
+
+Emergence-optional (trigger, changelog, jobs):
+
+```text
+"{incumbent}" ("price increase" OR "raising prices" OR "price cliff" OR "we are updating our") after:{since}
+site:github.com/{org}/{repo}/security/advisories after:{since}
+site:linkedin.com/jobs {topic} (manual OR drowning OR "new role") after:{since}
+```
 
 ## Reviews and official pricing
 
@@ -109,10 +126,20 @@ Check the existing manual/free alternative, a satisfied user or native feature,
 and the friction of switching. Record query, result/status, and what would
 falsify the unmet-job claim. Apply dates to historical claims; a current official
 feature/pricing page describes availability as observed, not its release date.
-Do not invent a counterexample after a zero-result search. An unperformed search
-or unresolved material contradiction leaves the finalist in watchlist. A matching
-current solution for the same buyer/job can justify rejection; a satisfied user
-in a different segment cannot by itself.
+Do not invent a counterexample after a zero-result search.
+
+### Disposition rule
+
+This table is the single owner of candidate disposition after a counter-search.
+Every mode, phase, card and reference applies it; do not restate it elsewhere.
+
+| Evidence state | Disposition |
+| --- | --- |
+| Unperformed counter-search, missing or inaccessible fact, unresolved material contradiction, or exhausted research budget | `watchlist` with the missing fact and next step (`next_step: unknown` allowed); never negative market evidence and never nonviability |
+| Completed search with no counterexample | record `zero`; completed work, not proof that none exists |
+| Satisfied user in another segment alone | not a counterexample; cannot reject |
+| Uncontested material negative evidence: the job is gone or already solved for this target buyer (a matching current solution for the same buyer/job) | `rejected` in writing |
+| Hard incompatibility: forbidden cousins, commodity clones, regulated intermediaries, inventory-first or paid-ad-dependent bets, or nonviable economics | `rejected` in writing |
 
 ## FR TPE / métier
 

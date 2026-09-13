@@ -63,8 +63,9 @@ cap_headroom = hypothetical_test_cap_cap - cash_at_risk_in_cap_currency
 
 Reject an offer when observed economics establish `net_sale_ex_tax_per_order_cap <= 0`
 or `contribution_per_order_cap <= 0`; never divide by a non-positive sale.
-A missing material amount is a watchlist gap until verified, not proof of
-nonviability. Apply the shared per-finalist counter-search before ranking. Treat `VAT_or_sales_tax_amount_cap`, duties,
+A missing material amount is a watchlist gap until verified, never proof of
+nonviability; apply the shared counter-search and disposition rule from
+[queries.md](queries.md) before ranking. Treat `VAT_or_sales_tax_amount_cap`, duties,
 payment/marketplace fee bases, refunds, chargebacks, payout timing, and every
 cash-outflow-before-payout line as material whenever the target country or
 channel makes them applicable. `landed_cost_per_order_cap` is the unique sum of
@@ -88,8 +89,7 @@ multiplied by `planned_orders` in the cash-at-risk calculation. Require
 `cash_at_risk_in_cap_currency <= hypothetical_test_cap_cap` for a low-capital pass;
 if the first three orders need more cash before payout, keep the offer in the
 watchlist for a revised funding/fulfilment test even when its margin is positive;
-reject only when evidence establishes incompatibility with the user's fixed
-constraints. Report the conservative
+rejection then follows the disposition rule in [queries.md](queries.md). Report the conservative
 cash-at-risk amount in cap currency, the line-level local ledger, the number of
 planned orders, and the payout-delay range.
 Fee rates are decimal fractions of the stated base; model tiered/capped fees
