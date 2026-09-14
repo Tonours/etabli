@@ -254,7 +254,7 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "b94cf8501aa0b64470e7409c9ec94f56538d6e6650714f9c8a2c90407210d001"
+      "computedHash": "6fa185608078362e691daa1937199fdf6d551e94717fe0f1ce4b8d26c4ba6baa"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",

@@ -2,15 +2,18 @@
 
 Replace only `{topic}`, `{incumbent}`, `{buyer}`, `{product}`, `{domain}`,
 `{org}`, `{repo}`, and `{since}`.
-Use the current session date to set `{since}`. Run French and English as
-separate searches. Parenthesize every `OR` group; do not weaken a query into
+Use the current session date to set `{since}`. Honor requested languages and
+verticals; otherwise use relevant French and English searches separately. These
+queries are selectable templates, not a checklist to run in full. Parenthesize
+every `OR` group; do not weaken a query into
 `{topic} tools` or a generic trend search.
 
 Append `after:{since}` (or the engine's equivalent) to every time-sensitive
 query below. If the engine has no date operator, post-filter by the displayed
-publication/post date and leave undated results `N/A`; current vendor pricing
-and current regulatory pages are explicit exceptions and must show their
-update date.
+publication/post date and leave undated historical claims `N/A`. For current
+official pricing, fees, feature documentation and regulatory pages, record `observed_at` separately;
+`published_at: unknown` is allowed when the page is undated. A legal effective
+date or deadline still needs explicit primary-source evidence.
 
 ## X keyword search
 
@@ -71,9 +74,28 @@ site:github.com/{org}/{repo}/security/advisories after:{since}
 site:linkedin.com/jobs {topic} (manual OR drowning OR "new role") after:{since}
 ```
 
-Look for a recent trigger: regulation, price/API/platform change, incident,
-repeated job postings, or a new workflow. A trigger without recurring pain is
-not a SaaS candidate.
+Budget and dissatisfaction queries below belong to the default hunt.
+Trigger, changelog and job-posting queries are emergence-optional: run them
+only to support an explicit emerging claim. A trigger without recurring pain
+is not a SaaS candidate; an established costly job needs no recent trigger.
+For budget evidence, identify the payer and the same job in a spending
+statement or quantified recurring workaround; a pricing page alone is not
+buyer budget.
+
+Default hunt:
+
+```text
+"{incumbent}" ("too expensive" OR commission OR "cancelled because") review after:{since}
+site:github.com/{org}/{repo}/issues (backup OR restore OR expensive OR slow OR "doesn't work") after:{since}
+```
+
+Emergence-optional (trigger, changelog, jobs):
+
+```text
+"{incumbent}" ("price increase" OR "raising prices" OR "price cliff" OR "we are updating our") after:{since}
+site:github.com/{org}/{repo}/security/advisories after:{since}
+site:linkedin.com/jobs {topic} (manual OR drowning OR "new role") after:{since}
+```
 
 ## Reviews and official pricing
 
@@ -86,6 +108,38 @@ site:g2.com {incumbent} (dislike OR expensive OR migration) after:{since}
 
 Fetch `{incumbent}/pricing` or `/tarifs` directly. Use the vendor page for the
 printed price; a dated price-increase post is only a supporting trigger.
+
+## Finalist counter-search (required before ranking)
+
+Reserve verification fetches for these searches as well as corroboration.
+Search in the selected language(s) and vertical; substitute the actual job,
+not just its product category. Open the relevant results.
+
+```text
+{topic} {buyer} ("works fine" OR "already included" OR "spreadsheet is enough" OR "not worth switching") after:{since}
+{topic} {buyer} ("suffit" OR "déjà inclus" OR "aucun intérêt" OR "coût de migration") after:{since}
+"{incumbent}" {topic} ("built in" OR "free plan" OR "native feature")
+"{incumbent}" {topic} ("fonction native" OR "offre gratuite" OR "sans supplément")
+```
+
+Check the existing manual/free alternative, a satisfied user or native feature,
+and the friction of switching. Record query, result/status, and what would
+falsify the unmet-job claim. Apply dates to historical claims; a current official
+feature/pricing page describes availability as observed, not its release date.
+Do not invent a counterexample after a zero-result search.
+
+### Disposition rule
+
+This table is the single owner of candidate disposition after a counter-search.
+Every mode, phase, card and reference applies it; do not restate it elsewhere.
+
+| Evidence state | Disposition |
+| --- | --- |
+| Unperformed counter-search, missing or inaccessible fact, unresolved material contradiction, or exhausted research budget | `watchlist` with the missing fact and next step (`next_step: unknown` allowed); never negative market evidence and never nonviability |
+| Completed search with no counterexample | record `zero`; completed work, not proof that none exists |
+| Satisfied user in another segment alone | not a counterexample; cannot reject |
+| Uncontested material negative evidence: the job is gone or already solved for this target buyer (a matching current solution for the same buyer/job) | `rejected` in writing |
+| Hard incompatibility: forbidden cousins, commodity clones, regulated intermediaries, inventory-first or paid-ad-dependent bets, or nonviable economics | `rejected` in writing |
 
 ## FR TPE / métier
 
