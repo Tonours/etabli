@@ -1,29 +1,10 @@
 # Etabli
 
-Personal source of truth for an **agentic development harness** and matching
-dotfiles: **Pi**, **Claude Code**, managed **Codex** skills, the shared **Grok**
-surface, **Cursor** (`agent` on PATH), **Neovim**, **Ghostty**, **tmux**, and
-**Herdr**.
+Etabli is a personal source tree for local agent workflows and terminal
+configuration. The shared contract lives in `workflow/`; Pi and Claude expose
+thin runtime adapters, while the skill catalog feeds the other local surfaces.
 
-Etabli keeps a shared workflow contract explicit (`workflow/`), deploys adapters
-conservatively, and treats validation claims as proportional to evidence.
-
-## What it is (and is not)
-
-- A **workflow contract** agents apply ambiently when a project has
-  `workflow/spec.md` (routes, PLAN.md, guards, loops).
-- **Thin adapters** for Pi (`pi/`) and Claude (`claude/`), plus catalog-driven
-  skill links for Codex and Grok's `~/.agents` discovery surface.
-- **Editor/terminal** configs: Neovim as a code-first minimal IDE (Catppuccin
-  Mocha, aligned with Ghostty/tmux/Herdr), not an agent or review cockpit.
-- **Installers and checks** under `scripts/` and `tests/`.
-
-Not a hosted SaaS, not an in-Neovim agent dashboard (product diff review is an
-optional external CLI such as `hunkdiff`), not a full Codex/Grok/Kimi harness
-tree in-repo (removed; see ADR-0011 — `openai-codex/*` names are **model
-providers**).
-
-## Quick start
+## Install
 
 ```bash
 git clone https://github.com/Tonours/etabli.git
@@ -31,88 +12,75 @@ cd etabli
 ./scripts/install.sh
 ```
 
-The installer uses the existing Node.js runtime, preferring `asdf`; it does not
-install `nvm`. Pi comes from `@earendil-works/pi-coding-agent`. Optional
-terminal diff tooling may install `hunkdiff` (<https://www.hunk.dev/>) for use
-**outside** Neovim (CLI / tmux pane).
+The installer uses the existing Node.js runtime, preferring `asdf` when it is
+available. It does not install Node or `nvm`. Pi comes from
+`@earendil-works/pi-coding-agent`.
 
-## Layout
+Optional terminal diff tooling is `hunkdiff`; use it from the CLI or a tmux
+pane, not from inside Neovim.
 
-| Path | Role |
-|------|------|
-| `workflow/` | Canonical contract (`spec.md`, skills, loops) |
-| `workflow/agent-quick-card.md` | One-page agent entry |
-| `workflow/contract-details.md` | Long rules and command lists |
-| `pi/`, `claude/` | Runtime adapters |
-| `nvim/`, `ghostty/`, `tmux.conf`, `herdr/` | Editor and terminal (Herdr multihost + plugins docs) |
-| `mcp/` | Sanitized MCP template (`docs/mcp-strategy.md`) |
-| `vendor/` | Vendored upstream skills (`vendor/sources.tsv`, scope-gated; pstack migrated to the Pi port — `docs/pstack-strategy.md`; suite map in `docs/vendor-skills.md`) |
-| `skills-lock.json` | Skill-tree integrity lock (`cd pi && bun run verify:skills` / `update:skills-lock`) |
-| `workflow-scaffold/` | Project templates `deploy-workflow` copies into a repo |
-| `scripts/`, `tests/` | Deploy (`deploy-agent-workflow`, `install.sh`), validation, regression |
-| `docs/adr/` | Architecture decisions (`node scripts/validate-adrs .`) |
-| `docs/pstack-strategy.md` | pstack on Pi via the npm port: install state, context toggle, degradations |
-| `docs/plan/` | Archives of completed plans (not active work) |
-| `SECURITY.md` | Public-repo / secrets hygiene |
+## Managed surfaces
 
-## How it works
+| Path | Purpose |
+| --- | --- |
+| `workflow/` | Shared routing, plans, guards, loops, and validation contracts |
+| `pi/` | Pi settings, extensions, agents, skills, and themes |
+| `claude/` | Claude commands, agents, hooks, and scoped skills |
+| `vendor/` | Vendored skill sources and the catalog that controls their scope |
+| `nvim/`, `ghostty/`, `tmux.conf` | Editor and terminal configuration |
+| `herdr/` | Herdr configuration, layouts, plugins, and multihost tooling |
+| `mcp/` | Sanitized MCP inventory template; no live credentials |
+| `scripts/`, `tests/` | Install, deploy, validation, and regression checks |
+| `skills-lock.json` | Integrity lock for the managed skill tree |
+| `docs/adr/` | Architecture decisions; validate with `node scripts/validate-adrs .` |
 
-Etabli is not a tool you invoke. It is a **contract that agents read**, plus
-the symlinks that put it where each runtime looks: one tracked source links
-into `~/.claude/workflow`, `~/.pi/agent/workflow`, and `~/.agents/workflow`.
-One edit here changes every agent's behavior — no per-runtime copy to sync.
+## Workflow
 
-Three mechanisms do the work:
+Projects containing `workflow/spec.md` activate the workflow ambiently.
 
-1. **Ambient activation** — projects containing `workflow/spec.md`
-   **activate the workflow ambiently**; you never write "use the Etabli
-   workflow".
-2. **One plan, one gate** — root `PLAN.md` is the only execution artifact;
-   pre-`READY`, hooks deny every write except the plan itself. Once `READY`,
-   checks strengthen-only.
-3. **Guards that fail closed** — Claude and Pi share one guard decision
-   function; repeated failure trips `no_progress` instead of grinding. One
-   writer at a time is a **protocol, not an OS lock** — sidecar scouts and
-   reviewers stay read-only. Push, deploy, secrets, and production always need
-   explicit authority.
+1. Small requests can be handled directly.
+2. Broad or risky work uses the root `PLAN.md` as its single active plan.
+3. Only a `READY` plan authorizes implementation on that route.
+4. Push, deploy, secrets, and publication still need explicit authority.
 
-Long-running loops have their own contracts — self-improvement
-(`workflow/skills/self-improvement-loop.md`), ambitious project
-(`workflow/skills/ambitious-project-loop.md`), PR maintenance
-(`workflow/skills/pr-maintenance-loop.md`), ship, investigation, programs —
-and so does the knowledge vault.
+Pi and Claude share the same workflow source through managed links. A change in
+this repository is the change every linked runtime reads.
 
-## Using it
+One writer at a time is a protocol, not an OS lock. Long-running routes keep
+their rules in [`workflow/skills/self-improvement-loop.md`](workflow/skills/self-improvement-loop.md),
+[`workflow/skills/ambitious-project-loop.md`](workflow/skills/ambitious-project-loop.md),
+and [`workflow/skills/pr-maintenance-loop.md`](workflow/skills/pr-maintenance-loop.md).
 
-Nothing to run for ordinary work — ask for what you want. Reach for a command
-when you want a specific route and a specific stopping point.
+## Useful commands
 
-| Command | Use it when | Stops at |
-| --- | --- | --- |
-| *(plain prompt)* | Small fix, question, focused change | Answer or minimal diff |
-| `/plan-loop` | Shape and challenge a plan before any code | `READY` or `CHALLENGED` |
-| `/adversary` | Stress-test a plan or a diff, cross-model | Findings folded into `PLAN.md` |
-| `/implement` | Execute an existing `READY` plan | Archived plan, root `PLAN.md` gone |
-| `/plan-implement` | Plan → adversary → implement in one autonomous chain | Same as `/implement` |
-| `/ship` | One task A to Z, including PR and green CI | Merged-ready PR |
-| `/review` | Review the diff, a branch, or a commit | `GO` / `GO WITH NOTES` / `BLOCK` |
-| `/verify-workflow` | Prove a claim or re-run checks, no edits | Verdict with evidence |
-| `/pr-review`, `/pr-qa` | Review a PR, or build its test plan | Findings / test plan |
-| `/sec-pr` | Audit a Dependabot or security PR | `PASS` / `FAIL` / `INVESTIGATE` |
-| `/ci-fix` | Repair failing CI autonomously | CI green, or blocked at cap |
-| `/poteto-mode` | Opt-in pstack task mode (ADR-0021, delivered by the pi-pstack port per ADR-0023); not the ambient router | User exits the mode |
+```bash
+# Preview or apply managed links
+scripts/deploy-agent-workflow --dry-run
+scripts/deploy-agent-workflow --apply
 
-Also shared: `/spec-guide` and the `/linear-*` commands. Scoped surfaces
-depend on `~/.etabli-scope` — run `ls ~/.claude/commands` for what this machine
-actually has. Project `.mcp.json` is empty; live MCP stays in each runtime's
-user-scope store (`docs/mcp-strategy.md`).
+# Check links and run the core repository checks
+scripts/check-fix-symlinks.sh
+scripts/verify-agentic-infra core
 
-## Where to go next
+# Verify the Pi skill tree
+cd pi && bun run verify:skills
+```
 
-1. `workflow/agent-quick-card.md` — agent one-pager
-2. `workflow/spec.md` — full contract (wins on conflict)
-3. `docs/harness-eval.md` — behavioral eval suite
-4. `docs/mcp-strategy.md` — MCP inventory and scope
-5. `docs/pstack-strategy.md` — pstack on Pi via the npm port: install, context toggle, degradations
-6. `nvim/README.md` — code-first editor map
-7. `docs/adr/` — decision log
+The public GitHub repository runs `agentic-infra` on `ubuntu-latest`. Private
+repositories use the configured self-hosted labels instead. Check a live run
+with `gh run list --workflow agentic-infra.yml`.
+
+## Documentation
+
+Start with [`docs/README.md`](docs/README.md). It separates active references
+from decision and evaluation history. The fast path is
+`workflow/agent-quick-card.md`, followed by `workflow/contract-details.md` when
+you need the full command rules.
+
+## Security
+
+Keep credentials, OAuth material, cookies, session state, and live runtime
+configuration outside this repository. Tracked templates use placeholders and
+the project `.mcp.json` intentionally has no servers. See
+[`SECURITY.md`](SECURITY.md) and [`docs/mcp-strategy.md`](docs/mcp-strategy.md)
+for the boundary.
