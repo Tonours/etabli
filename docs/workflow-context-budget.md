@@ -25,15 +25,19 @@ is progressive disclosure — short maps that point to detail documents.
 Ceilings are frozen at the pre-change numbers and ratcheted downward by the
 lead after review; they never rise silently.
 
-| Surface | Before | After | Δ |
-| --- | ---: | ---: | ---: |
-| always-on | 28,423 | 14,472 | −49% |
-| plan-loop | 5,657 | 4,180 | −26% |
-| plan-implement | 80,451 | 52,972 | −34% |
-| implement | 74,632 | 48,728 | −35% |
-| review | 21,800 | 21,800 | 0% |
-| verify | 3,093 | 3,071 | −1% |
-| spec-map | 32,258 | 32,256 | ~0% |
+| Surface | Before | After | Δ | Ceiling |
+| --- | ---: | ---: | ---: | ---: |
+| always-on | 28,423 | 16,150 | −43% | 16,635 |
+| plan-loop | 5,657 | 4,180 | −26% | 4,306 |
+| plan-implement | 80,451 | 52,972 | −34% | 54,581 |
+| implement | 74,632 | 48,728 | −35% | 50,210 |
+| review | 21,800 | 21,800 | 0% | 21,800 |
+| verify | 3,093 | 3,071 | −1% | 3,093 |
+| spec-map | 32,258 | 32,256 | ~0% | 32,258 |
+
+Ceilings are the ratcheted gates in `workflow/runtime/context-budget.json`; the
+always-on After is the post-adversary measurement (16,150 chars) that its
+16,635 ceiling was ratcheted from.
 
 ## What moved where
 
