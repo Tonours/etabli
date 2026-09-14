@@ -498,13 +498,13 @@ writeFileSync(
   JSON.stringify({ schema_version: 1, run: "symlinked" }),
 );
 assertDenyReason(
-  "symlinked active ledger",
+  "symlinked active run pointer",
   mod.planMutationGuardDecision({
     cwd: tmp,
     tool_name: "Write",
     tool_input: { file_path: join(tmp, "src/symlinked.ts"), content: "x" },
   }),
-  "invalid_active_ledger",
+  "invalid_active_run_pointer",
 );
 
 console.log("no-progress-mutate-deny smoke test: ok");
