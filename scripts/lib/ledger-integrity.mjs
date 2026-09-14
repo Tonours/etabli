@@ -24,7 +24,6 @@ export const ACTIVE_RUN_POINTER = "active-run.json";
 const CACHE_LIMIT = 4096;
 const ROOT_CACHE_LIMIT = 256;
 const ledgerCache = new Map(); // ledger path -> { fp, value } (parsed ledger result)
-const pointerCache = new Map(); // pointer path -> { fp, value }
 const scanCache = new Map(); // workflow root -> Map<run name, { fp, path, record }>
 
 /** File fingerprint: identity + size + mtime + ctime (ns, bigint stats). */
@@ -376,10 +375,8 @@ function readPointer(root, absentFromEntries = false) {
     return { state: "absent", path: pointerPath };
   }
   if (stat === undefined) return { state: "absent", path: pointerPath };
-  const key = fingerprint(stat);
-  const cached = cacheLookup(pointerCache, pointerPath, key);
-  if (cached !== undefined) return cached;
-  let result;
+  // No fingerprint cache here: the pointer is tiny (~40B) and a deny/allow
+  // decision must reflect the bytes on disk, not a stat that may lag a write.
   try {
     const parsed = JSON.parse(readFileSync(pointerPath, "utf8"));
     if (
@@ -387,23 +384,20 @@ function readPointer(root, absentFromEntries = false) {
       parsed.schema_version !== 1 ||
       !isValidRunSlug(parsed.run)
     ) {
-      result = {
+      return {
         state: "invalid",
         path: pointerPath,
         reason: "invalid_active_run_pointer",
       };
-    } else {
-      result = { state: "present", path: pointerPath, run: parsed.run };
     }
+    return { state: "present", path: pointerPath, run: parsed.run };
   } catch {
-    result = {
+    return {
       state: "invalid",
       path: pointerPath,
       reason: "invalid_active_run_pointer",
     };
   }
-  cacheStore(pointerCache, pointerPath, key, result);
-  return result;
 }
 
 export function getActiveRunPointer(cwd) {
