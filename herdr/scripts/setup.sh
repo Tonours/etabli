@@ -75,8 +75,8 @@ for p in json.load(sys.stdin)["result"]["plugins"]:
       fi
     fi
   done < "$TREE/plugins.lock.tsv"
-  "$HERDR_BIN" plugin link "$TREE/plugins/etabli-obvault"
-  "$HERDR_BIN" plugin link "$TREE/plugins/claude-relaunch"
+  plugin_matches etabli.obvault "" "$TREE/plugins/etabli-obvault" || "$HERDR_BIN" plugin link "$TREE/plugins/etabli-obvault"
+  plugin_matches etabli.claude-relaunch "" "$TREE/plugins/claude-relaunch" || "$HERDR_BIN" plugin link "$TREE/plugins/claude-relaunch"
   for agent in pi claude codex grok opencode devin; do
     if command -v "$agent" >/dev/null 2>&1; then "$HERDR_BIN" integration install "$agent"; fi
   done

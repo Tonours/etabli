@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Event hook: pane.agent_status_changed. Cheap targeted probe — exits without
-# touching state unless the changed pane hosts a limited claude agent.
+# Event hook: pane.agent_status_changed. Exits early unless the changed pane
+# hosts a live claude agent, then runs a full scan_all to refresh state.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 

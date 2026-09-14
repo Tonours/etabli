@@ -3,11 +3,11 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python3 - "$ROOT_DIR" <<'PY'
-import json, os, pathlib, shutil, subprocess, sys, tempfile
+import json, os, pathlib, shlex, shutil, subprocess, sys, tempfile
 P=pathlib.Path
 repo=P(sys.argv[1])
 with tempfile.TemporaryDirectory(prefix='herdr setup ') as tmp:
-    root=P(tmp); home=root/'home'; home.mkdir(); fake=root/'bin'; fake.mkdir()
+    root=P(tmp).resolve(); home=root/'home'; home.mkdir(); fake=root/'bin'; fake.mkdir()
     tree=root/'bundle with spaces'; shutil.copytree(repo/'herdr', tree)
     (tree/'runtime').mkdir(); shutil.copy2(repo/'workflow/runtime/obvault-topic-resolver.mjs', tree/'runtime')
     env={**os.environ, 'HOME':str(home), 'PATH':str(fake)+':'+os.environ['PATH']}
@@ -20,6 +20,11 @@ with tempfile.TemporaryDirectory(prefix='herdr setup ') as tmp:
         assert (p.returncode==0)==ok, (args,p.returncode,p.stdout,p.stderr)
         return p
     for name in ('pi','fzf','bun'): script(name,'#!/bin/sh\nexit 0\n')
+    # Bypass version-manager shims (asdf exits 126 under the fake HOME):
+    # resolve the real node binary once, with the real environment.
+    real_node = subprocess.run(['node','-p','process.execPath'],capture_output=True,text=True)
+    assert real_node.returncode==0, 'node is required for obvault actions'
+    script('node', '#!/bin/sh\nexec '+shlex.quote(real_node.stdout.strip())+' "$@"\n')
     script('herdr', '''#!/usr/bin/env python3
 import json,os,pathlib,sys
 P=pathlib.Path; home=P.home(); args=sys.argv[1:]; db=home/'plugins.json'
@@ -106,7 +111,7 @@ else: p.write_text(sys.stdin.read())
     lib=tree/'plugins/claude-relaunch/scripts/lib.sh'
     for _ in range(2): run(['bash','-c','source "$1"; install_watcher','_',lib],extra=sched)
     line=(home/'crontab.txt').read_text(); assert line.count('# etabli.claude-relaunch')==1
-    import shlex,plistlib
+    import plistlib
     words=shlex.split(line); assert 'HERDR_CLAUDE_RELAUNCH_STATE_DIR='+str(state) in words and 'HERDR_BIN_PATH='+str(fake/'herdr') in words
     run(['bash','-c','source "$1"; remove_watcher','_',lib],extra=sched)
     assert not (home/'crontab.txt').read_text().strip()

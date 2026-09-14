@@ -16,7 +16,7 @@ const cli = join(root, "_meta/obvault");
 const mode = process.argv[2];
 const run = (args, { optional = false } = {}) => {
   const result = spawnSync(cli, args, {
-    stdio: optional ? "ignore" : "inherit",
+    stdio: "inherit",
     env: { ...process.env, OBVAULT_ROOT: root },
   });
   if (optional) return;

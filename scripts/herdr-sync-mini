@@ -15,7 +15,11 @@ if not (p.startswith('~/') or p.startswith('/')) or '..' in PurePosixPath(p).par
     sys.exit('HERDR_MINI_TREE must be an absolute or ~/ path without traversal/control characters')
 PY
 SSH=(ssh -T -o BatchMode=yes -o ConnectTimeout=10 "$HOST")
-TREE="$("${SSH[@]}" "bash -s -- $(quote "$REMOTE_TREE")" <<'REMOTE'
+# Stage the probe via a temp file: a heredoc inside $() misparses on
+# macOS bash 3.2 when the body contains ')' (early substitution end).
+REMOTE_PROBE="$(mktemp)"
+trap 'rm -f "$REMOTE_PROBE"' EXIT
+cat >"$REMOTE_PROBE" <<'REMOTE'
 set -euo pipefail
 TREE="$1"
 case "$TREE" in '~/'*) TREE="$HOME/${TREE#\~/}" ;; esac
@@ -31,7 +35,7 @@ if [[ -d "$HOME/work" ]]; then WORK_REAL="$(cd "$HOME/work" && pwd -P)"; fi
 case "$TREE" in /|"$HOME_REAL"|"$WORK_REAL") echo 'Refusing broad canonical sync destination' >&2; exit 2 ;; esac
 printf '%s\n' "$TREE"
 REMOTE
-)"
+TREE="$("${SSH[@]}" "bash -s -- $(quote "$REMOTE_TREE")" <"$REMOTE_PROBE")"
 [[ "$TREE" == /* && "$TREE" != *$'\n'* ]] || { echo 'Invalid remote directory response' >&2; exit 1; }
 
 # Keep only managed source in this transfer; compiled plugins stay host-local.
