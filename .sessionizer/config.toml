@@ -2,7 +2,7 @@
 # Applied only when Sessionizer creates a new workspace for this repo/worktree.
 
 [layout]
-focus = "shell"
+focus = "agent"
 
 [tabs.dev]
 label = "dev"
@@ -17,8 +17,8 @@ id = "agent"
 from = "shell"
 title = "agent"
 split = "right"
-ratio = 0.45
-command = "claude"
+ratio = 0.65
+command = "pi"
 
 [tabs.checks]
 label = "checks"

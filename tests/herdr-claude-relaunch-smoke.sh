@@ -59,7 +59,7 @@ case "${1:-} ${2:-}" in
   ;;
 "agent prompt")
   printf '%s\n' "$*" >>"$DIR/prompts.log"
-  exit 0
+  exit "${PROMPT_EXIT:-0}"
   ;;
 "agent wait")
   exit 0
@@ -127,6 +127,7 @@ epoch_at() { # epoch_at <h> <m> <d> <mon0> <y>
 
 reset_case() {
   NOW_OVERRIDE=""
+  unset PROMPT_EXIT
   rm -rf "$FAKE_HERDR_DIR" "$HERDR_CLAUDE_RELAUNCH_STATE_DIR"
   mkdir -p "$FAKE_HERDR_DIR/agents" "$FAKE_HERDR_DIR/detection" "$FAKE_HERDR_DIR/panes" \
     "$HERDR_CLAUDE_RELAUNCH_STATE_DIR"
@@ -218,106 +219,142 @@ set_detection p1 'usage limit reached until 9:30am'
 scan_all >/dev/null
 assert_eq "$(entry_count)" "1" "re-scan with new reset still one entry"
 new_due="$(entry_field "$(read_entries)" 1)"
-assert_eq "$new_due" "$want_930_next" "re-scan replaces due when reset moves"
+assert_eq "$new_due" "$first_due" "scan preserves deadline; firing evaluates a changed banner"
 
-# --- expiry: entries older than 12h dropped ---------------------------------
-reset_case
-state_init
-printf '%s\n' "$((FIXED_NOW + 3600))|oldpane|claude|s|/tmp/old|$((FIXED_NOW - ENTRY_MAX_AGE_S - 30))|stale" >>"$STATE_FILE"
-printf '%s\n' "$((FIXED_NOW + 3600))|newpane|claude|s|/tmp/new|$((FIXED_NOW - 60))|fresh" >>"$STATE_FILE"
+# --- safe automatic continuation --------------------------------------------
+seed_due() {
+  reset_case
+  set_claude_agent p1 sess-1 /tmp/proj
+  set_detection p1 'usage limit reached until 5pm'
+  scan_all >/dev/null
+  NOW_OVERRIDE=$((want_5pm + 60))
+}
+assert_no_input() {
+  [[ ! -f "$FAKE_HERDR_DIR/prompts.log" && ! -f "$FAKE_HERDR_DIR/pane-run.log" ]] || fail "$1"
+  ok "$1"
+}
+assert_paused() {
+  [[ "$(entry_field "$(read_entries)" 7)" == paused:* ]] || fail "$1"
+  ok "$1"
+}
+
+seed_due
+scan_all >/dev/null
+assert_eq "$(entry_field "$(read_entries)" 1)" "$want_5pm" "expired unchanged banner preserves original deadline"
+fire_due
+grep -q 'agent prompt p1' "$FAKE_HERDR_DIR/prompts.log" || fail 'due deadline must prompt original idle session'
+assert_paused 'successful submission pauses further automation'
+fire_due
+scan_all >/dev/null
+assert_eq "$(wc -l < "$FAKE_HERDR_DIR/prompts.log" | tr -d ' ')" 1 'no duplicate continuation from retained banner'
+
+seed_due
+set_claude_agent p1 different-session /tmp/other
+fire_due
+assert_no_input 'reused pane cannot receive original session prompt'
+assert_paused 'missing identity pauses'
+
+for state in blocked working unknown; do
+  seed_due
+  sed "s/idle/$state/" "$FAKE_HERDR_DIR/agent-list.json" > "$TMP/list.json"
+  mv "$TMP/list.json" "$FAKE_HERDR_DIR/agent-list.json"
+  fire_due
+  assert_no_input "$state agent never receives automatic input"
+  assert_paused "$state is surfaced to the user"
+done
+
+seed_due
+printf '%s\n' '{"result":{"agents":[]}}' > "$FAKE_HERDR_DIR/agent-list.json"
+mark_pane_alive p1
+fire_due
+assert_no_input 'empty shell never receives claude --continue'
+assert_paused 'exited agent requires deliberate resume'
+
+seed_due
+set_claude_agent p2 sess-1 /tmp/proj
+set_detection p2 'ready'
+fire_due
+grep -q 'agent prompt p2' "$FAKE_HERDR_DIR/prompts.log" || fail 'same native session should resolve after pane move'
+set_detection p2 'usage limit reached until 5pm'
+scan_all >/dev/null
+assert_eq "$(entry_count)" 1 'pane move does not duplicate native session entry'
+
+seed_due
+export PROMPT_EXIT=1
+fire_due
+assert_paused 'uncertain prompt result is not retried'
+fire_due
+assert_eq "$(wc -l < "$FAKE_HERDR_DIR/prompts.log" | tr -d ' ')" 1 'timeout cannot duplicate a possibly submitted turn'
+
+seed_due
+set_detection p1 'usage limit reached until 7pm'
+fire_due
+assert_eq "$(entry_field "$(read_entries)" 1)" "$(epoch_at 19 0 26 7 2026)" 'new reset banner changes deadline at due time'
+assert_no_input 'new future deadline does not prompt'
+
+seed_due
+printf 'invalid json\n' > "$FAKE_HERDR_DIR/agent-list.json"
+for i in 1 2 3 4; do
+  fire_due
+  NOW_OVERRIDE=$((NOW_OVERRIDE + RETRY_UNREACHABLE_S))
+done
+assert_paused 'unreadable server is capped'
+assert_no_input 'failed server queries never cause shell input'
+set_claude_agent p1 sess-1 /tmp/proj
+scan_all >/dev/null
+assert_paused 'scan cannot rearm a capped entry'
+
+seed_due
+printf '%s\n' "$((NOW_OVERRIDE - 5))|p1|claude||/tmp/proj|$NOW_OVERRIDE|legacy" > "$STATE_FILE"
+fire_due
+assert_paused 'legacy entry without native identity fails closed'
+assert_no_input 'legacy entry cannot resume latest unrelated conversation'
+
+seed_due
+NOW_OVERRIDE=$((FIXED_NOW + ENTRY_MAX_AGE_S + 1))
 expire_entries
-assert_eq "$(entry_count)" "1" "expire drops >12h entries"
-assert_eq "$(entry_field "$(read_entries)" 2)" "newpane" "expire keeps fresh entry"
+assert_paused 'expired entry stays paused rather than being recreated by scans'
 
-# --- fire: live claude → agent prompt ---------------------------------------
-reset_case
-set_claude_agent p1 sess-1 /tmp/proj
-set_detection p1 'ready (limit window reset)'
-mark_pane_alive p1
-printf '%s\n' "$((FIXED_NOW - 5))|p1|claude|sess-1|/tmp/proj|$FIXED_NOW|due" >"$STATE_FILE"
-fire_due
-assert_eq "$(entry_count)" "0" "prompt fire removes entry"
-grep -q 'agent prompt p1' "$FAKE_HERDR_DIR/invocations.log" ||
-  fail "expected agent prompt on live claude pane"
-ok "fire live claude → agent prompt"
-
-# --- fire: agent gone, pane is a shell → claude --continue -------------------
-reset_case
-printf '%s\n' '{"result":{"agents":[]}}' >"$FAKE_HERDR_DIR/agent-list.json"
-set_detection p1 'zsh%'
-mark_pane_alive p1
-printf '%s\n' "$((FIXED_NOW - 5))|p1|claude|sess-1|/tmp/proj|$FIXED_NOW|due" >"$STATE_FILE"
-fire_due
-assert_eq "$(entry_count)" "0" "pane-run fire removes entry"
-grep -q 'pane run p1 claude --continue' "$FAKE_HERDR_DIR/pane-run.log" ||
-  fail "expected pane run claude --continue"
-ok "fire shell pane → claude --continue"
-
-# --- fire: pane gone → drop + notification ----------------------------------
-reset_case
-printf '%s\n' '{"result":{"agents":[]}}' >"$FAKE_HERDR_DIR/agent-list.json"
-printf '%s\n' "$((FIXED_NOW - 5))|gone1|claude|sess-x|/tmp/x|$FIXED_NOW|due" >"$STATE_FILE"
-fire_due
-assert_eq "$(entry_count)" "0" "gone pane drops entry"
-grep -qi 'notification show' "$FAKE_HERDR_DIR/notifications.log" ||
-  fail "expected notification when pane is gone"
-ok "fire pane gone → drop + notification"
-
-# --- fire: still limited, parseable reset → reschedule ----------------------
 reset_case
 set_claude_agent p1 sess-1 /tmp/proj
 set_detection p1 'usage limit reached until 5pm'
-printf '%s\n' "$((FIXED_NOW - 5))|p1|claude|sess-1|/tmp/proj|$FIXED_NOW|due" >"$STATE_FILE"
-fire_due
-assert_eq "$(entry_count)" "1" "still-limited parseable keeps one entry"
-assert_eq "$(entry_field "$(read_entries)" 1)" "$want_5pm" "still-limited due = parsed 5pm"
-assert_eq "$(entry_field "$(read_entries)" 7)" "re-probe" "still-limited note = re-probe"
-if [[ -f "$FAKE_HERDR_DIR/prompts.log" ]]; then
-  fail "still-limited parseable must not agent-prompt"
-fi
-ok "fire still-limited → reschedule parsed time"
-
-# --- fire: still limited, unparseable → +45m --------------------------------
-reset_case
-set_claude_agent p1 sess-1 /tmp/proj
-set_detection p1 'usage limit reached'
-printf '%s\n' "$((FIXED_NOW - 5))|p1|claude|sess-1|/tmp/proj|$FIXED_NOW|due" >"$STATE_FILE"
-fire_due
-assert_eq "$(entry_count)" "1" "still-limited unparseable keeps one entry"
-assert_eq "$(entry_field "$(read_entries)" 1)" "$((FIXED_NOW + DEFAULT_RETRY_S))" \
-  "still-limited unparseable due = now+45m"
-if [[ -f "$FAKE_HERDR_DIR/prompts.log" ]]; then
-  fail "still-limited unparseable must not agent-prompt"
-fi
-ok "fire still-limited → reschedule +45m"
-
-# --- event hook: no write when no limit pattern -----------------------------
-reset_case
-set_claude_agent p1 sess-1 /tmp/proj
-set_detection p1 'idle, nothing limited'
-: >"$STATE_FILE"
-HERDR_PLUGIN_EVENT_JSON='{"event":"pane.agent_status_changed","pane_id":"p1"}' \
-  bash "$ON_EVENT"
-assert_eq "$(entry_count)" "0" "event hook no-match writes no state"
-
-# event hook schedules when the pane is limited
-set_detection p1 'usage limit reached until 5pm'
-HERDR_PLUGIN_EVENT_JSON='{"event":"pane.agent_status_changed","pane_id":"p1"}' \
-  bash "$ON_EVENT"
-# on-event sources lib.sh in a child (real now_epoch). Just assert it wrote
-# exactly one p1 row — due is wall-clock based in the child.
-assert_eq "$(entry_count)" "1" "event hook match upserts one entry"
-assert_eq "$(entry_field "$(read_entries)" 2)" "p1" "event hook keyed by pane"
-
-# --- check.sh reports via the shim ------------------------------------------
-reset_case
-set_claude_agent p1 sess-1 /tmp/proj
-set_detection p1 'usage limit reached until 5pm'
+HERDR_PLUGIN_EVENT_JSON='{"event":"pane.agent_status_changed","pane_id":"p1"}' bash "$ON_EVENT"
+assert_eq "$(entry_field "$(read_entries)" 4)" sess-1 'event hook captures native session identity'
 report="$(bash "$CHECK")"
-printf '%s\n' "$report" | grep -q 'pending relaunch' ||
-  fail "check.sh should print a pending-relaunch report"
-printf '%s\n' "$report" | grep -q 'p1' ||
-  fail "check.sh should mention the limited pane"
-ok "check.sh scan report"
+[[ "$report" == *'pending relaunch'* ]] || fail 'check report missing'
+ok 'check action reports state'
+
+reset_case
+set_claude_agent p1 sess-1 /tmp/proj
+set_detection p1 'usage limit reached until later'
+NOW_OVERRIDE=$FIXED_NOW
+scan_all >/dev/null
+for i in 1 2 3 4; do
+  NOW_OVERRIDE=$((NOW_OVERRIDE + DEFAULT_RETRY_S))
+  fire_due
+done
+assert_paused 'unparseable reset is a bounded re-probe, not permission to send'
+assert_no_input 'unresolved reset never submits a continuation'
+
+seed_due
+printf '{"result":{}}\n' > "$FAKE_HERDR_DIR/agent-list.json"
+if scan_all >/dev/null; then fail 'missing agents array must fail scan'; fi
+ok 'malformed server response fails visibly'
+
+printf '%s\n' '/tmp/original-herdr.sock' > "$SOCKET_FILE"
+if HERDR_SOCKET_PATH=/tmp/other-herdr.sock bash -c 'source "$1"' _ "$LIB" 2>/dev/null; then
+  fail 'conflicting socket binding accepted'
+fi
+ok 'conflicting session socket rejected'
+assert_eq "$(env -u HERDR_SOCKET_PATH bash -c 'source "$1"; printf "%s" "$HERDR_SOCKET_PATH"' _ "$LIB")" /tmp/original-herdr.sock 'background process recovers saved socket'
+rm "$SOCKET_FILE"
+
+seed_due
+(
+  # A filesystem write failure must remain fatal even under fire_due's || guard.
+  write_entries() { return 1; }
+  fire_due
+)
+assert_no_input 'failed state persistence prevents prompt submission'
 
 printf 'herdr-claude-relaunch smoke: ok\n'
