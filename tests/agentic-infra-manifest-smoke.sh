@@ -130,6 +130,7 @@ sync-vendor-subpath-smoke
 claude-skill-load-check-smoke
 pi-skill-load-check-smoke
 herdr-claude-relaunch-smoke
+herdr-setup-smoke
 vendor-surface-policy-smoke
 vendor-prune-modes-smoke
 harness-token-usage-test

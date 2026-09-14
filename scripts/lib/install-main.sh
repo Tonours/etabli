@@ -1338,48 +1338,11 @@ fi
 # SETUP HERDR (agent terminal workspace)
 # ============================================================================
 print_step "Setting up Herdr config..."
-
-HERDR_CONFIG_DIR="$HOME/.config/herdr"
-HERDR_CONFIG_LINK="$HERDR_CONFIG_DIR/config.toml"
-HERDR_CONFIG_TARGET="$REPO_DIR/herdr/config.toml"
-
-if [ -f "$HERDR_CONFIG_TARGET" ]; then
-    mkdir -p "$HERDR_CONFIG_DIR"
-    if [ -f "$HERDR_CONFIG_LINK" ] && [ ! -L "$HERDR_CONFIG_LINK" ]; then
-        backup_file "$HERDR_CONFIG_LINK"
-    fi
-    if ln -sf "$HERDR_CONFIG_TARGET" "$HERDR_CONFIG_LINK"; then
-        print_success "Herdr config linked"
-    else
-        print_warning "Failed to link Herdr config"
-    fi
+if bash "$REPO_DIR/herdr/scripts/setup.sh" --links; then
+    print_success "Herdr config, Sessionizer layout and skills linked"
+    print_warning "Run $REPO_DIR/herdr/scripts/setup.sh --install to install host-local plugins and integrations"
 else
-    print_warning "Herdr config not found in $REPO_DIR/herdr/config.toml"
-fi
-
-HERDR_SKILL_TARGET="$REPO_DIR/herdr/skills/herdr"
-
-if [ -d "$HERDR_SKILL_TARGET" ]; then
-    for herdr_skill_dir in \
-        "$HOME/.claude/skills" \
-        "$HOME/.codex/skills" \
-        "$HOME/.config/devin/skills" \
-        "$HOME/.agents/skills" \
-        "$HOME/.pi/agent/skills"; do
-        herdr_skill_link="$herdr_skill_dir/herdr"
-        mkdir -p "$herdr_skill_dir"
-        if [ -e "$herdr_skill_link" ] && [ ! -L "$herdr_skill_link" ]; then
-            backup_file "$herdr_skill_link"
-            rm -rf "$herdr_skill_link"
-        fi
-        if ln -sfn "$HERDR_SKILL_TARGET" "$herdr_skill_link"; then
-            print_success "Herdr skill linked into ${herdr_skill_dir/#$HOME/~}"
-        else
-            print_warning "Failed to link Herdr skill into ${herdr_skill_dir/#$HOME/~}"
-        fi
-    done
-else
-    print_warning "Herdr skill not found in $REPO_DIR/herdr/skills/herdr"
+    print_warning "Herdr links failed; rerun herdr/scripts/setup.sh --links"
 fi
 
 # ============================================================================
