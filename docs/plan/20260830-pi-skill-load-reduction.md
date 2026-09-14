@@ -148,10 +148,11 @@
   update (checker catches: pstack entries render without the pin → FAIL);
   pi-lens injection grows upstream (B1 alert at 7 175); Cursor re-creates
   mirror links (B2(ii) trips on new names until ruled).
-- Parking lot: upstream posting of `docs/cursor-pi-bun-loader-bug.md`
-  (needs explicit external-write command); personal-scope re-check
-  (`adonisjs-suite` relinks on pi when scope=personal — by design).
+- Parking lot: unpublished Bun/`@cursor/sdk` loader note (removed from
+  `docs/`; git history); personal-scope re-check (`adonisjs-suite`
+  relinks on pi when scope=personal — by design).
 - Superseded docs/specs: v14 plan arithmetic (in git history of `PLAN.md`);
   CLAUDE.md ADR-index extension item retracted with evidence (no index exists).
-- Next links: `docs/skill-load/baseline.json` (frozen pre-change evidence),
-  `docs/pstack-strategy.md`, `docs/adr/0023-…md` § Amendment.
+- Next links: `scripts/pi-skill-load-check`, `docs/pstack-strategy.md`,
+  `docs/adr/0023-…md` § Amendment. Frozen `docs/skill-load/` snapshot
+  removed 2026-09-13 (git history).
