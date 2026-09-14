@@ -94,7 +94,7 @@
     "linear-project-setup": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "312a3f4e7173ae0649ff0b962b9103e41c86d2ab6a061b9b2285cbca84af8b87"
+      "computedHash": "c600d161afb42d970d207e1564c14350b3dafb7d7cabec2a5d2a8b29d6580c39"
     },
     "frontend-css-ui-ux": {
       "source": "local",
@@ -124,67 +124,67 @@
     "ember-employer-architecture": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "392fae24f789d08e79c618e015733c3e3b1b8fab3086e3c90bc10c55908536d7"
+      "computedHash": "38014242f161c7cdca3d6c1e883912d2f98eac382e6313d3b6d699dbf648ebf0"
     },
     "ember-employer-components": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "b3528723a00f0baef385a4af0650726737a8b6a2dc062abdef41e7b3d65d7b50"
+      "computedHash": "68c2a936add53bd229ffab8a93c6704119114721856fada9e6e3b7653da8d3cc"
     },
     "ember-employer-data": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "0380830f16e5021d1e3ef32dcf9a3ce9b85118e9d35bfbc1d6a97bdd69e3cba3"
+      "computedHash": "2f9594a86abd5f4a5f5f216ef9dd73f1878b4c459013ed57d4f4b1ceca2b22db"
     },
     "ember-employer-debug": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ae6add10c15acfad7eb91a824e38c7ae21b865abd49854439e425ed8360564a3"
+      "computedHash": "e9c02fcec0408455f9a07ae79deb23c2fce058d794c221b0c22a5a59af701081"
     },
     "ember-employer-lint-style": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "f8415cbeef71a8cb44f2d49881a1004badc304f866b4836048a7572f481fe033"
+      "computedHash": "612f428b4f6901243740b8b1865607c47a79a05a827b75c0d2a9a2b37951be81"
     },
     "ember-employer-migration": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "277484ec9e549f3bc9203a2a6b674c6399f8e05dcefe1f86a20b0aae61005dc6"
+      "computedHash": "675667250291e9974fc980c49cf39e3f1f58dc5953daf7c5ed566bff21d463b7"
     },
     "ember-employer-react-mfe": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "0bb3a46d4d6f73d7db8b6b3361f4b5131ba809800077dfeb389ee5a20b59f1cf"
+      "computedHash": "cbf1b02f2d90819c3c30c96e7892b854f1da60b74c22cc407a26c46774e08fec"
     },
     "ember-employer-routes": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "41bf18dbf12b60160c21c682e6711421563e83617690e2e8635fa518e84af131"
+      "computedHash": "3c2b6477cbdd7619e971279bb96fdaccd6f2905a09b2f2f306bebb0b23b13340"
     },
     "ember-employer-services-state": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "833b4001e935bc4925f093fe1322a01e4cae2f4190d16f4fa7a577f851279f9b"
+      "computedHash": "1cf19541766e572dc79a0763eb8e65c8d6a7d87388c3f2fedf0a1e5839dc66af"
     },
     "ember-employer-suite": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "13303348d445d67915ca0a54442e4f97578950f5d7b14c3122dadf4d8b8ba71c"
+      "computedHash": "00be420529c165fb89ff818431637cf3861dc32f985b83bcd448ccecd4363bc9"
     },
     "ember-employer-testing": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "e664567cc9bb723b8266a940f659d149f8b607f7a5f964d4b4363df758ae1742"
+      "computedHash": "838f72ece9b58942557d57b34e7b695aca606d3dbd57a971658c2737eacfa47f"
     },
     "ember-employer-workflow-visualizer": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "8bd933055eb227270d7b9d859c8fb00e688d603ca6630661c2c8867bd6037bca"
+      "computedHash": "6dc9a207d432038943e2c34002567214ccae3dd236a1144aa95e801aca644fe8"
     },
     "ember-standalone-workflow-package": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "93816545efe6727b1b84c84ced9005e81d118c267fd0e232f2b0827abe12ba09"
+      "computedHash": "3ee5dee74e3a3b754f8cb7c62bcb219c02859f433569412e04ef2ffa4f2bb56d"
     },
     "adonisjs-architecture": {
       "source": "local",
@@ -254,7 +254,7 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "6fa185608078362e691daa1937199fdf6d551e94717fe0f1ce4b8d26c4ba6baa"
+      "computedHash": "c0c0b36f13c9d6be045860601c780416cd8587e53179a043cf771a169362e1a6"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
@@ -374,12 +374,12 @@
     "claude-scope/shared/spec": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "40bbf3956d9aa2f594b8f4b57dfd90297878f883aa53d55669663addd97e9890"
+      "computedHash": "5c2e0332c69b81923ccc0d66850abb40a4bc691709b97d22116c9b0357df6807"
     },
     "claude-scope/shared/write-direct": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ee89ca0074cd0185a750e5342f60c7c1b865ccb2a0a56eac94c9b8571dcbd9ef"
+      "computedHash": "30e5fee6b9e72f5b425ca49c0a6521ec005a5dc0a773dbbce26f6f545008fb05"
     },
     "claude-scope/work/bug-check": {
       "source": "local",
@@ -389,22 +389,22 @@
     "claude-scope/work/employer-backend-suite": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "9d144fa7b98a0af02c62958f7ce4bedeef52272e44f0fc2d97f4d5fe8b78192d"
+      "computedHash": "1ae8583eed03d2963f5deb0edd0db37c97a20b5ec07b771e96a2651b2ad7ba89"
     },
     "claude-scope/work/employer-mfe-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "585d234807c94a880327835df85d2637d459ba3f3bf496c5570fbc391b539007"
+      "computedHash": "e4d4486f56629c700f08134967214e953ddead46b33996dc87d1c38c21815a7c"
     },
     "claude-scope/work/pr-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "f90161eb766b27ed4e852fef1be4e47a92ffb1273e156b0cafa8293f55c89bef"
+      "computedHash": "bc00f94b8ca8271f2e0a1e0cf6b782c007609501907257a876a23c20a068e77e"
     },
     "claude-scope/work/sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "945100cb8c3f33d31131c1ccad1788beb53d63f73a450e71b87b01acc71fb5b8"
+      "computedHash": "dd2c70e64a4ff652cfd2ed175861fc4b0ae83bddaeab938d5d483f27016ee8ee"
     },
     "claude-scope/work/week-roadmap": {
       "source": "local",
