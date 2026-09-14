@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "surfaces": {
+    "always-on": {
+      "description": "instruction files loaded at every session start (docs they point to stay on-demand); paid on every turn",
+      "files": [
+        "pi/AGENTS.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "claude/CLAUDE.md",
+        "workflow/agent-quick-card.md"
+      ],
+      "ceiling_chars": 16635
+    },
+    "plan-loop": {
+      "description": "default read chain of the plan-loop route",
+      "files": [
+        "pi/skills/plan-loop/SKILL.md",
+        "workflow/skills/plan-loop.md",
+        "PLAN_TEMPLATE.md"
+      ],
+      "ceiling_chars": 4306
+    },
+    "plan-implement": {
+      "description": "default read chain of the plan-implement route (unconditional reads only; events-validator.md stays cold, opened only when editing the event system)",
+      "files": [
+        "pi/skills/plan-implement/SKILL.md",
+        "workflow/skills/implementation-loop.md",
+        "workflow/skills/plan-loop.md",
+        "PLAN_TEMPLATE.md",
+        "workflow/skills/adversary.md",
+        "workflow/skills/review.md",
+        "workflow/review-rubric.md",
+        "workflow/templates/review-lead.md",
+        "workflow/templates/review-logic-hunter.md",
+        "workflow/templates/review-spec-hunter.md",
+        "workflow/templates/plan-archive.md",
+        "workflow/events.md",
+        "workflow/answer-quality.md"
+      ],
+      "ceiling_chars": 54581
+    },
+    "implement": {
+      "description": "default read chain of the implement route (events-validator.md stays cold, opened only when editing the event system)",
+      "files": [
+        "pi/skills/implement/SKILL.md",
+        "workflow/skills/implementation-loop.md",
+        "workflow/skills/adversary.md",
+        "workflow/skills/review.md",
+        "workflow/review-rubric.md",
+        "workflow/templates/review-lead.md",
+        "workflow/templates/review-logic-hunter.md",
+        "workflow/templates/review-spec-hunter.md",
+        "workflow/templates/plan-archive.md",
+        "workflow/events.md",
+        "workflow/answer-quality.md"
+      ],
+      "ceiling_chars": 50210
+    },
+    "review": {
+      "description": "default read chain of the review route",
+      "files": [
+        "pi/skills/review/SKILL.md",
+        "workflow/skills/review.md",
+        "workflow/review-rubric.md",
+        "workflow/templates/review-lead.md",
+        "workflow/templates/review-logic-hunter.md",
+        "workflow/templates/review-spec-hunter.md"
+      ],
+      "ceiling_chars": 21800
+    },
+    "verify": {
+      "description": "default read chain of the verify route",
+      "files": [
+        "pi/skills/verify/SKILL.md",
+        "workflow/skills/verify.md",
+        "workflow/verification-report-template.md"
+      ],
+      "ceiling_chars": 3093
+    },
+    "spec-map": {
+      "description": "on-demand full map and long rules; ceilinged so growth cannot hide here",
+      "files": [
+        "workflow/spec.md",
+        "workflow/contract-details.md"
+      ],
+      "ceiling_chars": 32258
+    }
+  }
+}

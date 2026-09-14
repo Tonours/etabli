@@ -4,14 +4,15 @@ Claude Code adapter. Shared identity, style, cognition, code, review, ticket,
 anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 
 ## Sources
-- Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow:
-  `workflow/spec.md`; review: `workflow/review-rubric.md`; tickets:
+- Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow: `workflow/agent-quick-card.md` first, `workflow/spec.md` (full map,
+  wins on conflict) when the route or a gate is in doubt; review: `workflow/review-rubric.md`; tickets:
   `workflow/ticket-template.md`; plans: `PLAN_TEMPLATE*.md`, root `PLAN.md`.
 - Memory: proactively consult the memory vault (scope-resolved root: work -> ~/work/brain when present, else ~/work/obvault) per
   `workflow/skills/obvault-memory.md`.
 
 ## Claude Workflow
-- Follow `workflow/spec.md`; infer the route yourself. Claude hooks guard
+- Follow the Etabli workflow (quick card, then the route contract); infer the
+  route yourself. Claude hooks guard
   writes only; route classification is library-only (ADR-0014).
 - `/goal` only for measurable long loops with validation evidence and a cap.
 - For routes with a plan, use only root `PLAN.md` and implement only from `Status: READY`.

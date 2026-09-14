@@ -407,7 +407,9 @@ script_types="$(
   ' "$ROOT_DIR/scripts/workflow-event" | sort
 )"
 doc_types="$(
-  awk -F'|' '/^\| `[^`]+` / { gsub(/[`[:space:]]/, "", $2); print $2 }' "$ROOT_DIR/workflow/events.md" | sort
+  cat "$ROOT_DIR/workflow/events.md" "$ROOT_DIR/workflow/events-validator.md" |
+    awk -F'|' '/^\| `[^`]+` / { gsub(/[`[:space:]]/, "", $2); print $2 }' |
+    grep -v '^program_\*$' | sort
 )"
 if ! diff -u <(printf '%s\n' "$script_types") <(printf '%s\n' "$doc_types"); then
   printf 'workflow event type list drifted between docs and script\n' >&2

@@ -5,20 +5,19 @@ description: Plan, review, then implement only a READY PLAN.md.
 
 # Plan Implement
 
-Follow `workflow/spec.md` and the shared contract in
-`workflow/skills/implementation-loop.md`.
+Follow the shared contract in `workflow/skills/implementation-loop.md`. The
+routing map `workflow/spec.md` wins on conflict; open it only when the route or
+a gate is in doubt.
 
 If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Run `workflow/skills/plan-loop.md` when a task is provided, then follow
-`workflow/skills/implementation-loop.md`. Load a domain suite only when the
-brief clearly matches one.
+Run `workflow/skills/plan-loop.md` first when a task is provided. Load a
+domain suite only when the brief clearly matches one.
 
 If the task is self-improvement of Etabli itself, also read
-`workflow/skills/self-improvement-loop.md`. If the task is an ambitious or
-A-to-Z project, also read `workflow/skills/ambitious-project-loop.md`. These
-contracts add evidence and slicing requirements; they do not replace the
-`READY` gate.
+`workflow/skills/self-improvement-loop.md`; if ambitious/A-to-Z,
+`workflow/skills/ambitious-project-loop.md`. Both add evidence and slicing
+requirements; neither replaces the `READY` gate.
 
 Rules:
 - Do not ask for confirmation once the plan is `READY`.

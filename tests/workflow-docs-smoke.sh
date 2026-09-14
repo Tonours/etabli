@@ -479,7 +479,8 @@ assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not merge
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
-assert_contains "$ROOT_DIR/workflow/events.md" 'Protocol v2 adds'
+assert_file "$ROOT_DIR/workflow/events-validator.md"
+assert_contains "$ROOT_DIR/workflow/events-validator.md" 'Protocol v2 adds'
 assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'protocol_version'
 assert_contains "$ROOT_DIR/workflow/linear-ticket-template.md" 'Resolve team/project/labels through Linear MCP'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" 'Each archive is a distilled memory record, not a raw copy of `PLAN.md`.'
@@ -838,19 +839,15 @@ if [ -f "$ROOT_DIR/claude/review-rubric.md" ]; then
     exit 1
 fi
 
-# Anti-drift: the embedded PLAN.md fallback shape lives once in the shared
-# plan-loop contract. Adapters must not re-embed it.
+# Anti-drift: the PLAN.md fallback shape lives once in PLAN_TEMPLATE.md (the
+# embedded copy in workflow/skills/plan-loop.md was collapsed to a named-section
+# pointer on 2026-09-13 for the context-budget trim). Adapters must not re-embed it.
 extract_plan_fallback() {
     awk '/^```md$/{f=1;next} /^```$/{if(f){f=0}} f{print}' "$1"
 }
 
-plan_fallback="$(extract_plan_fallback "$ROOT_DIR/workflow/skills/plan-loop.md")"
-if [ -z "$plan_fallback" ]; then
-    printf 'embedded PLAN.md fallback shape missing from workflow/skills/plan-loop.md\n' >&2
-    exit 1
-fi
-printf '%s\n' "$plan_fallback" | grep -Fq '# PLAN.md' || {
-    printf 'embedded PLAN.md fallback shape in workflow/skills/plan-loop.md is missing # PLAN.md\n' >&2
+grep -Fq '# PLAN.md' "$ROOT_DIR/PLAN_TEMPLATE.md" || {
+    printf 'PLAN_TEMPLATE.md is missing the # PLAN.md fallback shape\n' >&2
     exit 1
 }
 for adapter in \

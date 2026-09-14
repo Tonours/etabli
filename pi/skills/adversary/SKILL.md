@@ -5,8 +5,9 @@ description: Challenge PLAN.md or diffs using the shared risk-tiered review cont
 
 # Adversary
 
-Follow `workflow/spec.md` and the shared contract in
-`workflow/skills/adversary.md`.
+Follow the shared contract in `workflow/skills/adversary.md`. The routing map
+`workflow/spec.md` wins on conflict; open it only when the route or a gate is
+in doubt.
 
 If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 

@@ -2,10 +2,10 @@
 
 ## Knowledge Base
 
-Before answering or planning from durable memory, consult the memory vault
-(scope-resolved root: work ->
-~/work/brain when present, else ~/work/obvault; personal -> ~/work/obvault) through `workflow/skills/obvault-memory.md`; read its `AGENTS.md` entrypoint and
-do not wait for an explicit request to use the knowledge base.
+Before answering or planning from durable memory, consult the memory vault per
+`workflow/skills/obvault-memory.md` (scope-resolved root: work ->
+~/work/brain when present, else ~/work/obvault; personal -> ~/work/obvault);
+read its `AGENTS.md` entrypoint first and do not wait for an explicit request.
 
 <!-- ADR:INDEX:START -->
 ## Architecture Decision Records

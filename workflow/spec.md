@@ -98,6 +98,11 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   demoting the plan to `CHALLENGED` with a Decision Log rationale required to
   weaken. Runtime: shared `planMutationGuardDecision` on PLAN.md writes
   (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`.
+- Context budget: the instruction files each hot route loads are ceilinged in
+  `workflow/runtime/context-budget.json`; `scripts/workflow-context-budget`
+  fails on growth with its remediation and `--ratchet` only lowers ceilings
+  (etabli repo only; loop: `workflow/skills/self-improvement-loop.md` § Token
+  lens).
 - Autonomous loop stop conditions pair the measurable goal with an explicit
   operational cap (iterations or wall-clock). Global model-token totals are
   telemetry, never plan/goal stop conditions. Bounded payload contracts and

@@ -8,8 +8,8 @@ Do not treat this file as a second routing table — the code and the map decide
 
 Pi remains the primary user-facing tool. The deterministic layer is a small set
 of role contracts, templates, skills, extensions, checks, and stop conditions
-composed inside Pi. Keep harness-specific mechanics in thin adapters; keep the
-shared behavior in tracked workflow sources.
+composed inside Pi; harness-specific mechanics live in thin adapters, shared
+behavior in tracked workflow sources.
 
 Use the smallest workflow that can finish with evidence:
 
@@ -33,17 +33,17 @@ Roles are contracts, not mandatory separate agents:
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
-One writer at any instant. The parent writes, or delegates writing to at most one
-`worker` at a time. The worker runs in the foreground or the parent waits without
-writing until it finishes, then takes the pen back between plan steps; never two
-writers in parallel. The deterministic multi-model council (scout / analyst /
-challenger / judge / fallback) was removed in ADR-0013;
-`classifyWorkflowRoute` always attaches parent-only `multiExecution`. Delegating
-to a subagent stays an ordinary tool call, judged case by case, not a routed profile.
-`scout` and `reviewer` combine an
-explicit read-only tool set, `dontAsk`, and a scoped Bash `PreToolUse` allowlist
-guard; this is stronger than prose but still not an OS sandbox. Shared workflow
-and evidence invariants stay in `workflow/skills/orchestration.md`.
+One writer at any instant. The parent writes, or delegates writing to at most
+one `worker` at a time — foreground, or the parent waits without writing until
+it finishes, then takes the pen back between plan steps; never two writers in
+parallel. The deterministic multi-model council (scout / analyst / challenger /
+judge / fallback) was removed in ADR-0013; `classifyWorkflowRoute` always
+attaches parent-only `multiExecution`. Delegating to a subagent stays an
+ordinary tool call, judged case by case, not a routed profile. `scout` and
+`reviewer` combine an explicit read-only tool set, `dontAsk`, and a scoped Bash
+`PreToolUse` allowlist guard; this is stronger than prose but still not an OS
+sandbox. Shared workflow and evidence invariants stay in
+`workflow/skills/orchestration.md`.
 
 ## Rules (detail)
 
@@ -52,7 +52,7 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
   shell before declaring the tool or filesystem unavailable.
 - For broad external research, repo-pattern, or fresh-context review, name the
   chosen slice first and prefer source claims, local contracts, memory, recent
-  diffs, and existing docs before rereading the whole repository.
+  diffs, and existing docs before rereading the repo.
 - When asked whether a source implies repository changes, answer `no change`,
   `change`, or `blocked` against the local contract before editing.
 - Before mutable local-device or server actions, identify the exact target and
@@ -60,8 +60,8 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
 - Keep one execution artifact: `PLAN.md`.
 - Archive implemented plans in `docs/plan/` only after implementation and validation.
 - Do not create `REVIEW.md` or secondary mandatory planning docs.
-- For small safe tasks, use the simple `PLAN_TEMPLATE.md` shape.
-- For broad/risky work, use `PLAN_TEMPLATE_FULL.md`.
+- Use the simple `PLAN_TEMPLATE.md` shape for small safe tasks and
+  `PLAN_TEMPLATE_FULL.md` for broad/risky work.
 - Keep observed facts separate from assumptions in plans.
 - Record exact validation commands and results before claiming completion.
 - Source-backed research artifacts must include source evidence and confidence
@@ -71,8 +71,8 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
   evidence-backed response that satisfies the user's goal, labels uncertainty,
   and avoids unsupported claims.
 - Durable answer, handoff, research, and obvault-backed artifacts can be checked
-  with `scripts/answer-quality-check`; it is a quality floor, not a subjective
-  10/10 scorer.
+  with `scripts/answer-quality-check` — a quality floor, not a subjective 10/10
+  scorer.
 - Answer-quality helper behavior is pinned by
   `scripts/answer-quality-eval` and the versioned fixtures under
   `tests/fixtures/answer-quality/`.
@@ -81,7 +81,6 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
 - Record route, role, stop condition, and required evidence in non-trivial plans.
 - Planning review updates `PLAN.md` in place.
 - Implementation-bound plans run an adversary pass before implementation.
-- Implementation follows plan steps in order.
 - Implementation commands archive the final implemented plan as a distilled memory record, not a raw `PLAN.md` copy.
 - Autonomous plan-loop requests use `plan-implement`: first run the `plan-loop`
   behavior, then continue to implementation only after the actual root
@@ -94,7 +93,6 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
 - If new facts invalidate the plan, update it before continuing.
 - If new facts materially invalidate the implementation route or checks, stop as
   plan drift instead of silently continuing.
-- Review checks correctness, regressions, safety, validation, and plan drift.
 - Prefer focused checks over full-suite ritual.
 - User-facing changes that materially affect product flows use the shared
   product dogfood contract in `workflow/skills/product-dogfood.md`: map flows
@@ -114,12 +112,11 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
   explicitly authorizes that action.
 - Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
-  ledger instead of chat history, and `completed` or `blocked` events are
-  terminal evidence.
+  ledger, and `completed`/`blocked` events are terminal evidence.
 - `workflow-retrospect` is an experimental, on-demand, read-only ledger/archive
-  reader. It supports diagnostics and retrospective hypotheses; it is not
-  part of the core gate. Telemetry does not establish user value until at least
-  10 representative real tasks have task-grader outcomes.
+  reader for diagnostics and retrospective hypotheses; it is not part of the
+  core gate. Telemetry does not establish user value until at least 10
+  representative real tasks have task-grader outcomes.
 - Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
   start from inspectable evidence, classify candidates, implement only through
   reviewed `PLAN.md`, and never auto-apply retrospective output.
@@ -156,7 +153,8 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
   authorize destructive, secret, production, billing, deploy, push, merge,
   or external write actions.
 - Session handoffs in autonomous runs are recorded as a `handoff` event
-  (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose.
+  (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose;
+  a started migration is finished or handed off that way, never left silent.
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose
   duplicated across adapters. Instruction files stay maps, not manuals. The
@@ -174,8 +172,6 @@ and evidence invariants stay in `workflow/skills/orchestration.md`.
 - Reviewers flag only gaps that affect correctness or stated requirements;
   style preferences and speculative robustness are optional notes, never
   blockers.
-- A started migration is finished or explicitly handed off with a `handoff`
-  event; a half-migrated state is never left silent.
 
 ## Human checkpoints (detail)
 
@@ -223,9 +219,7 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
-- Answer quality contract: `workflow/answer-quality.md`
-- Answer quality helper: `scripts/answer-quality-check`
-- Answer quality eval: `scripts/answer-quality-eval`
+- Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval`
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`

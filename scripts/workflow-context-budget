@@ -1,0 +1,187 @@
+#!/usr/bin/env node
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, normalize, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_BUDGET = "workflow/runtime/context-budget.json";
+const RATCHET_HEADROOM = 1.03;
+const CHARS_PER_TOKEN = 4;
+
+function fail(message, code = 2) {
+  process.stderr.write(`workflow-context-budget: ${message}\n`);
+  process.exit(code);
+}
+
+function usage() {
+  fail(
+    "usage: scripts/workflow-context-budget [--root <dir>] [--budget <path>] [--json] [--ratchet]\n" +
+      "  default: measure every surface, exit 1 when a surface is over its ceiling or a file is missing\n" +
+      "  --json: machine-readable report on stdout (same exit codes)\n" +
+      "  --ratchet: lower ceiling_chars to ceil(chars * 1.03) where that is lower; never raises",
+  );
+}
+
+function parseArgs(argv) {
+  const options = { root: DEFAULT_ROOT, budget: DEFAULT_BUDGET, json: false, ratchet: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--json") options.json = true;
+    else if (arg === "--ratchet") options.ratchet = true;
+    else if (arg === "--root" || arg === "--budget") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("--")) usage();
+      options[arg.slice(2)] = value;
+      i += 1;
+    } else if (arg === "-h" || arg === "--help") {
+      process.stdout.write(
+        "usage: scripts/workflow-context-budget [--root <dir>] [--budget <path>] [--json] [--ratchet]\n",
+      );
+      process.exit(0);
+    }
+    else usage();
+  }
+  options.root = resolve(options.root);
+  return options;
+}
+
+function isRepoRelative(path) {
+  if (typeof path !== "string" || path.length === 0 || isAbsolute(path)) return false;
+  const parts = normalize(path).split(sep);
+  return !parts.includes("..");
+}
+
+function loadBudget(budgetPath) {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(budgetPath, "utf8"));
+  } catch (error) {
+    fail(`cannot read budget ${budgetPath}: ${error.message}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) fail("budget must be a JSON object");
+  if (!parsed.surfaces || typeof parsed.surfaces !== "object" || Array.isArray(parsed.surfaces)) {
+    fail('budget must declare a "surfaces" object');
+  }
+  const names = Object.keys(parsed.surfaces);
+  if (names.length === 0) fail("budget declares no surface");
+  for (const name of names) {
+    const surface = parsed.surfaces[name];
+    if (!surface || typeof surface !== "object" || Array.isArray(surface)) fail(`surface "${name}" must be an object`);
+    if (!Array.isArray(surface.files) || surface.files.length === 0) fail(`surface "${name}" must list at least one file`);
+    for (const file of surface.files) {
+      if (!isRepoRelative(file)) fail(`surface "${name}" lists a non repo-relative path: ${String(file)}`);
+    }
+    if (!Number.isInteger(surface.ceiling_chars) || surface.ceiling_chars < 0) {
+      fail(`surface "${name}" needs a non-negative integer ceiling_chars`);
+    }
+    if (surface.description !== undefined && typeof surface.description !== "string") {
+      fail(`surface "${name}" description must be a string`);
+    }
+  }
+  return parsed;
+}
+
+function measureSurface(root, surface) {
+  const files = [];
+  const missing = [];
+  for (const path of surface.files) {
+    const absolute = resolve(root, path);
+    try {
+      if (!statSync(absolute).isFile()) {
+        missing.push(path);
+        continue;
+      }
+      files.push({ path, chars: readFileSync(absolute, "utf8").length });
+    } catch {
+      missing.push(path);
+    }
+  }
+  files.sort((a, b) => b.chars - a.chars || a.path.localeCompare(b.path));
+  const chars = files.reduce((sum, file) => sum + file.chars, 0);
+  const headroom = surface.ceiling_chars - chars;
+  const status = missing.length > 0 ? "missing" : headroom < 0 ? "over" : "ok";
+  return {
+    ...(surface.description === undefined ? {} : { description: surface.description }),
+    files,
+    missing,
+    chars,
+    est_tokens: Math.ceil(chars / CHARS_PER_TOKEN),
+    ceiling_chars: surface.ceiling_chars,
+    headroom,
+    status,
+  };
+}
+
+function ratchet(budget, report, budgetPath) {
+  const changes = [];
+  for (const [name, measured] of Object.entries(report.surfaces)) {
+    if (measured.status === "missing") {
+      fail(`cannot ratchet: surface "${name}" is missing ${measured.missing.join(", ")}`, 1);
+    }
+    if (measured.status === "over") {
+      fail(`cannot ratchet: surface "${name}" is over its ceiling (${measured.chars} > ${measured.ceiling_chars}); finish the trim and re-run the gate first`, 1);
+    }
+    const proposed = Math.ceil(measured.chars * RATCHET_HEADROOM);
+    if (proposed < budget.surfaces[name].ceiling_chars) {
+      changes.push({ name, from: budget.surfaces[name].ceiling_chars, to: proposed });
+      budget.surfaces[name].ceiling_chars = proposed;
+      measured.ceiling_chars = proposed;
+      measured.headroom = proposed - measured.chars;
+      measured.status = "ok";
+    }
+  }
+  if (changes.length > 0) writeFileSync(budgetPath, `${JSON.stringify(budget, null, 2)}\n`);
+  return changes;
+}
+
+function errorsFor(report) {
+  const errors = [];
+  for (const [name, measured] of Object.entries(report.surfaces)) {
+    if (measured.status === "missing") {
+      errors.push(
+        `surface "${name}" is missing ${measured.missing.join(", ")}: restore the file or update the budget file in a reviewed change`,
+      );
+    } else if (measured.status === "over") {
+      errors.push(
+        `surface "${name}" is ${-measured.headroom} chars over its ceiling (${measured.chars} > ${measured.ceiling_chars}): trim the listed files or move detail to a genuinely on-demand doc; after a validated trim run scripts/workflow-context-budget --ratchet`,
+      );
+    }
+  }
+  return errors;
+}
+
+function printText(report, changes) {
+  for (const [name, measured] of Object.entries(report.surfaces)) {
+    const description = measured.description ? `  ${measured.description}` : "";
+    process.stdout.write(
+      `${name}  chars=${measured.chars} est_tokens=${measured.est_tokens} ceiling=${measured.ceiling_chars} headroom=${measured.headroom} status=${measured.status}${description}\n`,
+    );
+    for (const file of measured.files) process.stdout.write(`  ${String(file.chars).padStart(6)}  ${file.path}\n`);
+    for (const path of measured.missing) process.stdout.write(`  missing  ${path}\n`);
+  }
+  if (changes === null) return;
+  for (const change of changes) process.stdout.write(`ratchet: ${change.name} ${change.from} -> ${change.to}\n`);
+  if (changes.length === 0) process.stdout.write("ratchet: no ceiling lowered\n");
+}
+
+const options = parseArgs(process.argv.slice(2));
+const budgetPath = resolve(options.root, options.budget);
+const budget = loadBudget(budgetPath);
+const report = {
+  estimator: `chars/${CHARS_PER_TOKEN}`,
+  surfaces: Object.fromEntries(
+    Object.entries(budget.surfaces).map(([name, surface]) => [name, measureSurface(options.root, surface)]),
+  ),
+};
+const changes = options.ratchet ? ratchet(budget, report, budgetPath) : null;
+const errors = errorsFor(report);
+report.ok = errors.length === 0;
+
+if (options.json) {
+  process.stdout.write(`${JSON.stringify({ ...report, ...(changes === null ? {} : { ratchet: changes }) })}\n`);
+} else {
+  printText(report, changes);
+  if (report.ok) process.stdout.write(`ok: ${Object.keys(report.surfaces).length} surfaces within ceiling\n`);
+}
+for (const error of errors) process.stderr.write(`workflow-context-budget: ${error}\n`);
+process.exit(report.ok ? 0 : 1);

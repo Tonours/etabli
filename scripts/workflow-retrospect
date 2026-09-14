@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
 WORKFLOW_DIR=".workflow"
 PLAN_DIR="docs/plan"
 MIN_COUNT=2
@@ -295,18 +297,80 @@ build_summary() {
     ' "$tmp"
 }
 
+collect_context_budget() {
+  local bin report
+  bin="${WORKFLOW_CONTEXT_BUDGET_BIN:-$SCRIPT_DIR/workflow-context-budget}"
+  if [ -x "$bin" ]; then
+    report="$("$bin" --json 2>/dev/null || true)"
+    if printf '%s' "$report" | jq -e 'type == "object" and (.surfaces | type == "object")' >/dev/null 2>&1; then
+      printf '%s' "$report"
+      return 0
+    fi
+  fi
+  printf '"unavailable"'
+}
+
+collect_run_metrics() {
+  telemetry='{"measured":0,"unmeasured":0}'
+  terminal='{"completed":0,"blocked":0,"in_progress":0}'
+  [ -d "$WORKFLOW_DIR" ] || return 0
+  local files
+  files="$(find "$WORKFLOW_DIR" -mindepth 2 -maxdepth 2 -name events.jsonl -type f -print | sort)"
+  [ -n "$files" ] || return 0
+  telemetry="$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 jq -R 'fromjson? // empty' | jq -s '
+    [.[] | select(type == "object" and .event == "outcome_metric")] as $m
+    | {measured: ([$m[] | select(.detail.measured == true)] | length),
+       unmeasured: ([$m[] | select(.detail.measured != true)] | length)}')"
+  terminal="$(printf '%s\n' "$files" |
+    while IFS= read -r file; do
+      last="$(tail -n 1 "$file" | jq -Rr '(fromjson? | objects | .event) // "unknown"')"
+      printf '%s\n' "${last:-unknown}"
+    done |
+    jq -Rs 'split("\n") | map(select(. != ""))
+      | {completed: ([.[] | select(. == "completed")] | length),
+         blocked: ([.[] | select(. == "blocked")] | length),
+         in_progress: ([.[] | select(. != "completed" and . != "blocked")] | length)}')"
+}
+
+print_context_block() {
+  if [ "$context_budget" = '"unavailable"' ]; then
+    printf 'context budget: unavailable\n'
+  else
+    printf 'context budget:\n'
+    printf '%s\n' "$context_budget" | jq -r '
+      .surfaces | to_entries[]
+      | "\(.key) chars=\(.value.chars) ceiling=\(.value.ceiling_chars) headroom=\(.value.headroom) status=\(.value.status)",
+        (.value.files | sort_by(-.chars) | .[0:2][] | "  \(.path) chars=\(.chars)")
+    '
+  fi
+  printf 'telemetry: measured=%s unmeasured=%s\n' \
+    "$(printf '%s' "$telemetry" | jq -r '.measured')" \
+    "$(printf '%s' "$telemetry" | jq -r '.unmeasured')"
+  printf 'terminal: completed=%s blocked=%s in_progress=%s\n' \
+    "$(printf '%s' "$terminal" | jq -r '.completed')" \
+    "$(printf '%s' "$terminal" | jq -r '.blocked')" \
+    "$(printf '%s' "$terminal" | jq -r '.in_progress')"
+}
+
 scan_events
 scan_plan_archives
 summary="$(build_summary)"
+context_budget="$(collect_context_budget)"
+collect_run_metrics
 
 if [ "$JSON" -eq 1 ]; then
-  printf '%s\n' "$summary"
+  printf '%s\n' "$summary" | jq \
+    --argjson context_budget "$context_budget" \
+    --argjson telemetry "$telemetry" \
+    --argjson terminal "$terminal" \
+    '. + {context_budget: $context_budget, telemetry: $telemetry, terminal: $terminal}'
   exit 0
 fi
 
 confirmed_count="$(printf '%s\n' "$summary" | jq -r '.confirmed_issue_count')"
 if [ "$confirmed_count" -eq 0 ]; then
   printf 'no confirmed recurring workflow issues (min_count=%s)\n' "$MIN_COUNT"
+  print_context_block
   exit 0
 fi
 
@@ -327,3 +391,5 @@ printf '%s\n' "$summary" |
       ]
     | .[]
   '
+
+print_context_block

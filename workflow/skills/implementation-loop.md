@@ -1,17 +1,13 @@
 # Implementation Loop Contract
 
-Shared contract for implementation from `PLAN.md`.
-
-Pi skills and Claude commands are runtime adapters over this file. Keep harness
-details in the adapters; keep the phase order and completion evidence here.
-
-Select the route from `workflow/spec.md` before applying this loop's risk tiers.
-The full sequence governs plan-based implementation. Ordinary no-plan coding
-keeps its existing route, even for a bounded runtime fix; that does not make the
-change **small**. An explicit plan request or multi-slice task uses the plan
-route, and an existing DRAFT/CHALLENGED plan still blocks implementation.
-High-risk contractual work requires the full sequence. Assess that risk from
-the work itself; the route classifier does not detect every high-risk change.
+Shared contract for implementing `PLAN.md`; adapters hold harness details.
+The full sequence governs plan-based implementation and all high-risk
+contractual work — assess risk from the work itself; the route classifier
+does not detect every high-risk change. Ordinary no-plan coding
+keeps its route — a bounded runtime fix does not make it **small**; an
+explicit plan request or multi-slice task uses the plan route, and an existing
+DRAFT/CHALLENGED plan still blocks implementation. Select the route
+(`workflow/spec.md` § Routing rules) before picking the tier.
 
 ## Risk tiers
 
@@ -33,6 +29,27 @@ the tier — never downgrade mid-run.
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
 
+## Standing rules
+
+These hold at every step; `workflow/spec.md` § Rules is canonical and wins on
+conflict.
+
+- No-progress stop: when the same fix hypothesis fails twice, or the same check
+  stays red three times with no new diff between runs, stop as `blocked`, emit a
+  `no_progress` event, and list the eliminated hypotheses.
+- Check-freeze: once the plan is `READY`, its Checks and Acceptance Criteria
+  may only be strengthened or extended; weakening or removing one demotes the
+  plan to `CHALLENGED` with a Decision Log rationale (CLI:
+  `scripts/plan-check-freeze`).
+- Before a mutable local-device or server action, name the exact target, the
+  control path, and the post-check.
+- A new transverse invariant ships with a mechanical check whose failure
+  message names its remediation; the third occurrence of the same review
+  finding becomes a mechanical check; instruction files stay maps, not manuals.
+- In autonomous runs a session handoff is a `handoff` event (branch, sha, done,
+  pending, next action, do-not-redo); a started migration is finished or handed
+  off that way, never left half done.
+
 ## Required Sequence
 
 0. Understand before planning: run a scoped local recon of the affected area
@@ -52,39 +69,32 @@ the tier — never downgrade mid-run.
 8. Implement the still-`READY` plan steps in order with minimal, scoped
    changes. A code behavior change ships with its tests per
    `workflow/spec.md`; a bug fix starts from a failing test that reproduces
-   the issue. By default, writing a step may be delegated to at most one
-   worker at a time when the runtime exposes one, never two in parallel.
-   Invoke that worker in the foreground; if the runtime backgrounds it, wait
-   for the worker to finish and do not write until it returns. A READY plan
-   may opt into `workflow/skills/program-orchestration.md`; then its manifest
-   concurrency, isolated worktree, non-overlapping scope, artifact, and
-   independent-verifier rules replace that single-worker limit. The parent
-   remains the only canonical ledger writer and reads every integrated diff:
-   a worker report locates the work, it does not evidence it.
+   the issue. At most one worker writes at a time: invoke it in the
+   foreground, or wait for the worker and do not write until it returns. A
+   READY plan may opt into `workflow/skills/program-orchestration.md`; then
+   its manifest concurrency/isolation/scope/artifact/verifier rules replace
+   the single-worker limit. The parent remains the only canonical ledger
+   writer and reads every integrated diff: a worker report locates the work,
+   it does not evidence it.
 9. Update `PLAN.md` only for progress or newly discovered facts.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
-11. For material user-facing product-flow changes, or any explicit dogfood
-    request, run the product dogfood contract in
-    `workflow/skills/product-dogfood.md`: map flows, derive the scenario matrix,
-    execute the strongest available observable surface, record blocked external
-    legs honestly, and re-run failed plus adjacent scenarios after each
-    accepted fix. If the plan omitted dogfood evidence for such a change, stop
-    as plan drift and strengthen the checks before continuing.
-    Durable product/UI claims use `scripts/evidence-proof` (etabli repo
-only); pack integrity alone
-    never counts as parent-observed execution.
-12. Run focused checks from the plan after dogfood and after any accepted
-    dogfood fix, so readiness is never based on checks that predate the latest
-    product-flow edit.
+11. For material user-facing product-flow changes or explicit dogfood
+    requests, run `workflow/skills/product-dogfood.md` (flow map, scenario
+    matrix, strongest observable surface, honest blocked legs, re-run after
+    each accepted fix). A plan that omitted that evidence means plan drift:
+    strengthen the checks before continuing. Durable product/UI claims use
+    `scripts/evidence-proof` (etabli repo only); pack integrity alone never
+    counts as parent-observed execution.
+12. Re-run the plan's focused checks after dogfood and each accepted fix —
+    readiness never rests on checks predating the latest product-flow edit.
 12b. Simplification pass once checks are green. Walk **this diff only**.
     Stop at the first rung that holds; delete or rewrite what a higher rung
     already covers. No behavior change.
 
     1. Does this addition need to exist for the READY plan? If not, delete it.
-    2. Already in this repo? Reuse it; do not reimplement a helper a few files
-       over.
+    2. Already in this repo? Reuse it; do not reimplement a nearby helper.
     3. Language builtin or stdlib?
     4. Native platform feature (HTML/CSS/OS/DB constraint)?
     5. Already-installed dependency?
@@ -92,37 +102,33 @@ only); pack integrity alone
     7. Only then: the minimum that works.
 
     Cut from this change: unrequested interfaces/factories/config, comments
-    that restate the code, `any`/defensive try-catch that only hides types,
-    dead branches, duplicate helpers. Readable beats clever. Never drop
-    trust-boundary validation, data-loss handling, security, accessibility, or
-    the tests this contract requires for a behavior change.
+    restating the code, `any`/defensive try-catch hiding types, dead
+    branches, duplicate helpers — readable beats clever. Never drop
+    trust-boundary validation, data-loss handling, security, accessibility,
+    or required tests.
 
     Re-run focused checks if anything was edited. Record `simplify: clean` or
     `simplify: removed N`. Autonomous runs also append
     `simplification_completed` with that evidence.
 12c. Quality pass on the cumulative diff: invoke `code-quality` when the
-    runtime exposes it. Otherwise load the narrowest exposed domain or project
-    skill. If no matching skill is exposed, compare the diff directly with
-    1–3 local sibling implementations. If neither a skill nor a relevant
-    sibling exists, record `quality: unavailable` and stop before completion;
-    never present the missing pass as clean. Fix mechanical convention
-    findings; report behavioral ones. Re-run focused checks if the pass edited
-    anything. Skip only for pure docs or plan-only changes, and say so.
+    runtime exposes it, else the narrowest exposed domain or project skill,
+    else compare the diff with 1–3 local sibling implementations. With
+    neither, record `quality: unavailable` and stop before completion; never
+    present the missing pass as clean. Fix mechanical convention findings;
+    report behavioral ones. Re-run focused checks if the pass edited anything.
+    Skip only for pure docs or plan-only changes, and say so.
 13. Review the **cumulative** implementation diff against `PLAN.md` per
-    `workflow/skills/review.md` and `workflow/review-rubric.md`:
-    scope is `git diff <merge-base-with-base-branch>...HEAD` when the branch has
-    more than one implementation commit; a single-commit branch may review that
-    commit alone. Per-slice reviews do not satisfy this step.
+    `workflow/skills/review.md` and `workflow/review-rubric.md`: scope is
+    `git diff <merge-base-with-base-branch>...HEAD`; a single-commit branch
+    may review that commit alone. Per-slice reviews do not satisfy this step.
     Pin the patch once, then dispatch Logic hunter and Spec hunter in fresh
     context (both mandatory for high-risk; standard may follow the Daily Pi
-    exception in `workflow/skills/review.md`). In an autonomous run, hunters
-    come from a fresh context (subagent reviewer or cross-model) per
-    `workflow/spec.md`. Record `reviewer_model` and whether deciding-code rows
-    were complete. A `GO` with empty runtime deciding-code is invalid — treat
-    as `blocked` / re-review. For **small** tier, a single documented
-    self-review of the cumulative diff replaces this step.
-    Without an eligible runner or authorization when required, stop as
-    `blocked` requesting review.
+    exception in `workflow/skills/review.md`; autonomous runs use fresh
+    context (subagent reviewer or cross-model) per `workflow/spec.md`).
+    Record `reviewer_model` and whether deciding-code rows were complete. A
+    `GO` with empty runtime deciding-code is invalid — treat as `blocked` /
+    re-review. Without an eligible runner or authorization when required,
+    stop as `blocked` requesting review.
 13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
     **high-risk requires cross-model**; **standard accepts a documented
     double-sample same-family pass**; **small skips**. Single same-family pass
@@ -130,15 +136,16 @@ only); pack integrity alone
     Name `adversary_model` (or `same-family-pass` ids).
     **High** findings: accept/reject via cross-model (or second sample), not
     the implementer alone. Fold accepted findings and re-run checks.
-14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`
-    using `workflow/plan-archive.md`; distill it as memory, do not raw-copy
-    `PLAN.md`.
+14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`:
+    fill `workflow/templates/plan-archive.md` (convention, hash gate and
+    multi-repo rules: `workflow/plan-archive.md`); distill it as memory, do
+    not raw-copy `PLAN.md`.
 15. After archive and validation succeed, delete only the current workspace root
     `PLAN.md`.
 16. If archiving is skipped or fails, keep `PLAN.md` and report why.
 17. Return files changed, tier, adversary result, validation, review result
-    (including deciding-code completeness), risks, archive path, deleted
-    `PLAN.md` status, remaining risks, next action if any, and final status.
+    (including deciding-code completeness), archive path, deleted `PLAN.md`
+    status, remaining risks, next action if any, and final status.
 18. Before any separately authorized push, run the complete relevant
     `scripts/verify-agentic-infra` group on the final diff. A red group blocks
     push even when focused checks passed.
@@ -166,20 +173,18 @@ evidence for all of:
 
 - recorded risk tier;
 - adversary plan review (standard/high-risk);
-- adversary code-diff review with named model (or documented double-sample;
-  skipped only for small tier);
+- adversary code-diff review (named model or documented double-sample);
 - focused validation;
 - product dogfood scenario evidence when required by the plan;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);
-- Logic+Spec lead review on the cumulative merge-base...HEAD scope with
+- Logic+Spec lead review on the cumulative merge-base...HEAD scope with a
   complete deciding-code table for runtime diffs (self-review only for small
   tier);
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);
-- implemented-plan archive under `docs/plan/` (when a plan existed;
-  skipped for the small tier, which requires no PLAN.md);
-- root `PLAN.md` cleanup after successful archive and validation (when a
-  plan existed; skipped for the small tier).
+- implemented-plan archive under `docs/plan/` and root `PLAN.md` cleanup
+  after successful archive and validation (when a plan existed; small tier
+  has none).
 
 ## Autonomous evidence
 

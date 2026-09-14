@@ -5,13 +5,12 @@ Shared contract for proving or rejecting a claim without editing.
 Runtime adapters may add tool syntax or the Claude `/verify-workflow` name.
 They must not change the read-only boundary, evidence labels, or verdict set.
 
-Follow `workflow/spec.md` and use `workflow/verification-report-template.md`
-when available.
+Use `workflow/verification-report-template.md` when available. The routing map
+`workflow/spec.md` wins on conflict; open it only when the route is in doubt.
 
 ## Purpose
 
-Prove or reject a verification target from focused evidence. Do not edit
-files, install dependencies, update docs, stage commits, or fix failures.
+Prove or reject a verification target from focused evidence.
 
 ## Required Sequence
 

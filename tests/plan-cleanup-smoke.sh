@@ -62,6 +62,22 @@ EOF
   [ ! -e "$CASE_DIR/PLAN.md" ] || fail "valid cleanup did not remove root PLAN.md"
 }
 
+case_archive_from_template() {
+  write_plan
+  mkdir -p "$CASE_DIR/docs/plan"
+  hash="$(cd "$CASE_DIR" && shasum -a 256 PLAN.md | awk '{print $1}')"
+  sed -e 's/<outcome>/templated archive/' \
+      -e 's/<subject>/template archive case/' \
+      -e "s|<sha256 of the exact root PLAN.md bytes>|$hash|" \
+      "$ROOT_DIR/workflow/templates/plan-archive.md" \
+      >"$CASE_DIR/docs/plan/20260913-tpl.md"
+
+  output="$(cd "$CASE_DIR" && "$CLEANUP" --archive docs/plan/20260913-tpl.md)"
+  printf '%s\n' "$output" | jq -e '.removed == "PLAN.md" and .archive == "docs/plan/20260913-tpl.md"' >/dev/null ||
+    fail "template-filled archive was not accepted"
+  [ ! -e "$CASE_DIR/PLAN.md" ] || fail "template archive did not remove root PLAN.md"
+}
+
 case_archive_rejections() {
   write_plan
   mkdir -p "$CASE_DIR/docs/plan"
@@ -207,6 +223,7 @@ case_extra_arguments() {
 
 LANES=(
   case_archive_valid
+  case_archive_from_template
   case_archive_rejections
   case_discard_valid
   case_discard_bad_reason

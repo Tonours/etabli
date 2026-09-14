@@ -39,6 +39,8 @@ cat >"$EVENT_DIR/bad-run-a/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T10:01:00Z","event":"adversary_completed","run":"bad-run-a","detail":{"verdict":"BLOCK","accepted_findings":["runtime capability overclaim: claimed subagents were available without checking runtime","missing archive cleanup before completion"],"rejected_findings":[]}}
 {"ts":"2026-07-06T10:02:00Z","event":"validation_failed","run":"bad-run-a","detail":{"command":"bash tests/workflow-docs-smoke.sh","exit":1,"failure":"plan drift: archived plan omitted validation evidence"}}
 {"ts":"2026-07-06T10:03:00Z","event":"validation_failed","run":"bad-run-a","detail":{"command":"bash tests/workflow-docs-smoke.sh","exit":1,"failure":"smoke pin missing remediation message"}}
+{"ts":"2026-07-06T10:04:00Z","event":"outcome_metric","run":"bad-run-a","detail":{"outcome":"blocked","success":false,"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"tool_calls":1,"elapsed_ms":100}}
+{"ts":"2026-07-06T10:05:00Z","event":"blocked","run":"bad-run-a","detail":{"reason":"smoke fixture terminal","needed_input":"none"}}
 JSONL
 
 cat >"$EVENT_DIR/bad-run-b/events.jsonl" <<'JSONL'
@@ -58,10 +60,14 @@ JSONL
 
 cat >"$EVENT_DIR/good-run-a/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T13:00:00Z","event":"route_decided","run":"good-run-a","detail":{"route":"plan-implement","reason":"normal implementation request"}}
+{"ts":"2026-07-06T13:01:00Z","event":"outcome_metric","run":"good-run-a","detail":{"outcome":"success","success":true,"measured":true,"input_tokens":20,"output_tokens":8,"total_tokens":28,"tool_calls":2,"elapsed_ms":200}}
+{"ts":"2026-07-06T13:02:00Z","event":"completed","run":"good-run-a","detail":{"summary":"done"}}
 JSONL
 
 cat >"$EVENT_DIR/good-run-b/events.jsonl" <<'JSONL'
 {"ts":"2026-07-06T14:00:00Z","event":"route_decided","run":"good-run-b","detail":{"route":"plan-implement","reason":"normal implementation request"}}
+{"ts":"2026-07-06T14:01:00Z","event":"outcome_metric","run":"good-run-b","detail":{"outcome":"success","success":true,"measured":false,"reason":"fixture: no usage source"}}
+{"ts":"2026-07-06T14:02:00Z","event":"completed","run":"good-run-b","detail":{"summary":"done"}}
 JSONL
 
 cat >"$EVENT_DIR/repeated-initiative/events.jsonl" <<'JSONL'
@@ -114,6 +120,25 @@ assert_contains "$text_output" "router_fixture"
 assert_contains "$text_output" "contract_patch"
 assert_contains "$text_output" "mechanical_check"
 assert_contains "$text_output" "recommendation"
+
+printf '%s\n' "$json_output" | jq -e '.context_budget and .telemetry and .terminal' >/dev/null ||
+  { printf 'json output missing context_budget/telemetry/terminal\n' >&2; exit 1; }
+printf '%s\n' "$json_output" | jq -e '.context_budget | type == "object" and (.surfaces | length >= 1)' >/dev/null ||
+  { printf 'context_budget is not the gate report\n' >&2; exit 1; }
+# Fixture ledgers: 2 measured + 1 unmeasured outcome_metric; 2 completed, 1 blocked, 4 in-progress.
+printf '%s\n' "$json_output" | jq -e '.telemetry.measured == 2 and .telemetry.unmeasured == 1' >/dev/null ||
+  { printf 'telemetry counts do not match fixture ledgers\n%s\n' "$json_output" >&2; exit 1; }
+printf '%s\n' "$json_output" | jq -e '.terminal.completed == 2 and .terminal.blocked == 1 and .terminal.in_progress == 4' >/dev/null ||
+  { printf 'terminal counts do not match fixture ledgers\n%s\n' "$json_output" >&2; exit 1; }
+assert_contains "$text_output" "context budget:"
+assert_contains "$text_output" "telemetry: measured=2 unmeasured=1"
+assert_contains "$text_output" "terminal: completed=2 blocked=1 in_progress=4"
+
+unavail_json="$(WORKFLOW_CONTEXT_BUDGET_BIN=/nonexistent "$ROOT_DIR/scripts/workflow-retrospect" --dir "$EVENT_DIR" --plans "$PLAN_DIR" --min-count 2 --json)"
+unavail_text="$(WORKFLOW_CONTEXT_BUDGET_BIN=/nonexistent "$ROOT_DIR/scripts/workflow-retrospect" --dir "$EVENT_DIR" --plans "$PLAN_DIR" --min-count 2)"
+printf '%s\n' "$unavail_json" | jq -e '.context_budget == "unavailable"' >/dev/null ||
+  { printf 'missing budget binary must report context_budget unavailable\n%s\n' "$unavail_json" >&2; exit 1; }
+assert_contains "$unavail_text" "context budget: unavailable"
 
 empty_output="$("$ROOT_DIR/scripts/workflow-retrospect" --dir "$TMP_DIR/no-workflows" --plans "$TMP_DIR/no-plans")"
 case "$empty_output" in

@@ -8,7 +8,8 @@ allowed-tools: [Read, Edit, Glob, Bash]
 # /adversary — plan and code-diff review
 
 Follow the shared contract in `workflow/skills/adversary.md` (plan mode and
-code-diff mode).
+code-diff mode). The routing map `workflow/spec.md` wins on conflict; open it
+only when the route or a gate is in doubt.
 
 For plan mode and cross-model code-diff passes, prefer a **different model family**
 than Claude, served by Pi. Prefer the pinned model `openai-codex/gpt-5.5`
