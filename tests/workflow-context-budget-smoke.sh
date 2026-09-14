@@ -50,12 +50,13 @@ case "$out" in
 *) fail "green fixture did not print ok:" ;;
 esac
 
-# (b) over ceiling: exit 1, stderr names the surface, the breach, and --ratchet
+# (b) over ceiling: exit 1, stderr names the surface, the breach, the
+# reviewed-growth path, and --ratchet
 write_budget 50 200
 if err="$("$GATE" --root "$FIXTURE" --budget budget.json 2>&1 >/dev/null)"; then
   fail "over-ceiling fixture did not exit non-zero"
 fi
-for needle in 'alpha' 'over its ceiling' '--ratchet'; do
+for needle in 'alpha' 'over its ceiling' 'reviewed budget diff' 'ceiling_chars' 'Decision Log' '--ratchet'; do
   case "$err" in
   *"$needle"*) ;;
   *) fail "over-ceiling stderr missing '$needle'" ;;
@@ -93,11 +94,17 @@ jq -e '.surfaces.beta.ceiling_chars == 7' "$FIXTURE/budget.json" >/dev/null ||
   fail "--ratchet moved a ceiling already at its ratchet floor"
 
 # (e) --ratchet never raises: a ceiling below current chars stays unchanged and
-# the check still fails
+# the check still fails with the reviewed-growth remediation
 write_budget 50 200
-if "$GATE" --root "$FIXTURE" --budget budget.json --ratchet >/dev/null 2>&1; then
+if ratchet_err="$("$GATE" --root "$FIXTURE" --budget budget.json --ratchet 2>&1 >/dev/null)"; then
   fail "--ratchet on an over-ceiling fixture did not exit non-zero"
 fi
+for needle in 'reviewed budget diff' 'ceiling_chars' 'Decision Log' 'otherwise finish the trim'; do
+  case "$ratchet_err" in
+  *"$needle"*) ;;
+  *) fail "over-ceiling --ratchet stderr missing '$needle'" ;;
+  esac
+done
 jq -e '.surfaces.alpha.ceiling_chars == 50' "$FIXTURE/budget.json" >/dev/null ||
   fail "--ratchet raised a ceiling below the measured chars"
 jq -e '.surfaces.beta.ceiling_chars == 200' "$FIXTURE/budget.json" >/dev/null ||

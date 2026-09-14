@@ -7,6 +7,8 @@ const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_BUDGET = "workflow/runtime/context-budget.json";
 const RATCHET_HEADROOM = 1.03;
 const CHARS_PER_TOKEN = 4;
+const REVIEWED_GROWTH_REMEDIATION =
+  "for intentional growth, raise ceiling_chars in a reviewed budget diff with a Decision Log rationale";
 
 function fail(message, code = 2) {
   process.stderr.write(`workflow-context-budget: ${message}\n`);
@@ -119,7 +121,10 @@ function ratchet(budget, report, budgetPath) {
       fail(`cannot ratchet: surface "${name}" is missing ${measured.missing.join(", ")}`, 1);
     }
     if (measured.status === "over") {
-      fail(`cannot ratchet: surface "${name}" is over its ceiling (${measured.chars} > ${measured.ceiling_chars}); finish the trim and re-run the gate first`, 1);
+      fail(
+        `cannot ratchet: surface "${name}" is over its ceiling (${measured.chars} > ${measured.ceiling_chars}); ${REVIEWED_GROWTH_REMEDIATION}; otherwise finish the trim and re-run the gate first`,
+        1,
+      );
     }
     const proposed = Math.ceil(measured.chars * RATCHET_HEADROOM);
     if (proposed < budget.surfaces[name].ceiling_chars) {
@@ -143,7 +148,7 @@ function errorsFor(report) {
       );
     } else if (measured.status === "over") {
       errors.push(
-        `surface "${name}" is ${-measured.headroom} chars over its ceiling (${measured.chars} > ${measured.ceiling_chars}): trim the listed files or move detail to a genuinely on-demand doc; after a validated trim run scripts/workflow-context-budget --ratchet`,
+        `surface "${name}" is ${-measured.headroom} chars over its ceiling (${measured.chars} > ${measured.ceiling_chars}): trim the listed files or move detail to a genuinely on-demand doc; ${REVIEWED_GROWTH_REMEDIATION}; after a validated trim run scripts/workflow-context-budget --ratchet`,
       );
     }
   }

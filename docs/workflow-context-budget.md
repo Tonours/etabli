@@ -58,6 +58,9 @@ cycle. Commands:
 - `scripts/workflow-context-budget --json` — per-surface chars, files, headroom.
 - `scripts/workflow-context-budget --ratchet` — lower ceilings to
   `ceil(chars * 1.03)` after a validated trim; never raises.
+- If a route genuinely needs more resident context, raise its
+  `ceiling_chars` in the same reviewed budget diff and record the rationale in
+  the Decision Log; the CI failure is intentional until that review is present.
 - `scripts/workflow-retrospect` — text/JSON report now carries `context_budget`,
   `telemetry`, and `terminal` sections.
 
