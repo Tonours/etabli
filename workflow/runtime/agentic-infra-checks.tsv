@@ -59,6 +59,8 @@ full	shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.
 full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
 full	shell-docs	workflow-outcome-metric-smoke	tests/workflow-outcome-metric-smoke.sh
 full	shell-docs	claude-outcome-metric-emit-smoke	tests/claude-outcome-metric-emit-smoke.sh
+full	shell-docs	claude-token-budget-smoke	tests/claude-token-budget-smoke.sh
+full	shell-docs	claude-profile-smoke	tests/claude-profile-smoke.sh
 full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh
 full	shell-docs	conversation-retrospect-smoke	tests/conversation-retrospect-smoke.sh
 full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-pattern-smoke.sh
