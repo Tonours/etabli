@@ -396,7 +396,7 @@ check_claude_hook_links() {
     return
   fi
 
-  for hook_file in "$REPO_DIR/claude/hooks"/*.mjs; do
+  for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
     if [ -f "$hook_file" ]; then
       hook_name="$(basename "$hook_file")"
       check_link "$HOME/.claude/hooks/$hook_name" "$hook_file" "claude workflow hook $hook_name"
@@ -496,6 +496,7 @@ check_link "$HOME/.claude/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.m
 check_link "$HOME/.claude/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md" "claude review rubric"
 check_claude_command_links
 check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
+check_link "$HOME/.claude/statusline-command.sh" "$REPO_DIR/claude/statusline-command.sh" "claude statusline command"
 check_claude_hook_links
 check_stale_managed_claude_agent_links
 check_claude_agent_links
