@@ -210,10 +210,10 @@ date: 2026-06-26
 ---
 
 # Three"
-cat > "$repo/CLAUDE.md" <<'EOF'
-<!-- ADR:INDEX:START -->
-- [0001](docs/adr/0001-one.md) — One [accepted]
-<!-- ADR:INDEX:END -->
+cat > "$repo/docs/adr/README.md" <<'EOF'
+# Architecture Decision Records
+
+- [0001](0001-one.md) — One [accepted]
 EOF
 assert_preexisting_failure_matches_validator "stale-index" "$repo" "missing 0003-three.md"
 

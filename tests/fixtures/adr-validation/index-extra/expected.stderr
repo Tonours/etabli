@@ -1,1 +1,1 @@
-ADR validation error: CLAUDE.md ADR index lists 0002-ghost.md, which is not in docs/adr/. Fix: Remove the extra index entry or add the missing ADR file.
+ADR validation error: docs/adr/README.md lists 0002-ghost.md, which is not in docs/adr/. Fix: Remove the extra index entry or add the missing ADR file.

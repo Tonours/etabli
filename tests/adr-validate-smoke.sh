@@ -161,10 +161,10 @@ date: 2026-06-26
 ---
 
 # Three"
-cat > "$repo/CLAUDE.md" <<'EOF'
-<!-- ADR:INDEX:START -->
-- [0001](docs/adr/0001-one.md) — One [accepted]
-<!-- ADR:INDEX:END -->
+cat > "$repo/docs/adr/README.md" <<'EOF'
+# Architecture Decision Records
+
+- [0001](0001-one.md) — One [accepted]
 EOF
 if node "$VALIDATOR" "$repo" >"$TMP_DIR/index-missing.out" 2>&1; then
   fail "index missing an on-disk ADR should fail validation"
@@ -179,11 +179,11 @@ date: 2026-06-26
 ---
 
 # One"
-cat > "$repo/CLAUDE.md" <<'EOF'
-<!-- ADR:INDEX:START -->
-- [0001](docs/adr/0001-one.md) — One [accepted]
-- [0002](docs/adr/0002-ghost.md) — Ghost [accepted]
-<!-- ADR:INDEX:END -->
+cat > "$repo/docs/adr/README.md" <<'EOF'
+# Architecture Decision Records
+
+- [0001](0001-one.md) — One [accepted]
+- [0002](0002-ghost.md) — Ghost [accepted]
 EOF
 if node "$VALIDATOR" "$repo" >"$TMP_DIR/index-extra.out" 2>&1; then
   fail "index listing a missing ADR file should fail validation"
@@ -204,11 +204,11 @@ date: 2026-06-26
 ---
 
 # Three"
-cat > "$repo/CLAUDE.md" <<'EOF'
-<!-- ADR:INDEX:START -->
-- [0001](docs/adr/0001-one.md) — One [accepted]
-- [0003](docs/adr/0003-three.md) — Three [accepted]
-<!-- ADR:INDEX:END -->
+cat > "$repo/docs/adr/README.md" <<'EOF'
+# Architecture Decision Records
+
+- [0001](0001-one.md) — One [accepted]
+- [0003](0003-three.md) — Three [accepted]
 EOF
 out="$(node "$VALIDATOR" "$repo")"
 assert_contains "$out" "next ADR-0004"

@@ -1,3 +1,5 @@
 <!-- ADR:INDEX:START -->
-- [0001](docs/adr/0001-one.md) — One [accepted]
+## Architecture Decision Records
+
+Decisions live in `docs/adr/`, indexed in `docs/adr/README.md`. Run `/adr` to record one.
 <!-- ADR:INDEX:END -->

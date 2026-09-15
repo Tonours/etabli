@@ -334,7 +334,7 @@
     "claude-scope/shared/adr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a9e94d13c8631f9ccc2515d4a8f2b459839cd61dac26f40d07acde52de862318"
+      "computedHash": "d6d5c921b157f2de45c7418d5299f822739cd1460da6887aae378259b4069faa"
     },
     "claude-scope/shared/css-debugging": {
       "source": "local",
