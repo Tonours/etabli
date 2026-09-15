@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Lean Claude entry: minimal plugins/skills surface + sanitized MCP, per-process only.
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+  [[ "$SCRIPT_PATH" = /* ]] || SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+
+STRICT_MCP=1
+PRINT_ONLY=0
+USER_ARGS=()
+
+usage() {
+  cat <<EOF
+Usage: claude-lean [--print-args] [--no-strict-mcp] [claude args...]
+
+Launches the real claude binary with the lean profile: non-essential plugins
+off, governed skillOverrides, skillListingBudgetFraction, lean effort default,
+plus a sanitized MCP config (lean-ctx always; brain only for the work scope
+when ~/work/brain exists) rendered to a 0600 temp file deleted on exit.
+Nothing under \$HOME/.claude is mutated.
+
+  --print-args     print the resolved arguments and exit (no launch, no cost)
+  --no-strict-mcp  append the lean MCP config without replacing account
+                   connectors (fallback if the strict-mode probe fails)
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --print-args) PRINT_ONLY=1; shift ;;
+    --no-strict-mcp) STRICT_MCP=0; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) USER_ARGS+=("$1"); shift ;;
+  esac
+done
+
+export LEAN_REPO_DIR="$REPO_DIR"
+export LEAN_STRICT_MCP="$STRICT_MCP"
+LAUNCH_OUTPUT="$(node --input-type=module <<'NODE'
+import { pathToFileURL } from "node:url";
+
+const lib = await import(
+  pathToFileURL(`${process.env.LEAN_REPO_DIR}/scripts/lib/claude-profile.mjs`).href
+);
+const launch = lib.buildLeanLaunch({
+  repoRoot: process.env.LEAN_REPO_DIR,
+  home: process.env.HOME,
+  strictMcp: process.env.LEAN_STRICT_MCP === "1",
+});
+const lines = [
+  launch.args.join("\t"),
+  `LEAN_MCP_PATH=${launch.mcpPath}`,
+  `LEAN_SCOPE=${launch.scope}`,
+  `LEAN_SKIPPED_SERVERS=${launch.skippedServers.join(",")}`,
+];
+process.stdout.write(`${lines.join("\n")}\n`);
+NODE
+)"
+
+MCP_PATH="$(printf '%s\n' "$LAUNCH_OUTPUT" | sed -n 's/^LEAN_MCP_PATH=//p')"
+LEAN_SCOPE="$(printf '%s\n' "$LAUNCH_OUTPUT" | sed -n 's/^LEAN_SCOPE=//p')"
+SKIPPED="$(printf '%s\n' "$LAUNCH_OUTPUT" | sed -n 's/^LEAN_SKIPPED_SERVERS=//p')"
+
+ARGS_FROM_LIB=()
+while IFS= read -r lib_arg; do
+  [ -n "$lib_arg" ] && ARGS_FROM_LIB+=("$lib_arg")
+done < <(printf '%s\n' "$LAUNCH_OUTPUT" | head -1 | tr '\t' '\n')
+if [ "${#ARGS_FROM_LIB[@]}" -eq 0 ]; then
+  printf 'claude-lean: failed to resolve launch arguments from the profile lib\n' >&2
+  exit 1
+fi
+
+cleanup() {
+  [ -n "${MCP_PATH:-}" ] && rm -f "$MCP_PATH"
+}
+trap cleanup EXIT
+
+if [ "$PRINT_ONLY" -eq 1 ]; then
+  printf 'scope=%s strict_mcp=%s skipped_servers=%s\n' "$LEAN_SCOPE" "$STRICT_MCP" "${SKIPPED:-none}"
+  printf '%s\n' "$LAUNCH_OUTPUT" | head -1 | tr '\t' '\n'
+  exit 0
+fi
+
+CLAUDE_BIN="$(command -v claude || true)"
+if [ -z "$CLAUDE_BIN" ]; then
+  printf 'claude-lean: claude binary not found on PATH — install Claude Code first or fix PATH\n' >&2
+  exit 1
+fi
+RESOLVED_CLAUDE="$(cd "$(dirname "$CLAUDE_BIN")" && readlink -f "$(basename "$CLAUDE_BIN")" 2>/dev/null || printf '%s' "$CLAUDE_BIN")"
+RESOLVED_SELF="$(readlink -f "$SCRIPT_PATH" 2>/dev/null || printf '%s' "$SCRIPT_PATH")"
+if [ "$RESOLVED_CLAUDE" = "$RESOLVED_SELF" ]; then
+  printf 'claude-lean: claude resolves to this launcher (%s) — a claude=claude-lean alias would recurse; remove the alias and call claude-lean directly\n' "$RESOLVED_CLAUDE" >&2
+  exit 1
+fi
+
+if [ "${#USER_ARGS[@]}" -gt 0 ]; then
+  "$CLAUDE_BIN" "${ARGS_FROM_LIB[@]}" "${USER_ARGS[@]}"
+else
+  "$CLAUDE_BIN" "${ARGS_FROM_LIB[@]}"
+fi
