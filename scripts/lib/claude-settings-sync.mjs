@@ -12,6 +12,16 @@ if (!localPath || !trackedPath || !["deploy", "install"].includes(mode)) {
 }
 
 const STATES = new Set(["on", "name-only", "user-invocable-only", "off"]);
+const SCALAR_KEYS = new Set([
+  "skipDangerousModePermissionPrompt",
+  "skipAutoPermissionPrompt",
+]);
+const PERMISSION_KEYS = new Set(["defaultMode"]);
+const ALLOWED_TOP_LEVEL = new Set([
+  "skillOverrides",
+  "permissions",
+  ...SCALAR_KEYS,
+]);
 
 function fail(message) {
   console.error(`claude-settings-sync: ${message}`);
@@ -27,9 +37,19 @@ function readJson(path, label) {
 }
 
 const tracked = readJson(trackedPath, "tracked fragment");
-const trackedKeys = Object.keys(tracked ?? {});
-if (trackedKeys.length !== 1 || trackedKeys[0] !== "skillOverrides") {
-  fail(`tracked fragment must contain exactly one skillOverrides key`);
+if (typeof tracked !== "object" || tracked === null || Array.isArray(tracked)) {
+  fail("tracked fragment must be a JSON object");
+}
+const topKeys = Object.keys(tracked);
+for (const key of topKeys) {
+  if (!ALLOWED_TOP_LEVEL.has(key)) {
+    fail(
+      `tracked fragment key ${JSON.stringify(key)} is not allowed; permitted keys: ${[...ALLOWED_TOP_LEVEL].join(", ")}`,
+    );
+  }
+}
+if (!topKeys.includes("skillOverrides")) {
+  fail(`tracked fragment must contain a skillOverrides key`);
 }
 const trackedMap = tracked.skillOverrides;
 if (
@@ -42,6 +62,30 @@ if (
 for (const [name, state] of Object.entries(trackedMap)) {
   if (typeof state !== "string" || !STATES.has(state)) {
     fail(`skillOverrides[${name}] has invalid state ${JSON.stringify(state)}`);
+  }
+}
+if (tracked.permissions !== undefined) {
+  if (
+    typeof tracked.permissions !== "object" ||
+    tracked.permissions === null ||
+    Array.isArray(tracked.permissions)
+  ) {
+    fail("permissions must be an object");
+  }
+  for (const [name, value] of Object.entries(tracked.permissions)) {
+    if (!PERMISSION_KEYS.has(name)) {
+      fail(
+        `permissions[${name}] is not allowed; permitted keys: ${[...PERMISSION_KEYS].join(", ")}`,
+      );
+    }
+    if (typeof value !== "string" || value.length === 0) {
+      fail(`permissions[${name}] must be a non-empty string`);
+    }
+  }
+}
+for (const key of SCALAR_KEYS) {
+  if (tracked[key] !== undefined && typeof tracked[key] !== "boolean") {
+    fail(`${key} must be a boolean`);
   }
 }
 
@@ -67,23 +111,42 @@ if (
   );
 }
 
-const unchanged =
-  !localMissing &&
-  JSON.stringify(localSettings.skillOverrides ?? null) ===
-    JSON.stringify(trackedMap);
+function trackedMatchesLocal() {
+  if (
+    JSON.stringify(localSettings.skillOverrides ?? null) !==
+    JSON.stringify(trackedMap)
+  ) {
+    return false;
+  }
+  const livePermissions = localSettings.permissions ?? {};
+  for (const [name, value] of Object.entries(tracked.permissions ?? {})) {
+    if (livePermissions[name] !== value) return false;
+  }
+  for (const key of SCALAR_KEYS) {
+    if (tracked[key] !== undefined && localSettings[key] !== tracked[key]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+const unchanged = !localMissing && trackedMatchesLocal();
 
 if (unchanged) {
   if (mode === "deploy") {
-    console.log("OK             Claude skill overrides");
+    console.log("OK             Claude tracked settings");
   }
   process.exit(0);
 }
 
 const keyCount = Object.keys(trackedMap).length;
+const settingsKeyCount =
+  Object.keys(tracked.permissions ?? {}).length +
+  [...SCALAR_KEYS].filter((key) => tracked[key] !== undefined).length;
 if (dryRun) {
   if (mode === "deploy") {
     console.log(
-      `WOULD_SYNC     Claude skill overrides (${keyCount} keys${localMissing ? ", new file" : ""})`,
+      `WOULD_SYNC     Claude tracked settings (${keyCount} skills, ${settingsKeyCount} settings keys${localMissing ? ", new file" : ""})`,
     );
   }
   process.exit(0);
@@ -111,9 +174,30 @@ if (!localMissing && mode === "deploy") {
   )) {
     console.log(`MAP            ${name} -> ${state}`);
   }
+  for (const [name, value] of Object.entries(tracked.permissions ?? {}).sort(
+    ([a], [b]) => a.localeCompare(b),
+  )) {
+    console.log(`SET            permissions.${name} -> ${value}`);
+  }
+  for (const key of [...SCALAR_KEYS].sort()) {
+    if (tracked[key] !== undefined) {
+      console.log(`SET            ${key} -> ${tracked[key]}`);
+    }
+  }
 }
 
 localSettings.skillOverrides = trackedMap;
+if (tracked.permissions !== undefined) {
+  localSettings.permissions = {
+    ...(localSettings.permissions ?? {}),
+    ...tracked.permissions,
+  };
+}
+for (const key of SCALAR_KEYS) {
+  if (tracked[key] !== undefined) {
+    localSettings[key] = tracked[key];
+  }
+}
 const tmpPath = `${localPath}.tmp.${timestamp}`;
 fs.writeFileSync(tmpPath, `${JSON.stringify(localSettings, null, 2)}\n`);
 if (!localMissing) {
@@ -123,5 +207,7 @@ fs.renameSync(tmpPath, localPath);
 
 if (mode === "deploy") {
   if (backup) console.log(`BACKUP         ${backup}`);
-  console.log(`SYNC           Claude skill overrides (${keyCount} keys)`);
+  console.log(
+    `SYNC           Claude tracked settings (${keyCount} skills, ${settingsKeyCount} settings keys)`,
+  );
 }

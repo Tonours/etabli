@@ -157,4 +157,52 @@ fs.writeFileSync(file, JSON.stringify(settings, null, 2));
 NODE
 expect_fail "deploy not applied (repo/live divergence)" "$FIX/home" "$FIX/repo" "skillOverrides"
 
+build_fixture "$FIX/home" "$FIX/repo"
+mkdir -p "$FIX/repo/claude/profiles"
+node - "$FIX/repo/claude/settings.skill-overrides.json" "$FIX/repo/claude/profiles/lean.settings.json" <<'NODE'
+const fs = require("node:fs");
+const [mapFile, profileFile] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(mapFile, "utf8")).skillOverrides;
+fs.writeFileSync(profileFile, JSON.stringify({
+	enabledPlugins: {},
+	skillOverrides: map,
+	skillListingBudgetFraction: 0.008,
+}, null, 2));
+NODE
+expect_ok "lean profile default mode" "$FIX/home" "$FIX/repo"
+
+mkdir -p "$FIX/home/.claude/skills/unmapped-in-profile"
+printf -- '---\nname: unmapped-in-profile\ndescription: x\n---\nx\n' >"$FIX/home/.claude/skills/unmapped-in-profile/SKILL.md"
+expect_fail "ungoverned enforced in profile mode" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: unmapped-in-profile"
+rm -rf "$FIX/home/.claude/skills/unmapped-in-profile"
+
+node - "$FIX/repo/claude/profiles/lean.settings.json" <<'NODE'
+const fs = require("node:fs");
+const file = process.argv[2];
+const profile = JSON.parse(fs.readFileSync(file, "utf8"));
+delete profile.skillListingBudgetFraction;
+fs.writeFileSync(file, JSON.stringify(profile, null, 2));
+NODE
+expect_fail "missing native fraction" "$FIX/home" "$FIX/repo" "skillListingBudgetFraction missing or out of range"
+
+mkdir -p "$FIX/plugin-demo/skills/whatever"
+printf -- '---\nname: whatever\ndescription: x\n---\nx\n' >"$FIX/plugin-demo/skills/whatever/SKILL.md"
+node - "$FIX/repo/claude/profiles/lean.settings.json" "$FIX/plugin-demo" "$FIX/home" <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+const [profileFile, pluginDir, home] = process.argv.slice(2);
+const profile = JSON.parse(fs.readFileSync(profileFile, "utf8"));
+profile.skillListingBudgetFraction = 0.008;
+profile.enabledPlugins = { "demo@marketplace": true };
+fs.writeFileSync(profileFile, JSON.stringify(profile, null, 2));
+fs.writeFileSync(
+	path.join(home, ".claude/plugins/installed_plugins.json"),
+	JSON.stringify({ plugins: { "demo@marketplace": [{ scope: "user", installPath: pluginDir }] } }),
+);
+NODE
+expect_fail "profile-enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabled plugin demo@marketplace ships skills"
+
+rm -rf "$FIX/repo/claude/profiles"
+expect_ok "legacy mode restored after profile removal" "$FIX/home" "$FIX/repo"
+
 printf '%s\n' "PASS: claude-skill-load-check fixture assertions"

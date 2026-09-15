@@ -8,6 +8,8 @@ GATE=4912
 ALERT=4892
 HOME_DIR="${CLAUDE_SKILL_LOAD_HOME:-$HOME}"
 REPO_OVERRIDE="${CLAUDE_SKILL_LOAD_REPO:-}"
+PROFILE_OVERRIDE=""
+PROFILE_DISABLED=0
 
 usage() {
   cat <<EOF
@@ -30,7 +32,13 @@ skillOverrides map (claude/settings.skill-overrides.json):
   C5  repo/live map equality (deploy applied)
   C6  no enabled plugin ships SKILL.md files
 
+Default mode validates the lean profile surface (claude/profiles/lean.settings.json
+when present): the governed map, plugin set and native skillListingBudgetFraction
+are taken from the profile. --no-profile enforces the legacy full-surface gate.
+
 --home  skill root + settings root for the assertions (fixture homes)
+--profile PATH   validate this profile fragment instead of the default
+--no-profile     legacy full-surface mode (C1 gate on the raw index)
 
 CLAUDE_SKILL_LOAD_HOME and CLAUDE_SKILL_LOAD_REPO redirect the surfaces for
 fixture-based smoke tests.
@@ -41,6 +49,14 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
   --home)
     HOME_DIR="$2"
+    shift
+    ;;
+  --profile)
+    PROFILE_OVERRIDE="${2:?--profile requires a path}"
+    shift
+    ;;
+  --no-profile)
+    PROFILE_DISABLED=1
     shift
     ;;
   -h | --help)
@@ -61,15 +77,38 @@ command -v node >/dev/null 2>&1 || {
   exit 1
 }
 
-node - "$HOME_DIR" "${REPO_OVERRIDE:-$REPO_DIR}" "$GATE" "$ALERT" <<'NODE'
+REPO_BASE="${REPO_OVERRIDE:-$REPO_DIR}"
+PROFILE_PATH=""
+if [ "$PROFILE_DISABLED" -eq 0 ]; then
+  if [ -n "$PROFILE_OVERRIDE" ]; then
+    PROFILE_PATH="$PROFILE_OVERRIDE"
+  elif [ -f "$REPO_BASE/claude/profiles/lean.settings.json" ]; then
+    PROFILE_PATH="$REPO_BASE/claude/profiles/lean.settings.json"
+  fi
+fi
+
+node - "$HOME_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$PROFILE_PATH" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [homeDir, repoDir, gateRaw, alertRaw] = process.argv.slice(2);
+const [homeDir, repoDir, gateRaw, alertRaw, profilePathRaw] = process.argv.slice(2);
 const GATE = Number(gateRaw);
 const ALERT = Number(alertRaw);
+const profilePath = profilePathRaw || "";
 const errors = [];
 const warnings = [];
+
+let profile = null;
+if (profilePath) {
+	try {
+		profile = JSON.parse(fs.readFileSync(profilePath, "utf8"));
+	} catch (error) {
+		errors.push(
+			`unreadable profile ${profilePath} (${error.message}); restore claude/profiles/lean.settings.json from the repo or pass --no-profile`,
+		);
+		profile = null;
+	}
+}
 
 const PINNED_ON = new Set([
   "bug-check",
@@ -223,7 +262,14 @@ if (trackedMap === null) {
   errors.push("tracked fragment claude/settings.skill-overrides.json missing or malformed; restore it from git");
 }
 
-const mapForPartition = trackedMap ?? {};
+const mapForPartition = profile
+	? profile.skillOverrides ?? null
+	: trackedMap ?? {};
+if (profile && mapForPartition === null) {
+	errors.push(
+		`profile ${profilePath} has no skillOverrides map; regenerate claude/profiles/lean.settings.json from claude/settings.skill-overrides.json or pass --no-profile`,
+	);
+}
 const VALID_STATES = new Set(["on", "name-only", "user-invocable-only", "off"]);
 for (const [name, state] of Object.entries(mapForPartition)) {
   if (!VALID_STATES.has(state)) {
@@ -293,7 +339,23 @@ for (const d of discovered) {
   }
 }
 
-if (indexChars + nameOnlyChars > GATE) {
+const REF_CONTEXT_TOKENS = 200000;
+const CHARS_PER_TOKEN = 4;
+if (profile) {
+	const fraction = profile.skillListingBudgetFraction;
+	if (typeof fraction !== "number" || !(fraction > 0) || fraction > 0.01) {
+		errors.push(
+			`profile skillListingBudgetFraction missing or out of range (0, 0.01]: ${JSON.stringify(fraction ?? null)} (set it in ${profilePath}, or pass --no-profile)`,
+		);
+	} else {
+		const budgetChars = fraction * REF_CONTEXT_TOKENS * CHARS_PER_TOKEN;
+		if (indexChars > budgetChars) {
+			warnings.push(
+				`C1(profile): keeper index ${indexChars} chars exceeds the native budget ~${budgetChars} chars (fraction ${fraction}) — the model-facing listing is truncated; raise the fraction or shrink the on-set in ${profilePath}`,
+			);
+		}
+	}
+} else if (indexChars + nameOnlyChars > GATE) {
   errors.push(`C1: model-facing index ${indexChars + nameOnlyChars} chars exceeds gate ${GATE} (shorten descriptions or demote skills in the tracked map; re-pinning the gate requires a CHALLENGED Decision Log entry)`);
 } else if (indexChars + nameOnlyChars >= ALERT) {
   warnings.push(`C1: model-facing index ${indexChars + nameOnlyChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
@@ -301,7 +363,8 @@ if (indexChars + nameOnlyChars > GATE) {
 
 const pluginsFile = path.join(homeDir, ".claude/plugins/installed_plugins.json");
 const plugins = JSON.parse(readText(pluginsFile) ?? "{}");
-const enabled = liveSettings.enabledPlugins ?? {};
+const enabled =
+	(profile && profile.enabledPlugins) ?? liveSettings.enabledPlugins ?? {};
 for (const [key, on] of Object.entries(enabled)) {
   if (on !== true) continue;
   const records = plugins.plugins?.[key] ?? [];
@@ -332,7 +395,7 @@ for (const [key, on] of Object.entries(enabled)) {
 }
 
 console.log(
-  `index_chars=${indexChars} name_only_chars=${nameOnlyChars} discovered=${discovered.length} on_set=${effectiveOn.size} pinned=${PINNED_ON.size} map_keys=${Object.keys(mapForPartition).length}`,
+  `index_chars=${indexChars} name_only_chars=${nameOnlyChars} discovered=${discovered.length} on_set=${effectiveOn.size} pinned=${PINNED_ON.size} map_keys=${Object.keys(mapForPartition).length} profile=${profilePath ? path.basename(profilePath) : "none"} fraction=${profile && typeof profile.skillListingBudgetFraction === "number" ? profile.skillListingBudgetFraction : "none"}`,
 );
 for (const warning of warnings) console.log(`WARN: ${warning}`);
 if (errors.length > 0) {
