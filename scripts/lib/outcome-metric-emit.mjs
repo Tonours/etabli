@@ -54,7 +54,7 @@ export function maybeEmitOutcomeMetric(cwd, opts = {}) {
 	const parent =
 		opts.parentUsage || usageFromAssistantMessages(opts.messages || []) || null;
 
-		let successKind = opts.success_kind || "run_terminal";
+	let successKind = opts.success_kind || "run_terminal";
 	let graderSuccess = opts.grader_success;
 	if (successKind === "task_grader" && graderSuccess !== true) {
 		successKind = "run_terminal";
@@ -69,6 +69,8 @@ export function maybeEmitOutcomeMetric(cwd, opts = {}) {
 					input_tokens: parent.input_tokens,
 					output_tokens: parent.output_tokens,
 					total_tokens: parent.total_tokens,
+					cache_read_tokens: parent.cache_read_tokens ?? 0,
+					cache_creation_tokens: parent.cache_creation_tokens ?? 0,
 				}
 			: undefined,
 		success: opts.success !== false,
@@ -79,7 +81,6 @@ export function maybeEmitOutcomeMetric(cwd, opts = {}) {
 		turn_count: opts.turn_count,
 		auto_continue_count: opts.auto_continue_count,
 	});
-
 
 	if (detail.measured !== true) {
 		return {

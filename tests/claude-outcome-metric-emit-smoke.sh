@@ -27,6 +27,23 @@ printf '%s' "{\"cwd\":\"$TMP\",\"transcript_path\":\"$TMP/transcript.jsonl\"}" |
 count="$(jq -s '[.[]|select(.event=="outcome_metric")]|length' "$TMP/.workflow/run-a/events.jsonl")"
 [ "$count" -eq 1 ]
 
+TMP2="$(mktemp -d)"
+trap 'rm -rf "$TMP" "$TMP2"' EXIT
+mkdir -p "$TMP2/.workflow/run-cache"
+printf '%s\n' '{"schema_version":2,"ts":"2026-07-31T12:00:00Z","event":"route_decided","run":"run-cache","detail":{"route":"answer","reason":"t"}}' \
+	>"$TMP2/.workflow/run-cache/events.jsonl"
+cat >"$TMP2/transcript-cache.jsonl" <<'JSONL'
+{"type":"assistant","message":{"role":"assistant","usage":{"input_tokens":20,"output_tokens":10,"cache_read_input_tokens":500,"cache_creation_input_tokens":40,"total_tokens":30}}}
+JSONL
+printf '%s' "{\"cwd\":\"$TMP2\",\"transcript_path\":\"$TMP2/transcript-cache.jsonl\"}" | node "$HOOK"
+jq -e 'select(.event=="outcome_metric" and .detail.measured==true
+	and .detail.usage_schema_version==2
+	and .detail.total_tokens==30
+	and .detail.cache_read_tokens==500
+	and .detail.cache_creation_tokens==40
+	and .detail.processed_total_tokens==570)' \
+	"$TMP2/.workflow/run-cache/events.jsonl" >/dev/null
+
 # settings fragment references the hook
 grep -Fq 'outcome-metric-emit.mjs' "$ROOT_DIR/claude/settings.workflow-hooks.json"
 

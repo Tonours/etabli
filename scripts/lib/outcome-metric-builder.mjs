@@ -37,6 +37,11 @@ export function normalizeParticipant(row) {
 		output_tokens: output,
 		total_tokens: total,
 	};
+	const cacheRead = Number(row.cache_read_tokens ?? 0);
+	const cacheCreation = Number(row.cache_creation_tokens ?? 0);
+	if (isNonNegInt(cacheRead) && cacheRead > 0) out.cache_read_tokens = cacheRead;
+	if (isNonNegInt(cacheCreation) && cacheCreation > 0)
+		out.cache_creation_tokens = cacheCreation;
 	if (typeof row.role === "string" && row.role.trim() !== "")
 		out.role = row.role.trim();
 	return out;
@@ -60,6 +65,8 @@ export function buildParticipantUsage(parts = {}) {
 			input_tokens: parts.parent.input_tokens,
 			output_tokens: parts.parent.output_tokens,
 			total_tokens: parts.parent.total_tokens,
+			cache_read_tokens: parts.parent.cache_read_tokens,
+			cache_creation_tokens: parts.parent.cache_creation_tokens,
 		});
 		if (parent) rows.push(parent);
 	}
@@ -102,9 +109,7 @@ export function sidecarsFromLedgerEvents(events) {
 			const p = participants[0];
 			sidecars.push({
 				id:
-					typeof p.id === "string" && p.id.trim()
-						? p.id.trim()
-						: `sidecar-${index}`,
+					typeof p.id === "string" && p.id.trim() ? p.id.trim() : `sidecar-${index}`,
 				role: typeof p.model === "string" ? p.model : "sidecar",
 				input_tokens: input,
 				output_tokens: output,
@@ -203,10 +208,23 @@ export function buildOutcomeMetricDetail(input = {}) {
 		const inputTokens = participants.reduce((s, p) => s + p.input_tokens, 0);
 		const outputTokens = participants.reduce((s, p) => s + p.output_tokens, 0);
 		const totalTokens = participants.reduce((s, p) => s + p.total_tokens, 0);
+		const cacheReadTokens = participants.reduce(
+			(s, p) => s + (p.cache_read_tokens ?? 0),
+			0,
+		);
+		const cacheCreationTokens = participants.reduce(
+			(s, p) => s + (p.cache_creation_tokens ?? 0),
+			0,
+		);
 		detail.measured = true;
+		detail.usage_schema_version = 2;
 		detail.input_tokens = inputTokens;
 		detail.output_tokens = outputTokens;
 		detail.total_tokens = totalTokens;
+		detail.cache_read_tokens = cacheReadTokens;
+		detail.cache_creation_tokens = cacheCreationTokens;
+		detail.processed_total_tokens =
+			inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens;
 		detail.participant_usage = participants;
 		detail.tool_calls = isNonNegInt(input.tool_calls) ? input.tool_calls : 0;
 		detail.elapsed_ms = isNonNegNumber(input.elapsed_ms) ? input.elapsed_ms : 0;
@@ -218,10 +236,24 @@ export function buildOutcomeMetricDetail(input = {}) {
 		const total = isNonNegInt(input.parent.total_tokens)
 			? input.parent.total_tokens
 			: input.parent.input_tokens + input.parent.output_tokens;
+		const cacheRead = isNonNegInt(input.parent.cache_read_tokens)
+			? input.parent.cache_read_tokens
+			: 0;
+		const cacheCreation = isNonNegInt(input.parent.cache_creation_tokens)
+			? input.parent.cache_creation_tokens
+			: 0;
 		detail.measured = true;
+		detail.usage_schema_version = 2;
 		detail.input_tokens = input.parent.input_tokens;
 		detail.output_tokens = input.parent.output_tokens;
 		detail.total_tokens = total;
+		detail.cache_read_tokens = cacheRead;
+		detail.cache_creation_tokens = cacheCreation;
+		detail.processed_total_tokens =
+			input.parent.input_tokens +
+			input.parent.output_tokens +
+			cacheRead +
+			cacheCreation;
 		detail.tool_calls = isNonNegInt(input.tool_calls) ? input.tool_calls : 0;
 		detail.elapsed_ms = isNonNegNumber(input.elapsed_ms) ? input.elapsed_ms : 0;
 	} else {
@@ -256,6 +288,8 @@ export function usageFromAssistantMessages(messages) {
 	let input = 0;
 	let output = 0;
 	let total = 0;
+	let cacheRead = 0;
+	let cacheCreation = 0;
 	let found = false;
 	for (const msg of messages || []) {
 		if (!msg || msg.role !== "assistant" || !msg.usage) continue;
@@ -264,13 +298,27 @@ export function usageFromAssistantMessages(messages) {
 		const o = Number(u.output);
 		const t = Number(u.totalTokens ?? u.total_tokens ?? i + o);
 		if (!isNonNegInt(i) || !isNonNegInt(o) || !isNonNegInt(t)) continue;
+		const cr = Number(
+			u.cacheRead ?? u.cache_read ?? u.cache_read_input_tokens ?? 0,
+		);
+		const cc = Number(
+			u.cacheCreation ?? u.cache_creation ?? u.cache_creation_input_tokens ?? 0,
+		);
 		input += i;
 		output += o;
 		total += t;
+		cacheRead += isNonNegInt(cr) ? cr : 0;
+		cacheCreation += isNonNegInt(cc) ? cc : 0;
 		found = true;
 	}
 	if (!found) return null;
-	return { input_tokens: input, output_tokens: output, total_tokens: total };
+	return {
+		input_tokens: input,
+		output_tokens: output,
+		total_tokens: total,
+		cache_read_tokens: cacheRead,
+		cache_creation_tokens: cacheCreation,
+	};
 }
 
 /**
