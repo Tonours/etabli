@@ -284,16 +284,42 @@ const READ_ONLY_BASH_COMMANDS = new Set([
 	"tr",
 	"uniq",
 	"wc",
+	"which",
 ]);
 const ALWAYS_READ_ONLY_GIT_SUBCOMMANDS = new Set([
+	"--help",
+	"--version",
 	"diff",
 	"grep",
 	"log",
 	"ls-files",
+	"ls-tree",
+	"merge-base",
 	"rev-parse",
 	"show",
 	"status",
 ]);
+const READ_ONLY_GH_COMMANDS = new Set([
+	"--version",
+	"auth status",
+	"issue list",
+	"issue view",
+	"label list",
+	"pr checks",
+	"pr diff",
+	"pr list",
+	"pr status",
+	"pr view",
+	"release list",
+	"release view",
+	"repo view",
+	"run list",
+	"run view",
+	"search",
+	"workflow list",
+	"workflow view",
+]);
+const GH_WRITE_ARG = /^(?:-X|--method|-f|-F|--raw-field|--field|--input|--web)$/;
 const READ_ONLY_GIT_BRANCH_ARGS = new Set([
 	"--all",
 	"--list",
@@ -364,9 +390,12 @@ function splitReadOnlyPipeline(command) {
 			index += 1;
 			continue;
 		}
+		if (character === "\n" || character === ";") {
+			if (current.trim() !== "") segments.push(current.trim());
+			current = "";
+			continue;
+		}
 		if (
-			character === "\n" ||
-			character === ";" ||
 			character === "&" ||
 			character === "`" ||
 			character === "<" ||
@@ -383,8 +412,9 @@ function splitReadOnlyPipeline(command) {
 		}
 		current += character;
 	}
-	if (quote || escaped || current.trim() === "") return null;
-	segments.push(current.trim());
+	if (quote || escaped) return null;
+	if (current.trim() !== "") segments.push(current.trim());
+	if (segments.length === 0) return null;
 	return segments;
 }
 
@@ -429,7 +459,7 @@ function splitShellWords(segment) {
 
 function isReadOnlyGitSegment(segment) {
 	const words = splitShellWords(segment);
-	if (!words || words[0] !== "git") return false;
+	if (!words || words[0].replace(/^.*\//, "") !== "git") return false;
 
 	let index = 1;
 	while (words[index] === "-C") {
@@ -463,6 +493,33 @@ function isReadOnlyGitSegment(segment) {
 	return false;
 }
 
+function isReadOnlyGhSegment(segment) {
+	const words = splitShellWords(segment);
+	if (!words || words[0].replace(/^.*\//, "") !== "gh") return false;
+
+	const args = words.slice(1);
+	if (args.length === 0) return false;
+
+	const twoWord = `${args[0]} ${args[1]}`;
+	const isAllowlistedCommand =
+		READ_ONLY_GH_COMMANDS.has(twoWord) || READ_ONLY_GH_COMMANDS.has(args[0]);
+	if (!isAllowlistedCommand && args[0] !== "api") return false;
+
+	return !args.some((argument, index) => {
+		if (argument === "--method" || argument === "-X") {
+			return String(args[index + 1] || "").toUpperCase() !== "GET";
+		}
+		return GH_WRITE_ARG.test(argument.replace(/=.*$/, ""));
+	});
+}
+
+function awkProgramCanEscapeReadOnly(segment) {
+	const words = splitShellWords(segment);
+	if (!words) return true;
+	if (words.slice(1).includes("-f")) return true;
+	return /system\s*\(|ENVIRON|>|\|/.test(words.slice(1).join(" "));
+}
+
 function hasPotentialWriteOption(segment, shortOption, longOption) {
 	const words = splitShellWords(segment);
 	if (!words) return true;
@@ -479,9 +536,17 @@ function hasPotentialWriteOption(segment, shortOption, longOption) {
 
 function isReadOnlyPipelineSegment(segment) {
 	const trimmed = segment.trim();
-	const executable = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
+	const invoked = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
+	if (!invoked) return false;
+	const executable = invoked.replace(/^.*\//, "");
 	if (!executable) return false;
-	if (executable === "git") return isReadOnlyGitSegment(trimmed);
+	const basenamed =
+		executable === invoked
+			? trimmed
+			: `${executable}${trimmed.slice(invoked.length)}`;
+	if (executable === "git") return isReadOnlyGitSegment(basenamed);
+	if (executable === "gh") return isReadOnlyGhSegment(basenamed);
+	if (executable === "awk") return !awkProgramCanEscapeReadOnly(basenamed);
 	if (executable === "find") {
 		const words = splitShellWords(trimmed);
 		if (!words) return false;
@@ -506,13 +571,13 @@ function isReadOnlyPipelineSegment(segment) {
 	// instead of maintaining a fragile option denylist.
 	if (executable === "sort") return false;
 	if (executable === "diff") {
-		return !hasPotentialWriteOption(trimmed, "o", "output");
+		return !hasPotentialWriteOption(basenamed, "o", "output");
 	}
 	if (executable === "node" || executable === "nodejs") {
-		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(trimmed);
+		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(basenamed);
 	}
 	if (executable === "bash" || executable === "sh") {
-		return /^(?:bash|sh)\s+(?:-n\b|--version\b)/.test(trimmed);
+		return /^(?:bash|sh)\s+(?:-n\b|--version\b)/.test(basenamed);
 	}
 	return READ_ONLY_BASH_COMMANDS.has(executable);
 }
