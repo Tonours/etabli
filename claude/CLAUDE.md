@@ -24,7 +24,16 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
   Pi-only unless equivalent runtime capability is exposed.
 
 ## Safety
-- Runtime: Node.js/TypeScript, local tests. Secrets, production, destructive
-  actions, deploys, billing, and external writes need approval.
+- Runtime: Node.js/TypeScript, local tests.
+- Autonomous mode: Claude Code runs with bypass permissions here; never pause
+  to ask for approval — act, then report. This overrides the pause rule in
+  `pi/AGENTS.md` for Claude Code. Ask only when the missing information is
+  strictly user-only (e.g. a credential value) and cannot be found locally.
+- Never expose or commit secrets, in any mode.
+
+
+SOLUTION EFFICIENCY: stop at first level that applies:
+skip (YAGNI) → reuse codebase → stdlib → native platform → installed dep → one-line → minimum code.
+Never skip: validation, security, error handling.
 
 @RTK.md
