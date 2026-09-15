@@ -10,17 +10,31 @@ import {
   validateProject,
 } from "./adr-validation.mjs";
 
+const CLAUDE_POINTER = [
+  "<!-- ADR:INDEX:START -->",
+  "## Architecture Decision Records",
+  "",
+  "Decisions live in `docs/adr/`, indexed in `docs/adr/README.md`. Run `/adr` to record one.",
+  "<!-- ADR:INDEX:END -->",
+].join("\n");
+
 const args = parseArgs(process.argv.slice(2));
 const root = args.root || process.cwd();
 const inputPath = args.input;
 const dryRun = args.dryRun || false;
+const touched = new Map();
+
+if (args.reindex) {
+  const action = updateClaudeIndex(root, [...readRecords(root)]);
+  console.log(JSON.stringify({ reindex: action, index: "docs/adr/README.md" }, null, 2));
+  process.exit(0);
+}
 
 if (!inputPath) {
-  die("Usage: apply-adr.mjs --input <draft.json> [--root <project-root>] [--dry-run]");
+  die("Usage: apply-adr.mjs --input <draft.json> [--root <project-root>] [--dry-run] | --reindex [--root <project-root>]");
 }
 
 const draft = readJson(inputPath);
-const touched = new Map();
 
 try {
   const preErrors = validateProject(root);
@@ -116,10 +130,12 @@ function parseArgs(argv) {
       parsed.input = argv[++index];
     } else if (arg === "--root") {
       parsed.root = argv[++index];
+    } else if (arg === "--reindex") {
+      parsed.reindex = true;
     } else if (arg === "--dry-run") {
       parsed.dryRun = true;
     } else if (arg === "--help") {
-      console.log("Usage: apply-adr.mjs --input <draft.json> [--root <project-root>] [--dry-run]");
+      console.log("Usage: apply-adr.mjs --input <draft.json> [--root <project-root>] [--dry-run] | --reindex [--root <project-root>]");
       process.exit(0);
     } else {
       die(`Unknown argument: ${arg}. Run with --help for usage.`);
@@ -251,61 +267,66 @@ function frontmatterBlocks(frontmatter) {
   return blocks;
 }
 
-function updateClaudeIndex(projectRoot, records) {
-  const claudePath = join(projectRoot, "CLAUDE.md");
-  const block = renderIndex(records);
+function adrIndexPath(projectRoot) {
+  return join(projectRoot, "docs/adr/README.md");
+}
 
-  if (existsSync(claudePath)) {
-    const content = readFileSync(claudePath, "utf8");
-    if (content.includes("<!-- ADR:INDEX:START -->")) {
-      const updated = content.replace(
-        /<!-- ADR:INDEX:START -->[\s\S]*?<!-- ADR:INDEX:END -->/,
-        block.trimEnd()
-      );
-      writeTracked(claudePath, `${updated.trimEnd()}\n`);
-      return "updated";
-    }
-    writeTracked(claudePath, `${content.trimEnd()}\n\n${block}`);
-    return "appended";
+function updateClaudeIndex(projectRoot, records) {
+  const indexPath = adrIndexPath(projectRoot);
+  const action = existsSync(indexPath) ? "updated" : "created";
+
+  if (action === "created" && !isGitRepo(projectRoot)) return "skipped";
+
+  writeTracked(indexPath, renderIndex(records));
+  updateClaudePointer(projectRoot);
+  return action;
+}
+
+function updateClaudePointer(projectRoot) {
+  const claudePath = join(projectRoot, "CLAUDE.md");
+
+  if (!existsSync(claudePath)) {
+    if (!isGitRepo(projectRoot)) return;
+    const agentsPath = join(projectRoot, "AGENTS.md");
+    const prefix = existsSync(agentsPath) ? "@AGENTS.md\n\n" : "";
+    writeTracked(claudePath, `${prefix}${CLAUDE_POINTER}\n`);
+    return;
   }
 
-  if (!isGitRepo(projectRoot)) return "skipped";
+  const content = readFileSync(claudePath, "utf8");
+  if (content.includes("<!-- ADR:INDEX:START -->")) {
+    const updated = content.replace(
+      /<!-- ADR:INDEX:START -->[\s\S]*?<!-- ADR:INDEX:END -->/,
+      CLAUDE_POINTER
+    );
+    if (updated !== content) writeTracked(claudePath, `${updated.trimEnd()}\n`);
+    return;
+  }
 
-  const agentsPath = join(projectRoot, "AGENTS.md");
-  const prefix = existsSync(agentsPath) ? "@AGENTS.md\n\n" : "";
-  writeTracked(claudePath, `${prefix}${block}`);
-  return "created";
+  writeTracked(claudePath, `${content.trimEnd()}\n\n${CLAUDE_POINTER}\n`);
 }
 
 function plannedClaudeIndexAction(projectRoot) {
-  const claudePath = join(projectRoot, "CLAUDE.md");
-
-  if (existsSync(claudePath)) {
-    const content = readFileSync(claudePath, "utf8");
-    if (content.includes("<!-- ADR:INDEX:START -->")) return "updated";
-    return "appended";
-  }
-
+  if (existsSync(adrIndexPath(projectRoot))) return "updated";
   if (!isGitRepo(projectRoot)) return "skipped";
   return "created";
 }
 
 function renderIndex(records) {
   const lines = [
-    "<!-- ADR:INDEX:START -->",
-    "## Architecture Decision Records",
+    "# Architecture Decision Records",
     "",
-    "Decisions live in `docs/adr/`. Run `/adr` to record one.",
+    "Decisions live in this directory. Run `/adr` to record one.",
     "",
   ];
 
   for (const record of records.sort((a, b) => (a.id || "").localeCompare(b.id || ""))) {
     if (!record.id) continue;
     const status = record.frontmatter.status?.[0] || "unknown";
-    lines.push(`- [${record.id.slice(4)}](docs/adr/${record.file}) — ${record.title || record.file} [${status}]`);
+    lines.push(`- [${record.id.slice(4)}](${record.file}) — ${record.title || record.file} [${status}]`);
   }
 
-  lines.push("<!-- ADR:INDEX:END -->", "");
+  lines.push("");
   return lines.join("\n");
 }
 

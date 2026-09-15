@@ -13,7 +13,7 @@ argument-hint: "[optional: the decision to record]"
 Capture a decision made in this session as an immutable ADR. Write ADR content
 in English, regardless of the conversation language. Use
 `scripts/apply-adr.mjs` for deterministic file writes, numbering, supersession
-metadata, and the `CLAUDE.md` index. `ADR-FORMAT.md` is the reference for exact
+metadata, the `docs/adr/README.md` index, and the `CLAUDE.md` pointer. `ADR-FORMAT.md` is the reference for exact
 template and decision rules; read it when the decision needs those details.
 
 You run inside the current session, so you already see the conversation. Do
@@ -35,7 +35,7 @@ plus the working diff.
    new decision, then read the full text of any likely matches. If
    `scripts/validate-adrs` exists, run `node scripts/validate-adrs` before
    drafting; stop and report any existing ADR integrity failure before adding a
-   new ADR. Do not repair pre-existing ADR or `CLAUDE.md` index failures while
+   new ADR. Do not repair pre-existing ADR or index failures while
    recording a new decision; those must be fixed as a separate maintenance task.
 
    This is the anti-hallucination gate: never claim an ADR is superseded unless
@@ -75,7 +75,7 @@ plus the working diff.
    applies: pre-approval skips the wait, never the gate.
 
 6. **Apply with the deterministic helper.** Do not hand-edit ADR files,
-   supersession metadata, or the `CLAUDE.md` index. Write a temporary JSON file
+   supersession metadata, the index, or the `CLAUDE.md` pointer. Write a temporary JSON file
    with this shape:
 
    ```json
@@ -96,9 +96,9 @@ plus the working diff.
    ```
 
    If that path is unavailable, locate `scripts/apply-adr.mjs` next to this
-   skill. If the helper reports an existing ADR or `CLAUDE.md` integrity
+   skill. If the helper reports an existing ADR or index integrity
    failure, stop and report the blocker; do not repair it in the ADR write path.
 
 7. **Report.** Use the helper JSON output as source of truth. Name the file
    written, the assigned number, whether any ADR was superseded, and whether the
-   `CLAUDE.md` index was created, appended, updated, or skipped.
+   `docs/adr/README.md` index was created, updated, or skipped.

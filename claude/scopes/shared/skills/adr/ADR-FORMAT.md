@@ -108,22 +108,31 @@ Supersession analysis:
 This analysis is not necessarily copied into the final ADR; it is there to keep
 the model grounded and the human approval meaningful.
 
-## CLAUDE.md pointer
+## The index and the CLAUDE.md pointer
 
-The skill keeps a lightweight index in the project's `CLAUDE.md`, delimited by
-HTML comment markers. Treat it as a disk pointer for humans and tools; do not
-rely on it as automatic runtime retrieval.
+The skill keeps the index in `docs/adr/README.md`, regenerated from the
+directory on every write and by `apply-adr.mjs --reindex`:
+
+```md
+# Architecture Decision Records
+
+Decisions live in this directory. Run `/adr` to record one.
+
+- [0001](0001-slug.md) — Short title [accepted]
+- [0002](0002-slug.md) — Short title [accepted]
+```
+
+`CLAUDE.md` carries only a fixed-size pointer to it, delimited by HTML comment
+markers. It stays the same length whatever the ADR count, so the always-on
+instruction surface does not grow with the decision log:
 
 ```md
 <!-- ADR:INDEX:START -->
 ## Architecture Decision Records
 
-Decisions live in `docs/adr/`. Run `/adr` to record one.
-
-- [0001](docs/adr/0001-slug.md) — Short title [accepted]
-- [0002](docs/adr/0002-slug.md) — Short title [accepted]
+Decisions live in `docs/adr/`, indexed in `docs/adr/README.md`. Run `/adr` to record one.
 <!-- ADR:INDEX:END -->
 ```
 
-The index is updated in place between the markers (never appended twice). The
+The pointer is replaced in place between the markers (never appended twice). The
 `/adr` skill must still read `docs/adr/` directly when it needs prior decisions.
