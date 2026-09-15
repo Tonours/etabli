@@ -258,6 +258,12 @@ check_deployed_files() {
       continue
     fi
 
+    if git -C "$TARGET_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
+      status_line PROTECTED "$relative_path is tracked by the project; scaffold never overwrites it"
+      CHECK_OK=$((CHECK_OK + 1))
+      continue
+    fi
+
     status_line DRIFT "$relative_path"
     CHECK_DRIFT=$((CHECK_DRIFT + 1))
   done
