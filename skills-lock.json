@@ -415,6 +415,16 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "d55c3c35b0821c66ade8219b4efb8b2851ed57d37284c3ffdb1407b616c3f6a3"
+    },
+    "no-ai-slop": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "77d287e3c8e09874e144ee35f6fb0ee1adcf609012c7c3273e9c8fe2054ce5af"
+    },
+    "claude-scope/work/employer-docs-writing": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ce9f1a1f7192a7d91dd86a55c7899b04930846979e56b6000ec58d48b1246cb4"
     }
   }
 }
