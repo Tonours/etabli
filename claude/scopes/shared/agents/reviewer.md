@@ -1,9 +1,9 @@
 ---
 name: reviewer
 description: "Review a bounded diff in fresh read-only context. Parent names Axis: Logic or Axis: Spec. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
-model: fable
+model: sonnet
 effort: medium
-maxTurns: 40
+maxTurns: 24
 color: red
 permissionMode: dontAsk
 tools: [Read, Grep, Glob, Bash, Skill]
