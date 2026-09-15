@@ -120,6 +120,8 @@ obvault-shadow-promote-smoke
 autonomous-ledger-hygiene-smoke
 workflow-outcome-metric-smoke
 claude-outcome-metric-emit-smoke
+claude-token-budget-smoke
+claude-profile-smoke
 claim-evidence-check-smoke
 conversation-retrospect-smoke
 recurring-run-goal-pattern-smoke

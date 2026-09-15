@@ -1,6 +1,7 @@
 ---
 description: Three-pass review of one PR (code-review + thermo-nuclear, then forest:validator as the council) with a dry-run by default
 argument-hint: "<PR number or URL> [owner/repo] [--post] [--codex]"
+allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
 Run `~/.claude/scripts/pr-council-review/run.sh $ARGUMENTS` from the repository

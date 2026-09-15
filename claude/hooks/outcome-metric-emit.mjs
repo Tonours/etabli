@@ -43,6 +43,15 @@ function messagesFromTranscript(transcriptPath) {
 						? input + output
 						: NaN),
 			);
+			const cacheRead = Number(
+				usage.cache_read_input_tokens ?? usage.cacheRead ?? usage.cache_read ?? 0,
+			);
+			const cacheCreation = Number(
+				usage.cache_creation_input_tokens ??
+					usage.cacheCreation ??
+					usage.cache_creation ??
+					0,
+			);
 			if (
 				Number.isInteger(input) &&
 				input >= 0 &&
@@ -53,7 +62,16 @@ function messagesFromTranscript(transcriptPath) {
 			) {
 				messages.push({
 					role: "assistant",
-					usage: { input, output, totalTokens: total },
+					usage: {
+						input,
+						output,
+						totalTokens: total,
+						cacheRead: Number.isInteger(cacheRead) && cacheRead >= 0 ? cacheRead : 0,
+						cacheCreation:
+							Number.isInteger(cacheCreation) && cacheCreation >= 0
+								? cacheCreation
+								: 0,
+					},
 				});
 			}
 		}
