@@ -2,6 +2,9 @@
   "compilerOptions": {
     "allowJs": true,
     "allowImportingTsExtensions": true,
+    "paths": {
+      "@earendil-works/*": ["./node_modules/@earendil-works/*"]
+    },
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": true,
