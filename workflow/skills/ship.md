@@ -49,12 +49,14 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    push.
 9. Push the feature branch and open a PR. Write the body per
    `workflow/pr-body-contract.md`: English, the project's template intact,
-   placeholders filled, checklists unchecked, no AI attribution. The body's
-   free-text sections answer **what changed, why, and how it was verified**,
-   drafted with the `write-direct` qualities — direct, concrete, zero filler,
-   honest status; shortest sentence that states the fact; no throat-clearing,
-   no restated context, no hedging. Then run the `unslop` skill over the draft
-   when it is exposed and fold its findings before publishing. State the
+   placeholders filled, checklists unchecked, no AI attribution. The body
+   answers **what changed, why, and how it was verified**, and stops there:
+   three headings, 40 lines outside the template, no fourth section that
+   repeats one of them. Draft it with the `write-direct` qualities — direct,
+   concrete, zero filler, honest status; shortest sentence that states the
+   fact; no throat-clearing, no restated context, no hedging. Then run the
+   `unslop` skill over the draft (`no-ai-slop` where that is the exposed name),
+   in detect mode, and fold its findings before publishing. State the
    stack explicitly when the base is not the default branch. Publish the
    dense version, then run that contract's non-ASCII check against the live
    body. The draft is not the evidence, the published body is. Record

@@ -22,21 +22,26 @@ thirty seconds whether they can review this now.
 
 ## Shape
 
-Lead with what changed, not with a story about the problem. One line of
-context is enough when it carries weight; the reviewer reads the diff for the
-rest.
+**Answer three questions and stop: what changed, why, how to verify it.**
+That is the whole body. One opening line states the change, then `## What`,
+`## Why`, `## How to test`. Lead with the change, never with a story about the
+problem; the reviewer reads the diff for the rest.
 
-Sections earn their place. A three-line fix needs no `## Scope` heading. Adapt
-to the change instead of filling a fixed skeleton:
+- **What** — the change. A table of touched files plus the rules that changed.
+- **Why** — the need, and only the choices a reviewer would otherwise
+  question. Skip the obvious ones.
+- **How to test** — the commands you actually ran, with their result.
 
-- **What** — the change, in one or two sentences.
-- **Why / decisions** — only choices a reviewer would otherwise question, and
-  the reason. Skip the obvious ones.
-- **Scope and safety** — what this deliberately does *not* touch. Valuable on
-  anything near auth, permissions, or data.
-- **How to test** — runnable commands, then the behavior to exercise by hand.
-- **Known limitation** — a ceiling you accepted on purpose. State it; a
-  reviewer finding it themselves reads as an oversight.
+Anything else has to earn its heading against those three, and almost nothing
+does. A ceiling you accepted on purpose belongs in one `## Why` bullet, not in
+its own `## Known limitation` section repeating it. What the change does *not*
+touch belongs there too, in a sentence, and only when it sits near auth,
+permissions, or data.
+
+**Budget: 40 lines outside the repo's template.** Past that, you are explaining
+the diff instead of introducing it. Cut whole sections before trimming
+sentences: the second section covering a decision goes first, then every
+sentence that defends, restates, or announces.
 
 Facts belong in tables or lists: status-code matrices, before/after, touched
 packages. Prose is for the reasoning that a table cannot hold.
@@ -84,9 +89,12 @@ single short paragraph, drop the heading.
 
 Signals the draft is still too long:
 
-- A `## What` heading above a paragraph that already says what changed.
-- The same reasoning appearing in both `## Why` and `## Scope and safety`.
+- More than three top-level headings before the repo's template.
+- Over 40 lines outside that template.
+- The same reasoning appearing in two sections.
+- A heading over a single short paragraph.
 - A sentence explaining why a decision was cheap, right, or obvious.
+- Manual steps that the test suite already covers.
 
 ## Stacked PRs
 
