@@ -10,6 +10,7 @@ HOME_DIR="${CLAUDE_SKILL_LOAD_HOME:-$HOME}"
 REPO_OVERRIDE="${CLAUDE_SKILL_LOAD_REPO:-}"
 PROFILE_OVERRIDE=""
 PROFILE_DISABLED=0
+FIX=0
 
 usage() {
   cat <<EOF
@@ -39,6 +40,9 @@ are taken from the profile. --no-profile enforces the legacy full-surface gate.
 --home  skill root + settings root for the assertions (fixture homes)
 --profile PATH   validate this profile fragment instead of the default
 --no-profile     legacy full-surface mode (C1 gate on the raw index)
+--fix            repair the C2 partition in the active map: add every
+                 discovered skill missing from it as user-invocable-only,
+                 drop keys with no surface skill, then re-run the checks
 
 CLAUDE_SKILL_LOAD_HOME and CLAUDE_SKILL_LOAD_REPO redirect the surfaces for
 fixture-based smoke tests.
@@ -57,7 +61,9 @@ while [ "$#" -gt 0 ]; do
     ;;
   --no-profile)
     PROFILE_DISABLED=1
-    shift
+    ;;
+  --fix)
+    FIX=1
     ;;
   -h | --help)
     usage
@@ -87,11 +93,12 @@ if [ "$PROFILE_DISABLED" -eq 0 ]; then
   fi
 fi
 
-node - "$HOME_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$PROFILE_PATH" <<'NODE'
+node - "$HOME_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$PROFILE_PATH" "$FIX" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [homeDir, repoDir, gateRaw, alertRaw, profilePathRaw] = process.argv.slice(2);
+const [homeDir, repoDir, gateRaw, alertRaw, profilePathRaw, fixRaw] = process.argv.slice(2);
+const FIX = fixRaw === "1";
 const GATE = Number(gateRaw);
 const ALERT = Number(alertRaw);
 const profilePath = profilePathRaw || "";
@@ -267,7 +274,7 @@ const mapForPartition = profile
 	: trackedMap ?? {};
 if (profile && mapForPartition === null) {
 	errors.push(
-		`profile ${profilePath} has no skillOverrides map; regenerate claude/profiles/lean.settings.json from claude/settings.skill-overrides.json or pass --no-profile`,
+		`profile ${profilePath} has no skillOverrides map; add one (scripts/claude-skill-load-check --fix populates it from the discovered surface) or pass --no-profile`,
 	);
 }
 const VALID_STATES = new Set(["on", "name-only", "user-invocable-only", "off"]);
@@ -277,16 +284,36 @@ for (const [name, state] of Object.entries(mapForPartition)) {
   }
 }
 const surfaceNames = new Set(discovered.map((d) => d.name));
+const mapFilePath = profile
+	? profilePath
+	: path.join(repoDir, "claude/settings.skill-overrides.json");
+const missingFromMap = [...surfaceNames].filter((name) => !Object.hasOwn(mapForPartition, name)).sort();
+const staleMapKeys = Object.keys(mapForPartition).filter((name) => !surfaceNames.has(name)).sort();
 
-for (const name of surfaceNames) {
-  if (!Object.hasOwn(mapForPartition, name)) {
-    errors.push(`ungoverned skill on the surface: ${name} (add an explicit state for it in claude/settings.skill-overrides.json, then deploy)`);
-  }
+if (FIX && (missingFromMap.length > 0 || staleMapKeys.length > 0)) {
+	const document = JSON.parse(fs.readFileSync(mapFilePath, "utf8"));
+	const repaired = {};
+	for (const [name, state] of Object.entries(document.skillOverrides ?? {})) {
+		if (surfaceNames.has(name)) repaired[name] = state;
+	}
+	for (const name of missingFromMap) repaired[name] = "user-invocable-only";
+	document.skillOverrides = Object.fromEntries(Object.entries(repaired).sort(([a], [b]) => a.localeCompare(b)));
+	fs.writeFileSync(mapFilePath, `${JSON.stringify(document, null, 2)}\n`);
+	for (const name of missingFromMap) {
+		console.log(`FIX: governed ${name} as user-invocable-only in ${path.relative(repoDir, mapFilePath)}`);
+	}
+	for (const name of staleMapKeys) {
+		console.log(`FIX: dropped stale key ${name} from ${path.relative(repoDir, mapFilePath)}`);
+	}
+	console.log("FIX: re-run the check to validate the repaired map, then deploy");
+	process.exit(0);
 }
-for (const name of Object.keys(mapForPartition)) {
-  if (!surfaceNames.has(name)) {
-    errors.push(`map key with no surface skill: ${name} (remove the stale key or restore the skill)`);
-  }
+
+for (const name of missingFromMap) {
+  errors.push(`ungoverned skill on the surface: ${name} (add an explicit state for it in ${path.relative(repoDir, mapFilePath)}, or run --fix, then deploy)`);
+}
+for (const name of staleMapKeys) {
+  errors.push(`map key with no surface skill: ${name} (remove the stale key, run --fix, or restore the skill)`);
 }
 
 if (liveMap === null) {
