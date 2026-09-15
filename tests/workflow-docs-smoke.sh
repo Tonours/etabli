@@ -423,11 +423,11 @@ assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
 jq -e '.mcpServers == {}' "$ROOT_DIR/.mcp.json" >/dev/null
 jq -e '
   .scope == "work" and
-  .runtimeAssignments.claude == ["chrome-devtools", "lean-ctx", "brain"] and
-  .runtimeAssignments.pi == ["lean-ctx", "brain"] and
-  .runtimeAssignments.codex == ["chrome-devtools", "lean-ctx", "datadog", "linear", "brain"] and
+  .runtimeAssignments.claude == ["chrome-devtools", "brain"] and
+  .runtimeAssignments.pi == ["brain"] and
+  .runtimeAssignments.codex == ["chrome-devtools", "datadog", "linear", "brain"] and
   .runtimeAssignments.grok == [] and
-  (.mcpServers | keys | sort) == ["brain", "chrome-devtools", "datadog", "lean-ctx", "linear"]
+  (.mcpServers | keys | sort) == ["brain", "chrome-devtools", "datadog", "linear"]
 ' "$ROOT_DIR/mcp/servers.template.json" >/dev/null
 # Behavioral coverage lives in dedicated smokes (plan-check-freeze, no-progress,
 # workflow-event, dual-runtime). Docs smoke keeps map structure + anti-drift only.

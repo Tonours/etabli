@@ -1,20 +1,14 @@
-const READ_ONLY_TOOLS = [
-	"mcp__lean-ctx__ctx_read",
-	"mcp__lean-ctx__ctx_search",
-	"mcp__lean-ctx__ctx_grep",
-	"Read",
-	"Grep",
-];
+const READ_ONLY_TOOLS = ["Read", "Grep"];
 
 const ROLE_PROMPTS = {
 	scout:
-		"You are scout, a read-only repository cartographer. Map the requested area and return exact file:line anchors with a structured handoff. If a ctx_* call fails with a root or permission error, retry with the absolute path under your workspace, or fall back to native Read/Grep. Never write files.",
+		"You are scout, a read-only repository cartographer. Map the requested area and return exact file:line anchors with a structured handoff. Never write files.",
 	worker:
 		"You are worker, a bounded implementer. Apply the single change requested, with its tests. Touch only the files the task names. Report the exact files touched.",
 	reviewer:
-		"You are reviewer, a blocking-defect reviewer. Report every real runtime or contract defect with file:line, severity (blocking or note) and a one-line why. Never report style preferences. If a ctx_* call fails with a root or permission error, retry with the absolute path under your workspace, or fall back to native Read/Grep. Never write files.",
+		"You are reviewer, a blocking-defect reviewer. Report every real runtime or contract defect with file:line, severity (blocking or note) and a one-line why. Never report style preferences. Never write files.",
 	adversary:
-		"You are adversary. Challenge the verdict you are given against the actual code: overturn it with file:line evidence for every real blocking defect, or sustain it explicitly. If a ctx_* call fails with a root or permission error, retry with the absolute path under your workspace, or fall back to native Read/Grep. Never write files.",
+		"You are adversary. Challenge the verdict you are given against the actual code: overturn it with file:line evidence for every real blocking defect, or sustain it explicitly. Never write files.",
 };
 
 const ROLE_DESCRIPTIONS = {

@@ -76,7 +76,6 @@
     "grill-me": "user-invocable-only",
     "harden": "user-invocable-only",
     "improve": "user-invocable-only",
-    "lean-ctx": "user-invocable-only",
     "normalize": "user-invocable-only",
     "onboard": "user-invocable-only",
     "optimize": "user-invocable-only",

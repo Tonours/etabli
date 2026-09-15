@@ -191,7 +191,7 @@ export function runOne({
 		encoding: "utf8",
 		timeout: timeoutMs,
 		maxBuffer: 64 * 1024 * 1024,
-		env: { ...process.env, LEAN_CTX_EXTRA_ROOTS: workDir },
+		env: process.env,
 	});
 	const durationMs = Date.now() - started;
 	const output = (spawned.stdout ?? "").trim();
@@ -344,13 +344,7 @@ export function runProbe({
 			model,
 			effort,
 			maxTurns,
-			tools: [
-				"mcp__lean-ctx__ctx_read",
-				"mcp__lean-ctx__ctx_search",
-				"mcp__lean-ctx__ctx_grep",
-				"Read",
-				"Grep",
-			],
+			tools: ["Read", "Grep"],
 		},
 	});
 	const prompt = PARENT_DELEGATION[role];
@@ -369,7 +363,7 @@ export function runProbe({
 		encoding: "utf8",
 		timeout: timeoutMs,
 		maxBuffer: 64 * 1024 * 1024,
-		env: { ...process.env, LEAN_CTX_EXTRA_ROOTS: workDir },
+		env: process.env,
 	});
 	const durationMs = Date.now() - started;
 	let record = null;

@@ -32,7 +32,7 @@ function brainRoot(home) {
 	return join(home, "work", "brain");
 }
 
-export function renderMcpConfig({ repoRoot, home, scope, env = process.env }) {
+export function renderMcpConfig({ repoRoot, home, scope }) {
 	let template;
 	try {
 		template = JSON.parse(readFileSync(leanMcpTemplatePath(repoRoot), "utf8"));
@@ -51,7 +51,7 @@ export function renderMcpConfig({ repoRoot, home, scope, env = process.env }) {
 				continue;
 			}
 		}
-		servers[name] = substitute(definition, home, env);
+		servers[name] = substitute(definition, home);
 	}
 	const path = join(
 		tmpdir(),
@@ -64,33 +64,16 @@ export function renderMcpConfig({ repoRoot, home, scope, env = process.env }) {
 	return { path, skipped };
 }
 
-function substitute(value, home, env) {
+function substitute(value, home) {
 	if (typeof value === "string") {
-		const leanData = env.LEAN_CTX_DATA_DIR;
-		const sessionCwd = env.PWD ?? env.INIT_CWD ?? "";
-		return value
-			.replaceAll("${HOME}", home)
-			.replaceAll(
-				"${LEAN_CTX_DATA_DIR}",
-				typeof leanData === "string" ? leanData : "",
-			)
-			.replaceAll("${LEAN_CTX_SESSION_CWD}", sessionCwd);
+		return value.replaceAll("${HOME}", home);
 	}
-	if (Array.isArray(value)) return value.map((v) => substitute(v, home, env));
+	if (Array.isArray(value)) return value.map((v) => substitute(v, home));
 	if (value && typeof value === "object") {
 		const out = {};
 		for (const [k, v] of Object.entries(value)) {
 			if (k === "require_scope") continue;
-			if (k === "env" && v && typeof v === "object") {
-				const envOut = {};
-				for (const [ek, ev] of Object.entries(v)) {
-					const substituted = substitute(ev, home, env);
-					if (substituted !== "") envOut[ek] = substituted;
-				}
-				out.env = envOut;
-				continue;
-			}
-			out[k] = substitute(v, home, env);
+			out[k] = substitute(v, home);
 		}
 		return out;
 	}
@@ -100,7 +83,6 @@ function substitute(value, home, env) {
 export function buildLeanLaunch({
 	repoRoot,
 	home,
-	env = process.env,
 	strictMcp = true,
 	extraArgs = [],
 }) {
@@ -111,7 +93,7 @@ export function buildLeanLaunch({
 		);
 	}
 	const scope = loadScope(home);
-	const rendered = renderMcpConfig({ repoRoot, home, scope, env });
+	const rendered = renderMcpConfig({ repoRoot, home, scope });
 	const args = ["--settings", profile];
 	if (strictMcp) {
 		args.push("--strict-mcp-config", "--mcp-config", rendered.path);

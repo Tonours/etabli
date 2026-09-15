@@ -1,12 +1,5 @@
 @AGENTS.md
 
-## Knowledge Base
-
-Before answering or planning from durable memory, consult the memory vault per
-`workflow/skills/obvault-memory.md` (scope-resolved root: work ->
-~/work/brain when present, else ~/work/obvault; personal -> ~/work/obvault);
-read its `AGENTS.md` entrypoint first and do not wait for an explicit request.
-
 <!-- ADR:INDEX:START -->
 ## Architecture Decision Records
 
@@ -36,4 +29,5 @@ Decisions live in `docs/adr/`. Run `/adr` to record one.
 - [0022](docs/adr/0022-amend-vendored-verbatim-with-sync-time-path-adaptation.md) — Amend vendored-verbatim with a sync-time path-adaptation table [accepted]
 - [0023](docs/adr/0023-migrate-pstack-to-the-pi-port.md) — Migrate pstack to the @zenspc/pi-pstack port, Pi-only [accepted]
 - [0024](docs/adr/0024-treat-config-devin-skills-as-a-managed-link-surface.md) — Treat ~/.config/devin/skills as a managed link surface [accepted]
+- [0025](docs/adr/0025-remove-lean-ctx-from-every-tracked-surface.md) — Remove lean-ctx from every tracked surface [accepted]
 <!-- ADR:INDEX:END -->

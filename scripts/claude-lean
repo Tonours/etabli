@@ -21,8 +21,8 @@ Usage: claude-lean [--print-args] [--no-strict-mcp] [claude args...]
 
 Launches the real claude binary with the lean profile: non-essential plugins
 off, governed skillOverrides, skillListingBudgetFraction, lean effort default,
-plus a sanitized MCP config (lean-ctx always; brain only for the work scope
-when ~/work/brain exists) rendered to a 0600 temp file deleted on exit.
+plus a sanitized MCP config (brain only, for the work scope when ~/work/brain
+exists) rendered to a 0600 temp file deleted on exit.
 Nothing under \$HOME/.claude is mutated.
 
   --print-args     print the resolved arguments and exit (no launch, no cost)

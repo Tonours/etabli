@@ -21,13 +21,10 @@ claude               # intact, rollback natif
 - surface de skills gouvernée: 78 entrées classées, 24 auto-invocables,
   index 6141 caractères (sous le garde 6510), `skillListingBudgetFraction`
   0.008
-- MCP restreint et assaini (`--strict-mcp-config`): `lean-ctx` +
-  `brain` (scope work, si `~/work/brain` existe), rendu en fichier temporaire
-  `0600` supprimé à la sortie
+- MCP restreint et assaini (`--strict-mcp-config`): `brain` seul (scope work,
+  si `~/work/brain` existe), rendu en fichier temporaire `0600` supprimé à la
+  sortie
 - effort de session `low` (les flags `--model`/`--effort` restent prioritaires)
-- `LEAN_CTX_EXTRA_ROOTS` = répertoire courant, pour que les outils `ctx_*`
-  fonctionnent dans le projet ouvert (lean-ctx résout sinon sa racine
-  globalement)
 
 ### 2. Matrice des subagents alignée sur `candidate_a`
 
