@@ -265,6 +265,38 @@ for unsafe_readonly_command in \
 	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
 done
 
+for allowed_readonly_command in \
+	"gh api repos/o/r/pulls/42/files --paginate" \
+	"gh api repos/o/r/pulls/42/comments --method GET" \
+	"gh pr view 42 --json files,title" \
+	"gh pr diff 42" \
+	"gh auth status" \
+	"awk '{ print \$1 }' registry.yaml" \
+	"/bin/bash -n script.sh" \
+	"/usr/bin/git diff HEAD" \
+	"cd sub; git status" \
+	"git merge-base main topic"; do
+	allowed_readonly_output="$(readonly_guard_output "$allowed_readonly_command")"
+	assert_empty "$allowed_readonly_output" "read-only agent guard allows $allowed_readonly_command"
+done
+
+for unsafe_readonly_command in \
+	"gh pr create --title x" \
+	"gh pr review 42 --approve" \
+	"gh api repos/o/r/pulls/42/reviews --method POST --input r.json" \
+	"gh api repos/o/r/issues/1/comments -f body=x" \
+	"gh repo clone o/r" \
+	"awk -f program.awk registry.yaml" \
+	"awk '{ system(\"touch changed.txt\") }' input.txt" \
+	"awk '{ print > \"changed.txt\" }' input.txt" \
+	"awk '{ print | \"sh\" }' input.txt" \
+	"cat input.txt; rm changed.txt" \
+	"git status; git push --force" \
+	"/bin/rm changed.txt"; do
+	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
+	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
+done
+
 guard_repo="$TMP_DIR/plan-commit-guard-repo"
 mkdir -p "$guard_repo"
 git -C "$guard_repo" init -q
