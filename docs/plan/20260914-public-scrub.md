@@ -1,34 +1,34 @@
 # Implemented: public scrub and documentation cleanup
 
-- Source plan: `PLAN.md`
+## Metadata
+- Archived: 2026-09-14
 - Status: IMPLEMENTED
-- Source plan SHA-256: `a194472996d5e2ebea0d4088130cc8a46aec95b7b25567431531cc256b203583`
-- Completed: 2026-09-14
+- Scope: public documentation and reachable repository objects
 
 ## Result
+Public pages now retain reusable workflow guidance and omit operational case
+data. Private observations remain outside the published tree. Local-only files
+were left untouched and were not staged by this work.
 
-The local history and the published `main` branch were rewritten with neutral
-employer terminology and a portable Pi environment reference. The personal
-address already present in the repository was preserved. The untracked Pi
-mobile bridge was kept byte-for-byte and was never staged.
-
-All remote branch heads now point to `main`. GitHub is public and the default
-branch is `main`. The post-public `agentic-infra` run passed all three jobs on
-`ubuntu-latest` for commit `1c55079`.
+The scrub distinguishes current content from immutable hosting history. A
+normal branch update cannot erase old review references already retained by a
+hosting service. That residual risk is recorded rather than hidden.
 
 ## Validation
-
-- The tracked tree and reachable `main` objects contain zero prohibited matches.
-- `scripts/verify-agentic-infra core` passed 19/19 checks.
-- `cd pi && bun run verify:skills` verified 83 skill hashes.
-- `tests/workflow-docs-smoke.sh` passed after the README cleanup.
-- The public mirror has one branch head and 38 hosted pull-request refs. Those
-  immutable refs still contain 2,189 historical matches and cannot be rewritten
-  by a normal Git push. No issue, issue comment, or review comment contains a
-  match.
+- The scoped tree scan reports no non-allowlisted sensitive tokens.
+- Documentation and workflow smoke checks pass.
+- Skill integrity and core infrastructure checks pass for this worktree.
+- The public replacement contains no raw customer, account, or machine data.
+- Historical hosting residue is listed as an external follow-up.
 
 ## Recovery
+The source material remains in an offline rollback bundle outside the workspace.
+It was neither staged nor published. Restoring it requires an explicit local
+operation; removing immutable hosting residue requires the hosting provider's
+retention controls or repository recreation.
 
-The original repository state remains in the offline rollback bundle outside
-the workspace. It was not staged or published. Absolute removal of the hosted
-pull-request residue requires GitHub support or repository recreation.
+## Boundary
+This archive records the method, scope, and validation contract. It does not
+record identities, private paths, provider labels, or raw review transcripts.
+Those details are routed to the approved private store according to context.
+The archive is safe to publish only within that stated scope.

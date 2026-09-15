@@ -7,6 +7,16 @@ workflow changes without bypassing `PLAN.md`, validation, or human checkpoints.
 The model may propose harness changes, but evaluator and permission controls
 stay outside the mutation loop.
 
+## Privacy boundary
+
+The public repository may contain only a sanitized contract, synthetic fixtures,
+opaque fingerprints and aggregate results that do not reveal private work. Raw
+corpora, prompts, session traces, detailed reviewer history, operational
+metrics and other sensitive evidence stay out of Git. For private evidence,
+route storage by project context: use **Obvault** outside the managed work
+context and **Brain** inside that context. Do not dual-write the same private record to both
+stores; keep only a redacted pointer or aggregate public receipt in Etabli.
+
 ## Inputs
 
 Use evidence that can be inspected again:
@@ -39,8 +49,11 @@ router, memory, permissions, checks, or harness code:
    evidence and do not regress held-out router, docs, event, or workflow smoke
    checks. When baseline and candidate use the same comparable population,
    record `harness_validation_completed` with the same stable population
-   identifier on both sides, integer pass counts, checks, and evidence. An
-   accepted comparison needs a strict held-in gain and held-out non-regression.
+   identifier on both sides, integer pass counts, checks, and evidence. New
+   strict comparisons also bind exact baseline/candidate artifact fingerprints,
+   manifest bytes and the evaluator bundle. An accepted comparison needs a
+   strict held-in gain, held-out non-regression, no baseline safety gap, and no
+   baseline-pass to candidate-fail transition by task ID.
 4. Rejection logging: record rejected candidates and negative results with the
    reason, regressions, and evidence so future runs do not repeat them.
 

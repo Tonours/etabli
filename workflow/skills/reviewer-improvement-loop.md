@@ -4,7 +4,7 @@ How the `reviewer` agent gets better at catching defects, driven by the defects 
 actually let through.
 
 The target is a real number: **escaped defects per reviewed PR**, where an escaped
-defect is one that `reviewer` passed and a later gate caught (Macroscope, a human
+defect is one that `reviewer` passed and a later gate caught (an independent reviewer, a human
 reviewer, CI, production). Not "review quality" in the abstract.
 
 ## Why this is not "add the miss to a checklist"
@@ -45,10 +45,10 @@ Prefer, in this order:
 
 ### The limit of that lever
 
-Measured 2026-08-21, on 12 escaped defects across 4 repos: an output contract
+Measured in repeated held-in samples across repositories: an output contract
 fixes an **invisible skip**. It does not fix **visible wrong reasoning**.
 
-On R-005 the lens ran, the row was filled, the deciding code was opened and
+On a representative case the lens ran, the row was filled, the deciding code was opened and
 cited, and the conclusion was wrong. A proposed "counter-case tried" column was
 rejected because a reviewer can write a confident, concrete counter-case that
 satisfies the column and still misses the defect — the row already written was
@@ -64,7 +64,7 @@ nothing and costs precision.
 
 Evidence that can be inspected again:
 
-- Macroscope findings on a PR the `reviewer` agent already passed. The highest
+- Independent reviewer findings on a PR the `reviewer` agent already passed. The highest
   quality signal available: an independent reviewer, on the same diff, at the same
   commit.
 - human review comments that name a defect, not a preference
@@ -80,9 +80,9 @@ One anecdote is not evidence for changing an invariant. A repeated pattern is.
 ### 1. Record the miss
 
 For each escaped defect, fill `workflow/templates/escaped-defect.md` before or
-with the fix. Storage: **personal stack → obvault** (bounded shadow only);
-**work stack → brain**. Reusable cases also append
-`workflow/self-improvement/reviewer-eval-corpus.md`.
+with the fix. Storage uses the approved private store by context; public reusable
+cases require redaction of identifiers, paths, provider/model names, prompts and
+raw operational history before appending to `workflow/self-improvement/reviewer-eval-corpus.md`.
 
 Required fields (see template):
 
