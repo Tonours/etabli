@@ -1,0 +1,1 @@
+{"kind": "findings", "must_report": ["loop off-by-one over items", "missing null guard on cart", "fractional index into fee table"], "false_positive_cap": 1}

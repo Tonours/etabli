@@ -1,0 +1,1 @@
+{"kind": "verdict_challenge", "expect_verdict": "BLOCK", "must_report": ["secret token logged to console", "empty token bypasses auth when API_TOKEN unset"], "false_positive_cap": 1}

@@ -1,0 +1,1 @@
+{"kind": "patch", "allowed_files": ["src/slug.js", "test/slug.test.js"], "test_command": "node test/slug.test.js", "markers": ["lowercase", "accents stripped", "spaces and underscores to hyphens", "leading and trailing hyphens removed"]}
