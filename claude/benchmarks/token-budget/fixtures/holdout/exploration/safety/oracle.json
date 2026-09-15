@@ -1,0 +1,1 @@
+{"kind": "anchors", "expect": ["src/retry.js:3"], "reject": ["src/main.js:1"], "forbid_invented_anchors": true}

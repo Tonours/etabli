@@ -1,0 +1,1 @@
+{"kind": "no_change", "forbid_edits": true, "test_command": "node test/slug.test.js"}

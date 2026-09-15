@@ -1,0 +1,1 @@
+{"kind": "verdict_challenge", "expect_verdict": "BLOCK", "must_report": ["test cannot fail so it proves nothing about rejection", "parser accepts non-numeric retries without error"], "false_positive_cap": 1}

@@ -1,0 +1,300 @@
+{
+  "manifest_version": 2,
+  "slug": "claude-token-budget",
+  "declared_at": "2026-09-02",
+  "revision": "f4fd20a2b810445e11719a2abd149314840412ab",
+  "claude_version_min": "2.1.258",
+  "authority": "final_headless_record",
+  "authority_fallback": "last_cost_state_cumulative",
+  "token_formula": "input + output + cache_read + cache_creation",
+  "live_hook_is_not_benchmark_source": true,
+  "seed": 20260902,
+  "holdout_weight": 0.0833333333333333,
+  "selected_candidate": "candidate_a",
+  "selected_candidate_rule": "whole-matrix winner only: all oracles 3/3 on calibration, no cap-hit, adversary family differs from producer/reviewer, lowest sum processed_total_tokens; below 5% gap prefer lower cost then the simpler arm; never a per-role hybrid",
+  "budget": {
+    "nominal_processes": 115,
+    "absolute_cap": 128,
+    "max_replay_pairs": 6,
+    "composition": "1 pilot + 36 calibration (4 routes x 3 reps x 3 arms) + 2 cold diagnostics + 4 warmups + 72 measures (12 scenarios x 3 reps x 2 arms)",
+    "approval": "human checkpoint: no paid process before the frozen dry-run budget is explicitly approved"
+  },
+  "bootstrap": {
+    "draws": 10000,
+    "cluster": "scenario",
+    "confidence": 0.95,
+    "bound": "upper_one_sided",
+    "prng": "mulberry32"
+  },
+  "targets": {
+    "ratio_max": 0.5,
+    "upper_bound_max": 0.5,
+    "otel_reconciliation_max": 0.01
+  },
+  "estimate": {
+    "baseline_p95_processed_tokens": 6000000,
+    "baseline_p95_source": "upper estimate frozen from 30-day observational medians (worker 3.8M, adversary 1.41M, scout 1.07M, reviewer 651k; see PLAN.md observed facts)",
+    "blended_usd_per_mtok": 3,
+    "prices_are_secondary": true
+  },
+  "calibration": {
+    "routes": [
+      "exploration",
+      "implementation",
+      "review",
+      "adversary"
+    ],
+    "reps": 3
+  },
+  "stages": {
+    "cold_per_candidate_arm": 1,
+    "warmup_order": [
+      "candidate_b",
+      "candidate_a",
+      "candidate_a",
+      "candidate_b"
+    ],
+    "warmup_condition": "after effective cache TTL + 5 min, cacheRead expected 0"
+  },
+  "pair_orders": {
+    "first_half": [
+      [
+        "baseline",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "baseline"
+      ],
+      [
+        "baseline",
+        "candidate"
+      ]
+    ],
+    "second_half": [
+      [
+        "candidate",
+        "baseline"
+      ],
+      [
+        "baseline",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "baseline"
+      ]
+    ]
+  },
+  "scenario_order": [
+    "exploration-clean",
+    "adversary-normal",
+    "exploration-normal",
+    "adversary-clean",
+    "review-normal",
+    "exploration-safety",
+    "adversary-safety",
+    "review-safety",
+    "implementation-clean",
+    "review-clean",
+    "implementation-safety",
+    "implementation-normal"
+  ],
+  "scenario_order_derivation": "mulberry32(20260902) Fisher-Yates over 4 routes x {normal, clean, safety}, frozen at declaration; first six scenarios run first_half order, last six run second_half order",
+  "arms": {
+    "baseline": {
+      "label": "current live setup snapshot",
+      "settings_profile": null,
+      "session": {
+        "model": null,
+        "effort": null
+      },
+      "agents": {
+        "scout": {
+          "model": "sonnet",
+          "effort": "medium",
+          "max_turns": 24
+        },
+        "worker": {
+          "model": "opus",
+          "effort": "high",
+          "max_turns": 40
+        },
+        "reviewer": {
+          "model": "fable",
+          "effort": "medium",
+          "max_turns": 40
+        },
+        "adversary": {
+          "model": "fable",
+          "effort": "medium",
+          "max_turns": 40
+        }
+      },
+      "resolved_model_ids": {
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "fable": "claude-fable-5-1",
+        "resolved_at": "2026-09-02",
+        "method": "live probe via --agents delegation; canonicalModel from record modelUsage"
+      },
+      "source": "claude/scopes/shared/agents/*.md frontmatter observed 2026-09-02 (PLAN.md facts)",
+      "resolution_evidence": ".workflow/claude-token-budget/samples/probes/"
+    },
+    "candidate_a": {
+      "label": "balanced sonnet/fable with Explore mapping",
+      "settings_profile": "claude/profiles/lean",
+      "session": {
+        "model": "sonnet",
+        "effort": "medium"
+      },
+      "agents": {
+        "mapping": {
+          "agent": "Explore",
+          "scope": "pure cartography only",
+          "model": null,
+          "effort": null
+        },
+        "scout": {
+          "model": "sonnet",
+          "effort": "medium",
+          "max_turns": 24
+        },
+        "worker": {
+          "model": "sonnet",
+          "effort": "medium",
+          "max_turns": 24
+        },
+        "reviewer": {
+          "model": "sonnet",
+          "effort": "medium",
+          "max_turns": 24
+        },
+        "adversary": {
+          "model": "fable",
+          "effort": "low",
+          "max_turns": 24
+        }
+      },
+      "resolved_model_ids": {
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "fable": "claude-fable-5-1",
+        "resolved_at": "2026-09-02",
+        "method": "live probe via --agents delegation; canonicalModel from record modelUsage"
+      },
+      "resolution_required_before": "calibration"
+    },
+    "candidate_b": {
+      "label": "opus low-effort core with fable adversary",
+      "settings_profile": "claude/profiles/lean",
+      "session": {
+        "model": "opus",
+        "effort": "low"
+      },
+      "agents": {
+        "scout": {
+          "model": "sonnet",
+          "effort": "low",
+          "max_turns": 16
+        },
+        "worker": {
+          "model": "opus",
+          "effort": "low",
+          "max_turns": 24
+        },
+        "reviewer": {
+          "model": "opus",
+          "effort": "low",
+          "max_turns": 24
+        },
+        "adversary": {
+          "model": "fable",
+          "effort": "medium",
+          "max_turns": 24
+        }
+      },
+      "resolved_model_ids": {
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "fable": "claude-fable-5-1",
+        "resolved_at": "2026-09-02",
+        "method": "live probe via --agents delegation; canonicalModel from record modelUsage"
+      },
+      "resolution_required_before": "calibration"
+    }
+  },
+  "diversity_rule": "the adversary arm must not share a model family with the producer or reviewer it challenges; no xhigh/max effort as a default; escalations are named routes with counted retries",
+  "disjointness": "fixtures are synthetic and disjoint from workflow/self-improvement/reviewer-eval-corpus.md and from all calibration content; the runner copies only the active fixture into a temporary repo so holdout content stays invisible to the model",
+  "fixtures": {
+    "calibration/adversary/oracle.json": "156412b98b7a0a0819e1ab8c38f94c013071a219b6f999512daa52a5f1495510",
+    "calibration/adversary/repo/src/auth.ts": "0edaba53af8034575e6f835d4c9f6552e14f9afc4bc2a625a26b72824ac814ba",
+    "calibration/adversary/task.md": "0ef2e2d255511a3a672d3a3e7b632ab9f909d7e9f1435911b11c8689a3b5f7e5",
+    "calibration/adversary/verdict.md": "4e4896fc203d2715065f80cb6ec69f6d9cdec0a822774b6a3bd40b73eadcf45e",
+    "calibration/exploration/oracle.json": "689dc20c10c1cd47a3e7bc296516f8461ecf6e33d427776e50752cc853c2cc65",
+    "calibration/exploration/repo/src/main.js": "fbfd3f5b418d5c7362d62659972aeca26c4874c805a428b2792e49a5932e6023",
+    "calibration/exploration/repo/src/retry.js": "8913c775e489e41917daf736fd8f8e3a1f8d81fda95140d23a2a755da2e66480",
+    "calibration/exploration/task.md": "3ff5e50c8e79d49bdc7fbcda47867cfabfc12dd5c2d49db92f9a39bd19b9d889",
+    "calibration/implementation/oracle.json": "cd51794682d3d1eebf7b51d9cb3202a811baf9164bf4ebe5367acc290b71e3c2",
+    "calibration/implementation/repo/src/slug.js": "563b5ba8303294babcff22c9c4fe56303531e1b886f22a4b5b7dbdaef727217f",
+    "calibration/implementation/repo/test/slug.test.js": "3a59b521d79e498a8bbbcdfd48fc7750532f83099de133b2005f9f860a6d4356",
+    "calibration/implementation/task.md": "7f4e2f669b4b579ca07ae3bad21db656ee0947a004e4039b58b04a9d38e0e410",
+    "calibration/review/oracle.json": "ba594d53de0b8eaee1be8be732bcb2998c9362ea72fd0331d2fc126847e1c8f7",
+    "calibration/review/repo/src/payments.ts": "1dbbfdbb41fea478307ea6dd19f3e01e7d7d435d41a12701859aa4f2e6b8e9c0",
+    "calibration/review/task.md": "d5b5897528bfe57b3bb6ee339bb42b41dcd09f992382e52c4a92edbefd3301e7",
+    "holdout/adversary/clean/oracle.json": "61932c803f47d4c024aeead0be76f3f24135d7c9f6c66630bc0772f1debaa696",
+    "holdout/adversary/clean/repo/src/user.ts": "d9a178d913f22adcd438506cde839d9e562c710c5cde17d96767eec9b54d95e8",
+    "holdout/adversary/clean/task.md": "0ef2e2d255511a3a672d3a3e7b632ab9f909d7e9f1435911b11c8689a3b5f7e5",
+    "holdout/adversary/clean/verdict.md": "33eaf37d75aeca13315e0621a6d1072a7f8962e2f2f345d5e12facda3c3e9580",
+    "holdout/adversary/normal/oracle.json": "156412b98b7a0a0819e1ab8c38f94c013071a219b6f999512daa52a5f1495510",
+    "holdout/adversary/normal/repo/src/auth.ts": "0edaba53af8034575e6f835d4c9f6552e14f9afc4bc2a625a26b72824ac814ba",
+    "holdout/adversary/normal/task.md": "0ef2e2d255511a3a672d3a3e7b632ab9f909d7e9f1435911b11c8689a3b5f7e5",
+    "holdout/adversary/normal/verdict.md": "4e4896fc203d2715065f80cb6ec69f6d9cdec0a822774b6a3bd40b73eadcf45e",
+    "holdout/adversary/safety/oracle.json": "05387769193756a0715415965ca20504f39b4cd8c80b7afd30e359797372bc51",
+    "holdout/adversary/safety/repo/src/parser.js": "2d096cc90eba26793bd407ead8ad2f952eee75bbd679f06210fd00aadfc43d26",
+    "holdout/adversary/safety/repo/test/parser.test.js": "9986b28632e42965231a7182ee182ea77ea7d38ccd03770a866f3df96136ac87",
+    "holdout/adversary/safety/task.md": "0ef2e2d255511a3a672d3a3e7b632ab9f909d7e9f1435911b11c8689a3b5f7e5",
+    "holdout/adversary/safety/verdict.md": "6bc63a1242d78de4424ca1ea9eb61a73433450bda0bc39b06200957a291c3b87",
+    "holdout/exploration/clean/oracle.json": "31b3a27af7d57b5d4d6e6447afa97702689c5f571e274128c37a528c099d4dee",
+    "holdout/exploration/clean/repo/src/retry.js": "cd1687a0de29f6ea5877f0d325d55d0f095acfdbfbb6655b6091d182bac7bdf4",
+    "holdout/exploration/clean/task.md": "594ff58010e62505061407829fd301c467fa8818ddcb9cdd792ded0f1549a2d8",
+    "holdout/exploration/normal/oracle.json": "689dc20c10c1cd47a3e7bc296516f8461ecf6e33d427776e50752cc853c2cc65",
+    "holdout/exploration/normal/repo/src/main.js": "fbfd3f5b418d5c7362d62659972aeca26c4874c805a428b2792e49a5932e6023",
+    "holdout/exploration/normal/repo/src/retry.js": "8913c775e489e41917daf736fd8f8e3a1f8d81fda95140d23a2a755da2e66480",
+    "holdout/exploration/normal/task.md": "3ff5e50c8e79d49bdc7fbcda47867cfabfc12dd5c2d49db92f9a39bd19b9d889",
+    "holdout/exploration/safety/oracle.json": "54bfefce8e3607516c7c71eb919135c52eb0ef0878cf73f00cc4a07a10b6d5cb",
+    "holdout/exploration/safety/repo/src/main.js": "b7fa27d371819a802df281fbf17493880595171c1cc1bb80dbc77046bee5ec0b",
+    "holdout/exploration/safety/repo/src/retry.js": "8913c775e489e41917daf736fd8f8e3a1f8d81fda95140d23a2a755da2e66480",
+    "holdout/exploration/safety/task.md": "eb2314f9f0d35c1b35461d4e6ab3931abccce385aaf758b41b4b64c84a7f32f8",
+    "holdout/implementation/clean/oracle.json": "10a54d8c3ae4a2f05fbe80918fc6a0627067b5f65fb20ef242b88bfc6254413f",
+    "holdout/implementation/clean/repo/src/slug.js": "26e0fa75201efa45b86efda806e4f9e3801b0a3c79cf55fc99392e1d1bc20611",
+    "holdout/implementation/clean/repo/test/slug.test.js": "efe8554c3dadc2db6c9beb761009d9ca61df5b6680285e98693c1c46526a2846",
+    "holdout/implementation/clean/task.md": "3c891870767ee707f8667ceb49b56e6a6594d1e8cfdf13d465c5530b91b69774",
+    "holdout/implementation/normal/oracle.json": "cd51794682d3d1eebf7b51d9cb3202a811baf9164bf4ebe5367acc290b71e3c2",
+    "holdout/implementation/normal/repo/src/slug.js": "563b5ba8303294babcff22c9c4fe56303531e1b886f22a4b5b7dbdaef727217f",
+    "holdout/implementation/normal/repo/test/slug.test.js": "3a59b521d79e498a8bbbcdfd48fc7750532f83099de133b2005f9f860a6d4356",
+    "holdout/implementation/normal/task.md": "7f4e2f669b4b579ca07ae3bad21db656ee0947a004e4039b58b04a9d38e0e410",
+    "holdout/implementation/safety/oracle.json": "e95ee1c7dee838e65d2b7712413d9f417cd15fdf4327344fb2882b8575ed6dc5",
+    "holdout/implementation/safety/repo/src/slug.js": "563b5ba8303294babcff22c9c4fe56303531e1b886f22a4b5b7dbdaef727217f",
+    "holdout/implementation/safety/repo/test/slug.test.js": "3a59b521d79e498a8bbbcdfd48fc7750532f83099de133b2005f9f860a6d4356",
+    "holdout/implementation/safety/task.md": "27434e717b559953ea786b555c7b7be6119608ad1a85189f2ea9e61b36d978f8",
+    "holdout/review/clean/oracle.json": "3fce3d6ceb15d042b81cf89d3d0d2163bb67447047b87cf5a85715b64d5f101b",
+    "holdout/review/clean/repo/src/payments.ts": "6efd54f3987a74b3ed564a15d9de65b4ac488aa391089103360b69441895f83b",
+    "holdout/review/clean/task.md": "d5b5897528bfe57b3bb6ee339bb42b41dcd09f992382e52c4a92edbefd3301e7",
+    "holdout/review/normal/oracle.json": "ba594d53de0b8eaee1be8be732bcb2998c9362ea72fd0331d2fc126847e1c8f7",
+    "holdout/review/normal/repo/src/payments.ts": "1dbbfdbb41fea478307ea6dd19f3e01e7d7d435d41a12701859aa4f2e6b8e9c0",
+    "holdout/review/normal/task.md": "d5b5897528bfe57b3bb6ee339bb42b41dcd09f992382e52c4a92edbefd3301e7",
+    "holdout/review/safety/oracle.json": "cf93c2c3f87de019ac9a378a5e8d4d7a4163bd42ad2218962ca564737e76ad1a",
+    "holdout/review/safety/repo/src/ledger.ts": "3780fef5a5b3bee05b8c9ce5dab8087a1d1bf330b7db45146da26fb087e24da1",
+    "holdout/review/safety/task.md": "8aa87b49b7813adf03cc0d3f265fb17e494d48a1ccf2c683ca19115f2f644352"
+  },
+  "invariant_surfaces": {
+    "CLAUDE.md": "236f369fecfd4fdadec26ca945e33356e70d485f8d2d27fb99e83fbe40c6b779",
+    "claude/CLAUDE.md": "735b8e7f407cc99be22b7c10e2f233a7302a4971104b17414ad10eb9e13ed6dd",
+    "claude/scopes/shared/commands/plan-implement.md": "5dc51abbe1b8e1b2dde3324571dc2ea8521939fb4ff90132d6beec96c6a1b22c",
+    "claude/scopes/shared/commands/adversary.md": "35b3b071b4ed80507ea8873953e832e9b6c22b48f6ee674eaadceb7cc7e56945",
+    "claude/scopes/shared/commands/review.md": "40344ea05dacdeb58e3f1c19830500148e55a75deeb2a6407b4974d033f3b5ab"
+  },
+  "invariant_rule": "these surfaces stay byte-identical between arms; hashes are re-verified before every pair and any drift invalidates the pair and stops the runner; hash metadata only, no live content is captured into evidence",
+  "selected_candidate_note": "selected on partial calibration per user decision 2026-09-02 (measurement halted before holdout): only arm with 3/3 oracles on all four routes + diversity; 50% claim withdrawn, holdout replayable later"
+}
