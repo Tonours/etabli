@@ -203,11 +203,6 @@ preflight_target() {
 preflight_conflicts() {
   local entry source_path relative_path destination_path parent_path
 
-  if [ "$FORCE" -eq 0 ] && [ -e "$TARGET_DIR/.gitignore" ] && [ ! -f "$TARGET_DIR/.gitignore" ]; then
-    status_line CONFLICT ".gitignore exists but is not a file"
-    CONFLICTS=$((CONFLICTS + 1))
-  fi
-
   for entry in "${FILES[@]}"; do
     source_path="${entry%%|*}"
     relative_path="${entry#*|}"
@@ -223,6 +218,10 @@ preflight_conflicts() {
     if [ "$FORCE" -eq 0 ] && [ -e "$parent_path" ] && [ ! -d "$parent_path" ]; then
       status_line CONFLICT "$(dirname "$relative_path") exists but is not a directory"
       CONFLICTS=$((CONFLICTS + 1))
+      continue
+    fi
+
+    if [ -f "$destination_path" ] && git -C "$TARGET_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
       continue
     fi
 
@@ -289,6 +288,12 @@ write_file() {
     return 0
   fi
 
+  if [ -f "$destination_path" ] && git -C "$TARGET_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
+    status_line PROTECTED "$relative_path is tracked by the project; scaffold never overwrites it"
+    UNCHANGED=$((UNCHANGED + 1))
+    return 0
+  fi
+
   destination_dir="$(dirname "$destination_path")"
 
   if [ -e "$destination_dir" ] && [ ! -d "$destination_dir" ]; then
@@ -324,38 +329,94 @@ write_file() {
   WRITTEN=$((WRITTEN + 1))
 }
 
-ensure_plan_gitignore() {
-  local gitignore_path="$TARGET_DIR/.gitignore"
-  local backup
+EXCLUDE_BEGIN="# >>> etabli personal workflow ignores >>>"
+EXCLUDE_END="# <<< etabli personal workflow ignores <<<"
 
-  if [ -f "$gitignore_path" ] && grep -Fxq "PLAN.md" "$gitignore_path"; then
-    status_line OK ".gitignore contains PLAN.md"
-    UNCHANGED=$((UNCHANGED + 1))
+exclude_block() {
+  printf '%s\n' "$EXCLUDE_BEGIN"
+  printf '%s\n' \
+    "/PLAN.md" \
+    "/PLAN-*.md" \
+    "/PLAN_TEMPLATE.md" \
+    "/PLAN_TEMPLATE_FULL.md" \
+    "/AGENTS.md" \
+    "/CLAUDE.md" \
+    "/.mcp.json" \
+    "/.claude/" \
+    "/.pi/" \
+    "/.workflow/" \
+    "/workflow/" \
+    "/scripts/plan-cleanup" \
+    "/scripts/workflow-event" \
+    "/scripts/workflow-measurement-integrity" \
+    "/scripts/lib/workflow-event-detail.jq" \
+    "/docs/agent-workflow.md" \
+    "/docs/claude-code-workflow.md" \
+    "/docs/project-context.md" \
+    "/docs/agent-memory/" \
+    "/docs/plan/" \
+    "*.bak.[0-9]*-[0-9]*"
+  printf '%s\n' "$EXCLUDE_END"
+}
+
+warn_plan_gitignore() {
+  local gitignore_path="$TARGET_DIR/.gitignore"
+
+  [ -f "$gitignore_path" ] || return 0
+  grep -Fxq "PLAN.md" "$gitignore_path" || return 0
+
+  if git -C "$TARGET_DIR" show HEAD:.gitignore 2>/dev/null | grep -Fxq "PLAN.md"; then
+    status_line WARN ".gitignore tracks PLAN.md in HEAD - remove it in a commit of that repo"
     return 0
   fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
-    if [ -e "$gitignore_path" ] && [ ! -f "$gitignore_path" ]; then
-      status_line WOULD_BACKUP ".gitignore"
-    fi
-    status_line WOULD_WRITE ".gitignore PLAN.md entry"
+    status_line WOULD_WRITE ".gitignore PLAN.md entry removed"
     return 0
   fi
 
-  if [ -e "$gitignore_path" ] && [ ! -f "$gitignore_path" ]; then
-    backup="$(backup_path "$gitignore_path")"
-    mv "$gitignore_path" "$backup"
-    status_line BACKUP "${backup#$TARGET_DIR/}"
-  fi
-
-  if [ -f "$gitignore_path" ] && [ -s "$gitignore_path" ]; then
-    printf '\n# Agent workflow\nPLAN.md\n' >> "$gitignore_path"
-  else
-    printf '# Agent workflow\nPLAN.md\n' > "$gitignore_path"
-  fi
-
-  status_line WRITE ".gitignore PLAN.md entry"
+  local tmp
+  tmp="$(mktemp)"
+  awk '!(/^PLAN\.md$/ || /^# Agent workflow$/)' "$gitignore_path" >"$tmp"
+  mv "$tmp" "$gitignore_path"
+  status_line WRITE ".gitignore PLAN.md entry removed"
   WRITTEN=$((WRITTEN + 1))
+}
+
+ensure_local_exclude() {
+  local git_dir exclude_path desired current tmp
+
+  if ! git_dir="$(git -C "$TARGET_DIR" rev-parse --absolute-git-dir 2>/dev/null)"; then
+    status_line SKIP "not a git repository - no .git/info/exclude to manage"
+    return 0
+  fi
+
+  exclude_path="$git_dir/info/exclude"
+  desired="$(exclude_block)"
+
+  if [ -f "$exclude_path" ] && [ "$(awk -v b="$EXCLUDE_BEGIN" -v e="$EXCLUDE_END" 'index($0,b){f=1} f{print} index($0,e){f=0}' "$exclude_path")" = "$desired" ]; then
+    status_line OK ".git/info/exclude block current"
+    UNCHANGED=$((UNCHANGED + 1))
+    warn_plan_gitignore
+    return 0
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    status_line WOULD_WRITE ".git/info/exclude block"
+    warn_plan_gitignore
+    return 0
+  fi
+
+  mkdir -p "$git_dir/info"
+  tmp="$(mktemp)"
+  if [ -f "$exclude_path" ]; then
+    awk -v b="$EXCLUDE_BEGIN" -v e="$EXCLUDE_END" 'index($0,b){f=1} !f{print} index($0,e){f=0}' "$exclude_path" >"$tmp"
+  fi
+  printf '%s\n' "$desired" >>"$tmp"
+  mv "$tmp" "$exclude_path"
+  status_line WRITE ".git/info/exclude block"
+  WRITTEN=$((WRITTEN + 1))
+  warn_plan_gitignore
 }
 
 printf 'Target: %s\n\n' "$(display_target_dir)"
@@ -378,7 +439,7 @@ if [ "$CONFLICTS" -eq 0 ]; then
   for entry in "${FILES[@]}"; do
     write_file "${entry%%|*}" "${entry#*|}"
   done
-  ensure_plan_gitignore
+  ensure_local_exclude
 fi
 
 printf '\nSummary: %d written, %d unchanged, %d conflict(s)\n' "$WRITTEN" "$UNCHANGED" "$CONFLICTS"
