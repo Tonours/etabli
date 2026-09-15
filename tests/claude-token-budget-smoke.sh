@@ -206,7 +206,8 @@ assert(green.ratio !== null && green.ratio <= 0.5, "ratio computed");
 assert(green.bootstrap_upper_bound !== null && green.bootstrap_upper_bound <= 0.5,
 	"bootstrap bound computed and under target");
 
-const noSelection = verify.verifyFromFiles(manifest, buildDir());
+const { selected_candidate: _selected, ...manifestWithoutSelection } = manifest;
+const noSelection = verify.verifyFromFiles(manifestWithoutSelection, buildDir());
 assert(noSelection.passed === false, "verify without selected_candidate fails closed");
 assert(noSelection.problems.some((p) => p.includes("selected_candidate")), "failure names the remediation");
 
@@ -259,9 +260,18 @@ console.log("verify gates ok");
 NODE
 
 mkdir -p "$TMP/cli-samples"
-if "$VERIFY" verify --manifest "$MANIFEST" "$TMP/cli-samples" >"$TMP/cli.out" 2>"$TMP/cli.err"; then
+node -e '
+const { readFileSync, writeFileSync } = require("node:fs");
+const { selected_candidate, ...rest } = JSON.parse(readFileSync(process.argv[1], "utf8"));
+writeFileSync(process.argv[2], JSON.stringify(rest));
+' "$MANIFEST" "$TMP/manifest-no-selection.json"
+if "$VERIFY" verify --manifest "$TMP/manifest-no-selection.json" "$TMP/cli-samples" >"$TMP/cli.out" 2>"$TMP/cli.err"; then
 	fail "cli verify must fail on empty samples"
 fi
 grep -Fq 'selected_candidate' "$TMP/cli.err" || fail "cli failure names selected_candidate remediation"
+
+if "$VERIFY" verify --manifest "$MANIFEST" "$TMP/cli-samples" >"$TMP/cli-selected.out" 2>"$TMP/cli-selected.err"; then
+	fail "cli verify must fail on empty samples even with a selected candidate"
+fi
 
 printf 'claude-token-budget smoke test: ok\n'
