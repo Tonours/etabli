@@ -1,11 +1,12 @@
 # Implemented: resident instruction context cut ~26–49% on hot workflow routes, gated by a ratchet-only context budget, plus a bounded recursive self-improvement loop
 
-## Metadata
-- Archived: 2026-09-14
-- Source plan: `PLAN.md` — workflow context budget + self-improvement loop
-- Source plan SHA-256: `9b1d5354f09e52ab889e595f20e057555514da09581228f777bda2094ba28507`
-- Status: IMPLEMENTED
-- Commit / branch: uncommitted working tree on `main` (no commit requested)
+### Metric = declared characters, not billed tokens
+
+- Choice: use one deterministic character measurement with frozen membership.
+- Rejected: infer provider usage from a static estimate.
+- Consequence: the gate is reproducible and uncertainty stays explicit.
+
+The gate's source-of-truth files are versioned with the workflow.
 
 ## Outcome
 - New gate `scripts/workflow-context-budget` +
@@ -55,40 +56,39 @@ the evidence: ledger total/(input+output) ratios of 37×–420×.
 - `.workflow/workflow-context-budget/baseline.json`: frozen pre-change
   measurements; `review-patch.diff` + hunter/adversary outputs in the same dir.
 
-### spec.md § Rules → destination mapping (AC4)
+## Measurement design
 
-| Rule (first words) | Destination on the hot path |
-| --- | --- |
-| Read code before planning or editing; retry from `/`… | `workflow/skills/implementation-loop.md:54`; `workflow/skills/plan-loop.md:37` |
-| For broad external research, repo-pattern, or fresh-context review… | stays route-specific in `spec.md` (detail: `workflow/contract-details.md:53`) |
-| When asked whether a source implies repository changes… | stays route-specific in `spec.md` (`contract-details.md:56`) |
-| Before mutable local-device or server actions… | `implementation-loop.md:43` (Standing rules) |
-| One execution artifact: `PLAN.md`. No `REVIEW.md`… | `pi/skills/plan-implement/SKILL.md:24`; `workflow/agent-quick-card.md:23-24` |
-| Keep facts separate from assumptions; use `PLAN_TEMPLATE.md`… | `PLAN_TEMPLATE.md` (on hot surfaces) |
-| Source research / answers & handoffs… | `workflow/answer-quality.md` on hot surfaces; `pi/AGENTS.md:24` |
-| Autonomous plan-loop requests use `plan-implement`; wording is not proof… | `implementation-loop.md:61`; `agent-quick-card.md:45` |
-| Autonomous loops incomplete until completion evidence… | `implementation-loop.md:169-189` |
-| Work spanning several repos still uses one plan… | `implementation-loop.md:139-141` → `workflow/plan-archive.md` (cold) |
-| Branch-mutating routes (`/ship`, single-PR pilot, `sec-pr`)… | stays in `spec.md` (`workflow/skills/worktree-isolation.md`) |
-| Product dogfood; single-PR pilot… | `implementation-loop.md:82-89`; pr-maintenance stays in `spec.md` |
-| Evidence and investigations… | `implementation-loop.md:87`; investigation route stays in `spec.md` |
-| Large programs: frozen control plane… | `implementation-loop.md:73-75`; control plane stays in `spec.md` |
-| Events: autonomous routes must record… | `workflow/events.md` on hot surfaces; `implementation-loop.md:184,189-191` |
-| Experimental read-only: `workflow-retrospect`; skill evaluation… | stays in `spec.md`; consumed via self-improvement Token lens |
-| Self-improvement / ambitious / opt-in autonomy pointers… | stays in `spec.md` (echoed `pi/skills/plan-implement/SKILL.md:17-20`) |
-| No-progress stop… | `implementation-loop.md:36-38` |
-| Check-freeze: once READY… | `implementation-loop.md:39-42`; `pi/AGENTS.md:17` |
-| Stop conditions pair measurable goal + cap; handoff events… | `implementation-loop.md:153-167,124-129,48-50` |
-| Implementation depth is risk-tiered… | `implementation-loop.md:13-33,133-142` |
-| Golden principles… | `implementation-loop.md:45-47,70`; `workflow/skills/review.md:128`; handoff merge at `implementation-loop.md:48-50` |
-| Context budget (new bullet) | `workflow/spec.md:101-105` → budget JSON, gate script, Token lens |
+The gate measures declared resident instruction characters on each hot route.
+It reads one frozen membership file and applies ratchet-only ceilings.
+A missing surface or an over-ceiling surface is a hard failure.
 
+The reported character count is a deterministic proxy, not a billing receipt.
+Static estimates are labelled as estimates and never promoted to provider data.
+Unattended runs may write only their scoped evidence ledger.
+Applying a candidate still requires a reviewed READY plan and explicit consent.
+
+## Scope boundary
+
+Canonical workflow rules remain available on demand and win on conflict.
+Route-critical rules are duplicated where a hot path needs them immediately.
+Cold validator detail stays out of the resident chain unless the task edits it.
+Membership pins and smoke fixtures make accidental surface growth visible.
+
+The loop measures first, proposes second, and changes only after review.
+It does not rewrite its own contract from a single retrospective observation.
+A failed ratchet never writes a larger ceiling.
+Unknown telemetry remains unknown in the report.
+
+## Privacy boundary
+
+Public docs retain the reusable control and acceptance rule.
+Operational traces, identities, and raw transcripts remain in private storage.
+Only opaque references cross the boundary into public evidence.
 ## Decisions
-### Metric = declared-surface chars, not provider receipts
-- Context: 38/53 `outcome_metric` ledgers unmeasured; Claude/Codex receipts unavailable.
-- Choice: static `String.length` chars per declared surface, one frozen script, ratchet-only ceilings.
-- Rejected options: billed-token deltas (unverifiable), skill/tool catalogs (already gated).
-- Consequences: gate is deterministic and CI-checkable; overclaim risk handled by reporting chars + `chars/4` estimate only.
+### Surface decision
+- Choice: keep route-critical rules available on hot paths and validator detail cold.
+- Rejected: remove the canonical specification or infer membership from prose.
+- Consequence: context growth stays visible and conflict resolution remains explicit.
 
 ### spec.md on-demand, with rule duplication instead of removal
 - Choice: duplicate the route-critical spec rules into the loop contracts, keep spec.md canonical + conflict-winning, ceiling the `spec-map` surface so growth cannot hide there.
@@ -98,25 +98,25 @@ the evidence: ledger total/(input+output) ratios of 37×–420×.
 - Choice: unattended runs measure and report only; application requires user-invoked `plan-implement`; ceilings raise only via reviewed diff + Decision Log.
 - Consequences: the loop cannot patch the harness autonomously; `--ratchet` itself fails closed on non-green runs.
 
-## Accepted Drift
-- Original plan/spec: `always-on` target ≤ 15500 chars.
-- Implemented reality: 16150 after the code-diff adversary added `claude/CLAUDE.md` (1678 chars) — it deploys to `~/.claude/CLAUDE.md` and is paid on every Claude turn.
-- Why accepted: a smaller number measured against an incomplete surface would be dishonest; −43 % still meets the intent.
-- Also deliberate: plan-loop relative-path/realpath source-resolution rungs dropped (section-list fallback preserves shape; standard home-symlink installs unaffected); consistency rewording on `verify.md` and `adversary` adapters (unmeasured surfaces); the terminal 2026-09-05 token-quality plan was discarded as a precondition of the single-`PLAN.md` slot (`docs/plan/20260913-discarded-token-quality-optimum-blocked-terminal.md`).
+## Accepted drift
 
-## Validation Evidence
-- `scripts/workflow-context-budget` (+ `--json`, `--ratchet`, `--help`): green, 7 surfaces within ratcheted ceilings.
-- `bash tests/workflow-context-budget-smoke.sh`: ok (fixtures: green/over/missing/ratchet-floor/never-raise/no-write-on-red/json/exit-2/membership pins).
-- `bash tests/workflow-retrospect-smoke.sh`, `workflow-event-smoke.sh`, `workflow-docs-smoke.sh`, `plan-cleanup-smoke.sh`, `claude-commands-smoke.sh`, `claude-skills-smoke.sh`: ok.
-- `scripts/verify-agentic-infra core`: 18/19 — sole failure `pi-typecheck` on pre-existing untracked user file `pi/extensions/pi-mobile-bridge.ts` (missing `@pi-mobile/protocol`), out of scope and untouched.
-- `router-eval`: 212/212, accuracy 1. `verify-skills-lock`: 83/83 hashes.
-- `git diff --check`: clean.
-- Review: fresh-context Logic + Spec hunters (cross-model `zai/glm-5.3`) → GO WITH NOTES (4 fixes folded, 1 rejected with evidence). Code-diff adversary (cross-model `zai/glm-5.3`, `adversary_model` recorded) → GO WITH NOTES (10 findings, no highs; fixes folded).
-- `simplify: clean` (post-review hunks); `quality: node+bash | mechanical fixed: 0 | findings: 0 | status: clean` (sibling comparison — practice skills not exposed).
-- Ledger: `.workflow/workflow-context-budget/events.jsonl` validated `--profile autonomous-completed`.
+The initial target was based on an incomplete surface inventory.
+The implemented baseline includes every resident file paid on the hot route.
+The measured reduction remains reported as characters, not token savings.
+
+An unattended retrospective can report candidates but cannot apply them.
+Intentional budget growth requires a reviewed diff and a Decision Log entry.
+The plan slot remains singular so stale proposals cannot be applied silently.
+
+## Evidence boundary
+
+Review outputs identify the scope and command without exposing raw case data.
+Private operational detail is retained once in the approved context store.
+Public replacements are synthetic or generic and contain no account identifiers.
 
 ## Follow-up State
-- Remaining risks: scaffold deployments carry the new files only after `scripts/deploy-workflow` redeploy; `pi-typecheck` stays red until the user resolves `@pi-mobile/protocol` in their own file.
+
+- Remaining risks: scaffold deployments carry the new files only after a redeploy; the unrelated local type-check issue remains outside this migration.
 - Parking lot: `events-validator.md` could join a future `events-maint` surface if the event system becomes a frequent edit target; unattended-bound could get a mechanical allowlist if prose ever proves insufficient; terminal counts in retrospect are the regression trigger for the next self-improvement cycle.
 - Superseded docs/specs: none.
 - Next links: `docs/workflow-context-budget.md` (metric + loop doc), `workflow/skills/self-improvement-loop.md` § Token lens, `.workflow/workflow-context-budget/baseline.json`.

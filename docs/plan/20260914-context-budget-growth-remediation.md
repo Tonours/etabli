@@ -2,11 +2,11 @@
 
 ## Metadata
 - Archived: 2026-09-14
-- Source plan: `PLAN.md` — Make context-budget growth remediation explicit
-- Source plan SHA-256: `169d9245f04f0eba4740a92f73c54dbd5c7e000a32e7bfded74feaa16835886e`
 - Status: IMPLEMENTED
-- Commit / branch: local `main` (commit after archive; no push)
+- Scope: reviewed context-budget remediation
 
+The gate keeps strict ceilings while making intentional growth explicit.
+Diagnostics now point to an on-demand move or a reviewed ceiling change.
 ## Outcome
 - Over-ceiling diagnostics now present two clear paths: trim/move detail to a
   genuinely on-demand doc, or intentionally raise `ceiling_chars` in a reviewed
@@ -46,28 +46,28 @@
   without changing behavior.
 - Why accepted: it closes a reachable, directly related diagnostic gap.
 
-## Validation Evidence
-- `node --check scripts/workflow-context-budget` — passed.
-- `bash tests/workflow-context-budget-smoke.sh` — passed, including normal and
-  `--ratchet` over-ceiling wording and no-write assertions.
-- `scripts/workflow-context-budget` — passed, 7/7 surfaces within ceiling.
-- `scripts/verify-agentic-infra core` — passed, 19/19 checks.
-- `git diff --check` — passed.
-- Expected-red reproductions were captured before each accepted wording fix.
-- Fresh Logic + Spec review (`reviewer_model=gpt-6-astra`) — `GO`, complete
-  deciding-code tables.
-- Fresh cross-model code adversary (`adversary_model=gpt-5.5`) — final `GO`, no
-  findings.
-- Simplification: `simplify: clean`; quality: sibling comparison clean.
-- Autonomous ledger: `.workflow/context-budget-growth/events.jsonl`, validated
-  with `scripts/workflow-event validate context-budget-growth --profile
-  autonomous-completed` after the terminal event.
+## Public/private boundary
 
-## Follow-up State
-- Remaining risks: the gate still requires a reviewed budget-file diff for
-  intentional growth; this is deliberate. The unrelated untracked
-  `pi/extensions/pi-mobile-bridge.ts` remains untouched.
-- Parking lot: none for this fix.
-- Superseded docs/specs: none.
-- Next links: `docs/workflow-context-budget.md` and
-  `workflow/skills/self-improvement-loop.md` § Token lens.
+The public record keeps the remediation rule and its acceptance criteria.
+It omits raw traces, machine paths, account references, and case identifiers.
+Those details remain in the approved private store for their context.
+
+## Validation contract
+
+- Normal over-ceiling output explains both safe remediation paths.
+- Ratchet mode emits the same wording and never writes on a red run.
+- Smoke fixtures assert the wording and the no-write guarantee.
+- The budget file changes only through an explicit reviewed diff.
+- Static measurements remain distinct from billed-token evidence.
+
+## Review notes
+
+The change closes a diagnostic gap without weakening the hard failure.
+Automatic ceiling raises remain rejected because they hide growth.
+A future proposal must include a frozen baseline and a reproducible run.
+
+## Follow-up
+
+Keep the gate strict until a reviewed change demonstrates a need to grow.
+Record accepted growth in the decision log and event ledger.
+Verify both remediation branches during the next self-improvement pass.

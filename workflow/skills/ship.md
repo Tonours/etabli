@@ -65,12 +65,12 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     (Logic hunter on the new diff only). Record `delta_rereview: yes|no|n/a`.
 12. If reviewer or bot feedback already exists on the PR when CI settles,
     report it; treating it is a separate explicit request. Defects found
-    **after** an internal GO (Macroscope, colleague, CI, prod) must be recorded
+    **after** an internal GO (reviewer, colleague, CI, production) must be recorded
     with `workflow/templates/escaped-defect.md` before the miss is treated as
-    closed. **Update** the existing metrics row for this PR (`escaped_later`,
-    `buckets`) — do not append a second row. If no row exists yet, create one.
-    Metrics storage follows the stack rule in
-    `workflow/self-improvement/review-metrics.md` (etabli / obvault / brain).
+    closed. **Update** the private metrics record (`escaped_later`, `buckets`)
+    — never write identifiers or detailed rows to the public Etabli table. If
+    no private record exists, create it in the approved context store; publish
+    only an aggregate synthetic row.
 13. Remove the run's worktree, or report the path and why it was kept, per
     `workflow/skills/worktree-isolation.md`.
 14. Report: branch, commits, PR URL, CI state, archive path, worktree cleanup
@@ -80,10 +80,10 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     `escaped_defects_recorded: 0|<n>`, remaining risks. When the branch carries
     checkpoint commits, say the branch is squash-merge-only so its checkpoints
     never become history.
-15. **Metrics row (one per PR):** if no row exists yet for this PR, append one
-    (verdict + models + deciding_code; `escaped_later` starts at 0). If a row
-    already exists (e.g. from an earlier escape update), leave it — do not
-    duplicate. Storage: see `workflow/self-improvement/review-metrics.md`.
+15. **Metrics record:** append or update the private per-change record (verdict,
+    models, deciding code and escape count) without duplicating it. The public
+    `review-metrics.md` surface receives only a synthetic aggregate; storage
+    follows the approved context route in `reviewer-improvement-loop.md`.
 
 ## Test Evidence
 

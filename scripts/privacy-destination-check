@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+import { execFileSync } from 'node:child_process'
+import { readFileSync, existsSync, statSync } from 'node:fs'
+import { resolve, isAbsolute, normalize } from 'node:path'
+
+const values = process.argv.slice(2)
+const arg = (name) => { const index = values.indexOf(name); return index >= 0 ? values[index + 1] : null }
+const manifestPath = arg('--manifest')
+const receiptsPath = arg('--receipts')
+const brainRoot = resolve(arg('--brain-root') ?? '')
+const obvaultRoot = resolve(arg('--obvault-root') ?? '')
+const preflight = values.includes('--preflight')
+const generateReceipts = values.includes('--generate-receipts')
+const receiptAction = arg('--receipt-action') ?? 'created'
+
+function fail(message) {
+  console.error(`privacy-destination-check: ${message}`)
+  process.exit(1)
+}
+function git(root, args) {
+  try { return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim() } catch (error) { fail(`destination root is not a git repository: ${root} (${error instanceof Error ? error.message : String(error)})`) }
+}
+function verifyRoot(root, expectedRepo) {
+  if (git(root, ['rev-parse', '--show-toplevel']) !== root) fail(`destination root is not canonical: ${root}`)
+  const remote = git(root, ['remote', 'get-url', 'origin'])
+  if (!/(?:^|[/:])Tonours\/(?:brain|obvault)(?:\.git)?$/.test(remote) || !remote.endsWith(`${expectedRepo}.git`) && !remote.endsWith(expectedRepo)) fail(`unexpected destination remote for ${expectedRepo}`)
+}
+function noteContentReview(content) {
+  const start = content.search(/^### Etabli privacy migration \(/m)
+  if (start < 0) fail('destination note has no migration section')
+  const body = content.slice(start).replace(/<!-- etabli-privacy key=[a-z0-9-]+ source_sha256=[0-9a-f]{64} -->/g, '')
+  const forbidden = /(?:\b(?:pr|prd|issue|ticket)[#\s-]*\d{1,6}\b|#[0-9]{1,6}\b|\b[0-9A-Fa-f]{32,64}\b|(?:packages?|src|apps|services|lib|pi|claude|\.claude)\/|~\/(?:\.|Library)|\/(?:Users|Volumes|home)\/|\b(?:fable|xhigh|glm|gpt|claude|opus|sonnet|minimax|qwen|openai|anthropic|gemini|mistral|deepseek|ollama|redocly|azure|vertex|bedrock|openrouter|cohere|together|groq|greptile|zai)\b)/i
+  if (forbidden.test(body)) fail('destination migration section contains raw operational content')
+}
+function expectedReceipts(units, action = 'created') {
+  return units.map((unit) => ({ receipt_id: unit.unit_id, unit_id: unit.unit_id, destination_repo: unit.destination_repo, destination_note: unit.destination_note, idempotency_key: unit.idempotency_key, source_slice_sha256: unit.source_slice_sha256, action, content_review: 'no-raw' }))
+}
+if (!manifestPath || !receiptsPath || !arg('--brain-root') || !arg('--obvault-root')) fail('manifest, receipts and both roots are required')
+if (!['created', 'already-present'].includes(receiptAction)) fail('--receipt-action must be created or already-present')
+verifyRoot(brainRoot, 'brain')
+verifyRoot(obvaultRoot, 'obvault')
+const manifest = JSON.parse(readFileSync(resolve(manifestPath), 'utf8'))
+const privateUnits = (manifest.units ?? []).filter((unit) => unit.classification === 'Brain' || unit.classification === 'Obvault')
+const RECEIPT_KEYS = ['receipt_id', 'unit_id', 'destination_repo', 'destination_note', 'idempotency_key', 'source_slice_sha256', 'action', 'content_review']
+if (generateReceipts) {
+  if (!receiptsPath) fail('--receipts is required with --generate-receipts')
+  const destination = resolve(receiptsPath)
+  const existingFile = existsSync(destination) && statSync(destination).size > 0
+  const receipts = expectedReceipts(privateUnits, receiptAction)
+  const ids = new Set(receipts.map((receipt) => receipt.receipt_id))
+  if (ids.size !== receipts.length) fail('duplicate receipt ids in generated manifest')
+  for (const unit of privateUnits) {
+    const root = unit.classification === 'Brain' ? brainRoot : obvaultRoot
+    const expectedRepo = unit.context === 'forestadmin' ? 'Tonours/brain' : 'Tonours/obvault'
+    if (unit.destination_repo !== expectedRepo) fail(`manifest routing mismatch ${unit.unit_id}`)
+    const notePath = resolve(root, unit.destination_note)
+    if (!existsSync(notePath)) fail(`destination note missing ${unit.destination_note}`)
+    const marker = `<!-- etabli-privacy key=${unit.idempotency_key} source_sha256=${unit.source_slice_sha256} -->`
+    const content = readFileSync(notePath, 'utf8')
+    if (content.split(marker).length - 1 !== 1) fail(`destination marker is not exactly once ${unit.unit_id}`)
+    noteContentReview(content)
+  }
+  const parent = destination.slice(0, destination.lastIndexOf('/'))
+  if (!existsSync(parent)) fail(`receipt parent is missing ${parent}`)
+  if (existingFile) {
+    const existing = JSON.parse(readFileSync(destination, 'utf8'))
+    const expectedById = new Map(expectedReceipts(privateUnits).map((receipt) => [receipt.receipt_id, receipt]))
+    const same = existing.schema_version === 1 && Array.isArray(existing.receipts) &&
+      existing.receipts.length === expectedById.size &&
+      new Set(existing.receipts.map((receipt) => receipt.receipt_id)).size === expectedById.size &&
+      existing.receipts.every((receipt) => {
+        const expected = expectedById.get(receipt.receipt_id)
+        if (!expected || !['created', 'already-present'].includes(receipt.action)) return false
+        return Object.keys(receipt).sort().join('|') === RECEIPT_KEYS.slice().sort().join('|') &&
+          receipt.unit_id === expected.unit_id &&
+          receipt.destination_repo === expected.destination_repo &&
+          receipt.destination_note === expected.destination_note &&
+          receipt.idempotency_key === expected.idempotency_key &&
+          receipt.source_slice_sha256 === expected.source_slice_sha256 &&
+          receipt.content_review === 'no-raw'
+      })
+    if (same) { console.log(`receipts already present: ${existing.receipts.length}`); process.exit(0) }
+    fail('refusing to overwrite an existing receipts file')
+  }
+  const { writeFileSync } = await import('node:fs')
+  writeFileSync(destination, `${JSON.stringify({ schema_version: 1, receipts }, null, 2)}\n`, { mode: 0o600 })
+  console.log(`receipts generated: ${receipts.length}`)
+  process.exit(0)
+}
+const seenKeys = new Set()
+const seenMarkers = new Set()
+const notes = new Map()
+for (const unit of privateUnits) {
+  if (seenKeys.has(unit.idempotency_key)) fail(`duplicate idempotency key ${unit.idempotency_key}`)
+  seenKeys.add(unit.idempotency_key)
+  const root = unit.classification === 'Brain' ? brainRoot : obvaultRoot
+  const expectedRepo = unit.context === 'forestadmin' ? 'Tonours/brain' : 'Tonours/obvault'
+  if (unit.destination_repo !== expectedRepo) fail(`manifest routing mismatch ${unit.unit_id}`)
+  if (isAbsolute(unit.destination_note) || normalize(unit.destination_note).startsWith('../') || unit.destination_note.includes('..')) fail(`unsafe destination note ${unit.unit_id}`)
+  const notePath = resolve(root, unit.destination_note)
+  if (!notePath.startsWith(`${root}/`) || !existsSync(notePath)) fail(`destination note missing ${unit.destination_note}`)
+  const marker = `<!-- etabli-privacy key=${unit.idempotency_key} source_sha256=${unit.source_slice_sha256} -->`
+  if (seenMarkers.has(marker)) fail(`duplicate marker ${unit.unit_id}`)
+  seenMarkers.add(marker)
+  const content = readFileSync(notePath, 'utf8')
+  const count = content.split(marker).length - 1
+  if (preflight) {
+    if (count !== 0) fail(`marker already exists during preflight ${unit.unit_id}`)
+  } else if (count !== 1) fail(`marker count ${count} for ${unit.unit_id}`)
+  if (!preflight) noteContentReview(content)
+  notes.set(unit.destination_note, content)
+}
+const receiptFile = resolve(receiptsPath)
+if (preflight) {
+  if (existsSync(receiptFile)) {
+    const receipts = JSON.parse(readFileSync(receiptFile, 'utf8')).receipts ?? []
+    if (receipts.length > 0) fail('receipts already exist during preflight')
+  }
+  console.log(`destination preflight ok: ${privateUnits.length} units`)
+  process.exit(0)
+}
+if (!existsSync(receiptFile)) fail('receipts file is missing')
+const receipts = JSON.parse(readFileSync(receiptFile, 'utf8'))
+if (receipts.schema_version !== 1 || !Array.isArray(receipts.receipts)) fail('invalid receipts schema')
+const seenReceipts = new Set()
+for (const receipt of receipts.receipts) {
+  if (Object.keys(receipt).sort().join('|') !== RECEIPT_KEYS.slice().sort().join('|')) fail(`invalid receipt schema ${receipt.receipt_id ?? 'unknown'}`)
+  if (seenReceipts.has(receipt.receipt_id)) fail(`duplicate receipt_id ${receipt.receipt_id}`)
+  seenReceipts.add(receipt.receipt_id)
+  if (receipt.receipt_id !== receipt.unit_id || receipt.content_review !== 'no-raw' || !['created', 'already-present'].includes(receipt.action)) fail(`invalid receipt ${receipt.receipt_id}`)
+  const unit = privateUnits.find((entry) => entry.unit_id === receipt.unit_id)
+  if (!unit) fail(`receipt has no manifest unit ${receipt.unit_id}`)
+  if (receipt.destination_repo !== unit.destination_repo || receipt.destination_note !== unit.destination_note || receipt.idempotency_key !== unit.idempotency_key || receipt.source_slice_sha256 !== unit.source_slice_sha256) fail(`receipt mismatch ${receipt.receipt_id}`)
+}
+for (const unit of privateUnits) if (!seenReceipts.has(unit.unit_id)) fail(`missing receipt ${unit.unit_id}`)
+console.log(`privacy destinations ok: ${privateUnits.length} units, ${notes.size} notes`)

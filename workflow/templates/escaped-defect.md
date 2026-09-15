@@ -1,30 +1,30 @@
 # Escaped defect record
 
-Fill when a defect is found **after** an internal `GO` / `GO WITH NOTES`
-(Macroscope, colleague, CI, production). One record per defect.
+Fill when a defect is found after an internal review approval. One record per
+defect, with a concise statement of observable evidence.
 
-**Storage:** personal stack → obvault (bounded shadow per
-`workflow/skills/obvault-memory.md`); work stack → brain. Always keep a
-pointer or copy in the repo eval corpus when the case is reusable
-(`workflow/self-improvement/reviewer-eval-corpus.md`).
+**Storage:** operational detail goes to the approved private knowledge base;
+reusable synthetic cases may be linked from the public evaluation corpus.
 
 ```text
 escaped-defect:
-  pr:
-  commit_reviewed:
-  found_by: macroscope | colleague | ci | prod
-  defect: <file:line + one sentence>
+  reviewed_change:
+  source_location:
+  found_by: independent-review | human-review | ci | production
+  defect: <source location + one sentence>
   bucket: lens_existed_not_run | retrieval_gap | lens_missing | evidence_bar | out_of_scope
   would_have_needed: <file to open | lens | output row>
   action: eval_case | retrieval_change | contract_change | no_op
-  metrics_row: updated | created | missing
-  storage: obvault | brain | corpus
+  metrics_record: updated | created | missing
+  public_surface: aggregate-only | none
 ```
 
-`metrics_row` records the side effect on `review-metrics.md`: recording an
-escape **updates** the PR's row (`escaped_later`, `buckets`) — never a second
-row — or **creates** it if the GO was never logged. `missing` means neither
-happened yet; the record is not done until it is one of the other two.
+`metrics_record` records the side effect on the private metrics record. `missing`
+means the record is incomplete until one of the other values is set. Public
+surfaces accept aggregate synthetic rows only; raw change records stay private.
 
-Bucket meanings: see `workflow/skills/reviewer-improvement-loop.md`.
-Default action is `eval_case`. Do not append prompt rules from a single miss.
+Bucket meanings are defined by the reviewer improvement loop contract.
+Default action is `eval_case`; one miss must not append a new prompt rule.
+Keep the record bounded and reproducible.
+Do not store credentials or raw provider output.
+Re-run the relevant check before closing the record.
