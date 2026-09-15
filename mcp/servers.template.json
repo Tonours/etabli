@@ -2,29 +2,36 @@
   "$comment": "Sanitized reference inventory for the active Etabli work scope. It is not deployed and contains no credentials. Live definitions remain runtime-local; copy only the server required by that runtime. See docs/mcp-strategy.md.",
   "scope": "work",
   "runtimeAssignments": {
-    "claude": ["chrome-devtools", "lean-ctx", "brain"],
-    "pi": ["lean-ctx", "brain"],
-    "codex": ["chrome-devtools", "lean-ctx", "datadog", "linear", "brain"],
+    "claude": [
+      "chrome-devtools",
+      "brain"
+    ],
+    "pi": [
+      "brain"
+    ],
+    "codex": [
+      "chrome-devtools",
+      "datadog",
+      "linear",
+      "brain"
+    ],
     "grok": []
   },
   "mcpServers": {
     "chrome-devtools": {
       "type": "stdio",
       "command": "npx",
-      "args": ["chrome-devtools-mcp@1.7.0"],
+      "args": [
+        "chrome-devtools-mcp@1.7.0"
+      ],
       "env": {}
-    },
-    "lean-ctx": {
-      "type": "stdio",
-      "command": "${HOME}/.local/bin/lean-ctx",
-      "env": {
-        "LEAN_CTX_DATA_DIR": "${LEAN_CTX_DATA_DIR}"
-      }
     },
     "brain": {
       "type": "stdio",
       "command": "node",
-      "args": ["${HOME}/work/brain/_meta/mcp/server.mjs"],
+      "args": [
+        "${HOME}/work/brain/_meta/mcp/server.mjs"
+      ],
       "env": {
         "OBVAULT_ROOT": "${HOME}/work/brain"
       }

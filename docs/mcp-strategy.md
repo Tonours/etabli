@@ -12,9 +12,9 @@ Verified from the tracked template and this repository's `.mcp.json` on
 
 | Runtime | Live store | Active servers |
 | --- | --- | --- |
-| Claude | `~/.claude.json` → `mcpServers` | `chrome-devtools`, `lean-ctx`, `brain` |
-| Pi | `~/.pi/agent/mcp.json` → `mcpServers` | `lean-ctx`, `brain` |
-| Codex | `~/.codex/config.toml` → `mcp_servers.*` | `chrome-devtools`, `lean-ctx`, `datadog`, `linear`, `brain` |
+| Claude | `~/.claude.json` → `mcpServers` | `chrome-devtools`, `brain` |
+| Pi | `~/.pi/agent/mcp.json` → `mcpServers` | `brain` |
+| Codex | `~/.codex/config.toml` → `mcp_servers.*` | `chrome-devtools`, `datadog`, `linear`, `brain` |
 | Grok | Grok user configuration | none |
 
 This repository's `.mcp.json` is `{"mcpServers": {}}` on purpose. A
@@ -24,8 +24,8 @@ own user-scope stores.
 
 `mcp/servers.template.json` is the sanitized union plus this runtime assignment
 matrix. It is reference data, not a file to symlink wholesale into each
-runtime. In particular, Pi's direct `lean-ctx` definition is intentional; it no
-longer imports the complete Claude user scope.
+runtime. Each runtime declares only the servers it needs; none imports another
+runtime's complete user scope.
 
 ## Ownership and scope
 
@@ -35,8 +35,7 @@ longer imports the complete Claude user scope.
 2. **The tracked template is sanitized inventory.** It contains server names,
    portable commands, public endpoints, and environment-variable placeholders
    only.
-3. **`work` means `shared + work`.** `chrome-devtools` and `lean-ctx` are shared
-   local tooling. The current Datadog and Linear endpoints are work-scoped and
+3. **`work` means `shared + work`.** `chrome-devtools` is shared local tooling. The current Datadog and Linear endpoints are work-scoped and
    enabled only in Codex.
 4. **No runtime-wide availability claim.** A skill that needs Linear must still
    stop with `LINEAR_MCP_UNAVAILABLE` when its current runtime exposes no Linear
@@ -60,8 +59,8 @@ longer imports the complete Claude user scope.
 ## Security boundary
 
 Never commit or print OAuth material, API keys, auth headers, cookies, project
-trust state, or full live configuration. `${HOME}`, `${LEAN_CTX_DATA_DIR}`, and
-other placeholders in the template are resolved only in local runtime config.
+trust state, or full live configuration. `${HOME}` and other placeholders in
+the template are resolved only in local runtime config.
 Datadog and Linear authentication remains runtime-managed.
 
 The following stay local and untracked:

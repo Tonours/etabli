@@ -25,7 +25,7 @@ const lib = await import(pathToFileURL("$LIB").href);
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 const home = "$TMP/home";
-const env = { LEAN_CTX_DATA_DIR: "$TMP/lean-data" };
+const env = {};
 
 mkdirSync(home, { recursive: true });
 assert(lib.loadScope(home) === "personal", "missing scope file defaults to personal");
@@ -43,12 +43,10 @@ const rendered = lib.renderMcpConfig({
 	scope: "work",
 	env,
 });
-assert(rendered.skipped.length === 0, "work scope with brain present renders both servers");
+assert(rendered.skipped.length === 0, "work scope with brain present renders brain");
 const stat = (await import("node:fs")).statSync(rendered.path);
 assert((stat.mode & 0o777) === 0o600, "rendered MCP config is 0600");
 const body = JSON.parse(readFileSync(rendered.path, "utf8"));
-assert(body.mcpServers["lean-ctx"].command === home + "/.local/bin/lean-ctx", "HOME substituted");
-assert(body.mcpServers["lean-ctx"].env.LEAN_CTX_DATA_DIR === "$TMP/lean-data", "LEAN_CTX_DATA_DIR substituted");
 assert(body.mcpServers.brain.args[0] === home + "/work/brain/_meta/mcp/server.mjs", "brain path substituted");
 assert(!("require_scope" in body.mcpServers.brain), "renderer metadata stripped");
 rmSync(rendered.path);
@@ -63,7 +61,7 @@ const noBrain = lib.renderMcpConfig({
 assert(noBrain.skipped.includes("brain"), "work scope without brain root skips brain");
 const noBrainBody = JSON.parse(readFileSync(noBrain.path, "utf8"));
 assert(!noBrainBody.mcpServers.brain, "brain absent from render");
-assert(noBrainBody.mcpServers["lean-ctx"], "lean-ctx always present");
+assert(Object.keys(noBrainBody.mcpServers).length === 0, "no servers left once brain is skipped");
 rmSync(noBrain.path);
 
 const personal = lib.renderMcpConfig({
@@ -75,15 +73,6 @@ const personal = lib.renderMcpConfig({
 assert(personal.skipped.includes("brain"), "personal scope skips brain");
 rmSync(personal.path);
 
-const noDataDir = lib.renderMcpConfig({
-	repoRoot: "$ROOT_DIR",
-	home,
-	scope: "work",
-	env: {},
-});
-const noDataBody = JSON.parse(readFileSync(noDataDir.path, "utf8"));
-assert(!noDataBody.mcpServers["lean-ctx"].env || !("LEAN_CTX_DATA_DIR" in (noDataBody.mcpServers["lean-ctx"].env ?? {})), "unset LEAN_CTX_DATA_DIR drops the env key instead of writing an empty value");
-rmSync(noDataDir.path);
 
 const launch = lib.buildLeanLaunch({ repoRoot: "$ROOT_DIR", home, env, extraArgs: ["-p", "hi"] });
 assert(launch.args[0] === "--settings" && launch.args[1] === "$ROOT_DIR/claude/profiles/lean.settings.json", "profile passed via --settings");
