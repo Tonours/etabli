@@ -1,0 +1,24 @@
+{
+  "$comment": "Sanitized MCP template for the lean Claude profile. The renderer substitutes ${HOME} and ${LEAN_CTX_DATA_DIR} at launch into a 0600 temp file and never touches live config. brain renders only for the work scope when ~/work/brain exists; otherwise the canonical memory path applies. Derived from mcp/servers.template.json (see docs/mcp-strategy.md).",
+  "mcpServers": {
+    "lean-ctx": {
+      "type": "stdio",
+      "command": "${HOME}/.local/bin/lean-ctx",
+      "env": {
+        "LEAN_CTX_DATA_DIR": "${LEAN_CTX_DATA_DIR}",
+        "LEAN_CTX_EXTRA_ROOTS": "${LEAN_CTX_SESSION_CWD}"
+      }
+    },
+    "brain": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${HOME}/work/brain/_meta/mcp/server.mjs"
+      ],
+      "env": {
+        "OBVAULT_ROOT": "${HOME}/work/brain"
+      },
+      "require_scope": "work"
+    }
+  }
+}
