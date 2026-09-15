@@ -1,0 +1,12 @@
+{
+  "name": "acme-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local pi adaptation of the Claude acme@acme plugin: ships the two conformance auditor agents. Skills stay symlinked from the active plugin version.",
+  "keywords": ["pi-package"],
+  "pi": {
+    "subagents": {
+      "agents": ["./agents"]
+    }
+  }
+}
