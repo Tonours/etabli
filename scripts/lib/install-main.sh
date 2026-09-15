@@ -535,7 +535,7 @@ sync_claude_skill_overrides_resources() {
 
     if "${NODE_CMD[@]}" "$REPO_DIR/scripts/lib/claude-settings-sync.mjs" \
         "$local_settings" "$tracked_fragment" 0 "$(date +%Y%m%d-%H%M%S)" install; then
-        print_success "Claude skill overrides synced"
+        print_success "Claude tracked settings synced"
         if [ -x "$REPO_DIR/scripts/claude-skill-load-check" ]; then
             if "$REPO_DIR/scripts/claude-skill-load-check"; then
                 print_success "Claude skill load check ok"
@@ -544,7 +544,7 @@ sync_claude_skill_overrides_resources() {
             fi
         fi
     else
-        print_warning "Claude skill overrides sync failed"
+        print_warning "Claude tracked settings sync failed"
     fi
 }
 
@@ -1592,13 +1592,18 @@ remove_exact_managed_link \
 
 if [ -d "$REPO_DIR/claude/hooks" ]; then
     mkdir -p ~/.claude/hooks
-    for hook_file in "$REPO_DIR/claude/hooks"/*.mjs; do
+    for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
         if [ -f "$hook_file" ]; then
             hook_name=$(basename "$hook_file")
             ln -sf "$hook_file" ~/.claude/hooks/"$hook_name"
             print_success "Claude workflow hook '$hook_name' linked"
         fi
     done
+fi
+
+if [ -f "$REPO_DIR/claude/statusline-command.sh" ]; then
+    ln -sf "$REPO_DIR/claude/statusline-command.sh" ~/.claude/statusline-command.sh
+    print_success "Claude statusline command linked"
 fi
 
 if [ -f "$REPO_DIR/claude/settings.workflow-hooks.json" ]; then
@@ -1679,6 +1684,8 @@ install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
+install_script "claude-lean" || true
+install_script "claude-full" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness
