@@ -167,7 +167,13 @@ assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "Autonomou
 assert_contains "$NEW_PROJECT/workflow/skills/orchestration.md" "Capability Labels"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Stop conditions"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "Keep project-specific scope"
-assert_contains "$NEW_PROJECT/.gitignore" "PLAN.md"
+assert_not_exists "$NEW_PROJECT/.gitignore"
+git -C "$NEW_PROJECT" init -q .
+"$SCRIPT" "$NEW_PROJECT" >/dev/null
+assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
+assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
+assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
+assert_not_exists "$NEW_PROJECT/.gitignore"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
 
@@ -265,16 +271,6 @@ assert_not_exists "$PARENT_CONFLICT_PROJECT/AGENTS.md"
 assert_not_exists "$PARENT_CONFLICT_PROJECT/CLAUDE.md"
 assert_not_exists "$PARENT_CONFLICT_PROJECT/workflow"
 
-GITIGNORE_CONFLICT_PROJECT="$TMP_DIR/gitignore-conflict-project"
-mkdir -p "$GITIGNORE_CONFLICT_PROJECT/.gitignore"
-
-if "$SCRIPT" "$GITIGNORE_CONFLICT_PROJECT" >/dev/null 2>&1; then
-  printf 'expected .gitignore directory conflict deploy to fail\n' >&2
-  exit 1
-fi
-assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/AGENTS.md"
-assert_not_exists "$GITIGNORE_CONFLICT_PROJECT/CLAUDE.md"
-
 TARGET_FILE_PROJECT="$TMP_DIR/target-file-project"
 TARGET_FILE_OUTPUT="$TMP_DIR/target-file-project.out"
 printf 'not a directory\n' >"$TARGET_FILE_PROJECT"
@@ -290,14 +286,6 @@ assert_contains "$TARGET_FILE_PROJECT" "not a directory"
 assert_file "$PARENT_CONFLICT_PROJECT/docs/agent-workflow.md"
 if ! ls "$PARENT_CONFLICT_PROJECT"/docs.bak.* >/dev/null 2>&1; then
   printf 'expected docs backup after --force parent conflict\n' >&2
-  exit 1
-fi
-
-"$SCRIPT" "$GITIGNORE_CONFLICT_PROJECT" --force >/dev/null
-assert_file "$GITIGNORE_CONFLICT_PROJECT/.gitignore"
-assert_contains "$GITIGNORE_CONFLICT_PROJECT/.gitignore" "PLAN.md"
-if ! ls "$GITIGNORE_CONFLICT_PROJECT"/.gitignore.bak.* >/dev/null 2>&1; then
-  printf 'expected .gitignore backup after --force directory conflict\n' >&2
   exit 1
 fi
 
