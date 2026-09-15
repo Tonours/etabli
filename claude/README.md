@@ -17,8 +17,9 @@ Claude Code-specific files for `etabli`.
 - `scopes/<scope>/skills/*` -> `~/.claude/skills/`
 - `scopes/<scope>/agents/*.md` -> `~/.claude/agents/`
 - `scopes/<scope>/scripts/*` -> `~/.claude/scripts/`
-- `hooks/*.mjs` -> `~/.claude/hooks/`
+- `hooks/*` (`.mjs` + `.sh`) -> `~/.claude/hooks/`
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
+- `statusline-command.sh` -> `~/.claude/statusline-command.sh`
 - selected shared docs from `../workflow/` -> `~/.claude/`
 
 Re-run `scripts/install.sh` any time to refresh links; it is idempotent. When
@@ -171,12 +172,52 @@ Optional hooks:
   `docs/plan/`. Running git manually bypasses it deliberately.
 - `read-only-agent-guard.mjs` is wired directly by `scout` and `reviewer`; it
   denies Bash that is not proven read-only even when the optional settings
-  fragment is not active.
+  fragment is not active. Inspection reaches the remote: `gh` is allowed for an
+  allowlisted set of read commands (`api`, `pr view|diff|list|checks|status`,
+  `issue view|list`, `repo view`, `run view|list`, `search`, `auth status`) and
+  refused the moment a flag could mutate it (`--method` other than GET, `-X`,
+  `-f`/`-F`/`--raw-field`/`--field`, `--input`) — a review agent that cannot
+  read the pull request it was dispatched to review is useless. `awk` is allowed
+  for an inline program only, since single quotes hide `system()`, a `print |`
+  pipe and a `>` redirect from the pipeline splitter; `-f` stays refused because
+  the program then lives in a file this check cannot read. `sed` and `sort`
+  remain refused outright. Executables are matched on their basename, so
+  `/bin/bash -n` is judged like `bash -n`, and `;`/newline sequence read-only
+  segments the way `&&` already did.
 - `detect-adr-signal.mjs` runs on `Stop`. When a structural file changed and the
   last assistant message reads like a decision, it surfaces a `systemMessage`
   suggesting `/adr`. It never writes, never calls an LLM, and uses `systemMessage`
   (not `additionalContext`) so it does not resume the turn. The `/adr` skill works
   without it; the hook only lowers the cost of remembering to record decisions.
+- `no-comments-guard.mjs` runs on `PreToolUse` for `Edit|Write|MultiEdit`. It
+  is advisory on this machine: a write that adds code comments to source files
+  passes with a `systemMessage` reminder of the `~/work/CLAUDE.md` no-comments
+  rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
+  exempt). Deployed by the installer like the other `.mjs` hooks; wire it into
+  `~/.claude/settings.json` manually when wanted.
+- `rtk-rewrite.sh` is the RTK hook with a local patch: `rtk rewrite` exit 3
+  (ask rule) is treated as auto-allow, because Claude Code runs in permanent
+  bypass mode on this machine. The patched copy is tracked in `claude/hooks/`
+  and linked over `~/.claude/hooks/rtk-rewrite.sh`; an `rtk` update reinstalls
+  the stock hook (dropping user prompts back in), and
+  `scripts/check-fix-symlinks.sh --fix` restores the patched link.
+
+## Autonomous mode
+
+Claude Code runs without permission prompts on this machine. The tracked
+fragment `settings.skill-overrides.json` carries the convention next to the
+skill map, and `scripts/lib/claude-settings-sync.mjs` (run by the installer)
+propagates it into `~/.claude/settings.json`:
+
+- `permissions.defaultMode: "bypassPermissions"` — merged key-by-key, local
+  `allow`/`deny` lists are never touched;
+- `skipDangerousModePermissionPrompt: true`, `skipAutoPermissionPrompt: true`.
+
+The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
+the two skip flags), so no secret can leak into the tracked fragment. The
+`--dangerously-skip-permissions` zsh alias is machine-local (`~/.zshrc` is not
+managed here); `defaultMode` alone covers every launcher, including `-p` runs,
+crons, and `claude-bin.sh`.
 - `settings.workflow-hooks.json` is a merge fragment. It is linked for manual
   activation and is not merged into `~/.claude/settings.json` by the installer,
   because the live settings file can contain secrets. Activating it enables the
