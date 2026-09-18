@@ -117,10 +117,12 @@ conflict.
     present the missing pass as clean. Fix mechanical convention findings;
     report behavioral ones. Re-run focused checks if the pass edited anything.
     Skip only for pure docs or plan-only changes, and say so.
-13. Review the **cumulative** implementation diff against `PLAN.md` per
-    `workflow/skills/review.md` and `workflow/review-rubric.md`: scope is
-    `git diff <merge-base-with-base-branch>...HEAD`; a single-commit branch
-    may review that commit alone. Per-slice reviews do not satisfy this step.
+13. Review the **cumulative workspace patch that can ship** against `PLAN.md`
+    per `workflow/skills/review.md` and `workflow/review-rubric.md`. Pin staged,
+    unstaged, and relevant untracked implementation files in addition to the
+    committed `git diff <merge-base-with-base-branch>...HEAD`; a single-commit
+    branch may review that commit alone only when the workspace is clean.
+    Per-slice reviews do not satisfy this step.
     Pin the patch once, then dispatch Logic hunter and Spec hunter in fresh
     context (both mandatory for high-risk; standard may follow the Daily Pi
     exception in `workflow/skills/review.md`; autonomous runs use fresh
@@ -135,7 +137,9 @@ conflict.
     alone → `blocked` (full autonomy policy).
     Name `adversary_model` (or `same-family-pass` ids).
     **High** findings: accept/reject via cross-model (or second sample), not
-    the implementer alone. Fold accepted findings and re-run checks.
+    the implementer alone. Fold accepted findings and re-run checks. Any
+    accepted fix invalidates cumulative review and code-diff adversary evidence
+    it can affect: pin the new final patch and repeat both passes.
 14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`:
     fill `workflow/templates/plan-archive.md` (convention, hash gate and
     multi-repo rules: `workflow/plan-archive.md`); distill it as memory, do
@@ -154,14 +158,18 @@ conflict.
 
 For any improvement loop without a natural fixed end (coverage hillclimbs,
 iterative optimization, repeated benchmark attempts), declare an explicit
-budget before starting: a maximum iteration count or wall-clock span scaled
-to the session's expected limit. Freeze one metric command. Deliver the
+campaign budget before starting: a maximum iteration count or wall-clock span
+scaled to the session's expected limit. Separately declare the maximum silence
+between progress observations and a command timeout sized from a measured
+baseline or documented project expectation. Freeze one metric command. Deliver the
 progression achieved inside the budget — at least three measured values in
 the final answer, the current state, and the single next lever — then stop
 before an external cap and report. Freeze the project's documented
 test/coverage command, not an experimental coverage runner over a live HTTP
 server. After two red serve-or-coverage attempts, park that path, write the
-measured rows, and stop. If one metric command exceeds about 60s, abort it.
+measured rows, and stop. About 60 seconds without an observable update is a
+prompt to report progress or inspect the process; it is not a universal command
+timeout. Abort only at the predeclared command or campaign bound.
 A delivered partial progression with an honest stop beats being cut off
 mid-iteration: being killed is not evidence of diligence, and an unfinished
 iteration proves nothing.
@@ -178,7 +186,7 @@ evidence for all of:
 - product dogfood scenario evidence when required by the plan;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);
-- Logic+Spec lead review on the cumulative merge-base...HEAD scope with a
+- Logic+Spec lead review on the cumulative shippable workspace patch with a
   complete deciding-code table for runtime diffs (self-review only for small
   tier);
 - event ledger per `workflow/events.md` (mandatory for autonomous runs);

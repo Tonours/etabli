@@ -48,6 +48,37 @@ const planTemplate = (status) => `# PLAN.md
 - Archive: pending until implemented and validated
 
 ## Goal
+Exercise one routing scenario.
+
+## Workflow Contract
+- Router decision: plan-implement
+- Role: implementer
+- Stop condition: scenario assertion passes
+- Required evidence: guard result
+
+## Acceptance Criteria
+- [ ] Scenario matches its expected route and guard.
+
+## Scope
+- This scenario only.
+
+## Facts And Assumptions
+- The fixture is synthetic.
+
+## Requirement Trace
+- Request -> synthetic fixture -> no material gap -> guard result.
+
+## Steps
+1. Evaluate the route and guard.
+
+## Checks
+- command: bash tests/agent-scenarios-smoke.sh
+
+## Risks
+- None.
+
+## Open Questions
+- None.
 `;
 
 function fail(message) {

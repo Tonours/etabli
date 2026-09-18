@@ -40,10 +40,11 @@ scripts/plan-cleanup --discard <reason-slug>
 
 ## Stale Plans
 
-A root `PLAN.md` that nobody finished is not harmless. A stale `READY` plan is a
-**permanently open implementation gate**, and a plan carrying a status outside
-`DRAFT` / `CHALLENGED` / `READY` is invisible to the gate entirely — the router
-maps anything else to `unknown`, which allows ordinary work.
+A root `PLAN.md` that nobody finished is not harmless. A stale valid `READY`
+plan is a permanently open implementation gate. A present plan carrying a
+status outside `DRAFT` / `CHALLENGED` / `READY`, or an incomplete `READY`
+contract, fails the mutation gate closed. Only a genuinely missing plan leaves
+ordinary no-plan work available.
 
 `Status: DONE` is **not** a valid status. Finished work is archived, not relabelled.
 
@@ -60,8 +61,8 @@ valid state and exits 0. It exits non-zero when any of these hold:
 - the plan is older than the threshold (`stale`);
 - the router cannot read its status (`gateVisible: false`) — an unknown word, a
   decorated line such as `Status: READY — all slices done`, or no `Status:` line at
-  all. The gate matches `- Status: DRAFT|CHALLENGED|READY` and nothing else, so a
-  decorated status silently disables gating;
+  all. The gate matches `- Status: DRAFT|CHALLENGED|READY` and nothing else; a
+  decorated status is rejected until the root plan is repaired or discarded;
 - the date is in the future by more than a day (`futureDated`).
 
 A missing or impossible `Last revised:` date reports `ageDays: null` rather than
@@ -94,6 +95,7 @@ refused, which is the point: an archive cannot silently describe a different pla
 - Source plan SHA-256: `<sha256 of the exact root PLAN.md bytes>`
 - Status: IMPLEMENTED
 - Commit / branch: <when available>
+- Workflow initiative: <event-ledger slug, or none>
 
 ## Outcome
 - ...
@@ -175,6 +177,11 @@ Two consequences worth stating plainly:
 Anything in `scripts/plan-cleanup` reaches a project only after `deploy-workflow`
 runs there again — the script is copied per project, not linked. In a project that
 has not been redeployed, the written discipline above is the only thing holding.
+
+When one archive summarizes findings from several workflow initiatives, prefix
+each such finding with `[initiative:<ledger-slug>]`. `workflow-retrospect` uses
+the archive's `Workflow initiative` as the default and this inline marker as a
+per-finding override; duplicate lines from one initiative remain one recurrence.
 
 ## Relationship To Agent Memory
 

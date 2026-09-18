@@ -395,6 +395,169 @@ done
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-complete --profile autonomous-completed)"
 assert_contains "$out" "12 events, ok"
 
+mkdir -p "$EVENT_DIR/run-failed-validation" "$EVENT_DIR/run-blocked-review" "$EVENT_DIR/run-blocked-adversary" "$EVENT_DIR/run-stale-evidence" "$EVENT_DIR/run-stale-evidence-spaced" "$EVENT_DIR/run-reversed-validation" "$EVENT_DIR/run-reversed-review" "$EVENT_DIR/run-reversed-adversary" "$EVENT_DIR/run-reversed-plan-adversary" "$EVENT_DIR/run-recovered-evidence" "$EVENT_DIR/run-native-validation-failed" "$EVENT_DIR/run-native-validation-recovered" "$EVENT_DIR/run-native-validation-other-success"
+jq -c --arg run run-failed-validation '
+  .run = $run |
+  if .event == "validation_run" then .detail.exit = 1 else . end
+' "$EVENT_DIR/run-complete/events.jsonl" >"$EVENT_DIR/run-failed-validation/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-failed-validation --profile autonomous-completed)"
+assert_contains "$out" "latest validation attempt"
+
+jq -c --arg run run-blocked-review '
+  .run = $run |
+  if .event == "review_completed" then .detail.status = "BLOCK" else . end
+' "$EVENT_DIR/run-complete/events.jsonl" >"$EVENT_DIR/run-blocked-review/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-blocked-review --profile autonomous-completed)"
+assert_contains "$out" "latest review_completed"
+
+jq -c --arg run run-blocked-adversary '
+  .run = $run |
+  if .event == "adversary_completed" and .detail.mode == "code_diff" then .detail.verdict = "BLOCK" else . end
+' "$EVENT_DIR/run-complete/events.jsonl" >"$EVENT_DIR/run-blocked-adversary/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-blocked-adversary --profile autonomous-completed)"
+assert_contains "$out" "latest code_diff adversary"
+
+late_ts="$(sed -n '8p' "$EVENT_DIR/run-complete/events.jsonl" | jq -r '.ts')"
+late_change="$(sed -n '4p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-stale-evidence --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.path = "src/late.ts"')"
+jq -c --arg run run-stale-evidence '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$late_change" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-stale-evidence/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-stale-evidence --profile autonomous-completed)"
+assert_contains "$out" "after last file change"
+
+spaced_change="$(sed -n '4p' "$EVENT_DIR/run-complete/events.jsonl" |
+  jq -c --arg run run-stale-evidence-spaced --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.path = "src/spaced-late.ts"' |
+  sed 's/":/": /g; s/,"/, "/g')"
+jq -c --arg run run-stale-evidence-spaced '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$spaced_change" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-stale-evidence-spaced/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-stale-evidence-spaced --profile autonomous-completed)"
+assert_contains "$out" "after last file change"
+
+reversed_validation="$(sed -n '5p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-reversed-validation --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.exit = 1')"
+jq -c --arg run run-reversed-validation '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$reversed_validation" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-reversed-validation/events.jsonl"
+
+reversed_review="$(sed -n '7p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-reversed-review --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.status = "BLOCK"')"
+jq -c --arg run run-reversed-review '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$reversed_review" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-reversed-review/events.jsonl"
+
+reversed_adversary="$(sed -n '8p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-reversed-adversary --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.verdict = "BLOCK"')"
+jq -c --arg run run-reversed-adversary '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$reversed_adversary" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-reversed-adversary/events.jsonl"
+
+reversed_plan_adversary="$(sed -n '3p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-reversed-plan-adversary --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.verdict = "BLOCK"')"
+jq -c --arg run run-reversed-plan-adversary '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$reversed_plan_adversary" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-reversed-plan-adversary/events.jsonl"
+
+native_failure="$(jq -nc --arg run run-native-validation-failed --arg ts "$late_ts" '{schema_version:2,ts:$ts,event:"validation_failed",run:$run,detail:{command:"true",exit:1,failure:"native test failure"}}')"
+jq -c --arg run run-native-validation-failed '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v late="$native_failure" 'NR == 9 { print late } { print }' >"$EVENT_DIR/run-native-validation-failed/events.jsonl"
+
+native_recovered_failure="$(printf '%s\n' "$native_failure" | jq -c --arg run run-native-validation-recovered '.run = $run')"
+native_recovery="$(sed -n '5p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-native-validation-recovered --arg ts "$late_ts" '.run = $run | .ts = $ts')"
+jq -c --arg run run-native-validation-recovered '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v failure="$native_recovered_failure" -v recovery="$native_recovery" 'NR == 9 { print failure; print recovery } { print }' >"$EVENT_DIR/run-native-validation-recovered/events.jsonl"
+
+native_other_failure="$(printf '%s\n' "$native_failure" | jq -c --arg run run-native-validation-other-success '.run = $run | .detail.command = "npm test"')"
+native_other_success="$(sed -n '5p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-native-validation-other-success --arg ts "$late_ts" '.run = $run | .ts = $ts | .detail.command = "npm run lint"')"
+jq -c --arg run run-native-validation-other-success '.run = $run' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v failure="$native_other_failure" -v success="$native_other_success" 'NR == 9 { print failure; print success } { print }' >"$EVENT_DIR/run-native-validation-other-success/events.jsonl"
+
+recovered_validation="$(sed -n '5p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-recovered-evidence --arg ts "$late_ts" '.run = $run | .ts = $ts')"
+recovered_review="$(sed -n '7p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-recovered-evidence --arg ts "$late_ts" '.run = $run | .ts = $ts')"
+recovered_adversary="$(sed -n '8p' "$EVENT_DIR/run-complete/events.jsonl" | jq -c --arg run run-recovered-evidence --arg ts "$late_ts" '.run = $run | .ts = $ts')"
+jq -c --arg run run-recovered-evidence '
+  .run = $run |
+  if .event == "validation_run" then .detail.exit = 1
+  elif .event == "review_completed" then .detail.status = "BLOCK"
+  elif .event == "adversary_completed" and .detail.mode == "code_diff" then .detail.verdict = "BLOCK"
+  else . end
+' "$EVENT_DIR/run-complete/events.jsonl" |
+  awk -v validation="$recovered_validation" -v review="$recovered_review" -v adversary="$recovered_adversary" 'NR == 9 { print validation; print review; print adversary } { print }' >"$EVENT_DIR/run-recovered-evidence/events.jsonl"
+
+for reversal in \
+  'run-reversed-validation:latest validation attempt' \
+  'run-reversed-review:latest review_completed' \
+  'run-reversed-adversary:latest code_diff adversary' \
+  'run-reversed-plan-adversary:latest plan adversary' \
+  'run-native-validation-failed:latest validation attempt' \
+  'run-native-validation-other-success:latest validation attempt'; do
+  reversal_slug="${reversal%%:*}"
+  reversal_message="${reversal#*:}"
+  for reversal_profile in autonomous-completed autonomous-completed-strict; do
+    out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate "$reversal_slug" --profile "$reversal_profile")"
+    assert_contains "$out" "$reversal_message"
+  done
+done
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-recovered-evidence --profile autonomous-completed)"
+assert_contains "$out" "15 events, ok"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-native-validation-recovered --profile autonomous-completed)"
+assert_contains "$out" "14 events, ok"
+
+allowed_events="$(awk '
+  /^ALLOWED_EVENTS=\(/ { inside=1; next }
+  inside && /^\)/ { inside=0; next }
+  inside { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0); if ($0 != "") print $0 }
+' "$ROOT_DIR/scripts/workflow-event" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+for batch_case in \
+  'run-failed-validation:latest validation attempt' \
+  'run-blocked-review:latest review_completed' \
+  'run-blocked-adversary:latest code_diff adversary' \
+  'run-stale-evidence:after last file change' \
+  'run-stale-evidence-spaced:after last file change' \
+  'run-reversed-validation:latest validation attempt' \
+  'run-reversed-review:latest review_completed' \
+  'run-reversed-adversary:latest code_diff adversary' \
+  'run-reversed-plan-adversary:latest plan adversary' \
+  'run-native-validation-failed:latest validation attempt' \
+  'run-native-validation-other-success:latest validation attempt'; do
+  batch_slug="${batch_case%%:*}"
+  batch_message="${batch_case#*:}"
+  batch_out="$(jq -Rrs \
+    --arg mode batch \
+    --arg slug "$batch_slug" \
+    --arg profile autonomous-completed \
+    --argjson allowed "$allowed_events" \
+    -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+    "$EVENT_DIR/$batch_slug/events.jsonl")"
+  assert_contains "$batch_out" "ERR"
+  assert_contains "$batch_out" "$batch_message"
+done
+for strict_reversal in \
+  'run-reversed-validation:latest validation attempt' \
+  'run-reversed-review:latest review_completed' \
+  'run-reversed-adversary:latest code_diff adversary' \
+  'run-reversed-plan-adversary:latest plan adversary' \
+  'run-native-validation-failed:latest validation attempt' \
+  'run-native-validation-other-success:latest validation attempt'; do
+  strict_slug="${strict_reversal%%:*}"
+  strict_message="${strict_reversal#*:}"
+  strict_out="$(jq -Rrs \
+    --arg mode batch \
+    --arg slug "$strict_slug" \
+    --arg profile autonomous-completed-strict \
+    --argjson allowed "$allowed_events" \
+    -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+    "$EVENT_DIR/$strict_slug/events.jsonl")"
+  assert_contains "$strict_out" "ERR"
+  assert_contains "$strict_out" "$strict_message"
+done
+recovered_batch="$(jq -Rrs \
+  --arg mode batch \
+  --arg slug run-recovered-evidence \
+  --arg profile autonomous-completed \
+  --argjson allowed "$allowed_events" \
+  -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+  "$EVENT_DIR/run-recovered-evidence/events.jsonl")"
+assert_contains "$recovered_batch" "OK"
+native_recovered_batch="$(jq -Rrs \
+  --arg mode batch \
+  --arg slug run-native-validation-recovered \
+  --arg profile autonomous-completed \
+  --argjson allowed "$allowed_events" \
+  -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+  "$EVENT_DIR/run-native-validation-recovered/events.jsonl")"
+assert_contains "$native_recovered_batch" "OK"
+
 printf '{bad\n' >> "$EVENT_DIR/run-a/events.jsonl"
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-a)"
 assert_contains "$out" "line 4"

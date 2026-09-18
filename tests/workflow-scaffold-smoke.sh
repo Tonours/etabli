@@ -84,6 +84,7 @@ assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
 assert_file "$NEW_PROJECT/scripts/workflow-event"
+assert_file "$NEW_PROJECT/scripts/lib/hash.sh"
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1

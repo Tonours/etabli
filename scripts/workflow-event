@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
+SELF_IMPROVEMENT_INTEGRITY="$SCRIPT_DIR/workflow-self-improvement-integrity"
+STRICT_SELF_IMPROVEMENT_MANIFEST="$SCRIPT_DIR/../workflow/self-improvement/manifests/core-v2.json"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
 
 ALLOWED_EVENTS=(
@@ -260,6 +262,39 @@ validate_ledger_file() {
   fi
   "$MEASUREMENT_INTEGRITY" "$measurement_root" "$file" || return 1
 
+  validate_autonomous_completion_evidence() {
+    local label="$1" evidence_indices last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict
+    evidence_indices="$(jq -s -r '
+      to_entries as $entries
+      | ([$entries[] | select(.value.event == "file_changed")] | last // null) as $change
+      | ([$entries[] | select(
+          .key > ($change.key // -1) and
+          (.value.event == "validation_run" or .value.event == "validation_failed")
+        )]) as $attempts
+      | ($attempts | group_by(.value.detail.command) | map(last)) as $latest_attempts
+      | ([$entries[] | select(.value.event == "review_completed")] | last // null) as $review
+      | ([$entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "code_diff")] | last // null) as $code
+      | ([$entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "plan")] | last // null) as $plan
+      | [
+          ($change.key // -1),
+          ($attempts | length),
+          (if ($latest_attempts | length) > 0 and all($latest_attempts[]; .value.event == "validation_run" and .value.detail.exit == 0) then 1 else 0 end),
+          ($review.key // -1), ($review.value.detail.status // ""),
+          ($code.key // -1), ($code.value.detail.verdict // ""),
+          ($plan.key // -1), ($plan.value.detail.verdict // "")
+        ]
+      | @tsv
+    ' "$file")" || return 1
+    IFS=$'\t' read -r last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict <<< "$evidence_indices"
+    [ "$validation_attempts" -gt 0 ] || { printf 'profile %s requires validation after last file change\n' "$label" >&2; return 1; }
+    [ "$validation_ready" = "1" ] || { printf 'profile %s requires every latest validation attempt per command to succeed\n' "$label" >&2; return 1; }
+    case "$review_status" in GO|"GO WITH NOTES") ;; *) printf 'profile %s requires the latest review_completed verdict to be non-blocking\n' "$label" >&2; return 1 ;; esac
+    case "$plan_adversary_verdict" in READY|GO|"GO WITH NOTES") ;; *) printf 'profile %s requires the latest plan adversary verdict to be non-blocking\n' "$label" >&2; return 1 ;; esac
+    case "$code_adversary_verdict" in GO|"GO WITH NOTES") ;; *) printf 'profile %s requires the latest code_diff adversary verdict to be non-blocking\n' "$label" >&2; return 1 ;; esac
+    [ "$last_review" -gt "$last_change" ] || { printf 'profile %s requires non-blocking review after last file change\n' "$label" >&2; return 1; }
+    [ "$last_code_adversary" -gt "$last_change" ] || { printf 'profile %s requires non-blocking code_diff adversary after last file change\n' "$label" >&2; return 1; }
+  }
+
   case "$profile" in
     structural) ;;
     autonomous-completed)
@@ -270,9 +305,7 @@ validate_ledger_file() {
       for mode in plan code_diff; do
         jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed missing adversary mode %s\n' "$mode" >&2; return 1; }
       done
-      last_change="$(grep -n '"event":"file_changed"' "$file" | tail -1 | cut -d: -f1)"
-      last_validation="$(grep -n '"event":"validation_run"' "$file" | tail -1 | cut -d: -f1)"
-      [ "$last_validation" -gt "$last_change" ] || { printf 'profile autonomous-completed requires validation after last file change\n' >&2; return 1; }
+      validate_autonomous_completion_evidence autonomous-completed || return 1
       ;;
     autonomous-completed-strict)
       [ "$terminal" = "completed" ] || { printf 'profile autonomous-completed-strict requires final completed event\n' >&2; return 1; }
@@ -282,13 +315,24 @@ validate_ledger_file() {
       for mode in plan code_diff; do
         jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing adversary mode %s\n' "$mode" >&2; return 1; }
       done
+      validate_autonomous_completion_evidence autonomous-completed-strict || return 1
       for required in validation review archive completion; do
         jq -e --arg kind "$required" 'select(.event == "runtime_receipt" and .detail.kind == $kind and .detail.cryptographic == false and .detail.observed_by == "parent-process")' "$file" >/dev/null ||
           { printf 'profile autonomous-completed-strict missing runtime_receipt kind %s\n' "$required" >&2; return 1; }
       done
       if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
-        jq -e 'select(.event == "harness_validation_completed") | .detail.candidate_fingerprint and .detail.evaluator_manifest_sha256' "$file" >/dev/null ||
-          { printf 'profile autonomous-completed-strict requires candidate_fingerprint and evaluator_manifest_sha256 on every harness_validation_completed\n' >&2; return 1; }
+        jq -s -e '([.[] | select(.event == "harness_validation_completed")] | all(.[]; .detail.baseline_fingerprint and .detail.candidate_fingerprint and .detail.evaluator_manifest_sha256 and .detail.evaluator_bundle_sha256 and .detail.comparison_path and .detail.comparison_sha256 and .detail.safety and .detail.safety.baseline.population == .detail.safety.candidate.population and .detail.safety.baseline.total == .detail.safety.candidate.total))' "$file" >/dev/null ||
+          { printf 'profile autonomous-completed-strict requires artifact fingerprints, evaluator provenance, safety and comparison_path/comparison_sha256 on every harness_validation_completed\n' >&2; return 1; }
+      fi
+      if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
+        [ -x "$SELF_IMPROVEMENT_INTEGRITY" ] && [ -f "$STRICT_SELF_IMPROVEMENT_MANIFEST" ] || {
+          printf 'profile autonomous-completed-strict cannot verify the comparator chain in this deployment\n' >&2
+          return 1
+        }
+        "$SELF_IMPROVEMENT_INTEGRITY" --manifest "$STRICT_SELF_IMPROVEMENT_MANIFEST" "$file" >/dev/null || {
+          printf 'profile autonomous-completed-strict requires a verified self-improvement comparator chain\n' >&2
+          return 1
+        }
       fi
       ;;
     blocked-terminal)

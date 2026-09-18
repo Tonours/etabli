@@ -53,7 +53,7 @@ Mine recurring workflow issues with `scripts/workflow-retrospect`.
 | `self_improvement_candidate` | `{source, category, outcome, confidence, evidence, held_in?, held_out?, supersedes?}` |
 | `harness_failure_pattern` | `{terminal_cause, causal_status, mechanism, verifier, traces}` |
 | `harness_proposal` | `{candidate, editable_surfaces, preserve, held_in, held_out, supersedes?}` (supersession rule: `workflow/events-validator.md`) |
-| `harness_validation_completed` | `{candidate, verdict:accepted | rejected, reason, held_in, held_out, checks, evidence}` (shape/count rules: `workflow/events-validator.md`) |
+| `harness_validation_completed` | `{candidate, verdict:accepted | rejected, reason, objective?, measurement?, held_in, held_out, checks, evidence, baseline_fingerprint?, candidate_fingerprint?, evaluator_manifest_sha256?, evaluator_bundle_sha256?, comparison_path?, comparison_sha256?}` (strict provenance, comparator-chain and shape/count rules: `workflow/events-validator.md`) |
 | `harness_candidate_rejected` | `{candidate, reason, regressions, evidence}` |
 | `project_slice_planned` | `{slice, owner, validation, dependencies}` |
 | `project_slice_completed` | `{slice, validation, evidence, remaining}` |
@@ -79,9 +79,26 @@ readable via the bounded post-terminal compatibility path.
 
 New autonomous ledgers use `validate --profile autonomous-completed`; missing
 ledgers fail unless explicit `--allow-missing` legacy compatibility is selected.
+Both completion profiles require every command attempted after the last
+`file_changed` through `validation_run` or `validation_failed` to have a latest
+successful `validation_run`, and
+the latest review plus plan/code-diff adversary verdicts to be non-blocking.
+Validation, review, and code-diff adversary evidence must also follow the last
+`file_changed`; a later failure or blocking verdict invalidates an earlier
+success. Presence alone does not prove completion. The
+`autonomous-completed-strict` profile additionally runs the strict
+self-improvement integrity validator against the repository's pinned public
+manifest; field presence alone is not a comparator receipt.
+Generic workflow scaffolds without that manifest and validator reject
+comparative strict events until a project-specific public evaluator bundle is
+installed; they do not fall back to legacy acceptance.
 Unavailable telemetry is recorded with `measured:false` and a non-empty
 `reason`, never as zero. Measured events require non-negative integer token and
-tool counts, elapsed time, and a total at least as large as input plus output. Use
+tool counts, elapsed time, and a total at least as large as input plus output.
+A quality-only event may carry `measured:true` without usage fields, but it is
+not usage coverage; partial or malformed usage is reported as invalid and
+native coverage requires a complete valid usage tuple (tokens, tool calls and
+elapsed time). Use
 `success: true` or an `outcome` such as `success`, `passed`, or `completed` for
 successful outcomes; historical ledgers remain readable as `legacy_unmeasured`.
 
@@ -93,3 +110,9 @@ not raw occurrences. A terminal `-vN`, `-retryN`, `-attemptN`, or `-rerunN`
 suffix is treated as another execution of the same initiative. Plan archives
 remain visible as supporting evidence; when ledger evidence exists for a
 finding, an archive cannot increase its recurrence count.
+For legacy archives without initiative metadata, a unique ledger
+`archive_written` path supplies the initiative; ambiguous or unmatched archives
+remain distinct by file path.
+Its telemetry validates imported measurements against their population and
+target-ledger fingerprints, reports invalid imports, and deduplicates only
+validated target runs; native usage and imported coverage stay separate.

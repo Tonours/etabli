@@ -8,6 +8,14 @@ function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex')
 }
 
+function validNativeUsage(detail) {
+  if (!detail || detail.measured !== true) return false
+  const integer = (value) => Number.isInteger(value) && value >= 0
+  return integer(detail.input_tokens) && integer(detail.output_tokens) && integer(detail.total_tokens) &&
+    detail.total_tokens >= detail.input_tokens + detail.output_tokens && integer(detail.tool_calls) &&
+    Number.isFinite(detail.elapsed_ms) && detail.elapsed_ms >= 0
+}
+
 function stable(value) {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
   if (value && typeof value === 'object') {
@@ -35,7 +43,7 @@ function targetEvidence(workflowDir, target) {
   if (!terminal) fail(`measurement target is not terminal: ${target.target_run}`)
   const metrics = entries.filter(({ value }) => value.event === 'outcome_metric').map(({ value }) => value.detail || {})
   const baselineMeasured = metrics.some((metric) => metric.measured === true)
-  const baselineUsageMeasured = metrics.some((metric) => metric.measured === true && Number.isInteger(metric.total_tokens))
+  const baselineUsageMeasured = metrics.some(validNativeUsage)
   const actual = {
     target_ledger_sha256: sha256(raw),
     target_terminal: terminal.value.event,
@@ -47,6 +55,34 @@ function targetEvidence(workflowDir, target) {
   for (const [field, value] of Object.entries(actual)) {
     if (target[field] !== value) fail(`measurement target fingerprint mismatch: ${target.target_run} ${field}`)
   }
+}
+
+function validSha(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
+}
+
+function validImportedDetail(imported) {
+  const keys = [
+    'elapsed_ms', 'import_id', 'input_tokens', 'output_tokens', 'population_id',
+    'sample_count', 'sample_ended_at', 'sample_started_at', 'selection',
+    'session_fingerprint', 'source_adapter', 'source_scope', 'success',
+    'target_ledger_sha256', 'target_outcome_event_sha256', 'target_run',
+    'target_terminal', 'target_terminal_event_sha256', 'tool_calls', 'total_tokens',
+    'window_ended_at', 'window_started_at',
+  ].sort()
+  if (!imported || typeof imported !== 'object' || JSON.stringify(Object.keys(imported).sort()) !== JSON.stringify(keys)) return false
+  const timestamp = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value) && !Number.isNaN(Date.parse(value))
+  const integer = (value) => Number.isInteger(value) && value >= 0
+  return typeof imported.population_id === 'string' && /^terminal-runs-v1-[a-f0-9]{16}$/.test(imported.population_id) &&
+    validSha(imported.import_id) && typeof imported.target_run === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(imported.target_run) &&
+    validSha(imported.target_ledger_sha256) && ['completed', 'blocked'].includes(imported.target_terminal) &&
+    validSha(imported.target_terminal_event_sha256) && (imported.target_outcome_event_sha256 === null || validSha(imported.target_outcome_event_sha256)) &&
+    imported.source_adapter === 'codex' && imported.source_scope === 'primary_session_window' &&
+    imported.selection === 'shortest_enclosing_primary_session' && validSha(imported.session_fingerprint) &&
+    timestamp(imported.window_started_at) && timestamp(imported.window_ended_at) && timestamp(imported.sample_started_at) && timestamp(imported.sample_ended_at) &&
+    integer(imported.sample_count) && imported.sample_count >= 1 && typeof imported.success === 'boolean' && integer(imported.input_tokens) &&
+    integer(imported.output_tokens) && integer(imported.total_tokens) && imported.total_tokens >= imported.input_tokens + imported.output_tokens &&
+    integer(imported.tool_calls) && integer(imported.elapsed_ms)
 }
 
 function main() {
@@ -64,7 +100,20 @@ function main() {
     fail('measurement population manifest hash does not match its targets')
   }
   for (const target of population.targets) targetEvidence(workflowDir, target)
+  const targetByRun = new Map(population.targets.map((target) => [target.target_run, target]))
+  const importedRuns = new Set()
   for (const imported of imports) {
+    if (!validImportedDetail(imported)) fail(`measurement import has invalid detail: ${imported?.target_run || 'unknown'}`)
+    const target = targetByRun.get(imported.target_run)
+    if (!target || imported.population_id !== population.population_id ||
+      imported.target_ledger_sha256 !== target.target_ledger_sha256 ||
+      imported.target_terminal !== target.target_terminal ||
+      imported.target_terminal_event_sha256 !== target.target_terminal_event_sha256 ||
+      imported.target_outcome_event_sha256 !== target.target_outcome_event_sha256) {
+      fail(`measurement import is not a member of its population: ${imported.target_run}`)
+    }
+    if (importedRuns.has(imported.target_run)) fail(`measurement target imported more than once: ${imported.target_run}`)
+    importedRuns.add(imported.target_run)
     const windowStart = Date.parse(imported.window_started_at)
     const windowEnd = Date.parse(imported.window_ended_at)
     const sampleStart = Date.parse(imported.sample_started_at)

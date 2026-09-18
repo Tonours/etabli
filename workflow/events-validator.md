@@ -57,12 +57,18 @@ append these events directly; see `workflow/skills/program-orchestration.md`.
 ## Event semantics
 
 A `harness_proposal` whose `candidate` matches a prior
-`harness_candidate_rejected.candidate` must list it in `supersedes`; enforced
+`harness_candidate_rejected.candidate` or a rejected
+`harness_validation_completed.candidate` must list it in `supersedes`; enforced
 by `scripts/workflow-supersession-check`.
 
 A `runtime_receipt` is a non-cryptographic parent-process observation binding a
 ledger assertion to a hashed subject (path or command) and exit; it stores only
 allowlisted hashes, never raw output or secret-bearing text.
+
+Private comparator inputs and detailed run evidence are not ledger payloads for
+the public repository. Store them in Obvault outside ForestAdmin and in Brain
+inside ForestAdmin; keep Etabli records limited to redacted references,
+fingerprints and aggregate verdicts.
 
 `outcome_metric` accepts additive optional runtime fields in either branch
 (validated when present, ignored when absent): `runtime` (provider/runtime id
@@ -74,6 +80,12 @@ whose totals must sum to `total_tokens` when measured), `batch_wall_clock_ms`,
 all model participants; prefer `batch_wall_clock_ms` = batch makespan for
 verified throughput. Producers: Pi `agent_settled` via
 `scripts/lib/outcome-metric-emit.mjs`, CLI `scripts/workflow-outcome-metric`.
+Retrospect counts usage coverage only when `measured:true` has a complete valid
+usage tuple: non-negative integer input/output/total tokens, non-negative
+integer tool calls and non-negative elapsed time, with total at least input plus
+output. A quality-only measured event is reported separately; partial or
+malformed usage is reported as invalid and does not suppress native usage
+recovery.
 
 `runtime_run_attached` links adapter-owned evidence to the Etabli run; it does
 not make `.pi/workflows/<run-id>/` a second planning or progress source of
@@ -88,11 +100,33 @@ Counts
 are non-negative integers, totals are positive and match within each split,
 `passed` cannot exceed `total`, and each result names the same non-empty stable
 population identifier as its baseline/candidate peer. An `accepted` verdict
-requires a strict held-in gain and held-out non-regression. Comparative
+requires the manifest-frozen quality, efficiency, or reliability objective and
+held-out non-regression. Efficiency and reliability also freeze the measurement
+population in the objective; both result measurements must match it. Comparative
 negative results use `rejected`; candidates rejected before a comparable run
 keep using `harness_candidate_rejected`. Metrics report per-candidate
 percentage-point deltas and never average heterogeneous suites into a global
 improvement score.
+
+Strict evaluator provenance binds the declared evaluator entry path to exactly
+one bundle member and verifies both the entry file SHA-256 and the full bundle
+SHA-256 before accepting a comparator result.
+
+Strict `schema_version: 2` comparisons additionally bind both result documents
+to the exact manifest bytes and evaluator-bundle SHA-256. The bundle lists the
+runner, libraries and oracles used by the comparison; changing any listed file
+or the manifest makes the evidence non-comparable. The comparator records
+held-in, held-out and safety pass-to-fail transitions by task ID, and rejects a
+baseline that already contains a failed safety case. The decision event must
+also carry a relative `comparison_path` and its `comparison_sha256`; the
+validator reads that immutable comparator output and checks its status, verdict,
+provenance and artifact fingerprints before accepting the decision. The
+`autonomous-completed-strict` terminal profile invokes
+`scripts/workflow-self-improvement-integrity` itself, so a caller cannot pass
+the profile by checking only the presence of comparator fields.
+The Etabli repository deployment includes the pinned `core-v2` chain; a generic
+scaffold that has not installed a project-specific evaluator cannot certify a
+comparative event and fails closed instead of silently downgrading it.
 
 `multi_execution_completed` requires a non-empty model ID whose prefix matches
 its declared family. `verdict` is `accepted | degraded | blocked |

@@ -19,7 +19,7 @@
         "workflow/skills/plan-loop.md",
         "PLAN_TEMPLATE.md"
       ],
-      "ceiling_chars": 4306
+      "ceiling_chars": 5601
     },
     "plan-implement": {
       "description": "default read chain of the plan-implement route (unconditional reads only; events-validator.md stays cold, opened only when editing the event system)",
@@ -38,7 +38,7 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 54581
+      "ceiling_chars": 58066
     },
     "implement": {
       "description": "default read chain of the implement route (events-validator.md stays cold, opened only when editing the event system)",
@@ -55,7 +55,7 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 50210
+      "ceiling_chars": 52400
     },
     "review": {
       "description": "default read chain of the review route",
@@ -67,7 +67,7 @@
         "workflow/templates/review-logic-hunter.md",
         "workflow/templates/review-spec-hunter.md"
       ],
-      "ceiling_chars": 21800
+      "ceiling_chars": 22585
     },
     "verify": {
       "description": "default read chain of the verify route",
@@ -84,7 +84,7 @@
         "workflow/spec.md",
         "workflow/contract-details.md"
       ],
-      "ceiling_chars": 32258
+      "ceiling_chars": 33406
     }
   }
 }

@@ -38,7 +38,8 @@ user intent -> router -> planner -> challenger -> adversary -> implementer -> ve
 
 - `DRAFT`: plan exists, not implementation-ready.
 - `CHALLENGED`: review found blockers or vague scope/checks.
-- `READY`: scope, steps, checks, and risks are clear enough to execute.
+- `READY`: the canonical minimum contract is mechanically present and scope,
+  steps, checks, risks, and material spec/code gaps are clear enough to execute.
 
 For routes with a plan, only `READY` authorizes implementation. Ordinary no-plan
 work follows the Routing rules below; plan status and risk tier are not routes.
@@ -94,7 +95,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `workflow/project-autonomy-envelope.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`.
-- Check-freeze: once READY, Checks/Acceptance Criteria strengthen-only;
+- Check-freeze: once READY, Checks/Acceptance Criteria/Validation Plan,
+  including expected results, strengthen-only;
   demoting the plan to `CHALLENGED` with a Decision Log rationale required to
   weaken. Runtime: shared `planMutationGuardDecision` on PLAN.md writes
   (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`.
@@ -137,7 +139,10 @@ A plan is `READY` when it has:
 - route, role, stop condition, and required evidence for non-trivial work
 - known risks or explicit "none"
 - facts separated from assumptions when the task depends on uncertain context
+- populated requirement trace with a disposition for every material spec/code gap
 - no blocking open questions
+- no active raw HTML as semantic evidence; use Markdown text, inline code, fenced code,
+  or explicit `command:` lines so the READY gate can evaluate content deterministically
 
 ## Routing rules
 
@@ -192,6 +197,14 @@ rules table above routes these to `ops-stop`. Full enforcement matrix and
 event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
 coverage: routes shared by Pi extension and Claude hooks; executable classifier
 `claude/hooks/workflow-router-lib.mjs` via `workflow/runtime/workflow-router-core.mjs`.
+
+Semantic route judgments follow `workflow/semantic-judgment.md`. The local Pi
+adapter may accept a Jev route only through its checked-in promotion manifest,
+confidence/margin thresholds, and deterministic protected-route rules. The
+deterministic router remains the provider-failure fallback; permissions,
+destructive/external checkpoints, actual plan state, READY/mutation guards, and
+every execution gate remain authoritative code. `shadow` and `disabled` are
+local rollback modes.
 
 ## Runtime surfaces
 

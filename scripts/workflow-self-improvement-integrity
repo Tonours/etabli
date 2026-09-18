@@ -5,6 +5,7 @@
  *  - population IDs are registered in the manifest
  *  - sample totals meet the manifest minimum
  *  - candidate fingerprints are present (no text-only promotion)
+ *  - strict schema-v2 decisions bind both baseline and candidate fingerprints
  *  - evaluator manifest hash matches (grader immutability)
  *  - visibility is frozen_public; isolated/sealed promotion is a blocked
  *    external-evaluator boundary, never simulated
@@ -12,12 +13,36 @@
  * Legacy ledgers without harness_validation_completed validate cleanly.
  * Read-only: never edits ledgers or manifests.
  */
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, relative, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  fingerprintEvaluatorBundle,
+  fingerprintEvaluatorFile,
+  hashManifestBytes,
+  isSha256,
+} from "./lib/evaluator-bundle.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MANIFEST = resolve(ROOT, "workflow/self-improvement/manifests/core-v1.json");
+const OBJECTIVE_RULES = {
+  quality: { metrics: ["held_in_passed"], direction: "increase" },
+  efficiency: { metrics: ["total_tokens", "elapsed_ms"], direction: "decrease" },
+  reliability: { metrics: ["success_rate"], direction: "increase" },
+};
+
+function validObjective(objective) {
+  const rule = OBJECTIVE_RULES[objective?.kind];
+  return Boolean(
+    rule && rule.metrics.includes(objective.metric) &&
+    objective.direction === rule.direction &&
+    typeof objective.minimum_delta === "number" &&
+    Number.isFinite(objective.minimum_delta) && objective.minimum_delta > 0 &&
+    (objective.kind === "quality" ||
+      (typeof objective.measurement_population === "string" && objective.measurement_population.length > 0)),
+  );
+}
 
 function fail(message) {
   process.stderr.write(`workflow-self-improvement-integrity: ${message}\n`);
@@ -42,14 +67,67 @@ for (let i = 0; i < args.length; i += 1) {
 if (positional.length !== 1) usage();
 const ledgerPath = resolve(positional[0]);
 
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, canonicalJson(value[key])]),
+    );
+  }
+  return value;
+}
+
+function sameJsonValue(left, right) {
+  return JSON.stringify(canonicalJson(left)) === JSON.stringify(canonicalJson(right));
+}
+
+function comparisonFilePath(value) {
+  if (typeof value !== "string" || value.trim() === "" || isAbsolute(value)) return null;
+  const root = dirname(ledgerPath);
+  const path = resolve(root, value.trim());
+  const rel = relative(root, path);
+  if (rel === ".." || rel.startsWith(`..${sep}`)) return null;
+  return path;
+}
+
 let manifest;
+let manifestBytes;
 try {
-  manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  manifestBytes = readFileSync(manifestPath);
+  manifest = JSON.parse(manifestBytes.toString("utf8"));
 } catch (error) {
   fail(`cannot read manifest ${manifestPath}: ${error.message}`);
 }
 if (!Array.isArray(manifest.population_ids) || manifest.visibility !== "frozen_public") {
   fail("manifest must declare frozen_public visibility and population_ids");
+}
+if (![1, 2].includes(manifest.schema_version)) {
+  fail("manifest schema_version must be 1 or 2");
+}
+if (manifest.schema_version === 2 && manifest.strict !== true) {
+  fail("schema 2 manifests must declare strict=true; they cannot fall back to legacy validation");
+}
+if (manifest.schema_version === 2) {
+  if (!validObjective(manifest.objective)) {
+    fail("strict manifest must freeze a supported objective kind, metric, direction, and positive minimum_delta");
+  }
+  if (!Array.isArray(manifest.tasks) || manifest.tasks.length === 0) {
+    fail("strict manifest must declare a non-empty task population");
+  }
+  const taskIds = new Set();
+  for (const task of manifest.tasks) {
+    if (typeof task?.id !== "string" || task.id.length === 0 || taskIds.has(task.id) || !["held_in", "held_out", "safety"].includes(task.split)) {
+      fail("strict manifest tasks must have unique ids and held_in/held_out/safety splits");
+    }
+    taskIds.add(task.id);
+  }
+  for (const split of ["held_in", "held_out", "safety"]) {
+    if (!manifest.tasks.some((task) => task.split === split)) fail(`strict manifest split is empty: ${split}`);
+  }
 }
 
 let text;
@@ -64,6 +142,38 @@ const minimum = Number.isInteger(manifest.minimum_sample_per_split)
   ? manifest.minimum_sample_per_split
   : 1;
 const evaluatorSha = manifest.evaluator?.sha256;
+const strictManifest = manifest.schema_version === 2 && manifest.strict === true;
+const objective = strictManifest
+  ? manifest.objective
+  : { kind: "quality", metric: "held_in_passed", direction: "increase", minimum_delta: 1 };
+const manifestSha = hashManifestBytes(manifestBytes);
+let evaluatorBundleSha = null;
+if (strictManifest) {
+  const bundle = manifest.evaluator?.bundle;
+  if (!bundle || bundle.root !== "." || !Array.isArray(bundle.paths) || !isSha256(bundle.sha256)) {
+    fail("strict manifest must declare evaluator.bundle root, paths, and sha256");
+  }
+  try {
+    evaluatorBundleSha = fingerprintEvaluatorBundle(ROOT, bundle.paths);
+  } catch (error) {
+    fail(`cannot fingerprint evaluator bundle: ${error.message}`);
+  }
+  if (evaluatorBundleSha !== bundle.sha256) {
+    fail("evaluator bundle does not match manifest fingerprint");
+  }
+  let evaluatorFileSha;
+  try {
+    evaluatorFileSha = fingerprintEvaluatorFile(ROOT, manifest.evaluator.path);
+  } catch (error) {
+    fail(`cannot fingerprint evaluator entry point: ${error.message}`);
+  }
+  const evaluatorPath = manifest.evaluator.path?.trim().split("\\").join("/");
+  const bundledEntryCount = bundle.paths.filter((path) =>
+    typeof path === "string" && path.trim().split("\\").join("/") === evaluatorPath).length;
+  if (evaluatorFileSha !== evaluatorSha || bundledEntryCount !== 1) {
+    fail("evaluator entry point must be bundle-bound and match manifest evaluator.sha256");
+  }
+}
 
 const validations = [];
 for (const line of text.split("\n")) {
@@ -77,16 +187,13 @@ for (const line of text.split("\n")) {
   if (event?.event === "harness_validation_completed") validations.push(event);
 }
 
-if (manifest.visibility !== "frozen_public") {
-  fail(`manifest visibility must be frozen_public (got ${manifest.visibility})`);
-}
-
 const errors = [];
+const requiredSplits = strictManifest ? ["held_in", "held_out", "safety"] : ["held_in", "held_out"];
 for (const [index, event] of validations.entries()) {
   const detail = event.detail || {};
   const label = `harness_validation_completed #${index + 1} (candidate: ${detail.candidate || "?"})`;
 
-  for (const split of ["held_in", "held_out"]) {
+  for (const split of requiredSplits) {
     const baseline = detail[split]?.baseline;
     const candidate = detail[split]?.candidate;
     if (!baseline || !candidate) {
@@ -99,18 +206,172 @@ for (const [index, event] of validations.entries()) {
     if (!populations.has(candidate.population)) {
       errors.push(`${label}: ${split} candidate population '${candidate.population}' is not registered in manifest ${manifest.manifest_id}`);
     }
+    if (baseline.population !== candidate.population) {
+      errors.push(`${label}: ${split} baseline and candidate populations must match`);
+    }
+    if (baseline.total !== candidate.total) {
+      errors.push(`${label}: ${split} baseline and candidate totals must match`);
+    }
     if (Number.isInteger(baseline.total) && baseline.total < minimum) {
       errors.push(`${label}: ${split} baseline total ${baseline.total} below manifest minimum ${minimum}`);
     }
     if (Number.isInteger(candidate.total) && candidate.total < minimum) {
       errors.push(`${label}: ${split} candidate total ${candidate.total} below manifest minimum ${minimum}`);
     }
+    for (const [side, result] of [["baseline", baseline], ["candidate", candidate]]) {
+      if (!Number.isInteger(result.passed) || !Number.isInteger(result.total) || result.total <= 0 || result.passed < 0 || result.passed > result.total) {
+        errors.push(`${label}: ${split} ${side} result has invalid passed/total counts`);
+      }
+    }
   }
 
-  if (!detail.candidate_fingerprint) {
+  if (!isSha256(detail.candidate_fingerprint)) {
     errors.push(`${label}: missing candidate_fingerprint (text-only promotion is not allowed)`);
   }
-  if (evaluatorSha && detail.evaluator_manifest_sha256 !== evaluatorSha) {
+  if (strictManifest) {
+    if (!sameJsonValue(detail.objective, objective)) {
+      errors.push(`${label}: decision objective does not match the strict manifest`);
+    }
+    if (!isSha256(detail.baseline_fingerprint)) {
+      errors.push(`${label}: missing baseline_fingerprint (the baseline artifact must be bound to the decision)`);
+    }
+    if (detail.evaluator_manifest_sha256 !== manifestSha) {
+      errors.push(`${label}: evaluator_manifest_sha256 does not match the exact manifest bytes; the grader surface changed and the comparison is non-comparable`);
+    }
+    if (detail.evaluator_bundle_sha256 !== evaluatorBundleSha) {
+      errors.push(`${label}: evaluator_bundle_sha256 does not match the exact evaluator bundle; the grader surface changed and the comparison is non-comparable`);
+    }
+    const comparisonPath = comparisonFilePath(detail.comparison_path);
+    if (!comparisonPath || !isSha256(detail.comparison_sha256)) {
+      errors.push(`${label}: strict decisions require a relative comparison_path and comparison_sha256`);
+    } else {
+      try {
+        const comparisonBytes = readFileSync(comparisonPath);
+        if (sha256(comparisonBytes) !== detail.comparison_sha256) {
+          errors.push(`${label}: comparison_sha256 does not match the recorded comparator output`);
+        }
+        const comparison = JSON.parse(comparisonBytes.toString("utf8"));
+        if (comparison.schema_version !== 2) {
+          errors.push(`${label}: strict comparator output must use schema_version 2 with complete split results`);
+        }
+        if (comparison.status !== "comparable" || comparison.verdict !== detail.verdict) {
+          errors.push(`${label}: comparator output status/verdict does not match the decision event`);
+        }
+        if (comparison.manifest_id !== manifest.manifest_id || comparison.manifest_sha256 !== manifestSha) {
+          errors.push(`${label}: comparator output manifest provenance does not match the strict manifest`);
+        }
+        if (comparison.evaluator_sha256 !== evaluatorSha || comparison.visibility !== manifest.visibility || comparison.isolation_claim !== "frozen_public_not_isolated") {
+          errors.push(`${label}: comparator output evaluator or visibility provenance is incomplete`);
+        }
+        if (comparison.evaluator_bundle_sha256 !== evaluatorBundleSha) {
+          errors.push(`${label}: comparator output evaluator bundle does not match the strict manifest`);
+        }
+        if (!sameJsonValue(comparison.objective, objective)) {
+          errors.push(`${label}: comparator objective does not match the strict manifest`);
+        }
+        if (objective.kind !== "quality") {
+          for (const side of ["baseline", "candidate"]) {
+            const eventMeasurement = detail.measurement?.[side];
+            const comparisonMeasurement = comparison[side]?.measurement;
+            if (!sameJsonValue(eventMeasurement, comparisonMeasurement)) {
+              errors.push(`${label}: ${side} measurement does not match the comparator output`);
+            }
+          }
+          const baselineMeasurement = comparison.baseline?.measurement;
+          const candidateMeasurement = comparison.candidate?.measurement;
+          if (!baselineMeasurement || !candidateMeasurement ||
+              baselineMeasurement.population !== candidateMeasurement.population ||
+              baselineMeasurement.population !== objective.measurement_population ||
+              baselineMeasurement.metric !== objective.metric ||
+              candidateMeasurement.metric !== objective.metric ||
+              baselineMeasurement.sample_count !== candidateMeasurement.sample_count ||
+              baselineMeasurement.sample_count < 2) {
+            errors.push(`${label}: objective measurements must use the same metric, population, and repeated sample count`);
+          }
+        }
+        if (comparison.baseline?.artifact_fingerprint !== detail.baseline_fingerprint || comparison.candidate?.artifact_fingerprint !== detail.candidate_fingerprint) {
+          errors.push(`${label}: comparator output artifact fingerprints do not match the decision event`);
+        }
+        if (!Array.isArray(comparison.reasons) || !comparison.reasons.every((reason) => typeof reason === "string")) {
+          errors.push(`${label}: comparator output reasons must be a string array`);
+        } else if (detail.verdict === "accepted" && comparison.reasons.length > 0) {
+          errors.push(`${label}: accepted comparator output must have no rejection reasons`);
+        }
+        const comparisonOutcomes = { baseline: new Map(), candidate: new Map() };
+        for (const split of requiredSplits) {
+          const eventSplit = detail[split];
+          const baselineSummary = comparison.baseline?.splits?.[split];
+          const candidateSummary = comparison.candidate?.splits?.[split];
+          if (!baselineSummary || !candidateSummary) {
+            errors.push(`${label}: comparator output is missing complete ${split} summaries`);
+            continue;
+          }
+          for (const [side, summary, eventResult] of [["baseline", baselineSummary, eventSplit?.baseline], ["candidate", candidateSummary, eventSplit?.candidate]]) {
+            if (!Number.isInteger(summary.passed) || !Number.isInteger(summary.total) || summary.total <= 0 || summary.passed < 0 || summary.passed > summary.total) {
+              errors.push(`${label}: comparator ${split} ${side} summary has invalid passed/total counts`);
+            }
+            if (!Array.isArray(summary.outcomes) || summary.outcomes.length === 0 || !summary.outcomes.every((outcome) => typeof outcome?.task_id === "string" && typeof outcome.passed === "boolean")) {
+              errors.push(`${label}: comparator ${split} ${side} summary lacks per-task outcomes`);
+            } else if (summary.outcomes.filter((outcome) => outcome.passed).length !== summary.passed || summary.outcomes.length !== summary.total) {
+              errors.push(`${label}: comparator ${split} ${side} per-task outcomes do not match its summary`);
+            } else {
+              const expectedTasks = manifest.tasks.filter((task) => task.split === split).map((task) => task.id);
+              const actualTasks = summary.outcomes.map((outcome) => outcome.task_id);
+              const uniqueTasks = new Set(actualTasks);
+              if (uniqueTasks.size !== actualTasks.length || actualTasks.length !== expectedTasks.length || expectedTasks.some((taskId) => !uniqueTasks.has(taskId))) {
+                errors.push(`${label}: comparator ${split} ${side} outcomes do not exactly match the strict manifest tasks`);
+              }
+              for (const outcome of summary.outcomes) comparisonOutcomes[side].set(outcome.task_id, outcome.passed);
+            }
+            if (!eventResult || typeof eventResult.population !== "string" || !populations.has(eventResult.population)) {
+              errors.push(`${label}: event ${split} ${side} result is missing or malformed`);
+            } else if (eventResult.passed !== summary.passed || eventResult.total !== summary.total) {
+              errors.push(`${label}: comparator ${split} ${side} summary does not match the decision event`);
+            }
+          }
+        }
+        if (!comparison.regressions || typeof comparison.regressions !== "object" || requiredSplits.some((split) => !Array.isArray(comparison.regressions[split]))) {
+          errors.push(`${label}: comparator output must list per-task regressions for every split`);
+        } else {
+          const computedRegressions = Object.fromEntries(requiredSplits.map((split) => [
+            split,
+            manifest.tasks.filter((task) => task.split === split && comparisonOutcomes.baseline.get(task.id) === true && comparisonOutcomes.candidate.get(task.id) === false).map((task) => task.id),
+          ]));
+          for (const split of requiredSplits) {
+            if (JSON.stringify(comparison.regressions[split]) !== JSON.stringify(computedRegressions[split])) {
+              errors.push(`${label}: comparator ${split} regressions do not match per-task outcomes`);
+            }
+          }
+          const baselineSummaries = comparison.baseline.splits;
+          const candidateSummaries = comparison.candidate.splits;
+          const computedReasons = [];
+          if (comparison.baseline.artifact_fingerprint === comparison.candidate.artifact_fingerprint) computedReasons.push("candidate_fingerprint_unchanged");
+          if (objective.kind === "quality") {
+            if (candidateSummaries.held_in.passed - baselineSummaries.held_in.passed < objective.minimum_delta) computedReasons.push("objective_not_met");
+          } else if (candidateSummaries.held_in.passed < baselineSummaries.held_in.passed) {
+            computedReasons.push("held_in_regression");
+          }
+          if (objective.kind === "efficiency" && comparison.baseline.measurement.value - comparison.candidate.measurement.value < objective.minimum_delta) computedReasons.push("objective_not_met");
+          if (objective.kind === "reliability" && comparison.candidate.measurement.value - comparison.baseline.measurement.value < objective.minimum_delta) computedReasons.push("objective_not_met");
+          if (candidateSummaries.held_out.passed < baselineSummaries.held_out.passed) computedReasons.push("held_out_regression");
+          if (candidateSummaries.safety.passed < baselineSummaries.safety.passed) computedReasons.push("safety_regression");
+          for (const split of requiredSplits) {
+            if (computedRegressions[split].length > 0) computedReasons.push(`${split}_case_regression`);
+          }
+          if (baselineSummaries.safety.passed < baselineSummaries.safety.total) computedReasons.push("baseline_safety_incomplete");
+          if (JSON.stringify(comparison.reasons) !== JSON.stringify(computedReasons)) {
+            errors.push(`${label}: comparator reasons do not match its per-task results and promotion policy`);
+          }
+          const computedVerdict = computedReasons.length === 0 ? "accepted" : "rejected";
+          if (comparison.verdict !== computedVerdict || detail.verdict !== computedVerdict) {
+            errors.push(`${label}: comparator and decision verdict do not match the recomputed promotion policy`);
+          }
+        }
+      } catch (error) {
+        errors.push(`${label}: cannot read or parse comparison output: ${error.message}`);
+      }
+    }
+  } else if (evaluatorSha && detail.evaluator_manifest_sha256 !== evaluatorSha) {
     errors.push(`${label}: evaluator_manifest_sha256 does not match manifest; the grader surface changed and the comparison is non-comparable`);
   }
 }

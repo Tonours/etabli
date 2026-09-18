@@ -7,7 +7,7 @@ import {
 	type PlanStatus,
 } from "./lib/workflow-router-runtime.ts";
 import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
-import { planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
+import { parsePlanStatus, planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
 import {
 	inferBashFailureFromToolResult,
 	isBashToolName,
@@ -16,6 +16,7 @@ import {
 	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
 import { maybeEmitOutcomeMetric } from "./lib/outcome-metric-emit.ts";
+import { loadSemanticPolicy, runRouteDecision } from "./lib/route-shadow.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -27,10 +28,7 @@ type RoutablePi = ExtensionAPI & {
 function readPlanStatus(cwd: string): PlanStatus {
 	try {
 		const content = readFileSync(resolve(cwd, "PLAN.md"), "utf-8");
-		const match = content.match(
-			/^\s*-\s*Status:\s*(DRAFT|CHALLENGED|READY)\s*$/im,
-		);
-		return match ? (match[1].toLowerCase() as PlanStatus) : "unknown";
+		return parsePlanStatus(content) as PlanStatus;
 	} catch {
 		return "missing";
 	}
@@ -76,6 +74,19 @@ function planStatusWord(prompt: string, statusPattern: RegExp): boolean {
 	return planNoun.test(prompt) && statusPattern.test(prompt);
 }
 
+function routedSystemPrompt(systemPrompt: string | undefined, decision: Record<string, unknown>): string {
+	const contract = {
+		route: decision.route,
+		writeAllowed: decision.writeAllowed,
+		command: decision.command,
+		skill: decision.skill,
+		artifact: decision.artifact,
+		stopCondition: decision.stopCondition,
+		requiredEvidence: decision.requiredEvidence,
+	};
+	return `${systemPrompt || ""}\n\n<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn. It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
+}
+
 export default function (pi: ExtensionAPI) {
 	const routablePi = pi as RoutablePi;
 
@@ -99,12 +110,81 @@ export default function (pi: ExtensionAPI) {
 			});
 		}
 
-		routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
-			version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-			decision,
-		});
+		let semanticPolicy;
+		try {
+			semanticPolicy = loadSemanticPolicy();
+		} catch {
+			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
+				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+				decision,
+				semantic: { mode: "fallback", reason: "invalid_policy" },
+			});
+			return {
+				systemPrompt: routedSystemPrompt(event.systemPrompt, decision),
+			};
+		}
 
-		return undefined;
+		if (semanticPolicy.mode !== "enforced") {
+			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
+				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+				decision,
+			});
+			if (semanticPolicy.mode === "shadow") {
+				void runRouteDecision({
+					prompt: event.prompt,
+					deterministicDecision: decision,
+					planStatus: routeContext.planStatus,
+					cwd: eventCwd(event, ctx),
+					policy: semanticPolicy,
+				}).then(({ receipt }) => {
+					if (!receipt) return;
+					routablePi.appendEntry?.(`${CUSTOM_MESSAGE_TYPE}.shadow`, {
+						version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+						receipt,
+					});
+				}).catch(() => undefined);
+			}
+			return semanticPolicy.mode === "disabled" ? undefined : {
+				systemPrompt: routedSystemPrompt(event.systemPrompt, decision),
+			};
+		}
+
+		return runRouteDecision({
+			prompt: event.prompt,
+			deterministicDecision: decision,
+			planStatus: routeContext.planStatus,
+			cwd: eventCwd(event, ctx),
+			policy: semanticPolicy,
+		}).then(({ selected, receipt }) => {
+			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
+				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+				decision: selected,
+				semantic: receipt ? {
+					mode: "enforced",
+					source: receipt.selection_source,
+					reason: receipt.selection_reason,
+					confidence: receipt.shadow_answer?.confidence ?? null,
+				} : { mode: "enforced", source: "deterministic", reason: "no_receipt" },
+			});
+			if (receipt) {
+				routablePi.appendEntry?.(`${CUSTOM_MESSAGE_TYPE}.decision`, {
+					version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+					receipt,
+				});
+			}
+			return {
+				systemPrompt: routedSystemPrompt(event.systemPrompt, selected),
+			};
+		}).catch(() => {
+			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
+				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+				decision,
+				semantic: { mode: "fallback", reason: "runtime_error" },
+			});
+			return {
+				systemPrompt: routedSystemPrompt(event.systemPrompt, decision),
+			};
+		});
 	});
 
 	pi.on("tool_call", (event, ctx) => {

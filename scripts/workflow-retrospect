@@ -8,6 +8,7 @@ PLAN_DIR="docs/plan"
 MIN_COUNT=2
 MAX_SAMPLES=3
 JSON=0
+MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
 
 usage() {
   cat <<EOF
@@ -198,12 +199,55 @@ scan_events() {
     done
 }
 
+archive_ledger_initiative() {
+  local archive_file="$1"
+  local archive_absolute archive_logical archive_relative matches=""
+  archive_logical="$archive_file"
+  case "$archive_logical" in
+    /*) ;;
+    *) archive_logical="$PWD/${archive_logical#./}" ;;
+  esac
+  archive_absolute="$(cd "$(dirname "$archive_file")" >/dev/null 2>&1 && pwd -P)/$(basename "$archive_file")"
+  archive_relative="$archive_logical"
+  case "$archive_logical" in
+    "$PWD"/*) archive_relative="${archive_logical#"$PWD"/}" ;;
+  esac
+  [ -d "$WORKFLOW_DIR" ] || return 0
+  while IFS= read -r ledger; do
+    if jq -e --arg absolute "$archive_absolute" --arg logical "$archive_logical" --arg relative "$archive_relative" \
+      'select(.event == "archive_written" and (.detail.path == $absolute or .detail.path == $logical or .detail.path == $relative or .detail.path == ("./" + $relative)))' \
+      "$ledger" >/dev/null 2>&1; then
+      matches="${matches}$(normalize_initiative "$(basename "$(dirname "$ledger")")")\n"
+    fi
+  done < <(find "$WORKFLOW_DIR" -mindepth 2 -maxdepth 2 -name events.jsonl -type f -print | sort)
+  matches="$(printf '%b' "$matches" | sed '/^$/d' | sort -u)"
+  if [ "$(printf '%s\n' "$matches" | sed '/^$/d' | wc -l | tr -d ' ')" = "1" ]; then
+    printf '%s' "$matches"
+  fi
+}
+
 scan_plan_archives() {
   [ -d "$PLAN_DIR" ] || return 0
 
   find "$PLAN_DIR" -maxdepth 1 -name '*.md' -type f -print |
     sort |
     while IFS= read -r file; do
+      archive_initiative="$(awk -F': *' '
+        /^- Workflow initiative: / {
+          value=$0
+          sub(/^- Workflow initiative: /, "", value)
+          gsub(/^`|`$/, "", value)
+          if (value != "" && value != "none") print value
+          exit
+        }
+      ' "$file")"
+      if [ -n "$archive_initiative" ]; then
+        archive_initiative="$(normalize_initiative "$archive_initiative")"
+      fi
+      if [ -z "$archive_initiative" ]; then
+        archive_initiative="$(archive_ledger_initiative "$file")"
+      fi
+      [ -n "$archive_initiative" ] || archive_initiative="$file"
       awk '
         {
           line = $0
@@ -215,7 +259,13 @@ scan_plan_archives() {
         }
       ' "$file" |
         while IFS=$'\t' read -r source text; do
-          emit_observation "archive_signal" "$text" "$source" "archive" "$source"
+          line_initiative="$(printf '%s' "$text" | sed -nE 's/.*\[initiative:([^]]+)\].*/\1/p')"
+          clean_text="$(printf '%s' "$text" | sed -E 's/[[:space:]]*\[initiative:[^]]+\][[:space:]]*/ /g; s/^ +| +$//g')"
+          if [ -n "$line_initiative" ]; then
+            line_initiative="$(normalize_initiative "$line_initiative")"
+          fi
+          [ -n "$line_initiative" ] || line_initiative="$archive_initiative"
+          emit_observation "archive_signal" "$clean_text" "$source" "archive" "$line_initiative"
         done
     done
 }
@@ -267,16 +317,15 @@ build_summary() {
         $groups[]
         | . as $items
         | ($items[0].category) as $category
-        | ($items | map(select(.origin == "ledger") | .initiative) | unique) as $ledger_initiatives
-        | ($items | map(select(.origin == "archive") | .source) | unique) as $archive_sources
-        | (if ($ledger_initiatives | length) > 0 then ($ledger_initiatives | length) else ($archive_sources | length) end) as $count
+        | ($items | map(.initiative) | unique) as $initiatives
+        | ($initiatives | length) as $count
         | (action($category; $count)) as $action
         | {
             category: $category,
             key: $items[0].key,
             count: $count,
             evidence_count: ($items | length),
-            initiatives: $ledger_initiatives,
+            initiatives: $initiatives,
             confirmed: ($count >= $min_count),
             action_kind: $action,
             recommendation: recommendation($category; $action),
@@ -311,16 +360,107 @@ collect_context_budget() {
 }
 
 collect_run_metrics() {
-  telemetry='{"measured":0,"unmeasured":0}'
+  telemetry='{"measured":0,"unmeasured":0,"quality_only":0,"invalid_usage":0,"outcome_events":0,"outcome_runs":0,"native_runs":0,"imported_measurements":0,"imported_targets":0,"invalid_imports":0,"overlapping_import_targets":0}'
   terminal='{"completed":0,"blocked":0,"in_progress":0}'
   [ -d "$WORKFLOW_DIR" ] || return 0
   local files
   files="$(find "$WORKFLOW_DIR" -mindepth 2 -maxdepth 2 -name events.jsonl -type f -print | sort)"
   [ -n "$files" ] || return 0
-  telemetry="$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 jq -R 'fromjson? // empty' | jq -s '
+  local validated_import_files failed_import_count=0 file import_count population_line import_json import_tmp population_count
+  validated_import_files="$(mktemp)"
+  while IFS= read -r file; do
+    if jq -e 'select(.event == "outcome_measurement_imported")' "$file" >/dev/null 2>&1; then
+      population_count="$(jq -s '[.[] | select(.event == "outcome_measurement_population")] | length' "$file")"
+      population_line="$(jq -c 'select(.event == "outcome_measurement_population")' "$file" | head -n 1)"
+      if [ "$population_count" -ne 1 ] || [ -z "$population_line" ]; then
+        import_count="$(jq -s '[.[] | select(.event == "outcome_measurement_imported")] | length' "$file")"
+        failed_import_count=$((failed_import_count + import_count))
+      else
+        while IFS= read -r import_json; do
+          import_tmp="$(mktemp)"
+          printf '%s\n%s\n' "$population_line" "$import_json" >"$import_tmp"
+          if "$MEASUREMENT_INTEGRITY" "$WORKFLOW_DIR" "$import_tmp" >/dev/null 2>&1; then
+            printf '%s\n' "$import_json" >>"$validated_import_files"
+          else
+            failed_import_count=$((failed_import_count + 1))
+          fi
+          rm -f "$import_tmp"
+        done < <(jq -c 'select(.event == "outcome_measurement_imported")' "$file")
+      fi
+    fi
+  done <<EOF
+$files
+EOF
+  local all_events validated_imports
+  all_events="$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 jq -R 'fromjson? // empty')"
+  if [ -s "$validated_import_files" ]; then
+    validated_imports="$(jq -R 'fromjson? // empty' "$validated_import_files" | jq -s '[.[] | select(type == "object" and .event == "outcome_measurement_imported") | (.detail // {})]')"
+  else
+    validated_imports='[]'
+  fi
+  rm -f "$validated_import_files"
+  telemetry="$(printf '%s\n' "$all_events" | jq -s --argjson validated_imports "$validated_imports" --argjson failed_imports "$failed_import_count" '
+    def nonnegative_integer:
+      type == "number" and floor == . and . >= 0;
+    def nonnegative_number:
+      type == "number" and . >= 0;
+    def valid_usage:
+      try (
+        (.detail.measured == true)
+        and (.detail.input_tokens | nonnegative_integer)
+        and (.detail.output_tokens | nonnegative_integer)
+        and (.detail.total_tokens | nonnegative_integer)
+        and (.detail.total_tokens >= (.detail.input_tokens + .detail.output_tokens))
+        and (.detail.tool_calls | nonnegative_integer)
+        and (.detail.elapsed_ms | nonnegative_number)
+      ) catch false;
+    def valid_import:
+      try (
+      (type == "object")
+      and (.population_id | type == "string" and length > 0)
+      and (.import_id | type == "string" and test("^[0-9a-f]{64}$"))
+      and (.target_run | type == "string" and length > 0)
+      and (.target_ledger_sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+      and (.target_terminal | type == "string" and length > 0)
+      and (.target_terminal_event_sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+      and ((.target_outcome_event_sha256 == null) or (.target_outcome_event_sha256 | type == "string" and test("^[0-9a-f]{64}$")))
+      and (.source_adapter == "codex")
+      and (.source_scope | type == "string" and length > 0)
+      and (.selection | type == "string" and length > 0)
+      and (.session_fingerprint | type == "string" and test("^[0-9a-f]{64}$"))
+      and (.sample_count | nonnegative_integer and . >= 1)
+      and (.input_tokens | nonnegative_integer)
+      and (.output_tokens | nonnegative_integer)
+      and (.total_tokens | nonnegative_integer)
+      and (.total_tokens >= (.input_tokens + .output_tokens))
+      and (.tool_calls | nonnegative_integer)
+      and (.elapsed_ms | nonnegative_integer)
+      ) catch false;
+    def supplied_usage:
+      (.detail // {}) as $detail
+      | ["input_tokens", "output_tokens", "total_tokens", "tool_calls", "elapsed_ms"]
+      | any(. as $key | $detail | has($key));
     [.[] | select(type == "object" and .event == "outcome_metric")] as $m
-    | {measured: ([$m[] | select(.detail.measured == true)] | length),
-       unmeasured: ([$m[] | select(.detail.measured != true)] | length)}')"
+    | $validated_imports as $i
+    | [$m[] | select(valid_usage)] as $native
+    | [$m[] | select(.detail.measured == true and (supplied_usage | not))] as $quality_only
+    | [$m[] | select(.detail.measured == true and (valid_usage | not) and supplied_usage)] as $invalid_usage
+    | [$i[] | select(valid_import)] as $valid_imports
+    | [$i[] | select(valid_import | not)] as $invalid_imports
+    | ($valid_imports | group_by(.target_run)) as $import_groups
+    | ($import_groups | map(.[0])) as $deduped_imports
+    | (($import_groups | map(select(length > 1)) | length)) as $overlap
+    | {measured: ($native | length),
+       unmeasured: (($m | length) - ($native | length)),
+       quality_only: ($quality_only | length),
+       invalid_usage: ($invalid_usage | length),
+       outcome_events: ($m | length),
+       outcome_runs: ([$m[] | .run? // empty] | unique | length),
+       native_runs: ([$native[] | .run? // empty] | unique | length),
+       imported_measurements: ($deduped_imports | length),
+       imported_targets: ([$deduped_imports[] | .target_run] | unique | length),
+       invalid_imports: (($invalid_imports | length) + $failed_imports + (($valid_imports | length) - ($deduped_imports | length))),
+       overlapping_import_targets: $overlap}')"
   terminal="$(printf '%s\n' "$files" |
     while IFS= read -r file; do
       last="$(tail -n 1 "$file" | jq -Rr '(fromjson? | objects | .event) // "unknown"')"
@@ -346,6 +486,11 @@ print_context_block() {
   printf 'telemetry: measured=%s unmeasured=%s\n' \
     "$(printf '%s' "$telemetry" | jq -r '.measured')" \
     "$(printf '%s' "$telemetry" | jq -r '.unmeasured')"
+  printf 'telemetry coverage: native_runs=%s imported_targets=%s invalid_imports=%s overlapping_import_targets=%s\n' \
+    "$(printf '%s' "$telemetry" | jq -r '.native_runs')" \
+    "$(printf '%s' "$telemetry" | jq -r '.imported_targets')" \
+    "$(printf '%s' "$telemetry" | jq -r '.invalid_imports')" \
+    "$(printf '%s' "$telemetry" | jq -r '.overlapping_import_targets')"
   printf 'terminal: completed=%s blocked=%s in_progress=%s\n' \
     "$(printf '%s' "$terminal" | jq -r '.completed')" \
     "$(printf '%s' "$terminal" | jq -r '.blocked')" \

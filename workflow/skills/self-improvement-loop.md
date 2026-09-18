@@ -45,17 +45,26 @@ router, memory, permissions, checks, or harness code:
 2. Bounded proposal: propose narrow edits from an explicit context containing
    editable surfaces, mined failure patterns, passing behaviors to preserve,
    and previously attempted edits.
-3. Proposal validation: accept only candidates that resolve the held-in failure
-   evidence and do not regress held-out router, docs, event, or workflow smoke
+3. Proposal validation: freeze one objective before the run: quality,
+   efficiency, or reliability. Accept only candidates that meet its metric and
+   do not regress held-out router, docs, event, or workflow smoke
    checks. When baseline and candidate use the same comparable population,
    record `harness_validation_completed` with the same stable population
    identifier on both sides, integer pass counts, checks, and evidence. New
    strict comparisons also bind exact baseline/candidate artifact fingerprints,
-   manifest bytes and the evaluator bundle. An accepted comparison needs a
-   strict held-in gain, held-out non-regression, no baseline safety gap, and no
-   baseline-pass to candidate-fail transition by task ID.
+   manifest bytes, objective/metric/threshold, manifest-frozen measurement population when
+   applicable, and the evaluator bundle. Quality requires a strict held-in gain;
+   efficiency or reliability may preserve held-in quality while improving
+   their frozen metric. Every objective requires held-out non-regression, no
+   baseline safety gap, and no baseline-pass to candidate-fail transition by
+   task ID. Retest the combined accepted artifact before promotion.
 4. Rejection logging: record rejected candidates and negative results with the
    reason, regressions, and evidence so future runs do not repeat them.
+
+`held_out` is adaptive validation once it participates in repeated candidate
+decisions. Never describe it as an intact final test. Estimate transfer with a
+sealed surface consulted once after selection, then with future real tasks; once
+opened for diagnosis, that surface joins validation and must be renewed.
 
 Do not collapse unrelated candidate suites into one harness-improvement
 average. Report proposal coverage, verdicts, and percentage-point deltas per

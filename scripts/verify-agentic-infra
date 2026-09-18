@@ -53,6 +53,7 @@ json_config() {
     "$ROOT_DIR/pi/agent/settings.json" \
     "$ROOT_DIR/pi/models.json" \
     "$ROOT_DIR/workflow/runtime-capabilities.json"
+  jq empty "$ROOT_DIR/workflow/runtime/semantic-judgment-policy.json"
 }
 
 pi_import_smoke() {

@@ -45,12 +45,39 @@ write_plan() {
 - Archive: pending until implemented and validated
 
 ## Goal
+- Verify the guard.
 
 ## Workflow Contract
 - Route: implement
 - Role: implementer
 - Stop condition: validated archive written and root PLAN.md deleted
 - Required evidence: smoke test
+
+## Acceptance Criteria
+- Guard follows the plan status.
+
+## Scope
+- In: guard fixture
+- Out: product code
+
+## Facts And Assumptions
+- Observed: temporary plan fixture
+- Assumptions: none
+
+## Requirement Trace
+- Request -> fixture state -> no material gap -> guard output.
+
+## Steps
+1. Run the guard.
+
+## Checks
+- command: bash tests/claude-hooks-smoke.sh
+
+## Risks
+- None.
+
+## Open Questions
+- None
 EOF
 }
 
@@ -102,6 +129,30 @@ if [ -n "$ready_output" ]; then
 	exit 1
 fi
 
+cat >"$TMP_DIR/PLAN.md" <<'PLAN'
+# PLAN.md
+## Meta
+- Status: READY
+PLAN
+incomplete_ready_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"%s/src/file.ts","content":"x"}}\n' "$TMP_DIR" "$TMP_DIR" |
+		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_contains "$incomplete_ready_output" '"permissionDecision":"deny"'
+assert_contains "$incomplete_ready_output" 'READY but incomplete'
+
+cat >"$TMP_DIR/PLAN.md" <<'PLAN'
+# PLAN.md
+## Meta
+- Status: DRAFT — needs review
+PLAN
+malformed_status_output="$(
+	printf '{"cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"%s/src/file.ts","content":"x"}}\n' "$TMP_DIR" "$TMP_DIR" |
+		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_contains "$malformed_status_output" '"permissionDecision":"deny"'
+assert_contains "$malformed_status_output" 'PLAN.md is UNKNOWN'
+
 # Check-freeze through the real Claude PreToolUse entry (plan-ready-guard process).
 cat >"$TMP_DIR/PLAN.md" <<'PLAN'
 # PLAN.md
@@ -109,12 +160,41 @@ cat >"$TMP_DIR/PLAN.md" <<'PLAN'
 ## Meta
 - Status: READY
 
+## Goal
+- Verify check-freeze.
+
+## Workflow Contract
+- Route: implement
+- Role: implementer
+- Stop condition: fixture passes
+- Required evidence: smoke output
+
+## Scope
+- In: plan guard
+- Out: product code
+
+## Facts And Assumptions
+- Observed: temporary fixture
+- Assumptions: none
+
+## Requirement Trace
+- Request -> check fixture -> no material gap -> guard denial.
+
+## Steps
+1. Exercise the guard.
+
 ## Checks
 - command: bash tests/a.sh
 - command: bash tests/b.sh
 
 ## Acceptance Criteria
 - Given freeze, when weaken, then deny
+
+## Risks
+- None.
+
+## Open Questions
+- None
 PLAN
 cat >"$TMP_DIR/plan-weaken.md" <<'PLAN'
 # PLAN.md
@@ -178,15 +258,7 @@ assert_contains "$bash_plan_output" 'check-freeze'
 mkdir -p "$TMP_DIR/.workflow/np-run"
 printf '%s\n' '{"schema_version":2,"ts":"2026-08-01T00:00:00Z","run":"np-run","event":"no_progress","detail":{"check_or_hypothesis":"stuck","command":"bash tests/a.sh","attempts":2,"eliminated":["stuck"]}}' \
 	>"$TMP_DIR/.workflow/np-run/events.jsonl"
-cat >"$TMP_DIR/PLAN.md" <<'PLAN'
-# PLAN.md
-
-## Meta
-- Status: READY
-
-## Checks
-- command: bash tests/a.sh
-PLAN
+write_plan "READY"
 np_write_payload="$(node --input-type=module -e '
 const cwd = process.argv[1];
 process.stdout.write(JSON.stringify({
@@ -305,6 +377,31 @@ cat >"$guard_repo/PLAN.md" <<'PLAN'
 
 ## Meta
 - Status: READY
+## Goal
+- Verify commit protection.
+## Workflow Contract
+- Route: implement
+- Role: implementer
+- Stop condition: fixture passes
+- Required evidence: smoke output
+## Acceptance Criteria
+- PLAN remains uncommitted.
+## Scope
+- In: commit guard
+- Out: product
+## Facts And Assumptions
+- Observed: temporary repository
+- Assumptions: none
+## Requirement Trace
+- Request -> synthetic repository -> no material gap -> commit guard.
+## Steps
+1. Exercise the guard.
+## Checks
+- command: bash tests/claude-hooks-smoke.sh
+## Risks
+- None.
+## Open Questions
+- None
 PLAN
 git -C "$guard_repo" add PLAN.md
 

@@ -32,6 +32,22 @@ function writeRouteStub(root: string) {
 	chmodSync(join(root, "_meta", "obvault"), 0o755);
 }
 
+function validReadyPlanText() {
+	return [
+		"# PLAN.md", "", "## Meta", "- Status: READY",
+		"## Goal", "- Exercise the guard.",
+		"## Workflow Contract", "- Route: implement", "- Role: implementer",
+		"- Stop condition: fixture passes", "- Required evidence: smoke output",
+		"## Acceptance Criteria", "- Guard follows the READY contract.",
+		"## Scope", "- In: guard fixture", "- Out: product code",
+		"## Facts And Assumptions", "- Observed: temporary fixture", "- Assumptions: none",
+		"## Requirement Trace", "- Request -> fixture state -> no material gap -> guard output",
+		"## Steps", "1. Exercise the guard.",
+		"## Checks", "- command: bash tests/a.sh",
+		"## Risks", "- None.", "## Open Questions", "- None", "",
+	].join("\n");
+}
+
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
 	initialThinkingLevel?: string,
@@ -80,6 +96,15 @@ function setupExtension(
 		) {
 			return (handlers.get(eventName) ?? []).map((handler) => handler(event, ctx));
 		},
+		async emitAsync(
+			eventName: string,
+			event: Record<string, unknown>,
+			ctx?: Record<string, unknown>,
+		) {
+			return Promise.all(
+				(handlers.get(eventName) ?? []).map((handler) => handler(event, ctx)),
+			);
+		},
 	};
 }
 
@@ -92,12 +117,16 @@ describe("workflow router extension", () => {
 	// behaves exactly as on a machine without a vault. The dedicated dynamic
 	// test below overrides this with its own fixture root.
 	const previousObvaultRoot = process.env.OBVAULT_ROOT;
+	const previousSemanticMode = process.env.ETABLI_SEMANTIC_MODE;
 	beforeAll(() => {
 		process.env.OBVAULT_ROOT = "/nonexistent-obvault-for-tests";
+		process.env.ETABLI_SEMANTIC_MODE = "disabled";
 	});
 	afterAll(() => {
 		if (previousObvaultRoot === undefined) delete process.env.OBVAULT_ROOT;
 		else process.env.OBVAULT_ROOT = previousObvaultRoot;
+		if (previousSemanticMode === undefined) delete process.env.ETABLI_SEMANTIC_MODE;
+		else process.env.ETABLI_SEMANTIC_MODE = previousSemanticMode;
 	});
 
 	test("uses actual PLAN.md status before routing to implement", () => {
@@ -107,7 +136,7 @@ describe("workflow router extension", () => {
 		try {
 			writeFileSync(
 				join(cwd, "PLAN.md"),
-				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
+				validReadyPlanText(),
 			);
 
 			const results = runtime.emit("before_agent_start", {
@@ -247,10 +276,7 @@ describe("workflow router extension", () => {
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-read-ready-plan-"));
 
 		try {
-			writeFileSync(
-				join(cwd, "PLAN.md"),
-				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
-			);
+			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
 
 			const results = runtime.emit("before_agent_start", {
 				prompt: "Résume le PLAN.md ready",
@@ -363,10 +389,7 @@ describe("workflow router extension", () => {
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-commit-ctx-"));
 		try {
 			execFileSync("git", ["-C", cwd, "init", "-q"]);
-			writeFileSync(
-				join(cwd, "PLAN.md"),
-				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
-			);
+			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
 			execFileSync("git", ["-C", cwd, "add", "PLAN.md"]);
 
 			// Production shape: no cwd on the event, session cwd on the context.
@@ -499,10 +522,7 @@ describe("workflow router extension", () => {
 				reason: expect.stringMatching(/CHALLENGED/i),
 			});
 
-			writeFileSync(
-				join(cwd, "PLAN.md"),
-				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
-			);
+			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
 			const readyWrite = runtime.emit("tool_call", {
 				toolName: "write",
 				toolCallId: "w3",
@@ -510,6 +530,20 @@ describe("workflow router extension", () => {
 				input: { path: join(cwd, "src/z.ts"), content: "z" },
 			})[0];
 			expect(readyWrite).toBeUndefined();
+
+			writeFileSync(join(cwd, "PLAN.md"), "# PLAN.md\n## Meta\n- Status: READY\n");
+			const incompleteReady = runtime.emit("tool_call", {
+				toolName: "write", toolCallId: "w4", cwd,
+				input: { path: join(cwd, "src/z.ts"), content: "z" },
+			})[0];
+			expect(incompleteReady).toMatchObject({ block: true, reason: expect.stringMatching(/READY but incomplete/i) });
+
+			writeFileSync(join(cwd, "PLAN.md"), "# PLAN.md\n## Meta\n- Status: DRAFT — needs review\n");
+			const malformedStatus = runtime.emit("tool_call", {
+				toolName: "write", toolCallId: "w5", cwd,
+				input: { path: join(cwd, "src/z.ts"), content: "z" },
+			})[0];
+			expect(malformedStatus).toMatchObject({ block: true, reason: expect.stringMatching(/UNKNOWN/i) });
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
@@ -519,19 +553,7 @@ describe("workflow router extension", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-no-progress-"));
 		try {
-			writeFileSync(
-				join(cwd, "PLAN.md"),
-				[
-					"# PLAN.md",
-					"",
-					"## Meta",
-					"- Status: READY",
-					"",
-					"## Checks",
-					"- command: bash tests/a.sh",
-					"",
-				].join("\n"),
-			);
+			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
 			mkdirSync(join(cwd, ".workflow", "run-a"), { recursive: true });
 			writeFileSync(
 				join(cwd, ".workflow", "run-a", "events.jsonl"),
@@ -739,10 +761,7 @@ describe("workflow router extension", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-receipt-"));
 		try {
-			writeFileSync(
-				join(cwd, "PLAN.md"),
-				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
-			);
+			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
 			mkdirSync(join(cwd, ".workflow", "rcpt-run"), { recursive: true });
 			writeFileSync(
 				join(cwd, ".workflow", "rcpt-run", "events.jsonl"),
@@ -936,10 +955,7 @@ tags:
 		const runtime = setupExtension(["Write", "Bash"]);
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-ready-guard-"));
 		try {
-			writeFileSync(
-				join(cwd, "PLAN.md"),
-				["# PLAN.md", "", "## Meta", "- Status: READY", ""].join("\n"),
-			);
+			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
 			const writeAllow = runtime.emit("tool_call", {
 				toolName: "Write",
 				toolCallId: "1",
@@ -948,6 +964,87 @@ tags:
 			});
 			expect(writeAllow[0]).toBeUndefined();
 		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("emits a bounded fail-closed semantic shadow without changing the route", async () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-shadow-"));
+		const previousMode = process.env.ETABLI_SEMANTIC_MODE;
+		const previousKey = process.env.TYPESAFE_API_KEY;
+		try {
+			process.env.ETABLI_SEMANTIC_MODE = "shadow";
+			delete process.env.TYPESAFE_API_KEY;
+			runtime.emit("before_agent_start", { prompt: "Explique le routeur", cwd });
+			expect(runtime.entries[0]).toMatchObject({ decision: { route: "answer" } });
+			for (let attempt = 0; attempt < 20 && runtime.entries.length < 2; attempt += 1) {
+				await new Promise((resolve) => setTimeout(resolve, 5));
+			}
+			expect(runtime.entries[1]).toMatchObject({
+				receipt: { outcome: "abstain", error_code: "missing_api_key", deterministic_decision: "answer" },
+			});
+			const receipt = readFileSync(join(cwd, ".workflow/semantic-judgments.jsonl"), "utf8");
+			expect(receipt).not.toContain("Explique le routeur");
+		} finally {
+			if (previousMode === undefined) delete process.env.ETABLI_SEMANTIC_MODE;
+			else process.env.ETABLI_SEMANTIC_MODE = previousMode;
+			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
+			else process.env.TYPESAFE_API_KEY = previousKey;
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("awaits an enforced Jev decision before publishing the selected route", async () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-enforced-"));
+		const previousMode = process.env.ETABLI_SEMANTIC_MODE;
+		const previousKey = process.env.TYPESAFE_API_KEY;
+		const previousFetch = globalThis.fetch;
+		try {
+			process.env.ETABLI_SEMANTIC_MODE = "enforced";
+			process.env.TYPESAFE_API_KEY = "fixture-key";
+			globalThis.fetch = (async (_url, init) => {
+				const request = JSON.parse(String(init?.body));
+				const routes = Object.keys(request.questions.route.criteria);
+				const confidence = 0.93;
+				const remainder = (1 - confidence) / (routes.length - 1);
+				return new Response(JSON.stringify({
+					model: request.model,
+					answers: {
+						route: {
+							type: "choice",
+							choice: "verify",
+							probabilities: Object.fromEntries(routes.map((route) => [route, route === "verify" ? confidence : remainder])),
+							confidence,
+						},
+					},
+					usage: { input_tokens: 10, output_tokens: 2 },
+				}), { status: 200, headers: { "content-type": "application/json" } });
+			}) as typeof fetch;
+
+			const results = await runtime.emitAsync("before_agent_start", {
+				prompt: "Explique le routeur",
+				systemPrompt: "Base prompt",
+				cwd,
+			});
+			expect(runtime.entries[0]).toMatchObject({
+				decision: { route: "verify", writeAllowed: false },
+				semantic: { mode: "enforced", source: "jev", reason: "semantic_override" },
+			});
+			expect(runtime.entries[1]).toMatchObject({
+				receipt: { selection_source: "jev", selected_decision: "verify" },
+			});
+			const routedPrompt = (results[0] as { systemPrompt: string }).systemPrompt;
+			expect(typeof routedPrompt).toBe("string");
+			expect(routedPrompt.includes('"route":"verify"')).toBe(true);
+			expect(routedPrompt.includes("Base prompt")).toBe(true);
+		} finally {
+			if (previousMode === undefined) delete process.env.ETABLI_SEMANTIC_MODE;
+			else process.env.ETABLI_SEMANTIC_MODE = previousMode;
+			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
+			else process.env.TYPESAFE_API_KEY = previousKey;
+			globalThis.fetch = previousFetch;
 			rmSync(cwd, { recursive: true, force: true });
 		}
 	});
