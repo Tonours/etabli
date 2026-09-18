@@ -52,7 +52,7 @@
 
 ## Validation Evidence
 - command: live TypeSafe calibration with `ETABLI_CALIBRATION_REPETITIONS=3`
-  - result: 90 observations over 30 unique cases; 93.3% raw accuracy, 100% accepted accuracy, 63.3% accepted coverage, 100% override accuracy, 60% accepted override coverage, 100% protected preservation, 100% stability, Brier `0.102108`, ECE `0.045556`, zero provider errors, p95 `432 ms`, input cost `$0.003393`; every frozen gate passed.
+  - result: 90 observations over 30 unique cases; 93.3% raw accuracy, 100% accepted accuracy, 65.6% accepted coverage, 100% override accuracy, 66.7% accepted override coverage, 100% protected preservation, 100% stability, Brier `0.099333`, ECE `0.039778`, zero provider errors, p95 `386 ms`, input cost `$0.003393`; every frozen gate passed.
 - command: real local `scripts/jev-shadow evaluate` with zsh-inherited credential and `ETABLI_SEMANTIC_MODE=enforced`
   - result: Jev changed deterministic `answer` to `verify`, reported `semantic_override`, and persisted one sanitized receipt in an isolated temporary root.
 - command: `scripts/verify-agentic-infra core`
