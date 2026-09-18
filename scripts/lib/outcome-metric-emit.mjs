@@ -9,7 +9,7 @@ import {
 import { loadLedgerEvents } from "./no-progress-guard.mjs";
 import {
 	buildFromLedgerEvents,
-	hasMeasuredOutcomeMetric,
+	hasMeasuredUsage,
 	isLedgerOpen,
 	usageFromAssistantMessages,
 } from "./outcome-metric-builder.mjs";
@@ -47,7 +47,7 @@ export function maybeEmitOutcomeMetric(cwd, opts = {}) {
 	if (!isLedgerOpen(events)) {
 		return { emitted: false, reason: "ledger_terminal", ledger: primary.path };
 	}
-	if (hasMeasuredOutcomeMetric(events)) {
+	if (hasMeasuredUsage(events)) {
 		return { emitted: false, reason: "already_measured", ledger: primary.path };
 	}
 

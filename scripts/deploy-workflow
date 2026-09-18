@@ -55,6 +55,7 @@ FILES=(
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
   "$REPO_DIR/scripts/workflow-event|scripts/workflow-event"
   "$REPO_DIR/scripts/workflow-measurement-integrity|scripts/workflow-measurement-integrity"
+  "$REPO_DIR/scripts/lib/hash.sh|scripts/lib/hash.sh"
   "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
 )
 

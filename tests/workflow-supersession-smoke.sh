@@ -33,6 +33,13 @@ if "$CHECK" "$EVENT_DIR/ss-bad/events.jsonl" >/dev/null 2>&1; then
 	fail "re-proposal without supersedes was accepted"
 fi
 
+# A rejected comparative validation is also a rejection source.
+emit ss-comparison harness_validation_completed '{"candidate":"comparison-regression","verdict":"rejected","reason":"safety_case_regression","held_in":{"baseline":{"population":"etabli-core-v1","passed":2,"total":2},"candidate":{"population":"etabli-core-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"etabli-core-v1","passed":2,"total":2},"candidate":{"population":"etabli-core-v1","passed":1,"total":2}},"checks":["per-task transitions"],"evidence":["comparison.json"]}'
+emit ss-comparison harness_proposal '{"candidate":"comparison-regression","editable_surfaces":["a.ts"],"preserve":["b"],"held_in":["x"],"held_out":["y"]}'
+if "$CHECK" "$EVENT_DIR/ss-comparison/events.jsonl" >/dev/null 2>&1; then
+	fail "re-proposal after rejected comparison was accepted"
+fi
+
 # Legacy ledger with no rejections validates cleanly.
 emit ss-clean harness_proposal '{"candidate":"fresh","editable_surfaces":["a.ts"],"preserve":["b"],"held_in":["x"],"held_out":["y"]}'
 out="$("$CHECK" "$EVENT_DIR/ss-clean/events.jsonl")"

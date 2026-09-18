@@ -3,9 +3,10 @@
  * Prevent a self-improvement loop from re-proposing a candidate that was
  * already rejected in the same ledger without an explicit supersession
  * rationale. A `harness_proposal` whose `.candidate` matches a prior
- * `harness_candidate_rejected.candidate` MUST carry a `supersedes` array that
- * names it; otherwise the proposal is reward-hacking over an already-rejected
- * change.
+ * `harness_candidate_rejected.candidate` or rejected
+ * `harness_validation_completed.candidate` MUST carry a `supersedes` array
+ * that names it; otherwise the proposal is reward-hacking over an
+ * already-rejected change.
  *
  * Read-only: never edits ledgers.
  */
@@ -42,7 +43,10 @@ for (const line of text.split("\n")) {
   } catch {
     continue;
   }
-  if (event?.event === "harness_candidate_rejected") {
+  if (
+    event?.event === "harness_candidate_rejected" ||
+    (event?.event === "harness_validation_completed" && event.detail?.verdict === "rejected")
+  ) {
     const candidate = event.detail?.candidate;
     if (typeof candidate === "string" && candidate.trim()) rejected.add(candidate.trim());
     continue;

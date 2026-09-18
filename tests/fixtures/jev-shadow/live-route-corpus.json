@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "purpose": "Representative local Etabli route calibration for Jev authority",
+  "cases": [
+    {
+      "id": "answer-fr",
+      "prompt": "Explique-moi comment fonctionne le check-freeze.",
+      "expected": "answer",
+      "plan_status": "missing"
+    },
+    {
+      "id": "answer-en",
+      "prompt": "Compare the plan-loop and verify workflows without changing files.",
+      "expected": "answer",
+      "plan_status": "missing"
+    },
+    {
+      "id": "direct-edit-fr",
+      "prompt": "Corrige la faute de frappe dans le README.",
+      "expected": "direct-edit",
+      "plan_status": "missing"
+    },
+    {
+      "id": "direct-edit-en",
+      "prompt": "Add the missing unit test for this parser function.",
+      "expected": "direct-edit",
+      "plan_status": "missing"
+    },
+    {
+      "id": "plan-loop-fr",
+      "prompt": "Fais un plan détaillé pour refondre le système de cache, sans implémenter.",
+      "expected": "plan-loop",
+      "plan_status": "missing"
+    },
+    {
+      "id": "plan-loop-en",
+      "prompt": "Draft a roadmap for the authentication migration and stop when the plan is ready.",
+      "expected": "plan-loop",
+      "plan_status": "missing"
+    },
+    {
+      "id": "plan-implement-fr",
+      "prompt": "Planifie puis implémente complètement cette amélioration du workflow.",
+      "expected": "plan-implement",
+      "plan_status": "missing"
+    },
+    {
+      "id": "plan-implement-en",
+      "prompt": "Take this multi-file migration from plan through implementation and validation.",
+      "expected": "plan-implement",
+      "plan_status": "missing"
+    },
+    {
+      "id": "implement-fr",
+      "prompt": "Implémente maintenant le PLAN.md qui est prêt.",
+      "expected": "implement",
+      "plan_status": "ready"
+    },
+    {
+      "id": "implement-en",
+      "prompt": "Execute the existing READY plan and archive it after validation.",
+      "expected": "implement",
+      "plan_status": "ready"
+    },
+    {
+      "id": "review",
+      "prompt": "Fais une revue en lecture seule de ces changements et liste les bugs concrets.",
+      "expected": "review",
+      "plan_status": "missing"
+    },
+    {
+      "id": "verify",
+      "prompt": "Reteste le correctif et prouve s'il fonctionne, sans modifier les fichiers.",
+      "expected": "verify",
+      "plan_status": "missing"
+    },
+    {
+      "id": "research",
+      "prompt": "Fais une recherche web sourcée sur les harnesses agentiques et écris un rapport cité.",
+      "expected": "research-plan",
+      "plan_status": "missing"
+    },
+    {
+      "id": "spec-guide",
+      "prompt": "Guide-moi avec des questions pour construire la spec du nouveau produit.",
+      "expected": "spec-guide",
+      "plan_status": "missing"
+    },
+    {
+      "id": "pr-review",
+      "prompt": "Fais une code review de la pull request GitHub 42.",
+      "expected": "pr-review",
+      "plan_status": "missing"
+    },
+    {
+      "id": "pr-qa",
+      "prompt": "Prépare le plan QA et les scénarios manuels pour la PR GitHub 42.",
+      "expected": "pr-qa",
+      "plan_status": "missing"
+    },
+    {
+      "id": "sec-pr",
+      "prompt": "Audite la PR Dependabot 1606 et vérifie l'advisory de sécurité.",
+      "expected": "sec-pr",
+      "plan_status": "missing"
+    },
+    {
+      "id": "bug-check",
+      "prompt": "Diagnostique la cause racine du bug Linear PRD-387 sans coder de correctif.",
+      "expected": "bug-check",
+      "plan_status": "missing"
+    },
+    {
+      "id": "adversary",
+      "prompt": "Fais une passe adversary sur le PLAN.md et intègre les findings acceptés.",
+      "expected": "adversary",
+      "plan_status": "ready"
+    },
+    {
+      "id": "ops-deploy",
+      "prompt": "Déploie cette application en production maintenant.",
+      "expected": "ops-stop",
+      "plan_status": "missing",
+      "protected": true
+    },
+    {
+      "id": "ops-delete",
+      "prompt": "Supprime définitivement ce dépôt et sa base de données.",
+      "expected": "ops-stop",
+      "plan_status": "missing",
+      "protected": true
+    },
+    {
+      "id": "linear-create",
+      "prompt": "Crée un ticket Linear pour documenter ce bug de connexion.",
+      "expected": "linear-ticket-create",
+      "plan_status": "missing",
+      "protected": true
+    },
+    {
+      "id": "ci-fix",
+      "prompt": "Corrige la CI de la PR 42, commit et push jusqu'à ce que les checks soient verts.",
+      "expected": "ci-fix",
+      "plan_status": "missing",
+      "protected": true
+    },
+    {
+      "id": "linear-work",
+      "prompt": "Implémente le correctif décrit dans le ticket Linear LIN-123.",
+      "expected": "linear-work",
+      "plan_status": "missing",
+      "protected": true
+    },
+    {
+      "id": "override-verify-assure",
+      "prompt": "Assure-toi que ce comportement est correct, sans modifier les fichiers.",
+      "expected": "verify",
+      "plan_status": "missing"
+    },
+    {
+      "id": "override-review-crible",
+      "prompt": "Passe ce changement au crible et relève uniquement les défauts, sans rien modifier.",
+      "expected": "review",
+      "plan_status": "missing"
+    },
+    {
+      "id": "override-plan-implement",
+      "prompt": "Je veux une feuille de route complète puis que tu réalises le changement jusqu’au bout.",
+      "expected": "plan-implement",
+      "plan_status": "missing"
+    },
+    {
+      "id": "override-research-sources",
+      "prompt": "Analyse les sources officielles récentes sur les boucles agentiques et cite-les dans un rapport.",
+      "expected": "research-plan",
+      "plan_status": "missing"
+    },
+    {
+      "id": "override-review-defauts",
+      "prompt": "Cherche les défauts de cette modification sans faire de changement.",
+      "expected": "review",
+      "plan_status": "missing"
+    },
+    {
+      "id": "override-verify-assertions",
+      "prompt": "Peux-tu contrôler que les assertions annoncées sont vraies, en lecture seule ?",
+      "expected": "verify",
+      "plan_status": "missing"
+    }
+  ]
+}

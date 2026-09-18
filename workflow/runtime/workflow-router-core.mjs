@@ -16,3 +16,4 @@ export {
   isMutationRelevantTool,
   readPlanStatus,
 } from "../../claude/hooks/workflow-router-lib.mjs";
+export { parsePlanStatus } from "../../scripts/lib/plan-check-freeze.mjs";

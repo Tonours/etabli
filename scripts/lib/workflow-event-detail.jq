@@ -12,6 +12,38 @@ def optional_string($value): $value == null or ($value | nonempty_string);
 def optional_string_array($value): $value == null or ($value | string_array);
 def harness_result:
   (.population | nonempty_string) and (.passed | nonnegative_integer) and (.total | positive_integer) and (.passed <= .total);
+def harness_objective:
+  type == "object" and
+  (.kind | IN("quality", "efficiency", "reliability")) and
+  (.minimum_delta | type == "number" and . > 0) and
+  (if .kind == "quality" then .metric == "held_in_passed" and .direction == "increase"
+   elif .kind == "efficiency" then (.metric | IN("total_tokens", "elapsed_ms")) and .direction == "decrease" and (.measurement_population | nonempty_string)
+   else .metric == "success_rate" and .direction == "increase" and (.measurement_population | nonempty_string) end);
+def harness_measurement:
+  type == "object" and (.population | nonempty_string) and
+  (.metric | nonempty_string) and (.value | nonnegative_number) and
+  (.sample_count | positive_integer) and (.sample_count >= 2);
+def harness_promotion_policy:
+  (.objective // {kind:"quality", metric:"held_in_passed", direction:"increase", minimum_delta:1}) as $objective
+  | ($objective | harness_objective) and
+    (if $objective.kind == "quality" then
+       (.held_in.candidate.passed - .held_in.baseline.passed) >= $objective.minimum_delta
+     else
+       (.held_in.candidate.passed >= .held_in.baseline.passed) and
+       (.measurement.baseline | harness_measurement) and
+       (.measurement.candidate | harness_measurement) and
+       (.measurement.baseline.population == .measurement.candidate.population) and
+       (.measurement.baseline.population == $objective.measurement_population) and
+       (.measurement.baseline.metric == $objective.metric) and
+       (.measurement.candidate.metric == $objective.metric) and
+       (.measurement.baseline.sample_count == .measurement.candidate.sample_count) and
+       (if $objective.kind == "efficiency" then
+          (.measurement.baseline.value - .measurement.candidate.value) >= $objective.minimum_delta
+        else
+          (.measurement.baseline.value <= 1) and (.measurement.candidate.value <= 1) and
+          (.measurement.candidate.value - .measurement.baseline.value) >= $objective.minimum_delta
+        end)
+     end);
 def usage_valid:
   (.measured | boolean) and
   if .measured then
@@ -291,13 +323,20 @@ def strict_detail($event):
     (.held_in.baseline.population == .held_in.candidate.population) and (.held_in.baseline.total == .held_in.candidate.total) and
     (.held_out.baseline | harness_result) and (.held_out.candidate | harness_result) and
     (.held_out.baseline.population == .held_out.candidate.population) and (.held_out.baseline.total == .held_out.candidate.total) and
-    (if .verdict == "accepted" then
-      (.held_in.candidate.passed > .held_in.baseline.passed) and (.held_out.candidate.passed >= .held_out.baseline.passed)
+    ((.safety? == null) or ((.safety.baseline | harness_result) and (.safety.candidate | harness_result) and
+      (.safety.baseline.population == .safety.candidate.population) and (.safety.baseline.total == .safety.candidate.total))) and
+    ((.objective? == null) or (.objective | harness_objective)) and
+    ((.measurement? == null) or ((.measurement.baseline | harness_measurement) and (.measurement.candidate | harness_measurement))) and
+    (if .verdict == "accepted" then harness_promotion_policy and (.held_out.candidate.passed >= .held_out.baseline.passed)
     else true end) and
     # Additive self-improvement provenance (optional here; enforced by the strict
     # profile and workflow-self-improvement-integrity, never by legacy callers).
+    ((.baseline_fingerprint? == null) or (.baseline_fingerprint | sha256)) and
     ((.candidate_fingerprint? == null) or (.candidate_fingerprint | sha256)) and
     ((.evaluator_manifest_sha256? == null) or (.evaluator_manifest_sha256 | sha256)) and
+    ((.evaluator_bundle_sha256? == null) or (.evaluator_bundle_sha256 | sha256)) and
+    ((.comparison_path? == null) or (.comparison_path | nonempty_string)) and
+    ((.comparison_sha256? == null) or (.comparison_sha256 | sha256)) and
     ((.revision? == null) or (.revision | nonempty_string))
   elif $event == "harness_candidate_rejected" then
     (.candidate | nonempty_string) and (.reason | nonempty_string) and
@@ -324,9 +363,16 @@ def strict_detail($event):
     ((.success_kind? == null) or (.success_kind == "run_terminal") or (.success_kind == "task_grader")) and
     ((.grader_success? == null) or (.grader_success | type) == "boolean") and
     if .measured then
-      (.input_tokens | nonnegative_integer) and (.output_tokens | nonnegative_integer) and
-      (.total_tokens | nonnegative_integer) and (.total_tokens >= (.input_tokens + .output_tokens)) and
-      (.tool_calls | nonnegative_integer) and (.elapsed_ms | nonnegative_number)
+      # Some historical producers marked a quality/grader result as measured
+      # without token usage. Keep that evidence readable, but require a complete
+      # usage tuple whenever any usage field is supplied; coverage code decides
+      # whether the tuple is valid native usage.
+      . as $detail |
+      if (["input_tokens", "output_tokens", "total_tokens", "tool_calls", "elapsed_ms"] | any(. as $key | $detail | has($key))) then
+        (.input_tokens | nonnegative_integer) and (.output_tokens | nonnegative_integer) and
+        (.total_tokens | nonnegative_integer) and (.total_tokens >= (.input_tokens + .output_tokens)) and
+        (.tool_calls | nonnegative_integer) and (.elapsed_ms | nonnegative_number)
+      else true end
     else
       ((.reason // .measurement_reason) | nonempty_string) and
       (.input_tokens? == null) and (.output_tokens? == null) and (.total_tokens? == null) and
@@ -480,6 +526,16 @@ def batch_line($entry; $st; $slug; $list):
 
 def autonomous_profile_error($values; $st; $label; $strict):
   (["route_decided","plan_created","adversary_completed","file_changed","validation_run","simplification_completed","review_completed","outcome_metric","archive_written","plan_removed"]) as $required
+  | ([$values | to_entries[] | select(.value.event == "file_changed") | .key] | last // -1) as $lc
+  | ([$values | to_entries[] | select(
+      .key > $lc and (.value.event == "validation_run" or .value.event == "validation_failed")
+    )]) as $validation_attempts
+  | ($validation_attempts | group_by(.value.detail.command) | map(last)) as $latest_validations
+  | ([$values | to_entries[] | select(.value.event == "review_completed")] | last // null) as $review
+  | ([$values | to_entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "code_diff")] | last // null) as $code_adversary
+  | ([$values | to_entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "plan")] | last // null) as $plan_adversary
+  | ($review.key // -1) as $lr
+  | ($code_adversary.key // -1) as $la
   | ([
       (if $st.term != "completed" then "profile \($label) requires final completed event" else null end),
       ($required | map(. as $req
@@ -488,6 +544,16 @@ def autonomous_profile_error($values; $st; $label; $strict):
       (["plan", "code_diff"] | map(. as $mode
           | if ([$values[] | select(.event == "adversary_completed" and .detail.mode == $mode)] | length) == 0
             then "profile \($label) missing adversary mode \($mode)" else null end)),
+      (if ($validation_attempts | length) == 0
+        then "profile \($label) requires validation after last file change" else null end),
+      (if ($latest_validations | length) > 0 and (all($latest_validations[]; .value.event == "validation_run" and .value.detail.exit == 0) | not)
+        then "profile \($label) requires every latest validation attempt per command to succeed" else null end),
+      (if (($review.value.detail.status // "") | IN("GO", "GO WITH NOTES")) | not
+        then "profile \($label) requires the latest review_completed verdict to be non-blocking" else null end),
+      (if (($plan_adversary.value.detail.verdict // "") | IN("READY", "GO", "GO WITH NOTES")) | not
+        then "profile \($label) requires the latest plan adversary verdict to be non-blocking" else null end),
+      (if (($code_adversary.value.detail.verdict // "") | IN("GO", "GO WITH NOTES")) | not
+        then "profile \($label) requires the latest code_diff adversary verdict to be non-blocking" else null end),
       (if $strict then
         (["validation", "review", "archive", "completion"] | map(. as $kind
             | if ([$values[] | select(.event == "runtime_receipt"
@@ -497,19 +563,22 @@ def autonomous_profile_error($values; $st; $label; $strict):
               then "profile \($label) missing runtime_receipt kind \($kind)" else null end))
         , (if (([$values[] | select(.event == "harness_validation_completed")] | length) > 0)
           and (([$values[] | select(.event == "harness_validation_completed"
+                and (.detail.baseline_fingerprint // null) != null
                 and (.detail.candidate_fingerprint // null) != null
-                and (.detail.evaluator_manifest_sha256 // null) != null)] | length)
+                and (.detail.evaluator_manifest_sha256 // null) != null
+                and (.detail.evaluator_bundle_sha256 // null) != null
+                and (.detail.comparison_path // null) != null
+                and (.detail.comparison_sha256 // null) != null
+                and (.detail.safety // null) != null
+                and (.detail.safety.baseline.population // null) == (.detail.safety.candidate.population // null)
+                and (.detail.safety.baseline.total // null) == (.detail.safety.candidate.total // null))] | length)
                != ([$values[] | select(.event == "harness_validation_completed")] | length))
-          then "profile \($label) requires candidate_fingerprint and evaluator_manifest_sha256 on every harness_validation_completed"
+          then "profile \($label) requires artifact fingerprints, evaluator provenance, safety and comparison_path/comparison_sha256 on every harness_validation_completed"
           else null end)
         else null end),
-      (if $strict then null
-       else
-         (([$values | to_entries[] | select(.value.event == "file_changed") | .key] | last // -1)) as $lc
-         | (([$values | to_entries[] | select(.value.event == "validation_run") | .key] | last // -1)) as $lv
-         | if $lc >= 0 and $lv <= $lc
-           then "profile \($label) requires validation after last file change" else null end
-       end)
+      (if $lc >= 0 and $lr <= $lc then "profile \($label) requires non-blocking review after last file change"
+       elif $lc >= 0 and $la <= $lc then "profile \($label) requires non-blocking code_diff adversary after last file change"
+       else null end)
     ] | flatten | map(select(. != null)) | first) // null;
 
 def batch_ledger($slug; $profile; $list):

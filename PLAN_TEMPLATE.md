@@ -40,6 +40,11 @@
 ### Assumptions
 - None / ...
 
+## Requirement Trace
+| Requirement / source | Observed state | Gap / ambiguity | Decision | Step / expected evidence |
+| --- | --- | --- | --- | --- |
+| | | | | |
+
 ## Steps
 1.
 2.

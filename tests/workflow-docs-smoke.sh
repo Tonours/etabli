@@ -851,6 +851,10 @@ grep -Fq '# PLAN.md' "$ROOT_DIR/PLAN_TEMPLATE.md" || {
     printf 'PLAN_TEMPLATE.md is missing the # PLAN.md fallback shape\n' >&2
     exit 1
 }
+assert_contains "$ROOT_DIR/workflow/skills/plan-loop.md" 'Facts And Assumptions, Requirement'
+assert_contains "$ROOT_DIR/workflow/skills/plan-loop.md" 'Trace, Steps, Checks, Risks'
+assert_contains "$ROOT_DIR/workflow/skills/plan-loop.md" 'a populated requirement trace with a disposition'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'populated requirement trace with a disposition'
 for adapter in \
     "$ROOT_DIR/pi/skills/plan-loop/SKILL.md" \
     "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"; do

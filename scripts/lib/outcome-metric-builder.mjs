@@ -322,13 +322,43 @@ export function usageFromAssistantMessages(messages) {
 }
 
 /**
- * Whether a ledger already has a measured outcome_metric.
+ * Whether an outcome metric contains valid native token usage.
+ * A quality-only measured flag is deliberately not usage coverage.
+ * @param {Record<string, unknown> | undefined} detail
+ */
+export function isMeasuredUsageDetail(detail) {
+	if (!detail || detail.measured !== true) return false;
+	const input = detail.input_tokens;
+	const output = detail.output_tokens;
+	const total = detail.total_tokens;
+	const toolCalls = detail.tool_calls;
+	const elapsed = detail.elapsed_ms;
+	return (
+		isNonNegInt(input) &&
+		isNonNegInt(output) &&
+		isNonNegInt(total) &&
+		total >= input + output &&
+		isNonNegInt(toolCalls) &&
+		isNonNegNumber(elapsed)
+	);
+}
+
+/**
+ * Whether a ledger already has a valid native usage measurement.
+ * @param {Array<{ event?: string, detail?: any }>} events
+ */
+export function hasMeasuredUsage(events) {
+	return (events || []).some(
+		(e) => e?.event === "outcome_metric" && isMeasuredUsageDetail(e.detail),
+	);
+}
+
+/**
+ * Backward-compatible name retained for callers; semantics now require usage.
  * @param {Array<{ event?: string, detail?: any }>} events
  */
 export function hasMeasuredOutcomeMetric(events) {
-	return (events || []).some(
-		(e) => e?.event === "outcome_metric" && e.detail?.measured === true,
-	);
+	return hasMeasuredUsage(events);
 }
 
 /**

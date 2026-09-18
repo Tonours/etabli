@@ -15,15 +15,20 @@ Read the workspace `workflow/spec.md`, `PLAN_TEMPLATE.md` and
 `PLAN_TEMPLATE_FULL.md`; for a missing one, try the same relative path under
 `~/.pi/agent/`, `~/.claude/`, then `~/.agents/`. Only when every copy is
 missing, create `PLAN.md` with the sections Meta, Goal, Workflow Contract,
-Acceptance Criteria, Scope (In / Out), Facts And Assumptions, Steps, Checks,
-Risks, Decision Log, Open Questions and Notes / Handoff, and report the missing
-paths as a warning, not a blocker.
+Acceptance Criteria, Scope (In / Out), Facts And Assumptions, Requirement
+Trace, Steps, Checks, Risks, Decision Log, Open Questions and Notes / Handoff,
+and report the missing paths as a warning, not a blocker.
 
 ## Required Sequence
 
-1. Inspect repo state (`git status --short`) and relevant files. Load a
-   domain suite only if the brief clearly matches one. Name the skill(s)
-   used, or `none`, in `Notes / Handoff`.
+1. Inspect repo state (`git status --short`) and relevant files. Discover the
+   applicable project sources proportionately: current request, spec/PRD,
+   tickets, accepted ADRs/decisions, code, tests, launch command, and existing
+   validation. Record source precedence, freshness or conflicts when they
+   affect the task. A missing project spec is an observed fact, not an automatic
+   blocker; derive provisional criteria from the request and confirmed
+   decisions. Load a domain suite only if the brief clearly matches one. Name
+   the skill(s) used, or `none`, in `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad or risky work.
 4. Set `Status: DRAFT` first.
@@ -35,9 +40,18 @@ paths as a warning, not a blocker.
    - `Required evidence`: command, artifact, source, or manual check needed
      before completion.
 6. Critique scope, route, role, stop condition, evidence, steps, checks,
-   assumptions, risks.
-7. Do not mark `READY` if route, stop condition, required evidence, or
-   checks are missing for non-trivial implementation-bound work.
+   assumptions, risks, and the project spec itself. For each material
+   requirement, compare its source with observed code/tests; identify missing
+   actors/permissions, preconditions, nominal/error/recovery flows, boundary
+   states, persistence, dependencies, and observable success as applicable.
+   Classify every material gap as in-scope correction, verifiable assumption,
+   bounded experiment, blocking question, or justified non-goal. Keep this
+   trace in `PLAN.md`; do not create a second active artifact.
+7. Do not mark `READY` if route, role, stop condition, required evidence,
+   checks, or a disposition for any material spec/code gap is missing for
+   non-trivial implementation-bound work. Name the smallest executable
+   end-to-end slice and verify its environment and validation surface are
+   available before depending on them.
 8. Update `PLAN.md` in place to `CHALLENGED` or `READY`.
 9. Ask only narrow blocking questions.
 10. Return final status, blockers, and next action.
@@ -48,7 +62,8 @@ A plan is `READY` only with: a clear goal; bounded scope and non-goals when
 needed; concrete steps; named files or areas for risky changes; checks to run;
 route, role, stop condition and required evidence for non-trivial work; known
 risks or an explicit "none"; facts separated from assumptions when the task
-depends on uncertain context; no blocking open question. `workflow/spec.md`
+depends on uncertain context; a populated requirement trace with a disposition
+for every material spec/code gap; no blocking open question. `workflow/spec.md`
 § Minimal READY gate is the canonical list and wins on conflict.
 
 ## Rules

@@ -3,7 +3,9 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import {
 	evaluateCheckFreeze,
+	evaluateReadyPlan,
 	parseChecks,
+	parsePlanStatus,
 } from "../../scripts/lib/plan-check-freeze.mjs";
 import {
 	isNoProgressEscapeHatch,
@@ -102,7 +104,7 @@ const PREPARE_FOR_REVIEW_PATTERN =
 	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/;
 const OPS_STOP_PATTERN =
-	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|repo|database|base|branch|branche))/;
+	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(?:(?:d[eé]finitivement|definitively|permanently)\s+)?(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|d[eé]p[oô]t|repo|database|base|branch|branche))/;
 const EXTERNAL_WRITE_BACK_PATTERN =
 	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/;
 const TICKET_CREATE_PATTERN =
@@ -194,7 +196,7 @@ const ADVERSARY_GATE = /adversa|contre|cross|hard|durcis/;
 const SELF_IMPROVEMENT_GATE = /improve|méliore|meliore|retrospect|curr/;
 const AMBITIOUS_PROJECT_GATE = /z|bout|end|ambitio|projet|running/;
 const OPS_STOP_GATE =
-	/-rf|push|pouss|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|repo|databas|branch|bas/;
+	/-rf|push|pouss|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|dépôt|depot|repo|databas|branch|bas/;
 const READ_ONLY_GATE =
 	/\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis|lire|read|montre|show|cris|crir/;
 const RESEARCH_GATE = /recherche|sourc|fact|benchmark|github|existe d/;
@@ -600,12 +602,7 @@ export function readPlanStatus(cwd) {
 	if (!existsSync(planPath)) return "missing";
 
 	const content = readFileSync(planPath, "utf8");
-	const match = content.match(
-		/^\s*-\s*Status:\s*(DRAFT|CHALLENGED|READY)\s*$/im,
-	);
-	if (!match) return "unknown";
-
-	return match[1].toLowerCase();
+	return parsePlanStatus(content);
 }
 
 function classifyWorkflowRouteBase(prompt, low, context = {}) {
@@ -1350,21 +1347,38 @@ export function planReadyGuardDecision(event) {
 
 	const cwd = event.cwd || process.cwd();
 	const planStatus = readPlanStatus(cwd);
-	// missing/unknown: no recognized planning lock — ordinary work is allowed.
-	// ready: implementation mutations allowed; check-freeze runs separately on PLAN.md writes.
-	// Only DRAFT/CHALLENGED freeze non-plan mutations (intentional pre-READY gate).
-	if (
-		planStatus === "missing" ||
-		planStatus === "unknown" ||
-		planStatus === "ready"
-	) {
-		return null;
-	}
+	// A genuinely missing plan leaves ordinary no-plan work available. A present
+	// malformed or incomplete plan fails closed until its root PLAN.md is fixed.
+	if (planStatus === "missing") return null;
 
 	const toolInput = event.tool_input || event.input || {};
 	const filePath =
 		toolInput.file_path || toolInput.path || toolInput.filePath || "";
 	const command = toolInput.command || toolInput.cmd || "";
+	if (planStatus === "ready") {
+		const planPath = resolve(cwd, "PLAN.md");
+		let readiness = { ok: false, missing: ["readable PLAN.md"] };
+		try {
+			readiness = evaluateReadyPlan(readFileSync(planPath, "utf8"));
+		} catch {
+			// Keep the fail-closed default.
+		}
+		if (readiness.ok) return null;
+		if (
+			(toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") &&
+			isPlanFile(filePath, cwd)
+		) {
+			return null;
+		}
+		if (toolName === "Bash") {
+			if (isWorkflowEventEscapeCommand(command)) return null;
+			if (isNarrowPlanCleanupCommand(command)) return null;
+			if (!isMutatingBashCommand(command)) return null;
+		}
+		return deny(
+			`PLAN.md is READY but incomplete (${readiness.missing.join(", ")}); complete the canonical READY contract before implementation mutations.`,
+		);
+	}
 
 	if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
 		if (isPlanFile(filePath, cwd)) return null;

@@ -64,8 +64,9 @@ Same-session Logic self-review is forbidden.
 
 1. Inspect `git status --short` and `git diff --stat` first.
 2. Determine the target:
-   - no args: review uncommitted changes if present, else review current branch
-     against the default branch;
+   - no args: review the cumulative workspace patch: committed branch diff,
+     staged and unstaged changes, plus relevant untracked implementation files;
+     a clean workspace falls back to the current branch against the default branch;
    - `uncommitted`: review staged, unstaged, and relevant untracked changes;
    - `branch <base>`: diff current branch against merge-base with `<base>`;
    - `commit <sha>`: review `git show <sha>`.

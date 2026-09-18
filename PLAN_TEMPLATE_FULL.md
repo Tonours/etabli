@@ -16,6 +16,7 @@ Describe in 1-3 sentences what will change and why it matters.
 
 ## Workflow Contract
 - Router decision:
+- Role:
 - Pattern:
 - Goal verifier:
 - Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
@@ -27,6 +28,7 @@ Describe in 1-3 sentences what will change and why it matters.
 - Verifier checks:
 - Reporter artifact:
 - Stop conditions:
+- Required evidence:
 
 ## Acceptance Criteria
 - [ ] ...
@@ -59,6 +61,11 @@ Describe in 1-3 sentences what will change and why it matters.
 - Likely files / modules:
 - Existing docs / source of truth:
 - Commands discovered:
+
+## Requirement Trace
+| Requirement / source | Observed state | Gap / ambiguity | Decision | Step / expected evidence |
+| --- | --- | --- | --- | --- |
+| | | | | |
 
 ## Approach
 Describe the selected approach and why it is proportionate.

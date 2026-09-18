@@ -303,6 +303,12 @@ describe("workflow router runtime", () => {
 			route: "ops-stop",
 			writeAllowed: false,
 		});
+		expect(
+			classifyWorkflowRoute("Supprime définitivement ce dépôt et sa base de données."),
+		).toMatchObject({
+			route: "ops-stop",
+			writeAllowed: false,
+		});
 	});
 
 	test("resolves knowledge context for an answer route", () => {
