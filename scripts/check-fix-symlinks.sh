@@ -252,10 +252,12 @@ check_pi_skill_links() {
 }
 
 check_agents_visible_skill_links() {
-  local skill_name
+  local skill_name skill_source
   for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     [ -n "$skill_name" ] || continue
-    check_link "$HOME/.agents/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "grok/agents-visible skill $skill_name"
+    skill_source="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
+    [ -n "$skill_source" ] || skill_source="$REPO_DIR/pi/skills/$skill_name"
+    check_link "$HOME/.agents/skills/$skill_name" "$skill_source" "grok/agents-visible skill $skill_name"
   done
   prune_unlisted_pi_source_skills ".agents/skills" is_agents_visible_skill "Grok/agents-visible"
 }
