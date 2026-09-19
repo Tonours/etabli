@@ -1,5 +1,10 @@
 import { validateJudgmentRequest, validateJudgmentResponse } from "./semantic-judgment.mjs";
 
+export const TYPESAFE_TRANSPORT = Object.freeze({
+  execution: "live_http",
+  cache: "no-store",
+});
+
 export class TypeSafeServiceError extends Error {
   constructor(code, status = null, retryable = false) {
     super(code);
@@ -72,7 +77,13 @@ export async function evaluateTypeSafe(request, options = {}) {
     try {
       const response = await Promise.race([fetchImpl(options.endpoint ?? "https://api.typesafe.ai/v1/systemone", {
         method: "POST",
-        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        cache: TYPESAFE_TRANSPORT.cache,
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+          "cache-control": "no-store, no-cache, max-age=0",
+          pragma: "no-cache",
+        },
         body: JSON.stringify(request),
         signal: controller.signal,
       }), deadline]);

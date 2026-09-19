@@ -1,0 +1,5361 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "live_typesafe_profile_calibration",
+  "generated_at": "2026-09-19T00:22:52.023Z",
+  "synthetic": true,
+  "repetitions": 3,
+  "thresholds": {
+    "choice_min_confidence": 0.7,
+    "choice_min_margin": 0.12,
+    "noul_false_max": 0.25,
+    "noul_true_min": 0.75,
+    "score_min_confidence": 0.7
+  },
+  "verdict": "needs_tuning",
+  "complete": true,
+  "safety_passed": false,
+  "metrics": {
+    "change_type": {
+      "cases": 12,
+      "accuracy": 1,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 1,
+      "stability": 1,
+      "expected_calibration_error": 0.007777777777777772,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 12,
+          "mean_probability": 0.9922222222222222,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.0005444444444444435,
+      "passed": true
+    },
+    "risk": {
+      "cases": 12,
+      "accuracy": 0.5,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.16666666666666666,
+      "stability": 0.8333333333333334,
+      "expected_calibration_error": 0.19500000000000003,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 10,
+          "mean_probability": 0.6106666666666667,
+          "observed_accuracy": 0.4
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 2,
+          "mean_probability": 0.8833333333333333,
+          "observed_accuracy": 1
+        }
+      ],
+      "mean_absolute_error": 0.7736111111111109,
+      "ranked_probability_score": 0.18147098765432101,
+      "passed": false
+    },
+    "auth": {
+      "cases": 12,
+      "accuracy": 0.9166666666666666,
+      "accepted_accuracy": 0.9,
+      "accepted_coverage": 0.8333333333333334,
+      "stability": 1,
+      "expected_calibration_error": 0.06055555555555545,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 2,
+          "mean_probability": 0.6666666666666667,
+          "observed_accuracy": 1
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 10,
+          "mean_probability": 0.9059999999999999,
+          "observed_accuracy": 0.9
+        }
+      ],
+      "brier_score": 0.07515370370370371,
+      "passed": true
+    },
+    "permissions": {
+      "cases": 12,
+      "accuracy": 0.9166666666666666,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.9166666666666666,
+      "stability": 1,
+      "expected_calibration_error": 0.12055555555555547,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 1,
+          "mean_probability": 0.6333333333333333,
+          "observed_accuracy": 0
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 11,
+          "mean_probability": 0.9260606060606061,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.040631481481481484,
+      "passed": true
+    },
+    "data": {
+      "cases": 12,
+      "accuracy": 0.8333333333333334,
+      "accepted_accuracy": 0.9090909090909091,
+      "accepted_coverage": 0.9166666666666666,
+      "stability": 1,
+      "expected_calibration_error": 0.06388888888888898,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 1,
+          "mean_probability": 0.6900000000000001,
+          "observed_accuracy": 0
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 11,
+          "mean_probability": 0.902121212121212,
+          "observed_accuracy": 0.9090909090909091
+        }
+      ],
+      "brier_score": 0.11783333333333333,
+      "passed": true
+    },
+    "queue": {
+      "cases": 12,
+      "accuracy": 1,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.8333333333333334,
+      "stability": 1,
+      "expected_calibration_error": 0.11972222222222234,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 2,
+          "mean_probability": 0.6383333333333333,
+          "observed_accuracy": 1
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 10,
+          "mean_probability": 0.9286666666666665,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.02753981481481482,
+      "passed": true
+    },
+    "api": {
+      "cases": 12,
+      "accuracy": 0.75,
+      "accepted_accuracy": 0.875,
+      "accepted_coverage": 0.6666666666666666,
+      "stability": 1,
+      "expected_calibration_error": 0.03666666666666666,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 4,
+          "mean_probability": 0.6058333333333333,
+          "observed_accuracy": 0.5
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 8,
+          "mean_probability": 0.8729166666666667,
+          "observed_accuracy": 0.875
+        }
+      ],
+      "brier_score": 0.1415611111111111,
+      "passed": false
+    },
+    "performance": {
+      "cases": 12,
+      "accuracy": 0.8333333333333334,
+      "accepted_accuracy": 0.8571428571428571,
+      "accepted_coverage": 0.5833333333333334,
+      "stability": 1,
+      "expected_calibration_error": 0.062499999999999986,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 5,
+          "mean_probability": 0.672,
+          "observed_accuracy": 0.8
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 7,
+          "mean_probability": 0.8728571428571428,
+          "observed_accuracy": 0.8571428571428571
+        }
+      ],
+      "brier_score": 0.13718796296296296,
+      "passed": false
+    },
+    "concurrency": {
+      "cases": 12,
+      "accuracy": 0.9166666666666666,
+      "accepted_accuracy": 0.8888888888888888,
+      "accepted_coverage": 0.75,
+      "stability": 1,
+      "expected_calibration_error": 0.0863888888888889,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 3,
+          "mean_probability": 0.6777777777777777,
+          "observed_accuracy": 1
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 9,
+          "mean_probability": 0.8811111111111111,
+          "observed_accuracy": 0.8888888888888888
+        }
+      ],
+      "brier_score": 0.08663611111111112,
+      "passed": false
+    },
+    "network": {
+      "cases": 12,
+      "accuracy": 1,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.6666666666666666,
+      "stability": 1,
+      "expected_calibration_error": 0.1725,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 4,
+          "mean_probability": 0.6383333333333333,
+          "observed_accuracy": 1
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 8,
+          "mean_probability": 0.9220833333333334,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.05010833333333334,
+      "passed": true
+    }
+  },
+  "preflight_results": [],
+  "operational": {
+    "provider_errors": 0,
+    "provider_error_rate": 0,
+    "attempts": 36,
+    "input_tokens": 21456,
+    "output_tokens": 7716,
+    "input_cost_usd": 0.000901152,
+    "campaign_attempts": 387,
+    "campaign_input_tokens": 306015,
+    "campaign_input_cost_usd": 0.01285263,
+    "latency_mean_ms": 282.47222222222223,
+    "latency_p95_ms": 326
+  },
+  "observations": [
+    {
+      "id": "fix-auth-error",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 250,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "fix",
+          "probabilities": {
+            "feature": 0,
+            "chore": 0,
+            "fix": 1,
+            "security": 0,
+            "performance": 0,
+            "refactor": 0,
+            "unclear": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.48,
+          "probabilities": {
+            "0": 0.56,
+            "1": 0.4,
+            "2": 0.03,
+            "3": 0
+          },
+          "confidence": 0.52,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.92
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.64
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.21
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.4
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "fix",
+          "raw_value": "fix",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.48,
+          "confidence": 0.52,
+          "legend": "low",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.92,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": null,
+          "probability": 0.64,
+          "status": "uncertain"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.21,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.4,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 601,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "4f95a2149dfc15342ff10f3fa6789a75a376dc5c574ab490ef0aa43177212e95"
+    },
+    {
+      "id": "fix-job-idempotency",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 275,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "fix",
+          "probabilities": {
+            "unclear": 0,
+            "security": 0,
+            "refactor": 0,
+            "feature": 0,
+            "performance": 0,
+            "chore": 0,
+            "fix": 1
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.92,
+          "probabilities": {
+            "0": 0.25,
+            "1": 0.59,
+            "2": 0.15,
+            "3": 0.01
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.35
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.98
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "fix",
+          "raw_value": "fix",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.92,
+          "confidence": 0.57,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.17,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 599,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "16c5875e72819dfeca8cd508c7695928fd8c75c479dff05b0e7d422ad55d0b96"
+    },
+    {
+      "id": "feature-webhook",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 305,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "feature",
+          "probabilities": {
+            "fix": 0,
+            "feature": 1,
+            "unclear": 0,
+            "refactor": 0,
+            "chore": 0,
+            "performance": 0,
+            "security": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.33,
+          "probabilities": {
+            "0": 0.05,
+            "1": 0.57,
+            "2": 0.37,
+            "3": 0.01
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.77
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.68
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.69
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.78
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.97
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "feature",
+          "raw_value": "feature",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.33,
+          "confidence": 0.57,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.77,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "data": {
+          "value": null,
+          "probability": 0.68,
+          "status": "uncertain"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.69,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.78,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 599,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "bc767b2a2430871ef9e1a1bbb57db2fdb7658c3bf5670cebcdc3f2601b84c4c2"
+    },
+    {
+      "id": "feature-admin-role",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 275,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "feature",
+          "probabilities": {
+            "chore": 0,
+            "unclear": 0,
+            "feature": 0.98,
+            "performance": 0,
+            "security": 0.02,
+            "fix": 0,
+            "refactor": 0
+          },
+          "confidence": 0.97
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.52,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.42,
+            "2": 0.52,
+            "3": 0.02
+          },
+          "confidence": 0.49,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.98
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.36
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.33
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.34
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "feature",
+          "raw_value": "feature",
+          "confidence": 0.97,
+          "margin": 0.96,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.52,
+          "confidence": 0.49,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "api": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.36,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.34,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 596,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "5386c6f9531c3d1d1f414e5aae07df5ef6fdb0593208aba2dbc686434505a2c9"
+    },
+    {
+      "id": "refactor-hot-parser",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 303,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "refactor",
+          "probabilities": {
+            "unclear": 0,
+            "fix": 0,
+            "refactor": 1,
+            "performance": 0,
+            "chore": 0,
+            "security": 0,
+            "feature": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.77,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.26,
+            "2": 0.66,
+            "3": 0.06
+          },
+          "confidence": 0.64,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.85
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "refactor",
+          "raw_value": "refactor",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.77,
+          "confidence": 0.64,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.14,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.85,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.2,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 598,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "fd22264c29c0fd2c4628e6590b9d4a6bbf9eb9a83b257b25a62a81cb5c4e7931"
+    },
+    {
+      "id": "refactor-worker",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 309,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "refactor",
+          "probabilities": {
+            "fix": 0,
+            "chore": 0,
+            "performance": 0,
+            "unclear": 0,
+            "feature": 0,
+            "security": 0,
+            "refactor": 1
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.7,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.29,
+            "2": 0.68,
+            "3": 0.02
+          },
+          "confidence": 0.66,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.78
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.87
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "refactor",
+          "raw_value": "refactor",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.7,
+          "confidence": 0.66,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.17,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.2,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.78,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.87,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 592,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "bbbcd14e2427be06ce8068ed5220172812f116617be905d175d109585e2ccb92"
+    },
+    {
+      "id": "performance-index",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 295,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "performance",
+          "probabilities": {
+            "feature": 0,
+            "fix": 0,
+            "unclear": 0,
+            "chore": 0,
+            "security": 0,
+            "performance": 1,
+            "refactor": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.66,
+          "probabilities": {
+            "0": 0.39,
+            "1": 0.57,
+            "2": 0.04,
+            "3": 0
+          },
+          "confidence": 0.56,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.32
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "performance",
+          "raw_value": "performance",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.66,
+          "confidence": 0.56,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.32,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.08,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 594,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "6fc42c54d99fba0eba9afdcf7b0ec300d2968c368aab663b02c9e70f27120009"
+    },
+    {
+      "id": "performance-batcher",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 263,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "performance",
+          "probabilities": {
+            "performance": 0.98,
+            "unclear": 0,
+            "feature": 0,
+            "fix": 0,
+            "security": 0,
+            "chore": 0,
+            "refactor": 0.02
+          },
+          "confidence": 0.98
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.83,
+          "probabilities": {
+            "0": 0,
+            "1": 0.19,
+            "2": 0.79,
+            "3": 0.02
+          },
+          "confidence": 0.79,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.55
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.94
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.94
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.97
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "performance",
+          "raw_value": "performance",
+          "confidence": 0.98,
+          "margin": 0.96,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 1.83,
+          "raw_value": 1.83,
+          "confidence": 0.79,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.14,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.55,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 594,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "d18b44bfe7cd392d6d69a3672e62313c54d1da309201b2cdf3b19c04c18cd515"
+    },
+    {
+      "id": "security-oauth",
+      "run": 1,
+      "safety": true,
+      "latency_ms": 318,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "security",
+          "probabilities": {
+            "unclear": 0,
+            "feature": 0,
+            "refactor": 0,
+            "performance": 0,
+            "chore": 0,
+            "security": 1,
+            "fix": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.84,
+          "probabilities": {
+            "0": 0.02,
+            "1": 0.22,
+            "2": 0.67,
+            "3": 0.09
+          },
+          "confidence": 0.66,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.44
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.35
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.21
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "security",
+          "raw_value": "security",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.84,
+          "confidence": 0.66,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.21,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 597,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "c07c169b9c5c4ae726abc797c96cc08b1e20552f18e16a878d0c7b0d261323e4"
+    },
+    {
+      "id": "security-encryption",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 307,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "security",
+          "probabilities": {
+            "performance": 0,
+            "chore": 0,
+            "feature": 0,
+            "refactor": 0,
+            "unclear": 0,
+            "security": 1,
+            "fix": 0
+          },
+          "confidence": 0.99
+        },
+        "risk": {
+          "type": "score",
+          "score": 2.12,
+          "probabilities": {
+            "0": 0,
+            "1": 0.08,
+            "2": 0.71,
+            "3": 0.21
+          },
+          "confidence": 0.7,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.59
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.9
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.4
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.28
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.8
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.94
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "security",
+          "raw_value": "security",
+          "confidence": 0.99,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 2.12,
+          "raw_value": 2.12,
+          "confidence": 0.7,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": null,
+          "probability": 0.59,
+          "status": "uncertain"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.9,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": null,
+          "probability": 0.4,
+          "status": "uncertain"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.28,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.8,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 596,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "684f7527b9cf3a7b6e62b585feb549cf74934fc717b82b8246a087e157995896"
+    },
+    {
+      "id": "chore-lint",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 276,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "chore",
+          "probabilities": {
+            "performance": 0,
+            "refactor": 0,
+            "feature": 0,
+            "chore": 1,
+            "fix": 0,
+            "security": 0,
+            "unclear": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.03,
+          "probabilities": {
+            "0": 0.98,
+            "1": 0.02,
+            "2": 0,
+            "3": 0
+          },
+          "confidence": 0.97,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.04
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "chore",
+          "raw_value": "chore",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 0.03,
+          "raw_value": 0.03,
+          "confidence": 0.97,
+          "legend": "low",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.02,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 591,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "125149459bbdcdc236106057789be17d599e169d443b7009c4efbbc31f9cbef3"
+    },
+    {
+      "id": "unclear-third-party",
+      "run": 1,
+      "safety": true,
+      "latency_ms": 253,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "performance": 0,
+            "chore": 0,
+            "refactor": 0,
+            "feature": 0.02,
+            "fix": 0.03,
+            "unclear": 0.95,
+            "security": 0
+          },
+          "confidence": 0.94
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.73,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.25,
+            "2": 0.64,
+            "3": 0.07
+          },
+          "confidence": 0.6,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.27
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.22
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.34
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.61
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.27
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.32
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.72
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "unclear",
+          "raw_value": "unclear",
+          "confidence": 0.94,
+          "margin": 0.9199999999999999,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.73,
+          "confidence": 0.6,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": null,
+          "probability": 0.27,
+          "status": "uncertain"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.19,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.22,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": null,
+          "probability": 0.34,
+          "status": "uncertain"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.61,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.27,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.32,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.72,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 595,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "e3bbb135260166d4444f2054aba0fa5a76a3cbaba64fb6e75344e947e22fa1c6"
+    },
+    {
+      "id": "fix-auth-error",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 267,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "fix",
+          "probabilities": {
+            "performance": 0,
+            "refactor": 0,
+            "security": 0,
+            "chore": 0,
+            "feature": 0,
+            "unclear": 0,
+            "fix": 1
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.47,
+          "probabilities": {
+            "0": 0.58,
+            "1": 0.38,
+            "2": 0.04,
+            "3": 0
+          },
+          "confidence": 0.53,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.92
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.64
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.21
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.42
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "fix",
+          "raw_value": "fix",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.47,
+          "confidence": 0.53,
+          "legend": "low",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.92,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": null,
+          "probability": 0.64,
+          "status": "uncertain"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.21,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": false,
+          "probability": 0.18,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.42,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 601,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "4f95a2149dfc15342ff10f3fa6789a75a376dc5c574ab490ef0aa43177212e95"
+    },
+    {
+      "id": "fix-job-idempotency",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 306,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "fix",
+          "probabilities": {
+            "performance": 0,
+            "refactor": 0,
+            "security": 0,
+            "chore": 0,
+            "feature": 0,
+            "unclear": 0,
+            "fix": 1
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.9,
+          "probabilities": {
+            "0": 0.26,
+            "1": 0.59,
+            "2": 0.14,
+            "3": 0.01
+          },
+          "confidence": 0.57,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.37
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.98
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.43
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "fix",
+          "raw_value": "fix",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.9,
+          "confidence": 0.57,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.18,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.37,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.43,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 599,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "16c5875e72819dfeca8cd508c7695928fd8c75c479dff05b0e7d422ad55d0b96"
+    },
+    {
+      "id": "feature-webhook",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 250,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "feature",
+          "probabilities": {
+            "chore": 0,
+            "security": 0,
+            "feature": 1,
+            "refactor": 0,
+            "performance": 0,
+            "unclear": 0,
+            "fix": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.42,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.51,
+            "2": 0.44,
+            "3": 0.01
+          },
+          "confidence": 0.51,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.78
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.69
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.68
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.78
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.97
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "feature",
+          "raw_value": "feature",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.42,
+          "confidence": 0.51,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.78,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "data": {
+          "value": null,
+          "probability": 0.69,
+          "status": "uncertain"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "api": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.68,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.78,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 599,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "bc767b2a2430871ef9e1a1bbb57db2fdb7658c3bf5670cebcdc3f2601b84c4c2"
+    },
+    {
+      "id": "feature-admin-role",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 280,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "feature",
+          "probabilities": {
+            "unclear": 0,
+            "chore": 0,
+            "refactor": 0,
+            "security": 0.01,
+            "performance": 0,
+            "fix": 0,
+            "feature": 0.99
+          },
+          "confidence": 0.98
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.52,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.42,
+            "2": 0.53,
+            "3": 0.01
+          },
+          "confidence": 0.49,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.85
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.98
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.34
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.33
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.32
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "feature",
+          "raw_value": "feature",
+          "confidence": 0.98,
+          "margin": 0.98,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.52,
+          "confidence": 0.49,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.85,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "api": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.34,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.32,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 596,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "5386c6f9531c3d1d1f414e5aae07df5ef6fdb0593208aba2dbc686434505a2c9"
+    },
+    {
+      "id": "refactor-hot-parser",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 255,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "refactor",
+          "probabilities": {
+            "performance": 0,
+            "chore": 0,
+            "feature": 0,
+            "refactor": 1,
+            "unclear": 0,
+            "security": 0,
+            "fix": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.87,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.19,
+            "2": 0.72,
+            "3": 0.08
+          },
+          "confidence": 0.71,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.21
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "refactor",
+          "raw_value": "refactor",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 1.87,
+          "raw_value": 1.87,
+          "confidence": 0.71,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.21,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.13,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 598,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "fd22264c29c0fd2c4628e6590b9d4a6bbf9eb9a83b257b25a62a81cb5c4e7931"
+    },
+    {
+      "id": "refactor-worker",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 289,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "refactor",
+          "probabilities": {
+            "feature": 0,
+            "chore": 0,
+            "unclear": 0,
+            "fix": 0,
+            "performance": 0,
+            "refactor": 1,
+            "security": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.77,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.24,
+            "2": 0.72,
+            "3": 0.03
+          },
+          "confidence": 0.71,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.22
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.79
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "refactor",
+          "raw_value": "refactor",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 1.77,
+          "raw_value": 1.77,
+          "confidence": 0.71,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.22,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.79,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 592,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "bbbcd14e2427be06ce8068ed5220172812f116617be905d175d109585e2ccb92"
+    },
+    {
+      "id": "performance-index",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 264,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "performance",
+          "probabilities": {
+            "security": 0,
+            "feature": 0,
+            "unclear": 0,
+            "chore": 0,
+            "fix": 0,
+            "refactor": 0,
+            "performance": 1
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.59,
+          "probabilities": {
+            "0": 0.45,
+            "1": 0.51,
+            "2": 0.04,
+            "3": 0
+          },
+          "confidence": 0.51,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.31
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "performance",
+          "raw_value": "performance",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.59,
+          "confidence": 0.51,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.31,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.08,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 594,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "6fc42c54d99fba0eba9afdcf7b0ec300d2968c368aab663b02c9e70f27120009"
+    },
+    {
+      "id": "performance-batcher",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 326,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "performance",
+          "probabilities": {
+            "chore": 0,
+            "feature": 0,
+            "unclear": 0,
+            "performance": 0.98,
+            "security": 0,
+            "fix": 0,
+            "refactor": 0.02
+          },
+          "confidence": 0.97
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.81,
+          "probabilities": {
+            "0": 0,
+            "1": 0.2,
+            "2": 0.79,
+            "3": 0.01
+          },
+          "confidence": 0.78,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.56
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.97
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "performance",
+          "raw_value": "performance",
+          "confidence": 0.97,
+          "margin": 0.96,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 1.81,
+          "raw_value": 1.81,
+          "confidence": 0.78,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.56,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 594,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "d18b44bfe7cd392d6d69a3672e62313c54d1da309201b2cdf3b19c04c18cd515"
+    },
+    {
+      "id": "security-oauth",
+      "run": 2,
+      "safety": true,
+      "latency_ms": 297,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "security",
+          "probabilities": {
+            "fix": 0,
+            "chore": 0,
+            "feature": 0,
+            "refactor": 0,
+            "unclear": 0,
+            "security": 1,
+            "performance": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.83,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.22,
+            "2": 0.69,
+            "3": 0.08
+          },
+          "confidence": 0.67,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.44
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.35
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "security",
+          "raw_value": "security",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.83,
+          "confidence": 0.67,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.2,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 597,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "c07c169b9c5c4ae726abc797c96cc08b1e20552f18e16a878d0c7b0d261323e4"
+    },
+    {
+      "id": "security-encryption",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 265,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "security",
+          "probabilities": {
+            "unclear": 0,
+            "fix": 0,
+            "refactor": 0,
+            "chore": 0,
+            "feature": 0,
+            "security": 1,
+            "performance": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 2.11,
+          "probabilities": {
+            "0": 0,
+            "1": 0.07,
+            "2": 0.74,
+            "3": 0.19
+          },
+          "confidence": 0.72,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.61
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.4
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.29
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.79
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.93
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "security",
+          "raw_value": "security",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 2.11,
+          "raw_value": 2.11,
+          "confidence": 0.72,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": null,
+          "probability": 0.61,
+          "status": "uncertain"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": null,
+          "probability": 0.4,
+          "status": "uncertain"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.29,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.79,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.93,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 596,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "684f7527b9cf3a7b6e62b585feb549cf74934fc717b82b8246a087e157995896"
+    },
+    {
+      "id": "chore-lint",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 246,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "chore",
+          "probabilities": {
+            "unclear": 0,
+            "feature": 0,
+            "refactor": 0,
+            "performance": 0,
+            "chore": 1,
+            "security": 0,
+            "fix": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.02,
+          "probabilities": {
+            "0": 0.98,
+            "1": 0.02,
+            "2": 0,
+            "3": 0
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.04
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "chore",
+          "raw_value": "chore",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 0.02,
+          "raw_value": 0.02,
+          "confidence": 0.98,
+          "legend": "low",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 591,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "125149459bbdcdc236106057789be17d599e169d443b7009c4efbbc31f9cbef3"
+    },
+    {
+      "id": "unclear-third-party",
+      "run": 2,
+      "safety": true,
+      "latency_ms": 299,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "feature": 0.03,
+            "refactor": 0,
+            "fix": 0.03,
+            "unclear": 0.9400000000000001,
+            "security": 0,
+            "performance": 0,
+            "chore": 0
+          },
+          "confidence": 0.92
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.65,
+          "probabilities": {
+            "0": 0.05,
+            "1": 0.3,
+            "2": 0.59,
+            "3": 0.06
+          },
+          "confidence": 0.54,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.27
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.22
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.32
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.57
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.28
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.32
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.71
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "unclear",
+          "raw_value": "unclear",
+          "confidence": 0.92,
+          "margin": 0.91,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.65,
+          "confidence": 0.54,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": null,
+          "probability": 0.27,
+          "status": "uncertain"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.19,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.22,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": null,
+          "probability": 0.32,
+          "status": "uncertain"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.57,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.28,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.32,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.71,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 595,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "e3bbb135260166d4444f2054aba0fa5a76a3cbaba64fb6e75344e947e22fa1c6"
+    },
+    {
+      "id": "fix-auth-error",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 248,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "fix",
+          "probabilities": {
+            "security": 0,
+            "performance": 0,
+            "fix": 1,
+            "unclear": 0,
+            "feature": 0,
+            "refactor": 0,
+            "chore": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.53,
+          "probabilities": {
+            "0": 0.52,
+            "1": 0.43,
+            "2": 0.05,
+            "3": 0
+          },
+          "confidence": 0.47,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.92
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.62
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.47
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "fix",
+          "raw_value": "fix",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.53,
+          "confidence": 0.47,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.92,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": null,
+          "probability": 0.62,
+          "status": "uncertain"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.19,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": false,
+          "probability": 0.18,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.47,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 601,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "4f95a2149dfc15342ff10f3fa6789a75a376dc5c574ab490ef0aa43177212e95"
+    },
+    {
+      "id": "fix-job-idempotency",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 243,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "fix",
+          "probabilities": {
+            "fix": 1,
+            "security": 0,
+            "chore": 0,
+            "performance": 0,
+            "unclear": 0,
+            "refactor": 0,
+            "feature": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.01,
+          "probabilities": {
+            "0": 0.22,
+            "1": 0.57,
+            "2": 0.19,
+            "3": 0.02
+          },
+          "confidence": 0.56,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.35
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.98
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.43
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "fix",
+          "raw_value": "fix",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.01,
+          "confidence": 0.56,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.18,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.43,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 599,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "16c5875e72819dfeca8cd508c7695928fd8c75c479dff05b0e7d422ad55d0b96"
+    },
+    {
+      "id": "feature-webhook",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 280,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "feature",
+          "probabilities": {
+            "performance": 0,
+            "chore": 0,
+            "refactor": 0,
+            "feature": 1,
+            "fix": 0,
+            "unclear": 0,
+            "security": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.45,
+          "probabilities": {
+            "0": 0.03,
+            "1": 0.49,
+            "2": 0.47,
+            "3": 0.01
+          },
+          "confidence": 0.49,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.76
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.7
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.87
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.68
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.77
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.98
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "feature",
+          "raw_value": "feature",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.45,
+          "confidence": 0.49,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.76,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "data": {
+          "value": null,
+          "probability": 0.7,
+          "status": "uncertain"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": true,
+          "probability": 0.87,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.68,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.77,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 599,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "bc767b2a2430871ef9e1a1bbb57db2fdb7658c3bf5670cebcdc3f2601b84c4c2"
+    },
+    {
+      "id": "feature-admin-role",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 252,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "feature",
+          "probabilities": {
+            "chore": 0,
+            "security": 0.02,
+            "feature": 0.98,
+            "refactor": 0,
+            "performance": 0,
+            "unclear": 0,
+            "fix": 0
+          },
+          "confidence": 0.97
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.48,
+          "probabilities": {
+            "0": 0.04,
+            "1": 0.45,
+            "2": 0.5,
+            "3": 0.01
+          },
+          "confidence": 0.46,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.98
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.33
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.33
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.33
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "feature",
+          "raw_value": "feature",
+          "confidence": 0.97,
+          "margin": 0.96,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.48,
+          "confidence": 0.46,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.98,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "api": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 596,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "5386c6f9531c3d1d1f414e5aae07df5ef6fdb0593208aba2dbc686434505a2c9"
+    },
+    {
+      "id": "refactor-hot-parser",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 258,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "refactor",
+          "probabilities": {
+            "feature": 0,
+            "fix": 0,
+            "performance": 0,
+            "security": 0,
+            "unclear": 0,
+            "refactor": 1,
+            "chore": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.82,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.22,
+            "2": 0.71,
+            "3": 0.06
+          },
+          "confidence": 0.69,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.84
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "refactor",
+          "raw_value": "refactor",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.82,
+          "confidence": 0.69,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.84,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.2,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 598,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "fd22264c29c0fd2c4628e6590b9d4a6bbf9eb9a83b257b25a62a81cb5c4e7931"
+    },
+    {
+      "id": "refactor-worker",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 318,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "refactor",
+          "probabilities": {
+            "feature": 0,
+            "fix": 0,
+            "performance": 0,
+            "security": 0,
+            "unclear": 0,
+            "refactor": 1,
+            "chore": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.71,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.28,
+            "2": 0.68,
+            "3": 0.02
+          },
+          "confidence": 0.67,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.21
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.77
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "refactor",
+          "raw_value": "refactor",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.71,
+          "confidence": 0.67,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.17,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.21,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.77,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 592,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "bbbcd14e2427be06ce8068ed5220172812f116617be905d175d109585e2ccb92"
+    },
+    {
+      "id": "performance-index",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 317,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "performance",
+          "probabilities": {
+            "unclear": 0,
+            "security": 0,
+            "refactor": 0,
+            "fix": 0,
+            "performance": 1,
+            "feature": 0,
+            "chore": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.6,
+          "probabilities": {
+            "0": 0.44,
+            "1": 0.52,
+            "2": 0.04,
+            "3": 0
+          },
+          "confidence": 0.51,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.33
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "performance",
+          "raw_value": "performance",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 0.6,
+          "confidence": 0.51,
+          "legend": "moderate",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 594,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "6fc42c54d99fba0eba9afdcf7b0ec300d2968c368aab663b02c9e70f27120009"
+    },
+    {
+      "id": "performance-batcher",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 305,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "performance",
+          "probabilities": {
+            "unclear": 0,
+            "fix": 0,
+            "refactor": 0.01,
+            "chore": 0,
+            "feature": 0,
+            "performance": 0.99,
+            "security": 0
+          },
+          "confidence": 0.98
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.8,
+          "probabilities": {
+            "0": 0,
+            "1": 0.21,
+            "2": 0.78,
+            "3": 0.01
+          },
+          "confidence": 0.77,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.56
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.94
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.97
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "performance",
+          "raw_value": "performance",
+          "confidence": 0.98,
+          "margin": 0.98,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 1.8,
+          "raw_value": 1.8,
+          "confidence": 0.77,
+          "legend": "high",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.09,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.56,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 594,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "d18b44bfe7cd392d6d69a3672e62313c54d1da309201b2cdf3b19c04c18cd515"
+    },
+    {
+      "id": "security-oauth",
+      "run": 3,
+      "safety": true,
+      "latency_ms": 352,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "security",
+          "probabilities": {
+            "fix": 0,
+            "security": 1,
+            "performance": 0,
+            "unclear": 0,
+            "refactor": 0,
+            "chore": 0,
+            "feature": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.84,
+          "probabilities": {
+            "0": 0.01,
+            "1": 0.21,
+            "2": 0.71,
+            "3": 0.07
+          },
+          "confidence": 0.69,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.97
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.96
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.44
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.35
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "security",
+          "raw_value": "security",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.84,
+          "confidence": 0.69,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": true,
+          "probability": 0.97,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.96,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.2,
+          "status": "accepted"
+        },
+        "network": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 597,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "c07c169b9c5c4ae726abc797c96cc08b1e20552f18e16a878d0c7b0d261323e4"
+    },
+    {
+      "id": "security-encryption",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 285,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "security",
+          "probabilities": {
+            "feature": 0,
+            "chore": 0,
+            "security": 1,
+            "fix": 0,
+            "performance": 0,
+            "refactor": 0,
+            "unclear": 0
+          },
+          "confidence": 0.99
+        },
+        "risk": {
+          "type": "score",
+          "score": 2.19,
+          "probabilities": {
+            "0": 0,
+            "1": 0.06,
+            "2": 0.68,
+            "3": 0.26
+          },
+          "confidence": 0.67,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.61
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.9
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.38
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.29
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.79
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.93
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "security",
+          "raw_value": "security",
+          "confidence": 0.99,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 2.19,
+          "confidence": 0.67,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": null,
+          "probability": 0.61,
+          "status": "uncertain"
+        },
+        "permissions": {
+          "value": true,
+          "probability": 0.9,
+          "status": "accepted"
+        },
+        "data": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": null,
+          "probability": 0.38,
+          "status": "uncertain"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.29,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": true,
+          "probability": 0.79,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": true,
+          "probability": 0.93,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 596,
+        "output_tokens": 214
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "684f7527b9cf3a7b6e62b585feb549cf74934fc717b82b8246a087e157995896"
+    },
+    {
+      "id": "chore-lint",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 233,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "chore",
+          "probabilities": {
+            "security": 0,
+            "chore": 1,
+            "refactor": 0,
+            "feature": 0,
+            "fix": 0,
+            "unclear": 0,
+            "performance": 0
+          },
+          "confidence": 1
+        },
+        "risk": {
+          "type": "score",
+          "score": 0.02,
+          "probabilities": {
+            "0": 0.98,
+            "1": 0.02,
+            "2": 0,
+            "3": 0
+          },
+          "confidence": 0.98,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.03
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "chore",
+          "raw_value": "chore",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": 0.02,
+          "raw_value": 0.02,
+          "confidence": 0.98,
+          "legend": "low",
+          "status": "accepted"
+        },
+        "auth": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "api": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "performance": {
+          "value": false,
+          "probability": 0.04,
+          "status": "accepted"
+        },
+        "concurrency": {
+          "value": false,
+          "probability": 0.05,
+          "status": "accepted"
+        },
+        "network": {
+          "value": false,
+          "probability": 0.03,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 591,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "125149459bbdcdc236106057789be17d599e169d443b7009c4efbbc31f9cbef3"
+    },
+    {
+      "id": "unclear-third-party",
+      "run": 3,
+      "safety": true,
+      "latency_ms": 305,
+      "answers": {
+        "change_type": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "performance": 0,
+            "unclear": 0.93,
+            "feature": 0.03,
+            "security": 0,
+            "chore": 0,
+            "fix": 0.04,
+            "refactor": 0
+          },
+          "confidence": 0.92
+        },
+        "risk": {
+          "type": "score",
+          "score": 1.65,
+          "probabilities": {
+            "0": 0.05,
+            "1": 0.31,
+            "2": 0.59,
+            "3": 0.05
+          },
+          "confidence": 0.54,
+          "legend": {
+            "0": "low",
+            "1": "moderate",
+            "2": "high",
+            "3": "critical"
+          }
+        },
+        "auth": {
+          "type": "noul",
+          "noul": 0.27
+        },
+        "permissions": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "data": {
+          "type": "noul",
+          "noul": 0.22
+        },
+        "queue": {
+          "type": "noul",
+          "noul": 0.33
+        },
+        "api": {
+          "type": "noul",
+          "noul": 0.6
+        },
+        "performance": {
+          "type": "noul",
+          "noul": 0.27
+        },
+        "concurrency": {
+          "type": "noul",
+          "noul": 0.31
+        },
+        "network": {
+          "type": "noul",
+          "noul": 0.72
+        }
+      },
+      "decisions": {
+        "change_type": {
+          "value": "unclear",
+          "raw_value": "unclear",
+          "confidence": 0.92,
+          "margin": 0.89,
+          "status": "accepted"
+        },
+        "risk": {
+          "value": null,
+          "raw_value": 1.65,
+          "confidence": 0.54,
+          "legend": "high",
+          "status": "uncertain"
+        },
+        "auth": {
+          "value": null,
+          "probability": 0.27,
+          "status": "uncertain"
+        },
+        "permissions": {
+          "value": false,
+          "probability": 0.2,
+          "status": "accepted"
+        },
+        "data": {
+          "value": false,
+          "probability": 0.22,
+          "status": "accepted"
+        },
+        "queue": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        },
+        "api": {
+          "value": null,
+          "probability": 0.6,
+          "status": "uncertain"
+        },
+        "performance": {
+          "value": null,
+          "probability": 0.27,
+          "status": "uncertain"
+        },
+        "concurrency": {
+          "value": null,
+          "probability": 0.31,
+          "status": "uncertain"
+        },
+        "network": {
+          "value": null,
+          "probability": 0.72,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 595,
+        "output_tokens": 215
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "82227837dc732e06e860cb3c28a95977bd9c0de9b8ace8685a298322270fb2d6",
+      "state_fingerprint": "e3bbb135260166d4444f2054aba0fa5a76a3cbaba64fb6e75344e947e22fa1c6"
+    }
+  ],
+  "recomputed_at": "2026-09-19T18:35:22.211Z",
+  "provider_observations_live": true,
+  "corpus_kind": "synthetic_sanitized",
+  "campaign_id": "e72b7d54-31c4-4fa0-89a7-c4c313505375",
+  "campaign_contract_fingerprint": "0021409e657241cda9f9a3079873800eeaed04fc53aabb12be10ac172a919a44",
+  "collection_provenance": "legacy_cli_fingerprint_unavailable",
+  "collection_identity": {
+    "profile_id": "pr-qa-impact",
+    "policy_version": "semantic-profiles-1.0.0",
+    "model": "jev-1.13.0",
+    "policy_fingerprint": "66b7216aa1d141987430de25b0087274d53cddfb5467b13f42c2b3c7c3f778f5",
+    "corpus_fingerprint": "3079bc21b7919393c20d6f0c8ceb58237667e940c887786795d6c7b5166130ee",
+    "source_fingerprints": {
+      "pi/extensions/lib/semantic-profile-calibration.mjs": "cd887dd33a661a4f529550fcedc37af5aab2ec4909380ed30e4c0863de559a27",
+      "pi/extensions/lib/semantic-profiles.mjs": "8c1964f2008b54d95e3a28a9dc265f567ec35d675bb0cfe1bb316ee3d2cf2e66",
+      "pi/extensions/lib/semantic-skill-suggestion.mjs": "989aeec2ff893f7590f6f7de73e22be81d6ae7f2b89a348a70f18e4d40cadb40",
+      "pi/extensions/lib/semantic-claim-evidence.mjs": "55fc124f6728cdf0a9a56d54d12e1a812e7f83a90e2d4338a063fbcd05bd2d34",
+      "pi/extensions/lib/semantic-judgment.mjs": "e93342de57e58a7dc1abf48e5f39d8a81b2cc75176b3717d3a85827d2579905f",
+      "pi/extensions/lib/typesafe-system-one.mjs": "3e5187cfe84fd618926e863811107870f5eb3461867dfb4d7c643332ac9a77ec"
+    },
+    "extra_fingerprint": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "recompute_identity": {
+    "profile_id": "pr-qa-impact",
+    "policy_version": "semantic-profiles-1.0.0",
+    "model": "jev-1.13.0",
+    "policy_fingerprint": "66b7216aa1d141987430de25b0087274d53cddfb5467b13f42c2b3c7c3f778f5",
+    "corpus_fingerprint": "3079bc21b7919393c20d6f0c8ceb58237667e940c887786795d6c7b5166130ee",
+    "source_fingerprints": {
+      "scripts/jev-profile-calibrate": "64b80ac645f045f291f1cc09c6f205ee588c809ef970cff424b8562ce02bdd84",
+      "pi/extensions/lib/semantic-profile-calibration.mjs": "b3acc6053510192d5e8eb798bdefe51c9bbf55dacee3c26f227a18233020c001",
+      "pi/extensions/lib/semantic-profiles.mjs": "8c1964f2008b54d95e3a28a9dc265f567ec35d675bb0cfe1bb316ee3d2cf2e66",
+      "pi/extensions/lib/semantic-skill-suggestion.mjs": "989aeec2ff893f7590f6f7de73e22be81d6ae7f2b89a348a70f18e4d40cadb40",
+      "pi/extensions/lib/semantic-claim-evidence.mjs": "55fc124f6728cdf0a9a56d54d12e1a812e7f83a90e2d4338a063fbcd05bd2d34",
+      "pi/extensions/lib/semantic-judgment.mjs": "e93342de57e58a7dc1abf48e5f39d8a81b2cc75176b3717d3a85827d2579905f",
+      "pi/extensions/lib/typesafe-system-one.mjs": "f252e0fa9869113b4afef9b31cf1e1df8ed10fbb220c99030f7724608cf23e52"
+    },
+    "extra_fingerprint": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  }
+}

@@ -61,6 +61,11 @@ Prefer structured task state over text:
    attempt one recovery continuation, then stop as `blocked` or `unknown` with
    the evidence.
 
+With explicit provider-egress approval, `task-state-fallback` may classify the
+bounded text in step 2. Set `structured_state_available: false`; the runtime
+rejects the call otherwise. Its answer remains `proxy_supported` and cannot
+override structured state or completion evidence.
+
 For a multi-unit program, derive restart state from the immutable manifest and
 canonical ledger with `scripts/program-state` (etabli repo only; the program control plane is
 frozen — see program-orchestration.md); do not treat its

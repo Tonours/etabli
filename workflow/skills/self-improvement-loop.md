@@ -34,6 +34,11 @@ Use evidence that can be inspected again:
 Do not use vibes, stale memory, or a single anecdote as enough proof for a
 workflow invariant.
 
+With explicit provider-egress approval, `jev-judge evaluate
+self-improvement-candidate` may shadow-classify a bounded candidate and observed
+outcome. The evidence requirements, candidate acceptance, PLAN gate, evaluator,
+and mutation permissions in this contract remain deterministic authority.
+
 ## Harness Improvement Loop
 
 Use a Self-Harness-style loop when the improvement target is the workflow,

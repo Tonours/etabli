@@ -74,6 +74,11 @@ After a retrieval outcome, record only aggregate feedback:
 ~/work/obvault/_meta/obvault feedback --status hit|miss|stale|wrong
 ```
 
+The generic Etabli `knowledge-passage` profile is a reusable advisory contract,
+not a second retrieval implementation. Normal semantic reranking remains owned
+by Obvault's existing explicit `--jev` option. Never enable either provider path
+implicitly, and never copy raw private passages into Etabli receipts.
+
 Self-improvement contract: `kb/obvault-self-improvement-loop.md` (miss → review
 → promote → check). Multi-harness recipe: `kb/obvault-multi-harness-access.md`.
 

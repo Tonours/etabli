@@ -1684,6 +1684,7 @@ install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
+install_script "jev-judge" || true
 install_script "claude-lean" || true
 install_script "claude-full" || true
 

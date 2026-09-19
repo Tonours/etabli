@@ -4,6 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import workflowRouter from "../workflow-router.ts";
+import { loadSemanticPolicy } from "../lib/route-shadow.mjs";
 
 type Handler = (
 	event: Record<string, unknown>,
@@ -51,6 +52,7 @@ function validReadyPlanText() {
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
 	initialThinkingLevel?: string,
+	semanticPolicyLoader: typeof loadSemanticPolicy = () => ({ ...loadSemanticPolicy(), mode: "disabled" }),
 ) {
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
@@ -80,7 +82,7 @@ function setupExtension(
 		},
 	};
 
-	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
+	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0], { loadSemanticPolicy: semanticPolicyLoader });
 
 	return {
 		entries,
@@ -117,16 +119,12 @@ describe("workflow router extension", () => {
 	// behaves exactly as on a machine without a vault. The dedicated dynamic
 	// test below overrides this with its own fixture root.
 	const previousObvaultRoot = process.env.OBVAULT_ROOT;
-	const previousSemanticMode = process.env.ETABLI_SEMANTIC_MODE;
 	beforeAll(() => {
 		process.env.OBVAULT_ROOT = "/nonexistent-obvault-for-tests";
-		process.env.ETABLI_SEMANTIC_MODE = "disabled";
 	});
 	afterAll(() => {
 		if (previousObvaultRoot === undefined) delete process.env.OBVAULT_ROOT;
 		else process.env.OBVAULT_ROOT = previousObvaultRoot;
-		if (previousSemanticMode === undefined) delete process.env.ETABLI_SEMANTIC_MODE;
-		else process.env.ETABLI_SEMANTIC_MODE = previousSemanticMode;
 	});
 
 	test("uses actual PLAN.md status before routing to implement", () => {
@@ -969,12 +967,10 @@ tags:
 	});
 
 	test("emits a bounded fail-closed semantic shadow without changing the route", async () => {
-		const runtime = setupExtension();
+		const runtime = setupExtension(undefined, undefined, () => ({ ...loadSemanticPolicy(), mode: "shadow" }));
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-shadow-"));
-		const previousMode = process.env.ETABLI_SEMANTIC_MODE;
 		const previousKey = process.env.TYPESAFE_API_KEY;
 		try {
-			process.env.ETABLI_SEMANTIC_MODE = "shadow";
 			delete process.env.TYPESAFE_API_KEY;
 			runtime.emit("before_agent_start", { prompt: "Explique le routeur", cwd });
 			expect(runtime.entries[0]).toMatchObject({ decision: { route: "answer" } });
@@ -987,8 +983,6 @@ tags:
 			const receipt = readFileSync(join(cwd, ".workflow/semantic-judgments.jsonl"), "utf8");
 			expect(receipt).not.toContain("Explique le routeur");
 		} finally {
-			if (previousMode === undefined) delete process.env.ETABLI_SEMANTIC_MODE;
-			else process.env.ETABLI_SEMANTIC_MODE = previousMode;
 			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
 			else process.env.TYPESAFE_API_KEY = previousKey;
 			rmSync(cwd, { recursive: true, force: true });
@@ -996,13 +990,11 @@ tags:
 	});
 
 	test("awaits an enforced Jev decision before publishing the selected route", async () => {
-		const runtime = setupExtension();
+		const runtime = setupExtension(undefined, undefined, loadSemanticPolicy);
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-enforced-"));
-		const previousMode = process.env.ETABLI_SEMANTIC_MODE;
 		const previousKey = process.env.TYPESAFE_API_KEY;
 		const previousFetch = globalThis.fetch;
 		try {
-			process.env.ETABLI_SEMANTIC_MODE = "enforced";
 			process.env.TYPESAFE_API_KEY = "fixture-key";
 			globalThis.fetch = (async (_url, init) => {
 				const request = JSON.parse(String(init?.body));
@@ -1040,8 +1032,6 @@ tags:
 			expect(routedPrompt.includes('"route":"verify"')).toBe(true);
 			expect(routedPrompt.includes("Base prompt")).toBe(true);
 		} finally {
-			if (previousMode === undefined) delete process.env.ETABLI_SEMANTIC_MODE;
-			else process.env.ETABLI_SEMANTIC_MODE = previousMode;
 			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
 			else process.env.TYPESAFE_API_KEY = previousKey;
 			globalThis.fetch = previousFetch;

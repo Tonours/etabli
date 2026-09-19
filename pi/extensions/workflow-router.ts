@@ -25,6 +25,10 @@ type RoutablePi = ExtensionAPI & {
 	registerEntryRenderer?: (customType: string, renderer: unknown) => void;
 };
 
+type WorkflowRouterHooks = {
+	loadSemanticPolicy?: typeof loadSemanticPolicy;
+};
+
 function readPlanStatus(cwd: string): PlanStatus {
 	try {
 		const content = readFileSync(resolve(cwd, "PLAN.md"), "utf-8");
@@ -87,8 +91,9 @@ function routedSystemPrompt(systemPrompt: string | undefined, decision: Record<s
 	return `${systemPrompt || ""}\n\n<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn. It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 	const routablePi = pi as RoutablePi;
+	const semanticPolicyLoader = hooks.loadSemanticPolicy ?? loadSemanticPolicy;
 
 	pi.on("before_agent_start", (event, ctx) => {
 		const trimmedPrompt = event.prompt.trim();
@@ -112,7 +117,7 @@ export default function (pi: ExtensionAPI) {
 
 		let semanticPolicy;
 		try {
-			semanticPolicy = loadSemanticPolicy();
+			semanticPolicy = semanticPolicyLoader();
 		} catch {
 			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
 				version: WORKFLOW_ROUTER_EXTENSION_VERSION,

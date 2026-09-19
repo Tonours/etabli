@@ -80,3 +80,8 @@ no-progress threshold is reached, the controller returns `stop` with the
 required `no_progress` detail; append that existing typed event with eliminated
 hypotheses and stop `blocked`. Do not search for a ninth candidate or retry
 without a new diff.
+
+The `no-progress-equivalence` Jev profile may be used only as an explicitly
+approved shadow comparison of two bounded attempts. It cannot increment an
+attempt counter, append `no_progress`, or trigger this stop; exact ledger rules
+remain authoritative.

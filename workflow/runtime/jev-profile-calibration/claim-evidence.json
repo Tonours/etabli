@@ -1,0 +1,1814 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "live_typesafe_profile_calibration",
+  "generated_at": "2026-09-19T00:21:39.607Z",
+  "synthetic": true,
+  "repetitions": 3,
+  "thresholds": {
+    "choice_min_confidence": 0.75,
+    "choice_min_margin": 0.15,
+    "noul_false_max": 0.25,
+    "noul_true_min": 0.75
+  },
+  "verdict": "needs_tuning",
+  "complete": true,
+  "safety_passed": true,
+  "metrics": {
+    "relationship": {
+      "cases": 12,
+      "accuracy": 0.9166666666666666,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.8333333333333334,
+      "stability": 1,
+      "expected_calibration_error": 0.027777777777777735,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 2,
+          "mean_probability": 0.41666666666666663,
+          "observed_accuracy": 0.5
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 10,
+          "mean_probability": 0.9833333333333334,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.09998518518518522,
+      "passed": true
+    },
+    "material_claim": {
+      "cases": 12,
+      "accuracy": 0.4166666666666667,
+      "accepted_accuracy": 0.5714285714285714,
+      "accepted_coverage": 0.5833333333333334,
+      "stability": 1,
+      "expected_calibration_error": 0.35250000000000015,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 5,
+          "mean_probability": 0.6366666666666667,
+          "observed_accuracy": 0.2
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 7,
+          "mean_probability": 0.8638095238095239,
+          "observed_accuracy": 0.5714285714285714
+        }
+      ],
+      "brier_score": 0.34440833333333337,
+      "passed": false
+    }
+  },
+  "preflight_results": [
+    {
+      "id": "missing-evidence-preflight",
+      "error_code": "claim structural check failed",
+      "provider_attempts": 0,
+      "passed": true
+    }
+  ],
+  "operational": {
+    "provider_errors": 0,
+    "provider_error_rate": 0,
+    "attempts": 36,
+    "input_tokens": 15255,
+    "output_tokens": 2586,
+    "input_cost_usd": 0.0006407100000000001,
+    "campaign_attempts": 135,
+    "campaign_input_tokens": 188262,
+    "campaign_input_cost_usd": 0.007907004,
+    "latency_mean_ms": 281.5833333333333,
+    "latency_p95_ms": 333
+  },
+  "observations": [
+    {
+      "id": "supports-command",
+      "run": 1,
+      "safety": true,
+      "latency_ms": 330,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "insufficient": 0,
+            "contradicts": 0,
+            "supports": 1,
+            "irrelevant": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "e309cb0bb5b60e7089814e02217dad9376889fa4eabf97d25048524837588ba0"
+    },
+    {
+      "id": "supports-config",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 267,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "supports": 1,
+            "insufficient": 0,
+            "irrelevant": 0,
+            "contradicts": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.87
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.87,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 427,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "6c489df6a4befe59dcdc83e6287a791093ca856f406cfa3579798a5b04441057"
+    },
+    {
+      "id": "supports-doc",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 270,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "supports": 1,
+            "irrelevant": 0,
+            "contradicts": 0,
+            "insufficient": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.91
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.91,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 423,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "030a1ec7aea2ad14d42b8e731599668f0409f1a6b868c457f48d681db7f535c2"
+    },
+    {
+      "id": "contradicts-tests",
+      "run": 1,
+      "safety": true,
+      "latency_ms": 267,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "contradicts": 1,
+            "insufficient": 0,
+            "supports": 0,
+            "irrelevant": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.77
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "contradicts",
+          "raw_value": "contradicts",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.77,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 427,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "f67eddc41c886a54d7b76eca2227d1b32e87f7f9f9fb0b2db8541cd325cab941"
+    },
+    {
+      "id": "contradicts-mode",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 257,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "supports": 0.01,
+            "contradicts": 0.39,
+            "irrelevant": 0.23,
+            "insufficient": 0.37
+          },
+          "confidence": 0.2
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.34
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": null,
+          "raw_value": "contradicts",
+          "confidence": 0.2,
+          "margin": 0.020000000000000018,
+          "status": "uncertain"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.34,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 423,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "4be51542f0b8ce706d2e3778b7d9ab89db9010ceae69120bad9fbbcf9fda7cf1"
+    },
+    {
+      "id": "contradicts-color",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 332,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "insufficient": 0.12,
+            "contradicts": 0.86,
+            "irrelevant": 0.02,
+            "supports": 0
+          },
+          "confidence": 0.81
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.67
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "contradicts",
+          "raw_value": "contradicts",
+          "confidence": 0.81,
+          "margin": 0.74,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.67,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 419,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "4a443ad7c951c49f757e4f18cbaf94e8416ee6c65d248fd22bceb7bdf8385180"
+    },
+    {
+      "id": "irrelevant-weather",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 241,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "irrelevant",
+          "probabilities": {
+            "supports": 0,
+            "irrelevant": 1,
+            "contradicts": 0,
+            "insufficient": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "irrelevant",
+          "raw_value": "irrelevant",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 418,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "e3b1a02369c5ea85e2f320ee512c8c47a583dd74acc46d0d890a708af3f0a065"
+    },
+    {
+      "id": "irrelevant-changelog",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 276,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "irrelevant",
+          "probabilities": {
+            "irrelevant": 1,
+            "contradicts": 0,
+            "insufficient": 0,
+            "supports": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "irrelevant",
+          "raw_value": "irrelevant",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 420,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "6c94de025f0e5b7de625e2cfc6c9c49cb38f305bd70eabd4f84a0da9b568e97b"
+    },
+    {
+      "id": "irrelevant-copy",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 273,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "insufficient": 0.41,
+            "irrelevant": 0.32,
+            "supports": 0.24,
+            "contradicts": 0.03
+          },
+          "confidence": 0.23
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.61
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": null,
+          "raw_value": "insufficient",
+          "confidence": 0.23,
+          "margin": 0.08999999999999997,
+          "status": "uncertain"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.61,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 418,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "420025f959755e35b7ef217f5a01b5d7be645809911a9dd0a64f3c8f01cf9d94"
+    },
+    {
+      "id": "insufficient-process",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 295,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "insufficient": 1,
+            "supports": 0,
+            "irrelevant": 0,
+            "contradicts": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.71
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.71,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "b3a6aeb138d568dc3cb5219d67bb6986a26b58576942597cf3d1e2a492c64fc2"
+    },
+    {
+      "id": "insufficient-ci",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 333,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "supports": 0,
+            "irrelevant": 0,
+            "insufficient": 1,
+            "contradicts": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.78
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.78,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 425,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "16a6bc7ccc861268eb72ba9804bdcec0377575c4983acf7531d3f5e46a63d143"
+    },
+    {
+      "id": "insufficient-wording",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 257,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "insufficient": 0.99,
+            "irrelevant": 0,
+            "supports": 0,
+            "contradicts": 0.01
+          },
+          "confidence": 0.99
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.56
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 0.99,
+          "margin": 0.98,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.56,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "1c0bdec63985484508380d26419b5fc8cedb171873f9ea3cfe9ff8766f59c882"
+    },
+    {
+      "id": "supports-command",
+      "run": 2,
+      "safety": true,
+      "latency_ms": 294,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "contradicts": 0,
+            "supports": 1,
+            "irrelevant": 0,
+            "insufficient": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "e309cb0bb5b60e7089814e02217dad9376889fa4eabf97d25048524837588ba0"
+    },
+    {
+      "id": "supports-config",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 285,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "insufficient": 0,
+            "supports": 1,
+            "contradicts": 0,
+            "irrelevant": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.88
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.88,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 427,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "6c489df6a4befe59dcdc83e6287a791093ca856f406cfa3579798a5b04441057"
+    },
+    {
+      "id": "supports-doc",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 270,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "insufficient": 0,
+            "contradicts": 0,
+            "irrelevant": 0,
+            "supports": 1
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.91
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.91,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 423,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "030a1ec7aea2ad14d42b8e731599668f0409f1a6b868c457f48d681db7f535c2"
+    },
+    {
+      "id": "contradicts-tests",
+      "run": 2,
+      "safety": true,
+      "latency_ms": 254,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "insufficient": 0,
+            "contradicts": 1,
+            "irrelevant": 0,
+            "supports": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.77
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "contradicts",
+          "raw_value": "contradicts",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.77,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 427,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "f67eddc41c886a54d7b76eca2227d1b32e87f7f9f9fb0b2db8541cd325cab941"
+    },
+    {
+      "id": "contradicts-mode",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 283,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "irrelevant": 0.2,
+            "contradicts": 0.43,
+            "insufficient": 0.36,
+            "supports": 0.01
+          },
+          "confidence": 0.24
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": null,
+          "raw_value": "contradicts",
+          "confidence": 0.24,
+          "margin": 0.07,
+          "status": "uncertain"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 423,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "4be51542f0b8ce706d2e3778b7d9ab89db9010ceae69120bad9fbbcf9fda7cf1"
+    },
+    {
+      "id": "contradicts-color",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 314,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "irrelevant": 0.03,
+            "contradicts": 0.83,
+            "supports": 0,
+            "insufficient": 0.14
+          },
+          "confidence": 0.77
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.68
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "contradicts",
+          "raw_value": "contradicts",
+          "confidence": 0.77,
+          "margin": 0.69,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.68,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 419,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "4a443ad7c951c49f757e4f18cbaf94e8416ee6c65d248fd22bceb7bdf8385180"
+    },
+    {
+      "id": "irrelevant-weather",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 269,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "irrelevant",
+          "probabilities": {
+            "insufficient": 0,
+            "supports": 0,
+            "irrelevant": 1,
+            "contradicts": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "irrelevant",
+          "raw_value": "irrelevant",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 418,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "e3b1a02369c5ea85e2f320ee512c8c47a583dd74acc46d0d890a708af3f0a065"
+    },
+    {
+      "id": "irrelevant-changelog",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 271,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "irrelevant",
+          "probabilities": {
+            "irrelevant": 1,
+            "contradicts": 0,
+            "insufficient": 0,
+            "supports": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "irrelevant",
+          "raw_value": "irrelevant",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 420,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "6c94de025f0e5b7de625e2cfc6c9c49cb38f305bd70eabd4f84a0da9b568e97b"
+    },
+    {
+      "id": "irrelevant-copy",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 257,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "insufficient": 0.41,
+            "irrelevant": 0.35,
+            "supports": 0.22,
+            "contradicts": 0.02
+          },
+          "confidence": 0.21
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.6
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": null,
+          "raw_value": "insufficient",
+          "confidence": 0.21,
+          "margin": 0.06,
+          "status": "uncertain"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.6,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 418,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "420025f959755e35b7ef217f5a01b5d7be645809911a9dd0a64f3c8f01cf9d94"
+    },
+    {
+      "id": "insufficient-process",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 279,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "contradicts": 0,
+            "insufficient": 1,
+            "supports": 0,
+            "irrelevant": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.73
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.73,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "b3a6aeb138d568dc3cb5219d67bb6986a26b58576942597cf3d1e2a492c64fc2"
+    },
+    {
+      "id": "insufficient-ci",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 256,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "insufficient": 1,
+            "irrelevant": 0,
+            "supports": 0,
+            "contradicts": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.77
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.77,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 425,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "16a6bc7ccc861268eb72ba9804bdcec0377575c4983acf7531d3f5e46a63d143"
+    },
+    {
+      "id": "insufficient-wording",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 250,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "irrelevant": 0,
+            "contradicts": 0.01,
+            "insufficient": 0.99,
+            "supports": 0
+          },
+          "confidence": 0.99
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.55
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 0.99,
+          "margin": 0.98,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.55,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "1c0bdec63985484508380d26419b5fc8cedb171873f9ea3cfe9ff8766f59c882"
+    },
+    {
+      "id": "supports-command",
+      "run": 3,
+      "safety": true,
+      "latency_ms": 258,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "insufficient": 0,
+            "supports": 1,
+            "contradicts": 0,
+            "irrelevant": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "e309cb0bb5b60e7089814e02217dad9376889fa4eabf97d25048524837588ba0"
+    },
+    {
+      "id": "supports-config",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 290,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "contradicts": 0,
+            "supports": 1,
+            "irrelevant": 0,
+            "insufficient": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.86
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 427,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "6c489df6a4befe59dcdc83e6287a791093ca856f406cfa3579798a5b04441057"
+    },
+    {
+      "id": "supports-doc",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 242,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "supports",
+          "probabilities": {
+            "irrelevant": 0,
+            "contradicts": 0,
+            "supports": 1,
+            "insufficient": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.9
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "supports",
+          "raw_value": "supports",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.9,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 423,
+        "output_tokens": 70
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "030a1ec7aea2ad14d42b8e731599668f0409f1a6b868c457f48d681db7f535c2"
+    },
+    {
+      "id": "contradicts-tests",
+      "run": 3,
+      "safety": true,
+      "latency_ms": 287,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "supports": 0,
+            "insufficient": 0,
+            "contradicts": 1,
+            "irrelevant": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.78
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "contradicts",
+          "raw_value": "contradicts",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.78,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 427,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "f67eddc41c886a54d7b76eca2227d1b32e87f7f9f9fb0b2db8541cd325cab941"
+    },
+    {
+      "id": "contradicts-mode",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 303,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "irrelevant": 0.25,
+            "insufficient": 0.3,
+            "contradicts": 0.44,
+            "supports": 0.01
+          },
+          "confidence": 0.26
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.33
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": null,
+          "raw_value": "contradicts",
+          "confidence": 0.26,
+          "margin": 0.14,
+          "status": "uncertain"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.33,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 423,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "4be51542f0b8ce706d2e3778b7d9ab89db9010ceae69120bad9fbbcf9fda7cf1"
+    },
+    {
+      "id": "contradicts-color",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 332,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "contradicts",
+          "probabilities": {
+            "insufficient": 0.14,
+            "irrelevant": 0.02,
+            "supports": 0,
+            "contradicts": 0.84
+          },
+          "confidence": 0.78
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.67
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "contradicts",
+          "raw_value": "contradicts",
+          "confidence": 0.78,
+          "margin": 0.7,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.67,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 419,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "4a443ad7c951c49f757e4f18cbaf94e8416ee6c65d248fd22bceb7bdf8385180"
+    },
+    {
+      "id": "irrelevant-weather",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 322,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "irrelevant",
+          "probabilities": {
+            "insufficient": 0,
+            "supports": 0,
+            "contradicts": 0,
+            "irrelevant": 1
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "irrelevant",
+          "raw_value": "irrelevant",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": false,
+          "probability": 0.13,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 418,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "e3b1a02369c5ea85e2f320ee512c8c47a583dd74acc46d0d890a708af3f0a065"
+    },
+    {
+      "id": "irrelevant-changelog",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 345,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "irrelevant",
+          "probabilities": {
+            "supports": 0,
+            "irrelevant": 1,
+            "insufficient": 0,
+            "contradicts": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "irrelevant",
+          "raw_value": "irrelevant",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": false,
+          "probability": 0.1,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 420,
+        "output_tokens": 72
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "6c94de025f0e5b7de625e2cfc6c9c49cb38f305bd70eabd4f84a0da9b568e97b"
+    },
+    {
+      "id": "irrelevant-copy",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 290,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "supports": 0.2,
+            "irrelevant": 0.36,
+            "contradicts": 0.02,
+            "insufficient": 0.42
+          },
+          "confidence": 0.22
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.54
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": null,
+          "raw_value": "insufficient",
+          "confidence": 0.22,
+          "margin": 0.06,
+          "status": "uncertain"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.54,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 418,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "420025f959755e35b7ef217f5a01b5d7be645809911a9dd0a64f3c8f01cf9d94"
+    },
+    {
+      "id": "insufficient-process",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 265,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "irrelevant": 0,
+            "contradicts": 0,
+            "insufficient": 1,
+            "supports": 0
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.71
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.71,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "b3a6aeb138d568dc3cb5219d67bb6986a26b58576942597cf3d1e2a492c64fc2"
+    },
+    {
+      "id": "insufficient-ci",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 275,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "supports": 0,
+            "irrelevant": 0,
+            "contradicts": 0,
+            "insufficient": 1
+          },
+          "confidence": 1
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.79
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 1,
+          "margin": 1,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": true,
+          "probability": 0.79,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 425,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "16a6bc7ccc861268eb72ba9804bdcec0377575c4983acf7531d3f5e46a63d143"
+    },
+    {
+      "id": "insufficient-wording",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 248,
+      "answers": {
+        "relationship": {
+          "type": "choice",
+          "choice": "insufficient",
+          "probabilities": {
+            "contradicts": 0.01,
+            "irrelevant": 0,
+            "supports": 0,
+            "insufficient": 0.99
+          },
+          "confidence": 0.99
+        },
+        "material_claim": {
+          "type": "noul",
+          "noul": 0.54
+        }
+      },
+      "decisions": {
+        "relationship": {
+          "value": "insufficient",
+          "raw_value": "insufficient",
+          "confidence": 0.99,
+          "margin": 0.98,
+          "status": "accepted"
+        },
+        "material_claim": {
+          "value": null,
+          "probability": 0.54,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 73
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "f79c23ace0c09eb98aec0a14211e26dd76851d6584d988c81b64b3b4122fbbdc",
+      "state_fingerprint": "1c0bdec63985484508380d26419b5fc8cedb171873f9ea3cfe9ff8766f59c882"
+    }
+  ],
+  "recomputed_at": "2026-09-19T18:35:22.196Z",
+  "provider_observations_live": true,
+  "corpus_kind": "synthetic_sanitized",
+  "campaign_id": "e72b7d54-31c4-4fa0-89a7-c4c313505375",
+  "campaign_contract_fingerprint": "0021409e657241cda9f9a3079873800eeaed04fc53aabb12be10ac172a919a44",
+  "collection_provenance": "legacy_cli_fingerprint_unavailable",
+  "collection_identity": {
+    "profile_id": "claim-evidence",
+    "policy_version": "semantic-profiles-1.0.0",
+    "model": "jev-1.13.0",
+    "policy_fingerprint": "0d4ddaefc2278fee1fbc01aac1cf6dbcb9a64e8a1192e9eaa61642b74b23886c",
+    "corpus_fingerprint": "e1050e633cba004503b8007364726eecff6764d222c39c52f6d4590c007f5812",
+    "source_fingerprints": {
+      "pi/extensions/lib/semantic-profile-calibration.mjs": "cd887dd33a661a4f529550fcedc37af5aab2ec4909380ed30e4c0863de559a27",
+      "pi/extensions/lib/semantic-profiles.mjs": "8c1964f2008b54d95e3a28a9dc265f567ec35d675bb0cfe1bb316ee3d2cf2e66",
+      "pi/extensions/lib/semantic-skill-suggestion.mjs": "989aeec2ff893f7590f6f7de73e22be81d6ae7f2b89a348a70f18e4d40cadb40",
+      "pi/extensions/lib/semantic-claim-evidence.mjs": "55fc124f6728cdf0a9a56d54d12e1a812e7f83a90e2d4338a063fbcd05bd2d34",
+      "pi/extensions/lib/semantic-judgment.mjs": "e93342de57e58a7dc1abf48e5f39d8a81b2cc75176b3717d3a85827d2579905f",
+      "pi/extensions/lib/typesafe-system-one.mjs": "3e5187cfe84fd618926e863811107870f5eb3461867dfb4d7c643332ac9a77ec"
+    },
+    "extra_fingerprint": "33b28e02efa86764593e9c14814e9ed64e6fcd9fec071663df6cee995a650dc7"
+  },
+  "recompute_identity": {
+    "profile_id": "claim-evidence",
+    "policy_version": "semantic-profiles-1.0.0",
+    "model": "jev-1.13.0",
+    "policy_fingerprint": "0d4ddaefc2278fee1fbc01aac1cf6dbcb9a64e8a1192e9eaa61642b74b23886c",
+    "corpus_fingerprint": "e1050e633cba004503b8007364726eecff6764d222c39c52f6d4590c007f5812",
+    "source_fingerprints": {
+      "scripts/jev-profile-calibrate": "64b80ac645f045f291f1cc09c6f205ee588c809ef970cff424b8562ce02bdd84",
+      "pi/extensions/lib/semantic-profile-calibration.mjs": "b3acc6053510192d5e8eb798bdefe51c9bbf55dacee3c26f227a18233020c001",
+      "pi/extensions/lib/semantic-profiles.mjs": "8c1964f2008b54d95e3a28a9dc265f567ec35d675bb0cfe1bb316ee3d2cf2e66",
+      "pi/extensions/lib/semantic-skill-suggestion.mjs": "989aeec2ff893f7590f6f7de73e22be81d6ae7f2b89a348a70f18e4d40cadb40",
+      "pi/extensions/lib/semantic-claim-evidence.mjs": "55fc124f6728cdf0a9a56d54d12e1a812e7f83a90e2d4338a063fbcd05bd2d34",
+      "pi/extensions/lib/semantic-judgment.mjs": "e93342de57e58a7dc1abf48e5f39d8a81b2cc75176b3717d3a85827d2579905f",
+      "pi/extensions/lib/typesafe-system-one.mjs": "f252e0fa9869113b4afef9b31cf1e1df8ed10fbb220c99030f7724608cf23e52"
+    },
+    "extra_fingerprint": "33b28e02efa86764593e9c14814e9ed64e6fcd9fec071663df6cee995a650dc7"
+  }
+}

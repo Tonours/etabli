@@ -1,6 +1,8 @@
 # surface	canonical	deployed_or_adapter_surfaces
 router-classifier	claude/hooks/workflow-router-lib.mjs	workflow/runtime/workflow-router-core.mjs,pi/extensions/lib/workflow-router-runtime.ts
 semantic-judgment	pi/extensions/lib/semantic-judgment.mjs	pi/extensions/lib/semantic-route.mjs,pi/extensions/lib/typesafe-system-one.mjs,pi/extensions/lib/route-shadow.mjs,scripts/jev-shadow,pi/extensions/workflow-router.ts
+semantic-profiles	workflow/runtime/semantic-profile-policy.json	pi/extensions/lib/semantic-profiles.mjs,pi/extensions/lib/semantic-claim-evidence.mjs,pi/extensions/lib/semantic-skill-suggestion.mjs,scripts/jev-judge,workflow/semantic-profiles.md
+semantic-profile-calibration	tests/fixtures/jev-profiles/*.json	pi/extensions/lib/semantic-profile-calibration.mjs,scripts/jev-profile-calibrate,workflow/runtime/jev-profile-calibration/*.json,pi/extensions/__tests__/semantic-profile-calibration.test.ts
 skill-surface	workflow/runtime/skill-surface.tsv	scripts/install.sh,scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh
 ticket-template	workflow/ticket-template.md	none (deployed copies removed with the codex harness)
 no-comments-guard	workflow/runtime/no-comments-guard.mjs	pi/extensions/no-comments.ts

@@ -105,6 +105,11 @@ Do not push the full task body onto an Epic.
    resolved.
 8. Return the created issue key, URL, title, and any assumptions.
 
+Optional semantic preflight: with explicit provider-egress approval, the
+`linear-intake` profile may advise on hierarchy, multiple behaviors, and context
+sufficiency. Its result cannot create a ticket, override the one-behavior rule,
+or replace required team/project clarification.
+
 ## Output
 
 For created tickets:
