@@ -2,7 +2,10 @@
 
 Etabli is a personal source tree for local agent workflows and terminal
 configuration. The shared contract lives in `workflow/`; Pi and Claude expose
-thin runtime adapters, while the skill catalog feeds the other local surfaces.
+thin runtime adapters, while the skill catalog feeds the other local harness
+surfaces (shared `~/.agents`, Codex, Devin). The full link layout and the
+`shared`/`work`/`personal` scope system live in
+[`docs/symlink-layout.md`](docs/symlink-layout.md).
 
 ## Install
 
@@ -24,6 +27,7 @@ pane, not from inside Neovim.
 | Path | Purpose |
 | --- | --- |
 | `workflow/` | Shared routing, plans, guards, loops, and validation contracts |
+| `workflow-scaffold/` | Templates `scripts/deploy-workflow` copies into scaffolded projects |
 | `pi/` | Pi settings, extensions, agents, skills, and themes |
 | `claude/` | Claude commands, agents, hooks, and scoped skills |
 | `vendor/` | Vendored skill sources and the catalog that controls their scope |
