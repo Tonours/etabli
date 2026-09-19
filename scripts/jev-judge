@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { evaluateSemanticProfile, loadSemanticProfilePolicy, profileSummary } from "../pi/extensions/lib/semantic-profiles.mjs";
+import { suggestSkill } from "../pi/extensions/lib/semantic-skill-suggestion.mjs";
+import { prepareClaimEvidenceState } from "../pi/extensions/lib/semantic-claim-evidence.mjs";
+
+const command = process.argv[2] || "health";
+const args = process.argv.slice(3);
+
+function json(value) {
+  process.stdout.write(`${JSON.stringify(value)}\n`);
+}
+
+function option(name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : null;
+}
+
+function has(name) {
+  return args.includes(name);
+}
+
+function boundedFile(path, maxBytes = 65536) {
+  if (!path) throw new Error("input file required");
+  const absolute = resolve(path);
+  let descriptor;
+  try {
+    descriptor = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile()) throw new Error("input must be a regular non-symlink file");
+    if (stat.size > maxBytes) throw new Error("input file too large");
+    return readFileSync(descriptor, "utf8");
+  } catch (error) {
+    if (error?.code === "ELOOP") throw new Error("input must be a regular non-symlink file");
+    throw error;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function requireLive() {
+  if (!has("--live")) throw new Error("provider evaluation requires explicit --live");
+}
+
+function publicResult(result) {
+  return {
+    profile: result.profile,
+    authority: result.authority,
+    decisions: result.decisions,
+    outcome: result.outcome,
+    error_code: result.error_code,
+    receipt: result.receipt
+  };
+}
+
+try {
+  const policy = loadSemanticProfilePolicy();
+  if (command === "health") {
+    json({ ok: true, policy_version: policy.policy_version, provider: policy.provider, model: policy.model, profiles: Object.keys(policy.profiles).length, credential: process.env.TYPESAFE_API_KEY ? "present" : "absent", live_by_default: false });
+  } else if (command === "list") {
+    json({ profiles: profileSummary(policy) });
+  } else if (command === "show") {
+    const id = args[0];
+    if (!policy.profiles[id]) throw new Error(`unknown profile: ${id || "<missing>"}`);
+    json({ id, ...policy.profiles[id] });
+  } else if (command === "evaluate") {
+    const profileId = args[0];
+    if (!policy.profiles[profileId] || policy.profiles[profileId].builder || profileId === "claim-evidence") throw new Error("evaluate requires a static non-claim profile id");
+    requireLive();
+    const state = JSON.parse(boundedFile(option("--state-file")));
+    json(publicResult(await evaluateSemanticProfile({ profileId, state, policy, allowProviderEgress: true, persistReceipt: !has("--no-receipt") })));
+  } else if (command === "evaluate-claim") {
+    requireLive();
+    const claimsFile = option("--claims-file");
+    const claimIndexValue = option("--claim-index");
+    if (!/^(?:0|[1-9]\d*)$/.test(claimIndexValue || "")) throw new Error("claim index must be an explicit non-negative integer");
+    const claimIndex = Number(claimIndexValue);
+    const evidenceFile = option("--evidence-file");
+    const state = prepareClaimEvidenceState({ claimsFile, claimIndex, evidenceText: evidenceFile ? boundedFile(evidenceFile, 6500) : null });
+    json(publicResult(await evaluateSemanticProfile({ profileId: "claim-evidence", state, policy, allowProviderEgress: true, persistReceipt: !has("--no-receipt") })));
+  } else if (command === "suggest-skill") {
+    requireLive();
+    const prompt = boundedFile(option("--prompt-file"), 4096);
+    const result = await suggestSkill({ prompt, policy, allowProviderEgress: true, persistReceipt: !has("--no-receipt") });
+    json({ selected: result.selected, shortlist: result.shortlist, outcome: result.outcome, stages: result.stages.map(publicResult) });
+  } else {
+    throw new Error("usage: jev-judge health|list|show <profile>|evaluate <profile> --state-file <file> --live [--no-receipt]|evaluate-claim --claims-file <markdown> --claim-index <n> [--evidence-file <file>] --live [--no-receipt]|suggest-skill --prompt-file <file> --live [--no-receipt]");
+  }
+} catch (error) {
+  process.stderr.write(`jev-judge: ${error?.message || "unknown error"}\n`);
+  process.exitCode = 2;
+}

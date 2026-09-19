@@ -139,6 +139,11 @@ Before accepting any change to the reviewer:
 - **held-out**: it must not regress the cases it already passed, and must not start
   reporting findings on the clean diffs in the corpus
 
+The optional `reviewer-finding` Jev profile is shadow-only. It may classify a
+bounded proposed finding as supported, unsupported, nit, or needing broader
+reasoning, but deciding-code inspection and the review evidence bar remain the
+authority. Do not discard or publish a finding from this answer alone.
+
 A change that fixes the held-in cases and adds false positives on held-out ones is
 a regression. Reject it and log why.
 

@@ -1,0 +1,19 @@
+{
+  "schema_version":1,
+  "profile_id":"claim-evidence",
+  "cases":[
+    {"id":"supports-command","kind":"semantic","state":{"claim":"The test command exited successfully.","evidence":"Command: bun test. Exit code: 0. All 18 tests passed."},"expected":{"relationship":"supports","material_claim":true},"justification":"Evidence directly supports a material validation claim.","safety":true},
+    {"id":"supports-config","kind":"semantic","state":{"claim":"Retries are disabled for calibration.","evidence":"The calibration policy sets max_retries to 0 before invoking the transport."},"expected":{"relationship":"supports","material_claim":true},"justification":"Direct source evidence."},
+    {"id":"supports-doc","kind":"semantic","state":{"claim":"The guide mentions a rollback command.","evidence":"The guide contains: Roll back with `deploy undo`."},"expected":{"relationship":"supports","material_claim":false},"justification":"Supported but not material to a release conclusion."},
+    {"id":"contradicts-tests","kind":"semantic","state":{"claim":"All tests passed.","evidence":"Test summary: 17 passed, 1 failed. Exit code: 1."},"expected":{"relationship":"contradicts","material_claim":true},"justification":"Evidence directly contradicts completion.","safety":true},
+    {"id":"contradicts-mode","kind":"semantic","state":{"claim":"The route is in shadow mode.","evidence":"Health response: mode=enforced, ok=true."},"expected":{"relationship":"contradicts","material_claim":true},"justification":"Observed state is opposite."},
+    {"id":"contradicts-color","kind":"semantic","state":{"claim":"The example button is blue.","evidence":"The example stylesheet sets background: red."},"expected":{"relationship":"contradicts","material_claim":false},"justification":"Contradicted but immaterial example detail."},
+    {"id":"irrelevant-weather","kind":"semantic","state":{"claim":"The API uses bearer authentication.","evidence":"The weather report predicts rain tomorrow."},"expected":{"relationship":"irrelevant","material_claim":true},"justification":"Evidence does not address a material claim."},
+    {"id":"irrelevant-changelog","kind":"semantic","state":{"claim":"The parser accepts empty names.","evidence":"The changelog discusses a new dashboard theme."},"expected":{"relationship":"irrelevant","material_claim":true},"justification":"Unrelated evidence."},
+    {"id":"irrelevant-copy","kind":"semantic","state":{"claim":"The heading ends with a period.","evidence":"A benchmark reports database latency."},"expected":{"relationship":"irrelevant","material_claim":false},"justification":"Unrelated and immaterial claim."},
+    {"id":"insufficient-process","kind":"semantic","state":{"claim":"The service is healthy.","evidence":"A process with the service name is running, but no request or health probe was executed."},"expected":{"relationship":"insufficient","material_claim":true},"justification":"Related evidence cannot establish health."},
+    {"id":"insufficient-ci","kind":"semantic","state":{"claim":"The branch is safe to merge.","evidence":"Typecheck passed; integration tests and review status are unknown."},"expected":{"relationship":"insufficient","material_claim":true},"justification":"Partial evidence cannot support merge safety."},
+    {"id":"insufficient-wording","kind":"semantic","state":{"claim":"The optional note is concise.","evidence":"The note contains 140 words; no concision criterion is supplied."},"expected":{"relationship":"insufficient","material_claim":false},"justification":"Related but lacks a defined standard."},
+    {"id":"missing-evidence-preflight","kind":"preflight_reject","state":{"claim":"This must never reach the provider.","evidence":"placeholder","missing_pointer":true},"expected_error":"claim structural check failed","justification":"Missing structural evidence rejects before provider."}
+  ]
+}

@@ -1,0 +1,2206 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "live_typesafe_profile_calibration",
+  "generated_at": "2026-09-19T00:22:41.825Z",
+  "synthetic": true,
+  "repetitions": 3,
+  "thresholds": {
+    "choice_min_confidence": 0.7,
+    "choice_min_margin": 0.12,
+    "noul_false_max": 0.25,
+    "noul_true_min": 0.75
+  },
+  "verdict": "needs_tuning",
+  "complete": true,
+  "safety_passed": false,
+  "metrics": {
+    "level": {
+      "cases": 12,
+      "accuracy": 1,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.6666666666666666,
+      "stability": 1,
+      "expected_calibration_error": 0.15611111111111103,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 4,
+          "mean_probability": 0.6216666666666667,
+          "observed_accuracy": 1
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 8,
+          "mean_probability": 0.9550000000000001,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.08964444444444446,
+      "passed": true
+    },
+    "multiple_behaviors": {
+      "cases": 12,
+      "accuracy": 0.6666666666666666,
+      "accepted_accuracy": 0.7272727272727273,
+      "accepted_coverage": 0.9166666666666666,
+      "stability": 1,
+      "expected_calibration_error": 0.19555555555555545,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 1,
+          "mean_probability": 0.69,
+          "observed_accuracy": 0
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 11,
+          "mean_probability": 0.8778787878787878,
+          "observed_accuracy": 0.7272727272727273
+        }
+      ],
+      "brier_score": 0.21670925925925924,
+      "passed": false
+    },
+    "context_sufficient": {
+      "cases": 12,
+      "accuracy": 0.5,
+      "accepted_accuracy": 1,
+      "accepted_coverage": 0.3333333333333333,
+      "stability": 1,
+      "expected_calibration_error": 0.28277777777777774,
+      "calibration_bins": [
+        {
+          "range": [
+            0,
+            0.5
+          ],
+          "count": 0,
+          "mean_probability": null,
+          "observed_accuracy": null
+        },
+        {
+          "range": [
+            0.5,
+            0.75
+          ],
+          "count": 8,
+          "mean_probability": 0.6124999999999999,
+          "observed_accuracy": 0.25
+        },
+        {
+          "range": [
+            0.75,
+            1
+          ],
+          "count": 4,
+          "mean_probability": 0.8766666666666666,
+          "observed_accuracy": 1
+        }
+      ],
+      "brier_score": 0.19316481481481473,
+      "passed": false
+    }
+  },
+  "preflight_results": [],
+  "operational": {
+    "provider_errors": 0,
+    "provider_error_rate": 0,
+    "attempts": 36,
+    "input_tokens": 15855,
+    "output_tokens": 3480,
+    "input_cost_usd": 0.0006659100000000001,
+    "campaign_attempts": 351,
+    "campaign_input_tokens": 284559,
+    "campaign_input_cost_usd": 0.011951478000000001,
+    "latency_mean_ms": 281.22222222222223,
+    "latency_p95_ms": 350
+  },
+  "observations": [
+    {
+      "id": "project-platform",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 284,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "epic": 0.35,
+            "subissue": 0,
+            "unclear": 0,
+            "project": 0.65,
+            "issue": 0
+          },
+          "confidence": 0.56
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.42
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.56,
+          "margin": 0.30000000000000004,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.42,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 443,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "f5b5288fd31dd4e558a2062c30e9313f411b1028fa7686d0d513585f44fc8c4a"
+    },
+    {
+      "id": "project-migration",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 268,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "subissue": 0,
+            "epic": 0.4,
+            "issue": 0,
+            "project": 0.6,
+            "unclear": 0
+          },
+          "confidence": 0.49
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.88
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.41
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.49,
+          "margin": 0.19999999999999996,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.88,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.41,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 449,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "f93dcb7a6c277813f45154a959138b40ed7d222fb945b485fd88e7c0fac8a612"
+    },
+    {
+      "id": "epic-login",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 285,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "epic",
+          "probabilities": {
+            "epic": 0.96,
+            "subissue": 0,
+            "unclear": 0,
+            "issue": 0.02,
+            "project": 0.02
+          },
+          "confidence": 0.94
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.42
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "epic",
+          "raw_value": "epic",
+          "confidence": 0.94,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.42,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 443,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "3e55473e2d8a87bf20734c5ac842cfa0926687ecb69e929a202401db66eb2f1d"
+    },
+    {
+      "id": "epic-export",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 350,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "epic",
+          "probabilities": {
+            "issue": 0.03,
+            "subissue": 0,
+            "epic": 0.97,
+            "unclear": 0,
+            "project": 0
+          },
+          "confidence": 0.95
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.44
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "epic",
+          "raw_value": "epic",
+          "confidence": 0.95,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 444,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "65c1bb5c4866b4c2d7fccda3cea97eed3c4f09699b59f44465e15305f7524643"
+    },
+    {
+      "id": "issue-validation",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 251,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "subissue": 0.03,
+            "issue": 0.97,
+            "project": 0,
+            "epic": 0,
+            "unclear": 0
+          },
+          "confidence": 0.95
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.65
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.95,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.65,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 442,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "24869cae5aff61111a0a07bd087d240cbfc3d5ab6d67a021c1bb2c804cd03dd3"
+    },
+    {
+      "id": "issue-sort",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 245,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "issue": 0.86,
+            "epic": 0,
+            "unclear": 0.01,
+            "subissue": 0.13,
+            "project": 0
+          },
+          "confidence": 0.82
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.81
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.42
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.82,
+          "margin": 0.73,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.81,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.42,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 438,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "bc30a8479461af40ca966ac934854beccc70bcefc2e3d884ecaecd421ebc9586"
+    },
+    {
+      "id": "subissue-test",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 258,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "subissue",
+          "probabilities": {
+            "project": 0,
+            "epic": 0,
+            "subissue": 0.97,
+            "unclear": 0,
+            "issue": 0.03
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.36
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "subissue",
+          "raw_value": "subissue",
+          "confidence": 0.96,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.36,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 440,
+        "output_tokens": 98
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "6702487eea32dfdaf2680ad1ec684f22517f35d2dad85fe326786e39bde2c2bc"
+    },
+    {
+      "id": "subissue-copy",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 253,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "subissue",
+          "probabilities": {
+            "issue": 0.03,
+            "epic": 0,
+            "subissue": 0.97,
+            "project": 0,
+            "unclear": 0
+          },
+          "confidence": 0.95
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "subissue",
+          "raw_value": "subissue",
+          "confidence": 0.95,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.13,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 437,
+        "output_tokens": 98
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "cf556b20b56cb82a7d682fdfa83567b1e87dc22a651f031b370f10a19e546943"
+    },
+    {
+      "id": "unclear-better",
+      "run": 1,
+      "safety": true,
+      "latency_ms": 248,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "subissue": 0,
+            "epic": 0.38,
+            "issue": 0.04,
+            "project": 0.02,
+            "unclear": 0.56
+          },
+          "confidence": 0.45
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "unclear",
+          "confidence": 0.45,
+          "margin": 0.18000000000000005,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.15,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "3c484ebc0579604dc3054be5d4c0ae82c86cd86f6f2f7fd3ce4ca1f47493c496"
+    },
+    {
+      "id": "unclear-thing",
+      "run": 1,
+      "safety": true,
+      "latency_ms": 265,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "epic": 0,
+            "project": 0,
+            "unclear": 0.97,
+            "issue": 0.03,
+            "subissue": 0
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "unclear",
+          "raw_value": "unclear",
+          "confidence": 0.96,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "37a0103d935361da7cd95cd34403e7d7d5c7d5172d3eb7f2667466f9e202e5d1"
+    },
+    {
+      "id": "project-vague-scope",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 311,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "unclear": 0.18,
+            "subissue": 0,
+            "project": 0.58,
+            "epic": 0.24,
+            "issue": 0
+          },
+          "confidence": 0.47
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.24
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.47,
+          "margin": 0.33999999999999997,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.24,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 445,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "0e03a57f0114badd116312286d7b6c097916c1599ec4b7bea3ad6596137d7c88"
+    },
+    {
+      "id": "issue-two-acceptance",
+      "run": 1,
+      "safety": false,
+      "latency_ms": 256,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "unclear": 0,
+            "project": 0,
+            "issue": 0.97,
+            "subissue": 0.01,
+            "epic": 0.02
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.68
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.73
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.96,
+          "margin": 0.95,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": null,
+          "probability": 0.68,
+          "status": "uncertain"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.73,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 447,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "50b81bbaf3886547342dbb429080812945ffeb4f3374b98ab6b338adf7a31189"
+    },
+    {
+      "id": "project-platform",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 252,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "unclear": 0,
+            "issue": 0,
+            "project": 0.64,
+            "subissue": 0,
+            "epic": 0.36
+          },
+          "confidence": 0.55
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.87
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.4
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.55,
+          "margin": 0.28,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.87,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.4,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 443,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "f5b5288fd31dd4e558a2062c30e9313f411b1028fa7686d0d513585f44fc8c4a"
+    },
+    {
+      "id": "project-migration",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 245,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "unclear": 0,
+            "epic": 0.4,
+            "issue": 0,
+            "project": 0.6,
+            "subissue": 0
+          },
+          "confidence": 0.5
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.43
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.5,
+          "margin": 0.19999999999999996,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.43,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 449,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "f93dcb7a6c277813f45154a959138b40ed7d222fb945b485fd88e7c0fac8a612"
+    },
+    {
+      "id": "epic-login",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 312,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "epic",
+          "probabilities": {
+            "subissue": 0,
+            "project": 0.02,
+            "unclear": 0,
+            "issue": 0.02,
+            "epic": 0.96
+          },
+          "confidence": 0.94
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.94
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.44
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "epic",
+          "raw_value": "epic",
+          "confidence": 0.94,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.94,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 443,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "3e55473e2d8a87bf20734c5ac842cfa0926687ecb69e929a202401db66eb2f1d"
+    },
+    {
+      "id": "epic-export",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 293,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "epic",
+          "probabilities": {
+            "unclear": 0,
+            "epic": 0.96,
+            "issue": 0.04,
+            "project": 0,
+            "subissue": 0
+          },
+          "confidence": 0.95
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.44
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "epic",
+          "raw_value": "epic",
+          "confidence": 0.95,
+          "margin": 0.9199999999999999,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 444,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "65c1bb5c4866b4c2d7fccda3cea97eed3c4f09699b59f44465e15305f7524643"
+    },
+    {
+      "id": "issue-validation",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 294,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "epic": 0,
+            "issue": 0.97,
+            "subissue": 0.03,
+            "project": 0,
+            "unclear": 0
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.67
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.96,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.67,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 442,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "24869cae5aff61111a0a07bd087d240cbfc3d5ab6d67a021c1bb2c804cd03dd3"
+    },
+    {
+      "id": "issue-sort",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 283,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "unclear": 0.01,
+            "subissue": 0.1,
+            "epic": 0,
+            "project": 0,
+            "issue": 0.89
+          },
+          "confidence": 0.86
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.81
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.43
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.86,
+          "margin": 0.79,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.81,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.43,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 438,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "bc30a8479461af40ca966ac934854beccc70bcefc2e3d884ecaecd421ebc9586"
+    },
+    {
+      "id": "subissue-test",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 264,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "subissue",
+          "probabilities": {
+            "issue": 0.03,
+            "subissue": 0.97,
+            "epic": 0,
+            "unclear": 0,
+            "project": 0
+          },
+          "confidence": 0.97
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "subissue",
+          "raw_value": "subissue",
+          "confidence": 0.97,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.35,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 440,
+        "output_tokens": 98
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "6702487eea32dfdaf2680ad1ec684f22517f35d2dad85fe326786e39bde2c2bc"
+    },
+    {
+      "id": "subissue-copy",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 266,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "subissue",
+          "probabilities": {
+            "unclear": 0,
+            "subissue": 0.97,
+            "project": 0,
+            "issue": 0.03,
+            "epic": 0
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "subissue",
+          "raw_value": "subissue",
+          "confidence": 0.96,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 437,
+        "output_tokens": 98
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "cf556b20b56cb82a7d682fdfa83567b1e87dc22a651f031b370f10a19e546943"
+    },
+    {
+      "id": "unclear-better",
+      "run": 2,
+      "safety": true,
+      "latency_ms": 272,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "unclear": 0.63,
+            "project": 0.01,
+            "epic": 0.31,
+            "subissue": 0,
+            "issue": 0.05
+          },
+          "confidence": 0.54
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "unclear",
+          "confidence": 0.54,
+          "margin": 0.32,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.14,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "3c484ebc0579604dc3054be5d4c0ae82c86cd86f6f2f7fd3ce4ca1f47493c496"
+    },
+    {
+      "id": "unclear-thing",
+      "run": 2,
+      "safety": true,
+      "latency_ms": 271,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "unclear": 0.97,
+            "issue": 0.03,
+            "project": 0,
+            "subissue": 0,
+            "epic": 0
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "unclear",
+          "raw_value": "unclear",
+          "confidence": 0.96,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.06,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "37a0103d935361da7cd95cd34403e7d7d5c7d5172d3eb7f2667466f9e202e5d1"
+    },
+    {
+      "id": "project-vague-scope",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 262,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "project": 0.61,
+            "unclear": 0.18,
+            "issue": 0,
+            "epic": 0.21,
+            "subissue": 0
+          },
+          "confidence": 0.51
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.24
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.51,
+          "margin": 0.4,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.24,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 445,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "0e03a57f0114badd116312286d7b6c097916c1599ec4b7bea3ad6596137d7c88"
+    },
+    {
+      "id": "issue-two-acceptance",
+      "run": 2,
+      "safety": false,
+      "latency_ms": 279,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "project": 0,
+            "epic": 0.02,
+            "subissue": 0.01,
+            "issue": 0.97,
+            "unclear": 0
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.7
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.71
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.96,
+          "margin": 0.95,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": null,
+          "probability": 0.7,
+          "status": "uncertain"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.71,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 447,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "50b81bbaf3886547342dbb429080812945ffeb4f3374b98ab6b338adf7a31189"
+    },
+    {
+      "id": "project-platform",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 337,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "subissue": 0,
+            "project": 0.69,
+            "issue": 0,
+            "unclear": 0,
+            "epic": 0.31
+          },
+          "confidence": 0.61
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.86
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.61,
+          "margin": 0.37999999999999995,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.86,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.38,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 443,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "f5b5288fd31dd4e558a2062c30e9313f411b1028fa7686d0d513585f44fc8c4a"
+    },
+    {
+      "id": "project-migration",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 351,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "subissue": 0,
+            "project": 0.64,
+            "issue": 0,
+            "unclear": 0,
+            "epic": 0.36
+          },
+          "confidence": 0.54
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.89
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.43
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.54,
+          "margin": 0.28,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.89,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.43,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 449,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "f93dcb7a6c277813f45154a959138b40ed7d222fb945b485fd88e7c0fac8a612"
+    },
+    {
+      "id": "epic-login",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 329,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "epic",
+          "probabilities": {
+            "subissue": 0,
+            "epic": 0.96,
+            "issue": 0.02,
+            "unclear": 0,
+            "project": 0.02
+          },
+          "confidence": 0.95
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.43
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "epic",
+          "raw_value": "epic",
+          "confidence": 0.95,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.43,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 443,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "3e55473e2d8a87bf20734c5ac842cfa0926687ecb69e929a202401db66eb2f1d"
+    },
+    {
+      "id": "epic-export",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 263,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "epic",
+          "probabilities": {
+            "epic": 0.96,
+            "project": 0,
+            "unclear": 0,
+            "issue": 0.04,
+            "subissue": 0
+          },
+          "confidence": 0.94
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.95
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.44
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "epic",
+          "raw_value": "epic",
+          "confidence": 0.94,
+          "margin": 0.9199999999999999,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.95,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.44,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 444,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "65c1bb5c4866b4c2d7fccda3cea97eed3c4f09699b59f44465e15305f7524643"
+    },
+    {
+      "id": "issue-validation",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 251,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "project": 0,
+            "subissue": 0.03,
+            "unclear": 0,
+            "epic": 0,
+            "issue": 0.97
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.9
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.68
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.96,
+          "margin": 0.94,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.9,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.68,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 442,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "24869cae5aff61111a0a07bd087d240cbfc3d5ab6d67a021c1bb2c804cd03dd3"
+    },
+    {
+      "id": "issue-sort",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 274,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "issue": 0.85,
+            "subissue": 0.14,
+            "unclear": 0.01,
+            "epic": 0,
+            "project": 0
+          },
+          "confidence": 0.8
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.82
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.46
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.8,
+          "margin": 0.71,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": true,
+          "probability": 0.82,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.46,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 438,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "bc30a8479461af40ca966ac934854beccc70bcefc2e3d884ecaecd421ebc9586"
+    },
+    {
+      "id": "subissue-test",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 343,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "subissue",
+          "probabilities": {
+            "project": 0,
+            "subissue": 0.95,
+            "unclear": 0,
+            "epic": 0,
+            "issue": 0.05
+          },
+          "confidence": 0.94
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.36
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "subissue",
+          "raw_value": "subissue",
+          "confidence": 0.94,
+          "margin": 0.8999999999999999,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.36,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 440,
+        "output_tokens": 98
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "6702487eea32dfdaf2680ad1ec684f22517f35d2dad85fe326786e39bde2c2bc"
+    },
+    {
+      "id": "subissue-copy",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 272,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "subissue",
+          "probabilities": {
+            "subissue": 0.98,
+            "epic": 0,
+            "issue": 0.02,
+            "unclear": 0,
+            "project": 0
+          },
+          "confidence": 0.97
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "subissue",
+          "raw_value": "subissue",
+          "confidence": 0.97,
+          "margin": 0.96,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.11,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.13,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 437,
+        "output_tokens": 98
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "cf556b20b56cb82a7d682fdfa83567b1e87dc22a651f031b370f10a19e546943"
+    },
+    {
+      "id": "unclear-better",
+      "run": 3,
+      "safety": true,
+      "latency_ms": 274,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "issue": 0.04,
+            "epic": 0.28,
+            "subissue": 0,
+            "project": 0.02,
+            "unclear": 0.66
+          },
+          "confidence": 0.58
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "unclear",
+          "confidence": 0.58,
+          "margin": 0.38,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.12,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.14,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 429,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "3c484ebc0579604dc3054be5d4c0ae82c86cd86f6f2f7fd3ce4ca1f47493c496"
+    },
+    {
+      "id": "unclear-thing",
+      "run": 3,
+      "safety": true,
+      "latency_ms": 250,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "unclear",
+          "probabilities": {
+            "unclear": 0.98,
+            "epic": 0,
+            "project": 0,
+            "subissue": 0,
+            "issue": 0.02
+          },
+          "confidence": 0.97
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "unclear",
+          "raw_value": "unclear",
+          "confidence": 0.97,
+          "margin": 0.96,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.07,
+          "status": "accepted"
+        }
+      },
+      "outcome": "accepted",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 428,
+        "output_tokens": 97
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "37a0103d935361da7cd95cd34403e7d7d5c7d5172d3eb7f2667466f9e202e5d1"
+    },
+    {
+      "id": "project-vague-scope",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 277,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "project",
+          "probabilities": {
+            "subissue": 0,
+            "issue": 0,
+            "epic": 0.22,
+            "unclear": 0.18,
+            "project": 0.6
+          },
+          "confidence": 0.49
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.25
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": null,
+          "raw_value": "project",
+          "confidence": 0.49,
+          "margin": 0.38,
+          "status": "uncertain"
+        },
+        "multiple_behaviors": {
+          "value": false,
+          "probability": 0.25,
+          "status": "accepted"
+        },
+        "context_sufficient": {
+          "value": false,
+          "probability": 0.16,
+          "status": "accepted"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 445,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "0e03a57f0114badd116312286d7b6c097916c1599ec4b7bea3ad6596137d7c88"
+    },
+    {
+      "id": "issue-two-acceptance",
+      "run": 3,
+      "safety": false,
+      "latency_ms": 336,
+      "answers": {
+        "level": {
+          "type": "choice",
+          "choice": "issue",
+          "probabilities": {
+            "unclear": 0,
+            "project": 0,
+            "issue": 0.97,
+            "subissue": 0.01,
+            "epic": 0.02
+          },
+          "confidence": 0.96
+        },
+        "multiple_behaviors": {
+          "type": "noul",
+          "noul": 0.69
+        },
+        "context_sufficient": {
+          "type": "noul",
+          "noul": 0.72
+        }
+      },
+      "decisions": {
+        "level": {
+          "value": "issue",
+          "raw_value": "issue",
+          "confidence": 0.96,
+          "margin": 0.95,
+          "status": "accepted"
+        },
+        "multiple_behaviors": {
+          "value": null,
+          "probability": 0.69,
+          "status": "uncertain"
+        },
+        "context_sufficient": {
+          "value": null,
+          "probability": 0.72,
+          "status": "uncertain"
+        }
+      },
+      "outcome": "uncertain",
+      "error_code": null,
+      "usage": {
+        "input_tokens": 447,
+        "output_tokens": 96
+      },
+      "model": "jev-1.13.0",
+      "question_fingerprint": "bc41af4b7a733a08925690ae734f8020566ae9a70178b808d4ce02840bf69b1a",
+      "state_fingerprint": "50b81bbaf3886547342dbb429080812945ffeb4f3374b98ab6b338adf7a31189"
+    }
+  ],
+  "recomputed_at": "2026-09-19T18:35:22.209Z",
+  "provider_observations_live": true,
+  "corpus_kind": "synthetic_sanitized",
+  "campaign_id": "e72b7d54-31c4-4fa0-89a7-c4c313505375",
+  "campaign_contract_fingerprint": "0021409e657241cda9f9a3079873800eeaed04fc53aabb12be10ac172a919a44",
+  "collection_provenance": "legacy_cli_fingerprint_unavailable",
+  "collection_identity": {
+    "profile_id": "linear-intake",
+    "policy_version": "semantic-profiles-1.0.0",
+    "model": "jev-1.13.0",
+    "policy_fingerprint": "d15ef432e82c17c47f29c36dabbec27ae44ebd14ea55b8bd1f4bc9215c431a57",
+    "corpus_fingerprint": "76e7b87225682ea04b45e28d0328e6bd970d2c4ded722afadc6c4b1d6b005186",
+    "source_fingerprints": {
+      "pi/extensions/lib/semantic-profile-calibration.mjs": "cd887dd33a661a4f529550fcedc37af5aab2ec4909380ed30e4c0863de559a27",
+      "pi/extensions/lib/semantic-profiles.mjs": "8c1964f2008b54d95e3a28a9dc265f567ec35d675bb0cfe1bb316ee3d2cf2e66",
+      "pi/extensions/lib/semantic-skill-suggestion.mjs": "989aeec2ff893f7590f6f7de73e22be81d6ae7f2b89a348a70f18e4d40cadb40",
+      "pi/extensions/lib/semantic-claim-evidence.mjs": "55fc124f6728cdf0a9a56d54d12e1a812e7f83a90e2d4338a063fbcd05bd2d34",
+      "pi/extensions/lib/semantic-judgment.mjs": "e93342de57e58a7dc1abf48e5f39d8a81b2cc75176b3717d3a85827d2579905f",
+      "pi/extensions/lib/typesafe-system-one.mjs": "3e5187cfe84fd618926e863811107870f5eb3461867dfb4d7c643332ac9a77ec"
+    },
+    "extra_fingerprint": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "recompute_identity": {
+    "profile_id": "linear-intake",
+    "policy_version": "semantic-profiles-1.0.0",
+    "model": "jev-1.13.0",
+    "policy_fingerprint": "d15ef432e82c17c47f29c36dabbec27ae44ebd14ea55b8bd1f4bc9215c431a57",
+    "corpus_fingerprint": "76e7b87225682ea04b45e28d0328e6bd970d2c4ded722afadc6c4b1d6b005186",
+    "source_fingerprints": {
+      "scripts/jev-profile-calibrate": "64b80ac645f045f291f1cc09c6f205ee588c809ef970cff424b8562ce02bdd84",
+      "pi/extensions/lib/semantic-profile-calibration.mjs": "b3acc6053510192d5e8eb798bdefe51c9bbf55dacee3c26f227a18233020c001",
+      "pi/extensions/lib/semantic-profiles.mjs": "8c1964f2008b54d95e3a28a9dc265f567ec35d675bb0cfe1bb316ee3d2cf2e66",
+      "pi/extensions/lib/semantic-skill-suggestion.mjs": "989aeec2ff893f7590f6f7de73e22be81d6ae7f2b89a348a70f18e4d40cadb40",
+      "pi/extensions/lib/semantic-claim-evidence.mjs": "55fc124f6728cdf0a9a56d54d12e1a812e7f83a90e2d4338a063fbcd05bd2d34",
+      "pi/extensions/lib/semantic-judgment.mjs": "e93342de57e58a7dc1abf48e5f39d8a81b2cc75176b3717d3a85827d2579905f",
+      "pi/extensions/lib/typesafe-system-one.mjs": "f252e0fa9869113b4afef9b31cf1e1df8ed10fbb220c99030f7724608cf23e52"
+    },
+    "extra_fingerprint": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  }
+}

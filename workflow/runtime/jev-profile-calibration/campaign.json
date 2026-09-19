@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "campaign_id": "e72b7d54-31c4-4fa0-89a7-c4c313505375",
+  "created_at": "2026-09-19T00:20:39Z",
+  "profile_ids": [
+    "skill-suggestion",
+    "claim-evidence",
+    "reviewer-finding",
+    "self-improvement-candidate",
+    "project-hunt-evidence",
+    "conversation-signal",
+    "knowledge-passage",
+    "linear-intake",
+    "pr-qa-impact",
+    "no-progress-equivalence",
+    "goal-completeness",
+    "task-state-fallback"
+  ],
+  "repetitions": 3,
+  "limits": {
+    "max_attempts": 600,
+    "max_input_tokens": 1500000,
+    "max_seconds": 1500
+  },
+  "started_at": 1789777239155,
+  "deadline": 1789778739155,
+  "completed_at": "2026-09-19T00:40:13.963Z",
+  "legacy_migration_evidence": "All twelve original checkpoints share started_at 1789777239155 and deadline 1789778739155; cumulative attempts progress from 36 to 459 without overlap.",
+  "result": {
+    "campaign_id": "e72b7d54-31c4-4fa0-89a7-c4c313505375",
+    "attempts": 459,
+    "input_tokens": 331506,
+    "output_tokens": 76418,
+    "input_cost_usd": 0.013923252000000002,
+    "deadline": "2026-09-19T00:45:39.155Z"
+  }
+}

@@ -84,7 +84,7 @@
     "goal-prompt-rewriter": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "7b7f5054549e1e845ed68a9c57501fcc9db53c295300bf0c1167df233e1cb6e7"
+      "computedHash": "a933f5a9c10039f672252049f836481f2c5c3b2e41c0ef9398db15748e71d598"
     },
     "ui-reference-capture": {
       "source": "local",
@@ -219,7 +219,7 @@
     "conversation-retrospect": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "9e56c78a3d5199d415777f4e157168df3371205ff243952f14eafaa4baf34014"
+      "computedHash": "cce62ca58f94eaf54e94fc07eb395cb02606639cc55e24215e82d6334469f7a8"
     },
     "recurring-run": {
       "source": "local",
@@ -254,7 +254,7 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "c0c0b36f13c9d6be045860601c780416cd8587e53179a043cf771a169362e1a6"
+      "computedHash": "4ae5fb1cf86080e93f28e7a25da25c950884281f3a7b3317bd96218405037da7"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",

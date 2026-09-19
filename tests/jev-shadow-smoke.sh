@@ -15,9 +15,9 @@ const runtimePolicy=(mode="shadow",overrides={})=>({mode,provider:"fixture",mode
 const request = validateJudgmentRequest({state:{text:"route this"},model:"jev-1.13.0",questions:{route:{type:"choice",instructions:"route",criteria:{answer:null,verify:null}},safe:{type:"noul",instructions:"safe?"},risk:{type:"score",instructions:"risk",criteria:["low","high"]}}});
 const body={model:"jev-1.13.0",answers:{route:{type:"choice",choice:"verify",probabilities:{answer:.2,verify:.8},confidence:.7},safe:{type:"noul",noul:.9},risk:{type:"score",score:.6,legend:{0:"low",1:"high"},probabilities:{0:.4,1:.6},confidence:.2}},usage:{input_tokens:12,output_tokens:4}};
 validateJudgmentResponse(request,body);
-let calls=0; let auth="";
-const response=await evaluateTypeSafe(request,{apiKey:"unit-secret",maxRetries:1,sleep:async()=>{},fetchImpl:async(_url,init)=>{calls++;auth=init.headers.authorization;if(calls===1)return {ok:false,status:429,headers:{get:()=>"0"}};return {ok:true,status:200,text:async()=>JSON.stringify(body),headers:{get:()=>null}};}});
-if(calls!==2||auth!=="Bearer unit-secret"||response.answers.route.choice!=="verify")throw new Error("retry/client contract failed");
+let calls=0; let auth=""; let requestCache=""; let cacheControl=""; let pragma="";
+const response=await evaluateTypeSafe(request,{apiKey:"unit-secret",maxRetries:1,sleep:async()=>{},fetchImpl:async(_url,init)=>{calls++;auth=init.headers.authorization;requestCache=init.cache;cacheControl=init.headers["cache-control"];pragma=init.headers.pragma;if(calls===1)return {ok:false,status:429,headers:{get:()=>"0"}};return {ok:true,status:200,text:async()=>JSON.stringify(body),headers:{get:()=>null}};}});
+if(calls!==2||auth!=="Bearer unit-secret"||requestCache!=="no-store"||cacheControl!=="no-store, no-cache, max-age=0"||pragma!=="no-cache"||response.answers.route.choice!=="verify")throw new Error("retry/live no-store client contract failed");
 let touched=false;
 try{await evaluateTypeSafe({...request,state:"api_key=very-secret-value"},{apiKey:"x",fetchImpl:async()=>{touched=true;}});}catch{}
 for(const secretState of ["password=hunter2",'{"password":"synthetic-only-secret"}','{"api_key":"synthetic-only-secret"}','curl -H "Authorization: Bearer synthetic-only-token" https://example.test','{"authorization":"Basic c3ludGhldGljLW9ubHk="}','Authorization: Basic dTpw']){
@@ -91,13 +91,17 @@ let runtimeRejected=false;try{validatePromotionManifest({...enforcedPolicy,max_s
 let observationRejected=false;try{validatePromotionManifest(enforcedPolicy,{...manifest,results:results.map(item=>({...item,confidence:0}))},corpus);}catch{observationRejected=true;}if(!observationRejected)throw new Error("tampered promotion observations accepted");
 let routerRejected=false;try{validatePromotionManifest(enforcedPolicy,{...manifest,results:results.map(item=>item.id==="a"?{...item,deterministic_choice:"verify"}:item)},corpus);}catch{routerRejected=true;}if(!routerRejected)throw new Error("counterfactual deterministic route accepted");
 JS
-health="$(ETABLI_SEMANTIC_MODE=shadow node "$ROOT/scripts/jev-shadow" health)"
-jq -e '.ok == true and .model == "jev-1.13.0" and .credential == "absent"' <<<"$health" >/dev/null
-corpus="$(ETABLI_SEMANTIC_MODE=disabled node "$ROOT/scripts/jev-shadow" corpus "$ROOT/tests/fixtures/jev-shadow/route-corpus.json")"
+health="$(node "$ROOT/scripts/jev-shadow" health)"
+jq -e '.ok == true and .mode == "enforced" and .mode_source == "locked_policy" and .execution == "live_http" and .cache == "no-store" and .model == "jev-1.13.0" and .credential == "absent"' <<<"$health" >/dev/null
+corpus="$(node "$ROOT/scripts/jev-shadow" corpus "$ROOT/tests/fixtures/jev-shadow/route-corpus.json")"
 jq -e '.synthetic == true and .total == 6 and .agreement_rate > 0 and .agreement_rate < 1 and .latency_ms.p95 > 0 and (.calibration_observations | length == 3) and (.results | all(.selected == .expected and (.probabilities | type == "object") and (.confidence | type == "number")))' <<<"$corpus" >/dev/null
-for mode in advisory; do
+for mode in shadow disabled advisory; do
   if ETABLI_SEMANTIC_MODE="$mode" node "$ROOT/scripts/jev-shadow" health >/dev/null 2>&1; then
     printf 'promotion mode unexpectedly enabled: %s\n' "$mode" >&2
+    exit 1
+  fi
+  if NODE_ENV=test ETABLI_SEMANTIC_MODE="$mode" node "$ROOT/scripts/jev-shadow" health >/dev/null 2>&1; then
+    printf 'test environment bypassed locked semantic mode: %s\n' "$mode" >&2
     exit 1
   fi
 done
@@ -115,7 +119,7 @@ mkdir -p "$TMP/runtime/.pi/agent"
 ln -s "$ROOT/pi/extensions" "$TMP/runtime/.pi/agent/extensions"
 bun -e "await import('$TMP/runtime/.pi/agent/extensions/workflow-router.ts')" >/dev/null
 mkdir -p "$TMP/local-root"
-cli_injected="$(printf '%s\n' '{"prompt":"plain route","deterministic_route":"answer","policy":{"mode":"advisory","model":"jev-latest","receipt_path":"../escape.jsonl"},"persistReceipt":false}' | ETABLI_SEMANTIC_MODE=shadow ETABLI_RECEIPT_ROOT="$TMP/local-root" node "$ROOT/scripts/jev-shadow" evaluate)"
+cli_injected="$(printf '%s\n' '{"prompt":"plain route","deterministic_route":"answer","policy":{"mode":"advisory","model":"jev-latest","receipt_path":"../escape.jsonl"},"persistReceipt":false}' | ETABLI_RECEIPT_ROOT="$TMP/local-root" node "$ROOT/scripts/jev-shadow" evaluate)"
 jq -e '.receipt.model == "jev-1.13.0" and .receipt.error_code == "missing_api_key"' <<<"$cli_injected" >/dev/null
 [ -s "$TMP/local-root/.workflow/semantic-judgments.jsonl" ]
 [ ! -e "$TMP/escape.jsonl" ]

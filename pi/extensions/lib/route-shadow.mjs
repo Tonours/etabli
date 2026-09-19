@@ -104,6 +104,7 @@ export function promotionRuntimeFingerprint(policy) {
       "pi/extensions/lib/semantic-judgment.mjs",
       "pi/extensions/lib/semantic-route.mjs",
       "pi/extensions/lib/typesafe-system-one.mjs",
+      "pi/extensions/workflow-router.ts",
     ].map((path) => [path, fingerprint(readFileSync(resolve(ROOT, path), "utf8"))])),
   });
 }
@@ -168,7 +169,9 @@ export function validatePromotionManifest(policy, manifest, corpus) {
 
 export function loadSemanticPolicy(path = resolve(ROOT, "workflow/runtime/semantic-judgment-policy.json")) {
   const policy = JSON.parse(readFileSync(path, "utf8"));
-  const mode = process.env.ETABLI_SEMANTIC_MODE || policy.mode;
+  const requestedMode = process.env.ETABLI_SEMANTIC_MODE;
+  if (requestedMode && requestedMode !== policy.mode) throw new Error("semantic mode is locked to checked-in policy");
+  const mode = policy.mode;
   if (!["disabled", "shadow", "advisory", "enforced"].includes(mode)) throw new Error("invalid semantic mode");
   if (mode === "advisory") throw new Error("semantic advisory mode is not implemented");
   const validated = validateRuntimePolicy({ ...policy, mode });

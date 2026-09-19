@@ -510,6 +510,7 @@ check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-workflow"
+check_script_link "jev-judge"
 check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"
 
 if prefer_cursor_agent_is_grok_collision "$HOME/.grok/bin/agent" "$HOME/.grok/bin/grok"; then
