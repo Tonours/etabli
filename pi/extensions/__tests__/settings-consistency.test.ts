@@ -96,10 +96,14 @@ describe("Pi settings consistency", () => {
       expect(source).toContain("skill_catalog_names");
 
     const agentsVisible = skillCatalog.filter((skill) => skill.agentsVisible);
-    expect(agentsVisible.every((skill) => skill.source === "pi")).toBe(true);
+    const vendorVisible = agentsVisible.filter(
+      (skill) => skill.source !== "pi",
+    );
+    expect(vendorVisible.map((skill) => skill.name)).toEqual(["typesafe-ai"]);
+    expect(vendorVisible.every((skill) => skill.piCore)).toBe(true);
 
     const coreVisible = agentsVisible
-      .filter((skill) => skill.piCore)
+      .filter((skill) => skill.piCore && skill.source === "pi")
       .map((skill) => skill.name);
     expect(
       coreVisible.every((skill) =>

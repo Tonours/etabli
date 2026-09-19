@@ -18,7 +18,7 @@ SKILL_CATALOG_MISSING=0
 if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; then
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
-  AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
+  AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" any agents_visible))
   # A present-but-degenerate catalog is corruption, not degradation:
   # fail loudly. (A genuinely absent catalog keeps the missing-catalog
   # degraded mode below.)

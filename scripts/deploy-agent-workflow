@@ -13,7 +13,7 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/etabli-scope.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
-AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" pi agents_visible) )
+AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" any agents_visible) )
 
 ACTIVE_SCOPES="shared"
 
@@ -416,7 +416,9 @@ deploy_pi() {
 
   for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     [ -n "$skill" ] || continue
-    link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.agents/skills/$skill" "Grok/agents-visible skill $skill"
+    skill_source="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill" || true)"
+    [ -n "$skill_source" ] || skill_source="$REPO_DIR/pi/skills/$skill"
+    link_path "$skill_source" "$HOME_DIR/.agents/skills/$skill" "Grok/agents-visible skill $skill"
   done
 
   if [ -d "$HOME_DIR/.agents/skills" ]; then
@@ -424,7 +426,7 @@ deploy_pi() {
       [ -L "$skill_link" ] || continue
       skill_target="$(readlink "$skill_link")"
       case "$skill_target" in
-        "$REPO_DIR/pi/skills/"*)
+        "$REPO_DIR/pi/skills/"*|"$REPO_DIR/vendor/"*)
           skill_name="$(basename "$skill_link")"
           if ! is_agents_visible_skill "$skill_name"; then
             remove_managed_path "$skill_link" "stale Grok/agents-visible skill $skill_name"

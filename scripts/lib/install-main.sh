@@ -21,7 +21,7 @@ SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
 readonly NERD_FONT_VERSION="v3.4.0"
 readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
-readonly AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
+readonly AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" any agents_visible))
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -487,7 +487,7 @@ prune_managed_agents_skills() {
         local target
         target="$(readlink "$skill_link")"
         case "$target" in
-        "$REPO_DIR/pi/skills/"*)
+        "$REPO_DIR/pi/skills/"*|"$REPO_DIR/vendor/"*)
             local skill_name
             skill_name="$(basename "$skill_link")"
             if ! is_agents_visible_skill "$skill_name"; then
