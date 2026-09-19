@@ -425,6 +425,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "ce9f1a1f7192a7d91dd86a55c7899b04930846979e56b6000ec58d48b1246cb4"
+    },
+    "typesafe-ai": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9cd84c5e535dec8dec59917c110f9c00b4a61faadb86b432ec7e41051170af12"
     }
   }
 }
