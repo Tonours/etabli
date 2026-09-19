@@ -15,6 +15,7 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 | `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — employer Ember frontend |
 | `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
 | `petergyang` | `petergyang/no-ai-slop` | `shared` | 1 — `no-ai-slop`, AI-slop editing pass |
+| `typesafe-ai` | `typesafe-ai/skills` | `shared` | 1 — `typesafe-ai`, build with TypeSafe System One (Jev) |
 
 pstack was vendored here until ADR-0023 migrated Pi to the
 `@zenspc/pi-pstack` npm port (see `docs/pstack-strategy.md`); the vendoring
