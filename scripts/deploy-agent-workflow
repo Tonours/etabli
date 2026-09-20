@@ -11,6 +11,7 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/skill-catalog.sh"
 . "$SCRIPT_DIR/lib/vendor-surfaces.sh"
 . "$SCRIPT_DIR/lib/etabli-scope.sh"
+. "$SCRIPT_DIR/lib/managed-surfaces.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" any agents_visible) )
@@ -83,62 +84,18 @@ status_line() {
   printf '%-14s %s\n' "$status" "$message"
 }
 
-backup_path() {
-  local path="$1"
-  local candidate="$path.bak.$TIMESTAMP"
-  local index=1
-
-  while [ -e "$candidate" ]; do
-    candidate="$path.bak.$TIMESTAMP.$index"
-    index=$((index + 1))
-  done
-
-  printf '%s\n' "$candidate"
+managed_surface_status() {
+  status_line "$@"
 }
 
 same_link() {
-  local source_path="$1"
-  local destination_path="$2"
-
-  [ -L "$destination_path" ] && [ "$(readlink "$destination_path")" = "$source_path" ]
+  managed_surface_same_link "$@"
 }
 
 link_path() {
-  local source_path="$1"
-  local destination_path="$2"
-  local label="$3"
-  local destination_dir
-  local backup
-
-  if [ ! -e "$source_path" ]; then
-    status_line MISSING "$label source missing: $source_path"
-    return 1
-  fi
-
-  if same_link "$source_path" "$destination_path"; then
-    status_line OK "$label"
-    return 0
-  fi
-
-  if [ "$DRY_RUN" -eq 1 ]; then
-    if [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
-      status_line WOULD_BACKUP "$destination_path"
-    fi
-    status_line WOULD_LINK "$label -> $source_path"
-    return 0
-  fi
-
-  destination_dir="$(dirname "$destination_path")"
-  mkdir -p "$destination_dir"
-
-  if [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
-    backup="$(backup_path "$destination_path")"
-    mv "$destination_path" "$backup"
-    status_line BACKUP "$backup"
-  fi
-
-  ln -s "$source_path" "$destination_path"
-  status_line LINK "$label"
+  local mode="deploy"
+  [ "${ETABLI_DEPLOY_CALLER:-}" = install ] && mode="install"
+  managed_surface_reconcile_link "$mode" "$@"
 }
 
 remove_managed_path() {
@@ -157,7 +114,7 @@ remove_managed_path() {
   fi
 
   if [ -d "$target_path" ] && [ ! -L "$target_path" ]; then
-    backup="$(backup_path "$target_path")"
+    backup="$(managed_surface_backup_path "$target_path" "$TIMESTAMP")"
     mv "$target_path" "$backup"
     status_line BACKUP "$backup"
     return 0
@@ -168,60 +125,11 @@ remove_managed_path() {
 }
 
 remove_exact_managed_link() {
-  local target_path="$1"
-  local label="$2"
-  local link_target
-  local expected_target
-
-  shift 2
-  if [ ! -e "$target_path" ] && [ ! -L "$target_path" ]; then
-    status_line OK "$label absent"
-    return 0
-  fi
-  if [ ! -L "$target_path" ]; then
-    status_line KEEP "$label unmanaged"
-    return 0
-  fi
-
-  link_target="$(readlink "$target_path")"
-  for expected_target in "$@"; do
-    [ "$link_target" = "$expected_target" ] || continue
-    if [ "$DRY_RUN" -eq 1 ]; then
-      status_line WOULD_REMOVE "$label"
-    else
-      rm -f "$target_path"
-      status_line REMOVE "$label"
-    fi
-    return 0
-  done
-
-  status_line KEEP "$label unmanaged"
+  managed_surface_remove_exact_link deploy "$@"
 }
 
 prune_stale_managed_claude_agent_links() {
-  local legacy_managed_dir="$REPO_DIR/claude/agents"
-  local scoped_managed_root="$REPO_DIR/claude/scopes"
-  local installed_dir="$HOME_DIR/.claude/agents"
-  local agent_link agent_target
-
-  [ -d "$installed_dir" ] || return 0
-
-  for agent_link in "$installed_dir"/*.md; do
-    [ -L "$agent_link" ] || continue
-    agent_target="$(readlink "$agent_link")"
-    case "$agent_target" in
-      "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
-      *) continue ;;
-    esac
-    [ -e "$agent_target" ] && continue
-
-    if [ "$DRY_RUN" -eq 1 ]; then
-      status_line WOULD_REMOVE "stale managed Claude agent $(basename "$agent_link")"
-    else
-      rm -f "$agent_link"
-      status_line REMOVE "stale managed Claude agent $(basename "$agent_link")"
-    fi
-  done
+  managed_surface_prune_stale_claude_agents deploy "$REPO_DIR" "$HOME_DIR"
 }
 
 node_available() {
@@ -241,51 +149,27 @@ pi_core_skills() {
 is_core_pi_skill() {
   local candidate="$1"
   local skill
-
-  [ -n "$candidate" ] || return 1
+  local skills=()
   while IFS= read -r skill; do
-    [ -n "$skill" ] || continue
-    [ "$candidate" = "$skill" ] && return 0
+    [ -n "$skill" ] && skills+=("$skill")
   done < <(pi_core_skills)
-
-  return 1
+  managed_surface_catalog_contains "$candidate" "${skills[@]}"
 }
 
 is_agents_visible_skill() {
   local candidate="$1"
-  local skill
-
-  [ -n "$candidate" ] || return 1
-  for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    [ -n "$skill" ] || continue
-    [ "$candidate" = "$skill" ] && return 0
-  done
-  return 1
-}
-
-prune_pi_sourced_skill_links() {
-  local surface skill_link skill_target
-
-  # Policy: Pi-authored skills live on Pi and shared agents surfaces only.
-  # A pi/skills link on the Claude, Codex or Devin surface is drift; remove it.
-  for surface in "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills"; do
-    [ -d "$surface" ] || continue
-    for skill_link in "$surface"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      case "$skill_target" in
-        "$REPO_DIR/pi/skills/"*)
-          remove_managed_path "$skill_link" "Pi-sourced skill link $(basename "$skill_link") on $surface"
-          ;;
-      esac
-    done
-  done
+  managed_surface_catalog_contains "$candidate" "${AGENTS_VISIBLE_SKILLS[@]}"
 }
 
 sync_pi_agent_settings() {
   local local_settings="$HOME_DIR/.pi/agent/settings.json"
   local tracked_settings="$REPO_DIR/pi/agent/settings.json"
   local tmp_settings
+  local sync_mode="deploy"
+
+  if [ "${ETABLI_DEPLOY_CALLER:-}" = install ]; then
+    sync_mode="install"
+  fi
 
   if [ "$DRY_RUN" -eq 0 ]; then
     mkdir -p "$HOME_DIR/.pi/agent"
@@ -298,10 +182,16 @@ sync_pi_agent_settings() {
     fi
 
     tmp_settings="$(mktemp)"
-    cp -L "$local_settings" "$tmp_settings"
-    rm "$local_settings"
-    mv "$tmp_settings" "$local_settings"
-    status_line MIGRATE "Pi agent settings symlink to local file"
+    if cp -L "$local_settings" "$tmp_settings" 2>/dev/null; then
+      rm "$local_settings"
+      mv "$tmp_settings" "$local_settings"
+      status_line MIGRATE "Pi agent settings symlink to local file"
+    else
+      rm -f "$tmp_settings"
+      rm "$local_settings"
+      cp "$tracked_settings" "$local_settings"
+      status_line COPY "Pi agent settings bootstrap after dangling symlink"
+    fi
   fi
 
   if [ ! -f "$local_settings" ]; then
@@ -320,7 +210,7 @@ sync_pi_agent_settings() {
   fi
 
   node "$SCRIPT_DIR/lib/pi-agent-settings-sync.mjs" \
-    "$local_settings" "$tracked_settings" "$DRY_RUN" "$TIMESTAMP" deploy
+    "$local_settings" "$tracked_settings" "$DRY_RUN" "$TIMESTAMP" "$sync_mode"
 }
 
 sync_claude_skill_overrides() {
@@ -376,7 +266,7 @@ deploy_pi() {
   link_path "$REPO_DIR/pi/extensions" "$HOME_DIR/.pi/agent/extensions" "Pi agent extensions"
   link_path "$REPO_DIR/pi/themes" "$HOME_DIR/.pi/themes" "Pi themes"
 
-  if [ "$HOME_DIR" = "$HOME" ]; then
+  if [ "$HOME_DIR" = "$HOME" ] && [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" != 1 ]; then
     pi_node_modules="$(pi_agent_node_modules_dir "$HOME_DIR")"
     if [ "$DRY_RUN" -eq 1 ]; then
       if same_link "$pi_node_modules" "$REPO_DIR/pi/extensions/node_modules"; then
@@ -389,30 +279,26 @@ deploy_pi() {
       link_path "$pi_node_modules" "$REPO_DIR/pi/extensions/node_modules" "Pi extension node_modules"
     fi
   else
-    status_line SKIP "Pi extension node_modules repo link for non-default home"
+    status_line SKIP "Pi extension node_modules repo link for isolated or non-default home"
   fi
 
   sync_pi_agent_settings
+
+  managed_surface_remove_symlink deploy \
+    "$HOME_DIR/.pi/damage-control-rules.json" \
+    "legacy Pi damage-control rules"
 
   while IFS= read -r skill; do
     [ -z "$skill" ] && continue
     link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.pi/agent/skills/$skill" "Pi skill $skill"
   done < <(pi_core_skills)
 
-  if [ -d "$HOME_DIR/.pi/agent/skills" ]; then
-    for skill_link in "$HOME_DIR/.pi/agent/skills"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      case "$skill_target" in
-        "$REPO_DIR/pi/skills/"*)
-          skill_name="$(basename "$skill_link")"
-          if ! is_core_pi_skill "$skill_name"; then
-            remove_managed_path "$skill_link" "stale Pi skill $skill_name"
-          fi
-          ;;
-      esac
-    done
-  fi
+  local core_skills=()
+  while IFS= read -r skill; do
+    [ -n "$skill" ] && core_skills+=("$skill")
+  done < <(pi_core_skills)
+  managed_surface_prune_unlisted_source_skills deploy "$REPO_DIR" "$HOME_DIR" \
+    .pi/agent/skills Pi pi "${core_skills[@]}"
 
   for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
     [ -n "$skill" ] || continue
@@ -421,20 +307,8 @@ deploy_pi() {
     link_path "$skill_source" "$HOME_DIR/.agents/skills/$skill" "Grok/agents-visible skill $skill"
   done
 
-  if [ -d "$HOME_DIR/.agents/skills" ]; then
-    for skill_link in "$HOME_DIR/.agents/skills"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      case "$skill_target" in
-        "$REPO_DIR/pi/skills/"*|"$REPO_DIR/vendor/"*)
-          skill_name="$(basename "$skill_link")"
-          if ! is_agents_visible_skill "$skill_name"; then
-            remove_managed_path "$skill_link" "stale Grok/agents-visible skill $skill_name"
-          fi
-          ;;
-      esac
-    done
-  fi
+  managed_surface_prune_unlisted_source_skills deploy "$REPO_DIR" "$HOME_DIR" \
+    .agents/skills Grok/agents-visible all "${AGENTS_VISIBLE_SKILLS[@]}"
 
   # Shared plan/workflow sources for ~/.agents skills
   # (../../PLAN_TEMPLATE.md and ../../workflow resolve here).
@@ -452,51 +326,6 @@ deploy_pi() {
   done
 }
 
-prune_vendor_skill_links() {
-  local surface skill_link skill_target link_name
-  local record_scope record_name record_dir record_pi_core record_vendor matched
-
-  for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
-    [ -d "$HOME_DIR/$surface" ] || continue
-    for skill_link in "$HOME_DIR/$surface"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      link_name="$(basename "$skill_link")"
-
-      case "$skill_target" in
-      */.agents/skills/* | */.claude/skills/* | */.codex/* | */.config/devin/*)
-        if [ ! -e "$skill_link" ]; then
-          remove_managed_path "$skill_link" "broken cross-surface mirror $link_name from $surface"
-          continue
-        fi
-        ;;
-      esac
-
-      matched=""
-      while IFS=$'\t' read -r record_scope record_name record_dir record_pi_core record_vendor; do
-        [ "$record_name" = "$link_name" ] || continue
-        case "$skill_target" in
-        *"/$record_vendor/skills/"*) ;;
-        *) continue ;;
-        esac
-        matched=1
-        if ! vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$ACTIVE_SCOPES"; then
-          remove_managed_path "$skill_link" "vendor skill $link_name not expected in $surface"
-        fi
-        break
-      done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
-
-      if [ -z "$matched" ]; then
-        case "$skill_target" in
-        "$REPO_DIR"/vendor/*/skills/*)
-          remove_managed_path "$skill_link" "orphan vendor skill $link_name from $surface"
-          ;;
-        esac
-      fi
-    done
-  done
-}
-
 deploy_vendor_skills() {
   local skill_name skill_dir record_scope record_pi_core record_vendor surface label
 
@@ -506,8 +335,9 @@ deploy_vendor_skills() {
     mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills" "$HOME_DIR/.agents/skills"
   fi
 
-  prune_pi_sourced_skill_links
-  prune_vendor_skill_links
+  managed_surface_prune_pi_cross_surface_links deploy "$REPO_DIR" "$HOME_DIR"
+  managed_surface_prune_stale_skill_links deploy "$REPO_DIR" "$HOME_DIR"
+  managed_surface_prune_vendor_skill_links deploy "$REPO_DIR" "$HOME_DIR" "$SKILL_CATALOG" "$ACTIVE_SCOPES"
 
   while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
@@ -592,11 +422,13 @@ deploy_claude() {
     "stale Claude handoff template" \
     "$REPO_DIR/claude/handoff-template.md"
 
-  for hook_file in "$REPO_DIR/claude/hooks"/*.mjs; do
+  for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
     [ -f "$hook_file" ] || continue
     hook_name="$(basename "$hook_file")"
     link_path "$hook_file" "$HOME_DIR/.claude/hooks/$hook_name" "Claude hook $hook_name"
   done
+
+  link_path "$REPO_DIR/claude/statusline-command.sh" "$HOME_DIR/.claude/statusline-command.sh" "Claude statusline command"
 
   link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "$HOME_DIR/.claude/settings.workflow-hooks.json" "Claude workflow hooks fragment"
 
@@ -613,6 +445,13 @@ deploy_claude() {
     for skill_dir in "$REPO_DIR/claude/scopes/$scope/skills"/*; do
       [ -d "$skill_dir" ] || continue
       skill_name="$(basename "$skill_dir")"
+      if managed_surface_skill_is_shadowed "$skill_name" "$ACTIVE_SCOPES"; then
+        remove_exact_managed_link \
+          "$HOME_DIR/.claude/skills/$skill_name" \
+          "shadowed Claude skill $skill_name" \
+          "$skill_dir"
+        continue
+      fi
       link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude skill $skill_name"
     done
 
@@ -631,12 +470,18 @@ deploy_claude() {
 
   link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"
 
-  if [ "$DRY_RUN" -eq 0 ] && [ "$HOME_DIR" = "$HOME" ] && [ -x "$SCRIPT_DIR/claude-skill-load-check" ]; then
+  if [ "$DRY_RUN" -eq 0 ] && [ "$HOME_DIR" = "$HOME" ] && \
+    [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" != 1 ] && [ -x "$SCRIPT_DIR/claude-skill-load-check" ]; then
     if ! "$SCRIPT_DIR/claude-skill-load-check"; then
-      status_line FAIL "Claude skill load check after apply (see output above)"
-      exit 1
+      if [ "${ETABLI_DEPLOY_CALLER:-}" = install ]; then
+        status_line WARN "Claude skill load check after installer convergence (see output above)"
+      else
+        status_line FAIL "Claude skill load check after apply (see output above)"
+        exit 1
+      fi
+    else
+      status_line OK "Claude skill load check after apply"
     fi
-    status_line OK "Claude skill load check after apply"
   fi
 }
 

@@ -1,87 +1,11 @@
-const COMPONENTS = [
-	"input_tokens",
-	"output_tokens",
-	"cache_read_tokens",
-	"cache_creation_tokens",
-];
+import {
+	addComponentTotals as sumComponents,
+	componentTotals,
+	maxComponentTotals as maxComponents,
+	zeroComponentTotals as zero,
+} from "./usage-accounting.mjs";
 
-function isNonNegInt(n) {
-	return typeof n === "number" && Number.isInteger(n) && n >= 0;
-}
-
-function componentOf(usage, keys) {
-	for (const key of keys) {
-		const value = Number(usage?.[key]);
-		if (isNonNegInt(value)) return value;
-	}
-	return 0;
-}
-
-export function componentTotals(usage) {
-	const input = componentOf(usage, [
-		"input_tokens",
-		"inputTokens",
-		"input",
-		"prompt_tokens",
-	]);
-	const output = componentOf(usage, [
-		"output_tokens",
-		"outputTokens",
-		"output",
-		"completion_tokens",
-	]);
-	const cacheRead = componentOf(usage, [
-		"cache_read_tokens",
-		"cache_read_input_tokens",
-		"cacheReadInputTokens",
-		"cacheRead",
-		"cache_read",
-	]);
-	const cacheCreation = componentOf(usage, [
-		"cache_creation_tokens",
-		"cache_creation_input_tokens",
-		"cacheCreationInputTokens",
-		"cacheCreation",
-		"cache_creation",
-	]);
-	return {
-		input_tokens: input,
-		output_tokens: output,
-		cache_read_tokens: cacheRead,
-		cache_creation_tokens: cacheCreation,
-		processed_total_tokens: input + output + cacheRead + cacheCreation,
-	};
-}
-
-function sumComponents(a, b) {
-	const out = {};
-	for (const key of COMPONENTS) out[key] = a[key] + b[key];
-	out.processed_total_tokens =
-		a.processed_total_tokens + b.processed_total_tokens;
-	return out;
-}
-
-function maxComponents(a, b) {
-	const out = {};
-	for (const key of COMPONENTS) out[key] = Math.max(a[key], b[key]);
-	out.processed_total_tokens =
-		out.input_tokens +
-		out.output_tokens +
-		out.cache_read_tokens +
-		out.cache_creation_tokens;
-	return out;
-}
-
-function zero() {
-	return {
-		input_tokens: 0,
-		output_tokens: 0,
-		cache_read_tokens: 0,
-		cache_creation_tokens: 0,
-		processed_total_tokens: 0,
-	};
-}
-
+export { componentTotals };
 export function usageFromHeadlessRecord(record) {
 	const usage = record?.result?.usage ?? record?.usage ?? null;
 	if (!usage || typeof usage !== "object") return null;

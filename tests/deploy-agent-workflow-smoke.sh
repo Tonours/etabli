@@ -30,6 +30,7 @@ ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.codex/skills/suite-router"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/external-skill"
 ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.config/devin/skills/suite-router"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.config/devin/skills/external-skill"
+ln -s "$TMP_DIR/legacy-damage-control.json" "$HOME_DIR/.pi/damage-control-rules.json"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -131,6 +132,8 @@ assert_link "$HOME_DIR/.claude/hooks/ledger-auto-emit.mjs" "$ROOT_DIR/claude/hoo
 assert_link "$HOME_DIR/.claude/hooks/outcome-metric-emit.mjs" "$ROOT_DIR/claude/hooks/outcome-metric-emit.mjs"
 assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
+assert_link "$HOME_DIR/.claude/statusline-command.sh" "$ROOT_DIR/claude/statusline-command.sh"
+assert_absent "$HOME_DIR/.pi/damage-control-rules.json"
 assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
 assert_link "$HOME_DIR/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/scopes/shared/skills/frontend-css-ui-ux"
 assert_link "$HOME_DIR/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/scopes/shared/skills/css-layout-primitives"
@@ -242,6 +245,41 @@ assert_absent "$HOME_DIR/.agents/skills/github-pr-review"
 assert_absent "$HOME_DIR/.agents/skills/suite-router"
 assert_absent "$HOME_DIR/.agents/skills/linear-project-setup"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
+
+DANGLING_HOME_DIR="$TMP_DIR/dangling-home"
+mkdir -p "$DANGLING_HOME_DIR/.pi/agent"
+ln -s "$TMP_DIR/missing-pi-settings.json" "$DANGLING_HOME_DIR/.pi/agent/settings.json"
+"$DEPLOY_SCRIPT" --apply --home "$DANGLING_HOME_DIR" >/dev/null
+assert_file "$DANGLING_HOME_DIR/.pi/agent/settings.json"
+if [ -L "$DANGLING_HOME_DIR/.pi/agent/settings.json" ]; then
+  printf 'deploy did not replace dangling Pi settings symlink with a local file\n' >&2
+  exit 1
+fi
+
+INSTALL_HOME_DIR="$TMP_DIR/install-home"
+mkdir -p "$INSTALL_HOME_DIR/.pi/agent"
+printf 'unmanaged target\n' >"$TMP_DIR/wrong-agent-source"
+ln -s "$TMP_DIR/wrong-agent-source" "$INSTALL_HOME_DIR/.pi/agent/AGENTS.md"
+printf '%s\n' '{"defaultProvider":"custom","defaultModel":"personal-model","enabledModels":[],"packages":[]}' \
+  >"$INSTALL_HOME_DIR/.pi/agent/settings.json"
+ETABLI_DEPLOY_CALLER=install "$DEPLOY_SCRIPT" --apply --home "$INSTALL_HOME_DIR" >/dev/null
+assert_link "$INSTALL_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
+if find "$INSTALL_HOME_DIR/.pi/agent" -maxdepth 1 -name 'AGENTS.md.bak.*' | grep -q .; then
+  printf 'installer convergence backed up a managed symlink instead of replacing it\n' >&2
+  exit 1
+fi
+node - "$INSTALL_HOME_DIR/.pi/agent/settings.json" <<'NODE'
+const fs = require("node:fs");
+const settings = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+if (!settings.enabledModels.includes("custom/personal-model")) {
+  throw new Error("installer convergence did not preserve the custom default model");
+}
+NODE
+
+grep -Fq '"$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh' "$DEPLOY_SCRIPT" || {
+  printf 'deploy must reconcile both JavaScript and shell Claude hooks\n' >&2
+  exit 1
+}
 
 node - "$HOME_DIR/.pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");

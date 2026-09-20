@@ -7,6 +7,34 @@ surfaces (shared `~/.agents`, Codex, Devin). The full link layout and the
 `shared`/`work`/`personal` scope system live in
 [`docs/symlink-layout.md`](docs/symlink-layout.md).
 
+## Why Etabli
+
+- **One contract, every harness.** A single `workflow/` source feeds Pi,
+  Claude, and the shared `~/.agents`/Codex/Devin surfaces through managed
+  links. Adapter routers are kept behaviorally identical against a shared
+  fixture set (`scripts/router-eval`), so a rule cannot drift per tool.
+- **The workflow is enforced by code, not prose.** Guards block the failure
+  modes instructions only warn about: mutations on a non-`READY` plan,
+  weakening frozen checks, staging plan files, non-read-only reviewer shells,
+  and default-branch pushes without explicit consent.
+- **Skills improve through gates, not vibes.** A skill or reviewer change is
+  a promotion gate: frozen task manifests, artifact fingerprints, strict
+  held-in gain with held-out and safety non-regression
+  (`workflow/skills/skill-evaluation.md`). The harness itself is evaluated
+  against frozen tasks with executable oracles and published null and
+  constant baselines (`docs/harness-eval.md`); reviewer misses land in a
+  bounded taxonomy and an eval corpus, not a growing checklist
+  (`workflow/skills/reviewer-improvement-loop.md`).
+- **Context is a budgeted resource.** Resident instruction bytes per route
+  are measured, ceilinged in CI, and can only ratchet down — the always-on
+  surface went from 28,423 to 16,150 chars (−43%) under that discipline
+  (`docs/workflow-context-budget.md`).
+- **A locked, vendored skill tree.** Skill packs are vendored verbatim with
+  `UPSTREAM_SHA` pins, integrity-locked (`skills-lock.json`), and deployed by
+  scope — including the TypeSafe skill: System One models such as Jev used as
+  typed programming primitives (Choice/Noul/Score judgments) on every
+  harness surface (`vendor/typesafe-ai/`).
+
 ## Install
 
 ```bash
@@ -54,6 +82,9 @@ One writer at a time is a protocol, not an OS lock. Long-running routes keep
 their rules in [`workflow/skills/self-improvement-loop.md`](workflow/skills/self-improvement-loop.md),
 [`workflow/skills/ambitious-project-loop.md`](workflow/skills/ambitious-project-loop.md),
 and [`workflow/skills/pr-maintenance-loop.md`](workflow/skills/pr-maintenance-loop.md).
+Autonomous runs stay inside a schema'd envelope: measured goals, iteration
+caps, forbidden actions, and a typed event ledger
+([`workflow/project-autonomy-envelope.md`](workflow/project-autonomy-envelope.md)).
 
 ## Useful commands
 
