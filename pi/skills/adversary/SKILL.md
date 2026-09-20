@@ -23,6 +23,11 @@ Rules:
   same-family samples; **high-risk** requires cross-model. Required passes run
   after Logic+Spec lead review; a single same-family pass cannot replace them.
 - Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
+- Resolve frontier candidates through
+  `workflow/runtime/adversary-model-policy.json`; exclude the author's
+  effective model family regardless of which harness owns the route.
+- A configured route without observed effective-model provenance is not a
+  completed cross-model pass.
 - High findings: accept/reject via cross-model (or second sample), not the
   implementer alone.
 - Plan-mode adversary is required before autonomous implementation completion.

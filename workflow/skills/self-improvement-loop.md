@@ -39,6 +39,13 @@ self-improvement-candidate` may shadow-classify a bounded candidate and observed
 outcome. The evidence requirements, candidate acceptance, PLAN gate, evaluator,
 and mutation permissions in this contract remain deterministic authority.
 
+For post-run harness traces, use `workflow/trace-self-improvement.md`. The
+current `prototype_offline` capability observes explicitly selected Pi or Claude
+episodes and may emit only `no_op` or a non-causal recommendation. Unknown,
+partial, unbound, or inconsistent traces cannot establish a failure pattern.
+Diagnostic, proposal, and automatic-promotion levels remain unavailable until
+their documented entry gates are independently verified.
+
 ## Harness Improvement Loop
 
 Use a Self-Harness-style loop when the improvement target is the workflow,

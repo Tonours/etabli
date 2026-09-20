@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+import { analyzeTraceEpisode, readBoundedRegularFile, TraceRetrospectError, unavailableTraceObservation, validateTraceRequest } from "./lib/harness-trace-retrospect.mjs";
+
+function parseArgs(argv) {
+  const options = { capability: "prototype_offline" };
+  for (let index = 0; index < argv.length; index += 1) {
+    const key = argv[index];
+    if (key === "--json") continue;
+    if (!["--adapter", "--trace-file", "--ledger", "--run", "--capability"].includes(key) || index + 1 >= argv.length) throw new TraceRetrospectError("invalid_arguments");
+    options[key.slice(2).replaceAll("-", "_")] = argv[++index];
+  }
+  for (const required of ["adapter", "trace_file", "ledger", "run"]) if (!options[required]) throw new TraceRetrospectError("invalid_arguments");
+  return options;
+}
+
+try {
+  const options = parseArgs(process.argv.slice(2));
+  validateTraceRequest({ adapter: options.adapter, run: options.run, capability: options.capability });
+  let traceText;
+  let ledgerText;
+  try {
+    traceText = readBoundedRegularFile(options.trace_file);
+    ledgerText = readBoundedRegularFile(options.ledger);
+  } catch (error) {
+    if (!(error instanceof TraceRetrospectError) || !error.code.startsWith("input_")) throw error;
+    process.stdout.write(`${JSON.stringify(unavailableTraceObservation(options.adapter, [error.code]), null, 2)}\n`);
+    process.exit(0);
+  }
+  const result = analyzeTraceEpisode({
+    adapter: options.adapter,
+    traceText,
+    ledgerText,
+    run: options.run,
+    capability: options.capability,
+  });
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+} catch (error) {
+  const code = error instanceof TraceRetrospectError ? error.code : "internal_error";
+  process.stderr.write(`harness-trace-retrospect:${code}\n`);
+  process.exit(2);
+}

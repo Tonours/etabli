@@ -50,7 +50,7 @@
       "egress_class": "private_opt_in",
       "max_state_chars": 6000,
       "deterministic_owner": "workflow/skills/self-improvement-loop.md",
-      "state_schema": { "candidate": "nonempty_string", "evidence": "nonempty_string" },
+      "state_schema": { "candidate": "self_improvement_candidate", "evidence": "self_improvement_evidence" },
       "questions": {
         "bucket": { "type": "choice", "instructions": "Choose the single best improvement bucket.", "criteria": { "tooling": "Tooling or runtime capability.", "workflow": "Workflow sequencing or control.", "documentation": "Instructions or durable knowledge.", "testing": "Validation or evidence quality.", "prompting": "Prompt or context design." } },
         "outcome": { "type": "choice", "instructions": "Classify the observed outcome without inventing evidence.", "criteria": { "success": "Goal achieved with evidence.", "partial": "Some value delivered but goal incomplete.", "blocked": "External or authority blocker remains.", "failed": "Attempt failed without useful completion.", "inconclusive": "Evidence cannot determine outcome.", "not_attempted": "No implementation attempt occurred." } }

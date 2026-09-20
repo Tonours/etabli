@@ -11,9 +11,14 @@ Follow the shared contract in `workflow/skills/adversary.md` (plan mode and
 code-diff mode). The routing map `workflow/spec.md` wins on conflict; open it
 only when the route or a gate is in doubt.
 
-For plan mode and cross-model code-diff passes, prefer a **different model family**
-than Claude, served by Pi. Prefer the pinned model `openai-codex/gpt-5.5`
-(GPT-family). Fallbacks when unavailable: `xai/grok-4.5`, then `zai/glm-5.2`.
+For plan mode and cross-model code-diff passes, select a **different model
+family** from the author through
+`workflow/runtime/adversary-model-policy.json`, regardless of which harness
+owns the route. From Claude, prefer `gpt-6-astra` through Codex; configured
+fallback families are `xai/grok-4.6`, `zai/glm-5.3`, `kimi-coding/k3`,
+`opencode-go/qwen3.8-max`, and `opencode-go/deepseek-v4-pro` through Pi.
+Requested-model success is insufficient: record the effective model or stop as
+blocked.
 Code-diff independence follows `workflow/skills/adversary.md`: **small** skips
 the pass; **standard** accepts cross-model or two fresh independent same-family
 samples; **high-risk** requires cross-model. A single same-family pass cannot
@@ -37,18 +42,18 @@ repo command.
    then `../../workflow/skills/adversary.md`. Use `$ARGUMENTS` if given, else `./PLAN.md`. If absent,
    stop and say so (run `/plan-loop` first).
 
-2. **Run Pi as an adversarial reviewer**, piping the plan in. One Bash call:
+2. **Run a frontier model as an adversarial reviewer**, using the first
+   configured route whose family differs from Claude. The preferred Codex call
+   is read-only:
 
    ```bash
-   (cat ./PLAN.md; printf '\n\n') | pi -p \
-     --model openai-codex/gpt-5.5 \
-     --tools read \
-     "You are an adversarial plan reviewer from a different model family than the plan's author. Assume the plan has flaws. Hunt for: blockers, weak or unstated assumptions, missing edge cases, factual claims that need verification, plan drift, and places where a simpler or safer approach was overlooked. Be specific and cite the section. Do NOT rewrite the plan. Output findings ordered by severity (BLOCKER / HIGH / MEDIUM / LOW), each one line: severity, the issue, and the concrete fix. End with a one-line verdict: GO / GO WITH NOTES / BLOCK."
+   codex exec --cd "$PWD" --sandbox read-only --model gpt-6-astra \
+     "Review PLAN.md as an adversarial reviewer from a different model family. Do not edit. Hunt blockers, weak assumptions, missing edge cases, validation gaps, plan drift, and simpler or safer routes. Cite sections and end with GO, GO WITH NOTES, or BLOCK."
    ```
 
-   Replace `./PLAN.md` with the resolved path. `pi -p` prints the final review
-   to stdout. If `openai-codex/gpt-5.5` fails (auth/catalog), retry once with
-   `xai/grok-4.5`, then `zai/glm-5.2`, and say which model produced the review.
+   If that route is unavailable, use the policy's Pi routes in listed family
+   order with `pi -p --model <route-model> --tools read`. Say which requested
+   route ran and which effective model the transcript or runtime proved.
 
 3. **Relay the reviewer's findings verbatim** to the user, attributed to the
    actual reviewer model. Do not soften or merge them yet.

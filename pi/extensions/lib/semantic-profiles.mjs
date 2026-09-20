@@ -10,9 +10,29 @@ export const DEFAULT_PROFILE_POLICY_PATH = join(ROOT, "workflow/runtime/semantic
 const AUTHORITIES = new Set(["shadow", "advisory"]);
 const EGRESS_CLASSES = new Set(["public_or_sanitized", "private_opt_in", "metadata_only"]);
 const UNCERTAINTY_KEYS = new Set(["choice_min_confidence", "choice_min_margin", "noul_false_max", "noul_true_min", "score_min_confidence"]);
-const STATE_FIELD_TYPES = new Set(["nonempty_string", "true", "false"]);
+const STATE_FIELD_TYPES = new Set(["nonempty_string", "true", "false", "self_improvement_candidate", "self_improvement_evidence"]);
 const SENSITIVE_KEYS = new Set(["token", "accesstoken", "refreshtoken", "idtoken", "apikey", "secret", "clientsecret", "password", "passwd", "cookie", "cookies", "authorization", "credential", "credentials", "privatekey", "accesskey", "awsaccesskeyid", "awssecretaccesskey", "sessioncookie"]);
 const SAFE_TOKEN_METADATA_KEYS = new Set(["inputtokens", "outputtokens", "totaltokens", "maxtokens", "tokencount", "tokenbudget"]);
+const SELF_IMPROVEMENT_CANDIDATE = /^action=(no_op|recommendation);category=(no_issue|validation_failure|tool_failure|review_rework|plan_rework|context_pressure|incomplete_evidence);target=(none|skill|rule|testing|tooling|context)$/;
+const SELF_IMPROVEMENT_EVIDENCE = /^runs=([1-9][0-9]{0,3});complete=(true|false);terminal=(completed|blocked);verifier=(true|false)$/;
+const COMPLETE_SELF_IMPROVEMENT_CANDIDATES = new Set([
+  "action=no_op;category=no_issue;target=none",
+  "action=recommendation;category=validation_failure;target=testing",
+  "action=recommendation;category=tool_failure;target=tooling",
+  "action=recommendation;category=review_rework;target=rule",
+  "action=recommendation;category=plan_rework;target=skill",
+  "action=recommendation;category=context_pressure;target=context",
+]);
+const PARTIAL_SELF_IMPROVEMENT_CANDIDATE = "action=no_op;category=incomplete_evidence;target=none";
+const SELF_IMPROVEMENT_STATE_SCHEMA = {
+  candidate: "self_improvement_candidate",
+  evidence: "self_improvement_evidence",
+};
+const SELF_IMPROVEMENT_PROFILE_ENVELOPE = {
+  authority: "shadow",
+  egress_class: "private_opt_in",
+  deterministic_owner: "workflow/skills/self-improvement-loop.md",
+};
 
 function plainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -45,6 +65,19 @@ function validateStateSchema(profile, state, id) {
     if (type === "nonempty_string" && (typeof value !== "string" || !value.trim())) throw new Error(`invalid state field ${id}.${field}`);
     if (type === "true" && value !== true) throw new Error(`invalid state field ${id}.${field}`);
     if (type === "false" && value !== false) throw new Error(`invalid state field ${id}.${field}`);
+    if (type === "self_improvement_candidate" && (typeof value !== "string" || !SELF_IMPROVEMENT_CANDIDATE.test(value))) throw new Error(`invalid state field ${id}.${field}`);
+    if (type === "self_improvement_evidence") {
+      const match = typeof value === "string" && value.match(SELF_IMPROVEMENT_EVIDENCE);
+      if (!match || Number(match[1]) > 1000) throw new Error(`invalid state field ${id}.${field}`);
+    }
+  }
+  if (profile.state_schema.candidate === "self_improvement_candidate" && profile.state_schema.evidence === "self_improvement_evidence") {
+    if (Object.keys(state).sort().join(",") !== "candidate,evidence") throw new Error(`invalid state field ${id}.candidate`);
+    const candidate = state.candidate.match(SELF_IMPROVEMENT_CANDIDATE);
+    const evidence = state.evidence.match(SELF_IMPROVEMENT_EVIDENCE);
+    const canonicalCandidate = candidate[0];
+    const complete = evidence[2] === "true";
+    if (complete ? !COMPLETE_SELF_IMPROVEMENT_CANDIDATES.has(canonicalCandidate) : canonicalCandidate !== PARTIAL_SELF_IMPROVEMENT_CANDIDATE) throw new Error(`invalid state field ${id}.candidate`);
   }
 }
 
@@ -58,8 +91,19 @@ export function validateProfilePolicy(policy) {
   for (const [id, profile] of Object.entries(policy.profiles)) {
     if (!/^[a-z][a-z0-9-]{1,63}$/.test(id) || !plainObject(profile)) throw new Error(`invalid profile ${id}`);
     if (!profile.purpose || !AUTHORITIES.has(profile.authority) || !EGRESS_CLASSES.has(profile.egress_class) || !profile.deterministic_owner) throw new Error(`invalid profile metadata ${id}`);
+    if (id === "self-improvement-candidate") {
+      if (stableJson(profile.state_schema) !== stableJson(SELF_IMPROVEMENT_STATE_SCHEMA)) throw new Error(`invalid state schema ${id}`);
+      for (const [field, value] of Object.entries(SELF_IMPROVEMENT_PROFILE_ENVELOPE)) {
+        if (profile[field] !== value) throw new Error(`invalid profile metadata ${id}`);
+      }
+    }
     if (!Number.isInteger(profile.max_state_chars) || profile.max_state_chars < 256 || profile.max_state_chars > 10000) throw new Error(`invalid max state ${id}`);
-    validateStateSchema(profile, Object.fromEntries(Object.entries(profile.state_schema || {}).map(([field, type]) => [field, type === "nonempty_string" ? "fixture" : type === "true"])), id);
+    validateStateSchema(profile, Object.fromEntries(Object.entries(profile.state_schema || {}).map(([field, type]) => {
+      if (type === "nonempty_string") return [field, "fixture"];
+      if (type === "self_improvement_candidate") return [field, "action=no_op;category=no_issue;target=none"];
+      if (type === "self_improvement_evidence") return [field, "runs=1;complete=true;terminal=completed;verifier=true"];
+      return [field, type === "true"];
+    })), id);
     if (!plainObject(profile.questions) || (!profile.builder && Object.keys(profile.questions).length === 0) || (profile.builder && profile.builder !== "skill-suggestion-v1")) throw new Error(`questions required ${id}`);
     const request = { model: policy.model, state: { validation: true }, questions: profile.builder ? { placeholder: { type: "noul", instructions: "Validation placeholder." } } : profile.questions };
     validateJudgmentRequest(request);
@@ -195,8 +239,8 @@ export function appendProfileReceipt(cwd, policy, receipt) {
  * @returns {Promise<any>}
  */
 export async function evaluateSemanticProfile({ profileId, state, questions = undefined, policy = loadSemanticProfilePolicy(), provider = evaluateTypeSafe, allowProviderEgress = false, persistReceipt = true, cwd = process.cwd() }) {
-  policy = validateProfilePolicy(policy);
-  const profile = policy.profiles[profileId];
+  const policySnapshot = validateProfilePolicy(structuredClone(policy));
+  const profile = policySnapshot.profiles[profileId];
   if (!profile) throw new Error(`unknown profile: ${profileId}`);
   const started = Date.now();
   let request;
@@ -205,16 +249,16 @@ export async function evaluateSemanticProfile({ profileId, state, questions = un
   let outcome = "abstain";
   let errorCode = null;
   try {
-    request = prepareProfileRequest(profileId, state, { policy, questions });
+    request = prepareProfileRequest(profileId, state, { policy: policySnapshot, questions });
     if (allowProviderEgress !== true) throw new Error("provider egress not allowed");
-    response = validateJudgmentResponse(request, await provider(request, { timeoutMs: policy.timeout_ms, maxRetries: policy.max_retries }));
+    response = validateJudgmentResponse(request, await provider(request, { timeoutMs: policySnapshot.timeout_ms, maxRetries: policySnapshot.max_retries }));
     decisions = interpretProfileResponse(profile, response);
     outcome = Object.values(decisions).some((decision) => decision.status === "uncertain") ? "uncertain" : "accepted";
   } catch (error) {
     errorCode = String(error?.code || error?.message || "evaluation_error").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase().slice(0, 80);
-    if (!request) request = { model: policy.model, state: { rejected: true }, questions: profile?.questions ?? {} };
+    if (!request) request = { model: policySnapshot.model, state: { rejected: true }, questions: profile?.questions ?? {} };
   }
-  const receipt = receiptFor({ profileId, policy, profile, request, response, decisions, latencyMs: Date.now() - started, outcome, errorCode });
-  if (persistReceipt) appendProfileReceipt(cwd, policy, receipt);
+  const receipt = receiptFor({ profileId, policy: policySnapshot, profile, request, response, decisions, latencyMs: Date.now() - started, outcome, errorCode });
+  if (persistReceipt) appendProfileReceipt(cwd, policySnapshot, receipt);
   return { profile: profileId, authority: profile.authority, answers: response?.answers ?? null, decisions, outcome, error_code: errorCode, receipt };
 }

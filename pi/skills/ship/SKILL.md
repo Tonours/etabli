@@ -23,9 +23,10 @@ Pi specifics:
   worktree as cwd.
 - The autonomous chain phases are described in `plan-implement`; reuse them
   verbatim, including the fresh-context reviewer subagent and the
-  non-interactive adversary pass. Pi runs non-Claude models, so the adversary
-  pass is a genuine cross-model sample: name `adversary_model` per
-  `workflow/skills/adversary.md`.
+  non-interactive adversary pass. Resolve its model through the shared frontier
+  policy and exclude the implementation author's effective family; merely
+  running through Pi does not prove cross-model independence. Name
+  `adversary_model` per `workflow/skills/adversary.md`.
 - Use `gh` for push status, PR creation, and CI checks.
 
 Rules:

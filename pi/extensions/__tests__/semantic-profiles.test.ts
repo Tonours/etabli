@@ -51,7 +51,7 @@ describe("semantic profiles", () => {
 		}
 		const states: Record<string, Record<string, unknown>> = {
 			"reviewer-finding": { finding: "Possible null dereference.", evidence: "The value is used before the guard." },
-			"self-improvement-candidate": { candidate: "Add a regression check.", evidence: "The same failure occurred twice." },
+			"self-improvement-candidate": { candidate: "action=recommendation;category=validation_failure;target=testing", evidence: "runs=2;complete=true;terminal=completed;verifier=true" },
 			"project-hunt-evidence": { claim: "Teams repeat this task.", evidence: "Three dated practitioner reports describe it." },
 			"conversation-signal": { excerpt: "Please verify the result before calling it complete." },
 			"knowledge-passage": { query: "How is deployment authorized?", passage: "Deployment requires explicit approval." },
@@ -64,6 +64,49 @@ describe("semantic profiles", () => {
 		for (const [profileId, state] of Object.entries(states)) {
 			const result = await evaluateSemanticProfile({ profileId, state, policy, persistReceipt: false, allowProviderEgress: true, provider: async (request: any) => responseFor(request) });
 			expect(result.outcome).toBe("accepted");
+		}
+	});
+
+	test("rejects non-canonical self-improvement state at the shared API boundary", () => {
+		const policy = loadSemanticProfilePolicy();
+		const valid = {
+			candidate: "action=recommendation;category=validation_failure;target=testing",
+			evidence: "runs=2;complete=true;terminal=completed;verifier=true",
+		};
+		expect(prepareProfileRequest("self-improvement-candidate", valid, { policy }).state).toEqual(valid);
+		const partial = {
+			candidate: "action=no_op;category=incomplete_evidence;target=none",
+			evidence: "runs=1;complete=false;terminal=completed;verifier=true",
+		};
+		expect(prepareProfileRequest("self-improvement-candidate", partial, { policy }).state).toEqual(partial);
+		for (const state of [
+			{ ...valid, candidate: "Add a regression check." },
+			{ ...valid, candidate: [valid.candidate] },
+			{ ...valid, candidate: `${valid.candidate};prompt=raw` },
+			{ ...valid, candidate: "category=validation_failure;action=recommendation;target=testing" },
+			{ ...valid, candidate: "action=recommendation;category=unknown;target=testing" },
+			{ ...valid, candidate: "action=no_op;category=validation_failure;target=testing" },
+			{ ...valid, candidate: "action=recommendation;category=no_issue;target=none" },
+			{ ...partial, evidence: "runs=1;complete=true;terminal=completed;verifier=true" },
+			{ ...valid, unexpected: "raw-context" },
+			{ ...valid, evidence: "runs=0;complete=true;terminal=completed;verifier=true" },
+			{ ...valid, evidence: "runs=1001;complete=true;terminal=completed;verifier=true" },
+			{ ...valid, evidence: "runs=2;complete=true;terminal=completed;verifier=true;extra=x" },
+			{ ...valid, evidence: "runs=2;complete=false;terminal=completed;verifier=true" },
+		]) {
+			expect(() => prepareProfileRequest("self-improvement-candidate", state, { policy })).toThrow("invalid state field");
+		}
+		const weakenedPolicy = structuredClone(policy);
+		weakenedPolicy.profiles["self-improvement-candidate"].state_schema = { candidate: "nonempty_string", evidence: "nonempty_string" };
+		expect(() => prepareProfileRequest("self-improvement-candidate", { candidate: "private trace content", evidence: "private user prompt" }, { policy: weakenedPolicy })).toThrow("invalid state schema");
+		for (const [field, value] of [
+			["authority", "advisory"],
+			["egress_class", "public_or_sanitized"],
+			["deterministic_owner", "caller-controlled"],
+		] as const) {
+			const relabeledPolicy = structuredClone(policy);
+			relabeledPolicy.profiles["self-improvement-candidate"][field] = value;
+			expect(() => prepareProfileRequest("self-improvement-candidate", valid, { policy: relabeledPolicy })).toThrow("invalid profile metadata");
 		}
 	});
 
@@ -117,6 +160,31 @@ describe("semantic profiles", () => {
 			expect(receipt).not.toContain("unique private fixture");
 			expect(receipt).not.toContain("provider-private-payload");
 		} finally { rmSync(cwd, { recursive: true, force: true }); }
+	});
+
+	test("snapshots self-improvement authority before asynchronous provider work", async () => {
+		const policy = loadSemanticProfilePolicy();
+		const result = await evaluateSemanticProfile({
+			profileId: "self-improvement-candidate",
+			state: {
+				candidate: "action=no_op;category=no_issue;target=none",
+				evidence: "runs=1;complete=true;terminal=completed;verifier=true",
+			},
+			policy,
+			persistReceipt: false,
+			allowProviderEgress: true,
+			provider: async (request: any) => {
+				policy.profiles["self-improvement-candidate"].authority = "advisory";
+				policy.profiles["self-improvement-candidate"].egress_class = "public_or_sanitized";
+				policy.profiles["self-improvement-candidate"].deterministic_owner = "caller-controlled";
+				return responseFor(request);
+			},
+		});
+		expect(result.authority).toBe("shadow");
+		expect(result.receipt).toMatchObject({
+			authority: "shadow",
+			egress_class: "private_opt_in",
+		});
 	});
 
 	test("refuses a symlinked receipt directory", async () => {
