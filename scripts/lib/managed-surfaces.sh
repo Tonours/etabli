@@ -392,6 +392,7 @@ managed_surface_prune_vendor_skill_links() {
       esac
       matched=""
       while IFS=$'\t' read -r record_scope record_name _record_dir record_pi_core record_vendor; do
+        [ -z "$matched" ] || continue
         [ "$record_name" = "$link_name" ] || continue
         case "$skill_target" in
         *"/$record_vendor/skills/"*) ;;
@@ -401,7 +402,6 @@ managed_surface_prune_vendor_skill_links() {
         if ! vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
           managed_surface_prune_link "$mode" "$skill_link" "vendor skill $link_name not expected in $surface"
         fi
-        break
       done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
       if [ -z "$matched" ]; then
         case "$skill_target" in

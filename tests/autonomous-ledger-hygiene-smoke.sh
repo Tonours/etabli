@@ -36,12 +36,12 @@ expect_status() {
 append_autonomous_before_metric() {
   local slug="$1"
   "$EVENT" --dir "$DIR" append "$slug" plan_created '{"path":"PLAN.md","status":"READY"}'
-  "$EVENT" --dir "$DIR" append "$slug" adversary_completed '{"mode":"plan","verdict":"pass","accepted_findings":[],"rejected_findings":[]}'
+  "$EVENT" --dir "$DIR" append "$slug" adversary_completed '{"mode":"plan","verdict":"READY","accepted_findings":[],"rejected_findings":[]}'
   "$EVENT" --dir "$DIR" append "$slug" file_changed '{"path":"scripts/x","change":"added"}'
   "$EVENT" --dir "$DIR" append "$slug" validation_run '{"command":"true","exit":0}'
-  "$EVENT" --dir "$DIR" append "$slug" adversary_completed '{"mode":"code_diff","verdict":"pass","accepted_findings":[],"rejected_findings":[]}'
+  "$EVENT" --dir "$DIR" append "$slug" adversary_completed '{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}'
   "$EVENT" --dir "$DIR" append "$slug" simplification_completed '{"status":"ok","evidence":"none"}'
-  "$EVENT" --dir "$DIR" append "$slug" review_completed '{"status":"pass","evidence":"fresh-context GO"}'
+  "$EVENT" --dir "$DIR" append "$slug" review_completed '{"status":"GO","evidence":"fresh-context GO"}'
 }
 
 append_autonomous_after_metric() {
