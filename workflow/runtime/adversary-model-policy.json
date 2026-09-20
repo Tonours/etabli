@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "policy_version": "2026-09-20",
+  "selection": {
+    "require_distinct_author_family": true,
+    "prefer_direct_provider_route": true,
+    "require_effective_model_provenance": true,
+    "unattested_result": "blocked"
+  },
+  "frontier_pool": [
+    {
+      "family": "openai",
+      "model": "gpt-6-astra",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "codex", "model": "gpt-6-astra" }
+      ]
+    },
+    {
+      "family": "anthropic",
+      "model": "claude-opus-5",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "claude", "model": "opus" },
+        { "harness": "pi", "model": "cursor/claude-opus-5@1m" }
+      ]
+    },
+    {
+      "family": "xai",
+      "model": "grok-4.6",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "pi", "model": "xai/grok-4.6" },
+        { "harness": "grok", "model": "grok-4.6" }
+      ]
+    },
+    {
+      "family": "zai",
+      "model": "glm-5.3",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "pi", "model": "zai/glm-5.3" }
+      ]
+    },
+    {
+      "family": "moonshot",
+      "model": "kimi-k3",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "pi", "model": "kimi-coding/k3" }
+      ]
+    },
+    {
+      "family": "alibaba",
+      "model": "qwen3.8-max",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "pi", "model": "opencode-go/qwen3.8-max" }
+      ]
+    },
+    {
+      "family": "deepseek",
+      "model": "deepseek-v4-pro",
+      "availability": "configured_unverified",
+      "routes": [
+        { "harness": "pi", "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    }
+  ]
+}

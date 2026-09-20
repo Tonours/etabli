@@ -76,3 +76,20 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
 5. Fold accepted findings as fixes; re-run checks after any fix.
 6. Verdict: `GO`, `GO WITH NOTES`, or `BLOCK`. A surviving blocker stops the
    run as `blocked`.
+
+## Cross-harness frontier pool
+
+`workflow/runtime/adversary-model-policy.json` is the canonical model pool.
+Selection depends on the implementation author's effective model family, not
+on the harness currently driving the workflow:
+
+1. exclude the author's family;
+2. choose a configured route from the strongest available frontier pool;
+3. prefer a direct provider route over an aggregator route;
+4. record requested and effective provider/model/family plus runner and run id;
+5. treat missing effective-model provenance as `blocked`, even when the model
+   was requested successfully.
+
+`configured_unverified` means the route exists in the local catalog or harness
+configuration. It is not proof that credentials, quota, or a live call work.
+Never describe the JSON order as a benchmark ranking.

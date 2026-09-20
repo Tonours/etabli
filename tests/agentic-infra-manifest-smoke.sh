@@ -61,6 +61,7 @@ supply-chain-smoke
 skill-lock
 jev-judge-smoke
 jev-shadow-smoke
+harness-trace-retrospect-smoke
 review-contract-surface-smoke
 worker-recovery-smoke
 workflow-context-budget-smoke'
@@ -73,12 +74,12 @@ workflow-context-budget-smoke'
 # Core budget: 19 checks. Bumped from 18 (2026-09-13) to add
 # workflow-context-budget-smoke (<1s, hermetic) — the ratchet gate on resident
 # instruction context.
-# Core budget: 21 checks. The existing Jev shadow gate and the new offline-first
-# profile/CLI smoke protect both semantic surfaces without making provider calls.
+# Core budget: 22 checks. The Jev gates and offline trace-retrospect smoke
+# protect the semantic surfaces without making provider calls.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 21 ] ||
-	fail "core profile exceeds 21 checks"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 22 ] ||
+	fail "core profile exceeds 22 checks"
 
 expected_full='pr-latest-head-status-smoke
 leap-harness-validation-smoke

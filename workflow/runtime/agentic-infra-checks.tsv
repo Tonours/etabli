@@ -17,6 +17,7 @@ core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
 core	pi	skill-lock	builtin:skill-lock
 core	shell-docs	jev-judge-smoke	tests/jev-judge-smoke.sh
 core	shell-docs	jev-shadow-smoke	tests/jev-shadow-smoke.sh
+core	shell-docs	harness-trace-retrospect-smoke	tests/harness-trace-retrospect-smoke.sh
 core	shell-docs	review-contract-surface-smoke	tests/review-contract-surface-smoke.sh
 core	shell-docs	worker-recovery-smoke	tests/worker-recovery-smoke.sh
 core	shell-docs	workflow-context-budget-smoke	tests/workflow-context-budget-smoke.sh

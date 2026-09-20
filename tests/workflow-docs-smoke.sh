@@ -171,6 +171,8 @@ assert_file "$ROOT_DIR/scripts/program-state"
 assert_file "$ROOT_DIR/tests/evidence-proof-smoke.sh"
 assert_file "$ROOT_DIR/tests/program-state-smoke.sh"
 assert_file "$ROOT_DIR/workflow/skills/self-improvement-loop.md"
+assert_file "$ROOT_DIR/workflow/trace-self-improvement.md"
+assert_file "$ROOT_DIR/workflow/trace-observation.schema.json"
 assert_file "$ROOT_DIR/workflow/skills/ambitious-project-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
 assert_file "$ROOT_DIR/workflow/skills/skill-evaluation.md"
@@ -444,6 +446,10 @@ assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" '## Product Dogfood'
 assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Do not convert a blocked scenario into `pass`.'
 assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'never applies patches'
 assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'strict held-in gain'
+assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'prototype_offline'
+assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'promote_automatic'
+assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'capability_not_available'
+assert_contains "$ROOT_DIR/workflow/trace-observation.schema.json" '"allOf"'
 assert_contains "$ROOT_DIR/workflow/skills/ambitious-project-loop.md" 'Push, PR, merge, deploy'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
@@ -458,6 +464,23 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/docs/plan/README.md" 'It is a memory shelf, not an active planning workspace.'
 assert_contains "$ROOT_DIR/workflow/plan-archive.md" 'Archive a plan if and only if it was implemented and validation ran.'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Do not implement.'
+assert_file "$ROOT_DIR/workflow/runtime/adversary-model-policy.json"
+jq -e '
+  .schema_version == 1 and
+  .selection.require_distinct_author_family == true and
+  .selection.require_effective_model_provenance == true and
+  .selection.unattested_result == "blocked" and
+  ([.frontier_pool[].family] | unique | length) == 7 and
+  ([.frontier_pool[].model] | sort) == (["gpt-6-astra","claude-opus-5","grok-4.6","glm-5.3","kimi-k3","qwen3.8-max","deepseek-v4-pro"] | sort) and
+  all(.frontier_pool[]; .availability == "configured_unverified" and (.routes | length) > 0)
+' "$ROOT_DIR/workflow/runtime/adversary-model-policy.json" >/dev/null
+jq -e --slurpfile settings "$ROOT_DIR/pi/agent/settings.json" '
+  all([.frontier_pool[].routes[] | select(.harness == "pi")][];
+    .model as $model | ($settings[0].enabledModels | index($model)) != null)
+' "$ROOT_DIR/workflow/runtime/adversary-model-policy.json" >/dev/null
+assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'adversary-model-policy.json'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'gpt-6-astra'
+assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'exclude the author'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'wording such as "PLAN.md ready" is not proof.'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Task* tools are Pi-only'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'One writer at any instant'
