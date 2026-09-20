@@ -32,9 +32,38 @@ const {
 const tmp = process.env.TMP;
 
 function writePlan(status) {
+  const readyContract = status === "ready"
+    ? `
+## Goal
+- Exercise the action graph guard.
+## Workflow Contract
+- Route: implement
+- Role: implementer
+- Stop condition: action graph smoke passes
+- Required evidence: smoke output
+## Acceptance Criteria
+- The guard follows the READY contract.
+## Scope
+- In: action graph fixture
+- Out: product code
+## Facts And Assumptions
+- Observed: temporary fixture
+- Assumptions: none
+## Requirement Trace
+- Request -> fixture state -> no material gap -> guard output
+## Steps
+1. Exercise the guard.
+## Checks
+- command: bash tests/action-graph-smoke.sh
+## Risks
+- None.
+## Open Questions
+- None
+`
+    : "";
   writeFileSync(
     join(tmp, "PLAN.md"),
-    `# PLAN\n\n## Meta\n- Status: ${status.toUpperCase()}\n`,
+    `# PLAN\n\n## Meta\n- Status: ${status.toUpperCase()}\n${readyContract}`,
   );
 }
 
@@ -145,8 +174,8 @@ const unknownDecision = planReadyGuardDecision({
   tool_name: "Write",
   tool_input: { file_path: join(tmp, "src/free.ts"), content: "ok" },
 });
-if (unknownDecision != null) {
-  console.error("unknown plan status must not lock mutations", unknownDecision);
+if (unknownDecision?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("unknown plan status must fail closed", unknownDecision);
   process.exit(1);
 }
 
