@@ -131,8 +131,28 @@ const partialUsage = [{ event: "outcome_metric", detail: { measured: true, input
 if (b.hasMeasuredUsage(partialUsage)) throw new Error("partial usage was counted as valid")
 const usageMetric = [{ event: "outcome_metric", detail: { measured: true, input_tokens: 2, output_tokens: 3, total_tokens: 5, tool_calls: 0, elapsed_ms: 0 } }]
 if (!b.hasMeasuredUsage(usageMetric)) throw new Error("valid usage was not detected")
+const a = await import(pathToFileURL("$ROOT_DIR/scripts/lib/usage-accounting.mjs").href)
+const aliases = a.usageFromAssistantMessages([
+  { role: "assistant", usage: { input_tokens: 2, outputTokens: 3, total_tokens: 5, cache_read_input_tokens: 11, cacheCreationInputTokens: 7 } },
+  { role: "assistant", usage: { input: "invalid", output: 9, totalTokens: 9 } },
+  { role: "user", usage: { input: 100, output: 100, totalTokens: 200 } },
+])
+if (!aliases || aliases.input_tokens !== 2 || aliases.output_tokens !== 3 || aliases.total_tokens !== 5)
+  throw new Error("usage aliases or invalid-message filtering failed: " + JSON.stringify(aliases))
+if (aliases.cache_read_tokens !== 11 || aliases.cache_creation_tokens !== 7 || aliases.processed_total_tokens !== 23)
+  throw new Error("cache normalization failed: " + JSON.stringify(aliases))
+let acc = a.accumulateAssistantUsage(null, [{ role: "assistant", usage: { input: 2, output: 1, totalTokens: 3, cacheRead: 50 } }])
+acc = a.accumulateAssistantUsage(acc, [{ role: "assistant", usage: { input: 4, output: 2, totalTokens: 6, cacheCreation: 30 } }])
+if (!acc || JSON.stringify(acc) !== JSON.stringify({ input_tokens: 6, output_tokens: 3, total_tokens: 9 }))
+  throw new Error("Pi projection or repeated agent_end accumulation changed: " + JSON.stringify(acc))
+acc = null
+acc = a.accumulateAssistantUsage(acc, [{ role: "assistant", usage: { input: 1, output: 1, totalTokens: 2 } }])
+if (!acc || acc.total_tokens !== 2) throw new Error("Pi accumulator reset contract failed")
 console.log("builder unit ok")
 NODE
+
+grep -Fq 'parentUsageAcc = null' "$ROOT_DIR/pi/extensions/workflow-router.ts" ||
+  fail "Pi agent_settled must reset parent usage"
 
 # emit helper with active ledger
 node --input-type=module <<NODE

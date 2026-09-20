@@ -79,7 +79,11 @@ ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.codex/skills/external-skill"
 ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.config/devin/skills/external-skill"
 
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
-HOME="$TMP_HOME" "$SCRIPT" --verbose >/dev/null
+SECOND_CHECK_OUTPUT="$TMP_HOME/second-check.out"
+if ! HOME="$TMP_HOME" "$SCRIPT" --verbose >"$SECOND_CHECK_OUTPUT"; then
+  cat "$SECOND_CHECK_OUTPUT" >&2
+  exit 1
+fi
 
 assert_link "$TMP_HOME/.config/nvim" "$ROOT_DIR/nvim"
 assert_link "$TMP_HOME/.tmux.conf" "$ROOT_DIR/tmux.conf"
@@ -156,6 +160,7 @@ ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.codex
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.config/devin/skills/adonisjs-suite"
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.agents/skills/adonisjs-suite"
 ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
+assert_not_exists "$TMP_HOME/.claude/skills/adr"
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
 assert_link "$TMP_HOME/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/ember-employer-suite"
@@ -205,13 +210,15 @@ fi
 FAKE_REPO="$TMP_HOME/fake-repo"
 FAKE_HOME="$TMP_HOME/fake-home"
 MISSING_SOURCE_OUTPUT="$TMP_HOME/missing-source.out"
-mkdir -p "$FAKE_REPO/scripts/lib" "$FAKE_HOME"
+mkdir -p "$FAKE_REPO/scripts/lib" "$FAKE_HOME/.claude/skills"
 cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
 cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
 cp "$ROOT_DIR/scripts/lib/etabli-scope.sh" "$FAKE_REPO/scripts/lib/etabli-scope.sh"
 cp "$ROOT_DIR/scripts/lib/prefer-cursor-agent.sh" "$FAKE_REPO/scripts/lib/prefer-cursor-agent.sh"
 cp "$ROOT_DIR/scripts/lib/vendor-surfaces.sh" "$FAKE_REPO/scripts/lib/vendor-surfaces.sh"
+cp "$ROOT_DIR/scripts/lib/managed-surfaces.sh" "$FAKE_REPO/scripts/lib/managed-surfaces.sh"
 chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
+ln -s "$FAKE_REPO/pi/skills/ghost" "$FAKE_HOME/.claude/skills/ghost"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then
   printf 'expected --fix to fail when repo sources are missing\n' >&2
@@ -223,5 +230,6 @@ assert_contains "$MISSING_SOURCE_OUTPUT" "script deploy-workflow source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "script scaffold-project source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "unresolved"
 assert_not_exists "$FAKE_HOME/.config/nvim"
+assert_not_exists "$FAKE_HOME/.claude/skills/ghost"
 
 printf 'fix-links smoke test: ok\n'

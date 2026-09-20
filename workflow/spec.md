@@ -196,11 +196,10 @@ history rewrite, secrets, external write-back), not every step; the Routing
 rules table above routes these to `ops-stop`. Full enforcement matrix and
 event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
 coverage: routes shared by Pi extension and Claude hooks; executable classifier
-`claude/hooks/workflow-router-lib.mjs` via `workflow/runtime/workflow-router-core.mjs`.
+`workflow/runtime/workflow-router-core.mjs` via runtime-specific adapters.
 
-Semantic route judgments follow `workflow/semantic-judgment.md`. The local Pi
-adapter may accept a Jev route only through its checked-in promotion manifest,
-confidence/margin thresholds, and deterministic protected-route rules. The
+Semantic route judgments: `workflow/semantic-judgment.md`. Jev routes require
+checked-in promotion, confidence/margin thresholds, and protected-route rules. The
 deterministic router remains the provider-failure fallback; permissions,
 destructive/external checkpoints, actual plan state, READY/mutation guards, and
 every execution gate remain authoritative code. `shadow` and `disabled` are

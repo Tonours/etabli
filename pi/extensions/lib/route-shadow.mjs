@@ -99,7 +99,7 @@ export function promotionRuntimeFingerprint(policy) {
     promotion_gates: policy.promotion_gates,
     state_shape: ["user_intent", "plan_status"],
     source_fingerprints: Object.fromEntries([
-      "claude/hooks/workflow-router-lib.mjs",
+      "workflow/runtime/workflow-router-core.mjs",
       "pi/extensions/lib/route-shadow.mjs",
       "pi/extensions/lib/semantic-judgment.mjs",
       "pi/extensions/lib/semantic-route.mjs",

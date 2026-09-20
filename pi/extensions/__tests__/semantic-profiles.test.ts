@@ -186,7 +186,7 @@ describe("semantic profiles", () => {
 describe("two-stage skill suggestion", () => {
 	test("loads every repository-owned catalog entry", () => {
 		const catalog = loadSkillSuggestionCatalog();
-		expect(catalog.length).toBe(81);
+		expect(catalog.length).toBe(82);
 		expect(catalog.find(({ name }) => name === "project-hunt")?.description).toContain("market pain");
 		expect(catalog.find(({ name }) => name === "caveman")?.description).toContain("Ultra-terse communication mode");
 	});

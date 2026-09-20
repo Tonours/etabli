@@ -1,3 +1,7 @@
+import { usageFromAssistantMessages } from "./usage-accounting.mjs";
+
+export { usageFromAssistantMessages };
+
 /**
  * Pure builders for blueprint M1 outcome_metric details.
  * Never invents token totals: measured only when real usage is provided.
@@ -278,47 +282,6 @@ export function buildOutcomeMetricDetail(input = {}) {
 	}
 
 	return detail;
-}
-
-/**
- * Sum Usage-like objects from assistant messages (Pi agent_end).
- * @param {any[]} messages
- */
-export function usageFromAssistantMessages(messages) {
-	let input = 0;
-	let output = 0;
-	let total = 0;
-	let cacheRead = 0;
-	let cacheCreation = 0;
-	let found = false;
-	for (const msg of messages || []) {
-		if (!msg || msg.role !== "assistant" || !msg.usage) continue;
-		const u = msg.usage;
-		const i = Number(u.input);
-		const o = Number(u.output);
-		const t = Number(u.totalTokens ?? u.total_tokens ?? i + o);
-		if (!isNonNegInt(i) || !isNonNegInt(o) || !isNonNegInt(t)) continue;
-		const cr = Number(
-			u.cacheRead ?? u.cache_read ?? u.cache_read_input_tokens ?? 0,
-		);
-		const cc = Number(
-			u.cacheCreation ?? u.cache_creation ?? u.cache_creation_input_tokens ?? 0,
-		);
-		input += i;
-		output += o;
-		total += t;
-		cacheRead += isNonNegInt(cr) ? cr : 0;
-		cacheCreation += isNonNegInt(cc) ? cc : 0;
-		found = true;
-	}
-	if (!found) return null;
-	return {
-		input_tokens: input,
-		output_tokens: output,
-		total_tokens: total,
-		cache_read_tokens: cacheRead,
-		cache_creation_tokens: cacheCreation,
-	};
 }
 
 /**

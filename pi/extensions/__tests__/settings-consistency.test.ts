@@ -87,19 +87,19 @@ describe("Pi settings consistency", () => {
   });
 
   test("keeps agents-visible skill lists synchronized across bootstrap scripts", () => {
-    const scripts = [
-      installScript,
-      deployAgentWorkflowScript,
-      checkFixSymlinksScript,
-    ];
-    for (const source of scripts)
+    for (const source of [deployAgentWorkflowScript, checkFixSymlinksScript])
       expect(source).toContain("skill_catalog_names");
+    expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
     const agentsVisible = skillCatalog.filter((skill) => skill.agentsVisible);
-    expect(agentsVisible.every((skill) => skill.source === "pi")).toBe(true);
+    const vendorVisible = agentsVisible.filter(
+      (skill) => skill.source !== "pi",
+    );
+    expect(vendorVisible.map((skill) => skill.name)).toEqual(["typesafe-ai"]);
+    expect(vendorVisible.every((skill) => skill.piCore)).toBe(true);
 
     const coreVisible = agentsVisible
-      .filter((skill) => skill.piCore)
+      .filter((skill) => skill.piCore && skill.source === "pi")
       .map((skill) => skill.name);
     expect(
       coreVisible.every((skill) =>
@@ -209,8 +209,8 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("npm:@agwab/pi-workflow@0.8.1")).toBeUndefined();
     expect(packageBySource("npm:@agwab/pi-workflow")).toBeUndefined();
 
-    // Install/deploy scripts manage the pin set and purge legacy sources
-    expect(installScript).toContain("pi-agent-settings-sync.mjs");
+    // Installer delegates surface convergence; deploy owns settings synchronization.
+    expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
     expect(deployAgentWorkflowScript).toContain("pi-agent-settings-sync.mjs");
     expect(settingsSyncModule).not.toContain('"npm:pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:@tintinweb/pi-subagents",');
