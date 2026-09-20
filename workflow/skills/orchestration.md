@@ -141,7 +141,7 @@ Claude:
   per `workflow/events.md`, as required by `workflow/spec.md`.
 - `plan-ready-guard.mjs` is an opt-in local hook that proves guard behavior in
   smoke tests. Route classification stays library-only
-  (`claude/hooks/workflow-router-lib.mjs`), covered by `scripts/router-eval`.
+  (`workflow/runtime/workflow-router-core.mjs`), covered by `scripts/router-eval`.
 - Hooks are deterministic guardrails for blocking. They do not inject route
   context, and they do not replace task state or completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one

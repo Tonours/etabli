@@ -160,11 +160,13 @@ export function runOne({
 	outFile,
 	ledgerFile,
 	timeoutMs = 600_000,
+	register = registerPaidProcesses,
+	spawn = spawnSync,
 }) {
 	const oracle = loadOracle(fixtureDir);
 	renderFixture(fixtureDir, workDir);
 	const prompt = routePrompt(fixtureDir, route);
-	registerPaidProcesses(ledgerFile, 1, manifest.budget.absolute_cap, {
+	register(ledgerFile, 1, manifest.budget.absolute_cap, {
 		stage: "calibration",
 		arm,
 		route,
@@ -186,7 +188,7 @@ export function runOne({
 		: [join(repoRoot, "scripts", "claude-full"), ...baseArgs];
 
 	const started = Date.now();
-	const spawned = spawnSync(argv[0], argv.slice(1), {
+	const spawned = spawn(argv[0], argv.slice(1), {
 		cwd: workDir,
 		encoding: "utf8",
 		timeout: timeoutMs,
@@ -328,10 +330,12 @@ export function runProbe({
 	outFile,
 	ledgerFile,
 	timeoutMs = 300_000,
+	register = registerPaidProcesses,
+	spawn = spawnSync,
 }) {
 	rmSync(workDir, { recursive: true, force: true });
 	mkdirSync(workDir, { recursive: true });
-	registerPaidProcesses(ledgerFile, 1, manifest.budget.absolute_cap, {
+	register(ledgerFile, 1, manifest.budget.absolute_cap, {
 		stage: "probe",
 		role,
 		model,
@@ -358,7 +362,7 @@ export function runProbe({
 		agentsJson,
 	];
 	const started = Date.now();
-	const spawned = spawnSync(argv[0], argv.slice(1), {
+	const spawned = spawn(argv[0], argv.slice(1), {
 		cwd: workDir,
 		encoding: "utf8",
 		timeout: timeoutMs,

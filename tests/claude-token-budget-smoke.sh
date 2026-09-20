@@ -7,6 +7,8 @@ MANIFEST="$ROOT_DIR/claude/benchmarks/token-budget/manifest.v2.json"
 ROLLUP="$ROOT_DIR/scripts/lib/claude-usage-rollup.mjs"
 BENCH_LIB="$ROOT_DIR/scripts/lib/claude-agent-benchmark.mjs"
 VERIFY_LIB="$ROOT_DIR/scripts/lib/claude-token-budget-verify.mjs"
+BENCH_CLI="$ROOT_DIR/scripts/lib/claude-agent-benchmark-cli.mjs"
+BENCH_RUN="$ROOT_DIR/scripts/lib/claude-bench-run.mjs"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -157,6 +159,54 @@ const inv = b.buildInventory(b.loadManifest("$MANIFEST"));
 assert(inv.length === 115, "nominal inventory 115");
 console.log("budget guard ok");
 NODE
+
+node --input-type=module <<NODE
+import { pathToFileURL } from "node:url";
+const cli = await import(pathToFileURL("$BENCH_CLI").href);
+const run = await import(pathToFileURL("$BENCH_RUN").href);
+const bench = await import(pathToFileURL("$BENCH_LIB").href);
+const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+const order = [];
+run.runProbe({
+  manifest: bench.loadManifest("$MANIFEST"),
+  repoRoot: "$ROOT_DIR",
+  workDir: "$TMP/simulated-probe-work",
+  outFile: "$TMP/simulated-probe.json",
+  ledgerFile: "$TMP/simulated-ledger.json",
+  role: "reviewer",
+  model: "sonnet",
+  effort: "low",
+  maxTurns: 1,
+  register: () => { order.push("register"); },
+  spawn: () => {
+    order.push("spawn");
+    return { status: 0, stdout: JSON.stringify({ type: "result", modelUsage: {} }), stderr: "" };
+  },
+});
+assert(order.join(",") === "register,spawn", "budget registration must precede spawn: " + order.join(","));
+
+let probeCalls = 0;
+const probeOutput = [];
+const exit = await cli.main(["run-probes", "--manifest", "$MANIFEST", "--out", "$TMP/cli"], {
+  rootDir: "$ROOT_DIR",
+  output: (line) => probeOutput.push(line),
+  error: () => {},
+  runModule: {
+    runProbe: () => { probeCalls += 1; return { ok: true, pwned_created: false, model_usage_keys: [], canonical_models: [], num_turns: 1 }; },
+  },
+});
+assert(exit === 0 && probeCalls === 5, "CLI run-probes dispatch must execute five guarded probes");
+assert(probeOutput.some((line) => line.startsWith("probe reviewer:")), "CLI must retain detailed role probe output");
+assert(probeOutput.some((line) => line.startsWith("probe write-refusal:")), "CLI must retain write-refusal output");
+console.log("runner dispatch ok");
+NODE
+
+printf 'not a directory\n' >"$TMP/not-a-directory"
+if "$ROOT_DIR/scripts/claude-token-budget" verify "$TMP/not-a-directory" >/dev/null 2>&1; then
+  printf 'token-budget CLI accepted a sample file instead of a directory\n' >&2
+  exit 1
+fi
 
 node --input-type=module <<NODE
 import { pathToFileURL } from "node:url";

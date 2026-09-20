@@ -9,19 +9,14 @@ set -euo pipefail
 
 BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
 . "$BOOTSTRAP_DIR/lib/pi-paths.sh"
-. "$BOOTSTRAP_DIR/lib/skill-catalog.sh"
-. "$BOOTSTRAP_DIR/lib/vendor-surfaces.sh"
-. "$BOOTSTRAP_DIR/lib/etabli-scope.sh"
 . "$BOOTSTRAP_DIR/lib/prefer-cursor-agent.sh"
-SKILL_CATALOG="$BOOTSTRAP_DIR/../workflow/runtime/skill-surface.tsv"
+. "$BOOTSTRAP_DIR/lib/managed-surfaces.sh"
 
 # ============================================================================
 # VERSIONS (centralized for maintenance)
 # ============================================================================
 readonly NERD_FONT_VERSION="v3.4.0"
 readonly MIN_NVIM_VERSION="0.12.2"
-readonly PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
-readonly AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi agents_visible))
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -43,132 +38,18 @@ print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
 
-prune_stale_managed_claude_agent_links() {
-    local repo_dir="$1"
-    local home_dir="$2"
-    local legacy_managed_dir="$repo_dir/claude/agents"
-    local scoped_managed_root="$repo_dir/claude/scopes"
-    local installed_dir="$home_dir/.claude/agents"
-    local agent_link agent_target
-
-    [ -d "$installed_dir" ] || return 0
-
-    for agent_link in "$installed_dir"/*.md; do
-        [ -L "$agent_link" ] || continue
-        agent_target="$(readlink "$agent_link")"
-        case "$agent_target" in
-        "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
-        *) continue ;;
-        esac
-        [ -e "$agent_target" ] && continue
-
-        rm -f "$agent_link"
-        print_success "Removed stale managed Claude agent '$(basename "$agent_link")'"
-    done
-}
-
-remove_exact_managed_link() {
-    local target_path="$1"
-    local label="$2"
-    local link_target
-    local expected_target
-
-    shift 2
-    [ -L "$target_path" ] || return 0
-
-    link_target="$(readlink "$target_path")"
-    for expected_target in "$@"; do
-        [ "$link_target" = "$expected_target" ] || continue
-        rm -f "$target_path"
-        print_success "Removed $label"
-        return 0
-    done
-}
-
-# Skills a scope deliberately does not deploy because something else owns the name
-# on that machine. Format: <scope>:<skill>, space separated.
-SCOPE_SHADOWED_SKILLS="work:adr"
-
-skill_is_shadowed() {
-    local skill_name="$1" active_scopes="$2" entry owning_scope
-
-    for entry in $SCOPE_SHADOWED_SKILLS; do
-        owning_scope="${entry%%:*}"
-        [ "${entry#*:}" = "$skill_name" ] || continue
-        case " $active_scopes " in
-        *" $owning_scope "*) return 0 ;;
-        esac
-    done
-
-    return 1
-}
-
-managed_skill_roots() {
-    local repo_dir="$1"
-    local candidate resolved
-
-    while IFS= read -r candidate; do
-        resolved="$(cd "$candidate" >/dev/null 2>&1 && pwd -P)" || continue
-        printf '%s\n' "$resolved"
-    done < <(
-        printf '%s/pi/skills\n' "$repo_dir"
-        find "$repo_dir/vendor" "$repo_dir/claude/scopes" \
-            -mindepth 1 -maxdepth 1 -type d 2>/dev/null |
-            while IFS= read -r group_dir; do
-                printf '%s/skills\n' "$group_dir"
-            done
-    )
-}
-
-skill_target_is_managed() {
-    local repo_dir="$1"
-    local managed_roots="$2"
-    local skill_target="$3"
-    local skill_parent
-
-    skill_parent="$(cd "$(dirname "$skill_target")" >/dev/null 2>&1 && pwd -P)"
-    if [ -n "$skill_parent" ]; then
-        printf '%s\n' "$managed_roots" | grep -qxF "$skill_parent"
-        return
-    fi
-
-    case "$skill_target" in
-    "$repo_dir/pi/skills/"?* | \
-        "$repo_dir/vendor/"?*"/skills/"?* | \
-        "$repo_dir/claude/scopes/"?*"/skills/"?*) return 0 ;;
+managed_surface_status() {
+    local status="$1"
+    local message="$2"
+    case "$status" in
+    WARN | MISSING | KEEP) print_warning "$message" ;;
+    *) print_success "$message" ;;
     esac
-
-    return 1
 }
 
-prune_stale_managed_skill_links() {
-    local repo_dir="$1"
-    local home_dir="$2"
-    local managed_roots surface skill_link skill_target
-
-    managed_roots="$(managed_skill_roots "$repo_dir")"
-
-    for surface in \
-        "$home_dir/.claude/skills" \
-        "$home_dir/.pi/agent/skills" \
-        "$home_dir/.codex/skills" \
-        "$home_dir/.config/devin/skills" \
-        "$home_dir/.agents/skills"; do
-        [ -d "$surface" ] || continue
-
-        while IFS= read -r skill_link; do
-            [ -n "$skill_link" ] || continue
-            skill_target="$(readlink "$skill_link")"
-            if [ "${skill_target#/}" = "$skill_target" ]; then
-                skill_target="$(dirname "$skill_link")/$skill_target"
-            fi
-            skill_target_is_managed "$repo_dir" "$managed_roots" "$skill_target" || continue
-            [ -e "$skill_target" ] && continue
-
-            rm -f "$skill_link"
-            print_success "Removed stale managed skill '$(basename "$skill_link")' from $surface"
-        done < <(find "$surface" -mindepth 1 -maxdepth 1 -type l | sort)
-    done
+converge_agent_surfaces() {
+    ETABLI_DEPLOY_CALLER=install ETABLI_SCOPE="${ETABLI_SCOPE:-}" \
+        "$BOOTSTRAP_DIR/deploy-agent-workflow" --apply --home "$HOME"
 }
 
 backup_path() {
@@ -422,132 +303,6 @@ install_npm_global_binary_link() {
     print_success "$binary linked into ~/.local/bin"
 }
 
-is_core_pi_skill() {
-    local skill="$1"
-    [ -n "$skill" ] || return 1
-    for core_skill in "${PI_CORE_SKILLS[@]}"; do
-        [ -n "$core_skill" ] || continue
-        if [ "$core_skill" = "$skill" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-is_agents_visible_skill() {
-    local skill="$1"
-    [ -n "$skill" ] || return 1
-    local visible
-    for visible in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-        [ -n "$visible" ] || continue
-        if [ "$visible" = "$skill" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-prune_managed_pi_skills() {
-    local skills_dir="$HOME/.pi/agent/skills"
-    # Fail-closed: a degenerate catalog (present but filtering to zero
-    # pi_core rows) must never turn the keep-list into "remove everything".
-    if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; }; then
-        print_error "Skill catalog produced an empty pi_core list; refusing to prune managed Pi skill links"
-        exit 1
-    fi
-    [ -d "$skills_dir" ] || return 0
-
-    for skill_link in "$skills_dir"/*; do
-        [ -L "$skill_link" ] || continue
-        local target
-        target="$(readlink "$skill_link")"
-        case "$target" in
-        "$REPO_DIR/pi/skills/"*)
-            local skill_name
-            skill_name="$(basename "$skill_link")"
-            if ! is_core_pi_skill "$skill_name"; then
-                rm -f "$skill_link"
-                print_success "Removed stale Pi skill '$skill_name'"
-            fi
-            ;;
-        esac
-    done
-}
-
-prune_managed_agents_skills() {
-    local skills_dir="$HOME/.agents/skills"
-    if [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 0 ] || { [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 1 ] && [ -z "${AGENTS_VISIBLE_SKILLS[0]}" ]; }; then
-        print_error "Skill catalog produced an empty agents_visible list; refusing to prune managed agents skill links"
-        exit 1
-    fi
-    [ -d "$skills_dir" ] || return 0
-
-    for skill_link in "$skills_dir"/*; do
-        [ -L "$skill_link" ] || continue
-        local target
-        target="$(readlink "$skill_link")"
-        case "$target" in
-        "$REPO_DIR/pi/skills/"*)
-            local skill_name
-            skill_name="$(basename "$skill_link")"
-            if ! is_agents_visible_skill "$skill_name"; then
-                rm -f "$skill_link"
-                print_success "Removed stale agents-visible skill '$skill_name'"
-            fi
-            ;;
-        esac
-    done
-}
-
-sync_pi_agent_settings_resources() {
-    local local_settings="$HOME/.pi/agent/settings.json"
-    local tracked_settings="$REPO_DIR/pi/agent/settings.json"
-
-    if [ ! -f "$local_settings" ] || [ ! -f "$tracked_settings" ]; then
-        return 0
-    fi
-
-    if ! node_available; then
-        print_warning "Node.js not available - skipping Pi agent settings resource sync"
-        return 0
-    fi
-
-    if "${NODE_CMD[@]}" "$REPO_DIR/scripts/lib/pi-agent-settings-sync.mjs" \
-        "$local_settings" "$tracked_settings" 0 "$(date +%Y%m%d-%H%M%S)" install; then
-        print_success "Pi agent settings resource filters synced"
-    else
-        print_warning "Pi agent settings resource sync failed"
-    fi
-}
-
-sync_claude_skill_overrides_resources() {
-    local local_settings="$HOME/.claude/settings.json"
-    local tracked_fragment="$REPO_DIR/claude/settings.skill-overrides.json"
-
-    if [ ! -f "$tracked_fragment" ]; then
-        return 0
-    fi
-
-    if ! node_available; then
-        print_warning "Node.js not available - skipping Claude skill overrides sync"
-        return 0
-    fi
-
-    if "${NODE_CMD[@]}" "$REPO_DIR/scripts/lib/claude-settings-sync.mjs" \
-        "$local_settings" "$tracked_fragment" 0 "$(date +%Y%m%d-%H%M%S)" install; then
-        print_success "Claude tracked settings synced"
-        if [ -x "$REPO_DIR/scripts/claude-skill-load-check" ]; then
-            if "$REPO_DIR/scripts/claude-skill-load-check"; then
-                print_success "Claude skill load check ok"
-            else
-                print_warning "Claude skill load check failed (surface diverges from the tracked map)"
-            fi
-        fi
-    else
-        print_warning "Claude tracked settings sync failed"
-    fi
-}
-
 sync_nvim_plugins() {
     if ! command -v nvim &>/dev/null; then
         print_warning "Neovim not available - skipping plugin sync"
@@ -567,26 +322,6 @@ sync_nvim_plugins() {
         print_success "Neovim config loads"
     else
         print_warning "Neovim config load check failed - run: nvim --headless +qa"
-    fi
-}
-
-ensure_pi_extension_node_modules_link() {
-    local link_path="$REPO_DIR/pi/extensions/node_modules"
-    local target_path
-
-    target_path="$(pi_agent_node_modules_dir "$HOME")"
-
-    mkdir -p "$target_path"
-
-    if [ -e "$link_path" ] && [ ! -L "$link_path" ]; then
-        print_warning "pi/extensions/node_modules exists but is not a symlink; leaving it untouched"
-        return 0
-    fi
-
-    if ln -sfn "$target_path" "$link_path"; then
-        print_success "Pi extension node_modules linked"
-    else
-        print_warning "Failed to link Pi extension node_modules"
     fi
 }
 
@@ -686,7 +421,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         "$smoke_agent_home/.claude/agents/removed-agent.md"
     ln -s "$smoke_personal_target" \
         "$smoke_agent_home/.claude/agents/personal.md"
-    prune_stale_managed_claude_agent_links "$smoke_repo_dir" "$smoke_agent_home"
+    managed_surface_prune_stale_claude_agents install "$smoke_repo_dir" "$smoke_agent_home"
     if [ -L "$smoke_agent_home/.claude/agents/removed-agent.md" ]; then
         print_error "stale managed Claude agent link was not removed"
         exit 1
@@ -705,17 +440,17 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         "$smoke_command_home/.claude/commands/commit.md"
     ln -s "$smoke_repo_dir/claude/commands/plan.md" \
         "$smoke_command_home/.claude/commands/plan.md"
-    remove_exact_managed_link \
+    managed_surface_remove_exact_link install \
         "$smoke_command_home/.claude/commands/plan.md" \
         "stale Claude command plan.md" \
         "$smoke_repo_dir/claude/commands/plan.md" \
         "$smoke_repo_dir/claude/scopes/shared/commands/plan.md"
-    remove_exact_managed_link \
+    managed_surface_remove_exact_link install \
         "$smoke_command_home/.claude/commands/commit.md" \
         "stale Claude command commit.md" \
         "$smoke_repo_dir/claude/commands/commit.md" \
         "$smoke_repo_dir/claude/scopes/shared/commands/commit.md"
-    remove_exact_managed_link \
+    managed_surface_remove_exact_link install \
         "$smoke_command_home/.claude/commands/recap.md" \
         "stale Claude command recap.md" \
         "$smoke_repo_dir/claude/commands/recap.md" \
@@ -770,7 +505,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             "$smoke_skill_home/$smoke_other_surface/ember-employer-suite"
     done
 
-    prune_stale_managed_skill_links "$smoke_repo_dir" "$smoke_skill_home"
+    managed_surface_prune_stale_skill_links install "$smoke_repo_dir" "$smoke_skill_home"
 
     for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
         if [ -L "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill" ]; then
@@ -800,7 +535,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         fi
     done
 
-    prune_stale_managed_skill_links "$smoke_skill_home/relative-repo" "$smoke_skill_home"
+    managed_surface_prune_stale_skill_links install "$smoke_skill_home/relative-repo" "$smoke_skill_home"
 
     if [ -L "$smoke_skill_home/.claude/skills/relative-managed-dangling" ]; then
         print_error "stale relative link under a managed root was not removed"
@@ -811,7 +546,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     ln -s "$smoke_skill_home/relative-repo" "$smoke_symlinked_repo"
     ln -s "$smoke_symlinked_repo/pi/skills/symlinked-gone" \
         "$smoke_skill_home/.claude/skills/symlinked-repo-dangling"
-    prune_stale_managed_skill_links "$smoke_skill_home/relative-repo" "$smoke_skill_home"
+    managed_surface_prune_stale_skill_links install "$smoke_skill_home/relative-repo" "$smoke_skill_home"
     if [ -L "$smoke_skill_home/.claude/skills/symlinked-repo-dangling" ]; then
         print_error "stale link reached through a symlinked repo path was not removed"
         exit 1
@@ -825,7 +560,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     ln -s "$tmp_dir/outside-any-repo/skills/keep-me" \
         "$smoke_skill_home/.claude/skills/outside-repo-dangling"
     rm -rf "$smoke_wholesale_repo/vendor/gone-vendor"
-    prune_stale_managed_skill_links "$smoke_wholesale_repo" "$smoke_skill_home"
+    managed_surface_prune_stale_skill_links install "$smoke_wholesale_repo" "$smoke_skill_home"
     if [ -L "$smoke_skill_home/.claude/skills/wholesale-orphan" ]; then
         print_error "stale link under a wholesale-removed vendor tree was not removed"
         exit 1
@@ -984,7 +719,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     NODE_CMD=("$smoke_node_bin")
     HOME="$smoke_home"
     REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
-    sync_pi_agent_settings_resources >/dev/null
+    converge_agent_surfaces >/dev/null
     "${NODE_CMD[@]}" - "$smoke_home/.pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
 const settings = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
@@ -1009,19 +744,19 @@ if (settings.defaultProvider !== "custom" || settings.defaultModel !== "personal
 }
 NODE
 
-    if ! skill_is_shadowed adr "shared work"; then
+    if ! managed_surface_skill_is_shadowed adr "shared work"; then
         print_error "adr must be shadowed while scope work is active"
         exit 1
     fi
-    if skill_is_shadowed adr "shared personal"; then
+    if managed_surface_skill_is_shadowed adr "shared personal"; then
         print_error "adr must deploy when scope work is not active"
         exit 1
     fi
-    if skill_is_shadowed adr "shared"; then
+    if managed_surface_skill_is_shadowed adr "shared"; then
         print_error "adr must deploy on a shared-only machine"
         exit 1
     fi
-    if skill_is_shadowed conventions "shared work"; then
+    if managed_surface_skill_is_shadowed conventions "shared work"; then
         print_error "only listed skills are shadowed"
         exit 1
     fi
@@ -1030,12 +765,31 @@ NODE
     smoke_shadow_target="$smoke_repo_dir/claude/scopes/shared/skills/adr"
     mkdir -p "$smoke_shadow_home/.claude/skills"
     ln -sfn "$smoke_shadow_target" "$smoke_shadow_home/.claude/skills/adr"
-    remove_exact_managed_link \
+    managed_surface_remove_exact_link install \
         "$smoke_shadow_home/.claude/skills/adr" \
         "shadowed Claude skill 'adr'" \
         "$smoke_shadow_target" >/dev/null
     if [ -L "$smoke_shadow_home/.claude/skills/adr" ]; then
         print_error "a shadowed skill's installed link was not removed"
+        exit 1
+    fi
+
+    smoke_converge_home="$tmp_dir/converge-home"
+    mkdir -p "$smoke_converge_home/.pi/agent" "$smoke_converge_home/.pi"
+    ln -s "$tmp_dir/missing-settings.json" "$smoke_converge_home/.pi/agent/settings.json"
+    ln -s "$tmp_dir/legacy-damage-control.json" "$smoke_converge_home/.pi/damage-control-rules.json"
+    HOME="$smoke_converge_home"
+    converge_agent_surfaces >/dev/null
+    if [ -L "$smoke_converge_home/.pi/agent/settings.json" ] || [ ! -f "$smoke_converge_home/.pi/agent/settings.json" ]; then
+        print_error "agent convergence did not recover dangling Pi settings"
+        exit 1
+    fi
+    if [ -L "$smoke_converge_home/.pi/damage-control-rules.json" ]; then
+        print_error "agent convergence kept the legacy Pi damage-control link"
+        exit 1
+    fi
+    if [ "$(readlink "$smoke_converge_home/.claude/statusline-command.sh")" != "$REPO_DIR/claude/statusline-command.sh" ]; then
+        print_error "agent convergence did not install the Claude statusline"
         exit 1
     fi
 
@@ -1346,315 +1100,10 @@ else
 fi
 
 # ============================================================================
-# SETUP PI CODING AGENT
+# SETUP AGENT WORKFLOW SURFACES
 # ============================================================================
-print_step "Setting up Pi Coding Agent..."
-
-mkdir -p ~/.pi ~/.pi/agent/agents ~/.pi/agent/skills ~/.pi/agent/themes ~/.pi/agent/extensions
-
-if [ -f "$REPO_DIR/pi/AGENTS.md" ]; then
-    ln -sf "$REPO_DIR/pi/AGENTS.md" ~/.pi/agent/AGENTS.md
-    print_success "Pi AGENTS.md linked"
-fi
-
-if [ -d "$REPO_DIR/workflow" ]; then
-    if [ -e ~/.pi/agent/workflow ] && [ ! -L ~/.pi/agent/workflow ]; then
-        backup_path_move "$HOME/.pi/agent/workflow"
-    fi
-    ln -sfn "$REPO_DIR/workflow" ~/.pi/agent/workflow
-    print_success "Pi workflow sources linked"
-fi
-
-for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
-    if [ -f "$REPO_DIR/$template_file" ]; then
-        if [ -e "$HOME/.pi/agent/$template_file" ] && [ ! -L "$HOME/.pi/agent/$template_file" ]; then
-            backup_path_move "$HOME/.pi/agent/$template_file"
-        fi
-        ln -sf "$REPO_DIR/$template_file" "$HOME/.pi/agent/$template_file"
-        print_success "Pi $template_file linked"
-    fi
-done
-
-mkdir -p "$HOME/.agents"
-if [ -d "$REPO_DIR/workflow" ]; then
-    if [ -e "$HOME/.agents/workflow" ] && [ ! -L "$HOME/.agents/workflow" ]; then
-        backup_path_move "$HOME/.agents/workflow"
-    fi
-    ln -sfn "$REPO_DIR/workflow" "$HOME/.agents/workflow"
-    print_success "Agents workflow sources linked"
-fi
-for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
-    if [ -f "$REPO_DIR/$template_file" ]; then
-        if [ -e "$HOME/.agents/$template_file" ] && [ ! -L "$HOME/.agents/$template_file" ]; then
-            backup_path_move "$HOME/.agents/$template_file"
-        fi
-        ln -sf "$REPO_DIR/$template_file" "$HOME/.agents/$template_file"
-        print_success "Agents $template_file linked"
-    fi
-done
-
-if [ -f "$REPO_DIR/pi/models.json" ]; then
-    if [ -f ~/.pi/agent/models.json ] && [ ! -L ~/.pi/agent/models.json ]; then
-        backup_file "$HOME/.pi/agent/models.json"
-    fi
-    ln -sf "$REPO_DIR/pi/models.json" ~/.pi/agent/models.json
-    print_success "Pi models.json linked"
-fi
-
-if [ -f "$REPO_DIR/pi/agent/subagents.json" ]; then
-    if [ -f ~/.pi/agent/subagents.json ] && [ ! -L ~/.pi/agent/subagents.json ]; then
-        backup_file "$HOME/.pi/agent/subagents.json"
-    fi
-    ln -sf "$REPO_DIR/pi/agent/subagents.json" ~/.pi/agent/subagents.json
-    print_success "Pi subagents.json linked"
-fi
-
-for agent_file in "$REPO_DIR/pi/agents"/*.md; do
-    if [ -f "$agent_file" ]; then
-        agent_name="$(basename "$agent_file")"
-        if [ -f "$HOME/.pi/agent/agents/$agent_name" ] && [ ! -L "$HOME/.pi/agent/agents/$agent_name" ]; then
-            backup_file "$HOME/.pi/agent/agents/$agent_name"
-        fi
-        ln -sf "$agent_file" "$HOME/.pi/agent/agents/$agent_name"
-        print_success "Pi agent '$agent_name' linked"
-    fi
-done
-
-if [ -d "$REPO_DIR/pi/extensions" ]; then
-    if [ -L ~/.pi/extensions ]; then
-        rm ~/.pi/extensions
-    elif [ -d ~/.pi/extensions ]; then
-        backup_path_move "$HOME/.pi/extensions"
-    fi
-    if [ -d ~/.pi/agent/extensions ] && [ ! -L ~/.pi/agent/extensions ]; then
-        backup_path_move "$HOME/.pi/agent/extensions"
-    fi
-    ln -sfn "$REPO_DIR/pi/extensions" ~/.pi/agent/extensions
-    print_success "Pi extensions linked"
-    ensure_pi_extension_node_modules_link
-fi
-
-if [ -d "$REPO_DIR/pi/themes" ]; then
-    if [ -d ~/.pi/themes ] && [ ! -L ~/.pi/themes ]; then
-        backup_path_move "$HOME/.pi/themes"
-    fi
-    ln -sfn "$REPO_DIR/pi/themes" ~/.pi/themes
-fi
-
-if [ -f "$REPO_DIR/pi/settings.json" ]; then
-    if [ -f ~/.pi/settings.json ] && [ ! -L ~/.pi/settings.json ]; then
-        backup_file "$HOME/.pi/settings.json"
-    fi
-    ln -sf "$REPO_DIR/pi/settings.json" ~/.pi/settings.json
-    print_success "Pi settings.json linked"
-fi
-
-if [ -f "$REPO_DIR/pi/agent/settings.json" ]; then
-    mkdir -p ~/.pi/agent
-    if [ -L ~/.pi/agent/settings.json ]; then
-        tmp_settings="$(mktemp)"
-        if cp -L ~/.pi/agent/settings.json "$tmp_settings" 2>/dev/null; then
-            rm ~/.pi/agent/settings.json
-            mv "$tmp_settings" ~/.pi/agent/settings.json
-            print_success "Pi agent settings migrated to local file"
-        else
-            rm -f "$tmp_settings"
-            rm ~/.pi/agent/settings.json
-            cp "$REPO_DIR/pi/agent/settings.json" ~/.pi/agent/settings.json
-            print_success "Pi agent settings bootstrapped locally"
-        fi
-    elif [ ! -f ~/.pi/agent/settings.json ]; then
-        cp "$REPO_DIR/pi/agent/settings.json" ~/.pi/agent/settings.json
-        print_success "Pi agent settings bootstrapped locally"
-    else
-        print_success "Pi agent settings kept local"
-    fi
-
-    sync_pi_agent_settings_resources
-fi
-
-if [ -L ~/.pi/damage-control-rules.json ]; then
-    rm -f ~/.pi/damage-control-rules.json
-fi
-
-for theme_file in "$REPO_DIR/pi/themes"/*.json; do
-    if [ -f "$theme_file" ]; then
-        theme_name=$(basename "$theme_file")
-        ln -sf "$theme_file" ~/.pi/agent/themes/"$theme_name"
-        print_success "Pi theme '$theme_name' linked"
-    fi
-done
-
-prune_managed_pi_skills
-for skill_name in "${PI_CORE_SKILLS[@]}"; do
-    skill_dir="$REPO_DIR/pi/skills/$skill_name"
-    if [ -d "$skill_dir" ]; then
-        ln -sfn "$skill_dir" ~/.pi/agent/skills/"$skill_name"
-        print_success "Pi skill '$skill_name' linked"
-    else
-        print_warning "Pi skill '$skill_name' missing from repo"
-    fi
-done
-
-mkdir -p ~/.agents/skills
-for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    skill_dir="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
-    if [ -n "$skill_dir" ] && [ -d "$skill_dir" ]; then
-        ln -sfn "$skill_dir" ~/.agents/skills/"$skill_name"
-        print_success "Agents-visible skill '$skill_name' linked"
-    else
-        print_warning "Agents-visible skill '$skill_name' missing from repo"
-    fi
-done
-prune_managed_agents_skills
-
-ETABLI_ACTIVE_SCOPES="$(etabli_active_scopes "$HOME")"
-
-mkdir -p ~/.pi/agent/skills ~/.claude/skills ~/.codex/skills ~/.config/devin/skills
-
-mkdir -p ~/.agents/skills
-prune_stale_managed_skill_links "$REPO_DIR" "$HOME"
-
-while IFS=$'\t' read -r skill_name skill_dir skill_pi_core vendor_name; do
-    [ -n "$skill_name" ] || continue
-    if [ ! -d "$skill_dir" ]; then
-        print_warning "Vendored skill '$skill_name' missing from $vendor_name"
-        continue
-    fi
-    vendor_scope="$(skill_vendor_scope "$REPO_DIR" "$vendor_name")"
-    vendor_link_skill_surfaces "$HOME" "$skill_dir" "$skill_name" "$skill_pi_core" "$vendor_scope" "$ETABLI_ACTIVE_SCOPES"
-    vendor_prune_unexpected_skill_surfaces "$HOME" "$skill_dir" "$skill_name" "$skill_pi_core" "$vendor_scope" "$ETABLI_ACTIVE_SCOPES"
-    print_success "Vendored skill '$skill_name' linked per surface policy"
-done < <(skill_catalog_active_vendor_records "$SKILL_CATALOG" "$REPO_DIR" "$ETABLI_ACTIVE_SCOPES")
-
-mkdir -p ~/.claude/commands
-if [ -f "$REPO_DIR/claude/CLAUDE.md" ]; then
-    ln -sf "$REPO_DIR/claude/CLAUDE.md" ~/.claude/CLAUDE.md
-    print_success "Claude CLAUDE.md linked"
-fi
-
-if [ -d "$REPO_DIR/workflow" ]; then
-    if [ -e ~/.claude/workflow ] && [ ! -L ~/.claude/workflow ]; then
-        backup_path_move "$HOME/.claude/workflow"
-    fi
-    ln -sfn "$REPO_DIR/workflow" ~/.claude/workflow
-    print_success "Claude workflow sources linked"
-fi
-
-for template_file in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
-    if [ -f "$REPO_DIR/$template_file" ]; then
-        if [ -e "$HOME/.claude/$template_file" ] && [ ! -L "$HOME/.claude/$template_file" ]; then
-            backup_path_move "$HOME/.claude/$template_file"
-        fi
-        ln -sf "$REPO_DIR/$template_file" "$HOME/.claude/$template_file"
-        print_success "Claude $template_file linked"
-    fi
-done
-
-for scope in $ETABLI_ACTIVE_SCOPES; do
-    for command_file in $(find "$REPO_DIR/claude/scopes/$scope/commands" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
-        if [ -f "$command_file" ]; then
-            command_name=$(basename "$command_file")
-            ln -sf "$command_file" ~/.claude/commands/"$command_name"
-            print_success "Claude command '$command_name' linked"
-        fi
-    done
-done
-for stale_command in \
-    verify.md \
-    plan.md \
-    plan-create.md \
-    plan-review.md \
-    handoff.md \
-    handoff-implement.md \
-    ops-status.md \
-    ops-pi-status.md \
-    commit.md \
-    cross-repo-audit.md \
-    front-quality.md \
-    pr-feedback.md \
-    pre-commit.md \
-    recap.md \
-    spec-verify.md \
-    tests-iso.md \
-    ui-debug.md; do
-    remove_exact_managed_link \
-        "$HOME/.claude/commands/$stale_command" \
-        "stale Claude command '$stale_command'" \
-        "$REPO_DIR/claude/commands/$stale_command" \
-        "$REPO_DIR/claude/scopes/shared/commands/$stale_command"
-done
-remove_exact_managed_link \
-    "$HOME/.claude/handoff-template.md" \
-    "stale Claude handoff template" \
-    "$REPO_DIR/claude/handoff-template.md"
-
-if [ -d "$REPO_DIR/claude/hooks" ]; then
-    mkdir -p ~/.claude/hooks
-    for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
-        if [ -f "$hook_file" ]; then
-            hook_name=$(basename "$hook_file")
-            ln -sf "$hook_file" ~/.claude/hooks/"$hook_name"
-            print_success "Claude workflow hook '$hook_name' linked"
-        fi
-    done
-fi
-
-if [ -f "$REPO_DIR/claude/statusline-command.sh" ]; then
-    ln -sf "$REPO_DIR/claude/statusline-command.sh" ~/.claude/statusline-command.sh
-    print_success "Claude statusline command linked"
-fi
-
-if [ -f "$REPO_DIR/claude/settings.workflow-hooks.json" ]; then
-    ln -sf "$REPO_DIR/claude/settings.workflow-hooks.json" ~/.claude/settings.workflow-hooks.json
-    print_success "Claude workflow hook settings fragment linked"
-fi
-
-mkdir -p ~/.claude/skills ~/.claude/agents
-prune_stale_managed_claude_agent_links "$REPO_DIR" "$HOME"
-
-for scope in $ETABLI_ACTIVE_SCOPES; do
-    for skill_dir in $(find "$REPO_DIR/claude/scopes/$scope/skills" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) 2>/dev/null | sort); do
-        skill_name=$(basename "$skill_dir")
-        if skill_is_shadowed "$skill_name" "$ETABLI_ACTIVE_SCOPES"; then
-            remove_exact_managed_link \
-                "$HOME/.claude/skills/$skill_name" \
-                "shadowed Claude skill '$skill_name'" \
-                "$skill_dir"
-            print_step "Skipping Claude skill '$skill_name' (shadowed on this scope)"
-            continue
-        fi
-        ln -sfn "$skill_dir" ~/.claude/skills/"$skill_name"
-        print_success "Claude skill '$skill_name' linked"
-    done
-
-    for agent_file in $(find "$REPO_DIR/claude/scopes/$scope/agents" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort); do
-        agent_name=$(basename "$agent_file")
-        ln -sf "$agent_file" ~/.claude/agents/"$agent_name"
-        print_success "Claude agent '$agent_name' linked"
-    done
-
-    scope_scripts_dir="$REPO_DIR/claude/scopes/$scope/scripts"
-    if [ -d "$scope_scripts_dir" ]; then
-        mkdir -p ~/.claude/scripts
-        for script_entry in $(find "$scope_scripts_dir" -mindepth 1 -maxdepth 1 2>/dev/null | sort); do
-            entry_name=$(basename "$script_entry")
-            ln -sfn "$script_entry" ~/.claude/scripts/"$entry_name"
-            print_success "Claude script '$entry_name' linked"
-        done
-    fi
-done
-
-for shared_doc in review-rubric.md; do
-    if [ -f "$REPO_DIR/workflow/$shared_doc" ]; then
-        ln -sf "$REPO_DIR/workflow/$shared_doc" ~/.claude/"$shared_doc"
-        print_success "Claude doc '$shared_doc' linked"
-    fi
-done
-
-sync_claude_skill_overrides_resources
-
+print_step "Setting up agent workflow surfaces..."
+converge_agent_surfaces
 if ! command -v pi &>/dev/null; then
     print_step "Installing Pi Coding Agent..."
     "${NPM_CMD[@]}" install -g --ignore-scripts @earendil-works/pi-coding-agent &&
@@ -1678,7 +1127,6 @@ mkdir -p ~/.local/bin
 
 append_path_entry "$HOME/.local/bin"
 
-install_script "dev-spawn" || true
 install_script "herdr-sync-mini" || true
 install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
@@ -1754,13 +1202,6 @@ printf "  Ctrl+b |        Split vertical\n"
 printf "  Ctrl+b -        Split horizontal\n"
 printf "  Ctrl+b h/j/k/l  Navigate panes\n"
 printf "  Shift+Left/Right Switch windows\n"
-echo ""
-echo "-------------------------------------------------------------------"
-echo ""
-printf "  ${BLUE}Dev Spawn:${NC}\n"
-printf "  dev-spawn           Launch both tmux sessions (local + VPS)\n"
-printf "  dev-spawn local     Local session only\n"
-printf "  dev-spawn vps       VPS session only\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""

@@ -3,9 +3,6 @@
   "themes": [
     "themes"
   ],
-  "prompts": [
-    "prompts"
-  ],
   "editorPaddingX": 1,
   "markdown": {
     "mermaid": "streaming"
