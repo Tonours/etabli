@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 GRAPH="$ROOT_DIR/tests/fixtures/action-graph.tsv"
-ROUTER_LIB="$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
+ROUTER_LIB="$ROOT_DIR/workflow/runtime/workflow-router-core.mjs"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -14,7 +14,7 @@ fail() {
 
 [ -f "$GRAPH" ] || fail "missing action-graph fixture"
 [ -f "$ROUTER_LIB" ] || fail "missing router lib"
-grep -Fq 'workflow-router-lib.mjs' "$GRAPH" || fail "fixture not tied to real router"
+grep -Fq 'workflow-router-core.mjs' "$GRAPH" || fail "fixture not tied to canonical router"
 
 TMP="$TMP" ROUTER_LIB="$ROUTER_LIB" node --input-type=module <<'EOF'
 import { pathToFileURL } from "node:url";

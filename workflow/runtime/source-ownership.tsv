@@ -1,5 +1,9 @@
 # surface	canonical	deployed_or_adapter_surfaces
-router-classifier	claude/hooks/workflow-router-lib.mjs	workflow/runtime/workflow-router-core.mjs,pi/extensions/lib/workflow-router-runtime.ts
+router-classifier	workflow/runtime/workflow-router-core.mjs	claude/hooks/workflow-router-lib.mjs,pi/extensions/lib/workflow-router-runtime.ts
 skill-surface	workflow/runtime/skill-surface.tsv	scripts/install.sh,scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh
+managed-surface-reconciliation	scripts/lib/managed-surfaces.sh	scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh,scripts/lib/install-main.sh
+usage-accounting	scripts/lib/usage-accounting.mjs	scripts/lib/outcome-metric-builder.mjs,scripts/lib/claude-usage-rollup.mjs,pi/extensions/workflow-router.ts
+benchmark-command-dispatch	scripts/lib/claude-agent-benchmark-cli.mjs,scripts/lib/claude-token-budget-cli.mjs	scripts/claude-agent-benchmark,scripts/claude-token-budget
+architecture-semantic-review	scripts/lib/typesafe-architecture-review.mjs	scripts/typesafe-architecture-review
 ticket-template	workflow/ticket-template.md	none (deployed copies removed with the codex harness)
 no-comments-guard	workflow/runtime/no-comments-guard.mjs	pi/extensions/no-comments.ts

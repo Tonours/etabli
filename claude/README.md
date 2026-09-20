@@ -195,12 +195,14 @@ Optional hooks:
   rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
   exempt). Deployed by the installer like the other `.mjs` hooks; wire it into
   `~/.claude/settings.json` manually when wanted.
-- `rtk-rewrite.sh` is the RTK hook with a local patch: `rtk rewrite` exit 3
-  (ask rule) is treated as auto-allow, because Claude Code runs in permanent
-  bypass mode on this machine. The patched copy is tracked in `claude/hooks/`
-  and linked over `~/.claude/hooks/rtk-rewrite.sh`; an `rtk` update reinstalls
-  the stock hook (dropping user prompts back in), and
-  `scripts/check-fix-symlinks.sh --fix` restores the patched link.
+- RTK command rewriting runs through the native `rtk hook claude`
+  subcommand wired as `PreToolUse(Bash)` in the local
+  `~/.claude/settings.json`; that wiring is machine-local, not tracked here
+  (`scripts/lib/claude-settings-sync.mjs` syncs only skill overrides,
+  permission mode, and the two skip prompts scalars). The installer ensures
+  the binary itself (`scripts/lib/install-main.sh`); there is no patched
+  `rtk-rewrite.sh` and no link rule to restore. With `bypassPermissions`
+  active, no exit-3 ask-rule patch is needed.
 
 ## Autonomous mode
 

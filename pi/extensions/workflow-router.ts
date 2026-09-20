@@ -16,6 +16,7 @@ import {
 	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
 import { maybeEmitOutcomeMetric } from "./lib/outcome-metric-emit.ts";
+import { accumulateAssistantUsage } from "../../scripts/lib/usage-accounting.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -172,43 +173,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_end", (event) => {
 		const messages = (event as { messages?: unknown }).messages;
 		if (Array.isArray(messages)) {
-			let input = 0;
-			let output = 0;
-			let total = 0;
-			let found = false;
-			for (const msg of messages) {
-				if (!msg || typeof msg !== "object") continue;
-				const role = (msg as { role?: unknown }).role;
-				const usage = (msg as { usage?: unknown }).usage;
-				if (role !== "assistant" || !usage || typeof usage !== "object") continue;
-				const u = usage as Record<string, unknown>;
-				const i = Number(u.input);
-				const o = Number(u.output);
-				const t = Number(u.totalTokens ?? u.total_tokens ?? i + o);
-				if (
-					!Number.isInteger(i) ||
-					i < 0 ||
-					!Number.isInteger(o) ||
-					o < 0 ||
-					!Number.isInteger(t) ||
-					t < 0
-				) {
-					continue;
-				}
-				input += i;
-				output += o;
-				total += t;
-				found = true;
-			}
-			if (found) {
-				parentUsageAcc = parentUsageAcc
-					? {
-							input_tokens: parentUsageAcc.input_tokens + input,
-							output_tokens: parentUsageAcc.output_tokens + output,
-							total_tokens: parentUsageAcc.total_tokens + total,
-						}
-					: { input_tokens: input, output_tokens: output, total_tokens: total };
-			}
+			parentUsageAcc = accumulateAssistantUsage(parentUsageAcc, messages);
 		}
 	});
 

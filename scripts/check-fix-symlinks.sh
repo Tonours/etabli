@@ -6,6 +6,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$REPO_DIR/scripts/lib/etabli-scope.sh"
 . "$REPO_DIR/scripts/lib/prefer-cursor-agent.sh"
 . "$REPO_DIR/scripts/lib/vendor-surfaces.sh"
+. "$REPO_DIR/scripts/lib/managed-surfaces.sh"
 FIX=0
 VERBOSE=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -71,55 +72,14 @@ status_line() {
   printf '%-6s %s\n' "$status" "$message"
 }
 
+managed_surface_status() {
+  status_line "$@"
+}
+
 if [ "$SKILL_CATALOG_MISSING" -eq 1 ]; then
   UNRESOLVED=$((UNRESOLVED + 1))
   status_line WARN "skill catalog source missing; expected $SKILL_CATALOG"
 fi
-
-ensure_parent_dir() {
-  local path="$1"
-  mkdir -p "$(dirname "$path")"
-}
-
-backup_path() {
-  local path="$1"
-  local candidate="${path}.bak.${TIMESTAMP}"
-  local index=1
-
-  while [ -e "$candidate" ]; do
-    candidate="${path}.bak.${TIMESTAMP}.${index}"
-    index=$((index + 1))
-  done
-
-  printf '%s\n' "$candidate"
-}
-
-repair_link() {
-  local link_path="$1"
-  local target_path="$2"
-  local type_label="$3"
-
-  if [ ! -e "$target_path" ] && [ ! -L "$target_path" ]; then
-    UNRESOLVED=$((UNRESOLVED + 1))
-    status_line WARN "$type_label source missing; not linking to $target_path"
-    return 1
-  fi
-
-  ensure_parent_dir "$link_path"
-
-  if [ -e "$link_path" ] && [ ! -L "$link_path" ]; then
-    local backup_path
-    backup_path="$(backup_path "$link_path")"
-    mv "$link_path" "$backup_path"
-    status_line BACKUP "$type_label moved to $backup_path"
-  else
-    rm -rf "$link_path"
-  fi
-
-  ln -sfn "$target_path" "$link_path"
-  FIXED=$((FIXED + 1))
-  status_line FIXED "$type_label -> $target_path"
-}
 
 check_absent() {
   local path="$1"
@@ -137,7 +97,7 @@ check_absent() {
 
   if [ "$FIX" -eq 1 ]; then
     local backup_path
-    backup_path="$(backup_path "$path")"
+    backup_path="$(managed_surface_backup_path "$path" "$TIMESTAMP")"
     mv "$path" "$backup_path"
     FIXED=$((FIXED + 1))
     status_line BACKUP "$type_label moved to $backup_path"
@@ -145,40 +105,7 @@ check_absent() {
 }
 
 check_link() {
-  local link_path="$1"
-  local target_path="$2"
-  local type_label="$3"
-  local current=""
-
-  if [ ! -e "$target_path" ] && [ ! -L "$target_path" ]; then
-    ISSUES=$((ISSUES + 1))
-    UNRESOLVED=$((UNRESOLVED + 1))
-    status_line WARN "$type_label source missing (expected $target_path)"
-    return
-  fi
-
-  if [ -L "$link_path" ]; then
-    current="$(readlink "$link_path")"
-    if [ "$current" = "$target_path" ] && [ -e "$link_path" ]; then
-      if [ "$VERBOSE" -eq 1 ]; then
-        status_line OK "$type_label -> $current"
-      fi
-      return 0
-    fi
-  fi
-
-  ISSUES=$((ISSUES + 1))
-  if [ -L "$link_path" ]; then
-    status_line WARN "$type_label -> ${current:-<unknown>} (expected $target_path)"
-  elif [ -e "$link_path" ]; then
-    status_line WARN "$type_label exists but is not a symlink (expected $target_path)"
-  else
-    status_line WARN "$type_label missing (expected $target_path)"
-  fi
-
-  if [ "$FIX" -eq 1 ]; then
-    repair_link "$link_path" "$target_path" "$type_label"
-  fi
+  managed_surface_reconcile_link check "$2" "$1" "$3"
 }
 
 check_script_link() {
@@ -189,66 +116,14 @@ check_script_link() {
   check_link "$link_path" "$target_path" "script $script_name"
 }
 
-is_core_pi_skill() {
-  local candidate="$1"
-  local skill_name
-
-  [ -n "$candidate" ] || return 1
-  for skill_name in "${PI_CORE_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    [ "$candidate" = "$skill_name" ] && return 0
-  done
-  return 1
-}
-
-is_agents_visible_skill() {
-  local candidate="$1"
-  local skill_name
-
-  [ -n "$candidate" ] || return 1
-  for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    [ "$candidate" = "$skill_name" ] && return 0
-  done
-  return 1
-}
-
-prune_unlisted_pi_source_skills() {
-  local surface="$1"
-  local keep_fn="$2"
-  local label="$3"
-  local skill_link skill_target skill_name
-
-  [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
-  [ -d "$HOME/$surface" ] || return 0
-
-  for skill_link in "$HOME/$surface"/*; do
-    [ -L "$skill_link" ] || continue
-    skill_target="$(readlink "$skill_link")"
-    case "$skill_target" in
-    "$REPO_DIR/pi/skills/"*) ;;
-    *) continue ;;
-    esac
-    skill_name="$(basename "$skill_link")"
-    if ! "$keep_fn" "$skill_name"; then
-      ISSUES=$((ISSUES + 1))
-      status_line WARN "demoted $label skill $skill_name remains in $surface"
-      if [ "$FIX" -eq 1 ]; then
-        rm -f "$skill_link"
-        FIXED=$((FIXED + 1))
-        status_line FIXED "removed demoted $label skill $skill_name from $surface"
-      fi
-    fi
-  done
-}
-
 check_pi_skill_links() {
   local skill_name
   for skill_name in "${PI_CORE_SKILLS[@]}"; do
     [ -n "$skill_name" ] || continue
     check_link "$HOME/.pi/agent/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "pi skill $skill_name"
   done
-  prune_unlisted_pi_source_skills ".pi/agent/skills" is_core_pi_skill "Pi"
+  [ "$SKILL_CATALOG_MISSING" -eq 1 ] || managed_surface_prune_unlisted_source_skills \
+    check "$REPO_DIR" "$HOME" .pi/agent/skills Pi pi "${PI_CORE_SKILLS[@]}"
 }
 
 check_agents_visible_skill_links() {
@@ -259,31 +134,15 @@ check_agents_visible_skill_links() {
     [ -n "$skill_source" ] || skill_source="$REPO_DIR/pi/skills/$skill_name"
     check_link "$HOME/.agents/skills/$skill_name" "$skill_source" "grok/agents-visible skill $skill_name"
   done
-  prune_unlisted_pi_source_skills ".agents/skills" is_agents_visible_skill "Grok/agents-visible"
+  [ "$SKILL_CATALOG_MISSING" -eq 1 ] || managed_surface_prune_unlisted_source_skills \
+    check "$REPO_DIR" "$HOME" .agents/skills Grok/agents-visible all "${AGENTS_VISIBLE_SKILLS[@]}"
 }
 
 check_vendor_skill_links() {
-  local skill_name skill_dir active_scopes surface skill_link label
-  local skill_target link_name record_scope record_name record_pi_core record_vendor matched
+  local skill_name skill_dir active_scopes surface label
+  local record_scope record_pi_core record_vendor
 
-  for surface in .claude/skills .codex/skills .config/devin/skills; do
-    [ -d "$HOME/$surface" ] || continue
-    for skill_link in "$HOME/$surface"/*; do
-      [ -L "$skill_link" ] || continue
-      case "$(readlink "$skill_link")" in
-      "$REPO_DIR/pi/skills/"*)
-        ISSUES=$((ISSUES + 1))
-        status_line WARN "Pi-sourced skill link $(basename "$skill_link") on $surface"
-        if [ "$FIX" -eq 1 ]; then
-          rm -f "$skill_link"
-          FIXED=$((FIXED + 1))
-          status_line FIXED "removed Pi-sourced skill link $(basename "$skill_link") from $surface"
-        fi
-        ;;
-      esac
-    done
-  done
-
+  managed_surface_prune_pi_cross_surface_links check "$REPO_DIR" "$HOME"
   [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
 
   active_scopes="$(deployed_scopes)"
@@ -301,64 +160,7 @@ check_vendor_skill_links() {
       fi
     done
   done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
-
-  for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
-    [ -d "$HOME/$surface" ] || continue
-    for skill_link in "$HOME/$surface"/*; do
-      [ -L "$skill_link" ] || continue
-      skill_target="$(readlink "$skill_link")"
-      link_name="$(basename "$skill_link")"
-
-      case "$skill_target" in
-      */.agents/skills/* | */.claude/skills/* | */.codex/* | */.config/devin/*)
-        if [ ! -e "$skill_link" ]; then
-          ISSUES=$((ISSUES + 1))
-          status_line WARN "broken cross-surface mirror $link_name remains in $surface"
-          if [ "$FIX" -eq 1 ]; then
-            rm -f "$skill_link"
-            FIXED=$((FIXED + 1))
-            status_line FIXED "removed broken cross-surface mirror $link_name from $surface"
-          fi
-          continue
-        fi
-        ;;
-      esac
-
-      matched=""
-      while IFS=$'\t' read -r record_scope record_name _record_dir record_pi_core record_vendor; do
-        [ "$record_name" = "$link_name" ] || continue
-        case "$skill_target" in
-        *"/$record_vendor/skills/"*) ;;
-        *) continue ;;
-        esac
-        matched=1
-        if ! vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
-          ISSUES=$((ISSUES + 1))
-          status_line WARN "vendor skill $link_name not expected in $surface"
-          if [ "$FIX" -eq 1 ]; then
-            rm -f "$skill_link"
-            FIXED=$((FIXED + 1))
-            status_line FIXED "removed vendor skill $link_name from $surface"
-          fi
-        fi
-        break
-      done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
-
-      if [ -z "$matched" ]; then
-        case "$skill_target" in
-        "$REPO_DIR"/vendor/*/skills/*)
-          ISSUES=$((ISSUES + 1))
-          status_line WARN "orphan vendor skill $link_name remains in $surface"
-          if [ "$FIX" -eq 1 ]; then
-            rm -f "$skill_link"
-            FIXED=$((FIXED + 1))
-            status_line FIXED "removed orphan vendor skill $link_name from $surface"
-          fi
-          ;;
-        esac
-      fi
-    done
-  done
+  managed_surface_prune_vendor_skill_links check "$REPO_DIR" "$HOME" "$SKILL_CATALOG" "$active_scopes"
 }
 
 deployed_scopes() {
@@ -366,13 +168,27 @@ deployed_scopes() {
 }
 
 check_claude_skill_links() {
-  local scope scope_root skill_dir skill_name
+  local scope scope_root skill_dir skill_name active_scopes skill_link
 
-  for scope in $(deployed_scopes); do
+  active_scopes="$(deployed_scopes)"
+  for scope in $active_scopes; do
     scope_root="$REPO_DIR/claude/scopes/$scope/skills"
     [ -d "$scope_root" ] || continue
     while IFS= read -r skill_dir; do
       skill_name="$(basename "$skill_dir")"
+      if managed_surface_skill_is_shadowed "$skill_name" "$active_scopes"; then
+        skill_link="$HOME/.claude/skills/$skill_name"
+        if [ -L "$skill_link" ] && [ "$(readlink "$skill_link")" = "$skill_dir" ]; then
+          ISSUES=$((ISSUES + 1))
+          status_line WARN "shadowed claude skill $skill_name is still linked"
+          if [ "$FIX" -eq 1 ]; then
+            rm -f "$skill_link"
+            FIXED=$((FIXED + 1))
+            status_line FIXED "removed shadowed claude skill $skill_name"
+          fi
+        fi
+        continue
+      fi
       check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
     done < <(find "$scope_root" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) | sort)
   done
@@ -433,32 +249,7 @@ check_claude_script_links() {
 }
 
 check_stale_managed_claude_agent_links() {
-  local legacy_managed_dir="$REPO_DIR/claude/agents"
-  local scoped_managed_root="$REPO_DIR/claude/scopes"
-  local installed_dir="$HOME/.claude/agents"
-  local agent_link agent_target
-
-  if [ ! -d "$installed_dir" ]; then
-    return
-  fi
-
-  for agent_link in "$installed_dir"/*.md; do
-    [ -L "$agent_link" ] || continue
-    agent_target="$(readlink "$agent_link")"
-    case "$agent_target" in
-    "$legacy_managed_dir"/* | "$scoped_managed_root"/*/agents/*) ;;
-    *) continue ;;
-    esac
-    [ -e "$agent_target" ] && continue
-
-    ISSUES=$((ISSUES + 1))
-    status_line WARN "stale managed Claude agent $(basename "$agent_link") -> $agent_target"
-    if [ "$FIX" -eq 1 ]; then
-      rm -f "$agent_link"
-      FIXED=$((FIXED + 1))
-      status_line FIXED "removed stale managed Claude agent $(basename "$agent_link")"
-    fi
-  done
+  managed_surface_prune_stale_claude_agents check "$REPO_DIR" "$HOME"
 }
 
 check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
@@ -508,7 +299,6 @@ check_agents_visible_skill_links
 check_vendor_skill_links
 check_claude_skill_links
 
-check_script_link "dev-spawn"
 check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-workflow"

@@ -110,12 +110,16 @@ paths.each do |path|
 end
 
 install_main = File.read(File.join(root, "scripts/lib/install-main.sh"))
-unless install_main.include?("for scope in $ETABLI_ACTIVE_SCOPES") &&
-       install_main.include?('claude/scopes/$scope/agents') &&
-       install_main.include?('ln -sf "$agent_file" ~/.claude/agents/"$agent_name"')
+deploy_workflow = File.read(File.join(root, "scripts/deploy-agent-workflow"))
+managed_surfaces = File.read(File.join(root, "scripts/lib/managed-surfaces.sh"))
+unless install_main.include?("converge_agent_surfaces") &&
+       deploy_workflow.include?("for scope in $(active_scopes)") &&
+       deploy_workflow.include?('claude/scopes/$scope/agents') &&
+       deploy_workflow.include?('link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name"')
   raise "primary installer omits scoped Claude agents. Remediation: link active claude/scopes/<scope>/agents/*.md into ~/.claude/agents/."
 end
-unless install_main.include?("prune_stale_managed_claude_agent_links")
+unless deploy_workflow.include?("managed_surface_prune_stale_claude_agents") &&
+       managed_surfaces.include?("managed_surface_prune_stale_claude_agents")
   raise "primary installer does not prune stale Etabli-managed Claude agent links."
 end
 
