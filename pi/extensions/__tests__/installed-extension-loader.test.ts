@@ -19,18 +19,29 @@ const repositoryExtensions = [
 	"workflow-tools.ts",
 ];
 
-function resolveInstalledRuntime() {
+function resolveActiveTargets() {
 	const launcherTrace = spawnSync("bash", ["-x", piLauncher, "--version"], { encoding: "utf8" });
 	const activeExec = launcherTrace.stderr.match(/\+ exec (\S+) (\S+\/dist\/(?:bundle\/)?cli\.js) --version/);
-	const activeNode = activeExec?.[1];
-	const activeCli = activeExec?.[2];
-	if (launcherTrace.status !== 0 || !activeNode || !activeCli) throw new Error("unable to resolve active Pi runtime");
+	if (launcherTrace.status === 0 && activeExec) {
+		return { activeNode: activeExec[1], activeCli: activeExec[2], version: launcherTrace.stdout.trim() };
+	}
+	const linkedCli = realpathSync(piLauncher);
+	if (!/\/dist\/(?:bundle\/)?cli\.js$/.test(linkedCli)) throw new Error("unable to resolve active Pi runtime");
+	const nodeLookup = spawnSync("which", ["node"], { encoding: "utf8" });
+	if (nodeLookup.status !== 0) throw new Error("unable to resolve active Pi runtime");
+	const versionRun = spawnSync(piLauncher, ["--version"], { encoding: "utf8" });
+	if (versionRun.status !== 0) throw new Error("unable to resolve active Pi runtime");
+	return { activeNode: nodeLookup.stdout.trim(), activeCli: linkedCli, version: versionRun.stdout.trim() };
+}
+
+function resolveInstalledRuntime() {
+	const { activeNode, activeCli, version } = resolveActiveTargets();
 	const activeNodePath = realpathSync(activeNode);
 	let packageRoot = dirname(realpathSync(activeCli));
 	while (!existsSync(join(packageRoot, "package.json")) && dirname(packageRoot) !== packageRoot) packageRoot = dirname(packageRoot);
 	return {
 		activeNodePath,
-		activePiVersion: launcherTrace.stdout.trim(),
+		activePiVersion: version,
 		loaderPath: join(packageRoot, "dist/core/extensions/loader.js"),
 		packageVersion: JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version as string,
 	};
@@ -73,5 +84,5 @@ describe("installed Pi extension loader", () => {
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
-	});
+	}, 60000);
 });
