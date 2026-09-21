@@ -489,5 +489,7 @@ export function verifyCalibrationReport(profileId, reportDir = REPORT_DIR, polic
 export const calibrationMetricsForTesting = { choiceMetrics, noulMetrics, scoreMetrics, summarizeSkill };
 
 export function calibrationProfileIds(policy = loadSemanticProfilePolicy()) {
-  return Object.keys(policy.profiles);
+  return Object.entries(policy.profiles)
+    .filter(([, profile]) => profile.calibration_status !== "pending_corpus")
+    .map(([profileId]) => profileId);
 }

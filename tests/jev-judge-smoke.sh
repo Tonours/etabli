@@ -3,17 +3,62 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JUDGE="$ROOT/scripts/jev-judge"
+
+"$JUDGE" health --no-retry | jq -e '.max_retries == 0' >/dev/null ||
+  fail "health --no-retry must expose an effective zero-retry policy"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 health="$(env -u TYPESAFE_API_KEY "$JUDGE" health)"
-jq -e '.ok == true and .profiles == 12 and .credential == "absent" and .live_by_default == false' <<<"$health" >/dev/null
+jq -e '.ok == true and .profiles == 13 and .credential == "absent" and .live_by_default == false' <<<"$health" >/dev/null
 
 profiles="$("$JUDGE" list)"
-jq -e '.profiles | length == 12' <<<"$profiles" >/dev/null
-jq -e '[.profiles[].id] | index("skill-suggestion") != null and index("task-state-fallback") != null' <<<"$profiles" >/dev/null
+jq -e '.profiles | length == 13' <<<"$profiles" >/dev/null
+jq -e '[.profiles[].id] | index("skill-suggestion") != null and index("task-state-fallback") != null and index("self-improvement-diagnosis") != null' <<<"$profiles" >/dev/null
 
 "$JUDGE" show claim-evidence | jq -e '.authority == "advisory" and (.questions | keys | length == 2)' >/dev/null
+"$JUDGE" show self-improvement-diagnosis | jq -e '.authority == "diagnostic" and .calibration_status == "pending_corpus" and (.questions | keys | sort == ["actionability", "pattern", "target"])' >/dev/null
+
+"$ROOT/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$ROOT/tests/fixtures/harness-traces/pi/events.jsonl" --run pi-run --json >"$TMP/observation.json"
+prepared="$($JUDGE prepare-self-improvement --observation-file "$TMP/observation.json")"
+jq -e '(.state | keys | sort == ["episode", "signals"]) and (.questions | keys | sort == ["actionability", "pattern", "target"]) and (.state.episode | contains("completeness=complete"))' <<<"$prepared" >/dev/null
+for forbidden in 'action=recommendation' 'category=validation_failure' '/private' 'session.jsonl' 'private prompt response'; do
+  if grep -F "$forbidden" <<<"$prepared" >/dev/null; then
+    echo "jev-judge-smoke: prepared diagnosis leaked preselected or private state" >&2
+    exit 1
+  fi
+done
+if "$JUDGE" evaluate self-improvement-diagnosis --state-file "$TMP/observation.json" --live --no-receipt >"$TMP/out" 2>"$TMP/err"; then
+  echo "jev-judge-smoke: generic evaluation bypassed diagnosis eligibility" >&2
+  exit 1
+fi
+grep -q 'requires the dedicated diagnosis command' "$TMP/err"
+if "$JUDGE" diagnose-self-improvement --observation-file "$TMP/observation.json" >"$TMP/out" 2>"$TMP/err"; then
+  echo "jev-judge-smoke: diagnosis succeeded without --live" >&2
+  exit 1
+fi
+grep -q 'requires explicit --live' "$TMP/err"
+
+canary="$($JUDGE canary-self-improvement --trace-file "$ROOT/tests/fixtures/harness-traces/pi/session-bound.jsonl" --ledger "$ROOT/tests/fixtures/harness-traces/pi/events.jsonl" --run pi-run)"
+jq -e '.canary == "self_improvement_diagnosis" and .mode == "prepared" and .binding == "native_correlated" and .completeness == "complete" and .profile == "self-improvement-diagnosis" and .authority == "diagnostic" and .status == "prepared" and .diagnosis == null and .reason == null and .provider == null and .model == null' <<<"$canary" >/dev/null
+for forbidden in 'private' '/private' 'pi-run' 'pi-private-session' '926a4c832da5' 'state_fingerprint' 'question_fingerprint'; do
+  if grep -F "$forbidden" <<<"$canary" >/dev/null; then
+    echo "jev-judge-smoke: canary leaked private or fingerprint state" >&2
+    exit 1
+  fi
+done
+live_canary="$(env -u TYPESAFE_API_KEY "$JUDGE" canary-self-improvement --trace-file "$ROOT/tests/fixtures/harness-traces/pi/session-bound.jsonl" --ledger "$ROOT/tests/fixtures/harness-traces/pi/events.jsonl" --run pi-run --live)"
+jq -e '.mode == "live" and .status == "abstain" and .reason == "missing_api_key" and .diagnosis == null and .provider == "typesafe-system-one" and .model == "jev-1.13.0"' <<<"$live_canary" >/dev/null
+if "$JUDGE" canary-self-improvement --trace-file "$ROOT/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$ROOT/tests/fixtures/harness-traces/pi/events.jsonl" --run pi-run >"$TMP/out" 2>"$TMP/err"; then
+  echo "jev-judge-smoke: canary accepted an unbound observation" >&2
+  exit 1
+fi
+test "$(cat "$TMP/err")" = 'jev-judge: canary_unavailable'
+if "$JUDGE" canary-self-improvement --trace-file "$TMP/private-missing-session.jsonl" --ledger "$ROOT/tests/fixtures/harness-traces/pi/events.jsonl" --run pi-run >"$TMP/out" 2>"$TMP/err"; then
+  echo "jev-judge-smoke: canary accepted a missing private trace" >&2
+  exit 1
+fi
+test "$(cat "$TMP/err")" = 'jev-judge: canary_unavailable'
 
 printf '%s\n' '{"text":"bounded goal","structured_state_available":false}' >"$TMP/state.json"
 if "$JUDGE" evaluate task-state-fallback --state-file "$TMP/state.json" >"$TMP/out" 2>"$TMP/err"; then

@@ -263,6 +263,8 @@ deploy_pi() {
   done
 
   remove_managed_path "$HOME_DIR/.pi/extensions" "Pi root extensions path"
+  link_path "$REPO_DIR/scripts" "$HOME_DIR/.pi/scripts" "Pi canonical scripts"
+  link_path "$REPO_DIR/workflow" "$HOME_DIR/.pi/workflow" "Pi canonical workflow"
   link_path "$REPO_DIR/pi/extensions" "$HOME_DIR/.pi/agent/extensions" "Pi agent extensions"
   link_path "$REPO_DIR/pi/themes" "$HOME_DIR/.pi/themes" "Pi themes"
 

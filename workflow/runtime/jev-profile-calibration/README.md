@@ -1,7 +1,7 @@
 # Jev profile calibration — 2026-09-19
 
 This directory contains the frozen, sanitized observations and recomputable
-metrics from the live TypeSafe/Jev calibration of the twelve semantic profiles.
+metrics from the live TypeSafe/Jev calibration of the original twelve semantic profiles.
 It is evidence for profile-by-profile tuning, not a bundle promotion decision.
 `campaign.json` binds every report and the summary to one immutable campaign
 contract and preserves authoritative measured-or-reserved budget totals.
@@ -53,6 +53,16 @@ gates, and shortlist recall reached 100%. Final selected-skill accuracy was
 83.3% and stability 100%, but accepted coverage was only 33.3% and strict
 no-match accuracy 66.7%. This separates stable candidate/selection ranking from
 weak threshold acceptance and no-match behavior.
+
+The additive `self-improvement-diagnosis` profile is not part of this historical
+campaign. It is marked `pending_corpus` and is excluded from `--all`; no live
+quality, safety, or activation claim exists for it.
+
+On the 2026-09-20 checkout, corpus validation still passes for all twelve
+historical profiles. Full report verification is stale at `skill-suggestion`
+because its current catalog fingerprint no longer matches the collection-time
+identity. Do not migrate that collection identity or present the reports as
+current; refresh it only through a separately authorized calibration campaign.
 
 ## Reproduction and verification
 

@@ -269,6 +269,8 @@ check_link "$HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL
 check_link "$HOME/.agents/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "agents PLAN_TEMPLATE.md"
 check_link "$HOME/.agents/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "agents PLAN_TEMPLATE_FULL.md"
 check_link "$HOME/.agents/workflow" "$REPO_DIR/workflow" "agents workflow sources"
+check_link "$HOME/.pi/scripts" "$REPO_DIR/scripts" "pi canonical scripts"
+check_link "$HOME/.pi/workflow" "$REPO_DIR/workflow" "pi canonical workflow"
 check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
 check_link "$REPO_DIR/pi/extensions/node_modules" "$(pi_agent_node_modules_dir "$HOME")" "pi extension node_modules"
 check_absent "$HOME/.pi/extensions" "legacy pi extensions"

@@ -92,10 +92,10 @@ let observationRejected=false;try{validatePromotionManifest(enforcedPolicy,{...m
 let routerRejected=false;try{validatePromotionManifest(enforcedPolicy,{...manifest,results:results.map(item=>item.id==="a"?{...item,deterministic_choice:"verify"}:item)},corpus);}catch{routerRejected=true;}if(!routerRejected)throw new Error("counterfactual deterministic route accepted");
 JS
 health="$(node "$ROOT/scripts/jev-shadow" health)"
-jq -e '.ok == true and .mode == "enforced" and .mode_source == "locked_policy" and .execution == "live_http" and .cache == "no-store" and .model == "jev-1.13.0" and .credential == "absent"' <<<"$health" >/dev/null
+jq -e '.ok == true and .mode == "disabled" and .mode_source == "locked_policy" and .execution == "live_http" and .cache == "no-store" and .model == "jev-1.13.0" and .credential == "absent"' <<<"$health" >/dev/null
 corpus="$(node "$ROOT/scripts/jev-shadow" corpus "$ROOT/tests/fixtures/jev-shadow/route-corpus.json")"
 jq -e '.synthetic == true and .total == 6 and .agreement_rate > 0 and .agreement_rate < 1 and .latency_ms.p95 > 0 and (.calibration_observations | length == 3) and (.results | all(.selected == .expected and (.probabilities | type == "object") and (.confidence | type == "number")))' <<<"$corpus" >/dev/null
-for mode in shadow disabled advisory; do
+for mode in shadow enforced advisory; do
   if ETABLI_SEMANTIC_MODE="$mode" node "$ROOT/scripts/jev-shadow" health >/dev/null 2>&1; then
     printf 'promotion mode unexpectedly enabled: %s\n' "$mode" >&2
     exit 1
@@ -117,10 +117,13 @@ fi
 [ ! -d "$ROOT/deploy/jev-shadow" ]
 mkdir -p "$TMP/runtime/.pi/agent"
 ln -s "$ROOT/pi/extensions" "$TMP/runtime/.pi/agent/extensions"
+ln -s "$ROOT/scripts" "$TMP/runtime/.pi/scripts"
+ln -s "$ROOT/workflow" "$TMP/runtime/.pi/workflow"
 bun -e "await import('$TMP/runtime/.pi/agent/extensions/workflow-router.ts')" >/dev/null
+bun -e "await import('$TMP/runtime/.pi/agent/extensions/jev-route-capsule-runtime.ts')" >/dev/null
 mkdir -p "$TMP/local-root"
 cli_injected="$(printf '%s\n' '{"prompt":"plain route","deterministic_route":"answer","policy":{"mode":"advisory","model":"jev-latest","receipt_path":"../escape.jsonl"},"persistReceipt":false}' | ETABLI_RECEIPT_ROOT="$TMP/local-root" node "$ROOT/scripts/jev-shadow" evaluate)"
-jq -e '.receipt.model == "jev-1.13.0" and .receipt.error_code == "missing_api_key"' <<<"$cli_injected" >/dev/null
-[ -s "$TMP/local-root/.workflow/semantic-judgments.jsonl" ]
+jq -e '.selected.route == "answer" and .receipt == null' <<<"$cli_injected" >/dev/null
+[ ! -e "$TMP/local-root/.workflow/semantic-judgments.jsonl" ]
 [ ! -e "$TMP/escape.jsonl" ]
 printf 'jev shadow smoke test: ok\n'

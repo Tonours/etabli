@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "policy_version": "semantic-profiles-1.0.0",
+  "catalog_version": "semantic-profile-catalog-1.1.0",
   "provider": "typesafe-system-one",
   "model": "jev-1.13.0",
   "receipt_path": ".workflow/semantic-profile-judgments.jsonl",
@@ -56,6 +57,22 @@
         "outcome": { "type": "choice", "instructions": "Classify the observed outcome without inventing evidence.", "criteria": { "success": "Goal achieved with evidence.", "partial": "Some value delivered but goal incomplete.", "blocked": "External or authority blocker remains.", "failed": "Attempt failed without useful completion.", "inconclusive": "Evidence cannot determine outcome.", "not_attempted": "No implementation attempt occurred." } }
       },
       "uncertainty": { "choice_min_confidence": 0.7, "choice_min_margin": 0.12 }
+    },
+    "self-improvement-diagnosis": {
+      "purpose": "Diagnose a complete sanitized workflow observation without granting mutation or permission authority.",
+      "authority": "diagnostic",
+      "egress_class": "private_opt_in",
+      "max_state_chars": 2048,
+      "deterministic_owner": "workflow/trace-self-improvement.md",
+      "calibration_status": "pending_corpus",
+      "contract_fingerprint": "8624667f3289437a8968bbef96d613c9e11d3c1f175f8167c865c4bed421f348",
+      "state_schema": { "episode": "self_improvement_episode", "signals": "self_improvement_signals" },
+      "questions": {
+        "pattern": { "type": "choice", "instructions": "Identify the primary workflow friction supported by the normalized facts. Choose mixed_or_ambiguous when the facts do not support one primary pattern.", "criteria": { "no_material_friction": "No material workflow friction is supported.", "execution_reliability": "Tool or runtime execution reliability is the primary friction.", "verification_gap": "Validation or verifier evidence is the primary friction.", "review_feedback_loop": "Repeated review correction is the primary friction.", "planning_feedback_loop": "Repeated planning correction is the primary friction.", "context_saturation": "Compaction or context pressure is the primary friction.", "mixed_or_ambiguous": "Several patterns compete or evidence is insufficient to select one." } },
+        "target": { "type": "choice", "instructions": "Select the narrowest follow-up surface justified by the normalized facts.", "criteria": { "no_change": "No follow-up surface is justified.", "tool_contract": "Investigate tooling or runtime contracts.", "validation_strategy": "Investigate tests, validation, or verifier coverage.", "review_contract": "Investigate review rules or feedback handling.", "planning_contract": "Investigate planning rules or plan quality.", "context_design": "Investigate context construction or compaction handling.", "needs_investigation": "Evidence supports investigation but not a narrower surface." } },
+        "actionability": { "type": "choice", "instructions": "Choose the strongest safe follow-up supported by this single sanitized observation. Candidate means reviewed follow-up only, never mutation approval.", "criteria": { "no_op": "No action is justified.", "investigate": "Collect or inspect more evidence.", "candidate": "Record a bounded candidate for reviewed follow-up; do not apply a change." } }
+      },
+      "uncertainty": { "choice_min_confidence": 0.75, "choice_min_margin": 0.15 }
     },
     "project-hunt-evidence": {
       "purpose": "Qualify market evidence without inferring buyer budget from displayed prices.",

@@ -12,6 +12,14 @@ const target = pathToFileURL(
 ).href;
 const mod = await import(target);
 
+export const pickPrimaryActiveLedger = mod.pickPrimaryActiveLedger as (
+	cwd: string,
+) => {
+	path: string;
+	run: string;
+	events: Array<Record<string, unknown>>;
+} | null;
+
 export const inferBashFailureFromToolResult =
 	mod.inferBashFailureFromToolResult as (
 		content: unknown,

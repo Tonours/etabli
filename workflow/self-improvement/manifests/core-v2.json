@@ -88,7 +88,7 @@
         "tests/fixtures/harness-v1/tasks/review-spec-drift/synthetic/pass/transcript.txt",
         "tests/fixtures/harness-v1/tasks/review-spec-drift/uncommitted/FORBIDDEN.txt"
       ],
-      "sha256": "6132505d6eebde292147cf5ee54743ba5cbc9c0c506d1967c9d73a9168f44364"
+    "sha256": "45e99f96821eed8536dfbfa49963b15aa7597ef61dc9dd891451511c08fa2917"
     }
   },
   "tasks": [

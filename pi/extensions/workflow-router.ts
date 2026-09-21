@@ -1,13 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
-	classifyWorkflowRoute,
 	WORKFLOW_ROUTER_EXTENSION_VERSION,
-	type PlanStatus,
 } from "./lib/workflow-router-runtime.ts";
-import { resolveDynamicKnowledgeContext } from "../../workflow/runtime/obvault-topic-resolver.mjs";
-import { parsePlanStatus, planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
+import { eventCwd, resolveWorkflowRouteContext } from "./lib/workflow-route-context.ts";
+import { planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
 import {
 	inferBashFailureFromToolResult,
 	isBashToolName,
@@ -30,55 +26,6 @@ type WorkflowRouterHooks = {
 	loadSemanticPolicy?: typeof loadSemanticPolicy;
 };
 
-function readPlanStatus(cwd: string): PlanStatus {
-	try {
-		const content = readFileSync(resolve(cwd, "PLAN.md"), "utf-8");
-		return parsePlanStatus(content) as PlanStatus;
-	} catch {
-		return "missing";
-	}
-}
-
-function eventCwd(event: unknown, ctx?: { cwd?: unknown }): string {
-	// Pi tool_call events carry no cwd; the session cwd is on the handler
-	// context. Prefer it, keep the event fallback for tests and other events.
-	if (typeof ctx?.cwd === "string" && ctx.cwd.trim() !== "") return ctx.cwd;
-	if (typeof event === "object" && event !== null && "cwd" in event) {
-		const cwd = (event as { cwd?: unknown }).cwd;
-		if (typeof cwd === "string" && cwd.trim() !== "") return cwd;
-	}
-	if (typeof process.cwd === "function") return process.cwd();
-	return ".";
-}
-
-function promptPlanStatusFallback(prompt: string): PlanStatus {
-	// Map prompt wording to a plan status ONLY when the status word is tied
-	// to the plan itself; "fix the bug in the email draft" must not resume a
-	// plan cycle.
-	if (planStatusWord(prompt, /\bdraft\b|brouillon/i)) return "draft";
-	if (
-		planStatusWord(
-			prompt,
-			/\bchallenged\b|challeng[eé]e?s?\b|bloqu[eé]e?s?\b|\bblocked\b/i,
-		)
-	)
-		return "challenged";
-	// "unknown" and "missing" both mean "no recognized planning lock": the
-	// core router treats them equivalently (ordinary coding edits directly).
-	return "unknown";
-}
-
-function planStatusWord(prompt: string, statusPattern: RegExp): boolean {
-	// Co-occurrence approximation of "status word tied to the plan": a plan
-	// NOUN (or PLAN.md) and the status word anywhere in the same prompt.
-	// Excludes the English verb ("plan to ...") and compound tokens
-	// ("plan-implement") so ordinary wording does not resume a plan cycle.
-	// Deliberately loose on distance — proximity parsing would be brittle
-	// for one line of routing.
-	const planNoun = /\bplan\b(?![\w-])(?!\s+to\b)|(?:^|[^\w-])plan\.md\b/i;
-	return planNoun.test(prompt) && statusPattern.test(prompt);
-}
-
 function routedSystemPrompt(systemPrompt: string | undefined, decision: Record<string, unknown>): string {
 	const contract = {
 		route: decision.route,
@@ -100,21 +47,7 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 		const trimmedPrompt = event.prompt.trim();
 		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;
 
-		const planStatus = readPlanStatus(eventCwd(event, ctx));
-		const routeContext = {
-			planStatus:
-				planStatus === "missing"
-					? promptPlanStatusFallback(event.prompt)
-					: planStatus,
-		};
-		let decision = classifyWorkflowRoute(event.prompt, routeContext);
-		if (!decision.knowledgeContext) {
-			decision = classifyWorkflowRoute(event.prompt, {
-				...routeContext,
-				dynamicKnowledgeContext:
-					resolveDynamicKnowledgeContext(event.prompt) ?? undefined,
-			});
-		}
+		const { decision, routeContext } = resolveWorkflowRouteContext(event.prompt, eventCwd(event, ctx));
 
 		let semanticPolicy;
 		try {

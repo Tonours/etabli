@@ -1,7 +1,9 @@
 # surface	canonical	deployed_or_adapter_surfaces
 router-classifier	workflow/runtime/workflow-router-core.mjs	claude/hooks/workflow-router-lib.mjs,pi/extensions/lib/workflow-router-runtime.ts
 semantic-judgment	pi/extensions/lib/semantic-judgment.mjs	pi/extensions/lib/semantic-route.mjs,pi/extensions/lib/typesafe-system-one.mjs,pi/extensions/lib/route-shadow.mjs,scripts/jev-shadow,pi/extensions/workflow-router.ts
-semantic-profiles	workflow/runtime/semantic-profile-policy.json	pi/extensions/lib/semantic-profiles.mjs,pi/extensions/lib/semantic-claim-evidence.mjs,pi/extensions/lib/semantic-skill-suggestion.mjs,scripts/jev-judge,workflow/semantic-profiles.md
+jev-route-capsule	workflow/runtime/jev-route-capsule-policy.json	workflow/runtime/jev-route-capsule-promotion.json,workflow/runtime/jev-plan-implement-activation.json,tests/fixtures/jev-route-capsule/plan-implement-cases.json,pi/extensions/lib/jev-route-capsule.mjs,pi/extensions/lib/workflow-route-context.ts,pi/extensions/jev-route-capsule-runtime.ts,scripts/lib/jev-efficiency-candidate.mjs,workflow/self-improvement/jev-efficiency-final-report.md
+semantic-profiles	workflow/runtime/semantic-profile-policy.json	pi/extensions/lib/semantic-profiles.mjs,pi/extensions/lib/self-improvement-diagnosis.mjs,pi/extensions/lib/semantic-claim-evidence.mjs,pi/extensions/lib/semantic-skill-suggestion.mjs,scripts/jev-judge,workflow/semantic-profiles.md
+trace-run-binding	scripts/lib/pi-run-binding.mjs	pi/extensions/workflow-run-binding.ts,scripts/lib/harness-trace-retrospect.mjs,scripts/jev-judge,workflow/trace-observation.schema.json,workflow/trace-self-improvement.md
 semantic-profile-calibration	tests/fixtures/jev-profiles/*.json	pi/extensions/lib/semantic-profile-calibration.mjs,scripts/jev-profile-calibrate,workflow/runtime/jev-profile-calibration/*.json,pi/extensions/__tests__/semantic-profile-calibration.test.ts
 skill-surface	workflow/runtime/skill-surface.tsv	scripts/install.sh,scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh
 managed-surface-reconciliation	scripts/lib/managed-surfaces.sh	scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh,scripts/lib/install-main.sh
