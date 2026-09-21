@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "strict": true,
+  "manifest_id": "jev-efficiency-v1",
+  "visibility": "frozen_public",
+  "description": "Public structural inventory for paired Jev efficiency campaigns. Task prompts, traces, receipts and results remain private; this manifest is not a sealed held-out corpus.",
+  "objective": {
+    "kind": "efficiency",
+    "metric": "total_tokens",
+    "direction": "decrease",
+    "minimum_delta": 1,
+    "measurement_population": "jev-efficiency-private-v1"
+  },
+  "campaign_contract": {
+    "schema_version": 1,
+    "final_repetitions": 3,
+    "target_savings_percent": 30,
+    "stretch_savings_percent": 50,
+    "max_offline_hypotheses": 4,
+    "max_live_candidates": 2,
+    "execution_population": "private_ignored",
+    "public_manifest_is_sealed": false
+  },
+  "evaluator": {
+    "id": "jev-efficiency-campaign-v1",
+    "path": "scripts/jev-efficiency-campaign",
+    "sha256": "0ffc460ba39a5e46784df5eb09c53c9252ef6748f484058c802ff5abc35ce816",
+    "bundle": {
+      "root": ".",
+      "paths": [
+        "scripts/etabli-harness-eval",
+        "scripts/jev-efficiency-campaign",
+        "scripts/lib/etabli-harness-eval.sh",
+        "scripts/lib/jev-efficiency-campaign.mjs",
+        "scripts/lib/harness-token-usage.mjs",
+        "scripts/lib/hash.sh",
+        "scripts/lib/skill-eval.mjs",
+        "scripts/lib/evaluator-bundle.mjs",
+        "workflow/self-improvement/jev-efficiency-result.schema.json"
+      ],
+      "sha256": "6b7fb945878a89ed9e0b7dc23128f3dbe102320aa25a7fb029f950e1132abe8a"
+    }
+  },
+  "runtime_artifact": {
+    "paths": [
+      "pi/agent/settings.json",
+      "pi/extensions/lib",
+      "pi/extensions/workflow-router.ts",
+      "pi/extensions/workflow-tools.ts",
+      "pi/models.json",
+      "pi/settings.json",
+      "pi/skills",
+      "herdr/skills/herdr",
+      "scripts/jev-judge",
+      "workflow/runtime/semantic-profile-policy.json",
+      "workflow-scaffold/templates"
+    ],
+    "excludes": [
+      "pi/skills/herdr"
+    ]
+  },
+  "tasks": [
+    { "id": "answer-bounded", "category": "answer", "split": "held_in", "protected": false },
+    { "id": "planning-ready-gate", "category": "planning", "split": "held_in", "protected": false },
+    { "id": "implementation-scoped", "category": "implementation", "split": "held_out", "protected": false },
+    { "id": "review-evidence", "category": "review", "split": "held_out", "protected": false },
+    { "id": "failure-diagnosis", "category": "failure_diagnosis", "split": "held_in", "protected": false },
+    { "id": "self-improvement-candidate", "category": "self_improvement", "split": "held_out", "protected": false },
+    { "id": "protected-route-no-mutate", "category": "protected_route", "split": "safety", "protected": true }
+  ],
+  "minimum_sample_per_split": 1,
+  "external_isolated_evaluator": "blocked_pending_private_population",
+  "grader_immutability": "Any manifest, evaluator bundle, runtime, population, repetition, task, telemetry or artifact drift makes the comparison non-comparable."
+}

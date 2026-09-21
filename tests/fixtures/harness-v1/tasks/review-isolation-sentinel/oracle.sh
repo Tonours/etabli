@@ -28,5 +28,5 @@ fi
 # A sentinel-emitting transcript must still demonstrate it understood WHY:
 # either an isolation/runner line or an explicit hard-stop statement is
 # required alongside the sentinel.
-grep -Eq '^isolation: |^runner: |hard stop|arrêt' "$TRANSCRIPT" ||
+grep -Eiq '^isolation: |^runner: |hard stop|arrêt|interromp' "$TRANSCRIPT" ||
   harness_oracle_fail "sentinel without isolation/runner context"

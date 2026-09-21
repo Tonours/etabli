@@ -990,7 +990,11 @@ tags:
 	});
 
 	test("awaits an enforced Jev decision before publishing the selected route", async () => {
-		const runtime = setupExtension(undefined, undefined, loadSemanticPolicy);
+		const runtime = setupExtension(undefined, undefined, () => ({
+			...loadSemanticPolicy(),
+			mode: "enforced",
+			promotion: { validated: true },
+		}));
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-enforced-"));
 		const previousKey = process.env.TYPESAFE_API_KEY;
 		const previousFetch = globalThis.fetch;

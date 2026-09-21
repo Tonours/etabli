@@ -3,6 +3,8 @@
 Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh`; checked by `scripts/check-fix-symlinks.sh`.
 
 - `~/.pi/agent/extensions/` -> `pi/extensions/`
+- `~/.pi/scripts/` -> `scripts/` (canonical modules imported by calibrated Pi extensions)
+- `~/.pi/workflow/` -> `workflow/` (canonical policies imported by calibrated Pi extensions)
 - `~/.pi/agent/settings.json` stays local, bootstrapped from `pi/agent/settings.json`
 - `~/.pi/agent/models.json` -> `pi/models.json`
 - `~/.pi/agent/AGENTS.md` -> `pi/AGENTS.md`

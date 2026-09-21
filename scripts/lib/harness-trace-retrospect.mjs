@@ -2,6 +2,7 @@ import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { WORKFLOW_EVENTS } from "./workflow-events.mjs";
+import { createPiRunBinding, isPiRunBinding, PI_RUN_BINDING_TYPE } from "./pi-run-binding.mjs";
 
 export const TRACE_OBSERVATION_SCHEMA_VERSION = 1;
 export const TRACE_ADAPTER_VERSION = "prototype-offline-1";
@@ -110,14 +111,14 @@ export function unavailableTraceObservation(adapter, reasonCodes, terminal = nul
   });
 }
 
-function output({ adapter, completeness, reasonCodes, terminal, signals, usage, decision }) {
+function output({ adapter, completeness, reasonCodes, terminal, signals, usage, decision, binding = "explicit_unverified" }) {
   const jevState = decision && terminal ? buildSelfImprovementState({ decision, terminal, verifier: Boolean(signals?.verifier), complete: completeness === "complete", runs: 1 }) : null;
   return {
     schema_version: TRACE_OBSERVATION_SCHEMA_VERSION,
     capability: TRACE_CAPABILITY,
     adapter,
     adapter_version: TRACE_ADAPTER_VERSION,
-    binding: "explicit_unverified",
+    binding,
     observation_id: randomUUID(),
     completeness,
     reason_codes: [...new Set(reasonCodes)].sort(),
@@ -168,7 +169,9 @@ function ledgerFacts(rows, run) {
     .filter((row) => row.event === "adversary_completed")
     .reduce((total, row) => total + (Array.isArray(row.detail?.accepted_findings) ? row.detail.accepted_findings.length : 0), 0);
   return {
+    genesis: rows[0],
     route: routeRows[0].detail.route,
+    planStatus: rows.filter((row) => row.event === "plan_created").at(-1)?.detail?.status ?? null,
     terminal: last.event,
     start: times[0],
     end: times.at(-1),
@@ -229,6 +232,22 @@ function validClaudeUserItem(item) {
   });
 }
 
+function validRouterDecisionData(data) {
+  if (!plainObject(data) || !exactKeys(data, ["receipt", "version"]) || typeof data.version !== "string" || !data.version) return false;
+  const receipt = data.receipt;
+  if (!plainObject(receipt) || !exactKeys(receipt, ["schema_version", "ts", "provider", "model", "policy_version", "state_fingerprint", "question_fingerprint", "deterministic_decision", "selected_decision", "selection_source", "selection_reason", "shadow_answer", "latency_ms", "usage", "outcome", "error_code"])) return false;
+  if (receipt.schema_version !== 2 || timestamp(receipt.ts) === null) return false;
+  for (const key of ["provider", "model", "policy_version", "deterministic_decision", "selected_decision", "selection_source", "outcome"]) {
+    if (typeof receipt[key] !== "string" || !receipt[key]) return false;
+  }
+  for (const key of ["state_fingerprint", "question_fingerprint"]) if (typeof receipt[key] !== "string" || !/^[0-9a-f]{64}$/.test(receipt[key])) return false;
+  if (receipt.selection_reason !== null && typeof receipt.selection_reason !== "string") return false;
+  if (receipt.shadow_answer !== null && !plainObject(receipt.shadow_answer)) return false;
+  if (!Number.isSafeInteger(receipt.latency_ms) || receipt.latency_ms < 0) return false;
+  if (receipt.usage !== null && (!plainObject(receipt.usage) || !Number.isSafeInteger(receipt.usage.input_tokens) || receipt.usage.input_tokens < 0 || !Number.isSafeInteger(receipt.usage.output_tokens) || receipt.usage.output_tokens < 0)) return false;
+  return receipt.error_code === null || typeof receipt.error_code === "string";
+}
+
 function validContent(content, validator) {
   return typeof content === "string" || (Array.isArray(content) && content.every(validator));
 }
@@ -247,16 +266,19 @@ function validatePiLineage(rows) {
   return null;
 }
 
-function parsePi(rows) {
+function parsePi(rows, run, genesis, windowStart, windowEnd) {
   if (rows[0]?.type !== "session" || rows[0]?.version !== 3 || typeof rows[0]?.id !== "string" || !rows[0].id) return { error: "trace_identity_unknown" };
+  const expectedBinding = createPiRunBinding(rows[0].id, run, genesis);
   const lineageError = validatePiLineage(rows);
   if (lineageError) return { error: lineageError };
   for (let index = 1; index < rows.length; index += 1) {
     if (timestamp(rows[index].timestamp) < timestamp(rows[index - 1].timestamp)) return { error: "trace_time_conflict" };
   }
   const idPositions = new Map(rows.slice(1).map((row, offset) => [row.id, offset + 1]));
-  const calls = new Map();
-  const results = new Set();
+  const allCalls = new Map();
+  const allResults = new Set();
+  const windowCalls = new Map();
+  const windowResults = new Set();
   const usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
   let usageSeen = false;
   let usageComplete = true;
@@ -264,31 +286,46 @@ function parsePi(rows) {
   let compactions = 0;
   let partial = false;
   let unsupportedRows = 0;
-  let traceRoute = null;
   let assistantRows = 0;
+  let observedToolCalls = 0;
+  const bindings = [];
+  const allBindingRows = [];
+  const routeRows = [];
+  const decisionRows = [];
   for (const [index, row] of rows.entries()) {
     if (index === 0) continue;
+    const rowTime = timestamp(row.timestamp);
+    const inWindow = rowTime >= windowStart && rowTime <= windowEnd;
     if (row.type === "message") {
       const message = row.message;
       if (!message || typeof message !== "object") return { error: "trace_primary_shape_missing" };
       if (message.role === "assistant") {
-        assistantRows += 1;
+        if (inWindow) assistantRows += 1;
         if (!Array.isArray(message.content)) return { error: "trace_primary_shape_missing" };
         if (!validContent(message.content, validPiAssistantItem)) return { error: "trace_shape_unknown" };
         for (const item of message.content) {
           if (item.type !== "toolCall") continue;
-          if (typeof item.id !== "string" || !item.id || typeof item.name !== "string" || !item.name || calls.has(item.id)) return { error: "trace_tool_conflict" };
-          calls.set(item.id, item.name);
+          if (typeof item.id !== "string" || !item.id || typeof item.name !== "string" || !item.name || allCalls.has(item.id)) return { error: "trace_tool_conflict" };
+          allCalls.set(item.id, item.name);
+          if (inWindow) {
+            windowCalls.set(item.id, item.name);
+            observedToolCalls += 1;
+          }
         }
-        if (message.usage === undefined) usageComplete = false;
-        else if (addUsage(usage, message.usage)) usageSeen = true;
-        else usageComplete = false;
+        if (inWindow) {
+          if (message.usage === undefined) usageComplete = false;
+          else if (addUsage(usage, message.usage)) usageSeen = true;
+          else usageComplete = false;
+        }
       } else if (message.role === "toolResult") {
-        if (typeof message.toolCallId !== "string" || typeof message.isError !== "boolean" || results.has(message.toolCallId)) return { error: "trace_tool_conflict" };
-        if (!calls.has(message.toolCallId) || message.toolName !== calls.get(message.toolCallId)) return { error: "trace_tool_conflict" };
+        if (typeof message.toolCallId !== "string" || typeof message.isError !== "boolean") return { error: "trace_tool_conflict" };
         if (!validContent(message.content, validTextOrImage)) return { error: "trace_shape_unknown" };
-        results.add(message.toolCallId);
-        if (message.isError) toolErrors += 1;
+        if (!allCalls.has(message.toolCallId) || allResults.has(message.toolCallId) || message.toolName !== allCalls.get(message.toolCallId)) return { error: "trace_tool_conflict" };
+        allResults.add(message.toolCallId);
+        if (windowCalls.has(message.toolCallId)) {
+          windowResults.add(message.toolCallId);
+          if (message.isError) toolErrors += 1;
+        }
       } else if (message.role === "user") {
         if (!validContent(message.content, validTextOrImage)) return { error: "trace_shape_unknown" };
       } else return { error: "trace_primary_shape_missing" };
@@ -296,28 +333,55 @@ function parsePi(rows) {
       const retainedPosition = idPositions.get(row.firstKeptEntryId);
       const hasRetainedContext = typeof row.firstKeptEntryId === "string" && row.firstKeptEntryId && Number.isInteger(retainedPosition) && retainedPosition < index;
       if (typeof row.summary !== "string" || !Number.isSafeInteger(row.tokensBefore) || row.tokensBefore < 0 || !hasRetainedContext) return { error: "trace_shape_unknown" };
-      compactions += 1;
+      if (inWindow) compactions += 1;
     } else if (row.type === "branch_summary") {
       return { error: "trace_branch_ambiguous" };
-    } else if (["model_change", "thinking_level_change", "label_change"].includes(row.type)) {
-      const knownSecondary = (row.type === "model_change" && typeof row.provider === "string" && typeof row.modelId === "string")
-        || (row.type === "thinking_level_change" && typeof row.thinkingLevel === "string")
-        || (row.type === "label_change" && typeof row.label === "string");
-      if (!knownSecondary) return { error: "trace_shape_unknown" };
-      partial = true;
-      unsupportedRows += 1;
+    } else if (row.type === "model_change" || row.type === "thinking_level_change") {
+      const knownMetadata = row.type === "model_change"
+        ? typeof row.provider === "string" && Boolean(row.provider) && typeof row.modelId === "string" && Boolean(row.modelId)
+        : typeof row.thinkingLevel === "string" && Boolean(row.thinkingLevel);
+      if (!knownMetadata) return { error: "trace_shape_unknown" };
+    } else if (row.type === "label_change") {
+      if (typeof row.label !== "string") return { error: "trace_shape_unknown" };
+      if (inWindow) {
+        partial = true;
+        unsupportedRows += 1;
+      }
+    } else if (row.type === "custom" && row.customType === PI_RUN_BINDING_TYPE) {
+      allBindingRows.push({ data: row.data, index });
+      if (inWindow) bindings.push({ data: row.data, index });
     } else if (row.type === "custom" && row.customType === "etabli.workflow-router") {
       const route = row.data?.decision?.route;
-      if (!ROUTES.has(route) || (traceRoute !== null && traceRoute !== route)) return { error: "trace_route_conflict" };
-      traceRoute = route;
+      if (!ROUTES.has(route)) return { error: "trace_route_conflict" };
+      routeRows.push({ index, route, inWindow });
+    } else if (row.type === "custom" && row.customType === "etabli.workflow-router.decision") {
+      if (!validRouterDecisionData(row.data)) return { error: "trace_shape_unknown" };
+      decisionRows.push({ index, selected: row.data.receipt.selected_decision });
     } else {
       return { error: "trace_shape_unknown" };
     }
   }
-  if (calls.size !== results.size) return { error: "trace_tool_incomplete" };
-  for (const id of calls.keys()) if (!results.has(id)) return { error: "trace_tool_incomplete" };
+  if (windowCalls.size !== windowResults.size) return { error: "trace_tool_incomplete" };
+  for (const id of windowCalls.keys()) if (!windowResults.has(id)) return { error: "trace_tool_incomplete" };
   if (assistantRows === 0) return { error: "trace_primary_shape_missing" };
-  return { partial, unsupportedRows, traceRoute, toolCalls: calls.size, toolErrors, compactions, retries: null, usage: usageSeen && usageComplete ? usage : null };
+  if (bindings.length > 1) return { error: "trace_binding_conflict" };
+  if (bindings.length === 1 && (!isPiRunBinding(bindings[0].data) || bindings[0].data.fingerprint !== expectedBinding.fingerprint)) return { error: "trace_binding_mismatch" };
+  let traceRoute = null;
+  if (bindings.length === 1) {
+    const binding = bindings[0];
+    const previousBinding = allBindingRows.filter((row) => row.index < binding.index).at(-1);
+    const lowerBound = previousBinding?.index ?? -1;
+    const authoritative = routeRows.filter((row) => row.index > lowerBound && row.index < binding.index).at(-1);
+    if (!authoritative) return { error: "trace_route_mismatch" };
+    traceRoute = authoritative.route;
+    const receipt = decisionRows.filter((row) => row.index > authoritative.index && row.index < binding.index).at(-1);
+    if (receipt && !routeMatchesSelectedDecision(traceRoute, receipt.selected)) return { error: "trace_route_conflict" };
+  } else {
+    const routes = [...new Set(routeRows.filter((row) => row.inWindow).map((row) => row.route))];
+    if (routes.length > 1) return { error: "trace_route_conflict" };
+    traceRoute = routes[0] ?? null;
+  }
+  return { binding: bindings.length === 1 ? "native_correlated" : "explicit_unverified", partial, unsupportedRows, traceRoute, toolCalls: observedToolCalls, toolErrors, compactions, retries: null, usage: usageSeen && usageComplete ? usage : null };
 }
 
 function claudeContent(row) {
@@ -411,6 +475,14 @@ function chooseDecision(completeness, signals) {
   return { action: "no_op", category: "no_issue", target: "none", causal_status: "unknown" };
 }
 
+function routeMatchesSelectedDecision(route, selected) {
+  return selected === route || (route === "answer" && selected === "direct-edit");
+}
+
+function routeMatchesLedger(traceRoute, ledgerRoute, planStatus) {
+  return traceRoute === ledgerRoute || (ledgerRoute === "plan-implement" && traceRoute === "implement" && planStatus === "READY");
+}
+
 export function buildSelfImprovementState({ decision, terminal, verifier, complete, runs }) {
   const candidate = `action=${decision.action};category=${decision.category};target=${decision.target}`;
   const evidence = `runs=${runs};complete=${complete};terminal=${terminal};verifier=${verifier}`;
@@ -426,10 +498,14 @@ export function analyzeTraceEpisode({ adapter, traceText, ledgerText, run, capab
   const facts = ledgerFacts(ledger.rows, run);
   if (facts.error) return unavailableTraceObservation(adapter, [facts.error]);
   const traceTimes = trace.rows.map((row) => timestamp(row.timestamp)).filter((value) => value !== null);
-  if (traceTimes.length !== trace.rows.length || traceTimes.some((value) => value < facts.start || value > facts.end)) return unavailableTraceObservation(adapter, ["trace_window_mismatch"], facts.terminal);
-  const parsed = adapter === "pi" ? parsePi(trace.rows) : parseClaude(trace.rows);
+  const bindingTimes = adapter === "pi" ? trace.rows.filter((row) => row.type === "custom" && row.customType === PI_RUN_BINDING_TYPE).map((row) => timestamp(row.timestamp)) : [];
+  const piHasBinding = bindingTimes.some((value) => value !== null && value >= facts.start && value <= facts.end);
+  const outsideWindow = !piHasBinding && traceTimes.some((value) => value < facts.start || value > facts.end)
+    || bindingTimes.some((value) => value === null);
+  if (traceTimes.length !== trace.rows.length || outsideWindow) return unavailableTraceObservation(adapter, ["trace_window_mismatch"], facts.terminal);
+  const parsed = adapter === "pi" ? parsePi(trace.rows, run, facts.genesis, facts.start, facts.end) : parseClaude(trace.rows);
   if (parsed.error) return unavailableTraceObservation(adapter, [parsed.error], facts.terminal);
-  if (typeof parsed.traceRoute === "string" && parsed.traceRoute !== facts.route) return unavailableTraceObservation(adapter, ["trace_route_mismatch"], facts.terminal);
+  if (typeof parsed.traceRoute === "string" && !routeMatchesLedger(parsed.traceRoute, facts.route, facts.planStatus)) return unavailableTraceObservation(adapter, ["trace_route_mismatch"], facts.terminal);
   const completeness = parsed.partial ? "partial" : "complete";
   const signals = {
     tool_calls: parsed.toolCalls,
@@ -443,5 +519,5 @@ export function analyzeTraceEpisode({ adapter, traceText, ledgerText, run, capab
     verifier: facts.verifier,
   };
   const decision = chooseDecision(completeness, signals);
-  return output({ adapter, completeness, reasonCodes: completeness === "partial" ? ["allowlisted_secondary_shape"] : [], terminal: facts.terminal, signals, usage: parsed.usage, decision });
+  return output({ adapter, binding: parsed.binding, completeness, reasonCodes: completeness === "partial" ? ["allowlisted_secondary_shape"] : [], terminal: facts.terminal, signals, usage: parsed.usage, decision });
 }

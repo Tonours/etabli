@@ -1,10 +1,11 @@
 /**
  * Thin Pi adapter over scripts/lib/outcome-metric-emit.mjs
  */
+import { realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const here = dirname(fileURLToPath(import.meta.url));
+const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 const TARGET = pathToFileURL(
 	join(here, "../../../scripts/lib/outcome-metric-emit.mjs"),
 ).href;

@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "candidate_id": "jev-route-capsule-v3",
+  "base_efficiency": {
+    "candidate_id": "jev-route-capsule-v2",
+    "artifact_fingerprint": "046560559544111c1eb10677309b28275d1d5d8c846f3d4f4e8eb0736b403fa8",
+    "comparison": {
+      "receipt_fingerprint": "12aeeb074df6e97077fa3fd3a64b41027ef98ff68d0fff1257e84a970b467f25",
+      "verdict": "accepted",
+      "target_met_every_repetition": true,
+      "quality_vectors_stable": true,
+      "protected_preservation_percent": 100
+    }
+  },
+  "activation": {
+    "receipt_path": "workflow/runtime/jev-plan-implement-activation.json",
+    "receipt_fingerprint": "10711dd4b9ed308cb372d4f954fd677853c4d576945bb7bdc549dfd8c67a99de"
+  },
+  "source_files": {
+    "pi/extensions/lib/jev-route-capsule.mjs": "985195ad0bfc4ef1d75d738a0bc6fac7f94942648765cec32f11c36699afb8d3",
+    "pi/extensions/jev-route-capsule-runtime.ts": "d5d0e926a44ab68ed160ee3798ef16781716a310fe80ec0269250a16acec8209",
+    "pi/extensions/lib/workflow-route-context.ts": "d9dfafa2bd5dccb840eb51c9ad785e08e8dd8b335924eecb057e08f07ff39c8a",
+    "pi/extensions/lib/workflow-router-runtime.ts": "df431dcf5d965f9c33cb1f84f9247ef6f3200c3cad6b38b627042cb2cc98d530",
+    "pi/extensions/lib/typesafe-system-one.mjs": "0b4a3bac0e733822614053cfa3776b1a788a27d9d7cc039d055089131564fdfe",
+    "pi/extensions/lib/semantic-judgment.mjs": "f1638b52478baffb1489233d5679883ae5270bf376eba9d39ffdbe0bafff9e02",
+    "workflow/runtime/obvault-topic-resolver.mjs": "18d305bccd16b995103703c977efad3e50d9580bfd7f2f3403a0bd13df9ac95e",
+    "workflow/runtime/workflow-router-core.mjs": "df683475e5cb94d302f19e481b630dedb80ceabed4d5d965d6c0c59b2d3d575a",
+    "scripts/lib/plan-check-freeze.mjs": "3e57416fb0ec7331805a6e81646a896f8489d86ab64c38e7d8e6ac9fc82b62c3",
+    "scripts/lib/no-progress-guard.mjs": "eddecbf8b930687ae5c946154235c0a633f8e9909c37d15ac6d081a073f62018",
+    "scripts/lib/plan-cleanup-command.mjs": "6d64bead5490728d414aa6a9cfb27d907f2cc659b94568d30955387e689f265b",
+    "tests/fixtures/jev-route-capsule/plan-implement-cases.json": "66f7704e759fdce00fd3dcdd4f638aa939b2f5a6e682ee7a0bd4e16353b13adb",
+    "workflow/runtime/jev-plan-implement-activation.json": "10711dd4b9ed308cb372d4f954fd677853c4d576945bb7bdc549dfd8c67a99de"
+  }
+}

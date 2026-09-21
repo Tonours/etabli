@@ -36,8 +36,12 @@ workflow invariant.
 
 With explicit provider-egress approval, `jev-judge evaluate
 self-improvement-candidate` may shadow-classify a bounded candidate and observed
-outcome. The evidence requirements, candidate acceptance, PLAN gate, evaluator,
-and mutation permissions in this contract remain deterministic authority.
+outcome. Separately, `jev-judge prepare-self-improvement` and the explicit-live
+diagnosis path make Jev the required semantic producer for pattern, target, and
+actionability from one complete sanitized observation. No accepted Jev result
+means no semantic diagnosis; deterministic code does not invent a fallback.
+The evidence requirements, candidate acceptance, PLAN gate, evaluator, and all
+mutation permissions in this contract remain deterministic authority.
 
 For post-run harness traces, use `workflow/trace-self-improvement.md`. The
 current `prototype_offline` capability observes explicitly selected Pi or Claude

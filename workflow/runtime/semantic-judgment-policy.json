@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "policy_version": "jev-route-decision-v2",
-  "mode": "enforced",
+  "mode": "disabled",
   "provider": "typesafe",
   "model": "jev-1.13.0",
   "timeout_ms": 1200,
-  "max_retries": 2,
+  "max_retries": 0,
   "max_state_chars": 1200,
   "receipt_path": ".workflow/semantic-judgments.jsonl",
   "promotion_manifest": "workflow/runtime/jev-route-promotion.json",

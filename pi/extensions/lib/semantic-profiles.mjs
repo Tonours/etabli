@@ -4,17 +4,20 @@ import { fileURLToPath } from "node:url";
 import { containsSecretLike, fingerprint, stableJson, validateJudgmentRequest, validateJudgmentResponse } from "./semantic-judgment.mjs";
 import { evaluateTypeSafe } from "./typesafe-system-one.mjs";
 import { isPreparedClaimEvidenceState } from "./semantic-claim-evidence.mjs";
+import { prepareSelfImprovementDiagnosisState, reduceSelfImprovementDiagnosis, rejectedSelfImprovementDiagnosis } from "./self-improvement-diagnosis.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const DEFAULT_PROFILE_POLICY_PATH = join(ROOT, "workflow/runtime/semantic-profile-policy.json");
-const AUTHORITIES = new Set(["shadow", "advisory"]);
+const AUTHORITIES = new Set(["shadow", "advisory", "diagnostic"]);
 const EGRESS_CLASSES = new Set(["public_or_sanitized", "private_opt_in", "metadata_only"]);
 const UNCERTAINTY_KEYS = new Set(["choice_min_confidence", "choice_min_margin", "noul_false_max", "noul_true_min", "score_min_confidence"]);
-const STATE_FIELD_TYPES = new Set(["nonempty_string", "true", "false", "self_improvement_candidate", "self_improvement_evidence"]);
+const STATE_FIELD_TYPES = new Set(["nonempty_string", "true", "false", "self_improvement_candidate", "self_improvement_evidence", "self_improvement_episode", "self_improvement_signals"]);
 const SENSITIVE_KEYS = new Set(["token", "accesstoken", "refreshtoken", "idtoken", "apikey", "secret", "clientsecret", "password", "passwd", "cookie", "cookies", "authorization", "credential", "credentials", "privatekey", "accesskey", "awsaccesskeyid", "awssecretaccesskey", "sessioncookie"]);
 const SAFE_TOKEN_METADATA_KEYS = new Set(["inputtokens", "outputtokens", "totaltokens", "maxtokens", "tokencount", "tokenbudget"]);
 const SELF_IMPROVEMENT_CANDIDATE = /^action=(no_op|recommendation);category=(no_issue|validation_failure|tool_failure|review_rework|plan_rework|context_pressure|incomplete_evidence);target=(none|skill|rule|testing|tooling|context)$/;
 const SELF_IMPROVEMENT_EVIDENCE = /^runs=([1-9][0-9]{0,3});complete=(true|false);terminal=(completed|blocked);verifier=(true|false)$/;
+const SELF_IMPROVEMENT_EPISODE = /^schema=1;completeness=complete;terminal=(completed|blocked);verifier=(true|false)$/;
+const SELF_IMPROVEMENT_SIGNALS = /^tool_calls=(?:null|(?:0|[1-9][0-9]{0,4}));tool_errors=(?:null|(?:0|[1-9][0-9]{0,4}));validation_failures=(?:null|(?:0|[1-9][0-9]{0,4}));review_rework=(?:null|(?:0|[1-9][0-9]{0,4}));plan_rework=(?:null|(?:0|[1-9][0-9]{0,4}));compactions=(?:null|(?:0|[1-9][0-9]{0,4}));retries=(?:null|(?:0|[1-9][0-9]{0,4}))$/;
 const COMPLETE_SELF_IMPROVEMENT_CANDIDATES = new Set([
   "action=no_op;category=no_issue;target=none",
   "action=recommendation;category=validation_failure;target=testing",
@@ -33,6 +36,23 @@ const SELF_IMPROVEMENT_PROFILE_ENVELOPE = {
   egress_class: "private_opt_in",
   deterministic_owner: "workflow/skills/self-improvement-loop.md",
 };
+const SELF_IMPROVEMENT_DIAGNOSIS_STATE_SCHEMA = {
+  episode: "self_improvement_episode",
+  signals: "self_improvement_signals",
+};
+const SELF_IMPROVEMENT_DIAGNOSIS_ENVELOPE = {
+  authority: "diagnostic",
+  egress_class: "private_opt_in",
+  deterministic_owner: "workflow/trace-self-improvement.md",
+  calibration_status: "pending_corpus",
+  contract_fingerprint: "8624667f3289437a8968bbef96d613c9e11d3c1f175f8167c865c4bed421f348",
+  max_state_chars: 2048,
+};
+
+function diagnosisContract(profile) {
+  const { purpose: _purpose, contract_fingerprint: _fingerprint, ...contract } = profile;
+  return contract;
+}
 
 function plainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -66,6 +86,14 @@ function validateStateSchema(profile, state, id) {
     if (type === "true" && value !== true) throw new Error(`invalid state field ${id}.${field}`);
     if (type === "false" && value !== false) throw new Error(`invalid state field ${id}.${field}`);
     if (type === "self_improvement_candidate" && (typeof value !== "string" || !SELF_IMPROVEMENT_CANDIDATE.test(value))) throw new Error(`invalid state field ${id}.${field}`);
+    if (type === "self_improvement_episode" && (typeof value !== "string" || !SELF_IMPROVEMENT_EPISODE.test(value))) throw new Error(`invalid state field ${id}.${field}`);
+    if (type === "self_improvement_signals") {
+      const bounded = typeof value === "string" && SELF_IMPROVEMENT_SIGNALS.test(value) && value.split(";").every((entry) => {
+        const count = entry.slice(entry.indexOf("=") + 1);
+        return count === "null" || Number(count) <= 20_000;
+      });
+      if (!bounded) throw new Error(`invalid state field ${id}.${field}`);
+    }
     if (type === "self_improvement_evidence") {
       const match = typeof value === "string" && value.match(SELF_IMPROVEMENT_EVIDENCE);
       if (!match || Number(match[1]) > 1000) throw new Error(`invalid state field ${id}.${field}`);
@@ -79,29 +107,40 @@ function validateStateSchema(profile, state, id) {
     const complete = evidence[2] === "true";
     if (complete ? !COMPLETE_SELF_IMPROVEMENT_CANDIDATES.has(canonicalCandidate) : canonicalCandidate !== PARTIAL_SELF_IMPROVEMENT_CANDIDATE) throw new Error(`invalid state field ${id}.candidate`);
   }
+  if (profile.state_schema.episode === "self_improvement_episode" && profile.state_schema.signals === "self_improvement_signals" && Object.keys(state).sort().join(",") !== "episode,signals") throw new Error(`invalid state field ${id}.episode`);
 }
 
 export function validateProfilePolicy(policy) {
-  if (!plainObject(policy) || policy.schema_version !== 1 || typeof policy.policy_version !== "string") throw new Error("invalid profile policy");
+  if (!plainObject(policy) || policy.schema_version !== 1 || typeof policy.policy_version !== "string" || !/^semantic-profile-catalog-\d+\.\d+\.\d+$/.test(policy.catalog_version || "")) throw new Error("invalid profile policy");
   if (policy.provider !== "typesafe-system-one" || !/^jev-\d+\.\d+\.\d+$/.test(policy.model)) throw new Error("invalid profile provider or model");
   if (!Number.isInteger(policy.timeout_ms) || policy.timeout_ms < 1 || policy.timeout_ms > 30000 || !Number.isInteger(policy.max_retries) || policy.max_retries < 0 || policy.max_retries > 5) throw new Error("invalid profile transport limits");
   const receiptPath = normalize(policy.receipt_path || "");
   if (!receiptPath || isAbsolute(receiptPath) || receiptPath === ".." || receiptPath.startsWith(`..${sep}`)) throw new Error("invalid profile receipt path");
-  if (!plainObject(policy.profiles) || Object.keys(policy.profiles).length !== 12) throw new Error("profile policy must contain exactly 12 profiles");
+  if (!plainObject(policy.profiles) || Object.keys(policy.profiles).length !== 13) throw new Error("profile policy must contain exactly 13 profiles");
   for (const [id, profile] of Object.entries(policy.profiles)) {
     if (!/^[a-z][a-z0-9-]{1,63}$/.test(id) || !plainObject(profile)) throw new Error(`invalid profile ${id}`);
     if (!profile.purpose || !AUTHORITIES.has(profile.authority) || !EGRESS_CLASSES.has(profile.egress_class) || !profile.deterministic_owner) throw new Error(`invalid profile metadata ${id}`);
+    if (profile.authority === "diagnostic" && id !== "self-improvement-diagnosis") throw new Error(`invalid profile metadata ${id}`);
     if (id === "self-improvement-candidate") {
       if (stableJson(profile.state_schema) !== stableJson(SELF_IMPROVEMENT_STATE_SCHEMA)) throw new Error(`invalid state schema ${id}`);
       for (const [field, value] of Object.entries(SELF_IMPROVEMENT_PROFILE_ENVELOPE)) {
         if (profile[field] !== value) throw new Error(`invalid profile metadata ${id}`);
       }
     }
+    if (id === "self-improvement-diagnosis") {
+      if (stableJson(profile.state_schema) !== stableJson(SELF_IMPROVEMENT_DIAGNOSIS_STATE_SCHEMA)) throw new Error(`invalid state schema ${id}`);
+      for (const [field, value] of Object.entries(SELF_IMPROVEMENT_DIAGNOSIS_ENVELOPE)) {
+        if (profile[field] !== value) throw new Error(`invalid profile metadata ${id}`);
+      }
+      if (fingerprint(diagnosisContract(profile)) !== profile.contract_fingerprint) throw new Error(`invalid profile contract ${id}`);
+    } else if (profile.calibration_status !== undefined) throw new Error(`invalid calibration status ${id}`);
     if (!Number.isInteger(profile.max_state_chars) || profile.max_state_chars < 256 || profile.max_state_chars > 10000) throw new Error(`invalid max state ${id}`);
     validateStateSchema(profile, Object.fromEntries(Object.entries(profile.state_schema || {}).map(([field, type]) => {
       if (type === "nonempty_string") return [field, "fixture"];
       if (type === "self_improvement_candidate") return [field, "action=no_op;category=no_issue;target=none"];
       if (type === "self_improvement_evidence") return [field, "runs=1;complete=true;terminal=completed;verifier=true"];
+      if (type === "self_improvement_episode") return [field, "schema=1;completeness=complete;terminal=completed;verifier=true"];
+      if (type === "self_improvement_signals") return [field, "tool_calls=0;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null"];
       return [field, type === "true"];
     })), id);
     if (!plainObject(profile.questions) || (!profile.builder && Object.keys(profile.questions).length === 0) || (profile.builder && profile.builder !== "skill-suggestion-v1")) throw new Error(`questions required ${id}`);
@@ -190,6 +229,7 @@ function receiptFor({ profileId, policy, profile, request, response, decisions, 
     provider: policy.provider,
     model: policy.model,
     policy_version: policy.policy_version,
+    catalog_version: policy.catalog_version,
     authority: profile.authority,
     egress_class: profile.egress_class,
     state_fingerprint: fingerprint(request.state),
@@ -238,10 +278,11 @@ export function appendProfileReceipt(cwd, policy, receipt) {
  * @param {{profileId: string, state: Record<string, unknown>, questions?: Record<string, unknown>, policy?: any, provider?: Function, allowProviderEgress?: boolean, persistReceipt?: boolean, cwd?: string}} options
  * @returns {Promise<any>}
  */
-export async function evaluateSemanticProfile({ profileId, state, questions = undefined, policy = loadSemanticProfilePolicy(), provider = evaluateTypeSafe, allowProviderEgress = false, persistReceipt = true, cwd = process.cwd() }) {
+async function evaluateSemanticProfileInternal({ profileId, state, questions = undefined, policy = loadSemanticProfilePolicy(), provider = evaluateTypeSafe, allowProviderEgress = false, persistReceipt = true, cwd = process.cwd(), allowDiagnostic = false }) {
   const policySnapshot = validateProfilePolicy(structuredClone(policy));
   const profile = policySnapshot.profiles[profileId];
   if (!profile) throw new Error(`unknown profile: ${profileId}`);
+  if (profile.authority === "diagnostic" && !allowDiagnostic) throw new Error(`diagnostic profile requires dedicated evaluator: ${profileId}`);
   const started = Date.now();
   let request;
   let response = null;
@@ -261,4 +302,29 @@ export async function evaluateSemanticProfile({ profileId, state, questions = un
   const receipt = receiptFor({ profileId, policy: policySnapshot, profile, request, response, decisions, latencyMs: Date.now() - started, outcome, errorCode });
   if (persistReceipt) appendProfileReceipt(cwd, policySnapshot, receipt);
   return { profile: profileId, authority: profile.authority, answers: response?.answers ?? null, decisions, outcome, error_code: errorCode, receipt };
+}
+
+export async function evaluateSemanticProfile(options) {
+  return evaluateSemanticProfileInternal(options);
+}
+
+export function prepareSelfImprovementDiagnosisRequest(observation, policy = loadSemanticProfilePolicy()) {
+  return prepareProfileRequest("self-improvement-diagnosis", prepareSelfImprovementDiagnosisState(observation), { policy });
+}
+
+export async function evaluateSelfImprovementDiagnosis({ observation, policy = loadSemanticProfilePolicy(), provider = evaluateTypeSafe, allowProviderEgress = false, persistReceipt = true, cwd = process.cwd() }) {
+  let state;
+  try {
+    state = prepareSelfImprovementDiagnosisState(observation);
+  } catch (error) {
+    return rejectedSelfImprovementDiagnosis(error);
+  }
+  const policySnapshot = validateProfilePolicy(structuredClone(policy));
+  const result = await evaluateSemanticProfileInternal({ profileId: "self-improvement-diagnosis", state, policy: policySnapshot, provider, allowProviderEgress, persistReceipt: false, cwd, allowDiagnostic: true });
+  const diagnosis = reduceSelfImprovementDiagnosis(result);
+  if (diagnosis.status === "abstain" && result.receipt.outcome === "accepted") {
+    result.receipt = { ...result.receipt, outcome: "abstain", error_code: diagnosis.reason };
+  }
+  if (persistReceipt) appendProfileReceipt(cwd, policySnapshot, result.receipt);
+  return diagnosis;
 }

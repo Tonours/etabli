@@ -1,14 +1,18 @@
 # Bounded Jev semantic profiles
 
-Etabli exposes twelve optional TypeSafe/Jev judgment profiles through
+Etabli exposes twelve historical optional TypeSafe/Jev judgment profiles and
+one Jev-first diagnostic profile through
 `jev-judge`. They turn bounded natural-language state into typed `Choice`,
 `Noul`, and `Score` answers. They do not generate artifacts and they do not own
 permissions, mutations, calculations, dates, hashes, Git/CI facts, or stop
 conditions.
 
 The existing workflow route selector is separate and remains the only promoted,
-enforced Jev path. Every profile here is `shadow` or `advisory`. Synthetic tests
-prove the integration contract, not live model quality.
+enforced Jev path. Historical general profiles are `shadow` or `advisory`.
+`self-improvement-diagnosis` is `diagnostic`: Jev is the required semantic
+producer on that additive path, while deterministic code retains eligibility,
+permissions, abstention, persistence, mutation, promotion, and rollback.
+Synthetic tests prove the integration contract, not live model quality.
 
 ## Offline-first CLI
 
@@ -33,8 +37,11 @@ Omitting `--live` is an error. Library callers must likewise pass
 consent. `TYPESAFE_API_KEY` is read only from the process environment. Private
 evidence must not be submitted merely because a credential is present: the
 invoking workflow must explicitly opt in to provider egress.
-`--no-receipt` disables the local receipt; otherwise the CLI appends
+`--no-receipt` disables the local receipt; otherwise a provider evaluation appends
 `.workflow/semantic-profile-judgments.jsonl` under the current directory.
+Input eligibility and structural checks run before evaluation. A rejected input,
+including an incomplete self-improvement observation, performs no provider call
+and writes no semantic judgment receipt.
 
 Receipts contain fingerprints, typed decisions, latency, usage, outcome, and an
 error code. They contain neither input state nor raw provider payloads.
@@ -50,6 +57,7 @@ deterministic workflow.
 | `claim-evidence` | advisory | public or sanitized | `claim-evidence-check`; structural validation must pass first and cannot be upgraded by Jev |
 | `reviewer-finding` | shadow | public or sanitized | review rubric and deciding code remain authoritative |
 | `self-improvement-candidate` | shadow | private opt-in | self-improvement contract owns buckets, evidence, acceptance, and mutation |
+| `self-improvement-diagnosis` | diagnostic | private opt-in | Jev produces pattern/target/actionability from sanitized facts; trace/self-improvement contracts own eligibility and every effect |
 | `project-hunt-evidence` | advisory | public or sanitized | project-hunt owns provenance, counter-search, scoring, arithmetic, and watchlist |
 | `conversation-signal` | shadow | private opt-in | conversation retrospect owns source selection, privacy, aggregation, and durable writes |
 | `knowledge-passage` | advisory | private opt-in | Obvault owns retrieval, citations, thresholds, feedback, and its existing explicit `--jev` sidecar |
@@ -80,6 +88,11 @@ transcripts, and private metadata.
   Herdr structured event exists, consume it directly.
 - `no-progress-equivalence` supplies two attempts and their evidence, but its
   answer cannot trigger a stop by itself.
+- `self-improvement-diagnosis` receives only canonical episode metadata and
+  bounded/null counters from a complete level-1 observation. It receives no
+  deterministic action/category/target tuple and emits no diagnosis unless all
+  three Jev Choice answers are accepted. Its `candidate` actionability means
+  reviewed follow-up only, never permission to mutate.
 - `knowledge-passage` is a reusable contract for tests and explicit consumers.
   Normal retrieval continues through Obvault's existing explicit `--jev`
   option; Etabli does not duplicate or silently enable that sidecar.
@@ -94,6 +107,9 @@ questions, model, runtime fingerprint, thresholds, privacy class, cost and
 latency budget for one profile. Measure abstention, accepted accuracy, coverage,
 stability, calibration, provider errors, and deterministic-boundary safety.
 Until that evidence exists and is reviewed, keep the checked-in authority.
+The diagnostic profile is marked `pending_corpus` and excluded from the
+historical twelve-profile calibration commands until a dedicated versioned
+corpus exists.
 
 ## Live calibration
 

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "policy_version": "jev-route-capsule-runtime-v2",
+  "mode": "enforced",
+  "candidate_id": "jev-route-capsule-v3",
+  "model": "jev-1.13.0",
+  "max_retries": 0,
+  "efficiency_candidate_id": "jev-route-capsule-v2",
+  "efficiency_candidate_artifact_fingerprint": "046560559544111c1eb10677309b28275d1d5d8c846f3d4f4e8eb0736b403fa8",
+  "comparison_receipt_fingerprint": "12aeeb074df6e97077fa3fd3a64b41027ef98ff68d0fff1257e84a970b467f25",
+  "activation_receipt_fingerprint": "10711dd4b9ed308cb372d4f954fd677853c4d576945bb7bdc549dfd8c67a99de",
+  "promotion_manifest_fingerprint": "ab1a77743c5b9546b1c857cc1d06535b98866e2174e40c8d330f7567a2c47d5e",
+  "eligible_routes": [
+    "answer",
+    "implement",
+    "plan-loop",
+    "plan-implement",
+    "pr-review",
+    "review",
+    "sec-pr"
+  ],
+  "protected_routes": [
+    "ci-fix",
+    "linear-ticket-create",
+    "linear-work",
+    "ops-stop"
+  ],
+  "fallback": "deterministic_route_contract"
+}

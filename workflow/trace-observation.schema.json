@@ -10,7 +10,7 @@
     "capability": { "const": "prototype_offline" },
     "adapter": { "enum": ["pi", "claude"] },
     "adapter_version": { "const": "prototype-offline-1" },
-    "binding": { "const": "explicit_unverified" },
+    "binding": { "enum": ["explicit_unverified", "native_correlated"] },
     "observation_id": { "type": "string", "format": "uuid" },
     "completeness": { "enum": ["complete", "partial", "unavailable"] },
     "reason_codes": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" }, "uniqueItems": true },
@@ -71,6 +71,10 @@
     }
   },
   "allOf": [
+    {
+      "if": { "properties": { "adapter": { "const": "claude" } }, "required": ["adapter"] },
+      "then": { "properties": { "binding": { "const": "explicit_unverified" } } }
+    },
     {
       "if": { "properties": { "completeness": { "const": "unavailable" } }, "required": ["completeness"] },
       "then": { "properties": { "signals": { "const": null }, "usage": { "const": null }, "decision": { "const": null }, "jev_state": { "const": null } } }

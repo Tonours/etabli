@@ -15,6 +15,60 @@ fail() {
 pi="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
 jq -e '.capability == "prototype_offline" and .adapter == "pi" and .binding == "explicit_unverified" and .completeness == "complete" and .signals.tool_calls == 1 and .signals.tool_errors == 1 and .signals.compactions == 1 and .signals.retries == null and .signals.unsupported_rows == 0 and .decision == {action:"recommendation",category:"validation_failure",target:"testing",causal_status:"unknown"} and .jev_state.candidate == "action=recommendation;category=validation_failure;target=testing"' <<<"$pi" >/dev/null
 
+bound="$($CLI --adapter pi --trace-file "$FIX/pi/session-bound.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "native_correlated" and .completeness == "complete" and .reason_codes == [] and .signals.tool_calls == 1 and .signals.tool_errors == 0' <<<"$bound" >/dev/null
+
+real_shape="$($CLI --adapter pi --trace-file "$FIX/pi/session-bound-real-shape.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "native_correlated" and .completeness == "complete" and .reason_codes == [] and .signals.unsupported_rows == 0' <<<"$real_shape" >/dev/null
+
+sed 's/"schema_version":2/"schema_version":99/' "$FIX/pi/session-bound-real-shape.jsonl" >"$TMP/malformed-route-decision.jsonl"
+malformed_route_decision="$($CLI --adapter pi --trace-file "$TMP/malformed-route-decision.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["trace_shape_unknown"]' <<<"$malformed_route_decision" >/dev/null
+
+sed 's/"provider":"private","modelId"/"provider":"","modelId"/' "$FIX/pi/session-bound-real-shape.jsonl" >"$TMP/malformed-model-change.jsonl"
+malformed_model_change="$($CLI --adapter pi --trace-file "$TMP/malformed-model-change.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["trace_shape_unknown"]' <<<"$malformed_model_change" >/dev/null
+
+sed 's/"selected_decision":"plan-implement"/"selected_decision":"review"/' "$FIX/pi/session-bound-real-shape.jsonl" >"$TMP/conflicting-route-receipt.jsonl"
+conflicting_route_receipt="$($CLI --adapter pi --trace-file "$TMP/conflicting-route-receipt.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["trace_route_conflict"]' <<<"$conflicting_route_receipt" >/dev/null
+
+sed 's/"route":"plan-implement"/"route":"review"/' "$FIX/pi/session-bound.jsonl" >"$TMP/native-route-mismatch.jsonl"
+native_route_mismatch="$($CLI --adapter pi --trace-file "$TMP/native-route-mismatch.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "explicit_unverified" and .completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"]' <<<"$native_route_mismatch" >/dev/null
+
+sed 's/"isError":false/"isError":true/' "$FIX/pi/session-bound.jsonl" >"$TMP/post-terminal-error.jsonl"
+post_terminal_error="$($CLI --adapter pi --trace-file "$TMP/post-terminal-error.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "native_correlated" and .completeness == "complete" and .signals.tool_calls == 1 and .signals.tool_errors == 1' <<<"$post_terminal_error" >/dev/null
+
+sed -n '1p' "$FIX/pi/session-bound.jsonl" >"$TMP/reused-session.jsonl"
+printf '%s\n' '{"type":"custom","id":"old-binding","parentId":null,"customType":"etabli.workflow-run-binding","timestamp":"2026-09-20T09:57:05Z","data":{"schema_version":1,"algorithm":"sha256","fingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}' >>"$TMP/reused-session.jsonl"
+sed -n '2,11p' "$FIX/pi/session-bound.jsonl" | sed '1s/"parentId":null/"parentId":"old-binding"/' >>"$TMP/reused-session.jsonl"
+reused="$($CLI --adapter pi --trace-file "$TMP/reused-session.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "native_correlated" and .completeness == "complete" and .reason_codes == []' <<<"$reused" >/dev/null
+
+{
+  sed -n '1,3p' "$FIX/pi/session-bound.jsonl"
+  printf '%s\n' '{"type":"custom","id":"old-binding","parentId":"route","customType":"etabli.workflow-run-binding","timestamp":"2026-09-20T09:57:45Z","data":{"schema_version":1,"algorithm":"sha256","fingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}'
+  sed -n '4,11p' "$FIX/pi/session-bound.jsonl" | sed '1s/"parentId":"route"/"parentId":"old-binding"/'
+} >"$TMP/stale-route-session.jsonl"
+stale_route="$($CLI --adapter pi --trace-file "$TMP/stale-route-session.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "explicit_unverified" and .completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"]' <<<"$stale_route" >/dev/null
+
+sed 's/"reason":"fixture"/"reason":"other genesis"/' "$FIX/pi/events.jsonl" >"$TMP/replayed-ledger.jsonl"
+replayed="$($CLI --adapter pi --trace-file "$FIX/pi/session-bound.jsonl" --ledger "$TMP/replayed-ledger.jsonl" --run pi-run --json)"
+jq -e '.binding == "explicit_unverified" and .completeness == "unavailable" and .reason_codes == ["trace_binding_mismatch"]' <<<"$replayed" >/dev/null
+
+sed 's/"fingerprint":"[0-9a-f]*"/"fingerprint":"invalid-private-value"/' "$FIX/pi/session-bound.jsonl" >"$TMP/malformed-binding.jsonl"
+malformed_binding="$($CLI --adapter pi --trace-file "$TMP/malformed-binding.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "explicit_unverified" and .completeness == "unavailable" and .reason_codes == ["trace_binding_mismatch"]' <<<"$malformed_binding" >/dev/null
+
+sed -n '1,6p' "$FIX/pi/session-bound.jsonl" >"$TMP/duplicate-binding.jsonl"
+sed -n '6p' "$FIX/pi/session-bound.jsonl" | sed 's/"id":"binding"/"id":"binding-2"/;s/"parentId":"early-result"/"parentId":"binding"/' >>"$TMP/duplicate-binding.jsonl"
+sed -n '7,11p' "$FIX/pi/session-bound.jsonl" | sed '1s/"parentId":"binding"/"parentId":"binding-2"/' >>"$TMP/duplicate-binding.jsonl"
+duplicate_binding="$($CLI --adapter pi --trace-file "$TMP/duplicate-binding.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "explicit_unverified" and .completeness == "unavailable" and .reason_codes == ["trace_binding_conflict"]' <<<"$duplicate_binding" >/dev/null
+
 claude="$($CLI --adapter claude --trace-file "$FIX/claude/session.jsonl" --ledger "$FIX/claude/events.jsonl" --run claude-run --json)"
 jq -e '.adapter == "claude" and .completeness == "complete" and .signals.tool_calls == 1 and .signals.tool_errors == 0 and .signals.compactions == null and .decision.action == "no_op"' <<<"$claude" >/dev/null
 
@@ -51,8 +105,8 @@ sed 's/"totalTokens":120/"totalTokens":"120"/' "$FIX/pi/session.jsonl" >"$TMP/co
 coerced_total="$($CLI --adapter pi --trace-file "$TMP/coerced-total.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
 jq -e '.completeness == "complete" and .usage == null' <<<"$coerced_total" >/dev/null
 
-for forbidden in 'private' '/private' 'secret command' 'session.jsonl' 'pi-private-session' 'claude-private-session' 'validation command' 'terminal summary'; do
-  if printf '%s\n%s\n' "$pi" "$claude" | grep -F "$forbidden" >/dev/null; then
+for forbidden in 'private' '/private' 'secret command' 'session.jsonl' 'pi-private-session' 'claude-private-session' 'validation command' 'terminal summary' '926a4c832da5'; do
+  if printf '%s\n%s\n%s\n' "$pi" "$bound" "$claude" | grep -F "$forbidden" >/dev/null; then
     fail "serialized private trace content"
   fi
 done
@@ -90,7 +144,7 @@ jq -e '.completeness == "unavailable" and .reason_codes == ["trace_shape_unknown
 grep -F 'must not leak' <<<"$unknown" >/dev/null && fail "unknown row leaked"
 
 cp "$FIX/pi/session.jsonl" "$TMP/partial.jsonl"
-printf '%s\n' '{"type":"model_change","id":"model","parentId":"c","timestamp":"2026-09-20T10:03:30Z","provider":"private","modelId":"private"}' >>"$TMP/partial.jsonl"
+printf '%s\n' '{"type":"label_change","id":"label","parentId":"c","timestamp":"2026-09-20T10:03:30Z","label":"private"}' >>"$TMP/partial.jsonl"
 partial="$($CLI --adapter pi --trace-file "$TMP/partial.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
 jq -e '.completeness == "partial" and .signals.unsupported_rows == 1 and .decision.action == "no_op" and .decision.category == "incomplete_evidence" and (.jev_state.evidence | contains("complete=false"))' <<<"$partial" >/dev/null
 
@@ -102,6 +156,22 @@ jq -e '.completeness == "partial" and .signals.unsupported_rows == 1 and .decisi
 sed 's/"route":"plan-implement"/"route":"review"/' "$FIX/pi/session.jsonl" >"$TMP/route-mismatch.jsonl"
 route_mismatch="$($CLI --adapter pi --trace-file "$TMP/route-mismatch.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"] and .decision == null' <<<"$route_mismatch" >/dev/null
+
+sed 's/"route":"plan-implement"/"route":"implement"/' "$FIX/pi/session.jsonl" >"$TMP/route-continuation.jsonl"
+route_continuation="$($CLI --adapter pi --trace-file "$TMP/route-continuation.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete" and .reason_codes == []' <<<"$route_continuation" >/dev/null
+
+rg -v '"event":"plan_created"' "$FIX/pi/events.jsonl" >"$TMP/route-no-plan.jsonl"
+route_no_plan="$($CLI --adapter pi --trace-file "$TMP/route-continuation.jsonl" --ledger "$TMP/route-no-plan.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"]' <<<"$route_no_plan" >/dev/null
+
+sed 's/"status":"READY"/"status":"DRAFT"/' "$FIX/pi/events.jsonl" >"$TMP/route-draft-plan.jsonl"
+route_draft_plan="$($CLI --adapter pi --trace-file "$TMP/route-continuation.jsonl" --ledger "$TMP/route-draft-plan.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"]' <<<"$route_draft_plan" >/dev/null
+
+sed 's/"status":"READY"/"status":"CHALLENGED"/' "$FIX/pi/events.jsonl" >"$TMP/route-challenged-plan.jsonl"
+route_challenged_plan="$($CLI --adapter pi --trace-file "$TMP/route-continuation.jsonl" --ledger "$TMP/route-challenged-plan.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"]' <<<"$route_challenged_plan" >/dev/null
 
 sed -E 's/"timestamp":"[^"]+"/"timestamp":0/g' "$FIX/pi/session.jsonl" >"$TMP/pi-numeric-time.jsonl"
 pi_numeric_time="$($CLI --adapter pi --trace-file "$TMP/pi-numeric-time.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
@@ -207,26 +277,26 @@ unknown_ledger="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledge
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"] and .decision == null and .jev_state == null' <<<"$unknown_ledger" >/dev/null
 
 {
-  sed -n '1,3p' "$FIX/pi/events.jsonl"
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
   printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:30Z","event":"outcome_metric","run":"pi-run","detail":{"unexpected":"private malformed shape"}}'
-  sed -n '4p' "$FIX/pi/events.jsonl"
+  sed -n '5p' "$FIX/pi/events.jsonl"
 } >"$TMP/secondary-ledger-event.jsonl"
 secondary_ledger="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/secondary-ledger-event.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"] and .decision == null and .jev_state == null' <<<"$secondary_ledger" >/dev/null
 grep -F 'private malformed shape' <<<"$secondary_ledger" >/dev/null && fail "secondary ledger detail leaked"
 
 {
-  sed -n '1,3p' "$FIX/pi/events.jsonl"
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
   printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:30Z","event":"review_completed","run":"pi-run","detail":{}}'
-  sed -n '4p' "$FIX/pi/events.jsonl"
+  sed -n '5p' "$FIX/pi/events.jsonl"
 } >"$TMP/malformed-ledger-detail.jsonl"
 malformed_detail="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/malformed-ledger-detail.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"] and .decision == null' <<<"$malformed_detail" >/dev/null
 
 {
-  sed -n '1,3p' "$FIX/pi/events.jsonl"
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
   printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:30Z","event":"review_completed","run":"pi-run","detail":{"status":"GO","evidence":[{"private":"invalid"}]}}'
-  sed -n '4p' "$FIX/pi/events.jsonl"
+  sed -n '5p' "$FIX/pi/events.jsonl"
 } >"$TMP/malformed-review-evidence.jsonl"
 malformed_review="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/malformed-review-evidence.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"] and .decision == null' <<<"$malformed_review" >/dev/null
@@ -236,7 +306,7 @@ extra_ledger_detail="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"] and .decision == null' <<<"$extra_ledger_detail" >/dev/null
 
 {
-  sed -n '1,3p' "$FIX/pi/events.jsonl"
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
   printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:05:00Z","event":"completed","run":"pi-run","detail":{}}'
 } >"$TMP/incomplete-terminal-detail.jsonl"
 incomplete_terminal="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/incomplete-terminal-detail.jsonl" --run pi-run --json)"
@@ -254,23 +324,23 @@ incomplete_blocked="$($CLI --adapter claude --trace-file "$FIX/claude/session.js
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"] and .decision == null' <<<"$incomplete_blocked" >/dev/null
 
 {
-  sed -n '1,3p' "$FIX/pi/events.jsonl"
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
   printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:30Z","event":"validation_failed","run":"pi-run","detail":{"command":"private validation command","exit":1,"failure":"late failure"}}'
-  sed -n '4p' "$FIX/pi/events.jsonl"
+  sed -n '5p' "$FIX/pi/events.jsonl"
 } >"$TMP/stale-verifier-ledger.jsonl"
 stale_verifier="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/stale-verifier-ledger.jsonl" --run pi-run --json)"
 jq -e '.completeness == "complete" and .signals.verifier == false and (.jev_state.evidence | endswith("verifier=false"))' <<<"$stale_verifier" >/dev/null
 
 {
   sed -n '1,2p' "$FIX/pi/events.jsonl"
-  sed -n '2,4p' "$FIX/pi/events.jsonl"
+  sed -n '2,5p' "$FIX/pi/events.jsonl"
 } >"$TMP/duplicate-ledger-event.jsonl"
 duplicate_ledger="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/duplicate-ledger-event.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_event_conflict"] and .decision == null and .jev_state == null' <<<"$duplicate_ledger" >/dev/null
 
 {
   sed -n '2p' "$FIX/pi/events.jsonl"
-  sed -n '1p;3,4p' "$FIX/pi/events.jsonl"
+  sed -n '1p;3,5p' "$FIX/pi/events.jsonl"
 } >"$TMP/pre-route-ledger.jsonl"
 pre_route="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/pre-route-ledger.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_route_conflict"] and .decision == null' <<<"$pre_route" >/dev/null

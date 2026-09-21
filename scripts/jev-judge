@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { evaluateSemanticProfile, loadSemanticProfilePolicy, profileSummary } from "../pi/extensions/lib/semantic-profiles.mjs";
+import { evaluateSelfImprovementDiagnosis, evaluateSemanticProfile, loadSemanticProfilePolicy, prepareSelfImprovementDiagnosisRequest, profileSummary } from "../pi/extensions/lib/semantic-profiles.mjs";
 import { suggestSkill } from "../pi/extensions/lib/semantic-skill-suggestion.mjs";
 import { prepareClaimEvidenceState } from "../pi/extensions/lib/semantic-claim-evidence.mjs";
+import { analyzeTraceEpisode, readBoundedRegularFile } from "./lib/harness-trace-retrospect.mjs";
 
 const command = process.argv[2] || "health";
 const args = process.argv.slice(3);
@@ -54,10 +55,54 @@ function publicResult(result) {
   };
 }
 
+function canaryObservation() {
+  const traceText = readBoundedRegularFile(option("--trace-file"));
+  const ledgerText = readBoundedRegularFile(option("--ledger"));
+  const run = option("--run");
+  const observation = analyzeTraceEpisode({ adapter: "pi", traceText, ledgerText, run });
+  if (observation.binding !== "native_correlated" || observation.completeness !== "complete" || observation.reason_codes.length !== 0) throw new Error("canary observation ineligible");
+  return observation;
+}
+
+function publicCanary(result, mode) {
+  return {
+    schema_version: 1,
+    canary: "self_improvement_diagnosis",
+    mode,
+    binding: "native_correlated",
+    completeness: "complete",
+    profile: "self-improvement-diagnosis",
+    authority: "diagnostic",
+    status: result?.status ?? "prepared",
+    diagnosis: result?.diagnosis ?? null,
+    reason: result?.reason ?? null,
+    provider: result?.provenance?.provider ?? null,
+    model: result?.provenance?.model ?? null,
+  };
+}
+
+function publicDiagnosis(result) {
+  return {
+    schema_version: result.schema_version,
+    profile_id: result.profile_id,
+    authority: result.authority,
+    status: result.status,
+    diagnosis: result.diagnosis,
+    reason: result.reason ?? null,
+    provenance: result.provenance ? {
+      provider: result.provenance.provider,
+      model: result.provenance.model,
+      policy_version: result.provenance.policy_version,
+      catalog_version: result.provenance.catalog_version,
+    } : null,
+  };
+}
+
 try {
   const policy = loadSemanticProfilePolicy();
+  const requestPolicy = has("--no-retry") ? { ...policy, max_retries: 0 } : policy;
   if (command === "health") {
-    json({ ok: true, policy_version: policy.policy_version, provider: policy.provider, model: policy.model, profiles: Object.keys(policy.profiles).length, credential: process.env.TYPESAFE_API_KEY ? "present" : "absent", live_by_default: false });
+    json({ ok: true, policy_version: policy.policy_version, provider: policy.provider, model: policy.model, profiles: Object.keys(policy.profiles).length, credential: process.env.TYPESAFE_API_KEY ? "present" : "absent", live_by_default: false, max_retries: requestPolicy.max_retries });
   } else if (command === "list") {
     json({ profiles: profileSummary(policy) });
   } else if (command === "show") {
@@ -66,6 +111,7 @@ try {
     json({ id, ...policy.profiles[id] });
   } else if (command === "evaluate") {
     const profileId = args[0];
+    if (profileId === "self-improvement-diagnosis") throw new Error("self-improvement diagnosis requires the dedicated diagnosis command");
     if (!policy.profiles[profileId] || policy.profiles[profileId].builder || profileId === "claim-evidence") throw new Error("evaluate requires a static non-claim profile id");
     requireLive();
     const state = JSON.parse(boundedFile(option("--state-file")));
@@ -84,10 +130,31 @@ try {
     const prompt = boundedFile(option("--prompt-file"), 4096);
     const result = await suggestSkill({ prompt, policy, allowProviderEgress: true, persistReceipt: !has("--no-receipt") });
     json({ selected: result.selected, shortlist: result.shortlist, outcome: result.outcome, stages: result.stages.map(publicResult) });
+  } else if (command === "prepare-self-improvement") {
+    const observation = JSON.parse(boundedFile(option("--observation-file")));
+    json(prepareSelfImprovementDiagnosisRequest(observation, policy));
+  } else if (command === "diagnose-self-improvement") {
+    requireLive();
+    const observation = JSON.parse(boundedFile(option("--observation-file")));
+    json(publicDiagnosis(await evaluateSelfImprovementDiagnosis({ observation, policy: requestPolicy, allowProviderEgress: true, persistReceipt: !has("--no-receipt") })));
+  } else if (command === "canary-self-improvement") {
+    const observation = canaryObservation();
+    if (!has("--live")) {
+      prepareSelfImprovementDiagnosisRequest(observation, policy);
+      json(publicCanary(null, "prepared"));
+    } else {
+      const result = await evaluateSelfImprovementDiagnosis({ observation, policy, allowProviderEgress: true, persistReceipt: false });
+      json(publicCanary(result, "live"));
+    }
   } else {
-    throw new Error("usage: jev-judge health|list|show <profile>|evaluate <profile> --state-file <file> --live [--no-receipt]|evaluate-claim --claims-file <markdown> --claim-index <n> [--evidence-file <file>] --live [--no-receipt]|suggest-skill --prompt-file <file> --live [--no-receipt]");
+    throw new Error("usage: jev-judge health|list|show <profile>|evaluate <profile> --state-file <file> --live [--no-receipt]|evaluate-claim --claims-file <markdown> --claim-index <n> [--evidence-file <file>] --live [--no-receipt]|suggest-skill --prompt-file <file> --live [--no-receipt]|prepare-self-improvement --observation-file <file>|diagnose-self-improvement --observation-file <file> --live [--no-retry] [--no-receipt]|canary-self-improvement --trace-file <file> --ledger <file> --run <slug> [--live]");
   }
 } catch (error) {
+  if (command === "canary-self-improvement") {
+    process.stderr.write("jev-judge: canary_unavailable\n");
+    process.exitCode = 2;
+  } else {
   process.stderr.write(`jev-judge: ${error?.message || "unknown error"}\n`);
   process.exitCode = 2;
+  }
 }

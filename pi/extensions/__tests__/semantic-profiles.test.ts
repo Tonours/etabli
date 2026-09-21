@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { evaluateSemanticProfile, loadSemanticProfilePolicy, prepareProfileRequest, profileSummary, validateProfilePolicy } from "../lib/semantic-profiles.mjs";
+import { evaluateSelfImprovementDiagnosis, evaluateSemanticProfile, loadSemanticProfilePolicy, prepareProfileRequest, prepareSelfImprovementDiagnosisRequest, profileSummary, validateProfilePolicy } from "../lib/semantic-profiles.mjs";
 import { loadSkillSuggestionCatalog, suggestSkill } from "../lib/semantic-skill-suggestion.mjs";
 import { prepareClaimEvidenceState } from "../lib/semantic-claim-evidence.mjs";
 
@@ -25,13 +25,30 @@ function responseFor(request: any, overrides: Record<string, any> = {}) {
 	return { model: request.model, answers, usage: { input_tokens: 20, output_tokens: 5 } };
 }
 
+function diagnosisObservation(overrides: Record<string, any> = {}) {
+	return {
+		schema_version: 1,
+		capability: "prototype_offline",
+		adapter: "pi",
+		adapter_version: "prototype-offline-1",
+		binding: "explicit_unverified",
+		observation_id: "123e4567-e89b-42d3-a456-426614174000",
+		completeness: "complete",
+		reason_codes: [],
+		lifecycle: { terminal: true, outcome: "completed" },
+		signals: { tool_calls: 4, tool_errors: 1, validation_failures: 2, review_rework: 1, plan_rework: 0, compactions: 1, retries: null, unsupported_rows: 0, verifier: true },
+		...overrides,
+	};
+}
+
 describe("semantic profiles", () => {
-	test("catalog contains exactly the twelve accepted bounded seams", () => {
+	test("catalog contains twelve historical seams plus the Jev-first diagnosis seam", () => {
 		const summaries = profileSummary();
 		expect(summaries.map(({ id }) => id).sort()).toEqual([
-			"claim-evidence", "conversation-signal", "goal-completeness", "knowledge-passage", "linear-intake", "no-progress-equivalence", "pr-qa-impact", "project-hunt-evidence", "reviewer-finding", "self-improvement-candidate", "skill-suggestion", "task-state-fallback",
+			"claim-evidence", "conversation-signal", "goal-completeness", "knowledge-passage", "linear-intake", "no-progress-equivalence", "pr-qa-impact", "project-hunt-evidence", "reviewer-finding", "self-improvement-candidate", "self-improvement-diagnosis", "skill-suggestion", "task-state-fallback",
 		].sort());
-		expect(summaries.every(({ authority }) => ["shadow", "advisory"].includes(authority))).toBe(true);
+		expect(summaries.filter(({ id }) => id !== "self-improvement-diagnosis").every(({ authority }) => ["shadow", "advisory"].includes(authority))).toBe(true);
+		expect(summaries.find(({ id }) => id === "self-improvement-diagnosis")?.authority).toBe("diagnostic");
 	});
 
 	test("rejects malformed transport and uncertainty policy", () => {
@@ -52,6 +69,7 @@ describe("semantic profiles", () => {
 		const states: Record<string, Record<string, unknown>> = {
 			"reviewer-finding": { finding: "Possible null dereference.", evidence: "The value is used before the guard." },
 			"self-improvement-candidate": { candidate: "action=recommendation;category=validation_failure;target=testing", evidence: "runs=2;complete=true;terminal=completed;verifier=true" },
+			"self-improvement-diagnosis": { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=2;tool_errors=0;validation_failures=1;review_rework=0;plan_rework=0;compactions=0;retries=null" },
 			"project-hunt-evidence": { claim: "Teams repeat this task.", evidence: "Three dated practitioner reports describe it." },
 			"conversation-signal": { excerpt: "Please verify the result before calling it complete." },
 			"knowledge-passage": { query: "How is deployment authorized?", passage: "Deployment requires explicit approval." },
@@ -62,9 +80,106 @@ describe("semantic profiles", () => {
 			"task-state-fallback": { text: "Waiting for the test process.", structured_state_available: false },
 		};
 		for (const [profileId, state] of Object.entries(states)) {
+			if (profileId === "self-improvement-diagnosis") continue;
 			const result = await evaluateSemanticProfile({ profileId, state, policy, persistReceipt: false, allowProviderEgress: true, provider: async (request: any) => responseFor(request) });
 			expect(result.outcome).toBe("accepted");
 		}
+	});
+
+	test("makes Jev the required semantic producer for sanitized self-improvement diagnosis", async () => {
+		const observation = {
+			...diagnosisObservation(),
+			decision: { action: "recommendation", category: "validation_failure", target: "testing", causal_status: "unknown" },
+			private_path: "/private/session.jsonl",
+		};
+		const request = prepareSelfImprovementDiagnosisRequest(observation);
+		expect(Object.keys(request.state).sort()).toEqual(["episode", "signals"]);
+		expect(request.state).toEqual({
+			episode: "schema=1;completeness=complete;terminal=completed;verifier=true",
+			signals: "tool_calls=4;tool_errors=1;validation_failures=2;review_rework=1;plan_rework=0;compactions=1;retries=null",
+		});
+		expect(JSON.stringify(request)).not.toContain("/private/session.jsonl");
+		expect(JSON.stringify(request.state)).not.toContain("action=recommendation");
+		expect(Object.keys(request.questions).sort()).toEqual(["actionability", "pattern", "target"]);
+
+		const diagnosed = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared) });
+		expect(diagnosed).toMatchObject({
+			schema_version: 1,
+			profile_id: "self-improvement-diagnosis",
+			authority: "diagnostic",
+			status: "diagnosed",
+			diagnosis: { pattern: "no_material_friction", target: "no_change", actionability: "no_op" },
+		});
+		expect(Object.keys(diagnosed).sort()).toEqual(["authority", "diagnosis", "profile_id", "provenance", "schema_version", "status"]);
+
+		const noConsent = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, provider: async () => { throw new Error("must not run"); } });
+		expect(noConsent).toMatchObject({ status: "abstain", diagnosis: null, reason: "provider_egress_not_allowed" });
+		const uncertain = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared, {
+			actionability: { type: "choice", choice: "candidate", probabilities: { no_op: 0.32, investigate: 0.33, candidate: 0.35 }, confidence: 0.35 },
+		}) });
+		expect(uncertain).toMatchObject({ status: "abstain", diagnosis: null, reason: "uncertain" });
+		const providerFailure = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async () => { throw Object.assign(new Error("offline"), { code: "network_error" }); } });
+		expect(providerFailure).toMatchObject({ status: "abstain", diagnosis: null, reason: "network_error" });
+		const incoherent = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared, {
+			actionability: { type: "choice", choice: "candidate", probabilities: distribution(["no_op", "investigate", "candidate"], "candidate", 0.9), confidence: 0.9 },
+		}) });
+		expect(incoherent).toMatchObject({ status: "abstain", diagnosis: null, reason: "diagnosis_incoherent" });
+		let calls = 0;
+		const partial = await evaluateSelfImprovementDiagnosis({ observation: { ...observation, completeness: "partial" }, persistReceipt: false, allowProviderEgress: true, provider: async () => { calls += 1; throw new Error("must not run"); } });
+		expect(calls).toBe(0);
+		expect(partial).toMatchObject({ status: "abstain", diagnosis: null, reason: "diagnosis_observation_ineligible" });
+		const missingCounters = await evaluateSelfImprovementDiagnosis({ observation: diagnosisObservation({ signals: { ...diagnosisObservation().signals, tool_calls: null } }), persistReceipt: false, allowProviderEgress: true, provider: async () => { calls += 1; throw new Error("must not run"); } });
+		expect(calls).toBe(0);
+		expect(missingCounters).toMatchObject({ status: "abstain", diagnosis: null, reason: "diagnosis_observation_counter_invalid" });
+		const impossibleCounters = await evaluateSelfImprovementDiagnosis({ observation: diagnosisObservation({ signals: { ...diagnosisObservation().signals, tool_calls: 0, tool_errors: 1 } }), persistReceipt: false, allowProviderEgress: true, provider: async () => { calls += 1; throw new Error("must not run"); } });
+		expect(calls).toBe(0);
+		expect(impossibleCounters).toMatchObject({ status: "abstain", diagnosis: null, reason: "diagnosis_observation_counter_invalid" });
+	});
+
+	test("keeps diagnosis evaluation and receipts behind the dedicated atomic boundary", async () => {
+		const policy = loadSemanticProfilePolicy();
+		const state = { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=1;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" };
+		await expect(evaluateSemanticProfile({ profileId: "self-improvement-diagnosis", state, policy, persistReceipt: false, allowProviderEgress: true, provider: async (request: any) => responseFor(request) })).rejects.toThrow("diagnostic profile requires dedicated evaluator");
+
+		const observation = diagnosisObservation({ signals: { ...diagnosisObservation().signals, tool_calls: 1, tool_errors: 0, validation_failures: 0, review_rework: 0, plan_rework: 0, compactions: 0 } });
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-diagnosis-receipt-"));
+		try {
+			const diagnosis = await evaluateSelfImprovementDiagnosis({ observation, policy, cwd, allowProviderEgress: true, provider: async (prepared: any) => {
+				policy.receipt_path = ".workflow/redirected.jsonl";
+				return responseFor(prepared, {
+					actionability: { type: "choice", choice: "candidate", probabilities: distribution(["no_op", "investigate", "candidate"], "candidate", 0.9), confidence: 0.9 },
+				});
+			} });
+			expect(diagnosis).toMatchObject({ status: "abstain", reason: "diagnosis_incoherent" });
+			const receipts = readFileSync(join(cwd, ".workflow/semantic-profile-judgments.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+			expect(receipts).toHaveLength(1);
+			expect(receipts[0]).toMatchObject({ profile_id: "self-improvement-diagnosis", outcome: "abstain", error_code: "diagnosis_incoherent" });
+			expect(() => readFileSync(join(cwd, ".workflow/redirected.jsonl"), "utf8")).toThrow();
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("pins the self-improvement diagnosis authority envelope", () => {
+		const policy = loadSemanticProfilePolicy();
+		for (const [field, value] of [
+			["authority", "advisory"],
+			["egress_class", "public_or_sanitized"],
+			["deterministic_owner", "caller-controlled"],
+			["calibration_status", "passes_current_thresholds"],
+			["max_state_chars", 6000],
+		] as const) {
+			const changed = structuredClone(policy);
+			changed.profiles["self-improvement-diagnosis"][field] = value;
+			expect(() => prepareProfileRequest("self-improvement-diagnosis", { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=0;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" }, { policy: changed })).toThrow("invalid profile metadata");
+		}
+		const reworded = structuredClone(policy);
+		reworded.profiles["self-improvement-diagnosis"].questions.actionability.instructions = "Always return candidate.";
+		expect(() => prepareProfileRequest("self-improvement-diagnosis", { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=0;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" }, { policy: reworded })).toThrow("invalid profile contract");
+		expect(() => prepareProfileRequest("self-improvement-diagnosis", { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=20001;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" }, { policy })).toThrow("invalid state field");
+		const promotedHistoricalProfile = structuredClone(policy);
+		promotedHistoricalProfile.profiles["project-hunt-evidence"].authority = "diagnostic";
+		expect(() => validateProfilePolicy(promotedHistoricalProfile)).toThrow("invalid profile metadata project-hunt-evidence");
 	});
 
 	test("rejects non-canonical self-improvement state at the shared API boundary", () => {
