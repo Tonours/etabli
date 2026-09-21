@@ -44,11 +44,18 @@ The evidence requirements, candidate acceptance, PLAN gate, evaluator, and all
 mutation permissions in this contract remain deterministic authority.
 
 For post-run harness traces, use `workflow/trace-self-improvement.md`. The
-current `prototype_offline` capability observes explicitly selected Pi or Claude
-episodes and may emit only `no_op` or a non-causal recommendation. Unknown,
-partial, unbound, or inconsistent traces cannot establish a failure pattern.
-Diagnostic, proposal, and automatic-promotion levels remain unavailable until
-their documented entry gates are independently verified.
+`prototype_offline` extractor observes explicitly selected Pi or Claude
+episodes. `scripts/jev-self-improvement --live` adds an explicit, bounded
+`diagnose_shadow` controller for one natively correlated Pi episode: code reads
+the selected trace and ledger, sends only normalized counters and enums to one
+retry-disabled Jev diagnosis, and emits a private terminal `no_op` or
+`investigate` packet. Unknown, partial, unbound, secret-like, symlinked, or
+inconsistent input fails closed. A `candidate` diagnosis remains suppressed
+unless a current fingerprint-bound `propose_reviewed` capability receipt proves
+the synthetic suite, three distinct live checks, and independent cross-model
+verification. Even then the packet is non-executable and applying it requires a
+new user-invoked READY `plan-implement` run. Automatic promotion remains
+unavailable.
 
 ## Harness Improvement Loop
 

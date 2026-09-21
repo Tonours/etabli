@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy_version": "jev-route-capsule-runtime-v2",
+  "policy_version": "jev-route-capsule-runtime-v3",
   "mode": "enforced",
   "candidate_id": "jev-route-capsule-v3",
   "model": "jev-1.13.0",
@@ -10,11 +10,15 @@
   "comparison_receipt_fingerprint": "12aeeb074df6e97077fa3fd3a64b41027ef98ff68d0fff1257e84a970b467f25",
   "activation_receipt_fingerprint": "10711dd4b9ed308cb372d4f954fd677853c4d576945bb7bdc549dfd8c67a99de",
   "promotion_manifest_fingerprint": "ab1a77743c5b9546b1c857cc1d06535b98866e2174e40c8d330f7567a2c47d5e",
+  "plan_implement_efficiency": {
+    "status": "rejected_non_comparable",
+    "result_path": "workflow/self-improvement/jev-plan-implement-result.json",
+    "result_fingerprint": "79b3691a7af20ab8ca83360966535e58218ffd192c4691df3c6b9e63dda3298f"
+  },
   "eligible_routes": [
     "answer",
     "implement",
     "plan-loop",
-    "plan-implement",
     "pr-review",
     "review",
     "sec-pr"

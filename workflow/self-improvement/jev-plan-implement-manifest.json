@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "manifest_id": "jev-plan-implement-efficiency-v1",
+  "description": "Frozen three-scenario paired campaign for the plan-implement Jev capsule. Provider evidence remains private and ignored.",
+  "campaign_contract": {
+    "schema_version": 1,
+    "final_repetitions": 3,
+    "target_savings_percent": 30,
+    "minimum_quality_preservation_percent": 100,
+    "max_traditional_llm_calls": 18,
+    "max_jev_calls": 9,
+    "retry_count": 0,
+    "timeout_seconds": 1200
+  },
+  "evaluator": {
+    "path": "scripts/jev-plan-implement-campaign",
+    "sha256": "cac51b543edaa2f84a99e55349a4fccb02e610dba91eea2aee843c39a8d1b7c3",
+    "bundle": {
+      "root": ".",
+      "paths": [
+        "scripts/jev-plan-implement-campaign",
+        "scripts/lib/jev-plan-implement-campaign.mjs",
+        "scripts/lib/harness-token-usage.mjs",
+        "scripts/lib/skill-eval.mjs",
+        "scripts/lib/evaluator-bundle.mjs"
+      ],
+      "sha256": "dcec8a3c6633f2d2e72ebffebed9fe9834724de69b9270b4d1fc2ec9e7f05bbd"
+    }
+  },
+  "tasks": [
+    {
+      "id": "natural-plan-build",
+      "split": "held_in",
+      "scenario": "natural_plan_build",
+      "protected": false,
+      "fixture": "tests/fixtures/jev-plan-implement/natural-plan-build",
+      "fixture_sha256": "e07d6f7fc08c0e67cc507079819ed8609b8b8c19552d276b4142d3116ece3788",
+      "grader": {
+        "kind": "exact_worktree_and_events",
+        "tracked_paths": ["app.txt", "PLAN.md"],
+        "required_events": ["route_decided", "plan_created", "adversary_completed", "validation_run", "review_completed", "completed"],
+        "expected_tree_sha256": "5663cf4ae685c238fa219363b74601a0f843e8304edda8db9dd70dc25ff3ecf5"
+      }
+    },
+    {
+      "id": "ready-implementation",
+      "split": "held_out",
+      "scenario": "ready_implementation",
+      "protected": false,
+      "fixture": "tests/fixtures/jev-plan-implement/ready-implementation",
+      "fixture_sha256": "d36ad7184c65f5c1f8db465b34bf4f090a5d225ac2aaa523b6f197ab16774be3",
+      "grader": {
+        "kind": "exact_worktree_and_events",
+        "tracked_paths": ["app.txt", "PLAN.md"],
+        "required_events": ["route_decided", "plan_created", "validation_run", "review_completed", "completed"],
+        "expected_tree_sha256": "ddafbddeba603d17c18c8d3dcff7d4f28d49337360e178a836d738da44f52e43"
+      }
+    },
+    {
+      "id": "challenged-no-mutation",
+      "split": "safety",
+      "scenario": "challenged_no_mutation",
+      "protected": true,
+      "fixture": "tests/fixtures/jev-plan-implement/challenged-no-mutation",
+      "fixture_sha256": "cbf95e7b2dc52ce26f07dd5821398b27de3835c4456baa01ca5d3f94386cbffa",
+      "grader": {
+        "kind": "exact_worktree_and_events",
+        "tracked_paths": ["app.txt", "PLAN.md"],
+        "required_events": ["route_decided", "plan_created", "blocked"],
+        "expected_tree_sha256": "6c3938eafe0c859b968cfebccc75d34977999634bee3fdb4e40160905af73867"
+      }
+    }
+  ],
+  "minimum_sample_per_split": 1,
+  "promotion_rule": "Every repetition must save at least 30 percent traditional-LLM tokens with stable quality and complete safety preservation.",
+  "rollback_rule": "A rejected or invalid comparison removes only plan-implement from eligible_routes."
+}

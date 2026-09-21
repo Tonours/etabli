@@ -41,6 +41,9 @@ sed 's/"isError":false/"isError":true/' "$FIX/pi/session-bound.jsonl" >"$TMP/pos
 post_terminal_error="$($CLI --adapter pi --trace-file "$TMP/post-terminal-error.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
 jq -e '.binding == "native_correlated" and .completeness == "complete" and .signals.tool_calls == 1 and .signals.tool_errors == 1' <<<"$post_terminal_error" >/dev/null
 
+tracked_terminal_error="$($CLI --adapter pi --trace-file "$FIX/pi/session-bound-terminal-error.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
+jq -e '.binding == "native_correlated" and .completeness == "complete" and .signals.tool_calls == 1 and .signals.tool_errors == 1' <<<"$tracked_terminal_error" >/dev/null
+
 sed -n '1p' "$FIX/pi/session-bound.jsonl" >"$TMP/reused-session.jsonl"
 printf '%s\n' '{"type":"custom","id":"old-binding","parentId":null,"customType":"etabli.workflow-run-binding","timestamp":"2026-09-20T09:57:05Z","data":{"schema_version":1,"algorithm":"sha256","fingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}' >>"$TMP/reused-session.jsonl"
 sed -n '2,11p' "$FIX/pi/session-bound.jsonl" | sed '1s/"parentId":null/"parentId":"old-binding"/' >>"$TMP/reused-session.jsonl"
