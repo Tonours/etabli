@@ -161,7 +161,7 @@ sed 's/"route":"plan-implement"/"route":"implement"/' "$FIX/pi/session.jsonl" >"
 route_continuation="$($CLI --adapter pi --trace-file "$TMP/route-continuation.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
 jq -e '.completeness == "complete" and .reason_codes == []' <<<"$route_continuation" >/dev/null
 
-rg -v '"event":"plan_created"' "$FIX/pi/events.jsonl" >"$TMP/route-no-plan.jsonl"
+grep -v '"event":"plan_created"' "$FIX/pi/events.jsonl" >"$TMP/route-no-plan.jsonl"
 route_no_plan="$($CLI --adapter pi --trace-file "$TMP/route-continuation.jsonl" --ledger "$TMP/route-no-plan.jsonl" --run pi-run --json)"
 jq -e '.completeness == "unavailable" and .reason_codes == ["trace_route_mismatch"]' <<<"$route_no_plan" >/dev/null
 
