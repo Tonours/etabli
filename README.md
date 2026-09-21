@@ -78,6 +78,16 @@ Projects containing `workflow/spec.md` activate the workflow ambiently.
 Pi and Claude share the same workflow source through managed links. A change in
 this repository is the change every linked runtime reads.
 
+Jev supplies typed route judgments for `answer`, `implement`, `plan-loop`,
+`pr-review`, `review`, and `sec-pr`. Deterministic code still owns permissions,
+PLAN state, mutations, fallback, and protected routes. `plan-implement` keeps
+the deterministic route contract because its route-specific campaign was
+rejected as non-comparable. See
+[`workflow/semantic-profiles.md`](workflow/semantic-profiles.md) for the active
+boundary and
+[`workflow/self-improvement/jev-plan-implement-report.md`](workflow/self-improvement/jev-plan-implement-report.md)
+for the measured result.
+
 One writer at a time is a protocol, not an OS lock. Long-running routes keep
 their rules in [`workflow/skills/self-improvement-loop.md`](workflow/skills/self-improvement-loop.md),
 [`workflow/skills/ambitious-project-loop.md`](workflow/skills/ambitious-project-loop.md),
