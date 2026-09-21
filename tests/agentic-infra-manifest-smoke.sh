@@ -146,6 +146,8 @@ vendor-surface-policy-smoke
 vendor-prune-modes-smoke
 harness-token-usage-test
 jev-efficiency-campaign-test
+jev-plan-implement-campaign-test
+jev-self-improvement-controller-test
 skills-lock-coverage-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"

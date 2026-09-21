@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+
+import { runSelfImprovementControllerCli } from "./lib/jev-self-improvement-controller.mjs";
+
+try {
+  const packet = await runSelfImprovementControllerCli();
+  process.stdout.write(`${JSON.stringify(packet, null, 2)}\n`);
+} catch (error) {
+  process.stderr.write(`jev-self-improvement: ${error.code || error.message}\n`);
+  process.exitCode = 2;
+}

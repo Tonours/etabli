@@ -99,22 +99,29 @@ binding fingerprints are never returned.
 | Level | State | Authority | Entry evidence | Exit evidence / availability |
 | --- | --- | --- | --- | --- |
 | 1 | `observe_prototype` | deterministic read-only extractor | explicit trace and terminal ledger; supported identity shape | sanitized complete/partial/unavailable observation; available as `prototype_offline` |
-| 2 | `diagnose_shadow` | Jev is the semantic diagnostician; deterministic control plane | native run/session binding, private real-format canary, dedicated held-in/held-out calibration and measured abstention | recurrent verifier-grounded patterns with measured error/abstention; currently blocked |
-| 3 | `propose_reviewed` | bounded proposer under a `READY` plan | independent initiatives plus frozen objective and candidate surface | held-in gain, held-out/safety non-regression, fresh review; currently blocked |
+| 2 | `diagnose_shadow` | Jev is the semantic diagnostician; deterministic control plane | explicit `--live`, native run/session binding, complete terminal observation, retry-disabled provider policy | private terminal `no_op`/`investigate`; available through `scripts/jev-self-improvement` |
+| 3 | `propose_reviewed` | bounded non-executable proposal request; READY workflow remains external | synthetic branch suite, three distinct live checks, current controller fingerprint, independent cross-model verification | fingerprint-bound receipt; unavailable until all evidence is current |
 | 4 | `promote_automatic` | external isolated controller | frozen base, external root of trust and allow/deny policy, atomic rollback, explicit human authority | reversible applied change plus post-apply verification; currently blocked |
 
 The only forward transitions are level 1 → 2 → 3 → 4; no level may be
 skipped. A failed entry or exit condition returns to the previous level or to
 `blocked`. Jev never owns mutation authority.
 
-The CLI rejects requests for levels 2–4 with `capability_not_available`. A
-same-repository manifest proves provenance, not an independent root of trust.
+The offline extractor still rejects requests for levels 2–4 with
+`capability_not_available`. The separate explicit-live controller implements
+level 2 only. It starts in `diagnose_shadow`, makes one Jev call with zero
+retries, makes no traditional-LLM call, and writes only a new direct child under
+ignored `.workflow/jev-self-improvement/private/`. Its provider projection is
+limited to lifecycle enums, verifier state, and numeric counters; trace text,
+paths, run/session IDs, and fingerprints are not projected. Level 3 additionally
+requires a current capability receipt and can emit only a non-executable request
+for a later user-invoked READY run. A same-repository receipt proves bounded
+promotion evidence, not an independent root of trust for automatic mutation.
 
-Ordered follow-up gates are: (1) provider-backed private real-format canaries,
-(2) a versioned held-in/held-out corpus for `self-improvement-diagnosis`, (3)
-recurrent multi-initiative aggregation, (4) reviewed proposal generation under
-a `READY` plan, and only then (5) an external promotion controller with atomic
-rollback. The current additive diagnostic path satisfies none of those gates by
-itself. The native correlation and offline canary harness are available; the
-provider-backed leg remains blocked until a credential is explicitly available,
-and level 2 still requires the dedicated corpus and measured abstention.
+Ordered follow-up gates after level 2 are: (1) complete the synthetic branch
+suite, (2) record three independently selected provider-backed real-format
+diagnoses, (3) independently verify the controller and evidence, (4) enable
+bounded reviewed proposal packets for the exact fingerprint, and only then (5)
+evaluate any external promotion controller with atomic rollback. No current
+gate authorizes automatic source mutation, PLAN promotion, commit, push, or
+deployment.

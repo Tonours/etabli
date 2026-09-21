@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+if [ "${1:-}" != "append" ] || [ "$#" -ne 4 ]; then
+  printf '%s\n' 'usage: workflow-event append <run> <event> <json-detail>' >&2
+  exit 2
+fi
+
+run="$2"
+event="$3"
+detail="$4"
+case "$run" in
+  *[!a-zA-Z0-9._-]*|'') exit 2 ;;
+esac
+mkdir -p ".workflow/$run"
+node -e '
+const [run, event, detail] = process.argv.slice(1);
+const row = { schema_version: 2, ts: new Date().toISOString(), event, run, detail: JSON.parse(detail) };
+process.stdout.write(`${JSON.stringify(row)}\n`);
+' "$run" "$event" "$detail" >> ".workflow/$run/events.jsonl"

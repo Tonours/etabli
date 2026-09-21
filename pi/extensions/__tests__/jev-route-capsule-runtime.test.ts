@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -120,19 +121,19 @@ test("prompt plan-status fallback stays in parity with the canonical router", as
 	const cwd = mkdtempSync(join(tmpdir(), "jev-capsule-plan-fallback-"));
 	try {
 		const [draftResult] = await runtime.start("Le plan est encore en brouillon, améliore-le puis corrige le bug", cwd);
-		expect(calls).toBe(1);
+		expect(calls).toBe(0);
 		expect((draftResult as { systemPrompt: string }).systemPrompt).toContain('"route":"plan-implement"');
-		expect((draftResult as { systemPrompt: string }).systemPrompt).toContain("ETABLI_ROUTE_CAPSULE plan_implementation v1");
+		expect((draftResult as { systemPrompt: string }).systemPrompt).not.toContain("ETABLI_ROUTE_CAPSULE plan_implementation v1");
 
 		const [emailResult] = await runtime.start("Corrige le bug du brouillon d'email dans le composeur", cwd);
-		expect(calls).toBe(2);
+		expect(calls).toBe(1);
 		expect((emailResult as { systemPrompt: string }).systemPrompt).toContain('"route":"answer"');
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });
 	}
 });
 
-test("frozen natural plan-and-build prompt reaches plan-implement and its dedicated capsule", async () => {
+test("frozen natural plan-and-build prompt reaches plan-implement with deterministic fallback", async () => {
 	let calls = 0;
 	const runtime = setup(async () => {
 		calls += 1;
@@ -143,9 +144,9 @@ test("frozen natural plan-and-build prompt reaches plan-implement and its dedica
 	const cwd = mkdtempSync(join(tmpdir(), "jev-capsule-natural-composite-"));
 	try {
 		const [result] = await runtime.start(naturalCase.prompt, cwd);
-		expect(calls).toBe(1);
+		expect(calls).toBe(0);
 		expect((result as { systemPrompt: string }).systemPrompt).toContain('"route":"plan-implement"');
-		expect((result as { systemPrompt: string }).systemPrompt).toContain("ETABLI_ROUTE_CAPSULE plan_implementation v1");
+		expect((result as { systemPrompt: string }).systemPrompt).not.toContain("ETABLI_ROUTE_CAPSULE plan_implementation v1");
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });
 	}
@@ -153,7 +154,6 @@ test("frozen natural plan-and-build prompt reaches plan-implement and its dedica
 
 test("every enforced route maps to its evaluated capsule category", async () => {
 	const cases = [
-		{ prompt: "Planifie puis implémente cette refonte avec plan-implement", expected: "plan_implementation" as const },
 		{ prompt: "Prépare un plan précis pour cette refonte", expected: "planning" as const },
 		{ prompt: "Corrige tout y compris les warnings", expected: "implementation" as const },
 		{ prompt: "Fais une code review de la PR GitHub 42", expected: "review" as const },
@@ -227,7 +227,12 @@ test("promotion policy binds the accepted artifact and zero-retry runtime", () =
 	expect(policy.candidate_id).toBe("jev-route-capsule-v3");
 	expect(policy.efficiency_candidate_id).toBe("jev-route-capsule-v2");
 	expect(policy.efficiency_candidate_artifact_fingerprint).toBe("046560559544111c1eb10677309b28275d1d5d8c846f3d4f4e8eb0736b403fa8");
-	expect(policy.eligible_routes).toContain("plan-implement");
+	expect(policy.eligible_routes).not.toContain("plan-implement");
+	expect(policy.eligible_routes).toEqual(expect.arrayContaining(["answer", "implement", "plan-loop", "pr-review", "review", "sec-pr"]));
+	const efficiency = (policy as unknown as { plan_implement_efficiency: { status: string; result_path: string; result_fingerprint: string } }).plan_implement_efficiency;
+	expect(efficiency.status).toBe("rejected_non_comparable");
+	const resultBytes = readFileSync(join(import.meta.dir, "../../../", efficiency.result_path));
+	expect(createHash("sha256").update(resultBytes).digest("hex")).toBe(efficiency.result_fingerprint);
 });
 
 test("promotion binding rejects comparison and promoted-source tampering", () => {

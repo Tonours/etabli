@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "campaign_id": "jev-plan-implement-efficiency-v1",
+  "status": "rejected_non_comparable",
+  "measured_at": "2026-09-21",
+  "frozen_evidence": {
+    "manifest_sha256": "0d918ef9faa335e0d72714489411982eb533309186a4545f3fa32e854acc6315",
+    "evaluator_bundle_sha256": "56585c913a65399b0aab9de7fbc033e28b1c4248e2e03c9ad2c053dae9113111",
+    "artifact_fingerprint": "985195ad0bfc4ef1d75d738a0bc6fac7f94942648765cec32f11c36699afb8d3",
+    "population_fingerprint": "c51d58b93bb2437c3f18056b8aa15e61bca7847c0268a3563e9122bf4d829074",
+    "private_baseline_sha256": "39b6fd3f7189bd7446c22fb33fdcfa099fb7e10a5bd934215f2432d3b0990b82",
+    "private_candidate_grade_sha256": "350fe71a2a17b1da9225988bda34a15132a6fddde5fc8d3bc5046139475adba9",
+    "private_candidate_preflight_sha256": "027af1fcb116b4ed6cd94538763effec627033159a8dc7f4c980de5a09b8a761"
+  },
+  "runtime": {
+    "runner": "pi",
+    "provider": "openai-codex",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "retries": 0
+  },
+  "baseline": {
+    "repetitions": 3,
+    "tasks_per_repetition": 3,
+    "quality_vectors_stable": true,
+    "protected_preservation_percent": 100,
+    "traditional_llm_tokens_per_repetition": [1560444, 1526973, 1642388],
+    "traditional_llm_total_tokens": 4729805,
+    "provider_estimated_cost_usd": 8.75845,
+    "incremental_subscription_cost_status": "unknown"
+  },
+  "candidate": {
+    "completed_cells": 1,
+    "first_cell_passed": false,
+    "traditional_llm_tokens_observed": 104016,
+    "jev_calls": 1,
+    "jev_input_tokens": 679,
+    "jev_output_tokens": 62,
+    "jev_retries": 0,
+    "jev_route": "plan_implementation",
+    "jev_confidence": 1,
+    "failure": "measurement runner appended the capsule to the user prompt before deterministic routing, which rerouted the cell to adversary"
+  },
+  "comparison": {
+    "comparable": false,
+    "savings_percent": null,
+    "verdict": "rejected",
+    "reasons": ["candidate_quality_failure", "candidate_injection_order_invalid", "paired_repetitions_incomplete"]
+  },
+  "controller_live_checks": {
+    "calls": 3,
+    "retries": 0,
+    "traditional_llm_calls": 0,
+    "diagnosed": 0,
+    "abstained": 3,
+    "proposal_capability": "disabled"
+  },
+  "development_usage": {
+    "traditional_llm_executions_observed_or_started": 35,
+    "status": "budget_overrun",
+    "note": "Invalid fixture pilots and interrupted non-comparable campaigns are retained as negative evidence and were not counted as a successful paired measurement."
+  },
+  "policy": {
+    "decision": "remove_plan_implement_only",
+    "other_eligible_routes_preserved": true,
+    "fallback": "deterministic_route_contract"
+  },
+  "next_measurement": {
+    "evaluator_bundle_sha256": "dcec8a3c6633f2d2e72ebffebed9fe9834724de69b9270b4d1fc2ec9e7f05bbd",
+    "candidate_injection": "append_system_prompt_after_route_selection",
+    "status": "not_run"
+  }
+}
