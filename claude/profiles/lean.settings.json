@@ -15,7 +15,6 @@
   },
   "skillOverrides": {
     "adapt": "user-invocable-only",
-    "adr": "user-invocable-only",
     "animate": "user-invocable-only",
     "arrange": "user-invocable-only",
     "ask-matt": "user-invocable-only",
@@ -90,6 +89,7 @@
     "to-spec": "user-invocable-only",
     "to-tickets": "user-invocable-only",
     "triage": "user-invocable-only",
+    "typesafe-ai": "user-invocable-only",
     "typeset": "user-invocable-only",
     "wayfinder": "user-invocable-only",
     "week-roadmap": "on",
