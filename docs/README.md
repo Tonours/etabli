@@ -20,6 +20,12 @@ runtime instructions.
   context budgets and their CI gate.
 - [`docs/claude-token-budget.md`](claude-token-budget.md): applied Claude
   token-budget configuration and its usage.
+- [`workflow/semantic-profiles.md`](../workflow/semantic-profiles.md): active
+  Jev authority, provider-egress rules, and profile calibration.
+- [`workflow/trace-self-improvement.md`](../workflow/trace-self-improvement.md):
+  trace observation and the bounded Jev diagnosis controller.
+- [`workflow/skills/self-improvement-loop.md`](../workflow/skills/self-improvement-loop.md):
+  evidence, privacy, validation, and mutation rules for self-improvement.
 - [`nvim/README.md`](../nvim/README.md): code-first Neovim map.
 - [`SECURITY.md`](../SECURITY.md): repository security boundary.
 
@@ -33,6 +39,9 @@ runtime instructions.
   context-efficiency measurements; current checks remain the source of truth.
 - [`docs/self-improvement-privacy-20260915.md`](self-improvement-privacy-20260915.md):
   dated privacy-migration report for reviewer self-improvement evidence.
+- [`workflow/self-improvement/jev-plan-implement-report.md`](../workflow/self-improvement/jev-plan-implement-report.md):
+  rejected 2026-09-21 `plan-implement` efficiency campaign and its measured
+  baseline.
 
 Do not add a second source of truth for a workflow rule. Update the contract,
 then keep the README or an index as a pointer.
