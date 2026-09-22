@@ -1,15 +1,31 @@
-import { expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import routeCapsuleRuntime, { loadRouteCapsulePolicy, validateActivationReceipt, validatePromotionManifest } from "../jev-route-capsule-runtime.ts";
+
+const repoRoot = join(import.meta.dir, "../../..");
+const historicalRoot = mkdtempSync(join(tmpdir(), "jev-promoted-sources-"));
+const promotionPath = join(repoRoot, "workflow/runtime/jev-route-capsule-promotion.json");
+const historicalManifest = JSON.parse(readFileSync(promotionPath, "utf8"));
+for (const path of Object.keys(historicalManifest.source_files)) {
+  const frozenFiles = ["pi/extensions/lib/typesafe-system-one.mjs", "pi/extensions/lib/jev-route-capsule.mjs"];
+  const source = frozenFiles.includes(path)
+    ? join(repoRoot, "tests/fixtures/jev-route-capsule/promoted", path.split("/").at(-1) + ".txt") : join(repoRoot, path);
+  mkdirSync(dirname(join(historicalRoot, path)), { recursive: true });
+  writeFileSync(join(historicalRoot, path), readFileSync(source));
+}
+afterAll(() => rmSync(historicalRoot, { recursive: true, force: true }));
+function historicalPolicy() {
+  return loadRouteCapsulePolicy(join(repoRoot, "workflow/runtime/jev-route-capsule-policy.json"), promotionPath, historicalRoot);
+}
 
 type Handler = (event: Record<string, unknown>, ctx?: Record<string, unknown>) => unknown;
 
 function setup(
 	evaluate: (prompt: string) => Promise<Record<string, unknown>>,
-	loadPolicy = loadRouteCapsulePolicy,
+	loadPolicy = historicalPolicy,
 ) {
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
@@ -221,7 +237,7 @@ test("Jev abstention falls back without a capsule and keeps READY authority dete
 });
 
 test("promotion policy binds the accepted artifact and zero-retry runtime", () => {
-	const policy = loadRouteCapsulePolicy();
+	const policy = historicalPolicy();
 	expect(policy.mode).toBe("enforced");
 	expect(policy.max_retries).toBe(0);
 	expect(policy.candidate_id).toBe("jev-route-capsule-v3");
@@ -236,7 +252,7 @@ test("promotion policy binds the accepted artifact and zero-retry runtime", () =
 });
 
 test("promotion binding rejects comparison and promoted-source tampering", () => {
-	const policy = loadRouteCapsulePolicy();
+	const policy = historicalPolicy();
 	const promotionPath = join(import.meta.dir, "../../../workflow/runtime/jev-route-capsule-promotion.json");
 	const manifest = JSON.parse(readFileSync(promotionPath, "utf8"));
 	expect(() => validatePromotionManifest(policy, {
@@ -253,9 +269,9 @@ test("promotion binding rejects comparison and promoted-source tampering", () =>
 
 test("plan-implement activation evidence cannot claim inherited token savings or omit calls", () => {
 	const root = join(import.meta.dir, "../../..");
-	const policy = loadRouteCapsulePolicy();
+	const policy = historicalPolicy();
 	const receipt = JSON.parse(readFileSync(join(root, "workflow/runtime/jev-plan-implement-activation.json"), "utf8"));
-	const readSource = (path: string) => readFileSync(join(root, path));
+	const readSource = (path: string) => readFileSync(join(historicalRoot, path));
 	expect(() => validateActivationReceipt(policy, { ...receipt, runtime_token_savings_status: "measured" }, readSource)).toThrow();
 	expect(() => validateActivationReceipt(policy, { ...receipt, calls: 2 }, readSource)).toThrow();
 	expect(() => validateActivationReceipt(policy, {
@@ -280,7 +296,7 @@ test("promotion policy rejects a tampered manifest before runtime activation", (
 
 test("rollback mode disables Jev while preserving the deterministic route contract", async () => {
 	let calls = 0;
-	const policy = loadRouteCapsulePolicy();
+	const policy = historicalPolicy();
 	const runtime = setup(
 		async () => {
 			calls += 1;
@@ -299,4 +315,17 @@ test("rollback mode disables Jev while preserving the deterministic route contra
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });
 	}
+});
+
+test("candidate transport invalidates promotion and runtime uses deterministic fallback", async () => {
+  expect(() => loadRouteCapsulePolicy()).toThrow("promoted source drift");
+  let calls = 0;
+  const runtime = setup(async () => { calls++; return accepted("planning"); }, loadRouteCapsulePolicy);
+  const cwd = mkdtempSync(join(tmpdir(), "jev-stale-"));
+  try {
+    const [result] = await runtime.start("Prépare un plan précis pour cette refonte", cwd);
+    expect(calls).toBe(0);
+    expect((result as { systemPrompt: string }).systemPrompt).toContain("etabli-route-contract");
+    expect((result as { systemPrompt: string }).systemPrompt).not.toContain("etabli-jev-route-capsule");
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
 });

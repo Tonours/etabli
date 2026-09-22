@@ -11,7 +11,7 @@ import {
 } from "./lib/typesafe-architecture-review.mjs";
 
 function usage() {
-	return "Usage: typesafe-architecture-review [--plan PLAN.md] [--evidence path]... [--fixture-response file] [--preview] [--json]";
+	return "Usage: typesafe-architecture-review [--plan PLAN.md] [--evidence path]... [--fixture-response file] [--preview] [--live] [--json]";
 }
 
 function parseArgs(args) {
@@ -26,6 +26,7 @@ function parseArgs(args) {
 			if (arg === "--evidence") options.evidence.push(value);
 			if (arg === "--fixture-response") options.fixture = value;
 		} else if (arg === "--preview") options.preview = true;
+		else if (arg === "--live") options.live = true;
 		else if (arg === "--json") options.json = true;
 		else if (arg === "-h" || arg === "--help") options.help = true;
 		else throw new ArchitectureReviewError("input", `unknown argument: ${arg}`);
@@ -57,6 +58,7 @@ async function main() {
 		console.log(JSON.stringify({ network: false, request_bytes: bytes, inputs: inventory, model: request.model, questions: Object.keys(request.questions) }, null, 2));
 		return 0;
 	}
+	if (!options.fixture && !options.live) throw new ArchitectureReviewError("input", "provider evaluation requires explicit --live");
 	const provenance = options.fixture ? "fixture" : "live";
 	const response = options.fixture
 		? JSON.parse(readFileSync(resolve(repoRoot, options.fixture), "utf8"))

@@ -1,0 +1,776 @@
+{
+  "schema_version": 1,
+  "kind": "bounded_live_review_pilot_summary",
+  "date": "2026-09-22",
+  "population": {
+    "cases": 12,
+    "critical": 6,
+    "clean": 3,
+    "intent_drift": 3,
+    "repetitions": 3,
+    "arms": 3,
+    "completed_cells": 108,
+    "functional_canaries": 2
+  },
+  "execution": "live_provider_calls_on_small_synthetic_code_cases",
+  "models": {
+    "logic": "zai/glm-5.3:high",
+    "spec": "zai/glm-5.3:high",
+    "adversary-code": "zai/glm-5.3:max",
+    "parent": "zai/glm-5.3:high"
+  },
+  "model_provenance": "native_receipts_and_per_request_provider_effort_observation",
+  "arms": {
+    "A": "required_review_passes",
+    "B": "same_passes_with_deterministic_evidence_pack",
+    "C": "same_passes_pack_and_advisory_jev_triage"
+  },
+  "terminal": {
+    "status": "completed",
+    "verdict": "rejected",
+    "cells": 108
+  },
+  "comparison": {
+    "verdict": "rejected",
+    "promotion": false,
+    "aggregate": {
+      "A": {
+        "attempts": 36,
+        "successes": 35,
+        "total_tokens": 757846,
+        "tokens_per_success": 21652.742857142857,
+        "median_ms": 79427.5,
+        "p95_ms": 131244,
+        "recall": 1,
+        "precision": 0.9642857142857143,
+        "false_go": 0,
+        "false_block": 0,
+        "telemetry": {
+          "llm_tokens": 757846,
+          "jev_tokens": 0,
+          "combined_tokens": 757846,
+          "usage": {
+            "input_tokens": 593535,
+            "output_tokens": 164311,
+            "cached_input_tokens": 458176,
+            "cache_write_input_tokens": 0,
+            "reasoning_output_tokens": 103475,
+            "cost_usd": null
+          },
+          "preparation_ms": 45.54413100064684,
+          "jev_wait_ms": 0,
+          "jev_backoff_ms": 0,
+          "jev_cost_usd": null,
+          "combined_cost_usd": null,
+          "by_role": {
+            "parent": {
+              "passes": 36,
+              "llm_calls": 72,
+              "tool_calls": 109,
+              "tokens": 300645
+            },
+            "logic": {
+              "passes": 36,
+              "llm_calls": 83,
+              "tool_calls": 86,
+              "tokens": 228338
+            },
+            "spec": {
+              "passes": 36,
+              "llm_calls": 36,
+              "tool_calls": 0,
+              "tokens": 77222
+            },
+            "adversary-code": {
+              "passes": 36,
+              "llm_calls": 79,
+              "tool_calls": 101,
+              "tokens": 151641
+            }
+          }
+        },
+        "by_repetition": [
+          {
+            "repetition": 1,
+            "llm_tokens": 255196,
+            "jev_tokens": 0,
+            "combined_tokens": 255196,
+            "usage": {
+              "input_tokens": 202630,
+              "output_tokens": 52566,
+              "cached_input_tokens": 156800,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 32243,
+              "cost_usd": null
+            },
+            "preparation_ms": 17.10654300049646,
+            "jev_wait_ms": 0,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 99680
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 27,
+                "tool_calls": 28,
+                "tokens": 73424
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 25033
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 29,
+                "tool_calls": 36,
+                "tokens": 57059
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "llm_tokens": 251278,
+            "jev_tokens": 0,
+            "combined_tokens": 251278,
+            "usage": {
+              "input_tokens": 198563,
+              "output_tokens": 52715,
+              "cached_input_tokens": 152832,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 32794,
+              "cost_usd": null
+            },
+            "preparation_ms": 13.423709000926465,
+            "jev_wait_ms": 0,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 37,
+                "tokens": 97651
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 29,
+                "tool_calls": 30,
+                "tokens": 82041
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 25179
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 25,
+                "tool_calls": 31,
+                "tokens": 46407
+              }
+            }
+          },
+          {
+            "repetition": 3,
+            "llm_tokens": 251372,
+            "jev_tokens": 0,
+            "combined_tokens": 251372,
+            "usage": {
+              "input_tokens": 192342,
+              "output_tokens": 59030,
+              "cached_input_tokens": 148544,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 38438,
+              "cost_usd": null
+            },
+            "preparation_ms": 15.01387899922392,
+            "jev_wait_ms": 0,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 103314
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 27,
+                "tool_calls": 28,
+                "tokens": 72873
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 27010
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 25,
+                "tool_calls": 34,
+                "tokens": 48175
+              }
+            }
+          }
+        ]
+      },
+      "B": {
+        "attempts": 36,
+        "successes": 35,
+        "total_tokens": 827493,
+        "tokens_per_success": 23642.657142857144,
+        "median_ms": 98543,
+        "p95_ms": 162115,
+        "recall": 1,
+        "precision": 0.9642857142857143,
+        "false_go": 0,
+        "false_block": 0,
+        "telemetry": {
+          "llm_tokens": 827493,
+          "jev_tokens": 0,
+          "combined_tokens": 827493,
+          "usage": {
+            "input_tokens": 617143,
+            "output_tokens": 210350,
+            "cached_input_tokens": 418432,
+            "cache_write_input_tokens": 0,
+            "reasoning_output_tokens": 149729,
+            "cost_usd": null
+          },
+          "preparation_ms": 39.15179500030917,
+          "jev_wait_ms": 0,
+          "jev_backoff_ms": 0,
+          "jev_cost_usd": null,
+          "combined_cost_usd": null,
+          "by_role": {
+            "parent": {
+              "passes": 36,
+              "llm_calls": 71,
+              "tool_calls": 105,
+              "tokens": 383506
+            },
+            "logic": {
+              "passes": 36,
+              "llm_calls": 43,
+              "tool_calls": 19,
+              "tokens": 185144
+            },
+            "spec": {
+              "passes": 36,
+              "llm_calls": 36,
+              "tool_calls": 0,
+              "tokens": 92634
+            },
+            "adversary-code": {
+              "passes": 36,
+              "llm_calls": 68,
+              "tool_calls": 91,
+              "tokens": 166209
+            }
+          }
+        },
+        "by_repetition": [
+          {
+            "repetition": 1,
+            "llm_tokens": 291061,
+            "jev_tokens": 0,
+            "combined_tokens": 291061,
+            "usage": {
+              "input_tokens": 214272,
+              "output_tokens": 76789,
+              "cached_input_tokens": 142656,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 56309,
+              "cost_usd": null
+            },
+            "preparation_ms": 12.694750999913545,
+            "jev_wait_ms": 0,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 136391
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 15,
+                "tool_calls": 8,
+                "tokens": 68249
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 30203
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 23,
+                "tool_calls": 33,
+                "tokens": 56218
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "llm_tokens": 262673,
+            "jev_tokens": 0,
+            "combined_tokens": 262673,
+            "usage": {
+              "input_tokens": 199144,
+              "output_tokens": 63529,
+              "cached_input_tokens": 137216,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 43674,
+              "cost_usd": null
+            },
+            "preparation_ms": 14.07558499998413,
+            "jev_wait_ms": 0,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 23,
+                "tool_calls": 33,
+                "tokens": 121634
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 14,
+                "tool_calls": 5,
+                "tokens": 55996
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 29605
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 23,
+                "tool_calls": 29,
+                "tokens": 55438
+              }
+            }
+          },
+          {
+            "repetition": 3,
+            "llm_tokens": 273759,
+            "jev_tokens": 0,
+            "combined_tokens": 273759,
+            "usage": {
+              "input_tokens": 203727,
+              "output_tokens": 70032,
+              "cached_input_tokens": 138560,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 49746,
+              "cost_usd": null
+            },
+            "preparation_ms": 12.381459000411496,
+            "jev_wait_ms": 0,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 125481
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 14,
+                "tool_calls": 6,
+                "tokens": 60899
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 32826
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 22,
+                "tool_calls": 29,
+                "tokens": 54553
+              }
+            }
+          }
+        ]
+      },
+      "C": {
+        "attempts": 36,
+        "successes": 36,
+        "total_tokens": 863557,
+        "tokens_per_success": 23987.694444444445,
+        "median_ms": 91954,
+        "p95_ms": 133395,
+        "recall": 1,
+        "precision": 1,
+        "false_go": 0,
+        "false_block": 0,
+        "telemetry": {
+          "llm_tokens": 863557,
+          "jev_tokens": 74370,
+          "combined_tokens": 937927,
+          "usage": {
+            "input_tokens": 659538,
+            "output_tokens": 204019,
+            "cached_input_tokens": 464832,
+            "cache_write_input_tokens": 0,
+            "reasoning_output_tokens": 140273,
+            "cost_usd": null
+          },
+          "preparation_ms": 38.01412399869878,
+          "jev_wait_ms": 20558,
+          "jev_backoff_ms": 0,
+          "jev_cost_usd": null,
+          "combined_cost_usd": null,
+          "by_role": {
+            "parent": {
+              "passes": 36,
+              "llm_calls": 72,
+              "tool_calls": 108,
+              "tokens": 423731
+            },
+            "logic": {
+              "passes": 36,
+              "llm_calls": 43,
+              "tool_calls": 19,
+              "tokens": 179614
+            },
+            "spec": {
+              "passes": 36,
+              "llm_calls": 36,
+              "tool_calls": 0,
+              "tokens": 90159
+            },
+            "adversary-code": {
+              "passes": 36,
+              "llm_calls": 67,
+              "tool_calls": 91,
+              "tokens": 170053
+            }
+          }
+        },
+        "by_repetition": [
+          {
+            "repetition": 1,
+            "llm_tokens": 289171,
+            "jev_tokens": 25723,
+            "combined_tokens": 314894,
+            "usage": {
+              "input_tokens": 222202,
+              "output_tokens": 66969,
+              "cached_input_tokens": 158144,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 45680,
+              "cost_usd": null
+            },
+            "preparation_ms": 11.767833000048995,
+            "jev_wait_ms": 7219,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 137905
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 16,
+                "tool_calls": 10,
+                "tokens": 66668
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 29832
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 21,
+                "tool_calls": 27,
+                "tokens": 54766
+              }
+            }
+          },
+          {
+            "repetition": 2,
+            "llm_tokens": 294040,
+            "jev_tokens": 24668,
+            "combined_tokens": 318708,
+            "usage": {
+              "input_tokens": 222325,
+              "output_tokens": 71715,
+              "cached_input_tokens": 152576,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 49958,
+              "cost_usd": null
+            },
+            "preparation_ms": 13.05458299885504,
+            "jev_wait_ms": 6591,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 146818
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 14,
+                "tool_calls": 6,
+                "tokens": 59818
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 30038
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 23,
+                "tool_calls": 32,
+                "tokens": 57366
+              }
+            }
+          },
+          {
+            "repetition": 3,
+            "llm_tokens": 280346,
+            "jev_tokens": 23979,
+            "combined_tokens": 304325,
+            "usage": {
+              "input_tokens": 215011,
+              "output_tokens": 65335,
+              "cached_input_tokens": 154112,
+              "cache_write_input_tokens": 0,
+              "reasoning_output_tokens": 44635,
+              "cost_usd": null
+            },
+            "preparation_ms": 13.191707999794744,
+            "jev_wait_ms": 6748,
+            "jev_backoff_ms": 0,
+            "jev_cost_usd": null,
+            "combined_cost_usd": null,
+            "by_role": {
+              "parent": {
+                "passes": 12,
+                "llm_calls": 24,
+                "tool_calls": 36,
+                "tokens": 139008
+              },
+              "logic": {
+                "passes": 12,
+                "llm_calls": 13,
+                "tool_calls": 3,
+                "tokens": 53128
+              },
+              "spec": {
+                "passes": 12,
+                "llm_calls": 12,
+                "tool_calls": 0,
+                "tokens": 30289
+              },
+              "adversary-code": {
+                "passes": 12,
+                "llm_calls": 23,
+                "tool_calls": 32,
+                "tokens": 57921
+              }
+            }
+          }
+        ]
+      }
+    },
+    "quality": true,
+    "efficiency": false,
+    "combined_efficiency": false,
+    "intervals": {
+      "C_over_A": {
+        "method": "paired_patch_percentile_bootstrap",
+        "patches": 12,
+        "repetitions_per_patch": 3,
+        "resamples": 2000,
+        "confidence": 0.95,
+        "lower": 1.076668029250125,
+        "upper": 1.202998701736615
+      },
+      "C_over_B": {
+        "method": "paired_patch_percentile_bootstrap",
+        "patches": 12,
+        "repetitions_per_patch": 3,
+        "resamples": 2000,
+        "confidence": 0.95,
+        "lower": 0.9994425382850319,
+        "upper": 1.0851908149360159
+      }
+    },
+    "uncertainty": "small pilot; independent quality review required before promotion",
+    "second_adversary": "cross_family_required"
+  },
+  "experiment_cost_inventory": {
+    "review-pilot": {
+      "captures": 440,
+      "unique_provider_responses": 717,
+      "reused_provider_responses_not_counted_again": 0,
+      "known_llm_tokens": 2496945,
+      "unique_jev_responses": 29,
+      "known_jev_tokens": 77309,
+      "jev_usage_complete": true,
+      "cost_usd": null
+    },
+    "review-pilot-preflight-format": {
+      "captures": 3,
+      "unique_provider_responses": 4,
+      "reused_provider_responses_not_counted_again": 0,
+      "known_llm_tokens": 10457,
+      "unique_jev_responses": 0,
+      "known_jev_tokens": 0,
+      "jev_usage_complete": true,
+      "cost_usd": null
+    },
+    "review-pilot-preflight-origins": {
+      "captures": 4,
+      "unique_provider_responses": 6,
+      "reused_provider_responses_not_counted_again": 0,
+      "known_llm_tokens": 29854,
+      "unique_jev_responses": 0,
+      "known_jev_tokens": 0,
+      "jev_usage_complete": true,
+      "cost_usd": null
+    },
+    "review-pilot-canary-rejected": {
+      "captures": 8,
+      "unique_provider_responses": 13,
+      "reused_provider_responses_not_counted_again": 0,
+      "known_llm_tokens": 47994,
+      "unique_jev_responses": 1,
+      "known_jev_tokens": 3839,
+      "jev_usage_complete": true,
+      "cost_usd": null
+    }
+  },
+  "canary_llm_tokens": 48049,
+  "canary_jev_tokens": 2939,
+  "timing_exceptions": [
+    {
+      "case_id": "p08",
+      "repetition": 1,
+      "arm": "B",
+      "elapsed_ms": 464017,
+      "timing_origin": {
+        "started_wall_ms": 1790079192951.8213,
+        "clock_source": "directory_birthtime_before_first_launch",
+        "includes_operator_pause": true,
+        "resumed": true
+      }
+    },
+    {
+      "case_id": "p02",
+      "repetition": 3,
+      "arm": "A",
+      "elapsed_ms": 163913,
+      "timing_origin": {
+        "started_wall_ms": 1790084397294,
+        "clock_source": "collector_wall_clock",
+        "includes_operator_pause": false,
+        "resumed": true
+      }
+    },
+    {
+      "case_id": "p07",
+      "repetition": 3,
+      "arm": "B",
+      "elapsed_ms": 114760,
+      "timing_origin": {
+        "started_wall_ms": 1790086004882,
+        "clock_source": "collector_wall_clock",
+        "includes_operator_pause": false,
+        "resumed": true
+      }
+    }
+  ],
+  "quality_failures": [
+    {
+      "case_id": "p10",
+      "repetition": 3,
+      "arm": "A",
+      "expected_defects": [
+        "p10"
+      ],
+      "found_defects": [
+        "p10",
+        "unexpected-spec_1"
+      ],
+      "false_go": false,
+      "false_block": false
+    },
+    {
+      "case_id": "p12",
+      "repetition": 3,
+      "arm": "B",
+      "expected_defects": [
+        "p12"
+      ],
+      "found_defects": [
+        "p12",
+        "unexpected-spec_1"
+      ],
+      "false_go": false,
+      "false_block": false
+    }
+  ],
+  "quality_oracle": "Exact retained-finding identities and final verdict. A retained unexpected style-note ID counts as an extra finding even if the final verdict is correct.",
+  "promotion": false,
+  "limitations": [
+    "Small synthetic population; no production or all-workflow generalization.",
+    "All required independent review passes were retained; no reviewer substitution was tested.",
+    "Quality scores reflect the sealed defect/verdict oracles, not certification of every presentation rule in reviewer prose.",
+    "p08 repetition 1 arm B, p02 repetition 3 arm A and p07 repetition 3 arm B include full operator interruptions for observation-only collector corrections; they are not uninterrupted provider latency observations.",
+    "Collector correction changed no prompts, cases, oracles, runtime sources or thresholds; completed native captures were reused without another paid review.",
+    "Native tokens include cached tokens; they are not billed dollars. USD cost and provider queue/compute breakdown remain unknown.",
+    "Implementation review overhead and separate claim pilots are outside the comparative workflow totals.",
+    "The manifest is an unauthorized planning artifact by construction; the separate precollection freeze records the current user authorization."
+  ],
+  "evidence_sha256": {
+    "manifest.json": "5d9a1dc2ac8f030af7871675969b7b84d9c7268df0eed5e826cd806674e22650",
+    "freeze.json": "031e7384319d78576b66f5c70b5fae16c003faeca600eca3d247f2da42c46b65",
+    "rows.jsonl": "fd4229917c8de13054e507bd34ee6b6d559e2f110b5585e2a8da4ecaf72d127f",
+    "comparison.json": "ddf0eac1dbd791ed0e417ecd2451741c2c8d3ca66032ff113ed2503ea8dd6c0e",
+    "collector-revisions.json": "93a215a878f4112e703827a0d98bb16c13e54a7c7386c6a1f9bb4d87698c8792",
+    "collector-revisions-inline.json": "fc1e62829eed3193b995d8b6f601b2aaeda0ba43d3dea7b98bc682f9a1feb83b",
+    "collector-revisions-labeled.json": "33ebba791ceff0832690936b198c63d2c4761498374b9aabf4f691db5dcaa54e"
+  }
+}

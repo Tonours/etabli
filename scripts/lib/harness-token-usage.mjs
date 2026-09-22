@@ -59,7 +59,7 @@ export function normalizeEvents(runner, events, { exitCode = 0, coverage } = {})
     if (reasoning !== undefined && (!isCount(reasoning) || reasoning > output)) {
       errors.push(`Reasoning subset exceeds output at ${source}`);
     }
-    receipts.push({ source, input_tokens: totalInput, output_tokens: output,
+    receipts.push({ source, identity: key ?? null, input_tokens: totalInput, output_tokens: output,
       total_tokens: total, cached_input_tokens: cacheRead ?? null,
       cache_write_input_tokens: cacheWrite ?? null, reasoning_output_tokens: reasoning ?? null,
       // Pi initializes prices to zero for custom models without pricing metadata.
@@ -68,6 +68,7 @@ export function normalizeEvents(runner, events, { exitCode = 0, coverage } = {})
 
   function call(id, name, args, extra = {}) {
     if (!id) { errors.push("Tool call has no native identity"); return; }
+    if (isReviewChildCall(name, args)) triggered.add("child");
     tools.set(id, { ...(tools.get(id) ?? {}), id, name, arguments: args, ...extra });
   }
   function result(id, value, status) {
@@ -232,4 +233,50 @@ export function summarizeRuns(rows) {
       critical_failures: cells.filter((cell) => cell.grade?.critical_failure === true).length,
       status: complete ? "measured_population_only" : "inconclusive" };
   });
+}
+
+// Detect known shell runners conservatively. This is not proof of child coverage.
+export function isReviewChildCall(name, args) {
+  return ["bash", "command_execution", "exec_command"].includes(name) &&
+    /(?:^|[\s/])(?:pi-review-hunter|review-hunter-capture)(?:[\s"']|$)/.test(String(args?.command ?? args?.cmd ?? ""));
+}
+
+export function observedPiChildDispatches(events) {
+  const dispatches = new Map();
+  for (const [index,event] of events.entries()) {
+    if (event.type === "message_end") for (const block of event.message?.content ?? []) {
+      if(block.type==="toolCall" && isReviewChildCall(block.name,block.arguments))
+        dispatches.set(block.id??`unknown-${index}`,{dispatch_id:block.id??null});
+    }
+    if(event.parent_tool_use_id)dispatches.set(event.parent_tool_use_id,{dispatch_id:event.parent_tool_use_id});
+    if(event.subagent_stats?.spawned>0)for(let i=0;i<event.subagent_stats.spawned;i++)dispatches.set(`stats-${index}-${i}`,{dispatch_id:null,stats_key:`stats-${index}-${i}`});
+  }
+  return [...dispatches.values()];
+}
+
+export function piEventCoverage(events, {childScope = null} = {}) {
+  const child = events.some((event) => event.parent_tool_use_id || event.subagent_stats?.spawned > 0 ||
+    event.message?.content?.some?.((block) => block.type === "toolCall" && isReviewChildCall(block.name, block.arguments)));
+  const seen = {
+    assistant: events.some((event) => event.type === "message_end" && event.message?.role === "assistant"),
+    child,
+    model_tool: events.some((event) => event.type === "message_end" && event.message?.role === "toolResult" && event.message?.usage),
+    compaction: events.some((event) => /compaction|branch_summary/.test(event.type ?? "")),
+    retry: events.some((event) => /retry/.test(event.type ?? "")),
+  };
+  return Object.fromEntries(Object.entries(seen).map(([name, triggered]) => [name, {
+    status: name === "child" ? (childScope === "isolated_read_grep" && !triggered ? "not_triggered" : "unknown") : triggered ? "complete" : "not_triggered",
+    evidence: name === "child" ? (childScope === "isolated_read_grep" ? "runner_capabilities:read_grep_only" : "dispatch_inventory_required") : `native_event_scan:${triggered ? "" : "no_"}${name}`,
+  }]));
+}
+
+
+// Partial native receipts are diagnostics, never a complete chain total.
+export function campaignUsage(normalized) {
+  const known = Object.fromEntries(Object.keys(normalized.usage).map(key => [key,
+    normalized.receipts.length && normalized.receipts.every(row => Number.isFinite(row[key]))
+      ? normalized.receipts.reduce((sum,row) => sum + row[key],0) : null]));
+  return {measured:normalized.measured,provenance:"provider_receipt",...normalized.usage,
+    cost_status:normalized.usage.cost_usd===null?"unavailable":"measured",
+    ...(!normalized.measured?{known_usage:known,measurement_errors:normalized.measurement_errors}: {})};
 }

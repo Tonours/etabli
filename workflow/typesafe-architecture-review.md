@@ -38,3 +38,8 @@ evidence that TypeSafe reviewed the current plan.
 scripts/typesafe-architecture-review --preview --evidence workflow/spec.md
 scripts/typesafe-architecture-review --json --evidence workflow/spec.md
 ```
+
+Live network evaluation requires `--live`; without it, use `--preview` or
+`--fixture-response`. Preview exposes hashes and byte counts only. Secret-like
+content is rejected before egress. The shared no-store transport keeps the
+architecture-specific 20-second timeout and response-size bound, with no retries.

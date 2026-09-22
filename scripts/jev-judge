@@ -6,6 +6,11 @@ import { suggestSkill } from "../pi/extensions/lib/semantic-skill-suggestion.mjs
 import { prepareClaimEvidenceState } from "../pi/extensions/lib/semantic-claim-evidence.mjs";
 import { analyzeTraceEpisode, readBoundedRegularFile } from "./lib/harness-trace-retrospect.mjs";
 
+import { evaluateClaimBatch } from "./lib/jev-claim-batch.mjs";
+import { reviewFindings, reviewObligations, groupFindings, rankReviewEvidence } from "./lib/jev-review.mjs";
+
+import { jevHealth, summarizeJevObservations } from "./lib/jev-health.mjs";
+
 const command = process.argv[2] || "health";
 const args = process.argv.slice(3);
 
@@ -42,6 +47,21 @@ function boundedFile(path, maxBytes = 65536) {
 
 function requireLive() {
   if (!has("--live")) throw new Error("provider evaluation requires explicit --live");
+}
+
+function candidateExecution() {
+  if (has("--fixture-response")) {
+    if (has("--live")) throw new Error("fixture and live modes are mutually exclusive");
+    const fixture=JSON.parse(boundedFile(option("--fixture-response"), 1_048_576));
+    const responses=Array.isArray(fixture)?fixture:[fixture];
+    let index=0;
+    return {allowProviderEgress:true,provider:async()=>{
+      if(index>=responses.length) throw new Error("fixture response exhausted");
+      return responses[index++];
+    }};
+  }
+  requireLive();
+  return {allowProviderEgress:true};
 }
 
 function publicResult(result) {
@@ -102,7 +122,9 @@ try {
   const policy = loadSemanticProfilePolicy();
   const requestPolicy = has("--no-retry") ? { ...policy, max_retries: 0 } : policy;
   if (command === "health") {
-    json({ ok: true, policy_version: policy.policy_version, provider: policy.provider, model: policy.model, profiles: Object.keys(policy.profiles).length, credential: process.env.TYPESAFE_API_KEY ? "present" : "absent", live_by_default: false, max_retries: requestPolicy.max_retries });
+    json(jevHealth({ noRetry: has("--no-retry") }));
+  } else if (command === "observations") {
+    json(summarizeJevObservations(boundedFile(option("--events-file"), 4_194_304).split("\n").filter(Boolean).map((line) => JSON.parse(line))));
   } else if (command === "list") {
     json({ profiles: profileSummary(policy) });
   } else if (command === "show") {
@@ -116,6 +138,21 @@ try {
     requireLive();
     const state = JSON.parse(boundedFile(option("--state-file")));
     json(publicResult(await evaluateSemanticProfile({ profileId, state, policy, allowProviderEgress: true, persistReceipt: !has("--no-receipt") })));
+  } else if (["review-findings", "review-obligations", "review-groups", "review-evidence"].includes(command)) {
+    const execution = candidateExecution();
+    const input = JSON.parse(boundedFile(option("--state-file"), 1_048_576));
+    const evaluate = { "review-findings": reviewFindings, "review-obligations": reviewObligations, "review-groups": groupFindings, "review-evidence": rankReviewEvidence }[command];
+    const fields = { "review-findings": ["findings", "pack", "batchSize"], "review-obligations": ["obligations", "pack"],
+      "review-groups": ["findings"], "review-evidence": ["candidates", "purpose"] }[command];
+    const data = Object.fromEntries(fields.filter(key => Object.hasOwn(input, key)).map(key => [key, input[key]]));
+    json(await evaluate({ ...data, ...execution }));
+  } else if (command === "evaluate-claims" || (command === "evaluate-claim" && has("--candidate-v2"))) {
+    const execution = candidateExecution();
+    const raw = command === "evaluate-claims" ? option("--claim-indices") : option("--claim-index");
+    if (!/^(?:0|[1-9]\d*)(?:,(?:0|[1-9]\d*))*$/.test(raw || "")) throw new Error("explicit claim indices required");
+    json(await evaluateClaimBatch({ claimsFile: option("--claims-file"), claimIndices: raw.split(",").map(Number),
+      cwd: option("--root") || process.cwd(), conclusion: option("--conclusion"),
+      evidenceText: option("--evidence-file") ? boundedFile(option("--evidence-file"),6500) : null, ...execution }));
   } else if (command === "evaluate-claim") {
     requireLive();
     const claimsFile = option("--claims-file");
@@ -147,7 +184,7 @@ try {
       json(publicCanary(result, "live"));
     }
   } else {
-    throw new Error("usage: jev-judge health|list|show <profile>|evaluate <profile> --state-file <file> --live [--no-receipt]|evaluate-claim --claims-file <markdown> --claim-index <n> [--evidence-file <file>] --live [--no-receipt]|suggest-skill --prompt-file <file> --live [--no-receipt]|prepare-self-improvement --observation-file <file>|diagnose-self-improvement --observation-file <file> --live [--no-retry] [--no-receipt]|canary-self-improvement --trace-file <file> --ledger <file> --run <slug> [--live]");
+    throw new Error("usage: jev-judge review-findings|review-obligations|review-groups|review-evidence --state-file FILE (--fixture-response FILE|--live); evaluate-claims --claims-file FILE --claim-indices 0,2 --root DIR (--fixture-response FILE|--live); observations --events-file FILE; health|list|show <profile>|evaluate <profile> --state-file <file> --live [--no-receipt]|evaluate-claim --claims-file <markdown> --claim-index <n> [--evidence-file <file>] --live [--no-receipt]|suggest-skill --prompt-file <file> --live [--no-receipt]|prepare-self-improvement --observation-file <file>|diagnose-self-improvement --observation-file <file> --live [--no-retry] [--no-receipt]|canary-self-improvement --trace-file <file> --ledger <file> --run <slug> [--live]");
   }
 } catch (error) {
   if (command === "canary-self-improvement") {

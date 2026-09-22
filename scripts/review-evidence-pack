@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { createReviewEvidencePack, reviewRoleInput } from "./lib/review-evidence-pack.mjs";
+try {
+  const args = process.argv.slice(2), opt = (name) => args.includes(name) ? args[args.indexOf(name)+1] : undefined;
+  if (args.includes("--help")) console.log("review-evidence-pack [--root DIR] [--base REF] [--selection JSON] [--role logic|spec|adversary-code|lead]");
+  else {
+    const selection = opt("--selection") ? JSON.parse(readFileSync(opt("--selection"),"utf8")) : {};
+    const pack = createReviewEvidencePack({ ...selection, root: opt("--root") ?? process.cwd(), base: opt("--base") ?? "HEAD" });
+    console.log(JSON.stringify(opt("--role") ? reviewRoleInput(pack,opt("--role")) : pack));
+  }
+} catch (error) { console.error(`review-evidence-pack: ${error.message}`); process.exitCode=2; }

@@ -1,10 +1,12 @@
+import { evaluateTypeSafe } from "../../pi/extensions/lib/typesafe-system-one.mjs";
+import { containsSecretLike } from "../../pi/extensions/lib/semantic-judgment.mjs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 
 export const ENDPOINT = "https://api.typesafe.ai/v1/systemone";
-export const MODEL = "jev-latest";
+export const MODEL = "jev-1.13.0";
 export const RUBRIC_VERSION = "architecture-v1";
 export const THRESHOLD_VERSION = "architecture-v1";
 export const MAX_REQUEST_BYTES = 200_000;
@@ -139,6 +141,7 @@ export function buildRequest(inputs) {
 		evidence: inputs.filter((input) => input.role === "evidence"),
 	};
 	const request = { state, model: MODEL, questions: questions() };
+	if (containsSecretLike(request)) throw new ArchitectureReviewError("input", "secret-like request refused");
 	const bytes = Buffer.byteLength(JSON.stringify(request));
 	if (bytes > MAX_REQUEST_BYTES) {
 		throw new ArchitectureReviewError("input", `request is ${bytes} bytes; maximum is ${MAX_REQUEST_BYTES}; select less evidence`);
@@ -260,48 +263,14 @@ export function composeReview(response, provenance, inputInventory) {
 }
 
 export async function requestTypeSafe(request, options = {}) {
-	const apiKey = options.apiKey ?? process.env.TYPESAFE_API_KEY;
-	if (!apiKey) throw new ArchitectureReviewError("credentials", "TYPESAFE_API_KEY is not set");
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
-	try {
-		const response = await (options.fetchImpl ?? fetch)(ENDPOINT, {
-			method: "POST",
-			redirect: "error",
-			signal: controller.signal,
-			headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-			body: JSON.stringify(request),
-		});
-		if (!response.ok) throw new ArchitectureReviewError("service", `TypeSafe service returned HTTP ${response.status}`, response.status);
-		const declaredLength = Number(response.headers.get("content-length"));
-		if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
-			throw new ArchitectureReviewError("response", `TypeSafe response exceeds ${MAX_RESPONSE_BYTES} bytes`);
-		}
-		const chunks = [];
-		let length = 0;
-		const reader = response.body?.getReader();
-		if (!reader) throw new ArchitectureReviewError("response", "TypeSafe response body is missing");
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			length += value.byteLength;
-			if (length > MAX_RESPONSE_BYTES) {
-				await reader.cancel();
-				throw new ArchitectureReviewError("response", `TypeSafe response exceeds ${MAX_RESPONSE_BYTES} bytes`);
-			}
-			chunks.push(value);
-		}
-		const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), length);
-		try {
-			return JSON.parse(buffer.toString("utf8"));
-		} catch {
-			throw new ArchitectureReviewError("response", "TypeSafe response is not valid JSON");
-		}
-	} catch (error) {
-		if (error instanceof ArchitectureReviewError) throw error;
-		const kind = error?.name === "AbortError" ? "timeout" : "service";
-		throw new ArchitectureReviewError(kind, kind === "timeout" ? "TypeSafe request timed out" : "TypeSafe request failed");
-	} finally {
-		clearTimeout(timeout);
-	}
+  const apiKey = options.apiKey ?? process.env.TYPESAFE_API_KEY;
+  if (!apiKey) throw new ArchitectureReviewError("credentials", "TYPESAFE_API_KEY is not set");
+  try {
+    return await evaluateTypeSafe(request, { ...options, apiKey, endpoint: ENDPOINT, maxRetries: 0,
+      timeoutMs: options.timeoutMs ?? REQUEST_TIMEOUT_MS, maxResponseBytes: MAX_RESPONSE_BYTES });
+  } catch (error) {
+    const kind = ["timeout", "total_timeout", "aborted"].includes(error.code) ? "timeout"
+      : ["malformed_json", "malformed_response", "response_too_large", "body_read_error"].includes(error.code) ? "response" : "service";
+    throw new ArchitectureReviewError(kind, `TypeSafe ${kind} failure`, error.status ?? null);
+  }
 }

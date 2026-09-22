@@ -36,10 +36,10 @@ function run(arm, tokens) {
   };
 }
 
-test("route-specific manifest is frozen, bound and enumerates exactly 18/9 calls", () => {
+test("historical route-specific manifest is stale after native accounting fixes; inventory remains 18/9", () => {
   validatePlanImplementManifest(manifest);
   assert.equal(fingerprintEvaluatorFile(".", manifest.evaluator.path), manifest.evaluator.sha256);
-  assert.equal(fingerprintEvaluatorBundle(".", manifest.evaluator.bundle.paths), manifest.evaluator.bundle.sha256);
+  assert.notEqual(fingerprintEvaluatorBundle(".", manifest.evaluator.bundle.paths), manifest.evaluator.bundle.sha256);
   const plan = buildPlanImplementDryRun({ manifest, config });
   assert.equal(plan.cells.length, 18);
   assert.equal(plan.traditional_llm_calls, 18);
@@ -121,8 +121,8 @@ test("campaign output rejects a symlinked workflow parent before creating outsid
   }
 });
 
-test("historical v1 evaluator binding remains unchanged", () => {
+test("historical v1 evaluator binding stays frozen and stale after accounting changes", () => {
   const previous = JSON.parse(readFileSync("workflow/self-improvement/jev-efficiency-manifest.json", "utf8"));
   assert.equal(fingerprintEvaluatorFile(".", previous.evaluator.path), previous.evaluator.sha256);
-  assert.equal(fingerprintEvaluatorBundle(".", previous.evaluator.bundle.paths), previous.evaluator.bundle.sha256);
+  assert.notEqual(fingerprintEvaluatorBundle(".", previous.evaluator.bundle.paths), previous.evaluator.bundle.sha256);
 });

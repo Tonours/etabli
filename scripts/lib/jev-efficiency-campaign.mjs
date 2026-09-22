@@ -15,7 +15,7 @@ import {
 	hashManifestBytes,
 	isSha256,
 } from "./evaluator-bundle.mjs";
-import { normalizeEvents } from "./harness-token-usage.mjs";
+import { normalizeEvents, piEventCoverage, campaignUsage } from "./harness-token-usage.mjs";
 
 const REQUIRED_CATEGORIES = new Set([
 	"answer",
@@ -99,7 +99,9 @@ function validateCost(value, status, label, { allowNotIncurred = false, calls } 
 	fail(`${label.replace(/\.cost_usd$/, "")}.cost_status is invalid`);
 }
 
-function validateUsage(usage, label) {
+function validateUsage(usage, label, {allowIncomplete=false}={}) {
+	if(allowIncomplete && usage?.measured===false && usage.provenance==="provider_receipt" && usage.total_tokens===null &&
+		usage.known_usage && Array.isArray(usage.measurement_errors) && usage.measurement_errors.length) return usage;
 	if (usage?.measured !== true || usage?.provenance !== "provider_receipt") {
 		fail(`${label} needs measured provider_receipt usage`);
 	}
@@ -210,6 +212,9 @@ function toSkillEvalResult(manifest, run, manifestSha, evaluatorBundleSha) {
 
 export function compareCampaignDocuments({ manifest, manifestSha, evaluatorBundleSha, evaluatorFileSha, baseline, candidate }) {
 	const contract = validateCampaignManifest(manifest);
+	if([baseline,candidate].some(run=>run?.status==="non_comparable" || run?.repetitions?.some(rep=>rep.tasks?.some(task=>task.traditional_llm?.measured===false))))
+		return {schema_version:1,status:"non_comparable",verdict:"inconclusive",manifest_id:manifest.manifest_id,
+			manifest_sha256:manifestSha,repetitions:[],reasons:["incomplete_provider_evidence"],promotion:false};
 	validateRun(manifest, manifestSha, evaluatorBundleSha, baseline, "baseline");
 	validateRun(manifest, manifestSha, evaluatorBundleSha, candidate, "candidate");
 	if (baseline.population_fingerprint !== candidate.population_fingerprint) fail("baseline and candidate population drift");
@@ -476,20 +481,7 @@ function parseJsonLines(value) {
 	});
 }
 
-function piCoverage(events) {
-	const serialized = JSON.stringify(events);
-	const seen = {
-		assistant: events.some((event) => event.type === "message_end" && event.message?.role === "assistant"),
-		child: events.some((event) => event.parent_tool_use_id || event.subagent_stats?.spawned > 0),
-		model_tool: events.some((event) => event.type === "message_end" && event.message?.role === "toolResult" && event.message?.usage),
-		compaction: /compaction|branch_summary/.test(serialized),
-		retry: events.some((event) => /retry/.test(event.type ?? "")),
-	};
-	return Object.fromEntries(Object.entries(seen).map(([name, triggered]) => [name, {
-		status: triggered ? "complete" : "not_triggered",
-		evidence: triggered ? `native_event_scan:${name}` : `native_event_scan:no_${name}`,
-	}]));
-}
+const piCoverage = piEventCoverage;
 
 function exactObjectMatch(actual, required) {
 	return Object.entries(required).every(([key, value]) =>
@@ -538,7 +530,7 @@ export function baselineChildEnvironment(env) {
 	return childEnv;
 }
 
-function runPiBaselineCell({ root, task, cell, config, output, env }) {
+export function runPiBaselineCell({ root, task, cell, config, output, env }) {
 	const cellDirectory = resolve(output, cell.cell_id);
 	const worktree = resolve(cellDirectory, "worktree");
 	mkdirSync(cellDirectory);
@@ -559,6 +551,7 @@ function runPiBaselineCell({ root, task, cell, config, output, env }) {
 		maxBuffer: 32 * 1024 * 1024,
 	});
 	const latency = Date.now() - started;
+	writeFileSync(resolve(cellDirectory,"exit.json"),JSON.stringify({exit_code:completed.status??1,latency_ms:latency}));
 	writeFileSync(resolve(cellDirectory, "events.jsonl"), completed.stdout ?? "");
 	writeFileSync(resolve(cellDirectory, "stderr.txt"), completed.stderr ?? "");
 	const events = parseJsonLines(completed.stdout ?? "");
@@ -566,7 +559,6 @@ function runPiBaselineCell({ root, task, cell, config, output, env }) {
 	if (coverage.retry.status !== "not_triggered") fail(`${cell.cell_id} observed a provider retry`);
 	const normalized = normalizeEvents("pi", events, { exitCode: completed.status ?? 1, coverage });
 	writeFileSync(resolve(cellDirectory, "normalized.json"), `${JSON.stringify(normalized, null, 2)}\n`);
-	if (!normalized.measured) fail(`${cell.cell_id} has incomplete provider evidence: ${normalized.measurement_errors.join("; ")}`);
 	const expectedModel = config.model.includes("/") ? config.model : `${config.provider}/${config.model}`;
 	if (!normalized.models.includes(expectedModel)) fail(`${cell.cell_id} effective model does not match ${expectedModel}`);
 	const transcript = resolve(cellDirectory, "transcript.txt");
@@ -574,27 +566,19 @@ function runPiBaselineCell({ root, task, cell, config, output, env }) {
 	const passed = harnessTask
 		? gradeHarnessCell(root, harnessTask, worktree, transcript, completed.status ?? 1)
 		: gradeInline(task, normalized.final_text);
-	return {
+	const result = {
 		task_id: task.id,
 		protected: task.protected,
-		passed,
+		passed: passed && normalized.transport_success===true,
 		latency_ms: latency,
-		traditional_llm: {
-			measured: true,
-			provenance: "provider_receipt",
-			input_tokens: normalized.usage.input_tokens,
-			output_tokens: normalized.usage.output_tokens,
-			cached_input_tokens: normalized.usage.cached_input_tokens,
-			cache_write_input_tokens: normalized.usage.cache_write_input_tokens,
-			total_tokens: normalized.usage.total_tokens,
-			cost_usd: normalized.usage.cost_usd,
-			cost_status: normalized.usage.cost_usd === null ? "unavailable" : "measured",
-		},
+		traditional_llm: campaignUsage(normalized),
 		jev: { calls: 0, input_tokens: 0, output_tokens: 0, total_tokens: 0, cost_usd: 0, cost_status: "not_incurred", latency_ms: 0, abstentions: 0, escalations: 0, retries: 0 },
 	};
+	writeFileSync(resolve(cellDirectory,"cell-result.json"),`${JSON.stringify(result,null,2)}\n`);
+	return result;
 }
 
-function loadCompletedBaselineCell({ root, task, cell, config, resumeOutput }) {
+export function loadCompletedBaselineCell({ root, task, cell, config, resumeOutput }) {
 	const cellDirectory = resolve(resumeOutput, cell.cell_id);
 	if (!existsSync(cellDirectory)) return null;
 	const cellStat = lstatSync(cellDirectory);
@@ -608,8 +592,14 @@ function loadCompletedBaselineCell({ root, task, cell, config, resumeOutput }) {
 	const events = parseJsonLines(readFileSync(eventsPath, "utf8"));
 	const coverage = piCoverage(events);
 	if (coverage.retry.status !== "not_triggered") fail(`${cell.cell_id} resume evidence observed a provider retry`);
-	const normalized = JSON.parse(readFileSync(normalizedPath, "utf8"));
-	if (!normalized.measured || normalized.transport_success !== true || normalized.measurement_errors?.length !== 0) fail(`${cell.cell_id} resume evidence is not a complete provider measurement`);
+	const exitPath=resolve(cellDirectory,"exit.json");
+	if(existsSync(exitPath)&&(!lstatSync(exitPath).isFile()||lstatSync(exitPath).isSymbolicLink()))fail(`${cell.cell_id} invalid resume exit evidence`);
+	const exitEvidence=existsSync(exitPath)?JSON.parse(readFileSync(exitPath,"utf8")):{exit_code:0};
+	if(!Number.isSafeInteger(exitEvidence.exit_code))fail(`${cell.cell_id} invalid resume exit code`);
+	const normalized = normalizeEvents("pi", events, {exitCode:exitEvidence.exit_code,coverage});
+	const stored = JSON.parse(readFileSync(normalizedPath, "utf8"));
+	if(hashJson(normalized)!==hashJson(stored))fail(`${cell.cell_id} resume normalization drift`);
+
 	const expectedModel = config.model.includes("/") ? config.model : `${config.provider}/${config.model}`;
 	if (!normalized.models?.includes(expectedModel)) fail(`${cell.cell_id} resume model does not match ${expectedModel}`);
 	if (readFileSync(transcript, "utf8") !== normalized.final_text) fail(`${cell.cell_id} resume transcript drift`);
@@ -620,14 +610,8 @@ function loadCompletedBaselineCell({ root, task, cell, config, resumeOutput }) {
 		? gradeInline(task, normalized.final_text)
 		: gradeHarnessCell(root, basename(task.source.path), resolve(cellDirectory, "worktree"), transcript, 0);
 	return {
-		task_id: task.id, protected: task.protected, passed, latency_ms: latency,
-		traditional_llm: {
-			measured: true, provenance: "provider_receipt",
-			input_tokens: normalized.usage.input_tokens, output_tokens: normalized.usage.output_tokens,
-			cached_input_tokens: normalized.usage.cached_input_tokens, cache_write_input_tokens: normalized.usage.cache_write_input_tokens,
-			total_tokens: normalized.usage.total_tokens, cost_usd: normalized.usage.cost_usd,
-			cost_status: normalized.usage.cost_usd === null ? "unavailable" : "measured",
-		},
+		task_id: task.id, protected: task.protected, passed:passed && normalized.transport_success===true, latency_ms: latency,
+		traditional_llm: campaignUsage(normalized),
 		jev: { calls: 0, input_tokens: 0, output_tokens: 0, total_tokens: 0, cost_usd: 0, cost_status: "not_incurred", latency_ms: 0, abstentions: 0, escalations: 0, retries: 0 },
 	};
 }
@@ -640,20 +624,32 @@ export function executeLiveBaseline({ manifest, manifestSha, population, populat
 	if (state.baseline_runtime_artifact?.fingerprint !== artifactFingerprint) fail("campaign state baseline runtime artifact drift");
 	const output = privateOutputPath(root, outputPath);
 	const resumeOutput = resumeOutputPath ? existingPrivateOutputPath(root, resumeOutputPath) : null;
+	const executionIdentity={schema_version:1,manifest_sha256:manifestSha,population_fingerprint:populationFingerprint,
+		artifact_fingerprint:artifactFingerprint,config_fingerprint:plan.config_fingerprint};
+	if(resumeOutput) {
+		const identityPath=resolve(resumeOutput,"execution-identity.json");
+		if(!existsSync(identityPath)||!lstatSync(identityPath).isFile()||lstatSync(identityPath).isSymbolicLink()||
+			hashJson(JSON.parse(readFileSync(identityPath,"utf8")))!==hashJson(executionIdentity))fail("resume execution identity is missing or stale");
+	}
 	mkdirSync(output);
+	writeFileSync(resolve(output,"execution-identity.json"),JSON.stringify(executionIdentity),{mode:0o600,flag:"wx"});
 	let observedCost = 0;
 	const repetitions = [];
-	for (let repetition = 1; repetition <= config.repetitions; repetition += 1) {
+	let incomplete=false;
+	collection: for (let repetition = 1; repetition <= config.repetitions; repetition += 1) {
 		const tasks = [];
 		for (const task of population.tasks) {
 			const cell = plan.cells.find((entry) => entry.repetition === repetition && entry.task_id === task.id);
 			const result = resumeOutput
 				? loadCompletedBaselineCell({ root: resolve(root), task, cell, config, resumeOutput }) ?? cellExecutor({ root: resolve(root), task, cell, config, output, env })
 				: cellExecutor({ root: resolve(root), task, cell, config, output, env });
-			validateUsage(result.traditional_llm, `${cell.cell_id}/traditional_llm`);
+			validateUsage(result.traditional_llm, `${cell.cell_id}/traditional_llm`, {allowIncomplete:true});
 			validateJev(result.jev, `${cell.cell_id}/jev`);
 			if (typeof result.passed !== "boolean" || result.protected !== task.protected || !isCount(result.latency_ms)) {
 				fail(`${cell.cell_id} returned an invalid deterministic grade`);
+			}
+			if(result.traditional_llm.measured===false) {
+				tasks.push(result);repetitions.push({repetition,tasks});incomplete=true;break collection;
 			}
 			if (task.protected && !result.passed) fail(`${cell.cell_id} protected route failed`);
 			if (config.billing_mode === "metered" && result.traditional_llm.cost_status !== "measured") {
@@ -668,6 +664,7 @@ export function executeLiveBaseline({ manifest, manifestSha, population, populat
 	const result = {
 		schema_version: 1,
 		arm: "baseline",
+		...(incomplete?{status:"non_comparable",stop_reason:"incomplete_provider_evidence"}:{}),
 		campaign_id: manifest.manifest_id,
 		manifest_sha256: manifestSha,
 		evaluator_bundle_sha256: manifest.evaluator.bundle.sha256,
@@ -683,7 +680,7 @@ export function executeLiveBaseline({ manifest, manifestSha, population, populat
 		},
 		repetitions,
 	};
-	validateRun(manifest, manifestSha, manifest.evaluator.bundle.sha256, result, "baseline");
+	if(!incomplete)validateRun(manifest, manifestSha, manifest.evaluator.bundle.sha256, result, "baseline");
 	writeFileSync(resolve(output, "baseline.json"), `${JSON.stringify(result, null, 2)}\n`);
 	return result;
 }

@@ -1,6 +1,6 @@
 # Semantic route decisions
 
-Etabli uses TypeSafe Jev as a bounded semantic route selector in the local Pi workflow. Code remains authoritative for permissions, destructive or external actions, actual `PLAN.md` state, READY and mutation guards, validation, and provider failover.
+Etabli retains a bounded TypeSafe Jev route selector, currently disabled. The separate capsule runtime is configured for six eligible routes; `scripts/jev-judge health` verifies its promotion against the current sources. Code remains authoritative for permissions, destructive or external actions, actual `PLAN.md` state, READY and mutation guards, validation, and provider failover.
 
 Modes:
 
@@ -9,7 +9,7 @@ Modes:
 - `enforced`: accept an eligible Jev route only when the checked-in promotion manifest is valid and the answer passes the frozen confidence and top-two probability-margin thresholds.
 - `advisory`: reserved and rejected by the runtime.
 
-The checked-in policy uses `enforced`, and the runtime refuses environment overrides to `shadow`, `disabled`, or `advisory`, including under test environment variables. Tests exercise alternate modes only through an in-memory dependency seam that is unavailable to ambient process configuration. A rollback therefore requires a reviewed checked-in policy change instead of an environment variable. Enforced startup validates the pinned model, route set, question and runtime fingerprints, thresholds, representative corpus fingerprint, unique-case count, repetitions, accuracy, accepted coverage, semantic-override quality, protected-route safety, prediction stability, Brier score, expected calibration error, provider-error rate, input cost, and p95 latency. Any mismatch rejects the promotion configuration; provider errors or uncertain answers during a turn abstain to deterministic routing.
+The legacy checked-in selector policy uses `disabled`, and the runtime refuses environment overrides to `shadow`, `disabled`, or `advisory`, including under test environment variables. Tests exercise alternate modes only through an in-memory dependency seam that is unavailable to ambient process configuration. A rollback therefore requires a reviewed checked-in policy change instead of an environment variable. If explicitly promoted again, enforced startup validates the pinned model, route set, question and runtime fingerprints, thresholds, representative corpus fingerprint, unique-case count, repetitions, accuracy, accepted coverage, semantic-override quality, protected-route safety, prediction stability, Brier score, expected calibration error, provider-error rate, input cost, and p95 latency. Any mismatch rejects the promotion configuration; provider errors or uncertain answers during a turn abstain to deterministic routing.
 
 The semantic Choice distinguishes read-only `answer` from bounded `direct-edit`, because both map to the public `answer` workflow route with different write semantics. Local-write decisions use stricter confidence and margin thresholds than read-only decisions. Jev may select a workflow route and its coherent route profile, but these boundaries stay in code:
 
@@ -23,8 +23,13 @@ The promotion evidence in `workflow/runtime/jev-route-promotion.json` comes from
 
 The TypeSafe adapter pins `jev-1.13.0`, reads `TYPESAFE_API_KEY` only from the process environment, and sends every evaluation as a live HTTPS `POST` with Fetch `cache: no-store` plus `Cache-Control: no-store, no-cache, max-age=0` and `Pragma: no-cache`. It retries only 429/529 and network failures within a bounded budget, and validates every response field. State includes only a length-bounded normalized user intent and plan status and is rejected before network I/O when it resembles a credential. Receipts contain hashes, typed outputs, selected-source provenance, latency, and usage; they never contain prompts, API keys, or raw provider payloads.
 
-Jev runs only inside the current local workflow. Pi awaits enforced decisions before recording the turn route. The local CLI provides health, one-shot evaluation, synthetic replay, and explicit live calibration. There is no HTTP listener, remote service, container image, or deployment path.
+The eligible capsule runtime awaits Jev before its LLM call only when its promotion is valid. The disabled legacy selector makes no request. A stale capsule promotion keeps the deterministic route contract. The local CLI provides health, one-shot evaluation, synthetic replay, and explicit live calibration. There is no HTTP listener, remote service, container image, or deployment path.
 
 Other bounded semantic seams use the separate, opt-in profile subsystem in
 [`semantic-profiles.md`](semantic-profiles.md). Those profiles are not promoted
 route authority and cannot change this selector's policy or thresholds.
+
+Candidate review and claim workflows are documented in [Jev review pilot](jev-review-pilot.md).
+Shared-source edits invalidate previous runtime promotion evidence; do not rehash
+historical manifests to activate a candidate. Local fixtures do not demonstrate
+runtime token savings.

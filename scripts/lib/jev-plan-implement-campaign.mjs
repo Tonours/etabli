@@ -7,7 +7,7 @@ import { dirname, relative, resolve, sep } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { fingerprintArtifact } from "./skill-eval.mjs";
 import { fingerprintEvaluatorBundle, fingerprintEvaluatorFile, hashManifestBytes, isSha256 } from "./evaluator-bundle.mjs";
-import { normalizeEvents } from "./harness-token-usage.mjs";
+import { normalizeEvents, piEventCoverage } from "./harness-token-usage.mjs";
 
 const SPLITS = new Set(["held_in", "held_out", "safety"]);
 const SCENARIOS = new Set(["natural_plan_build", "ready_implementation", "challenged_no_mutation"]);
@@ -241,11 +241,8 @@ function parseJsonLines(text) {
   return text.split(/\r?\n/).filter((line) => line.trim()).map((line, index) => { try { return JSON.parse(line); } catch (error) { fail(`Pi JSON line ${index + 1} is invalid: ${error.message}`); } });
 }
 
-function piCoverage(events) {
-  const serialized = JSON.stringify(events);
-  const seen = { assistant: events.some((event) => event.type === "message_end" && event.message?.role === "assistant"), child: events.some((event) => event.parent_tool_use_id || event.subagent_stats?.spawned > 0), model_tool: events.some((event) => event.type === "message_end" && event.message?.role === "toolResult" && event.message?.usage), compaction: /compaction|branch_summary/.test(serialized), retry: events.some((event) => /retry/.test(event.type ?? "")) };
-  return Object.fromEntries(Object.entries(seen).map(([name, triggered]) => [name, { status: triggered ? "complete" : "not_triggered", evidence: `native_event_scan:${triggered ? name : `no_${name}`}` }]));
-}
+// Historical receipts stay immutable; new collections use the shared conservative coverage.
+const piCoverage = piEventCoverage;
 
 function childEnvironment(env) {
   const value = { ...env, PI_SKIP_VERSION_CHECK: "1" };

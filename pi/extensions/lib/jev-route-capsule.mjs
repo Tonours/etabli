@@ -134,3 +134,8 @@ export async function preflightAndRenderRouteCapsule(prompt) {
     });
   }
 }
+
+// Experimental deterministic control: same bytes as the Jev-selected capsule.
+export function renderDeterministicCapsule(route) {
+  return Object.hasOwn(CAPSULES, route) ? CAPSULES[route] : null;
+}

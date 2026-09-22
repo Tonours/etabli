@@ -146,3 +146,12 @@ all frozen quality and safety gates. The other eleven profiles remain
 `needs_tuning`; this result changes neither their checked-in authority nor their
 uncertainty thresholds. See
 `workflow/runtime/jev-profile-calibration/README.md` for the bounded findings.
+
+
+Candidate claim/evidence v2 and review judgments remain explicit advisory commands;
+see [Jev review pilot](jev-review-pilot.md). The thirteen historical profiles and
+calibration identities are unchanged. `evaluate-claim` retains v1 unless
+`--candidate-v2` is supplied; `evaluate-claims` selects the new batch contract.
+Materiality is only asked with an explicit conclusion. Updated shared sources can
+make historical calibration reports stale; health exposes this without rewriting
+the original observations.
