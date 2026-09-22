@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "status": "measured_candidate_only",
+  "model": "jev-1.13.0",
+  "corpus_sha256": "d5826063c1b7612c6d88d10672e8b14edf3881f3460c25cc56e17821e8fc4609",
+  "evidence_report_sha256": "5c055e1f009aee30d5d4817a3d24d5fd04df459ebc21eb5253dd7a9c49a79be8",
+  "scope": "Jev claim/evidence only; no LLM workflow efficiency claim",
+  "promotion": false,
+  "arms": {
+    "singleton": {
+      "held_out_cases": 30,
+      "held_out_families": 15,
+      "accepted_cases": 27,
+      "accepted_precision": 1,
+      "coverage": 0.9,
+      "stability": 1,
+      "unsupported_as_supported": 0,
+      "provider_error_rate": 0,
+      "intervals": {
+        "accuracy": {
+          "lower": 0.8,
+          "upper": 1,
+          "confidence": 0.95,
+          "method": "family_cluster_percentile_bootstrap",
+          "families": 15,
+          "repetitions_not_independent": true
+        },
+        "coverage": {
+          "lower": 0.8,
+          "upper": 1,
+          "confidence": 0.95,
+          "method": "family_cluster_percentile_bootstrap",
+          "families": 15,
+          "repetitions_not_independent": true
+        },
+        "stability": {
+          "lower": 1,
+          "upper": 1,
+          "confidence": 0.95,
+          "method": "family_cluster_percentile_bootstrap",
+          "families": 15,
+          "repetitions_not_independent": true
+        }
+      },
+      "passed": true,
+      "requests": 150,
+      "total_tokens": 99339,
+      "summed_request_latency_ms": 41858
+    },
+    "batch": {
+      "held_out_cases": 30,
+      "held_out_families": 15,
+      "accepted_cases": 25,
+      "accepted_precision": 1,
+      "coverage": 0.8333333333333334,
+      "stability": 1,
+      "unsupported_as_supported": 0,
+      "provider_error_rate": 0,
+      "intervals": {
+        "accuracy": {
+          "lower": 0.7,
+          "upper": 0.9333333333333333,
+          "confidence": 0.95,
+          "method": "family_cluster_percentile_bootstrap",
+          "families": 15,
+          "repetitions_not_independent": true
+        },
+        "coverage": {
+          "lower": 0.7,
+          "upper": 0.9333333333333333,
+          "confidence": 0.95,
+          "method": "family_cluster_percentile_bootstrap",
+          "families": 15,
+          "repetitions_not_independent": true
+        },
+        "stability": {
+          "lower": 1,
+          "upper": 1,
+          "confidence": 0.95,
+          "method": "family_cluster_percentile_bootstrap",
+          "families": 15,
+          "repetitions_not_independent": true
+        }
+      },
+      "passed": true,
+      "requests": 75,
+      "total_tokens": 65475,
+      "summed_request_latency_ms": 22181
+    }
+  },
+  "limits": [
+    "synthetic sanitized corpus; 30 held-out cases in 15 families",
+    "confidence intervals are family-cluster bootstrap; three repetitions are not independent",
+    "structural safety covered by negative preparation tests, not this semantic pilot",
+    "two fewer accepted held-out cases under batching; downstream escalation costs not measured",
+    "Current valid claim requests match the observation adapter on all 75 group/shape combinations after review corrections; no additional network requests used for this check."
+  ],
+  "candidate_version": "claim-evidence-v2",
+  "total_cases": 50,
+  "repetitions": 3,
+  "total_provider_requests": 225,
+  "token_measurement_population": "All 50 cases over 3 repetitions; singleton-v2 versus evidence-identical batch-v2, not legacy-v1.",
+  "accepted_case_definition": "Every one of the 3 native observations must pass the unchanged confidence threshold; accepted precision counts cases whose 3 accepted observations are all correct.",
+  "stability_definition": "Identical raw typed relation across 3 native observations, independent of confidence acceptance. This does not claim identical accepted/abstained outcomes."
+}

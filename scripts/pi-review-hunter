@@ -8,6 +8,8 @@ usage() {
 Usage: pi-review-hunter --print-argv --prompt-file FILE --patch FILE [--model ID] [--timeout SECS]
        pi-review-hunter --prompt-file FILE --patch FILE [--model ID] [--timeout SECS]
 
+Capture: --capture-dir NEW_DIRECTORY --pass-id ID [--parent-id ID] [--role logic|spec|adversary-code]
+         [--sources-file JSON] (root and exact contract/plan/evidence selections)
 Default timeout is 600 seconds (PI_REVIEW_HUNTER_TIMEOUT).
 EOF
 }
@@ -17,6 +19,11 @@ TIMEOUT_SECS="${PI_REVIEW_HUNTER_TIMEOUT:-600}"
 MODEL=""
 PROMPT_FILE=""
 PATCH_FILE=""
+CAPTURE_DIR=""
+PASS_ID=""
+PARENT_ID=""
+ROLE="logic"
+SOURCES_FILE=""
 
 require_value() {
   if [ "$#" -lt 2 ]; then
@@ -43,6 +50,17 @@ while [ "$#" -gt 0 ]; do
     --patch)
       require_value "$@"
       PATCH_FILE="$2"
+      shift 2
+      ;;
+    --capture-dir|--pass-id|--parent-id|--role|--sources-file)
+      require_value "$@"
+      case "$1" in
+        --capture-dir) CAPTURE_DIR="$2" ;;
+        --pass-id) PASS_ID="$2" ;;
+        --parent-id) PARENT_ID="$2" ;;
+        --role) ROLE="$2" ;;
+        --sources-file) SOURCES_FILE="$2" ;;
+      esac
       shift 2
       ;;
     --model)
@@ -78,8 +96,10 @@ if [ -n "$MODEL" ] && [[ "$MODEL" == cursor/* ]]; then
 fi
 
 build_pi_args() {
+  local mode="text"
+  [ -z "$CAPTURE_DIR" ] || mode="json"
   PI_ARGS=(
-    --mode text
+    --mode "$mode"
     -p
     --no-session
     --no-skills
@@ -132,6 +152,13 @@ fi
 if ! command -v pi >/dev/null 2>&1; then
   printf 'HUNTER_SPAWN_UNAVAILABLE: pi not on PATH\n' >&2
   exit 2
+fi
+
+if [ -n "$CAPTURE_DIR" ]; then
+  capture_args=(--directory "$CAPTURE_DIR" --prompt "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout "$TIMEOUT_SECS" --pass-id "$PASS_ID" --role "$ROLE")
+  [ -z "$PARENT_ID" ] || capture_args+=(--parent-id "$PARENT_ID")
+  [ -z "$SOURCES_FILE" ] || capture_args+=(--sources "$SOURCES_FILE")
+  exec node "$(dirname "$0")/review-hunter-capture" "${capture_args[@]}" -- "${PI_ARGS[@]}"
 fi
 
 set +e

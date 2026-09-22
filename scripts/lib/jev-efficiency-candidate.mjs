@@ -4,7 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFile
 import { pathToFileURL } from "node:url";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 import { containsSecretLike } from "../../pi/extensions/lib/semantic-judgment.mjs";
-import { normalizeEvents } from "./harness-token-usage.mjs";
+import { normalizeEvents, piEventCoverage, campaignUsage } from "./harness-token-usage.mjs";
 import { fingerprintArtifact } from "./skill-eval.mjs";
 import { fingerprintEvaluatorBundle, fingerprintEvaluatorFile } from "./evaluator-bundle.mjs";
 import { decideCampaign, validateCampaignManifest, validatePrivatePopulation } from "./jev-efficiency-campaign.mjs";
@@ -186,17 +186,7 @@ function parseJsonLines(value) {
   });
 }
 
-function piCoverage(events) {
-  const serialized = JSON.stringify(events);
-  const seen = {
-    assistant: events.some((event) => event.type === "message_end" && event.message?.role === "assistant"),
-    child: events.some((event) => event.parent_tool_use_id || event.subagent_stats?.spawned > 0),
-    model_tool: events.some((event) => event.type === "message_end" && event.message?.role === "toolResult" && event.message?.usage),
-    compaction: /compaction|branch_summary/.test(serialized),
-    retry: events.some((event) => /retry/.test(event.type ?? "")),
-  };
-  return Object.fromEntries(Object.entries(seen).map(([name, triggered]) => [name, { status: triggered ? "complete" : "not_triggered", evidence: triggered ? `native_event_scan:${name}` : `native_event_scan:no_${name}` }]));
-}
+const piCoverage = piEventCoverage;
 
 function exactObjectMatch(actual, required) {
   return Object.entries(required).every(([key, value]) => value && typeof value === "object" && !Array.isArray(value) ? actual?.[key] && exactObjectMatch(actual[key], value) : actual?.[key] === value);
@@ -242,7 +232,7 @@ function validateCandidateCellResult(task, result) {
   return result;
 }
 
-async function runCandidateCell({ root, task, repetition, config, artifactPath, output, env }) {
+export async function runCandidateCell({ root, task, repetition, config, artifactPath, output, env }) {
   const cellId = `candidate-r${repetition}-${task.id}`;
   const cellDirectory = resolve(output, cellId);
   const worktree = resolve(cellDirectory, "worktree");
@@ -262,7 +252,6 @@ async function runCandidateCell({ root, task, repetition, config, artifactPath, 
   if (coverage.retry.status !== "not_triggered") fail(`${cellId} observed a provider retry`);
   const normalized = normalizeEvents("pi", events, { exitCode: completed.status ?? 1, coverage });
   writeFileSync(resolve(cellDirectory, "normalized.json"), `${JSON.stringify(normalized, null, 2)}\n`);
-  if (!normalized.measured) fail(`${cellId} has incomplete provider evidence: ${normalized.measurement_errors.join("; ")}`);
   const expectedModel = config.model.includes("/") ? config.model : `${config.provider}/${config.model}`;
   if (!normalized.models.includes(expectedModel)) fail(`${cellId} effective model does not match ${expectedModel}`);
   const transcript = resolve(cellDirectory, "transcript.txt");
@@ -273,22 +262,13 @@ async function runCandidateCell({ root, task, repetition, config, artifactPath, 
     protected: task.protected,
     passed,
     latency_ms: latency + prepared.jev.latency_ms,
-    traditional_llm: {
-      measured: true,
-      provenance: "provider_receipt",
-      input_tokens: normalized.usage.input_tokens,
-      output_tokens: normalized.usage.output_tokens,
-      cached_input_tokens: normalized.usage.cached_input_tokens,
-      cache_write_input_tokens: normalized.usage.cache_write_input_tokens,
-      total_tokens: normalized.usage.total_tokens,
-      cost_usd: normalized.usage.cost_usd,
-      cost_status: normalized.usage.cost_usd === null ? "unavailable" : "measured",
-    },
+    traditional_llm: campaignUsage(normalized),
     jev: prepared.jev.calls === 0
       ? { ...prepared.jev, cost_usd: 0, cost_status: "not_incurred" }
       : { ...prepared.jev, cost_usd: null, cost_status: "unavailable" },
   };
   writeFileSync(resolve(cellDirectory, "cell-result.json"), `${JSON.stringify(result, null, 2)}\n`);
+  if (!normalized.measured) return result;
   if (!prepared.comparable) {
     writeFileSync(resolve(output, "non-comparable.json"), `${JSON.stringify({ schema_version: 1, status: prepared.non_comparable_reason, cell_id: cellId, result }, null, 2)}\n`);
     fail(`${cellId} is non-comparable because Jev usage is unavailable`);
@@ -301,6 +281,7 @@ export async function executeLiveCandidate({ manifest, manifestSha, population, 
   validateCampaignManifest(manifest);
   validatePrivatePopulation(manifest, manifestSha, population, root);
   validateCandidateConfig(config);
+  if(baseline?.status==="non_comparable" || baseline?.repetitions?.some(rep=>rep.tasks?.some(task=>task.traditional_llm?.measured!==true)))fail("non-comparable baseline cannot start a candidate");
   if (fingerprintEvaluatorBundle(root, manifest.evaluator.bundle.paths) !== manifest.evaluator.bundle.sha256 || fingerprintEvaluatorFile(root, manifest.evaluator.path) !== manifest.evaluator.sha256) fail("frozen evaluator bundle drift");
   if (state.provider_checkpoint !== "authorized" || state.plan_status !== "READY" || state.adversary_verdict !== "GO" || state.candidate_runtime_enabled !== false) fail("candidate READY/authorization gate is closed");
   if (state.private_population_fingerprint !== populationFingerprint || state.baseline?.result_fingerprint !== fingerprint(JSON.stringify(baseline, null, 2) + "\n")) fail("candidate baseline or population binding drift");
@@ -312,11 +293,16 @@ export async function executeLiveCandidate({ manifest, manifestSha, population, 
   const output = privateOutputPath(root, outputPath);
   mkdirSync(output);
   const repetitions = [];
-  let observedCost = 0;
-  for (let repetition = 1; repetition <= config.repetitions; repetition += 1) {
+  let observedCost = 0, incomplete=false;
+  collection: for (let repetition = 1; repetition <= config.repetitions; repetition += 1) {
     const tasks = [];
     for (const task of population.tasks) {
-      const result = validateCandidateCellResult(task, await cellExecutor({ root: resolve(root), task, repetition, config, artifactPath, output, env }));
+      const result = await cellExecutor({ root: resolve(root), task, repetition, config, artifactPath, output, env });
+      if(result.traditional_llm?.measured===false && result.traditional_llm.total_tokens===null && result.traditional_llm.known_usage &&
+        result.task_id===task.id && result.protected===task.protected && typeof result.passed==="boolean") {
+        tasks.push(result);repetitions.push({repetition,tasks});incomplete=true;break collection;
+      }
+      validateCandidateCellResult(task,result);
       if (config.billing_mode === "metered" && result.traditional_llm.cost_status !== "measured") fail("metered candidate cost telemetry is unavailable");
       if (config.billing_mode === "metered") observedCost += result.traditional_llm.cost_usd;
       if (config.billing_mode === "metered" && observedCost > config.max_cost_usd) fail("candidate exceeded max_cost_usd");
@@ -327,6 +313,7 @@ export async function executeLiveCandidate({ manifest, manifestSha, population, 
   const result = {
     schema_version: 1,
     arm: "candidate",
+    ...(incomplete?{status:"non_comparable",stop_reason:"incomplete_provider_evidence"}:{}),
     campaign_id: manifest.manifest_id,
     manifest_sha256: manifestSha,
     evaluator_bundle_sha256: manifest.evaluator.bundle.sha256,

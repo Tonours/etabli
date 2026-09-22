@@ -359,3 +359,13 @@ test("Pi provider tokens stay measurable when SDK pricing metadata is unavailabl
   assert.equal(value.usage.total_tokens, 75);
   assert.equal(value.usage.cost_usd, null);
 });
+
+test("a shell-spawned reviewer cannot be certified from parent silence", () => {
+  const message = piMessage();
+  message.message.content.unshift({ type: "toolCall", id: "hunt", name: "bash", arguments: { command: "scripts/pi-review-hunter --prompt-file prompt --patch patch" } });
+  const claimed = { ...coverage, child: { status: "not_triggered", evidence: "native_event_scan:no_child" } };
+  const value = normalizeEvents("pi", [message], { coverage: claimed });
+  assert.equal(value.measured, false);
+  assert.equal(value.usage.total_tokens, null);
+  assert.equal(value.receipts[0].total_tokens, 75);
+});

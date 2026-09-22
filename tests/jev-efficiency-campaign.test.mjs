@@ -1,5 +1,6 @@
+import { currentEvaluatorFixtureBytes, currentPopulationFixtureBytes } from "./helpers/jev-efficiency-fixture.mjs";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -70,10 +71,10 @@ test("accepts stable provider-backed 3/3 savings and reports Jev separately", ()
 	assert.equal(result.jev.candidate.calls, 21);
 });
 
-test("checked-in manifest binds the current evaluator bundle", () => {
+test("historical evaluator stays frozen and is stale after candidate accounting changes", () => {
 	const frozen = JSON.parse(readFileSync(new URL("../workflow/self-improvement/jev-efficiency-manifest.json", import.meta.url), "utf8"));
 	assert.equal(fingerprintEvaluatorFile(".", frozen.evaluator.path), frozen.evaluator.sha256);
-	assert.equal(fingerprintEvaluatorBundle(".", frozen.evaluator.bundle.paths), frozen.evaluator.bundle.sha256);
+	assert.notEqual(fingerprintEvaluatorBundle(".", frozen.evaluator.bundle.paths), frozen.evaluator.bundle.sha256);
 });
 
 test("rejects one repetition below the target", () => {
@@ -222,9 +223,9 @@ test("private population validator binds categories, manifest and existing harne
 });
 
 test("live baseline dry-run enumerates 21 candidate-off cells without provider egress", () => {
-	const manifestBytes = readFileSync("workflow/self-improvement/jev-efficiency-manifest.json");
+	const manifestBytes = currentEvaluatorFixtureBytes();
 	const frozen = JSON.parse(manifestBytes);
-	const populationBytes = readFileSync(POPULATION_FIXTURE);
+	const populationBytes = currentPopulationFixtureBytes(manifestBytes);
 	const population = JSON.parse(populationBytes);
 	const populationFingerprint = hashManifestBytes(populationBytes);
 	const state = baselinePhaseState(populationFingerprint, { provider_checkpoint: "required" });
@@ -247,7 +248,9 @@ test("live baseline dry-run enumerates 21 candidate-off cells without provider e
 		const statePath = join(directory, "state.json");
 		writeFileSync(configPath, JSON.stringify({ schema_version: 1, arm: "baseline", runner: "pi", provider: "fixture", model: "fixture-1", effort: "high", repetitions: 3, timeout_seconds: 600, max_cost_usd: 1, billing_mode: "metered", candidate_enabled: false, retry_policy: "none" }));
 		writeFileSync(statePath, JSON.stringify(state));
-		const completed = spawnSync("scripts/jev-efficiency-campaign", ["dry-run-live", "--manifest", "workflow/self-improvement/jev-efficiency-manifest.json", "--population", POPULATION_FIXTURE, "--state", statePath, "--config", configPath], { encoding: "utf8" });
+		writeFileSync(join(directory,"manifest.json"),manifestBytes);
+    writeFileSync(join(directory,"population.json"),populationBytes);
+    const completed = spawnSync("scripts/jev-efficiency-campaign", ["dry-run-live", "--manifest", join(directory,"manifest.json"), "--population", join(directory,"population.json"), "--state", statePath, "--config", configPath], { encoding: "utf8" });
 		assert.equal(completed.status, 0, completed.stderr || completed.stdout);
 		assert.equal(JSON.parse(completed.stdout).call_budget.cells, 21);
 	} finally {
@@ -256,9 +259,9 @@ test("live baseline dry-run enumerates 21 candidate-off cells without provider e
 });
 
 test("live baseline dry-run rejects credentials, retries and candidate activation", () => {
-	const manifestBytes = readFileSync("workflow/self-improvement/jev-efficiency-manifest.json");
+	const manifestBytes = currentEvaluatorFixtureBytes();
 	const frozen = JSON.parse(manifestBytes);
-	const populationBytes = readFileSync(POPULATION_FIXTURE);
+	const populationBytes = currentPopulationFixtureBytes(manifestBytes);
 	const population = JSON.parse(populationBytes);
 	const base = { schema_version: 1, arm: "baseline", runner: "pi", provider: "fixture", model: "fixture-1", effort: "high", repetitions: 3, timeout_seconds: 600, max_cost_usd: 1, billing_mode: "metered", candidate_enabled: false, retry_policy: "none" };
 	const state = baselinePhaseState(hashManifestBytes(populationBytes));
@@ -275,8 +278,8 @@ test("live baseline dry-run rejects credentials, retries and candidate activatio
 });
 
 test("live baseline dry-run accepts an explicit zero incremental-cost cap", () => {
-	const manifestBytes = readFileSync("workflow/self-improvement/jev-efficiency-manifest.json");
-	const populationBytes = readFileSync(POPULATION_FIXTURE);
+	const manifestBytes = currentEvaluatorFixtureBytes();
+	const populationBytes = currentPopulationFixtureBytes(manifestBytes);
 	const result = buildLiveDryRunPlan({
 		manifest: JSON.parse(manifestBytes),
 		manifestSha: hashManifestBytes(manifestBytes),
@@ -289,8 +292,8 @@ test("live baseline dry-run accepts an explicit zero incremental-cost cap", () =
 });
 
 test("live baseline execution requires both authorization and explicit process opt-in", () => {
-	const manifestBytes = readFileSync("workflow/self-improvement/jev-efficiency-manifest.json");
-	const populationBytes = readFileSync(POPULATION_FIXTURE);
+	const manifestBytes = currentEvaluatorFixtureBytes();
+	const populationBytes = currentPopulationFixtureBytes(manifestBytes);
 	const frozen = JSON.parse(manifestBytes);
 	const population = JSON.parse(populationBytes);
 	const state = baselinePhaseState(hashManifestBytes(populationBytes));
@@ -308,8 +311,8 @@ test("live baseline child environment strips Jev credentials", () => {
 });
 
 test("authorized live baseline orchestration writes 21 normalized simulated cells without calling a provider", () => {
-	const manifestBytes = readFileSync("workflow/self-improvement/jev-efficiency-manifest.json");
-	const populationBytes = readFileSync(POPULATION_FIXTURE);
+	const manifestBytes = currentEvaluatorFixtureBytes();
+	const populationBytes = currentPopulationFixtureBytes(manifestBytes);
 	const artifact = resolve(`.workflow/jev-autonomous-efficiency/private/simulated-artifact-${process.pid}-${Date.now()}`);
 	const output = resolve(`.workflow/jev-autonomous-efficiency/private/simulated-live-${process.pid}-${Date.now()}`);
 	let calls = 0;
@@ -318,7 +321,7 @@ test("authorized live baseline orchestration writes 21 normalized simulated cell
 		assert.equal(snapshot.candidate_enabled, false);
 		assert.equal(existsSync(join(artifact, "pi/skills/herdr")), false);
 		assert.equal(existsSync(join(artifact, "herdr/skills/herdr/SKILL.md")), true);
-		const result = executeLiveBaseline({
+		const execution = {
 			manifest: JSON.parse(manifestBytes),
 			manifestSha: hashManifestBytes(manifestBytes),
 			population: JSON.parse(populationBytes),
@@ -343,13 +346,87 @@ test("authorized live baseline orchestration writes 21 normalized simulated cell
 					jev: { calls: 0, input_tokens: 0, output_tokens: 0, total_tokens: 0, cost_usd: 0, cost_status: "not_incurred", latency_ms: 0, abstentions: 0, escalations: 0, retries: 0 },
 				};
 			},
-		});
+		};
+		const result = executeLiveBaseline(execution);
 		assert.equal(calls, 21);
 		assert.equal(result.repetitions.length, 3);
 		assert.equal(result.runtime.candidate_enabled, false);
 		assert.equal(existsSync(join(output, "baseline.json")), true);
+		const identityPath=join(output, "execution-identity.json");
+		assert.equal(existsSync(identityPath),true);
+		const originalIdentity=readFileSync(identityPath,"utf8");
+		const identity=JSON.parse(originalIdentity);identity.manifest_sha256="stale";
+		writeFileSync(identityPath,JSON.stringify(identity));
+		assert.throws(()=>executeLiveBaseline({...execution,outputPath:output+"-resume",resumeOutputPath:output}),/resume execution identity/);
+		assert.equal(calls,21);
+		writeFileSync(identityPath,originalIdentity);
+		const firstCell=buildLiveDryRunPlan(execution).cells[0];
+		const cellDirectory=join(output,firstCell.cell_id);mkdirSync(cellDirectory);
+		const events=[{type:"message_end",message:{role:"assistant",provider:"subscription",model:"included-model",
+			responseId:"old-response",stopReason:"stop",content:[{type:"text",text:"old final"}],
+			usage:{input:90,output:10,cacheRead:0,cacheWrite:0,totalTokens:100}}}];
+		writeFileSync(join(cellDirectory,"events.jsonl"),events.map(event=>JSON.stringify(event)).join("\n"));
+		writeFileSync(join(cellDirectory,"normalized.json"),JSON.stringify({measured:true,transport_success:true,measurement_errors:[],models:["subscription/included-model"],final_text:"old final",usage:{total_tokens:100}}));
+		writeFileSync(join(cellDirectory,"transcript.txt"),"old final");
+		assert.throws(()=>executeLiveBaseline({...execution,outputPath:output+"-resume",resumeOutputPath:output}),/resume normalization drift/);
+		assert.equal(calls,21);
+		let incompleteCalls=0;
+		const partial=executeLiveBaseline({...execution,outputPath:output+"-partial",cellExecutor:({task})=>{
+			incompleteCalls++;return {...taskRow(task,100),traditional_llm:{measured:false,provenance:"provider_receipt",total_tokens:null,
+			known_usage:{total_tokens:100},measurement_errors:["Call-class coverage unproven: child"]},
+			jev:{calls:0,input_tokens:0,output_tokens:0,total_tokens:0,cost_usd:0,cost_status:"not_incurred",latency_ms:0,abstentions:0,escalations:0,retries:0}};
+		}});
+		assert.equal(incompleteCalls,1);assert.equal(partial.status,"non_comparable");
+		assert.equal(partial.repetitions[0].tasks[0].traditional_llm.known_usage.total_tokens,100);
+		assert.equal(existsSync(join(output+"-partial","baseline.json")),true);
 	} finally {
+		rmSync(output+"-resume", {recursive:true,force:true});
+		rmSync(output+"-partial", {recursive:true,force:true});
 		rmSync(output, { recursive: true, force: true });
 		rmSync(artifact, { recursive: true, force: true });
 	}
+});
+
+
+test("non-comparable campaign results retain unknown totals without an efficiency verdict",()=>{
+ const baseline=run("baseline",100);baseline.status="non_comparable";
+ baseline.repetitions[0].tasks[0].traditional_llm={measured:false,total_tokens:null,known_usage:{total_tokens:100},measurement_errors:["Call-class coverage unproven: child"]};
+ const result=compare(baseline,run("candidate",60));
+ assert.equal(result.status,"non_comparable");assert.equal(result.verdict,"inconclusive");
+ assert.equal(result.repetitions.length,0);
+});
+
+
+test("real baseline collector preserves incomplete receipts and resume without relaunch",async()=>{
+ const {runPiBaselineCell,loadCompletedBaselineCell}=await import("../scripts/lib/jev-efficiency-campaign.mjs");
+ const output=realpathSync(mkdtempSync(join(tmpdir(),"incomplete-baseline-")));
+ const events=[{type:"session",timestamp:new Date().toISOString()},{type:"message_end",message:{role:"assistant",provider:"fixture",model:"model",responseId:"incomplete-native",stopReason:"stop",content:[{type:"text",text:"done"}],usage:{input:90,output:10,cacheRead:0,cacheWrite:0,totalTokens:100}}}];
+ const child=join(output,"child.cjs");writeFileSync(child,`process.stdout.write(${JSON.stringify(events.map(e=>JSON.stringify(e)).join("\n"))});`);
+ const task={id:"answer",protected:false,source:{kind:"private_inline",prompt:"say done"},grader:{kind:"deterministic_text_contract",required_concepts:["done"]}};
+ const cell={cell_id:"cell",argv_prefix:[process.execPath,child]},config={timeout_seconds:10,provider:"fixture",model:"model"};
+ try {
+  const result=runPiBaselineCell({root:resolve("."),task,cell,config,output,env:process.env});
+  assert.equal(result.passed,true);assert.equal(result.traditional_llm.measured,false);
+  assert.equal(result.traditional_llm.total_tokens,null);assert.equal(result.traditional_llm.known_usage.total_tokens,100);
+  assert.equal(JSON.parse(readFileSync(join(output,"cell/cell-result.json"))).traditional_llm.total_tokens,null);
+  const resumed=loadCompletedBaselineCell({root:resolve("."),task,cell,config,resumeOutput:output});
+  assert.equal(resumed.traditional_llm.known_usage.total_tokens,100);assert.equal(resumed.traditional_llm.measured,false);
+ } finally {rmSync(output,{recursive:true,force:true});}
+});
+
+test("real baseline collector retains failed terminal receipts on resume without relaunch",async()=>{
+ const {runPiBaselineCell,loadCompletedBaselineCell}=await import("../scripts/lib/jev-efficiency-campaign.mjs");
+ const output=realpathSync(mkdtempSync(join(tmpdir(),"incomplete-baseline-")));
+ const events=[{type:"session",timestamp:new Date().toISOString()},{type:"message_end",message:{role:"assistant",provider:"fixture",model:"model",responseId:"incomplete-native",stopReason:"stop",content:[{type:"text",text:"done"}],usage:{input:90,output:10,cacheRead:0,cacheWrite:0,totalTokens:100}}}];
+ const child=join(output,"child.cjs");writeFileSync(child,`process.stdout.write(${JSON.stringify(events.map(e=>JSON.stringify(e)).join("\n"))});process.exitCode=7;`);
+ const task={id:"answer",protected:false,source:{kind:"private_inline",prompt:"say done"},grader:{kind:"deterministic_text_contract",required_concepts:["done"]}};
+ const cell={cell_id:"cell",argv_prefix:[process.execPath,child]},config={timeout_seconds:10,provider:"fixture",model:"model"};
+ try {
+  const result=runPiBaselineCell({root:resolve("."),task,cell,config,output,env:process.env});
+  assert.equal(result.passed,false);assert.equal(result.traditional_llm.measured,false);
+  assert.equal(result.traditional_llm.total_tokens,null);assert.equal(result.traditional_llm.known_usage.total_tokens,100);
+  assert.equal(JSON.parse(readFileSync(join(output,"cell/cell-result.json"))).traditional_llm.total_tokens,null);
+  const resumed=loadCompletedBaselineCell({root:resolve("."),task,cell,config,resumeOutput:output});
+  assert.equal(resumed.traditional_llm.known_usage.total_tokens,100);assert.equal(resumed.traditional_llm.measured,false);
+ } finally {rmSync(output,{recursive:true,force:true});}
 });

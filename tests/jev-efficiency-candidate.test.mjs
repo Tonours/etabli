@@ -1,7 +1,9 @@
+import { currentEvaluatorFixtureBytes, currentPopulationFixtureBytes } from "./helpers/jev-efficiency-fixture.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 import test from "node:test";
 import { JEV_ROUTE_CAPSULE_METADATA, preflightAndRenderRouteCapsule } from "../pi/extensions/lib/jev-route-capsule.mjs";
 import { snapshotRuntimeArtifact } from "../scripts/lib/jev-efficiency-campaign.mjs";
@@ -16,6 +18,7 @@ import {
   executeLiveCandidate,
   normalizeCandidatePreflight,
   prepareCandidatePrompt,
+  runCandidateCell,
 } from "../scripts/lib/jev-efficiency-candidate.mjs";
 
 const SHA = "a".repeat(64);
@@ -238,9 +241,9 @@ test("escalated controller continues without mutating the immutable Jev abstenti
   assert.throws(() => decideEscalatedCampaign(manifest, state, { ...receipt, proposal_fingerprint: SHA }), /binding mismatch/);
 });
 
-test("candidate orchestrator keeps the frozen evaluator and produces a 21-cell simulated result", async () => {
-  const manifestBytes = readFileSync("workflow/self-improvement/jev-efficiency-manifest.json");
-  const populationBytes = readFileSync(POPULATION_FIXTURE);
+for(const incomplete of [false,true]) test(`candidate orchestrator preserves ${incomplete?"incomplete first cell":"complete population"} without extra launches`, async () => {
+  const manifestBytes = currentEvaluatorFixtureBytes();
+  const populationBytes = currentPopulationFixtureBytes(manifestBytes);
   const manifest = JSON.parse(manifestBytes);
   const population = JSON.parse(populationBytes);
   const manifestSha = hashManifestBytes(manifestBytes);
@@ -287,20 +290,35 @@ test("candidate orchestrator keeps the frozen evaluator and produces a 21-cell s
           protected: task.protected,
           passed: true,
           latency_ms: 1,
-          traditional_llm: { measured: true, provenance: "provider_receipt", input_tokens: 90, output_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, total_tokens: 100, cost_usd: null, cost_status: "unavailable" },
+          traditional_llm: incomplete?{measured:false,provenance:"provider_receipt",total_tokens:null,known_usage:{total_tokens:100},measurement_errors:["Call-class coverage unproven: child"]}:{ measured: true, provenance: "provider_receipt", input_tokens: 90, output_tokens: 10, cached_input_tokens: 0, cache_write_input_tokens: 0, total_tokens: 100, cost_usd: null, cost_status: "unavailable" },
           jev: eligible
             ? { calls: 1, input_tokens: 5, output_tokens: 1, total_tokens: 6, cost_usd: null, cost_status: "unavailable", latency_ms: 1, abstentions: 0, escalations: 0, retries: 0 }
             : { calls: 0, input_tokens: 0, output_tokens: 0, total_tokens: 0, cost_usd: 0, cost_status: "not_incurred", latency_ms: 0, abstentions: 0, escalations: 0, retries: 0 },
         };
       },
     });
-    assert.equal(calls, 21);
+    assert.equal(calls, incomplete?1:21);
+    if(incomplete)assert.equal(result.status,"non_comparable");
     assert.equal(result.runtime.runtime_fingerprint, baseline.runtime.runtime_fingerprint);
     assert.equal(result.runtime.candidate_enabled, true);
-    assert.equal(result.repetitions.flatMap((row) => row.tasks).reduce((sum, task) => sum + task.jev.calls, 0), 9);
+    if(!incomplete)assert.equal(result.repetitions.flatMap((row) => row.tasks).reduce((sum, task) => sum + task.jev.calls, 0), 9);
     assert.equal(existsSync(`${output}/candidate.json`), true);
   } finally {
     rmSync(output, { recursive: true, force: true });
     rmSync(artifact, { recursive: true, force: true });
   }
+});
+
+
+test("real candidate collector retains incomplete native usage after terminal grading",async()=>{
+ const output=mkdtempSync(join(tmpdir(),"incomplete-candidate-")),bin=join(output,"bin");mkdirSync(bin);
+ const event={type:"message_end",message:{role:"assistant",provider:"fixture",model:"model",responseId:"candidate-response",stopReason:"stop",content:[{type:"text",text:"done"}],usage:{input:90,output:10,cacheRead:0,cacheWrite:0,totalTokens:100}}};
+ writeFileSync(join(bin,"pi"),`#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(event))});`,{mode:0o700});
+ const task={id:"answer",category:"answer",protected:false,source:{kind:"private_inline",prompt:"say done"},grader:{kind:"deterministic_text_contract",required_concepts:["done"]}};
+ try {
+  const result=await runCandidateCell({root:resolve("."),task,repetition:1,config:{timeout_seconds:10,provider:"fixture",model:"model",effort:"medium"},artifactPath:"unused",output,env:{...process.env,PATH:`${bin}:${process.env.PATH}`}});
+  assert.equal(result.passed,true);assert.equal(result.traditional_llm.measured,false);
+  assert.equal(result.traditional_llm.known_usage.total_tokens,100);assert.equal(result.traditional_llm.total_tokens,null);
+  assert.equal(JSON.parse(readFileSync(join(output,"candidate-r1-answer/cell-result.json"))).traditional_llm.measured,false);
+ } finally {rmSync(output,{recursive:true,force:true});}
 });

@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+// Opt-in native receipt capture for the existing isolated hunter runner.
+import { spawn } from "node:child_process";
+import { mkdirSync, readFileSync, writeFileSync, lstatSync, realpathSync } from "node:fs";
+import { resolve, dirname, parse, basename } from "node:path";
+import { fileURLToPath } from "node:url";
+import { reviewRunReceipt, reviewPassEvent, sha256 } from "./lib/review-run-receipt.mjs";
+import { reviewPromptSources } from "./lib/review-prompt-sources.mjs";
+import { parsePromptInventory } from "./lib/review-prompt-observer.mjs";
+import { reviewTiming } from "./lib/review-timing.mjs";
+
+try {
+  const preparationStarted = performance.now();
+  const args = process.argv.slice(2), separator = args.indexOf("--");
+  if (separator < 0) throw new Error("capture requires Pi argv after --");
+  const options = {};
+  for (let i = 0; i < separator; i += 2) {
+    if (!["--directory", "--prompt", "--patch", "--timeout", "--pass-id", "--parent-id", "--role", "--sources"].includes(args[i]) || !args[i+1]) throw new Error("invalid capture option");
+    options[args[i].slice(2)] = args[i+1];
+  }
+  const output = resolve(realpathSync(dirname(resolve(options.directory))), basename(options.directory));
+  // Exclusive directory, confined parents: do not follow an existing artifact symlink.
+  let parent = dirname(output);
+  while (parent !== parse(parent).root) {
+    if (lstatSync(parent).isSymbolicLink()) throw new Error("unsafe capture directory");
+    parent = dirname(parent);
+  }
+  const patch = readFileSync(options.patch, "utf8"), prompt = readFileSync(options.prompt, "utf8");
+  const timeout = Number(options.timeout) * 1000;
+  if (!Number.isSafeInteger(timeout) || timeout <= 0) throw new Error("invalid timeout");
+  const identity = { passId: options["pass-id"], parentId: options["parent-id"] ?? null,
+    role: options.role, patchSha256: sha256(patch), inputs: [{ kind: "prompt", text: prompt }, { kind: "patch", text: patch }] };
+  reviewRunReceipt({ ...identity, events: [], exitCode: 1, elapsedMs: 0 });
+  mkdirSync(output, { mode: 0o700 });
+  const patchSnapshot = resolve(output,"input.patch"), promptSnapshot = resolve(output,"input-prompt.md");
+  writeFileSync(patchSnapshot,patch,{mode:0o600,flag:"wx"});
+  writeFileSync(promptSnapshot,prompt,{mode:0o600,flag:"wx"});
+  let patchBindings=0, promptBindings=0;
+  const piArgs=args.slice(separator+1).map((value,index,argv)=> {
+    if(value.startsWith("@") && realpathSync(value.slice(1))===realpathSync(options.patch)) {patchBindings++;return `@${patchSnapshot}`;}
+    if(argv[index-1]==="--append-system-prompt" && realpathSync(value)===realpathSync(options.prompt)) {promptBindings++;return promptSnapshot;}
+    return value;
+  });
+  if(patchBindings!==1 || promptBindings!==1) throw new Error("capture requires exactly one bound patch and prompt");
+  const chunks = [], errors = [];
+  const inventoryPath = resolve(output, "prompt-inventory.jsonl");
+  const sourcePath = resolve(output, "prompt-sources.json");
+  const sources = options.sources ? JSON.parse(readFileSync(options.sources,"utf8")) : null;
+  const origins = sources ? reviewPromptSources(sources.root, sources.selections) : [];
+  writeFileSync(sourcePath, JSON.stringify(origins), {mode:0o600,flag:"wx"});
+  writeFileSync(inventoryPath, "", { mode: 0o600, flag: "wx" });
+  const observerPath = fileURLToPath(new URL("./lib/review-prompt-observer.mjs", import.meta.url));
+  const spawnArgs=["--extension", observerPath, ...piArgs];
+  const extensions=spawnArgs.flatMap((value,index)=>value==="--extension"||value==="-e"?[spawnArgs[index+1]]:[]);
+  const childScope=spawnArgs[spawnArgs.lastIndexOf("--tools")+1]==="read,grep" && spawnArgs.includes("--no-extensions")
+    && extensions.length===1 && extensions[0]===observerPath ? "isolated_read_grep" : null;
+  const started = performance.now(), preparationMs = started - preparationStarted;
+  const child = spawn("pi", spawnArgs, {
+    stdio: ["ignore", "pipe", "pipe"], detached: true,
+    env: { ...process.env, ETABLI_REVIEW_PROMPT_INVENTORY: inventoryPath,
+      ETABLI_REVIEW_PROMPT_SOURCES:sourcePath, ETABLI_REVIEW_ROLE:options.role },
+  });
+  let timedOut = false, killed;
+  const kill = (signal) => { try { process.kill(-child.pid, signal); } catch {} };
+  const stop = () => { kill("SIGTERM"); killed ??= setTimeout(() => kill("SIGKILL"), 1000); };
+  const timer = setTimeout(() => { timedOut = true; stop(); }, timeout);
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+  child.stdout.on("data", (chunk) => chunks.push(chunk));
+  child.stderr.on("data", (chunk) => errors.push(chunk));
+  const exit = await new Promise((done) => { child.once("error", () => done(127)); child.once("close", (code) => done(code ?? 1)); });
+  clearTimeout(timer); clearTimeout(killed);
+  process.removeListener("SIGINT", stop); process.removeListener("SIGTERM", stop);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  writeFileSync(resolve(output, "events.jsonl"), raw, { mode: 0o600, flag: "wx" });
+  writeFileSync(resolve(output, "stderr.log"), Buffer.concat(errors), { mode: 0o600, flag: "wx" });
+  const events = raw.split("\n").filter(Boolean).map((line) => { try { return JSON.parse(line); } catch { return { type: "invalid_json" }; } });
+  const receipt = reviewRunReceipt({ ...identity, events, childScope, exitCode: timedOut ? 124 : exit, elapsedMs: Math.round(performance.now() - started) });
+  receipt.isolated_context=childScope==="isolated_read_grep" && piArgs.includes("--no-session") && piArgs.includes("--no-context-files") && piArgs.includes("--no-skills")
+    && !piArgs.some(arg=>["--continue","-c","--resume","-r","--session","--session-id","--fork"].some(flag=>arg===flag||arg.startsWith(`${flag}=`)));
+  receipt.capture_id=receipt.isolated_context?sha256(output):null;
+  receipt.input_context_sha256=sha256(JSON.stringify({role:options.role,inputs:receipt.inputs,sources:origins}));
+  if (events.some((event) => event.type === "invalid_json")) { receipt.measured = false; receipt.measurement_errors.push("invalid_native_json"); }
+  const inventory = parsePromptInventory(readFileSync(inventoryPath,"utf8"));
+  const inventories = inventory.rows;
+  receipt.prompt_inventory_complete = inventory.complete;
+  if (!inventory.complete) { receipt.measured=false; receipt.measurement_errors.push("incomplete_prompt_inventory"); }
+  receipt.prompt_inventory = inventories;
+  receipt.timing = reviewTiming(inventories,{preparationMs,totalMs:receipt.elapsed_ms+preparationMs});
+  receipt.effective_system_prompt = inventories.some((row)=>row.stage==="before_provider_request") ? "observed_metadata_only" : "unknown";
+  writeFileSync(resolve(output, "receipt.json"), JSON.stringify(receipt, null, 2), { mode: 0o600, flag: "wx" });
+  writeFileSync(resolve(output, "usage-event.json"), JSON.stringify(reviewPassEvent(receipt)), {mode:0o600,flag:"wx"});
+  const final = events.filter((event) => event.type === "message_end" && event.message?.role === "assistant" && event.message.stopReason === "stop").at(-1);
+  const text = (final?.message.content ?? []).filter((block) => block.type === "text").map((block) => block.text).join("\n");
+  writeFileSync(resolve(output, "final.txt"), text, { mode: 0o600, flag: "wx" });
+  if (timedOut) { process.stderr.write("HUNTER_TIMEOUT\n"); process.exitCode = 3; }
+  else if (exit !== 0 || !receipt.measured || receipt.terminal !== "succeeded" || !text.trim()) { process.stderr.write("HUNTER_SPAWN_UNAVAILABLE: incomplete native review receipt\n"); process.exitCode = 2; }
+  else process.stdout.write(`${text}\n`);
+} catch {
+  process.stderr.write("HUNTER_SPAWN_UNAVAILABLE: capture setup failed\n");
+  process.exitCode = 2;
+}

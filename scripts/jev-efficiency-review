@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { buildReviewCampaignPlan, compareReviewCampaign, capsuleExperimentPlan } from "./lib/jev-review-campaign.mjs";
+try {
+ const [command,path]=process.argv.slice(2);
+ if(command==="capsule-plan") console.log(JSON.stringify(capsuleExperimentPlan(),null,2));
+ else {
+  const input=JSON.parse(readFileSync(path,"utf8"));
+  const result=command==="plan"?buildReviewCampaignPlan(input):command==="compare"?compareReviewCampaign(input):null;
+  if(!result)throw new Error("usage: jev-efficiency-review plan INPUT.json|compare RESULTS.json|capsule-plan");
+  console.log(JSON.stringify(result,null,2));
+ }
+} catch(error) {console.error(`jev-efficiency-review: ${error.message}`);process.exitCode=2;}

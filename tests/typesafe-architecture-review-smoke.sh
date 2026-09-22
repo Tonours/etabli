@@ -12,6 +12,8 @@ CLI_REPO="$TMP/cli-repo"
 mkdir -p "$CLI_REPO/scripts/lib" "$CLI_REPO/tests/fixtures/typesafe-architecture-review" "$CLI_REPO/workflow"
 cp "$CLI" "$CLI_REPO/scripts/typesafe-architecture-review"
 cp "$LIB" "$CLI_REPO/scripts/lib/typesafe-architecture-review.mjs"
+mkdir -p "$CLI_REPO/pi/extensions/lib"
+cp "$ROOT_DIR/pi/extensions/lib/typesafe-system-one.mjs" "$ROOT_DIR/pi/extensions/lib/semantic-judgment.mjs" "$CLI_REPO/pi/extensions/lib/"
 cp "$FIXTURES"/*.json "$CLI_REPO/tests/fixtures/typesafe-architecture-review/"
 cp "$ROOT_DIR/workflow/spec.md" "$CLI_REPO/workflow/spec.md"
 printf '%s\n' '# Plan' '- Status: READY' >"$CLI_REPO/PLAN.md"
@@ -25,7 +27,7 @@ fail() {
 }
 
 node "$TEST_CLI" --preview --plan PLAN.md --evidence workflow/spec.md | jq -e '
-  .network == false and .model == "jev-latest" and
+  .network == false and .model == "jev-1.13.0" and
   (.questions | index("duplicates_policy")) and
   (.questions | index("disposition")) and
   (.questions | index("validation_strength")) and
@@ -41,11 +43,16 @@ fi
 if node "$TEST_CLI" --fixture-response tests/fixtures/typesafe-architecture-review/block.json --json >/dev/null; then
   fail "block fixture must exit nonzero"
 fi
-if env -u TYPESAFE_API_KEY node "$TEST_CLI" --json >"$TMP/no-key.out" 2>"$TMP/no-key.err"; then
+if env -u TYPESAFE_API_KEY node "$TEST_CLI" --live --json >"$TMP/no-key.out" 2>"$TMP/no-key.err"; then
   fail "live mode without credentials must fail"
 fi
 grep -Fq 'credentials: TYPESAFE_API_KEY is not set' "$TMP/no-key.err" ||
   fail "missing credentials must be a distinct failure"
+
+if TYPESAFE_API_KEY=synthetic node "$TEST_CLI" --json >"$TMP/no-live.out" 2>"$TMP/no-live.err"; then
+  fail "live mode requires explicit opt-in"
+fi
+grep -Fq 'requires explicit --live' "$TMP/no-live.err" || fail "missing live opt-in"
 
 node --input-type=module <<NODE
 import { execFileSync } from "node:child_process";
@@ -67,7 +74,10 @@ execFileSync("git", ["add", ".gitignore", "evidence.md"], { cwd: repo });
 const loaded = review.loadInputs(repo, "PLAN.md", ["evidence.md"]);
 assert(loaded.inputs[0].role === "plan", "ignored root PLAN.md must be accepted");
 const built = review.buildRequest(loaded.inputs);
-assert(built.request.model === "jev-latest", "request model");
+let secretRejected = false;
+try { review.buildRequest([{role:"plan",text:"password=synthetic-only-secret"}]); } catch (error) { secretRejected = error.kind === "input"; }
+assert(secretRejected,"secret content must fail before egress");
+assert(built.request.model === "jev-1.13.0", "request model");
 assert(new Set(Object.values(built.request.questions).map((question) => question.type)).size === 3, "request must use Noul, Choice, and Score");
 
 const outside = join("$TMP", "outside.md");
@@ -142,34 +152,34 @@ for (const mutate of [
 }
 
 let calls = 0;
-const response = await review.requestTypeSafe({ state: {}, model: "jev-latest", questions: {} }, {
+const response = await review.requestTypeSafe(built.request, {
   apiKey: "test-key",
   fetchImpl: async (url, options) => {
     calls += 1;
     assert(url === review.ENDPOINT, "fixed endpoint");
     assert(options.redirect === "error", "redirects must be refused");
-    assert(options.headers.Authorization === "Bearer test-key", "authorization passed only to transport");
+    assert(options.headers.authorization === "Bearer test-key", "authorization passed only to transport");
     return new Response(JSON.stringify(pass), { status: 200 });
   },
 });
-assert(calls === 1 && response.model === "jev-latest", "exactly one request");
+assert(calls === 1 && response.model === "jev-1.13.0", "exactly one request");
 
 for (const status of [401, 429, 529]) {
   let error = null;
   try {
-    await review.requestTypeSafe({}, { apiKey: "secret-value", fetchImpl: async () => new Response("sensitive-body", { status }) });
+    await review.requestTypeSafe(built.request, { apiKey: "secret-value", fetchImpl: async () => new Response("sensitive-body", { status }) });
   } catch (cause) { error = cause; }
   assert(error?.kind === "service" && error.status === status, "service status " + status);
   assert(!error.message.includes("sensitive-body") && !error.message.includes("secret-value"), "service errors must not leak body or key");
 }
 let timeout = null;
 try {
-  await review.requestTypeSafe({}, { apiKey: "x", fetchImpl: async () => { const error = new Error("abort"); error.name = "AbortError"; throw error; } });
+  await review.requestTypeSafe(built.request, { apiKey: "x", fetchImpl: async () => { const error = new Error("abort"); error.name = "AbortError"; throw error; } });
 } catch (cause) { timeout = cause; }
 assert(timeout?.kind === "timeout", "timeout must be distinct");
 let stalledBody = null;
 try {
-  await review.requestTypeSafe({}, {
+  await review.requestTypeSafe(built.request, {
     apiKey: "x",
     timeoutMs: 10,
     fetchImpl: async (_url, options) => new Response(new ReadableStream({
@@ -186,12 +196,12 @@ try {
 assert(stalledBody?.kind === "timeout", "timeout must cover stalled response bodies");
 let invalid = null;
 try {
-  await review.requestTypeSafe({}, { apiKey: "x", fetchImpl: async () => new Response("not-json", { status: 200 }) });
+  await review.requestTypeSafe(built.request, { apiKey: "x", fetchImpl: async () => new Response("not-json", { status: 200 }) });
 } catch (cause) { invalid = cause; }
 assert(invalid?.kind === "response", "invalid response must fail closed");
 let oversized = null;
 try {
-  await review.requestTypeSafe({}, {
+  await review.requestTypeSafe(built.request, {
     apiKey: "x",
     fetchImpl: async () => new Response("x", { status: 200, headers: { "content-length": String(review.MAX_RESPONSE_BYTES + 1) } }),
   });

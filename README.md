@@ -129,3 +129,8 @@ configuration outside this repository. Tracked templates use placeholders and
 the project `.mcp.json` intentionally has no servers. See
 [`SECURITY.md`](SECURITY.md) and [`docs/mcp-strategy.md`](docs/mcp-strategy.md)
 for the boundary.
+
+
+The opt-in [Jev review pilot](workflow/jev-review-pilot.md) adds native child usage
+capture, bounded evidence packs and candidate claim/finding judgments. It ships
+without runtime promotion or a claim of measured review savings.

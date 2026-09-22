@@ -7,6 +7,7 @@ as written, re-added if a hunter omitted them — `### Lens table`,
 the lead filters findings, never rewrites table rows.
 Keep axis tags. Do not flatten into one ranked list that can hide Logic.
 High Logic or unmet Spec can BLOCK.
+Style-only churn belongs in Consider, never Act on.
 Standards or judgement-only cannot BLOCK unless impact is correctness or
 operability.
 `GO` and `GO WITH NOTES` are both forbidden — only `BLOCK` remains — when a
