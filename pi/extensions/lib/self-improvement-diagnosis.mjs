@@ -1,8 +1,15 @@
 const PROFILE_ID = "self-improvement-diagnosis";
 const COUNTER_FIELDS = ["tool_calls", "tool_errors", "validation_failures", "review_rework", "plan_rework", "compactions", "retries"];
-const PATTERNS = new Set(["no_material_friction", "execution_reliability", "verification_gap", "review_feedback_loop", "planning_feedback_loop", "context_saturation", "mixed_or_ambiguous"]);
-const TARGETS = new Set(["no_change", "tool_contract", "validation_strategy", "review_contract", "planning_contract", "context_design", "needs_investigation"]);
-const ACTIONABILITY = new Set(["no_op", "investigate", "candidate"]);
+const PATTERN_TARGETS = Object.freeze({
+  no_material_friction: "no_change",
+  execution_reliability: "tool_contract",
+  verification_gap: "validation_strategy",
+  review_feedback_loop: "review_contract",
+  planning_feedback_loop: "planning_contract",
+  context_saturation: "context_design",
+  mixed_or_ambiguous: "needs_investigation",
+});
+const PATTERNS = new Set(Object.keys(PATTERN_TARGETS));
 const OBSERVATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function plainObject(value) {
@@ -62,24 +69,23 @@ function noDiagnosis(result, reason) {
   };
 }
 
-function coherentDiagnosis(pattern, target, actionability) {
-  const isNoChange = pattern === "no_material_friction" || target === "no_change" || actionability === "no_op";
-  return !isNoChange || (pattern === "no_material_friction" && target === "no_change" && actionability === "no_op");
+function derivedFollowUp(pattern, episode) {
+  const settledClean = pattern === "no_material_friction" && episode?.terminal === "completed" && episode?.verifier === true;
+  if (settledClean) return { target: "no_change", actionability: "no_op" };
+  if (pattern === "no_material_friction") return { target: "needs_investigation", actionability: "investigate" };
+  return { target: PATTERN_TARGETS[pattern], actionability: "investigate" };
 }
 
-export function reduceSelfImprovementDiagnosis(result) {
+export function reduceSelfImprovementDiagnosis(result, episode) {
   if (!result || result.profile !== PROFILE_ID || result.authority !== "diagnostic" || result.outcome !== "accepted") return noDiagnosis(result, result?.error_code || result?.outcome || "diagnosis_unavailable");
   const pattern = acceptedValue(result.decisions, "pattern", PATTERNS);
-  const target = acceptedValue(result.decisions, "target", TARGETS);
-  const actionability = acceptedValue(result.decisions, "actionability", ACTIONABILITY);
-  if (!pattern || !target || !actionability || !result.receipt) return noDiagnosis(result, "diagnosis_incomplete");
-  if (!coherentDiagnosis(pattern, target, actionability)) return noDiagnosis(result, "diagnosis_incoherent");
+  if (!pattern || !result.receipt) return noDiagnosis(result, "diagnosis_incomplete");
   return {
     schema_version: 1,
     profile_id: PROFILE_ID,
     authority: "diagnostic",
     status: "diagnosed",
-    diagnosis: { pattern, target, actionability },
+    diagnosis: { pattern, ...derivedFollowUp(pattern, episode) },
     provenance: provenance(result.receipt),
   };
 }

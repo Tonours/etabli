@@ -37,9 +37,12 @@ workflow invariant.
 With explicit provider-egress approval, `jev-judge evaluate
 self-improvement-candidate` may shadow-classify a bounded candidate and observed
 outcome. Separately, `jev-judge prepare-self-improvement` and the explicit-live
-diagnosis path make Jev the required semantic producer for pattern, target, and
-actionability from one complete sanitized observation. No accepted Jev result
-means no semantic diagnosis; deterministic code does not invent a fallback.
+diagnosis path make Jev the required semantic producer of the friction pattern
+from one complete sanitized observation; code derives target and actionability
+from that pattern. No accepted Jev result means no semantic diagnosis;
+deterministic code does not invent a fallback. The controller skips Jev on a
+completed, verified, friction-free episode (`no_friction_signals`): eligibility,
+not diagnosis. Ask Jev only the semantic judgment; keep policy in code.
 The evidence requirements, candidate acceptance, PLAN gate, evaluator, and all
 mutation permissions in this contract remain deterministic authority.
 
@@ -48,9 +51,10 @@ For post-run harness traces, use `workflow/trace-self-improvement.md`. The
 episodes. `scripts/jev-self-improvement --live` adds an explicit, bounded
 `diagnose_shadow` controller for one natively correlated Pi episode: code reads
 the selected trace and ledger, sends only normalized counters and enums to one
-retry-disabled Jev diagnosis, and emits a private terminal `no_op` or
+retry-disabled Jev diagnosis unless the episode is friction-free, and emits a private terminal `no_op` or
 `investigate` packet. Unknown, partial, unbound, secret-like, symlinked, or
-inconsistent input fails closed. A `candidate` diagnosis remains suppressed
+inconsistent input fails closed. Single-episode diagnosis currently never
+produces `candidate`; any future producer (cross-episode recurrence) remains suppressed
 unless a current fingerprint-bound `propose_reviewed` capability receipt proves
 the synthetic suite, three distinct live checks, and independent cross-model
 verification. Even then the packet is non-executable and applying it requires a

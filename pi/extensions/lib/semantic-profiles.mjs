@@ -45,7 +45,7 @@ const SELF_IMPROVEMENT_DIAGNOSIS_ENVELOPE = {
   egress_class: "private_opt_in",
   deterministic_owner: "workflow/trace-self-improvement.md",
   calibration_status: "pending_corpus",
-  contract_fingerprint: "8624667f3289437a8968bbef96d613c9e11d3c1f175f8167c865c4bed421f348",
+  contract_fingerprint: "2d459c4a2e79e3ad75ee24b08f15115de3dd0b5ec169f8ae0eee7ae432bf0066",
   max_state_chars: 2048,
 };
 
@@ -321,7 +321,7 @@ export async function evaluateSelfImprovementDiagnosis({ observation, policy = l
   }
   const policySnapshot = validateProfilePolicy(structuredClone(policy));
   const result = await evaluateSemanticProfileInternal({ profileId: "self-improvement-diagnosis", state, policy: policySnapshot, provider, allowProviderEgress, persistReceipt: false, cwd, allowDiagnostic: true });
-  const diagnosis = reduceSelfImprovementDiagnosis(result);
+  const diagnosis = reduceSelfImprovementDiagnosis(result, { terminal: observation.lifecycle.outcome, verifier: observation.signals.verifier });
   if (diagnosis.status === "abstain" && result.receipt.outcome === "accepted") {
     result.receipt = { ...result.receipt, outcome: "abstain", error_code: diagnosis.reason };
   }

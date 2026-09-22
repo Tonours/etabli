@@ -67,19 +67,20 @@ Preparation is offline. Before projection it requires the canonical level-1
 adapter/version/binding identity, an observation UUID, empty reason codes, and
 zero unsupported rows. It then projects only completeness, terminal outcome,
 verifier presence, and schema-valid bounded/null counters. Jev—not
-`chooseDecision`—selects
-the diagnostic pattern, target, and actionability. The no-change result is an
-atomic tuple (`no_material_friction`, `no_change`, `no_op`); mixing any one of
-those values with an actionable result is incoherent and therefore abstains.
-If any answer is uncertain,
-the provider fails, consent is absent, or the observation is ineligible, the
-path emits no diagnosis; deterministic code does not substitute one. Optional
-execution requires `diagnose-self-improvement --live` and remains private
-opt-in. A diagnostic `candidate` means “record for reviewed follow-up”, not
-permission to edit or promote anything.
+`chooseDecision`—answers one Choice question: the primary friction `pattern`.
+Deterministic code derives the rest from that accepted pattern: `target` through
+a fixed pattern-to-surface map, and `actionability` as `no_op` only for
+`no_material_friction` on a completed, verified episode, otherwise
+`investigate`. A single episode never yields `candidate`; the contract requires
+recurring evidence for that. If the pattern is uncertain, the provider fails,
+consent is absent, or the observation is ineligible, the path emits no
+diagnosis; deterministic code does not substitute one. Optional execution
+requires `diagnose-self-improvement --live` and remains private opt-in. That
+explicit probe is ungated and always spends one Jev call.
 
 The narrower canary composes correlation, eligibility, and Jev-first request
-preparation without writing an observation file:
+preparation without writing an observation file. Like `diagnose-self-improvement`,
+it is an explicit probe and bypasses the controller's no-friction gate:
 
 ```bash
 scripts/jev-judge canary-self-improvement \
@@ -109,13 +110,20 @@ skipped. A failed entry or exit condition returns to the previous level or to
 
 The offline extractor still rejects requests for levels 2–4 with
 `capability_not_available`. The separate explicit-live controller implements
-level 2 only. It starts in `diagnose_shadow`, makes one Jev call with zero
-retries, makes no traditional-LLM call, and writes only a new direct child under
+level 2 only. It starts in `diagnose_shadow`. A completed episode with
+`verifier=true` (latest validations green, no blocking review; an episode that
+ran no review still counts)
+whose friction counters (`tool_errors`, `validation_failures`, `review_rework`,
+`plan_rework`, `compactions`, `retries`) are all 0 or null ends as `no_op` with
+reason `no_friction_signals` and zero Jev calls: this is eligibility, not a
+diagnosis, so `diagnosis` stays null. Every other episode gets one Jev call with
+zero retries. The controller makes no traditional-LLM call, and writes only a new direct child under
 ignored `.workflow/jev-self-improvement/private/`. Its provider projection is
 limited to lifecycle enums, verifier state, and numeric counters; trace text,
 paths, run/session IDs, and fingerprints are not projected. Level 3 additionally
 requires a current capability receipt and can emit only a non-executable request
-for a later user-invoked READY run. A same-repository receipt proves bounded
+for a later user-invoked READY run. It currently has no producer: single-episode
+diagnosis stops at `investigate`, and cross-episode recurrence is not built. A same-repository receipt proves bounded
 promotion evidence, not an independent root of trust for automatic mutation.
 
 Ordered follow-up gates after level 2 are: (1) complete the synthetic branch
