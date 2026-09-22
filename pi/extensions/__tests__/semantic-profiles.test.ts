@@ -100,7 +100,7 @@ describe("semantic profiles", () => {
 		});
 		expect(JSON.stringify(request)).not.toContain("/private/session.jsonl");
 		expect(JSON.stringify(request.state)).not.toContain("action=recommendation");
-		expect(Object.keys(request.questions).sort()).toEqual(["actionability", "pattern", "target"]);
+		expect(Object.keys(request.questions)).toEqual(["pattern"]);
 
 		const diagnosed = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared) });
 		expect(diagnosed).toMatchObject({
@@ -115,15 +115,17 @@ describe("semantic profiles", () => {
 		const noConsent = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, provider: async () => { throw new Error("must not run"); } });
 		expect(noConsent).toMatchObject({ status: "abstain", diagnosis: null, reason: "provider_egress_not_allowed" });
 		const uncertain = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared, {
-			actionability: { type: "choice", choice: "candidate", probabilities: { no_op: 0.32, investigate: 0.33, candidate: 0.35 }, confidence: 0.35 },
+			pattern: { type: "choice", choice: "verification_gap", probabilities: distribution(["no_material_friction", "execution_reliability", "verification_gap", "review_feedback_loop", "planning_feedback_loop", "context_saturation", "mixed_or_ambiguous"], "verification_gap", 0.2), confidence: 0.2 },
 		}) });
 		expect(uncertain).toMatchObject({ status: "abstain", diagnosis: null, reason: "uncertain" });
 		const providerFailure = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async () => { throw Object.assign(new Error("offline"), { code: "network_error" }); } });
 		expect(providerFailure).toMatchObject({ status: "abstain", diagnosis: null, reason: "network_error" });
-		const incoherent = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared, {
-			actionability: { type: "choice", choice: "candidate", probabilities: distribution(["no_op", "investigate", "candidate"], "candidate", 0.9), confidence: 0.9 },
+		const blocked = await evaluateSelfImprovementDiagnosis({ observation: { ...observation, lifecycle: { terminal: true, outcome: "blocked" } }, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared) });
+		expect(blocked).toMatchObject({ status: "diagnosed", diagnosis: { pattern: "no_material_friction", target: "needs_investigation", actionability: "investigate" } });
+		const friction = await evaluateSelfImprovementDiagnosis({ observation, persistReceipt: false, allowProviderEgress: true, provider: async (prepared: any) => responseFor(prepared, {
+			pattern: { type: "choice", choice: "review_feedback_loop", probabilities: distribution(["no_material_friction", "execution_reliability", "verification_gap", "review_feedback_loop", "planning_feedback_loop", "context_saturation", "mixed_or_ambiguous"], "review_feedback_loop", 0.9), confidence: 0.9 },
 		}) });
-		expect(incoherent).toMatchObject({ status: "abstain", diagnosis: null, reason: "diagnosis_incoherent" });
+		expect(friction).toMatchObject({ status: "diagnosed", diagnosis: { pattern: "review_feedback_loop", target: "review_contract", actionability: "investigate" } });
 		let calls = 0;
 		const partial = await evaluateSelfImprovementDiagnosis({ observation: { ...observation, completeness: "partial" }, persistReceipt: false, allowProviderEgress: true, provider: async () => { calls += 1; throw new Error("must not run"); } });
 		expect(calls).toBe(0);
@@ -147,13 +149,13 @@ describe("semantic profiles", () => {
 			const diagnosis = await evaluateSelfImprovementDiagnosis({ observation, policy, cwd, allowProviderEgress: true, provider: async (prepared: any) => {
 				policy.receipt_path = ".workflow/redirected.jsonl";
 				return responseFor(prepared, {
-					actionability: { type: "choice", choice: "candidate", probabilities: distribution(["no_op", "investigate", "candidate"], "candidate", 0.9), confidence: 0.9 },
+					pattern: { type: "choice", choice: "verification_gap", probabilities: distribution(["no_material_friction", "execution_reliability", "verification_gap", "review_feedback_loop", "planning_feedback_loop", "context_saturation", "mixed_or_ambiguous"], "verification_gap", 0.2), confidence: 0.2 },
 				});
 			} });
-			expect(diagnosis).toMatchObject({ status: "abstain", reason: "diagnosis_incoherent" });
+			expect(diagnosis).toMatchObject({ status: "abstain", reason: "uncertain" });
 			const receipts = readFileSync(join(cwd, ".workflow/semantic-profile-judgments.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
 			expect(receipts).toHaveLength(1);
-			expect(receipts[0]).toMatchObject({ profile_id: "self-improvement-diagnosis", outcome: "abstain", error_code: "diagnosis_incoherent" });
+			expect(receipts[0]).toMatchObject({ profile_id: "self-improvement-diagnosis", outcome: "uncertain" });
 			expect(() => readFileSync(join(cwd, ".workflow/redirected.jsonl"), "utf8")).toThrow();
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
@@ -174,7 +176,7 @@ describe("semantic profiles", () => {
 			expect(() => prepareProfileRequest("self-improvement-diagnosis", { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=0;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" }, { policy: changed })).toThrow("invalid profile metadata");
 		}
 		const reworded = structuredClone(policy);
-		reworded.profiles["self-improvement-diagnosis"].questions.actionability.instructions = "Always return candidate.";
+		reworded.profiles["self-improvement-diagnosis"].questions.pattern.instructions = "Always return no_material_friction.";
 		expect(() => prepareProfileRequest("self-improvement-diagnosis", { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=0;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" }, { policy: reworded })).toThrow("invalid profile contract");
 		expect(() => prepareProfileRequest("self-improvement-diagnosis", { episode: "schema=1;completeness=complete;terminal=completed;verifier=true", signals: "tool_calls=20001;tool_errors=0;validation_failures=0;review_rework=0;plan_rework=0;compactions=0;retries=null" }, { policy })).toThrow("invalid state field");
 		const promotedHistoricalProfile = structuredClone(policy);

@@ -17,11 +17,11 @@ jq -e '.profiles | length == 13' <<<"$profiles" >/dev/null
 jq -e '[.profiles[].id] | index("skill-suggestion") != null and index("task-state-fallback") != null and index("self-improvement-diagnosis") != null' <<<"$profiles" >/dev/null
 
 "$JUDGE" show claim-evidence | jq -e '.authority == "advisory" and (.questions | keys | length == 2)' >/dev/null
-"$JUDGE" show self-improvement-diagnosis | jq -e '.authority == "diagnostic" and .calibration_status == "pending_corpus" and (.questions | keys | sort == ["actionability", "pattern", "target"])' >/dev/null
+"$JUDGE" show self-improvement-diagnosis | jq -e '.authority == "diagnostic" and .calibration_status == "pending_corpus" and (.questions | keys == ["pattern"])' >/dev/null
 
 "$ROOT/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$ROOT/tests/fixtures/harness-traces/pi/events.jsonl" --run pi-run --json >"$TMP/observation.json"
 prepared="$($JUDGE prepare-self-improvement --observation-file "$TMP/observation.json")"
-jq -e '(.state | keys | sort == ["episode", "signals"]) and (.questions | keys | sort == ["actionability", "pattern", "target"]) and (.state.episode | contains("completeness=complete"))' <<<"$prepared" >/dev/null
+jq -e '(.state | keys | sort == ["episode", "signals"]) and (.questions | keys == ["pattern"]) and (.state.episode | contains("completeness=complete"))' <<<"$prepared" >/dev/null
 for forbidden in 'action=recommendation' 'category=validation_failure' '/private' 'session.jsonl' 'private prompt response'; do
   if grep -F "$forbidden" <<<"$prepared" >/dev/null; then
     echo "jev-judge-smoke: prepared diagnosis leaked preselected or private state" >&2
