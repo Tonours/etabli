@@ -190,9 +190,8 @@ Optional hooks:
   (not `additionalContext`) so it does not resume the turn. The `/adr` skill works
   without it; the hook only lowers the cost of remembering to record decisions.
 - `no-comments-guard.mjs` runs on `PreToolUse` for `Edit|Write|MultiEdit`. It
-  is advisory on this machine: a write that adds code comments to source files
-  passes with a `systemMessage` reminder of the `~/work/CLAUDE.md` no-comments
-  rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
+  denies a write that adds code comments to source files and names the
+  offending line, per the `~/work/CLAUDE.md` no-comments rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
   exempt). It ships in `settings.workflow-hooks.json`. It cannot see files
   written through `Bash`, so write code with `Edit`/`Write`.
 - RTK command rewriting runs through the native `rtk hook claude`
