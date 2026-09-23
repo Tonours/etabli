@@ -1,4 +1,8 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "skillOverrides": {
     "adapt": "user-invocable-only",
     "adr": "user-invocable-only",
