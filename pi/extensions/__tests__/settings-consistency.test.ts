@@ -228,6 +228,17 @@ describe("Pi settings consistency", () => {
     expect(enabledModels).toContain("opencode-go/minimax-m3");
     expect(enabledModels).toContain("opencode-go/qwen3.7-plus");
     expect(enabledModels).toContain("github-copilot/claude-sonnet-5");
+    expect(enabledModels).toContain("cursor/claude-opus-5-5@300k");
+    expect(enabledModels).toContain("cursor/claude-opus-5-5@1m");
+    expect(enabledModels).toContain("opencode-go/kimi-k3");
+    expect(enabledModels).toContain("opencode-go/grok-4.7");
+    expect(enabledModels).toContain("cursor/grok-4.7@256k");
+    expect(enabledModels).toContain("xai/grok-4.7");
+    expect(enabledModels).not.toContain("xai/grok-4.6");
+    expect(enabledModels).toContain("openai-codex/gpt-6-astra");
+    expect(enabledModels).toContain("github-copilot/gpt-6-luna");
+    expect(enabledModels).not.toContain("kimi-coding/k3");
+    expect(enabledModels).not.toContain("cursor/grok-4.6");
     // Bare alias retired; exact L/T/S pins stay managed.
     expect(enabledModels).not.toContain("openai-codex/gpt-5.6");
     expect(enabledModels).not.toContain("opencode-go/kimi-k2.6");

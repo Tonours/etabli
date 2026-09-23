@@ -492,9 +492,9 @@ printf '%s\n' "$argv_pi" | grep -Fx -q -e '--model' -e 'zai/glm-5.3' -e '--think
   fail "pi argv missing one of --model zai/glm-5.3 --thinking max --no-session --approve -p"
 
 argv_grok="$(PATH="$HERMETIC_PATH" "$DRIVER" print-argv --runner grok --cwd /tmp/eval-cwd --prompt HELLO)"
-printf '%s\n' "$argv_grok" | grep -Fx -q -e '--cwd' -e '/tmp/eval-cwd' -e -m -e 'grok-4.6' \
+printf '%s\n' "$argv_grok" | grep -Fx -q -e '--cwd' -e '/tmp/eval-cwd' -e -m -e 'grok-4.7' \
   -e '--reasoning-effort' -e xhigh -e '--permission-mode' -e acceptEdits -e -p -e HELLO ||
-  fail "grok argv missing one of --cwd /tmp/eval-cwd -m grok-4.6 --reasoning-effort xhigh --permission-mode acceptEdits -p HELLO"
+  fail "grok argv missing one of --cwd /tmp/eval-cwd -m grok-4.7 --reasoning-effort xhigh --permission-mode acceptEdits -p HELLO"
 # -p must consume the prompt, not --cwd.
 awk '
   $0 == "-p" { getline nextline; if (nextline ~ /^-/) { exit 1 } }

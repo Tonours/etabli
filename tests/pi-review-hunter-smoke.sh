@@ -23,7 +23,7 @@ printf 'Axis: Logic\n' >"$PROMPT_FILE"
 printf 'diff --git a/x b/x\n+ok\n' >"$PATCH_FILE"
 
 # --print-argv must work without GNU timeout, pi, or a leaked timeout env var.
-out="$(env -u PI_REVIEW_HUNTER_TIMEOUT PATH=/usr/bin:/bin "$HELPER" --print-argv --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --model 'cursor/claude-opus-5@300k')"
+out="$(env -u PI_REVIEW_HUNTER_TIMEOUT PATH=/usr/bin:/bin "$HELPER" --print-argv --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --model 'cursor/claude-opus-5-5@300k')"
 
 printf '%s\n' "$out" | grep -Fx -- '--no-session' >/dev/null || fail "expected --no-session in argv"
 printf '%s\n' "$out" | grep -Fx -- '-p' >/dev/null || fail "expected -p in argv"
