@@ -72,6 +72,7 @@ full	shell-docs	conversation-retrospect-smoke	tests/conversation-retrospect-smok
 full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-pattern-smoke.sh
 full	shell-docs	skill-eval-smoke	tests/skill-eval-smoke.sh
 full	shell-docs	etabli-harness-eval-smoke	tests/etabli-harness-eval-smoke.sh
+full	shell-docs	etabli-harness-eval-v2-smoke	tests/etabli-harness-eval-v2-smoke.sh
 full	shell-docs	codex-skill-description-smoke	tests/codex-skill-description-smoke.sh
 full	shell-docs	runtime-skill-canary-smoke	tests/runtime-skill-canary-smoke.sh
 full	shell-docs	session-handoff-smoke	tests/session-handoff-smoke.sh
