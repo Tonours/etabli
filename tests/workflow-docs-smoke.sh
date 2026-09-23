@@ -471,7 +471,7 @@ jq -e '
   .selection.require_effective_model_provenance == true and
   .selection.unattested_result == "blocked" and
   ([.frontier_pool[].family] | unique | length) == 7 and
-  ([.frontier_pool[].model] | sort) == (["gpt-6-astra","claude-opus-5","grok-4.6","glm-5.3","kimi-k3","qwen3.8-max","deepseek-v4-pro"] | sort) and
+  ([.frontier_pool[].model] | sort) == (["gpt-6-astra","claude-opus-5-5","grok-4.7","glm-5.3","kimi-k3","qwen3.8-max","deepseek-v4-pro"] | sort) and
   all(.frontier_pool[]; .availability == "configured_unverified" and (.routes | length) > 0)
 ' "$ROOT_DIR/workflow/runtime/adversary-model-policy.json" >/dev/null
 jq -e --slurpfile settings "$ROOT_DIR/pi/agent/settings.json" '
