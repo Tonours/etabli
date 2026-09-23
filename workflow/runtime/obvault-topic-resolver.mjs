@@ -14,8 +14,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const SAFE_QUERY_PATTERN = /^[a-z0-9 _-]{4,240}$/;
-const SAFE_TOPIC_PATTERN = /^[a-z0-9 _-]{4,80}$/;
+const SAFE_QUERY_PATTERN = /^[a-z0-9 _-]{3,240}$/;
+const SAFE_TOPIC_PATTERN = /^[a-z0-9 _-]{3,80}$/;
 
 // Route-result caching. The `_meta/obvault route` spawn costs ~100ms+ per
 // call and `before_agent_start` pays it every turn, so identical prompts are
