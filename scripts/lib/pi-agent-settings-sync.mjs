@@ -33,12 +33,28 @@ const legacySources = new Set([
   "npm:glimpseui",
 ]);
 
-const deployLegacyModels = new Set(["openai-codex/gpt-5.6"]);
+const deployLegacyModels = new Set([
+  "openai-codex/gpt-5.6",
+  "kimi-coding/k3",
+  "zai/glm-5.2",
+  "zai/glm-5.2-highspeed",
+  "openai-codex/gpt-5.6-sol",
+  "openai-codex/gpt-5.6-luna",
+  "xai/grok-4.5",
+  "opencode-go/qwen3.7-max",
+]);
 const installLegacyModels = new Set([
   "openai-codex/gpt-5.6",
   "opencode-go/kimi-k2.6",
   "kimi-coding/kimi-for-coding",
   "kimi-coding/kimi-for-coding-highspeed",
+  "kimi-coding/k3",
+  "zai/glm-5.2",
+  "zai/glm-5.2-highspeed",
+  "openai-codex/gpt-5.6-sol",
+  "openai-codex/gpt-5.6-luna",
+  "xai/grok-4.5",
+  "opencode-go/qwen3.7-max",
   "github-copilot/claude-opus-4.7",
   "opencode-go/minimax-m2.7",
   "opencode-go/qwen3.6-plus",

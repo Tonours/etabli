@@ -132,6 +132,7 @@ conversation-retrospect-smoke
 recurring-run-goal-pattern-smoke
 skill-eval-smoke
 etabli-harness-eval-smoke
+etabli-harness-eval-v2-smoke
 codex-skill-description-smoke
 runtime-skill-canary-smoke
 session-handoff-smoke

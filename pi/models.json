@@ -109,35 +109,6 @@
         }
       ]
     },
-    "kimi-coding": {
-      "models": [
-        {
-          "id": "k3",
-          "name": "Kimi K3",
-          "api": "anthropic-messages",
-          "baseUrl": "https://api.kimi.com/coding",
-          "headers": {
-            "User-Agent": "KimiCLI/1.5"
-          },
-          "reasoning": true,
-          "thinkingLevelMap": {
-            "off": null,
-            "minimal": null,
-            "low": "low",
-            "medium": null,
-            "high": "high",
-            "xhigh": null,
-            "max": "max"
-          },
-          "input": [
-            "text",
-            "image"
-          ],
-          "contextWindow": 1048576,
-          "maxTokens": 131072
-        }
-      ]
-    },
     "local-mlx": {
       "baseUrl": "http://localhost:8080/v1",
       "api": "openai-completions",

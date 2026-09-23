@@ -352,9 +352,12 @@ if (settings.defaultProvider !== "kimi-for-coding" ||
 const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
 for (const model of [
   "custom/provider-model",
-  "zai/glm-5.2",
+  "zai/glm-5.3",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
+}
+for (const model of ["openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-sol"]) {
+  if (enabledModels.includes(model)) throw new Error(`retired model kept after deploy: ${model}`);
 }
 // Bare gpt-5.6 alias remains retired.
 if (enabledModels.includes("openai-codex/gpt-5.6")) {

@@ -19,6 +19,7 @@ const TARGET_SURFACES = Object.freeze({
   context_design: ["workflow/skills/", "pi/extensions/lib/"],
   needs_investigation: [],
 });
+const FRICTION_COUNTERS = ["tool_errors", "validation_failures", "review_rework", "plan_rework", "compactions", "retries"];
 
 function fail(reason) {
   const error = new Error(reason);
@@ -48,18 +49,25 @@ export function validateProposalCapabilityReceipt(receipt, controllerFingerprint
   return receipt;
 }
 
+function frictionFree(observation) {
+  return observation.lifecycle.outcome === "completed" && observation.signals.verifier === true && FRICTION_COUNTERS.every((field) => (observation.signals[field] ?? 0) === 0);
+}
+
 function historySet(history) {
   if (history === undefined || history === null) return new Set();
   if (!Array.isArray(history) || history.some((value) => !SHA256.test(value))) fail("candidate_history_invalid");
   return new Set(history);
 }
 
-function terminalPacket({ capability, observation, diagnosis, duplicate, traceFingerprint, ledgerFingerprint }) {
+function terminalPacket({ capability, observation, gated, diagnosis, duplicate, traceFingerprint, ledgerFingerprint }) {
   const diagnosed = diagnosis?.status === "diagnosed" ? diagnosis.diagnosis : null;
   let outcome = "investigate";
   let reason = diagnosis?.reason ?? "jev_abstained";
   let proposal = null;
-  if (diagnosed?.actionability === "no_op") {
+  if (gated) {
+    outcome = "no_op";
+    reason = "no_friction_signals";
+  } else if (diagnosed?.actionability === "no_op") {
     outcome = "no_op";
     reason = "jev_no_material_friction";
   } else if (diagnosed?.actionability === "investigate") {
@@ -108,7 +116,7 @@ function terminalPacket({ capability, observation, diagnosis, duplicate, traceFi
       },
     },
     diagnosis: diagnosed,
-    jev: { calls: 1, retries: 0, status: diagnosis?.status ?? "abstain", provider: diagnosis?.provenance?.provider ?? null, model: diagnosis?.provenance?.model ?? null },
+    jev: { calls: gated ? 0 : 1, retries: 0, status: gated ? "skipped" : diagnosis?.status ?? "abstain", provider: diagnosis?.provenance?.provider ?? null, model: diagnosis?.provenance?.model ?? null },
     traditional_llm: { calls: 0 },
     proposal,
     private_bindings: { trace_sha256: traceFingerprint, ledger_sha256: ledgerFingerprint },
@@ -125,11 +133,14 @@ export async function runSelfImprovementController({ traceText, ledgerText, run,
   for (const privateValue of [run, observation.observation_id, sha(traceText), sha(ledgerText)]) if (serializedProjection.includes(privateValue)) fail("private_projection_leak");
   const controllerFingerprint = controllerSourceFingerprint();
   const capability = capabilityReceipt ? (validateProposalCapabilityReceipt(capabilityReceipt, controllerFingerprint), "propose_reviewed") : "diagnose_shadow";
-  let diagnosis;
-  try {
-    diagnosis = await diagnose({ observation, projectedState });
-  } catch {
-    diagnosis = { schema_version: 1, profile_id: "self-improvement-diagnosis", authority: "diagnostic", status: "abstain", diagnosis: null, provenance: null, reason: "provider_error" };
+  const gated = frictionFree(observation);
+  let diagnosis = null;
+  if (!gated) {
+    try {
+      diagnosis = await diagnose({ observation, projectedState });
+    } catch {
+      diagnosis = { schema_version: 1, profile_id: "self-improvement-diagnosis", authority: "diagnostic", status: "abstain", diagnosis: null, provenance: null, reason: "provider_error" };
+    }
   }
   const traceFingerprint = sha(traceText);
   const ledgerFingerprint = sha(ledgerText);
@@ -137,7 +148,7 @@ export async function runSelfImprovementController({ traceText, ledgerText, run,
     ? sha(canonical({ pattern: diagnosis.diagnosis.pattern, target: diagnosis.diagnosis.target, trace: traceFingerprint, ledger: ledgerFingerprint }))
     : null;
   const duplicate = candidateFingerprint ? historySet(history).has(candidateFingerprint) : false;
-  return terminalPacket({ capability, observation, diagnosis, duplicate, traceFingerprint, ledgerFingerprint });
+  return terminalPacket({ capability, observation, gated, diagnosis, duplicate, traceFingerprint, ledgerFingerprint });
 }
 
 function readJsonRegular(path, maxBytes = 256 * 1024) {

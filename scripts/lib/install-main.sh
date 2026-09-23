@@ -735,7 +735,7 @@ if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
 }
 if (
   !settings.enabledModels.includes("custom/personal-model") ||
-  !settings.enabledModels.includes("zai/glm-5.2")
+  !settings.enabledModels.includes("zai/glm-5.3")
 ) {
   throw new Error("settings sync did not preserve the user model and add tracked model pins");
 }
