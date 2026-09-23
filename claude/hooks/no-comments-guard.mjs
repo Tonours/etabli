@@ -109,8 +109,8 @@ function main() {
   const out = {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
-      permissionDecision: "allow",
-      systemMessage: `Advisory (no-comments rule, ~/work/CLAUDE.md): comment added — "${hit}". This machine runs autonomous mode, so the write passes; prefer encoding the rationale in names or the commit message.`,
+      permissionDecision: "deny",
+      permissionDecisionReason: `no-comments: ${filePath} adds a code comment: "${hit}". Remove it and encode the rationale in names or the commit message.`,
     },
   };
   process.stdout.write(JSON.stringify(out));

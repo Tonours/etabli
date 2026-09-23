@@ -506,6 +506,17 @@ jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hook
 	printf 'settings.workflow-hooks.json must wire no-comments-guard on Write|Edit|MultiEdit\n' >&2
 	exit 1
 }
+no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
+denied=$(jq -nc '{tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
+[ "$(printf '%s' "$denied" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ] || {
+	printf 'no-comments-guard must deny a write that adds a comment, got %s\n' "$denied" >&2
+	exit 1
+}
+clean=$(jq -nc '{tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
+[ -z "$clean" ] || {
+	printf 'no-comments-guard must pass comment markers inside strings, got %s\n' "$clean" >&2
+	exit 1
+}
 if jq -r '.. | .command? // empty' "$ROOT_DIR/claude/settings.workflow-hooks.json" | grep -F '"$HOME/.claude/hooks/' >/dev/null; then
 	printf 'hook commands must resolve through CLAUDE_CONFIG_DIR, not a bare $HOME/.claude\n' >&2
 	exit 1
