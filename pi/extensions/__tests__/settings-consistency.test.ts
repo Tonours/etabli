@@ -224,7 +224,8 @@ describe("Pi settings consistency", () => {
     ).enabledModels;
 
     expect(enabledModels).toContain("zai/glm-5.3");
-    expect(enabledModels).toContain("zai/glm-5.2");
+    expect(enabledModels).not.toContain("zai/glm-5.2");
+    expect(enabledModels).toContain("zai/glm-5.3-highspeed");
     expect(enabledModels).toContain("opencode-go/minimax-m3");
     expect(enabledModels).toContain("opencode-go/qwen3.7-plus");
     expect(enabledModels).toContain("github-copilot/claude-sonnet-5");
