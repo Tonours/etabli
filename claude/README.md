@@ -193,8 +193,8 @@ Optional hooks:
   is advisory on this machine: a write that adds code comments to source files
   passes with a `systemMessage` reminder of the `~/work/CLAUDE.md` no-comments
   rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
-  exempt). Deployed by the installer like the other `.mjs` hooks; wire it into
-  `~/.claude/settings.json` manually when wanted.
+  exempt). It ships in `settings.workflow-hooks.json`. It cannot see files
+  written through `Bash`, so write code with `Edit`/`Write`.
 - RTK command rewriting runs through the native `rtk hook claude`
   subcommand wired as `PreToolUse(Bash)` in the local
   `~/.claude/settings.json`; that wiring is machine-local, not tracked here

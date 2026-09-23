@@ -502,5 +502,13 @@ if jq -e '[.hooks.PreToolUse[] | .hooks[] | select(.command | contains("plan-com
 	printf 'plan-commit-guard must be composed into the plan-ready hook\n' >&2
 	exit 1
 fi
+jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hooks[] | select(.command | contains("no-comments-guard.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
+	printf 'settings.workflow-hooks.json must wire no-comments-guard on Write|Edit|MultiEdit\n' >&2
+	exit 1
+}
+if jq -r '.. | .command? // empty' "$ROOT_DIR/claude/settings.workflow-hooks.json" | grep -F '"$HOME/.claude/hooks/' >/dev/null; then
+	printf 'hook commands must resolve through CLAUDE_CONFIG_DIR, not a bare $HOME/.claude\n' >&2
+	exit 1
+fi
 
 printf 'claude hooks smoke test: ok\n'

@@ -6,7 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.claude/hooks/plan-ready-guard.mjs\"",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/plan-ready-guard.mjs\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/no-comments-guard.mjs\"",
             "timeout": 5
           }
         ]
@@ -18,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.claude/hooks/ledger-auto-emit.mjs\"",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/ledger-auto-emit.mjs\"",
             "timeout": 5
           }
         ]
@@ -29,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.claude/hooks/detect-adr-signal.mjs\"",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/detect-adr-signal.mjs\"",
             "timeout": 5
           }
         ]
@@ -38,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.claude/hooks/outcome-metric-emit.mjs\"",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/outcome-metric-emit.mjs\"",
             "timeout": 5
           }
         ]
