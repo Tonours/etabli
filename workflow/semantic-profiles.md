@@ -68,7 +68,7 @@ deterministic workflow.
 | `self-improvement-diagnosis` | diagnostic | private opt-in | Jev produces the friction pattern from sanitized facts; code derives target/actionability; trace/self-improvement contracts own eligibility and every effect |
 | `project-hunt-evidence` | advisory | public or sanitized | project-hunt owns provenance, counter-search, scoring, arithmetic, and watchlist |
 | `conversation-signal` | shadow | private opt-in | conversation retrospect owns source selection, privacy, aggregation, and durable writes |
-| `knowledge-passage` | advisory | private opt-in | Obvault owns retrieval, citations, thresholds, feedback, and its existing explicit `--jev` sidecar |
+| `knowledge-passage` | advisory | private opt-in | Obvault owns retrieval, citations, thresholds, feedback, and its default-on Jev reranking |
 | `linear-intake` | advisory | private opt-in | Linear contract owns hierarchy, one-behavior rule, questions, and creation permission |
 | `pr-qa-impact` | advisory | public or sanitized | PR-QA owns evidence retrieval and executable test-plan generation |
 | `no-progress-equivalence` | shadow | private opt-in | exact no-progress guard owns attempt counts and stop decisions |
@@ -103,8 +103,8 @@ transcripts, and private metadata.
   `actionability` from that pattern and never emits `candidate` from one
   episode.
 - `knowledge-passage` is a reusable contract for tests and explicit consumers.
-  Normal retrieval continues through Obvault's existing explicit `--jev`
-  option; Etabli does not duplicate or silently enable that sidecar.
+  Normal retrieval goes through the vault engine, which applies Jev by default
+  and degrades to lexical without a key; Etabli does not duplicate that path.
 - `skill-suggestion` is invoked only through `suggest-skill`. Stage one scores
   the bounded local catalog and retains at most three candidates; stage two
   examines only those candidates and can still return no match.

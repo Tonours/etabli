@@ -42,30 +42,37 @@ Mechanical checks: `tests/graph-contract-smoke.sh`,
 ## Mandatory first check
 
 Before answering or planning a request that matches **Retrieve when**, consult
-obvault first; do not wait for the user to mention the knowledge base. Read
-`~/work/obvault/AGENTS.md` as the vault entrypoint, then use the bounded context
-command below. The vault contract, status, freshness, and abstention rules take
-precedence over retrieved prose.
+the scope-resolved vault first (`<root>` below: `~/work/brain` in work scope when
+present, else `~/work/obvault`);
+do not wait for the user to mention the knowledge base. Read `<root>/AGENTS.md` as the vault entrypoint, then use the
+vault's retrieval, not `grep`. The vault contract, status, freshness, and
+abstention rules take precedence over retrieved prose.
 
-Use the same local read interface from Claude, Pi, Grok, and Cursor:
+Use the same local read interface from Claude, Pi, Codex, Grok, and Cursor:
+
+1. **MCP**, when the host registers the vault server (work scope: `brain`):
+   `vault_context` for a bounded cited pack, `vault_search` for a ranked list,
+   `vault_read` to open a cited note, `vault_health` for backend state.
+2. **CLI**, otherwise:
 
 ```bash
 # Preferred session bootstrap (route + bounded context + entry reminders)
-~/work/obvault/_meta/obvault session --json --max-tokens 2500 "<question>"
+<root>/_meta/obvault session --json --max-tokens 2500 "<question>"
 
 # Equivalent direct pack
-~/work/obvault/_meta/obvault context --json --max-tokens 2500 "<question>"
+<root>/_meta/obvault context --json --max-tokens 2500 "<question>"
 
-# Living-loop dashboard (pending reviews, feedback totals, apply unlock)
+# Personal vault only: living-loop dashboard
 ~/work/obvault/_meta/obvault status --json
 ~/work/obvault/_meta/obvault loop --json
 ```
 
-`session` / `context` remain the default integration because they are bounded,
-cited, and work without a persistent process. The optional obvault MCP server is
-a local `stdio`, read-only interface (`vault_search`, `vault_context`,
-`vault_read`, `vault_health`) for a host that explicitly opts in; do not use it
-for writes, reindexing, or automation. When diagnosing retrieval behavior, use
+3. `grep`/`find` over `kb/` only when retrieval abstains or to confirm an exact
+   string from a pack: lexical search misses paraphrases and French/English
+   rephrasings that the semantic reranker catches.
+
+The MCP server is local `stdio` and read-only; never use it for writes,
+reindexing, or automation. When diagnosing retrieval behavior, use
 `obvault health --json` to
 inspect the active backend, canonical snapshot, and explicit semantic fallback.
 After a retrieval outcome, record only aggregate feedback:
@@ -75,9 +82,10 @@ After a retrieval outcome, record only aggregate feedback:
 ```
 
 The generic Etabli `knowledge-passage` profile is a reusable advisory contract,
-not a second retrieval implementation. Normal semantic reranking remains owned
-by Obvault's existing explicit `--jev` option. Never enable either provider path
-implicitly, and never copy raw private passages into Etabli receipts.
+not a second retrieval implementation. Semantic reranking belongs to the vault
+engine, which calls TypeSafe Jev by default and degrades to lexical results
+without a key (`health` reports `typesafe: active|degraded`). Etabli never adds a
+second provider path, and never copies raw private passages into its receipts.
 
 Self-improvement contract: `kb/obvault-self-improvement-loop.md` (miss → review
 → promote → check). Multi-harness recipe: `kb/obvault-multi-harness-access.md`.
