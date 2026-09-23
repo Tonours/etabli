@@ -17,6 +17,8 @@ fi
 prompt="\${3-}"
 if case "$prompt" in (*[Ff][Ii][Nn][Oo][Pp][Ss]*) true;; (*) false;; esac && [ -f "\${OBVAULT_ROOT:-/nonexistent}/kb/finops-cost-controls.md" ]; then
   printf '%s\\n' '{"abstained":false,"topics":["finops"],"query":"finops aws billing controls cloud cost","matched_notes":[{"path":"kb/finops-cost-controls.md"}]}'
+elif case "$prompt" in (*[Bb][Ff][Ff]*) true;; (*) false;; esac; then
+  printf '%s\\n' '{"abstained":false,"topics":["bff"],"query":"bff","matched_notes":[{"path":"kb/finops-cost-controls.md"}]}'
 else
   printf '%s\\n' '{"abstained":true,"topics":[],"query":"","matched_notes":[]}'
 fi
@@ -71,6 +73,14 @@ describe("dynamic Obvault topic resolver", () => {
       matchedNotes: ["kb/finops-cost-controls.md"],
     });
     expect(context?.command).not.toContain("rm -rf");
+  });
+
+  test("keeps three-letter acronym topics such as bff", () => {
+    const root = makeVault();
+    expect(resolveDynamicKnowledgeContext("rotate the bff api key", { roots: [root] })).toMatchObject({
+      topics: ["bff"],
+      query: "bff",
+    });
   });
 
   test("fails open for unrelated prompts and missing vaults", () => {
