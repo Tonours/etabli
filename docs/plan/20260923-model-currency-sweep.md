@@ -1,5 +1,7 @@
 # Implemented: grok-4.7 in the harness evaluator and a project-wide model currency sweep
 
+> Correction 2026-09-23: the harness-evaluator part was reverted. `scripts/lib/etabli-harness-eval.sh` and `tests/fixtures/harness-v1/manifest.json` belong to frozen evaluator bundles (`jev-efficiency-manifest.json` bundle `6b7fb945…`, cited as frozen evidence in `jev-efficiency-final-report.md`, and `manifests/core-v2.json`). Test `historical v1 evaluator binding remains unchanged` keeps them byte-reproducible, and 3 `full`-group checks failed after the push because only `core` had run. The bytes were restored from `779d4ca1`; harness-v1 stays on `grok-4.6`. A newer runner model needs a new evaluator version.
+
 ## Metadata
 - Archived: 2026-09-23
 - Source plan: `PLAN.md` — grok-4.7 in the harness evaluator, plus a project-wide model currency sweep

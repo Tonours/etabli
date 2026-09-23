@@ -9,9 +9,9 @@ arXiv 2607.07946. This suite does **not** run DeepSWE's SWE tasks and does
 ## Runners
 
 - Pi: `pi -p --no-session --approve --model zai/glm-5.3 --thinking max`
-- Grok: `grok --cwd <dir> -m grok-4.7 --reasoning-effort xhigh --permission-mode acceptEdits -p <prompt>`
+- Grok: `grok --cwd <dir> -m grok-4.6 --reasoning-effort xhigh --permission-mode acceptEdits -p <prompt>`
 
-The Grok runner moved from `grok-4.6` to `grok-4.7` on 2026-09-23. The evaluator id is unchanged, but the manifest sha was re-pinned, so earlier Grok receipts differ in `manifest_sha` and `model_requested` and are not comparable with later ones.
+The harness-v1 runner stays on `grok-4.6`. Its lib, driver, manifest and oracles belong to frozen evaluator bundles (`workflow/self-improvement/jev-efficiency-manifest.json`, `workflow/self-improvement/manifests/core-v2.json`) whose historical fingerprints tests keep reproducible, so a newer runner model needs a new evaluator version, not an edit here.
 
 Live cells are kept under a printed directory (or `ETABLI_HARNESS_EVAL_DIR`); they are not deleted on exit.
 
