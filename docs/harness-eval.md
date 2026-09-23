@@ -11,7 +11,7 @@ arXiv 2607.07946. This suite does **not** run DeepSWE's SWE tasks and does
 - Pi: `pi -p --no-session --approve --model zai/glm-5.3 --thinking max`
 - Grok: `grok --cwd <dir> -m grok-4.6 --reasoning-effort xhigh --permission-mode acceptEdits -p <prompt>`
 
-The harness-v1 runner stays on `grok-4.6`. Its lib, driver, manifest and oracles belong to frozen evaluator bundles (`workflow/self-improvement/jev-efficiency-manifest.json`, `workflow/self-improvement/manifests/core-v2.json`) whose historical fingerprints tests keep reproducible, so a newer runner model needs a new evaluator version, not an edit here.
+The harness-v1 runner stays on `grok-4.6`. Its lib, driver, manifest and oracles belong to frozen evaluator bundles (`workflow/self-improvement/jev-efficiency-manifest.json`, `workflow/self-improvement/manifests/core-v2.json`) whose historical fingerprints tests keep reproducible, so a newer runner model needs a new evaluator version, not an edit here. The v2 suite below is that version.
 
 Live cells are kept under a printed directory (or `ETABLI_HARNESS_EVAL_DIR`); they are not deleted on exit.
 
@@ -102,6 +102,27 @@ state-bound tasks (`ready-implement` final-state SHA, `review-go-clean-diff`
 GO-only) do not depend on spawn evidence and remain the load-bearing cells
 for any live comparison. Closing this fully requires OS-level sandboxing
 (same-user POSIX cannot hide an evaluator-read path from the subject).
+
+## v2 suite (`binary-final-state-v2`)
+
+`scripts/etabli-harness-eval-v2` has the same CLI as v1 and grades `tests/fixtures/harness-v2/`. Its manifest pins the SHA-256 of one file, `scripts/lib/etabli-harness-grade.sh`, which holds the grading contract only:
+
+- the review-transcript parser (`harness_parse_review`);
+- the oracle vocabulary (`harness_require_*` / `harness_forbid_*`);
+- the grader;
+- baseline and HEAD pinning;
+- the spawn-evidence producers and their check;
+- the fixture ignore list and the constant fabrication transcript.
+
+Models, effort, timeouts, scaffold and worktree preparation live in `scripts/lib/etabli-harness-run-v2.sh`, which is not hashed. The Grok cell runs `grok-4.7` there. A runner or performance edit never forces a re-pin.
+
+Each oracle is a short list of declarative calls; none reads the transcript directly. Every row carries `evaluator_id` and `task_sha` (the task dir minus `synthetic/`), so a fixture edit shows in the receipts even though the evaluator sha is unchanged. A non-offline row graded without a driver-held `BASELINE_EXPECTED` fails closed. v1 and v2 rows are not comparable (ADR-0026).
+
+```bash
+bash tests/etabli-harness-eval-v2-smoke.sh
+scripts/etabli-harness-eval-v2 print-argv --runner grok
+ETABLI_HARNESS_EVAL=1 scripts/etabli-harness-eval-v2 run --runner all --output /tmp/harness-v2.jsonl
+```
 
 ## Layout
 

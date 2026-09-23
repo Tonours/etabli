@@ -27,3 +27,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0023](0023-migrate-pstack-to-the-pi-port.md) — Migrate pstack to the @zenspc/pi-pstack port, Pi-only [accepted]
 - [0024](0024-treat-config-devin-skills-as-a-managed-link-surface.md) — Treat ~/.config/devin/skills as a managed link surface [accepted]
 - [0025](0025-remove-lean-ctx-from-every-tracked-surface.md) — Remove lean-ctx from every tracked surface [accepted]
+- [0026](0026-split-harness-eval-v2-into-a-hashed-grading-contract-and-an-unhashed-r.md) — Split harness-eval v2 into a hashed grading contract and an unhashed runner [accepted]
