@@ -15,7 +15,7 @@ For plan mode and cross-model code-diff passes, select a **different model
 family** from the author through
 `workflow/runtime/adversary-model-policy.json`, regardless of which harness
 owns the route. From Claude, prefer `gpt-6-astra` through Codex; configured
-fallback families are `xai/grok-4.6`, `zai/glm-5.3`, `kimi-coding/k3`,
+fallback families are `xai/grok-4.7`, `zai/glm-5.3`, `opencode-go/kimi-k3`,
 `opencode-go/qwen3.8-max`, and `opencode-go/deepseek-v4-pro` through Pi.
 Requested-model success is insufficient: record the effective model or stop as
 blocked.

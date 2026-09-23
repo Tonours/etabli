@@ -1,0 +1,3 @@
+isolation: none
+runner: parent
+Verdict: GO

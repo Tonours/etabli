@@ -1,0 +1,1 @@
+Review the uncommitted helper change. Follow workflow/skills/review.md. Do not edit files. Record isolation and runner. The change is expected to be clean: with complete lens and deciding-code evidence, `Verdict: GO` is the right answer.

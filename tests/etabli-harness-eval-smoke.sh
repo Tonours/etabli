@@ -44,6 +44,7 @@ SH
   chmod +x "$TMP_DIR/bin/$name"
 done
 
+ln -s "$(command -v jq)" "$TMP_DIR/bin/jq"
 HERMETIC_PATH="$TMP_DIR/bin:/usr/bin:/bin"
 
 prepare_synthetic() {

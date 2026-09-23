@@ -13,7 +13,7 @@ description: >
 tools: read, bash, grep, find, ls
 extensions: true
 skills: true
-model: opencode-go/deepseek-v4-flash
+model: opencode-go/deepseek-v4.1-flash
 thinking: low
 ---
 

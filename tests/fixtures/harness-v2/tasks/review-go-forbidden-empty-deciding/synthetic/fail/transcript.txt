@@ -1,0 +1,14 @@
+isolation: isolated
+runner: pi-child
+
+## Lens table
+| Lens | Checked (file:line) | Found |
+| --- | --- | --- |
+| Precedence | not run | |
+
+## Deciding-code table
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+| --- | --- | --- | --- |
+| runtime helper | not run | | |
+
+Verdict: GO

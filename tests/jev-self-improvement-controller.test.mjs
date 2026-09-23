@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { controllerSourceFingerprint, runSelfImprovementController, validatePrivateOutputDirectory, validateProposalCapabilityReceipt } from "../scripts/lib/jev-self-improvement-controller.mjs";
 import { createHash } from "node:crypto";
+import { reduceSelfImprovementDiagnosis } from "../pi/extensions/lib/self-improvement-diagnosis.mjs";
 
 const traceText = readFileSync("tests/fixtures/harness-traces/pi/session-bound.jsonl", "utf8");
 const ledgerText = readFileSync("tests/fixtures/harness-traces/pi/events.jsonl", "utf8");
@@ -37,6 +38,42 @@ test("no_op and investigate terminate without a traditional LLM call", async () 
   const investigate = await runSelfImprovementController({ traceText, ledgerText, run: "pi-run", diagnose: diagnosis("investigate", "needs_investigation", "mixed_or_ambiguous") });
   assert.equal(investigate.outcome, "investigate");
   assert.equal(investigate.traditional_llm.calls, 0);
+});
+
+test("friction-free episode ends as no_op without a Jev call", async () => {
+  const cleanTrace = traceText.split("\n").filter((line) => !line.includes('"type":"compaction"')).join("\n").replace('"parentId":"c"', '"parentId":"a"');
+  const cleanLedger = ledgerText.split("\n").filter((line) => !line.includes('"event":"validation_failed"')).join("\n");
+  const packet = await runSelfImprovementController({ traceText: cleanTrace, ledgerText: cleanLedger, run: "pi-run", diagnose: async () => { throw new Error("gate must skip Jev"); } });
+  assert.equal(packet.outcome, "no_op");
+  assert.equal(packet.reason, "no_friction_signals");
+  assert.equal(packet.diagnosis, null);
+  assert.equal(packet.proposal, null);
+  assert.deepEqual(packet.jev, { calls: 0, retries: 0, status: "skipped", provider: null, model: null });
+});
+
+test("friction episode makes one Jev call and a single episode never yields candidate", async () => {
+  const patterns = ["no_material_friction", "execution_reliability", "verification_gap", "review_feedback_loop", "planning_feedback_loop", "context_saturation", "mixed_or_ambiguous"];
+  const accepted = (pattern) => ({ profile: "self-improvement-diagnosis", authority: "diagnostic", outcome: "accepted", decisions: { pattern: { status: "accepted", value: pattern } }, receipt: { provider: "fixture", model: "jev-1.13.0" } });
+  for (const pattern of patterns) {
+    let calls = 0;
+    const packet = await runSelfImprovementController({
+      traceText,
+      ledgerText,
+      run: "pi-run",
+      capabilityReceipt: null,
+      diagnose: async ({ observation }) => {
+        calls += 1;
+        return reduceSelfImprovementDiagnosis(accepted(pattern), { terminal: observation.lifecycle.outcome, verifier: observation.signals.verifier });
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(packet.jev.calls, 1);
+    assert.notEqual(packet.diagnosis.actionability, "candidate");
+    assert.equal(packet.proposal, null);
+  }
+  for (const episode of [{ terminal: "blocked", verifier: true }, { terminal: "completed", verifier: false }]) {
+    assert.deepEqual(reduceSelfImprovementDiagnosis(accepted("no_material_friction"), episode).diagnosis, { pattern: "no_material_friction", target: "needs_investigation", actionability: "investigate" });
+  }
 });
 
 test("diagnose_shadow suppresses candidates and provider failure abstains", async () => {

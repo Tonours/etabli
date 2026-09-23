@@ -1,0 +1,16 @@
+isolation: isolated
+runner: pi-child
+hunter_model: default
+
+## Lens table
+| Lens | Checked (file:line) | Found |
+| --- | --- | --- |
+| Logic | scripts/clean-helper.sh:3 | printf argument is a fixed literal; no input path |
+| Spec | scripts/clean-helper.sh:2 | comment matches the stated scope |
+
+## Deciding-code table
+| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |
+| --- | --- | --- | --- |
+| helper prints fixed literal | scripts/clean-helper.sh:3 | n/a | inert; no side effects |
+
+Verdict: GO
