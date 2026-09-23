@@ -199,7 +199,7 @@ Optional hooks:
   subcommand wired as `PreToolUse(Bash)` in the local
   `~/.claude/settings.json`; that wiring is machine-local, not tracked here
   (`scripts/lib/claude-settings-sync.mjs` syncs only skill overrides,
-  permission mode, and the two skip prompts scalars). The installer ensures
+  permission mode, attribution, and the two skip prompts scalars). The installer ensures
   the binary itself (`scripts/lib/install-main.sh`); there is no patched
   `rtk-rewrite.sh` and no link rule to restore. With `bypassPermissions`
   active, no exit-3 ask-rule patch is needed.
@@ -213,10 +213,12 @@ propagates it into `~/.claude/settings.json`:
 
 - `permissions.defaultMode: "bypassPermissions"` — merged key-by-key, local
   `allow`/`deny` lists are never touched;
-- `skipDangerousModePermissionPrompt: true`, `skipAutoPermissionPrompt: true`.
+- `skipDangerousModePermissionPrompt: true`, `skipAutoPermissionPrompt: true`;
+- `attribution: { commit: "", pr: "" }`: no `Co-Authored-By` trailer on
+  commits and no generated-with line in PR bodies.
 
 The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
-the two skip flags), so no secret can leak into the tracked fragment. The
+`attribution.commit`/`attribution.pr`, the two skip flags), so no secret can leak into the tracked fragment. The
 `--dangerously-skip-permissions` zsh alias is machine-local (`~/.zshrc` is not
 managed here); `defaultMode` alone covers every launcher, including `-p` runs,
 crons, and `claude-bin.sh`.

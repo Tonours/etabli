@@ -17,9 +17,11 @@ const SCALAR_KEYS = new Set([
   "skipAutoPermissionPrompt",
 ]);
 const PERMISSION_KEYS = new Set(["defaultMode"]);
+const ATTRIBUTION_KEYS = new Set(["commit", "pr"]);
 const ALLOWED_TOP_LEVEL = new Set([
   "skillOverrides",
   "permissions",
+  "attribution",
   ...SCALAR_KEYS,
 ]);
 
@@ -83,6 +85,25 @@ if (tracked.permissions !== undefined) {
     }
   }
 }
+if (tracked.attribution !== undefined) {
+  if (
+    typeof tracked.attribution !== "object" ||
+    tracked.attribution === null ||
+    Array.isArray(tracked.attribution)
+  ) {
+    fail("attribution must be an object");
+  }
+  for (const [name, value] of Object.entries(tracked.attribution)) {
+    if (!ATTRIBUTION_KEYS.has(name)) {
+      fail(
+        `attribution[${name}] is not allowed; permitted keys: ${[...ATTRIBUTION_KEYS].join(", ")}`,
+      );
+    }
+    if (typeof value !== "string") {
+      fail(`attribution[${name}] must be a string`);
+    }
+  }
+}
 for (const key of SCALAR_KEYS) {
   if (tracked[key] !== undefined && typeof tracked[key] !== "boolean") {
     fail(`${key} must be a boolean`);
@@ -122,6 +143,10 @@ function trackedMatchesLocal() {
   for (const [name, value] of Object.entries(tracked.permissions ?? {})) {
     if (livePermissions[name] !== value) return false;
   }
+  const liveAttribution = localSettings.attribution ?? {};
+  for (const [name, value] of Object.entries(tracked.attribution ?? {})) {
+    if (liveAttribution[name] !== value) return false;
+  }
   for (const key of SCALAR_KEYS) {
     if (tracked[key] !== undefined && localSettings[key] !== tracked[key]) {
       return false;
@@ -142,6 +167,7 @@ if (unchanged) {
 const keyCount = Object.keys(trackedMap).length;
 const settingsKeyCount =
   Object.keys(tracked.permissions ?? {}).length +
+  Object.keys(tracked.attribution ?? {}).length +
   [...SCALAR_KEYS].filter((key) => tracked[key] !== undefined).length;
 if (dryRun) {
   if (mode === "deploy") {
@@ -179,6 +205,11 @@ if (!localMissing && mode === "deploy") {
   )) {
     console.log(`SET            permissions.${name} -> ${value}`);
   }
+  for (const [name, value] of Object.entries(tracked.attribution ?? {}).sort(
+    ([a], [b]) => a.localeCompare(b),
+  )) {
+    console.log(`SET            attribution.${name} -> ${JSON.stringify(value)}`);
+  }
   for (const key of [...SCALAR_KEYS].sort()) {
     if (tracked[key] !== undefined) {
       console.log(`SET            ${key} -> ${tracked[key]}`);
@@ -191,6 +222,12 @@ if (tracked.permissions !== undefined) {
   localSettings.permissions = {
     ...(localSettings.permissions ?? {}),
     ...tracked.permissions,
+  };
+}
+if (tracked.attribution !== undefined) {
+  localSettings.attribution = {
+    ...(localSettings.attribution ?? {}),
+    ...tracked.attribution,
   };
 }
 for (const key of SCALAR_KEYS) {
