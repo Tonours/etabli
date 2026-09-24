@@ -145,7 +145,15 @@ herdr-claude-relaunch-smoke
 herdr-setup-smoke
 vendor-surface-policy-smoke
 vendor-prune-modes-smoke
+jev-review-test
+review-run-receipt-test
+review-evidence-pack-test
+jev-review-campaign-test
+jev-candidate-corpus-test
+typesafe-transport-test
+typesafe-architecture-version-test
 harness-token-usage-test
+jev-efficiency-candidate-test
 jev-efficiency-campaign-test
 jev-plan-implement-campaign-test
 jev-self-improvement-controller-test
