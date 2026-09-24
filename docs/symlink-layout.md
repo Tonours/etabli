@@ -21,15 +21,12 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
 - `~/.codex/skills/` receives active-scope vendored skills; no other Codex
   harness state is tracked
 - `~/.config/devin/skills/` receives active-scope vendored skills plus
-  `herdr/skills/herdr`; Devin also reads `~/.agents/skills/` natively, so
+  dotfiles `herdr/skills/herdr`; Devin also reads `~/.agents/skills/` natively, so
   `agents_visible` entries reach it through the shared surface. No other
   Devin harness state is tracked
 - `~/.etabli-scope` selects `work` or `personal`; the active set is always
   `shared` plus that declared scope
-- `~/.config/ghostty/config` -> `ghostty/config`
-- `~/.config/herdr/config.toml` -> `herdr/config.toml`
-- `~/.config/herdr/plugins/config/sessionizer/config.toml` -> `herdr/layouts/sessionizer.config.toml` (managed by install/fix-links; see `herdr/docs/multihost.md`)
-- `herdr/skills/herdr` linked into `~/.claude/skills/herdr`, `~/.codex/skills/herdr`, `~/.agents/skills/herdr`, `~/.pi/agent/skills/herdr`
+- Env links (`nvim`, `ghostty`, `tmux`, `herdr` config/layouts, `herdr` skill) moved to the public `dotfiles` repo: see its `docs/symlink-layout.md` and `scripts/fix-links`. Etabli owns core workflow links only.
 - `agent` on PATH is Cursor (`~/.local/bin/agent`); Grok is `grok` only — do not restore `~/.grok/bin/agent`
 - do not create `~/.pi/extensions/`; it causes double-loading
 - do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)
