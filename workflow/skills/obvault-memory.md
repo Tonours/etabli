@@ -50,7 +50,8 @@ abstention rules take precedence over retrieved prose.
 
 Use the same local read interface from Claude, Pi, Codex, Grok, and Cursor:
 
-1. **MCP**, when the host registers the vault server (work scope: `brain`):
+1. **MCP**, when the host registers the vault server (work scope: `alambic-brain`, personal: `alambic-obvault`; Claude also exposes
+   same-named skills):
    `vault_context` for a bounded cited pack, `vault_search` for a ranked list,
    `vault_read` to open a cited note, `vault_health` for backend state.
 2. **CLI**, otherwise:
