@@ -252,16 +252,7 @@ check_stale_managed_claude_agent_links() {
   managed_surface_prune_stale_claude_agents check "$REPO_DIR" "$HOME"
 }
 
-check_link "$HOME/.config/nvim" "$REPO_DIR/nvim" "nvim"
-check_link "$HOME/.tmux.conf" "$REPO_DIR/tmux.conf" "tmux config"
-check_link "$HOME/.config/ghostty/config" "$REPO_DIR/ghostty/config" "ghostty config"
-check_link "$HOME/.config/herdr/config.toml" "$REPO_DIR/herdr/config.toml" "herdr config"
-check_link "$HOME/.config/herdr/plugins/config/sessionizer/config.toml" "$REPO_DIR/herdr/layouts/sessionizer.config.toml" "herdr Sessionizer layout"
-check_link "$HOME/.claude/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (claude)"
-check_link "$HOME/.codex/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (codex)"
-check_link "$HOME/.config/devin/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (devin)"
-check_link "$HOME/.agents/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (agents)"
-check_link "$HOME/.pi/agent/skills/herdr" "$REPO_DIR/herdr/skills/herdr" "herdr skill (pi)"
+# Env + herdr-skill links moved to dotfiles (scripts/fix-links); etabli owns core only.
 check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
 check_link "$HOME/.pi/agent/workflow" "$REPO_DIR/workflow" "pi workflow sources"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "pi PLAN_TEMPLATE.md"
