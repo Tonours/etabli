@@ -55,7 +55,8 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 
 - Before answering or planning anything that depends on prior research,
   decisions, conventions, preferences, or recurring incidents, consult the
-  canonical `obvault` knowledge base; do not wait for the user to mention it.
+  canonical `obvault` knowledge base (MCP/skill `alambic-brain` in work scope,
+  `alambic-obvault` in personal); do not wait for the user to mention it.
 - Follow `workflow/skills/obvault-memory.md`; the vault root is resolved per
   scope (`workflow/runtime/obvault-topic-resolver.mjs`: work -> `~/work/brain`
   when present, else `~/work/obvault`; personal -> `~/work/obvault`); read the

@@ -7,8 +7,9 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 - Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow: `workflow/agent-quick-card.md` first, `workflow/spec.md` (full map,
   wins on conflict) when the route or a gate is in doubt; review: `workflow/review-rubric.md`; tickets:
   `workflow/ticket-template.md`; plans: `PLAN_TEMPLATE*.md`, root `PLAN.md`.
-- Memory: proactively consult the memory vault (scope-resolved root: work -> ~/work/brain when present, else ~/work/obvault) per
-  `workflow/skills/obvault-memory.md`.
+- Memory: before investigating, check the memory vault first — MCP `alambic-brain` (`vault_context`/`vault_search`/`vault_read`)
+  or the `alambic-brain` skill (work scope; personal: `alambic-obvault`). Scope-resolved root: work -> ~/work/brain when
+  present, else ~/work/obvault; per `workflow/skills/obvault-memory.md`.
 
 ## Claude Workflow
 - Follow the Etabli workflow (quick card, then the route contract); infer the
