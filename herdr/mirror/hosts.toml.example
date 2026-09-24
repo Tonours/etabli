@@ -1,7 +1,0 @@
-# Herdr Mirror — laptop views macmini herd
-# Docs: https://github.com/nikok6/herdr-mirror
-
-[hosts.macmini]
-target = "macmini"
-# Mini is the long-running agent box (headless-friendly).
-always_control = true
