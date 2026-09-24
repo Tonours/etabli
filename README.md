@@ -111,7 +111,7 @@ scripts/verify-agentic-infra core
 cd pi && bun run verify:skills
 ```
 
-The public GitHub repository runs `agentic-infra` on `ubuntu-latest`. Private
+The public GitHub repository runs `agentic-infra` on `ubuntu-24.04`. Private
 repositories use the configured self-hosted labels instead. Check a live run
 with `gh run list --workflow agentic-infra.yml`.
 
