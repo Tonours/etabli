@@ -64,6 +64,8 @@ pi_import_smoke() {
     "./extensions/prefer-ipv4-dns.ts",
     "./extensions/rtk.ts",
     "./extensions/token-rate.ts",
+    "./extensions/session-hygiene.ts",
+    "./extensions/lib/session-hygiene-runtime.ts",
     "./extensions/no-comments.ts",
     "./extensions/lib/pi-runtime.ts",
     "./extensions/lib/rtk-runtime.ts",
@@ -130,10 +132,8 @@ run_selection() {
     found=1
     # Checks run concurrently; per-check output is buffered and replayed in
     # manifest order to keep the report deterministic. Most checks work inside
-    # their own mktemp tree and only read the repo. Two are known exceptions
-    # that mutate the repo and restore via trap: fix-links-smoke temporarily
-    # repoints pi/extensions/node_modules, and nvim-smoke snapshots/restores
-    # nvim/nvim-pack-lock.json. Do not add a third without the same discipline.
+    # their own mktemp tree and only read the repo. fix-links-smoke temporarily
+    # repoints pi/extensions/node_modules and restores it via trap.
     out="$out_root/$idx.out"
     IFS= read -r -n1 <&9
     (
@@ -195,6 +195,6 @@ case "${1:-all}" in
   core) run_selection profile core ;;
   full|all) run_selection profile full ;;
   live) run_live ;;
-  shell-docs|pi|nvim) run_selection group "$1" ;;
-  *) printf 'Usage: verify-agentic-infra [core|full|live|shell-docs|pi|nvim|all]\n' >&2; exit 2 ;;
+  shell-docs|pi) run_selection group "$1" ;;
+  *) printf 'Usage: verify-agentic-infra [core|full|live|shell-docs|pi|all]\n' >&2; exit 2 ;;
 esac

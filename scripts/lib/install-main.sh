@@ -16,7 +16,6 @@ BOOTSTRAP_DIR="$(cd "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)"
 # VERSIONS (centralized for maintenance)
 # ============================================================================
 readonly NERD_FONT_VERSION="v3.4.0"
-readonly MIN_NVIM_VERSION="0.12.2"
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -81,54 +80,6 @@ backup_path_move() {
     backup="$(backup_path "$path")"
     mv "$path" "$backup"
     print_warning "Existing path moved to $backup"
-}
-
-version_at_least() {
-    local current="$1"
-    local minimum="$2"
-    local current_major current_minor current_patch minimum_major minimum_minor minimum_patch
-
-    IFS=. read -r current_major current_minor current_patch <<EOF
-$current
-EOF
-    IFS=. read -r minimum_major minimum_minor minimum_patch <<EOF
-$minimum
-EOF
-
-    current_major=${current_major:-0}
-    current_minor=${current_minor:-0}
-    current_patch=${current_patch:-0}
-    minimum_major=${minimum_major:-0}
-    minimum_minor=${minimum_minor:-0}
-    minimum_patch=${minimum_patch:-0}
-
-    [ "$current_major" -gt "$minimum_major" ] && return 0
-    [ "$current_major" -lt "$minimum_major" ] && return 1
-    [ "$current_minor" -gt "$minimum_minor" ] && return 0
-    [ "$current_minor" -lt "$minimum_minor" ] && return 1
-    [ "$current_patch" -ge "$minimum_patch" ]
-}
-
-nvim_version() {
-    command -v nvim >/dev/null 2>&1 || return 1
-    nvim --version | sed -n '1s/^NVIM v//p' | awk '{print $1}'
-}
-
-ensure_nvim_version() {
-    local version
-
-    if ! version="$(nvim_version)"; then
-        print_warning "Neovim not available after dependency install"
-        return 1
-    fi
-
-    if version_at_least "$version" "$MIN_NVIM_VERSION"; then
-        print_success "Neovim $version available"
-        return 0
-    fi
-
-    print_warning "Neovim $version is older than required $MIN_NVIM_VERSION"
-    return 1
 }
 
 has_valid_rtk() {
@@ -301,28 +252,6 @@ install_npm_global_binary_link() {
     mkdir -p "$HOME/.local/bin"
     ln -sf "$target" "$HOME/.local/bin/$binary"
     print_success "$binary linked into ~/.local/bin"
-}
-
-sync_nvim_plugins() {
-    if ! command -v nvim &>/dev/null; then
-        print_warning "Neovim not available - skipping plugin sync"
-        return 0
-    fi
-
-    ensure_nvim_version || print_warning "Install Neovim $MIN_NVIM_VERSION+ before relying on this config"
-
-    print_step "Installing Neovim plugins through vim.pack..."
-    if nvim --headless +qa >/dev/null 2>&1; then
-        print_success "Neovim plugins installed"
-    else
-        print_warning "Neovim plugin install failed - run: nvim --headless +qa"
-    fi
-
-    if nvim --headless "+lua vim.notify = function() end" +qa >/dev/null 2>&1; then
-        print_success "Neovim config loads"
-    else
-        print_warning "Neovim config load check failed - run: nvim --headless +qa"
-    fi
 }
 
 install_pi_packages_from_settings() {
@@ -838,14 +767,6 @@ mkdir -p ~/.config ~/.local/share ~/.local/bin ~/.local/state
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Validate repo structure
-if [ ! -f "$REPO_DIR/tmux.conf" ]; then
-    print_warning "Missing tmux.conf at $REPO_DIR/tmux.conf - it will not be copied"
-fi
-if [ ! -d "$REPO_DIR/nvim" ]; then
-    print_warning "Missing Neovim config at $REPO_DIR/nvim - it will not be linked"
-fi
-
 echo ""
 echo "-------------------------------------------------------------------"
 echo "  Dev Environment Setup"
@@ -1011,95 +932,6 @@ fi
 print_success "Nerd Font installed"
 
 # ============================================================================
-# SETUP NEOVIM CONFIG
-# ============================================================================
-print_step "Setting up Neovim config..."
-
-mkdir -p ~/.config
-
-if [ -d "$REPO_DIR/nvim" ]; then
-    NVIM_TARGET="$REPO_DIR/nvim"
-    NVIM_LINK="$HOME/.config/nvim"
-    CURRENT_LINK_TARGET=""
-
-    if [ -L "$NVIM_LINK" ]; then
-        CURRENT_LINK_TARGET="$(readlink "$NVIM_LINK")"
-    fi
-
-    if [ -e "$NVIM_LINK" ] || [ -L "$NVIM_LINK" ]; then
-        if [ "$CURRENT_LINK_TARGET" != "$NVIM_TARGET" ]; then
-            backup_path_move "$NVIM_LINK"
-        fi
-    fi
-
-    if ln -sfn "$NVIM_TARGET" "$NVIM_LINK"; then
-        print_success "Neovim config linked"
-        sync_nvim_plugins
-    else
-        print_error "Failed to link Neovim config"
-    fi
-else
-    print_warning "Neovim config directory not found in $REPO_DIR/nvim"
-fi
-
-# ============================================================================
-# SETUP TMUX CONFIG
-# ============================================================================
-print_step "Setting up Tmux config..."
-
-if [ -f ~/.tmux.conf ] && [ ! -L ~/.tmux.conf ]; then
-    backup_file "$HOME/.tmux.conf"
-fi
-
-if [ -f "$REPO_DIR/tmux.conf" ]; then
-    if ln -sf "$REPO_DIR/tmux.conf" ~/.tmux.conf; then
-        print_success "Tmux config linked"
-    else
-        print_error "Failed to link tmux config"
-    fi
-else
-    print_warning "tmux.conf not found in $REPO_DIR"
-fi
-
-if [ ! -d ~/.tmux/plugins/tpm ]; then
-    git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-fi
-
-# ============================================================================
-# SETUP GHOSTTY CONFIG
-# ============================================================================
-print_step "Setting up Ghostty config..."
-
-GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
-GHOSTTY_CONFIG_LINK="$GHOSTTY_CONFIG_DIR/config"
-GHOSTTY_CONFIG_TARGET="$REPO_DIR/ghostty/config"
-
-if [ -f "$GHOSTTY_CONFIG_TARGET" ]; then
-    mkdir -p "$GHOSTTY_CONFIG_DIR"
-    if [ -f "$GHOSTTY_CONFIG_LINK" ] && [ ! -L "$GHOSTTY_CONFIG_LINK" ]; then
-        backup_file "$GHOSTTY_CONFIG_LINK"
-    fi
-    if ln -sf "$GHOSTTY_CONFIG_TARGET" "$GHOSTTY_CONFIG_LINK"; then
-        print_success "Ghostty config linked"
-    else
-        print_warning "Failed to link Ghostty config"
-    fi
-else
-    print_warning "Ghostty config not found in $REPO_DIR/ghostty/config"
-fi
-
-# ============================================================================
-# SETUP HERDR (agent terminal workspace)
-# ============================================================================
-print_step "Setting up Herdr config..."
-if bash "$REPO_DIR/herdr/scripts/setup.sh" --links; then
-    print_success "Herdr config, Sessionizer layout and skills linked"
-    print_warning "Run $REPO_DIR/herdr/scripts/setup.sh --install to install host-local plugins and integrations"
-else
-    print_warning "Herdr links failed; rerun herdr/scripts/setup.sh --links"
-fi
-
-# ============================================================================
 # SETUP AGENT WORKFLOW SURFACES
 # ============================================================================
 print_step "Setting up agent workflow surfaces..."
@@ -1127,7 +959,6 @@ mkdir -p ~/.local/bin
 
 append_path_entry "$HOME/.local/bin"
 
-install_script "herdr-sync-mini" || true
 install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true

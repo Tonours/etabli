@@ -10,7 +10,7 @@ export const TRACE_CAPABILITY = "prototype_offline";
 const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_ROWS = 20_000;
 const MAX_TOKEN_COUNT = 1_000_000_000;
-const TERMINALS = new Set(["completed", "blocked"]);
+const TERMINALS = new Set(["completed", "blocked", "ship_completed"]);
 const CAPABILITIES = new Set([TRACE_CAPABILITY, "diagnose_shadow", "propose_reviewed", "promote_automatic"]);
 const ADAPTERS = new Set(["pi", "claude"]);
 const ROUTES = new Set(["answer", "plan-loop", "implement", "plan-implement", "review", "verify", "adversary", "research-plan", "ops-stop", "ci-fix", "goal"]);
@@ -18,7 +18,8 @@ const LEDGER_EVENTS = new Set(WORKFLOW_EVENTS);
 const PLAN_STATUSES = new Set(["DRAFT", "CHALLENGED", "READY"]);
 const ADVERSARY_MODES = new Set(["plan", "code_diff"]);
 const REVIEW_STATUSES = new Set(["GO", "GO WITH NOTES", "BLOCK"]);
-const DECISION_LEDGER_EVENTS = new Set(["route_decided", "plan_created", "adversary_completed", "review_completed", "validation_run", "validation_failed", "completed", "blocked"]);
+const QUALITY_STATUSES = new Set(["pass", "unavailable"]);
+const DECISION_LEDGER_EVENTS = new Set(["route_decided", "plan_created", "adversary_completed", "review_completed", "quality_completed", "validation_run", "validation_failed", "completed", "blocked"]);
 
 export class TraceRetrospectError extends Error {
   constructor(code) {
@@ -99,6 +100,36 @@ function exactKeys(value, keys) {
   return Object.keys(value).sort().join(",") === [...keys].sort().join(",");
 }
 
+const ROUTE_DECISION_OPTIONAL_KEYS = new Set(["contract_path", "contract_sha256", "provenance"]);
+const CONTRACT_PROVENANCES = new Set(["deployed-pi", "deployed-agents", "repo"]);
+
+// Mirror of provenance_complete in scripts/lib/workflow-event-detail.jq:
+// change one, change the other. Absent object is fine (pre-T4 history);
+// a present object must be complete.
+function validModelProvenance(p) {
+  if (p === undefined) return true;
+  if (!p || typeof p !== "object" || Array.isArray(p)) return false;
+  const nonEmpty = (v) => typeof v === "string" && Boolean(v);
+  const req = p.requested, eff = p.effective;
+  if (!req || typeof req !== "object" || !nonEmpty(req.family) || !nonEmpty(req.model) || !nonEmpty(req.provider)) return false;
+  if (req.route !== undefined && !nonEmpty(req.route)) return false;
+  if (!eff || typeof eff !== "object" || !nonEmpty(eff.family) || !nonEmpty(eff.model) || !nonEmpty(eff.provider)) return false;
+  return Boolean(nonEmpty(p.runner) && nonEmpty(p.run_id));
+}
+
+// Mirror of the route_decided branch of strict_detail in
+// scripts/lib/workflow-event-detail.jq: change one, change the other.
+function validRouteDecidedDetail(detail) {
+  if (typeof detail.route !== "string" || !detail.route || typeof detail.reason !== "string" || !detail.reason) return false;
+  for (const key of Object.keys(detail)) {
+    if (key !== "route" && key !== "reason" && !ROUTE_DECISION_OPTIONAL_KEYS.has(key)) return false;
+  }
+  if (detail.contract_path !== undefined && (typeof detail.contract_path !== "string" || !detail.contract_path)) return false;
+  if (detail.contract_sha256 !== undefined && (typeof detail.contract_sha256 !== "string" || !detail.contract_sha256)) return false;
+  if (detail.provenance !== undefined && !CONTRACT_PROVENANCES.has(detail.provenance)) return false;
+  return true;
+}
+
 export function unavailableTraceObservation(adapter, reasonCodes, terminal = null) {
   return output({
     adapter,
@@ -133,13 +164,29 @@ function output({ adapter, completeness, reasonCodes, terminal, signals, usage, 
 function ledgerFacts(rows, run) {
   if (!rows.length || rows.some((row) => row.run !== run)) return { error: "ledger_run_mismatch" };
   if (rows.some((row) => Object.keys(row).sort().join(",") !== "detail,event,run,schema_version,ts" || row.schema_version !== 2 || !LEDGER_EVENTS.has(row.event) || !DECISION_LEDGER_EVENTS.has(row.event) || !row.detail || typeof row.detail !== "object" || Array.isArray(row.detail))) return { error: "ledger_shape_unknown" };
+  // AC2 sanctions concurrent exact-duplicate route_decided lines as valid and
+  // harmless (indistinguishable from a double-append once written, so a
+  // conflict verdict would be a false positive by construction). Collapse
+  // them before the conflict check; first occurrence keeps attribution.
+  // Duplicates of any other event still conflict.
+  const seenRoute = new Set();
+  rows = rows.filter((row) => {
+    if (row.event !== "route_decided") return true;
+    const canonical = canonicalJson(row);
+    if (seenRoute.has(canonical)) return false;
+    seenRoute.add(canonical);
+    return true;
+  });
   const canonicalRows = rows.map(canonicalJson);
   if (new Set(canonicalRows).size !== canonicalRows.length) return { error: "ledger_event_conflict" };
   const routeRows = rows.filter((row) => row.event === "route_decided");
-  if (routeRows.length !== 1 || rows[0] !== routeRows[0] || !ROUTES.has(routeRows[0]?.detail?.route) || typeof routeRows[0]?.detail?.reason !== "string" || !routeRows[0].detail.reason) return { error: "ledger_route_conflict" };
+  // First-route attribution is positional among route rows, not ledger rows:
+  // the router appends route_decided to an already-active (seeded) ledger,
+  // so the first route row need not be the ledger's first line.
+  if (routeRows.length < 1 || !ROUTES.has(routeRows[0]?.detail?.route) || typeof routeRows[0]?.detail?.reason !== "string" || !routeRows[0].detail.reason) return { error: "ledger_route_conflict" };
   for (const row of rows) {
     const detail = row.detail;
-    if (row.event === "route_decided" && !exactKeys(detail, ["route", "reason"])) return { error: "ledger_shape_unknown" };
+    if (row.event === "route_decided" && !validRouteDecidedDetail(detail)) return { error: "ledger_shape_unknown" };
     if (row.event === "plan_created" && (!exactKeys(detail, ["path", "status"]) || typeof detail.path !== "string" || !detail.path || !PLAN_STATUSES.has(detail.status))) return { error: "ledger_shape_unknown" };
     if (row.event === "validation_run" && (!exactKeys(detail, ["command", "exit"]) || typeof detail.command !== "string" || !detail.command || !Number.isInteger(detail.exit) || detail.exit < 0)) return { error: "ledger_shape_unknown" };
     if (row.event === "validation_failed" && (!exactKeys(detail, ["command", "exit", "failure"]) || typeof detail.command !== "string" || !detail.command || !Number.isInteger(detail.exit) || detail.exit <= 0 || typeof detail.failure !== "string" || !detail.failure)) return { error: "ledger_shape_unknown" };
@@ -148,7 +195,14 @@ function ledgerFacts(rows, run) {
         || (Array.isArray(detail.evidence) && detail.evidence.length > 0 && detail.evidence.every((item) => typeof item === "string" && item));
       if (!exactKeys(detail, ["status", "evidence"]) || !REVIEW_STATUSES.has(detail.status) || !validEvidence) return { error: "ledger_shape_unknown" };
     }
-    if (row.event === "adversary_completed" && (!exactKeys(detail, ["mode", "verdict", "accepted_findings", "rejected_findings"]) || !ADVERSARY_MODES.has(detail.mode) || typeof detail.verdict !== "string" || !detail.verdict || !Array.isArray(detail.accepted_findings) || !detail.accepted_findings.every((item) => typeof item === "string") || !Array.isArray(detail.rejected_findings) || !detail.rejected_findings.every((item) => typeof item === "string"))) return { error: "ledger_shape_unknown" };
+    // Mirror of the quality_completed branch of strict_detail in
+    // scripts/lib/workflow-event-detail.jq: change one, change the other.
+    if (row.event === "quality_completed") {
+      const validEvidence = (typeof detail.evidence === "string" && Boolean(detail.evidence))
+        || (Array.isArray(detail.evidence) && detail.evidence.length > 0 && detail.evidence.every((item) => typeof item === "string" && item));
+      if (!exactKeys(detail, ["status", "evidence"]) || !QUALITY_STATUSES.has(detail.status) || !validEvidence) return { error: "ledger_shape_unknown" };
+    }
+    if (row.event === "adversary_completed" && (!(exactKeys(detail, ["mode", "verdict", "accepted_findings", "rejected_findings"]) || exactKeys(detail, ["mode", "verdict", "accepted_findings", "rejected_findings", "model_provenance"])) || !ADVERSARY_MODES.has(detail.mode) || typeof detail.verdict !== "string" || !detail.verdict || !Array.isArray(detail.accepted_findings) || !detail.accepted_findings.every((item) => typeof item === "string") || !Array.isArray(detail.rejected_findings) || !detail.rejected_findings.every((item) => typeof item === "string") || !validModelProvenance(detail.model_provenance))) return { error: "ledger_shape_unknown" };
     if (row.event === "completed" && (!exactKeys(detail, ["summary"]) || typeof detail.summary !== "string" || !detail.summary)) return { error: "ledger_shape_unknown" };
     if (row.event === "blocked" && (!exactKeys(detail, ["reason", "needed_input"]) || typeof detail.reason !== "string" || !detail.reason || typeof detail.needed_input !== "string" || !detail.needed_input)) return { error: "ledger_shape_unknown" };
   }

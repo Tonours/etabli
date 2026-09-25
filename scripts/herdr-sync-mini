@@ -1,54 +1,12 @@
 #!/usr/bin/env bash
+# Compatibility entrypoint for an existing ~/.local/bin/herdr-sync-mini link.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${HERDR_MINI_HOST:-macmini}"
-REMOTE_TREE="${HERDR_MINI_TREE:-~/work/etabli-herdr}"
-[[ "$HOST" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.@-]*$ ]] || { echo 'Invalid HERDR_MINI_HOST (use an SSH alias)' >&2; exit 2; }
-command -v python3 >/dev/null || { echo 'python3 is required' >&2; exit 1; }
-quote() { python3 -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$1"; }
-python3 - "$REMOTE_TREE" <<'PY'
-from pathlib import PurePosixPath
-import sys
-p=sys.argv[1]
-if not (p.startswith('~/') or p.startswith('/')) or '..' in PurePosixPath(p).parts or any(ord(c)<32 for c in p):
-    sys.exit('HERDR_MINI_TREE must be an absolute or ~/ path without traversal/control characters')
-PY
-SSH=(ssh -T -o BatchMode=yes -o ConnectTimeout=10 "$HOST")
-# Stage the probe via a temp file: a heredoc inside $() misparses on
-# macOS bash 3.2 when the body contains ')' (early substitution end).
-REMOTE_PROBE="$(mktemp)"
-trap 'rm -f "$REMOTE_PROBE"' EXIT
-cat >"$REMOTE_PROBE" <<'REMOTE'
-set -euo pipefail
-TREE="$1"
-case "$TREE" in '~/'*) TREE="$HOME/${TREE#\~/}" ;; esac
-TREE="${TREE%/}"
-case "$TREE" in ''|/|"$HOME"|"$HOME/work") echo 'Refusing broad sync destination' >&2; exit 2 ;; esac
-[[ ! -L "$TREE" ]] || { echo 'Sync destination must not be a symlink' >&2; exit 2; }
-mkdir -p "$TREE"
-cd "$TREE"
-TREE="$(pwd -P)"
-HOME_REAL="$(cd "$HOME" && pwd -P)"
-WORK_REAL=""
-if [[ -d "$HOME/work" ]]; then WORK_REAL="$(cd "$HOME/work" && pwd -P)"; fi
-case "$TREE" in /|"$HOME_REAL"|"$WORK_REAL") echo 'Refusing broad canonical sync destination' >&2; exit 2 ;; esac
-printf '%s\n' "$TREE"
-REMOTE
-TREE="$("${SSH[@]}" "bash -s -- $(quote "$REMOTE_TREE")" <"$REMOTE_PROBE")"
-[[ "$TREE" == /* && "$TREE" != *$'\n'* ]] || { echo 'Invalid remote directory response' >&2; exit 1; }
-
-# Keep only managed source in this transfer; compiled plugins stay host-local.
-rsync -az "$REPO_DIR/herdr/" "$HOST:$(quote "$TREE")/"
-"${SSH[@]}" "mkdir -p $(quote "$TREE/runtime")"
-rsync -az "$REPO_DIR/workflow/runtime/obvault-topic-resolver.mjs" "$HOST:$(quote "$TREE/runtime")/"
-"${SSH[@]}" "bash -s -- $(quote "$TREE")" <<'REMOTE'
-set -euo pipefail
-export PATH="$HOME/.local/bin:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
-TREE="$1"
-bash "$TREE/scripts/setup.sh" --install
-# Reload changes without replacing the server or its running processes.
-herdr server reload-config
-bash "$TREE/scripts/setup.sh" --check
-REMOTE
-printf 'Herdr Mini sync verified on %s\n' "$HOST"
+DOTFILES_DIR="${DOTFILES_DIR:-$REPO_DIR/../dotfiles}"
+if [ ! -f "$DOTFILES_DIR/scripts/herdr-sync-mini" ]; then
+  printf 'Herdr sync moved to dotfiles; set DOTFILES_DIR to its checkout and retry\n' >&2
+  exit 1
+fi
+export ETABLI_DIR="$REPO_DIR"
+exec bash "$DOTFILES_DIR/scripts/herdr-sync-mini" "$@"

@@ -17,6 +17,8 @@ ALLOWED_EVENTS=(
   adversary_completed
   review_completed
   simplification_completed
+  quality_completed
+  ship_completed
   file_changed
   validation_run
   validation_failed
@@ -59,7 +61,7 @@ usage() {
 Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
        workflow-event [--dir path] activate <slug>
        workflow-event [--dir path] recover <slug> <reason-code>
-       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|autonomous-completed-strict|blocked-terminal]
+       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|autonomous-completed-strict|blocked-terminal|ship-completed|ship-stopped]
 EOF
 }
 
@@ -208,10 +210,17 @@ validate_ledger_file() {
     fi
     if [ -n "$terminal_line" ]; then
       if [ "$schema_version" = "2" ] || [ "$terminal_schema_version" = "2" ]; then
-        printf 'line %s: event follows terminal %s at line %s\n' "$count" "$terminal" "$terminal_line" >&2
-        return 1
+        # Single exception, mirroring append: ship-stopped order is
+        # ship_completed THEN blocked.
+        if [ "$event" = "blocked" ] && [ "$terminal" = "ship_completed" ]; then
+          :
+        else
+          printf 'line %s: event follows terminal %s at line %s\n' "$count" "$terminal" "$terminal_line" >&2
+          return 1
+        fi
+      else
+        legacy_post_terminal=1
       fi
-      legacy_post_terminal=1
     fi
     if [ "$run" != "$slug" ]; then
       printf 'line %s: run does not match %s\n' "$count" "$slug" >&2
@@ -221,7 +230,7 @@ validate_ledger_file() {
       printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2
       return 1
     fi
-    if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then
+    if [ "$event" = "completed" ] || [ "$event" = "blocked" ] || [ "$event" = "ship_completed" ]; then
       terminal="$event"
       terminal_line="$count"
       terminal_schema_version="$schema_version"
@@ -295,6 +304,10 @@ validate_ledger_file() {
     [ "$last_code_adversary" -gt "$last_change" ] || { printf 'profile %s requires non-blocking code_diff adversary after last file change\n' "$label" >&2; return 1; }
   }
 
+  # Single-sourced success-form predicate (operates on one ledger line):
+  # ship-completed requires it, ship-stopped requires its negation —
+  # an exhaustive split with no gap and no overlap.
+  SHIP_SUCCESS_FORM='.detail.ci_state == "green" and (.detail.pr_url | type == "string" and length > 0) and ([.detail.cumulative_review, .detail.thermo_nuclear, .detail.pr_body_style, .detail.delta_rereview, .detail.deciding_code] | all(type == "string" and ((startswith("not-reached:") | not)))) and ((.detail.thermo_nuclear | test("-open$") | not)) and .detail.deciding_code != "incomplete"'
   case "$profile" in
     structural) ;;
     autonomous-completed)
@@ -337,6 +350,21 @@ validate_ledger_file() {
       ;;
     blocked-terminal)
       [ "$terminal" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; return 1; }
+      ;;
+    ship-completed)
+      [ "$terminal" = "ship_completed" ] || { printf 'profile ship-completed requires final ship_completed event\n' >&2; return 1; }
+      for required in file_changed validation_run outcome_metric; do
+        jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile ship-completed missing %s\n' "$required" >&2; return 1; }
+      done
+      jq -e 'select(.event == "outcome_metric") | select(.detail.success == true)' "$file" >/dev/null || { printf 'profile ship-completed requires successful outcome_metric\n' >&2; return 1; }
+      fresh="$(jq -s -r 'to_entries as $e | ([ $e[] | select(.value.event=="file_changed")] | last | .key // -1) as $c | ([ $e[] | select(.key > $c and (.value.event=="validation_run" or .value.event=="validation_failed"))] | group_by(.value.detail.command) | map(last)) as $latest | if ($latest | length) > 0 and all($latest[]; .value.event=="validation_run" and .value.detail.exit==0) then "1" else "0" end' "$file")" || return 1
+      [ "$fresh" = "1" ] || { printf 'profile ship-completed requires validation after last file change with every latest attempt succeeding\n' >&2; return 1; }
+      jq -s -e '[.[] | select(.event == "ship_completed")] | last | select('"$SHIP_SUCCESS_FORM"')' "$file" >/dev/null || { printf 'profile ship-completed requires success-form ship_completed (green, URL, no markers, no open findings)\n' >&2; return 1; }
+      ;;
+    ship-stopped)
+      [ "$terminal" = "blocked" ] || { printf 'profile ship-stopped requires final blocked event\n' >&2; return 1; }
+      jq -e 'select(.event == "ship_completed")' "$file" >/dev/null || { printf 'profile ship-stopped requires ship_completed before terminal\n' >&2; return 1; }
+      jq -s -e '[.[] | select(.event == "ship_completed")] | last | select(('"$SHIP_SUCCESS_FORM"') | not)' "$file" >/dev/null || { printf 'profile ship-stopped requires non-success-form ship_completed (au moins un marqueur)\n' >&2; return 1; }
       ;;
     *)
       printf 'unknown validation profile: %s\n' "$profile" >&2
@@ -671,9 +699,16 @@ append_locked_body() {
     fi
   fi
 
-  if [ "$terminal" = "completed" ] || [ "$terminal" = "blocked" ]; then
-    printf 'refusing append after terminal event: %s\n' "$terminal" >&2
-    return 1
+  if [ "$terminal" = "completed" ] || [ "$terminal" = "blocked" ] || [ "$terminal" = "ship_completed" ]; then
+    # Single exception: the ship-stopped order is ship_completed THEN blocked
+    # (the arrêt receipt precedes the terminal stop). Nothing else follows a
+    # terminal, and nothing follows blocked.
+    if [ "$terminal" = "ship_completed" ] && [ "$event" = "blocked" ]; then
+      :
+    else
+      printf 'refusing append after terminal event: %s\n' "$terminal" >&2
+      return 1
+    fi
   fi
 
   event_line="$(jq -nc \
@@ -703,7 +738,7 @@ append_locked_body() {
   else
     rm -f "$integrity_cache"
   fi
-  if [ "$event" = "completed" ] || [ "$event" = "blocked" ]; then
+  if [ "$event" = "completed" ] || [ "$event" = "blocked" ] || [ "$event" = "ship_completed" ]; then
     local pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER"
     if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
       rm -f "$pointer"
@@ -846,7 +881,7 @@ case "$command" in
       exit 1
     }
     terminal_event="$(tail -n 1 "$file" | jq -r '.event')"
-    if [ "$terminal_event" = "completed" ] || [ "$terminal_event" = "blocked" ]; then
+    if [ "$terminal_event" = "completed" ] || [ "$terminal_event" = "blocked" ] || [ "$terminal_event" = "ship_completed" ]; then
       printf 'cannot activate a terminal ledger: %s\n' "$slug" >&2
       exit 1
     fi
