@@ -17,7 +17,7 @@ duplicates="$(awk -F '\t' '!/^#/ && NF {print $3}' "$MANIFEST" | sort | uniq -d)
 
 while IFS=$'\t' read -r profile group label target; do
 	case "$profile" in core | full | live) ;; *) fail "unknown profile for $label: $profile" ;; esac
-	case "$group" in shell-docs | pi | nvim) ;; *) fail "unknown group for $label: $group" ;; esac
+	case "$group" in shell-docs | pi) ;; *) fail "unknown group for $label: $group" ;; esac
 	[ -n "$label" ] && [ -n "$target" ] || fail "empty label or target"
 	case "$target" in
 	builtin:*) ;;
@@ -64,7 +64,17 @@ jev-shadow-smoke
 harness-trace-retrospect-smoke
 review-contract-surface-smoke
 worker-recovery-smoke
-workflow-context-budget-smoke'
+workflow-context-budget-smoke
+guards-active
+ledger-check
+contract-coherence
+ship-order
+ref-linter
+adapter-sync
+rule-registry
+router-parity
+proof-shadow
+skill-hygiene'
 # Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
 # review-contract-surface-smoke (<50 ms) — the merge gate that must catch
 # contract-surface regressions like the CR-B4 union-cap leak.
@@ -76,10 +86,19 @@ workflow-context-budget-smoke'
 # instruction context.
 # Core budget: 22 checks. The Jev gates and offline trace-retrospect smoke
 # protect the semantic surfaces without making provider calls.
+# Core budget: 27 checks. T2-T5 added guards-active, ledger-check,
+# contract-coherence, ship-order without updating this pin (full was red);
+# T6 step 1 adds ref-linter (~3s, hermetic). Exact count from here on.
+# T6 step 2 adds adapter-sync (~2s, hermetic).
+# T6 step 3 adds rule-registry + router-parity (one smoke file, two labels).
+# T6 step 4 adds proof-shadow (node hook fixtures, hermetic gh stub).
+# T7 step 2 adds skill-hygiene (DMI flags + native probe; AC2a/AC3/AC4 sections append).
+# T7 step 3 appends skill-trigger-eval (frozen recompute + compare) and
+# codex-source (hermetic source-measure gate) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -le 22 ] ||
-	fail "core profile exceeds 22 checks"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 32 ] ||
+	fail "core profile must hold exactly 32 checks"
 
 expected_full='pr-latest-head-status-smoke
 leap-harness-validation-smoke
@@ -117,7 +136,6 @@ pi-review-hunter-smoke
 pi-import-smoke
 fix-links-smoke
 install-smoke
-nvim-smoke
 graph-contract-smoke
 graph-neighborhood-smoke
 action-graph-smoke
@@ -133,7 +151,6 @@ recurring-run-goal-pattern-smoke
 skill-eval-smoke
 etabli-harness-eval-smoke
 etabli-harness-eval-v2-smoke
-codex-skill-description-smoke
 runtime-skill-canary-smoke
 session-handoff-smoke
 skill-catalog-name-smoke
@@ -141,8 +158,6 @@ skill-tree-hash-smoke
 sync-vendor-subpath-smoke
 claude-skill-load-check-smoke
 pi-skill-load-check-smoke
-herdr-claude-relaunch-smoke
-herdr-setup-smoke
 vendor-surface-policy-smoke
 vendor-prune-modes-smoke
 jev-review-test
@@ -157,7 +172,9 @@ jev-efficiency-candidate-test
 jev-efficiency-campaign-test
 jev-plan-implement-campaign-test
 jev-self-improvement-controller-test
-skills-lock-coverage-smoke'
+skills-lock-coverage-smoke
+skill-trigger-eval
+codex-source'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
@@ -175,8 +192,6 @@ printf '%s\n' "$runner_source" | grep -Fq 'SUMMARY:' ||
 	fail "verify-agentic-infra lost the failure summary"
 printf '%s\n' "$runner_source" | grep -Fq 'fix-links-smoke' ||
 	fail "verify-agentic-infra must name the repo-mutating checks"
-printf '%s\n' "$runner_source" | grep -Fq 'nvim-smoke' ||
-	fail "verify-agentic-infra must name the repo-mutating checks"
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
 
@@ -191,11 +206,8 @@ pi-import-smoke'
 actual_pi="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "pi" {print $3}' "$MANIFEST")"
 [ "$actual_pi" = "$expected_pi" ] || fail "legacy Pi group membership/order drifted"
 
-expected_nvim='fix-links-smoke
-install-smoke
-nvim-smoke'
 actual_nvim="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "nvim" {print $3}' "$MANIFEST")"
-[ "$actual_nvim" = "$expected_nvim" ] || fail "legacy Nvim group membership/order drifted"
+[ -z "$actual_nvim" ] || fail "Nvim checks belong to dotfiles, not Etabli: $actual_nvim"
 
 live_output_file="$(mktemp)"
 trap 'rm -f "$live_output_file"' EXIT
@@ -211,10 +223,13 @@ if grep -Eq '^(RUN|PASS) ' "$live_output_file"; then
 	fail "live without opt-ins must not run or pass a target"
 fi
 
-for group in shell-docs pi nvim; do
+for group in shell-docs pi; do
 	count="$(grep -Fc "scripts/verify-agentic-infra $group" "$WORKFLOW")"
 	[ "$count" -eq 1 ] || fail "CI must call canonical group $group exactly once, found $count"
 done
+if grep -Fq 'scripts/verify-agentic-infra nvim' "$WORKFLOW"; then
+	fail "Neovim CI belongs to dotfiles"
+fi
 
 shell_docs_job="$(
 	awk '

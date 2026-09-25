@@ -85,11 +85,6 @@ if ! HOME="$TMP_HOME" "$SCRIPT" --verbose >"$SECOND_CHECK_OUTPUT"; then
   exit 1
 fi
 
-assert_link "$TMP_HOME/.config/nvim" "$ROOT_DIR/nvim"
-assert_link "$TMP_HOME/.tmux.conf" "$ROOT_DIR/tmux.conf"
-assert_link "$TMP_HOME/.config/ghostty/config" "$ROOT_DIR/ghostty/config"
-assert_link "$TMP_HOME/.config/herdr/config.toml" "$ROOT_DIR/herdr/config.toml"
-assert_link "$TMP_HOME/.config/herdr/plugins/config/sessionizer/config.toml" "$ROOT_DIR/herdr/layouts/sessionizer.config.toml"
 assert_link "$TMP_HOME/.pi/agent/skills/review" "$ROOT_DIR/pi/skills/review"
 assert_link "$TMP_HOME/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_link "$TMP_HOME/.pi/agent/skills/adversary" "$ROOT_DIR/pi/skills/adversary"
@@ -125,7 +120,6 @@ assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.config/devin/skills/react-doctor-100"
 assert_not_exists "$TMP_HOME/.config/devin/skills/suite-router"
 assert_link "$TMP_HOME/.config/devin/skills/external-skill" "$TMP_HOME/external-skill"
-assert_link "$TMP_HOME/.config/devin/skills/herdr" "$ROOT_DIR/herdr/skills/herdr"
 assert_link "$TMP_HOME/.config/devin/skills/ask-matt" "$ROOT_DIR/vendor/mattpocock/skills/engineering/ask-matt"
 assert_not_exists "$TMP_HOME/.config/devin/skills/ember-employer-suite"
 assert_not_exists "$TMP_HOME/.config/devin/skills/adonisjs-suite"

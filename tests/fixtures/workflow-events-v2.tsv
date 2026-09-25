@@ -3,6 +3,7 @@ plan_created	status	{"path":"PLAN.md","status":"READY"}
 adversary_completed	mode	{"mode":"plan","verdict":"GO","accepted_findings":[],"rejected_findings":[]}
 review_completed	status	{"status":"GO","evidence":["review"]}
 simplification_completed	status	{"status":"passed","evidence":"diff inspected"}
+quality_completed	status	{"status":"pass","evidence":"code-quality"}
 file_changed	path	{"path":"src/example.ts","change":"updated"}
 validation_run	command	{"command":"true","exit":0}
 validation_failed	failure	{"command":"false","exit":1,"failure":"expected failure"}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# skills-lock.json must pin the herdr skill and every Claude scoped skill tree.
+# skills-lock.json must pin every Claude scoped skill tree.
 # Expected trees are derived from the filesystem (not from the lock generator)
 # and hashed with the shared skill-tree hasher, so a missed tree fails here.
 set -euo pipefail
@@ -26,7 +26,7 @@ const { hashSkillTree } = await import(
   pathToFileURL(join(root, "scripts/lib/skill-tree-hash.mjs")).href
 );
 
-const roots = [{ key: "herdr/herdr", root: join(root, "herdr", "skills", "herdr") }];
+const roots = [];
 const scopesRoot = join(root, "claude", "scopes");
 for (const scope of (await readdir(scopesRoot)).sort()) {
   const skillsDir = join(scopesRoot, scope, "skills");
@@ -67,6 +67,6 @@ while IFS=$'\t' read -r key hash; do
   count=$((count + 1))
 done <"$TMP_DIR/expected"
 
-[ "$count" -ge 17 ] || fail "coverage smoke found only $count pinned trees; derivation is broken"
+[ "$count" -ge 16 ] || fail "coverage smoke found only $count pinned trees; derivation is broken"
 
 printf 'skills lock coverage smoke test: ok (%s pinned trees)\n' "$count"

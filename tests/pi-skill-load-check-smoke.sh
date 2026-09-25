@@ -172,4 +172,86 @@ if PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/dump-final.txt" --home "$HO
   fail "missing package SKILL.md cannot silently pass"
 fi
 
+write_settings '"!deslop", "!find-skills", "!ghost-absent-xyz"'
+if ! PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/dump-final.txt" --home "$HOME_FIX" >/dev/null 2>&1; then
+  fail "deny entry for an absent skill must be inert, not B2(ii)-extra"
+fi
+
+SUB_HOME="$TMP_DIR/subhome"
+mkdir -p "$SUB_HOME/.pi/agent/skills"
+write_skill "$SUB_HOME/.pi/agent/skills/plan-loop" plan-loop 0
+write_skill "$SUB_HOME/.pi/agent/skills/deslop" deslop 0
+printf '%s\n' '{ "skills": ["!deslop", "!find-skills", "!ghost-absent-xyz"], "packages": [] }' >"$SUB_HOME/.pi/agent/settings.json"
+cat >"$TMP_DIR/sub-dump.txt" <<DUMP
+You are a coding assistant.
+
+The following skills provide specialized instructions for specific tasks.
+<available_skills>
+  <skill>
+    <name>plan-loop</name>
+    <location>$SUB_HOME/.pi/agent/skills/plan-loop/SKILL.md</location>
+    <description>fixture</description>
+  </skill>
+</available_skills>
+DUMP
+if ! PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/sub-dump.txt" --home "$SUB_HOME" >/dev/null 2>&1; then
+  fail "subset universe with union deny-list must pass (absent denies inert)"
+fi
+
+mkdir -p "$HOME_FIX/.agents/skills/deslop.bak.20240101-000000"
+printf -- '---\nname: deslop\ndescription: stale backup\n---\nbody\n' \
+  >"$HOME_FIX/.agents/skills/deslop.bak.20240101-000000/SKILL.md"
+write_settings '"!deslop", "!find-skills"'
+if PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/dump-final.txt" --home "$HOME_FIX" >"$TMP_DIR/bak-out.txt" 2>&1; then
+  fail "deploy backup dirs (*.bak.*) inside skill roots must fail closed (Pi loads them)"
+fi
+grep -q "stale skill backup" "$TMP_DIR/bak-out.txt" || fail "bak failure unexplained"
+grep -q "quarantine" "$TMP_DIR/bak-out.txt" || fail "bak failure names no quarantine remedy"
+
+NEST_HOME="$TMP_DIR/nest-home"
+mkdir -p "$NEST_HOME/.pi/agent/skills/wrapper/shadow.bak.5"
+printf -- '---\nname: shadowtest\ndescription: nested stale backup\n---\nbody\n' \
+  >"$NEST_HOME/.pi/agent/skills/wrapper/shadow.bak.5/SKILL.md"
+if "$CHECK" --home "$NEST_HOME" >"$TMP_DIR/nest-out.txt" 2>&1; then
+  fail "nested backup dirs (*.bak.* at depth) must fail closed (Pi loads them)"
+fi
+grep -q "stale skill backup" "$TMP_DIR/nest-out.txt" || fail "nested bak failure unexplained"
+grep -q "shadow.bak.5" "$TMP_DIR/nest-out.txt" || fail "nested bak path not shown"
+
+if [ "$(id -u)" != "0" ]; then
+  SCAN_HOME="$TMP_DIR/scan-home"
+  mkdir -p "$SCAN_HOME/.agents/skills/locked/inner"
+  chmod 000 "$SCAN_HOME/.agents/skills/locked"
+  if "$CHECK" --home "$SCAN_HOME" >"$TMP_DIR/scan-out.txt" 2>&1; then
+    chmod 755 "$SCAN_HOME/.agents/skills/locked"
+    fail "unscannable skill root must fail closed"
+  fi
+  chmod 755 "$SCAN_HOME/.agents/skills/locked"
+  grep -q "cannot scan" "$TMP_DIR/scan-out.txt" || fail "scan failure names no cause"
+else
+  printf 'SKIP scan-failure fixture: running as root\n'
+fi
+
+DANGL_HOME="$TMP_DIR/dangl-home"
+mkdir -p "$DANGL_HOME/.agents"
+ln -s /nonexistent-xyz "$DANGL_HOME/.agents/skills"
+if "$CHECK" --home "$DANGL_HOME" >"$TMP_DIR/dangl-out.txt" 2>&1; then
+  fail "dangling skill root must fail fast"
+fi
+grep -q "not a directory" "$TMP_DIR/dangl-out.txt" || fail "dangling root failure unexplained"
+
+ROOTLINK_HOME="$TMP_DIR/rootlink-home"
+mkdir -p "$ROOTLINK_HOME/real/deep.bak.3"
+printf -- '---\nname: x\ndescription: x\n---\nbody\n' >"$ROOTLINK_HOME/real/deep.bak.3/SKILL.md"
+mkdir -p "$ROOTLINK_HOME/.agents"
+ln -s "$ROOTLINK_HOME/real" "$ROOTLINK_HOME/.agents/skills"
+if "$CHECK" --home "$ROOTLINK_HOME" >"$TMP_DIR/rootlink-out.txt" 2>&1; then
+  fail "linked skill root must still be scanned"
+fi
+grep -q "deep.bak.3" "$TMP_DIR/rootlink-out.txt" || fail "linked root scan missed the nested backup"
+
+PINNED_DENY='["!adonisjs-architecture","!adonisjs-backend","!adonisjs-best-practices","!adonisjs-review","!adonisjs-testing","!adonisjs-tuyau","!brave-search","!bug-bounty","!check-compiler-errors","!code-review","!code-simplifier","!control-cli","!control-ui","!deslop","!electron-audit","!find-skills","!fix-ci","!fix-merge-conflicts","!full-output-enforcement","!get-pr-comments","!html-design-prototypes","!html-prototype","!impeccable","!loop-on-ci","!make-pr-easy-to-review","!markdown-converter","!new-branch-and-pr","!review-and-ship","!run-smoke-tests","!tanstack-start-best-practices","!ui","!verify-this","!web-audit","!weekly-review","!what-did-i-get-done","!workflow-from-chats"]'
+tracked_deny="$(jq -c '[.skills[] | select(startswith("!"))] | sort' "$ROOT_DIR/pi/agent/settings.json")"
+[ "$tracked_deny" = "$PINNED_DENY" ] || fail "tracked deny-list drifted: $tracked_deny"
+
 printf '%s\n' "PASS: pi-skill-load-check fixture assertions"
