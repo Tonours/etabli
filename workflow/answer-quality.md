@@ -65,7 +65,7 @@ Emit the matching reply shape in the last message:
 - Repo/workflow answer: inspect current files and Git state first; never rely on
   memory alone for drift-prone status.
 - Research answer: include source URLs and confidence labels; validate repo
-  research artifacts with `scripts/research-proof-check`.
+  research artifacts with `scripts/research-proof-check`. <!-- etabli-only -->
 - Implementation handoff: report files changed, checks run, results, remaining
   risks, archive state, and whether `PLAN.md` still exists.
 - obvault-backed answer: consult obvault via the bounded context contract in
@@ -76,7 +76,7 @@ Emit the matching reply shape in the last message:
 
 ## Mechanical Check
 
-Use `scripts/answer-quality-check` for durable research artifacts, repo
+Use `scripts/answer-quality-check` for durable research artifacts, repo <!-- etabli-only -->
 handoffs, implementation summaries, and obvault-backed notes that are written to
 disk. The helper validates objective markers: source evidence, local-path or
 command evidence, uncertainty labels, validation/risk markers, obvault
@@ -88,7 +88,7 @@ by this contract.
 
 ## Representative Eval
 
-Use `scripts/answer-quality-eval` to run the versioned fixture corpus in
+Use `scripts/answer-quality-eval` to run the versioned fixture corpus in <!-- etabli-only -->
 `tests/fixtures/answer-quality/manifest.tsv`. The corpus covers typical, edge,
 and adversarial examples for research, repo, handoff, obvault-backed, simple,
 and overclaim behavior. This is a deterministic regression eval for the helper,

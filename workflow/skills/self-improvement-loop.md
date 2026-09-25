@@ -117,7 +117,7 @@ pushes, posts, deploys, or changes external systems.
 ## Required Sequence
 
 1. Inspect current repo state and relevant evidence sources.
-2. Run or consult `scripts/workflow-retrospect` when recurring evidence is the
+2. Run or consult `scripts/workflow-retrospect` when recurring evidence is the <!-- etabli-only -->
    question.
 3. Classify each candidate with source paths, confidence, proposed outcome, and
    held-in / held-out validation surfaces.
@@ -139,12 +139,12 @@ pushes, posts, deploys, or changes external systems.
 ## Token lens
 
 Context cost is a first-class self-improvement input. The frozen metric is
-`scripts/workflow-context-budget` over the surfaces declared in
+`scripts/workflow-context-budget` over the surfaces declared in <!-- etabli-only -->
 `workflow/runtime/context-budget.json`: the characters an agent loads for a
 route, or on every turn, with one ceiling per surface.
 
 - Inputs: `scripts/workflow-context-budget --json`; the `context budget`,
-  `telemetry` and `terminal` sections of `scripts/workflow-retrospect`;
+  `telemetry` and `terminal` sections of `scripts/workflow-retrospect`; <!-- etabli-only -->
   measured `outcome_metric` events, never synthesized ones.
 - Ratchet-only: after a validated trim, `scripts/workflow-context-budget
   --ratchet` lowers ceilings to `ceil(chars * 1.03)`; it never raises one. A
@@ -155,7 +155,7 @@ route, or on every turn, with one ceiling per surface.
   counts) → candidates classified as above → READY `PLAN.md` → trim or move
   with pointers, rules never deleted → focused checks → `--ratchet` → the core
   gate holds the new floor for the next cycle.
-- Unattended bound: a `recurring-run` may execute `scripts/workflow-retrospect`
+- Unattended bound: a `recurring-run` may execute `scripts/workflow-retrospect` <!-- etabli-only -->
   and write only its report under `.workflow/<slug>/`. It never edits contract
   files, never runs `--ratchet`, never authors or promotes `PLAN.md`. Applying
   a candidate requires a user-invoked `plan-implement`.

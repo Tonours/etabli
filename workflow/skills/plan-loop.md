@@ -32,7 +32,7 @@ and report the missing paths as a warning, not a blocker.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad or risky work.
 4. Set `Status: DRAFT` first.
-5. Fill `Workflow Contract` for non-trivial plans:
+5. Fill `Workflow Contract` (every plan):
    - `Route`: the workflow route from `workflow/spec.md`.
    - `Role`: planner, challenger, reviewer, verifier, implementer, reporter,
      or a bounded combination.
@@ -49,7 +49,7 @@ and report the missing paths as a warning, not a blocker.
    trace in `PLAN.md`; do not create a second active artifact.
 7. Do not mark `READY` if route, role, stop condition, required evidence,
    checks, or a disposition for any material spec/code gap is missing for
-   non-trivial implementation-bound work. Name the smallest executable
+   implementation-bound work. Name the smallest executable
    end-to-end slice and verify its environment and validation surface are
    available before depending on them.
 8. Update `PLAN.md` in place to `CHALLENGED` or `READY`.
@@ -60,7 +60,7 @@ and report the missing paths as a warning, not a blocker.
 
 A plan is `READY` only with: a clear goal; bounded scope and non-goals when
 needed; concrete steps; named files or areas for risky changes; checks to run;
-route, role, stop condition and required evidence for non-trivial work; known
+route, role, stop condition and required evidence; known
 risks or an explicit "none"; facts separated from assumptions when the task
 depends on uncertain context; a populated requirement trace with a disposition
 for every material spec/code gap; no blocking open question. `workflow/spec.md`

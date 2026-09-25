@@ -59,7 +59,7 @@ append these events directly; see `workflow/skills/program-orchestration.md`.
 A `harness_proposal` whose `candidate` matches a prior
 `harness_candidate_rejected.candidate` or a rejected
 `harness_validation_completed.candidate` must list it in `supersedes`; enforced
-by `scripts/workflow-supersession-check`.
+by `scripts/workflow-supersession-check`. <!-- etabli-only -->
 
 A `runtime_receipt` is a non-cryptographic parent-process observation binding a
 ledger assertion to a hashed subject (path or command) and exit; it stores only
@@ -79,7 +79,7 @@ whose totals must sum to `total_tokens` when measured), `batch_wall_clock_ms`,
 `batch_started_at`, `batch_terminal_at` (ISO-8601 Z). Prefer `total_tokens` =
 all model participants; prefer `batch_wall_clock_ms` = batch makespan for
 verified throughput. Producers: Pi `agent_settled` via
-`scripts/lib/outcome-metric-emit.mjs`, CLI `scripts/workflow-outcome-metric`.
+`scripts/lib/outcome-metric-emit.mjs`, CLI `scripts/workflow-outcome-metric`. <!-- etabli-only -->
 Retrospect counts usage coverage only when `measured:true` has a complete valid
 usage tuple: non-negative integer input/output/total tokens, non-negative
 integer tool calls and non-negative elapsed time, with total at least input plus
@@ -122,7 +122,7 @@ also carry a relative `comparison_path` and its `comparison_sha256`; the
 validator reads that immutable comparator output and checks its status, verdict,
 provenance and artifact fingerprints before accepting the decision. The
 `autonomous-completed-strict` terminal profile invokes
-`scripts/workflow-self-improvement-integrity` itself, so a caller cannot pass
+`scripts/workflow-self-improvement-integrity` itself, so a caller cannot pass <!-- etabli-only -->
 the profile by checking only the presence of comparator fields.
 The Etabli repository deployment includes the pinned `core-v2` chain; a generic
 scaffold that has not installed a project-specific evaluator cannot certify a

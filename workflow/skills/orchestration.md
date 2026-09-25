@@ -67,7 +67,7 @@ rejects the call otherwise. Its answer remains `proxy_supported` and cannot
 override structured state or completion evidence.
 
 For a multi-unit program, derive restart state from the immutable manifest and
-canonical ledger with `scripts/program-state` (etabli repo only; the program control plane is
+canonical ledger with `scripts/program-state` (etabli repo only; the program control plane is <!-- etabli-only -->
 frozen — see program-orchestration.md); do not treat its
 `replay_complete` output as live runtime confirmation.
 
@@ -141,7 +141,7 @@ Claude:
   per `workflow/events.md`, as required by `workflow/spec.md`.
 - `plan-ready-guard.mjs` is an opt-in local hook that proves guard behavior in
   smoke tests. Route classification stays library-only
-  (`workflow/runtime/workflow-router-core.mjs`), covered by `scripts/router-eval`.
+  (`workflow/runtime/workflow-router-core.mjs`), covered by `scripts/router-eval`. <!-- etabli-only -->
 - Hooks are deterministic guardrails for blocking. They do not inject route
   context, and they do not replace task state or completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one

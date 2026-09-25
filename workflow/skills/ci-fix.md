@@ -21,7 +21,13 @@ this contract.
 2. If dirty, stash with `git stash push -u -m ci-fix-autostash`.
 3. Always restore the stash before returning on success, abort, or block. If
    `git stash pop` conflicts, report it and overwrite nothing.
-4. Record start time. Stop after about 45 minutes, including wait time.
+4. Segments: run slug `ci-fix-<PR>-r<n>` (one ledger per loop — a
+   terminal ledger cannot be reopened; n = 1, 2, …). GLOBAL deadline
+   t0+45min where t0 = first segment's first event ts (no fresh clock
+   at preflight: this loop stops at the deadline even mid-attempt).
+   Attempts = Σ CI-result events across segments ≤ 5. Pre-loop gate:
+   <5min left or attempts exhausted → refuse with `capped` (never
+   start a doomed loop).
 5. Verify `gh auth status`.
 
 ## Target
@@ -98,4 +104,28 @@ Validation:
 - command -> result
 Manual follow-up:
 Stash state:
+```
+
+## Event Ledger
+
+`ci-fix` is an autonomous route: it must record the event ledger
+(`workflow/spec.md`). This route is not `plan-implement`, so the autonomous
+completion profile does not apply.
+
+- Run slug: `ci-fix-<PR number>-r<n>` (one ledger per loop; budget and
+  attempts accumulate across segments of the same PR).
+- Minimal events: each observed CI outcome as `validation_failed` (with
+  `failure`) or `validation_run` (`exit` 0), then one honest terminal
+  (`completed` when green, `blocked` otherwise, with the reason).
+- Append via `scripts/workflow-event` only; same form guarantee as every
+  writer (`workflow/events.md`).
+
+```sh
+# ci-fix-ledger-example-begin
+WF="$TMP/.workflow"
+"$ROOT/scripts/workflow-event" --dir "$WF" append ci-fix-17-r1 validation_failed '{"command":"ci: vitest unit","exit":1,"failure":"3 assertion failures"}'
+"$ROOT/scripts/workflow-event" --dir "$WF" append ci-fix-17-r1 validation_run '{"command":"ci: vitest unit","exit":0}'
+"$ROOT/scripts/workflow-event" --dir "$WF" append ci-fix-17-r1 completed '{"summary":"CI green on PR branch after 1 fix attempt"}'
+"$ROOT/scripts/workflow-event" --dir "$WF" validate ci-fix-17-r1
+# ci-fix-ledger-example-end
 ```

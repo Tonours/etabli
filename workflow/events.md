@@ -11,11 +11,24 @@ shape:
 ```
 
 Resume by replaying `events.jsonl`; derived summaries are disposable, not a
-second source of truth. A schema-v2 `completed` or `blocked` event must be the
-final event; with neither, the run is in progress. Legacy ledgers remain
-readable but are not authoritative for new strict profiles.
+second source of truth. A schema-v2 `completed`, `blocked`, or
+`ship_completed` event must be final — with none, the run is in progress;
+the single exception is the ship-stopped order `ship_completed` THEN final
+`blocked`. Legacy ledgers remain readable but are not authoritative for new
+strict profiles.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
+On Pi, `route_decided` is router-owned: the extension records issuance (with
+contract evidence when the route maps to a skill); agents must not hand-append
+it there. Other harnesses append it by hand via the CLI.
+Agents must use the CLI: direct appends bypass type and detail validation and
+fail `scripts/workflow-ledger-check`. The Pi/Codex harness extensions are the <!-- etabli-only -->
+single named exception: their synchronous hot paths append schema_version 2
+envelopes directly (same shape the CLI would accept); a shared serialized
+writer is a parked follow-up. Every line, whatever the writer, must validate.
+Tightening strict validation flips terminal history that predates the rule:
+inventory such ledgers in `workflow/runtime/ledger-drift-grandfathered.json`
+instead of rewriting them.
 New appends are serialized behind a five-second `lockf`, `flock`, or `shlock`
 lock. Writer integrity proofs, validator semantics, measurement recovery and
 the program event family are documented in `workflow/events-validator.md`.
@@ -32,17 +45,19 @@ replacement instead of deleting history. When that script is unavailable in a
 scaffolded project, an equivalent single validated append is acceptable. Do not
 edit earlier lines.
 
-Mine recurring workflow issues with `scripts/workflow-retrospect`.
+Mine recurring workflow issues with `scripts/workflow-retrospect`. <!-- etabli-only -->
 
 ## Event Types
 
 | Type | Detail convention |
 | --- | --- |
-| `route_decided` | `{route, reason}` |
+| `route_decided` | `{route, reason}` + optional `contract_path`, `contract_sha256`, `provenance` (router issuance proof; at most once per route+sha per run) |
 | `plan_created` | `{path, status}` |
-| `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings}` |
-| `review_completed` | `{status, evidence}` |
+| `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings}` + optional `model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}` (complete when present; effective values copied from the harness record) |
+| `review_completed` | `{status, evidence}` — v2 `status` ∈ `GO`, `GO WITH NOTES`, `BLOCK` (free text rejected; legacy/v1 history stays valid) |
 | `simplification_completed` | `{status, evidence}` |
+| `quality_completed` | `{status, evidence}` — `status` ∈ `pass`, `unavailable` (12c producer proof; `unavailable` stops before completion) |
+| `ship_completed` | `{cumulative_review, thermo_nuclear, pr_body_style, delta_rereview, deciding_code, escaped_defects_recorded, pr_url, ci_state}` — success form all-required (thermo ∈ clean/`findings:<n>-folded`/unavailable, cumulative `...HEAD @ ...` record, deciding ∈ complete/n/a, `ci_state=green`, non-null URL); arrêt form allows per-field `not-reached:<step>` + `-open`/`incomplete` (see ship.md; matrix jq-enforced) |
 | `file_changed` | `{path, change}` |
 | `validation_run` | `{command, exit}` |
 | `validation_failed` | `{command, exit, failure}` |
@@ -72,6 +87,14 @@ Mine recurring workflow issues with `scripts/workflow-retrospect`.
 | `plan_removed` | `{path:"PLAN.md"}` |
 | `completed` | `{summary}` |
 | `blocked` | `{reason, needed_input}` |
+
+Quality passes (12c) are recorded via `quality_completed`, never via `review_completed` (rejected by the status enum).
+
+Ship outcomes are recorded via `ship_completed` (one per ship run, emitted at report; success and arrêt forms per the table above), never via ad-hoc types (`ship_complete`, `pushed`, `ci_green` stay unvocabularized drift — extinct, 0 specimens).
+
+| Type | Detail | Emitter | Moment | Consumer |
+| --- | --- | --- | --- | --- |
+| ship_completed | 5 records + escaped count + URL + CI state (8 detail fields) | ship runner (step 14) | report (success or arrêt) | ship profiles (`ship-completed`/`ship-stopped`), report audit, metrics registry join |
 
 New events use envelope `schema_version:2` enforced by
 `scripts/lib/workflow-event-detail.jq`; version 1 and legacy envelopes stay

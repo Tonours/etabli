@@ -65,20 +65,20 @@ sandbox. Shared workflow and evidence invariants stay in
 - Keep observed facts separate from assumptions in plans.
 - Record exact validation commands and results before claiming completion.
 - Source-backed research artifacts must include source evidence and confidence
-  labels; validate them with `scripts/research-proof-check` when they are
+  labels; validate them with `scripts/research-proof-check` when they are <!-- etabli-only -->
   written to the repo.
 - Answers and handoffs follow `workflow/answer-quality.md`: use the smallest
   evidence-backed response that satisfies the user's goal, labels uncertainty,
   and avoids unsupported claims.
 - Durable answer, handoff, research, and obvault-backed artifacts can be checked
-  with `scripts/answer-quality-check` — a quality floor, not a subjective 10/10
+  with `scripts/answer-quality-check` — a quality floor, not a subjective 10/10 <!-- etabli-only -->
   scorer.
 - Answer-quality helper behavior is pinned by
-  `scripts/answer-quality-eval` and the versioned fixtures under
+  `scripts/answer-quality-eval` and the versioned fixtures under <!-- etabli-only -->
   `tests/fixtures/answer-quality/`.
 - Saved answer and handoff reviews under `docs/answer-quality-traces/` are
   historical evidence, not another active validation layer.
-- Record route, role, stop condition, and required evidence in non-trivial plans.
+- Record route, role, stop condition, and required evidence in every plan (the gate requires them unconditionally).
 - Planning review updates `PLAN.md` in place.
 - Implementation-bound plans run an adversary pass before implementation.
 - Implementation commands archive the final implemented plan as a distilled memory record, not a raw `PLAN.md` copy.
@@ -106,7 +106,7 @@ sandbox. Shared workflow and evidence invariants stay in
   `blocked`, and explicit cleanup or a stated reason for keeping it.
 - Supervised single-PR maintenance loops use the shared pilot contract in
   `workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
-  latest pushed head evidence via `scripts/pr-latest-head-status`,
+  latest pushed head evidence via `scripts/pr-latest-head-status`, <!-- etabli-only -->
   fresh-context review, explicit worktree cleanup, and no external
   write-back/deploy/push/merge unless another active command contract
   explicitly authorizes that action.
@@ -137,7 +137,7 @@ sandbox. Shared workflow and evidence invariants stay in
   may only be strengthened or extended during implementation. Weakening or
   removing one requires demoting the plan to `CHALLENGED` with a Decision Log
   rationale, never a silent edit. Mechanical helper and runtime guard:
-  `scripts/plan-check-freeze` plus shared `planMutationGuardDecision` on PLAN.md
+  `scripts/plan-check-freeze` plus shared `planMutationGuardDecision` on PLAN.md <!-- etabli-only -->
   tool writes (smoke: `tests/plan-check-freeze-smoke.sh`,
   `tests/dual-runtime-guard-matrix-smoke.sh`).
 - Autonomous loop stop conditions pair the measurable goal with an explicit cap
@@ -194,7 +194,7 @@ documents the enforcement behind each boundary.
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (only a genuinely missing PLAN is exempt; unrelated plan → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
-| no_progress ledger stop | valid active non-terminal ledger with explicit `no_progress` or derived 2/3 thresholds; pointer to invalid ledger / ambiguous valid actives fail closed (orphan invalids without pointer do not) | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `workflow-event` + `plan-cleanup` (`--archive`/`--discard`) escape allowed |
+| no_progress ledger stop | valid active non-terminal ledger with explicit `no_progress` or derived 2/3 thresholds; pointer to invalid ledger / ambiguous valid actives fail closed (orphan invalids without pointer do not) | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `workflow-event` + `plan-cleanup` (`--archive`/`--discard`) escape allowed | <!-- etabli-only -->
 | ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress`; no emit without ledger |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
 | missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
@@ -209,18 +209,18 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Self-improvement contract: `workflow/skills/self-improvement-loop.md`
 - Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
 - Bounded project autonomy envelope: `workflow/project-autonomy-envelope.md`
-- Bounded project autonomy controller: `scripts/project-autonomy`
+- Bounded project autonomy controller: `scripts/project-autonomy` <!-- etabli-only -->
 - Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Investigation/evidence contract: `workflow/skills/investigation.md`
-- Evidence capture and validator: `scripts/evidence-proof`
+- Evidence capture and validator: `scripts/evidence-proof` <!-- etabli-only -->
 - Large-program control plane: `workflow/skills/program-orchestration.md`
-- Large-program reducer: `scripts/program-state`
+- Large-program reducer: `scripts/program-state` <!-- etabli-only -->
 - Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
-- Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval`
-- Latest-head PR evidence helper: `scripts/pr-latest-head-status`
+- Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval` <!-- etabli-only -->
+- Latest-head PR evidence helper: `scripts/pr-latest-head-status` <!-- etabli-only -->
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)

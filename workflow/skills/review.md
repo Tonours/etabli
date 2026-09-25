@@ -33,7 +33,7 @@ Same-session Logic self-review is forbidden.
    - Claude: `Agent` → existing `reviewer` agent. `runner: claude-agent`.
    - Cursor: Task with model `claude-opus-5-thinking-high`. Do not spawn
      `pi -p` from Cursor. `runner: cursor-task`.
-   - Pi: isolated child (`scripts/pi-review-hunter` when present, else this
+   - Pi: isolated child (`scripts/pi-review-hunter` when present, else this <!-- etabli-only -->
      argv): `pi --mode text -p --no-session --no-skills --no-extensions
      --no-context-files --tools read,grep --append-system-prompt
      <hunter-template> @<patchfile>`. The prompt file is the hunter template

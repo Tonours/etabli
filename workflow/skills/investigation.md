@@ -16,7 +16,7 @@ Use the strongest available evidence and name the ceiling when it is absent:
 
 Source reading can support a mechanism, but it cannot by itself confirm that
 the mechanism caused an observed runtime symptom. Hash durable artifacts with
-`scripts/evidence-proof` (etabli repo only; scaffolded projects resolve it
+`scripts/evidence-proof` (etabli repo only; scaffolded projects resolve it <!-- etabli-only -->
 from the etabli checkout). `validate` is a gate by default: a non-VERIFIED
 verdict exits non-zero — pass `--no-assert` only for inspection. Pack
 integrity and execution provenance are separate.
@@ -53,7 +53,7 @@ Do not replace these labels with vague confidence language.
 ## Modality gates
 
 - Pre-existing capture (trace, log, profile, dump already on disk): read, hash
-  with `scripts/evidence-proof`, and cite `file:line`. Do not re-run or
+  with `scripts/evidence-proof`, and cite `file:line`. Do not re-run or <!-- etabli-only -->
   instrument that capture. Ceiling is `CAUSE_SUPPORTED` without a new
   intervention.
 - User-asked instrument or reproduce: do that. Do not apply the capture-only
