@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+HOME_DIR="$HOME"
+DRY_RUN="0"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--home DIR] [--dry-run]
+
+Merges the hook entries from claude/settings.workflow-hooks.json into the
+live ~/.claude/settings.json, keyed by event + matcher + full hook object
+(any parameter difference, async included, is a conflict). Adds missing
+entries only: user hooks are preserved, nothing is removed. Refuses to
+write on invalid JSON, on a same-event conflict (same command already
+wired on the same event with different parameters, which would
+double-fire), or when disableAllHooks is true. Backs up before writing.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --home)
+    HOME_DIR="$2"
+    shift
+    ;;
+  --dry-run) DRY_RUN="1" ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    printf 'unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+command -v node >/dev/null 2>&1 || {
+  printf 'claude-hooks-merge: node is required\n' >&2
+  exit 1
+}
+
+node --input-type=module -e '
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+const homeDir = process.argv[1];
+const repoDir = process.argv[2];
+const dryRun = process.argv[3] === "1";
+const livePath = join(homeDir, ".claude/settings.json");
+
+const { identityOf, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
+let fragment;
+try {
+  fragment = loadFragment(repoDir);
+} catch (error) {
+  console.error(`claude-hooks-merge: refuse: ${error.message}; fix the repo fragment, nothing written`);
+  process.exit(1);
+}
+let live;
+if (!existsSync(livePath)) {
+  live = {};
+} else {
+  try {
+    live = JSON.parse(readFileSync(livePath, "utf8"));
+  } catch {
+    console.error(`claude-hooks-merge: refuse: invalid JSON in ${livePath}; fix it by hand, nothing written`);
+    process.exit(1);
+  }
+  if (typeof live !== "object" || live === null || Array.isArray(live)) {
+    console.error(`claude-hooks-merge: refuse: ${livePath} is not a JSON object; nothing written`);
+    process.exit(1);
+  }
+}
+if (live.disableAllHooks === true) {
+  console.error(`claude-hooks-merge: refuse: ${livePath} sets disableAllHooks=true (no hook would run; a project-level false overrides); nothing written`);
+  process.exit(1);
+}
+if (live.hooks === undefined) live.hooks = {};
+if (typeof live.hooks !== "object" || live.hooks === null || Array.isArray(live.hooks)) {
+  console.error(`claude-hooks-merge: refuse: hooks key in ${livePath} is not an object; nothing written`);
+  process.exit(1);
+}
+
+const liveByCommand = new Map();
+const liveIdentities = new Set();
+const refuseMalformed = (detail) => {
+  console.error(`claude-hooks-merge: refuse: malformed hooks in ${livePath} (${detail}); fix it by hand, nothing written`);
+  process.exit(1);
+};
+for (const [event, groups] of Object.entries(live.hooks)) {
+  if (!Array.isArray(groups)) refuseMalformed(`event ${event} is not an array`);
+  for (const group of groups) {
+    if (typeof group !== "object" || group === null || Array.isArray(group)) refuseMalformed(`event ${event} has a non-object group`);
+    if (group.hooks !== undefined && !Array.isArray(group.hooks)) {
+      refuseMalformed(`event ${event} group ${group.matcher ?? ""} hooks is not an array`);
+    }
+    for (const hook of group.hooks ?? []) {
+      if (typeof hook !== "object" || hook === null || Array.isArray(hook)) refuseMalformed(`event ${event} has a non-object hook`);
+      liveIdentities.add(identityOf(event, group.matcher, hook));
+      if (!liveByCommand.has(hook.command)) liveByCommand.set(hook.command, []);
+      liveByCommand.get(hook.command).push({ event, matcher: group.matcher, hook });
+    }
+  }
+}
+
+const additions = [];
+for (const [event, groups] of Object.entries(fragment.hooks ?? {})) {
+  for (const group of groups) {
+    for (const hook of group.hooks ?? []) {
+      const identity = identityOf(event, group.matcher, hook);
+      const clash = (liveByCommand.get(hook.command) ?? []).filter(
+        (entry) =>
+          entry.event === event && identityOf(entry.event, entry.matcher, entry.hook) !== identity,
+      );
+      if (clash.length) {
+        const detail = clash.map((c) => `${c.event}/${c.matcher ?? ""}: ${JSON.stringify(c.hook)}`).join("; ");
+        console.error(`claude-hooks-merge: refuse: conflict for ${hook.command} on ${event} (live: ${detail}; fragment wants ${JSON.stringify(hook)}); reconcile by hand, nothing written`);
+        process.exit(1);
+      }
+      if (liveIdentities.has(identity)) continue;
+      additions.push({ event, matcher: group.matcher, hook });
+    }
+  }
+}
+
+if (!additions.length) {
+  console.log("claude-hooks-merge: up to date, nothing to add");
+  process.exit(0);
+}
+if (dryRun) {
+  for (const { event, matcher, hook } of additions) {
+    console.log(`would add ${event}/${matcher ?? ""}: ${hook.command}`);
+  }
+  process.exit(0);
+}
+
+if (existsSync(livePath)) {
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
+  let backup = `${livePath}.bak.${stamp}`;
+  let index = 1;
+  while (existsSync(backup)) {
+    backup = `${livePath}.bak.${stamp}.${index}`;
+    index += 1;
+  }
+  copyFileSync(livePath, backup);
+  console.log(`backup ${backup}`);
+}
+for (const { event, matcher, hook } of additions) {
+  if (live.hooks[event] === undefined) live.hooks[event] = [];
+  const group = live.hooks[event].find((g) => (g.matcher ?? "") === (matcher ?? ""));
+  if (group) {
+    if (!Array.isArray(group.hooks)) group.hooks = [];
+    group.hooks.push(hook);
+  }
+  else if (matcher === undefined) live.hooks[event].push({ hooks: [hook] });
+  else live.hooks[event].push({ matcher, hooks: [hook] });
+  console.log(`added ${event}/${matcher ?? ""}: ${hook.command}`);
+}
+writeFileSync(livePath, `${JSON.stringify(live, null, 2)}\n`);
+' "$HOME_DIR" "$REPO_DIR" "$DRY_RUN"

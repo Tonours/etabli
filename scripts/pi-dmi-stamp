@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+HOME_DIR="$HOME"
+REPO_OVERRIDE=""
+MODE="run"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--home DIR] [--repo DIR] [--dry-run] [--check] [--list]
+
+Stamps disable-model-invocation: true into the frontmatter of listed
+specialist skills, hiding them from the model prompt while keeping
+/skill:name expansion working. Skills whose real path is under this
+repo are skipped (their flag is versioned in pi/skills instead).
+Absent skills are reported and tolerated.
+
+  --home DIR  skill roots + npm root (default: \$HOME)
+  --repo DIR  repo root for the repo-skip only (default: derived)
+  --dry-run   report without writing
+  --check     exit 1 when a present skill lacks the flag
+  --list      print the listed names and package paths
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --home)
+    HOME_DIR="$2"
+    shift
+    ;;
+  --repo)
+    REPO_OVERRIDE="$2"
+    shift
+    ;;
+  --dry-run) MODE="dry-run" ;;
+  --check) MODE="check" ;;
+  --list) MODE="list" ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    printf 'unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+command -v node >/dev/null 2>&1 || {
+  printf 'pi-dmi-stamp: node is required\n' >&2
+  exit 1
+}
+
+node --input-type=module -e '
+import { chmodSync, chownSync, lstatSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
+import { createRequire } from "node:module";
+
+const homeDir = process.argv[1];
+const repoDir = process.argv[2];
+const mode = process.argv[3];
+const skipRoot = process.argv[4] || repoDir;
+let repoReal;
+try {
+  repoReal = realpathSync(skipRoot);
+} catch {
+  console.error(`pi-dmi-stamp: repo dir is not resolvable: ${skipRoot}`);
+  process.exit(1);
+}
+
+const ROOT_NAMES = [
+  "hyperframes", "hyperframes-animation", "hyperframes-audio",
+  "hyperframes-cli", "hyperframes-core", "hyperframes-creative",
+  "hyperframes-keyframes", "hyperframes-registry", "hyperframes-studio",
+  "media-use", "motion-graphics", "logo-generator", "adonisjs-suite",
+  "ghost-lab", "grill-me", "coolify", "design", "componentize",
+  "add-dark-mode", "canonicalize-tailwind", "make-responsive",
+  "dark-mode-image", "brand-kit", "markup-from-image", "ideas",
+];
+const PACKAGE_SKILLS = [
+  { name: "radius-api", pkg: "@earendil-works/pi-radius" },
+  { name: "github", pkg: "mitsupi" },
+  { name: "commit", pkg: "mitsupi" },
+];
+
+if (mode === "list") {
+  for (const name of ROOT_NAMES) console.log(`root:${name}`);
+  for (const { name, pkg } of PACKAGE_SKILLS) console.log(`package:${pkg}/skills/${name}`);
+  process.exit(0);
+}
+
+let parse, parseDocument;
+try {
+  ({ parse, parseDocument } = createRequire(join(repoDir, "pi/package.json"))("yaml"));
+} catch (error) {
+  console.error(`pi-dmi-stamp: Pi yaml dependency unavailable (${error.message}); run bun install --cwd pi`);
+  process.exit(1);
+}
+
+const isUnderRepoReal = (real) => {
+  const rel = relative(repoReal, real);
+  return rel === "" || (!rel.startsWith("..") && !rel.startsWith(`..${sep}`));
+};
+
+const frontmatterOf = (file) => {
+  const text = readFileSync(file, "utf8");
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) throw new Error(`missing frontmatter: ${file}`);
+  return { text, body: match[1], head: parse(match[1]) };
+};
+
+const stampFile = (file) => {
+  const { text, body } = frontmatterOf(file);
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const doc = parseDocument(body);
+  doc.set("disable-model-invocation", true);
+  const stamped = String(doc).split("\n").join(eol);
+  const before = parse(body);
+  const after = parse(stamped);
+  if (after["disable-model-invocation"] !== true) throw new Error(`stamp verification failed: ${file}`);
+  const { "disable-model-invocation": _dropBefore, ...restBefore } = before;
+  const { "disable-model-invocation": _dropAfter, ...restAfter } = after;
+  if (JSON.stringify(restBefore) !== JSON.stringify(restAfter)) {
+    throw new Error(`stamp would alter other keys: ${file}`);
+  }
+  const open = `---${eol}`;
+  const closeAt = text.indexOf(`${eol}---`, open.length);
+  if (closeAt === -1) throw new Error(`unterminated frontmatter: ${file}`);
+  return `${open}${stamped}---${text.slice(closeAt + eol.length + 3)}`;
+};
+
+const roots = [join(homeDir, ".pi/agent/skills"), join(homeDir, ".agents/skills")];
+const npmRoot = join(homeDir, ".pi/agent/npm/node_modules");
+const counts = { stamped: 0, ok: 0, repoSkipped: 0, absent: 0 };
+const missing = [];
+
+const failed = [];
+const consider = (file, label) => {
+  try {
+    lstatSync(file);
+  } catch {
+    counts.absent += 1;
+    console.log(`skip absent ${label}`);
+    return;
+  }
+  let real;
+  try {
+    real = realpathSync(file);
+  } catch {
+    failed.push(`${label} (dangling link)`);
+    return;
+  }
+  if (isUnderRepoReal(real)) {
+    counts.repoSkipped += 1;
+    console.log(`skip repo-managed ${label}`);
+    return;
+  }
+  let head;
+  try {
+    head = frontmatterOf(file).head;
+    if (typeof head !== "object" || head === null) throw new Error("empty frontmatter");
+  } catch (error) {
+    failed.push(`${label} (${error.message})`);
+    return;
+  }
+  if (head["disable-model-invocation"] === true) {
+    counts.ok += 1;
+    return;
+  }
+  if (mode === "check") {
+    missing.push(label);
+    return;
+  }
+  if (mode === "dry-run") {
+    counts.stamped += 1;
+    console.log(`would stamp ${label}`);
+    return;
+  }
+  let next;
+  try {
+    next = stampFile(file);
+  } catch (error) {
+    failed.push(`${label} (${error.message})`);
+    return;
+  }
+  const tmp = `${real}.tmp.${process.pid}`;
+  try {
+    try { unlinkSync(tmp); } catch { /* clear a stale same-name tmp file */ }
+    writeFileSync(tmp, next);
+    const st = statSync(real);
+    chmodSync(tmp, st.mode & 0o777);
+    if (st.uid !== process.getuid() || st.gid !== process.getgid()) {
+      try {
+        chownSync(tmp, st.uid, st.gid);
+      } catch {
+        throw new Error("not owned by current user, refusing to alter ownership");
+      }
+    }
+    renameSync(tmp, real);
+  } catch (error) {
+    try { unlinkSync(tmp); } catch { /* best effort */ }
+    failed.push(`${label} (${error.message})`);
+    return;
+  }
+  counts.stamped += 1;
+  console.log(`stamped ${label}`);
+};
+
+for (const name of ROOT_NAMES) {
+  let seen = false;
+  for (const root of roots) {
+    const file = join(root, name, "SKILL.md");
+    try {
+      lstatSync(file);
+    } catch {
+      continue;
+    }
+    seen = true;
+    consider(file, `${name} (${file})`);
+  }
+  if (!seen) {
+    counts.absent += 1;
+    console.log(`skip absent ${name}`);
+  }
+}
+for (const { name, pkg } of PACKAGE_SKILLS) {
+  consider(join(npmRoot, pkg, "skills", name, "SKILL.md"), `${pkg}/skills/${name}`);
+}
+
+const summary = () =>
+  console.log(
+    `pi-dmi-stamp: stamped=${counts.stamped} ok=${counts.ok} repo-skipped=${counts.repoSkipped} absent=${counts.absent} failed=${failed.length}`,
+  );
+if (mode === "check") {
+  for (const label of [...missing, ...failed]) console.error(`missing flag: ${label}`);
+  summary();
+  if (missing.length || failed.length) process.exit(1);
+  process.exit(0);
+}
+for (const label of failed) console.error(`stamp error: ${label}`);
+summary();
+if (failed.length) process.exit(1);
+' "$HOME_DIR" "$REPO_DIR" "$MODE" "$REPO_OVERRIDE"
