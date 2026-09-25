@@ -1,0 +1,168 @@
+{
+  "_source": {
+    "draft_sha": "ea6197703dbded479e28967ad8613ad072f4c4558c679865abac42ef49d0a181",
+    "line_range": "116-130",
+    "section": "Screening Corpus"
+  },
+  "derivation": "mechanical: every slot-criteria.json subject → one task entry; slots 1-8 → {id, slot, prompt_file, grader}; slots 9-12 → {id, slot, variants:{pointer,neutral}}; prompt_file is corpus-dir-relative (resolve against dirname(corpus.json)); grader kinds mirror slot-criteria.json",
+  "schema_version": 1,
+  "tasks": [
+    {
+      "grader": {
+        "criteria_slot": 1,
+        "kind": "plan-loop-ready"
+      },
+      "id": "s1",
+      "prompt_file": "prompt-bodies/s01-pl-covered.md",
+      "slot": 1
+    },
+    {
+      "grader": {
+        "criteria_slot": 2,
+        "kind": "plan-loop-ready"
+      },
+      "id": "s2",
+      "prompt_file": "prompt-bodies/s02-pl-uncovered.md",
+      "slot": 2
+    },
+    {
+      "grader": {
+        "criteria_slot": 3,
+        "kind": "plan-loop-ready"
+      },
+      "id": "s3",
+      "prompt_file": "prompt-bodies/s03-pl-contested.md",
+      "slot": 3
+    },
+    {
+      "grader": {
+        "criteria_slot": 4,
+        "kind": "plan-loop-ready"
+      },
+      "id": "s4",
+      "prompt_file": "prompt-bodies/s04-pl-broad.md",
+      "slot": 4
+    },
+    {
+      "grader": {
+        "kind": "hunter-parity",
+        "patch": "pp-null-deref"
+      },
+      "id": "s5",
+      "prompt_file": "prompt-bodies/s05-hunter-null-deref.md",
+      "slot": 5
+    },
+    {
+      "grader": {
+        "kind": "hunter-parity",
+        "patch": "pp-off-by-one"
+      },
+      "id": "s6",
+      "prompt_file": "prompt-bodies/s06-hunter-off-by-one.md",
+      "slot": 6
+    },
+    {
+      "grader": {
+        "kind": "hunter-parity",
+        "patch": "pp-clean-1"
+      },
+      "id": "s7",
+      "prompt_file": "prompt-bodies/s07-hunter-clean-1.md",
+      "slot": 7
+    },
+    {
+      "grader": {
+        "kind": "hunter-parity",
+        "patch": "pp-clean-2"
+      },
+      "id": "s8",
+      "prompt_file": "prompt-bodies/s08-hunter-clean-2.md",
+      "slot": 8
+    },
+    {
+      "id": "s9",
+      "slot": 9,
+      "variants": {
+        "neutral": {
+          "grader": {
+            "criteria_slot": 9,
+            "kind": "plan-loop-ready",
+            "profile": "pl-covered-style"
+          },
+          "prompt_file": "prompt-bodies/s09-neutral.md"
+        },
+        "pointer": {
+          "grader": {
+            "kind": "pointer-dossier-filter",
+            "slot_file": "workflow/review-rubric.md"
+          },
+          "prompt_file": "prompt-bodies/s09-pointer.md"
+        }
+      }
+    },
+    {
+      "id": "s10",
+      "slot": 10,
+      "variants": {
+        "neutral": {
+          "grader": {
+            "kind": "hunter-parity",
+            "patch": "pp-swallowed-error"
+          },
+          "prompt_file": "prompt-bodies/s10-neutral.md"
+        },
+        "pointer": {
+          "grader": {
+            "kind": "pointer-dispatch",
+            "patch": "pp-null-deref",
+            "slot_file": "workflow/skills/review.md"
+          },
+          "prompt_file": "prompt-bodies/s10-pointer.md"
+        }
+      }
+    },
+    {
+      "id": "s11",
+      "slot": 11,
+      "variants": {
+        "neutral": {
+          "grader": {
+            "kind": "hunter-parity",
+            "patch": "pp-clean-3"
+          },
+          "prompt_file": "prompt-bodies/s11-neutral.md"
+        },
+        "pointer": {
+          "grader": {
+            "kind": "pointer-logic-hunter",
+            "patch": "pp-swallowed-error",
+            "slot_file": "workflow/templates/review-logic-hunter.md"
+          },
+          "prompt_file": "prompt-bodies/s11-pointer.md"
+        }
+      }
+    },
+    {
+      "id": "s12",
+      "slot": 12,
+      "variants": {
+        "neutral": {
+          "grader": {
+            "criteria_slot": 12,
+            "kind": "plan-loop-ready",
+            "profile": "pl-covered-style"
+          },
+          "prompt_file": "prompt-bodies/s12-neutral.md"
+        },
+        "pointer": {
+          "grader": {
+            "kind": "pointer-spec-verdict",
+            "patch": "pp-spec-breach",
+            "slot_file": "workflow/templates/review-spec-hunter.md"
+          },
+          "prompt_file": "prompt-bodies/s12-pointer.md"
+        }
+      }
+    }
+  ]
+}

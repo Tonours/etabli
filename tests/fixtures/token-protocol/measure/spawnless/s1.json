@@ -1,0 +1,1 @@
+{"calls":[{"kind":"read","path":"workflow/review-rubric.md"},{"kind":"read","path":"/abs/path/to/review-rubric.md"}],"route":"plan-implement","session_id":"spawnless-s1","source":"synthetic"}

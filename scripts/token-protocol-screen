@@ -1,0 +1,545 @@
+#!/usr/bin/env node
+// scripts/token-protocol-screen — T8a AC3(a) evaluation runner (PLAN.md v18).
+//
+// OFFLINE ONLY: the only providers are fake-must-fail (exits nonzero if ever
+// called) and fake-canned (deterministic canned outputs, FIXED usage
+// {in 100, out 50, cr 0, cc 0} per run). Any other provider is REFUSED —
+// T8a runs ZERO paid calls.
+//
+// Modes (exactly one per invocation):
+//   --dry-run --corpus C --tasks 2 --task-ids s1,s5 --runs 1
+//     --variants baseline,candidate --seed 7 --baseline-tree B --candidate-tree D
+//     --provider fake-must-fail --out O
+//       Validates corpus + freeze + both worktrees, writes flow.json +
+//       summary.json, prints "0 provider calls". Exit 0.
+//   --resolve-all --corpus C
+//       16/16 prompt bodies resolve (8 fixed + 8 variant), each existing +
+//       fingerprinted (.sha256 sidecar match).
+//   --resolve-all --flow economic --manifest M
+//       6/6 parity patches resolve (diff + regex + valid lines each).
+//   --validate-corpus --criteria S --bodies P
+//       8 fixed + 8 variant bodies resolved and attributed to the 12 slots.
+//   --local-run (screening: --corpus ... --provider fake-canned --out O)
+//       Writes flow.json + runs.json + compare.json (all verdicts pass).
+//   --local-run --flow economic --manifest M --tasks 6 --runs 1
+//     --variants baseline,candidate --seed 7 --provider fake-canned --out O
+//       12 canned runs; defective patches emit the § Frozen Canned Blocks
+//       byte-exact, cleans emit exactly `No findings.`.
+//
+// Every invocation loads freeze-record.json (sibling of --corpus/--manifest/
+// --criteria, or --freeze-record) and REFUSES on any field mismatch:
+// schema_version, input shas, and the dry_run / linkage_economic param blocks.
+// Out-dirs MUST be absent-or-empty at start, else the runner REFUSES.
+
+import { createHash } from "node:crypto";
+import {
+  existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync,
+} from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
+
+const SCHEMA_VERSION = 1;
+
+// § Frozen Canned Blocks (PLAN.md v18, R13-B1) — byte-exact, 7 lines each in
+// template order severity/file/line/issue/impact/review_comment/suggested_fix.
+const CANNED_BLOCKS = {
+  "pp-null-deref": [
+    "severity: high",
+    "file: users.js",
+    "line: 3",
+    "issue: null guard missing on getUser(id).name dereference",
+    "impact: TypeError crash on null return",
+    "review_comment: caller contract requires a null check",
+    "suggested_fix: Add a null guard before dereferencing.",
+  ].join("\n"),
+  "pp-off-by-one": [
+    "severity: high",
+    "file: list.js",
+    "line: 2",
+    "issue: off-by-one past end reads items[items.length]",
+    "impact: undefined index yields undefined",
+    "review_comment: last valid index is length - 1",
+    "suggested_fix: Index items[items.length - 1] instead.",
+  ].join("\n"),
+  "pp-swallowed-error": [
+    "severity: high",
+    "file: loader.js",
+    "line: 4",
+    "issue: empty catch swallows error and returns null",
+    "impact: callers expecting throw-on-missing receive null",
+    "review_comment: module contract is throw on missing file",
+    "suggested_fix: Remove the empty catch or rethrow.",
+  ].join("\n"),
+};
+const CANNED_CLEAN = "No findings.";
+const CANNED_USAGE = { in: 100, out: 50, cr: 0, cc: 0 };
+
+function fail(msg) {
+  console.error(`token-protocol-screen: REFUSED — ${msg}`);
+  process.exit(1);
+}
+
+function sha256Bytes(buf) { return createHash("sha256").update(buf).digest("hex"); }
+function sha256File(path) { return sha256Bytes(readFileSync(path)); }
+
+function walkFiles(dir, base = dir) {
+  const found = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) found.push(...walkFiles(full, base));
+    else found.push(relative(base, full));
+  }
+  return found.sort();
+}
+
+// Recursive dir sha: sha256 over sorted "<file-sha>  <relpath>\n" lines
+// (same rule as scripts/t8a-pointer-diff-check dirSha).
+function dirSha(dir) {
+  const lines = walkFiles(dir).map((rel) => `${sha256File(join(dir, rel))}  ${rel}\n`);
+  return sha256Bytes(Buffer.from(lines.join(""), "utf8"));
+}
+
+function loadJson(path, what) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    fail(`cannot read ${what} ${path}: ${err.message}`);
+  }
+}
+
+function parseArgs(argv) {
+  const out = { _: [] };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--resolve-all") out.resolveAll = true;
+    else if (a === "--validate-corpus") out.validateCorpus = true;
+    else if (a === "--local-run") out.localRun = true;
+    else if (a.startsWith("--")) {
+      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      out[key] = argv[++i] ?? "";
+    } else out._.push(a);
+  }
+  return out;
+}
+
+function sameList(a, b) {
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.length === sb.length && sa.every((v, i) => v === sb[i]);
+}
+
+// ---- freeze record ----
+
+function freezeDirOf(opts) {
+  if (opts.freezeRecord) return dirname(resolve(opts.freezeRecord));
+  const anchor = opts.corpus ?? opts.manifest ?? opts.criteria;
+  if (!anchor) fail("no --corpus/--manifest/--criteria to locate freeze-record.json (or pass --freeze-record)");
+  return dirname(resolve(anchor));
+}
+
+function loadFreeze(opts) {
+  const dir = freezeDirOf(opts);
+  const path = opts.freezeRecord ? resolve(opts.freezeRecord) : join(dir, "freeze-record.json");
+  if (!existsSync(path)) fail(`missing freeze-record.json at ${path}`);
+  const rec = loadJson(path, "freeze record");
+  if (rec.schema_version !== SCHEMA_VERSION) {
+    fail(`freeze schema_version want ${SCHEMA_VERSION}, got ${rec.schema_version}`);
+  }
+  if (!Array.isArray(rec.inputs)) fail("freeze record has no inputs[] array");
+  return { rec, dir, path };
+}
+
+function resolveEntry(entryFile, freezeDir) {
+  return resolve(freezeDir, entryFile);
+}
+
+// Verify the invocation's input path against the freeze entry matched by
+// resolved path, else by basename (lets $TMPDIR fixture copies pin by name).
+function checkFrozenFile(invocationPath, kind, freeze) {
+  const abs = resolve(invocationPath);
+  const { rec, dir } = freeze;
+  let entry = rec.inputs.find((e) => resolveEntry(e.file, dir) === abs);
+  if (!entry) entry = rec.inputs.find((e) => basename(e.file) === basename(abs));
+  if (!entry) fail(`${kind} ${invocationPath} is not pinned by the freeze record`);
+  if (!existsSync(abs) || !statSync(abs).isFile()) fail(`${kind} ${invocationPath} missing`);
+  const actual = sha256File(abs);
+  if (actual !== entry.sha256) {
+    fail(`${kind} bytes differ from freeze (${entry.file}): want ${entry.sha256}, got ${actual}`);
+  }
+  return entry;
+}
+
+function checkFrozenTree(treePath, kind, freeze) {
+  const abs = resolve(treePath);
+  const { rec, dir } = freeze;
+  let entry = rec.inputs.find((e) => resolveEntry(e.file, dir) === abs);
+  if (!entry) entry = rec.inputs.find((e) => basename(e.file) === basename(abs));
+  if (!entry) fail(`${kind} ${treePath} is not pinned by the freeze record`);
+  if (!existsSync(abs) || !statSync(abs).isDirectory()) fail(`${kind} ${treePath} missing`);
+  // (1) per-file fingerprints inside the tree.
+  const fpPath = join(abs, "fingerprints.json");
+  if (!existsSync(fpPath)) fail(`${kind} ${treePath} has no fingerprints.json`);
+  const fp = loadJson(fpPath, `${kind} fingerprints.json`);
+  if (!fp || typeof fp.files !== "object") fail(`${kind} fingerprints.json malformed`);
+  for (const [rel, want] of Object.entries(fp.files)) {
+    const full = join(abs, rel);
+    if (!existsSync(full)) fail(`${kind} fingerprint mismatch: ${rel} missing`);
+    const actual = sha256File(full);
+    if (actual !== want) fail(`${kind} fingerprint mismatch: ${rel} want ${want}, got ${actual}`);
+  }
+  // (2) recursive tree sha vs freeze.
+  const actual = dirSha(abs);
+  if (actual !== entry.sha256) {
+    fail(`${kind} tree bytes differ from freeze (${entry.file}): want ${entry.sha256}, got ${actual}`);
+  }
+  console.log(`${kind} worktree validated (${treePath})`);
+}
+
+function checkParamBlock(rec, block, params, mode) {
+  const want = rec[block];
+  if (!want || typeof want !== "object") fail(`freeze record has no ${block} block`);
+  const mismatches = [];
+  if (want.tasks !== params.tasks) mismatches.push(`tasks want ${want.tasks}, got ${params.tasks}`);
+  if (want.runs !== params.runs) mismatches.push(`runs want ${want.runs}, got ${params.runs}`);
+  if (!sameList(want.variants ?? [], params.variants)) {
+    mismatches.push(`variants want [${(want.variants ?? []).join(",")}], got [${params.variants.join(",")}]`);
+  }
+  if (want.seed !== params.seed) mismatches.push(`seed want ${want.seed}, got ${params.seed}`);
+  if (want.provider !== params.provider) mismatches.push(`provider want ${want.provider}, got ${params.provider}`);
+  if (mismatches.length > 0) fail(`${mode}: freeze ${block} mismatch: ${mismatches.join("; ")}`);
+}
+
+function requireAbsentOrEmpty(outDir) {
+  if (!existsSync(outDir)) return;
+  if (!statSync(outDir).isDirectory()) fail(`out-dir ${outDir} exists and is not a directory`);
+  if (readdirSync(outDir).length > 0) fail(`out-dir ${outDir} is not empty (absent-or-empty rule)`);
+}
+
+function providerCall(provider, what) {
+  if (provider === "fake-must-fail") {
+    console.error(`token-protocol-screen: fake-must-fail called for ${what} — nonzero by contract`);
+    process.exit(3);
+  }
+  if (provider !== "fake-canned") {
+    fail(`provider '${provider}' refused: T8a runs zero paid calls (fake providers only)`);
+  }
+}
+
+// ---- corpus helpers ----
+
+function loadCorpus(corpusPath) {
+  const corpus = loadJson(corpusPath, "corpus");
+  if (corpus.schema_version !== SCHEMA_VERSION) fail(`corpus schema_version want ${SCHEMA_VERSION}`);
+  if (!Array.isArray(corpus.tasks)) fail("corpus has no tasks[] array");
+  return corpus;
+}
+
+function sidecarSha(bodyPath) {
+  const sidecar = `${bodyPath}.sha256`;
+  if (!existsSync(sidecar)) fail(`prompt body ${bodyPath} has no .sha256 fingerprint`);
+  const token = readFileSync(sidecar, "utf8").trim().split(/\s+/)[0];
+  if (!/^[0-9a-f]{64}$/.test(token ?? "")) fail(`prompt body ${bodyPath} has a malformed .sha256 sidecar`);
+  return token;
+}
+
+function checkBody(promptFile, corpusDir) {
+  const full = resolve(corpusDir, promptFile);
+  if (!existsSync(full) || !statSync(full).isFile()) fail(`dangling prompt_file: ${promptFile} (missing under ${corpusDir})`);
+  const actual = sha256File(full);
+  const want = sidecarSha(full);
+  if (actual !== want) fail(`prompt body ${promptFile} fingerprint mismatch: want ${want}, got ${actual}`);
+}
+
+// ---- modes ----
+
+function modeDryRun(opts, freeze) {
+  for (const k of ["corpus", "tasks", "taskIds", "runs", "variants", "seed", "baselineTree", "candidateTree", "provider", "out"]) {
+    if (opts[k] === undefined || opts[k] === "") fail(`--dry-run requires --${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`);
+  }
+  const params = {
+    tasks: Number(opts.tasks),
+    runs: Number(opts.runs),
+    variants: String(opts.variants).split(","),
+    seed: Number(opts.seed),
+    provider: String(opts.provider),
+  };
+  checkParamBlock(freeze.rec, "dry_run", params, "--dry-run");
+  checkFrozenFile(opts.corpus, "corpus", freeze);
+  const corpus = loadCorpus(opts.corpus);
+  const corpusDir = dirname(resolve(opts.corpus));
+  const ids = String(opts.taskIds).split(",");
+  if (ids.length !== params.tasks) fail(`--tasks ${params.tasks} but ${ids.length} --task-ids`);
+  const byId = new Map(corpus.tasks.map((t) => [t.id, t]));
+  for (const id of ids) {
+    const task = byId.get(id);
+    if (!task) fail(`unknown task id '${id}'`);
+    if (task.prompt_file) checkBody(task.prompt_file, corpusDir);
+    for (const side of ["pointer", "neutral"]) {
+      const v = task.variants?.[side];
+      if (v?.prompt_file) checkBody(v.prompt_file, corpusDir);
+    }
+  }
+  checkFrozenTree(opts.baselineTree, "baseline", freeze);
+  checkFrozenTree(opts.candidateTree, "candidate", freeze);
+  requireAbsentOrEmpty(opts.out);
+  mkdirSync(resolve(opts.out), { recursive: true });
+  writeFileSync(join(resolve(opts.out), "flow.json"), `${JSON.stringify({ flow: "screening" })}\n`);
+  writeFileSync(join(resolve(opts.out), "summary.json"), `${JSON.stringify({
+    mode: "dry-run", tasks: ids, runs: params.runs, variants: params.variants,
+    seed: params.seed, provider: params.provider, provider_calls: 0, trees_validated: 2,
+  }, null, 2)}\n`);
+  console.log(`dry-run ok: tasks [${ids.join(",")}] resolve, both worktrees validated, 0 provider calls`);
+}
+
+function modeResolveAll(opts, freeze) {
+  if (opts.flow === "economic") {
+    if (!opts.manifest) fail("--resolve-all --flow economic requires --manifest");
+    checkFrozenFile(opts.manifest, "parity manifest", freeze);
+    const manifest = loadJson(opts.manifest, "parity manifest");
+    const patches = manifest.patches;
+    if (!Array.isArray(patches) || patches.length !== 6) {
+      fail(`parity manifest must hold exactly 6 patches, got ${Array.isArray(patches) ? patches.length : "none"}`);
+    }
+    for (const p of patches) resolvePatch(p);
+    console.log("6/6 parity patches resolved (diff + regex + valid lines each)");
+    return;
+  }
+  if (opts.flow) fail(`unknown --flow '${opts.flow}' (want economic)`);
+  if (!opts.corpus) fail("--resolve-all requires --corpus");
+  checkFrozenFile(opts.corpus, "corpus", freeze);
+  const corpus = loadCorpus(opts.corpus);
+  const corpusDir = dirname(resolve(opts.corpus));
+  const slots = corpus.tasks.map((t) => t.slot).sort((a, b) => a - b);
+  const want = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  if (!sameList(slots, want)) fail(`corpus slots must be exactly 1..12, got [${slots.join(",")}]`);
+  let fixed = 0;
+  let variant = 0;
+  for (const task of corpus.tasks) {
+    if (task.slot >= 1 && task.slot <= 8) {
+      if (!task.prompt_file) fail(`slot ${task.slot}: fixed task '${task.id}' has no prompt_file`);
+      if (task.variants) fail(`slot ${task.slot}: fixed task '${task.id}' must not carry variants`);
+      checkBody(task.prompt_file, corpusDir);
+      fixed++;
+    } else if (task.slot >= 9 && task.slot <= 12) {
+      if (task.prompt_file) fail(`slot ${task.slot}: variant task '${task.id}' must not carry prompt_file`);
+      for (const side of ["pointer", "neutral"]) {
+        const v = task.variants?.[side];
+        if (!v?.prompt_file) fail(`slot ${task.slot}: variant task '${task.id}' is missing its ${side} side`);
+        checkBody(v.prompt_file, corpusDir);
+        variant++;
+      }
+    } else {
+      fail(`unknown slot ${task.slot} on task '${task.id}'`);
+    }
+  }
+  console.log(`${fixed + variant}/${fixed + variant} bodies resolved (${fixed} fixed + ${variant} variant)`);
+}
+
+function parseDiffTouchedLines(diff) {
+  const touched = new Set();
+  for (const line of diff.split("\n")) {
+    const m = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (!m) continue;
+    const start = Number(m[1]);
+    const count = m[2] === undefined ? 1 : Number(m[2]);
+    for (let i = 0; i < count; i++) touched.add(start + i);
+  }
+  return touched;
+}
+
+function parseSlashRegex(src) {
+  const m = /^\/(.*)\/([a-z]*)$/.exec(src);
+  if (!m) fail(`regex ${JSON.stringify(src)} is not /pattern/flags form`);
+  try {
+    return new RegExp(m[1], m[2]);
+  } catch (err) {
+    fail(`uncompilable regex ${JSON.stringify(src)}: ${err.message}`);
+  }
+}
+
+function resolvePatch(p) {
+  if (!p || typeof p.id !== "string") fail("parity manifest holds a patch without an id");
+  if (typeof p.diff !== "string" || p.diff === "") fail(`patch ${p.id}: missing diff`);
+  if (typeof p.file !== "string" || p.file === "") fail(`patch ${p.id}: missing file`);
+  if (!Array.isArray(p.valid_lines)) fail(`patch ${p.id}: missing valid_lines`);
+  if (p.expect === "at_least_one") {
+    if (typeof p.regex !== "string") fail(`patch ${p.id}: defective patch needs a regex`);
+    parseSlashRegex(p.regex);
+    if (p.valid_lines.length === 0) fail(`patch ${p.id}: defective patch needs non-empty valid_lines`);
+    const touched = parseDiffTouchedLines(p.diff);
+    for (const line of p.valid_lines) {
+      if (!Number.isInteger(line) || !touched.has(line)) {
+        fail(`patch ${p.id}: valid line ${line} out of range (touched: [${[...touched].sort((a, b) => a - b).join(",")}])`);
+      }
+    }
+  } else if (p.expect === "zero") {
+    if (p.regex !== null) fail(`patch ${p.id}: clean patch must carry regex null`);
+    if (p.valid_lines.length !== 0) fail(`patch ${p.id}: clean patch must carry empty valid_lines`);
+  } else {
+    fail(`patch ${p.id}: unknown expect ${JSON.stringify(p.expect)}`);
+  }
+}
+
+function modeValidateCorpus(opts, freeze) {
+  if (!opts.criteria || !opts.bodies) fail("--validate-corpus requires --criteria and --bodies");
+  checkFrozenFile(opts.criteria, "slot criteria", freeze);
+  const criteria = loadJson(opts.criteria, "slot criteria");
+  if (criteria.schema_version !== SCHEMA_VERSION) fail("criteria schema_version want 1");
+  if (!Array.isArray(criteria.slots)) fail("criteria has no slots[] array");
+  const slots = criteria.slots.map((s) => s.slot).sort((a, b) => a - b);
+  if (!sameList(slots, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])) {
+    fail(`criteria slots must be exactly 1..12, got [${slots.join(",")}]`);
+  }
+  for (const s of criteria.slots) {
+    if (s.slot >= 1 && s.slot <= 8) {
+      if (typeof s.subject !== "string" || s.subject === "") fail(`slot ${s.slot}: fixed slot without subject`);
+    } else {
+      for (const side of ["pointer", "neutral"]) {
+        if (typeof s[side]?.subject !== "string" || s[side].subject === "") {
+          fail(`slot ${s.slot}: variant without subject on its ${side} side`);
+        }
+      }
+    }
+  }
+  const bodiesDir = resolve(opts.bodies);
+  if (!existsSync(bodiesDir) || !statSync(bodiesDir).isDirectory()) fail(`bodies dir ${opts.bodies} missing`);
+  const files = readdirSync(bodiesDir).filter((f) => !f.endsWith(".sha256")).sort();
+  if (files.length !== 16) fail(`bodies dir must hold exactly 16 prompt bodies, got ${files.length}`);
+  const bySlot = new Map();
+  for (const f of files) {
+    const m = /^s(\d{2})-.+\.md$/.exec(f);
+    if (!m) fail(`body ${f} is unattributable (want s<NN>-<name>.md)`);
+    const slot = Number(m[1]);
+    if (!(slot >= 1 && slot <= 12)) fail(`body ${f}: unlisted slot ${slot}`);
+    if (!bySlot.has(slot)) bySlot.set(slot, []);
+    bySlot.get(slot).push(f);
+  }
+  let fixed = 0;
+  let variant = 0;
+  for (let slot = 1; slot <= 12; slot++) {
+    const got = bySlot.get(slot) ?? [];
+    if (slot <= 8) {
+      if (got.length !== 1) fail(`slot ${slot}: want exactly 1 fixed body, got ${got.length}`);
+      fixed++;
+    } else {
+      const sides = got.map((f) => (/^s\d{2}-pointer\.md$/.test(f) ? "pointer" : (/^s\d{2}-neutral\.md$/.test(f) ? "neutral" : "?")));
+      if (!sameList(sides, ["pointer", "neutral"])) {
+        fail(`slot ${slot}: want exactly pointer + neutral bodies, got [${got.join(",")}]`);
+      }
+      variant += 2;
+    }
+  }
+  console.log("8 fixed + 8 variant bodies resolved and attributed");
+}
+
+function cannedOutputForPatch(patch) {
+  if (patch.expect === "zero") return CANNED_CLEAN;
+  const block = CANNED_BLOCKS[patch.id];
+  if (!block) fail(`no frozen canned block for defective patch ${patch.id}`);
+  return block;
+}
+
+function writeFlowRunsCompare(outDir, flow, runs, seed) {
+  const abs = resolve(outDir);
+  mkdirSync(abs, { recursive: true });
+  writeFileSync(join(abs, "flow.json"), `${JSON.stringify({ flow })}\n`);
+  writeFileSync(join(abs, "runs.json"), `${JSON.stringify({ schema_version: 1, seed, runs }, null, 2)}\n`);
+  const byTask = new Map();
+  for (const r of runs) {
+    if (!byTask.has(r.task_id)) byTask.set(r.task_id, { baseline: [], candidate: [] });
+    byTask.get(r.task_id)[r.variant].push({ run: r.run, verdict: r.verdict, veto: null });
+  }
+  const compare = {
+    schema_version: 1,
+    clean: true,
+    tasks: [...byTask.entries()].map(([task_id, arms]) => ({
+      task_id,
+      baseline: { runs: arms.baseline },
+      candidate: { runs: arms.candidate },
+    })),
+  };
+  writeFileSync(join(abs, "compare.json"), `${JSON.stringify(compare, null, 2)}\n`);
+}
+
+function modeLocalRun(opts, freeze) {
+  for (const k of ["tasks", "runs", "variants", "seed", "provider", "out"]) {
+    if (opts[k] === undefined || opts[k] === "") fail(`--local-run requires --${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`);
+  }
+  const params = {
+    tasks: Number(opts.tasks),
+    runs: Number(opts.runs),
+    variants: String(opts.variants).split(","),
+    seed: Number(opts.seed),
+    provider: String(opts.provider),
+  };
+  providerCall(params.provider, "local-run");
+  requireAbsentOrEmpty(opts.out);
+  if (opts.flow === "economic") {
+    if (!opts.manifest) fail("--local-run --flow economic requires --manifest");
+    checkParamBlock(freeze.rec, "linkage_economic", params, "--local-run --flow economic");
+    checkFrozenFile(opts.manifest, "parity manifest", freeze);
+    const manifest = loadJson(opts.manifest, "parity manifest");
+    let patches = manifest.patches ?? [];
+    if (opts.taskIds) {
+      const ids = new Set(String(opts.taskIds).split(","));
+      patches = patches.filter((p) => ids.has(p.id));
+    }
+    if (patches.length !== params.tasks) {
+      fail(`--tasks ${params.tasks} but ${patches.length} economic patches selected`);
+    }
+    const runs = [];
+    for (const variant of params.variants) {
+      for (const patch of patches) {
+        for (let run = 1; run <= params.runs; run++) {
+          runs.push({
+            task_id: patch.id, variant, run, verdict: "pass",
+            usage: { ...CANNED_USAGE }, output: cannedOutputForPatch(patch),
+          });
+        }
+      }
+    }
+    writeFlowRunsCompare(opts.out, "economic", runs, params.seed);
+    console.log(`local-run economic ok: ${runs.length} canned runs (fake-canned, seed ${params.seed})`);
+    return;
+  }
+  if (opts.flow) fail(`unknown --flow '${opts.flow}' (want economic)`);
+  if (!opts.corpus) fail("--local-run requires --corpus (or --flow economic --manifest)");
+  checkFrozenFile(opts.corpus, "corpus", freeze);
+  const corpus = loadCorpus(opts.corpus);
+  if (!opts.taskIds) fail("--local-run screening requires --task-ids");
+  const ids = String(opts.taskIds).split(",");
+  if (ids.length !== params.tasks) fail(`--tasks ${params.tasks} but ${ids.length} --task-ids`);
+  const byId = new Map(corpus.tasks.map((t) => [t.id, t]));
+  for (const id of ids) {
+    if (!byId.has(id)) fail(`unknown task id '${id}'`);
+  }
+  const runs = [];
+  for (const variant of params.variants) {
+    for (const id of ids) {
+      for (let run = 1; run <= params.runs; run++) {
+        runs.push({
+          task_id: id, variant, run, verdict: "pass",
+          usage: { ...CANNED_USAGE },
+          output: `canned success for ${id} ${variant} run ${run} seed ${params.seed}`,
+        });
+      }
+    }
+  }
+  writeFlowRunsCompare(opts.out, "screening", runs, params.seed);
+  console.log(`local-run screening ok: ${runs.length} canned runs (fake-canned, seed ${params.seed})`);
+}
+
+function main(argv) {
+  const opts = parseArgs(argv);
+  const modes = [opts.dryRun, opts.resolveAll, opts.validateCorpus, opts.localRun].filter(Boolean).length;
+  if (modes !== 1) {
+    fail("pass exactly one of --dry-run, --resolve-all, --validate-corpus, --local-run");
+  }
+  const freeze = loadFreeze(opts);
+  if (opts.dryRun) modeDryRun(opts, freeze);
+  else if (opts.resolveAll) modeResolveAll(opts, freeze);
+  else if (opts.validateCorpus) modeValidateCorpus(opts, freeze);
+  else modeLocalRun(opts, freeze);
+}
+
+main(process.argv.slice(2));

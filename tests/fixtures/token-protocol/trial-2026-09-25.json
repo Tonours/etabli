@@ -1,0 +1,61 @@
+{
+  "status": "ok",
+  "n": 11,
+  "per_file": [
+    {
+      "file": "workflow/review-rubric.md",
+      "pct": 0,
+      "buckets": {
+        "startup": 0,
+        "prereview": 0,
+        "review": 0
+      }
+    },
+    {
+      "file": "workflow/skills/review.md",
+      "pct": 36.4,
+      "buckets": {
+        "startup": 0,
+        "prereview": 4,
+        "review": 0
+      }
+    },
+    {
+      "file": "workflow/templates/review-logic-hunter.md",
+      "pct": 18.2,
+      "buckets": {
+        "startup": 0,
+        "prereview": 2,
+        "review": 0
+      }
+    },
+    {
+      "file": "workflow/templates/review-spec-hunter.md",
+      "pct": 18.2,
+      "buckets": {
+        "startup": 0,
+        "prereview": 2,
+        "review": 0
+      }
+    },
+    {
+      "file": "workflow/templates/review-lead.md",
+      "pct": 9.1,
+      "buckets": {
+        "startup": 0,
+        "prereview": 1,
+        "review": 1
+      }
+    },
+    {
+      "file": "workflow/templates/plan-archive.md",
+      "pct": 0,
+      "buckets": {
+        "startup": 0,
+        "prereview": 0,
+        "review": 4
+      }
+    }
+  ],
+  "spawnless_count": 22
+}

@@ -1,0 +1,29 @@
+{
+  "_source": {
+    "draft_sha": "ea6197703dbded479e28967ad8613ad072f4c4558c679865abac42ef49d0a181",
+    "line_range": "144-147",
+    "section": "Lead/Archive Fixtures"
+  },
+  "findings": [
+    {
+      "disposition": "RETAIN",
+      "file": "users.js",
+      "id": "F1",
+      "kind": "real bug",
+      "line": 3,
+      "severity": "high",
+      "text": "getUser(id).name dereferences a possibly-null return; add a null guard."
+    },
+    {
+      "disposition": "REJECT",
+      "file": "users.js",
+      "id": "F2",
+      "kind": "style nit, out of Logic scope",
+      "line": 1,
+      "severity": "low",
+      "text": "function name displayName should be getDisplayName for consistency."
+    }
+  ],
+  "oracle": "verdict retains F1 AND rejects F2 AND carries a verdict line; retaining both, rejecting both, or inverting FAILS.",
+  "schema_version": 1
+}

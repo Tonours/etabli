@@ -1,0 +1,195 @@
+#!/usr/bin/env node
+// scripts/parent-read-measure — T8a AC3(f).
+// Implements the v25 parent-read protocol BY NORMATIVE REFERENCE
+// (docs/plan/20260925-t8-full-draft.md, AC3 line 33):
+//   population = Pi + Claude sessions, last 90 days, on plan-implement/implement
+//     routes (session-level attribution; the adapter labels `route`);
+//   parent-vs-hunter: hunter reads live inside `pi --mode text -p` /
+//     review-hunter child spans; parent reads are all other tool args;
+//   PRE-REVIEW RULE: a read counts pre-review iff
+//     read_position < first_spawn_position (STRICT, R14-B3);
+//   buckets per file: (a) at-startup = position <= 3 AND < spawn (DESCRIPTIVE
+//     sub-count), (b) pre-review = position < spawn (DECISIONAL),
+//     (c) review-phase = position >= spawn;
+//   FORMULA per file, numerator and denominator over the SAME population:
+//     % = 100 x (spawned sessions WITH >= 1 pre-review read of the file)
+//           / (in-population sessions WITH >= 1 spawn);
+//     spawn-less sessions are EXCLUDED from both and COUNTED separately;
+//   edge cases: spawn at #1 + read at #2 -> review-phase (NOT pre-review);
+//     spawn-less session -> excluded + counted; pre- AND post-spawn read ->
+//     counts pre-review (presence suffices).
+// Six separately measured files (no auto-follow): the 4 slot files +
+// review-lead.md + plan-archive.md. T8a takes NO branch on the numbers.
+//
+// Input: --traces <dir> with one normalized session JSON per *.json file:
+//   {session_id?, source?, started_at? (ISO-8601), route?, calls?: [
+//     {kind: "read"|"spawn"|"other", path?: string}]}
+// Position = 1-based index in `calls`. Files named `expected.json` are
+// skipped (fixture oracles, not traces). Sessions without `started_at` are
+// treated as in-window (fixtures omit dates so they never rot); sessions
+// with an unparsable date or a route outside {plan-implement, implement}
+// are out of population.
+// A read matches a measured file by exact repo-relative path, by
+// '/'-suffixed path, or by basename (adapter copies count toward the same
+// file; stated instrument limit).
+// Statuses: unavailable (no in-population session: missing/empty/unreadable
+// dir, nothing parseable, or filters yield nothing) | insufficient (N < 10)
+// | ok (N >= 10), where N = in-population sessions with >= 1 spawn.
+// Exit 0 whenever the schema is emitted (all three statuses); exit 2 on
+// CLI misuse only. No network, no paid calls, read-only on --traces.
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const FILES = [
+  'workflow/review-rubric.md',
+  'workflow/skills/review.md',
+  'workflow/templates/review-logic-hunter.md',
+  'workflow/templates/review-spec-hunter.md',
+  'workflow/templates/review-lead.md',
+  'workflow/templates/plan-archive.md',
+];
+const ROUTES = new Set(['plan-implement', 'implement']);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WINDOW_MS = 90 * DAY_MS;
+
+function usage(exitCode) {
+  const msg = `usage: parent-read-measure --traces <dir> [--json]
+  --traces <dir>  directory of normalized session JSON files (read-only)
+  --json          emit {"status","n","per_file","spawnless_count"} on stdout
+  -h, --help      this help
+exit 0 on any emitted status (ok|insufficient|unavailable); exit 2 on misuse.`;
+  process.stderr.write(msg + '\n');
+  process.exit(exitCode);
+}
+
+function parseArgs(argv) {
+  let traces = null;
+  let json = false;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--traces') {
+      i++;
+      if (i >= argv.length || !argv[i]) usage(2);
+      traces = argv[i];
+    } else if (a === '--json') {
+      json = true;
+    } else if (a === '-h' || a === '--help') {
+      usage(0);
+    } else {
+      usage(2);
+    }
+  }
+  if (!traces) usage(2);
+  return { traces, json };
+}
+
+function basename(p) {
+  const i = p.lastIndexOf('/');
+  return i === -1 ? p : p.slice(i + 1);
+}
+
+function normalizePath(p) {
+  return String(p).replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
+// Returns the canonical file label matched by `p`, or null.
+function matchFile(p) {
+  const n = normalizePath(p);
+  const b = basename(n);
+  for (const f of FILES) {
+    if (n === f || n.endsWith('/' + f) || b === basename(f)) return f;
+  }
+  return null;
+}
+
+function emptyBuckets() {
+  const o = {};
+  for (const f of FILES) o[f] = { startup: 0, prereview: 0, review: 0 };
+  return o;
+}
+
+function emit(status, n, buckets, spawnlessCount) {
+  const perFile = FILES.map((f) => ({
+    file: f,
+    pct: n > 0 ? Math.round((100 * buckets[f].prereview) / n * 10) / 10 : null,
+    buckets: { ...buckets[f] },
+  }));
+  return { status, n, per_file: perFile, spawnless_count: spawnlessCount };
+}
+
+function main() {
+  const { traces, json } = parseArgs(process.argv.slice(2));
+  const now = Date.now();
+  let names = null;
+  try {
+    names = fs.readdirSync(traces).filter((n) => n.endsWith('.json')).sort();
+  } catch (err) {
+    process.stderr.write(`parent-read-measure: cannot read --traces dir: ${err.message}\n`);
+    const out = emit('unavailable', 0, emptyBuckets(), 0);
+    process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+    process.exit(0);
+  }
+  let inpop = 0;
+  let spawned = 0;
+  const buckets = emptyBuckets();
+  for (const name of names) {
+    if (name === 'expected.json') continue;
+    const full = path.join(traces, name);
+    let sess = null;
+    try {
+      sess = JSON.parse(fs.readFileSync(full, 'utf8'));
+    } catch (err) {
+      process.stderr.write(`parent-read-measure: skip unparseable ${name}: ${err.message}\n`);
+      continue;
+    }
+    if (!sess || typeof sess !== 'object' || !Array.isArray(sess.calls)) {
+      process.stderr.write(`parent-read-measure: skip ${name}: no calls[]\n`);
+      continue;
+    }
+    if (!ROUTES.has(sess.route)) continue;
+    if (sess.started_at !== undefined && sess.started_at !== null) {
+      const t = Date.parse(sess.started_at);
+      if (Number.isNaN(t) || now - t > WINDOW_MS) continue;
+    }
+    inpop++;
+    // Positions are 1-based over the calls array; unknown kinds are `other`.
+    let firstSpawn = null;
+    const reads = []; // [position, canonicalFile]
+    for (let i = 0; i < sess.calls.length; i++) {
+      const c = sess.calls[i] || {};
+      const pos = i + 1;
+      if (c.kind === 'spawn') {
+        if (firstSpawn === null) firstSpawn = pos;
+      } else if (c.kind === 'read' && typeof c.path === 'string') {
+        const f = matchFile(c.path);
+        if (f) reads.push([pos, f]);
+      }
+    }
+    if (firstSpawn === null) continue; // spawn-less: excluded, counted below
+    spawned++;
+    for (const f of FILES) {
+      const posns = reads.filter(([, rf]) => rf === f).map(([p]) => p);
+      if (posns.some((p) => p <= 3 && p < firstSpawn)) buckets[f].startup++;
+      if (posns.some((p) => p < firstSpawn)) buckets[f].prereview++;
+      if (posns.some((p) => p >= firstSpawn)) buckets[f].review++;
+    }
+  }
+  const status = inpop === 0 ? 'unavailable' : (spawned < 10 ? 'insufficient' : 'ok');
+  const out = emit(status, spawned, buckets, inpop - spawned);
+  if (json) {
+    process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+  } else {
+    const lines = [
+      `status=${out.status} n=${out.n} spawnless=${out.spawnless_count} inpop=${inpop}`,
+    ];
+    for (const r of out.per_file) {
+      lines.push(`${r.file} pct=${r.pct} startup=${r.buckets.startup} prereview=${r.buckets.prereview} review=${r.buckets.review}`);
+    }
+    process.stdout.write(lines.join('\n') + '\n');
+  }
+  process.exit(0);
+}
+
+main();

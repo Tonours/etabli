@@ -1,0 +1,640 @@
+#!/usr/bin/env node
+// scripts/t8a-pointer-diff-check — T8a AC2/AC5 oracle (PLAN.md v18).
+//
+// Verifies the AC2 pointer conversions against the step-1 capture:
+//   1. ledger anchor: sha256(snapshot bytes) == snapshot_sha in the
+//      append-only token-protocol ledger (a hand-edited snapshot FAILS);
+//   2. snapshot rows: ac2-inventory == sha256(inventory bytes),
+//      convert-start-dir == recomputed dir sha over sorted per-file shas;
+//   3. convert_set == sorted leaf set under convert-start/ (empty == empty);
+//   4. inventory schema + coherence (verdicts, kept_reasons, CONVERT rows
+//      carry pointer + availability verdict, convert_set covers CONVERT rows);
+//   5. start-sha integrity: CONVERT files match their convert-start capture,
+//      every other occurrence file is byte-identical to step 1 (any
+//      uninventoried edit FAILS);
+//   6. per CONVERT file: full start->final diff hunks bounded by the
+//      inventory ranges (old-side hunks must sit inside CONVERT ranges;
+//      pure insertions must land adjacent to one), every inserted pointer
+//      present, every canon target resolves (file exists, range in bounds);
+//   7. availability recompute: every KEPT/CONVERT verdict recomputed from
+//      the live budget (+ ADDED ship surface) matches the recorded verdict.
+//
+// With an empty CONVERT set, rule 6 is vacuously green ("0 CONVERT files").
+// convert-start-dir sha rule: sha256 over the concatenation, in sorted
+// relpath order, of "<file-sha256>  <relpath>\n" lines; an empty directory
+// hashes the empty string (e3b0c44...).
+//
+// SPLIT RULE (R2-B1/R4/R9-B3, intersection R10-B3): an occurrence in an
+// AC5-frozen file (a snapshot path row) is KEPT-FOR-T8b/frozen-file; else
+// CONVERT-IN-T8a iff the canon target file is readable on EVERY surface
+// containing the edited file (target in always-on files OR in that
+// surface's SYSTEMATIC files — same-surface conditionals do NOT qualify;
+// conditional membership of the EDITED file counts as containing). A file
+// contained in NO surface is KEPT/target-availability (fail closed: pointer
+// readability unprovable, and T8a never ships an availability-breaking
+// pointer).
+//
+// Usage:
+//   scripts/t8a-pointer-diff-check --inventory <json> --budget <json> \
+//     --snapshot <tsv> --convert-start <dir> [--ledger <jsonl>] [--root <dir>]
+//   scripts/t8a-pointer-diff-check --verdict-only --inventory <json> --budget <json> [--snapshot <tsv>]
+//   scripts/t8a-pointer-diff-check --self-test   (all fixtures in $TMPDIR)
+
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync,
+  rmSync, statSync, writeFileSync,
+} from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+
+const SELF = fileURLToPath(import.meta.url);
+const DEFAULT_ROOT = resolve(dirname(SELF), "..");
+const DEFAULTS = {
+  inventory: "tests/fixtures/token-protocol/ac2-inventory.json",
+  budget: "workflow/runtime/context-budget.json",
+  snapshot: "tests/fixtures/token-protocol/t8a-behavior-snapshot.tsv",
+  convertStart: "tests/fixtures/token-protocol/convert-start",
+  ledger: ".workflow/token-protocol/events.jsonl",
+};
+
+const failures = [];
+const notes = [];
+function bad(msg) { failures.push(msg); }
+function note(msg) { notes.push(msg); }
+
+function sha256Bytes(buf) { return createHash("sha256").update(buf).digest("hex"); }
+function sha256File(path) { return sha256Bytes(readFileSync(path)); }
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--verdict-only") out.verdictOnly = true;
+    else if (a === "--self-test") out.selfTest = true;
+    else if (a.startsWith("--")) {
+      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      out[key] = argv[++i] ?? "";
+    }
+  }
+  return out;
+}
+
+function walkFiles(dir, base = dir) {
+  const found = [];
+  if (!existsSync(dir)) return found;
+  for (const entry of readdirSync(dir).sort()) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) found.push(...walkFiles(full, base));
+    else found.push(relative(base, full));
+  }
+  return found.sort();
+}
+
+// sha256 over sorted "<file-sha>  <relpath>\n" lines; empty dir -> sha256("").
+function dirSha(dir) {
+  const lines = walkFiles(dir).map((rel) => `${sha256File(join(dir, rel))}  ${rel}\n`);
+  return sha256Bytes(Buffer.from(lines.join(""), "utf8"));
+}
+
+const NAMED_ROWS = new Set([
+  "convert-start-dir", "treestart", "untracked-start", "ac2-inventory",
+]);
+
+function parseSnapshot(text) {
+  const paths = new Map(); // repo-rel path -> sha (AC5 frozen files)
+  const named = new Map(); // budget:* + evidence rows -> sha
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    const tab = line.indexOf("\t");
+    if (tab < 0) throw new Error(`malformed snapshot row (no tab): ${line.slice(0, 60)}`);
+    const key = line.slice(0, tab);
+    const sha = line.slice(tab + 1).trim();
+    if (!/^[0-9a-f]{64}$/.test(sha) && sha !== "ABSENT") {
+      throw new Error(`malformed snapshot sha for ${key}`);
+    }
+    if (key.includes(":") || NAMED_ROWS.has(key)) named.set(key, sha);
+    else paths.set(key, sha);
+  }
+  return { paths, named };
+}
+
+function parseRange(s, ctx) {
+  const m = /^(\d+)-(\d+)$/.exec(s);
+  if (!m) throw new Error(`bad line_range ${JSON.stringify(s)} (${ctx})`);
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (!(start >= 1 && end >= start)) throw new Error(`bad line_range ${JSON.stringify(s)} (${ctx})`);
+  return { start, end };
+}
+
+function canonTargetFile(canons, key) {
+  const spec = canons[key];
+  if (!spec) return null;
+  const colon = spec.indexOf(":");
+  return colon < 0 ? spec : spec.slice(0, colon);
+}
+
+function budgetSurfaces(budget) {
+  const out = [];
+  for (const [name, surface] of Object.entries(budget.surfaces ?? {})) {
+    out.push({
+      name,
+      systematic: surface.files ?? [],
+      conditional: (surface.conditional ?? []).map((c) => c.file),
+    });
+  }
+  return out;
+}
+
+// Full SPLIT verdict recompute. frozenSet null => availability-only.
+function recomputeVerdict({ budget, frozenSet, editedFile, canonTarget }) {
+  if (frozenSet && frozenSet.has(editedFile)) {
+    return { verdict: "KEPT-FOR-T8b", reason: "frozen-file" };
+  }
+  const surfaces = budgetSurfaces(budget);
+  const alwaysOn = surfaces.find((s) => s.name === "always-on")?.systematic ?? [];
+  const containing = surfaces.filter(
+    (s) => s.systematic.includes(editedFile) || s.conditional.includes(editedFile),
+  );
+  if (containing.length === 0) {
+    return { verdict: "KEPT-FOR-T8b", reason: "target-availability" };
+  }
+  const readableEverywhere = containing.every(
+    (s) => alwaysOn.includes(canonTarget) || s.systematic.includes(canonTarget),
+  );
+  return readableEverywhere
+    ? { verdict: "CONVERT-IN-T8a", reason: null }
+    : { verdict: "KEPT-FOR-T8b", reason: "target-availability" };
+}
+
+function ledgerSnapshotSha(ledgerPath) {
+  if (!existsSync(ledgerPath)) return null;
+  let found = null;
+  for (const line of readFileSync(ledgerPath, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    const sha = event?.detail?.snapshot_sha;
+    if (typeof sha === "string" && /^[0-9a-f]{64}$/.test(sha)) found = sha;
+  }
+  return found;
+}
+
+// Parse `diff` normal-format hunks -> [{op, oStart, oEnd}]; null if identical.
+function diffOldHunks(startPath, currentPath) {
+  let out = "";
+  try {
+    execFileSync("diff", [startPath, currentPath], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    return null; // exit 0: identical
+  } catch (err) {
+    if (err.status !== 1) throw new Error(`diff failed: ${err.message}`);
+    out = err.stdout ?? "";
+  }
+  const hunks = [];
+  for (const line of out.split("\n")) {
+    const m = /^(\d+)(?:,(\d+))?([acd])(\d+)(?:,(\d+))?$/.exec(line);
+    if (!m) continue;
+    const oStart = Number(m[1]);
+    hunks.push({ op: m[3], oStart, oEnd: m[2] ? Number(m[2]) : oStart });
+  }
+  return hunks;
+}
+
+function inRanges(n, ranges) {
+  return ranges.some((r) => n >= r.start && n <= r.end);
+}
+
+function loadJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function checkInventorySchema(inv) {
+  if (!Array.isArray(inv.occurrences) || inv.occurrences.length === 0) {
+    bad("inventory: no occurrences");
+    return;
+  }
+  const verdicts = new Set(["canon", "pointer", "CONVERT-IN-T8a", "KEPT-FOR-T8b"]);
+  inv.occurrences.forEach((row, i) => {
+    const ctx = `occurrence[${i}]`;
+    if (typeof row.file !== "string" || !row.file) bad(`${ctx}: bad file`);
+    try { parseRange(row.line_range, ctx); } catch (err) { bad(`${ctx}: ${err.message}`); }
+    if (!inv.canons || !(row.canon_target in inv.canons)) bad(`${ctx}: unknown canon_target ${row.canon_target}`);
+    if (!verdicts.has(row.verdict)) bad(`${ctx}: bad verdict ${row.verdict}`);
+    if (!/^[0-9a-f]{64}$/.test(row.start_sha ?? "")) bad(`${ctx}: bad start_sha`);
+    if (row.verdict === "KEPT-FOR-T8b"
+      && !["frozen-file", "target-availability"].includes(row.kept_reason)) {
+      bad(`${ctx}: bad kept_reason ${row.kept_reason}`);
+    }
+    if (row.verdict === "CONVERT-IN-T8a" && typeof row.pointer !== "string") {
+      bad(`${ctx}: CONVERT row without inserted pointer`);
+    }
+  });
+  if (!Array.isArray(inv.convert_set)) bad("inventory: convert_set is not an array");
+}
+
+function main(opts, root) {
+  const invPath = resolve(opts.inventory ?? join(root, DEFAULTS.inventory));
+  const budgetPath = resolve(opts.budget ?? join(root, DEFAULTS.budget));
+  const snapPath = resolve(opts.snapshot ?? join(root, DEFAULTS.snapshot));
+  const convDir = resolve(opts.convertStart ?? join(root, DEFAULTS.convertStart));
+  const ledgerPath = resolve(opts.ledger ?? join(root, DEFAULTS.ledger));
+
+  for (const [label, p] of [["inventory", invPath], ["budget", budgetPath], ["snapshot", snapPath]]) {
+    if (!existsSync(p)) { bad(`${label} missing: ${p}`); }
+  }
+  if (!existsSync(convDir) || !statSync(convDir).isDirectory()) bad(`convert-start missing: ${convDir}`);
+  if (failures.length > 0) return report();
+
+  const inv = loadJson(invPath);
+  const budget = loadJson(budgetPath);
+  const snapBytes = readFileSync(snapPath);
+  const snap = parseSnapshot(snapBytes.toString("utf8"));
+
+  // 1. ledger anchor
+  const recorded = ledgerSnapshotSha(ledgerPath);
+  const snapSha = sha256Bytes(snapBytes);
+  if (!recorded) bad(`ledger ${ledgerPath} carries no snapshot_sha (append-only anchor missing)`);
+  else if (recorded !== snapSha) bad("snapshot bytes != ledger snapshot_sha (hand-edited snapshot?)");
+  else note("ledger-anchored snapshot sha ok");
+
+  // 2. snapshot rows
+  const invSha = sha256File(invPath);
+  if (snap.named.get("ac2-inventory") !== invSha) {
+    bad("snapshot ac2-inventory row != sha256(inventory) (tampered inventory?)");
+  } else note("inventory sha matches snapshot row");
+  const recomputedDirSha = dirSha(convDir);
+  if (snap.named.get("convert-start-dir") !== recomputedDirSha) {
+    bad("snapshot convert-start-dir row != recomputed dir sha (tampered capture?)");
+  } else note("convert-start dir sha matches snapshot row");
+
+  // 3. convert_set == convert-start leaf set
+  const leaves = walkFiles(convDir);
+  const convertSet = [...(inv.convert_set ?? [])].sort();
+  if (JSON.stringify(convertSet) !== JSON.stringify(leaves)) {
+    bad(`convert_set ${JSON.stringify(convertSet)} != convert-start leaves ${JSON.stringify(leaves)}`);
+  } else {
+    note(convertSet.length === 0
+      ? "CONVERT set empty and convert-start/ empty-exact"
+      : `CONVERT set == convert-start leaves (${convertSet.length})`);
+  }
+
+  // 4. schema + coherence
+  checkInventorySchema(inv);
+  const convertRows = (inv.occurrences ?? []).filter((r) => r.verdict === "CONVERT-IN-T8a");
+  const convertFiles = [...new Set(convertRows.map((r) => r.file))].sort();
+  if (JSON.stringify(convertFiles) !== JSON.stringify(convertSet)) {
+    bad(`CONVERT-row files ${JSON.stringify(convertFiles)} != convert_set ${JSON.stringify(convertSet)}`);
+  }
+
+  // 5. start-sha integrity
+  const rowsByFile = new Map();
+  for (const row of inv.occurrences ?? []) {
+    if (!rowsByFile.has(row.file)) rowsByFile.set(row.file, []);
+    rowsByFile.get(row.file).push(row);
+  }
+  for (const [file, rows] of rowsByFile) {
+    const isConvert = convertSet.includes(file);
+    const want = rows[0].start_sha;
+    if (!rows.every((r) => r.start_sha === want)) {
+      bad(`${file}: rows disagree on start_sha`);
+      continue;
+    }
+    if (isConvert) {
+      const cap = join(convDir, file);
+      if (!existsSync(cap)) { bad(`${file}: convert-start capture missing`); continue; }
+      if (sha256File(cap) !== want) bad(`${file}: capture bytes != start_sha (tampered capture?)`);
+      else note(`${file}: capture integrity ok`);
+    } else {
+      const cur = join(root, file);
+      if (!existsSync(cur)) { bad(`${file}: worktree file missing`); continue; }
+      if (sha256File(cur) !== want) bad(`${file}: worktree bytes != start_sha (uninventoried edit?)`);
+    }
+  }
+
+  // 6. per CONVERT file: diff bound + pointer resolution
+  if (convertSet.length === 0) {
+    note("0 CONVERT files — diff check vacuously green");
+  }
+  for (const file of convertSet) {
+    const rows = rowsByFile.get(file) ?? [];
+    const ranges = rows.map((r) => parseRange(r.line_range, file));
+    const startPath = join(convDir, file);
+    const currentPath = join(root, file);
+    if (!existsSync(currentPath)) { bad(`${file}: worktree file missing`); continue; }
+    let hunks;
+    try {
+      hunks = diffOldHunks(startPath, currentPath);
+    } catch (err) { bad(`${file}: ${err.message}`); continue; }
+    if (hunks === null) { bad(`${file}: CONVERT file identical to start (no conversion applied)`); continue; }
+    for (const h of hunks) {
+      if (h.op === "a") {
+        // pure insertion after old line N: must land adjacent to a CONVERT range
+        if (!ranges.some((r) => h.oStart >= r.start - 1 && h.oStart <= r.end)) {
+          bad(`${file}: insertion after line ${h.oStart} outside CONVERT ranges`);
+        }
+      } else {
+        for (let n = h.oStart; n <= h.oEnd; n++) {
+          if (!inRanges(n, ranges)) { bad(`${file}: diff hunk line ${n} outside CONVERT ranges`); break; }
+        }
+      }
+    }
+    const current = readFileSync(currentPath, "utf8");
+    const currentLines = current.split("\n").length;
+    for (const row of rows) {
+      if (!current.includes(row.pointer)) {
+        bad(`${file}:${row.line_range}: inserted pointer not found in current file`);
+      }
+      const target = canonTargetFile(inv.canons, row.canon_target);
+      const targetPath = target ? join(root, target) : null;
+      if (!target || !existsSync(targetPath)) {
+        bad(`${file}:${row.line_range}: canon target ${row.canon_target} does not resolve (dangling)`);
+        continue;
+      }
+      const spec = inv.canons[row.canon_target];
+      const rangePart = spec.slice(spec.indexOf(":") + 1);
+      try {
+        const tr = parseRange(rangePart, `canon ${row.canon_target}`);
+        const targetLines = readFileSync(targetPath, "utf8").split("\n").length;
+        if (tr.end > targetLines) bad(`${file}:${row.line_range}: canon range exceeds ${target} (${targetLines} lines)`);
+      } catch (err) { bad(`${file}:${row.line_range}: ${err.message}`); }
+    }
+    void currentLines;
+  }
+
+  // 7. availability recompute (frozen set = snapshot path rows)
+  const frozenSet = new Set(snap.paths.keys());
+  let keptOk = 0;
+  let convertOk = 0;
+  for (const row of inv.occurrences ?? []) {
+    if (row.verdict !== "KEPT-FOR-T8b" && row.verdict !== "CONVERT-IN-T8a") continue;
+    const target = canonTargetFile(inv.canons, row.canon_target);
+    if (!target) { bad(`${row.file}:${row.line_range}: unknown canon_target ${row.canon_target}`); continue; }
+    const re = recomputeVerdict({ budget, frozenSet, editedFile: row.file, canonTarget: target });
+    if (re.verdict !== row.verdict || (re.reason ?? null) !== (row.kept_reason ?? null)) {
+      bad(`${row.file}:${row.line_range}: recomputed ${re.verdict}/${re.reason ?? "-"} `
+        + `!= recorded ${row.verdict}/${row.kept_reason ?? "-"}`);
+    } else if (row.verdict === "KEPT-FOR-T8b") {
+      keptOk++;
+      note(`${row.file}:${row.line_range} KEPT-FOR-T8b/${row.kept_reason} recomputed clean`);
+    } else {
+      convertOk++;
+    }
+  }
+  note(`${convertRows.length} CONVERT green, ${keptOk} KEPT re-verified`);
+
+  return report();
+}
+
+function report() {
+  for (const n of notes) console.log(`t8a-pointer-diff-check: ${n}`);
+  if (failures.length > 0) {
+    for (const f of failures) console.error(`t8a-pointer-diff-check FAIL: ${f}`);
+    console.error(`t8a-pointer-diff-check: ${failures.length} failure(s)`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log("t8a-pointer-diff-check: ok");
+}
+
+function verdictOnly(opts, root) {
+  const invPath = resolve(opts.inventory ?? join(root, DEFAULTS.inventory));
+  const budgetPath = resolve(opts.budget ?? join(root, DEFAULTS.budget));
+  const inv = loadJson(invPath);
+  const budget = loadJson(budgetPath);
+  let frozenSet = null;
+  if (opts.snapshot) {
+    frozenSet = new Set(parseSnapshot(readFileSync(resolve(opts.snapshot), "utf8")).paths.keys());
+  }
+  for (const row of inv.occurrences ?? []) {
+    if (row.verdict !== "KEPT-FOR-T8b" && row.verdict !== "CONVERT-IN-T8a") continue;
+    const target = canonTargetFile(inv.canons, row.canon_target);
+    const re = target
+      ? recomputeVerdict({ budget, frozenSet, editedFile: row.file, canonTarget: target })
+      : { verdict: "UNKNOWN", reason: "dangling-canon" };
+    console.log(`${row.file}:${row.line_range} recomputed=${re.verdict} `
+      + `recorded=${row.verdict} reason=${re.reason ?? row.kept_reason ?? "-"}`);
+  }
+}
+
+// ---------------- self-test (fixtures in $TMPDIR only) ----------------
+function runSelf(args, expect) {
+  let code = 0;
+  let out = "";
+  try {
+    out = execFileSync(process.execPath, [SELF, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (err) {
+    code = err.status ?? 1;
+    out = (err.stdout ?? "") + (err.stderr ?? "");
+  }
+  if ((expect === 0) !== (code === 0)) {
+    console.error(`self-test FAIL: [${args.join(" ")}] exit=${code}, expected ${expect}\n${out}`);
+    process.exitCode = 1;
+    return null;
+  }
+  console.log(`self-test ok: [${args.join(" ")}] exit=${code}`);
+  return out;
+}
+
+function writeJson(path, value) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function selfTest(root) {
+  const tmp = mkdtempSync(join(tmpdir(), "t8a-diffcheck-"));
+  try {
+    // T1: real main-mode invocation (pinned flags) must be green.
+    runSelf([
+      "--inventory", join(root, DEFAULTS.inventory),
+      "--budget", join(root, DEFAULTS.budget),
+      "--snapshot", join(root, DEFAULTS.snapshot),
+      "--convert-start", join(root, DEFAULTS.convertStart),
+    ], 0);
+
+    // T2: verdict-only on the real inventory reproduces all 4 KEPT rows.
+    const vo = runSelf([
+      "--verdict-only",
+      "--inventory", join(root, DEFAULTS.inventory),
+      "--budget", join(root, DEFAULTS.budget),
+      "--snapshot", join(root, DEFAULTS.snapshot),
+    ], 0);
+    if (vo !== null) {
+      for (const row of loadJson(join(root, DEFAULTS.inventory)).occurrences) {
+        if (row.verdict !== "KEPT-FOR-T8b") continue;
+        const want = `${row.file}:${row.line_range} recomputed=${row.verdict} recorded=${row.verdict} reason=${row.kept_reason}`;
+        if (!vo.includes(want)) {
+          console.error(`self-test FAIL: verdict-only missing: ${want}`);
+          process.exitCode = 1;
+        }
+      }
+      if (process.exitCode !== 1) console.log("self-test ok: verdict-only reproduces 4 KEPT rows");
+    }
+
+    // Sandbox: copy of the real inputs + sandbox ledger.
+    const sb = join(tmp, "sb");
+    const sbInv = join(sb, "inv.json");
+    const sbSnap = join(sb, "snap.tsv");
+    const sbConv = join(sb, "convert-start");
+    const sbLedger = join(sb, "events.jsonl");
+    mkdirSync(sbConv, { recursive: true });
+    const snapBytes = readFileSync(join(root, DEFAULTS.snapshot));
+    writeFileSync(sbSnap, snapBytes);
+    writeFileSync(sbInv, readFileSync(join(root, DEFAULTS.inventory)));
+    writeFileSync(sbLedger, `${JSON.stringify({
+      schema_version: 2, ts: "2026-09-25T00:00:00Z", event: "file_changed",
+      run: "self-test", detail: { snapshot_sha: sha256Bytes(snapBytes) },
+    })}\n`);
+    const sbArgs = [
+      "--inventory", sbInv, "--budget", join(root, DEFAULTS.budget),
+      "--snapshot", sbSnap, "--convert-start", sbConv, "--ledger", sbLedger,
+    ];
+
+    // T3: tampered-inventory-only -> nonzero (snapshot row mismatch).
+    writeFileSync(sbInv, `${readFileSync(sbInv, "utf8")} `);
+    runSelf(sbArgs, 1);
+    writeFileSync(sbInv, readFileSync(join(root, DEFAULTS.inventory)));
+
+    // T4: stray file in convert-start (tampered capture) -> nonzero.
+    writeFileSync(join(sbConv, "stray.md"), "stray\n");
+    runSelf(sbArgs, 1);
+    rmSync(join(sbConv, "stray.md"));
+
+    // T5-T9: synthetic CONVERT scenario.
+    const syn = join(tmp, "syn");
+    const synRoot = join(syn, "root");
+    mkdirSync(join(synRoot, "docs"), { recursive: true });
+    mkdirSync(join(syn, "convert-start"), { recursive: true });
+    const startText = "line one copy here\nline two copy here\nother line\n";
+    writeFileSync(join(synRoot, "docs", "page.md"), startText);
+    mkdirSync(join(syn, "convert-start", "docs"), { recursive: true });
+    writeFileSync(join(syn, "convert-start", "docs", "page.md"), startText);
+    const startSha = sha256Bytes(Buffer.from(startText, "utf8"));
+    const targetText = "canon line 1\ncanon line 2\n";
+    writeFileSync(join(synRoot, "canon.md"), targetText);
+    const budget = {
+      version: 1,
+      surfaces: {
+        "always-on": { files: [] },
+        s1: { files: ["docs/page.md", "canon.md"] },
+      },
+    };
+    writeJson(join(syn, "budget.json"), budget);
+    const inventory = {
+      canons: { c1: "canon.md:1-2" },
+      convert_set: ["docs/page.md"],
+      occurrences: [{
+        file: "docs/page.md", line_range: "1-2", canon_target: "c1",
+        pointer: "See canon.md § 1, canonical.",
+        start_sha: startSha, verdict: "CONVERT-IN-T8a",
+      }],
+    };
+    writeJson(join(syn, "inv.json"), inventory);
+    const converted = "See canon.md § 1, canonical.\nother line\n";
+    const snapRows =
+      `canon.md\t${sha256Bytes(Buffer.from(targetText, "utf8"))}\n`
+      + `convert-start-dir\t${dirSha(join(syn, "convert-start"))}\n`
+      + `ac2-inventory\t${sha256File(join(syn, "inv.json"))}\n`;
+    writeFileSync(join(syn, "snap.tsv"), snapRows);
+    const synSnapSha = sha256File(join(syn, "snap.tsv"));
+    writeFileSync(join(syn, "ledger.jsonl"), `${JSON.stringify({
+      schema_version: 2, event: "file_changed", run: "self-test",
+      detail: { snapshot_sha: synSnapSha },
+    })}\n`);
+    const synArgs = () => [
+      "--inventory", join(syn, "inv.json"), "--budget", join(syn, "budget.json"),
+      "--snapshot", join(syn, "snap.tsv"), "--convert-start", join(syn, "convert-start"),
+      "--ledger", join(syn, "ledger.jsonl"), "--root", synRoot,
+    ];
+
+    // T5: converted within range + pointer present + target resolves -> green.
+    writeFileSync(join(synRoot, "docs", "page.md"), converted);
+    runSelf(synArgs(), 0);
+
+    // T6: out-of-range hunk (edit to line 3, outside range 1-2) -> nonzero.
+    writeFileSync(join(synRoot, "docs", "page.md"), `${converted}extra line\n`);
+    runSelf(synArgs(), 1);
+
+    // T7: dangling canon target (target file removed) -> nonzero.
+    writeFileSync(join(synRoot, "docs", "page.md"), converted);
+    rmSync(join(synRoot, "canon.md"));
+    runSelf(synArgs(), 1);
+    writeFileSync(join(synRoot, "canon.md"), targetText);
+
+    // T8: uninventoried edit on a KEPT file -> nonzero.
+    const keptText = "kept copy line\n";
+    writeFileSync(join(synRoot, "kept.md"), keptText);
+    const keptSha = sha256Bytes(Buffer.from(keptText, "utf8"));
+    const invKept = JSON.parse(JSON.stringify(inventory));
+    invKept.occurrences.push({
+      file: "kept.md", line_range: "1-1", canon_target: "c1",
+      pointer: null, start_sha: keptSha,
+      verdict: "KEPT-FOR-T8b", kept_reason: "target-availability",
+    });
+    writeJson(join(syn, "inv.json"), invKept);
+    writeFileSync(join(syn, "snap.tsv"), snapRows.replace(
+      /ac2-inventory\t[0-9a-f]{64}/, `ac2-inventory\t${sha256File(join(syn, "inv.json"))}`,
+    ));
+    writeFileSync(join(syn, "ledger.jsonl"), `${JSON.stringify({
+      schema_version: 2, event: "file_changed", run: "self-test",
+      detail: { snapshot_sha: sha256File(join(syn, "snap.tsv")) },
+    })}\n`);
+    writeFileSync(join(synRoot, "kept.md"), "kept copy line EDITED\n");
+    runSelf(synArgs(), 1);
+    writeFileSync(join(synRoot, "kept.md"), keptText);
+
+    // T9: JOINT capture+inventory tamper (start_sha rewritten to match the
+    // tampered capture) -> nonzero via the ledger-anchored snapshot rows.
+    const tampered = "tampered start\n";
+    writeFileSync(join(syn, "convert-start", "docs", "page.md"), tampered);
+    const invJoint = loadJson(join(syn, "inv.json"));
+    invJoint.occurrences[0].start_sha = sha256Bytes(Buffer.from(tampered, "utf8"));
+    writeJson(join(syn, "inv.json"), invJoint);
+    runSelf(synArgs(), 1);
+
+    // T10: availability-split verdict-only (edited file in 2 surfaces,
+    // target systematic in 1) -> KEPT-FOR-T8b/target-availability.
+    const splitBudget = {
+      version: 1,
+      surfaces: {
+        "always-on": { files: [] },
+        s1: { files: ["edited.md", "target.md"] },
+        s2: { files: ["edited.md"] },
+      },
+    };
+    writeJson(join(syn, "split-budget.json"), splitBudget);
+    writeJson(join(syn, "split-inv.json"), {
+      canons: { c1: "target.md:1-1" },
+      convert_set: [],
+      occurrences: [{
+        file: "edited.md", line_range: "1-1", canon_target: "c1",
+        pointer: null, start_sha: "0".repeat(64),
+        verdict: "KEPT-FOR-T8b", kept_reason: "target-availability",
+      }],
+    });
+    const splitOut = runSelf([
+      "--verdict-only",
+      "--inventory", join(syn, "split-inv.json"),
+      "--budget", join(syn, "split-budget.json"),
+    ], 0);
+    const wantSplit = "edited.md:1-1 recomputed=KEPT-FOR-T8b recorded=KEPT-FOR-T8b reason=target-availability";
+    if (splitOut !== null && !splitOut.includes(wantSplit)) {
+      console.error(`self-test FAIL: split verdict-only missing: ${wantSplit}\n${splitOut}`);
+      process.exitCode = 1;
+    } else if (splitOut !== null) {
+      console.log("self-test ok: availability-split prints KEPT-FOR-T8b/target-availability");
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  if (process.exitCode) console.error("self-test: FAILURES present");
+  else console.log("self-test: all green");
+}
+
+const opts = parseArgs(process.argv.slice(2));
+const root = resolve(opts.root ?? DEFAULT_ROOT);
+if (opts.selfTest) selfTest(root);
+else if (opts.verdictOnly) verdictOnly(opts, root);
+else main(opts, root);

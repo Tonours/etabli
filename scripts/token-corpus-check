@@ -1,0 +1,240 @@
+#!/usr/bin/env node
+// scripts/token-corpus-check — T8a AC4 completeness check (PLAN.md v18).
+//
+// Asserts over tests/fixtures/token-protocol/ (override with --root):
+//   - every corpus-manifest.json entry exists with matching sha256
+//     (dir entries use the recursive dir-sha rule; the manifest NEVER
+//     covers itself);
+//   - coverage: 8 fixed + 8 variant bodies (slots 9-12 x pointer/neutral),
+//     prompt-body count == 16, each with a matching .sha256 sidecar;
+//   - corpus.json is the 12-slot derived corpus with every prompt_file
+//     resolving to a fingerprinted body;
+//   - freeze-record.json covered (role: freeze) with input shas matching
+//     disk; report/reference.json covered (role: fixture);
+//   - every transcribed JSON carries _source {draft_sha, section,
+//     line_range} resolving in the pinned v25 draft (sha ea619770...);
+//   - dossier-blocks.md parses (REAL parser) to exactly F1+F2 with fields
+//     equal to dossier.json;
+//   - archive-plan.md carries exactly sections [Meta, Goal,
+//     Acceptance Criteria] with the pinned sha.
+//
+// Exit 0 + summary on success; exit 1 REFUSED on ANY mismatch.
+// Offline only: no I/O beyond the fixture tree, no network.
+
+import { createHash } from "node:crypto";
+import {
+  existsSync, readdirSync, readFileSync, statSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseFindings } from "./lib/token-finding-parser.mjs";
+
+const SELF_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_ROOT = resolve(SELF_DIR, "../tests/fixtures/token-protocol");
+const DRAFT_SHA = "ea6197703dbded479e28967ad8613ad072f4c4558c679865abac42ef49d0a181";
+const ARCHIVE_SHA = "d8863c5667edf6d400e38f44c737e6e3a06697e87fd67b1e0c7f7f03b1706e69";
+const SCHEMA_VERSION = 1;
+
+function fail(msg) {
+  console.error(`token-corpus-check: REFUSED — ${msg}`);
+  process.exit(1);
+}
+
+function sha256Bytes(buf) { return createHash("sha256").update(buf).digest("hex"); }
+function sha256File(path) { return sha256Bytes(readFileSync(path)); }
+
+function walkFiles(dir, base = dir) {
+  const found = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) found.push(...walkFiles(full, base));
+    else found.push(join(full.slice(base.length + 1)));
+  }
+  return found.sort();
+}
+
+function dirSha(dir) {
+  const lines = walkFiles(dir).map((rel) => `${sha256File(join(dir, rel))}  ${rel}\n`);
+  return sha256Bytes(Buffer.from(lines.join(""), "utf8"));
+}
+
+function loadJson(path, what) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    fail(`cannot read ${what} ${path}: ${err.message}`);
+  }
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--root") out.root = argv[++i] ?? "";
+    else if (a === "--manifest") out.manifest = argv[++i] ?? "";
+    else if (a === "--draft") out.draft = argv[++i] ?? "";
+    else fail(`unknown arg '${a}' (want --root/--manifest/--draft)`);
+  }
+  return out;
+}
+
+function sidecarToken(bodyPath) {
+  const sidecar = `${bodyPath}.sha256`;
+  if (!existsSync(sidecar)) fail(`prompt body ${bodyPath} has no .sha256 sidecar`);
+  const token = readFileSync(sidecar, "utf8").trim().split(/\s+/)[0];
+  if (!/^[0-9a-f]{64}$/.test(token ?? "")) fail(`prompt body ${bodyPath} has a malformed .sha256 sidecar`);
+  return token;
+}
+
+function main(argv) {
+  const opts = parseArgs(argv);
+  const root = resolve(opts.root ?? DEFAULT_ROOT);
+  const manPath = resolve(opts.manifest ?? join(root, "corpus-manifest.json"));
+  if (!existsSync(manPath)) fail(`missing corpus-manifest.json at ${manPath}`);
+  const manifest = loadJson(manPath, "corpus manifest");
+  if (manifest.schema_version !== SCHEMA_VERSION) fail("manifest schema_version want 1");
+  const entries = manifest.files;
+  if (!Array.isArray(entries) || entries.length === 0) fail("manifest holds no files[] array");
+
+  // (1) The manifest NEVER covers itself; every entry matches disk.
+  for (const e of entries) {
+    if (e.file === "corpus-manifest.json") fail("manifest covers itself (forbidden)");
+    const full = join(root, e.file);
+    if (!existsSync(full)) fail(`manifest entry ${e.file} missing under ${root}`);
+    const actual = e.dir ? dirSha(full) : sha256File(full);
+    if (actual !== e.sha256) {
+      fail(`fingerprint mismatch on ${e.file}: manifest pins ${e.sha256}, disk hashes ${actual}`);
+    }
+  }
+
+  // (2) Coverage block.
+  const cov = manifest.coverage ?? {};
+  const slots12 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const sameList = (a, b) => a.length === b.length && [...a].sort((x, y) => x - y).every((v, i) => v === [...b].sort((x, y) => x - y)[i]);
+  if (!sameList(cov.screening_slots ?? [], slots12)) fail("coverage.screening_slots must be exactly 1..12");
+  if (cov.fixed_bodies !== 8 || cov.variant_bodies !== 8 || cov.prompt_bodies !== 16) {
+    fail(`coverage bodies want 8+8=16, got ${cov.fixed_bodies}+${cov.variant_bodies}=${cov.prompt_bodies}`);
+  }
+  if (!Array.isArray(cov.parity_patches) || cov.parity_patches.length !== 6) {
+    fail("coverage.parity_patches must list exactly 6 patch ids");
+  }
+
+  // (3) Prompt bodies on disk: 16 files, slot-attributed, sidecars match.
+  const bodiesDir = join(root, "prompt-bodies");
+  const bodies = readdirSync(bodiesDir).filter((f) => !f.endsWith(".sha256")).sort();
+  if (bodies.length !== 16) fail(`prompt-bodies must hold exactly 16 bodies, got ${bodies.length}`);
+  let fixed = 0;
+  let variant = 0;
+  for (const f of bodies) {
+    const m = /^s(\d{2})-(.+)\.md$/.exec(f);
+    if (!m) fail(`body ${f} is unattributable (want s<NN>-<name>.md)`);
+    const slot = Number(m[1]);
+    const full = join(bodiesDir, f);
+    if (sha256File(full) !== sidecarToken(full)) fail(`body ${f} bytes differ from its .sha256 sidecar`);
+    if (slot >= 1 && slot <= 8) fixed++;
+    else if (slot >= 9 && slot <= 12) {
+      if (m[2] !== "pointer" && m[2] !== "neutral") fail(`slot ${slot}: variant body ${f} is neither pointer nor neutral`);
+      variant++;
+    } else fail(`body ${f}: unlisted slot ${slot}`);
+  }
+  if (fixed !== 8 || variant !== 8) fail(`bodies on disk want 8 fixed + 8 variant, got ${fixed} + ${variant}`);
+
+  // (4) corpus.json: the 12-slot derived corpus, every body resolving.
+  const corpus = loadJson(join(root, "corpus.json"), "corpus");
+  if (corpus.schema_version !== SCHEMA_VERSION) fail("corpus schema_version want 1");
+  const gotSlots = (corpus.tasks ?? []).map((t) => t.slot);
+  if (!sameList(gotSlots, slots12)) fail(`corpus slots must be exactly 1..12, got [${gotSlots.join(",")}]`);
+  for (const task of corpus.tasks) {
+    if (task.slot <= 8) {
+      if (!task.prompt_file || task.variants) fail(`slot ${task.slot}: fixed task '${task.id}' shape wrong`);
+      const full = join(root, task.prompt_file);
+      if (!existsSync(full)) fail(`slot ${task.slot}: dangling prompt_file ${task.prompt_file}`);
+      if (sha256File(full) !== sidecarToken(full)) fail(`slot ${task.slot}: body fingerprint mismatch`);
+    } else {
+      if (task.prompt_file || !task.variants?.pointer?.prompt_file || !task.variants?.neutral?.prompt_file) {
+        fail(`slot ${task.slot}: variant task '${task.id}' must carry pointer + neutral prompt_files`);
+      }
+      for (const side of ["pointer", "neutral"]) {
+        const full = join(root, task.variants[side].prompt_file);
+        if (!existsSync(full)) fail(`slot ${task.slot}: dangling ${side} prompt_file`);
+        if (sha256File(full) !== sidecarToken(full)) fail(`slot ${task.slot}: ${side} body fingerprint mismatch`);
+      }
+    }
+  }
+
+  // (5) Freeze record covered (role: freeze) with input shas matching disk.
+  const freezeEntry = entries.find((e) => e.file === "freeze-record.json");
+  if (!freezeEntry || freezeEntry.role !== "freeze") fail("manifest must cover freeze-record.json with role freeze");
+  const freeze = loadJson(join(root, "freeze-record.json"), "freeze record");
+  for (const input of freeze.inputs ?? []) {
+    const full = join(root, input.file);
+    if (!existsSync(full)) fail(`freeze input ${input.file} missing`);
+    const actual = statSync(full).isDirectory() ? dirSha(full) : sha256File(full);
+    if (actual !== input.sha256) fail(`freeze input ${input.file} bytes differ from the freeze pin`);
+  }
+
+  // (6) Report reference covered (role: fixture) with the pinned schema.
+  const refEntry = entries.find((e) => e.file === "report/reference.json");
+  if (!refEntry || refEntry.role !== "fixture") fail("manifest must cover report/reference.json with role fixture");
+  const ref = loadJson(join(root, "report/reference.json"), "reference");
+  if (!ref.unit_prices || !ref.freeze_tuple || !ref.resources) {
+    fail("report/reference.json must carry unit_prices + freeze_tuple + resources");
+  }
+
+  // (7) Every transcribed JSON resolves its _source in the pinned draft.
+  const draftPath = resolve(opts.draft ?? resolve(SELF_DIR, "../docs/plan/20260925-t8-full-draft.md"));
+  if (!existsSync(draftPath)) fail(`pinned draft missing at ${draftPath}`);
+  if (sha256File(draftPath) !== DRAFT_SHA) fail("pinned draft bytes differ from the frozen draft sha");
+  const draftLines = readFileSync(draftPath, "utf8").split("\n");
+  for (const e of entries.filter((x) => x.role === "transcribed" && x.file.endsWith(".json"))) {
+    const doc = loadJson(join(root, e.file), e.file);
+    const src = doc._source;
+    if (!src || src.draft_sha !== DRAFT_SHA || typeof src.section !== "string" || typeof src.line_range !== "string") {
+      fail(`${e.file}: transcribed JSON without a resolving _source {draft_sha, section, line_range}`);
+    }
+    const m = /^(\d+)-(\d+)$/.exec(src.line_range);
+    if (!m || Number(m[1]) < 1 || Number(m[2]) > draftLines.length || Number(m[1]) > Number(m[2])) {
+      fail(`${e.file}: _source line_range ${src.line_range} out of draft bounds`);
+    }
+    // The cited range must lie under the cited `## <section>` heading body
+    // (heading line through the line before the next `## ` heading).
+    const heads = [];
+    draftLines.forEach((l, i) => { if (/^## /.test(l)) heads.push(i + 1); });
+    const h = heads.find((ln) => draftLines[ln - 1].startsWith(`## ${src.section}`));
+    if (!h) fail(`${e.file}: _source section '${src.section}' matches no '## ' heading in the draft`);
+    const next = heads.find((ln) => ln > h) ?? (draftLines.length + 1);
+    if (!(Number(m[1]) >= h && Number(m[2]) < next)) {
+      fail(`${e.file}: _source range ${src.line_range} lies outside section '${src.section}' (draft lines ${h}-${next - 1})`);
+    }
+  }
+
+  // (8) Dossier-blocks fidelity: REAL parser yields exactly F1+F2, fields equal.
+  const dossier = loadJson(join(root, "lead-archive-fixtures/dossier.json"), "dossier");
+  const blocksText = readFileSync(join(root, "lead-archive-fixtures/dossier-blocks.md"), "utf8");
+  const parsed = parseFindings(blocksText);
+  if (!parsed.ok) fail(`dossier-blocks.md unparseable: ${parsed.error}`);
+  if (parsed.findings.length !== 2) fail(`dossier-blocks.md must yield exactly 2 findings, got ${parsed.findings.length}`);
+  if (!Array.isArray(dossier.findings) || dossier.findings.length !== 2) fail("dossier.json must carry exactly 2 findings");
+  for (let i = 0; i < 2; i++) {
+    const b = parsed.findings[i];
+    const j = dossier.findings[i];
+    for (const [bk, jk] of [["severity", "severity"], ["file", "file"], ["line", "line"], ["issue", "text"]]) {
+      if (b[bk] !== j[jk]) fail(`dossier fidelity: block ${i + 1} ${bk} ${JSON.stringify(b[bk])} != dossier.json ${jk} ${JSON.stringify(j[jk])}`);
+    }
+  }
+
+  // (9) Archive plan: pinned sha + exactly [Meta, Goal, Acceptance Criteria].
+  const archivePath = join(root, "lead-archive-fixtures/archive-plan.md");
+  if (sha256File(archivePath) !== ARCHIVE_SHA) fail("archive-plan.md bytes differ from the pinned archive sha");
+  const sections = readFileSync(archivePath, "utf8").split("\n")
+    .map((l) => /^## (.+?)\s*$/.exec(l)?.[1])
+    .filter(Boolean);
+  const wantSections = ["Meta", "Goal", "Acceptance Criteria"];
+  if (sections.length !== wantSections.length || sections.some((s, i) => s !== wantSections[i])) {
+    fail(`archive-plan.md sections want [${wantSections.join(", ")}], got [${sections.join(", ")}]`);
+  }
+
+  console.log(`corpus-check ok: ${entries.length} manifest entries verified, 8 fixed + 8 variant bodies, 16 prompt bodies, freeze + reference covered, dossier fidelity 2/2, archive sections pinned`);
+}
+
+main(process.argv.slice(2));

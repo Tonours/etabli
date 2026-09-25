@@ -1,0 +1,427 @@
+#!/usr/bin/env node
+// scripts/ship-coverage-check — T8a AC1 oracle (PLAN.md v18).
+// Verifies every backticked ref in workflow/skills/ship.md is covered by the
+// ship budget surface: REQUIRED-READ refs must sit in the systematic or
+// conditional lists (bare basenames resolve by basename match), every other
+// PATH-CANDIDATE must carry a pinned EXCLUDED class, and anything else is an
+// ignored NON-REFERENCE. Also asserts the budget's ship lists are EXACTLY the
+// v25 pinned lists (17 systematic + 4 conditional with triggers).
+//
+// TWO-STAGE extraction (R9-B1): stage 1 = SYNTAX filter, PATH-CANDIDATE iff
+// (known-root prefix OR known suffix OR exact repo-root filename match), else
+// NON-REFERENCE ignored. Stage 2 = REQUIRED-READ vs EXCLUDED-with-class.
+// Exclusion classes pinned (R8-B1): ARTIFACT-WRITE, GLOB-PATTERN,
+// TOUCH-SURFACE, COMMAND-INVOCATION.
+//
+// Fenced code blocks (```...```) are stripped before extraction so fence
+// backticks cannot shift inline-code pairing.
+
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_BUDGET = "workflow/runtime/context-budget.json";
+const DEFAULT_SHIP_MD = "workflow/skills/ship.md";
+
+const KNOWN_ROOTS = ["workflow/", "scripts/", "pi/", "claude/", "docs/", "tests/", ".github/"];
+const KNOWN_SUFFIXES = [".md", ".json", ".jq", ".sh"];
+
+// EXACT v25 systematic list (T8-full v25 AC2, transcribed into PLAN.md v18 AC1).
+const PINNED_SYSTEMATIC = [
+  "pi/skills/ship/SKILL.md",
+  "workflow/skills/ship.md",
+  "workflow/skills/implementation-loop.md",
+  "workflow/skills/plan-loop.md",
+  "PLAN_TEMPLATE.md",
+  "workflow/skills/adversary.md",
+  "workflow/skills/review.md",
+  "workflow/review-rubric.md",
+  "workflow/templates/review-lead.md",
+  "workflow/templates/review-logic-hunter.md",
+  "workflow/templates/review-spec-hunter.md",
+  "workflow/templates/plan-archive.md",
+  "workflow/templates/escaped-defect.md",
+  "workflow/events.md",
+  "workflow/answer-quality.md",
+  "workflow/skills/worktree-isolation.md",
+  "workflow/git-contract.md",
+];
+
+// EXACT v25 conditional list with triggers.
+const PINNED_CONDITIONAL = [
+  { file: "workflow/spec.md", trigger: "arbitrage/human-checkpoint" },
+  { file: "workflow/contract-details.md", trigger: "long-rules lookup" },
+  { file: "workflow/pr-body-contract.md", trigger: "PR phase" },
+  { file: "workflow/skills/ci-fix.md", trigger: "failing CI" },
+];
+
+// Pinned exclusion audit: single-token PATH-CANDIDATE -> class + read-audit reason.
+// Multi-token command lines (whitespace inside, first token under a known root)
+// are COMMAND-INVOCATION by rule, not by table. Any candidate that is neither
+// listed nor excluded here FAILS as an omission (audit it, then list it or pin
+// an exclusion with a class). An excluded token resolving to a listed file
+// FAILS as exclusion-abuse.
+const EXCLUSIONS = {
+  // ARTIFACT-WRITE: the flow OWNS/writes these, never reads them as instruction.
+  "PLAN.md": { class: "ARTIFACT-WRITE", reason: "run-root plan owned by the flow (ship.md:17,35)" },
+  "review-metrics.md": { class: "ARTIFACT-WRITE", reason: "generated aggregate row (ship.md:145)" },
+  "skills-lock.json": { class: "ARTIFACT-WRITE", reason: "generated record, schema-checked (ship.md:146)" },
+  "*-promotion.json": { class: "ARTIFACT-WRITE", reason: "generated-record family (ship.md:146)" },
+  "*-policy.json": { class: "ARTIFACT-WRITE", reason: "generated-record family (ship.md:146)" },
+  ".workflow/ship-metrics/<run-slug>.json": { class: "ARTIFACT-WRITE", reason: "registry written under flock (ship.md:161)" },
+  // GLOB-PATTERN: patterns, not reads.
+  "PLAN*.md": { class: "GLOB-PATTERN", reason: "never-stage pattern (ship.md:37,77)" },
+  "PLAN_TEMPLATE*.md": { class: "GLOB-PATTERN", reason: "re-proof trigger pattern (ship.md:143)" },
+  "*.policy.json": { class: "GLOB-PATTERN", reason: "trigger pattern (ship.md:144)" },
+  // TOUCH-SURFACE: re-proof triggers, TOUCHED never read (ship.md:141-143).
+  "workflow/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  "scripts/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  "tests/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  "pi/skills/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  "claude/scopes/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  ".github/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  "docs/": { class: "TOUCH-SURFACE", reason: "re-proof trigger dir" },
+  "AGENTS.md": { class: "TOUCH-SURFACE", reason: "re-proof trigger, never read by a ship phase" },
+  ".mcp.json": { class: "TOUCH-SURFACE", reason: "re-proof trigger" },
+  // COMMAND-INVOCATION: executed, never read.
+  "scripts/verify-agentic-infra": { class: "COMMAND-INVOCATION", reason: "executed group runner (ship.md:83)" },
+  "scripts/workflow-ref-linter": { class: "COMMAND-INVOCATION", reason: "executed linter (ship.md:85)" },
+};
+
+function fail(message, code = 2) {
+  process.stderr.write(`ship-coverage-check: ${message}\n`);
+  process.exit(code);
+}
+
+function parseArgs(argv) {
+  const options = {
+    root: DEFAULT_ROOT,
+    budget: DEFAULT_BUDGET,
+    shipMd: DEFAULT_SHIP_MD,
+    checkOnly: false,
+    selfTestOnly: false,
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--check-only") options.checkOnly = true;
+    else if (arg === "--self-test-only") options.selfTestOnly = true;
+    else if (arg === "--root" || arg === "--budget" || arg === "--ship-md") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("--")) {
+        fail(`usage: scripts/ship-coverage-check [--root <dir>] [--budget <path>] [--ship-md <path>] [--check-only] [--self-test-only]`);
+      }
+      if (arg === "--root") options.root = value;
+      if (arg === "--budget") options.budget = value;
+      if (arg === "--ship-md") options.shipMd = value;
+      i += 1;
+    } else if (arg === "-h" || arg === "--help") {
+      process.stdout.write("usage: scripts/ship-coverage-check [--root <dir>] [--budget <path>] [--ship-md <path>] [--check-only] [--self-test-only]\n");
+      process.exit(0);
+    } else fail(`unknown argument: ${arg}`);
+  }
+  if (options.checkOnly && options.selfTestOnly) fail("cannot combine --check-only and --self-test-only");
+  options.root = resolve(options.root);
+  return options;
+}
+
+function startsWithKnownRoot(token) {
+  return KNOWN_ROOTS.some((root) => token.startsWith(root));
+}
+
+function endsWithKnownSuffix(token) {
+  return KNOWN_SUFFIXES.some((suffix) => token.endsWith(suffix));
+}
+
+function isPathCandidate(token, rootNames) {
+  return startsWithKnownRoot(token) || endsWithKnownSuffix(token) || rootNames.has(token);
+}
+
+function basenameOf(path) {
+  const index = path.lastIndexOf("/");
+  return index === -1 ? path : path.slice(index + 1);
+}
+
+function stripFences(text) {
+  return text.replace(/```[\s\S]*?```/g, (match) => match.replace(/[^\n]/g, ""));
+}
+
+function extractSpans(text) {
+  const spans = [];
+  const pattern = /`([^`]+)`/g;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const line = text.slice(0, match.index).split("\n").length;
+    spans.push({ line, token: match[1].trim() });
+  }
+  return spans;
+}
+
+// Resolve a single-token candidate against the budget lists. Returns the
+// listed file + resolution kind, or null when unlisted.
+function resolveListed(token, systematic, conditional, basenameMap) {
+  if (systematic.has(token)) return { file: token, list: "systematic", via: "exact" };
+  if (conditional.has(token)) return { file: token, list: "conditional", via: "exact" };
+  if (!token.includes("/") && endsWithKnownSuffix(token)) {
+    const hits = basenameMap.get(token) ?? [];
+    if (hits.length === 1) return { file: hits[0].file, list: hits[0].list, via: "basename-alias" };
+    if (hits.length > 1) return { file: null, list: null, via: "ambiguous-alias" };
+  }
+  return null;
+}
+
+function runCheck(docText, { systematic, conditional, exclusions, rootNames }) {
+  const basenameMap = new Map();
+  for (const file of systematic) {
+    const base = basenameOf(file);
+    if (!basenameMap.has(base)) basenameMap.set(base, []);
+    basenameMap.get(base).push({ file, list: "systematic" });
+  }
+  for (const file of conditional) {
+    const base = basenameOf(file);
+    if (!basenameMap.has(base)) basenameMap.set(base, []);
+    basenameMap.get(base).push({ file, list: "conditional" });
+  }
+  const required = [];
+  const excluded = [];
+  const omissions = [];
+  const abuses = [];
+  const matchedExclusions = new Set();
+  let ignored = 0;
+  for (const span of extractSpans(stripFences(docText))) {
+    const { line, token } = span;
+    if (!isPathCandidate(token, rootNames)) {
+      ignored += 1;
+      continue;
+    }
+    if (/\s/.test(token)) {
+      // A span with whitespace is never a file path; when its first token is
+      // a known-root path it is a command line, else an unresolvable ref.
+      const first = token.split(/\s+/)[0];
+      if (startsWithKnownRoot(first)) {
+        const hit = resolveListed(first, systematic, conditional, basenameMap);
+        if (hit && hit.file) {
+          abuses.push({ line, token, class: "COMMAND-INVOCATION", detail: `first token resolves to listed ${hit.list} file ${hit.file}` });
+        } else {
+          excluded.push({ line, token, class: "COMMAND-INVOCATION", via: "rule:multi-token-command" });
+        }
+      } else {
+        omissions.push({ line, token, detail: "multi-token candidate, not a command line and not listed" });
+      }
+      continue;
+    }
+    const pinned = exclusions[token];
+    if (pinned) {
+      const hit = resolveListed(token, systematic, conditional, basenameMap);
+      if (hit && hit.file) {
+        abuses.push({ line, token, class: pinned.class, detail: `excluded as ${pinned.class} but resolves to listed ${hit.list} file ${hit.file} (${hit.via})` });
+      } else {
+        matchedExclusions.add(token);
+        excluded.push({ line, token, class: pinned.class, via: "table" });
+      }
+      continue;
+    }
+    const hit = resolveListed(token, systematic, conditional, basenameMap);
+    if (hit && hit.file) {
+      required.push({ line, token, file: hit.file, list: hit.list, via: hit.via });
+    } else if (hit && hit.via === "ambiguous-alias") {
+      omissions.push({ line, token, detail: "bare basename matches more than one listed file" });
+    } else {
+      omissions.push({ line, token, detail: "REQUIRED-READ candidate in neither the systematic nor the conditional list" });
+    }
+  }
+  const unusedExclusions = Object.keys(exclusions).filter((key) => !matchedExclusions.has(key));
+  return { required, excluded, ignored, omissions, abuses, unusedExclusions };
+}
+
+function loadShipLists(budgetPath) {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(budgetPath, "utf8"));
+  } catch (error) {
+    fail(`cannot read budget ${budgetPath}: ${error.message}`);
+  }
+  const ship = parsed?.surfaces?.ship;
+  if (!ship) fail(`budget ${budgetPath} declares no ship surface`);
+  if (!Array.isArray(ship.files)) fail("budget ship surface must list files");
+  const conditionalFiles = [];
+  const conditionalTriggers = new Map();
+  const raw = ship.conditional ?? [];
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (typeof entry === "string") {
+        conditionalFiles.push(entry);
+      } else if (entry && typeof entry.file === "string") {
+        conditionalFiles.push(entry.file);
+        if (typeof entry.trigger === "string") conditionalTriggers.set(entry.file, entry.trigger);
+      } else fail("budget ship conditional entries must be {file, trigger}");
+    }
+  } else if (raw && typeof raw === "object") {
+    for (const [file, trigger] of Object.entries(raw)) {
+      conditionalFiles.push(file);
+      if (typeof trigger === "string") conditionalTriggers.set(file, trigger);
+    }
+  } else fail("budget ship conditional must be a list");
+  return { files: ship.files, conditionalFiles, conditionalTriggers };
+}
+
+// The budget's ship lists must be EXACTLY the v25 pinned lists: same files in
+// the same order, same conditional triggers.
+function assertListsExact(lists) {
+  const errors = [];
+  if (JSON.stringify(lists.files) !== JSON.stringify(PINNED_SYSTEMATIC)) {
+    const missing = PINNED_SYSTEMATIC.filter((file) => !lists.files.includes(file));
+    const extra = lists.files.filter((file) => !PINNED_SYSTEMATIC.includes(file));
+    const detail = [];
+    if (missing.length > 0) detail.push(`missing: ${missing.join(", ")}`);
+    if (extra.length > 0) detail.push(`extra: ${extra.join(", ")}`);
+    if (detail.length === 0) detail.push("same set, different order");
+    errors.push(`ship systematic files differ from the v25 pinned list (${detail.join("; ")})`);
+  }
+  const pinnedFiles = PINNED_CONDITIONAL.map((entry) => entry.file);
+  if (JSON.stringify(lists.conditionalFiles) !== JSON.stringify(pinnedFiles)) {
+    errors.push(`ship conditional files differ from the v25 pinned list (want ${pinnedFiles.join(", ")}, have ${lists.conditionalFiles.join(", ")})`);
+  }
+  for (const { file, trigger } of PINNED_CONDITIONAL) {
+    if (lists.conditionalFiles.includes(file) && lists.conditionalTriggers.get(file) !== trigger) {
+      errors.push(`ship conditional ${file} trigger differs (want ${JSON.stringify(trigger)}, have ${JSON.stringify(lists.conditionalTriggers.get(file) ?? null)})`);
+    }
+  }
+  return errors;
+}
+
+function fixtureSuite(lists, rootNames) {
+  const systematic = new Set(lists.files);
+  const conditional = new Set(lists.conditionalFiles);
+  const base = { systematic, conditional, exclusions: EXCLUSIONS, rootNames };
+  const tampered = {
+    ...base,
+    exclusions: { ...EXCLUSIONS, "workflow/spec.md": { class: "ARTIFACT-WRITE", reason: "tampered fixture" } },
+  };
+  return [
+    {
+      name: "omission-workflow",
+      kind: "negative",
+      run: () => runCheck("Per `workflow/skills/ghost-read.md`, do X.", base),
+      expect: (result) => result.omissions.length === 1 && result.abuses.length === 0 ? null : "want exactly 1 omission, 0 abuses",
+    },
+    {
+      name: "omission-pi",
+      kind: "negative",
+      run: () => runCheck("See `pi/skills/ghost/SKILL.md` for Y.", base),
+      expect: (result) => result.omissions.length === 1 && result.abuses.length === 0 ? null : "want exactly 1 omission, 0 abuses",
+    },
+    {
+      name: "omission-root",
+      kind: "negative",
+      run: () => runCheck("Open `GHOST-PLAN.md` before Z.", base),
+      expect: (result) => result.omissions.length === 1 && result.abuses.length === 0 ? null : "want exactly 1 omission, 0 abuses",
+    },
+    {
+      name: "exclusion-artifact-write",
+      kind: "positive",
+      run: () => runCheck("The run writes `PLAN.md` at its root.", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.excluded.length === 1 && result.excluded[0].class === "ARTIFACT-WRITE" ? null : "want PASS-as-excluded ARTIFACT-WRITE",
+    },
+    {
+      name: "exclusion-glob-pattern",
+      kind: "positive",
+      run: () => runCheck("Never stage `PLAN_TEMPLATE*.md` files.", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.excluded.length === 1 && result.excluded[0].class === "GLOB-PATTERN" ? null : "want PASS-as-excluded GLOB-PATTERN",
+    },
+    {
+      name: "exclusion-touch-surface",
+      kind: "positive",
+      run: () => runCheck("Re-proof when `docs/` changes.", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.excluded.length === 1 && result.excluded[0].class === "TOUCH-SURFACE" ? null : "want PASS-as-excluded TOUCH-SURFACE",
+    },
+    {
+      name: "exclusion-command-invocation",
+      kind: "positive",
+      run: () => runCheck("Run `scripts/workflow-ref-linter` before push.", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.excluded.length === 1 && result.excluded[0].class === "COMMAND-INVOCATION" ? null : "want PASS-as-excluded COMMAND-INVOCATION",
+    },
+    {
+      name: "basename-alias-required",
+      kind: "positive",
+      run: () => runCheck("Immutable afterwards (`plan-archive.md`).", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.required.length === 1 && result.required[0].file === "workflow/templates/plan-archive.md" && result.required[0].via === "basename-alias" ? null : "want REQUIRED via basename-alias to workflow/templates/plan-archive.md",
+    },
+    {
+      name: "nonref-blocked",
+      kind: "positive",
+      run: () => runCheck("Stops with a `blocked` event.", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.required.length === 0 && result.excluded.length === 0 && result.ignored === 1 ? null : "want ignored NON-REFERENCE",
+    },
+    {
+      name: "nonref-branch-id",
+      kind: "positive",
+      run: () => runCheck("Branch `feat/ABC-123-x` maps to a slug.", base),
+      expect: (result) => result.omissions.length === 0 && result.abuses.length === 0 && result.required.length === 0 && result.excluded.length === 0 && result.ignored === 1 ? null : "want ignored NON-REFERENCE",
+    },
+    {
+      name: "exclusion-abuse",
+      kind: "negative",
+      run: () => runCheck("Read `workflow/spec.md` for the rules.", tampered),
+      expect: (result) => result.abuses.length === 1 && result.omissions.length === 0 ? null : "want exactly 1 abuse, 0 omissions",
+    },
+  ];
+}
+
+const options = parseArgs(process.argv.slice(2));
+const budgetPath = resolve(options.root, options.budget);
+const shipMdPath = resolve(options.root, options.shipMd);
+const lists = loadShipLists(budgetPath);
+const rootNames = new Set(readdirSync(options.root));
+let failed = false;
+
+if (!options.selfTestOnly) {
+  const listErrors = assertListsExact(lists);
+  for (const error of listErrors) process.stderr.write(`ship-coverage-check: ${error}\n`);
+  let docText;
+  try {
+    docText = readFileSync(shipMdPath, "utf8");
+  } catch (error) {
+    fail(`cannot read ship doc ${shipMdPath}: ${error.message}`);
+  }
+  const result = runCheck(docText, {
+    systematic: new Set(lists.files),
+    conditional: new Set(lists.conditionalFiles),
+    exclusions: EXCLUSIONS,
+    rootNames,
+  });
+  const candidates = result.required.length + result.excluded.length + result.omissions.length + result.abuses.length;
+  const spans = candidates + result.ignored;
+  process.stdout.write(
+    `ship-coverage: ${options.shipMd} spans=${spans} candidates=${candidates} required=${result.required.length} excluded=${result.excluded.length} ignored=${result.ignored} omissions=${result.omissions.length} abuses=${result.abuses.length}\n`,
+  );
+  for (const omission of result.omissions) {
+    process.stderr.write(`ship-coverage-check: omission ${options.shipMd}:${omission.line} ${JSON.stringify(omission.token)} — ${omission.detail}\n`);
+  }
+  for (const abuse of result.abuses) {
+    process.stderr.write(`ship-coverage-check: exclusion-abuse ${options.shipMd}:${abuse.line} ${JSON.stringify(abuse.token)} — ${abuse.detail}\n`);
+  }
+  if (result.unusedExclusions.length > 0) {
+    process.stdout.write(`ship-coverage: unused exclusions (info): ${result.unusedExclusions.join(", ")}\n`);
+  }
+  if (listErrors.length > 0 || result.omissions.length > 0 || result.abuses.length > 0) failed = true;
+}
+
+if (!options.checkOnly) {
+  const suite = fixtureSuite(lists, rootNames);
+  let passed = 0;
+  for (const fixture of suite) {
+    const problem = fixture.expect(fixture.run());
+    if (problem === null) {
+      passed += 1;
+      process.stdout.write(`ship-coverage: self-test ${fixture.name} (${fixture.kind}) as expected\n`);
+    } else {
+      failed = true;
+      process.stderr.write(`ship-coverage-check: self-test ${fixture.name} FAILED — ${problem}\n`);
+    }
+  }
+  process.stdout.write(`ship-coverage: self-test ${passed}/${suite.length} fixtures as expected\n`);
+}
+
+if (!failed) process.stdout.write("ok: ship coverage green (required refs all listed; exclusions classified)\n");
+process.exit(failed ? 1 : 0);
