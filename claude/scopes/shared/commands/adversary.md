@@ -1,9 +1,16 @@
 ---
 name: adversary
-description: Review PLAN.md via Pi; review implementation diffs using the shared risk-tiered independence rules.
+description: Red-team a PLAN.md via Pi, or implementation diffs, under the shared risk-tiered independence rules. Use when this session needs a hostile sample (stress-test, devil's advocate); not for authoring plans, draft reviews, or the final verdict.
 argument-hint: "[optional: path to the plan file, defaults to ./PLAN.md; or --code-diff for post-implementation]"
 allowed-tools: [Read, Edit, Glob, Bash]
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: adversary
+harness: claude
+canonical: workflow/skills/adversary.md
+description: Red-team a PLAN.md via Pi, or implementation diffs, under the shared risk-tiered independence rules. Use when this session needs a hostile sample (stress-test, devil's advocate); not for authoring plans, draft reviews, or the final verdict.
+pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # /adversary — plan and code-diff review
 
@@ -18,7 +25,10 @@ owns the route. From Claude, prefer `gpt-6-astra` through Codex; configured
 fallback families are `xai/grok-4.7`, `zai/glm-5.3`, `opencode-go/kimi-k3`,
 `opencode-go/qwen3.8-max`, and `opencode-go/deepseek-v4-pro` through Pi.
 Requested-model success is insufficient: record the effective model or stop as
-blocked.
+blocked. A same-family pass is a labeled supplement only and never satisfies
+the independence requirement. Record `model_provenance`
+(requested/effective/provider/family plus runner and run id, complete when
+present) on the ledger pass.
 Code-diff independence follows `workflow/skills/adversary.md`: **small** skips
 the pass; **standard** accepts cross-model or two fresh independent same-family
 samples; **high-risk** requires cross-model. A single same-family pass cannot

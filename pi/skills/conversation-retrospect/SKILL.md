@@ -1,6 +1,6 @@
 ---
 name: conversation-retrospect
-description: Analyze recent local Codex, Pi, Claude, and Grok conversations as read-only, aggregate evidence for recurring preferences, workflow friction, skill candidates, and no-op decisions. Use when the user asks to learn from chats, compare assistant usage, project skills or practices from conversation history, or identify repeated agent-workflow gaps without exposing raw prompts, transcript paths, or secrets.
+description: Mine multi-session local assistant history (Codex, Pi, Claude, Grok) as read-only for recurring preferences, workflow friction, skill candidates, and no-op decisions. Use when the user asks to learn from chats, compare assistant usage, project skills or practices from conversation history, or identify repeated agent-workflow gaps without exposing raw prompts, transcript paths, or secrets; not for summarizing meeting notes, documents, or any single conversation.
 ---
 
 # Conversation Retrospect

@@ -1,8 +1,16 @@
 ---
-description: Plan, review, then implement only when PLAN.md is READY
+description: Plan, review, then implement, shipping only when PLAN.md is READY. Use only when explicitly invoked; not for single-step tasks.
+disable-model-invocation: true
 argument-hint: [task description]
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent, Skill]
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: plan-implement
+harness: claude
+canonical: pi/skills/plan-implement/SKILL.md
+description: Plan, review, then implement, shipping only when PLAN.md is READY. Use only when explicitly invoked; not for single-step tasks.
+pointer: Adapter for the `plan-implement` skill. Read and follow the shared contract in `pi/skills/plan-implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement
 

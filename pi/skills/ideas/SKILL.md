@@ -1,6 +1,7 @@
 ---
 name: ideas
 description: Compare multiple UI options in-browser with the ui.sh picker.
+disable-model-invocation: true
 ---
 
 # Ideas

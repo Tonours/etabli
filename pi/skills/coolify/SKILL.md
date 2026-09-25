@@ -1,7 +1,16 @@
 ---
 name: coolify
-description: Manage Coolify Cloud via its official CLI; servers, apps, databases, deployments, logs, env vars and backups, including VPS and service status.
+description: Manage Coolify Cloud via its official CLI (servers, apps, databases, deployments, logs, env, backups). Use only when explicitly asked via /skill:coolify; not for non-Coolify infra.
+disable-model-invocation: true
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: coolify
+harness: pi
+canonical: pi/skills/coolify/SKILL.md
+name: coolify
+description: Manage Coolify Cloud via its official CLI (servers, apps, databases, deployments, logs, env, backups). Use only when explicitly asked via /skill:coolify; not for non-Coolify infra.
+pointer: Adapter for the `coolify` skill. Read and follow the shared contract in `pi/skills/coolify/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Coolify
 

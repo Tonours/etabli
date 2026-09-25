@@ -1,5 +1,6 @@
 ---
 description: Deliver one task A to Z - plan, implement, review, commit, push, PR, CI green
+disable-model-invocation: true
 argument-hint: [task description]
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent, Skill]
 ---

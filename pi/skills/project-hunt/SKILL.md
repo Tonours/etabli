@@ -1,8 +1,16 @@
 ---
 name: project-hunt
-description: Hunt dated SaaS and low-capital ecommerce opportunities from market pain. Use for a project idea, chasse de projet, or /project-hunt.
+description: Hunt dated SaaS and low-capital ecommerce opportunities from market pain. Use for a project idea, chasse de projet, or /project-hunt; not for executing on an idea or for funded-scale ventures.
 disable-model-invocation: true
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: project-hunt
+harness: pi
+canonical: pi/skills/project-hunt/SKILL.md
+name: project-hunt
+description: Hunt dated SaaS and low-capital ecommerce opportunities from market pain. Use for a project idea, chasse de projet, or /project-hunt; not for executing on an idea or for funded-scale ventures.
+pointer: Adapter for the `project-hunt` skill. Read and follow the shared contract in `pi/skills/project-hunt/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Project hunt
 

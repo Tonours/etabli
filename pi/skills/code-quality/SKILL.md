@@ -1,7 +1,15 @@
 ---
 name: code-quality
-description: Run the bounded convention and stack-quality pass after implementation or during review.
+description: Run the bounded convention and stack-quality pass. Use after implementation or during review; not for feature work or deep refactors.
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: code-quality
+harness: pi
+canonical: pi/skills/code-quality/SKILL.md
+name: code-quality
+description: Run the bounded convention and stack-quality pass. Use after implementation or during review; not for feature work or deep refactors.
+pointer: Adapter for the `code-quality` skill. Read and follow the shared contract in `pi/skills/code-quality/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Code Quality
 

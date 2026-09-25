@@ -1,6 +1,7 @@
 ---
 name: add-dark-mode
 description: Add dark mode with colors, shadows, and surfaces handled the way a designer would.
+disable-model-invocation: true
 ---
 
 # Add Dark Mode

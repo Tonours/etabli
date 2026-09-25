@@ -1,6 +1,7 @@
 ---
 name: make-responsive
 description: Adapt existing UI across mobile, tablet, and desktop breakpoints.
+disable-model-invocation: true
 ---
 
 # Make Responsive
