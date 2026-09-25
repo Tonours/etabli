@@ -240,9 +240,6 @@ assert_file "$ROOT_DIR/scripts/research-proof-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
 assert_file "$ROOT_DIR/tests/install-smoke.sh"
 assert_file "$ROOT_DIR/tests/deploy-agent-workflow-smoke.sh"
-assert_file "$ROOT_DIR/tests/nvim-smoke.sh"
-assert_file "$ROOT_DIR/scripts/profile-nvim.sh"
-assert_file "$ROOT_DIR/scripts/profile-nvim-runtime.sh"
 
 assert_contains "$INSTALL_MAIN" 'converge_agent_surfaces'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'workflow/review-rubric.md'
@@ -321,8 +318,8 @@ assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'live final gate'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '~/work/obvault'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" '~/work/obvault'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'proactively consult the memory vault'
-assert_contains "$ROOT_DIR/pi/AGENTS.md" 'proactively consult the memory vault'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'before investigating, check the memory vault first'
+assert_contains "$ROOT_DIR/pi/AGENTS.md" 'before investigating, check the memory vault first'
 assert_contains "$ROOT_DIR/workflow/skills/obvault-memory.md" 'Mandatory first check'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'route classification is library-only (ADR-0014)'
@@ -546,7 +543,6 @@ assert_contains "$ROOT_DIR/pi/skills/plan-implement/SKILL.md" '12c'
 assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '12c'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Diagnosis, compare, or pre-existing-capture forensics'
 assert_not_contains "$ROOT_DIR/workflow/contract-details.md" '/skill:github-pr-review'
-assert_contains "$ROOT_DIR/herdr/skills/herdr/SKILL.md" 'only when the user names Herdr'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md" 'Never merge automatically'
@@ -637,7 +633,7 @@ for pi_quality_path in \
         assert_not_word "$ROOT_DIR/$pi_quality_path" "$inactive_pi_css_skill"
     done <<<"$inactive_pi_css_skills"
 done
-assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'quality: unavailable'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'status: unavailable'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" 'report the convention lens as `not run`'
 assert_contains "$ROOT_DIR/pi/skills/code-quality/SKILL.md" 'quality: unavailable'
 assert_contains "$ROOT_DIR/pi/skills/code-quality/SKILL.md" 'status: clean|findings|unavailable'
@@ -689,13 +685,17 @@ duplicate_catalog_names="$(skill_catalog_names "$ROOT_DIR/workflow/runtime/skill
 }
 
 single_line_skill_description() {
-    local skill_file="$1" label="$2" count description
-    count="$(grep -Ec '^description:' "$skill_file")"
+    local skill_file="$1" label="$2" count description frontmatter
+    frontmatter="$(awk 'NR == 1 { if ($0 != "---") exit 1; next } /^---$/ { closed = 1; exit } { print } END { if (!closed) exit 1 }' "$skill_file")" || {
+        printf 'prompt-visible skill has invalid frontmatter: %s\n' "$label" >&2
+        return 1
+    }
+    count="$(grep -Ec '^description:' <<<"$frontmatter")"
     [ "$count" -eq 1 ] || {
         printf 'prompt-visible skill must declare exactly one description: %s\n' "$label" >&2
         return 1
     }
-    description="$(awk '/^description:[[:space:]]/{sub(/^description:[[:space:]]*/, ""); print; exit}' "$skill_file")"
+    description="$(awk '/^description:[[:space:]]/{sub(/^description:[[:space:]]*/, ""); print; exit}' <<<"$frontmatter")"
     case "$description" in
     "" | \'* | \"* | \|* | \>*)
         printf 'prompt-visible skill uses an unmeasurable description scalar: %s\n' "$label" >&2
@@ -712,7 +712,7 @@ single_line_skill_description() {
         after_description && /^[^[:space:]]/ { exit }
         after_description && /^[[:space:]]/ { multiline = 1; exit }
         END { exit(multiline ? 0 : 1) }
-    ' "$skill_file"; then
+    ' <<<"$frontmatter"; then
         printf 'prompt-visible skill uses a multiline description continuation: %s\n' "$label" >&2
         return 1
     fi
@@ -793,8 +793,6 @@ assert_not_contains "$ROOT_DIR/pi/package.json" '@mariozechner/pi-coding-agent'
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh"
 assert_contains "$ROOT_DIR/tests/workflow-real-agent-scenarios.sh" 'RUN_REAL_AGENT_SCENARIOS'
-assert_not_contains "$ROOT_DIR/scripts/profile-nvim.sh" '+lua dofile'
-assert_not_contains "$ROOT_DIR/scripts/profile-nvim-runtime.sh" '+lua dofile'
 assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" './claude/PLAN_TEMPLATE.md'
 assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" './claude/PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/workflow'

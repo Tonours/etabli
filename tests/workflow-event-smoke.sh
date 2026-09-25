@@ -145,6 +145,73 @@ while IFS=$'\t' read -r event required detail; do
   assert_contains "$out" "required fields"
 done < "$ROOT_DIR/tests/fixtures/workflow-events-v2.tsv"
 
+# Tranche 3: review_completed status enum (strict v2 only).
+for status in "GO" "GO WITH NOTES" BLOCK; do
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-enum-ok" review_completed "$(jq -nc --arg s "$status" '{status:$s,evidence:"smoke"}')"
+done
+while IFS= read -r status; do
+  [ -n "$status" ] || continue
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-enum-reject" review_completed "$(jq -nc --arg s "$status" '{status:$s,evidence:"smoke"}')")"
+  assert_contains "$out" "required fields"
+done <<'STATUSES'
+pass
+NO-GO
+completed
+ROUND2 GO WITH NOTES
+ROUND1 WITH FIXES
+READY
+quality: sibling comparison clean
+quality_passed
+PASS
+GO_WITH_NOTES
+GO_LOCAL
+changes_addressed
+STATUSES
+# Legacy/v1 free-text statuses stay valid (lenience, not new writes).
+mkdir -p "$EVENT_DIR/schema-enum-legacy"
+printf '%s\n' '{"ts":"2026-01-01T00:00:00Z","event":"review_completed","run":"schema-enum-legacy","detail":{"status":"pass","evidence":"old"}}' > "$EVENT_DIR/schema-enum-legacy/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-enum-legacy)"
+assert_contains "$out" "1 events, ok"
+# Tranche 4: quality_completed status enum (strict v2 only) + legacy lenience.
+for status in pass unavailable; do
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-quality-ok" quality_completed "$(jq -nc --arg s "$status" '{status:$s,evidence:"smoke"}')"
+done
+for status in clean GO "GO WITH NOTES" skipped ""; do
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-quality-reject" quality_completed "$(jq -nc --arg s "$status" '{status:$s,evidence:"smoke"}')")"
+  assert_contains "$out" "required fields"
+done
+mkdir -p "$EVENT_DIR/schema-quality-legacy"
+printf '%s\n' '{"schema_version":1,"ts":"2026-01-01T00:00:00Z","event":"quality_completed","run":"schema-quality-legacy","detail":{"status":"clean","evidence":"old"}}' > "$EVENT_DIR/schema-quality-legacy/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-quality-legacy)"
+assert_contains "$out" "1 events, ok"
+# Tranche 4: model_provenance complete-when-present (strict + legacy).
+PROV_OK='{"requested":{"family":"openai","model":"gpt-6-astra","provider":"codex","route":"codex/gpt-6-astra"},"effective":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"runner":"codex-cli","run_id":"r1"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-prov-ok" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:$p}')"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-prov-noprovider" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:($p|del(.requested.provider))}')")"
+assert_contains "$out" "required fields"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-prov-norun" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:($p|del(.run_id))}')")"
+assert_contains "$out" "required fields"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-prov-wrongtype" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:($p|.requested="x")}')")"
+assert_contains "$out" "required fields"
+mkdir -p "$EVENT_DIR/schema-prov-legacy-ok" "$EVENT_DIR/schema-prov-legacy-bad"
+printf '%s\n' "$(jq -nc --argjson p "$PROV_OK" '{schema_version:1,ts:"2026-01-01T00:00:00Z",event:"adversary_completed",run:"schema-prov-legacy-ok",detail:{mode:"plan",verdict:"READY",accepted_findings:[],rejected_findings:[],model_provenance:$p}}')" > "$EVENT_DIR/schema-prov-legacy-ok/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-prov-legacy-ok)"
+assert_contains "$out" "1 events, ok"
+printf '%s\n' "$(jq -nc --argjson p "$PROV_OK" '{schema_version:1,ts:"2026-01-01T00:00:00Z",event:"adversary_completed",run:"schema-prov-legacy-bad",detail:{verdict:"READY",accepted_findings:[],model_provenance:($p|del(.effective.family))}}')" > "$EVENT_DIR/schema-prov-legacy-bad/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-prov-legacy-bad)"
+assert_contains "$out" "invalid detail for adversary_completed"
+# route_decided additive contract fields accepted.
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-additive" route_decided '{"route":"plan-implement","reason":"smoke","contract_path":"/tmp/x/SKILL.md","contract_sha256":"f2a1","provenance":"repo"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-route-additive)"
+assert_contains "$out" "1 events, ok"
+# ...but validated: bogus provenance, empty sha, and unknown keys rejected (validator/consumer parity).
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-bogus" route_decided '{"route":"plan-implement","reason":"smoke","provenance":"bogus"}')"
+assert_contains "$out" "required fields"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-empty" route_decided '{"route":"plan-implement","reason":"smoke","contract_sha256":""}')"
+assert_contains "$out" "required fields"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-extra" route_decided '{"route":"plan-implement","reason":"smoke","contract_url":"https://x"}')"
+assert_contains "$out" "required fields"
+
 mkdir -p "$EVENT_DIR/target-a"
 target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
 printf '%s\n' "$target_line" > "$EVENT_DIR/target-a/events.jsonl"
@@ -583,5 +650,225 @@ if [ -d "$ROOT_DIR/.workflow/plan012-selftest" ]; then
   printf 'smoke test should not write to the repo .workflow directory\n' >&2
   exit 1
 fi
+
+# Tranche 4 e2e: quality_completed passes every layer (vocab → schema →
+# integrity selection → retrospect shape AND decision). Blocked (not completed)
+# is the terminal: completed appends enforce the full autonomous chain, which is
+# not this pin's subject. Ledger timestamps are shifted post-validate to
+# bracket the frozen fixture trace window (2026-09-20T10:00–10:03Z); CLI stamps
+# wall-clock and retrospect binds trace↔ledger windows, so unshifted ledgers
+# stop at trace_window_mismatch before any shape verdict.
+EW="$TMP_DIR/e2e"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e route_decided '{"route":"plan-implement","reason":"smoke"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e plan_created '{"path":"PLAN.md","status":"READY"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e quality_completed '{"status":"pass","evidence":"smoke"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
+assert_contains "$out" "3 events, ok"
+printf '{"schema_version":1,"run":"e2e"}' > "$EW/.workflow/active-run.json"
+node -e 'import(process.argv[1]).then(m => { const r = m.selectActiveLedger(process.argv[2]); if (!r.ledger || r.ledger.run !== "e2e") { console.error("not selected: " + r.reason); process.exit(1); } })' "$ROOT_DIR/scripts/lib/ledger-integrity.mjs" "$EW"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e blocked '{"reason":"smoke terminal","needed_input":"none"}'
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
+assert_contains "$out" "4 events, ok"
+jq -c --slurpfile ts <(printf '%s\n' '"2026-09-20T09:59:00Z"' '"2026-09-20T10:00:00Z"' '"2026-09-20T10:01:00Z"' '"2026-09-20T10:04:00Z"') \
+  '.ts = $ts[input_line_number - 1]' "$EW/.workflow/e2e/events.jsonl" > "$EW/shifted.jsonl"
+out="$("$ROOT_DIR/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT_DIR/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$EW/shifted.jsonl" --run e2e --json)"
+if ! jq -e '.completeness == "complete"' <<<"$out" >/dev/null; then
+  printf 'e2e quality chain did not reach retrospect complete: %s\n' "$out" >&2
+  exit 1
+fi
+jq -c 'if .event == "quality_completed" then .detail.status = "clean" else . end' "$EW/shifted.jsonl" > "$EW/shifted-bad.jsonl"
+out="$("$ROOT_DIR/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT_DIR/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$EW/shifted-bad.jsonl" --run e2e --json)"
+if ! jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$out" >/dev/null; then
+  printf 'e2e quality negative case missed on the same path: %s\n' "$out" >&2
+  exit 1
+fi
+
+# Tranche 5: ship_completed vocabulary — success/arrêt dual form, strict
+# rejects (numbers, matrix, format, presence), ship profiles, batch mirror,
+# legacy lenience, terminal order, e2e append→terminal→cleanup→validate.
+t5_ship_ok='{"cumulative_review":"main...HEAD @ abc123","thermo_nuclear":"clean","pr_body_style":"write-direct","delta_rereview":"n/a","deciding_code":"complete","escaped_defects_recorded":0,"pr_url":"https://example.test/pr/1","ci_state":"green"}'
+t5_ship_open='{"cumulative_review":"main...HEAD @ abc123","thermo_nuclear":"findings:2-open","pr_body_style":"write-direct","delta_rereview":"n/a","deciding_code":"complete","escaped_defects_recorded":0,"pr_url":"https://example.test/pr/1","ci_state":"green"}'
+t5_ship_stop5='{"cumulative_review":"not-reached:6","thermo_nuclear":"findings:3-open","pr_body_style":"not-reached:9","delta_rereview":"not-reached:11","deciding_code":"not-reached:6","escaped_defects_recorded":0,"pr_url":"https://example.test/pr/2","ci_state":"capped"}'
+open_t5_ledger() {
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$1" file_changed '{"path":"wt","change":"run ouvert"}' >/dev/null
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$1" validation_run '{"command":"c","exit":0}' >/dev/null
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$1" outcome_metric '{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}' >/dev/null
+}
+open_t5_ledger t5-ok
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ok ship_completed "$t5_ship_ok" >/dev/null
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-ok --profile ship-completed)"
+assert_contains "$out" "4 events, ok"
+open_t5_ledger t5-open
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open ship_completed "$t5_ship_open" >/dev/null
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-open --profile ship-completed)"
+assert_contains "$out" "success-form ship_completed"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open blocked '{"reason":"open findings","needed_input":"fix then reship"}' >/dev/null
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-open --profile ship-stopped)"
+assert_contains "$out" "5 events, ok"
+open_t5_ledger t5-stop5
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 ship_completed "$t5_ship_stop5" >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 blocked '{"reason":"stop step 5","needed_input":"human decision"}' >/dev/null
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-stop5 --profile ship-stopped)"
+assert_contains "$out" "5 events, ok"
+# Success content + blocked is not a stopped run (negated success form).
+open_t5_ledger t5-greenstop
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop ship_completed "$t5_ship_ok" >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop blocked '{"reason":"stop","needed_input":"x"}' >/dev/null
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-greenstop --profile ship-stopped)"
+assert_contains "$out" "non-success-form ship_completed"
+# Failed-latest validation poisons ship-completed freshness.
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale file_changed '{"path":"wt","change":"run ouvert"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale validation_run '{"command":"c","exit":0}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale validation_failed '{"command":"c","exit":1,"failure":"red"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale outcome_metric '{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale ship_completed "$t5_ship_ok" >/dev/null
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-stale --profile ship-completed)"
+assert_contains "$out" "every latest attempt succeeding"
+# Strict rejects: wrong not-reached numbers (one per distinct step).
+open_t5_ledger t5-badnum
+for wrong in '.thermo_nuclear = "not-reached:7"' '.cumulative_review = "not-reached:5"' '.pr_body_style = "not-reached:5"' '.delta_rereview = "not-reached:6"' '.deciding_code = "not-reached:9"'; do
+  bad_detail="$(printf '%s' "$t5_ship_stop5" | jq -c "$wrong")"
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-badnum ship_completed "$bad_detail")"
+  assert_contains "$out" "invalid json detail for event ship_completed"
+done
+# Strict rejects: matrix cells (green/capped demand a URL, not-run forbids one).
+for wrong in '.pr_url = null' '.ci_state = "not-run"'; do
+  bad_detail="$(printf '%s' "$t5_ship_ok" | jq -c "$wrong")"
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-badnum ship_completed "$bad_detail")"
+  assert_contains "$out" "invalid json detail for event ship_completed"
+done
+bad_detail="$(printf '%s' "$t5_ship_stop5" | jq -c '.pr_url = null')"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-badnum ship_completed "$bad_detail")"
+assert_contains "$out" "invalid json detail for event ship_completed"
+# Strict rejects: formless cumulative record, SHA-less record, missing pr_url key.
+bad_detail="$(printf '%s' "$t5_ship_ok" | jq -c '.cumulative_review = "nonsense"')"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-badnum ship_completed "$bad_detail")"
+assert_contains "$out" "invalid json detail for event ship_completed"
+bad_detail="$(printf '%s' "$t5_ship_ok" | jq -c '.cumulative_review = "...HEAD @ "')"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-badnum ship_completed "$bad_detail")"
+assert_contains "$out" "invalid json detail for event ship_completed"
+bad_detail="$(printf '%s' "$t5_ship_stop5" | jq -c 'del(.pr_url)')"
+out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-badnum ship_completed "$bad_detail")"
+assert_contains "$out" "invalid json detail for event ship_completed"
+# incomplete deciding: strict-valid, routed away from success, accepted stopped.
+open_t5_ledger t5-inc
+bad_detail="$(printf '%s' "$t5_ship_ok" | jq -c '.deciding_code = "incomplete"')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc ship_completed "$bad_detail" >/dev/null
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-inc --profile ship-completed)"
+assert_contains "$out" "success-form ship_completed"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc blocked '{"reason":"incomplete deciding","needed_input":"x"}' >/dev/null
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-inc --profile ship-stopped)"
+assert_contains "$out" "5 events, ok"
+# Valid arrêt matrix cells: not-run+null, blocked±PR.
+for cell in '{"pr_url":null,"ci_state":"not-run"}' '{"pr_url":"https://example.test/pr/3","ci_state":"blocked"}' '{"pr_url":null,"ci_state":"blocked"}'; do
+  slug="t5-cell-$(printf '%s' "$cell" | jq -r '.ci_state')-$(printf '%s' "$cell" | jq -r 'if .pr_url == null then "nopr" else "pr" end')"
+  open_t5_ledger "$slug"
+  cell_detail="$(printf '%s' "$t5_ship_stop5" | jq -c --argjson cell "$cell" '. * $cell')"
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" ship_completed "$cell_detail" >/dev/null
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" blocked '{"reason":"stop","needed_input":"x"}' >/dev/null
+  out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate "$slug" --profile ship-stopped)"
+  assert_contains "$out" "5 events, ok"
+done
+# Terminal order: nothing but blocked follows ship_completed.
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ok file_changed '{"path":"x","change":"late"}')"
+assert_contains "$out" "refusing append after terminal event"
+# Batch jq mirror agrees with the CLI on all four profile outcomes.
+t5_allowed="$(awk '
+  /^ALLOWED_EVENTS=\(/ { inside=1; next }
+  inside && /^\)/ { inside=0; next }
+  inside { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0); if ($0 != "") print $0 }
+' "$ROOT_DIR/scripts/workflow-event" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+t5_batch() {
+  jq -Rrs --arg mode batch --arg slug "$1" --arg profile "$2" \
+    --argjson allowed "$t5_allowed" -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+    "$EVENT_DIR/$1/events.jsonl" | head -1
+}
+[ "$(t5_batch t5-stop5 ship-stopped)" = "OK" ] || { printf 'batch jq rejected the stopped order\n' >&2; exit 1; }
+[ "$(t5_batch t5-ok ship-completed)" = "OK" ] || { printf 'batch jq rejected the success order\n' >&2; exit 1; }
+[ "$(t5_batch t5-greenstop ship-stopped)" = "ERR" ] || { printf 'batch jq accepted green content as stopped\n' >&2; exit 1; }
+[ "$(t5_batch t5-stale ship-completed)" = "ERR" ] || { printf 'batch jq accepted a failed-latest validation\n' >&2; exit 1; }
+# Legacy envelope: ship_completed unconstrained (AC4).
+mkdir -p "$EVENT_DIR/t5-legacy"
+printf '{"ts":"2026-09-24T00:00:01Z","event":"file_changed","run":"t5-legacy","detail":{"paths":["f"],"change":"c"}}\n' > "$EVENT_DIR/t5-legacy/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:02Z","event":"ship_completed","run":"t5-legacy","detail":{"whatever":"legacy garbage"}}\n' >> "$EVENT_DIR/t5-legacy/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-legacy)"
+assert_contains "$out" "2 events, ok"
+# Legacy stopped order: CLI reports post-terminal compatibility and the batch
+# mirror counts it as legacy (the clean carve-out is v2-only).
+mkdir -p "$EVENT_DIR/t5-legacy-stop"
+printf '{"ts":"2026-09-24T00:00:01Z","event":"ship_completed","run":"t5-legacy-stop","detail":{"whatever":"legacy garbage"}}\n' > "$EVENT_DIR/t5-legacy-stop/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:02Z","event":"blocked","run":"t5-legacy-stop","detail":{"reason":"stop","needed_input":"x"}}\n' >> "$EVENT_DIR/t5-legacy-stop/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-legacy-stop)"
+assert_contains "$out" "legacy post-terminal compatibility"
+t5_legacy_batch="$(jq -Rrs --arg mode batch --arg slug t5-legacy-stop --arg profile ship-stopped \
+  --argjson allowed "$t5_allowed" -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+  "$EVENT_DIR/t5-legacy-stop/events.jsonl")"
+[ "$(printf '%s\n' "$t5_legacy_batch" | sed -n '1p')" = "OK" ] || { printf 'batch jq rejected the legacy stopped order\n' >&2; exit 1; }
+[ "$(printf '%s\n' "$t5_legacy_batch" | sed -n '5p')" = "1" ] || { printf 'batch jq miscounted legacy post-terminal lines\n' >&2; exit 1; }
+# Multi-receipt legacy ledgers: CLI and batch both judge the LAST receipt
+# (an earlier matching receipt must not decide the profile). Legacy
+# envelopes + strict-shaped context so the profile reaches the form check.
+mkdir -p "$EVENT_DIR/t5-multi-ok"
+printf '{"ts":"2026-09-24T00:00:01Z","event":"file_changed","run":"t5-multi-ok","detail":{"path":"wt","change":"run ouvert"}}\n' > "$EVENT_DIR/t5-multi-ok/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:02Z","event":"validation_run","run":"t5-multi-ok","detail":{"command":"c","exit":0}}\n' >> "$EVENT_DIR/t5-multi-ok/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:03Z","event":"outcome_metric","run":"t5-multi-ok","detail":{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}}\n' >> "$EVENT_DIR/t5-multi-ok/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:04Z","event":"ship_completed","run":"t5-multi-ok","detail":%s}\n' "$t5_ship_ok" >> "$EVENT_DIR/t5-multi-ok/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:05Z","event":"ship_completed","run":"t5-multi-ok","detail":{"whatever":"legacy garbage"}}\n' >> "$EVENT_DIR/t5-multi-ok/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-multi-ok --profile ship-completed)"
+assert_contains "$out" "success-form ship_completed"
+mkdir -p "$EVENT_DIR/t5-multi-stop"
+printf '{"ts":"2026-09-24T00:00:01Z","event":"file_changed","run":"t5-multi-stop","detail":{"path":"wt","change":"run ouvert"}}\n' > "$EVENT_DIR/t5-multi-stop/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:02Z","event":"validation_run","run":"t5-multi-stop","detail":{"command":"c","exit":0}}\n' >> "$EVENT_DIR/t5-multi-stop/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:03Z","event":"outcome_metric","run":"t5-multi-stop","detail":{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}}\n' >> "$EVENT_DIR/t5-multi-stop/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:04Z","event":"ship_completed","run":"t5-multi-stop","detail":{"whatever":"legacy garbage"}}\n' >> "$EVENT_DIR/t5-multi-stop/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:05Z","event":"ship_completed","run":"t5-multi-stop","detail":%s}\n' "$t5_ship_ok" >> "$EVENT_DIR/t5-multi-stop/events.jsonl"
+printf '{"ts":"2026-09-24T00:00:06Z","event":"blocked","run":"t5-multi-stop","detail":{"reason":"stop","needed_input":"x"}}\n' >> "$EVENT_DIR/t5-multi-stop/events.jsonl"
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-multi-stop --profile ship-stopped)"
+assert_contains "$out" "non-success-form ship_completed"
+[ "$(t5_batch t5-multi-ok ship-completed)" = "ERR" ] || { printf 'batch judged an earlier receipt for completed\n' >&2; exit 1; }
+[ "$(t5_batch t5-multi-stop ship-stopped)" = "ERR" ] || { printf 'batch judged an earlier receipt for stopped\n' >&2; exit 1; }
+# E2e: append→terminal→cleanup→validate (a scratch worktree removal changes
+# nothing about ledger validity).
+mkdir -p "$TMP_DIR/scratch-wt"
+open_t5_ledger t5-e2e
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-e2e ship_completed "$t5_ship_ok" >/dev/null
+rm -rf "$TMP_DIR/scratch-wt"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-e2e --profile ship-completed)"
+assert_contains "$out" "4 events, ok"
+# Ship terminals drive the activate/pointer lifecycle like other terminals.
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr file_changed '{"path":"wt","change":"run ouvert"}' >/dev/null
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate t5-ptr)"
+assert_contains "$out" "active run: t5-ptr"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr validation_run '{"command":"c","exit":0}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr outcome_metric '{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr ship_completed "$t5_ship_ok" >/dev/null
+[ ! -e "$EVENT_DIR/active-run.json" ] || { printf 'ship_completed append did not clear the pointer\n' >&2; exit 1; }
+out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate t5-ptr)"
+assert_contains "$out" "cannot activate a terminal ledger"
+# Runtime ledger-integrity mirror: accepts the stopped order, rejects any
+# other post-ship_completed event. Runs last: it pollutes t5-ok on purpose.
+export EVENT_DIR ROOT_DIR
+node --input-type=module <<'EOF'
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { appendFileSync } from "node:fs";
+const root = process.env.ROOT_DIR;
+const dir = process.env.EVENT_DIR;
+const { inspectLedgerFile } = await import(
+  pathToFileURL(join(root, "scripts/lib/ledger-integrity.mjs")).href
+);
+const stopped = inspectLedgerFile(join(dir, "t5-stop5", "events.jsonl"), "t5-stop5");
+if (!stopped.valid) throw new Error(`integrity rejected stopped order: ${stopped.reason}`);
+const success = inspectLedgerFile(join(dir, "t5-ok", "events.jsonl"), "t5-ok");
+if (!success.valid) throw new Error(`integrity rejected success order: ${success.reason}`);
+appendFileSync(
+  join(dir, "t5-ok", "events.jsonl"),
+  '{"schema_version":2,"ts":"2027-01-01T00:00:00Z","event":"file_changed","run":"t5-ok","detail":{"path":"x","change":"late"}}\n'
+);
+const late = inspectLedgerFile(join(dir, "t5-ok", "events.jsonl"), "t5-ok");
+if (late.valid || late.reason !== "terminal_not_final") {
+  throw new Error(`integrity accepted a non-blocked post-terminal event: ${late.reason}`);
+}
+EOF
 
 printf 'workflow event smoke test: ok\n'

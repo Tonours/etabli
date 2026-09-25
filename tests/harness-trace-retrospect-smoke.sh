@@ -345,8 +345,96 @@ jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_event_confli
   sed -n '2p' "$FIX/pi/events.jsonl"
   sed -n '1p;3,5p' "$FIX/pi/events.jsonl"
 } >"$TMP/pre-route-ledger.jsonl"
+# Route-second position is legal since tranche 3 (router appends to a seeded
+# ledger); this fixture still fails, now honestly on its inverted clock.
 pre_route="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/pre-route-ledger.jsonl" --run pi-run --json)"
-jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_route_conflict"] and .decision == null' <<<"$pre_route" >/dev/null
+jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_time_conflict"] and .decision == null' <<<"$pre_route" >/dev/null
+
+# Tranche 3: route_decided additive contract fields + later route changes.
+jq -c '.detail += {contract_path:"/tmp/x/SKILL.md",contract_sha256:"f2a1",provenance:"repo"}' <<<"$(sed -n '1p' "$FIX/pi/events.jsonl")" >"$TMP/additive-route.jsonl"
+sed -n '2,5p' "$FIX/pi/events.jsonl" >>"$TMP/additive-route.jsonl"
+additive_route="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/additive-route.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$additive_route" >/dev/null
+
+{
+  sed -n '1,2p' "$FIX/pi/events.jsonl"
+  printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:01:00Z","event":"route_decided","run":"pi-run","detail":{"route":"implement","reason":"router change","contract_path":"/tmp/y/SKILL.md","contract_sha256":"b3c2","provenance":"repo"}}'
+  sed -n '3,5p' "$FIX/pi/events.jsonl"
+} >"$TMP/route-change-ledger.jsonl"
+route_change="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/route-change-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$route_change" >/dev/null
+
+{
+  sed -n '1,2p' "$FIX/pi/events.jsonl"
+  printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:00:30Z","event":"route_decided","run":"pi-run","detail":{"route":"plan-implement","reason":"router rescan"}}'
+  sed -n '3,5p' "$FIX/pi/events.jsonl"
+} >"$TMP/duplicate-route-ledger.jsonl"
+duplicate_route="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/duplicate-route-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$duplicate_route" >/dev/null
+
+# Same-second concurrent exact dupes (byte-identical route_decided lines) are
+# valid and harmless per AC2: collapsed before the conflict check.
+{
+  sed -n '1p' "$FIX/pi/events.jsonl"
+  sed -n '1p' "$FIX/pi/events.jsonl"
+  sed -n '2,5p' "$FIX/pi/events.jsonl"
+} >"$TMP/exact-dupe-ledger.jsonl"
+exact_dupe="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/exact-dupe-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$exact_dupe" >/dev/null
+
+jq -c '.detail += {contract_path:"/tmp/x/SKILL.md",provenance:"bogus"}' <<<"$(sed -n '1p' "$FIX/pi/events.jsonl")" >"$TMP/bad-additive-route.jsonl"
+sed -n '2,5p' "$FIX/pi/events.jsonl" >>"$TMP/bad-additive-route.jsonl"
+bad_additive="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/bad-additive-route.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$bad_additive" >/dev/null
+
+# Tranche 4: quality_completed accepted (pass/unavailable), bad status rejected.
+{
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
+  printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:30Z","event":"quality_completed","run":"pi-run","detail":{"status":"pass","evidence":"code-quality"}}'
+  sed -n '5p' "$FIX/pi/events.jsonl"
+} >"$TMP/quality-ledger.jsonl"
+quality_ok="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/quality-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$quality_ok" >/dev/null
+{
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
+  printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:30Z","event":"quality_completed","run":"pi-run","detail":{"status":"clean","evidence":"x"}}'
+  sed -n '5p' "$FIX/pi/events.jsonl"
+} >"$TMP/quality-bad-ledger.jsonl"
+quality_bad="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/quality-bad-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$quality_bad" >/dev/null
+
+# Tranche 4: adversary model_provenance complete accepted, partial rejected.
+{
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
+  printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:45Z","event":"adversary_completed","run":"pi-run","detail":{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[],"model_provenance":{"requested":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"effective":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"runner":"codex-cli","run_id":"r1"}}}'
+  sed -n '5p' "$FIX/pi/events.jsonl"
+} >"$TMP/prov-ledger.jsonl"
+prov_ok="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/prov-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$prov_ok" >/dev/null
+{
+  sed -n '1,4p' "$FIX/pi/events.jsonl"
+  printf '%s\n' '{"schema_version":2,"ts":"2026-09-20T10:04:45Z","event":"adversary_completed","run":"pi-run","detail":{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[],"model_provenance":{"requested":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"runner":"codex-cli","run_id":"r1"}}}'
+  sed -n '5p' "$FIX/pi/events.jsonl"
+} >"$TMP/prov-bad-ledger.jsonl"
+prov_bad="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/prov-bad-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$prov_bad" >/dev/null
+
+# Tranche 3 Codex MED1: first route row after a seeded line is complete.
+{
+  jq -c '.ts = "2026-09-20T09:58:00Z"' <<<"$(sed -n '2p' "$FIX/pi/events.jsonl")"
+  sed -n '1p;3,5p' "$FIX/pi/events.jsonl"
+} >"$TMP/route-second-ledger.jsonl"
+route_second="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/route-second-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "complete"' <<<"$route_second" >/dev/null
+
+# ...but a bad route detail still fails wherever the route row sits.
+{
+  jq -c '.ts = "2026-09-20T09:58:00Z"' <<<"$(sed -n '2p' "$FIX/pi/events.jsonl")"
+  jq -c '.detail += {provenance:"bogus"}' <<<"$(sed -n '1p' "$FIX/pi/events.jsonl")"
+  sed -n '3,5p' "$FIX/pi/events.jsonl"
+} >"$TMP/bad-route-second-ledger.jsonl"
+bad_route_second="$($CLI --adapter pi --trace-file "$FIX/pi/session.jsonl" --ledger "$TMP/bad-route-second-ledger.jsonl" --run pi-run --json)"
+jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$bad_route_second" >/dev/null
 
 sed 's/,"firstKeptEntryId":"a"//' "$FIX/pi/session.jsonl" >"$TMP/malformed-compaction.jsonl"
 malformed_compaction="$($CLI --adapter pi --trace-file "$TMP/malformed-compaction.jsonl" --ledger "$FIX/pi/events.jsonl" --run pi-run --json)"
