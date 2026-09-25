@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# workflow-ship-metrics — upsert lock-guarded registry rows for ship runs.
+# Registry: <root>/.workflow/ship-metrics/<run-slug>.json (invocation root,
+# durable — never inside the removable worktree). One file per run slug:
+# upsert, never a second row. Locking mirrors scripts/workflow-event
+# (lockf/flock/shlock auto-backend, 5s budget).
+set -euo pipefail
+
+SCRIPT_PATH="$0"
+case "$SCRIPT_PATH" in
+  */*) ;;
+  *) SCRIPT_PATH="./$SCRIPT_PATH" ;;
+esac
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  workflow-ship-metrics --dir <root>/.workflow upsert <run-slug> '<json-object>'
+  workflow-ship-metrics --dir <root>/.workflow show <run-slug>
+  workflow-ship-metrics --dir <root>/.workflow find-pr <pr-url>
+Row schema: {run_slug, pr_url|null, verdict, models[], deciding_code, escaped_later(count), buckets}
+EOF
+  exit 2
+}
+
+[ "${1:-}" = "--dir" ] || usage
+DIR="$2"; shift 2
+CMD="${1:-}"; shift || true
+
+REGISTRY="$DIR/ship-metrics"
+mkdir -p "$REGISTRY"
+
+slug_ok() {
+  # Same alphabet as ledger run slugs (scripts/workflow-event).
+  [[ "$1" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { printf 'bad run slug: %s\n' "$1" >&2; exit 2; }
+}
+
+upsert_locked_body() {
+  local slug="$1" patch="$2" row base merged
+  row="$REGISTRY/$slug.json"
+  if [ -f "$row" ]; then base="$(cat "$row")"; else base='{}'; fi
+  merged="$(jq -S -e -n --argjson base "$base" --argjson patch "$patch" --arg slug "$slug" '
+    ($base * $patch) + {run_slug: $slug}
+    | select((.pr_url == null or (.pr_url | type == "string"))
+      and (.verdict == null or (.verdict | type == "string"))
+      and (.models == null or (.models | type == "array"))
+      and (.deciding_code == null or (.deciding_code | type == "string"))
+      and (.escaped_later == null or ((.escaped_later | type == "number") and ((.escaped_later | floor) == .escaped_later) and (.escaped_later >= 0)))
+      and (.buckets == null or (.buckets | type == "object")))')" \
+    || { printf 'merged row fails schema for %s\n' "$slug" >&2; return 1; }
+  printf '%s\n' "$merged" > "$row.tmp.$$"
+  mv "$row.tmp.$$" "$row"
+  printf '%s\n' "$merged"
+}
+
+upsert_with_lock() {
+  local slug="$1" patch="$2" backend lock_file attempt status
+  lock_file="$REGISTRY/$slug.lock"
+  backend="${WORKFLOW_METRICS_LOCK_BACKEND:-${WORKFLOW_EVENT_LOCK_BACKEND:-auto}}"
+  if [ "$backend" = "auto" ]; then
+    if command -v lockf >/dev/null 2>&1; then backend="lockf"
+    elif command -v flock >/dev/null 2>&1; then backend="flock"
+    elif command -v shlock >/dev/null 2>&1; then backend="shlock"
+    else backend="none"
+    fi
+  fi
+  case "$backend" in
+    lockf)
+      lockf -t 5 "$lock_file" "$SCRIPT_PATH" --dir "$DIR" _upsert-locked "$slug" "$patch" || {
+        printf 'lockf upsert failed (see above; lock budget is 5 seconds)\n' >&2; return 1; }
+      ;;
+    flock)
+      flock -w 5 "$lock_file" "$SCRIPT_PATH" --dir "$DIR" _upsert-locked "$slug" "$patch" || {
+        printf 'flock upsert failed (see above; lock budget is 5 seconds)\n' >&2; return 1; }
+      ;;
+    shlock)
+      attempt=0
+      while [ "$attempt" -lt 50 ]; do
+        if shlock -f "$lock_file" -p "$$"; then
+          status=0
+          upsert_locked_body "$slug" "$patch" || status=$?
+          rm -f "$lock_file"
+          return "$status"
+        fi
+        attempt=$((attempt + 1))
+        sleep 0.1
+      done
+      printf 'shlock upsert timed out after 5 seconds\n' >&2
+      return 1
+      ;;
+    none)
+      printf 'no supported lock backend: need lockf, flock, or shlock\n' >&2
+      return 1
+      ;;
+    *) printf 'unknown lock backend: %s\n' "$backend" >&2; return 2 ;;
+  esac
+}
+
+case "$CMD" in
+  show)
+    [ $# -eq 1 ] || usage
+    slug_ok "$1"
+    [ -f "$REGISTRY/$1.json" ] || { printf 'no registry row for %s\n' "$1" >&2; exit 1; }
+    cat "$REGISTRY/$1.json"
+    ;;
+  upsert)
+    [ $# -eq 2 ] || usage
+    slug_ok "$1"
+    printf '%s' "$2" | jq -e 'type == "object"' >/dev/null || { printf 'patch must be a JSON object\n' >&2; exit 2; }
+    upsert_with_lock "$1" "$2"
+    ;;
+  find-pr)
+    # Post-merge mini-PR updates are keyed by PR URL: resolve the single row
+    # carrying it (the registry holds the only PR↔row correspondence).
+    [ $# -eq 1 ] || usage
+    found=""
+    for row in "$REGISTRY"/*.json; do
+      [ -f "$row" ] || continue
+      if jq -e --arg url "$1" 'select(.pr_url == $url)' "$row" >/dev/null 2>&1; then
+        [ -z "$found" ] || { printf 'pr_url %s matches two rows: %s and %s\n' "$1" "$found" "$row" >&2; exit 1; }
+        found="$row"
+      fi
+    done
+    [ -n "$found" ] || { printf 'no registry row for pr_url %s\n' "$1" >&2; exit 1; }
+    basename "$found" .json
+    ;;
+  _upsert-locked)
+    [ $# -eq 2 ] || usage
+    upsert_locked_body "$1" "$2"
+    ;;
+  *) usage ;;
+esac
