@@ -1,0 +1,135 @@
+{
+ "schema_version": 1,
+ "freeze_version": 8,
+ "created_utc": "2026-09-25T15:26:14.960Z",
+ "model": "zai/glm-5.3",
+ "thinking": "low",
+ "temperature": "provider-default (pi CLI exposes no temperature override)",
+ "max_tokens": 131072,
+ "timeout_s": 600,
+ "retries": 1,
+ "seed": 20260925,
+ "runs": 3,
+ "max_concurrency": 4,
+ "cap_usd": 100,
+ "worst_single_usd": 1,
+ "freeze_tuple": {
+  "model": "zai/glm-5.3",
+  "max_tokens": 131072,
+  "timeout_s": 600,
+  "retries": 1
+ },
+ "resources": {
+  "os": "darwin",
+  "arch": "arm64",
+  "cpu_mem_class": "S",
+  "provider_endpoint": "zai",
+  "max_concurrency": 4
+ },
+ "unit_prices": {
+  "in": 1.4,
+  "out": 4.4,
+  "cr": 0.26,
+  "cc": 0,
+  "source": "https://docs.z.ai/guides/overview/pricing",
+  "fetched_utc": "2026-09-25",
+  "note": "GLM-5.3 $/MTok: input 1.40, cached input 0.26, output 4.40; cc=0 per Cached Input Storage Limited-time Free"
+ },
+ "screening_tasks": [
+  "s1",
+  "s2",
+  "s3",
+  "s4",
+  "s5",
+  "s6",
+  "s7",
+  "s8",
+  "s9n",
+  "s10p",
+  "s11n",
+  "s12n"
+ ],
+ "screening_hunter_parse": "blocks",
+ "economic_patches": [
+  "pp-null-deref",
+  "pp-off-by-one",
+  "pp-swallowed-error",
+  "pp-clean-1",
+  "pp-clean-2",
+  "pp-clean-3"
+ ],
+ "measure": {
+  "status": "ok",
+  "n": 11,
+  "spawnless_count": 22,
+  "branches": {
+   "workflow/review-rubric.md": "removal-0",
+   "workflow/skills/review.md": "defer-36.4",
+   "workflow/templates/review-logic-hunter.md": "removal-18.2",
+   "workflow/templates/review-spec-hunter.md": "removal-18.2",
+   "workflow/templates/review-lead.md": "removal-9.1",
+   "workflow/templates/plan-archive.md": "removal-0"
+  },
+  "taken_utc": "2026-09-25",
+  "slots": "slot 10 pointer; slots 9,11,12 neutral; lead/archive 0 deferred"
+ },
+ "rulings": [
+  "R-T8b-1 block extraction (screening hunters)",
+  "R-T8b-2 length-stop=fail",
+  "R-T8b-3 baseline surfaces",
+  "R-T8b-4 prohibition conservative",
+  "R-T8b-5 veto-ii requirements",
+  "R-T8b-6 plan-loop false completion",
+  "R-T8b-7 successful-read counting",
+  "R-T8b-8 s11 runner span+emission",
+  "R-T8b-9 economic strict whole-text",
+  "R-T8b-1b slash-form findings (template-literal grammar)",
+  "R-T8b-10 pp-null-deref lines {2,3} screening-only erratum",
+  "R-T8b-11 plan-loop contract staging (variant-identical system role)",
+  "R-T8b-6 complement: verdict-claim line rule",
+  "v8: arrow citations (->/->) complete the citation detector; candidate SKILL path explicit (transcription fidelity)"
+ ],
+ "pins": {
+  "engine": {
+   "scripts/token-protocol-campaign": "8f520f723a98500d771394a8f163486a138808080c2be4148f91de341ad554ce",
+   "scripts/lib/t8b-engine.mjs": "66a80a64117ac439f78cec1c93ba3e4d9e12cf279ae81930976d812fa41d40e3",
+   "scripts/lib/t8b-graders.mjs": "88e28ea42b518b1493e1b1a57906c5e5a4c8dbd5f9ff42095d97f469303d09b3",
+   "scripts/lib/t8b-pi-tools.mjs": "35735dd148c0ad79a461dee14f9b530550284e963ddeede1c8850737984e73bc",
+   "scripts/lib/t8b-plan-staging.md": "781499d59ae598daa8e92980f6ee0eb5bd0b3d9965b2655420144b62b80845fd"
+  },
+  "worktrees": {
+   "baseline": "0927e2e9a8132e8a4395007ab921e324587322f935027f9e11ac4835e948f18a",
+   "candidate": "119620575d9dc95036d85956e3035960e10bc115b6565fc34efc566f38798e1d"
+  },
+  "corpus": {
+   "tests/fixtures/token-protocol/corpus.json": "60b54bcc9c3e0cb5133ff7d662b03a1575b42d072353012e5206253cc825955e",
+   "tests/fixtures/token-protocol/slot-criteria.json": "31128f1c33d28e4eef15cbd9fdffb36533f9c88f1e3ada1f0375822d0e4ae8a0",
+   "tests/fixtures/token-protocol/parity-manifest.json": "8e43543cf132e9c6453bcaf4dc7cd58b0b21dbffe0407149c6ee406fa5b57238",
+   "tests/fixtures/token-protocol/spec-breach.json": "425d6225a15e274f7e24012aec9cf72c4e39c8153c66e81576af3f9bd0f88537",
+   "tests/fixtures/token-protocol/lead-archive-fixtures/dossier.json": "3941e8d5b2a2acb17f679ac86c9c4a7aa1149c09ce8f52d68c9bbd843f53a35c",
+   "tests/fixtures/token-protocol/report/reference.json": "4f76f437308b301fe542b51e80b03652da9f183f199c55d479b958b4e5592c1f",
+   "tests/fixtures/token-protocol/corpus-manifest.json": "d0a59fb0b58719c7322d9d7c7a4f8051577c500208f6cdb7a6e2bf8fabc91203",
+   "tests/fixtures/token-protocol/freeze-record.json": "3ae116bf191e6b167301792ac3f8eaf26c1776f1143d05322b70f776cb74a9f7",
+   "tests/fixtures/token-protocol/prompt-bodies/s01-pl-covered.md": "8cab071a84233bb53953667caef62772fd48665f88d32d9f8abdc8e1e6da5b38",
+   "tests/fixtures/token-protocol/prompt-bodies/s02-pl-uncovered.md": "2c4d1395865be4a186bfe3070615161972b47b34acc4ea1d29c7dd7b26f77698",
+   "tests/fixtures/token-protocol/prompt-bodies/s03-pl-contested.md": "92baae4ef4756bc9674fb071a5976a18a6dae65d887118e7271cdf082114fce0",
+   "tests/fixtures/token-protocol/prompt-bodies/s04-pl-broad.md": "a9a9716a267c99664280376dd05db55584335d374c1a2fe5c32c56a7b6b1c3e8",
+   "tests/fixtures/token-protocol/prompt-bodies/s05-hunter-null-deref.md": "4b6bdebad0fc3a945d9fc60ba7f466be0efc28df7f656bd317b980fca450333a",
+   "tests/fixtures/token-protocol/prompt-bodies/s06-hunter-off-by-one.md": "60097417d563ce8889a147698d0f4e30ef3564970dbc3dd796dd3e6de0acc6f0",
+   "tests/fixtures/token-protocol/prompt-bodies/s07-hunter-clean-1.md": "f75c0c5e04cf29d92fd08653b9b9adb25bf3e0bd1b8a84f2b071058163480a4a",
+   "tests/fixtures/token-protocol/prompt-bodies/s08-hunter-clean-2.md": "87fad12abc06dd884c5fcbcf679e607f096226cb8f2bd0cef9d9f1cdf273b281",
+   "tests/fixtures/token-protocol/prompt-bodies/s09-neutral.md": "0b5620e332f05ce9c27d7956f89544b7c3559f8c03c9e524b4dd40e65ba49ab2",
+   "tests/fixtures/token-protocol/prompt-bodies/s09-pointer.md": "87137d28dec56e3ee25fa2b97eb9d144108a810083506caa257a497a6f754e76",
+   "tests/fixtures/token-protocol/prompt-bodies/s10-neutral.md": "a3d3eaee09913ad82f4540de4227741bb50f0cbd15495138c2e0a83698ea13c0",
+   "tests/fixtures/token-protocol/prompt-bodies/s10-pointer.md": "992b90fba1d661f40c503970a3030c44e898a41bd8cdbf42e44e5cece8d016f2",
+   "tests/fixtures/token-protocol/prompt-bodies/s11-neutral.md": "650fbcbb23f5314cdc31cd061ab9ad046a7c7fdd7933d3b3ac4c9611865f0cca",
+   "tests/fixtures/token-protocol/prompt-bodies/s11-pointer.md": "b8219768ddd75c6f5eefc2d8ad8f7f09523df1a7e645cd592237cfbc0dc4a782",
+   "tests/fixtures/token-protocol/prompt-bodies/s12-neutral.md": "bdbc883e43917a8d61bdf4455fbffb98cba2af3b76c9788ef17c71fc511c47fc",
+   "tests/fixtures/token-protocol/prompt-bodies/s12-pointer.md": "b636aeda3302e05ceac3d10f302855bf555c7fbf5a6c132b56b5dd952927b51e"
+  }
+ },
+ "supersedes": {
+  "version": 7,
+  "reason": "arrow-citation detector + explicit SKILL path in candidate contract; v7 screening (14 runs) discarded, instrument never completed"
+ }
+}

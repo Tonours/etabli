@@ -1,0 +1,22 @@
+{
+ "schema_version": 1,
+ "unit_prices": {
+  "in": 1.4,
+  "out": 4.4,
+  "cr": 0.26,
+  "cc": 0
+ },
+ "freeze_tuple": {
+  "model": "zai/glm-5.3",
+  "max_tokens": 131072,
+  "timeout_s": 600,
+  "retries": 1
+ },
+ "resources": {
+  "os": "darwin",
+  "arch": "arm64",
+  "cpu_mem_class": "S",
+  "provider_endpoint": "zai",
+  "max_concurrency": 4
+ }
+}
