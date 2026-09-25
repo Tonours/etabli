@@ -13,6 +13,7 @@ const repositoryExtensions = [
 	"no-comments.ts",
 	"prefer-ipv4-dns.ts",
 	"rtk.ts",
+	"session-hygiene.ts",
 	"token-rate.ts",
 	"workflow-router.ts",
 	"workflow-run-binding.ts",
@@ -78,7 +79,7 @@ describe("installed Pi extension loader", () => {
 			const result = loadWithNode(activeNodePath, loaderPath, installedPaths);
 			expect(result.errors).toEqual([]);
 			expect(result.loaded.sort()).toEqual(installedPaths.sort());
-			expect(installedPaths).toHaveLength(9);
+			expect(installedPaths).toHaveLength(10);
 			expect(packageVersion).toMatch(/^\d+\.\d+\.\d+$/);
 			expect(activePiVersion).toBe(packageVersion);
 		} finally {
