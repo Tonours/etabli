@@ -11,6 +11,8 @@ export const WORKFLOW_EVENTS = [
 	"adversary_completed",
 	"review_completed",
 	"simplification_completed",
+	"quality_completed",
+	"ship_completed",
 	"file_changed",
 	"validation_run",
 	"validation_failed",

@@ -1,4 +1,9 @@
 def nonempty_string: type == "string" and length > 0;
+def provenance_complete:
+  (type == "object") and
+  (.requested | (type == "object") and (.family | nonempty_string) and (.model | nonempty_string) and (.provider | nonempty_string) and ((has("route") | not) or (.route | nonempty_string))) and
+  (.effective | (type == "object") and (.family | nonempty_string) and (.model | nonempty_string) and (.provider | nonempty_string)) and
+  (.runner | nonempty_string) and (.run_id | nonempty_string);
 def boolean: type == "boolean";
 def nonnegative_number: type == "number" and . >= 0;
 def nonnegative_integer: nonnegative_number and floor == .;
@@ -281,15 +286,37 @@ def program_detail($event):
 
 def strict_detail($event):
   type == "object" and
+  # Mirror of validRouteDecidedDetail in scripts/lib/harness-trace-retrospect.mjs:
+  # change one, change the other (both sides pinned by smokes).
   if $event == "route_decided" then
     (.route | nonempty_string) and (.reason | nonempty_string)
+    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance"]) | length == 0)
+    and ((has("contract_path") | not) or (.contract_path | nonempty_string))
+    and ((has("contract_sha256") | not) or (.contract_sha256 | nonempty_string))
+    and ((has("provenance") | not) or (.provenance | IN("deployed-pi", "deployed-agents", "repo")))
   elif $event == "plan_created" then
     (.path | nonempty_string) and (.status | IN("DRAFT", "CHALLENGED", "READY"))
   elif $event == "adversary_completed" then
     (.mode | IN("plan", "code_diff")) and (.verdict | nonempty_string) and
-    (.accepted_findings | string_array) and (.rejected_findings | string_array)
-  elif $event == "review_completed" or $event == "simplification_completed" then
+    (.accepted_findings | string_array) and (.rejected_findings | string_array) and
+    ((has("model_provenance") | not) or (.model_provenance | provenance_complete))
+  elif $event == "review_completed" then
+    (.status | IN("GO", "GO WITH NOTES", "BLOCK")) and (.evidence | evidence)
+  elif $event == "simplification_completed" then
     (.status | nonempty_string) and (.evidence | evidence)
+  elif $event == "quality_completed" then
+    (.status | IN("pass", "unavailable")) and (.evidence | evidence)
+  elif $event == "ship_completed" then
+    ((.cumulative_review == "not-reached:6") or ((.cumulative_review | type == "string") and (.cumulative_review | test("^.+\\.\\.\\.HEAD @ .+$")))) and
+    ((.thermo_nuclear | IN("clean", "unavailable")) or ((.thermo_nuclear | type == "string") and (.thermo_nuclear | test("^findings:[0-9]+-(folded|open)$"))) or (.thermo_nuclear == "not-reached:5")) and
+    ((.pr_body_style | IN("write-direct+unslop", "write-direct", "no-ai-slop-detect", "plain")) or (.pr_body_style == "not-reached:9")) and
+    ((.delta_rereview | IN("yes", "no", "n/a")) or (.delta_rereview == "not-reached:11")) and
+    ((.deciding_code | IN("complete", "incomplete", "n/a")) or (.deciding_code == "not-reached:6")) and
+    (.escaped_defects_recorded | nonnegative_integer) and
+    (has("pr_url") and ((.pr_url | nonempty_string) or (.pr_url == null))) and
+    (.ci_state | IN("green", "capped", "blocked", "not-run")) and
+    (if .ci_state == "green" or .ci_state == "capped" then (.pr_url | type == "string")
+     elif .ci_state == "not-run" then (.pr_url == null) else true end)
   elif $event == "file_changed" then
     (.path | nonempty_string) and (.change | nonempty_string)
   elif $event == "validation_run" then
@@ -430,7 +457,7 @@ def legacy_detail($event):
     (.verdict | nonempty_string) and (
       (.accepted_findings? | string_array) or (.accepted? | evidence) or
       ((.finding? | nonempty_string) and (.mitigation? | nonempty_string))
-    )
+    ) and ((has("model_provenance") | not) or (.model_provenance | provenance_complete))
   elif $event == "file_changed" then
     ((.paths? | string_array) and ((.change? // .reason? // "") | nonempty_string)) or
     ((.etabli? | string_array) and (.obvault? | string_array)) or
@@ -461,6 +488,10 @@ def legacy_detail($event):
     (.source | nonempty_string) and (.category | nonempty_string) and (.outcome | nonempty_string) and
     (.confidence | nonempty_string) and (.evidence | evidence) and
     (.held_in? == null or (.held_in | evidence)) and (.held_out? == null or (.held_out | evidence))
+  elif $event == "review_completed" or $event == "quality_completed" then
+    (.status | nonempty_string) and (.evidence | evidence)
+  elif $event == "ship_completed" then
+    true
   else
     false
   end;
@@ -511,6 +542,7 @@ def batch_line($entry; $st; $slug; $list):
       | if ($sv | IN("legacy", "1", "2")) | not
         then {err: "line \($n): unsupported schema_version \($sv)"}
       elif $st.term_line > 0 and ($sv == "2" or $st.term_sv == "2")
+        and (($event == "blocked" and $st.term == "ship_completed") | not)
         then {err: "line \($n): event follows terminal \($st.term) at line \($st.term_line)"}
       elif (if ($v.run // null) == null then "" else ($v.run | tostring) end) != $slug
         then {err: "line \($n): run does not match \($slug)"}
@@ -518,11 +550,42 @@ def batch_line($entry; $st; $slug; $list):
         then {err: "line \($n): invalid detail for \($event)"}
       else
         {ts: $v.ts, event: $event, sv: $sv,
-         legacy: ($st.term_line > 0),
-         terminal: ($event == "completed" or $event == "blocked")}
+         legacy: ($st.term_line > 0 and ((($event == "blocked" and $st.term == "ship_completed") and ($sv == "2" or $st.term_sv == "2")) | not)),
+         terminal: ($event == "completed" or $event == "blocked" or $event == "ship_completed")}
       end
     end
   end;
+
+# Single-sourced success-form predicate over a ship_completed detail
+# (null-safe: a missing detail is never success-form). Positive form —
+# the success branch negates it, the arrêt branch requires it: an
+# exhaustive split with no gap and no overlap.
+def ship_success_detail($d):
+  ((($d.ci_state // "") == "green")
+   and ((($d.pr_url // null) | type) == "string")
+   and ((($d.pr_url // "") | length) > 0)
+   and ([$d.cumulative_review, $d.thermo_nuclear, $d.pr_body_style, $d.delta_rereview, $d.deciding_code]
+        | all(type == "string" and ((startswith("not-reached:") | not))))
+   and ((($d.thermo_nuclear // "") | test("-open$")) | not)
+   and (($d.deciding_code // "") != "incomplete"));
+def ship_profile_error($values; $st; $label; $success):
+  ([$values[] | select(.event == "ship_completed")] | last // null) as $ship
+  | ([$values | to_entries[] | select(.value.event == "file_changed") | .key] | last // -1) as $lc
+  | ([$values | to_entries[] | select(.key > $lc and (.value.event == "validation_run" or .value.event == "validation_failed"))] | group_by(.value.detail.command) | map(last)) as $latest
+  | ([$values[] | select(.event == "outcome_metric" and .detail.success == true)] | length) as $ok
+  | ([
+      (if $success then (if $st.term != "ship_completed" then "profile \($label) requires final ship_completed event" else null end)
+       else (if $st.term != "blocked" then "profile \($label) requires final blocked event" else null end) end),
+      (if ($ship | not) then "profile \($label) requires ship_completed before terminal" else null end),
+      (["file_changed", "validation_run", "outcome_metric"] | map(. as $req
+          | if ([$values[] | select(.event == $req)] | length) == 0 and $success
+            then "profile \($label) missing \($req)" else null end)),
+      (if $success and $ok == 0 then "profile \($label) requires successful outcome_metric" else null end),
+      (if $success and (($latest | length) == 0 or (any($latest[]; (.value.event != "validation_run" or .value.detail.exit != 0)))) then "profile \($label) requires validation after last file change with every latest attempt succeeding" else null end),
+      (if ($success | not) and ship_success_detail($ship.detail) then "profile \($label) requires non-success-form ship_completed (au moins un marqueur d'arrêt)" else null end),
+      (if $success and (ship_success_detail($ship.detail) | not)
+        then "profile \($label) requires success-form ship_completed (green, URL, no markers, no open findings)" else null end)
+    ] | flatten | map(select(. != null)) | first);
 
 def autonomous_profile_error($values; $st; $label; $strict):
   (["route_decided","plan_created","adversary_completed","file_changed","validation_run","simplification_completed","review_completed","outcome_metric","archive_written","plan_removed"]) as $required
@@ -626,6 +689,8 @@ def batch_ledger($slug; $profile; $list):
      elif $profile == "autonomous-completed-strict" then autonomous_profile_error($values; $st; "autonomous-completed-strict"; true)
      elif $profile == "blocked-terminal"
      then (if $st.term != "blocked" then "profile blocked-terminal requires final blocked event" else null end)
+     elif $profile == "ship-completed" then ship_profile_error($values; $st; "ship-completed"; true)
+     elif $profile == "ship-stopped" then ship_profile_error($values; $st; "ship-stopped"; false)
      else "unknown validation profile: \($profile)"
      end) as $profile_err
   | ([$st.err, $term_err, $measure_err, $profile_err] | map(select(. != null)) | first) as $err

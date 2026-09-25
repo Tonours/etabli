@@ -59,7 +59,7 @@ function cacheStore(cache, path, fp, value) {
   cache.set(path, { fp, value });
 }
 
-const TERMINAL_EVENTS = new Set(["completed", "blocked"]);
+const TERMINAL_EVENTS = new Set(["completed", "blocked", "ship_completed"]);
 const RUN_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 const KNOWN_EVENTS = new Set(WORKFLOW_EVENTS);
 
@@ -223,13 +223,22 @@ function scanLedgerChunk(state, chunk, expectedRun) {
 
     if (state.terminalIndex !== -1) {
       if (isV2 || state.terminalWasV2) {
-        state.error = invalid("terminal_not_final", state.events, {
-          line: lineNumber,
-          terminalLine: state.terminalIndex + 1,
-        });
-        return;
+        // Single exception, mirroring the CLI: the ship-stopped order is
+        // ship_completed THEN blocked.
+        const previousTerminal = state.events[state.terminalIndex]?.event;
+        if (
+          event.event !== "blocked" ||
+          previousTerminal !== "ship_completed"
+        ) {
+          state.error = invalid("terminal_not_final", state.events, {
+            line: lineNumber,
+            terminalLine: state.terminalIndex + 1,
+          });
+          return;
+        }
+      } else {
+        state.legacyPostTerminal = true;
       }
-      state.legacyPostTerminal = true;
     }
 
     state.events.push(event);
