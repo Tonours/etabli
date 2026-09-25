@@ -1,6 +1,7 @@
 ---
 name: brand-kit
 description: Generate a complete visual identity and marketing-site mockup board from a product idea.
+disable-model-invocation: true
 ---
 
 # Brand Kit

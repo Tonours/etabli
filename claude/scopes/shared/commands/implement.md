@@ -1,7 +1,15 @@
 ---
-description: Implement the existing READY PLAN.md without rerunning planning
+description: Implement the existing READY PLAN.md without rerunning planning. Use only when explicitly invoked; not for planning or unplanned fixes.
+disable-model-invocation: true
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent]
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: implement
+harness: claude
+canonical: pi/skills/implement/SKILL.md
+description: Implement the existing READY PLAN.md without rerunning planning. Use only when explicitly invoked; not for planning or unplanned fixes.
+pointer: Adapter for the `implement` skill. Read and follow the shared contract in `pi/skills/implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Implement
 

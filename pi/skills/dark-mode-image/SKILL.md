@@ -1,6 +1,7 @@
 ---
 name: dark-mode-image
 description: Create dark-mode variants of raster images for dark UI contexts.
+disable-model-invocation: true
 ---
 
 # Dark Mode Image

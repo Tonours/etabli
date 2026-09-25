@@ -1,6 +1,7 @@
 ---
 name: markup-from-image
 description: Convert screenshots, Figma exports, mockups, or wireframes into semantic unstyled markup.
+disable-model-invocation: true
 ---
 
 # Markup From Image

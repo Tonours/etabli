@@ -1,7 +1,16 @@
 ---
 name: plan-implement
-description: Plan, review, then implement only a READY PLAN.md.
+description: Plan, review, then implement, shipping only a READY PLAN.md. Use only when explicitly asked via /skill:plan-implement; not for single-step tasks or plan-free fixes.
+disable-model-invocation: true
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: plan-implement
+harness: pi
+canonical: pi/skills/plan-implement/SKILL.md
+name: plan-implement
+description: Plan, review, then implement, shipping only a READY PLAN.md. Use only when explicitly asked via /skill:plan-implement; not for single-step tasks or plan-free fixes.
+pointer: Adapter for the `plan-implement` skill. Read and follow the shared contract in `pi/skills/plan-implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement
 
@@ -24,5 +33,6 @@ Rules:
 - Do not create `REVIEW.md`.
 - After focused checks, run implementation-loop 12b on this diff and record
   `simplify: clean` or `simplify: removed N`. Then run 12c (`code-quality` when
-  exposed, else the narrowest domain skill or 1-3 local siblings). Record
-  `quality: unavailable` and stop before completion if neither exists.
+  exposed, else the narrowest domain skill or 1-3 local siblings) and append
+  `quality_completed` (`status: pass`, or `status: unavailable` and stop
+  before completion if no pass exists).

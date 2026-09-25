@@ -1,6 +1,7 @@
 ---
 name: ship
 description: Deliver one task A to Z - plan, implement, review, commit, push, PR, CI green.
+disable-model-invocation: true
 ---
 
 # Ship

@@ -1,7 +1,15 @@
 ---
 name: adversary
-description: Challenge PLAN.md or diffs using the shared risk-tiered review contract.
+description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when a plan, diff, or design must survive deliberate attack (stress-test, devil's advocate, try-to-break-it) before approval; not for author-side draft reviews (plan-loop), collaborative drafting, or final verdicts.
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: adversary
+harness: pi
+canonical: workflow/skills/adversary.md
+name: adversary
+description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when a plan, diff, or design must survive deliberate attack (stress-test, devil's advocate, try-to-break-it) before approval; not for author-side draft reviews (plan-loop), collaborative drafting, or final verdicts.
+pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Adversary
 
@@ -28,6 +36,10 @@ Rules:
   effective model family regardless of which harness owns the route.
 - A configured route without observed effective-model provenance is not a
   completed cross-model pass.
+- Plan mode: the counting pass must be cross-family; a same-family pass is
+  a labeled supplement only and never satisfies independence. Record
+  `model_provenance` on the ledger pass and the pass itself under
+  `## Review Changes` in `PLAN.md`.
 - High findings: accept/reject via cross-model (or second sample), not the
   implementer alone.
 - Plan-mode adversary is required before autonomous implementation completion.

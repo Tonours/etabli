@@ -1,6 +1,7 @@
 ---
 name: canonicalize-tailwind
 description: Sort, normalize, deduplicate, and resolve conflicting Tailwind utility classes.
+disable-model-invocation: true
 ---
 
 # Canonicalize Tailwind

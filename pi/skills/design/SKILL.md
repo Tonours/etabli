@@ -1,6 +1,7 @@
 ---
 name: design
 description: Design and build new UI with the complete ui.sh design guideline system.
+disable-model-invocation: true
 ---
 
 # Design

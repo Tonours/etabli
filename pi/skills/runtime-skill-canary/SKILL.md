@@ -1,8 +1,16 @@
 ---
 name: runtime-skill-canary
-description: Verify Etabli skill hashes, managed links and runtime discovery/invocation after installs, catalog changes, upgrades or sync.
+description: Verify Etabli skill hashes, managed links and runtime discovery/invocation after installs, catalog changes, upgrades or sync. Use only when explicitly asked via /skill:runtime-skill-canary; not for general health checks.
 disable-model-invocation: true
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: runtime-skill-canary
+harness: pi
+canonical: pi/skills/runtime-skill-canary/SKILL.md
+name: runtime-skill-canary
+description: Verify Etabli skill hashes, managed links and runtime discovery/invocation after installs, catalog changes, upgrades or sync. Use only when explicitly asked via /skill:runtime-skill-canary; not for general health checks.
+pointer: Adapter for the `runtime-skill-canary` skill. Read and follow the shared contract in `pi/skills/runtime-skill-canary/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Runtime Skill Canary
 
