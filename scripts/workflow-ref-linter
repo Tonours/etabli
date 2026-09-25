@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# scripts/workflow-ref-linter: F3 mechanical scripts/<path> reference gate.
+#
+# Targets:
+#   scaffold  - backticked `scripts/<path>` refs in scaffold docs (FILES .md
+#               sources) must resolve against the scaffold FILES dest set,
+#               unless the line carries a RAW <!-- etabli-only --> marker
+#               (code spans stripped before detection; fenced blocks are NOT
+#               excluded).
+#   etabli    - backticked `scripts/<path>` refs in the etabli doc union
+#               (FILES docs + workflow/**/*.md + pi/skills/*/SKILL.md +
+#               claude/scopes/shared/{commands,agents}) must exist under
+#               --root. Markers are
+#               ignored (never fail, never exempt).
+#   misplaced - any RAW etabli-only marker in a whole-repo *.md file OUTSIDE
+#               the etabli union fails.
+#
+# Usage: workflow-ref-linter [--target scaffold|etabli|misplaced|all]
+#                            [--root DIR] [--files-list PATH]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+
+TARGET="all"
+ROOT="$REPO_DIR"
+FILES_LIST=""
+MARKER="<!-- etabli-only -->"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--target scaffold|etabli|misplaced|all] [--root DIR] [--files-list PATH]
+
+Lint backticked scripts/<path> references and raw etabli-only markers.
+
+Options:
+  --target      Which gate to run (default: all)
+  --root        Repo root for doc sets and resolution (default: etabli repo)
+  --files-list  src|dest FILES listing (default: ROOT/scripts/deploy-workflow --list-files)
+  -h, --help    Show this help
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --target)
+      TARGET="${2:?--target needs a value}"
+      shift 2
+      ;;
+    --root)
+      ROOT="${2:?--root needs a value}"
+      shift 2
+      ;;
+    --files-list)
+      FILES_LIST="${2:?--files-list needs a value}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "$TARGET" in
+  scaffold|etabli|misplaced|all) ;;
+  *)
+    printf 'unknown target: %s\n' "$TARGET" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+TMP_FILES_LIST=""
+if [ -z "$FILES_LIST" ]; then
+  TMP_FILES_LIST="$(mktemp)"
+  trap 'rm -f "$TMP_FILES_LIST"' EXIT
+  "$ROOT/scripts/deploy-workflow" --list-files >"$TMP_FILES_LIST"
+  FILES_LIST="$TMP_FILES_LIST"
+fi
+
+FAILURES=0
+fail() {
+  printf '%s\n' "$1"
+  FAILURES=$((FAILURES + 1))
+}
+
+# Etablis union doc set (repo-relative), one per line, sorted unique.
+union_docs() {
+  {
+    cut -d'|' -f1 "$FILES_LIST" | grep '\.md$' || true
+    (cd "$ROOT" && find workflow pi/skills claude/scopes/shared/commands claude/scopes/shared/agents -type f \( -name '*.md' -o -name 'SKILL.md' \) 2>/dev/null | sort) || true
+  } | sort -u
+}
+
+run_scaffold() {
+  local dests docs
+  dests="$(mktemp)"
+  docs="$(mktemp)"
+  trap 'rm -f "$TMP_FILES_LIST" "$dests" "$docs"' EXIT
+  cut -d'|' -f2 "$FILES_LIST" | sort -u >"$dests"
+  cut -d'|' -f1 "$FILES_LIST" | grep '\.md$' | sort -u >"$docs" || true
+  while IFS= read -r doc; do
+    [ -n "$doc" ] || continue
+    if [ ! -f "$ROOT/$doc" ]; then
+      fail "$doc:0: scaffold doc listed in FILES but missing under root"
+      continue
+    fi
+    while IFS= read -r entry; do
+      fail "$doc:$entry"
+    done < <(awk -v destfile="$dests" -v marker="$MARKER" '
+      BEGIN { while ((getline d < destfile) > 0) D[d] = 1 }
+      {
+        stripped = $0
+        gsub(/`[^`]*`/, "", stripped)
+        if (index(stripped, marker) > 0) next
+        rest = $0
+        while (match(rest, /`scripts\/[A-Za-z0-9_.\/-]+`/)) {
+          ref = substr(rest, RSTART + 1, RLENGTH - 2)
+          if (!(ref in D))
+            print FNR ": unresolved scaffold ref `" ref "` (not in FILES dest set, no raw etabli-only marker)"
+          rest = substr(rest, RSTART + RLENGTH)
+        }
+      }' "$ROOT/$doc")
+  done <"$docs"
+  rm -f "$dests" "$docs"
+  trap 'rm -f "$TMP_FILES_LIST"' EXIT
+}
+
+run_etabli() {
+  local refs
+  refs="$(mktemp)"
+  trap 'rm -f "$TMP_FILES_LIST" "$refs"' EXIT
+  : >"$refs"
+  while IFS= read -r doc; do
+    [ -n "$doc" ] || continue
+    [ -f "$ROOT/$doc" ] || continue
+    awk -v doc="$doc" '
+      {
+        rest = $0
+        while (match(rest, /`scripts\/[A-Za-z0-9_.\/-]+`/)) {
+          print doc ":" FNR ":" substr(rest, RSTART + 1, RLENGTH - 2)
+          rest = substr(rest, RSTART + RLENGTH)
+        }
+      }' "$ROOT/$doc" >>"$refs"
+  done < <(union_docs)
+  while IFS= read -r entry; do
+    [ -n "$entry" ] || continue
+    local ref="${entry##*:}"
+    local loc="${entry%:*}"
+    if [ ! -e "$ROOT/$ref" ]; then
+      fail "$loc: unresolved etabli ref \`$ref\` (missing under root)"
+    fi
+  done <"$refs"
+  rm -f "$refs"
+  trap 'rm -f "$TMP_FILES_LIST"' EXIT
+}
+
+run_misplaced() {
+  local union allmd
+  union="$(mktemp)"
+  allmd="$(mktemp)"
+  trap 'rm -f "$TMP_FILES_LIST" "$union" "$allmd"' EXIT
+  union_docs >"$union"
+  (cd "$ROOT" && find . -type f -name '*.md' -not -path './.git/*' | sort) >"$allmd"
+  if [ -s "$allmd" ]; then
+    MDFILES=()
+    while IFS= read -r f; do
+      MDFILES+=("$f")
+    done <"$allmd"
+    while IFS= read -r entry; do
+      fail "$entry"
+    done < <(cd "$ROOT" && awk -v unionfile="$union" -v marker="$MARKER" '
+      BEGIN { while ((getline d < unionfile) > 0) U[d] = 1 }
+      FNR == 1 { f = FILENAME; sub(/^\.\//, "", f); skip = (f in U) }
+      skip { next }
+      {
+        stripped = $0
+        gsub(/`[^`]*`/, "", stripped)
+        if (index(stripped, marker) > 0)
+          print f ":" FNR ": misplaced etabli-only marker (outside etabli union)"
+      }' "${MDFILES[@]}")
+  fi
+  rm -f "$union" "$allmd"
+  trap 'rm -f "$TMP_FILES_LIST"' EXIT
+}
+
+case "$TARGET" in
+  scaffold|all) run_scaffold ;;
+esac
+case "$TARGET" in
+  etabli|all) run_etabli ;;
+esac
+case "$TARGET" in
+  misplaced|all) run_misplaced ;;
+esac
+
+if [ "$FAILURES" -gt 0 ]; then
+  printf 'ref-linter: %d failure(s) (target=%s)\n' "$FAILURES" "$TARGET" >&2
+  exit 1
+fi
+printf 'ref-linter: clean (target=%s)\n' "$TARGET" >&2
+exit 0

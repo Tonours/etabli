@@ -1,0 +1,387 @@
+#!/usr/bin/env bash
+# scripts/workflow-adapter-sync: F4 mechanical Pi/Claude skill-adapter gate.
+#
+# Each manifest row stamps its adapter file with a GENERATED header block
+# (after the leading frontmatter) snapshotting the harness's frontmatter
+# patch keys (pi: name+description, claude: description only — schemas
+# differ, whole-block identity is impossible) plus the canonical-contract
+# pointer paragraph (byte-identical across harnesses for one skill).
+# Bodies stay hand-written per harness; the manifest body sha256 is a
+# tripwire (GENERATED span excised before hashing), and headers are verified
+# by regeneration comparison only, never by hash.
+#
+# Modes: stamp (default) | --check | --update-hashes
+# Usage: workflow-adapter-sync [--root DIR] [--manifest PATH] [--surface PATH]
+#                              [--check | --update-hashes]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/lib/hash.sh"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+
+ROOT="$REPO_DIR"
+MANIFEST=""
+SURFACE=""
+MODE="stamp"
+
+START="<!-- GENERATED:adapter-sync:start -->"
+END="<!-- GENERATED:adapter-sync:end -->"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--root DIR] [--manifest PATH] [--surface PATH] [--check | --update-hashes]
+
+Stamp or verify GENERATED adapter header blocks (default: stamp).
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --root)
+      ROOT="${2:?--root needs a value}"
+      shift 2
+      ;;
+    --manifest)
+      MANIFEST="${2:?--manifest needs a value}"
+      shift 2
+      ;;
+    --surface)
+      SURFACE="${2:?--surface needs a value}"
+      shift 2
+      ;;
+    --check)
+      MODE="check"
+      shift
+      ;;
+    --update-hashes)
+      MODE="update-hashes"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+[ -n "$MANIFEST" ] || MANIFEST="$ROOT/workflow/runtime/adapter-manifest.json"
+[ -n "$SURFACE" ] || SURFACE="$ROOT/workflow/runtime/skill-surface.tsv"
+[ -f "$MANIFEST" ] || { printf 'missing manifest: %s\n' "$MANIFEST" >&2; exit 2; }
+[ -f "$SURFACE" ] || { printf 'missing surface: %s\n' "$SURFACE" >&2; exit 2; }
+
+FAILURES=0
+fail() {
+  printf '%s\n' "$1"
+  FAILURES=$((FAILURES + 1))
+}
+
+# Live deployed set from the surface (authoritative): pi_core=1 OR agents=1.
+live_deployed() {
+  awk -F'\t' '!/^#/ && NF && ($3 == 1 || $4 == 1) { print $1 }' "$SURFACE" | sort -u
+}
+
+# First top-level `key: value` in the leading frontmatter (single line).
+# Prints the raw value; exit 3 on missing/empty/multiline/malformed.
+frontmatter_value() {
+  awk -v key="$2" '
+    NR == 1 && $0 != "---" { exit 3 }
+    NR > 1 && $0 == "---" { exit (found ? 0 : 3) }
+    NR > 1 && !found && $0 ~ "^" key ":[ ]" {
+      found = 1
+      value = substr($0, length(key) + 3)
+      if (value == "") exit 3
+      nextline = (getline nxt > 0) ? nxt : ""
+      if (nxt ~ /^[ \t]+[^ \t]/) exit 3
+      print value
+    }
+    END { if (!found) exit 3 }
+  ' "$1"
+}
+
+closing_fence_line() {
+  awk 'NR == 1 && $0 != "---" { exit 3 } NR > 1 && $0 == "---" { print NR; exit }' "$1"
+}
+
+span_lines() {
+  grep -n -F -e "$START" -e "$END" "$1" | cut -d: -f1
+}
+
+# Regenerate the expected block for one adapter; reads frontmatter live.
+gen_block() {
+  local skill="$1" harness="$2" canonical="$3" file="$4"
+  local desc name_val pointer
+  desc="$(frontmatter_value "$file" description)" || return 3
+  printf '%s\n' "$START"
+  printf 'skill: %s\n' "$skill"
+  printf 'harness: %s\n' "$harness"
+  printf 'canonical: %s\n' "$canonical"
+  if [ "$harness" = "pi" ]; then
+    name_val="$(frontmatter_value "$file" name)" || return 3
+    printf 'name: %s\n' "$name_val"
+  fi
+  printf 'description: %s\n' "$desc"
+  pointer="Adapter for the \`$skill\` skill. Read and follow the shared contract in \`$canonical\`. If the contract is missing in the workspace, try \`~/.pi/agent/\`, \`~/.claude/\`, then \`~/.agents/\` copies of the same relative path. If still missing, stop with \`SHARED_CONTRACT_MISSING\`."
+  printf 'pointer: %s\n' "$pointer"
+  printf '%s\n' "$END"
+}
+
+# File bytes with every fence-span line excised (for body hashing).
+body_bytes() {
+  sed -e "/^$START\$/,/^$END\$/d" "$1"
+}
+
+# Patch the first top-level `name:` line inside the leading frontmatter.
+patch_pi_name() {
+  local file="$1" skill="$2"
+  local close
+  close="$(closing_fence_line "$file")" || return 3
+  {
+    head -n 1 "$file"
+    sed -n "2,${close}p" "$file" | awk -v skill="$skill" '
+      !done && /^name:[ ]/ { print "name: " skill; done = 1; next }
+      { print }
+    '
+    tail -n "+$((close + 1))" "$file"
+  } >"$file.patched"
+  mv "$file.patched" "$file"
+}
+
+stamp_file() {
+  local skill="$1" harness="$2" adapter="$3" canonical="$4"
+  local file="$ROOT/$adapter"
+  [ -f "$file" ] || { fail "$adapter: row file vanished"; return; }
+  local current_name
+  if [ "$harness" = "pi" ]; then
+    current_name="$(frontmatter_value "$file" name)" || { fail "$adapter: missing/empty/multiline frontmatter name"; return; }
+    if [ "$current_name" != "$skill" ]; then
+      patch_pi_name "$file" "$skill" || { fail "$adapter: cannot patch frontmatter name"; return; }
+    fi
+  fi
+  frontmatter_value "$file" description >/dev/null || { fail "$adapter: missing/empty/multiline frontmatter description"; return; }
+  local expected
+  expected="$(gen_block "$skill" "$harness" "$canonical" "$file")" || { fail "$adapter: block regeneration failed"; return; }
+  local starts ends
+  starts="$(grep -c -F -e "$START" "$file" || true)"
+  ends="$(grep -c -F -e "$END" "$file" || true)"
+  if [ "$starts" -gt 1 ] || [ "$ends" -gt 1 ] || { [ "$starts" -eq 1 ] && [ "$ends" -eq 0 ]; } || { [ "$starts" -eq 0 ] && [ "$ends" -eq 1 ]; }; then
+    fail "$adapter: malformed GENERATED span (starts=$starts ends=$ends)"
+    return
+  fi
+  local tmp
+  tmp="$(mktemp)"
+  if [ "$starts" -eq 1 ]; then
+    local s e
+    s="$(grep -n -F -e "$START" "$file" | cut -d: -f1)"
+    e="$(grep -n -F -e "$END" "$file" | cut -d: -f1)"
+    if [ "$e" -le "$s" ]; then
+      fail "$adapter: end fence before start fence"
+      rm -f "$tmp"
+      return
+    fi
+    { head -n $((s - 1)) "$file"; printf '%s\n' "$expected"; tail -n "+$((e + 1))" "$file"; } >"$tmp"
+  else
+    local close
+    close="$(closing_fence_line "$file")" || { fail "$adapter: malformed frontmatter"; rm -f "$tmp"; return; }
+    { head -n "$close" "$file"; printf '%s\n' "$expected"; tail -n "+$((close + 1))" "$file"; } >"$tmp"
+  fi
+  if cmp -s "$file" "$tmp"; then
+    rm -f "$tmp"
+  else
+    mv "$tmp" "$file"
+    printf 'stamped %s\n' "$adapter"
+  fi
+}
+
+check_file() {
+  local skill="$1" harness="$2" adapter="$3" canonical="$4" want_sha="$5"
+  local file="$ROOT/$adapter"
+  [ -f "$file" ] || { fail "$adapter: (b) row file vanished"; return; }
+  local starts ends
+  starts="$(grep -c -F -e "$START" "$file" || true)"
+  ends="$(grep -c -F -e "$END" "$file" || true)"
+  if [ "$starts" -ne 1 ] || [ "$ends" -ne 1 ]; then
+    fail "$adapter: missing/malformed GENERATED span (starts=$starts ends=$ends)"
+    return
+  fi
+  local s e
+  s="$(grep -n -F -e "$START" "$file" | cut -d: -f1)"
+  e="$(grep -n -F -e "$END" "$file" | cut -d: -f1)"
+  if [ "$e" -le "$s" ]; then
+    fail "$adapter: end fence before start fence"
+    return
+  fi
+  if [ "$harness" = "pi" ]; then
+    local current_name
+    current_name="$(frontmatter_value "$file" name 2>/dev/null)" || { fail "$adapter: missing/empty/multiline frontmatter name"; return; }
+    [ "$current_name" = "$skill" ] || { fail "$adapter: frontmatter name [$current_name] != skill [$skill]"; return; }
+  fi
+  frontmatter_value "$file" description >/dev/null 2>&1 || { fail "$adapter: missing/empty/multiline frontmatter description"; return; }
+  local expected actual
+  expected="$(gen_block "$skill" "$harness" "$canonical" "$file")" || { fail "$adapter: block regeneration failed"; return; }
+  actual="$(sed -n "${s},${e}p" "$file")"
+  [ "$actual" = "$expected" ] || { fail "$adapter: header drift (frontmatter changed without re-stamp, or block hand-edited)"; return; }
+  local got_sha
+  got_sha="$(body_bytes "$file" | hash256 | awk '{ print $1 }')"
+  [ "$got_sha" = "$want_sha" ] || fail "$adapter: body tripwire (sha256 differs from manifest; use --update-hashes for a reviewed rotation)"
+}
+
+run_stamp() {
+  while IFS="$(printf '\t')" read -r skill harness adapter canonical _sha; do
+    stamp_file "$skill" "$harness" "$adapter" "$canonical"
+  done < <(jq -r '.rows[] | [.skill, .harness, .adapter, .canonical, .sha256] | @tsv' "$MANIFEST")
+  if [ "$FAILURES" -gt 0 ]; then
+    printf 'adapter-sync: %d failure(s) (stamp)\n' "$FAILURES" >&2
+    exit 1
+  fi
+  printf 'adapter-sync: stamp done\n' >&2
+}
+
+run_check() {
+  local work
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  live_deployed >"$work/deployed.txt"
+  jq -r '.deployed[]' "$MANIFEST" | sort -u >"$work/manifest-deployed.txt"
+  if ! cmp -s "$work/deployed.txt" "$work/manifest-deployed.txt"; then
+    fail "manifest deployed set drifted from skill-surface.tsv"
+  fi
+  jq -r '.rows[] | [.skill, .harness, .adapter, .canonical, .sha256] | @tsv' "$MANIFEST" >"$work/rows.tsv"
+  jq -r '.rows[] | .skill' "$MANIFEST" | sort -u >"$work/rowed-skills.txt"
+  jq -r '.rows[] | .adapter' "$MANIFEST" | sort -u >"$work/rowed-files.txt"
+  jq -r '.external[]? | .skill' "$MANIFEST" | sort -u >"$work/external-skills.txt"
+
+  # Per-row file checks.
+  while IFS="$(printf '\t')" read -r skill harness adapter canonical sha; do
+    check_file "$skill" "$harness" "$adapter" "$canonical" "$sha"
+  done <"$work/rows.tsv"
+
+  # (a) deployed skill without a row (externals exempt).
+  while IFS= read -r skill; do
+    [ -n "$skill" ] || continue
+    if ! grep -Fxq "$skill" "$work/rowed-skills.txt" && ! grep -Fxq "$skill" "$work/external-skills.txt"; then
+      fail "$skill: (a) deployed skill without a manifest row"
+    fi
+  done <"$work/deployed.txt"
+
+  # (c) row for an undeployed skill; row+external contradiction.
+  while IFS= read -r skill; do
+    [ -n "$skill" ] || continue
+    if ! grep -Fxq "$skill" "$work/deployed.txt"; then
+      fail "$skill: (c) stale row for an undeployed skill"
+    fi
+    if grep -Fxq "$skill" "$work/external-skills.txt"; then
+      fail "$skill: row contradicts an external exemption"
+    fi
+  done <"$work/rowed-skills.txt"
+
+  # Map/rows closure.
+  jq -r '.map | to_entries[] | .key as $k | ((.value.pi // empty), (.value.claude[]?)) | "\($k)\t\(.)"' "$MANIFEST" >"$work/map.tsv"
+  while IFS="$(printf '\t')" read -r skill path; do
+    grep -Fxq "$path" "$work/rowed-files.txt" || fail "$path: map path without a row (skill $skill)"
+  done <"$work/map.tsv"
+  while IFS="$(printf '\t')" read -r skill _harness adapter _canonical _sha; do
+    grep -Fqx "$skill$(printf '\t')$adapter" "$work/map.tsv" 2>/dev/null || fail "$adapter: row without a map path (skill $skill)"
+  done <"$work/rows.tsv"
+
+  # (d) reverse scan: stamped-but-unrowed, or same-name-unrowed for deployed.
+  {
+    (cd "$ROOT" && find pi/skills -mindepth 2 -maxdepth 2 -name 'SKILL.md' 2>/dev/null | sort) || true
+    (cd "$ROOT" && find claude/scopes/shared/commands claude/scopes/shared/agents -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort) || true
+  } >"$work/candidates.txt"
+  while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    if grep -Fxq "$candidate" "$work/rowed-files.txt"; then
+      continue
+    fi
+    if grep -Fq "$START" "$ROOT/$candidate"; then
+      fail "$candidate: (d) stamped adapter file without a manifest row"
+      continue
+    fi
+    local base skill_guess
+    base="$(basename "$candidate")"
+    if [ "$base" = "SKILL.md" ]; then
+      skill_guess="$(basename "$(dirname "$candidate")")"
+    else
+      skill_guess="${base%.md}"
+    fi
+    if grep -Fxq "$skill_guess" "$work/deployed.txt"; then
+      fail "$candidate: (d) same-name adapter file for deployed skill [$skill_guess] without a row"
+    fi
+  done <"$work/candidates.txt"
+
+  # External exemptions: recency + live absence (same-name paths) + deployed.
+  local external_count
+  external_count="$(jq -r '.external | length' "$MANIFEST")"
+  local i=0
+  while [ "$i" -lt "$external_count" ]; do
+    local skill rechecked
+    skill="$(jq -r ".external[$i].skill" "$MANIFEST")"
+    rechecked="$(jq -r ".external[$i].rechecked // empty" "$MANIFEST")"
+    if [ -z "$rechecked" ]; then
+      fail "$skill: exemption without recency (missing rechecked date)"
+    fi
+    if ! grep -Fxq "$skill" "$work/deployed.txt"; then
+      fail "$skill: stale external exemption for an undeployed skill"
+    fi
+    if grep -Fxq "$skill" "$work/rowed-skills.txt"; then
+      fail "$skill: external exemption contradicts a manifest row"
+    fi
+    for p in "pi/skills/$skill/SKILL.md" "claude/scopes/shared/commands/$skill.md" "claude/scopes/shared/agents/$skill.md"; do
+      if [ -e "$ROOT/$p" ]; then
+        fail "$skill: exemption violated — in-repo file appeared: $p"
+      fi
+    done
+    i=$((i + 1))
+  done
+
+  rm -rf "$work"
+  trap - EXIT
+  if [ "$FAILURES" -gt 0 ]; then
+    printf 'adapter-sync: %d failure(s) (--check)\n' "$FAILURES" >&2
+    exit 1
+  fi
+  printf 'adapter-sync: clean (--check)\n' >&2
+}
+
+run_update_hashes() {
+  local work updated=0
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  cp "$MANIFEST" "$work/manifest.json"
+  while IFS="$(printf '\t')" read -r skill harness adapter _canonical _sha; do
+    local file="$ROOT/$adapter"
+    if [ ! -f "$file" ]; then
+      fail "$adapter: cannot hash a vanished file"
+      continue
+    fi
+    local got_sha
+    got_sha="$(body_bytes "$file" | hash256 | awk '{ print $1 }')"
+    jq --arg adapter "$adapter" --arg sha "$got_sha" \
+      '(.rows[] | select(.adapter == $adapter) | .sha256) = $sha' \
+      "$work/manifest.json" >"$work/next.json"
+    mv "$work/next.json" "$work/manifest.json"
+    updated=$((updated + 1))
+  done < <(jq -r '.rows[] | [.skill, .harness, .adapter, .canonical, .sha256] | @tsv' "$MANIFEST")
+  if [ "$FAILURES" -gt 0 ]; then
+    rm -rf "$work"
+    trap - EXIT
+    printf 'adapter-sync: %d failure(s) (--update-hashes, manifest untouched)\n' "$FAILURES" >&2
+    exit 1
+  fi
+  mv "$work/manifest.json" "$MANIFEST"
+  rm -rf "$work"
+  trap - EXIT
+  printf 'adapter-sync: updated %d row hashes (review the diff)\n' "$updated" >&2
+}
+
+case "$MODE" in
+  stamp) run_stamp ;;
+  check) run_check ;;
+  update-hashes) run_update_hashes ;;
+esac

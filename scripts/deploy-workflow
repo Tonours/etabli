@@ -7,6 +7,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 DRY_RUN=0
 FORCE=0
 CHECK=0
+LIST=0
 TARGET_INPUT="."
 TARGET_SET=0
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -68,7 +69,7 @@ done < <(find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -prin
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--check]
+Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--check] [--list-files]
 
 Deploy the Etabli workflow scaffold into a new or existing project.
 
@@ -76,6 +77,7 @@ Options:
   --dry-run   Show planned writes without touching the target
   --force     Backup and overwrite conflicting files
   --check     Report drift between source templates and deployed files without writing
+  --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
   -h, --help  Show this help
 
 Examples:
@@ -97,6 +99,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --check)
       CHECK=1
+      ;;
+    --list-files)
+      LIST=1
       ;;
     -h|--help)
       usage
@@ -123,6 +128,17 @@ done
 if [ "$CHECK" -eq 1 ] && { [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ]; }; then
   printf 'flags are mutually exclusive: --check cannot be combined with --dry-run or --force\n' >&2
   exit 2
+fi
+
+if [ "$LIST" -eq 1 ]; then
+  if [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ] || [ "$CHECK" -eq 1 ] || [ "$TARGET_SET" -eq 1 ]; then
+    printf 'flags are mutually exclusive: --list-files cannot be combined with a target or another flag\n' >&2
+    exit 2
+  fi
+  for entry in "${FILES[@]}"; do
+    printf '%s\n' "${entry#"$REPO_DIR/"}"
+  done
+  exit 0
 fi
 
 status_line() {

@@ -1,0 +1,13 @@
+rule_id	excerpt	canonical_file	class	mechanism
+R1	- Canonical workflow map (open on demand; wins on conflict): `workflow/spec.md`	AGENTS.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R2	  wins on conflict) when the route or a gate is in doubt; review: `workflow/review-rubric.md`; tickets:	claude/CLAUDE.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R3	code-diff mode). The routing map `workflow/spec.md` wins on conflict; open it	claude/scopes/shared/commands/adversary.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R4	routing map `workflow/spec.md` wins on conflict; open it only when the route or	claude/scopes/shared/commands/implement.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R5	routing map `workflow/spec.md` wins on conflict; open it only when the route or	claude/scopes/shared/commands/plan-implement.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R6	  `workflow/agent-quick-card.md`; open `workflow/spec.md` (full map, wins on	pi/AGENTS.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R7	`workflow/spec.md` wins on conflict; open it only when the route or a gate is	pi/skills/adversary/SKILL.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R8	routing map `workflow/spec.md` wins on conflict; open it only when the route or	pi/skills/implement/SKILL.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R9	routing map `workflow/spec.md` wins on conflict; open it only when the route or	pi/skills/plan-implement/SKILL.md	a	excerpt-pinned+parity:workflow-router-parity-clean
+R10	These hold at every step; `workflow/spec.md` § Rules is canonical and wins on	workflow/skills/implementation-loop.md	b	presence-pin:excerpt-byte-present
+R11	§ Minimal READY gate is the canonical list and wins on conflict.	workflow/skills/plan-loop.md	b	presence-pin:excerpt-byte-present
+R12	`workflow/spec.md` wins on conflict; open it only when the route is in doubt.	workflow/skills/verify.md	a	excerpt-pinned+parity:workflow-router-parity-clean

@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# scripts/workflow-router-parity: F13 mechanical spec-vs-router route parity.
+#
+# Extracts the Route column (2nd |-cell, code spans) from the spec route
+# table delimited by <!-- ROUTES:begin --> / <!-- ROUTES:end --> (header and
+# separator rows skipped; 0 extracted = fail-closed) and compares it to the
+# route-name set extracted from workflow-router-core.mjs (`route: "..."`
+# literals, extraction only — 0 extracted = fail-closed), modulo the pinned
+# alias map (core-internal verify-workflow == spec-interface verify).
+# Names only: prose triggers and code matchers are explicitly out of scope.
+#
+# Deployed-copy pins: the Claude hooks lib must re-export core with no local
+# `route:` entries, and BOTH pi alias sites must carry a mapping line for
+# the pinned alias.
+#
+# Usage: workflow-router-parity [--root DIR]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+ROOT="$REPO_DIR"
+
+# Pinned alias map (F15, T4-clarified): core-internal -> spec-interface.
+ALIAS_FROM="verify-workflow"
+ALIAS_TO="verify"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--root DIR]
+
+Compare the spec route table to the router-core route-name set.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --root)
+      ROOT="${2:?--root needs a value}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+SPEC="$ROOT/workflow/spec.md"
+CORE="$ROOT/workflow/runtime/workflow-router-core.mjs"
+LIB="$ROOT/claude/hooks/workflow-router-lib.mjs"
+PI_SITE_1="$ROOT/pi/extensions/lib/workflow-router-runtime.ts"
+PI_SITE_2="$ROOT/pi/extensions/lib/semantic-route.mjs"
+
+FAILURES=0
+fail() {
+  printf '%s\n' "$1"
+  FAILURES=$((FAILURES + 1))
+}
+
+for f in "$SPEC" "$CORE" "$LIB" "$PI_SITE_1" "$PI_SITE_2"; do
+  if [ ! -f "$f" ]; then
+    fail "${f#"$ROOT/"}: required input file missing"
+  fi
+done
+if [ "$FAILURES" -gt 0 ]; then
+  printf 'router-parity: %d failure(s)\n' "$FAILURES" >&2
+  exit 1
+fi
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# Spec routes: 2nd |-cell code spans between the ROUTES anchors.
+awk '
+  /<!-- ROUTES:begin -->/ { in_table = 1; next }
+  /<!-- ROUTES:end -->/ { in_table = 0; next }
+  in_table && /^\|/ {
+    n = split($0, cells, "\\|")
+    if (n < 3) next
+    cell = cells[3]
+    if (cell ~ /^[ \t]*---+[ \t]*$/) next
+    if (cell ~ /Route/) next
+    rest = cell
+    while (match(rest, /`[^`]+`/)) {
+      print substr(rest, RSTART + 1, RLENGTH - 2)
+      rest = substr(rest, RSTART + RLENGTH)
+    }
+  }
+' "$SPEC" | sort -u >"$WORK/spec-routes.txt"
+
+# Core routes: route: "..." literals (extraction only). Comments are stripped
+# first so a commented-out route never counts as active; stripping errors
+# can only drop routes (fail-closed), never invent them.
+perl -0777 -pe 's{/\*.*?\*/}{}gs' "$CORE" | sed 's|//.*||' | grep -o 'route: "[^"]*"' | sed 's/^route: "//; s/"$//' | sort -u >"$WORK/core-routes.txt" || true
+
+if [ ! -s "$WORK/spec-routes.txt" ]; then
+  fail "spec: 0 routes extracted between ROUTES anchors (fail-closed)"
+fi
+if [ ! -s "$WORK/core-routes.txt" ]; then
+  fail "core: 0 route names extracted (fail-closed)"
+fi
+
+# Apply the pinned alias to the core set, then compare as sets.
+sed "s/^$ALIAS_FROM\$/$ALIAS_TO/" "$WORK/core-routes.txt" | sort -u >"$WORK/core-aliased.txt"
+if ! cmp -s "$WORK/spec-routes.txt" "$WORK/core-aliased.txt"; then
+  while IFS= read -r route; do
+    [ -n "$route" ] || continue
+    grep -Fxq "$route" "$WORK/core-aliased.txt" || fail "spec-only route (missing from core): $route"
+  done <"$WORK/spec-routes.txt"
+  while IFS= read -r route; do
+    [ -n "$route" ] || continue
+    grep -Fxq "$route" "$WORK/spec-routes.txt" || fail "core-only route (missing from spec): $route"
+  done <"$WORK/core-aliased.txt"
+fi
+
+# Deployed-copy pins.
+if grep -q 'route:' "$LIB"; then
+  fail "lib: local route: entries present (must re-export core only)"
+fi
+if ! grep -q 'workflow-router-core' "$LIB"; then
+  fail "lib: does not reference workflow-router-core"
+fi
+for site in "$PI_SITE_1" "$PI_SITE_2"; do
+  rel="${site#"$ROOT/"}"
+  if ! grep -q "$ALIAS_FROM" "$site" || ! grep -q "\"$ALIAS_TO\"" "$site"; then
+    fail "$rel: no mapping line for the pinned alias ($ALIAS_FROM -> $ALIAS_TO)"
+  fi
+done
+
+count="$(wc -l <"$WORK/spec-routes.txt" | tr -d ' ')"
+rm -rf "$WORK"
+trap - EXIT
+if [ "$FAILURES" -gt 0 ]; then
+  printf 'router-parity: %d failure(s)\n' "$FAILURES" >&2
+  exit 1
+fi
+printf 'router-parity: clean (%s routes)\n' "$count" >&2
