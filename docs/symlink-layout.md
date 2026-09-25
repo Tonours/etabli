@@ -30,4 +30,4 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
 - `agent` on PATH is Cursor (`~/.local/bin/agent`); Grok is `grok` only — do not restore `~/.grok/bin/agent`
 - do not create `~/.pi/extensions/`; it causes double-loading
 - do not commit `pi/extensions/herdr-agent-state.ts` (installed/overwritten by `herdr integration install pi`)
-- macmini deploy: `scripts/herdr-sync-mini` copies `herdr/` and the canonical vault resolver → `~/work/etabli-herdr/` (see `herdr/docs/multihost.md`)
+- Mac mini Herdr deployment is owned by dotfiles `scripts/herdr-sync-mini` (see dotfiles `herdr/docs/multihost.md`).

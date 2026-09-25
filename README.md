@@ -43,6 +43,10 @@ cd etabli
 ./scripts/install.sh
 ```
 
+This installs the agent workflow, not editor or terminal configuration. To
+install those links, clone [dotfiles](https://github.com/Tonours/dotfiles) and
+run `scripts/fix-links --fix` there.
+
 The installer uses the existing Node.js runtime, preferring `asdf` when it is
 available. It does not install Node or `nvm`. Pi comes from
 `@earendil-works/pi-coding-agent`.
@@ -59,8 +63,7 @@ pane, not from inside Neovim.
 | `pi/` | Pi settings, extensions, agents, skills, and themes |
 | `claude/` | Claude commands, agents, hooks, and scoped skills |
 | `vendor/` | Vendored skill sources and the catalog that controls their scope |
-| `nvim/`, `ghostty/`, `tmux.conf` | Editor and terminal configuration |
-| `herdr/` | Herdr configuration, layouts, plugins, and multihost tooling |
+| [`dotfiles`](https://github.com/Tonours/dotfiles) | Editor, terminal, tmux, and Herdr configuration (separate repository) |
 | `mcp/` | Sanitized MCP inventory template; no live credentials |
 | `scripts/`, `tests/` | Install, deploy, validation, and regression checks |
 | `skills-lock.json` | Integrity lock for the managed skill tree |

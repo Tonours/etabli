@@ -46,6 +46,8 @@ Describe in 1-3 sentences what will change and why it matters.
 ### In scope
 -
 
+(Risky change? Name files/areas — the plan adversary blocks READY without them.)
+
 ### Out of scope / Non-goals
 -
 
@@ -137,6 +139,9 @@ ownable units. Otherwise delete this section.
 
 ## Decision Log
 - YYYY-MM-DD:
+
+## Review Changes
+- (Adversary passes record deltas here — canonical location.)
 
 ## Handoff State
 - Current state:

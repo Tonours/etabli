@@ -31,6 +31,48 @@ measurements estimate prompt size, not billed tokens or model quality.
 The native probes under `.workflow/token-economy/` record the inputs and output
 files used for the snapshot. They do not contact a model provider.
 
+## Session hygiene
+
+Added 2026-09-24 after the trace measurements in
+`docs/research/20260924-skill-reliability-token-economy.md` §11. Median Claude
+calls replayed 204k tokens, and 4 of 403 sessions compacted.
+
+- **Pi.** `pi/extensions/session-hygiene.ts` calls `ctx.compact()` when an
+  interactive (`tui`) session settles idle with at least 180k context tokens.
+  - Its summary instructions keep the plan, ledger run, modified files, frozen
+    checks, open findings and next action.
+  - It never runs in print, RPC or JSON mode.
+  - It blocks tree navigation, fork and session switch while its compaction is
+    in flight.
+  - It stops for the session when a compaction leaves the estimate above the
+    threshold, or after two consecutive failures. "Nothing to compact" is not counted as a
+    failure.
+  - Tune with `ETABLI_PI_COMPACT_AT_TOKENS`; disable with
+    `ETABLI_PI_AUTO_COMPACT=off`.
+  - Limit: a single long run is not bounded until it settles. Pi's native
+    compaction near the window still applies.
+- **Claude Code.** Hooks cannot run `/compact` or `/clear`.
+  - `claude/statusline-command.sh` shows `ctx:<N>k`, the input tokens of the
+    last API call (`current_usage`, then `total_input_tokens`): yellow from
+    150k, red from 300k, percentage fallback.
+  - `claude/CLAUDE.md` carries compact instructions with the same state to keep.
+
+## Skill block (Pi)
+
+Added 2026-09-24 (tranche 2, `docs/plan/20260924-guards-active.md`).
+`scripts/pi-skill-load-check` caps the model-facing skill block at 7 190
+characters; the live run measured 19 947 before the fix and ~6 600 after.
+Specialist skills leave the prompt via `disable-model-invocation: true`,
+which hides them from the prompt but keeps `/skill:name` working (a deny
+entry would unload them entirely — verified against Pi's resource loader).
+Repo skills carry the flag in `pi/skills/*/SKILL.md`; installed copies and
+package skills are stamped by `scripts/pi-dmi-stamp` (idempotent,
+`--check`, absent-tolerant). The flag is also honored by Claude Code,
+Cursor and VS Code, so hiding is consistent across harnesses; no workflow
+skill is flagged. Reinstalling an npm skill package wipes its stamp:
+`scripts/verify-agentic-infra core` (row `guards-active`) and
+`pi-dmi-stamp --check` detect it, re-stamping heals it.
+
 ## Limits
 
 The Codex population was partial, so no global catalog budget was adopted. The

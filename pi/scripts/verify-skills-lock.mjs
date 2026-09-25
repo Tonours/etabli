@@ -71,13 +71,11 @@ async function hashSkill(name, source = "pi") {
   return hashSkillTree(join(sourceRoot, "skills", name));
 }
 
-// Pinned non-catalog trees: the herdr skill and every Claude scoped skill
-// copy/link. Keys are namespaced so they cannot collide with catalog names.
+// Pinned non-catalog trees: every Claude scoped skill copy/link.
+// Herdr lives in the separate dotfiles repository.
 // Derived from the filesystem so a new scoped skill cannot ship unpinned.
 async function extraLockedRoots() {
-  const roots = [
-    { key: "herdr/herdr", root: join(repoDir, "herdr", "skills", "herdr") },
-  ];
+  const roots = [];
   const scopesRoot = join(repoDir, "claude", "scopes");
   let scopes = [];
   try {

@@ -26,7 +26,7 @@ runtime instructions.
   trace observation and the bounded Jev diagnosis controller.
 - [`workflow/skills/self-improvement-loop.md`](../workflow/skills/self-improvement-loop.md):
   evidence, privacy, validation, and mutation rules for self-improvement.
-- [`nvim/README.md`](../nvim/README.md): code-first Neovim map.
+- [Dotfiles Neovim README](https://github.com/Tonours/dotfiles/blob/main/nvim/README.md): editor configuration (separate repository).
 - [`SECURITY.md`](../SECURITY.md): repository security boundary.
 
 ## History
