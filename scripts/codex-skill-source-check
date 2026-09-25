@@ -1,0 +1,168 @@
+#!/usr/bin/env node
+/**
+ * Source-measure of the repo-deployed Codex skill surface
+ * ($HOME/.codex/skills top level, T7 AC3 + D-impl4).
+ *
+ * Usage: codex-skill-source-check [--home DIR]
+ *
+ * X1  source chars <= GATE (alert at >= ALERT); metric: len(name) +
+ *     len(description) + 20 per skill with a readable SKILL.md;
+ *     folded YAML descriptions (>- and |) are measured in full.
+ *     This is a SOURCE measure (frontmatter bytes), not the rendered
+ *     listing: the transcript spot-check (rollout 2026-09-04, "### Available
+ *     skills" entries "- <name>: <desc> (file: rN/...)") confirms the
+ *     rendered block truncates descriptions, so the source-measure is
+ *     conservative by construction. Out of scope by design: the
+ *     vendor-owned .system/ subtree (reported informationally, Pi B1
+ *     pstack precedent: vendor bytes are never repo-actionable), the
+ *     shared ~/.agents surface (covered by the Pi/Claude gates), and
+ *     plugin-cache roots (vendor-owned).
+ * X2  warnings (non-failing): dangling skill links and dangling SKILL.md
+ *     files are reported but do not fail the gate — they contribute
+ *     zero chars and are legacy/user-owned rot, not deploy-managed
+ *     links (deploy only ever links whole skill dirs at depth 1).
+ *
+ * Breach-remedy ladder (AC3): demote non-essential skills from the
+ * surface → narrow descriptions → user decision if cuts hit workflow
+ * skills (no silent trim).
+ *
+ * CODEX_SKILL_SOURCE_HOME redirects the surface for fixture-based tests.
+ */
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const GATE = 8000;
+const ALERT = 7900;
+
+const args = process.argv.slice(2);
+function flag(name) {
+  const i = args.indexOf(name);
+  if (i < 0) return null;
+  if (i + 1 >= args.length) {
+    console.error(`codex-skill-source-check: ${name} requires a path`);
+    process.exit(2);
+  }
+  return args[i + 1];
+}
+if (args.includes("-h") || args.includes("--help")) {
+  console.log("Usage: codex-skill-source-check [--home DIR]");
+  process.exit(0);
+}
+for (const a of args) {
+  if (a.startsWith("-") && a !== "--home" && args[args.indexOf(a) - 1] !== "--home") {
+    console.error(`codex-skill-source-check: unknown flag ${a}`);
+    process.exit(2);
+  }
+}
+const homeDir = flag("--home") ?? process.env.CODEX_SKILL_SOURCE_HOME ?? homedir();
+
+const errors = [];
+const warnings = [];
+
+// Single frontmatter read per file; name + description parsed from it.
+function measureSkill(skillMd, fallbackName) {
+  const text = readFileSync(skillMd, "utf8");
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  const fm = match ? match[1] : "";
+  const nameMatch = fm.match(/^name:\s*(.+)$/m);
+  const name = (nameMatch ? nameMatch[1].trim().replace(/^["']|["']$/g, "") : "") || fallbackName;
+  const lines = fm.split("\n");
+  const i = lines.findIndex((l) => /^description:\s/.test(l));
+  let description = "";
+  if (i !== -1) {
+    const first = lines[i].replace(/^description:\s*/, "");
+    if (first.trim() === "" || /^[>|][+-]?$/.test(first.trim())) {
+      const folded = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (!/^\s/.test(lines[j]) && lines[j].trim() !== "") break;
+        folded.push(lines[j].trim());
+      }
+      description = folded.join(" ");
+    } else {
+      // Plain scalar: YAML continues on following lines until the next
+      // top-level key or a blank line (counting only the first line
+      // under-measures real multi-line descriptions past the gate).
+      const plain = [first.trim()];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].trim() === "") break;
+        if (/^[A-Za-z0-9_.-]+:/.test(lines[j])) break;
+        plain.push(lines[j].trim());
+      }
+      description = plain.join(" ");
+    }
+  }
+  return name.length + description.length + 20;
+}
+
+const skillsRoot = join(homeDir, ".codex/skills");
+let entries = [];
+try {
+  entries = readdirSync(skillsRoot).sort();
+} catch {
+  errors.push(`unreadable skills root: ${skillsRoot}`);
+}
+
+let sourceChars = 0;
+let skillCount = 0;
+let systemChars = 0;
+let systemCount = 0;
+for (const entry of entries) {
+  if (entry === ".DS_Store") continue;
+  const entryPath = join(skillsRoot, entry);
+  let stat = null;
+  try {
+    stat = statSync(entryPath);
+  } catch {
+    warnings.push(`dangling skill link: ${entry} (remove it or relink to a live target)`);
+    continue;
+  }
+  if (!stat.isDirectory()) continue;
+  if (entry === ".system") {
+    for (const nested of readdirSync(entryPath).sort()) {
+      const md = join(entryPath, nested, "SKILL.md");
+      if (!existsSync(md)) continue;
+      try {
+        systemChars += measureSkill(md, nested);
+        systemCount += 1;
+      } catch (error) {
+        warnings.push(`unreadable vendor skill: .system/${nested} (${error.message})`);
+      }
+    }
+    continue;
+  }
+  const md = join(entryPath, "SKILL.md");
+  if (!existsSync(md)) {
+    try {
+      lstatSync(md);
+      warnings.push(`dangling SKILL.md: ${entry} (link target missing; remove the dead link or restore the skill)`);
+    } catch {
+      /* no SKILL.md at all: not a skill, silent */
+    }
+    continue;
+  }
+  try {
+    sourceChars += measureSkill(md, entry);
+    skillCount += 1;
+  } catch (error) {
+    errors.push(`unreadable SKILL.md: ${entry} (${error.message})`);
+  }
+}
+
+if (sourceChars > GATE) {
+  errors.push(
+    `X1: codex source ${sourceChars} chars exceeds gate ${GATE} (remedy ladder: demote non-essential → narrow descriptions → user decision if cuts hit workflow skills; re-pinning the gate requires a CHALLENGED Decision Log entry)`,
+  );
+} else if (sourceChars >= ALERT) {
+  warnings.push(`X1: codex source ${sourceChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
+}
+
+console.log(
+  `source_chars=${sourceChars} skills=${skillCount} system_chars=${systemChars} system_skills=${systemCount} gate=${GATE}`,
+);
+for (const w of warnings) console.log(`WARN: ${w}`);
+if (errors.length > 0) {
+  for (const e of errors) console.log(`FAIL: ${e}`);
+  process.exit(1);
+}
+console.log("codex-skill-source-check: ok");

@@ -1,0 +1,176 @@
+{
+  "variant": "unmarked",
+  "run": 3,
+  "model": "qwen/qwen3-8b",
+  "temperature": 0,
+  "records": [
+    {
+      "task_id": "hi-adversary-plan",
+      "expected": "adversary",
+      "response_raw": "adversary",
+      "response_norm": "adversary",
+      "passed": true
+    },
+    {
+      "task_id": "hi-bugcheck-linear",
+      "expected": "bug-check",
+      "response_raw": "bug-check",
+      "response_norm": "bug-check",
+      "passed": true
+    },
+    {
+      "task_id": "hi-codequality-pass",
+      "expected": "code-quality",
+      "response_raw": "code-quality",
+      "response_norm": "code-quality",
+      "passed": true
+    },
+    {
+      "task_id": "hi-linearwork-issue",
+      "expected": "linear-work",
+      "response_raw": "linear-work",
+      "response_norm": "linear-work",
+      "passed": true
+    },
+    {
+      "task_id": "hi-planloop-create",
+      "expected": "plan-loop",
+      "response_raw": "plan-loop",
+      "response_norm": "plan-loop",
+      "passed": true
+    },
+    {
+      "task_id": "hi-prqa-impact",
+      "expected": "pr-qa",
+      "response_raw": "pr-qa",
+      "response_norm": "pr-qa",
+      "passed": true
+    },
+    {
+      "task_id": "hi-prreview-gh",
+      "expected": "pr-review",
+      "response_raw": "pr-review",
+      "response_norm": "pr-review",
+      "passed": true
+    },
+    {
+      "task_id": "hi-review-diff",
+      "expected": "review",
+      "response_raw": "review",
+      "response_norm": "review",
+      "passed": true
+    },
+    {
+      "task_id": "hi-secpr-dependabot",
+      "expected": "sec-pr",
+      "response_raw": "sec-pr",
+      "response_norm": "sec-pr",
+      "passed": true
+    },
+    {
+      "task_id": "hi-verify-claim",
+      "expected": "verify",
+      "response_raw": "verify",
+      "response_norm": "verify",
+      "passed": true
+    },
+    {
+      "task_id": "hi-planloop-review",
+      "expected": "plan-loop",
+      "response_raw": "plan-loop",
+      "response_norm": "plan-loop",
+      "passed": true
+    },
+    {
+      "task_id": "hi-adversary-diff",
+      "expected": "adversary",
+      "response_raw": "adversary",
+      "response_norm": "adversary",
+      "passed": true
+    },
+    {
+      "task_id": "ho-adversary-devil",
+      "expected": "adversary",
+      "response_raw": "adversary",
+      "response_norm": "adversary",
+      "passed": true
+    },
+    {
+      "task_id": "ho-bugcheck-triage",
+      "expected": "bug-check",
+      "response_raw": "bug-check",
+      "response_norm": "bug-check",
+      "passed": true
+    },
+    {
+      "task_id": "ho-linearwork-start",
+      "expected": "linear-work",
+      "response_raw": "linear-work",
+      "response_norm": "linear-work",
+      "passed": true
+    },
+    {
+      "task_id": "ho-prqa-manual",
+      "expected": "pr-qa",
+      "response_raw": "pr-qa",
+      "response_norm": "pr-qa",
+      "passed": true
+    },
+    {
+      "task_id": "ho-prreview-feedback",
+      "expected": "pr-review",
+      "response_raw": "pr-review",
+      "response_norm": "pr-review",
+      "passed": true
+    },
+    {
+      "task_id": "ho-secpr-cve",
+      "expected": "sec-pr",
+      "response_raw": "sec-pr",
+      "response_norm": "sec-pr",
+      "passed": true
+    },
+    {
+      "task_id": "ho-verify-retest",
+      "expected": "verify",
+      "response_raw": "verify",
+      "response_norm": "verify",
+      "passed": true
+    },
+    {
+      "task_id": "ho-codequality-stack",
+      "expected": "code-quality",
+      "response_raw": "code-quality",
+      "response_norm": "code-quality",
+      "passed": true
+    },
+    {
+      "task_id": "s-none-weather",
+      "expected": "NONE",
+      "response_raw": "NONE",
+      "response_norm": "none",
+      "passed": true
+    },
+    {
+      "task_id": "s-none-haiku",
+      "expected": "NONE",
+      "response_raw": "NONE",
+      "response_norm": "none",
+      "passed": true
+    },
+    {
+      "task_id": "s-none-meeting",
+      "expected": "NONE",
+      "response_raw": "NONE",
+      "response_norm": "none",
+      "passed": true
+    },
+    {
+      "task_id": "s-none-deploy",
+      "expected": "NONE",
+      "response_raw": "NONE",
+      "response_norm": "none",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "variant": "unmarked",
+  "model": "qwen/qwen3-8b",
+  "temperature": 0,
+  "runs": 3,
+  "listing_sha256": "4486bba4903b8319036a87befc52c44c402e0e010d2fb0b77fda796774380f75",
+  "skills_loaded": 49,
+  "corpus_id": "trigger-descriptions-v1"
+}
