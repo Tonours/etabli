@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# Fails on NEW ledger drift, warns on inventoried (grandfathered) drift.
+# Every line of every in-scope ledger must validate structurally; writers
+# (CLI or the conformant extension path) are not distinguished — form is.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+. "$SCRIPT_DIR/lib/hash.sh"
+
+DIR="$REPO_DIR/.workflow"
+INVENTORY="$REPO_DIR/workflow/runtime/ledger-drift-grandfathered.json"
+EVENT_BIN="$REPO_DIR/scripts/workflow-event"
+FULL=0
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--dir DIR] [--inventory FILE] [--workflow-event BIN] [--full]
+
+Validates every events.jsonl under DIR with workflow-event (structural).
+FAIL on invalid ledgers that are not inventoried, or whose content changed
+since the inventory freeze. WARN on inventoried drift and stale entries.
+SKIP when DIR is absent or workflow-event is unavailable (scaffold/CI).
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --dir)
+    DIR="$2"
+    shift
+    ;;
+  --inventory)
+    INVENTORY="$2"
+    shift
+    ;;
+  --workflow-event)
+    EVENT_BIN="$2"
+    shift
+    ;;
+  --full) FULL=1 ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    printf 'unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+[ -d "$DIR" ] || {
+  printf 'SKIP workflow-ledger-check: no .workflow directory under %s\n' "$DIR"
+  exit 0
+}
+[ -x "$EVENT_BIN" ] || {
+  printf 'SKIP workflow-ledger-check: workflow-event unavailable at %s (scaffold?)\n' "$EVENT_BIN"
+  exit 0
+}
+command -v jq >/dev/null 2>&1 || {
+  printf 'workflow-ledger-check: jq is required\n' >&2
+  exit 1
+}
+
+CACHE="$DIR/.ledger-check-cache.json"
+CACHE_TMP="$(mktemp)"
+RESULTS_TMP="$(mktemp)"
+TAB="$(printf '\t')"
+cache_cleanup() { rm -f "$CACHE_TMP" "$RESULTS_TMP"; }
+trap cache_cleanup EXIT
+VALIDATOR_FP="$(cat "$EVENT_BIN" "$SCRIPT_DIR/lib/workflow-event-detail.jq" 2>/dev/null | (hash256 2>/dev/null || shasum -a 256) | awk '{print $1}')"
+# A cache written under a different validator is untrusted for BOTH reads and
+# carry-forward: honoring stale OK verdicts after a rule tightening would let
+# newly-invalid ledgers pass the gate.
+CACHE_TRUSTED=0
+if [ "$FULL" -eq 0 ] && [ -f "$CACHE" ] && [ "$(jq -r '.validator // empty' "$CACHE" 2>/dev/null)" = "$VALIDATOR_FP" ]; then
+  CACHE_TRUSTED=1
+fi
+cache_get() {
+  local slug="$1"
+  [ "$CACHE_TRUSTED" -eq 1 ] || return 1
+  jq -r --arg s "$slug" '.validated[$s] // empty' "$CACHE" 2>/dev/null
+}
+
+if [ "$CACHE_TRUSTED" -eq 1 ]; then
+  jq -r '.validated // {} | to_entries[] | "\(.key)\t\(.value)"' "$CACHE" 2>/dev/null >"$CACHE_TMP" || true
+else
+  : >"$CACHE_TMP"
+fi
+cache_put() {
+  grep -v "^$(printf '%s' "$1" | sed 's/[^a-zA-Z0-9_-]/./g')$TAB" "$CACHE_TMP" >"$CACHE_TMP.new" 2>/dev/null || true
+  mv "$CACHE_TMP.new" "$CACHE_TMP"
+  printf '%s\t%s\n' "$1" "$2" >>"$CACHE_TMP"
+}
+
+inv_lookup() {
+  local slug="$1"
+  [ -f "$INVENTORY" ] || return 1
+  jq -r --arg s "$slug" '(.entries // []) + (.amendments // []) | map(select(.slug == $s)) | .[0].sha256 // empty' "$INVENTORY" 2>/dev/null
+}
+
+ok=0
+warned=0
+failed=0
+failures=()
+seen_slugs=" "
+
+for run_dir in "$DIR"/*/; do
+  [ -d "$run_dir" ] || continue
+  slug="$(basename "$run_dir")"
+  file="$run_dir/events.jsonl"
+  [ -f "$file" ] || continue
+  seen_slugs="$seen_slugs$slug "
+  sha="$(hash256 "$file" | awk '{print $1}')"
+  cached="$(cache_get "$slug" || true)"
+  if [ -n "$cached" ] && [ "$cached" = "Q:$sha" ]; then
+    # Cached quarantine is not trusted blindly: the pin may have been
+    # removed or amended since. Re-consult the inventory; fall through
+    # to full validation when the pin no longer covers this content.
+    pinned_cached="$(inv_lookup "$slug" || true)"
+    if [ -n "$pinned_cached" ] && [ "$pinned_cached" = "$sha" ]; then
+      warned=$((warned + 1))
+      printf 'WARN quarantined (cached): %s\n' "$slug"
+      printf '%s\tQUAR\n' "$slug" >>"$RESULTS_TMP"
+      cache_put "$slug" "$cached"
+      continue
+    fi
+    cached=""
+  fi
+  if [ -n "$cached" ] && [ "$cached" = "$sha" ]; then
+    ok=$((ok + 1))
+    printf '%s\tOK\n' "$slug" >>"$RESULTS_TMP"
+    cache_put "$slug" "$cached"
+    continue
+  fi
+  if out="$("$EVENT_BIN" --dir "$DIR" validate "$slug" 2>&1)"; then
+    ok=$((ok + 1))
+    printf '%s\tOK\n' "$slug" >>"$RESULTS_TMP"
+    cache_put "$slug" "$sha"
+  else
+    reason="$(printf '%s\n' "$out" | head -1)"
+    pinned="$(inv_lookup "$slug" || true)"
+    if [ -n "$pinned" ] && [ "$pinned" = "$sha" ]; then
+      warned=$((warned + 1))
+      printf 'WARN quarantined drift: %s (%s)\n' "$slug" "$reason"
+      printf '%s\tQUAR\n' "$slug" >>"$RESULTS_TMP"
+      cache_put "$slug" "Q:$sha"
+    elif [ -n "$pinned" ]; then
+      failed=$((failed + 1))
+      printf '%s\tFAIL\n' "$slug" >>"$RESULTS_TMP"
+      failures+=("$slug: quarantined ledger changed since freeze ($reason)")
+    else
+      failed=$((failed + 1))
+      printf '%s\tFAIL\n' "$slug" >>"$RESULTS_TMP"
+      failures+=("$slug: new drift ($reason)")
+    fi
+  fi
+done
+
+stale=0
+if [ -f "$INVENTORY" ]; then
+  while IFS= read -r slug; do
+    [ -n "$slug" ] || continue
+    case "$seen_slugs" in
+    *" $slug "*) : ;;
+    *)
+      stale=$((stale + 1))
+      printf 'WARN stale inventory entry (ledger gone): %s\n' "$slug"
+      continue
+      ;;
+    esac
+    if grep -q "^$(printf '%s' "$slug" | sed 's/[^a-zA-Z0-9_-]/./g')${TAB}OK$" "$RESULTS_TMP" 2>/dev/null; then
+      stale=$((stale + 1))
+      printf 'WARN stale inventory entry (ledger valid again, remove it): %s\n' "$slug"
+    fi
+  done < <(jq -r '((.entries // []) + (.amendments // []))[] | .slug' "$INVENTORY" 2>/dev/null)
+fi
+
+jq -Rs --arg fp "$VALIDATOR_FP" '{version:1,validator:$fp,validated:(split("\n") | map(select(length > 0) | split("\t") | {(.[0]): .[1]}) | add // {})}' "$CACHE_TMP" >"$CACHE"
+
+printf 'workflow-ledger-check: ok=%s quarantined=%s stale=%s failed=%s\n' "$ok" "$warned" "$stale" "$failed"
+if [ "$failed" -gt 0 ]; then
+  printf 'FAIL:\n' >&2
+  printf '  %s\n' "${failures[@]}" >&2
+  exit 1
+fi
+exit 0

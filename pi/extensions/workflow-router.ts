@@ -5,12 +5,20 @@ import {
 import { eventCwd, resolveWorkflowRouteContext } from "./lib/workflow-route-context.ts";
 import { planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
 import {
+	appendLedgerEvent,
 	inferBashFailureFromToolResult,
 	isBashToolName,
 	isLikelyValidationCommand,
+	pickPrimaryActiveLedger,
 	recordBashValidationFailure,
 	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
+import {
+	explicitCwd,
+	resolveContractPointer,
+	routeDecidedExists,
+	type ContractPointer,
+} from "./lib/route-contract.ts";
 import { maybeEmitOutcomeMetric } from "./lib/outcome-metric-emit.ts";
 import { loadSemanticPolicy, runRouteDecision } from "./lib/route-shadow.mjs";
 import { accumulateAssistantUsage } from "../../scripts/lib/usage-accounting.mjs";
@@ -26,8 +34,12 @@ type WorkflowRouterHooks = {
 	loadSemanticPolicy?: typeof loadSemanticPolicy;
 };
 
-function routedSystemPrompt(systemPrompt: string | undefined, decision: Record<string, unknown>): string {
-	const contract = {
+function routedSystemPrompt(
+	systemPrompt: string | undefined,
+	decision: Record<string, unknown>,
+	pointer: ContractPointer | null,
+): string {
+	const contract: Record<string, unknown> = {
 		route: decision.route,
 		writeAllowed: decision.writeAllowed,
 		command: decision.command,
@@ -36,18 +48,76 @@ function routedSystemPrompt(systemPrompt: string | undefined, decision: Record<s
 		stopCondition: decision.stopCondition,
 		requiredEvidence: decision.requiredEvidence,
 	};
-	return `${systemPrompt || ""}\n\n<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn. It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
+	let mustRead = "";
+	if (pointer) {
+		contract.contract = { path: pointer.path, sha256: pointer.sha256, provenance: pointer.provenance };
+		mustRead = ` Read ${pointer.path} (sha256 ${pointer.sha256.slice(0, 12)}) before acting on this route.`;
+	}
+	return `${systemPrompt || ""}\n\n<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn.${mustRead} It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
+}
+
+// Best-effort issuance record: never throws, never blocks the turn. A ledger
+// error must not break the agent run; the emission is evidence, not a gate.
+function maybeEmitRouteDecided(
+	cwd: string | null,
+	decision: Record<string, unknown>,
+	pointer: ContractPointer | null,
+): void {
+	if (!cwd) return;
+	let ledger: { path: string; run: string } | null;
+	try {
+		ledger = pickPrimaryActiveLedger(cwd);
+	} catch {
+		return;
+	}
+	if (!ledger) return;
+	const route = decision.route;
+	if (typeof route !== "string") return;
+	const sha = pointer?.sha256 ?? null;
+	let exists = false;
+	try {
+		exists = routeDecidedExists(ledger.path, route, sha);
+	} catch {
+		return;
+	}
+	if (exists) return;
+	try {
+		appendLedgerEvent(ledger.path, "route_decided", {
+			route,
+			reason: `workflow-router selected ${route}`,
+			...(pointer ? { contract_path: pointer.path, contract_sha256: pointer.sha256, provenance: pointer.provenance } : {}),
+		}, ledger.run);
+	} catch {
+		return;
+	}
 }
 
 export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 	const routablePi = pi as RoutablePi;
 	const semanticPolicyLoader = hooks.loadSemanticPolicy ?? loadSemanticPolicy;
+	// Latest decided route awaiting ledger issuance. before_agent_start fires
+	// before the run's ledger exists on first turn; agent_end retries then, so
+	// single-prompt runs still record their route (dedup keeps it idempotent).
+	let pendingRoute: { cwd: string; decision: Record<string, unknown>; pointer: ContractPointer | null } | null = null;
 
 	pi.on("before_agent_start", (event, ctx) => {
 		const trimmedPrompt = event.prompt.trim();
 		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;
 
 		const { decision, routeContext } = resolveWorkflowRouteContext(event.prompt, eventCwd(event, ctx));
+
+		// Pointer-gated injection: routes backed by a skill contract inject in
+		// every mode (disabled only turns off the semantic judgment layer);
+		// skill-less routes keep the legacy per-mode behavior (bare contract
+		// in shadow/enforced, silence in disabled). Issuance is recorded for
+		// every route whenever an explicit cwd resolves an active ledger.
+		const prepare = (decided: Record<string, unknown>) => {
+			const pointer = typeof decided.skill === "string" ? resolveContractPointer(decided.skill) : null;
+			const cwd = explicitCwd(event, ctx);
+			maybeEmitRouteDecided(cwd, decided, pointer);
+			pendingRoute = cwd ? { cwd, decision: decided, pointer } : null;
+			return pointer;
+		};
 
 		let semanticPolicy;
 		try {
@@ -58,9 +128,7 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 				decision,
 				semantic: { mode: "fallback", reason: "invalid_policy" },
 			});
-			return {
-				systemPrompt: routedSystemPrompt(event.systemPrompt, decision),
-			};
+			return { systemPrompt: routedSystemPrompt(event.systemPrompt, decision, prepare(decision)) };
 		}
 
 		if (semanticPolicy.mode !== "enforced") {
@@ -83,9 +151,10 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 					});
 				}).catch(() => undefined);
 			}
-			return semanticPolicy.mode === "disabled" ? undefined : {
-				systemPrompt: routedSystemPrompt(event.systemPrompt, decision),
-			};
+			const pointer = prepare(decision);
+			return pointer || semanticPolicy.mode !== "disabled" ? {
+				systemPrompt: routedSystemPrompt(event.systemPrompt, decision, pointer),
+			} : undefined;
 		}
 
 		return runRouteDecision({
@@ -111,18 +180,14 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 					receipt,
 				});
 			}
-			return {
-				systemPrompt: routedSystemPrompt(event.systemPrompt, selected),
-			};
+			return { systemPrompt: routedSystemPrompt(event.systemPrompt, selected, prepare(selected)) };
 		}).catch(() => {
 			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
 				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
 				decision,
 				semantic: { mode: "fallback", reason: "runtime_error" },
 			});
-			return {
-				systemPrompt: routedSystemPrompt(event.systemPrompt, decision),
-			};
+			return { systemPrompt: routedSystemPrompt(event.systemPrompt, decision, prepare(decision)) };
 		});
 	});
 
@@ -179,6 +244,17 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 				// Never break the tool_result pipeline on ledger I/O.
 			}
 		}
+		// Mid-turn catch-up: the run's ledger can appear (and even turn
+		// terminal) between before_agent_start and agent_end. Re-attempt
+		// issuance while a route is pending; dedup keeps it idempotent and
+		// the picker skips terminal ledgers. agent_end retries one last time.
+		if (pendingRoute) {
+			try {
+				maybeEmitRouteDecided(pendingRoute.cwd, pendingRoute.decision, pendingRoute.pointer);
+			} catch {
+				// Best effort: never break the tool_result pipeline on ledger I/O.
+			}
+		}
 		return undefined;
 	});
 
@@ -192,6 +268,16 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 		const messages = (event as { messages?: unknown }).messages;
 		if (Array.isArray(messages)) {
 			parentUsageAcc = accumulateAssistantUsage(parentUsageAcc, messages);
+		}
+		// Catch-up issuance for routes decided before their ledger existed.
+		const pending = pendingRoute;
+		pendingRoute = null;
+		if (pending) {
+			try {
+				maybeEmitRouteDecided(pending.cwd, pending.decision, pending.pointer);
+			} catch {
+				// Best effort: never break the agent_end pipeline on ledger I/O.
+			}
 		}
 	});
 

@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "frozen": "2026-09-24T19:22:31Z",
+  "entries": [
+    {
+      "slug": "adaptive-council",
+      "sha256": "8670771b2fd32049dbea8f2b2a1fe13190a2c3688d132f56c6b44a794d1555d1",
+      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
+    },
+    {
+      "slug": "ambient-codex-team",
+      "sha256": "d3725a67b5bd43b9477d72c712c81bb251ba76fdb8658f02c5052e6b2790c669",
+      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
+    },
+    {
+      "slug": "kimi-k3-fallback",
+      "sha256": "725fb59cdaf8ec9eb99274be2dfd47bad8e7d5b3733abee3d7b9c3e464cdde4c",
+      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
+    },
+    {
+      "slug": "multi-model-default",
+      "sha256": "1c1419f5b1d16b8029b7254ea085181cb1cd344c236579b10f542a1ad8a6d61d",
+      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
+    },
+    {
+      "slug": "outcome-telemetry-coverage",
+      "sha256": "9a5cf497f93d92de97a47f0dbf6558d0f410dee7fb2c309776cc4635acdfa612",
+      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
+    },
+    {
+      "slug": "split-pi-codex-orchestration",
+      "sha256": "3cb8ad51d5be3aba43943adf39d60d1b02b00ae3fb038bbe95c5ba09f7a4c9ce",
+      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
+    },
+    {
+      "slug": "autonomous-completion-guard",
+      "sha256": "c4d06e8698543406a66821e9d4d8935dd457ad33ce982b6da78e7a17c1e60bd8",
+      "reason": "terminal review_completed status 'pass' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "context-budget-growth",
+      "sha256": "7e57b05a69521a60a64e3be5dfaa97d08f8dc6c974cbf711e540cc675607204e",
+      "reason": "terminal review_completed statuses 'quality: sibling comparison clean','completed' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "conversation-skill-upgrades",
+      "sha256": "8001ec464a4a37492103ef8cccfcd7017d5e51be4b597d35acb5a5ac7d781bf8",
+      "reason": "terminal review_completed status 'changes_addressed' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "etabli-harness-audit-fixes",
+      "sha256": "083893f2c45af7f9abb5f39919cc3c1d84d051c98bdf022d07d87c0184c62121",
+      "reason": "terminal review_completed status 'pass' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "etabli-pstack-ahead",
+      "sha256": "d81f3961dc32bb8cae7c9ba8e5ac710d24a19c714a825c1c67cd7a3039175b63",
+      "reason": "terminal review_completed statuses 'NO-GO','GO_LOCAL' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "harness-recenter",
+      "sha256": "9d4a8419d9fe07212fe498d6179bbcb82b2f71b0c586a20817b04383817d5b76",
+      "reason": "terminal review_completed status 'pass' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "jev-autonomous-efficiency",
+      "sha256": "c5145397a4c6ff96328bd161e86c6ce1a9a87e5db138f2ebe3be1820f9a39123",
+      "reason": "terminal review_completed status 'quality_passed' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "workflow-context-budget",
+      "sha256": "e44bf886e631ff14ea606520dccbe3e76f9d082f751e1fc3b451425a7108bb7b",
+      "reason": "terminal review_completed status 'completed' v2 (enum-flip accepted)"
+    },
+    {
+      "slug": "public-scrub",
+      "sha256": "c05964de907ea7b50b3e4bd58a3ac9e518e30b159266fd092a0b0c4debafa507",
+      "reason": "terminal review_completed status 'GO_WITH_NOTES' v2 (enum-flip accepted; terminal blocked honest, appended pre-enum)"
+    }
+  ],
+  "amendments": [
+    {
+      "slug": "etabli-maintainability-cleanup",
+      "sha256": "6313c38f69322c254951357b5ab0377655bc0d5bfe2dec44787ec82a6e9b4fee",
+      "reason": "cleanup-created duplicate terminal (completed at line 6 true; line 8 re-affirm broke terminal-last). Preserves completed truth; recover-to-blocked would lie. See PLAN tranche 3 step 2.",
+      "amended": "2026-09-24"
+    },
+    {
+      "slug": "token-quality-optimum-resume-1",
+      "sha256": "d2cd3143a1aee1a797964a19bd7bba96712de96149ddea4df1eabb389468e931",
+      "reason": "terminal route_decided line 1 carries non-contract key previous_ledger (F3 closed-key parity flip accepted)"
+    },
+    {
+      "slug": "workflow-hardening-llm-loops",
+      "sha256": "2e82e21ef7773927e60b2dcfb7c39004744bb4d182bb513fd9b53ed76b8e7f70",
+      "reason": "terminal v1 route_decided line 1 carries non-contract keys pattern+iteration_budget (F3 closed-key parity flip accepted)"
+    },
+    {
+      "slug": "etabli-maintainability-cleanup",
+      "sha256": "6313c38f69322c254951357b5ab0377655bc0d5bfe2dec44787ec82a6e9b4fee",
+      "reason": "T5 pin completion: event follows terminal completed (pre-canon drift, bytes frozen since T4 baseline)"
+    },
+    {
+      "slug": "token-quality-optimum-resume-1",
+      "sha256": "d2cd3143a1aee1a797964a19bd7bba96712de96149ddea4df1eabb389468e931",
+      "reason": "T5 pin completion: invalid route_decided detail line 1 (pre-canon drift, bytes frozen since T4 baseline)"
+    },
+    {
+      "slug": "workflow-hardening-llm-loops",
+      "sha256": "2e82e21ef7773927e60b2dcfb7c39004744bb4d182bb513fd9b53ed76b8e7f70",
+      "reason": "T5 pin completion: invalid route_decided detail line 1 (pre-canon drift, bytes frozen since T4 baseline)"
+    }
+  ]
+}

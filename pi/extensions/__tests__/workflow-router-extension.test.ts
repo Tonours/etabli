@@ -143,7 +143,10 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			expect(results[0]).toBeUndefined();
+			const injectedImplement = (results[0] as { systemPrompt: string }).systemPrompt;
+			expect(injectedImplement).toContain("<etabli-route-contract>");
+			expect(injectedImplement).toContain('"route":"implement"');
+			expect(injectedImplement).toContain("implement/SKILL.md");
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "implement" },
 			});
@@ -260,7 +263,10 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			expect(results[0]).toBeUndefined();
+			const injectedPlan = (results[0] as { systemPrompt: string }).systemPrompt;
+			expect(injectedPlan).toContain("<etabli-route-contract>");
+			expect(injectedPlan).toContain('"route":"plan-implement"');
+			expect(injectedPlan).toContain("plan-implement/SKILL.md");
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "plan-implement" },
 			});
@@ -1041,5 +1047,163 @@ tags:
 			globalThis.fetch = previousFetch;
 			rmSync(cwd, { recursive: true, force: true });
 		}
+	});
+
+	describe("route contract pointer and issuance", () => {
+		function setupLedgerCwd() {
+			const cwd = mkdtempSync(join(tmpdir(), "etabli-emit-"));
+			mkdirSync(join(cwd, ".workflow", "emit"), { recursive: true });
+			// The picker only attaches to valid ledgers: seed one canonical line.
+			writeFileSync(
+				join(cwd, ".workflow", "emit", "events.jsonl"),
+				'{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"plan_created","run":"emit","detail":{"path":"PLAN.md","status":"DRAFT"}}\n',
+			);
+			writeFileSync(join(cwd, ".workflow", "active-run.json"), '{"schema_version":1,"run":"emit"}');
+			return cwd;
+		}
+
+		function ledgerLines(cwd: string): Array<Record<string, unknown>> {
+			const text = readFileSync(join(cwd, ".workflow", "emit", "events.jsonl"), "utf8");
+			return text.split("\n").filter((l) => l.trim() !== "").map((l) => JSON.parse(l) as Record<string, unknown>);
+		}
+
+		test("emits route_decided with contract fields once per route", () => {
+			const runtime = setupExtension();
+			const cwd = setupLedgerCwd();
+			try {
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				let lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
+				expect(lines).toHaveLength(1);
+				expect(lines[0]).toMatchObject({
+					event: "route_decided",
+					run: "emit",
+					detail: { route: "plan-implement" },
+				});
+				const detail = lines[0].detail as Record<string, unknown>;
+				expect(typeof detail.contract_path).toBe("string");
+				expect(String(detail.contract_path).endsWith("plan-implement/SKILL.md")).toBe(true);
+				expect(typeof detail.contract_sha256).toBe("string");
+				expect(typeof detail.provenance).toBe("string");
+				expect(["deployed-pi", "deployed-agents", "repo"]).toContain(detail.provenance as string);
+				// Same route again: deduped, no second line.
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready encore",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
+				expect(lines).toHaveLength(1);
+			} finally {
+				rmSync(cwd, { recursive: true, force: true });
+			}
+		});
+
+		test("emits once per distinct route across A-B-A turns", () => {
+			const runtime = setupExtension();
+			const cwd = setupLedgerCwd();
+			try {
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				let lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
+				expect(lines.map((l) => (l.detail as Record<string, unknown>).route)).toEqual([
+					"plan-implement",
+					"implement",
+				]);
+				// Back to plan-implement: no third line.
+				rmSync(join(cwd, "PLAN.md"), { force: true });
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
+				expect(lines).toHaveLength(2);
+			} finally {
+				rmSync(cwd, { recursive: true, force: true });
+			}
+		});
+
+		test("emits contract-less route_decided for answer routes", () => {
+			const runtime = setupExtension();
+			const cwd = setupLedgerCwd();
+			try {
+				const results = runtime.emit("before_agent_start", {
+					prompt: "Bonjour, comment vas-tu ?",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				expect(results).toEqual([undefined]);
+				const lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
+				expect(lines).toHaveLength(1);
+				expect(lines[0]).toMatchObject({ event: "route_decided", detail: { route: "answer" } });
+				expect("contract_path" in (lines[0].detail as Record<string, unknown>)).toBe(false);
+			} finally {
+				rmSync(cwd, { recursive: true, force: true });
+			}
+		});
+
+		test("skips emission without an active ledger and without cwd", () => {
+			const runtime = setupExtension();
+			const cwd = mkdtempSync(join(tmpdir(), "etabli-noledger-"));
+			try {
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				expect(() => readFileSync(join(cwd, ".workflow", "emit", "events.jsonl"), "utf8")).toThrow();
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+				});
+			} finally {
+				rmSync(cwd, { recursive: true, force: true });
+			}
+		});
+
+		test("emits at agent_end when the ledger appears mid-turn", () => {
+			const runtime = setupExtension();
+			const cwd = mkdtempSync(join(tmpdir(), "etabli-catchup-"));
+			try {
+				runtime.emit("before_agent_start", {
+					prompt: "Implémente le PLAN.md ready",
+					systemPrompt: "Base prompt",
+					cwd,
+				});
+				// Ledger created mid-turn: seed one canonical line + pointer.
+				mkdirSync(join(cwd, ".workflow", "emit"), { recursive: true });
+				writeFileSync(
+					join(cwd, ".workflow", "emit", "events.jsonl"),
+					'{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"plan_created","run":"emit","detail":{"path":"PLAN.md","status":"DRAFT"}}\n',
+				);
+				writeFileSync(join(cwd, ".workflow", "active-run.json"), '{"schema_version":1,"run":"emit"}');
+				// Mid-turn tool result: catch-up emits before agent_end.
+				runtime.emit("tool_result", { toolName: "read" });
+				const lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
+				expect(lines).toHaveLength(1);
+				expect(lines[0]).toMatchObject({ event: "route_decided", run: "emit", detail: { route: "plan-implement" } });
+				// agent_end after mid-turn catch-up: idempotent, no duplicate.
+				runtime.emit("agent_end", { messages: [] });
+				expect(ledgerLines(cwd).filter((l) => l.event === "route_decided")).toHaveLength(1);
+				// Second agent_end without a new decision: no duplicate.
+				runtime.emit("agent_end", { messages: [] });
+				expect(ledgerLines(cwd).filter((l) => l.event === "route_decided")).toHaveLength(1);
+			} finally {
+				rmSync(cwd, { recursive: true, force: true });
+			}
+		});
 	});
 });
