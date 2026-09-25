@@ -1,0 +1,126 @@
+{
+  "schema_version": 2,
+  "strict": true,
+  "manifest_id": "trigger-descriptions-v1",
+  "visibility": "frozen_public",
+  "evaluator": {
+    "id": "trigger-probe-qwen3-8b-t0-v1",
+    "sha256": "ffb762793b31ee48ca37ffc821c7f781cc9bf41c1676da92b5f3eedc9b4c3731",
+    "path": "scripts/lib/skill-trigger-runner.mjs",
+    "bundle": {
+      "root": ".",
+      "paths": [
+        "scripts/lib/skill-trigger-runner.mjs",
+        "scripts/lib/skill-trigger-reduce.mjs",
+        "scripts/lib/skill-trigger-normalize.mjs",
+        "scripts/lib/pi-loader.mjs",
+        "tests/fixtures/skill-trigger-eval/corpus.json"
+      ],
+      "sha256": "3beddedcef58fbdffc12713b65b46b6618581b3ca6efbeb7a56ba99961f4c68a"
+    }
+  },
+  "objective": {
+    "kind": "quality",
+    "metric": "held_in_passed",
+    "direction": "increase",
+    "minimum_delta": 1
+  },
+  "tasks": [
+    {
+      "id": "hi-adversary-plan",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-bugcheck-linear",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-codequality-pass",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-linearwork-issue",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-planloop-create",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-prqa-impact",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-prreview-gh",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-review-diff",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-secpr-dependabot",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-verify-claim",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-planloop-review",
+      "split": "held_in"
+    },
+    {
+      "id": "hi-adversary-diff",
+      "split": "held_in"
+    },
+    {
+      "id": "ho-adversary-devil",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-bugcheck-triage",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-linearwork-start",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-prqa-manual",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-prreview-feedback",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-secpr-cve",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-verify-retest",
+      "split": "held_out"
+    },
+    {
+      "id": "ho-codequality-stack",
+      "split": "held_out"
+    },
+    {
+      "id": "s-none-weather",
+      "split": "safety"
+    },
+    {
+      "id": "s-none-haiku",
+      "split": "safety"
+    },
+    {
+      "id": "s-none-meeting",
+      "split": "safety"
+    },
+    {
+      "id": "s-none-deploy",
+      "split": "safety"
+    }
+  ]
+}

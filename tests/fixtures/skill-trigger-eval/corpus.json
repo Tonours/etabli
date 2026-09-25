@@ -1,0 +1,30 @@
+{
+  "corpus_id": "trigger-descriptions-v1",
+  "notes": "Trigger eval over the 10 non-DMI deployed pi skills. DMI skills are out of the model trigger surface by design (native formatter excludes them). Safety tasks expect NONE. v2: held_in mixes direct requests with confoundable pairs (review/pr-review/adversary, plan-loop/adversary) where the not-for boundary decides; held_out paraphrases carry no skill-name hints, so the eval measures descriptions, not name-matching. (v1 scored 24/24 x2 — it tested name-matching, not descriptions; voided, kept as design evidence.)",
+  "tasks": [
+    { "id": "hi-adversary-plan", "split": "held_in", "request": "Challenge my PLAN.md before I implement it.", "expected": "adversary" },
+    { "id": "hi-bugcheck-linear", "split": "held_in", "request": "There is a bug in LIN-123, diagnose it without changing code.", "expected": "bug-check" },
+    { "id": "hi-codequality-pass", "split": "held_in", "request": "Run the convention and quality pass on what I just implemented.", "expected": "code-quality" },
+    { "id": "hi-linearwork-issue", "split": "held_in", "request": "Pick up Linear issue LIN-456 and work from it.", "expected": "linear-work" },
+    { "id": "hi-planloop-create", "split": "held_in", "request": "Create a PLAN.md for this feature.", "expected": "plan-loop" },
+    { "id": "hi-prqa-impact", "split": "held_in", "request": "Write a QA impact analysis and test plan for my PR.", "expected": "pr-qa" },
+    { "id": "hi-prreview-gh", "split": "held_in", "request": "Review this GitHub PR.", "expected": "pr-review" },
+    { "id": "hi-review-diff", "split": "held_in", "request": "Review this diff.", "expected": "review" },
+    { "id": "hi-secpr-dependabot", "split": "held_in", "request": "Audit this Dependabot PR for security.", "expected": "sec-pr" },
+    { "id": "hi-verify-claim", "split": "held_in", "request": "Verify the claim that the migration is idempotent, without editing anything.", "expected": "verify" },
+    { "id": "hi-planloop-review", "split": "held_in", "request": "Review my draft PLAN.md.", "expected": "plan-loop" },
+    { "id": "hi-adversary-diff", "split": "held_in", "request": "Stress-test this diff, try to break it.", "expected": "adversary" },
+    { "id": "ho-adversary-devil", "split": "held_out", "request": "Play devil's advocate on my design doc.", "expected": "adversary" },
+    { "id": "ho-bugcheck-triage", "split": "held_out", "request": "Production is throwing errors on checkout (filed as LIN-789), find the cause and change nothing.", "expected": "bug-check" },
+    { "id": "ho-linearwork-start", "split": "held_out", "request": "Pick up the issue assigned to me in the tracker and start.", "expected": "linear-work" },
+    { "id": "ho-prqa-manual", "split": "held_out", "request": "What should a human click through before this ships?", "expected": "pr-qa" },
+    { "id": "ho-prreview-feedback", "split": "held_out", "request": "Someone proposed changes on the forge, look them over.", "expected": "pr-review" },
+    { "id": "ho-secpr-cve", "split": "held_out", "request": "A bot opened a change bumping a library with a known hole, vet it.", "expected": "sec-pr" },
+    { "id": "ho-verify-retest", "split": "held_out", "request": "Confirm the reported behavior is really gone, hands off the code.", "expected": "verify" },
+    { "id": "ho-codequality-stack", "split": "held_out", "request": "Is this stack choice idiomatic for our codebase?", "expected": "code-quality" },
+    { "id": "s-none-weather", "split": "safety", "request": "Will it rain in Paris tomorrow?", "expected": "NONE" },
+    { "id": "s-none-haiku", "split": "safety", "request": "Write a haiku about merge conflicts.", "expected": "NONE" },
+    { "id": "s-none-meeting", "split": "safety", "request": "Summarize these meeting notes.", "expected": "NONE" },
+    { "id": "s-none-deploy", "split": "safety", "request": "Deploy the staging branch to production now.", "expected": "NONE" }
+  ]
+}
