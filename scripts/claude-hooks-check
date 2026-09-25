@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+HOME_DIR="$HOME"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--home DIR]
+
+Verifies every hook entry from claude/settings.workflow-hooks.json is wired
+in the live ~/.claude/settings.json (same event, matcher and identical
+hook object; any parameter difference, async included, counts as not
+wired). Fails naming the remediation on any gap, fails when
+disableAllHooks is true, and fails when a hook script referenced by the
+fragment is missing under ~/.claude/hooks.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --home)
+    HOME_DIR="$2"
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    printf 'unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+command -v node >/dev/null 2>&1 || {
+  printf 'claude-hooks-check: node is required\n' >&2
+  exit 1
+}
+
+node --input-type=module -e '
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+
+const homeDir = process.argv[1];
+const repoDir = process.argv[2];
+const livePath = join(homeDir, ".claude/settings.json");
+const remedy = "remediation: run scripts/claude-hooks-merge --dry-run, review, then run it for real";
+
+const { hookScriptNames, identityOf, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
+let fragment;
+try {
+  fragment = loadFragment(repoDir);
+} catch (error) {
+  console.error(`claude-hooks-check: ${error.message}; fix the repo fragment`);
+  process.exit(1);
+}
+
+if (!existsSync(livePath)) {
+  console.error(`claude-hooks-check: ${livePath} is absent; ${remedy}`);
+  process.exit(1);
+}
+let live;
+try {
+  live = JSON.parse(readFileSync(livePath, "utf8"));
+} catch {
+  console.error(`claude-hooks-check: invalid JSON in ${livePath}; fix it by hand`);
+  process.exit(1);
+}
+if (typeof live === "object" && live !== null && live.disableAllHooks === true) {
+  console.error(`claude-hooks-check: ${livePath} sets disableAllHooks=true, no hook runs; remove it (a project-level false overrides) and re-run; ${remedy}`);
+  process.exit(1);
+}
+const liveIdentities = new Set();
+const hooksObj = typeof live === "object" && live !== null && typeof live.hooks === "object" && live.hooks !== null && !Array.isArray(live.hooks) ? live.hooks : {};
+for (const [event, groups] of Object.entries(hooksObj)) {
+  if (!Array.isArray(groups)) continue;
+  for (const group of groups) {
+    if (typeof group !== "object" || group === null || Array.isArray(group)) continue;
+    const hooks = Array.isArray(group.hooks) ? group.hooks : [];
+    for (const hook of hooks) {
+      if (typeof hook !== "object" || hook === null || Array.isArray(hook)) continue;
+      liveIdentities.add(identityOf(event, group.matcher, hook));
+    }
+  }
+}
+
+const missing = [];
+for (const [event, groups] of Object.entries(fragment.hooks ?? {})) {
+  for (const group of groups) {
+    for (const hook of group.hooks ?? []) {
+      if (!liveIdentities.has(identityOf(event, group.matcher, hook))) {
+        missing.push(`${event}/${group.matcher ?? ""}: ${hook.command}`);
+      }
+    }
+  }
+}
+if (missing.length) {
+  for (const entry of missing) console.error(`claude-hooks-check: not wired: ${entry}`);
+  console.error(remedy);
+  process.exit(1);
+}
+const scriptNames = hookScriptNames(fragment);
+if (!scriptNames.length) {
+  console.error("claude-hooks-check: no hook scripts derived from the fragment; fix the repo fragment");
+  process.exit(1);
+}
+const hooksDir = join(homeDir, ".claude/hooks");
+const isRunnableFile = (path) => {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+};
+const scriptsMissing = scriptNames.filter((name) => !isRunnableFile(join(hooksDir, name)));
+if (scriptsMissing.length) {
+  for (const name of scriptsMissing) console.error(`claude-hooks-check: hook script missing: ${join(hooksDir, name)}`);
+  console.error("restore the scripts (re-run scripts/deploy-agent-workflow --apply), then re-run this check");
+  process.exit(1);
+}
+console.log("claude-hooks-check: ok, all fragment hooks wired");
+' "$HOME_DIR" "$REPO_DIR"

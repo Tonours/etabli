@@ -16,14 +16,15 @@ Usage: $(basename "$0") [--dump <system-prompt-file>] [--home DIR]
 Renders pi's system prompt natively (pi -p --no-session --offline with a
 measurement extension that exits before any model call), then checks:
   B1  block chars <= $GATE (alert at >= $ALERT)
-  B2  manifest == universe - deny - dmi + package keepers; deny == complement;
+  B2  manifest == universe - deny - dmi + package keepers; deny == complement
+      for installed skills (deny entries for absent skills are inert);
       pinned dmi detected and absent from the block
   B3  zero pi-pstack locations; brave-search absent; zero dangling links;
       zero differing-target collisions
 
 --dump  re-check an existing system-prompt dump instead of running pi
 --home  skill roots + settings root for the assertions; the native pi run
-        always renders the real \$HOME (use --dump for fixture homes)
+        honors \$HOME (override it for fixture homes)
 EOF
 }
 
@@ -54,6 +55,31 @@ command -v node >/dev/null 2>&1 || {
   printf 'pi-skill-load-check: node is required\n' >&2
   exit 1
 }
+
+bak_hits=()
+for root in "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.agents/skills"; do
+  [ -L "$root" ] || [ -e "$root" ] || continue
+  if [ ! -d "$root" ]; then
+    printf 'FAIL: skill root is not a directory: %s\n' "$root" >&2
+    exit 1
+  fi
+  # -H follows the root itself when it is a link; links below the root
+  # stay un-descended (Pi traversal through linked skill dirs is unverified).
+  if scan="$(find -H "$root" -name '*.bak.*' -print 2>&1)"; then
+    while IFS= read -r hit; do
+      [ -n "$hit" ] && bak_hits+=("$hit")
+    done <<< "$scan"
+  else
+    printf 'FAIL: cannot scan %s for stale backups: %s\n' "$root" "$scan" >&2
+    exit 1
+  fi
+done
+if [ "${#bak_hits[@]}" -gt 0 ]; then
+  printf 'FAIL: stale skill backup(s) Pi may load as real skills:\n' >&2
+  printf '  %s\n' "${bak_hits[@]}" >&2
+  printf 'quarantine them out of the skill roots (e.g. mv to ~/.pi/agent/skills.disabled/) and re-run\n' >&2
+  exit 1
+fi
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -340,7 +366,7 @@ const renderedDefaultRoot = new Set(
 );
 const complement = [...universe].filter((name) => !dmi.has(name) && !renderedDefaultRoot.has(name)).sort();
 const denySorted = [...new Set(deny)].sort();
-const extra = denySorted.filter((name) => !complement.includes(name));
+const extra = denySorted.filter((name) => universe.has(name) && !complement.includes(name));
 const missing = complement.filter((name) => !denySorted.includes(name));
 if (extra.length) errors.push(`B2(ii): deny entries not in the live complement: ${extra.join(", ")}`);
 if (missing.length) errors.push(`B2(ii): live complement missing from the deny-list: ${missing.join(", ")}`);
