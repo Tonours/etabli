@@ -24,6 +24,11 @@ anti-sycophancy, contrarian, and git rules live in `pi/AGENTS.md`; read it.
 - Orchestration parity: `workflow/skills/orchestration.md`; Pi Task* state is
   Pi-only unless equivalent runtime capability is exposed.
 
+## Compact instructions
+When compacting, keep the root `PLAN.md` subject and status, the active ledger
+run, files modified, frozen check commands and last results, open findings, and
+the exact next action. Drop stale exploration output.
+
 ## Safety
 - Runtime: Node.js/TypeScript, local tests.
 - Autonomous mode: Claude Code runs with bypass permissions here; never pause
