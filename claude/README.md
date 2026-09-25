@@ -19,7 +19,7 @@ Claude Code-specific files for `etabli`.
 - `scopes/<scope>/scripts/*` -> `~/.claude/scripts/`
 - `hooks/*` (`.mjs` + `.sh`) -> `~/.claude/hooks/`
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
-- `statusline-command.sh` -> `~/.claude/statusline-command.sh`
+- `statusline-command.sh` -> `~/.claude/statusline-command.sh` (shows context as `ctx:<N>k` input tokens of the last API call, from `current_usage` then `total_input_tokens`, yellow from 150k and red from 300k, with a percentage fallback)
 - selected shared docs from `../workflow/` -> `~/.claude/`
 
 Re-run `scripts/install.sh` any time to refresh links; it is idempotent. When
@@ -221,11 +221,16 @@ The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMo
 `--dangerously-skip-permissions` zsh alias is machine-local (`~/.zshrc` is not
 managed here); `defaultMode` alone covers every launcher, including `-p` runs,
 crons, and `claude-bin.sh`.
-- `settings.workflow-hooks.json` is a merge fragment. It is linked for manual
-  activation and is not merged into `~/.claude/settings.json` by the installer,
-  because the live settings file can contain secrets. Activating it enables the
-  session-wide READY, ledger, ADR, and outcome hooks; the read-only agent hook is
-  scoped from agent frontmatter instead.
+- `settings.workflow-hooks.json` is a merge fragment. It is linked but not
+  merged into `~/.claude/settings.json` by the installer, because the live
+  settings file can contain secrets. Activate it with
+  `scripts/claude-hooks-merge --dry-run` (review) then
+  `scripts/claude-hooks-merge`: the merge only adds the fragment's hook
+  entries (backup first, refuse on conflict or invalid JSON, byte-idempotent
+  reruns) and never reads live secrets back into the repo. Verify with
+  `scripts/claude-hooks-check`. Activating it enables the session-wide READY,
+  ledger, ADR, and outcome hooks; the read-only agent hook is scoped from
+  agent frontmatter instead.
 
 Use Claude Code `/goal` for till-done loops:
 

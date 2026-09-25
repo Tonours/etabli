@@ -30,6 +30,8 @@
 ### In
 -
 
+(Risky change? Name files/areas — the plan adversary blocks READY without them.)
+
 ### Out
 -
 
@@ -60,6 +62,9 @@
 
 ## Decision Log
 - YYYY-MM-DD:
+
+## Review Changes
+- (Adversary passes record deltas here — canonical location.)
 
 ## Open Questions
 - None / ...

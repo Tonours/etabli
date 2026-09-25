@@ -4,62 +4,62 @@
     "plan-loop": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "327c37feb3093b47e1cffb2198a6ff4d7722a68504d8960cd758a6ed1547827f"
+      "computedHash": "660d3db329128960e10ac71d1a32acf6423f9607810480ff2f519443c1b2a652"
     },
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "78d321c44158e98c14a525f01915bb6b36ab5ab51c3757762d427ed637f9089f"
+      "computedHash": "5375b280a1b2282dd160dfc3d30f210b96a20ee0ea890da89a4b692e120c360b"
     },
     "review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "844652906383606002e293602add31b55cfee00fc8a7767a061b13a08e3a5eb8"
+      "computedHash": "2477b9affa151b8328c7ae769360673ee8d76b526209d2ec6fa61e6f22c09a8d"
     },
     "implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "16f762be362b490c7ad3779dabdf090c0a23970fea18189898075f4dfda97708"
+      "computedHash": "627cbb39195188af455795df10481469c067e77957103a2bbacf34b28a51dda2"
     },
     "verify": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "87ee2567cda7a9b9dd346d5bf05d4498d69ebdfb5bc62ebfefd30f7b71fbf7e9"
+      "computedHash": "03b2788fb3a55877ce4c76c0e00d53a67c935d1b2ee4d104046bc396e3df7159"
     },
     "bug-check": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "daf1f6bd74c42d4cdc9ac24e6e3d3150981c7b8254a8e5856d0b6911b02c994a"
+      "computedHash": "dc792427425d33529cba816cce99395d2e6524e6da3e673dd625e0a9c513f302"
     },
     "linear-ticket-create": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "d31a05bd882c1a78da3a6174f3d4861cd93866b0b1fc96114d0e4a04ce00069c"
+      "computedHash": "08b7cb56b5857af0a59f6b3bc8a4e6291fb28773ce2bdfa1072446ac6b2ff607"
     },
     "linear-work": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "c1d027e56eeb7a0e29d8970b78224c149fc9497a0212bcbb20d4a7cca544e73a"
+      "computedHash": "613269e071cd99c2b150df0b6a4413274f85244d96e939747d6c24d33bd52a22"
     },
     "pr-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "27cdfb38de8ffa415db6210f900d76f2efb18c87af4f6f2b2ac26c9c44568be9"
+      "computedHash": "c857227bfc39604444e47f675eed83efd2b8ff5f98a0e8a3a8e4b692e7346339"
     },
     "pr-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "5a46a6aa95b32f104c9f4e011e261dfc13775a897bb1681711d0469e1a283d14"
+      "computedHash": "0191b32f648060c8666880f79434f41e15898f9608fca848481767fa7b61fbfd"
     },
     "sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a8a15ed807dcbdea1ae32999a6d7566361aae47609d6068d3311e1b635f1dc34"
+      "computedHash": "ea045fbcac0d70ab2594f6d7dca2ba81db46eb911d1062bf26b4081794880eb2"
     },
     "ci-fix": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "2fbad65c981690baf86da4eaa6ac3a8664357527e990219e80133596be117214"
+      "computedHash": "7c04f67f7afecf6fa765081dee5e89a9b71f1d8a64d741f8d30d884434601199"
     },
     "github-pr-review": {
       "source": "local",
@@ -69,7 +69,7 @@
     "adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ffd92848f7ddcab3e51aaa38ef250842655827aa428a9ab0ec9a2a9480084cf1"
+      "computedHash": "808920100f66f43c11e4cc798436fa51e5ec45fd74423739cdc12a707e457c6f"
     },
     "browser-full-page-capture": {
       "source": "local",
@@ -219,7 +219,7 @@
     "conversation-retrospect": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "cce62ca58f94eaf54e94fc07eb395cb02606639cc55e24215e82d6334469f7a8"
+      "computedHash": "060033a6aee6328f82be76511754f192a6b9edf6ceb681224299b58d212a1c30"
     },
     "recurring-run": {
       "source": "local",
@@ -229,17 +229,17 @@
     "coolify": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "4353b930276470e2fa2cf9143958b1b665c375595b04d4dfa023d8db54d7aa95"
+      "computedHash": "90c23ef66ed8d759eba7d1e2954580dfa3544ea36f82772ea198f350d82689fe"
     },
     "grill-me": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ec3e1834844527e8c6b07ba1013208576f3cead9ddd2939e50d3a17919a0a08c"
+      "computedHash": "fd1144ec3dd90f9bc841e123f2f933db5b5889453984ff8c973829c6a1b9328f"
     },
     "runtime-skill-canary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "b9fd272baa1f99e2bd83b05bfa27ff62fb7b46b968798a86553366f0d31ccc6c"
+      "computedHash": "977df4e524eccc80202bebddd98930b563ec0c863f723164d266724b2acf6ebc"
     },
     "session-handoff": {
       "source": "local",
@@ -254,12 +254,12 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "4ae5fb1cf86080e93f28e7a25da25c950884281f3a7b3317bd96218405037da7"
+      "computedHash": "635832fa55bdd81f040e50868a2986765f2e7cf1bc8cd1e22a44a644d6e35dfb"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
+      "computedHash": "347b1f07b70693c8681a47ff2d32980277dec72ecebee84bf244f76933227cde"
     },
     "engineering/ask-matt": {
       "source": "local",
@@ -410,11 +410,6 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "80d8b1536c30953a4693f26b154b9bc5626a381e0a08c6a058ee8f47802bc42e"
-    },
-    "herdr/herdr": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "d55c3c35b0821c66ade8219b4efb8b2851ed57d37284c3ffdb1407b616c3f6a3"
     },
     "no-ai-slop": {
       "source": "local",

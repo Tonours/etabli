@@ -7,13 +7,10 @@ Repo-specific instructions for this dotfiles repo.
 - `.github/workflows/` — CI workflows
 - `claude/` — Claude Code commands and local instructions
 - `docs/` — focused user docs
-- `ghostty/` — Ghostty config
-- `herdr/` — Herdr config, layouts, skills, multihost docs, etabli-obvault plugin
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
 - `vendor/` — vendored upstream skills (`vendor/sources.tsv`; mattpocock is the shared pack, migrated to vendoring after the pstack port move)
 - `skills-lock.json` — skill-tree integrity lock
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
-- `nvim/` — Neovim config
 - `pi/` — Pi config, extensions, skills, themes
 - `pi/extensions/` — Pi extensions
 - `pi/extensions/lib/` — shared extension utilities
@@ -25,7 +22,7 @@ Repo-specific instructions for this dotfiles repo.
 - `pi/themes/` — Pi themes
 - `scripts/` — installer, `deploy-agent-workflow`, and validation helpers
 - `tests/` — smoke tests
-- `tmux.conf` — tmux config
+- [`dotfiles`](https://github.com/Tonours/dotfiles) — Neovim, Ghostty, tmux and Herdr config (separate repo)
 - `workflow/` — canonical workflow contract
 
 ## Symlink layout
