@@ -49,7 +49,7 @@ no-plan work. Discard a stale plan with `scripts/plan-cleanup --discard <reason-
 
 **Check-freeze:** READY Checks / Acceptance Criteria / Validation Plan and
 expected results strengthen-only; weaken → `CHALLENGED` + Decision Log.
-CLI: `scripts/plan-check-freeze`.
+CLI: `scripts/plan-check-freeze`. <!-- etabli-only -->
 
 **no_progress:** 2-hyp/3-red denies code mutations (`workflow/events.md`).
 Escapes: root `PLAN.md`, narrow `plan-cleanup`, `workflow-event`.

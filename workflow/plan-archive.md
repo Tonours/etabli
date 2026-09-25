@@ -24,6 +24,13 @@ Archive a plan if and only if it was implemented and validation ran.
 
 `PLAN.md` remains the only execution artifact while work is in progress. Files in `docs/plan/` are post-implementation memory records, not active plans.
 
+## Immutability
+
+An archive is immutable once written: post-archive fixes, ship outcomes,
+and late discoveries live in the ship ledger + report, never rewritten
+into the archive. (Prose rule — `plan-cleanup` does not refuse rewrites;
+ship re-checks the captured hash and blocks on divergence.)
+
 ## When To Discard (unrelated / abandoned)
 
 If root `PLAN.md` does not match the current user request, do not stay blocked.

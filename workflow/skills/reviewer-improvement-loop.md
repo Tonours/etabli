@@ -204,9 +204,13 @@ The metric that matters is **escaped defects per GO**, not finding count:
 
 Ship handoff **appends** if the row is absent — at the GO, before the handoff
 is done; a GO with no row is an incomplete review output, because an unlogged
-GO silently shrinks the denominator. When an escaped defect is recorded,
+GO silently shrinks the denominator. Rows are synthetic aggregates keyed by
+run slug (no PR URL — correspondence lives in the ship-metrics registry);
+the aggregate row travels in the branch diff per `ship.md` (drafted
+pre-review, filled at GO, updates via the delta rule; post-merge updates
+ship as a dedicated mini-PR). When an escaped defect is recorded,
 **update** that PR's `escaped_later` and `buckets` — never a second row. The
-escaped-defect record carries that side effect in its `metrics_row` field.
+escaped-defect record carries that side effect in its `metrics_record` field.
 
 Report, per run of this loop: `escaped_per_go` over the log, the share of GO
 rows with `deciding_code=complete`, misses recorded, bucket counts, candidates

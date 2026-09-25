@@ -23,21 +23,32 @@ checks, edge cases, plan drift, and simpler or safer routes.
    - missing validation or weak required evidence;
    - edge cases;
    - plan drift against current repo state;
-   - simpler or safer approaches.
+   - simpler or safer approaches;
+   - named files/areas for risky changes — block `READY` when a risky
+     change names none (this checklist owns the check; no fuzzy gate).
 5. Do not implement.
 6. Do not create `REVIEW.md` or any secondary active artifact.
 7. Decide each finding as accepted or rejected with concrete evidence.
 8. Fold accepted findings into `PLAN.md`.
 9. Keep `Status: READY` only if no blocker or high-severity issue remains.
 10. Otherwise set `Status: CHALLENGED`.
-11. Record the pass in `Decision Log`, `Review Changes`, or `Notes / Handoff`.
+11. Record the pass under `## Review Changes` in `PLAN.md` (canonical
+    location; not Decision Log, not Notes / Handoff).
 12. Return accepted findings, rejected findings, final plan status, and next
     route.
 
+Plan-mode verdicts are `READY` or `CHALLENGED`; code-diff verdicts are `GO`,
+`GO WITH NOTES`, or `BLOCK`. The event validator accepts both families for
+historical compatibility; new passes use the mode's canon.
+
 ## Completion Evidence
 
-An implementation loop can count the adversary pass as complete only when the
-final handoff names:
+Adversary passes run inside the loop's BOUNDED review machine
+(`implementation-loop.md` T/D/F table): T/F rounds use fresh hunters plus the
+adversary, D rounds add the adversary only if a high-severity finding was
+folded, and the bound never downgrades a pass to a lighter re-read — the
+last review always covers the full delivery diff. An implementation loop can
+count the adversary pass as complete only when the final handoff names:
 
 - adversary result;
 - accepted findings;
@@ -80,15 +91,24 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
 ## Cross-harness frontier pool
 
 `workflow/runtime/adversary-model-policy.json` is the canonical model pool.
-Selection depends on the implementation author's effective model family, not
-on the harness currently driving the workflow:
+A cross-family pass is a pool invocation from any harness, not an agent
+capability: invoke a pool route of non-author family, observe what actually
+ran, and record it. Selection depends on the implementation author's
+effective model family, not on the harness currently driving the workflow:
 
 1. exclude the author's family;
 2. choose a configured route from the strongest available frontier pool;
 3. prefer a direct provider route over an aggregator route;
-4. record requested and effective provider/model/family plus runner and run id;
+4. record `model_provenance` on the ledger pass — requested and effective
+   provider/model/family plus runner and run id, complete when present,
+   effective values copied from the harness's own record;
 5. treat missing effective-model provenance as `blocked`, even when the model
    was requested successfully.
+
+Plan mode: the pass that counts must be cross-family with provenance
+recorded; a same-family pass is a labeled supplement only and never
+satisfies the independence requirement. The parent verifies
+`effective.family` differs from the author family before counting the pass.
 
 `configured_unverified` means the route exists in the local catalog or harness
 configuration. It is not proof that credentials, quota, or a live call work.

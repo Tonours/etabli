@@ -4,7 +4,7 @@ Status: experimental and explicit opt-in; outside the core validation profile.
 
 `workflow/templates/project-autonomy-envelope.json` declares the authority for
 one explicitly authorized local project run. It is a restartable contract, not
-an agent executor: `scripts/project-autonomy` only reads the envelope and run
+an agent executor: `scripts/project-autonomy` only reads the envelope and run <!-- etabli-only -->
 ledger, delegates typed-ledger validation to the existing read-only
 `scripts/workflow-event validate` contract, then reports the next evidence
 obligation. It never launches agents, runs an envelope verifier, edits a

@@ -47,7 +47,7 @@ criteria require UI/browser proof.
 7. Record artifacts or exact evidence for each scenario: URL, command,
    screenshot, trace, console/network result, email preview, log line, or
    explicit reason the leg is blocked.
-   - For durable claims, capture a closed pack with `scripts/evidence-proof`
+   - For durable claims, capture a closed pack with `scripts/evidence-proof` <!-- etabli-only -->
      (etabli repo only; scaffolded projects resolve it from the etabli checkout).
      Bind the target/environment hashes and every action, result, and declared
      side effect to a non-empty hashed artifact.

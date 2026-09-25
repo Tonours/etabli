@@ -59,9 +59,9 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - One execution artifact: `PLAN.md`. No `REVIEW.md` second plan.
 - Keep facts separate from assumptions; use `PLAN_TEMPLATE.md` /
   `PLAN_TEMPLATE_FULL.md` as appropriate.
-- Source research: `scripts/research-proof-check`. Answers/handoffs:
+- Source research: `scripts/research-proof-check`. Answers/handoffs: <!-- etabli-only -->
   `workflow/answer-quality.md`; durable floor:
-  `scripts/answer-quality-check` / `scripts/answer-quality-eval`.
+  `scripts/answer-quality-check` / `scripts/answer-quality-eval`. <!-- etabli-only -->
 - Autonomous plan-loop requests use `plan-implement`. Prompt wording such as "PLAN.md ready" is routing context, not proof.
 - Implementation-bound autonomous loops are not complete until validation,
   adversary evidence, review, implemented-plan archive under `docs/plan/`, and
@@ -75,15 +75,15 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   inside it, explicit cleanup.
 - Product dogfood: `workflow/skills/product-dogfood.md`. Single-PR pilot:
   `workflow/skills/pr-maintenance-loop.md` — one PR, one worktree, one loop;
-  `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge
+  `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge <!-- etabli-only -->
   without another explicit command contract.
 - Evidence and investigations: `workflow/skills/investigation.md`,
-  `workflow/evidence-pack.schema.json`, and `scripts/evidence-proof`
+  `workflow/evidence-pack.schema.json`, and `scripts/evidence-proof` <!-- etabli-only -->
   (etabli repo only; scaffolded projects resolve these binaries from the
   etabli checkout). Integrity, parent-observed execution, proxy support, and
   blocked surfaces stay distinct.
 - Large programs: frozen control plane (`workflow/skills/program-orchestration.md`,
-  `workflow/program.schema.json`, read-only `scripts/program-state`) — etabli
+  `workflow/program.schema.json`, read-only `scripts/program-state`) — etabli <!-- etabli-only -->
   repo only; frozen, not deployed to scaffolds.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
@@ -99,9 +99,9 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   including expected results, strengthen-only;
   demoting the plan to `CHALLENGED` with a Decision Log rationale required to
   weaken. Runtime: shared `planMutationGuardDecision` on PLAN.md writes
-  (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`.
+  (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`. <!-- etabli-only -->
 - Context budget: the instruction files each hot route loads are ceilinged in
-  `workflow/runtime/context-budget.json`; `scripts/workflow-context-budget`
+  `workflow/runtime/context-budget.json`; `scripts/workflow-context-budget` <!-- etabli-only -->
   fails on growth with its remediation and `--ratchet` only lowers ceilings
   (etabli repo only; loop: `workflow/skills/self-improvement-loop.md` § Token
   lens).
@@ -136,7 +136,7 @@ A plan is `READY` when it has:
 - concrete steps
 - named files/areas for risky changes
 - checks to run
-- route, role, stop condition, and required evidence for non-trivial work
+- route, role, stop condition, and required evidence (every plan; the gate requires them unconditionally)
 - known risks or explicit "none"
 - facts separated from assumptions when the task depends on uncertain context
 - populated requirement trace with a disposition for every material spec/code gap
@@ -146,6 +146,7 @@ A plan is `READY` when it has:
 
 ## Routing rules
 
+<!-- ROUTES:begin -->
 | Trigger | Route | Artifact | Stop |
 | --- | --- | --- | --- |
 | Simple question or explanation | `answer` | none | answer delivered |
@@ -155,7 +156,7 @@ A plan is `READY` when it has:
 | Guided spec construction ("rédige une spec", "guide-moi pour la spec") | `spec-guide` | spec drafted via `/spec` template | spec solid, hands off to `/spec` |
 | Read-only adversarial PLAN.md review, or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
-| Existing `READY PLAN.md` plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
+| Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
 | Self-improvement request from run evidence, retrospect output, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
 | Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff; no push/PR/deploy without explicit command contract |
@@ -167,9 +168,10 @@ A plan is `READY` when it has:
 | Dependabot/security PR audit | `sec-pr` | security audit report | `PASS`, `FAIL`, or `INVESTIGATE` |
 | Explicit autonomous CI repair | `ci-fix` | commits/pushes + CI report | CI green, blocked, time cap, or max attempts |
 | Review request | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
-| Verify, retest, prove, or completion audit | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
+| Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
 | Research with sources | `research-plan` | cited doc under `docs/` | cited artifact complete |
 | Destructive, secret, production, billing, deployment, or broad irreversible work | `ops-stop` | risk brief | user decision |
+<!-- ROUTES:end -->
 
 `spec-guide` is ambient. Linear routes require Linear MCP or stop with
 `LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
@@ -198,8 +200,7 @@ event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
 coverage: routes shared by Pi extension and Claude hooks; executable classifier
 `workflow/runtime/workflow-router-core.mjs` via runtime-specific adapters.
 
-Semantic route judgments: `workflow/semantic-judgment.md`. Jev routes require
-checked-in promotion, confidence/margin thresholds, and protected-route rules. The
+Semantic route judgments: `workflow/semantic-judgment.md`. Jev routes require checked-in promotion, confidence/margin thresholds, and protected-route rules. The
 deterministic router remains the provider-failure fallback; permissions,
 destructive/external checkpoints, actual plan state, READY/mutation guards, and
 every execution gate remain authoritative code. `shadow` and `disabled` are
@@ -207,8 +208,7 @@ local rollback modes.
 
 ## Runtime surfaces
 
-Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key
-surfaces referenced by routing/guards: Claude hooks fragment
+Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key surfaces referenced by routing/guards: Claude hooks fragment
 `claude/settings.workflow-hooks.json`, `workflow/plan-archive.md`,
 `workflow/project-autonomy-envelope.md`, and the bounded reviewer evolution
 contract `workflow/skills/reviewer-improvement-loop.md`. Shared-contract versus
