@@ -20,6 +20,13 @@ export const pickPrimaryActiveLedger = mod.pickPrimaryActiveLedger as (
 	events: Array<Record<string, unknown>>;
 } | null;
 
+export const appendLedgerEvent = mod.appendLedgerEvent as (
+	ledgerPath: string,
+	event: string,
+	detail: Record<string, unknown>,
+	runSlug?: string,
+) => void;
+
 export const inferBashFailureFromToolResult =
 	mod.inferBashFailureFromToolResult as (
 		content: unknown,
