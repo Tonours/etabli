@@ -320,4 +320,11 @@ describe("workflow router runtime", () => {
 			"~/work/obvault/_meta/obvault context",
 		);
 	});
+
+	test("plan-loop suggestion points at the frontier pool, not a dead route (T4 F8)", () => {
+		const decision = classifyWorkflowRoute("write a plan for the migration");
+		expect(decision.route).toBe("plan-loop");
+		expect(decision.suggestion).toContain("pool frontalier");
+		expect(decision.suggestion).not.toContain("openai-codex");
+	});
 });
