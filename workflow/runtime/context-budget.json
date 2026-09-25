@@ -19,7 +19,7 @@
         "workflow/skills/plan-loop.md",
         "PLAN_TEMPLATE.md"
       ],
-      "ceiling_chars": 5601
+      "ceiling_chars": 6458
     },
     "plan-implement": {
       "description": "default read chain of the plan-implement route (unconditional reads only; events-validator.md stays cold, opened only when editing the event system)",
@@ -38,7 +38,7 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 58066
+      "ceiling_chars": 68268
     },
     "implement": {
       "description": "default read chain of the implement route (events-validator.md stays cold, opened only when editing the event system)",
@@ -55,7 +55,7 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 52400
+      "ceiling_chars": 62476
     },
     "review": {
       "description": "default read chain of the review route",
@@ -67,7 +67,7 @@
         "workflow/templates/review-logic-hunter.md",
         "workflow/templates/review-spec-hunter.md"
       ],
-      "ceiling_chars": 22585
+      "ceiling_chars": 22727
     },
     "verify": {
       "description": "default read chain of the verify route",
@@ -76,7 +76,7 @@
         "workflow/skills/verify.md",
         "workflow/verification-report-template.md"
       ],
-      "ceiling_chars": 3093
+      "ceiling_chars": 3812
     },
     "spec-map": {
       "description": "on-demand full map and long rules; ceilinged so growth cannot hide here",
@@ -84,7 +84,48 @@
         "workflow/spec.md",
         "workflow/contract-details.md"
       ],
-      "ceiling_chars": 33406
+      "ceiling_chars": 34668
+    },
+    "ship": {
+      "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",
+      "files": [
+        "pi/skills/ship/SKILL.md",
+        "workflow/skills/ship.md",
+        "workflow/skills/implementation-loop.md",
+        "workflow/skills/plan-loop.md",
+        "PLAN_TEMPLATE.md",
+        "workflow/skills/adversary.md",
+        "workflow/skills/review.md",
+        "workflow/review-rubric.md",
+        "workflow/templates/review-lead.md",
+        "workflow/templates/review-logic-hunter.md",
+        "workflow/templates/review-spec-hunter.md",
+        "workflow/templates/plan-archive.md",
+        "workflow/templates/escaped-defect.md",
+        "workflow/events.md",
+        "workflow/answer-quality.md",
+        "workflow/skills/worktree-isolation.md",
+        "workflow/git-contract.md"
+      ],
+      "conditional": [
+        {
+          "file": "workflow/spec.md",
+          "trigger": "arbitrage/human-checkpoint"
+        },
+        {
+          "file": "workflow/contract-details.md",
+          "trigger": "long-rules lookup"
+        },
+        {
+          "file": "workflow/pr-body-contract.md",
+          "trigger": "PR phase"
+        },
+        {
+          "file": "workflow/skills/ci-fix.md",
+          "trigger": "failing CI"
+        }
+      ],
+      "ceiling_chars": 89633
     }
   }
 }

@@ -1,0 +1,726 @@
+#!/usr/bin/env node
+// scripts/t8a-behavior-gate — T8a AC5 frozen-behavior + tree-allowlist gate (PLAN.md v18).
+//
+// Verifies NOTHING behavioral moved since the step-1 snapshot (HEAD-independent:
+// T1–T7 left 110+ uncommitted files, so HEAD diffs would fail spuriously):
+//   1. the 14 pinned behavior files re-hash identical (ABSENT stays absent);
+//   2. ledger anchor: sha256(snapshot bytes) == snapshot_sha in the append-only
+//      token-protocol ledger (a hand-edited snapshot FAILS);
+//   3. evidence rows: treestart / untracked-start / ac2-inventory == sha256 of
+//      those files' bytes, convert-start-dir == recomputed dir sha;
+//   4. budget: the 8 frozen rows (version + 7 pre-existing surfaces) re-hash
+//      identical via the RECOVERED canonicalisation (jq -c -S, final newline
+//      stripped — proven byte-identical on all 8 rows at gate build time),
+//      surface set == {7 pre-existing + ship}, top-level keys == {version, surfaces};
+//   5. NO-CREATE rule: workflow/ready-gate.md must not exist;
+//   6. TREE RULE: every tracked file differing from treestart ∈ {context-budget.json
+//      (§4 green), agentic-infra-checks.tsv (4-appended-lines-only rule),
+//      CONVERT files (pointer-diff-check green)}; every step-1-untracked file
+//      content-identical; any deletion of a step-1-present file FAILS
+//      (MISSING rows — pre-existing deletions + symlinks — pass iff still
+//      not-a-regular-file);
+//   7. NEW files (absent from BOTH step-1 sets) ∈ {pinned bundle layout
+//      (8 scripts/ + 2 scripts/lib/ + 6 tests/), manifest closed set,
+//      snapshot/treestart/untracked TSVs, convert-start/* == CONVERT set,
+//      EXACTLY ONE trial-*.json, ledger append paths, EXACTLY ONE
+//      docs/plan/20[0-9]{6}-*.md absent from both sets};
+//   8. token-protocol TREE EQUALITY: leaves == manifest closed set
+//      ∪ {3 TSVs} ∪ {corpus-manifest.json itself} ∪ {ac2-inventory.json}
+//      ∪ {the ONE trial}.
+//
+// File universe (mirrors the step-1 capture exactly): `git ls-files` ∪
+// git-untracked non-ignored files. Git-ignored paths (.workflow/, .pi/, …)
+// are out of scope — same as step 1; the ledger is anchored via rule 2.
+//
+// Usage:
+//   scripts/t8a-behavior-gate [--root <dir>] [--self-test]
+//     path overrides: --snapshot --treestart --untracked-start --budget
+//     --ledger --manifest --inventory --convert-start --checks --fixdir
+//   scripts/t8a-behavior-gate --self-test   (all fixtures in $TMPDIR git sandboxes)
+
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
+  rmSync, statSync, writeFileSync,
+} from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+
+const SELF = fileURLToPath(import.meta.url);
+const DEFAULT_ROOT = resolve(dirname(SELF), "..");
+const DEFAULTS = {
+  snapshot: "tests/fixtures/token-protocol/t8a-behavior-snapshot.tsv",
+  treestart: "tests/fixtures/token-protocol/t8a-treestart.tsv",
+  untrackedStart: "tests/fixtures/token-protocol/t8a-untracked-start.tsv",
+  budget: "workflow/runtime/context-budget.json",
+  ledger: ".workflow/token-protocol/events.jsonl",
+  manifest: "tests/fixtures/token-protocol/corpus-manifest.json",
+  inventory: "tests/fixtures/token-protocol/ac2-inventory.json",
+  convertStart: "tests/fixtures/token-protocol/convert-start",
+  checks: "workflow/runtime/agentic-infra-checks.tsv",
+  fixdir: "tests/fixtures/token-protocol",
+};
+
+// AC5 pinned behavior files (R2-B2 — exact and closed).
+const PINNED_PATHS = [
+  "workflow/skills/plan-loop.md",
+  "pi/skills/plan-loop/SKILL.md",
+  "claude/scopes/shared/commands/plan-loop.md",
+  "scripts/pi-review-hunter",
+  "workflow/skills/review.md",
+  "workflow/templates/review-lead.md",
+  "workflow/templates/review-logic-hunter.md",
+  "workflow/templates/review-spec-hunter.md",
+  "workflow/templates/plan-archive.md",
+  "workflow/templates/escaped-defect.md",
+  "scripts/workflow-event",
+  "scripts/lib/workflow-event-detail.jq",
+  "workflow/review-rubric.md",
+  "workflow/events.md",
+];
+
+const FROZEN_BUDGET_KEYS = [
+  "version", "always-on", "plan-loop", "plan-implement",
+  "implement", "review", "verify", "spec-map",
+];
+const EXPECTED_SURFACES = [...FROZEN_BUDGET_KEYS.slice(1), "ship"];
+
+const PINNED_SCRIPTS = [
+  "scripts/token-protocol-screen",
+  "scripts/token-task-report",
+  "scripts/token-corpus-check",
+  "scripts/t8a-behavior-gate",
+  "scripts/t8a-pointer-diff-check",
+  "scripts/ship-coverage-check",
+  "scripts/pointer-follow-verify",
+  "scripts/parent-read-measure",
+];
+const PINNED_LIB = [
+  "scripts/lib/skill-eval-noninferiority.mjs",
+  "scripts/lib/token-finding-parser.mjs",
+];
+const PINNED_TESTS = [
+  "tests/token-noninferiority.test.mjs",
+  "tests/token-finding-parser.test.mjs",
+  "tests/canonical-copy-smoke.sh",
+  "tests/prompt-order-smoke.sh",
+  "tests/hunter-parity-smoke.sh",
+  "tests/pointer-follow-smoke.sh",
+];
+
+// Scope-pinned core rows (R13-B2/R14-B1): REAL literal tabs, Scope order.
+const EXPECTED_CHECKS_APPEND = [
+  "core\tshell-docs\tcanonical-copy\ttests/canonical-copy-smoke.sh",
+  "core\tshell-docs\tprompt-order\ttests/prompt-order-smoke.sh",
+  "core\tshell-docs\thunter-parity\ttests/hunter-parity-smoke.sh",
+  "core\tshell-docs\tpointer-follow\ttests/pointer-follow-smoke.sh",
+];
+
+const READY_GATE = "workflow/ready-gate.md";
+const BUDGET_REL = "workflow/runtime/context-budget.json";
+const CHECKS_REL = "workflow/runtime/agentic-infra-checks.tsv";
+const ARCHIVE_RE = /^docs\/plan\/20[0-9]{6}-.*\.md$/;
+const TRIAL_RE = /^trial-.*\.json$/;
+const LEDGER_ALLOW = new Set([
+  ".workflow/token-protocol/events.jsonl",
+  ".workflow/token-protocol/events.lock",
+]);
+const FIXDIR_EXTRA = new Set([
+  "t8a-behavior-snapshot.tsv",
+  "t8a-treestart.tsv",
+  "t8a-untracked-start.tsv",
+  "corpus-manifest.json",
+  "ac2-inventory.json",
+]);
+const NAMED_ROWS = new Set([
+  "convert-start-dir", "treestart", "untracked-start", "ac2-inventory",
+]);
+
+const failures = [];
+const notes = [];
+function bad(msg) { failures.push(msg); }
+function note(msg) { notes.push(msg); }
+function sha256Bytes(buf) { return createHash("sha256").update(buf).digest("hex"); }
+function sha256File(path) { return sha256Bytes(readFileSync(path)); }
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--self-test") out.selfTest = true;
+    else if (a.startsWith("--")) {
+      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      out[key] = argv[++i] ?? "";
+    }
+  }
+  return out;
+}
+
+function walkFiles(dir, base = dir) {
+  const found = [];
+  if (!existsSync(dir)) return found;
+  for (const entry of readdirSync(dir).sort()) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) found.push(...walkFiles(full, base));
+    else found.push(relative(base, full));
+  }
+  return found.sort();
+}
+
+// Same dir-sha rule as t8a-pointer-diff-check: sha256 over sorted
+// "<file-sha>  <relpath>\n" lines; empty dir -> sha256("").
+function dirSha(dir) {
+  const lines = walkFiles(dir).map((rel) => `${sha256File(join(dir, rel))}  ${rel}\n`);
+  return sha256Bytes(Buffer.from(lines.join(""), "utf8"));
+}
+
+function parseTsv(text, what) {
+  const map = new Map();
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    const tab = line.indexOf("\t");
+    if (tab < 0) throw new Error(`malformed ${what} row (no tab): ${line.slice(0, 60)}`);
+    map.set(line.slice(0, tab), line.slice(tab + 1).trim());
+  }
+  return map;
+}
+
+function parseSnapshot(text) {
+  const all = parseTsv(text, "snapshot");
+  const paths = new Map();
+  const named = new Map();
+  for (const [key, sha] of all) {
+    if (!/^[0-9a-f]{64}$/.test(sha) && sha !== "ABSENT") {
+      throw new Error(`malformed snapshot sha for ${key}`);
+    }
+    if (key.includes(":") || NAMED_ROWS.has(key)) named.set(key, sha);
+    else paths.set(key, sha);
+  }
+  return { paths, named };
+}
+
+function ledgerSnapshotSha(ledgerPath) {
+  if (!existsSync(ledgerPath)) return null;
+  let found = null;
+  for (const line of readFileSync(ledgerPath, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    const sha = event?.detail?.snapshot_sha;
+    if (typeof sha === "string" && /^[0-9a-f]{64}$/.test(sha)) found = sha;
+  }
+  return found;
+}
+
+// RECOVERED canonicalisation (proven on all 8 rows at gate build time):
+// jq -c -S <selector>, final newline stripped, sha256 over the bytes.
+// Equivalent to `jq -c -S <sel> <file> | tr -d '\n' | shasum -a 256`
+// (single-line -c output carries no interior newlines).
+function canonicalRowHash(budgetPath, selector) {
+  const out = execFileSync("jq", ["-c", "-S", selector, budgetPath], { encoding: "utf8" });
+  const bytes = out.endsWith("\n") ? out.slice(0, -1) : out;
+  return sha256Bytes(Buffer.from(bytes, "utf8"));
+}
+
+function gitUniverse(root) {
+  const tracked = new Set(
+    execFileSync("git", ["-C", root, "ls-files"], { encoding: "utf8" })
+      .split("\n").map((s) => s.trim()).filter(Boolean),
+  );
+  const untracked = new Set();
+  const status = execFileSync(
+    "git", ["-C", root, "status", "--porcelain", "--untracked-files=all"],
+    { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  for (const line of status.split("\n")) {
+    if (line.startsWith("?? ")) untracked.add(line.slice(3).trim());
+  }
+  return { tracked, untracked };
+}
+
+function isRegularFile(path) {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function main(opts, root) {
+  const P = {};
+  for (const [key, def] of Object.entries(DEFAULTS)) {
+    P[key] = resolve(opts[key] ?? join(root, def));
+  }
+  const rel = (abs) => relative(root, abs);
+
+  for (const key of Object.keys(DEFAULTS)) {
+    if (key === "convertStart" || key === "fixdir") {
+      if (!existsSync(P[key]) || !statSync(P[key]).isDirectory()) bad(`${key} missing: ${P[key]}`);
+    } else if (!existsSync(P[key])) {
+      bad(`${key} missing: ${P[key]}`);
+    }
+  }
+  if (failures.length > 0) return report();
+
+  const snapBytes = readFileSync(P.snapshot);
+  const snap = parseSnapshot(snapBytes.toString("utf8"));
+  const tree = parseTsv(readFileSync(P.treestart, "utf8"), "treestart");
+  const untr = parseTsv(readFileSync(P.untrackedStart, "utf8"), "untracked-start");
+  const budget = JSON.parse(readFileSync(P.budget, "utf8"));
+  const manifest = JSON.parse(readFileSync(P.manifest, "utf8"));
+  const inventory = JSON.parse(readFileSync(P.inventory, "utf8"));
+  const convertSet = [...(inventory.convert_set ?? [])].sort();
+
+  // ---- 1. 14 pinned behavior files re-hash identical ----
+  const pathKeys = [...snap.paths.keys()].sort();
+  if (JSON.stringify(pathKeys) !== JSON.stringify([...PINNED_PATHS].sort())) {
+    bad(`snapshot path rows != pinned 14: ${JSON.stringify(pathKeys)}`);
+  }
+  let frozenOk = 0;
+  for (const file of PINNED_PATHS) {
+    const want = snap.paths.get(file);
+    if (want === undefined) continue; // already reported above
+    const full = join(root, file);
+    if (want === "ABSENT") {
+      if (isRegularFile(full)) bad(`${file}: recorded ABSENT but a regular file exists`);
+      else { frozenOk++; note(`${file}: ABSENT stays absent`); }
+      continue;
+    }
+    if (!/^[0-9a-f]{64}$/.test(want)) { bad(`${file}: malformed snapshot sha`); continue; }
+    if (!isRegularFile(full)) { bad(`${file}: missing or not a regular file`); continue; }
+    if (sha256File(full) !== want) bad(`${file}: bytes differ from step-1 snapshot`);
+    else frozenOk++;
+  }
+
+  // ---- 2. ledger anchor ----
+  const recorded = ledgerSnapshotSha(P.ledger);
+  const snapSha = sha256Bytes(snapBytes);
+  if (!recorded) bad(`ledger ${rel(P.ledger)} carries no snapshot_sha (append-only anchor missing)`);
+  else if (recorded !== snapSha) bad("snapshot bytes != ledger snapshot_sha (hand-edited snapshot?)");
+  else note("ledger-anchored snapshot sha ok");
+
+  // ---- 3. evidence rows ----
+  const evChecks = [
+    ["treestart", P.treestart],
+    ["untracked-start", P.untrackedStart],
+    ["ac2-inventory", P.inventory],
+  ];
+  for (const [row, path] of evChecks) {
+    if (snap.named.get(row) !== sha256File(path)) bad(`snapshot ${row} row != sha256(${rel(path)})`);
+    else note(`${row} row matches`);
+  }
+  if (snap.named.get("convert-start-dir") !== dirSha(P.convertStart)) {
+    bad("snapshot convert-start-dir row != recomputed dir sha (tampered capture?)");
+  } else note("convert-start dir sha matches snapshot row");
+
+  // ---- 4. budget rows + surface set ----
+  let budgetGreen = true;
+  const topKeys = Object.keys(budget).sort();
+  if (JSON.stringify(topKeys) !== JSON.stringify(["surfaces", "version"])) {
+    bad(`budget top-level keys ${JSON.stringify(topKeys)} != ["surfaces","version"]`);
+    budgetGreen = false;
+  }
+  const surfaces = Object.keys(budget.surfaces ?? {}).sort();
+  if (JSON.stringify(surfaces) !== JSON.stringify([...EXPECTED_SURFACES].sort())) {
+    bad(`budget surface set {${surfaces}} != {${EXPECTED_SURFACES}}`);
+    budgetGreen = false;
+  }
+  let budgetRowsOk = 0;
+  for (const key of FROZEN_BUDGET_KEYS) {
+    const sel = key === "version" ? ".version" : `.surfaces[${JSON.stringify(key)}]`;
+    let got;
+    try {
+      got = canonicalRowHash(P.budget, sel);
+    } catch (err) {
+      bad(`budget:${key}: canonicalisation failed (${err.message})`);
+      budgetGreen = false;
+      continue;
+    }
+    if (snap.named.get(`budget:${key}`) !== got) {
+      bad(`budget:${key}: frozen row differs from snapshot`);
+      budgetGreen = false;
+    } else budgetRowsOk++;
+  }
+  if (budgetGreen) note(`8 frozen budget rows re-hash identical (${budgetRowsOk}/8)`);
+
+  // ---- 5. NO-CREATE rule ----
+  if (existsSync(join(root, READY_GATE))) bad(`${READY_GATE} exists (NO-CREATE rule: T8b scope)`);
+  else note("ready-gate.md absent");
+
+  // ---- 7/8 inputs: expected fixdir leaf set ----
+  const manifestFiles = new Set(
+    (manifest.files ?? []).filter((e) => !e.dir).map((e) => e.file),
+  );
+  const fixRel = rel(P.fixdir);
+  const convRel = rel(P.convertStart);
+  const diskLeaves = walkFiles(P.fixdir);
+
+  // ---- 6+7. universe walk ----
+  const { tracked, untracked } = gitUniverse(root);
+  const universe = new Set([...tracked, ...untracked]);
+  const modifiedTracked = [];
+  // treestart entries
+  for (const [path, want] of tree) {
+    const full = join(root, path);
+    if (want === "MISSING" || want === "ABSENT") {
+      if (isRegularFile(full)) {
+        bad(`${path}: recorded ${want} at step 1 but a regular file exists now`);
+        modifiedTracked.push(path);
+      }
+      continue;
+    }
+    if (!universe.has(path) && !existsSync(full)) {
+      bad(`${path}: step-1-tracked file deleted`);
+      continue;
+    }
+    if (!isRegularFile(full)) { bad(`${path}: step-1-tracked file is no longer a regular file`); continue; }
+    if (sha256File(full) !== want) modifiedTracked.push(path);
+  }
+  // untracked-start entries
+  for (const [path, want] of untr) {
+    const full = join(root, path);
+    if (want === "MISSING" || want === "ABSENT") {
+      if (isRegularFile(full)) bad(`${path}: recorded ${want} at step 1 but a regular file exists now`);
+      continue;
+    }
+    if (!isRegularFile(full)) { bad(`${path}: step-1-untracked file missing`); continue; }
+    if (sha256File(full) !== want) bad(`${path}: step-1-untracked file bytes differ (dirtied pre-existing untracked)`);
+  }
+
+
+  // NEW files
+  const known = new Set([...tree.keys(), ...untr.keys()]);
+  const newFiles = [...universe].filter((p) => !known.has(p)).sort();
+  const pinnedBundle = new Set([...PINNED_SCRIPTS, ...PINNED_LIB, ...PINNED_TESTS]);
+  const newArchives = [];
+  for (const p of newFiles) {
+    if (pinnedBundle.has(p)) continue;
+    if (LEDGER_ALLOW.has(p)) continue;
+    if (ARCHIVE_RE.test(p)) { newArchives.push(p); continue; }
+    if (p === fixRel || p.startsWith(`${fixRel}/`)) {
+      const leaf = p.slice(fixRel.length + 1);
+      if (leaf.startsWith(`${relative(fixRel, convRel)}/`) || leaf === relative(fixRel, convRel)) {
+        const convLeaf = leaf.slice(relative(fixRel, convRel).length + 1);
+        if (!convertSet.includes(convLeaf)) bad(`NEW file ${p}: not in CONVERT set`);
+        continue;
+      }
+      if (FIXDIR_EXTRA.has(leaf)) continue;
+      if (TRIAL_RE.test(leaf)) continue;
+      if (manifestFiles.has(leaf)) continue;
+      bad(`NEW file ${p}: outside token-protocol tree-equality set`);
+      continue;
+    }
+    bad(`NEW file ${p}: outside the TREE RULE allowlist`);
+  }
+  if (newArchives.length !== 1) {
+    bad(`expected EXACTLY ONE new docs/plan/20[0-9]{6}-*.md archive, found ${newArchives.length}`
+      + (newArchives.length > 0 ? `: ${newArchives.join(", ")}` : ""));
+  } else note(`archive: ${newArchives[0]}`);
+
+  // ---- 8. tree equality + trial count + convert-start == CONVERT ----
+  const trials = diskLeaves.filter((l) => TRIAL_RE.test(l) && !l.includes("/"));
+  if (trials.length !== 1) bad(`expected EXACTLY ONE trial-*.json, found ${trials.length}`);
+  const convLeaves = walkFiles(P.convertStart);
+  if (JSON.stringify(convLeaves) !== JSON.stringify(convertSet)) {
+    bad(`convert-start leaves ${JSON.stringify(convLeaves)} != CONVERT set ${JSON.stringify(convertSet)}`);
+  } else if (convertSet.length === 0) {
+    note("convert-start/ empty-exact (CONVERT set vide)");
+  }
+  const expectedLeaves = new Set([
+    ...manifestFiles,
+    ...FIXDIR_EXTRA,
+    ...(trials.length === 1 ? trials : []),
+    ...convertSet,
+  ]);
+  const extras = diskLeaves.filter((l) => !expectedLeaves.has(l));
+  const missing = [...expectedLeaves].filter((l) => !diskLeaves.includes(l));
+  for (const l of extras) bad(`token-protocol leaf ${l}: extra vs tree-equality set`);
+  for (const l of missing) bad(`token-protocol leaf ${l}: missing vs tree-equality set`);
+  if (extras.length === 0 && missing.length === 0) {
+    note(`token-protocol tree equality ok (${diskLeaves.length} leaves)`);
+  }
+
+  // ---- 6b. tracked-modified classification ----
+  let checksGreen = true;
+  const treeChecksSha = tree.get(rel(P.checks));
+  const checksBytes = readFileSync(P.checks);
+  const suffix = Buffer.from(`${EXPECTED_CHECKS_APPEND.join("\n")}\n`, "utf8");
+  if (!checksBytes.subarray(checksBytes.length - suffix.length).equals(suffix)) {
+    checksGreen = false;
+  }
+  const prefix = checksBytes.subarray(0, checksBytes.length - suffix.length);
+  if (checksGreen && prefix.length > 0 && prefix[prefix.length - 1] !== 0x0a) checksGreen = false;
+  if (checksGreen && sha256Bytes(prefix) !== treeChecksSha) checksGreen = false;
+  for (const p of modifiedTracked) {
+    if (p === rel(P.budget)) {
+      if (!budgetGreen) bad(`${p}: differs from treestart but budget rule is red`);
+      else note(`${p}: differs only by the ship-surface rule`);
+    } else if (p === rel(P.checks)) {
+      if (!checksGreen) {
+        bad(`${p}: differs from treestart but is NOT exactly the 4 Scope-pinned appended lines`);
+      } else note(`${p}: differs only by the 4 Scope-pinned appended lines`);
+    } else if (convertSet.includes(p)) {
+      try {
+        execFileSync(process.execPath, [join(root, "scripts/t8a-pointer-diff-check")], { stdio: "pipe" });
+        note(`${p}: CONVERT file with diff-check green`);
+      } catch {
+        bad(`${p}: CONVERT file but t8a-pointer-diff-check is red`);
+      }
+    } else {
+      bad(`${p}: tracked file differs from treestart, outside the TREE RULE allowlist`);
+    }
+  }
+
+  return report(frozenOk, budgetRowsOk);
+}
+
+function report(frozenOk = 0, budgetRowsOk = 0) {
+  for (const n of notes) console.log(`t8a-behavior-gate: ${n}`);
+  if (failures.length > 0) {
+    for (const f of failures) console.error(`t8a-behavior-gate FAIL: ${f}`);
+    console.error(`t8a-behavior-gate: ${failures.length} failure(s)`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`t8a-behavior-gate: 0 frozen bytes changed — ${frozenOk} files + ${budgetRowsOk} budget rows`);
+}
+
+// ---------------- self-test (git sandboxes in $TMPDIR only) ----------------
+function runSelf(args, expect, label) {
+  let code = 0;
+  let out = "";
+  try {
+    out = execFileSync(process.execPath, [SELF, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (err) {
+    code = err.status ?? 1;
+    out = (err.stdout ?? "") + (err.stderr ?? "");
+  }
+  if ((expect === 0) !== (code === 0)) {
+    console.error(`self-test FAIL: ${label} exit=${code}, expected ${expect}\n${out}`);
+    process.exitCode = 1;
+    return null;
+  }
+  console.log(`self-test ok: ${label} exit=${code}`);
+  return out;
+}
+
+function writeFile(path, content) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, content);
+}
+
+// Build a green sandbox: step-1 sets + worktree state that must pass.
+function makeSandbox() {
+  const sb = mkdtempSync(join(tmpdir(), "t8a-gate-"));
+  const fix = join(sb, "tests/fixtures/token-protocol");
+  const conv = join(fix, "convert-start");
+  mkdirSync(conv, { recursive: true });
+  mkdirSync(join(sb, ".workflow/token-protocol"), { recursive: true });
+  mkdirSync(join(sb, "docs/plan"), { recursive: true });
+
+  writeFileSync(join(sb, ".gitignore"), ".workflow/\n");
+  // 14 pinned behavior paths (tiny contents, all tracked).
+  for (const p of PINNED_PATHS) {
+    writeFile(join(sb, p), `frozen:${p}\n`);
+  }
+  writeFile(join(sb, "docs/plan/20260925-t8a-selftest.md"), "# selftest archive\n");
+  writeFileSync(join(sb, "u.txt"), "pre-existing untracked\n");
+
+  // Budget: treestart pins the no-ship bytes; worktree adds ship.
+  const surfaces7 = {};
+  for (const s of FROZEN_BUDGET_KEYS.slice(1)) surfaces7[s] = { files: [`f-${s}.md`] };
+  writeFileSync(join(fix, "budget.json"), JSON.stringify({ version: 1, surfaces: surfaces7 }));
+  const budgetStartSha = sha256File(join(fix, "budget.json"));
+  const surfaces8 = { ...surfaces7, ship: { files: ["s.md"], conditional: [], ceiling_chars: 1 } };
+  writeFileSync(join(fix, "budget.json"), JSON.stringify({ version: 1, surfaces: surfaces8 }));
+
+  // Checks: treestart pins the prefix; worktree appends the 4 pinned lines.
+  writeFileSync(join(fix, "checks.tsv"), "profile\tgroup\tlabel\ttarget\n");
+  const checksStartSha = sha256File(join(fix, "checks.tsv"));
+  writeFileSync(
+    join(fix, "checks.tsv"),
+    `profile\tgroup\tlabel\ttarget\n${EXPECTED_CHECKS_APPEND.join("\n")}\n`,
+  );
+
+  writeFileSync(join(fix, "corpus.json"), '{"schema_version":1}\n');
+  writeFileSync(join(fix, "corpus-manifest.json"), JSON.stringify({
+    schema_version: 1,
+    files: [
+      { file: "corpus.json", sha256: sha256File(join(fix, "corpus.json")), role: "derived" },
+      { file: "budget.json", sha256: sha256File(join(fix, "budget.json")), role: "fixture" },
+      { file: "checks.tsv", sha256: sha256File(join(fix, "checks.tsv")), role: "fixture" },
+    ],
+  }));
+  writeFileSync(join(fix, "ac2-inventory.json"), JSON.stringify({
+    inventory_version: 1, canons: {}, convert_set: [], occurrences: [],
+  }));
+  writeFileSync(join(fix, "trial-selftest.json"), '{"status":"ok"}\n');
+
+  const treeRows = [
+    [".gitignore", sha256File(join(sb, ".gitignore"))],
+    ...PINNED_PATHS.map((p) => [p, sha256File(join(sb, p))]),
+    ["never.txt", "MISSING"],
+    ["tests/fixtures/token-protocol/corpus.json", sha256File(join(fix, "corpus.json"))],
+    ["tests/fixtures/token-protocol/budget.json", budgetStartSha],
+    ["tests/fixtures/token-protocol/checks.tsv", checksStartSha],
+    ["tests/fixtures/token-protocol/corpus-manifest.json", sha256File(join(fix, "corpus-manifest.json"))],
+    ["tests/fixtures/token-protocol/ac2-inventory.json", sha256File(join(fix, "ac2-inventory.json"))],
+    ["tests/fixtures/token-protocol/trial-selftest.json", sha256File(join(fix, "trial-selftest.json"))],
+  ];
+  writeFileSync(join(fix, "t8a-treestart.tsv"), `${treeRows.map(([k, v]) => `${k}\t${v}`).join("\n")}\n`);
+  writeFileSync(join(fix, "t8a-untracked-start.tsv"), `u.txt\t${sha256File(join(sb, "u.txt"))}\n`);
+
+  const snapRows = [
+    ...PINNED_PATHS.map((p) => `${p}\t${sha256File(join(sb, p))}`),
+    `budget:version\t${canonicalRowHash(join(fix, "budget.json"), ".version")}`,
+    ...FROZEN_BUDGET_KEYS.slice(1).map(
+      (k) => `budget:${k}\t${canonicalRowHash(join(fix, "budget.json"), `.surfaces[${JSON.stringify(k)}]`)}`,
+    ),
+    `convert-start-dir\t${dirSha(conv)}`,
+    `treestart\t${sha256File(join(fix, "t8a-treestart.tsv"))}`,
+    `untracked-start\t${sha256File(join(fix, "t8a-untracked-start.tsv"))}`,
+    `ac2-inventory\t${sha256File(join(fix, "ac2-inventory.json"))}`,
+  ];
+  writeFileSync(join(fix, "t8a-behavior-snapshot.tsv"), `${snapRows.join("\n")}\n`);
+  writeFileSync(join(sb, ".workflow/token-protocol/events.jsonl"), `${JSON.stringify({
+    schema_version: 2, event: "file_changed", run: "self-test",
+    detail: { path: "snap", change: "t8a-step1-snapshot", snapshot_sha: sha256File(join(fix, "t8a-behavior-snapshot.tsv")) },
+  })}\n`);
+
+  execFileSync("git", ["-C", sb, "init", "-q"], { stdio: "pipe" });
+  execFileSync("git", ["-C", sb, "add", ".gitignore", ...PINNED_PATHS], { stdio: "pipe" });
+
+  const args = () => [
+    "--root", sb,
+    "--snapshot", join(fix, "t8a-behavior-snapshot.tsv"),
+    "--treestart", join(fix, "t8a-treestart.tsv"),
+    "--untracked-start", join(fix, "t8a-untracked-start.tsv"),
+    "--budget", join(fix, "budget.json"),
+    "--ledger", join(sb, ".workflow/token-protocol/events.jsonl"),
+    "--manifest", join(fix, "corpus-manifest.json"),
+    "--inventory", join(fix, "ac2-inventory.json"),
+    "--convert-start", conv,
+    "--checks", join(fix, "checks.tsv"),
+    "--fixdir", fix,
+  ];
+  return { sb, fix, args };
+}
+
+function selfTest() {
+  const cases = [
+    ["positive green", 0, () => {}],
+    ["modified budget row", 1, ({ fix }) => {
+      const b = JSON.parse(readFileSync(join(fix, "budget.json"), "utf8"));
+      b.surfaces.review.files.push("evil.md");
+      writeFileSync(join(fix, "budget.json"), JSON.stringify(b));
+    }],
+    ["extra surface", 1, ({ fix }) => {
+      const b = JSON.parse(readFileSync(join(fix, "budget.json"), "utf8"));
+      b.surfaces.ninth = { files: [] };
+      writeFileSync(join(fix, "budget.json"), JSON.stringify(b));
+    }],
+    ["missing ship surface", 1, ({ fix }) => {
+      const b = JSON.parse(readFileSync(join(fix, "budget.json"), "utf8"));
+      delete b.surfaces.ship;
+      writeFileSync(join(fix, "budget.json"), JSON.stringify(b));
+    }],
+    ["extra top-level key", 1, ({ fix }) => {
+      const b = JSON.parse(readFileSync(join(fix, "budget.json"), "utf8"));
+      b.extra = 1;
+      writeFileSync(join(fix, "budget.json"), JSON.stringify(b));
+    }],
+    ["modified snapshot", 1, ({ fix }) => {
+      const p = join(fix, "t8a-behavior-snapshot.tsv");
+      writeFileSync(p, `${readFileSync(p, "utf8")}# tamper\n`);
+    }],
+    ["ledger sha mismatch", 1, ({ sb }) => {
+      const p = join(sb, ".workflow/token-protocol/events.jsonl");
+      writeFileSync(p, readFileSync(p, "utf8").replace(/(snapshot_sha":")[0-9a-f]/, "$1X"));
+    }],
+    ["ready-gate created", 1, ({ sb }) => {
+      writeFile(join(sb, READY_GATE), "fork\n");
+    }],
+    ["out-of-allowlist tracked modification", 1, ({ sb }) => {
+      const p = join(sb, "workflow/events.md");
+      writeFileSync(p, `${readFileSync(p, "utf8")}tampered\n`);
+    }],
+    ["foreign file inside token-protocol", 1, ({ fix }) => {
+      writeFileSync(join(fix, "evil.txt"), "foreign\n");
+    }],
+    ["unlisted new file outside", 1, ({ sb }) => {
+      writeFile(join(sb, "scripts/evil.sh"), "evil\n");
+    }],
+    ["deleted tracked file", 1, ({ sb }) => {
+      rmSync(join(sb, "workflow/events.md"));
+    }],
+    ["checks 5th line", 1, ({ fix }) => {
+      const p = join(fix, "checks.tsv");
+      writeFileSync(p, `${readFileSync(p, "utf8")}core\tshell-docs\tfifth\ttests/fifth.sh\n`);
+    }],
+    ["checks target-swap", 1, ({ fix }) => {
+      const p = join(fix, "checks.tsv");
+      writeFileSync(p, readFileSync(p, "utf8").replace(
+        "tests/pointer-follow-smoke.sh", "tests/swapped.sh",
+      ));
+    }],
+    ["checks prefix edit", 1, ({ fix }) => {
+      const p = join(fix, "checks.tsv");
+      writeFileSync(p, readFileSync(p, "utf8").replace("profile\tgroup", "PROFILE\tgroup"));
+    }],
+    ["dirtied pre-existing untracked", 1, ({ sb }) => {
+      writeFileSync(join(sb, "u.txt"), "dirtied\n");
+    }],
+    ["deleted pre-existing untracked", 1, ({ sb }) => {
+      rmSync(join(sb, "u.txt"));
+    }],
+    ["second trial", 1, ({ fix }) => {
+      writeFileSync(join(fix, "trial-second.json"), "{}\n");
+    }],
+    ["zero trials", 1, ({ fix }) => {
+      rmSync(join(fix, "trial-selftest.json"));
+    }],
+    ["convert-start stray (CONVERT empty)", 1, ({ fix }) => {
+      writeFileSync(join(fix, "convert-start/stray.md"), "stray\n");
+    }],
+    ["second archive", 1, ({ sb }) => {
+      writeFileSync(join(sb, "docs/plan/20260925-second.md"), "# second\n");
+    }],
+    ["zero archives", 1, ({ sb }) => {
+      rmSync(join(sb, "docs/plan/20260925-t8a-selftest.md"));
+    }],
+    ["MISSING now a regular file", 1, ({ sb }) => {
+      writeFileSync(join(sb, "never.txt"), "reappeared\n");
+    }],
+    ["treestart bytes tampered", 1, ({ fix }) => {
+      const p = join(fix, "t8a-treestart.tsv");
+      writeFileSync(p, `${readFileSync(p, "utf8")}x\ty\n`);
+    }],
+    ["manifest leaf deleted", 1, ({ fix }) => {
+      rmSync(join(fix, "corpus.json"));
+    }],
+  ];
+  for (const [label, expect, mutate] of cases) {
+    const ctx = makeSandbox();
+    mutate(ctx);
+    const out = runSelf(ctx.args(), expect, label);
+    if (label === "positive green" && out !== null) {
+      const want = "t8a-behavior-gate: 0 frozen bytes changed — 14 files + 8 budget rows";
+      if (!out.includes(want)) {
+        console.error(`self-test FAIL: positive green lacks success line:\n${out}`);
+        process.exitCode = 1;
+      }
+    }
+    try {
+      rmSync(ctx.sb, { recursive: true, force: true });
+    } catch { /* best effort */ }
+  }
+  // Real-repo main mode is exercised by the implementer run, not here:
+  // the archive must exist before it can go green.
+}
+
+const opts = parseArgs(process.argv.slice(2));
+const ROOT = resolve(opts.root ?? DEFAULT_ROOT);
+if (opts.selfTest) selfTest();
+else main(opts, ROOT);

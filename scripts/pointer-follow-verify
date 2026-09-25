@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+// scripts/pointer-follow-verify — T8a AC3(d) pointer_follow validator
+// (T8-full v25 AC3 oracle, transcribed literally).
+//
+// Input: a self-contained trace JSON:
+//   { schema_version: 1, run_id,
+//     trace: [ { tool_call_id, run_id, tool, args, ok,
+//                returned_bytes?, payload? } ],
+//     ledger_event: { run_id, type: "pointer_follow",
+//                     detail: { path, sha256, tool_call_id } } }
+// The producing call carries the path in args.path (or args[]); the emission
+// call has tool "emit-pointer-follow" with the emitted payload; the verdict
+// call has tool "verdict".
+//
+// STRONG predicate (all must hold, else exit 1):
+//   1. detail.tool_call_id designates EXACTLY ONE producing call in the
+//      trace: same run, ok, path in its args.
+//   2. The producing call sits BEFORE the emission call.
+//   3. detail.sha256 == sha256 of the bytes THAT call returned
+//      (not of any live file).
+//   4. The emission payload == the ledger event (same run, same detail).
+//   5. The emission sits BEFORE the verdict call.
+//
+// Usage: scripts/pointer-follow-verify --trace <file>
+// Exit 0 prints STRONG; any violation exits 1 with the reason.
+
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+function fail(msg) {
+  console.error(`pointer-follow-verify: ${msg}`);
+  process.exit(1);
+}
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b || a === null || b === null) return false;
+  if (typeof a !== "object") return false;
+  const ka = Object.keys(a).sort();
+  const kb = Object.keys(b).sort();
+  if (ka.length !== kb.length || ka.some((k, i) => k !== kb[i])) return false;
+  return ka.every((k) => deepEqual(a[k], b[k]));
+}
+
+function pathInArgs(args, path) {
+  if (!args || typeof args !== "object") return false;
+  if (Array.isArray(args)) return args.includes(path);
+  return args.path === path;
+}
+
+function main(argv) {
+  let tracePath = null;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--trace") tracePath = argv[++i] ?? null;
+  }
+  if (!tracePath) fail("usage: pointer-follow-verify --trace <file>");
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(resolve(tracePath), "utf8"));
+  } catch (err) {
+    fail(`cannot read trace: ${err.message}`);
+  }
+  if (doc.schema_version !== 1) fail("schema_version want 1");
+  if (!Array.isArray(doc.trace) || doc.trace.length === 0) fail("trace must be a non-empty array");
+  const ev = doc.ledger_event;
+  if (!ev || ev.type !== "pointer_follow") fail("ledger_event must be a pointer_follow event");
+  const detail = ev.detail ?? {};
+  if (typeof detail.path !== "string" || typeof detail.sha256 !== "string"
+      || typeof detail.tool_call_id !== "string") {
+    fail("ledger detail must carry string path + sha256 + tool_call_id");
+  }
+  if (ev.run_id !== doc.run_id) fail("ledger event run differs from trace run");
+
+  // (1) the producing call: exactly one, same run, ok, path in args.
+  const producers = doc.trace.filter((c) => c.tool_call_id === detail.tool_call_id
+    && c.run_id === doc.run_id && c.ok === true && pathInArgs(c.args, detail.path));
+  if (producers.length === 0) {
+    const anyId = doc.trace.some((c) => c.tool_call_id === detail.tool_call_id);
+    fail(anyId
+      ? `tool_call_id ${detail.tool_call_id} designates no successful same-run call with path in args`
+      : `unknown tool_call_id ${detail.tool_call_id}`);
+  }
+  if (producers.length > 1) fail(`tool_call_id ${detail.tool_call_id} is ambiguous (${producers.length} calls)`);
+  const producer = producers[0];
+  const producerIdx = doc.trace.indexOf(producer);
+
+  // Emission call: emit-pointer-follow in the same run.
+  const emissions = doc.trace.filter((c) => c.tool === "emit-pointer-follow" && c.run_id === doc.run_id);
+  if (emissions.length === 0) fail("no emit-pointer-follow call in the trace");
+  const emission = emissions.find((c) => deepEqual(c.payload, detail)) ?? emissions[0];
+  const emissionIdx = doc.trace.indexOf(emission);
+
+  // (2) order: producing call before emission.
+  if (!(producerIdx < emissionIdx)) fail("read after emission: producing call is not before the emission");
+
+  // (3) returned-bytes sha.
+  if (typeof producer.returned_bytes !== "string") fail("producing call carries no returned_bytes (absent sha)");
+  const actual = createHash("sha256").update(producer.returned_bytes, "utf8").digest("hex");
+  if (actual !== detail.sha256) fail(`wrong sha: ledger ${detail.sha256} != returned bytes ${actual}`);
+
+  // (4) emission payload == ledger event.
+  if (emission.run_id !== ev.run_id || !deepEqual(emission.payload, detail)) {
+    fail("emission payload != ledger event");
+  }
+
+  // (5) emission before verdict.
+  const verdictIdx = doc.trace.findIndex((c) => c.tool === "verdict" && c.run_id === doc.run_id);
+  if (verdictIdx < 0) fail("no verdict call in the trace");
+  if (!(emissionIdx < verdictIdx)) fail("emission-after-verdict: emission is not before the verdict");
+
+  console.log(`STRONG: ${detail.path} followed via ${detail.tool_call_id} before the verdict`);
+}
+
+main(process.argv.slice(2));

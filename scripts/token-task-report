@@ -1,0 +1,281 @@
+#!/usr/bin/env node
+// scripts/token-task-report — T8a AC3(a,c) telemetry report (PLAN.md v18).
+//
+// Reads run artifacts (flow.json + runs.json [{task_id, variant, run,
+// verdict, usage {in,out,cr,cc}, output?}] + freeze.json
+// {freeze_tuple, resources}) and prints per-variant telemetry per the v25
+// AC6(a) query, incorporated BY NORMATIVE REFERENCE: join key
+// (task_id, variant, run); success = grader pass; OPERATIONAL cost = spend
+// of ALL attributed runs incl. failures / successful tasks; 100% attributed
+// usage required else INCONCLUSIVE (exit 2); tokens = in+out+cr+cc;
+// share = cr/tokens; $ = Σ(tokens×price)/1e6/successes.
+//
+// Output (one line per variant, sorted):
+//   <variant>: <tokens> tokens/task, $<cost>/task, <share>
+//
+// Flags:
+//   --artifacts <dir>   (required)
+//   --expect-flow <f>   refuse unless flow.json carries flow <f>
+//   --check-ceiling     refuse unless artifacts freeze_tuple == reference
+//   --check-resources   refuse unless artifacts resources == reference
+//   --check-parity --manifest <parity-manifest>
+//       economic parity: EVERY run output through the REAL finding parser;
+//       defective patches need >=1 finding with EVERY finding localizing
+//       (file + valid line) and matching the keyword regex; clean patches
+//       need zero findings; both variants must agree per patch.
+//   --reference <path>  alternate reference.json (default: the committed
+//       tests/fixtures/token-protocol/report/reference.json)
+//   --corpus-manifest <path> (default: the committed corpus-manifest.json)
+// The report asserts sha256(reference) == the manifest-pinned value and
+// REFUSES otherwise (tampered reference => nonzero).
+//
+// Exit codes: 0 ok | 1 refusal/error/mismatch/parity-fail | 2 INCONCLUSIVE
+// (any run without usage, or a variant with zero successes).
+
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseFindings } from "./lib/token-finding-parser.mjs";
+
+const SELF_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_MANIFEST = resolve(SELF_DIR, "../tests/fixtures/token-protocol/corpus-manifest.json");
+const DEFAULT_REFERENCE = resolve(SELF_DIR, "../tests/fixtures/token-protocol/report/reference.json");
+
+function fail(msg) {
+  console.error(`token-task-report: REFUSED — ${msg}`);
+  process.exit(1);
+}
+
+function inconclusive(msg) {
+  console.log(`INCONCLUSIVE: ${msg}`);
+  process.exit(2);
+}
+
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function loadJson(path, what) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    fail(`cannot read ${what} ${path}: ${err.message}`);
+  }
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--check-ceiling") out.checkCeiling = true;
+    else if (a === "--check-resources") out.checkResources = true;
+    else if (a === "--check-parity") out.checkParity = true;
+    else if (a.startsWith("--")) {
+      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      out[key] = argv[++i] ?? "";
+    }
+  }
+  return out;
+}
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b || a === null || b === null) return false;
+  if (typeof a !== "object") return false;
+  const ka = Object.keys(a).sort();
+  const kb = Object.keys(b).sort();
+  if (ka.length !== kb.length || ka.some((k, i) => k !== kb[i])) return false;
+  return ka.every((k) => deepEqual(a[k], b[k]));
+}
+
+function fmtMoney(v) {
+  return String(Math.round(v * 1e9) / 1e9);
+}
+
+function fmtShare(v) {
+  const r = Math.round(v * 1e9) / 1e9;
+  return Number.isInteger(r) ? r.toFixed(1) : String(r);
+}
+
+function checkReference(opts) {
+  const refPath = resolve(opts.reference ?? DEFAULT_REFERENCE);
+  const manPath = resolve(opts.corpusManifest ?? DEFAULT_MANIFEST);
+  if (!existsSync(refPath)) fail(`missing reference.json at ${refPath}`);
+  if (!existsSync(manPath)) fail(`missing corpus-manifest.json at ${manPath}`);
+  const manifest = loadJson(manPath, "corpus manifest");
+  const entry = (manifest.files ?? []).find((f) => f.file === "report/reference.json");
+  if (!entry) fail("corpus manifest pins no report/reference.json entry");
+  const actual = sha256File(refPath);
+  if (actual !== entry.sha256) {
+    fail(`reference sha mismatch: manifest pins ${entry.sha256}, ${refPath} hashes ${actual}`);
+  }
+  const ref = loadJson(refPath, "reference");
+  if (!ref.unit_prices || !ref.freeze_tuple || !ref.resources) {
+    fail("reference.json must carry unit_prices + freeze_tuple + resources");
+  }
+  return ref;
+}
+
+function loadRuns(artifacts) {
+  const abs = resolve(artifacts);
+  if (!existsSync(abs) || !statSync(abs).isDirectory()) fail(`artifacts dir ${artifacts} missing`);
+  const runsPath = resolve(abs, "runs.json");
+  if (!existsSync(runsPath)) fail(`artifacts dir ${artifacts} has no runs.json`);
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(runsPath, "utf8"));
+  } catch (err) {
+    fail(`malformed runs.json: ${err.message}`);
+  }
+  const rows = Array.isArray(doc) ? doc : doc.runs;
+  if (!Array.isArray(rows) || rows.length === 0) fail("malformed runs.json: want a non-empty runs array");
+  const seen = new Set();
+  for (const r of rows) {
+    if (!r || typeof r.task_id !== "string" || typeof r.variant !== "string" || !Number.isInteger(r.run)) {
+      fail("malformed run row: need task_id + variant + integer run");
+    }
+    if (typeof r.verdict !== "string") fail(`malformed run row ${r.task_id}/${r.variant}/${r.run}: need verdict`);
+    const key = `${r.task_id}\0${r.variant}\0${r.run}`;
+    if (seen.has(key)) fail(`malformed runs.json: duplicate join key (${r.task_id}, ${r.variant}, ${r.run})`);
+    seen.add(key);
+    if (r.usage !== undefined) {
+      const u = r.usage;
+      for (const k of ["in", "out", "cr", "cc"]) {
+        if (!Number.isInteger(u?.[k]) || u[k] < 0) fail(`malformed usage on ${r.task_id}/${r.variant}/${r.run}: want integer {in,out,cr,cc}`);
+      }
+    }
+  }
+  return { abs, rows };
+}
+
+function checkFlow(abs, expectFlow) {
+  const flowPath = resolve(abs, "flow.json");
+  if (!existsSync(flowPath)) fail(`--expect-flow ${expectFlow}: artifacts carry no flow.json`);
+  const flow = loadJson(flowPath, "flow.json");
+  if (flow.flow !== expectFlow) {
+    fail(`flow mismatch: artifacts are '${flow.flow}', expected '${expectFlow}' (cross-flow feed refused)`);
+  }
+}
+
+function checkCeilingResources(abs, ref, opts) {
+  if (!opts.checkCeiling && !opts.checkResources) return;
+  const freezePath = resolve(abs, "freeze.json");
+  if (!existsSync(freezePath)) fail("artifacts carry no freeze.json for --check-ceiling/--check-resources");
+  const freeze = loadJson(freezePath, "freeze.json");
+  if (opts.checkCeiling && !deepEqual(freeze.freeze_tuple, ref.freeze_tuple)) {
+    fail(`ceiling mismatch: artifacts ${JSON.stringify(freeze.freeze_tuple)} != reference ${JSON.stringify(ref.freeze_tuple)}`);
+  }
+  if (opts.checkResources && !deepEqual(freeze.resources, ref.resources)) {
+    fail(`resources mismatch: artifacts ${JSON.stringify(freeze.resources)} != reference ${JSON.stringify(ref.resources)}`);
+  }
+}
+
+function summarize(rows, prices) {
+  const byVariant = new Map();
+  for (const r of rows) {
+    if (!byVariant.has(r.variant)) byVariant.set(r.variant, []);
+    byVariant.get(r.variant).push(r);
+  }
+  const lines = [];
+  for (const variant of [...byVariant.keys()].sort()) {
+    const arm = byVariant.get(variant);
+    for (const r of arm) {
+      if (r.usage === undefined) {
+        inconclusive(`run without usage: ${r.task_id}/${r.variant}/${r.run} (missing rows are never zero-filled)`);
+      }
+    }
+    const successes = arm.filter((r) => r.verdict === "pass").length;
+    if (successes === 0) inconclusive(`variant ${variant} has zero successful tasks`);
+    let tokens = 0;
+    let cacheRead = 0;
+    let scaled = 0; // Σ tokens × (price × 2), exact integer math
+    for (const r of arm) {
+      const u = r.usage;
+      tokens += u.in + u.out + u.cr + u.cc;
+      cacheRead += u.cr;
+      scaled += u.in * prices.in * 2 + u.out * prices.out * 2 + u.cr * prices.cr * 2 + u.cc * prices.cc * 2;
+    }
+    const perTask = tokens / successes;
+    const dollars = scaled / 2 / 1e6 / successes;
+    lines.push(`${variant}: ${perTask} tokens/task, $${fmtMoney(dollars)}/task, ${fmtShare(cacheRead / tokens)}`);
+  }
+  return lines;
+}
+
+function parseSlashRegex(src, patchId) {
+  const m = /^\/(.*)\/([a-z]*)$/.exec(src);
+  if (!m) fail(`patch ${patchId}: regex ${JSON.stringify(src)} is not /pattern/flags form`);
+  try {
+    return new RegExp(m[1], m[2]);
+  } catch (err) {
+    fail(`patch ${patchId}: uncompilable regex: ${err.message}`);
+  }
+}
+
+function checkParity(rows, manifestPath) {
+  const manifest = loadJson(resolve(manifestPath), "parity manifest");
+  const patches = new Map((manifest.patches ?? []).map((p) => [p.id, p]));
+  if (patches.size === 0) fail("parity manifest holds no patches");
+  const verdicts = new Map(); // patch id -> Map(variant -> bool)
+  for (const r of rows) {
+    const patch = patches.get(r.task_id);
+    if (!patch) fail(`parity: run attributed to unknown patch '${r.task_id}'`);
+    if (typeof r.output !== "string") fail(`parity: run ${r.task_id}/${r.variant}/${r.run} carries no output`);
+    const parsed = parseFindings(r.output);
+    if (!parsed.ok) fail(`parity: run ${r.task_id}/${r.variant}/${r.run} output unparseable: ${parsed.error}`);
+    let pass;
+    if (patch.expect === "zero") {
+      if (parsed.findings.length > 0) {
+        fail(`parity: clean patch ${patch.id} yielded ${parsed.findings.length} finding(s) (${r.variant} run ${r.run})`);
+      }
+      pass = true;
+    } else {
+      if (parsed.findings.length === 0) {
+        fail(`parity: defective patch ${patch.id} yielded zero findings (${r.variant} run ${r.run})`);
+      }
+      const re = parseSlashRegex(patch.regex, patch.id);
+      for (const f of parsed.findings) {
+        if (f.file !== patch.file) {
+          fail(`parity: patch ${patch.id} finding names wrong file '${f.file}' (${r.variant} run ${r.run})`);
+        }
+        if (!patch.valid_lines.includes(f.line)) {
+          fail(`parity: patch ${patch.id} finding on line ${f.line}, valid {${patch.valid_lines.join(",")}} (${r.variant} run ${r.run})`);
+        }
+        const text = `${f.issue} ${f.impact} ${f.review_comment} ${f.suggested_fix}`;
+        if (!re.test(text)) {
+          fail(`parity: patch ${patch.id} finding matches no keyword regex (${r.variant} run ${r.run})`);
+        }
+      }
+      pass = true;
+    }
+    if (!verdicts.has(patch.id)) verdicts.set(patch.id, new Map());
+    const prev = verdicts.get(patch.id).get(r.variant);
+    if (prev === false) pass = false;
+    verdicts.get(patch.id).set(r.variant, prev === undefined ? pass : (prev && pass));
+  }
+  for (const [id, arms] of verdicts) {
+    const vals = [...arms.values()];
+    if (vals.some((v) => v !== vals[0])) {
+      fail(`parity: variant disagreement on patch ${id}`);
+    }
+    if (!vals[0]) fail(`parity: patch ${id} fails its predicate`);
+  }
+  console.log(`parity: ${verdicts.size}/${patches.size} patches pass, variants agree`);
+}
+
+function main(argv) {
+  const opts = parseArgs(argv);
+  if (!opts.artifacts) fail("usage: token-task-report --artifacts <dir> [--expect-flow F] [--check-ceiling] [--check-resources] [--check-parity --manifest M] [--reference R]");
+  const ref = checkReference(opts);
+  const { abs, rows } = loadRuns(opts.artifacts);
+  if (opts.expectFlow) checkFlow(abs, opts.expectFlow);
+  checkCeilingResources(abs, ref, opts);
+  if (opts.checkParity) {
+    if (!opts.manifest) fail("--check-parity requires --manifest <parity-manifest>");
+    checkParity(rows, opts.manifest);
+  }
+  for (const line of summarize(rows, ref.unit_prices)) console.log(line);
+}
+
+main(process.argv.slice(2));

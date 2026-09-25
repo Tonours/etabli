@@ -1,0 +1,78 @@
+{
+  "_source": {
+    "draft_sha": "ea6197703dbded479e28967ad8613ad072f4c4558c679865abac42ef49d0a181",
+    "line_range": "38-114",
+    "section": "Parity Corpus"
+  },
+  "grader_rule": "NO imposed finding format: the grader PARSES the real hunter output (file: + line: fields per finding block; `No findings.` = zero findings). A defective patch passes iff it yields >=1 Logic finding AND EVERY finding (a) LOCALIZES to the patched file AND to a TOUCHED LINE (location path == patch path exactly AND location line in the patch's pinned valid_lines) AND (b) matches its keyword regex (several findings on the same planted defect pass). Clean patches: zero findings. Same predicate identically to both variants and all runs (unanimous, not majority); both variants agree per patch. Negative fixtures: wrong-file finding naming the right file FAILS; right-file finding outside the valid-lines range FAILS.",
+  "patches": [
+    {
+      "axis": "Logic",
+      "diff": "--- a/users.js\n+++ b/users.js\n@@ -1,4 +1,3 @@\n function displayName(id) {\n-  const user = getUser(id);\n-  return user == null ? \"anon\" : user.name;\n+  return getUser(id).name;\n }\n",
+      "expect": "at_least_one",
+      "file": "users.js",
+      "id": "pp-null-deref",
+      "precondition": "`getUser` returns `User | null` (documented nullable); the caller contract requires a null check.",
+      "regex": "/(null|undefined|guard|deref)/i",
+      "valid_lines": [
+        3
+      ]
+    },
+    {
+      "axis": "Logic",
+      "diff": "--- a/list.js\n+++ b/list.js\n@@ -1,3 +1,3 @@\n function last(items) {\n-  return items[items.length - 1];\n+  return items[items.length];\n }\n",
+      "expect": "at_least_one",
+      "file": "list.js",
+      "id": "pp-off-by-one",
+      "precondition": "none needed — `items[items.length]` is unambiguously out of bounds in JS.",
+      "regex": "/(off-by-one|length - 1|out of bounds|undefined index)/i",
+      "valid_lines": [
+        2
+      ]
+    },
+    {
+      "axis": "Logic",
+      "diff": "--- a/loader.js\n+++ b/loader.js\n@@ -1,3 +1,7 @@\n async function loadConfig(path) {\n-  return await readFile(path);\n+  try {\n+    return await readFile(path);\n+  } catch {\n+    return null;\n+  }\n }\n",
+      "expect": "at_least_one",
+      "file": "loader.js",
+      "id": "pp-swallowed-error",
+      "precondition": "the module contract is \"throw on missing file\" (callers rely on try/catch upstream); returning null breaks it.",
+      "regex": "/(swallow|empty catch|silent|null on error)/i",
+      "valid_lines": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "diff": "--- a/math.js\n+++ b/math.js\n@@ -0,0 +1,3 @@\n+export function add(a, b) {\n+  return a + b;\n+}\n",
+      "expect": "zero",
+      "file": "math.js",
+      "id": "pp-clean-1",
+      "precondition": null,
+      "regex": null,
+      "valid_lines": []
+    },
+    {
+      "diff": "--- a/users.js\n+++ b/users.js\n@@ -1,4 +1,4 @@\n function displayName(id) {\n-  const user = getUser(id);\n-  return user == null ? \"anon\" : user.name;\n+  const user = getUser(id);\n+  return user?.name ?? \"anon\";\n }\n",
+      "expect": "zero",
+      "file": "users.js",
+      "id": "pp-clean-2",
+      "precondition": null,
+      "regex": null,
+      "valid_lines": []
+    },
+    {
+      "diff": "--- a/list.js\n+++ b/list.js\n@@ -1,3 +1,4 @@\n function last(items) {\n+  if (items.length === 0) return undefined;\n   return items[items.length - 1];\n }\n",
+      "expect": "zero",
+      "file": "list.js",
+      "id": "pp-clean-3",
+      "precondition": null,
+      "regex": null,
+      "valid_lines": []
+    }
+  ],
+  "schema_version": 1
+}
