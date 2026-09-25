@@ -1,8 +1,8 @@
 import { currentEvaluatorFixtureBytes, currentPopulationFixtureBytes } from "./helpers/jev-efficiency-fixture.mjs";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { baselineChildEnvironment, buildLiveDryRunPlan, compareCampaignDocuments, decideCampaign, executeLiveBaseline, rankOfflineHypotheses, snapshotRuntimeArtifact, validatePrivatePopulation } from "../scripts/lib/jev-efficiency-campaign.mjs";
@@ -313,11 +313,28 @@ test("live baseline child environment strips Jev credentials", () => {
 test("authorized live baseline orchestration writes 21 normalized simulated cells without calling a provider", () => {
 	const manifestBytes = currentEvaluatorFixtureBytes();
 	const populationBytes = currentPopulationFixtureBytes(manifestBytes);
-	const artifact = resolve(`.workflow/jev-autonomous-efficiency/private/simulated-artifact-${process.pid}-${Date.now()}`);
-	const output = resolve(`.workflow/jev-autonomous-efficiency/private/simulated-live-${process.pid}-${Date.now()}`);
+	const historicalRoot = realpathSync(mkdtempSync(join(tmpdir(), "etabli-jev-historical-")));
+	const historicalManifest = JSON.parse(manifestBytes);
+	for (const path of historicalManifest.runtime_artifact.paths) {
+		const source = path === "herdr/skills/herdr" ? resolve("tests/fixtures/jev-efficiency-herdr") : resolve(path);
+		mkdirSync(dirname(join(historicalRoot, path)), { recursive: true });
+		cpSync(source, join(historicalRoot, path), { recursive: true });
+	}
+	for (const path of new Set([historicalManifest.evaluator.path, ...historicalManifest.evaluator.bundle.paths])) {
+		mkdirSync(dirname(join(historicalRoot, path)), { recursive: true });
+		cpSync(resolve(path), join(historicalRoot, path));
+	}
+	for (const task of JSON.parse(populationBytes).tasks) {
+		if (task.source.kind !== "existing_harness_task") continue;
+		mkdirSync(dirname(join(historicalRoot, task.source.path)), { recursive: true });
+		cpSync(resolve(task.source.path), join(historicalRoot, task.source.path), { recursive: true });
+	}
+	mkdirSync(join(historicalRoot, ".workflow/jev-autonomous-efficiency/private"), { recursive: true });
+	const artifact = join(historicalRoot, `.workflow/jev-autonomous-efficiency/private/simulated-artifact-${process.pid}`);
+	const output = join(historicalRoot, `.workflow/jev-autonomous-efficiency/private/simulated-live-${process.pid}`);
 	let calls = 0;
 	try {
-		const snapshot = snapshotRuntimeArtifact({ manifest: JSON.parse(manifestBytes), manifestSha: hashManifestBytes(manifestBytes), candidateEnabled: false, outputPath: artifact });
+		const snapshot = snapshotRuntimeArtifact({ manifest: historicalManifest, manifestSha: hashManifestBytes(manifestBytes), candidateEnabled: false, outputPath: artifact, root: historicalRoot });
 		assert.equal(snapshot.candidate_enabled, false);
 		assert.equal(existsSync(join(artifact, "pi/skills/herdr")), false);
 		assert.equal(existsSync(join(artifact, "herdr/skills/herdr/SKILL.md")), true);
@@ -334,6 +351,7 @@ test("authorized live baseline orchestration writes 21 normalized simulated cell
 			config: { schema_version: 1, arm: "baseline", runner: "pi", provider: "subscription", model: "included-model", effort: "high", repetitions: 3, timeout_seconds: 600, max_cost_usd: 0, billing_mode: "subscription", candidate_enabled: false, retry_policy: "none" },
 			artifactPath: artifact,
 			outputPath: output,
+			root: historicalRoot,
 			env: { ETABLI_JEV_EFFICIENCY_LIVE: "1" },
 			cellExecutor: ({ task }) => {
 				calls += 1;
@@ -380,10 +398,7 @@ test("authorized live baseline orchestration writes 21 normalized simulated cell
 		assert.equal(partial.repetitions[0].tasks[0].traditional_llm.known_usage.total_tokens,100);
 		assert.equal(existsSync(join(output+"-partial","baseline.json")),true);
 	} finally {
-		rmSync(output+"-resume", {recursive:true,force:true});
-		rmSync(output+"-partial", {recursive:true,force:true});
-		rmSync(output, { recursive: true, force: true });
-		rmSync(artifact, { recursive: true, force: true });
+		rmSync(historicalRoot, { recursive: true, force: true });
 	}
 });
 
