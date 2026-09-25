@@ -1057,7 +1057,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 			requiredEvidence: "route, role, stop, checks, risks, facts, assumptions",
 			writeAllowed: true,
 			suggestion:
-				"As-tu pensé à /adversary ? Au READY, une passe cross-modèle (pi -p openai-codex/*) catche les angles morts d'une critique même-famille.",
+				"As-tu pensé à /adversary ? Au READY, une passe cross-modèle (via le pool frontalier, famille ≠ auteur) catche les angles morts d'une critique même-famille.",
 		};
 	}
 
@@ -1071,7 +1071,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 			requiredEvidence: "route, role, stop, checks, risks, facts, assumptions",
 			writeAllowed: true,
 			suggestion:
-				"As-tu pensé à /adversary ? Au READY, une passe cross-modèle (pi -p openai-codex/*) catche les angles morts d'une critique même-famille.",
+				"As-tu pensé à /adversary ? Au READY, une passe cross-modèle (via le pool frontalier, famille ≠ auteur) catche les angles morts d'une critique même-famille.",
 		};
 	}
 
