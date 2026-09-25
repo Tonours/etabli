@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Per-slug ledger census: validate every events.jsonl under a root, verdict
+# OK/QUAR/FAIL + sha256 + byte size. QUAR iff validate fails AND the bytes
+# match the grandfathered inventory (entries + amendments). TSV sorted LC_ALL=C.
+# `diff` compares a live census against a frozen baseline TSV and reports
+# MANQUANT/AJOUTÉ/FLIP/CROISSANCE/REWRITE. Exit nonzero on any FLIP (verdict
+# change), any REWRITE (same verdict, bytes that do not extend the baseline
+# bytes — ledgers are append-only), any current FAIL, any AJOUTÉ QUAR (a
+# grandfathered byte-string reappearing under an unknown slug needs an
+# inventory decision), or any missing baseline slug. CROISSANCE (same OK
+# verdict, new bytes extending the old — active run appending valid events)
+# and new OK slugs are listed, never merged.
+# This is a structural/vocabulary gate: profile compliance is pinned by
+# fixtures in tests/ship-order-smoke.sh, not by the census.
+set -uo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/hash.sh
+. "$ROOT_DIR/scripts/lib/hash.sh"
+EVENT_BIN="$ROOT_DIR/scripts/workflow-event"
+PINS="${CENSUS_PINS_FILE:-$ROOT_DIR/workflow/runtime/ledger-drift-grandfathered.json}"
+
+usage() {
+  printf 'usage: scripts/workflow-ledger-census [--dir <root>] baseline <out.tsv>\n' >&2
+  printf '       scripts/workflow-ledger-census [--dir <root>] diff <baseline.tsv>\n' >&2
+  exit 2
+}
+
+DIR="$ROOT_DIR/.workflow"
+if [ "${1:-}" = "--dir" ]; then
+  DIR="$2"
+  shift 2
+fi
+CMD="${1:-}"
+ARG="${2:-}"
+[ -n "$CMD" ] && [ -n "$ARG" ] || usage
+
+census_to() {
+  local out="$1"
+  : > "$out"
+  for d in "$DIR"/*/; do
+    [ -d "$d" ] || continue
+    local s
+    s="$(basename "$d")"
+    [ -f "$d/events.jsonl" ] || continue
+    local sha size verdict pin
+    sha="$(hash256 "$d/events.jsonl" | cut -d' ' -f1)" || { printf 'census: hash failed for %s\n' "$s" >&2; return 1; }
+    [ -n "$sha" ] || { printf 'census: empty hash for %s\n' "$s" >&2; return 1; }
+    size="$(wc -c < "$d/events.jsonl" | tr -d ' ')" || { printf 'census: size failed for %s\n' "$s" >&2; return 1; }
+    if "$EVENT_BIN" --dir "$DIR" validate "$s" >/dev/null 2>&1; then
+      verdict="OK"
+    else
+      pin="$(jq -r --arg s "$s" '(.entries // []) + (.amendments // []) | map(select(.slug==$s)) | .[0].sha256 // empty' "$PINS" 2>/dev/null | head -1)"
+      if [ -n "$pin" ] && [ "$sha" = "$pin" ]; then verdict="QUAR"; else verdict="FAIL"; fi
+    fi
+    printf '%s\t%s\t%s\t%s\n' "$s" "$verdict" "$sha" "$size" >> "$out"
+  done
+  LC_ALL=C sort -o "$out" "$out"
+}
+
+case "$CMD" in
+  baseline)
+    census_to "$ARG" || exit 1
+    awk -F'\t' '{print $2}' "$ARG" | LC_ALL=C sort | uniq -c
+    ;;
+  diff)
+    [ -f "$ARG" ] || { printf 'missing baseline: %s\n' "$ARG" >&2; exit 2; }
+    if awk -F'\t' 'NF!=4{stale=1} END{exit !stale}' "$ARG"; then
+      printf 'stale baseline format (want slug/verdict/sha/size): re-take %s\n' "$ARG" >&2
+      exit 2
+    fi
+    TMP_NOW="$(mktemp "${TMPDIR:-/tmp}/census-now.XXXXXX")"
+    trap 'rm -f "$TMP_NOW"' EXIT
+    census_to "$TMP_NOW" || exit 1
+    rc=0
+    while IFS=$'\t' read -r slug verdict sha size; do
+      [ -n "$slug" ] || continue
+      now="$(awk -F'\t' -v s="$slug" '$1==s{print $2"\t"$3"\t"$4}' "$TMP_NOW")"
+      if [ -z "$now" ]; then
+        printf 'MANQUANT\t%s\t%s\t%s\t%s\n' "$slug" "$verdict" "$sha" "$size"
+        rc=1
+      elif [ "$(printf '%s' "$now" | cut -f1)" != "$verdict" ]; then
+        printf 'FLIP\t%s\t%s\t%s\t->\t%s\n' "$slug" "$verdict" "$sha" "$now"
+        rc=1
+      elif [ "$now" != "$verdict	$sha	$size" ]; then
+        if [ -f "$DIR/$slug/events.jsonl" ] && [ "$(head -c "$size" "$DIR/$slug/events.jsonl" | hash256 | cut -d' ' -f1)" = "$sha" ]; then
+          printf 'CROISSANCE\t%s\t%s\t%s\t->\t%s\n' "$slug" "$verdict" "$sha" "$now"
+        else
+          printf 'REWRITE\t%s\t%s\t%s\t->\t%s\n' "$slug" "$verdict" "$sha" "$now"
+          rc=1
+        fi
+      fi
+    done < "$ARG"
+    while IFS=$'\t' read -r slug verdict sha size; do
+      [ -n "$slug" ] || continue
+      if ! awk -F'\t' -v s="$slug" '$1==s{found=1} END{exit !found}' "$ARG"; then
+        printf 'AJOUTÉ\t%s\t%s\t%s\n' "$slug" "$verdict" "$sha"
+        if [ "$verdict" = "FAIL" ] || [ "$verdict" = "QUAR" ]; then rc=1; fi
+      fi
+    done < "$TMP_NOW"
+    if awk -F'\t' '$2=="FAIL"' "$TMP_NOW" | grep -q .; then
+      rc=1
+    fi
+    exit "$rc"
+    ;;
+  *)
+    usage
+    ;;
+esac
