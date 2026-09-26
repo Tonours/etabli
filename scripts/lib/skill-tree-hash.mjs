@@ -2,11 +2,6 @@ import { createHash } from "node:crypto";
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-// Single source of truth for skill-tree hashing, shared by the skills-lock
-// updater (pi/scripts/verify-skills-lock.mjs) and the runtime skill canary
-// (scripts/lib/runtime-skill-canary.mjs). Both surfaces must produce the
-// same digest for the same tree; keep every rule change HERE only.
-//
 // Excluded entries are generated at use time, never skill content: OS noise
 // and dependency caches. Vendored skills that self-install helper scripts
 // (poteto-mode bootstrap writes node_modules/ and an install key) must not

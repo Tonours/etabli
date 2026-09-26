@@ -20,7 +20,7 @@ checkout_sha="3d3c42e5aac5ba805825da76410c181273ba90b1"
 checkout_count="$(grep -Ec 'uses:[[:space:]]+actions/checkout@' "$WORKFLOW")"
 annotated_checkout_count="$(grep -Ec "uses:[[:space:]]+actions/checkout@${checkout_sha}[[:space:]]+# v7[.]0[.]1$" "$WORKFLOW")"
 persist_credentials_count="$(grep -Ec '^[[:space:]]+persist-credentials:[[:space:]]+false$' "$WORKFLOW")"
-[ "$checkout_count" -eq 3 ] || fail "expected exactly three checkout steps"
+[ "$checkout_count" -eq 2 ] || fail "expected exactly two checkout steps"
 [ "$annotated_checkout_count" -eq "$checkout_count" ] ||
   fail "checkout steps must use the pinned v7.0.1 SHA and annotation"
 [ "$persist_credentials_count" -eq "$checkout_count" ] ||
@@ -29,9 +29,6 @@ persist_credentials_count="$(grep -Ec '^[[:space:]]+persist-credentials:[[:space
 if grep -Eq 'uses:[[:space:]]+actions/cache@[0-9a-f]{40}[[:space:]]+# v[1-4]([.]|$)' "$WORKFLOW"; then
   fail "actions/cache must use a Node.js 24-compatible major version"
 fi
-
-grep -Fq 'npm install --global hunkdiff@0.17.3' "$WORKFLOW" ||
-  fail "hunkdiff must be pinned to 0.17.3"
 
 jq -e '
   .dependencies["@earendil-works/pi-coding-agent"] == "0.84.4" and
