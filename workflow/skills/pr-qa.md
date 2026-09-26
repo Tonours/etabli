@@ -57,10 +57,7 @@ If `gh` is unavailable or unauthenticated, stop with
    - non-regression tests;
    - estimated test time and risk level.
 
-With explicit provider-egress approval, `jev-judge evaluate pr-qa-impact` may
-provide advisory change-type, risk, and impact dimensions from a bounded diff
-summary. GitHub evidence and deterministic file inspection remain authoritative;
-Jev does not generate the QA plan.
+GitHub evidence and deterministic file inspection are authoritative.
 
 ## Edge Case Checklist
 

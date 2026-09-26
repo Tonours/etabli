@@ -286,8 +286,6 @@ def program_detail($event):
 
 def strict_detail($event):
   type == "object" and
-  # Mirror of validRouteDecidedDetail in scripts/lib/harness-trace-retrospect.mjs:
-  # change one, change the other (both sides pinned by smokes).
   if $event == "route_decided" then
     (.route | nonempty_string) and (.reason | nonempty_string)
     and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance"]) | length == 0)
@@ -356,8 +354,7 @@ def strict_detail($event):
     ((.measurement? == null) or ((.measurement.baseline | harness_measurement) and (.measurement.candidate | harness_measurement))) and
     (if .verdict == "accepted" then harness_promotion_policy and (.held_out.candidate.passed >= .held_out.baseline.passed)
     else true end) and
-    # Additive self-improvement provenance (optional here; enforced by the strict
-    # profile and workflow-self-improvement-integrity, never by legacy callers).
+    # Additive provenance fields, shape-checked only when present.
     ((.baseline_fingerprint? == null) or (.baseline_fingerprint | sha256)) and
     ((.candidate_fingerprint? == null) or (.candidate_fingerprint | sha256)) and
     ((.evaluator_manifest_sha256? == null) or (.evaluator_manifest_sha256 | sha256)) and

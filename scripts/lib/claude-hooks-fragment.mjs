@@ -64,3 +64,9 @@ export function hookScriptNames(fragment) {
   }
   return [...names];
 }
+
+export const RETIRED_HOOK_COMMANDS = Object.freeze(
+  ["outcome-metric-emit.mjs", "proof-shadow.mjs"].map(
+    (name) => `node "\${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/${name}"`,
+  ),
+);

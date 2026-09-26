@@ -66,7 +66,6 @@ assert_file "$NEW_PROJECT/workflow/contract-details.md"
 assert_file "$NEW_PROJECT/workflow/agent-quick-card.md"
 assert_file "$NEW_PROJECT/workflow/answer-quality.md"
 assert_file "$NEW_PROJECT/workflow/skill-design.md"
-assert_file "$NEW_PROJECT/workflow/project-autonomy-envelope.md"
 assert_file "$NEW_PROJECT/workflow/git-contract.md"
 assert_file "$NEW_PROJECT/workflow/pr-body-contract.md"
 assert_file "$NEW_PROJECT/workflow/verification-report-template.md"
@@ -114,7 +113,7 @@ assert_same "$ROOT_DIR/scripts/plan-cleanup" "$NEW_PROJECT/scripts/plan-cleanup"
 
 # Deployed docs must not dangle: every workflow/** reference resolves in the
 # scaffold unless the target is explicitly etabli-only.
-ETABLI_ONLY_REFS='^workflow/(semantic-judgment\.md$|trace-self-improvement\.md$|trace-observation\.schema\.json$|skills/program-orchestration\.md$|program\.schema\.json$|runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
+ETABLI_ONLY_REFS='^workflow/(trace-observation\.schema\.json$|runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
 deployed_refs="$(grep -rhEo --include='*.md' 'workflow/[A-Za-z0-9._/-]+\.(md|json)' "$NEW_PROJECT" | sort -u)"
 [ -n "$deployed_refs" ] || {
   printf 'reference scan found no workflow refs; the check is broken\n' >&2
@@ -147,8 +146,6 @@ assert_file "$NEW_PROJECT/docs/plan/$(date -u +%Y%m%d)-discarded-scaffold-smoke.
 
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path")"
-  # program-orchestration is frozen and deliberately not deployed
-  [ "$contract_name" = "program-orchestration.md" ] && continue
   assert_file "$NEW_PROJECT/workflow/skills/$contract_name"
   assert_same "$contract_path" "$NEW_PROJECT/workflow/skills/$contract_name"
 done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sort)

@@ -225,12 +225,12 @@ crons, and `claude-bin.sh`.
   merged into `~/.claude/settings.json` by the installer, because the live
   settings file can contain secrets. Activate it with
   `scripts/claude-hooks-merge --dry-run` (review) then
-  `scripts/claude-hooks-merge`: the merge only adds the fragment's hook
-  entries (backup first, refuse on conflict or invalid JSON, byte-idempotent
-  reruns) and never reads live secrets back into the repo. Verify with
-  `scripts/claude-hooks-check`. Activating it enables the session-wide READY,
-  ledger, ADR, and outcome hooks; the read-only agent hook is scoped from
-  agent frontmatter instead.
+  `scripts/claude-hooks-merge`: the merge adds the fragment's hook
+  entries and removes only hooks the repo retired (backup first, refuse on
+  conflict or invalid JSON, byte-idempotent reruns) and never reads live
+  secrets back into the repo. Verify with `scripts/claude-hooks-check`.
+  Activating it enables the session-wide READY, ledger, and ADR hooks; the
+  read-only agent hook is scoped from agent frontmatter instead.
 
 Use Claude Code `/goal` for till-done loops:
 

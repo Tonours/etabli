@@ -1,6 +1,6 @@
 /**
  * Shared value predicates for workflow libs. Byte-for-byte identical logic
- * previously duplicated across ledger-integrity, project-autonomy,
+ * previously duplicated across ledger-integrity,
  * no-progress-guard, ledger-auto-emit, and workflow-receipts.
  * @param {unknown} value
  */

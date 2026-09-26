@@ -47,9 +47,8 @@ criteria require UI/browser proof.
 7. Record artifacts or exact evidence for each scenario: URL, command,
    screenshot, trace, console/network result, email preview, log line, or
    explicit reason the leg is blocked.
-   - For durable claims, capture a closed pack with `scripts/evidence-proof` <!-- etabli-only -->
-     (etabli repo only; scaffolded projects resolve it from the etabli checkout).
-     Bind the target/environment hashes and every action, result, and declared
+   - For durable claims, capture a closed pack shaped by
+     `workflow/evidence-pack.schema.json`. Bind the target/environment hashes and every action, result, and declared
      side effect to a non-empty hashed artifact.
    - `integrity_valid` means the pack is internally intact. Only an explicit
      parent-observed receipt can yield `parent_observed_execution`.

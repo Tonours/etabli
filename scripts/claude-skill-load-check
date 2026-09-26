@@ -7,6 +7,12 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 GATE=4912
 ALERT=4892
 HOME_DIR="${CLAUDE_SKILL_LOAD_HOME:-$HOME}"
+if [ -n "${CLAUDE_SKILL_LOAD_HOME:-}" ]; then
+  CLAUDE_DIR="$HOME_DIR/.claude"
+else
+  . "$SCRIPT_DIR/lib/claude-config-dir.sh"
+  CLAUDE_DIR="${CLAUDE_SKILL_LOAD_CLAUDE_DIR:-$(claude_effective_dir)}"
+fi
 REPO_OVERRIDE="${CLAUDE_SKILL_LOAD_REPO:-}"
 PROFILE_OVERRIDE=""
 PROFILE_DISABLED=0
@@ -37,7 +43,8 @@ Default mode validates the lean profile surface (claude/profiles/lean.settings.j
 when present): the governed map, plugin set and native skillListingBudgetFraction
 are taken from the profile. --no-profile enforces the legacy full-surface gate.
 
---home  skill root + settings root for the assertions (fixture homes)
+--home  skill root + settings root for the assertions (fixture homes);
+        without it the Claude dir is \$CLAUDE_CONFIG_DIR, else ~/.claude
 --profile PATH   validate this profile fragment instead of the default
 --no-profile     legacy full-surface mode (C1 gate on the raw index)
 --fix            repair the C2 partition in the active map: add every
@@ -53,6 +60,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
   --home)
     HOME_DIR="$2"
+    CLAUDE_DIR="$2/.claude"
     shift
     ;;
   --profile)
@@ -93,11 +101,11 @@ if [ "$PROFILE_DISABLED" -eq 0 ]; then
   fi
 fi
 
-node - "$HOME_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$PROFILE_PATH" "$FIX" <<'NODE'
+node - "$CLAUDE_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$PROFILE_PATH" "$FIX" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [homeDir, repoDir, gateRaw, alertRaw, profilePathRaw, fixRaw] = process.argv.slice(2);
+const [claudeDir, repoDir, gateRaw, alertRaw, profilePathRaw, fixRaw] = process.argv.slice(2);
 const FIX = fixRaw === "1";
 const GATE = Number(gateRaw);
 const ALERT = Number(alertRaw);
@@ -140,7 +148,7 @@ const PINNED_ON = new Set([
   "write-direct",
 ]);
 
-const skillsRoot = path.join(homeDir, ".claude/skills");
+const skillsRoot = path.join(claudeDir, "skills");
 
 function readText(file) {
   try {
@@ -254,7 +262,7 @@ for (const item of discovered) {
   byName.set(name, item);
 }
 
-const liveSettingsPath = path.join(homeDir, ".claude/settings.json");
+const liveSettingsPath = path.join(claudeDir, "settings.json");
 const liveSettings = JSON.parse(readText(liveSettingsPath) ?? "{}");
 const liveMap = liveSettings.skillOverrides ?? null;
 
@@ -384,7 +392,7 @@ if (profile) {
   warnings.push(`C1: model-facing index ${indexChars + nameOnlyChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
 }
 
-const pluginsFile = path.join(homeDir, ".claude/plugins/installed_plugins.json");
+const pluginsFile = path.join(claudeDir, "plugins/installed_plugins.json");
 const plugins = JSON.parse(readText(pluginsFile) ?? "{}");
 const enabled =
 	(profile && profile.enabledPlugins) ?? liveSettings.enabledPlugins ?? {};

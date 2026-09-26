@@ -1,3 +1,0 @@
-{"type":"user","sessionId":"claude-parent-a","timestamp":"2026-08-10T12:00:00Z","cwd":"/private/project","message":{"role":"user","content":[{"type":"text","text":"Create a compact session handoff with validation evidence and the next action."}]}}
-{"type":"user","sessionId":"claude-parent-a","timestamp":"2026-08-10T12:01:00Z","isMeta":true,"message":{"role":"user","content":"<system-reminder> hidden runtime context"}}
-{"type":"assistant","sessionId":"claude-parent-a","timestamp":"2026-08-10T12:02:00Z","message":{"role":"assistant","content":"ignored"}}

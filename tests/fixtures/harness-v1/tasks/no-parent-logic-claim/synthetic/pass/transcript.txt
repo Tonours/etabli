@@ -1,6 +1,0 @@
-isolation: isolated
-runner: pi-child
-hunter_model: default
-spec: parent
-
-Verdict: GO WITH NOTES

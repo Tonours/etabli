@@ -20,20 +20,15 @@ surfaces (shared `~/.agents`, Codex, Devin). The full link layout and the
 - **Skills improve through gates, not vibes.** A skill or reviewer change is
   a promotion gate: frozen task manifests, artifact fingerprints, strict
   held-in gain with held-out and safety non-regression
-  (`workflow/skills/skill-evaluation.md`). The harness itself is evaluated
-  against frozen tasks with executable oracles and published null and
-  constant baselines (`docs/harness-eval.md`); reviewer misses land in a
-  bounded taxonomy and an eval corpus, not a growing checklist
-  (`workflow/skills/reviewer-improvement-loop.md`).
+  (`workflow/skills/skill-evaluation.md`).
 - **Context is a budgeted resource.** Resident instruction bytes per route
   are measured, ceilinged in CI, and can only ratchet down — the always-on
   surface went from 28,423 to 16,150 chars (−43%) under that discipline
   (`docs/workflow-context-budget.md`).
 - **A locked, vendored skill tree.** Skill packs are vendored verbatim with
   `UPSTREAM_SHA` pins, integrity-locked (`skills-lock.json`), and deployed by
-  scope — including the TypeSafe skill: System One models such as Jev used as
-  typed programming primitives (Choice/Noul/Score judgments) on every
-  harness surface (`vendor/typesafe-ai/`).
+  scope — including the user-facing TypeSafe skill (`vendor/typesafe-ai/`).
+  Routing itself is deterministic code only (ADR-0027).
 
 ## Install
 
@@ -81,23 +76,10 @@ Projects containing `workflow/spec.md` activate the workflow ambiently.
 Pi and Claude share the same workflow source through managed links. A change in
 this repository is the change every linked runtime reads.
 
-Jev supplies typed route judgments for `answer`, `implement`, `plan-loop`,
-`pr-review`, `review`, and `sec-pr`. Deterministic code still owns permissions,
-PLAN state, mutations, fallback, and protected routes. `plan-implement` keeps
-the deterministic route contract because its route-specific campaign was
-rejected as non-comparable. See
-[`workflow/semantic-profiles.md`](workflow/semantic-profiles.md) for the active
-boundary and
-[`workflow/self-improvement/jev-plan-implement-report.md`](workflow/self-improvement/jev-plan-implement-report.md)
-for the measured result.
-
 One writer at a time is a protocol, not an OS lock. Long-running routes keep
-their rules in [`workflow/skills/self-improvement-loop.md`](workflow/skills/self-improvement-loop.md),
-[`workflow/skills/ambitious-project-loop.md`](workflow/skills/ambitious-project-loop.md),
+their rules in [`workflow/skills/ambitious-project-loop.md`](workflow/skills/ambitious-project-loop.md)
 and [`workflow/skills/pr-maintenance-loop.md`](workflow/skills/pr-maintenance-loop.md).
-Autonomous runs stay inside a schema'd envelope: measured goals, iteration
-caps, forbidden actions, and a typed event ledger
-([`workflow/project-autonomy-envelope.md`](workflow/project-autonomy-envelope.md)).
+Autonomous runs pair a measured goal with an explicit iteration or time cap.
 
 ## Useful commands
 
@@ -132,8 +114,3 @@ configuration outside this repository. Tracked templates use placeholders and
 the project `.mcp.json` intentionally has no servers. See
 [`SECURITY.md`](SECURITY.md) and [`docs/mcp-strategy.md`](docs/mcp-strategy.md)
 for the boundary.
-
-
-The opt-in [Jev review pilot](workflow/jev-review-pilot.md) adds native child usage
-capture, bounded evidence packs and candidate claim/finding judgments. It ships
-without runtime promotion or a claim of measured review savings.

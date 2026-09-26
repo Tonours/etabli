@@ -186,9 +186,9 @@ runs there again — the script is copied per project, not linked. In a project 
 has not been redeployed, the written discipline above is the only thing holding.
 
 When one archive summarizes findings from several workflow initiatives, prefix
-each such finding with `[initiative:<ledger-slug>]`. `workflow-retrospect` uses
-the archive's `Workflow initiative` as the default and this inline marker as a
-per-finding override; duplicate lines from one initiative remain one recurrence.
+each such finding with `[initiative:<ledger-slug>]`. The archive's `Workflow
+initiative` is the default and this inline marker a per-finding override;
+duplicate lines from one initiative remain one recurrence.
 
 ## Relationship To Agent Memory
 

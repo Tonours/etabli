@@ -143,12 +143,9 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     `AGENTS.md`, `PLAN_TEMPLATE*.md`, `docs/`, `.mcp.json`, locks,
     `*.policy.json`), or any rebase happened (proof invalidated).
     Generated-records row-only deltas (closed list: `review-metrics.md`;
-    `skills-lock.json`, `*-promotion.json`, `*-policy.json` — today the
-    Jev route-promotion instance — with every changed fingerprint
-    recomputed from its pinned source — lock via the verify procedure,
-    promotion via sha256 of the pinned files, manifest via sha256 of
-    the file — and the rest identical over canonical `jq -S` parsed
-    values) get a schema check. Negative pin: a lone changed
+    `skills-lock.json` — with every changed fingerprint recomputed from
+    its pinned source via the verify procedure — and the rest identical
+    over canonical `jq -S` parsed values) get a schema check. Negative pin: a lone changed
     fingerprint that does not recompute from its source → FULL review.
     Otherwise Logic hunter on the new diff only, justified:
     post-full-review small delta.

@@ -1,5 +1,0 @@
-{"type":"session","version":3,"id":"pi-private-session","timestamp":"2026-09-20T10:00:00Z","cwd":"/private/project"}
-{"type":"custom","id":"route","parentId":null,"customType":"etabli.workflow-router","timestamp":"2026-09-20T10:00:30Z","data":{"decision":{"route":"plan-implement"}}}
-{"type":"message","id":"a","parentId":"route","timestamp":"2026-09-20T10:01:00Z","message":{"role":"assistant","content":[{"type":"text","text":"private prompt response"},{"type":"toolCall","id":"tool-1","name":"bash","arguments":{"command":"secret command"}}],"usage":{"input":100,"output":20,"totalTokens":120},"stopReason":"toolUse"}}
-{"type":"message","id":"b","parentId":"a","timestamp":"2026-09-20T10:02:00Z","message":{"role":"toolResult","toolCallId":"tool-1","toolName":"bash","content":[{"type":"text","text":"private failing output"}],"isError":true}}
-{"type":"compaction","id":"c","parentId":"b","timestamp":"2026-09-20T10:03:00Z","summary":"private summary","firstKeptEntryId":"a","tokensBefore":2000}

@@ -225,7 +225,7 @@
     }
   },
   "diversity_rule": "the adversary arm must not share a model family with the producer or reviewer it challenges; no xhigh/max effort as a default; escalations are named routes with counted retries",
-  "disjointness": "fixtures are synthetic and disjoint from workflow/self-improvement/reviewer-eval-corpus.md and from all calibration content; the runner copies only the active fixture into a temporary repo so holdout content stays invisible to the model",
+  "disjointness": "fixtures are synthetic and disjoint from all calibration content; the runner copies only the active fixture into a temporary repo so holdout content stays invisible to the model",
   "fixtures": {
     "calibration/adversary/oracle.json": "156412b98b7a0a0819e1ab8c38f94c013071a219b6f999512daa52a5f1495510",
     "calibration/adversary/repo/src/auth.ts": "0edaba53af8034575e6f835d4c9f6552e14f9afc4bc2a625a26b72824ac814ba",

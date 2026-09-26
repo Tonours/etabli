@@ -87,17 +87,12 @@ test("exact source inventory binds role, line ranges and explicit obligations to
 
 test("timing separates observed request intervals, preparation and unknown provider internals",async()=>{
  const {reviewTiming}=await import("../scripts/lib/review-timing.mjs");
- const {reviewTelemetry}=await import("../scripts/lib/jev-review-metrics.mjs");
  const inventory=[{stage:"before_agent_start",observed_at_ms:10},
   {stage:"before_provider_request",observed_at_ms:15,call_index:1,blocks:[{bytes:20}]},
   {stage:"assistant_message_end",observed_at_ms:35,call_index:1}];
  const timing=reviewTiming(inventory,{preparationMs:3,totalMs:50});
  assert.equal(timing.calls[0].request_to_message_end_ms,20);
  assert.equal(timing.agent_start_to_first_request_ms,5);assert.equal(timing.model_compute_ms,null);
- const receipt={...make("timed"),timing};
- const measured=reviewTelemetry({passes:[receipt],preparationMs:3,jev:[{usage_coverage:"response_measured",usage:{input_tokens:2,output_tokens:1},latency_ms:8,attempts:[{stage:"backoff",delay_ms:2}]}]});
- assert.equal(measured.jev_tokens,3);assert.equal(measured.jev_wait_ms,8);assert.equal(measured.jev_backoff_ms,2);
- assert.equal(measured.timing_coverage,"request_intervals_observed");
  assert.equal(reviewTiming(inventory.slice(0,2)).coverage,"unknown");
 });
 

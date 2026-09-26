@@ -51,9 +51,6 @@ no-plan work. Discard a stale plan with `scripts/plan-cleanup --discard <reason-
 expected results strengthen-only; weaken → `CHALLENGED` + Decision Log.
 CLI: `scripts/plan-check-freeze`. <!-- etabli-only -->
 
-**no_progress:** 2-hyp/3-red denies code mutations (`workflow/events.md`).
-Escapes: root `PLAN.md`, narrow `plan-cleanup`, `workflow-event`.
-
 After validated implementation: archive under `docs/plan/` with the exact root
 plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
 

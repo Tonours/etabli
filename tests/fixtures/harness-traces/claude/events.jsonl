@@ -1,3 +1,0 @@
-{"schema_version":2,"ts":"2026-09-20T10:59:00Z","event":"route_decided","run":"claude-run","detail":{"route":"plan-loop","reason":"fixture"}}
-{"schema_version":2,"ts":"2026-09-20T11:03:00Z","event":"validation_run","run":"claude-run","detail":{"command":"private check","exit":0}}
-{"schema_version":2,"ts":"2026-09-20T11:04:00Z","event":"completed","run":"claude-run","detail":{"summary":"private summary"}}

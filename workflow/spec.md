@@ -23,10 +23,8 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
 (ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
 orchestration: `workflow/skills/orchestration.md`. The parent is the one
-canonical writer. Delegation defaults to one worker; a READY manifest may opt
-into isolated non-overlapping units through
-`workflow/skills/program-orchestration.md`. The multi-model council was removed
-(ADR-0013).
+canonical writer. Delegation defaults to one worker. The multi-model council
+was removed (ADR-0013).
 
 ```text
 user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
@@ -77,22 +75,13 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `workflow/skills/pr-maintenance-loop.md` — one PR, one worktree, one loop;
   `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge <!-- etabli-only -->
   without another explicit command contract.
-- Evidence and investigations: `workflow/skills/investigation.md`,
-  `workflow/evidence-pack.schema.json`, and `scripts/evidence-proof` <!-- etabli-only -->
-  (etabli repo only; scaffolded projects resolve these binaries from the
-  etabli checkout). Integrity, parent-observed execution, proxy support, and
-  blocked surfaces stay distinct.
-- Large programs: frozen control plane (`workflow/skills/program-orchestration.md`,
-  `workflow/program.schema.json`, read-only `scripts/program-state`) — etabli <!-- etabli-only -->
-  repo only; frozen, not deployed to scaffolds.
+- Evidence and investigations: `workflow/skills/investigation.md` and
+  `workflow/evidence-pack.schema.json`. Integrity, parent-observed execution,
+  proxy support, and blocked surfaces stay distinct.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
-- Experimental read-only: `workflow-retrospect` (not core gate; ≥10 task-grader
-  outcomes before claiming telemetry value). Skill evaluation:
-  `workflow/skills/skill-evaluation.md`.
-- Self-improvement: `workflow/skills/self-improvement-loop.md`. Ambitious
-  projects: `workflow/skills/ambitious-project-loop.md`. Opt-in autonomy:
-  `workflow/project-autonomy-envelope.md`.
+- Skill evaluation: `workflow/skills/skill-evaluation.md`. Ambitious projects:
+  `workflow/skills/ambitious-project-loop.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`.
 - Check-freeze: once READY, Checks/Acceptance Criteria/Validation Plan,
@@ -103,8 +92,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Context budget: the instruction files each hot route loads are ceilinged in
   `workflow/runtime/context-budget.json`; `scripts/workflow-context-budget` <!-- etabli-only -->
   fails on growth with its remediation and `--ratchet` only lowers ceilings
-  (etabli repo only; loop: `workflow/skills/self-improvement-loop.md` § Token
-  lens).
+  (etabli repo only).
 - Autonomous loop stop conditions pair the measurable goal with an explicit
   operational cap (iterations or wall-clock). Global model-token totals are
   telemetry, never plan/goal stop conditions. Bounded payload contracts and
@@ -121,8 +109,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals. The
   third occurrence of the same review finding becomes a mechanical check.
-  Confirmed recurring findings from `workflow-retrospect` become reviewed
-  recommendations, never auto-applied.
+  Recurring findings become reviewed recommendations, never auto-applied.
   Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
   the issue. Reviewers flag only gaps that affect correctness or stated requirements.
   A started migration is finished or explicitly handed off with a `handoff` event.
@@ -197,18 +184,14 @@ event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
 coverage: routes shared by Pi extension and Claude hooks; executable classifier
 `workflow/runtime/workflow-router-core.mjs` via runtime-specific adapters.
 
-Semantic route judgments: `workflow/semantic-judgment.md`. Jev routes require checked-in promotion, confidence/margin thresholds, and protected-route rules. The
-deterministic router remains the provider-failure fallback; permissions,
-destructive/external checkpoints, actual plan state, READY/mutation guards, and
-every execution gate remain authoritative code. `shadow` and `disabled` are
-local rollback modes.
+Routing is deterministic code only (the semantic judgment layer was removed);
+permissions, destructive/external checkpoints, actual plan state, READY/mutation
+guards, and every execution gate remain authoritative code.
 
 ## Runtime surfaces
 
 Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key surfaces referenced by routing/guards: Claude hooks fragment
-`claude/settings.workflow-hooks.json`, `workflow/plan-archive.md`,
-`workflow/project-autonomy-envelope.md`, and the bounded reviewer evolution
-contract `workflow/skills/reviewer-improvement-loop.md`. Shared-contract versus
+`claude/settings.workflow-hooks.json` and `workflow/plan-archive.md`. Shared-contract versus
 adapter source ownership: `workflow/runtime/source-ownership.tsv`.
 
 ## Daily loop

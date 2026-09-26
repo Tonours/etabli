@@ -646,6 +646,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         smoke_node_bin="$(command -v node)"
     fi
     NODE_CMD=("$smoke_node_bin")
+    PATH="$(dirname "$smoke_node_bin"):$PATH"
     HOME="$smoke_home"
     REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
     converge_agent_surfaces >/dev/null
@@ -963,7 +964,6 @@ install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
-install_script "jev-judge" || true
 install_script "claude-lean" || true
 install_script "claude-full" || true
 

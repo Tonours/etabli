@@ -24,8 +24,8 @@ DETAIL='{
     "baseline": {"population": "etabli-leap-offline-holdout-v1", "passed": 1, "total": 1},
     "candidate": {"population": "etabli-leap-offline-holdout-v1", "passed": 1, "total": 1}
   },
-  "checks": ["bash tests/no-progress-mutate-deny-smoke.sh", "scripts/verify-agentic-infra core"],
-  "evidence": ["scripts/lib/no-progress-guard.mjs", "tests/no-progress-mutate-deny-smoke.sh", "docs/plan/20260729-etabli-leap-no-progress-mutate-deny.md"]
+  "checks": ["bash tests/claude-hooks-smoke.sh", "scripts/verify-agentic-infra core"],
+  "evidence": ["scripts/lib/no-progress-guard.mjs", "tests/claude-hooks-smoke.sh", "docs/plan/20260729-etabli-leap-no-progress-mutate-deny.md"]
 }'
 
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append leap-g3-p0 harness_proposal \

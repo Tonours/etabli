@@ -42,7 +42,7 @@ never stores program state or replaces `events.jsonl`.
 
 Every program event includes `event_id`, `program_id`, `manifest_sha256`,
 `unit_id`, `attempt_id`, and `emitter:{id,role:"coordinator"}`. Workers never
-append these events directly; see `workflow/skills/program-orchestration.md`.
+append these events directly.
 
 | Type | Detail convention |
 | --- | --- |
@@ -78,8 +78,7 @@ string), `turn_count`, `auto_continue_count`, `token_estimate`, `wall_clock_ms`,
 whose totals must sum to `total_tokens` when measured), `batch_wall_clock_ms`,
 `batch_started_at`, `batch_terminal_at` (ISO-8601 Z). Prefer `total_tokens` =
 all model participants; prefer `batch_wall_clock_ms` = batch makespan for
-verified throughput. Producers: Pi `agent_settled` via
-`scripts/lib/outcome-metric-emit.mjs`, CLI `scripts/workflow-outcome-metric`. <!-- etabli-only -->
+verified throughput. No producer ships since T2; the event stays readable for existing ledgers.
 Retrospect counts usage coverage only when `measured:true` has a complete valid
 usage tuple: non-negative integer input/output/total tokens, non-negative
 integer tool calls and non-negative elapsed time, with total at least input plus
@@ -121,12 +120,8 @@ baseline that already contains a failed safety case. The decision event must
 also carry a relative `comparison_path` and its `comparison_sha256`; the
 validator reads that immutable comparator output and checks its status, verdict,
 provenance and artifact fingerprints before accepting the decision. The
-`autonomous-completed-strict` terminal profile invokes
-`scripts/workflow-self-improvement-integrity` itself, so a caller cannot pass <!-- etabli-only -->
-the profile by checking only the presence of comparator fields.
-The Etabli repository deployment includes the pinned `core-v2` chain; a generic
-scaffold that has not installed a project-specific evaluator cannot certify a
-comparative event and fails closed instead of silently downgrading it.
+`autonomous-completed-strict` terminal profile now fails closed on any
+`harness_validation_completed`: the comparator chain was removed in T2.
 
 `multi_execution_completed` requires a non-empty model ID whose prefix matches
 its declared family. `verdict` is `accepted | degraded | blocked |

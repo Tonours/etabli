@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Canonical workflow event vocabulary, shared by the ledger-integrity and
- * project-autonomy validators. Keep in sync with workflow/events.md and the
+ * Canonical workflow event vocabulary, shared by the ledger-integrity
+ * validator. Keep in sync with workflow/events.md and the
  * ALLOWED_EVENTS array in scripts/workflow-event (checked by
  * tests/workflow-event-smoke.sh).
  */

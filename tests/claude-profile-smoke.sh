@@ -14,6 +14,8 @@ fail() {
 }
 
 chmod +x "$LEAN" "$FULL"
+NODE_BIN_DIR="$(dirname "$(node -e 'process.stdout.write(process.execPath)')")"
+export PATH="$NODE_BIN_DIR:$PATH"
 
 rm -f "${TMPDIR:-/tmp}"/claude-lean-mcp-*.json 2>/dev/null || true
 

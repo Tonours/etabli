@@ -4,7 +4,6 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import workflowRouter from "../workflow-router.ts";
-import { loadSemanticPolicy } from "../lib/route-shadow.mjs";
 
 type Handler = (
 	event: Record<string, unknown>,
@@ -52,7 +51,6 @@ function validReadyPlanText() {
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
 	initialThinkingLevel?: string,
-	semanticPolicyLoader: typeof loadSemanticPolicy = () => ({ ...loadSemanticPolicy(), mode: "disabled" }),
 ) {
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
@@ -82,7 +80,7 @@ function setupExtension(
 		},
 	};
 
-	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0], { loadSemanticPolicy: semanticPolicyLoader });
+	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
 
 	return {
 		entries,
@@ -553,74 +551,6 @@ describe("workflow router extension", () => {
 		}
 	});
 
-	test("tool_call no_progress denies code Write under active ledger and allows PLAN / workflow-event escape", () => {
-		const runtime = setupExtension();
-		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-no-progress-"));
-		try {
-			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
-			mkdirSync(join(cwd, ".workflow", "run-a"), { recursive: true });
-			writeFileSync(
-				join(cwd, ".workflow", "run-a", "events.jsonl"),
-				`${JSON.stringify({
-					schema_version: 2,
-					ts: "2026-08-01T00:00:00Z",
-					run: "run-a",
-					event: "no_progress",
-					detail: {
-						check_or_hypothesis: "stuck",
-						command: "bash tests/a.sh",
-						attempts: 2,
-						eliminated: ["stuck"],
-					},
-				})}\n`,
-			);
-
-			const codeWrite = runtime.emit("tool_call", {
-				toolName: "write",
-				toolCallId: "np1",
-				cwd,
-				input: { path: join(cwd, "src/x.ts"), content: "x" },
-			})[0];
-			expect(codeWrite).toMatchObject({
-				block: true,
-				reason: expect.stringMatching(/no_progress/i),
-			});
-
-			const planWrite = runtime.emit("tool_call", {
-				toolName: "write",
-				toolCallId: "np2",
-				cwd,
-				input: {
-					path: join(cwd, "PLAN.md"),
-					content: [
-						"# PLAN.md",
-						"",
-						"## Meta",
-						"- Status: CHALLENGED",
-						"",
-						"## Checks",
-						"- command: bash tests/a.sh",
-						"",
-						"## Decision Log",
-						"- check-freeze demote: no_progress stop",
-						"",
-					].join("\n"),
-				},
-			})[0];
-			expect(planWrite).toBeUndefined();
-
-			const eventCli = runtime.emit("tool_call", {
-				toolName: "bash",
-				toolCallId: "np3",
-				cwd,
-				input: { command: "scripts/workflow-event append --event blocked" },
-			})[0];
-			expect(eventCli).toBeUndefined();
-		} finally {
-			rmSync(cwd, { recursive: true, force: true });
-		}
-	});
-
 	test("tool_call check-freeze denies READY plan weaken and allows strengthen or CHALLENGED demote", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-check-freeze-"));
@@ -968,83 +898,6 @@ tags:
 			});
 			expect(writeAllow[0]).toBeUndefined();
 		} finally {
-			rmSync(cwd, { recursive: true, force: true });
-		}
-	});
-
-	test("emits a bounded fail-closed semantic shadow without changing the route", async () => {
-		const runtime = setupExtension(undefined, undefined, () => ({ ...loadSemanticPolicy(), mode: "shadow" }));
-		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-shadow-"));
-		const previousKey = process.env.TYPESAFE_API_KEY;
-		try {
-			delete process.env.TYPESAFE_API_KEY;
-			runtime.emit("before_agent_start", { prompt: "Explique le routeur", cwd });
-			expect(runtime.entries[0]).toMatchObject({ decision: { route: "answer" } });
-			for (let attempt = 0; attempt < 20 && runtime.entries.length < 2; attempt += 1) {
-				await new Promise((resolve) => setTimeout(resolve, 5));
-			}
-			expect(runtime.entries[1]).toMatchObject({
-				receipt: { outcome: "abstain", error_code: "missing_api_key", deterministic_decision: "answer" },
-			});
-			const receipt = readFileSync(join(cwd, ".workflow/semantic-judgments.jsonl"), "utf8");
-			expect(receipt).not.toContain("Explique le routeur");
-		} finally {
-			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
-			else process.env.TYPESAFE_API_KEY = previousKey;
-			rmSync(cwd, { recursive: true, force: true });
-		}
-	});
-
-	test("awaits an enforced Jev decision before publishing the selected route", async () => {
-		const runtime = setupExtension(undefined, undefined, () => ({
-			...loadSemanticPolicy(),
-			mode: "enforced",
-			promotion: { validated: true },
-		}));
-		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-enforced-"));
-		const previousKey = process.env.TYPESAFE_API_KEY;
-		const previousFetch = globalThis.fetch;
-		try {
-			process.env.TYPESAFE_API_KEY = "fixture-key";
-			globalThis.fetch = (async (_url, init) => {
-				const request = JSON.parse(String(init?.body));
-				const routes = Object.keys(request.questions.route.criteria);
-				const confidence = 0.93;
-				const remainder = (1 - confidence) / (routes.length - 1);
-				return new Response(JSON.stringify({
-					model: request.model,
-					answers: {
-						route: {
-							type: "choice",
-							choice: "verify",
-							probabilities: Object.fromEntries(routes.map((route) => [route, route === "verify" ? confidence : remainder])),
-							confidence,
-						},
-					},
-					usage: { input_tokens: 10, output_tokens: 2 },
-				}), { status: 200, headers: { "content-type": "application/json" } });
-			}) as typeof fetch;
-
-			const results = await runtime.emitAsync("before_agent_start", {
-				prompt: "Explique le routeur",
-				systemPrompt: "Base prompt",
-				cwd,
-			});
-			expect(runtime.entries[0]).toMatchObject({
-				decision: { route: "verify", writeAllowed: false },
-				semantic: { mode: "enforced", source: "jev", reason: "semantic_override" },
-			});
-			expect(runtime.entries[1]).toMatchObject({
-				receipt: { selection_source: "jev", selected_decision: "verify" },
-			});
-			const routedPrompt = (results[0] as { systemPrompt: string }).systemPrompt;
-			expect(typeof routedPrompt).toBe("string");
-			expect(routedPrompt.includes('"route":"verify"')).toBe(true);
-			expect(routedPrompt.includes("Base prompt")).toBe(true);
-		} finally {
-			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
-			else process.env.TYPESAFE_API_KEY = previousKey;
-			globalThis.fetch = previousFetch;
 			rmSync(cwd, { recursive: true, force: true });
 		}
 	});

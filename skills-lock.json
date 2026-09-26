@@ -9,7 +9,7 @@
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "5375b280a1b2282dd160dfc3d30f210b96a20ee0ea890da89a4b692e120c360b"
+      "computedHash": "b87f83710226db108c61db3bcf17bc88b0cd6cd820c8eaa24070f387f42d4fd4"
     },
     "review": {
       "source": "local",
@@ -84,7 +84,7 @@
     "goal-prompt-rewriter": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a933f5a9c10039f672252049f836481f2c5c3b2e41c0ef9398db15748e71d598"
+      "computedHash": "7b7f5054549e1e845ed68a9c57501fcc9db53c295300bf0c1167df233e1cb6e7"
     },
     "ui-reference-capture": {
       "source": "local",
@@ -216,11 +216,6 @@
       "sourceType": "repo",
       "computedHash": "6bd89a2f4472afff8c6137dfcc9d65658ed55834eba8e2c23d577965eca5e1ba"
     },
-    "conversation-retrospect": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "060033a6aee6328f82be76511754f192a6b9edf6ceb681224299b58d212a1c30"
-    },
     "recurring-run": {
       "source": "local",
       "sourceType": "repo",
@@ -249,7 +244,7 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "0a9baccaf6ec696c0e96ef96cfd1e3dae74acb6dc9505766f4d62ccf3c49d266"
+      "computedHash": "dbb91970f54b8d1dd2c72fa834f437ffbbd1f039873968922374285fe1f42c53"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",

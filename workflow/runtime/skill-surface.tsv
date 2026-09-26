@@ -34,7 +34,6 @@ css-layout-primitives	extras	0	0	1
 css-only-components	extras	0	0	1
 css-debugging	extras	0	0	1
 goal-prompt-rewriter	extras	0	0	1
-conversation-retrospect	extras	0	0	1
 recurring-run	extras	0	0	1
 session-handoff	extras	0	0	1
 ui-reference-capture	extras	0	0	1

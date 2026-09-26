@@ -28,10 +28,6 @@ inspection can correct the scope of a claim but cannot confirm runtime support.
   worker in the foreground or wait for it before the parent writes again, then
   inspect its diff and take the pen back. The current Pi profile remains
   parent-only while its subagent capability is `unknown`.
-- A READY plan explicitly using the large-program contract may run isolated,
-  non-overlapping worker units up to its declared concurrency bound. The parent
-  remains the sole canonical ledger writer and integrates only immutable worker
-  artifacts. See `workflow/skills/program-orchestration.md`.
 - The deterministic multi-model council was removed (ADR-0013) after the
   2026-07-19 blind latency gate found no quality gain; other subagent delegation
   remains an ordinary tool call, judged case by case.
@@ -65,11 +61,6 @@ With explicit provider-egress approval, `task-state-fallback` may classify the
 bounded text in step 2. Set `structured_state_available: false`; the runtime
 rejects the call otherwise. Its answer remains `proxy_supported` and cannot
 override structured state or completion evidence.
-
-For a multi-unit program, derive restart state from the immutable manifest and
-canonical ledger with `scripts/program-state` (etabli repo only; the program control plane is <!-- etabli-only -->
-frozen — see program-orchestration.md); do not treat its
-`replay_complete` output as live runtime confirmation.
 
 ## Delegation
 

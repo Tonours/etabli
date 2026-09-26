@@ -21,7 +21,6 @@ import {
 import sessionHygiene from "../session-hygiene.ts";
 import workflowRouter from "../workflow-router.ts";
 import workflowRunBinding from "../workflow-run-binding.ts";
-import { loadSemanticPolicy } from "../lib/route-shadow.mjs";
 
 const config = readConfig({});
 
@@ -356,7 +355,7 @@ function writeActiveLedger(cwd: string) {
 describe("coexistence with workflow-router and workflow-run-binding", () => {
 	const loaders = {
 		router: (pi: unknown) =>
-			workflowRouter(pi as never, { loadSemanticPolicy: () => ({ ...loadSemanticPolicy(), mode: "disabled" }) }),
+			workflowRouter(pi as never),
 		binding: (pi: unknown) => workflowRunBinding(pi as never),
 		hygiene: (pi: unknown) => sessionHygiene(pi as never, {}),
 	};
@@ -368,7 +367,7 @@ describe("coexistence with workflow-router and workflow-run-binding", () => {
 				const ledger = writeActiveLedger(cwd);
 				const fake = createFakePi();
 				for (const name of order) loaders[name](fake.pi);
-				expect(fake.handlerCount("agent_settled")).toBe(3);
+				expect(fake.handlerCount("agent_settled")).toBe(2);
 				const { ctx, compactCalls } = createCtx({ cwd, entries: fake.entries, tokens: () => 200_000 });
 				await fake.emit("agent_end", { messages: [{ role: "assistant", usage: { input_tokens: 1_000, output_tokens: 100 } }] }, ctx);
 				await fake.emit("agent_settled", {}, ctx);
@@ -377,7 +376,7 @@ describe("coexistence with workflow-router and workflow-run-binding", () => {
 				expect(bindings).toHaveLength(1);
 				expect(compactCalls).toHaveLength(1);
 				const events = readFileSync(ledger, "utf8").trim().split("\n").map((line) => JSON.parse(line));
-				expect(events.some((event) => event.event === "outcome_metric")).toBe(true);
+				expect(events.some((event) => event.event === "outcome_metric")).toBe(false);
 				await fake.emit("session_compact", { reason: "manual", fromExtension: false }, ctx);
 				compactCalls[0]?.onComplete?.({ estimatedTokensAfter: 20_000 });
 				expect(await fake.emit("session_before_tree", {}, ctx)).toEqual([undefined]);
