@@ -11,7 +11,6 @@ import {
 	getActiveRunPointer,
 	selectActiveLedger,
 } from "./ledger-integrity.mjs";
-import { buildReceipt, issueReceipt } from "./workflow-receipts.mjs";
 
 function isoTs() {
 	return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -224,7 +223,7 @@ export function isBashToolName(name) {
 
 const VALIDATION_SEGMENT_PATTERNS = [
 	/^(?:\.?\/)?scripts\/verify-agentic-infra(?:\s+(?:core|full|live))?$/i,
-	/^(?:\.?\/)?scripts\/workflow-event\s+validate\s+[a-z0-9][a-z0-9_-]*(?:\s+--profile\s+(?:structural|autonomous-completed|autonomous-completed-strict|blocked-terminal))?$/i,
+	/^(?:\.?\/)?scripts\/workflow-event\s+validate\s+[a-z0-9][a-z0-9_-]*(?:\s+--profile\s+(?:structural|autonomous-completed|blocked-terminal))?$/i,
 	/^(?:bun|npm|pnpm|yarn)\s+(?:test|lint|run\s+(?:test|lint|typecheck|check|verify|validate|audit|eval))\b[^;&|]*$/i,
 	/^node\s+(?:--check|--test)\b[^;&|]*$/i,
 	/^python3?\s+-m\s+(?:pytest|unittest)\b[^;&|]*$/i,
@@ -276,72 +275,4 @@ export function isLikelyValidationCommand(command) {
 	if (segments.length === 2 && !/^cd\s+[^;&|]+$/i.test(segments[0].trim()))
 		return false;
 	return isValidationSegment(segments.at(-1));
-}
-
-/**
- * Record a non-cryptographic runtime receipt for an observed successful Bash
- * validation into the uniquely selected active ledger. Binds the command hash
- * + exit 0 to observable state. Non-blocking; dedups the same command after the
- * last file_changed so a repeated green check is not re-issued every call.
- *
- * @param {string} cwd
- * @param {{ command: string }} input
- * @returns {{ emitted: boolean, reason: string, ledger?: string }}
- */
-export function recordBashValidationReceipt(cwd, input) {
-	const command = String(input?.command || "").trim();
-	if (!command) return { emitted: false, reason: "empty_command" };
-	if (!isLikelyValidationCommand(command)) {
-		return { emitted: false, reason: "not_validation_command" };
-	}
-	if (getActiveRunPointer(cwd).state !== "present") {
-		return { emitted: false, reason: "no_active_run_pointer" };
-	}
-
-	const selection = selectActiveLedger(cwd);
-	if (selection.reason) return { emitted: false, reason: selection.reason };
-	const primary = selection.ledger;
-	if (!primary) return { emitted: false, reason: "no_active_ledger" };
-	if (!pointerStillSelects(cwd, primary.run)) {
-		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
-	}
-
-	const events = primary.events;
-	const latestDiff = events.reduce(
-		(last, event, index) => (event.event === "file_changed" ? index : last),
-		-1,
-	);
-	const recent = events
-		.slice(latestDiff + 1)
-		.filter(
-			(event) =>
-				event.event === "runtime_receipt" &&
-				event.detail?.kind === "validation" &&
-				event.detail?.subject_sha256,
-		);
-	const candidate = buildReceipt({
-		receiptFor: "validation_run",
-		source: "Bash",
-		kind: "validation",
-		subject: command,
-		exit: 0,
-	});
-	if (
-		recent.some(
-			(event) => event.detail.subject_sha256 === candidate.subject_sha256,
-		)
-	) {
-		return {
-			emitted: false,
-			reason: "duplicate_receipt",
-			ledger: primary.path,
-		};
-	}
-	if (!pointerStillSelects(cwd, primary.run)) {
-		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
-	}
-	const line = issueReceipt(primary.path, primary.run, candidate);
-	return line
-		? { emitted: true, reason: "appended", ledger: primary.path }
-		: { emitted: false, reason: "write_failed", ledger: primary.path };
 }

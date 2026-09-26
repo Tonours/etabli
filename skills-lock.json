@@ -9,7 +9,7 @@
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "b87f83710226db108c61db3bcf17bc88b0cd6cd820c8eaa24070f387f42d4fd4"
+      "computedHash": "58b5bee04b34fac5537918fab4fcbce8e00b343d2200feb7f4b7298f68cdd162"
     },
     "review": {
       "source": "local",
@@ -84,7 +84,7 @@
     "goal-prompt-rewriter": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "7b7f5054549e1e845ed68a9c57501fcc9db53c295300bf0c1167df233e1cb6e7"
+      "computedHash": "1308be01f1c25300faa8acab7fc8239ed670b796c364488d315790aec2e30c24"
     },
     "ui-reference-capture": {
       "source": "local",
@@ -219,7 +219,7 @@
     "recurring-run": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "256e98d4e63bb998c34f09351397dcda2f6911a5bbf098caf8015997746961b3"
+      "computedHash": "cefbdf5a94a52d96870c6efcca901c32edbe27f6c7b8b797ab873b899bf699ec"
     },
     "coolify": {
       "source": "local",

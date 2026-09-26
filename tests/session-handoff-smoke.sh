@@ -88,14 +88,14 @@ jq -e '
   .blocker == null and
   .next_action == "implement the runtime visibility fixture" and
   .do_not_redo == ["obsolete parser hypothesis"] and
-  .program == null and
+  (has("program") | not) and
   .git.available == false and
   .projection_only == true
 ' "$TMP_DIR/handoff.json" >/dev/null
 
 "$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run handoff-program --json >"$TMP_DIR/program.json"
-jq -e '.program.replay_valid == false and (.program.error | test("removed"))' "$TMP_DIR/program.json" >/dev/null ||
-  { printf 'program handoff must report the removed control plane\n' >&2; exit 1; }
+jq -e '(has("program") | not) and .next_action == "start program unit unit-b" and .done == ["stale program projection"]' "$TMP_DIR/program.json" >/dev/null ||
+  { printf 'a retired program_initialized line must not override the explicit handoff\n' >&2; exit 1; }
 
 if grep -Fiq -- 'transcript' "$TMP_DIR/handoff.json"; then
   printf 'handoff output should not reference transcript content\n' >&2

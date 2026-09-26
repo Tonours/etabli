@@ -169,7 +169,6 @@ CEN="$TMP_ROOT/census"
 mkledger() {
   "$EVENT_BIN" --dir "$CEN" append "$1" file_changed '{"path":"f","change":"c"}' >/dev/null
   "$EVENT_BIN" --dir "$CEN" append "$1" validation_run '{"command":"c","exit":0}' >/dev/null
-  "$EVENT_BIN" --dir "$CEN" append "$1" outcome_metric '{"outcome":"o","success":true,"measured":false,"reason":"smoke"}' >/dev/null
 }
 mkledger cen-stable
 mkledger cen-grow

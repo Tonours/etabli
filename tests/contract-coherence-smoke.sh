@@ -29,7 +29,7 @@ assert_contains "$LOOP" "Small tier (no plan): run the surface's own focused che
 # small borrows (0 recon, 8 implement, 12b simplify rung 1): count-pinned.
 assert_count "$LOOP" "(the task, for small)" "3"
 assert_contains "$LOOP" "adversary code-diff review (standard/high-risk:"
-assert_contains "$LOOP" "plan routes only; for small, keep the dogfood evidence"
+assert_absent "$LOOP" "product-dogfood.md"
 assert_contains "$LOOP" "both N/A for small"
 assert_absent "$LOOP" "optional for small"
 assert_absent "$ROOT_DIR/scripts/workflow-event" "tier"

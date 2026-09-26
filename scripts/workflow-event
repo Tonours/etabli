@@ -6,7 +6,6 @@ ACTIVE_RUN_POINTER="active-run.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
-MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
 
 ALLOWED_EVENTS=(
@@ -20,6 +19,17 @@ ALLOWED_EVENTS=(
   file_changed
   validation_run
   validation_failed
+  retry_classified
+  no_progress
+  handoff
+  human_checkpoint
+  archive_written
+  plan_removed
+  completed
+  blocked
+)
+
+RETIRED_EVENTS=(
   dogfood_matrix_created
   dogfood_scenario_run
   dogfood_fix_applied
@@ -44,14 +54,6 @@ ALLOWED_EVENTS=(
   outcome_measurement_population
   outcome_measurement_imported
   outcome_metric
-  retry_classified
-  no_progress
-  handoff
-  human_checkpoint
-  archive_written
-  plan_removed
-  completed
-  blocked
 )
 
 usage() {
@@ -59,7 +61,7 @@ usage() {
 Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
        workflow-event [--dir path] activate <slug>
        workflow-event [--dir path] recover <slug> <reason-code>
-       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|autonomous-completed-strict|blocked-terminal|ship-completed|ship-stopped]
+       workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|blocked-terminal|ship-completed|ship-stopped]
 EOF
 }
 
@@ -72,6 +74,15 @@ is_allowed_event() {
   local allowed=""
   for allowed in "${ALLOWED_EVENTS[@]}"; do
     [ "$event" = "$allowed" ] && return 0
+  done
+  return 1
+}
+
+is_retired_event() {
+  local event="$1"
+  local retired=""
+  for retired in "${RETIRED_EVENTS[@]}"; do
+    [ "$event" = "$retired" ] && return 0
   done
   return 1
 }
@@ -91,10 +102,6 @@ detail_valid() {
 die_usage() {
   usage >&2
   exit 2
-}
-
-is_program_event() {
-  [[ "$1" == program_* ]]
 }
 
 owner_host_compatible() {
@@ -134,37 +141,8 @@ release_current_append_owner() {
   release_append_owner "$APPEND_OWNER_FILE" "$APPEND_LOCK_FILE" "$APPEND_OWNER_TOKEN" "$APPEND_LOCK_BACKEND"
 }
 
-ledger_cache_matches() {
-  local file="$1" cache="$2" expected_sha expected_lines actual_sha actual_lines
-  [ -f "$file" ] && [ -f "$cache" ] || return 1
-  if ! jq -e '
-    type == "object" and
-    ((keys | sort) == (["lines","schema_version","sha256"] | sort)) and
-    .schema_version == 1 and (.sha256 | test("^[a-f0-9]{64}$")) and
-    (.lines | type == "number" and floor == . and . > 0)
-  ' "$cache" >/dev/null 2>&1; then
-    return 1
-  fi
-  expected_sha="$(jq -r '.sha256' "$cache")"
-  expected_lines="$(jq -r '.lines' "$cache")"
-  actual_sha="$(hash256 "$file" | awk '{print $1}')"
-  actual_lines="$(wc -l <"$file" | tr -d ' ')"
-  [ "$actual_sha" = "$expected_sha" ] && [ "$actual_lines" = "$expected_lines" ]
-}
-
-write_ledger_cache() {
-  local file="$1" cache="$2" token="$3"
-  local temporary="$cache.$token"
-  jq -nc \
-    --arg sha256 "$(hash256 "$file" | awk '{print $1}')" \
-    --argjson lines "$(wc -l <"$file" | tr -d ' ')" \
-    '{schema_version:1,sha256:$sha256,lines:$lines}' >"$temporary"
-  chmod 600 "$temporary"
-  mv "$temporary" "$cache"
-}
-
 validate_ledger_file() {
-  local slug="$1" file="$2" allow_missing="$3" profile="$4" measurement_root="$5"
+  local slug="$1" file="$2" allow_missing="$3" profile="$4"
   local count=0 previous_ts="" legacy_post_terminal=0
   local terminal="" terminal_line="" terminal_schema_version=""
   local line parsed ts event run detail schema_version required mode=""
@@ -198,7 +176,10 @@ validate_ledger_file() {
       printf 'line %s: timestamp moved backwards\n' "$count" >&2
       return 1
     fi
-    if ! is_allowed_event "$event"; then
+    retired_line=0
+    if is_retired_event "$event"; then
+      retired_line=1
+    elif ! is_allowed_event "$event"; then
       printf 'line %s: unknown event type %s\n' "$count" "$event" >&2
       return 1
     fi
@@ -224,7 +205,12 @@ validate_ledger_file() {
       printf 'line %s: run does not match %s\n' "$count" "$slug" >&2
       return 1
     fi
-    if ! detail_valid "$event" "$detail" "$schema_version"; then
+    if [ "$retired_line" -eq 1 ]; then
+      if ! printf '%s\n' "$detail" | jq -e 'type == "object"' >/dev/null 2>&1; then
+        printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2
+        return 1
+      fi
+    elif ! detail_valid "$event" "$detail" "$schema_version"; then
       printf 'line %s: invalid detail for %s\n' "$count" "$event" >&2
       return 1
     fi
@@ -241,33 +227,6 @@ validate_ledger_file() {
     return 1
   fi
 
-  if ! jq -se '
-    def populations: [.[] | select(.event == "outcome_measurement_population") | .detail];
-    def imports: [.[] | select(.event == "outcome_measurement_imported") | .detail];
-    populations as $populations
-    | imports as $imports
-    | (all($populations[];
-        ([.targets[].target_run] | unique | length) == (.targets | length))) and
-      (($imports | map(.import_id) | unique | length) == ($imports | length)) and
-      (all($imports[];
-        . as $import |
-        ([$populations[] | select(.population_id == $import.population_id)] | length) == 1 and
-        ([$populations[]
-          | select(.population_id == $import.population_id)
-          | .targets[]
-          | select(
-              .target_run == $import.target_run and
-              .target_ledger_sha256 == $import.target_ledger_sha256 and
-              .target_terminal == $import.target_terminal and
-              .target_terminal_event_sha256 == $import.target_terminal_event_sha256 and
-              .target_outcome_event_sha256 == $import.target_outcome_event_sha256
-            )] | length) == 1)) and
-      (($imports | group_by(.target_run) | all(.[]; length == 1)))
-  ' "$file" >/dev/null; then
-    printf 'measurement imports must be unique members of exactly one matching population\n' >&2
-    return 1
-  fi
-  "$MEASUREMENT_INTEGRITY" "$measurement_root" "$file" || return 1
 
   validate_autonomous_completion_evidence() {
     local label="$1" evidence_indices last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict
@@ -310,7 +269,7 @@ validate_ledger_file() {
     structural) ;;
     autonomous-completed)
       [ "$terminal" = "completed" ] || { printf 'profile autonomous-completed requires final completed event\n' >&2; return 1; }
-      for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed outcome_metric archive_written plan_removed; do
+      for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed archive_written plan_removed; do
         jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile autonomous-completed missing %s\n' "$required" >&2; return 1; }
       done
       for mode in plan code_diff; do
@@ -318,33 +277,14 @@ validate_ledger_file() {
       done
       validate_autonomous_completion_evidence autonomous-completed || return 1
       ;;
-    autonomous-completed-strict)
-      [ "$terminal" = "completed" ] || { printf 'profile autonomous-completed-strict requires final completed event\n' >&2; return 1; }
-      for required in route_decided plan_created adversary_completed file_changed validation_run simplification_completed review_completed outcome_metric archive_written plan_removed; do
-        jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing %s\n' "$required" >&2; return 1; }
-      done
-      for mode in plan code_diff; do
-        jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed-strict missing adversary mode %s\n' "$mode" >&2; return 1; }
-      done
-      validate_autonomous_completion_evidence autonomous-completed-strict || return 1
-      for required in validation review archive completion; do
-        jq -e --arg kind "$required" 'select(.event == "runtime_receipt" and .detail.kind == $kind and .detail.cryptographic == false and .detail.observed_by == "parent-process")' "$file" >/dev/null ||
-          { printf 'profile autonomous-completed-strict missing runtime_receipt kind %s\n' "$required" >&2; return 1; }
-      done
-      if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
-        printf 'profile autonomous-completed-strict cannot certify harness_validation_completed: the self-improvement comparator chain was removed\n' >&2
-        return 1
-      fi
-      ;;
     blocked-terminal)
       [ "$terminal" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; return 1; }
       ;;
     ship-completed)
       [ "$terminal" = "ship_completed" ] || { printf 'profile ship-completed requires final ship_completed event\n' >&2; return 1; }
-      for required in file_changed validation_run outcome_metric; do
+      for required in file_changed validation_run; do
         jq -e --arg event "$required" 'select(.event == $event)' "$file" >/dev/null || { printf 'profile ship-completed missing %s\n' "$required" >&2; return 1; }
       done
-      jq -e 'select(.event == "outcome_metric") | select(.detail.success == true)' "$file" >/dev/null || { printf 'profile ship-completed requires successful outcome_metric\n' >&2; return 1; }
       fresh="$(jq -s -r 'to_entries as $e | ([ $e[] | select(.value.event=="file_changed")] | last | .key // -1) as $c | ([ $e[] | select(.key > $c and (.value.event=="validation_run" or .value.event=="validation_failed"))] | group_by(.value.detail.command) | map(last)) as $latest | if ($latest | length) > 0 and all($latest[]; .value.event=="validation_run" and .value.detail.exit==0) then "1" else "0" end' "$file")" || return 1
       [ "$fresh" = "1" ] || { printf 'profile ship-completed requires validation after last file change with every latest attempt succeeding\n' >&2; return 1; }
       jq -s -e '[.[] | select(.event == "ship_completed")] | last | select('"$SHIP_SUCCESS_FORM"')' "$file" >/dev/null || { printf 'profile ship-completed requires success-form ship_completed (green, URL, no markers, no open findings)\n' >&2; return 1; }
@@ -622,7 +562,7 @@ validate_autonomous_completion_candidate() (
     return 1
   }
   printf '%s\n' "$event_line" >> "$candidate_file" || return 1
-  validate_ledger_file "$slug" "$candidate_file" 0 autonomous-completed "$WORKFLOW_DIR" >/dev/null
+  validate_ledger_file "$slug" "$candidate_file" 0 autonomous-completed >/dev/null
 )
 
 append_locked_body() {
@@ -630,7 +570,6 @@ append_locked_body() {
   local run_dir="$WORKFLOW_DIR/$slug"
   local file="$run_dir/events.jsonl"
   local lock_file="$run_dir/events.lock" owner_file="$run_dir/events.lock.owner.json"
-  local integrity_cache="$run_dir/events.integrity.json"
   local current_host="" owner_tmp="" event_id="" existing_same="" lock_pid="" event_line="" now_iso=""
   local terminal=""
 
@@ -664,27 +603,11 @@ append_locked_body() {
   trap release_current_append_owner EXIT
 
   if [ -f "$file" ]; then
-    if ! is_program_event "$event" \
-      || ! ledger_cache_matches "$file" "$integrity_cache" \
-      || grep -Fq '"event":"outcome_measurement_' "$file"; then
-      "$SCRIPT_PATH" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null || {
-        printf 'refusing append to an invalid ledger: %s\n' "$slug" >&2
-        return 1
-      }
-    fi
-    terminal="$(tail -n 1 "$file" | jq -r '.event // empty')"
-  fi
-
-  if is_program_event "$event" && [ -f "$file" ]; then
-    event_id="$(printf '%s\n' "$detail" | jq -r '.event_id')"
-    if grep -Eq '"event_id"[[:space:]]*:[[:space:]]*"'"$event_id"'"' "$file"; then
-      existing_same="$(jq -sc --arg event "$event" --argjson detail "$detail" '([.[] | select(.event | startswith("program_")) | select(.detail.event_id == $detail.event_id)] | length) == 1 and ([.[] | select(.event | startswith("program_")) | select(.detail.event_id == $detail.event_id)][0] | .event == $event and .detail == $detail)' "$file")"
-      if [ "$existing_same" = "true" ]; then
-        return 0
-      fi
-      printf 'program event_id collision: %s\n' "$event_id" >&2
+    "$SCRIPT_PATH" --dir "$WORKFLOW_DIR" validate "$slug" >/dev/null || {
+      printf 'refusing append to an invalid ledger: %s\n' "$slug" >&2
       return 1
-    fi
+    }
+    terminal="$(tail -n 1 "$file" | jq -r '.event // empty')"
   fi
 
   if [ "$terminal" = "completed" ] || [ "$terminal" = "blocked" ] || [ "$terminal" = "ship_completed" ]; then
@@ -721,11 +644,6 @@ append_locked_body() {
     }
   fi
   printf '%s\n' "$event_line" >>"$file"
-  if is_program_event "$event"; then
-    write_ledger_cache "$file" "$integrity_cache" "$token"
-  else
-    rm -f "$integrity_cache"
-  fi
   if [ "$event" = "completed" ] || [ "$event" = "blocked" ] || [ "$event" = "ship_completed" ]; then
     local pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER"
     if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
@@ -823,6 +741,10 @@ case "$command" in
       detail="$3"
     fi
 
+    if is_retired_event "$event"; then
+      printf 'retired event type: %s (readable in history, no longer appended)\n' "$event" >&2
+      exit 2
+    fi
     if ! is_allowed_event "$event"; then
       printf 'unknown event type: %s\nAllowed events:\n%s\n' "$event" "$(allowed_list)" >&2
       exit 2
@@ -847,6 +769,7 @@ case "$command" in
     detail="$3"
     backend="$5"
     is_valid_slug "$slug" || { printf 'invalid run slug: %s\n' "$slug" >&2; exit 2; }
+    is_retired_event "$event" && { printf 'retired event type: %s (readable in history, no longer appended)\n' "$event" >&2; exit 2; }
     is_allowed_event "$event" || { printf 'unknown event type: %s\n' "$event" >&2; exit 2; }
     if [ "${WORKFLOW_EVENT_PREVALIDATED:-}" != "$event|$detail" ]; then
       detail_valid "$event" "$detail" 2 || { printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2; exit 2; }
@@ -936,7 +859,7 @@ case "$command" in
       esac
       shift
     done
-    validate_ledger_file "$slug" "$WORKFLOW_DIR/$slug/events.jsonl" "$allow_missing" "$profile" "$WORKFLOW_DIR"
+    validate_ledger_file "$slug" "$WORKFLOW_DIR/$slug/events.jsonl" "$allow_missing" "$profile"
     ;;
   -h|--help)
     usage

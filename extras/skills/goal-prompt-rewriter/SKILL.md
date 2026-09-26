@@ -156,9 +156,9 @@ Do not add extra sections unless the user asks.
 10. Define usage controls: explicit turn/attempt/time caps for goals, interval
     discipline for recurring loops, and a pilot slice before large multi-packet
     runs.
-11. Define evidence to record during the run, such as `outcome_metric`,
-    validation results, accepted/rejected findings, or handoff state when the
-    target workflow supports ledgers.
+11. Define evidence to record during the run, such as validation results,
+    accepted/rejected findings, or handoff state when the target workflow
+    supports ledgers.
 12. Define blocked completion. A blocker is not failure; it is a required stop with evidence, attempts, uncertainty, and next input needed.
 13. Remove filler. A strong loop prompt is usually one paragraph.
 

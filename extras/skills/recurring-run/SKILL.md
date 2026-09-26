@@ -5,7 +5,7 @@ description: Execute one bounded, evidence-backed iteration of a recurring audit
 
 # Recurring Run
 
-Read `workflow/skills/recurring-run.md` completely and use it as the canonical
+Read `extras/contracts/recurring-run.md` completely and use it as the canonical
 contract. Runtime-specific scheduling syntax must not weaken it.
 
 ## Run

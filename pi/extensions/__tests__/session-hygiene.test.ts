@@ -20,7 +20,6 @@ import {
 } from "../lib/session-hygiene-runtime.ts";
 import sessionHygiene from "../session-hygiene.ts";
 import workflowRouter from "../workflow-router.ts";
-import workflowRunBinding from "../workflow-run-binding.ts";
 
 const config = readConfig({});
 
@@ -352,28 +351,25 @@ function writeActiveLedger(cwd: string) {
 	return join(cwd, ".workflow", "fixture-run", "events.jsonl");
 }
 
-describe("coexistence with workflow-router and workflow-run-binding", () => {
+describe("coexistence with workflow-router", () => {
 	const loaders = {
 		router: (pi: unknown) =>
 			workflowRouter(pi as never),
-		binding: (pi: unknown) => workflowRunBinding(pi as never),
 		hygiene: (pi: unknown) => sessionHygiene(pi as never, {}),
 	};
 
-	for (const order of [["router", "binding", "hygiene"], ["hygiene", "binding", "router"]] as const) {
+	for (const order of [["router", "hygiene"], ["hygiene", "router"]] as const) {
 		test(`keeps every agent_settled effect with load order ${order.join(" > ")}`, async () => {
 			const cwd = mkdtempSync(join(tmpdir(), "etabli-session-hygiene-"));
 			try {
 				const ledger = writeActiveLedger(cwd);
 				const fake = createFakePi();
 				for (const name of order) loaders[name](fake.pi);
-				expect(fake.handlerCount("agent_settled")).toBe(2);
+				expect(fake.handlerCount("agent_settled")).toBe(1);
 				const { ctx, compactCalls } = createCtx({ cwd, entries: fake.entries, tokens: () => 200_000 });
 				await fake.emit("agent_end", { messages: [{ role: "assistant", usage: { input_tokens: 1_000, output_tokens: 100 } }] }, ctx);
 				await fake.emit("agent_settled", {}, ctx);
 				await fake.emit("agent_settled", {}, ctx);
-				const bindings = fake.entries.filter((entry) => entry.customType === "etabli.workflow-run-binding");
-				expect(bindings).toHaveLength(1);
 				expect(compactCalls).toHaveLength(1);
 				const events = readFileSync(ledger, "utf8").trim().split("\n").map((line) => JSON.parse(line));
 				expect(events.some((event) => event.event === "outcome_metric")).toBe(false);

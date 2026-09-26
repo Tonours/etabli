@@ -17,16 +17,15 @@ the tier — never downgrade mid-run.
 
 - **small** — docs-only, config-only, or a bounded single-surface edit with no
   runtime behavior change. Runs **outside the plan gate**: scoped recon
-  (step 0), implement (step 8 semantics), dogfood (step 11) when its trigger
-  fires, checks (12), simplify (12b), quality (12c), report (17). One
+  (step 0), implement (step 8 semantics), product-flow check (step 11) when
+  its trigger fires, checks (12), simplify (12b), quality (12c), report (17). One
   self-review of the cumulative diff replaces hunters and adversary passes.
   No plan file and no READY gate unless the surface is contractual — in which
   case the tier is not small.
 - **standard** (default) — runtime code change on a known surface. Full
   sequence below, except step 13b accepts a documented same-family
   double-sample instead of cross-model.
-- **high-risk** — kernel guards, installer/deploy scripts, harness eval
-  infrastructure, security, multi-surface contract changes, or a third
+- **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
 
@@ -83,15 +82,12 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
-11. For material user-facing product-flow changes or explicit dogfood
-    requests, run `workflow/skills/product-dogfood.md` (flow map, scenario
-    matrix, strongest observable surface, honest blocked legs, re-run after
-    each accepted fix). A plan that omitted that evidence means plan drift
-    (plan routes only; for small, keep the dogfood evidence in the task
-    and surface checks): strengthen the checks before continuing. Pack
-    integrity alone never counts as parent-observed execution.
-12. Re-run the plan's focused checks after dogfood and each accepted fix —
-    readiness never rests on checks predating the latest product-flow edit.
+11. For material user-facing product-flow changes, exercise the strongest
+    observable surface and record decisive legs that need a human as
+    `blocked`, never `pass`. Pack integrity alone never counts as
+    parent-observed execution.
+12. Re-run the plan's focused checks after the product-flow check and each
+    accepted fix — readiness never rests on checks predating the latest product-flow edit.
     Small tier (no plan): run the surface's own focused checks instead —
     the checks named by the task or the touched surface's suite.
 12b. Simplification pass once checks are green. Walk **this diff only**.
@@ -239,7 +235,7 @@ evidence for all of:
 - adversary plan review (standard/high-risk);
 - adversary code-diff review (standard/high-risk: named model or documented double-sample);
 - focused validation;
-- product dogfood scenario evidence when required by the plan;
+- product-flow evidence when required by the plan;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);
 - Logic+Spec lead review on the cumulative shippable workspace patch with a

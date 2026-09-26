@@ -94,31 +94,19 @@ sandbox. Shared workflow and evidence invariants stay in
 - If new facts materially invalidate the implementation route or checks, stop as
   plan drift instead of silently continuing.
 - Prefer focused checks over full-suite ritual.
-- User-facing changes that materially affect product flows use the shared
-  product dogfood contract in `workflow/skills/product-dogfood.md`: map flows
-  before a scenario matrix, exercise observable UI/browser reality when
-  available, and record `blocked` instead of claiming pass when decisive legs
-  need human verification or no validation surface exists.
-- Routes that mutate code on a dedicated branch (`/ship`, single-PR maintenance,
-  `sec-pr`) isolate through `workflow/skills/worktree-isolation.md`: clean base
+- User-facing changes that materially affect product flows exercise observable
+  UI/browser reality when available, and record `blocked` instead of claiming
+  pass when decisive legs need human verification or no validation surface
+  exists.
+- Routes that mutate code on a dedicated branch (`/ship`, `sec-pr`) isolate through `workflow/skills/worktree-isolation.md`: clean base
   worktree, one run per worktree and branch, no sibling-worktree edits, the run's
   root `PLAN.md` inside its own worktree, environment contention reported as
   `blocked`, and explicit cleanup or a stated reason for keeping it.
-- Supervised single-PR maintenance loops use the shared pilot contract in
-  `workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
-  latest pushed head evidence via `scripts/pr-latest-head-status`, <!-- etabli-only -->
-  fresh-context review, explicit worktree cleanup, and no external
-  write-back/deploy/push/merge unless another active command contract
-  explicitly authorizes that action.
 - Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger, and `completed`/`blocked` events are terminal evidence.
 - Workflow improvements start from inspectable evidence and go through a
-  reviewed `PLAN.md`; nothing auto-applies retrospective output.
-- Ambitious project work follows `workflow/skills/ambitious-project-loop.md`:
-  turn rough intent into spec/decisions/slices/execution/review/handoff without
-  turning push, PR, deploy, release, or external write-back into implicit
-  consent.
+  reviewed `PLAN.md`.
 - Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
@@ -193,10 +181,7 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/scopes/<scope>/commands/`
 - Shared skill contracts: `workflow/skills/`
-- Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
-- Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Investigation/evidence contract: `workflow/skills/investigation.md`
-- Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
 - Orchestration contract: `workflow/skills/orchestration.md`
@@ -262,7 +247,7 @@ Claude-native loop:
   measurable condition with an explicit cap (iterations or wall-clock), and the
   run must record the event ledger per `workflow/events.md`.
 - Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
-  READY/check-freeze, ledger, ADR, and outcome hooks. Route classification stays
+  READY/check-freeze, ledger, and ADR hooks. Route classification stays
   library-only and injects no prompt context (ADR-0014).
 - Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
   Do not claim Claude has Pi Task* semantics.

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * Canonical workflow event vocabulary, shared by the ledger-integrity
- * validator. Keep in sync with workflow/events.md and the
- * ALLOWED_EVENTS array in scripts/workflow-event (checked by
- * tests/workflow-event-smoke.sh).
+ * validator. Keep in sync with workflow/events.md and the ALLOWED_EVENTS /
+ * RETIRED_EVENTS arrays in scripts/workflow-event (checked by
+ * tests/workflow-event-smoke.sh). Retired types stay readable in history but
+ * are never appended.
  */
 export const WORKFLOW_EVENTS = [
 	"route_decided",
@@ -16,6 +17,17 @@ export const WORKFLOW_EVENTS = [
 	"file_changed",
 	"validation_run",
 	"validation_failed",
+	"retry_classified",
+	"no_progress",
+	"handoff",
+	"human_checkpoint",
+	"archive_written",
+	"plan_removed",
+	"completed",
+	"blocked",
+];
+
+export const RETIRED_WORKFLOW_EVENTS = [
 	"dogfood_matrix_created",
 	"dogfood_scenario_run",
 	"dogfood_fix_applied",
@@ -40,12 +52,4 @@ export const WORKFLOW_EVENTS = [
 	"outcome_measurement_imported",
 	"outcome_metric",
 	"runtime_receipt",
-	"retry_classified",
-	"no_progress",
-	"handoff",
-	"human_checkpoint",
-	"archive_written",
-	"plan_removed",
-	"completed",
-	"blocked",
 ];

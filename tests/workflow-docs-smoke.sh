@@ -160,13 +160,13 @@ assert_file "$ROOT_DIR/claude/scopes/shared/skills/adr/scripts/adr-validation.mj
 assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
-assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
 assert_file "$ROOT_DIR/workflow/skills/investigation.md"
+for shelved in product-dogfood ambitious-project-loop recurring-run pr-maintenance-loop; do
+  assert_file "$ROOT_DIR/extras/contracts/$shelved.md"
+  [ ! -e "$ROOT_DIR/workflow/skills/$shelved.md" ] || { printf 'shelved contract %s must not stay in workflow/skills\n' "$shelved" >&2; exit 1; }
+done
 assert_file "$ROOT_DIR/workflow/evidence-pack.schema.json"
 assert_file "$ROOT_DIR/workflow/templates/evidence-pack.json"
-assert_file "$ROOT_DIR/workflow/trace-observation.schema.json"
-assert_file "$ROOT_DIR/workflow/skills/ambitious-project-loop.md"
-assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
 assert_file "$ROOT_DIR/workflow/skills/skill-evaluation.md"
 assert_file "$ROOT_DIR/scripts/skill-eval"
 assert_file "$ROOT_DIR/scripts/session-handoff"
@@ -181,7 +181,6 @@ for contract in \
     linear-project-setup \
     linear-ticket-create \
     linear-work \
-    pr-maintenance-loop \
     pr-qa \
     pr-review \
     plan-loop \
@@ -216,7 +215,6 @@ assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
-assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
@@ -253,7 +251,6 @@ assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
 assert_contains "$ROOT_DIR/README.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/contract-details.md'
 assert_contains "$ROOT_DIR/README.md" 'protocol, not an OS lock'
-assert_contains "$ROOT_DIR/README.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
@@ -275,7 +272,6 @@ assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Category: <cat
 assert_contains "$ROOT_DIR/tests/answer-quality-check-smoke.sh" 'bad-overclaim'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'adversarial'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'general-simple'
-assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'hunkdiff'
 assert_contains "$ROOT_DIR/README.md" 'preferring `asdf`'
@@ -323,7 +319,6 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Understand before planning'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Code diff mode'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/product-dogfood.md'
 assert_file "$ROOT_DIR/workflow/skill-design.md"
 assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Delete-test'
 
@@ -343,8 +338,10 @@ assert_max_lines "$ROOT_DIR/claude/CLAUDE.md" 90
 assert_max_lines "$ROOT_DIR/pi/AGENTS.md" 120
 assert_file "$ROOT_DIR/workflow/agent-quick-card.md"
 assert_file "$ROOT_DIR/workflow/contract-details.md"
-assert_max_lines "$ROOT_DIR/workflow/spec.md" 220
-assert_max_lines "$ROOT_DIR/workflow/contract-details.md" 340
+assert_max_lines "$ROOT_DIR/workflow/spec.md" 205
+assert_max_lines "$ROOT_DIR/workflow/contract-details.md" 284
+assert_max_lines "$ROOT_DIR/workflow/events.md" 101
+assert_max_lines "$ROOT_DIR/workflow/events-validator.md" 44
 assert_max_lines "$ROOT_DIR/workflow/agent-quick-card.md" 120
 assert_contains_wrapped "$ROOT_DIR/workflow/agent-quick-card.md" 'do not write `PLAN.md`, run adversary, or archive'
 assert_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Freeze one documented metric command'
@@ -410,19 +407,15 @@ test -x "$ROOT_DIR/scripts/plan-check-freeze" || {
 }
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/scripts/workflow-event"
-assert_contains "$ROOT_DIR/scripts/workflow-event" 'harness_validation_completed'
+assert_contains "$ROOT_DIR/scripts/workflow-event" 'RETIRED_EVENTS=('
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" '## Product Dogfood'
-assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Do not convert a blocked scenario into `pass`.'
-assert_contains "$ROOT_DIR/workflow/trace-observation.schema.json" '"allOf"'
-assert_contains "$ROOT_DIR/workflow/skills/ambitious-project-loop.md" 'Push, PR, merge, deploy'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'claude/settings.workflow-hooks.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/events.md" 'schema_version:2'
-assert_contains "$ROOT_DIR/workflow/events.md" 'never counts as a successful outcome'
-assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
+assert_contains "$ROOT_DIR/workflow/events.md" 'refused on append'
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/docs/plan/README.md" 'It is a memory shelf, not an active planning workspace.'
@@ -458,21 +451,16 @@ assert_contains "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" 'workfl
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'SELF_IMPROVEMENT_PATTERN'
 assert_contains "$ROOT_DIR/workflow/skills/ci-fix.md" 'Never make a test pass by disarming it'
 assert_contains "$ROOT_DIR/workflow/skills/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'One PR, one worktree, one loop.'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Never trust a clean review or green check'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not push.'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not merge.'
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
 assert_file "$ROOT_DIR/workflow/events-validator.md"
-assert_contains "$ROOT_DIR/workflow/events-validator.md" 'Protocol v2 adds'
-assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'protocol_version'
+assert_contains "$ROOT_DIR/workflow/events-validator.md" '## Retired types'
+assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'def retired_events'
 assert_contains "$ROOT_DIR/workflow/linear-ticket-template.md" 'Resolve team/project/labels through Linear MCP'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" 'Each archive is a distilled memory record, not a raw copy of `PLAN.md`.'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/orchestration.md'
-assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '## Activation'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'workflow/linear-ticket-template.md'

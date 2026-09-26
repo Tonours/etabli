@@ -78,6 +78,5 @@ synthetic smoke proves only comparator behavior; it does not prove that a real
 skill improved.
 
 Report a real comparable run in the handoff with the same population on both
-sides. Do not record `harness_validation_completed`: the
-`autonomous-completed-strict` profile refuses it since the comparator chain was
-removed.
+sides. `harness_validation_completed` is a retired ledger type: the append
+refuses it.

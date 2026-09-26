@@ -3,36 +3,6 @@
   "frozen": "2026-09-24T19:22:31Z",
   "entries": [
     {
-      "slug": "adaptive-council",
-      "sha256": "8670771b2fd32049dbea8f2b2a1fe13190a2c3688d132f56c6b44a794d1555d1",
-      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
-    },
-    {
-      "slug": "ambient-codex-team",
-      "sha256": "d3725a67b5bd43b9477d72c712c81bb251ba76fdb8658f02c5052e6b2790c669",
-      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
-    },
-    {
-      "slug": "kimi-k3-fallback",
-      "sha256": "725fb59cdaf8ec9eb99274be2dfd47bad8e7d5b3733abee3d7b9c3e464cdde4c",
-      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
-    },
-    {
-      "slug": "multi-model-default",
-      "sha256": "1c1419f5b1d16b8029b7254ea085181cb1cd344c236579b10f542a1ad8a6d61d",
-      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
-    },
-    {
-      "slug": "outcome-telemetry-coverage",
-      "sha256": "9a5cf497f93d92de97a47f0dbf6558d0f410dee7fb2c309776cc4635acdfa612",
-      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
-    },
-    {
-      "slug": "split-pi-codex-orchestration",
-      "sha256": "3cb8ad51d5be3aba43943adf39d60d1b02b00ae3fb038bbe95c5ba09f7a4c9ce",
-      "reason": "terminal multi_execution_completed detail drift (pre-canon)"
-    },
-    {
       "slug": "autonomous-completion-guard",
       "sha256": "c4d06e8698543406a66821e9d4d8935dd457ad33ce982b6da78e7a17c1e60bd8",
       "reason": "terminal review_completed status 'pass' v2 (enum-flip accepted)"

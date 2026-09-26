@@ -93,11 +93,8 @@ actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 	fail "core profile must hold exactly 27 checks"
 
 expected_full='pr-latest-head-status-smoke
-leap-harness-validation-smoke
 ledger-auto-emit-smoke
-workflow-receipts-smoke
 ledger-selection-performance-smoke
-workflow-supersession-smoke
 research-proof-check-smoke
 answer-quality-check-smoke
 answer-quality-eval-smoke

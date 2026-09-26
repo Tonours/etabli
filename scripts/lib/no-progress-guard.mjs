@@ -1,9 +1,10 @@
 /**
- * Ledger-backed no_progress evaluation for host mutation deny.
+ * Ledger-backed no_progress evaluation (recorded by ledger-auto-emit, never
+ * blocking), plus the workflow-event escape-hatch command matcher.
  *
  * Does not auto-emit events — only reads existing ledger evidence.
  */
-import { inspectLedgerFile, selectActiveLedger } from "./ledger-integrity.mjs";
+import { inspectLedgerFile } from "./ledger-integrity.mjs";
 import { isNonEmptyString } from "./predicates.mjs";
 import { isNarrowPlanCleanupCommand } from "./plan-cleanup-command.mjs";
 
@@ -112,38 +113,6 @@ export function evaluateNoProgressStop(
     };
   }
   return null;
-}
-
-/**
- * Fail closed when ledger integrity or active-run selection is ambiguous, then
- * evaluate no_progress only on the deterministically selected active ledger.
- * @param {string} cwd
- * @returns {null | {reason: string, detail: object, ledger?: string}}
- */
-export function shouldDenyMutationForNoProgress(
-  cwd,
-  thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS,
-) {
-  const selected = selectActiveLedger(cwd);
-  if (selected.reason) {
-    return {
-      reason: selected.reason,
-      detail: {
-        ledger_state: selected.reason,
-        active_runs: selected.active?.map((entry) => entry.run) || [],
-      },
-      ledger: selected.ledger?.path,
-    };
-  }
-  if (!selected.ledger) return null;
-
-  const stop = evaluateNoProgressStop(selected.ledger.events, thresholds);
-  if (!stop) return null;
-  return {
-    reason: stop.reason,
-    detail: stop.detail,
-    ledger: selected.ledger.path,
-  };
 }
 
 /**
