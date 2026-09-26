@@ -134,13 +134,12 @@ describe("workflow router runtime", () => {
 		).toEqual(expected);
 	});
 
-	test("routes Linear ticket creation and Linear work to dedicated skills", () => {
+	test("routes Linear ticket creation to ops-stop and Linear work to plan-implement", () => {
 		expect(
 			classifyWorkflowRoute("Crée un ticket Linear pour ce bug de login"),
 		).toMatchObject({
-			route: "linear-ticket-create",
-			skill: "linear-ticket-create",
-			writeAllowed: true,
+			route: "ops-stop",
+			writeAllowed: false,
 		});
 
 		expect(
@@ -148,16 +147,23 @@ describe("workflow router runtime", () => {
 				"Peux-tu créer un ticket Linear pour corriger le bug de login",
 			),
 		).toMatchObject({
-			route: "linear-ticket-create",
-			skill: "linear-ticket-create",
-			writeAllowed: true,
+			route: "ops-stop",
+			writeAllowed: false,
 		});
 
 		expect(
 			classifyWorkflowRoute("Corrige le bug décrit dans Linear LIN-123"),
 		).toMatchObject({
-			route: "linear-work",
-			skill: "linear-work",
+			route: "plan-implement",
+			writeAllowed: true,
+		});
+
+		expect(
+			classifyWorkflowRoute("Corrige le bug décrit dans Linear LIN-123", {
+				planStatus: "ready",
+			}),
+		).toMatchObject({
+			route: "implement",
 			writeAllowed: true,
 		});
 
@@ -169,60 +175,59 @@ describe("workflow router runtime", () => {
 		});
 	});
 
-	test("routes Linear bug analysis to bug-check", () => {
+	test("keeps Linear bug analysis read-only without a dedicated route", () => {
 		expect(
 			classifyWorkflowRoute("Analyse le bug Linear PRD-387 sans coder"),
 		).toMatchObject({
-			route: "bug-check",
-			skill: "bug-check",
+			route: "answer",
 			writeAllowed: false,
 		});
 	});
 
-	test("routes GitHub PR reviews through gh-specific review", () => {
+	test("routes natural-language GitHub PR reviews to review", () => {
 		expect(
 			classifyWorkflowRoute("Fais une code review de la PR GitHub 42"),
 		).toMatchObject({
-			route: "pr-review",
-			skill: "pr-review",
+			route: "review",
 			writeAllowed: false,
 		});
 	});
 
-	test("routes PR QA, security PR, and explicit CI fix", () => {
+	test("keeps PR QA and security PR read-only and routes CI push to ops-stop", () => {
 		expect(
 			classifyWorkflowRoute("Comment tester la PR GitHub 42 ?"),
 		).toMatchObject({
-			route: "pr-qa",
-			skill: "pr-qa",
+			route: "answer",
 			writeAllowed: false,
 		});
 
 		expect(classifyWorkflowRoute("Audite la PR Dependabot #1606")).toMatchObject({
-			route: "sec-pr",
-			skill: "sec-pr",
+			route: "answer",
 			writeAllowed: false,
 		});
 
 		expect(classifyWorkflowRoute("ci-fix 42")).toMatchObject({
-			route: "ci-fix",
-			skill: "ci-fix",
+			route: "answer",
 			writeAllowed: true,
+		});
+
+		expect(classifyWorkflowRoute("/ci-fix 42")).toMatchObject({
+			route: "answer",
+			writeAllowed: false,
 		});
 
 		expect(classifyWorkflowRoute("fix CI and push PR #42")).toMatchObject({
-			route: "ci-fix",
-			skill: "ci-fix",
-			writeAllowed: true,
+			route: "ops-stop",
+			writeAllowed: false,
 		});
 	});
 
-	test("routes sourced research to research-plan", () => {
+	test("keeps sourced research read-only without a dedicated route", () => {
 		expect(
 			classifyWorkflowRoute("Fais un fact-check sourcé via recherche web"),
 		).toMatchObject({
-			route: "research-plan",
-			artifact: "cited document under docs/",
+			route: "answer",
+			writeAllowed: false,
 		});
 	});
 
@@ -232,7 +237,7 @@ describe("workflow router runtime", () => {
 		);
 
 		expect(decision).toMatchObject({
-			route: "research-plan",
+			route: "answer",
 			knowledgeContext: {
 				topics: ["saas"],
 				query:

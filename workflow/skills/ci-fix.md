@@ -108,9 +108,9 @@ Stash state:
 
 ## Event Ledger
 
-`ci-fix` is an autonomous route: it must record the event ledger
-(`workflow/spec.md`). This route is not `plan-implement`, so the autonomous
-completion profile does not apply.
+`/ci-fix` is an explicit autonomous command, never routed: it must record the
+event ledger (`workflow/spec.md`). It is not `plan-implement`, so the
+autonomous completion profile does not apply.
 
 - Run slug: `ci-fix-<PR number>-r<n>` (one ledger per loop; budget and
   attempts accumulate across segments of the same PR).

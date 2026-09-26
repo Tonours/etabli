@@ -101,7 +101,7 @@
     "name": "fuzz: create spec for auth module routes to spec-guide",
     "category": "fuzz-spec-guide",
     "prompt": "crée une spec pour le module d'auth",
-    "expectedRoute": "spec-guide",
+    "expectedRoute": "answer",
     "writeAllowed": true
   },
   {

@@ -71,12 +71,12 @@ One writer at any instant (**protocol**, not an OS lock): the parent or one
 | Plan then code | `plan-implement` |
 | READY plan code | `implement` |
 | Adversarial plan | `adversary` |
-| Diff/PR review | `review` / `pr-review` |
+| Diff/PR review | `review` |
 | Prove claim | `verify` |
-| Linear create/work | `linear-ticket-create` / `linear-work` |
-| Destructive/secrets/prod/push | `ops-stop` |
+| Linear ticket work (natural language) | `plan-implement` |
+| Destructive/secrets/prod/push/external write | `ops-stop` |
 
-Full table: `workflow/spec.md` § Routing rules.
+Work commands are explicit, never routed. Full table: `workflow/spec.md` § Routing rules.
 
 ## Review effectiveness
 
@@ -88,8 +88,8 @@ Full table: `workflow/spec.md` § Routing rules.
 ## ops-stop (HITL)
 
 `rm -rf`, force-push, deploy, prod, billing, secrets, broad irreversible,
-bare external write-back → risk brief, wait for user. Explicit `/ci-fix` may
-push for CI repair only under its contract.
+bare external write-back → risk brief, wait for user. The explicit `/ci-fix`
+command may push for CI repair only under its contract.
 
 ## Validation (typical)
 

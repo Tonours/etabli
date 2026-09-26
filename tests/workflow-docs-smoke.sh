@@ -180,13 +180,11 @@ assert_file "$ROOT_DIR/scripts/conversation-retrospect"
 assert_file "$ROOT_DIR/scripts/skill-eval"
 assert_file "$ROOT_DIR/scripts/etabli-harness-eval"
 assert_file "$ROOT_DIR/docs/harness-eval.md"
-assert_file "$ROOT_DIR/scripts/runtime-skill-canary"
 assert_file "$ROOT_DIR/scripts/session-handoff"
 assert_file "$ROOT_DIR/tests/conversation-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/skill-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/etabli-harness-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/etabli-harness-eval-live.sh"
-assert_file "$ROOT_DIR/tests/runtime-skill-canary-smoke.sh"
 assert_file "$ROOT_DIR/tests/session-handoff-smoke.sh"
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
@@ -216,14 +214,14 @@ assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/project-context.md"
 assert_file "$ROOT_DIR/scripts/deploy-workflow"
 assert_file "$ROOT_DIR/scripts/deploy-agent-workflow"
 assert_file "$ROOT_DIR/claude/scopes/shared/commands/verify-workflow.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/bug-check.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/linear-ticket-create.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/pr-review.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/pr-qa.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/ci-fix.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/github-pr-review.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/bug-check.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/linear-ticket-create.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/linear-work.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-review.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-qa.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/ci-fix.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md"
 assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
@@ -544,8 +542,8 @@ assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '12c'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Diagnosis, compare, or pre-existing-capture forensics'
 assert_not_contains "$ROOT_DIR/workflow/contract-details.md" '/skill:github-pr-review'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'workflow/skills/adversary.md'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md" 'Never merge automatically'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'plan drift detected'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Does this addition need to exist'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'simplify: clean'
@@ -573,8 +571,8 @@ assert_file "$ROOT_DIR/workflow/templates/review-logic-hunter.md"
 assert_file "$ROOT_DIR/workflow/templates/review-spec-hunter.md"
 assert_file "$ROOT_DIR/workflow/templates/review-lead.md"
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Agent'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/pr-review.md" 'Agent'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/github-pr-review.md" 'Agent'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/pr-review.md" 'Agent'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md" 'Agent'
 assert_not_contains "$ROOT_DIR/workflow/skills/review.md" 'No free second bug-hunt'
 assert_not_contains "$ROOT_DIR/workflow/skills/pr-review.md" 'No free second bug-hunt'
 assert_not_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Break-first then plan-fit'
@@ -614,7 +612,7 @@ done
 # marks them pi_core; Claude adapters may still name cross-harness skills.
 inactive_pi_css_skills="$(
     awk -F '\t' '
-        $0 !~ /^#/ && $2 == "pi" && $3 == "0" &&
+        $0 !~ /^#/ && ($2 == "pi" || $2 == "extras") && $3 == "0" &&
         ($1 == "frontend-css-ui-ux" || $1 ~ /^css-/) { print $1 }
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
@@ -907,15 +905,15 @@ for adapter in \
     "claude/scopes/shared/commands/implement.md:workflow/skills/implementation-loop.md" \
     "claude/scopes/shared/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
     "claude/scopes/shared/commands/adversary.md:workflow/skills/adversary.md" \
-    "claude/scopes/shared/commands/bug-check.md:workflow/skills/bug-check.md" \
-    "claude/scopes/shared/commands/ci-fix.md:workflow/skills/ci-fix.md" \
-    "claude/scopes/shared/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
-    "claude/scopes/shared/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
-    "claude/scopes/shared/commands/linear-work.md:workflow/skills/linear-work.md" \
-    "claude/scopes/shared/commands/pr-qa.md:workflow/skills/pr-qa.md" \
-    "claude/scopes/shared/commands/pr-review.md:workflow/skills/pr-review.md" \
+    "claude/scopes/work/commands/bug-check.md:workflow/skills/bug-check.md" \
+    "claude/scopes/work/commands/ci-fix.md:workflow/skills/ci-fix.md" \
+    "claude/scopes/work/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
+    "claude/scopes/work/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
+    "claude/scopes/work/commands/linear-work.md:workflow/skills/linear-work.md" \
+    "claude/scopes/work/commands/pr-qa.md:workflow/skills/pr-qa.md" \
+    "claude/scopes/work/commands/pr-review.md:workflow/skills/pr-review.md" \
     "claude/scopes/shared/commands/review.md:workflow/skills/review.md" \
-    "claude/scopes/shared/commands/sec-pr.md:workflow/skills/sec-pr.md" \
+    "claude/scopes/work/commands/sec-pr.md:workflow/skills/sec-pr.md" \
     "claude/scopes/shared/commands/plan-loop.md:workflow/skills/plan-loop.md" \
     "claude/scopes/shared/commands/verify-workflow.md:workflow/skills/verify.md"; do
     adapter_path="${adapter%%:*}"

@@ -153,28 +153,25 @@ A plan is `READY` when it has:
 | Diagnosis, compare, or pre-existing-capture forensics | `answer` | none | answer delivered; do not write `PLAN.md` |
 | Ordinary coding with no root `PLAN.md` and no explicit plan request | `answer` | code/docs | edit complete; do not skip READY/`plan-implement` when the user asked for a plan or the work is multi-slice |
 | Broad task, unclear implementation, or "fais un plan" | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
-| Guided spec construction ("rédige une spec", "guide-moi pour la spec") | `spec-guide` | spec drafted via `/spec` template | spec solid, hands off to `/spec` |
 | Read-only adversarial PLAN.md review, or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
 | Self-improvement request from run evidence, retrospect output, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
 | Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff; no push/PR/deploy without explicit command contract |
-| Create or draft a Linear ticket | `linear-ticket-create` | Linear issue | created issue or MCP blocker |
-| Analyze a Linear bug without implementing | `bug-check` | adversarial root-cause report | `CERTAIN`, `HIGH CONFIDENCE`, or `UNCERTAIN` |
-| Bug fix or feature described by Linear ticket | `linear-work` | `PLAN.md` + code/docs + validation | ticket acceptance criteria validated or blocked |
-| GitHub PR code review | `pr-review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
-| GitHub PR QA plan | `pr-qa` | QA impact plan | executable test plan delivered |
-| Dependabot/security PR audit | `sec-pr` | security audit report | `PASS`, `FAIL`, or `INVESTIGATE` |
-| Explicit autonomous CI repair | `ci-fix` | commits/pushes + CI report | CI green, blocked, time cap, or max attempts |
-| Review request | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
+| Natural-language implementation request for a Linear ticket | `plan-implement` (`implement` with a READY plan) | `PLAN.md` from the ticket + code/docs + validation | validated archive and root `PLAN.md` deleted |
+| Review request, including a GitHub PR review in natural language | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
-| Research with sources | `research-plan` | cited doc under `docs/` | cited artifact complete |
-| Destructive, secret, production, billing, deployment, or broad irreversible work | `ops-stop` | risk brief | user decision |
+| Destructive, secret, production, billing, deployment, push, external write-back (incl. Linear ticket creation), or broad irreversible work | `ops-stop` | risk brief | user decision |
 <!-- ROUTES:end -->
 
-`spec-guide` is ambient. Linear routes require Linear MCP or stop with
-`LINEAR_MCP_UNAVAILABLE` — see `docs/mcp-strategy.md`.
+Work commands are explicit commands (work scope), never chosen by the
+router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
+`/bug-check`, `/pr-review`, `/github-pr-review`, `/pr-qa`, `/sec-pr`,
+`/ci-fix`, `/spec-guide`. Slash prompts bypass the classifier, so each runs
+under its own contract (`/ci-fix` may push within it). Linear commands
+require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
+`docs/mcp-strategy.md`. Rationale: ADR-0027.
 
 `verify` is the contract route; the Claude command surface names it
 `/verify-workflow` and Pi presents `/skill:verify`.

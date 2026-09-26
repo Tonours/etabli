@@ -7,8 +7,6 @@
     "bug-check",
     "ci-fix",
     "code-quality",
-    "coolify",
-    "grill-me",
     "implement",
     "linear-ticket-create",
     "linear-work",
@@ -16,10 +14,9 @@
     "plan-loop",
     "pr-qa",
     "pr-review",
-    "project-hunt",
     "review",
-    "runtime-skill-canary",
     "sec-pr",
+    "ship",
     "thermo-nuclear-code-quality-review",
     "typesafe-ai",
     "verify"
@@ -41,14 +38,14 @@
     "bug-check": {
       "pi": "pi/skills/bug-check/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/bug-check.md"
+        "claude/scopes/work/commands/bug-check.md"
       ],
       "canonical": "workflow/skills/bug-check.md"
     },
     "ci-fix": {
       "pi": "pi/skills/ci-fix/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/ci-fix.md"
+        "claude/scopes/work/commands/ci-fix.md"
       ],
       "canonical": "workflow/skills/ci-fix.md"
     },
@@ -56,16 +53,6 @@
       "pi": "pi/skills/code-quality/SKILL.md",
       "claude": [],
       "canonical": "pi/skills/code-quality/SKILL.md"
-    },
-    "coolify": {
-      "pi": "pi/skills/coolify/SKILL.md",
-      "claude": [],
-      "canonical": "pi/skills/coolify/SKILL.md"
-    },
-    "grill-me": {
-      "pi": "pi/skills/grill-me/SKILL.md",
-      "claude": [],
-      "canonical": "pi/skills/grill-me/SKILL.md"
     },
     "implement": {
       "pi": "pi/skills/implement/SKILL.md",
@@ -77,14 +64,14 @@
     "linear-ticket-create": {
       "pi": "pi/skills/linear-ticket-create/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/linear-ticket-create.md"
+        "claude/scopes/work/commands/linear-ticket-create.md"
       ],
       "canonical": "workflow/skills/linear-ticket-create.md"
     },
     "linear-work": {
       "pi": "pi/skills/linear-work/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/linear-work.md"
+        "claude/scopes/work/commands/linear-work.md"
       ],
       "canonical": "workflow/skills/linear-work.md"
     },
@@ -105,21 +92,16 @@
     "pr-qa": {
       "pi": "pi/skills/pr-qa/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/pr-qa.md"
+        "claude/scopes/work/commands/pr-qa.md"
       ],
       "canonical": "workflow/skills/pr-qa.md"
     },
     "pr-review": {
       "pi": "pi/skills/pr-review/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/pr-review.md"
+        "claude/scopes/work/commands/pr-review.md"
       ],
       "canonical": "workflow/skills/pr-review.md"
-    },
-    "project-hunt": {
-      "pi": "pi/skills/project-hunt/SKILL.md",
-      "claude": [],
-      "canonical": "pi/skills/project-hunt/SKILL.md"
     },
     "review": {
       "pi": "pi/skills/review/SKILL.md",
@@ -128,17 +110,19 @@
       ],
       "canonical": "workflow/skills/review.md"
     },
-    "runtime-skill-canary": {
-      "pi": "pi/skills/runtime-skill-canary/SKILL.md",
-      "claude": [],
-      "canonical": "pi/skills/runtime-skill-canary/SKILL.md"
-    },
     "sec-pr": {
       "pi": "pi/skills/sec-pr/SKILL.md",
       "claude": [
-        "claude/scopes/shared/commands/sec-pr.md"
+        "claude/scopes/work/commands/sec-pr.md"
       ],
       "canonical": "workflow/skills/sec-pr.md"
+    },
+    "ship": {
+      "pi": "pi/skills/ship/SKILL.md",
+      "claude": [
+        "claude/scopes/shared/commands/ship.md"
+      ],
+      "canonical": "workflow/skills/ship.md"
     },
     "thermo-nuclear-code-quality-review": {
       "pi": "pi/skills/thermo-nuclear-code-quality-review/SKILL.md",
@@ -183,7 +167,7 @@
     {
       "skill": "bug-check",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/bug-check.md",
+      "adapter": "claude/scopes/work/commands/bug-check.md",
       "canonical": "workflow/skills/bug-check.md",
       "sha256": "a719676a43efc2da1ccfef1e82f16e3cf98455db0d93060d643825fc4fec84b9"
     },
@@ -197,7 +181,7 @@
     {
       "skill": "ci-fix",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/ci-fix.md",
+      "adapter": "claude/scopes/work/commands/ci-fix.md",
       "canonical": "workflow/skills/ci-fix.md",
       "sha256": "68b6dfa8a6d62dea1083bfe9b6327dd83bc008f49d3d2cb423b0181444c4d3cd"
     },
@@ -216,20 +200,6 @@
       "sha256": "35acba56ed9d58cf6085391f0f856966fe74a7fb303f98dc0b1642bcc524f2a1"
     },
     {
-      "skill": "coolify",
-      "harness": "pi",
-      "adapter": "pi/skills/coolify/SKILL.md",
-      "canonical": "pi/skills/coolify/SKILL.md",
-      "sha256": "7be0652239fcc5c6c0d7d7135a9cb05a75957a3f194a8a37d4bb2512ee62ba60"
-    },
-    {
-      "skill": "grill-me",
-      "harness": "pi",
-      "adapter": "pi/skills/grill-me/SKILL.md",
-      "canonical": "pi/skills/grill-me/SKILL.md",
-      "sha256": "7e6793afdf93392725160526833d11371142bf1d5c10538b7edb934a191a2a47"
-    },
-    {
       "skill": "implement",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/implement.md",
@@ -246,7 +216,7 @@
     {
       "skill": "linear-ticket-create",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/linear-ticket-create.md",
+      "adapter": "claude/scopes/work/commands/linear-ticket-create.md",
       "canonical": "workflow/skills/linear-ticket-create.md",
       "sha256": "740d373446b2a70a13cefc13642b1be47fbf3a285d776a1fefce7e59173f2a90"
     },
@@ -260,7 +230,7 @@
     {
       "skill": "linear-work",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/linear-work.md",
+      "adapter": "claude/scopes/work/commands/linear-work.md",
       "canonical": "workflow/skills/linear-work.md",
       "sha256": "d3e40aff1a767512c8c212d82f407cdcdf404c5687d3f1960018ce6b717ceb92"
     },
@@ -302,7 +272,7 @@
     {
       "skill": "pr-qa",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/pr-qa.md",
+      "adapter": "claude/scopes/work/commands/pr-qa.md",
       "canonical": "workflow/skills/pr-qa.md",
       "sha256": "d90ce46fb55715a154e303abaea683ecd62aae740db36430ee9580cf03665ead"
     },
@@ -316,7 +286,7 @@
     {
       "skill": "pr-review",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/pr-review.md",
+      "adapter": "claude/scopes/work/commands/pr-review.md",
       "canonical": "workflow/skills/pr-review.md",
       "sha256": "10e47e220a0e51442b3a2426cd98bc8818114dc061f0ce10f87c43513575d4c3"
     },
@@ -326,13 +296,6 @@
       "adapter": "pi/skills/pr-review/SKILL.md",
       "canonical": "workflow/skills/pr-review.md",
       "sha256": "9a96d7f73f7a45717a0ae372b7369d5667666748c061831c9242d054b505fe81"
-    },
-    {
-      "skill": "project-hunt",
-      "harness": "pi",
-      "adapter": "pi/skills/project-hunt/SKILL.md",
-      "canonical": "pi/skills/project-hunt/SKILL.md",
-      "sha256": "233bda3154db23e9d50a7e81d4b66592d37f05e58727abb55be3c75748c1b6a0"
     },
     {
       "skill": "review",
@@ -349,16 +312,9 @@
       "sha256": "60b01d3275ff82b3c7baf4cd046e7fafde0cb54cc29d398df9ef7ca943646a80"
     },
     {
-      "skill": "runtime-skill-canary",
-      "harness": "pi",
-      "adapter": "pi/skills/runtime-skill-canary/SKILL.md",
-      "canonical": "pi/skills/runtime-skill-canary/SKILL.md",
-      "sha256": "588ab6e1a566034093585a6e44268ae4b211e8f15312d5324310b0ae650539bd"
-    },
-    {
       "skill": "sec-pr",
       "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/sec-pr.md",
+      "adapter": "claude/scopes/work/commands/sec-pr.md",
       "canonical": "workflow/skills/sec-pr.md",
       "sha256": "daa5ad3c4811c0a0aa5bfbf85ee53bdc1daba352f0a2c1c2daa60373e66792d6"
     },
@@ -368,6 +324,20 @@
       "adapter": "pi/skills/sec-pr/SKILL.md",
       "canonical": "workflow/skills/sec-pr.md",
       "sha256": "5625b063327ee7f0910809bf827edf1000ed3b6c11adfe46ae388544836019e5"
+    },
+    {
+      "skill": "ship",
+      "harness": "claude",
+      "adapter": "claude/scopes/shared/commands/ship.md",
+      "canonical": "workflow/skills/ship.md",
+      "sha256": "f5bb521c1836a38ac2718f521fcf9d3b11294e2478cf334a2973b8d36f7576fa"
+    },
+    {
+      "skill": "ship",
+      "harness": "pi",
+      "adapter": "pi/skills/ship/SKILL.md",
+      "canonical": "workflow/skills/ship.md",
+      "sha256": "0820a761e3ba7760143dab54c470d6cea8caebdfdb3196b345aa46752b06fc24"
     },
     {
       "skill": "thermo-nuclear-code-quality-review",

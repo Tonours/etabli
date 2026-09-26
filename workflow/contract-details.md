@@ -128,7 +128,7 @@ sandbox. Shared workflow and evidence invariants stay in
   `workflow/project-autonomy-envelope.md`: its controller is read-only, advances
   only declared verifiable slices from the ledger, and never replaces READY,
   checkpoint, no-progress, final-state-grader, or sealed-held-out gates.
-- Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
+- Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`, emit a
@@ -188,9 +188,9 @@ documents the enforcement behind each boundary.
 | --- | --- | --- | --- |
 | deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
 | production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
-| history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
+| history rewrite / push | force-push, `git push`, push a PR/branch/commit, rebase published history | router `OPS_STOP_PATTERN`; the explicit `/ci-fix` command is the consented exception (slash prompts bypass the router) | route `ops-stop` unless explicit `/ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
-| external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
+| external write-back | post PR review/comment, update Linear status, create a Linear ticket, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (only a genuinely missing PLAN is exempt; unrelated plan → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
@@ -271,8 +271,9 @@ Manual-only Claude commands (invoked by explicit slash only, never ambiently
 routed): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`; invoking it
 consents to feature-branch push and PR creation), `/linear-project-setup`.
 The Playwright QA chain lives in the `claude/scopes/shared/skills/playwright-*` skills, not
-in slash commands or separate agents. `/spec-guide` is routed ambiently (see
-routing table).
+in slash commands or separate agents. Work commands (`/linear-*`, `/bug-check`,
+`/pr-review`, `/pr-qa`, `/sec-pr`, `/ci-fix`, `/spec-guide`) are explicit
+commands in the work scope, never routed (ADR-0027).
 
 Claude-native loop:
 

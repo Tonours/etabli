@@ -76,7 +76,7 @@ import { createRequire } from 'node:module';
 const { parse } = createRequire(join('$ROOT_DIR', 'pi/package.json'))('yaml');
 const missing = [];
 for (const name of process.argv.slice(2)) {
-  const file = join(process.argv[1], 'pi/skills', name, 'SKILL.md');
+  const file = join(process.argv[1], 'extras/skills', name, 'SKILL.md');
   if (!existsSync(file)) { missing.push(name + ' (absent)'); continue; }
   const text = readFileSync(file, 'utf8');
   const head = parse(text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|\$)/)[1]);
@@ -87,11 +87,11 @@ if (missing.length) { console.error('repo DMI flags missing: ' + missing.join(',
 }
 pin_repo_dmi "$ROOT_DIR" $REPO_DMI || fail "repo DMI pin failed"
 FIXPIN="$TMP_DIR/fixpin"
-mkdir -p "$FIXPIN/pi/skills"
+mkdir -p "$FIXPIN/extras/skills"
 for name in $REPO_DMI; do
   [ "$name" = "ideas" ] && continue
-  mkdir -p "$FIXPIN/pi/skills/$name"
-  cp "$ROOT_DIR/pi/skills/$name/SKILL.md" "$FIXPIN/pi/skills/$name/"
+  mkdir -p "$FIXPIN/extras/skills/$name"
+  cp "$ROOT_DIR/extras/skills/$name/SKILL.md" "$FIXPIN/extras/skills/$name/"
 done
 if pin_repo_dmi "$FIXPIN" $REPO_DMI 2>"$TMP_DIR/fixpin-err.txt"; then
   fail "DMI pin must fail when a repo skill file is absent"
@@ -107,8 +107,8 @@ for dir in "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/
 done
 printf -- '---\nname: github\ndescription: fixture\n---\nbody\n' \
   >"$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"
-ln -s "$ROOT_DIR/pi/skills/grill-me" "$STAMP_HOME/.agents/skills/grill-me"
-cp "$ROOT_DIR/pi/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md"
+ln -s "$ROOT_DIR/extras/skills/grill-me" "$STAMP_HOME/.agents/skills/grill-me"
+cp "$ROOT_DIR/extras/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md"
 
 "$STAMP" --list --home "$STAMP_HOME" >"$TMP_DIR/stamp-list.txt" || fail "stamp --list failed"
 grep -q "hyperframes" "$TMP_DIR/stamp-list.txt" || fail "stamp list hides hyperframes"
@@ -125,7 +125,7 @@ for file in "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" \
   "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"; do
   grep -q "^disable-model-invocation: true$" "$file" || fail "flag missing in $file"
 done
-cmp -s "$ROOT_DIR/pi/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md" \
+cmp -s "$ROOT_DIR/extras/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md" \
   || fail "stamp touched a repo realpath"
 grep -q -i -e "absent" -e "skip" "$TMP_DIR/stamp-out.txt" || fail "stamp must report absent names"
 

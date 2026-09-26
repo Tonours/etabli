@@ -47,7 +47,9 @@ function descriptionFromSkill(path) {
 }
 
 function sourceRoot(source) {
-  return source === "pi" ? join(ROOT, "pi/skills") : join(ROOT, "vendor", source, "skills");
+  if (source === "pi") return join(ROOT, "pi/skills");
+  if (source === "extras") return join(ROOT, "extras/skills");
+  return join(ROOT, "vendor", source, "skills");
 }
 
 export function loadSkillSuggestionCatalog(catalogPath = CATALOG) {

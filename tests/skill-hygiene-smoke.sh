@@ -17,13 +17,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+claude_scoped() {
+  if [ -f "$ROOT_DIR/claude/scopes/work/$1" ]; then
+    printf 'claude/scopes/work/%s\n' "$1"
+  else
+    printf 'claude/scopes/shared/%s\n' "$1"
+  fi
+}
+
 # Pinned side-effect set: a 6th skill joins via reviewed-diff list edit only.
 SIDE_EFFECT="ship plan-implement implement ci-fix linear-ticket-create"
 
 # --- AC1a: flag VALUE on all 10 pinned paths (mirrors load-check:175) ---
 DMI_RE='^disable-model-invocation:[ ]*true[ ]*(#.*)?$'
 for name in $SIDE_EFFECT; do
-  for file in "pi/skills/$name/SKILL.md" "claude/scopes/shared/commands/$name.md"; do
+  for file in "pi/skills/$name/SKILL.md" "$(claude_scoped "commands/$name.md")"; do
     [ -f "$ROOT_DIR/$file" ] || fail "AC1a: pinned path missing: $file"
     grep -Eq -e "$DMI_RE" "$ROOT_DIR/$file" || fail "AC1a: $file lacks disable-model-invocation: true"
   done
@@ -47,7 +55,7 @@ fi
 # edit only. Unrewritten legacy descriptions (27 pi, tripwire-nonconforming
 # at implement) are out of scope; the trigger eval validates the mixed
 # surface semantically (24/24 at implement).
-PI_SHAPED="adversary bug-check ci-fix code-quality conversation-retrospect coolify grill-me implement linear-ticket-create linear-work plan-implement plan-loop pr-qa pr-review project-hunt review runtime-skill-canary sec-pr thermo-nuclear-code-quality-review verify"
+PI_SHAPED="adversary bug-check ci-fix code-quality implement linear-ticket-create linear-work plan-implement plan-loop pr-qa pr-review review sec-pr thermo-nuclear-code-quality-review verify"
 CLAUDE_SHAPED="agents/adversary.md commands/adversary.md commands/bug-check.md commands/ci-fix.md commands/implement.md commands/linear-ticket-create.md commands/linear-work.md commands/plan-implement.md commands/plan-loop.md commands/pr-qa.md commands/pr-review.md commands/review.md commands/sec-pr.md commands/verify-workflow.md"
 USE_RE='use\b.*(when|for)\b'
 NOT_RE='(not|never|except|don'"'"'t|pas pour)\b'
@@ -59,7 +67,7 @@ for name in $PI_SHAPED; do
   printf '%s\n' "$desc" | grep -Eq -i -e "$NOT_RE" || fail "AC2a: $file lacks not-for"
 done
 for sub in $CLAUDE_SHAPED; do
-  file="claude/scopes/shared/$sub"
+  file="$(claude_scoped "$sub")"
   [ -f "$ROOT_DIR/$file" ] || fail "AC2a: pinned path missing: $file"
   desc="$(grep -m1 -e '^description:' "$ROOT_DIR/$file")"
   printf '%s\n' "$desc" | grep -Eq -i -e "$USE_RE" || fail "AC2a: $file lacks use-when/for"

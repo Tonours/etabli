@@ -37,7 +37,7 @@ work from memory when the user asked to use Linear. To enable Linear MCP
      blocking question.
 3. Create or refresh root `PLAN.md` with:
    - Linear key and URL under observed facts;
-   - route: `linear-work`;
+   - route: `plan-implement` (entered through the explicit `/linear-work` command);
    - role: implementer with planner/challenger as needed;
    - stop condition: validation complete and Linear handoff ready;
    - required evidence: focused checks plus ticket acceptance criteria.

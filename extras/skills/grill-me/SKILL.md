@@ -6,10 +6,10 @@ disable-model-invocation: true
 <!-- GENERATED:adapter-sync:start -->
 skill: grill-me
 harness: pi
-canonical: pi/skills/grill-me/SKILL.md
+canonical: extras/skills/grill-me/SKILL.md
 name: grill-me
 description: Grill the user relentlessly about a plan, decision, or idea until every branch of the design tree is resolved. Use when the user wants to stress-test their thinking, asks to be grilled on a plan or design, or uses any 'grill' trigger phrase; not for casual feedback or when the user wants answers instead of questions.
-pointer: Adapter for the `grill-me` skill. Read and follow the shared contract in `pi/skills/grill-me/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `grill-me` skill. Read and follow the shared contract in `extras/skills/grill-me/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.

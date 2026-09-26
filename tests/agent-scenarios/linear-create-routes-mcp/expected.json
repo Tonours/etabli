@@ -1,1 +1,1 @@
-{"claude_route":"linear-ticket-create","pi_route":"linear-ticket-create","write_allowed":true,"guard":null,"context_contains":["Route: linear-ticket-create"],"context_not_contains":["Route: linear-work"]}
+{"claude_route":"ops-stop","pi_route":"ops-stop","write_allowed":false,"guard":null,"context_contains":["Route: ops-stop","risk brief"],"context_not_contains":["Route: linear-work","Route: linear-ticket-create"]}

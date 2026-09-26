@@ -14,13 +14,11 @@ producer on that additive path, while deterministic code retains eligibility,
 permissions, abstention, persistence, mutation, promotion, and rollback.
 Synthetic tests prove the integration contract, not live model quality.
 
-The current route policy calls Jev for `answer`, `implement`, `plan-loop`,
-`pr-review`, `review`, and `sec-pr`. Protected routes bypass it.
-`plan-implement` also uses the deterministic route contract. Its 2026-09-21
-efficiency campaign stopped after the first candidate cell and is recorded as
-non-comparable. No route-specific token saving is claimed. The checked-in
-policy is `workflow/runtime/jev-route-capsule-policy.json`; the campaign result
-is `workflow/self-improvement/jev-plan-implement-report.md`.
+The Jev route-capsule runtime was removed (ADR-0027): every route uses the
+deterministic route contract. The 2026-09-21 `plan-implement` efficiency
+campaign stopped after the first candidate cell and is recorded as
+non-comparable; no route-specific token saving is claimed. The campaign
+result is `workflow/self-improvement/jev-plan-implement-report.md`.
 
 ## Offline-first CLI
 
