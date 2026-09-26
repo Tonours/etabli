@@ -63,8 +63,6 @@ function configuredLocalSkills() {
   return [...result].sort();
 }
 
-// Thin root resolver over the shared hasher; every hashing rule lives in
-// scripts/lib/skill-tree-hash.mjs (also used by the runtime skill canary).
 function sourceRootOf(source) {
   if (source === "pi") return join(repoDir, "pi");
   if (source === "extras") return join(repoDir, "extras");

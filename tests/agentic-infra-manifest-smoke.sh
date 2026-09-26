@@ -74,7 +74,11 @@ adapter-sync
 rule-registry
 router-parity
 proof-shadow
-skill-hygiene'
+skill-hygiene
+canonical-copy
+prompt-order
+hunter-parity
+pointer-follow'
 # Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
 # review-contract-surface-smoke (<50 ms) — the merge gate that must catch
 # contract-surface regressions like the CR-B4 union-cap leak.
@@ -97,8 +101,8 @@ skill-hygiene'
 # codex-source (hermetic source-measure gate) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 32 ] ||
-	fail "core profile must hold exactly 32 checks"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 36 ] ||
+	fail "core profile must hold exactly 36 checks"
 
 expected_full='pr-latest-head-status-smoke
 leap-harness-validation-smoke
