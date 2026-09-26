@@ -11,17 +11,8 @@ export type WorkflowRoute =
 	| "adversary"
 	| "implement"
 	| "plan-implement"
-	| "bug-check"
-	| "linear-ticket-create"
-	| "linear-work"
-	| "pr-review"
-	| "pr-qa"
-	| "sec-pr"
-	| "ci-fix"
 	| "review"
 	| "verify"
-	| "research-plan"
-	| "spec-guide"
 	| "ops-stop";
 
 export type PlanStatus =
@@ -90,7 +81,7 @@ export function classifyWorkflowRoute(
 		...core,
 		route,
 		skill:
-			route === "answer" || route === "ops-stop" || route === "research-plan"
+			route === "answer" || route === "ops-stop"
 				? core.skill
 				: route,
 		stopCondition: core.stopCondition.replace(/Verdict: /g, ""),

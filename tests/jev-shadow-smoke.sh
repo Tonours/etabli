@@ -122,7 +122,6 @@ ln -s "$ROOT/pi/extensions" "$TMP/runtime/.pi/agent/extensions"
 ln -s "$ROOT/scripts" "$TMP/runtime/.pi/scripts"
 ln -s "$ROOT/workflow" "$TMP/runtime/.pi/workflow"
 bun -e "await import('$TMP/runtime/.pi/agent/extensions/workflow-router.ts')" >/dev/null
-bun -e "await import('$TMP/runtime/.pi/agent/extensions/jev-route-capsule-runtime.ts')" >/dev/null
 mkdir -p "$TMP/local-root"
 cli_injected="$(printf '%s\n' '{"prompt":"plain route","deterministic_route":"answer","policy":{"mode":"advisory","model":"jev-latest","receipt_path":"../escape.jsonl"},"persistReceipt":false}' | ETABLI_RECEIPT_ROOT="$TMP/local-root" node "$ROOT/scripts/jev-shadow" evaluate)"
 jq -e '.selected.route == "answer" and .receipt == null' <<<"$cli_injected" >/dev/null

@@ -144,7 +144,7 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     `*.policy.json`), or any rebase happened (proof invalidated).
     Generated-records row-only deltas (closed list: `review-metrics.md`;
     `skills-lock.json`, `*-promotion.json`, `*-policy.json` — today the
-    jev route-capsule instances — with every changed fingerprint
+    Jev route-promotion instance — with every changed fingerprint
     recomputed from its pinned source — lock via the verify procedure,
     promotion via sha256 of the pinned files, manifest via sha256 of
     the file — and the rest identical over canonical `jq -S` parsed

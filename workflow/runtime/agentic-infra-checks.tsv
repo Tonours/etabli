@@ -82,7 +82,6 @@ full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-patter
 full	shell-docs	skill-eval-smoke	tests/skill-eval-smoke.sh
 full	shell-docs	etabli-harness-eval-smoke	tests/etabli-harness-eval-smoke.sh
 full	shell-docs	etabli-harness-eval-v2-smoke	tests/etabli-harness-eval-v2-smoke.sh
-full	shell-docs	runtime-skill-canary-smoke	tests/runtime-skill-canary-smoke.sh
 full	shell-docs	session-handoff-smoke	tests/session-handoff-smoke.sh
 full	shell-docs	skill-catalog-name-smoke	tests/skill-catalog-name-smoke.sh
 full	shell-docs	skill-tree-hash-smoke	tests/skill-tree-hash-smoke.sh
@@ -108,7 +107,6 @@ full	shell-docs	skill-trigger-eval	tests/skill-trigger-eval-smoke.sh
 full	shell-docs	codex-source	tests/codex-skill-source-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
-live	shell-docs	runtime-skill-canary-live	tests/runtime-skill-canary-live.sh
 live	shell-docs	etabli-harness-eval-live	tests/etabli-harness-eval-live.sh
 core	shell-docs	canonical-copy	tests/canonical-copy-smoke.sh
 core	shell-docs	prompt-order	tests/prompt-order-smoke.sh

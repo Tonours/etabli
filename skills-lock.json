@@ -229,17 +229,12 @@
     "coolify": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "90c23ef66ed8d759eba7d1e2954580dfa3544ea36f82772ea198f350d82689fe"
+      "computedHash": "3037be9a09c1829ddaeafc9368ec2176d5be81be22bd3f58e9083f4441a3fb6e"
     },
     "grill-me": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "fd1144ec3dd90f9bc841e123f2f933db5b5889453984ff8c973829c6a1b9328f"
-    },
-    "runtime-skill-canary": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "977df4e524eccc80202bebddd98930b563ec0c863f723164d266724b2acf6ebc"
+      "computedHash": "791426a6ee52fc9513b928db5a5b93f157997b4941585dd98504eee4707b34fc"
     },
     "session-handoff": {
       "source": "local",
@@ -254,7 +249,7 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "635832fa55bdd81f040e50868a2986765f2e7cf1bc8cd1e22a44a644d6e35dfb"
+      "computedHash": "0a9baccaf6ec696c0e96ef96cfd1e3dae74acb6dc9505766f4d62ccf3c49d266"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
@@ -336,26 +331,6 @@
       "sourceType": "repo",
       "computedHash": "d6d5c921b157f2de45c7418d5299f822739cd1460da6887aae378259b4069faa"
     },
-    "claude-scope/shared/css-debugging": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b7be55dbfcb9b818b34ee79e4cdda4c7cd14cb6c808b41576645a6c8029597de"
-    },
-    "claude-scope/shared/css-layout-primitives": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8dd86c762ca6c493b5472c7804049a2d5c73f20e09b454129401a7724804b902"
-    },
-    "claude-scope/shared/css-only-components": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "e1a7a076666462f68566f876792540f10e70444b330ae41519df33f1ceca5739"
-    },
-    "claude-scope/shared/frontend-css-ui-ux": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "fbe3351c07a5cef2b375541d3b07b00bda9c6bd11f5029e64e2609b1e1acbc69"
-    },
     "claude-scope/shared/playwright-agentic-testing": {
       "source": "local",
       "sourceType": "repo",
@@ -425,6 +400,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "9cd84c5e535dec8dec59917c110f9c00b4a61faadb86b432ec7e41051170af12"
+    },
+    "ship": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4d85167256cb5a45aa613e49d5fc23a4a180140928069ee887c5e927431de88b"
     }
   }
 }

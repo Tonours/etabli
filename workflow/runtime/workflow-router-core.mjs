@@ -36,6 +36,17 @@ const VERIFY_OBJECT_CLAUSE_PATTERN =
 const RETEST_STRIP_PATTERN = /\brelance\s+les\s+tests\b/g;
 const PLAN_PATTERN =
 	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/;
+const BUG_CHECK_PATTERN =
+	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/;
+const PR_CONTEXT_PATTERN =
+	/\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/;
+const PR_REVIEW_PATTERN = new RegExp(
+	`\\b(pr-review|code review|${REVIEW_TERMS})\\b`,
+);
+const PR_QA_PATTERN =
+	/\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/;
+const SEC_PR_PATTERN =
+	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/;
 // An explicit planning ask ("fais un plan", "draft a roadmap") outranks every
 // implementation signal: the user asked for a plan, not for an edit.
 // An implement word only blocks the read-only branch when used as an
@@ -66,11 +77,6 @@ const SCOPED_MIGRATION_PATTERN =
 	/\b(?:dossier|directory|folder|file|fichier)s?\s+migrations?\b|\bmigrations?\s*(?:\/|\.sql|\.js|\.ts)\b|\b(?:fichier\s+de\s+migration|migration\s+file)\b/;
 const PLAN_REQUEST_PATTERN =
 	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b(?:(?!\b(?:review|revue|audit|critique|relis)\b)[\s\S]){0,24}\b(plan|roadmap|strat[eé]gie|strategy)\b|\b(?:je |i )?(veux|voudrais|want|need)\s+(?:un |une |a |an |my |the )?(?:plan|roadmap|strat[eé]gie|strategy)\b|\b(plan|roadmap)\s+(seul|only)\b|\b(plan|roadmap|strat[eé]gie|strategy)\b[^.!?]{0,40}\b(?:la |le |l')?(pr[eé]parer|r[eé]diger|proposer|esquisser|drafte?r)\b/;
-const SPEC_GUIDE_PATTERN =
-	/(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/u;
-const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/u;
-const SPEC_CREATE_VERB_PATTERN =
-	/(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/u;
 const IMPLEMENT_PATTERN =
 	/\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire|bump|augmente|add|[ck]r[eé]e|create|refactor(?:ise)?|applique|s[eé]curise|secure)\b/;
 const READY_PLAN_PATTERN =
@@ -81,13 +87,6 @@ const SELF_IMPROVEMENT_PATTERN =
 	/\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospect(?:ive)?\s+(?:du|de la|des|of)\s+(?:workflow|run|loop)|retrospective\s+(?:loop|findings)|fixes?\s+r[eé]currents?|(?:recurring|r[eé]currents?)\s+(?:findings|failures|issues))\b/;
 const AMBITIOUS_PROJECT_PATTERN =
 	/\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/;
-const RESEARCH_PATTERN =
-	/\b(recherche|fact[- ]?check|benchmark|existe d[eé]j[aà]|sourc[eé]e[sr]?|sources? fiables?)\b/;
-// "Cherche les sources du leak" is research with sources; a bare "github" or
-// "source" mention inside a fix request ("corrige la source de l'erreur") is
-// ordinary coding, not research.
-const RESEARCH_SOURCES_PATTERN =
-	/\b(?:cherche|search|find|trouve)\b[^.!?]{0,40}\bsources?\b/;
 const IMPLEMENT_NEGATION_PATTERN =
 	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/;
 // Explicit large-work signals: these are the only implement-phrased requests
@@ -106,14 +105,10 @@ const PREPARE_FOR_REVIEW_PATTERN =
 	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/;
 const OPS_STOP_PATTERN =
-	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(?:(?:d[eé]finitivement|definitively|permanently)\s+)?(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|d[eé]p[oô]t|repo|database|base|branch|branche))/;
+	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bpush\s+(?:the\s+|my\s+|our\s+|this\s+)?(?:pr|pull\s+request|branch|commits?|changes)\b|\bpush\s+(?:to\s+)?(?:origin|upstream)\b|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(?:(?:d[eé]finitivement|definitively|permanently)\s+)?(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|d[eé]p[oô]t|repo|database|base|branch|branche))/;
 const EXTERNAL_WRITE_BACK_PATTERN =
-	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/;
-const TICKET_CREATE_PATTERN =
-	/\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/;
+	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b|\b(cr[eé]e|cr[eé]er|cree|creer|create)\b[\s\S]{0,40}(?:\b(tickets?|issues?)\b[\s\S]{0,30}\blinear\b|\blinear\b[\s\S]{0,30}\b(tickets?|issues?)\b)/;
 const TICKET_WORK_PATTERN =
-	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/;
-const LINEAR_EXECUTE_PATTERN =
 	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/;
 const LINEAR_READ_PATTERN =
 	/\b(r[eé]sume|resume|ouvre|open|show|montre|analyse|explique|lis|read)\b/;
@@ -129,19 +124,6 @@ const QUESTION_PATTERN =
 	/^(?:as-tu|as tu|astu|a-t-on|at-on|a-t on|a ton|at on|aton|as-ton|as ton|aston|est-ce|est ce|estce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux-tu m'expliquer|peux tu m'expliquer|peuxtu m'expliquer|c'est quoi|y a-t-il|y a t-il|y a t il|y at-il|y a il|ya-t-il|y a-t-il|o[uù]|o[uù] est|quand|qu['’ ]est[- ]ce|what|where|when|who|why|how)\b|\?$/;
 const POLITE_REQUEST_PATTERN =
 	/\b(?:peux[- ]tu|pouvez[- ]vous|pourrais[- ]tu|pourras[- ]tu|tu peux|vous pouvez|can you|could you|would you|will you)\b/;
-const BUG_CHECK_PATTERN =
-	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/;
-const PR_CONTEXT_PATTERN =
-	/\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/;
-const PR_REVIEW_PATTERN = new RegExp(
-	`\\b(pr-review|code review|${REVIEW_TERMS})\\b`,
-);
-const PR_QA_PATTERN =
-	/\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/;
-const SEC_PR_PATTERN =
-	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/;
-const CI_FIX_PATTERN =
-	/\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/;
 const KNOWLEDGE_TOPIC_RULES = [
 	{
 		topic: "saas",
@@ -201,7 +183,6 @@ const OPS_STOP_GATE =
 	/-rf|push|pouss|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|dépôt|depot|repo|databas|branch|bas/;
 const READ_ONLY_GATE =
 	/\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis|lire|read|montre|show|cris|crir/;
-const RESEARCH_GATE = /recherche|sourc|fact|benchmark|github|existe d/;
 /**
  * Exact JS equivalent of /\b[a-z][a-z0-9]{1,9}-[0-9]+\b/ on a lowercased
  * string (the ticket-key alternative of LINEAR_PATTERN): scans dash positions
@@ -258,7 +239,6 @@ function hasLinearTicketKey(low) {
 
 const LINEAR_WORD_PATTERN = /\blinear\b/;
 const QUESTION_FIRST_CHARS = "aeqpcyowh";
-const SPEC_GUIDE_GATE = /spec|spéc|guide|interroge|pose|aide/;
 const PREPARE_FOR_REVIEW_GATE = /pr[ée]par|ready to paste|pr title/;
 
 // One necessary-literal scan for the whole knowledge block: no rule can match
@@ -638,10 +618,10 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	const prepareForReview = () =>
 		(prepareForReviewResult ??=
 			PREPARE_FOR_REVIEW_GATE.test(low) && PREPARE_FOR_REVIEW_PATTERN.test(low));
-	let prContextResult;
-	const hasPrContext = () => (prContextResult ??= PR_CONTEXT_PATTERN.test(low));
 	let planWordResult;
 	const hasPlanWord = () => (planWordResult ??= PLAN_PATTERN.test(low));
+	let prContextResult;
+	const hasPrContext = () => (prContextResult ??= PR_CONTEXT_PATTERN.test(low));
 	let autonomousLoopResult;
 	const hasAutonomousLoop = () =>
 		(autonomousLoopResult ??= AUTONOMOUS_PLAN_LOOP_PATTERN.test(low));
@@ -687,22 +667,6 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	const hasReadyPlan = () => (readyPlanResult ??= READY_PLAN_PATTERN.test(low));
 
 	if (
-		(low.includes("ci") || low.includes("check")) &&
-		CI_FIX_PATTERN.test(low)
-	) {
-		return {
-			route: "ci-fix",
-			reason: "autonomous CI fix request",
-			command: "/ci-fix",
-			artifact: "commits, pushes, and CI status report",
-			stopCondition: "CI green, blocked, time cap, or max fix attempts reached",
-			requiredEvidence:
-				"gh checks/statuses, CI logs, local repro where possible, commits and push result",
-			writeAllowed: true,
-		};
-	}
-
-	if (
 		(OPS_STOP_GATE.test(low) && OPS_STOP_PATTERN.test(low)) ||
 		EXTERNAL_WRITE_BACK_PATTERN.test(low)
 	) {
@@ -718,91 +682,52 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (hasPrContext() && SEC_PR_PATTERN.test(low)) {
-		return {
-			route: "sec-pr",
-			reason: "security PR audit request",
-			command: "/sec-pr",
-			artifact: "security PR audit report",
-			stopCondition: "PASS, FAIL, or INVESTIGATE",
-			requiredEvidence:
-				"Dependabot alerts, GHSA advisory, isolated lockfile verification, ignored/deferred evidence, CI state",
-			writeAllowed: false,
-		};
-	}
-
-	if (hasPrContext() && PR_QA_PATTERN.test(low)) {
-		return {
-			route: "pr-qa",
-			reason: "PR QA plan request",
-			command: "/pr-qa",
-			artifact: "QA impact analysis and test plan",
-			stopCondition: "executable QA plan delivered",
-			requiredEvidence:
-				"gh PR metadata, diff, comments/reviews when useful, and changed-file impact analysis",
-			writeAllowed: false,
-		};
+	if (hasPrContext() && (SEC_PR_PATTERN.test(low) || PR_QA_PATTERN.test(low))) {
+		return READ_ONLY_ANSWER_DECISION;
 	}
 
 	if (hasPrContext() && PR_REVIEW_PATTERN.test(low) && !prepareForReview()) {
-		return {
-			route: "pr-review",
-			reason: "GitHub PR review request",
-			command: "/pr-review",
-			artifact: "PR review findings",
-			stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
-			requiredEvidence:
-				"gh PR metadata, diff, checks when relevant, optional Linear context via MCP",
-			writeAllowed: false,
-		};
-	}
-
-	if (
-		isLinear &&
-		TICKET_CREATE_PATTERN.test(low) &&
-		!LINEAR_EXECUTE_PATTERN.test(low)
-	) {
-		return {
-			route: "linear-ticket-create",
-			reason: "Linear ticket creation request",
-			command: "/linear-ticket-create",
-			artifact: "Linear issue",
-			stopCondition: "created Linear issue or LINEAR_MCP_UNAVAILABLE blocker",
-			requiredEvidence:
-				"Linear MCP team/project resolution and created issue key/URL",
-			writeAllowed: true,
-		};
+		return REVIEW_DECISION;
 	}
 
 	if (
 		isLinear &&
 		BUG_CHECK_PATTERN.test(low) &&
 		/\bbug|bugfix|erreur|r[eé]gression|issue\b/i.test(low) &&
-		!LINEAR_EXECUTE_PATTERN.test(low)
+		!TICKET_WORK_PATTERN.test(low)
 	) {
-		return {
-			route: "bug-check",
-			reason: "Linear bug root-cause analysis request",
-			command: "/bug-check",
-			artifact: "adversarial bug analysis",
-			stopCondition: "CERTAIN, HIGH CONFIDENCE, or UNCERTAIN",
-			requiredEvidence:
-				"Linear MCP issue data, impacted code reads, alternative-cause rejection, blind-spot checks, git history",
-			writeAllowed: false,
-		};
+		return READ_ONLY_ANSWER_DECISION;
 	}
 
-	if (isLinear && TICKET_WORK_PATTERN.test(low)) {
+	if (
+		isLinear &&
+		TICKET_WORK_PATTERN.test(low) &&
+		!(REVIEW_PATTERN.test(low) && !hasImperativeImplement())
+	) {
+		if (planStatus === "ready") {
+			return {
+				route: "implement",
+				reason: "Linear ticket implementation request with READY plan",
+				command: "/implement",
+				artifact: "code/docs changes plus implemented plan archive",
+				stopCondition: "validated archive written and root PLAN.md deleted",
+				requiredEvidence:
+					"Linear ticket acceptance criteria, PLAN.md checks passed, archive created",
+				writeAllowed: true,
+				planChain: planChainFor(planStatus),
+			};
+		}
+
 		return {
-			route: "linear-work",
+			route: "plan-implement",
 			reason: "Linear ticket implementation request",
-			command: "/linear-work",
-			artifact: "PLAN.md, code/docs changes, validation, and Linear update draft",
-			stopCondition:
-				"ticket acceptance criteria validated or blocked with Linear evidence",
+			command: "/plan-implement",
+			artifact: "PLAN.md from the ticket, then scoped implementation",
+			stopCondition: "READY plan implemented, blocked reported, or plan drift",
 			requiredEvidence:
-				"Linear MCP issue data, PLAN.md, focused checks, and implementation handoff",
+				"Linear ticket acceptance criteria in PLAN.md; root PLAN.md Status: READY before implementation; focused validation; review; docs/plan archive; root PLAN.md deletion",
 			writeAllowed: true,
+			planChain: planChainFor(planStatus),
 		};
 	}
 
@@ -906,33 +831,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		!isPlanRequest() &&
 		!hasImperativeImplement()
 	) {
-		return {
-			route: "review",
-			reason: "review request",
-			command: "/review",
-			artifact: "findings",
-			stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
-			requiredEvidence:
-				"diff lines, plan drift evidence, or concrete reproduction",
-			writeAllowed: false,
-		};
-	}
-
-	if (
-		RESEARCH_GATE.test(low) &&
-		(RESEARCH_PATTERN.test(low) || RESEARCH_SOURCES_PATTERN.test(low)) &&
-		!hasImperativeImplement()
-	) {
-		return {
-			route: "research-plan",
-			reason: "source-backed research request",
-			command: "none",
-			artifact: "cited document under docs/",
-			stopCondition: "cited artifact complete or evidence blocker reported",
-			requiredEvidence:
-				"primary or recognized sources with claim-confidence labels",
-			writeAllowed: true,
-		};
+		return REVIEW_DECISION;
 	}
 
 	if (
@@ -1025,29 +924,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (
-		(SPEC_GUIDE_GATE.test(low) && SPEC_GUIDE_PATTERN.test(low)) ||
-		(SPEC_INTENT_PATTERN.test(low) &&
-			SPEC_CREATE_VERB_PATTERN.test(low) &&
-			!hasPrContext() &&
-			!isLinear)
-	) {
-		return {
-			route: "spec-guide",
-			reason:
-				"spec construction request — build it by guided interview before formatting",
-			command: "/spec-guide",
-			artifact: "spec drafted via /spec template",
-			stopCondition:
-				"spec solid enough (problem, non-goals, boundaries, alternatives, acceptance) then hands to /spec",
-			requiredEvidence:
-				"user answers to the socratic interview, inferences marked as such",
-			writeAllowed: true,
-			suggestion: "Then harden it with /plan-loop + /adversary.",
-		};
-	}
-
-	if (PLAN_REQUEST_PATTERN.test(low)) {
+	if (isPlanRequest()) {
 		return {
 			route: "plan-loop",
 			reason: "explicit planning request",
@@ -1239,6 +1116,15 @@ const READ_ONLY_ANSWER_DECISION = answerDecision(
 	"answer delivered",
 	"None",
 );
+const REVIEW_DECISION = Object.freeze({
+	route: "review",
+	reason: "review request",
+	command: "/review",
+	artifact: "findings",
+	stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
+	requiredEvidence: "diff lines, plan drift evidence, or concrete reproduction",
+	writeAllowed: false,
+});
 const PROMPT_ARTIFACT_DECISION = answerDecision(
 	"prompt artifact request",
 	"prompt artifact",

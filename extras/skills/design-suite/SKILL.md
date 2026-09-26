@@ -11,8 +11,8 @@ Existing etabli skills supply CSS primitives, motion, and visual validation.
 
 Prerequisite: the ui.sh skills (design, ideas, brand-kit, componentize,
 canonicalize-tailwind, add-dark-mode, dark-mode-image, make-responsive,
-markup-from-image) are vendored in this repo under `pi/skills/` and linked onto
-the agent surfaces — no install step is needed at run time. To refresh them
+markup-from-image) sit on the `extras/skills/` shelf and are not deployed;
+read them directly or promote them (see `extras/README.md`). To refresh them
 from upstream, a maintainer re-runs `npx @uidotsh/install` and commits the
 diff.
 

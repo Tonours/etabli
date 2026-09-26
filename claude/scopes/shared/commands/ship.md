@@ -4,6 +4,13 @@ disable-model-invocation: true
 argument-hint: [task description]
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent, Skill]
 ---
+<!-- GENERATED:adapter-sync:start -->
+skill: ship
+harness: claude
+canonical: workflow/skills/ship.md
+description: Deliver one task A to Z - plan, implement, review, commit, push, PR, CI green
+pointer: Adapter for the `ship` skill. Read and follow the shared contract in `workflow/skills/ship.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+<!-- GENERATED:adapter-sync:end -->
 
 # Ship
 
@@ -16,7 +23,7 @@ If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, t
 Claude specifics:
 
 - Skill selection: load the narrowest matching skill that Claude actually
-  exposes, such as `frontend-css-ui-ux`,
+  exposes, such as
   `ember-employer-suite` when the work scope is active, an exposed project
   skill, or a task-shaped one
   such as `bug-check`, `pr-qa`, or `sec-pr`. If none is exposed, use the route

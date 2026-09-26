@@ -50,6 +50,7 @@ REFERENCES_INDEX="$TMP_DIR/contract-references.txt"
 grep -Roh --exclude-dir=node_modules -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
   "$ROOT_DIR/claude" \
   "$ROOT_DIR/pi" \
+  "$ROOT_DIR/extras" \
   "$ROOT_DIR/docs" \
   "$ROOT_DIR/README.md" \
   "$ROOT_DIR/workflow/spec.md" >"$REFERENCES_INDEX" || true

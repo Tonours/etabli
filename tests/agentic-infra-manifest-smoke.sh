@@ -151,7 +151,6 @@ recurring-run-goal-pattern-smoke
 skill-eval-smoke
 etabli-harness-eval-smoke
 etabli-harness-eval-v2-smoke
-runtime-skill-canary-smoke
 session-handoff-smoke
 skill-catalog-name-smoke
 skill-tree-hash-smoke
@@ -180,7 +179,6 @@ actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 
 expected_live='workflow-cli-smoke
 workflow-real-agent-scenarios
-runtime-skill-canary-live
 etabli-harness-eval-live'
 
 # The runner must accumulate failures instead of aborting on the first one

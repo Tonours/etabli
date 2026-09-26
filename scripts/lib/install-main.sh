@@ -419,9 +419,9 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     ln -s "../../relative-repo/pi/skills/relative-managed-gone" \
         "$smoke_skill_home/.claude/skills/relative-managed-dangling"
     for smoke_live_skill in \
-        "pi/skills/design-suite" \
+        "pi/skills/plan-loop" \
         "vendor/ember-skills/skills/ember-employer-suite" \
-        "pi/skills/react-doctor-100"; do
+        "pi/skills/review"; do
         ln -s "$smoke_repo_dir/$smoke_live_skill" \
             "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
     done
@@ -504,7 +504,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             exit 1
         fi
     done
-    for smoke_kept_skill in design-suite ember-employer-suite react-doctor-100; do
+    for smoke_kept_skill in plan-loop ember-employer-suite review; do
         if [ ! -L "$smoke_skill_home/.claude/skills/$smoke_kept_skill" ]; then
             print_error "live managed Claude skill link '$smoke_kept_skill' was removed"
             exit 1

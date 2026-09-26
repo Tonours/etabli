@@ -29,7 +29,7 @@ node --input-type=module - "$ROOT_DIR" <<'NODE'
 const root = process.argv[2];
 const { classifyWorkflowRoute } = await import(`${root}/workflow/runtime/workflow-router-core.mjs`);
 const saas = classifyWorkflowRoute("Je recherche des idées de SaaS rentables");
-if (saas.route !== "research-plan") throw new Error(`unexpected route: ${saas.route}`);
+if (saas.route !== "answer" || saas.writeAllowed) throw new Error(`unexpected route: ${saas.route}`);
 if (JSON.stringify(saas.knowledgeContext?.topics) !== JSON.stringify(["saas"])) throw new Error("missing SaaS knowledge topic");
 if (saas.knowledgeContext.command.includes("rentables")) throw new Error("raw prompt leaked into knowledge command");
 if (!saas.knowledgeContext.command.includes("--max-tokens 2500")) throw new Error("unbounded knowledge command");

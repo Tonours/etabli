@@ -65,10 +65,14 @@ function configuredLocalSkills() {
 
 // Thin root resolver over the shared hasher; every hashing rule lives in
 // scripts/lib/skill-tree-hash.mjs (also used by the runtime skill canary).
+function sourceRootOf(source) {
+  if (source === "pi") return join(repoDir, "pi");
+  if (source === "extras") return join(repoDir, "extras");
+  return join(repoDir, "vendor", source);
+}
+
 async function hashSkill(name, source = "pi") {
-  const sourceRoot =
-    source === "pi" ? join(repoDir, "pi") : join(repoDir, "vendor", source);
-  return hashSkillTree(join(sourceRoot, "skills", name));
+  return hashSkillTree(join(sourceRootOf(source), "skills", name));
 }
 
 // Pinned non-catalog trees: every Claude scoped skill copy/link.
@@ -116,12 +120,7 @@ const failures = [];
 // which nothing else checks — a deleted skill dir with a surviving catalog
 // row would otherwise drift silently.
 for (const entry of catalog) {
-  const skillDir = join(
-    repoDir,
-    entry.source === "pi" ? "pi" : join("vendor", entry.source),
-    "skills",
-    entry.name,
-  );
+  const skillDir = join(sourceRootOf(entry.source), "skills", entry.name);
   try {
     await stat(skillDir);
   } catch {

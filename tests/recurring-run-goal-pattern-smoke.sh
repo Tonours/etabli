@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 CONTRACT="$ROOT_DIR/workflow/skills/recurring-run.md"
-SKILL="$ROOT_DIR/pi/skills/recurring-run/SKILL.md"
-PATTERNS="$ROOT_DIR/pi/skills/goal-prompt-rewriter/references/patterns.md"
+SKILL="$ROOT_DIR/extras/skills/recurring-run/SKILL.md"
+PATTERNS="$ROOT_DIR/extras/skills/goal-prompt-rewriter/references/patterns.md"
 FIXTURES="$ROOT_DIR/tests/fixtures/goal-prompt-rewriter/maintenance-goals.md"
 
 for file in "$CONTRACT" "$SKILL" "$PATTERNS" "$FIXTURES"; do

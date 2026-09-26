@@ -122,7 +122,7 @@
     "name": "fuzz: build me a spec for the export module routes to spec-guide",
     "category": "fuzz-explicit-plan",
     "prompt": "Construis-moi une spec pour le module d'export CSV",
-    "expectedRoute": "spec-guide",
+    "expectedRoute": "plan-loop",
     "writeAllowed": true
   },
   {

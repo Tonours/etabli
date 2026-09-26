@@ -110,14 +110,14 @@ describe("Pi settings consistency", () => {
     const packVisible = agentsVisible
       .filter((skill) => !skill.piCore)
       .map((skill) => skill.name);
-    expect(packVisible).toEqual(["runtime-skill-canary"]);
-    // Fluidity: caveman stays optional (not piCore, not agents-visible);
-    // grill-me, coolify, and project-hunt are promoted piCore skills (tsv 1/1/1).
-    expect(skillCatalog.find((s) => s.name === "caveman")?.piCore).toBe(false);
-    expect(skillCatalog.find((s) => s.name === "grill-me")?.piCore).toBe(true);
-    expect(skillCatalog.find((s) => s.name === "project-hunt")?.piCore).toBe(
-      true,
-    );
+    expect(packVisible).toEqual([]);
+    for (const shelved of ["caveman", "grill-me", "coolify", "project-hunt"]) {
+      expect(skillCatalog.find((s) => s.name === shelved)).toMatchObject({
+        source: "extras",
+        piCore: false,
+        agentsVisible: false,
+      });
+    }
 
     const keepList = [
       "plan-loop",
@@ -134,9 +134,7 @@ describe("Pi settings consistency", () => {
       "pr-qa",
       "sec-pr",
       "ci-fix",
-      "coolify",
-      "grill-me",
-      "project-hunt",
+      "ship",
       "thermo-nuclear-code-quality-review",
     ];
     expect(installCoreSkills().sort()).toEqual([...keepList].sort());
@@ -152,7 +150,7 @@ describe("Pi settings consistency", () => {
       piCore: true,
       agentsVisible: false,
     });
-    expect(keepList).toHaveLength(18);
+    expect(keepList).toHaveLength(16);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);
       expect(localPackage().skills ?? []).not.toContain(banned);

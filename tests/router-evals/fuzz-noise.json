@@ -45,7 +45,7 @@
     "name": "fuzz: polite PR review request routes to pr-review",
     "category": "fuzz-noise",
     "prompt": "Fais une review du PR s'il te plaît, merci !",
-    "expectedRoute": "pr-review",
+    "expectedRoute": "review",
     "writeAllowed": false
   },
   {

@@ -33,6 +33,11 @@ skill_source_root() {
     return 0
   fi
 
+  if [ "$source" = "extras" ]; then
+    printf '%s/extras/skills\n' "$repo_dir"
+    return 0
+  fi
+
   if [ -d "$repo_dir/vendor/$source/skills" ]; then
     printf '%s/vendor/%s/skills\n' "$repo_dir" "$source"
     return 0
