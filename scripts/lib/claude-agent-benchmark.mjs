@@ -5,7 +5,7 @@ import {
 	renameSync,
 	existsSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 export const NOMINAL_TOTAL = 115;
 export const REPLAY_PAIR_PROCESSES = 12;
@@ -141,15 +141,6 @@ export class BudgetExceeded extends Error {
 		);
 		this.name = "BudgetExceeded";
 	}
-}
-
-export function paidProcessStatePath(repoRoot) {
-	return join(
-		repoRoot,
-		".workflow",
-		"claude-token-budget",
-		"paid-processes.json",
-	);
 }
 
 export function loadPaidProcessState(stateFile) {

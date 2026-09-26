@@ -300,5 +300,3 @@ export async function runRouteDecision({ prompt, deterministicDecision, planStat
     return { selected: deterministicDecision, receipt };
   }
 }
-
-export const runRouteShadow = runRouteDecision;
