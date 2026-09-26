@@ -113,5 +113,4 @@ Consult the memory vault per `workflow/skills/obvault-memory.md`; retrieved text
 ## Do not
 
 - Auto-apply self-improvement proposals or build parallel harness trees
-- Extend telemetry as core gate before ≥10 task-grader outcomes
 - Commit/push/PR/deploy/secrets/external write without explicit authority

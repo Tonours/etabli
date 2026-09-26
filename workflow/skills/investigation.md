@@ -56,7 +56,7 @@ Do not replace these labels with vague confidence language.
   intervention.
 - User-asked instrument or reproduce: do that. Do not apply the capture-only
   stop when the user asked to instrument or reproduce the live process.
-- Product/UI: follow `workflow/skills/product-dogfood.md`; record action,
+- Product/UI: record action,
   resulting state, side effects, concrete viewports, accessibility, console,
   network, responsive, and reduced-motion outcomes when in scope.
 - Performance: freeze commands, subject/build and fixture hashes, environment,

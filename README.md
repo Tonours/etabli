@@ -76,10 +76,10 @@ Projects containing `workflow/spec.md` activate the workflow ambiently.
 Pi and Claude share the same workflow source through managed links. A change in
 this repository is the change every linked runtime reads.
 
-One writer at a time is a protocol, not an OS lock. Long-running routes keep
-their rules in [`workflow/skills/ambitious-project-loop.md`](workflow/skills/ambitious-project-loop.md)
-and [`workflow/skills/pr-maintenance-loop.md`](workflow/skills/pr-maintenance-loop.md).
-Autonomous runs pair a measured goal with an explicit iteration or time cap.
+One writer at a time is a protocol, not an OS lock. Autonomous runs pair a
+measured goal with an explicit iteration or time cap. Non-core contracts
+(product dogfood, ambitious projects, recurring runs, single-PR maintenance)
+are shelved in `extras/contracts/` and never deployed.
 
 ## Useful commands
 

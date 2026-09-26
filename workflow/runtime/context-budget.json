@@ -10,7 +10,7 @@
         "claude/CLAUDE.md",
         "workflow/agent-quick-card.md"
       ],
-      "ceiling_chars": 16635
+      "ceiling_chars": 13898
     },
     "plan-loop": {
       "description": "default read chain of the plan-loop route",
@@ -38,7 +38,7 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 68268
+      "ceiling_chars": 63181
     },
     "implement": {
       "description": "default read chain of the implement route (events-validator.md stays cold, opened only when editing the event system)",
@@ -55,7 +55,7 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 62476
+      "ceiling_chars": 57657
     },
     "review": {
       "description": "default read chain of the review route",
@@ -84,7 +84,7 @@
         "workflow/spec.md",
         "workflow/contract-details.md"
       ],
-      "ceiling_chars": 34668
+      "ceiling_chars": 29875
     },
     "ship": {
       "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",
@@ -125,7 +125,7 @@
           "trigger": "failing CI"
         }
       ],
-      "ceiling_chars": 90138
+      "ceiling_chars": 87525
     }
   }
 }

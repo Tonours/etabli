@@ -88,7 +88,7 @@ assert_file "$NEW_PROJECT/scripts/lib/hash.sh"
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1
 }
-for executable in workflow-event workflow-measurement-integrity; do
+for executable in workflow-event; do
   [ -x "$NEW_PROJECT/scripts/$executable" ] || {
     printf 'expected deployed %s to be executable\n' "$executable" >&2
     exit 1
@@ -113,7 +113,7 @@ assert_same "$ROOT_DIR/scripts/plan-cleanup" "$NEW_PROJECT/scripts/plan-cleanup"
 
 # Deployed docs must not dangle: every workflow/** reference resolves in the
 # scaffold unless the target is explicitly etabli-only.
-ETABLI_ONLY_REFS='^workflow/(trace-observation\.schema\.json$|runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
+ETABLI_ONLY_REFS='^workflow/(runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
 deployed_refs="$(grep -rhEo --include='*.md' 'workflow/[A-Za-z0-9._/-]+\.(md|json)' "$NEW_PROJECT" | sort -u)"
 [ -n "$deployed_refs" ] || {
   printf 'reference scan found no workflow refs; the check is broken\n' >&2

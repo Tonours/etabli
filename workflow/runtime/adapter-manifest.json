@@ -246,14 +246,14 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/plan-implement.md",
       "canonical": "pi/skills/plan-implement/SKILL.md",
-      "sha256": "d64e63b485b1aea1f1fadebb6ea8197c3d9ed0d5c51bfabb46651fab10910e43"
+      "sha256": "bb187b080e65dd0dbd4d97136275773cf8e814ca14af41592be6b25a99e1ebf2"
     },
     {
       "skill": "plan-implement",
       "harness": "pi",
       "adapter": "pi/skills/plan-implement/SKILL.md",
       "canonical": "pi/skills/plan-implement/SKILL.md",
-      "sha256": "69579c8036d1f72e190eee2ca539477fde20ba099e69807051669468a84f6895"
+      "sha256": "50674b535a866350ef0507e6f3b95457d4f90c0e567db598eb7ddeddccb8666d"
     },
     {
       "skill": "plan-loop",

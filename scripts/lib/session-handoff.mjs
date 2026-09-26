@@ -2,15 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-  sep,
-} from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTIVE_RUN_POINTER } from "./ledger-integrity.mjs";
 
@@ -224,61 +216,6 @@ function asArray(value) {
   return [compact(value)].filter(Boolean);
 }
 
-function contained(root, candidate) {
-  const path = relative(resolve(root), resolve(candidate));
-  return (
-    path === "" ||
-    (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
-  );
-}
-
-function projectProgram(options, events, ledgerPath) {
-  const initialized = lastOf(events, "program_initialized");
-  if (!initialized) return null;
-
-  const manifestRelative = initialized.detail?.manifest_path;
-  if (
-    typeof manifestRelative !== "string" ||
-    manifestRelative === "" ||
-    isAbsolute(manifestRelative)
-  ) {
-    return {
-      replay_valid: false,
-      error: "program manifest path is missing or unsafe",
-    };
-  }
-  const manifestPath = resolve(options.repo, manifestRelative);
-  if (!contained(options.repo, manifestPath) || !existsSync(manifestPath)) {
-    return {
-      replay_valid: false,
-      error: "program manifest is unavailable inside the repository",
-    };
-  }
-
-  return {
-    replay_valid: false,
-    error: "program control plane was removed; no replay available",
-  };
-}
-
-export function programNextAction(program) {
-  if (!program) return null;
-  if (program.error)
-    return `resolve program replay error: ${compact(program.error, 160)}`;
-  if (program.replay_complete)
-    return "program replay complete; continue with planned validation";
-  if (program.ready_units.length > 0)
-    return `start program unit ${program.ready_units[0]}`;
-  const active = program.frontier.find((unit) =>
-    ["running", "result_passed", "result_failed", "verdict_failed"].includes(
-      unit.status,
-    ),
-  );
-  if (active)
-    return `continue program unit ${active.unit_id} from ${active.status}`;
-  return "inspect program frontier; no executable unit is ready";
-}
-
 function buildHandoff(options) {
   const run = resolveRun(options);
   const ledgerPath = join(options.workflowDir, run, "events.jsonl");
@@ -289,19 +226,10 @@ function buildHandoff(options) {
   const plan = existsSync(planPath) ? readFileSync(planPath, "utf8") : "";
   const handoffSection = planSection(plan, "Handoff State");
   const explicitEvent = lastOf(events, "handoff");
-  const explicitIndex = explicitEvent ? events.lastIndexOf(explicitEvent) : -1;
-  const latestProgramIndex = events.reduce(
-    (latest, event, index) =>
-      event.event.startsWith("program_") ? index : latest,
-    -1,
-  );
-  const explicit =
-    explicitIndex >= latestProgramIndex ? explicitEvent?.detail || null : null;
-  const slice = lastOf(events, "project_slice_completed")?.detail || null;
+  const explicit = explicitEvent?.detail || null;
   const adversary = lastOf(events, "adversary_completed")?.detail || null;
   const blockerEvent = latestBlockingEvent(events);
-  const program = projectProgram(options, events, ledgerPath);
-  const handoffFields = program ? null : explicit;
+  const handoffFields = explicit;
   const validations = events
     .filter(
       (event) =>
@@ -323,7 +251,7 @@ function buildHandoff(options) {
       blockerEvent.detail?.check_or_hypothesis ||
       blockerEvent.event
     : null;
-  const blocker = eventBlocker || program?.error || null;
+  const blocker = eventBlocker || null;
   const doNotRedo =
     explicit?.do_not_redo ||
     (blockerEvent?.event === "no_progress"
@@ -338,17 +266,15 @@ function buildHandoff(options) {
       ? "handoff event recorded"
       : planField(handoffSection, "Current state") || events.at(-1).event,
     decisions: asArray(adversary?.accepted_findings).slice(0, 5),
-    done: asArray(handoffFields?.done || slice?.evidence).slice(0, 8),
-    pending: asArray(handoffFields?.pending || slice?.remaining).slice(0, 8),
+    done: asArray(handoffFields?.done).slice(0, 8),
+    pending: asArray(handoffFields?.pending).slice(0, 8),
     validations,
     blocker: blocker ? compact(blocker, 500) : null,
     next_action:
-      programNextAction(program) ||
       explicit?.next_action ||
       planField(handoffSection, "Next action") ||
       "unavailable",
     do_not_redo: asArray(doNotRedo).slice(0, 8),
-    program,
     git: gitEvidence(options.repo),
     sources: {
       plan: existsSync(planPath) ? "PLAN.md" : null,
@@ -356,28 +282,6 @@ function buildHandoff(options) {
     },
     projection_only: true,
   };
-}
-
-function replayState(program) {
-  if (!program.replay_valid) return "invalid";
-  return program.replay_complete ? "complete" : "valid";
-}
-
-function renderProgramSection(program) {
-  if (!program) return [];
-  return [
-    "## Program frontier",
-    "",
-    `- Program: \`${program.program_id || "unavailable"}\``,
-    `- Replay: ${replayState(program)}`,
-    `- Execution: ${program.execution || "unavailable"}; runtime confirmed: ${program.runtime_confirmed === true}`,
-    `- Ready: ${program.ready_units?.join(", ") || "none"}`,
-    `- Verified: ${program.verified_units?.join(", ") || "none"}`,
-    ...(program.frontier || []).map(
-      (unit) => `- Frontier: ${unit.unit_id} (${unit.status})`,
-    ),
-    "",
-  ];
 }
 
 function markdown(pack) {
@@ -399,7 +303,6 @@ function markdown(pack) {
       ? pack.validations.map((item) => `- ${item.status}: \`${item.command}\``)
       : ["- No validation evidence available."]),
     "",
-    ...renderProgramSection(pack.program),
     `## Blocker\n\n${pack.blocker || "None observed after the latest validation."}`,
     "",
     `## Next action\n\n${pack.next_action}`,

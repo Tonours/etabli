@@ -68,20 +68,15 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `PLAN.md` and the single archive, other repos are declared satellites, and the
   archive is never duplicated. Stale and invalid-status plans are surfaced by
   `scripts/plan-cleanup --status`. Both rules: `workflow/plan-archive.md`.
-- Branch-mutating routes (`/ship`, single-PR pilot, `sec-pr`) isolate per
+- Branch-mutating routes (`/ship`, `sec-pr`) isolate per
   `workflow/skills/worktree-isolation.md`: one run, one worktree, root `PLAN.md`
   inside it, explicit cleanup.
-- Product dogfood: `workflow/skills/product-dogfood.md`. Single-PR pilot:
-  `workflow/skills/pr-maintenance-loop.md` — one PR, one worktree, one loop;
-  `scripts/pr-latest-head-status`; no external write-back/deploy/push/merge <!-- etabli-only -->
-  without another explicit command contract.
 - Evidence and investigations: `workflow/skills/investigation.md` and
   `workflow/evidence-pack.schema.json`. Integrity, parent-observed execution,
   proxy support, and blocked surfaces stay distinct.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
-- Skill evaluation: `workflow/skills/skill-evaluation.md`. Ambitious projects:
-  `workflow/skills/ambitious-project-loop.md`.
+- Skill evaluation: `workflow/skills/skill-evaluation.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`.
 - Check-freeze: once READY, Checks/Acceptance Criteria/Validation Plan,
@@ -144,7 +139,7 @@ A plan is `READY` when it has:
 | Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
-| Self-improvement request from run evidence, retrospect output, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
+| Self-improvement request from run evidence, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
 | Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff; no push/PR/deploy without explicit command contract |
 | Natural-language implementation request for a Linear ticket | `plan-implement` (`implement` with a READY plan) | `PLAN.md` from the ticket + code/docs + validation | validated archive and root `PLAN.md` deleted |
 | Review request, including a GitHub PR review in natural language | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |

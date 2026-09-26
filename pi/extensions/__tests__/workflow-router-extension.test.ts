@@ -691,7 +691,7 @@ describe("workflow router extension", () => {
 		}
 	});
 
-	test("tool_result successful Bash emits a non-cryptographic runtime receipt to the active ledger", () => {
+	test("tool_result successful Bash appends no runtime receipt (retired type)", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-receipt-"));
 		try {
@@ -736,18 +736,9 @@ describe("workflow router extension", () => {
 						},
 				)
 				.filter((event) => event.event === "runtime_receipt");
-			expect(receipts.length).toBe(1);
-			expect(receipts[0].detail).toMatchObject({
-				kind: "validation",
-				exit: 0,
-				observed_by: "parent-process",
-				cryptographic: false,
-			});
-			// Raw command text must not leak into the persisted receipt.
+			expect(receipts.length).toBe(0);
 			expect(ledger).not.toContain("bash tests/a.sh");
-			expect(receipts[0].detail.subject_sha256).toMatch(/^[a-f0-9]{64}$/);
 
-			// Ordinary successful shell reads are not validation receipts.
 			runtime.emit("tool_result", {
 				toolName: "bash",
 				toolCallId: "read1",
@@ -762,27 +753,7 @@ describe("workflow router extension", () => {
 			);
 			expect(
 				afterRead.split("\n").filter((line) => line.includes('"runtime_receipt"')),
-			).toHaveLength(1);
-
-			// A repeated identical success does not double-emit.
-			runtime.emit("tool_result", {
-				toolName: "bash",
-				toolCallId: "rcpt2",
-				cwd,
-				input: { command: "bash tests/a.sh" },
-				content: [{ type: "text", text: "exit code: 0" }],
-				isError: false,
-			});
-			const afterSecond = readFileSync(
-				join(cwd, ".workflow", "rcpt-run", "events.jsonl"),
-				"utf8",
-			);
-			const secondReceipts = afterSecond
-				.split("\n")
-				.filter(
-					(line: string) => line.trim() && line.includes('"runtime_receipt"'),
-				);
-			expect(secondReceipts.length).toBe(1);
+			).toHaveLength(0);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}

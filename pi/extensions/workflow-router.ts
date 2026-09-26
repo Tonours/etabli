@@ -8,10 +8,8 @@ import {
 	appendLedgerEvent,
 	inferBashFailureFromToolResult,
 	isBashToolName,
-	isLikelyValidationCommand,
 	pickPrimaryActiveLedger,
 	recordBashValidationFailure,
-	recordBashValidationReceipt,
 } from "./lib/ledger-auto-emit.ts";
 import {
 	explicitCwd,
@@ -153,10 +151,6 @@ export default function (pi: ExtensionAPI) {
 						exit: inferred.exit,
 						failure: inferred.failure || `exit ${inferred.exit}`,
 					});
-				} else if (isLikelyValidationCommand(command)) {
-					// Bind observed successful validations to the active ledger as a
-					// non-cryptographic runtime receipt (command hash + exit 0).
-					recordBashValidationReceipt(eventCwd(event, ctx), { command });
 				}
 			} catch {
 				// Never break the tool_result pipeline on ledger I/O.

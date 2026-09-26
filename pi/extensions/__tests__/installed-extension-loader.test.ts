@@ -15,7 +15,6 @@ const repositoryExtensions = [
 	"session-hygiene.ts",
 	"token-rate.ts",
 	"workflow-router.ts",
-	"workflow-run-binding.ts",
 	"workflow-tools.ts",
 ];
 
@@ -68,17 +67,16 @@ describe("installed Pi extension loader", () => {
 			const baseline = join(cwd, "baseline/.pi/agent/extensions");
 			mkdirSync(baseline, { recursive: true });
 			writeFileSync(join(baseline, "workflow-router.ts"), 'import "../../scripts/lib/usage-accounting.mjs"; export default function () {}\n');
-			writeFileSync(join(baseline, "workflow-run-binding.ts"), 'import "../../scripts/lib/ledger-auto-emit.mjs"; export default function () {}\n');
-			const baselineResult = loadWithNode(activeNodePath, loaderPath, [join(baseline, "workflow-router.ts"), join(baseline, "workflow-run-binding.ts")]);
+			const baselineResult = loadWithNode(activeNodePath, loaderPath, [join(baseline, "workflow-router.ts")]);
 			expect(baselineResult.loaded).toEqual([]);
-			expect(baselineResult.errors).toHaveLength(2);
-			expect(baselineResult.errors.map((item: { path: string }) => item.path.split("/").at(-1)).sort()).toEqual(["workflow-router.ts", "workflow-run-binding.ts"]);
+			expect(baselineResult.errors).toHaveLength(1);
+			expect(baselineResult.errors.map((item: { path: string }) => item.path.split("/").at(-1))).toEqual(["workflow-router.ts"]);
 
 			const installedPaths = repositoryExtensions.map((name) => join(extensions, name));
 			const result = loadWithNode(activeNodePath, loaderPath, installedPaths);
 			expect(result.errors).toEqual([]);
 			expect(result.loaded.sort()).toEqual(installedPaths.sort());
-			expect(installedPaths).toHaveLength(9);
+			expect(installedPaths).toHaveLength(8);
 			expect(packageVersion).toMatch(/^\d+\.\d+\.\d+$/);
 			expect(activePiVersion).toBe(packageVersion);
 		} finally {

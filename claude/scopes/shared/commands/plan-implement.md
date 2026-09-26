@@ -26,10 +26,6 @@ Run `workflow/skills/plan-loop.md` when a task is provided, then follow
 `workflow/skills/implementation-loop.md`. Load a domain suite only when the
 brief clearly matches one.
 
-If the task is an ambitious or A-to-Z project, also read
-`workflow/skills/ambitious-project-loop.md`. It adds evidence and slicing
-requirements; it does not replace the `READY` gate.
-
 Rules:
 
 - Do not ask for confirmation once the plan is `READY`.

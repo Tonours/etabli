@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-CONTRACT="$ROOT_DIR/workflow/skills/recurring-run.md"
+CONTRACT="$ROOT_DIR/extras/contracts/recurring-run.md"
 SKILL="$ROOT_DIR/extras/skills/recurring-run/SKILL.md"
 PATTERNS="$ROOT_DIR/extras/skills/goal-prompt-rewriter/references/patterns.md"
 FIXTURES="$ROOT_DIR/tests/fixtures/goal-prompt-rewriter/maintenance-goals.md"
@@ -15,7 +15,7 @@ for needle in 'stable run key' 'current source-of-truth' '`no_op`' 'same explici
   grep -Fq -- "$needle" "$CONTRACT" || { printf 'missing recurring contract clause: %s\n' "$needle" >&2; exit 1; }
 done
 
-grep -Fq -- 'workflow/skills/recurring-run.md' "$SKILL"
+grep -Fq -- 'extras/contracts/recurring-run.md' "$SKILL"
 if grep -Fq -- 'TODO' "$SKILL"; then
   printf 'recurring-run skill still contains TODO guidance\n' >&2
   exit 1

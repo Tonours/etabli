@@ -33,7 +33,7 @@ expect_status() {
   printf '%s' "$output"
 }
 
-append_autonomous_before_metric() {
+append_autonomous_evidence() {
   local slug="$1"
   "$EVENT" --dir "$DIR" append "$slug" plan_created '{"path":"PLAN.md","status":"READY"}'
   "$EVENT" --dir "$DIR" append "$slug" adversary_completed '{"mode":"plan","verdict":"READY","accepted_findings":[],"rejected_findings":[]}'
@@ -44,15 +44,10 @@ append_autonomous_before_metric() {
   "$EVENT" --dir "$DIR" append "$slug" review_completed '{"status":"GO","evidence":"fresh-context GO"}'
 }
 
-append_autonomous_after_metric() {
+append_autonomous_closeout() {
   local slug="$1"
   "$EVENT" --dir "$DIR" append "$slug" archive_written '{"path":"docs/plan/example.md"}'
   "$EVENT" --dir "$DIR" append "$slug" plan_removed '{"path":"PLAN.md"}'
-}
-
-append_outcome() {
-  local slug="$1"
-  "$EVENT" --dir "$DIR" append "$slug" outcome_metric '{"outcome":"success","success":true,"measured":false,"reason":"deterministic_offline","success_kind":"task_grader","grader_success":true}'
 }
 
 assert_transients_clean() {
@@ -181,11 +176,11 @@ printf '%s\n' "$out" | grep -Fq 'parent lock descriptor is not canonical' || fai
 assert_transients_clean
 
 # A later route cannot downgrade a schema-v2 plan-implement run. Refusal is byte-exact.
-slug="missing-metric"
+slug="missing-plan-removed"
 "$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"plan-implement","reason":"monotone autonomous route"}'
 "$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"answer","reason":"must not disable autonomous completion guard"}'
-append_autonomous_before_metric "$slug"
-append_autonomous_after_metric "$slug"
+append_autonomous_evidence "$slug"
+"$EVENT" --dir "$DIR" append "$slug" archive_written '{"path":"docs/plan/example.md"}'
 "$EVENT" --dir "$DIR" activate "$slug" >/dev/null
 ledger="$DIR/$slug/events.jsonl"
 pointer="$DIR/active-run.json"
@@ -193,7 +188,7 @@ before_sha="$(hash256 "$ledger" | awk '{print $1}')"
 before_bytes="$(wc -c < "$ledger" | tr -d ' ')"
 before_lines="$(wc -l < "$ledger" | tr -d ' ')"
 pointer_sha="$(hash256 "$pointer" | awk '{print $1}')"
-out="$(expect_status 1 "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"must be rejected without outcome metric"}')"
+out="$(expect_status 1 "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"must be rejected without plan_removed"}')"
 printf '%s\n' "$out" | grep -Fq 'before profile prerequisites pass' || fail "missing autonomous refusal message"
 [ "$(hash256 "$ledger" | awk '{print $1}')" = "$before_sha" ] || fail "refusal changed ledger hash"
 [ "$(wc -c < "$ledger" | tr -d ' ')" = "$before_bytes" ] || fail "refusal changed ledger bytes"
@@ -201,8 +196,8 @@ printf '%s\n' "$out" | grep -Fq 'before profile prerequisites pass' || fail "mis
 [ "$(hash256 "$pointer" | awk '{print $1}')" = "$pointer_sha" ] || fail "refusal changed active pointer"
 assert_transients_clean
 
-# Appending the missing metric recovers the same run; the validated terminal line is the only byte suffix.
-append_outcome "$slug"
+# Appending the missing plan_removed recovers the same run; the validated terminal line is the only byte suffix.
+"$EVENT" --dir "$DIR" append "$slug" plan_removed '{"path":"PLAN.md"}'
 cp "$ledger" "$TMP/before-success.jsonl"
 "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"autonomous hygiene complete"}'
 terminal_line="$(tail -n 1 "$ledger")"
@@ -213,34 +208,11 @@ cmp -s "$TMP/expected-success.jsonl" "$ledger" || fail "successful completion ch
 "$EVENT" --dir "$DIR" validate "$slug" --profile autonomous-completed >/dev/null
 assert_transients_clean
 
-# Candidate validation keeps the canonical root so sibling measurement targets remain resolvable.
-mkdir -p "$DIR/target-a"
-target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
-printf '%s\n' "$target_line" > "$DIR/target-a/events.jsonl"
-target_ledger_sha="$(hash256 "$DIR/target-a/events.jsonl" | awk '{print $1}')"
-target_terminal_sha="$(printf '%s' "$target_line" | hash256 | awk '{print $1}')"
-measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
-manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
-population_id="terminal-runs-v1-${manifest_sha:0:16}"
-measurement_population="$(jq -nc --arg population "$population_id" --arg manifest "$manifest_sha" --argjson targets "$measurement_targets" '{population_id:$population,manifest_sha256:$manifest,terminal_runs:1,targets:$targets}')"
-measurement_import="$(jq -nc --arg population "$population_id" --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '{population_id:$population,import_id:"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,source_adapter:"codex",source_scope:"primary_session_window",selection:"shortest_enclosing_primary_session",session_fingerprint:"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",window_started_at:"2026-07-01T00:00:00Z",window_ended_at:"2026-07-01T00:02:00Z",sample_started_at:"2026-07-01T00:00:00.000Z",sample_ended_at:"2026-07-01T00:02:30.000Z",sample_count:2,success:true,input_tokens:100,output_tokens:20,total_tokens:120,tool_calls:1,elapsed_ms:150000}')"
-slug="cross-ledger"
-"$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"plan-implement","reason":"cross-ledger candidate"}'
-append_autonomous_before_metric "$slug"
-append_outcome "$slug"
-"$EVENT" --dir "$DIR" append "$slug" outcome_measurement_population "$measurement_population"
-"$EVENT" --dir "$DIR" append "$slug" outcome_measurement_imported "$measurement_import"
-append_autonomous_after_metric "$slug"
-"$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"cross-ledger complete"}'
-"$EVENT" --dir "$DIR" validate "$slug" --profile autonomous-completed >/dev/null
-assert_transients_clean
-
 # Two concurrent completions serialize to exactly one terminal append.
 slug="concurrent-complete"
 "$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"plan-implement","reason":"concurrent completion"}'
-append_autonomous_before_metric "$slug"
-append_outcome "$slug"
-append_autonomous_after_metric "$slug"
+append_autonomous_evidence "$slug"
+append_autonomous_closeout "$slug"
 set +e
 "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"concurrent complete"}' >"$TMP/complete-a.out" 2>&1 &
 pid_a=$!
@@ -254,28 +226,28 @@ set -e
 "$EVENT" --dir "$DIR" validate "$slug" --profile autonomous-completed >/dev/null
 assert_transients_clean
 
-# Metric/completed races can stop non-terminal, but never as terminal-incomplete; retry converges.
-slug="metric-race"
-"$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"plan-implement","reason":"metric completion race"}'
-append_autonomous_before_metric "$slug"
-append_autonomous_after_metric "$slug"
+# Closeout/completed races can stop non-terminal, but never as terminal-incomplete; retry converges.
+slug="closeout-race"
+"$EVENT" --dir "$DIR" append "$slug" route_decided '{"route":"plan-implement","reason":"closeout completion race"}'
+append_autonomous_evidence "$slug"
+"$EVENT" --dir "$DIR" append "$slug" archive_written '{"path":"docs/plan/example.md"}'
 set +e
-append_outcome "$slug" >"$TMP/metric.out" 2>&1 &
+"$EVENT" --dir "$DIR" append "$slug" plan_removed '{"path":"PLAN.md"}' >"$TMP/metric.out" 2>&1 &
 metric_pid=$!
-"$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"metric race complete"}' >"$TMP/race-complete.out" 2>&1 &
+"$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"closeout race complete"}' >"$TMP/race-complete.out" 2>&1 &
 complete_pid=$!
 wait "$metric_pid"; metric_status=$?
 wait "$complete_pid"; complete_status=$?
 set -e
-[ "$metric_status" -eq 0 ] || fail "outcome metric lost its race append"
+[ "$metric_status" -eq 0 ] || fail "plan_removed lost its race append"
 terminal_count="$(jq -s '[.[] | select(.event == "completed")] | length' "$DIR/$slug/events.jsonl")"
 if [ "$terminal_count" -eq 1 ]; then
   "$EVENT" --dir "$DIR" validate "$slug" --profile autonomous-completed >/dev/null
 else
-  [ "$terminal_count" -eq 0 ] || fail "metric race wrote multiple terminals"
+  [ "$terminal_count" -eq 0 ] || fail "closeout race wrote multiple terminals"
   [ "$complete_status" -ne 0 ] || fail "completion reported success without a terminal"
   "$EVENT" --dir "$DIR" validate "$slug" >/dev/null
-  "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"metric race complete"}'
+  "$EVENT" --dir "$DIR" append "$slug" completed '{"summary":"closeout race complete"}'
   "$EVENT" --dir "$DIR" validate "$slug" --profile autonomous-completed >/dev/null
 fi
 assert_transients_clean

@@ -7,7 +7,6 @@ This project includes the Etabli agent workflow.
 - Canonical loop: `workflow/spec.md`
 - Shared contracts: `workflow/skills/`
 - Orchestration: `workflow/skills/orchestration.md`
-- Ambitious projects: `workflow/skills/ambitious-project-loop.md`
 - Reviews/tickets: `workflow/review-rubric.md`,
   `workflow/ticket-template.md`, `workflow/linear-ticket-template.md`
 - Memory/archive: `docs/agent-memory/README.md`,

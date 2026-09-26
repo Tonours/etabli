@@ -1,6 +1,5 @@
 # surface	canonical	deployed_or_adapter_surfaces
 router-classifier	workflow/runtime/workflow-router-core.mjs	claude/hooks/workflow-router-lib.mjs,pi/extensions/lib/workflow-router-runtime.ts
-trace-run-binding	scripts/lib/pi-run-binding.mjs	pi/extensions/workflow-run-binding.ts,workflow/trace-observation.schema.json
 skill-surface	workflow/runtime/skill-surface.tsv	scripts/install.sh,scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh
 managed-surface-reconciliation	scripts/lib/managed-surfaces.sh	scripts/deploy-agent-workflow,scripts/check-fix-symlinks.sh,scripts/lib/install-main.sh
 usage-accounting	scripts/lib/usage-accounting.mjs	scripts/lib/claude-usage-rollup.mjs

@@ -43,8 +43,3 @@ export const recordBashValidationFailure = mod.recordBashValidationFailure as (
 	cwd: string,
 	input: { command: string; exit: number; failure?: string; head_sha?: string },
 ) => { emitted: boolean; reason: string; ledger?: string; events?: string[] };
-
-export const recordBashValidationReceipt = mod.recordBashValidationReceipt as (
-	cwd: string,
-	input: { command: string },
-) => { emitted: boolean; reason: string; ledger?: string };

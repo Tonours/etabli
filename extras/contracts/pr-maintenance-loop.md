@@ -52,7 +52,7 @@ Additionally, do not mix fixes for several PRs in the same branch or thread.
 Never trust a clean review or green check unless it applies to the latest pushed
 head SHA.
 
-Use `scripts/pr-latest-head-status` or an adapter with equivalent semantics to <!-- etabli-only -->
+Use `scripts/pr-latest-head-status` or an adapter with equivalent semantics to
 classify the current snapshot:
 
 - `clean_latest_head`: latest head has clean review evidence and latest-head
@@ -73,7 +73,7 @@ An optional snapshot may provide `prs` in root-to-tip order. Every entry must
 have a unique PR number and head ref, and each entry after the root must identify
 the preceding PR by `parent_number` or use its head ref as `base_ref`.
 
-`scripts/pr-latest-head-status` then returns: <!-- etabli-only -->
+`scripts/pr-latest-head-status` then returns:
 
 - `clean_contiguous_run` when every PR has applicable clean review evidence and
   exact-latest-head green checks;
