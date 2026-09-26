@@ -39,14 +39,12 @@ FILES=(
   "$REPO_DIR/workflow/agent-quick-card.md|workflow/agent-quick-card.md"
   "$REPO_DIR/workflow/answer-quality.md|workflow/answer-quality.md"
   "$REPO_DIR/workflow/skill-design.md|workflow/skill-design.md"
-  "$REPO_DIR/workflow/project-autonomy-envelope.md|workflow/project-autonomy-envelope.md"
   "$REPO_DIR/workflow/git-contract.md|workflow/git-contract.md"
   "$REPO_DIR/workflow/pr-body-contract.md|workflow/pr-body-contract.md"
   "$REPO_DIR/workflow/verification-report-template.md|workflow/verification-report-template.md"
   "$REPO_DIR/workflow/evidence-pack.schema.json|workflow/evidence-pack.schema.json"
   "$REPO_DIR/workflow/templates/evidence-pack.json|workflow/templates/evidence-pack.json"
   "$REPO_DIR/workflow/templates/escaped-defect.md|workflow/templates/escaped-defect.md"
-  "$REPO_DIR/workflow/templates/project-autonomy-envelope.json|workflow/templates/project-autonomy-envelope.json"
   "$REPO_DIR/workflow/templates/review-logic-hunter.md|workflow/templates/review-logic-hunter.md"
   "$REPO_DIR/workflow/templates/review-spec-hunter.md|workflow/templates/review-spec-hunter.md"
   "$REPO_DIR/workflow/templates/review-lead.md|workflow/templates/review-lead.md"
@@ -61,9 +59,6 @@ FILES=(
 )
 
 while IFS= read -r contract_path; do
-  # program-orchestration is frozen and references etabli-repo-only binaries;
-  # scaffolded projects do not carry the program control plane.
-  [ "$(basename "$contract_path")" = "program-orchestration.md" ] && continue
   FILES+=("$contract_path|workflow/skills/$(basename "$contract_path")")
 done < <(find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort)
 

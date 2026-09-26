@@ -129,7 +129,7 @@ assert_contains "$out" "4 events, ok"
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_proposal '{"candidate":"split explicit review guard","editable_surfaces":["pi/extensions/lib/workflow-router-runtime.ts","claude/hooks/workflow-router-lib.mjs"],"preserve":["read-only explanations stay answer"],"held_in":["self-improvement prompt routes plan-implement"],"held_out":["explicit self-improvement review stays review"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_validation_completed '{"candidate":"split explicit review guard","verdict":"accepted","reason":"reproduced routes fixed without held-out regression","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_validation_completed '{"candidate":"broad review keyword","verdict":"rejected","reason":"held-out route regression","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_candidate_rejected '{"candidate":"auto-apply workflow-retrospect patches","reason":"bypasses reviewed PLAN.md gate","regressions":["external write-back risk","permission boundary weakened"],"evidence":["workflow/skills/self-improvement-loop.md"]}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_candidate_rejected '{"candidate":"auto-apply harness patches","reason":"bypasses reviewed PLAN.md gate","regressions":["external write-back risk","permission boundary weakened"],"evidence":["workflow/skills/implementation-loop.md"]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning project_slice_planned '{"slice":"spec","owner":"planner","validation":"review","dependencies":[]}'
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning project_slice_completed '{"slice":"spec","validation":"passed","evidence":["docs/spec.md"],"remaining":[]}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-learning)"
@@ -669,19 +669,6 @@ node -e 'import(process.argv[1]).then(m => { const r = m.selectActiveLedger(proc
 "$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e blocked '{"reason":"smoke terminal","needed_input":"none"}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
 assert_contains "$out" "4 events, ok"
-jq -c --slurpfile ts <(printf '%s\n' '"2026-09-20T09:59:00Z"' '"2026-09-20T10:00:00Z"' '"2026-09-20T10:01:00Z"' '"2026-09-20T10:04:00Z"') \
-  '.ts = $ts[input_line_number - 1]' "$EW/.workflow/e2e/events.jsonl" > "$EW/shifted.jsonl"
-out="$("$ROOT_DIR/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT_DIR/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$EW/shifted.jsonl" --run e2e --json)"
-if ! jq -e '.completeness == "complete"' <<<"$out" >/dev/null; then
-  printf 'e2e quality chain did not reach retrospect complete: %s\n' "$out" >&2
-  exit 1
-fi
-jq -c 'if .event == "quality_completed" then .detail.status = "clean" else . end' "$EW/shifted.jsonl" > "$EW/shifted-bad.jsonl"
-out="$("$ROOT_DIR/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT_DIR/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$EW/shifted-bad.jsonl" --run e2e --json)"
-if ! jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$out" >/dev/null; then
-  printf 'e2e quality negative case missed on the same path: %s\n' "$out" >&2
-  exit 1
-fi
 
 # Tranche 5: ship_completed vocabulary — success/arrêt dual form, strict
 # rejects (numbers, matrix, format, presence), ship profiles, batch mirror,

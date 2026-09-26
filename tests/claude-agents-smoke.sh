@@ -115,7 +115,7 @@ managed_surfaces = File.read(File.join(root, "scripts/lib/managed-surfaces.sh"))
 unless install_main.include?("converge_agent_surfaces") &&
        deploy_workflow.include?("for scope in $(active_scopes)") &&
        deploy_workflow.include?('claude/scopes/$scope/agents') &&
-       deploy_workflow.include?('link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name"')
+       deploy_workflow.include?('link_path "$agent_file" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/agents/$agent_name"')
   raise "primary installer omits scoped Claude agents. Remediation: link active claude/scopes/<scope>/agents/*.md into ~/.claude/agents/."
 end
 unless deploy_workflow.include?("managed_surface_prune_stale_claude_agents") &&

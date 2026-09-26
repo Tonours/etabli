@@ -7,8 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 MEASUREMENT_INTEGRITY="$SCRIPT_DIR/workflow-measurement-integrity"
-SELF_IMPROVEMENT_INTEGRITY="$SCRIPT_DIR/workflow-self-improvement-integrity"
-STRICT_SELF_IMPROVEMENT_MANIFEST="$SCRIPT_DIR/../workflow/self-improvement/manifests/core-v2.json"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
 
 ALLOWED_EVENTS=(
@@ -334,18 +332,8 @@ validate_ledger_file() {
           { printf 'profile autonomous-completed-strict missing runtime_receipt kind %s\n' "$required" >&2; return 1; }
       done
       if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
-        jq -s -e '([.[] | select(.event == "harness_validation_completed")] | all(.[]; .detail.baseline_fingerprint and .detail.candidate_fingerprint and .detail.evaluator_manifest_sha256 and .detail.evaluator_bundle_sha256 and .detail.comparison_path and .detail.comparison_sha256 and .detail.safety and .detail.safety.baseline.population == .detail.safety.candidate.population and .detail.safety.baseline.total == .detail.safety.candidate.total))' "$file" >/dev/null ||
-          { printf 'profile autonomous-completed-strict requires artifact fingerprints, evaluator provenance, safety and comparison_path/comparison_sha256 on every harness_validation_completed\n' >&2; return 1; }
-      fi
-      if jq -e 'select(.event == "harness_validation_completed")' "$file" >/dev/null 2>&1; then
-        [ -x "$SELF_IMPROVEMENT_INTEGRITY" ] && [ -f "$STRICT_SELF_IMPROVEMENT_MANIFEST" ] || {
-          printf 'profile autonomous-completed-strict cannot verify the comparator chain in this deployment\n' >&2
-          return 1
-        }
-        "$SELF_IMPROVEMENT_INTEGRITY" --manifest "$STRICT_SELF_IMPROVEMENT_MANIFEST" "$file" >/dev/null || {
-          printf 'profile autonomous-completed-strict requires a verified self-improvement comparator chain\n' >&2
-          return 1
-        }
+        printf 'profile autonomous-completed-strict cannot certify harness_validation_completed: the self-improvement comparator chain was removed\n' >&2
+        return 1
       fi
       ;;
     blocked-terminal)

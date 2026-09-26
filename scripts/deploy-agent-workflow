@@ -12,6 +12,7 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/vendor-surfaces.sh"
 . "$SCRIPT_DIR/lib/etabli-scope.sh"
 . "$SCRIPT_DIR/lib/managed-surfaces.sh"
+. "$SCRIPT_DIR/lib/claude-config-dir.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
 AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" any agents_visible) )
@@ -214,7 +215,7 @@ sync_pi_agent_settings() {
 }
 
 sync_claude_skill_overrides() {
-  local local_settings="$HOME_DIR/.claude/settings.json"
+  local local_settings="${CLAUDE_ROOT:-$HOME_DIR/.claude}/settings.json"
   local tracked_fragment="$REPO_DIR/claude/settings.skill-overrides.json"
 
   if [ ! -f "$tracked_fragment" ]; then
@@ -334,7 +335,7 @@ deploy_vendor_skills() {
   status_line SECTION "Vendor skills"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills" "$HOME_DIR/.agents/skills"
+    mkdir -p "$HOME_DIR/.pi/agent/skills" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills" "$HOME_DIR/.agents/skills"
   fi
 
   managed_surface_prune_pi_cross_surface_links deploy "$REPO_DIR" "$HOME_DIR"
@@ -344,6 +345,7 @@ deploy_vendor_skills() {
   while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
     for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+      managed_surface_selected "$surface" || continue
       if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$ACTIVE_SCOPES"; then
         case "$surface" in
         .claude/skills) label="Claude" ;;
@@ -351,7 +353,7 @@ deploy_vendor_skills() {
         .config/devin/skills) label="Devin" ;;
         .pi/agent/skills) label="Pi" ;;
         esac
-        link_path "$skill_dir" "$HOME_DIR/$surface/$skill_name" "$label vendor skill $skill_name"
+        link_path "$skill_dir" "$(managed_surface_dir "$HOME_DIR" "$surface")/$skill_name" "$label vendor skill $skill_name"
       fi
     done
   done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
@@ -374,19 +376,19 @@ deploy_claude() {
   status_line SECTION "Claude"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.claude/commands" "$HOME_DIR/.claude/hooks" "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude/agents"
+    mkdir -p "${CLAUDE_ROOT:-$HOME_DIR/.claude}/commands" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/hooks" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/agents"
   fi
 
-  link_path "$REPO_DIR/claude/CLAUDE.md" "$HOME_DIR/.claude/CLAUDE.md" "Claude CLAUDE.md"
-  link_path "$REPO_DIR/workflow" "$HOME_DIR/.claude/workflow" "Claude workflow"
-  link_path "$REPO_DIR/PLAN_TEMPLATE.md" "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "Claude PLAN_TEMPLATE.md"
-  link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "Claude PLAN_TEMPLATE_FULL.md"
+  link_path "$REPO_DIR/claude/CLAUDE.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/CLAUDE.md" "Claude CLAUDE.md"
+  link_path "$REPO_DIR/workflow" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/workflow" "Claude workflow"
+  link_path "$REPO_DIR/PLAN_TEMPLATE.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/PLAN_TEMPLATE.md" "Claude PLAN_TEMPLATE.md"
+  link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/PLAN_TEMPLATE_FULL.md" "Claude PLAN_TEMPLATE_FULL.md"
 
   for scope in $(active_scopes); do
     for command_file in "$REPO_DIR/claude/scopes/$scope/commands"/*.md; do
       [ -f "$command_file" ] || continue
       command_name="$(basename "$command_file")"
-      link_path "$command_file" "$HOME_DIR/.claude/commands/$command_name" "Claude command $command_name"
+      link_path "$command_file" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/commands/$command_name" "Claude command $command_name"
     done
   done
 
@@ -414,28 +416,36 @@ deploy_claude() {
     tests-iso.md \
     ui-debug.md; do
     remove_exact_managed_link \
-      "$HOME_DIR/.claude/commands/$stale_command" \
+      "${CLAUDE_ROOT:-$HOME_DIR/.claude}/commands/$stale_command" \
       "stale Claude command $stale_command" \
       "$REPO_DIR/claude/commands/$stale_command" \
       "$REPO_DIR/claude/scopes/shared/commands/$stale_command"
   done
   remove_exact_managed_link \
-    "$HOME_DIR/.claude/handoff-template.md" \
+    "${CLAUDE_ROOT:-$HOME_DIR/.claude}/handoff-template.md" \
     "stale Claude handoff template" \
     "$REPO_DIR/claude/handoff-template.md"
 
   for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
     [ -f "$hook_file" ] || continue
     hook_name="$(basename "$hook_file")"
-    link_path "$hook_file" "$HOME_DIR/.claude/hooks/$hook_name" "Claude hook $hook_name"
+    link_path "$hook_file" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/hooks/$hook_name" "Claude hook $hook_name"
+  done
+  for hook_link in "${CLAUDE_ROOT:-$HOME_DIR/.claude}/hooks"/*; do
+    [ -L "$hook_link" ] || continue
+    hook_name="$(basename "$hook_link")"
+    hook_target="$REPO_DIR/claude/hooks/$hook_name"
+    [ "$(readlink "$hook_link")" = "$hook_target" ] || continue
+    [ -e "$hook_target" ] && continue
+    remove_exact_managed_link "$hook_link" "stale Claude hook $hook_name" "$hook_target"
   done
 
-  link_path "$REPO_DIR/claude/statusline-command.sh" "$HOME_DIR/.claude/statusline-command.sh" "Claude statusline command"
+  link_path "$REPO_DIR/claude/statusline-command.sh" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/statusline-command.sh" "Claude statusline command"
 
-  link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "$HOME_DIR/.claude/settings.workflow-hooks.json" "Claude workflow hooks fragment"
+  link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/settings.workflow-hooks.json" "Claude workflow hooks fragment"
 
   remove_exact_managed_link \
-    "$HOME_DIR/.claude/skills/audit" \
+    "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills/audit" \
     "retired Claude skill audit" \
     "$HOME_DIR/.agents/skills.disabled/ui-pruned-2026-04-28/audit"
 
@@ -449,34 +459,36 @@ deploy_claude() {
       skill_name="$(basename "$skill_dir")"
       if managed_surface_skill_is_shadowed "$skill_name" "$ACTIVE_SCOPES"; then
         remove_exact_managed_link \
-          "$HOME_DIR/.claude/skills/$skill_name" \
+          "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills/$skill_name" \
           "shadowed Claude skill $skill_name" \
           "$skill_dir"
         continue
       fi
-      link_path "$skill_dir" "$HOME_DIR/.claude/skills/$skill_name" "Claude skill $skill_name"
+      link_path "$skill_dir" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills/$skill_name" "Claude skill $skill_name"
     done
 
     for agent_file in "$REPO_DIR/claude/scopes/$scope/agents"/*.md; do
       [ -f "$agent_file" ] || continue
       agent_name="$(basename "$agent_file")"
-      link_path "$agent_file" "$HOME_DIR/.claude/agents/$agent_name" "Claude agent $agent_name"
+      link_path "$agent_file" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/agents/$agent_name" "Claude agent $agent_name"
     done
 
     for script_entry in "$REPO_DIR/claude/scopes/$scope/scripts"/*; do
       [ -e "$script_entry" ] || [ -L "$script_entry" ] || continue
       script_name="$(basename "$script_entry")"
-      link_path "$script_entry" "$HOME_DIR/.claude/scripts/$script_name" "Claude script $script_name"
+      link_path "$script_entry" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/scripts/$script_name" "Claude script $script_name"
     done
   done
 
-  link_path "$REPO_DIR/workflow/review-rubric.md" "$HOME_DIR/.claude/review-rubric.md" "Claude review-rubric.md"
+  link_path "$REPO_DIR/workflow/review-rubric.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/review-rubric.md" "Claude review-rubric.md"
 
   if [ "$DRY_RUN" -eq 0 ] && [ "$HOME_DIR" = "$HOME" ] && \
     [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" != 1 ] && [ -x "$SCRIPT_DIR/claude-skill-load-check" ]; then
-    if ! "$SCRIPT_DIR/claude-skill-load-check"; then
+    if ! CLAUDE_SKILL_LOAD_CLAUDE_DIR="${CLAUDE_ROOT:-$HOME_DIR/.claude}" "$SCRIPT_DIR/claude-skill-load-check"; then
       if [ "${ETABLI_DEPLOY_CALLER:-}" = install ]; then
         status_line WARN "Claude skill load check after installer convergence (see output above)"
+      elif [ "${CLAUDE_ROOT:-$HOME_DIR/.claude}" != "$HOME_DIR/.claude" ]; then
+        status_line WARN "Claude skill load check on $CLAUDE_ROOT: skills outside the tracked profile are reported, not removed (see output above)"
       else
         status_line FAIL "Claude skill load check after apply (see output above)"
         exit 1
@@ -488,9 +500,19 @@ deploy_claude() {
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  CLAUDE_ROOT="$HOME_DIR/.claude"
+  export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
   deploy_pi
   deploy_vendor_skills
   deploy_claude
+  if [ "$HOME_DIR" = "$HOME" ] && config_root="$(claude_config_dir_override)"; then
+    CLAUDE_ROOT="$config_root"
+    MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
+    export MANAGED_CLAUDE_ONLY=1
+    status_line SECTION "Claude config dir $CLAUDE_ROOT"
+    deploy_vendor_skills
+    deploy_claude
+  fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
     status_line SUMMARY "dry-run complete"

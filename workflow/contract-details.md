@@ -113,21 +113,12 @@ sandbox. Shared workflow and evidence invariants stay in
 - Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger, and `completed`/`blocked` events are terminal evidence.
-- `workflow-retrospect` is an experimental, on-demand, read-only ledger/archive
-  reader for diagnostics and retrospective hypotheses; it is not part of the
-  core gate. Telemetry does not establish user value until at least 10
-  representative real tasks have task-grader outcomes.
-- Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
-  start from inspectable evidence, classify candidates, implement only through
-  reviewed `PLAN.md`, and never auto-apply retrospective output.
+- Workflow improvements start from inspectable evidence and go through a
+  reviewed `PLAN.md`; nothing auto-applies retrospective output.
 - Ambitious project work follows `workflow/skills/ambitious-project-loop.md`:
   turn rough intent into spec/decisions/slices/execution/review/handoff without
   turning push, PR, deploy, release, or external write-back into implicit
   consent.
-- As an experimental opt-in, an explicitly authorized bounded project may use
-  `workflow/project-autonomy-envelope.md`: its controller is read-only, advances
-  only declared verifiable slices from the ledger, and never replaces READY,
-  checkpoint, no-progress, final-state-grader, or sealed-held-out gates.
 - Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
@@ -161,9 +152,6 @@ sandbox. Shared workflow and evidence invariants stay in
   third occurrence of the same review finding becomes a mechanical check.
   Every mechanical check fails with a message that names its remediation.
   A routing or guard failure observed in real use becomes a fixture.
-  Confirmed recurring findings from `workflow-retrospect` become reviewed
-  recommendations, router fixtures, contract patches, or mechanical checks;
-  the helper never applies patches or external write-back by itself.
 - Skills, commands, and agent instructions follow `workflow/skill-design.md`.
 - A code behavior change ships with tests written in the existing suite's
   conventions; a bug fix starts from a failing test that reproduces the
@@ -194,8 +182,7 @@ documents the enforcement behind each boundary.
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (only a genuinely missing PLAN is exempt; unrelated plan → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
-| no_progress ledger stop | valid active non-terminal ledger with explicit `no_progress` or derived 2/3 thresholds; pointer to invalid ledger / ambiguous valid actives fail closed (orphan invalids without pointer do not) | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `workflow-event` + `plan-cleanup` (`--archive`/`--discard`) escape allowed | <!-- etabli-only -->
-| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress`; no emit without ledger |
+| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
 | missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
 
@@ -206,15 +193,9 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/scopes/<scope>/commands/`
 - Shared skill contracts: `workflow/skills/`
-- Self-improvement contract: `workflow/skills/self-improvement-loop.md`
 - Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
-- Bounded project autonomy envelope: `workflow/project-autonomy-envelope.md`
-- Bounded project autonomy controller: `scripts/project-autonomy` <!-- etabli-only -->
 - Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Investigation/evidence contract: `workflow/skills/investigation.md`
-- Evidence capture and validator: `scripts/evidence-proof` <!-- etabli-only -->
-- Large-program control plane: `workflow/skills/program-orchestration.md`
-- Large-program reducer: `scripts/program-state` <!-- etabli-only -->
 - Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
@@ -227,7 +208,6 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
 - Agent memory: `docs/agent-memory/` in workflow-scaffolded projects (`workflow/memory.md`)
 - Review rubric: `workflow/review-rubric.md`
-- Reviewer improvement loop: `workflow/skills/reviewer-improvement-loop.md`
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
 - PR body contract: `workflow/pr-body-contract.md`

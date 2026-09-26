@@ -23,10 +23,9 @@ If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, t
 Run `workflow/skills/plan-loop.md` first when a task is provided. Load a
 domain suite only when the brief clearly matches one.
 
-If the task is self-improvement of Etabli itself, also read
-`workflow/skills/self-improvement-loop.md`; if ambitious/A-to-Z,
-`workflow/skills/ambitious-project-loop.md`. Both add evidence and slicing
-requirements; neither replaces the `READY` gate.
+If the task is ambitious/A-to-Z, also read
+`workflow/skills/ambitious-project-loop.md`. It adds evidence and slicing
+requirements; it does not replace the `READY` gate.
 
 Rules:
 - Do not ask for confirmation once the plan is `READY`.

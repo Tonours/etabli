@@ -53,7 +53,6 @@ json_config() {
     "$ROOT_DIR/pi/agent/settings.json" \
     "$ROOT_DIR/pi/models.json" \
     "$ROOT_DIR/workflow/runtime-capabilities.json"
-  jq empty "$ROOT_DIR/workflow/runtime/semantic-judgment-policy.json"
 }
 
 pi_import_smoke() {
@@ -69,7 +68,6 @@ pi_import_smoke() {
     "./extensions/no-comments.ts",
     "./extensions/lib/pi-runtime.ts",
     "./extensions/lib/rtk-runtime.ts",
-    "./extensions/lib/outcome-metric-emit.ts",
     "./extensions/lib/workflow-router-runtime.ts",
     "./extensions/lib/ledger-auto-emit.ts",
   ]) await import(path)'

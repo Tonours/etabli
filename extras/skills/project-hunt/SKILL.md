@@ -18,12 +18,6 @@ Find a small number of testable opportunities for a solo technical founder.
 Observed recurring work, a reachable buyer, and a budgeted outcome beat an idea
 list or a viral trend. Freshness is a signal; it is not demand proof.
 
-With explicit provider-egress approval, a bounded evidence card may be passed
-to `jev-judge evaluate project-hunt-evidence --state-file <file> --live`.
-Treat the result as advisory only. It cannot infer willingness-to-pay from a
-displayed price, perform scoring arithmetic, replace source verification or
-counter-search, remove missing evidence from the watchlist, or authorize spend.
-
 ## Modes
 
 Choose one mode before searching. Never average SaaS and ecommerce scores.

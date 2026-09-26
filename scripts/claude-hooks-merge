@@ -3,7 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
-HOME_DIR="$HOME"
+. "$SCRIPT_DIR/lib/claude-config-dir.sh"
+CLAUDE_DIR="$(claude_effective_dir)"
 DRY_RUN="0"
 
 usage() {
@@ -11,9 +12,11 @@ usage() {
 Usage: $(basename "$0") [--home DIR] [--dry-run]
 
 Merges the hook entries from claude/settings.workflow-hooks.json into the
-live ~/.claude/settings.json, keyed by event + matcher + full hook object
+live Claude settings.json (\$CLAUDE_CONFIG_DIR, else ~/.claude; --home DIR
+uses DIR/.claude), keyed by event + matcher + full hook object
 (any parameter difference, async included, is a conflict). Adds missing
-entries only: user hooks are preserved, nothing is removed. Refuses to
+entries and removes only hooks the repo retired (exact command match);
+every other user hook is preserved. Refuses to
 write on invalid JSON, on a same-event conflict (same command already
 wired on the same event with different parameters, which would
 double-fire), or when disableAllHooks is true. Backs up before writing.
@@ -23,7 +26,7 @@ EOF
 while [ "$#" -gt 0 ]; do
   case "$1" in
   --home)
-    HOME_DIR="$2"
+    CLAUDE_DIR="$2/.claude"
     shift
     ;;
   --dry-run) DRY_RUN="1" ;;
@@ -49,12 +52,12 @@ node --input-type=module -e '
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const homeDir = process.argv[1];
+const claudeDir = process.argv[1];
 const repoDir = process.argv[2];
 const dryRun = process.argv[3] === "1";
-const livePath = join(homeDir, ".claude/settings.json");
+const livePath = join(claudeDir, "settings.json");
 
-const { identityOf, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
+const { RETIRED_HOOK_COMMANDS, identityOf, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
 let fragment;
 try {
   fragment = loadFragment(repoDir);
@@ -109,6 +112,24 @@ for (const [event, groups] of Object.entries(live.hooks)) {
   }
 }
 
+const retired = new Set(RETIRED_HOOK_COMMANDS);
+const removals = [];
+for (const [event, groups] of Object.entries(live.hooks)) {
+  const kept = [];
+  for (const group of groups) {
+    const hooks = group.hooks ?? [];
+    const remaining = hooks.filter((hook) => !retired.has(hook.command));
+    for (const hook of hooks) {
+      if (retired.has(hook.command)) removals.push({ event, matcher: group.matcher, hook });
+    }
+    if (hooks.length && !remaining.length) continue;
+    if (remaining.length !== hooks.length) group.hooks = remaining;
+    kept.push(group);
+  }
+  if (kept.length) live.hooks[event] = kept;
+  else delete live.hooks[event];
+}
+
 const additions = [];
 for (const [event, groups] of Object.entries(fragment.hooks ?? {})) {
   for (const group of groups) {
@@ -129,11 +150,14 @@ for (const [event, groups] of Object.entries(fragment.hooks ?? {})) {
   }
 }
 
-if (!additions.length) {
+if (!additions.length && !removals.length) {
   console.log("claude-hooks-merge: up to date, nothing to add");
   process.exit(0);
 }
 if (dryRun) {
+  for (const { event, matcher, hook } of removals) {
+    console.log(`would remove retired ${event}/${matcher ?? ""}: ${hook.command}`);
+  }
   for (const { event, matcher, hook } of additions) {
     console.log(`would add ${event}/${matcher ?? ""}: ${hook.command}`);
   }
@@ -151,6 +175,9 @@ if (existsSync(livePath)) {
   copyFileSync(livePath, backup);
   console.log(`backup ${backup}`);
 }
+for (const { event, matcher, hook } of removals) {
+  console.log(`removed retired ${event}/${matcher ?? ""}: ${hook.command}`);
+}
 for (const { event, matcher, hook } of additions) {
   if (live.hooks[event] === undefined) live.hooks[event] = [];
   const group = live.hooks[event].find((g) => (g.matcher ?? "") === (matcher ?? ""));
@@ -163,4 +190,4 @@ for (const { event, matcher, hook } of additions) {
   console.log(`added ${event}/${matcher ?? ""}: ${hook.command}`);
 }
 writeFileSync(livePath, `${JSON.stringify(live, null, 2)}\n`);
-' "$HOME_DIR" "$REPO_DIR" "$DRY_RUN"
+' "$CLAUDE_DIR" "$REPO_DIR" "$DRY_RUN"

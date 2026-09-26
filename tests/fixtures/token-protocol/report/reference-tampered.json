@@ -1,1 +1,0 @@
-{"freeze_tuple":{"max_tokens":2048,"model":"synthetic-1","retries":1,"timeout_s":30},"resources":{"arch":"arm64","cpu_mem_class":"S","max_concurrency":1,"os":"linux","provider_endpoint":"fake"},"schema_version":1,"unit_prices":{"cc":1.0,"cr":0.5,"in":1.0,"out":2.0}}

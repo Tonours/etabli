@@ -254,7 +254,7 @@ bash_plan_output="$(printf '%s' "$bash_plan_payload" | node "$ROOT_DIR/claude/ho
 assert_contains "$bash_plan_output" '"permissionDecision":"deny"'
 assert_contains "$bash_plan_output" 'check-freeze'
 
-# no_progress ledger mutate-deny through the same PreToolUse entry
+# a no_progress ledger no longer blocks mutations (guard removed in T2)
 mkdir -p "$TMP_DIR/.workflow/np-run"
 printf '%s\n' '{"schema_version":2,"ts":"2026-08-01T00:00:00Z","run":"np-run","event":"no_progress","detail":{"check_or_hypothesis":"stuck","command":"bash tests/a.sh","attempts":2,"eliminated":["stuck"]}}' \
 	>"$TMP_DIR/.workflow/np-run/events.jsonl"
@@ -269,20 +269,8 @@ process.stdout.write(JSON.stringify({
 }) + "\n");
 ' "$TMP_DIR")"
 np_write_output="$(printf '%s' "$np_write_payload" | node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs")"
-assert_contains "$np_write_output" '"permissionDecision":"deny"'
-assert_contains "$np_write_output" 'no_progress'
-np_escape_payload="$(node --input-type=module -e '
-const cwd = process.argv[1];
-process.stdout.write(JSON.stringify({
-  cwd,
-  hook_event_name: "PreToolUse",
-  tool_name: "Bash",
-  tool_input: { command: "scripts/workflow-event append --event blocked" },
-}) + "\n");
-' "$TMP_DIR")"
-np_escape_output="$(printf '%s' "$np_escape_payload" | node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs")"
-if [ -n "$np_escape_output" ]; then
-	printf 'workflow-event escape under no_progress should allow; got: %s\n' "$np_escape_output" >&2
+if [ -n "$np_write_output" ]; then
+	printf 'a no_progress ledger must not block writes under a READY plan; got: %s\n' "$np_write_output" >&2
 	exit 1
 fi
 

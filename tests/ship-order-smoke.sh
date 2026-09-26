@@ -11,7 +11,6 @@ SHIP="$ROOT_DIR/workflow/skills/ship.md"
 LOOP="$ROOT_DIR/workflow/skills/implementation-loop.md"
 ADV="$ROOT_DIR/workflow/skills/adversary.md"
 EVENTS="$ROOT_DIR/workflow/events.md"
-REVIEW_LOOP="$ROOT_DIR/workflow/skills/reviewer-improvement-loop.md"
 EVENT_BIN="$ROOT_DIR/scripts/workflow-event"
 CENSUS_BIN="$ROOT_DIR/scripts/workflow-ledger-census"
 METRICS_BIN="$ROOT_DIR/scripts/workflow-ship-metrics"
@@ -70,7 +69,6 @@ assert_contains "$SHIP" 'delta > 50'
 assert_contains "$SHIP" 'review-metrics.md'
 assert_contains "$SHIP" 'canonical `jq -S` parsed'
 assert_contains "$SHIP" 'Negative pin: a lone changed'
-assert_contains "$SHIP" '*-promotion.json'
 assert_contains "$SHIP" 'git status --porcelain'
 assert_contains "$SHIP" 'fails to parse (unreadable output)'
 
@@ -79,7 +77,6 @@ assert_contains "$SHIP" 'run=<slug> | 0 | 0 | 0 |'
 assert_contains "$SHIP" 'ship-metrics/<run-slug>.json'
 assert_contains "$SHIP" 'under `flock`'
 assert_contains "$SHIP" 'never a second row'
-assert_contains "$REVIEW_LOOP" 'metrics_record'
 
 # AC6: F12 per-harness matrix (partial, porting is T7).
 assert_contains "$SHIP" 'no-ai-slop-detect'

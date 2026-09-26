@@ -1,8 +1,0 @@
-#!/usr/bin/env node
-import { readFileSync } from "node:fs";
-import { validateCandidateCorpus } from "./lib/jev-candidate-corpus.mjs";
-try {
- const [command,path]=process.argv.slice(2);
- if(command!=="validate"||!path)throw new Error("usage: jev-candidate-calibrate validate CORPUS.json (offline only)");
- console.log(JSON.stringify(validateCandidateCorpus(JSON.parse(readFileSync(path,"utf8"))),null,2));
-} catch(error) {console.error(`jev-candidate-calibrate: ${error.message}`);process.exitCode=2;}

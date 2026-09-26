@@ -45,7 +45,6 @@ replacement instead of deleting history. When that script is unavailable in a
 scaffolded project, an equivalent single validated append is acceptable. Do not
 edit earlier lines.
 
-Mine recurring workflow issues with `scripts/workflow-retrospect`. <!-- etabli-only -->
 
 ## Event Types
 
@@ -128,8 +127,7 @@ successful outcomes; historical ledgers remain readable as `legacy_unmeasured`.
 Runtime usage from `multi_execution_completed` is reported independently and
 never counts as a successful outcome without an `outcome_metric`.
 
-`workflow-retrospect` confirms recurrence from independent ledger initiatives,
-not raw occurrences. A terminal `-vN`, `-retryN`, `-attemptN`, or `-rerunN`
+Recurrence counts independent ledger initiatives, not raw occurrences. A terminal `-vN`, `-retryN`, `-attemptN`, or `-rerunN`
 suffix is treated as another execution of the same initiative. Plan archives
 remain visible as supporting evidence; when ledger evidence exists for a
 finding, an archive cannot increase its recurrence count.

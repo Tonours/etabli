@@ -96,8 +96,6 @@ if ! wait "$DEPLOY_PID"; then
   exit 1
 fi
 while IFS= read -r contract_name; do
-  # program-orchestration is frozen and deliberately not deployed
-  [ "$contract_name" = "program-orchestration.md" ] && continue
   assert_file "$DEPLOY_TARGET/workflow/skills/$contract_name"
 done <"$CONTRACT_NAMES"
 

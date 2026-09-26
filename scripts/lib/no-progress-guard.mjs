@@ -1,7 +1,6 @@
 /**
  * Ledger-backed no_progress evaluation for host mutation deny.
  *
- * Pure thresholds align with project-autonomy stop_conditions defaults.
  * Does not auto-emit events — only reads existing ledger evidence.
  */
 import { inspectLedgerFile, selectActiveLedger } from "./ledger-integrity.mjs";
@@ -24,7 +23,6 @@ export function loadLedgerEvents(ledgerPath) {
 
 /**
  * Derived no-progress from validation_failed after last file_changed.
- * Same algorithm as project-autonomy derivedNoProgress.
  * @param {Array<{event?: string, detail?: Record<string, unknown>}>} events
  * @param {{same_hypothesis_failures: number, red_checks_without_diff: number}} stopConditions
  * @returns {null | {reason: string, no_progress: object}}

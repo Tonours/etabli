@@ -19,19 +19,12 @@ import {
 	routeDecidedExists,
 	type ContractPointer,
 } from "./lib/route-contract.ts";
-import { maybeEmitOutcomeMetric } from "./lib/outcome-metric-emit.ts";
-import { loadSemanticPolicy, runRouteDecision } from "./lib/route-shadow.mjs";
-import { accumulateAssistantUsage } from "../../scripts/lib/usage-accounting.mjs";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
 type RoutablePi = ExtensionAPI & {
 	appendEntry?: (customType: string, data?: unknown) => void;
 	registerEntryRenderer?: (customType: string, renderer: unknown) => void;
-};
-
-type WorkflowRouterHooks = {
-	loadSemanticPolicy?: typeof loadSemanticPolicy;
 };
 
 function routedSystemPrompt(
@@ -92,9 +85,8 @@ function maybeEmitRouteDecided(
 	}
 }
 
-export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
+export default function (pi: ExtensionAPI) {
 	const routablePi = pi as RoutablePi;
-	const semanticPolicyLoader = hooks.loadSemanticPolicy ?? loadSemanticPolicy;
 	// Latest decided route awaiting ledger issuance. before_agent_start fires
 	// before the run's ledger exists on first turn; agent_end retries then, so
 	// single-prompt runs still record their route (dedup keeps it idempotent).
@@ -104,91 +96,17 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 		const trimmedPrompt = event.prompt.trim();
 		if (trimmedPrompt === "" || trimmedPrompt.startsWith("/")) return undefined;
 
-		const { decision, routeContext } = resolveWorkflowRouteContext(event.prompt, eventCwd(event, ctx));
+		const { decision } = resolveWorkflowRouteContext(event.prompt, eventCwd(event, ctx));
 
-		// Pointer-gated injection: routes backed by a skill contract inject in
-		// every mode (disabled only turns off the semantic judgment layer);
-		// skill-less routes keep the legacy per-mode behavior (bare contract
-		// in shadow/enforced, silence in disabled). Issuance is recorded for
-		// every route whenever an explicit cwd resolves an active ledger.
-		const prepare = (decided: Record<string, unknown>) => {
-			const pointer = typeof decided.skill === "string" ? resolveContractPointer(decided.skill) : null;
-			const cwd = explicitCwd(event, ctx);
-			maybeEmitRouteDecided(cwd, decided, pointer);
-			pendingRoute = cwd ? { cwd, decision: decided, pointer } : null;
-			return pointer;
-		};
-
-		let semanticPolicy;
-		try {
-			semanticPolicy = semanticPolicyLoader();
-		} catch {
-			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
-				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-				decision,
-				semantic: { mode: "fallback", reason: "invalid_policy" },
-			});
-			return { systemPrompt: routedSystemPrompt(event.systemPrompt, decision, prepare(decision)) };
-		}
-
-		if (semanticPolicy.mode !== "enforced") {
-			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
-				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-				decision,
-			});
-			if (semanticPolicy.mode === "shadow") {
-				void runRouteDecision({
-					prompt: event.prompt,
-					deterministicDecision: decision,
-					planStatus: routeContext.planStatus,
-					cwd: eventCwd(event, ctx),
-					policy: semanticPolicy,
-				}).then(({ receipt }) => {
-					if (!receipt) return;
-					routablePi.appendEntry?.(`${CUSTOM_MESSAGE_TYPE}.shadow`, {
-						version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-						receipt,
-					});
-				}).catch(() => undefined);
-			}
-			const pointer = prepare(decision);
-			return pointer || semanticPolicy.mode !== "disabled" ? {
-				systemPrompt: routedSystemPrompt(event.systemPrompt, decision, pointer),
-			} : undefined;
-		}
-
-		return runRouteDecision({
-			prompt: event.prompt,
-			deterministicDecision: decision,
-			planStatus: routeContext.planStatus,
-			cwd: eventCwd(event, ctx),
-			policy: semanticPolicy,
-		}).then(({ selected, receipt }) => {
-			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
-				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-				decision: selected,
-				semantic: receipt ? {
-					mode: "enforced",
-					source: receipt.selection_source,
-					reason: receipt.selection_reason,
-					confidence: receipt.shadow_answer?.confidence ?? null,
-				} : { mode: "enforced", source: "deterministic", reason: "no_receipt" },
-			});
-			if (receipt) {
-				routablePi.appendEntry?.(`${CUSTOM_MESSAGE_TYPE}.decision`, {
-					version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-					receipt,
-				});
-			}
-			return { systemPrompt: routedSystemPrompt(event.systemPrompt, selected, prepare(selected)) };
-		}).catch(() => {
-			routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
-				version: WORKFLOW_ROUTER_EXTENSION_VERSION,
-				decision,
-				semantic: { mode: "fallback", reason: "runtime_error" },
-			});
-			return { systemPrompt: routedSystemPrompt(event.systemPrompt, decision, prepare(decision)) };
+		routablePi.appendEntry?.(CUSTOM_MESSAGE_TYPE, {
+			version: WORKFLOW_ROUTER_EXTENSION_VERSION,
+			decision,
 		});
+		const pointer = typeof decision.skill === "string" ? resolveContractPointer(decision.skill) : null;
+		const cwd = explicitCwd(event, ctx);
+		maybeEmitRouteDecided(cwd, decision, pointer);
+		pendingRoute = cwd ? { cwd, decision, pointer } : null;
+		return pointer ? { systemPrompt: routedSystemPrompt(event.systemPrompt, decision, pointer) } : undefined;
 	});
 
 	pi.on("tool_call", (event, ctx) => {
@@ -258,17 +176,7 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 		return undefined;
 	});
 
-	let parentUsageAcc: {
-		input_tokens: number;
-		output_tokens: number;
-		total_tokens: number;
-	} | null = null;
-
-	pi.on("agent_end", (event) => {
-		const messages = (event as { messages?: unknown }).messages;
-		if (Array.isArray(messages)) {
-			parentUsageAcc = accumulateAssistantUsage(parentUsageAcc, messages);
-		}
+	pi.on("agent_end", () => {
 		// Catch-up issuance for routes decided before their ledger existed.
 		const pending = pendingRoute;
 		pendingRoute = null;
@@ -278,28 +186,6 @@ export default function (pi: ExtensionAPI, hooks: WorkflowRouterHooks = {}) {
 			} catch {
 				// Best effort: never break the agent_end pipeline on ledger I/O.
 			}
-		}
-	});
-
-	// Prefer settled so retries/compactions do not double-count a still-running session.
-	pi.on("agent_settled", async (_event, ctx) => {
-		try {
-			const cwd =
-				typeof ctx?.cwd === "string" && ctx.cwd.trim() !== ""
-					? ctx.cwd
-					: process.cwd();
-			const model = ctx?.model as { provider?: string; id?: string } | undefined;
-			const runtime =
-				model?.provider && model?.id ? `${model.provider}/${model.id}` : "pi";
-			await maybeEmitOutcomeMetric(cwd, {
-				parentUsage: parentUsageAcc,
-				runtime,
-				success_kind: "run_terminal",
-			});
-		} catch {
-			// Never break the agent lifecycle on ledger I/O.
-		} finally {
-			parentUsageAcc = null;
 		}
 	});
 }

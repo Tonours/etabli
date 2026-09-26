@@ -14,6 +14,12 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
 - `~/.pi/themes/` -> `pi/themes/`
 - `~/.claude/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.claude/workflow/` -> `workflow/`
+- When `CLAUDE_CONFIG_DIR` is set and differs from `~/.claude`, deploy also
+  maintains the same Claude surfaces (commands, skills, agents, hooks, scripts,
+  settings sync) there; `claude-hooks-merge`, `claude-hooks-check` and
+  `claude-skill-load-check` read it by default. Live skills outside the tracked
+  profile in that dir are reported by the load check, never removed; dangling
+  managed links are replaced without a `.bak`
 - `~/.agents/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.agents/workflow/` -> `workflow/`
 - `~/.agents/skills/` receives catalog entries marked `agents_visible`; Grok

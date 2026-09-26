@@ -32,11 +32,6 @@ A loop prompt must also say what is handed off:
 
 Optimize for a compact completion contract, not a long instruction dump.
 
-With explicit provider-egress approval, the advisory `goal-completeness` Jev
-profile may check whether a bounded draft appears to contain an objective,
-verifier, scope, cap, stop condition, and permission boundary. It does not write
-the goal, resolve ambiguity, or replace the rules in this skill.
-
 When the user's request is messy, conversational, partial, or overloaded, first normalize it into:
 - intended outcome
 - affected workspace or artifact

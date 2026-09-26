@@ -164,27 +164,13 @@ assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
 assert_file "$ROOT_DIR/workflow/skills/investigation.md"
 assert_file "$ROOT_DIR/workflow/evidence-pack.schema.json"
 assert_file "$ROOT_DIR/workflow/templates/evidence-pack.json"
-assert_file "$ROOT_DIR/workflow/program.schema.json"
-assert_file "$ROOT_DIR/workflow/skills/program-orchestration.md"
-assert_file "$ROOT_DIR/scripts/evidence-proof"
-assert_file "$ROOT_DIR/scripts/program-state"
-assert_file "$ROOT_DIR/tests/evidence-proof-smoke.sh"
-assert_file "$ROOT_DIR/tests/program-state-smoke.sh"
-assert_file "$ROOT_DIR/workflow/skills/self-improvement-loop.md"
-assert_file "$ROOT_DIR/workflow/trace-self-improvement.md"
 assert_file "$ROOT_DIR/workflow/trace-observation.schema.json"
 assert_file "$ROOT_DIR/workflow/skills/ambitious-project-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
 assert_file "$ROOT_DIR/workflow/skills/skill-evaluation.md"
-assert_file "$ROOT_DIR/scripts/conversation-retrospect"
 assert_file "$ROOT_DIR/scripts/skill-eval"
-assert_file "$ROOT_DIR/scripts/etabli-harness-eval"
-assert_file "$ROOT_DIR/docs/harness-eval.md"
 assert_file "$ROOT_DIR/scripts/session-handoff"
-assert_file "$ROOT_DIR/tests/conversation-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/skill-eval-smoke.sh"
-assert_file "$ROOT_DIR/tests/etabli-harness-eval-smoke.sh"
-assert_file "$ROOT_DIR/tests/etabli-harness-eval-live.sh"
 assert_file "$ROOT_DIR/tests/session-handoff-smoke.sh"
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
@@ -228,10 +214,8 @@ assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
-assert_file "$ROOT_DIR/scripts/workflow-retrospect"
 assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
@@ -269,15 +253,10 @@ assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
 assert_contains "$ROOT_DIR/README.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/contract-details.md'
 assert_contains "$ROOT_DIR/README.md" 'protocol, not an OS lock'
-assert_contains "$ROOT_DIR/README.md" 'workflow/skills/self-improvement-loop.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/evidence-proof'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/program-state'
-assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'workflow/skills/program-orchestration.md'
-assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'scripts/evidence-proof'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Live Final Answer Gate'
@@ -296,8 +275,6 @@ assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Category: <cat
 assert_contains "$ROOT_DIR/tests/answer-quality-check-smoke.sh" 'bad-overclaim'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'adversarial'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'general-simple'
-assert_contains "$ROOT_DIR/docs/harness-eval.md" '**not** claim DeepSWE scores'
-assert_contains "$ROOT_DIR/docs/harness-eval.md" 'original tasks, behavior verifiers'
 assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'hunkdiff'
@@ -341,13 +318,11 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'A "10/10" answer is not a promise of omniscience.'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'OpenAI evaluation best practices'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Historical fields'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Understand before planning'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Code diff mode'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/self-improvement-loop.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/product-dogfood.md'
 assert_file "$ROOT_DIR/workflow/skill-design.md"
 assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Delete-test'
@@ -436,14 +411,8 @@ test -x "$ROOT_DIR/scripts/plan-check-freeze" || {
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/scripts/workflow-event"
 assert_contains "$ROOT_DIR/scripts/workflow-event" 'harness_validation_completed'
-assert_contains "$ROOT_DIR/scripts/workflow-retrospect" 'harness_failure_pattern'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" '## Product Dogfood'
 assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Do not convert a blocked scenario into `pass`.'
-assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'never applies patches'
-assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'strict held-in gain'
-assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'prototype_offline'
-assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'promote_automatic'
-assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'capability_not_available'
 assert_contains "$ROOT_DIR/workflow/trace-observation.schema.json" '"allOf"'
 assert_contains "$ROOT_DIR/workflow/skills/ambitious-project-loop.md" 'Push, PR, merge, deploy'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
@@ -503,7 +472,6 @@ assert_contains "$ROOT_DIR/workflow/linear-ticket-template.md" 'Resolve team/pro
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" 'Each archive is a distilled memory record, not a raw copy of `PLAN.md`.'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/orchestration.md'
-assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/self-improvement-loop.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '## Activation'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md" 'workflow/skills/orchestration.md'
@@ -946,11 +914,5 @@ if [ -n "$duplicate_adapters" ]; then
     exit 1
 fi
 
-assert_file "$ROOT_DIR/workflow/project-autonomy-envelope.md"
-assert_file "$ROOT_DIR/workflow/project-autonomy-envelope.schema.json"
-assert_file "$ROOT_DIR/workflow/templates/project-autonomy-envelope.json"
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/project-autonomy-envelope.md'
-assert_contains "$ROOT_DIR/workflow/project-autonomy-envelope.md" 'never launches agents'
-assert_contains "$ROOT_DIR/workflow/project-autonomy-envelope.md" 'can auto-apply a patch'
 
 printf 'workflow docs smoke test: ok\n'

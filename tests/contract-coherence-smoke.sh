@@ -2,8 +2,8 @@
 # Tranche 4 contract-coherence pins: every AC closes with aligned prose on
 # both sides or a mechanical rule + fixtures. This smoke pins the prose side
 # (anchored grep, presence + absence) and executes the single-sourced ci-fix
-# ledger example. Mechanical pins live in workflow-event-smoke.sh,
-# harness-trace-retrospect-smoke.sh, and the router bun tests.
+# ledger example. Mechanical pins live in workflow-event-smoke.sh and the
+# router bun tests.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"

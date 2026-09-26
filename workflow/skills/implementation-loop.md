@@ -76,11 +76,8 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
    changes. A code behavior change ships with its tests per
    `workflow/spec.md`; a bug fix starts from a failing test that reproduces
    the issue. At most one worker writes at a time: invoke it in the
-   foreground, or wait for the worker and do not write until it returns. A
-   READY plan may opt into `workflow/skills/program-orchestration.md`; then
-   its manifest concurrency/isolation/scope/artifact/verifier rules replace
-   the single-worker limit. The parent remains the only canonical ledger
-   writer and reads every integrated diff: a worker report locates the work,
+   foreground, or wait for the worker and do not write until it returns. The
+   parent remains the only canonical ledger writer and reads every integrated diff: a worker report locates the work,
    it does not evidence it.
 9. Update `PLAN.md` only for progress or newly discovered facts.
 10. If facts materially invalidate route, scope, checks, or required evidence,
@@ -91,9 +88,8 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     matrix, strongest observable surface, honest blocked legs, re-run after
     each accepted fix). A plan that omitted that evidence means plan drift
     (plan routes only; for small, keep the dogfood evidence in the task
-    and surface checks): strengthen the checks before continuing. Durable product/UI claims use
-    `scripts/evidence-proof` (etabli repo only); pack integrity alone never <!-- etabli-only -->
-    counts as parent-observed execution.
+    and surface checks): strengthen the checks before continuing. Pack
+    integrity alone never counts as parent-observed execution.
 12. Re-run the plan's focused checks after dogfood and each accepted fix —
     readiness never rests on checks predating the latest product-flow edit.
     Small tier (no plan): run the surface's own focused checks instead —

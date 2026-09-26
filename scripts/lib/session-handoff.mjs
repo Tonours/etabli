@@ -255,71 +255,9 @@ function projectProgram(options, events, ledgerPath) {
     };
   }
 
-  const programState = resolve(dirname(process.argv[1]), "../program-state");
-  const result = spawnSync(
-    programState,
-    [
-      "--manifest",
-      manifestPath,
-      "--events",
-      ledgerPath,
-      "--root",
-      options.repo,
-    ],
-    { encoding: "utf8", timeout: 15_000 },
-  );
-  if (result.status !== 0) {
-    return {
-      replay_valid: false,
-      error: compact(
-        result.stderr ||
-          result.error?.message ||
-          `program-state exited ${result.status}`,
-        500,
-      ),
-    };
-  }
-
-  let state;
-  try {
-    state = JSON.parse(result.stdout);
-  } catch {
-    return {
-      replay_valid: false,
-      error: "program-state returned invalid JSON",
-    };
-  }
-  if (
-    state?.replay_valid !== true ||
-    !Array.isArray(state.ready_units) ||
-    !Array.isArray(state.units)
-  ) {
-    return {
-      replay_valid: false,
-      error: "program-state returned an invalid projection",
-    };
-  }
   return {
-    program_id: state.program_id,
-    replay_valid: state.replay_valid === true,
-    replay_complete: state.replay_complete === true,
-    execution: state.execution,
-    runtime_confirmed: state.runtime_confirmed === true,
-    counts: state.counts,
-    ready_units: state.ready_units,
-    verified_units: state.units
-      .filter((unit) => unit.status === "verified")
-      .map((unit) => unit.id),
-    frontier: state.units
-      .filter((unit) => unit.status !== "verified")
-      .map((unit) => ({
-        unit_id: unit.id,
-        status: unit.status,
-        head: unit.head,
-        result_head: unit.result?.head || null,
-        verdict_head: unit.verdict?.head || null,
-      })),
-    error: null,
+    replay_valid: false,
+    error: "program control plane was removed; no replay available",
   };
 }
 
