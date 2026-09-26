@@ -148,30 +148,6 @@ export function addUsage(left, right) {
 	};
 }
 
-export function maxUsage(left, right) {
-	const out = {
-		input_tokens: Math.max(left.input_tokens, right.input_tokens),
-		output_tokens: Math.max(left.output_tokens, right.output_tokens),
-		total_tokens: Math.max(left.total_tokens, right.total_tokens),
-		cache_read_tokens: Math.max(
-			left.cache_read_tokens,
-			right.cache_read_tokens,
-		),
-		cache_creation_tokens: Math.max(
-			left.cache_creation_tokens,
-			right.cache_creation_tokens,
-		),
-	};
-	return {
-		...out,
-		processed_total_tokens:
-			out.input_tokens +
-			out.output_tokens +
-			out.cache_read_tokens +
-			out.cache_creation_tokens,
-	};
-}
-
 export function usageFromAssistantMessages(messages) {
 	let total = zeroUsage();
 	let found = false;

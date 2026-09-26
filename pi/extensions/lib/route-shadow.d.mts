@@ -24,4 +24,3 @@ export function runRouteDecision(input: {
   provider?: unknown;
   persistReceipt?: boolean;
 }): Promise<{ selected: RouteDecision; receipt: SemanticReceipt | null }>;
-export const runRouteShadow: typeof runRouteDecision;
