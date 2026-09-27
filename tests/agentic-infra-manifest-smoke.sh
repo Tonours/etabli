@@ -144,7 +144,8 @@ review-evidence-pack-test
 harness-token-usage-test
 skills-lock-coverage-smoke
 skill-trigger-eval
-codex-source'
+codex-source
+token-bench-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "surfaces": {
+    "always-on": { "files": ["a.md"], "ceiling_chars": 100000 },
+    "implement": {
+      "files": ["b.md"],
+      "ceiling_chars": 100000,
+      "conditional": [{ "file": "c.md", "trigger": "fixture conditional read" }]
+    },
+    "spec-map": { "files": ["c.md"], "ceiling_chars": 100000 }
+  }
+}
