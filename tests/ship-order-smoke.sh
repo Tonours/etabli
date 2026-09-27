@@ -63,6 +63,13 @@ assert_contains "$ROUNDS" 'no post-F1 T re-entry'
 assert_contains "$ROUNDS" 'Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`'
 assert_contains "$LOOP" 'workflow/skills/review-rounds.md'
 assert_contains "$LOOP" 'accepted risk: no external feedback; small excludes behavior change'
+assert_contains "$ROOT_DIR/workflow/templates/escaped-defect.md" '  tier: small | standard | high-risk | unknown'
+assert_contains "$ROOT_DIR/workflow/templates/escaped-defect.md" 'the implementation report `tier:`); `unknown` when no reliable source gives one.'
+assert_contains "$SHIP" 'deciding_code, escaped_later, buckets, tier}`; `tier` is set at the'
+assert_contains "$SHIP" "run's first upsert from the shipped change's recorded tier (plan or"
+assert_contains "$SHIP" 'archive `Tier`, or report `tier:`), else `unknown`, and then only'
+assert_contains "$ROOT_DIR/workflow/self-improvement/review-metrics.md" 'Escaped rate per tier: Σ `escaped_later` / number of rows of the private'
+assert_contains "$ROOT_DIR/workflow/self-improvement/review-metrics.md" 'ship-metrics registry, per `tier`; `unknown` rows are reported apart, never'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" "Accepted risk: that Spec pass shares the"
 assert_contains "$ROOT_DIR/workflow/skills/review.md" "implementer's context (self-preference);"
 assert_contains "$ROOT_DIR/workflow/skills/review.md" "   Logic and the adversary stay independent."
@@ -156,6 +163,39 @@ jq -e '.escaped_later == 2' "$WF/ship-metrics/conc.json" >/dev/null \
 if "$METRICS_BIN" --dir "$WF" upsert conc '{"escaped_later":true}' >/dev/null 2>&1; then
   fail 'registry accepted boolean escaped_later'
 fi
+"$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"high-risk"}' >/dev/null
+jq -e '.tier == "high-risk"' "$WF/ship-metrics/conc.json" >/dev/null \
+  || fail 'registry did not store the tier'
+before_tier="$(cat "$WF/ship-metrics/conc.json")"
+if "$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"medium"}' >/dev/null 2>&1; then
+  fail 'registry accepted a tier outside small|standard|high-risk|unknown'
+fi
+[ "$(cat "$WF/ship-metrics/conc.json")" = "$before_tier" ] || fail 'refused tier upsert changed the row'
+if "$METRICS_BIN" --dir "$WF" upsert conc '{"tier":null}' >/dev/null 2>&1; then
+  fail 'registry accepted a null tier that erases the classification'
+fi
+[ "$(cat "$WF/ship-metrics/conc.json")" = "$before_tier" ] || fail 'refused null tier upsert changed the row'
+if "$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"small"}' >/dev/null 2>&1; then
+  fail 'registry reclassified a row whose tier was already set'
+fi
+[ "$(cat "$WF/ship-metrics/conc.json")" = "$before_tier" ] || fail 'refused reclassification changed the row'
+"$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"high-risk"}' >/dev/null || fail 'registry refused re-sending the same tier'
+for bad_tier in '"medium"' 'null'; do
+  if "$METRICS_BIN" --dir "$WF" upsert fresh "{\"tier\":$bad_tier}" >/dev/null 2>&1; then
+    fail "registry created a row with tier $bad_tier"
+  fi
+  [ ! -e "$WF/ship-metrics/fresh.json" ] || fail "refused tier $bad_tier created a row"
+done
+"$METRICS_BIN" --dir "$WF" upsert late '{"tier":"unknown"}' >/dev/null
+before_unknown="$(cat "$WF/ship-metrics/late.json")"
+for bad_tier in '"medium"' 'null'; do
+  if "$METRICS_BIN" --dir "$WF" upsert late "{\"tier\":$bad_tier}" >/dev/null 2>&1; then
+    fail "registry replaced unknown with tier $bad_tier"
+  fi
+  [ "$(cat "$WF/ship-metrics/late.json")" = "$before_unknown" ] || fail "refused tier $bad_tier changed the unknown row"
+done
+"$METRICS_BIN" --dir "$WF" upsert late '{"tier":"standard"}' >/dev/null || fail 'registry refused replacing unknown with a recorded tier'
+jq -e '.tier == "standard"' "$WF/ship-metrics/late.json" >/dev/null || fail 'unknown tier was not replaced'
 # find-pr resolves the single row carrying a PR URL (mini-PR updates).
 [ "$("$METRICS_BIN" --dir "$WF" find-pr 'https://example.test/pr/9')" = "conc" ] \
   || fail 'find-pr did not resolve the row by PR URL'
