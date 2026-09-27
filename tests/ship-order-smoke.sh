@@ -62,6 +62,10 @@ assert_contains "$ROUNDS" 'T exhausted'
 assert_contains "$ROUNDS" 'no post-F1 T re-entry'
 assert_contains "$ROUNDS" 'Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`'
 assert_contains "$LOOP" 'workflow/skills/review-rounds.md'
+assert_contains "$LOOP" 'accepted risk: no external feedback; small excludes behavior change'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" "Accepted risk: that Spec pass shares the"
+assert_contains "$ROOT_DIR/workflow/skills/review.md" "implementer's context (self-preference);"
+assert_contains "$ROOT_DIR/workflow/skills/review.md" "   Logic and the adversary stay independent."
 
 # AC3: delta rule — ancestry + two-dot + 50-line heuristic + surfaces.
 assert_contains "$ROUNDS" 'merge-base --is-ancestor'

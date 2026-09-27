@@ -49,7 +49,9 @@ Same-session Logic self-review is forbidden.
    `Axis: Spec`) in parallel when the runtime can (Claude/Cursor), using the
    same runner and model as the Logic hunter; otherwise sequential. Daily Pi:
    Logic is the only child; after it returns, run Spec in the parent and
-   record `spec: parent`.
+   record `spec: parent`. Accepted risk: that Spec pass shares the
+   implementer's context (self-preference);
+   Logic and the adversary stay independent.
 5. If neither `PLAN.md` nor PR/user intent exists, record `spec: n/a` and skip
    the Spec spawn.
 6. If `Standards: yes`, run `code-quality` when exposed, otherwise the narrowest
