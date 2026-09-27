@@ -19,7 +19,8 @@ the tier — never downgrade mid-run.
   runtime behavior change. Runs **outside the plan gate**: scoped recon
   (step 0), implement (step 8 semantics), product-flow check (step 11) when
   its trigger fires, checks (12), simplify (12b), quality (12c), report (17). One
-  self-review of the cumulative diff replaces hunters and adversary passes.
+  self-review of the cumulative diff replaces hunters and adversary passes
+  (accepted risk: no external feedback; small excludes behavior change).
   No plan file and no READY gate unless the surface is contractual — in which
   case the tier is not small.
 - **standard** (default) — runtime code change on a known surface. Full
