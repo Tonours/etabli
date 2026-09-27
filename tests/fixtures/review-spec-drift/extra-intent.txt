@@ -1,2 +1,0 @@
-Prune the stale `session-id` and `runner-tag` columns from the log prune
-report. No other behavior change.

@@ -1,2 +1,0 @@
-Add a helper that surfaces the most expensive turns of a session for the
-stats command.
