@@ -57,7 +57,7 @@ const repoDir = process.argv[2];
 const dryRun = process.argv[3] === "1";
 const livePath = join(claudeDir, "settings.json");
 
-const { RETIRED_HOOK_COMMANDS, identityOf, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
+const { bypassesRtkGuard, identityOf, isRetiredHookCommand, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
 let fragment;
 try {
   fragment = loadFragment(repoDir);
@@ -112,15 +112,17 @@ for (const [event, groups] of Object.entries(live.hooks)) {
   }
 }
 
-const retired = new Set(RETIRED_HOOK_COMMANDS);
 const removals = [];
 for (const [event, groups] of Object.entries(live.hooks)) {
   const kept = [];
   for (const group of groups) {
     const hooks = group.hooks ?? [];
-    const remaining = hooks.filter((hook) => !retired.has(hook.command));
+    const remaining = hooks.filter((hook) => !isRetiredHookCommand(hook.command));
     for (const hook of hooks) {
-      if (retired.has(hook.command)) removals.push({ event, matcher: group.matcher, hook });
+      if (isRetiredHookCommand(hook.command)) removals.push({ event, matcher: group.matcher, hook });
+      if (bypassesRtkGuard(event, group.matcher, hook.command)) {
+        console.error(`claude-hooks-merge: kept custom Bash PreToolUse hook that calls rtk outside rtk-guard: ${event}/${group.matcher ?? ""}: ${hook.command} (edit it by hand; claude-hooks-check fails until then)`);
+      }
     }
     if (hooks.length && !remaining.length) continue;
     if (remaining.length !== hooks.length) group.hooks = remaining;
