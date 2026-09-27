@@ -25,8 +25,11 @@ type RoutablePi = ExtensionAPI & {
 	registerEntryRenderer?: (customType: string, renderer: unknown) => void;
 };
 
-function routedSystemPrompt(
-	systemPrompt: string | undefined,
+const ROUTE_CONTRACT_MESSAGE_TYPE = "etabli-route-contract";
+
+// Delivered as a context message, not a system-prompt override: replacing the
+// system prompt per routed turn invalidates the provider's cached prefix.
+function routeContractText(
 	decision: Record<string, unknown>,
 	pointer: ContractPointer | null,
 ): string {
@@ -44,7 +47,7 @@ function routedSystemPrompt(
 		contract.contract = { path: pointer.path, sha256: pointer.sha256, provenance: pointer.provenance };
 		mustRead = ` Read ${pointer.path} (sha256 ${pointer.sha256.slice(0, 12)}) before acting on this route.`;
 	}
-	return `${systemPrompt || ""}\n\n<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn.${mustRead} It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
+	return `<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn.${mustRead} It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
 }
 
 // Best-effort issuance record: never throws, never blocks the turn. A ledger
@@ -104,7 +107,9 @@ export default function (pi: ExtensionAPI) {
 		const cwd = explicitCwd(event, ctx);
 		maybeEmitRouteDecided(cwd, decision, pointer);
 		pendingRoute = cwd ? { cwd, decision, pointer } : null;
-		return pointer ? { systemPrompt: routedSystemPrompt(event.systemPrompt, decision, pointer) } : undefined;
+		return pointer
+			? { message: { customType: ROUTE_CONTRACT_MESSAGE_TYPE, content: routeContractText(decision, pointer), display: false } }
+			: undefined;
 	});
 
 	pi.on("tool_call", (event, ctx) => {
