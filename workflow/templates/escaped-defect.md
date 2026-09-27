@@ -9,6 +9,7 @@ reusable synthetic cases may be linked from the public evaluation corpus.
 ```text
 escaped-defect:
   reviewed_change:
+  tier: small | standard | high-risk | unknown
   source_location:
   found_by: independent-review | human-review | ci | production
   defect: <source location + one sentence>
@@ -19,6 +20,8 @@ escaped-defect:
   public_surface: aggregate-only | none
 ```
 
+`tier` is the recorded tier of the reviewed change (plan or archive `Tier`, or
+the implementation report `tier:`); `unknown` when no reliable source gives one.
 `metrics_record` records the side effect on the private metrics record. `missing`
 means the record is incomplete until one of the other values is set. Public
 surfaces accept aggregate synthetic rows only; raw change records stay private.

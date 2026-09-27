@@ -18,7 +18,7 @@ Usage:
   workflow-ship-metrics --dir <root>/.workflow upsert <run-slug> '<json-object>'
   workflow-ship-metrics --dir <root>/.workflow show <run-slug>
   workflow-ship-metrics --dir <root>/.workflow find-pr <pr-url>
-Row schema: {run_slug, pr_url|null, verdict, models[], deciding_code, escaped_later(count), buckets}
+Row schema: {run_slug, pr_url|null, verdict, models[], deciding_code, escaped_later(count), buckets, tier}
 EOF
   exit 2
 }
@@ -46,7 +46,9 @@ upsert_locked_body() {
       and (.models == null or (.models | type == "array"))
       and (.deciding_code == null or (.deciding_code | type == "string"))
       and (.escaped_later == null or ((.escaped_later | type == "number") and ((.escaped_later | floor) == .escaped_later) and (.escaped_later >= 0)))
-      and (.buckets == null or (.buckets | type == "object")))')" \
+      and (.buckets == null or (.buckets | type == "object"))
+      and ((has("tier") | not) or (.tier | IN("small", "standard", "high-risk", "unknown")))
+      and (($base.tier // "unknown") == "unknown" or ($patch | has("tier") | not) or $patch.tier == $base.tier))')" \
     || { printf 'merged row fails schema for %s\n' "$slug" >&2; return 1; }
   printf '%s\n' "$merged" > "$row.tmp.$$"
   mv "$row.tmp.$$" "$row"

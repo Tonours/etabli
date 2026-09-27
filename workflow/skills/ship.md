@@ -130,7 +130,10 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     with `workflow/templates/escaped-defect.md` before the miss is treated as
     closed. **Update** the registry (`.workflow/ship-metrics/<run-slug>.json`
     at the invocation root: `{run_slug, pr_url, verdict, models[],
-    deciding_code, escaped_later, buckets}`) under `flock`, and refresh
+    deciding_code, escaped_later, buckets, tier}`; `tier` is set at the
+    run's first upsert from the shipped change's recorded tier (plan or
+    archive `Tier`, or report `tier:`), else `unknown`, and then only
+    `unknown` may be replaced) under `flock`, and refresh
     the aggregate row — never a second row. In Etabli, `scripts/workflow-ship-metrics` <!-- etabli-only -->
     (`upsert`) writes that row under its own per-slug lock file, with the
     same backend choice as `scripts/workflow-event` (`lockf`, `flock` or
