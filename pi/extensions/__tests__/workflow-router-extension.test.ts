@@ -141,7 +141,11 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			const injectedImplement = (results[0] as { systemPrompt: string }).systemPrompt;
+			const injectedImplementResult = results[0] as { systemPrompt?: string; message: { customType: string; content: string; display: boolean } };
+			expect(injectedImplementResult.systemPrompt).toBeUndefined();
+			expect(injectedImplementResult.message).toMatchObject({ customType: "etabli-route-contract", display: false });
+			const injectedImplement = injectedImplementResult.message.content;
+			expect(injectedImplement.length).toBeLessThan(1500);
 			expect(injectedImplement).toContain("<etabli-route-contract>");
 			expect(injectedImplement).toContain('"route":"implement"');
 			expect(injectedImplement).toContain("implement/SKILL.md");
@@ -261,7 +265,10 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			const injectedPlan = (results[0] as { systemPrompt: string }).systemPrompt;
+			const injectedPlanResult = results[0] as { systemPrompt?: string; message: { customType: string; content: string; display: boolean } };
+			expect(injectedPlanResult.systemPrompt).toBeUndefined();
+			expect(injectedPlanResult.message).toMatchObject({ customType: "etabli-route-contract", display: false });
+			const injectedPlan = injectedPlanResult.message.content;
 			expect(injectedPlan).toContain("<etabli-route-contract>");
 			expect(injectedPlan).toContain('"route":"plan-implement"');
 			expect(injectedPlan).toContain("plan-implement/SKILL.md");
