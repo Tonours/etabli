@@ -178,7 +178,8 @@ actual_nvim="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "nvim" {print $3}' "$
 [ -z "$actual_nvim" ] || fail "Nvim checks belong to dotfiles, not Etabli: $actual_nvim"
 
 live_output_file="$(mktemp)"
-trap 'rm -f "$live_output_file"' EXIT
+stdin_root="$(mktemp -d)"
+trap 'rm -f "$live_output_file"; rm -rf "$stdin_root"' EXIT
 set +e
 env -u RUN_AGENT_CLI_SMOKE -u RUN_REAL_AGENT_SCENARIOS -u RUN_SKILL_RUNTIME_CANARY \
 	"$ROOT_DIR/scripts/verify-agentic-infra" live >"$live_output_file" 2>&1
@@ -214,5 +215,30 @@ esac
 if grep -Eq 'run:[[:space:]]+(bash tests/|bun test|node scripts/validate-adrs)' "$WORKFLOW"; then
 	fail "CI duplicates a manifest-owned check instead of calling the canonical runner"
 fi
+
+
+# A check that reads stdin must not swallow the remaining manifest rows: run a
+# copy of the runner, serialized, with a stdin-eating target first and a red
+# target in the middle; every row must still run exactly once.
+mkdir -p "$stdin_root/scripts" "$stdin_root/tests" "$stdin_root/workflow/runtime"
+cp "$ROOT_DIR/scripts/verify-agentic-infra" "$stdin_root/scripts/verify-agentic-infra"
+printf '#!/usr/bin/env bash\ncat >/dev/null\n' >"$stdin_root/tests/eat-stdin.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$stdin_root/tests/ok.sh"
+printf '#!/usr/bin/env bash\nexit 1\n' >"$stdin_root/tests/red.sh"
+stdin_labels='eat-stdin
+red
+ok-after-red
+ok-last'
+printf 'core\tshell-docs\teat-stdin\ttests/eat-stdin.sh\ncore\tshell-docs\tred\ttests/red.sh\ncore\tshell-docs\tok-after-red\ttests/ok.sh\ncore\tshell-docs\tok-last\ttests/ok.sh\n' \
+	>"$stdin_root/workflow/runtime/agentic-infra-checks.tsv"
+set +e
+AGENTIC_INFRA_JOBS=1 "$stdin_root/scripts/verify-agentic-infra" core >"$stdin_root/out" 2>&1
+stdin_status=$?
+set -e
+[ "$stdin_status" -ne 0 ] || fail "a red check must make the runner exit nonzero"
+[ "$(awk '/^RUN /{print $2}' "$stdin_root/out")" = "$stdin_labels" ] ||
+	fail "every selected check must run exactly once even when one reads stdin (child stdin must be /dev/null)"
+grep -Fq 'SUMMARY: 1/4 checks failed: red' "$stdin_root/out" ||
+	fail "the summary must count every selected check"
 
 printf 'agentic infra manifest smoke test: ok\n'

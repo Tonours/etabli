@@ -139,7 +139,7 @@ run_selection() {
       run_check "$label" run_target "$target" || status=$?
       printf 'x' >&9
       exit "$status"
-    ) >"$out" 2>&1 &
+    ) >"$out" 2>&1 </dev/null &
     pids+=("$!")
     outs+=("$out")
     labels+=("$label")
