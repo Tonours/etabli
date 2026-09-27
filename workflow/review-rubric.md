@@ -10,17 +10,8 @@ Intent or `PLAN.md` as correctness authority.
 
 ## Hunt and filter
 
-1. **Pin once** — parent captures the patch bytes (resolved SHA, merge-base,
-   or uncommitted diff); hunters never re-run `git diff` / `gh pr diff`.
-2. **Logic hunter** — fresh context; correctness; lens + deciding-code tables;
-   extra-lens bugs allowed. Spec in parallel when the runtime can; daily Pi:
-   isolated Logic child only.
-3. **Spec hunter** — fresh context; plan/intent fit only; `spec: n/a` with no
-   intent artifact. Daily Pi: Spec in the parent after Logic (`spec: parent`).
-4. **Standards hunter** — `code-quality` (or sibling fallback) on language/UI
-   surface, else `quality: none`.
-5. **Lead** — Act on / Consider / Dismissed; no re-hunt. Empty dismissals are
-   `Dismissed: none`.
+Procedure (pin once, Logic then Spec hunter, Standards lens, lead filter):
+`workflow/skills/review.md` § Hunt and filter.
 
 ## Review stack
 

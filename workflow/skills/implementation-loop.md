@@ -34,13 +34,8 @@ the tier — never downgrade mid-run.
 These hold at every step; `workflow/spec.md` § Rules is canonical and wins on
 conflict.
 
-- No-progress stop: when the same fix hypothesis fails twice, or the same check
-  stays red three times with no new diff between runs, stop as `blocked`, emit a
-  `no_progress` event, and list the eliminated hypotheses.
-- Check-freeze: once the plan is `READY`, its Checks and Acceptance Criteria
-  may only be strengthened or extended; weakening or removing one demotes the
-  plan to `CHALLENGED` with a Decision Log rationale (CLI:
-  `scripts/plan-check-freeze`). <!-- etabli-only -->
+- No-progress stop and check-freeze as in `workflow/agent-quick-card.md`
+  (always loaded); a no-progress stop lists the eliminated hypotheses.
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.
 - A new transverse invariant ships with a mechanical check whose failure
@@ -142,52 +137,14 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     **High** findings: accept/reject via cross-model (or second sample), not
     the implementer alone. Fold accepted findings and re-run checks. Any
     accepted fix invalidates cumulative review and code-diff adversary evidence
-    it can affect: re-review follows the BOUNDED machine below (never validate
-    past its ceiling).
+    it can affect: re-review follows the review budget below.
 
-    Review budget machine (one T/D/F counter per run; ship phase inherits
-    it — see the `ship.md` transfer record). T = full tour (hunters +
-    adversary, fresh context, pinned patch + SHA). D = delta round (fix
-    diff vs previous pinned patch ONLY; Logic hunter + the finding's
-    hunter family, fresh; adversary only if a high-severity finding was
-    folded; hunter unavailable → `blocked`). F = final full pass (whole
-    patch, pinned final SHA). T1/T2/D1/D2/F1/F2 are POSITIONAL: the
-    first/second round of that kind SPENT in this run. Every entry
-    consumes the next unspent round of that kind; re-entry with none
-    left goes `blocked` instead of reusing a spent round. F rounds are
-    SHA-bound: a second full pass is always F2, never a new F1.
-    - T1: findings → fold → T2. T1 clean → F1.
-    - T2: findings → fold → D1. T2 clean → F1.
-    - D1: findings within delta → fold → D2. Findings widening beyond
-      delta → reclassify as full tour (next unspent T: T1 if unspent,
-      else T2, else `blocked`). D1 clean → F1.
-    - D2: findings within delta → fold → F1 (F covers D2 fixes).
-      Widening → `blocked`. D2 clean → F1.
-    - F1: clean → VALIDATE at F1 SHA. Findings → fold on the delivery
-      branch → one FD round (next unspent D required, else `blocked`)
-      → F2 on the new delivery SHA.
-    - FD (the post-F1 delta round; tour tag `FD`, consumes one D unit):
-      findings within delta → fold → F2 (F2 covers: it re-reads the
-      whole new delivery SHA). Widening → `blocked` (no T re-entry
-      post-F1: F1 already validated the full scope, new scope needs a
-      new plan). Clean → F2. FD never routes to F1 or D2.
-    - F2 (always on the delivery SHA, never on scratch): clean →
-      VALIDATE. Findings → fix on pre-created scratch branch
-      `review-f2/<slug>` (SHA + clean worktree verified at creation) →
-      `blocked`: deliverable SHA stays frozen, worktree kept, never push
-      from a HEAD containing scratch fixes, no scratch→delivery
-      promotion without a new plan. Refused checkout → `blocked` with
-      the frozen SHA named. Never `reset --hard` implicitly: deletion
-      needs a `spec.md` checkpoint.
+    Review budget: one T/D/F counter per run (the ship phase inherits it).
+    Default path: T1 clean → F1 clean on the pinned SHA → VALIDATE. When a
+    round returns findings or a re-review is due, follow the bounded machine
+    in `workflow/skills/review-rounds.md`; never validate past its ceiling.
     Record every pass in the review evidence: tour (T/D/FD/F + number),
     scope (full/delta), base SHA, patch SHA, reviewers.
-    Limit cases: (a) fix with exhausted D budget at F1 → `blocked`;
-    (b) findings at F2 → `blocked`, fixes abandoned on scratch;
-    (c) out-of-delta change during D → full tour or `blocked`;
-    (d) second D-round widening → `blocked` (T exhausted);
-    (e) FD widening → `blocked` (no post-F1 T re-entry).
-    Mechanical enforcement of this machine is tranche 6 (T6); until then
-    the bound holds by prose + recorded evidence.
 14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`:
     fill `workflow/templates/plan-archive.md` (convention, hash gate and
     multi-repo rules: `workflow/plan-archive.md`); distill it as memory, do
@@ -202,29 +159,12 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 18. Before any separately authorized push, run the complete relevant
     `scripts/verify-agentic-infra` group on the final diff. A red group blocks <!-- etabli-only -->
     push even when focused checks passed. When the diff touches scaffold docs,
-    also run `scripts/workflow-ref-linter`: every backticked `scripts/<path>` <!-- etabli-only -->
-    ref must resolve per target or carry a raw etabli-only marker on its own
-    line (fenced blocks included — no fence exclusion).
+    also run `scripts/workflow-ref-linter`. <!-- etabli-only -->
 
-## Long-Loop Budget Discipline
+## Long loops
 
-For any improvement loop without a natural fixed end (coverage hillclimbs,
-iterative optimization, repeated benchmark attempts), declare an explicit
-campaign budget before starting: a maximum iteration count or wall-clock span
-scaled to the session's expected limit. Separately declare the maximum silence
-between progress observations and a command timeout sized from a measured
-baseline or documented project expectation. Freeze one metric command. Deliver the
-progression achieved inside the budget — at least three measured values in
-the final answer, the current state, and the single next lever — then stop
-before an external cap and report. Freeze the project's documented
-test/coverage command, not an experimental coverage runner over a live HTTP
-server. After two red serve-or-coverage attempts, park that path, write the
-measured rows, and stop. About 60 seconds without an observable update is a
-prompt to report progress or inspect the process; it is not a universal command
-timeout. Abort only at the predeclared command or campaign bound.
-A delivered partial progression with an honest stop beats being cut off
-mid-iteration: being killed is not evidence of diligence, and an unfinished
-iteration proves nothing.
+Improvement loops without a natural fixed end (hillclimbs, iterative
+optimization, repeated benchmarks) follow `workflow/skills/long-loop.md`.
 
 ## Completion Evidence
 

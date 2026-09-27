@@ -77,6 +77,11 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
   the event ledger; ordinary work may record it.
 - Skill evaluation: `workflow/skills/skill-evaluation.md`.
+- Cold contracts, opened only on their trigger: bounded re-review
+  `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
+  review); open-ended improvement loops `workflow/skills/long-loop.md`;
+  event-system edits, ledger recovery and active-run selection
+  `workflow/events-validator.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`.
 - Check-freeze: once READY, Checks/Acceptance Criteria/Validation Plan,

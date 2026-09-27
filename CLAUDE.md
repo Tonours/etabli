@@ -1,11 +1,5 @@
 @AGENTS.md
 
-## Knowledge Base
-
-Before answering from durable memory, consult the memory vault per
-`workflow/skills/obvault-memory.md` (work -> `~/work/brain`, else
-`~/work/obvault`).
-
 <!-- ADR:INDEX:START -->
 ## Architecture Decision Records
 

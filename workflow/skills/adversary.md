@@ -44,7 +44,7 @@ historical compatibility; new passes use the mode's canon.
 ## Completion Evidence
 
 Adversary passes run inside the loop's BOUNDED review machine
-(`implementation-loop.md` T/D/F table): T/F rounds use fresh hunters plus the
+(`workflow/skills/review-rounds.md` T/D/F table): T/F rounds use fresh hunters plus the
 adversary, D rounds add the adversary only if a high-severity finding was
 folded, and the bound never downgrades a pass to a lighter re-read — the
 last review always covers the full delivery diff. An implementation loop can

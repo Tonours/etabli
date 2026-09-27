@@ -22,28 +22,10 @@ On Pi, `route_decided` is router-owned: the extension records issuance (with
 contract evidence when the route maps to a skill); agents must not hand-append
 it there. Other harnesses append it by hand via the CLI.
 Agents must use the CLI: direct appends bypass type and detail validation and
-fail `scripts/workflow-ledger-check`. The Pi/Codex harness extensions are the <!-- etabli-only -->
-single named exception: their synchronous hot paths append schema_version 2
-envelopes directly (same shape the CLI would accept); a shared serialized
-writer is a parked follow-up. Every line, whatever the writer, must validate.
-Tightening strict validation flips terminal history that predates the rule:
-inventory such ledgers in `workflow/runtime/ledger-drift-grandfathered.json`
-instead of rewriting them.
-New appends are serialized behind a five-second `lockf`, `flock`, or `shlock`
-lock. Writer integrity proofs and retired types are documented in
-`workflow/events-validator.md`.
+fail `scripts/workflow-ledger-check`. Writer exceptions, locking, grandfathered <!-- etabli-only -->
+history, corrupt-ledger recovery and retired types: `workflow/events-validator.md`.
 
-Before a run relies on active-run selection, select it with
-`scripts/workflow-event activate <slug>`; the runtime then inspects only that
-ledger. Without a pointer, the compatibility fallback considers only valid
-non-terminal ledgers; an invalid historical record that already contains a
-terminal event is not an active run, while an invalid non-terminal candidate
-still fails closed. Terminal append clears the matching pointer.
-If a ledger is corrupt, use `scripts/workflow-event recover <slug> <reason-code>`:
-it preserves the original as `events.invalid-*.jsonl` and writes a blocked
-replacement instead of deleting history. When that script is unavailable in a
-scaffolded project, an equivalent single validated append is acceptable. Do not
-edit earlier lines.
+Never edit earlier lines. Active-run selection (`activate`): `workflow/events-validator.md`.
 
 
 ## Event Types

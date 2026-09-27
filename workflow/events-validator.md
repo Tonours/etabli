@@ -31,6 +31,28 @@ appends the same terminal line. Missing evidence therefore leaves the canonical
 ledger and active-run pointer untouched. Schema-v1 and non-`plan-implement`
 ledgers retain structural completion compatibility.
 
+## Writers and recovery
+
+Before a run relies on active-run selection, select it with
+`scripts/workflow-event activate <slug>`; the runtime then inspects only that <!-- etabli-only -->
+ledger. Without a pointer, the compatibility fallback considers only valid
+non-terminal ledgers; an invalid historical record that already contains a
+terminal event is not an active run, while an invalid non-terminal candidate
+still fails closed. Terminal append clears the matching pointer.
+
+The Pi/Codex harness extensions are the single named exception to CLI-only
+appends: their synchronous hot paths append schema_version 2 envelopes
+directly (same shape the CLI would accept); a shared serialized writer is a
+parked follow-up. Every line, whatever the writer, must validate. New appends
+are serialized behind a five-second `lockf`, `flock`, or `shlock` lock.
+Tightening strict validation flips terminal history that predates the rule:
+inventory such ledgers in `workflow/runtime/ledger-drift-grandfathered.json`
+instead of rewriting them. A corrupt ledger goes through
+`scripts/workflow-event recover <slug> <reason-code>`: it preserves the <!-- etabli-only -->
+original as `events.invalid-*.jsonl` and writes a blocked replacement instead
+of deleting history; without that script (scaffolded project), one equivalent
+validated append is acceptable.
+
 ## Retired types
 
 Retired types stay readable in history: validation accepts their existing lines
