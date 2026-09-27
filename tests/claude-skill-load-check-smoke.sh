@@ -67,7 +67,40 @@ expect_ok "clean fixture (nested synced/ + .DS_Store tolerated)" "$FIX/home" "$F
 mkdir -p "$FIX/home/.claude/skills/unmapped-newcomer"
 printf -- '---\nname: unmapped-newcomer\ndescription: x\n---\nx\n' >"$FIX/home/.claude/skills/unmapped-newcomer/SKILL.md"
 expect_fail "ungoverned newcomer" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: unmapped-newcomer"
+
+live_state() {
+  node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).skillOverrides??{};console.log(m[process.argv[2]]??"absent")' "$FIX/home/.claude/settings.json" "$1"
+}
+set_live_state() {
+  node - "$FIX/home/.claude/settings.json" "$1" "$2" <<'NODE'
+const fs = require("node:fs");
+const [file, name, state] = process.argv.slice(2);
+const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+if (state === "absent") delete settings.skillOverrides[name];
+else settings.skillOverrides[name] = state;
+fs.writeFileSync(file, JSON.stringify(settings, null, 2));
+NODE
+}
+CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" --fix >"$FIX/fix.txt" 2>&1 ||
+  fail "personal --fix: $(cat "$FIX/fix.txt")"
+grep -qF "FIX: governed personal skill unmapped-newcomer as user-invocable-only" "$FIX/fix.txt" ||
+  fail "personal --fix must govern the newcomer in live settings: $(cat "$FIX/fix.txt")"
+[ "$(live_state unmapped-newcomer)" = "user-invocable-only" ] || fail "personal --fix must write the live settings"
+grep -qF "unmapped-newcomer" "$FIX/repo/claude/settings.skill-overrides.json" && fail "personal --fix must not touch the tracked map"
+expect_ok "personal skill governed in live settings" "$FIX/home" "$FIX/repo"
+set_live_state unmapped-newcomer on
+expect_fail "personal skill on in live settings" "$FIX/home" "$FIX/repo" 'personal skill unmapped-newcomer is "on"'
+set_live_state unmapped-newcomer user-invocable-only
 rm -rf "$FIX/home/.claude/skills/unmapped-newcomer"
+expect_fail "stale personal key" "$FIX/home" "$FIX/repo" "map key with no surface skill: unmapped-newcomer"
+CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" --fix >/dev/null 2>&1 || true
+[ "$(live_state unmapped-newcomer)" = "absent" ] || fail "--fix must drop a stale personal key from live settings"
+TRACKED_KEY="$(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).skillOverrides).find(k=>true))' "$FIX/repo/claude/settings.skill-overrides.json")"
+TRACKED_STATE="$(live_state "$TRACKED_KEY")"
+set_live_state "$TRACKED_KEY" off
+expect_fail "tracked key diverges in live settings" "$FIX/home" "$FIX/repo" "repo/live skillOverrides maps diverge"
+set_live_state "$TRACKED_KEY" "$TRACKED_STATE"
+expect_ok "fixture restored after personal-layer cases" "$FIX/home" "$FIX/repo"
 
 KEEPER="$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).skillOverrides;console.log(Object.keys(m).find(k=>m[k]==="on"))' "$FIX/repo/claude/settings.skill-overrides.json")"
 printf -- '---\nname: %s\ndescription: stub %s\ndisable-model-invocation: true\n---\nstub\n' "$KEEPER" "$KEEPER" >"$FIX/home/.claude/skills/$KEEPER/SKILL.md"
@@ -170,11 +203,37 @@ fs.writeFileSync(profileFile, JSON.stringify({
 }, null, 2));
 NODE
 expect_ok "lean profile default mode" "$FIX/home" "$FIX/repo"
+HIDDEN_KEY="$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).skillOverrides;console.log(Object.keys(m).find(k=>m[k]!=="on"))' "$FIX/repo/claude/profiles/lean.settings.json")"
+node -e 'const fs=require("fs");const f=process.argv[1];const p=JSON.parse(fs.readFileSync(f,"utf8"));delete p.skillOverrides[process.argv[2]];fs.writeFileSync(f,JSON.stringify(p,null,2));' "$FIX/repo/claude/profiles/lean.settings.json" "$HIDDEN_KEY"
+CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" --fix >"$FIX/fix-tracked.txt" 2>&1 || fail "tracked-key --fix: $(cat "$FIX/fix-tracked.txt")"
+grep -qF "\"$HIDDEN_KEY\"" "$FIX/repo/claude/profiles/lean.settings.json" || fail "--fix must repair a tracked key in the profile, not the live settings"
+expect_ok "tracked key repaired in the profile" "$FIX/home" "$FIX/repo"
 
 mkdir -p "$FIX/home/.claude/skills/unmapped-in-profile"
 printf -- '---\nname: unmapped-in-profile\ndescription: x\n---\nx\n' >"$FIX/home/.claude/skills/unmapped-in-profile/SKILL.md"
 expect_fail "ungoverned enforced in profile mode" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: unmapped-in-profile"
 rm -rf "$FIX/home/.claude/skills/unmapped-in-profile"
+
+mkdir -p "$FIX/repo/claude/scopes/probe/skills/repo-newcomer"
+printf -- '---\nname: repo-newcomer\ndescription: x\n---\nx\n' >"$FIX/repo/claude/scopes/probe/skills/repo-newcomer/SKILL.md"
+ln -s "$FIX/repo/claude/scopes/probe/skills/repo-newcomer" "$FIX/home/.claude/skills/repo-newcomer"
+set_live_state repo-newcomer user-invocable-only
+expect_fail "repo skill cannot hide in the personal layer" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: repo-newcomer"
+set_live_state repo-newcomer absent
+rm "$FIX/home/.claude/skills/repo-newcomer"
+rm -rf "$FIX/repo/claude/scopes/probe"
+
+for n in $(seq 1 100); do
+  mkdir -p "$FIX/home/.claude/skills/personal-name-only-padding-padding-padding-$n"
+  printf -- '---\nname: personal-name-only-padding-padding-padding-%s\ndescription: x\n---\nx\n' "$n" >"$FIX/home/.claude/skills/personal-name-only-padding-padding-padding-$n/SKILL.md"
+  set_live_state "personal-name-only-padding-padding-padding-$n" name-only
+done
+out="$(CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" 2>&1)" || fail "name-only personal layer: $out"
+printf '%s\n' "$out" | grep -qF "C1(profile): keeper index" || fail "personal name-only entries must count toward the profile budget: $out"
+for n in $(seq 1 100); do
+  set_live_state "personal-name-only-padding-padding-padding-$n" absent
+  rm -rf "$FIX/home/.claude/skills/personal-name-only-padding-padding-padding-$n"
+done
 
 node - "$FIX/repo/claude/profiles/lean.settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -204,5 +263,19 @@ expect_fail "profile-enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabl
 
 rm -rf "$FIX/repo/claude/profiles"
 expect_ok "legacy mode restored after profile removal" "$FIX/home" "$FIX/repo"
+
+SYNC="$ROOT_DIR/scripts/lib/claude-settings-sync.mjs"
+mkdir -p "$FIX/sync"
+printf '%s\n' '{"skillOverrides":{"repo-skill":"on"}}' >"$FIX/sync/tracked.json"
+printf '%s\n' '{"theme":"dark","skillOverrides":{"repo-skill":"off","personal-hidden":"user-invocable-only","personal-on":"on"}}' >"$FIX/sync/settings.json"
+node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked.json" 0 t1 deploy >/dev/null || fail "settings sync first pass failed"
+node -e '
+const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+const want = JSON.stringify({ "personal-hidden": "user-invocable-only", "repo-skill": "on" });
+if (JSON.stringify(s.skillOverrides) !== want || s.theme !== "dark") { console.error(JSON.stringify(s)); process.exit(1); }
+' "$FIX/sync/settings.json" || fail "settings sync must apply tracked keys, keep non-on personal keys, drop personal on keys"
+second="$(node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked.json" 0 t2 deploy)" || fail "settings sync second pass failed"
+printf '%s\n' "$second" | grep -q "^OK  *Claude tracked settings" || fail "settings sync second pass must be a no-op, got: $second"
+[ ! -e "$FIX/sync/settings.json.bak.t2" ] || fail "settings sync no-op pass must not write a backup"
 
 printf '%s\n' "PASS: claude-skill-load-check fixture assertions"
