@@ -3,54 +3,54 @@
   "estimator": "chars/4",
   "surfaces": {
     "always-on": {
-      "chars": 13493
+      "chars": 11789
     },
     "plan-loop": {
       "chars": 6458
     },
     "plan-implement": {
-      "chars": 61488
+      "chars": 54086
     },
     "implement": {
-      "chars": 56125
+      "chars": 48723
     },
     "review": {
-      "chars": 22727
+      "chars": 21881
     },
     "verify": {
       "chars": 3812
     },
     "spec-map": {
-      "chars": 29004
+      "chars": 29315
     },
     "ship": {
-      "chars": 85123
+      "chars": 80905
     }
   },
   "routes": {
     "plan-loop": {
-      "chars": 19951,
-      "worst_chars": 19951
+      "chars": 18247,
+      "worst_chars": 18247
     },
     "plan-implement": {
-      "chars": 74981,
-      "worst_chars": 74981
+      "chars": 65875,
+      "worst_chars": 75135
     },
     "implement": {
-      "chars": 69618,
-      "worst_chars": 69618
+      "chars": 60512,
+      "worst_chars": 69772
     },
     "review": {
-      "chars": 36220,
-      "worst_chars": 36220
+      "chars": 33670,
+      "worst_chars": 33670
     },
     "verify": {
-      "chars": 17305,
-      "worst_chars": 17305
+      "chars": 15601,
+      "worst_chars": 15601
     },
     "ship": {
-      "chars": 98616,
-      "worst_chars": 137763
+      "chars": 92694,
+      "worst_chars": 134942
     }
   }
 }

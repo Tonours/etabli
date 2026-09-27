@@ -1,0 +1,16 @@
+data	git diff HEAD~1 > /tmp/lean-bench/out.diff
+data	git show HEAD:README.md > /tmp/lean-bench/readme.md
+data	cat README.md > /tmp/lean-bench/copy.md
+data	grep -rn workflow scripts > /tmp/lean-bench/grep.txt
+data	git diff HEAD~1 | wc -l
+data	git log --oneline -5 | cut -c1-7
+data	grep -rn workflow scripts | python3 -c 'import sys;print(len(sys.stdin.read()))'
+data	git status --short | awk '{print $2}'
+data	ls -la | sort
+data	cat README.md | shasum
+display	git status
+display	git diff HEAD~1
+display	git log --oneline -5
+display	ls -la
+display	git diff HEAD~1 | head -50
+display	grep -rn workflow scripts 2>/dev/null

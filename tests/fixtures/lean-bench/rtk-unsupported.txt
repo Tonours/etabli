@@ -1,0 +1,17 @@
+git diff --src-prefix="$(printf "'")" > out.patch
+git diff --src-prefix="$(printf "'")" | wc -l
+git diff --src-prefix=$'it\'s/' > out.patch
+echo $"x" > out.txt
+echo `date` > out.txt
+git diff $(git merge-base HEAD main) > out.patch
+diff <(git show HEAD:a) b
+git diff >(tee out.patch)
+echo 'unterminated > out.txt
+git diff --src-prefix=$'it\'s/' | wc -l
+echo $"x" | wc -c
+echo `date` | wc -c
+git diff $(git merge-base HEAD main) | wc -l
+diff <(git show HEAD:a) b | wc -l
+git diff >(tee out.patch) | wc -l
+echo 'unterminated | wc -c
+git diff 1<&2 | wc -l
