@@ -68,11 +68,8 @@ Emit the matching reply shape in the last message:
   research artifacts with `scripts/research-proof-check`. <!-- etabli-only -->
 - Implementation handoff: report files changed, checks run, results, remaining
   risks, archive state, and whether `PLAN.md` still exists.
-- obvault-backed answer: consult obvault via the bounded context contract in
-  `workflow/skills/obvault-memory.md` — read `~/work/obvault/AGENTS.md`, then run
-  the bounded `obvault context/session` command (cited, token-capped) instead of
-  reading the full wiki index. Search `kb/` and `ref/` directly only when the
-  bounded pack is insufficient.
+- obvault-backed answer: bounded, cited context pack first, per
+  `workflow/skills/obvault-memory.md`.
 
 ## Mechanical Check
 
@@ -86,34 +83,7 @@ This helper is a quality floor, not a score. Passing it does not prove an
 answer is "10/10"; failing it means the artifact is missing evidence expected
 by this contract.
 
-## Representative Eval
+## Helper Eval And Evidence
 
-Use `scripts/answer-quality-eval` to run the versioned fixture corpus in <!-- etabli-only -->
-`tests/fixtures/answer-quality/manifest.tsv`. The corpus covers typical, edge,
-and adversarial examples for research, repo, handoff, obvault-backed, simple,
-and overclaim behavior. This is a deterministic regression eval for the helper,
-not a live-model eval or subjective score.
-
-Historical answer reviews remain under `docs/answer-quality-traces/` as
-inspectable evidence. They are not an active gate and do not add another
-checker layer.
-
-## Evidence Base
-
-Status: verified for the design principle, approximate for future eval scores.
-
-- RAG: <https://arxiv.org/abs/2005.11401>
-- Self-RAG: <https://arxiv.org/abs/2310.11511>
-- ReAct: <https://arxiv.org/abs/2210.03629>
-- Reflexion: <https://arxiv.org/abs/2303.11366>
-- Generative Agents: <https://arxiv.org/abs/2304.03442>
-- SWE-agent ACI: <https://arxiv.org/abs/2405.15793>
-- GraphRAG: <https://arxiv.org/abs/2404.16130>
-- Anthropic effective agents:
-  <https://www.anthropic.com/engineering/building-effective-agents>
-- Anthropic contextual retrieval:
-  <https://www.anthropic.com/engineering/contextual-retrieval>
-- OpenAI evaluation best practices:
-  <https://developers.openai.com/api/docs/guides/evaluation-best-practices>
-- OpenAI agent evals:
-  <https://developers.openai.com/api/docs/guides/agent-evals>
+`scripts/answer-quality-eval` (fixture corpus) and the evidence base behind <!-- etabli-only -->
+this contract are documented in `docs/answer-quality-traces/README.md`.

@@ -9,6 +9,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 SHIP="$ROOT_DIR/workflow/skills/ship.md"
 LOOP="$ROOT_DIR/workflow/skills/implementation-loop.md"
+ROUNDS="$ROOT_DIR/workflow/skills/review-rounds.md"
 ADV="$ROOT_DIR/workflow/skills/adversary.md"
 EVENTS="$ROOT_DIR/workflow/events.md"
 EVENT_BIN="$ROOT_DIR/scripts/workflow-event"
@@ -48,29 +49,31 @@ assert_contains "$SHIP" 'ship-feat-abc-123-x'
 assert_contains "$SHIP" 'suffix `-2`, `-3`'
 
 # AC1: bounded machine the ship counter is transferred from.
-assert_contains "$LOOP" 'T1: findings → fold → T2'
-assert_contains "$LOOP" 'F2 (always on the delivery SHA'
-assert_contains "$LOOP" 'are POSITIONAL'
-assert_contains "$LOOP" 'tour tag `FD`'
-assert_contains "$LOOP" 'FD never routes to F1 or D2'
-assert_contains "$LOOP" 'adversary only if a high-severity finding was'
+assert_contains "$ROUNDS" 'T1: findings → fold → T2'
+assert_contains "$ROUNDS" 'F2 (always on the delivery SHA'
+assert_contains "$ROUNDS" 'are POSITIONAL'
+assert_contains "$ROUNDS" 'tour tag `FD`'
+assert_contains "$ROUNDS" 'FD never routes to F1 or D2'
+assert_contains "$ROUNDS" 'adversary only if a high-severity finding was'
 assert_contains "$ADV" 'D rounds add the adversary only if a high-severity finding was'
-assert_contains "$LOOP" 'exhausted D budget at F1'
-assert_contains "$LOOP" 'abandoned on scratch'
-assert_contains "$LOOP" 'T exhausted'
-assert_contains "$LOOP" 'no post-F1 T re-entry'
-assert_contains "$LOOP" 'Mechanical enforcement of this machine is tranche 6'
+assert_contains "$ROUNDS" 'exhausted D budget at F1'
+assert_contains "$ROUNDS" 'abandoned on scratch'
+assert_contains "$ROUNDS" 'T exhausted'
+assert_contains "$ROUNDS" 'no post-F1 T re-entry'
+assert_contains "$ROUNDS" 'the bound holds by prose + recorded evidence'
+assert_contains "$LOOP" 'workflow/skills/review-rounds.md'
 
 # AC3: delta rule — ancestry + two-dot + 50-line heuristic + surfaces.
-assert_contains "$SHIP" 'merge-base --is-ancestor'
-assert_contains "$SHIP" 'git diff --numstat -z <reviewed-sha>'
-assert_count "$SHIP" 'numstat -z' '3'
-assert_contains "$SHIP" 'delta > 50'
-assert_contains "$SHIP" 'review-metrics.md'
-assert_contains "$SHIP" 'canonical `jq -S` parsed'
-assert_contains "$SHIP" 'Negative pin: a lone changed'
+assert_contains "$ROUNDS" 'merge-base --is-ancestor'
+assert_contains "$ROUNDS" 'git diff --numstat -z <reviewed-sha>'
+assert_count "$ROUNDS" 'numstat -z' '3'
+assert_contains "$SHIP" 'review-rounds.md` § Delta re-review'
+assert_contains "$ROUNDS" 'delta > 50'
+assert_contains "$ROUNDS" 'review-metrics.md'
+assert_contains "$ROUNDS" 'canonical `jq -S` parsed'
+assert_contains "$ROUNDS" 'Negative pin: a lone changed'
 assert_contains "$SHIP" 'git status --porcelain'
-assert_contains "$SHIP" 'fails to parse (unreadable output)'
+assert_contains "$ROUNDS" 'fails to parse (unreadable output)'
 
 # AC5: registry + aggregate lifecycle.
 assert_contains "$SHIP" 'run=<slug> | 0 | 0 | 0 |'

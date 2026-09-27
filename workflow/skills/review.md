@@ -93,30 +93,10 @@ user explicitly asked for that level of review.
 
 ## Finding Format
 
-Report concise actionable findings grounded in the reviewed diff:
-
-```text
-severity:
-file:
-line: or line_range:
-issue:
-impact:
-review_comment:
-suggested_fix:
-```
-
-Then the **lens table** and **deciding-code table** from the rubric (mandatory
-on the Logic hunter). Keep findings axis-tagged. Lead output uses Act on /
-Consider / Dismissed.
-
-If there are no actionable issues, put exactly `No findings.` as the only
-finding and do not wrap it in severity/file fields.
-
-End with one final line in this exact shape:
-
-```text
-Verdict: GO | GO WITH NOTES | BLOCK
-```
+Findings (fields, severity order, `No findings.`), the **lens table** and
+**deciding-code table** (mandatory on the Logic hunter) and the final
+`Verdict: GO | GO WITH NOTES | BLOCK` line follow `workflow/review-rubric.md`.
+Keep findings axis-tagged. Lead output uses Act on / Consider / Dismissed.
 
 `GO` is forbidden when any non-trivial runtime deciding-code row is empty or
 `not run`, when any other lens row is `not run` (Convention §5's no-skill,

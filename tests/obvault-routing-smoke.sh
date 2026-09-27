@@ -6,12 +6,12 @@ contract="$ROOT_DIR/workflow/skills/obvault-memory.md"
 test -f "$contract"
 for adapter in \
   "$ROOT_DIR/AGENTS.md" \
-  "$ROOT_DIR/CLAUDE.md" \
-  "$ROOT_DIR/claude/CLAUDE.md" \
   "$ROOT_DIR/pi/AGENTS.md"; do
   grep -Fq 'workflow/skills/obvault-memory.md' "$adapter"
   grep -Fq 'work/brain' "$adapter"
 done
+grep -Fxq '@AGENTS.md' "$ROOT_DIR/CLAUDE.md"
+grep -Fxq '@~/.pi/agent/AGENTS.md' "$ROOT_DIR/claude/CLAUDE.md"
 grep -Fq 'Mandatory first check' "$contract"
 grep -Fq 'do not wait for the user to mention the knowledge base' "$contract"
 grep -Fq 'resolved per scope' "$contract"

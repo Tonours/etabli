@@ -137,7 +137,7 @@ set -e
 # surfaces keep exactly the membership the plan assigns them.
 "$GATE" >/dev/null || fail "repo context budget gate is not green"
 
-expected_always_on='["AGENTS.md","CLAUDE.md","claude/CLAUDE.md","pi/AGENTS.md","workflow/agent-quick-card.md"]'
+expected_always_on='["AGENTS.md","CLAUDE.md","claude/CLAUDE.md","claude/RTK.md","pi/AGENTS.md","workflow/agent-quick-card.md"]'
 expected_plan_loop='["PLAN_TEMPLATE.md","pi/skills/plan-loop/SKILL.md","workflow/skills/plan-loop.md"]'
 expected_plan_implement='["PLAN_TEMPLATE.md","pi/skills/plan-implement/SKILL.md","workflow/answer-quality.md","workflow/events.md","workflow/review-rubric.md","workflow/skills/adversary.md","workflow/skills/implementation-loop.md","workflow/skills/plan-loop.md","workflow/skills/review.md","workflow/templates/plan-archive.md","workflow/templates/review-lead.md","workflow/templates/review-logic-hunter.md","workflow/templates/review-spec-hunter.md"]'
 "$GATE" --json |

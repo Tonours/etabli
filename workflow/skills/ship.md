@@ -87,15 +87,9 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
 9. Push the feature branch and open a PR. The tree must be fully
    accounted before push: `git status --porcelain` empty is the clean
    case (delta = committed vs reviewed SHA); otherwise enumerate
-   committed + unstaged + staged + untracked-impl per step 11 before
-   pushing. Write the body per
-   `workflow/pr-body-contract.md`: English, the project's template intact,
-   placeholders filled, checklists unchecked, no AI attribution. The body
-   answers **what changed, why, and how it was verified**, and stops there:
-   three headings, 40 lines outside the template, no fourth section that
-   repeats one of them. Draft it with the `write-direct` qualities — direct,
-   concrete, zero filler, honest status; shortest sentence that states the
-   fact; no throat-clearing, no restated context, no hedging. Then run the
+   committed + unstaged + staged + untracked-impl (`review-rounds.md` § Delta re-review) before
+   pushing. Write the body per `workflow/pr-body-contract.md` (what changed,
+   why, how it was verified; `write-direct` qualities). Then run the
    per-harness style chain below — prose qualities on every harness, skill
    invocation only where its contract allows PR bodies. Verified matrix
    (F12, partial — porting is a T7 entry item, not assumed here):
@@ -126,29 +120,8 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    no fresh clock at preflight), attempts = Σ CI-result events across
    segments ≤ 5. Pre-loop gate: <5min left or attempts exhausted → refuse
    (capped). Record `ci_state: green | capped | blocked | not-run`.
-11. After CI-driven commits that touch runtime code: **delta re-review**.
-    Delta = ancestry test (`git merge-base --is-ancestor <reviewed-sha>
-    HEAD`, fail → full review) + `git diff --numstat -z <reviewed-sha>
-    HEAD` + unstaged (`git diff --numstat -z`) + staged (`git diff --cached
-    --numstat -z`) + untracked impl (`git ls-files --others
-    --exclude-standard -z`, minus `*.log`/`*.tmp`/`.DS_Store`, full
-    `wc -l`; unreadable → full review); staged/unstaged numstat that
-    fails to parse (unreadable output) → full review as well; any
-    status change after enumeration → recompute. Lines = Σ added+deleted. Binary (`-`),
-    ambiguous rename, or unclassifiable → full review. Escalate to a
-    FULL review (hunters + adversary) when delta > 50 lines (heuristic:
-    past it, partial re-read no longer beats full; any doubt → full),
-    or it touches contractual surfaces (`workflow/`, `scripts/`,
-    `tests/`, `skills/`, `pi/skills/`, `claude/scopes/`, `.github/`,
-    `AGENTS.md`, `PLAN_TEMPLATE*.md`, `docs/`, `.mcp.json`, locks,
-    `*.policy.json`), or any rebase happened (proof invalidated).
-    Generated-records row-only deltas (closed list: `review-metrics.md`;
-    `skills-lock.json` — with every changed fingerprint recomputed from
-    its pinned source via the verify procedure — and the rest identical
-    over canonical `jq -S` parsed values) get a schema check. Negative pin: a lone changed
-    fingerprint that does not recompute from its source → FULL review.
-    Otherwise Logic hunter on the new diff only, justified:
-    post-full-review small delta.
+11. After CI-driven commits that touch runtime code: **delta re-review** per
+    `workflow/skills/review-rounds.md` § Delta re-review.
     Record `delta_rereview: yes|no|n/a`. Compare and record base/HEAD/
     push SHAs before deciding.
 12. If reviewer or bot feedback already exists on the PR when CI settles,
