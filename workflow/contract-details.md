@@ -187,6 +187,10 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Orchestration contract: `workflow/skills/orchestration.md`
 - Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval` <!-- etabli-only -->
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status` <!-- etabli-only -->
+- In Etabli, ledger census for a plan that tightens validation: `scripts/workflow-ledger-census` <!-- etabli-only -->
+  (`baseline`, then `diff`) freezes each ledger's verdict and sha256; `diff` fails on a verdict flip,
+  a non-append rewrite, a current FAIL, a missing baseline slug, or a grandfathered byte-string
+  reappearing under a new slug.
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)

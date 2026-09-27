@@ -131,7 +131,11 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     closed. **Update** the registry (`.workflow/ship-metrics/<run-slug>.json`
     at the invocation root: `{run_slug, pr_url, verdict, models[],
     deciding_code, escaped_later, buckets}`) under `flock`, and refresh
-    the aggregate row — never a second row. Ship ledger events are the
+    the aggregate row — never a second row. In Etabli, `scripts/workflow-ship-metrics` <!-- etabli-only -->
+    (`upsert`) writes that row under its own per-slug lock file, with the
+    same backend choice as `scripts/workflow-event` (`lockf`, `flock` or
+    `shlock`); without it, the row schema and the `flock` rule stay the reference.
+    Ship ledger events are the
     frozen detailed receipt; the registry is the mutable one; the public
     table keeps synthetic aggregates only, keyed by run slug (PR↔row
     correspondence lives ONLY in the registry).

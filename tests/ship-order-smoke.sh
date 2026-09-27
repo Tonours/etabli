@@ -66,6 +66,14 @@ assert_contains "$LOOP" 'accepted risk: no external feedback; small excludes beh
 assert_contains "$ROOT_DIR/workflow/skills/review.md" "Accepted risk: that Spec pass shares the"
 assert_contains "$ROOT_DIR/workflow/skills/review.md" "implementer's context (self-preference);"
 assert_contains "$ROOT_DIR/workflow/skills/review.md" "   Logic and the adversary stay independent."
+assert_contains "$SHIP" 'In Etabli, `scripts/workflow-ship-metrics` <!-- etabli-only -->'
+assert_contains "$SHIP" '(`upsert`) writes that row under its own per-slug lock file, with the'
+assert_contains "$SHIP" 'same backend choice as `scripts/workflow-event` (`lockf`, `flock` or'
+assert_contains "$SHIP" '`shlock`); without it, the row schema and the `flock` rule stay the reference.'
+assert_contains "$ROOT_DIR/workflow/contract-details.md" 'In Etabli, ledger census for a plan that tightens validation: `scripts/workflow-ledger-census` <!-- etabli-only -->'
+assert_contains "$ROOT_DIR/workflow/contract-details.md" "(\`baseline\`, then \`diff\`) freezes each ledger's verdict and sha256; \`diff\` fails on a verdict flip,"
+assert_contains "$ROOT_DIR/workflow/contract-details.md" 'a non-append rewrite, a current FAIL, a missing baseline slug, or a grandfathered byte-string'
+assert_contains "$ROOT_DIR/workflow/contract-details.md" '  reappearing under a new slug.'
 
 # AC3: delta rule — ancestry + two-dot + 50-line heuristic + surfaces.
 assert_contains "$ROUNDS" 'merge-base --is-ancestor'
