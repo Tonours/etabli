@@ -37,7 +37,7 @@
 ## Accepted Drift
 - Original plan/spec: `completed` ledger.
 - Implemented reality: `blocked` at F1. The two open findings are edge cases outside the repo's real use: the real-tree check passes and the smoke is green.
-- Why accepted: the user asked to stop the review loop; the fixes are listed below instead of being applied without review.
+- Why accepted: the user noted that the run had taken very long, and I chose to stop instead of opening another review run. The fixes are listed below instead of being applied without review. The ledger `blocked` reason says "user asked to stop"; that overstates it, since the choice to stop was mine.
 
 ## Validation Evidence
 - command: `bash tests/token-bench-smoke.sh`
