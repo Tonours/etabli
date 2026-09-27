@@ -1,6 +1,7 @@
 import { delimiter } from "node:path";
 import { hash as cryptoHash } from "node:crypto";
 import type { RtkConfig } from "./pi-runtime.ts";
+import { rtkDataFlowReason } from "../../../workflow/runtime/rtk-data-flow.mjs";
 
 export type RewriteEnv = Record<string, string | undefined> | undefined;
 export type RewriteRunner = (command: string, env: RewriteEnv) => string;
@@ -40,6 +41,16 @@ let lastBypassReason: string | null = null;
 
 function isMissingBinaryError(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as RewriteError).code === "ENOENT";
+}
+
+export function readRtkRewrite(run: () => string): string {
+  try {
+    return run();
+  } catch (error) {
+    const stdout = typeof error === "object" && error !== null ? (error as { stdout?: unknown }).stdout : undefined;
+    if ((error as RewriteError).status === 3 && typeof stdout === "string" && stdout.trim() !== "") return stdout;
+    throw error;
+  }
 }
 
 function isExpectedNoRewriteError(error: unknown): boolean {
@@ -166,10 +177,12 @@ function findBypassReason(
   if (trimmed.includes("\n")) return "multiline";
   if (/(^|\s)<<-?\s*['"]?[A-Za-z0-9_]+['"]?/.test(trimmed)) return "heredoc";
   if (trimmed.length > maxCommandLength) return "command-too-long";
-  if (trimmed.includes("|")) return "pipeline";
   if (dangerousCommandBypass && isDangerousCommand(trimmed)) {
     return "dangerous-command";
   }
+  const dataFlow = rtkDataFlowReason(command);
+  if (dataFlow !== null) return `data-flow-${dataFlow}`;
+  if (trimmed.includes("|")) return "pipeline";
   return null;
 }
 

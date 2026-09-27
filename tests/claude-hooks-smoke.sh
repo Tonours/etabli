@@ -510,4 +510,107 @@ if jq -r '.. | .command? // empty' "$ROOT_DIR/claude/settings.workflow-hooks.jso
 	exit 1
 fi
 
+rtk_guard="$ROOT_DIR/claude/hooks/rtk-guard.mjs"
+fake_rtk_dir="$TMP_DIR/fake-rtk"
+mkdir -p "$fake_rtk_dir"
+cat >"$fake_rtk_dir/rtk" <<'EOF'
+#!/bin/sh
+printf 'called\n' >>"$RTK_CALLS"
+printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","updatedInput":{"command":"rtk git status"}}}'
+EOF
+chmod +x "$fake_rtk_dir/rtk"
+export RTK_CALLS="$TMP_DIR/rtk-calls"
+: >"$RTK_CALLS"
+node_bin="$(node -p process.execPath)"
+for data_command in 'git diff > out.diff' 'cat a > b' 'git diff | wc -l'; do
+	data_out="$(jq -nc --arg c "$data_command" '{tool_name:"Bash",tool_input:{command:$c}}' | PATH="$fake_rtk_dir:$PATH" "$node_bin" "$rtk_guard")"
+	assert_empty "$data_out" "rtk-guard on data-flow command '$data_command'"
+done
+[ ! -s "$RTK_CALLS" ] || {
+	printf 'rtk-guard must not call rtk for data-flow commands\n' >&2
+	exit 1
+}
+display_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$fake_rtk_dir:$PATH" "$node_bin" "$rtk_guard")"
+assert_contains "$display_out" '"command":"rtk git status"'
+missing_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$(dirname "$node_bin")" "$node_bin" "$rtk_guard")"
+assert_empty "$missing_out" "rtk-guard without rtk on PATH"
+
+rtk_home="$TMP_DIR/rtk-migration-home"
+mkdir -p "$rtk_home/.claude"
+jq -n '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude --ultra-compact"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude\t--ultra-compact"}]},{matcher:"Bash",hooks:[{type:"command",command:"/opt/homebrew/bin/rtk hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude && node audit.mjs"}]},{matcher:"Bash",hooks:[{type:"command",command:"\"rtk\" hook \"claude\""}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk --verbose hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude \"$(node audit-subst.mjs)\""}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk \"--x=`node audit-tick.mjs`\" hook claude"}]}]}}' >"$rtk_home/.claude/settings.json"
+obf_home="$TMP_DIR/rtk-obfuscated-home"
+mkdir -p "$obf_home/.claude"
+jq -n --arg c "r''tk hook claude && :" --arg w "sh -c \"r''tk hook claude\"" --arg n "$(printf 'sh -c "r\\\ntk hook claude"')" --arg m "$(printf "sh -c '#x\\\\\nr\"\"tk hook claude'")" --arg k "$(printf "#/usr/bin/rtk hook claude --'\nprintf audit-comment\n#'")" '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:$c}]},{matcher:"^B",hooks:[{type:"command",command:"rtk hook claude && :"}]},{matcher:"Bash",hooks:[{type:"command",command:$w}]},{matcher:"Bash",hooks:[{type:"command",command:$n}]},{matcher:"Bash",hooks:[{type:"command",command:$m}]},{matcher:"Bash",hooks:[{type:"command",command:$k}]},{matcher:"Bash",hooks:[{type:"command",command:"RTK hook claude"}]}]}}' >"$obf_home/.claude/settings.json"
+"$ROOT_DIR/scripts/claude-hooks-merge" --home "$obf_home" >/dev/null
+assert_contains "$(jq -r '.. | .command? // empty' "$obf_home/.claude/settings.json")" "r''tk hook claude && :"
+if "$ROOT_DIR/scripts/claude-hooks-check" --home "$obf_home" >"$TMP_DIR/rtk-obf-check.txt" 2>&1; then
+	printf 'claude-hooks-check must fail while a quoted rtk token hides a rewriting hook\n' >&2
+	exit 1
+fi
+assert_contains "$(cat "$TMP_DIR/rtk-obf-check.txt")" 'calls rtk outside rtk-guard'
+assert_contains "$(cat "$TMP_DIR/rtk-obf-check.txt")" 'PreToolUse/^B: rtk hook claude && :'
+assert_contains "$(cat "$TMP_DIR/rtk-obf-check.txt")" "PreToolUse/Bash: sh -c \"r''tk hook claude\""
+jq -r '.. | .command? // empty' "$obf_home/.claude/settings.json" | grep -Fq 'printf audit-comment' || {
+	printf 'a commented multiline hook must never be retired as a simple rtk call\n' >&2
+	exit 1
+}
+[ "$(grep -c 'calls rtk outside rtk-guard' "$TMP_DIR/rtk-obf-check.txt")" -eq 7 ] || {
+	printf 'a backslash-newline continuation inside an rtk hook must be refused too\n' >&2
+	exit 1
+}
+nonbash_home="$TMP_DIR/rtk-nonbash-home"
+mkdir -p "$nonbash_home/.claude"
+jq -n '{hooks:{PreToolUse:[{matcher:"Write|Edit",hooks:[{type:"command",command:"rtk gain --history"}]}]}}' >"$nonbash_home/.claude/settings.json"
+"$ROOT_DIR/scripts/claude-hooks-check" --home "$nonbash_home" >"$TMP_DIR/rtk-nonbash-check.txt" 2>&1 || :
+if grep -Fq 'calls rtk outside rtk-guard' "$TMP_DIR/rtk-nonbash-check.txt"; then
+	printf 'a PreToolUse hook whose matcher cannot match Bash must not be refused\n' >&2
+	exit 1
+fi
+"$ROOT_DIR/scripts/claude-hooks-merge" --home "$rtk_home" >/dev/null || {
+	printf 'claude-hooks-merge failed on an rtk-hooked settings file\n' >&2
+	exit 1
+}
+migrated_commands="$(jq -r '.. | .command? // empty' "$rtk_home/.claude/settings.json")"
+assert_contains "$migrated_commands" 'rtk hook claude && node audit.mjs'
+assert_contains "$migrated_commands" 'audit-subst.mjs'
+assert_contains "$migrated_commands" 'audit-tick.mjs'
+if printf '%s\n' "$migrated_commands" | grep -v 'audit' | grep -Eq '(^|/)rtk[[:space:]]+hook[[:space:]]+claude'; then
+	printf 'claude-hooks-merge must retire the raw rtk hook and its option variants\n' >&2
+	exit 1
+fi
+assert_contains "$migrated_commands" 'hooks/rtk-guard.mjs'
+if "$ROOT_DIR/scripts/claude-hooks-check" --home "$rtk_home" >"$TMP_DIR/rtk-check.txt" 2>&1; then
+	printf 'claude-hooks-check must fail while a custom hook calls rtk hook claude outside rtk-guard\n' >&2
+	exit 1
+fi
+assert_contains "$(cat "$TMP_DIR/rtk-check.txt")" 'calls rtk outside rtk-guard'
+cp "$rtk_home/.claude/settings.json" "$TMP_DIR/rtk-migrated.json"
+"$ROOT_DIR/scripts/claude-hooks-merge" --home "$rtk_home" >/dev/null
+cmp -s "$rtk_home/.claude/settings.json" "$TMP_DIR/rtk-migrated.json" || {
+	printf 'claude-hooks-merge must be idempotent after the rtk migration\n' >&2
+	exit 1
+}
+
+benign_home="$TMP_DIR/rtk-benign-home"
+mkdir -p "$benign_home/.claude"
+jq -n '{hooks:{Stop:[{hooks:[{type:"command",command:"echo '"'"'rtk hook claude is deprecated'"'"'"}]}]}}' >"$benign_home/.claude/settings.json"
+"$ROOT_DIR/scripts/claude-hooks-merge" --home "$benign_home" >/dev/null 2>&1
+assert_contains "$(jq -r '.. | .command? // empty' "$benign_home/.claude/settings.json")" "echo 'rtk hook claude is deprecated'"
+"$ROOT_DIR/scripts/claude-hooks-check" --home "$benign_home" >"$TMP_DIR/benign-check.txt" 2>&1 || true
+if grep -q 'outside rtk-guard' "$TMP_DIR/benign-check.txt"; then
+	printf 'claude-hooks-check must not refuse rtk text outside Bash PreToolUse hooks\n' >&2
+	exit 1
+fi
+prefixed_home="$TMP_DIR/rtk-prefixed-home"
+mkdir -p "$prefixed_home/.claude"
+for prefixed in 'command -- rtk hook claude' "sh -lc 'rtk hook claude'" 'env -i PATH=/usr/bin rtk hook claude'; do
+	jq -n --arg c "$prefixed" '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:$c}]}]}}' >"$prefixed_home/.claude/settings.json"
+	"$ROOT_DIR/scripts/claude-hooks-merge" --home "$prefixed_home" >/dev/null 2>&1
+	if "$ROOT_DIR/scripts/claude-hooks-check" --home "$prefixed_home" >"$TMP_DIR/prefixed-check.txt" 2>&1; then
+		printf 'claude-hooks-check must refuse %s\n' "$prefixed" >&2
+		exit 1
+	fi
+	assert_contains "$(cat "$TMP_DIR/prefixed-check.txt")" 'calls rtk outside rtk-guard'
+done
+
 printf 'claude hooks smoke test: ok\n'

@@ -12,6 +12,7 @@ import { getAgentSettingsPath, readRtkConfig } from "./lib/pi-runtime.ts";
 import {
   createRtkCommandRewriter,
   createRtkSpawnHook,
+  readRtkRewrite,
 } from "./lib/rtk-runtime.ts";
 
 export default function (pi: ExtensionAPI) {
@@ -19,11 +20,13 @@ export default function (pi: ExtensionAPI) {
   const rtkConfig = readRtkConfig(getAgentSettingsPath());
   const rewriteCommand = createRtkCommandRewriter(
     (command, env) =>
-      execFileSync("rtk", ["rewrite", command], {
-        encoding: "utf-8",
-        timeout: rtkConfig.timeoutMs,
-        env,
-      }),
+      readRtkRewrite(() =>
+        execFileSync("rtk", ["rewrite", command], {
+          encoding: "utf-8",
+          timeout: rtkConfig.timeoutMs,
+          env,
+        }),
+      ),
     rtkConfig,
   );
   const spawnHook = createRtkSpawnHook({ pathPrefix: null, rewriteCommand });
