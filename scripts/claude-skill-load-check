@@ -273,14 +273,40 @@ if (trackedMap === null) {
   errors.push("tracked fragment claude/settings.skill-overrides.json missing or malformed; restore it from git");
 }
 
-const mapForPartition = profile
+const governedMap = profile
 	? profile.skillOverrides ?? null
 	: trackedMap ?? {};
-if (profile && mapForPartition === null) {
+if (profile && governedMap === null) {
 	errors.push(
 		`profile ${profilePath} has no skillOverrides map; add one (scripts/claude-skill-load-check --fix populates it from the discovered surface) or pass --no-profile`,
 	);
 }
+const repoReal = (() => {
+  try {
+    return fs.realpathSync(repoDir);
+  } catch {
+    return repoDir;
+  }
+})();
+function isPersonal(item) {
+  try {
+    const real = fs.realpathSync(item.skillDir);
+    return real !== repoReal && !real.startsWith(`${repoReal}${path.sep}`);
+  } catch {
+    return true;
+  }
+}
+const personalMap = {};
+for (const [name, state] of Object.entries(liveMap ?? {})) {
+  if (Object.hasOwn(governedMap ?? {}, name) || (trackedMap && Object.hasOwn(trackedMap, name))) continue;
+  if (byName.has(name) && !isPersonal(byName.get(name))) continue;
+  if (state === "on") {
+    errors.push(`personal skill ${name} is "on" in ${liveSettingsPath}; only the pinned repo keep-set is listed to the model (set it to user-invocable-only, name-only or off)`);
+    continue;
+  }
+  personalMap[name] = state;
+}
+const mapForPartition = { ...(governedMap ?? {}), ...personalMap };
 const VALID_STATES = new Set(["on", "name-only", "user-invocable-only", "off"]);
 for (const [name, state] of Object.entries(mapForPartition)) {
   if (!VALID_STATES.has(state)) {
@@ -295,26 +321,49 @@ const missingFromMap = [...surfaceNames].filter((name) => !Object.hasOwn(mapForP
 const staleMapKeys = Object.keys(mapForPartition).filter((name) => !surfaceNames.has(name)).sort();
 
 if (FIX && (missingFromMap.length > 0 || staleMapKeys.length > 0)) {
-	const document = JSON.parse(fs.readFileSync(mapFilePath, "utf8"));
-	const repaired = {};
-	for (const [name, state] of Object.entries(document.skillOverrides ?? {})) {
-		if (surfaceNames.has(name)) repaired[name] = state;
+	const personalMissing = missingFromMap.filter(
+		(name) => isPersonal(byName.get(name)) && !(trackedMap && Object.hasOwn(trackedMap, name)),
+	);
+	const repoMissing = missingFromMap.filter((name) => !personalMissing.includes(name));
+	const stalePersonal = staleMapKeys.filter((name) => Object.hasOwn(personalMap, name));
+	const staleGoverned = staleMapKeys.filter((name) => !stalePersonal.includes(name));
+	const sortedMap = (map) => Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b)));
+	if (repoMissing.length > 0 || staleGoverned.length > 0) {
+		const document = JSON.parse(fs.readFileSync(mapFilePath, "utf8"));
+		const repaired = {};
+		for (const [name, state] of Object.entries(document.skillOverrides ?? {})) {
+			if (surfaceNames.has(name)) repaired[name] = state;
+		}
+		for (const name of repoMissing) repaired[name] = "user-invocable-only";
+		document.skillOverrides = sortedMap(repaired);
+		fs.writeFileSync(mapFilePath, `${JSON.stringify(document, null, 2)}\n`);
+		for (const name of repoMissing) {
+			console.log(`FIX: governed ${name} as user-invocable-only in ${path.relative(repoDir, mapFilePath)}`);
+		}
+		for (const name of staleGoverned) {
+			console.log(`FIX: dropped stale key ${name} from ${path.relative(repoDir, mapFilePath)}`);
+		}
 	}
-	for (const name of missingFromMap) repaired[name] = "user-invocable-only";
-	document.skillOverrides = Object.fromEntries(Object.entries(repaired).sort(([a], [b]) => a.localeCompare(b)));
-	fs.writeFileSync(mapFilePath, `${JSON.stringify(document, null, 2)}\n`);
-	for (const name of missingFromMap) {
-		console.log(`FIX: governed ${name} as user-invocable-only in ${path.relative(repoDir, mapFilePath)}`);
-	}
-	for (const name of staleMapKeys) {
-		console.log(`FIX: dropped stale key ${name} from ${path.relative(repoDir, mapFilePath)}`);
+	if (personalMissing.length > 0 || stalePersonal.length > 0) {
+		const live = JSON.parse(readText(liveSettingsPath) ?? "{}");
+		const personal = { ...(live.skillOverrides ?? {}) };
+		for (const name of stalePersonal) delete personal[name];
+		for (const name of personalMissing) personal[name] = "user-invocable-only";
+		live.skillOverrides = sortedMap(personal);
+		fs.writeFileSync(liveSettingsPath, `${JSON.stringify(live, null, 2)}\n`);
+		for (const name of personalMissing) {
+			console.log(`FIX: governed personal skill ${name} as user-invocable-only in ${liveSettingsPath}`);
+		}
+		for (const name of stalePersonal) {
+			console.log(`FIX: dropped stale personal key ${name} from ${liveSettingsPath}`);
+		}
 	}
 	console.log("FIX: re-run the check to validate the repaired map, then deploy");
 	process.exit(0);
 }
 
 for (const name of missingFromMap) {
-  errors.push(`ungoverned skill on the surface: ${name} (add an explicit state for it in ${path.relative(repoDir, mapFilePath)}, or run --fix, then deploy)`);
+  errors.push(`ungoverned skill on the surface: ${name} (add an explicit state for it in ${isPersonal(byName.get(name)) && !(trackedMap && Object.hasOwn(trackedMap, name)) ? liveSettingsPath : path.relative(repoDir, mapFilePath)}, or run --fix, then deploy)`);
 }
 for (const name of staleMapKeys) {
   errors.push(`map key with no surface skill: ${name} (remove the stale key, run --fix, or restore the skill)`);
@@ -322,18 +371,18 @@ for (const name of staleMapKeys) {
 
 if (liveMap === null) {
   errors.push("live ~/.claude/settings.json has no skillOverrides key; run scripts/deploy-agent-workflow --apply");
-} else if (trackedMap && JSON.stringify(liveMap) !== JSON.stringify(trackedMap)) {
+} else if (trackedMap && Object.entries(trackedMap).some(([name, state]) => liveMap[name] !== state)) {
   errors.push("repo/live skillOverrides maps diverge; run scripts/deploy-agent-workflow --apply (deploy not applied?)");
 }
 
 const stateHistogram = { on: 0, "name-only": 0, "user-invocable-only": 0, off: 0 };
-for (const state of Object.values(mapForPartition)) {
+for (const state of Object.values(governedMap ?? {})) {
   if (VALID_STATES.has(state)) stateHistogram[state] += 1;
 }
 const expectedHistogram = {
   on: PINNED_ON.size,
   "name-only": 0,
-  "user-invocable-only": Object.keys(mapForPartition).length - PINNED_ON.size,
+  "user-invocable-only": Object.keys(governedMap ?? {}).length - PINNED_ON.size,
   off: 0,
 };
 for (const state of Object.keys(stateHistogram)) {
@@ -380,9 +429,9 @@ if (profile) {
 		);
 	} else {
 		const budgetChars = fraction * REF_CONTEXT_TOKENS * CHARS_PER_TOKEN;
-		if (indexChars > budgetChars) {
+		if (indexChars + nameOnlyChars > budgetChars) {
 			warnings.push(
-				`C1(profile): keeper index ${indexChars} chars exceeds the native budget ~${budgetChars} chars (fraction ${fraction}) — the model-facing listing is truncated; raise the fraction or shrink the on-set in ${profilePath}`,
+				`C1(profile): keeper index ${indexChars + nameOnlyChars} chars exceeds the native budget ~${budgetChars} chars (fraction ${fraction}) — the model-facing listing is truncated; raise the fraction or shrink the on-set in ${profilePath}`,
 			);
 		}
 	}

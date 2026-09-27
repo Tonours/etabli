@@ -132,10 +132,26 @@ if (
   );
 }
 
+const liveMap =
+  localSettings.skillOverrides !== null &&
+  typeof localSettings.skillOverrides === "object" &&
+  !Array.isArray(localSettings.skillOverrides)
+    ? localSettings.skillOverrides
+    : {};
+const mergedMap = Object.fromEntries(
+  [
+    ...Object.entries(liveMap).filter(
+      ([name, state]) =>
+        !Object.hasOwn(trackedMap, name) && STATES.has(state) && state !== "on",
+    ),
+    ...Object.entries(trackedMap),
+  ].sort(([a], [b]) => a.localeCompare(b)),
+);
+
 function trackedMatchesLocal() {
   if (
     JSON.stringify(localSettings.skillOverrides ?? null) !==
-    JSON.stringify(trackedMap)
+    JSON.stringify(mergedMap)
   ) {
     return false;
   }
@@ -217,7 +233,7 @@ if (!localMissing && mode === "deploy") {
   }
 }
 
-localSettings.skillOverrides = trackedMap;
+localSettings.skillOverrides = mergedMap;
 if (tracked.permissions !== undefined) {
   localSettings.permissions = {
     ...(localSettings.permissions ?? {}),

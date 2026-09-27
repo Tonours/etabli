@@ -487,10 +487,8 @@ deploy_claude() {
     if ! CLAUDE_SKILL_LOAD_CLAUDE_DIR="${CLAUDE_ROOT:-$HOME_DIR/.claude}" "$SCRIPT_DIR/claude-skill-load-check"; then
       if [ "${ETABLI_DEPLOY_CALLER:-}" = install ]; then
         status_line WARN "Claude skill load check after installer convergence (see output above)"
-      elif [ "${CLAUDE_ROOT:-$HOME_DIR/.claude}" != "$HOME_DIR/.claude" ]; then
-        status_line WARN "Claude skill load check on $CLAUDE_ROOT: skills outside the tracked profile are reported, not removed (see output above)"
       else
-        status_line FAIL "Claude skill load check after apply (see output above)"
+        status_line FAIL "Claude skill load check on ${CLAUDE_ROOT:-$HOME_DIR/.claude} after apply (see output above; scripts/claude-skill-load-check --fix governs new skills)"
         exit 1
       fi
     else
