@@ -47,7 +47,9 @@ Limit cases: (a) fix with exhausted D budget at F1 → `blocked`;
 (c) out-of-delta change during D → full tour or `blocked`;
 (d) second D-round widening → `blocked` (T exhausted);
 (e) FD widening → `blocked` (no post-F1 T re-entry).
-No script enforces this machine: the bound holds by prose + recorded evidence.
+Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`
+(`workflow-event` append and validate; fields in `workflow/events.md`). Ship
+inheritance and D-round adversaries after a high fold stay prose-only.
 
 ## Delta re-review
 

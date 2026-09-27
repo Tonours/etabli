@@ -84,6 +84,7 @@ assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
 assert_file "$NEW_PROJECT/scripts/workflow-event"
 assert_file "$NEW_PROJECT/scripts/lib/hash.sh"
+assert_file "$NEW_PROJECT/scripts/lib/review-rounds.jq"
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1
@@ -171,9 +172,22 @@ git -C "$NEW_PROJECT" init -q .
 assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
+assert_contains "$NEW_PROJECT/.git/info/exclude" "/scripts/lib/review-rounds.jq"
 assert_not_exists "$NEW_PROJECT/.gitignore"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
+
+SCAFFOLD_EVENTS="$TMP_DIR/scaffold-rr/.workflow"
+scaffold_event() { "$NEW_PROJECT/scripts/workflow-event" --dir "$SCAFFOLD_EVENTS" "$@"; }
+scaffold_event append rr route_decided '{"route":"plan-implement","reason":"smoke"}' >/dev/null
+scaffold_event append rr adversary_completed '{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}' >/dev/null
+scaffold_event append rr review_completed '{"status":"GO","evidence":"smoke","review_round":"T1","round_outcome":"clean"}' >/dev/null
+scaffold_event validate rr >/dev/null
+if scaffold_event append rr review_completed '{"status":"GO","evidence":"smoke","review_round":"D1","round_outcome":"clean"}' >"$TMP_DIR/scaffold-rr.out" 2>&1; then
+  printf 'deployed workflow-event must refuse an out-of-table review round\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/scaffold-rr.out" "review round D1 (#2) is not allowed here; admitted next: F1"
 
 CHECK_CLEAN_OUTPUT="$TMP_DIR/check-clean.out"
 "$SCRIPT" "$NEW_PROJECT" --check >"$CHECK_CLEAN_OUTPUT"

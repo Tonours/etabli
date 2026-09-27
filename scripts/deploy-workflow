@@ -55,6 +55,7 @@ FILES=(
   "$REPO_DIR/scripts/workflow-event|scripts/workflow-event"
   "$REPO_DIR/scripts/lib/hash.sh|scripts/lib/hash.sh"
   "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
+  "$REPO_DIR/scripts/lib/review-rounds.jq|scripts/lib/review-rounds.jq"
 )
 
 while IFS= read -r contract_path; do
@@ -367,6 +368,7 @@ exclude_block() {
     "/scripts/workflow-event" \
     "/scripts/workflow-measurement-integrity" \
     "/scripts/lib/workflow-event-detail.jq" \
+    "/scripts/lib/review-rounds.jq" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \
     "/docs/project-context.md" \

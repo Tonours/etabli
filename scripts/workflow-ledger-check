@@ -71,7 +71,7 @@ RESULTS_TMP="$(mktemp)"
 TAB="$(printf '\t')"
 cache_cleanup() { rm -f "$CACHE_TMP" "$RESULTS_TMP"; }
 trap cache_cleanup EXIT
-VALIDATOR_FP="$(cat "$EVENT_BIN" "$SCRIPT_DIR/lib/workflow-event-detail.jq" 2>/dev/null | (hash256 2>/dev/null || shasum -a 256) | awk '{print $1}')"
+VALIDATOR_FP="$(cat "$EVENT_BIN" "$(dirname "$EVENT_BIN")/lib/workflow-event-detail.jq" "$(dirname "$EVENT_BIN")/lib/review-rounds.jq" 2>/dev/null | (hash256 2>/dev/null || shasum -a 256) | awk '{print $1}')"
 # A cache written under a different validator is untrusted for BOTH reads and
 # carry-forward: honoring stale OK verdicts after a rule tightening would let
 # newly-invalid ledgers pass the gate.

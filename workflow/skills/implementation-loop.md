@@ -144,7 +144,10 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     round returns findings or a re-review is due, follow the bounded machine
     in `workflow/skills/review-rounds.md`; never validate past its ceiling.
     Record every pass in the review evidence: tour (T/D/FD/F + number),
-    scope (full/delta), base SHA, patch SHA, reviewers.
+    scope (full/delta), base SHA, patch SHA, reviewers. Close each round
+    with one `review_completed` carrying `review_round` and `round_outcome`
+    (after its adversary); `scripts/workflow-event` refuses a sequence the
+    machine forbids.
 14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`:
     fill `workflow/templates/plan-archive.md` (convention, hash gate and
     multi-repo rules: `workflow/plan-archive.md`); distill it as memory, do
