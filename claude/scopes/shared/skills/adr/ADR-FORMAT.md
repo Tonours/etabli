@@ -1,5 +1,15 @@
 # ADR format and rules
 
+## Contents
+
+- When an ADR is warranted
+- File location and naming
+- Minimal template
+- Status lifecycle
+- Immutability and supersession
+- Local grounding before drafting
+- The index and the CLAUDE.md pointer
+
 Reference for the `/adr` skill. Architecture Decision Records capture *that* a
 decision was made and *why* — not how to implement it.
 

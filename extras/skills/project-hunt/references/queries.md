@@ -1,5 +1,17 @@
 # Pain query pack
 
+## Contents
+
+- X keyword search
+- X semantic search
+- Reddit / HN / forums
+- SaaS budget and emergence
+- Reviews and official pricing
+- Finalist counter-search (required before ranking)
+- FR TPE / métier
+- Ecommerce-cash
+- Emerging probes
+
 Replace only `{topic}`, `{incumbent}`, `{buyer}`, `{product}`, `{domain}`,
 `{org}`, `{repo}`, and `{since}`.
 Use the current session date to set `{since}`. Honor requested languages and

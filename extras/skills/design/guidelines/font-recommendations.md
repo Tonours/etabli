@@ -1,5 +1,11 @@
 # Font Recommendations
 
+## Contents
+
+- General Guidelines
+- By Purpose
+- Font Details
+
 Covers: optional font suggestions, type direction exploration, and font ideas for design variations.
 
 These are optional recommendations for when the user asks for help choosing a font or wants to try different fonts across design variations. Never force these — only reference them when font selection is part of the task.

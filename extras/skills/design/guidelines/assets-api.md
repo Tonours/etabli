@@ -1,5 +1,14 @@
 # Assets API
 
+## Contents
+
+- Marks
+- Avatars
+- Logos
+- Screenshots
+- Wallpapers
+- Color Resolution
+
 Covers: placeholder marks, avatars, logos, screenshots, wallpapers, and concrete asset URL parameters.
 
 Base URL: `https://assets.ui.sh`

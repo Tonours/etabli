@@ -5,6 +5,19 @@ description: Generate an image prompt for one fixed-structure 4K marketing-site 
 
 # Brand Kit Prompt
 
+## Contents
+
+- Purpose
+- Source Handling
+- Attached Images
+- Workflow
+- Canonical Board Spec
+- Page Mockups
+- Design-System Rail
+- Creative Direction
+- Final Prompt Structure
+- Rules
+
 ## Purpose
 
 Generate one complete, production-ready image prompt for a fixed-structure 4K marketing-site brand case-study image. Output prompt text only; do not generate images.

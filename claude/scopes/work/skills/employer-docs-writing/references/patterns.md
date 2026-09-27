@@ -1,5 +1,16 @@
 # Verbatim patterns from ~/work/docs
 
+## Contents
+
+- Openings
+- The comma appositive
+- A `get-started` step page
+- Warnings and infos as actually used
+- Screenshots
+- Multi-SDK content
+- Product page closings
+- Established H2s, by frequency
+
 Extracts from the live corpus. Imitate the shape, not the subject.
 
 ## Openings

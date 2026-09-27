@@ -9,7 +9,7 @@
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "58b5bee04b34fac5537918fab4fcbce8e00b343d2200feb7f4b7298f68cdd162"
+      "computedHash": "b1d72e7d3dfb6bebe5fa62be100ca5d6bd992f0ae7fc4697f28bfd54db1b0cf3"
     },
     "review": {
       "source": "local",
@@ -19,7 +19,7 @@
     "implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "627cbb39195188af455795df10481469c067e77957103a2bbacf34b28a51dda2"
+      "computedHash": "6d400574b1545123137aeef316699e08b4099d595480b48d87c26454a5a09c9b"
     },
     "verify": {
       "source": "local",
@@ -224,12 +224,12 @@
     "coolify": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "3037be9a09c1829ddaeafc9368ec2176d5be81be22bd3f58e9083f4441a3fb6e"
+      "computedHash": "fdee9cd2a14cb086bc94ff666aded10976dc33d76cb865978420046eb822e7ed"
     },
     "grill-me": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "791426a6ee52fc9513b928db5a5b93f157997b4941585dd98504eee4707b34fc"
+      "computedHash": "0d8ee81d31d3b64c85dadba763bcfea97ba02c4901c021fa1c490eaccfbce1b1"
     },
     "session-handoff": {
       "source": "local",
@@ -244,12 +244,12 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "dbb91970f54b8d1dd2c72fa834f437ffbbd1f039873968922374285fe1f42c53"
+      "computedHash": "8187df26ec48c5da10cbd24ea422088596456a57f816b6fe9087ce7fc9a25869"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "347b1f07b70693c8681a47ff2d32980277dec72ecebee84bf244f76933227cde"
+      "computedHash": "c1d5a77d937beb19fb82b30cdf72d936592ed476f1441f94f1c302fb29dcb4d6"
     },
     "engineering/ask-matt": {
       "source": "local",
@@ -324,7 +324,7 @@
     "claude-scope/shared/adr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "d6d5c921b157f2de45c7418d5299f822739cd1460da6887aae378259b4069faa"
+      "computedHash": "79a6be7834183ca0e51296734f966ffa58d8566ecc24d146b294b23cd71215b5"
     },
     "claude-scope/shared/playwright-agentic-testing": {
       "source": "local",
@@ -369,12 +369,12 @@
     "claude-scope/work/pr-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "bc00f94b8ca8271f2e0a1e0cf6b782c007609501907257a876a23c20a068e77e"
+      "computedHash": "fb9e7f11d43347daeb219a1baad5e905dcb442eca17f79dff933168c347b095a"
     },
     "claude-scope/work/sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "dd2c70e64a4ff652cfd2ed175861fc4b0ae83bddaeab938d5d483f27016ee8ee"
+      "computedHash": "27d3204e2bdf77c84f0e8b92e541ae232fee19f564b4f6a61af211c5ccf4cfa8"
     },
     "claude-scope/work/week-roadmap": {
       "source": "local",
@@ -389,7 +389,7 @@
     "claude-scope/work/employer-docs-writing": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ce9f1a1f7192a7d91dd86a55c7899b04930846979e56b6000ec58d48b1246cb4"
+      "computedHash": "f6d5d03b67ba07384ddb023491f11bc31ca62cad50fcf17a8b49a924a6e2cd82"
     },
     "typesafe-ai": {
       "source": "local",
