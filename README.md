@@ -92,6 +92,10 @@ scripts/deploy-agent-workflow --apply
 scripts/check-fix-symlinks.sh
 scripts/verify-agentic-infra core
 
+# Token efficiency: per-route context cost vs baseline, live /context, skill limits
+scripts/token-bench --check [--live]
+scripts/token-bench --skills --check
+
 # Verify the Pi skill tree
 cd pi && bun run verify:skills
 ```

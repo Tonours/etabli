@@ -79,5 +79,6 @@ full	shell-docs	harness-token-usage-test	tests/harness-token-usage.test.mjs
 full	shell-docs	skills-lock-coverage-smoke	tests/skills-lock-coverage-smoke.sh
 full	shell-docs	skill-trigger-eval	tests/skill-trigger-eval-smoke.sh
 full	shell-docs	codex-source	tests/codex-skill-source-smoke.sh
+full	shell-docs	token-bench-smoke	tests/token-bench-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
