@@ -235,4 +235,78 @@ for rule in 'spec: name "Claude_Bad" must be <= 64 chars' 'spec: name "Claude_Ba
 	skill Claude_Bad '.hard[]' | grep -Fq "$rule" || fail "Claude_Bad must report: $rule"
 done
 
+RULES="$TMP_DIR/rules"
+rules_tree() {
+	rm -rf "$RULES"
+	cp -R "$FIXTURES/tree" "$RULES"
+	printf '%s\n' "$1" >"$RULES/a.md"
+	printf '%s\n' "$2" >"$RULES/b.md"
+	printf '%s\n' "$3" >"$RULES/c.md"
+}
+RULE='Agents must never push a branch without an explicit request from the user.'
+rules_tree "$RULE" "$RULE" "Unrelated text."
+expect_exit 1 "--rules --check with a cross-file duplicate" "$BENCH" --rules --root "$RULES" --check
+json="$("$BENCH" --rules --root "$RULES" --json)"
+[ "$(jq -r '.surfaces.implement.duplicates | length' <<<"$json")" = "1" ] || fail "--rules must report the always-on/route duplicate"
+[ "$(jq -r '.surfaces.implement.duplicates[0].files | sort | join(",")' <<<"$json")" = "a.md,b.md" ] || fail "--rules duplicate must name both files"
+[ "$(jq -r '.surfaces.implement.sentences' <<<"$json")" = "2" ] || fail "--rules must count normative sentences per surface"
+rules_tree "$RULE $RULE" "Unrelated text." "Unrelated text."
+expect_exit 0 "--rules --check with a same-file repeat" "$BENCH" --rules --root "$RULES" --check
+rules_tree "$RULE" "$(printf '```\n%s\n```' "$RULE")" "Unrelated text."
+expect_exit 0 "--rules --check with the copy inside a code fence" "$BENCH" --rules --root "$RULES" --check
+rules_tree "$RULE" "$(printf '   ```\n%s\n   ```' "$RULE")" "Unrelated text."
+expect_exit 0 "--rules --check with the copy inside an indented fence" "$BENCH" --rules --root "$RULES" --check
+rules_tree "$RULE" "$(printf '~~~\n%s\n~~~' "$RULE")" "Unrelated text."
+expect_exit 0 "--rules --check with the copy inside a tilde fence" "$BENCH" --rules --root "$RULES" --check
+rules_tree "$RULE" "$(printf '  ```\nx\n```\n%s\n```\nx\n```' "$RULE")" "Unrelated text."
+expect_exit 1 "--rules --check with a copy between two fences" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Always review code before running npm." "Always review code before running npm." "Unrelated text."
+expect_exit 0 "--rules --check with five words once punctuation is removed" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Always review code before pushing code, then review again." "Always review code before pushing code, then review again." "Unrelated text."
+expect_exit 1 "--rules --check with six distinct words" "$BENCH" --rules --root "$RULES" --check
+rules_tree "You must stop; don't push; don't merge; don't branch." "You must stop; don't push; don't merge; don't branch." "Unrelated text."
+expect_exit 1 "--rules --check with apostrophes" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Always review code before running tests today." "Always review __code__ before running __tests__ today." "Unrelated text."
+expect_exit 1 "--rules --check with emphasis underscores" "$BENCH" --rules --root "$RULES" --check
+rules_tree "__Always__ review code before running tests today." "Always review code before running tests today." "Unrelated text."
+expect_exit 1 "--rules --check with an emphasized keyword" "$BENCH" --rules --root "$RULES" --check
+rules_tree "You must élève étude fenêtre bâton côtes." "You must élève étude fenêtre bâton côtes." "Unrelated text."
+expect_exit 1 "--rules --check keeps accented words whole" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Agents do **not** publish branches without explicit permission from humans." "Agents do not publish branches without explicit permission from humans." "Unrelated text."
+expect_exit 1 "--rules --check with an emphasized do not" "$BENCH" --rules --root "$RULES" --check
+PLAIN='Agents describe a branch with a short summary for the user today.'
+rules_tree "$PLAIN" "$PLAIN" "Unrelated text."
+expect_exit 0 "--rules --check with a non-normative repeat" "$BENCH" --rules --root "$RULES" --check
+rules_tree "$RULE" "$(printf 'Agents must never push a branch without an explicit\nrequest from the user.')" "Unrelated text."
+expect_exit 1 "--rules --check with a line-wrapped copy" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Agents must never push a \`branch\` without an explicit request from the user." "$RULE" "Unrelated text."
+expect_exit 1 "--rules --check with a backticked copy" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Never push, ever." "Never push, ever." "Unrelated text."
+expect_exit 0 "--rules --check with a short sentence" "$BENCH" --rules --root "$RULES" --check
+rules_tree "Unrelated text." "Unrelated text." "$RULE"
+cp "$RULES/c.md" "$RULES/b.md.tmp" && printf '%s\n' "$RULE" >"$RULES/b.md" && rm "$RULES/b.md.tmp"
+jq '.surfaces["spec-map"].files = ["b.md", "c.md"] | del(.surfaces.implement.conditional)' "$RULES/workflow/runtime/context-budget.json" >"$RULES/budget.tmp" && mv "$RULES/budget.tmp" "$RULES/workflow/runtime/context-budget.json"
+expect_exit 0 "--rules --check ignores spec-map pairs" "$BENCH" --rules --root "$RULES" --check
+json="$("$BENCH" --rules --root "$RULES" --json)"
+[ "$(jq -r '.surfaces["spec-map"].sentences' <<<"$json")" = "2" ] || fail "--rules must still count spec-map sentences"
+rules_tree "$RULE" "$RULE" "Unrelated text."
+jq -n --arg t "$RULE" '[{"files":["b.md","a.md"],"texts":[$t,$t],"reason":"fixture: independent entry point"}]' >"$RULES/workflow/runtime/rule-census-allow.json"
+expect_exit 0 "--rules --check with an allowed duplicate" "$BENCH" --rules --root "$RULES" --check
+printf '%s %s\n' "$RULE" 'Agents must never push a branch without an explicit request from the user, today.' >"$RULES/b.md"
+expect_exit 1 "--rules --check with a second pair between the allowed files" "$BENCH" --rules --root "$RULES" --check
+printf '%s\n' "$RULE" >"$RULES/b.md"
+json="$("$BENCH" --rules --root "$RULES" --json)"
+[ "$(jq -r '.surfaces.implement.duplicates[0].allowed' <<<"$json")" = "true" ] || fail "--rules must mark an allowed duplicate"
+printf '%s\n' "Unrelated text." >"$RULES/b.md"
+expect_exit 1 "--rules --check with a stale allowlist entry" "$BENCH" --rules --root "$RULES" --check
+grep -Fq 'stale' "$TMP_DIR/err" || fail "stale allowlist error must say stale"
+grep -Fq 'explicit request from the user' "$TMP_DIR/err" || fail "stale allowlist error must quote the stale sentence"
+printf '[{"files":["a.md"],"texts":["x","y"],"reason":"r"}]\n' >"$RULES/workflow/runtime/rule-census-allow.json"
+expect_exit 2 "--rules --check with a malformed allowlist" "$BENCH" --rules --root "$RULES" --check
+rm -f "$RULES/workflow/runtime/rule-census-allow.json"
+rules_tree "$RULE" "Unrelated text." "$RULE"
+expect_exit 1 "--rules --check with a duplicate in a conditional read" "$BENCH" --rules --root "$RULES" --check
+expect_exit 2 "--rules with --skills" "$BENCH" --rules --skills --root "$RULES"
+expect_exit 0 "--rules --check on the real tree" "$BENCH" --rules --check
+
 printf 'token-bench smoke: ok\n'
