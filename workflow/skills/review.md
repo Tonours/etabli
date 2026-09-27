@@ -87,9 +87,6 @@ Review only the target scope. Cover:
 - plan drift;
 - human checkpoint trigger when needed.
 
-Use bounded read-only inspection of nearby code, tests, config, or docs only
-when it materially confirms or rejects a suspected finding.
-
 Do not edit files, install dependencies, or run broad/slow validation unless the
 user explicitly asked for that level of review.
 
@@ -115,4 +112,3 @@ is not a workaround for those gates.
   explicitly.
 - If the request is to prove completion rather than review a diff, route to the
   verification workflow instead of treating it as code review.
-- Never use `OK`, `APPROVED`, `PASS`, or other verdict words.
