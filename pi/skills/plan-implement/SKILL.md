@@ -9,7 +9,6 @@ harness: pi
 canonical: pi/skills/plan-implement/SKILL.md
 name: plan-implement
 description: Plan, review, then implement, shipping only a READY PLAN.md. Use only when explicitly asked via /skill:plan-implement; not for single-step tasks or plan-free fixes.
-pointer: Adapter for the `plan-implement` skill. Read and follow the shared contract in `pi/skills/plan-implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement

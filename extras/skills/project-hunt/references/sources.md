@@ -1,5 +1,15 @@
 # Source catalog
 
+## Contents
+
+- Tool contract
+- Evidence classes
+- SaaS coverage
+- Ecommerce-cash families
+- Emerging probes (when relevant within the requested scope)
+- Marketer and provenance traps
+- Audience proxies
+
 This catalog defines coverage and evidence quality. `SKILL.md` owns the
 workflow; this file owns source families, audience proxies, and limitations.
 

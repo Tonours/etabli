@@ -1,5 +1,13 @@
 # Maintainer Orchestrator Templates
 
+## Contents
+
+- Worker Prompt
+- Owner Decision Brief
+- Triage Item Card
+- Ledger Entry
+- Recurring Follow-Up Prompt
+
 Use these templates when `$maintainer-orchestrator` needs worker prompts, owner decision briefs, ledgers, or recurring follow-up prompts. Keep outputs concise and adapt to repo instructions.
 
 ## Worker Prompt

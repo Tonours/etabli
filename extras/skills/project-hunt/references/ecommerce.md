@@ -1,5 +1,14 @@
 # Ecommerce cash-test reference
 
+## Contents
+
+- Eligible first tests
+- Unit economics
+- Demand and access gate
+- Stop rules
+- Product-type and cash-risk branches
+- Card fields
+
 This is a research and validation gate, not permission to trade. The default
 test cap is a hypothetical **€150 total**; the user must explicitly approve any
 account, listing, purchase, paid call, advertisement, or outreach.

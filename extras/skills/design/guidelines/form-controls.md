@@ -1,5 +1,14 @@
 # Form Controls
 
+## Contents
+
+- Design Rules
+- Coding Rules
+- Selects
+- Checkboxes
+- Radio Buttons
+- Toggles
+
 Covers: inputs, selects, textareas, checkboxes, radio buttons, toggles, search bars, checkout forms, auth forms, and input/button combos.
 
 ## Design Rules

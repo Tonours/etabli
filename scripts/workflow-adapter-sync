@@ -126,8 +126,10 @@ gen_block() {
     printf 'name: %s\n' "$name_val"
   fi
   printf 'description: %s\n' "$desc"
-  pointer="Adapter for the \`$skill\` skill. Read and follow the shared contract in \`$canonical\`. If the contract is missing in the workspace, try \`~/.pi/agent/\`, \`~/.claude/\`, then \`~/.agents/\` copies of the same relative path. If still missing, stop with \`SHARED_CONTRACT_MISSING\`."
-  printf 'pointer: %s\n' "$pointer"
+  if [ "$file" != "$ROOT/$canonical" ]; then
+    pointer="Adapter for the \`$skill\` skill. Read and follow the shared contract in \`$canonical\`. If the contract is missing in the workspace, try \`~/.pi/agent/\`, \`~/.claude/\`, then \`~/.agents/\` copies of the same relative path. If still missing, stop with \`SHARED_CONTRACT_MISSING\`."
+    printf 'pointer: %s\n' "$pointer"
+  fi
   printf '%s\n' "$END"
 }
 
@@ -314,6 +316,12 @@ run_check() {
       fail "$candidate: (d) same-name adapter file for deployed skill [$skill_guess] without a row"
     fi
   done <"$work/candidates.txt"
+  (cd "$ROOT" && grep -rlF -e "$START" pi/skills extras/skills claude/scopes 2>/dev/null | sort) >"$work/stamped.txt" || true
+  while IFS= read -r stamped; do
+    [ -n "$stamped" ] || continue
+    grep -Fxq "$stamped" "$work/rowed-files.txt" || grep -Fxq "$stamped" "$work/candidates.txt" \
+      || fail "$stamped: (d) stamped adapter file without a manifest row"
+  done <"$work/stamped.txt"
 
   # External exemptions: recency + live absence (same-name paths) + deployed.
   local external_count
