@@ -6,6 +6,7 @@ ACTIVE_RUN_POINTER="active-run.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
+REVIEW_ROUNDS="$SCRIPT_DIR/lib/review-rounds.jq"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
 
 ALLOWED_EVENTS=(
@@ -227,6 +228,8 @@ validate_ledger_file() {
     return 1
   fi
 
+  review_rounds_valid <"$file" || return 1
+
 
   validate_autonomous_completion_evidence() {
     local label="$1" evidence_indices last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict
@@ -305,6 +308,12 @@ validate_ledger_file() {
   else
     printf '%s events, ok\n' "$count"
   fi
+}
+
+review_rounds_valid() {
+  local error
+  error="$(jq -s -r -f "$REVIEW_ROUNDS")" || return 1
+  [ -z "$error" ] || { printf '%s\n' "$error" >&2; return 1; }
 }
 
 has_v2_plan_implement_route() {
@@ -628,6 +637,13 @@ append_locked_body() {
     --arg run "$slug" \
     --argjson detail "$detail" \
     '{schema_version:2,ts:$ts,event:$event,run:$run,detail:$detail}')"
+  if [ "$event" != "blocked" ] && [ -f "$file" ]; then
+    local history
+    history="$(cat "$file")" && printf '%s\n%s\n' "$history" "$event_line" | review_rounds_valid || {
+      printf 'refusing %s append: review rounds check failed\n' "$event" >&2
+      return 1
+    }
+  fi
   if [ "$event" = "completed" ] && [ -f "$file" ] && has_v2_plan_implement_route "$file"; then
     validate_autonomous_completion_candidate "$slug" "$run_dir" "$file" "$event_line" || {
       printf 'refusing autonomous completed event before profile prerequisites pass\n' >&2

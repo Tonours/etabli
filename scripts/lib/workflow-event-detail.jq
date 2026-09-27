@@ -33,6 +33,8 @@ def strict_detail($event):
     ((has("model_provenance") | not) or (.model_provenance | provenance_complete))
   elif $event == "review_completed" then
     (.status | IN("GO", "GO WITH NOTES", "BLOCK")) and (.evidence | evidence)
+    and (has("review_round") == has("round_outcome"))
+    and ((has("review_round") | not) or ((.review_round | IN("T1", "T2", "D1", "D2", "FD", "F1", "F2")) and (.round_outcome | IN("clean", "findings", "widening"))))
   elif $event == "simplification_completed" then
     (.status | nonempty_string) and (.evidence | evidence)
   elif $event == "quality_completed" then

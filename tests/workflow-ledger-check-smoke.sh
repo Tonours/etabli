@@ -96,6 +96,28 @@ grep -q "SKIP" "$TMP_DIR/skip1.txt" || fail "missing-dir SKIP unexplained"
 "$CHECK" --dir "$ONLY" --workflow-event "$TMP_DIR/nope-bin" >"$TMP_DIR/skip2.txt" || fail "missing CLI must SKIP"
 grep -q "SKIP" "$TMP_DIR/skip2.txt" || fail "missing-CLI SKIP unexplained"
 
+FP="$TMP_DIR/fp"
+mkdir -p "$FP/scripts" "$FP/wf/valid-run"
+cp -R "$ROOT_DIR/scripts/lib" "$FP/scripts/"
+cp "$CHECK" "$ROOT_DIR/scripts/workflow-event" "$FP/scripts/"
+cp "$WF/valid-run/events.jsonl" "$FP/wf/valid-run/"
+"$FP/scripts/workflow-ledger-check" --dir "$FP/wf" --inventory "$TMP_DIR/empty-inv.json" >/dev/null || fail "fingerprint probe run failed"
+fp_before="$(jq -r '.validator' "$FP/wf/.ledger-check-cache.json")"
+printf '\n' >>"$FP/scripts/lib/review-rounds.jq"
+"$FP/scripts/workflow-ledger-check" --dir "$FP/wf" --inventory "$TMP_DIR/empty-inv.json" >/dev/null || fail "fingerprint probe rerun failed"
+[ "$(jq -r '.validator' "$FP/wf/.ledger-check-cache.json")" != "$fp_before" ] || fail "validator fingerprint must cover review-rounds.jq"
+
+FP_BIN="$TMP_DIR/fp-bin"
+mkdir -p "$FP_BIN/scripts" "$FP_BIN/wf/valid-run"
+cp -R "$ROOT_DIR/scripts/lib" "$FP_BIN/scripts/"
+cp "$ROOT_DIR/scripts/workflow-event" "$FP_BIN/scripts/"
+cp "$WF/valid-run/events.jsonl" "$FP_BIN/wf/valid-run/"
+"$CHECK" --dir "$FP_BIN/wf" --inventory "$TMP_DIR/empty-inv.json" --workflow-event "$FP_BIN/scripts/workflow-event" >/dev/null || fail "selected-binary probe run failed"
+fp_before="$(jq -r '.validator' "$FP_BIN/wf/.ledger-check-cache.json")"
+printf '\n' >>"$FP_BIN/scripts/lib/review-rounds.jq"
+"$CHECK" --dir "$FP_BIN/wf" --inventory "$TMP_DIR/empty-inv.json" --workflow-event "$FP_BIN/scripts/workflow-event" >/dev/null || fail "selected-binary probe rerun failed"
+[ "$(jq -r '.validator' "$FP_BIN/wf/.ledger-check-cache.json")" != "$fp_before" ] || fail "validator fingerprint must follow the selected workflow-event binary"
+
 # cache file created
 [ -f "$TMP_DIR/wf2/.ledger-check-cache.json" ] || fail "cache file not created"
 

@@ -60,7 +60,7 @@ assert_contains "$ROUNDS" 'exhausted D budget at F1'
 assert_contains "$ROUNDS" 'abandoned on scratch'
 assert_contains "$ROUNDS" 'T exhausted'
 assert_contains "$ROUNDS" 'no post-F1 T re-entry'
-assert_contains "$ROUNDS" 'the bound holds by prose + recorded evidence'
+assert_contains "$ROUNDS" 'Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`'
 assert_contains "$LOOP" 'workflow/skills/review-rounds.md'
 
 # AC3: delta rule — ancestry + two-dot + 50-line heuristic + surfaces.

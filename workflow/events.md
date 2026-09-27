@@ -35,7 +35,7 @@ Never edit earlier lines. Active-run selection (`activate`): `workflow/events-va
 | `route_decided` | `{route, reason}` + optional `contract_path`, `contract_sha256`, `provenance` (router issuance proof; at most once per route+sha per run) |
 | `plan_created` | `{path, status}` |
 | `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings}` + optional `model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}` (complete when present; effective values copied from the harness record) |
-| `review_completed` | `{status, evidence}` — v2 `status` ∈ `GO`, `GO WITH NOTES`, `BLOCK` (free text rejected; legacy/v1 history stays valid) |
+| `review_completed` | `{status, evidence}` — v2 `status` ∈ `GO`, `GO WITH NOTES`, `BLOCK` (free text rejected; legacy/v1 history stays valid); optional pair `review_round` ∈ `T1`,`T2`,`D1`,`D2`,`FD`,`F1`,`F2` + `round_outcome` ∈ `clean`,`findings`,`widening` (see below) |
 | `simplification_completed` | `{status, evidence}` |
 | `quality_completed` | `{status, evidence}` — `status` ∈ `pass`, `unavailable` (12c producer proof; `unavailable` stops before completion) |
 | `ship_completed` | `{cumulative_review, thermo_nuclear, pr_body_style, delta_rereview, deciding_code, escaped_defects_recorded, pr_url, ci_state}` — success form all-required (thermo ∈ clean/`findings:<n>-folded`/unavailable, cumulative `...HEAD @ ...` record, deciding ∈ complete/n/a, `ci_state=green`, non-null URL); arrêt form allows per-field `not-reached:<step>` + `-open`/`incomplete` (see ship.md; matrix jq-enforced) |
@@ -54,6 +54,8 @@ Never edit earlier lines. Active-run selection (`activate`): `workflow/events-va
 Retired types (self-improvement, harness, project slices, program, runtime
 receipts and attachments, multi-execution, outcome measurement and metrics,
 dogfood) stay readable in history but are refused on append.
+
+Review rounds: in a v2 `plan-implement` run, the first tagged `review_completed` activates `scripts/lib/review-rounds.jq` (append and validate). From then on every review is tagged v2 and follows `workflow/skills/review-rounds.md`; `clean` needs a non-`BLOCK` status and, per round, `code_diff` adversaries `GO`/`GO WITH NOTES` with `accepted_findings: []` (required for T and F rounds); no `code_diff` adversary after the closing clean F; `completed` needs a clean F1/F2. The filter also refuses, on every ledger, a non-canonical envelope (`schema_version` other than absent/`1`/`2`, `event` not exactly `[a-z_]+`).
 
 Quality passes (12c) are recorded via `quality_completed`, never via `review_completed` (rejected by the status enum).
 
