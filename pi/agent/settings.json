@@ -84,6 +84,8 @@
     "!adonisjs-review",
     "!adonisjs-testing",
     "!adonisjs-tuyau",
+    "!alambic-obvault",
+    "!autoproject",
     "!brave-search",
     "!bug-bounty",
     "!check-compiler-errors",
