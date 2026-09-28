@@ -334,6 +334,10 @@ for allowed_readonly_command in \
 	"awk '{ print \$1 }' registry.yaml" \
 	"/bin/bash -n script.sh" \
 	"/usr/bin/git diff HEAD" \
+	"/usr/bin/cat input.txt" \
+	"uniq -c input.txt" \
+	"cat input.txt | uniq -c" \
+	"rg -n --pre-glob '*.md' x docs" \
 	"cd sub; git status" \
 	"git merge-base main topic"; do
 	allowed_readonly_output="$(readonly_guard_output "$allowed_readonly_command")"
@@ -352,7 +356,19 @@ for unsafe_readonly_command in \
 	"awk '{ print | \"sh\" }' input.txt" \
 	"cat input.txt; rm changed.txt" \
 	"git status; git push --force" \
-	"/bin/rm changed.txt"; do
+	"/bin/rm changed.txt" \
+	"rg --pre rm x ." \
+	"rg --pre=rm x ." \
+	"rg --hostname-bin=sh x ." \
+	"uniq A B" \
+	"uniq - B" \
+	"uniq A -B" \
+	"script/test" \
+	"./bin/cat input.txt" \
+	"/tmp/bin/cat input.txt" \
+	"gh api -XDELETE x" \
+	"gh api -iXPOST repos/o/r/issues" \
+	"gh api -fbody=x repos/o/r/issues/1/comments"; do
 	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
 	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
 done
