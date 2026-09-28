@@ -306,6 +306,12 @@ export function markdown(pack) {
       ? pack.done.map((item) => `- ${item}`)
       : ["- No completed slice evidence available."]),
     "",
+    "## Pending",
+    ...(pack.pending.length ? pack.pending.map((item) => `- ${item}`) : ["- None recorded."]),
+    "",
+    "## Decisions",
+    ...(pack.decisions.length ? pack.decisions.map((item) => `- ${item}`) : ["- None recorded."]),
+    "",
     "## Validations",
     ...(pack.validations.length
       ? pack.validations.map((item) => `- ${item.status}: \`${item.command}\``)

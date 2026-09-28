@@ -338,6 +338,10 @@ for allowed_readonly_command in \
 	"uniq -c input.txt" \
 	"cat input.txt | uniq -c" \
 	"rg -n --pre-glob '*.md' x docs" \
+	"grep -n \"end\$\" input.txt" \
+	"uniq -- input.txt" \
+	"rg -n 'a*b' docs" \
+	"cat docs/*.md" \
 	"cd sub; git status" \
 	"git merge-base main topic"; do
 	allowed_readonly_output="$(readonly_guard_output "$allowed_readonly_command")"
@@ -368,7 +372,25 @@ for unsafe_readonly_command in \
 	"/tmp/bin/cat input.txt" \
 	"gh api -XDELETE x" \
 	"gh api -iXPOST repos/o/r/issues" \
-	"gh api -fbody=x repos/o/r/issues/1/comments"; do
+	"gh api -fbody=x repos/o/r/issues/1/comments" \
+	"rg''/script pattern file" \
+	"cat''/x input.txt" \
+	"rg \$'--pre=./script' pattern file" \
+	"gh api \$'-XDELETE' repos/o/r" \
+	"rg \${X:---pre=./s} pattern file" \
+	"rg \$HOME" \
+	"rg \"it's \$HOME\" docs" \
+	"uniq -- -input output" \
+	"uniq A --" \
+	"rg {--pre=./script,pattern} file" \
+	"gh api {-XDELETE,x}" \
+	"uniq A*" \
+	"rg pattern *" \
+	"gh api repos/o/r/*" \
+	"git diff *" \
+	"find *" \
+	"diff a*" \
+	"node --check *"; do
 	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
 	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
 done
@@ -497,7 +519,7 @@ done
 session_state_dir="$TMP_DIR/session-state"
 mkdir -p "$session_state_dir/.workflow/state-run" "$TMP_DIR/no-state"
 printf '%s\n' '## Meta' '- Subject: session state fixture' '- Status: READY' '' '## Goal' 'Resume after compaction.' >"$session_state_dir/PLAN.md"
-printf '%s\n' '{"schema_version":2,"ts":"2026-09-01T00:00:00Z","event":"handoff","run":"state-run","detail":{"branch":"b","sha":"abc","done":["slice one"],"pending":["slice two"],"next_action":"run slice two checks","do_not_redo":["abandoned parser"]}}' >"$session_state_dir/.workflow/state-run/events.jsonl"
+printf '%s\n' '{"schema_version":2,"ts":"2026-09-01T00:00:00Z","event":"adversary_completed","run":"state-run","detail":{"mode":"plan","verdict":"CHALLENGED","accepted_findings":[{"finding":"keep the fixture honest","blocking":true}],"rejected_findings":[]}}' '{"schema_version":2,"ts":"2026-09-01T00:01:00Z","event":"handoff","run":"state-run","detail":{"branch":"b","sha":"abc","done":["slice one"],"pending":["slice two","slice three"],"next_action":"run slice two checks","do_not_redo":["abandoned parser"]}}' >"$session_state_dir/.workflow/state-run/events.jsonl"
 printf '%s\n' '{"schema_version":1,"run":"state-run"}' >"$session_state_dir/.workflow/active-run.json"
 session_state_output="$(jq -nc --arg cwd "$session_state_dir" '{cwd:$cwd,hook_event_name:"SessionStart",reason:"compact"}' | node "$ROOT_DIR/claude/hooks/session-state.mjs")"
 session_state_context="$(printf '%s' "$session_state_output" | jq -r '.hookSpecificOutput.additionalContext')"
@@ -506,6 +528,8 @@ assert_contains "$session_state_context" 'When compacting, keep the root `PLAN.m
 assert_contains "$session_state_context" 'PLAN.md: session state fixture (Status: READY)'
 assert_contains "$session_state_context" 'run slice two checks'
 assert_contains "$session_state_context" 'abandoned parser'
+assert_contains "$session_state_context" 'slice three'
+assert_contains "$session_state_context" 'keep the fixture honest'
 plan_only_dir="$TMP_DIR/session-plan-only"
 mkdir -p "$plan_only_dir"
 printf '%s\n' '## Meta' '- Subject: plan only' '- Status: DRAFT' >"$plan_only_dir/PLAN.md"
