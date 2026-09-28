@@ -14,7 +14,7 @@ jobs:
       # key of the review host) and repo variable REVIEW_SSH_TARGET (user@host).
       # The VPS standby path (VPS_KNOWN_HOSTS) is kept only for rollback;
       # see agents/reviewer/ops/review-event-dispatch.md.
-      - uses: tailscale/github-action@v3
+      - uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade # v3.3.0
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}

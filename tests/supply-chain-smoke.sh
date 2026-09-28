@@ -11,10 +11,17 @@ fail() {
   exit 1
 }
 
-while IFS= read -r reference; do
-  printf '%s\n' "$reference" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$' ||
-    fail "GitHub Action is not pinned to a full commit SHA: $reference"
-done < <(sed -nE 's/^[[:space:]]*uses:[[:space:]]*([^[:space:]#]+).*/\1/p' "$WORKFLOW")
+workflows=()
+while IFS= read -r -d '' workflow; do
+  workflows+=("$workflow")
+done < <(find "$ROOT_DIR/.github/workflows" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 | sort -z)
+[ "${#workflows[@]}" -gt 0 ] || fail "no workflow found under .github/workflows"
+for workflow in "${workflows[@]}"; do
+  while IFS= read -r reference; do
+    printf '%s\n' "$reference" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$' ||
+      fail "GitHub Action is not pinned to a full commit SHA in ${workflow#"$ROOT_DIR"/}: $reference (pin owner/repo@<40-hex sha> plus a tag comment)"
+  done < <(sed -nE 's/^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*([^[:space:]#]+).*/\2/p' "$workflow")
+done
 
 checkout_sha="3d3c42e5aac5ba805825da76410c181273ba90b1"
 checkout_count="$(grep -Ec 'uses:[[:space:]]+actions/checkout@' "$WORKFLOW")"
