@@ -534,6 +534,7 @@ function shellHazards(segment) {
 		if (quote === "'") {
 			if (character === "'") quote = "";
 		} else if (character === "\\") {
+			if (segment[index + 1] === "\n") hazards.expansion = true;
 			index += 1;
 		} else if (character === '"') {
 			quote = quote ? "" : '"';

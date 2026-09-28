@@ -171,6 +171,8 @@ for (const command of [
   "gh api {-XDELETE,x}",
   "uniq A*",
   "rg pattern *",
+  "rg --pr" + String.fromCharCode(92, 10) + "e=./script x .",
+  "rg \"--hostname-b" + String.fromCharCode(92, 10) + "in=sh\" x .",
 ]) {
   const envelopes = [
     { cwd: tmp, toolName: "bash", input: { command } },
