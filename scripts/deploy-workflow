@@ -368,6 +368,7 @@ exclude_block() {
     "/scripts/workflow-measurement-integrity" \
     "/scripts/lib/workflow-event-detail.jq" \
     "/scripts/lib/review-rounds.jq" \
+    "/scripts/lib/hash.sh" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \
     "/docs/project-context.md" \
