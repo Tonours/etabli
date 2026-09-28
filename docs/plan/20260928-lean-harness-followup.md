@@ -11,7 +11,7 @@
 ## Outcome
 - The deploy that `docs/plan/20260928-lean-harness.md` left pending ran after the user authorized it:
   - `main` moved by fast-forward from `5c6d3fb` to `c6701a0`;
-  - `scripts/deploy-agent-workflow --apply` linked `claude/hooks/session-state.mjs` and set `autoMemoryEnabled: false` in both Claude homes (`~/.claude` and `CLAUDE_CONFIG_DIR`); that key was the only change in each `settings.json`;
+  - `scripts/deploy-agent-workflow --apply` linked `claude/hooks/session-state.mjs` and set `autoMemoryEnabled: false` in both Claude homes (`~/.claude` and `CLAUDE_CONFIG_DIR`); at deploy time, that key was the only change in each `settings.json` (diff against the `settings.json.bak.20260928-092848` backups; later session setting changes are not part of this deploy);
   - `scripts/claude-hooks-merge`, run once per home, added only the SessionStart `compact|resume` entry;
   - `scripts/claude-hooks-check` reports `ok, all fragment hooks wired` for both homes.
 - On `c6701a0` after the deploy, `scripts/verify-agentic-infra core` gives `SUMMARY: 26/26 checks passed` and bun gives 354 pass / 0 fail.
@@ -32,7 +32,7 @@
 ### Park the open experiment questions
 - Context: P5 rests on 2 pointer-era sessions, the P6 capsule was never tested on quality, and P7 had 4 eligible held-out runs for a floor of 15, with no priced pass.
 - Choice: no new experiment now; each needs data that does not exist yet.
-- Consequences: rerun P7 once 15 or more held-out runs carry `model_provenance`, which new appends now require.
+- Consequences: rerun P7 once 15 or more held-out runs have an eligible decision point and a priced plan pass (provenance plus a cited list price); new appends now require `model_provenance`, which covers only the first half of the pricing condition.
 
 ## Accepted Drift
 - Original plan/spec: none.
