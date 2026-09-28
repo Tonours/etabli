@@ -315,6 +315,10 @@ const READ_ONLY_GIT_BRANCH_ARGS = new Set([
 ]);
 const UNSAFE_GIT_INSPECTION_ARG =
 	/^(?:--output(?:=|$)|--ext-diff$|--textconv$|--open-files-in-pager(?:=|$)|-O)/;
+const SYSTEM_BIN_EXECUTABLE =
+	/^\/(?:s?bin|usr\/s?bin|usr\/local\/bin|opt\/homebrew\/bin)\/[^/]+$/;
+const RG_EXEC_OPTION = /^--(?:pre|hostname-bin)(?:=|$)/;
+const GH_SHORT_WRITE_CLUSTER = /^-[^-]*[XfF]/;
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
 const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/g;
 const TRACKED_PLAN_TEMPLATE_NAMES = new Set([
@@ -491,6 +495,7 @@ function isReadOnlyGhSegment(segment) {
 		if (argument === "--method" || argument === "-X") {
 			return String(args[index + 1] || "").toUpperCase() !== "GET";
 		}
+		if (GH_SHORT_WRITE_CLUSTER.test(argument)) return true;
 		return GH_WRITE_ARG.test(argument.replace(/=.*$/, ""));
 	});
 }
@@ -520,6 +525,7 @@ function isReadOnlyPipelineSegment(segment) {
 	const trimmed = segment.trim();
 	const invoked = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
 	if (!invoked) return false;
+	if (invoked.includes("/") && !SYSTEM_BIN_EXECUTABLE.test(invoked)) return false;
 	const executable = invoked.replace(/^.*\//, "");
 	if (!executable) return false;
 	const basenamed =
@@ -554,6 +560,16 @@ function isReadOnlyPipelineSegment(segment) {
 	if (executable === "sort") return false;
 	if (executable === "diff") {
 		return !hasPotentialWriteOption(basenamed, "o", "output");
+	}
+	if (executable === "rg") {
+		const words = splitShellWords(basenamed);
+		return Boolean(words) && !words.some((word) => RG_EXEC_OPTION.test(word));
+	}
+	if (executable === "uniq") {
+		const words = splitShellWords(basenamed);
+		if (!words) return false;
+		const operand = words.findIndex((word, index) => index > 0 && !/^-./.test(word));
+		return operand === -1 || operand === words.length - 1;
 	}
 	if (executable === "node" || executable === "nodejs") {
 		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(basenamed);

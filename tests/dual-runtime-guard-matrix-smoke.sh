@@ -155,6 +155,26 @@ for (const command of [
   }
 }
 
+for (const command of [
+  "rg --pre rm x .",
+  "uniq A B",
+  "script/test",
+  "./bin/cat",
+  "gh api -XDELETE x",
+]) {
+  const envelopes = [
+    { cwd: tmp, toolName: "bash", input: { command } },
+    { cwd: tmp, tool_name: "Bash", tool_input: { command } },
+  ];
+  const allowed = envelopes.filter(
+    (event) => mod.planMutationGuardDecision(event)?.hookSpecificOutput?.permissionDecision !== "deny",
+  );
+  if (mod.isReadOnlyBashCommand(command) || allowed.length > 0) {
+    console.error("read-only escape must be denied under DRAFT in both envelopes: " + command);
+    process.exit(1);
+  }
+}
+
 const quotedSubstitution = "rg \"" + String.fromCharCode(36) + "(touch escaped)\" docs";
 const quotedSubstitutionDeny = mod.planMutationGuardDecision({
   cwd: tmp,
