@@ -26,6 +26,8 @@ runtime instructions.
 
 - [`docs/adr/`](adr/): accepted architecture decisions.
 - [`docs/plan/`](plan/): implemented plan archives.
+- [`docs/research/`](research/): dated research notes and experiment results
+  (for example `20260928-lean-harness-experiments.md`).
 - [`docs/answer-quality-traces/`](answer-quality-traces/): dated evaluation
   traces and coverage data.
 - [`docs/harness-token-efficiency.md`](harness-token-efficiency.md): dated
