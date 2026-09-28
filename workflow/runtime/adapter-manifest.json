@@ -162,7 +162,7 @@
       "harness": "pi",
       "adapter": "pi/skills/adversary/SKILL.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "f4c364b6cd48c2369272b2e0ccbad2650add93e7f6e54765722ba0edcdebb3b1"
+      "sha256": "61f7a5fa0916b657056ec068a8a2f91f39c3658fbb29a495abcb34ed1ecc524c"
     },
     {
       "skill": "bug-check",
@@ -323,7 +323,7 @@
       "harness": "pi",
       "adapter": "pi/skills/sec-pr/SKILL.md",
       "canonical": "workflow/skills/sec-pr.md",
-      "sha256": "5625b063327ee7f0910809bf827edf1000ed3b6c11adfe46ae388544836019e5"
+      "sha256": "f44f18ef8b3b86ef40e08fdc05ec63b4ad1d786ed369f8a59fc8ae7ceacd92aa"
     },
     {
       "skill": "ship",

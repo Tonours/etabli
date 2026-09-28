@@ -21,7 +21,6 @@ CHECK_OK=0
 
 FILES=(
   "$REPO_DIR/workflow-scaffold/templates/AGENTS.md|AGENTS.md"
-  "$REPO_DIR/workflow-scaffold/templates/CLAUDE.md|CLAUDE.md"
   "$REPO_DIR/workflow-scaffold/templates/docs/agent-workflow.md|docs/agent-workflow.md"
   "$REPO_DIR/workflow-scaffold/templates/docs/agent-memory.md|docs/agent-memory/README.md"
   "$REPO_DIR/workflow-scaffold/templates/docs/plan.md|docs/plan/README.md"
@@ -369,6 +368,7 @@ exclude_block() {
     "/scripts/workflow-measurement-integrity" \
     "/scripts/lib/workflow-event-detail.jq" \
     "/scripts/lib/review-rounds.jq" \
+    "/scripts/lib/hash.sh" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \
     "/docs/project-context.md" \
