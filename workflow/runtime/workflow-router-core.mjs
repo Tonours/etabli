@@ -322,6 +322,8 @@ const SYSTEM_BIN_EXECUTABLE =
 	/^\/(?:s?bin|usr\/s?bin|usr\/local\/bin|opt\/homebrew\/bin)\/[^/]+$/;
 const RG_EXEC_OPTION = /^--(?:pre|hostname-bin)(?:=|$)/;
 const GH_SHORT_WRITE_CLUSTER = /^-[^-]*[XfF]/;
+const EXPANDING_DOLLAR = /^[A-Za-z_{@*#?!$0-9'-]/;
+const ARGV_SENSITIVE_READERS = new Set(["diff", "rg", "uniq"]);
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
 const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/g;
 const TRACKED_PLAN_TEMPLATE_NAMES = new Set([
@@ -524,13 +526,39 @@ function hasPotentialWriteOption(segment, shortOption, longOption) {
 	});
 }
 
+function shellHazards(segment) {
+	const hazards = { expansion: false, glob: false };
+	let quote = "";
+	for (let index = 0; index < segment.length; index += 1) {
+		const character = segment[index];
+		if (quote === "'") {
+			if (character === "'") quote = "";
+		} else if (character === "\\") {
+			index += 1;
+		} else if (character === '"') {
+			quote = quote ? "" : '"';
+		} else if (character === "'" && !quote) {
+			quote = "'";
+		} else if (character === "$" && (EXPANDING_DOLLAR.test(segment[index + 1] ?? "") || (!quote && segment[index + 1] === '"'))) {
+			hazards.expansion = true;
+		} else if (!quote && character === "{") {
+			hazards.expansion = true;
+		} else if (!quote && /[*?[]/.test(character)) {
+			hazards.glob = true;
+		}
+	}
+	return hazards;
+}
+
 function isReadOnlyPipelineSegment(segment) {
 	const trimmed = segment.trim();
 	const invoked = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
-	if (!invoked) return false;
+	const hazards = shellHazards(trimmed);
+	if (!invoked || hazards.expansion || splitShellWords(trimmed)?.[0] !== invoked) return false;
 	if (invoked.includes("/") && !SYSTEM_BIN_EXECUTABLE.test(invoked)) return false;
 	const executable = invoked.replace(/^.*\//, "");
 	if (!executable) return false;
+	if (hazards.glob && (!READ_ONLY_BASH_COMMANDS.has(executable) || ARGV_SENSITIVE_READERS.has(executable))) return false;
 	const basenamed =
 		executable === invoked
 			? trimmed
@@ -571,8 +599,10 @@ function isReadOnlyPipelineSegment(segment) {
 	if (executable === "uniq") {
 		const words = splitShellWords(basenamed);
 		if (!words) return false;
-		const operand = words.findIndex((word, index) => index > 0 && !/^-./.test(word));
-		return operand === -1 || operand === words.length - 1;
+		const rest = words.slice(1);
+		let start = rest.findIndex((word) => word === "--" || !/^-./.test(word));
+		if (start !== -1 && rest[start] === "--") start += 1;
+		return start === -1 || rest.length - start <= 1;
 	}
 	if (executable === "node" || executable === "nodejs") {
 		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(basenamed);
