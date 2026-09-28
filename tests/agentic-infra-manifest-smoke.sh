@@ -68,7 +68,6 @@ ship-order
 ref-linter
 adapter-sync
 rule-registry
-router-parity
 skill-hygiene'
 # Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
 # review-contract-surface-smoke (<50 ms) — the merge gate that must catch
@@ -89,8 +88,10 @@ skill-hygiene'
 # codex-source (hermetic source-measure gate) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 27 ] ||
-	fail "core profile must hold exactly 27 checks"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 26 ] ||
+	fail "core profile must hold exactly 26 checks"
+[ "$(awk -F '\t' '!/^#/ && $1 == "core" {print $4}' "$MANIFEST" | sort | uniq -d)" = "" ] ||
+	fail "core profile runs a target twice under two labels; keep one row per target"
 
 expected_full='pr-latest-head-status-smoke
 ledger-auto-emit-smoke

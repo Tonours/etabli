@@ -18,9 +18,8 @@ the single exception is the ship-stopped order `ship_completed` THEN final
 strict profiles.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
-On Pi, `route_decided` is router-owned: the extension records issuance (with
-contract evidence when the route maps to a skill); agents must not hand-append
-it there. Other harnesses append it by hand via the CLI.
+On Pi, `route_decided` is router-owned: the extension records issuance; agents
+must not hand-append it there. Other harnesses append it by hand via the CLI.
 Agents must use the CLI: direct appends bypass type and detail validation and
 fail `scripts/workflow-ledger-check`. Writer exceptions, locking, grandfathered <!-- etabli-only -->
 history, corrupt-ledger recovery and retired types: `workflow/events-validator.md`.
@@ -32,7 +31,7 @@ Never edit earlier lines. Active-run selection (`activate`): `workflow/events-va
 
 | Type | Detail convention |
 | --- | --- |
-| `route_decided` | `{route, reason}` + optional `contract_path`, `contract_sha256`, `provenance` (router issuance proof; at most once per route+sha per run) |
+| `route_decided` | `{route, reason}` (at most once per route per run); legacy `contract_path`, `contract_sha256`, `provenance` stay valid |
 | `plan_created` | `{path, status}` |
 | `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings, model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}}`; appends need complete provenance, the mode's verdict canon, `accepted_findings: [{finding, blocking}]`; history stays valid |
 | `review_completed` | `{status, evidence}` — v2 `status` ∈ `GO`, `GO WITH NOTES`, `BLOCK` (free text rejected; legacy/v1 history stays valid); optional pair `review_round` ∈ `T1`,`T2`,`D1`,`D2`,`FD`,`F1`,`F2` + `round_outcome` ∈ `clean`,`findings`,`widening` (see below) |

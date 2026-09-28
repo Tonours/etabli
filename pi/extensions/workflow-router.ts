@@ -11,12 +11,7 @@ import {
 	pickPrimaryActiveLedger,
 	recordBashValidationFailure,
 } from "./lib/ledger-auto-emit.ts";
-import {
-	explicitCwd,
-	resolveContractPointer,
-	routeDecidedExists,
-	type ContractPointer,
-} from "./lib/route-contract.ts";
+import { explicitCwd, routeDecidedExists } from "./lib/route-contract.ts";
 
 const CUSTOM_MESSAGE_TYPE = "etabli.workflow-router";
 
@@ -25,38 +20,7 @@ type RoutablePi = ExtensionAPI & {
 	registerEntryRenderer?: (customType: string, renderer: unknown) => void;
 };
 
-const ROUTE_CONTRACT_MESSAGE_TYPE = "etabli-route-contract";
-
-// Delivered as a context message, not a system-prompt override: replacing the
-// system prompt per routed turn invalidates the provider's cached prefix.
-function routeContractText(
-	decision: Record<string, unknown>,
-	pointer: ContractPointer | null,
-): string {
-	const contract: Record<string, unknown> = {
-		route: decision.route,
-		writeAllowed: decision.writeAllowed,
-		command: decision.command,
-		skill: decision.skill,
-		artifact: decision.artifact,
-		stopCondition: decision.stopCondition,
-		requiredEvidence: decision.requiredEvidence,
-	};
-	let mustRead = "";
-	if (pointer) {
-		contract.contract = { path: pointer.path, sha256: pointer.sha256, provenance: pointer.provenance };
-		mustRead = ` Read ${pointer.path} (sha256 ${pointer.sha256.slice(0, 12)}) before acting on this route.`;
-	}
-	return `<etabli-route-contract>\n${JSON.stringify(contract)}\nFollow this code-owned route contract for the current turn.${mustRead} It does not override permission, safety, READY, mutation, validation, or external-action gates.\n</etabli-route-contract>`;
-}
-
-// Best-effort issuance record: never throws, never blocks the turn. A ledger
-// error must not break the agent run; the emission is evidence, not a gate.
-function maybeEmitRouteDecided(
-	cwd: string | null,
-	decision: Record<string, unknown>,
-	pointer: ContractPointer | null,
-): void {
+function maybeEmitRouteDecided(cwd: string | null, decision: Record<string, unknown>): void {
 	if (!cwd) return;
 	let ledger: { path: string; run: string } | null;
 	try {
@@ -66,21 +30,9 @@ function maybeEmitRouteDecided(
 	}
 	if (!ledger) return;
 	const route = decision.route;
-	if (typeof route !== "string") return;
-	const sha = pointer?.sha256 ?? null;
-	let exists = false;
+	if (typeof route !== "string" || routeDecidedExists(ledger.path, route)) return;
 	try {
-		exists = routeDecidedExists(ledger.path, route, sha);
-	} catch {
-		return;
-	}
-	if (exists) return;
-	try {
-		appendLedgerEvent(ledger.path, "route_decided", {
-			route,
-			reason: `workflow-router selected ${route}`,
-			...(pointer ? { contract_path: pointer.path, contract_sha256: pointer.sha256, provenance: pointer.provenance } : {}),
-		}, ledger.run);
+		appendLedgerEvent(ledger.path, "route_decided", { route, reason: `workflow-router selected ${route}` }, ledger.run);
 	} catch {
 		return;
 	}
@@ -91,7 +43,7 @@ export default function (pi: ExtensionAPI) {
 	// Latest decided route awaiting ledger issuance. before_agent_start fires
 	// before the run's ledger exists on first turn; agent_end retries then, so
 	// single-prompt runs still record their route (dedup keeps it idempotent).
-	let pendingRoute: { cwd: string; decision: Record<string, unknown>; pointer: ContractPointer | null } | null = null;
+	let pendingRoute: { cwd: string; decision: Record<string, unknown> } | null = null;
 
 	pi.on("before_agent_start", (event, ctx) => {
 		const trimmedPrompt = event.prompt.trim();
@@ -103,13 +55,10 @@ export default function (pi: ExtensionAPI) {
 			version: WORKFLOW_ROUTER_EXTENSION_VERSION,
 			decision,
 		});
-		const pointer = typeof decision.skill === "string" ? resolveContractPointer(decision.skill) : null;
 		const cwd = explicitCwd(event, ctx);
-		maybeEmitRouteDecided(cwd, decision, pointer);
-		pendingRoute = cwd ? { cwd, decision, pointer } : null;
-		return pointer
-			? { message: { customType: ROUTE_CONTRACT_MESSAGE_TYPE, content: routeContractText(decision, pointer), display: false } }
-			: undefined;
+		maybeEmitRouteDecided(cwd, decision);
+		pendingRoute = cwd ? { cwd, decision } : null;
+		return undefined;
 	});
 
 	pi.on("tool_call", (event, ctx) => {
@@ -167,7 +116,7 @@ export default function (pi: ExtensionAPI) {
 		// the picker skips terminal ledgers. agent_end retries one last time.
 		if (pendingRoute) {
 			try {
-				maybeEmitRouteDecided(pendingRoute.cwd, pendingRoute.decision, pendingRoute.pointer);
+				maybeEmitRouteDecided(pendingRoute.cwd, pendingRoute.decision);
 			} catch {
 				// Best effort: never break the tool_result pipeline on ledger I/O.
 			}
@@ -181,7 +130,7 @@ export default function (pi: ExtensionAPI) {
 		pendingRoute = null;
 		if (pending) {
 			try {
-				maybeEmitRouteDecided(pending.cwd, pending.decision, pending.pointer);
+				maybeEmitRouteDecided(pending.cwd, pending.decision);
 			} catch {
 				// Best effort: never break the agent_end pipeline on ledger I/O.
 			}

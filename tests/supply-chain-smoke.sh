@@ -61,4 +61,16 @@ printf '%s\n' "$dependabot_pairs" | grep -q '^github-actions /$' ||
 printf '%s\n' "$dependabot_pairs" | grep -q '^npm /pi$' ||
   fail "missing Pi npm Dependabot surface"
 
+while IFS= read -r -d '' entry; do
+  case "$entry" in
+    120000\ *)
+      path="${entry#*$'\t'}"
+      target="$(readlink "$ROOT_DIR/$path")"
+      case "$target" in
+        [/]*) fail "tracked symlink $path points to the absolute path $target; make it relative to its directory" ;;
+      esac
+      ;;
+  esac
+done < <(git -C "$ROOT_DIR" ls-files -s -z)
+
 printf 'supply chain smoke test: ok\n'
