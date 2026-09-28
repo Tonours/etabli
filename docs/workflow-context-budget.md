@@ -35,9 +35,10 @@ lead after review; they never rise silently.
 | verify | 3,093 | 3,071 | −1% | 3,093 |
 | spec-map | 32,258 | 32,256 | ~0% | 32,258 |
 
-Ceilings are the ratcheted gates in `workflow/runtime/context-budget.json`; the
-always-on After is the post-adversary measurement (16,150 chars) that its
-16,635 ceiling was ratcheted from.
+This table records the 2026-09-14 change. Ceilings were ratcheted down since;
+the current gates live in `workflow/runtime/context-budget.json` and
+`scripts/workflow-context-budget` prints the live values (on 2026-09-28:
+always-on 11,789 chars for a 12,148 ceiling).
 
 ## What moved where
 
