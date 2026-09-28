@@ -38,8 +38,8 @@ checks, edge cases, plan drift, and simpler or safer routes.
     route.
 
 Plan-mode verdicts are `READY` or `CHALLENGED`; code-diff verdicts are `GO`,
-`GO WITH NOTES`, or `BLOCK`. The event validator accepts both families for
-historical compatibility; new passes use the mode's canon.
+`GO WITH NOTES`, or `BLOCK`. The event CLI refuses a new pass outside its
+mode's canon; history keeps both families for historical compatibility.
 
 ## Completion Evidence
 
@@ -99,9 +99,8 @@ effective model family, not on the harness currently driving the workflow:
 1. exclude the author's family;
 2. choose a configured route from the strongest available frontier pool;
 3. prefer a direct provider route over an aggregator route;
-4. record `model_provenance` on the ledger pass — requested and effective
-   provider/model/family plus runner and run id, complete when present,
-   effective values copied from the harness's own record;
+4. record `model_provenance` on the ledger pass (required; shape in
+   `workflow/events.md`), effective values copied from the harness's own record;
 5. treat missing effective-model provenance as `blocked`, even when the model
    was requested successfully.
 

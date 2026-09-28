@@ -34,7 +34,7 @@ Never edit earlier lines. Active-run selection (`activate`): `workflow/events-va
 | --- | --- |
 | `route_decided` | `{route, reason}` + optional `contract_path`, `contract_sha256`, `provenance` (router issuance proof; at most once per route+sha per run) |
 | `plan_created` | `{path, status}` |
-| `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings}` + optional `model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}` (complete when present; effective values copied from the harness record) |
+| `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings, model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}}`; appends need complete provenance, the mode's verdict canon, `accepted_findings: [{finding, blocking}]`; history stays valid |
 | `review_completed` | `{status, evidence}` — v2 `status` ∈ `GO`, `GO WITH NOTES`, `BLOCK` (free text rejected; legacy/v1 history stays valid); optional pair `review_round` ∈ `T1`,`T2`,`D1`,`D2`,`FD`,`F1`,`F2` + `round_outcome` ∈ `clean`,`findings`,`widening` (see below) |
 | `simplification_completed` | `{status, evidence}` |
 | `quality_completed` | `{status, evidence}` — `status` ∈ `pass`, `unavailable` (12c producer proof; `unavailable` stops before completion) |

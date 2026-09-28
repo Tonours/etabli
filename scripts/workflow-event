@@ -93,12 +93,12 @@ is_valid_slug() {
 }
 
 detail_valid() {
-  local event="$1" detail="$2" schema_version="${3:-2}"
+  local event="$1" detail="$2" schema_version="${3:-2}" append="${4:-false}"
   local strict=false
 
   [ "$schema_version" = "2" ] && strict=true
   printf '%s\n' "$detail" |
-    jq -e --arg mode single --arg event "$event" --argjson strict "$strict" -f "$DETAIL_SCHEMA" >/dev/null 2>&1
+    jq -e --arg mode single --arg event "$event" --argjson strict "$strict" --argjson append "$append" -f "$DETAIL_SCHEMA" >/dev/null 2>&1
 }
 die_usage() {
   usage >&2
@@ -765,7 +765,7 @@ case "$command" in
       printf 'unknown event type: %s\nAllowed events:\n%s\n' "$event" "$(allowed_list)" >&2
       exit 2
     fi
-    if ! detail_valid "$event" "$detail" 2; then
+    if ! detail_valid "$event" "$detail" 2 true; then
       printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2
       exit 2
     fi
@@ -788,7 +788,7 @@ case "$command" in
     is_retired_event "$event" && { printf 'retired event type: %s (readable in history, no longer appended)\n' "$event" >&2; exit 2; }
     is_allowed_event "$event" || { printf 'unknown event type: %s\n' "$event" >&2; exit 2; }
     if [ "${WORKFLOW_EVENT_PREVALIDATED:-}" != "$event|$detail" ]; then
-      detail_valid "$event" "$detail" 2 || { printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2; exit 2; }
+      detail_valid "$event" "$detail" 2 true || { printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2; exit 2; }
     fi
     unset WORKFLOW_EVENT_PREVALIDATED || true
     [ "$backend" = "lockf" ] || [ "$backend" = "flock" ] || {

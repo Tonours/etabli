@@ -5,6 +5,10 @@ def provenance_complete:
   (.effective | (type == "object") and (.family | nonempty_string) and (.model | nonempty_string) and (.provider | nonempty_string)) and
   (.runner | nonempty_string) and (.run_id | nonempty_string);
 def boolean: type == "boolean";
+def finding_array: type == "array" and all(.[]; type == "object" and ((keys - ["finding", "blocking"]) | length == 0) and (.finding | nonempty_string) and (.blocking | boolean));
+def appended_adversary_pass:
+  (.model_provenance | provenance_complete) and (.accepted_findings | finding_array) and
+  (if .mode == "plan" then (.verdict | IN("READY", "CHALLENGED")) else (.verdict | IN("GO", "GO WITH NOTES", "BLOCK")) end);
 def nonnegative_number: type == "number" and . >= 0;
 def nonnegative_integer: nonnegative_number and floor == .;
 def positive_integer: nonnegative_integer and . > 0;
@@ -29,7 +33,7 @@ def strict_detail($event):
     (.path | nonempty_string) and (.status | IN("DRAFT", "CHALLENGED", "READY"))
   elif $event == "adversary_completed" then
     (.mode | IN("plan", "code_diff")) and (.verdict | nonempty_string) and
-    (.accepted_findings | string_array) and (.rejected_findings | string_array) and
+    (.accepted_findings | string_array or finding_array) and (.rejected_findings | string_array) and
     ((has("model_provenance") | not) or (.model_provenance | provenance_complete))
   elif $event == "review_completed" then
     (.status | IN("GO", "GO WITH NOTES", "BLOCK")) and (.evidence | evidence)
@@ -276,5 +280,6 @@ def batch_ledger($slug; $profile; $list):
 if ($ARGS.named.mode // "single") == "batch" then
   batch_ledger($ARGS.named.slug // ""; $ARGS.named.profile // "structural"; $ARGS.named.allowed // [])
 else
-  if ($ARGS.named.strict // false) then strict_detail($ARGS.named.event // "") else legacy_detail($ARGS.named.event // "") end
+  (if ($ARGS.named.strict // false) then strict_detail($ARGS.named.event // "") else legacy_detail($ARGS.named.event // "") end)
+  and (if ($ARGS.named.append // false) and ($ARGS.named.event // "") == "adversary_completed" then appended_adversary_pass else true end)
 end
