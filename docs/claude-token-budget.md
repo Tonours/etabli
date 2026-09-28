@@ -31,7 +31,7 @@ claude               # intact, rollback natif
 | rôle | avant | après |
 |---|---|---|
 | scout | sonnet/medium/24 | inchangé |
-| worker | opus/**high/40** | **sonnet/medium/24** |
+| worker | opus/**high/40** | opus/**medium**/40 (sonnet/medium/24 essayé puis annulé : `6befdfe`, `2a5f3c8`) |
 | reviewer | fable/medium/40 | **sonnet/medium/24** |
 | adversary | fable/medium/40 | **fable/low/24** |
 

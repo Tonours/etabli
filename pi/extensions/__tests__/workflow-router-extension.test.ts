@@ -141,14 +141,7 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			const injectedImplementResult = results[0] as { systemPrompt?: string; message: { customType: string; content: string; display: boolean } };
-			expect(injectedImplementResult.systemPrompt).toBeUndefined();
-			expect(injectedImplementResult.message).toMatchObject({ customType: "etabli-route-contract", display: false });
-			const injectedImplement = injectedImplementResult.message.content;
-			expect(injectedImplement.length).toBeLessThan(1500);
-			expect(injectedImplement).toContain("<etabli-route-contract>");
-			expect(injectedImplement).toContain('"route":"implement"');
-			expect(injectedImplement).toContain("implement/SKILL.md");
+			expect(results).toEqual([undefined]);
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "implement" },
 			});
@@ -265,13 +258,7 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			const injectedPlanResult = results[0] as { systemPrompt?: string; message: { customType: string; content: string; display: boolean } };
-			expect(injectedPlanResult.systemPrompt).toBeUndefined();
-			expect(injectedPlanResult.message).toMatchObject({ customType: "etabli-route-contract", display: false });
-			const injectedPlan = injectedPlanResult.message.content;
-			expect(injectedPlan).toContain("<etabli-route-contract>");
-			expect(injectedPlan).toContain('"route":"plan-implement"');
-			expect(injectedPlan).toContain("plan-implement/SKILL.md");
+			expect(results).toEqual([undefined]);
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "plan-implement" },
 			});
@@ -880,7 +867,7 @@ tags:
 		}
 	});
 
-	describe("route contract pointer and issuance", () => {
+	describe("route issuance", () => {
 		function setupLedgerCwd() {
 			const cwd = mkdtempSync(join(tmpdir(), "etabli-emit-"));
 			mkdirSync(join(cwd, ".workflow", "emit"), { recursive: true });
@@ -898,28 +885,20 @@ tags:
 			return text.split("\n").filter((l) => l.trim() !== "").map((l) => JSON.parse(l) as Record<string, unknown>);
 		}
 
-		test("emits route_decided with contract fields once per route", () => {
+		test("emits route_decided with route and reason only, once per route", () => {
 			const runtime = setupExtension();
 			const cwd = setupLedgerCwd();
 			try {
-				runtime.emit("before_agent_start", {
+				const results = runtime.emit("before_agent_start", {
 					prompt: "Implémente le PLAN.md ready",
 					systemPrompt: "Base prompt",
 					cwd,
 				});
+				expect(results).toEqual([undefined]);
 				let lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
 				expect(lines).toHaveLength(1);
-				expect(lines[0]).toMatchObject({
-					event: "route_decided",
-					run: "emit",
-					detail: { route: "plan-implement" },
-				});
-				const detail = lines[0].detail as Record<string, unknown>;
-				expect(typeof detail.contract_path).toBe("string");
-				expect(String(detail.contract_path).endsWith("plan-implement/SKILL.md")).toBe(true);
-				expect(typeof detail.contract_sha256).toBe("string");
-				expect(typeof detail.provenance).toBe("string");
-				expect(["deployed-pi", "deployed-agents", "repo"]).toContain(detail.provenance as string);
+				expect(lines[0]).toMatchObject({ event: "route_decided", run: "emit" });
+				expect(lines[0].detail).toEqual({ route: "plan-implement", reason: "workflow-router selected plan-implement" });
 				// Same route again: deduped, no second line.
 				runtime.emit("before_agent_start", {
 					prompt: "Implémente le PLAN.md ready encore",

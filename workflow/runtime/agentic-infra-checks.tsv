@@ -24,7 +24,6 @@ core	shell-docs	ship-order	tests/ship-order-smoke.sh
 core	shell-docs	ref-linter	tests/ref-linter-smoke.sh
 core	shell-docs	adapter-sync	tests/adapter-sync-smoke.sh
 core	shell-docs	rule-registry	tests/rule-registry-smoke.sh
-core	shell-docs	router-parity	tests/rule-registry-smoke.sh
 core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 full	shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
 full	shell-docs	ledger-auto-emit-smoke	tests/ledger-auto-emit-smoke.sh
