@@ -3,6 +3,7 @@
     "commit": "",
     "pr": ""
   },
+  "autoMemoryEnabled": false,
   "skillOverrides": {
     "ask-matt": "user-invocable-only",
     "bug-check": "on",

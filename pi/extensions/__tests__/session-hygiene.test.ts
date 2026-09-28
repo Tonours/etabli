@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { COMPACT_INSTRUCTIONS } from "../../../workflow/runtime/workflow-router-core.mjs";
 import {
 	beginCompaction,
 	blocksNavigation,
@@ -197,6 +198,12 @@ describe("compactInstructions", () => {
 		for (const needle of ["PLAN.md", "ledger", "files", "check", "finding", "next action"]) {
 			expect(text.toLowerCase()).toContain(needle.toLowerCase());
 		}
+	});
+
+	test("is the shared constant that claude/CLAUDE.md carries verbatim", () => {
+		expect(compactInstructions()).toBe(COMPACT_INSTRUCTIONS);
+		const claude = readFileSync(join(import.meta.dir, "../../../claude/CLAUDE.md"), "utf8").replace(/\s+/g, " ");
+		expect(claude).toContain(COMPACT_INSTRUCTIONS);
 	});
 });
 

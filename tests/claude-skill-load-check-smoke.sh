@@ -277,5 +277,13 @@ if (JSON.stringify(s.skillOverrides) !== want || s.theme !== "dark") { console.e
 second="$(node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked.json" 0 t2 deploy)" || fail "settings sync second pass failed"
 printf '%s\n' "$second" | grep -q "^OK  *Claude tracked settings" || fail "settings sync second pass must be a no-op, got: $second"
 [ ! -e "$FIX/sync/settings.json.bak.t2" ] || fail "settings sync no-op pass must not write a backup"
+printf '%s\n' '{"skillOverrides":{"repo-skill":"on"},"autoMemoryEnabled":false}' >"$FIX/sync/tracked-memory.json"
+node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked-memory.json" 0 t3 deploy >/dev/null || fail "settings sync must accept a tracked autoMemoryEnabled key"
+node -e '
+const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+if (s.autoMemoryEnabled !== false || s.theme !== "dark") { console.error(JSON.stringify(s)); process.exit(1); }
+' "$FIX/sync/settings.json" || fail "settings sync must write autoMemoryEnabled false and keep other keys"
+jq -e '.autoMemoryEnabled == false' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
+  fail "claude/settings.skill-overrides.json must track autoMemoryEnabled false (the vault owns durable memory)"
 
 printf '%s\n' "PASS: claude-skill-load-check fixture assertions"

@@ -15,6 +15,7 @@ const STATES = new Set(["on", "name-only", "user-invocable-only", "off"]);
 const SCALAR_KEYS = new Set([
   "skipDangerousModePermissionPrompt",
   "skipAutoPermissionPrompt",
+  "autoMemoryEnabled",
 ]);
 const PERMISSION_KEYS = new Set(["defaultMode"]);
 const ATTRIBUTION_KEYS = new Set(["commit", "pr"]);

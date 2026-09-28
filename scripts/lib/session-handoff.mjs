@@ -216,7 +216,14 @@ function asArray(value) {
   return [compact(value)].filter(Boolean);
 }
 
-function buildHandoff(options) {
+export function planHeadline(repo) {
+  const planPath = join(repo, "PLAN.md");
+  if (!existsSync(planPath)) return null;
+  const meta = planSection(readFileSync(planPath, "utf8"), "Meta");
+  return `PLAN.md: ${planField(meta, "Subject") || "unavailable"} (Status: ${planField(meta, "Status") || "unknown"})`;
+}
+
+export function buildHandoff(options) {
   const run = resolveRun(options);
   const ledgerPath = join(options.workflowDir, run, "events.jsonl");
   if (!existsSync(ledgerPath))
@@ -285,7 +292,7 @@ function buildHandoff(options) {
   };
 }
 
-function markdown(pack) {
+export function markdown(pack) {
   const lines = [
     "# Session handoff",
     "",
