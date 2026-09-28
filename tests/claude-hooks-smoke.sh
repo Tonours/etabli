@@ -390,7 +390,9 @@ for unsafe_readonly_command in \
 	"git diff *" \
 	"find *" \
 	"diff a*" \
-	"node --check *"; do
+	"node --check *" \
+	"$(printf 'rg --pr\\\ne=./script x .')" \
+	"$(printf 'rg "--hostname-b\\\nin=sh" x .')"; do
 	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
 	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
 done
