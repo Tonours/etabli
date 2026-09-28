@@ -161,6 +161,16 @@ for (const command of [
   "script/test",
   "./bin/cat",
   "gh api -XDELETE x",
+  "rg''/script pattern file",
+  "cat''/x",
+  "rg " + String.fromCharCode(36) + "'--pre=./script' pattern file",
+  "gh api " + String.fromCharCode(36) + "'-XDELETE' repos/o/r",
+  "rg " + String.fromCharCode(36) + "{X:---pre=./s} pattern file",
+  "uniq -- -input output",
+  "rg {--pre=./script,pattern} file",
+  "gh api {-XDELETE,x}",
+  "uniq A*",
+  "rg pattern *",
 ]) {
   const envelopes = [
     { cwd: tmp, toolName: "bash", input: { command } },
