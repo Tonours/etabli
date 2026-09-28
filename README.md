@@ -1,120 +1,99 @@
 # Etabli
 
-Etabli is a personal source tree for local agent workflows and terminal
-configuration. The shared contract lives in `workflow/`; Pi and Claude expose
-thin runtime adapters, while the skill catalog feeds the other local harness
-surfaces (shared `~/.agents`, Codex, Devin). The full link layout and the
-`shared`/`work`/`personal` scope system live in
-[`docs/symlink-layout.md`](docs/symlink-layout.md).
+One workflow contract for every local coding agent. `workflow/` holds the
+rules; Pi and Claude read them through thin adapters, and the skill catalog
+also feeds the shared `~/.agents`, Codex and Devin surfaces.
 
-## Why Etabli
-
-- **One contract, every harness.** A single `workflow/` source feeds Pi,
-  Claude, and the shared `~/.agents`/Codex/Devin surfaces through managed
-  links. Adapter routers are kept behaviorally identical against a shared
-  fixture set (`scripts/router-eval`), so a rule cannot drift per tool.
-- **The workflow is enforced by code, not prose.** Guards block the failure
-  modes instructions only warn about: mutations on a non-`READY` plan,
-  weakening frozen checks, staging plan files, non-read-only reviewer shells,
-  and default-branch pushes without explicit consent.
-- **Skills improve through gates, not vibes.** A skill or reviewer change is
-  a promotion gate: frozen task manifests, artifact fingerprints, strict
-  held-in gain with held-out and safety non-regression
-  (`workflow/skills/skill-evaluation.md`).
-- **Context is a budgeted resource.** Resident instruction bytes per route
-  are measured, ceilinged in CI, and can only ratchet down — the always-on
-  surface went from 28,423 to 16,150 chars (−43%) under that discipline
-  (`docs/workflow-context-budget.md`).
-- **A locked, vendored skill tree.** Skill packs are vendored verbatim with
-  `UPSTREAM_SHA` pins, integrity-locked (`skills-lock.json`), and deployed by
-  scope — including the user-facing TypeSafe skill (`vendor/typesafe-ai/`).
-  Routing itself is deterministic code only (ADR-0027).
-
-## Install
+## Quick start
 
 ```bash
 git clone https://github.com/Tonours/etabli.git
 cd etabli
-./scripts/install.sh
+./scripts/install.sh                     # agent workflow
+scripts/deploy-agent-workflow --apply    # managed links; omit --apply to preview
+scripts/claude-hooks-merge --dry-run     # review, then run without --dry-run
+scripts/verify-agentic-infra core        # every check should PASS
 ```
 
-This installs the agent workflow, not editor or terminal configuration. To
-install those links, clone [dotfiles](https://github.com/Tonours/dotfiles) and
-run `scripts/fix-links --fix` there.
+- The Claude hooks are merged into your live `settings.json` rather than linked,
+  because that file can hold secrets. Rerun the merge after a deploy that adds a
+  hook.
+- Editor and terminal config live in [dotfiles](https://github.com/Tonours/dotfiles)
+  (`scripts/fix-links --fix` there).
+- Pi comes from `@earendil-works/pi-coding-agent`. The installer uses your
+  existing Node.js, preferring `asdf` when available; it never installs Node.
+- Optional diff tooling: `hunkdiff`, from the CLI or a tmux pane.
 
-The installer uses the existing Node.js runtime, preferring `asdf` when it is
-available. It does not install Node or `nvm`. Pi comes from
-`@earendil-works/pi-coding-agent`.
+## What you get
 
-Optional terminal diff tooling is `hunkdiff`; use it from the CLI or a tmux
-pane, not from inside Neovim.
+- **One contract, every harness.** Pi and Claude routers are kept identical by
+  a shared fixture set (`scripts/router-eval`).
+- **Rules enforced by code.** Guards block edits on a plan that is not `READY`,
+  weakened frozen checks, staged plan files, non-read-only reviewer shells and
+  unconsented default-branch pushes.
+- **State that survives compaction.** Claude re-injects the plan status and the
+  last ledger handoff on `compact|resume`, with the same compact instructions
+  as Pi.
+- **Budgeted context.** Per-route instruction size is measured and can only
+  shrink: always-on went from 28,423 to 11,789 chars
+  ([`docs/workflow-context-budget.md`](docs/workflow-context-budget.md)).
+- **Locked skills.** Vendored packs carry `UPSTREAM_SHA` pins and an integrity
+  lock (`skills-lock.json`). Skill changes pass promotion gates
+  (`workflow/skills/skill-evaluation.md`), and routing stays deterministic code
+  (ADR-0027).
 
-## Managed surfaces
-
-| Path | Purpose |
-| --- | --- |
-| `workflow/` | Shared routing, plans, guards, loops, and validation contracts |
-| `workflow-scaffold/` | Templates `scripts/deploy-workflow` copies into scaffolded projects |
-| `pi/` | Pi settings, extensions, agents, skills, and themes |
-| `claude/` | Claude commands, agents, hooks, and scoped skills |
-| `vendor/` | Vendored skill sources and the catalog that controls their scope |
-| [`dotfiles`](https://github.com/Tonours/dotfiles) | Editor, terminal, tmux, and Herdr configuration (separate repository) |
-| `mcp/` | Sanitized MCP inventory template; no live credentials |
-| `scripts/`, `tests/` | Install, deploy, validation, and regression checks |
-| `skills-lock.json` | Integrity lock for the managed skill tree |
-| `docs/adr/` | Architecture decisions; validate with `node scripts/validate-adrs .` |
-
-## Workflow
+## How work flows
 
 Projects containing `workflow/spec.md` activate the workflow ambiently.
 
-1. Small requests can be handled directly.
-2. Broad or risky work uses the root `PLAN.md` as its single active plan.
-3. Only a `READY` plan authorizes implementation on that route.
-4. Push, deploy, secrets, and publication still need explicit authority.
+1. Small requests are handled directly.
+2. Broad or risky work gets one root `PLAN.md`.
+3. Only a `READY` plan authorizes implementation.
+4. Push, deploy, secrets and publication always need explicit consent.
 
-Pi and Claude share the same workflow source through managed links. A change in
-this repository is the change every linked runtime reads.
+Every run leaves an event ledger under `.workflow/<slug>/`, and finished plans
+are archived in `docs/plan/`.
+One writer at a time is a protocol, not an OS lock.
 
-One writer at a time is a protocol, not an OS lock. Autonomous runs pair a
-measured goal with an explicit iteration or time cap. Non-core contracts
-(product dogfood, ambitious projects, recurring runs, single-PR maintenance)
-are shelved in `extras/contracts/` and never deployed.
+## Repository map
 
-## Useful commands
+| Path | Holds |
+| --- | --- |
+| `workflow/` | Routing, plans, guards, loops, validation contracts |
+| `pi/`, `claude/` | Runtime adapters: settings, extensions, hooks, agents, skills |
+| `vendor/`, `skills-lock.json` | Vendored skills, their scope catalog and lock |
+| `workflow-scaffold/` | Templates `scripts/deploy-workflow` copies into projects |
+| `scripts/`, `tests/` | Install, deploy, validation and regression checks |
+| `mcp/` | Sanitized MCP template, no credentials |
+| `docs/` | Guides, plan archives, research; decisions in `docs/adr/` |
+
+## Everyday commands
 
 ```bash
-# Preview or apply managed links
-scripts/deploy-agent-workflow --dry-run
-scripts/deploy-agent-workflow --apply
-
-# Check links and run the core repository checks
-scripts/check-fix-symlinks.sh
-scripts/verify-agentic-infra core
-
-# Token efficiency: per-route context cost vs baseline, live /context, skill limits
-scripts/token-bench --check [--live]
-scripts/token-bench --skills --check
-
-# Verify the Pi skill tree
-cd pi && bun run verify:skills
+scripts/verify-agentic-infra core     # core checks
+bun test pi/extensions/__tests__/     # Pi extension tests
+scripts/token-bench --check           # context cost per route
+scripts/claude-hooks-check            # live Claude hooks wired?
+scripts/check-fix-symlinks.sh         # managed links intact?
+node scripts/validate-adrs .          # ADR format
 ```
 
-The public GitHub repository runs `agentic-infra` on `ubuntu-24.04`. Private
-repositories use the configured self-hosted labels instead. Check a live run
-with `gh run list --workflow agentic-infra.yml`.
+CI runs `agentic-infra` on `ubuntu-24.04` for the public repository and on
+self-hosted runners for private ones (`gh run list --workflow agentic-infra.yml`).
 
-## Documentation
+## Learn more
 
-Start with [`docs/README.md`](docs/README.md). It separates active references
-from decision and evaluation history. The fast path is
-`workflow/agent-quick-card.md`, followed by `workflow/contract-details.md` when
-you need the full command rules.
+- [`docs/README.md`](docs/README.md): index of current references and history.
+- [`workflow/agent-quick-card.md`](workflow/agent-quick-card.md): one-page
+  workflow entry; [`workflow/contract-details.md`](workflow/contract-details.md)
+  for the full rules.
+- [`docs/symlink-layout.md`](docs/symlink-layout.md): every managed link and the
+  `shared`/`work`/`personal` scopes.
+- [`claude/README.md`](claude/README.md): Claude commands, hooks and settings.
 
 ## Security
 
-Keep credentials, OAuth material, cookies, session state, and live runtime
-configuration outside this repository. Tracked templates use placeholders and
-the project `.mcp.json` intentionally has no servers. See
-[`SECURITY.md`](SECURITY.md) and [`docs/mcp-strategy.md`](docs/mcp-strategy.md)
-for the boundary.
+Credentials, OAuth material, cookies, session state and live runtime config stay
+out of this repository. Tracked templates use placeholders, and the project
+`.mcp.json` has no servers. See [`SECURITY.md`](SECURITY.md) and
+[`docs/mcp-strategy.md`](docs/mcp-strategy.md).
