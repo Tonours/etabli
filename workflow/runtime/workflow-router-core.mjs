@@ -14,6 +14,9 @@ import { isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-comma
 
 export { parsePlanStatus };
 
+export const COMPACT_INSTRUCTIONS =
+	"When compacting, keep the root `PLAN.md` subject and status, the active ledger run, files modified, frozen check commands and last results, open findings, and the exact next action. Drop stale exploration output.";
+
 const REVIEW_TERMS = "review(?:er|ing)?|revue|relis|audit|critique|findings?";
 const REVIEW_PATTERN = new RegExp(`\\b(${REVIEW_TERMS})\\b`);
 const EXPLICIT_REVIEW_PATTERN =
