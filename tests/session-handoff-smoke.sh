@@ -93,6 +93,14 @@ jq -e '
   .projection_only == true
 ' "$TMP_DIR/handoff.json" >/dev/null
 
+mkdir -p "$PROJECT/.workflow/handoff-objects"
+jq -nc '{schema_version: 2, ts: "2026-08-20T12:00:00Z", event: "adversary_completed", run: "handoff-objects",
+  detail: {mode: "plan", verdict: "CHALLENGED", accepted_findings: [{finding: "fold the blocker", blocking: true}, {finding: "tighten a check", blocking: false}], rejected_findings: []}}' \
+  >"$PROJECT/.workflow/handoff-objects/events.jsonl"
+"$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run handoff-objects --json >"$TMP_DIR/objects.json"
+jq -e '.decisions == ["fold the blocker", "tighten a check"]' "$TMP_DIR/objects.json" >/dev/null ||
+  { printf 'object accepted findings must render as their finding text\n' >&2; exit 1; }
+
 "$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run handoff-program --json >"$TMP_DIR/program.json"
 jq -e '(has("program") | not) and .next_action == "start program unit unit-b" and .done == ["stale program projection"]' "$TMP_DIR/program.json" >/dev/null ||
   { printf 'a retired program_initialized line must not override the explicit handoff\n' >&2; exit 1; }

@@ -228,6 +228,7 @@ function buildHandoff(options) {
   const explicitEvent = lastOf(events, "handoff");
   const explicit = explicitEvent?.detail || null;
   const adversary = lastOf(events, "adversary_completed")?.detail || null;
+  const findings = adversary?.accepted_findings;
   const blockerEvent = latestBlockingEvent(events);
   const handoffFields = explicit;
   const validations = events
@@ -265,7 +266,7 @@ function buildHandoff(options) {
     state: handoffFields?.done
       ? "handoff event recorded"
       : planField(handoffSection, "Current state") || events.at(-1).event,
-    decisions: asArray(adversary?.accepted_findings).slice(0, 5),
+    decisions: asArray(Array.isArray(findings) ? findings.map((item) => item?.finding ?? item) : findings).slice(0, 5),
     done: asArray(handoffFields?.done).slice(0, 8),
     pending: asArray(handoffFields?.pending).slice(0, 8),
     validations,

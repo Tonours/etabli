@@ -1,6 +1,6 @@
 route_decided	reason	{"route":"plan-implement","reason":"broad implementation"}
 plan_created	status	{"path":"PLAN.md","status":"READY"}
-adversary_completed	mode	{"mode":"plan","verdict":"GO","accepted_findings":[],"rejected_findings":[]}
+adversary_completed	mode	{"mode":"plan","verdict":"READY","accepted_findings":[{"finding":"fold the fixture","blocking":false}],"rejected_findings":[],"model_provenance":{"requested":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"effective":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"runner":"codex-cli","run_id":"smoke"}}
 review_completed	status	{"status":"GO","evidence":["review"]}
 simplification_completed	status	{"status":"passed","evidence":"diff inspected"}
 quality_completed	status	{"status":"pass","evidence":"code-quality"}

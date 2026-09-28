@@ -180,7 +180,7 @@ assert_not_exists "$NEW_PROJECT/.gitignore"
 SCAFFOLD_EVENTS="$TMP_DIR/scaffold-rr/.workflow"
 scaffold_event() { "$NEW_PROJECT/scripts/workflow-event" --dir "$SCAFFOLD_EVENTS" "$@"; }
 scaffold_event append rr route_decided '{"route":"plan-implement","reason":"smoke"}' >/dev/null
-scaffold_event append rr adversary_completed '{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}' >/dev/null
+scaffold_event append rr adversary_completed '{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[],"model_provenance":{"requested":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"effective":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"runner":"codex-cli","run_id":"smoke"}}' >/dev/null
 scaffold_event append rr review_completed '{"status":"GO","evidence":"smoke","review_round":"T1","round_outcome":"clean"}' >/dev/null
 scaffold_event validate rr >/dev/null
 if scaffold_event append rr review_completed '{"status":"GO","evidence":"smoke","review_round":"D1","round_outcome":"clean"}' >"$TMP_DIR/scaffold-rr.out" 2>&1; then

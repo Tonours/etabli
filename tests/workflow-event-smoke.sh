@@ -195,6 +195,27 @@ assert_contains "$out" "1 events, ok"
 printf '%s\n' "$(jq -nc --argjson p "$PROV_OK" '{schema_version:1,ts:"2026-01-01T00:00:00Z",event:"adversary_completed",run:"schema-prov-legacy-bad",detail:{verdict:"READY",accepted_findings:[],model_provenance:($p|del(.effective.family))}}')" > "$EVENT_DIR/schema-prov-legacy-bad/events.jsonl"
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-prov-legacy-bad)"
 assert_contains "$out" "invalid detail for adversary_completed"
+adversary_append_refused() {
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-adv-refused" adversary_completed "$(jq -nc --argjson p "$PROV_OK" "$1")")"
+  assert_contains "$out" "required fields"
+}
+adversary_append_refused '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[]}'
+adversary_append_refused '{mode:"plan",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"READY",accepted_findings:[],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK_THEN_FIXED",accepted_findings:[],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:["x"],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"x"}],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"x",blocking:"yes"}],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"",blocking:true}],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"x",blocking:true,severity:"high"}],rejected_findings:[],model_provenance:$p}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-adv-ok" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"plan",verdict:"CHALLENGED",accepted_findings:[{finding:"x",blocking:true},{finding:"y",blocking:false}],rejected_findings:["z"],model_provenance:$p}')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-adv-ok" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"code_diff",verdict:"GO WITH NOTES",accepted_findings:[],rejected_findings:[],model_provenance:$p}')"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-adv-ok)"
+assert_contains "$out" "2 events, ok"
+mkdir -p "$EVENT_DIR/schema-adv-history"
+printf '%s\n' '{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"adversary_completed","run":"schema-adv-history","detail":{"mode":"code_diff","verdict":"GO WITH LIMITATION","accepted_findings":["legacy string"],"rejected_findings":[]}}' > "$EVENT_DIR/schema-adv-history/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-adv-history)"
+assert_contains "$out" "1 events, ok"
 # route_decided additive contract fields accepted.
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-additive" route_decided '{"route":"plan-implement","reason":"smoke","contract_path":"/tmp/x/SKILL.md","contract_sha256":"f2a1","provenance":"repo"}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-route-additive)"
@@ -240,12 +261,12 @@ assert_contains "$out" "follows terminal"
 for event_detail in \
   'route_decided {"route":"plan-implement","reason":"implementation"}' \
   'plan_created {"path":"PLAN.md","status":"READY"}' \
-  'adversary_completed {"mode":"plan","verdict":"READY","accepted_findings":[],"rejected_findings":[]}' \
+  "adversary_completed {\"mode\":\"plan\",\"verdict\":\"READY\",\"accepted_findings\":[],\"rejected_findings\":[],\"model_provenance\":$PROV_OK}" \
   'file_changed {"path":"src/example.ts","change":"updated"}' \
   'validation_run {"command":"true","exit":0}' \
   'simplification_completed {"status":"passed","evidence":"diff inspected"}' \
   'review_completed {"status":"GO","evidence":"review"}' \
-  'adversary_completed {"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}' \
+  "adversary_completed {\"mode\":\"code_diff\",\"verdict\":\"GO\",\"accepted_findings\":[],\"rejected_findings\":[],\"model_provenance\":$PROV_OK}" \
   'archive_written {"path":"docs/plan/test.md"}' \
   'plan_removed {"path":"PLAN.md"}' \
   'completed {"summary":"done"}'; do
@@ -633,14 +654,13 @@ EOF
 RR_DIR="$TMP_DIR/rr/.workflow"
 rr() { "$ROOT_DIR/scripts/workflow-event" --dir "$RR_DIR" "$@"; }
 rr_adversary() {
-  rr append "$1" adversary_completed "$(jq -nc --arg v "$2" --argjson a "$3" '{mode:"code_diff",verdict:$v,accepted_findings:$a,rejected_findings:[]}')"
+  rr append "$1" adversary_completed "$(jq -nc --arg v "$2" --argjson a "$3" --argjson p "$PROV_OK" '{mode:"code_diff",verdict:$v,accepted_findings:($a | map({finding: ., blocking: false})),rejected_findings:[],model_provenance:$p}')"
 }
 rr_step() {
   local slug="$1" step="$2" tag outcome status
   case "$step" in
     A) rr_adversary "$slug" GO '[]' ;;
     A!) rr_adversary "$slug" BLOCK '["x"]' ;;
-    A?) rr_adversary "$slug" CHALLENGED '[]' ;;
     A+) rr_adversary "$slug" "GO WITH NOTES" '["x"]' ;;
     U) rr append "$slug" review_completed '{"status":"GO","evidence":"smoke"}' ;;
     blocked) rr append "$slug" blocked '{"reason":"review budget","needed_input":"new review run"}' ;;
@@ -698,7 +718,6 @@ rr_refused rr-no-adversary "review round T1 (#1) has no code_diff adversary_comp
 rr_refused rr-clean-block "review round F1 (#2) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: F1" F1:clean A T1:clean A!
 rr_refused rr-clean-blocked-review "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean:BLOCK A
 rr_refused rr-clean-accepted "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean A+
-rr_refused rr-clean-challenged "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean A?
 rr_refused rr-late-adversary "code_diff adversary_completed after the closing clean round F1 (#2); admitted next: none" A+ A T1:clean A F1:clean
 rr_steps rr-unknown
 out="$(expect_status 2 rr append rr-unknown review_completed '{"status":"GO","evidence":"smoke","review_round":"T3","round_outcome":"clean"}')"
@@ -721,7 +740,7 @@ rr_complete() {
   shift
   rr_steps "$slug"
   rr append "$slug" plan_created '{"path":"PLAN.md","status":"READY"}' >/dev/null
-  rr append "$slug" adversary_completed '{"mode":"plan","verdict":"READY","accepted_findings":[],"rejected_findings":[]}' >/dev/null
+  rr append "$slug" adversary_completed "{\"mode\":\"plan\",\"verdict\":\"READY\",\"accepted_findings\":[],\"rejected_findings\":[],\"model_provenance\":$PROV_OK}" >/dev/null
   rr append "$slug" file_changed '{"path":"x","change":"smoke"}' >/dev/null
   rr append "$slug" validation_run '{"command":"c","exit":0}' >/dev/null
   rr append "$slug" simplification_completed '{"status":"clean","evidence":"smoke"}' >/dev/null
@@ -763,6 +782,11 @@ rr_ledger rr-read-v1-adversary "$rr_route" \
   '{"schema_version":1,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"GO","accepted":["finding"]}}' \
   "$(rr_round T1 clean GO)"
 out="$(expect_status 1 rr validate rr-read-v1-adversary)"
+assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1"
+rr_ledger rr-read-challenged "$rr_route" \
+  '{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"CHALLENGED","accepted_findings":[],"rejected_findings":[]}}' \
+  "$(rr_round T1 clean GO)"
+out="$(expect_status 1 rr validate rr-read-challenged)"
 assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1"
 rr_ledger rr-read-legacy-completed "$rr_route" "$rr_go" "$(rr_round T1 clean GO)" \
   '{"schema_version":1,"event":"completed","detail":{"summary":"smoke"}}' \
