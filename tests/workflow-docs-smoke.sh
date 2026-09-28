@@ -123,7 +123,6 @@ for instruction in \
     workflow/agent-quick-card.md workflow/contract-details.md \
     pi/AGENTS.md claude/CLAUDE.md \
     workflow-scaffold/templates/AGENTS.md \
-    workflow-scaffold/templates/CLAUDE.md \
     workflow-scaffold/templates/docs/agent-workflow.md; do
     check_instruction_scope "$ROOT_DIR/$instruction"
 done
@@ -144,8 +143,7 @@ for harness_instructions in \
     "$ROOT_DIR/CLAUDE.md" \
     "$ROOT_DIR/claude/CLAUDE.md" \
     "$ROOT_DIR/pi/AGENTS.md" \
-    "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" \
-    "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"; do
+    "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"; do
     assert_not_contains "$harness_instructions" "lean-ctx"
 done
 assert_file "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
@@ -192,7 +190,6 @@ done
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"
-assert_file "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/project-context.md"
@@ -461,7 +458,6 @@ assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'workflow/linear-ticket-template.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'Ambient activation'
-assert_contains "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" 'Ambient activation'
 # Thin adapters must point at shared contracts (full matrix later). Do not pin
 # duplicated Source resolution path lists here; those freeze adapter boilerplate.
 assert_contains "$ROOT_DIR/workflow/skills/plan-loop.md" 'Do not create or update `docs/plan/` archives during planning.'
