@@ -250,7 +250,6 @@ if "$CHECK" --home "$ROOTLINK_HOME" >"$TMP_DIR/rootlink-out.txt" 2>&1; then
 fi
 grep -q "deep.bak.3" "$TMP_DIR/rootlink-out.txt" || fail "linked root scan missed the nested backup"
 
-# Mirror pi/agent/settings.json intentionally; update this pin when its deny-list changes.
 PINNED_DENY='["!adonisjs-architecture","!adonisjs-backend","!adonisjs-best-practices","!adonisjs-review","!adonisjs-testing","!adonisjs-tuyau","!alambic-obvault","!autoproject","!brave-search","!bug-bounty","!check-compiler-errors","!code-review","!code-simplifier","!control-cli","!control-ui","!deslop","!electron-audit","!find-skills","!fix-ci","!fix-merge-conflicts","!full-output-enforcement","!get-pr-comments","!html-design-prototypes","!html-prototype","!impeccable","!loop-on-ci","!make-pr-easy-to-review","!markdown-converter","!new-branch-and-pr","!review-and-ship","!run-smoke-tests","!tanstack-start-best-practices","!ui","!verify-this","!web-audit","!weekly-review","!what-did-i-get-done","!workflow-from-chats"]'
 tracked_deny="$(jq -c '[.skills[] | select(startswith("!"))] | sort' "$ROOT_DIR/pi/agent/settings.json")"
 [ "$tracked_deny" = "$PINNED_DENY" ] || fail "tracked deny-list drifted: $tracked_deny"
