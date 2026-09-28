@@ -54,7 +54,7 @@
     "sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ea045fbcac0d70ab2594f6d7dca2ba81db46eb911d1062bf26b4081794880eb2"
+      "computedHash": "ddbccc97b820b56e7efddb2c2b14b91238ee63595b904b1f841670adab14f38e"
     },
     "ci-fix": {
       "source": "local",
@@ -69,7 +69,7 @@
     "adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "808920100f66f43c11e4cc798436fa51e5ec45fd74423739cdc12a707e457c6f"
+      "computedHash": "404386831c990b2256cf9ed25da1c3a3f02550728a84fd5e588ea35ccce92031"
     },
     "browser-full-page-capture": {
       "source": "local",

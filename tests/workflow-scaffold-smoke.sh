@@ -53,7 +53,6 @@ HELP_OUTPUT="$TMP_DIR/deploy-workflow-help.out"
 assert_contains "$HELP_OUTPUT" "--check"
 
 assert_file "$NEW_PROJECT/AGENTS.md"
-assert_file "$NEW_PROJECT/CLAUDE.md"
 assert_file "$NEW_PROJECT/docs/agent-workflow.md"
 assert_file "$NEW_PROJECT/docs/agent-memory/README.md"
 assert_file "$NEW_PROJECT/docs/plan/README.md"
@@ -96,7 +95,7 @@ for executable in workflow-event; do
   }
 done
 assert_same "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" "$NEW_PROJECT/AGENTS.md"
-assert_same "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" "$NEW_PROJECT/CLAUDE.md"
+assert_not_exists "$NEW_PROJECT/CLAUDE.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" "$NEW_PROJECT/docs/agent-workflow.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-memory.md" "$NEW_PROJECT/docs/agent-memory/README.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" "$NEW_PROJECT/docs/plan/README.md"
@@ -153,8 +152,6 @@ done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sor
 assert_contains "$NEW_PROJECT/AGENTS.md" "Ambient activation"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/agent-memory/"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/plan/"
-assert_contains "$NEW_PROJECT/CLAUDE.md" "Claude Code-specific adapter"
-assert_contains "$NEW_PROJECT/CLAUDE.md" "docs/claude-code-workflow.md"
 assert_contains "$NEW_PROJECT/docs/agent-workflow.md" "Pi Coding Agent"
 assert_contains "$NEW_PROJECT/docs/agent-workflow.md" "Claude Code"
 assert_contains "$NEW_PROJECT/docs/claude-code-workflow.md" "planner -> builder -> evaluator"
