@@ -36,7 +36,8 @@ Roles are contracts, not mandatory separate agents:
 One writer at any instant. The parent writes, or delegates writing to at most
 one `worker` at a time — foreground, or the parent waits without writing until
 it finishes, then takes the pen back between plan steps; never two writers in
-parallel. The deterministic multi-model council (scout / analyst / challenger /
+parallel. Multi-writer scopes are lease-backed per (repo, worktree) by
+`scripts/workflow-lease` (ADR-0028). The deterministic multi-model council (scout / analyst / challenger /
 judge / fallback) was removed in ADR-0013; `classifyWorkflowRoute` always
 attaches parent-only `multiExecution`. Delegating to a subagent stays an
 ordinary tool call, judged case by case, not a routed profile. `scout` and

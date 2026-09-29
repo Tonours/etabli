@@ -56,8 +56,9 @@ plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
 
 ## One-writer
 
-One writer at any instant (**protocol**, not an OS lock): the parent or one
-`worker` per step. `scout`/`reviewer`: read-only plus Bash `PreToolUse` allowlist.
+One writer at any instant: the parent or one `worker` per step — backed for
+multi-writer scopes by `scripts/workflow-lease` (per-(repo, worktree) TTL
+lease, ADR-0028). `scout`/`reviewer`: read-only plus Bash `PreToolUse` allowlist.
 
 ## Routes (common)
 
