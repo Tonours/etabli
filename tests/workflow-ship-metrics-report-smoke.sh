@@ -17,6 +17,7 @@ printf '%s\n' \
   '{"schema_version":2,"ts":"2026-09-29T10:05:00Z","event":"correction","run":"run-x","detail":{"harness":"pi","prompt_sha256":"abc","prompt_chars":10}}' \
   '{"schema_version":2,"ts":"2026-09-29T10:06:00Z","event":"blocked","run":"run-x","detail":{"reason":"ci_wait","needed_input":"x"}}' \
   '{"schema_version":2,"ts":"2026-09-29T10:07:00Z","event":"human_checkpoint","run":"run-x","detail":{"category":"notification","decision":"requested","target":"permission_prompt","consent_class":"permission_request"}}' \
+  '{"schema_version":2,"ts":"2026-09-29T10:08:00Z","event":"ship_completed","run":"run-x","detail":{"ci_state":"green"}}' \
   >"$DIR/run-x/events.jsonl"
 
 printf '%s\n' \
@@ -47,6 +48,7 @@ printf '%s' "$out" | jqe '.sources.accepted_merge_receipts == "missing"' || fail
 printf '%s' "$out" | jqe '.primaries.corrections == 1' || fail "date-only --until must include the whole day"
 printf '%s' "$out" | jqe '.primaries.blocked_by_reason == {"ci_wait": 1}' || fail "out-of-window blocked must be excluded"
 printf '%s' "$out" | jqe '.primaries.checkpoints_by_consent_class == {"permission_request": 1}' || fail "consent classes expected"
+printf '%s' "$out" | jqe '.primaries.ship_completed_by_ci_state == {"green": 1}' || fail "ci_state must come from ledger ship_completed events"
 printf '%s' "$out" | jqe '.primaries.guards_by_guard == {"no-comments": 1, "check-freeze": 1}' || fail "guard counts expected"
 printf '%s' "$out" | jqe '.counters.escaped_later_total == 1' || fail "out-of-window registry row must be excluded"
 printf '%s' "$out" | jqe '.counters.tier_counts == {"standard": 1}' || fail "tier window filter expected"
