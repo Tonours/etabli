@@ -164,7 +164,7 @@ log_history() {
   jq -c -n --arg ts "$(now_iso)" --arg event "$event" --arg reason "$reason" \
     --arg from_owner "$from_owner" --arg by_owner "$by_owner" --arg host "$HOSTNAME" \
     '{ts:$ts, event:$event, reason:$reason, from_owner:$from_owner, by_owner:$by_owner, host:$host}' \
-    >>"$(history_file "$key")" 2>/dev/null || true
+    >>"$(history_file "$key")" 2>/dev/null
 }
 
 # ---- locked mutation bodies -------------------------------------------------
@@ -174,7 +174,10 @@ locked_acquire() {
   read_lease "$key" "$identity" || rc=$?
   if [ "$rc" -eq 0 ]; then
     lease_expired || { refuse_foreign_or_valid; return 1; }
-    log_history "$key" "takeover" "expired" "$LEASE_OWNER" "$owner"
+    log_history "$key" "takeover" "expired" "$LEASE_OWNER" "$owner" || {
+      printf 'cannot write lease history for %s; refusing takeover without a trace\n' "$key" >&2
+      return 1
+    }
     write_lease "$key" "$identity" "$owner" "$ttl" "$backend"
     return 0
   fi
@@ -218,7 +221,10 @@ locked_recover() {
   read_lease "$key" "$identity" || rc=$?
   [ "$rc" -eq 0 ] || { [ "$rc" -eq 2 ] && printf 'no lease for this scope\n' >&2; return 1; }
   lease_expired || { refuse_foreign_or_valid; return 1; }
-  log_history "$key" "recover" "$reason" "$LEASE_OWNER" "${owner:-$HOSTNAME}"
+  log_history "$key" "recover" "$reason" "$LEASE_OWNER" "${owner:-$HOSTNAME}" || {
+    printf 'cannot write lease history for %s; refusing takeover without a trace\n' "$key" >&2
+    return 1
+  }
   write_lease "$key" "$identity" "${owner:-$HOSTNAME}" "$DEFAULT_TTL_SECS" "$backend"
 }
 
@@ -234,6 +240,29 @@ lock_backend() {
     fi
   fi
   printf '%s' "$backend"
+}
+
+run_locked_body() {
+  local key="$1" op="$2"; shift 2
+  case "$op" in
+    _locked-acquire)
+      [ $# -eq 3 ] || usage
+      locked_acquire "$key" "$1" "$2" "$3" "$(lock_backend)"
+      ;;
+    _locked-renew)
+      [ $# -eq 3 ] || usage
+      locked_renew "$key" "$1" "$2" "$3"
+      ;;
+    _locked-release)
+      [ $# -eq 2 ] || usage
+      locked_release "$key" "$1" "$2"
+      ;;
+    _locked-recover)
+      [ $# -eq 3 ] || usage
+      locked_recover "$key" "$1" "$2" "$3" "$(lock_backend)"
+      ;;
+    *) usage ;;
+  esac
 }
 
 run_locked() {
@@ -256,7 +285,7 @@ run_locked() {
       while [ "$attempt" -lt 50 ]; do
         if shlock -f "$lock_file" -p "$$"; then
           status=0
-          "$SCRIPT_PATH" --dir "$DIR" "$op" "$key" "$@" || status=$?
+          run_locked_body "$key" "$op" "$@" || status=$?
           rm -f "$lock_file"
           return "$status"
         fi
@@ -366,20 +395,16 @@ EOF
     [ "$found" -eq 1 ] || printf 'no leases\n' >&2
     ;;
   _locked-acquire)
-    [ $# -eq 4 ] || usage
-    locked_acquire "$1" "$2" "$3" "$4" "$(lock_backend)"
+    run_locked_body "$1" "_locked-acquire" "${@:2}"
     ;;
   _locked-renew)
-    [ $# -eq 4 ] || usage
-    locked_renew "$1" "$2" "$3" "$4"
+    run_locked_body "$1" "_locked-renew" "${@:2}"
     ;;
   _locked-release)
-    [ $# -eq 3 ] || usage
-    locked_release "$1" "$2" "$3"
+    run_locked_body "$1" "_locked-release" "${@:2}"
     ;;
   _locked-recover)
-    [ $# -eq 4 ] || usage
-    locked_recover "$1" "$2" "$3" "$4" "$(lock_backend)"
+    run_locked_body "$1" "_locked-recover" "${@:2}"
     ;;
   *) usage ;;
 esac

@@ -12,6 +12,10 @@ function inWindow(ts, since, until) {
 	return true;
 }
 
+function isRecord(value) {
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function parseJsonl(text) {
 	const lines = [];
 	let skipped = 0;
@@ -20,7 +24,7 @@ function parseJsonl(text) {
 		if (trimmed === "") continue;
 		try {
 			const parsed = JSON.parse(trimmed);
-			if (parsed && typeof parsed === "object") {
+			if (isRecord(parsed)) {
 				lines.push(parsed);
 			} else {
 				skipped += 1;
@@ -48,7 +52,7 @@ function readRegistry(dir, since, until) {
 			const path = join(registryDir, file);
 			const mtime = statSync(path).mtime.toISOString().replace(/\.\d{3}Z$/, "Z");
 			const row = JSON.parse(readFileSync(path, "utf8"));
-			if (!row || typeof row !== "object") {
+			if (!isRecord(row)) {
 				skipped += 1;
 			} else if (inWindow(mtime, since, until)) {
 				rows.push(row);
@@ -190,41 +194,53 @@ function readHerdrHistory(path, since, until) {
 		return { state: "unreadable" };
 	}
 	const parsedHistory = parseJsonl(text);
-	const transitions = parsedHistory.lines.filter(
+	const valid = parsedHistory.lines.filter(
 		(entry) =>
 			typeof entry.pane_id === "string" &&
 			typeof entry.state_change_seq === "number" &&
-			inWindow(entry.ts, since, until),
+			typeof entry.ts === "string",
 	);
-	if (transitions.length === 0 && parsedHistory.skipped === 0) {
-		return { state: "zero-observed", panes: 0, holes: 0, known_seconds: 0 };
+	const invalid = parsedHistory.skipped + (parsedHistory.lines.length - valid.length);
+	if (valid.length === 0) {
+		return {
+			state: invalid > 0 ? "unreadable" : "zero-observed",
+			panes: 0,
+			holes: 0,
+			known_seconds: 0,
+		};
 	}
-	if (transitions.length === 0) {
-		return { state: "unreadable" };
+	const byHostPane = new Map();
+	for (const entry of valid) {
+		const key = `${typeof entry.host === "string" ? entry.host : "unknown"}|${entry.pane_id}`;
+		if (!byHostPane.has(key)) byHostPane.set(key, []);
+		byHostPane.get(key).push(entry);
 	}
-	const byPane = new Map();
-	for (const entry of transitions) {
-		if (!byPane.has(entry.pane_id)) byPane.set(entry.pane_id, []);
-		byPane.get(entry.pane_id).push(entry);
-	}
+	const windowStart = Date.parse(since);
+	const windowEnd = Date.parse(until);
 	let holes = 0;
 	let knownSeconds = 0;
-	for (const list of byPane.values()) {
+	for (const list of byHostPane.values()) {
 		list.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
 		for (let i = 0; i < list.length - 1; i += 1) {
 			const current = list[i];
 			const next = list[i + 1];
 			const contiguous = next.state_change_seq === current.state_change_seq + 1;
-			if (!contiguous) holes += 1;
-			if (!contiguous) continue;
+			if (!contiguous) {
+				holes += 1;
+				continue;
+			}
 			const start = Date.parse(current.ts);
 			const end = Date.parse(next.ts);
-			if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
-				knownSeconds += Math.round((end - start) / 1000);
+			if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+			const clippedStart = Number.isFinite(windowStart) ? Math.max(start, windowStart) : start;
+			const clippedEnd = Number.isFinite(windowEnd) ? Math.min(end, windowEnd) : end;
+			if (clippedEnd > clippedStart) {
+				knownSeconds += Math.round((clippedEnd - clippedStart) / 1000);
 			}
 		}
 	}
-	return { state: "available", panes: byPane.size, holes, known_seconds: knownSeconds };
+	const state = invalid > 0 ? "partial" : "available";
+	return { state, panes: byHostPane.size, holes, known_seconds: knownSeconds };
 }
 
 export function buildReport(input) {
