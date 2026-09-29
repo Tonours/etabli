@@ -100,6 +100,13 @@ ln -s "$TMP_ROOT/wt" "$TMP_ROOT/wt-alias"
   || fail "T8: aliased worktree must resolve to the canonical scope"
 
 reset_leases
+if "$LEASE" "${W[@]}" acquire --repo "$TMP_ROOT/does-not-exist" --worktree "$TMP_ROOT/wt" --owner ghost --ttl-secs 60 >/dev/null 2>&1; then
+  fail "T9: a nonexistent repo path must fail the whole command"
+fi
+[ ! -e "$TMP_ROOT/does-not-exist" ] || fail "T9: canonicalization must not create paths"
+[ -z "$(ls "$DIR/leases" 2>/dev/null)" ] || fail "T9: no lease record may appear for a failed scope"
+
+reset_leases
 "$LEASE" "${W[@]}" acquire "${R[@]}" --owner racer --ttl-secs 60 >/dev/null
 TOKR=$(holder_token)
 for i in 1 2 3; do
@@ -127,4 +134,4 @@ for i in 1 2 3; do
   fi
 done
 
-printf 'workflow-lease-smoke: PASS (T1-T8, R1-R2)\n'
+printf 'workflow-lease-smoke: PASS (T1-T9, R1-R2)\n'

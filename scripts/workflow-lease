@@ -67,10 +67,10 @@ canonical() {
 }
 
 scope_for() {
-  local repo="$1" worktree="$2" identity key
-  repo="$(canonical "$repo")"
-  worktree="$(canonical "$worktree")"
-  identity="$repo|$worktree"
+  local repo="$1" worktree="$2" identity key repo_canon wt_canon
+  repo_canon="$(canonical "$repo")" || return 1
+  wt_canon="$(canonical "$worktree")" || return 1
+  identity="$repo_canon|$wt_canon"
   key="$(printf '%s' "$identity" | shasum -a 256 | cut -c1-16)"
   printf '%s %s' "$key" "$identity"
 }
@@ -273,9 +273,10 @@ run_locked() {
 # ---- public commands --------------------------------------------------------
 
 resolve_scope() {
-  local repo="${OPT_REPO:-}" worktree="${OPT_WORKTREE:-}"
+  local repo="${OPT_REPO:-}" worktree="${OPT_WORKTREE:-}" scope_out
   [ -n "$repo" ] && [ -n "$worktree" ] || die "--repo and --worktree are required"
-  scope_for "$repo" "$worktree"
+  scope_out="$(scope_for "$repo" "$worktree")" || return 1
+  printf '%s' "$scope_out"
 }
 
 POSITIONAL=()
@@ -306,40 +307,45 @@ case "$CMD" in
 esac
 
 case "$CMD" in
-  acquire)
-    [ -n "$OPT_OWNER" ] || die "acquire requires --owner <name>"
-    owner_name_ok "$OPT_OWNER" || die "invalid owner name: $OPT_OWNER (allowed: [A-Za-z0-9][A-Za-z0-9._-]{0,63})"
-    read -r key identity <<EOF
-$(resolve_scope)
+acquire)
+        [ -n "$OPT_OWNER" ] || die "acquire requires --owner <name>"
+        owner_name_ok "$OPT_OWNER" || die "invalid owner name: $OPT_OWNER (allowed: [A-Za-z0-9][A-Za-z0-9._-]{0,63})"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
 EOF
-    run_locked "$key" _locked-acquire "$identity" "$OPT_OWNER" "$OPT_TTL"
-    ;;
-  renew)
-    [ -n "$OPT_TOKEN" ] || die "renew requires --token"
-    read -r key identity <<EOF
-$(resolve_scope)
+        run_locked "$key" _locked-acquire "$identity" "$OPT_OWNER" "$OPT_TTL"
+        ;;
+    renew)
+        [ -n "$OPT_TOKEN" ] || die "renew requires --token"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
 EOF
-    run_locked "$key" _locked-renew "$identity" "$OPT_TOKEN" "$OPT_TTL"
-    ;;
-  release)
-    [ -n "$OPT_TOKEN" ] || die "release requires --token"
-    read -r key identity <<EOF
-$(resolve_scope)
+        run_locked "$key" _locked-renew "$identity" "$OPT_TOKEN" "$OPT_TTL"
+        ;;
+    release)
+        [ -n "$OPT_TOKEN" ] || die "release requires --token"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
 EOF
-    run_locked "$key" _locked-release "$identity" "$OPT_TOKEN"
-    ;;
-  recover)
-    [ "${#POSITIONAL[@]}" -eq 1 ] || die "recover requires exactly one <reason> argument"
-    reason="${POSITIONAL[0]}"
-    reason_ok "$reason" || die "invalid reason (max 200 chars, no newlines)"
-    read -r key identity <<EOF
-$(resolve_scope)
+        run_locked "$key" _locked-release "$identity" "$OPT_TOKEN"
+        ;;
+    recover)
+        [ "${#POSITIONAL[@]}" -eq 1 ] || die "recover requires exactly one <reason> argument"
+        reason="${POSITIONAL[0]}"
+        reason_ok "$reason" || die "invalid reason (max 200 chars, no newlines)"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
 EOF
-    run_locked "$key" _locked-recover "$identity" "$reason" "${OPT_OWNER:-}"
-    ;;
+        run_locked "$key" _locked-recover "$identity" "$reason" "${OPT_OWNER:-}"
+        ;;
     show)
-    read -r key identity <<EOF
-$(resolve_scope)
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
 EOF
     if [ -f "$(lease_file "$key")" ]; then
       rc=0; read_lease "$key" "$identity" || rc=$?

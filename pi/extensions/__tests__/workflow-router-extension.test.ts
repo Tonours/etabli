@@ -1028,7 +1028,10 @@ describe("correction emission on interactive input", () => {
 		const prevSession = process.env.PI_SESSION_ID;
 		process.env.PI_SESSION_ID = "bun-correction-session";
 		try {
+			mkdirSync(join(cwd, "scripts"), { recursive: true });
 			mkdirSync(join(cwd, ".workflow", "corr"), { recursive: true });
+			execFileSync("cp", ["-R", join(import.meta.dir, "../../../scripts/lib"), join(cwd, "scripts", "lib")]);
+			execFileSync("cp", [join(import.meta.dir, "../../../scripts/workflow-event"), join(cwd, "scripts", "workflow-event")]);
 			writeFileSync(
 				join(cwd, ".workflow", "corr", "events.jsonl"),
 				'{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"plan_created","run":"corr","detail":{"path":"PLAN.md","status":"DRAFT"}}\n',
@@ -1036,14 +1039,14 @@ describe("correction emission on interactive input", () => {
 			writeFileSync(join(cwd, ".workflow", "active-run.json"), '{"schema_version":1,"run":"corr"}');
 
 			const runtime = setupExtension();
-			runtime.emit("input", { type: "input", text: "extension injected", source: "extension" });
-			runtime.emit("input", { type: "input", text: "initial prompt", source: "interactive" }, { cwd });
+			runtime.emit("input", { type: "input", text: "extension injected", source: "extension" }, { cwd });
+			runtime.emit("input", { type: "input", text: "initial prompt", source: "interactive" }, { cwd, sessionManager: { getSessionId: () => "bun-session-a" } });
 			expect(readLedger(cwd)).not.toContain('"event":"correction"');
 
 			runtime.emit(
 				"input",
 				{ type: "input", text: "non fais plutot ceci", source: "interactive", streamingBehavior: "steer" },
-				{ cwd },
+				{ cwd, sessionManager: { getSessionId: () => "bun-session-a" } },
 			);
 			runtime.emit(
 				"input",
