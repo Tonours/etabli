@@ -10,7 +10,7 @@ fail() { printf 'ship-metrics-report-smoke: %s\n' "$1" >&2; exit 1; }
 jqe() { jq -e "$1" >/dev/null 2>&1; }
 
 DIR="$TMP/.workflow"
-mkdir -p "$DIR/run-x" "$DIR/run-old" "$DIR/ship-metrics" "$DIR/guard-journal"
+mkdir -p "$TMP/empty-wf" "$DIR/run-x" "$DIR/run-old" "$DIR/ship-metrics" "$DIR/guard-journal"
 
 printf '%s\n' \
   '{"schema_version":2,"ts":"2026-09-29T10:00:00Z","event":"route_decided","run":"run-x","detail":{"route":"implement","reason":"t"}}' \
@@ -88,6 +88,7 @@ rm -rf "$DIR/run-crash"
 
 printf '%s\n' '{truncated' >>"$DIR/run-x/events.jsonl"
 printf '%s\n' 'null' >"$DIR/ship-metrics/null-row.json"
+printf '%s\n' '[]' >>"$DIR/run-x/events.jsonl"
 out="$("$METRICS" --dir "$DIR" report --since 2026-09-29 --json)"
 printf '%s' "$out" | jqe '.sources.event_ledgers == "partial"' || fail "a corrupted ledger line must read as partial, not a false zero"
 printf '%s' "$out" | jqe '.sources.ship_metrics_registry == "partial"' || fail "a null registry row must degrade the registry state, not crash"
@@ -98,5 +99,22 @@ out="$("$METRICS" --dir "$virgin/.workflow" report --since 2026-09-29 --json)"
 printf '%s' "$out" | jqe '.sources.ship_metrics_registry == "missing"' || fail "a virgin dir must report the registry missing"
 [ ! -e "$virgin/.workflow/ship-metrics" ] || fail "report must not create the registry directory it reports missing"
 rm -rf "$virgin"
+
+HERDR2="$TMP/herdr2.jsonl"
+printf '%s\n' \
+  '{"ts":"2026-09-29T09:59:00Z","host":"a","pane_id":"p1","state_change_seq":1}' \
+  '{"ts":"2026-09-29T11:01:00Z","host":"a","pane_id":"p1","state_change_seq":2}' \
+  >"$HERDR2"
+out="$("$METRICS" --dir "$TMP/empty-wf" report --since 2026-09-29T10:00:00Z --until 2026-09-29T11:00:00Z --herdr-history "$HERDR2" --json)"
+printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 3600' || fail "an interval enclosing the window must contribute the clipped 3600s"
+
+HERDR3="$TMP/herdr3.jsonl"
+printf '%s\n' \
+  '{"ts":"2026-09-29T10:00:00Z","host":"a","pane_id":"p1","state_change_seq":1}' \
+  '{"ts":"2026-09-29T10:01:00Z","host":"b","pane_id":"p1","state_change_seq":2}' \
+  >"$HERDR3"
+out="$("$METRICS" --dir "$TMP/empty-wf" report --since 2026-09-29 --herdr-history "$HERDR3" --json)"
+printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 0' || fail "no interval may be fabricated across hosts"
+printf '%s' "$out" | jqe '.counters.herdr.panes == 2' || fail "same pane on two hosts must count as two panes"
 
 printf 'ship-metrics-report-smoke: PASS\n'

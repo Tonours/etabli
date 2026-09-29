@@ -107,6 +107,17 @@ fi
 [ -z "$(ls "$DIR/leases" 2>/dev/null)" ] || fail "T9: no lease record may appear for a failed scope"
 
 reset_leases
+"$LEASE" "${W[@]}" acquire "${R[@]}" --owner traceless --ttl-secs 1 >/dev/null
+sleep 1.2
+lease_key="$(basename "$(find "$DIR/leases" -maxdepth 1 -name '*.json' | head -1)" .json)"
+mkdir -p "$DIR/leases/$lease_key.history.jsonl"
+if "$LEASE" "${W[@]}" recover "${R[@]}" "smoke-t10-unwritable-history" >/dev/null 2>&1; then
+  fail "T10: recover must refuse when the history journal cannot be written"
+fi
+"$LEASE" "${W[@]}" show "${R[@]}" | jq -e '.owner == "traceless"' >/dev/null \
+  || fail "T10: the expired lease must be left untouched by the refused recover"
+
+reset_leases
 "$LEASE" "${W[@]}" acquire "${R[@]}" --owner racer --ttl-secs 60 >/dev/null
 TOKR=$(holder_token)
 for i in 1 2 3; do
@@ -134,4 +145,4 @@ for i in 1 2 3; do
   fi
 done
 
-printf 'workflow-lease-smoke: PASS (T1-T9, R1-R2)\n'
+printf 'workflow-lease-smoke: PASS (T1-T10, R1-R2)\n'
