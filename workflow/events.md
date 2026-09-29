@@ -45,6 +45,7 @@ Never edit earlier lines. Active-run selection (`activate`): `workflow/events-va
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
 | `handoff` | `{branch, sha, done, pending, next_action, do_not_redo}` |
 | `human_checkpoint` | `{category, decision, target}` |
+| `correction` | `{harness ∈ pi/claude, prompt_sha256, prompt_chars}` — user course-correction while the session's run is active (a later interactive prompt, steering included); never stores prompt text |
 | `archive_written` | `{path}` |
 | `plan_removed` | `{path:"PLAN.md"}` |
 | `completed` | `{summary}` |

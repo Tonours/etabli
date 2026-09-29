@@ -70,6 +70,9 @@ def strict_detail($event):
     (.pending | string_array) and (.next_action | nonempty_string) and (.do_not_redo | string_array)
   elif $event == "human_checkpoint" then
     (.category | nonempty_string) and (.decision | nonempty_string) and (.target | nonempty_string)
+  elif $event == "correction" then
+    (.harness | IN("pi", "claude")) and (.prompt_sha256 | nonempty_string) and
+    (.prompt_chars | positive_integer)
   elif $event == "archive_written" then
     (.path | nonempty_string)
   elif $event == "plan_removed" then

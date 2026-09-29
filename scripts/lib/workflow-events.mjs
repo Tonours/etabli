@@ -21,6 +21,7 @@ export const WORKFLOW_EVENTS = [
 	"no_progress",
 	"handoff",
 	"human_checkpoint",
+	"correction",
 	"archive_written",
 	"plan_removed",
 	"completed",

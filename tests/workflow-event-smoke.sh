@@ -31,6 +31,24 @@ if grep -Fq 'local expression=' "$ROOT_DIR/scripts/workflow-event"; then
   exit 1
 fi
 
+correction_probe="$(mktemp -d)/.workflow"
+"$ROOT_DIR/scripts/workflow-event" --dir "$correction_probe" append corr-run correction '{"harness":"pi","prompt_sha256":"abc123","prompt_chars":12}' >/dev/null || {
+  printf 'correction append with a valid detail must succeed\n' >&2
+  exit 1
+}
+if "$ROOT_DIR/scripts/workflow-event" --dir "$correction_probe" append corr-run correction '{"harness":"gpt","prompt_sha256":"abc123","prompt_chars":12}' 2>"$correction_probe.err"; then
+  printf 'correction append with an unknown harness must be refused\n' >&2
+  exit 1
+fi
+grep -Fq 'detail' "$correction_probe.err" || {
+  printf 'correction refusal must mention the detail schema\n' >&2
+  exit 1
+}
+"$ROOT_DIR/scripts/workflow-event" --dir "$correction_probe" validate corr-run >/dev/null || {
+  printf 'correction ledger must validate\n' >&2
+  exit 1
+}
+
 cleanup() {
   rm -rf "$TMP_DIR"
 }

@@ -3,9 +3,10 @@
  * Only when an active non-terminal .workflow ledger exists.
  * Does not invent slugs when no ledger is present.
  */
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { isNonEmptyString } from "./predicates.mjs";
-import { basename, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { evaluateNoProgressStop } from "./no-progress-guard.mjs";
 import {
 	getActiveRunPointer,
@@ -176,7 +177,6 @@ export function recordBashValidationFailure(cwd, input) {
  * @param {unknown} content
  * @param {boolean} [isError]
  */
-/** Flatten a tool_result content payload to plain text. */
 function toolResultText(content) {
 	if (typeof content === "string") return content;
 	if (Array.isArray(content)) {
@@ -275,4 +275,103 @@ export function isLikelyValidationCommand(command) {
 	if (segments.length === 2 && !/^cd\s+[^;&|]+$/i.test(segments[0].trim()))
 		return false;
 	return isValidationSegment(segments.at(-1));
+}
+
+const CORRECTION_STATE_FILE = "correction-state.json";
+const CORRECTION_MAX_SESSIONS = 50;
+
+function correctionStatePath(cwd) {
+	return join(cwd || process.cwd(), ".workflow", CORRECTION_STATE_FILE);
+}
+
+function readCorrectionState(path) {
+	try {
+		const parsed = JSON.parse(readFileSync(path, "utf8"));
+		if (
+			parsed &&
+			typeof parsed === "object" &&
+			parsed.sessions &&
+			typeof parsed.sessions === "object"
+		) {
+			return parsed;
+		}
+	} catch {
+		return null;
+	}
+	return null;
+}
+
+function writeCorrectionState(path, sessions) {
+	const entries = Object.entries(sessions).sort((a, b) =>
+		String(b[1]?.updated_at || "").localeCompare(String(a[1]?.updated_at || "")),
+	);
+	const kept = {};
+	for (const [key, value] of entries.slice(0, CORRECTION_MAX_SESSIONS)) {
+		kept[key] = value;
+	}
+	try {
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(
+			path,
+			`${JSON.stringify({ schema_version: 1, sessions: kept }, null, "\t")}\n`,
+			"utf8",
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Register an interactive user prompt for a session and append a `correction`
+ * event when it is a later prompt of the session and the primary active
+ * ledger is non-terminal. The prompt count is keyed by session, independent
+ * of run changes; the ledger write is delegated to `writeEvent` (Pi hot path
+ * or Claude locked CLI append) and the count persists whatever the outcome.
+ * Never stores or hashes-anything-else of the prompt text.
+ *
+ * @param {string} cwd
+ * @param {string} sessionId
+ * @param {"pi" | "claude"} harness
+ * @param {string} prompt
+ * @param {(ledgerPath: string, run: string, detail: Record<string, unknown>) => boolean} writeEvent
+ * @returns {{ emitted: boolean, reason: string, count?: number, ledger?: string, run?: string }}
+ */
+export function registerUserPrompt(cwd, sessionId, harness, prompt, writeEvent) {
+	const sid = isNonEmptyString(sessionId) ? String(sessionId) : "";
+	if (!sid) return { emitted: false, reason: "no_session_id" };
+
+	const text = String(prompt ?? "");
+	if ([...text].length < 1) return { emitted: false, reason: "empty_prompt" };
+	const statePath = correctionStatePath(cwd);
+	const state = readCorrectionState(statePath) || { schema_version: 1, sessions: {} };
+	const entry = state.sessions[sid] || { count: 0, updated_at: "" };
+	const count = Number(entry.count || 0) + 1;
+	state.sessions[sid] = { count, updated_at: isoTs() };
+
+	if (count <= 1) {
+		writeCorrectionState(statePath, state.sessions);
+		return { emitted: false, reason: "session_start", count };
+	}
+
+	const selection = selectActiveLedger(cwd);
+	if (selection.reason || !selection.ledger) {
+		writeCorrectionState(statePath, state.sessions);
+		return { emitted: false, reason: selection.reason || "no_active_ledger", count };
+	}
+	const primary = selection.ledger;
+	const detail = {
+		harness: harness === "claude" ? "claude" : "pi",
+		prompt_sha256: createHash("sha256").update(text, "utf8").digest("hex"),
+		prompt_chars: [...text].length,
+	};
+	let ok = false;
+	try {
+		ok = writeEvent(primary.path, primary.run, detail) === true;
+	} catch {
+		ok = false;
+	}
+	writeCorrectionState(statePath, state.sessions);
+	if (!ok) return { emitted: false, reason: "append_failed", count, ledger: primary.path };
+	return { emitted: true, reason: "appended", count, ledger: primary.path, run: primary.run };
 }
