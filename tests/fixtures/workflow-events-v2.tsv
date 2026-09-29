@@ -14,4 +14,4 @@ human_checkpoint	decision	{"category":"external_write","decision":"not authorize
 archive_written	path	{"path":"docs/plan/fixture.md"}
 plan_removed	path	{"path":"PLAN.md"}
 completed	summary	{"summary":"done"}
-blocked	needed_input	{"reason":"external approval required","needed_input":"approve GitHub mutation"}
+blocked	needed_input	{"reason":"consent_needed","needed_input":"approve GitHub mutation"}

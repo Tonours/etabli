@@ -9,6 +9,11 @@ def finding_array: type == "array" and all(.[]; type == "object" and ((keys - ["
 def appended_adversary_pass:
   (.model_provenance | provenance_complete) and (.accepted_findings | finding_array) and
   (if .mode == "plan" then (.verdict | IN("READY", "CHALLENGED")) else (.verdict | IN("GO", "GO WITH NOTES", "BLOCK")) end);
+def blocked_reason_enum:
+  ["missing_input", "consent_needed", "ci_wait", "usage_limit", "review_requested",
+   "plan_gate", "tool_failure", "environment_failure", "ledger_recovery", "unknown"];
+def appended_blocked_reason:
+  .reason | IN(blocked_reason_enum[]);
 def nonnegative_number: type == "number" and . >= 0;
 def nonnegative_integer: nonnegative_number and floor == .;
 def positive_integer: nonnegative_integer and . > 0;
@@ -70,6 +75,7 @@ def strict_detail($event):
     (.pending | string_array) and (.next_action | nonempty_string) and (.do_not_redo | string_array)
   elif $event == "human_checkpoint" then
     (.category | nonempty_string) and (.decision | nonempty_string) and (.target | nonempty_string)
+    and ((has("consent_class") | not) or (.consent_class | IN("permission_request", "input_request")))
   elif $event == "correction" then
     (.harness | IN("pi", "claude")) and (.prompt_sha256 | nonempty_string) and
     (.prompt_chars | positive_integer)
@@ -284,5 +290,7 @@ if ($ARGS.named.mode // "single") == "batch" then
   batch_ledger($ARGS.named.slug // ""; $ARGS.named.profile // "structural"; $ARGS.named.allowed // [])
 else
   (if ($ARGS.named.strict // false) then strict_detail($ARGS.named.event // "") else legacy_detail($ARGS.named.event // "") end)
-  and (if ($ARGS.named.append // false) and ($ARGS.named.event // "") == "adversary_completed" then appended_adversary_pass else true end)
+  and (if ($ARGS.named.append // false) and ($ARGS.named.event // "") == "adversary_completed" then appended_adversary_pass
+       elif ($ARGS.named.append // false) and ($ARGS.named.event // "") == "blocked" then appended_blocked_reason
+       else true end)
 end

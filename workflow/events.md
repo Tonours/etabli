@@ -44,12 +44,12 @@ Never edit earlier lines. Active-run selection (`activate`): `workflow/events-va
 | `retry_classified` | `{failure_class, next_action}` |
 | `no_progress` | `{check_or_hypothesis, command, attempts, head_sha, eliminated}` |
 | `handoff` | `{branch, sha, done, pending, next_action, do_not_redo}` |
-| `human_checkpoint` | `{category, decision, target}` |
+| `human_checkpoint` | `{category, decision, target, consent_class?}` — v3: `consent_class` ∈ `permission_request`/`input_request` (permission prompt vs waiting-for-input) |
 | `correction` | `{harness ∈ pi/claude, prompt_sha256, prompt_chars}` — user course-correction while the session's run is active (a later interactive prompt, steering included); never stores prompt text |
 | `archive_written` | `{path}` |
 | `plan_removed` | `{path:"PLAN.md"}` |
 | `completed` | `{summary}` |
-| `blocked` | `{reason, needed_input}` |
+| `blocked` | `{reason, needed_input}` — v3: on append, `reason` must be one of `missing_input, consent_needed, ci_wait, usage_limit, review_requested, plan_gate, tool_failure, environment_failure, ledger_recovery, unknown`; free-text reasons stay valid in history |
 
 Retired types (self-improvement, harness, project slices, program, runtime
 receipts and attachments, multi-execution, outcome measurement and metrics,

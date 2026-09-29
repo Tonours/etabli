@@ -767,7 +767,11 @@ case "$command" in
       exit 2
     fi
     if ! detail_valid "$event" "$detail" 2 true; then
-      printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2
+      if [ "$event" = "blocked" ]; then
+        printf 'invalid json detail for blocked: expected {reason, needed_input}; on append, reason must be one of the blocked.reason enum (missing_input, consent_needed, ci_wait, usage_limit, review_requested, plan_gate, tool_failure, environment_failure, ledger_recovery, unknown); free-text reasons stay valid in history only\n' >&2
+      else
+        printf 'invalid json detail for event %s: expected an object with required fields\n' "$event" >&2
+      fi
       exit 2
     fi
 
@@ -855,7 +859,7 @@ case "$command" in
       --arg run "$slug" \
       --arg reason "$reason_code" \
       --arg quarantine "${quarantine#$WORKFLOW_DIR/}" \
-      '{schema_version:2,ts:$ts,event:"blocked",run:$run,detail:{reason:("ledger recovered: " + $reason),needed_input:("inspect preserved " + $quarantine + " before starting a new run")}}' > "$file"
+      '{schema_version:2,ts:$ts,event:"blocked",run:$run,detail:{reason:"ledger_recovery",needed_input:("ledger recovered: " + $reason + "; inspect preserved " + $quarantine + " before starting a new run")}}' > "$file"
     pointer="$WORKFLOW_DIR/$ACTIVE_RUN_POINTER"
     if [ -f "$pointer" ] && jq -e --arg run "$slug" '.schema_version == 1 and .run == $run' "$pointer" >/dev/null 2>&1; then
       rm -f "$pointer"
