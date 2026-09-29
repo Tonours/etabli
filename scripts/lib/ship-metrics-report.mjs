@@ -76,13 +76,20 @@ function readLedgers(dir, since, until) {
 	let corrections = 0;
 	let completed = 0;
 	let ledgers = 0;
+	let unreadable = 0;
 	let anyEvents = false;
 	for (const entry of entries) {
 		if (!entry.isDirectory() || entry.name === "ship-metrics" || entry.name === "guard-journal" || entry.name === "leases" || entry.name === "correction-state") continue;
 		const ledgerPath = join(dir, entry.name, "events.jsonl");
 		if (!existsSync(ledgerPath)) continue;
+		let events;
+		try {
+			events = parseJsonl(readFileSync(ledgerPath, "utf8"));
+		} catch {
+			unreadable += 1;
+			continue;
+		}
 		ledgers += 1;
-		const events = parseJsonl(readFileSync(ledgerPath, "utf8"));
 		for (const event of events) {
 			if (!inWindow(event.ts, since, until)) continue;
 			anyEvents = true;
@@ -102,10 +109,12 @@ function readLedgers(dir, since, until) {
 		}
 	}
 	if (ledgers === 0) {
-		return { state: "missing", ledgers: 0, blocked: null, corrections: null, checkpoints: null, completed: null };
+		return { state: unreadable > 0 ? "unreadable" : "missing", ledgers: 0, blocked: null, corrections: null, checkpoints: null, completed: null };
 	}
+	let state = anyEvents ? "available" : "zero-observed";
+	if (unreadable > 0) state = "partial";
 	return {
-		state: anyEvents ? "available" : "zero-observed",
+		state,
 		ledgers,
 		blocked,
 		corrections,
@@ -126,8 +135,16 @@ function readGuardJournal(dir, since, until) {
 	const byGuard = {};
 	const byPattern = {};
 	let lines = 0;
+	let unreadableJournal = 0;
 	for (const file of files) {
-		for (const entry of parseJsonl(readFileSync(join(journalDir, file), "utf8"))) {
+		let entriesInFile;
+		try {
+			entriesInFile = parseJsonl(readFileSync(join(journalDir, file), "utf8"));
+		} catch {
+			unreadableJournal += 1;
+			continue;
+		}
+		for (const entry of entriesInFile) {
 			if (!inWindow(entry.ts, since, until)) continue;
 			lines += 1;
 			const guard = typeof entry.guard === "string" ? entry.guard : "unknown";
@@ -136,7 +153,9 @@ function readGuardJournal(dir, since, until) {
 			byPattern[`${guard}/${pattern}`] = (byPattern[`${guard}/${pattern}`] || 0) + 1;
 		}
 	}
-	return { state: lines > 0 ? "available" : "zero-observed", byGuard, byPattern };
+	let journalState = lines > 0 ? "available" : "zero-observed";
+	if (unreadableJournal > 0) journalState = lines > 0 ? "partial" : "unreadable";
+	return { state: journalState, byGuard, byPattern };
 }
 
 function readHerdrHistory(path, since, until) {
@@ -182,7 +201,8 @@ function readHerdrHistory(path, since, until) {
 export function buildReport(input) {
 	const dir = String(input.dir || "");
 	const since = String(input.since || "");
-	const until = String(input.until || "") || isoNow();
+	let until = String(input.until || "") || isoNow();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(until)) until = `${until}T23:59:59Z`;
 	const registry = readRegistry(dir, since, until);
 	const ledgers = readLedgers(dir, since, until);
 	const journal = readGuardJournal(dir, since, until);

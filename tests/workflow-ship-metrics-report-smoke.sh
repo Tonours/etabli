@@ -40,10 +40,11 @@ printf '%s\n' \
   '{"ts":"2026-09-29T10:02:00Z","host":"h","pane_id":"p1","agent":"claude","status":"idle","state_change_seq":5}' \
   >"$HERDR"
 
-out="$("$METRICS" --dir "$DIR" report --since 2026-09-29 --until 2026-09-30 --herdr-history "$HERDR" --json)"
+out="$("$METRICS" --dir "$DIR" report --since 2026-09-29 --until 2026-09-29 --herdr-history "$HERDR" --json)"
 printf '%s' "$out" | jqe '.sources.event_ledgers == "available"' || fail "ledgers must be available"
+printf '%s' "$out" | jqe '.primaries.corrections == 1' || fail "date-only --until must include the whole day"
 printf '%s' "$out" | jqe '.sources.accepted_merge_receipts == "missing"' || fail "accepted merges must stay missing"
-printf '%s' "$out" | jqe '.primaries.corrections == 1' || fail "exactly 1 correction expected"
+printf '%s' "$out" | jqe '.primaries.corrections == 1' || fail "date-only --until must include the whole day"
 printf '%s' "$out" | jqe '.primaries.blocked_by_reason == {"ci_wait": 1}' || fail "out-of-window blocked must be excluded"
 printf '%s' "$out" | jqe '.primaries.checkpoints_by_consent_class == {"permission_request": 1}' || fail "consent classes expected"
 printf '%s' "$out" | jqe '.primaries.guards_by_guard == {"no-comments": 1, "check-freeze": 1}' || fail "guard counts expected"
@@ -77,5 +78,10 @@ printf '%s' "$out" | jqe '.sources.herdr_history == "not-provided"' || fail "abs
 if "$METRICS" --dir "$DIR" report --until 2026-09-30 --json >/dev/null 2>&1; then
   fail "report without --since must fail"
 fi
+
+mkdir -p "$DIR/run-crash/events.jsonl"
+out="$("$METRICS" --dir "$DIR" report --since 2026-09-29 --json)"
+printf '%s' "$out" | jqe '.sources.event_ledgers == "partial"' || fail "an unreadable ledger must degrade the source state, not crash"
+rm -rf "$DIR/run-crash"
 
 printf 'ship-metrics-report-smoke: PASS\n'
