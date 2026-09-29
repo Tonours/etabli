@@ -1017,3 +1017,57 @@ tags:
 		});
 	});
 });
+
+describe("correction emission on interactive input", () => {
+	function readLedger(cwd: string): string {
+		return readFileSync(join(cwd, ".workflow", "corr", "events.jsonl"), "utf8");
+	}
+
+	test("extension input is ignored; interactive prompts emit one correction per later prompt", () => {
+		const cwd = mkdtempSync(join(tmpdir(), "pi-correction-"));
+		const prevSession = process.env.PI_SESSION_ID;
+		process.env.PI_SESSION_ID = "bun-correction-session";
+		try {
+			mkdirSync(join(cwd, ".workflow", "corr"), { recursive: true });
+			writeFileSync(
+				join(cwd, ".workflow", "corr", "events.jsonl"),
+				'{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"plan_created","run":"corr","detail":{"path":"PLAN.md","status":"DRAFT"}}\n',
+			);
+			writeFileSync(join(cwd, ".workflow", "active-run.json"), '{"schema_version":1,"run":"corr"}');
+
+			const runtime = setupExtension();
+			runtime.emit("input", { type: "input", text: "extension injected", source: "extension" });
+			runtime.emit("input", { type: "input", text: "initial prompt", source: "interactive" }, { cwd });
+			expect(readLedger(cwd)).not.toContain('"event":"correction"');
+
+			runtime.emit(
+				"input",
+				{ type: "input", text: "non fais plutot ceci", source: "interactive", streamingBehavior: "steer" },
+				{ cwd },
+			);
+			runtime.emit(
+				"input",
+				{ type: "input", text: "rpc driven", source: "rpc" },
+				{ cwd },
+			);
+			const lines = readLedger(cwd)
+				.split("\n")
+				.filter((l) => l.trim() !== "")
+				.map((l) => JSON.parse(l) as Record<string, unknown>);
+			const corrections = lines.filter((l) => l.event === "correction");
+			expect(corrections).toHaveLength(1);
+			expect(corrections[0]).toMatchObject({ run: "corr", detail: { harness: "pi" } });
+			const detail = corrections[0].detail as Record<string, unknown>;
+			expect(String(detail.prompt_sha256)).toMatch(/^[0-9a-f]{64}$/);
+			expect(readLedger(cwd)).not.toContain("non fais plutot ceci");
+			expect(readLedger(cwd)).not.toContain("extension injected");
+		} finally {
+			if (prevSession === undefined) {
+				delete process.env.PI_SESSION_ID;
+			} else {
+				process.env.PI_SESSION_ID = prevSession;
+			}
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+});

@@ -10,6 +10,7 @@ import {
 	isBashToolName,
 	pickPrimaryActiveLedger,
 	recordBashValidationFailure,
+	registerUserPrompt,
 } from "./lib/ledger-auto-emit.ts";
 import { explicitCwd, routeDecidedExists } from "./lib/route-contract.ts";
 
@@ -44,6 +45,29 @@ export default function (pi: ExtensionAPI) {
 	// before the run's ledger exists on first turn; agent_end retries then, so
 	// single-prompt runs still record their route (dedup keeps it idempotent).
 	let pendingRoute: { cwd: string; decision: Record<string, unknown> } | null = null;
+
+	pi.on("input", (event, ctx) => {
+		if (event.source !== "interactive") return undefined;
+		try {
+			registerUserPrompt(
+				eventCwd(event, ctx),
+				process.env.PI_SESSION_ID || "pi-unknown-session",
+				"pi",
+				event.text,
+				(ledgerPath, run, detail) => {
+					try {
+					appendLedgerEvent(ledgerPath, "correction", detail, run);
+						return true;
+				} catch {
+						return false;
+				}
+				},
+			);
+		} catch {
+				return undefined;
+		}
+		return undefined;
+	});
 
 	pi.on("before_agent_start", (event, ctx) => {
 		const trimmedPrompt = event.prompt.trim();

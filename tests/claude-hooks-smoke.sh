@@ -560,6 +560,10 @@ jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hook
 	printf 'settings.workflow-hooks.json must wire no-comments-guard on Write|Edit|MultiEdit\n' >&2
 	exit 1
 }
+jq -e '[.hooks.UserPromptSubmit[] | .hooks[] | select(.command | contains("correction-emit.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
+	printf 'settings.workflow-hooks.json must wire correction-emit on UserPromptSubmit\n' >&2
+	exit 1
+}
 no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
 denied=$(jq -nc '{tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
 [ "$(printf '%s' "$denied" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ] || {
@@ -678,5 +682,26 @@ for prefixed in 'command -- rtk hook claude' "sh -lc 'rtk hook claude'" 'env -i 
 	fi
 	assert_contains "$(cat "$TMP_DIR/prefixed-check.txt")" 'calls rtk outside rtk-guard'
 done
+
+correction_proj="$TMP_DIR/correction-proj"
+mkdir -p "$correction_proj/scripts" "$correction_proj/.workflow/corr-run"
+cp "$ROOT_DIR/scripts/workflow-event" "$correction_proj/scripts/"
+cp -R "$ROOT_DIR/scripts/lib" "$correction_proj/scripts/"
+printf '%s\n' '{"schema_version":2,"ts":"2026-09-29T00:00:00Z","event":"plan_created","run":"corr-run","detail":{"path":"PLAN.md","status":"READY"}}' >"$correction_proj/.workflow/corr-run/events.jsonl"
+jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",prompt:"initial instruction"}' | node "$ROOT_DIR/claude/hooks/correction-emit.mjs"
+jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",prompt:"non fais plutot ceci"}' | node "$ROOT_DIR/claude/hooks/correction-emit.mjs"
+correction_ledger="$correction_proj/.workflow/corr-run/events.jsonl"
+grep -Fq '"event":"correction"' "$correction_ledger" || {
+	printf 'correction-emit must append a correction on the second prompt via the locked CLI\n' >&2
+	exit 1
+}
+if grep -Fq 'fais plutot ceci' "$correction_ledger"; then
+	printf 'correction ledger must never contain prompt text\n' >&2
+	exit 1
+fi
+"$correction_proj/scripts/workflow-event" --dir "$correction_proj/.workflow" validate corr-run >/dev/null || {
+	printf 'fixture ledger with hook-appended correction must validate\n' >&2
+	exit 1
+}
 
 printf 'claude hooks smoke test: ok\n'
