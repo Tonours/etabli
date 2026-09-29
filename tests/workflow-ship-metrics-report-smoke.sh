@@ -86,4 +86,17 @@ out="$("$METRICS" --dir "$DIR" report --since 2026-09-29 --json)"
 printf '%s' "$out" | jqe '.sources.event_ledgers == "partial"' || fail "an unreadable ledger must degrade the source state, not crash"
 rm -rf "$DIR/run-crash"
 
+printf '%s\n' '{truncated' >>"$DIR/run-x/events.jsonl"
+printf '%s\n' 'null' >"$DIR/ship-metrics/null-row.json"
+out="$("$METRICS" --dir "$DIR" report --since 2026-09-29 --json)"
+printf '%s' "$out" | jqe '.sources.event_ledgers == "partial"' || fail "a corrupted ledger line must read as partial, not a false zero"
+printf '%s' "$out" | jqe '.sources.ship_metrics_registry == "partial"' || fail "a null registry row must degrade the registry state, not crash"
+rm -f "$DIR/ship-metrics/null-row.json"
+
+virgin="$(mktemp -d)"
+out="$("$METRICS" --dir "$virgin/.workflow" report --since 2026-09-29 --json)"
+printf '%s' "$out" | jqe '.sources.ship_metrics_registry == "missing"' || fail "a virgin dir must report the registry missing"
+[ ! -e "$virgin/.workflow/ship-metrics" ] || fail "report must not create the registry directory it reports missing"
+rm -rf "$virgin"
+
 printf 'ship-metrics-report-smoke: PASS\n'

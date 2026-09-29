@@ -14,15 +14,22 @@ function inWindow(ts, since, until) {
 
 function parseJsonl(text) {
 	const lines = [];
+	let skipped = 0;
 	for (const line of String(text ?? "").split("\n")) {
 		const trimmed = line.trim();
 		if (trimmed === "") continue;
 		try {
-			lines.push(JSON.parse(trimmed));
+			const parsed = JSON.parse(trimmed);
+			if (parsed && typeof parsed === "object") {
+				lines.push(parsed);
+			} else {
+				skipped += 1;
+			}
 		} catch {
+			skipped += 1;
 		}
 	}
-	return lines;
+	return { lines, skipped };
 }
 
 function readRegistry(dir, since, until) {
@@ -41,7 +48,11 @@ function readRegistry(dir, since, until) {
 			const path = join(registryDir, file);
 			const mtime = statSync(path).mtime.toISOString().replace(/\.\d{3}Z$/, "Z");
 			const row = JSON.parse(readFileSync(path, "utf8"));
-			if (inWindow(mtime, since, until)) rows.push(row);
+			if (!row || typeof row !== "object") {
+				skipped += 1;
+			} else if (inWindow(mtime, since, until)) {
+				rows.push(row);
+			}
 		} catch {
 			skipped += 1;
 		}
@@ -78,20 +89,22 @@ function readLedgers(dir, since, until) {
 	let completed = 0;
 	let ledgers = 0;
 	let unreadable = 0;
+	let invalidLines = 0;
 	let anyEvents = false;
 	for (const entry of entries) {
 		if (!entry.isDirectory() || entry.name === "ship-metrics" || entry.name === "guard-journal" || entry.name === "leases" || entry.name === "correction-state") continue;
 		const ledgerPath = join(dir, entry.name, "events.jsonl");
 		if (!existsSync(ledgerPath)) continue;
-		let events;
+		let parsed;
 		try {
-			events = parseJsonl(readFileSync(ledgerPath, "utf8"));
+			parsed = parseJsonl(readFileSync(ledgerPath, "utf8"));
 		} catch {
 			unreadable += 1;
 			continue;
 		}
 		ledgers += 1;
-		for (const event of events) {
+		invalidLines += parsed.skipped;
+		for (const event of parsed.lines) {
 			if (!inWindow(event.ts, since, until)) continue;
 			anyEvents = true;
 			if (event.event === "correction") corrections += 1;
@@ -117,7 +130,7 @@ function readLedgers(dir, since, until) {
 		return { state: unreadable > 0 ? "unreadable" : "missing", ledgers: 0, blocked: null, corrections: null, checkpoints: null, completed: null, shipByCiState: null };
 	}
 	let state = anyEvents ? "available" : "zero-observed";
-	if (unreadable > 0) state = "partial";
+	if (unreadable > 0 || invalidLines > 0) state = "partial";
 	return {
 		state,
 		ledgers,
@@ -142,15 +155,17 @@ function readGuardJournal(dir, since, until) {
 	const byPattern = {};
 	let lines = 0;
 	let unreadableJournal = 0;
+	let skippedJournalLines = 0;
 	for (const file of files) {
-		let entriesInFile;
+		let parsed;
 		try {
-			entriesInFile = parseJsonl(readFileSync(join(journalDir, file), "utf8"));
+			parsed = parseJsonl(readFileSync(join(journalDir, file), "utf8"));
 		} catch {
 			unreadableJournal += 1;
 			continue;
 		}
-		for (const entry of entriesInFile) {
+		skippedJournalLines += parsed.skipped;
+		for (const entry of parsed.lines) {
 			if (!inWindow(entry.ts, since, until)) continue;
 			lines += 1;
 			const guard = typeof entry.guard === "string" ? entry.guard : "unknown";
@@ -160,7 +175,9 @@ function readGuardJournal(dir, since, until) {
 		}
 	}
 	let journalState = lines > 0 ? "available" : "zero-observed";
-	if (unreadableJournal > 0) journalState = lines > 0 ? "partial" : "unreadable";
+	if (unreadableJournal > 0 || skippedJournalLines > 0) {
+		journalState = lines > 0 || skippedJournalLines > 0 ? "partial" : "unreadable";
+	}
 	return { state: journalState, byGuard, byPattern };
 }
 
@@ -172,13 +189,19 @@ function readHerdrHistory(path, since, until) {
 	} catch {
 		return { state: "unreadable" };
 	}
-	const transitions = parseJsonl(text).filter(
+	const parsedHistory = parseJsonl(text);
+	const transitions = parsedHistory.lines.filter(
 		(entry) =>
 			typeof entry.pane_id === "string" &&
 			typeof entry.state_change_seq === "number" &&
 			inWindow(entry.ts, since, until),
 	);
-	if (transitions.length === 0) return { state: "zero-observed", panes: 0, holes: 0, known_seconds: 0 };
+	if (transitions.length === 0 && parsedHistory.skipped === 0) {
+		return { state: "zero-observed", panes: 0, holes: 0, known_seconds: 0 };
+	}
+	if (transitions.length === 0) {
+		return { state: "unreadable" };
+	}
 	const byPane = new Map();
 	for (const entry of transitions) {
 		if (!byPane.has(entry.pane_id)) byPane.set(entry.pane_id, []);

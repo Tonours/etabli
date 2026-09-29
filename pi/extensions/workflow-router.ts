@@ -1,4 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import {
 	WORKFLOW_ROUTER_EXTENSION_VERSION,
 } from "./lib/workflow-router-runtime.ts";
@@ -48,23 +51,31 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("input", (event, ctx) => {
 		if (event.source !== "interactive") return undefined;
+		let sessionId: string | null = null;
 		try {
-			registerUserPrompt(
-				eventCwd(event, ctx),
-				process.env.PI_SESSION_ID || "pi-unknown-session",
-				"pi",
-				event.text,
-				(ledgerPath, run, detail) => {
-					try {
-					appendLedgerEvent(ledgerPath, "correction", detail, run);
-						return true;
-				} catch {
-						return false;
-				}
-				},
-			);
+			sessionId =
+				ctx?.sessionManager?.getSessionId?.() ||
+				process.env.PI_SESSION_ID ||
+				null;
 		} catch {
-				return undefined;
+			sessionId = process.env.PI_SESSION_ID || null;
+		}
+		if (!sessionId) return undefined;
+		const cwd = eventCwd(event, ctx);
+		try {
+			registerUserPrompt(cwd, sessionId, "pi", event.text, (ledgerPath, run, detail) => {
+				const eventCli = join(cwd, "scripts", "workflow-event");
+				if (!existsSync(eventCli)) return false;
+				const dir = dirname(dirname(ledgerPath));
+				const result = spawnSync(
+					eventCli,
+					["--dir", dir, "append", run, "correction", JSON.stringify(detail)],
+					{ cwd, encoding: "utf8", timeout: 4000 },
+				);
+				return result.status === 0;
+			});
+		} catch {
+			return undefined;
 		}
 		return undefined;
 	});
