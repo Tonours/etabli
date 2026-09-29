@@ -113,7 +113,7 @@
         "workflow/spec.md",
         "workflow/contract-details.md"
       ],
-      "ceiling_chars": 29875
+      "ceiling_chars": 30120
     },
     "ship": {
       "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",

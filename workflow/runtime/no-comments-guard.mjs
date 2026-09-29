@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { recordGuardDenial } from "./guard-journal.mjs";
 
 function normalizeToolName(toolName) {
 	const raw = String(toolName || "");
@@ -279,6 +280,7 @@ export function noCommentsGuardDecision(event) {
 			family,
 		);
 		if (added.length === 0) return null;
+		recordGuardDenial({ cwd, guard: "no-comments", pattern: "code-comment-added", target: filePath, tool: toolName });
 		return deny(denyReason(filePath, added));
 	}
 
@@ -287,5 +289,6 @@ export function noCommentsGuardDecision(event) {
 		added.push(...addedCommentLines(pair.oldStr, pair.newStr, family));
 	}
 	if (added.length === 0) return null;
+	recordGuardDenial({ cwd, guard: "no-comments", pattern: "code-comment-added", target: filePath, tool: toolName });
 	return deny(denyReason(filePath, added));
 }

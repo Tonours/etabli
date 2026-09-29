@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import { recordGuardDenial } from "../../workflow/runtime/guard-journal.mjs";
 
 const CODE_EXT =
   /\.(m?[jt]sx?|c[jt]s|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|rb|py|sh|bash|zsh|scss|sass|less|vue|svelte|astro)$/i;
@@ -105,6 +106,15 @@ function main() {
 
   const hit = findComment(addedLines(input, tool), filePath);
   if (!hit) process.exit(0);
+
+  recordGuardDenial({
+    cwd: payload.cwd,
+    harness: "claude",
+    guard: "no-comments",
+    pattern: "code-comment-added",
+    target: filePath,
+    tool,
+  });
 
   const out = {
     hookSpecificOutput: {

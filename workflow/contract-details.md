@@ -185,6 +185,9 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Investigation/evidence contract: `workflow/skills/investigation.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
+- Guard journal: `workflow/runtime/guard-journal.mjs` — wired guard denials append
+  `{ts, host, harness, guard, pattern, target, tool}` lines to `.workflow/guard-journal/`
+  (best-effort, never blocks the deny) <!-- etabli-only -->
 - Orchestration contract: `workflow/skills/orchestration.md`
 - Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval` <!-- etabli-only -->
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status` <!-- etabli-only -->
