@@ -59,7 +59,8 @@ iso_to_epoch() {
 
 canonical() {
   local path="$1" resolved
-  resolved="$(mkdir -p "$path" 2>/dev/null && cd -P "$path" 2>/dev/null && pwd -P)" \
+  [ -d "$path" ] || die "not a directory (lease scopes must exist): $path"
+  resolved="$(cd -P "$path" 2>/dev/null && pwd -P)" \
     || die "cannot canonicalize path: $path"
   [ -n "$resolved" ] || die "cannot canonicalize path: $path"
   printf '%s' "$resolved"
@@ -210,12 +211,15 @@ locked_release() {
 }
 
 locked_recover() {
-  local key="$1" identity="$2" reason="$3" backend="$4" rc=0
+  local key="$1" identity="$2" reason="$3" owner="$4" backend="$5" rc=0
+  if [ -n "$owner" ]; then
+    owner_name_ok "$owner" || die "invalid owner name: $owner"
+  fi
   read_lease "$key" "$identity" || rc=$?
   [ "$rc" -eq 0 ] || { [ "$rc" -eq 2 ] && printf 'no lease for this scope\n' >&2; return 1; }
   lease_expired || { refuse_foreign_or_valid; return 1; }
-  log_history "$key" "recover" "$reason" "$LEASE_OWNER" "${OPT_OWNER:-$HOSTNAME}"
-  write_lease "$key" "$identity" "${OPT_OWNER:-$HOSTNAME}" "$DEFAULT_TTL_SECS" "$backend"
+  log_history "$key" "recover" "$reason" "$LEASE_OWNER" "${owner:-$HOSTNAME}"
+  write_lease "$key" "$identity" "${owner:-$HOSTNAME}" "$DEFAULT_TTL_SECS" "$backend"
 }
 
 # ---- lock plumbing (same family as workflow-event / workflow-ship-metrics) --
@@ -331,7 +335,7 @@ EOF
     read -r key identity <<EOF
 $(resolve_scope)
 EOF
-    run_locked "$key" _locked-recover "$identity" "$reason"
+    run_locked "$key" _locked-recover "$identity" "$reason" "${OPT_OWNER:-}"
     ;;
     show)
     read -r key identity <<EOF
@@ -368,8 +372,8 @@ EOF
     locked_release "$1" "$2" "$3"
     ;;
   _locked-recover)
-    [ $# -eq 3 ] || usage
-    locked_recover "$1" "$2" "$3" "$(lock_backend)"
+    [ $# -eq 4 ] || usage
+    locked_recover "$1" "$2" "$3" "$4" "$(lock_backend)"
     ;;
   *) usage ;;
 esac
