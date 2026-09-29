@@ -6,3 +6,4 @@ usage-accounting	scripts/lib/usage-accounting.mjs	scripts/lib/claude-usage-rollu
 benchmark-command-dispatch	scripts/lib/claude-agent-benchmark-cli.mjs,scripts/lib/claude-token-budget-cli.mjs	scripts/claude-agent-benchmark,scripts/claude-token-budget
 ticket-template	workflow/ticket-template.md	none (deployed copies removed with the codex harness)
 no-comments-guard	workflow/runtime/no-comments-guard.mjs	pi/extensions/no-comments.ts
+guard-journal	workflow/runtime/guard-journal.mjs	none (consumed by workflow-router-core, no-comments guards, read-only-agent-guard)

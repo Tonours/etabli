@@ -3,6 +3,7 @@ import {
 	isReadOnlyBashCommand,
 	readHookInput,
 } from "./workflow-router-lib.mjs";
+import { recordGuardDenial } from "../../workflow/runtime/guard-journal.mjs";
 
 function commandForPolicy(command) {
 	return command.replace(/^rtk\s+/, "");
@@ -16,6 +17,14 @@ if (toolName === "Bash") {
 	const command = String(toolInput.command || toolInput.cmd || "");
 
 	if (command !== "" && !isReadOnlyBashCommand(commandForPolicy(command))) {
+		recordGuardDenial({
+			cwd: input.cwd,
+			harness: "claude",
+			guard: "read-only-agent-guard",
+			pattern: "non-read-only-bash",
+			target: "Bash",
+			tool: "Bash",
+		});
 		process.stdout.write(
 			`${JSON.stringify({
 				hookSpecificOutput: {

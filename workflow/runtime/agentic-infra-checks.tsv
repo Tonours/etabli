@@ -26,6 +26,7 @@ core	shell-docs	adapter-sync	tests/adapter-sync-smoke.sh
 core	shell-docs	rule-registry	tests/rule-registry-smoke.sh
 core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 core	shell-docs	workflow-lease-smoke	tests/workflow-lease-smoke.sh
+core	shell-docs	guard-journal-smoke	tests/guard-journal-smoke.sh
 full	shell-docs	pr-latest-head-status-smoke	tests/pr-latest-head-status-smoke.sh
 full	shell-docs	ledger-auto-emit-smoke	tests/ledger-auto-emit-smoke.sh
 full	shell-docs	ledger-selection-performance-smoke	tests/ledger-selection-performance-smoke.sh

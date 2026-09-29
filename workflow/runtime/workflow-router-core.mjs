@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { recordGuardDenial } from "./guard-journal.mjs";
 import {
 	evaluateCheckFreeze,
 	evaluateReadyPlan,
@@ -1262,6 +1263,7 @@ export function planCommitGuardDecision(event) {
 	) {
 		return deny(
 			"PLAN files are session artifacts and must not be staged or committed; archive to docs/plan/ instead. Run git yourself to bypass deliberately.",
+			{ cwd: event.cwd || process.cwd(), guard: "plan-commit-guard", pattern: "stage-commit-plan", target: "PLAN.md", tool: "Bash" },
 		);
 	}
 
@@ -1270,6 +1272,7 @@ export function planCommitGuardDecision(event) {
 		if (staged.length > 0) {
 			return deny(
 				`PLAN files are session artifacts and must not be committed (staged: ${staged.join(", ")}); unstage them or archive to docs/plan/ first.`,
+				{ cwd: event.cwd || process.cwd(), guard: "plan-commit-guard", pattern: "commit-staged-plan", target: staged.join(","), tool: "Bash" },
 			);
 		}
 	}
@@ -1313,6 +1316,7 @@ export function planReadyGuardDecision(event) {
 		}
 		return deny(
 			`PLAN.md is READY but incomplete (${readiness.missing.join(", ")}); complete the canonical READY contract before implementation mutations.`,
+			{ cwd, guard: "plan-ready-guard", pattern: "incomplete-ready-mutation", target: filePath || "Bash", tool: toolName },
 		);
 	}
 
@@ -1320,6 +1324,7 @@ export function planReadyGuardDecision(event) {
 		if (isPlanFile(filePath, cwd)) return null;
 		return deny(
 			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+			{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-write", target: filePath, tool: toolName },
 		);
 	}
 
@@ -1329,6 +1334,7 @@ export function planReadyGuardDecision(event) {
 		if (isMutatingBashCommand(command)) {
 			return deny(
 				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+				{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-bash-mutation", target: "Bash", tool: "Bash" },
 			);
 		}
 	}
@@ -1431,6 +1437,7 @@ export function planCheckFreezeGuardDecision(event) {
 	if (proposed == null) {
 		return deny(
 			"check-freeze: cannot reconstruct proposed PLAN.md content from this tool call; use a full Write of PLAN.md or demote to CHALLENGED with Decision Log rationale before weakening checks",
+			{ cwd, guard: "check-freeze", pattern: "freeze-reconstruct-failed", target: "PLAN.md", tool: toolName },
 		);
 	}
 
@@ -1440,7 +1447,13 @@ export function planCheckFreezeGuardDecision(event) {
 	});
 	if (result.ok) return null;
 
-	return deny(result.reason || "check-freeze violation on PLAN.md write");
+	return deny(result.reason || "check-freeze violation on PLAN.md write", {
+		cwd,
+		guard: "check-freeze",
+		pattern: "checks-weakened",
+		target: "PLAN.md",
+		tool: toolName,
+	});
 }
 
 /**
@@ -1462,9 +1475,10 @@ export function planCheckFreezeBashGuardDecision(event) {
 	// Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
 	if (!/\bPLAN\.md\b/i.test(command)) return null;
 
-	return deny(
-		"check-freeze: mutating shell commands that target PLAN.md are blocked while the plan is READY; edit PLAN.md via Write/Edit so Checks freeze can be evaluated, or demote to CHALLENGED with Decision Log rationale",
-	);
+return deny(
+	"check-freeze: mutating shell commands that target PLAN.md are blocked while the plan is READY; edit PLAN.md via Write/Edit so Checks freeze can be evaluated, or demote to CHALLENGED with Decision Log rationale",
+	{ cwd, guard: "check-freeze", pattern: "freeze-bash-bypass", target: "PLAN.md", tool: "Bash" },
+);
 }
 
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
@@ -1501,7 +1515,10 @@ function directEditDecision(reason) {
 	};
 }
 
-function deny(reason) {
+function deny(reason, journal) {
+	if (journal) {
+		recordGuardDenial(journal);
+	}
 	return {
 		hookSpecificOutput: {
 			hookEventName: "PreToolUse",
