@@ -116,6 +116,12 @@ if "$LEASE" "${W[@]}" recover "${R[@]}" "smoke-t10-unwritable-history" >/dev/nul
 fi
 "$LEASE" "${W[@]}" show "${R[@]}" | jq -e '.owner == "traceless"' >/dev/null \
   || fail "T10: the expired lease must be left untouched by the refused recover"
+rmdir "$DIR/leases/$lease_key.history.jsonl"
+if "$LEASE" "${W[@]}" acquire "${R[@]}" --owner ghost --ttl-secs 60 >/dev/null 2>&1; then
+  fail "T11: acquire takeover must refuse when the history journal cannot be written"
+fi
+"$LEASE" "${W[@]}" show "${R[@]}" | jq -e '.owner == "traceless"' >/dev/null \
+  || fail "T11: the expired lease must be left untouched by the refused takeover"
 
 reset_leases
 "$LEASE" "${W[@]}" acquire "${R[@]}" --owner racer --ttl-secs 60 >/dev/null
@@ -145,4 +151,4 @@ for i in 1 2 3; do
   fi
 done
 
-printf 'workflow-lease-smoke: PASS (T1-T10, R1-R2)\n'
+printf 'workflow-lease-smoke: PASS (T1-T11, R1-R2)\n'

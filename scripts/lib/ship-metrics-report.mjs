@@ -52,7 +52,7 @@ function readRegistry(dir, since, until) {
 			const path = join(registryDir, file);
 			const mtime = statSync(path).mtime.toISOString().replace(/\.\d{3}Z$/, "Z");
 			const row = JSON.parse(readFileSync(path, "utf8"));
-			if (!isRecord(row)) {
+			if (!isRecord(row) || typeof row.run_slug !== "string" || row.run_slug === "") {
 				skipped += 1;
 			} else if (inWindow(mtime, since, until)) {
 				rows.push(row);
@@ -109,6 +109,10 @@ function readLedgers(dir, since, until) {
 		ledgers += 1;
 		invalidLines += parsed.skipped;
 		for (const event of parsed.lines) {
+			if (typeof event.event !== "string" || event.event === "") {
+				invalidLines += 1;
+				continue;
+			}
 			if (!inWindow(event.ts, since, until)) continue;
 			anyEvents = true;
 			if (event.event === "correction") corrections += 1;
@@ -170,6 +174,10 @@ function readGuardJournal(dir, since, until) {
 		}
 		skippedJournalLines += parsed.skipped;
 		for (const entry of parsed.lines) {
+			if (typeof entry.guard !== "string" || entry.guard === "" || typeof entry.ts !== "string") {
+				skippedJournalLines += 1;
+				continue;
+			}
 			if (!inWindow(entry.ts, since, until)) continue;
 			lines += 1;
 			const guard = typeof entry.guard === "string" ? entry.guard : "unknown";
