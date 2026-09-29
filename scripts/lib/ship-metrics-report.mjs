@@ -73,6 +73,7 @@ function readLedgers(dir, since, until) {
 	}
 	const blocked = {};
 	const checkpoints = {};
+	const shipByCiState = {};
 	let corrections = 0;
 	let completed = 0;
 	let ledgers = 0;
@@ -95,6 +96,10 @@ function readLedgers(dir, since, until) {
 			anyEvents = true;
 			if (event.event === "correction") corrections += 1;
 			if (event.event === "completed") completed += 1;
+			if (event.event === "ship_completed") {
+				const ci = typeof event.detail?.ci_state === "string" ? event.detail.ci_state : "unknown";
+				shipByCiState[ci] = (shipByCiState[ci] || 0) + 1;
+			}
 			if (event.event === "blocked") {
 				const reason = typeof event.detail?.reason === "string" ? event.detail.reason : "unknown";
 				blocked[reason] = (blocked[reason] || 0) + 1;
@@ -109,7 +114,7 @@ function readLedgers(dir, since, until) {
 		}
 	}
 	if (ledgers === 0) {
-		return { state: unreadable > 0 ? "unreadable" : "missing", ledgers: 0, blocked: null, corrections: null, checkpoints: null, completed: null };
+		return { state: unreadable > 0 ? "unreadable" : "missing", ledgers: 0, blocked: null, corrections: null, checkpoints: null, completed: null, shipByCiState: null };
 	}
 	let state = anyEvents ? "available" : "zero-observed";
 	if (unreadable > 0) state = "partial";
@@ -120,6 +125,7 @@ function readLedgers(dir, since, until) {
 		corrections,
 		checkpoints,
 		completed,
+		shipByCiState,
 	};
 }
 
@@ -225,6 +231,7 @@ export function buildReport(input) {
 			corrections: ledgers.corrections,
 			checkpoints_by_consent_class: ledgers.checkpoints,
 			completed_runs: ledgers.completed,
+			ship_completed_by_ci_state: ledgers.shipByCiState,
 			guards_by_guard: journal.byGuard,
 			guards_by_pattern: journal.byPattern,
 		},
