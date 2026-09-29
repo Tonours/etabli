@@ -3,7 +3,7 @@
  * Only when an active non-terminal .workflow ledger exists.
  * Does not invent slugs when no ledger is present.
  */
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { isNonEmptyString } from "./predicates.mjs";
 import { basename, dirname, join } from "node:path";
@@ -277,22 +277,18 @@ export function isLikelyValidationCommand(command) {
 	return isValidationSegment(segments.at(-1));
 }
 
-const CORRECTION_STATE_FILE = "correction-state.json";
+const CORRECTION_STATE_DIR = "correction-state";
 const CORRECTION_MAX_SESSIONS = 50;
 
-function correctionStatePath(cwd) {
-	return join(cwd || process.cwd(), ".workflow", CORRECTION_STATE_FILE);
+function sessionStateFile(cwd, sessionId) {
+	const safe = createHash("sha256").update(String(sessionId), "utf8").digest("hex").slice(0, 24);
+	return join(cwd || process.cwd(), ".workflow", CORRECTION_STATE_DIR, `${safe}.json`);
 }
 
-function readCorrectionState(path) {
+function readSessionState(path) {
 	try {
 		const parsed = JSON.parse(readFileSync(path, "utf8"));
-		if (
-			parsed &&
-			typeof parsed === "object" &&
-			parsed.sessions &&
-			typeof parsed.sessions === "object"
-		) {
+		if (parsed && typeof parsed === "object" && Number.isInteger(parsed.count)) {
 			return parsed;
 		}
 	} catch {
@@ -301,24 +297,30 @@ function readCorrectionState(path) {
 	return null;
 }
 
-function writeCorrectionState(path, sessions) {
-	const entries = Object.entries(sessions).sort((a, b) =>
-		String(b[1]?.updated_at || "").localeCompare(String(a[1]?.updated_at || "")),
-	);
-	const kept = {};
-	for (const [key, value] of entries.slice(0, CORRECTION_MAX_SESSIONS)) {
-		kept[key] = value;
-	}
+function writeSessionState(path, entry) {
 	try {
 		mkdirSync(dirname(path), { recursive: true });
-		writeFileSync(
-			path,
-			`${JSON.stringify({ schema_version: 1, sessions: kept }, null, "\t")}\n`,
-			"utf8",
-		);
+		writeFileSync(path, `${JSON.stringify({ schema_version: 1, ...entry }, null, "\t")}\n`, "utf8");
+		pruneSessionStates(dirname(path));
 		return true;
 	} catch {
 		return false;
+	}
+}
+
+function pruneSessionStates(dir) {
+	try {
+		const files = readdirSync(dir)
+			.filter((name) => name.endsWith(".json"))
+			.map((name) => ({ name, mtime: statSync(join(dir, name)).mtimeMs }))
+			.sort((a, b) => b.mtime - a.mtime);
+		for (const stale of files.slice(CORRECTION_MAX_SESSIONS)) {
+			try {
+				rmSync(join(dir, stale.name));
+			} catch {
+			}
+		}
+	} catch {
 	}
 }
 
@@ -343,20 +345,19 @@ export function registerUserPrompt(cwd, sessionId, harness, prompt, writeEvent) 
 
 	const text = String(prompt ?? "");
 	if ([...text].length < 1) return { emitted: false, reason: "empty_prompt" };
-	const statePath = correctionStatePath(cwd);
-	const state = readCorrectionState(statePath) || { schema_version: 1, sessions: {} };
-	const entry = state.sessions[sid] || { count: 0, updated_at: "" };
+	const statePath = sessionStateFile(cwd, sid);
+	const entry = readSessionState(statePath) || { count: 0, updated_at: "" };
 	const count = Number(entry.count || 0) + 1;
-	state.sessions[sid] = { count, updated_at: isoTs() };
+	const nextEntry = { count, updated_at: isoTs() };
 
 	if (count <= 1) {
-		writeCorrectionState(statePath, state.sessions);
+		writeSessionState(statePath, nextEntry);
 		return { emitted: false, reason: "session_start", count };
 	}
 
 	const selection = selectActiveLedger(cwd);
 	if (selection.reason || !selection.ledger) {
-		writeCorrectionState(statePath, state.sessions);
+		writeSessionState(statePath, nextEntry);
 		return { emitted: false, reason: selection.reason || "no_active_ledger", count };
 	}
 	const primary = selection.ledger;
@@ -371,7 +372,7 @@ export function registerUserPrompt(cwd, sessionId, harness, prompt, writeEvent) 
 	} catch {
 		ok = false;
 	}
-	writeCorrectionState(statePath, state.sessions);
+	writeSessionState(statePath, nextEntry);
 	if (!ok) return { emitted: false, reason: "append_failed", count, ledger: primary.path };
 	return { emitted: true, reason: "appended", count, ledger: primary.path, run: primary.run };
 }

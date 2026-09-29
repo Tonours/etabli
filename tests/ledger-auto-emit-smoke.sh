@@ -13,7 +13,7 @@ fail() {
 
 node --input-type=module <<EOF
 import { pathToFileURL } from "node:url";
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const mod = await import(pathToFileURL("$ROOT_DIR/scripts/lib/ledger-auto-emit.mjs").href);
@@ -186,7 +186,13 @@ for (const secret of ["fais plutot", "encore une correction", "troisieme"]) {
     process.exit(1);
   }
 }
-const stateText = readFileSync(join(tmp, ".workflow", "correction-state.json"), "utf8");
+const stateDir = join(tmp, ".workflow", "correction-state");
+const stateFiles = readdirSync(stateDir).filter((f) => f.endsWith(".json"));
+if (stateFiles.length < 1) {
+  console.error("per-session state files expected");
+  process.exit(1);
+}
+const stateText = stateFiles.map((f) => readFileSync(join(stateDir, f), "utf8")).join("");
 if (stateText.includes("fais plutot")) {
   console.error("state file must never contain prompt text");
   process.exit(1);

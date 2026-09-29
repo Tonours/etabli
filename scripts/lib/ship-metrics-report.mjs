@@ -35,6 +35,7 @@ function readRegistry(dir, since, until) {
 		return { state: "unreadable", rows: null, tiers: null, escapedTotal: null };
 	}
 	const rows = [];
+	let skipped = 0;
 	for (const file of files) {
 		try {
 			const path = join(registryDir, file);
@@ -42,6 +43,7 @@ function readRegistry(dir, since, until) {
 			const row = JSON.parse(readFileSync(path, "utf8"));
 			if (inWindow(mtime, since, until)) rows.push(row);
 		} catch {
+			skipped += 1;
 		}
 	}
 	const tiers = {};
@@ -51,7 +53,15 @@ function readRegistry(dir, since, until) {
 		tiers[tier] = (tiers[tier] || 0) + 1;
 		escapedTotal += Number.isFinite(row.escaped_later) ? row.escaped_later : 0;
 	}
-	return { state: "available", rows: rows.length, tiers, escapedTotal };
+	let state = "available";
+	if (files.length === 0) {
+		state = "zero-observed";
+	} else if (rows.length === 0 && skipped > 0) {
+		state = "unreadable";
+	} else if (skipped > 0) {
+		state = "partial";
+	}
+	return { state, rows: rows.length, tiers, escapedTotal };
 }
 
 function readLedgers(dir, since, until) {
@@ -68,7 +78,7 @@ function readLedgers(dir, since, until) {
 	let ledgers = 0;
 	let anyEvents = false;
 	for (const entry of entries) {
-		if (!entry.isDirectory() || entry.name === "ship-metrics" || entry.name === "guard-journal" || entry.name.startsWith("leases")) continue;
+		if (!entry.isDirectory() || entry.name === "ship-metrics" || entry.name === "guard-journal" || entry.name === "leases" || entry.name === "correction-state") continue;
 		const ledgerPath = join(dir, entry.name, "events.jsonl");
 		if (!existsSync(ledgerPath)) continue;
 		ledgers += 1;

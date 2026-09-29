@@ -40,8 +40,8 @@ if "$LEASE" "${W[@]}" renew "${R[@]}" --token "$TOK2" >/dev/null 2>&1; then
   fail "T2: renew on expired lease must fail"
 fi
 
-"$LEASE" "${W[@]}" recover "${R[@]}" "smoke-t3-crash-cleanup" | jq -e '.schema_version == 2 and .owner != ""' >/dev/null \
-  || fail "T3: recover on expired lease must succeed"
+"$LEASE" "${W[@]}" recover "${R[@]}" --owner rescuer "smoke-t3-crash-cleanup" | jq -e '.schema_version == 2 and .owner == "rescuer"' >/dev/null \
+  || fail "T3: recover on expired lease must succeed and honor --owner"
 grep -q '"event":"recover"' "$DIR"/leases/*.history.jsonl || fail "T3: recover must log history"
 
 reset_leases
