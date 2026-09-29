@@ -126,6 +126,21 @@ fi
 rmdir "$DIR/leases/$lease_key.history.jsonl"
 
 reset_leases
+"$LEASE" "${W[@]}" acquire "${R[@]}" --owner deadholder --ttl-secs 1 >/dev/null
+sleep 1.2
+lease_key="$(basename "$(find "$DIR/leases" -maxdepth 1 -name '*.json' | head -1)" .json)"
+sleep 1 & victim=$!
+wait "$victim"
+printf '%s\n' "$victim" >"$DIR/leases/$lease_key.lock"
+NEW=$("$LEASE" "${W[@]}" acquire "${R[@]}" --owner newcomer --ttl-secs 60 | jq -r .token)
+[ -n "$NEW" ] && [ "$NEW" != "null" ] || fail "T12: takeover must succeed over a lock held by a dead pid"
+"$LEASE" "${W[@]}" show "${R[@]}" | jq -e '.owner == "newcomer"' >/dev/null \
+  || fail "T12: the lease must belong to the newcomer after dead-holder takeover"
+jq -e 'select(.event == "takeover" and .reason == "expired")' \
+  "$DIR/leases/$lease_key.history.jsonl" >/dev/null \
+  || fail "T12: the dead-holder takeover must be traced in the history journal"
+
+reset_leases
 "$LEASE" "${W[@]}" acquire "${R[@]}" --owner racer --ttl-secs 60 >/dev/null
 TOKR=$(holder_token)
 for i in 1 2 3; do
@@ -153,4 +168,4 @@ for i in 1 2 3; do
   fi
 done
 
-printf 'workflow-lease-smoke: PASS (T1-T11, R1-R2)\n'
+printf 'workflow-lease-smoke: PASS (T1-T12, R1-R2)\n'
