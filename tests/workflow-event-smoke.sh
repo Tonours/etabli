@@ -49,6 +49,44 @@ grep -Fq 'detail' "$correction_probe.err" || {
   exit 1
 }
 
+blocked_probe="$(mktemp -d)/.workflow"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" append blk-run blocked '{"reason":"ci_wait","needed_input":"none"}' >/dev/null || {
+  printf 'blocked append with an enum reason must succeed\n' >&2
+  exit 1
+}
+if "$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" append blk-run blocked '{"reason":"mon texte libre","needed_input":"none"}' 2>"$blocked_probe.err"; then
+  printf 'blocked append with free-text reason must be refused\n' >&2
+  exit 1
+fi
+grep -Fq 'blocked.reason enum' "$blocked_probe.err" || {
+  printf 'blocked refusal must name the enum remediation\n' >&2
+  exit 1
+}
+mkdir -p "$blocked_probe/hist-free" "$blocked_probe/hist-legacy" "$blocked_probe/rec-corrupt"
+printf '%s\n' '{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"blocked","run":"hist-free","detail":{"reason":"free text history","needed_input":"x"}}' >"$blocked_probe/hist-free/events.jsonl"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" validate hist-free >/dev/null || {
+  printf 'v2 history blocked with free-text reason must stay valid\n' >&2
+  exit 1
+}
+printf '%s\n' '{"ts":"2026-01-01T00:00:00Z","event":"blocked","run":"hist-legacy","detail":{"reason":"legacy free","needed_input":"x"}}' >"$blocked_probe/hist-legacy/events.jsonl"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" validate hist-legacy >/dev/null || {
+  printf 'legacy blocked history must stay valid\n' >&2
+  exit 1
+}
+printf '%s\n' 'not json at all' >"$blocked_probe/rec-corrupt/events.jsonl"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" recover rec-corrupt smoke-reason >/dev/null 2>&1 || {
+  printf 'recover on a corrupt ledger must succeed\n' >&2
+  exit 1
+}
+grep -Fq '"reason":"ledger_recovery"' "$blocked_probe/rec-corrupt/events.jsonl" || {
+  printf 'recover must emit the ledger_recovery enum reason\n' >&2
+  exit 1
+}
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" validate rec-corrupt --profile blocked-terminal >/dev/null || {
+  printf 'recovered ledger must satisfy blocked-terminal\n' >&2
+  exit 1
+}
+
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -155,7 +193,7 @@ while IFS=$'\t' read -r event required detail; do
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-valid-$event" "$event" "$detail"
   invalid_detail="$(printf '%s\n' "$detail" | jq -c --arg required "$required" 'del(.[$required])')"
   out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-invalid-$event" "$event" "$invalid_detail")"
-  assert_contains "$out" "required fields"
+  assert_contains "$out" "invalid json detail"
 done < "$ROOT_DIR/tests/fixtures/workflow-events-v2.tsv"
 
 # Tranche 3: review_completed status enum (strict v2 only).
@@ -480,7 +518,7 @@ out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
 assert_contains "$out" "3 events, ok"
 printf '{"schema_version":1,"run":"e2e"}' > "$EW/.workflow/active-run.json"
 node -e 'import(process.argv[1]).then(m => { const r = m.selectActiveLedger(process.argv[2]); if (!r.ledger || r.ledger.run !== "e2e") { console.error("not selected: " + r.reason); process.exit(1); } })' "$ROOT_DIR/scripts/lib/ledger-integrity.mjs" "$EW"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e blocked '{"reason":"smoke terminal","needed_input":"none"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e blocked '{"reason":"unknown","needed_input":"none"}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
 assert_contains "$out" "4 events, ok"
 
@@ -502,18 +540,18 @@ open_t5_ledger t5-open
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open ship_completed "$t5_ship_open" >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-open --profile ship-completed)"
 assert_contains "$out" "success-form ship_completed"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open blocked '{"reason":"open findings","needed_input":"fix then reship"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open blocked '{"reason":"review_requested","needed_input":"fix then reship"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-open --profile ship-stopped)"
 assert_contains "$out" "4 events, ok"
 open_t5_ledger t5-stop5
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 ship_completed "$t5_ship_stop5" >/dev/null
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 blocked '{"reason":"stop step 5","needed_input":"human decision"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 blocked '{"reason":"consent_needed","needed_input":"human decision"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-stop5 --profile ship-stopped)"
 assert_contains "$out" "4 events, ok"
 # Success content + blocked is not a stopped run (negated success form).
 open_t5_ledger t5-greenstop
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop ship_completed "$t5_ship_ok" >/dev/null
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop blocked '{"reason":"stop","needed_input":"x"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop blocked '{"reason":"unknown","needed_input":"x"}' >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-greenstop --profile ship-stopped)"
 assert_contains "$out" "non-success-form ship_completed"
 # Failed-latest validation poisons ship-completed freshness.
@@ -555,7 +593,7 @@ bad_detail="$(printf '%s' "$t5_ship_ok" | jq -c '.deciding_code = "incomplete"')
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc ship_completed "$bad_detail" >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-inc --profile ship-completed)"
 assert_contains "$out" "success-form ship_completed"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc blocked '{"reason":"incomplete deciding","needed_input":"x"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc blocked '{"reason":"plan_gate","needed_input":"x"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-inc --profile ship-stopped)"
 assert_contains "$out" "4 events, ok"
 # Valid arrêt matrix cells: not-run+null, blocked±PR.
@@ -564,7 +602,7 @@ for cell in '{"pr_url":null,"ci_state":"not-run"}' '{"pr_url":"https://example.t
   open_t5_ledger "$slug"
   cell_detail="$(printf '%s' "$t5_ship_stop5" | jq -c --argjson cell "$cell" '. * $cell')"
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" ship_completed "$cell_detail" >/dev/null
-  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" blocked '{"reason":"stop","needed_input":"x"}' >/dev/null
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" blocked '{"reason":"unknown","needed_input":"x"}' >/dev/null
   out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate "$slug" --profile ship-stopped)"
   assert_contains "$out" "4 events, ok"
 done
@@ -681,7 +719,7 @@ rr_step() {
     A!) rr_adversary "$slug" BLOCK '["x"]' ;;
     A+) rr_adversary "$slug" "GO WITH NOTES" '["x"]' ;;
     U) rr append "$slug" review_completed '{"status":"GO","evidence":"smoke"}' ;;
-    blocked) rr append "$slug" blocked '{"reason":"review budget","needed_input":"new review run"}' ;;
+    blocked) rr append "$slug" blocked '{"reason":"review_requested","needed_input":"new review run"}' ;;
     *)
       tag="${step%%:*}" outcome="${step#*:}" status="BLOCK"
       [ "$outcome" = "clean" ] && status="GO"

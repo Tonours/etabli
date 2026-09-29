@@ -564,6 +564,10 @@ jq -e '[.hooks.UserPromptSubmit[] | .hooks[] | select(.command | contains("corre
 	printf 'settings.workflow-hooks.json must wire correction-emit on UserPromptSubmit\n' >&2
 	exit 1
 }
+jq -e '[.hooks.Notification[] | .hooks[] | select(.command | contains("notification-classify.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
+	printf 'settings.workflow-hooks.json must wire notification-classify on Notification\n' >&2
+	exit 1
+}
 no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
 denied=$(jq -nc '{tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
 [ "$(printf '%s' "$denied" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ] || {
@@ -701,6 +705,28 @@ if grep -Fq 'fais plutot ceci' "$correction_ledger"; then
 fi
 "$correction_proj/scripts/workflow-event" --dir "$correction_proj/.workflow" validate corr-run >/dev/null || {
 	printf 'fixture ledger with hook-appended correction must validate\n' >&2
+	exit 1
+}
+
+jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",notification_type:"permission_prompt",message:"Claude needs your permission"}' | node "$ROOT_DIR/claude/hooks/notification-classify.mjs"
+grep -Fq '"consent_class":"permission_request"' "$correction_ledger" || {
+	printf 'notification-classify must emit permission_request for permission_prompt\n' >&2
+	exit 1
+}
+jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",notification_type:"idle_prompt",message:"Claude is waiting for your input"}' | node "$ROOT_DIR/claude/hooks/notification-classify.mjs"
+grep -Fq '"consent_class":"input_request"' "$correction_ledger" || {
+	printf 'notification-classify must emit input_request for idle_prompt\n' >&2
+	exit 1
+}
+before_notif="$(grep -c human_checkpoint "$correction_ledger")"
+jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",notification_type:"future_unknown_type",message:"x"}' | node "$ROOT_DIR/claude/hooks/notification-classify.mjs"
+after_notif="$(grep -c human_checkpoint "$correction_ledger")"
+[ "$after_notif" = "$before_notif" ] || {
+	printf 'notification-classify must abstain on unknown notification types\n' >&2
+	exit 1
+}
+"$correction_proj/scripts/workflow-event" --dir "$correction_proj/.workflow" validate corr-run >/dev/null || {
+	printf 'fixture ledger with classified checkpoints must validate\n' >&2
 	exit 1
 }
 
