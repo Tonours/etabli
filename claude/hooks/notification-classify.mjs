@@ -36,10 +36,9 @@ const detail = {
 	target: notificationType,
 };
 const dir = dirname(dirname(ledger.path));
-const result = spawnSync(
+spawnSync(
 	eventCli,
 	["--dir", dir, "append", ledger.run, "human_checkpoint", JSON.stringify(detail)],
 	{ cwd, encoding: "utf8", timeout: 4000 },
 );
-void result;
 process.exit(0);

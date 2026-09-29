@@ -350,7 +350,6 @@ EOF
     found=0
     for file in "$LEASES"/*.json; do
       [ -f "$file" ] || continue
-      case "$file" in *.history.jsonl) continue ;; esac
       found=1
       jq -c --argjson now "$(now_epoch)" '{scope, identity, owner, hostname, expires_at, expired: (.expires_epoch <= $now)}' "$file"
     done
