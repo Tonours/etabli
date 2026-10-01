@@ -26,7 +26,8 @@ printf '%s\n' \
 
 printf '%s\n' '{"run_slug":"run-x","verdict":"GO","escaped_later":1,"tier":"standard"}' >"$DIR/ship-metrics/run-x.json"
 printf '%s\n' '{"run_slug":"run-old","verdict":"GO","escaped_later":2,"tier":"small"}' >"$DIR/ship-metrics/run-old.json"
-touch -t 202608010000 "$DIR/ship-metrics/run-old.json"
+TZ=UTC touch -t 202609291000 "$DIR/ship-metrics/run-x.json"
+TZ=UTC touch -t 202608010000 "$DIR/ship-metrics/run-old.json"
 
 printf '%s\n' \
   '{"ts":"2026-09-29T10:00:00Z","host":"h","harness":"pi","guard":"no-comments","pattern":"code-comment-added","target":"a.ts","tool":"Write"}' \
