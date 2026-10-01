@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { recordGuardDenial } from "./guard-journal.mjs";
+import { projectVaultRoots, vaultContextCommand } from "./obvault-topic-resolver.mjs";
 import {
 	evaluateCheckFreeze,
 	evaluateReadyPlan,
@@ -1051,7 +1052,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	return SIMPLE_ANSWER_DECISION;
 }
 
-export function classifyKnowledgeContext(prompt, low) {
+export function classifyKnowledgeContext(prompt, low, cwd = process.cwd()) {
 	const trimmed = prompt.trim();
 	if (trimmed === "" || trimmed.startsWith("/")) return null;
 
@@ -1073,7 +1074,7 @@ export function classifyKnowledgeContext(prompt, low) {
 		topics,
 		query,
 		reason: "matched durable knowledge topics",
-		command: `~/work/obvault/_meta/obvault context --json --max-tokens 2500 "${query}"`,
+		command: vaultContextCommand(projectVaultRoots({ cwd })[0], query),
 	};
 }
 
@@ -1088,7 +1089,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 	const low = prompt.trim().toLowerCase();
 	const decision = classifyWorkflowRouteBase(prompt, low, context);
 	const knowledgeContext =
-		classifyKnowledgeContext(prompt, low) ||
+		classifyKnowledgeContext(prompt, low, context.cwd) ||
 		context.dynamicKnowledgeContext ||
 		null;
 	return knowledgeContext

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import {
   chmodSync,
-  existsSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -11,7 +10,6 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const SAFE_QUERY_PATTERN = /^[a-z0-9 _-]{3,240}$/;
@@ -39,58 +37,52 @@ const ABSTAIN = 0; // cached "router abstained" marker (distinct from no entry)
  * @property {string[]} matchedNotes
  */
 
-function defaultRoots() {
-  // An explicit OBVAULT_ROOT is exclusive: a machine that points somewhere else
-  // (or nowhere) must not silently fall back to a vault it opted out of.
+export function projectVaultRoots({ cwd = process.cwd(), home = homedir() } = {}) {
   if (process.env.OBVAULT_ROOT) return [process.env.OBVAULT_ROOT];
-  // Scope-aware resolution (decision 2026-08-23, ratifying ADR-0017's
-  // direction without breaking machines where `brain` does not exist yet):
-  //   work scope     -> brain first, obvault as documented fallback
-  //   personal scope -> obvault only
-  // `~/.etabli-scope` selects the scope; absence means the shared default
-  // (obvault), which is the live reality on machines without brain.
-  const roots = [];
-  let scope = "personal";
-  try {
-    scope =
-      readFileSync(resolve(homedir(), ".etabli-scope"), "utf8").trim() ||
-      "personal";
-  } catch {
-    // no scope file: personal default
-  }
-  if (scope === "work") {
-    roots.push(resolve(homedir(), "work/brain"));
-  }
-  roots.push(resolve(homedir(), "work/obvault"));
-  roots.push(fileURLToPath(new URL("../../../obvault", import.meta.url)));
-  return roots;
+  const result = spawnSync("git", ["-C", cwd, "remote", "-v"], {
+    encoding: "utf8", timeout: 1000, maxBuffer: 64 * 1024, shell: false,
+    env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
+  });
+  const forest = result.status === 0 && String(result.stdout).split("\n").some((line) => {
+    const url = line.trim().split(/\s+/)[1] || "";
+    if (/^(?:[^\s@/:]+@)?github\.com:\/?forestadmin\/[^\s/]+\/?$/i.test(url)) return true;
+    try {
+      const parsed = new URL(url);
+      const transportUrl = parsed.protocol === "https:" ? url : decodeURIComponent(url);
+      const transport = new URL(transportUrl);
+      const authority = url.match(/^[^:]+:\/\/([^/?#]*)/)?.[1] || "";
+      const host = authority.slice(authority.lastIndexOf("@") + 1).split(":")[0];
+      return ["https:", "ssh:", "git+ssh:", "ssh+git:"].includes(parsed.protocol) &&
+        decodeURIComponent(host).toLowerCase() === "github.com" &&
+        transport.hostname.toLowerCase() === "github.com" &&
+        url.match(/^[^:]+:\/\/[^/]+(\/[^?#]*)$/)?.[1] === parsed.pathname &&
+        transportUrl.match(/^[^:]+:\/\/[^/]+(\/[^?#]*)$/)?.[1] === transport.pathname &&
+        /^\/forestadmin\/[^/]+\/?$/i.test(transport.pathname);
+    } catch {
+      return false;
+    }
+  });
+  return [resolve(home, forest ? "work/brain" : "work/obvault")];
 }
 
-// Memoized for 10s: root discovery stats several paths per call and the set
-// of installed vaults changes rarely. Keyed by the exact roots list so an
-// exclusive OBVAULT_ROOT override never sees a memoized fallback answer.
-const ROOT_MEMO_TTL_MS = 10_000;
-let rootMemo = null;
+export function vaultContextCommand(root, query) {
+  const quote = (value) => "'" + String(value).replaceAll("'", "'\\''") + "'";
+  return `${quote(resolve(root, "_meta/obvault"))} context --json --max-tokens 2500 ${quote(query)}`;
+}
 
-export function resolveObvaultRoot(roots = defaultRoots()) {
-  const key = JSON.stringify(roots);
-  const now = Date.now();
-  if (rootMemo && rootMemo.key === key && rootMemo.expires > now) {
-    return rootMemo.root;
-  }
+export function resolveObvaultRoot(roots, options = {}) {
+  roots ??= projectVaultRoots(options);
   let resolved = null;
   for (const candidate of roots) {
     const root = resolve(candidate);
-    if (!existsSync(resolve(root, "AGENTS.md"))) continue;
-    if (!existsSync(resolve(root, "_meta/obvault"))) continue;
     try {
+      if (!statSync(resolve(root, "_meta/obvault")).isFile()) continue;
       resolved = realpathSync(root);
       break;
     } catch {
       // A disappearing or unreadable vault is a routing miss, not a workflow failure.
     }
   }
-  rootMemo = { key, root: resolved, expires: now + ROOT_MEMO_TTL_MS };
   return resolved;
 }
 
@@ -236,17 +228,17 @@ function cachePut(key, fingerprint, expiresAt, value) {
 
 /**
  * @param {unknown} prompt
- * @param {{ roots?: string[], timeoutMs?: number }} [options]
+ * @param {{ roots?: string[], timeoutMs?: number, cwd?: string }} [options]
  * @returns {DynamicKnowledgeContext | null}
  */
 export function resolveDynamicKnowledgeContext(
   prompt,
-  { roots, timeoutMs = 1200 } = {},
+  { roots, timeoutMs = 1200, cwd = process.cwd() } = {},
 ) {
   const trimmed = String(prompt || "").trim();
   if (!trimmed || trimmed.startsWith("/")) return null;
 
-  const root = resolveObvaultRoot(roots);
+  const root = resolveObvaultRoot(roots, { cwd });
   if (!root) return null;
 
   const useCache = cacheEnabled();
@@ -254,9 +246,12 @@ export function resolveDynamicKnowledgeContext(
   const now = Date.now();
   if (fingerprint) {
     const cached = cacheGet(routeCacheKey(root, trimmed), fingerprint, now);
-    if (cached !== undefined) {
-      // Cached abstentions are the router's own "no match" answer.
-      return cached === ABSTAIN ? null : structuredClone(cached);
+    if (cached === ABSTAIN) return null;
+    if (cached && typeof cached === "object" && typeof cached.query === "string" && SAFE_QUERY_PATTERN.test(cached.query)) {
+      return {
+        ...structuredClone(cached),
+        command: vaultContextCommand(root, cached.query),
+      };
     }
   }
 
@@ -305,7 +300,7 @@ export function resolveDynamicKnowledgeContext(
       topics,
       query: routed.query,
       reason: `matched live obvault metadata: ${topics.join(", ")}`,
-      command: `${root}/_meta/obvault context --json --max-tokens 2500 "${routed.query}"`,
+      command: vaultContextCommand(root, routed.query),
       source: "obvault-metadata",
       matchedNotes,
     };

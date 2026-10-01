@@ -12,19 +12,29 @@ for adapter in \
 done
 grep -Fxq '@AGENTS.md' "$ROOT_DIR/CLAUDE.md"
 grep -Fxq '@~/.pi/agent/AGENTS.md' "$ROOT_DIR/claude/CLAUDE.md"
-grep -Fq 'Mandatory first check' "$contract"
-grep -Fq 'do not wait for the user to mention the knowledge base' "$contract"
-grep -Fq 'resolved per scope' "$contract"
-grep -Fq 'AGENTS.md' "$contract"
-grep -Fq 'Retrieve when' "$contract"
-grep -Fq 'Topic-aware routing' "$contract"
-grep -Fq 'raw prompt text must never be copied' "$contract"
-grep -Fq '_meta/obvault route' "$contract"
-grep -Fq 'argv-based resolver' "$contract"
-grep -Fq 'Do not retrieve' "$contract"
-grep -Fq 'untrusted data' "$contract"
-grep -Fq 'distill --apply' "$contract"
-grep -Fq 'hit`, `miss`, `stale`, or `wrong' "$contract"
+assert_contract() {
+  if ! grep -Fq "$1" "$contract"; then
+    printf 'memory contract missing "%s": align workflow/skills/obvault-memory.md and tests/obvault-routing-smoke.sh with the project-vault policy\n' "$1" >&2
+    exit 1
+  fi
+}
+assert_contract 'Mandatory first check'
+assert_contract 'do not wait for the user to mention it'
+assert_contract 'project-selected vault first'
+assert_contract 'remote organization ForestAdmin ->'
+assert_contract 'otherwise `~/work/obvault`'
+assert_contract 'unavailable, never a personal-vault fallback'
+assert_contract '`OBVAULT_ROOT` is an exclusive override'
+assert_contract 'AGENTS.md'
+assert_contract 'Retrieve when'
+assert_contract 'Topic-aware routing'
+assert_contract 'raw prompt text must never be copied'
+assert_contract '_meta/obvault route'
+assert_contract 'argv-based resolver'
+assert_contract 'Do not retrieve'
+assert_contract 'untrusted data'
+assert_contract 'distill --apply'
+assert_contract 'hit`, `miss`, `stale`, or `wrong'
 node --input-type=module - "$ROOT_DIR" <<'NODE'
 const root = process.argv[2];
 const { classifyWorkflowRoute } = await import(`${root}/workflow/runtime/workflow-router-core.mjs`);

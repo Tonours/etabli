@@ -42,7 +42,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
-- Memory: consult the vault per `workflow/skills/obvault-memory.md` (work -> `~/work/brain`, else `~/work/obvault`).
+- Memory: `~/work/brain` for ForestAdmin repos, `~/work/obvault` otherwise; see `workflow/skills/obvault-memory.md`.
 
 ## Code
 
