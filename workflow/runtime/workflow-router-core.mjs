@@ -1312,7 +1312,7 @@ export function planReadyGuardDecision(event) {
 		}
 		if (toolName === "Bash") {
 			if (isWorkflowEventEscapeCommand(command)) return null;
-			if (isNarrowPlanCleanupCommand(command)) return null;
+			if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 			if (!isMutatingBashCommand(command)) return null;
 		}
 		return deny(
@@ -1331,7 +1331,7 @@ export function planReadyGuardDecision(event) {
 
 	if (toolName === "Bash") {
 		if (isWorkflowEventEscapeCommand(command)) return null;
-		if (isNarrowPlanCleanupCommand(command)) return null;
+		if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 		if (isMutatingBashCommand(command)) {
 			return deny(
 				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
@@ -1471,7 +1471,7 @@ export function planCheckFreezeBashGuardDecision(event) {
 	const toolInput = event.tool_input || event.input || {};
 	const command = String(toolInput.command || toolInput.cmd || "");
 	if (!command || !isMutatingBashCommand(command)) return null;
-	if (isNarrowPlanCleanupCommand(command)) return null;
+	if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 
 	// Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
 	if (!/\bPLAN\.md\b/i.test(command)) return null;

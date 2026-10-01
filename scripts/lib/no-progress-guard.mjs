@@ -158,7 +158,7 @@ export function isNoProgressEscapeHatch(
     const command = String(input.command || input.cmd || "");
     return (
       isWorkflowEventEscapeCommand(command) ||
-      isNarrowPlanCleanupCommand(command)
+      isNarrowPlanCleanupCommand(command, cwd)
     );
   }
   return false;

@@ -44,8 +44,9 @@ abort only at the command timeout sized for the measured project baseline.
 
 For plan routes, require root **Status: READY**. Prompt "PLAN.md ready" is not proof.
 Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited. Unknown
-status and incomplete `READY` fail closed; only a missing PLAN allows ordinary
-no-plan work. Discard a stale plan with `scripts/plan-cleanup --discard <reason-slug>`.
+status and incomplete `READY` fail closed. On resume: archive validated work
+or discard unrelated plans with `scripts/plan-cleanup --discard <reason-slug>`;
+never delete on age alone or change `active-run.json`.
 
 **Check-freeze:** READY Checks / Acceptance Criteria / Validation Plan and
 expected results strengthen-only; weaken → `CHALLENGED` + Decision Log.
@@ -53,6 +54,8 @@ CLI: `scripts/plan-check-freeze`. <!-- etabli-only -->
 
 After validated implementation: archive under `docs/plan/` with the exact root
 plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
+Run cleanup alone in project cwd (quoted paths / same-cwd `cd … &&` allowed);
+no pipes/redirections/chaining. A refusal is not a request for manual deletion.
 
 ## One-writer
 
