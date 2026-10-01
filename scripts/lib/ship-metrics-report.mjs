@@ -1,15 +1,21 @@
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, statSync, existsSync, realpathSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { collectPatterns } from "./workflow-patterns.mjs";
 
 function isoNow() {
 	return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+function validDate(value) {
+	if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(value)) return false;
+	const day = value.slice(0, 10);
+	return Number.isFinite(Date.parse(value)) && new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
+}
+
 function inWindow(ts, since, until) {
 	if (typeof ts !== "string" || ts === "") return false;
-	if (since && ts < since) return false;
-	if (until && ts > until) return false;
-	return true;
+	const time = Date.parse(ts);
+	return Number.isFinite(time) && time >= Date.parse(since) && time <= Date.parse(until);
 }
 
 function isRecord(value) {
@@ -252,16 +258,23 @@ function readHerdrHistory(path, since, until) {
 }
 
 export function buildReport(input) {
-	const dir = String(input.dir || "");
+	const dir = resolve(String(input.dir || ""));
+	const parent = dirname(dir);
+	const project = existsSync(parent) ? realpathSync(parent) : parent;
 	const since = String(input.since || "");
 	let until = String(input.until || "") || isoNow();
-	if (/^\d{4}-\d{2}-\d{2}$/.test(until)) until = `${until}T23:59:59Z`;
+	if (/^\d{4}-\d{2}-\d{2}$/.test(until)) until = `${until}T23:59:59.999Z`;
+	if (!validDate(since) || !validDate(until) || Date.parse(since) > Date.parse(until)) {
+		throw new Error("Invalid reporting window; use --since and --until as ISO dates with since <= until.");
+	}
 	const registry = readRegistry(dir, since, until);
 	const ledgers = readLedgers(dir, since, until);
 	const journal = readGuardJournal(dir, since, until);
 	const herdr = readHerdrHistory(input.herdrHistory ? String(input.herdrHistory) : "", since, until);
 	return {
+		project_root: project,
 		window: { since, until },
+		patterns: collectPatterns({ dir, project, since, until }),
 		sources: {
 			ship_metrics_registry: registry.state,
 			registry_rows_in_window: registry.rows,
@@ -298,11 +311,41 @@ export function buildReport(input) {
 }
 
 export function renderReport(report) {
-	const lines = [];
-	lines.push(`window ${report.window.since} -> ${report.window.until}`);
-	lines.push(`sources ${JSON.stringify(report.sources)}`);
-	lines.push(`primaries ${JSON.stringify(report.primaries)}`);
-	lines.push(`outcome ${JSON.stringify(report.outcome)}`);
-	lines.push(`counters ${JSON.stringify(report.counters)}`);
+	const lines = ["Workflow statistics", `Project: ${report.project_root}`, `Window: ${report.window.since} -> ${report.window.until}`, "", "Sources:"];
+	for (const [source, state] of Object.entries(report.sources)) lines.push(`  ${source}: ${state === null ? "unmeasured" : state}`);
+	for (const [source, state] of Object.entries(report.patterns.sources)) lines.push(`  pattern_${source}: ${state}`);
+	lines.push("", "Observed events:", `  completed: ${report.primaries.completed_runs ?? "unmeasured"}`, `  corrections: ${report.primaries.corrections ?? "unmeasured"}`);
+	lines.push(`  blocked: ${report.primaries.blocked_by_reason === null ? "unmeasured" : Object.values(report.primaries.blocked_by_reason).reduce((sum, n) => sum + n, 0)}`);
+	for (const key of ["checkpoints_by_consent_class", "ship_completed_by_ci_state", "guards_by_guard", "guards_by_pattern"]) {
+		lines.push(...renderCounts(key, report.primaries[key]));
+	}
+	lines.push("", "Other counters:", `  escaped_later_total: ${report.counters.escaped_later_total ?? "unmeasured"}`, `  registry_window_method: ${report.counters.registry_window_method}`);
+	lines.push(...renderCounts("tier_counts", report.counters.tier_counts), ...renderCounts("herdr", report.counters.herdr));
+	lines.push("", "Recurring patterns (explicit families plus unmapped runs; candidates only):", ...renderPatterns(report.patterns.rows));
+	const guards = report.patterns.unattributed_guards.reduce((sum, row) => sum + row.observation_count, 0);
+	const guardState = report.patterns.sources.guards;
+	const guardCount = guardState === "missing" || guardState === "unreadable" ? "unmeasured"
+		: guardState === "partial" ? `${guards} observed (partial; total unmeasured)` : String(guards);
+	lines.push("", `Guard observations: ${guardCount}; origin and initiative unknown, excluded from recurrence.`, `Coverage diagnostics: ${report.patterns.diagnostics.length}`);
+	for (const row of report.patterns.diagnostics.slice(0, 5)) lines.push(`  ${row.path}${row.line ? `:${row.line}` : ""}: ${row.reason}`);
+	lines.push("", "outcome: accepted results unmeasured; completed events do not prove accepted delivery.");
 	return lines.join("\n");
+}
+
+function renderCounts(label, counts) {
+	if (counts == null) return [`  ${label}: unmeasured`];
+	const entries = Object.entries(counts);
+	return entries.length ? [`  ${label}:`, ...entries.map(([key, value]) => `    ${JSON.stringify(key).slice(1, -1)}: ${value}`)] : [`  ${label}: none observed`];
+}
+
+export function renderPatterns(rows) {
+	if (!rows.length) return ["  No issue observed in the available sources/window; missing sources remain unmeasured."];
+	return rows.slice(0, 10).flatMap((row) => [
+		`  ${row.id} — ${row.label}: ${row.family_count} work groups / ${row.initiative_count} runs / ${row.observation_count} observations (${row.unmapped_run_count} unmapped runs)`,
+		`    recorded-completed-successor: ${row.recorded_resolved_run_count} historical blocked runs; planning: ${row.phase_counts.planning || 0} observations`,
+		`    ${row.first_seen} -> ${row.last_seen}`,
+		...row.evidence.map((e) => `    ${e.path}:${e.line} (${e.timestamp_basis})`),
+		...row.resolutions.slice(0, 3).map((r) => `    ${r.slug} -> ${r.completed} (${r.status}; ${r.evidence.path}:${r.evidence.line})`),
+		`    ${row.recommendation}`,
+	]);
 }
