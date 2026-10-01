@@ -160,3 +160,42 @@ later than the v2 blockage and no later than report `until`. A future completion
 cannot resolve an earlier report. The source blockage remains in historical
 counts. This is an explicit maintainer link plus recorded workflow closure,
 not incident-level verification or accepted delivery.
+
+## Check prerequisites and closing evidence
+
+```bash
+scripts/workflow-run-check preflight --json
+scripts/workflow-run-check preflight --claude-home /path/to/home
+scripts/workflow-run-check close --dir .workflow your-run --json
+```
+
+Preflight checks `node`, `bun`, `jq`, `git`, local Pi agent/TypeScript metadata,
+the host TypeScript 7 compiler, and native ESM resolution of the agent and
+`typebox` from `pi/extensions`. It checks availability without loading packages,
+installing dependencies or editing settings. `--root` selects the prerequisite
+tree. `--claude-home DIR` delegates to the existing hooks checker for
+`DIR/.claude`; without it, live hooks are explicitly **not checked**. Missing
+prerequisites return exit 1 and name the remediation. Re-run the affected
+validation when its cause or prerequisite has changed.
+
+`close` copies only the selected ledger into an external temporary directory.
+The real `workflow-event` CLI appends a placeholder `archive_written`,
+`plan_removed`, then `completed`, and validates `autonomous-completed`. The copy
+is removed afterwards. Terminal/missing/malformed runs, stale review evidence
+and latest failed checks fail; no source ledger/pointer is changed. The result
+states `scope: prospective-event-chain`, `archive_checked: false`. It neither
+checks a physical archive nor removes PLAN nor completes the real run. Follow
+the actual exact-hash archive and sanctioned cleanup procedure after readiness;
+record the archive as `archive_written`, not as a late code `file_changed`.
+
+Before the first review, select the existing boundary matrices relevant to the
+plan and run them after implementing the smallest working slice:
+
+| Surface | Boundary families | Existing command |
+| --- | --- | --- |
+| Shared shell/cleanup guards | quoted paths, shell expansion/operators, continuations, cwd and executable identity; both runtime envelopes | `bash tests/dual-runtime-guard-matrix-smoke.sh` |
+| RTK and cleanup parsing | shell state, quoted/escaped tokens, display consumers and strict cleanup commands | `bun test pi/extensions/__tests__/rtk-runtime.test.ts pi/extensions/__tests__/plan-cleanup-command.test.ts` |
+| Project-vault identity | Git transport/authority/encoding/lookalikes, inherited environment, cache and quoted paths | `bun test pi/extensions/__tests__/project-vault.test.ts` |
+
+These are executable regressions, not instructions to broaden the parser's
+supported language or increase review budgets. No deployment occurs here.
