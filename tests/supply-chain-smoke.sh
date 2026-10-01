@@ -43,12 +43,12 @@ jq -e '
   .devDependencies["@types/bun"] == "1.4.2" and
   .overrides == {
     "@protobufjs/utf8": "1.1.2",
-    "brace-expansion": "5.0.9",
+    "brace-expansion": "5.0.12",
     "protobufjs": "7.6.5",
-    "undici": "8.10.0",
+    "undici": "8.10.2",
     "ws": "8.21.1"
   }
-' "$PACKAGE" >/dev/null || fail "Pi dependency and security override pins drifted"
+' "$PACKAGE" >/dev/null || fail "Pi dependency and security override pins drifted: review and align pi/package.json and tests/supply-chain-smoke.sh exact pins"
 
 dependabot_pairs="$(awk '
   /^updates:/ { in_updates = 1; next }
