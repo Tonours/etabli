@@ -30,6 +30,8 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Canonical shell/docs parity group
+        env:
+          AGENTIC_INFRA_JOBS: "2"
         run: scripts/verify-agentic-infra shell-docs
 
   verify-pi-typescript:
