@@ -22,10 +22,9 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
 (ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
-orchestration: `workflow/skills/orchestration.md`. The parent is the one
-canonical writer; multi-writer scopes get a per-(repo, worktree) lease via
-`scripts/workflow-lease` (ADR-0028). Delegation defaults to one worker. The
-multi-model council was removed (ADR-0013).
+orchestration: `workflow/skills/orchestration.md`. The parent is the sole writer; delegation defaults to one worker.
+Etabli multi-writer scopes require a per-(repo, worktree) lease via `scripts/workflow-lease` (ADR-0028). <!-- etabli-only -->
+The multi-model council was removed (ADR-0013).
 
 ```text
 user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
