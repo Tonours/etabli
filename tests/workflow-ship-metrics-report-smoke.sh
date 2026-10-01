@@ -159,6 +159,6 @@ if "$METRICS" --dir "$DIR" report --since invalid >/dev/null 2>&1; then
   fail "invalid date must fail with remediation"
 fi
 
-node --test "$ROOT_DIR/tests/workflow-patterns.test.mjs"
+node --test "$ROOT_DIR/tests/workflow-patterns.test.mjs" "$ROOT_DIR/tests/workflow-run-check.test.mjs"
 bash "$ROOT_DIR/tests/guard-journal-isolation-smoke.sh"
 printf 'ship-metrics-report-smoke: PASS\n'

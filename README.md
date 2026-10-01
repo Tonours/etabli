@@ -77,6 +77,8 @@ scripts/claude-hooks-check            # live Claude hooks wired?
 scripts/check-fix-symlinks.sh         # managed links intact?
 node scripts/validate-adrs .          # ADR format
 scripts/workflow-ship-metrics --dir .workflow report --since 2026-09-01 # stats and patterns
+scripts/workflow-run-check preflight # prerequisites before validation
+scripts/workflow-run-check close --dir .workflow your-run # prospective event-chain check
 ```
 
 CI runs `agentic-infra` on `ubuntu-24.04` for the public repository and on
