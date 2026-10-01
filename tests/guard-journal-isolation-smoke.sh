@@ -8,8 +8,14 @@ mkdir -p "$PROBE_DIR/.workflow/guard-journal"
 printf 'preserved\n' > "$PROBE_DIR/.workflow/guard-journal/sentinel"
 
 cd "$PROBE_DIR"
-bun test "$ROOT_DIR/pi/extensions/__tests__/no-comments-extension.test.ts" > pi.log 2>&1
-bash "$ROOT_DIR/tests/claude-hooks-smoke.sh" > claude.log 2>&1
+bun test "$ROOT_DIR/pi/extensions/__tests__/no-comments-extension.test.ts" > pi.log 2>&1 || {
+  cat pi.log >&2
+  exit 1
+}
+bash "$ROOT_DIR/tests/claude-hooks-smoke.sh" > claude.log 2>&1 || {
+  cat claude.log >&2
+  exit 1
+}
 node --input-type=module -e '
   import { readdirSync, readFileSync } from "node:fs";
   const dir = ".workflow/guard-journal";
