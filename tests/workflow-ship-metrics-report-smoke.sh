@@ -132,5 +132,33 @@ out="$("$METRICS" --dir "$TMP/empty-wf" report --since 2026-09-29 --herdr-histor
 printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 0' || fail "no interval may be fabricated across hosts"
 printf '%s' "$out" | jqe '.counters.herdr.panes == 2' || fail "same pane on two hosts must count as two panes"
 
+mkdir -p "$TMP/project-a/.workflow/same" "$TMP/project-b/.workflow/same" "$TMP/project-empty"
+for project in project-a project-b; do
+  printf '%s\n' '{"ts":"2026-09-29T10:00:00Z","event":"blocked","detail":{"reason":"review budget spent"}}' >"$TMP/$project/.workflow/same/events.jsonl"
+done
+jq -nc --arg a "$TMP/project-a" --arg b "$TMP/project-b" --arg empty "$TMP/project-empty" '[$a,$b,$empty]' >"$TMP/projects.json"
+out="$("$METRICS" --projects "$TMP/projects.json" report --since 2026-09-29 --until 2026-09-29 --json)"
+printf '%s' "$out" | jqe '.projects | length == 3' || fail "explicit inventory must include every requested project"
+printf '%s' "$out" | jqe '.patterns[0].initiative_count == 2' || fail "same slug across projects must stay distinct"
+printf '%s' "$out" | jqe '.projects[2].sources.event_ledgers == "missing"' || fail "empty project must name missing sources"
+text="$("$METRICS" --projects "$TMP/projects.json" report --since 2026-09-29 --until 2026-09-29)"
+case "$text" in
+  *'Projects: 3'*'Combined recurring patterns:'*) ;;
+  *) fail "portfolio text must expose coverage and patterns" ;;
+esac
+if "$METRICS" --dir "$DIR" --projects "$TMP/projects.json" report --since 2026-09-29 >/dev/null 2>&1; then
+  fail "--dir and --projects are mutually exclusive"
+fi
+if "$METRICS" --projects "$TMP/projects.json" show same >/dev/null 2>&1; then
+  fail "--projects must be report-only"
+fi
+if "$METRICS" --projects "$TMP/projects.json" report --since 2026-09-29 --herdr-history "$HERDR" >/dev/null 2>&1; then
+  fail "portfolio must refuse a shared Herdr source"
+fi
+if "$METRICS" --dir "$DIR" report --since invalid >/dev/null 2>&1; then
+  fail "invalid date must fail with remediation"
+fi
+
+node --test "$ROOT_DIR/tests/workflow-patterns.test.mjs"
 bash "$ROOT_DIR/tests/guard-journal-isolation-smoke.sh"
 printf 'ship-metrics-report-smoke: PASS\n'

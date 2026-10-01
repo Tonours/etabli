@@ -19,6 +19,7 @@ Usage:
   workflow-ship-metrics --dir <root>/.workflow show <run-slug>
   workflow-ship-metrics --dir <root>/.workflow find-pr <pr-url>
   workflow-ship-metrics --dir <root>/.workflow report --since <date> [--until <date>] [--herdr-history <file>] [--json]
+  workflow-ship-metrics --projects <roots.json> report --since <date> [--until <date>] [--json]
 Row schema: {run_slug, pr_url|null, verdict, models[], deciding_code, escaped_later(count), buckets, tier}
 Report: on-demand KPI join over real sources (registry rows, event ledgers,
 guard journal, optional herdr history); missing sources are named, never
@@ -27,9 +28,17 @@ EOF
   exit 2
 }
 
-[ "${1:-}" = "--dir" ] || usage
-DIR="$2"; shift 2
+[ "$#" -ge 3 ] || usage
+DIR="" PROJECTS_FILE=""
+case "$1" in
+  --dir) DIR="$2" ;;
+  --projects) PROJECTS_FILE="$2" ;;
+  *) usage ;;
+esac
+[ -n "$2" ] || usage
+shift 2
 CMD="${1:-}"; shift || true
+[ -z "$PROJECTS_FILE" ] || [ "$CMD" = "report" ] || usage
 
 REGISTRY="$DIR/ship-metrics"
 
@@ -143,18 +152,27 @@ case "$CMD" in
     done
     [ -n "$REPORT_SINCE" ] || { printf 'report requires --since <date>\n' >&2; exit 2; }
     METRICS_LIB="$(cd "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)/lib/ship-metrics-report.mjs" \
-    REPORT_DIR="$DIR" REPORT_SINCE="$REPORT_SINCE" REPORT_UNTIL="$REPORT_UNTIL" REPORT_HERDR="$REPORT_HERDR" REPORT_JSON="$REPORT_JSON" \
+    REPORT_DIR="$DIR" REPORT_PROJECTS="$PROJECTS_FILE" REPORT_SINCE="$REPORT_SINCE" REPORT_UNTIL="$REPORT_UNTIL" REPORT_HERDR="$REPORT_HERDR" REPORT_JSON="$REPORT_JSON" \
       node --input-type=module -e '
         import { pathToFileURL } from "node:url";
         const mod = await import(pathToFileURL(process.env.METRICS_LIB).href);
-        const report = mod.buildReport({
-          dir: process.env.REPORT_DIR,
-          since: process.env.REPORT_SINCE,
-          until: process.env.REPORT_UNTIL || undefined,
-          herdrHistory: process.env.REPORT_HERDR || undefined,
-        });
-        if (process.env.REPORT_JSON === "1") console.log(JSON.stringify(report, null, 2));
-        else console.log(mod.renderReport(report));
+        try {
+          const input = {
+            dir: process.env.REPORT_DIR,
+            since: process.env.REPORT_SINCE,
+            until: process.env.REPORT_UNTIL || undefined,
+            herdrHistory: process.env.REPORT_HERDR || undefined,
+          };
+          const portfolio = process.env.REPORT_PROJECTS
+            ? await import(new URL("./workflow-stats.mjs", pathToFileURL(process.env.METRICS_LIB))) : null;
+          const report = portfolio
+            ? portfolio.buildPortfolio({ ...input, projectsFile: process.env.REPORT_PROJECTS }) : mod.buildReport(input);
+          if (process.env.REPORT_JSON === "1") console.log(JSON.stringify(report, null, 2));
+          else console.log(portfolio ? portfolio.renderPortfolio(report) : mod.renderReport(report));
+        } catch (error) {
+          console.error(error.message);
+          process.exit(2);
+        }
       '
     ;;
   _upsert-locked)

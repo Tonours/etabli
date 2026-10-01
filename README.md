@@ -76,6 +76,7 @@ scripts/token-bench --check           # context cost per route
 scripts/claude-hooks-check            # live Claude hooks wired?
 scripts/check-fix-symlinks.sh         # managed links intact?
 node scripts/validate-adrs .          # ADR format
+scripts/workflow-ship-metrics --dir .workflow report --since 2026-09-01 # stats and patterns
 ```
 
 CI runs `agentic-infra` on `ubuntu-24.04` for the public repository and on
@@ -83,6 +84,8 @@ self-hosted runners for private ones (`gh run list --workflow agentic-infra.yml`
 
 ## Learn more
 
+- [`docs/workflow-statistics.md`](docs/workflow-statistics.md): local statistics,
+  recurring patterns, evidence and explicit multi-project reports.
 - [`docs/README.md`](docs/README.md): index of current references and history.
 - [`workflow/agent-quick-card.md`](workflow/agent-quick-card.md): one-page
   workflow entry; [`workflow/contract-details.md`](workflow/contract-details.md)
