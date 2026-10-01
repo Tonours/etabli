@@ -44,6 +44,7 @@ scripts/plan-cleanup --discard <reason-slug>
 - Writes `docs/plan/YYYYMMDD-discarded-<reason-slug>.md` with `Status: DISCARDED`.
 - Removes root `PLAN.md` so ordinary work or a fresh plan can proceed.
 - Do **not** use `--discard` after a successful implementation — use `--archive` with a validated implemented record instead.
+- On resume, execute cleanup alone in the session project cwd. Quoted arguments and `cd <same-cwd> &&` are allowed; pipes, redirects and other chains are not. Retry the narrow form instead of asking for manual deletion. Cleanup never edits `active-run.json`; age alone is not abandonment.
 
 ## Stale Plans
 
