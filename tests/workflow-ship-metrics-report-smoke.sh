@@ -132,4 +132,5 @@ out="$("$METRICS" --dir "$TMP/empty-wf" report --since 2026-09-29 --herdr-histor
 printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 0' || fail "no interval may be fabricated across hosts"
 printf '%s' "$out" | jqe '.counters.herdr.panes == 2' || fail "same pane on two hosts must count as two panes"
 
+bash "$ROOT_DIR/tests/guard-journal-isolation-smoke.sh"
 printf 'ship-metrics-report-smoke: PASS\n'

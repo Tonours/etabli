@@ -569,12 +569,12 @@ jq -e '[.hooks.Notification[] | .hooks[] | select(.command | contains("notificat
 	exit 1
 }
 no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
-denied=$(jq -nc '{tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
+denied=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
 [ "$(printf '%s' "$denied" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ] || {
 	printf 'no-comments-guard must deny a write that adds a comment, got %s\n' "$denied" >&2
 	exit 1
 }
-clean=$(jq -nc '{tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
+clean=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
 [ -z "$clean" ] || {
 	printf 'no-comments-guard must pass comment markers inside strings, got %s\n' "$clean" >&2
 	exit 1

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +13,20 @@ import noComments from "../no-comments.ts";
 
 type Handler = (event: Record<string, unknown>) => unknown;
 
+let fixtureCwd = "";
+
+beforeEach(() => {
+	fixtureCwd = mkdtempSync(join(tmpdir(), "etabli-no-comments-fixture-"));
+});
+
+afterEach(() => {
+	rmSync(fixtureCwd, { recursive: true, force: true });
+});
+
+function guardDecision(event: Parameters<typeof noCommentsGuardDecision>[0]) {
+	return noCommentsGuardDecision({ cwd: fixtureCwd, ...event });
+}
+
 function setupExtension() {
 	const handlers = new Map<string, Handler[]>();
 	const pi = {
@@ -23,7 +37,7 @@ function setupExtension() {
 	noComments(pi as unknown as Parameters<typeof noComments>[0]);
 	return {
 		emit(eventName: string, event: Record<string, unknown>) {
-			return (handlers.get(eventName) ?? []).map((handler) => handler(event));
+			return (handlers.get(eventName) ?? []).map((handler) => handler({ cwd: fixtureCwd, ...event }));
 		},
 	};
 }
@@ -100,19 +114,19 @@ describe("no-comments detector", () => {
 describe("noCommentsGuardDecision", () => {
 	test("allows bash and non-code files", () => {
 		expect(
-			noCommentsGuardDecision({
+			guardDecision({
 				tool_name: "Bash",
 				tool_input: { command: "echo // not a file comment" },
 			}),
 		).toBeNull();
 		expect(
-			noCommentsGuardDecision({
+			guardDecision({
 				tool_name: "Write",
 				tool_input: { file_path: "PLAN.md", content: "# PLAN\n// ignored\n" },
 			}),
 		).toBeNull();
 		expect(
-			noCommentsGuardDecision({
+			guardDecision({
 				tool_name: "Write",
 				tool_input: { path: "README.md", content: "Note: // docs\n" },
 			}),
@@ -120,7 +134,7 @@ describe("noCommentsGuardDecision", () => {
 	});
 
 	test("denies Write that adds a comment on a new code file", () => {
-		const decision = noCommentsGuardDecision({
+		const decision = guardDecision({
 			tool_name: "write",
 			tool_input: {
 				path: "src/new.ts",
@@ -142,7 +156,7 @@ describe("noCommentsGuardDecision", () => {
 			mkdirSync(join(cwd, "src"));
 			writeFileSync(join(cwd, "src", "keep.ts"), "export const n = 1; // keep\n");
 			expect(
-				noCommentsGuardDecision({
+				guardDecision({
 					cwd,
 					tool_name: "Write",
 					tool_input: {
@@ -157,7 +171,7 @@ describe("noCommentsGuardDecision", () => {
 	});
 
 	test("denies Edit and MultiEdit that introduce comments", () => {
-		const edit = noCommentsGuardDecision({
+		const edit = guardDecision({
 			toolName: "edit",
 			input: {
 				path: "lib/x.ts",
@@ -167,7 +181,7 @@ describe("noCommentsGuardDecision", () => {
 		});
 		expect(edit?.hookSpecificOutput?.permissionDecision).toBe("deny");
 
-		const multi = noCommentsGuardDecision({
+		const multi = guardDecision({
 			tool_name: "MultiEdit",
 			tool_input: {
 				file_path: "lib/x.ts",
@@ -184,7 +198,7 @@ describe("noCommentsGuardDecision", () => {
 
 	test("allows comment-free Write and Edit", () => {
 		expect(
-			noCommentsGuardDecision({
+			guardDecision({
 				tool_name: "Write",
 				tool_input: {
 					file_path: "src/ok.ts",
@@ -193,7 +207,7 @@ describe("noCommentsGuardDecision", () => {
 			}),
 		).toBeNull();
 		expect(
-			noCommentsGuardDecision({
+			guardDecision({
 				tool_name: "Edit",
 				tool_input: {
 					file_path: "src/ok.ts",
