@@ -62,6 +62,7 @@ export type WorkflowMultiExecution = {
 };
 
 export type WorkflowRouteContext = {
+	cwd?: string;
 	planStatus?: PlanStatus;
 	dynamicKnowledgeContext?: WorkflowKnowledgeContext;
 };

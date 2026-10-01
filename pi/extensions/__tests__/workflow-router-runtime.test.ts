@@ -322,7 +322,7 @@ describe("workflow router runtime", () => {
 		expect(decision.route).toBe("answer");
 		expect(decision.knowledgeContext?.topics).toContain("saas");
 		expect(decision.knowledgeContext?.command).toContain(
-			"~/work/obvault/_meta/obvault context",
+			"/_meta/obvault' context --json --max-tokens 2500",
 		);
 	});
 

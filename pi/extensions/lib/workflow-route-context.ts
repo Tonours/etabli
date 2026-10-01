@@ -43,13 +43,14 @@ export function resolveWorkflowRouteContext(prompt: string, cwd: string): {
 } {
 	const persistedStatus = readPlanStatus(cwd);
 	const routeContext = {
+		cwd,
 		planStatus: persistedStatus === "missing" ? promptPlanStatusFallback(prompt) : persistedStatus,
 	};
 	let decision = classifyWorkflowRoute(prompt, routeContext);
 	if (!decision.knowledgeContext) {
 		decision = classifyWorkflowRoute(prompt, {
 			...routeContext,
-			dynamicKnowledgeContext: resolveDynamicKnowledgeContext(prompt) ?? undefined,
+			dynamicKnowledgeContext: resolveDynamicKnowledgeContext(prompt, { cwd }) ?? undefined,
 		});
 	}
 	return { decision, routeContext };
