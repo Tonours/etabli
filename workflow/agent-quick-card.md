@@ -59,9 +59,10 @@ no pipes/redirections/chaining. A refusal is not a request for manual deletion.
 
 ## One-writer
 
-One writer at any instant: the parent or one `worker` per step — backed for
-multi-writer scopes by `scripts/workflow-lease` (per-(repo, worktree) TTL
-lease, ADR-0028). `scout`/`reviewer`: read-only plus Bash `PreToolUse` allowlist.
+One writer at any instant: the parent or one `worker` per step.
+`scout`/`reviewer`: read-only plus Bash `PreToolUse` allowlist.
+
+Etabli multi-writer scopes require `scripts/workflow-lease` (per-(repo, worktree) TTL lease, ADR-0028). <!-- etabli-only -->
 
 ## Routes (common)
 
