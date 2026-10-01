@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 METRICS="$ROOT_DIR/scripts/workflow-ship-metrics"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -58,13 +59,13 @@ printf '%s' "$out" | jqe '.counters.herdr.holes == 1' || fail "the seq 2->4 gap 
 printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 60' || fail "known time must exclude the hole interval (30s + 30s)"
 printf '%s' "$out" | jqe '.outcome.accepted_results == null' || fail "accepted results must be null until receipts"
 
-before_files="$(find "$DIR" -type f | sort | md5)"
+before_files="$(find "$DIR" -type f | sort | hash256)"
 text="$("$METRICS" --dir "$DIR" report --since 2026-09-29)"
 case "$text" in
   *outcome*) ;;
   *) fail "text output must carry the outcome block" ;;
 esac
-after_files="$(find "$DIR" -type f | sort | md5)"
+after_files="$(find "$DIR" -type f | sort | hash256)"
 [ "$before_files" = "$after_files" ] || fail "report must not write any file"
 
 rm -rf "$DIR/guard-journal"
