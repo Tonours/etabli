@@ -1,0 +1,6 @@
+{
+  "name": "etabli",
+  "version": "0.1.0",
+  "description": "Read-only Etabli workflow cockpit: resume, routing, journal, checkpoints, diagnostics, review evidence, usage and skills",
+  "author": { "name": "Tonours" }
+}
