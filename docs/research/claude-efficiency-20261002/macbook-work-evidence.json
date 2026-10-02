@@ -1,0 +1,3369 @@
+{
+  "host_scope": "macbook-work",
+  "captured_at_utc": "2026-10-02T13:53:14.804972+00:00",
+  "window_start_utc": "2026-09-02T13:24:38.606469+00:00",
+  "window_end_utc": "2026-10-02T13:24:38.606469+00:00",
+  "common_window_start_utc": "2026-09-23T12:00:55.126000+00:00",
+  "method": "Read-only processing on the source machine. Only allowlisted settings, aggregate sizes, fixed intent labels and usage counters leave the source; no raw prompt, tool payload, transcript path, session ID, key or token exported.",
+  "config_dir": "/Users/aguimard/.claude",
+  "settings_safe": {
+    "model": "sonnet",
+    "effortLevel": "high",
+    "modelSettings": {
+      "claude-opus-5-5": {
+        "effortLevel": "low"
+      },
+      "claude-sonnet-5-5": {
+        "effortLevel": "low"
+      }
+    },
+    "alwaysThinkingEnabled": true,
+    "autoMemoryEnabled": false,
+    "promptSuggestionEnabled": false,
+    "awaySummaryEnabled": false,
+    "enableWorkflows": false,
+    "workflowKeywordTriggerEnabled": false
+  },
+  "enabled_plugins": {
+    "caveman@caveman": true,
+    "code-simplifier@claude-plugins-official": true,
+    "codex@openai-codex": false,
+    "datadog@claude-plugins-official": true,
+    "example-skills@anthropic-agent-skills": false,
+    "forest@forest": true,
+    "lua-lsp@claude-plugins-official": false,
+    "macroscope@macroscope-local": true,
+    "ponytail@ponytail": true,
+    "pr-review-toolkit@claude-code-plugins": true,
+    "superpowers@claude-plugins-official": true,
+    "telegram@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "typesafe@typesafe-ai": true
+  },
+  "env_names": [],
+  "safe_env": {},
+  "skill_override_counts": {
+    "user-invocable-only": 59,
+    "on": 20
+  },
+  "surface_counts": {
+    "skills": 83,
+    "commands": 26,
+    "agents": 4,
+    "hooks": 23,
+    "projects": 177
+  },
+  "mcp_names": [
+    "alambic-brain",
+    "chrome-devtools"
+  ],
+  "fingerprints_before": {
+    "settings": "766fcdef4a7353469aab0767d967026e6679016b3904bc780f50e41f625ee403",
+    "instructions": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+    "rtk_instructions": "9fe007d9d7ca790f35b48bd12099e1b3a1dae05caf296dba3ddbe2621ddb02dc"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "no-comments-guard.mjs"
+          ]
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          []
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "macroscope-bash-autoallow.sh"
+          ]
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "plan-commit-guard.mjs"
+          ]
+        ]
+      },
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "tool-timing.mjs"
+          ]
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          []
+        ]
+      },
+      {
+        "matcher": "^(startup|resume|clear|compact|fork)$",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "herdr-agent-state.sh"
+          ]
+        ]
+      },
+      {
+        "matcher": "^(startup|resume|clear|compact)$",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          []
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "detect-adr-signal.mjs"
+          ]
+        ]
+      }
+    ],
+    "MessageDisplay": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "message-timestamp.mjs"
+          ]
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "user-timestamp.mjs"
+          ]
+        ]
+      },
+      {
+        "matcher": "*",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          []
+        ]
+      },
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "context-size-warning.mjs"
+          ]
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "tool-timing.mjs"
+          ]
+        ]
+      },
+      {
+        "matcher": "*",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          []
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "harvest-hook.mjs"
+          ]
+        ]
+      }
+    ]
+  },
+  "instructions": [
+    {
+      "scope": "user",
+      "exists": true,
+      "symlink": true,
+      "chars": 1946,
+      "lines": 40,
+      "sha256": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+      "import_basenames": [
+        "AGENTS.md",
+        "RTK.md"
+      ]
+    },
+    {
+      "scope": "rtk",
+      "exists": true,
+      "symlink": false,
+      "chars": 958,
+      "lines": 29,
+      "sha256": "9fe007d9d7ca790f35b48bd12099e1b3a1dae05caf296dba3ddbe2621ddb02dc",
+      "import_basenames": []
+    },
+    {
+      "scope": "home",
+      "exists": false,
+      "symlink": false
+    },
+    {
+      "scope": "work",
+      "exists": true,
+      "symlink": false,
+      "chars": 10604,
+      "lines": 176,
+      "sha256": "f8f4de9f75366b2811ddb125b9ba96fdb9ea10f82fecc0976dff4b620892b1d7",
+      "import_basenames": []
+    },
+    {
+      "scope": "work-local",
+      "exists": false,
+      "symlink": false
+    },
+    {
+      "scope": "etabli",
+      "exists": true,
+      "symlink": false,
+      "chars": 2394,
+      "lines": 61,
+      "sha256": "acbd68ae4d1decd75c15756aa332d4b449dc705fd5c0ff8cb3e987ff7712326a",
+      "import_basenames": []
+    },
+    {
+      "scope": "etabli-claude",
+      "exists": true,
+      "symlink": false,
+      "chars": 184,
+      "lines": 7,
+      "sha256": "c3cb234ed8c023901f62b55888924c5fb6306c74f08aafcb57cf7c8f0f94e680",
+      "import_basenames": [
+        "AGENTS.md"
+      ]
+    }
+  ],
+  "agent_frontmatter": [
+    {
+      "basename": "adversary.md",
+      "name": "adversary",
+      "model": "fable",
+      "effort": "low",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "basename": "reviewer.md",
+      "name": "reviewer",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "basename": "scout.md",
+      "name": "scout",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "basename": "worker.md",
+      "name": "worker",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "40"
+    }
+  ],
+  "shell_metadata": [
+    {
+      "basename": ".zshenv",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": [
+        "env"
+      ]
+    },
+    {
+      "basename": ".zprofile",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": []
+    },
+    {
+      "basename": ".zshrc",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": [
+        "oh-my-zsh.sh"
+      ]
+    },
+    {
+      "basename": ".bashrc",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": [
+        "env"
+      ]
+    },
+    {
+      "basename": ".bash_profile",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": [
+        "env"
+      ]
+    }
+  ],
+  "skills": {
+    "counts": {
+      "discovered": 81,
+      "state_on": 23,
+      "state_user-invocable-only": 58,
+      "frontmatter_disable_model_invocation": 10
+    },
+    "body_chars_percentiles": {
+      "n": 81,
+      "min": 247,
+      "median": 5383,
+      "p95_nearest_rank": 11117,
+      "max": 13050
+    },
+    "note": "Directory discovery and override states only; plugin skills excluded, not actual native prompt token count."
+  },
+  "plugins": {
+    "installed_top_level_keys": [
+      "plugins",
+      "version"
+    ],
+    "installed_names": [
+      "caveman@caveman",
+      "code-review@claude-code-plugins",
+      "code-simplifier@claude-plugins-official",
+      "codex@openai-codex",
+      "commit-commands@claude-code-plugins",
+      "datadog@claude-plugins-official",
+      "document-skills@anthropic-agent-skills",
+      "example-skills@anthropic-agent-skills",
+      "feature-dev@claude-code-plugins",
+      "forest@forest",
+      "lua-lsp@claude-plugins-official",
+      "macroscope@macroscope-local",
+      "ponytail@ponytail",
+      "pr-review-toolkit@claude-code-plugins",
+      "superpowers@claude-plugins-official",
+      "telegram@claude-plugins-official",
+      "typesafe@typesafe-ai",
+      "typescript-lsp@claude-plugins-official"
+    ],
+    "known_marketplaces_top_level_keys": [
+      "anthropic-agent-skills",
+      "caveman",
+      "claude-code-plugins",
+      "claude-plugins-official",
+      "forest",
+      "gvzdv-plugins",
+      "macroscope-local",
+      "openai-codex",
+      "ponytail",
+      "superpowers-marketplace",
+      "typesafe-ai"
+    ],
+    "pr-review-toolkit@claude-code-plugins": {
+      "installation_records": 61,
+      "metadata_variants": [
+        {
+          "agent_files": 6,
+          "command_files": 1,
+          "has_mcp_metadata": false,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [
+            "author",
+            "description",
+            "name",
+            "version"
+          ],
+          "scope": "project",
+          "skill_files": 0,
+          "version": "1.0.0",
+          "installation_record_count": 60
+        },
+        {
+          "agent_files": 6,
+          "command_files": 1,
+          "has_mcp_metadata": false,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [
+            "author",
+            "description",
+            "name",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 0,
+          "version": "1.0.0",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "code-simplifier@claude-plugins-official": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 1,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [
+            "author",
+            "description",
+            "name",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 0,
+          "version": "1.0.0",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "typescript-lsp@claude-plugins-official": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [],
+          "scope": "user",
+          "skill_files": 0,
+          "version": "1.0.0",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "telegram@claude-plugins-official": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": true,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [
+            "description",
+            "keywords",
+            "name",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 2,
+          "version": "0.0.7",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "datadog@claude-plugins-official": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": true,
+          "hook_events": [
+            "PostToolUse",
+            "SessionEnd"
+          ],
+          "hook_types": [
+            "command"
+          ],
+          "manifest_keys": [
+            "author",
+            "description",
+            "keywords",
+            "mcpServers",
+            "name",
+            "repository",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 5,
+          "version": "0.7.17",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "ponytail@ponytail": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [
+            "SessionStart",
+            "SubagentStart",
+            "UserPromptSubmit"
+          ],
+          "hook_types": [
+            "command"
+          ],
+          "manifest_keys": [
+            "author",
+            "description",
+            "hooks",
+            "name",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 6,
+          "version": "4.8.3",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "caveman@caveman": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 3,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [
+            "SessionStart",
+            "UserPromptSubmit"
+          ],
+          "hook_types": [
+            "command"
+          ],
+          "manifest_keys": [
+            "author",
+            "description",
+            "hooks",
+            "name"
+          ],
+          "scope": "user",
+          "skill_files": 7,
+          "version": "25d22f864ad6",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "superpowers@claude-plugins-official": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [
+            "SessionStart"
+          ],
+          "hook_types": [
+            "command"
+          ],
+          "manifest_keys": [
+            "author",
+            "description",
+            "homepage",
+            "keywords",
+            "license",
+            "name",
+            "repository",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 14,
+          "version": "6.3.0",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "macroscope@macroscope-local": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [
+            "author",
+            "description",
+            "homepage",
+            "keywords",
+            "license",
+            "name",
+            "repository",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 2,
+          "version": "2.0.0",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "forest@forest": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 2,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [
+            "Stop"
+          ],
+          "hook_types": [
+            "command"
+          ],
+          "manifest_keys": [
+            "description",
+            "name"
+          ],
+          "scope": "user",
+          "skill_files": 11,
+          "version": "633f1ec0a0e5",
+          "installation_record_count": 1
+        }
+      ]
+    },
+    "typesafe@typesafe-ai": {
+      "installation_records": 1,
+      "metadata_variants": [
+        {
+          "agent_files": 0,
+          "command_files": 0,
+          "has_mcp_metadata": false,
+          "hook_events": [],
+          "hook_types": [],
+          "manifest_keys": [
+            "author",
+            "description",
+            "homepage",
+            "license",
+            "name",
+            "repository",
+            "version"
+          ],
+          "scope": "user",
+          "skill_files": 1,
+          "version": "0.5.7",
+          "installation_record_count": 1
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "cli_on_noninteractive_path": null,
+    "rtk_on_path": true,
+    "etabli_sha": "f7ec82f58903839434bbb6c87e2e6c4cc02342cf",
+    "etabli_branch": "main"
+  },
+  "inventory": {
+    "jsonl_files_all": 1167,
+    "files_scanned_recent_mtime": 1159,
+    "older_files_skipped": 8,
+    "bytes_scanned": 1048518111,
+    "scan_elapsed_seconds": 14.249,
+    "file_mtime_min_utc": "2026-08-22T01:21:44.085986+00:00",
+    "file_mtime_max_utc": "2026-10-02T13:52:18.027871+00:00",
+    "errors": {
+      "records_without_parseable_timestamp": 69597
+    },
+    "records_in_window_by_type": {
+      "attachment": 165912,
+      "user": 45242,
+      "assistant": 71889,
+      "system": 7499,
+      "queue-operation": 3691,
+      "file-history-delta": 897,
+      "frame-link": 485,
+      "pr-link": 1714,
+      "continued-in": 1
+    }
+  },
+  "usage_30d": {
+    "totals": {
+      "input_tokens": 221636,
+      "output_tokens": 23454784,
+      "cache_read_input_tokens": 8129790674,
+      "cache_creation_input_tokens": 181434239,
+      "requests": 37831,
+      "raw_fragments": 71874,
+      "processed_total_tokens": 8334901333
+    },
+    "by_reported_model": {
+      "claude-fable-5-1": {
+        "input_tokens": 147287,
+        "output_tokens": 826586,
+        "cache_read_input_tokens": 57619896,
+        "cache_creation_input_tokens": 7342453,
+        "requests": 920,
+        "raw_fragments": 3392,
+        "processed_total_tokens": 65936222
+      },
+      "claude-haiku-4-5-20251001": {
+        "input_tokens": 592,
+        "output_tokens": 20141,
+        "cache_read_input_tokens": 3414868,
+        "cache_creation_input_tokens": 263842,
+        "requests": 73,
+        "raw_fragments": 170,
+        "processed_total_tokens": 3699443
+      },
+      "claude-opus-5": {
+        "input_tokens": 28572,
+        "output_tokens": 8490745,
+        "cache_read_input_tokens": 3447801220,
+        "cache_creation_input_tokens": 58022331,
+        "requests": 14286,
+        "raw_fragments": 25038,
+        "processed_total_tokens": 3514342868
+      },
+      "claude-opus-5-5": {
+        "input_tokens": 29965,
+        "output_tokens": 10399968,
+        "cache_read_input_tokens": 3290612614,
+        "cache_creation_input_tokens": 86751938,
+        "requests": 14942,
+        "raw_fragments": 29643,
+        "processed_total_tokens": 3387794485
+      },
+      "claude-sonnet-5": {
+        "input_tokens": 5574,
+        "output_tokens": 1401278,
+        "cache_read_input_tokens": 254189882,
+        "cache_creation_input_tokens": 12797076,
+        "requests": 2787,
+        "raw_fragments": 5643,
+        "processed_total_tokens": 268393810
+      },
+      "claude-sonnet-5-5": {
+        "input_tokens": 9646,
+        "output_tokens": 2316066,
+        "cache_read_input_tokens": 1076152194,
+        "cache_creation_input_tokens": 16256599,
+        "requests": 4823,
+        "raw_fragments": 7988,
+        "processed_total_tokens": 1094734505
+      }
+    },
+    "by_class": {
+      "main": {
+        "input_tokens": 62269,
+        "output_tokens": 18519793,
+        "cache_read_input_tokens": 7477287409,
+        "cache_creation_input_tokens": 128557791,
+        "requests": 30180,
+        "raw_fragments": 54776,
+        "processed_total_tokens": 7624427262
+      },
+      "subagent": {
+        "input_tokens": 159367,
+        "output_tokens": 4934991,
+        "cache_read_input_tokens": 652503265,
+        "cache_creation_input_tokens": 52876448,
+        "requests": 7651,
+        "raw_fragments": 17098,
+        "processed_total_tokens": 710474071
+      }
+    },
+    "by_utc_day": {
+      "2026-09-02": {
+        "input_tokens": 732,
+        "output_tokens": 229066,
+        "cache_read_input_tokens": 36891663,
+        "cache_creation_input_tokens": 1689612,
+        "requests": 366,
+        "raw_fragments": 695,
+        "processed_total_tokens": 38811073
+      },
+      "2026-09-03": {
+        "input_tokens": 132001,
+        "output_tokens": 1352519,
+        "cache_read_input_tokens": 545007915,
+        "cache_creation_input_tokens": 8051716,
+        "requests": 2818,
+        "raw_fragments": 5073,
+        "processed_total_tokens": 554544151
+      },
+      "2026-09-04": {
+        "input_tokens": 904,
+        "output_tokens": 338413,
+        "cache_read_input_tokens": 171991314,
+        "cache_creation_input_tokens": 1540890,
+        "requests": 452,
+        "raw_fragments": 805,
+        "processed_total_tokens": 173871521
+      },
+      "2026-09-07": {
+        "input_tokens": 6580,
+        "output_tokens": 1034961,
+        "cache_read_input_tokens": 378876711,
+        "cache_creation_input_tokens": 8601841,
+        "requests": 1175,
+        "raw_fragments": 2642,
+        "processed_total_tokens": 388520093
+      },
+      "2026-09-08": {
+        "input_tokens": 6962,
+        "output_tokens": 1458118,
+        "cache_read_input_tokens": 686591158,
+        "cache_creation_input_tokens": 9553288,
+        "requests": 2806,
+        "raw_fragments": 5041,
+        "processed_total_tokens": 697609526
+      },
+      "2026-09-09": {
+        "input_tokens": 968,
+        "output_tokens": 476140,
+        "cache_read_input_tokens": 125336266,
+        "cache_creation_input_tokens": 2245044,
+        "requests": 484,
+        "raw_fragments": 1188,
+        "processed_total_tokens": 128058418
+      },
+      "2026-09-10": {
+        "input_tokens": 5098,
+        "output_tokens": 1234384,
+        "cache_read_input_tokens": 654610794,
+        "cache_creation_input_tokens": 9470109,
+        "requests": 1904,
+        "raw_fragments": 3452,
+        "processed_total_tokens": 665320385
+      },
+      "2026-09-11": {
+        "input_tokens": 2674,
+        "output_tokens": 683047,
+        "cache_read_input_tokens": 200149678,
+        "cache_creation_input_tokens": 5959654,
+        "requests": 1337,
+        "raw_fragments": 2346,
+        "processed_total_tokens": 206795053
+      },
+      "2026-09-14": {
+        "input_tokens": 1946,
+        "output_tokens": 508386,
+        "cache_read_input_tokens": 145274625,
+        "cache_creation_input_tokens": 3749189,
+        "requests": 733,
+        "raw_fragments": 1300,
+        "processed_total_tokens": 149534146
+      },
+      "2026-09-15": {
+        "input_tokens": 2256,
+        "output_tokens": 434008,
+        "cache_read_input_tokens": 184200083,
+        "cache_creation_input_tokens": 2765246,
+        "requests": 813,
+        "raw_fragments": 1389,
+        "processed_total_tokens": 187401593
+      },
+      "2026-09-17": {
+        "input_tokens": 52,
+        "output_tokens": 15209,
+        "cache_read_input_tokens": 8096682,
+        "cache_creation_input_tokens": 309613,
+        "requests": 26,
+        "raw_fragments": 44,
+        "processed_total_tokens": 8421556
+      },
+      "2026-09-18": {
+        "input_tokens": 270,
+        "output_tokens": 89790,
+        "cache_read_input_tokens": 17259436,
+        "cache_creation_input_tokens": 757970,
+        "requests": 135,
+        "raw_fragments": 327,
+        "processed_total_tokens": 18107466
+      },
+      "2026-09-19": {
+        "input_tokens": 38,
+        "output_tokens": 21034,
+        "cache_read_input_tokens": 4935033,
+        "cache_creation_input_tokens": 247082,
+        "requests": 19,
+        "raw_fragments": 35,
+        "processed_total_tokens": 5203187
+      },
+      "2026-09-21": {
+        "input_tokens": 2390,
+        "output_tokens": 604585,
+        "cache_read_input_tokens": 198037189,
+        "cache_creation_input_tokens": 4018701,
+        "requests": 1195,
+        "raw_fragments": 2037,
+        "processed_total_tokens": 202662865
+      },
+      "2026-09-22": {
+        "input_tokens": 5060,
+        "output_tokens": 970978,
+        "cache_read_input_tokens": 197212880,
+        "cache_creation_input_tokens": 8264383,
+        "requests": 1555,
+        "raw_fragments": 3033,
+        "processed_total_tokens": 206453301
+      },
+      "2026-09-23": {
+        "input_tokens": 11774,
+        "output_tokens": 2044687,
+        "cache_read_input_tokens": 691533743,
+        "cache_creation_input_tokens": 15334767,
+        "requests": 3096,
+        "raw_fragments": 6682,
+        "processed_total_tokens": 708924971
+      },
+      "2026-09-24": {
+        "input_tokens": 6457,
+        "output_tokens": 2055715,
+        "cache_read_input_tokens": 463814868,
+        "cache_creation_input_tokens": 16669560,
+        "requests": 2795,
+        "raw_fragments": 5528,
+        "processed_total_tokens": 482546600
+      },
+      "2026-09-25": {
+        "input_tokens": 3550,
+        "output_tokens": 1253648,
+        "cache_read_input_tokens": 357286673,
+        "cache_creation_input_tokens": 14501151,
+        "requests": 1716,
+        "raw_fragments": 3235,
+        "processed_total_tokens": 373045022
+      },
+      "2026-09-28": {
+        "input_tokens": 6646,
+        "output_tokens": 2127839,
+        "cache_read_input_tokens": 753150619,
+        "cache_creation_input_tokens": 16231866,
+        "requests": 3132,
+        "raw_fragments": 6168,
+        "processed_total_tokens": 771516970
+      },
+      "2026-09-29": {
+        "input_tokens": 6846,
+        "output_tokens": 1855300,
+        "cache_read_input_tokens": 541593232,
+        "cache_creation_input_tokens": 15673850,
+        "requests": 3208,
+        "raw_fragments": 6179,
+        "processed_total_tokens": 559129228
+      },
+      "2026-09-30": {
+        "input_tokens": 1554,
+        "output_tokens": 330715,
+        "cache_read_input_tokens": 250932569,
+        "cache_creation_input_tokens": 3154129,
+        "requests": 777,
+        "raw_fragments": 1139,
+        "processed_total_tokens": 254418967
+      },
+      "2026-10-01": {
+        "input_tokens": 13020,
+        "output_tokens": 3419539,
+        "cache_read_input_tokens": 1189879315,
+        "cache_creation_input_tokens": 20544127,
+        "requests": 5475,
+        "raw_fragments": 10455,
+        "processed_total_tokens": 1213856001
+      },
+      "2026-10-02": {
+        "input_tokens": 3858,
+        "output_tokens": 916703,
+        "cache_read_input_tokens": 327128228,
+        "cache_creation_input_tokens": 12100451,
+        "requests": 1814,
+        "raw_fragments": 3081,
+        "processed_total_tokens": 340149240
+      }
+    },
+    "recorded_time_min": "2026-09-02T13:24:59.034000+00:00",
+    "recorded_time_max": "2026-10-02T13:24:37.265000+00:00",
+    "request_input_components_percentiles": {
+      "n": 37831,
+      "min": 16392,
+      "median": 155792,
+      "p95_nearest_rank": 603648,
+      "max": 967195
+    },
+    "input_percentiles_by_class": {
+      "main": {
+        "n": 30180,
+        "min": 48322,
+        "median": 189087.0,
+        "p95_nearest_rank": 636412,
+        "max": 967195
+      },
+      "subagent": {
+        "n": 7651,
+        "min": 16392,
+        "median": 71459,
+        "p95_nearest_rank": 183322,
+        "max": 651964
+      }
+    },
+    "first_observed_request_per_recent_file_inputs": {
+      "n": 1142,
+      "min": 16392,
+      "median": 54049.5,
+      "p95_nearest_rank": 86441,
+      "max": 519245
+    },
+    "input_buckets": {
+      "32k-128k": {
+        "requests": 14827,
+        "processed_total_tokens": 1286636000
+      },
+      "128k-256k": {
+        "requests": 11784,
+        "processed_total_tokens": 2115277460
+      },
+      "256k-512k": {
+        "requests": 7940,
+        "processed_total_tokens": 2864893380
+      },
+      ">=512k": {
+        "requests": 3186,
+        "processed_total_tokens": 2065249293
+      },
+      "<32k": {
+        "requests": 94,
+        "processed_total_tokens": 2845200
+      }
+    }
+  },
+  "usage_common_window": {
+    "totals": {
+      "input_tokens": 47729,
+      "output_tokens": 13041593,
+      "cache_read_input_tokens": 4274882359,
+      "cache_creation_input_tokens": 107450435,
+      "requests": 20600,
+      "raw_fragments": 39390,
+      "processed_total_tokens": 4395422116
+    },
+    "by_reported_model": {
+      "claude-fable-5-1": {
+        "input_tokens": 6446,
+        "output_tokens": 247688,
+        "cache_read_input_tokens": 13111598,
+        "cache_creation_input_tokens": 1805979,
+        "requests": 222,
+        "raw_fragments": 671,
+        "processed_total_tokens": 15171711
+      },
+      "claude-haiku-4-5-20251001": {
+        "input_tokens": 592,
+        "output_tokens": 20141,
+        "cache_read_input_tokens": 3414868,
+        "cache_creation_input_tokens": 263842,
+        "requests": 73,
+        "raw_fragments": 170,
+        "processed_total_tokens": 3699443
+      },
+      "claude-opus-5-5": {
+        "input_tokens": 27725,
+        "output_tokens": 9587630,
+        "cache_read_input_tokens": 2987116005,
+        "cache_creation_input_tokens": 81745465,
+        "requests": 13822,
+        "raw_fragments": 27309,
+        "processed_total_tokens": 3078476825
+      },
+      "claude-sonnet-5": {
+        "input_tokens": 3320,
+        "output_tokens": 870068,
+        "cache_read_input_tokens": 195087694,
+        "cache_creation_input_tokens": 7378550,
+        "requests": 1660,
+        "raw_fragments": 3252,
+        "processed_total_tokens": 203339632
+      },
+      "claude-sonnet-5-5": {
+        "input_tokens": 9646,
+        "output_tokens": 2316066,
+        "cache_read_input_tokens": 1076152194,
+        "cache_creation_input_tokens": 16256599,
+        "requests": 4823,
+        "raw_fragments": 7988,
+        "processed_total_tokens": 1094734505
+      }
+    },
+    "by_class": {
+      "main": {
+        "input_tokens": 32655,
+        "output_tokens": 9745826,
+        "cache_read_input_tokens": 3914473951,
+        "cache_creation_input_tokens": 74571864,
+        "requests": 16288,
+        "raw_fragments": 30051,
+        "processed_total_tokens": 3998824296
+      },
+      "subagent": {
+        "input_tokens": 15074,
+        "output_tokens": 3295767,
+        "cache_read_input_tokens": 360408408,
+        "cache_creation_input_tokens": 32878571,
+        "requests": 4312,
+        "raw_fragments": 9339,
+        "processed_total_tokens": 396597820
+      }
+    },
+    "by_utc_day": {
+      "2026-09-23": {
+        "input_tokens": 5798,
+        "output_tokens": 1082134,
+        "cache_read_input_tokens": 391096855,
+        "cache_creation_input_tokens": 8575301,
+        "requests": 1683,
+        "raw_fragments": 3605,
+        "processed_total_tokens": 400760088
+      },
+      "2026-09-24": {
+        "input_tokens": 6457,
+        "output_tokens": 2055715,
+        "cache_read_input_tokens": 463814868,
+        "cache_creation_input_tokens": 16669560,
+        "requests": 2795,
+        "raw_fragments": 5528,
+        "processed_total_tokens": 482546600
+      },
+      "2026-09-25": {
+        "input_tokens": 3550,
+        "output_tokens": 1253648,
+        "cache_read_input_tokens": 357286673,
+        "cache_creation_input_tokens": 14501151,
+        "requests": 1716,
+        "raw_fragments": 3235,
+        "processed_total_tokens": 373045022
+      },
+      "2026-09-28": {
+        "input_tokens": 6646,
+        "output_tokens": 2127839,
+        "cache_read_input_tokens": 753150619,
+        "cache_creation_input_tokens": 16231866,
+        "requests": 3132,
+        "raw_fragments": 6168,
+        "processed_total_tokens": 771516970
+      },
+      "2026-09-29": {
+        "input_tokens": 6846,
+        "output_tokens": 1855300,
+        "cache_read_input_tokens": 541593232,
+        "cache_creation_input_tokens": 15673850,
+        "requests": 3208,
+        "raw_fragments": 6179,
+        "processed_total_tokens": 559129228
+      },
+      "2026-09-30": {
+        "input_tokens": 1554,
+        "output_tokens": 330715,
+        "cache_read_input_tokens": 250932569,
+        "cache_creation_input_tokens": 3154129,
+        "requests": 777,
+        "raw_fragments": 1139,
+        "processed_total_tokens": 254418967
+      },
+      "2026-10-01": {
+        "input_tokens": 13020,
+        "output_tokens": 3419539,
+        "cache_read_input_tokens": 1189879315,
+        "cache_creation_input_tokens": 20544127,
+        "requests": 5475,
+        "raw_fragments": 10455,
+        "processed_total_tokens": 1213856001
+      },
+      "2026-10-02": {
+        "input_tokens": 3858,
+        "output_tokens": 916703,
+        "cache_read_input_tokens": 327128228,
+        "cache_creation_input_tokens": 12100451,
+        "requests": 1814,
+        "raw_fragments": 3081,
+        "processed_total_tokens": 340149240
+      }
+    },
+    "recorded_time_min": "2026-09-23T12:03:22.804000+00:00",
+    "recorded_time_max": "2026-10-02T13:24:37.265000+00:00",
+    "request_input_components_percentiles": {
+      "n": 20600,
+      "min": 16392,
+      "median": 151066.5,
+      "p95_nearest_rank": 569790,
+      "max": 880243
+    },
+    "input_percentiles_by_class": {
+      "main": {
+        "n": 16288,
+        "min": 49197,
+        "median": 182933.0,
+        "p95_nearest_rank": 600175,
+        "max": 880243
+      },
+      "subagent": {
+        "n": 4312,
+        "min": 16392,
+        "median": 73812.0,
+        "p95_nearest_rank": 187026,
+        "max": 453371
+      }
+    },
+    "first_observed_request_per_recent_file_inputs": {
+      "n": 691,
+      "min": 16392,
+      "median": 54943,
+      "p95_nearest_rank": 81903,
+      "max": 702230
+    },
+    "input_buckets": {
+      "32k-128k": {
+        "requests": 8392,
+        "processed_total_tokens": 730804606
+      },
+      "128k-256k": {
+        "requests": 6363,
+        "processed_total_tokens": 1139117525
+      },
+      "256k-512k": {
+        "requests": 4305,
+        "processed_total_tokens": 1569211557
+      },
+      "<32k": {
+        "requests": 34,
+        "processed_total_tokens": 1035040
+      },
+      ">=512k": {
+        "requests": 1506,
+        "processed_total_tokens": 955253388
+      }
+    }
+  },
+  "transcript_version_counts": {
+    "2.1.284": 89678,
+    "2.1.259": 15091,
+    "2.1.258": 1911,
+    "2.1.280": 95744,
+    "2.1.268": 12355,
+    "2.1.263": 24781,
+    "2.1.267": 11759,
+    "2.1.270": 32034,
+    "2.1.266": 4600,
+    "2.1.260": 2589
+  },
+  "observed_project_configuration": {
+    "distinct_recorded_cwds_under_home": 281,
+    "existing_unique_surfaces_by_name": {
+      ".claude/settings.json": 8,
+      ".claude/settings.local.json": 8,
+      "CLAUDE.md": 29,
+      ".mcp.json": 1
+    },
+    "model_settings_variants": [
+      {
+        "settings": {
+          "effortLevel": "low",
+          "model": "claude-sonnet-5-5"
+        },
+        "files": 3
+      }
+    ],
+    "plugins_true_counts_across_files": {
+      "code-review@claude-code-plugins": 4,
+      "commit-commands@claude-code-plugins": 4,
+      "feature-dev@claude-code-plugins": 4,
+      "pr-review-toolkit@claude-code-plugins": 4,
+      "document-skills@anthropic-agent-skills": 4,
+      "example-skills@anthropic-agent-skills": 4
+    },
+    "env_names": [],
+    "mcp_server_count_percentiles": {
+      "n": 1,
+      "min": 0,
+      "median": 0,
+      "p95_nearest_rank": 0,
+      "max": 0
+    },
+    "instruction_chars_percentiles": {
+      "n": 29,
+      "min": 184,
+      "median": 4356,
+      "p95_nearest_rank": 34622,
+      "max": 37066
+    },
+    "note": "Current existing settings/instructions in recorded cwd ancestors; no raw project names, paths, MCP connection settings or permission entries exported. Missing/moved historical working directories cannot be reconstructed."
+  },
+  "conversation_patterns": {
+    "unique_tool_calls": 39643,
+    "tool_calls_by_name": {
+      "Bash": 27076,
+      "Read": 3237,
+      "mcp__lean-ctx__ctx_shell": 1756,
+      "Edit": 1240,
+      "Write": 875,
+      "Agent": 634,
+      "mcp__claude_ai_Linear__get_issue": 611,
+      "ToolSearch": 502,
+      "mcp__claude_ai_Linear__save_issue": 358,
+      "mcp__claude-in-chrome__computer": 340,
+      "mcp__claude-in-chrome__browser_batch": 290,
+      "mcp__lean-ctx__ctx_read": 242,
+      "Skill": 209,
+      "mcp__claude_ai_Slack__slack_search_public_and_private": 181,
+      "mcp__claude_ai_Mintlify_Documentation__query_docs_filesystem_forest_documentation": 169,
+      "WebFetch": 150,
+      "mcp__claude_ai_Linear__list_issues": 117,
+      "mcp__claude_ai_Linear__list_comments": 107,
+      "mcp__claude-in-chrome__javascript_tool": 103,
+      "mcp__claude_ai_Mintlify_Documentation__search_forest_documentation": 95,
+      "mcp__lean-ctx__ctx_search": 94,
+      "WebSearch": 80,
+      "mcp__claude-in-chrome__navigate": 73,
+      "Grep": 66,
+      "AskUserQuestion": 62,
+      "Monitor": 60,
+      "ScheduleWakeup": 59,
+      "mcp__claude_ai_Slack__slack_send_message": 51,
+      "Artifact": 49,
+      "mcp__lean-ctx__ctx_patch": 46,
+      "mcp__claude-in-chrome__tabs_context_mcp": 35,
+      "SendMessage": 34,
+      "mcp__claude_ai_Claude_Docs__update": 31,
+      "mcp__claude-in-chrome__find": 26,
+      "mcp__claude_ai_Figma__get_variable_defs": 26,
+      "mcp__claude_ai_Linear__save_document": 25,
+      "TaskStop": 22,
+      "mcp__claude_ai_Linear__get_project": 22,
+      "mcp__claude-in-chrome__read_console_messages": 21,
+      "mcp__claude-in-chrome__gif_creator": 20,
+      "TaskOutput": 19,
+      "mcp__claude_ai_Linear__save_comment": 19,
+      "mcp__alambic-brain__vault_search": 19,
+      "mcp__lean-ctx__ctx_expand": 18,
+      "mcp__alambic-brain__vault_context": 18,
+      "mcp__claude_ai_Slack__slack_read_thread": 17,
+      "mcp__claude_ai_Linear__get_document": 14,
+      "mcp__claude_ai_Linear__list_projects": 13,
+      "mcp__claude-in-chrome__get_page_text": 13,
+      "mcp__lean-ctx__ctx_glob": 13,
+      "mcp__claude_ai_Figma__use_figma": 12,
+      "mcp__claude_ai_Claude_Docs__read": 12,
+      "mcp__claude_ai_Slack__slack_search_public": 11,
+      "ListAgents": 10,
+      "mcp__claude_ai_FoF__list": 10,
+      "mcp__claude_ai_Figma__get_metadata": 10,
+      "Glob": 10,
+      "ReadNotifications": 9,
+      "mcp__claude-in-chrome__tabs_close_mcp": 9,
+      "mcp__lean-ctx__ctx_tree": 9,
+      "mcp__alambic-brain__vault_read": 9,
+      "mcp__claude_ai_Linear__save_project": 9,
+      "mcp__claude_ai_Linear__get_user": 8,
+      "mcp__claude_ai_Claude_Docs__batch": 7,
+      "mcp__chrome-devtools__take_snapshot": 7,
+      "mcp__claude_ai_Figma__whoami": 6,
+      "mcp__claude_ai_Figma__get_libraries": 6,
+      "mcp__claude_ai_Figma__search_design_system": 6,
+      "mcp__claude_ai_Figma__get_figma_skill": 6,
+      "mcp__claude-in-chrome__read_network_requests": 6,
+      "mcp__brain__vault_search": 6,
+      "mcp__claude_ai_Slack__slack_search_channels": 5,
+      "mcp__claude_ai_Slack__slack_search_users": 5,
+      "mcp__claude-in-chrome__tabs_create_mcp": 5,
+      "mcp__claude_ai_Claude_Docs__guide": 5,
+      "mcp__claude_ai_Github_MCP__pull_request_read": 5,
+      "mcp__chrome-devtools__take_screenshot": 4,
+      "mcp__claude_ai_Figma__get_screenshot": 4,
+      "mcp__chrome-devtools__click": 4,
+      "mcp__claude_ai_Linear__list_issue_labels": 4,
+      "mcp__plugin_datadog_mcp__load_datadog_skill": 4,
+      "mcp__plugin_datadog_mcp__analyze_datadog_logs": 4,
+      "EnterWorktree": 3,
+      "ExitWorktree": 3,
+      "ReportFindings": 3,
+      "mcp__claude-in-chrome__read_page": 3,
+      "mcp__plugin_datadog_mcp__search_datadog_logs": 3,
+      "mcp__chrome-devtools__new_page": 2,
+      "mcp__claude_ai_Linear__list_documents": 2,
+      "mcp__claude_ai_FoF__describeCollection": 2,
+      "mcp__brain__vault_health": 2,
+      "mcp__chrome-devtools__list_network_requests": 2,
+      "mcp__chrome-devtools__get_network_request": 2,
+      "mcp__chrome-devtools__list_pages": 2,
+      "mcp__claude_ai_Figma__get_design_context": 2,
+      "PushNotification": 2,
+      "mcp__claude_ai_Linear__list_users": 2,
+      "mcp__plugin_datadog_mcp__aggregate_rum_events": 2,
+      "mcp__claude_ai_Linear__delete_comment": 1,
+      "mcp__claude_ai_Slack__slack_read_channel": 1,
+      "ReadMcpResourceTool": 1,
+      "mcp__claude-in-chrome__resize_window": 1,
+      "mcp__brain__vault_context": 1,
+      "mcp__claude_ai_Linear__get_status_updates": 1,
+      "mcp__claude_ai_Gmail__search_threads": 1,
+      "mcp__lean-ctx__ctx_compose": 1,
+      "mcp__chrome-devtools__navigate_page": 1,
+      "mcp__chrome-devtools__wait_for": 1,
+      "mcp__chrome-devtools__hover": 1,
+      "mcp__chrome-devtools__evaluate_script": 1,
+      "mcp__chrome-devtools__press_key": 1,
+      "mcp__chrome-devtools__list_console_messages": 1,
+      "mcp__claude_ai_Slack__slack_send_message_draft": 1,
+      "mcp__alambic-brain__vault_capture": 1,
+      "mcp__claude-in-chrome__file_upload": 1,
+      "mcp__claude_ai_Claude_Docs__create": 1,
+      "mcp__claude_ai_Github_MCP__issue_read": 1,
+      "mcp__claude_ai_Linear__list_issue_statuses": 1,
+      "mcp__plugin_datadog_mcp__list_datadog_skills": 1,
+      "mcp__plugin_datadog_mcp__search_datadog_rum_events": 1
+    },
+    "tool_result_sizes_chars_by_name": {
+      "Agent": {
+        "n": 634,
+        "min": 576,
+        "median": 1115.0,
+        "p95_nearest_rank": 3941,
+        "max": 8068
+      },
+      "Artifact": {
+        "n": 49,
+        "min": 120,
+        "median": 1160,
+        "p95_nearest_rank": 33460,
+        "max": 49999
+      },
+      "AskUserQuestion": {
+        "n": 61,
+        "min": 159,
+        "median": 306,
+        "p95_nearest_rank": 650,
+        "max": 788
+      },
+      "Bash": {
+        "n": 27071,
+        "min": 1,
+        "median": 580,
+        "p95_nearest_rank": 8974,
+        "max": 29941
+      },
+      "Edit": {
+        "n": 1240,
+        "min": 77,
+        "median": 201.0,
+        "p95_nearest_rank": 277,
+        "max": 1550
+      },
+      "EnterWorktree": {
+        "n": 3,
+        "min": 229,
+        "median": 229,
+        "p95_nearest_rank": 258,
+        "max": 258
+      },
+      "ExitWorktree": {
+        "n": 3,
+        "min": 191,
+        "median": 191,
+        "p95_nearest_rank": 234,
+        "max": 234
+      },
+      "Glob": {
+        "n": 10,
+        "min": 159,
+        "median": 159.0,
+        "p95_nearest_rank": 159,
+        "max": 159
+      },
+      "Grep": {
+        "n": 66,
+        "min": 169,
+        "median": 169.0,
+        "p95_nearest_rank": 169,
+        "max": 169
+      },
+      "ListAgents": {
+        "n": 10,
+        "min": 563,
+        "median": 3572.0,
+        "p95_nearest_rank": 4109,
+        "max": 4109
+      },
+      "Monitor": {
+        "n": 60,
+        "min": 208,
+        "median": 302.0,
+        "p95_nearest_rank": 1613,
+        "max": 1613
+      },
+      "PushNotification": {
+        "n": 2,
+        "min": 51,
+        "median": 51.0,
+        "p95_nearest_rank": 51,
+        "max": 51
+      },
+      "Read": {
+        "n": 3237,
+        "min": 7,
+        "median": 2639,
+        "p95_nearest_rank": 27474,
+        "max": 410840
+      },
+      "ReadMcpResourceTool": {
+        "n": 1,
+        "min": 4113,
+        "median": 4113,
+        "p95_nearest_rank": 4113,
+        "max": 4113
+      },
+      "ReadNotifications": {
+        "n": 9,
+        "min": 24,
+        "median": 24,
+        "p95_nearest_rank": 24,
+        "max": 24
+      },
+      "ReportFindings": {
+        "n": 3,
+        "min": 20,
+        "median": 20,
+        "p95_nearest_rank": 21,
+        "max": 21
+      },
+      "ScheduleWakeup": {
+        "n": 59,
+        "min": 156,
+        "median": 158,
+        "p95_nearest_rank": 313,
+        "max": 313
+      },
+      "SendMessage": {
+        "n": 34,
+        "min": 217,
+        "median": 217.0,
+        "p95_nearest_rank": 226,
+        "max": 226
+      },
+      "Skill": {
+        "n": 209,
+        "min": 21,
+        "median": 33,
+        "p95_nearest_rank": 39,
+        "max": 308
+      },
+      "TaskOutput": {
+        "n": 19,
+        "min": 135,
+        "median": 398,
+        "p95_nearest_rank": 14296,
+        "max": 14296
+      },
+      "TaskStop": {
+        "n": 22,
+        "min": 159,
+        "median": 382.0,
+        "p95_nearest_rank": 2215,
+        "max": 2453
+      },
+      "ToolSearch": {
+        "n": 502,
+        "min": 52,
+        "median": 145.5,
+        "p95_nearest_rank": 549,
+        "max": 1658
+      },
+      "WebFetch": {
+        "n": 150,
+        "min": 215,
+        "median": 1330.0,
+        "p95_nearest_rank": 24859,
+        "max": 47297
+      },
+      "WebSearch": {
+        "n": 80,
+        "min": 225,
+        "median": 2976.5,
+        "p95_nearest_rank": 3410,
+        "max": 3870
+      },
+      "Write": {
+        "n": 875,
+        "min": 96,
+        "median": 198,
+        "p95_nearest_rank": 268,
+        "max": 1292
+      },
+      "mcp__alambic-brain__vault_capture": {
+        "n": 1,
+        "min": 168,
+        "median": 168,
+        "p95_nearest_rank": 168,
+        "max": 168
+      },
+      "mcp__alambic-brain__vault_context": {
+        "n": 18,
+        "min": 645,
+        "median": 9668.5,
+        "p95_nearest_rank": 13440,
+        "max": 13440
+      },
+      "mcp__alambic-brain__vault_read": {
+        "n": 9,
+        "min": 2545,
+        "median": 6247,
+        "p95_nearest_rank": 21467,
+        "max": 21467
+      },
+      "mcp__alambic-brain__vault_search": {
+        "n": 19,
+        "min": 138,
+        "median": 1162,
+        "p95_nearest_rank": 3694,
+        "max": 3694
+      },
+      "mcp__brain__vault_context": {
+        "n": 1,
+        "min": 4586,
+        "median": 4586,
+        "p95_nearest_rank": 4586,
+        "max": 4586
+      },
+      "mcp__brain__vault_health": {
+        "n": 2,
+        "min": 727,
+        "median": 727.0,
+        "p95_nearest_rank": 727,
+        "max": 727
+      },
+      "mcp__brain__vault_search": {
+        "n": 6,
+        "min": 875,
+        "median": 1304.5,
+        "p95_nearest_rank": 1671,
+        "max": 1671
+      },
+      "mcp__chrome-devtools__click": {
+        "n": 4,
+        "min": 65,
+        "median": 65.0,
+        "p95_nearest_rank": 65,
+        "max": 65
+      },
+      "mcp__chrome-devtools__evaluate_script": {
+        "n": 1,
+        "min": 150,
+        "median": 150,
+        "p95_nearest_rank": 150,
+        "max": 150
+      },
+      "mcp__chrome-devtools__get_network_request": {
+        "n": 2,
+        "min": 1984,
+        "median": 4770.0,
+        "p95_nearest_rank": 7556,
+        "max": 7556
+      },
+      "mcp__chrome-devtools__hover": {
+        "n": 1,
+        "min": 67,
+        "median": 67,
+        "p95_nearest_rank": 67,
+        "max": 67
+      },
+      "mcp__chrome-devtools__list_console_messages": {
+        "n": 1,
+        "min": 1607,
+        "median": 1607,
+        "p95_nearest_rank": 1607,
+        "max": 1607
+      },
+      "mcp__chrome-devtools__list_network_requests": {
+        "n": 2,
+        "min": 1319,
+        "median": 11472.0,
+        "p95_nearest_rank": 21625,
+        "max": 21625
+      },
+      "mcp__chrome-devtools__list_pages": {
+        "n": 2,
+        "min": 893,
+        "median": 1097.5,
+        "p95_nearest_rank": 1302,
+        "max": 1302
+      },
+      "mcp__chrome-devtools__navigate_page": {
+        "n": 1,
+        "min": 1120,
+        "median": 1120,
+        "p95_nearest_rank": 1120,
+        "max": 1120
+      },
+      "mcp__chrome-devtools__new_page": {
+        "n": 2,
+        "min": 368,
+        "median": 967.5,
+        "p95_nearest_rank": 1567,
+        "max": 1567
+      },
+      "mcp__chrome-devtools__press_key": {
+        "n": 1,
+        "min": 62,
+        "median": 62,
+        "p95_nearest_rank": 62,
+        "max": 62
+      },
+      "mcp__chrome-devtools__take_screenshot": {
+        "n": 4,
+        "min": 375,
+        "median": 1997.0,
+        "p95_nearest_rank": 6304,
+        "max": 6304
+      },
+      "mcp__chrome-devtools__take_snapshot": {
+        "n": 7,
+        "min": 112,
+        "median": 114,
+        "p95_nearest_rank": 23901,
+        "max": 23901
+      },
+      "mcp__chrome-devtools__wait_for": {
+        "n": 1,
+        "min": 23499,
+        "median": 23499,
+        "p95_nearest_rank": 23499,
+        "max": 23499
+      },
+      "mcp__claude-in-chrome__browser_batch": {
+        "n": 290,
+        "min": 90,
+        "median": 23127.0,
+        "p95_nearest_rank": 78489,
+        "max": 153868
+      },
+      "mcp__claude-in-chrome__computer": {
+        "n": 340,
+        "min": 87,
+        "median": 601.0,
+        "p95_nearest_rank": 90428,
+        "max": 242364
+      },
+      "mcp__claude-in-chrome__file_upload": {
+        "n": 1,
+        "min": 780,
+        "median": 780,
+        "p95_nearest_rank": 780,
+        "max": 780
+      },
+      "mcp__claude-in-chrome__find": {
+        "n": 26,
+        "min": 346,
+        "median": 517.5,
+        "p95_nearest_rank": 770,
+        "max": 959
+      },
+      "mcp__claude-in-chrome__get_page_text": {
+        "n": 13,
+        "min": 85,
+        "median": 800,
+        "p95_nearest_rank": 3895,
+        "max": 3895
+      },
+      "mcp__claude-in-chrome__gif_creator": {
+        "n": 20,
+        "min": 87,
+        "median": 461.0,
+        "p95_nearest_rank": 781,
+        "max": 788
+      },
+      "mcp__claude-in-chrome__javascript_tool": {
+        "n": 103,
+        "min": 120,
+        "median": 423,
+        "p95_nearest_rank": 1265,
+        "max": 1361
+      },
+      "mcp__claude-in-chrome__navigate": {
+        "n": 73,
+        "min": 87,
+        "median": 637,
+        "p95_nearest_rank": 864,
+        "max": 967
+      },
+      "mcp__claude-in-chrome__read_console_messages": {
+        "n": 21,
+        "min": 474,
+        "median": 540,
+        "p95_nearest_rank": 717,
+        "max": 2102
+      },
+      "mcp__claude-in-chrome__read_network_requests": {
+        "n": 6,
+        "min": 519,
+        "median": 619.5,
+        "p95_nearest_rank": 2887,
+        "max": 2887
+      },
+      "mcp__claude-in-chrome__read_page": {
+        "n": 3,
+        "min": 386,
+        "median": 389,
+        "p95_nearest_rank": 1607,
+        "max": 1607
+      },
+      "mcp__claude-in-chrome__resize_window": {
+        "n": 1,
+        "min": 378,
+        "median": 378,
+        "p95_nearest_rank": 378,
+        "max": 378
+      },
+      "mcp__claude-in-chrome__tabs_close_mcp": {
+        "n": 9,
+        "min": 101,
+        "median": 154,
+        "p95_nearest_rank": 304,
+        "max": 304
+      },
+      "mcp__claude-in-chrome__tabs_context_mcp": {
+        "n": 35,
+        "min": 382,
+        "median": 550,
+        "p95_nearest_rank": 812,
+        "max": 818
+      },
+      "mcp__claude-in-chrome__tabs_create_mcp": {
+        "n": 5,
+        "min": 129,
+        "median": 605,
+        "p95_nearest_rank": 644,
+        "max": 644
+      },
+      "mcp__claude_ai_Claude_Docs__batch": {
+        "n": 7,
+        "min": 1102,
+        "median": 1387,
+        "p95_nearest_rank": 3824,
+        "max": 3824
+      },
+      "mcp__claude_ai_Claude_Docs__create": {
+        "n": 1,
+        "min": 432,
+        "median": 432,
+        "p95_nearest_rank": 432,
+        "max": 432
+      },
+      "mcp__claude_ai_Claude_Docs__guide": {
+        "n": 5,
+        "min": 9243,
+        "median": 26925,
+        "p95_nearest_rank": 33590,
+        "max": 33590
+      },
+      "mcp__claude_ai_Claude_Docs__read": {
+        "n": 12,
+        "min": 422,
+        "median": 53149.0,
+        "p95_nearest_rank": 70691,
+        "max": 70691
+      },
+      "mcp__claude_ai_Claude_Docs__update": {
+        "n": 31,
+        "min": 300,
+        "median": 666,
+        "p95_nearest_rank": 2590,
+        "max": 3052
+      },
+      "mcp__claude_ai_Figma__get_design_context": {
+        "n": 2,
+        "min": 24758,
+        "median": 37391.5,
+        "p95_nearest_rank": 50025,
+        "max": 50025
+      },
+      "mcp__claude_ai_Figma__get_figma_skill": {
+        "n": 6,
+        "min": 330,
+        "median": 23151.5,
+        "p95_nearest_rank": 36052,
+        "max": 36052
+      },
+      "mcp__claude_ai_Figma__get_libraries": {
+        "n": 6,
+        "min": 33,
+        "median": 2414.0,
+        "p95_nearest_rank": 2670,
+        "max": 2670
+      },
+      "mcp__claude_ai_Figma__get_metadata": {
+        "n": 10,
+        "min": 33,
+        "median": 1399.0,
+        "p95_nearest_rank": 1464,
+        "max": 1464
+      },
+      "mcp__claude_ai_Figma__get_screenshot": {
+        "n": 4,
+        "min": 576,
+        "median": 576.5,
+        "p95_nearest_rank": 578,
+        "max": 578
+      },
+      "mcp__claude_ai_Figma__get_variable_defs": {
+        "n": 26,
+        "min": 33,
+        "median": 2738.0,
+        "p95_nearest_rank": 5034,
+        "max": 7145
+      },
+      "mcp__claude_ai_Figma__search_design_system": {
+        "n": 6,
+        "min": 55,
+        "median": 186.0,
+        "p95_nearest_rank": 1132,
+        "max": 1132
+      },
+      "mcp__claude_ai_Figma__use_figma": {
+        "n": 12,
+        "min": 1074,
+        "median": 7803.0,
+        "p95_nearest_rank": 22563,
+        "max": 22563
+      },
+      "mcp__claude_ai_Figma__whoami": {
+        "n": 6,
+        "min": 412,
+        "median": 412.0,
+        "p95_nearest_rank": 559,
+        "max": 559
+      },
+      "mcp__claude_ai_FoF__describeCollection": {
+        "n": 2,
+        "min": 11902,
+        "median": 17346.5,
+        "p95_nearest_rank": 22791,
+        "max": 22791
+      },
+      "mcp__claude_ai_FoF__list": {
+        "n": 10,
+        "min": 63,
+        "median": 441.0,
+        "p95_nearest_rank": 10773,
+        "max": 10773
+      },
+      "mcp__claude_ai_Github_MCP__issue_read": {
+        "n": 1,
+        "min": 1999,
+        "median": 1999,
+        "p95_nearest_rank": 1999,
+        "max": 1999
+      },
+      "mcp__claude_ai_Github_MCP__pull_request_read": {
+        "n": 5,
+        "min": 113,
+        "median": 3074,
+        "p95_nearest_rank": 16779,
+        "max": 16779
+      },
+      "mcp__claude_ai_Gmail__search_threads": {
+        "n": 1,
+        "min": 356,
+        "median": 356,
+        "p95_nearest_rank": 356,
+        "max": 356
+      },
+      "mcp__claude_ai_Linear__delete_comment": {
+        "n": 1,
+        "min": 48,
+        "median": 48,
+        "p95_nearest_rank": 48,
+        "max": 48
+      },
+      "mcp__claude_ai_Linear__get_document": {
+        "n": 14,
+        "min": 1327,
+        "median": 38531.0,
+        "p95_nearest_rank": 47788,
+        "max": 47788
+      },
+      "mcp__claude_ai_Linear__get_issue": {
+        "n": 611,
+        "min": 2448,
+        "median": 7392,
+        "p95_nearest_rank": 28241,
+        "max": 35634
+      },
+      "mcp__claude_ai_Linear__get_project": {
+        "n": 22,
+        "min": 2257,
+        "median": 3561.0,
+        "p95_nearest_rank": 3994,
+        "max": 4151
+      },
+      "mcp__claude_ai_Linear__get_status_updates": {
+        "n": 1,
+        "min": 74,
+        "median": 74,
+        "p95_nearest_rank": 74,
+        "max": 74
+      },
+      "mcp__claude_ai_Linear__get_user": {
+        "n": 8,
+        "min": 607,
+        "median": 607.0,
+        "p95_nearest_rank": 607,
+        "max": 607
+      },
+      "mcp__claude_ai_Linear__list_comments": {
+        "n": 107,
+        "min": 69,
+        "median": 906,
+        "p95_nearest_rank": 5260,
+        "max": 6215
+      },
+      "mcp__claude_ai_Linear__list_documents": {
+        "n": 2,
+        "min": 94,
+        "median": 240.0,
+        "p95_nearest_rank": 386,
+        "max": 386
+      },
+      "mcp__claude_ai_Linear__list_issue_labels": {
+        "n": 4,
+        "min": 253,
+        "median": 257.0,
+        "p95_nearest_rank": 2336,
+        "max": 2336
+      },
+      "mcp__claude_ai_Linear__list_issue_statuses": {
+        "n": 1,
+        "min": 868,
+        "median": 868,
+        "p95_nearest_rank": 868,
+        "max": 868
+      },
+      "mcp__claude_ai_Linear__list_issues": {
+        "n": 117,
+        "min": 67,
+        "median": 3418,
+        "p95_nearest_rank": 36476,
+        "max": 40761
+      },
+      "mcp__claude_ai_Linear__list_projects": {
+        "n": 13,
+        "min": 69,
+        "median": 423,
+        "p95_nearest_rank": 1399,
+        "max": 1399
+      },
+      "mcp__claude_ai_Linear__list_users": {
+        "n": 2,
+        "min": 544,
+        "median": 722.0,
+        "p95_nearest_rank": 900,
+        "max": 900
+      },
+      "mcp__claude_ai_Linear__save_comment": {
+        "n": 19,
+        "min": 633,
+        "median": 1108,
+        "p95_nearest_rank": 2469,
+        "max": 2469
+      },
+      "mcp__claude_ai_Linear__save_document": {
+        "n": 25,
+        "min": 161,
+        "median": 1325,
+        "p95_nearest_rank": 1330,
+        "max": 1330
+      },
+      "mcp__claude_ai_Linear__save_issue": {
+        "n": 358,
+        "min": 77,
+        "median": 6247.5,
+        "p95_nearest_rank": 18571,
+        "max": 33290
+      },
+      "mcp__claude_ai_Linear__save_project": {
+        "n": 9,
+        "min": 1809,
+        "median": 1810,
+        "p95_nearest_rank": 1810,
+        "max": 1810
+      },
+      "mcp__claude_ai_Mintlify_Documentation__query_docs_filesystem_forest_documentation": {
+        "n": 169,
+        "min": 37,
+        "median": 2003,
+        "p95_nearest_rank": 18903,
+        "max": 30825
+      },
+      "mcp__claude_ai_Mintlify_Documentation__search_forest_documentation": {
+        "n": 95,
+        "min": 1521,
+        "median": 16475,
+        "p95_nearest_rank": 32538,
+        "max": 48589
+      },
+      "mcp__claude_ai_Slack__slack_read_channel": {
+        "n": 1,
+        "min": 8039,
+        "median": 8039,
+        "p95_nearest_rank": 8039,
+        "max": 8039
+      },
+      "mcp__claude_ai_Slack__slack_read_thread": {
+        "n": 17,
+        "min": 63,
+        "median": 2642,
+        "p95_nearest_rank": 13545,
+        "max": 13545
+      },
+      "mcp__claude_ai_Slack__slack_search_channels": {
+        "n": 5,
+        "min": 167,
+        "median": 382,
+        "p95_nearest_rank": 5698,
+        "max": 5698
+      },
+      "mcp__claude_ai_Slack__slack_search_public": {
+        "n": 11,
+        "min": 167,
+        "median": 4094,
+        "p95_nearest_rank": 5092,
+        "max": 5092
+      },
+      "mcp__claude_ai_Slack__slack_search_public_and_private": {
+        "n": 181,
+        "min": 167,
+        "median": 1588,
+        "p95_nearest_rank": 9591,
+        "max": 37654
+      },
+      "mcp__claude_ai_Slack__slack_search_users": {
+        "n": 5,
+        "min": 227,
+        "median": 234,
+        "p95_nearest_rank": 236,
+        "max": 236
+      },
+      "mcp__claude_ai_Slack__slack_send_message": {
+        "n": 51,
+        "min": 221,
+        "median": 221,
+        "p95_nearest_rank": 221,
+        "max": 221
+      },
+      "mcp__claude_ai_Slack__slack_send_message_draft": {
+        "n": 1,
+        "min": 353,
+        "median": 353,
+        "p95_nearest_rank": 353,
+        "max": 353
+      },
+      "mcp__lean-ctx__ctx_compose": {
+        "n": 1,
+        "min": 225,
+        "median": 225,
+        "p95_nearest_rank": 225,
+        "max": 225
+      },
+      "mcp__lean-ctx__ctx_expand": {
+        "n": 18,
+        "min": 124,
+        "median": 5051.5,
+        "p95_nearest_rank": 16858,
+        "max": 16858
+      },
+      "mcp__lean-ctx__ctx_glob": {
+        "n": 13,
+        "min": 88,
+        "median": 293,
+        "p95_nearest_rank": 18178,
+        "max": 18178
+      },
+      "mcp__lean-ctx__ctx_patch": {
+        "n": 46,
+        "min": 76,
+        "median": 891.0,
+        "p95_nearest_rank": 6887,
+        "max": 7250
+      },
+      "mcp__lean-ctx__ctx_read": {
+        "n": 242,
+        "min": 16,
+        "median": 2073.5,
+        "p95_nearest_rank": 10608,
+        "max": 19113
+      },
+      "mcp__lean-ctx__ctx_search": {
+        "n": 94,
+        "min": 44,
+        "median": 698.5,
+        "p95_nearest_rank": 4715,
+        "max": 6647
+      },
+      "mcp__lean-ctx__ctx_shell": {
+        "n": 1755,
+        "min": 8,
+        "median": 470,
+        "p95_nearest_rank": 4239,
+        "max": 16608
+      },
+      "mcp__lean-ctx__ctx_tree": {
+        "n": 9,
+        "min": 171,
+        "median": 377,
+        "p95_nearest_rank": 3544,
+        "max": 3544
+      },
+      "mcp__plugin_datadog_mcp__aggregate_rum_events": {
+        "n": 2,
+        "min": 848,
+        "median": 882.5,
+        "p95_nearest_rank": 917,
+        "max": 917
+      },
+      "mcp__plugin_datadog_mcp__analyze_datadog_logs": {
+        "n": 4,
+        "min": 1246,
+        "median": 2336.0,
+        "p95_nearest_rank": 4679,
+        "max": 4679
+      },
+      "mcp__plugin_datadog_mcp__list_datadog_skills": {
+        "n": 1,
+        "min": 2390,
+        "median": 2390,
+        "p95_nearest_rank": 2390,
+        "max": 2390
+      },
+      "mcp__plugin_datadog_mcp__load_datadog_skill": {
+        "n": 4,
+        "min": 449,
+        "median": 1812.0,
+        "p95_nearest_rank": 12549,
+        "max": 12549
+      },
+      "mcp__plugin_datadog_mcp__search_datadog_logs": {
+        "n": 3,
+        "min": 1742,
+        "median": 5701,
+        "p95_nearest_rank": 5782,
+        "max": 5782
+      },
+      "mcp__plugin_datadog_mcp__search_datadog_rum_events": {
+        "n": 1,
+        "min": 4021,
+        "median": 4021,
+        "p95_nearest_rank": 4021,
+        "max": 4021
+      }
+    },
+    "tool_attributes": {
+      "Agent": {
+        "result_errors": 0
+      },
+      "Artifact": {
+        "result_errors": 0
+      },
+      "AskUserQuestion": {
+        "result_errors": 5
+      },
+      "Bash": {
+        "result_errors": 2323
+      },
+      "Edit": {
+        "result_errors": 29
+      },
+      "EnterWorktree": {
+        "result_errors": 0
+      },
+      "ExitWorktree": {
+        "result_errors": 0
+      },
+      "Glob": {
+        "result_errors": 10
+      },
+      "Grep": {
+        "result_errors": 66,
+        "unbounded": 49,
+        "full_content": 63
+      },
+      "ListAgents": {
+        "result_errors": 0
+      },
+      "Monitor": {
+        "result_errors": 7
+      },
+      "PushNotification": {
+        "result_errors": 0
+      },
+      "Read": {
+        "result_errors": 61,
+        "unbounded": 1934
+      },
+      "ReadMcpResourceTool": {
+        "result_errors": 0
+      },
+      "ReadNotifications": {
+        "result_errors": 0
+      },
+      "ReportFindings": {
+        "result_errors": 0
+      },
+      "ScheduleWakeup": {
+        "result_errors": 0
+      },
+      "SendMessage": {
+        "result_errors": 0
+      },
+      "Skill": {
+        "result_errors": 5
+      },
+      "TaskOutput": {
+        "result_errors": 0
+      },
+      "TaskStop": {
+        "result_errors": 0
+      },
+      "ToolSearch": {
+        "result_errors": 0
+      },
+      "WebFetch": {
+        "result_errors": 1
+      },
+      "WebSearch": {
+        "result_errors": 1
+      },
+      "Write": {
+        "result_errors": 25
+      },
+      "mcp__alambic-brain__vault_capture": {
+        "result_errors": 0
+      },
+      "mcp__alambic-brain__vault_context": {
+        "result_errors": 0
+      },
+      "mcp__alambic-brain__vault_read": {
+        "result_errors": 0
+      },
+      "mcp__alambic-brain__vault_search": {
+        "result_errors": 0
+      },
+      "mcp__brain__vault_context": {
+        "result_errors": 0
+      },
+      "mcp__brain__vault_health": {
+        "result_errors": 0
+      },
+      "mcp__brain__vault_search": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__click": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__evaluate_script": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__get_network_request": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__hover": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__list_console_messages": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__list_network_requests": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__list_pages": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__navigate_page": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__new_page": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__press_key": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__take_screenshot": {
+        "result_errors": 0
+      },
+      "mcp__chrome-devtools__take_snapshot": {
+        "result_errors": 1
+      },
+      "mcp__chrome-devtools__wait_for": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__browser_batch": {
+        "result_errors": 12
+      },
+      "mcp__claude-in-chrome__computer": {
+        "result_errors": 12
+      },
+      "mcp__claude-in-chrome__file_upload": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__find": {
+        "result_errors": 4
+      },
+      "mcp__claude-in-chrome__get_page_text": {
+        "result_errors": 5
+      },
+      "mcp__claude-in-chrome__gif_creator": {
+        "result_errors": 1
+      },
+      "mcp__claude-in-chrome__javascript_tool": {
+        "result_errors": 2
+      },
+      "mcp__claude-in-chrome__navigate": {
+        "result_errors": 3
+      },
+      "mcp__claude-in-chrome__read_console_messages": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__read_network_requests": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__read_page": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__resize_window": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__tabs_close_mcp": {
+        "result_errors": 1
+      },
+      "mcp__claude-in-chrome__tabs_context_mcp": {
+        "result_errors": 0
+      },
+      "mcp__claude-in-chrome__tabs_create_mcp": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Claude_Docs__batch": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Claude_Docs__create": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Claude_Docs__guide": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Claude_Docs__read": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Claude_Docs__update": {
+        "result_errors": 2
+      },
+      "mcp__claude_ai_Figma__get_design_context": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Figma__get_figma_skill": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Figma__get_libraries": {
+        "result_errors": 2
+      },
+      "mcp__claude_ai_Figma__get_metadata": {
+        "result_errors": 3
+      },
+      "mcp__claude_ai_Figma__get_screenshot": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Figma__get_variable_defs": {
+        "result_errors": 2
+      },
+      "mcp__claude_ai_Figma__search_design_system": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Figma__use_figma": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Figma__whoami": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_FoF__describeCollection": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_FoF__list": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Github_MCP__issue_read": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Github_MCP__pull_request_read": {
+        "result_errors": 2
+      },
+      "mcp__claude_ai_Gmail__search_threads": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Linear__delete_comment": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__get_document": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__get_issue": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__get_project": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__get_status_updates": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__get_user": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__list_comments": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__list_documents": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Linear__list_issue_labels": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__list_issue_statuses": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__list_issues": {
+        "result_errors": 4
+      },
+      "mcp__claude_ai_Linear__list_projects": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Linear__list_users": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__save_comment": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__save_document": {
+        "result_errors": 1
+      },
+      "mcp__claude_ai_Linear__save_issue": {
+        "result_errors": 7
+      },
+      "mcp__claude_ai_Linear__save_project": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Mintlify_Documentation__query_docs_filesystem_forest_documentation": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Mintlify_Documentation__search_forest_documentation": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_read_channel": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_read_thread": {
+        "result_errors": 4
+      },
+      "mcp__claude_ai_Slack__slack_search_channels": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_public": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_public_and_private": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_users": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_send_message": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slack__slack_send_message_draft": {
+        "result_errors": 0
+      },
+      "mcp__lean-ctx__ctx_compose": {
+        "result_errors": 1
+      },
+      "mcp__lean-ctx__ctx_expand": {
+        "result_errors": 0
+      },
+      "mcp__lean-ctx__ctx_glob": {
+        "result_errors": 1
+      },
+      "mcp__lean-ctx__ctx_patch": {
+        "result_errors": 6
+      },
+      "mcp__lean-ctx__ctx_read": {
+        "result_errors": 18
+      },
+      "mcp__lean-ctx__ctx_search": {
+        "result_errors": 8
+      },
+      "mcp__lean-ctx__ctx_shell": {
+        "result_errors": 72
+      },
+      "mcp__lean-ctx__ctx_tree": {
+        "result_errors": 0
+      },
+      "mcp__plugin_datadog_mcp__aggregate_rum_events": {
+        "result_errors": 0
+      },
+      "mcp__plugin_datadog_mcp__analyze_datadog_logs": {
+        "result_errors": 0
+      },
+      "mcp__plugin_datadog_mcp__list_datadog_skills": {
+        "result_errors": 0
+      },
+      "mcp__plugin_datadog_mcp__load_datadog_skill": {
+        "result_errors": 1
+      },
+      "mcp__plugin_datadog_mcp__search_datadog_logs": {
+        "result_errors": 0
+      },
+      "mcp__plugin_datadog_mcp__search_datadog_rum_events": {
+        "result_errors": 0
+      }
+    },
+    "exact_same_tool_input_repeats_within_session": {
+      "Bash": {
+        "calls": 27076,
+        "distinct_session_input_pairs": 26182,
+        "additional_calls_same_input": 894
+      },
+      "Skill": {
+        "calls": 209,
+        "distinct_session_input_pairs": 208,
+        "additional_calls_same_input": 1
+      },
+      "ToolSearch": {
+        "calls": 502,
+        "distinct_session_input_pairs": 496,
+        "additional_calls_same_input": 6
+      },
+      "Monitor": {
+        "calls": 60,
+        "distinct_session_input_pairs": 60,
+        "additional_calls_same_input": 0
+      },
+      "Write": {
+        "calls": 875,
+        "distinct_session_input_pairs": 871,
+        "additional_calls_same_input": 4
+      },
+      "TaskStop": {
+        "calls": 22,
+        "distinct_session_input_pairs": 22,
+        "additional_calls_same_input": 0
+      },
+      "AskUserQuestion": {
+        "calls": 62,
+        "distinct_session_input_pairs": 62,
+        "additional_calls_same_input": 0
+      },
+      "Edit": {
+        "calls": 1240,
+        "distinct_session_input_pairs": 1238,
+        "additional_calls_same_input": 2
+      },
+      "Read": {
+        "calls": 3237,
+        "distinct_session_input_pairs": 2818,
+        "additional_calls_same_input": 419
+      },
+      "Agent": {
+        "calls": 634,
+        "distinct_session_input_pairs": 631,
+        "additional_calls_same_input": 3
+      },
+      "mcp__claude_ai_Linear__get_issue": {
+        "calls": 611,
+        "distinct_session_input_pairs": 343,
+        "additional_calls_same_input": 268
+      },
+      "ScheduleWakeup": {
+        "calls": 59,
+        "distinct_session_input_pairs": 59,
+        "additional_calls_same_input": 0
+      },
+      "ListAgents": {
+        "calls": 10,
+        "distinct_session_input_pairs": 5,
+        "additional_calls_same_input": 5
+      },
+      "mcp__lean-ctx__ctx_shell": {
+        "calls": 1756,
+        "distinct_session_input_pairs": 1532,
+        "additional_calls_same_input": 224
+      },
+      "mcp__lean-ctx__ctx_expand": {
+        "calls": 18,
+        "distinct_session_input_pairs": 18,
+        "additional_calls_same_input": 0
+      },
+      "mcp__lean-ctx__ctx_search": {
+        "calls": 94,
+        "distinct_session_input_pairs": 94,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Mintlify_Documentation__query_docs_filesystem_forest_documentation": {
+        "calls": 169,
+        "distinct_session_input_pairs": 169,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Mintlify_Documentation__search_forest_documentation": {
+        "calls": 95,
+        "distinct_session_input_pairs": 95,
+        "additional_calls_same_input": 0
+      },
+      "Artifact": {
+        "calls": 49,
+        "distinct_session_input_pairs": 40,
+        "additional_calls_same_input": 9
+      },
+      "mcp__lean-ctx__ctx_read": {
+        "calls": 242,
+        "distinct_session_input_pairs": 242,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__new_page": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__take_screenshot": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "SendMessage": {
+        "calls": 34,
+        "distinct_session_input_pairs": 34,
+        "additional_calls_same_input": 0
+      },
+      "EnterWorktree": {
+        "calls": 3,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 1
+      },
+      "ExitWorktree": {
+        "calls": 3,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 1
+      },
+      "mcp__claude_ai_Linear__list_issues": {
+        "calls": 117,
+        "distinct_session_input_pairs": 114,
+        "additional_calls_same_input": 3
+      },
+      "mcp__claude_ai_Linear__save_issue": {
+        "calls": 358,
+        "distinct_session_input_pairs": 357,
+        "additional_calls_same_input": 1
+      },
+      "mcp__claude_ai_Linear__list_projects": {
+        "calls": 13,
+        "distinct_session_input_pairs": 13,
+        "additional_calls_same_input": 0
+      },
+      "ReadNotifications": {
+        "calls": 9,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 3
+      },
+      "mcp__claude_ai_Linear__list_documents": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__get_document": {
+        "calls": 14,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 8
+      },
+      "mcp__claude-in-chrome__tabs_context_mcp": {
+        "calls": 35,
+        "distinct_session_input_pairs": 27,
+        "additional_calls_same_input": 8
+      },
+      "mcp__claude-in-chrome__navigate": {
+        "calls": 73,
+        "distinct_session_input_pairs": 55,
+        "additional_calls_same_input": 18
+      },
+      "mcp__claude-in-chrome__computer": {
+        "calls": 340,
+        "distinct_session_input_pairs": 156,
+        "additional_calls_same_input": 184
+      },
+      "mcp__claude-in-chrome__find": {
+        "calls": 26,
+        "distinct_session_input_pairs": 26,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__get_page_text": {
+        "calls": 13,
+        "distinct_session_input_pairs": 8,
+        "additional_calls_same_input": 5
+      },
+      "TaskOutput": {
+        "calls": 19,
+        "distinct_session_input_pairs": 18,
+        "additional_calls_same_input": 1
+      },
+      "mcp__claude_ai_Linear__save_comment": {
+        "calls": 19,
+        "distinct_session_input_pairs": 19,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__delete_comment": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-brain__vault_context": {
+        "calls": 18,
+        "distinct_session_input_pairs": 18,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_channels": {
+        "calls": 5,
+        "distinct_session_input_pairs": 5,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_read_channel": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_public": {
+        "calls": 11,
+        "distinct_session_input_pairs": 11,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_users": {
+        "calls": 5,
+        "distinct_session_input_pairs": 5,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_send_message": {
+        "calls": 51,
+        "distinct_session_input_pairs": 51,
+        "additional_calls_same_input": 0
+      },
+      "mcp__lean-ctx__ctx_patch": {
+        "calls": 46,
+        "distinct_session_input_pairs": 46,
+        "additional_calls_same_input": 0
+      },
+      "Grep": {
+        "calls": 66,
+        "distinct_session_input_pairs": 66,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__list_comments": {
+        "calls": 107,
+        "distinct_session_input_pairs": 107,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__javascript_tool": {
+        "calls": 103,
+        "distinct_session_input_pairs": 94,
+        "additional_calls_same_input": 9
+      },
+      "mcp__claude-in-chrome__gif_creator": {
+        "calls": 20,
+        "distinct_session_input_pairs": 14,
+        "additional_calls_same_input": 6
+      },
+      "mcp__claude-in-chrome__browser_batch": {
+        "calls": 290,
+        "distinct_session_input_pairs": 286,
+        "additional_calls_same_input": 4
+      },
+      "ReportFindings": {
+        "calls": 3,
+        "distinct_session_input_pairs": 3,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_FoF__describeCollection": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_FoF__list": {
+        "calls": 10,
+        "distinct_session_input_pairs": 10,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__tabs_close_mcp": {
+        "calls": 9,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__whoami": {
+        "calls": 6,
+        "distinct_session_input_pairs": 3,
+        "additional_calls_same_input": 3
+      },
+      "mcp__claude_ai_Figma__get_metadata": {
+        "calls": 10,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 1
+      },
+      "mcp__claude_ai_Figma__get_libraries": {
+        "calls": 6,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__get_variable_defs": {
+        "calls": 26,
+        "distinct_session_input_pairs": 26,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__search_design_system": {
+        "calls": 6,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__get_figma_skill": {
+        "calls": 6,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__use_figma": {
+        "calls": 12,
+        "distinct_session_input_pairs": 12,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_read_thread": {
+        "calls": 17,
+        "distinct_session_input_pairs": 13,
+        "additional_calls_same_input": 4
+      },
+      "WebFetch": {
+        "calls": 150,
+        "distinct_session_input_pairs": 150,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__tabs_create_mcp": {
+        "calls": 5,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 1
+      },
+      "mcp__lean-ctx__ctx_tree": {
+        "calls": 9,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 0
+      },
+      "mcp__lean-ctx__ctx_glob": {
+        "calls": 13,
+        "distinct_session_input_pairs": 13,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__get_screenshot": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-brain__vault_search": {
+        "calls": 19,
+        "distinct_session_input_pairs": 19,
+        "additional_calls_same_input": 0
+      },
+      "ReadMcpResourceTool": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "WebSearch": {
+        "calls": 80,
+        "distinct_session_input_pairs": 80,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_search_public_and_private": {
+        "calls": 181,
+        "distinct_session_input_pairs": 46,
+        "additional_calls_same_input": 135
+      },
+      "mcp__claude_ai_Claude_Docs__batch": {
+        "calls": 7,
+        "distinct_session_input_pairs": 7,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Claude_Docs__guide": {
+        "calls": 5,
+        "distinct_session_input_pairs": 5,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Claude_Docs__update": {
+        "calls": 31,
+        "distinct_session_input_pairs": 31,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Claude_Docs__read": {
+        "calls": 12,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 3
+      },
+      "mcp__claude_ai_Linear__get_project": {
+        "calls": 22,
+        "distinct_session_input_pairs": 14,
+        "additional_calls_same_input": 8
+      },
+      "Glob": {
+        "calls": 10,
+        "distinct_session_input_pairs": 10,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__resize_window": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__read_console_messages": {
+        "calls": 21,
+        "distinct_session_input_pairs": 10,
+        "additional_calls_same_input": 11
+      },
+      "mcp__alambic-brain__vault_read": {
+        "calls": 9,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 0
+      },
+      "mcp__brain__vault_health": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__brain__vault_context": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__read_network_requests": {
+        "calls": 6,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__get_status_updates": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__get_user": {
+        "calls": 8,
+        "distinct_session_input_pairs": 8,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Gmail__search_threads": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Github_MCP__pull_request_read": {
+        "calls": 5,
+        "distinct_session_input_pairs": 5,
+        "additional_calls_same_input": 0
+      },
+      "mcp__lean-ctx__ctx_compose": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__list_network_requests": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__get_network_request": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__list_pages": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__navigate_page": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__take_snapshot": {
+        "calls": 7,
+        "distinct_session_input_pairs": 7,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__wait_for": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__hover": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__evaluate_script": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__click": {
+        "calls": 4,
+        "distinct_session_input_pairs": 3,
+        "additional_calls_same_input": 1
+      },
+      "mcp__chrome-devtools__press_key": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__chrome-devtools__list_console_messages": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__list_issue_labels": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slack__slack_send_message_draft": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-brain__vault_capture": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__read_page": {
+        "calls": 3,
+        "distinct_session_input_pairs": 3,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude-in-chrome__file_upload": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Figma__get_design_context": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Claude_Docs__create": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Github_MCP__issue_read": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "PushNotification": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__save_document": {
+        "calls": 25,
+        "distinct_session_input_pairs": 25,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__list_issue_statuses": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__save_project": {
+        "calls": 9,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__list_users": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__plugin_datadog_mcp__list_datadog_skills": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__plugin_datadog_mcp__load_datadog_skill": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "mcp__plugin_datadog_mcp__aggregate_rum_events": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__plugin_datadog_mcp__search_datadog_rum_events": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__plugin_datadog_mcp__search_datadog_logs": {
+        "calls": 3,
+        "distinct_session_input_pairs": 3,
+        "additional_calls_same_input": 0
+      },
+      "mcp__plugin_datadog_mcp__analyze_datadog_logs": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "mcp__brain__vault_search": {
+        "calls": 6,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 0
+      }
+    },
+    "agent_call_attributes": {
+      "model_argument_<other-or-absent>": 565,
+      "model_argument_fable": 34,
+      "model_argument_sonnet": 14,
+      "model_argument_opus": 20,
+      "model_argument_haiku": 1
+    },
+    "bash_call_attributes": {
+      "has_chain": 20413,
+      "has_read_pattern": 22540,
+      "has_pipe": 18587,
+      "rtk_explicit": 860
+    },
+    "unique_compact_boundaries": 15,
+    "user_text_records": 3963,
+    "user_text_sizes_chars": {
+      "n": 3963,
+      "min": 1,
+      "median": 75,
+      "p95_nearest_rank": 4551,
+      "max": 28676
+    },
+    "user_keyword_flags_nonexclusive": {
+      "git_delivery": 921,
+      "review": 945,
+      "implementation": 655,
+      "plan_workflow": 464,
+      "tests": 815,
+      "investigation": 147,
+      "continuation": 234
+    },
+    "limitations": [
+      "Tool calls deduplicated by tool_use id; exact repeats may be justified by file changes, retries or validation.",
+      "Tool result sizes are characters, not model tokens; serialization and tool rewrites may differ.",
+      "Explicit RTK indicator describes recorded Bash inputs, not every hook rewrite or command execution.",
+      "Intent flags are fixed keyword indicators; no exported excerpts or semantic success judgment.",
+      "Transcript tool counts and usage requests have different units; no causal quota savings estimate."
+    ]
+  },
+  "fingerprints_after": {
+    "settings": "766fcdef4a7353469aab0767d967026e6679016b3904bc780f50e41f625ee403",
+    "instructions": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+    "rtk_instructions": "9fe007d9d7ca790f35b48bd12099e1b3a1dae05caf296dba3ddbe2621ddb02dc"
+  },
+  "live_configuration_unchanged": true,
+  "status": "Observed transcript aggregates; not provider billing, quota, effectiveness or exhaustive project-settings coverage.",
+  "additional_configuration_metadata": {
+    "ide_claude_extensions": [],
+    "ide_claude_settings": [],
+    "user_instruction_import_graph": [
+      {
+        "label": "user",
+        "depth": 0,
+        "chars": 1946,
+        "lines": 40,
+        "sha256": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e"
+      },
+      {
+        "label": "user-import-39",
+        "depth": 1,
+        "chars": 2689,
+        "lines": 44,
+        "sha256": "6d27cdf242d1f085011071dc2aabb25f04c93a1278e9aadd6ba9f6e170ea1230"
+      },
+      {
+        "label": "user-import-40",
+        "depth": 1,
+        "chars": 335,
+        "lines": 7,
+        "sha256": "5ccc2d50de694294a639c8d70ff083c6d3dffc92d35f2448d4776a6aa51c9715"
+      }
+    ],
+    "ancestor_work_instruction_present": true
+  }
+}
