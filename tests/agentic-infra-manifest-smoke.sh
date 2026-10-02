@@ -150,7 +150,10 @@ harness-token-usage-test
 skills-lock-coverage-smoke
 skill-trigger-eval
 codex-source
-token-bench-smoke'
+token-bench-smoke
+claude-launch-smoke
+claude-statusline-smoke
+claude-efficiency-campaign'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 

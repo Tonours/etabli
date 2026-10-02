@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+import { dryRun } from "./lib/claude-efficiency-campaign.mjs";
+import { suite } from "./lib/claude-efficiency-fixtures.mjs";
+const args = process.argv.slice(2);
+if (args.length === 0 || (args.length === 1 && args[0] === "--dry-run")) {
+  process.stdout.write(JSON.stringify(dryRun(Object.fromEntries(Object.entries(suite()).map(([id,f])=>[id,{prompt_sha256:f.prompt_sha256,files_sha256:f.files_sha256,oracle_sha256:f.oracle_sha256}]))), null, 2) + "\n");
+} else {
+  process.stderr.write("Only --dry-run is available. Live execution is blocked pending native account/usage gates and verified live runner. No Claude process launched.\n");
+  process.exitCode = 2;
+}
