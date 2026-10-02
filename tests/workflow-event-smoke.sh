@@ -6,6 +6,30 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 TMP_DIR="$(mktemp -d)"
 EVENT_DIR="$TMP_DIR/.workflow"
 
+for help_flag in -h --help; do
+  "$ROOT_DIR/scripts/workflow-event" "$help_flag" >"$TMP_DIR/help.stdout" 2>"$TMP_DIR/help.stderr" || {
+    printf 'workflow-event help must succeed; keep help outside the leading value-option parser\n' >&2
+    exit 1
+  }
+  [[ -s "$TMP_DIR/help.stdout" && ! -s "$TMP_DIR/help.stderr" ]] || exit 1
+  grep -Fq 'Usage: workflow-event' "$TMP_DIR/help.stdout" || exit 1
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" "$help_flag" >"$TMP_DIR/help.stdout" 2>"$TMP_DIR/help.stderr"
+  [[ -s "$TMP_DIR/help.stdout" && ! -s "$TMP_DIR/help.stderr" ]] || exit 1
+done
+for invalid in unknown missing-dir malformed-sha; do
+  case "$invalid" in
+    unknown) args=(--bogus a b) ;;
+    missing-dir) args=(--dir) ;;
+    malformed-sha) args=(--expected-ledger-sha256 invalid --help) ;;
+  esac
+  status=0
+  "$ROOT_DIR/scripts/workflow-event" "${args[@]}" >"$TMP_DIR/invalid.stdout" 2>"$TMP_DIR/invalid.stderr" || status=$?
+  [[ "$status" == 2 && -s "$TMP_DIR/invalid.stderr" ]] || {
+    printf 'workflow-event invalid options must still exit two with diagnostics\n' >&2
+    exit 1
+  }
+done
+
 retired_probe="$(mktemp -d)/.workflow"
 if "$ROOT_DIR/scripts/workflow-event" --dir "$retired_probe" append retired-probe outcome_metric '{"outcome":"x"}' 2>"$retired_probe.err"; then
   printf 'retired event types must be refused on append\n' >&2

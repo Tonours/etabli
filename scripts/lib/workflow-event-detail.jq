@@ -27,10 +27,10 @@ def optional_string_array($value): $value == null or ($value | string_array);
 def retired_events: ["dogfood_matrix_created", "dogfood_scenario_run", "dogfood_fix_applied", "dogfood_blocked", "self_improvement_candidate", "harness_failure_pattern", "harness_proposal", "harness_validation_completed", "harness_candidate_rejected", "project_slice_planned", "project_slice_completed", "program_initialized", "program_unit_started", "program_unit_result", "program_unit_verdict", "program_unit_head_changed", "program_unit_retry", "program_unit_reconciled", "runtime_run_attached", "multi_execution_completed", "runtime_receipt", "outcome_measurement_population", "outcome_measurement_imported", "outcome_metric"];
 
 def strict_detail($event):
-  type == "object" and
+  type == "object" and ((has("export_id") | not) or (.export_id | nonempty_string)) and
   if $event == "route_decided" then
     (.route | nonempty_string) and (.reason | nonempty_string)
-    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance"]) | length == 0)
+    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance", "export_id"]) | length == 0)
     and ((has("contract_path") | not) or (.contract_path | nonempty_string))
     and ((has("contract_sha256") | not) or (.contract_sha256 | nonempty_string))
     and ((has("provenance") | not) or (.provenance | IN("deployed-pi", "deployed-agents", "repo")))
@@ -272,6 +272,8 @@ def batch_ledger($slug; $profile; $list):
       end)) as $st
   | ($entries | length) as $count
   | ([$entries[] | .v | select((type == "object") and .__parse_error != true)]) as $values
+  | ([$values[] | select(.schema_version == 2 and .detail.export_id != null) | .detail.export_id] | group_by(.) | map(select(length > 1)) | first) as $duplicate_export
+  | (if $duplicate_export != null then "duplicate export_id: \($duplicate_export[0]); preserve the ledger and reconcile the original export" else null end) as $export_err
   | (if $st.legacy == 0 and $st.term_line > 0 and $st.term_line != $count
      then "terminal event must be last (line \($st.term_line) of \($count))" else null end) as $term_err
   | (if $profile == "structural" then null
@@ -282,7 +284,7 @@ def batch_ledger($slug; $profile; $list):
      elif $profile == "ship-stopped" then ship_profile_error($values; $st; "ship-stopped"; false)
      else "unknown validation profile: \($profile)"
      end) as $profile_err
-  | ([$st.err, $term_err, $profile_err] | map(select(. != null)) | first) as $err
+  | ([$st.err, $export_err, $term_err, $profile_err] | map(select(. != null)) | first) as $err
   | (([$values[] | select(.schema_version == 2 and .event == "route_decided" and .detail.route == "plan-implement")] | length) > 0) as $has_v2
   | "\(if $err == null then "OK" else "ERR" end)\n\($err // "-")\n\($st.term)\n0\n\($st.legacy)\n\($count)\n\($st.term_line)\n\(if $has_v2 then 1 else 0 end)";
 

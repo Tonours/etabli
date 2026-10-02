@@ -7,6 +7,15 @@ agent-facing contract is `workflow/events.md`.
 
 The writer validates the ledger and re-checks terminal state while the lock is
 held.
+After structural validation, optional `detail.export_id` is checked under
+that lock against the existing event/run/detail. One identical export returns
+the original success before terminal/round checks; a different payload is a
+collision. The batch validator also rejects duplicate v2 export identities.
+Native Durable coordination acknowledges an export only after this operation.
+Writer timestamps are excluded from equality. Identity does not reset rounds
+or authorize rewriting history; it reconciles append-before-acknowledgement
+crashes. Native standalone reviews use `contract_path: "pi/durable"` with the
+existing T/D/F limits.
 
 Native internal append execution proves that its actual `lockf`/`flock` parent
 is the trusted system executable and was invoked on the fixed descriptor `9`
@@ -30,6 +39,15 @@ an exact temporary candidate with `--profile autonomous-completed` before it
 appends the same terminal line. Missing evidence therefore leaves the canonical
 ledger and active-run pointer untouched. Schema-v1 and non-`plan-implement`
 ledgers retain structural completion compatibility.
+
+`--expected-ledger-sha256 HASH` on `append` compares the current ledger bytes
+under the same writer lock before appending. An existing matching `export_id`
+is reconciled first, so a crash between append and acknowledgement remains
+recoverable. A pending terminal intent cannot borrow evidence added later.
+`check-completion <slug> <json-detail>` checks an autonomous completion
+candidate without appending it; the actual append still repeats the locked
+preflight. This allows a native mission to wait for missing evidence without
+creating a terminal intent bound to incomplete prerequisites.
 
 ## Writers and recovery
 

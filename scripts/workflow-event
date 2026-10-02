@@ -2,6 +2,7 @@
 set -euo pipefail
 
 WORKFLOW_DIR=".workflow"
+EXPECTED_LEDGER_SHA256=""
 ACTIVE_RUN_POINTER="active-run.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
@@ -60,10 +61,11 @@ RETIRED_EVENTS=(
 
 usage() {
   cat <<EOF
-Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
+Usage: workflow-event [--dir path] [--expected-ledger-sha256 hash] append <slug> <event-type> [json-detail]
        workflow-event [--dir path] activate <slug>
        workflow-event [--dir path] recover <slug> <reason-code>
        workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|blocked-terminal|ship-completed|ship-stopped]
+       workflow-event [--dir path] check-completion <slug> <json-detail>
 EOF
 }
 
@@ -617,7 +619,31 @@ append_locked_body() {
       printf 'refusing append to an invalid ledger: %s\n' "$slug" >&2
       return 1
     }
+    local export_id existing_export
+    export_id="$(printf '%s' "$detail" | jq -r '.export_id // empty')"
+    if [ -n "$export_id" ]; then
+      existing_export="$(jq -sc --arg id "$export_id" '[.[] | select(.detail.export_id == $id)]' "$file")"
+      if [ "$existing_export" != '[]' ]; then
+        if printf '%s' "$existing_export" | jq -e --arg event "$event" --arg run "$slug" --argjson detail "$detail" 'length == 1 and .[0].event == $event and .[0].run == $run and .[0].detail == $detail' >/dev/null; then
+          return 0
+        fi
+        printf 'export_id collision: %s; restore the original payload or use a new identity\n' "$export_id" >&2
+        return 1
+      fi
+    fi
     terminal="$(tail -n 1 "$file" | jq -r '.event // empty')"
+  fi
+
+  # The comparison and append share this writer lock. Existing export IDs above
+  # reconcile the append-before-ACK window even when the ledger has advanced.
+  if [ -n "$EXPECTED_LEDGER_SHA256" ]; then
+    local actual_hash
+    if [ -f "$file" ]; then actual_hash="$(hash256 "$file" | awk '{print $1}')"
+    else actual_hash="$(printf '' | hash256 | awk '{print $1}')"; fi
+    [ "$actual_hash" = "$EXPECTED_LEDGER_SHA256" ] || {
+      printf 'ledger precondition changed; re-evaluate this intent against current evidence\n' >&2
+      return 1
+    }
   fi
 
   if [ "$terminal" = "completed" ] || [ "$terminal" = "blocked" ] || [ "$terminal" = "ship_completed" ]; then
@@ -694,7 +720,7 @@ append_with_lock() {
   case "$backend" in
     lockf)
       native_bin="$(native_backend_path lockf)" || { printf 'requested lockf backend is unavailable\n' >&2; return 1; }
-      (cd "$absolute_run_dir" && exec 9>>events.lock && "$native_bin" -t 5 /dev/fd/9 "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" lockf) || {
+      (cd "$absolute_run_dir" && exec 9>>events.lock && "$native_bin" -t 5 /dev/fd/9 "$SCRIPT_PATH" --dir "$absolute_workflow_dir" --expected-ledger-sha256 "$EXPECTED_LEDGER_SHA256" _append-locked "$slug" "$event" "$detail" "$token" lockf) || {
         printf 'lockf append failed or timed out after 5 seconds\n' >&2
         return 1
       }
@@ -706,7 +732,7 @@ append_with_lock() {
       # the in-child verification probe could never observe it. File-mode
       # opens the lock file inside the flock process itself; contention then
       # works (verified on the CI runner, 2026-08-23).
-      ("$native_bin" -w 5 "$absolute_run_dir/events.lock" "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" flock) || {
+      ("$native_bin" -w 5 "$absolute_run_dir/events.lock" "$SCRIPT_PATH" --dir "$absolute_workflow_dir" --expected-ledger-sha256 "$EXPECTED_LEDGER_SHA256" _append-locked "$slug" "$event" "$detail" "$token" flock) || {
         printf 'flock append failed or timed out after 5 seconds\n' >&2
         return 1
       }
@@ -737,17 +763,32 @@ append_with_lock() {
   esac
 }
 
-if [ "${1:-}" = "--dir" ]; then
+while [[ "${1:-}" == --dir || "${1:-}" == --expected-ledger-sha256 ]]; do
   [ "$#" -ge 3 ] || die_usage
-  WORKFLOW_DIR="$2"
+  case "$1" in
+    --dir) WORKFLOW_DIR="$2" ;;
+    --expected-ledger-sha256)
+      [[ -z "$2" || "$2" =~ ^[a-f0-9]{64}$ ]] || { printf 'invalid expected ledger SHA-256\n' >&2; exit 2; }
+      EXPECTED_LEDGER_SHA256="$2" ;;
+    *) die_usage ;;
+  esac
   shift 2
-fi
+done
 
 command="${1:-}"
 [ -n "$command" ] || die_usage
 shift || true
 
 case "$command" in
+  check-completion)
+    [ "$#" -eq 2 ] || die_usage
+    slug="$1"; detail="$2"; file="$WORKFLOW_DIR/$slug/events.jsonl"
+    is_valid_slug "$slug" || { printf 'invalid run slug\n' >&2; exit 2; }
+    detail_valid completed "$detail" 2 true || { printf 'invalid completion detail\n' >&2; exit 2; }
+    [ -f "$file" ] || { printf 'missing canonical ledger for completion check\n' >&2; exit 1; }
+    event_line="$(jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg run "$slug" --argjson detail "$detail" '{schema_version:2,ts:$ts,event:"completed",run:$run,detail:$detail}')"
+    validate_autonomous_completion_candidate "$slug" "$WORKFLOW_DIR/$slug" "$file" "$event_line"
+    ;;
   append)
     [ "$#" -ge 2 ] || die_usage
     slug="$1"

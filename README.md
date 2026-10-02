@@ -23,6 +23,9 @@ scripts/verify-agentic-infra core        # every check should PASS
 - Pi comes from `@earendil-works/pi-coding-agent`. The installer uses your
   existing Node.js, preferring `asdf` when available; it never installs Node.
 - Optional diff tooling: `hunkdiff`, from the CLI or a tmux pane.
+- [Native Pi Durable](docs/pi-durable.md) provides resumable reviews, missions,
+  task dependencies, Mobile admissions, CI waits, campaigns and compaction via
+  `scripts/pi-durable`, alongside the classic profile.
 
 ## What you get
 
