@@ -20,15 +20,13 @@ strict profiles.
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
 On classic Pi, `route_decided` is router-owned: the extension records issuance; agents
 must not hand-append it there. Other harnesses append it by hand via the CLI.
-Native `pi/durable` issues routes via CLI; its standalone review uses canonical T/D/F.
 Agents must use the CLI: direct appends bypass type and detail validation and
 fail `scripts/workflow-ledger-check`. Writer exceptions, locking, grandfathered <!-- etabli-only -->
 history, corrupt-ledger recovery and retired types: `workflow/events-validator.md`.
 
 Never edit earlier lines. Active-run selection (`activate`): `workflow/events-validator.md`.
 
-Optional `export_id` appends once per identity; changed payloads fail.
-Semantics: `workflow/events-validator.md`.
+Optional `export_id` provides exact replay: `workflow/durable-exports.md`.
 
 
 ## Event Types
@@ -84,3 +82,5 @@ blocking verdict invalidates an earlier success. `ship-completed` requires the
 same fresh validation plus a success-form `ship_completed`; review evidence is
 carried by the `ship_completed` records. Presence alone does not prove
 completion.
+
+Product completion fields and terminal revalidation: `workflow/product-verification.md`.

@@ -9,6 +9,7 @@
     "schema_version": { "const": 1 },
     "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
     "mode": { "enum": ["product", "ui", "investigation", "performance"] },
+    "criteria_sha256": { "$ref": "#/$defs/sha256" },
     "target": { "$ref": "#/$defs/target" },
     "artifacts": {
       "type": "array",
@@ -113,6 +114,7 @@
       "required": ["id", "outcome", "status", "action_evidence", "result_evidence", "side_effect_expected", "side_effect_evidence"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "criterion_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^AC-[A-Za-z0-9-]+$" } },
         "outcome": { "type": "string", "minLength": 1 },
         "status": { "enum": ["pass", "fail", "blocked"] },
         "action_evidence": { "$ref": "#/$defs/artifact_ids" },

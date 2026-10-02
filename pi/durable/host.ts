@@ -89,7 +89,7 @@ export class Host {
         const writer = role?.attempt ? state.attempts[role.attempt]?.taskId : null;
         const consumer = writer ? Object.entries(state.work).find(([, work]) => work.taskId === writer)?.[0] : `root:${api.conversationId}`;
         if (!consumer || grant.consumer !== consumer) throw new Error('Agent command grant must name this recorded writer work key (or root conversation) as its consumer');
-        const input: CommandInput = { key: `tool-command:${api.taskId}`, grantId, argv: grant.argv, timeoutMs: 300000, files: {}, validation: false, run: role?.mission?.run ?? null, mission: role?.mission ?? null, toolSurface: true, consumer };
+        const input: CommandInput = { key: `tool-command:${api.taskId}`, grantId, argv: grant.argv, timeoutMs: 300000, files: { ...role?.frozenInputs }, validation: false, run: role?.mission?.run ?? null, mission: role?.mission ?? null, toolSurface: true, consumer };
         const id = await api.commit(tx => tasks.createStep(tx, { name: input.key, kind: 'command', input, dependsOn: [] }, api.taskId), context);
         const result = (await api.waitForTask(id, context)).state.outcome;
         if (result.status !== 'completed' || result.result.status !== 'passed') throw new Error('Granted command did not complete; inspect the durable command receipt');

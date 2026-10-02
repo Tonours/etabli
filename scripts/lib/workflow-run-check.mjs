@@ -50,6 +50,7 @@ export function prospectiveClose(dir, slug) {
 	const pointer = join(resolve(dir), "active-run.json");
 	const before = snapshot(path), pointerBefore = snapshot(pointer);
 	const temporary = mkdtempSync(join(tmpdir(), "workflow-close-"));
+	const syntheticContext = { cwd: temporary, env: { ...process.env, WORKFLOW_EVENT_PROJECT_ROOT: temporary } };
 	let result;
 	try {
 		mkdirSync(join(temporary, slug));
@@ -60,10 +61,10 @@ export function prospectiveClose(dir, slug) {
 			["completed", { summary: "Prospective event-chain check only; archive not checked" }],
 		];
 		for (const [event, detail] of events) {
-			result = run(EVENT, ["--dir", temporary, "append", slug, event, JSON.stringify(detail)]);
+			result = run(EVENT, ["--dir", temporary, "append", slug, event, JSON.stringify(detail)], syntheticContext);
 			if (result.status !== 0) break;
 		}
-		if (result.status === 0) result = run(EVENT, ["--dir", temporary, "validate", slug, "--profile", "autonomous-completed"]);
+		if (result.status === 0) result = run(EVENT, ["--dir", temporary, "validate", slug, "--profile", "autonomous-completed"], syntheticContext);
 	} finally { rmSync(temporary, { recursive: true, force: true }); }
 	if (!sameBytes(before, snapshot(path)) || !sameBytes(pointerBefore, snapshot(pointer))) return { ...base, error: "Source ledger or pointer changed during the check; rerun on a stable snapshot", remediation };
 	return result.status === 0 ? { ...base, ready: true, note: "Prospective events validate; actual archive contents/hash, PLAN cleanup and source completion are not checked or written." }

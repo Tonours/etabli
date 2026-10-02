@@ -193,3 +193,5 @@ evidence for all of:
 ## Autonomous evidence
 
 Autonomous `plan-implement` runs must append `.workflow/<slug>/events.jsonl` and pass `scripts/workflow-event validate --profile autonomous-completed` before claiming completion.
+
+Required product plans must pass `scripts/project-verification-check PLAN.md` before archive. Details: `workflow/product-verification.md`.

@@ -2,6 +2,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { relative, resolve, sep } from "node:path";
+import { writeProductCompletion } from "./lib/project-verification.mjs";
 
 function fail(message) {
   process.stderr.write(`plan-cleanup: ${message}\n`);
@@ -83,7 +84,7 @@ function removeRootPlan(cwd) {
   return planPath;
 }
 
-function archiveMode(cwd, archiveArgument) {
+async function archiveMode(cwd, archiveArgument) {
   const planPath = resolve(cwd, "PLAN.md");
   const archivePath = resolve(cwd, archiveArgument);
   const archiveRoot = `${resolve(cwd, "docs", "plan")}${sep}`;
@@ -108,9 +109,16 @@ function archiveMode(cwd, archiveArgument) {
     fail("archive source-plan hash does not match current PLAN.md");
   }
 
+  const product = await writeProductCompletion(planPath, archivePath);
+  if (readFileSync(planPath, "utf8") !== plan || readFileSync(archivePath, "utf8") !== archive) {
+    fail("plan or archive changed during cleanup; retain PLAN.md and revalidate");
+  }
+  if (product.required && createHash("sha256").update(readFileSync(product.pack)).digest("hex") !== product.pack_sha256) {
+    fail("evidence pack changed during cleanup; retain PLAN.md and revalidate");
+  }
   rmSync(planPath);
   process.stdout.write(
-    `${JSON.stringify({ removed: "PLAN.md", mode: "archive", archive: relative(cwd, archivePath) })}\n`,
+    `${JSON.stringify({ removed: "PLAN.md", mode: "archive", archive: relative(cwd, archivePath), ...(product.required ? { product_verification: product } : {}) })}\n`,
   );
 }
 
@@ -183,7 +191,11 @@ if (flag === "--status") {
 if (rest.length !== 0) usage();
 if (flag === "--archive") {
   if (!argument) usage();
-  archiveMode(cwd, argument);
+  try {
+    await archiveMode(cwd, argument);
+  } catch (error) {
+    fail(`product verification blocked archive: ${error.message}; retain PLAN.md and rerun project-verification-check`);
+  }
 } else if (flag === "--discard") {
   if (!argument) usage();
   discardMode(cwd, argument);
