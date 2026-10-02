@@ -54,13 +54,13 @@ sandbox. Shared workflow and evidence invariants stay in
 - Read code directly before planning or editing.
 - If shell startup or cwd resolution fails, retry from `/` with an explicit
   shell before declaring the tool or filesystem unavailable.
-- For broad external research, repo-pattern, or fresh-context review, name the
-  chosen slice first and prefer source claims, local contracts, memory, recent
-  diffs, and existing docs before rereading the repo.
+- Scope broad research/review; prefer memory, contracts, recent diffs.
+  Search symbols/ranges; reuse stable ticket/docs results, refresh on relevant
+  change. Keep evidence, errors and exit codes.
 - When asked whether a source implies repository changes, answer `no change`,
   `change`, or `blocked` against the local contract before editing.
-- Before mutable local-device or server actions, identify the exact target and
-  control path, backup or rollback when relevant, and the post-check.
+- Before local-device/server mutations, identify target, control path,
+  backup/rollback and post-check.
 - Keep one execution artifact: `PLAN.md`.
 - Archive implemented plans in `docs/plan/` only after implementation and validation.
 - Do not create `REVIEW.md` or secondary mandatory planning docs.
@@ -135,9 +135,10 @@ sandbox. Shared workflow and evidence invariants stay in
   authorization is for read-only fresh-context review only; it does not
   authorize destructive, secret, production, billing, deploy, push, merge,
   or external write actions.
-- Session handoffs in autonomous runs are recorded as a `handoff` event
-  (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose;
-  a started migration is finished or handed off that way, never left silent.
+- Independent work starts a new session; continuing work resumes PLAN/ledger.
+  Before switching, record `handoff` (branch, sha, done, pending, next action,
+  do-not-redo); `scripts/session-handoff` renders it without writes. No automatic
+  reset. Finish or hand off a migration.
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose
   duplicated across adapters. Instruction files stay maps, not manuals. The

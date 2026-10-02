@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, relative, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTIVE_RUN_POINTER } from "./ledger-integrity.mjs";
 
@@ -286,7 +286,7 @@ export function buildHandoff(options) {
     git: gitEvidence(options.repo),
     sources: {
       plan: existsSync(planPath) ? "PLAN.md" : null,
-      ledger: `${basename(options.workflowDir)}/${run}/events.jsonl`,
+      ledger: relative(options.repo, ledgerPath),
     },
     projection_only: true,
   };
@@ -300,6 +300,11 @@ export function markdown(pack) {
     `- Objective: ${pack.objective}`,
     `- State: ${pack.state}`,
     `- Git: ${pack.git.available ? `${pack.git.branch}@${pack.git.head}; ${pack.git.dirty_paths.length} dirty paths` : "unavailable"}`,
+    "",
+    "## Files and sources",
+    ...(pack.git.dirty_paths.length ? pack.git.dirty_paths.map((path) => `- ${path}`) : ["- No changed path evidence available."]),
+    `- Plan: ${pack.sources.plan || "unavailable"}`,
+    `- Ledger: ${pack.sources.ledger}`,
     "",
     "## Done",
     ...(pack.done.length

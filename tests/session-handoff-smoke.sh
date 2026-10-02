@@ -112,6 +112,10 @@ fi
 
 before_hash="$(hash256 "$PROJECT/.workflow/handoff-fixture/events.jsonl" | awk '{print $1}')"
 "$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run handoff-fixture >/dev/null
+"$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run handoff-fixture >"$TMP_DIR/handoff.md"
+grep -q '## Files and sources' "$TMP_DIR/handoff.md"
+grep -q 'Plan: PLAN.md' "$TMP_DIR/handoff.md"
+grep -q 'Ledger: .workflow/handoff-fixture/events.jsonl' "$TMP_DIR/handoff.md"
 after_hash="$(hash256 "$PROJECT/.workflow/handoff-fixture/events.jsonl" | awk '{print $1}')"
 [ "$before_hash" = "$after_hash" ] || { printf 'session handoff must not mutate the ledger\n' >&2; exit 1; }
 
@@ -120,4 +124,8 @@ if "$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --run missing >/dev/nul
   exit 1
 fi
 
+mkdir -p "$TMP_DIR/outside/handoff-fixture"
+cp "$FIXTURES/events.jsonl" "$TMP_DIR/outside/handoff-fixture/events.jsonl"
+"$ROOT_DIR/scripts/session-handoff" --repo "$PROJECT" --workflow-dir "$TMP_DIR/outside" --run handoff-fixture --json >"$TMP_DIR/external.json"
+jq -e '.sources.ledger == "../outside/handoff-fixture/events.jsonl"' "$TMP_DIR/external.json" >/dev/null
 printf 'session handoff smoke test: ok\n'
