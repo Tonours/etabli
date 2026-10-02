@@ -7,4 +7,4 @@ while [ -L "$SCRIPT_PATH" ]; do
   [[ "$LINK_PATH" = /* ]] && SCRIPT_PATH="$LINK_PATH" || SCRIPT_PATH="$SCRIPT_DIR/$LINK_PATH"
 done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-exec node "$SCRIPT_DIR/lib/claude-launch.mjs" lean "$@"
+exec node "$SCRIPT_DIR/lib/claude-launch.mjs" deep "$@"
