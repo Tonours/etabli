@@ -23,12 +23,6 @@ export function readEvidence(root, path, { start, end, maxBytes = 6500, allowAbs
   } finally { closeSync(fd); }
 }
 
-export function parseEvidencePointer(pointer) {
-  const text = pointer.replace(/`/g, "").trim();
-  const match = text.match(/^(.*?):(\d+)(?:[-:](\d+))?$/);
-  return match ? { path: match[1], start: Number(match[2]), end: Number(match[3] ?? match[2]) } : { path: text };
-}
-
 export function createReviewEvidencePack({ root, base = "HEAD", excerpts = [], criteria = [] }) {
   const started = performance.now();
   const project = realpathSync(root);
