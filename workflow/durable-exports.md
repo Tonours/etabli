@@ -26,18 +26,23 @@ or authorize rewriting history; it reconciles append-before-acknowledgement
 crashes. Native standalone reviews use `contract_path: "pi/durable"` with the
 existing T/D/F limits.
 
-Native internal append execution proves that its actual `lockf`/`flock` parent
-is the trusted system executable and was invoked on the fixed descriptor `9`
-from the canonical run directory. That descriptor must resolve to the current
-canonical `events.lock` inode, which is then separately proven locked.
-Executable, directory, arguments, descriptor, and lock state are read only
-through fixed system binaries plus `/proc` on Linux or `lsof` on macOS;
-caller-controlled `PATH` helpers are not authoritative. Descriptor locking
-keeps the lock file and preserves kernel lock ordering. Merely opening the
-canonical file on another descriptor, replacing its pathname, placing
-`_append-locked` beneath an unrelated lock process, or minting a caller-owned
-JSON marker confers no authority; missing process proof fails closed. The
-writer rechecks contention and FD-to-inode identity immediately before the
-append syscall. This is a cooperative-writer integrity boundary, not a security
-boundary against a same-UID actor that can mutate files or processes inside
-that final syscall interval.
+Backend selection prefers `lockf`, then `flock`, then `shlock`, and fails
+if none is available; `WORKFLOW_EVENT_LOCK_BACKEND` can select a backend.
+For lockf/flock, admission checks the actual trusted system executable,
+parent name/arguments, a descriptor and a separate contention probe.
+`lockf` requires `-t 5 /dev/fd/9` and the canonical run directory;
+`flock` requires `-w 5 <absolute events.lock path>`, without a cwd check.
+Descriptor proof accepts any parent FD 0–9 under `/proc`, checking the open
+file with `-ef`; the fallback matches a pathname reported by `lsof` with `-ef`.
+The fallback does not attest the old open inode after pathname replacement.
+The probe treats acquisition failure as lock evidence, including other errors.
+Name and arguments can use inherited `WORKFLOW_PARENT_COMMAND` when
+`WORKFLOW_PARENT_PID` matches; other probes use fixed system binaries
+and available `/proc` or `lsof`, not caller-controlled `PATH` helpers.
+The native admission proof is cached for the commit pass; no continuous
+descriptor, inode or contention recheck occurs before append.
+`shlock` runs in the writer process and checks its own PID-file at admission
+and again at commit; it has no native-parent or descriptor proof.
+Descriptor number alone gives no authority; native checks work together.
+This is a cooperative integrity boundary, not protection against a same-UID
+actor mutating files or processes between admission and append.
