@@ -1,0 +1,1014 @@
+{
+  "captured_at_utc": "2026-10-02T13:24:38.606469+00:00",
+  "window_start_utc": "2026-09-02T13:24:38.606469+00:00",
+  "method": "Read-only allowlisted configuration metadata and aggregated assistant usage; no prompts, tool payloads, credentials or raw session paths retained.",
+  "worktree": "/Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli",
+  "repo_realpath": "/Volumes/Crucial/.homes/codex/worktrees/claude-efficiency-audit/etabli",
+  "base_sha": "1e79c3caa36ed634fcc2099285e00c253df065eb",
+  "runtime": {
+    "command": "claude --version",
+    "exit_code": 0,
+    "stdout": "2.1.287 (Claude Code)",
+    "stderr": ""
+  },
+  "config_dir": "/Volumes/Crucial/.homes/claude",
+  "config_dir_env_set": true,
+  "provider_env_names_present": [],
+  "settings_top_level_keys": [
+    "agentPushNotifEnabled",
+    "alwaysThinkingEnabled",
+    "attribution",
+    "autoMemoryEnabled",
+    "awaySummaryEnabled",
+    "effortLevel",
+    "enableArtifact",
+    "enableWorkflows",
+    "enabledPlugins",
+    "env",
+    "hooks",
+    "language",
+    "modelSettings",
+    "permissions",
+    "preferredNotifChannel",
+    "promptSuggestionEnabled",
+    "skillOverrides",
+    "skipDangerousModePermissionPrompt",
+    "theme",
+    "tui",
+    "workflowKeywordTriggerEnabled"
+  ],
+  "settings_safe": {
+    "effortLevel": "medium",
+    "modelSettings": {
+      "claude-opus-5-5": {
+        "effortLevel": "medium"
+      }
+    },
+    "alwaysThinkingEnabled": true,
+    "autoMemoryEnabled": false,
+    "promptSuggestionEnabled": false,
+    "awaySummaryEnabled": false,
+    "enableWorkflows": false,
+    "workflowKeywordTriggerEnabled": false,
+    "enableArtifact": false,
+    "agentPushNotifEnabled": true
+  },
+  "enabled_plugins_setting_present": true,
+  "enabled_plugins": {
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "skill_override_counts": {
+    "user-invocable-only": 68,
+    "on": 20
+  },
+  "lean_plugin_false_count": 12,
+  "lean_override_equals_tracked": true,
+  "fingerprints": {
+    "/Volumes/Crucial/.homes/claude/settings.json": "b90964f6d6936939686b27657b06b9b636082731c7b2838c6a55f7afad8b59da",
+    "/Volumes/Crucial/.homes/claude/CLAUDE.md": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e"
+  },
+  "user_mcp_names": [
+    "chrome-devtools",
+    "mobbin",
+    "uidotsh",
+    "web-reader",
+    "web-search-prime",
+    "zai-mcp-server",
+    "zread"
+  ],
+  "repo_mcp_names": [],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [],
+            "timeout_seconds": null
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "ledger-auto-emit.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "no-comments-guard.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "plan-ready-guard.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "rtk-guard.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [],
+            "timeout_seconds": 10
+          }
+        ]
+      },
+      {
+        "matcher": "compact|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "session-state.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": null,
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "detect-adr-signal.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": null,
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "harvest-hook.mjs"
+            ],
+            "timeout_seconds": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": null,
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "correction-emit.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": null,
+        "hooks": [
+          {
+            "type": "command",
+            "script_basename": [
+              "notification-classify.mjs"
+            ],
+            "timeout_seconds": 5
+          }
+        ]
+      }
+    ]
+  },
+  "surface_counts": {
+    "commands": 23,
+    "skills": 90,
+    "agents": 4,
+    "hooks": 15,
+    "scripts": 7
+  },
+  "entrypoints": [
+    {
+      "path": "/Users/tonours/CLAUDE.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Users/tonours/CLAUDE.local.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Volumes/Crucial/.homes/claude/CLAUDE.md",
+      "exists": true,
+      "symlink": true,
+      "realpath": "/Volumes/Crucial/work/etabli/claude/CLAUDE.md",
+      "chars": 1946,
+      "lines": 40,
+      "import_lines": [
+        "@~/.pi/agent/AGENTS.md",
+        "@RTK.md"
+      ]
+    },
+    {
+      "path": "/Volumes/Crucial/.homes/claude/RTK.md",
+      "exists": true,
+      "symlink": false,
+      "realpath": "/Volumes/Crucial/.homes/claude/RTK.md",
+      "chars": 958,
+      "lines": 29,
+      "import_lines": []
+    },
+    {
+      "path": "/Users/tonours/.claude/CLAUDE.md",
+      "exists": true,
+      "symlink": true,
+      "realpath": "/Volumes/Crucial/work/etabli/claude/CLAUDE.md",
+      "chars": 1946,
+      "lines": 40,
+      "import_lines": [
+        "@~/.pi/agent/AGENTS.md",
+        "@RTK.md"
+      ]
+    },
+    {
+      "path": "/Users/tonours/.claude/RTK.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Users/tonours/.pi/agent/AGENTS.md",
+      "exists": true,
+      "symlink": true,
+      "realpath": "/Volumes/Crucial/work/etabli/pi/AGENTS.md",
+      "chars": 2668,
+      "lines": 44,
+      "import_lines": []
+    },
+    {
+      "path": "/Users/tonours/work/CLAUDE.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Users/tonours/work/CLAUDE.local.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli/CLAUDE.md",
+      "exists": true,
+      "symlink": false,
+      "realpath": "/Volumes/Crucial/.homes/codex/worktrees/claude-efficiency-audit/etabli/CLAUDE.md",
+      "chars": 184,
+      "lines": 7,
+      "import_lines": [
+        "@AGENTS.md"
+      ]
+    },
+    {
+      "path": "/Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli/AGENTS.md",
+      "exists": true,
+      "symlink": false,
+      "realpath": "/Volumes/Crucial/.homes/codex/worktrees/claude-efficiency-audit/etabli/AGENTS.md",
+      "chars": 2394,
+      "lines": 61,
+      "import_lines": []
+    },
+    {
+      "path": "/Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli/.claude/CLAUDE.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Volumes/Crucial/work/CLAUDE.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Volumes/Crucial/work/CLAUDE.local.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    },
+    {
+      "path": "/Volumes/Crucial/work/etabli/CLAUDE.local.md",
+      "exists": false,
+      "symlink": false,
+      "realpath": null
+    }
+  ],
+  "agent_frontmatter": [
+    {
+      "path": "claude/scopes/shared/agents/adversary.md",
+      "name": "adversary",
+      "model": "fable",
+      "effort": "low",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "path": "claude/scopes/shared/agents/reviewer.md",
+      "name": "reviewer",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "path": "claude/scopes/shared/agents/scout.md",
+      "name": "scout",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "path": "claude/scopes/shared/agents/worker.md",
+      "name": "worker",
+      "model": "opus",
+      "effort": "medium",
+      "maxTurns": "40"
+    }
+  ],
+  "project_settings": [
+    {
+      "path": "/Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli/.mcp.json",
+      "keys": [
+        "mcpServers"
+      ],
+      "safe": {},
+      "env_names": [],
+      "permission_entry_counts": {}
+    },
+    {
+      "path": "/Volumes/Crucial/work/etabli/.mcp.json",
+      "keys": [
+        "mcpServers"
+      ],
+      "safe": {},
+      "env_names": [],
+      "permission_entry_counts": {}
+    }
+  ],
+  "launchers": {
+    "claude": {
+      "path": "/Users/tonours/.local/bin/claude",
+      "realpath": "/Users/tonours/.local/share/claude/versions/2.1.287"
+    },
+    "claude-lean": {
+      "path": null,
+      "realpath": null
+    },
+    "claude-full": {
+      "path": null,
+      "realpath": null
+    }
+  },
+  "checks": [
+    {
+      "command": "scripts/claude-hooks-check",
+      "exit_code": 0,
+      "stdout": "claude-hooks-check: ok, all fragment hooks wired",
+      "stderr": ""
+    },
+    {
+      "command": "scripts/claude-skill-load-check",
+      "exit_code": 0,
+      "stdout": "index_chars=3651 name_only_chars=0 discovered=88 on_set=20 pinned=20 map_keys=88 profile=lean.settings.json fraction=0.008\nclaude-skill-load-check: ok",
+      "stderr": ""
+    },
+    {
+      "command": "scripts/claude-skill-load-check --no-profile",
+      "exit_code": 0,
+      "stdout": "index_chars=3651 name_only_chars=0 discovered=88 on_set=20 pinned=20 map_keys=88 profile=none fraction=none\nclaude-skill-load-check: ok",
+      "stderr": ""
+    },
+    {
+      "command": "scripts/workflow-context-budget --json",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "estimator": "chars/4",
+        "surfaces": {
+          "always-on": {
+            "description": "instruction files loaded at every session start (docs they point to stay on-demand); paid on every turn",
+            "files": [
+              {
+                "path": "workflow/agent-quick-card.md",
+                "chars": 4539
+              },
+              {
+                "path": "pi/AGENTS.md",
+                "chars": 2668
+              },
+              {
+                "path": "AGENTS.md",
+                "chars": 2394
+              },
+              {
+                "path": "claude/CLAUDE.md",
+                "chars": 1946
+              },
+              {
+                "path": "claude/RTK.md",
+                "chars": 335
+              },
+              {
+                "path": "CLAUDE.md",
+                "chars": 184
+              }
+            ],
+            "missing": [],
+            "chars": 12066,
+            "est_tokens": 3017,
+            "ceiling_chars": 12148,
+            "headroom": 82,
+            "status": "ok"
+          },
+          "plan-loop": {
+            "description": "default read chain of the plan-loop route",
+            "files": [
+              {
+                "path": "workflow/skills/plan-loop.md",
+                "chars": 4044
+              },
+              {
+                "path": "PLAN_TEMPLATE.md",
+                "chars": 1244
+              },
+              {
+                "path": "pi/skills/plan-loop/SKILL.md",
+                "chars": 1162
+              }
+            ],
+            "missing": [],
+            "chars": 6450,
+            "est_tokens": 1613,
+            "ceiling_chars": 6458,
+            "headroom": 8,
+            "status": "ok"
+          },
+          "plan-implement": {
+            "description": "default read chain of the plan-implement route (unconditional reads only; events-validator.md stays cold, opened only when editing the event system)",
+            "files": [
+              {
+                "path": "workflow/skills/implementation-loop.md",
+                "chars": 11446
+              },
+              {
+                "path": "workflow/review-rubric.md",
+                "chars": 8089
+              },
+              {
+                "path": "workflow/events.md",
+                "chars": 6498
+              },
+              {
+                "path": "workflow/skills/review.md",
+                "chars": 5914
+              },
+              {
+                "path": "workflow/skills/adversary.md",
+                "chars": 5480
+              },
+              {
+                "path": "workflow/answer-quality.md",
+                "chars": 4505
+              },
+              {
+                "path": "workflow/skills/plan-loop.md",
+                "chars": 4044
+              },
+              {
+                "path": "workflow/templates/review-logic-hunter.md",
+                "chars": 2656
+              },
+              {
+                "path": "workflow/templates/review-lead.md",
+                "chars": 1846
+              },
+              {
+                "path": "pi/skills/plan-implement/SKILL.md",
+                "chars": 1539
+              },
+              {
+                "path": "PLAN_TEMPLATE.md",
+                "chars": 1244
+              },
+              {
+                "path": "workflow/templates/plan-archive.md",
+                "chars": 1188
+              },
+              {
+                "path": "workflow/templates/review-spec-hunter.md",
+                "chars": 957
+              }
+            ],
+            "missing": [],
+            "chars": 55406,
+            "est_tokens": 13852,
+            "ceiling_chars": 55699,
+            "headroom": 293,
+            "status": "ok"
+          },
+          "implement": {
+            "description": "default read chain of the implement route (events-validator.md stays cold, opened only when editing the event system)",
+            "files": [
+              {
+                "path": "workflow/skills/implementation-loop.md",
+                "chars": 11446
+              },
+              {
+                "path": "workflow/review-rubric.md",
+                "chars": 8089
+              },
+              {
+                "path": "workflow/events.md",
+                "chars": 6498
+              },
+              {
+                "path": "workflow/skills/review.md",
+                "chars": 5914
+              },
+              {
+                "path": "workflow/skills/adversary.md",
+                "chars": 5480
+              },
+              {
+                "path": "workflow/answer-quality.md",
+                "chars": 4505
+              },
+              {
+                "path": "workflow/templates/review-logic-hunter.md",
+                "chars": 2656
+              },
+              {
+                "path": "workflow/templates/review-lead.md",
+                "chars": 1846
+              },
+              {
+                "path": "pi/skills/implement/SKILL.md",
+                "chars": 1482
+              },
+              {
+                "path": "workflow/templates/plan-archive.md",
+                "chars": 1188
+              },
+              {
+                "path": "workflow/templates/review-spec-hunter.md",
+                "chars": 957
+              }
+            ],
+            "missing": [],
+            "chars": 50061,
+            "est_tokens": 12516,
+            "ceiling_chars": 50175,
+            "headroom": 114,
+            "status": "ok"
+          },
+          "review": {
+            "description": "default read chain of the review route",
+            "files": [
+              {
+                "path": "workflow/review-rubric.md",
+                "chars": 8089
+              },
+              {
+                "path": "workflow/skills/review.md",
+                "chars": 5914
+              },
+              {
+                "path": "workflow/templates/review-logic-hunter.md",
+                "chars": 2656
+              },
+              {
+                "path": "pi/skills/review/SKILL.md",
+                "chars": 2349
+              },
+              {
+                "path": "workflow/templates/review-lead.md",
+                "chars": 1846
+              },
+              {
+                "path": "workflow/templates/review-spec-hunter.md",
+                "chars": 957
+              }
+            ],
+            "missing": [],
+            "chars": 21811,
+            "est_tokens": 5453,
+            "ceiling_chars": 22538,
+            "headroom": 727,
+            "status": "ok"
+          },
+          "verify": {
+            "description": "default read chain of the verify route",
+            "files": [
+              {
+                "path": "workflow/skills/verify.md",
+                "chars": 1997
+              },
+              {
+                "path": "pi/skills/verify/SKILL.md",
+                "chars": 1082
+              },
+              {
+                "path": "workflow/verification-report-template.md",
+                "chars": 697
+              }
+            ],
+            "missing": [],
+            "chars": 3776,
+            "est_tokens": 944,
+            "ceiling_chars": 3812,
+            "headroom": 36,
+            "status": "ok"
+          },
+          "spec-map": {
+            "description": "on-demand full map and long rules; ceilinged so growth cannot hide here",
+            "files": [
+              {
+                "path": "workflow/contract-details.md",
+                "chars": 17933
+              },
+              {
+                "path": "workflow/spec.md",
+                "chars": 12187
+              }
+            ],
+            "missing": [],
+            "chars": 30120,
+            "est_tokens": 7530,
+            "ceiling_chars": 30120,
+            "headroom": 0,
+            "status": "ok"
+          },
+          "ship": {
+            "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",
+            "files": [
+              {
+                "path": "workflow/skills/ship.md",
+                "chars": 13973
+              },
+              {
+                "path": "workflow/skills/implementation-loop.md",
+                "chars": 11446
+              },
+              {
+                "path": "workflow/review-rubric.md",
+                "chars": 8089
+              },
+              {
+                "path": "workflow/events.md",
+                "chars": 6498
+              },
+              {
+                "path": "workflow/skills/review.md",
+                "chars": 5914
+              },
+              {
+                "path": "workflow/skills/adversary.md",
+                "chars": 5480
+              },
+              {
+                "path": "workflow/pr-body-contract.md",
+                "chars": 5027
+              },
+              {
+                "path": "workflow/answer-quality.md",
+                "chars": 4505
+              },
+              {
+                "path": "workflow/git-contract.md",
+                "chars": 4342
+              },
+              {
+                "path": "workflow/skills/plan-loop.md",
+                "chars": 4044
+              },
+              {
+                "path": "pi/skills/ship/SKILL.md",
+                "chars": 2660
+              },
+              {
+                "path": "workflow/templates/review-logic-hunter.md",
+                "chars": 2656
+              },
+              {
+                "path": "workflow/skills/worktree-isolation.md",
+                "chars": 1850
+              },
+              {
+                "path": "workflow/templates/review-lead.md",
+                "chars": 1846
+              },
+              {
+                "path": "workflow/templates/escaped-defect.md",
+                "chars": 1522
+              },
+              {
+                "path": "PLAN_TEMPLATE.md",
+                "chars": 1244
+              },
+              {
+                "path": "workflow/templates/plan-archive.md",
+                "chars": 1188
+              },
+              {
+                "path": "workflow/templates/review-spec-hunter.md",
+                "chars": 957
+              }
+            ],
+            "missing": [],
+            "chars": 83241,
+            "est_tokens": 20811,
+            "ceiling_chars": 83333,
+            "headroom": 92,
+            "status": "ok"
+          }
+        },
+        "ok": true
+      }
+    },
+    {
+      "command": "scripts/claude-lean --print-args",
+      "exit_code": 0,
+      "stdout": "scope=work strict_mcp=1 skipped_servers=none\n--settings\n/Volumes/Crucial/.homes/codex/worktrees/claude-efficiency-audit/etabli/claude/profiles/lean.settings.json\n--strict-mcp-config\n--mcp-config\n/var/folders/xq/60sh3_0d3sb9hyy42rdf20hh0000gn/T/claude-lean-mcp-97657-1790947480925.json",
+      "stderr": ""
+    }
+  ],
+  "config_dir_mcp_names": [
+    "alambic-brain",
+    "alambic-obvault"
+  ],
+  "usage_30d": {
+    "status": "observed-local-transcript-metadata-not-provider-billing-or-quota-proof",
+    "files_scanned": 357,
+    "parse_errors": 0,
+    "deduplication": "max per component for (reported model, requestId or message.id); globally across main and subagent files",
+    "recorded_time_min": "2026-09-23T12:00:55.126000+00:00",
+    "recorded_time_max": "2026-10-02T10:27:24.130000+00:00",
+    "totals": {
+      "input_tokens": 30542,
+      "output_tokens": 11045075,
+      "cache_read_input_tokens": 2587474503,
+      "cache_creation_input_tokens": 41120428,
+      "requests": 11219,
+      "raw_fragments": 26633,
+      "processed_total_tokens": 2639670548
+    },
+    "by_reported_model": {
+      "claude-fable-5-1": {
+        "input_tokens": 7494,
+        "output_tokens": 472596,
+        "cache_read_input_tokens": 13640476,
+        "cache_creation_input_tokens": 2070366,
+        "requests": 262,
+        "raw_fragments": 891,
+        "processed_total_tokens": 16190932
+      },
+      "claude-haiku-4-5-20251001": {
+        "input_tokens": 598,
+        "output_tokens": 37737,
+        "cache_read_input_tokens": 3219981,
+        "cache_creation_input_tokens": 297672,
+        "requests": 73,
+        "raw_fragments": 169,
+        "processed_total_tokens": 3555988
+      },
+      "claude-opus-5-5": {
+        "input_tokens": 15964,
+        "output_tokens": 7017277,
+        "cache_read_input_tokens": 2366994123,
+        "cache_creation_input_tokens": 21956357,
+        "requests": 7641,
+        "raw_fragments": 17580,
+        "processed_total_tokens": 2395983721
+      },
+      "claude-sonnet-5": {
+        "input_tokens": 6476,
+        "output_tokens": 3516994,
+        "cache_read_input_tokens": 203606940,
+        "cache_creation_input_tokens": 16778801,
+        "requests": 3238,
+        "raw_fragments": 7987,
+        "processed_total_tokens": 223909211
+      },
+      "claude-sonnet-5-5": {
+        "input_tokens": 10,
+        "output_tokens": 471,
+        "cache_read_input_tokens": 12983,
+        "cache_creation_input_tokens": 17232,
+        "requests": 5,
+        "raw_fragments": 6,
+        "processed_total_tokens": 30696
+      }
+    },
+    "by_class": {
+      "main": {
+        "input_tokens": 15412,
+        "output_tokens": 6657524,
+        "cache_read_input_tokens": 2313355277,
+        "cache_creation_input_tokens": 20737190,
+        "requests": 7357,
+        "raw_fragments": 16954,
+        "processed_total_tokens": 2340765403
+      },
+      "subagent": {
+        "input_tokens": 15130,
+        "output_tokens": 4387551,
+        "cache_read_input_tokens": 274119226,
+        "cache_creation_input_tokens": 20383238,
+        "requests": 3862,
+        "raw_fragments": 9679,
+        "processed_total_tokens": 298905145
+      }
+    },
+    "request_input_components_percentiles": {
+      "n": 11219,
+      "min": 4433,
+      "median": 126731,
+      "p95_nearest_rank": 769944,
+      "max": 966872
+    },
+    "first_observed_request_per_recent_file_inputs": {
+      "n": 327,
+      "min": 4433,
+      "median": 22563,
+      "p95_nearest_rank": 45387,
+      "max": 253448
+    }
+  },
+  "settings_env_names": [
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY",
+    "CLAUDE_CODE_SUBAGENT_MODEL"
+  ],
+  "settings_safe_env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1"
+  },
+  "permission_default_mode": "bypassPermissions",
+  "resolved_hook_paths": [
+    {
+      "event": "PostToolUse",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/format-local.sh",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/.homes/claude/hooks/format-local.sh"
+        }
+      ]
+    },
+    {
+      "event": "PostToolUse",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/ledger-auto-emit.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/ledger-auto-emit.mjs"
+        }
+      ]
+    },
+    {
+      "event": "PreToolUse",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/no-comments-guard.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/no-comments-guard.mjs"
+        }
+      ]
+    },
+    {
+      "event": "PreToolUse",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/plan-ready-guard.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/plan-ready-guard.mjs"
+        }
+      ]
+    },
+    {
+      "event": "PreToolUse",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/rtk-guard.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/rtk-guard.mjs"
+        }
+      ]
+    },
+    {
+      "event": "SessionStart",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/herdr-agent-state.sh",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/.homes/claude/hooks/herdr-agent-state.sh"
+        }
+      ]
+    },
+    {
+      "event": "SessionStart",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/session-state.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/session-state.mjs"
+        }
+      ]
+    },
+    {
+      "event": "Stop",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/detect-adr-signal.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/detect-adr-signal.mjs"
+        }
+      ]
+    },
+    {
+      "event": "SessionEnd",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/work/obvault/_meta/hooks/harvest-hook.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/obvault/_meta/hooks/harvest-hook.mjs"
+        }
+      ]
+    },
+    {
+      "event": "UserPromptSubmit",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/correction-emit.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/correction-emit.mjs"
+        }
+      ]
+    },
+    {
+      "event": "Notification",
+      "script_paths": [
+        {
+          "path": "/Volumes/Crucial/.homes/claude/hooks/notification-classify.mjs",
+          "exists": true,
+          "realpath": "/Volumes/Crucial/work/etabli/claude/hooks/notification-classify.mjs"
+        }
+      ]
+    }
+  ]
+}
