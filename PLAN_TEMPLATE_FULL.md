@@ -19,7 +19,7 @@ Describe in 1-3 sentences what will change and why it matters.
 - Role:
 - Pattern:
 - Goal verifier:
-- Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
+- Budget (iterations/time/tools; model-token totals are telemetry, never a stop condition):
 - Context reset threshold:
 - Escalation:
 - Planner output:
@@ -46,7 +46,7 @@ Describe in 1-3 sentences what will change and why it matters.
 ### In scope
 -
 
-(Risky change? Name files/areas — the plan adversary blocks READY without them.)
+(Risky? Name files/areas; required for READY.)
 
 ### Out of scope / Non-goals
 -
@@ -141,7 +141,7 @@ ownable units. Otherwise delete this section.
 - YYYY-MM-DD:
 
 ## Review Changes
-- (Adversary passes record deltas here — canonical location.)
+- Adversary deltas:
 
 ## Handoff State
 - Current state:
@@ -165,3 +165,8 @@ ownable units. Otherwise delete this section.
 - [ ] Checks are named and proportionate
 - [ ] Risks are identified or explicitly none
 - [ ] No blocking open questions remain
+
+## Product Verification
+- Required: no
+
+Details: workflow/product-verification.md.

@@ -84,3 +84,4 @@ full	shell-docs	codex-source	tests/codex-skill-source-smoke.sh
 full	shell-docs	token-bench-smoke	tests/token-bench-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
+core	shell-docs	project-verification-check	tests/project-verification-check-smoke.sh
