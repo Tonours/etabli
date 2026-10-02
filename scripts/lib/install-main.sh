@@ -966,6 +966,7 @@ install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
 install_script "claude-lean" || true
 install_script "claude-full" || true
+install_script "pi-durable" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness

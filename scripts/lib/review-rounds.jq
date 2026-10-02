@@ -27,7 +27,7 @@ def envelope_error:
 
 def round_error:
   map(.schema_version = (.schema_version | tostring)) as $events
-  | ([$events | to_entries[] | select(.value.schema_version == "2" and .value.event == "route_decided" and .value.detail.route == "plan-implement") | .key] | first) as $route_at
+  | ([$events | to_entries[] | select(.value.schema_version == "2" and .value.event == "route_decided" and (.value.detail.route == "plan-implement" or (.value.detail.route == "review" and .value.detail.contract_path == "pi/durable"))) | .key] | first) as $route_at
   | if $route_at == null
     then null
     else

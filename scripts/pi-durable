@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0")"
+PACKAGE_DIR="$(cd "$(dirname "$SCRIPT_PATH")/../pi/durable" && pwd)"
+NODE_BIN="${ETABLI_DURABLE_NODE:-$(command -v node)}"
+"$NODE_BIN" -e 'const [a,b]=process.versions.node.split(".").map(Number); if(a<22 || (a===22 && b<19)) { console.error("Pi Durable requires Node >=22.19; set ETABLI_DURABLE_NODE"); process.exit(1) }'
+if [ ! -d "$PACKAGE_DIR/node_modules/@earendil-works/pi-durable" ]; then
+  printf 'Missing native dependencies; run npm ci --ignore-scripts --prefix %s\n' "$PACKAGE_DIR" >&2
+  exit 1
+fi
+exec "$NODE_BIN" "$PACKAGE_DIR/cli.ts" "$@"
