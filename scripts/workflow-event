@@ -8,6 +8,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 REVIEW_ROUNDS="$SCRIPT_DIR/lib/review-rounds.jq"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
+export WORKFLOW_EVENT_PROJECT_ROOT="${WORKFLOW_EVENT_PROJECT_ROOT:-$PWD}"
+
+validate_product_completion() {
+  local ledger="$1" pending_required="${2:-false}" pending_contract="${3:-}" receipt archive required latest declared expected_contract
+  required="$(jq -s -r 'any(.[]; .detail.product_verification_required == true)' "$ledger")" || return 1
+  [ "$pending_required" != "true" ] || required=true
+  latest="$(jq -s -c '[.[] | select(.event == "archive_written")] | last | .detail // {}' "$ledger")" || return 1
+  receipt="$(printf '%s' "$latest" | jq -r '.product_verification_receipt // empty')" || return 1
+  if [ -z "$receipt" ]; then
+    [ "$required" != "true" ] || { printf 'required product completion receipt is missing\n' >&2; return 1; }
+    return 0
+  fi
+  archive="$(printf '%s' "$latest" | jq -r '.product_archive_path // empty')" || return 1
+  declared="$(node -e 'console.log(require("node:path").resolve(process.argv[1], process.argv[2]))' "$WORKFLOW_EVENT_PROJECT_ROOT" "$(printf '%s' "$latest" | jq -r '.path')")" || return 1
+  [ "$archive" = "$declared" ] || { printf 'product receipt archive differs from the latest ledger archive path\n' >&2; return 1; }
+  expected_contract="$(jq -s -r '[.[] | .detail.product_verification_contract_sha256 // empty] | last // empty' "$ledger")" || return 1
+  [ -z "$pending_contract" ] || [ "$pending_contract" = "$expected_contract" ] || { printf 'terminal product contract differs from the frozen ledger contract\n' >&2; return 1; }
+  [ -n "$expected_contract" ] || { printf 'required product ledger plan contract identity is missing\n' >&2; return 1; }
+  node "$SCRIPT_DIR/project-verification-check" --receipt "$receipt" --archive "$archive" --contract-sha256 "$expected_contract" >/dev/null || {
+    printf 'product completion evidence is missing or stale; rerun the declared project verification and archive gate\n' >&2
+    return 1
+  }
+}
 
 ALLOWED_EVENTS=(
   route_decided
@@ -280,6 +303,7 @@ validate_ledger_file() {
         jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed missing adversary mode %s\n' "$mode" >&2; return 1; }
       done
       validate_autonomous_completion_evidence autonomous-completed || return 1
+      validate_product_completion "$file" || return 1
       ;;
     blocked-terminal)
       [ "$terminal" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; return 1; }
@@ -630,6 +654,45 @@ append_locked_body() {
       printf 'refusing append after terminal event: %s\n' "$terminal" >&2
       return 1
     fi
+  fi
+
+  # Observations must survive an unavailable subject or damaged plan;
+  # lifecycle gates still require binding the current product contract.
+  if [ "$event" != "blocked" ] && [ -f "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" ] && {
+    [ "$event" = "plan_created" ] || [ "$event" = "archive_written" ] ||
+      { [ -f "$file" ] && jq -s -e 'any(.[]; .event == "plan_created")' "$file" >/dev/null; }
+  }; then
+    local declaration
+    declaration="$(node "$SCRIPT_DIR/project-verification-check" --declaration "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || {
+      case "$event" in plan_created|archive_written|completed) return 1 ;; esac
+      declaration=""
+    }
+    if [ -n "$declaration" ]; then
+      detail="$(printf '%s' "$detail" | jq --argjson required "$(printf '%s' "$declaration" | jq '.required')" '. + {product_verification_required:$required}')" || return 1
+      if [ "$(printf '%s' "$declaration" | jq -r '.required')" = "true" ] && [ "$(printf '%s' "$declaration" | jq -r '.plan_status')" = "ready" ]; then
+        local bound_contract
+        bound_contract="$(node "$SCRIPT_DIR/project-verification-check" --contract "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || {
+          case "$event" in plan_created|archive_written|completed) return 1 ;; esac
+          bound_contract=""
+        }
+        if [ -n "$bound_contract" ]; then
+          detail="$(printf '%s' "$detail" | jq --arg identity "$(printf '%s' "$bound_contract" | jq -r '.contract_sha256')" '. + {product_verification_contract_sha256:$identity}')" || return 1
+        fi
+      fi
+    fi
+  fi
+  if [ "$event" = "archive_written" ] && [ -f "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" ]; then
+    local contract product_pack product_archive
+    contract="$(node "$SCRIPT_DIR/project-verification-check" --contract "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || return 1
+    if [ "$(printf '%s' "$contract" | jq -r '.required')" = "true" ]; then
+      node "$SCRIPT_DIR/project-verification-check" "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" >/dev/null || return 1
+      product_pack="$(printf '%s' "$contract" | jq -r '.pack')"
+      product_archive="$(node -e 'console.log(require("node:path").resolve(process.argv[1], process.argv[2]))' "$WORKFLOW_EVENT_PROJECT_ROOT" "$(printf '%s' "$detail" | jq -r '.path')")" || return 1
+      detail="$(printf '%s' "$detail" | jq --arg receipt "$product_pack.completion.json" --arg archive "$product_archive" '. + {product_verification_required:true, product_verification_receipt:$receipt, product_archive_path:$archive}')" || return 1
+    fi
+  fi
+  if [ "$event" = "completed" ] && [ -f "$file" ]; then
+    validate_product_completion "$file" "$(printf '%s' "$detail" | jq -r '.product_verification_required // false')" "$(printf '%s' "$detail" | jq -r '.product_verification_contract_sha256 // empty')" || return 1
   fi
 
   event_line="$(jq -nc \

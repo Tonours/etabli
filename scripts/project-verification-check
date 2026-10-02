@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { checkProductCompletion, checkProductPlan, frozenProductContract, productContractIdentity } from "./lib/project-verification.mjs";
+import { productVerificationDeclaration } from "./lib/project-verification-plan.mjs";
+import { parsePlanStatus } from "./lib/plan-check-freeze.mjs";
+
+const args = process.argv.slice(2);
+try {
+  let result;
+  if (args[0] === "--declaration" && args.length === 2) {
+    const plan = readFileSync(resolve(args[1]), "utf8");
+    const planStatus = parsePlanStatus(plan);
+    result = { ...productVerificationDeclaration(plan, { allowIncomplete: ["draft", "challenged"].includes(planStatus) }), plan_status: planStatus };
+  } else if (args[0] === "--contract" && args.length === 2) {
+    const path = resolve(args[1]);
+    const contract = frozenProductContract(readFileSync(path, "utf8"), path);
+    result = contract.required ? { ...contract, contract_sha256: productContractIdentity(contract) } : contract;
+  } else if (args[0] === "--receipt" && [4, 6].includes(args.length) && args[2] === "--archive" && (args.length === 4 || (args[4] === "--contract-sha256" && /^[a-f0-9]{64}$/.test(args[5])))) {
+    result = await checkProductCompletion(resolve(args[1]), resolve(args[3]), args[5]);
+  } else if (args.length >= 1 && args.length <= 2 && !args[0].startsWith("--")) {
+    result = await checkProductPlan(resolve(args[0]), args[1] ? resolve(args[1]) : undefined);
+  } else {
+    throw new Error("Usage: project-verification-check PLAN.md [evidence-pack.json] | --contract PLAN.md | --receipt FILE --archive FILE [--contract-sha256 HASH]");
+  }
+  console.log(JSON.stringify(result));
+} catch (error) {
+  console.error(`project-verification-check: ${error.message}. Restore fresh passing evidence for the declared plan and source; never replace missing proof with a completion claim.`);
+  process.exitCode = 1;
+}

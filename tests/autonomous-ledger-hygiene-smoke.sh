@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 . "$ROOT_DIR/scripts/lib/hash.sh"
 EVENT="$ROOT_DIR/scripts/workflow-event"
 TMP="$(mktemp -d)"
+export WORKFLOW_EVENT_PROJECT_ROOT="$TMP"
 trap 'rm -rf "$TMP"' EXIT
 DIR="$TMP/.workflow"
 LOCKF_BIN=""

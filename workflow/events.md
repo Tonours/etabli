@@ -80,3 +80,5 @@ blocking verdict invalidates an earlier success. `ship-completed` requires the
 same fresh validation plus a success-form `ship_completed`; review evidence is
 carried by the `ship_completed` records. Presence alone does not prove
 completion.
+
+Product completion fields and terminal revalidation: `workflow/product-verification.md`.

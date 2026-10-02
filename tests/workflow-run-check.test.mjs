@@ -86,6 +86,16 @@ test("late archive-as-code-change and latest failed validation both block prospe
 	}
 });
 
+test("prospective event chain cannot drop remembered product verification", () => {
+	const entries = events();
+	entries.find(e => e.event === "plan_created").detail.product_verification_required = true;
+	const path = ledger(entries), before = readFileSync(path);
+	const result = prospectiveClose(join(root, ".workflow"), "run");
+	assert.equal(result.ready, false);
+	assert.match(result.error, /required product completion receipt is missing/);
+	assert.deepEqual(readFileSync(path), before);
+});
+
 test("terminal, malformed, missing and invalid-slug runs cannot be closed prospectively", () => {
 	assert.equal(prospectiveClose(join(root, ".workflow"), "run").ready, false);
 	assert.equal(prospectiveClose(join(root, ".workflow"), "../run").ready, false);

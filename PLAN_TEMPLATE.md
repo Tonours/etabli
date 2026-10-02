@@ -13,7 +13,7 @@
 - Pattern: direct | localize-repair-validate | react | self-refine | planner-builder-evaluator | parallel-sections | tree-search | scheduled-idempotent
 - Role:
 - Goal verifier:
-- Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
+- Budget (iterations/time/tools; model-token totals are telemetry, never a stop condition):
 - Context reset:
 - Escalation:
 - Stop condition:
@@ -30,7 +30,7 @@
 ### In
 -
 
-(Risky change? Name files/areas — the plan adversary blocks READY without them.)
+(Risky? Name files/areas; required for READY.)
 
 ### Out
 -
@@ -64,10 +64,15 @@
 - YYYY-MM-DD:
 
 ## Review Changes
-- (Adversary passes record deltas here — canonical location.)
+- Adversary deltas:
 
 ## Open Questions
 - None / ...
 
 ## Notes / Handoff
 -
+
+## Product Verification
+- Required: no
+
+Details: workflow/product-verification.md.

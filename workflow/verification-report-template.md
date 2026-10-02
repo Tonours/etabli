@@ -13,7 +13,7 @@ VERIFIED | NOT VERIFIED | INCONCLUSIVE
   - observed:
 
 ## Product / UI Outcomes
-- action evidence:
+- AC IDs / action evidence:
 - resulting-state evidence:
 - side-effect evidence or not applicable:
 - launch / doctor / isolation / cleanup:
@@ -21,7 +21,7 @@ VERIFIED | NOT VERIFIED | INCONCLUSIVE
 
 ## Investigation / Performance
 - causal verdict and intervention, or not applicable:
-- frozen benchmark declaration and sample counts, or not applicable:
+- benchmark declaration / sample counts or n/a:
 
 ## Gaps
 - None / ...

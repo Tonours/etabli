@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 . "$ROOT_DIR/scripts/lib/hash.sh"
 TMP_DIR="$(mktemp -d)"
+export WORKFLOW_EVENT_PROJECT_ROOT="$TMP_DIR"
 EVENT_DIR="$TMP_DIR/.workflow"
 
 retired_probe="$(mktemp -d)/.workflow"

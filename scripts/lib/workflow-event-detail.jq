@@ -28,14 +28,17 @@ def retired_events: ["dogfood_matrix_created", "dogfood_scenario_run", "dogfood_
 
 def strict_detail($event):
   type == "object" and
+  ((has("product_verification_required") | not) or (.product_verification_required | boolean)) and
+  ((has("product_verification_contract_sha256") | not) or (.product_verification_contract_sha256 | type == "string" and test("^[a-f0-9]{64}$"))) and
   if $event == "route_decided" then
     (.route | nonempty_string) and (.reason | nonempty_string)
-    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance"]) | length == 0)
+    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance", "product_verification_required", "product_verification_contract_sha256"]) | length == 0)
     and ((has("contract_path") | not) or (.contract_path | nonempty_string))
     and ((has("contract_sha256") | not) or (.contract_sha256 | nonempty_string))
     and ((has("provenance") | not) or (.provenance | IN("deployed-pi", "deployed-agents", "repo")))
   elif $event == "plan_created" then
     (.path | nonempty_string) and (.status | IN("DRAFT", "CHALLENGED", "READY"))
+    and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
   elif $event == "adversary_completed" then
     (.mode | IN("plan", "code_diff")) and (.verdict | nonempty_string) and
     (.accepted_findings | string_array or finding_array) and (.rejected_findings | string_array) and
@@ -81,6 +84,9 @@ def strict_detail($event):
     (.prompt_chars | positive_integer)
   elif $event == "archive_written" then
     (.path | nonempty_string)
+    and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
+    and (has("product_verification_receipt") == has("product_archive_path"))
+    and ((has("product_verification_receipt") | not) or ((.product_verification_receipt | nonempty_string) and (.product_archive_path | nonempty_string)))
   elif $event == "plan_removed" then
     .path == "PLAN.md"
   elif $event == "completed" then
