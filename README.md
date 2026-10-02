@@ -86,6 +86,8 @@ self-hosted runners for private ones (`gh run list --workflow agentic-infra.yml`
 
 ## Learn more
 
+- [`docs/claude-etabli-mod.md`](docs/claude-etabli-mod.md): optional Claude `/etabli` cockpit — resume, routing, journal, checkpoints, diagnostics, review evidence, usage and skills.
+
 - [`docs/workflow-statistics.md`](docs/workflow-statistics.md): local statistics,
   recurring patterns, evidence and explicit multi-project reports.
 - [`docs/README.md`](docs/README.md): index of current references and history.
