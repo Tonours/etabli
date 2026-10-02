@@ -32,7 +32,7 @@ Prove or reject a verification target from focused evidence.
 
 ## Output
 
-Use this shape when the template is absent:
+Without the template:
 
 ```md
 # Verification Report
@@ -65,5 +65,5 @@ VERIFIED | NOT VERIFIED | INCONCLUSIVE
 
 ## Completion Evidence
 
-A verify pass is complete only when the report has exactly one verdict
-and every evidence item carries a status from the set above.
+A verify pass requires one verdict and a status per evidence item.
+Required product plans: read workflow/product-verification.md.

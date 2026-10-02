@@ -196,3 +196,5 @@ duplicate lines from one initiative remain one recurrence.
 Use `docs/plan/` for implemented plan history.
 
 Use `docs/agent-memory/` for reusable lessons that should change future agent behavior across tasks.
+
+Required product plans must pass the shared product check before implemented archive cleanup. The cleanup helper retains `<evidence-pack>.completion.json`; the ledger uses it to recheck source and archive integrity after removing the root plan. Workflow evidence and `docs/plan/` archives are fixed source-inventory exclusions; application source changes still invalidate the proof.

@@ -7,3 +7,4 @@ benchmark-command-dispatch	scripts/lib/claude-agent-benchmark-cli.mjs,scripts/li
 ticket-template	workflow/ticket-template.md	none (deployed copies removed with the codex harness)
 no-comments-guard	workflow/runtime/no-comments-guard.mjs	pi/extensions/no-comments.ts
 guard-journal	workflow/runtime/guard-journal.mjs	none (consumed by workflow-router-core, no-comments guards, read-only-agent-guard)
+product-completion	scripts/lib/project-verification.mjs,scripts/lib/project-verification-plan.mjs,scripts/lib/project-verification-source.mjs	scripts/plan-cleanup,scripts/workflow-event,scripts/project-verification-check

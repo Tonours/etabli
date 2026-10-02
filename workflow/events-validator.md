@@ -7,31 +7,8 @@ agent-facing contract is `workflow/events.md`.
 
 The writer validates the ledger and re-checks terminal state while the lock is
 held.
-After structural validation, optional `detail.export_id` is checked under
-that lock against the existing event/run/detail. One identical export returns
-the original success before terminal/round checks; a different payload is a
-collision. The batch validator also rejects duplicate v2 export identities.
-Native Durable coordination acknowledges an export only after this operation.
-Writer timestamps are excluded from equality. Identity does not reset rounds
-or authorize rewriting history; it reconciles append-before-acknowledgement
-crashes. Native standalone reviews use `contract_path: "pi/durable"` with the
-existing T/D/F limits.
-
-Native internal append execution proves that its actual `lockf`/`flock` parent
-is the trusted system executable and was invoked on the fixed descriptor `9`
-from the canonical run directory. That descriptor must resolve to the current
-canonical `events.lock` inode, which is then separately proven locked.
-Executable, directory, arguments, descriptor, and lock state are read only
-through fixed system binaries plus `/proc` on Linux or `lsof` on macOS;
-caller-controlled `PATH` helpers are not authoritative. Descriptor locking
-keeps the lock file and preserves kernel lock ordering. Merely opening the
-canonical file on another descriptor, replacing its pathname, placing
-`_append-locked` beneath an unrelated lock process, or minting a caller-owned
-JSON marker confers no authority; missing process proof fails closed. The
-writer rechecks contention and FD-to-inode identity immediately before the
-append syscall. This is a cooperative-writer integrity boundary, not a security
-boundary against a same-UID actor that can mutate files or processes inside
-that final syscall interval.
+Durable export identity, reserved enrichment metadata and native lock proof:
+`workflow/durable-exports.md`.
 
 For a schema-v2 run that has ever declared the `plan-implement` route,
 `completed` is also preflighted while holding that lock: the writer validates

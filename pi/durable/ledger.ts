@@ -52,7 +52,10 @@ export class Ledger {
     if (!item) return false;
     const recorded = (await ledgerEvents(this.cwd, item.run)).find(event => event.detail.export_id === id);
     if (!recorded) return false;
-    if (fingerprint([recorded.event, recorded.run, recorded.detail]) !== fingerprint([item.event, item.run, item.detail])) throw new Error('Recorded ledger export identity collision');
+    const enriched = Object.hasOwn(recorded.detail, 'export_source_detail');
+    if (enriched) await this.validate(item.run);
+    const sourceDetail = enriched ? recorded.detail.export_source_detail : recorded.detail;
+    if (fingerprint([recorded.event, recorded.run, sourceDetail]) !== fingerprint([item.event, item.run, item.detail])) throw new Error('Recorded ledger export identity collision');
     return true;
   }
   async flush(id: string) {

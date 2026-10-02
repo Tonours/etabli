@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { BACKGROUND_CONTEXT as ctx } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import type { TaskId } from '@earendil-works/pi-durable';
 import { Host } from '../host.ts';
 import { State, Role } from '../state.ts';
 import { fixtureModels, workspace, until } from './helpers.ts';
@@ -123,6 +124,61 @@ for (const changed of ['expiry', 'frozen-input'] as const) test(`command refuses
     const effect = Object.values(state.effects)[0];
     assert.equal(effect.status, 'verified'); assert.equal(effect.receipt, `command:${taskId}:not-started`);
   } finally { release(); writer.mock.restore(); syncBuiltinESMExports(); await host.close(); }
+});
+
+for (const role of ['root', 'writer'] as const) for (const boundary of ['export', 'prepared-input'] as const) for (const changed of [true, false]) test(`nested command ${role} ${changed ? 'refuses changed' : 'executes unchanged'} inputs after ${boundary} and preserves them on reopen`, async () => {
+  const w = await workspace(); await writeFile(join(w.cwd, 'PLAN.md'), readyPlan); await writeFile(join(w.cwd, 'input'), 'original');
+  const files = { input: createHash('sha256').update('original').digest('hex') };
+  const models = fixtureModels([fauxAssistantMessage(fauxToolCall('run_granted_command', { grantId: 'nested' }), { stopReason: 'toolUse' }), fauxAssistantMessage('guard observed')]);
+  let host = await Host.open({ dir: w.session, cwd: w.cwd, ...models });
+  let release!: () => void; const paused = new Promise<void>(resolve => { release = resolve; }); let waiting = false;
+  const originalWrite = fs.writeFile;
+  const writer = boundary === 'prepared-input' ? mock.method(fs, 'writeFile', async (...args: Parameters<typeof writeFile>) => {
+    await originalWrite(...args);
+    if (String(args[0]).startsWith(w.session) && String(args[0]).endsWith('.input.json')) { waiting = true; await paused; }
+  }) : null;
+  syncBuiltinESMExports();
+  try {
+    await host.ledger.export('route', { event: 'route_decided', run: 'proof', detail: { route: 'plan-implement', reason: 'nested frozen-input launch boundary' } });
+    await host.ledger.export('ready', { event: 'adversary_completed', run: 'proof', detail: { mode: 'plan', verdict: 'READY', accepted_findings: [], rejected_findings: [], model_provenance: provenance } });
+    const originalExport = host.ledger.export.bind(host.ledger);
+    if (boundary === 'export') host.ledger.export = async (id, event, expected) => { await originalExport(id, event, expected); if (event.event === 'file_changed') { waiting = true; await paused; } };
+    const argv = [process.execPath, '-e', "require('node:fs').appendFileSync('marker',require('node:fs').readFileSync('input'))"];
+    await host.handle({ command: 'grant', payload: { key: 'nested', argv, consumer: role === 'writer' ? 'writer' : `root:${host.root.id}`, expiresAt: Date.now() + 30000, evidence: 'nested launch fixture' } });
+    if (role === 'writer') await host.start('agent', { key: 'writer', prompt: 'run granted command', role: 'writer', model: null, files, review: false });
+    else {
+      await host.harness.commit(async tx => { (await tx.doc(Role, host.root.id)).frozenInputs = files; }, ctx);
+      const view = await host.snapshot();
+      await host.admit('nested-root', { session: view.sessionId, conversation: host.root.id, text: 'run granted command', deliverAs: null });
+    }
+    await until(async () => waiting, Boolean);
+    const before = (await host.harness.snapshot(State, ctx))!;
+    const id = before.grants.nested.usedBy as TaskId | null; assert.ok(id);
+    if (changed) await writeFile(join(w.cwd, 'input'), 'human change');
+    release();
+    await until(() => host.harness.getTask(id, ctx), task => task?.state.status === 'terminal');
+    if (role === 'root') await host.root.waitForIdle(ctx);
+    else await until(() => host.handoff(), view => view.recovery.work.some(work => work.key === 'writer' && work.result !== null));
+    if (changed) {
+      await assert.rejects(readFile(join(w.cwd, 'marker')), { code: 'ENOENT' });
+      await assert.rejects(readFile(join(w.session, `command-${id}.receipt.json`)), { code: 'ENOENT' });
+    } else assert.equal(await readFile(join(w.cwd, 'marker'), 'utf8'), 'original');
+    const child = (await host.harness.getTask(id, ctx))!;
+    assert.deepEqual((child.input as CommandInput).files, files);
+    await host.handoff();
+    const settled = (await host.harness.snapshot(State, ctx))!;
+    assert.equal(settled.grants.nested.usedBy, id); assert.equal(settled.deadline, before.deadline);
+    assert.equal(settled.attempts[`command:${id}`].requests, before.attempts[`command:${id}`].requests);
+    const effect = Object.values(settled.effects).find(effect => effect.taskId === id)!;
+    assert.equal(effect.status, 'verified');
+    if (changed) assert.equal(effect.receipt, `command:${id}:not-started`);
+    writer?.mock.restore(); syncBuiltinESMExports();
+    await host.close(); host = await Host.open({ dir: w.session, cwd: w.cwd, ...fixtureModels() });
+    const restored = (await host.harness.snapshot(State, ctx))!;
+    assert.deepEqual((await host.harness.getTask(id, ctx))!.input, child.input);
+    assert.deepEqual([restored.requests, restored.maxRequests, restored.deadline, restored.attempts, restored.budgetChanges, restored.grants.nested], [settled.requests, settled.maxRequests, settled.deadline, settled.attempts, settled.budgetChanges, settled.grants.nested]);
+    if (!changed) assert.equal(await readFile(join(w.cwd, 'marker'), 'utf8'), 'original');
+  } finally { release(); writer?.mock.restore(); syncBuiltinESMExports(); await host.close(); }
 });
 
 for (const mutation of [false, true]) test(`parallel validation exports preserve cells and ${mutation ? 'refuse changed canonical inputs' : 'retry unrelated appends'}`, async () => {

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 . "$ROOT_DIR/scripts/lib/hash.sh"
 TMP_DIR="$(mktemp -d)"
+export WORKFLOW_EVENT_PROJECT_ROOT="$TMP_DIR"
 EVENT_DIR="$TMP_DIR/.workflow"
 
 for help_flag in -h --help; do
@@ -29,6 +30,101 @@ for invalid in unknown missing-dir malformed-sha; do
     exit 1
   }
 done
+
+case "$(uname -s)" in
+  Darwin) durable_required_backend=lockf ;;
+  Linux) durable_required_backend=flock ;;
+  *) printf 'durable export matrix requires macOS lockf or Linux flock\n' >&2; exit 1 ;;
+esac
+durable_tested_backends=""
+durable_append() {
+  WORKFLOW_EVENT_PROJECT_ROOT="$durable_probe" WORKFLOW_EVENT_LOCK_BACKEND="$durable_backend" \
+    "$ROOT_DIR/scripts/workflow-event" --dir "$durable_probe/.workflow" "$@"
+}
+for durable_backend in lockf flock shlock; do
+  durable_native=""
+  for candidate in "/usr/bin/$durable_backend" "/usr/sbin/$durable_backend" "/bin/$durable_backend"; do
+    if [[ -x "$candidate" && ! -L "$candidate" ]]; then durable_native="$candidate"; break; fi
+  done
+  [[ -n "$durable_native" ]] || continue
+  durable_probe="$(mktemp -d)"
+  printf '# Plan\n- Status: READY\n## Product Verification\n- Required: no\n' >"$durable_probe/PLAN.md"
+  durable_request='{"path":"PLAN.md","status":"READY","export_id":"enriched"}'
+  durable_append append replay plan_created "$durable_request"
+  durable_file="$durable_probe/.workflow/replay/events.jsonl"
+  jq -e --argjson original "$durable_request" '.detail.product_verification_required == false and .detail.export_source_detail == $original' "$durable_file" >/dev/null || {
+    printf 'enriched export must preserve its original request identity\n' >&2; exit 1
+  }
+  durable_before="$(hash256 "$durable_file" | awk '{print $1}')"
+  for phase in draft required removed; do
+    case "$phase" in
+      draft) printf '# Plan\n- Status: DRAFT\n' >"$durable_probe/PLAN.md" ;;
+      required) printf '# Plan\n- Status: DRAFT\n## Product Verification\n- Required: yes\n- Evidence pack: .workflow/pack.json\n- Subject root: .\n' >"$durable_probe/PLAN.md" ;;
+      removed) rm -f "$durable_probe/PLAN.md" ;;
+    esac
+    durable_append append replay plan_created "$durable_request"
+    [[ "$(hash256 "$durable_file" | awk '{print $1}')" == "$durable_before" ]] || exit 1
+  done
+  durable_append append replay validation_run '{"command":"isolated fixture","exit":0}'
+  durable_append --expected-ledger-sha256 "$durable_before" append replay plan_created "$durable_request"
+  [[ "$(wc -l <"$durable_file" | tr -d ' ')" == 2 ]] || exit 1
+  printf '# Plan\n- Status: READY\n## Product Verification\n- Required: no\n' >"$durable_probe/PLAN.md"
+  durable_explicit='{"path":"PLAN.md","status":"READY","product_verification_required":true,"export_id":"explicit"}'
+  durable_append append explicit plan_created "$durable_explicit"
+  durable_append append explicit plan_created "$durable_explicit"
+  if durable_append append explicit plan_created '{"path":"PLAN.md","status":"READY","product_verification_required":false,"export_id":"explicit"}' 2>"$durable_probe/collision.stderr"; then
+    printf 'explicit product metadata remains part of exact export identity\n' >&2; exit 1
+  fi
+  grep -Fq 'export_id collision' "$durable_probe/collision.stderr"
+  durable_append append terminal plan_created '{"path":"PLAN.md","status":"READY"}'
+  durable_terminal_hash="$(hash256 "$durable_probe/.workflow/terminal/events.jsonl" | awk '{print $1}')"
+  durable_terminal='{"summary":"isolated terminal proof","export_id":"terminal"}'
+  durable_append --expected-ledger-sha256 "$durable_terminal_hash" append terminal completed "$durable_terminal"
+  durable_append --expected-ledger-sha256 "$durable_terminal_hash" append terminal completed "$durable_terminal"
+  [[ "$(wc -l <"$durable_probe/.workflow/terminal/events.jsonl" | tr -d ' ')" == 2 ]] || exit 1
+  durable_forged="$(jq -c '.detail' "$durable_probe/.workflow/explicit/events.jsonl")"
+  if durable_append append injected plan_created "$durable_forged" 2>"$durable_probe/injected.stderr"; then
+    printf 'caller-supplied export_source_detail must be refused\n' >&2; exit 1
+  fi
+  if [[ "$durable_backend" == lockf || "$durable_backend" == flock ]]; then
+    durable_run="$durable_probe/.workflow/internal"
+    mkdir -p "$durable_run"
+    durable_status=0
+    (
+      cd "$durable_run"
+      exec 9>>events.lock
+      export WORKFLOW_EVENT_PROJECT_ROOT="$durable_probe"
+      export WORKFLOW_EVENT_PREVALIDATED="plan_created|$durable_forged"
+      if [[ "$durable_backend" == lockf ]]; then
+        exec "$durable_native" -t 5 /dev/fd/9 "$ROOT_DIR/scripts/workflow-event" --dir "$durable_probe/.workflow" _append-locked internal plan_created "$durable_forged" 0123456789abcdef0123456789abcdef lockf
+      else
+        exec "$durable_native" -w 5 "$durable_run/events.lock" "$ROOT_DIR/scripts/workflow-event" --dir "$durable_probe/.workflow" _append-locked internal plan_created "$durable_forged" 0123456789abcdef0123456789abcdef flock
+      fi
+    ) 2>"$durable_probe/internal.stderr" || durable_status=$?
+    [[ "$durable_status" != 0 && ! -e "$durable_run/events.jsonl" ]] || exit 1
+    grep -Fq 'export_source_detail is reserved' "$durable_probe/internal.stderr"
+  fi
+  for variant in non-object wrong-id nested redundant target; do
+    case "$variant" in
+      non-object) expression='.detail.export_source_detail = []' ;;
+      wrong-id) expression='.detail.export_source_detail.export_id = "different"' ;;
+      nested) expression='.detail.export_source_detail.export_source_detail = {}' ;;
+      redundant) expression='.detail.export_source_detail = (.detail | del(.export_source_detail))' ;;
+      target) expression='.detail.path = "changed.md"' ;;
+    esac
+    mkdir -p "$durable_probe/.workflow/tampered"
+    jq -c --arg run tampered "$expression | .run = \$run" "$durable_probe/.workflow/explicit/events.jsonl" >"$durable_probe/.workflow/tampered/events.jsonl"
+    if durable_append validate tampered >"$durable_probe/tampered.stdout" 2>"$durable_probe/tampered.stderr"; then
+      printf 'invalid original-request binding must not validate: %s\n' "$variant" >&2; exit 1
+    fi
+    grep -Fq 'invalid detail' "$durable_probe/tampered.stderr"
+  done
+  durable_tested_backends="$durable_tested_backends $durable_backend"
+  printf 'durable export replay backend: %s\n' "$durable_backend"
+done
+[[ " $durable_tested_backends " == *" $durable_required_backend "* ]] || {
+  printf 'required durable export backend was not exercised: %s\n' "$durable_required_backend" >&2; exit 1
+}
 
 retired_probe="$(mktemp -d)/.workflow"
 if "$ROOT_DIR/scripts/workflow-event" --dir "$retired_probe" append retired-probe outcome_metric '{"outcome":"x"}' 2>"$retired_probe.err"; then

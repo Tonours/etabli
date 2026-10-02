@@ -28,14 +28,29 @@ def retired_events: ["dogfood_matrix_created", "dogfood_scenario_run", "dogfood_
 
 def strict_detail($event):
   type == "object" and ((has("export_id") | not) or (.export_id | nonempty_string)) and
+  (if has("export_source_detail") then
+    . as $actual | .export_source_detail as $original
+    | if ($original | type) != "object" then false
+      elif ($original | has("export_source_detail")) then false
+      else
+        ($original | strict_detail($event)) and
+        ($original.export_id == $actual.export_id) and ($actual.export_id | nonempty_string) and
+        (($actual | del(.export_source_detail)) != $original) and
+        (($actual | del(.export_source_detail, .product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path)) ==
+         ($original | del(.product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path)))
+      end
+   else true end) and
+  ((has("product_verification_required") | not) or (.product_verification_required | boolean)) and
+  ((has("product_verification_contract_sha256") | not) or (.product_verification_contract_sha256 | type == "string" and test("^[a-f0-9]{64}$"))) and
   if $event == "route_decided" then
     (.route | nonempty_string) and (.reason | nonempty_string)
-    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance", "export_id"]) | length == 0)
+    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance", "export_id", "export_source_detail", "product_verification_required", "product_verification_contract_sha256"]) | length == 0)
     and ((has("contract_path") | not) or (.contract_path | nonempty_string))
     and ((has("contract_sha256") | not) or (.contract_sha256 | nonempty_string))
     and ((has("provenance") | not) or (.provenance | IN("deployed-pi", "deployed-agents", "repo")))
   elif $event == "plan_created" then
     (.path | nonempty_string) and (.status | IN("DRAFT", "CHALLENGED", "READY"))
+    and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
   elif $event == "adversary_completed" then
     (.mode | IN("plan", "code_diff")) and (.verdict | nonempty_string) and
     (.accepted_findings | string_array or finding_array) and (.rejected_findings | string_array) and
@@ -81,6 +96,9 @@ def strict_detail($event):
     (.prompt_chars | positive_integer)
   elif $event == "archive_written" then
     (.path | nonempty_string)
+    and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
+    and (has("product_verification_receipt") == has("product_archive_path"))
+    and ((has("product_verification_receipt") | not) or ((.product_verification_receipt | nonempty_string) and (.product_archive_path | nonempty_string)))
   elif $event == "plan_removed" then
     .path == "PLAN.md"
   elif $event == "completed" then
@@ -292,6 +310,7 @@ if ($ARGS.named.mode // "single") == "batch" then
   batch_ledger($ARGS.named.slug // ""; $ARGS.named.profile // "structural"; $ARGS.named.allowed // [])
 else
   (if ($ARGS.named.strict // false) then strict_detail($ARGS.named.event // "") else legacy_detail($ARGS.named.event // "") end)
+  and (if ($ARGS.named.append // false) then (has("export_source_detail") | not) else true end)
   and (if ($ARGS.named.append // false) and ($ARGS.named.event // "") == "adversary_completed" then appended_adversary_pass
        elif ($ARGS.named.append // false) and ($ARGS.named.event // "") == "blocked" then appended_blocked_reason
        else true end)
