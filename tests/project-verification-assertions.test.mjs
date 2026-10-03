@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   assertJsonExpectations,
+  assertCommandReceipt,
+  assertionProtocol,
   jsonPointer,
 } from "../scripts/lib/project-verification-assertions.mjs";
 
@@ -66,3 +68,20 @@ test("missing or malformed assertions cannot provide a vacuum pass", () => {
   ])
     assert.throws(() => assertJsonExpectations(true, assertions));
 });
+
+
+for (const allowOwnedShutdown of [false,true]) {
+  test(`forced receipt marker is strict and legacy-compatible: owned shutdown ${allowOwnedShutdown}`, () => {
+    const command = {argv:["node","app.mjs"],timeout_ms:1000};
+    const receipt = {
+      protocol:assertionProtocol,argv:command.argv,timeout_ms:1000,pid:123,
+      started_at:"2026-10-03T00:00:00Z",ended_at:"2026-10-03T00:00:01Z",
+      exit_code:0,signal:null,timed_out:false,stdout_sha256:"a".repeat(64),
+      owned_shutdown:true,ready_observed:true,unexpected_exit:false,
+    };
+    assertCommandReceipt(receipt,command,{}, {allowOwnedShutdown});
+    assertCommandReceipt({...receipt,completion_forced:false},command,{}, {allowOwnedShutdown});
+    for (const marker of [true,null,undefined,"false",0])
+      assert.throws(() => assertCommandReceipt({...receipt,completion_forced:marker},command,{}, {allowOwnedShutdown}),/forced/i);
+  });
+}
