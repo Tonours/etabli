@@ -18,8 +18,7 @@ Prove or reject a verification target from focused evidence.
 2. Read `PLAN.md` when present.
 3. Derive expected evidence from acceptance criteria, `Workflow Contract`,
    checks, cited sources, task state, or the user's claim.
-4. Run or inspect only focused evidence unless the user asked for broad
-   validation.
+4. Recheck declared observations and focused evidence; broaden only on request.
 5. Do not edit files, install dependencies, update docs, stage commits, or
    fix failures.
 6. Report each evidence item as `passed`, `failed`, `skipped`, or

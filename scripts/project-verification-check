@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { checkProductCompletion, checkProductPlan, frozenProductContract, productContractIdentity } from "./lib/project-verification.mjs";
 import { productVerificationDeclaration } from "./lib/project-verification-plan.mjs";
-import { parsePlanStatus } from "./lib/plan-check-freeze.mjs";
+import { parseChecks, parsePlanStatus } from "./lib/plan-check-freeze.mjs";
 
 const args = process.argv.slice(2);
 try {
@@ -11,7 +11,7 @@ try {
   if (args[0] === "--declaration" && args.length === 2) {
     const plan = readFileSync(resolve(args[1]), "utf8");
     const planStatus = parsePlanStatus(plan);
-    result = { ...productVerificationDeclaration(plan, { allowIncomplete: ["draft", "challenged"].includes(planStatus) }), plan_status: planStatus };
+    result = { ...productVerificationDeclaration(plan, { allowIncomplete: ["draft", "challenged"].includes(planStatus), normalizedChecks: parseChecks(plan) }), plan_status: planStatus };
   } else if (args[0] === "--contract" && args.length === 2) {
     const path = resolve(args[1]);
     const contract = frozenProductContract(readFileSync(path, "utf8"), path);

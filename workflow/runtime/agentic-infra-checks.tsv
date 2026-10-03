@@ -85,6 +85,7 @@ full	shell-docs	token-bench-smoke	tests/token-bench-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
 core	shell-docs	project-verification-check	tests/project-verification-check-smoke.sh
+core	shell-docs	project-verification-run	tests/project-verification-run-smoke.sh
 full	shell-docs	claude-launch-smoke	tests/claude-launch-smoke.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
 full	shell-docs	claude-efficiency-campaign	tests/claude-efficiency-campaign.test.mjs

@@ -6,7 +6,8 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { checkProductCompletion, productContractIdentity, checkProductPlan, frozenProductContract, writeProductCompletion } from "../scripts/lib/project-verification.mjs";
 import { inventoryCommand, sha256, sourceInventory, workflowSourceExclusions } from "../scripts/lib/project-verification-source.mjs";
-import { evaluateCheckFreeze, parseChecks } from "../scripts/lib/plan-check-freeze.mjs";
+import { evaluateCheckFreeze, evaluateReadyPlan, parseChecks } from "../scripts/lib/plan-check-freeze.mjs";
+import { productVerificationDeclaration, assertionProtocol } from "../scripts/lib/project-verification-plan.mjs";
 
 const repository = resolve(import.meta.dirname, "..");
 function fixture(t) {
@@ -48,6 +49,58 @@ function fixture(t) {
   function save() { writeFileSync(contract.pack, JSON.stringify(pack)); }
   save();
   return { root, planPath, plan, base, pack, contract, save, git };
+}
+
+function recipeFixture(t, { auto = true, service = false, engine = false } = {}) {
+  const f = fixture(t);
+  const command = { argv: [process.execPath, "-e", "process.stdout.write('{}')"], timeout_ms: 5000 };
+  const recipe = { schema_version: 1, name: "Gate protocol fixture", launch: command, doctor: command, cleanup: command,
+    scenarios: [{ id: "mutation", criterion_ids: ["AC-01"], action: command,
+      result: { ...command, assertions: [{ pointer: "/value", expected: "expected" }] },
+      persistence: { ...command, assertions: [{ pointer: "/persisted", expected: "expected" }] } }] };
+  if (service) recipe.service = { ...command, readiness: command };
+  if (engine) recipe.engine = { ...command, provider: "configured-provider", model: "configured-model", required_env: ["FIXTURE_ENGINE_KEY"] };
+  mkdirSync(join(f.root, "verification"));
+  const recipePath = join(f.root, "verification/recipe.json");
+  writeFileSync(recipePath, JSON.stringify(recipe));
+  const recipeHash = sha256(readFileSync(recipePath));
+  const plan = auto ? f.plan.replace("Required: yes", "Required: auto") : f.plan;
+  writeFileSync(f.planPath, plan);
+  const sourceArtifact = f.pack.artifacts.find(a => a.id === "source");
+  const manifest = JSON.parse(readFileSync(join(f.base, sourceArtifact.path)));
+  manifest.files = sourceInventory(f.root).map(path => ({ path, sha256: sha256(readFileSync(join(f.root, path))), mode: lstatSync(join(f.root, path)).mode & 0o777 }));
+  function set(id, content, kind) {
+    let artifact = f.pack.artifacts.find(a => a.id === id);
+    if (!artifact) { artifact = { id, kind, path: `artifacts/${id}.json`, captured_at: new Date().toISOString() }; f.pack.artifacts.push(artifact); }
+    writeFileSync(join(f.base, artifact.path), JSON.stringify(content));
+    artifact.sha256 = sha256(readFileSync(join(f.base, artifact.path)));
+    return artifact;
+  }
+  set("source", manifest);
+  set("recipe", recipe, "recipe");
+  f.pack.target.subject_sha256 = sourceArtifact.sha256;
+  const runRoot = join(frozenProductContract(plan, f.planPath).subjectRoot, ".workflow/owned/test-run");
+  const environment = { protocol: assertionProtocol, run_id: f.pack.run_id, recipe_sha256: recipeHash, run_root: runRoot, snapshot_root: join(runRoot, "subject") };
+  f.pack.target.environment_sha256 = set("environment", environment).sha256;
+  const binding = { protocol: assertionProtocol, run_id: f.pack.run_id, source_sha256: sourceArtifact.sha256, environment_sha256: f.pack.target.environment_sha256, recipe_sha256: recipeHash };
+  const processReceipt = (role, extra = {}) => ({ ...binding, role, ...command, cwd: environment.snapshot_root, pid: 100, started_at: "2026-10-03T12:00:00.000Z", ended_at: "2026-10-03T12:00:01.000Z", exit_code: 0, signal: null, timed_out: false, stdout_sha256: sha256("{}"), ...extra });
+  set("execution", { ...binding, ...environment, exit_code: 0, ...(service ? { service: { receipt_artifact: "service", readiness_artifact: "readiness" } } : {}), ...(engine ? { engine_requested: false } : {}) });
+  if (service) {
+    set("service", processReceipt("service", { owned_shutdown: true, ready_observed: true, unexpected_exit: false, exit_code: null, signal: "SIGTERM" }), "execution_receipt");
+    set("readiness", processReceipt("readiness"), "execution_receipt");
+  }
+  for (const phase of ["launch", "doctor", "cleanup"]) set(phase, processReceipt(phase, { phases: [phase], status: "passed", ...(phase === "cleanup" ? { owned_cleanup: { processes_reaped: true, runtime_removed: true, groups: service ? [{ pid: 100, reaped: true }] : [] } } : {}) }));
+  set("isolation", processReceipt("doctor", { phases: ["doctor", "isolation"], status: "passed", isolation: { cwd_verified: true, runtime_root: join(runRoot, "runtime") } }));
+  set("action", processReceipt("action", { scenario_id: "mutation" }));
+  const resultArtifact = f.pack.artifacts.find(a => a.id === "outcome");
+  const persistenceArtifact = f.pack.artifacts.find(a => a.id === "sql");
+  set("result-command", processReceipt("result", { scenario_id: "mutation", stdout_sha256: resultArtifact.sha256 }), "execution_receipt");
+  set("persistence-command", processReceipt("persistence", { scenario_id: "mutation", stdout_sha256: persistenceArtifact.sha256 }), "execution_receipt");
+  f.pack.recipe = { protocol: assertionProtocol, path: "verification/recipe.json", sha256: recipeHash, artifact: "recipe" };
+  f.pack.scenarios[0].observations = { result: { artifact: "outcome", receipt_artifact: "result-command", assertions: structuredClone(recipe.scenarios[0].result.assertions) }, persistence: { artifact: "sql", receipt_artifact: "persistence-command", assertions: structuredClone(recipe.scenarios[0].persistence.assertions) } };
+  f.pack.criteria_sha256 = frozenProductContract(plan, f.planPath).criteria_sha256;
+  f.save();
+  return { ...f, plan, recipe, set, processReceipt };
 }
 
 test("the deployed checker validates a product pack using its declared runtime", async t => {
@@ -445,3 +498,215 @@ test("archive hash metadata accepted by cleanup remains accepted by completion",
  assert.equal(result.status,0,result.stderr);assert.equal(existsSync(f.planPath),false);
  await checkProductCompletion(f.contract.pack+".completion.json",archive);
 });
+
+test("failed UI checks cannot pass a product completion gate", async t => {
+  const f = fixture(t);
+  f.pack.mode = "ui";
+  f.pack.ui = { responsive_in_scope: true, motion_in_scope: true, reference_in_scope: true, viewports: [],
+    checks: Object.fromEntries(["keyboard", "focus", "accessibility", "console", "network", "responsive", "reduced_motion", "reference"].map(key => [key, { status: "failed", evidence: [], reason: "Observed failure" }])) };
+  f.save();
+  await assert.rejects(checkProductPlan(f.planPath), /UI/);
+});
+
+test("declared persistence requires proof even when the AC only requests action and result", async t => {
+  const f = fixture(t);
+  const plan = f.plan.replace("Proof: action,result,side_effect.", "Proof: action,result.");
+  writeFileSync(f.planPath, plan);
+  f.pack.criteria_sha256 = frozenProductContract(plan, f.planPath).criteria_sha256;
+  f.pack.scenarios[0].side_effect_evidence = [];
+  f.save();
+  await assert.rejects(checkProductPlan(f.planPath), /side_effect/);
+});
+
+for (const mutation of ["source", "artifact"]) {
+  test(`completion retains its plan and writes no receipt after asynchronous ${mutation} drift`, async t => {
+    const f = fixture(t);
+    await checkProductPlan(f.planPath);
+    const archive = join(f.base, "archive.md");
+    writeFileSync(archive, `# Implemented: fixture\n- Source plan SHA-256: \`${sha256(f.plan)}\`\n`);
+    const pending = writeProductCompletion(f.planPath, archive);
+    writeFileSync(mutation === "source" ? join(f.root, "app.txt") : join(f.base, "artifacts/outcome.json"), "Changed during completion\n");
+    await assert.rejects(pending, /changed/i);
+    assert.equal(existsSync(f.planPath), true);
+    assert.equal(existsSync(f.contract.pack + ".completion.json"), false);
+  });
+}
+
+test("auto resolves product and process plans without altering historical contract hashes", t => {
+  const f = fixture(t);
+  const auto = f.plan.replace("Required: yes", "Required: auto");
+  const contract = frozenProductContract(auto, f.planPath);
+  assert.equal(contract.assertion_protocol, assertionProtocol);
+  assert.notEqual(productContractIdentity(contract), productContractIdentity(f.contract));
+  assert.equal(productContractIdentity(f.contract), sha256(JSON.stringify({ pack: f.contract.pack, subjectRoot: f.contract.subjectRoot, criteria_sha256: f.contract.criteria_sha256 })));
+  assert.deepEqual(productVerificationDeclaration(auto.replace("AC-01 [product]", "AC-01 [process]"), { normalizedChecks: parseChecks(auto.replace("AC-01 [product]", "AC-01 [process]")) }), { required: false });
+});
+
+for (const mutation of ["missing classification", "duplicate IDs", "missing criteria"]) {
+  test(`auto cannot resolve ${mutation} to false`, t => {
+    const f = fixture(t);
+    let plan = f.plan.replace("Required: yes", "Required: auto");
+    if (mutation === "missing classification") plan = plan.replace("AC-01 [product]:", "Unclassified:");
+    else if (mutation === "duplicate IDs") plan = plan.replace("AC-02 [process]", "AC-01 [process]");
+    else plan = plan.replace(/## Acceptance Criteria[\s\S]*?## Product Verification/, "## Product Verification");
+    assert.throws(() => productVerificationDeclaration(plan, { normalizedChecks: parseChecks(plan) }), /classif|criteria|unique/i);
+    const declaration = productVerificationDeclaration(plan.replace("Status: READY", "Status: DRAFT"), { allowIncomplete: true, normalizedChecks: parseChecks(plan) });
+    assert.equal(declaration.unresolved, true);
+    assert.equal(Object.hasOwn(declaration, "required"), false);
+    assert.ok(evaluateReadyPlan(plan).missing.some(item => item.startsWith("Product Verification:")));
+  });
+}
+
+test("unresolved auto draft omits applicability and cannot complete without resolving it", t => {
+  const f = fixture(t);
+  writeFileSync(f.planPath, "# Plan\n- Status: DRAFT\n## Product Verification\n- Required: auto\n");
+  const command = (event, detail) => spawnSync(join(repository, "scripts/workflow-event"), ["--dir", join(f.root, ".workflow/ledger"), "append", "test-run", event, JSON.stringify(detail)], { cwd: f.root, encoding: "utf8", env: { ...process.env, WORKFLOW_EVENT_PROJECT_ROOT: f.root } });
+  const created = command("plan_created", { path: "PLAN.md", status: "DRAFT", product_verification_required: false });
+  assert.equal(created.status, 0, created.stderr);
+  const ledger = join(f.root, ".workflow/ledger/test-run/events.jsonl");
+  const first = JSON.parse(readFileSync(ledger, "utf8"));
+  assert.equal(Object.hasOwn(first.detail, "product_verification_required"), false);
+  assert.notEqual(command("completed", { summary: "Unresolved draft" }).status, 0);
+});
+
+test("remembered required proof cannot be demoted by an auto process plan", t => {
+  const f = fixture(t);
+  const command = (event, detail) => spawnSync(join(repository, "scripts/workflow-event"), ["--dir", join(f.root, ".workflow/ledger"), "append", "test-run", event, JSON.stringify(detail)], { cwd: f.root, encoding: "utf8", env: { ...process.env, WORKFLOW_EVENT_PROJECT_ROOT: f.root } });
+  assert.equal(command("plan_created", { path: "PLAN.md", status: "READY" }).status, 0);
+  writeFileSync(f.planPath, f.plan.replace("Required: yes", "Required: auto").replace("AC-01 [product]", "AC-01 [process]"));
+  assert.equal(command("validation_run", { command: "Focused checks", exit: 0 }).status, 0);
+  const events = readFileSync(join(f.root, ".workflow/ledger/test-run/events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(events.at(-1).detail.product_verification_required, true);
+  const completed = command("completed", { summary: "Attempted demotion" });
+  assert.notEqual(completed.status, 0);
+  assert.match(completed.stderr, /cannot be demoted/);
+});
+
+test("auto product proof rejects a legacy metadata-only pack", async t => {
+  const f = fixture(t);
+  writeFileSync(f.planPath, f.plan.replace("Required: yes", "Required: auto"));
+  await assert.rejects(checkProductPlan(f.planPath), /recipe assertion protocol/);
+});
+
+test("source-bound recipe assertions pass on auto and explicit yes plans", async t => {
+  for (const auto of [true, false]) {
+    const f = recipeFixture(t, { auto });
+    assert.equal((await checkProductPlan(f.planPath)).status, "passed");
+    const archive = join(f.base, "archive.md");
+    writeFileSync(archive, `# Implemented: fixture\n- Source plan SHA-256: \`${sha256(f.plan)}\`\n`);
+    await writeProductCompletion(f.planPath, archive);
+    await checkProductCompletion(f.contract.pack + ".completion.json", archive);
+  }
+});
+
+for (const [name, mutate] of [
+  ["wrong result despite command exit zero", f => { const item = f.set("outcome", { value: "wrong" }); const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.stdout_sha256 = item.sha256; f.set("result-command", receipt); }],
+  ["wrong persistence despite command exit zero", f => { const item = f.set("sql", { persisted: "wrong" }); const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/persistence-command.json"))); receipt.stdout_sha256 = item.sha256; f.set("persistence-command", receipt); }],
+  ["weakened recorded assertions", f => { f.pack.scenarios[0].observations.result.assertions[0].expected = "wrong"; }],
+  ["missing observation", f => { delete f.pack.scenarios[0].observations; }],
+  ["missing recipe on explicit yes", f => { delete f.pack.recipe; }],
+  ["non-inventoried recipe", f => { f.pack.recipe.path = ".workflow/recipe.json"; }],
+  ["metadata-only phase", f => { f.set("launch", { status: "passed", phases: ["launch"], run_id: f.pack.run_id, source_sha256: f.pack.target.subject_sha256 }); }],
+  ["foreign scenario receipt", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.scenario_id = "foreign"; f.set("result-command", receipt); }],
+  ["foreign environment receipt", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.environment_sha256 = "0".repeat(64); f.set("result-command", receipt); }],
+  ["observation stdout mismatch", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.stdout_sha256 = "0".repeat(64); f.set("result-command", receipt); }],
+  ["recipe argv mismatch", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.argv = ["different"]; f.set("result-command", receipt); }],
+  ["unowned command cwd", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.cwd = f.root; f.set("result-command", receipt); }],
+  ["unobserved process", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); delete receipt.pid; f.set("result-command", receipt); }],
+  ["timed out command", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json"))); receipt.timed_out = true; f.set("result-command", receipt); }],
+  ["cleanup without reaping", f => { const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/cleanup.json"))); receipt.owned_cleanup.processes_reaped = false; f.set("cleanup", receipt); }],
+]) {
+  test(`recipe checker rejects ${name}`, async t => {
+    const f = recipeFixture(t, { auto: false });
+    mutate(f); f.save();
+    await assert.rejects(checkProductPlan(f.planPath));
+  });
+}
+
+test("completion independently evaluates retained recipe observations", async t => {
+  const f = recipeFixture(t);
+  const archive = join(f.base, "archive.md");
+  writeFileSync(archive, `# Implemented: fixture\n- Source plan SHA-256: \`${sha256(f.plan)}\`\n`);
+  await writeProductCompletion(f.planPath, archive);
+  const item = f.set("outcome", { value: "wrong" });
+  const command = JSON.parse(readFileSync(join(f.base, "artifacts/result-command.json")));
+  command.stdout_sha256 = item.sha256; f.set("result-command", command); f.save();
+  const receiptPath = f.contract.pack + ".completion.json";
+  const receipt = JSON.parse(readFileSync(receiptPath));
+  receipt.verification.pack_sha256 = sha256(readFileSync(f.contract.pack));
+  writeFileSync(receiptPath, JSON.stringify(receipt));
+  await assert.rejects(checkProductCompletion(receiptPath, archive), /frozen expectation/);
+});
+
+function passingUi(f, { scoped = false } = {}) {
+  const checks = Object.fromEntries(["keyboard", "focus", "accessibility", "console", "network"].map(key => [key, { status: "passed", evidence: ["outcome"] }]));
+  for (const key of ["responsive", "reduced_motion", "reference"]) checks[key] = scoped ? { status: "passed", evidence: ["outcome"] } : { status: "not_applicable", evidence: [], reason: "Outside the declared task" };
+  f.pack.mode = "ui";
+  f.pack.ui = { responsive_in_scope: scoped, motion_in_scope: scoped, reference_in_scope: scoped, checks,
+    viewports: [{ label: "desktop", width: 1280, height: 800, evidence: ["outcome"] }, ...(scoped ? [{ label: "mobile", width: 390, height: 844, evidence: ["outcome"] }] : [])] };
+}
+
+test("UI proof respects mandatory checks and scoped applicability", async t => {
+  for (const scoped of [false, true]) {
+    const f = fixture(t); passingUi(f, { scoped }); f.save();
+    assert.equal((await checkProductPlan(f.planPath)).status, "passed");
+  }
+});
+
+for (const [name, mutate] of [
+  ["unknown UI evidence", f => { f.pack.ui.checks.keyboard.evidence = ["missing"]; }],
+  ["UI scope omitted as passed", f => { f.pack.ui.checks.reference = { status: "passed", evidence: ["outcome"] }; }],
+  ["unexplained UI exclusion", f => { delete f.pack.ui.checks.reference.reason; }],
+  ["absent viewport evidence", f => { f.pack.ui.viewports[0].evidence = []; }],
+  ["responsive proof at only one size", f => { f.pack.ui.responsive_in_scope = true; f.pack.ui.checks.responsive = { status: "passed", evidence: ["outcome"] }; }],
+]) {
+  test(`UI rejects ${name}`, async t => {
+    const f = fixture(t); passingUi(f); mutate(f); f.save();
+    await assert.rejects(checkProductPlan(f.planPath), /UI/);
+  });
+}
+
+test("owned service cleanup and a configured but unrequested engine can pass", async t => {
+  const f = recipeFixture(t, { service: true, engine: true });
+  assert.equal((await checkProductPlan(f.planPath)).status, "passed");
+});
+
+for (const mutation of ["unexpected service exit", "unreaped service group", "missing requested engine observation"]) {
+  test(`recipe rejects ${mutation}`, async t => {
+    const f = recipeFixture(t, { service: true, engine: true });
+    if (mutation === "unexpected service exit") {
+      const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/service.json"))); receipt.unexpected_exit = true; f.set("service", receipt);
+    } else if (mutation === "unreaped service group") {
+      const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/cleanup.json"))); receipt.owned_cleanup.groups = []; f.set("cleanup", receipt);
+    } else {
+      const receipt = JSON.parse(readFileSync(join(f.base, "artifacts/execution.json"))); receipt.engine_requested = true; f.set("execution", receipt);
+    }
+    f.save();
+    await assert.rejects(checkProductPlan(f.planPath));
+  });
+}
+
+for (const boundary of ["during verification", "before deletion"]) {
+  for (const mutation of ["source", "artifact"]) {
+    test(`actual cleanup retains PLAN on ${mutation} drift ${boundary}`, t => {
+      const f = fixture(t);
+      mkdirSync(join(f.root, "docs/plan"), { recursive: true });
+      const archive = join(f.root, "docs/plan/fixture.md");
+      writeFileSync(archive, `# Implemented: fixture\n- Source plan: \`PLAN.md\`\n- Status: IMPLEMENTED\n- Source plan SHA-256: \`${sha256(f.plan)}\`\n`);
+      const target = mutation === "source" ? join(f.root, "app.txt") : join(f.base, "artifacts/outcome.json");
+      const preload = join(f.base, "drift-at-boundary.mjs");
+      writeFileSync(preload, `import fs from "node:fs"; import { syncBuiltinESMExports } from "node:module";
+const original = fs.readFileSync; let planReads = 0; let changed = false;
+fs.readFileSync = function(path, ...args) {
+  const bytes = original.call(this, path, ...args);
+  const trigger = ${boundary === "during verification" ? 'String(path).endsWith("/app.txt")' : 'String(path).endsWith("/PLAN.md") && ++planReads === 3'};
+  if (trigger && !changed) { changed = true; queueMicrotask(() => fs.writeFileSync(${JSON.stringify(target)}, "Changed at completion boundary\\n")); }
+  return bytes;
+}; syncBuiltinESMExports();\n`);
+      const result = spawnSync(process.execPath, ["--import", preload, join(repository, "scripts/plan-cleanup"), "--archive", "docs/plan/fixture.md"], { cwd: f.root, encoding: "utf8" });
+      assert.notEqual(result.status, 0, result.stderr);
+      assert.match(result.stderr, /content changed/i);
+      assert.equal(existsSync(f.planPath), true);
+    });
+  }
+}

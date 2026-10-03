@@ -185,9 +185,28 @@ assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignor
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/scripts/lib/review-rounds.jq"
-for managed in scripts/project-verification-check scripts/lib/project-verification{,-plan,-source}.mjs scripts/lib/plan-check-freeze.mjs scripts/lib/unicode-case-fold.mjs scripts/vendor/commonmark/commonmark.cjs; do
+for managed in scripts/project-verification scripts/project-verification-check scripts/lib/project-verification{,-plan,-source,-assertions,-recipe,-run,-process,-snapshot}.mjs scripts/lib/plan-check-freeze.mjs scripts/lib/unicode-case-fold.mjs scripts/vendor/commonmark/commonmark.cjs; do
   git -C "$NEW_PROJECT" check-ignore -q -- "$managed" || { printf 'managed tooling exposed to project Git: %s\n' "$managed" >&2; exit 1; }
 done
+assert_file "$NEW_PROJECT/workflow/project-verification-recipe.schema.json"
+assert_file "$NEW_PROJECT/workflow/verification/observe-json.mjs"
+mkdir -p "$NEW_PROJECT/verification"
+printf '{"project_owned":true}\n' >"$NEW_PROJECT/verification/recipe.json"
+git -C "$NEW_PROJECT" add verification/recipe.json
+RECIPE_BEFORE="$(cat "$NEW_PROJECT/verification/recipe.json")"
+printf '// changed managed helper\n' >>"$NEW_PROJECT/scripts/lib/project-verification-process.mjs"
+"$SCRIPT" "$NEW_PROJECT" --force >/dev/null
+assert_same "$ROOT_DIR/scripts/lib/project-verification-process.mjs" "$NEW_PROJECT/scripts/lib/project-verification-process.mjs"
+[ "$(cat "$NEW_PROJECT/verification/recipe.json")" = "$RECIPE_BEFORE" ] || { printf 'project recipe was overwritten\n' >&2; exit 1; }
+git -C "$NEW_PROJECT" ls-files --error-unmatch verification/recipe.json >/dev/null
+if git -C "$NEW_PROJECT" check-ignore -q --no-index verification/recipe.json; then printf 'project recipe was excluded\n' >&2; exit 1; fi
+node --input-type=module - "$NEW_PROJECT" <<'JS'
+import assert from "node:assert/strict";
+import { pathToFileURL } from "node:url";
+const root = process.argv[2];
+const { sourceInventory } = await import(pathToFileURL(root + "/scripts/lib/project-verification-source.mjs"));
+assert.ok(sourceInventory(root).includes("verification/recipe.json"));
+JS
 assert_not_exists "$NEW_PROJECT/.gitignore"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null

@@ -31,6 +31,7 @@ Describe in 1-3 sentences what will change and why it matters.
 - Required evidence:
 
 ## Acceptance Criteria
+Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side_effect].
 - [ ] ...
 
 ## Problem
@@ -165,6 +166,6 @@ ownable units. Otherwise delete this section.
 - [ ] No blocking open questions remain
 
 ## Product Verification
-- Required: no
+- Required: auto
 
 Details: workflow/product-verification.md.

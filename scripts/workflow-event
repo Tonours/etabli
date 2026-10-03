@@ -692,6 +692,10 @@ append_locked_body() {
       detail="$(printf '%s' "$detail" | node "$SCRIPT_DIR/plan-review-check" --append "$WORKFLOW_EVENT_PROJECT_ROOT" "$file" "$event")" || return 1
       ;;
   esac
+  local product_latched=false
+  if [ -f "$file" ] && jq -s -e 'any(.[]; .detail.product_verification_required == true)' "$file" >/dev/null; then
+    product_latched=true
+  fi
   # Observations must survive an unavailable subject or damaged plan;
   # lifecycle gates still require binding the current product contract.
   if [ "$event" != "blocked" ] && [ -f "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" ] && {
@@ -704,7 +708,24 @@ append_locked_body() {
       declaration=""
     }
     if [ -n "$declaration" ]; then
-      detail="$(printf '%s' "$detail" | jq --argjson required "$(printf '%s' "$declaration" | jq '.required')" '. + {product_verification_required:$required}')" || return 1
+      if [ "$(printf '%s' "$declaration" | jq -r '.unresolved // false')" = "true" ]; then
+        case "$event" in archive_written|completed)
+          printf 'unresolved auto product verification cannot archive or complete; classify every acceptance criterion\n' >&2
+          return 1 ;;
+        esac
+        detail="$(printf '%s' "$detail" | jq 'del(.product_verification_required)')" || return 1
+      else
+        if [ "$product_latched" = "true" ] && [ "$(printf '%s' "$declaration" | jq -r '.required')" != "true" ]; then
+          case "$event" in archive_written|completed)
+            printf 'required product verification cannot be demoted; retain product proof or discard the task\n' >&2
+            return 1 ;;
+          esac
+        fi
+        detail="$(printf '%s' "$detail" | jq --argjson required "$(printf '%s' "$declaration" | jq '.required')" '. + {product_verification_required:$required}')" || return 1
+      fi
+      if [ "$product_latched" = "true" ]; then
+        detail="$(printf '%s' "$detail" | jq '. + {product_verification_required:true}')" || return 1
+      fi
       if [ "$(printf '%s' "$declaration" | jq -r '.required')" = "true" ] && [ "$(printf '%s' "$declaration" | jq -r '.plan_status')" = "ready" ]; then
         local bound_contract
         bound_contract="$(node "$SCRIPT_DIR/project-verification-check" --contract "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || {

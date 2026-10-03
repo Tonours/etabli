@@ -1,5 +1,7 @@
 import commonmark from "../vendor/commonmark/commonmark.cjs";
 
+export const assertionProtocol = "etabli-project-verification/1";
+
 function text(node) {
   let value = "";
   const walker = node.walker();
@@ -10,7 +12,7 @@ function text(node) {
   return value;
 }
 
-export function productVerificationDeclaration(source, { allowIncomplete = false } = {}) {
+export function productVerificationDeclaration(source, { allowIncomplete = false, normalizedChecks } = {}) {
   const document = new commonmark.Parser().parse(source);
   let section = false;
   let count = 0;
@@ -30,32 +32,50 @@ export function productVerificationDeclaration(source, { allowIncomplete = false
     }
   }
   if (!count) return { required: false };
-  if (count !== 1 || !["yes", "no"].includes(fields.required)) {
-    throw new Error("Product Verification needs one explicit Required: yes or no declaration");
+  if (count !== 1 || !["yes", "no", "auto"].includes(fields.required)) {
+    throw new Error("Product Verification needs one explicit Required: yes, no or auto declaration");
   }
   if (fields.required === "no") return { required: false };
+  const policy = fields.required === "auto" ? { assertion_protocol: assertionProtocol } : {};
+  if (fields.required === "auto") {
+    let classified;
+    try { classified = classifiedCriteria(normalizedChecks); }
+    catch (error) {
+      if (allowIncomplete) return { unresolved: true, reason: error.message };
+      throw error;
+    }
+    if (!classified.some(criterion => criterion.kind === "product")) return { required: false };
+  }
   if (!fields["evidence pack"] || !fields["subject root"]) {
-    if (allowIncomplete) return { required: true };
+    if (allowIncomplete) return { required: true, ...policy };
     throw new Error("Product Verification requires Evidence pack and Subject root paths");
   }
-  return { required: true, pack: fields["evidence pack"], subjectRoot: fields["subject root"] };
+  return { required: true, pack: fields["evidence pack"], subjectRoot: fields["subject root"], ...policy };
 }
 
-export function productCriteria(normalizedChecks) {
+function classifiedCriteria(normalizedChecks) {
+  if (!Array.isArray(normalizedChecks)) throw new Error("Auto product verification needs normalized acceptance criteria");
   const acceptance = normalizedChecks.filter(value => value.startsWith("acceptance-criteria:"));
   const criteria = acceptance.filter(value => !acceptance.some(parent => value.startsWith(`${parent}>`)));
+  if (!criteria.length) throw new Error("Auto product verification needs classified acceptance criteria");
   const ids = new Set();
-  const products = [];
-  for (const criterion of criteria) {
+  return criteria.map(criterion => {
     const match = criterion.match(/^acceptance-criteria:(AC-[A-Za-z0-9-]+) \[(product|process|judgment)\]: /);
     if (!match || ids.has(match[1])) throw new Error("Product plans need unique classified AC IDs for every acceptance criterion");
     ids.add(match[1]);
-    if (match[2] !== "product") continue;
+    return { id: match[1], kind: match[2], criterion };
+  });
+}
+
+export function productCriteria(normalizedChecks) {
+  const products = [];
+  for (const { id, kind, criterion } of classifiedCriteria(normalizedChecks)) {
+    if (kind !== "product") continue;
     const proof = criterion.match(/\bProof: (action(?:,result)?(?:,side_effect)?|result(?:,side_effect)?|side_effect)\./)?.[1];
-    if (!proof) throw new Error(`${match[1]} needs explicit Proof: action,result[,side_effect].`);
+    if (!proof) throw new Error(`${id} needs explicit Proof: action,result[,side_effect].`);
     const roles = proof.split(",");
-    if (!roles.includes("action") || !roles.includes("result")) throw new Error(`${match[1]} requires action and result proof`);
-    products.push({ id: match[1], proof: roles });
+    if (!roles.includes("action") || !roles.includes("result")) throw new Error(`${id} requires action and result proof`);
+    products.push({ id, proof: roles });
   }
   if (!products.length) throw new Error("Required product verification needs at least one product acceptance criterion");
   return products;

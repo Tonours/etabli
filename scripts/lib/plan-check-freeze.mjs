@@ -1581,7 +1581,8 @@ export function evaluateReadyPlan(text) {
   if (parsePlanStatus(text) !== "ready") return { ok: false, missing: ["Status: READY"] };
   const missing = [];
   try {
-    if (productVerificationDeclaration(text).required) productCriteria(parseChecks(text));
+    const declaration = productVerificationDeclaration(text, { normalizedChecks: parseChecks(text) });
+    if (declaration.required) productCriteria(parseChecks(text));
   } catch (error) {
     missing.push(`Product Verification: ${error.message}`);
   }

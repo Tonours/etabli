@@ -1,0 +1,9 @@
+# Verification examples
+
+Copy a CLI or web recipe into your project-owned `verification/recipe.json`, adapt its AC mappings and oracles, and keep scripts in source inventory. These examples certify only their demo behavior. Run `scripts/project-verification discover`, then `init`, review/adapt the recipe and run `run --plan PLAN.md`.
+
+For CLI, copy `cli-app.mjs` to `app.mjs` and the lifecycle/observation helper into `verification/`. For web, use `web-app.mjs` as `app.mjs`, and add `web-probe.mjs` and `web-drive.mjs`; explicitly set the installed Playwright package.json path in `runtime.modules`. Browser availability is required; the runner does not install it. All state uses `ETABLI_RUN_DIR`, outside inventoried source.
+
+`runtime.dependencies` may explicitly reuse a canonical installed node_modules directory through `{path:"node_modules",target:"/absolute/node_modules"}`. Module identity/version and lock hashes are retained; this is not a cold installation. `runtime.modules` records explicitly selected installed package.json paths for scripts that use createRequire. Absolute executables are allowed; project arguments use owned source/runtime paths.
+
+An optional engine uses `{argv:[...],timeout_ms:600000,provider:"requested-provider",model:"requested-model",required_env:["PROVIDER_KEY"]}`. Only `--engine` activates it. Required names cannot override controlled or OS variables. Outputs are discarded; deterministic result/persistence assertions still decide completion. Requested metadata does not establish effective provider provenance.

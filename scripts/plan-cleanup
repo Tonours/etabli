@@ -3,7 +3,7 @@ import { implementedArchiveError } from "./lib/plan-cleanup-command.mjs";
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { relative, resolve, sep } from "node:path";
-import { writeProductCompletion } from "./lib/project-verification.mjs";
+import { assertProductIdentity, frozenProductContract, writeProductCompletion } from "./lib/project-verification.mjs";
 
 function fail(message) {
   process.stderr.write(`plan-cleanup: ${message}\n`);
@@ -112,6 +112,7 @@ async function archiveMode(cwd, archiveArgument) {
   if (product.required && createHash("sha256").update(readFileSync(product.pack)).digest("hex") !== product.pack_sha256) {
     fail("evidence pack changed during cleanup; retain PLAN.md and revalidate");
   }
+  if (product.required) assertProductIdentity(frozenProductContract(plan, planPath), product.pack_sha256);
   rmSync(planPath);
   process.stdout.write(
     `${JSON.stringify({ removed: "PLAN.md", mode: "archive", archive: relative(cwd, archivePath), ...(product.required ? { product_verification: product } : {}) })}\n`,
