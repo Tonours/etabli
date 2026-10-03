@@ -492,3 +492,60 @@ test("a zero-exit engine cannot substitute for wrong deterministic observations"
   assert.equal(f.artifact("engine").exit_code, 0);
   assert.equal(f.artifact("execution").exit_code, 1);
 });
+
+for (const replacement of ["retired", "reused-descendant", "owned-descendant"]) {
+  test(`process cleanup identity: ${replacement}`, async (t) => {
+    let state = "leader";
+    const signals = [];
+    const processes = createVerificationProcesses({
+      cwd: process.cwd(), runRoot: process.cwd(), originRoot: process.cwd(),
+      environment: { PATH: process.env.PATH }, binding: {},
+      observeGroup: (group) => state === "empty" ? [] : [{
+        pid: state === "leader" || state === "foreign-leader" ? group : group + 1,
+        birth: state === "replacement" || state === "foreign-leader" ? "new birth" : "original birth",
+      }],
+      sendGroupSignal: (group, signal) => { signals.push({ group, signal }); state = "empty"; },
+    });
+    t.after(() => processes.dispose());
+    const handle = processes.start({ argv: [process.execPath, "-e", "setTimeout(()=>{},50)"], timeout_ms: 5000 }, "launch");
+    state = replacement === "retired" ? "empty" : "descendant";
+    assert.equal((await handle.done).ok, true);
+    state = replacement === "retired" ? "foreign-leader" : replacement === "reused-descendant" ? "replacement" : "descendant";
+    const groups = await processes.stopAll();
+    assert.ok(groups.every((group) => group.reaped === (replacement !== "reused-descendant")), "Unrecognized descendants must not be declared reaped");
+    if (replacement === "owned-descendant") assert.deepEqual(signals, [{ group: handle.child.pid, signal: "SIGTERM" }]);
+    else assert.deepEqual(signals, [], "A replacement process must never be signaled");
+    state = "foreign-leader";
+    await processes.stopAll();
+    assert.equal(signals.length, replacement === "owned-descendant" ? 1 : 0, "Retirement must remain latched");
+  });
+}
+
+test("identity lost during final cleanup observation cannot be reported reaped", async (t) => {
+  const calls = new Map();
+  let first;
+  const processes = createVerificationProcesses({
+    cwd: process.cwd(), runRoot: process.cwd(), originRoot: process.cwd(),
+    environment: { PATH: process.env.PATH }, binding: {},
+    observeGroup: (group) => {
+      const count = (calls.get(group) ?? 0) + 1;
+      calls.set(group, count);
+      if (group === first && count >= 5) return [];
+      return [{ pid: group + 1, birth: group !== first && count >= 4 ? "replacement birth" : "original birth" }];
+    },
+    sendGroupSignal: () => {},
+  });
+  t.after(() => processes.dispose());
+  const command = { argv: [process.execPath, "-e", "setTimeout(()=>{},50)"], timeout_ms: 5000 };
+  const a = processes.start(command, "launch");
+  first = a.child.pid;
+  const b = processes.start(command, "doctor");
+  await Promise.all([a.done, b.done]);
+  let clockReads = 0;
+  t.mock.method(Date, "now", () => clockReads++ === 0 ? 0 : 10001);
+  const groups = await processes.stopAll();
+  assert.equal(calls.get(a.child.pid), 5);
+  assert.equal(calls.get(b.child.pid), 4);
+  assert.equal(b.identityLost, true);
+  assert.deepEqual(groups, [{ pid: a.child.pid, reaped: true }, { pid: b.child.pid, reaped: false }]);
+});
