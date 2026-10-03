@@ -34,6 +34,7 @@ test("discovery uses public metadata, bootstrap is create-only and incomplete re
 
 for (const [name, mutate] of [
   ["missing timeout", (recipe) => delete recipe.launch.timeout_ms],
+  ["Node timer overflow", (recipe) => (recipe.launch.timeout_ms = 2147483648)],
   [
     "empty assertions",
     (recipe) => (recipe.scenarios[0].result.assertions = []),
@@ -62,6 +63,13 @@ for (const [name, mutate] of [
     f.saveRecipe();
     await assert.rejects(readVerificationRecipe(f.root));
   });
+
+test("recipe accepts the largest supported Node timer", async (t) => {
+  const f = fixture(t);
+  f.recipe.launch.timeout_ms = 2147483647;
+  f.saveRecipe();
+  assert.equal((await readVerificationRecipe(f.root)).recipe.launch.timeout_ms,2147483647);
+});
 
 test("engine preflight is keyless unless explicitly requested and reports names only", (t) => {
   const recipe = {

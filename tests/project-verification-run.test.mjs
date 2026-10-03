@@ -550,6 +550,15 @@ test("identity lost during final cleanup observation cannot be reported reaped",
   assert.deepEqual(signals,[{pid:first+1,signal:"SIGTERM"},{pid:second+1,signal:"SIGTERM"}]);
 });
 
+test("process timers reject values above the Node delay range before spawning", (t) => {
+  const options = {cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),environment:{PATH:process.env.PATH},binding:{}};
+  for (const field of ["closeGraceMs","cleanupGraceMs"])
+    assert.throws(() => createVerificationProcesses({...options,[field]:2147483648}), /timer range/);
+  const processes = createVerificationProcesses(options);
+  t.after(() => processes.dispose());
+  assert.throws(() => processes.start({argv:[process.execPath,"-e",""],timeout_ms:2147483648},"action"), /timer range/);
+});
+
 function killTestChild(pid) {
   if (!pid) return;
   try { process.kill(pid, "SIGKILL"); }

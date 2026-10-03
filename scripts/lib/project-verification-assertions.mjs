@@ -81,8 +81,8 @@ function commandSpec(command, label) {
     `${label} requires shell-less argv`,
   );
   assert.ok(
-    Number.isSafeInteger(command.timeout_ms) && command.timeout_ms > 0,
-    `${label} requires a positive timeout_ms`,
+    Number.isSafeInteger(command.timeout_ms) && command.timeout_ms > 0 && command.timeout_ms <= 2147483647,
+    `${label} requires timeout_ms in Node timer range 1..2147483647`,
   );
 }
 
