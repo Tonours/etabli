@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Opt-in native receipt capture for the existing isolated hunter runner.
+// Native receipt capture for the existing isolated hunter runner.
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, lstatSync, realpathSync } from "node:fs";
 import { resolve, dirname, parse, basename } from "node:path";
@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { reviewRunReceipt, reviewPassEvent, sha256 } from "./lib/review-run-receipt.mjs";
 import { reviewPromptSources } from "./lib/review-prompt-sources.mjs";
 import { parsePromptInventory } from "./lib/review-prompt-observer.mjs";
+import { planContract } from "./lib/plan-review-binding.mjs";
 import { reviewTiming } from "./lib/review-timing.mjs";
 
 try {
@@ -15,9 +16,11 @@ try {
   if (separator < 0) throw new Error("capture requires Pi argv after --");
   const options = {};
   for (let i = 0; i < separator; i += 2) {
-    if (!["--directory", "--prompt", "--patch", "--timeout", "--pass-id", "--parent-id", "--role", "--sources"].includes(args[i]) || !args[i+1]) throw new Error("invalid capture option");
+    if (!["--directory", "--prompt", "--patch", "--timeout", "--pass-id", "--parent-id", "--role", "--sources", "--require-measured"].includes(args[i]) || !args[i+1]) throw new Error("invalid capture option");
     options[args[i].slice(2)] = args[i+1];
   }
+  const requireMeasured = options["require-measured"] ?? "true";
+  if (!["true","false"].includes(requireMeasured)) throw new Error("invalid measurement policy");
   const output = resolve(realpathSync(dirname(resolve(options.directory))), basename(options.directory));
   // Exclusive directory, confined parents: do not follow an existing artifact symlink.
   let parent = dirname(output);
@@ -76,11 +79,14 @@ try {
   writeFileSync(resolve(output, "stderr.log"), Buffer.concat(errors), { mode: 0o600, flag: "wx" });
   const events = raw.split("\n").filter(Boolean).map((line) => { try { return JSON.parse(line); } catch { return { type: "invalid_json" }; } });
   const receipt = reviewRunReceipt({ ...identity, events, childScope, exitCode: timedOut ? 124 : exit, elapsedMs: Math.round(performance.now() - started) });
+  if (options.role === "adversary-plan") receipt.plan_contract_sha256 = planContract(patch).contract_sha256;
+  receipt.measurement_required = requireMeasured === "true";
   receipt.isolated_context=childScope==="isolated_read_grep" && piArgs.includes("--no-session") && piArgs.includes("--no-context-files") && piArgs.includes("--no-skills")
     && !piArgs.some(arg=>["--continue","-c","--resume","-r","--session","--session-id","--fork"].some(flag=>arg===flag||arg.startsWith(`${flag}=`)));
   receipt.capture_id=receipt.isolated_context?sha256(output):null;
   receipt.input_context_sha256=sha256(JSON.stringify({role:options.role,inputs:receipt.inputs,sources:origins}));
-  if (events.some((event) => event.type === "invalid_json")) { receipt.measured = false; receipt.measurement_errors.push("invalid_native_json"); }
+  receipt.native_stream_complete = !events.some((event) => event.type === "invalid_json");
+  if (!receipt.native_stream_complete) { receipt.measured = false; receipt.measurement_errors.push("invalid_native_json"); }
   const inventory = parsePromptInventory(readFileSync(inventoryPath,"utf8"));
   const inventories = inventory.rows;
   receipt.prompt_inventory_complete = inventory.complete;
@@ -94,7 +100,8 @@ try {
   const text = (final?.message.content ?? []).filter((block) => block.type === "text").map((block) => block.text).join("\n");
   writeFileSync(resolve(output, "final.txt"), text, { mode: 0o600, flag: "wx" });
   if (timedOut) { process.stderr.write("HUNTER_TIMEOUT\n"); process.exitCode = 3; }
-  else if (exit !== 0 || !receipt.measured || receipt.terminal !== "succeeded" || !text.trim()) { process.stderr.write("HUNTER_SPAWN_UNAVAILABLE: incomplete native review receipt\n"); process.exitCode = 2; }
+  else if (exit !== 0 || !receipt.native_stream_complete || (receipt.measurement_required && !receipt.measured) || receipt.terminal !== "succeeded" || !text.trim()) { process.stderr.write("HUNTER_SPAWN_UNAVAILABLE: incomplete native review receipt\n"); process.exitCode = 2; }
+  else if (!receipt.review_admissible) { process.stderr.write("HUNTER_INSPECTION_INCOMPLETE: retry the failed native Read/Grep inputs or return BLOCK; a clean report cannot ignore unresolved inspection\n"); process.exitCode = 2; }
   else process.stdout.write(`${text}\n`);
 } catch {
   process.stderr.write("HUNTER_SPAWN_UNAVAILABLE: capture setup failed\n");
