@@ -1,19 +1,14 @@
 # Implementation Loop Contract
 
-Shared contract for implementing `PLAN.md`; adapters hold harness details.
-The full sequence governs plan-based implementation and all high-risk
-contractual work — assess risk from the work itself; the route classifier
-does not detect every high-risk change. Ordinary no-plan coding
-keeps its route — a bounded runtime fix does not make it **small**; an
-explicit plan request or multi-slice task uses the plan route, and an existing
-DRAFT/CHALLENGED plan still blocks implementation. Select the route
-(`workflow/spec.md` § Routing rules) before picking the tier.
+Shared implementation contract; adapters supply harness syntax. Select the route
+in `workflow/spec.md` before the risk tier. Plan routes and high-risk work use
+the full sequence. A bounded runtime fix remains ordinary coding unless a plan
+is requested; an existing DRAFT/CHALLENGED plan blocks implementation.
 
 ## Risk tiers
 
-Depth is proportional to risk. Pick the tier before step 1 and record it
-(`tier: small|standard|high-risk`); upgrade at any step if the diff outgrows
-the tier — never downgrade mid-run.
+Record `tier: small|standard|high-risk` before step 1; upgrade when needed,
+never downgrade mid-run.
 
 - **small** — docs-only, config-only, or a bounded single-surface edit with no
   runtime behavior change. Runs **outside the plan gate**: scoped recon
@@ -32,8 +27,7 @@ the tier — never downgrade mid-run.
 
 ## Standing rules
 
-These hold at every step; `workflow/spec.md` § Rules is canonical and wins on
-conflict.
+`workflow/spec.md` § Rules governs every step and wins on conflict.
 
 - No-progress stop and check-freeze as in `workflow/agent-quick-card.md`
   (always loaded); a no-progress stop lists the eliminated hypotheses.
@@ -52,29 +46,31 @@ Steps 1–7 apply to plan routes only; the **small** tier follows the journey
 in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 
 0. Understand before planning: run a scoped local recon of the affected area
-   and carry sourced findings (file:line) into the plan (the task, for small). Recon is parent-only
-   by default. Dispatch a scout sidecar only when the user explicitly opts in.
-   Scale recon down to a quick read for small tasks; never skip it entirely.
-1. If a task is provided that no existing plan covers, run
-   `workflow/skills/plan-loop.md` first. A `READY` plan for another task
-   does not cover it.
-2. Otherwise read the existing root `PLAN.md` (no task, or task covered)
-   and verify the coverage before step 3.
+   and carry file:line findings into the plan (the task, for small).
+   Recon is parent-only unless the user opts into a scout. Small tasks need a quick read.
+1. Uncovered task: run `workflow/skills/plan-loop.md`; another task's READY
+   plan does not cover it.
+2. Otherwise read root `PLAN.md` and verify task coverage.
 3. Continue only when the actual root `PLAN.md` has `Status: READY`; prompt
    wording such as "PLAN.md ready" is not proof.
 4. Stop from `DRAFT`, `CHALLENGED`, missing `PLAN.md`, or missing concrete
    checks/required evidence.
-5. Run the adversary contract in `workflow/skills/adversary.md` before editing.
-6. Fold accepted adversary findings into `PLAN.md`.
-7. If blockers remain, set `Status: CHALLENGED` and stop.
+5. Run `workflow/skills/adversary.md` before editing.
+6. Fold accepted findings; reconcile criteria and Decision Log.
+7. Re-review material deltas; implement only the approved current contract.
 8. Implement the still-`READY` plan steps (the task, for small) in order with minimal, scoped
    changes. A code behavior change ships with its tests per
    `workflow/spec.md`; a bug fix starts from a failing test that reproduces
-   the issue. At most one worker writes at a time: invoke it in the
+   the issue, a valid neighbor and an invalid neighbor. Preserve the bounded
+   input domain and verify the decisive runtime/corpus when applicable. Repeated
+   findings in one family trigger a method reassessment before another patch.
+   At most one worker writes at a time: invoke it in the
    foreground, or wait for the worker and do not write until it returns. The
    parent remains the only canonical ledger writer and reads every integrated diff: a worker report locates the work,
    it does not evidence it.
-9. Update `PLAN.md` only for progress or newly discovered facts.
+9. Record progress in the ledger, task markers or nested check `last run`.
+   Material plan facts require reconciliation and fresh approval; see
+   `workflow/skills/execution-quality.md`.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
@@ -119,17 +115,14 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 13. Review the **cumulative workspace patch that can ship** against `PLAN.md`
     per `workflow/skills/review.md` and `workflow/review-rubric.md`. Pin staged,
     unstaged, and relevant untracked implementation files in addition to the
-    committed `git diff <merge-base-with-base-branch>...HEAD`; a single-commit
-    branch may review that commit alone only when the workspace is clean.
-    Per-slice reviews do not satisfy this step.
-    Pin the patch once, then dispatch Logic hunter and Spec hunter in fresh
-    context (both mandatory for high-risk; standard may follow the Daily Pi
-    exception in `workflow/skills/review.md`; autonomous runs use fresh
-    context (subagent reviewer or cross-model) per `workflow/spec.md`).
+    committed `git diff <merge-base-with-base-branch>...HEAD`. A clean
+    single-commit branch may review that commit; per-slice reviews are insufficient.
+    Pin once; dispatch fresh Logic and Spec hunters: both for high-risk;
+    standard may use Daily Pi per `workflow/skills/review.md`. Autonomous
+    runs require fresh context (subagent reviewer or cross-model).
     Record `reviewer_model` and whether deciding-code rows were complete. A
-    `GO` with empty runtime deciding-code is invalid — treat as `blocked` /
-    re-review. Without an eligible runner or authorization when required,
-    stop as `blocked` requesting review.
+    `GO` without runtime deciding-code is invalid: `blocked` / re-review.
+    Missing eligible runner or required authorization: `blocked`.
 13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
     **high-risk requires cross-model**; **standard accepts a documented
     double-sample same-family pass**; **small skips**. Single same-family pass
@@ -153,9 +146,8 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     fill `workflow/templates/plan-archive.md` (convention, hash gate and
     multi-repo rules: `workflow/plan-archive.md`); distill it as memory, do
     not raw-copy `PLAN.md`.
-15. After archive and validation succeed, delete only the current workspace root
-    `PLAN.md`.
-16. If archiving is skipped or fails, keep `PLAN.md` and report why.
+15. After archive and validation succeed, delete only root `PLAN.md`.
+16. Otherwise keep it and report why.
 17. Return files changed, tier, adversary result, validation, review result
     (including deciding-code completeness), archive path, deleted `PLAN.md`
     status (both N/A for small: no plan, no archive), remaining risks,
@@ -167,13 +159,11 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 
 ## Long loops
 
-Improvement loops without a natural fixed end (hillclimbs, iterative
-optimization, repeated benchmarks) follow `workflow/skills/long-loop.md`.
+Open-ended improvement/benchmark loops follow `workflow/skills/long-loop.md`.
 
 ## Completion Evidence
 
-Autonomous implementation loops are complete only when the final state contains
-evidence for all of:
+Autonomous completion requires:
 
 - recorded risk tier;
 - adversary plan review (standard/high-risk);

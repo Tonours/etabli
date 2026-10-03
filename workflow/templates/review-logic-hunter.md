@@ -14,10 +14,10 @@ Never spawn another agent.
 
 ## Read discipline
 
-Open files only to confirm or refute a candidate, at most 3 tool calls
-(grep counts): the resolver, sibling, or pinning test the changed behavior
-depends on. Treat imports and framework/SDK APIs as declared by the patch.
-No git commands. Stop when further reading stops changing your mind.
+Open deciding code, imports/APIs, resolver, siblings and tests needed to
+confirm or refute candidates. Failed reads are not coverage: resolve them or
+report incomplete inspection. No git commands or call quota. Stop when further
+reading stops changing the verdict.
 
 ## Lenses (answer every one)
 
