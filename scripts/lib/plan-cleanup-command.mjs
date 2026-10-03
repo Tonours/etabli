@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const CENTRAL_CLEANUP = fileURLToPath(new URL("../plan-cleanup", import.meta.url));
 
-function tokens(command) {
+export function closedShellWords(command) {
   if (!command || /[;$`\\\n\r|<>]/.test(command)) return null;
   const pattern = /[ \t]*(?:'([^']*)'|"([^"]*)"|([^ \t'"]+))(?=[ \t]|$)/gy;
   const values = [];
@@ -21,7 +21,7 @@ function tokens(command) {
 }
 
 export function isNarrowPlanCleanupCommand(command, cwd = process.cwd()) {
-  const words = tokens(String(command || "").replace(/^[ \t]+|[ \t]+$/g, ""));
+  const words = closedShellWords(String(command || "").replace(/^[ \t]+|[ \t]+$/g, ""));
   if (!words) return false;
   if (words[0] === "cd") {
     words.shift();
@@ -45,4 +45,14 @@ export function isNarrowPlanCleanupCommand(command, cwd = process.cwd()) {
   if (binary !== resolve(cwd, "scripts/plan-cleanup") && binary !== CENTRAL_CLEANUP) return false;
   if (mode === "--discard") return /^[a-z0-9][a-z0-9_-]{0,80}$/.test(argument);
   return mode === "--archive" && /^(?:\.\/)?docs\/plan\/[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(argument);
+}
+
+
+export function implementedArchiveError(archive, planHash) {
+  if (!/^# Implemented:/m.test(archive)) return "archive must start with an Implemented title";
+  if (!/^- Source plan: `PLAN\.md`/m.test(archive)) return "archive must name root PLAN.md as source";
+  if (!/^- Status: IMPLEMENTED\s*$/m.test(archive)) return "archive must declare Status: IMPLEMENTED";
+  const expected = `- Source plan SHA-256: \`${planHash}\``;
+  if (!archive.split(/\r?\n/).some((line) => line.trimEnd() === expected)) return "archive source-plan hash does not match current PLAN.md";
+  return null;
 }

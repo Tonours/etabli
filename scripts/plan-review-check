@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+import { createHash } from "node:crypto";
+import { lstatSync, readFileSync } from "node:fs";
+import { basename, resolve, sep } from "node:path";
+import { readPlanContractFile, readRootPlanContract, evaluatePlanReview } from "./lib/plan-review-binding.mjs";
+import { inspectLedgerFile } from "./lib/ledger-integrity.mjs";
+import { implementedArchiveError } from "./lib/plan-cleanup-command.mjs";
+
+try {
+  const args = process.argv.slice(2);
+  if (args.length === 2 && args[0] === "--hash") {
+    process.stdout.write(`${readPlanContractFile(args[1]).contract_sha256}\n`);
+  } else if (args.length === 4 && args[0] === "--append") {
+    const [,root,file,event] = args, detail = JSON.parse(readFileSync(0,"utf8"));
+    const history = lstatSync(file,{throwIfNoEntry:false}) ? inspectLedgerFile(file,basename(resolve(file,".."))) : {valid:true,events:[]};
+    if (!history.valid) throw new Error("invalid target ledger; repair it before appending plan evidence");
+    const bound = history.events.some((row) => row.event === "plan_created" && Object.hasOwn(row.detail,"plan_contract_sha256"));
+    if (event === "plan_created") {
+      const plan = readRootPlanContract(root);
+      if (plan) detail.plan_contract_sha256 = plan.contract_sha256;
+    }
+    if (event === "adversary_completed" && detail.mode === "plan" && bound) {
+      const plan = readRootPlanContract(root);
+      if (!plan || detail.plan_contract_sha256 !== plan.contract_sha256) throw new Error("missing or stale plan_contract_sha256; supply the hash captured from the reviewed plan snapshot with scripts/plan-review-check --hash");
+      if (detail.verdict === "READY" && !evaluatePlanReview([...history.events,{event,detail}],plan.source).ok) throw new Error("READY plan review must have valid provenance and no blocking accepted finding");
+    }
+    if (event === "file_changed") {
+      const archivePath = resolve(root,detail.path), archiveRoot = `${resolve(root,"docs/plan")}${sep}`;
+      let implementedArchive = false;
+      if (archivePath.startsWith(archiveRoot) && archivePath.endsWith(".md")) {
+        try {
+          if (lstatSync(archivePath,{throwIfNoEntry:false})?.isFile()) {
+            const plan = readRootPlanContract(root);
+            if (plan) {
+              const hash = createHash("sha256").update(plan.source).digest("hex");
+              implementedArchive = !implementedArchiveError(readFileSync(archivePath,"utf8"),hash);
+            }
+          }
+        } catch {
+          // Observations remain recordable when archive identity is unavailable.
+        }
+      }
+      if (implementedArchive) throw new Error("implemented archive is bookkeeping: use archive_written instead of file_changed");
+    }
+    process.stdout.write(`${JSON.stringify(detail)}\n`);
+  } else throw new Error("usage: plan-review-check --hash PLAN.md | --append ROOT LEDGER EVENT < detail.json");
+} catch (error) {
+  process.stderr.write(`plan-review-check: ${error.message}\n`);
+  process.exitCode = 1;
+}
