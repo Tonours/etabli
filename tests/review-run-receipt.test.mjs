@@ -134,3 +134,105 @@ test("prompt inventory preserves completed metadata and flags a truncated tail",
  assert.deepEqual(parsePromptInventory('{"stage":"before_provider_request"}\n{"stage":'),{rows:[{stage:"before_provider_request"}],complete:false});
  assert.equal(parsePromptInventory('bad\n{"stage":"before_provider_request"}\n').complete,false);
 });
+
+
+function inspectionReceipt(attempts,verdict="GO",tail=[],raw=false) {
+ const stream=[];
+ for(const [index,{name="read",args={path:"sibling.mjs"},error=false,unfinished=false}] of attempts.entries()) {
+  const id=`tool-${index}`,assistant=events(`request-${index}`)[0];
+  assistant.message.stopReason="toolUse";assistant.message.content=[{type:"toolCall",id,name,arguments:args}];stream.push(assistant);
+  if(!unfinished)stream.push({type:"message_end",message:{role:"toolResult",toolCallId:id,toolName:name,isError:error,content:[{type:"text",text:error?"refused":"observed"}]}});
+ }
+ stream.push(...tail);const final=events("inspection-final")[0];final.message.content=[{type:"text",text:raw || verdict==="No findings."?verdict:`Verdict: ${verdict}`}];stream.push(final);
+ return reviewRunReceipt({passId:"inspection",role:"logic",patchSha256:sha256("patch"),events:stream,exitCode:0,elapsedMs:10,childScope:"isolated_read_grep"});
+}
+for(const verdict of ["GO","GO WITH NOTES","No findings."])test(`go_failed_read: ${verdict} is not admissible`,()=>{
+ const receipt=inspectionReceipt([{error:true}],verdict);
+ assert.equal(receipt.terminal,"succeeded");assert.equal(receipt.measured,true);
+ assert.equal(receipt.review_admissible,false);assert.equal(receipt.inspection.unresolved.length,1);
+});
+test("read_retry_success clears only the same tool and input",()=>{
+ assert.equal(inspectionReceipt([{error:true},{args:{path:"sibling.mjs"}}]).review_admissible,true);
+ assert.equal(inspectionReceipt([{error:true},{args:{path:"unrelated.mjs"}}]).review_admissible,false);
+ assert.equal(inspectionReceipt([{error:true},{name:"grep",args:{path:"sibling.mjs"}}]).review_admissible,false);
+ const receipt=inspectionReceipt([{error:true},{error:true,args:{path:"other.mjs"}},{args:{path:"sibling.mjs"}}]);
+ assert.equal(receipt.inspection.unresolved.length,1);
+});
+test("grep_no_match succeeds; grep_error and unfinished_read do not",()=>{
+ assert.equal(inspectionReceipt([{name:"grep",args:{pattern:"missing"}}]).review_admissible,true);
+ assert.equal(inspectionReceipt([{name:"grep",error:true}]).review_admissible,false);
+ assert.equal(inspectionReceipt([{unfinished:true}]).review_admissible,false);
+});
+test("orphan_inspection_result and duplicate native identity fail positive admission",()=>{
+ const orphan={type:"message_end",message:{role:"toolResult",toolCallId:"orphan",toolName:"read",isError:false,content:[]}};
+ assert.equal(inspectionReceipt([],"GO",[orphan]).review_admissible,false);
+ const duplicate={...orphan,message:{...orphan.message,toolCallId:"tool-0"}};
+ assert.equal(inspectionReceipt([{}],"GO",[duplicate]).review_admissible,false);
+});
+test("missing status and mismatched result tool are incomplete inspection",()=>{
+ for(const override of [{isError:undefined},{toolName:"grep"}]) {
+  const call=events("malformed-call")[0];call.message.stopReason="toolUse";
+  call.message.content=[{type:"toolCall",id:"malformed",name:"read",arguments:{path:"x"}}];
+  const result={type:"message_end",message:{role:"toolResult",toolCallId:"malformed",toolName:"read",isError:false,content:[],...override}};
+  assert.equal(inspectionReceipt([],"GO",[call,result]).review_admissible,false);
+ }
+});
+test("block_report retains transport and usage after failed inspection",()=>{
+ const receipt=inspectionReceipt([{error:true}],"BLOCK");
+ assert.equal(receipt.terminal,"succeeded");assert.equal(receipt.measured,true);assert.equal(receipt.review_admissible,true);
+ assert.equal(receipt.inspection.unresolved.length,1);
+});
+
+
+test("clean report formatting cannot conceal unresolved errors; quoted examples stay non-GO",()=>{
+ for(const source of ["**Verdict: GO**","## Verdict: GO WITH NOTES","**No findings.**"])
+  assert.equal(inspectionReceipt([{error:true}],source,[],true).review_admissible,false);
+ for(const source of ["Examples only:\n```text\nVerdict: GO\n```\n> No findings.\n", "No findings.\n\nBLOCK"])
+  assert.equal(inspectionReceipt([{error:true}],source,[],true).review_admissible,true);
+});
+
+test("malformed successful retry cannot erase a native Read failure",()=>{
+ for(const content of [undefined,"observed",[{}],[{type:"text"}],[{type:"image",data:"encoded"}]]) {
+  const call=events("retry-call")[0];call.message.stopReason="toolUse";
+  call.message.content=[{type:"toolCall",id:"retry",name:"read",arguments:{path:"sibling.mjs"}}];
+  const result={type:"message_end",message:{role:"toolResult",toolCallId:"retry",toolName:"read",isError:false,content}};
+  const receipt=inspectionReceipt([{error:true}],"GO",[call,result]);
+  assert.equal(receipt.review_admissible,false);assert.equal(receipt.inspection.unresolved.length,1);
+  assert.equal(receipt.inspection.unresolved[0].reason,"invalid_result_content");
+ }
+ const call=events("image-call")[0];call.message.stopReason="toolUse";
+ call.message.content=[{type:"toolCall",id:"image",name:"read",arguments:{path:"sibling.mjs"}}];
+ const result={type:"message_end",message:{role:"toolResult",toolCallId:"image",toolName:"read",isError:false,content:[{type:"image",data:"encoded",mimeType:"image/png"}]}};
+ assert.equal(inspectionReceipt([{error:true}],"GO",[call,result]).review_admissible,true);
+});
+
+test("native inspection identities require nonempty strings before clearing a failed read",()=>{
+ for(const identity of [1,0,true,false,null,{},[],""]) {
+  const call=events("typed-retry")[0];call.message.stopReason="toolUse";
+  call.message.content=[{type:"toolCall",id:identity,name:"read",arguments:{path:"sibling.mjs"}}];
+  const result={type:"message_end",message:{role:"toolResult",toolCallId:identity,toolName:"read",isError:false,content:[]}};
+  const tail=JSON.parse(JSON.stringify([call,result]));
+  const receipt=inspectionReceipt([{error:true}],"GO",tail);
+  assert.equal(receipt.review_admissible,false,JSON.stringify(identity));
+  assert.equal(receipt.inspection.unresolved.length,1);
+  assert.ok(receipt.inspection.stream_errors.length);
+  call.message.content[0].id="valid-call";
+  assert.equal(inspectionReceipt([{error:true}],"GO",[call,result]).review_admissible,false);
+ }
+ for(const identity of ["retry","1","true"]) {
+  const call=events("valid-retry")[0];call.message.stopReason="toolUse";
+  call.message.content=[{type:"toolCall",id:identity,name:"read",arguments:{path:"sibling.mjs"}}];
+  const result={type:"message_end",message:{role:"toolResult",toolCallId:identity,toolName:"read",isError:false,content:[]}};
+  assert.equal(inspectionReceipt([{error:true}],"GO",[call,result]).review_admissible,true);
+ }
+});
+
+test("explicit review verdict takes precedence over contextual status",()=>{
+ for(const report of ["Verdict: GO\n\nStatus: CHALLENGED","Verdict: GO WITH NOTES\nStatus: BLOCK","Status: CHALLENGED\n**Verdict: GO**"])
+  assert.equal(inspectionReceipt([{error:true}],report,[],true).review_admissible,false);
+ for(const report of ["Verdict: BLOCK\n\nStatus: READY","Verdict: CHALLENGED\nStatus: GO"])
+  assert.equal(inspectionReceipt([{error:true}],report,[],true).review_admissible,true);
+ assert.equal(inspectionReceipt([{error:true}],"Status: READY",[],true).review_admissible,false);
+ assert.equal(inspectionReceipt([{}],"Status: READY",[],true).review_admissible,true);
+ assert.equal(inspectionReceipt([{unfinished:true},{}]).review_admissible,false);
+});

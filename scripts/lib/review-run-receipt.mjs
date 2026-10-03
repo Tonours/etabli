@@ -1,3 +1,4 @@
+import commonmark from "../vendor/commonmark/commonmark.cjs";
 import { createHash } from "node:crypto";
 import { normalizeEvents, piEventCoverage, observedPiChildDispatches } from "./harness-token-usage.mjs";
 
@@ -7,11 +8,89 @@ const id = (value) => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_.:-]{
 
 export function reviewPassEvent(receipt) {
   return {outcome:"review_pass",success:receipt.terminal==="succeeded",success_kind:"run_terminal",
-    measured:receipt.measured,role:receipt.role,pass_sha256:sha256(receipt.pass_id),
+    measured:receipt.measured,review_admissible:receipt.review_admissible,role:receipt.role,pass_sha256:sha256(receipt.pass_id),
     parent_sha256:receipt.parent_id===null?null:sha256(receipt.parent_id),patch_sha256:receipt.patch_sha256,
     ...(receipt.measured ? {input_tokens:receipt.usage.input_tokens,output_tokens:receipt.usage.output_tokens,
       total_tokens:receipt.usage.total_tokens,tool_calls:receipt.tool_calls,elapsed_ms:receipt.elapsed_ms}
       : {reason:"incomplete_native_usage",known_tokens:receipt.receipts.reduce((sum,row)=>sum+row.total_tokens,0)})};
+}
+
+function canonicalInput(value) {
+  if (Array.isArray(value)) return value.map(canonicalInput);
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key,canonicalInput(value[key])]));
+  return value;
+}
+
+function inspectionEvidence(events) {
+  const calls = new Map(), failed = new Map(), successful = [], streamErrors = [];
+  for (const event of events) {
+    if (event.type !== "message_end") continue;
+    const message = event.message;
+    if (message?.role === "assistant") for (const block of message.content ?? []) {
+      if (block.type !== "toolCall") continue;
+      const tool = String(block.name ?? "").toLowerCase(), inspected = ["read","grep"].includes(tool);
+      if (typeof block.id !== "string" || !block.id || calls.has(block.id)) {
+        if (inspected || calls.get(block.id)?.inspected) streamErrors.push("missing_or_duplicate_inspection_identity");
+        continue;
+      }
+      const validInput = block.arguments && typeof block.arguments === "object" && !Array.isArray(block.arguments);
+      const hash = validInput ? sha256(JSON.stringify(canonicalInput(block.arguments))) : null;
+      calls.set(block.id,{id:block.id,tool,inspected,arguments_sha256:hash,key:`${tool}:${hash}`,finished:false});
+      if (inspected && !validInput) streamErrors.push("missing_inspection_input");
+    }
+    if (message?.role === "toolResult") {
+      const call = typeof message.toolCallId === "string" && message.toolCallId ? calls.get(message.toolCallId) : undefined;
+      const name = String(message.toolName ?? "").toLowerCase();
+      if (!call) {
+        if (!name || ["read","grep"].includes(name)) streamErrors.push("orphan_inspection_result");
+        continue;
+      }
+      if (!call.inspected) continue;
+      if (name !== call.tool) { streamErrors.push("inspection_result_tool_mismatch"); continue; }
+      if (call.finished) { streamErrors.push("duplicate_inspection_result"); continue; }
+      call.finished = true;
+      const {key,inspected,finished,...observation} = call;
+      const validContent = Array.isArray(message.content) && message.content.every((block) => block &&
+        ((block.type === "text" && typeof block.text === "string") ||
+         (block.type === "image" && typeof block.data === "string" && typeof block.mimeType === "string")));
+      if (!validContent) {
+        failed.set(key,{...observation,reason:"invalid_result_content"});
+      } else if (typeof message.isError !== "boolean" || message.isError) {
+        failed.set(key,{...observation,reason:message.isError ? "tool_error" : "missing_result_status"});
+      } else {
+        successful.push(observation);
+        failed.delete(key);
+      }
+    }
+  }
+  const pending = [...calls.values()].filter((call) => call.inspected && !call.finished).map(({key,inspected,finished,...call}) => ({...call,reason:"unfinished_inspection"}));
+  return {scope:"observed_native_read_grep_attempts_only",successful,unresolved:[...failed.values(),...pending],stream_errors:[...new Set(streamErrors)]};
+}
+
+function positiveReview(source) {
+  const blocks = [], walker = new commonmark.Parser().parse(source).walker();
+  let event;
+  while ((event = walker.next())) {
+    const node = event.node;
+    if (!event.entering || !["paragraph","heading"].includes(node.type)) continue;
+    let quoted = false;
+    for (let parent=node.parent; parent; parent=parent.parent) if (parent.type === "block_quote") quoted = true;
+    if (quoted) continue;
+    const inline = node.walker(), text = [];
+    let part;
+    while ((part = inline.next())) {
+      if (!part.entering) continue;
+      if (["text","code"].includes(part.node.type)) text.push(part.node.literal);
+      else if (["softbreak","linebreak"].includes(part.node.type)) text.push("\n");
+    }
+    blocks.push(text.join(""));
+  }
+  const report = blocks.join("\n");
+  const explicit = [...report.matchAll(/^\s*Verdict\s*:\s*(GO WITH NOTES|GO|READY|BLOCK|CHALLENGED)\b/gim)];
+  const verdicts = explicit.length ? explicit : [...report.matchAll(/^\s*Status\s*:\s*(GO WITH NOTES|GO|READY|BLOCK|CHALLENGED)\b/gim)];
+  if (verdicts.length) return ["GO","GO WITH NOTES","READY"].includes(verdicts.at(-1)[1].toUpperCase());
+  if (/^\s*(?:BLOCK|CHALLENGED)\s*$/im.test(report)) return false;
+  return /^\s*(?:GO(?: WITH NOTES)?|READY|No findings\.?)\s*$/im.test(report);
 }
 
 export function reviewRunReceipt({ passId, parentId = null, role, patchSha256, events, exitCode, elapsedMs, inputs = [], childScope = null }) {
@@ -19,9 +98,13 @@ export function reviewRunReceipt({ passId, parentId = null, role, patchSha256, e
       !/^[a-f0-9]{64}$/.test(patchSha256) || !Number.isSafeInteger(exitCode) ||
       !Number.isFinite(elapsedMs) || elapsedMs < 0) throw new Error("Invalid review receipt identity; supply pass, parent, role and patch hash");
   const normalized = normalizeEvents("pi", events, { exitCode, coverage: piEventCoverage(events,{childScope}) });
+  const inspection = inspectionEvidence(events);
+  const reviewAdmissible = !positiveReview(normalized.final_text) ||
+    (inspection.unresolved.length === 0 && inspection.stream_errors.length === 0);
   return { schema_version: 1, pass_id: passId, parent_id: parentId, role, patch_sha256: patchSha256,
     accounting: "exclusive", elapsed_ms: elapsedMs, terminal: normalized.transport_success && normalized.final_text.trim() ? "succeeded" : "failed",
     measured: normalized.measured, models: normalized.models, coverage: normalized.coverage,
+    inspection, review_admissible:reviewAdmissible,
     observed_child_dispatches: observedPiChildDispatches(events),
     measurement_errors: normalized.measurement_errors, usage: normalized.usage, receipts: normalized.receipts,
     tool_calls: normalized.tools.length, llm_calls: normalized.receipts.length,
