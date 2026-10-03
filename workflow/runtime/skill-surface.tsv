@@ -22,6 +22,7 @@ pr-review	pi	1	1	1
 pr-qa	pi	1	1	1
 sec-pr	pi	1	1	1
 ci-fix	pi	1	1	1
+write-direct	pi	1	1	1
 github-pr-review	pi	0	0	1
 suite-router	extras	0	0	0
 caveman	extras	0	0	0
