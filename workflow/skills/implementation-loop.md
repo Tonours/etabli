@@ -74,10 +74,9 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
-11. For material user-facing product-flow changes, exercise the strongest
-    observable surface and record decisive legs that need a human as
-    `blocked`, never `pass`. Pack integrity alone never counts as
-    parent-observed execution.
+11. For product-flow changes, read `workflow/product-verification.md`; discover
+    tests/recipe, prepare missing proof, exercise affected flows and run the
+    checker. Human-only legs stay `blocked`; pack integrity is not execution.
 12. Re-run the plan's focused checks after the product-flow check and each
     accepted fix — readiness never rests on checks predating the latest product-flow edit.
     Small tier (no plan): run the surface's own focused checks instead —
@@ -184,4 +183,4 @@ Autonomous completion requires:
 
 Autonomous `plan-implement` runs must append `.workflow/<slug>/events.jsonl` and pass `scripts/workflow-event validate --profile autonomous-completed` before claiming completion.
 
-Required product plans must pass `scripts/project-verification-check PLAN.md` before archive. Details: `workflow/product-verification.md`.
+Required product plans: `scripts/project-verification-check PLAN.md` before archive.

@@ -16,13 +16,12 @@ and report the missing paths as a warning, not a blocker.
 
 ## Required Sequence
 
-1. Inspect repo state (`git status --short`) and relevant files. Discover the
-   applicable project sources proportionately: current request, spec/PRD,
-   tickets, accepted ADRs/decisions, code, tests, launch command, and existing
-   validation. Record source precedence, freshness or conflicts when they
-   affect the task. Missing specs are facts, not blockers; derive provisional criteria from the
-   request and confirmed decisions. Load a domain suite only if the brief clearly matches one. Name
-   the skill(s) used, or `none`, in `Notes / Handoff`.
+1. Inspect `git status --short` and relevant request/spec, tickets, decisions,
+   code, launch/tests and recipe. Record precedence, freshness and conflicts;
+   derive provisional criteria from the request/confirmed decisions if no spec
+   exists. Classify ACs; include missing verification setup in scope (see
+   `workflow/product-verification.md`). Load domain skills only on a clear
+   match; name them or `none` in `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad or risky work.
 4. Set `Status: DRAFT` first.

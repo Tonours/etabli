@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "name": "Persisted CLI value",
+  "launch": {
+    "argv": ["node", "verification/fixture-lifecycle.mjs", "launch"],
+    "timeout_ms": 30000
+  },
+  "doctor": {
+    "argv": ["node", "verification/fixture-lifecycle.mjs", "doctor"],
+    "timeout_ms": 30000
+  },
+  "cleanup": {
+    "argv": ["node", "verification/fixture-lifecycle.mjs", "cleanup"],
+    "timeout_ms": 30000
+  },
+  "scenarios": [
+    {
+      "id": "value-write",
+      "criterion_ids": ["AC-01"],
+      "action": {
+        "argv": ["node", "app.mjs", "write", "verified"],
+        "timeout_ms": 30000
+      },
+      "result": {
+        "argv": ["node", "app.mjs", "read"],
+        "timeout_ms": 30000,
+        "assertions": [
+          {
+            "pointer": "/value",
+            "expected": "verified"
+          }
+        ]
+      },
+      "persistence": {
+        "argv": ["node", "verification/observe-json.mjs", "state.json"],
+        "timeout_ms": 30000,
+        "assertions": [
+          {
+            "pointer": "/value",
+            "expected": "verified"
+          }
+        ]
+      }
+    }
+  ]
+}

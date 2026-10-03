@@ -137,7 +137,7 @@ sandbox. Shared workflow and evidence invariants stay in
   or external write actions.
 - Independent work starts a new session; continuing work resumes PLAN/ledger.
   Before switching, record `handoff` (branch, sha, done, pending, next action,
-  do-not-redo); `scripts/session-handoff` renders it without writes. No automatic
+  do-not-redo); inspect that handoff before switching. No automatic
   reset. Finish or hand off a migration.
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose

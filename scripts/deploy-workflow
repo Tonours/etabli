@@ -60,8 +60,15 @@ FILES=(
   "$REPO_DIR/scripts/lib/predicates.mjs|scripts/lib/predicates.mjs"
   "$REPO_DIR/scripts/lib/workflow-events.mjs|scripts/lib/workflow-events.mjs"
   "$REPO_DIR/scripts/project-verification-check|scripts/project-verification-check"
+  "$REPO_DIR/scripts/project-verification|scripts/project-verification"
+  "$REPO_DIR/scripts/lib/project-verification-recipe.mjs|scripts/lib/project-verification-recipe.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-run.mjs|scripts/lib/project-verification-run.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-process.mjs|scripts/lib/project-verification-process.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-snapshot.mjs|scripts/lib/project-verification-snapshot.mjs"
+  "$REPO_DIR/workflow/project-verification-recipe.schema.json|workflow/project-verification-recipe.schema.json"
   "$REPO_DIR/scripts/lib/project-verification.mjs|scripts/lib/project-verification.mjs"
   "$REPO_DIR/scripts/lib/project-verification-plan.mjs|scripts/lib/project-verification-plan.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-assertions.mjs|scripts/lib/project-verification-assertions.mjs"
   "$REPO_DIR/scripts/lib/project-verification-source.mjs|scripts/lib/project-verification-source.mjs"
   "$REPO_DIR/scripts/lib/plan-check-freeze.mjs|scripts/lib/plan-check-freeze.mjs"
   "$REPO_DIR/scripts/lib/unicode-case-fold.mjs|scripts/lib/unicode-case-fold.mjs"
@@ -71,6 +78,10 @@ FILES=(
   "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
   "$REPO_DIR/scripts/lib/review-rounds.jq|scripts/lib/review-rounds.jq"
 )
+
+while IFS= read -r example_path; do
+  FILES+=("$example_path|workflow/verification/$(basename "$example_path")")
+done < <(find "$REPO_DIR/workflow-scaffold/templates/verification" -maxdepth 1 -type f -print | sort)
 
 while IFS= read -r contract_path; do
   FILES+=("$contract_path|workflow/skills/$(basename "$contract_path")")
@@ -379,8 +390,14 @@ exclude_block() {
     "/.workflow/" \
     "/workflow/" \
     "/scripts/project-verification-check" \
+    "/scripts/project-verification" \
+    "/scripts/lib/project-verification-recipe.mjs" \
+    "/scripts/lib/project-verification-run.mjs" \
+    "/scripts/lib/project-verification-process.mjs" \
+    "/scripts/lib/project-verification-snapshot.mjs" \
     "/scripts/lib/project-verification.mjs" \
     "/scripts/lib/project-verification-plan.mjs" \
+    "/scripts/lib/project-verification-assertions.mjs" \
     "/scripts/lib/project-verification-source.mjs" \
     "/scripts/lib/plan-check-freeze.mjs" \
     "/scripts/lib/unicode-case-fold.mjs" \

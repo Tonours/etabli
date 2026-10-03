@@ -40,6 +40,10 @@ scripts/verify-agentic-infra core        # every check should PASS
 - **Budgeted context.** Per-route instruction size is measured and can only
   shrink: always-on went from 28,423 to 11,789 chars
   ([`docs/workflow-context-budget.md`](docs/workflow-context-budget.md)).
+- **Source-bound product proof.** New plans use `Required: auto`; product
+  criteria need observed results and declared persistence. A shared runner
+  executes project-owned recipes and the closing gate rechecks their assertions.
+  See [product verification](workflow/product-verification.md).
 - **Locked skills.** Vendored packs carry `UPSTREAM_SHA` pins and an integrity
   lock (`skills-lock.json`). Skill changes pass promotion gates
   (`workflow/skills/skill-evaluation.md`), and routing stays deterministic code
@@ -57,6 +61,15 @@ Projects containing `workflow/spec.md` activate the workflow ambiently.
 Every run leaves an event ledger under `.workflow/<slug>/`, and finished plans
 are archived in `docs/plan/`.
 One writer at a time is a protocol, not an OS lock.
+
+To adopt verification in another project, deploy the current scaffold with
+`scripts/deploy-workflow /path/to/project` (review drift before `--force` on an
+existing project). From that project run `scripts/project-verification discover`,
+then `scripts/project-verification init`. Adapt the versioned
+`verification/recipe.json` to the promised behavior before `run --plan PLAN.md`.
+Init leaves unresolved coverage; it never overwrites a recipe. No model key is
+needed for this baseline. Optional `--engine` uses a configured local runtime;
+credentials are requested only if that selected engine needs them.
 
 ## Repository map
 

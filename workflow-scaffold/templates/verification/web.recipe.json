@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "name": "Browser DOM reload and persisted value",
+  "launch": {
+    "argv": ["node", "verification/fixture-lifecycle.mjs", "launch"],
+    "timeout_ms": 30000
+  },
+  "doctor": {
+    "argv": ["node", "verification/web-probe.mjs"],
+    "timeout_ms": 30000
+  },
+  "cleanup": {
+    "argv": ["node", "verification/fixture-lifecycle.mjs", "cleanup"],
+    "timeout_ms": 30000
+  },
+  "scenarios": [
+    {
+      "id": "value-write",
+      "criterion_ids": ["AC-01"],
+      "action": {
+        "argv": ["node", "verification/web-drive.mjs"],
+        "timeout_ms": 30000
+      },
+      "result": {
+        "argv": ["node", "verification/observe-json.mjs", "browser.json"],
+        "timeout_ms": 30000,
+        "assertions": [
+          {
+            "pointer": "/value",
+            "expected": "verified"
+          },
+          {
+            "pointer": "/reloaded",
+            "expected": true
+          },
+          {
+            "pointer": "/page_errors",
+            "expected": []
+          }
+        ]
+      },
+      "persistence": {
+        "argv": ["node", "verification/observe-json.mjs", "state.json"],
+        "timeout_ms": 30000,
+        "assertions": [
+          {
+            "pointer": "/value",
+            "expected": "verified"
+          }
+        ]
+      }
+    }
+  ],
+  "service": {
+    "argv": ["node", "app.mjs"],
+    "timeout_ms": 120000,
+    "readiness": {
+      "argv": ["node", "verification/web-probe.mjs"],
+      "timeout_ms": 30000
+    }
+  },
+  "runtime": {
+    "modules": [
+      {
+        "package_json": "__REQUIRED__ installed @playwright/test package.json"
+      }
+    ]
+  }
+}

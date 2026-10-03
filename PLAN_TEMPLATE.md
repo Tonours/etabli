@@ -20,6 +20,7 @@
 - Required evidence:
 
 ## Acceptance Criteria
+Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side_effect].
 -
 
 ## Repos
@@ -77,6 +78,6 @@
 -
 
 ## Product Verification
-- Required: no
+- Required: auto
 
 Details: workflow/product-verification.md.

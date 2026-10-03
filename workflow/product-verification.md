@@ -1,37 +1,135 @@
 # Product verification
 
-Open only when a plan declares required product evidence.
+Open when planning or changing product behavior, preparing a recipe, or checking
+required proof. Claude, Pi and other adapters share this sequence and checker.
 
+## Applicability
 
-## Product Verification
-- Required: no
+New templates declare `Product Verification` with `Required: auto`. Every
+top-level AC needs a unique `AC-ID [product|process|judgment]:` prefix. Product
+criteria declare `Proof: action,result.` or `Proof: action,result,side_effect.`.
+Freeze classifications, proof roles and paths before READY; progress may change.
 
-For a product plan, set Required to yes, add `Evidence pack: .workflow/<slug>/evidence-pack.json` and `Subject root: <project-root>` as list fields, and classify every acceptance criterion with a unique `AC-ID [product|process|judgment]:` prefix. Product criteria declare `Proof: action,result.` or `Proof: action,result,side_effect.`. Freeze these fields before READY. Missing or stale product proof blocks implemented archive cleanup; process and judgment criteria still need their normal checks and review.
+| Declaration | Resolution |
+| --- | --- |
+| auto with any product AC | Required; source-bound recipe assertions mandatory |
+| auto with only process/judgment ACs | Normal checks/review, no product pack |
+| auto with missing/duplicate/unclassified ACs | Unresolved; blocks READY/closing |
+| historical yes/no/missing | Existing explicit/non-product behavior retained |
 
-## Declared product plan evidence
+Required plans add list fields `Evidence pack: .workflow/<slug>/evidence-pack.json`
+and `Subject root: <project-root>`. Applicability can be promoted and remains
+remembered by the ledger; once true, process-only edits cannot remove proof.
+Retain proof or explicitly discard abandoned work. Unresolved DRAFT/CHALLENGED
+events omit applicability rather than recording false.
 
-When the READY plan declares `Product Verification` with `Required: yes`, run `scripts/project-verification-check PLAN.md` against its declared pack. Report the product AC IDs, action/result/persistence evidence, source identity, command exits and uncovered features. Failed, skipped, unavailable or stale proof blocks completion. A schema-valid file is insufficient without observed execution. Select the project's existing verification skill; Claude and Pi consume the same recipe. This check does not replace process/judgment validation, regression suites or the project quality gate.
+## Prepare proof with the work
 
-Declared product plans must pass `scripts/project-verification-check PLAN.md` before `archive_written`. The shared ledger remembers product applicability at `plan_created`; `plan-cleanup --archive` reruns the check and retains a completion receipt bound to the frozen plan, archive, pack and current source. `completed` and the autonomous profile recheck it after root plan removal. Keep the plan when proof is failed, unavailable or stale. `--discard` records abandonment and cannot substitute for implemented completion. Plans without required product verification retain their existing closing behavior.
+1. Discover launch, tests, environment and recipe. Run
+   `scripts/project-verification discover` from the project root. Public metadata
+   is a starting point, not proof of business coverage.
+2. Map product ACs to observable actions/results, error boundaries and persistence.
+   Reuse the project's framework/skills. Include missing setup, tests and
+   observation commands in the task scope.
+3. If absent, run `scripts/project-verification init`. It creates a project-owned
+   `verification/recipe.json` and observation helper without overwriting files.
+   Complete unresolved mappings, argv, timeouts and assertions before running;
+   init never invents coverage. Examples live under `workflow/verification/`.
+4. Exercise affected flows on owned test resources with
+   `scripts/project-verification run --plan PLAN.md`. Retain failed cells and
+   cleanup observations; human-only or unavailable legs stay `blocked`.
+5. Run `scripts/project-verification-check PLAN.md` before archive. Report covered
+   ACs, decisive observations, source identity, exits and gaps. Regression and
+   quality checks still apply to process/judgment criteria.
 
-### Product completion metadata
+`verify` only rechecks existing evidence; missing setup is inconclusive. It never
+initializes, installs or repairs. Ambient instructions govern agent behavior;
+helpers enforce gates when invoked, not arbitrary commands outside the workflow.
 
-`plan_created.detail.product_verification_required` is an optional boolean populated from the active plan by the helper on plan-backed run events (and archive append). For required product plans, `archive_written` additionally retains `product_verification_required: true`, absolute `product_verification_receipt` and `product_archive_path`. CI-only ledgers without a plan lifecycle do not inherit an unrelated active plan. The two path fields must occur together. Archive append checks the declared product pack; cleanup produces the receipt; terminal completion and the autonomous profile revalidate the receipt and current source. Applicability can be promoted after initial plan creation and remains remembered after root plan removal, so missing receipt metadata cannot silently opt out. Legacy non-product ledgers are unchanged.
+## Recipe and observations
 
-## Evidence roles and identity
+The versioned recipe belongs outside `.workflow/`. Schema v1 names launch, doctor
+and cleanup argv commands with explicit positive `timeout_ms`. Scenarios need
+unique IDs, explicit product AC mappings, action/result commands and nonempty
+assertions. Persistence has separate commands/assertions when declared or required.
+An optional service has an owned process and readiness command.
 
-Action references must include an `action` artifact; result references an `outcome`; persistence an actual `side_effect`. Launch, doctor and isolation reference `execution_receipt` artifacts and cleanup a `cleanup` artifact. Phase receipts declare their `phases` (launch/isolation may share one receipt) and contain passed status and matching run/source identity. The aggregate execution receipt also binds the retained environment fingerprint and actual exit code. Missing, failed or unavailable observations cannot pass.
+Result/persistence commands print observed JSON only. RFC6901 `pointer` plus JSON
+`expected` assertions use typed deep equality; absent values cannot equal null.
+Observe actual state/DOM, never print expectations as observations. Exit 0 with a
+wrong value fails. The checker independently reevaluates retained raw JSON against
+the inventoried recipe at capture/completion, including mappings and assertions.
 
-The project producer preserves a sorted inventory from fixed `git ls-files --cached --others --exclude-standard -z`, with copied file hashes/modes and Git HEAD. Fixed exclusions are `PLAN.md`, `.workflow/`, `docs/plan/`, ignored dependencies/runtime artifacts and private environment files. The checker reruns the same inventory and compares live files without executing project source. Artifacts use confined relative paths and must retain their content hashes. This protects accidental stale or incomplete proof in a cooperative local workflow; it is not an authenticated attestation against a malicious process with the same OS user. Assertions and independent review establish behavior, while hashes establish identity.
+The runner executes shell-less argv in an owned regular-file snapshot; the live
+subject root survives cleanup. Commands receive controlled `ETABLI_SUBJECT_ROOT`,
+`ETABLI_RUN_DIR` and `ETABLI_RUN_ID`. Mutable state belongs in the owned runtime,
+outside source bytes. Explicit installed dependency reuse retains identity and
+makes no cold-install claim. Snapshot and origin must still match before capture.
 
-The foreground Starter QA command owns launch, doctor, auth/profile drivers, safe evidence production and cleanup. Use explicit criterion mappings from the frozen plan. Other features require their own executable proofs; successful auth cannot cover mail, invitations or billing. The default project skill is shared through Claude's canonical recipe and Pi's thin pointer.
+Process receipts bind protocol `etabli-project-verification/1`, run/source/
+environment/recipe hashes, argv, cwd, role, PID, timestamps, timeout and actual
+exit/signal. Raw observations link to stdout hashes. Launch/doctor/isolation/
+cleanup need actual passing observations. Services stay alive until intended
+shutdown. Timeout/interruption terminates and reaps owned groups; cleanup is
+attempted after failure and observes runtime removal. Later cleanup cannot erase
+an earlier failure.
 
-Completion receipts retain the exact frozen plan bytes privately and compare the derived contract with them and the archive hash. This prevents independent edits to the stored criterion contract from weakening the original plan.
+## Optional engine
 
-READY plan-backed events retain `product_verification_contract_sha256`, binding the declared pack, project root and frozen criteria. Completion checks the latest archive event itself, its declared archive path and this expected contract identity; it cannot reuse an earlier or foreign receipt. Nested acceptance details remain frozen under their parent criterion; additional product criteria use separate top-level AC IDs.
+Deterministic proof needs no model/key. Optional engine config declares argv,
+timeout, requested provider/model and credential environment **names**. Invoke
+explicitly with `run --engine`, reusing an installed runtime. Preflight lists
+missing config. Ask the user only if that selected engine needs configuration
+they must supply; enter credentials locally through the secure runtime mechanism
+or environment, never chat or recipe.
 
-Capture and initial archive validation require the captured Git HEAD. Later completion revalidation permits a changed HEAD only when the complete source path inventory, bytes and modes still match; the original ref remains retained provenance. Committing the validated bytes cannot invalidate the archived receipt, while any source change still does.
+Only named credentials reach the engine; its stdout/stderr are omitted from
+command evidence. Environment artifacts allow public tool/run identities and
+credential names/presence booleans, never dumps or values. Provider/model fields
+are requested metadata, not effective provenance. Engine success never replaces
+deterministic assertions. Real provider execution needs its own runtime evidence;
+test doubles do not establish it.
 
-`deploy-workflow` includes the checker, plan parser and shared schema. Schema validation resolves TypeBox from the Etabli Pi dependency tree or the managed `~/.pi/agent/npm` runtime. A missing dependency blocks validation; deployment does not install packages.
+## Evidence and UI
 
-Invoke ledger commands from the project root, or set `WORKFLOW_EVENT_PROJECT_ROOT` explicitly when using `--dir` from another directory. `archive_written` participates in the plan lifecycle even without an earlier `plan_created`; ordinary CI ledgers have neither event. Versioned source symlinks are unsupported by this regular-file snapshot contract and block validation; supporting them requires an explicit producer/checker adaptation.
+Action references include `action`, results `outcome`, persistence `side_effect`.
+Launch/doctor/isolation use `execution_receipt`; cleanup uses `cleanup`. Aggregate
+receipts bind environment and actual outcome. Declared persistence needs proof
+even without the AC side-effect role.
+
+UI packs additionally need passed keyboard/focus/accessibility/console/network
+checks with retained evidence and an observed viewport. Responsive/motion/reference
+follow declared scope: scoped checks pass with evidence; unscoped checks need a
+not-applicable reason. Responsive proof needs two distinct sizes. Browser result
+proof alone does not claim those additional UI checks were performed.
+
+## Identity and closing
+
+The inventory uses fixed `git ls-files --cached --others --exclude-standard -z`,
+hashes/modes and HEAD. Fixed exclusions include PLAN, `.workflow/`, archives,
+ignored dependencies/runtime artifacts and private environment files. Source
+symlinks block this regular-file contract. Artifacts use confined relative paths
+and retained hashes. This prevents stale/incomplete proof in cooperative local
+work; it is not authenticated attestation against a malicious same-user process.
+
+READY events bind pack/root/criteria/assertion policy in
+`product_verification_contract_sha256`. `archive_written` checks the pack and
+retains paired receipt/archive paths. `plan-cleanup --archive` repeats validation,
+retains exact frozen plan/archive bytes and rechecks source/artifact identity
+synchronously before receipt write and PLAN unlink. Keep PLAN on failure.
+`completed` and autonomous validation recheck after removal and cannot reuse an
+older/foreign receipt. Later validation permits a new HEAD only with identical
+full path inventory, bytes and modes.
+
+Invoke ledger commands from the project root or set `WORKFLOW_EVENT_PROJECT_ROOT`.
+CI-only ledgers without a plan lifecycle do not inherit another plan. Historical
+Starter packs stay compatible; auth/profile proof covers those flows only.
+Other features need their own executable observations.
+
+## Deployment
+
+`deploy-workflow` distributes runner/checker/libraries/schema/examples. It never
+distributes or excludes project recipes/observers: these stay versioned and
+inventoried. Existing projects need updated scaffold; review drift before force
+redeploy. TypeBox resolves from Etabli Pi dependencies or managed Pi runtime;
+missing dependencies block validation. Deployment never installs packages.
