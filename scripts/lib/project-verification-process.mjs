@@ -25,14 +25,19 @@ export function verificationEnvironment(source = process.env) {
   );
 }
 
-export function processGroupMembers(group) {
+function processGroupIdentities(group) {
   if (!group) return [];
-  return execFileSync("ps", ["-axo", "pid=,pgid="], { encoding: "utf8" })
-    .trim()
-    .split("\n")
-    .map((line) => line.trim().split(/\s+/).map(Number))
-    .filter(([, pgid]) => pgid === group)
-    .map(([pid]) => pid);
+  return execFileSync("ps", ["-axo", "pid=,pgid=,lstart="], {
+    encoding: "utf8", env: { ...process.env, LC_ALL: "C" },
+  }).trim().split("\n").filter(Boolean).map((line) => {
+    const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/);
+    assert.ok(match, "Process identity is unavailable");
+    return { pid: Number(match[1]), group: Number(match[2]), birth: match[3].replace(/\s+/g, " ") };
+  }).filter((member) => member.group === group);
+}
+
+export function processGroupMembers(group) {
+  return processGroupIdentities(group).map((member) => member.pid);
 }
 
 function leaderIsLive(pid) {
@@ -53,6 +58,8 @@ export function createVerificationProcesses({
   environment,
   binding,
   installedPaths = [],
+  observeGroup = processGroupIdentities,
+  sendGroupSignal = (group, signal) => process.kill(-group, signal),
 }) {
   const owned = new Set();
   const shutdown = new AbortController();
@@ -128,20 +135,45 @@ export function createVerificationProcesses({
       reaped: false,
       exited: false,
       closed: false,
+      retired: false,
+      identityLost: false,
+      groupMembers: [],
     };
     owned.add(handle);
     child.stdout.on("data", (bytes) => {
       if (!engine) stdout = Buffer.concat([stdout, bytes]);
     });
     child.stderr.on("data", () => {}); // No raw diagnostics or agent output are exported.
-    const signalGroup = (signal) => {
-      if (!child.pid) return;
-      try {
-        process.kill(-child.pid, signal);
-      } catch (error) {
-        if (error.code !== "ESRCH" && processGroupMembers(child.pid).length)
-          throw error;
+    // Closed groups use immutable birth identities; ps/kill is not an atomic lease.
+    handle.groupAlive = () => {
+      if (handle.groupError) throw handle.groupError;
+      if (handle.retired || !child.pid) return false;
+      const members = observeGroup(child.pid);
+      if (handle.closed) {
+        const anchored = members.some((member) => handle.groupMembers.some(
+          (known) => known.pid === member.pid && known.birth === member.birth,
+        ));
+        if (!members.length || members.some((member) => member.pid === child.pid) || !anchored) {
+          handle.retired = true;
+          handle.identityLost = members.length > 0 && !members.some((member) => member.pid === child.pid);
+          return false;
+        }
       }
+      return members.length > 0;
+    };
+    const signalGroup = (signal) => {
+      if (!child.pid || handle.retired || (handle.closed && !handle.groupAlive())) return;
+      try {
+        sendGroupSignal(child.pid, signal);
+      } catch (error) {
+        if (error.code === "ESRCH") handle.retired = true;
+        else if (handle.groupAlive()) throw error;
+      }
+    };
+    handle.kill = () => signalGroup("SIGKILL");
+    const asynchronously = (action) => {
+      try { action(); }
+      catch (error) { handle.groupError = error; }
     };
     let escalation;
     handle.stop = () => {
@@ -156,13 +188,13 @@ export function createVerificationProcesses({
       }
       if (!handle.exited) intentional = true;
       signalGroup("SIGTERM");
-      escalation ??= setTimeout(() => signalGroup("SIGKILL"), 2000);
+      escalation ??= setTimeout(() => asynchronously(handle.kill), 2000);
     };
     const timeout = setTimeout(() => {
       timedOut = true;
-      handle.stop();
+      asynchronously(handle.stop);
     }, command.timeout_ms);
-    const abort = () => handle.stop();
+    const abort = () => asynchronously(handle.stop);
     if (!cleanup)
       shutdown.signal.addEventListener("abort", abort, { once: true });
     child.once("error", (error) => {
@@ -178,6 +210,10 @@ export function createVerificationProcesses({
         clearTimeout(timeout);
         clearTimeout(escalation);
         shutdown.signal.removeEventListener("abort", abort);
+        try {
+          handle.groupMembers = observeGroup(child.pid);
+          handle.retired = !handle.groupMembers.length || handle.groupMembers.some((member) => member.pid === child.pid);
+        } catch (error) { handle.groupError = error; }
         if (service && !intentional) handle.unexpectedExit = true;
         const receipt = {
           protocol: assertionProtocol,
@@ -228,8 +264,7 @@ export function createVerificationProcesses({
         );
     },
     async stopAll() {
-      const alive = (handle) =>
-        processGroupMembers(handle.child.pid).length > 0;
+      const alive = (handle) => handle.groupAlive();
       for (const handle of owned) if (alive(handle)) handle.stop();
       await Promise.all([...owned].map((handle) => handle.done));
       const deadline = Date.now() + 10000;
@@ -237,14 +272,14 @@ export function createVerificationProcesses({
         for (const handle of owned)
           if (alive(handle)) {
             try {
-              process.kill(-handle.child.pid, "SIGKILL");
+              handle.kill();
             } catch (error) {
               if (error.code !== "ESRCH" && alive(handle)) throw error;
             }
           }
         await delay(50);
       }
-      for (const handle of owned) handle.reaped = !alive(handle);
+      for (const handle of owned) handle.reaped = !alive(handle) && !handle.identityLost;
       for (const handle of owned) handle.clearEscalation();
       return [...owned].map((handle) => ({
         pid: handle.child.pid ?? null,
