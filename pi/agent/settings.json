@@ -28,6 +28,7 @@
         "pr-qa",
         "sec-pr",
         "ci-fix",
+        "write-direct",
         "ship",
         "thermo-nuclear-code-quality-review"
       ]

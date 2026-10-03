@@ -400,6 +400,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "4d85167256cb5a45aa613e49d5fc23a4a180140928069ee887c5e927431de88b"
+    },
+    "write-direct": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "30e5fee6b9e72f5b425ca49c0a6521ec005a5dc0a773dbbce26f6f545008fb05"
     }
   }
 }

@@ -691,10 +691,8 @@ for prompt_surface in pi_core agents_visible; do
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
     case "$prompt_surface" in
-    # Raised 2026-08-28 with the thermo-nuclear pi-core skill's long
-    # description (suite adoptions above).
-    pi_core) max_bytes=2939 ;;
-    agents_visible) max_bytes=2806 ;;
+    pi_core) max_bytes=2950 ;;
+    agents_visible) max_bytes=2818 ;;
     esac
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
