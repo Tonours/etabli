@@ -193,6 +193,8 @@ export function assertCommandReceipt(
     Date.parse(receipt.ended_at) >= Date.parse(receipt.started_at),
     "Process observation ends before it starts",
   );
+  if (Object.hasOwn(receipt, "completion_forced"))
+    assert.equal(receipt.completion_forced, false, "Process completion was forced rather than observed");
   assert.equal(
     receipt.timed_out,
     false,

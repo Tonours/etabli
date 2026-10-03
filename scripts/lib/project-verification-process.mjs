@@ -27,28 +27,17 @@ export function verificationEnvironment(source = process.env) {
 
 function processGroupIdentities(group) {
   if (!group) return [];
-  return execFileSync("ps", ["-axo", "pid=,pgid=,lstart="], {
+  return execFileSync("ps", ["-axo", "pid=,pgid=,stat=,lstart="], {
     encoding: "utf8", env: { ...process.env, LC_ALL: "C" },
   }).trim().split("\n").filter(Boolean).map((line) => {
-    const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/);
+    const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+?)\s*$/);
     assert.ok(match, "Process identity is unavailable");
-    return { pid: Number(match[1]), group: Number(match[2]), birth: match[3].replace(/\s+/g, " ") };
+    return { pid: Number(match[1]), group: Number(match[2]), live: !/^[ZX]/.test(match[3]), birth: match[4].replace(/\s+/g, " ") };
   }).filter((member) => member.group === group);
 }
 
 export function processGroupMembers(group) {
   return processGroupIdentities(group).map((member) => member.pid);
-}
-
-function leaderIsLive(pid) {
-  if (!pid) return false;
-  return execFileSync("ps", ["-axo", "pid=,stat="], { encoding: "utf8" })
-    .trim()
-    .split("\n")
-    .some((line) => {
-      const [candidate, state] = line.trim().split(/\s+/);
-      return Number(candidate) === pid && !/^[ZX]/.test(state);
-    });
 }
 
 export function createVerificationProcesses({
@@ -60,7 +49,12 @@ export function createVerificationProcesses({
   installedPaths = [],
   observeGroup = processGroupIdentities,
   sendGroupSignal = (group, signal) => process.kill(-group, signal),
+  sendMemberSignal = (pid, signal) => process.kill(pid, signal),
+  closeGraceMs = 2000,
+  cleanupGraceMs = 10000,
 }) {
+  for (const grace of [closeGraceMs, cleanupGraceMs])
+    assert.ok(Number.isSafeInteger(grace) && grace > 0, "Shutdown grace must be a positive integer");
   const owned = new Set();
   const shutdown = new AbortController();
   const listeners = new Map(
@@ -122,132 +116,163 @@ export function createVerificationProcesses({
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let stdout = Buffer.alloc(0),
-      timedOut = false,
-      spawnError,
-      intentional = false;
+    let stdout = Buffer.alloc(0), timedOut = false, spawnError, intentional = false;
+    let timeout, escalation, completionTimer, resolveDone;
     const handle = {
-      child,
-      role,
-      service,
-      ready: false,
-      unexpectedExit: false,
-      reaped: false,
-      exited: false,
-      closed: false,
-      retired: false,
-      identityLost: false,
-      groupMembers: [],
+      child, role, service, ready: false, unexpectedExit: false,
+      reaped: false, exited: false, closed: false, settled: false,
+      retired: false, identityLost: false, completionForced: false,
+      handedOff: false, leaderReaped: false, leaderBirth: undefined, groupMembers: [],
     };
     owned.add(handle);
+    handle.done = new Promise((done) => { resolveDone = done; });
     child.stdout.on("data", (bytes) => {
       if (!engine) stdout = Buffer.concat([stdout, bytes]);
     });
     child.stderr.on("data", () => {}); // No raw diagnostics or agent output are exported.
-    // Closed groups use immutable birth identities; ps/kill is not an atomic lease.
-    handle.groupAlive = () => {
-      if (handle.groupError) throw handle.groupError;
-      if (handle.retired || !child.pid) return false;
-      const members = observeGroup(child.pid);
-      if (handle.closed) {
-        const anchored = members.some((member) => handle.groupMembers.some(
-          (known) => known.pid === member.pid && known.birth === member.birth,
-        ));
-        if (!members.length || members.some((member) => member.pid === child.pid) || !anchored) {
-          handle.retired = true;
-          handle.identityLost = members.length > 0 && !members.some((member) => member.pid === child.pid);
-          return false;
-        }
-      }
-      return members.length > 0;
-    };
-    const signalGroup = (signal) => {
-      if (!child.pid || handle.retired || (handle.closed && !handle.groupAlive())) return;
-      try {
-        sendGroupSignal(child.pid, signal);
-      } catch (error) {
-        if (error.code === "ESRCH") handle.retired = true;
-        else if (handle.groupAlive()) throw error;
-      }
-    };
-    handle.kill = () => signalGroup("SIGKILL");
     const asynchronously = (action) => {
       try { action(); }
       catch (error) { handle.groupError = error; }
     };
-    let escalation;
-    handle.stop = () => {
-      if (
-        service &&
-        !intentional &&
-        !handle.exited &&
-        !leaderIsLive(child.pid)
-      ) {
-        handle.exited = true;
-        handle.unexpectedExit = true;
+    const handoff = (members) => {
+      if (handle.handedOff || handle.retired || !handle.leaderBirth) return;
+      handle.handedOff = true;
+      const leader = members.find((member) => member.pid === child.pid);
+      if (leader && (handle.leaderReaped || leader.birth !== handle.leaderBirth)) {
+        handle.retired = true;
+        handle.identityLost = true;
+        return;
       }
-      if (!handle.exited) intentional = true;
-      signalGroup("SIGTERM");
-      escalation ??= setTimeout(() => asynchronously(handle.kill), 2000);
+      handle.groupMembers = members;
+      handle.retired = !members.length;
     };
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      asynchronously(handle.stop);
-    }, command.timeout_ms);
+    // Birth observations are sampled; ps/signal is not an atomic kernel lease.
+    const observedMembers = () => {
+      if (handle.retired || !child.pid) return [];
+      if (handle.groupError) throw handle.groupError;
+      const members = observeGroup(child.pid);
+      if (!handle.handedOff && !handle.exited) {
+        const leader = members.find((member) => member.pid === child.pid);
+        if (leader?.live) {
+          if (handle.leaderBirth && leader.birth !== handle.leaderBirth) {
+            handle.retired = true;
+            handle.identityLost = true;
+            handle.exited = true;
+            if (service && !intentional) handle.unexpectedExit = true;
+            return [];
+          }
+          handle.leaderBirth ??= leader.birth;
+          handle.groupMembers = members;
+          return members;
+        }
+        if (!handle.leaderBirth) return []; // A newborn miss stays pending.
+        handle.exited = true;
+        if (service && !intentional) handle.unexpectedExit = true;
+        handoff(members);
+      }
+      if (!handle.handedOff) handoff(members);
+      if (!handle.handedOff || handle.retired) return [];
+      const anchored = members.some((member) => handle.groupMembers.some(
+        (known) => known.pid === member.pid && known.birth === member.birth,
+      ));
+      if (!members.length || (handle.leaderReaped && members.some((member) => member.pid === child.pid)) || !anchored) {
+        handle.retired = true;
+        handle.identityLost = members.length > 0;
+        return [];
+      }
+      return members;
+    };
+    handle.groupAlive = () => observedMembers().length > 0;
+    const signalOwned = (signal) => {
+      const members = observedMembers();
+      if (handle.retired) return;
+      if (!handle.handedOff) {
+        const leader = members.find((member) => member.pid === child.pid);
+        if (!leader?.live || leader.birth !== handle.leaderBirth) return;
+        const previouslyIntentional = intentional;
+        intentional = true;
+        try { sendGroupSignal(child.pid, signal); }
+        catch (error) {
+          intentional = previouslyIntentional;
+          if (error.code === "ESRCH") handle.retired = true;
+          else throw error;
+        }
+        return;
+      }
+      for (const known of handle.groupMembers) {
+        const current = observedMembers().find((member) => member.pid === known.pid && member.birth === known.birth);
+        if (!current?.live) continue;
+        try { sendMemberSignal(current.pid, signal); }
+        catch (error) { if (error.code !== "ESRCH") throw error; }
+      }
+    };
+    handle.kill = () => signalOwned("SIGKILL");
+    const clearCallbacks = () => {
+      clearTimeout(timeout);
+      clearTimeout(escalation);
+      clearTimeout(completionTimer);
+      shutdown.signal.removeEventListener("abort", abort);
+    };
+    const finish = (code, signal) => {
+      if (handle.settled) return;
+      const receipt = {
+        protocol: assertionProtocol, ...binding, role,
+        ...(scenarioId ? { scenario_id: scenarioId } : {}),
+        argv: command.argv, cwd, pid: child.pid ?? null,
+        started_at: started, ended_at: new Date().toISOString(),
+        exit_code: code, signal, timed_out: timedOut,
+        completion_forced: handle.completionForced,
+        timeout_ms: command.timeout_ms, stdout_sha256: sha256(stdout),
+        ...(spawnError ? { spawn_error: spawnError } : {}),
+        ...(service ? {
+          owned_shutdown: intentional, ready_observed: handle.ready,
+          unexpected_exit: handle.unexpectedExit,
+        } : {}),
+      };
+      handle.settled = true;
+      handle.receipt = receipt;
+      clearCallbacks();
+      resolveDone({receipt, stdout, ok: !spawnError && !handle.completionForced &&
+        code === 0 && signal === null && !timedOut && (cleanup || !shutdown.signal.aborted)});
+    };
+    handle.forceCompletion = () => {
+      if (handle.settled) return;
+      handle.completionForced = true; // Latch before releasing pipes can emit close.
+      try { handle.kill(); }
+      catch (error) { handle.groupError = error; }
+      finally {
+        for (const stream of [child.stdout, child.stderr]) asynchronously(() => stream.destroy());
+        try { child.unref(); }
+        finally { finish(child.exitCode, child.signalCode); }
+      }
+    };
+    handle.stop = () => {
+      try { signalOwned("SIGTERM"); }
+      finally {
+        if (!handle.settled) {
+          // Leave time to observe KILL completion within the total close grace.
+          escalation ??= setTimeout(() => asynchronously(handle.kill), Math.max(1, Math.floor(closeGraceMs / 2)));
+          completionTimer ??= setTimeout(handle.forceCompletion, closeGraceMs);
+        }
+      }
+    };
+    timeout = setTimeout(() => { timedOut = true; asynchronously(handle.stop); }, command.timeout_ms);
     const abort = () => asynchronously(handle.stop);
-    if (!cleanup)
-      shutdown.signal.addEventListener("abort", abort, { once: true });
-    child.once("error", (error) => {
-      spawnError = error.code || "spawn_failed";
-    });
+    if (!cleanup) shutdown.signal.addEventListener("abort", abort, { once: true });
+    child.once("error", (error) => { spawnError = error.code || "spawn_failed"; });
     child.once("exit", () => {
       handle.exited = true;
+      handle.leaderReaped = true;
       if (service && !intentional) handle.unexpectedExit = true;
+      asynchronously(() => { if (!handle.handedOff && !handle.retired) handoff(observeGroup(child.pid)); });
     });
-    handle.done = new Promise((done) =>
-      child.once("close", (code, signal) => {
-        handle.closed = true;
-        clearTimeout(timeout);
-        clearTimeout(escalation);
-        shutdown.signal.removeEventListener("abort", abort);
-        try {
-          handle.groupMembers = observeGroup(child.pid);
-          handle.retired = !handle.groupMembers.length || handle.groupMembers.some((member) => member.pid === child.pid);
-        } catch (error) { handle.groupError = error; }
-        if (service && !intentional) handle.unexpectedExit = true;
-        const receipt = {
-          protocol: assertionProtocol,
-          ...binding,
-          role,
-          ...(scenarioId ? { scenario_id: scenarioId } : {}),
-          argv: command.argv,
-          cwd,
-          pid: child.pid ?? null,
-          started_at: started,
-          ended_at: new Date().toISOString(),
-          exit_code: code,
-          signal,
-          timed_out: timedOut,
-          timeout_ms: command.timeout_ms,
-          stdout_sha256: sha256(stdout),
-          ...(spawnError ? { spawn_error: spawnError } : {}),
-          ...(service
-            ? {
-                owned_shutdown: intentional,
-                ready_observed: handle.ready,
-                unexpected_exit: handle.unexpectedExit,
-              }
-            : {}),
-        };
-        handle.receipt = receipt;
-        done({
-          receipt,
-          stdout,
-          ok: !spawnError && code === 0 && signal === null && !timedOut,
-        });
-      }),
-    );
-    handle.clearEscalation = () => clearTimeout(escalation);
+    child.once("close", (code, signal) => {
+      handle.closed = true;
+      if (!child.pid) handle.retired = true;
+      finish(code, signal);
+    });
+    handle.clearEscalation = () => { clearTimeout(escalation); clearTimeout(completionTimer); };
+    asynchronously(observedMembers);
     return handle;
   }
   return {
@@ -259,32 +284,34 @@ export function createVerificationProcesses({
     assertServices() {
       for (const handle of owned)
         assert.ok(
-          !handle.service || (!handle.exited && !handle.closed),
+          !handle.service || (!handle.exited && !handle.settled),
           "Owned service exited before cleanup",
         );
     },
     async stopAll() {
-      const alive = (handle) => handle.groupAlive();
-      for (const handle of owned) if (alive(handle)) handle.stop();
-      await Promise.all([...owned].map((handle) => handle.done));
-      const deadline = Date.now() + 10000;
-      while ([...owned].some(alive) && Date.now() < deadline) {
-        for (const handle of owned)
-          if (alive(handle)) {
-            try {
-              handle.kill();
-            } catch (error) {
-              if (error.code !== "ESRCH" && alive(handle)) throw error;
-            }
-          }
-        await delay(50);
+      const handles = [...owned];
+      const deadline = Date.now() + cleanupGraceMs;
+      const forcePending = () => { for (const handle of handles) handle.forceCompletion(); };
+      let expired = false;
+      const completionDeadline = setTimeout(() => { expired = true; forcePending(); }, cleanupGraceMs);
+      try {
+        for (const handle of handles) if (!handle.settled || handle.groupAlive()) handle.stop();
+        await Promise.all(handles.map((handle) => handle.done));
+        while (!expired && Date.now() < deadline && handles.some((handle) => handle.groupAlive())) {
+          for (const handle of handles) if (handle.groupAlive()) handle.kill();
+          await delay(50);
+        }
+        for (const handle of handles)
+          handle.reaped = !handle.groupAlive() && (!handle.child.pid || handle.handedOff) &&
+            !handle.identityLost && !handle.completionForced;
+        return handles.map((handle) => ({pid: handle.child.pid ?? null, reaped: handle.reaped}));
+      } catch (error) {
+        forcePending();
+        throw error;
+      } finally {
+        clearTimeout(completionDeadline);
+        for (const handle of handles) handle.clearEscalation();
       }
-      for (const handle of owned) handle.reaped = !alive(handle) && !handle.identityLost;
-      for (const handle of owned) handle.clearEscalation();
-      return [...owned].map((handle) => ({
-        pid: handle.child.pid ?? null,
-        reaped: handle.reaped,
-      }));
     },
     dispose() {
       for (const [signal, listener] of listeners)

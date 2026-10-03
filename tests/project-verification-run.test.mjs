@@ -17,6 +17,7 @@ import { basename, join } from "node:path";
 import { test } from "node:test";
 import { runProjectVerification } from "../scripts/lib/project-verification-run.mjs";
 import { productFixture } from "./lib/project-verification-fixture.mjs";
+import { assertCommandReceipt } from "../scripts/lib/project-verification-assertions.mjs";
 import {
   createVerificationProcesses,
   processGroupMembers,
@@ -502,9 +503,10 @@ for (const replacement of ["retired", "reused-descendant", "owned-descendant"]) 
       environment: { PATH: process.env.PATH }, binding: {},
       observeGroup: (group) => state === "empty" ? [] : [{
         pid: state === "leader" || state === "foreign-leader" ? group : group + 1,
-        birth: state === "replacement" || state === "foreign-leader" ? "new birth" : "original birth",
+        live: true, birth: state === "replacement" || state === "foreign-leader" ? "new birth" : "original birth",
       }],
-      sendGroupSignal: (group, signal) => { signals.push({ group, signal }); state = "empty"; },
+      sendGroupSignal: () => { assert.fail("Exited leader must not authorize a group signal"); },
+      sendMemberSignal: (pid, signal) => { signals.push({ pid, signal }); state = "empty"; },
     });
     t.after(() => processes.dispose());
     const handle = processes.start({ argv: [process.execPath, "-e", "setTimeout(()=>{},50)"], timeout_ms: 5000 }, "launch");
@@ -513,7 +515,7 @@ for (const replacement of ["retired", "reused-descendant", "owned-descendant"]) 
     state = replacement === "retired" ? "foreign-leader" : replacement === "reused-descendant" ? "replacement" : "descendant";
     const groups = await processes.stopAll();
     assert.ok(groups.every((group) => group.reaped === (replacement !== "reused-descendant")), "Unrecognized descendants must not be declared reaped");
-    if (replacement === "owned-descendant") assert.deepEqual(signals, [{ group: handle.child.pid, signal: "SIGTERM" }]);
+    if (replacement === "owned-descendant") assert.deepEqual(signals, [{ pid: handle.child.pid + 1, signal: "SIGTERM" }]);
     else assert.deepEqual(signals, [], "A replacement process must never be signaled");
     state = "foreign-leader";
     await processes.stopAll();
@@ -522,30 +524,258 @@ for (const replacement of ["retired", "reused-descendant", "owned-descendant"]) 
 }
 
 test("identity lost during final cleanup observation cannot be reported reaped", async (t) => {
-  const calls = new Map();
-  let first;
+  let phase = "leaders", first, second;
+  const signals = [];
   const processes = createVerificationProcesses({
-    cwd: process.cwd(), runRoot: process.cwd(), originRoot: process.cwd(),
-    environment: { PATH: process.env.PATH }, binding: {},
-    observeGroup: (group) => {
-      const count = (calls.get(group) ?? 0) + 1;
-      calls.set(group, count);
-      if (group === first && count >= 5) return [];
-      return [{ pid: group + 1, birth: group !== first && count >= 4 ? "replacement birth" : "original birth" }];
-    },
-    sendGroupSignal: () => {},
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},
+    observeGroup: (group) => phase === "final" && group === first ? [] : [{
+      pid:phase === "leaders" ? group : group + 1,live:true,
+      birth:phase === "final" && group === second ? "replacement birth" : "original birth",
+    }],
+    sendGroupSignal: () => assert.fail("Closed leaders cannot authorize group signals"),
+    sendMemberSignal: (pid,signal) => {signals.push({pid,signal});if (pid === second + 1) phase = "final";},
   });
   t.after(() => processes.dispose());
-  const command = { argv: [process.execPath, "-e", "setTimeout(()=>{},50)"], timeout_ms: 5000 };
-  const a = processes.start(command, "launch");
-  first = a.child.pid;
-  const b = processes.start(command, "doctor");
-  await Promise.all([a.done, b.done]);
+  const command = {argv:[process.execPath,"-e","setTimeout(()=>{},50)"],timeout_ms:5000};
+  const a = processes.start(command,"launch");first = a.child.pid;
+  const b = processes.start(command,"doctor");second = b.child.pid;
+  phase = "members";
+  await Promise.all([a.done,b.done]);
   let clockReads = 0;
-  t.mock.method(Date, "now", () => clockReads++ === 0 ? 0 : 10001);
+  t.mock.method(Date,"now",() => clockReads++ === 0 ? 0 : 10001);
   const groups = await processes.stopAll();
-  assert.equal(calls.get(a.child.pid), 5);
-  assert.equal(calls.get(b.child.pid), 4);
-  assert.equal(b.identityLost, true);
-  assert.deepEqual(groups, [{ pid: a.child.pid, reaped: true }, { pid: b.child.pid, reaped: false }]);
+  assert.equal(b.identityLost,true);
+  assert.deepEqual(groups,[{pid:first,reaped:true},{pid:second,reaped:false}]);
+  assert.deepEqual(signals,[{pid:first+1,signal:"SIGTERM"},{pid:second+1,signal:"SIGTERM"}]);
+});
+
+function killTestChild(pid) {
+  if (!pid) return;
+  try { process.kill(pid, "SIGKILL"); }
+  catch (error) { if (error.code !== "ESRCH") throw error; }
+}
+
+test("detached inherited pipes fail bounded and retain incomplete runner cleanup", async (t) => {
+  const f = fixture(t);
+  const pidFile = join(f.root, ".workflow/detached-child.json");
+  const childPid = () => existsSync(pidFile) ? JSON.parse(readFileSync(pidFile)).pid : undefined;
+  t.after(() => killTestChild(childPid()));
+  f.recipe.scenarios[0].action = {
+    argv: f.script("detached-pipes", `import {spawn} from "node:child_process";import {writeFileSync} from "node:fs";const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"inherit"});writeFileSync(${JSON.stringify(pidFile)},JSON.stringify({pid:child.pid}));child.unref();`),
+    timeout_ms: 1000,
+  };
+  f.saveRecipe();
+  let watchdogTripped = false;
+  const watchdog = setTimeout(() => { watchdogTripped = true; killTestChild(childPid()); }, 8000);
+  try {
+    await assert.rejects(runProjectVerification({planPath:f.planPath,runId:"detached-pipes"}));
+    assert.equal(watchdogTripped, false, "Timeout must reach finally without test rescue");
+    const action = f.artifact("value-write-action-receipt");
+    assert.equal(action.timed_out, true);
+    assert.equal(action.completion_forced, true);
+    assert.equal(f.artifact("execution").exit_code, 1);
+    const cleanup = f.artifact("cleanup");
+    assert.equal(cleanup.exit_code, 0, "Cleanup hook must actually execute");
+    assert.equal(cleanup.owned_cleanup.runtime_removed, true);
+    assert.equal(cleanup.owned_cleanup.processes_reaped, false);
+    assert.equal(cleanup.status, "failed");
+    assert.notEqual(f.check().status, 0, "Failed execution pack stays rejected");
+    assert.equal(existsSync(f.planPath), true);
+  } finally { clearTimeout(watchdog); killTestChild(childPid()); }
+});
+
+test("actual forced service receipt is rejected on both otherwise-passing checker paths", async (t) => {
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},closeGraceMs:100,
+  });
+  let pid, handle;
+  t.after(async () => { killTestChild(pid); handle?.child.kill("SIGKILL"); await processes.stopAll(); processes.dispose(); });
+  const command = {argv:[process.execPath,"-e",'const {spawn}=require("node:child_process");const c=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"inherit"});c.unref();process.on("SIGTERM",()=>process.exit(0));console.log(c.pid);setInterval(()=>{},1000);'],timeout_ms:10000};
+  handle = processes.start(command,"service",{service:true});
+  pid = Number((await new Promise(resolve => handle.child.stdout.once("data", resolve))).toString().trim());
+  handle.ready = true;
+  let watchdogTripped = false;
+  const watchdog = setTimeout(() => { watchdogTripped = true; killTestChild(pid); }, 3000);
+  try {
+    handle.stop();
+    const output = await handle.done;
+    assert.equal(watchdogTripped, false, "Force must settle the original done promise");
+    assert.equal(output.ok, false);
+    assert.equal(output.receipt.completion_forced, true);
+    assert.equal(output.receipt.exit_code, 0);
+    assert.equal(output.receipt.signal, null);
+    assert.equal(output.receipt.timed_out, false);
+    assert.equal(output.receipt.owned_shutdown, true);
+    assert.equal(output.receipt.ready_observed, true);
+    assert.equal(output.receipt.unexpected_exit, false);
+    for (const allowOwnedShutdown of [false,true]) {
+      assert.throws(() => assertCommandReceipt(output.receipt,command,{}, {allowOwnedShutdown}), /forced/i);
+      const legacy = {...output.receipt};delete legacy.completion_forced;
+      assertCommandReceipt(legacy,command,{}, {allowOwnedShutdown});
+    }
+    assert.ok((await processes.stopAll()).every(group => !group.reaped));
+  } finally { clearTimeout(watchdog); killTestChild(pid); }
+});
+
+
+test("cleanup deadline settles pending service done before its longer close grace", async (t) => {
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},closeGraceMs:5000,cleanupGraceMs:100,
+  });
+  let pid,handle;
+  t.after(async () => {killTestChild(pid);handle?.child.kill("SIGKILL");await processes.stopAll();processes.dispose();});
+  handle = processes.start({argv:[process.execPath,"-e",'const {spawn}=require("node:child_process");const c=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"inherit"});console.log(c.pid);c.unref();'],timeout_ms:10000},"service",{service:true});
+  pid = Number((await new Promise(resolve => handle.child.stdout.once("data",resolve))).toString().trim());
+  if (!handle.exited) await new Promise(resolve => handle.child.once("exit",resolve));
+  let rescued = false;
+  const watchdog = setTimeout(() => {rescued=true;killTestChild(pid);},1500);
+  try {
+    const groups = await processes.stopAll();
+    const output = await handle.done;
+    assert.equal(rescued,false,"Cleanup deadline must precede the done wait");
+    assert.equal(output.ok,false);
+    assert.equal(output.receipt.completion_forced,true);
+    assert.equal(output.receipt.timed_out,false);
+    assert.ok(groups.every(group => !group.reaped));
+  } finally {clearTimeout(watchdog);killTestChild(pid);}
+});
+
+test("interruption settles an exited command with detached inherited pipes", async (t) => {
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},closeGraceMs:100,
+  });
+  let pid,handle;
+  t.after(async () => {killTestChild(pid);handle?.child.kill("SIGKILL");await processes.stopAll();processes.dispose();});
+  const command = {argv:[process.execPath,"-e",'const {spawn}=require("node:child_process");const c=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"inherit"});console.log(c.pid);c.unref();'],timeout_ms:10000};
+  handle = processes.start(command,"action");
+  pid = Number((await new Promise(resolve => handle.child.stdout.once("data",resolve))).toString().trim());
+  if (!handle.exited) await new Promise(resolve => handle.child.once("exit",resolve));
+  let rescued = false;
+  const watchdog = setTimeout(() => {rescued=true;killTestChild(pid);},1500);
+  try {
+    process.emit("SIGTERM");
+    const output = await handle.done;
+    assert.equal(rescued,false);
+    assert.equal(output.ok,false);
+    assert.equal(output.receipt.completion_forced,true);
+    assert.equal(output.receipt.timed_out,false);
+    assert.throws(() => assertCommandReceipt(output.receipt,command,{}),/forced/i);
+  } finally {clearTimeout(watchdog);killTestChild(pid);}
+});
+
+test("newborn snapshot miss stays pending and recaptures live birth before signaling", async (t) => {
+  let first = true,gone = false;
+  const signals = [];
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},closeGraceMs:1000,
+    observeGroup: (group) => {if (first) {first=false;return [];}return gone ? [] : [{pid:group,live:true,birth:"original live birth"}];},
+    sendGroupSignal: (group,signal) => {signals.push({group,signal});process.kill(-group,signal);gone=true;},
+    sendMemberSignal: () => assert.fail("A pending leader cannot authorize member signals"),
+  });
+  const handle = processes.start({argv:[process.execPath,"-e","setInterval(()=>{},1000)"],timeout_ms:5000},"action");
+  t.after(async () => {handle.child.kill("SIGKILL");gone=true;await processes.stopAll();processes.dispose();});
+  assert.equal(handle.retired,false);
+  assert.equal(handle.leaderBirth,undefined);
+  handle.stop();
+  const output = await handle.done;
+  assert.equal(handle.leaderBirth,"original live birth");
+  assert.equal(output.receipt.completion_forced,false);
+  assert.equal(output.receipt.signal,"SIGTERM");
+  assert.deepEqual(signals,[{group:handle.child.pid,signal:"SIGTERM"}]);
+  assert.ok((await processes.stopAll()).every(group => group.reaped));
+});
+
+for (const observation of ["empty", "replacement"]) {
+  test(`unanchored actual exit stays pending with ${observation} observations`, async (t) => {
+    let exited = false;
+    const signals = [];
+    const processes = createVerificationProcesses({
+      cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+      environment:{PATH:process.env.PATH},binding:{},cleanupGraceMs:100,
+      observeGroup: (group) => exited && observation === "replacement"
+        ? [{pid:group,live:true,birth:"unrelated replacement"}] : [],
+      sendGroupSignal: (...args) => signals.push(["group",...args]),
+      sendMemberSignal: (...args) => signals.push(["member",...args]),
+    });
+    t.after(() => processes.dispose());
+    const handle = processes.start({argv:[process.execPath,"-e",""],timeout_ms:1000},"action");
+    assert.equal((await handle.done).ok,true);
+    exited = true;
+    assert.deepEqual(await processes.stopAll(),[{pid:handle.child.pid,reaped:false}]);
+    assert.equal(handle.leaderBirth,undefined);
+    assert.equal(handle.handedOff,false);
+    assert.equal(handle.retired,false);
+    assert.deepEqual(signals,[],"Pending identity must never authorize signals or adopt a replacement");
+  });
+}
+
+test("empty exit handoff stays retired while detached pipes delay close", async (t) => {
+  let phase = "leader",pid,handle;
+  const signals = [];
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},closeGraceMs:100,
+    observeGroup: (group) => phase === "empty" ? [] : [{pid:group,live:true,birth:phase === "leader" ? "original birth" : "replacement birth"}],
+    sendGroupSignal: (...args) => signals.push(["group",...args]),
+    sendMemberSignal: (...args) => signals.push(["member",...args]),
+  });
+  t.after(async () => {killTestChild(pid);handle?.child.kill("SIGKILL");phase="empty";await processes.stopAll();processes.dispose();});
+  handle = processes.start({argv:[process.execPath,"-e",'const {spawn}=require("node:child_process");const c=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"inherit"});console.log(c.pid);c.unref();'],timeout_ms:1000},"action");
+  pid = Number((await new Promise(resolve => handle.child.stdout.once("data",resolve))).toString().trim());
+  phase = "empty";
+  if (!handle.exited) await new Promise(resolve => handle.child.once("exit",resolve));
+  assert.equal(handle.retired,true);
+  assert.equal(handle.closed,false);
+  phase = "foreign";
+  const output = await handle.done;
+  assert.equal(output.receipt.completion_forced,true);
+  assert.deepEqual(signals,[],"Timeout/escalation/close must not reacquire a reused PGID");
+});
+
+test("one handed-off member ESRCH cannot skip its live sibling or prove reaping", async (t) => {
+  let phase = "leader",group;
+  const remaining = new Set([1,2]),signals = [];
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},
+    observeGroup: (pgid) => phase === "leader" ? [{pid:pgid,live:true,birth:"original leader"}] : [...remaining].map(offset => ({pid:pgid+offset,live:true,birth:`member-${offset}`})),
+    sendGroupSignal: () => assert.fail("Post-exit signals must target individual PIDs"),
+    sendMemberSignal: (pid,signal) => {signals.push({pid,signal});remaining.delete(pid-group);if (pid===group+1) throw Object.assign(new Error("Fixture member already exited"),{code:"ESRCH"});},
+  });
+  t.after(() => processes.dispose());
+  const handle = processes.start({argv:[process.execPath,"-e","setTimeout(()=>{},50)"],timeout_ms:5000},"launch");
+  group = handle.child.pid;phase="members";
+  await handle.done;
+  const groups = await processes.stopAll();
+  assert.deepEqual(signals,[{pid:group+1,signal:"SIGTERM"},{pid:group+2,signal:"SIGTERM"}]);
+  assert.equal(remaining.size,0);
+  assert.ok(groups.every(item => item.reaped));
+});
+
+
+test("cleanup real-time deadline bounds reaping even when the wall clock freezes", async (t) => {
+  let phase = "leader";
+  const processes = createVerificationProcesses({
+    cwd:process.cwd(),runRoot:process.cwd(),originRoot:process.cwd(),
+    environment:{PATH:process.env.PATH},binding:{},cleanupGraceMs:100,
+    observeGroup: (group) => phase === "empty" ? [] : [{pid:phase === "leader" ? group : group+1,live:true,birth:"original birth"}],
+    sendGroupSignal: () => assert.fail("Closed leader cannot authorize group signals"),
+    sendMemberSignal: () => {},
+  });
+  t.after(() => processes.dispose());
+  const handle = processes.start({argv:[process.execPath,"-e","setTimeout(()=>{},50)"],timeout_ms:5000},"launch");
+  phase = "member";await handle.done;
+  t.mock.method(Date,"now",() => 0);
+  let rescued = false;
+  const watchdog = setTimeout(() => {rescued=true;phase="empty";},1500);
+  try {
+    const groups = await processes.stopAll();
+    assert.equal(rescued,false,"Reaping must obey the timer even when Date.now does not advance");
+    assert.ok(groups.every(group => !group.reaped));
+  } finally {clearTimeout(watchdog);phase="empty";}
 });

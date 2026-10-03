@@ -70,9 +70,19 @@ Process receipts bind protocol `etabli-project-verification/1`, run/source/
 environment/recipe hashes, argv, cwd, role, PID, timestamps, timeout and actual
 exit/signal. Raw observations link to stdout hashes. Launch/doctor/isolation/
 cleanup need actual passing observations. Services stay alive until intended
-shutdown. Timeout/interruption terminates and reaps owned groups; cleanup is
-attempted after failure and observes runtime removal. Later cleanup cannot erase
-an earlier failure.
+shutdown. Timeout/interruption bounds command closure with a 2-second shutdown
+grace; cleanup starts its 10-second deadline before waiting for completion.
+Group signals require the observed live leader and its birth; after leader exit,
+only captured member PIDs with rechecked births are signaled. A missing live
+birth stays pending even after actual exit; an empty snapshot of that unanchored
+group cannot prove reaping or authorize adopting a replacement. These sampled
+observations are not an atomic kernel lease. If inherited pipes still block close,
+the parent releases its pipe endpoints and retains `completion_forced: true`
+with observed exit/signal fields, failed execution and incomplete reaping. The
+checker rejects forced completion, including otherwise successful exit0 receipts.
+Unknown detached children are not signaled or declared reaped. Cleanup is
+attempted after failure and observes runtime removal; it cannot erase an earlier
+failure. Historical receipts without the optional marker remain compatible.
 
 ## Optional engine
 
