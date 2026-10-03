@@ -52,13 +52,14 @@ repo command.
    then `../../workflow/skills/adversary.md`. Use `$ARGUMENTS` if given, else `./PLAN.md`. If absent,
    stop and say so (run `/plan-loop` first).
 
-2. **Run a frontier model as an adversarial reviewer**, using the first
+2. Freeze the plan and capture `scripts/plan-review-check --hash PLAN.md`
+   before dispatch. **Run a frontier model as an adversarial reviewer**, using the first
    configured route whose family differs from Claude. The preferred Codex call
    is read-only:
 
    ```bash
    codex exec --cd "$PWD" --sandbox read-only --model gpt-6-astra \
-     "Review PLAN.md as an adversarial reviewer from a different model family. Do not edit. Hunt blockers, weak assumptions, missing edge cases, validation gaps, plan drift, and simpler or safer routes. Cite sections and end with GO, GO WITH NOTES, or BLOCK."
+     "Review PLAN.md as an adversarial reviewer from a different model family. Do not edit. Hunt blockers, weak assumptions, missing edge cases, validation gaps, plan drift, and simpler or safer routes. Cite sections and end with READY or CHALLENGED."
    ```
 
    If that route is unavailable, use the policy's Pi routes in listed family
@@ -76,7 +77,9 @@ repo command.
 5. **Fold the accepted findings into `PLAN.md`** the same way `/plan-loop` does:
    update the relevant sections, record deltas under `Review Changes`, and only
    keep `READY` if no BLOCKER/HIGH survives. You (Claude) write the file — the
-   reviewer never does.
+   reviewer never does. Material deltas need a fresh pass. Append
+   `adversary_completed` with the pre-dispatch `plan_contract_sha256`; record
+   operational pass results in the ledger, never mutate the approved contract.
 
 ## Procedure (code-diff mode)
 

@@ -15,7 +15,8 @@ checks, edge cases, plan drift, and simpler or safer routes.
 ## Required Behavior
 
 1. Inspect repo state enough to judge plan drift.
-2. Read the actual root `PLAN.md`.
+2. Freeze the actual root `PLAN.md` and capture its contract hash before
+   dispatch (`scripts/plan-review-check --hash PLAN.md`).
 3. Stop if `PLAN.md` is missing.
 4. Review for:
    - blockers;
@@ -32,8 +33,9 @@ checks, edge cases, plan drift, and simpler or safer routes.
 8. Fold accepted findings into `PLAN.md`.
 9. Keep `Status: READY` only if no blocker or high-severity issue remains.
 10. Otherwise set `Status: CHALLENGED`.
-11. Record the pass under `## Review Changes` in `PLAN.md` (canonical
-    location; not Decision Log, not Notes / Handoff).
+11. Record accepted deltas under `## Review Changes` before fresh approval.
+    Append the pass with its captured `plan_contract_sha256` to the ledger;
+    never recalculate a changed snapshot to make an old verdict current.
 12. Return accepted findings, rejected findings, final plan status, and next
     route.
 

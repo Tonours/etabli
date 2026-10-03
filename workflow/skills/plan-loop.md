@@ -1,13 +1,8 @@
 # Plan Loop Contract
 
-Shared contract for creating or reviewing `PLAN.md`.
+Adapters add syntax; source resolution, READY and no-implement rules stay shared.
 
-Runtime adapters may add tool syntax. They must not change the source
-resolution, the READY gate, or the no-implement rule.
-
-## Purpose
-
-Shape the workspace root `PLAN.md`. Stop at `READY` or `CHALLENGED`.
+Shape root `PLAN.md`. Stop at `READY` or `CHALLENGED`.
 
 ## Source resolution
 
@@ -25,9 +20,8 @@ and report the missing paths as a warning, not a blocker.
    applicable project sources proportionately: current request, spec/PRD,
    tickets, accepted ADRs/decisions, code, tests, launch command, and existing
    validation. Record source precedence, freshness or conflicts when they
-   affect the task. A missing project spec is an observed fact, not an automatic
-   blocker; derive provisional criteria from the request and confirmed
-   decisions. Load a domain suite only if the brief clearly matches one. Name
+   affect the task. Missing specs are facts, not blockers; derive provisional criteria from the
+   request and confirmed decisions. Load a domain suite only if the brief clearly matches one. Name
    the skill(s) used, or `none`, in `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad or risky work.
@@ -39,8 +33,8 @@ and report the missing paths as a warning, not a blocker.
    - `Stop condition`: exact condition that ends the current workflow.
    - `Required evidence`: command, artifact, source, or manual check needed
      before completion.
-6. Critique scope, route, role, stop condition, evidence, steps, checks,
-   assumptions, risks, and the project spec itself. For each material
+6. Critique the contract, assumptions, risks and project spec. Name the input
+   domain, bounds, and valid/invalid neighbors of each behavior changed. For each material
    requirement, compare its source with observed code/tests; identify missing
    actors/permissions, preconditions, nominal/error/recovery flows, boundary
    states, persistence, dependencies, and observable success as applicable.
@@ -52,7 +46,7 @@ and report the missing paths as a warning, not a blocker.
    implementation-bound work. Name the smallest executable
    end-to-end slice and verify its environment and validation surface are
    available before depending on them.
-8. Update `PLAN.md` in place to `CHALLENGED` or `READY`.
+8. Reconcile criteria, Decision Log and approach; set `CHALLENGED` or `READY`.
 9. Ask only narrow blocking questions.
 10. Return final status, blockers, and next action.
 

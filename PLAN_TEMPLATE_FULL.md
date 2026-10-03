@@ -70,8 +70,8 @@ Describe in 1-3 sentences what will change and why it matters.
 | | | | | |
 
 ## Approach
-Describe the selected approach and why it is proportionate.
-Mention rejected options only when they changed the decision.
+Name the input domain, bounds, and regression family.
+Include failing, valid and invalid neighbors; justify the selected approach.
 
 ## Product Dogfood
 Use this section only for user-facing/UI/browser-impacting work.
@@ -135,7 +135,7 @@ ownable units. Otherwise delete this section.
 - Evidence required for done:
 
 ## Progress Log
-- YYYY-MM-DD:
+- Operational progress: ledger events; avoid material edits after approval.
 
 ## Decision Log
 - YYYY-MM-DD:
@@ -144,10 +144,8 @@ ownable units. Otherwise delete this section.
 - Adversary deltas:
 
 ## Handoff State
-- Current state:
-- Last validated state:
-- Known failures:
-- Next action:
+- Operational handoff: ledger `handoff` event.
+- Contract changes: reconcile and obtain fresh plan approval.
 
 ## Risks
 - Risk:

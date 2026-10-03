@@ -24,7 +24,8 @@ Same-session Logic self-review is forbidden.
 
 1. Resolve the target (below), then **pin the patch once** (capture `git diff` /
    `git show` bytes). Hunters receive that text and do not re-run `git diff`.
-2. Write one-paragraph Intent (user message, PR body, or commits).
+2. Supply Intent plus current plan/Decision Log to Spec and lead; omit these
+   from Logic. Reconcile conflicts before dispatch.
 3. Detect language/UI surface. Set `Standards: yes` or `Standards: none` on the
    Logic brief.
 4. Write the pinned patch to a temp file (must be non-empty). Dispatch
@@ -38,12 +39,11 @@ Same-session Logic self-review is forbidden.
      --no-context-files --tools read,grep --append-system-prompt
      <hunter-template> @<patchfile>`. The prompt file is the hunter template
      plus `Axis: Logic`, Intent, and `Standards: yes|none`. Hunter templates are
-   self-contained: hunters never read the rubric, docs, or SDK/framework
-   internals — the parent's rubric read is for filtering, not hunting. Pass `--model` only when it is not a
-     `cursor/` id. Timeout default 600s (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn or
+   self-contained; the parent reads the rubric for filtering. Open deciding APIs
+   when needed. Unresolved inspection errors forbid GO. Pass `--model` only when its id
+     is not `cursor/`. Timeout default 600s (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn or
      nonzero → `HUNTER_SPAWN_UNAVAILABLE`. Timeout → `HUNTER_TIMEOUT`.
-     Either sentinel is a hard stop: report it and stop; do not continue to a
-     lead verdict. An empty patch is not a clean hunt. Record `hunter_model:`
+     Either sentinel stops the lead verdict. Helper executions capture native JSON. An empty patch is not a clean hunt. Record `hunter_model:`
      (or `hunter_model: default` when `--model` is omitted). `runner: pi-child`.
    Dispatch **Spec hunter** (`workflow/templates/review-spec-hunter.md`,
    `Axis: Spec`) in parallel when the runtime can (Claude/Cursor), using the

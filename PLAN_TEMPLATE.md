@@ -47,6 +47,10 @@
 | --- | --- | --- | --- | --- |
 | | | | | |
 
+## Approach
+- Input domain / bounds:
+- Regression family; failing, valid and invalid neighbors:
+
 ## Steps
 1.
 2.
