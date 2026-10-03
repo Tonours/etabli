@@ -17,10 +17,10 @@ function boundedPreview(result) {
   let selected = candidate(0);
   const metadataBytes = Buffer.byteLength(JSON.stringify(selected));
   if (metadataBytes > MAX_JSON_BYTES) {
-    const sizes = Object.fromEntries(["proofs", "files", "excerpts"].map((key) => [key, Buffer.byteLength(JSON.stringify(key === "files" ? result.identity.files : result[key]))]));
+    const sizes = Object.fromEntries(["proofs", "files", "excerpts", "plan"].map((key) => [key, Buffer.byteLength(JSON.stringify(key === "files" ? result.identity.files : result[key]))]));
     const largest = Object.keys(sizes).sort((a, b) => sizes[b] - sizes[a])[0];
-    const action = largest === "proofs" ? "inspect this run's journal directly for its full proofs" : largest === "files" ? "choose a closer Git base or inspect Git directly" : "reduce explicit excerpts or inspect their files directly";
-    throw new Error(`Review metadata: ${metadataBytes} bytes exceeds 1 MiB; proofs=${sizes.proofs} bytes, files=${sizes.files} bytes, excerpts=${sizes.excerpts} bytes; ${largest} dominates: ${action} (metadata is not clipped).`);
+    const action = largest === "proofs" ? "inspect this run's journal directly for its full proofs" : largest === "files" ? "choose a closer Git base or inspect Git directly" : largest === "plan" ? "inspect the current plan directly or narrow its execution contract" : "reduce explicit excerpts or inspect their files directly";
+    throw new Error(`Review metadata: ${metadataBytes} bytes exceeds 1 MiB; proofs=${sizes.proofs} bytes, files=${sizes.files} bytes, excerpts=${sizes.excerpts} bytes, plan=${sizes.plan} bytes; ${largest} dominates: ${action} (metadata is not clipped).`);
   }
   let low = 0, high = Math.min(bytes.length, PATCH_PREVIEW_BYTES);
   while (low <= high) {
@@ -49,7 +49,7 @@ export function reviewDossier(root, workflow, { base = "HEAD", excerpts = [], pr
   const proofsHash = sha256(JSON.stringify(workflow.proofs));
   const identity = { base_sha: pack.base_sha, head_sha: before, snapshot_sha256: pack.snapshot_sha256,
     root, run: workflow.selection.run, ledger_sha256: workflow.selection.ledger_sha256, proofs_sha256: proofsHash,
-    files, excerpts: pack.excerpts.map(({ text, ...excerpt }) => excerpt) };
+    files, plan:{state:pack.plan.state,contract_sha256:pack.plan.contract_sha256}, excerpts: pack.excerpts.map(({ text, ...excerpt }) => excerpt) };
   const stableDeletions = new Set(identity.files.filter((file) => file.status === "deleted" && file.sha256 === null &&
     previous?.files.some((old) => old.path === file.path && old.status === "deleted" && old.sha256 === null)).map((file) => file.path));
   const changed = previous ? invalidatedEvidence(previous, identity).filter((path) => !stableDeletions.has(path)) : [];
@@ -64,7 +64,7 @@ export function reviewDossier(root, workflow, { base = "HEAD", excerpts = [], pr
     state: !complete ? "incomplete" : previous && (changed.length || reasons.length) ? "invalidated" : previous ? "unchanged-at-check" : "captured",
     invalidated_files: changed, invalidation_reasons: reasons,
     patch: pack.patch, patch_sha256: sha256(pack.patch), patch_bytes: Buffer.byteLength(pack.patch),
-    excerpts: pack.excerpts, proofs: workflow.proofs,
+    excerpts: pack.excerpts, plan:pack.plan, proofs: workflow.proofs,
     captured_at: new Date().toISOString(), freshness: "verified only at capture time; refresh after external edits",
   });
 }

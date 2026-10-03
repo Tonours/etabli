@@ -42,3 +42,24 @@ test("end-only selection bounds both text and its declared range",()=>{
   assert.equal(row.excerpt_sha256,readEvidence(root,"source",{start:1,end:1}).excerpt_sha256);
  } finally {rmSync(root,{recursive:true,force:true});}
 });
+
+
+test("pack_plan_context and pack_decision_freshness: automatic intent stays out of Logic",()=>{
+ const root=mkdtempSync(join(tmpdir(),"pack-plan-")),git=(...a)=>execFileSync("git",a,{cwd:root,stdio:"ignore"});
+ try {
+  git("init");git("config","user.name","Fixture");git("config","user.email","fixture@example.invalid");
+  writeFileSync(join(root,".gitignore"),"PLAN.md\n");writeFileSync(join(root,"app.mjs"),"export const value=1;\n");git("add",".");git("commit","-m","fixture");
+  const plan="# PLAN.md\n## Meta\n- Status: READY\n## Goal\nKeep caller behavior.\n## Decision Log\n- Keep auth enabled.\n";
+  writeFileSync(join(root,"PLAN.md"),plan);
+  const p=createReviewEvidencePack({root}),spec=reviewRoleInput(p,"spec");
+  assert.match(spec.plan.source,/Keep auth enabled/);assert.match(spec.plan.decisions.join(" "),/Keep auth enabled/);
+  assert.equal(reviewRoleInput(p,"logic").plan,undefined);assert.equal(reviewRoleInput(p,"logic").criteria,undefined);
+  writeFileSync(join(root,"PLAN.md"),plan.replace("Keep auth enabled.","Remove auth."));
+  const q=createReviewEvidencePack({root});assert.equal(q.patch,p.patch);assert.notEqual(q.snapshot_sha256,p.snapshot_sha256);
+  assert.deepEqual(invalidatedEvidence(p,q),["PLAN.md"]);
+  writeFileSync(join(root,"PLAN.md"),plan.replace("Status: READY","Status: CHALLENGED"));
+  assert.equal(createReviewEvidencePack({root}).snapshot_sha256,p.snapshot_sha256);
+  rmSync(join(root,"PLAN.md"));symlinkSync("app.mjs",join(root,"PLAN.md"));
+  const missing=createReviewEvidencePack({root});assert.equal(missing.complete,false);assert.equal(missing.plan.state,"unavailable");
+ } finally {rmSync(root,{recursive:true,force:true});}
+});
