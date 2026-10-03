@@ -36,8 +36,8 @@ def strict_detail($event):
         ($original | strict_detail($event)) and
         ($original.export_id == $actual.export_id) and ($actual.export_id | nonempty_string) and
         (($actual | del(.export_source_detail)) != $original) and
-        (($actual | del(.export_source_detail, .product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path)) ==
-         ($original | del(.product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path)))
+        (($actual | del(.export_source_detail, .product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path, .plan_contract_sha256)) ==
+         ($original | del(.product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path, .plan_contract_sha256)))
       end
    else true end) and
   ((has("product_verification_required") | not) or (.product_verification_required | boolean)) and
@@ -49,9 +49,11 @@ def strict_detail($event):
     and ((has("contract_sha256") | not) or (.contract_sha256 | nonempty_string))
     and ((has("provenance") | not) or (.provenance | IN("deployed-pi", "deployed-agents", "repo")))
   elif $event == "plan_created" then
+    ((has("plan_contract_sha256") | not) or (.plan_contract_sha256 | sha256)) and
     (.path | nonempty_string) and (.status | IN("DRAFT", "CHALLENGED", "READY"))
     and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
   elif $event == "adversary_completed" then
+    ((has("plan_contract_sha256") | not) or (.plan_contract_sha256 | sha256)) and
     (.mode | IN("plan", "code_diff")) and (.verdict | nonempty_string) and
     (.accepted_findings | string_array or finding_array) and (.rejected_findings | string_array) and
     ((has("model_provenance") | not) or (.model_provenance | provenance_complete))

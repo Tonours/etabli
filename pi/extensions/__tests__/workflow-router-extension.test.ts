@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { planContract } from "../../../scripts/lib/plan-review-binding.mjs";
 import workflowRouter from "../workflow-router.ts";
 
 type Handler = (
@@ -448,6 +449,23 @@ describe("workflow router extension", () => {
 			),
 		).not.toThrow();
 	});
+
+	test("tool_call binds READY implementation to the latest reviewed contract",()=>{
+  const cwd=mkdtempSync(join(tmpdir(),"pi-bound-review-")),source=validReadyPlanText();
+  try {
+   mkdirSync(join(cwd,".workflow/bound"),{recursive:true});writeFileSync(join(cwd,"PLAN.md"),source);
+   writeFileSync(join(cwd,".workflow/active-run.json"),JSON.stringify({schema_version:1,run:"bound"}));
+   const row=(event:string,detail:unknown)=>JSON.stringify({schema_version:2,ts:"2026-10-02T10:00:00Z",run:"bound",event,detail});
+   const hash=planContract(source).contract_sha256,ledger=join(cwd,".workflow/bound/events.jsonl");
+   const created=row("plan_created",{path:"PLAN.md",status:"READY",plan_contract_sha256:hash});writeFileSync(ledger,created+"\n");
+   const runtime=setupExtension(),call=()=>runtime.emit("tool_call",{toolName:"write",input:{path:"app.mjs",content:"changed"}},{cwd});
+   expect(call()).toEqual([expect.objectContaining({block:true})]);
+   const provenance={requested:{family:"fixture",model:"fixture",provider:"fixture"},effective:{family:"fixture",model:"fixture",provider:"fixture"},runner:"fixture",run_id:"bound"};
+   writeFileSync(ledger,created+"\n"+row("adversary_completed",{mode:"plan",verdict:"READY",plan_contract_sha256:hash,accepted_findings:[],rejected_findings:[],model_provenance:provenance})+"\n");
+   expect(call()).toEqual([undefined]);writeFileSync(join(cwd,"PLAN.md"),source.replace("Exercise the guard.","Change the guard contract."));
+   expect(call()).toEqual([expect.objectContaining({block:true})]);
+  } finally {rmSync(cwd,{recursive:true,force:true});}
+ });
 
 	test("tool_call READY guard blocks write/edit/mutating bash under DRAFT and CHALLENGED", () => {
 		const runtime = setupExtension();

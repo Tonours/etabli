@@ -80,10 +80,25 @@ assert_file "$NEW_PROJECT/workflow/templates/review-spec-hunter.md"
 assert_file "$NEW_PROJECT/workflow/templates/review-lead.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
+PLAN_REVIEW_TOOLING=(scripts/plan-review-check scripts/lib/plan-review-binding.mjs scripts/lib/plan-cleanup-command.mjs scripts/lib/ledger-integrity.mjs scripts/lib/predicates.mjs scripts/lib/workflow-events.mjs)
+for managed in "${PLAN_REVIEW_TOOLING[@]}"; do
+ assert_file "$NEW_PROJECT/$managed"
+ assert_same "$ROOT_DIR/$managed" "$NEW_PROJECT/$managed"
+done
+[ -x "$NEW_PROJECT/scripts/plan-review-check" ]
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
 assert_file "$NEW_PROJECT/scripts/workflow-event"
 assert_file "$NEW_PROJECT/scripts/lib/hash.sh"
 assert_file "$NEW_PROJECT/scripts/lib/review-rounds.jq"
+cp "$ROOT_DIR/tests/fixtures/execution-quality/ready-plan.md" "$NEW_PROJECT/PLAN.md"
+deployed_hash="$(node "$NEW_PROJECT/scripts/plan-review-check" --hash "$NEW_PROJECT/PLAN.md")"
+[ "$deployed_hash" = "$(node "$ROOT_DIR/scripts/plan-review-check" --hash "$NEW_PROJECT/PLAN.md")" ]
+WORKFLOW_EVENT_PROJECT_ROOT="$NEW_PROJECT" "$NEW_PROJECT/scripts/workflow-event" --dir "$NEW_PROJECT/.workflow" append deployed-bound plan_created '{"path":"PLAN.md","status":"READY"}'
+jq -e --arg hash "$deployed_hash" '.detail.plan_contract_sha256==$hash' "$NEW_PROJECT/.workflow/deployed-bound/events.jsonl" >/dev/null
+WORKFLOW_EVENT_PROJECT_ROOT="$NEW_PROJECT" "$NEW_PROJECT/scripts/workflow-event" --dir "$NEW_PROJECT/.workflow" append deployed-bound adversary_completed "$(jq -nc --arg hash "$deployed_hash" '{mode:"plan",verdict:"READY",plan_contract_sha256:$hash,accepted_findings:[],rejected_findings:[],model_provenance:{requested:{family:"fixture",model:"fixture",provider:"fixture"},effective:{family:"fixture",model:"fixture",provider:"fixture"},runner:"fixture",run_id:"deployed-bound"}}')"
+WORKFLOW_EVENT_PROJECT_ROOT="$NEW_PROJECT" "$NEW_PROJECT/scripts/workflow-event" --dir "$NEW_PROJECT/.workflow" append deployed-bound blocked '{"reason":"unknown","needed_input":"fixture finished"}'
+rm "$NEW_PROJECT/PLAN.md"
+
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1
@@ -159,7 +174,7 @@ assert_contains "$NEW_PROJECT/docs/claude-code-workflow.md" "workflow/skills/orc
 assert_contains "$NEW_PROJECT/docs/project-context.md" "Smallest useful check"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Outcome"
 assert_contains "$NEW_PROJECT/workflow/linear-ticket-template.md" "Linear Fields"
-assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "Autonomous implementation loops are complete only when"
+assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "Autonomous completion requires:"
 assert_contains "$NEW_PROJECT/workflow/skills/orchestration.md" "Capability Labels"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Stop conditions"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "Keep project-specific scope"

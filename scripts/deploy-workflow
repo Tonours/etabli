@@ -53,6 +53,12 @@ FILES=(
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
+  "$REPO_DIR/scripts/plan-review-check|scripts/plan-review-check"
+  "$REPO_DIR/scripts/lib/plan-review-binding.mjs|scripts/lib/plan-review-binding.mjs"
+  "$REPO_DIR/scripts/lib/plan-cleanup-command.mjs|scripts/lib/plan-cleanup-command.mjs"
+  "$REPO_DIR/scripts/lib/ledger-integrity.mjs|scripts/lib/ledger-integrity.mjs"
+  "$REPO_DIR/scripts/lib/predicates.mjs|scripts/lib/predicates.mjs"
+  "$REPO_DIR/scripts/lib/workflow-events.mjs|scripts/lib/workflow-events.mjs"
   "$REPO_DIR/scripts/project-verification-check|scripts/project-verification-check"
   "$REPO_DIR/scripts/lib/project-verification.mjs|scripts/lib/project-verification.mjs"
   "$REPO_DIR/scripts/lib/project-verification-plan.mjs|scripts/lib/project-verification-plan.mjs"
@@ -380,6 +386,12 @@ exclude_block() {
     "/scripts/lib/unicode-case-fold.mjs" \
     "/scripts/vendor/commonmark/commonmark.cjs" \
     "/scripts/plan-cleanup" \
+    "/scripts/plan-review-check" \
+    "/scripts/lib/plan-review-binding.mjs" \
+    "/scripts/lib/plan-cleanup-command.mjs" \
+    "/scripts/lib/ledger-integrity.mjs" \
+    "/scripts/lib/predicates.mjs" \
+    "/scripts/lib/workflow-events.mjs" \
     "/scripts/workflow-event" \
     "/scripts/workflow-measurement-integrity" \
     "/scripts/lib/workflow-event-detail.jq" \

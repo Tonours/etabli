@@ -687,6 +687,11 @@ append_locked_body() {
   fi
 
   local source_detail="$detail"
+  case "$event" in
+    plan_created|adversary_completed|file_changed)
+      detail="$(printf '%s' "$detail" | node "$SCRIPT_DIR/plan-review-check" --append "$WORKFLOW_EVENT_PROJECT_ROOT" "$file" "$event")" || return 1
+      ;;
+  esac
   # Observations must survive an unavailable subject or damaged plan;
   # lifecycle gates still require binding the current product contract.
   if [ "$event" != "blocked" ] && [ -f "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" ] && {

@@ -8,6 +8,6 @@ R6	  `workflow/agent-quick-card.md`; open `workflow/spec.md` (full map, wins on	
 R7	`workflow/spec.md` wins on conflict; open it only when the route or a gate is	pi/skills/adversary/SKILL.md	a	excerpt-pinned+parity:workflow-router-parity-clean
 R8	routing map `workflow/spec.md` wins on conflict; open it only when the route or	pi/skills/implement/SKILL.md	a	excerpt-pinned+parity:workflow-router-parity-clean
 R9	routing map `workflow/spec.md` wins on conflict; open it only when the route or	pi/skills/plan-implement/SKILL.md	a	excerpt-pinned+parity:workflow-router-parity-clean
-R10	These hold at every step; `workflow/spec.md` § Rules is canonical and wins on	workflow/skills/implementation-loop.md	b	presence-pin:excerpt-byte-present
+R10	`workflow/spec.md` § Rules governs every step and wins on conflict.	workflow/skills/implementation-loop.md	b	presence-pin:excerpt-byte-present
 R11	§ Minimal READY gate is the canonical list and wins on conflict.	workflow/skills/plan-loop.md	b	presence-pin:excerpt-byte-present
 R12	`workflow/spec.md` wins on conflict; open it only when the route is in doubt.	workflow/skills/verify.md	a	excerpt-pinned+parity:workflow-router-parity-clean
