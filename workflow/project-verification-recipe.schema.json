@@ -127,7 +127,8 @@
         },
         "timeout_ms": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         }
       }
     },
@@ -149,7 +150,8 @@
         },
         "timeout_ms": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         },
         "assertions": {
           "type": "array",
@@ -187,7 +189,8 @@
         },
         "timeout_ms": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         },
         "readiness": {
           "$ref": "#/$defs/command"
@@ -212,7 +215,8 @@
         },
         "timeout_ms": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2147483647
         },
         "provider": {
           "type": "string",

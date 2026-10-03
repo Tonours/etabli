@@ -54,7 +54,7 @@ export function createVerificationProcesses({
   cleanupGraceMs = 10000,
 }) {
   for (const grace of [closeGraceMs, cleanupGraceMs])
-    assert.ok(Number.isSafeInteger(grace) && grace > 0, "Shutdown grace must be a positive integer");
+    assert.ok(Number.isSafeInteger(grace) && grace > 0 && grace <= 2147483647, "Shutdown grace must be in Node timer range 1..2147483647");
   const owned = new Set();
   const shutdown = new AbortController();
   const listeners = new Map(
@@ -106,6 +106,7 @@ export function createVerificationProcesses({
       cleanup = false,
     } = {},
   ) {
+    assert.ok(Number.isSafeInteger(command.timeout_ms) && command.timeout_ms > 0 && command.timeout_ms <= 2147483647, "Command timeout must be in Node timer range 1..2147483647");
     if (!cleanup) shutdown.signal.throwIfAborted();
     safeArguments(command.argv);
     const started = new Date().toISOString();
