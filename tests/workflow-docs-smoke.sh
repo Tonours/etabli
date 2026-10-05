@@ -420,8 +420,8 @@ jq -e '
   .selection.require_distinct_author_family == true and
   .selection.require_effective_model_provenance == true and
   .selection.unattested_result == "blocked" and
-  ([.frontier_pool[].family] | unique | length) == 7 and
-  ([.frontier_pool[].model] | sort) == (["gpt-6-astra","claude-opus-5-5","grok-4.7","glm-5.3","kimi-k3","qwen3.8-max","deepseek-v4-pro"] | sort) and
+  ([.frontier_pool[].family] | sort) == ["anthropic","openai","zai"] and
+  ([.frontier_pool[].model] | sort) == (["gpt-6.1-sol","claude-opus-5-5","glm-5.3"] | sort) and
   all(.frontier_pool[]; .availability == "configured_unverified" and (.routes | length) > 0)
 ' "$ROOT_DIR/workflow/runtime/adversary-model-policy.json" >/dev/null
 jq -e --slurpfile settings "$ROOT_DIR/pi/agent/settings.json" '
@@ -429,8 +429,120 @@ jq -e --slurpfile settings "$ROOT_DIR/pi/agent/settings.json" '
     .model as $model | ($settings[0].enabledModels | index($model)) != null)
 ' "$ROOT_DIR/workflow/runtime/adversary-model-policy.json" >/dev/null
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'adversary-model-policy.json'
+assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" '--model gpt-6.1-sol'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'gpt-6-astra'
 assert_contains "$ROOT_DIR/pi/skills/adversary/SKILL.md" 'exclude the author'
+
+# The registry is checked against independent consumers; negative mutations must fail.
+node --input-type=module - "$ROOT_DIR" <<'NODE'
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+const root = process.argv[2];
+const json = (path) => JSON.parse(readFileSync(join(root, path), "utf8"));
+const routing = json("workflow/runtime/model-routing.json");
+const consumers = {
+  settings: json("pi/agent/settings.json"),
+  policy: json("workflow/runtime/adversary-model-policy.json"),
+  benchmark: json("claude/benchmarks/token-budget/manifest.v2.json"),
+  agents: Object.fromEntries(Object.keys(routing.claude_agents).map((role) => [role,
+    readFileSync(join(root, `claude/scopes/shared/agents/${role}.md`), "utf8").match(/^model: (.+)$/m)?.[1]])),
+};
+function check(c, registry = routing) {
+  const m = registry.models;
+  assert.equal(m.opusplan.model, "opusplan");
+  assert.deepEqual(registry.author_family_routes, {
+    zai: ["sol", "astra", "opus"],
+    anthropic: ["sol", "astra", "glm"],
+    openai: ["opus", "glm"],
+  });
+  assert.equal(m.sol.model, "gpt-6.1-sol");
+  assert.equal(m.astra.model, "gpt-6-astra");
+  assert.equal(m.opus.model, "claude-opus-5-5");
+  assert.equal(m.sonnet.model, "claude-sonnet-5-5");
+  assert.deepEqual(c.settings.enabledModels, registry.pi_enabled_models.map((ref) => `${m[ref].provider}/${m[ref].model}`));
+  assert.equal(c.settings.defaultProvider, m[registry.pi_default].provider);
+  assert.equal(c.settings.defaultModel, m[registry.pi_default].model);
+  for (const [role, ref] of Object.entries(registry.claude_agents)) assert.equal(c.agents[role], m[ref].model);
+  assert.deepEqual(c.policy.frontier_pool, [
+    {family: "openai", model: m.sol.model, availability: "configured_unverified", routes: [{harness: "codex", model: m.sol.model}, {harness: "codex", model: m.astra.model}]},
+    {family: "anthropic", model: m.opus.model, availability: "configured_unverified", routes: [{harness: "claude", model: m.opus.model}]},
+    {family: "zai", model: m.glm.model, availability: "configured_unverified", routes: [{harness: "pi", model: `${m.glm.provider}/${m.glm.model}`}]},
+  ]);
+  for (const [author, refs] of Object.entries(registry.author_family_routes))
+    assert(refs.every((ref) => m[ref].family !== author), "author family must be excluded, regardless of harness");
+  assert.equal(Object.keys(registry.tasks).length, 7);
+  const volume = registry.tasks.simple_plan_volume_tests_docs_commits;
+  assert.equal(volume.trigger.failed_attempts, 2);
+  assert.equal(volume.trigger.event, "no_progress");
+  assert.equal(volume.trigger.action, "record_foreground_handoff");
+  assert.deepEqual(volume.escalation, ["sonnet"]);
+  assert.equal(m.muse.harness, "muse");
+  assert.equal(m.muse.api_key_override, false);
+  assert.equal(registry.tasks.same_family_claude_adversary.counts_as_cross_family, false);
+  const glmReview = registry.tasks.cross_family_adversary_glm_author;
+  assert.deepEqual([glmReview.primary, ...glmReview.escalation], registry.author_family_routes.zai);
+  for (const task of Object.values(registry.tasks))
+    for (const ref of [task.primary, ...task.escalation, ...(task.mechanical ? [task.mechanical] : [])]) assert(m[ref], `undefined route model: ${ref}`);
+  assert.equal(c.benchmark.selected_candidate, null);
+  assert.equal(c.benchmark.calibration_required, true);
+  for (const [role, ref] of Object.entries(registry.claude_agents)) {
+    const text = readFileSync(join(root, `claude/scopes/shared/agents/${role}.md`), "utf8");
+    assert.deepEqual(c.benchmark.arms.baseline.agents[role], {
+      model: m[ref].model,
+      effort: text.match(/^effort: (.+)$/m)?.[1],
+      max_turns: Number(text.match(/^maxTurns: (.+)$/m)?.[1]),
+    }, `baseline drift: ${role}`);
+  }
+  const allowed = new Set([m.opus.model, m.sonnet.model, null]);
+  for (const arm of Object.values(c.benchmark.arms)) {
+    assert.deepEqual(arm.resolved_model_ids, {}, "historical resolution cannot attest new selections");
+    for (const config of [arm.session, ...Object.values(arm.agents)])
+      assert(allowed.has(config.model ?? null), `active benchmark model outside registry: ${config.model}`);
+  }
+}
+try {
+  check(consumers);
+  for (const mutate of [
+    (c) => { c.settings.enabledModels[0] = "meta/muse-spark-1.3"; },
+    (c) => { c.policy.frontier_pool[0].routes[0].model = "gpt-6-astra"; },
+    (c) => { c.agents.worker = "sonnet"; },
+    (c) => { c.benchmark.arms.candidate_a.agents.adversary.model = "fable"; },
+    (c) => { c.benchmark.arms.baseline.agents.reviewer.model = "claude-opus-5-5"; },
+    (c) => { c.benchmark.arms.baseline.agents.worker.effort = "high"; },
+  ]) {
+    const stale = structuredClone(consumers); mutate(stale); assert.throws(() => check(stale));
+  }
+  for (const mutate of [
+    (r) => { r.models.opusplan.model = "opus"; },
+    (r) => { r.author_family_routes.openai.reverse(); },
+    (r) => { r.tasks.simple_plan_volume_tests_docs_commits.trigger.failed_attempts = 3; },
+  ]) {
+    const stale = structuredClone(routing); mutate(stale); assert.throws(() => check(consumers, stale));
+  }
+} catch (error) {
+  throw new Error(`model routing drift: synchronize the consumer with workflow/runtime/model-routing.json and invalidate changed benchmark resolutions: ${error.message}`);
+}
+NODE
+# Only active routing/config/code and current command guides; archives, vendor and
+# historical usage receipts are deliberately outside this selector sweep.
+assert_no_active_model_aliases() {
+  local status=0
+  rg -n '(^model:[[:space:]]*(fable|sonnet|opus)$|model:[[:space:]]*"(fable|sonnet|opus)"|"model":[[:space:]]*"(fable|sonnet|opus|claude-fable[^"]*)"|--model(=|[[:space:]])(fable|sonnet|opus)([[:space:]]|$))' "$@" || status=$?
+  if [ "$status" != 1 ]; then
+    printf 'active selector sweep failed (rg exit %s): replace Fable with Opus 5.5 and pin Sonnet 5.5 via model-routing.json\n' "$status" >&2
+    return 1
+  fi
+}
+assert_no_active_model_aliases "$ROOT_DIR/claude/scopes" "$ROOT_DIR/claude/benchmarks" \
+    "$ROOT_DIR/scripts/lib" "$ROOT_DIR/workflow/runtime" "$ROOT_DIR/pi/agent" \
+    "$ROOT_DIR/README.md" "$ROOT_DIR/docs/claude-token-budget.md"
+# A read error must never be interpreted as no stale selectors.
+if assert_no_active_model_aliases /dev/null/model-alias-smoke 2>/dev/null; then
+  printf 'active selector sweep accepted an unreadable path\n' >&2
+  exit 1
+fi
+
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'wording such as "PLAN.md ready" is not proof.'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'Task* tools are Pi-only'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'One writer at any instant'

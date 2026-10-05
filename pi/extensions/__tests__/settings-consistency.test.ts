@@ -15,6 +15,14 @@ const settings = JSON.parse(
   packages: Array<string | LocalPackage>;
 };
 
+const modelRouting = JSON.parse(
+  readFileSync(new URL("../../../workflow/runtime/model-routing.json", import.meta.url), "utf-8"),
+) as {
+  pi_enabled_models: string[];
+  pi_default: string;
+  models: Record<string, { provider: string; model: string }>;
+};
+
 const installScript = readFileSync(
   new URL("../../../scripts/lib/install-main.sh", import.meta.url),
   "utf-8",
@@ -222,34 +230,13 @@ describe("Pi settings consistency", () => {
       settings as typeof settings & { enabledModels: string[] }
     ).enabledModels;
 
-    expect(enabledModels).toContain("zai/glm-5.3");
-    expect(enabledModels).not.toContain("zai/glm-5.2");
-    expect(enabledModels).toContain("zai/glm-5.3-highspeed");
-    expect(enabledModels).toContain("opencode-go/minimax-m3");
-    expect(enabledModels).toContain("opencode-go/qwen3.7-plus");
-    expect(enabledModels).toContain("github-copilot/claude-sonnet-5");
-    expect(enabledModels).toContain("cursor/claude-opus-5-5@300k");
-    expect(enabledModels).toContain("cursor/claude-opus-5-5@1m");
-    expect(enabledModels).toContain("opencode-go/kimi-k3");
-    expect(enabledModels).toContain("opencode-go/grok-4.7");
-    expect(enabledModels).toContain("cursor/grok-4.7@256k");
-    expect(enabledModels).toContain("xai/grok-4.7");
-    expect(enabledModels).not.toContain("xai/grok-4.6");
-    expect(enabledModels).toContain("openai-codex/gpt-6-astra");
-    expect(enabledModels).toContain("github-copilot/gpt-6-luna");
-    expect(enabledModels).not.toContain("kimi-coding/k3");
-    expect(enabledModels).not.toContain("cursor/grok-4.6");
-    // Bare alias retired; exact L/T/S pins stay managed.
-    expect(enabledModels).not.toContain("openai-codex/gpt-5.6");
-    expect(enabledModels).not.toContain("opencode-go/kimi-k2.6");
-    expect(enabledModels).not.toContain("kimi-coding/kimi-for-coding");
-    expect(enabledModels).not.toContain("github-copilot/claude-opus-4.7");
-    expect(enabledModels).not.toContain("github-copilot/claude-sonnet-4.6");
-    expect(enabledModels).not.toContain("opencode-go/minimax-m2.7");
-    expect(enabledModels).not.toContain("opencode-go/qwen3.6-plus");
-    expect(enabledModels.some((model) => model.startsWith("local-mlx/"))).toBe(
-      false,
-    );
+    const expected = modelRouting.pi_enabled_models.map((key) => {
+      const model = modelRouting.models[key];
+      return `${model.provider}/${model.model}`;
+    });
+    expect(enabledModels).toEqual(expected);
+    expect(enabledModels).toEqual(["zai/glm-5.3", "zai/glm-5.3-flash"]);
+    expect(enabledModels.every((model) => model.startsWith("zai/"))).toBe(true);
   });
 
   test("keeps the default model selectable", () => {
@@ -261,5 +248,8 @@ describe("Pi settings consistency", () => {
     expect(typed.enabledModels).toContain(
       `${typed.defaultProvider}/${typed.defaultModel}`,
     );
+    const model = modelRouting.models[modelRouting.pi_default];
+    expect(typed.defaultProvider).toBe(model.provider);
+    expect(typed.defaultModel).toBe(model.model);
   });
 });

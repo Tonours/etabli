@@ -38,6 +38,13 @@ printf '%s\n' '{
   "defaultThinkingLevel": "high",
   "enabledModels": [
     "custom/provider-model",
+    "cursor/custom-personal-model",
+    "cursor/claude-fable-5-1@300k",
+    "cursor/claude-sonnet-5@300k",
+    "github-copilot/claude-sonnet-5",
+    "opencode-go/grok-4.7",
+    "xai/grok-4.7",
+    "openai-codex/gpt-6-astra",
     "openai-codex/gpt-5.6",
     "openai-codex/gpt-5.6-luna",
     "openai-codex/gpt-5.6-terra",
@@ -419,11 +426,13 @@ if (settings.defaultProvider !== "kimi-for-coding" ||
 const enabledModels = Array.isArray(settings.enabledModels) ? settings.enabledModels : [];
 for (const model of [
   "custom/provider-model",
+  "cursor/custom-personal-model",
   "zai/glm-5.3",
+  "zai/glm-5.3-flash",
 ]) {
   if (!enabledModels.includes(model)) throw new Error(`missing preserved or managed model: ${model}`);
 }
-for (const model of ["openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-sol"]) {
+for (const model of ["openai-codex/gpt-5.6-luna", "openai-codex/gpt-5.6-sol", "cursor/claude-fable-5-1@300k", "cursor/claude-sonnet-5@300k", "github-copilot/claude-sonnet-5", "opencode-go/grok-4.7", "xai/grok-4.7", "openai-codex/gpt-6-astra"]) {
   if (enabledModels.includes(model)) throw new Error(`retired model kept after deploy: ${model}`);
 }
 // Bare gpt-5.6 alias remains retired.
@@ -456,5 +465,22 @@ fi
 
 wait "$BOGUS_SCOPE_PID"
 wait "$WORK_SCOPE_PID"
+
+# Both modes reset an exact retired managed default, keep custom models and honor dry-run.
+for mode in deploy install; do
+  local_settings="$TMP_DIR/retired-default-$mode.json"
+  printf '%s\n' '{"defaultProvider":"cursor","defaultModel":"claude-sonnet-5@300k","enabledModels":["cursor/claude-sonnet-5@300k","custom/provider-model"],"packages":[]}' >"$local_settings"
+  before="$(hash256 "$local_settings" | awk '{print $1}')"
+  node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 1 smoke "$mode" >/dev/null
+  [ "$before" = "$(hash256 "$local_settings" | awk '{print $1}')" ] || { printf 'dry-run changed retired default\n' >&2; exit 1; }
+  node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke "$mode" >/dev/null
+  jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
+done
+
+# An unrelated local default retains its existing install semantics.
+local_settings="$TMP_DIR/custom-default.json"
+printf '%s\n' '{"defaultProvider":"local-mlx","defaultModel":"personal-model","enabledModels":["custom/provider-model"],"packages":[]}' >"$local_settings"
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke install >/dev/null
+jq -e '.defaultProvider == "local-mlx" and .defaultModel == "personal-model"' "$local_settings" >/dev/null
 
 printf 'deploy agent workflow smoke test: ok\n'

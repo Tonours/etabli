@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -8,6 +8,8 @@ import {
 	pairOrderFor,
 	summarizeInventory,
 } from "./claude-agent-benchmark.mjs";
+
+const modelRouting = JSON.parse(readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -89,10 +91,10 @@ async function runPaid(options, manifest, rootDir, output, runModule) {
 	const ledgerFile = join(rootDir, ".workflow/claude-token-budget/paid-processes.json");
 	if (options.command === "run-probes") {
 		const tuples = [
-			{ role: "scout", model: "sonnet", effort: "low", maxTurns: 16 },
-			{ role: "worker", model: "opus", effort: "low", maxTurns: 24 },
-			{ role: "reviewer", model: "fable", effort: "medium", maxTurns: 24 },
-			{ role: "adversary", model: "fable", effort: "low", maxTurns: 24 },
+			{ role: "scout", model: modelRouting.models[modelRouting.claude_agents.scout].model, effort: "low", maxTurns: 16 },
+			{ role: "worker", model: modelRouting.models[modelRouting.claude_agents.worker].model, effort: "low", maxTurns: 24 },
+			{ role: "reviewer", model: modelRouting.models[modelRouting.claude_agents.reviewer].model, effort: "medium", maxTurns: 24 },
+			{ role: "adversary", model: modelRouting.models[modelRouting.claude_agents.adversary].model, effort: "low", maxTurns: 24 },
 		];
 		const probes = tuples.map((tuple) => {
 			const sample = runModule.runProbe({
@@ -113,7 +115,7 @@ async function runPaid(options, manifest, rootDir, output, runModule) {
 			outFile: join(options.outDir, "probes/write-refusal.json"),
 			ledgerFile,
 			role: "reviewer",
-			model: "sonnet",
+			model: modelRouting.models[modelRouting.claude_agents.reviewer].model,
 			effort: "low",
 			maxTurns: 16,
 		});

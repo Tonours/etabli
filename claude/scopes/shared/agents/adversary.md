@@ -1,7 +1,7 @@
 ---
 name: adversary
 description: "Adversarial same-family sample on a diff, commit, or file set. Re-derives intent from the diff alone with no plan or ticket context, then tries to break it. Use pre-push as the second, independent-context sample when the reviewer has findings to cross-check. Findings only — this agent never gives the final verdict. (Cross-family passes are pool invocations, not this agent.)"
-model: fable
+model: claude-opus-5-5
 effort: low
 maxTurns: 24
 color: yellow

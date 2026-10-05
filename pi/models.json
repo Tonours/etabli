@@ -1,7 +1,7 @@
 {
   "providers": {
     "meta": {
-      "name": "Meta Model API",
+      "name": "Meta Model API (pay-as-you-go only; not Muse subscription)",
       "baseUrl": "https://api.meta.ai",
       "api": "anthropic-messages",
       "apiKey": "$META_API_KEY",

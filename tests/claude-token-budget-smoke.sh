@@ -187,16 +187,43 @@ run.runProbe({
 assert(order.join(",") === "register,spawn", "budget registration must precede spawn: " + order.join(","));
 
 let probeCalls = 0;
+const probeModels = [];
 const probeOutput = [];
 const exit = await cli.main(["run-probes", "--manifest", "$MANIFEST", "--out", "$TMP/cli"], {
   rootDir: "$ROOT_DIR",
   output: (line) => probeOutput.push(line),
   error: () => {},
   runModule: {
-    runProbe: () => { probeCalls += 1; return { ok: true, pwned_created: false, model_usage_keys: [], canonical_models: [], num_turns: 1 }; },
+    runProbe: (options) => { probeModels.push(options.model); probeCalls += 1; return { ok: true, pwned_created: false, model_usage_keys: [], canonical_models: [], num_turns: 1 }; },
   },
 });
 assert(exit === 0 && probeCalls === 5, "CLI run-probes dispatch must execute five guarded probes");
+assert(JSON.stringify(probeModels) === JSON.stringify(["claude-sonnet-5-5", "claude-sonnet-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-sonnet-5-5"]), "probes must use 5.5 and skip Fable");
+const current = bench.loadManifest("$MANIFEST");
+assert(current.selected_candidate === null && current.calibration_required === true, "routing change requires new calibration");
+for (const arm of Object.values(current.arms)) assert(Object.keys(arm.resolved_model_ids).length === 0, "old native model resolutions must be invalidated");
+assert(current.selected_candidate_note.includes("invalidated") && !current.selected_candidate_note.includes("selected on"), "winner note must also be invalidated");
+const strict = await import("node:assert/strict");
+const fs = await import("node:fs");
+const crypto = await import("node:crypto");
+const arms = await import(pathToFileURL("$ROOT_DIR/scripts/lib/claude-bench-arms.mjs").href);
+function checkArms(manifest) {
+  const configs = Object.entries(manifest.arms).map(([name, arm]) => {
+    assert(arms.diversityCheck(manifest, name).ok, "ineligible arm: " + name);
+    return { session: arm.session, agents: arm.agents, settings_profile: arm.settings_profile };
+  });
+  for (let i = 0; i < configs.length; i++)
+    for (let j = i + 1; j < configs.length; j++) strict.notDeepStrictEqual(configs[i], configs[j], "collapsed benchmark arms");
+}
+checkArms(current);
+const collapsed = structuredClone(current);
+collapsed.arms.candidate_a = structuredClone(collapsed.arms.baseline);
+strict.throws(() => checkArms(collapsed), /collapsed benchmark arms/);
+const ineligible = structuredClone(current);
+ineligible.arms.candidate_b.agents.adversary.model = ineligible.arms.candidate_b.agents.worker.model;
+strict.throws(() => checkArms(ineligible), /ineligible arm/);
+for (const [file, hash] of Object.entries(current.invariant_surfaces))
+  strict.equal(crypto.createHash("sha256").update(fs.readFileSync("$ROOT_DIR/" + file)).digest("hex"), hash, "stale invariant surface: " + file);
 assert(probeOutput.some((line) => line.startsWith("probe reviewer:")), "CLI must retain detailed role probe output");
 assert(probeOutput.some((line) => line.startsWith("probe write-refusal:")), "CLI must retain write-refusal output");
 console.log("runner dispatch ok");

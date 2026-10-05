@@ -12,8 +12,8 @@ Depuis le worktree :
 ```bash
 scripts/claude-daily --inspect     # CLI/store/arguments; aucune inférence
 scripts/claude-daily               # capacités, modèle et effort natifs
-scripts/claude-deep                # demande Opus; effort hérité
-scripts/claude-deep --model sonnet --effort low
+scripts/claude-deep                # opusplan : Opus 5.5 planifie, Sonnet 5.5 exécute
+scripts/claude-deep --model claude-sonnet-5-5 --effort low
 scripts/claude-daily --teams       # opt-in expérimental explicite
 scripts/claude-lean --inspect      # profil limité, vault choisi par projet
 scripts/claude-full                # passthrough natif conservé
