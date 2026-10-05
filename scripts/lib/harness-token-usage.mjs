@@ -269,14 +269,3 @@ export function piEventCoverage(events, {childScope = null} = {}) {
     evidence: name === "child" ? (childScope === "isolated_read_grep" ? "runner_capabilities:read_grep_only" : "dispatch_inventory_required") : `native_event_scan:${triggered ? "" : "no_"}${name}`,
   }]));
 }
-
-
-// Partial native receipts are diagnostics, never a complete chain total.
-export function campaignUsage(normalized) {
-  const known = Object.fromEntries(Object.keys(normalized.usage).map(key => [key,
-    normalized.receipts.length && normalized.receipts.every(row => Number.isFinite(row[key]))
-      ? normalized.receipts.reduce((sum,row) => sum + row[key],0) : null]));
-  return {measured:normalized.measured,provenance:"provider_receipt",...normalized.usage,
-    cost_status:normalized.usage.cost_usd===null?"unavailable":"measured",
-    ...(!normalized.measured?{known_usage:known,measurement_errors:normalized.measurement_errors}: {})};
-}
