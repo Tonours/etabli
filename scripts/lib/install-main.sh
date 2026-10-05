@@ -667,7 +667,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         print_error "fresh Pi install does not use the tracked exact version"
         exit 1
     }
-    smoke_radius_skill="$smoke_home/.pi/agent/npm/node_modules/@earendil-works/pi-radius/skills/radius-api/SKILL.md"
+    smoke_radius_skill="$(pi_agent_node_modules_dir "$smoke_home")/@earendil-works/pi-radius/skills/radius-api/SKILL.md"
     mkdir -p "$(dirname "$smoke_radius_skill")"
     printf -- '---\nname: radius-api\ndescription: fixture\n---\nbody\n' >"$smoke_radius_skill"
     stamp_pi_specialist_skills >/dev/null
