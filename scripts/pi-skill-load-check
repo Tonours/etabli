@@ -291,6 +291,21 @@ if (rendered.some((entry) => entry.name === "brave-search")) {
 }
 
 const packageKeepers = [];
+const radiusSkill = join(homeDir, ".pi/agent/npm/node_modules/@earendil-works/pi-radius/skills/radius-api/SKILL.md");
+if (fs.existsSync(radiusSkill)) {
+  const remedy = `run scripts/pi-dmi-stamp --home "${homeDir}"`;
+  try {
+    const head = frontmatterOf(radiusSkill);
+    if (head.name !== "radius-api" || !isDmi(head)) {
+      errors.push(`B2(iii): installed radius-api lacks its DMI policy; ${remedy}`);
+    }
+    if (rendered.some((entry) => entry.name === "radius-api")) {
+      errors.push(`B2(iii): DMI package skill radius-api rendered; ${remedy} and re-check native visibility`);
+    }
+  } catch {
+    errors.push(`B2(iii): invalid Radius frontmatter at ${radiusSkill}; restore the package, then ${remedy}`);
+  }
+}
 for (const entry of settings.packages ?? []) {
   if (entry && typeof entry === "object" && Array.isArray(entry.skills)) {
     for (const name of entry.skills) {

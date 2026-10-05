@@ -38,7 +38,7 @@ if grep -Eq 'uses:[[:space:]]+actions/cache@[0-9a-f]{40}[[:space:]]+# v[1-4]([.]
 fi
 
 jq -e '
-  .dependencies["@earendil-works/pi-coding-agent"] == "0.84.4" and
+  .dependencies["@earendil-works/pi-coding-agent"] == "1.0.3" and
   .devDependencies.typescript == "7.0.2" and
   .devDependencies["@types/bun"] == "1.4.2" and
   .overrides == {

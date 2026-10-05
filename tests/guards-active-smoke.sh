@@ -143,6 +143,24 @@ fi
 "$STAMP" --home "$STAMP_HOME" >/dev/null || fail "re-stamp after flag removal failed"
 "$STAMP" --check --home "$STAMP_HOME" >/dev/null || fail "stamp --check failed after re-stamp"
 
+# Fresh installer checkouts use the globally installed Pi dependency.
+FRESH_REPO="$TMP_DIR/fresh-repo"
+GLOBAL_PI="$TMP_DIR/global/@earendil-works/pi-coding-agent"
+mkdir -p "$FRESH_REPO/scripts" "$GLOBAL_PI/node_modules" "$TMP_DIR/global-bin"
+cp "$STAMP" "$FRESH_REPO/scripts/pi-dmi-stamp"
+printf '%s\n' '{"name":"pi-config"}' >"$FRESH_REPO/package.json"
+printf '%s\n' '{"name":"@earendil-works/pi-coding-agent"}' >"$GLOBAL_PI/package.json"
+ln -s "$ROOT_DIR/pi/node_modules/yaml" "$GLOBAL_PI/node_modules/yaml"
+printf '#!/bin/sh\n[ "$*" = "root -g" ] || exit 2\nprintf "%%s\\n" "%s"\n' "$TMP_DIR/global" >"$TMP_DIR/global-bin/npm"
+chmod +x "$TMP_DIR/global-bin/npm"
+PATH="$TMP_DIR/global-bin:$PATH" "$FRESH_REPO/scripts/pi-dmi-stamp" --check --home "$STAMP_HOME" >/dev/null \
+  || fail "fresh checkout must resolve YAML from the global Pi install"
+rm "$GLOBAL_PI/node_modules/yaml"
+if PATH="$TMP_DIR/global-bin:$PATH" "$FRESH_REPO/scripts/pi-dmi-stamp" --check --home "$STAMP_HOME" >"$TMP_DIR/no-yaml.txt" 2>&1; then
+  fail "fresh checkout without either YAML source must fail"
+fi
+grep -q 'bun install --cwd pi' "$TMP_DIR/no-yaml.txt" || fail "missing YAML failure must name its repair"
+
 BROKEN_HOME="$TMP_DIR/broken-home"
 mkdir -p "$BROKEN_HOME/.agents/skills/hyperframes" "$BROKEN_HOME/.agents/skills/ghost-lab" \
   "$BROKEN_HOME/.agents/skills/media-use"
