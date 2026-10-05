@@ -69,6 +69,7 @@ FILES=(
   "$REPO_DIR/scripts/lib/project-verification.mjs|scripts/lib/project-verification.mjs"
   "$REPO_DIR/scripts/lib/project-verification-plan.mjs|scripts/lib/project-verification-plan.mjs"
   "$REPO_DIR/scripts/lib/project-verification-assertions.mjs|scripts/lib/project-verification-assertions.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-ui.mjs|scripts/lib/project-verification-ui.mjs"
   "$REPO_DIR/scripts/lib/project-verification-source.mjs|scripts/lib/project-verification-source.mjs"
   "$REPO_DIR/scripts/lib/plan-check-freeze.mjs|scripts/lib/plan-check-freeze.mjs"
   "$REPO_DIR/scripts/lib/unicode-case-fold.mjs|scripts/lib/unicode-case-fold.mjs"
@@ -398,6 +399,7 @@ exclude_block() {
     "/scripts/lib/project-verification.mjs" \
     "/scripts/lib/project-verification-plan.mjs" \
     "/scripts/lib/project-verification-assertions.mjs" \
+    "/scripts/lib/project-verification-ui.mjs" \
     "/scripts/lib/project-verification-source.mjs" \
     "/scripts/lib/plan-check-freeze.mjs" \
     "/scripts/lib/unicode-case-fold.mjs" \

@@ -17,6 +17,41 @@ function fixture(t) {
   return productFixture(directory);
 }
 
+function declareUi(recipe) {
+  const example = JSON.parse(readFileSync(new URL("../workflow-scaffold/templates/verification/web.recipe.json", import.meta.url), "utf8"));
+  recipe.mode = example.mode;
+  recipe.ui = example.ui;
+}
+
+test("recipe schema accepts explicit UI and explicit legacy product modes", async (t) => {
+  const f = fixture(t);
+  f.recipe.mode = "product";
+  f.saveRecipe();
+  await readVerificationRecipe(f.root);
+  declareUi(f.recipe);
+  f.saveRecipe();
+  assert.equal((await readVerificationRecipe(f.root)).recipe.mode, "ui");
+});
+
+for (const [name, mutate] of [
+  ["missing UI", recipe => delete recipe.ui],
+  ["implicit UI", recipe => delete recipe.mode],
+  ["product with UI", recipe => recipe.mode = "product"],
+  ["missing scope", recipe => delete recipe.ui.responsive_in_scope],
+  ["missing reason", recipe => delete recipe.ui.not_applicable_reasons.reference],
+  ["missing UI command", recipe => delete recipe.ui.observation],
+  ["UI timer overflow", recipe => recipe.ui.observation.timeout_ms = 2147483648],
+  ["empty UI assertions", recipe => recipe.ui.observation.assertions = []],
+  ["extra UI property", recipe => recipe.ui.claimed_pass = true],
+])
+  test(`recipe rejects ${name}`, async (t) => {
+    const f = fixture(t);
+    declareUi(f.recipe);
+    mutate(f.recipe);
+    f.saveRecipe();
+    await assert.rejects(readVerificationRecipe(f.root));
+  });
+
 test("discovery uses public metadata, bootstrap is create-only and incomplete recipes cannot run", async (t) => {
   const f = fixture(t);
   assert.ok(discoverVerification(f.root).commands.verify);

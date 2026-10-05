@@ -34,6 +34,7 @@ import {
   verifyVerificationSnapshot,
 } from "./project-verification-snapshot.mjs";
 import { sha256 } from "./project-verification-source.mjs";
+import { observedUiEvidence, pendingUiEvidence } from "./project-verification-ui.mjs";
 
 export async function runProjectVerification({
   planPath,
@@ -92,6 +93,7 @@ export async function runProjectVerification({
     recipe.cleanup,
     recipe.service,
     recipe.service?.readiness,
+    recipe.ui?.observation,
     ...recipe.scenarios.flatMap((s) => [s.action, s.result, s.persistence]),
     ...(useEngine ? [recipe.engine] : []),
   ].filter(Boolean))
@@ -181,6 +183,7 @@ export async function runProjectVerification({
       ...(recipe.engine ? { engine_requested: useEngine } : {}),
     };
   let failure, service, serviceReady;
+  let ui = recipe.mode === "ui" ? pendingUiEvidence(recipe.ui) : undefined;
   const fail = (error) => {
     failure ??= error;
     qa.exit_code = 1;
@@ -300,6 +303,18 @@ export async function runProjectVerification({
         fail(error);
       }
     }
+    if (recipe.mode === "ui") {
+      const output = await command(recipe.ui.observation, "ui");
+      const artifact = retain("ui-observation", "outcome", output.stdout);
+      qa.ui_observation = {
+        artifact: artifact.id,
+        receipt_artifact: output.id,
+        assertions: recipe.ui.observation.assertions,
+      };
+      const observation = JSON.parse(output.stdout.toString("utf8"));
+      assertJsonExpectations(observation, recipe.ui.observation.assertions, "UI observation");
+      ui = observedUiEvidence(recipe.ui, observation, artifact.id);
+    }
   } catch (error) {
     fail(error);
   } finally {
@@ -414,7 +429,8 @@ export async function runProjectVerification({
   const pack = {
     schema_version: 1,
     run_id: runId,
-    mode: "product",
+    mode: recipe.mode ?? "product",
+    ...(ui ? { ui } : {}),
     criteria_sha256: contract.criteria_sha256,
     target: {
       name: recipe.name,

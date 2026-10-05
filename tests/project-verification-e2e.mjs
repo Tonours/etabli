@@ -16,10 +16,17 @@ const base = resolve(
 );
 mkdirSync(base, { recursive: true });
 const results = [];
-for (const web of [false, true])
-  for (const negative of [false, true]) {
-    const name = `${web ? "web" : "cli"}-${negative ? "negative" : "positive"}`;
-    const fixture = productFixture(join(base, name), { web, negative });
+for (const options of [
+  { name: "cli-positive" },
+  { name: "cli-negative", negative: true },
+  { name: "web-positive", web: true },
+  { name: "web-negative", web: true, negative: true },
+  { name: "web-invisible-focus", web: true, uiNegative: "focus" },
+  { name: "web-missing-keyboard", web: true, uiNegative: "missing-keyboard" },
+]) {
+    const { name, web = false, uiNegative = false } = options;
+    const negative = Boolean(options.negative || uiNegative);
+    const fixture = productFixture(join(base, name), options);
     const run = fixture.run();
     writeFileSync(join(fixture.root, ".workflow/run.stdout.json"), run.stdout);
     writeFileSync(join(fixture.root, ".workflow/run.stderr.txt"), run.stderr);
@@ -29,6 +36,7 @@ for (const web of [false, true])
     const pack = JSON.parse(
       readFileSync(join(fixture.root, ".workflow/proof/pack.json"), "utf8"),
     );
+    assert.equal(pack.mode, web ? "ui" : "product");
     const artifact = (id) =>
       JSON.parse(
         readFileSync(
@@ -46,6 +54,19 @@ for (const web of [false, true])
       "Negative must fail deterministic observation despite a zero-exit command",
     );
     assert.equal(pack.execution.cleanup.status, "passed");
+    if (web) {
+      assert.equal(artifact("ui").exit_code, 0, "UI commands must observe failures with exit 0");
+      const observation = artifact("ui-observation");
+      if (uiNegative === "focus") assert.equal(observation.checks.focus, false);
+      else if (uiNegative === "missing-keyboard") assert.equal(Object.hasOwn(observation.checks, "keyboard"), false);
+      else assert.equal(observation.checks.focus, true);
+      assert.equal(new Set(observation.viewports.map(v => `${v.width}x${v.height}`)).size, 2);
+      if (!negative) {
+        assert.equal(pack.ui.checks.keyboard.status, "passed");
+        assert.equal(pack.ui.checks.reduced_motion.status, "not_applicable");
+        assert.ok(pack.ui.checks.reduced_motion.reason);
+      }
+    }
     const cleanup = artifact("cleanup");
     assert.equal(cleanup.owned_cleanup.processes_reaped, true);
     assert.equal(cleanup.owned_cleanup.runtime_removed, true);
@@ -82,6 +103,7 @@ for (const web of [false, true])
       runner_exit: run.status,
       checker_exit: checked.status,
       result_command_exit: 0,
+      ui_command_exit: web ? artifact("ui").exit_code : null,
       cleanup: "passed",
       archive_event_exit: archive.archiveEvent.status,
       archive_exit: archive.status,

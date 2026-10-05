@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { assertionProtocol } from "./project-verification-plan.mjs";
+import { observedUiEvidence, validateUiDeclaration } from "./project-verification-ui.mjs";
 
 export { assertionProtocol };
 
@@ -88,6 +89,11 @@ function commandSpec(command, label) {
 
 export function validateRecipeAssertions(recipe) {
   assert.equal(recipe.schema_version, 1, "Unsupported verification recipe");
+  validateUiDeclaration(recipe);
+  if (recipe.mode === "ui") {
+    commandSpec(recipe.ui.observation, "UI observation");
+    assertionList(recipe.ui.observation.assertions);
+  }
   assert.ok(
     typeof recipe.name === "string" && recipe.name.trim(),
     "Recipe needs a name",
@@ -274,6 +280,7 @@ export function verifyRecipeEvidence({
   const recipe = validateRecipeAssertions(
     JSON.parse(readFileSync(retained.fullPath, "utf8")),
   );
+  assert.equal(pack.mode, recipe.mode ?? "product", "Evidence mode differs from the source recipe; retain declared UI proof");
   for (const value of [environment, executionReceipt]) {
     assert.equal(
       value.protocol,
@@ -324,6 +331,18 @@ export function verifyRecipeEvidence({
   };
   const record = (id, kind = "execution_receipt") =>
     JSON.parse(readFileSync(artifact(id, kind).fullPath, "utf8"));
+  if (recipe.mode === "ui") {
+    const observed = executionReceipt.ui_observation;
+    assert.ok(observed, "Missing independently checkable UI observation");
+    assert.deepEqual(observed.assertions, recipe.ui.observation.assertions, "UI assertions differ from the frozen recipe");
+    const item = artifact(observed.artifact, "outcome");
+    const receipt = assertCommandReceipt(record(observed.receipt_artifact), recipe.ui.observation, { ...binding, role: "ui" });
+    assert.equal(receipt.stdout_sha256, item.sha256, "UI JSON differs from observed command stdout");
+    const observation = JSON.parse(readFileSync(item.fullPath, "utf8"));
+    assertJsonExpectations(observation, recipe.ui.observation.assertions, "UI observation");
+    assert.deepEqual(pack.ui, observedUiEvidence(recipe.ui, observation, item.id), "UI evidence differs from frozen scope or observed checks/viewports");
+  } else
+    assert.ok(!executionReceipt.ui_observation, "UI observation has no declared UI recipe");
   for (const [phase, receipts] of Object.entries(phaseReceipts)) {
     for (const receipt of receipts) {
       const role = phase === "isolation" ? receipt.role : phase;

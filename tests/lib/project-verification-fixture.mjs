@@ -19,7 +19,7 @@ const templates = join(repository, "workflow-scaffold/templates/verification");
 
 export function productFixture(
   directory,
-  { web = false, negative = false } = {},
+  { web = false, negative = false, uiNegative = false } = {},
 ) {
   mkdirSync(directory, { recursive: true });
   const root = realpathSync(directory);
@@ -54,6 +54,10 @@ export function productFixture(
     { path: "pi/node_modules", target: compilerRuntime },
   ];
   if (web) {
+    if (uiNegative === "focus") {
+      const app = join(root, "app.mjs");
+      writeFileSync(app, readFileSync(app, "utf8").replace("outline:2px solid #000", "outline:none"));
+    }
     assert.ok(
       process.env.ETABLI_TEST_PLAYWRIGHT_PACKAGE,
       "Set ETABLI_TEST_PLAYWRIGHT_PACKAGE to an explicitly selected installed Playwright project/package.json; no install or skip is performed",
@@ -62,6 +66,10 @@ export function productFixture(
       process.env.ETABLI_TEST_PLAYWRIGHT_PACKAGE,
     ).resolve("@playwright/test/package.json");
     recipe.runtime.modules[0].package_json = packagePath;
+    if (uiNegative === "missing-keyboard") {
+      writeFileSync(join(root, "verification/missing-ui.mjs"), 'import {readFileSync} from "node:fs";import {join} from "node:path";const ui=JSON.parse(readFileSync(join(process.env.ETABLI_RUN_DIR,"ui.json")));delete ui.checks.keyboard;process.stdout.write(JSON.stringify(ui)+"\\n");\n');
+      recipe.ui.observation.argv = ["node", "verification/missing-ui.mjs"];
+    }
     if (negative) {
       const wrong = join(root, "verification/wrong-result.mjs");
       writeFileSync(

@@ -107,11 +107,27 @@ Launch/doctor/isolation use `execution_receipt`; cleanup uses `cleanup`. Aggrega
 receipts bind environment and actual outcome. Declared persistence needs proof
 even without the AC side-effect role.
 
-UI packs additionally need passed keyboard/focus/accessibility/console/network
-checks with retained evidence and an observed viewport. Responsive/motion/reference
-follow declared scope: scoped checks pass with evidence; unscoped checks need a
-not-applicable reason. Responsive proof needs two distinct sizes. Browser result
-proof alone does not claim those additional UI checks were performed.
+Declare `mode: "ui"` explicitly on a web/UI recipe. Its `ui` section requires
+boolean `responsive_in_scope`, `motion_in_scope`, `reference_in_scope`,
+`not_applicable_reasons` and an `observation` command with argv, timeout and frozen
+assertions. Omitted mode keeps legacy product behavior; UI is never inferred from
+argv. Scope exclusions need reasons keyed by `responsive`, `reduced_motion` or
+`reference`.
+
+The UI command prints actual JSON: `checks` maps keyboard/focus/accessibility/
+console/network to true observed checks, and `viewports` lists label/width/height.
+Scoped responsive/reduced_motion/reference must also be true; responsive needs
+two distinct observed sizes. False/missing observations fail even with exit 0 or
+assertions that omit a mandatory check. The runner retains raw stdout and its
+process receipt; the checker independently binds mode, scope, assertions, checks
+and viewport metadata to the inventoried recipe and observed command. Cleanup
+still runs on failure. Browser result proof alone does not cover these UI checks.
+
+The deployed web example observes keyboard activation, black focus outlines on
+white, accessible control names/roles, console/page errors, failed requests and
+HTTP errors, and layout bounds at 1280×800 and 390×844 in Chromium. This bounded
+accessibility sample does not certify WCAG conformance. Motion and visual-reference
+checks are explicitly out of scope for this fixture.
 
 ## Identity and closing
 

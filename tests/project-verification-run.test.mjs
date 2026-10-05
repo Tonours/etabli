@@ -66,6 +66,30 @@ test("real CLI source snapshot and unchanged stdout observations pass the indepe
   assert.equal(existsSync(join(result.run_root, "subject/app.mjs")), true);
 });
 
+for (const failure of [false, "focus", "keyboard", "command"])
+  test(`runner retains source-bound UI observations and cleanup: ${failure || "positive"}`, async (t) => {
+    const f = fixture(t);
+    const example = JSON.parse(readFileSync(new URL("../workflow-scaffold/templates/verification/web.recipe.json", import.meta.url)));
+    f.recipe.mode = "ui";
+    f.recipe.ui = example.ui;
+    const raw = { checks: { keyboard: true, focus: true, accessibility: true, console: true, network: true, responsive: true }, viewports: [{ label: "desktop", width: 1280, height: 800 }, { label: "mobile", width: 390, height: 844 }] };
+    if (failure === "focus") raw.checks.focus = false;
+    if (failure === "keyboard") delete raw.checks.keyboard;
+    f.recipe.ui.observation.argv = f.script("ui-observation", failure === "command" ? "process.exitCode=7;" : `process.stdout.write(${JSON.stringify(JSON.stringify(raw) + "\n")});`);
+    f.saveRecipe();
+    const run = runProjectVerification({ planPath: f.planPath, runId: "ui-protocol" });
+    if (failure) await assert.rejects(run);
+    else await run;
+    assert.equal(f.pack().mode, "ui");
+    assert.equal(f.artifact("execution").exit_code, failure ? 1 : 0);
+    assert.equal(f.artifact("cleanup").owned_cleanup.runtime_removed, true);
+    assert.equal(f.check().status, failure ? 1 : 0);
+    if (failure !== "command") {
+      assert.equal(f.artifact("ui").exit_code, 0);
+      assert.deepEqual(f.artifact("ui-observation"), raw);
+    }
+  });
+
 test("artifact directory symlink fails before creating outside or runtime directories", async (t) => {
   const f = fixture(t);
   const outside = mkdtempSync(join(tmpdir(), "etabli-outside-proof-"));

@@ -51,7 +51,7 @@ function fixture(t) {
   return { root, planPath, plan, base, pack, contract, save, git };
 }
 
-function recipeFixture(t, { auto = true, service = false, engine = false } = {}) {
+function recipeFixture(t, { auto = true, service = false, engine = false, ui = false } = {}) {
   const f = fixture(t);
   const command = { argv: [process.execPath, "-e", "process.stdout.write('{}')"], timeout_ms: 5000 };
   const recipe = { schema_version: 1, name: "Gate protocol fixture", launch: command, doctor: command, cleanup: command,
@@ -60,6 +60,11 @@ function recipeFixture(t, { auto = true, service = false, engine = false } = {})
       persistence: { ...command, assertions: [{ pointer: "/persisted", expected: "expected" }] } }] };
   if (service) recipe.service = { ...command, readiness: command };
   if (engine) recipe.engine = { ...command, provider: "configured-provider", model: "configured-model", required_env: ["FIXTURE_ENGINE_KEY"] };
+  if (ui) {
+    const example = JSON.parse(readFileSync(join(repository, "workflow-scaffold/templates/verification/web.recipe.json")));
+    recipe.mode = "ui";
+    recipe.ui = example.ui;
+  }
   mkdirSync(join(f.root, "verification"));
   const recipePath = join(f.root, "verification/recipe.json");
   writeFileSync(recipePath, JSON.stringify(recipe));
@@ -84,7 +89,8 @@ function recipeFixture(t, { auto = true, service = false, engine = false } = {})
   f.pack.target.environment_sha256 = set("environment", environment).sha256;
   const binding = { protocol: assertionProtocol, run_id: f.pack.run_id, source_sha256: sourceArtifact.sha256, environment_sha256: f.pack.target.environment_sha256, recipe_sha256: recipeHash };
   const processReceipt = (role, extra = {}) => ({ ...binding, role, ...command, cwd: environment.snapshot_root, pid: 100, started_at: "2026-10-03T12:00:00.000Z", ended_at: "2026-10-03T12:00:01.000Z", exit_code: 0, signal: null, timed_out: false, stdout_sha256: sha256("{}"), ...extra });
-  set("execution", { ...binding, ...environment, exit_code: 0, ...(service ? { service: { receipt_artifact: "service", readiness_artifact: "readiness" } } : {}), ...(engine ? { engine_requested: false } : {}) });
+  const execution = { ...binding, ...environment, exit_code: 0, ...(service ? { service: { receipt_artifact: "service", readiness_artifact: "readiness" } } : {}), ...(engine ? { engine_requested: false } : {}) };
+  set("execution", execution);
   if (service) {
     set("service", processReceipt("service", { owned_shutdown: true, ready_observed: true, unexpected_exit: false, exit_code: null, signal: "SIGTERM" }), "execution_receipt");
     set("readiness", processReceipt("readiness"), "execution_receipt");
@@ -99,9 +105,57 @@ function recipeFixture(t, { auto = true, service = false, engine = false } = {})
   f.pack.recipe = { protocol: assertionProtocol, path: "verification/recipe.json", sha256: recipeHash, artifact: "recipe" };
   f.pack.scenarios[0].observations = { result: { artifact: "outcome", receipt_artifact: "result-command", assertions: structuredClone(recipe.scenarios[0].result.assertions) }, persistence: { artifact: "sql", receipt_artifact: "persistence-command", assertions: structuredClone(recipe.scenarios[0].persistence.assertions) } };
   f.pack.criteria_sha256 = frozenProductContract(plan, f.planPath).criteria_sha256;
+  let uiRaw, uiReceipt;
+  if (ui) {
+    uiRaw = { checks: { keyboard: true, focus: true, accessibility: true, console: true, network: true, responsive: true }, viewports: [{ label: "desktop", width: 1280, height: 800 }, { label: "mobile", width: 390, height: 844 }] };
+    const raw = set("ui-raw", uiRaw, "outcome");
+    uiReceipt = processReceipt("ui", { argv: recipe.ui.observation.argv, timeout_ms: recipe.ui.observation.timeout_ms, stdout_sha256: raw.sha256 });
+    set("ui-command", uiReceipt, "execution_receipt");
+    execution.ui_observation = { artifact: "ui-raw", receipt_artifact: "ui-command", assertions: structuredClone(recipe.ui.observation.assertions) };
+    set("execution", execution);
+    f.pack.mode = "ui";
+    const checks = Object.fromEntries(["keyboard", "focus", "accessibility", "console", "network", "responsive"].map(check => [check, { status: "passed", evidence: ["ui-raw"] }]));
+    for (const check of ["reduced_motion", "reference"]) checks[check] = { status: "not_applicable", evidence: [], reason: recipe.ui.not_applicable_reasons[check] };
+    f.pack.ui = { responsive_in_scope: true, motion_in_scope: false, reference_in_scope: false, viewports: uiRaw.viewports.map(v => ({ ...v, evidence: ["ui-raw"] })), checks };
+  }
   f.save();
-  return { ...f, plan, recipe, set, processReceipt };
+  return { ...f, plan, recipe, set, processReceipt, execution, uiRaw, uiReceipt };
 }
+
+test("source-bound UI observations pass independently alongside legacy product recipes", async t => {
+  const f = recipeFixture(t, { ui: true });
+  assert.equal((await checkProductPlan(f.planPath)).status, "passed");
+});
+
+for (const [name, mutate] of [
+  ["UI mode downgrade", f => { f.pack.mode = "product"; delete f.pack.ui; }],
+  ["missing raw UI observation", f => { delete f.execution.ui_observation; f.set("execution", f.execution); }],
+  ["altered UI assertions", f => { f.execution.ui_observation.assertions = [{ pointer: "/checks/focus", expected: false }]; f.set("execution", f.execution); }],
+  ["different UI argv", f => { f.uiReceipt.argv = ["node", "other.mjs"]; f.set("ui-command", f.uiReceipt); }],
+  ["different UI role", f => { f.uiReceipt.role = "result"; f.set("ui-command", f.uiReceipt); }],
+  ["UI stdout mismatch", f => { f.uiReceipt.stdout_sha256 = "0".repeat(64); f.set("ui-command", f.uiReceipt); }],
+  ["UI scope demotion", f => { f.pack.ui.responsive_in_scope = false; f.pack.ui.checks.responsive = { status: "not_applicable", evidence: [], reason: "Skipped" }; }],
+  ["UI viewport metadata forgery", f => { f.pack.ui.viewports[0].width = 1440; }],
+  ["UI proof points at product outcome", f => { f.pack.ui.checks.focus.evidence = ["outcome"]; }],
+])
+  test(`independent checker rejects ${name}`, async t => {
+    const f = recipeFixture(t, { ui: true });
+    mutate(f); f.save();
+    await assert.rejects(checkProductPlan(f.planPath));
+  });
+
+for (const [name, mutate] of [
+  ["false focus", raw => raw.checks.focus = false],
+  ["missing keyboard", raw => delete raw.checks.keyboard],
+  ["duplicate sizes", raw => raw.viewports[1] = { ...raw.viewports[0], label: "renamed" }],
+])
+  test(`independent checker reevaluates ${name} with matching stdout receipt`, async t => {
+    const f = recipeFixture(t, { ui: true });
+    mutate(f.uiRaw);
+    f.uiReceipt.stdout_sha256 = f.set("ui-raw", f.uiRaw).sha256;
+    f.set("ui-command", f.uiReceipt); f.save();
+    await assert.rejects(checkProductPlan(f.planPath));
+  });
 
 test("the deployed checker validates a product pack using its declared runtime", async t => {
   const f = fixture(t);
