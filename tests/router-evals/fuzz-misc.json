@@ -3,21 +3,21 @@
     "name": "fuzz: review PR 128 routes to pr-review",
     "category": "fuzz-pr",
     "prompt": "review la PR #128",
-    "expectedRoute": "pr-review",
+    "expectedRoute": "review",
     "writeAllowed": false
   },
   {
     "name": "fuzz: QA plan for PR 90 routes to pr-qa",
     "category": "fuzz-pr",
     "prompt": "Fais une QA plan de la PR 90",
-    "expectedRoute": "pr-qa",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "fuzz: dependabot PR security analysis routes to sec-pr",
     "category": "fuzz-pr",
     "prompt": "analyse la sécurité de la PR dependabot #42",
-    "expectedRoute": "sec-pr",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
@@ -70,14 +70,14 @@
     "name": "fuzz: autonomous green CI request routes to ci-fix",
     "category": "fuzz-ci",
     "prompt": "ci verte stp, autonomie max",
-    "expectedRoute": "ci-fix",
-    "writeAllowed": true
+    "expectedRoute": "answer",
+    "writeAllowed": false
   },
   {
     "name": "fuzz: polite linear ticket creation routes to linear-ticket-create",
     "category": "fuzz-linear",
     "prompt": "Peux-tu créer un ticket Linear pour le crash au démarrage ?",
-    "expectedRoute": "linear-ticket-create",
-    "writeAllowed": true
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
   }
 ]

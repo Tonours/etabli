@@ -8,9 +8,10 @@
         "AGENTS.md",
         "CLAUDE.md",
         "claude/CLAUDE.md",
+        "claude/RTK.md",
         "workflow/agent-quick-card.md"
       ],
-      "ceiling_chars": 16635
+      "ceiling_chars": 12148
     },
     "plan-loop": {
       "description": "default read chain of the plan-loop route",
@@ -38,7 +39,21 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 68268
+      "ceiling_chars": 55699,
+      "conditional": [
+        {
+          "file": "workflow/skills/review-rounds.md",
+          "trigger": "review round with findings, re-review, or CI commits after review"
+        },
+        {
+          "file": "workflow/skills/long-loop.md",
+          "trigger": "improvement loop without a fixed end"
+        },
+        {
+          "file": "workflow/events-validator.md",
+          "trigger": "event-system edit, corrupt ledger recovery, or active-run selection"
+        }
+      ]
     },
     "implement": {
       "description": "default read chain of the implement route (events-validator.md stays cold, opened only when editing the event system)",
@@ -55,7 +70,21 @@
         "workflow/events.md",
         "workflow/answer-quality.md"
       ],
-      "ceiling_chars": 62476
+      "ceiling_chars": 50175,
+      "conditional": [
+        {
+          "file": "workflow/skills/review-rounds.md",
+          "trigger": "review round with findings, re-review, or CI commits after review"
+        },
+        {
+          "file": "workflow/skills/long-loop.md",
+          "trigger": "improvement loop without a fixed end"
+        },
+        {
+          "file": "workflow/events-validator.md",
+          "trigger": "event-system edit, corrupt ledger recovery, or active-run selection"
+        }
+      ]
     },
     "review": {
       "description": "default read chain of the review route",
@@ -67,7 +96,7 @@
         "workflow/templates/review-logic-hunter.md",
         "workflow/templates/review-spec-hunter.md"
       ],
-      "ceiling_chars": 22727
+      "ceiling_chars": 22538
     },
     "verify": {
       "description": "default read chain of the verify route",
@@ -84,7 +113,7 @@
         "workflow/spec.md",
         "workflow/contract-details.md"
       ],
-      "ceiling_chars": 34668
+      "ceiling_chars": 30120
     },
     "ship": {
       "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",
@@ -105,7 +134,8 @@
         "workflow/events.md",
         "workflow/answer-quality.md",
         "workflow/skills/worktree-isolation.md",
-        "workflow/git-contract.md"
+        "workflow/git-contract.md",
+        "workflow/pr-body-contract.md"
       ],
       "conditional": [
         {
@@ -117,15 +147,19 @@
           "trigger": "long-rules lookup"
         },
         {
-          "file": "workflow/pr-body-contract.md",
-          "trigger": "PR phase"
-        },
-        {
           "file": "workflow/skills/ci-fix.md",
           "trigger": "failing CI"
+        },
+        {
+          "file": "workflow/skills/review-rounds.md",
+          "trigger": "review round with findings, re-review, or CI commits after review"
+        },
+        {
+          "file": "workflow/events-validator.md",
+          "trigger": "event-system edit, corrupt ledger recovery, or active-run selection"
         }
       ],
-      "ceiling_chars": 89633
+      "ceiling_chars": 83333
     }
   }
 }

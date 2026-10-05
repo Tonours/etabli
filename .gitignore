@@ -38,6 +38,7 @@ github-copilot/
 
 # Node
 node_modules/
+pi/node_modules
 pi/extensions/node_modules
 
 # Herdr integration hook (written into linked pi/extensions by herdr install)
@@ -56,6 +57,7 @@ PLAN.md
 !tests/fixtures/**/PLAN.md
 ops-roadmap.md
 .workflow/
+claude/mods/etabli/.claude-plugin/types/
 
 # Local Pi runtime state
 .pi/

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Runtime Skill Canary"
-  short_description: "Verify skill source, links, and invocation"
-  default_prompt: "Use $runtime-skill-canary to verify this runtime can discover and invoke the shared Etabli skill surface."

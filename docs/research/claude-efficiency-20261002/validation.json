@@ -1,0 +1,180 @@
+{
+  "captured_at_utc": "2026-10-02T13:32:27.425Z",
+  "profile_fixture_smoke": {
+    "command": "TMPDIR=/tmp/claude-efficiency-profile-fixtures-20261002 CLAUDE_CONFIG_DIR=/Volumes/Crucial/.homes/claude bash tests/claude-profile-smoke.sh",
+    "exit_code": 0,
+    "observed_stdout": [
+      "claude-profile lib units ok",
+      "claude-profile smoke test: ok"
+    ],
+    "mode": "offline-fixture-not-provider"
+  },
+  "rtk_guard_probes": [
+    {
+      "command": "git status",
+      "exit_code": 0,
+      "hook_output": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecisionReason": "RTK auto-rewrite",
+          "updatedInput": {
+            "command": "rtk git status"
+          }
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "command": "git status && git log -1",
+      "exit_code": 0,
+      "hook_output": null,
+      "stderr": ""
+    },
+    {
+      "command": "git diff | head -80",
+      "exit_code": 0,
+      "hook_output": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecisionReason": "RTK auto-rewrite",
+          "updatedInput": {
+            "command": "rtk git diff | head -80"
+          }
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "command": "git diff > /tmp/claude-audit-never-written.diff",
+      "exit_code": 0,
+      "hook_output": null,
+      "stderr": ""
+    }
+  ],
+  "lean_launch_probes": [
+    {
+      "strict_mcp": true,
+      "args": [
+        "--settings",
+        "/Volumes/Crucial/.homes/codex/worktrees/claude-efficiency-audit/etabli/claude/profiles/lean.settings.json",
+        "--strict-mcp-config",
+        "--mcp-config",
+        "<temporary-mcp-config>"
+      ],
+      "rendered_mcp_server_names": [
+        "brain"
+      ],
+      "temporary_mode": "600",
+      "temporary_removed": true
+    },
+    {
+      "strict_mcp": false,
+      "args": [
+        "--settings",
+        "/Volumes/Crucial/.homes/codex/worktrees/claude-efficiency-audit/etabli/claude/profiles/lean.settings.json"
+      ],
+      "rendered_mcp_server_names": [
+        "brain"
+      ],
+      "temporary_mode": "600",
+      "temporary_removed": true
+    }
+  ],
+  "live_configuration_fingerprints_preserved": [
+    {
+      "path": "/Users/tonours/.claude/settings.json",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/tonours/.claude/CLAUDE.md",
+      "unchanged": true
+    },
+    {
+      "path": "/Volumes/Crucial/.homes/claude/settings.json",
+      "unchanged": true
+    },
+    {
+      "path": "/Volumes/Crucial/.homes/claude/CLAUDE.md",
+      "unchanged": true
+    }
+  ],
+  "claude_inference_calls": 0,
+  "scope": "Research artifacts only; no implemented optimization or measured quota savings",
+  "artifact_checks": [
+    {
+      "command": "scripts/research-proof-check /Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli/docs/research/20261002-claude-code-configuration-efficiency-audit.md",
+      "exit_code": 0,
+      "stdout": "research proof check: ok",
+      "stderr": ""
+    },
+    {
+      "command": "scripts/answer-quality-check --mode research /Users/tonours/.codex/worktrees/claude-efficiency-audit/etabli/docs/research/20261002-claude-code-configuration-efficiency-audit.md",
+      "exit_code": 0,
+      "stdout": "answer quality check: ok",
+      "stderr": ""
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "factual_review": {
+    "verdict": "GO after requested factual corrections; parent verified corrections applied",
+    "corrections": [
+      "Nonzero observed usage begins 2026-09-23, not whole searched 30-day window",
+      "Named agents can become teammates with interactive experimental teams opt-in; propose opt-in0 for ordinary sessions"
+    ],
+    "status": "resolved",
+    "review_scope": "Official-source accuracy and aggregate arithmetic; not runtime optimization validation"
+  },
+  "report_sha256": "0a66218f3ed2a72885201169e745c77dc10a9e8916b9ec956120079d5834b9dc",
+  "corpus_extension": {
+    "captured_at_utc": "2026-10-02T13:58:05.424416+00:00",
+    "host_scope": "macbook-work",
+    "mode": "SSH read-only, aggregate on source; no remote files created or modified by audit commands",
+    "ssh_first_connection_policy": "accept-new on first connection, changed keys rejected; subsequent reads StrictHostKeyChecking=yes",
+    "window_start_utc": "2026-09-02T13:24:38.606469+00:00",
+    "window_end_utc": "2026-10-02T13:24:38.606469+00:00",
+    "aggregate_reconciliation_exit_code": 0,
+    "two_remote_reads_usage_totals_equal": true,
+    "local_usage_matches_initial_evidence": true,
+    "remote_json_parse_errors": 0,
+    "usage_bearing_assistant_records_excluded_for_missing_timestamp": 0,
+    "remote_live_claude_configuration_preserved": true,
+    "configuration_fingerprint_scope": [
+      "settings.json",
+      "user CLAUDE.md",
+      "user RTK.md"
+    ],
+    "raw_conversation_exported": false,
+    "provider_inference_calls": 0,
+    "runtime_profile_or_hooks_executed": false,
+    "artifact_checks": [
+      {
+        "check": "research-proof-check",
+        "exit_code": 0
+      },
+      {
+        "check": "answer-quality-check --mode research",
+        "exit_code": 0
+      },
+      {
+        "check": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "review_status": "GO",
+    "factual_review": {
+      "verdict": "GO",
+      "reviewed_at_utc": "2026-10-02T13:59:15.818308+00:00",
+      "scope": "Numbers, window coverage, settings vs history, plugin metadata vs effective loading, and absence of raw conversations/session identifiers/secrets in examined artifacts",
+      "remaining_material_corrections": 0
+    },
+    "evidence_sha256": {
+      "macbook-work-evidence.json": "a33f9eaf85fa1b4b7017b2a83b02e90de25e2d09c9c0ca76224d1c020bd49198",
+      "local-conversation-patterns.json": "1f0be513e3bd38afa866fe97ef917ea947fd98b70674093d70f9269a20c558ba"
+    }
+  }
+}

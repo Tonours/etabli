@@ -150,15 +150,15 @@
     "name": "fuzz: find sources of memory leak routes to research-plan",
     "category": "fuzz-research",
     "prompt": "Cherche les sources du leak mémoire et documente-les",
-    "expectedRoute": "research-plan",
-    "writeAllowed": true
+    "expectedRoute": "answer",
+    "writeAllowed": false
   },
   {
     "name": "fuzz: fact-check latency benchmark claim routes to research-plan",
     "category": "fuzz-research",
     "prompt": "Fact-check ce claim sur le benchmark de latence",
-    "expectedRoute": "research-plan",
-    "writeAllowed": true
+    "expectedRoute": "answer",
+    "writeAllowed": false
   },
   {
     "name": "fuzz: fix broken github actions workflow is a direct edit",
@@ -171,7 +171,7 @@
     "name": "fuzz: help me build the v2 spec routes to spec-guide",
     "category": "fuzz-spec-guide",
     "prompt": "Aide-moi à construire la spec de la v2",
-    "expectedRoute": "spec-guide",
+    "expectedRoute": "plan-loop",
     "writeAllowed": true
   }
 ]

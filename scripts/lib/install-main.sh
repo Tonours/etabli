@@ -419,9 +419,9 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     ln -s "../../relative-repo/pi/skills/relative-managed-gone" \
         "$smoke_skill_home/.claude/skills/relative-managed-dangling"
     for smoke_live_skill in \
-        "pi/skills/design-suite" \
+        "pi/skills/plan-loop" \
         "vendor/ember-skills/skills/ember-employer-suite" \
-        "pi/skills/react-doctor-100"; do
+        "pi/skills/review"; do
         ln -s "$smoke_repo_dir/$smoke_live_skill" \
             "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
     done
@@ -504,7 +504,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             exit 1
         fi
     done
-    for smoke_kept_skill in design-suite ember-employer-suite react-doctor-100; do
+    for smoke_kept_skill in plan-loop ember-employer-suite review; do
         if [ ! -L "$smoke_skill_home/.claude/skills/$smoke_kept_skill" ]; then
             print_error "live managed Claude skill link '$smoke_kept_skill' was removed"
             exit 1
@@ -646,6 +646,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         smoke_node_bin="$(command -v node)"
     fi
     NODE_CMD=("$smoke_node_bin")
+    PATH="$(dirname "$smoke_node_bin"):$PATH"
     HOME="$smoke_home"
     REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
     converge_agent_surfaces >/dev/null
@@ -963,9 +964,9 @@ install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
-install_script "jev-judge" || true
 install_script "claude-lean" || true
 install_script "claude-full" || true
+install_script "pi-durable" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness

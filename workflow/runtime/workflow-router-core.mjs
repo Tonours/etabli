@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { recordGuardDenial } from "./guard-journal.mjs";
+import { projectVaultRoots, vaultContextCommand } from "./obvault-topic-resolver.mjs";
 import {
 	evaluateCheckFreeze,
 	evaluateReadyPlan,
@@ -8,13 +10,15 @@ import {
 	parsePlanStatus,
 } from "../../scripts/lib/plan-check-freeze.mjs";
 import {
-	isNoProgressEscapeHatch,
 	isWorkflowEventEscapeCommand,
-	shouldDenyMutationForNoProgress,
 } from "../../scripts/lib/no-progress-guard.mjs";
-import { isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
+import { readRootPlanContract, planReviewPermission, isReviewPreparationPath, isPlanReviewBootstrap } from "../../scripts/lib/plan-review-binding.mjs";
+import { closedShellWords, isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
 
 export { parsePlanStatus };
+
+export const COMPACT_INSTRUCTIONS =
+	"When compacting, keep the root `PLAN.md` subject and status, the active ledger run, files modified, frozen check commands and last results, open findings, and the exact next action. Drop stale exploration output.";
 
 const REVIEW_TERMS = "review(?:er|ing)?|revue|relis|audit|critique|findings?";
 const REVIEW_PATTERN = new RegExp(`\\b(${REVIEW_TERMS})\\b`);
@@ -36,6 +40,17 @@ const VERIFY_OBJECT_CLAUSE_PATTERN =
 const RETEST_STRIP_PATTERN = /\brelance\s+les\s+tests\b/g;
 const PLAN_PATTERN =
 	/\b(plan|roadmap|architecture|strat[eé]gie|design|approche|sp[eé]c)\b/;
+const BUG_CHECK_PATTERN =
+	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/;
+const PR_CONTEXT_PATTERN =
+	/\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/;
+const PR_REVIEW_PATTERN = new RegExp(
+	`\\b(pr-review|code review|${REVIEW_TERMS})\\b`,
+);
+const PR_QA_PATTERN =
+	/\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/;
+const SEC_PR_PATTERN =
+	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/;
 // An explicit planning ask ("fais un plan", "draft a roadmap") outranks every
 // implementation signal: the user asked for a plan, not for an edit.
 // An implement word only blocks the read-only branch when used as an
@@ -66,11 +81,6 @@ const SCOPED_MIGRATION_PATTERN =
 	/\b(?:dossier|directory|folder|file|fichier)s?\s+migrations?\b|\bmigrations?\s*(?:\/|\.sql|\.js|\.ts)\b|\b(?:fichier\s+de\s+migration|migration\s+file)\b/;
 const PLAN_REQUEST_PATTERN =
 	/\b(fais|faire|r[eé]dige|pr[eé]pare|draft|write|propose|esquisse)\b(?:(?!\b(?:review|revue|audit|critique|relis)\b)[\s\S]){0,24}\b(plan|roadmap|strat[eé]gie|strategy)\b|\b(?:je |i )?(veux|voudrais|want|need)\s+(?:un |une |a |an |my |the )?(?:plan|roadmap|strat[eé]gie|strategy)\b|\b(plan|roadmap)\s+(seul|only)\b|\b(plan|roadmap|strat[eé]gie|strategy)\b[^.!?]{0,40}\b(?:la |le |l')?(pr[eé]parer|r[eé]diger|proposer|esquisser|drafte?r)\b/;
-const SPEC_GUIDE_PATTERN =
-	/(spec-guide|guide[- ]?moi|aide[- ]?moi[\s\S]{0,20}sp[eé]c|construis[\s\S]{0,20}sp[eé]c|extraire[\s\S]{0,20}sp[eé]c|pose[- ]?moi les questions|interroge[- ]?moi)/u;
-const SPEC_INTENT_PATTERN = /(sp[eé]c|spec)\b/u;
-const SPEC_CREATE_VERB_PATTERN =
-	/(cr[eé]e|cr[eé]er|nouvelle|r[eé]dige|write|[eé]cri[ts]|construis|drafte?)/u;
 const IMPLEMENT_PATTERN =
 	/\b(impl[eé]mente|implemente|implement|code|build|corrige|fix|r[eé]pare|ajoute|aoute|modifie|update|maj|cleanup|nettoie|nettoyer|remplace|renomme|rename|active|d[eé]sactive|relance|mets?\s+en\s+place|mettre\s+en\s+place|mets?\s+[aà]\s+jour|mettre\s+[aà]\s+jour|rends?\s+[\s\S]{0,40}?performant|optimise|am[eé]liore\s+[\s\S]{0,30}?perf|supprime|delete|remove|retire|bump|augmente|add|[ck]r[eé]e|create|refactor(?:ise)?|applique|s[eé]curise|secure)\b/;
 const READY_PLAN_PATTERN =
@@ -81,13 +91,6 @@ const SELF_IMPROVEMENT_PATTERN =
 	/\b(self[- ]?improvements?|self[- ]?improve|auto[- ]?improvement|am[eé]liore(?:r|z)?\s+(?:le\s+|la\s+|les\s+)?(?:workflow|etabli|agents?|loop|syst[eè]me)|improve\s+(?:the\s+)?(?:workflow|etabli|agents?|loop|system)|workflow[- ]?retrospect|retrospect(?:ive)?\s+(?:du|de la|des|of)\s+(?:workflow|run|loop)|retrospective\s+(?:loop|findings)|fixes?\s+r[eé]currents?|(?:recurring|r[eé]currents?)\s+(?:findings|failures|issues))\b/;
 const AMBITIOUS_PROJECT_PATTERN =
 	/\b(a[- ]?to[- ]?z|de\s+a\s+[aà]\s+z|de\s+bout\s+en\s+bout|end[- ]?to[- ]?end|projet\s+ambitieux|ambitious\s+project|gros\s+projet|long[- ]?running\s+project)\b/;
-const RESEARCH_PATTERN =
-	/\b(recherche|fact[- ]?check|benchmark|existe d[eé]j[aà]|sourc[eé]e[sr]?|sources? fiables?)\b/;
-// "Cherche les sources du leak" is research with sources; a bare "github" or
-// "source" mention inside a fix request ("corrige la source de l'erreur") is
-// ordinary coding, not research.
-const RESEARCH_SOURCES_PATTERN =
-	/\b(?:cherche|search|find|trouve)\b[^.!?]{0,40}\bsources?\b/;
 const IMPLEMENT_NEGATION_PATTERN =
 	/\b((?:do\s+not|don't|dont)\s+fix|sans\s+corriger|ne\s+corrige\s+pas)\b/;
 // Explicit large-work signals: these are the only implement-phrased requests
@@ -106,14 +109,10 @@ const PREPARE_FOR_REVIEW_PATTERN =
 	/\b(prepare (?:it |them )?for review|pr[eé]pare(?:r|z)?[\s\S]{0,24}revue|ready to paste|pr title)\b/;
 const PROMPT_ARTIFACT_PATTERN = /\b(prompt)\b/;
 const OPS_STOP_PATTERN =
-	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(?:(?:d[eé]finitivement|definitively|permanently)\s+)?(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|d[eé]p[oô]t|repo|database|base|branch|branche))/;
+	/(rm\s+-rf|force[- ]?push|push\s+(en\s+)?force|push\s+--force|git\s+push|\bpush\s+(?:the\s+|my\s+|our\s+|this\s+)?(?:pr|pull\s+request|branch|commits?|changes)\b|\bpush\s+(?:to\s+)?(?:origin|upstream)\b|(?:pousse[rz]?|pousser)\s+(?:(?:le|la|ce|this|the)\s+)?(?:commits?|tags?|branch(?:es)?|branche?s?|sur)|\bprod(uction)?\b|\bdeploy(er|ment)?\b|\bbilling\b|migration\s+destructive|drop\s+(table|database|la\s+table|la\s+base)|truncate\s+|delete\s+from|\bsecret(s|e)?\b|\bcredential|(supprime|remove|delete|efface)\s+(?:(?:d[eé]finitivement|definitively|permanently)\s+)?(this\s+|ce\s+|le\s+|la\s+|the\s+)?(folder|dossier|directory|r[eé]pertoire|d[eé]p[oô]t|repo|database|base|branch|branche))/;
 const EXTERNAL_WRITE_BACK_PATTERN =
-	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b/;
-const TICKET_CREATE_PATTERN =
-	/\b(cr[eé]e|cr[eé]er|cree|creer|create|nouveau|nouvelle|draft|r[eé]dige|write|ecris|[eé]cris)\b/;
+	/\b(poste?|publie|post|publish|submit|soumets?)\b[\s\S]{0,40}\b(comment(aire)?s?|review|status|r[eé]ponse)\b|\bapprove\s+(the\s+|la\s+)?pr\b|\b(cr[eé]e|cr[eé]er|cree|creer|create)\b[\s\S]{0,40}(?:\b(tickets?|issues?)\b[\s\S]{0,30}\blinear\b|\blinear\b[\s\S]{0,30}\b(tickets?|issues?)\b)/;
 const TICKET_WORK_PATTERN =
-	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/;
-const LINEAR_EXECUTE_PATTERN =
 	/\b(corrige|r[eé]pare|fix|impl[eé]mente|implemente|d[eé]veloppe|developpe|complete|work|trait[eé]|traite)\b/;
 const LINEAR_READ_PATTERN =
 	/\b(r[eé]sume|resume|ouvre|open|show|montre|analyse|explique|lis|read)\b/;
@@ -129,19 +128,6 @@ const QUESTION_PATTERN =
 	/^(?:as-tu|as tu|astu|a-t-on|at-on|a-t on|a ton|at on|aton|as-ton|as ton|aston|est-ce|est ce|estce|qu['e]|quoi|pourquoi|comment|combien|quel|quelle|peux-tu m'expliquer|peux tu m'expliquer|peuxtu m'expliquer|c'est quoi|y a-t-il|y a t-il|y a t il|y at-il|y a il|ya-t-il|y a-t-il|o[uù]|o[uù] est|quand|qu['’ ]est[- ]ce|what|where|when|who|why|how)\b|\?$/;
 const POLITE_REQUEST_PATTERN =
 	/\b(?:peux[- ]tu|pouvez[- ]vous|pourrais[- ]tu|pourras[- ]tu|tu peux|vous pouvez|can you|could you|would you|will you)\b/;
-const BUG_CHECK_PATTERN =
-	/\b(bug-check|root cause|cause racine|diagnostic|diagnostique|investigue|investigate|analyse|check)\b/;
-const PR_CONTEXT_PATTERN =
-	/\b(github|gh|pull request|pr|owner\/repo#\d+|#[0-9]+)\b/;
-const PR_REVIEW_PATTERN = new RegExp(
-	`\\b(pr-review|code review|${REVIEW_TERMS})\\b`,
-);
-const PR_QA_PATTERN =
-	/\b(pr-qa|qa|plan de test|comment tester|impact|tests? manuels?|happy path|edge cases?)\b/;
-const SEC_PR_PATTERN =
-	/\b(sec-pr|security pr|dependabot|vuln[eé]rabilit[eé]|vulnerability|ghsa|s[eé]curit[eé]|security)\b/;
-const CI_FIX_PATTERN =
-	/\b(ci-fix|fix\s+(la\s+)?ci|corrige\s+(la\s+)?ci|r[eé]pare\s+(la\s+)?ci|ci verte|checks? verts?|checks? rouges?|failing checks?|failed checks?|make ci green)\b/;
 const KNOWLEDGE_TOPIC_RULES = [
 	{
 		topic: "saas",
@@ -201,7 +187,6 @@ const OPS_STOP_GATE =
 	/-rf|push|pouss|prod|deploy|billing|migration|drop|truncat|secret|credential|delete|folder|dossier|director|répertoir|dépôt|depot|repo|databas|branch|bas/;
 const READ_ONLY_GATE =
 	/\br[ée]sum|\bsum\b|summar|expliqu|explain|\blis|lire|read|montre|show|cris|crir/;
-const RESEARCH_GATE = /recherche|sourc|fact|benchmark|github|existe d/;
 /**
  * Exact JS equivalent of /\b[a-z][a-z0-9]{1,9}-[0-9]+\b/ on a lowercased
  * string (the ticket-key alternative of LINEAR_PATTERN): scans dash positions
@@ -258,7 +243,6 @@ function hasLinearTicketKey(low) {
 
 const LINEAR_WORD_PATTERN = /\blinear\b/;
 const QUESTION_FIRST_CHARS = "aeqpcyowh";
-const SPEC_GUIDE_GATE = /spec|spéc|guide|interroge|pose|aide/;
 const PREPARE_FOR_REVIEW_GATE = /pr[ée]par|ready to paste|pr title/;
 
 // One necessary-literal scan for the whole knowledge block: no rule can match
@@ -337,6 +321,12 @@ const READ_ONLY_GIT_BRANCH_ARGS = new Set([
 ]);
 const UNSAFE_GIT_INSPECTION_ARG =
 	/^(?:--output(?:=|$)|--ext-diff$|--textconv$|--open-files-in-pager(?:=|$)|-O)/;
+const SYSTEM_BIN_EXECUTABLE =
+	/^\/(?:s?bin|usr\/s?bin|usr\/local\/bin|opt\/homebrew\/bin)\/[^/]+$/;
+const RG_EXEC_OPTION = /^--(?:pre|hostname-bin)(?:=|$)/;
+const GH_SHORT_WRITE_CLUSTER = /^-[^-]*[XfF]/;
+const EXPANDING_DOLLAR = /^[A-Za-z_{@*#?!$0-9'-]/;
+const ARGV_SENSITIVE_READERS = new Set(["diff", "rg", "uniq"]);
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
 const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/g;
 const TRACKED_PLAN_TEMPLATE_NAMES = new Set([
@@ -513,6 +503,7 @@ function isReadOnlyGhSegment(segment) {
 		if (argument === "--method" || argument === "-X") {
 			return String(args[index + 1] || "").toUpperCase() !== "GET";
 		}
+		if (GH_SHORT_WRITE_CLUSTER.test(argument)) return true;
 		return GH_WRITE_ARG.test(argument.replace(/=.*$/, ""));
 	});
 }
@@ -538,12 +529,40 @@ function hasPotentialWriteOption(segment, shortOption, longOption) {
 	});
 }
 
+function shellHazards(segment) {
+	const hazards = { expansion: false, glob: false };
+	let quote = "";
+	for (let index = 0; index < segment.length; index += 1) {
+		const character = segment[index];
+		if (quote === "'") {
+			if (character === "'") quote = "";
+		} else if (character === "\\") {
+			if (segment[index + 1] === "\n") hazards.expansion = true;
+			index += 1;
+		} else if (character === '"') {
+			quote = quote ? "" : '"';
+		} else if (character === "'" && !quote) {
+			quote = "'";
+		} else if (character === "$" && (EXPANDING_DOLLAR.test(segment[index + 1] ?? "") || (!quote && segment[index + 1] === '"'))) {
+			hazards.expansion = true;
+		} else if (!quote && character === "{") {
+			hazards.expansion = true;
+		} else if (!quote && /[*?[]/.test(character)) {
+			hazards.glob = true;
+		}
+	}
+	return hazards;
+}
+
 function isReadOnlyPipelineSegment(segment) {
 	const trimmed = segment.trim();
 	const invoked = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
-	if (!invoked) return false;
+	const hazards = shellHazards(trimmed);
+	if (!invoked || hazards.expansion || splitShellWords(trimmed)?.[0] !== invoked) return false;
+	if (invoked.includes("/") && !SYSTEM_BIN_EXECUTABLE.test(invoked)) return false;
 	const executable = invoked.replace(/^.*\//, "");
 	if (!executable) return false;
+	if (hazards.glob && (!READ_ONLY_BASH_COMMANDS.has(executable) || ARGV_SENSITIVE_READERS.has(executable))) return false;
 	const basenamed =
 		executable === invoked
 			? trimmed
@@ -576,6 +595,18 @@ function isReadOnlyPipelineSegment(segment) {
 	if (executable === "sort") return false;
 	if (executable === "diff") {
 		return !hasPotentialWriteOption(basenamed, "o", "output");
+	}
+	if (executable === "rg") {
+		const words = splitShellWords(basenamed);
+		return Boolean(words) && !words.some((word) => RG_EXEC_OPTION.test(word));
+	}
+	if (executable === "uniq") {
+		const words = splitShellWords(basenamed);
+		if (!words) return false;
+		const rest = words.slice(1);
+		let start = rest.findIndex((word) => word === "--" || !/^-./.test(word));
+		if (start !== -1 && rest[start] === "--") start += 1;
+		return start === -1 || rest.length - start <= 1;
 	}
 	if (executable === "node" || executable === "nodejs") {
 		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(basenamed);
@@ -638,10 +669,10 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	const prepareForReview = () =>
 		(prepareForReviewResult ??=
 			PREPARE_FOR_REVIEW_GATE.test(low) && PREPARE_FOR_REVIEW_PATTERN.test(low));
-	let prContextResult;
-	const hasPrContext = () => (prContextResult ??= PR_CONTEXT_PATTERN.test(low));
 	let planWordResult;
 	const hasPlanWord = () => (planWordResult ??= PLAN_PATTERN.test(low));
+	let prContextResult;
+	const hasPrContext = () => (prContextResult ??= PR_CONTEXT_PATTERN.test(low));
 	let autonomousLoopResult;
 	const hasAutonomousLoop = () =>
 		(autonomousLoopResult ??= AUTONOMOUS_PLAN_LOOP_PATTERN.test(low));
@@ -687,22 +718,6 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	const hasReadyPlan = () => (readyPlanResult ??= READY_PLAN_PATTERN.test(low));
 
 	if (
-		(low.includes("ci") || low.includes("check")) &&
-		CI_FIX_PATTERN.test(low)
-	) {
-		return {
-			route: "ci-fix",
-			reason: "autonomous CI fix request",
-			command: "/ci-fix",
-			artifact: "commits, pushes, and CI status report",
-			stopCondition: "CI green, blocked, time cap, or max fix attempts reached",
-			requiredEvidence:
-				"gh checks/statuses, CI logs, local repro where possible, commits and push result",
-			writeAllowed: true,
-		};
-	}
-
-	if (
 		(OPS_STOP_GATE.test(low) && OPS_STOP_PATTERN.test(low)) ||
 		EXTERNAL_WRITE_BACK_PATTERN.test(low)
 	) {
@@ -718,91 +733,52 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (hasPrContext() && SEC_PR_PATTERN.test(low)) {
-		return {
-			route: "sec-pr",
-			reason: "security PR audit request",
-			command: "/sec-pr",
-			artifact: "security PR audit report",
-			stopCondition: "PASS, FAIL, or INVESTIGATE",
-			requiredEvidence:
-				"Dependabot alerts, GHSA advisory, isolated lockfile verification, ignored/deferred evidence, CI state",
-			writeAllowed: false,
-		};
-	}
-
-	if (hasPrContext() && PR_QA_PATTERN.test(low)) {
-		return {
-			route: "pr-qa",
-			reason: "PR QA plan request",
-			command: "/pr-qa",
-			artifact: "QA impact analysis and test plan",
-			stopCondition: "executable QA plan delivered",
-			requiredEvidence:
-				"gh PR metadata, diff, comments/reviews when useful, and changed-file impact analysis",
-			writeAllowed: false,
-		};
+	if (hasPrContext() && (SEC_PR_PATTERN.test(low) || PR_QA_PATTERN.test(low))) {
+		return READ_ONLY_ANSWER_DECISION;
 	}
 
 	if (hasPrContext() && PR_REVIEW_PATTERN.test(low) && !prepareForReview()) {
-		return {
-			route: "pr-review",
-			reason: "GitHub PR review request",
-			command: "/pr-review",
-			artifact: "PR review findings",
-			stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
-			requiredEvidence:
-				"gh PR metadata, diff, checks when relevant, optional Linear context via MCP",
-			writeAllowed: false,
-		};
-	}
-
-	if (
-		isLinear &&
-		TICKET_CREATE_PATTERN.test(low) &&
-		!LINEAR_EXECUTE_PATTERN.test(low)
-	) {
-		return {
-			route: "linear-ticket-create",
-			reason: "Linear ticket creation request",
-			command: "/linear-ticket-create",
-			artifact: "Linear issue",
-			stopCondition: "created Linear issue or LINEAR_MCP_UNAVAILABLE blocker",
-			requiredEvidence:
-				"Linear MCP team/project resolution and created issue key/URL",
-			writeAllowed: true,
-		};
+		return REVIEW_DECISION;
 	}
 
 	if (
 		isLinear &&
 		BUG_CHECK_PATTERN.test(low) &&
 		/\bbug|bugfix|erreur|r[eé]gression|issue\b/i.test(low) &&
-		!LINEAR_EXECUTE_PATTERN.test(low)
+		!TICKET_WORK_PATTERN.test(low)
 	) {
-		return {
-			route: "bug-check",
-			reason: "Linear bug root-cause analysis request",
-			command: "/bug-check",
-			artifact: "adversarial bug analysis",
-			stopCondition: "CERTAIN, HIGH CONFIDENCE, or UNCERTAIN",
-			requiredEvidence:
-				"Linear MCP issue data, impacted code reads, alternative-cause rejection, blind-spot checks, git history",
-			writeAllowed: false,
-		};
+		return READ_ONLY_ANSWER_DECISION;
 	}
 
-	if (isLinear && TICKET_WORK_PATTERN.test(low)) {
+	if (
+		isLinear &&
+		TICKET_WORK_PATTERN.test(low) &&
+		!(REVIEW_PATTERN.test(low) && !hasImperativeImplement())
+	) {
+		if (planStatus === "ready") {
+			return {
+				route: "implement",
+				reason: "Linear ticket implementation request with READY plan",
+				command: "/implement",
+				artifact: "code/docs changes plus implemented plan archive",
+				stopCondition: "validated archive written and root PLAN.md deleted",
+				requiredEvidence:
+					"Linear ticket acceptance criteria, PLAN.md checks passed, archive created",
+				writeAllowed: true,
+				planChain: planChainFor(planStatus),
+			};
+		}
+
 		return {
-			route: "linear-work",
+			route: "plan-implement",
 			reason: "Linear ticket implementation request",
-			command: "/linear-work",
-			artifact: "PLAN.md, code/docs changes, validation, and Linear update draft",
-			stopCondition:
-				"ticket acceptance criteria validated or blocked with Linear evidence",
+			command: "/plan-implement",
+			artifact: "PLAN.md from the ticket, then scoped implementation",
+			stopCondition: "READY plan implemented, blocked reported, or plan drift",
 			requiredEvidence:
-				"Linear MCP issue data, PLAN.md, focused checks, and implementation handoff",
+				"Linear ticket acceptance criteria in PLAN.md; root PLAN.md Status: READY before implementation; focused validation; review; docs/plan archive; root PLAN.md deletion",
 			writeAllowed: true,
+			planChain: planChainFor(planStatus),
 		};
 	}
 
@@ -906,33 +882,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		!isPlanRequest() &&
 		!hasImperativeImplement()
 	) {
-		return {
-			route: "review",
-			reason: "review request",
-			command: "/review",
-			artifact: "findings",
-			stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
-			requiredEvidence:
-				"diff lines, plan drift evidence, or concrete reproduction",
-			writeAllowed: false,
-		};
-	}
-
-	if (
-		RESEARCH_GATE.test(low) &&
-		(RESEARCH_PATTERN.test(low) || RESEARCH_SOURCES_PATTERN.test(low)) &&
-		!hasImperativeImplement()
-	) {
-		return {
-			route: "research-plan",
-			reason: "source-backed research request",
-			command: "none",
-			artifact: "cited document under docs/",
-			stopCondition: "cited artifact complete or evidence blocker reported",
-			requiredEvidence:
-				"primary or recognized sources with claim-confidence labels",
-			writeAllowed: true,
-		};
+		return REVIEW_DECISION;
 	}
 
 	if (
@@ -1025,29 +975,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 		};
 	}
 
-	if (
-		(SPEC_GUIDE_GATE.test(low) && SPEC_GUIDE_PATTERN.test(low)) ||
-		(SPEC_INTENT_PATTERN.test(low) &&
-			SPEC_CREATE_VERB_PATTERN.test(low) &&
-			!hasPrContext() &&
-			!isLinear)
-	) {
-		return {
-			route: "spec-guide",
-			reason:
-				"spec construction request — build it by guided interview before formatting",
-			command: "/spec-guide",
-			artifact: "spec drafted via /spec template",
-			stopCondition:
-				"spec solid enough (problem, non-goals, boundaries, alternatives, acceptance) then hands to /spec",
-			requiredEvidence:
-				"user answers to the socratic interview, inferences marked as such",
-			writeAllowed: true,
-			suggestion: "Then harden it with /plan-loop + /adversary.",
-		};
-	}
-
-	if (PLAN_REQUEST_PATTERN.test(low)) {
+	if (isPlanRequest()) {
 		return {
 			route: "plan-loop",
 			reason: "explicit planning request",
@@ -1125,7 +1053,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	return SIMPLE_ANSWER_DECISION;
 }
 
-export function classifyKnowledgeContext(prompt, low) {
+export function classifyKnowledgeContext(prompt, low, cwd = process.cwd()) {
 	const trimmed = prompt.trim();
 	if (trimmed === "" || trimmed.startsWith("/")) return null;
 
@@ -1147,7 +1075,7 @@ export function classifyKnowledgeContext(prompt, low) {
 		topics,
 		query,
 		reason: "matched durable knowledge topics",
-		command: `~/work/obvault/_meta/obvault context --json --max-tokens 2500 "${query}"`,
+		command: vaultContextCommand(projectVaultRoots({ cwd })[0], query),
 	};
 }
 
@@ -1162,7 +1090,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 	const low = prompt.trim().toLowerCase();
 	const decision = classifyWorkflowRouteBase(prompt, low, context);
 	const knowledgeContext =
-		classifyKnowledgeContext(prompt, low) ||
+		classifyKnowledgeContext(prompt, low, context.cwd) ||
 		context.dynamicKnowledgeContext ||
 		null;
 	return knowledgeContext
@@ -1239,6 +1167,15 @@ const READ_ONLY_ANSWER_DECISION = answerDecision(
 	"answer delivered",
 	"None",
 );
+const REVIEW_DECISION = Object.freeze({
+	route: "review",
+	reason: "review request",
+	command: "/review",
+	artifact: "findings",
+	stopCondition: "Verdict: GO, Verdict: GO WITH NOTES, or Verdict: BLOCK",
+	requiredEvidence: "diff lines, plan drift evidence, or concrete reproduction",
+	writeAllowed: false,
+});
 const PROMPT_ARTIFACT_DECISION = answerDecision(
 	"prompt artifact request",
 	"prompt artifact",
@@ -1328,6 +1265,7 @@ export function planCommitGuardDecision(event) {
 	) {
 		return deny(
 			"PLAN files are session artifacts and must not be staged or committed; archive to docs/plan/ instead. Run git yourself to bypass deliberately.",
+			{ cwd: event.cwd || process.cwd(), guard: "plan-commit-guard", pattern: "stage-commit-plan", target: "PLAN.md", tool: "Bash" },
 		);
 	}
 
@@ -1336,6 +1274,7 @@ export function planCommitGuardDecision(event) {
 		if (staged.length > 0) {
 			return deny(
 				`PLAN files are session artifacts and must not be committed (staged: ${staged.join(", ")}); unstage them or archive to docs/plan/ first.`,
+				{ cwd: event.cwd || process.cwd(), guard: "plan-commit-guard", pattern: "commit-staged-plan", target: staged.join(","), tool: "Bash" },
 			);
 		}
 	}
@@ -1357,13 +1296,21 @@ export function planReadyGuardDecision(event) {
 	const filePath =
 		toolInput.file_path || toolInput.path || toolInput.filePath || "";
 	const command = toolInput.command || toolInput.cmd || "";
+	const reviewPreparation = ["Write", "Edit", "MultiEdit"].includes(toolName) &&
+		isReviewPreparationPath(cwd, String(filePath));
+	const reviewBootstrap = toolName === "Bash" && isClosedPlanReviewBootstrap(command, cwd);
+	if (reviewPreparation || reviewBootstrap) return null;
 	if (planStatus === "ready") {
-		const planPath = resolve(cwd, "PLAN.md");
 		let readiness = { ok: false, missing: ["readable PLAN.md"] };
 		try {
-			readiness = evaluateReadyPlan(readFileSync(planPath, "utf8"));
+			const source = readRootPlanContract(cwd)?.source ?? "";
+			readiness = evaluateReadyPlan(source);
+			if (readiness.ok) {
+				const approval = planReviewPermission(cwd, source);
+				if (!approval.ok) readiness = { ok: false, missing: [approval.reason + "; run the plan adversary and append its explicit current hash from scripts/plan-review-check --hash PLAN.md, or repair/activate the valid ledger"] };
+			}
 		} catch {
-			// Keep the fail-closed default.
+			readiness = { ok: false, missing: ["readable plan and valid review state"] };
 		}
 		if (readiness.ok) return null;
 		if (
@@ -1374,11 +1321,12 @@ export function planReadyGuardDecision(event) {
 		}
 		if (toolName === "Bash") {
 			if (isWorkflowEventEscapeCommand(command)) return null;
-			if (isNarrowPlanCleanupCommand(command)) return null;
+			if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 			if (!isMutatingBashCommand(command)) return null;
 		}
 		return deny(
 			`PLAN.md is READY but incomplete (${readiness.missing.join(", ")}); complete the canonical READY contract before implementation mutations.`,
+			{ cwd, guard: "plan-ready-guard", pattern: "incomplete-ready-mutation", target: filePath || "Bash", tool: toolName },
 		);
 	}
 
@@ -1386,15 +1334,17 @@ export function planReadyGuardDecision(event) {
 		if (isPlanFile(filePath, cwd)) return null;
 		return deny(
 			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+			{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-write", target: filePath, tool: toolName },
 		);
 	}
 
 	if (toolName === "Bash") {
 		if (isWorkflowEventEscapeCommand(command)) return null;
-		if (isNarrowPlanCleanupCommand(command)) return null;
+		if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 		if (isMutatingBashCommand(command)) {
 			return deny(
 				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+				{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-bash-mutation", target: "Bash", tool: "Bash" },
 			);
 		}
 	}
@@ -1497,6 +1447,7 @@ export function planCheckFreezeGuardDecision(event) {
 	if (proposed == null) {
 		return deny(
 			"check-freeze: cannot reconstruct proposed PLAN.md content from this tool call; use a full Write of PLAN.md or demote to CHALLENGED with Decision Log rationale before weakening checks",
+			{ cwd, guard: "check-freeze", pattern: "freeze-reconstruct-failed", target: "PLAN.md", tool: toolName },
 		);
 	}
 
@@ -1506,13 +1457,25 @@ export function planCheckFreezeGuardDecision(event) {
 	});
 	if (result.ok) return null;
 
-	return deny(result.reason || "check-freeze violation on PLAN.md write");
+	return deny(result.reason || "check-freeze violation on PLAN.md write", {
+		cwd,
+		guard: "check-freeze",
+		pattern: "checks-weakened",
+		target: "PLAN.md",
+		tool: toolName,
+	});
 }
 
 /**
  * Under READY, mutating bash/shell that targets PLAN.md bypasses Write/Edit
  * freeze reconstruction — deny and force the file-tool path.
  */
+function isClosedPlanReviewBootstrap(command, cwd) {
+ const words = closedShellWords(String(command).trim());
+ if (!words || words.includes("&&")) return false;
+ try { return isPlanReviewBootstrap(words, cwd); } catch { return false; }
+}
+
 export function planCheckFreezeBashGuardDecision(event) {
 	const toolName = normalizeToolName(event.tool_name || event.toolName);
 	if (toolName !== "Bash") return null;
@@ -1523,57 +1486,23 @@ export function planCheckFreezeBashGuardDecision(event) {
 	const toolInput = event.tool_input || event.input || {};
 	const command = String(toolInput.command || toolInput.cmd || "");
 	if (!command || !isMutatingBashCommand(command)) return null;
-	if (isNarrowPlanCleanupCommand(command)) return null;
+	if (isNarrowPlanCleanupCommand(command, cwd) || isClosedPlanReviewBootstrap(command, cwd)) return null;
 
 	// Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
 	if (!/\bPLAN\.md\b/i.test(command)) return null;
 
-	return deny(
-		"check-freeze: mutating shell commands that target PLAN.md are blocked while the plan is READY; edit PLAN.md via Write/Edit so Checks freeze can be evaluated, or demote to CHALLENGED with Decision Log rationale",
-	);
+return deny(
+	"check-freeze: mutating shell commands that target PLAN.md are blocked while the plan is READY; edit PLAN.md via Write/Edit so Checks freeze can be evaluated, or demote to CHALLENGED with Decision Log rationale",
+	{ cwd, guard: "check-freeze", pattern: "freeze-bash-bypass", target: "PLAN.md", tool: "Bash" },
+);
 }
 
-/**
- * Ledger-backed no_progress mutate deny (active non-terminal .workflow ledgers).
- * Escape hatch: PLAN.md edits + workflow-event-only bash. Does not auto-emit events.
- */
-export function planNoProgressGuardDecision(event) {
-	const cwd = event.cwd || process.cwd();
-	const toolName = normalizeToolName(event.tool_name || event.toolName);
-	const toolInput = event.tool_input || event.input || {};
-
-	const isMutatingWrite =
-		toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit";
-	const command = String(toolInput.command || toolInput.cmd || "");
-	const isMutatingBash = toolName === "Bash" && isMutatingBashCommand(command);
-
-	// Always allow explicit escape hatch even when bash is not classified mutating
-	// (workflow-event CLI) so recovery cannot be bricked by pattern drift.
-	if (isNoProgressEscapeHatch(toolName, toolInput, isPlanFile, cwd)) {
-		return null;
-	}
-
-	if (!isMutatingWrite && !isMutatingBash) return null;
-
-	const stop = shouldDenyMutationForNoProgress(cwd);
-	if (!stop) return null;
-
-	const detailHint =
-		stop.detail && typeof stop.detail === "object" && stop.detail.command
-			? ` (command: ${stop.detail.command})`
-			: "";
-	return deny(
-		`no_progress: ${stop.reason}${detailHint}; ordinary code mutations are blocked while an active ledger signals no progress. Append a terminal ledger event via scripts/workflow-event, or edit root PLAN.md to record stop / demote.`,
-	);
-}
-
-/** Combined PreToolUse / tool_call decision: READY gate, check-freeze, no_progress. */
+/** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
 export function planMutationGuardDecision(event) {
 	return (
 		planReadyGuardDecision(event) ||
 		planCheckFreezeGuardDecision(event) ||
-		planCheckFreezeBashGuardDecision(event) ||
-		planNoProgressGuardDecision(event)
+		planCheckFreezeBashGuardDecision(event)
 	);
 }
 
@@ -1602,7 +1531,10 @@ function directEditDecision(reason) {
 	};
 }
 
-function deny(reason) {
+function deny(reason, journal) {
+	if (journal) {
+		recordGuardDenial(journal);
+	}
 	return {
 		hookSpecificOutput: {
 			hookEventName: "PreToolUse",

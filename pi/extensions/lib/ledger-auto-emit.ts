@@ -44,7 +44,14 @@ export const recordBashValidationFailure = mod.recordBashValidationFailure as (
 	input: { command: string; exit: number; failure?: string; head_sha?: string },
 ) => { emitted: boolean; reason: string; ledger?: string; events?: string[] };
 
-export const recordBashValidationReceipt = mod.recordBashValidationReceipt as (
+export const registerUserPrompt = mod.registerUserPrompt as (
 	cwd: string,
-	input: { command: string },
-) => { emitted: boolean; reason: string; ledger?: string };
+	sessionId: string,
+	harness: "pi" | "claude",
+	prompt: string,
+	writeEvent: (
+		ledgerPath: string,
+		run: string,
+		detail: Record<string, unknown>,
+	) => boolean,
+) => { emitted: boolean; reason: string; count?: number; ledger?: string; run?: string };

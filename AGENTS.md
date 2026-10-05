@@ -34,6 +34,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 
 ## Workflow
 
+- Shared agent rules (code, review, git, memory, answers): `pi/AGENTS.md`
 - Human guide + schemas: `README.md` (docs consolidated there; see commit 9466974)
 - Agent one-pager: `workflow/agent-quick-card.md`
 - Canonical workflow map (open on demand; wins on conflict): `workflow/spec.md`
@@ -41,27 +42,10 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
-- Ambient activation: when a project contains `workflow/spec.md`, agents should
-  use the Etabli workflow automatically. Users should not need to write "use the
-  Etabli workflow" in ordinary prompts.
-- Final answers: apply the live gate in `workflow/answer-quality.md` (answer
-  the newest request, name unverified gaps, do not promise a perfect score);
-  use `scripts/answer-quality-check` only for durable artifacts.
-
-## Knowledge Base
-
-- Before answering or planning anything that depends on prior research,
-  decisions, conventions, preferences, or recurring incidents, consult the
-  canonical `obvault` knowledge base (MCP/skill `alambic-brain` in work scope,
-  `alambic-obvault` in personal); do not wait for the user to mention it.
-- Follow `workflow/skills/obvault-memory.md`; the vault root is resolved per
-  scope (`workflow/runtime/obvault-topic-resolver.mjs`: work -> `~/work/brain`
-  when present, else `~/work/obvault`; personal -> `~/work/obvault`); read the
-  vault `AGENTS.md` entrypoint before querying or proposing a durable write.
+- Memory: `~/work/brain` for ForestAdmin repos, `~/work/obvault` otherwise; see `workflow/skills/obvault-memory.md`.
 
 ## Code
 
-- TypeScript strict, no `any`, ES modules.
 - Keep extension files small and explicit.
 - No broad refactor while changing unrelated config.
 
@@ -74,10 +58,4 @@ bun test pi/extensions/__tests__/
 
 ## Git
 
-Branch names and commit messages: `workflow/git-contract.md`.
-
-- Branch: `<type>/<ticket-id>-<short-slug>`, slug 3 words max, whole name under
-  50 characters.
-- Commit: `<type>(<scope>): <description>`, subject only, no body, no trailers,
-  lowercase imperative under 72 characters.
-- Do not rewrite, amend, or force-push history unless explicitly requested.
+Branch names and commit messages: `workflow/git-contract.md` (summary in `pi/AGENTS.md`).

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "families": [
+    {
+      "id": "lean-context-t4",
+      "runs": ["lean-context-t4", "lean-context-t4-review", "lean-context-t4-review2", "lean-context-t4-review3", "lean-context-t4-review4"],
+      "resolutions": [
+        { "blocked": "lean-context-t4", "completed": "lean-context-t4-review4" },
+        { "blocked": "lean-context-t4-review2", "completed": "lean-context-t4-review4" },
+        { "blocked": "lean-context-t4-review3", "completed": "lean-context-t4-review4" }
+      ]
+    },
+    {
+      "id": "project-vault-recovery",
+      "runs": ["vault-plan-recovery", "vault-plan-recovery-resume", "delivery-blocker-repair", "delivery-final-corrections", "delivery-authority-completion"],
+      "resolutions": [
+        { "blocked": "vault-plan-recovery", "completed": "delivery-authority-completion" },
+        { "blocked": "vault-plan-recovery-resume", "completed": "delivery-authority-completion" },
+        { "blocked": "delivery-blocker-repair", "completed": "delivery-authority-completion" },
+        { "blocked": "delivery-final-corrections", "completed": "delivery-authority-completion" }
+      ]
+    },
+    {
+      "id": "contract-coherence",
+      "runs": ["contract-coherence", "contract-coherence-2"],
+      "resolutions": []
+    }
+  ]
+}

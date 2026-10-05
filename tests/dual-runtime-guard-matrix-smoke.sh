@@ -155,6 +155,38 @@ for (const command of [
   }
 }
 
+for (const command of [
+  "rg --pre rm x .",
+  "uniq A B",
+  "script/test",
+  "./bin/cat",
+  "gh api -XDELETE x",
+  "rg''/script pattern file",
+  "cat''/x",
+  "rg " + String.fromCharCode(36) + "'--pre=./script' pattern file",
+  "gh api " + String.fromCharCode(36) + "'-XDELETE' repos/o/r",
+  "rg " + String.fromCharCode(36) + "{X:---pre=./s} pattern file",
+  "uniq -- -input output",
+  "rg {--pre=./script,pattern} file",
+  "gh api {-XDELETE,x}",
+  "uniq A*",
+  "rg pattern *",
+  "rg --pr" + String.fromCharCode(92, 10) + "e=./script x .",
+  "rg \"--hostname-b" + String.fromCharCode(92, 10) + "in=sh\" x .",
+]) {
+  const envelopes = [
+    { cwd: tmp, toolName: "bash", input: { command } },
+    { cwd: tmp, tool_name: "Bash", tool_input: { command } },
+  ];
+  const allowed = envelopes.filter(
+    (event) => mod.planMutationGuardDecision(event)?.hookSpecificOutput?.permissionDecision !== "deny",
+  );
+  if (mod.isReadOnlyBashCommand(command) || allowed.length > 0) {
+    console.error("read-only escape must be denied under DRAFT in both envelopes: " + command);
+    process.exit(1);
+  }
+}
+
 const quotedSubstitution = "rg \"" + String.fromCharCode(36) + "(touch escaped)\" docs";
 const quotedSubstitutionDeny = mod.planMutationGuardDecision({
   cwd: tmp,

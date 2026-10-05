@@ -123,7 +123,6 @@ for instruction in \
     workflow/agent-quick-card.md workflow/contract-details.md \
     pi/AGENTS.md claude/CLAUDE.md \
     workflow-scaffold/templates/AGENTS.md \
-    workflow-scaffold/templates/CLAUDE.md \
     workflow-scaffold/templates/docs/agent-workflow.md; do
     check_instruction_scope "$ROOT_DIR/$instruction"
 done
@@ -144,8 +143,7 @@ for harness_instructions in \
     "$ROOT_DIR/CLAUDE.md" \
     "$ROOT_DIR/claude/CLAUDE.md" \
     "$ROOT_DIR/pi/AGENTS.md" \
-    "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" \
-    "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"; do
+    "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"; do
     assert_not_contains "$harness_instructions" "lean-ctx"
 done
 assert_file "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv"
@@ -160,33 +158,17 @@ assert_file "$ROOT_DIR/claude/scopes/shared/skills/adr/scripts/adr-validation.mj
 assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
-assert_file "$ROOT_DIR/workflow/skills/product-dogfood.md"
 assert_file "$ROOT_DIR/workflow/skills/investigation.md"
+for shelved in product-dogfood ambitious-project-loop recurring-run pr-maintenance-loop; do
+  assert_file "$ROOT_DIR/extras/contracts/$shelved.md"
+  [ ! -e "$ROOT_DIR/workflow/skills/$shelved.md" ] || { printf 'shelved contract %s must not stay in workflow/skills\n' "$shelved" >&2; exit 1; }
+done
 assert_file "$ROOT_DIR/workflow/evidence-pack.schema.json"
 assert_file "$ROOT_DIR/workflow/templates/evidence-pack.json"
-assert_file "$ROOT_DIR/workflow/program.schema.json"
-assert_file "$ROOT_DIR/workflow/skills/program-orchestration.md"
-assert_file "$ROOT_DIR/scripts/evidence-proof"
-assert_file "$ROOT_DIR/scripts/program-state"
-assert_file "$ROOT_DIR/tests/evidence-proof-smoke.sh"
-assert_file "$ROOT_DIR/tests/program-state-smoke.sh"
-assert_file "$ROOT_DIR/workflow/skills/self-improvement-loop.md"
-assert_file "$ROOT_DIR/workflow/trace-self-improvement.md"
-assert_file "$ROOT_DIR/workflow/trace-observation.schema.json"
-assert_file "$ROOT_DIR/workflow/skills/ambitious-project-loop.md"
-assert_file "$ROOT_DIR/workflow/skills/recurring-run.md"
 assert_file "$ROOT_DIR/workflow/skills/skill-evaluation.md"
-assert_file "$ROOT_DIR/scripts/conversation-retrospect"
 assert_file "$ROOT_DIR/scripts/skill-eval"
-assert_file "$ROOT_DIR/scripts/etabli-harness-eval"
-assert_file "$ROOT_DIR/docs/harness-eval.md"
-assert_file "$ROOT_DIR/scripts/runtime-skill-canary"
 assert_file "$ROOT_DIR/scripts/session-handoff"
-assert_file "$ROOT_DIR/tests/conversation-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/skill-eval-smoke.sh"
-assert_file "$ROOT_DIR/tests/etabli-harness-eval-smoke.sh"
-assert_file "$ROOT_DIR/tests/etabli-harness-eval-live.sh"
-assert_file "$ROOT_DIR/tests/runtime-skill-canary-smoke.sh"
 assert_file "$ROOT_DIR/tests/session-handoff-smoke.sh"
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
@@ -197,7 +179,6 @@ for contract in \
     linear-project-setup \
     linear-ticket-create \
     linear-work \
-    pr-maintenance-loop \
     pr-qa \
     pr-review \
     plan-loop \
@@ -209,32 +190,28 @@ done
 assert_file "$ROOT_DIR/workflow/linear-ticket-template.md"
 assert_file "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md"
-assert_file "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md"
 assert_file "$ROOT_DIR/workflow-scaffold/templates/docs/project-context.md"
 assert_file "$ROOT_DIR/scripts/deploy-workflow"
 assert_file "$ROOT_DIR/scripts/deploy-agent-workflow"
 assert_file "$ROOT_DIR/claude/scopes/shared/commands/verify-workflow.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/bug-check.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/linear-ticket-create.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/pr-review.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/pr-qa.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/ci-fix.md"
-assert_file "$ROOT_DIR/claude/scopes/shared/commands/github-pr-review.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/bug-check.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/linear-ticket-create.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/linear-work.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-review.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-qa.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/ci-fix.md"
+assert_file "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md"
 assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-autonomous-plan-loop-smoke.sh"
 assert_file "$ROOT_DIR/tests/workflow-cli-smoke.sh"
-assert_file "$ROOT_DIR/tests/workflow-retrospect-smoke.sh"
 assert_file "$ROOT_DIR/tests/router-eval-smoke.sh"
 assert_file "$ROOT_DIR/tests/research-proof-check-smoke.sh"
-assert_file "$ROOT_DIR/scripts/workflow-retrospect"
-assert_file "$ROOT_DIR/scripts/workflow-measurement-integrity"
 assert_file "$ROOT_DIR/scripts/router-eval"
 assert_file "$ROOT_DIR/scripts/research-proof-check"
 assert_file "$ROOT_DIR/tests/fix-links-smoke.sh"
@@ -271,20 +248,14 @@ assert_contains "$ROOT_DIR/README.md" 'node scripts/validate-adrs .'
 assert_contains "$ROOT_DIR/README.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/README.md" 'workflow/contract-details.md'
 assert_contains "$ROOT_DIR/README.md" 'protocol, not an OS lock'
-assert_contains "$ROOT_DIR/README.md" 'workflow/skills/self-improvement-loop.md'
-assert_contains "$ROOT_DIR/README.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/evidence-proof'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/program-state'
-assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'workflow/skills/program-orchestration.md'
-assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'scripts/evidence-proof'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Live Final Answer Gate'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'avoid promising a perfect numeric score'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'quality floor'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'avoid promises of perfect scores'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'This floor does not score quality'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md" 'Category: source-backed-cross-project-handoff'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Verdict: pass'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Category: direct-repo-explanation'
@@ -298,18 +269,13 @@ assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Category: <cat
 assert_contains "$ROOT_DIR/tests/answer-quality-check-smoke.sh" 'bad-overclaim'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'adversarial'
 assert_contains "$ROOT_DIR/tests/fixtures/answer-quality/manifest.tsv" 'general-simple'
-assert_contains "$ROOT_DIR/docs/harness-eval.md" '**not** claim DeepSWE scores'
-assert_contains "$ROOT_DIR/docs/harness-eval.md" 'original tasks, behavior verifiers'
-assert_contains "$ROOT_DIR/README.md" 'workflow/skills/pr-maintenance-loop.md'
 assert_contains "$ROOT_DIR/README.md" '@earendil-works/pi-coding-agent'
 assert_contains "$ROOT_DIR/README.md" 'hunkdiff'
 assert_contains "$ROOT_DIR/README.md" 'preferring `asdf`'
 assert_contains "$ROOT_DIR/README.md" 'activate the workflow ambiently'
-assert_contains "$ROOT_DIR/AGENTS.md" 'Ambient activation'
-assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/answer-quality.md'
-assert_contains "$ROOT_DIR/AGENTS.md" 'Final answers: apply the live gate'
-assert_contains "$ROOT_DIR/AGENTS.md" 'canonical `obvault` knowledge base'
-assert_contains "$ROOT_DIR/CLAUDE.md" 'consult the memory vault'
+assert_contains "$ROOT_DIR/AGENTS.md" 'Shared agent rules (code, review, git, memory, answers): `pi/AGENTS.md`'
+assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/skills/obvault-memory.md'
+assert_contains "$ROOT_DIR/CLAUDE.md" '@AGENTS.md'
 assert_contains "$ROOT_DIR/docs/adr/README.md" 'Architecture Decision Records'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'docs/adr/README.md'
 assert_contains "$ROOT_DIR/CLAUDE.md" 'docs/adr/'
@@ -317,14 +283,11 @@ assert_contains "$ROOT_DIR/pi/AGENTS.md" 'activate the Etabli workflow automatic
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/answer-quality.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'live final gate'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '~/work/obvault'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" '~/work/obvault'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'before investigating, check the memory vault first'
+assert_contains "$ROOT_DIR/claude/CLAUDE.md" '@~/.pi/agent/AGENTS.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'before investigating, check the memory vault first'
 assert_contains "$ROOT_DIR/workflow/skills/obvault-memory.md" 'Mandatory first check'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'Shared identity, style, cognition, code,'
 assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'route classification is library-only (ADR-0014)'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'workflow/answer-quality.md'
-assert_contains "$ROOT_DIR/claude/CLAUDE.md" 'live final gate'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Observed Facts'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" 'Decision Log'
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" 'Handoff State'
@@ -340,17 +303,14 @@ assert_contains "$ROOT_DIR/workflow/ticket-template.md" 'Keep project-specific s
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/research-proof-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'A "10/10" answer is not a promise of omniscience.'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'OpenAI evaluation best practices'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" '"10/10" is no promise of omniscience.'
+assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'OpenAI evaluation best practices'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Historical fields'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow-retrospect'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'maps, not manuals'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Understand before planning'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Code diff mode'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/self-improvement-loop.md'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/skills/product-dogfood.md'
 assert_file "$ROOT_DIR/workflow/skill-design.md"
 assert_contains "$ROOT_DIR/workflow/skill-design.md" 'Delete-test'
 
@@ -370,8 +330,10 @@ assert_max_lines "$ROOT_DIR/claude/CLAUDE.md" 90
 assert_max_lines "$ROOT_DIR/pi/AGENTS.md" 120
 assert_file "$ROOT_DIR/workflow/agent-quick-card.md"
 assert_file "$ROOT_DIR/workflow/contract-details.md"
-assert_max_lines "$ROOT_DIR/workflow/spec.md" 220
-assert_max_lines "$ROOT_DIR/workflow/contract-details.md" 340
+assert_max_lines "$ROOT_DIR/workflow/spec.md" 205
+assert_max_lines "$ROOT_DIR/workflow/contract-details.md" 284
+assert_max_lines "$ROOT_DIR/workflow/events.md" 101
+assert_max_lines "$ROOT_DIR/workflow/events-validator.md" 64
 assert_max_lines "$ROOT_DIR/workflow/agent-quick-card.md" 120
 assert_contains_wrapped "$ROOT_DIR/workflow/agent-quick-card.md" 'do not write `PLAN.md`, run adversary, or archive'
 assert_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Freeze one documented metric command'
@@ -387,11 +349,12 @@ assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'never a single-run p95'
 assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'cite `file:line`'
 assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'Ceiling is `CAUSE_SUPPORTED`'
 assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'Do not apply the capture-only'
-assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Freeze one metric command'
-assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'at least three measured values in the final answer'
-assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'stop before an external cap'
-assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'not an experimental coverage runner over a live HTTP'
-assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'After two red serve-or-coverage attempts'
+assert_contains "$ROOT_DIR/workflow/skills/long-loop.md" 'Freeze one metric command'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/long-loop.md" 'at least three measured values in the final answer'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/long-loop.md" 'stop before an external cap'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/long-loop.md" 'not an experimental coverage runner over a live HTTP'
+assert_contains_wrapped "$ROOT_DIR/workflow/skills/long-loop.md" 'After two red serve-or-coverage attempts'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'workflow/skills/long-loop.md'
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'WORK_EMBEDDED_VERIFY_PATTERN'
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'IMPLEMENT_NEGATION_PATTERN'
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'PREPARE_FOR_REVIEW_PATTERN'
@@ -411,7 +374,7 @@ assert_contains "$ROOT_DIR/workflow/git-contract.md" 'Final relevant checks must
 assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'never overrides a stricter skill contract'
 assert_contains "$ROOT_DIR/workflow/git-contract.md" 'History-rewriting operations keep their separate rules.'
 assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" "when the user's current request explicitly names a branch"
-assert_contains "$ROOT_DIR/AGENTS.md" '<type>/<ticket-id>-<short-slug>'
+assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/git-contract.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '<type>/<ticket-id>-<short-slug>'
 assert_contains "$ROOT_DIR/workflow/skills/worktree-isolation.md" '<type>/<ticket-id>-<short-slug>'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" '<type>/<ticket-id>-<short-slug>'
@@ -437,25 +400,15 @@ test -x "$ROOT_DIR/scripts/plan-check-freeze" || {
 }
 assert_file "$ROOT_DIR/workflow/events.md"
 assert_file "$ROOT_DIR/scripts/workflow-event"
-assert_contains "$ROOT_DIR/scripts/workflow-event" 'harness_validation_completed'
-assert_contains "$ROOT_DIR/scripts/workflow-retrospect" 'harness_failure_pattern'
+assert_contains "$ROOT_DIR/scripts/workflow-event" 'RETIRED_EVENTS=('
 assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" '## Product Dogfood'
-assert_contains "$ROOT_DIR/workflow/skills/product-dogfood.md" 'Do not convert a blocked scenario into `pass`.'
-assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'never applies patches'
-assert_contains "$ROOT_DIR/workflow/skills/self-improvement-loop.md" 'strict held-in gain'
-assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'prototype_offline'
-assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'promote_automatic'
-assert_contains "$ROOT_DIR/workflow/trace-self-improvement.md" 'capability_not_available'
-assert_contains "$ROOT_DIR/workflow/trace-observation.schema.json" '"allOf"'
-assert_contains "$ROOT_DIR/workflow/skills/ambitious-project-loop.md" 'Push, PR, merge, deploy'
 assert_contains_wrapped "$ROOT_DIR/workflow/skills/implementation-loop.md" 'fresh context (subagent reviewer or cross-model)'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'The workflow is ambient'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'claude/settings.workflow-hooks.json'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Prompt wording such as "PLAN.md ready" is routing context, not proof'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/events.md'
 assert_contains "$ROOT_DIR/workflow/events.md" 'schema_version:2'
-assert_contains "$ROOT_DIR/workflow/events.md" 'never counts as a successful outcome'
-assert_contains "$ROOT_DIR/scripts/workflow-event" 'outcome_metric'
+assert_contains "$ROOT_DIR/workflow/events.md" 'refused on append'
 assert_contains "$ROOT_DIR/workflow/spec.md" '## Human checkpoints'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/plan-archive.md'
 assert_contains "$ROOT_DIR/docs/plan/README.md" 'It is a memory shelf, not an active planning workspace.'
@@ -491,27 +444,20 @@ assert_contains "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" 'workfl
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'SELF_IMPROVEMENT_PATTERN'
 assert_contains "$ROOT_DIR/workflow/skills/ci-fix.md" 'Never make a test pass by disarming it'
 assert_contains "$ROOT_DIR/workflow/skills/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'One PR, one worktree, one loop.'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Never trust a clean review or green check'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not push.'
-assert_contains "$ROOT_DIR/workflow/skills/pr-maintenance-loop.md" 'Do not merge.'
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
 assert_file "$ROOT_DIR/workflow/events-validator.md"
-assert_contains "$ROOT_DIR/workflow/events-validator.md" 'Protocol v2 adds'
-assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'protocol_version'
+assert_contains "$ROOT_DIR/workflow/events-validator.md" '## Retired types'
+assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'def retired_events'
 assert_contains "$ROOT_DIR/workflow/linear-ticket-template.md" 'Resolve team/project/labels through Linear MCP'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" 'Each archive is a distilled memory record, not a raw copy of `PLAN.md`.'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/orchestration.md'
-assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/self-improvement-loop.md'
-assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" 'workflow/skills/ambitious-project-loop.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" '## Activation'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/docs/claude-code-workflow.md" 'workflow/skills/orchestration.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'workflow/linear-ticket-template.md'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" 'Ambient activation'
-assert_contains "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" 'Ambient activation'
 # Thin adapters must point at shared contracts (full matrix later). Do not pin
 # duplicated Source resolution path lists here; those freeze adapter boilerplate.
 assert_contains "$ROOT_DIR/workflow/skills/plan-loop.md" 'Do not create or update `docs/plan/` archives during planning.'
@@ -544,8 +490,8 @@ assert_contains "$ROOT_DIR/pi/skills/implement/SKILL.md" '12c'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Diagnosis, compare, or pre-existing-capture forensics'
 assert_not_contains "$ROOT_DIR/workflow/contract-details.md" '/skill:github-pr-review'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'workflow/skills/adversary.md'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/sec-pr.md" 'Never merge automatically'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'plan drift detected'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Does this addition need to exist'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'simplify: clean'
@@ -553,8 +499,10 @@ assert_not_contains "$ROOT_DIR/claude/README.md" 'before the repos are opened'
 assert_not_contains "$ROOT_DIR/claude/scopes/work/skills/sec-pr/references/employer-dependabot.md" 'Read-only sortant'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Never use `OK`, `APPROVED`, `PASS`'
+assert_contains "$ROOT_DIR/workflow/review-rubric.md" '- Bounded read-only inspection of nearby code, tests, config, or docs — only'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" '3. Read the shared rubric from `workflow/review-rubric.md`, or the harness'
 assert_not_contains "$ROOT_DIR/workflow/review-rubric.md" 'write exactly'
-assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Dismissed: none'
+assert_contains "$ROOT_DIR/workflow/templates/review-lead.md" 'Dismissed: none'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" '## Intent'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" 'Logic hunter'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" 'Spec hunter'
@@ -573,8 +521,8 @@ assert_file "$ROOT_DIR/workflow/templates/review-logic-hunter.md"
 assert_file "$ROOT_DIR/workflow/templates/review-spec-hunter.md"
 assert_file "$ROOT_DIR/workflow/templates/review-lead.md"
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Agent'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/pr-review.md" 'Agent'
-assert_contains "$ROOT_DIR/claude/scopes/shared/commands/github-pr-review.md" 'Agent'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/pr-review.md" 'Agent'
+assert_contains "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md" 'Agent'
 assert_not_contains "$ROOT_DIR/workflow/skills/review.md" 'No free second bug-hunt'
 assert_not_contains "$ROOT_DIR/workflow/skills/pr-review.md" 'No free second bug-hunt'
 assert_not_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Break-first then plan-fit'
@@ -614,7 +562,7 @@ done
 # marks them pi_core; Claude adapters may still name cross-harness skills.
 inactive_pi_css_skills="$(
     awk -F '\t' '
-        $0 !~ /^#/ && $2 == "pi" && $3 == "0" &&
+        $0 !~ /^#/ && ($2 == "pi" || $2 == "extras") && $3 == "0" &&
         ($1 == "frontend-css-ui-ux" || $1 ~ /^css-/) { print $1 }
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
@@ -743,10 +691,8 @@ for prompt_surface in pi_core agents_visible; do
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
     case "$prompt_surface" in
-    # Raised 2026-08-28 with the thermo-nuclear pi-core skill's long
-    # description (suite adoptions above).
-    pi_core) max_bytes=2000 ;;
-    agents_visible) max_bytes=2200 ;;
+    pi_core) max_bytes=2950 ;;
+    agents_visible) max_bytes=2818 ;;
     esac
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
@@ -907,15 +853,15 @@ for adapter in \
     "claude/scopes/shared/commands/implement.md:workflow/skills/implementation-loop.md" \
     "claude/scopes/shared/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
     "claude/scopes/shared/commands/adversary.md:workflow/skills/adversary.md" \
-    "claude/scopes/shared/commands/bug-check.md:workflow/skills/bug-check.md" \
-    "claude/scopes/shared/commands/ci-fix.md:workflow/skills/ci-fix.md" \
-    "claude/scopes/shared/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
-    "claude/scopes/shared/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
-    "claude/scopes/shared/commands/linear-work.md:workflow/skills/linear-work.md" \
-    "claude/scopes/shared/commands/pr-qa.md:workflow/skills/pr-qa.md" \
-    "claude/scopes/shared/commands/pr-review.md:workflow/skills/pr-review.md" \
+    "claude/scopes/work/commands/bug-check.md:workflow/skills/bug-check.md" \
+    "claude/scopes/work/commands/ci-fix.md:workflow/skills/ci-fix.md" \
+    "claude/scopes/work/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
+    "claude/scopes/work/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
+    "claude/scopes/work/commands/linear-work.md:workflow/skills/linear-work.md" \
+    "claude/scopes/work/commands/pr-qa.md:workflow/skills/pr-qa.md" \
+    "claude/scopes/work/commands/pr-review.md:workflow/skills/pr-review.md" \
     "claude/scopes/shared/commands/review.md:workflow/skills/review.md" \
-    "claude/scopes/shared/commands/sec-pr.md:workflow/skills/sec-pr.md" \
+    "claude/scopes/work/commands/sec-pr.md:workflow/skills/sec-pr.md" \
     "claude/scopes/shared/commands/plan-loop.md:workflow/skills/plan-loop.md" \
     "claude/scopes/shared/commands/verify-workflow.md:workflow/skills/verify.md"; do
     adapter_path="${adapter%%:*}"
@@ -948,11 +894,5 @@ if [ -n "$duplicate_adapters" ]; then
     exit 1
 fi
 
-assert_file "$ROOT_DIR/workflow/project-autonomy-envelope.md"
-assert_file "$ROOT_DIR/workflow/project-autonomy-envelope.schema.json"
-assert_file "$ROOT_DIR/workflow/templates/project-autonomy-envelope.json"
-assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/project-autonomy-envelope.md'
-assert_contains "$ROOT_DIR/workflow/project-autonomy-envelope.md" 'never launches agents'
-assert_contains "$ROOT_DIR/workflow/project-autonomy-envelope.md" 'can auto-apply a patch'
 
 printf 'workflow docs smoke test: ok\n'

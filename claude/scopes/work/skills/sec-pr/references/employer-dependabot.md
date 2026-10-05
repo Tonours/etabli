@@ -1,5 +1,22 @@
 # employer Dependabot extras for sec-pr
 
+## Contents
+
+- Usage
+- Prerequis
+- Phase 0 — Cible
+- Phase 1 — Comprehension de la PR
+- Phase 2 — Sources de verite independantes
+- Phase 3 — Worktree isole + install reel
+- Phase 4 — Verifier les "Fixed"
+- Phase 5 — Verifier les "Resolutions removed"
+- Phase 6 — Ignored (re-verifier la preuve)
+- Phase 7 — Deferred (surfacer)
+- Phase 8 — CI
+- Phase 9 — Rapport & verdict
+- Phase 10 — Actions post-validation (UNIQUEMENT si verdict == PASS)
+- Principes
+
 Load this only after `workflow/skills/sec-pr.md`. employer-specific Dependabot
 body (Fixed/Ignored/Deferred/Resolutions), isolated worktree install, and
 PASS-only checkbox/approve steps. Never merge.

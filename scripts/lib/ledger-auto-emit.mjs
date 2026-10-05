@@ -3,15 +3,15 @@
  * Only when an active non-terminal .workflow ledger exists.
  * Does not invent slugs when no ledger is present.
  */
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { isNonEmptyString } from "./predicates.mjs";
-import { basename, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { evaluateNoProgressStop } from "./no-progress-guard.mjs";
 import {
 	getActiveRunPointer,
 	selectActiveLedger,
 } from "./ledger-integrity.mjs";
-import { buildReceipt, issueReceipt } from "./workflow-receipts.mjs";
 
 function isoTs() {
 	return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -177,7 +177,6 @@ export function recordBashValidationFailure(cwd, input) {
  * @param {unknown} content
  * @param {boolean} [isError]
  */
-/** Flatten a tool_result content payload to plain text. */
 function toolResultText(content) {
 	if (typeof content === "string") return content;
 	if (Array.isArray(content)) {
@@ -224,7 +223,7 @@ export function isBashToolName(name) {
 
 const VALIDATION_SEGMENT_PATTERNS = [
 	/^(?:\.?\/)?scripts\/verify-agentic-infra(?:\s+(?:core|full|live))?$/i,
-	/^(?:\.?\/)?scripts\/workflow-event\s+validate\s+[a-z0-9][a-z0-9_-]*(?:\s+--profile\s+(?:structural|autonomous-completed|autonomous-completed-strict|blocked-terminal))?$/i,
+	/^(?:\.?\/)?scripts\/workflow-event\s+validate\s+[a-z0-9][a-z0-9_-]*(?:\s+--profile\s+(?:structural|autonomous-completed|blocked-terminal))?$/i,
 	/^(?:bun|npm|pnpm|yarn)\s+(?:test|lint|run\s+(?:test|lint|typecheck|check|verify|validate|audit|eval))\b[^;&|]*$/i,
 	/^node\s+(?:--check|--test)\b[^;&|]*$/i,
 	/^python3?\s+-m\s+(?:pytest|unittest)\b[^;&|]*$/i,
@@ -278,70 +277,102 @@ export function isLikelyValidationCommand(command) {
 	return isValidationSegment(segments.at(-1));
 }
 
+const CORRECTION_STATE_DIR = "correction-state";
+const CORRECTION_MAX_SESSIONS = 50;
+
+function sessionStateFile(cwd, sessionId) {
+	const safe = createHash("sha256").update(String(sessionId), "utf8").digest("hex").slice(0, 24);
+	return join(cwd || process.cwd(), ".workflow", CORRECTION_STATE_DIR, `${safe}.json`);
+}
+
+function readSessionState(path) {
+	try {
+		const parsed = JSON.parse(readFileSync(path, "utf8"));
+		if (parsed && typeof parsed === "object" && Number.isInteger(parsed.count)) {
+			return parsed;
+		}
+	} catch {
+		return null;
+	}
+	return null;
+}
+
+function writeSessionState(path, entry) {
+	try {
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, `${JSON.stringify({ schema_version: 1, ...entry }, null, "\t")}\n`, "utf8");
+		pruneSessionStates(dirname(path));
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function pruneSessionStates(dir) {
+	try {
+		const files = readdirSync(dir)
+			.filter((name) => name.endsWith(".json"))
+			.map((name) => ({ name, mtime: statSync(join(dir, name)).mtimeMs }))
+			.sort((a, b) => b.mtime - a.mtime);
+		for (const stale of files.slice(CORRECTION_MAX_SESSIONS)) {
+			try {
+				rmSync(join(dir, stale.name));
+			} catch {
+			}
+		}
+	} catch {
+	}
+}
+
 /**
- * Record a non-cryptographic runtime receipt for an observed successful Bash
- * validation into the uniquely selected active ledger. Binds the command hash
- * + exit 0 to observable state. Non-blocking; dedups the same command after the
- * last file_changed so a repeated green check is not re-issued every call.
+ * Register an interactive user prompt for a session and append a `correction`
+ * event when it is a later prompt of the session and the primary active
+ * ledger is non-terminal. The prompt count is keyed by session, independent
+ * of run changes; the ledger write is delegated to `writeEvent` (Pi hot path
+ * or Claude locked CLI append) and the count persists whatever the outcome.
+ * Never stores or hashes-anything-else of the prompt text.
  *
  * @param {string} cwd
- * @param {{ command: string }} input
- * @returns {{ emitted: boolean, reason: string, ledger?: string }}
+ * @param {string} sessionId
+ * @param {"pi" | "claude"} harness
+ * @param {string} prompt
+ * @param {(ledgerPath: string, run: string, detail: Record<string, unknown>) => boolean} writeEvent
+ * @returns {{ emitted: boolean, reason: string, count?: number, ledger?: string, run?: string }}
  */
-export function recordBashValidationReceipt(cwd, input) {
-	const command = String(input?.command || "").trim();
-	if (!command) return { emitted: false, reason: "empty_command" };
-	if (!isLikelyValidationCommand(command)) {
-		return { emitted: false, reason: "not_validation_command" };
-	}
-	if (getActiveRunPointer(cwd).state !== "present") {
-		return { emitted: false, reason: "no_active_run_pointer" };
+export function registerUserPrompt(cwd, sessionId, harness, prompt, writeEvent) {
+	const sid = isNonEmptyString(sessionId) ? String(sessionId) : "";
+	if (!sid) return { emitted: false, reason: "no_session_id" };
+
+	const text = String(prompt ?? "");
+	if ([...text].length < 1) return { emitted: false, reason: "empty_prompt" };
+	const statePath = sessionStateFile(cwd, sid);
+	const entry = readSessionState(statePath) || { count: 0, updated_at: "" };
+	const count = Number(entry.count || 0) + 1;
+	const nextEntry = { count, updated_at: isoTs() };
+
+	if (count <= 1) {
+		writeSessionState(statePath, nextEntry);
+		return { emitted: false, reason: "session_start", count };
 	}
 
 	const selection = selectActiveLedger(cwd);
-	if (selection.reason) return { emitted: false, reason: selection.reason };
+	if (selection.reason || !selection.ledger) {
+		writeSessionState(statePath, nextEntry);
+		return { emitted: false, reason: selection.reason || "no_active_ledger", count };
+	}
 	const primary = selection.ledger;
-	if (!primary) return { emitted: false, reason: "no_active_ledger" };
-	if (!pointerStillSelects(cwd, primary.run)) {
-		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
+	const detail = {
+		harness: harness === "claude" ? "claude" : "pi",
+		prompt_sha256: createHash("sha256").update(text, "utf8").digest("hex"),
+		prompt_chars: [...text].length,
+	};
+	let ok = false;
+	try {
+		ok = writeEvent(primary.path, primary.run, detail) === true;
+	} catch {
+		ok = false;
 	}
-
-	const events = primary.events;
-	const latestDiff = events.reduce(
-		(last, event, index) => (event.event === "file_changed" ? index : last),
-		-1,
-	);
-	const recent = events
-		.slice(latestDiff + 1)
-		.filter(
-			(event) =>
-				event.event === "runtime_receipt" &&
-				event.detail?.kind === "validation" &&
-				event.detail?.subject_sha256,
-		);
-	const candidate = buildReceipt({
-		receiptFor: "validation_run",
-		source: "Bash",
-		kind: "validation",
-		subject: command,
-		exit: 0,
-	});
-	if (
-		recent.some(
-			(event) => event.detail.subject_sha256 === candidate.subject_sha256,
-		)
-	) {
-		return {
-			emitted: false,
-			reason: "duplicate_receipt",
-			ledger: primary.path,
-		};
-	}
-	if (!pointerStillSelects(cwd, primary.run)) {
-		return { emitted: false, reason: "active_run_changed", ledger: primary.path };
-	}
-	const line = issueReceipt(primary.path, primary.run, candidate);
-	return line
-		? { emitted: true, reason: "appended", ledger: primary.path }
-		: { emitted: false, reason: "write_failed", ledger: primary.path };
+	writeSessionState(statePath, nextEntry);
+	if (!ok) return { emitted: false, reason: "append_failed", count, ledger: primary.path };
+	return { emitted: true, reason: "appended", count, ledger: primary.path, run: primary.run };
 }

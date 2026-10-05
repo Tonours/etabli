@@ -28,9 +28,8 @@
         "pr-qa",
         "sec-pr",
         "ci-fix",
-        "coolify",
-        "grill-me",
-        "project-hunt",
+        "write-direct",
+        "ship",
         "thermo-nuclear-code-quality-review"
       ]
     },
@@ -86,6 +85,8 @@
     "!adonisjs-review",
     "!adonisjs-testing",
     "!adonisjs-tuyau",
+    "!alambic-obvault",
+    "!autoproject",
     "!brave-search",
     "!bug-bounty",
     "!check-compiler-errors",

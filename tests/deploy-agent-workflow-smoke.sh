@@ -25,10 +25,10 @@ ln -s "$TMP_DIR/external-command.md" "$HOME_DIR/.claude/commands/commit.md"
 ln -s "$ROOT_DIR/claude/commands/plan.md" "$HOME_DIR/.claude/commands/plan.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/front-quality.md" "$HOME_DIR/.claude/commands/front-quality.md"
 ln -s "$ROOT_DIR/claude/handoff-template.md" "$HOME_DIR/.claude/handoff-template.md"
-ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.claude/skills/suite-router"
-ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.codex/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.claude/skills/retired-skill"
+ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.codex/skills/retired-skill"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/external-skill"
-ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.config/devin/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.config/devin/skills/retired-skill"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.config/devin/skills/external-skill"
 ln -s "$TMP_DIR/legacy-damage-control.json" "$HOME_DIR/.pi/damage-control-rules.json"
 
@@ -69,7 +69,16 @@ grep -Fq '. "$SCRIPT_DIR/lib/pi-paths.sh"' "$DEPLOY_SCRIPT" &&
 DRY_RUN_PID=$!
 
 mkdir -p "$HOME_DIR/.agents/skills"
-ln -s "$ROOT_DIR/pi/skills/suite-router" "$HOME_DIR/.agents/skills/suite-router"
+ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.agents/skills/retired-skill"
+seed_stale_hooks() {
+  mkdir -p "$1/.claude/hooks"
+  ln -s "$ROOT_DIR/claude/hooks/outcome-metric-emit.mjs" "$1/.claude/hooks/outcome-metric-emit.mjs"
+  ln -s "$ROOT_DIR/claude/hooks/proof-shadow.mjs" "$1/.claude/hooks/proof-shadow.mjs"
+  ln -s "$ROOT_DIR/claude/hooks/../../private/offline-hook.mjs" "$1/.claude/hooks/offline-hook.mjs"
+  ln -s "$ROOT_DIR/claude/hooks/renamed-hook.mjs" "$1/.claude/hooks/personal-alias.mjs"
+  printf 'personal hook\n' >"$1/.claude/hooks/personal-hook.mjs"
+}
+seed_stale_hooks "$HOME_DIR"
 
 # Scope validation fails before any home inspection, so the bogus-scope probe
 # can run concurrently with the shared-home apply below.
@@ -129,18 +138,76 @@ assert_link "$HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hoo
 assert_link "$HOME_DIR/.claude/hooks/plan-commit-guard.mjs" "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
 assert_link "$HOME_DIR/.claude/hooks/detect-adr-signal.mjs" "$ROOT_DIR/claude/hooks/detect-adr-signal.mjs"
 assert_link "$HOME_DIR/.claude/hooks/ledger-auto-emit.mjs" "$ROOT_DIR/claude/hooks/ledger-auto-emit.mjs"
-assert_link "$HOME_DIR/.claude/hooks/outcome-metric-emit.mjs" "$ROOT_DIR/claude/hooks/outcome-metric-emit.mjs"
+assert_absent "$HOME_DIR/.claude/hooks/outcome-metric-emit.mjs"
+assert_absent "$HOME_DIR/.claude/hooks/proof-shadow.mjs"
+assert_link "$HOME_DIR/.claude/hooks/offline-hook.mjs" "$ROOT_DIR/claude/hooks/../../private/offline-hook.mjs"
+assert_link "$HOME_DIR/.claude/hooks/personal-alias.mjs" "$ROOT_DIR/claude/hooks/renamed-hook.mjs"
+grep -Fxq 'personal hook' "$HOME_DIR/.claude/hooks/personal-hook.mjs"
+HOOK_DRY_HOME_DIR="$TMP_DIR/hook-dry-home"
+seed_stale_hooks "$HOOK_DRY_HOME_DIR"
+"$DEPLOY_SCRIPT" --dry-run --home "$HOOK_DRY_HOME_DIR" >"$TMP_DIR/hook-dry.txt"
+grep -Fq 'stale Claude hook proof-shadow.mjs' "$TMP_DIR/hook-dry.txt"
+assert_link "$HOOK_DRY_HOME_DIR/.claude/hooks/proof-shadow.mjs" "$ROOT_DIR/claude/hooks/proof-shadow.mjs"
+RELOCATED_HOME_DIR="$TMP_DIR/relocated-home"
+RELOCATED_CLAUDE_DIR="$RELOCATED_HOME_DIR/relocated-claude"
+mkdir -p "$RELOCATED_CLAUDE_DIR/hooks"
+ln -s "$ROOT_DIR/claude/hooks/proof-shadow.mjs" "$RELOCATED_CLAUDE_DIR/hooks/proof-shadow.mjs"
+mkdir -p "$RELOCATED_CLAUDE_DIR/commands"
+ln -s "$ROOT_DIR/claude/commands/plan-loop.md" "$RELOCATED_CLAUDE_DIR/commands/plan-loop.md"
+ln -s "$TMP_DIR/unmounted-volume/personal-claude.md" "$RELOCATED_CLAUDE_DIR/CLAUDE.md"
+ln -s "$ROOT_DIR/../personal/review-rubric.md" "$RELOCATED_CLAUDE_DIR/review-rubric.md"
+node -e '
+const f = require(process.argv[1]);
+require("fs").writeFileSync(process.argv[2], JSON.stringify({ hooks: f.hooks }));
+' "$ROOT_DIR/claude/settings.workflow-hooks.json" "$RELOCATED_CLAUDE_DIR/settings.json"
+RELOCATED_NODE_DIR="$(dirname "$(node -e 'process.stdout.write(process.execPath)')")"
+HOME="$RELOCATED_HOME_DIR" CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" PATH="$RELOCATED_NODE_DIR:$PATH" \
+  ETABLI_INSTALL_HELPER_SMOKE=1 "$DEPLOY_SCRIPT" --apply --home "$RELOCATED_HOME_DIR" >/dev/null
+assert_absent "$RELOCATED_CLAUDE_DIR/hooks/proof-shadow.mjs"
+assert_link "$RELOCATED_CLAUDE_DIR/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+assert_link "$RELOCATED_HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+assert_link "$RELOCATED_CLAUDE_DIR/commands/plan-loop.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"
+if ls "$RELOCATED_CLAUDE_DIR/commands"/plan-loop.md.bak.* >/dev/null 2>&1; then
+  printf 'deploy backed up a dangling managed link\n' >&2
+  exit 1
+fi
+assert_link "$RELOCATED_CLAUDE_DIR/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
+assert_link "$RELOCATED_CLAUDE_DIR/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
+CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" "$ROOT_DIR/scripts/claude-hooks-check" >/dev/null
+backups=( "$RELOCATED_CLAUDE_DIR"/CLAUDE.md.bak.* )
+[ -L "${backups[0]}" ] || {
+  printf 'deploy dropped a dangling unmanaged link without a backup\n' >&2
+  exit 1
+}
+rubric_backups=( "$RELOCATED_CLAUDE_DIR"/review-rubric.md.bak.* )
+[ -L "${rubric_backups[0]}" ] || {
+  printf 'deploy dropped a dotdot dangling link without a backup\n' >&2
+  exit 1
+}
+ISOLATED_HOME_DIR="$TMP_DIR/isolated-home"
+OUTSIDE_CLAUDE_DIR="$TMP_DIR/outside-claude"
+mkdir -p "$ISOLATED_HOME_DIR" "$OUTSIDE_CLAUDE_DIR"
+ln -s "$OUTSIDE_CLAUDE_DIR" "$ISOLATED_HOME_DIR/claude-alias"
+for outside_config in "$OUTSIDE_CLAUDE_DIR" "$ISOLATED_HOME_DIR/../outside-claude" "$ISOLATED_HOME_DIR/claude-alias"; do
+  HOME="$ISOLATED_HOME_DIR" CLAUDE_CONFIG_DIR="$outside_config" PATH="$RELOCATED_NODE_DIR:$PATH" \
+    ETABLI_INSTALL_HELPER_SMOKE=1 "$DEPLOY_SCRIPT" --apply --home "$ISOLATED_HOME_DIR" >/dev/null
+done
+if [ -n "$(ls -A "$OUTSIDE_CLAUDE_DIR")" ]; then
+  printf 'deploy under a disposable HOME wrote into an outside CLAUDE_CONFIG_DIR\n' >&2
+  exit 1
+fi
+assert_link "$ISOLATED_HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_link "$HOME_DIR/.claude/statusline-command.sh" "$ROOT_DIR/claude/statusline-command.sh"
 assert_absent "$HOME_DIR/.pi/damage-control-rules.json"
 assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
-assert_link "$HOME_DIR/.claude/skills/frontend-css-ui-ux" "$ROOT_DIR/claude/scopes/shared/skills/frontend-css-ui-ux"
-assert_link "$HOME_DIR/.claude/skills/css-layout-primitives" "$ROOT_DIR/claude/scopes/shared/skills/css-layout-primitives"
-assert_link "$HOME_DIR/.claude/skills/css-only-components" "$ROOT_DIR/claude/scopes/shared/skills/css-only-components"
-assert_link "$HOME_DIR/.claude/skills/css-debugging" "$ROOT_DIR/claude/scopes/shared/skills/css-debugging"
+assert_absent "$HOME_DIR/.claude/skills/frontend-css-ui-ux"
+assert_absent "$HOME_DIR/.claude/skills/css-layout-primitives"
+assert_absent "$HOME_DIR/.claude/skills/css-only-components"
+assert_absent "$HOME_DIR/.claude/skills/css-debugging"
 assert_absent "$HOME_DIR/.claude/skills/react-doctor-100"
-assert_absent "$HOME_DIR/.claude/skills/suite-router"
+assert_absent "$HOME_DIR/.claude/skills/retired-skill"
 assert_absent "$HOME_DIR/.claude/skills/vercel-react-best-practices"
 assert_absent "$HOME_DIR/.claude/skills/vercel-composition-patterns"
 assert_link "$HOME_DIR/.claude/agents/scout.md" "$ROOT_DIR/claude/scopes/shared/agents/scout.md"
@@ -153,7 +220,7 @@ assert_absent "$HOME_DIR/.claude/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.claude/skills/adonisjs-suite"
 
 assert_absent "$HOME_DIR/.codex/skills/react-doctor-100"
-assert_absent "$HOME_DIR/.codex/skills/suite-router"
+assert_absent "$HOME_DIR/.codex/skills/retired-skill"
 assert_absent "$HOME_DIR/.codex/skills/vercel-react-best-practices"
 assert_absent "$HOME_DIR/.codex/skills/vercel-composition-patterns"
 assert_file "$HOME_DIR/.codex/skills/unmanaged-local"
@@ -162,7 +229,7 @@ assert_absent "$HOME_DIR/.codex/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.codex/skills/adonisjs-suite"
 
 assert_absent "$HOME_DIR/.config/devin/skills/react-doctor-100"
-assert_absent "$HOME_DIR/.config/devin/skills/suite-router"
+assert_absent "$HOME_DIR/.config/devin/skills/retired-skill"
 assert_absent "$HOME_DIR/.config/devin/skills/vercel-react-best-practices"
 assert_file "$HOME_DIR/.config/devin/skills/unmanaged-local"
 assert_link "$HOME_DIR/.config/devin/skills/external-skill" "$TMP_DIR/external-skill"
@@ -244,7 +311,7 @@ assert_link "$HOME_DIR/.agents/skills/review" "$ROOT_DIR/pi/skills/review"
 assert_absent "$HOME_DIR/.agents/skills/browser-full-page-capture"
 assert_absent "$HOME_DIR/.agents/skills/goal-prompt-rewriter"
 assert_absent "$HOME_DIR/.agents/skills/github-pr-review"
-assert_absent "$HOME_DIR/.agents/skills/suite-router"
+assert_absent "$HOME_DIR/.agents/skills/retired-skill"
 assert_absent "$HOME_DIR/.agents/skills/linear-project-setup"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
 

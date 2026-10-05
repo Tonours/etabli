@@ -67,6 +67,6 @@ while IFS=$'\t' read -r key hash; do
   count=$((count + 1))
 done <"$TMP_DIR/expected"
 
-[ "$count" -ge 16 ] || fail "coverage smoke found only $count pinned trees; derivation is broken"
+[ "$count" -ge 13 ] || fail "coverage smoke found only $count pinned trees; derivation is broken"
 
 printf 'skills lock coverage smoke test: ok (%s pinned trees)\n' "$count"

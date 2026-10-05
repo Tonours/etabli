@@ -1,0 +1,351 @@
+import { readdirSync, readFileSync, statSync, existsSync, realpathSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { collectPatterns } from "./workflow-patterns.mjs";
+
+function isoNow() {
+	return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function validDate(value) {
+	if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(value)) return false;
+	const day = value.slice(0, 10);
+	return Number.isFinite(Date.parse(value)) && new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
+}
+
+function inWindow(ts, since, until) {
+	if (typeof ts !== "string" || ts === "") return false;
+	const time = Date.parse(ts);
+	return Number.isFinite(time) && time >= Date.parse(since) && time <= Date.parse(until);
+}
+
+function isRecord(value) {
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseJsonl(text) {
+	const lines = [];
+	let skipped = 0;
+	for (const line of String(text ?? "").split("\n")) {
+		const trimmed = line.trim();
+		if (trimmed === "") continue;
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (isRecord(parsed)) {
+				lines.push(parsed);
+			} else {
+				skipped += 1;
+			}
+		} catch {
+			skipped += 1;
+		}
+	}
+	return { lines, skipped };
+}
+
+function readRegistry(dir, since, until) {
+	const registryDir = join(dir, "ship-metrics");
+	if (!existsSync(registryDir)) return { state: "missing", rows: null, tiers: null, escapedTotal: null };
+	let files = [];
+	try {
+		files = readdirSync(registryDir).filter((f) => f.endsWith(".json"));
+	} catch {
+		return { state: "unreadable", rows: null, tiers: null, escapedTotal: null };
+	}
+	const rows = [];
+	let skipped = 0;
+	for (const file of files) {
+		try {
+			const path = join(registryDir, file);
+			const mtime = statSync(path).mtime.toISOString().replace(/\.\d{3}Z$/, "Z");
+			const row = JSON.parse(readFileSync(path, "utf8"));
+			if (!isRecord(row) || typeof row.run_slug !== "string" || row.run_slug === "") {
+				skipped += 1;
+			} else if (inWindow(mtime, since, until)) {
+				rows.push(row);
+			}
+		} catch {
+			skipped += 1;
+		}
+	}
+	const tiers = {};
+	let escapedTotal = 0;
+	for (const row of rows) {
+		const tier = typeof row.tier === "string" ? row.tier : "unknown";
+		tiers[tier] = (tiers[tier] || 0) + 1;
+		escapedTotal += Number.isFinite(row.escaped_later) ? row.escaped_later : 0;
+	}
+	let state = "available";
+	if (files.length === 0) {
+		state = "zero-observed";
+	} else if (rows.length === 0 && skipped > 0) {
+		state = "unreadable";
+	} else if (skipped > 0) {
+		state = "partial";
+	}
+	return { state, rows: rows.length, tiers, escapedTotal };
+}
+
+function readLedgers(dir, since, until) {
+	let entries = [];
+	try {
+		entries = readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return { state: "missing", ledgers: null, blocked: null, corrections: null, checkpoints: null, completed: null };
+	}
+	const blocked = {};
+	const checkpoints = {};
+	const shipByCiState = {};
+	let corrections = 0;
+	let completed = 0;
+	let ledgers = 0;
+	let unreadable = 0;
+	let invalidLines = 0;
+	let anyEvents = false;
+	for (const entry of entries) {
+		if (!entry.isDirectory() || entry.name === "ship-metrics" || entry.name === "guard-journal" || entry.name === "leases" || entry.name === "correction-state") continue;
+		const ledgerPath = join(dir, entry.name, "events.jsonl");
+		if (!existsSync(ledgerPath)) continue;
+		let parsed;
+		try {
+			parsed = parseJsonl(readFileSync(ledgerPath, "utf8"));
+		} catch {
+			unreadable += 1;
+			continue;
+		}
+		ledgers += 1;
+		invalidLines += parsed.skipped;
+		for (const event of parsed.lines) {
+			if (typeof event.event !== "string" || event.event === "") {
+				invalidLines += 1;
+				continue;
+			}
+			if (!inWindow(event.ts, since, until)) continue;
+			anyEvents = true;
+			if (event.event === "correction") corrections += 1;
+			if (event.event === "completed") completed += 1;
+			if (event.event === "ship_completed") {
+				const ci = typeof event.detail?.ci_state === "string" ? event.detail.ci_state : "unknown";
+				shipByCiState[ci] = (shipByCiState[ci] || 0) + 1;
+			}
+			if (event.event === "blocked") {
+				const reason = typeof event.detail?.reason === "string" ? event.detail.reason : "unknown";
+				blocked[reason] = (blocked[reason] || 0) + 1;
+			}
+			if (event.event === "human_checkpoint") {
+				const key =
+					typeof event.detail?.consent_class === "string"
+						? event.detail.consent_class
+						: "unclassified";
+				checkpoints[key] = (checkpoints[key] || 0) + 1;
+			}
+		}
+	}
+	if (ledgers === 0) {
+		return { state: unreadable > 0 ? "unreadable" : "missing", ledgers: 0, blocked: null, corrections: null, checkpoints: null, completed: null, shipByCiState: null };
+	}
+	let state = anyEvents ? "available" : "zero-observed";
+	if (unreadable > 0 || invalidLines > 0) state = "partial";
+	return {
+		state,
+		ledgers,
+		blocked,
+		corrections,
+		checkpoints,
+		completed,
+		shipByCiState,
+	};
+}
+
+function readGuardJournal(dir, since, until) {
+	const journalDir = join(dir, "guard-journal");
+	if (!existsSync(journalDir)) return { state: "missing", byGuard: null, byPattern: null };
+	let files = [];
+	try {
+		files = readdirSync(journalDir).filter((f) => f.endsWith(".jsonl"));
+	} catch {
+		return { state: "unreadable", byGuard: null, byPattern: null };
+	}
+	const byGuard = {};
+	const byPattern = {};
+	let lines = 0;
+	let unreadableJournal = 0;
+	let skippedJournalLines = 0;
+	for (const file of files) {
+		let parsed;
+		try {
+			parsed = parseJsonl(readFileSync(join(journalDir, file), "utf8"));
+		} catch {
+			unreadableJournal += 1;
+			continue;
+		}
+		skippedJournalLines += parsed.skipped;
+		for (const entry of parsed.lines) {
+			if (typeof entry.guard !== "string" || entry.guard === "" || typeof entry.ts !== "string") {
+				skippedJournalLines += 1;
+				continue;
+			}
+			if (!inWindow(entry.ts, since, until)) continue;
+			lines += 1;
+			const guard = typeof entry.guard === "string" ? entry.guard : "unknown";
+			const pattern = typeof entry.pattern === "string" ? entry.pattern : "unknown";
+			byGuard[guard] = (byGuard[guard] || 0) + 1;
+			byPattern[`${guard}/${pattern}`] = (byPattern[`${guard}/${pattern}`] || 0) + 1;
+		}
+	}
+	let journalState = lines > 0 ? "available" : "zero-observed";
+	if (unreadableJournal > 0 || skippedJournalLines > 0) {
+		journalState = lines > 0 || skippedJournalLines > 0 ? "partial" : "unreadable";
+	}
+	return { state: journalState, byGuard, byPattern };
+}
+
+function readHerdrHistory(path, since, until) {
+	if (!path) return { state: "not-provided" };
+	let text;
+	try {
+		text = readFileSync(path, "utf8");
+	} catch {
+		return { state: "unreadable" };
+	}
+	const parsedHistory = parseJsonl(text);
+	const valid = parsedHistory.lines.filter(
+		(entry) =>
+			typeof entry.pane_id === "string" &&
+			typeof entry.state_change_seq === "number" &&
+			typeof entry.ts === "string",
+	);
+	const invalid = parsedHistory.skipped + (parsedHistory.lines.length - valid.length);
+	if (valid.length === 0) {
+		return {
+			state: invalid > 0 ? "unreadable" : "zero-observed",
+			panes: 0,
+			holes: 0,
+			known_seconds: 0,
+		};
+	}
+	const byHostPane = new Map();
+	for (const entry of valid) {
+		const key = `${typeof entry.host === "string" ? entry.host : "unknown"}|${entry.pane_id}`;
+		if (!byHostPane.has(key)) byHostPane.set(key, []);
+		byHostPane.get(key).push(entry);
+	}
+	const windowStart = Date.parse(since);
+	const windowEnd = Date.parse(until);
+	let holes = 0;
+	let knownSeconds = 0;
+	for (const list of byHostPane.values()) {
+		list.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+		for (let i = 0; i < list.length - 1; i += 1) {
+			const current = list[i];
+			const next = list[i + 1];
+			const contiguous = next.state_change_seq === current.state_change_seq + 1;
+			if (!contiguous) {
+				holes += 1;
+				continue;
+			}
+			const start = Date.parse(current.ts);
+			const end = Date.parse(next.ts);
+			if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+			const clippedStart = Number.isFinite(windowStart) ? Math.max(start, windowStart) : start;
+			const clippedEnd = Number.isFinite(windowEnd) ? Math.min(end, windowEnd) : end;
+			if (clippedEnd > clippedStart) {
+				knownSeconds += Math.round((clippedEnd - clippedStart) / 1000);
+			}
+		}
+	}
+	const state = invalid > 0 ? "partial" : "available";
+	return { state, panes: byHostPane.size, holes, known_seconds: knownSeconds };
+}
+
+export function buildReport(input) {
+	const dir = resolve(String(input.dir || ""));
+	const parent = dirname(dir);
+	const project = existsSync(parent) ? realpathSync(parent) : parent;
+	const since = String(input.since || "");
+	let until = String(input.until || "") || isoNow();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(until)) until = `${until}T23:59:59.999Z`;
+	if (!validDate(since) || !validDate(until) || Date.parse(since) > Date.parse(until)) {
+		throw new Error("Invalid reporting window; use --since and --until as ISO dates with since <= until.");
+	}
+	const registry = readRegistry(dir, since, until);
+	const ledgers = readLedgers(dir, since, until);
+	const journal = readGuardJournal(dir, since, until);
+	const herdr = readHerdrHistory(input.herdrHistory ? String(input.herdrHistory) : "", since, until);
+	return {
+		project_root: project,
+		window: { since, until },
+		patterns: collectPatterns({ dir, project, since, until }),
+		sources: {
+			ship_metrics_registry: registry.state,
+			registry_rows_in_window: registry.rows,
+			event_ledgers: ledgers.state,
+			guard_journal: journal.state,
+			herdr_history: herdr.state,
+			accepted_merge_receipts: "missing",
+			review_minutes_receipts: "missing",
+			reverts_j7: "missing",
+			cost_usage: "missing",
+		},
+		primaries: {
+			blocked_by_reason: ledgers.blocked,
+			corrections: ledgers.corrections,
+			checkpoints_by_consent_class: ledgers.checkpoints,
+			completed_runs: ledgers.completed,
+			ship_completed_by_ci_state: ledgers.shipByCiState,
+			guards_by_guard: journal.byGuard,
+			guards_by_pattern: journal.byPattern,
+		},
+		outcome: {
+			accepted_results: null,
+			note: "missing until accepted-merge receipts exist (phase 1); a completed ledger, GO verdict or green PR does not prove an accepted merge",
+		},
+		counters: {
+			escaped_later_total: registry.escapedTotal,
+			tier_counts: registry.tiers,
+			registry_window_method: "row file mtime",
+			herdr: herdr.state === "available" || herdr.state === "zero-observed"
+				? { panes: herdr.panes, holes: herdr.holes, known_seconds: herdr.known_seconds }
+				: null,
+		},
+	};
+}
+
+export function renderReport(report) {
+	const lines = ["Workflow statistics", `Project: ${report.project_root}`, `Window: ${report.window.since} -> ${report.window.until}`, "", "Sources:"];
+	for (const [source, state] of Object.entries(report.sources)) lines.push(`  ${source}: ${state === null ? "unmeasured" : state}`);
+	for (const [source, state] of Object.entries(report.patterns.sources)) lines.push(`  pattern_${source}: ${state}`);
+	lines.push("", "Observed events:", `  completed: ${report.primaries.completed_runs ?? "unmeasured"}`, `  corrections: ${report.primaries.corrections ?? "unmeasured"}`);
+	lines.push(`  blocked: ${report.primaries.blocked_by_reason === null ? "unmeasured" : Object.values(report.primaries.blocked_by_reason).reduce((sum, n) => sum + n, 0)}`);
+	for (const key of ["checkpoints_by_consent_class", "ship_completed_by_ci_state", "guards_by_guard", "guards_by_pattern"]) {
+		lines.push(...renderCounts(key, report.primaries[key]));
+	}
+	lines.push("", "Other counters:", `  escaped_later_total: ${report.counters.escaped_later_total ?? "unmeasured"}`, `  registry_window_method: ${report.counters.registry_window_method}`);
+	lines.push(...renderCounts("tier_counts", report.counters.tier_counts), ...renderCounts("herdr", report.counters.herdr));
+	lines.push("", "Recurring patterns (explicit families plus unmapped runs; candidates only):", ...renderPatterns(report.patterns.rows));
+	const guards = report.patterns.unattributed_guards.reduce((sum, row) => sum + row.observation_count, 0);
+	const guardState = report.patterns.sources.guards;
+	const guardCount = guardState === "missing" || guardState === "unreadable" ? "unmeasured"
+		: guardState === "partial" ? `${guards} observed (partial; total unmeasured)` : String(guards);
+	lines.push("", `Guard observations: ${guardCount}; origin and initiative unknown, excluded from recurrence.`, `Coverage diagnostics: ${report.patterns.diagnostics.length}`);
+	for (const row of report.patterns.diagnostics.slice(0, 5)) lines.push(`  ${row.path}${row.line ? `:${row.line}` : ""}: ${row.reason}`);
+	lines.push("", "outcome: accepted results unmeasured; completed events do not prove accepted delivery.");
+	return lines.join("\n");
+}
+
+function renderCounts(label, counts) {
+	if (counts == null) return [`  ${label}: unmeasured`];
+	const entries = Object.entries(counts);
+	return entries.length ? [`  ${label}:`, ...entries.map(([key, value]) => `    ${JSON.stringify(key).slice(1, -1)}: ${value}`)] : [`  ${label}: none observed`];
+}
+
+export function renderPatterns(rows) {
+	if (!rows.length) return ["  No issue observed in the available sources/window; missing sources remain unmeasured."];
+	return rows.slice(0, 10).flatMap((row) => [
+		`  ${row.id} — ${row.label}: ${row.family_count} work groups / ${row.initiative_count} runs / ${row.observation_count} observations (${row.unmapped_run_count} unmapped runs)`,
+		`    recorded-completed-successor: ${row.recorded_resolved_run_count} historical blocked runs; planning: ${row.phase_counts.planning || 0} observations`,
+		`    ${row.first_seen} -> ${row.last_seen}`,
+		...row.evidence.map((e) => `    ${e.path}:${e.line} (${e.timestamp_basis})`),
+		...row.resolutions.slice(0, 3).map((r) => `    ${r.slug} -> ${r.completed} (${r.status}; ${r.evidence.path}:${r.evidence.line})`),
+		`    ${row.recommendation}`,
+	]);
+}

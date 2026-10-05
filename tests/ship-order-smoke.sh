@@ -9,9 +9,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 SHIP="$ROOT_DIR/workflow/skills/ship.md"
 LOOP="$ROOT_DIR/workflow/skills/implementation-loop.md"
+ROUNDS="$ROOT_DIR/workflow/skills/review-rounds.md"
 ADV="$ROOT_DIR/workflow/skills/adversary.md"
 EVENTS="$ROOT_DIR/workflow/events.md"
-REVIEW_LOOP="$ROOT_DIR/workflow/skills/reviewer-improvement-loop.md"
 EVENT_BIN="$ROOT_DIR/scripts/workflow-event"
 CENSUS_BIN="$ROOT_DIR/scripts/workflow-ledger-census"
 METRICS_BIN="$ROOT_DIR/scripts/workflow-ship-metrics"
@@ -49,37 +49,56 @@ assert_contains "$SHIP" 'ship-feat-abc-123-x'
 assert_contains "$SHIP" 'suffix `-2`, `-3`'
 
 # AC1: bounded machine the ship counter is transferred from.
-assert_contains "$LOOP" 'T1: findings → fold → T2'
-assert_contains "$LOOP" 'F2 (always on the delivery SHA'
-assert_contains "$LOOP" 'are POSITIONAL'
-assert_contains "$LOOP" 'tour tag `FD`'
-assert_contains "$LOOP" 'FD never routes to F1 or D2'
-assert_contains "$LOOP" 'adversary only if a high-severity finding was'
+assert_contains "$ROUNDS" 'T1: findings → fold → T2'
+assert_contains "$ROUNDS" 'F2 (always on the delivery SHA'
+assert_contains "$ROUNDS" 'are POSITIONAL'
+assert_contains "$ROUNDS" 'tour tag `FD`'
+assert_contains "$ROUNDS" 'FD never routes to F1 or D2'
+assert_contains "$ROUNDS" 'adversary only if a high-severity finding was'
 assert_contains "$ADV" 'D rounds add the adversary only if a high-severity finding was'
-assert_contains "$LOOP" 'exhausted D budget at F1'
-assert_contains "$LOOP" 'abandoned on scratch'
-assert_contains "$LOOP" 'T exhausted'
-assert_contains "$LOOP" 'no post-F1 T re-entry'
-assert_contains "$LOOP" 'Mechanical enforcement of this machine is tranche 6'
+assert_contains "$ROUNDS" 'exhausted D budget at F1'
+assert_contains "$ROUNDS" 'abandoned on scratch'
+assert_contains "$ROUNDS" 'T exhausted'
+assert_contains "$ROUNDS" 'no post-F1 T re-entry'
+assert_contains "$ROUNDS" 'Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`'
+assert_contains "$LOOP" 'workflow/skills/review-rounds.md'
+assert_contains "$LOOP" 'accepted risk: no external feedback; small excludes behavior change'
+assert_contains "$ROOT_DIR/workflow/templates/escaped-defect.md" '  tier: small | standard | high-risk | unknown'
+assert_contains "$ROOT_DIR/workflow/templates/escaped-defect.md" 'the implementation report `tier:`); `unknown` when no reliable source gives one.'
+assert_contains "$SHIP" 'deciding_code, escaped_later, buckets, tier}`; `tier` is set at the'
+assert_contains "$SHIP" "run's first upsert from the shipped change's recorded tier (plan or"
+assert_contains "$SHIP" 'archive `Tier`, or report `tier:`), else `unknown`, and then only'
+assert_contains "$ROOT_DIR/workflow/self-improvement/review-metrics.md" 'Escaped rate per tier: Σ `escaped_later` / number of rows of the private'
+assert_contains "$ROOT_DIR/workflow/self-improvement/review-metrics.md" 'ship-metrics registry, per `tier`; `unknown` rows are reported apart, never'
+assert_contains "$ROOT_DIR/workflow/skills/review.md" "Accepted risk: that Spec pass shares the"
+assert_contains "$ROOT_DIR/workflow/skills/review.md" "implementer's context (self-preference);"
+assert_contains "$ROOT_DIR/workflow/skills/review.md" "   Logic and the adversary stay independent."
+assert_contains "$SHIP" 'In Etabli, `scripts/workflow-ship-metrics` <!-- etabli-only -->'
+assert_contains "$SHIP" '(`upsert`) writes that row under its own per-slug lock file, with the'
+assert_contains "$SHIP" 'same backend choice as `scripts/workflow-event` (`lockf`, `flock` or'
+assert_contains "$SHIP" '`shlock`); without it, the row schema and the `flock` rule stay the reference.'
+assert_contains "$ROOT_DIR/workflow/contract-details.md" 'In Etabli, ledger census for a plan that tightens validation: `scripts/workflow-ledger-census` <!-- etabli-only -->'
+assert_contains "$ROOT_DIR/workflow/contract-details.md" "(\`baseline\`, then \`diff\`) freezes each ledger's verdict and sha256; \`diff\` fails on a verdict flip,"
+assert_contains "$ROOT_DIR/workflow/contract-details.md" 'a non-append rewrite, a current FAIL, a missing baseline slug, or a grandfathered byte-string'
+assert_contains "$ROOT_DIR/workflow/contract-details.md" '  reappearing under a new slug.'
 
 # AC3: delta rule — ancestry + two-dot + 50-line heuristic + surfaces.
-assert_contains "$SHIP" 'merge-base --is-ancestor'
-assert_contains "$SHIP" 'git diff --numstat -z <reviewed-sha>'
-assert_count "$SHIP" 'numstat -z' '3'
-assert_contains "$SHIP" 'delta > 50'
-assert_contains "$SHIP" 'review-metrics.md'
-assert_contains "$SHIP" 'canonical `jq -S` parsed'
-assert_contains "$SHIP" 'Negative pin: a lone changed'
-assert_contains "$SHIP" '*-promotion.json'
+assert_contains "$ROUNDS" 'merge-base --is-ancestor'
+assert_contains "$ROUNDS" 'git diff --numstat -z <reviewed-sha>'
+assert_count "$ROUNDS" 'numstat -z' '3'
+assert_contains "$SHIP" 'review-rounds.md` § Delta re-review'
+assert_contains "$ROUNDS" 'delta > 50'
+assert_contains "$ROUNDS" 'review-metrics.md'
+assert_contains "$ROUNDS" 'canonical `jq -S` parsed'
+assert_contains "$ROUNDS" 'Negative pin: a lone changed'
 assert_contains "$SHIP" 'git status --porcelain'
-assert_contains "$SHIP" 'fails to parse (unreadable output)'
+assert_contains "$ROUNDS" 'fails to parse (unreadable output)'
 
 # AC5: registry + aggregate lifecycle.
 assert_contains "$SHIP" 'run=<slug> | 0 | 0 | 0 |'
 assert_contains "$SHIP" 'ship-metrics/<run-slug>.json'
 assert_contains "$SHIP" 'under `flock`'
 assert_contains "$SHIP" 'never a second row'
-assert_contains "$REVIEW_LOOP" 'metrics_record'
 
 # AC6: F12 per-harness matrix (partial, porting is T7).
 assert_contains "$SHIP" 'no-ai-slop-detect'
@@ -144,6 +163,39 @@ jq -e '.escaped_later == 2' "$WF/ship-metrics/conc.json" >/dev/null \
 if "$METRICS_BIN" --dir "$WF" upsert conc '{"escaped_later":true}' >/dev/null 2>&1; then
   fail 'registry accepted boolean escaped_later'
 fi
+"$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"high-risk"}' >/dev/null
+jq -e '.tier == "high-risk"' "$WF/ship-metrics/conc.json" >/dev/null \
+  || fail 'registry did not store the tier'
+before_tier="$(cat "$WF/ship-metrics/conc.json")"
+if "$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"medium"}' >/dev/null 2>&1; then
+  fail 'registry accepted a tier outside small|standard|high-risk|unknown'
+fi
+[ "$(cat "$WF/ship-metrics/conc.json")" = "$before_tier" ] || fail 'refused tier upsert changed the row'
+if "$METRICS_BIN" --dir "$WF" upsert conc '{"tier":null}' >/dev/null 2>&1; then
+  fail 'registry accepted a null tier that erases the classification'
+fi
+[ "$(cat "$WF/ship-metrics/conc.json")" = "$before_tier" ] || fail 'refused null tier upsert changed the row'
+if "$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"small"}' >/dev/null 2>&1; then
+  fail 'registry reclassified a row whose tier was already set'
+fi
+[ "$(cat "$WF/ship-metrics/conc.json")" = "$before_tier" ] || fail 'refused reclassification changed the row'
+"$METRICS_BIN" --dir "$WF" upsert conc '{"tier":"high-risk"}' >/dev/null || fail 'registry refused re-sending the same tier'
+for bad_tier in '"medium"' 'null'; do
+  if "$METRICS_BIN" --dir "$WF" upsert fresh "{\"tier\":$bad_tier}" >/dev/null 2>&1; then
+    fail "registry created a row with tier $bad_tier"
+  fi
+  [ ! -e "$WF/ship-metrics/fresh.json" ] || fail "refused tier $bad_tier created a row"
+done
+"$METRICS_BIN" --dir "$WF" upsert late '{"tier":"unknown"}' >/dev/null
+before_unknown="$(cat "$WF/ship-metrics/late.json")"
+for bad_tier in '"medium"' 'null'; do
+  if "$METRICS_BIN" --dir "$WF" upsert late "{\"tier\":$bad_tier}" >/dev/null 2>&1; then
+    fail "registry replaced unknown with tier $bad_tier"
+  fi
+  [ "$(cat "$WF/ship-metrics/late.json")" = "$before_unknown" ] || fail "refused tier $bad_tier changed the unknown row"
+done
+"$METRICS_BIN" --dir "$WF" upsert late '{"tier":"standard"}' >/dev/null || fail 'registry refused replacing unknown with a recorded tier'
+jq -e '.tier == "standard"' "$WF/ship-metrics/late.json" >/dev/null || fail 'unknown tier was not replaced'
 # find-pr resolves the single row carrying a PR URL (mini-PR updates).
 [ "$("$METRICS_BIN" --dir "$WF" find-pr 'https://example.test/pr/9')" = "conc" ] \
   || fail 'find-pr did not resolve the row by PR URL'
@@ -172,7 +224,6 @@ CEN="$TMP_ROOT/census"
 mkledger() {
   "$EVENT_BIN" --dir "$CEN" append "$1" file_changed '{"path":"f","change":"c"}' >/dev/null
   "$EVENT_BIN" --dir "$CEN" append "$1" validation_run '{"command":"c","exit":0}' >/dev/null
-  "$EVENT_BIN" --dir "$CEN" append "$1" outcome_metric '{"outcome":"o","success":true,"measured":false,"reason":"smoke"}' >/dev/null
 }
 mkledger cen-stable
 mkledger cen-grow

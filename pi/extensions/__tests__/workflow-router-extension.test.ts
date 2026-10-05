@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { planContract } from "../../../scripts/lib/plan-review-binding.mjs";
 import workflowRouter from "../workflow-router.ts";
-import { loadSemanticPolicy } from "../lib/route-shadow.mjs";
 
 type Handler = (
 	event: Record<string, unknown>,
@@ -52,7 +52,6 @@ function validReadyPlanText() {
 function setupExtension(
 	activeTools = ["TaskCreate", "TaskList", "Agent", "get_subagent_result"],
 	initialThinkingLevel?: string,
-	semanticPolicyLoader: typeof loadSemanticPolicy = () => ({ ...loadSemanticPolicy(), mode: "disabled" }),
 ) {
 	const handlers = new Map<string, Handler[]>();
 	const entries: unknown[] = [];
@@ -82,7 +81,7 @@ function setupExtension(
 		},
 	};
 
-	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0], { loadSemanticPolicy: semanticPolicyLoader });
+	workflowRouter(pi as unknown as Parameters<typeof workflowRouter>[0]);
 
 	return {
 		entries,
@@ -143,10 +142,7 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			const injectedImplement = (results[0] as { systemPrompt: string }).systemPrompt;
-			expect(injectedImplement).toContain("<etabli-route-contract>");
-			expect(injectedImplement).toContain('"route":"implement"');
-			expect(injectedImplement).toContain("implement/SKILL.md");
+			expect(results).toEqual([undefined]);
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "implement" },
 			});
@@ -263,10 +259,7 @@ describe("workflow router extension", () => {
 				cwd,
 			});
 
-			const injectedPlan = (results[0] as { systemPrompt: string }).systemPrompt;
-			expect(injectedPlan).toContain("<etabli-route-contract>");
-			expect(injectedPlan).toContain('"route":"plan-implement"');
-			expect(injectedPlan).toContain("plan-implement/SKILL.md");
+			expect(results).toEqual([undefined]);
 			expect(runtime.entries[0]).toMatchObject({
 				decision: { route: "plan-implement" },
 			});
@@ -457,6 +450,23 @@ describe("workflow router extension", () => {
 		).not.toThrow();
 	});
 
+	test("tool_call binds READY implementation to the latest reviewed contract",()=>{
+  const cwd=mkdtempSync(join(tmpdir(),"pi-bound-review-")),source=validReadyPlanText();
+  try {
+   mkdirSync(join(cwd,".workflow/bound"),{recursive:true});writeFileSync(join(cwd,"PLAN.md"),source);
+   writeFileSync(join(cwd,".workflow/active-run.json"),JSON.stringify({schema_version:1,run:"bound"}));
+   const row=(event:string,detail:unknown)=>JSON.stringify({schema_version:2,ts:"2026-10-02T10:00:00Z",run:"bound",event,detail});
+   const hash=planContract(source).contract_sha256,ledger=join(cwd,".workflow/bound/events.jsonl");
+   const created=row("plan_created",{path:"PLAN.md",status:"READY",plan_contract_sha256:hash});writeFileSync(ledger,created+"\n");
+   const runtime=setupExtension(),call=()=>runtime.emit("tool_call",{toolName:"write",input:{path:"app.mjs",content:"changed"}},{cwd});
+   expect(call()).toEqual([expect.objectContaining({block:true})]);
+   const provenance={requested:{family:"fixture",model:"fixture",provider:"fixture"},effective:{family:"fixture",model:"fixture",provider:"fixture"},runner:"fixture",run_id:"bound"};
+   writeFileSync(ledger,created+"\n"+row("adversary_completed",{mode:"plan",verdict:"READY",plan_contract_sha256:hash,accepted_findings:[],rejected_findings:[],model_provenance:provenance})+"\n");
+   expect(call()).toEqual([undefined]);writeFileSync(join(cwd,"PLAN.md"),source.replace("Exercise the guard.","Change the guard contract."));
+   expect(call()).toEqual([expect.objectContaining({block:true})]);
+  } finally {rmSync(cwd,{recursive:true,force:true});}
+ });
+
 	test("tool_call READY guard blocks write/edit/mutating bash under DRAFT and CHALLENGED", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-ready-guard-"));
@@ -548,74 +558,6 @@ describe("workflow router extension", () => {
 				input: { path: join(cwd, "src/z.ts"), content: "z" },
 			})[0];
 			expect(malformedStatus).toMatchObject({ block: true, reason: expect.stringMatching(/UNKNOWN/i) });
-		} finally {
-			rmSync(cwd, { recursive: true, force: true });
-		}
-	});
-
-	test("tool_call no_progress denies code Write under active ledger and allows PLAN / workflow-event escape", () => {
-		const runtime = setupExtension();
-		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-no-progress-"));
-		try {
-			writeFileSync(join(cwd, "PLAN.md"), validReadyPlanText());
-			mkdirSync(join(cwd, ".workflow", "run-a"), { recursive: true });
-			writeFileSync(
-				join(cwd, ".workflow", "run-a", "events.jsonl"),
-				`${JSON.stringify({
-					schema_version: 2,
-					ts: "2026-08-01T00:00:00Z",
-					run: "run-a",
-					event: "no_progress",
-					detail: {
-						check_or_hypothesis: "stuck",
-						command: "bash tests/a.sh",
-						attempts: 2,
-						eliminated: ["stuck"],
-					},
-				})}\n`,
-			);
-
-			const codeWrite = runtime.emit("tool_call", {
-				toolName: "write",
-				toolCallId: "np1",
-				cwd,
-				input: { path: join(cwd, "src/x.ts"), content: "x" },
-			})[0];
-			expect(codeWrite).toMatchObject({
-				block: true,
-				reason: expect.stringMatching(/no_progress/i),
-			});
-
-			const planWrite = runtime.emit("tool_call", {
-				toolName: "write",
-				toolCallId: "np2",
-				cwd,
-				input: {
-					path: join(cwd, "PLAN.md"),
-					content: [
-						"# PLAN.md",
-						"",
-						"## Meta",
-						"- Status: CHALLENGED",
-						"",
-						"## Checks",
-						"- command: bash tests/a.sh",
-						"",
-						"## Decision Log",
-						"- check-freeze demote: no_progress stop",
-						"",
-					].join("\n"),
-				},
-			})[0];
-			expect(planWrite).toBeUndefined();
-
-			const eventCli = runtime.emit("tool_call", {
-				toolName: "bash",
-				toolCallId: "np3",
-				cwd,
-				input: { command: "scripts/workflow-event append --event blocked" },
-			})[0];
-			expect(eventCli).toBeUndefined();
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
@@ -761,7 +703,7 @@ describe("workflow router extension", () => {
 		}
 	});
 
-	test("tool_result successful Bash emits a non-cryptographic runtime receipt to the active ledger", () => {
+	test("tool_result successful Bash appends no runtime receipt (retired type)", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-receipt-"));
 		try {
@@ -806,18 +748,9 @@ describe("workflow router extension", () => {
 						},
 				)
 				.filter((event) => event.event === "runtime_receipt");
-			expect(receipts.length).toBe(1);
-			expect(receipts[0].detail).toMatchObject({
-				kind: "validation",
-				exit: 0,
-				observed_by: "parent-process",
-				cryptographic: false,
-			});
-			// Raw command text must not leak into the persisted receipt.
+			expect(receipts.length).toBe(0);
 			expect(ledger).not.toContain("bash tests/a.sh");
-			expect(receipts[0].detail.subject_sha256).toMatch(/^[a-f0-9]{64}$/);
 
-			// Ordinary successful shell reads are not validation receipts.
 			runtime.emit("tool_result", {
 				toolName: "bash",
 				toolCallId: "read1",
@@ -832,27 +765,7 @@ describe("workflow router extension", () => {
 			);
 			expect(
 				afterRead.split("\n").filter((line) => line.includes('"runtime_receipt"')),
-			).toHaveLength(1);
-
-			// A repeated identical success does not double-emit.
-			runtime.emit("tool_result", {
-				toolName: "bash",
-				toolCallId: "rcpt2",
-				cwd,
-				input: { command: "bash tests/a.sh" },
-				content: [{ type: "text", text: "exit code: 0" }],
-				isError: false,
-			});
-			const afterSecond = readFileSync(
-				join(cwd, ".workflow", "rcpt-run", "events.jsonl"),
-				"utf8",
-			);
-			const secondReceipts = afterSecond
-				.split("\n")
-				.filter(
-					(line: string) => line.trim() && line.includes('"runtime_receipt"'),
-				);
-			expect(secondReceipts.length).toBe(1);
+			).toHaveLength(0);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
@@ -972,84 +885,7 @@ tags:
 		}
 	});
 
-	test("emits a bounded fail-closed semantic shadow without changing the route", async () => {
-		const runtime = setupExtension(undefined, undefined, () => ({ ...loadSemanticPolicy(), mode: "shadow" }));
-		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-shadow-"));
-		const previousKey = process.env.TYPESAFE_API_KEY;
-		try {
-			delete process.env.TYPESAFE_API_KEY;
-			runtime.emit("before_agent_start", { prompt: "Explique le routeur", cwd });
-			expect(runtime.entries[0]).toMatchObject({ decision: { route: "answer" } });
-			for (let attempt = 0; attempt < 20 && runtime.entries.length < 2; attempt += 1) {
-				await new Promise((resolve) => setTimeout(resolve, 5));
-			}
-			expect(runtime.entries[1]).toMatchObject({
-				receipt: { outcome: "abstain", error_code: "missing_api_key", deterministic_decision: "answer" },
-			});
-			const receipt = readFileSync(join(cwd, ".workflow/semantic-judgments.jsonl"), "utf8");
-			expect(receipt).not.toContain("Explique le routeur");
-		} finally {
-			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
-			else process.env.TYPESAFE_API_KEY = previousKey;
-			rmSync(cwd, { recursive: true, force: true });
-		}
-	});
-
-	test("awaits an enforced Jev decision before publishing the selected route", async () => {
-		const runtime = setupExtension(undefined, undefined, () => ({
-			...loadSemanticPolicy(),
-			mode: "enforced",
-			promotion: { validated: true },
-		}));
-		const cwd = mkdtempSync(join(tmpdir(), "etabli-jev-enforced-"));
-		const previousKey = process.env.TYPESAFE_API_KEY;
-		const previousFetch = globalThis.fetch;
-		try {
-			process.env.TYPESAFE_API_KEY = "fixture-key";
-			globalThis.fetch = (async (_url, init) => {
-				const request = JSON.parse(String(init?.body));
-				const routes = Object.keys(request.questions.route.criteria);
-				const confidence = 0.93;
-				const remainder = (1 - confidence) / (routes.length - 1);
-				return new Response(JSON.stringify({
-					model: request.model,
-					answers: {
-						route: {
-							type: "choice",
-							choice: "verify",
-							probabilities: Object.fromEntries(routes.map((route) => [route, route === "verify" ? confidence : remainder])),
-							confidence,
-						},
-					},
-					usage: { input_tokens: 10, output_tokens: 2 },
-				}), { status: 200, headers: { "content-type": "application/json" } });
-			}) as typeof fetch;
-
-			const results = await runtime.emitAsync("before_agent_start", {
-				prompt: "Explique le routeur",
-				systemPrompt: "Base prompt",
-				cwd,
-			});
-			expect(runtime.entries[0]).toMatchObject({
-				decision: { route: "verify", writeAllowed: false },
-				semantic: { mode: "enforced", source: "jev", reason: "semantic_override" },
-			});
-			expect(runtime.entries[1]).toMatchObject({
-				receipt: { selection_source: "jev", selected_decision: "verify" },
-			});
-			const routedPrompt = (results[0] as { systemPrompt: string }).systemPrompt;
-			expect(typeof routedPrompt).toBe("string");
-			expect(routedPrompt.includes('"route":"verify"')).toBe(true);
-			expect(routedPrompt.includes("Base prompt")).toBe(true);
-		} finally {
-			if (previousKey === undefined) delete process.env.TYPESAFE_API_KEY;
-			else process.env.TYPESAFE_API_KEY = previousKey;
-			globalThis.fetch = previousFetch;
-			rmSync(cwd, { recursive: true, force: true });
-		}
-	});
-
-	describe("route contract pointer and issuance", () => {
+	describe("route issuance", () => {
 		function setupLedgerCwd() {
 			const cwd = mkdtempSync(join(tmpdir(), "etabli-emit-"));
 			mkdirSync(join(cwd, ".workflow", "emit"), { recursive: true });
@@ -1067,28 +903,20 @@ tags:
 			return text.split("\n").filter((l) => l.trim() !== "").map((l) => JSON.parse(l) as Record<string, unknown>);
 		}
 
-		test("emits route_decided with contract fields once per route", () => {
+		test("emits route_decided with route and reason only, once per route", () => {
 			const runtime = setupExtension();
 			const cwd = setupLedgerCwd();
 			try {
-				runtime.emit("before_agent_start", {
+				const results = runtime.emit("before_agent_start", {
 					prompt: "Implémente le PLAN.md ready",
 					systemPrompt: "Base prompt",
 					cwd,
 				});
+				expect(results).toEqual([undefined]);
 				let lines = ledgerLines(cwd).filter((l) => l.event === "route_decided");
 				expect(lines).toHaveLength(1);
-				expect(lines[0]).toMatchObject({
-					event: "route_decided",
-					run: "emit",
-					detail: { route: "plan-implement" },
-				});
-				const detail = lines[0].detail as Record<string, unknown>;
-				expect(typeof detail.contract_path).toBe("string");
-				expect(String(detail.contract_path).endsWith("plan-implement/SKILL.md")).toBe(true);
-				expect(typeof detail.contract_sha256).toBe("string");
-				expect(typeof detail.provenance).toBe("string");
-				expect(["deployed-pi", "deployed-agents", "repo"]).toContain(detail.provenance as string);
+				expect(lines[0]).toMatchObject({ event: "route_decided", run: "emit" });
+				expect(lines[0].detail).toEqual({ route: "plan-implement", reason: "workflow-router selected plan-implement" });
 				// Same route again: deduped, no second line.
 				runtime.emit("before_agent_start", {
 					prompt: "Implémente le PLAN.md ready encore",
@@ -1205,5 +1033,62 @@ tags:
 				rmSync(cwd, { recursive: true, force: true });
 			}
 		});
+	});
+});
+
+describe("correction emission on interactive input", () => {
+	function readLedger(cwd: string): string {
+		return readFileSync(join(cwd, ".workflow", "corr", "events.jsonl"), "utf8");
+	}
+
+	test("extension input is ignored; interactive prompts emit one correction per later prompt", () => {
+		const cwd = mkdtempSync(join(tmpdir(), "pi-correction-"));
+		const prevSession = process.env.PI_SESSION_ID;
+		process.env.PI_SESSION_ID = "bun-correction-session";
+		try {
+			mkdirSync(join(cwd, "scripts"), { recursive: true });
+			mkdirSync(join(cwd, ".workflow", "corr"), { recursive: true });
+			execFileSync("cp", ["-R", join(import.meta.dir, "../../../scripts/lib"), join(cwd, "scripts", "lib")]);
+			execFileSync("cp", [join(import.meta.dir, "../../../scripts/workflow-event"), join(cwd, "scripts", "workflow-event")]);
+			writeFileSync(
+				join(cwd, ".workflow", "corr", "events.jsonl"),
+				'{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"plan_created","run":"corr","detail":{"path":"PLAN.md","status":"DRAFT"}}\n',
+			);
+			writeFileSync(join(cwd, ".workflow", "active-run.json"), '{"schema_version":1,"run":"corr"}');
+
+			const runtime = setupExtension();
+			runtime.emit("input", { type: "input", text: "extension injected", source: "extension" }, { cwd });
+			runtime.emit("input", { type: "input", text: "initial prompt", source: "interactive" }, { cwd, sessionManager: { getSessionId: () => "bun-session-a" } });
+			expect(readLedger(cwd)).not.toContain('"event":"correction"');
+
+			runtime.emit(
+				"input",
+				{ type: "input", text: "non fais plutot ceci", source: "interactive", streamingBehavior: "steer" },
+				{ cwd, sessionManager: { getSessionId: () => "bun-session-a" } },
+			);
+			runtime.emit(
+				"input",
+				{ type: "input", text: "rpc driven", source: "rpc" },
+				{ cwd },
+			);
+			const lines = readLedger(cwd)
+				.split("\n")
+				.filter((l) => l.trim() !== "")
+				.map((l) => JSON.parse(l) as Record<string, unknown>);
+			const corrections = lines.filter((l) => l.event === "correction");
+			expect(corrections).toHaveLength(1);
+			expect(corrections[0]).toMatchObject({ run: "corr", detail: { harness: "pi" } });
+			const detail = corrections[0].detail as Record<string, unknown>;
+			expect(String(detail.prompt_sha256)).toMatch(/^[0-9a-f]{64}$/);
+			expect(readLedger(cwd)).not.toContain("non fais plutot ceci");
+			expect(readLedger(cwd)).not.toContain("extension injected");
+		} finally {
+			if (prevSession === undefined) {
+				delete process.env.PI_SESSION_ID;
+			} else {
+				process.env.PI_SESSION_ID = prevSession;
+			}
+			rmSync(cwd, { recursive: true, force: true });
+		}
 	});
 });

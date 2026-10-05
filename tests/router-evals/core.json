@@ -114,63 +114,63 @@
     "name": "source-backed research uses research-plan",
     "category": "research",
     "prompt": "Fais une recherche web sourc\u00e9e sur les pratiques agentiques",
-    "expectedRoute": "research-plan",
-    "writeAllowed": true
+    "expectedRoute": "answer",
+    "writeAllowed": false
   },
   {
     "name": "spec construction uses spec-guide",
     "category": "spec",
     "prompt": "guide-moi pour construire la spec",
-    "expectedRoute": "spec-guide",
+    "expectedRoute": "plan-loop",
     "writeAllowed": true
   },
   {
     "name": "github pr review uses pr-review",
     "category": "github",
     "prompt": "Fais une code review de la PR GitHub 42",
-    "expectedRoute": "pr-review",
+    "expectedRoute": "review",
     "writeAllowed": false
   },
   {
     "name": "explicit ci fix remains ci-fix despite push wording",
     "category": "ci",
     "prompt": "fix CI and push PR #42",
-    "expectedRoute": "ci-fix",
-    "writeAllowed": true
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
   },
   {
     "name": "linear bug analysis stays read-only",
     "category": "linear-negative-control",
     "prompt": "Analyse le bug Linear PRD-387 sans coder",
-    "expectedRoute": "bug-check",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "linear creation uses its dedicated route",
     "category": "linear",
     "prompt": "Cr\u00e9e un ticket Linear pour ce bug de login",
-    "expectedRoute": "linear-ticket-create",
-    "writeAllowed": true
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
   },
   {
     "name": "linear implementation uses its dedicated route",
     "category": "linear",
     "prompt": "Corrige le bug d\u00e9crit dans Linear LIN-123",
-    "expectedRoute": "linear-work",
+    "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
   {
     "name": "PR QA stays read-only",
     "category": "github",
     "prompt": "Comment tester la PR GitHub 42 ?",
-    "expectedRoute": "pr-qa",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "security PR stays read-only",
     "category": "github",
     "prompt": "Audite la PR Dependabot #1606",
-    "expectedRoute": "sec-pr",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
@@ -213,8 +213,8 @@
     "name": "SaaS research receives targeted knowledge context",
     "category": "knowledge-routing",
     "prompt": "Je recherche des id\u00e9es de SaaS rentables",
-    "expectedRoute": "research-plan",
-    "writeAllowed": true,
+    "expectedRoute": "answer",
+    "writeAllowed": false,
     "expectedKnowledgeTopics": [
       "saas"
     ]
@@ -466,6 +466,168 @@
     "writeAllowed": false,
     "context": {
       "planStatus": "missing"
+    }
+  },
+  {
+    "name": "slash ci-fix bypasses the router",
+    "category": "explicit-command",
+    "prompt": "/ci-fix PR #42",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "natural-language linear ticket work plans first",
+    "category": "linear",
+    "prompt": "corrige PRD-123",
+    "expectedRoute": "plan-implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "push notification feature is not an ops-stop push",
+    "category": "ops-stop-negative-control",
+    "prompt": "ajoute une push notification au dashboard",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "review of a Linear fix stays a read-only review",
+    "category": "linear-negative-control",
+    "prompt": "Review the fix for Linear ABC-123 in PR #42",
+    "expectedRoute": "review",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "QA plan creation stays read-only",
+    "category": "report",
+    "prompt": "Create a QA plan for PR #42",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "security report stays read-only",
+    "category": "report",
+    "prompt": "Create a security report for PR #42",
+    "expectedRoute": "answer",
+    "writeAllowed": false
+  },
+  {
+    "name": "root cause report stays read-only",
+    "category": "report",
+    "prompt": "Check the bug ABC-123 and add a root cause report",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "fixing a root cause is still ordinary coding",
+    "category": "report-negative-control",
+    "prompt": "fix the root cause of the crash",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "embedded test plan keeps the main plan request",
+    "category": "plan",
+    "prompt": "Draft a plan to fix login with a test plan",
+    "expectedRoute": "plan-loop",
+    "writeAllowed": true
+  },
+  {
+    "name": "Linear issue creation stops regardless of word order",
+    "category": "ops-stop",
+    "prompt": "Create a Linear issue for login",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "French Linear ticket creation stops",
+    "category": "ops-stop",
+    "prompt": "Crée dans Linear un ticket pour le login",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "push of a possessive branch stops",
+    "category": "ops-stop",
+    "prompt": "fix CI and push my branch",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
+  },
+  {
+    "name": "push to origin stops",
+    "category": "ops-stop",
+    "prompt": "fix CI and push origin main",
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "report noun inside an ordinary edit stays writable",
+    "category": "report-negative-control",
+    "prompt": "add an impact analysis section to the README",
+    "expectedRoute": "answer",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "missing"
+    }
+  },
+  {
+    "name": "security plan for a PR stays read-only",
+    "category": "report",
+    "prompt": "Write a security plan for PR #42",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "QA checklist edge cases for a PR stay read-only",
+    "category": "report",
+    "prompt": "Add edge cases to the QA checklist for PR #42",
+    "expectedRoute": "answer",
+    "writeAllowed": false,
+    "context": {
+      "planStatus": "ready"
+    }
+  },
+  {
+    "name": "review of already pushed changes is not an ops-stop",
+    "category": "ops-stop-negative-control",
+    "prompt": "Review the pushed changes in PR #42",
+    "expectedRoute": "review",
+    "writeAllowed": false
+  },
+  {
+    "name": "fix request with a test report keeps implementing",
+    "category": "report-negative-control",
+    "prompt": "Fix the login and add a test report",
+    "expectedRoute": "implement",
+    "writeAllowed": true,
+    "context": {
+      "planStatus": "ready"
     }
   }
 ]

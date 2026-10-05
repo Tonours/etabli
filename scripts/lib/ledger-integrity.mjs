@@ -7,7 +7,7 @@
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { isObject, isNonEmptyString, isStringArray } from "./predicates.mjs";
 import { basename, join, relative, resolve, sep } from "node:path";
-import { WORKFLOW_EVENTS } from "./workflow-events.mjs";
+import { RETIRED_WORKFLOW_EVENTS, WORKFLOW_EVENTS } from "./workflow-events.mjs";
 
 export const ACTIVE_RUN_POINTER = "active-run.json";
 
@@ -61,7 +61,7 @@ function cacheStore(cache, path, fp, value) {
 
 const TERMINAL_EVENTS = new Set(["completed", "blocked", "ship_completed"]);
 const RUN_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
-const KNOWN_EVENTS = new Set(WORKFLOW_EVENTS);
+const KNOWN_EVENTS = new Set([...WORKFLOW_EVENTS, ...RETIRED_WORKFLOW_EVENTS]);
 
 function isIsoTimestamp(value) {
   return (

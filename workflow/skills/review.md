@@ -24,7 +24,8 @@ Same-session Logic self-review is forbidden.
 
 1. Resolve the target (below), then **pin the patch once** (capture `git diff` /
    `git show` bytes). Hunters receive that text and do not re-run `git diff`.
-2. Write one-paragraph Intent (user message, PR body, or commits).
+2. Supply Intent plus current plan/Decision Log to Spec and lead; omit these
+   from Logic. Reconcile conflicts before dispatch.
 3. Detect language/UI surface. Set `Standards: yes` or `Standards: none` on the
    Logic brief.
 4. Write the pinned patch to a temp file (must be non-empty). Dispatch
@@ -38,18 +39,19 @@ Same-session Logic self-review is forbidden.
      --no-context-files --tools read,grep --append-system-prompt
      <hunter-template> @<patchfile>`. The prompt file is the hunter template
      plus `Axis: Logic`, Intent, and `Standards: yes|none`. Hunter templates are
-   self-contained: hunters never read the rubric, docs, or SDK/framework
-   internals — the parent's rubric read is for filtering, not hunting. Pass `--model` only when it is not a
-     `cursor/` id. Timeout default 600s (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn or
+   self-contained; the parent reads the rubric for filtering. Open deciding APIs
+   when needed. Unresolved inspection errors forbid GO. Pass `--model` only when its id
+     is not `cursor/`. Timeout default 600s (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn or
      nonzero → `HUNTER_SPAWN_UNAVAILABLE`. Timeout → `HUNTER_TIMEOUT`.
-     Either sentinel is a hard stop: report it and stop; do not continue to a
-     lead verdict. An empty patch is not a clean hunt. Record `hunter_model:`
+     Either sentinel stops the lead verdict. Helper executions capture native JSON. An empty patch is not a clean hunt. Record `hunter_model:`
      (or `hunter_model: default` when `--model` is omitted). `runner: pi-child`.
    Dispatch **Spec hunter** (`workflow/templates/review-spec-hunter.md`,
    `Axis: Spec`) in parallel when the runtime can (Claude/Cursor), using the
    same runner and model as the Logic hunter; otherwise sequential. Daily Pi:
    Logic is the only child; after it returns, run Spec in the parent and
-   record `spec: parent`.
+   record `spec: parent`. Accepted risk: that Spec pass shares the
+   implementer's context (self-preference);
+   Logic and the adversary stay independent.
 5. If neither `PLAN.md` nor PR/user intent exists, record `spec: n/a` and skip
    the Spec spawn.
 6. If `Standards: yes`, run `code-quality` when exposed, otherwise the narrowest
@@ -85,38 +87,15 @@ Review only the target scope. Cover:
 - plan drift;
 - human checkpoint trigger when needed.
 
-Use bounded read-only inspection of nearby code, tests, config, or docs only
-when it materially confirms or rejects a suspected finding.
-
 Do not edit files, install dependencies, or run broad/slow validation unless the
 user explicitly asked for that level of review.
 
 ## Finding Format
 
-Report concise actionable findings grounded in the reviewed diff:
-
-```text
-severity:
-file:
-line: or line_range:
-issue:
-impact:
-review_comment:
-suggested_fix:
-```
-
-Then the **lens table** and **deciding-code table** from the rubric (mandatory
-on the Logic hunter). Keep findings axis-tagged. Lead output uses Act on /
-Consider / Dismissed.
-
-If there are no actionable issues, put exactly `No findings.` as the only
-finding and do not wrap it in severity/file fields.
-
-End with one final line in this exact shape:
-
-```text
-Verdict: GO | GO WITH NOTES | BLOCK
-```
+Findings (fields, severity order, `No findings.`), the **lens table** and
+**deciding-code table** (mandatory on the Logic hunter) and the final
+`Verdict: GO | GO WITH NOTES | BLOCK` line follow `workflow/review-rubric.md`.
+Keep findings axis-tagged. Lead output uses Act on / Consider / Dismissed.
 
 `GO` is forbidden when any non-trivial runtime deciding-code row is empty or
 `not run`, when any other lens row is `not run` (Convention §5's no-skill,
@@ -133,4 +112,3 @@ is not a workaround for those gates.
   explicitly.
 - If the request is to prove completion rather than review a diff, route to the
   verification workflow instead of treating it as code review.
-- Never use `OK`, `APPROVED`, `PASS`, or other verdict words.

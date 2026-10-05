@@ -1,2 +1,0 @@
-Extend the settings-consistency test with one extra assertion on the local
-packages list. No other change.

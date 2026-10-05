@@ -1,0 +1,278 @@
+---
+name: project-hunt
+description: Hunt dated SaaS and low-capital ecommerce opportunities from market pain. Use for a project idea, chasse de projet, or /project-hunt; not for executing on an idea or for funded-scale ventures.
+disable-model-invocation: true
+---
+
+# Project hunt
+
+Find a small number of testable opportunities for a solo technical founder.
+Observed recurring work, a reachable buyer, and a budgeted outcome beat an idea
+list or a viral trend. Freshness is a signal; it is not demand proof.
+
+## Modes
+
+Choose one mode before searching. Never average SaaS and ecommerce scores.
+
+- `saas` (default): niche B2B/B2C software jobs with recurring pain, a narrow
+  outcome, an existing budget or costly workaround, and a buildable wedge.
+- `ecommerce-cash`: a reversible, low-capital test for a physical, made-to-order,
+  print-on-demand, supplier-fulfilled, or digital product. Read
+  [references/ecommerce.md](references/ecommerce.md) before this mode.
+- `mixed`: only when the user explicitly asks for both; return two separate
+  rankings and two validation plans.
+
+If the request is ambiguous, use `saas` and mention that ecommerce is a
+separate, optional track. A “cash” request selects `ecommerce-cash`; it never
+authorizes a purchase, listing, advertisement, message, or account creation.
+
+## Load first
+
+1. Read today's session date. Default evidence window = last 12 months;
+   define a shorter 90-day trigger window when claiming “emerging”. Regulatory
+   or safety claims must be checked at their current primary source, not
+   rescued by a freshness weight. Append `{since}`/the engine's date operator
+   when supported; otherwise post-filter every result by its displayed date and
+   mark undated or out-of-window historical claims `N/A`. Current official
+   pricing, fee schedules, feature documentation and regulatory pages may be undated: record the
+   verified `observed_at` separately and `published_at: unknown`. Observation
+   establishes what the page currently says, not when a price or rule changed.
+   For a legal effective date or deadline, verify that date and scope explicitly.
+2. Load the founder profile. A pasted profile overrides only fields it states;
+   merge it field-by-field with [references/founder.md](references/founder.md).
+   Keep forbidden projects, safety constraints, and explicit non-goals unless
+   the user clearly changes them.
+3. Read [references/queries.md](references/queries.md) and
+   [references/sources.md](references/sources.md). Load the ecommerce reference
+   only in `ecommerce-cash` or `mixed` mode. Read [references/preflight.md](references/preflight.md)
+   now, before step 4 and any source search; read
+   [references/ranking.md](references/ranking.md) before scoring. An unreadable
+   reference stops the hunt as `blocked`.
+4. Resolve prior work before proposing anything: read the current workspace
+   `README.md`, then its named catalogs, `briefs/`, `ADVERSARY.md`, and goal
+   files when present. Record inaccessible paths with the canonical status
+   `absent`, `access-refused`, `blocked`, or `error` according to the cause,
+   never as an empty catalog. If a catalog is inaccessible, label novelty as
+   `unknown`; do not claim an angle is new merely because it was not readable.
+5. Set the mode, evidence window, research cap, and output cap. Defaults are
+   read-only, no external writes, no paid calls without consent, and no
+   ecommerce spend. Unless the user sets another cap, use at most 3 query
+   batches per relevant family/language, 20 canonical page fetches per mode,
+   and 8 shortlist cards per mode. These are ceilings, not quotas to fill.
+   The €150 ecommerce cap is a **hypothetical test budget**, not permission to
+   spend. Allocation, transfer and scope rules live in the research budget
+   below.
+
+### Research budget
+
+- Within the default 20 fetches, use at most 6 for discovery and reserve at
+  least 14 for finalist verification, including counter-searches. Unused
+  discovery fetches transfer to verification.
+- With a different user cap, allocate a majority to verification before
+  starting; report insufficient capacity instead of forcing a shortlist.
+- Search only the requested verticals/languages; otherwise choose relevant
+  themes and FR/EN queries.
+
+## Capability and safety preflight
+
+Read [references/preflight.md](references/preflight.md) now, before any source search.
+
+## Evidence contract
+
+- A citation carries `evidence_id`, `URL`, `published_at` (ISO date/post
+  timestamp, or `unknown` only for the current-official-page exception above),
+  `observed_at`, a quote of ≤25 words, an audience proxy, `source_family`, and
+  publisher/domain/author. An unavailable audience proxy stays `N/A` without
+  invalidating an otherwise usable claim.
+  Quote only text opened in this run or returned in the verified tool payload.
+  Assign one immutable `evidence_id` per opened source/claim in this run and
+  reuse it when the same citation supports multiple cards. Never reconstruct a
+  post from memory or a subagent summary.
+- Count evidence as independent only when the publisher/domain/author and
+  ownership are genuinely distinct, or when a primary source and an unrelated
+  user source corroborate the claim. Mirrored syndication, the same vendor,
+  seller, affiliate owner, or copied snippet is one identity. Reuse the
+  `evidence_id` on the candidate card so the independence decision is auditable.
+- A SaaS shortlist candidate needs at least **three usable citations from two
+  independent owner/author identities**, including direct practitioner evidence,
+  covering every required fact in the
+  [required-fact table](references/sources.md#required-saas-facts-and-usable-source-routes).
+  One citation may establish several facts; several independent practitioners
+  may establish all of them. A review site, software incumbent or recent
+  trigger is not required. Current official-page exceptions do not replace
+  dated user evidence.
+- A listed price establishes an available offer, not actual spending or
+  willingness to pay. Separate `reference_price`, `observed_spend`, and
+  `proposed_solution_commitment`; identify whose budget each refers to. Quantified
+  time cost is a cost proxy, not observed spend. A shortlist qualifies a
+  validation test; it does not validate a business.
+- An ecommerce shortlist candidate needs at least **two independent demand
+  signals**, plus a current landed-cost/price source and a feasible fulfillment
+  path. A video, trend chart, affiliate page, or competitor's idea list is a
+  hypothesis, not demand proof.
+- Current incumbent price must come from the vendor's pricing URL fetched this
+  run. Print currency, plan, billing period, and the URL; never use an
+  alternatives blog as the price source.
+- Do not invent audience sizes, review counts, dates, prices, groups, buyers,
+  margins, or regulations. Unknown stays `N/A` and cannot silently score as 3.
+- If evidence is insufficient, return a shorter `watchlist` or no candidate.
+  Never pad the count, repeat a rejected job, or turn a blocked source into a
+  zero.
+
+## Phase 0 — scope and coverage
+
+Write a compact preflight record:
+
+```text
+mode: saas | ecommerce-cash | mixed
+as_of: YYYY-MM-DD
+evidence_window: YYYY-MM-DD..YYYY-MM-DD
+tools: tool=status (found|zero|absent|access-refused|blocked|error|not-searched)
+query_batches: family/language=used/cap
+prior_catalogs: path=status (found|zero|absent|access-refused|blocked|error|not-searched)
+external_write_or_spend: none
+```
+
+Then make a coverage map with one row per source family from `sources.md`:
+`family | searched | result | citation count | limitation`. Every non-`found`
+row (`zero`, `absent`, `access-refused`, `blocked`, `error`, or `not-searched`)
+remains visible in the final answer.
+
+## Phase 1 — signal hunt
+
+Search in parallel only after the preflight and any required human cost gate.
+Use the selected languages separately. A `query_batch` is one invocation
+for one family/language containing a bounded query array; if a tool cannot batch
+the array, count each invocation against the cap and expose any omitted query as
+`not-searched`. For X, `Latest` and `Top` share a batch only when the discovered
+schema truly supports both; otherwise report the omitted view. Within the
+requested scope, follow the strongest observed jobs; explore other angles only
+when they help and the scope/budget permits. When novelty is `unknown`, say so.
+Record opened URLs and discovery/verification fetch counts.
+Before ranking, compare a normalized `job_key + buyer_key` with every readable
+prior brief and record `prior_overlap` on the card; if the catalog is not
+readable, use `unknown` rather than claiming novelty.
+
+For `saas`, seek the same job across:
+
+- practitioner language in X/Reddit/HN/forums and recent GitHub issues;
+- 1–2★ reviews from people who still pay, churned, or migrated;
+- the payer and spending, billed hours or quantified recurring time cost for
+  the same job; official pricing is separate context;
+- existing alternatives and why users stay, including manual/free solutions;
+- a recent trigger when relevant to an emergence claim: price cliff, incident,
+  API change, regulation, platform shift, or repeated new job postings.
+
+For `ecommerce-cash`, seek:
+
+- a buyer problem with existing purchase intent, not a product trend alone;
+- public transaction/review/price evidence and a reachable organic channel;
+- supply, fulfillment, returns, tax, safety, and platform constraints;
+- a test that can start without buying inventory or paying for ads.
+
+## Phase 2 — evidence and access filter
+
+For every surviving pain, verify each citation and label what it proves. Spend
+verification capacity on the strongest 1–3 candidates before expanding the list.
+For each finalist, run the counter-search pack in `references/queries.md` and
+record the query/outcome, `sufficient_alternative`, `switching_obstacle`, and a
+concrete `falsifier` that would invalidate the proposed unmet job. Distinguish
+observations from hypotheses. Apply the disposition rule in
+`references/queries.md` to every counter-search outcome; do not invent an
+alternative or obstacle. Then define the cheapest reachable validation.
+
+### SaaS access gate
+
+Name a concrete route to **ten conversations in 14 days**: subreddit/thread,
+named professional group, Discord, forum, X practitioners, or known contact.
+Include why the founder can access it this week and the first question to ask.
+A generic community name without a route or activity evidence fails the gate.
+
+### Ecommerce cash gate
+
+Name an organic test path for the first three paid orders or preorders, the
+maximum hypothetical test budget (default €150), and the stop date. No paid ad,
+stock purchase, supplier commitment, or marketplace account is implied. Reject
+counterfeit, unsafe, medical-claim, ingestible/cosmetic, financial, or heavily
+regulated products unless the user explicitly supplies the required expertise,
+licence, and risk budget.
+
+## Phase 3 — candidate cards
+
+Return only evidence-backed cards. There is no forced minimum. Prefer 1–3
+verified candidates per requested mode; keep weaker but interesting items in a
+labelled `watchlist` with the missing proof. If fewer survive, say so.
+
+Every card starts with a stable `candidate_slug` (lowercase kebab-case from the
+job and buyer, fixed before scoring); it is an identifier, not a score.
+Every card also records `prior_overlap: exact|near|none|unknown` and the
+catalog path/evidence used. `exact` or `near` overlap is rejected as a new
+opportunity unless the user explicitly asks for an extension; `unknown` cannot
+rank as novel.
+
+### SaaS card
+
+1. Job in one sentence, not a platform.
+2. User #1: named persona/community and route to ten conversations.
+3. `market_proof`: three or more usable citations with `evidence_id`, source
+   family, independent identity, and the fact proved. `emergence_signal` is
+   optional, separate, unscored context; use `none` or `unknown` honestly.
+4. Payer/decision-maker, recurring cost, `observed_spend` and
+   `proposed_solution_commitment` with evidence or explicit unknowns.
+   `reference_price`: vendor URL, currency, plan, period when a relevant
+   software incumbent exists; otherwise `not-applicable` with the actual
+   manual/free alternative. A missing optional price or commitment is not a
+   missing mandatory fact when payer and recurring cost are evidenced.
+5. `founder_fit`: stack/access evidence kept separate from market proof.
+6. Wedge: one testable sentence that is not a clone or decorative AI layer.
+7. MVP on the founder's stack, rough hours, and the smallest valuable output.
+8. Counter-search outcome, sufficient alternative, switching obstacle and
+   falsifier; cheapest validation in 14 days, pass metric, kill/revert criteria,
+   and explicit assumptions.
+
+### Ecommerce card
+
+Use the fields and formulas in [references/ecommerce.md](references/ecommerce.md):
+buyer/job, independent demand proofs, target country/channel, sourceable offer,
+tax amount, customer-paid and seller-paid shipping, line-by-line currency/FX,
+unique landed cost, fee bases, per-order refunds/chargebacks, per-order
+contribution margin, initial cash cap, planned orders, exhaustive pre-payout
+cash outflow, break-even orders, payout delay, cash-at-risk, test, stop rule,
+differentiation, and
+legal/fulfillment risks.
+
+Reject in writing only under the disposition rule in `references/queries.md`
+(a hard incompatibility, or uncontested material negative evidence that the
+job is gone or already solved for this buyer). Missing citations, unknown
+margin/cash timing or inaccessible sources are `watchlist` gaps, not negative
+market evidence. Preserve the cheapest next evidence/validation step, even
+when it requires another run or an authorized human action.
+
+## Phase 4 — deterministic rank
+
+Read [references/ranking.md](references/ranking.md) before scoring.
+
+## Phase 5 — output and next action
+
+Lead with the separate ranking(s), then the coverage map, cards, watchlist,
+rejections, and the cheapest validation plan(s). Keep quotes short and no emoji.
+Print `human_checkpoint: yes` for a pending action requiring new approval:
+OAuth, paid call, listing, purchase, advertisement, outreach, new account,
+regulated decision, or scope change not already authorized within its cap; otherwise
+`human_checkpoint: no`. When it is `yes`, print `pending_approval`, stop before
+the action, and resume only after explicit approval.
+
+If no eligible candidate survives in a mode, print that mode's `ranking: none`,
+`cards: none`, and `validation_plan: blocked/no eligible candidate`; keep its
+coverage, watchlist, and rejections visible instead of inventing a card. In
+`mixed`, emit this empty-mode block separately for each mode that has no eligible
+candidate; never hide an empty SaaS or ecommerce side behind the other ranking.
+For `mixed`, prefix each ranking, card list, and validation plan with its mode
+(`saas_...` and `ecommerce_...`) and emit both plans even when one mode is
+blocked or empty.
+Otherwise close with up to three seductive ideas rejected and why, but only when
+each is grounded in a source or an explicit founder constraint; otherwise write
+`rejected_ideas: none grounded`.
+If the user asked only for signals, stop after Phase 2. Keep the requested
+vertical and language scope throughout; challenge its assumptions with evidence
+inside that scope instead of forcing unrelated angles.

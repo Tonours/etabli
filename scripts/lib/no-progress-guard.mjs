@@ -1,10 +1,10 @@
 /**
- * Ledger-backed no_progress evaluation for host mutation deny.
+ * Ledger-backed no_progress evaluation (recorded by ledger-auto-emit, never
+ * blocking), plus the workflow-event escape-hatch command matcher.
  *
- * Pure thresholds align with project-autonomy stop_conditions defaults.
  * Does not auto-emit events — only reads existing ledger evidence.
  */
-import { inspectLedgerFile, selectActiveLedger } from "./ledger-integrity.mjs";
+import { inspectLedgerFile } from "./ledger-integrity.mjs";
 import { isNonEmptyString } from "./predicates.mjs";
 import { isNarrowPlanCleanupCommand } from "./plan-cleanup-command.mjs";
 
@@ -24,7 +24,6 @@ export function loadLedgerEvents(ledgerPath) {
 
 /**
  * Derived no-progress from validation_failed after last file_changed.
- * Same algorithm as project-autonomy derivedNoProgress.
  * @param {Array<{event?: string, detail?: Record<string, unknown>}>} events
  * @param {{same_hypothesis_failures: number, red_checks_without_diff: number}} stopConditions
  * @returns {null | {reason: string, no_progress: object}}
@@ -117,38 +116,6 @@ export function evaluateNoProgressStop(
 }
 
 /**
- * Fail closed when ledger integrity or active-run selection is ambiguous, then
- * evaluate no_progress only on the deterministically selected active ledger.
- * @param {string} cwd
- * @returns {null | {reason: string, detail: object, ledger?: string}}
- */
-export function shouldDenyMutationForNoProgress(
-  cwd,
-  thresholds = DEFAULT_NO_PROGRESS_THRESHOLDS,
-) {
-  const selected = selectActiveLedger(cwd);
-  if (selected.reason) {
-    return {
-      reason: selected.reason,
-      detail: {
-        ledger_state: selected.reason,
-        active_runs: selected.active?.map((entry) => entry.run) || [],
-      },
-      ledger: selected.ledger?.path,
-    };
-  }
-  if (!selected.ledger) return null;
-
-  const stop = evaluateNoProgressStop(selected.ledger.events, thresholds);
-  if (!stop) return null;
-  return {
-    reason: stop.reason,
-    detail: stop.detail,
-    ledger: selected.ledger.path,
-  };
-}
-
-/**
  * Bash that only invokes the workflow-event CLI (no chaining/redirects).
  * @param {string} command
  */
@@ -191,7 +158,7 @@ export function isNoProgressEscapeHatch(
     const command = String(input.command || input.cmd || "");
     return (
       isWorkflowEventEscapeCommand(command) ||
-      isNarrowPlanCleanupCommand(command)
+      isNarrowPlanCleanupCommand(command, cwd)
     );
   }
   return false;

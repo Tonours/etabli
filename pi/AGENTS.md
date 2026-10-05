@@ -31,9 +31,9 @@
 - TypeScript strict, no `any`, ES modules, local runner.
 - Run focused checks; type-check code changes when available.
 - Reviews lead with severity-ordered findings and file/line evidence.
-- Memory: before investigating, check the memory vault first — MCP `alambic-brain` (`vault_context`/`vault_search`/`vault_read`)
-  or the `alambic-brain` skill (work scope; personal: `alambic-obvault`). Scope-resolved root: work -> ~/work/brain when
-  present, else ~/work/obvault; per `workflow/skills/obvault-memory.md`.
+- Memory: before investigating, check the memory vault first: `alambic-brain` / `~/work/brain` for ForestAdmin repos;
+  all other projects use `alambic-obvault` / `~/work/obvault`. Match GitHub remote organization,
+  not machine scope; no cross-vault fallback. See `workflow/skills/obvault-memory.md`.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
 - Branches and commits: `workflow/git-contract.md`. Branch
   `<type>/<ticket-id>-<short-slug>`, slug 3 words max, under 50 chars. Commit

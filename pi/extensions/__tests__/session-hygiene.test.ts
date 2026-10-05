@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { COMPACT_INSTRUCTIONS } from "../../../workflow/runtime/workflow-router-core.mjs";
 import {
 	beginCompaction,
 	blocksNavigation,
@@ -20,8 +21,6 @@ import {
 } from "../lib/session-hygiene-runtime.ts";
 import sessionHygiene from "../session-hygiene.ts";
 import workflowRouter from "../workflow-router.ts";
-import workflowRunBinding from "../workflow-run-binding.ts";
-import { loadSemanticPolicy } from "../lib/route-shadow.mjs";
 
 const config = readConfig({});
 
@@ -200,6 +199,12 @@ describe("compactInstructions", () => {
 			expect(text.toLowerCase()).toContain(needle.toLowerCase());
 		}
 	});
+
+	test("is the shared constant that claude/CLAUDE.md carries verbatim", () => {
+		expect(compactInstructions()).toBe(COMPACT_INSTRUCTIONS);
+		const claude = readFileSync(join(import.meta.dir, "../../../claude/CLAUDE.md"), "utf8").replace(/\s+/g, " ");
+		expect(claude).toContain(COMPACT_INSTRUCTIONS);
+	});
 });
 
 type Handler = (event: unknown, ctx: unknown) => unknown;
@@ -353,31 +358,28 @@ function writeActiveLedger(cwd: string) {
 	return join(cwd, ".workflow", "fixture-run", "events.jsonl");
 }
 
-describe("coexistence with workflow-router and workflow-run-binding", () => {
+describe("coexistence with workflow-router", () => {
 	const loaders = {
 		router: (pi: unknown) =>
-			workflowRouter(pi as never, { loadSemanticPolicy: () => ({ ...loadSemanticPolicy(), mode: "disabled" }) }),
-		binding: (pi: unknown) => workflowRunBinding(pi as never),
+			workflowRouter(pi as never),
 		hygiene: (pi: unknown) => sessionHygiene(pi as never, {}),
 	};
 
-	for (const order of [["router", "binding", "hygiene"], ["hygiene", "binding", "router"]] as const) {
+	for (const order of [["router", "hygiene"], ["hygiene", "router"]] as const) {
 		test(`keeps every agent_settled effect with load order ${order.join(" > ")}`, async () => {
 			const cwd = mkdtempSync(join(tmpdir(), "etabli-session-hygiene-"));
 			try {
 				const ledger = writeActiveLedger(cwd);
 				const fake = createFakePi();
 				for (const name of order) loaders[name](fake.pi);
-				expect(fake.handlerCount("agent_settled")).toBe(3);
+				expect(fake.handlerCount("agent_settled")).toBe(1);
 				const { ctx, compactCalls } = createCtx({ cwd, entries: fake.entries, tokens: () => 200_000 });
 				await fake.emit("agent_end", { messages: [{ role: "assistant", usage: { input_tokens: 1_000, output_tokens: 100 } }] }, ctx);
 				await fake.emit("agent_settled", {}, ctx);
 				await fake.emit("agent_settled", {}, ctx);
-				const bindings = fake.entries.filter((entry) => entry.customType === "etabli.workflow-run-binding");
-				expect(bindings).toHaveLength(1);
 				expect(compactCalls).toHaveLength(1);
 				const events = readFileSync(ledger, "utf8").trim().split("\n").map((line) => JSON.parse(line));
-				expect(events.some((event) => event.event === "outcome_metric")).toBe(true);
+				expect(events.some((event) => event.event === "outcome_metric")).toBe(false);
 				await fake.emit("session_compact", { reason: "manual", fromExtension: false }, ctx);
 				compactCalls[0]?.onComplete?.({ estimatedTokensAfter: 20_000 });
 				expect(await fake.emit("session_before_tree", {}, ctx)).toEqual([undefined]);

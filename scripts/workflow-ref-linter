@@ -167,15 +167,15 @@ run_misplaced() {
   allmd="$(mktemp)"
   trap 'rm -f "$TMP_FILES_LIST" "$union" "$allmd"' EXIT
   union_docs >"$union"
-  (cd "$ROOT" && find . -type f -name '*.md' -not -path './.git/*' | sort) >"$allmd"
+  (cd "$ROOT" && if git rev-parse --show-toplevel >/dev/null 2>&1 && [ "$(git rev-parse --show-toplevel)" = "$(pwd -P)" ]; then
+    git ls-files -- '*.md' | sed 's#^#./#'
+  else
+    find . -type f -name '*.md' -not -path './.git/*'
+  fi | sort) >"$allmd"
   if [ -s "$allmd" ]; then
-    MDFILES=()
-    while IFS= read -r f; do
-      MDFILES+=("$f")
-    done <"$allmd"
     while IFS= read -r entry; do
       fail "$entry"
-    done < <(cd "$ROOT" && awk -v unionfile="$union" -v marker="$MARKER" '
+    done < <(cd "$ROOT" && tr '\n' '\0' <"$allmd" | xargs -0 awk -v unionfile="$union" -v marker="$MARKER" '
       BEGIN { while ((getline d < unionfile) > 0) U[d] = 1 }
       FNR == 1 { f = FILENAME; sub(/^\.\//, "", f); skip = (f in U) }
       skip { next }
@@ -184,7 +184,7 @@ run_misplaced() {
         gsub(/`[^`]*`/, "", stripped)
         if (index(stripped, marker) > 0)
           print f ":" FNR ": misplaced etabli-only marker (outside etabli union)"
-      }' "${MDFILES[@]}")
+      }')
   fi
   rm -f "$union" "$allmd"
   trap 'rm -f "$TMP_FILES_LIST"' EXIT

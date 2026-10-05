@@ -1,3 +1,5 @@
+import { COMPACT_INSTRUCTIONS } from "../../../workflow/runtime/workflow-router-core.mjs";
+
 export const DEFAULT_HARD_TOKENS = 180_000;
 export const MAX_CONSECUTIVE_FAILURES = 2;
 
@@ -96,13 +98,7 @@ export function blocksNavigation(state: HygieneState): boolean {
 }
 
 export function compactInstructions(): string {
-	return [
-		"Preserve the working state needed to continue:",
-		"the root PLAN.md subject and status, the active workflow ledger run,",
-		"files modified so far, the frozen check commands and their last results,",
-		"open review or adversary findings, and the exact next action.",
-		"Drop exploration output that no longer matters.",
-	].join(" ");
+	return COMPACT_INSTRUCTIONS;
 }
 
 export function formatTokens(tokens: number): string {

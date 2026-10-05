@@ -1,0 +1,68 @@
+[
+  {
+    "files": [
+      "workflow/skills/ship.md",
+      "workflow/skills/ci-fix.md"
+    ],
+    "texts": [
+      "Pre-loop gate: <5min left or attempts exhausted → refuse (capped).",
+      "Pre-loop gate: <5min left or attempts exhausted → refuse with `capped` (never start a doomed loop). 5."
+    ],
+    "reason": "workflow/skills/ci-fix.md is also the standalone /ci-fix entry point; ship reads it only as a conditional CI-loop read"
+  },
+  {
+    "files": [
+      "workflow/spec.md",
+      "workflow/contract-details.md"
+    ],
+    "texts": [
+      "- Autonomous loop stop conditions pair the measurable goal with an explicit operational cap (iterations or wall-clock).",
+      "- Autonomous loop stop conditions pair the measurable goal with an explicit cap (iterations or wall-clock)."
+    ],
+    "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
+  },
+  {
+    "files": [
+      "workflow/spec.md",
+      "workflow/contract-details.md"
+    ],
+    "texts": [
+      "- No-progress stop: when the same fix hypothesis fails twice, or the same check stays red three times with no new diff between runs, stop as `blocked`.",
+      "- No-progress stop: when the same fix hypothesis fails twice, or the same check stays red three times with no new diff between runs, stop as `blocked`, emit a `no_progress` event, and list the eliminated hypotheses instead of iterating."
+    ],
+    "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
+  },
+  {
+    "files": [
+      "workflow/spec.md",
+      "workflow/contract-details.md"
+    ],
+    "texts": [
+      "Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record the event ledger; ordinary work may record it.",
+      "- Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record the event ledger; ordinary work may record it."
+    ],
+    "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
+  },
+  {
+    "files": [
+      "workflow/spec.md",
+      "workflow/contract-details.md"
+    ],
+    "texts": [
+      "This authorization is for read-only fresh-context review only; it does not authorize destructive, secret, production, billing, deploy, push, merge, or external write actions.",
+      "This authorization is for read-only fresh-context review only; it does not authorize destructive, secret, production, billing, deploy, push, merge, or external write actions."
+    ],
+    "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
+  },
+  {
+    "files": [
+      "workflow/spec.md",
+      "workflow/contract-details.md"
+    ],
+    "texts": [
+      "route, role, stop condition, and required evidence (every plan; the gate requires them unconditionally)",
+      "- Record route, role, stop condition, and required evidence in every plan (the gate requires them unconditionally)."
+    ],
+    "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
+  }
+]

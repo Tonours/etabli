@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$REPO_DIR/scripts/lib/pi-paths.sh"
+. "$REPO_DIR/scripts/lib/claude-config-dir.sh"
 . "$REPO_DIR/scripts/lib/etabli-scope.sh"
 . "$REPO_DIR/scripts/lib/prefer-cursor-agent.sh"
 . "$REPO_DIR/scripts/lib/vendor-surfaces.sh"
@@ -149,6 +150,7 @@ check_vendor_skill_links() {
   while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
     for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+      managed_surface_selected "$surface" || continue
       if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
         case "$surface" in
         .claude/skills) label="claude" ;;
@@ -156,11 +158,28 @@ check_vendor_skill_links() {
         .config/devin/skills) label="devin" ;;
         .pi/agent/skills) label="pi" ;;
         esac
-        check_link "$HOME/$surface/$skill_name" "$skill_dir" "$label vendor skill $skill_name"
+        check_link "$(managed_surface_dir "$HOME" "$surface")/$skill_name" "$skill_dir" "$label vendor skill $skill_name"
       fi
     done
   done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
   managed_surface_prune_vendor_skill_links check "$REPO_DIR" "$HOME" "$SKILL_CATALOG" "$active_scopes"
+}
+
+check_claude_root() {
+  check_link "$CLAUDE_ROOT/CLAUDE.md" "$REPO_DIR/claude/CLAUDE.md" "claude CLAUDE.md"
+  check_link "$CLAUDE_ROOT/workflow" "$REPO_DIR/workflow" "claude workflow sources"
+  check_link "$CLAUDE_ROOT/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "claude PLAN_TEMPLATE.md"
+  check_link "$CLAUDE_ROOT/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "claude PLAN_TEMPLATE_FULL.md"
+  check_link "$CLAUDE_ROOT/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md" "claude review rubric"
+  check_claude_command_links
+  check_link "$CLAUDE_ROOT/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
+  check_link "$CLAUDE_ROOT/statusline-command.sh" "$REPO_DIR/claude/statusline-command.sh" "claude statusline command"
+  check_claude_hook_links
+  check_stale_managed_claude_agent_links
+  check_claude_agent_links
+  check_claude_script_links
+  check_vendor_skill_links
+  check_claude_skill_links
 }
 
 deployed_scopes() {
@@ -177,7 +196,7 @@ check_claude_skill_links() {
     while IFS= read -r skill_dir; do
       skill_name="$(basename "$skill_dir")"
       if managed_surface_skill_is_shadowed "$skill_name" "$active_scopes"; then
-        skill_link="$HOME/.claude/skills/$skill_name"
+        skill_link="$CLAUDE_ROOT/skills/$skill_name"
         if [ -L "$skill_link" ] && [ "$(readlink "$skill_link")" = "$skill_dir" ]; then
           ISSUES=$((ISSUES + 1))
           status_line WARN "shadowed claude skill $skill_name is still linked"
@@ -189,7 +208,7 @@ check_claude_skill_links() {
         fi
         continue
       fi
-      check_link "$HOME/.claude/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
+      check_link "$CLAUDE_ROOT/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
     done < <(find "$scope_root" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) | sort)
   done
 }
@@ -202,7 +221,7 @@ check_claude_command_links() {
     [ -d "$scope_root" ] || continue
     while IFS= read -r command_file; do
       command_name="$(basename "$command_file")"
-      check_link "$HOME/.claude/commands/$command_name" "$command_file" "claude command $command_name"
+      check_link "$CLAUDE_ROOT/commands/$command_name" "$command_file" "claude command $command_name"
     done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type f -name '*.md' | sort)
   done
 }
@@ -217,7 +236,7 @@ check_claude_hook_links() {
   for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
     if [ -f "$hook_file" ]; then
       hook_name="$(basename "$hook_file")"
-      check_link "$HOME/.claude/hooks/$hook_name" "$hook_file" "claude workflow hook $hook_name"
+      check_link "$CLAUDE_ROOT/hooks/$hook_name" "$hook_file" "claude workflow hook $hook_name"
     fi
   done
 }
@@ -230,7 +249,7 @@ check_claude_agent_links() {
     [ -d "$scope_root" ] || continue
     while IFS= read -r agent_file; do
       agent_name="$(basename "$agent_file")"
-      check_link "$HOME/.claude/agents/$agent_name" "$agent_file" "claude agent $agent_name"
+      check_link "$CLAUDE_ROOT/agents/$agent_name" "$agent_file" "claude agent $agent_name"
     done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type f -name '*.md' | sort)
   done
 }
@@ -243,7 +262,7 @@ check_claude_script_links() {
     [ -d "$scope_root" ] || continue
     while IFS= read -r script_entry; do
       script_name="$(basename "$script_entry")"
-      check_link "$HOME/.claude/scripts/$script_name" "$script_entry" "claude script $script_name"
+      check_link "$CLAUDE_ROOT/scripts/$script_name" "$script_entry" "claude script $script_name"
     done < <(find "$scope_root" -mindepth 1 -maxdepth 1 | sort)
   done
 }
@@ -275,27 +294,21 @@ for agent_file in "$REPO_DIR/pi/agents"/*.md; do
 done
 check_link "$HOME/.pi/settings.json" "$REPO_DIR/pi/settings.json" "pi settings.json"
 check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
-check_link "$HOME/.claude/CLAUDE.md" "$REPO_DIR/claude/CLAUDE.md" "claude CLAUDE.md"
-check_link "$HOME/.claude/workflow" "$REPO_DIR/workflow" "claude workflow sources"
-check_link "$HOME/.claude/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "claude PLAN_TEMPLATE.md"
-check_link "$HOME/.claude/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "claude PLAN_TEMPLATE_FULL.md"
-check_link "$HOME/.claude/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md" "claude review rubric"
-check_claude_command_links
-check_link "$HOME/.claude/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
-check_link "$HOME/.claude/statusline-command.sh" "$REPO_DIR/claude/statusline-command.sh" "claude statusline command"
-check_claude_hook_links
-check_stale_managed_claude_agent_links
-check_claude_agent_links
-check_claude_script_links
+CLAUDE_ROOT="$HOME/.claude"
+export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
+check_claude_root
 check_pi_skill_links
 check_agents_visible_skill_links
-check_vendor_skill_links
-check_claude_skill_links
+if config_root="$(claude_config_dir_override)"; then
+  CLAUDE_ROOT="$config_root"
+  MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
+  export MANAGED_CLAUDE_ONLY=1
+  check_claude_root
+fi
 
 check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-workflow"
-check_script_link "jev-judge"
 check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"
 
 if prefer_cursor_agent_is_grok_collision "$HOME/.grok/bin/agent" "$HOME/.grok/bin/grok"; then

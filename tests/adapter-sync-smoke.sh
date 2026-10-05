@@ -72,9 +72,10 @@ R1="$TMP_DIR/r1"
 fresh_root "$R1"
 "$SYNC" --root "$R1" --manifest "$R1/manifest.json" --surface "$R1/surface.tsv" --check >/dev/null 2>&1 \
   || fail "clean root should pass --check"
-PI_PTR="$(grep '^pointer: ' "$R1/pi/skills/demo/SKILL.md")"
-CL_PTR="$(grep '^pointer: ' "$R1/claude/scopes/shared/commands/demo.md")"
-[ "$PI_PTR" = "$CL_PTR" ] || fail "pointer paragraph must be byte-identical across harnesses"
+[ "$(grep -c '^pointer: ' "$R1/pi/skills/demo/SKILL.md")" = "0" ] \
+  || fail "a canonical file must not carry a pointer to itself"
+grep -Fq 'pointer: Adapter for the `demo` skill. Read and follow the shared contract in `pi/skills/demo/SKILL.md`.' "$R1/claude/scopes/shared/commands/demo.md" \
+  || fail "a non-canonical adapter must point to its canonical contract"
 grep -q '^name: demo$' "$R1/pi/skills/demo/SKILL.md" || fail "pi block must carry name"
 [ "$(grep -c '^name: ' "$R1/claude/scopes/shared/commands/demo.md")" = "0" ] \
   || fail "claude block must not carry name (description only)"
@@ -166,5 +167,14 @@ R12="$TMP_DIR/r12"
 fresh_root "$R12"
 jq '.map.demo.claude += ["claude/scopes/shared/commands/ghost.md"]' "$R12/manifest.json" >"$R12/m.json" && mv "$R12/m.json" "$R12/manifest.json"
 check_fails_with "$R12" "map path without a row" "map-closure"
+
+# 13. stamped file without a row under extras/skills or claude/scopes.
+for orphan in extras/skills/orphan/SKILL.md claude/scopes/work/commands/orphan.md pi/skills/demo/references/orphan.md extras/skills/orphan.markdown; do
+  R13="$TMP_DIR/r13-$(printf '%s' "$orphan" | tr '/' '-')"
+  fresh_root "$R13"
+  mkdir -p "$R13/$(dirname "$orphan")"
+  cp "$R13/claude/scopes/shared/commands/demo.md" "$R13/$orphan"
+  check_fails_with "$R13" "$orphan: (d) stamped adapter file without a manifest row" "orphan-$orphan"
+done
 
 printf 'PASS: adapter-sync smoke (stamp/check/rotate/lifecycle fixtures)\n'

@@ -44,6 +44,7 @@ scripts/plan-cleanup --discard <reason-slug>
 - Writes `docs/plan/YYYYMMDD-discarded-<reason-slug>.md` with `Status: DISCARDED`.
 - Removes root `PLAN.md` so ordinary work or a fresh plan can proceed.
 - Do **not** use `--discard` after a successful implementation — use `--archive` with a validated implemented record instead.
+- On resume, execute cleanup alone in the session project cwd. Quoted arguments and `cd <same-cwd> &&` are allowed; pipes, redirects and other chains are not. Retry the narrow form instead of asking for manual deletion. Cleanup never edits `active-run.json`; age alone is not abandonment.
 
 ## Stale Plans
 
@@ -186,12 +187,14 @@ runs there again — the script is copied per project, not linked. In a project 
 has not been redeployed, the written discipline above is the only thing holding.
 
 When one archive summarizes findings from several workflow initiatives, prefix
-each such finding with `[initiative:<ledger-slug>]`. `workflow-retrospect` uses
-the archive's `Workflow initiative` as the default and this inline marker as a
-per-finding override; duplicate lines from one initiative remain one recurrence.
+each such finding with `[initiative:<ledger-slug>]`. The archive's `Workflow
+initiative` is the default and this inline marker a per-finding override;
+duplicate lines from one initiative remain one recurrence.
 
 ## Relationship To Agent Memory
 
 Use `docs/plan/` for implemented plan history.
 
 Use `docs/agent-memory/` for reusable lessons that should change future agent behavior across tasks.
+
+Required product plans must pass the shared product check before implemented archive cleanup. The cleanup helper retains `<evidence-pack>.completion.json`; the ledger uses it to recheck source and archive integrity after removing the root plan. Workflow evidence and `docs/plan/` archives are fixed source-inventory exclusions; application source changes still invalidate the proof.

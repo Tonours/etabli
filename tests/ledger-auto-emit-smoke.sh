@@ -13,7 +13,7 @@ fail() {
 
 node --input-type=module <<EOF
 import { pathToFileURL } from "node:url";
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const mod = await import(pathToFileURL("$ROOT_DIR/scripts/lib/ledger-auto-emit.mjs").href);
@@ -113,5 +113,94 @@ if (term.emitted) {
   process.exit(1);
 }
 
+const realWriter = (ledgerPath, run, detail) => {
+  try {
+    mod.appendLedgerEvent(ledgerPath, "correction", detail, run);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const first = mod.registerUserPrompt(tmp, "sess-1", "pi", "initial instruction", realWriter);
+if (first.emitted || first.reason !== "session_start") {
+  console.error("first prompt of a session must be silent", first);
+  process.exit(1);
+}
+
+mkdirSync(join(tmp, ".workflow", "run-b"), { recursive: true });
+writeFileSync(
+  join(tmp, ".workflow", "run-b", "events.jsonl"),
+  JSON.stringify({ schema_version: 2, ts: "2026-08-01T00:00:00Z", run: "run-b", event: "route_decided", detail: { route: "implement", reason: "smoke" } }) + "\\n",
+);
+
+const second = mod.registerUserPrompt(tmp, "sess-1", "pi", "non, fais plutot X", realWriter);
+if (!second.emitted || second.run !== "run-b") {
+  console.error("second prompt during an active run must emit a correction", second);
+  process.exit(1);
+}
+
+const other = mod.registerUserPrompt(tmp, "sess-2", "claude", "premier message d une autre session", realWriter);
+if (other.emitted || other.reason !== "session_start") {
+  console.error("session counts must be independent", other);
+  process.exit(1);
+}
+
+const failed = mod.registerUserPrompt(tmp, "sess-1", "pi", "troisieme", () => false);
+if (failed.emitted || failed.reason !== "append_failed") {
+  console.error("writer failure must surface append_failed", failed);
+  process.exit(1);
+}
+
+const third = mod.registerUserPrompt(tmp, "sess-1", "pi", "encore une correction", realWriter);
+if (!third.emitted || third.count !== 4) {
+  console.error("prompt count must survive a failed append", third);
+  process.exit(1);
+}
+
+writeFileSync(
+  join(tmp, ".workflow", "run-b", "events.jsonl"),
+  readFileSync(join(tmp, ".workflow", "run-b", "events.jsonl"), "utf8") +
+    JSON.stringify({ schema_version: 2, ts: "2026-12-31T00:05:00Z", run: "run-b", event: "completed", detail: { summary: "done" } }) + "\\n",
+);
+const afterTerminal = mod.registerUserPrompt(tmp, "sess-1", "pi", "prompt post-terminal", realWriter);
+if (afterTerminal.emitted) {
+  console.error("no correction may follow a terminal event", afterTerminal);
+  process.exit(1);
+}
+const terminalText = readFileSync(join(tmp, ".workflow", "run-b", "events.jsonl"), "utf8");
+const terminalLines = terminalText.trim().split("\\n");
+if (JSON.parse(terminalLines.at(-1)).event !== "completed") {
+  console.error("terminal event must remain the final line");
+  process.exit(1);
+}
+
+const ledgerText = readFileSync(join(tmp, ".workflow", "run-b", "events.jsonl"), "utf8");
+if (!ledgerText.includes('"event":"correction"')) {
+  console.error("correction event missing from ledger");
+  process.exit(1);
+}
+for (const secret of ["fais plutot", "encore une correction", "troisieme"]) {
+  if (ledgerText.includes(secret)) {
+    console.error("ledger must never contain prompt text: " + secret);
+    process.exit(1);
+  }
+}
+const stateDir = join(tmp, ".workflow", "correction-state");
+const stateFiles = readdirSync(stateDir).filter((f) => f.endsWith(".json"));
+if (stateFiles.length < 1) {
+  console.error("per-session state files expected");
+  process.exit(1);
+}
+const stateText = stateFiles.map((f) => readFileSync(join(stateDir, f), "utf8")).join("");
+if (stateText.includes("fais plutot")) {
+  console.error("state file must never contain prompt text");
+  process.exit(1);
+}
+
 console.log("ledger-auto-emit smoke test: ok");
 EOF
+
+if ! "$ROOT_DIR/scripts/workflow-event" --dir "$TMP/.workflow" validate run-b >/dev/null 2>&1; then
+  fail "run-b ledger with correction events must validate"
+fi

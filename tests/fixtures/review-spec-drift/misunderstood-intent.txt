@@ -1,2 +1,0 @@
-Add a helper that surfaces the most expensive turns of a session (by total
-token cost) for the stats command.

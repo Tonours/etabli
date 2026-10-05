@@ -1,43 +1,66 @@
-# Claude token budget — configuration appliquée
+# Claude Code — lancements et budget de contexte
 
-État au 2026-09-02. Ce document décrit la configuration **appliquée** et son
-mode d'emploi. Il ne revendique PAS de gain chiffré global: la mesure E2E
-appariée (holdout 72 mesures) n'a pas été jouée — l'utilisateur a arrêté la
-phase de mesure avant.
+État du candidat au 2026-10-02, dans le worktree `claude-efficiency-audit`.
+Les corrections sont vérifiées par fixtures hors ligne. Les modèles/efforts
+natifs, la navigation et les économies d'abonnement attendent une validation
+Claude avec quota disponible. Aucun gain chiffré nouveau n'est démontré.
 
-## Ce qui est actif
+## Points d'entrée
 
-### 1. Entrée quotidienne légère: `claude-lean`
+Depuis le worktree :
 
 ```bash
-claude-lean          # session minimale (recommandé au quotidien)
-claude-full          # surface complète, équivalent `claude`
-claude               # intact, rollback natif
+scripts/claude-daily --inspect     # CLI/store/arguments; aucune inférence
+scripts/claude-daily               # capacités, modèle et effort natifs
+scripts/claude-deep                # demande Opus; effort hérité
+scripts/claude-deep --model sonnet --effort low
+scripts/claude-daily --teams       # opt-in expérimental explicite
+scripts/claude-lean --inspect      # profil limité, vault choisi par projet
+scripts/claude-full                # passthrough natif conservé
 ```
 
-`claude-lean` applique pour la session seulement (rien de live n'est muté):
+`--store DIR` exige un répertoire existant. Sans override, le store natif reste
+implicite et `CLAUDE_CONFIG_DIR` n'est pas ajouté. `--claude-bin FILE` ou
+`ETABLI_CLAUDE_BIN` fixe le binaire. Une cible invalide est refusée, sans fallback
+silencieux. `--` protège les mots du prompt qui ressemblent aux options du
+lanceur. L'inspection prouve les arguments demandés, pas le modèle/effort effectif.
+Les teams valent0 par défaut pour daily/deep/lean, même avec un environnement à1.
+Les agents ordinaires et leurs rôles restent définis par les préférences natives.
+En terminal, Ctrl-C conserve l'annulation native; un arrêt externe du wrapper
+emploie SIGTERM ou SIGHUP pour transmettre le signal et nettoyer le MCP.
 
-- 12 plugins désactivés (`claude/profiles/lean.settings.json`)
-- surface de skills gouvernée: 78 entrées classées, 24 auto-invocables,
-  index 6141 caractères (sous le garde 6510), `skillListingBudgetFraction`
-  0.008
-- MCP restreint et assaini (`--strict-mcp-config`): `brain` seul (scope work,
-  si `~/work/brain` existe), rendu en fichier temporaire `0600` supprimé à la
-  sortie
-- effort de session `low` (les flags `--model`/`--effort` restent prioritaires)
+Lean garde le choix natif du LSP TypeScript et de l'effort. Ses11 désactivations
+explicites de plugins sont une surface facultative conservée de l'ancien profil,
+pas une nouvelle optimisation validée sur macbook-work. Le résolveur partagé
+choisit Etabli→obvault et ForestAdmin→brain, ou un `OBVAULT_ROOT` exclusif. Un
+vault indisponible rend un MCP vide, sans fallback. Le fichier temporaire0600
+est propre à la session et supprimé à la sortie. `--no-strict-mcp` transmet
+également ce fichier **et conserve les MCP natifs**; leurs vaults restent
+accessibles. Le mode strict isole les seuls MCP fournis.
+
+La statusline ajoute effort, quatre compteurs `parent(last)`, cache et quota du
+compte5h/7j si le payload natif les expose; absent/invalide affiche `inconnu`, zéro
+reste zéro. Elle conserve Git dirty, couleurs et contexte restant. Aucun appel
+provider ni lecture de credentials. `tok/s` n'est pas ajouté: l'ancien helper
+optionnel n'est présent dans aucun store local inspecté. L'activation native de
+l'affichage reste à vérifier; aucun settings d'authentification n'est modifié.
+
+## État historique au 2026-09-02
+
+Les éléments ci-dessous décrivent la campagne antérieure, pas les nouveaux
+lancements ni une validation live du candidat actuel.
 
 ### 2. Matrice des subagents alignée sur `candidate_a`
 
 | rôle | avant | après |
 |---|---|---|
 | scout | sonnet/medium/24 | inchangé |
-| worker | opus/**high/40** | **sonnet/medium/24** |
+| worker | opus/**high/40** | opus/**medium**/40 (sonnet/medium/24 essayé puis annulé : `6befdfe`, `2a5f3c8`) |
 | reviewer | fable/medium/40 | **sonnet/medium/24** |
 | adversary | fable/medium/40 | **fable/low/24** |
 
-Fichiers: `claude/scopes/shared/agents/*.md` (symlinkés vers `~/.claude/agents/`,
-effectif immédiat). Rollback par rôle: éditer le frontmatter (valeurs avant
-ci-dessus) ou `git checkout`.
+Fichiers historiques: `claude/scopes/shared/agents/*.md`. Leur application
+dépend des liens du store choisi. Aucun rôle n’est modifié par la reprise hors ligne.
 
 ### 3. Comptabilité des tokens (schéma v2)
 
@@ -69,3 +92,18 @@ Les métriques (`outcome_metric`) comptent désormais les 4 composantes
 - Benchmark: `scripts/claude-agent-benchmark dry-run` (sans réseau) pour tout
   reprojet de mesure; ledger payant dans
   `.workflow/claude-token-budget/paid-processes.json` (68/128 consommés).
+
+
+## Protocole actuel hors ligne
+
+`scripts/claude-efficiency-campaign --dry-run` prépare36 cellules appariées et6
+slots auxiliaires, avec les hashes des six prompts/fixtures/oracles. T5/T6 sont
+de nouveaux holdouts par rapport à la campagne historique. Seul l'effort varie
+medium→low; modèle exact, store, plugins, MCP et agents seront figés en commun
+avant le premier appel. Toutes les cellules sont `not_run`, usage/quota inconnus.
+Le CLI refuse `--run`: compte/usage inclus et runner live doivent encore être
+établis. Les tests du protocole ne mesurent aucune livraison Claude.
+
+L'économie d'abonnement reste **INCONCLUSIVE**. Le rapport courant et le rollback
+sont dans `docs/claude-efficiency-results.md`; les preuves de reprise restent
+sous `.workflow/claude-efficiency-offline/`.

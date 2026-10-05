@@ -53,7 +53,6 @@ HELP_OUTPUT="$TMP_DIR/deploy-workflow-help.out"
 assert_contains "$HELP_OUTPUT" "--check"
 
 assert_file "$NEW_PROJECT/AGENTS.md"
-assert_file "$NEW_PROJECT/CLAUDE.md"
 assert_file "$NEW_PROJECT/docs/agent-workflow.md"
 assert_file "$NEW_PROJECT/docs/agent-memory/README.md"
 assert_file "$NEW_PROJECT/docs/plan/README.md"
@@ -66,7 +65,6 @@ assert_file "$NEW_PROJECT/workflow/contract-details.md"
 assert_file "$NEW_PROJECT/workflow/agent-quick-card.md"
 assert_file "$NEW_PROJECT/workflow/answer-quality.md"
 assert_file "$NEW_PROJECT/workflow/skill-design.md"
-assert_file "$NEW_PROJECT/workflow/project-autonomy-envelope.md"
 assert_file "$NEW_PROJECT/workflow/git-contract.md"
 assert_file "$NEW_PROJECT/workflow/pr-body-contract.md"
 assert_file "$NEW_PROJECT/workflow/verification-report-template.md"
@@ -82,21 +80,37 @@ assert_file "$NEW_PROJECT/workflow/templates/review-spec-hunter.md"
 assert_file "$NEW_PROJECT/workflow/templates/review-lead.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
+PLAN_REVIEW_TOOLING=(scripts/plan-review-check scripts/lib/plan-review-binding.mjs scripts/lib/plan-cleanup-command.mjs scripts/lib/ledger-integrity.mjs scripts/lib/predicates.mjs scripts/lib/workflow-events.mjs)
+for managed in "${PLAN_REVIEW_TOOLING[@]}"; do
+ assert_file "$NEW_PROJECT/$managed"
+ assert_same "$ROOT_DIR/$managed" "$NEW_PROJECT/$managed"
+done
+[ -x "$NEW_PROJECT/scripts/plan-review-check" ]
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
 assert_file "$NEW_PROJECT/scripts/workflow-event"
 assert_file "$NEW_PROJECT/scripts/lib/hash.sh"
+assert_file "$NEW_PROJECT/scripts/lib/review-rounds.jq"
+cp "$ROOT_DIR/tests/fixtures/execution-quality/ready-plan.md" "$NEW_PROJECT/PLAN.md"
+deployed_hash="$(node "$NEW_PROJECT/scripts/plan-review-check" --hash "$NEW_PROJECT/PLAN.md")"
+[ "$deployed_hash" = "$(node "$ROOT_DIR/scripts/plan-review-check" --hash "$NEW_PROJECT/PLAN.md")" ]
+WORKFLOW_EVENT_PROJECT_ROOT="$NEW_PROJECT" "$NEW_PROJECT/scripts/workflow-event" --dir "$NEW_PROJECT/.workflow" append deployed-bound plan_created '{"path":"PLAN.md","status":"READY"}'
+jq -e --arg hash "$deployed_hash" '.detail.plan_contract_sha256==$hash' "$NEW_PROJECT/.workflow/deployed-bound/events.jsonl" >/dev/null
+WORKFLOW_EVENT_PROJECT_ROOT="$NEW_PROJECT" "$NEW_PROJECT/scripts/workflow-event" --dir "$NEW_PROJECT/.workflow" append deployed-bound adversary_completed "$(jq -nc --arg hash "$deployed_hash" '{mode:"plan",verdict:"READY",plan_contract_sha256:$hash,accepted_findings:[],rejected_findings:[],model_provenance:{requested:{family:"fixture",model:"fixture",provider:"fixture"},effective:{family:"fixture",model:"fixture",provider:"fixture"},runner:"fixture",run_id:"deployed-bound"}}')"
+WORKFLOW_EVENT_PROJECT_ROOT="$NEW_PROJECT" "$NEW_PROJECT/scripts/workflow-event" --dir "$NEW_PROJECT/.workflow" append deployed-bound blocked '{"reason":"unknown","needed_input":"fixture finished"}'
+rm "$NEW_PROJECT/PLAN.md"
+
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
   exit 1
 }
-for executable in workflow-event workflow-measurement-integrity; do
+for executable in workflow-event; do
   [ -x "$NEW_PROJECT/scripts/$executable" ] || {
     printf 'expected deployed %s to be executable\n' "$executable" >&2
     exit 1
   }
 done
 assert_same "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" "$NEW_PROJECT/AGENTS.md"
-assert_same "$ROOT_DIR/workflow-scaffold/templates/CLAUDE.md" "$NEW_PROJECT/CLAUDE.md"
+assert_not_exists "$NEW_PROJECT/CLAUDE.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" "$NEW_PROJECT/docs/agent-workflow.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-memory.md" "$NEW_PROJECT/docs/agent-memory/README.md"
 assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/plan.md" "$NEW_PROJECT/docs/plan/README.md"
@@ -114,7 +128,7 @@ assert_same "$ROOT_DIR/scripts/plan-cleanup" "$NEW_PROJECT/scripts/plan-cleanup"
 
 # Deployed docs must not dangle: every workflow/** reference resolves in the
 # scaffold unless the target is explicitly etabli-only.
-ETABLI_ONLY_REFS='^workflow/(semantic-judgment\.md$|trace-self-improvement\.md$|trace-observation\.schema\.json$|skills/program-orchestration\.md$|program\.schema\.json$|runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
+ETABLI_ONLY_REFS='^workflow/(runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
 deployed_refs="$(grep -rhEo --include='*.md' 'workflow/[A-Za-z0-9._/-]+\.(md|json)' "$NEW_PROJECT" | sort -u)"
 [ -n "$deployed_refs" ] || {
   printf 'reference scan found no workflow refs; the check is broken\n' >&2
@@ -147,16 +161,12 @@ assert_file "$NEW_PROJECT/docs/plan/$(date -u +%Y%m%d)-discarded-scaffold-smoke.
 
 while IFS= read -r contract_path; do
   contract_name="$(basename "$contract_path")"
-  # program-orchestration is frozen and deliberately not deployed
-  [ "$contract_name" = "program-orchestration.md" ] && continue
   assert_file "$NEW_PROJECT/workflow/skills/$contract_name"
   assert_same "$contract_path" "$NEW_PROJECT/workflow/skills/$contract_name"
 done < <(find "$ROOT_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' | sort)
 assert_contains "$NEW_PROJECT/AGENTS.md" "Ambient activation"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/agent-memory/"
 assert_contains "$NEW_PROJECT/AGENTS.md" "docs/plan/"
-assert_contains "$NEW_PROJECT/CLAUDE.md" "Claude Code-specific adapter"
-assert_contains "$NEW_PROJECT/CLAUDE.md" "docs/claude-code-workflow.md"
 assert_contains "$NEW_PROJECT/docs/agent-workflow.md" "Pi Coding Agent"
 assert_contains "$NEW_PROJECT/docs/agent-workflow.md" "Claude Code"
 assert_contains "$NEW_PROJECT/docs/claude-code-workflow.md" "planner -> builder -> evaluator"
@@ -164,7 +174,7 @@ assert_contains "$NEW_PROJECT/docs/claude-code-workflow.md" "workflow/skills/orc
 assert_contains "$NEW_PROJECT/docs/project-context.md" "Smallest useful check"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Outcome"
 assert_contains "$NEW_PROJECT/workflow/linear-ticket-template.md" "Linear Fields"
-assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "Autonomous implementation loops are complete only when"
+assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "Autonomous completion requires:"
 assert_contains "$NEW_PROJECT/workflow/skills/orchestration.md" "Capability Labels"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "## Stop conditions"
 assert_contains "$NEW_PROJECT/workflow/ticket-template.md" "Keep project-specific scope"
@@ -174,9 +184,44 @@ git -C "$NEW_PROJECT" init -q .
 assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
+assert_contains "$NEW_PROJECT/.git/info/exclude" "/scripts/lib/review-rounds.jq"
+for managed in scripts/project-verification scripts/project-verification-check scripts/lib/project-verification{,-plan,-source,-assertions,-recipe,-run,-process,-snapshot}.mjs scripts/lib/plan-check-freeze.mjs scripts/lib/unicode-case-fold.mjs scripts/vendor/commonmark/commonmark.cjs; do
+  git -C "$NEW_PROJECT" check-ignore -q -- "$managed" || { printf 'managed tooling exposed to project Git: %s\n' "$managed" >&2; exit 1; }
+done
+assert_file "$NEW_PROJECT/workflow/project-verification-recipe.schema.json"
+assert_file "$NEW_PROJECT/workflow/verification/observe-json.mjs"
+mkdir -p "$NEW_PROJECT/verification"
+printf '{"project_owned":true}\n' >"$NEW_PROJECT/verification/recipe.json"
+git -C "$NEW_PROJECT" add verification/recipe.json
+RECIPE_BEFORE="$(cat "$NEW_PROJECT/verification/recipe.json")"
+printf '// changed managed helper\n' >>"$NEW_PROJECT/scripts/lib/project-verification-process.mjs"
+"$SCRIPT" "$NEW_PROJECT" --force >/dev/null
+assert_same "$ROOT_DIR/scripts/lib/project-verification-process.mjs" "$NEW_PROJECT/scripts/lib/project-verification-process.mjs"
+[ "$(cat "$NEW_PROJECT/verification/recipe.json")" = "$RECIPE_BEFORE" ] || { printf 'project recipe was overwritten\n' >&2; exit 1; }
+git -C "$NEW_PROJECT" ls-files --error-unmatch verification/recipe.json >/dev/null
+if git -C "$NEW_PROJECT" check-ignore -q --no-index verification/recipe.json; then printf 'project recipe was excluded\n' >&2; exit 1; fi
+node --input-type=module - "$NEW_PROJECT" <<'JS'
+import assert from "node:assert/strict";
+import { pathToFileURL } from "node:url";
+const root = process.argv[2];
+const { sourceInventory } = await import(pathToFileURL(root + "/scripts/lib/project-verification-source.mjs"));
+assert.ok(sourceInventory(root).includes("verification/recipe.json"));
+JS
 assert_not_exists "$NEW_PROJECT/.gitignore"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
+
+SCAFFOLD_EVENTS="$TMP_DIR/scaffold-rr/.workflow"
+scaffold_event() { "$NEW_PROJECT/scripts/workflow-event" --dir "$SCAFFOLD_EVENTS" "$@"; }
+scaffold_event append rr route_decided '{"route":"plan-implement","reason":"smoke"}' >/dev/null
+scaffold_event append rr adversary_completed '{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[],"model_provenance":{"requested":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"effective":{"family":"openai","model":"gpt-6-astra","provider":"codex"},"runner":"codex-cli","run_id":"smoke"}}' >/dev/null
+scaffold_event append rr review_completed '{"status":"GO","evidence":"smoke","review_round":"T1","round_outcome":"clean"}' >/dev/null
+scaffold_event validate rr >/dev/null
+if scaffold_event append rr review_completed '{"status":"GO","evidence":"smoke","review_round":"D1","round_outcome":"clean"}' >"$TMP_DIR/scaffold-rr.out" 2>&1; then
+  printf 'deployed workflow-event must refuse an out-of-table review round\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/scaffold-rr.out" "review round D1 (#2) is not allowed here; admitted next: F1"
 
 CHECK_CLEAN_OUTPUT="$TMP_DIR/check-clean.out"
 "$SCRIPT" "$NEW_PROJECT" --check >"$CHECK_CLEAN_OUTPUT"

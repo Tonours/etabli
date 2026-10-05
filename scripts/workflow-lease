@@ -1,0 +1,410 @@
+#!/usr/bin/env bash
+# workflow-lease — per-(repo, worktree) write-authority lease with TTL.
+# Reuses the workflow-event lock family (lockf/flock/shlock auto backend,
+# 5-second budget, fail-closed owner checks). Lease owner records use their
+# own schema_version 2 shape, distinct from the append-owner of
+# scripts/workflow-event. Bounded guarantee (ADR-0028): the lease arbitrates
+# acquisitions; a writer that does not present the holder token gets no
+# protection beyond that arbitration. Cross-host: a still-valid lease owned
+# by another host is refused; after TTL expiry any host may take over with a
+# logged reason (the TTL is the guard, unlike append-lock recovery).
+set -euo pipefail
+
+SCRIPT_PATH="$0"
+case "$SCRIPT_PATH" in
+  */*) ;;
+  *) SCRIPT_PATH="./$SCRIPT_PATH" ;;
+esac
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  workflow-lease [--dir <root>/.workflow] acquire --repo <path> --worktree <path> --owner <name> [--ttl-secs N]
+  workflow-lease [--dir <root>/.workflow] renew --repo <path> --worktree <path> --token <t> [--ttl-secs N]
+  workflow-lease [--dir <root>/.workflow] release --repo <path> --worktree <path> --token <t>
+  workflow-lease [--dir <root>/.workflow] recover --repo <path> --worktree <path> <reason>
+  workflow-lease [--dir <root>/.workflow] show --repo <path> --worktree <path>
+  workflow-lease [--dir <root>/.workflow] list
+Owner record: {schema_version:2, scope, identity, owner, hostname, pid, token, backend,
+               acquired_at, heartbeat_at, expires_at, expires_epoch}
+Takeover/recover appends one line to <scope>.history.jsonl.
+EOF
+  exit 2
+}
+
+[ "${1:-}" = "--dir" ] || usage
+DIR="$2"; shift 2
+CMD="${1:-}"; shift || true
+
+LEASES="$DIR/leases"
+mkdir -p "$LEASES"
+
+DEFAULT_TTL_SECS=900
+HOSTNAME="${WORKFLOW_LEASE_HOSTNAME:-$(hostname)}"
+
+die() { printf 'workflow-lease: %s\n' "$1" >&2; exit 1; }
+
+now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+now_epoch() { date -u +%s; }
+new_token() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
+
+iso_to_epoch() {
+  local iso="$1"
+  if date -d "$iso" +%s >/dev/null 2>&1; then
+    date -d "$iso" +%s
+  else
+    date -ju -f '%Y-%m-%dT%H:%M:%SZ' "$iso" +%s
+  fi
+}
+
+canonical() {
+  local path="$1" resolved
+  [ -d "$path" ] || die "not a directory (lease scopes must exist): $path"
+  resolved="$(cd -P "$path" 2>/dev/null && pwd -P)" \
+    || die "cannot canonicalize path: $path"
+  [ -n "$resolved" ] || die "cannot canonicalize path: $path"
+  printf '%s' "$resolved"
+}
+
+scope_for() {
+  local repo="$1" worktree="$2" identity key repo_canon wt_canon
+  repo_canon="$(canonical "$repo")" || return 1
+  wt_canon="$(canonical "$worktree")" || return 1
+  identity="$repo_canon|$wt_canon"
+  key="$(printf '%s' "$identity" | shasum -a 256 | cut -c1-16)"
+  printf '%s %s' "$key" "$identity"
+}
+
+lease_file() { printf '%s/%s.json' "$LEASES" "$1"; }
+history_file() { printf '%s/%s.history.jsonl' "$LEASES" "$1"; }
+
+owner_name_ok() { [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; }
+
+reason_ok() {
+  local reason="$1"
+  [ "${#reason}" -le 200 ] && [[ "$reason" != *$'\n'* ]] && [[ "$reason" != *$'\r'* ]]
+}
+
+# Read and validate the lease owner record for a scope key + expected identity.
+# Sets LEASE_* outputs; returns 2 when no lease exists, 1 on malformed/mismatch.
+read_lease() {
+  local key="$1" identity="$2" file
+  file="$(lease_file "$key")"
+  if [ ! -f "$file" ]; then
+    if [ -f "$file.moved" ]; then
+      printf 'malformed lease state: unexpected %s.moved\n' "$file" >&2
+      return 1
+    fi
+    return 2
+  fi
+  LEASE_JSON="$(jq -e --arg key "$key" --arg identity "$identity" '
+    if (type == "object" and
+      ((keys | sort) == (["acquired_at","backend","expires_at","expires_epoch","heartbeat_at","hostname","identity","owner","pid","schema_version","scope","token"] | sort)) and
+      .schema_version == 2 and
+      (.scope == $key) and
+      (.identity == $identity) and
+      (.owner | type == "string" and length > 0) and
+      (.hostname | type == "string" and length > 0) and
+      (.pid | type == "number" and floor == . and . > 0) and
+      (.token | type == "string" and length == 32) and
+      (.backend | IN("lockf", "flock", "shlock")) and
+      (.acquired_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T")) and
+      (.heartbeat_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T")) and
+      (.expires_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T")) and
+      (.expires_epoch | type == "number" and floor == .)) then . else null end' "$file" 2>/dev/null)" || {
+    printf 'malformed lease owner record: %s\nremediation: remove or repair %s manually, then re-acquire\n' "$file" "$file" >&2
+    return 1
+  }
+  [ "$LEASE_JSON" != "null" ] || {
+    printf 'malformed lease owner record (schema or identity mismatch): %s\nremediation: remove or repair %s manually, then re-acquire\n' "$file" "$file" >&2
+    return 1
+  }
+  LEASE_TOKEN="$(printf '%s' "$LEASE_JSON" | jq -r '.token')"
+  LEASE_OWNER="$(printf '%s' "$LEASE_JSON" | jq -r '.owner')"
+  LEASE_HOST="$(printf '%s' "$LEASE_JSON" | jq -r '.hostname')"
+  LEASE_EXPIRES_AT="$(printf '%s' "$LEASE_JSON" | jq -r '.expires_at')"
+  LEASE_EXPIRES_EPOCH="$(printf '%s' "$LEASE_JSON" | jq -r '.expires_epoch')"
+}
+
+lease_expired() { [ "$(now_epoch)" -ge "$LEASE_EXPIRES_EPOCH" ]; }
+
+refuse_foreign_or_valid() {
+  # A still-valid lease blocks every mutation. A foreign owner is named
+  # explicitly so the second-host failure is diagnosable.
+  if [ "$LEASE_HOST" != "$HOSTNAME" ]; then
+    printf 'lease held by another host: owner=%s host=%s until %s\nremediation: take over with recover only after expiry\n' \
+      "$LEASE_OWNER" "$LEASE_HOST" "$LEASE_EXPIRES_AT" >&2
+  else
+    printf 'lease held: owner=%s host=%s until %s\nremediation: release with the holder token, or recover after expiry\n' \
+      "$LEASE_OWNER" "$LEASE_HOST" "$LEASE_EXPIRES_AT" >&2
+  fi
+  return 1
+}
+
+write_lease() {
+  local key="$1" identity="$2" owner="$3" ttl="$4" backend="$5" file token now
+  token="$(new_token)"
+  now="$(now_iso)"
+  file="$(lease_file "$key")"
+  jq -n --arg scope "$key" --arg identity "$identity" --arg owner "$owner" \
+    --arg hostname "$HOSTNAME" --argjson pid "$$" --arg token "$token" \
+    --arg backend "$backend" --arg acquired_at "$now" --arg heartbeat_at "$now" \
+    --arg expires_at "$(date -u -r $(( $(now_epoch) + ttl )) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$(( $(now_epoch) + ttl ))" +%Y-%m-%dT%H:%M:%SZ)" \
+    --argjson expires_epoch "$(( $(now_epoch) + ttl ))" \
+    '{schema_version:2, scope:$scope, identity:$identity, owner:$owner, hostname:$hostname,
+      pid:$pid, token:$token, backend:$backend, acquired_at:$acquired_at,
+      heartbeat_at:$heartbeat_at, expires_at:$expires_at, expires_epoch:$expires_epoch}' \
+    >"$file.tmp.$$"
+  mv "$file.tmp.$$" "$file"
+  printf '%s\n' "$(cat "$file")"
+}
+
+log_history() {
+  local key="$1" event="$2" reason="$3" from_owner="$4" by_owner="$5"
+  jq -c -n --arg ts "$(now_iso)" --arg event "$event" --arg reason "$reason" \
+    --arg from_owner "$from_owner" --arg by_owner "$by_owner" --arg host "$HOSTNAME" \
+    '{ts:$ts, event:$event, reason:$reason, from_owner:$from_owner, by_owner:$by_owner, host:$host}' \
+    >>"$(history_file "$key")" 2>/dev/null
+}
+
+# ---- locked mutation bodies -------------------------------------------------
+
+locked_acquire() {
+  local key="$1" identity="$2" owner="$3" ttl="$4" backend="$5" rc=0
+  read_lease "$key" "$identity" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    lease_expired || { refuse_foreign_or_valid; return 1; }
+    log_history "$key" "takeover" "expired" "$LEASE_OWNER" "$owner" || {
+      printf 'cannot write lease history for %s; refusing takeover without a trace\n' "$key" >&2
+      return 1
+    }
+    write_lease "$key" "$identity" "$owner" "$ttl" "$backend"
+    return 0
+  fi
+  [ "$rc" -eq 2 ] || return 1
+  write_lease "$key" "$identity" "$owner" "$ttl" "$backend"
+}
+
+locked_renew() {
+  local key="$1" identity="$2" token="$3" ttl="$4" rc=0
+  read_lease "$key" "$identity" || rc=$?
+  [ "$rc" -eq 0 ] || { [ "$rc" -eq 2 ] && printf 'no lease for this scope\n' >&2; return 1; }
+  lease_expired && { printf 'lease expired at %s\nremediation: recover with a reason, or re-acquire\n' "$LEASE_EXPIRES_AT" >&2; return 1; }
+  [ "$LEASE_HOST" = "$HOSTNAME" ] || { printf 'lease held by another host: owner=%s host=%s\nremediation: renew from the holder host\n' "$LEASE_OWNER" "$LEASE_HOST" >&2; return 1; }
+  [ "$token" = "$LEASE_TOKEN" ] || { printf 'stale generation: token does not match the current holder\nremediation: the lease was renewed, released, recovered or re-acquired by another holder\n' >&2; return 1; }
+  local file now expires_epoch expires_at
+  file="$(lease_file "$key")"
+  now="$(now_iso)"
+  expires_epoch=$(( $(now_epoch) + ttl ))
+  expires_at="$(date -u -r "$expires_epoch" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$expires_epoch" +%Y-%m-%dT%H:%M:%SZ)"
+  printf '%s' "$LEASE_JSON" | jq --arg heartbeat_at "$now" --arg expires_at "$expires_at" \
+    --argjson expires_epoch "$expires_epoch" '.heartbeat_at=$heartbeat_at | .expires_at=$expires_at | .expires_epoch=$expires_epoch' \
+    >"$file.tmp.$$"
+  mv "$file.tmp.$$" "$file"
+  printf '%s\n' "$(cat "$file")"
+}
+
+locked_release() {
+  local key="$1" identity="$2" token="$3" rc=0
+  read_lease "$key" "$identity" || rc=$?
+  [ "$rc" -eq 0 ] || { [ "$rc" -eq 2 ] && printf 'no lease for this scope\n' >&2; return 1; }
+  [ "$token" = "$LEASE_TOKEN" ] || { printf 'stale generation: token does not match the current holder\nremediation: the lease was renewed, released, recovered or re-acquired by another holder\n' >&2; return 1; }
+  rm -f "$(lease_file "$key")"
+  printf 'released\n'
+}
+
+locked_recover() {
+  local key="$1" identity="$2" reason="$3" owner="$4" backend="$5" rc=0
+  if [ -n "$owner" ]; then
+    owner_name_ok "$owner" || die "invalid owner name: $owner"
+  fi
+  read_lease "$key" "$identity" || rc=$?
+  [ "$rc" -eq 0 ] || { [ "$rc" -eq 2 ] && printf 'no lease for this scope\n' >&2; return 1; }
+  lease_expired || { refuse_foreign_or_valid; return 1; }
+  log_history "$key" "recover" "$reason" "$LEASE_OWNER" "${owner:-$HOSTNAME}" || {
+    printf 'cannot write lease history for %s; refusing takeover without a trace\n' "$key" >&2
+    return 1
+  }
+  write_lease "$key" "$identity" "${owner:-$HOSTNAME}" "$DEFAULT_TTL_SECS" "$backend"
+}
+
+# ---- lock plumbing (same family as workflow-event / workflow-ship-metrics) --
+
+lock_backend() {
+  local backend="${WORKFLOW_LEASE_LOCK_BACKEND:-${WORKFLOW_EVENT_LOCK_BACKEND:-auto}}"
+  if [ "$backend" = "auto" ]; then
+    if command -v lockf >/dev/null 2>&1; then backend="lockf"
+    elif command -v flock >/dev/null 2>&1; then backend="flock"
+    elif command -v shlock >/dev/null 2>&1; then backend="shlock"
+    else backend="none"
+    fi
+  fi
+  printf '%s' "$backend"
+}
+
+run_locked_body() {
+  local key="$1" op="$2"; shift 2
+  case "$op" in
+    _locked-acquire)
+      [ $# -eq 3 ] || usage
+      locked_acquire "$key" "$1" "$2" "$3" "$(lock_backend)"
+      ;;
+    _locked-renew)
+      [ $# -eq 3 ] || usage
+      locked_renew "$key" "$1" "$2" "$3"
+      ;;
+    _locked-release)
+      [ $# -eq 2 ] || usage
+      locked_release "$key" "$1" "$2"
+      ;;
+    _locked-recover)
+      [ $# -eq 3 ] || usage
+      locked_recover "$key" "$1" "$2" "$3" "$(lock_backend)"
+      ;;
+    *) usage ;;
+  esac
+}
+
+run_locked() {
+  local key="$1" op="$2"; shift 2
+  local backend lock_file attempt status
+  backend="$(lock_backend)"
+  [ "$backend" != "none" ] || die 'no supported lock backend: need lockf, flock, or shlock'
+  lock_file="$LEASES/$key.lock"
+  case "$backend" in
+    lockf)
+      lockf -t 5 "$lock_file" "$SCRIPT_PATH" --dir "$DIR" "$op" "$key" "$@" || {
+        printf '%s failed under lock (operation refused, malformed record, or lock budget of 5 seconds exceeded)\n' "$op" >&2; return 1; }
+      ;;
+    flock)
+      flock -w 5 "$lock_file" "$SCRIPT_PATH" --dir "$DIR" "$op" "$key" "$@" || {
+        printf '%s failed under lock (operation refused, malformed record, or lock budget of 5 seconds exceeded)\n' "$op" >&2; return 1; }
+      ;;
+    shlock)
+      attempt=0
+      while [ "$attempt" -lt 50 ]; do
+        if shlock -f "$lock_file" -p "$$"; then
+          status=0
+          run_locked_body "$key" "$op" "$@" || status=$?
+          rm -f "$lock_file"
+          return "$status"
+        fi
+        attempt=$((attempt + 1))
+        sleep 0.1
+      done
+      printf 'shlock %s timed out after 5 seconds\n' "$op" >&2
+      return 1
+      ;;
+    *) die "unknown lock backend: $backend" ;;
+  esac
+}
+
+# ---- public commands --------------------------------------------------------
+
+resolve_scope() {
+  local repo="${OPT_REPO:-}" worktree="${OPT_WORKTREE:-}" scope_out
+  [ -n "$repo" ] && [ -n "$worktree" ] || die "--repo and --worktree are required"
+  scope_out="$(scope_for "$repo" "$worktree")" || return 1
+  printf '%s' "$scope_out"
+}
+
+POSITIONAL=()
+parse_scope_opts() {
+  OPT_REPO=""; OPT_WORKTREE=""; OPT_TOKEN=""; OPT_OWNER=""; OPT_TTL="$DEFAULT_TTL_SECS"
+  POSITIONAL=()
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --repo) OPT_REPO="$2"; shift 2 ;;
+      --worktree) OPT_WORKTREE="$2"; shift 2 ;;
+      --token) OPT_TOKEN="$2"; shift 2 ;;
+      --owner) OPT_OWNER="$2"; shift 2 ;;
+      --ttl-secs) OPT_TTL="$2"; shift 2 ;;
+      -*) usage ;;
+      *) POSITIONAL+=("$1"); shift ;;
+    esac
+  done
+  [[ "$OPT_TTL" =~ ^[1-9][0-9]*$ ]] || die "--ttl-secs must be a positive integer"
+}
+
+case "$CMD" in
+  acquire|renew|release|recover|show)
+    parse_scope_opts "$@"
+    ;;
+  list) ;;
+  _locked-acquire|_locked-renew|_locked-release|_locked-recover) ;;
+  *) usage ;;
+esac
+
+case "$CMD" in
+acquire)
+        [ -n "$OPT_OWNER" ] || die "acquire requires --owner <name>"
+        owner_name_ok "$OPT_OWNER" || die "invalid owner name: $OPT_OWNER (allowed: [A-Za-z0-9][A-Za-z0-9._-]{0,63})"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
+EOF
+        run_locked "$key" _locked-acquire "$identity" "$OPT_OWNER" "$OPT_TTL"
+        ;;
+    renew)
+        [ -n "$OPT_TOKEN" ] || die "renew requires --token"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
+EOF
+        run_locked "$key" _locked-renew "$identity" "$OPT_TOKEN" "$OPT_TTL"
+        ;;
+    release)
+        [ -n "$OPT_TOKEN" ] || die "release requires --token"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
+EOF
+        run_locked "$key" _locked-release "$identity" "$OPT_TOKEN"
+        ;;
+    recover)
+        [ "${#POSITIONAL[@]}" -eq 1 ] || die "recover requires exactly one <reason> argument"
+        reason="${POSITIONAL[0]}"
+        reason_ok "$reason" || die "invalid reason (max 200 chars, no newlines)"
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
+EOF
+        run_locked "$key" _locked-recover "$identity" "$reason" "${OPT_OWNER:-}"
+        ;;
+    show)
+        scope_out="$(resolve_scope)" || exit 1
+        read -r key identity <<EOF
+$scope_out
+EOF
+    if [ -f "$(lease_file "$key")" ]; then
+      rc=0; read_lease "$key" "$identity" || rc=$?
+      [ "$rc" -eq 0 ] || exit 1
+      printf '%s\n' "$LEASE_JSON"
+    else
+      printf 'no lease for this scope\n' >&2
+      exit 1
+    fi
+    ;;
+  list)
+    found=0
+    for file in "$LEASES"/*.json; do
+      [ -f "$file" ] || continue
+      found=1
+      jq -c --argjson now "$(now_epoch)" '{scope, identity, owner, hostname, expires_at, expired: (.expires_epoch <= $now)}' "$file"
+    done
+    [ "$found" -eq 1 ] || printf 'no leases\n' >&2
+    ;;
+  _locked-acquire)
+    run_locked_body "$1" "_locked-acquire" "${@:2}"
+    ;;
+  _locked-renew)
+    run_locked_body "$1" "_locked-renew" "${@:2}"
+    ;;
+  _locked-release)
+    run_locked_body "$1" "_locked-release" "${@:2}"
+    ;;
+  _locked-recover)
+    run_locked_body "$1" "_locked-recover" "${@:2}"
+    ;;
+  *) usage ;;
+esac

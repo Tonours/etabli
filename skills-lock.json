@@ -9,7 +9,7 @@
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "5375b280a1b2282dd160dfc3d30f210b96a20ee0ea890da89a4b692e120c360b"
+      "computedHash": "b1d72e7d3dfb6bebe5fa62be100ca5d6bd992f0ae7fc4697f28bfd54db1b0cf3"
     },
     "review": {
       "source": "local",
@@ -19,7 +19,7 @@
     "implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "627cbb39195188af455795df10481469c067e77957103a2bbacf34b28a51dda2"
+      "computedHash": "6d400574b1545123137aeef316699e08b4099d595480b48d87c26454a5a09c9b"
     },
     "verify": {
       "source": "local",
@@ -54,7 +54,7 @@
     "sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ea045fbcac0d70ab2594f6d7dca2ba81db46eb911d1062bf26b4081794880eb2"
+      "computedHash": "ddbccc97b820b56e7efddb2c2b14b91238ee63595b904b1f841670adab14f38e"
     },
     "ci-fix": {
       "source": "local",
@@ -69,7 +69,7 @@
     "adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "808920100f66f43c11e4cc798436fa51e5ec45fd74423739cdc12a707e457c6f"
+      "computedHash": "0343c7ad1940f5616e0dca8ab549cffc5fdf38c819229b745ff228f253428a55"
     },
     "browser-full-page-capture": {
       "source": "local",
@@ -84,7 +84,7 @@
     "goal-prompt-rewriter": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "a933f5a9c10039f672252049f836481f2c5c3b2e41c0ef9398db15748e71d598"
+      "computedHash": "1308be01f1c25300faa8acab7fc8239ed670b796c364488d315790aec2e30c24"
     },
     "ui-reference-capture": {
       "source": "local",
@@ -216,30 +216,20 @@
       "sourceType": "repo",
       "computedHash": "6bd89a2f4472afff8c6137dfcc9d65658ed55834eba8e2c23d577965eca5e1ba"
     },
-    "conversation-retrospect": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "060033a6aee6328f82be76511754f192a6b9edf6ceb681224299b58d212a1c30"
-    },
     "recurring-run": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "256e98d4e63bb998c34f09351397dcda2f6911a5bbf098caf8015997746961b3"
+      "computedHash": "cefbdf5a94a52d96870c6efcca901c32edbe27f6c7b8b797ab873b899bf699ec"
     },
     "coolify": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "90c23ef66ed8d759eba7d1e2954580dfa3544ea36f82772ea198f350d82689fe"
+      "computedHash": "fdee9cd2a14cb086bc94ff666aded10976dc33d76cb865978420046eb822e7ed"
     },
     "grill-me": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "fd1144ec3dd90f9bc841e123f2f933db5b5889453984ff8c973829c6a1b9328f"
-    },
-    "runtime-skill-canary": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "977df4e524eccc80202bebddd98930b563ec0c863f723164d266724b2acf6ebc"
+      "computedHash": "0d8ee81d31d3b64c85dadba763bcfea97ba02c4901c021fa1c490eaccfbce1b1"
     },
     "session-handoff": {
       "source": "local",
@@ -254,12 +244,12 @@
     "project-hunt": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "635832fa55bdd81f040e50868a2986765f2e7cf1bc8cd1e22a44a644d6e35dfb"
+      "computedHash": "8187df26ec48c5da10cbd24ea422088596456a57f816b6fe9087ce7fc9a25869"
     },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "347b1f07b70693c8681a47ff2d32980277dec72ecebee84bf244f76933227cde"
+      "computedHash": "c1d5a77d937beb19fb82b30cdf72d936592ed476f1441f94f1c302fb29dcb4d6"
     },
     "engineering/ask-matt": {
       "source": "local",
@@ -334,27 +324,7 @@
     "claude-scope/shared/adr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "d6d5c921b157f2de45c7418d5299f822739cd1460da6887aae378259b4069faa"
-    },
-    "claude-scope/shared/css-debugging": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b7be55dbfcb9b818b34ee79e4cdda4c7cd14cb6c808b41576645a6c8029597de"
-    },
-    "claude-scope/shared/css-layout-primitives": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8dd86c762ca6c493b5472c7804049a2d5c73f20e09b454129401a7724804b902"
-    },
-    "claude-scope/shared/css-only-components": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "e1a7a076666462f68566f876792540f10e70444b330ae41519df33f1ceca5739"
-    },
-    "claude-scope/shared/frontend-css-ui-ux": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "fbe3351c07a5cef2b375541d3b07b00bda9c6bd11f5029e64e2609b1e1acbc69"
+      "computedHash": "79a6be7834183ca0e51296734f966ffa58d8566ecc24d146b294b23cd71215b5"
     },
     "claude-scope/shared/playwright-agentic-testing": {
       "source": "local",
@@ -399,12 +369,12 @@
     "claude-scope/work/pr-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "bc00f94b8ca8271f2e0a1e0cf6b782c007609501907257a876a23c20a068e77e"
+      "computedHash": "fb9e7f11d43347daeb219a1baad5e905dcb442eca17f79dff933168c347b095a"
     },
     "claude-scope/work/sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "dd2c70e64a4ff652cfd2ed175861fc4b0ae83bddaeab938d5d483f27016ee8ee"
+      "computedHash": "27d3204e2bdf77c84f0e8b92e541ae232fee19f564b4f6a61af211c5ccf4cfa8"
     },
     "claude-scope/work/week-roadmap": {
       "source": "local",
@@ -419,12 +389,22 @@
     "claude-scope/work/employer-docs-writing": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ce9f1a1f7192a7d91dd86a55c7899b04930846979e56b6000ec58d48b1246cb4"
+      "computedHash": "f6d5d03b67ba07384ddb023491f11bc31ca62cad50fcf17a8b49a924a6e2cd82"
     },
     "typesafe-ai": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "9cd84c5e535dec8dec59917c110f9c00b4a61faadb86b432ec7e41051170af12"
+    },
+    "ship": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4d85167256cb5a45aa613e49d5fc23a4a180140928069ee887c5e927431de88b"
+    },
+    "write-direct": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "30e5fee6b9e72f5b425ca49c0a6521ec005a5dc0a773dbbce26f6f545008fb05"
     }
   }
 }

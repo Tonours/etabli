@@ -17,11 +17,12 @@ fail() {
 grep -Fq 'workflow-router-core.mjs' "$GRAPH" || fail "fixture not tied to canonical router"
 
 TMP="$TMP" ROUTER_LIB="$ROUTER_LIB" node --input-type=module <<'EOF'
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const routerUrl = pathToFileURL(process.env.ROUTER_LIB).href;
+const centralCleanup = fileURLToPath(new URL("../../scripts/plan-cleanup", routerUrl));
 const {
   classifyWorkflowRoute,
   isMutatingBashCommand,
@@ -132,6 +133,8 @@ for (const command of [
   "python3 -c \"from pathlib import Path; Path('x').write_text('x')\"",
   "git apply patch.diff",
   "install source target",
+  "/Users/example/etabli/scripts/plan-cleanup --discard stale-plan",
+  "/tmp/plan-cleanup --discard stale-plan",
 ]) {
   const decision = planReadyGuardDecision({
     cwd: tmp,
@@ -146,7 +149,7 @@ for (const command of [
 for (const command of [
   "scripts/plan-cleanup --archive docs/plan/implemented.md",
   "scripts/plan-cleanup --discard unrelated-scope",
-  "/Users/example/etabli/scripts/plan-cleanup --discard stale-plan",
+  `${JSON.stringify(centralCleanup)} --discard stale-plan`,
 ]) {
   const decision = planReadyGuardDecision({
     cwd: tmp,

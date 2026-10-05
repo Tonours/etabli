@@ -76,7 +76,7 @@ import { createRequire } from 'node:module';
 const { parse } = createRequire(join('$ROOT_DIR', 'pi/package.json'))('yaml');
 const missing = [];
 for (const name of process.argv.slice(2)) {
-  const file = join(process.argv[1], 'pi/skills', name, 'SKILL.md');
+  const file = join(process.argv[1], 'extras/skills', name, 'SKILL.md');
   if (!existsSync(file)) { missing.push(name + ' (absent)'); continue; }
   const text = readFileSync(file, 'utf8');
   const head = parse(text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|\$)/)[1]);
@@ -87,11 +87,11 @@ if (missing.length) { console.error('repo DMI flags missing: ' + missing.join(',
 }
 pin_repo_dmi "$ROOT_DIR" $REPO_DMI || fail "repo DMI pin failed"
 FIXPIN="$TMP_DIR/fixpin"
-mkdir -p "$FIXPIN/pi/skills"
+mkdir -p "$FIXPIN/extras/skills"
 for name in $REPO_DMI; do
   [ "$name" = "ideas" ] && continue
-  mkdir -p "$FIXPIN/pi/skills/$name"
-  cp "$ROOT_DIR/pi/skills/$name/SKILL.md" "$FIXPIN/pi/skills/$name/"
+  mkdir -p "$FIXPIN/extras/skills/$name"
+  cp "$ROOT_DIR/extras/skills/$name/SKILL.md" "$FIXPIN/extras/skills/$name/"
 done
 if pin_repo_dmi "$FIXPIN" $REPO_DMI 2>"$TMP_DIR/fixpin-err.txt"; then
   fail "DMI pin must fail when a repo skill file is absent"
@@ -107,8 +107,8 @@ for dir in "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/
 done
 printf -- '---\nname: github\ndescription: fixture\n---\nbody\n' \
   >"$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"
-ln -s "$ROOT_DIR/pi/skills/grill-me" "$STAMP_HOME/.agents/skills/grill-me"
-cp "$ROOT_DIR/pi/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md"
+ln -s "$ROOT_DIR/extras/skills/grill-me" "$STAMP_HOME/.agents/skills/grill-me"
+cp "$ROOT_DIR/extras/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md"
 
 "$STAMP" --list --home "$STAMP_HOME" >"$TMP_DIR/stamp-list.txt" || fail "stamp --list failed"
 grep -q "hyperframes" "$TMP_DIR/stamp-list.txt" || fail "stamp list hides hyperframes"
@@ -125,7 +125,7 @@ for file in "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" \
   "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"; do
   grep -q "^disable-model-invocation: true$" "$file" || fail "flag missing in $file"
 done
-cmp -s "$ROOT_DIR/pi/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md" \
+cmp -s "$ROOT_DIR/extras/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md" \
   || fail "stamp touched a repo realpath"
 grep -q -i -e "absent" -e "skip" "$TMP_DIR/stamp-out.txt" || fail "stamp must report absent names"
 
@@ -243,7 +243,7 @@ node -e '
 const s = require(process.argv[1]);
 const cmds = [];
 for (const groups of Object.values(s.hooks)) for (const g of groups) for (const h of g.hooks || []) cmds.push(h.command);
-for (const want of ["plan-ready-guard.mjs", "no-comments-guard.mjs", "ledger-auto-emit.mjs", "detect-adr-signal.mjs", "outcome-metric-emit.mjs"]) {
+for (const want of ["plan-ready-guard.mjs", "no-comments-guard.mjs", "ledger-auto-emit.mjs", "detect-adr-signal.mjs"]) {
   if (!cmds.some((c) => c.includes(want))) { console.error("missing " + want); process.exit(1); }
 }' "$MG_HOME/.claude/settings.json" || fail "merged settings lack fragment hooks"
 node -e '
@@ -271,6 +271,31 @@ node -e '
 const s = require(process.argv[1]);
 if (JSON.stringify(s.permissions) !== JSON.stringify({ defaultMode: "bypassPermissions" })) process.exit(1);
 ' "$USER_HOME/.claude/settings.json" || fail "merge altered user permissions"
+
+RETIRED_HOME="$TMP_DIR/retired-home"
+mkdir -p "$RETIRED_HOME/.claude"
+printf '%s' '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/proof-shadow.mjs\""},{"type":"command","command":"my-stop-hook"}]},{"hooks":[{"type":"command","command":"node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/outcome-metric-emit.mjs\""}]}]}}' \
+  >"$RETIRED_HOME/.claude/settings.json"
+cp "$RETIRED_HOME/.claude/settings.json" "$TMP_DIR/retired-home-seed.json"
+if "$HCHECK" --home "$RETIRED_HOME" >"$TMP_DIR/retired-check-out.txt" 2>&1; then
+  fail "hooks check must fail while a retired hook is wired"
+fi
+grep -q "retired hook still wired" "$TMP_DIR/retired-check-out.txt" || fail "retired hook failure unexplained"
+"$MERGE" --dry-run --home "$RETIRED_HOME" >"$TMP_DIR/retired-dry.txt" || fail "merge dry-run failed with retired hooks"
+grep -q "would remove retired Stop/" "$TMP_DIR/retired-dry.txt" || fail "merge dry-run hid retired removals"
+grep -q "proof-shadow" "$RETIRED_HOME/.claude/settings.json" || fail "merge dry-run wrote"
+"$MERGE" --home "$RETIRED_HOME" >/dev/null || fail "merge failed with retired hooks"
+if grep -q "proof-shadow\|outcome-metric-emit" "$RETIRED_HOME/.claude/settings.json"; then
+  fail "merge kept a retired hook"
+fi
+grep -q "my-stop-hook" "$RETIRED_HOME/.claude/settings.json" || fail "merge dropped a user hook next to a retired one"
+CONFIG_DIR_HOME="$TMP_DIR/config-dir-home"
+mkdir -p "$CONFIG_DIR_HOME/relocated"
+cp "$TMP_DIR/retired-home-seed.json" "$CONFIG_DIR_HOME/relocated/settings.json"
+CLAUDE_CONFIG_DIR="$CONFIG_DIR_HOME/relocated" "$MERGE" >/dev/null || fail "merge failed on CLAUDE_CONFIG_DIR"
+if grep -q "proof-shadow" "$CONFIG_DIR_HOME/relocated/settings.json"; then
+  fail "merge ignored CLAUDE_CONFIG_DIR"
+fi
 
 BAD_HOME="$TMP_DIR/bad-home"
 mkdir -p "$BAD_HOME/.claude"

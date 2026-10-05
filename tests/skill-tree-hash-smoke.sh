@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pins the semantics of scripts/lib/skill-tree-hash.mjs, the single hasher
-# shared by the skills-lock updater and the runtime skill canary:
-# pollution equivalence (generated artifacts never change the digest) and
-# the explicit in-tree symlink rejection.
-
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 TMP_DIR="$(mktemp -d)"
 

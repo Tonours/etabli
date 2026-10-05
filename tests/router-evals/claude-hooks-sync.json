@@ -17,57 +17,57 @@
     "name": "claude-hooks-sync: create linear ticket routes to linear-ticket-create",
     "category": "claude-hooks-sync",
     "prompt": "Cr\u00e9e un ticket Linear pour ce bug de login",
-    "expectedRoute": "linear-ticket-create",
-    "writeAllowed": true
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: infinitive create linear ticket routes to linear-ticket-create",
     "category": "claude-hooks-sync",
     "prompt": "Peux-tu cr\u00e9er un ticket Linear pour corriger le bug de login",
-    "expectedRoute": "linear-ticket-create",
-    "writeAllowed": true
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: analyze bug without coding routes to bug-check",
     "category": "claude-hooks-sync",
     "prompt": "Analyse le bug Linear PRD-387 sans coder",
-    "expectedRoute": "bug-check",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: github pr code review routes to pr-review",
     "category": "claude-hooks-sync",
     "prompt": "Fais une code review de la PR GitHub 42",
-    "expectedRoute": "pr-review",
+    "expectedRoute": "review",
     "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: how to test pr routes to pr-qa",
     "category": "claude-hooks-sync",
     "prompt": "Comment tester la PR GitHub 42 ?",
-    "expectedRoute": "pr-qa",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: dependabot pr audit routes to sec-pr",
     "category": "claude-hooks-sync",
     "prompt": "Audite la PR Dependabot #1606",
-    "expectedRoute": "sec-pr",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: explicit ci-fix routes to ci-fix",
     "category": "claude-hooks-sync",
     "prompt": "ci-fix 42",
-    "expectedRoute": "ci-fix",
+    "expectedRoute": "answer",
     "writeAllowed": true
   },
   {
     "name": "claude-hooks-sync: fix ci and push routes to ci-fix",
     "category": "claude-hooks-sync",
     "prompt": "fix CI and push PR #42",
-    "expectedRoute": "ci-fix",
-    "writeAllowed": true
+    "expectedRoute": "ops-stop",
+    "writeAllowed": false
   },
   {
     "name": "claude-hooks-sync: remove folder routes to ops-stop",

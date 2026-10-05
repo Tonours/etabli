@@ -33,7 +33,7 @@ printf '%s\n' "$out" | grep -Fx -- '--no-skills' >/dev/null || fail "expected --
 printf '%s\n' "$out" | grep -Fx -- '--no-extensions' >/dev/null || fail "expected --no-extensions in argv"
 printf '%s\n' "$out" | grep -Fx -- '--no-context-files' >/dev/null || fail "expected --no-context-files in argv"
 printf '%s\n' "$out" | grep -Fx -- '--mode' >/dev/null || fail "expected --mode in argv"
-printf '%s\n' "$out" | grep -Fx -- 'text' >/dev/null || fail "expected text mode in argv"
+printf '%s\n' "$out" | grep -Fx -- 'json' >/dev/null || fail "expected native JSON mode in argv"
 printf '%s\n' "$out" | grep -Fx -- 'read,grep' >/dev/null || fail "expected read,grep tools in argv"
 printf '%s\n' "$out" | grep -Fq -- "@${PATCH_FILE}" || fail "expected @patch transport in argv"
 printf '%s\n' "$out" | grep -Eq '^TIMEOUT=600$' || fail "expected TIMEOUT=600 header"
@@ -68,5 +68,69 @@ for pin in --no-session --no-skills --no-extensions --no-context-files read,grep
   grep -Fq -- "$pin" "$review_md" || fail "workflow/skills/review.md missing argv pin $pin"
   grep -Fq -- "$pin" "$pi_review" || fail "pi/skills/review/SKILL.md missing argv pin $pin"
 done
+
+# Real wrapper/capture, simulated native stream: no provider claim.
+mkdir -p "$TMP_DIR/bin"
+cat >"$TMP_DIR/bin/pi" <<'PI'
+#!/usr/bin/env node
+if(process.env.FIXTURE_JSON==="bad")process.stdout.write("bad-json\\n");
+const usage={input:10,output:3,cacheRead:7,cacheWrite:0,totalTokens:20};
+const emit=event=>process.stdout.write(JSON.stringify(event)+"\n");
+const assistant=(responseId,stopReason,content)=>({type:"message_end",message:{role:"assistant",responseId,provider:"fixture",model:"fixture",stopReason,content,usage:process.env.FIXTURE_USAGE==="missing"?undefined:usage,timestamp:1}});
+emit(assistant("smoke-call","toolUse",[{type:"toolCall",id:"smoke-read",name:"read",arguments:{path:"missing-sibling.mjs"}}]));
+emit({type:"message_end",message:{role:"toolResult",toolCallId:"smoke-read",toolName:"read",isError:process.env.FIXTURE_READ_ERROR!=="false",timestamp:2,content:[{type:"text",text:"fixture result"}]}});
+emit(assistant("smoke-final","stop",[{type:"text",text:process.env.FIXTURE_VERDICT||"Verdict: GO"}]));
+PI
+chmod +x "$TMP_DIR/bin/pi"
+capture="$TMP_DIR/failed-read-capture"
+capture_rc=0
+PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" \
+  --capture-dir "$capture" --pass-id wrapper-failed-read --role logic \
+  >"$TMP_DIR/capture.stdout" 2>"$TMP_DIR/capture.stderr" || capture_rc=$?
+[ "$capture_rc" -eq 2 ] || fail "GO after failed Read must exit 2"
+[ ! -s "$TMP_DIR/capture.stdout" ] || fail "inadmissible GO leaked to stdout"
+grep -Fq HUNTER_INSPECTION_INCOMPLETE "$TMP_DIR/capture.stderr" || fail "expected inspection diagnostic"
+node - "$capture" <<'CHECK'
+const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
+const root=process.argv[2],json=name=>JSON.parse(fs.readFileSync(path.join(root,name),"utf8"));
+const receipt=json("receipt.json");
+assert.equal(receipt.terminal,"succeeded");assert.equal(receipt.measured,true);assert.equal(receipt.review_admissible,false);
+assert.equal(receipt.usage.total_tokens,40);assert.deepEqual(receipt.measurement_errors,[]);
+assert.equal(receipt.inspection.unresolved.length,1);assert.equal(receipt.inspection.unresolved[0].reason,"tool_error");
+assert.equal(fs.readFileSync(path.join(root,"final.txt"),"utf8").trim(),"Verdict: GO");
+const event=json("usage-event.json");assert.equal(event.success,true);assert.equal(event.success_kind,"run_terminal");assert.equal(event.review_admissible,false);
+CHECK
+FIXTURE_VERDICT='Verdict: BLOCK' PATH="$TMP_DIR/bin:$PATH" "$HELPER" \
+ --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --capture-dir "$TMP_DIR/block-capture" \
+ --pass-id wrapper-block --role logic >"$TMP_DIR/block.stdout"
+grep -Fxq 'Verdict: BLOCK' "$TMP_DIR/block.stdout" || fail "negative report should remain admissible"
+FIXTURE_READ_ERROR=false FIXTURE_VERDICT='Verdict: READY' PATH="$TMP_DIR/bin:$PATH" "$HELPER" \
+ --prompt-file "$PROMPT_FILE" --patch "$ROOT_DIR/tests/fixtures/execution-quality/ready-plan.md" \
+ --capture-dir "$TMP_DIR/plan-capture" --pass-id wrapper-plan --role adversary-plan >"$TMP_DIR/plan.stdout"
+expected_hash="$($ROOT_DIR/scripts/plan-review-check --hash "$ROOT_DIR/tests/fixtures/execution-quality/ready-plan.md")"
+jq -e --arg hash "$expected_hash" '.review_admissible and .plan_contract_sha256 == $hash' "$TMP_DIR/plan-capture/receipt.json" >/dev/null || fail "plan capture must bind frozen reviewed contract"
+
+# Default invocation must use the same admission, without imposing measurement.
+mkdir -p "$TMP_DIR/auto"
+default_rc=0
+TMPDIR="$TMP_DIR/auto" PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" \
+ >"$TMP_DIR/default.stdout" 2>"$TMP_DIR/default.stderr" || default_rc=$?
+[ "$default_rc" -eq 2 ] && [ ! -s "$TMP_DIR/default.stdout" ] || fail "default GO must reject failed Read"
+grep -Fq HUNTER_INSPECTION_INCOMPLETE "$TMP_DIR/default.stderr" || fail "default admission diagnostic missing"
+FIXTURE_READ_ERROR=false FIXTURE_USAGE=missing TMPDIR="$TMP_DIR/auto" PATH="$TMP_DIR/bin:$PATH" "$HELPER" \
+ --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" >"$TMP_DIR/default-ok.stdout" 2>"$TMP_DIR/default-ok.stderr"
+grep -Fxq 'Verdict: GO' "$TMP_DIR/default-ok.stdout" || fail "default transport compatibility lost"
+auto_capture="$(sed -n 's/^HUNTER_CAPTURE: //p' "$TMP_DIR/default-ok.stderr")"
+jq -e '.terminal=="succeeded" and .review_admissible and (.measured|not) and (.measurement_required|not)' "$auto_capture/receipt.json" >/dev/null || fail "measurement must stay honest and separate"
+explicit_rc=0
+FIXTURE_READ_ERROR=false FIXTURE_USAGE=missing PATH="$TMP_DIR/bin:$PATH" "$HELPER" \
+ --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --capture-dir "$TMP_DIR/explicit-unmeasured" \
+ --pass-id explicit-unmeasured --role logic >"$TMP_DIR/unmeasured.stdout" 2>"$TMP_DIR/unmeasured.stderr" || explicit_rc=$?
+[ "$explicit_rc" -eq 2 ] || fail "explicit capture must retain measurement requirement"
+
+malformed_rc=0
+FIXTURE_READ_ERROR=false FIXTURE_JSON=bad TMPDIR="$TMP_DIR/auto" PATH="$TMP_DIR/bin:$PATH" "$HELPER" \
+ --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" >"$TMP_DIR/malformed.stdout" 2>"$TMP_DIR/malformed.stderr" || malformed_rc=$?
+[ "$malformed_rc" -eq 2 ] && [ ! -s "$TMP_DIR/malformed.stdout" ] || fail "unmeasured policy must not admit malformed native JSON"
 
 printf 'pi-review-hunter smoke test: ok\n'

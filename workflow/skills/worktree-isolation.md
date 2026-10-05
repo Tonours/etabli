@@ -2,8 +2,7 @@
 
 Shared isolation rules for any route that mutates code on a dedicated branch.
 
-Referenced by `workflow/skills/ship.md`,
-`workflow/skills/pr-maintenance-loop.md`, and `workflow/skills/sec-pr.md`.
+Referenced by `workflow/skills/ship.md` and `workflow/skills/sec-pr.md`.
 Runtime adapters may differ in the mechanics used to create and remove the
 worktree. They must not weaken the preconditions, the isolation rules, or the
 cleanup reporting rule.

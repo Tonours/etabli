@@ -1,1 +1,1 @@
-{"claude_route":"pr-review","pi_route":"pr-review","write_allowed":false,"guard":null,"context_contains":["Route: pr-review","PR review findings"],"context_not_contains":["Route: ops-stop"]}
+{"claude_route":"review","pi_route":"review","write_allowed":false,"guard":null,"context_contains":["Route: review","Artifact: findings"],"context_not_contains":["Route: ops-stop","Route: pr-review"]}

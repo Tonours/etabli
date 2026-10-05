@@ -35,6 +35,17 @@ managed_surface_same_link() {
   [ -L "$destination_path" ] && [ "$(readlink "$destination_path")" = "$source_path" ] && [ -e "$destination_path" ]
 }
 
+managed_surface_is_dangling_repo_link() {
+  local link_target
+
+  [ -L "$1" ] && [ ! -e "$1" ] && [ -n "${REPO_DIR:-}" ] || return 1
+  link_target="$(readlink "$1")"
+  case "$link_target/" in
+  *"/../"* | *"/./"* | *"//"*) return 1 ;;
+  esac
+  [ "${link_target#"$REPO_DIR"/}" != "$link_target" ]
+}
+
 managed_surface_reconcile_link() {
   local mode="$1"
   local source_path="$2"
@@ -73,7 +84,9 @@ managed_surface_reconcile_link() {
   case "$mode" in
   deploy | install)
     if [ "${DRY_RUN:-1}" -eq 1 ]; then
-      if [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
+      if managed_surface_is_dangling_repo_link "$destination_path"; then
+        managed_surface_emit WOULD_REPLACE "dangling $destination_path"
+      elif [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
         managed_surface_emit WOULD_BACKUP "$destination_path"
       fi
       managed_surface_emit WOULD_LINK "$label -> $source_path"
@@ -82,7 +95,7 @@ managed_surface_reconcile_link() {
 
     mkdir -p "$(dirname "$destination_path")"
     if [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
-      if [ "$mode" = install ] && [ -L "$destination_path" ]; then
+      if { [ "$mode" = install ] && [ -L "$destination_path" ]; } || managed_surface_is_dangling_repo_link "$destination_path"; then
         rm -f "$destination_path"
       else
         backup="$(managed_surface_backup_path "$destination_path" "$TIMESTAMP")"
@@ -163,11 +176,27 @@ managed_surface_remove_exact_link() {
   return 0
 }
 
+managed_surface_selected() {
+  [ "${MANAGED_CLAUDE_ONLY:-0}" = 1 ] || return 0
+  case "$1" in
+  .claude/?*) return 0 ;;
+  esac
+  return 1
+}
+
+managed_surface_dir() {
+  case "$2" in
+  .claude/*) printf '%s/%s\n' "${MANAGED_CLAUDE_ROOT:-$1/.claude}" "${2#.claude/}" ;;
+  *) printf '%s/%s\n' "$1" "$2" ;;
+  esac
+}
+
 managed_surface_prune_stale_claude_agents() {
   local mode="$1"
   local repo_dir="$2"
   local home_dir="$3"
-  local installed_dir="$home_dir/.claude/agents"
+  local installed_dir
+  installed_dir="$(managed_surface_dir "$home_dir" .claude/agents)"
   local agent_link agent_target
 
   [ -d "$installed_dir" ] || return 0
@@ -246,15 +275,12 @@ managed_surface_prune_stale_skill_links() {
   local mode="$1"
   local repo_dir="$2"
   local home_dir="$3"
-  local managed_roots surface skill_link skill_target
+  local managed_roots surface surface_name skill_link skill_target
 
   managed_roots="$(managed_surface_skill_roots "$repo_dir")"
-  for surface in \
-    "$home_dir/.claude/skills" \
-    "$home_dir/.pi/agent/skills" \
-    "$home_dir/.codex/skills" \
-    "$home_dir/.config/devin/skills" \
-    "$home_dir/.agents/skills"; do
+  for surface_name in .claude/skills .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
+    managed_surface_selected "$surface_name" || continue
+    surface="$(managed_surface_dir "$home_dir" "$surface_name")"
     [ -d "$surface" ] || continue
     while IFS= read -r skill_link; do
       [ -n "$skill_link" ] || continue
@@ -329,8 +355,11 @@ managed_surface_prune_pi_cross_surface_links() {
   local surface skill_link
 
   for surface in .claude/skills .codex/skills .config/devin/skills; do
-    [ -d "$home_dir/$surface" ] || continue
-    for skill_link in "$home_dir/$surface"/*; do
+    managed_surface_selected "$surface" || continue
+    local surface_dir
+    surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
+    [ -d "$surface_dir" ] || continue
+    for skill_link in "$surface_dir"/*; do
       [ -L "$skill_link" ] || continue
       case "$(readlink "$skill_link")" in
       "$repo_dir/pi/skills/"*)
@@ -351,8 +380,10 @@ managed_surface_prune_unlisted_source_skills() {
   shift 6
   local skill_link skill_target skill_name
 
-  [ -d "$home_dir/$surface" ] || return 0
-  for skill_link in "$home_dir/$surface"/*; do
+  local surface_dir
+  surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
+  [ -d "$surface_dir" ] || return 0
+  for skill_link in "$surface_dir"/*; do
     [ -L "$skill_link" ] || continue
     skill_target="$(readlink "$skill_link")"
     if [ "$source_policy" = pi ]; then
@@ -377,8 +408,11 @@ managed_surface_prune_vendor_skill_links() {
   local record_scope record_name record_pi_core record_vendor matched
 
   for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
-    [ -d "$home_dir/$surface" ] || continue
-    for skill_link in "$home_dir/$surface"/*; do
+    managed_surface_selected "$surface" || continue
+    local surface_dir
+    surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
+    [ -d "$surface_dir" ] || continue
+    for skill_link in "$surface_dir"/*; do
       [ -L "$skill_link" ] || continue
       skill_target="$(readlink "$skill_link")"
       link_name="$(basename "$skill_link")"

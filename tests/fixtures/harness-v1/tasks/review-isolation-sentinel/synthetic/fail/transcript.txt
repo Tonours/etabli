@@ -1,3 +1,0 @@
-isolation: none
-runner: not run
-Verdict: GO

@@ -1,13 +1,13 @@
 ---
 name: adversary
-description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when a plan, diff, or design must survive deliberate attack (stress-test, devil's advocate, try-to-break-it) before approval; not for author-side draft reviews (plan-loop), collaborative drafting, or final verdicts.
+description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when it must survive deliberate attack (stress-test, devil's advocate) before approval; not for draft reviews (plan-loop) or final verdicts.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: adversary
 harness: pi
 canonical: workflow/skills/adversary.md
 name: adversary
-description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when a plan, diff, or design must survive deliberate attack (stress-test, devil's advocate, try-to-break-it) before approval; not for author-side draft reviews (plan-loop), collaborative drafting, or final verdicts.
+description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when it must survive deliberate attack (stress-test, devil's advocate) before approval; not for draft reviews (plan-loop) or final verdicts.
 pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
@@ -38,10 +38,13 @@ Rules:
   completed cross-model pass.
 - Plan mode: the counting pass must be cross-family; a same-family pass is
   a labeled supplement only and never satisfies independence. Record
-  `model_provenance` on the ledger pass and the pass itself under
-  `## Review Changes` in `PLAN.md`.
+  `model_provenance` and the snapshot hash captured before dispatch
+  (`scripts/plan-review-check --hash PLAN.md`) on the ledger pass as
+  `plan_contract_sha256`. Record deltas in `## Review Changes` before fresh approval.
 - High findings: accept/reject via cross-model (or second sample), not the
   implementer alone.
 - Plan-mode adversary is required before autonomous implementation completion.
 - Use `review` for the primary post-implementation code review; code-diff
   adversary is the independent second pass on the same cumulative diff.
+
+Binding and inspection details: `workflow/skills/execution-quality.md`.

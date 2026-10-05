@@ -77,6 +77,6 @@ regressions, verdict, and every rejection reason. A green
 synthetic smoke proves only comparator behavior; it does not prove that a real
 skill improved.
 
-For a real comparable self-improvement run, record
-`harness_validation_completed` with the same population on both sides and the
-candidate/evaluator fingerprints required by the strict ledger profile.
+Report a real comparable run in the handoff with the same population on both
+sides. `harness_validation_completed` is a retired ledger type: the append
+refuses it.

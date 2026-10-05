@@ -2,8 +2,8 @@
 # Tranche 4 contract-coherence pins: every AC closes with aligned prose on
 # both sides or a mechanical rule + fixtures. This smoke pins the prose side
 # (anchored grep, presence + absence) and executes the single-sourced ci-fix
-# ledger example. Mechanical pins live in workflow-event-smoke.sh,
-# harness-trace-retrospect-smoke.sh, and the router bun tests.
+# ledger example. Mechanical pins live in workflow-event-smoke.sh and the
+# router bun tests.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
@@ -29,7 +29,7 @@ assert_contains "$LOOP" "Small tier (no plan): run the surface's own focused che
 # small borrows (0 recon, 8 implement, 12b simplify rung 1): count-pinned.
 assert_count "$LOOP" "(the task, for small)" "3"
 assert_contains "$LOOP" "adversary code-diff review (standard/high-risk:"
-assert_contains "$LOOP" "plan routes only; for small, keep the dogfood evidence"
+assert_absent "$LOOP" "product-dogfood.md"
 assert_contains "$LOOP" "both N/A for small"
 assert_absent "$LOOP" "optional for small"
 assert_absent "$ROOT_DIR/scripts/workflow-event" "tier"

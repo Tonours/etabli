@@ -1,3 +1,0 @@
-{"type":"session","id":"pi-parent-a","timestamp":"2026-08-10T11:00:00Z","cwd":"/private/project"}
-{"type":"message","timestamp":"2026-08-10T11:05:00Z","message":{"role":"user","content":[{"type":"text","text":"Planifie une routine récurrente idempotente et vérifie le no-op."}]}}
-{"type":"message","timestamp":"2026-08-10T11:06:00Z","message":{"role":"assistant","content":[{"type":"text","text":"ignored"}]}}

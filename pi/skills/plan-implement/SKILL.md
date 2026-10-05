@@ -9,7 +9,6 @@ harness: pi
 canonical: pi/skills/plan-implement/SKILL.md
 name: plan-implement
 description: Plan, review, then implement, shipping only a READY PLAN.md. Use only when explicitly asked via /skill:plan-implement; not for single-step tasks or plan-free fixes.
-pointer: Adapter for the `plan-implement` skill. Read and follow the shared contract in `pi/skills/plan-implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement
@@ -22,11 +21,6 @@ If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, t
 
 Run `workflow/skills/plan-loop.md` first when a task is provided. Load a
 domain suite only when the brief clearly matches one.
-
-If the task is self-improvement of Etabli itself, also read
-`workflow/skills/self-improvement-loop.md`; if ambitious/A-to-Z,
-`workflow/skills/ambitious-project-loop.md`. Both add evidence and slicing
-requirements; neither replaces the `READY` gate.
 
 Rules:
 - Do not ask for confirmation once the plan is `READY`.

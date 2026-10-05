@@ -4,16 +4,208 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 . "$ROOT_DIR/scripts/lib/hash.sh"
 TMP_DIR="$(mktemp -d)"
+export WORKFLOW_EVENT_PROJECT_ROOT="$TMP_DIR"
 EVENT_DIR="$TMP_DIR/.workflow"
 
-grep -Fq 'elif $event == "multi_execution_completed" then' "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" || {
-  printf 'multi_execution_completed must use the extracted detail validator\n' >&2
+for help_flag in -h --help; do
+  "$ROOT_DIR/scripts/workflow-event" "$help_flag" >"$TMP_DIR/help.stdout" 2>"$TMP_DIR/help.stderr" || {
+    printf 'workflow-event help must succeed; keep help outside the leading value-option parser\n' >&2
+    exit 1
+  }
+  [[ -s "$TMP_DIR/help.stdout" && ! -s "$TMP_DIR/help.stderr" ]] || exit 1
+  grep -Fq 'Usage: workflow-event' "$TMP_DIR/help.stdout" || exit 1
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" "$help_flag" >"$TMP_DIR/help.stdout" 2>"$TMP_DIR/help.stderr"
+  [[ -s "$TMP_DIR/help.stdout" && ! -s "$TMP_DIR/help.stderr" ]] || exit 1
+done
+for invalid in unknown missing-dir malformed-sha; do
+  case "$invalid" in
+    unknown) args=(--bogus a b) ;;
+    missing-dir) args=(--dir) ;;
+    malformed-sha) args=(--expected-ledger-sha256 invalid --help) ;;
+  esac
+  status=0
+  "$ROOT_DIR/scripts/workflow-event" "${args[@]}" >"$TMP_DIR/invalid.stdout" 2>"$TMP_DIR/invalid.stderr" || status=$?
+  [[ "$status" == 2 && -s "$TMP_DIR/invalid.stderr" ]] || {
+    printf 'workflow-event invalid options must still exit two with diagnostics\n' >&2
+    exit 1
+  }
+done
+
+case "$(uname -s)" in
+  Darwin) durable_required_backend=lockf ;;
+  Linux) durable_required_backend=flock ;;
+  *) printf 'durable export matrix requires macOS lockf or Linux flock\n' >&2; exit 1 ;;
+esac
+durable_tested_backends=""
+durable_append() {
+  WORKFLOW_EVENT_PROJECT_ROOT="$durable_probe" WORKFLOW_EVENT_LOCK_BACKEND="$durable_backend" \
+    "$ROOT_DIR/scripts/workflow-event" --dir "$durable_probe/.workflow" "$@"
+}
+for durable_backend in lockf flock shlock; do
+  durable_native=""
+  for candidate in "/usr/bin/$durable_backend" "/usr/sbin/$durable_backend" "/bin/$durable_backend"; do
+    if [[ -x "$candidate" && ! -L "$candidate" ]]; then durable_native="$candidate"; break; fi
+  done
+  [[ -n "$durable_native" ]] || continue
+  durable_probe="$(mktemp -d)"
+  printf '# Plan\n- Status: READY\n## Product Verification\n- Required: no\n' >"$durable_probe/PLAN.md"
+  durable_request='{"path":"PLAN.md","status":"READY","export_id":"enriched"}'
+  durable_append append replay plan_created "$durable_request"
+  durable_file="$durable_probe/.workflow/replay/events.jsonl"
+  jq -e --argjson original "$durable_request" '.detail.product_verification_required == false and .detail.export_source_detail == $original' "$durable_file" >/dev/null || {
+    printf 'enriched export must preserve its original request identity\n' >&2; exit 1
+  }
+  durable_before="$(hash256 "$durable_file" | awk '{print $1}')"
+  for phase in draft required removed; do
+    case "$phase" in
+      draft) printf '# Plan\n- Status: DRAFT\n' >"$durable_probe/PLAN.md" ;;
+      required) printf '# Plan\n- Status: DRAFT\n## Product Verification\n- Required: yes\n- Evidence pack: .workflow/pack.json\n- Subject root: .\n' >"$durable_probe/PLAN.md" ;;
+      removed) rm -f "$durable_probe/PLAN.md" ;;
+    esac
+    durable_append append replay plan_created "$durable_request"
+    [[ "$(hash256 "$durable_file" | awk '{print $1}')" == "$durable_before" ]] || exit 1
+  done
+  durable_append append replay validation_run '{"command":"isolated fixture","exit":0}'
+  durable_append --expected-ledger-sha256 "$durable_before" append replay plan_created "$durable_request"
+  [[ "$(wc -l <"$durable_file" | tr -d ' ')" == 2 ]] || exit 1
+  printf '# Plan\n- Status: READY\n## Product Verification\n- Required: no\n' >"$durable_probe/PLAN.md"
+  durable_explicit='{"path":"PLAN.md","status":"READY","product_verification_required":true,"export_id":"explicit"}'
+  durable_append append explicit plan_created "$durable_explicit"
+  durable_append append explicit plan_created "$durable_explicit"
+  if durable_append append explicit plan_created '{"path":"PLAN.md","status":"READY","product_verification_required":false,"export_id":"explicit"}' 2>"$durable_probe/collision.stderr"; then
+    printf 'explicit product metadata remains part of exact export identity\n' >&2; exit 1
+  fi
+  grep -Fq 'export_id collision' "$durable_probe/collision.stderr"
+  durable_append append terminal plan_created '{"path":"PLAN.md","status":"READY"}'
+  durable_terminal_hash="$(hash256 "$durable_probe/.workflow/terminal/events.jsonl" | awk '{print $1}')"
+  durable_terminal='{"summary":"isolated terminal proof","export_id":"terminal"}'
+  durable_append --expected-ledger-sha256 "$durable_terminal_hash" append terminal completed "$durable_terminal"
+  durable_append --expected-ledger-sha256 "$durable_terminal_hash" append terminal completed "$durable_terminal"
+  [[ "$(wc -l <"$durable_probe/.workflow/terminal/events.jsonl" | tr -d ' ')" == 2 ]] || exit 1
+  durable_forged="$(jq -c '.detail' "$durable_probe/.workflow/explicit/events.jsonl")"
+  if durable_append append injected plan_created "$durable_forged" 2>"$durable_probe/injected.stderr"; then
+    printf 'caller-supplied export_source_detail must be refused\n' >&2; exit 1
+  fi
+  if [[ "$durable_backend" == lockf || "$durable_backend" == flock ]]; then
+    durable_run="$durable_probe/.workflow/internal"
+    mkdir -p "$durable_run"
+    durable_status=0
+    (
+      cd "$durable_run"
+      exec 9>>events.lock
+      export WORKFLOW_EVENT_PROJECT_ROOT="$durable_probe"
+      export WORKFLOW_EVENT_PREVALIDATED="plan_created|$durable_forged"
+      if [[ "$durable_backend" == lockf ]]; then
+        exec "$durable_native" -t 5 /dev/fd/9 "$ROOT_DIR/scripts/workflow-event" --dir "$durable_probe/.workflow" _append-locked internal plan_created "$durable_forged" 0123456789abcdef0123456789abcdef lockf
+      else
+        exec "$durable_native" -w 5 "$durable_run/events.lock" "$ROOT_DIR/scripts/workflow-event" --dir "$durable_probe/.workflow" _append-locked internal plan_created "$durable_forged" 0123456789abcdef0123456789abcdef flock
+      fi
+    ) 2>"$durable_probe/internal.stderr" || durable_status=$?
+    [[ "$durable_status" != 0 && ! -e "$durable_run/events.jsonl" ]] || exit 1
+    grep -Fq 'export_source_detail is reserved' "$durable_probe/internal.stderr"
+  fi
+  for variant in non-object wrong-id nested redundant target; do
+    case "$variant" in
+      non-object) expression='.detail.export_source_detail = []' ;;
+      wrong-id) expression='.detail.export_source_detail.export_id = "different"' ;;
+      nested) expression='.detail.export_source_detail.export_source_detail = {}' ;;
+      redundant) expression='.detail.export_source_detail = (.detail | del(.export_source_detail))' ;;
+      target) expression='.detail.path = "changed.md"' ;;
+    esac
+    mkdir -p "$durable_probe/.workflow/tampered"
+    jq -c --arg run tampered "$expression | .run = \$run" "$durable_probe/.workflow/explicit/events.jsonl" >"$durable_probe/.workflow/tampered/events.jsonl"
+    if durable_append validate tampered >"$durable_probe/tampered.stdout" 2>"$durable_probe/tampered.stderr"; then
+      printf 'invalid original-request binding must not validate: %s\n' "$variant" >&2; exit 1
+    fi
+    grep -Fq 'invalid detail' "$durable_probe/tampered.stderr"
+  done
+  durable_tested_backends="$durable_tested_backends $durable_backend"
+  printf 'durable export replay backend: %s\n' "$durable_backend"
+done
+[[ " $durable_tested_backends " == *" $durable_required_backend "* ]] || {
+  printf 'required durable export backend was not exercised: %s\n' "$durable_required_backend" >&2; exit 1
+}
+
+retired_probe="$(mktemp -d)/.workflow"
+if "$ROOT_DIR/scripts/workflow-event" --dir "$retired_probe" append retired-probe outcome_metric '{"outcome":"x"}' 2>"$retired_probe.err"; then
+  printf 'retired event types must be refused on append\n' >&2
+  exit 1
+fi
+grep -Fq 'retired event type: outcome_metric' "$retired_probe.err" || {
+  printf 'retired append refusal must name the retired type\n' >&2
+  exit 1
+}
+mkdir -p "$retired_probe/retired-null" "$retired_probe/retired-object"
+printf '%s\n' '{"schema_version":2,"ts":"2026-09-26T00:00:00Z","event":"outcome_metric","run":"retired-null","detail":null}' >"$retired_probe/retired-null/events.jsonl"
+printf '%s\n' '{"schema_version":2,"ts":"2026-09-26T00:00:00Z","event":"outcome_metric","run":"retired-object","detail":{"legacy":true}}' >"$retired_probe/retired-object/events.jsonl"
+if "$ROOT_DIR/scripts/workflow-event" --dir "$retired_probe" validate retired-null >/dev/null 2>&1; then
+  printf 'a retired history line must still carry an object detail\n' >&2
+  exit 1
+fi
+"$ROOT_DIR/scripts/workflow-event" --dir "$retired_probe" validate retired-object >/dev/null || {
+  printf 'a retired history line with an object detail must stay readable\n' >&2
   exit 1
 }
 if grep -Fq 'local expression=' "$ROOT_DIR/scripts/workflow-event"; then
   printf 'workflow-event must not keep an inline detail schema\n' >&2
   exit 1
 fi
+
+correction_probe="$(mktemp -d)/.workflow"
+"$ROOT_DIR/scripts/workflow-event" --dir "$correction_probe" append corr-run correction '{"harness":"pi","prompt_sha256":"abc123","prompt_chars":12}' >/dev/null || {
+  printf 'correction append with a valid detail must succeed\n' >&2
+  exit 1
+}
+if "$ROOT_DIR/scripts/workflow-event" --dir "$correction_probe" append corr-run correction '{"harness":"gpt","prompt_sha256":"abc123","prompt_chars":12}' 2>"$correction_probe.err"; then
+  printf 'correction append with an unknown harness must be refused\n' >&2
+  exit 1
+fi
+grep -Fq 'detail' "$correction_probe.err" || {
+  printf 'correction refusal must mention the detail schema\n' >&2
+  exit 1
+}
+"$ROOT_DIR/scripts/workflow-event" --dir "$correction_probe" validate corr-run >/dev/null || {
+  printf 'correction ledger must validate\n' >&2
+  exit 1
+}
+
+blocked_probe="$(mktemp -d)/.workflow"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" append blk-run blocked '{"reason":"ci_wait","needed_input":"none"}' >/dev/null || {
+  printf 'blocked append with an enum reason must succeed\n' >&2
+  exit 1
+}
+if "$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" append blk-run blocked '{"reason":"mon texte libre","needed_input":"none"}' 2>"$blocked_probe.err"; then
+  printf 'blocked append with free-text reason must be refused\n' >&2
+  exit 1
+fi
+grep -Fq 'blocked.reason enum' "$blocked_probe.err" || {
+  printf 'blocked refusal must name the enum remediation\n' >&2
+  exit 1
+}
+mkdir -p "$blocked_probe/hist-free" "$blocked_probe/hist-legacy" "$blocked_probe/rec-corrupt"
+printf '%s\n' '{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"blocked","run":"hist-free","detail":{"reason":"free text history","needed_input":"x"}}' >"$blocked_probe/hist-free/events.jsonl"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" validate hist-free >/dev/null || {
+  printf 'v2 history blocked with free-text reason must stay valid\n' >&2
+  exit 1
+}
+printf '%s\n' '{"ts":"2026-01-01T00:00:00Z","event":"blocked","run":"hist-legacy","detail":{"reason":"legacy free","needed_input":"x"}}' >"$blocked_probe/hist-legacy/events.jsonl"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" validate hist-legacy >/dev/null || {
+  printf 'legacy blocked history must stay valid\n' >&2
+  exit 1
+}
+printf '%s\n' 'not json at all' >"$blocked_probe/rec-corrupt/events.jsonl"
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" recover rec-corrupt smoke-reason >/dev/null 2>&1 || {
+  printf 'recover on a corrupt ledger must succeed\n' >&2
+  exit 1
+}
+grep -Fq '"reason":"ledger_recovery"' "$blocked_probe/rec-corrupt/events.jsonl" || {
+  printf 'recover must emit the ledger_recovery enum reason\n' >&2
+  exit 1
+}
+"$ROOT_DIR/scripts/workflow-event" --dir "$blocked_probe" validate rec-corrupt --profile blocked-terminal >/dev/null || {
+  printf 'recovered ledger must satisfy blocked-terminal\n' >&2
+  exit 1
+}
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -117,32 +309,11 @@ assert_contains "$out" "1 events, ok"
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" recover run-a corrupt-ledger)"
 assert_contains "$out" "already valid ledger"
 
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_matrix_created '{"path":"docs/dogfood.md","flows":1,"scenarios":2}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_scenario_run '{"scenario":"reply-email-link","surface":"browser","status":"fail","artifacts":["trace.zip"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_fix_applied '{"scenario":"reply-email-link","fix":"correct reply anchor","evidence":"rerun passed"}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-dogfood dogfood_blocked '{"scenario":"real-inbox-click","reason":"blocked-human-verify","needed_input":"human inbox verification"}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-dogfood)"
-assert_contains "$out" "4 events, ok"
-
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning self_improvement_candidate '{"source":"events.jsonl","category":"router_miss","outcome":"router_fixture","confidence":"confirmed","evidence":["fixture"],"held_in":["misrouted prompt fixture"],"held_out":["read-only explanation fixture"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_failure_pattern '{"terminal_cause":"router miss","causal_status":"confirmed","mechanism":"review pattern shadowed self-improvement route","verifier":"router eval","traces":["tests/router-evals/core.json"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_proposal '{"candidate":"split explicit review guard","editable_surfaces":["pi/extensions/lib/workflow-router-runtime.ts","claude/hooks/workflow-router-lib.mjs"],"preserve":["read-only explanations stay answer"],"held_in":["self-improvement prompt routes plan-implement"],"held_out":["explicit self-improvement review stays review"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_validation_completed '{"candidate":"split explicit review guard","verdict":"accepted","reason":"reproduced routes fixed without held-out regression","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_validation_completed '{"candidate":"broad review keyword","verdict":"rejected","reason":"held-out route regression","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning harness_candidate_rejected '{"candidate":"auto-apply workflow-retrospect patches","reason":"bypasses reviewed PLAN.md gate","regressions":["external write-back risk","permission boundary weakened"],"evidence":["workflow/skills/self-improvement-loop.md"]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning project_slice_planned '{"slice":"spec","owner":"planner","validation":"review","dependencies":[]}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning project_slice_completed '{"slice":"spec","validation":"passed","evidence":["docs/spec.md"],"remaining":[]}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-learning)"
-assert_contains "$out" "8 events, ok"
-jq -e 'select(.event == "harness_proposal") | .detail.held_in[0] and .detail.held_out[0]' "$EVENT_DIR/run-learning/events.jsonl" >/dev/null
-jq -e 'select(.event == "harness_validation_completed" and .detail.verdict == "accepted") | .detail.held_in.candidate.passed == 2 and .detail.held_out.candidate.passed == 4' "$EVENT_DIR/run-learning/events.jsonl" >/dev/null
-jq -e 'select(.event == "harness_candidate_rejected") | .detail.regressions[0] and .detail.evidence[0]' "$EVENT_DIR/run-learning/events.jsonl" >/dev/null
-
 while IFS=$'\t' read -r event required detail; do
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-valid-$event" "$event" "$detail"
   invalid_detail="$(printf '%s\n' "$detail" | jq -c --arg required "$required" 'del(.[$required])')"
   out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-invalid-$event" "$event" "$invalid_detail")"
-  assert_contains "$out" "required fields"
+  assert_contains "$out" "invalid json detail"
 done < "$ROOT_DIR/tests/fixtures/workflow-events-v2.tsv"
 
 # Tranche 3: review_completed status enum (strict v2 only).
@@ -200,6 +371,27 @@ assert_contains "$out" "1 events, ok"
 printf '%s\n' "$(jq -nc --argjson p "$PROV_OK" '{schema_version:1,ts:"2026-01-01T00:00:00Z",event:"adversary_completed",run:"schema-prov-legacy-bad",detail:{verdict:"READY",accepted_findings:[],model_provenance:($p|del(.effective.family))}}')" > "$EVENT_DIR/schema-prov-legacy-bad/events.jsonl"
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-prov-legacy-bad)"
 assert_contains "$out" "invalid detail for adversary_completed"
+adversary_append_refused() {
+  out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-adv-refused" adversary_completed "$(jq -nc --argjson p "$PROV_OK" "$1")")"
+  assert_contains "$out" "required fields"
+}
+adversary_append_refused '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[]}'
+adversary_append_refused '{mode:"plan",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"READY",accepted_findings:[],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK_THEN_FIXED",accepted_findings:[],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:["x"],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"x"}],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"x",blocking:"yes"}],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"",blocking:true}],rejected_findings:[],model_provenance:$p}'
+adversary_append_refused '{mode:"code_diff",verdict:"BLOCK",accepted_findings:[{finding:"x",blocking:true,severity:"high"}],rejected_findings:[],model_provenance:$p}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-adv-ok" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"plan",verdict:"CHALLENGED",accepted_findings:[{finding:"x",blocking:true},{finding:"y",blocking:false}],rejected_findings:["z"],model_provenance:$p}')"
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-adv-ok" adversary_completed "$(jq -nc --argjson p "$PROV_OK" '{mode:"code_diff",verdict:"GO WITH NOTES",accepted_findings:[],rejected_findings:[],model_provenance:$p}')"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-adv-ok)"
+assert_contains "$out" "2 events, ok"
+mkdir -p "$EVENT_DIR/schema-adv-history"
+printf '%s\n' '{"schema_version":2,"ts":"2026-01-01T00:00:00Z","event":"adversary_completed","run":"schema-adv-history","detail":{"mode":"code_diff","verdict":"GO WITH LIMITATION","accepted_findings":["legacy string"],"rejected_findings":[]}}' > "$EVENT_DIR/schema-adv-history/events.jsonl"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-adv-history)"
+assert_contains "$out" "1 events, ok"
 # route_decided additive contract fields accepted.
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-additive" route_decided '{"route":"plan-implement","reason":"smoke","contract_path":"/tmp/x/SKILL.md","contract_sha256":"f2a1","provenance":"repo"}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate schema-route-additive)"
@@ -210,206 +402,6 @@ assert_contains "$out" "required fields"
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-empty" route_decided '{"route":"plan-implement","reason":"smoke","contract_sha256":""}')"
 assert_contains "$out" "required fields"
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "schema-route-extra" route_decided '{"route":"plan-implement","reason":"smoke","contract_url":"https://x"}')"
-assert_contains "$out" "required fields"
-
-mkdir -p "$EVENT_DIR/target-a"
-target_line='{"schema_version":2,"ts":"2026-07-01T00:02:00Z","event":"completed","run":"target-a","detail":{"summary":"done"}}'
-printf '%s\n' "$target_line" > "$EVENT_DIR/target-a/events.jsonl"
-target_ledger_sha="$(hash256 "$EVENT_DIR/target-a/events.jsonl" | awk '{print $1}')"
-target_terminal_sha="$(printf '%s' "$target_line" | hash256 | awk '{print $1}')"
-measurement_targets="$(jq -nc --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '[{target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,baseline_measured:false,baseline_usage_measured:false}]')"
-manifest_sha="$(node -e 'const c=require("node:crypto"); const stable=(v)=>Array.isArray(v)?`[${v.map(stable).join(",")}]`:v&&typeof v==="object"?`{${Object.keys(v).sort().map((k)=>`${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`:JSON.stringify(v); process.stdout.write(c.createHash("sha256").update(stable(JSON.parse(process.argv[1]))).digest("hex"))' "$measurement_targets")"
-population_id="terminal-runs-v1-${manifest_sha:0:16}"
-measurement_population="$(jq -nc --arg population "$population_id" --arg manifest "$manifest_sha" --argjson targets "$measurement_targets" '{population_id:$population,manifest_sha256:$manifest,terminal_runs:1,targets:$targets}')"
-measurement_import="$(jq -nc --arg population "$population_id" --arg ledger "$target_ledger_sha" --arg terminal "$target_terminal_sha" '{population_id:$population,import_id:"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",target_run:"target-a",target_ledger_sha256:$ledger,target_terminal:"completed",target_terminal_event_sha256:$terminal,target_outcome_event_sha256:null,source_adapter:"codex",source_scope:"primary_session_window",selection:"shortest_enclosing_primary_session",session_fingerprint:"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",window_started_at:"2026-07-01T00:00:00Z",window_ended_at:"2026-07-01T00:02:00Z",sample_started_at:"2026-07-01T00:00:00.000Z",sample_ended_at:"2026-07-01T00:02:30.000Z",sample_count:2,success:true,input_tokens:100,output_tokens:20,total_tokens:120,tool_calls:1,elapsed_ms:150000}')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement outcome_measurement_population "$measurement_population"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement outcome_measurement_imported "$measurement_import"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-measurement)"
-assert_contains "$out" "2 events, ok"
-
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement outcome_measurement_imported "$measurement_import"
-out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-measurement)"
-assert_contains "$out" "must be unique members"
-
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement-unmatched outcome_measurement_population "$measurement_population"
-unmatched_import="$(printf '%s\n' "$measurement_import" | jq -c '.target_run="target-missing" | .import_id="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-measurement-unmatched outcome_measurement_imported "$unmatched_import"
-out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-measurement-unmatched)"
-assert_contains "$out" "must be unique members"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"false accepted regression","verdict":"accepted","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":3,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"false accepted no gain","verdict":"accepted","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":1,"total":2},"candidate":{"population":"router-misses-v1","passed":1,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"invalid counts","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":3,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"mismatched population","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"different-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"mismatched totals","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":3}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"zero total","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0,"total":0},"candidate":{"population":"router-misses-v1","passed":0,"total":0}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-learning-invalid harness_validation_completed '{"candidate":"fractional count","verdict":"rejected","reason":"must fail","held_in":{"baseline":{"population":"router-misses-v1","passed":0.5,"total":2},"candidate":{"population":"router-misses-v1","passed":2,"total":2}},"held_out":{"baseline":{"population":"router-goldens-v1","passed":4,"total":4},"candidate":{"population":"router-goldens-v1","passed":4,"total":4}},"checks":["tests/router-eval-smoke.sh"],"evidence":["tests/router-evals/core.json"]}')"
-assert_contains "$out" "required fields"
-
-# X2: additive optional outcome_metric runtime fields are accepted (positive)
-# and type-checked when present (negative). Proves the schema is additive, not
-# a silent ignore: a valid core metric with the additive fields validates, and
-# a non-integer turn_count is rejected.
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-additive outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"tool_calls":1,"elapsed_ms":500,"runtime":"pi/glm-5.2","turn_count":5,"auto_continue_count":1,"token_estimate":60,"wall_clock_ms":512.5}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-outcome-additive)"
-assert_contains "$out" "1 events, ok"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-additive-bad outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":40,"output_tokens":20,"total_tokens":60,"tool_calls":1,"elapsed_ms":500,"turn_count":"not-a-number"}')"
-assert_contains "$out" "required fields"
-
-# M1: participant_usage + batch makespan accepted when participant totals match total_tokens
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-m1 outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":70,"output_tokens":30,"total_tokens":100,"tool_calls":2,"elapsed_ms":800,"success_kind":"task_grader","grader_success":true,"participant_usage":[{"id":"parent","role":"parent","input_tokens":40,"output_tokens":20,"total_tokens":60},{"id":"scout","role":"sidecar","input_tokens":30,"output_tokens":10,"total_tokens":40}],"batch_wall_clock_ms":1800,"batch_started_at":"2026-07-31T12:00:00Z","batch_terminal_at":"2026-07-31T12:00:01.800Z"}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-outcome-m1)"
-assert_contains "$out" "1 events, ok"
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-outcome-m1-bad outcome_metric '{"outcome":"success","success":true,"measured":true,"input_tokens":70,"output_tokens":30,"total_tokens":100,"tool_calls":2,"elapsed_ms":800,"participant_usage":[{"id":"parent","input_tokens":40,"output_tokens":20,"total_tokens":60},{"id":"scout","input_tokens":10,"output_tokens":5,"total_tokens":15}]}')"
-assert_contains "$out" "required fields"
-
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_mq224pi8_775e71","workflow":"spec-review","state_path":".pi/workflows/workflow_mq224pi8_775e71","status":"running","usage_measured":false}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-runtime)"
-assert_contains "$out" "1 events, ok"
-
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel multi_execution_completed '{"participants":[{"id":"agent-analyst","model":"xai/grok-4.5","family":"xai"},{"id":"agent-glm","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":15,"elapsed_ms":100},"fallback_status":"none"}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_base='{"protocol_version":2,"participants":[{"id":"agent-analyst","model":"xai/grok-4.5","family":"xai"},{"id":"agent-glm","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":100,"output_tokens":500,"total_tokens":600,"elapsed_ms":1000},"fallback_status":"none","trigger":"adaptive","strategy":"council","signals":["critical-risk"],"rounds":{"first_pass":1,"rebuttal":0,"adjudication":0},"claim_count":2,"disagreement_count":0,"stop_reason":"agreement","budget":{"max_claims":6,"first_pass_output_tokens":1800,"rebuttal_output_tokens":700,"adjudication_output_tokens":650,"total_output_tokens":3500},"stage_usage":{"first_pass":{"measured":true,"input_tokens":100,"output_tokens":500,"total_tokens":600,"elapsed_ms":900},"rebuttal":{"measured":false},"adjudication":{"measured":false}}}'
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2 multi_execution_completed "$protocol_v2_base"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel-v2)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_budget_cap="$(printf '%s\n' "$protocol_v2_base" | jq -c '.verdict="degraded" | .stop_reason="budget_cap" | .usage.output_tokens=3600 | .usage.total_tokens=3700')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-cap multi_execution_completed "$protocol_v2_budget_cap"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel-v2-cap)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_scout="$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants=[.participants[0]] | .strategy="scout" | .signals=["system-complexity"] | .claim_count=1 | .budget={"max_claims":6,"first_pass_output_tokens":600,"rebuttal_output_tokens":0,"adjudication_output_tokens":0,"total_output_tokens":600}')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-scout-v2 multi_execution_completed "$protocol_v2_scout"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-scout-v2)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_scout_fallback="$(printf '%s\n' "$protocol_v2_scout" | jq -c '.participants=[{"id":"agent-fallback","model":"openai-codex/gpt-5.6-luna","family":"openai-codex"}] | .verdict="degraded" | .stop_reason="agreement" | .fallback_status="degraded"')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-scout-v2-fallback multi_execution_completed "$protocol_v2_scout_fallback"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-scout-v2-fallback)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_council_fallback="$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[0]={"id":"agent-fallback","model":"openai-codex/gpt-5.6-luna","family":"openai-codex"} | .verdict="degraded" | .stop_reason="agreement" | .fallback_status="degraded"')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback multi_execution_completed "$protocol_v2_council_fallback"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_fallback_deterministic="$(printf '%s\n' "$protocol_v2_council_fallback" | jq -c '.stop_reason="deterministic_check"')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-deterministic multi_execution_completed "$protocol_v2_fallback_deterministic"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-deterministic)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_fallback_rebuttal="$(printf '%s\n' "$protocol_v2_council_fallback" | jq -c '.stop_reason="rebuttal_resolved" | .rounds.rebuttal=1 | .disagreement=true | .disagreement_count=1')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-rebuttal multi_execution_completed "$protocol_v2_fallback_rebuttal"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-rebuttal)"
-assert_contains "$out" "1 events, ok"
-
-protocol_v2_fallback_adjudicated="$(printf '%s\n' "$protocol_v2_fallback_rebuttal" | jq -c '.stop_reason="adjudicated" | .rounds.adjudication=1 | .adjudicator="adjudicator-agent"')"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-council-v2-fallback-adjudicated multi_execution_completed "$protocol_v2_fallback_adjudicated"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-council-v2-fallback-adjudicated)"
-assert_contains "$out" "1 events, ok"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-over-accepted multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.usage.output_tokens=3600 | .usage.total_tokens=3700')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-over-stage multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.stage_usage.first_pass.output_tokens=1900 | .stage_usage.first_pass.total_tokens=2000')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-over-claims multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.claim_count=7')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-duplicate-signals multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.signals=["critical-risk","critical-risk"]')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-bad-round multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.rounds.adjudication=1 | .stop_reason="adjudicated"')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-bad-stop-shape multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.rounds.rebuttal=1')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-raised-budget multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.budget.total_output_tokens=999999')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-dependent-passes multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.independent_first_passes=false')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-accepted-fallback multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[1]={"id":"agent-fallback","model":"openai-codex/gpt-5.6-luna","family":"openai-codex"} | .fallback_status="degraded"')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-accepted-blocked multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.stop_reason="blocked"')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-too-many-disagreements multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.disagreement=true | .disagreement_count=3')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-one-councillor multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants=[.participants[0]]')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-bad-adaptive-score multi_execution_completed "$(printf '%s\n' "$protocol_v2_scout" | jq -c '.signals=["critical-risk"]')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-rollback-verdict multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.verdict="rollback_to_opt_in"')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-unused-stage-usage multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.stage_usage.rebuttal={"measured":true,"input_tokens":0,"output_tokens":0,"total_tokens":0,"elapsed_ms":0}')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-duplicate-agent-id multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[1].id=.participants[0].id')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-v2-duplicate-glm multi_execution_completed "$(printf '%s\n' "$protocol_v2_base" | jq -c '.participants[0]={"id":"agent-glm-second","model":"zai/glm-5.2","family":"zai"}')")"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-scout-v2-duplicate-luna multi_execution_completed "$(printf '%s\n' "$protocol_v2_scout" | jq -c '.participants += [{"id":"agent-scout-second","model":"opencode-go/deepseek-v4-flash","family":"opencode-go"}]')")"
-assert_contains "$out" "required fields"
-
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-kimi multi_execution_completed '{"participants":[{"id":"agent-fallback","model":"openai-codex/gpt-5.6-luna","family":"openai-codex"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"degraded","usage":{"measured":false},"fallback_status":"degraded"}'
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-panel-kimi)"
-assert_contains "$out" "1 events, ok"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-retired-kimi multi_execution_completed '{"participants":[{"id":"agent-kimi","model":"opencode-go/kimi-k2.6","family":"kimi"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"degraded","usage":{"measured":false},"fallback_status":"degraded"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad multi_execution_completed '{"participants":[],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-model multi_execution_completed '{"participants":[{"id":"agent","model":"unknown/model","family":"openai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-family multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"openai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-usage multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-total multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":true,"input_tokens":10,"output_tokens":5,"total_tokens":14,"elapsed_ms":1},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-too-many multi_execution_completed '{"participants":[{"id":"one","model":"zai/glm-5.2","family":"zai"},{"id":"two","model":"zai/glm-5.2","family":"zai"},{"id":"three","model":"zai/glm-5.2","family":"zai"},{"id":"four","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":false,"adjudicator":null,"verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-panel-bad-judge multi_execution_completed '{"participants":[{"id":"agent","model":"zai/glm-5.2","family":"zai"}],"independent_first_passes":true,"disagreement":true,"adjudicator":"","verdict":"accepted","usage":{"measured":false},"fallback_status":"none"}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime-bad runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_bad","workflow":"spec-review","state_path":".pi/workflows/another-run","status":"running","usage_measured":false}')"
-assert_contains "$out" "required fields"
-
-out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-runtime-bad runtime_run_attached '{"adapter":"pi-workflow","run_id":"workflow_bad","workflow":"spec-review","state_path":".pi/workflows/workflow_bad","status":"pending","usage_measured":false}')"
 assert_contains "$out" "required fields"
 
 out="$(expect_status 2 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-b nope '{}')"
@@ -445,14 +437,13 @@ assert_contains "$out" "follows terminal"
 for event_detail in \
   'route_decided {"route":"plan-implement","reason":"implementation"}' \
   'plan_created {"path":"PLAN.md","status":"READY"}' \
-  'adversary_completed {"mode":"plan","verdict":"READY","accepted_findings":[],"rejected_findings":[]}' \
+  "adversary_completed {\"mode\":\"plan\",\"verdict\":\"READY\",\"accepted_findings\":[],\"rejected_findings\":[],\"model_provenance\":$PROV_OK}" \
   'file_changed {"path":"src/example.ts","change":"updated"}' \
   'validation_run {"command":"true","exit":0}' \
   'simplification_completed {"status":"passed","evidence":"diff inspected"}' \
   'review_completed {"status":"GO","evidence":"review"}' \
-  'adversary_completed {"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}' \
+  "adversary_completed {\"mode\":\"code_diff\",\"verdict\":\"GO\",\"accepted_findings\":[],\"rejected_findings\":[],\"model_provenance\":$PROV_OK}" \
   'archive_written {"path":"docs/plan/test.md"}' \
-  'outcome_metric {"outcome":"success","success":true,"measured":false,"reason":"telemetry unavailable in smoke"}' \
   'plan_removed {"path":"PLAN.md"}' \
   'completed {"summary":"done"}'; do
   event="${event_detail%% *}"
@@ -460,7 +451,7 @@ for event_detail in \
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-complete "$event" "$detail"
 done
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-complete --profile autonomous-completed)"
-assert_contains "$out" "12 events, ok"
+assert_contains "$out" "11 events, ok"
 
 mkdir -p "$EVENT_DIR/run-failed-validation" "$EVENT_DIR/run-blocked-review" "$EVENT_DIR/run-blocked-adversary" "$EVENT_DIR/run-stale-evidence" "$EVENT_DIR/run-stale-evidence-spaced" "$EVENT_DIR/run-reversed-validation" "$EVENT_DIR/run-reversed-review" "$EVENT_DIR/run-reversed-adversary" "$EVENT_DIR/run-reversed-plan-adversary" "$EVENT_DIR/run-recovered-evidence" "$EVENT_DIR/run-native-validation-failed" "$EVENT_DIR/run-native-validation-recovered" "$EVENT_DIR/run-native-validation-other-success"
 jq -c --arg run run-failed-validation '
@@ -550,15 +541,15 @@ for reversal in \
   'run-native-validation-other-success:latest validation attempt'; do
   reversal_slug="${reversal%%:*}"
   reversal_message="${reversal#*:}"
-  for reversal_profile in autonomous-completed autonomous-completed-strict; do
+  for reversal_profile in autonomous-completed; do
     out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate "$reversal_slug" --profile "$reversal_profile")"
     assert_contains "$out" "$reversal_message"
   done
 done
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-recovered-evidence --profile autonomous-completed)"
-assert_contains "$out" "15 events, ok"
-out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-native-validation-recovered --profile autonomous-completed)"
 assert_contains "$out" "14 events, ok"
+out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate run-native-validation-recovered --profile autonomous-completed)"
+assert_contains "$out" "13 events, ok"
 
 allowed_events="$(awk '
   /^ALLOWED_EVENTS=\(/ { inside=1; next }
@@ -588,25 +579,6 @@ for batch_case in \
     "$EVENT_DIR/$batch_slug/events.jsonl")"
   assert_contains "$batch_out" "ERR"
   assert_contains "$batch_out" "$batch_message"
-done
-for strict_reversal in \
-  'run-reversed-validation:latest validation attempt' \
-  'run-reversed-review:latest review_completed' \
-  'run-reversed-adversary:latest code_diff adversary' \
-  'run-reversed-plan-adversary:latest plan adversary' \
-  'run-native-validation-failed:latest validation attempt' \
-  'run-native-validation-other-success:latest validation attempt'; do
-  strict_slug="${strict_reversal%%:*}"
-  strict_message="${strict_reversal#*:}"
-  strict_out="$(jq -Rrs \
-    --arg mode batch \
-    --arg slug "$strict_slug" \
-    --arg profile autonomous-completed-strict \
-    --argjson allowed "$allowed_events" \
-    -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
-    "$EVENT_DIR/$strict_slug/events.jsonl")"
-  assert_contains "$strict_out" "ERR"
-  assert_contains "$strict_out" "$strict_message"
 done
 recovered_batch="$(jq -Rrs \
   --arg mode batch \
@@ -639,7 +611,7 @@ script_types="$(
 doc_types="$(
   cat "$ROOT_DIR/workflow/events.md" "$ROOT_DIR/workflow/events-validator.md" |
     awk -F'|' '/^\| `[^`]+` / { gsub(/[`[:space:]]/, "", $2); print $2 }' |
-    grep -v '^program_\*$' | sort
+    sort
 )"
 if ! diff -u <(printf '%s\n' "$script_types") <(printf '%s\n' "$doc_types"); then
   printf 'workflow event type list drifted between docs and script\n' >&2
@@ -666,22 +638,9 @@ out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
 assert_contains "$out" "3 events, ok"
 printf '{"schema_version":1,"run":"e2e"}' > "$EW/.workflow/active-run.json"
 node -e 'import(process.argv[1]).then(m => { const r = m.selectActiveLedger(process.argv[2]); if (!r.ledger || r.ledger.run !== "e2e") { console.error("not selected: " + r.reason); process.exit(1); } })' "$ROOT_DIR/scripts/lib/ledger-integrity.mjs" "$EW"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e blocked '{"reason":"smoke terminal","needed_input":"none"}'
+"$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" append e2e blocked '{"reason":"unknown","needed_input":"none"}'
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EW/.workflow" validate e2e)"
 assert_contains "$out" "4 events, ok"
-jq -c --slurpfile ts <(printf '%s\n' '"2026-09-20T09:59:00Z"' '"2026-09-20T10:00:00Z"' '"2026-09-20T10:01:00Z"' '"2026-09-20T10:04:00Z"') \
-  '.ts = $ts[input_line_number - 1]' "$EW/.workflow/e2e/events.jsonl" > "$EW/shifted.jsonl"
-out="$("$ROOT_DIR/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT_DIR/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$EW/shifted.jsonl" --run e2e --json)"
-if ! jq -e '.completeness == "complete"' <<<"$out" >/dev/null; then
-  printf 'e2e quality chain did not reach retrospect complete: %s\n' "$out" >&2
-  exit 1
-fi
-jq -c 'if .event == "quality_completed" then .detail.status = "clean" else . end' "$EW/shifted.jsonl" > "$EW/shifted-bad.jsonl"
-out="$("$ROOT_DIR/scripts/harness-trace-retrospect" --adapter pi --trace-file "$ROOT_DIR/tests/fixtures/harness-traces/pi/session.jsonl" --ledger "$EW/shifted-bad.jsonl" --run e2e --json)"
-if ! jq -e '.completeness == "unavailable" and .reason_codes == ["ledger_shape_unknown"]' <<<"$out" >/dev/null; then
-  printf 'e2e quality negative case missed on the same path: %s\n' "$out" >&2
-  exit 1
-fi
 
 # Tranche 5: ship_completed vocabulary — success/arrêt dual form, strict
 # rejects (numbers, matrix, format, presence), ship profiles, batch mirror,
@@ -692,35 +651,33 @@ t5_ship_stop5='{"cumulative_review":"not-reached:6","thermo_nuclear":"findings:3
 open_t5_ledger() {
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$1" file_changed '{"path":"wt","change":"run ouvert"}' >/dev/null
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$1" validation_run '{"command":"c","exit":0}' >/dev/null
-  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$1" outcome_metric '{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}' >/dev/null
 }
 open_t5_ledger t5-ok
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ok ship_completed "$t5_ship_ok" >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-ok --profile ship-completed)"
-assert_contains "$out" "4 events, ok"
+assert_contains "$out" "3 events, ok"
 open_t5_ledger t5-open
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open ship_completed "$t5_ship_open" >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-open --profile ship-completed)"
 assert_contains "$out" "success-form ship_completed"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open blocked '{"reason":"open findings","needed_input":"fix then reship"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-open blocked '{"reason":"review_requested","needed_input":"fix then reship"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-open --profile ship-stopped)"
-assert_contains "$out" "5 events, ok"
+assert_contains "$out" "4 events, ok"
 open_t5_ledger t5-stop5
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 ship_completed "$t5_ship_stop5" >/dev/null
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 blocked '{"reason":"stop step 5","needed_input":"human decision"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stop5 blocked '{"reason":"consent_needed","needed_input":"human decision"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-stop5 --profile ship-stopped)"
-assert_contains "$out" "5 events, ok"
+assert_contains "$out" "4 events, ok"
 # Success content + blocked is not a stopped run (negated success form).
 open_t5_ledger t5-greenstop
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop ship_completed "$t5_ship_ok" >/dev/null
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop blocked '{"reason":"stop","needed_input":"x"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-greenstop blocked '{"reason":"unknown","needed_input":"x"}' >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-greenstop --profile ship-stopped)"
 assert_contains "$out" "non-success-form ship_completed"
 # Failed-latest validation poisons ship-completed freshness.
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale file_changed '{"path":"wt","change":"run ouvert"}' >/dev/null
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale validation_run '{"command":"c","exit":0}' >/dev/null
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale validation_failed '{"command":"c","exit":1,"failure":"red"}' >/dev/null
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale outcome_metric '{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}' >/dev/null
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-stale ship_completed "$t5_ship_ok" >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-stale --profile ship-completed)"
 assert_contains "$out" "every latest attempt succeeding"
@@ -756,18 +713,18 @@ bad_detail="$(printf '%s' "$t5_ship_ok" | jq -c '.deciding_code = "incomplete"')
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc ship_completed "$bad_detail" >/dev/null
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-inc --profile ship-completed)"
 assert_contains "$out" "success-form ship_completed"
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc blocked '{"reason":"incomplete deciding","needed_input":"x"}' >/dev/null
+"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-inc blocked '{"reason":"plan_gate","needed_input":"x"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-inc --profile ship-stopped)"
-assert_contains "$out" "5 events, ok"
+assert_contains "$out" "4 events, ok"
 # Valid arrêt matrix cells: not-run+null, blocked±PR.
 for cell in '{"pr_url":null,"ci_state":"not-run"}' '{"pr_url":"https://example.test/pr/3","ci_state":"blocked"}' '{"pr_url":null,"ci_state":"blocked"}'; do
   slug="t5-cell-$(printf '%s' "$cell" | jq -r '.ci_state')-$(printf '%s' "$cell" | jq -r 'if .pr_url == null then "nopr" else "pr" end')"
   open_t5_ledger "$slug"
   cell_detail="$(printf '%s' "$t5_ship_stop5" | jq -c --argjson cell "$cell" '. * $cell')"
   "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" ship_completed "$cell_detail" >/dev/null
-  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" blocked '{"reason":"stop","needed_input":"x"}' >/dev/null
+  "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append "$slug" blocked '{"reason":"unknown","needed_input":"x"}' >/dev/null
   out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate "$slug" --profile ship-stopped)"
-  assert_contains "$out" "5 events, ok"
+  assert_contains "$out" "4 events, ok"
 done
 # Terminal order: nothing but blocked follows ship_completed.
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ok file_changed '{"path":"x","change":"late"}')"
@@ -834,13 +791,12 @@ open_t5_ledger t5-e2e
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-e2e ship_completed "$t5_ship_ok" >/dev/null
 rm -rf "$TMP_DIR/scratch-wt"
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" validate t5-e2e --profile ship-completed)"
-assert_contains "$out" "4 events, ok"
+assert_contains "$out" "3 events, ok"
 # Ship terminals drive the activate/pointer lifecycle like other terminals.
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr file_changed '{"path":"wt","change":"run ouvert"}' >/dev/null
 out="$("$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate t5-ptr)"
 assert_contains "$out" "active run: t5-ptr"
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr validation_run '{"command":"c","exit":0}' >/dev/null
-"$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr outcome_metric '{"outcome":"ship","success":true,"measured":false,"reason":"smoke"}' >/dev/null
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append t5-ptr ship_completed "$t5_ship_ok" >/dev/null
 [ ! -e "$EVENT_DIR/active-run.json" ] || { printf 'ship_completed append did not clear the pointer\n' >&2; exit 1; }
 out="$(expect_status 1 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" activate t5-ptr)"
@@ -870,5 +826,185 @@ if (late.valid || late.reason !== "terminal_not_final") {
   throw new Error(`integrity accepted a non-blocked post-terminal event: ${late.reason}`);
 }
 EOF
+
+RR_DIR="$TMP_DIR/rr/.workflow"
+rr() { "$ROOT_DIR/scripts/workflow-event" --dir "$RR_DIR" "$@"; }
+rr_adversary() {
+  rr append "$1" adversary_completed "$(jq -nc --arg v "$2" --argjson a "$3" --argjson p "$PROV_OK" '{mode:"code_diff",verdict:$v,accepted_findings:($a | map({finding: ., blocking: false})),rejected_findings:[],model_provenance:$p}')"
+}
+rr_step() {
+  local slug="$1" step="$2" tag outcome status
+  case "$step" in
+    A) rr_adversary "$slug" GO '[]' ;;
+    A!) rr_adversary "$slug" BLOCK '["x"]' ;;
+    A+) rr_adversary "$slug" "GO WITH NOTES" '["x"]' ;;
+    U) rr append "$slug" review_completed '{"status":"GO","evidence":"smoke"}' ;;
+    blocked) rr append "$slug" blocked '{"reason":"review_requested","needed_input":"new review run"}' ;;
+    *)
+      tag="${step%%:*}" outcome="${step#*:}" status="BLOCK"
+      [ "$outcome" = "clean" ] && status="GO"
+      case "$outcome" in *:*) status="${outcome#*:}" outcome="${outcome%%:*}" ;; esac
+      rr append "$slug" review_completed "$(jq -nc --arg s "$status" --arg t "$tag" --arg o "$outcome" '{status:$s,evidence:"smoke",review_round:$t,round_outcome:$o}')"
+      ;;
+  esac
+}
+rr_steps() {
+  local slug="$1" step
+  shift
+  rr append "$slug" route_decided '{"route":"plan-implement","reason":"smoke"}' >/dev/null
+  for step in "$@"; do rr_step "$slug" "$step" >/dev/null; done
+}
+rr_valid() {
+  local slug="$1"
+  shift
+  rr_steps "$slug" "$@"
+  rr validate "$slug" >/dev/null || { printf 'review rounds %s: valid sequence rejected\n' "$slug" >&2; exit 1; }
+}
+rr_refused() {
+  local slug="$1" message="$2" last="$3" before
+  shift 3
+  rr_steps "$slug" "$@"
+  before="$(cat "$RR_DIR/$slug/events.jsonl")"
+  out="$(expect_status 1 rr_step "$slug" "$last")"
+  assert_contains "$out" "$message"
+  [ "$(cat "$RR_DIR/$slug/events.jsonl")" = "$before" ] || { printf 'review rounds %s: refused append changed the ledger\n' "$slug" >&2; exit 1; }
+}
+
+rr_valid rr-ok-tf A T1:clean A F1:clean
+rr_valid rr-ok-notes-clean A T1:clean A "F1:clean:GO WITH NOTES"
+rr_valid rr-ok-notes A+ T1:findings A T2:clean A F1:clean
+rr_valid rr-ok-dd A T1:findings A T2:findings D1:findings D2:findings A F1:clean
+rr_valid rr-ok-fd A T1:clean A! F1:findings FD:findings A F2:clean
+rr_valid rr-ok-2d A T1:findings A T2:findings D1:clean A! F1:findings FD:clean A F2:clean
+rr_valid rr-ok-dwiden A T1:findings A T2:findings D1:widening blocked
+rr_valid rr-ok-untagged U U
+rr_valid rr-ok-f2block A T1:clean A F1:findings FD:findings A F2:findings blocked
+rr_steps rr-ok-legacy-round
+rr append rr-ok-legacy-round review_completed '{"status":"GO","evidence":"smoke","round":2}' >/dev/null
+rr validate rr-ok-legacy-round >/dev/null
+
+rr_refused rr-skip "review round D1 (#2) is not allowed here; admitted next: T2" D1:findings A T1:findings
+rr_refused rr-twice "review round T1 (#2) is already spent; admitted next: T2" T1:clean A T1:findings A
+rr_refused rr-third-d "review round FD (#6) follows a blocked review budget; admitted next: none" FD:clean A T1:findings A T2:findings D1:findings D2:findings A F1:findings
+rr_refused rr-after-ok "review round T2 (#3) follows a validated review budget; admitted next: none" T2:findings A T1:clean A F1:clean
+rr_refused rr-untagged "review_completed #2 after activation has no review_round; admitted next: T2" U A T1:findings
+rr_refused rr-d2-widen "review round F1 (#5) follows a blocked review budget; admitted next: none" F1:clean A T1:findings A T2:findings D1:findings D2:widening A
+rr_refused rr-d1-widen "review round F1 (#4) follows a blocked review budget; admitted next: none" F1:clean A T1:findings A T2:findings D1:widening A
+rr_refused rr-no-adversary "review round T1 (#1) has no code_diff adversary_completed since the previous round; admitted next: T1" T1:clean
+rr_refused rr-clean-block "review round F1 (#2) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: F1" F1:clean A T1:clean A!
+rr_refused rr-clean-blocked-review "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean:BLOCK A
+rr_refused rr-clean-accepted "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean A+
+rr_refused rr-late-adversary "code_diff adversary_completed after the closing clean round F1 (#2); admitted next: none" A+ A T1:clean A F1:clean
+rr_steps rr-unknown
+out="$(expect_status 2 rr append rr-unknown review_completed '{"status":"GO","evidence":"smoke","review_round":"T3","round_outcome":"clean"}')"
+assert_contains "$out" "invalid json detail for event review_completed"
+out="$(expect_status 2 rr append rr-unknown review_completed '{"status":"GO","evidence":"smoke","review_round":"T1"}')"
+assert_contains "$out" "invalid json detail for event review_completed"
+out="$(expect_status 2 rr append rr-unknown review_completed '{"status":"GO","evidence":"smoke","round_outcome":"clean"}')"
+assert_contains "$out" "invalid json detail for event review_completed"
+
+rr_steps rr-pointer A T1:findings
+rr activate rr-pointer >/dev/null
+out="$(expect_status 1 rr_step rr-pointer F1:clean)"
+assert_contains "$out" "review round F1 (#2) is not allowed here; admitted next: T2"
+jq -e '.run == "rr-pointer"' "$RR_DIR/active-run.json" >/dev/null || { printf 'refused round append dropped the active-run pointer\n' >&2; exit 1; }
+rr_step rr-pointer blocked >/dev/null
+rr validate rr-pointer --profile blocked-terminal >/dev/null
+
+rr_complete() {
+  local slug="$1" step
+  shift
+  rr_steps "$slug"
+  rr append "$slug" plan_created '{"path":"PLAN.md","status":"READY"}' >/dev/null
+  rr append "$slug" adversary_completed "{\"mode\":\"plan\",\"verdict\":\"READY\",\"accepted_findings\":[],\"rejected_findings\":[],\"model_provenance\":$PROV_OK}" >/dev/null
+  rr append "$slug" file_changed '{"path":"x","change":"smoke"}' >/dev/null
+  rr append "$slug" validation_run '{"command":"c","exit":0}' >/dev/null
+  rr append "$slug" simplification_completed '{"status":"clean","evidence":"smoke"}' >/dev/null
+  for step in "$@"; do rr_step "$slug" "$step" >/dev/null; done
+  rr append "$slug" archive_written '{"path":"docs/plan/x.md"}' >/dev/null
+  rr append "$slug" plan_removed '{"path":"PLAN.md"}' >/dev/null
+}
+rr_complete rr-complete-ok A T1:clean A F1:clean
+rr append rr-complete-ok completed '{"summary":"smoke"}' >/dev/null
+rr validate rr-complete-ok --profile autonomous-completed >/dev/null
+rr_complete rr-complete-open A T1:clean
+out="$(expect_status 1 rr append rr-complete-open completed '{"summary":"smoke"}')"
+assert_contains "$out" "completed requires a clean final F1 or F2 review round (budget is open); admitted next: F1"
+
+rr_ledger() {
+  local slug="$1" line
+  shift
+  mkdir -p "$RR_DIR/$slug"
+  : >"$RR_DIR/$slug/events.jsonl"
+  for line in "$@"; do
+    jq -c --arg run "$slug" '.run = $run | .ts = "2099-01-01T00:00:00Z"' <<<"$line" >>"$RR_DIR/$slug/events.jsonl"
+  done
+}
+rr_route='{"schema_version":2,"event":"route_decided","detail":{"route":"plan-implement","reason":"smoke"}}'
+rr_go='{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}}'
+rr_round() { jq -nc --arg t "$1" --arg o "$2" --arg s "$3" '{schema_version:2,event:"review_completed",detail:{status:$s,evidence:"smoke",review_round:$t,round_outcome:$o}}'; }
+rr_ledger rr-read-skip "$rr_route" "$rr_go" "$(rr_round T1 findings BLOCK)" "$(rr_round D1 findings BLOCK)"
+out="$(expect_status 1 rr validate rr-read-skip)"
+assert_contains "$out" "review round D1 (#2) is not allowed here; admitted next: T2"
+rr_ledger rr-read-late "$rr_route" "$rr_go" "$(rr_round T1 clean GO)" "$rr_go" "$(rr_round F1 clean GO)" \
+  '{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"GO WITH NOTES","accepted_findings":["x"],"rejected_findings":[]}}'
+out="$(expect_status 1 rr validate rr-read-late)"
+assert_contains "$out" "code_diff adversary_completed after the closing clean round F1 (#2); admitted next: none"
+rr_ledger rr-read-v1-tag "$rr_route" "$rr_go" \
+  '{"schema_version":1,"event":"review_completed","detail":{"status":"GO","evidence":"smoke","review_round":"T1","round_outcome":"clean"}}'
+out="$(expect_status 1 rr validate rr-read-v1-tag)"
+assert_contains "$out" "review round T1 (#1) must be a schema_version 2 review_completed; admitted next: T1"
+rr_ledger rr-read-v1-adversary "$rr_route" \
+  '{"schema_version":1,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"GO","accepted":["finding"]}}' \
+  "$(rr_round T1 clean GO)"
+out="$(expect_status 1 rr validate rr-read-v1-adversary)"
+assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1"
+rr_ledger rr-read-challenged "$rr_route" \
+  '{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"CHALLENGED","accepted_findings":[],"rejected_findings":[]}}' \
+  "$(rr_round T1 clean GO)"
+out="$(expect_status 1 rr validate rr-read-challenged)"
+assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1"
+rr_ledger rr-read-legacy-completed "$rr_route" "$rr_go" "$(rr_round T1 clean GO)" \
+  '{"schema_version":1,"event":"completed","detail":{"summary":"smoke"}}' \
+  '{"schema_version":1,"event":"human_checkpoint","detail":{"category":"x","decision":"y","target":"z"}}'
+out="$(expect_status 1 rr validate rr-read-legacy-completed)"
+assert_contains "$out" "completed requires a clean final F1 or F2 review round (budget is open); admitted next: F1"
+rr_ledger rr-read-string-version '{"schema_version":"2","event":"route_decided","detail":{"route":"plan-implement","reason":"smoke"}}' "$rr_go" \
+  "$(rr_round T1 findings BLOCK)" "$(rr_round D1 findings BLOCK)"
+out="$(expect_status 1 rr validate rr-read-string-version)"
+assert_contains "$out" "review round D1 (#2) is not allowed here; admitted next: T2"
+rr_ledger rr-read-early-adversary "$rr_go" "$rr_route" "$(rr_round T1 clean GO)"
+out="$(expect_status 1 rr validate rr-read-early-adversary)"
+assert_contains "$out" "review round T1 (#1) has no code_diff adversary_completed since the previous round; admitted next: T1"
+rr_steps rr-untagged-window A U
+out="$(expect_status 1 rr_step rr-untagged-window T1:clean)"
+assert_contains "$out" "review round T1 (#1) has no code_diff adversary_completed since the previous round; admitted next: T1"
+rr_steps rr-untagged-old-findings A! U A
+rr_step rr-untagged-old-findings T1:clean >/dev/null
+rr_ledger rr-read-newline-version '{"schema_version":"2\n","event":"route_decided","detail":{"route":"plan-implement","reason":"smoke"}}' "$rr_go" \
+  "$(rr_round T1 findings BLOCK)" "$(rr_round D1 clean GO)"
+out="$(expect_status 1 rr validate rr-read-newline-version)"
+assert_contains "$out" "line 1: non-canonical event envelope"
+rr_ledger rr-read-newline-event "$rr_route" "$rr_go" "$(rr_round T1 findings BLOCK)" \
+  '{"schema_version":2,"event":"review_completed\n","detail":{"status":"GO","evidence":"smoke","review_round":"D1","round_outcome":"clean"}}'
+out="$(expect_status 1 rr validate rr-read-newline-event)"
+assert_contains "$out" "line 4: non-canonical event envelope"
+rr_ledger rr-read-nul-version '{"schema_version":"2\u0000","event":"route_decided","detail":{"route":"plan-implement","reason":"smoke"}}' "$rr_go" \
+  "$(rr_round T1 findings BLOCK)" "$(rr_round D1 clean GO)"
+out="$(expect_status 1 rr validate rr-read-nul-version)"
+assert_contains "$out" "line 1: non-canonical event envelope"
+rr_ledger rr-read-nul-event "$rr_route" "$rr_go" "$(rr_round T1 findings BLOCK)" \
+  '{"schema_version":2,"event":"review_completed\u0000","detail":{"status":"GO","evidence":"smoke","review_round":"D1","round_outcome":"clean"}}'
+out="$(expect_status 1 rr validate rr-read-nul-event)"
+assert_contains "$out" "line 4: non-canonical event envelope"
+rr_steps rr-candidate-read A T1:findings
+RR_FAKE_BIN="$TMP_DIR/rr-fake-bin"
+mkdir -p "$RR_FAKE_BIN"
+printf '#!/bin/sh\nexit 1\n' >"$RR_FAKE_BIN/cat"
+chmod +x "$RR_FAKE_BIN/cat"
+before="$(jq -c . "$RR_DIR/rr-candidate-read/events.jsonl")"
+out="$(PATH="$RR_FAKE_BIN:$PATH" expect_status 1 rr_step rr-candidate-read D1:clean)"
+assert_contains "$out" "refusing review_completed append: review rounds check failed"
+[ "$(jq -c . "$RR_DIR/rr-candidate-read/events.jsonl")" = "$before" ] || { printf 'unreadable candidate must not append\n' >&2; exit 1; }
 
 printf 'workflow event smoke test: ok\n'

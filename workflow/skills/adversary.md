@@ -15,7 +15,8 @@ checks, edge cases, plan drift, and simpler or safer routes.
 ## Required Behavior
 
 1. Inspect repo state enough to judge plan drift.
-2. Read the actual root `PLAN.md`.
+2. Freeze the actual root `PLAN.md` and capture its contract hash before
+   dispatch (`scripts/plan-review-check --hash PLAN.md`).
 3. Stop if `PLAN.md` is missing.
 4. Review for:
    - blockers;
@@ -32,19 +33,20 @@ checks, edge cases, plan drift, and simpler or safer routes.
 8. Fold accepted findings into `PLAN.md`.
 9. Keep `Status: READY` only if no blocker or high-severity issue remains.
 10. Otherwise set `Status: CHALLENGED`.
-11. Record the pass under `## Review Changes` in `PLAN.md` (canonical
-    location; not Decision Log, not Notes / Handoff).
+11. Record accepted deltas under `## Review Changes` before fresh approval.
+    Append the pass with its captured `plan_contract_sha256` to the ledger;
+    never recalculate a changed snapshot to make an old verdict current.
 12. Return accepted findings, rejected findings, final plan status, and next
     route.
 
 Plan-mode verdicts are `READY` or `CHALLENGED`; code-diff verdicts are `GO`,
-`GO WITH NOTES`, or `BLOCK`. The event validator accepts both families for
-historical compatibility; new passes use the mode's canon.
+`GO WITH NOTES`, or `BLOCK`. The event CLI refuses a new pass outside its
+mode's canon; history keeps both families for historical compatibility.
 
 ## Completion Evidence
 
 Adversary passes run inside the loop's BOUNDED review machine
-(`implementation-loop.md` T/D/F table): T/F rounds use fresh hunters plus the
+(`workflow/skills/review-rounds.md` T/D/F table): T/F rounds use fresh hunters plus the
 adversary, D rounds add the adversary only if a high-severity finding was
 folded, and the bound never downgrades a pass to a lighter re-read — the
 last review always covers the full delivery diff. An implementation loop can
@@ -99,9 +101,8 @@ effective model family, not on the harness currently driving the workflow:
 1. exclude the author's family;
 2. choose a configured route from the strongest available frontier pool;
 3. prefer a direct provider route over an aggregator route;
-4. record `model_provenance` on the ledger pass — requested and effective
-   provider/model/family plus runner and run id, complete when present,
-   effective values copied from the harness's own record;
+4. record `model_provenance` on the ledger pass (required; shape in
+   `workflow/events.md`), effective values copied from the harness's own record;
 5. treat missing effective-model provenance as `blocked`, even when the model
    was requested successfully.
 

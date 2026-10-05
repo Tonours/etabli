@@ -122,8 +122,8 @@ Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
 Load only a matching skill that the active Claude surface actually exposes.
 Prefer an exposed project skill when the task is about its codebase; otherwise
 use a scope-gated vendor skill such as `ember-employer-suite` (work) or
-`adonisjs-suite` (personal) when the machine declares that scope. For UI work,
-the shared Claude surface exposes `frontend-css-ui-ux`. Skill selection is not a
+`adonisjs-suite` (personal) when the machine declares that scope. UI/CSS skills
+sit on the `extras/` shelf and are not deployed by default. Skill selection is not a
 mandatory first step on `/plan-loop`, `/plan-implement`, or `/ship`; when no
 matching skill is exposed, the route uses its local-source fallback instead of
 silently skipping the phase. See `vendor/README.md` for the manifest and sync
@@ -181,9 +181,20 @@ Optional hooks:
   for an inline program only, since single quotes hide `system()`, a `print |`
   pipe and a `>` redirect from the pipeline splitter; `-f` stays refused because
   the program then lives in a file this check cannot read. `sed` and `sort`
-  remain refused outright. Executables are matched on their basename, so
-  `/bin/bash -n` is judged like `bash -n`, and `;`/newline sequence read-only
+  remain refused outright. Executables given by a path are refused unless the
+  path is a system bin directory (`/bin`, `/usr/bin`, `/usr/local/bin`,
+  `/opt/homebrew/bin`…), so `/bin/cat` is judged like `cat` but `./bin/cat` and
+  `script/test` are refused. The check fails closed on shell tricks it cannot
+  prove harmless: quotes spliced into the command word, unquoted `$` expansions,
+  braces and backslash-newline continuations outside single quotes, and
+  unquoted globs except for plain readers such as `cat` or `ls`. `rg --pre` and
+  `uniq` with an output operand are refused too. `;`/newline sequence read-only
   segments the way `&&` already did.
+- `session-state.mjs` runs on `SessionStart` for `compact|resume`. It re-injects
+  the root `PLAN.md` subject and status and the active ledger's handoff pack
+  (done, pending, decisions, next action), prefixed by the same compact
+  instructions Pi uses. It prints nothing when there is no state and never
+  blocks.
 - `detect-adr-signal.mjs` runs on `Stop`. When a structural file changed and the
   last assistant message reads like a decision, it surfaces a `systemMessage`
   suggesting `/adr`. It never writes, never calls an LLM, and uses `systemMessage`
@@ -198,7 +209,8 @@ Optional hooks:
   subcommand wired as `PreToolUse(Bash)` in the local
   `~/.claude/settings.json`; that wiring is machine-local, not tracked here
   (`scripts/lib/claude-settings-sync.mjs` syncs only skill overrides,
-  permission mode, attribution, and the two skip prompts scalars). The installer ensures
+  permission mode, attribution, the two skip prompts scalars, and
+  `autoMemoryEnabled`). The installer ensures
   the binary itself (`scripts/lib/install-main.sh`); there is no patched
   `rtk-rewrite.sh` and no link rule to restore. With `bypassPermissions`
   active, no exit-3 ask-rule patch is needed.
@@ -214,10 +226,12 @@ propagates it into `~/.claude/settings.json`:
   `allow`/`deny` lists are never touched;
 - `skipDangerousModePermissionPrompt: true`, `skipAutoPermissionPrompt: true`;
 - `attribution: { commit: "", pr: "" }`: no `Co-Authored-By` trailer on
-  commits and no generated-with line in PR bodies.
+  commits and no generated-with line in PR bodies;
+- `autoMemoryEnabled: false`: durable memory is the vault plus the workflow
+  ledger handoff, not Claude's auto memory.
 
 The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
-`attribution.commit`/`attribution.pr`, the two skip flags), so no secret can leak into the tracked fragment. The
+`attribution.commit`/`attribution.pr`, the two skip flags, `autoMemoryEnabled`), so no secret can leak into the tracked fragment. The
 `--dangerously-skip-permissions` zsh alias is machine-local (`~/.zshrc` is not
 managed here); `defaultMode` alone covers every launcher, including `-p` runs,
 crons, and `claude-bin.sh`.
@@ -225,12 +239,15 @@ crons, and `claude-bin.sh`.
   merged into `~/.claude/settings.json` by the installer, because the live
   settings file can contain secrets. Activate it with
   `scripts/claude-hooks-merge --dry-run` (review) then
-  `scripts/claude-hooks-merge`: the merge only adds the fragment's hook
-  entries (backup first, refuse on conflict or invalid JSON, byte-idempotent
-  reruns) and never reads live secrets back into the repo. Verify with
-  `scripts/claude-hooks-check`. Activating it enables the session-wide READY,
-  ledger, ADR, and outcome hooks; the read-only agent hook is scoped from
-  agent frontmatter instead.
+  `scripts/claude-hooks-merge`: the merge adds the fragment's hook
+  entries and removes only hooks the repo retired (backup first, refuse on
+  conflict or invalid JSON, byte-idempotent reruns) and never reads live
+  secrets back into the repo. Verify with `scripts/claude-hooks-check`.
+  `scripts/deploy-agent-workflow --apply` links new hook files but does not
+  wire them, so rerun the merge after a deploy that adds a hook.
+  Activating it enables the session-wide READY, ledger, session-state and ADR
+  hooks; the
+  read-only agent hook is scoped from agent frontmatter instead.
 
 Use Claude Code `/goal` for till-done loops:
 

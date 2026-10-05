@@ -1,4 +1,0 @@
-## Act on
-- Spec: uncommitted FORBIDDEN.txt violates PLAN.md Out.
-
-Verdict: BLOCK

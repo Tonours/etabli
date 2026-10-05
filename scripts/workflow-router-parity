@@ -10,7 +10,7 @@
 # Names only: prose triggers and code matchers are explicitly out of scope.
 #
 # Deployed-copy pins: the Claude hooks lib must re-export core with no local
-# `route:` entries, and BOTH pi alias sites must carry a mapping line for
+# `route:` entries, and the pi alias site must carry a mapping line for
 # the pinned alias.
 #
 # Usage: workflow-router-parity [--root DIR]
@@ -54,7 +54,6 @@ SPEC="$ROOT/workflow/spec.md"
 CORE="$ROOT/workflow/runtime/workflow-router-core.mjs"
 LIB="$ROOT/claude/hooks/workflow-router-lib.mjs"
 PI_SITE_1="$ROOT/pi/extensions/lib/workflow-router-runtime.ts"
-PI_SITE_2="$ROOT/pi/extensions/lib/semantic-route.mjs"
 
 FAILURES=0
 fail() {
@@ -62,7 +61,7 @@ fail() {
   FAILURES=$((FAILURES + 1))
 }
 
-for f in "$SPEC" "$CORE" "$LIB" "$PI_SITE_1" "$PI_SITE_2"; do
+for f in "$SPEC" "$CORE" "$LIB" "$PI_SITE_1"; do
   if [ ! -f "$f" ]; then
     fail "${f#"$ROOT/"}: required input file missing"
   fi
@@ -125,7 +124,7 @@ fi
 if ! grep -q 'workflow-router-core' "$LIB"; then
   fail "lib: does not reference workflow-router-core"
 fi
-for site in "$PI_SITE_1" "$PI_SITE_2"; do
+for site in "$PI_SITE_1"; do
   rel="${site#"$ROOT/"}"
   if ! grep -q "$ALIAS_FROM" "$site" || ! grep -q "\"$ALIAS_TO\"" "$site"; then
     fail "$rel: no mapping line for the pinned alias ($ALIAS_FROM -> $ALIAS_TO)"

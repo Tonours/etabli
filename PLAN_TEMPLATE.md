@@ -13,13 +13,14 @@
 - Pattern: direct | localize-repair-validate | react | self-refine | planner-builder-evaluator | parallel-sections | tree-search | scheduled-idempotent
 - Role:
 - Goal verifier:
-- Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
+- Budget (iterations/time/tools; model-token totals are telemetry, never a stop condition):
 - Context reset:
 - Escalation:
 - Stop condition:
 - Required evidence:
 
 ## Acceptance Criteria
+Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side_effect].
 -
 
 ## Repos
@@ -30,7 +31,7 @@
 ### In
 -
 
-(Risky change? Name files/areas — the plan adversary blocks READY without them.)
+(Risky? Name files/areas; required for READY.)
 
 ### Out
 -
@@ -46,6 +47,10 @@
 | Requirement / source | Observed state | Gap / ambiguity | Decision | Step / expected evidence |
 | --- | --- | --- | --- | --- |
 | | | | | |
+
+## Approach
+- Input domain / bounds:
+- Regression family; failing, valid and invalid neighbors:
 
 ## Steps
 1.
@@ -64,10 +69,15 @@
 - YYYY-MM-DD:
 
 ## Review Changes
-- (Adversary passes record deltas here — canonical location.)
+- Adversary deltas:
 
 ## Open Questions
 - None / ...
 
 ## Notes / Handoff
 -
+
+## Product Verification
+- Required: auto
+
+Details: workflow/product-verification.md.

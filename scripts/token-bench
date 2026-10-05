@@ -1,0 +1,600 @@
+#!/usr/bin/env node
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const BUDGET_BIN = resolve(SCRIPT_DIR, "workflow-context-budget");
+const DEFAULT_BUDGET = "workflow/runtime/context-budget.json";
+const DEFAULT_BASELINE = "workflow/runtime/token-bench-baseline.json";
+const SCHEMA_VERSION = 1;
+const ALWAYS_ON = "always-on";
+const NON_ROUTE_SURFACES = new Set([ALWAYS_ON, "spec-map"]);
+const CHARS_PER_TOKEN = 4;
+const DEFAULT_TOLERANCE_PCT = 3;
+const TOLERANCE_SCALE = 10_000;
+const LIVE_TIMEOUT_MS = 180_000;
+const BUDGET_OVER_CEILING_EXIT = 1;
+const SKILL_ROOTS = ["pi/skills", "claude/scopes", "extras/skills", "herdr/skills", "vendor"];
+const UPSTREAM_ROOT = "vendor/";
+const SKILL_LIMITS = {
+  nameChars: 64,
+  descriptionChars: 1024,
+  listingChars: 1536,
+  bodyLines: 500,
+  compactionTokens: 5000,
+  referenceLinesBeforeToc: 100,
+};
+const RESERVED_NAME_WORDS = /anthropic|claude/i;
+const XML_TAG = /<\/?[A-Za-z][^>]*>/;
+const TOC_HEADING = /^#{1,6}\s*(contents|table of contents|sommaire)\b/im;
+const NORMATIVE = /\b(must|never|always|do not|don't|only|required|forbidden|refuse[sd]?|mandatory|stop)\b/i;
+const RULE_MIN_WORDS = 6;
+const RULE_JACCARD = 0.6;
+const RULE_ALLOW = "workflow/runtime/rule-census-allow.json";
+const REBASELINE = "run scripts/token-bench --write-baseline after a reviewed change";
+
+const USAGE = `usage: scripts/token-bench [--root <dir>] [--budget <path>] [--json]
+                         [--baseline <path>] [--check] [--tolerance <pct>] [--write-baseline]
+                         [--live | --context-json <file>]
+       scripts/token-bench --skills [--root <dir>] [--json] [--check]
+       scripts/token-bench --rules [--root <dir>] [--budget <path>] [--json] [--check]
+Declared-surface estimate of the Etabli workflow: for each route, session start
+(always-on) plus the route read chain from scripts/workflow-context-budget, and
+the worst case adding conditional reads; est_tokens = ceil(chars/${CHARS_PER_TOKEN}).
+  --check          compare with the baseline (default ${DEFAULT_BASELINE}): exit 1 when a value
+                   grows more than --tolerance (default ${DEFAULT_TOLERANCE_PCT}%), exit 2 when the comparison is invalid
+  --write-baseline rewrite the baseline from the current tree
+  --live           add the observed Claude context estimate from \`claude -p "/context" --output-format json\`
+                   (free local command; refused unless total_cost_usd is 0; never a gate)
+  --context-json   replay a captured /context JSON instead of calling claude
+  --skills         measure every SKILL.md under ${SKILL_ROOTS.join(", ")} against the published
+                   skill limits; with --check exit 1 on a hard violation outside ${UPSTREAM_ROOT}
+  --rules          count normative sentences (outside code fences, with must/never/always/do not/only/
+                   required/forbidden/refuse/mandatory/stop) per surface; a route loads always-on, its chain and
+                   its conditional reads; spec-map is counted, not checked; pairs listed with their exact
+                   sentences in ${RULE_ALLOW} are allowed;
+                   with --check exit 1 when two files of one chain carry near-duplicate rules
+                   (>= ${RULE_MIN_WORDS} distinct words over 3 chars each, punctuation removed, Jaccard >= ${RULE_JACCARD})`;
+
+function fail(message, code = 2) {
+  process.stderr.write(`token-bench: ${message}\n`);
+  process.exit(code);
+}
+
+function parseArgs(argv) {
+  const options = {
+    root: resolve(SCRIPT_DIR, ".."),
+    budget: DEFAULT_BUDGET,
+    baseline: DEFAULT_BASELINE,
+    json: false,
+    check: false,
+    writeBaseline: false,
+    tolerance: String(DEFAULT_TOLERANCE_PCT),
+    live: false,
+    contextJson: null,
+    skills: false,
+    rules: false,
+  };
+  const flags = { "--json": "json", "--check": "check", "--write-baseline": "writeBaseline", "--live": "live", "--skills": "skills", "--rules": "rules" };
+  const valued = {
+    "--root": "root",
+    "--budget": "budget",
+    "--baseline": "baseline",
+    "--tolerance": "tolerance",
+    "--context-json": "contextJson",
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (flags[arg]) options[flags[arg]] = true;
+    else if (arg === "--help" || arg === "-h") {
+      process.stdout.write(`${USAGE}\n`);
+      process.exit(0);
+    } else if (valued[arg]) {
+      const value = argv[i + 1];
+      if (value === undefined || value === "" || value.startsWith("--")) fail(`${arg} needs a value\n${USAGE}`);
+      options[valued[arg]] = value;
+      i += 1;
+    } else fail(`unknown argument ${arg}\n${USAGE}`);
+  }
+  options.root = resolve(options.root);
+  if (!/^\d+(\.\d{1,4})?$/.test(options.tolerance)) fail("--tolerance must be a non-negative number with at most 4 decimals");
+  options.tolerance = Number(options.tolerance);
+  options.toleranceScaled = Math.round(options.tolerance * TOLERANCE_SCALE);
+  if (options.live && options.contextJson) fail("--live and --context-json are exclusive");
+  if (options.skills && (options.live || options.contextJson || options.writeBaseline)) {
+    fail("--skills cannot be combined with --live, --context-json or --write-baseline");
+  }
+  if (options.rules && (options.skills || options.live || options.contextJson || options.writeBaseline)) {
+    fail("--rules cannot be combined with --skills, --live, --context-json or --write-baseline");
+  }
+  return options;
+}
+
+const estTokens = (chars) => Math.ceil(chars / CHARS_PER_TOKEN);
+
+function budgetReport(options) {
+  let stdout;
+  try {
+    stdout = execFileSync(process.execPath, [BUDGET_BIN, "--root", options.root, "--budget", options.budget, "--json"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    if (error.status !== BUDGET_OVER_CEILING_EXIT || !error.stdout) {
+      fail(`workflow-context-budget failed: ${String(error.stderr || error.message).trim()}`);
+    }
+    stdout = error.stdout;
+  }
+  const report = JSON.parse(stdout);
+  const missing = Object.entries(report.surfaces).filter(([, surface]) => surface.missing.length > 0);
+  if (missing.length > 0) {
+    const detail = missing.map(([name, surface]) => `${name}: ${surface.missing.join(", ")}`).join("; ");
+    fail(`budget lists missing files (${detail}); restore them or fix the budget before measuring`);
+  }
+  return report;
+}
+
+function conditionalChars(root, name, entries) {
+  if (entries === undefined) return 0;
+  if (!Array.isArray(entries) || entries.some((entry) => typeof entry?.file !== "string" || entry.file === "")) {
+    fail(`surface "${name}" conditional must be an array of { file } entries; fix the budget before measuring`);
+  }
+  return entries.reduce((sum, entry) => {
+    const path = resolve(root, entry.file);
+    if (!statSync(path, { throwIfNoEntry: false })?.isFile()) {
+      fail(`budget lists a conditional path that is not a readable file (${entry.file}); restore it or fix the budget before measuring`);
+    }
+    return sum + readFileSync(path, "utf8").length;
+  }, 0);
+}
+
+function offlineReport(options) {
+  const measured = budgetReport(options).surfaces;
+  const declared = JSON.parse(readFileSync(resolve(options.root, options.budget), "utf8")).surfaces;
+  const alwaysOn = measured[ALWAYS_ON];
+  if (!alwaysOn) fail(`budget declares no "${ALWAYS_ON}" surface`);
+  const surfaces = {};
+  const routes = {};
+  for (const [name, surface] of Object.entries(measured)) {
+    surfaces[name] = { chars: surface.chars, est_tokens: surface.est_tokens };
+    if (NON_ROUTE_SURFACES.has(name)) continue;
+    const chars = alwaysOn.chars + surface.chars;
+    const worst = chars + conditionalChars(options.root, name, declared[name].conditional);
+    routes[name] = { chars, est_tokens: estTokens(chars), worst_chars: worst, worst_est_tokens: estTokens(worst) };
+  }
+  return { label: "declared-surface estimate", surfaces, routes };
+}
+
+const isCount = (value) => Number.isInteger(value) && value > 0;
+
+function comparedValues(section) {
+  const values = {};
+  for (const [kind, key] of [["surfaces", "chars"], ["routes", "chars"], ["routes", "worst_chars"]]) {
+    for (const [name, entry] of Object.entries(section[kind] ?? {})) values[`${kind}.${name}.${key}`] = entry?.[key];
+  }
+  return values;
+}
+
+function compare(offline, baseline, toleranceScaled) {
+  if (baseline?.schema_version !== SCHEMA_VERSION) fail(`baseline schema_version must be ${SCHEMA_VERSION}; ${REBASELINE}`);
+  const base = comparedValues(baseline);
+  const now = comparedValues(offline);
+  const added = Object.keys(now).filter((key) => !(key in base));
+  const removed = Object.keys(base).filter((key) => !(key in now));
+  if (added.length > 0 || removed.length > 0) {
+    fail(`baseline does not match the declared surfaces (added: ${added.join(", ") || "none"}; removed: ${removed.join(", ") || "none"}); ${REBASELINE}`);
+  }
+  const invalid = Object.keys(base).filter((key) => !isCount(base[key]));
+  if (invalid.length > 0) fail(`baseline values must be positive integers (${invalid.join(", ")}); ${REBASELINE}`);
+  return Object.keys(base).map((key) => ({
+    key,
+    base: base[key],
+    now: now[key],
+    delta_pct: Number((((now[key] - base[key]) / base[key]) * 100).toFixed(2)),
+    regressed: now[key] * 100 * TOLERANCE_SCALE > base[key] * (100 * TOLERANCE_SCALE + toleranceScaled),
+  }));
+}
+
+function parseTokenCount(text) {
+  const match = /^(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*([km]?)$/i.exec(text.trim());
+  if (!match) return null;
+  const scale = { "": 1, k: 1_000, m: 1_000_000 }[match[3].toLowerCase()];
+  return Math.round(Number(`${match[1].replaceAll(",", "")}${match[2] ?? ""}`) * scale);
+}
+
+function parseContext(markdown) {
+  const section = markdown.split(/^### Estimated usage by category\s*$/m)[1];
+  if (!section) fail("live: /context output has no 'Estimated usage by category' table");
+  const categories = {};
+  for (const line of section.split("\n")) {
+    if (line.startsWith("###")) break;
+    const cells = line.split("|").map((cell) => cell.trim());
+    const isSeparator = cells.slice(1, -1).every((cell) => /^:?-+:?$/.test(cell));
+    if (cells.length < 4 || cells[1] === "Category" || isSeparator) continue;
+    const tokens = parseTokenCount(cells[2]);
+    if (tokens === null) fail(`live: /context category "${cells[1]}" has an unparseable token count "${cells[2]}"`);
+    categories[cells[1]] = tokens;
+  }
+  if (Object.keys(categories).length === 0) fail("live: /context category table is empty or unparseable");
+  const total = /\*\*Tokens:\*\*\s*([\d.]+\s*[km]?)\s*\//i.exec(markdown);
+  const model = /\*\*Model:\*\*\s*(\S+)/.exec(markdown);
+  return { total_tokens: total ? parseTokenCount(total[1]) : null, model: model ? model[1] : null, categories };
+}
+
+function runClaude(args, options) {
+  try {
+    return execFileSync("claude", args, {
+      cwd: options.root,
+      encoding: "utf8",
+      timeout: LIVE_TIMEOUT_MS,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    const reason = error.code === "ETIMEDOUT" ? `timed out after ${LIVE_TIMEOUT_MS} ms` : String(error.stderr || error.message).trim();
+    fail(`live: claude ${args.join(" ")} failed: ${reason}`);
+  }
+}
+
+function liveReport(options) {
+  const raw = options.contextJson
+    ? readFileSync(resolve(options.contextJson), "utf8")
+    : runClaude(["-p", "/context", "--output-format", "json"], options);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    fail("live: /context output is not JSON");
+  }
+  if (typeof parsed.total_cost_usd !== "number" || parsed.total_cost_usd !== 0) {
+    fail(`live: /context must report total_cost_usd 0, got ${JSON.stringify(parsed.total_cost_usd)}; refusing the sample`);
+  }
+  if (typeof parsed.result !== "string") fail("live: /context JSON has no result text");
+  const claudeVersion = options.contextJson ? null : runClaude(["--version"], options).trim();
+  return { label: "observed Claude context estimate", claude_version: claudeVersion, ...parseContext(parsed.result) };
+}
+
+const lineCount = (text) => (text === "" ? 0 : text.replace(/\n$/, "").split("\n").length);
+
+let parseYaml;
+function loadYaml() {
+  if (parseYaml) return parseYaml;
+  try {
+    ({ parse: parseYaml } = createRequire(resolve(SCRIPT_DIR, "../pi/package.json"))("yaml"));
+  } catch {
+    fail("--skills needs Pi's yaml dependency; run bun install --cwd pi in the Etabli checkout");
+  }
+  return parseYaml;
+}
+
+function frontmatter(text) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  if (!match) return { fields: {}, body: text, error: null };
+  let fields;
+  try {
+    fields = loadYaml()(match[1]);
+  } catch (error) {
+    return { fields: {}, body: text.slice(match[0].length), error: error.message.split("\n")[0] };
+  }
+  if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
+    return { fields: {}, body: text.slice(match[0].length), error: "frontmatter must be a mapping" };
+  }
+  return { fields, body: text.slice(match[0].length), error: null };
+}
+
+function listFiles(dir, ancestors = new Set()) {
+  const real = realpathSync(dir);
+  if (ancestors.has(real)) return [];
+  const lineage = new Set(ancestors).add(real);
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    const target = entry.isSymbolicLink() ? statSync(path, { throwIfNoEntry: false }) : entry;
+    if (target?.isDirectory()) files.push(...listFiles(path, lineage));
+    else if (target?.isFile()) files.push(path);
+  }
+  return files;
+}
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function mentions(text, fromDir, file) {
+  return [relative(fromDir, file), basename(file)].some((target) =>
+    new RegExp(`(^|[^\\w./-])(\\./)?${escapeRegExp(target)}($|[^\\w./-]|\\.(?!\\w))`).test(text),
+  );
+}
+
+function auditSkill(root, skillFile, aliases) {
+  const dir = dirname(skillFile);
+  const text = readFileSync(skillFile, "utf8");
+  const { fields, body, error } = frontmatter(text);
+  const hard = error ? [`spec: frontmatter is not valid YAML (${error})`] : [];
+  const stringField = (key) => {
+    const value = fields[key];
+    if (value === undefined || value === null) return "";
+    if (typeof value === "string") return value;
+    hard.push(`spec: ${key} must be a string, got ${Array.isArray(value) ? "array" : typeof value}`);
+    return "";
+  };
+  const name = fields.name === undefined ? basename(dir) : stringField("name");
+  const description = stringField("description");
+  const listing = description.length + stringField("when_to_use").length;
+  const bodyLines = lineCount(body);
+  const tokens = estTokens(text.length);
+  const bundled = listFiles(dir).filter((file) => file !== skillFile);
+  const references = bundled.filter((file) => file.endsWith(".md"));
+  const warnings = [];
+  if (name.length > SKILL_LIMITS.nameChars || !/^[a-z0-9-]+$/.test(name)) hard.push(`spec: name "${name}" must be <= ${SKILL_LIMITS.nameChars} chars of [a-z0-9-]`);
+  if (RESERVED_NAME_WORDS.test(name)) hard.push(`spec: name "${name}" uses a reserved word`);
+  if (description.length === 0) hard.push("spec: description is empty");
+  if (description.length > SKILL_LIMITS.descriptionChars) hard.push(`spec: description is ${description.length} chars (> ${SKILL_LIMITS.descriptionChars})`);
+  if (XML_TAG.test(description)) hard.push("spec: description contains an XML tag");
+  if (listing > SKILL_LIMITS.listingChars) hard.push(`etabli-policy: description + when_to_use is ${listing} chars (> ${SKILL_LIMITS.listingChars}, truncated in the listing)`);
+  if (bodyLines >= SKILL_LIMITS.bodyLines) hard.push(`etabli-policy: body is ${bodyLines} lines (>= ${SKILL_LIMITS.bodyLines})`);
+  if (tokens > SKILL_LIMITS.compactionTokens) warnings.push(`SKILL.md is ~${tokens} estimated tokens; compaction re-attaches only the first ${SKILL_LIMITS.compactionTokens}, the tail may be lost`);
+  const contents = new Map(references.map((file) => [file, readFileSync(file, "utf8")]));
+  const nested = [];
+  for (const [file, content] of contents) {
+    const rel = relative(dir, file);
+    if (lineCount(content) > SKILL_LIMITS.referenceLinesBeforeToc && !TOC_HEADING.test(content)) {
+      warnings.push(`${rel} has > ${SKILL_LIMITS.referenceLinesBeforeToc} lines and no contents heading`);
+    }
+    const linkedFromSkill = mentions(text, dir, file);
+    if (!linkedFromSkill && [...contents].some(([other, body]) => other !== file && mentions(body, dirname(other), file))) nested.push(rel);
+  }
+  if (nested.length > 0) {
+    warnings.push(`${nested.length} reference(s) reachable only through another reference, e.g. ${nested[0]} (keep references one level deep)`);
+  }
+  const path = relative(root, dir);
+  return {
+    path,
+    aliases,
+    name,
+    upstream: path.startsWith(UPSTREAM_ROOT),
+    model_invocable: ![true, "true"].includes(fields["disable-model-invocation"]),
+    body_lines: bodyLines,
+    chars: text.length,
+    est_tokens: tokens,
+    description_chars: description.length,
+    listing_chars: listing,
+    bundled_files: bundled.length,
+    bundled_chars: bundled.reduce((sum, file) => sum + statSync(file).size, 0),
+    hard,
+    warnings,
+  };
+}
+
+function skillsReport(options) {
+  const root = realpathSync(options.root);
+  const byRealPath = new Map();
+  for (const file of SKILL_ROOTS.map((entry) => resolve(root, entry))
+    .filter((entry) => existsSync(entry))
+    .flatMap((entry) => listFiles(entry).filter((path) => basename(path) === "SKILL.md"))
+    .sort()) {
+    const real = realpathSync(file);
+    byRealPath.set(real, [...(byRealPath.get(real) ?? []), relative(root, dirname(file))]);
+  }
+  const skills = [...byRealPath]
+    .map(([real, seen]) => {
+      const canonical = relative(root, dirname(real));
+      return auditSkill(root, real, seen.filter((path) => path !== canonical));
+    })
+    .sort((a, b) => a.path.localeCompare(b.path));
+  const owned = skills.filter((skill) => !skill.upstream);
+  return {
+    label: "skill size and format against published limits",
+    limits: SKILL_LIMITS,
+    totals: {
+      skills: skills.length,
+      owned: owned.length,
+      owned_hard_violations: owned.reduce((sum, skill) => sum + skill.hard.length, 0),
+      upstream_hard_violations: skills.filter((skill) => skill.upstream).reduce((sum, skill) => sum + skill.hard.length, 0),
+      warnings: skills.reduce((sum, skill) => sum + skill.warnings.length, 0),
+      listing_chars_model_invocable: skills.filter((skill) => skill.model_invocable).reduce((sum, skill) => sum + skill.listing_chars, 0),
+      est_tokens_all_bodies: skills.reduce((sum, skill) => sum + skill.est_tokens, 0),
+    },
+    skills,
+  };
+}
+
+function printSkills(report) {
+  const { totals } = report;
+  const lines = [
+    `skills: ${totals.skills} (${totals.owned} owned) | hard violations: ${totals.owned_hard_violations} owned, ${totals.upstream_hard_violations} upstream | warnings: ${totals.warnings}`,
+    `listing chars (model-invocable): ${totals.listing_chars_model_invocable} | SKILL.md est_tokens total: ${totals.est_tokens_all_bodies}`,
+  ];
+  for (const skill of report.skills.filter((entry) => entry.hard.length > 0 || entry.warnings.length > 0)) {
+    const aliases = skill.aliases.length > 0 ? `, aliases: ${skill.aliases.join(", ")}` : "";
+    lines.push(`${skill.upstream ? "upstream" : "owned   "} ${skill.path} (${skill.body_lines} lines, ~${skill.est_tokens} tokens${aliases})`);
+    for (const item of skill.hard) lines.push(`  HARD ${item}`);
+    for (const item of skill.warnings) lines.push(`  WARN ${item}`);
+  }
+  process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+function printRoutes(report) {
+  const deltas = new Map((report.comparison ?? []).map((row) => [row.key, row]));
+  const delta = (key) => {
+    const row = deltas.get(key);
+    return row ? `${row.delta_pct >= 0 ? "+" : ""}${row.delta_pct}%${row.regressed ? " REGRESSED" : ""}` : "-";
+  };
+  const alwaysOn = report.offline.surfaces[ALWAYS_ON];
+  const lines = [
+    `${report.offline.label} (est_tokens = ceil(chars/${CHARS_PER_TOKEN}))`,
+    "route            chars  est_tokens  worst_est_tokens  vs_baseline",
+    `${ALWAYS_ON.padEnd(16)} ${String(alwaysOn.chars).padStart(6)}  ${String(alwaysOn.est_tokens).padStart(10)}  ${"".padStart(16)}  ${delta(`surfaces.${ALWAYS_ON}.chars`)}`,
+  ];
+  for (const [name, route] of Object.entries(report.offline.routes)) {
+    lines.push(
+      `${name.padEnd(16)} ${String(route.chars).padStart(6)}  ${String(route.est_tokens).padStart(10)}  ${String(route.worst_est_tokens).padStart(16)}  ${delta(`routes.${name}.chars`)}`,
+    );
+  }
+  if (report.live) {
+    lines.push("", `${report.live.label}: ${report.live.total_tokens ?? "?"} tokens (${report.live.model ?? "model ?"}, ${report.live.claude_version ?? "replayed"})`);
+    for (const [name, tokens] of Object.entries(report.live.categories)) lines.push(`  ${name.padEnd(26)} ${tokens}`);
+  }
+  process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+function runSkills(options) {
+  const report = skillsReport(options);
+  if (options.json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  else printSkills(report);
+  if (options.check && report.totals.owned_hard_violations > 0) {
+    fail(`${report.totals.owned_hard_violations} hard skill violation(s) outside ${UPSTREAM_ROOT}: fix the listed SKILL.md frontmatter or split the body into reference files`, 1);
+  }
+}
+
+function runRoutes(options) {
+  const offline = offlineReport(options);
+  const report = { schema_version: SCHEMA_VERSION, estimator: `chars/${CHARS_PER_TOKEN}`, offline };
+  const baselinePath = resolve(options.root, options.baseline);
+  if (options.writeBaseline) {
+    const surfaces = Object.fromEntries(Object.entries(offline.surfaces).map(([name, { chars }]) => [name, { chars }]));
+    const routes = Object.fromEntries(
+      Object.entries(offline.routes).map(([name, { chars, worst_chars }]) => [name, { chars, worst_chars }]),
+    );
+    writeFileSync(baselinePath, `${JSON.stringify({ schema_version: SCHEMA_VERSION, estimator: report.estimator, surfaces, routes }, null, 2)}\n`);
+  }
+  if (existsSync(baselinePath)) {
+    let baseline;
+    try {
+      baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+    } catch {
+      fail(`baseline ${options.baseline} is not JSON; ${REBASELINE}`);
+    }
+    report.comparison = compare(offline, baseline, options.toleranceScaled);
+  } else if (options.check) {
+    fail(`--check needs a baseline; none at ${options.baseline}: ${REBASELINE}`);
+  }
+  if (options.live || options.contextJson) report.live = liveReport(options);
+
+  if (options.json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  else printRoutes(report);
+
+  const regressions = (report.comparison ?? []).filter((row) => row.regressed);
+  if (options.check && regressions.length > 0) {
+    for (const row of regressions) {
+      process.stderr.write(
+        `token-bench: ${row.key} grew ${row.delta_pct}% (${row.base} -> ${row.now} chars), over the ${options.tolerance}% tolerance: trim it, or ${REBASELINE}\n`,
+      );
+    }
+    process.exit(1);
+  }
+}
+
+function stripFences(text) {
+  let fence = null;
+  const kept = [];
+  for (const line of text.split("\n")) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})/)?.[1];
+    if (fence === null && marker) fence = marker;
+    else if (fence !== null && marker && marker[0] === fence[0] && marker.length >= fence.length && line.trim() === marker) fence = null;
+    else if (fence === null) kept.push(line);
+  }
+  return kept.join("\n");
+}
+
+function ruleSentences(text) {
+  return stripFences(text)
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.;:])\s+(?=[A-Z`*-])|\s-\s/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 25 && NORMATIVE.test(sentence.replace(/[^\p{L}\p{N}\s']/gu, " ").replace(/\s+/g, " ")));
+}
+
+const ruleWords = (sentence) =>
+  new Set(sentence.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter((word) => word.length > 3));
+const UNGATED_SURFACES = new Set(["spec-map"]);
+
+function loadRuleAllow(root) {
+  const path = resolve(root, RULE_ALLOW);
+  if (!existsSync(path)) return [];
+  let entries;
+  try {
+    entries = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    fail(`${RULE_ALLOW} is not JSON`);
+  }
+  const valid = Array.isArray(entries) && entries.every((entry) =>
+    Array.isArray(entry?.files) && entry.files.length === 2 && entry.files.every((file) => typeof file === "string" && file !== "") &&
+    Array.isArray(entry.texts) && entry.texts.length === 2 && entry.texts.every((text) => typeof text === "string" && text !== "") &&
+    typeof entry.reason === "string" && entry.reason !== "");
+  if (!valid) fail(`${RULE_ALLOW} must be an array of { files: [two paths], texts: [the two exact sentences], reason }`);
+  return entries.map((entry) => ({ ...entry, used: false }));
+}
+
+const sameSet = (left, right) => [...left].sort().join("\0") === [...right].sort().join("\0");
+const allowFor = (allow, pair) => allow.find((entry) => sameSet(entry.files, pair.files) && sameSet(entry.texts, pair.texts));
+
+function jaccard(left, right) {
+  const shared = [...left].filter((word) => right.has(word)).length;
+  return shared / (left.size + right.size - shared);
+}
+
+function rulesReport(options) {
+  const measured = budgetReport(options).surfaces;
+  const alwaysOn = measured[ALWAYS_ON];
+  if (!alwaysOn) fail(`budget declares no "${ALWAYS_ON}" surface`);
+  const cache = new Map();
+  const rulesOf = (path) => {
+    if (!cache.has(path)) cache.set(path, ruleSentences(readFileSync(resolve(options.root, path), "utf8")));
+    return cache.get(path);
+  };
+  const allow = loadRuleAllow(options.root);
+  const declared = JSON.parse(readFileSync(resolve(options.root, options.budget), "utf8")).surfaces;
+  const surfaces = {};
+  for (const [name, surface] of Object.entries(measured)) {
+    const own = surface.files.map((file) => file.path);
+    conditionalChars(options.root, name, declared[name]?.conditional);
+    const conditional = NON_ROUTE_SURFACES.has(name) ? [] : (declared[name]?.conditional ?? []).map((entry) => entry.file);
+    const files = NON_ROUTE_SURFACES.has(name) ? own : [...new Set([...alwaysOn.files.map((file) => file.path), ...own, ...conditional])];
+    const rules = files.flatMap((file) => rulesOf(file).map((text) => ({ file, text, words: ruleWords(text) })));
+    const duplicates = [];
+    for (let i = 0; !UNGATED_SURFACES.has(name) && i < rules.length; i += 1) {
+      for (let j = i + 1; j < rules.length; j += 1) {
+        const [left, right] = [rules[i], rules[j]];
+        if (left.file === right.file || left.words.size < RULE_MIN_WORDS || right.words.size < RULE_MIN_WORDS) continue;
+        const score = jaccard(left.words, right.words);
+        if (score >= RULE_JACCARD) {
+          const pair = { files: [left.file, right.file], jaccard: Math.round(score * 100) / 100, texts: [left.text, right.text] };
+          const entry = allowFor(allow, pair);
+          if (entry) entry.used = true;
+          duplicates.push({ ...pair, allowed: Boolean(entry) });
+        }
+      }
+    }
+    surfaces[name] = {
+      sentences: rules.length,
+      files: Object.fromEntries(files.map((file) => [file, rulesOf(file).length])),
+      duplicates,
+    };
+  }
+  const stale = allow.filter((entry) => !entry.used).map(({ used, ...entry }) => entry);
+  return { label: "normative-sentence census", ungated: [...UNGATED_SURFACES], surfaces, stale_allow: stale };
+}
+
+function runRules(options) {
+  const report = rulesReport(options);
+  if (options.json) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  else {
+    const lines = [report.label, "surface          sentences  duplicates"];
+    for (const [name, surface] of Object.entries(report.surfaces)) {
+      lines.push(`${name.padEnd(16)} ${String(surface.sentences).padStart(9)}  ${String(surface.duplicates.length).padStart(10)}`);
+      for (const pair of surface.duplicates) lines.push(`  ${pair.allowed ? "allowed" : "NEW"} ${pair.jaccard} ${pair.files[0]} :: ${pair.texts[0]}`, `       ${pair.files[1]} :: ${pair.texts[1]}`);
+    }
+    process.stdout.write(`${lines.join("\n")}\n`);
+  }
+  const fresh = Object.values(report.surfaces).reduce((sum, surface) => sum + surface.duplicates.filter((pair) => !pair.allowed).length, 0);
+  if (options.check && (fresh > 0 || report.stale_allow.length > 0)) {
+    for (const entry of report.stale_allow) process.stderr.write(`token-bench: stale ${RULE_ALLOW} entry (no matching pair): ${entry.files.join(" + ")} "${entry.texts[0]}"\n`);
+    fail(`${fresh} unlisted near-duplicate rule pair(s), ${report.stale_allow.length} stale allowlist entr(ies): keep one copy, or list the pair with the independent entry point that needs it`, 1);
+  }
+}
+
+const options = parseArgs(process.argv.slice(2));
+if (options.skills) runSkills(options);
+else if (options.rules) runRules(options);
+else runRoutes(options);

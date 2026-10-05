@@ -89,7 +89,6 @@ mkparity() {
   printf 'export const routes = [\n  { route: "alpha" },\n  { route: "verify-workflow" },\n];\n' >"$root/workflow/runtime/workflow-router-core.mjs"
   printf '// lib\nexport * from "../../workflow/runtime/workflow-router-core.mjs";\n' >"$root/claude/hooks/workflow-router-lib.mjs"
   printf 'const r = core.route === "verify-workflow" ? "verify" : core.route;\n' >"$root/pi/extensions/lib/workflow-router-runtime.ts"
-  printf 'if (d.route === "verify-workflow") return "verify";\n' >"$root/pi/extensions/lib/semantic-route.mjs"
 }
 
 P1="$TMP_DIR/p1"
@@ -139,11 +138,11 @@ grep -Fq "local route: entries" "$TMP_DIR/p5.out" || fail "lib message missing"
 
 P6="$TMP_DIR/p6"
 mkparity "$P6"
-printf '// no alias here\n' >"$P6/pi/extensions/lib/semantic-route.mjs"
+printf '// no alias here\n' >"$P6/pi/extensions/lib/workflow-router-runtime.ts"
 if "$PARITY" --root "$P6" >"$TMP_DIR/p6.out" 2>/dev/null; then
   fail "missing pi alias line should fail parity"
 fi
-grep -Fq "semantic-route.mjs: no mapping line" "$TMP_DIR/p6.out" \
+grep -Fq "workflow-router-runtime.ts: no mapping line" "$TMP_DIR/p6.out" \
   || fail "pi-site message missing"
 
 # Commented-out core routes never count as active (stripped before extract).

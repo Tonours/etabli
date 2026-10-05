@@ -36,7 +36,11 @@ Roles are contracts, not mandatory separate agents:
 One writer at any instant. The parent writes, or delegates writing to at most
 one `worker` at a time — foreground, or the parent waits without writing until
 it finishes, then takes the pen back between plan steps; never two writers in
-parallel. The deterministic multi-model council (scout / analyst / challenger /
+parallel.
+
+Etabli multi-writer scopes need `scripts/workflow-lease` (repo/worktree, ADR-0028). <!-- etabli-only -->
+
+The deterministic multi-model council (scout / analyst / challenger /
 judge / fallback) was removed in ADR-0013; `classifyWorkflowRoute` always
 attaches parent-only `multiExecution`. Delegating to a subagent stays an
 ordinary tool call, judged case by case, not a routed profile. `scout` and
@@ -50,13 +54,13 @@ sandbox. Shared workflow and evidence invariants stay in
 - Read code directly before planning or editing.
 - If shell startup or cwd resolution fails, retry from `/` with an explicit
   shell before declaring the tool or filesystem unavailable.
-- For broad external research, repo-pattern, or fresh-context review, name the
-  chosen slice first and prefer source claims, local contracts, memory, recent
-  diffs, and existing docs before rereading the repo.
+- Scope broad research/review; prefer memory, contracts, recent diffs.
+  Search symbols/ranges; reuse stable ticket/docs results, refresh on relevant
+  change. Keep evidence, errors and exit codes.
 - When asked whether a source implies repository changes, answer `no change`,
   `change`, or `blocked` against the local contract before editing.
-- Before mutable local-device or server actions, identify the exact target and
-  control path, backup or rollback when relevant, and the post-check.
+- Before local-device/server mutations, identify target, control path,
+  backup/rollback and post-check.
 - Keep one execution artifact: `PLAN.md`.
 - Archive implemented plans in `docs/plan/` only after implementation and validation.
 - Do not create `REVIEW.md` or secondary mandatory planning docs.
@@ -94,41 +98,20 @@ sandbox. Shared workflow and evidence invariants stay in
 - If new facts materially invalidate the implementation route or checks, stop as
   plan drift instead of silently continuing.
 - Prefer focused checks over full-suite ritual.
-- User-facing changes that materially affect product flows use the shared
-  product dogfood contract in `workflow/skills/product-dogfood.md`: map flows
-  before a scenario matrix, exercise observable UI/browser reality when
-  available, and record `blocked` instead of claiming pass when decisive legs
-  need human verification or no validation surface exists.
-- Routes that mutate code on a dedicated branch (`/ship`, single-PR maintenance,
-  `sec-pr`) isolate through `workflow/skills/worktree-isolation.md`: clean base
+- User-facing changes that materially affect product flows exercise observable
+  UI/browser reality when available, and record `blocked` instead of claiming
+  pass when decisive legs need human verification or no validation surface
+  exists.
+- Routes that mutate code on a dedicated branch (`/ship`, `sec-pr`) isolate through `workflow/skills/worktree-isolation.md`: clean base
   worktree, one run per worktree and branch, no sibling-worktree edits, the run's
   root `PLAN.md` inside its own worktree, environment contention reported as
   `blocked`, and explicit cleanup or a stated reason for keeping it.
-- Supervised single-PR maintenance loops use the shared pilot contract in
-  `workflow/skills/pr-maintenance-loop.md`: one PR, one worktree, one loop,
-  latest pushed head evidence via `scripts/pr-latest-head-status`, <!-- etabli-only -->
-  fresh-context review, explicit worktree cleanup, and no external
-  write-back/deploy/push/merge unless another active command contract
-  explicitly authorizes that action.
 - Long or multi-packet runs may record durable progress as events in
   `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
   ledger, and `completed`/`blocked` events are terminal evidence.
-- `workflow-retrospect` is an experimental, on-demand, read-only ledger/archive
-  reader for diagnostics and retrospective hypotheses; it is not part of the
-  core gate. Telemetry does not establish user value until at least 10
-  representative real tasks have task-grader outcomes.
-- Self-improvement work follows `workflow/skills/self-improvement-loop.md`:
-  start from inspectable evidence, classify candidates, implement only through
-  reviewed `PLAN.md`, and never auto-apply retrospective output.
-- Ambitious project work follows `workflow/skills/ambitious-project-loop.md`:
-  turn rough intent into spec/decisions/slices/execution/review/handoff without
-  turning push, PR, deploy, release, or external write-back into implicit
-  consent.
-- As an experimental opt-in, an explicitly authorized bounded project may use
-  `workflow/project-autonomy-envelope.md`: its controller is read-only, advances
-  only declared verifiable slices from the ledger, and never replaces READY,
-  checkpoint, no-progress, final-state-grader, or sealed-held-out gates.
-- Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
+- Workflow improvements start from inspectable evidence and go through a
+  reviewed `PLAN.md`.
+- Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`, emit a
@@ -152,18 +135,16 @@ sandbox. Shared workflow and evidence invariants stay in
   authorization is for read-only fresh-context review only; it does not
   authorize destructive, secret, production, billing, deploy, push, merge,
   or external write actions.
-- Session handoffs in autonomous runs are recorded as a `handoff` event
-  (branch, sha, done, pending, next action, do-not-redo), not as ad-hoc prose;
-  a started migration is finished or handed off that way, never left silent.
+- Independent work starts a new session; continuing work resumes PLAN/ledger.
+  Before switching, record `handoff` (branch, sha, done, pending, next action,
+  do-not-redo); inspect that handoff before switching. No automatic
+  reset. Finish or hand off a migration.
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose
   duplicated across adapters. Instruction files stay maps, not manuals. The
   third occurrence of the same review finding becomes a mechanical check.
   Every mechanical check fails with a message that names its remediation.
   A routing or guard failure observed in real use becomes a fixture.
-  Confirmed recurring findings from `workflow-retrospect` become reviewed
-  recommendations, router fixtures, contract patches, or mechanical checks;
-  the helper never applies patches or external write-back by itself.
 - Skills, commands, and agent instructions follow `workflow/skill-design.md`.
 - A code behavior change ships with tests written in the existing suite's
   conventions; a bug fix starts from a failing test that reproduces the
@@ -188,14 +169,13 @@ documents the enforcement behind each boundary.
 | --- | --- | --- | --- |
 | deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
 | production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
-| history rewrite / push | force-push, `git push`, rebase published history | router `OPS_STOP_PATTERN`; explicit `/ci-fix` is the consented exception checked first | route `ops-stop` unless explicit `ci-fix` |
+| history rewrite / push | force-push, `git push`, push a PR/branch/commit, rebase published history | router `OPS_STOP_PATTERN`; the explicit `/ci-fix` command is the consented exception (slash prompts bypass the router) | route `ops-stop` unless explicit `/ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
-| external write-back | post PR review/comment, update Linear status, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
+| external write-back | post PR review/comment, update Linear status, create a Linear ticket, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (only a genuinely missing PLAN is exempt; unrelated plan → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
-| no_progress ledger stop | valid active non-terminal ledger with explicit `no_progress` or derived 2/3 thresholds; pointer to invalid ledger / ambiguous valid actives fail closed (orphan invalids without pointer do not) | shared `planMutationGuardDecision` + `scripts/lib/no-progress-guard.mjs` | ordinary code mutations denied; PLAN.md + `workflow-event` + `plan-cleanup` (`--archive`/`--discard`) escape allowed | <!-- etabli-only -->
-| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress`; no emit without ledger |
+| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
 | missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
 
@@ -206,28 +186,25 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Pi skills: `pi/skills/`
 - Claude commands: `claude/scopes/<scope>/commands/`
 - Shared skill contracts: `workflow/skills/`
-- Self-improvement contract: `workflow/skills/self-improvement-loop.md`
-- Ambitious project contract: `workflow/skills/ambitious-project-loop.md`
-- Bounded project autonomy envelope: `workflow/project-autonomy-envelope.md`
-- Bounded project autonomy controller: `scripts/project-autonomy` <!-- etabli-only -->
-- Product dogfood contract: `workflow/skills/product-dogfood.md`
 - Investigation/evidence contract: `workflow/skills/investigation.md`
-- Evidence capture and validator: `scripts/evidence-proof` <!-- etabli-only -->
-- Large-program control plane: `workflow/skills/program-orchestration.md`
-- Large-program reducer: `scripts/program-state` <!-- etabli-only -->
-- Single-PR maintenance contract: `workflow/skills/pr-maintenance-loop.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
+- Guard journal: `workflow/runtime/guard-journal.mjs` — wired guard denials append
+  `{ts, host, harness, guard, pattern, target, tool}` lines to `.workflow/guard-journal/`
+  (best-effort, never blocks the deny) <!-- etabli-only -->
 - Orchestration contract: `workflow/skills/orchestration.md`
 - Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval` <!-- etabli-only -->
 - Latest-head PR evidence helper: `scripts/pr-latest-head-status` <!-- etabli-only -->
+- In Etabli, ledger census for a plan that tightens validation: `scripts/workflow-ledger-census` <!-- etabli-only -->
+  (`baseline`, then `diff`) freezes each ledger's verdict and sha256; `diff` fails on a verdict flip,
+  a non-append rewrite, a current FAIL, a missing baseline slug, or a grandfathered byte-string
+  reappearing under a new slug.
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
 - Agent memory: `docs/agent-memory/` in workflow-scaffolded projects (`workflow/memory.md`)
 - Review rubric: `workflow/review-rubric.md`
-- Reviewer improvement loop: `workflow/skills/reviewer-improvement-loop.md`
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
 - PR body contract: `workflow/pr-body-contract.md`
@@ -271,8 +248,9 @@ Manual-only Claude commands (invoked by explicit slash only, never ambiently
 routed): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`; invoking it
 consents to feature-branch push and PR creation), `/linear-project-setup`.
 The Playwright QA chain lives in the `claude/scopes/shared/skills/playwright-*` skills, not
-in slash commands or separate agents. `/spec-guide` is routed ambiently (see
-routing table).
+in slash commands or separate agents. Work commands (`/linear-*`, `/bug-check`,
+`/pr-review`, `/pr-qa`, `/sec-pr`, `/ci-fix`, `/spec-guide`) are explicit
+commands in the work scope, never routed (ADR-0027).
 
 Claude-native loop:
 
@@ -281,7 +259,7 @@ Claude-native loop:
   measurable condition with an explicit cap (iterations or wall-clock), and the
   run must record the event ledger per `workflow/events.md`.
 - Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
-  READY/check-freeze, ledger, ADR, and outcome hooks. Route classification stays
+  READY/check-freeze, ledger, and ADR hooks. Route classification stays
   library-only and injects no prompt context (ADR-0014).
 - Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
   Do not claim Claude has Pi Task* semantics.

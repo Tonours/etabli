@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "estimator": "chars/4",
+  "surfaces": {
+    "always-on": {
+      "chars": 11789
+    },
+    "plan-loop": {
+      "chars": 6458
+    },
+    "plan-implement": {
+      "chars": 54086
+    },
+    "implement": {
+      "chars": 48723
+    },
+    "review": {
+      "chars": 21881
+    },
+    "verify": {
+      "chars": 3812
+    },
+    "spec-map": {
+      "chars": 29315
+    },
+    "ship": {
+      "chars": 80905
+    }
+  },
+  "routes": {
+    "plan-loop": {
+      "chars": 18247,
+      "worst_chars": 18247
+    },
+    "plan-implement": {
+      "chars": 65875,
+      "worst_chars": 75135
+    },
+    "implement": {
+      "chars": 60512,
+      "worst_chars": 69772
+    },
+    "review": {
+      "chars": 33670,
+      "worst_chars": 33670
+    },
+    "verify": {
+      "chars": 15601,
+      "worst_chars": 15601
+    },
+    "ship": {
+      "chars": 92694,
+      "worst_chars": 134942
+    }
+  }
+}

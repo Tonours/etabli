@@ -19,7 +19,7 @@ Describe in 1-3 sentences what will change and why it matters.
 - Role:
 - Pattern:
 - Goal verifier:
-- Operational budget (iterations / time / tools; model-token totals are telemetry, never a stop condition):
+- Budget (iterations/time/tools; model-token totals are telemetry, never a stop condition):
 - Context reset threshold:
 - Escalation:
 - Planner output:
@@ -31,6 +31,7 @@ Describe in 1-3 sentences what will change and why it matters.
 - Required evidence:
 
 ## Acceptance Criteria
+Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side_effect].
 - [ ] ...
 
 ## Problem
@@ -46,7 +47,7 @@ Describe in 1-3 sentences what will change and why it matters.
 ### In scope
 -
 
-(Risky change? Name files/areas — the plan adversary blocks READY without them.)
+(Risky? Name files/areas; required for READY.)
 
 ### Out of scope / Non-goals
 -
@@ -70,8 +71,8 @@ Describe in 1-3 sentences what will change and why it matters.
 | | | | | |
 
 ## Approach
-Describe the selected approach and why it is proportionate.
-Mention rejected options only when they changed the decision.
+Name the input domain, bounds, and regression family.
+Include failing, valid and invalid neighbors; justify the selected approach.
 
 ## Product Dogfood
 Use this section only for user-facing/UI/browser-impacting work.
@@ -135,19 +136,17 @@ ownable units. Otherwise delete this section.
 - Evidence required for done:
 
 ## Progress Log
-- YYYY-MM-DD:
+- Operational progress: ledger events; avoid material edits after approval.
 
 ## Decision Log
 - YYYY-MM-DD:
 
 ## Review Changes
-- (Adversary passes record deltas here — canonical location.)
+- Adversary deltas:
 
 ## Handoff State
-- Current state:
-- Last validated state:
-- Known failures:
-- Next action:
+- Operational handoff: ledger `handoff` event.
+- Contract changes: reconcile and obtain fresh plan approval.
 
 ## Risks
 - Risk:
@@ -165,3 +164,8 @@ ownable units. Otherwise delete this section.
 - [ ] Checks are named and proportionate
 - [ ] Risks are identified or explicitly none
 - [ ] No blocking open questions remain
+
+## Product Verification
+- Required: auto
+
+Details: workflow/product-verification.md.
