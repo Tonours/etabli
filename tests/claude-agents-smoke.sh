@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 
 ruby - "$ROOT_DIR" <<'RUBY'
 require "yaml"
+require "json"
 
 root = ARGV.fetch(0)
 agents_dir = File.join(root, "claude/scopes/shared/agents")
@@ -14,7 +15,8 @@ names = paths.map { |path| File.basename(path, ".md") }
 raise "Claude agents must be exactly #{expected_agents.join(", ")}; got #{names.join(", ")}. Remediation: keep the bounded scout/worker/reviewer role set." unless names == expected_agents
 
 allowed_keys = %w[name description model effort color tools permissionMode maxTurns hooks]
-allowed_models = %w[sonnet opus haiku fable inherit]
+allowed_models = %w[sonnet opus haiku inherit]
+routing = JSON.parse(File.read(File.join(root, "workflow/runtime/model-routing.json")))
 allowed_efforts = %w[low medium high xhigh max]
 allowed_tools = %w[Read Grep Glob Bash Edit Write TodoWrite Skill]
 read_only_agents = %w[adversary reviewer scout]
@@ -46,6 +48,8 @@ paths.each do |path|
   raise "#{path}: description exceeds 1024 characters." if description.length > 1024
 
   model = metadata["model"].to_s
+  expected_model = routing.fetch("models").fetch(routing.fetch("claude_agents").fetch(File.basename(path, ".md"))).fetch("model")
+  raise "#{path}: model must match model-routing.json (#{expected_model})" unless model == expected_model
   unless allowed_models.include?(model) || model.start_with?("claude-")
     raise "#{path}: unsupported model #{model.inspect}. Remediation: use a current alias or full Claude model ID."
   end

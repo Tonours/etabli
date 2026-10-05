@@ -1,17 +1,17 @@
 {
   "manifest_version": 2,
   "slug": "claude-token-budget",
-  "declared_at": "2026-09-02",
-  "revision": "f4fd20a2b810445e11719a2abd149314840412ab",
-  "claude_version_min": "2.1.258",
+  "declared_at": "2026-10-05",
+  "revision": "5d45f904e488d1073f52dec93924ebcda49ad8ce",
+  "claude_version_min": "2.1.284",
   "authority": "final_headless_record",
   "authority_fallback": "last_cost_state_cumulative",
   "token_formula": "input + output + cache_read + cache_creation",
   "live_hook_is_not_benchmark_source": true,
   "seed": 20260902,
   "holdout_weight": 0.0833333333333333,
-  "selected_candidate": "candidate_a",
-  "selected_candidate_rule": "whole-matrix winner only: all oracles 3/3 on calibration, no cap-hit, adversary family differs from producer/reviewer, lowest sum processed_total_tokens; below 5% gap prefer lower cost then the simpler arm; never a per-role hybrid",
+  "selected_candidate": null,
+  "selected_candidate_rule": "whole-matrix winner only: all oracles 3/3 on calibration, no cap-hit, adversary model differs from producer/reviewer, lowest sum processed_total_tokens; below 5% gap prefer lower cost then the simpler arm; never a per-role hybrid",
   "budget": {
     "nominal_processes": 115,
     "absolute_cap": 128,
@@ -103,7 +103,7 @@
   "scenario_order_derivation": "mulberry32(20260902) Fisher-Yates over 4 routes x {normal, clean, safety}, frozen at declaration; first six scenarios run first_half order, last six run second_half order",
   "arms": {
     "baseline": {
-      "label": "current live setup snapshot",
+      "label": "current live setup snapshot; fresh calibration required",
       "settings_profile": null,
       "session": {
         "model": null,
@@ -111,41 +111,35 @@
       },
       "agents": {
         "scout": {
-          "model": "sonnet",
+          "model": "claude-sonnet-5-5",
           "effort": "medium",
           "max_turns": 24
         },
         "worker": {
-          "model": "opus",
-          "effort": "high",
+          "model": "claude-sonnet-5-5",
+          "effort": "medium",
           "max_turns": 40
         },
         "reviewer": {
-          "model": "fable",
+          "model": "claude-sonnet-5-5",
           "effort": "medium",
-          "max_turns": 40
+          "max_turns": 24
         },
         "adversary": {
-          "model": "fable",
-          "effort": "medium",
-          "max_turns": 40
+          "model": "claude-opus-5-5",
+          "effort": "low",
+          "max_turns": 24
         }
       },
-      "resolved_model_ids": {
-        "sonnet": "claude-sonnet-5",
-        "opus": "claude-opus-5",
-        "fable": "claude-fable-5-1",
-        "resolved_at": "2026-09-02",
-        "method": "live probe via --agents delegation; canonicalModel from record modelUsage"
-      },
-      "source": "claude/scopes/shared/agents/*.md frontmatter observed 2026-09-02 (PLAN.md facts)",
-      "resolution_evidence": ".workflow/claude-token-budget/samples/probes/"
+      "resolved_model_ids": {},
+      "source": "2026-10-05 routing decision; previous 2026-09-02 resolution invalidated",
+      "resolution_required_before": "calibration"
     },
     "candidate_a": {
-      "label": "balanced sonnet/fable with Explore mapping",
+      "label": "balanced sonnet 5.5/opus 5.5 with Explore mapping",
       "settings_profile": "claude/profiles/lean",
       "session": {
-        "model": "sonnet",
+        "model": "claude-sonnet-5-5",
         "effort": "medium"
       },
       "agents": {
@@ -156,75 +150,63 @@
           "effort": null
         },
         "scout": {
-          "model": "sonnet",
+          "model": "claude-sonnet-5-5",
           "effort": "medium",
           "max_turns": 24
         },
         "worker": {
-          "model": "sonnet",
+          "model": "claude-sonnet-5-5",
           "effort": "medium",
           "max_turns": 24
         },
         "reviewer": {
-          "model": "sonnet",
+          "model": "claude-sonnet-5-5",
           "effort": "medium",
           "max_turns": 24
         },
         "adversary": {
-          "model": "fable",
+          "model": "claude-opus-5-5",
           "effort": "low",
           "max_turns": 24
         }
       },
-      "resolved_model_ids": {
-        "sonnet": "claude-sonnet-5",
-        "opus": "claude-opus-5",
-        "fable": "claude-fable-5-1",
-        "resolved_at": "2026-09-02",
-        "method": "live probe via --agents delegation; canonicalModel from record modelUsage"
-      },
+      "resolved_model_ids": {},
       "resolution_required_before": "calibration"
     },
     "candidate_b": {
-      "label": "opus low-effort core with fable adversary",
+      "label": "sonnet 5.5 low-effort core with opus 5.5 adversary",
       "settings_profile": "claude/profiles/lean",
       "session": {
-        "model": "opus",
+        "model": "claude-sonnet-5-5",
         "effort": "low"
       },
       "agents": {
         "scout": {
-          "model": "sonnet",
+          "model": "claude-sonnet-5-5",
           "effort": "low",
           "max_turns": 16
         },
         "worker": {
-          "model": "opus",
+          "model": "claude-sonnet-5-5",
           "effort": "low",
           "max_turns": 24
         },
         "reviewer": {
-          "model": "opus",
+          "model": "claude-sonnet-5-5",
           "effort": "low",
           "max_turns": 24
         },
         "adversary": {
-          "model": "fable",
+          "model": "claude-opus-5-5",
           "effort": "medium",
           "max_turns": 24
         }
       },
-      "resolved_model_ids": {
-        "sonnet": "claude-sonnet-5",
-        "opus": "claude-opus-5",
-        "fable": "claude-fable-5-1",
-        "resolved_at": "2026-09-02",
-        "method": "live probe via --agents delegation; canonicalModel from record modelUsage"
-      },
+      "resolved_model_ids": {},
       "resolution_required_before": "calibration"
     }
   },
-  "diversity_rule": "the adversary arm must not share a model family with the producer or reviewer it challenges; no xhigh/max effort as a default; escalations are named routes with counted retries",
+  "diversity_rule": "This Anthropic-only benchmark requires a different adversary model from producer/reviewer, not a different provider family; it never proves cross-provider workflow independence. No xhigh/max effort as a default; escalations are named routes with counted retries.",
   "disjointness": "fixtures are synthetic and disjoint from all calibration content; the runner copies only the active fixture into a temporary repo so holdout content stays invisible to the model",
   "fixtures": {
     "calibration/adversary/oracle.json": "156412b98b7a0a0819e1ab8c38f94c013071a219b6f999512daa52a5f1495510",
@@ -289,12 +271,14 @@
     "holdout/review/safety/task.md": "8aa87b49b7813adf03cc0d3f265fb17e494d48a1ccf2c683ca19115f2f644352"
   },
   "invariant_surfaces": {
-    "CLAUDE.md": "236f369fecfd4fdadec26ca945e33356e70d485f8d2d27fb99e83fbe40c6b779",
-    "claude/CLAUDE.md": "735b8e7f407cc99be22b7c10e2f233a7302a4971104b17414ad10eb9e13ed6dd",
-    "claude/scopes/shared/commands/plan-implement.md": "5dc51abbe1b8e1b2dde3324571dc2ea8521939fb4ff90132d6beec96c6a1b22c",
-    "claude/scopes/shared/commands/adversary.md": "35b3b071b4ed80507ea8873953e832e9b6c22b48f6ee674eaadceb7cc7e56945",
-    "claude/scopes/shared/commands/review.md": "40344ea05dacdeb58e3f1c19830500148e55a75deeb2a6407b4974d033f3b5ab"
+    "CLAUDE.md": "c3cb234ed8c023901f62b55888924c5fb6306c74f08aafcb57cf7c8f0f94e680",
+    "claude/CLAUDE.md": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+    "claude/scopes/shared/commands/plan-implement.md": "a9baab26c9f7f60b0d0185f8d7fdde88647ba763146179aa339ae15e4eb88e73",
+    "claude/scopes/shared/commands/adversary.md": "4a84236ae16cf3e805ae1a5ecd71bc58c5bf9f072ce522c42ba3f7622e5da8b4",
+    "claude/scopes/shared/commands/review.md": "4824e90dc6f576467f6df56d8cbc375621be62c4bbd6bb150ec509d740416be2"
   },
   "invariant_rule": "these surfaces stay byte-identical between arms; hashes are re-verified before every pair and any drift invalidates the pair and stops the runner; hash metadata only, no live content is captured into evidence",
-  "selected_candidate_note": "selected on partial calibration per user decision 2026-09-02 (measurement halted before holdout): only arm with 3/3 oracles on all four routes + diversity; 50% claim withdrawn, holdout replayable later"
+  "selected_candidate_note": "Previous 2026-09-02 selection invalidated by subscription routing; no winner until fresh calibration.",
+  "calibration_required": true,
+  "revision_note": "Declared against the base Git revision; invariant surfaces are hashed from the modified working/committed tree, not reconstructed from the base."
 }

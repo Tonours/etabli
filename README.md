@@ -22,6 +22,7 @@ scripts/verify-agentic-infra core        # every check should PASS
   (`scripts/fix-links --fix` there).
 - Pi comes from `@earendil-works/pi-coding-agent`. The installer uses your
   existing Node.js, preferring `asdf` when available; it never installs Node.
+- [Subscription model routing](docs/adr/0029-subscription-model-routing.md) records the task/model choices and Muse terms boundary; the [registry](workflow/runtime/model-routing.json) keeps active selections consistent.
 - Optional diff tooling: `hunkdiff`, from the CLI or a tmux pane.
 - [Native Pi Durable](docs/pi-durable.md) provides resumable reviews, missions,
   task dependencies, Mobile admissions, CI waits, campaigns and compaction via

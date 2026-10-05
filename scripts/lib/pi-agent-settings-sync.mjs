@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 
+const modelRouting = JSON.parse(fs.readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
+
 const [localPath, trackedPath, dryRunRaw, timestamp, mode] =
   process.argv.slice(2);
 const dryRun = dryRunRaw === "1";
@@ -34,6 +36,7 @@ const legacySources = new Set([
 ]);
 
 const deployLegacyModels = new Set([
+  ...modelRouting.retired_pi_models,
   "openai-codex/gpt-5.6",
   "kimi-coding/k3",
   "zai/glm-5.2",
@@ -44,6 +47,7 @@ const deployLegacyModels = new Set([
   "opencode-go/qwen3.7-max",
 ]);
 const installLegacyModels = new Set([
+  ...modelRouting.retired_pi_models,
   "openai-codex/gpt-5.6",
   "opencode-go/kimi-k2.6",
   "kimi-coding/kimi-for-coding",
@@ -144,6 +148,12 @@ for (const model of trackedSettings.enabledModels ?? []) {
   if (localModels.includes(model)) continue;
   localModels.push(model);
   changes.push(`add ${model}`);
+}
+const localDefault = `${localSettings.defaultProvider}/${localSettings.defaultModel}`;
+if (modelRouting.retired_pi_models.includes(localDefault)) {
+  localSettings.defaultProvider = trackedSettings.defaultProvider;
+  localSettings.defaultModel = trackedSettings.defaultModel;
+  changes.push(`reset retired default ${localDefault} to ${trackedSettings.defaultProvider}/${trackedSettings.defaultModel}`);
 }
 if (mode === "install") {
   const provider = localSettings.defaultProvider;

@@ -1,15 +1,17 @@
-import { accessSync, constants, realpathSync, statSync } from "node:fs";
+import { readFileSync, accessSync, constants, realpathSync, statSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { homedir, constants as osConstants } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildLeanLaunch } from "./claude-profile.mjs";
 
+const modelRouting = JSON.parse(readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const modes = new Set(["lean", "daily", "deep"]);
 const help = `Usage: claude-{daily,deep,lean} [--inspect|--print-args] [--store DIR] [--claude-bin FILE] [--teams] [Claude args...]
 Daily inherits native capabilities/model/effort; teams are opt-in.
-Deep defaults to Opus, inherits effort; explicit --model/--effort flags win.
+Deep defaults to opusplan (Opus 5.5 plan, Sonnet 5.5 execution); explicit model/effort overrides win.
 Lean uses a project-selected private MCP file and reduces optional plugins/skills.
 Lean --no-strict-mcp still passes that file and also retains all native MCPs;
 it does not isolate native vaults or remove their tools. TypeScript LSP is inherited.
@@ -111,9 +113,14 @@ export function resolveLaunch(mode, argv, env = process.env) {
   );
   if (
     mode === "deep" &&
+    !env.ANTHROPIC_MODEL &&
     !native.some((arg) => arg === "--model" || arg.startsWith("--model="))
   )
-    args.unshift("--model", "opus");
+    args.unshift("--model", modelRouting.models.opusplan.model);
+  if (mode === "deep") {
+    childEnv.ANTHROPIC_DEFAULT_OPUS_MODEL ||= modelRouting.models.opus.model;
+    childEnv.ANTHROPIC_DEFAULT_SONNET_MODEL ||= modelRouting.models.sonnet.model;
+  }
   const lean =
     mode === "lean"
       ? buildLeanLaunch({ repoRoot, home, strictMcp: strict, extraArgs: args })

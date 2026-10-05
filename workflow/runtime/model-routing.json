@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "policy_version": "2026-10-05",
+  "mode": "advisory_foreground",
+  "availability": "configured_unverified",
+  "models": {
+    "glm": {
+      "family": "zai",
+      "harness": "pi",
+      "provider": "zai",
+      "model": "glm-5.3"
+    },
+    "glm_flash": {
+      "family": "zai",
+      "harness": "pi",
+      "provider": "zai",
+      "model": "glm-5.3-flash"
+    },
+    "sol": {
+      "family": "openai",
+      "harness": "codex",
+      "model": "gpt-6.1-sol"
+    },
+    "astra": {
+      "family": "openai",
+      "harness": "codex",
+      "model": "gpt-6-astra"
+    },
+    "opus": {
+      "family": "anthropic",
+      "harness": "claude",
+      "model": "claude-opus-5-5"
+    },
+    "sonnet": {
+      "family": "anthropic",
+      "harness": "claude",
+      "model": "claude-sonnet-5-5"
+    },
+    "opusplan": {
+      "family": "anthropic",
+      "harness": "claude",
+      "model": "opusplan",
+      "plan": "opus",
+      "execution": "sonnet"
+    },
+    "muse": {
+      "family": "meta",
+      "harness": "muse",
+      "model": null,
+      "auth": "subscription_browser_login",
+      "api_key_override": false
+    }
+  },
+  "pi_enabled_models": [
+    "glm",
+    "glm_flash"
+  ],
+  "pi_default": "glm",
+  "retired_pi_models": [
+    "zai/glm-5.3-highspeed",
+    "zai/glm-5-turbo",
+    "cursor/composer-2.5",
+    "cursor/claude-opus-5-5@300k",
+    "cursor/claude-fable-5-1@300k",
+    "cursor/claude-fable-5-1@1m",
+    "cursor/claude-opus-5-5@1m",
+    "cursor/claude-sonnet-5@300k",
+    "cursor/gpt-5.6-sol@272k",
+    "cursor/gpt-5.6-sol@1m",
+    "cursor/gpt-5.6-terra@1m",
+    "cursor/grok-4.7@256k",
+    "xai/grok-4.7",
+    "openai-codex/gpt-6-astra",
+    "openai-codex/gpt-6-sol",
+    "openai-codex/gpt-6-luna",
+    "openai-codex/gpt-5.6-terra",
+    "openai-codex/gpt-5.5",
+    "openai-codex/gpt-5.3-codex-spark",
+    "github-copilot/claude-sonnet-5",
+    "github-copilot/gpt-6-luna",
+    "opencode-go/qwen3.8-max",
+    "opencode-go/qwen3.7-plus",
+    "opencode-go/deepseek-v4-pro",
+    "opencode-go/deepseek-v4.1-flash",
+    "opencode-go/minimax-m3",
+    "opencode-go/mimo-v2.6-pro",
+    "opencode-go/mimo-v2.5",
+    "opencode-go/kimi-k3",
+    "opencode-go/grok-4.7"
+  ],
+  "claude_agents": {
+    "worker": "sonnet",
+    "scout": "sonnet",
+    "reviewer": "sonnet",
+    "adversary": "opus"
+  },
+  "adversary_policy": "workflow/runtime/adversary-model-policy.json",
+  "author_family_routes": {
+    "zai": [
+      "sol",
+      "astra",
+      "opus"
+    ],
+    "anthropic": [
+      "sol",
+      "astra",
+      "glm"
+    ],
+    "openai": [
+      "opus",
+      "glm"
+    ]
+  },
+  "tasks": {
+    "broad_or_risky_plan": {
+      "primary": "opusplan",
+      "escalation": [
+        "sol",
+        "astra"
+      ]
+    },
+    "simple_plan_volume_tests_docs_commits": {
+      "primary": "glm",
+      "mechanical": "glm_flash",
+      "escalation": [
+        "sonnet"
+      ],
+      "trigger": {
+        "event": "no_progress",
+        "failed_attempts": 2,
+        "scope": "same_fix_hypothesis",
+        "action": "record_foreground_handoff"
+      }
+    },
+    "one_shot_ui": {
+      "primary": "muse",
+      "escalation": [
+        "sol"
+      ]
+    },
+    "interactive_app_ui_polish": {
+      "primary": "sonnet",
+      "escalation": [
+        "sol",
+        "astra"
+      ]
+    },
+    "hard_bug_terminal_ci": {
+      "primary": "sol",
+      "escalation": [
+        "astra"
+      ]
+    },
+    "cross_family_adversary_glm_author": {
+      "primary": "sol",
+      "escalation": [
+        "astra",
+        "opus"
+      ]
+    },
+    "same_family_claude_adversary": {
+      "primary": "opus",
+      "escalation": [],
+      "counts_as_cross_family": false
+    }
+  }
+}

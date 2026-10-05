@@ -1,7 +1,7 @@
 ---
 name: scout
 description: "Map one bounded, unfamiliar code area before planning when exploration would flood the parent context. Return sourced facts and unknowns; never design or edit the change."
-model: sonnet
+model: claude-sonnet-5-5
 effort: medium
 maxTurns: 24
 color: blue

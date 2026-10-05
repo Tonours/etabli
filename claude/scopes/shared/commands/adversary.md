@@ -21,9 +21,12 @@ only when the route or a gate is in doubt.
 For plan mode and cross-model code-diff passes, select a **different model
 family** from the author through
 `workflow/runtime/adversary-model-policy.json`, regardless of which harness
-owns the route. From Claude, prefer `gpt-6-astra` through Codex; configured
-fallback families are `xai/grok-4.7`, `zai/glm-5.3`, `opencode-go/kimi-k3`,
-`opencode-go/qwen3.8-max`, and `opencode-go/deepseek-v4-pro` through Pi.
+owns the route. Prefer `gpt-6.1-sol` through Codex, then `gpt-6-astra`
+for escalation or an unavailable Sol route. Eligible Pi fallback: `zai/glm-5.3`.
+For a GLM author, the last eligible fallback is Claude `claude-opus-5-5`;
+for an OpenAI author, select Opus first, then GLM. The author-family order
+is declared in `workflow/runtime/model-routing.json`. Exclude the author's
+family from every route, including an OpenAI model served through Pi.
 Requested-model success is insufficient: record the effective model or stop as
 blocked. A same-family pass is a labeled supplement only and never satisfies
 the independence requirement. Record `model_provenance`
@@ -54,17 +57,22 @@ repo command.
 
 2. Freeze the plan and capture `scripts/plan-review-check --hash PLAN.md`
    before dispatch. **Run a frontier model as an adversarial reviewer**, using the first
-   configured route whose family differs from Claude. The preferred Codex call
-   is read-only:
+   configured route whose family differs from the implementation author. For a
+   non-OpenAI author, the preferred eligible Codex call is read-only:
 
    ```bash
-   codex exec --cd "$PWD" --sandbox read-only --model gpt-6-astra \
+   codex exec --cd "$PWD" --sandbox read-only --model gpt-6.1-sol \
      "Review PLAN.md as an adversarial reviewer from a different model family. Do not edit. Hunt blockers, weak assumptions, missing edge cases, validation gaps, plan drift, and simpler or safer routes. Cite sections and end with READY or CHALLENGED."
    ```
 
-   If that route is unavailable, use the policy's Pi routes in listed family
-   order with `pi -p --model <route-model> --tools read`. Say which requested
-   route ran and which effective model the transcript or runtime proved.
+   If that Codex route is eligible and Sol is unavailable or needs escalation,
+   try Codex Astra. For an OpenAI author, skip both Codex routes and select
+   Opus 5.5 through the existing foreground Claude adversary workflow first.
+   Never send an Opus model ID to Pi. For an eligible Z.ai fallback, use
+   `pi -p --model zai/glm-5.3 --tools read`. Follow the registry's author-family
+   order and say which requested route ran and which effective model the
+   transcript or runtime proved. The `claude -p` recipe belongs to PR council;
+   this command does not introduce that recipe.
 
 3. **Relay the reviewer's findings verbatim** to the user, attributed to the
    actual reviewer model. Do not soften or merge them yet.
