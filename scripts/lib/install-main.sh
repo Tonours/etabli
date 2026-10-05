@@ -254,6 +254,19 @@ install_npm_global_binary_link() {
     print_success "$binary linked into ~/.local/bin"
 }
 
+pi_coding_agent_spec() {
+    "${NODE_CMD[@]}" -e '
+const version = require(process.argv[1]).dependencies["@earendil-works/pi-coding-agent"];
+if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error("Pi requires an exact version in pi/package.json");
+console.log(`@earendil-works/pi-coding-agent@${version}`);
+' "$BOOTSTRAP_DIR/../pi/package.json"
+}
+
+stamp_pi_specialist_skills() {
+    "$BOOTSTRAP_DIR/pi-dmi-stamp" --home "$HOME" --repo "$BOOTSTRAP_DIR/.." ||
+        print_warning "Pi specialist visibility needs repair: run $BOOTSTRAP_DIR/pi-dmi-stamp --home \"$HOME\""
+}
+
 install_pi_packages_from_settings() {
     local settings_path="$REPO_DIR/pi/agent/settings.json"
     local package_sources
@@ -649,6 +662,27 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     PATH="$(dirname "$smoke_node_bin"):$PATH"
     HOME="$smoke_home"
     REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
+    smoke_pi_spec="$(pi_coding_agent_spec)"
+    [ "$smoke_pi_spec" = "@earendil-works/pi-coding-agent@1.0.3" ] || {
+        print_error "fresh Pi install does not use the tracked exact version"
+        exit 1
+    }
+    smoke_radius_skill="$smoke_home/.pi/agent/npm/node_modules/@earendil-works/pi-radius/skills/radius-api/SKILL.md"
+    mkdir -p "$(dirname "$smoke_radius_skill")"
+    printf -- '---\nname: radius-api\ndescription: fixture\n---\nbody\n' >"$smoke_radius_skill"
+    stamp_pi_specialist_skills >/dev/null
+    grep -q '^disable-model-invocation: true$' "$smoke_radius_skill" || {
+        print_error "Pi installation did not restore Radius DMI"
+        exit 1
+    }
+    printf -- '---\nname: [unterminated\n---\n' >"$smoke_radius_skill"
+    smoke_stamp_warning="$(stamp_pi_specialist_skills 2>&1)"
+    case "$smoke_stamp_warning" in
+        *"visibility needs repair"*) ;;
+        *) print_error "failed DMI repair must warn without aborting installation"; exit 1 ;;
+    esac
+    printf -- '---\nname: radius-api\ndescription: fixture\n---\nbody\n' >"$smoke_radius_skill"
+    stamp_pi_specialist_skills >/dev/null
     converge_agent_surfaces >/dev/null
     "${NODE_CMD[@]}" - "$smoke_home/.pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -939,16 +973,18 @@ print_step "Setting up agent workflow surfaces..."
 converge_agent_surfaces
 if ! command -v pi &>/dev/null; then
     print_step "Installing Pi Coding Agent..."
-    "${NPM_CMD[@]}" install -g --ignore-scripts @earendil-works/pi-coding-agent &&
+    pi_package_spec="$(pi_coding_agent_spec)"
+    "${NPM_CMD[@]}" install -g --ignore-scripts "$pi_package_spec" &&
         reshim_asdf_node &&
         print_success "Pi installed" ||
-        print_warning "Pi install failed (npm install -g --ignore-scripts @earendil-works/pi-coding-agent)"
+        print_warning "Pi install failed (npm install -g --ignore-scripts $pi_package_spec)"
 fi
 
 if command -v pi &>/dev/null; then
     print_step "Installing Pi packages from tracked settings..."
     install_pi_packages_from_settings
     install_pi_agent_npm_pins
+    stamp_pi_specialist_skills
 fi
 
 # ============================================================================

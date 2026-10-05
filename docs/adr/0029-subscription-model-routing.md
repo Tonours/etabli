@@ -31,9 +31,19 @@ Pool eligibility remains in adversary-model-policy.json. The registry's author_f
 - **Muse subscription is recommended through the official Muse CLI only.** [Meta subscription documentation](https://dev.meta.ai/docs/muse-code/subscriptions), checked 2026-10-05, restricts the subscription credential to Muse Code; separately created API keys incur pay-as-you-go charges. [Authentication documentation](https://dev.meta.ai/docs/muse-code/auth) says an environment API key, then a stored API key, takes precedence over browser login. For subscription work use an existing browser subscription login with no API-key override, e.g. `env -u META_API_KEY muse` or `env -u META_API_KEY muse exec "..."`, and check the CLI's billing/auth indication. Do not change or inspect credentials automatically. The tracked custom Meta provider is labeled pay-as-you-go only and remains outside enabledModels.
 - **Pi Meta OAuth is experimental and carries unresolved terms risk.** pi-ai 1.0.3 implements a Muse-subscription login; technical support is not proof of authorization, subscription billing or CGU safety. No Meta OAuth login or request is activated by this change.
 
-## Pi upgrade decision
+## Initial Pi upgrade deferral (superseded 2026-10-05)
 
 Keep the repo's Pi 0.84.4 pin. Published package evaluation used npm view/pack without lifecycle scripts: pi-ai 1.0.3 includes the Meta OAuth connector, while coding-agent 1.0.3's changelog has breaking provider/runtime/MCP changes. Existing 0.84.4 already registers GLM 5.3, Flash, Sol 6.1 and Astra. A separate 1.x PR must exercise extension/MCP/session compatibility and retain the terms boundary; access to Muse subscription in Pi is not its acceptance criterion. No global runtime is installed or modified here.
+
+## 2026-10-05 follow-up: explicit 1.0.3 pin
+
+The user subsequently requested an exact Pi 1.0.3 pin and direct publication to main. This supersedes the upgrade deferral above. The repository lock and fresh installer now use 1.0.3; validation uses isolated dependencies and an auth-free HOME, leaving the existing global runtime unchanged. The native Radius skill filter and DMI policy are checked against the target runtime. Repository installation reapplies specialist DMI flags after npm package installation; updates outside the installer can erase them, and the guard reports the repair command. The earlier Radius filter escape was observed, but its precise origin remains unproven.
+
+Muse remains recommended through the official Muse CLI. Technical Meta OAuth support in Pi 1.0.3 does not establish CGU safety; it is experimental, disabled here, and no subscription login or request is performed.
+
+Pi 1.0.3 --list-models confirms zai/glm-5.3, zai/glm-5.3-flash, openai-codex/gpt-6.1-sol and openai-codex/gpt-6-astra. The isolated catalog probes used a synthetic Z.ai environment key and a synthetic Codex provider metadata override solely for catalog visibility, with no model request or OAuth login. The tracked models.json also loads successfully on 1.0.3. Exact IDs are registered; credentials and subscription availability remain unverified.
+
+Radius DMI enforcement covers the managed agent npm directory. A legacy global npm Radius installation is outside the stamp search; the native manifest guard still rejects an unexpected rendered Radius skill. Repair such a legacy installation by moving it into Pi's managed package directory before stamping.
 
 ## Observed evidence and consequences
 

@@ -60,6 +60,7 @@ node --input-type=module -e '
 import { chmodSync, chownSync, lstatSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 
 const homeDir = process.argv[1];
 const repoDir = process.argv[2];
@@ -98,8 +99,13 @@ let parse, parseDocument;
 try {
   ({ parse, parseDocument } = createRequire(join(repoDir, "pi/package.json"))("yaml"));
 } catch (error) {
-  console.error(`pi-dmi-stamp: Pi yaml dependency unavailable (${error.message}); run bun install --cwd pi`);
-  process.exit(1);
+  try {
+    const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim();
+    ({ parse, parseDocument } = createRequire(join(globalRoot, "@earendil-works/pi-coding-agent/package.json"))("yaml"));
+  } catch {
+    console.error(`pi-dmi-stamp: YAML unavailable from local or global Pi (${error.message}); run bun install --cwd pi`);
+    process.exit(1);
+  }
 }
 
 const isUnderRepoReal = (real) => {

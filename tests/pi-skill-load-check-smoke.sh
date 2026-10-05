@@ -198,6 +198,23 @@ if ! PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/sub-dump.txt" --home "$SU
   fail "subset universe with union deny-list must pass (absent denies inert)"
 fi
 
+RADIUS_SKILL="$SUB_HOME/.pi/agent/npm/node_modules/@earendil-works/pi-radius/skills/radius-api"
+write_skill "$RADIUS_SKILL" radius-api 0
+if PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/sub-dump.txt" --home "$SUB_HOME" >"$TMP_DIR/radius.out" 2>&1; then
+  fail "hidden Radius skill without DMI must fail even with no package keeper"
+fi
+grep -q 'pi-dmi-stamp' "$TMP_DIR/radius.out" || fail "Radius failure must name its repair command"
+"$ROOT_DIR/scripts/pi-dmi-stamp" --home "$SUB_HOME" >/dev/null
+PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/sub-dump.txt" --home "$SUB_HOME" >/dev/null \
+  || fail "stamped Radius skill must pass while hidden"
+printf '%s\n' '---' 'name: radius-api' 'description: [unterminated' '---' >"$RADIUS_SKILL/SKILL.md"
+if PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/sub-dump.txt" --home "$SUB_HOME" >/dev/null 2>&1; then
+  fail "malformed Radius frontmatter must fail"
+fi
+rm "$RADIUS_SKILL/SKILL.md"
+PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/sub-dump.txt" --home "$SUB_HOME" >/dev/null \
+  || fail "absent Radius must remain tolerated"
+
 mkdir -p "$HOME_FIX/.agents/skills/deslop.bak.20240101-000000"
 printf -- '---\nname: deslop\ndescription: stale backup\n---\nbody\n' \
   >"$HOME_FIX/.agents/skills/deslop.bak.20240101-000000/SKILL.md"
