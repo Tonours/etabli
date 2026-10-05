@@ -68,7 +68,14 @@ ship-order
 ref-linter
 adapter-sync
 rule-registry
-skill-hygiene'
+skill-hygiene
+workflow-lease-smoke
+guard-journal-smoke
+ship-metrics-report
+project-verification-check
+project-verification-run
+plan-review-binding-test
+execution-quality-smoke'
 # Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
 # review-contract-surface-smoke (<50 ms) — the merge gate that must catch
 # contract-surface regressions like the CR-B4 union-cap leak.
@@ -87,9 +94,9 @@ skill-hygiene'
 # T7 step 3 appends skill-trigger-eval (frozen recompute + compare) and
 # codex-source (hermetic source-measure gate) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
-[ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 26 ] ||
-	fail "core profile must hold exactly 26 checks"
+[ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted: review workflow/runtime/agentic-infra-checks.tsv and align the exact approved expected_core list"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 33 ] ||
+	fail "core profile must hold exactly 33 checks; align approved manifest rows and expected_core"
 [ "$(awk -F '\t' '!/^#/ && $1 == "core" {print $4}' "$MANIFEST" | sort | uniq -d)" = "" ] ||
 	fail "core profile runs a target twice under two labels; keep one row per target"
 
@@ -146,7 +153,10 @@ harness-token-usage-test
 skills-lock-coverage-smoke
 skill-trigger-eval
 codex-source
-token-bench-smoke'
+token-bench-smoke
+claude-launch-smoke
+claude-statusline-smoke
+claude-efficiency-campaign'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 

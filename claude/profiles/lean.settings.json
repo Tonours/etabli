@@ -10,8 +10,7 @@
     "macroscope@macroscope-local": false,
     "ponytail@ponytail": false,
     "superpowers@claude-plugins-official": false,
-    "telegram@claude-plugins-official": false,
-    "typescript-lsp@claude-plugins-official": false
+    "telegram@claude-plugins-official": false
   },
   "skillOverrides": {
     "ask-matt": "user-invocable-only",
@@ -57,6 +56,5 @@
     "wizard": "on",
     "write-direct": "on"
   },
-  "skillListingBudgetFraction": 0.008,
-  "effortLevel": "low"
+  "skillListingBudgetFraction": 0.008
 }

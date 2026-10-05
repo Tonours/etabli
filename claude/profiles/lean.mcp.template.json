@@ -1,16 +1,11 @@
 {
-  "$comment": "Sanitized MCP template for the lean Claude profile. The renderer substitutes ${HOME} at launch into a 0600 temp file and never touches live config. brain renders only for the work scope when ~/work/brain exists; otherwise the canonical memory path applies. Derived from mcp/servers.template.json (see docs/mcp-strategy.md).",
+  "$comment": "Project-selected vault only. Renderer checks canonical CLI and MCP server availability, substitutes VAULT_ROOT/VAULT_NAME, writes a private temporary file, and never mutates native settings.",
   "mcpServers": {
-    "brain": {
+    "alambic-${VAULT_NAME}": {
       "type": "stdio",
       "command": "node",
-      "args": [
-        "${HOME}/work/brain/_meta/mcp/server.mjs"
-      ],
-      "env": {
-        "OBVAULT_ROOT": "${HOME}/work/brain"
-      },
-      "require_scope": "work"
+      "args": ["${VAULT_ROOT}/_meta/mcp/server.mjs"],
+      "env": {"OBVAULT_ROOT": "${VAULT_ROOT}"}
     }
   }
 }

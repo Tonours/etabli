@@ -134,6 +134,7 @@ describe("Pi settings consistency", () => {
       "pr-qa",
       "sec-pr",
       "ci-fix",
+      "write-direct",
       "ship",
       "thermo-nuclear-code-quality-review",
     ];
@@ -150,7 +151,7 @@ describe("Pi settings consistency", () => {
       piCore: true,
       agentsVisible: false,
     });
-    expect(keepList).toHaveLength(16);
+    expect(keepList).toHaveLength(17);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);
       expect(localPackage().skills ?? []).not.toContain(banned);

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "name": "__REQUIRED__ project verification",
+  "launch": {
+    "argv": ["__REQUIRED__"],
+    "timeout_ms": 30000
+  },
+  "doctor": {
+    "argv": ["__REQUIRED__"],
+    "timeout_ms": 30000
+  },
+  "cleanup": {
+    "argv": ["__REQUIRED__"],
+    "timeout_ms": 30000
+  },
+  "scenarios": [
+    {
+      "id": "changed-behavior",
+      "criterion_ids": ["AC-REQUIRED"],
+      "action": {
+        "argv": ["__REQUIRED__"],
+        "timeout_ms": 30000
+      },
+      "result": {
+        "argv": ["__REQUIRED__"],
+        "timeout_ms": 30000,
+        "assertions": [
+          {
+            "pointer": "/__REQUIRED__",
+            "expected": "__REQUIRED__"
+          }
+        ]
+      }
+    }
+  ]
+}

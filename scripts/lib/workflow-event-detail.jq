@@ -27,16 +27,33 @@ def optional_string_array($value): $value == null or ($value | string_array);
 def retired_events: ["dogfood_matrix_created", "dogfood_scenario_run", "dogfood_fix_applied", "dogfood_blocked", "self_improvement_candidate", "harness_failure_pattern", "harness_proposal", "harness_validation_completed", "harness_candidate_rejected", "project_slice_planned", "project_slice_completed", "program_initialized", "program_unit_started", "program_unit_result", "program_unit_verdict", "program_unit_head_changed", "program_unit_retry", "program_unit_reconciled", "runtime_run_attached", "multi_execution_completed", "runtime_receipt", "outcome_measurement_population", "outcome_measurement_imported", "outcome_metric"];
 
 def strict_detail($event):
-  type == "object" and
+  type == "object" and ((has("export_id") | not) or (.export_id | nonempty_string)) and
+  (if has("export_source_detail") then
+    . as $actual | .export_source_detail as $original
+    | if ($original | type) != "object" then false
+      elif ($original | has("export_source_detail")) then false
+      else
+        ($original | strict_detail($event)) and
+        ($original.export_id == $actual.export_id) and ($actual.export_id | nonempty_string) and
+        (($actual | del(.export_source_detail)) != $original) and
+        (($actual | del(.export_source_detail, .product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path, .plan_contract_sha256)) ==
+         ($original | del(.product_verification_required, .product_verification_contract_sha256, .product_verification_receipt, .product_archive_path, .plan_contract_sha256)))
+      end
+   else true end) and
+  ((has("product_verification_required") | not) or (.product_verification_required | boolean)) and
+  ((has("product_verification_contract_sha256") | not) or (.product_verification_contract_sha256 | type == "string" and test("^[a-f0-9]{64}$"))) and
   if $event == "route_decided" then
     (.route | nonempty_string) and (.reason | nonempty_string)
-    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance"]) | length == 0)
+    and ((keys - ["route", "reason", "contract_path", "contract_sha256", "provenance", "export_id", "export_source_detail", "product_verification_required", "product_verification_contract_sha256"]) | length == 0)
     and ((has("contract_path") | not) or (.contract_path | nonempty_string))
     and ((has("contract_sha256") | not) or (.contract_sha256 | nonempty_string))
     and ((has("provenance") | not) or (.provenance | IN("deployed-pi", "deployed-agents", "repo")))
   elif $event == "plan_created" then
+    ((has("plan_contract_sha256") | not) or (.plan_contract_sha256 | sha256)) and
     (.path | nonempty_string) and (.status | IN("DRAFT", "CHALLENGED", "READY"))
+    and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
   elif $event == "adversary_completed" then
+    ((has("plan_contract_sha256") | not) or (.plan_contract_sha256 | sha256)) and
     (.mode | IN("plan", "code_diff")) and (.verdict | nonempty_string) and
     (.accepted_findings | string_array or finding_array) and (.rejected_findings | string_array) and
     ((has("model_provenance") | not) or (.model_provenance | provenance_complete))
@@ -81,6 +98,9 @@ def strict_detail($event):
     (.prompt_chars | positive_integer)
   elif $event == "archive_written" then
     (.path | nonempty_string)
+    and ((has("product_verification_required") | not) or (.product_verification_required | boolean))
+    and (has("product_verification_receipt") == has("product_archive_path"))
+    and ((has("product_verification_receipt") | not) or ((.product_verification_receipt | nonempty_string) and (.product_archive_path | nonempty_string)))
   elif $event == "plan_removed" then
     .path == "PLAN.md"
   elif $event == "completed" then
@@ -272,6 +292,8 @@ def batch_ledger($slug; $profile; $list):
       end)) as $st
   | ($entries | length) as $count
   | ([$entries[] | .v | select((type == "object") and .__parse_error != true)]) as $values
+  | ([$values[] | select(.schema_version == 2 and .detail.export_id != null) | .detail.export_id] | group_by(.) | map(select(length > 1)) | first) as $duplicate_export
+  | (if $duplicate_export != null then "duplicate export_id: \($duplicate_export[0]); preserve the ledger and reconcile the original export" else null end) as $export_err
   | (if $st.legacy == 0 and $st.term_line > 0 and $st.term_line != $count
      then "terminal event must be last (line \($st.term_line) of \($count))" else null end) as $term_err
   | (if $profile == "structural" then null
@@ -282,7 +304,7 @@ def batch_ledger($slug; $profile; $list):
      elif $profile == "ship-stopped" then ship_profile_error($values; $st; "ship-stopped"; false)
      else "unknown validation profile: \($profile)"
      end) as $profile_err
-  | ([$st.err, $term_err, $profile_err] | map(select(. != null)) | first) as $err
+  | ([$st.err, $export_err, $term_err, $profile_err] | map(select(. != null)) | first) as $err
   | (([$values[] | select(.schema_version == 2 and .event == "route_decided" and .detail.route == "plan-implement")] | length) > 0) as $has_v2
   | "\(if $err == null then "OK" else "ERR" end)\n\($err // "-")\n\($st.term)\n0\n\($st.legacy)\n\($count)\n\($st.term_line)\n\(if $has_v2 then 1 else 0 end)";
 
@@ -290,6 +312,7 @@ if ($ARGS.named.mode // "single") == "batch" then
   batch_ledger($ARGS.named.slug // ""; $ARGS.named.profile // "structural"; $ARGS.named.allowed // [])
 else
   (if ($ARGS.named.strict // false) then strict_detail($ARGS.named.event // "") else legacy_detail($ARGS.named.event // "") end)
+  and (if ($ARGS.named.append // false) then (has("export_source_detail") | not) else true end)
   and (if ($ARGS.named.append // false) and ($ARGS.named.event // "") == "adversary_completed" then appended_adversary_pass
        elif ($ARGS.named.append // false) and ($ARGS.named.event // "") == "blocked" then appended_blocked_reason
        else true end)

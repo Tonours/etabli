@@ -1,135 +1,68 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-LIB="$ROOT_DIR/scripts/lib/claude-profile.mjs"
-LEAN="$ROOT_DIR/scripts/claude-lean"
-FULL="$ROOT_DIR/scripts/claude-full"
-TMP="$(mktemp -d "${TMPDIR:-/tmp}/claude-profile.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
-
-fail() {
-	printf 'claude-profile smoke: %s\n' "$1" >&2
-	exit 1
-}
-
-chmod +x "$LEAN" "$FULL"
-NODE_BIN_DIR="$(dirname "$(node -e 'process.stdout.write(process.execPath)')")"
-export PATH="$NODE_BIN_DIR:$PATH"
-
-rm -f "${TMPDIR:-/tmp}"/claude-lean-mcp-*.json 2>/dev/null || true
-
-node --input-type=module <<NODE
-import { pathToFileURL } from "node:url";
-import { existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
-const lib = await import(pathToFileURL("$LIB").href);
-const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
-
-const home = "$TMP/home";
-const env = {};
-
-mkdirSync(home, { recursive: true });
-assert(lib.loadScope(home) === "personal", "missing scope file defaults to personal");
-writeFileSync(join(home, ".etabli-scope"), "work\n");
-assert(lib.loadScope(home) === "work", "work scope read");
-writeFileSync(join(home, ".etabli-scope"), "chaos\n");
-assert(lib.loadScope(home) === "personal", "invalid scope falls back to personal");
-writeFileSync(join(home, ".etabli-scope"), "work\n");
-
-mkdirSync(join(home, "work/brain"), { recursive: true });
-
-const rendered = lib.renderMcpConfig({
-	repoRoot: "$ROOT_DIR",
-	home,
-	scope: "work",
-	env,
-});
-assert(rendered.skipped.length === 0, "work scope with brain present renders brain");
-const stat = (await import("node:fs")).statSync(rendered.path);
-assert((stat.mode & 0o777) === 0o600, "rendered MCP config is 0600");
-const body = JSON.parse(readFileSync(rendered.path, "utf8"));
-assert(body.mcpServers.brain.args[0] === home + "/work/brain/_meta/mcp/server.mjs", "brain path substituted");
-assert(!("require_scope" in body.mcpServers.brain), "renderer metadata stripped");
-rmSync(rendered.path);
-assert(!existsSync(rendered.path), "cleanup removes the temp render");
-
-const noBrain = lib.renderMcpConfig({
-	repoRoot: "$ROOT_DIR",
-	home: "$TMP/home-no-brain",
-	scope: "work",
-	env,
-});
-assert(noBrain.skipped.includes("brain"), "work scope without brain root skips brain");
-const noBrainBody = JSON.parse(readFileSync(noBrain.path, "utf8"));
-assert(!noBrainBody.mcpServers.brain, "brain absent from render");
-assert(Object.keys(noBrainBody.mcpServers).length === 0, "no servers left once brain is skipped");
-rmSync(noBrain.path);
-
-const personal = lib.renderMcpConfig({
-	repoRoot: "$ROOT_DIR",
-	home,
-	scope: "personal",
-	env,
-});
-assert(personal.skipped.includes("brain"), "personal scope skips brain");
-rmSync(personal.path);
-
-
-const launch = lib.buildLeanLaunch({ repoRoot: "$ROOT_DIR", home, env, extraArgs: ["-p", "hi"] });
-assert(launch.args[0] === "--settings" && launch.args[1] === "$ROOT_DIR/claude/profiles/lean.settings.json", "profile passed via --settings");
-assert(launch.args.includes("--strict-mcp-config"), "strict mcp on by default");
-assert(launch.args.at(-2) === "-p" && launch.args.at(-1) === "hi", "extra args passed through");
-launch.cleanup();
-
-const noStrict = lib.buildLeanLaunch({ repoRoot: "$ROOT_DIR", home, env, strictMcp: false });
-assert(!noStrict.args.includes("--strict-mcp-config"), "--no-strict-mcp drops the strict flags");
-noStrict.cleanup();
-let missing = null;
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FIXTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/claude-profile.XXXXXX")"
+trap 'rm -rf "$FIXTURE_DIR"' EXIT
+mkdir -p "$FIXTURE_DIR/tmp"
+export TMPDIR="$FIXTURE_DIR/tmp" PROFILE_REPO="$ROOT_DIR" PROFILE_FIXTURE="$FIXTURE_DIR"
+node --input-type=module <<'NODE'
+import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync, readdirSync, rmSync, realpathSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const repo = process.env.PROFILE_REPO, dir = realpathSync(process.env.PROFILE_FIXTURE);
+const { buildLeanLaunch, renderMcpConfig } = await import(pathToFileURL(join(repo, 'scripts/lib/claude-profile.mjs')));
+const home = join(dir, 'home with spaces'), cwd = join(dir, 'project');
+mkdirSync(home); mkdirSync(cwd); delete process.env.OBVAULT_ROOT;
+execFileSync('git', ['init', '-q', cwd]);
+execFileSync('git', ['-C', cwd, 'remote', 'add', 'origin', 'git@github.com:Tonours/etabli.git']);
+const launch = buildLeanLaunch({repoRoot:repo,home,cwd,strictMcp:false});
 try {
-	lib.buildLeanLaunch({ repoRoot: "$TMP/empty-repo", home, env });
-} catch (error) {
-	missing = error;
+  assert.ok(launch.args.includes('--mcp-config'), 'non-strict must still pass rendered MCP config');
+  assert.ok(!launch.args.includes('--strict-mcp-config'));
+} finally { launch.cleanup(); }
+const profile = JSON.parse(readFileSync(join(repo, 'claude/profiles/lean.settings.json')));
+assert.ok(!Object.hasOwn(profile.enabledPlugins, 'typescript-lsp@claude-plugins-official'), 'inherit native TypeScript LSP preference');
+assert.ok(!Object.hasOwn(profile, 'effortLevel'), 'inherit machine effort');
+for (const name of ['brain','obvault']) {
+  const root = join(home,'work',name); mkdirSync(join(root,'_meta/mcp'),{recursive:true});
+  writeFileSync(join(root,'_meta/obvault'),'#!/bin/sh\nexit 0\n');
+  writeFileSync(join(root,'_meta/mcp/server.mjs'),'// fixture only\n');
 }
-assert(missing && missing.message.includes("lean profile missing"), "missing profile error names the remediation");
-console.log("claude-profile lib units ok");
+writeFileSync(join(home,'.etabli-scope'),'work\n');
+function checkVault(name, at=cwd) {
+  const r=renderMcpConfig({repoRoot:repo,home,cwd:at});
+  try {
+    assert.equal(statSync(r.path).mode & 0o777,0o600);
+    const body=JSON.parse(readFileSync(r.path));
+    assert.deepEqual(Object.keys(body.mcpServers),['alambic-'+name]);
+    assert.equal(body.mcpServers['alambic-'+name].env.OBVAULT_ROOT,join(home,'work',name));
+    assert.equal(body.mcpServers['alambic-'+name].args[0],join(home,'work',name,'_meta/mcp/server.mjs'));
+  } finally { r.cleanup(); }
+  assert.ok(!existsSync(r.path));
+}
+checkVault('obvault');
+execFileSync('git',['-C',cwd,'remote','set-url','origin','https://github.com/ForestAdmin/app.git']);
+writeFileSync(join(home,'.etabli-scope'),'personal\n');
+mkdirSync(join(cwd,'sub')); checkVault('brain',join(cwd,'sub'));
+execFileSync('git',['-C',cwd,'remote','set-url','origin','https://github.com.evil.test/ForestAdmin/app.git']); checkVault('obvault');
+process.env.OBVAULT_ROOT=join(home,'work/brain'); checkVault('brain');
+process.env.OBVAULT_ROOT=join(home,'missing');
+let r=renderMcpConfig({repoRoot:repo,home,cwd});
+try { assert.deepEqual(JSON.parse(readFileSync(r.path)).mcpServers,{}); assert.ok(r.skipped.length); } finally {r.cleanup();}
+delete process.env.OBVAULT_ROOT;
+rmSync(join(home,'work/obvault/_meta/mcp/server.mjs'));
+r=renderMcpConfig({repoRoot:repo,home,cwd});
+try { assert.deepEqual(JSON.parse(readFileSync(r.path)).mcpServers,{}); } finally {r.cleanup();}
+assert.throws(()=>buildLeanLaunch({repoRoot:join(dir,'absent'),home,cwd}),/lean profile missing/);
+const fake=join(dir,'fake-claude');
+writeFileSync(fake,'#!/bin/sh\nexit 23\n',{mode:0o755});
+const invoked=spawnSync(join(repo,'scripts/claude-lean'),['-p','fixture'],{cwd,env:{...process.env,HOME:home,CLAUDE_CONFIG_DIR:'',ETABLI_CLAUDE_BIN:fake},encoding:'utf8'});
+assert.equal(invoked.status,23,'native exit is preserved');
+assert.deepEqual(readdirSync(process.env.TMPDIR),[],'owned render dirs removed on failure');
+const inspected=spawnSync(join(repo,'scripts/claude-lean'),['--print-args','--no-strict-mcp'],{cwd,env:{...process.env,HOME:home,CLAUDE_CONFIG_DIR:'',ETABLI_CLAUDE_BIN:fake},encoding:'utf8'});
+assert.equal(inspected.status,0); assert.match(inspected.stdout,/--mcp-config/);
+assert.deepEqual(readdirSync(process.env.TMPDIR),[],'inspect also cleans owned renders');
+console.log('claude-profile smoke: ok');
 NODE
-
-mkdir -p "$TMP/h-launch/.claude" "$TMP/h-launch/work/brain"
-printf 'work\n' >"$TMP/h-launch/.etabli-scope"
-OUT="$(HOME="$TMP/h-launch" "$LEAN" --print-args)"
-printf '%s\n' "$OUT" | grep -q "scope=work" || fail "launcher did not resolve work scope: $OUT"
-printf '%s\n' "$OUT" | grep -q -- "--strict-mcp-config" || fail "launcher args missing strict mcp"
-printf '%s\n' "$OUT" | grep -q "lean.settings.json" || fail "launcher args missing profile"
-
-LEFTOVERS="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'claude-lean-mcp-*.json' 2>/dev/null | wc -l | tr -d ' ')"
-[ "$LEFTOVERS" -eq 0 ] || fail "temp MCP renders leaked: $LEFTOVERS"
-
-FAKEBIN="$TMP/bin"
-mkdir -p "$FAKEBIN"
-ln -s "$LEAN" "$FAKEBIN/claude"
-OUT="$(PATH="$FAKEBIN:$PATH" "$LEAN" -p hello 2>&1)" && fail "alias recursion not detected"
-printf '%s\n' "$OUT" | grep -qE "recur\w+" || fail "recursion error not named: $OUT"
-
-FAKECLAUDE="$FAKEBIN/fake-claude"
-cat >"$FAKECLAUDE" <<'FAKE'
-#!/usr/bin/env sh
-printf 'fake-claude'
-for a in "$@"; do printf ' %s' "$a"; done
-printf '\n'
-FAKE
-chmod +x "$FAKECLAUDE"
-ln -sf "$FAKECLAUDE" "$FAKEBIN/claude2"
-OUT="$(PATH="$FAKEBIN" sh -c 'command -v claude2 >/dev/null && exec "$0"' "$FAKECLAUDE" 2>/dev/null || true)"
-mkdir -p "$TMP/bin2"
-ln -sf "$FAKECLAUDE" "$TMP/bin2/claude"
-OUT="$(PATH="$TMP/bin2:$PATH" HOME="$TMP/h-launch" /bin/bash "$LEAN" 2>&1)" ||
-  fail "claude-lean no-argument invocation failed: $OUT"
-printf '%s\n' "$OUT" | grep -q "fake-claude --settings" ||
-  fail "claude-lean no-argument invocation did not reach Claude: $OUT"
-LEFTOVERS="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'claude-lean-mcp-*.json' 2>/dev/null | wc -l | tr -d ' ')"
-[ "$LEFTOVERS" -eq 0 ] || fail "no-argument launch leaked temp MCP renders: $LEFTOVERS"
-OUT="$(PATH="$TMP/bin2:/usr/bin:/bin" HOME="$TMP/h-launch" "$FULL" --version)"
-[ "$OUT" = "fake-claude --version" ] || fail "claude-full passthrough broken: $OUT"
-
-printf 'claude-profile smoke test: ok\n'

@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unicodeCaseFold } from "./unicode-case-fold.mjs";
 import commonmark from "../vendor/commonmark/commonmark.cjs";
+import { productCriteria, productVerificationDeclaration } from "./project-verification-plan.mjs";
 
 const LIST_MARKER = String.raw`(?:[-+*]|\d+[.)])`;
 const COMMAND_ITEM = new RegExp(`^(\\s*)${LIST_MARKER}\\s+command:\\s*(.+?)\\s*$`, "i");
@@ -216,7 +217,7 @@ function parseChecksUncached(text) {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const sectionMatch = line.structural.match(
-      /^##\s+(Checks|Acceptance Criteria|Validation Plan)\b/i,
+      /^##\s+(Checks|Acceptance Criteria|Validation Plan|Product Verification)\b/i,
     );
     if (sectionMatch) {
       inFreezeSection = true;
@@ -1579,6 +1580,12 @@ function hasPlaceholderExpected(text) {
 export function evaluateReadyPlan(text) {
   if (parsePlanStatus(text) !== "ready") return { ok: false, missing: ["Status: READY"] };
   const missing = [];
+  try {
+    const declaration = productVerificationDeclaration(text, { normalizedChecks: parseChecks(text) });
+    if (declaration.required) productCriteria(parseChecks(text));
+  } catch (error) {
+    missing.push(`Product Verification: ${error.message}`);
+  }
   const referenceLabels = markdownReferenceLabels(text);
   const requiredSections = [
     ["Goal", /^##\s+Goal\b/i],

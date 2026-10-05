@@ -44,6 +44,7 @@ scripts/plan-cleanup --discard <reason-slug>
 - Writes `docs/plan/YYYYMMDD-discarded-<reason-slug>.md` with `Status: DISCARDED`.
 - Removes root `PLAN.md` so ordinary work or a fresh plan can proceed.
 - Do **not** use `--discard` after a successful implementation — use `--archive` with a validated implemented record instead.
+- On resume, execute cleanup alone in the session project cwd. Quoted arguments and `cd <same-cwd> &&` are allowed; pipes, redirects and other chains are not. Retry the narrow form instead of asking for manual deletion. Cleanup never edits `active-run.json`; age alone is not abandonment.
 
 ## Stale Plans
 
@@ -195,3 +196,5 @@ duplicate lines from one initiative remain one recurrence.
 Use `docs/plan/` for implemented plan history.
 
 Use `docs/agent-memory/` for reusable lessons that should change future agent behavior across tasks.
+
+Required product plans must pass the shared product check before implemented archive cleanup. The cleanup helper retains `<evidence-pack>.completion.json`; the ledger uses it to recheck source and archive integrity after removing the root plan. Workflow evidence and `docs/plan/` archives are fixed source-inventory exclusions; application source changes still invalidate the proof.

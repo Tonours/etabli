@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { recordGuardDenial } from "./guard-journal.mjs";
+import { projectVaultRoots, vaultContextCommand } from "./obvault-topic-resolver.mjs";
 import {
 	evaluateCheckFreeze,
 	evaluateReadyPlan,
@@ -11,7 +12,8 @@ import {
 import {
 	isWorkflowEventEscapeCommand,
 } from "../../scripts/lib/no-progress-guard.mjs";
-import { isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
+import { readRootPlanContract, planReviewPermission, isReviewPreparationPath, isPlanReviewBootstrap } from "../../scripts/lib/plan-review-binding.mjs";
+import { closedShellWords, isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
 
 export { parsePlanStatus };
 
@@ -1051,7 +1053,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	return SIMPLE_ANSWER_DECISION;
 }
 
-export function classifyKnowledgeContext(prompt, low) {
+export function classifyKnowledgeContext(prompt, low, cwd = process.cwd()) {
 	const trimmed = prompt.trim();
 	if (trimmed === "" || trimmed.startsWith("/")) return null;
 
@@ -1073,7 +1075,7 @@ export function classifyKnowledgeContext(prompt, low) {
 		topics,
 		query,
 		reason: "matched durable knowledge topics",
-		command: `~/work/obvault/_meta/obvault context --json --max-tokens 2500 "${query}"`,
+		command: vaultContextCommand(projectVaultRoots({ cwd })[0], query),
 	};
 }
 
@@ -1088,7 +1090,7 @@ export function classifyWorkflowRoute(prompt, context = {}) {
 	const low = prompt.trim().toLowerCase();
 	const decision = classifyWorkflowRouteBase(prompt, low, context);
 	const knowledgeContext =
-		classifyKnowledgeContext(prompt, low) ||
+		classifyKnowledgeContext(prompt, low, context.cwd) ||
 		context.dynamicKnowledgeContext ||
 		null;
 	return knowledgeContext
@@ -1294,13 +1296,21 @@ export function planReadyGuardDecision(event) {
 	const filePath =
 		toolInput.file_path || toolInput.path || toolInput.filePath || "";
 	const command = toolInput.command || toolInput.cmd || "";
+	const reviewPreparation = ["Write", "Edit", "MultiEdit"].includes(toolName) &&
+		isReviewPreparationPath(cwd, String(filePath));
+	const reviewBootstrap = toolName === "Bash" && isClosedPlanReviewBootstrap(command, cwd);
+	if (reviewPreparation || reviewBootstrap) return null;
 	if (planStatus === "ready") {
-		const planPath = resolve(cwd, "PLAN.md");
 		let readiness = { ok: false, missing: ["readable PLAN.md"] };
 		try {
-			readiness = evaluateReadyPlan(readFileSync(planPath, "utf8"));
+			const source = readRootPlanContract(cwd)?.source ?? "";
+			readiness = evaluateReadyPlan(source);
+			if (readiness.ok) {
+				const approval = planReviewPermission(cwd, source);
+				if (!approval.ok) readiness = { ok: false, missing: [approval.reason + "; run the plan adversary and append its explicit current hash from scripts/plan-review-check --hash PLAN.md, or repair/activate the valid ledger"] };
+			}
 		} catch {
-			// Keep the fail-closed default.
+			readiness = { ok: false, missing: ["readable plan and valid review state"] };
 		}
 		if (readiness.ok) return null;
 		if (
@@ -1311,7 +1321,7 @@ export function planReadyGuardDecision(event) {
 		}
 		if (toolName === "Bash") {
 			if (isWorkflowEventEscapeCommand(command)) return null;
-			if (isNarrowPlanCleanupCommand(command)) return null;
+			if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 			if (!isMutatingBashCommand(command)) return null;
 		}
 		return deny(
@@ -1330,7 +1340,7 @@ export function planReadyGuardDecision(event) {
 
 	if (toolName === "Bash") {
 		if (isWorkflowEventEscapeCommand(command)) return null;
-		if (isNarrowPlanCleanupCommand(command)) return null;
+		if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 		if (isMutatingBashCommand(command)) {
 			return deny(
 				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
@@ -1460,6 +1470,12 @@ export function planCheckFreezeGuardDecision(event) {
  * Under READY, mutating bash/shell that targets PLAN.md bypasses Write/Edit
  * freeze reconstruction — deny and force the file-tool path.
  */
+function isClosedPlanReviewBootstrap(command, cwd) {
+ const words = closedShellWords(String(command).trim());
+ if (!words || words.includes("&&")) return false;
+ try { return isPlanReviewBootstrap(words, cwd); } catch { return false; }
+}
+
 export function planCheckFreezeBashGuardDecision(event) {
 	const toolName = normalizeToolName(event.tool_name || event.toolName);
 	if (toolName !== "Bash") return null;
@@ -1470,7 +1486,7 @@ export function planCheckFreezeBashGuardDecision(event) {
 	const toolInput = event.tool_input || event.input || {};
 	const command = String(toolInput.command || toolInput.cmd || "");
 	if (!command || !isMutatingBashCommand(command)) return null;
-	if (isNarrowPlanCleanupCommand(command)) return null;
+	if (isNarrowPlanCleanupCommand(command, cwd) || isClosedPlanReviewBootstrap(command, cwd)) return null;
 
 	// Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
 	if (!/\bPLAN\.md\b/i.test(command)) return null;

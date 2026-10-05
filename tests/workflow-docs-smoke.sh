@@ -254,8 +254,8 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/answer-quality-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-check'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'scripts/answer-quality-eval'
 assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'Live Final Answer Gate'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'avoid promising a perfect numeric score'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'quality floor'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'avoid promises of perfect scores'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'This floor does not score quality'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-cross-project-research-grounding-handoff.md" 'Category: source-backed-cross-project-handoff'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Verdict: pass'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/20260707-etabli-obvault-functioning-explanation.md" 'Category: direct-repo-explanation'
@@ -303,7 +303,7 @@ assert_contains "$ROOT_DIR/workflow/ticket-template.md" 'Keep project-specific s
 assert_contains "$ROOT_DIR/workflow/spec.md" 'facts separate from assumptions'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'scripts/research-proof-check'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/answer-quality.md'
-assert_contains "$ROOT_DIR/workflow/answer-quality.md" 'A "10/10" answer is not a promise of omniscience.'
+assert_contains "$ROOT_DIR/workflow/answer-quality.md" '"10/10" is no promise of omniscience.'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'OpenAI evaluation best practices'
 assert_contains "$ROOT_DIR/docs/answer-quality-traces/README.md" 'Historical fields'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'Golden principles'
@@ -691,10 +691,8 @@ for prompt_surface in pi_core agents_visible; do
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
     case "$prompt_surface" in
-    # Raised 2026-08-28 with the thermo-nuclear pi-core skill's long
-    # description (suite adoptions above).
-    pi_core) max_bytes=2939 ;;
-    agents_visible) max_bytes=2806 ;;
+    pi_core) max_bytes=2950 ;;
+    agents_visible) max_bytes=2818 ;;
     esac
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2

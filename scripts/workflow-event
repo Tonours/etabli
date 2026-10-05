@@ -2,12 +2,36 @@
 set -euo pipefail
 
 WORKFLOW_DIR=".workflow"
+EXPECTED_LEDGER_SHA256=""
 ACTIVE_RUN_POINTER="active-run.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$SCRIPT_DIR/lib/hash.sh"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 REVIEW_ROUNDS="$SCRIPT_DIR/lib/review-rounds.jq"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
+export WORKFLOW_EVENT_PROJECT_ROOT="${WORKFLOW_EVENT_PROJECT_ROOT:-$PWD}"
+
+validate_product_completion() {
+  local ledger="$1" pending_required="${2:-false}" pending_contract="${3:-}" receipt archive required latest declared expected_contract
+  required="$(jq -s -r 'any(.[]; .detail.product_verification_required == true)' "$ledger")" || return 1
+  [ "$pending_required" != "true" ] || required=true
+  latest="$(jq -s -c '[.[] | select(.event == "archive_written")] | last | .detail // {}' "$ledger")" || return 1
+  receipt="$(printf '%s' "$latest" | jq -r '.product_verification_receipt // empty')" || return 1
+  if [ -z "$receipt" ]; then
+    [ "$required" != "true" ] || { printf 'required product completion receipt is missing\n' >&2; return 1; }
+    return 0
+  fi
+  archive="$(printf '%s' "$latest" | jq -r '.product_archive_path // empty')" || return 1
+  declared="$(node -e 'console.log(require("node:path").resolve(process.argv[1], process.argv[2]))' "$WORKFLOW_EVENT_PROJECT_ROOT" "$(printf '%s' "$latest" | jq -r '.path')")" || return 1
+  [ "$archive" = "$declared" ] || { printf 'product receipt archive differs from the latest ledger archive path\n' >&2; return 1; }
+  expected_contract="$(jq -s -r '[.[] | .detail.product_verification_contract_sha256 // empty] | last // empty' "$ledger")" || return 1
+  [ -z "$pending_contract" ] || [ "$pending_contract" = "$expected_contract" ] || { printf 'terminal product contract differs from the frozen ledger contract\n' >&2; return 1; }
+  [ -n "$expected_contract" ] || { printf 'required product ledger plan contract identity is missing\n' >&2; return 1; }
+  node "$SCRIPT_DIR/project-verification-check" --receipt "$receipt" --archive "$archive" --contract-sha256 "$expected_contract" >/dev/null || {
+    printf 'product completion evidence is missing or stale; rerun the declared project verification and archive gate\n' >&2
+    return 1
+  }
+}
 
 ALLOWED_EVENTS=(
   route_decided
@@ -60,10 +84,11 @@ RETIRED_EVENTS=(
 
 usage() {
   cat <<EOF
-Usage: workflow-event [--dir path] append <slug> <event-type> [json-detail]
+Usage: workflow-event [--dir path] [--expected-ledger-sha256 hash] append <slug> <event-type> [json-detail]
        workflow-event [--dir path] activate <slug>
        workflow-event [--dir path] recover <slug> <reason-code>
        workflow-event [--dir path] validate <slug> [--allow-missing] [--profile structural|autonomous-completed|blocked-terminal|ship-completed|ship-stopped]
+       workflow-event [--dir path] check-completion <slug> <json-detail>
 EOF
 }
 
@@ -280,6 +305,7 @@ validate_ledger_file() {
         jq -e --arg mode "$mode" 'select(.event == "adversary_completed" and .detail.mode == $mode)' "$file" >/dev/null || { printf 'profile autonomous-completed missing adversary mode %s\n' "$mode" >&2; return 1; }
       done
       validate_autonomous_completion_evidence autonomous-completed || return 1
+      validate_product_completion "$file" || return 1
       ;;
     blocked-terminal)
       [ "$terminal" = "blocked" ] || { printf 'profile blocked-terminal requires final blocked event\n' >&2; return 1; }
@@ -577,6 +603,10 @@ validate_autonomous_completion_candidate() (
 
 append_locked_body() {
   local slug="$1" event="$2" detail="$3" token="$4" backend="$5"
+  if printf '%s\n' "$detail" | jq -e 'type == "object" and has("export_source_detail")' >/dev/null 2>&1; then
+    printf 'export_source_detail is reserved for canonical enrichment; resend the original request\n' >&2
+    return 1
+  fi
   local run_dir="$WORKFLOW_DIR/$slug"
   local file="$run_dir/events.jsonl"
   local lock_file="$run_dir/events.lock" owner_file="$run_dir/events.lock.owner.json"
@@ -617,7 +647,31 @@ append_locked_body() {
       printf 'refusing append to an invalid ledger: %s\n' "$slug" >&2
       return 1
     }
+    local export_id existing_export
+    export_id="$(printf '%s' "$detail" | jq -r '.export_id // empty')"
+    if [ -n "$export_id" ]; then
+      existing_export="$(jq -sc --arg id "$export_id" '[.[] | select(.detail.export_id == $id)]' "$file")"
+      if [ "$existing_export" != '[]' ]; then
+        if printf '%s' "$existing_export" | jq -e --arg event "$event" --arg run "$slug" --argjson detail "$detail" 'length == 1 and .[0].event == $event and .[0].run == $run and (.[0].detail | if has("export_source_detail") then .export_source_detail else . end) == $detail' >/dev/null; then
+          return 0
+        fi
+        printf 'export_id collision: %s; restore the original payload or use a new identity\n' "$export_id" >&2
+        return 1
+      fi
+    fi
     terminal="$(tail -n 1 "$file" | jq -r '.event // empty')"
+  fi
+
+  # The comparison and append share this writer lock. Existing export IDs above
+  # reconcile the append-before-ACK window even when the ledger has advanced.
+  if [ -n "$EXPECTED_LEDGER_SHA256" ]; then
+    local actual_hash
+    if [ -f "$file" ]; then actual_hash="$(hash256 "$file" | awk '{print $1}')"
+    else actual_hash="$(printf '' | hash256 | awk '{print $1}')"; fi
+    [ "$actual_hash" = "$EXPECTED_LEDGER_SHA256" ] || {
+      printf 'ledger precondition changed; re-evaluate this intent against current evidence\n' >&2
+      return 1
+    }
   fi
 
   if [ "$terminal" = "completed" ] || [ "$terminal" = "blocked" ] || [ "$terminal" = "ship_completed" ]; then
@@ -630,6 +684,76 @@ append_locked_body() {
       printf 'refusing append after terminal event: %s\n' "$terminal" >&2
       return 1
     fi
+  fi
+
+  local source_detail="$detail"
+  case "$event" in
+    plan_created|adversary_completed|file_changed)
+      detail="$(printf '%s' "$detail" | node "$SCRIPT_DIR/plan-review-check" --append "$WORKFLOW_EVENT_PROJECT_ROOT" "$file" "$event")" || return 1
+      ;;
+  esac
+  local product_latched=false
+  if [ -f "$file" ] && jq -s -e 'any(.[]; .detail.product_verification_required == true)' "$file" >/dev/null; then
+    product_latched=true
+  fi
+  # Observations must survive an unavailable subject or damaged plan;
+  # lifecycle gates still require binding the current product contract.
+  if [ "$event" != "blocked" ] && [ -f "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" ] && {
+    [ "$event" = "plan_created" ] || [ "$event" = "archive_written" ] ||
+      { [ -f "$file" ] && jq -s -e 'any(.[]; .event == "plan_created")' "$file" >/dev/null; }
+  }; then
+    local declaration
+    declaration="$(node "$SCRIPT_DIR/project-verification-check" --declaration "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || {
+      case "$event" in plan_created|archive_written|completed) return 1 ;; esac
+      declaration=""
+    }
+    if [ -n "$declaration" ]; then
+      if [ "$(printf '%s' "$declaration" | jq -r '.unresolved // false')" = "true" ]; then
+        case "$event" in archive_written|completed)
+          printf 'unresolved auto product verification cannot archive or complete; classify every acceptance criterion\n' >&2
+          return 1 ;;
+        esac
+        detail="$(printf '%s' "$detail" | jq 'del(.product_verification_required)')" || return 1
+      else
+        if [ "$product_latched" = "true" ] && [ "$(printf '%s' "$declaration" | jq -r '.required')" != "true" ]; then
+          case "$event" in archive_written|completed)
+            printf 'required product verification cannot be demoted; retain product proof or discard the task\n' >&2
+            return 1 ;;
+          esac
+        fi
+        detail="$(printf '%s' "$detail" | jq --argjson required "$(printf '%s' "$declaration" | jq '.required')" '. + {product_verification_required:$required}')" || return 1
+      fi
+      if [ "$product_latched" = "true" ]; then
+        detail="$(printf '%s' "$detail" | jq '. + {product_verification_required:true}')" || return 1
+      fi
+      if [ "$(printf '%s' "$declaration" | jq -r '.required')" = "true" ] && [ "$(printf '%s' "$declaration" | jq -r '.plan_status')" = "ready" ]; then
+        local bound_contract
+        bound_contract="$(node "$SCRIPT_DIR/project-verification-check" --contract "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || {
+          case "$event" in plan_created|archive_written|completed) return 1 ;; esac
+          bound_contract=""
+        }
+        if [ -n "$bound_contract" ]; then
+          detail="$(printf '%s' "$detail" | jq --arg identity "$(printf '%s' "$bound_contract" | jq -r '.contract_sha256')" '. + {product_verification_contract_sha256:$identity}')" || return 1
+        fi
+      fi
+    fi
+  fi
+  if [ "$event" = "archive_written" ] && [ -f "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" ]; then
+    local contract product_pack product_archive
+    contract="$(node "$SCRIPT_DIR/project-verification-check" --contract "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md")" || return 1
+    if [ "$(printf '%s' "$contract" | jq -r '.required')" = "true" ]; then
+      node "$SCRIPT_DIR/project-verification-check" "$WORKFLOW_EVENT_PROJECT_ROOT/PLAN.md" >/dev/null || return 1
+      product_pack="$(printf '%s' "$contract" | jq -r '.pack')"
+      product_archive="$(node -e 'console.log(require("node:path").resolve(process.argv[1], process.argv[2]))' "$WORKFLOW_EVENT_PROJECT_ROOT" "$(printf '%s' "$detail" | jq -r '.path')")" || return 1
+      detail="$(printf '%s' "$detail" | jq --arg receipt "$product_pack.completion.json" --arg archive "$product_archive" '. + {product_verification_required:true, product_verification_receipt:$receipt, product_archive_path:$archive}')" || return 1
+    fi
+  fi
+  if [ "$event" = "completed" ] && [ -f "$file" ]; then
+    validate_product_completion "$file" "$(printf '%s' "$detail" | jq -r '.product_verification_required // false')" "$(printf '%s' "$detail" | jq -r '.product_verification_contract_sha256 // empty')" || return 1
+  fi
+
+  if printf '%s' "$detail" | jq -e --argjson original "$source_detail" 'has("export_id") and . != $original' >/dev/null; then
+    detail="$(printf '%s' "$detail" | jq --argjson original "$source_detail" '. + {export_source_detail:$original}')" || return 1
   fi
 
   event_line="$(jq -nc \
@@ -694,7 +818,7 @@ append_with_lock() {
   case "$backend" in
     lockf)
       native_bin="$(native_backend_path lockf)" || { printf 'requested lockf backend is unavailable\n' >&2; return 1; }
-      (cd "$absolute_run_dir" && exec 9>>events.lock && "$native_bin" -t 5 /dev/fd/9 "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" lockf) || {
+      (cd "$absolute_run_dir" && exec 9>>events.lock && "$native_bin" -t 5 /dev/fd/9 "$SCRIPT_PATH" --dir "$absolute_workflow_dir" --expected-ledger-sha256 "$EXPECTED_LEDGER_SHA256" _append-locked "$slug" "$event" "$detail" "$token" lockf) || {
         printf 'lockf append failed or timed out after 5 seconds\n' >&2
         return 1
       }
@@ -706,7 +830,7 @@ append_with_lock() {
       # the in-child verification probe could never observe it. File-mode
       # opens the lock file inside the flock process itself; contention then
       # works (verified on the CI runner, 2026-08-23).
-      ("$native_bin" -w 5 "$absolute_run_dir/events.lock" "$SCRIPT_PATH" --dir "$absolute_workflow_dir" _append-locked "$slug" "$event" "$detail" "$token" flock) || {
+      ("$native_bin" -w 5 "$absolute_run_dir/events.lock" "$SCRIPT_PATH" --dir "$absolute_workflow_dir" --expected-ledger-sha256 "$EXPECTED_LEDGER_SHA256" _append-locked "$slug" "$event" "$detail" "$token" flock) || {
         printf 'flock append failed or timed out after 5 seconds\n' >&2
         return 1
       }
@@ -737,17 +861,32 @@ append_with_lock() {
   esac
 }
 
-if [ "${1:-}" = "--dir" ]; then
+while [[ "${1:-}" == --dir || "${1:-}" == --expected-ledger-sha256 ]]; do
   [ "$#" -ge 3 ] || die_usage
-  WORKFLOW_DIR="$2"
+  case "$1" in
+    --dir) WORKFLOW_DIR="$2" ;;
+    --expected-ledger-sha256)
+      [[ -z "$2" || "$2" =~ ^[a-f0-9]{64}$ ]] || { printf 'invalid expected ledger SHA-256\n' >&2; exit 2; }
+      EXPECTED_LEDGER_SHA256="$2" ;;
+    *) die_usage ;;
+  esac
   shift 2
-fi
+done
 
 command="${1:-}"
 [ -n "$command" ] || die_usage
 shift || true
 
 case "$command" in
+  check-completion)
+    [ "$#" -eq 2 ] || die_usage
+    slug="$1"; detail="$2"; file="$WORKFLOW_DIR/$slug/events.jsonl"
+    is_valid_slug "$slug" || { printf 'invalid run slug\n' >&2; exit 2; }
+    detail_valid completed "$detail" 2 true || { printf 'invalid completion detail\n' >&2; exit 2; }
+    [ -f "$file" ] || { printf 'missing canonical ledger for completion check\n' >&2; exit 1; }
+    event_line="$(jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg run "$slug" --argjson detail "$detail" '{schema_version:2,ts:$ts,event:"completed",run:$run,detail:$detail}')"
+    validate_autonomous_completion_candidate "$slug" "$WORKFLOW_DIR/$slug" "$file" "$event_line"
+    ;;
   append)
     [ "$#" -ge 2 ] || die_usage
     slug="$1"

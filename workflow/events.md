@@ -18,7 +18,7 @@ the single exception is the ship-stopped order `ship_completed` THEN final
 strict profiles.
 
 Write events with `scripts/workflow-event append <slug> <type> [json-detail]`.
-On Pi, `route_decided` is router-owned: the extension records issuance; agents
+On classic Pi, `route_decided` is router-owned: the extension records issuance; agents
 must not hand-append it there. Other harnesses append it by hand via the CLI.
 Agents must use the CLI: direct appends bypass type and detail validation and
 fail `scripts/workflow-ledger-check`. Writer exceptions, locking, grandfathered <!-- etabli-only -->
@@ -26,14 +26,16 @@ history, corrupt-ledger recovery and retired types: `workflow/events-validator.m
 
 Never edit earlier lines. Active-run selection (`activate`): `workflow/events-validator.md`.
 
+Optional `export_id` provides exact replay: `workflow/durable-exports.md`.
+
 
 ## Event Types
 
 | Type | Detail convention |
 | --- | --- |
 | `route_decided` | `{route, reason}` (at most once per route per run); legacy `contract_path`, `contract_sha256`, `provenance` stay valid |
-| `plan_created` | `{path, status}` |
-| `adversary_completed` | `{mode: plan | code_diff, verdict, accepted_findings, rejected_findings, model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}}`; appends need complete provenance, the mode's verdict canon, `accepted_findings: [{finding, blocking}]`; history stays valid |
+| `plan_created` | `{path, status, plan_contract_sha256?}`; real root plans bind automatically |
+| `adversary_completed` | `{mode: plan | code_diff, plan_contract_sha256?, verdict, accepted_findings, rejected_findings, model_provenance: {requested: {family, model, provider, route?}, effective: {family, model, provider}, runner, run_id}}`; appends need complete provenance, the mode's verdict canon, `accepted_findings: [{finding, blocking}]`; history stays valid |
 | `review_completed` | `{status, evidence}` — v2 `status` ∈ `GO`, `GO WITH NOTES`, `BLOCK` (free text rejected; legacy/v1 history stays valid); optional pair `review_round` ∈ `T1`,`T2`,`D1`,`D2`,`FD`,`F1`,`F2` + `round_outcome` ∈ `clean`,`findings`,`widening` (see below) |
 | `simplification_completed` | `{status, evidence}` |
 | `quality_completed` | `{status, evidence}` — `status` ∈ `pass`, `unavailable` (12c producer proof; `unavailable` stops before completion) |
@@ -80,3 +82,9 @@ blocking verdict invalidates an earlier success. `ship-completed` requires the
 same fresh validation plus a success-form `ship_completed`; review evidence is
 carried by the `ship_completed` records. Presence alone does not prove
 completion.
+
+Product completion fields and terminal revalidation: `workflow/product-verification.md`.
+
+New plan-bound runs require the captured reviewed contract hash on plan passes.
+The latest verdict must approve the current contract; material edits invalidate it.
+Legacy unbound history remains readable. Details: `workflow/skills/execution-quality.md`.

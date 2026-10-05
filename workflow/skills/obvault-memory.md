@@ -18,11 +18,12 @@ graph database:
   durable cross-project memory. No dual-write of live tickets, raw PLAN.md, or
   transcripts into `kb/`.
 
-Pointers into the vault (root resolved per scope by
-`workflow/runtime/obvault-topic-resolver.mjs`: work scope -> `~/work/brain`
-when present, else `~/work/obvault`; personal scope -> `~/work/obvault`;
-`OBVAULT_ROOT` is exclusive and overrides everything. Read `<root>/AGENTS.md`
-first):
+Vault selection (`workflow/runtime/obvault-topic-resolver.mjs`): exact GitHub
+remote organization ForestAdmin -> `~/work/brain`; every other project ->
+`~/work/obvault`. Use session cwd (including worktrees/subdirectories), not
+`~/.etabli-scope`. Missing brain is unavailable, never a personal-vault fallback.
+`OBVAULT_ROOT` is an exclusive override. Read `<root>/AGENTS.md` if present;
+the vault CLI remains usable without that file. Pointers:
 
 - `kb/derived-graph-markdown-canonical`
 - `kb/graph-memory-over-token-dump`
@@ -42,15 +43,15 @@ Mechanical checks: `tests/graph-contract-smoke.sh`,
 ## Mandatory first check
 
 Before answering or planning a request that matches **Retrieve when**, consult
-the scope-resolved vault first (`<root>` below: `~/work/brain` in work scope when
-present, else `~/work/obvault`);
-do not wait for the user to mention the knowledge base. Read `<root>/AGENTS.md` as the vault entrypoint, then use the
+the project-selected vault first (`<root>` below: ForestAdmin -> `~/work/brain`,
+otherwise `~/work/obvault`); do not wait for the user to mention it.
+Read `<root>/AGENTS.md` when present, then use the
 vault's retrieval, not `grep`. The vault contract, status, freshness, and
 abstention rules take precedence over retrieved prose.
 
 Use the same local read interface from Claude, Pi, Codex, Grok, and Cursor:
 
-1. **MCP**, when the host registers the vault server (work scope: `alambic-brain`, personal: `alambic-obvault`; Claude also exposes
+1. **MCP**, when the host registers the vault server (ForestAdmin: `alambic-brain`, other projects: `alambic-obvault`; Claude also exposes
    same-named skills):
    `vault_context` for a bounded cited pack, `vault_search` for a ranked list,
    `vault_read` to open a cited note, `vault_health` for backend state.

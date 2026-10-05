@@ -1,0 +1,1330 @@
+{
+  "host_scope": "local-interactive",
+  "captured_at_utc": "2026-10-02T13:53:14.517107+00:00",
+  "window_start_utc": "2026-09-02T13:24:38.606469+00:00",
+  "window_end_utc": "2026-10-02T13:24:38.606469+00:00",
+  "common_window_start_utc": "2026-09-23T12:00:55.126000+00:00",
+  "method": "Read-only processing on the source machine. Only allowlisted settings, aggregate sizes, fixed intent labels and usage counters leave the source; no raw prompt, tool payload, transcript path, session ID, key or token exported.",
+  "config_dir": "/Volumes/Crucial/.homes/claude",
+  "settings_safe": {
+    "effortLevel": "medium",
+    "modelSettings": {
+      "claude-opus-5-5": {
+        "effortLevel": "medium"
+      }
+    },
+    "alwaysThinkingEnabled": true,
+    "autoMemoryEnabled": false,
+    "promptSuggestionEnabled": false,
+    "awaySummaryEnabled": false,
+    "enableWorkflows": false,
+    "workflowKeywordTriggerEnabled": false
+  },
+  "enabled_plugins": {
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "env_names": [
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY",
+    "CLAUDE_CODE_SUBAGENT_MODEL"
+  ],
+  "safe_env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  },
+  "skill_override_counts": {
+    "user-invocable-only": 68,
+    "on": 20
+  },
+  "surface_counts": {
+    "skills": 90,
+    "commands": 23,
+    "agents": 4,
+    "hooks": 15,
+    "projects": 32
+  },
+  "mcp_names": [
+    "alambic-brain",
+    "alambic-obvault"
+  ],
+  "fingerprints_before": {
+    "settings": "b90964f6d6936939686b27657b06b9b636082731c7b2838c6a55f7afad8b59da",
+    "instructions": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+    "rtk_instructions": "9fe007d9d7ca790f35b48bd12099e1b3a1dae05caf296dba3ddbe2621ddb02dc"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "format-local.sh"
+          ]
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "ledger-auto-emit.mjs"
+          ]
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "no-comments-guard.mjs"
+          ]
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "plan-ready-guard.mjs"
+          ]
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "rtk-guard.mjs"
+          ]
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "herdr-agent-state.sh"
+          ]
+        ]
+      },
+      {
+        "matcher": "compact|resume",
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "session-state.mjs"
+          ]
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "detect-adr-signal.mjs"
+          ]
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "harvest-hook.mjs"
+          ]
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "correction-emit.mjs"
+          ]
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": null,
+        "types": [
+          "command"
+        ],
+        "script_basenames": [
+          [
+            "notification-classify.mjs"
+          ]
+        ]
+      }
+    ]
+  },
+  "instructions": [
+    {
+      "scope": "user",
+      "exists": true,
+      "symlink": true,
+      "chars": 1946,
+      "lines": 40,
+      "sha256": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+      "import_basenames": [
+        "AGENTS.md",
+        "RTK.md"
+      ]
+    },
+    {
+      "scope": "rtk",
+      "exists": true,
+      "symlink": false,
+      "chars": 958,
+      "lines": 29,
+      "sha256": "9fe007d9d7ca790f35b48bd12099e1b3a1dae05caf296dba3ddbe2621ddb02dc",
+      "import_basenames": []
+    },
+    {
+      "scope": "home",
+      "exists": false,
+      "symlink": false
+    },
+    {
+      "scope": "work",
+      "exists": false,
+      "symlink": false
+    },
+    {
+      "scope": "work-local",
+      "exists": false,
+      "symlink": false
+    },
+    {
+      "scope": "etabli",
+      "exists": true,
+      "symlink": false,
+      "chars": 2394,
+      "lines": 61,
+      "sha256": "ed6a7ff5a0c03407470737d43c6232e052213f841e670c323ea2b379157ad258",
+      "import_basenames": []
+    },
+    {
+      "scope": "etabli-claude",
+      "exists": true,
+      "symlink": false,
+      "chars": 184,
+      "lines": 7,
+      "sha256": "c3cb234ed8c023901f62b55888924c5fb6306c74f08aafcb57cf7c8f0f94e680",
+      "import_basenames": [
+        "AGENTS.md"
+      ]
+    }
+  ],
+  "agent_frontmatter": [
+    {
+      "basename": "adversary.md",
+      "name": "adversary",
+      "model": "fable",
+      "effort": "low",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "basename": "reviewer.md",
+      "name": "reviewer",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "basename": "scout.md",
+      "name": "scout",
+      "model": "sonnet",
+      "effort": "medium",
+      "maxTurns": "24",
+      "permissionMode": "dontAsk"
+    },
+    {
+      "basename": "worker.md",
+      "name": "worker",
+      "model": "opus",
+      "effort": "medium",
+      "maxTurns": "40"
+    }
+  ],
+  "shell_metadata": [
+    {
+      "basename": ".zshenv",
+      "claude_related_key_line_counts": {
+        "LEAN_CTX_AGENT": 1
+      },
+      "sourced_file_basenames": [
+        "env"
+      ]
+    },
+    {
+      "basename": ".zprofile",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": []
+    },
+    {
+      "basename": ".zshrc",
+      "claude_related_key_line_counts": {
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": 1,
+        "LEAN_CTX_AGENT": 4,
+        "BASH_ENV": 4,
+        "CLAUDE_CONFIG_DIR": 1
+      },
+      "sourced_file_basenames": [
+        "oh-my-zsh.sh",
+        "set-env.zsh",
+        "$_starship_cache",
+        "env",
+        "shell-hook.zsh"
+      ]
+    },
+    {
+      "basename": ".bashrc",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": []
+    },
+    {
+      "basename": ".bash_profile",
+      "claude_related_key_line_counts": {},
+      "sourced_file_basenames": [
+        "env"
+      ]
+    }
+  ],
+  "skills": {
+    "counts": {
+      "discovered": 88,
+      "state_user-invocable-only": 68,
+      "state_on": 20,
+      "frontmatter_disable_model_invocation": 8
+    },
+    "body_chars_percentiles": {
+      "n": 88,
+      "min": 247,
+      "median": 5573.0,
+      "p95_nearest_rank": 15566,
+      "max": 25440
+    },
+    "note": "Directory discovery and override states only; plugin skills excluded, not actual native prompt token count."
+  },
+  "plugins": {},
+  "runtime": {
+    "cli_on_noninteractive_path": "/Users/tonours/.local/bin/claude",
+    "rtk_on_path": true
+  },
+  "inventory": {
+    "jsonl_files_all": 357,
+    "files_scanned_recent_mtime": 357,
+    "older_files_skipped": 0,
+    "bytes_scanned": 287231712,
+    "scan_elapsed_seconds": 2.567,
+    "file_mtime_min_utc": "2026-09-02T22:38:20.314771+00:00",
+    "file_mtime_max_utc": "2026-10-02T11:55:57.822138+00:00",
+    "errors": {
+      "records_without_parseable_timestamp": 14212
+    },
+    "records_in_window_by_type": {
+      "system": 1001,
+      "queue-operation": 1335,
+      "user": 15627,
+      "attachment": 27079,
+      "assistant": 26634,
+      "file-history-delta": 431,
+      "pr-link": 64
+    }
+  },
+  "usage_30d": {
+    "totals": {
+      "input_tokens": 30542,
+      "output_tokens": 11045075,
+      "cache_read_input_tokens": 2587474503,
+      "cache_creation_input_tokens": 41120428,
+      "requests": 11219,
+      "raw_fragments": 26633,
+      "processed_total_tokens": 2639670548
+    },
+    "by_reported_model": {
+      "claude-fable-5-1": {
+        "input_tokens": 7494,
+        "output_tokens": 472596,
+        "cache_read_input_tokens": 13640476,
+        "cache_creation_input_tokens": 2070366,
+        "requests": 262,
+        "raw_fragments": 891,
+        "processed_total_tokens": 16190932
+      },
+      "claude-haiku-4-5-20251001": {
+        "input_tokens": 598,
+        "output_tokens": 37737,
+        "cache_read_input_tokens": 3219981,
+        "cache_creation_input_tokens": 297672,
+        "requests": 73,
+        "raw_fragments": 169,
+        "processed_total_tokens": 3555988
+      },
+      "claude-opus-5-5": {
+        "input_tokens": 15964,
+        "output_tokens": 7017277,
+        "cache_read_input_tokens": 2366994123,
+        "cache_creation_input_tokens": 21956357,
+        "requests": 7641,
+        "raw_fragments": 17580,
+        "processed_total_tokens": 2395983721
+      },
+      "claude-sonnet-5": {
+        "input_tokens": 6476,
+        "output_tokens": 3516994,
+        "cache_read_input_tokens": 203606940,
+        "cache_creation_input_tokens": 16778801,
+        "requests": 3238,
+        "raw_fragments": 7987,
+        "processed_total_tokens": 223909211
+      },
+      "claude-sonnet-5-5": {
+        "input_tokens": 10,
+        "output_tokens": 471,
+        "cache_read_input_tokens": 12983,
+        "cache_creation_input_tokens": 17232,
+        "requests": 5,
+        "raw_fragments": 6,
+        "processed_total_tokens": 30696
+      }
+    },
+    "by_class": {
+      "main": {
+        "input_tokens": 15412,
+        "output_tokens": 6657524,
+        "cache_read_input_tokens": 2313355277,
+        "cache_creation_input_tokens": 20737190,
+        "requests": 7357,
+        "raw_fragments": 16954,
+        "processed_total_tokens": 2340765403
+      },
+      "subagent": {
+        "input_tokens": 15130,
+        "output_tokens": 4387551,
+        "cache_read_input_tokens": 274119226,
+        "cache_creation_input_tokens": 20383238,
+        "requests": 3862,
+        "raw_fragments": 9679,
+        "processed_total_tokens": 298905145
+      }
+    },
+    "by_utc_day": {
+      "2026-09-23": {
+        "input_tokens": 6068,
+        "output_tokens": 1603566,
+        "cache_read_input_tokens": 206132540,
+        "cache_creation_input_tokens": 6379874,
+        "requests": 2140,
+        "raw_fragments": 4572,
+        "processed_total_tokens": 214122048
+      },
+      "2026-09-24": {
+        "input_tokens": 1884,
+        "output_tokens": 627127,
+        "cache_read_input_tokens": 95583104,
+        "cache_creation_input_tokens": 2035954,
+        "requests": 903,
+        "raw_fragments": 1696,
+        "processed_total_tokens": 98248069
+      },
+      "2026-09-25": {
+        "input_tokens": 1960,
+        "output_tokens": 466781,
+        "cache_read_input_tokens": 174519058,
+        "cache_creation_input_tokens": 1900050,
+        "requests": 608,
+        "raw_fragments": 1663,
+        "processed_total_tokens": 176887849
+      },
+      "2026-09-26": {
+        "input_tokens": 4576,
+        "output_tokens": 1263158,
+        "cache_read_input_tokens": 465894081,
+        "cache_creation_input_tokens": 6641747,
+        "requests": 1657,
+        "raw_fragments": 3867,
+        "processed_total_tokens": 473803562
+      },
+      "2026-09-27": {
+        "input_tokens": 10690,
+        "output_tokens": 4455700,
+        "cache_read_input_tokens": 937290322,
+        "cache_creation_input_tokens": 15590324,
+        "requests": 3933,
+        "raw_fragments": 10020,
+        "processed_total_tokens": 957347036
+      },
+      "2026-09-28": {
+        "input_tokens": 5266,
+        "output_tokens": 2573364,
+        "cache_read_input_tokens": 705454434,
+        "cache_creation_input_tokens": 8154233,
+        "requests": 1929,
+        "raw_fragments": 4710,
+        "processed_total_tokens": 716187297
+      },
+      "2026-09-29": {
+        "input_tokens": 28,
+        "output_tokens": 23028,
+        "cache_read_input_tokens": 983189,
+        "cache_creation_input_tokens": 99161,
+        "requests": 14,
+        "raw_fragments": 28,
+        "processed_total_tokens": 1105406
+      },
+      "2026-10-01": {
+        "input_tokens": 58,
+        "output_tokens": 31690,
+        "cache_read_input_tokens": 1604261,
+        "cache_creation_input_tokens": 297953,
+        "requests": 29,
+        "raw_fragments": 69,
+        "processed_total_tokens": 1933962
+      },
+      "2026-10-02": {
+        "input_tokens": 12,
+        "output_tokens": 661,
+        "cache_read_input_tokens": 13514,
+        "cache_creation_input_tokens": 21132,
+        "requests": 6,
+        "raw_fragments": 8,
+        "processed_total_tokens": 35319
+      }
+    },
+    "recorded_time_min": "2026-09-23T12:00:55.126000+00:00",
+    "recorded_time_max": "2026-10-02T10:27:24.130000+00:00",
+    "request_input_components_percentiles": {
+      "n": 11219,
+      "min": 4433,
+      "median": 126731,
+      "p95_nearest_rank": 769944,
+      "max": 966872
+    },
+    "input_percentiles_by_class": {
+      "main": {
+        "n": 7357,
+        "min": 4433,
+        "median": 193151,
+        "p95_nearest_rank": 831323,
+        "max": 966872
+      },
+      "subagent": {
+        "n": 3862,
+        "min": 8835,
+        "median": 57963.0,
+        "p95_nearest_rank": 200027,
+        "max": 407603
+      }
+    },
+    "first_observed_request_per_recent_file_inputs": {
+      "n": 327,
+      "min": 4433,
+      "median": 22563,
+      "p95_nearest_rank": 45387,
+      "max": 253448
+    },
+    "input_buckets": {
+      "<32k": {
+        "requests": 629,
+        "processed_total_tokens": 15721779
+      },
+      "32k-128k": {
+        "requests": 5029,
+        "processed_total_tokens": 387823178
+      },
+      "128k-256k": {
+        "requests": 2162,
+        "processed_total_tokens": 368140422
+      },
+      "256k-512k": {
+        "requests": 1626,
+        "processed_total_tokens": 616234656
+      },
+      ">=512k": {
+        "requests": 1773,
+        "processed_total_tokens": 1251750513
+      }
+    }
+  },
+  "usage_common_window": {
+    "totals": {
+      "input_tokens": 30542,
+      "output_tokens": 11045075,
+      "cache_read_input_tokens": 2587474503,
+      "cache_creation_input_tokens": 41120428,
+      "requests": 11219,
+      "raw_fragments": 26633,
+      "processed_total_tokens": 2639670548
+    },
+    "by_reported_model": {
+      "claude-fable-5-1": {
+        "input_tokens": 7494,
+        "output_tokens": 472596,
+        "cache_read_input_tokens": 13640476,
+        "cache_creation_input_tokens": 2070366,
+        "requests": 262,
+        "raw_fragments": 891,
+        "processed_total_tokens": 16190932
+      },
+      "claude-haiku-4-5-20251001": {
+        "input_tokens": 598,
+        "output_tokens": 37737,
+        "cache_read_input_tokens": 3219981,
+        "cache_creation_input_tokens": 297672,
+        "requests": 73,
+        "raw_fragments": 169,
+        "processed_total_tokens": 3555988
+      },
+      "claude-opus-5-5": {
+        "input_tokens": 15964,
+        "output_tokens": 7017277,
+        "cache_read_input_tokens": 2366994123,
+        "cache_creation_input_tokens": 21956357,
+        "requests": 7641,
+        "raw_fragments": 17580,
+        "processed_total_tokens": 2395983721
+      },
+      "claude-sonnet-5": {
+        "input_tokens": 6476,
+        "output_tokens": 3516994,
+        "cache_read_input_tokens": 203606940,
+        "cache_creation_input_tokens": 16778801,
+        "requests": 3238,
+        "raw_fragments": 7987,
+        "processed_total_tokens": 223909211
+      },
+      "claude-sonnet-5-5": {
+        "input_tokens": 10,
+        "output_tokens": 471,
+        "cache_read_input_tokens": 12983,
+        "cache_creation_input_tokens": 17232,
+        "requests": 5,
+        "raw_fragments": 6,
+        "processed_total_tokens": 30696
+      }
+    },
+    "by_class": {
+      "main": {
+        "input_tokens": 15412,
+        "output_tokens": 6657524,
+        "cache_read_input_tokens": 2313355277,
+        "cache_creation_input_tokens": 20737190,
+        "requests": 7357,
+        "raw_fragments": 16954,
+        "processed_total_tokens": 2340765403
+      },
+      "subagent": {
+        "input_tokens": 15130,
+        "output_tokens": 4387551,
+        "cache_read_input_tokens": 274119226,
+        "cache_creation_input_tokens": 20383238,
+        "requests": 3862,
+        "raw_fragments": 9679,
+        "processed_total_tokens": 298905145
+      }
+    },
+    "by_utc_day": {
+      "2026-09-23": {
+        "input_tokens": 6068,
+        "output_tokens": 1603566,
+        "cache_read_input_tokens": 206132540,
+        "cache_creation_input_tokens": 6379874,
+        "requests": 2140,
+        "raw_fragments": 4572,
+        "processed_total_tokens": 214122048
+      },
+      "2026-09-24": {
+        "input_tokens": 1884,
+        "output_tokens": 627127,
+        "cache_read_input_tokens": 95583104,
+        "cache_creation_input_tokens": 2035954,
+        "requests": 903,
+        "raw_fragments": 1696,
+        "processed_total_tokens": 98248069
+      },
+      "2026-09-25": {
+        "input_tokens": 1960,
+        "output_tokens": 466781,
+        "cache_read_input_tokens": 174519058,
+        "cache_creation_input_tokens": 1900050,
+        "requests": 608,
+        "raw_fragments": 1663,
+        "processed_total_tokens": 176887849
+      },
+      "2026-09-26": {
+        "input_tokens": 4576,
+        "output_tokens": 1263158,
+        "cache_read_input_tokens": 465894081,
+        "cache_creation_input_tokens": 6641747,
+        "requests": 1657,
+        "raw_fragments": 3867,
+        "processed_total_tokens": 473803562
+      },
+      "2026-09-27": {
+        "input_tokens": 10690,
+        "output_tokens": 4455700,
+        "cache_read_input_tokens": 937290322,
+        "cache_creation_input_tokens": 15590324,
+        "requests": 3933,
+        "raw_fragments": 10020,
+        "processed_total_tokens": 957347036
+      },
+      "2026-09-28": {
+        "input_tokens": 5266,
+        "output_tokens": 2573364,
+        "cache_read_input_tokens": 705454434,
+        "cache_creation_input_tokens": 8154233,
+        "requests": 1929,
+        "raw_fragments": 4710,
+        "processed_total_tokens": 716187297
+      },
+      "2026-09-29": {
+        "input_tokens": 28,
+        "output_tokens": 23028,
+        "cache_read_input_tokens": 983189,
+        "cache_creation_input_tokens": 99161,
+        "requests": 14,
+        "raw_fragments": 28,
+        "processed_total_tokens": 1105406
+      },
+      "2026-10-01": {
+        "input_tokens": 58,
+        "output_tokens": 31690,
+        "cache_read_input_tokens": 1604261,
+        "cache_creation_input_tokens": 297953,
+        "requests": 29,
+        "raw_fragments": 69,
+        "processed_total_tokens": 1933962
+      },
+      "2026-10-02": {
+        "input_tokens": 12,
+        "output_tokens": 661,
+        "cache_read_input_tokens": 13514,
+        "cache_creation_input_tokens": 21132,
+        "requests": 6,
+        "raw_fragments": 8,
+        "processed_total_tokens": 35319
+      }
+    },
+    "recorded_time_min": "2026-09-23T12:00:55.126000+00:00",
+    "recorded_time_max": "2026-10-02T10:27:24.130000+00:00",
+    "request_input_components_percentiles": {
+      "n": 11219,
+      "min": 4433,
+      "median": 126731,
+      "p95_nearest_rank": 769944,
+      "max": 966872
+    },
+    "input_percentiles_by_class": {
+      "main": {
+        "n": 7357,
+        "min": 4433,
+        "median": 193151,
+        "p95_nearest_rank": 831323,
+        "max": 966872
+      },
+      "subagent": {
+        "n": 3862,
+        "min": 8835,
+        "median": 57963.0,
+        "p95_nearest_rank": 200027,
+        "max": 407603
+      }
+    },
+    "first_observed_request_per_recent_file_inputs": {
+      "n": 327,
+      "min": 4433,
+      "median": 22563,
+      "p95_nearest_rank": 45387,
+      "max": 253448
+    },
+    "input_buckets": {
+      "<32k": {
+        "requests": 629,
+        "processed_total_tokens": 15721779
+      },
+      "32k-128k": {
+        "requests": 5029,
+        "processed_total_tokens": 387823178
+      },
+      "128k-256k": {
+        "requests": 2162,
+        "processed_total_tokens": 368140422
+      },
+      "256k-512k": {
+        "requests": 1626,
+        "processed_total_tokens": 616234656
+      },
+      ">=512k": {
+        "requests": 1773,
+        "processed_total_tokens": 1251750513
+      }
+    }
+  },
+  "transcript_version_counts": {
+    "2.1.287": 116,
+    "2.1.280": 18689,
+    "2.1.282": 28362,
+    "2.1.281": 726,
+    "2.1.284": 310,
+    "2.1.283": 22129,
+    "2.1.251": 9
+  },
+  "conversation_patterns": {
+    "unique_tool_calls": 14372,
+    "tool_calls_by_name": {
+      "Bash": 9226,
+      "Read": 2072,
+      "Edit": 1298,
+      "WebFetch": 439,
+      "WebSearch": 414,
+      "Write": 330,
+      "Agent": 302,
+      "ToolSearch": 79,
+      "SendMessage": 55,
+      "Grep": 32,
+      "ScheduleWakeup": 25,
+      "Skill": 24,
+      "AskUserQuestion": 19,
+      "mcp__alambic-obvault__vault_read": 9,
+      "mcp__alambic-brain__vault_search": 8,
+      "TaskStop": 7,
+      "Glob": 6,
+      "mcp__alambic-obvault__vault_search": 5,
+      "mcp__alambic-brain__vault_context": 4,
+      "Monitor": 4,
+      "mcp__claude_ai_Slite__search-notes": 3,
+      "mcp__alambic-brain__vault_feedback": 2,
+      "ListAgents": 2,
+      "mcp__alambic-obvault__vault_context": 2,
+      "mcp__alambic-brain__vault_health": 1,
+      "mcp__alambic-obvault__vault_feedback": 1,
+      "mcp__claude_ai_Linear__list_issues": 1,
+      "EnterWorktree": 1,
+      "ExitWorktree": 1
+    },
+    "tool_result_sizes_chars_by_name": {
+      "Agent": {
+        "n": 302,
+        "min": 91,
+        "median": 1096.0,
+        "p95_nearest_rank": 1996,
+        "max": 20133
+      },
+      "AskUserQuestion": {
+        "n": 19,
+        "min": 241,
+        "median": 333,
+        "p95_nearest_rank": 1616,
+        "max": 1616
+      },
+      "Bash": {
+        "n": 9226,
+        "min": 1,
+        "median": 425.5,
+        "p95_nearest_rank": 6567,
+        "max": 29941
+      },
+      "Edit": {
+        "n": 1298,
+        "min": 66,
+        "median": 122.0,
+        "p95_nearest_rank": 184,
+        "max": 393
+      },
+      "EnterWorktree": {
+        "n": 1,
+        "min": 213,
+        "median": 213,
+        "p95_nearest_rank": 213,
+        "max": 213
+      },
+      "ExitWorktree": {
+        "n": 1,
+        "min": 170,
+        "median": 170,
+        "p95_nearest_rank": 170,
+        "max": 170
+      },
+      "Glob": {
+        "n": 6,
+        "min": 512,
+        "median": 813.0,
+        "p95_nearest_rank": 14303,
+        "max": 14303
+      },
+      "Grep": {
+        "n": 32,
+        "min": 16,
+        "median": 285.5,
+        "p95_nearest_rank": 3362,
+        "max": 7798
+      },
+      "ListAgents": {
+        "n": 2,
+        "min": 970,
+        "median": 2133.5,
+        "p95_nearest_rank": 3297,
+        "max": 3297
+      },
+      "Monitor": {
+        "n": 4,
+        "min": 302,
+        "median": 302.0,
+        "p95_nearest_rank": 302,
+        "max": 302
+      },
+      "Read": {
+        "n": 2072,
+        "min": 13,
+        "median": 3973.5,
+        "p95_nearest_rank": 41975,
+        "max": 418380
+      },
+      "ScheduleWakeup": {
+        "n": 25,
+        "min": 157,
+        "median": 158,
+        "p95_nearest_rank": 158,
+        "max": 183
+      },
+      "SendMessage": {
+        "n": 55,
+        "min": 156,
+        "median": 217,
+        "p95_nearest_rank": 412,
+        "max": 423
+      },
+      "Skill": {
+        "n": 24,
+        "min": 25,
+        "median": 27.0,
+        "p95_nearest_rank": 32,
+        "max": 56
+      },
+      "TaskStop": {
+        "n": 7,
+        "min": 172,
+        "median": 397,
+        "p95_nearest_rank": 2299,
+        "max": 2299
+      },
+      "ToolSearch": {
+        "n": 79,
+        "min": 52,
+        "median": 107,
+        "p95_nearest_rank": 230,
+        "max": 573
+      },
+      "WebFetch": {
+        "n": 439,
+        "min": 28,
+        "median": 1294,
+        "p95_nearest_rank": 3834,
+        "max": 45045
+      },
+      "WebSearch": {
+        "n": 414,
+        "min": 1758,
+        "median": 2963.5,
+        "p95_nearest_rank": 3556,
+        "max": 7686
+      },
+      "Write": {
+        "n": 330,
+        "min": 112,
+        "median": 131.0,
+        "p95_nearest_rank": 192,
+        "max": 296
+      },
+      "mcp__alambic-brain__vault_context": {
+        "n": 4,
+        "min": 524,
+        "median": 2462.0,
+        "p95_nearest_rank": 6520,
+        "max": 6520
+      },
+      "mcp__alambic-brain__vault_feedback": {
+        "n": 2,
+        "min": 33,
+        "median": 33.0,
+        "p95_nearest_rank": 33,
+        "max": 33
+      },
+      "mcp__alambic-brain__vault_health": {
+        "n": 1,
+        "min": 727,
+        "median": 727,
+        "p95_nearest_rank": 727,
+        "max": 727
+      },
+      "mcp__alambic-brain__vault_search": {
+        "n": 8,
+        "min": 82,
+        "median": 417.0,
+        "p95_nearest_rank": 1117,
+        "max": 1117
+      },
+      "mcp__alambic-obvault__vault_context": {
+        "n": 2,
+        "min": 9717,
+        "median": 10815.5,
+        "p95_nearest_rank": 11914,
+        "max": 11914
+      },
+      "mcp__alambic-obvault__vault_feedback": {
+        "n": 1,
+        "min": 32,
+        "median": 32,
+        "p95_nearest_rank": 32,
+        "max": 32
+      },
+      "mcp__alambic-obvault__vault_read": {
+        "n": 9,
+        "min": 2524,
+        "median": 6331,
+        "p95_nearest_rank": 10129,
+        "max": 10129
+      },
+      "mcp__alambic-obvault__vault_search": {
+        "n": 5,
+        "min": 93,
+        "median": 1692,
+        "p95_nearest_rank": 3203,
+        "max": 3203
+      },
+      "mcp__claude_ai_Linear__list_issues": {
+        "n": 1,
+        "min": 17430,
+        "median": 17430,
+        "p95_nearest_rank": 17430,
+        "max": 17430
+      },
+      "mcp__claude_ai_Slite__search-notes": {
+        "n": 3,
+        "min": 71,
+        "median": 71,
+        "p95_nearest_rank": 438,
+        "max": 438
+      }
+    },
+    "tool_attributes": {
+      "Agent": {
+        "result_errors": 32
+      },
+      "AskUserQuestion": {
+        "result_errors": 0
+      },
+      "Bash": {
+        "result_errors": 1255
+      },
+      "Edit": {
+        "result_errors": 35
+      },
+      "EnterWorktree": {
+        "result_errors": 0
+      },
+      "ExitWorktree": {
+        "result_errors": 0
+      },
+      "Glob": {
+        "result_errors": 0
+      },
+      "Grep": {
+        "result_errors": 2,
+        "full_content": 27,
+        "unbounded": 16
+      },
+      "ListAgents": {
+        "result_errors": 0
+      },
+      "Monitor": {
+        "result_errors": 0
+      },
+      "Read": {
+        "result_errors": 39,
+        "unbounded": 987
+      },
+      "ScheduleWakeup": {
+        "result_errors": 0
+      },
+      "SendMessage": {
+        "result_errors": 0
+      },
+      "Skill": {
+        "result_errors": 1
+      },
+      "TaskStop": {
+        "result_errors": 0
+      },
+      "ToolSearch": {
+        "result_errors": 0
+      },
+      "WebFetch": {
+        "result_errors": 5
+      },
+      "WebSearch": {
+        "result_errors": 0
+      },
+      "Write": {
+        "result_errors": 17
+      },
+      "mcp__alambic-brain__vault_context": {
+        "result_errors": 0
+      },
+      "mcp__alambic-brain__vault_feedback": {
+        "result_errors": 0
+      },
+      "mcp__alambic-brain__vault_health": {
+        "result_errors": 0
+      },
+      "mcp__alambic-brain__vault_search": {
+        "result_errors": 0
+      },
+      "mcp__alambic-obvault__vault_context": {
+        "result_errors": 0
+      },
+      "mcp__alambic-obvault__vault_feedback": {
+        "result_errors": 0
+      },
+      "mcp__alambic-obvault__vault_read": {
+        "result_errors": 0
+      },
+      "mcp__alambic-obvault__vault_search": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Linear__list_issues": {
+        "result_errors": 0
+      },
+      "mcp__claude_ai_Slite__search-notes": {
+        "result_errors": 0
+      }
+    },
+    "exact_same_tool_input_repeats_within_session": {
+      "Bash": {
+        "calls": 9226,
+        "distinct_session_input_pairs": 9152,
+        "additional_calls_same_input": 74
+      },
+      "Read": {
+        "calls": 2072,
+        "distinct_session_input_pairs": 1701,
+        "additional_calls_same_input": 371
+      },
+      "Edit": {
+        "calls": 1298,
+        "distinct_session_input_pairs": 1196,
+        "additional_calls_same_input": 102
+      },
+      "Write": {
+        "calls": 330,
+        "distinct_session_input_pairs": 327,
+        "additional_calls_same_input": 3
+      },
+      "Grep": {
+        "calls": 32,
+        "distinct_session_input_pairs": 32,
+        "additional_calls_same_input": 0
+      },
+      "Glob": {
+        "calls": 6,
+        "distinct_session_input_pairs": 6,
+        "additional_calls_same_input": 0
+      },
+      "ToolSearch": {
+        "calls": 79,
+        "distinct_session_input_pairs": 56,
+        "additional_calls_same_input": 23
+      },
+      "mcp__alambic-brain__vault_search": {
+        "calls": 8,
+        "distinct_session_input_pairs": 8,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-brain__vault_feedback": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "Skill": {
+        "calls": 24,
+        "distinct_session_input_pairs": 22,
+        "additional_calls_same_input": 2
+      },
+      "Agent": {
+        "calls": 302,
+        "distinct_session_input_pairs": 295,
+        "additional_calls_same_input": 7
+      },
+      "WebFetch": {
+        "calls": 439,
+        "distinct_session_input_pairs": 439,
+        "additional_calls_same_input": 0
+      },
+      "ListAgents": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-brain__vault_context": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-brain__vault_health": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "SendMessage": {
+        "calls": 55,
+        "distinct_session_input_pairs": 55,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-obvault__vault_search": {
+        "calls": 5,
+        "distinct_session_input_pairs": 5,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-obvault__vault_read": {
+        "calls": 9,
+        "distinct_session_input_pairs": 9,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-obvault__vault_feedback": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "WebSearch": {
+        "calls": 414,
+        "distinct_session_input_pairs": 408,
+        "additional_calls_same_input": 6
+      },
+      "TaskStop": {
+        "calls": 7,
+        "distinct_session_input_pairs": 7,
+        "additional_calls_same_input": 0
+      },
+      "AskUserQuestion": {
+        "calls": 19,
+        "distinct_session_input_pairs": 19,
+        "additional_calls_same_input": 0
+      },
+      "ScheduleWakeup": {
+        "calls": 25,
+        "distinct_session_input_pairs": 25,
+        "additional_calls_same_input": 0
+      },
+      "mcp__alambic-obvault__vault_context": {
+        "calls": 2,
+        "distinct_session_input_pairs": 2,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Linear__list_issues": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "mcp__claude_ai_Slite__search-notes": {
+        "calls": 3,
+        "distinct_session_input_pairs": 3,
+        "additional_calls_same_input": 0
+      },
+      "Monitor": {
+        "calls": 4,
+        "distinct_session_input_pairs": 4,
+        "additional_calls_same_input": 0
+      },
+      "EnterWorktree": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      },
+      "ExitWorktree": {
+        "calls": 1,
+        "distinct_session_input_pairs": 1,
+        "additional_calls_same_input": 0
+      }
+    },
+    "agent_call_attributes": {
+      "named": 39,
+      "model_argument_<other-or-absent>": 294,
+      "model_argument_haiku": 4,
+      "model_argument_sonnet": 1,
+      "model_argument_opus": 3
+    },
+    "bash_call_attributes": {
+      "has_pipe": 6186,
+      "has_chain": 6010,
+      "has_read_pattern": 7997,
+      "rtk_explicit": 1202
+    },
+    "unique_compact_boundaries": 43,
+    "user_text_records": 574,
+    "user_text_sizes_chars": {
+      "n": 574,
+      "min": 2,
+      "median": 391.0,
+      "p95_nearest_rank": 9062,
+      "max": 23826
+    },
+    "user_keyword_flags_nonexclusive": {
+      "plan_workflow": 239,
+      "investigation": 71,
+      "review": 225,
+      "implementation": 202,
+      "git_delivery": 137,
+      "tests": 184,
+      "continuation": 21
+    },
+    "limitations": [
+      "Tool calls deduplicated by tool_use id; exact repeats may be justified by file changes, retries or validation.",
+      "Tool result sizes are characters, not model tokens; serialization and tool rewrites may differ.",
+      "Explicit RTK indicator describes recorded Bash inputs, not every hook rewrite or command execution.",
+      "Intent flags are fixed keyword indicators; no exported excerpts or semantic success judgment.",
+      "Transcript tool counts and usage requests have different units; no causal quota savings estimate."
+    ]
+  },
+  "fingerprints_after": {
+    "settings": "b90964f6d6936939686b27657b06b9b636082731c7b2838c6a55f7afad8b59da",
+    "instructions": "f214a75ad7211d0c11e7059e329551394c8071f688abf48257c2f9314b1c721e",
+    "rtk_instructions": "9fe007d9d7ca790f35b48bd12099e1b3a1dae05caf296dba3ddbe2621ddb02dc"
+  },
+  "live_configuration_unchanged": true,
+  "status": "Observed transcript aggregates; not provider billing, quota, effectiveness or exhaustive project-settings coverage."
+}

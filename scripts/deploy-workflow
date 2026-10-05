@@ -34,6 +34,7 @@ FILES=(
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
   "$REPO_DIR/workflow/events.md|workflow/events.md"
   "$REPO_DIR/workflow/events-validator.md|workflow/events-validator.md"
+  "$REPO_DIR/workflow/durable-exports.md|workflow/durable-exports.md"
   "$REPO_DIR/workflow/contract-details.md|workflow/contract-details.md"
   "$REPO_DIR/workflow/agent-quick-card.md|workflow/agent-quick-card.md"
   "$REPO_DIR/workflow/answer-quality.md|workflow/answer-quality.md"
@@ -41,6 +42,7 @@ FILES=(
   "$REPO_DIR/workflow/git-contract.md|workflow/git-contract.md"
   "$REPO_DIR/workflow/pr-body-contract.md|workflow/pr-body-contract.md"
   "$REPO_DIR/workflow/verification-report-template.md|workflow/verification-report-template.md"
+  "$REPO_DIR/workflow/product-verification.md|workflow/product-verification.md"
   "$REPO_DIR/workflow/evidence-pack.schema.json|workflow/evidence-pack.schema.json"
   "$REPO_DIR/workflow/templates/evidence-pack.json|workflow/templates/evidence-pack.json"
   "$REPO_DIR/workflow/templates/escaped-defect.md|workflow/templates/escaped-defect.md"
@@ -51,11 +53,35 @@ FILES=(
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
+  "$REPO_DIR/scripts/plan-review-check|scripts/plan-review-check"
+  "$REPO_DIR/scripts/lib/plan-review-binding.mjs|scripts/lib/plan-review-binding.mjs"
+  "$REPO_DIR/scripts/lib/plan-cleanup-command.mjs|scripts/lib/plan-cleanup-command.mjs"
+  "$REPO_DIR/scripts/lib/ledger-integrity.mjs|scripts/lib/ledger-integrity.mjs"
+  "$REPO_DIR/scripts/lib/predicates.mjs|scripts/lib/predicates.mjs"
+  "$REPO_DIR/scripts/lib/workflow-events.mjs|scripts/lib/workflow-events.mjs"
+  "$REPO_DIR/scripts/project-verification-check|scripts/project-verification-check"
+  "$REPO_DIR/scripts/project-verification|scripts/project-verification"
+  "$REPO_DIR/scripts/lib/project-verification-recipe.mjs|scripts/lib/project-verification-recipe.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-run.mjs|scripts/lib/project-verification-run.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-process.mjs|scripts/lib/project-verification-process.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-snapshot.mjs|scripts/lib/project-verification-snapshot.mjs"
+  "$REPO_DIR/workflow/project-verification-recipe.schema.json|workflow/project-verification-recipe.schema.json"
+  "$REPO_DIR/scripts/lib/project-verification.mjs|scripts/lib/project-verification.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-plan.mjs|scripts/lib/project-verification-plan.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-assertions.mjs|scripts/lib/project-verification-assertions.mjs"
+  "$REPO_DIR/scripts/lib/project-verification-source.mjs|scripts/lib/project-verification-source.mjs"
+  "$REPO_DIR/scripts/lib/plan-check-freeze.mjs|scripts/lib/plan-check-freeze.mjs"
+  "$REPO_DIR/scripts/lib/unicode-case-fold.mjs|scripts/lib/unicode-case-fold.mjs"
+  "$REPO_DIR/scripts/vendor/commonmark/commonmark.cjs|scripts/vendor/commonmark/commonmark.cjs"
   "$REPO_DIR/scripts/workflow-event|scripts/workflow-event"
   "$REPO_DIR/scripts/lib/hash.sh|scripts/lib/hash.sh"
   "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
   "$REPO_DIR/scripts/lib/review-rounds.jq|scripts/lib/review-rounds.jq"
 )
+
+while IFS= read -r example_path; do
+  FILES+=("$example_path|workflow/verification/$(basename "$example_path")")
+done < <(find "$REPO_DIR/workflow-scaffold/templates/verification" -maxdepth 1 -type f -print | sort)
 
 while IFS= read -r contract_path; do
   FILES+=("$contract_path|workflow/skills/$(basename "$contract_path")")
@@ -363,7 +389,26 @@ exclude_block() {
     "/.pi/" \
     "/.workflow/" \
     "/workflow/" \
+    "/scripts/project-verification-check" \
+    "/scripts/project-verification" \
+    "/scripts/lib/project-verification-recipe.mjs" \
+    "/scripts/lib/project-verification-run.mjs" \
+    "/scripts/lib/project-verification-process.mjs" \
+    "/scripts/lib/project-verification-snapshot.mjs" \
+    "/scripts/lib/project-verification.mjs" \
+    "/scripts/lib/project-verification-plan.mjs" \
+    "/scripts/lib/project-verification-assertions.mjs" \
+    "/scripts/lib/project-verification-source.mjs" \
+    "/scripts/lib/plan-check-freeze.mjs" \
+    "/scripts/lib/unicode-case-fold.mjs" \
+    "/scripts/vendor/commonmark/commonmark.cjs" \
     "/scripts/plan-cleanup" \
+    "/scripts/plan-review-check" \
+    "/scripts/lib/plan-review-binding.mjs" \
+    "/scripts/lib/plan-cleanup-command.mjs" \
+    "/scripts/lib/ledger-integrity.mjs" \
+    "/scripts/lib/predicates.mjs" \
+    "/scripts/lib/workflow-events.mjs" \
     "/scripts/workflow-event" \
     "/scripts/workflow-measurement-integrity" \
     "/scripts/lib/workflow-event-detail.jq" \

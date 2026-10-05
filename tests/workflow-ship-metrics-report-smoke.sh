@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+. "$ROOT_DIR/scripts/lib/hash.sh"
 METRICS="$ROOT_DIR/scripts/workflow-ship-metrics"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -26,7 +27,8 @@ printf '%s\n' \
 
 printf '%s\n' '{"run_slug":"run-x","verdict":"GO","escaped_later":1,"tier":"standard"}' >"$DIR/ship-metrics/run-x.json"
 printf '%s\n' '{"run_slug":"run-old","verdict":"GO","escaped_later":2,"tier":"small"}' >"$DIR/ship-metrics/run-old.json"
-touch -t 202608010000 "$DIR/ship-metrics/run-old.json"
+TZ=UTC touch -t 202609291000 "$DIR/ship-metrics/run-x.json"
+TZ=UTC touch -t 202608010000 "$DIR/ship-metrics/run-old.json"
 
 printf '%s\n' \
   '{"ts":"2026-09-29T10:00:00Z","host":"h","harness":"pi","guard":"no-comments","pattern":"code-comment-added","target":"a.ts","tool":"Write"}' \
@@ -57,13 +59,13 @@ printf '%s' "$out" | jqe '.counters.herdr.holes == 1' || fail "the seq 2->4 gap 
 printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 60' || fail "known time must exclude the hole interval (30s + 30s)"
 printf '%s' "$out" | jqe '.outcome.accepted_results == null' || fail "accepted results must be null until receipts"
 
-before_files="$(find "$DIR" -type f | sort | md5)"
+before_files="$(find "$DIR" -type f | sort | hash256)"
 text="$("$METRICS" --dir "$DIR" report --since 2026-09-29)"
 case "$text" in
   *outcome*) ;;
   *) fail "text output must carry the outcome block" ;;
 esac
-after_files="$(find "$DIR" -type f | sort | md5)"
+after_files="$(find "$DIR" -type f | sort | hash256)"
 [ "$before_files" = "$after_files" ] || fail "report must not write any file"
 
 rm -rf "$DIR/guard-journal"
@@ -131,4 +133,33 @@ out="$("$METRICS" --dir "$TMP/empty-wf" report --since 2026-09-29 --herdr-histor
 printf '%s' "$out" | jqe '.counters.herdr.known_seconds == 0' || fail "no interval may be fabricated across hosts"
 printf '%s' "$out" | jqe '.counters.herdr.panes == 2' || fail "same pane on two hosts must count as two panes"
 
+mkdir -p "$TMP/project-a/.workflow/same" "$TMP/project-b/.workflow/same" "$TMP/project-empty"
+for project in project-a project-b; do
+  printf '%s\n' '{"ts":"2026-09-29T10:00:00Z","event":"blocked","detail":{"reason":"review budget spent"}}' >"$TMP/$project/.workflow/same/events.jsonl"
+done
+jq -nc --arg a "$TMP/project-a" --arg b "$TMP/project-b" --arg empty "$TMP/project-empty" '[$a,$b,$empty]' >"$TMP/projects.json"
+out="$("$METRICS" --projects "$TMP/projects.json" report --since 2026-09-29 --until 2026-09-29 --json)"
+printf '%s' "$out" | jqe '.projects | length == 3' || fail "explicit inventory must include every requested project"
+printf '%s' "$out" | jqe '.patterns[0].initiative_count == 2' || fail "same slug across projects must stay distinct"
+printf '%s' "$out" | jqe '.projects[2].sources.event_ledgers == "missing"' || fail "empty project must name missing sources"
+text="$("$METRICS" --projects "$TMP/projects.json" report --since 2026-09-29 --until 2026-09-29)"
+case "$text" in
+  *'Projects: 3'*'Combined recurring patterns:'*) ;;
+  *) fail "portfolio text must expose coverage and patterns" ;;
+esac
+if "$METRICS" --dir "$DIR" --projects "$TMP/projects.json" report --since 2026-09-29 >/dev/null 2>&1; then
+  fail "--dir and --projects are mutually exclusive"
+fi
+if "$METRICS" --projects "$TMP/projects.json" show same >/dev/null 2>&1; then
+  fail "--projects must be report-only"
+fi
+if "$METRICS" --projects "$TMP/projects.json" report --since 2026-09-29 --herdr-history "$HERDR" >/dev/null 2>&1; then
+  fail "portfolio must refuse a shared Herdr source"
+fi
+if "$METRICS" --dir "$DIR" report --since invalid >/dev/null 2>&1; then
+  fail "invalid date must fail with remediation"
+fi
+
+node --test "$ROOT_DIR/tests/workflow-patterns.test.mjs" "$ROOT_DIR/tests/workflow-run-check.test.mjs"
+bash "$ROOT_DIR/tests/guard-journal-isolation-smoke.sh"
 printf 'ship-metrics-report-smoke: PASS\n'
