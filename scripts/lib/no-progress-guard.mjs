@@ -4,23 +4,12 @@
  *
  * Does not auto-emit events — only reads existing ledger evidence.
  */
-import { inspectLedgerFile } from "./ledger-integrity.mjs";
 import { isNonEmptyString } from "./predicates.mjs";
-import { isNarrowPlanCleanupCommand } from "./plan-cleanup-command.mjs";
 
 export const DEFAULT_NO_PROGRESS_THRESHOLDS = Object.freeze({
   same_hypothesis_failures: 2,
   red_checks_without_diff: 3,
 });
-
-/**
- * Load an integrity-valid ledger path. Missing or malformed data → [].
- * @param {string} ledgerPath
- */
-export function loadLedgerEvents(ledgerPath) {
-  const inspection = inspectLedgerFile(ledgerPath);
-  return inspection.valid ? inspection.events : [];
-}
 
 /**
  * Derived no-progress from validation_failed after last file_changed.
@@ -128,38 +117,4 @@ export function isWorkflowEventEscapeCommand(command) {
   return /^(?:node\s+|bun\s+|bash\s+)?(?:(?:\.\/)?(?:scripts\/)?workflow-event|\/(?:[A-Za-z0-9._-]+\/)*workflow-event)(?:\s+|$)/.test(
     c,
   );
-}
-
-/**
- * Escape hatch while no_progress stop is active:
- * - PLAN.md Write/Edit/MultiEdit
- * - workflow-event-only Bash
- * - validated scripts/plan-cleanup Bash
- *
- * @param {string} toolName normalized (Write|Edit|MultiEdit|Bash)
- * @param {Record<string, unknown>} toolInput
- * @param {(path: string, cwd?: string) => boolean} isPlanFileFn
- * @param {string} cwd
- */
-export function isNoProgressEscapeHatch(
-  toolName,
-  toolInput,
-  isPlanFileFn,
-  cwd,
-) {
-  const input = toolInput || {};
-  if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
-    const filePath = String(
-      input.file_path || input.path || input.filePath || "",
-    );
-    return Boolean(isPlanFileFn && isPlanFileFn(filePath, cwd));
-  }
-  if (toolName === "Bash") {
-    const command = String(input.command || input.cmd || "");
-    return (
-      isWorkflowEventEscapeCommand(command) ||
-      isNarrowPlanCleanupCommand(command, cwd)
-    );
-  }
-  return false;
 }
