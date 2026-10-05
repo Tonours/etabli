@@ -528,15 +528,22 @@ NODE
 # historical usage receipts are deliberately outside this selector sweep.
 assert_no_active_model_aliases() {
   local status=0
-  rg -n '(^model:[[:space:]]*(fable|sonnet|opus)$|model:[[:space:]]*"(fable|sonnet|opus)"|"model":[[:space:]]*"(fable|sonnet|opus|claude-fable[^"]*)"|--model(=|[[:space:]])(fable|sonnet|opus)([[:space:]]|$))' "$@" || status=$?
+  grep -rEn -- '(^model:[[:space:]]*(fable|sonnet|opus)$|model:[[:space:]]*"(fable|sonnet|opus)"|"model":[[:space:]]*"(fable|sonnet|opus|claude-fable[^"]*)"|--model(=|[[:space:]])(fable|sonnet|opus)([[:space:]]|$))' "$@" || status=$?
   if [ "$status" != 1 ]; then
-    printf 'active selector sweep failed (rg exit %s): replace Fable with Opus 5.5 and pin Sonnet 5.5 via model-routing.json\n' "$status" >&2
+    printf 'active selector sweep failed (grep exit %s): replace Fable with Opus 5.5 and pin Sonnet 5.5 via model-routing.json\n' "$status" >&2
     return 1
   fi
 }
 assert_no_active_model_aliases "$ROOT_DIR/claude/scopes" "$ROOT_DIR/claude/benchmarks" \
     "$ROOT_DIR/scripts/lib" "$ROOT_DIR/workflow/runtime" "$ROOT_DIR/pi/agent" \
     "$ROOT_DIR/README.md" "$ROOT_DIR/docs/claude-token-budget.md"
+printf 'model: claude-sonnet-5-5\n' >"$instruction_fixture"
+assert_no_active_model_aliases "$instruction_fixture"
+printf 'model: fable\n' >"$instruction_fixture"
+if assert_no_active_model_aliases "$instruction_fixture" >/dev/null 2>&1; then
+  printf 'active selector sweep accepted a stale model alias\n' >&2
+  exit 1
+fi
 # A read error must never be interpreted as no stale selectors.
 if assert_no_active_model_aliases /dev/null/model-alias-smoke 2>/dev/null; then
   printf 'active selector sweep accepted an unreadable path\n' >&2
