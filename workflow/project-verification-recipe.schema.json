@@ -20,6 +20,8 @@
       "type": "string",
       "minLength": 1
     },
+    "mode": { "enum": ["product", "ui"] },
+    "ui": { "$ref": "#/$defs/ui" },
     "launch": {
       "$ref": "#/$defs/command"
     },
@@ -108,7 +110,34 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": { "required": ["mode"], "properties": { "mode": { "const": "ui" } } },
+      "then": { "required": ["ui"] },
+      "else": { "not": { "required": ["ui"] } }
+    }
+  ],
   "$defs": {
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["responsive_in_scope", "motion_in_scope", "reference_in_scope", "not_applicable_reasons", "observation"],
+      "properties": {
+        "responsive_in_scope": { "type": "boolean" },
+        "motion_in_scope": { "type": "boolean" },
+        "reference_in_scope": { "type": "boolean" },
+        "not_applicable_reasons": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "responsive": { "type": "string", "minLength": 1 },
+            "reduced_motion": { "type": "string", "minLength": 1 },
+            "reference": { "type": "string", "minLength": 1 }
+          }
+        },
+        "observation": { "$ref": "#/$defs/observation" }
+      }
+    },
     "command": {
       "type": "object",
       "additionalProperties": false,

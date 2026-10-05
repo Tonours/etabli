@@ -77,7 +77,7 @@ export async function readVerificationRecipe(
   }
   assert.ok(
     validator.Check(recipe),
-    "Incomplete or invalid verification recipe: supply commands, timeouts, AC mappings and typed result oracles",
+    "Incomplete or invalid verification recipe: supply commands, timeouts, AC mappings, typed result oracles and explicit UI scope/observations for mode ui",
   );
   validateRecipeAssertions(recipe);
   assert.ok(

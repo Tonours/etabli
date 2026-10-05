@@ -4,7 +4,7 @@ import { join } from "node:path";
 const root = process.env.ETABLI_RUN_DIR,
   state = join(root, "state.json");
 const html =
-  '<!doctype html><html lang="en"><title>Value editor</title><label for="value">Value</label><input id="value"><button id="save">Save</button><p role="status"></p><script>const input=document.querySelector("input"); fetch("/state").then(r=>r.json()).then(s=>{input.value=s.value;document.body.dataset.ready="true"});document.querySelector("button").onclick=async()=>{await fetch("/state",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({value:input.value})});document.querySelector("[role=status]").textContent="Saved"}</script></html>';
+  '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Value editor</title><style>body{background:#fff;color:#000}:focus-visible{outline:2px solid #000;outline-offset:2px}</style><label for="value">Value</label><input id="value"><button id="save">Save</button><p role="status"></p><script>const input=document.querySelector("input"); fetch("/state").then(r=>r.json()).then(s=>{input.value=s.value;document.body.dataset.ready="true"});document.querySelector("button").onclick=async()=>{await fetch("/state",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({value:input.value})});document.querySelector("[role=status]").textContent="Saved"}</script></html>';
 const server = createServer(async (request, response) => {
   if (request.url === "/state") {
     if (request.method === "POST") {

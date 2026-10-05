@@ -185,7 +185,7 @@ assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignor
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/scripts/lib/review-rounds.jq"
-for managed in scripts/project-verification scripts/project-verification-check scripts/lib/project-verification{,-plan,-source,-assertions,-recipe,-run,-process,-snapshot}.mjs scripts/lib/plan-check-freeze.mjs scripts/lib/unicode-case-fold.mjs scripts/vendor/commonmark/commonmark.cjs; do
+for managed in scripts/project-verification scripts/project-verification-check scripts/lib/project-verification{,-plan,-source,-assertions,-recipe,-run,-process,-snapshot,-ui}.mjs scripts/lib/plan-check-freeze.mjs scripts/lib/unicode-case-fold.mjs scripts/vendor/commonmark/commonmark.cjs; do
   git -C "$NEW_PROJECT" check-ignore -q -- "$managed" || { printf 'managed tooling exposed to project Git: %s\n' "$managed" >&2; exit 1; }
 done
 assert_file "$NEW_PROJECT/workflow/project-verification-recipe.schema.json"

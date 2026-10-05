@@ -1,6 +1,28 @@
 {
   "schema_version": 1,
   "name": "Browser DOM reload and persisted value",
+  "mode": "ui",
+  "ui": {
+    "responsive_in_scope": true,
+    "motion_in_scope": false,
+    "reference_in_scope": false,
+    "not_applicable_reasons": {
+      "reduced_motion": "This fixture has no animation or motion behavior.",
+      "reference": "No visual reference is supplied for this fixture."
+    },
+    "observation": {
+      "argv": ["node", "verification/observe-json.mjs", "ui.json"],
+      "timeout_ms": 30000,
+      "assertions": [
+        { "pointer": "/checks/keyboard", "expected": true },
+        { "pointer": "/checks/focus", "expected": true },
+        { "pointer": "/checks/accessibility", "expected": true },
+        { "pointer": "/checks/console", "expected": true },
+        { "pointer": "/checks/network", "expected": true },
+        { "pointer": "/checks/responsive", "expected": true }
+      ]
+    }
+  },
   "launch": {
     "argv": ["node", "verification/fixture-lifecycle.mjs", "launch"],
     "timeout_ms": 30000
