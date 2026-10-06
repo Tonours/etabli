@@ -39,7 +39,7 @@ jq -r '
 # Shared planMutationGuardDecision works for Claude-style and Pi-style tool names
 node --input-type=module <<EOF
 import { pathToFileURL } from "node:url";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
@@ -111,9 +111,11 @@ for (const command of [
   "test -f PLAN.md",
   "git -C . status --short",
   "git branch --show-current",
+  "git fetch origin",
   "git remote -v",
   "git tag --list",
   "git worktree list",
+  "echo hi",
 ]) {
   const readOnlyAllowed = mod.planMutationGuardDecision({
     cwd: tmp,
@@ -205,6 +207,65 @@ const bashDeny = mod.planMutationGuardDecision({
 });
 if (bashDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
   console.error("mutating bash under DRAFT must deny");
+  process.exit(1);
+}
+
+const repo = join(tmp, "repo");
+mkdirSync(repo);
+execFileSync("git", ["-C", repo, "init", "--quiet"]);
+execFileSync("git", ["-C", repo, "-c", "user.email=guard@test", "-c", "user.name=guard", "commit", "--allow-empty", "--quiet", "-m", "init"]);
+execFileSync("git", ["-C", repo, "checkout", "-q", "-b", "plan-branch"]);
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n- Branch: plan-branch\n");
+
+const anchoredOwnerDeny = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "bash",
+  input: { command: "touch escaped" },
+});
+if (anchoredOwnerDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("plan anchored to the current branch must still gate");
+  process.exit(1);
+}
+
+execFileSync("git", ["-C", repo, "checkout", "-q", "-b", "other-branch"]);
+for (const foreignEvent of [
+  { cwd: repo, toolName: "bash", input: { command: "touch escaped" } },
+  { cwd: repo, tool_name: "Write", tool_input: { file_path: join(repo, "x.ts"), content: "x" } },
+]) {
+  const foreignAllowed = mod.planMutationGuardDecision(foreignEvent);
+  if (foreignAllowed != null) {
+    console.error("plan anchored to another branch must not gate this checkout");
+    process.exit(1);
+  }
+}
+
+const journalDir = join(repo, ".workflow", "guard-journal");
+const journalFiles = readdirSync(journalDir).filter((name) => name.endsWith(".jsonl"));
+if (journalFiles.length !== 1 || !readFileSync(join(journalDir, journalFiles[0]), "utf8").includes('"pattern":"foreign-plan-bypass"')) {
+  console.error("foreign-branch bypass must be journaled as foreign-plan-bypass");
+  process.exit(1);
+}
+
+execFileSync("git", ["-C", repo, "checkout", "-q", "--detach"]);
+const detachedDeny = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "bash",
+  input: { command: "touch escaped" },
+});
+if (detachedDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("detached HEAD must keep the plan gates strict");
+  process.exit(1);
+}
+
+execFileSync("git", ["-C", repo, "checkout", "-q", "other-branch"]);
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n");
+const unanchoredDeny = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "bash",
+  input: { command: "touch escaped" },
+});
+if (unanchoredDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("unanchored plan must keep the plan gates strict");
   process.exit(1);
 }
 

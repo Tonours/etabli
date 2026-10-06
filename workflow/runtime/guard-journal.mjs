@@ -21,7 +21,7 @@ function inferHarness(explicit) {
 	return "unknown";
 }
 
-export function recordGuardDenial(input) {
+function appendGuardLine(input) {
 	try {
 		const cwd = typeof input?.cwd === "string" && input.cwd.trim() !== "" ? input.cwd : process.cwd();
 		const dir = journalDir(cwd);
@@ -38,4 +38,12 @@ export function recordGuardDenial(input) {
 		appendFileSync(join(dir, `${journalDate()}.jsonl`), `${line}\n`, "utf8");
 	} catch {
 	}
+}
+
+export function recordGuardDenial(input) {
+	appendGuardLine(input);
+}
+
+export function recordGuardBypass(input) {
+	appendGuardLine(input);
 }

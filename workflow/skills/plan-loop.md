@@ -22,7 +22,8 @@ and report the missing paths as a warning, not a blocker.
    exists. Classify ACs; include missing verification setup in scope (see
    `workflow/product-verification.md`). Load domain skills only on a clear
    match; name them or `none` in `Notes / Handoff`.
-2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`.
+2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`; set the `Branch`
+   meta to the current `git branch --show-current`.
 3. Use `PLAN_TEMPLATE_FULL.md` only for broad or risky work.
 4. Set `Status: DRAFT` first.
 5. Fill `Workflow Contract` (every plan):
