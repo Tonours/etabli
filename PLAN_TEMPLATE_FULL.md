@@ -7,6 +7,7 @@ Keep it as a restartable working contract, not a research essay.
 - Subject:
 - Type: bugfix | feature | refactor | migration | investigation
 - Status: DRAFT | CHALLENGED | READY
+- Branch:
 - Source:
 - Last revised:
 - Archive: pending until implemented and validated

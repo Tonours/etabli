@@ -20,7 +20,7 @@
         "workflow/skills/plan-loop.md",
         "PLAN_TEMPLATE.md"
       ],
-      "ceiling_chars": 6458
+      "ceiling_chars": 6491
     },
     "plan-implement": {
       "description": "default read chain of the plan-implement route (unconditional reads only; events-validator.md stays cold, opened only when editing the event system)",
@@ -113,7 +113,7 @@
         "workflow/spec.md",
         "workflow/contract-details.md"
       ],
-      "ceiling_chars": 30120
+      "ceiling_chars": 30207
     },
     "ship": {
       "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",

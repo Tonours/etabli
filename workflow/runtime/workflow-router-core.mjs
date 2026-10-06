@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { recordGuardDenial } from "./guard-journal.mjs";
+import { recordGuardDenial, recordGuardBypass } from "./guard-journal.mjs";
 import { projectVaultRoots, vaultContextCommand } from "./obvault-topic-resolver.mjs";
 import {
 	evaluateCheckFreeze,
@@ -258,6 +258,7 @@ const READ_ONLY_BASH_COMMANDS = new Set([
 	"cut",
 	"diff",
 	"dirname",
+	"echo",
 	"grep",
 	"head",
 	"jq",
@@ -278,6 +279,7 @@ const ALWAYS_READ_ONLY_GIT_SUBCOMMANDS = new Set([
 	"--help",
 	"--version",
 	"diff",
+	"fetch",
 	"grep",
 	"log",
 	"ls-files",
@@ -329,6 +331,7 @@ const EXPANDING_DOLLAR = /^[A-Za-z_{@*#?!$0-9'-]/;
 const ARGV_SENSITIVE_READERS = new Set(["diff", "rg", "uniq"]);
 const MUTATION_RELEVANT_TOOLS = new Set(["Write", "Edit", "MultiEdit", "Bash"]);
 const PLAN_FILE_PATTERN = /\bPLAN[\w.-]*\.md\b/g;
+const PLAN_BRANCH_PATTERN = /^\s*-\s*Branch:\s*(\S[^\r\n]*?)\s*$/im;
 const TRACKED_PLAN_TEMPLATE_NAMES = new Set([
 	"PLAN_TEMPLATE.md",
 	"PLAN_TEMPLATE_FULL.md",
@@ -1333,7 +1336,7 @@ export function planReadyGuardDecision(event) {
 	if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
 		if (isPlanFile(filePath, cwd)) return null;
 		return deny(
-			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>, or anchor it to its branch with a Branch meta line so other branches are not gated.`,
 			{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-write", target: filePath, tool: toolName },
 		);
 	}
@@ -1343,7 +1346,7 @@ export function planReadyGuardDecision(event) {
 		if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 		if (isMutatingBashCommand(command)) {
 			return deny(
-				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
+				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>, or anchor it to its branch with a Branch meta line so other branches are not gated.`,
 				{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-bash-mutation", target: "Bash", tool: "Bash" },
 			);
 		}
@@ -1499,11 +1502,62 @@ return deny(
 
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
 export function planMutationGuardDecision(event) {
+	const bypassCwd = event?.cwd || process.cwd();
+	if (planBelongsToForeignBranch(bypassCwd)) {
+		recordGuardBypass({
+			cwd: bypassCwd,
+			guard: "plan-ready-guard",
+			pattern: "foreign-plan-bypass",
+			target: "PLAN.md",
+			tool: normalizeToolName(event?.tool_name || event?.toolName) || "unknown",
+		});
+		return null;
+	}
 	return (
 		planReadyGuardDecision(event) ||
 		planCheckFreezeGuardDecision(event) ||
 		planCheckFreezeBashGuardDecision(event)
 	);
+}
+
+export function parsePlanBranch(text) {
+	return String(text).match(PLAN_BRANCH_PATTERN)?.[1]?.trim() || null;
+}
+
+function checkoutBranchForPlanGuard(cwd) {
+	try {
+		const toplevel = execFileSync(
+			"git",
+			["-C", cwd, "rev-parse", "--show-toplevel"],
+			{ encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+		).trim();
+		if (!toplevel) return null;
+		if (realpathSync(toplevel) !== realpathSync(resolve(cwd || process.cwd()))) return null;
+		const branch = execFileSync(
+			"git",
+			["-C", cwd, "branch", "--show-current"],
+			{ encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+		).trim();
+		return branch || null;
+	} catch {
+		return null;
+	}
+}
+
+export function planBelongsToForeignBranch(cwd) {
+	const projectCwd = cwd || process.cwd();
+	const planPath = resolve(projectCwd, "PLAN.md");
+	if (!existsSync(planPath)) return false;
+	let planBranch = null;
+	try {
+		planBranch = parsePlanBranch(readFileSync(planPath, "utf8"));
+	} catch {
+		return false;
+	}
+	if (!planBranch) return false;
+	const currentBranch = checkoutBranchForPlanGuard(projectCwd);
+	if (!currentBranch) return false;
+	return currentBranch !== planBranch;
 }
 
 function answerDecision(reason, artifact, stopCondition, requiredEvidence) {
