@@ -26,10 +26,11 @@ export function frozenProductContract(plan, planPath) {
   if (!declaration.required) return declaration;
   assert.equal(parsePlanStatus(plan), "ready", "Product verification requires the actual READY plan");
   const checks = parseChecks(plan).filter(value => value.startsWith("acceptance-criteria:")).sort();
+  const planDir = realpathSync(dirname(planPath));
   return {
     required: true,
-    pack: resolve(dirname(planPath), declaration.pack),
-    subjectRoot: realpathSync(resolve(dirname(planPath), declaration.subjectRoot)),
+    pack: resolve(planDir, declaration.pack),
+    subjectRoot: realpathSync(resolve(planDir, declaration.subjectRoot)),
     criteria_sha256: sha256(JSON.stringify(checks)),
     criteria: productCriteria(checks),
     ...(declaration.assertion_protocol ? { assertion_protocol: declaration.assertion_protocol } : {}),
@@ -56,7 +57,7 @@ export function assertProductIdentity(contract, expectedPackHash, { allowRefChan
 
 export async function checkProductContract(contract, packPath = contract.pack, { allowRefChange = false } = {}) {
   if (!contract.required) return { required: false, status: "not_applicable" };
-  assert.equal(resolve(packPath), contract.pack, "Evidence pack differs from the plan's declared path");
+  assert.equal(realpathSync(resolve(packPath)), realpathSync(contract.pack), "Evidence pack differs from the plan's declared path");
   if (!schemaValidator) {
     const { Compile } = await import(pathToFileURL(validatorModule()));
     schemaValidator = Compile(JSON.parse(readFileSync(new URL("../../workflow/evidence-pack.schema.json", import.meta.url), "utf8")));

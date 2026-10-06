@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -764,3 +764,20 @@ fs.readFileSync = function(path, ...args) {
     });
   }
 }
+
+test("contract identity is stable across symlink aliases and alias pack paths are accepted", async t => {
+  const f = fixture(t);
+  const realRoot = realpathSync(f.root);
+  const holder = mkdtempSync(join(tmpdir(), "etabli-alias-holder-"));
+  t.after(() => rmSync(holder, { recursive: true, force: true }));
+  const alias = join(holder, "alias-checkout");
+  symlinkSync(realRoot, alias);
+  const viaReal = frozenProductContract(f.plan, join(realRoot, "PLAN.md"));
+  const viaAlias = frozenProductContract(f.plan, join(alias, "PLAN.md"));
+  assert.deepEqual(viaAlias, viaReal);
+  assert.equal(viaAlias.pack, join(realRoot, ".workflow/run/pack.json"));
+  assert.equal(viaAlias.subjectRoot, realRoot);
+  assert.equal(productContractIdentity(viaAlias), productContractIdentity(viaReal));
+  const canonical = await checkProductPlan(join(alias, "PLAN.md"), join(alias, ".workflow/run/pack.json"));
+  assert.equal(canonical.status, "passed");
+});

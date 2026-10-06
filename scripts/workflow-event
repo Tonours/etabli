@@ -9,7 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 DETAIL_SCHEMA="$SCRIPT_DIR/lib/workflow-event-detail.jq"
 REVIEW_ROUNDS="$SCRIPT_DIR/lib/review-rounds.jq"
 SCRIPT_PATH="$SCRIPT_DIR/workflow-event"
-export WORKFLOW_EVENT_PROJECT_ROOT="${WORKFLOW_EVENT_PROJECT_ROOT:-$PWD}"
+CANONICAL_PROJECT_ROOT="$(cd "${WORKFLOW_EVENT_PROJECT_ROOT:-$PWD}" >/dev/null 2>&1 && pwd -P || printf '%s' "${WORKFLOW_EVENT_PROJECT_ROOT:-$PWD}")"
+export WORKFLOW_EVENT_PROJECT_ROOT="$CANONICAL_PROJECT_ROOT"
 
 validate_product_completion() {
   local ledger="$1" pending_required="${2:-false}" pending_contract="${3:-}" receipt archive required latest declared expected_contract
