@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { recordGuardDenial, recordGuardBypass } from "./guard-journal.mjs";
+import { recordGuardDenial } from "./guard-journal.mjs";
 import { projectVaultRoots, vaultContextCommand } from "./obvault-topic-resolver.mjs";
 import {
 	evaluateCheckFreeze,
@@ -1309,6 +1309,9 @@ export function planReadyGuardDecision(event) {
 	const toolName = normalizeToolName(event.tool_name || event.toolName);
 	if (!MUTATION_RELEVANT_TOOLS.has(toolName)) return null;
 
+	const branchEscape = branchAnchorEscapeDecision(event);
+	if (branchEscape) return branchEscape;
+
 	const cwd = event.cwd || process.cwd();
 	const planStatus = readPlanStatus(cwd);
 	// A genuinely missing plan leaves ordinary no-plan work available. A present
@@ -1347,6 +1350,7 @@ export function planReadyGuardDecision(event) {
 			if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 			if (!isMutatingBashCommand(command)) return null;
 		}
+		if (exemptForeignBranchPlan(cwd, toolName)) return null;
 		return deny(
 			`PLAN.md is READY but incomplete (${readiness.missing.join(", ")}); complete the canonical READY contract before implementation mutations.`,
 			{ cwd, guard: "plan-ready-guard", pattern: "incomplete-ready-mutation", target: filePath || "Bash", tool: toolName },
@@ -1355,8 +1359,9 @@ export function planReadyGuardDecision(event) {
 
 	if (toolName === "Write" || toolName === "Edit" || toolName === "MultiEdit") {
 		if (isPlanFile(filePath, cwd)) return null;
+		if (exemptForeignBranchPlan(cwd, toolName)) return null;
 		return deny(
-			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>, or anchor it to its branch with a Branch meta line so other branches are not gated.`,
+			`PLAN.md is ${planStatus.toUpperCase()}; only the root PLAN.md may be edited before implementation is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
 			{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-write", target: filePath, tool: toolName },
 		);
 	}
@@ -1365,8 +1370,9 @@ export function planReadyGuardDecision(event) {
 		if (isWorkflowEventEscapeCommand(command)) return null;
 		if (isNarrowPlanCleanupCommand(command, cwd)) return null;
 		if (isMutatingBashCommand(command)) {
+			if (exemptForeignBranchPlan(cwd, toolName)) return null;
 			return deny(
-				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>, or anchor it to its branch with a Branch meta line so other branches are not gated.`,
+				`PLAN.md is ${planStatus.toUpperCase()}; this Bash command is not proven read-only and is blocked until the plan is READY. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.`,
 				{ cwd, guard: "plan-ready-guard", pattern: "pre-ready-bash-mutation", target: "Bash", tool: "Bash" },
 			);
 		}
@@ -1522,17 +1528,6 @@ return deny(
 
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
 export function planMutationGuardDecision(event) {
-	const bypassCwd = event?.cwd || process.cwd();
-	if (planBelongsToForeignBranch(bypassCwd)) {
-		recordGuardBypass({
-			cwd: bypassCwd,
-			guard: "plan-ready-guard",
-			pattern: "foreign-plan-bypass",
-			target: "PLAN.md",
-			tool: normalizeToolName(event?.tool_name || event?.toolName) || "unknown",
-		});
-		return null;
-	}
 	return (
 		planReadyGuardDecision(event) ||
 		planCheckFreezeGuardDecision(event) ||
@@ -1540,8 +1535,64 @@ export function planMutationGuardDecision(event) {
 	);
 }
 
-export function parsePlanBranch(text) {
+function parsePlanBranch(text) {
 	return String(text).match(PLAN_BRANCH_PATTERN)?.[1]?.trim() || null;
+}
+
+function exemptForeignBranchPlan(cwd, toolName) {
+	// Leftover plan from another checkout. Premature implementation only;
+	// check-freeze still runs on the combined decision.
+	if (!planBelongsToForeignBranch(cwd)) return false;
+	recordGuardDenial({
+		cwd,
+		guard: "plan-ready-guard",
+		pattern: "foreign-plan-bypass",
+		target: "PLAN.md",
+		tool: toolName || "unknown",
+	});
+	return true;
+}
+
+function branchAnchorEscapeDecision(event) {
+	const toolName = normalizeToolName(event.tool_name || event.toolName);
+	if (toolName !== "Write" && toolName !== "Edit" && toolName !== "MultiEdit") return null;
+	const cwd = event.cwd || process.cwd();
+	const toolInput = event.tool_input || event.input || {};
+	const filePath = toolInput.file_path || toolInput.path || toolInput.filePath || "";
+	if (!isPlanFile(filePath, cwd)) return null;
+
+	const current = checkoutBranchForPlanGuard(cwd);
+	if (!current) return null;
+
+	const planPath = resolve(cwd, "PLAN.md");
+	let previousText = "";
+	if (existsSync(planPath)) {
+		try {
+			previousText = readFileSync(planPath, "utf8");
+		} catch {
+			previousText = "";
+		}
+	}
+	const onDisk = previousText ? parsePlanBranch(previousText) : null;
+	// An already-diverged checkout keeps its line. This blocks writing the
+	// divergence while the plan still gates the current branch.
+	if (onDisk && onDisk !== current) return null;
+
+	const proposed = proposedPlanTextFromToolInput(toolName, toolInput, previousText);
+	if (typeof proposed !== "string") return null;
+	const next = parsePlanBranch(proposed);
+	if (!next || next === current) return null;
+
+	return deny(
+		"PLAN.md Branch meta must match the current checkout. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.",
+		{
+			cwd,
+			guard: "plan-ready-guard",
+			pattern: "branch-anchor-escape",
+			target: "PLAN.md",
+			tool: toolName,
+		},
+	);
 }
 
 function checkoutBranchForPlanGuard(cwd) {
@@ -1564,7 +1615,7 @@ function checkoutBranchForPlanGuard(cwd) {
 	}
 }
 
-export function planBelongsToForeignBranch(cwd) {
+function planBelongsToForeignBranch(cwd) {
 	const projectCwd = cwd || process.cwd();
 	const planPath = resolve(projectCwd, "PLAN.md");
 	if (!existsSync(planPath)) return false;

@@ -75,6 +75,10 @@ if (claudeDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
   console.error("Claude Write under DRAFT must deny");
   process.exit(1);
 }
+if (/anchor it to its branch/.test(String(claudeDeny?.hookSpecificOutput?.permissionDecisionReason || ""))) {
+  console.error("pre-ready write denial must not advertise a Branch bypass");
+  process.exit(1);
+}
 
 const piDeny = mod.planMutationGuardDecision({
   cwd: tmp,
@@ -224,6 +228,10 @@ if (bashDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
   console.error("mutating bash under DRAFT must deny");
   process.exit(1);
 }
+if (/anchor it to its branch/.test(String(bashDeny?.hookSpecificOutput?.permissionDecisionReason || ""))) {
+  console.error("pre-ready bash denial must not advertise a Branch bypass");
+  process.exit(1);
+}
 
 const repo = join(tmp, "repo");
 mkdirSync(repo);
@@ -241,6 +249,89 @@ if (anchoredOwnerDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
   console.error("plan anchored to the current branch must still gate");
   process.exit(1);
 }
+
+const keepBranch = mod.planMutationGuardDecision({
+  cwd: repo,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(repo, "PLAN.md"),
+    old_string: "- Status: DRAFT",
+    new_string: "- Status: CHALLENGED",
+  },
+});
+if (keepBranch != null) {
+  console.error("plan edit that keeps the current Branch must stay allowed");
+  process.exit(1);
+}
+
+const discardAllowed = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "bash",
+  input: { command: "scripts/plan-cleanup --discard stale-plan" },
+});
+if (discardAllowed != null) {
+  console.error("plan-cleanup --discard must stay allowed while a plan is anchored");
+  process.exit(1);
+}
+
+const branchFlip = mod.planMutationGuardDecision({
+  cwd: repo,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(repo, "PLAN.md"),
+    old_string: "- Branch: plan-branch",
+    new_string: "- Branch: other-branch",
+  },
+});
+if (branchFlip?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("same-checkout Branch flip must deny");
+  process.exit(1);
+}
+if (/anchor it to its branch/.test(String(branchFlip?.hookSpecificOutput?.permissionDecisionReason || ""))) {
+  console.error("Branch flip denial must not advertise a Branch bypass");
+  process.exit(1);
+}
+
+const stillGated = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "bash",
+  input: { command: "touch escaped" },
+});
+if (stillGated?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("denied Branch flip must leave implementation gated");
+  process.exit(1);
+}
+
+writeFileSync(join(repo, "PLAN.md"), [
+  "# PLAN",
+  "",
+  "## Meta",
+  "- Status: READY",
+  "- Branch: other-branch",
+  "",
+  "## Checks",
+  "- command: bash tests/a.sh",
+  "- command: bash tests/b.sh",
+  "",
+  "## Acceptance Criteria",
+  "- Given x, when y, then z",
+  "",
+].join("\\n"));
+const foreignWeaken = mod.planMutationGuardDecision({
+  cwd: repo,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(repo, "PLAN.md"),
+    old_string: "- command: bash tests/b.sh\\n",
+    new_string: "",
+  },
+});
+if (foreignWeaken?.hookSpecificOutput?.permissionDecision !== "deny" || !/check-freeze/.test(String(foreignWeaken?.hookSpecificOutput?.permissionDecisionReason || ""))) {
+  console.error("READY check weaken must stay denied when Branch names another checkout");
+  process.exit(1);
+}
+
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\\n\\n## Meta\\n- Status: DRAFT\\n- Branch: plan-branch\\n");
 
 execFileSync("git", ["-C", repo, "checkout", "-q", "-b", "other-branch"]);
 for (const foreignEvent of [
@@ -281,6 +372,34 @@ const unanchoredDeny = mod.planMutationGuardDecision({
 });
 if (unanchoredDeny?.hookSpecificOutput?.permissionDecision !== "deny") {
   console.error("unanchored plan must keep the plan gates strict");
+  process.exit(1);
+}
+
+const addCurrentBranch = mod.planMutationGuardDecision({
+  cwd: repo,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(repo, "PLAN.md"),
+    old_string: "- Status: DRAFT",
+    new_string: "- Status: DRAFT\\n- Branch: other-branch",
+  },
+});
+if (addCurrentBranch != null) {
+  console.error("anchoring Branch to the current checkout must stay allowed");
+  process.exit(1);
+}
+
+const addForeignBranch = mod.planMutationGuardDecision({
+  cwd: repo,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(repo, "PLAN.md"),
+    old_string: "- Status: DRAFT",
+    new_string: "- Status: DRAFT\\n- Branch: plan-branch",
+  },
+});
+if (addForeignBranch?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("adding a foreign Branch line on this checkout must deny");
   process.exit(1);
 }
 
