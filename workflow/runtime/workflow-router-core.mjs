@@ -279,7 +279,6 @@ const ALWAYS_READ_ONLY_GIT_SUBCOMMANDS = new Set([
 	"--help",
 	"--version",
 	"diff",
-	"fetch",
 	"grep",
 	"log",
 	"ls-files",
@@ -289,6 +288,7 @@ const ALWAYS_READ_ONLY_GIT_SUBCOMMANDS = new Set([
 	"show",
 	"status",
 ]);
+const READ_ONLY_GIT_FETCH_FLAGS = new Set(["-q", "--quiet", "--dry-run"]);
 const READ_ONLY_GH_COMMANDS = new Set([
 	"--version",
 	"auth status",
@@ -454,6 +454,25 @@ function splitShellWords(segment) {
 	return words;
 }
 
+function isReadOnlyGitFetch(args) {
+	// Configured remote-tracking updates are the read. A destination refspec,
+	// a forced refspec, prune, or another option rewrites or deletes refs.
+	let sawRemote = false;
+	for (const argument of args) {
+		if (READ_ONLY_GIT_FETCH_FLAGS.has(argument)) continue;
+		if (
+			sawRemote ||
+			argument.startsWith("-") ||
+			argument.startsWith("+") ||
+			argument.includes(":")
+		) {
+			return false;
+		}
+		sawRemote = true;
+	}
+	return true;
+}
+
 function isReadOnlyGitSegment(segment) {
 	const words = splitShellWords(segment);
 	if (!words || words[0].replace(/^.*\//, "") !== "git") return false;
@@ -470,6 +489,7 @@ function isReadOnlyGitSegment(segment) {
 		return false;
 
 	if (ALWAYS_READ_ONLY_GIT_SUBCOMMANDS.has(subcommand)) return true;
+	if (subcommand === "fetch") return isReadOnlyGitFetch(args);
 	if (subcommand === "branch") {
 		return (
 			args.length === 0 ||
