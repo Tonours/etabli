@@ -10,3 +10,4 @@ guard-journal	workflow/runtime/guard-journal.mjs	none (consumed by workflow-rout
 product-completion	scripts/lib/project-verification.mjs,scripts/lib/project-verification-plan.mjs,scripts/lib/project-verification-source.mjs,scripts/lib/project-verification-assertions.mjs	scripts/plan-cleanup,scripts/workflow-event,scripts/project-verification-check
 product-execution	scripts/lib/project-verification-recipe.mjs,scripts/lib/project-verification-run.mjs,scripts/lib/project-verification-process.mjs,scripts/lib/project-verification-snapshot.mjs,workflow/project-verification-recipe.schema.json	scripts/project-verification,scripts/deploy-workflow
 plan-review-contract	scripts/lib/plan-review-binding.mjs	workflow/runtime/workflow-router-core.mjs,scripts/plan-review-check,scripts/lib/review-evidence-pack.mjs
+ops-stop-guard	workflow/runtime/ops-stop-guard.mjs	claude/hooks/plan-ready-guard.mjs,pi/extensions/workflow-router.ts

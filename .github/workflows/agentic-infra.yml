@@ -62,10 +62,18 @@ jobs:
           mkdir -p ~/.pi/agent
           cp pi/agent/settings.json ~/.pi/agent/settings.json
 
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22.22.0"
+
       - name: Install Pi test dependencies
         run: |
           cd pi
           bun install --frozen-lockfile
+
+      - name: Install Pi durable test dependencies
+        run: npm ci --prefix pi/durable
 
       - name: Canonical Pi parity group
         run: scripts/verify-agentic-infra pi

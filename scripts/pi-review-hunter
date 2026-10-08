@@ -15,6 +15,16 @@ Default timeout is 600 seconds (PI_REVIEW_HUNTER_TIMEOUT).
 EOF
 }
 
+SCRIPT_PATH="$0"
+while [ -L "$SCRIPT_PATH" ]; do
+  link="$(readlink "$SCRIPT_PATH")"
+  case "$link" in
+    /*) SCRIPT_PATH="$link" ;;
+    *) SCRIPT_PATH="$(dirname "$SCRIPT_PATH")/$link" ;;
+  esac
+done
+ETABLI_ROOT="$(CDPATH='' cd -P "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+
 PRINT_ARGV=0
 TIMEOUT_SECS="${PI_REVIEW_HUNTER_TIMEOUT:-600}"
 MODEL=""
@@ -104,6 +114,7 @@ build_pi_args() {
     --no-session
     --no-skills
     --no-extensions
+    -e "$ETABLI_ROOT/pi/extensions/filter-output.ts"
     --no-context-files
     --tools read,grep
     --append-system-prompt "$PROMPT_FILE"

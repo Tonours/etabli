@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Native receipt capture for the existing isolated hunter runner.
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, lstatSync, realpathSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, lstatSync, realpathSync, existsSync } from "node:fs";
 import { resolve, dirname, parse, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { reviewRunReceipt, reviewPassEvent, sha256 } from "./lib/review-run-receipt.mjs";
@@ -55,8 +55,10 @@ try {
   const observerPath = fileURLToPath(new URL("./lib/review-prompt-observer.mjs", import.meta.url));
   const spawnArgs=["--extension", observerPath, ...piArgs];
   const extensions=spawnArgs.flatMap((value,index)=>value==="--extension"||value==="-e"?[spawnArgs[index+1]]:[]);
+  const redactionPath = fileURLToPath(new URL("../pi/extensions/filter-output.ts", import.meta.url));
+  const redactionOnly = extensions.length===1 || (extensions.length===2 && existsSync(extensions[1]) && realpathSync(extensions[1])===realpathSync(redactionPath));
   const childScope=spawnArgs[spawnArgs.lastIndexOf("--tools")+1]==="read,grep" && spawnArgs.includes("--no-extensions")
-    && extensions.length===1 && extensions[0]===observerPath ? "isolated_read_grep" : null;
+    && extensions[0]===observerPath && redactionOnly ? "isolated_read_grep" : null;
   const started = performance.now(), preparationMs = started - preparationStarted;
   const child = spawn("pi", spawnArgs, {
     stdio: ["ignore", "pipe", "pipe"], detached: true,

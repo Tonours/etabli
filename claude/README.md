@@ -109,9 +109,10 @@ Custom agents stay bounded:
 
 - `scout` — read-only reconnaissance for one unfamiliar area;
 - `worker` — one implementation step from a `READY` plan;
-- `reviewer` — fresh-context, findings-first diff review.
+- `reviewer` — fresh-context, findings-first diff review;
+- `adversary` — read-only adversarial review of a plan or diff.
 
-`scout` and `reviewer` use an agent-local `PreToolUse` hook to allow only proven
+`scout`, `reviewer` and `adversary` use an agent-local `PreToolUse` hook to allow only proven
 read-only Bash/Git commands. `worker` is the only writing agent and never spawns
 another agent.
 
@@ -166,13 +167,16 @@ Optional hooks:
 
 - `plan-ready-guard.mjs` blocks implementation writes and mutating Bash commands
   when a root `PLAN.md` exists but is not `READY`; it also composes the
-  plan-commit guard so Bash has one PreToolUse process.
+  plan-commit guard and the `ops-stop` ask so Bash has one PreToolUse process.
+  If its modules fail to load, it denies only where a guard is expected (a
+  root `PLAN.md`, or a `push`/`rm` command) and names the repair.
 - `plan-commit-guard.mjs` denies `git add`/`git commit` calls that would stage
   or commit a root `PLAN*.md`; plans are session artifacts, archives belong in
   `docs/plan/`. Running git manually bypasses it deliberately.
-- `read-only-agent-guard.mjs` is wired directly by `scout` and `reviewer`; it
-  denies Bash that is not proven read-only even when the optional settings
-  fragment is not active. Inspection reaches the remote: `gh` is allowed for an
+- `read-only-agent-guard.mjs` is wired directly by `scout`, `reviewer` and
+  `adversary`; it denies Bash that is not proven read-only even when the
+  optional settings fragment is not active, and denies every Bash call if its
+  modules fail to load. Inspection reaches the remote: `gh` is allowed for an
   allowlisted set of read commands (`api`, `pr view|diff|list|checks|status`,
   `issue view|list`, `repo view`, `run view|list`, `search`, `auth status`) and
   refused the moment a flag could mutate it (`--method` other than GET, `-X`,
@@ -190,45 +194,58 @@ Optional hooks:
   unquoted globs except for plain readers such as `cat` or `ls`. `rg --pre` and
   `uniq` with an output operand are refused too. `;`/newline sequence read-only
   segments the way `&&` already did.
+- `ledger-auto-emit.mjs` runs on `PostToolUse` and `PostToolUseFailure` for
+  `Bash` and records `validation_failed` only from a failure event or an error
+  flag. `correction-emit.mjs` and `notification-classify.mjs` append to the
+  ledger through the project's own `scripts/workflow-event`, so they do nothing
+  in a project without it.
 - `session-state.mjs` runs on `SessionStart` for `compact|resume`. It re-injects
   the root `PLAN.md` subject and status and the active ledger's handoff pack
   (done, pending, decisions, next action), prefixed by the same compact
   instructions Pi uses. It prints nothing when there is no state and never
   blocks.
 - `detect-adr-signal.mjs` runs on `Stop`. When a structural file changed and the
-  last assistant message reads like a decision, it surfaces a `systemMessage`
-  suggesting `/adr`. It never writes, never calls an LLM, and uses `systemMessage`
-  (not `additionalContext`) so it does not resume the turn. The `/adr` skill works
-  without it; the hook only lowers the cost of remembering to record decisions.
+  last assistant message reads like a decision, it returns
+  `decision: "block"` with a reason that asks the model to consider `/adr`, plus
+  a `systemMessage` for the human. The block resumes the turn once per session;
+  the hook never writes and never calls an LLM. The `/adr` skill works without
+  it; the hook only lowers the cost of remembering to record decisions.
 - `no-comments-guard.mjs` runs on `PreToolUse` for `Edit|Write|MultiEdit`. It
   denies a write that adds code comments to source files and names the
-  offending line, per the `~/work/CLAUDE.md` no-comments rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
-  exempt). It ships in `settings.workflow-hooks.json`. It cannot see files
-  written through `Bash`, so write code with `Edit`/`Write`.
-- RTK command rewriting runs through the native `rtk hook claude`
-  subcommand wired as `PreToolUse(Bash)` in the local
-  `~/.claude/settings.json`; that wiring is machine-local, not tracked here
-  (`scripts/lib/claude-settings-sync.mjs` syncs only skill overrides,
-  permission mode, attribution, the two skip prompts scalars, and
-  `autoMemoryEnabled`). The installer ensures
-  the binary itself (`scripts/lib/install-main.sh`); there is no patched
-  `rtk-rewrite.sh` and no link rule to restore. With `bypassPermissions`
-  active, no exit-3 ask-rule patch is needed.
+  offending line, per the `~/work/CLAUDE.md` no-comments rule (lint pragmas,
+  `@ts-expect-error`-style directives, and shebangs are exempt). Comments
+  already present in `old_string` or on disk are kept. Its detector still
+  differs from Pi's shared `workflow/runtime/no-comments-guard.mjs` on a few
+  frozen cases (`tests/claude-hooks-smoke.sh`). It ships in
+  `settings.workflow-hooks.json`. It cannot see files written through `Bash`,
+  so write code with `Edit`/`Write`.
+- `rtk-guard.mjs` runs on `PreToolUse` for `Bash`. It forwards a command to
+  the native `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs`
+  allows compaction, and runs the rest raw. The merge retires any bare
+  `rtk hook claude` entry left in the local `~/.claude/settings.json`. The
+  installer ensures the binary itself (`scripts/lib/install-main.sh`); there is
+  no patched `rtk-rewrite.sh` and no link rule to restore.
 
 ## Autonomous mode
 
 Claude Code runs without permission prompts on this machine. The tracked
-fragment `settings.skill-overrides.json` carries the convention next to the
-skill map, and `scripts/lib/claude-settings-sync.mjs` (run by the installer)
-propagates it into `~/.claude/settings.json`:
+fragment `settings.skill-overrides.json` carries the skill map plus:
 
-- `permissions.defaultMode: "bypassPermissions"` — merged key-by-key, local
-  `allow`/`deny` lists are never touched;
-- `skipDangerousModePermissionPrompt: true`, `skipAutoPermissionPrompt: true`;
 - `attribution: { commit: "", pr: "" }`: no `Co-Authored-By` trailer on
   commits and no generated-with line in PR bodies;
 - `autoMemoryEnabled: false`: durable memory is the vault plus the workflow
   ledger handoff, not Claude's auto memory.
+
+`scripts/lib/claude-settings-sync.mjs` (run by the installer) propagates it
+into `~/.claude/settings.json`. `permissions.defaultMode: "bypassPermissions"`
+and the two skip flags (`skipDangerousModePermissionPrompt`,
+`skipAutoPermissionPrompt`) are set in the local settings file, not tracked;
+the sync would propagate them key by key if the fragment carried them, never
+touching local `allow`/`deny` lists. The `plan-ready-guard` hook asks before
+the irreversible pushes and deletions listed in `workflow/contract-details.md`
+§ Human checkpoints. Claude's hook docs do not promise a prompt for a hook
+`ask` under `bypassPermissions` or `dontAsk`, so in those modes it denies
+instead and the reason tells you to run the command yourself.
 
 The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
 `attribution.commit`/`attribution.pr`, the two skip flags, `autoMemoryEnabled`), so no secret can leak into the tracked fragment. The

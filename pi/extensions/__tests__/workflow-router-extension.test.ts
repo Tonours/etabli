@@ -354,6 +354,58 @@ describe("workflow router extension", () => {
 		}
 	});
 
+	test("tool_call ops-stop blocks a default-branch push without a UI", () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-ops-stop-"));
+		try {
+			const blocked = runtime.emit(
+				"tool_call",
+				{ toolName: "bash", toolCallId: "b-push", input: { command: "git push origin main" } },
+				{ cwd, hasUI: false },
+			)[0];
+			expect(blocked).toMatchObject({ block: true, reason: expect.stringMatching(/^ops-stop: /) });
+
+			const branchPush = runtime.emit(
+				"tool_call",
+				{ toolName: "bash", toolCallId: "b-branch", input: { command: "git push -u origin feature-x" } },
+				{ cwd, hasUI: false },
+			)[0];
+			expect(branchPush).toBeUndefined();
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("tool_call ops-stop asks for confirmation in the UI", async () => {
+		const runtime = setupExtension();
+		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-ops-confirm-"));
+		const prompts: string[] = [];
+		const ui = (answer: boolean) => ({
+			confirm: async (_title: string, message: string) => {
+				prompts.push(message);
+				return answer;
+			},
+		});
+		try {
+			const approved = await runtime.emit(
+				"tool_call",
+				{ toolName: "bash", toolCallId: "b-yes", input: { command: "git push --force" } },
+				{ cwd, hasUI: true, ui: ui(true) },
+			)[0];
+			expect(approved).toBeUndefined();
+
+			const refused = await runtime.emit(
+				"tool_call",
+				{ toolName: "bash", toolCallId: "b-no", input: { command: "rm -rf ~/x" } },
+				{ cwd, hasUI: true, ui: ui(false) },
+			)[0];
+			expect(refused).toMatchObject({ block: true });
+			expect(prompts).toHaveLength(2);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("tool_call commit guard blocks staging a session PLAN.md", () => {
 		const runtime = setupExtension();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-commit-guard-"));

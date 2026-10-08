@@ -117,6 +117,33 @@ test("direct capture binds alternate path spellings before the child starts",()=
  assert.equal(result.status,0,result.stderr);
  const receipt=JSON.parse(readFileSync(join(root,"run/receipt.json")));assert.equal(receipt.isolated_context,true);
 });
+test("redaction extension keeps the hunter isolated",()=>{
+ const root=mkdtempSync(join(tmpdir(),"review-capture-path-"));mkdirSync(join(root,"bin"));
+ writeFileSync(join(root,"prompt"),"hunt");writeFileSync(join(root,"patch"),"patch");
+ writeFileSync(join(root,"bin/pi"),`#!/usr/bin/env node
+ const fs=require('node:fs'),args=process.argv.slice(2);
+ fs.writeFileSync('patch','mutated');fs.writeFileSync('prompt','mutated');
+ const patch=args.find(arg=>arg.startsWith('@')).slice(1),prompt=args[args.indexOf('--append-system-prompt')+1];
+ if(fs.readFileSync(patch,'utf8')!=='patch'||fs.readFileSync(prompt,'utf8')!=='hunt')process.exit(9);
+ process.stdout.write(${JSON.stringify(JSON.stringify(events()[0])+"\n")});
+ `,{mode:0o700});
+ const result=spawnSync(process.execPath,[resolve("scripts/review-hunter-capture"),"--directory",join(root,"run"),"--patch",join(root,"patch"),"--prompt",join(root,"prompt"),"--timeout","10","--pass-id","redaction","--role","logic","--","--no-extensions","-e",resolve("pi/extensions/filter-output.ts"),"--no-session","--no-context-files","--no-skills","--tools","read,grep","--append-system-prompt","./prompt","@./patch"],{cwd:root,encoding:"utf8",env:{...process.env,PATH:`${join(root,"bin")}:${process.env.PATH}`}});
+ assert.equal(result.status,0,result.stderr);
+ const receipt=JSON.parse(readFileSync(join(root,"run/receipt.json")));assert.equal(receipt.isolated_context,true);
+});
+test("any other extension drops hunter isolation",()=>{
+ const root=mkdtempSync(join(tmpdir(),"review-capture-path-"));mkdirSync(join(root,"bin"));
+ writeFileSync(join(root,"prompt"),"hunt");writeFileSync(join(root,"patch"),"patch");
+ writeFileSync(join(root,"bin/pi"),`#!/usr/bin/env node
+ const fs=require('node:fs'),args=process.argv.slice(2);
+ fs.writeFileSync('patch','mutated');fs.writeFileSync('prompt','mutated');
+ const patch=args.find(arg=>arg.startsWith('@')).slice(1),prompt=args[args.indexOf('--append-system-prompt')+1];
+ if(fs.readFileSync(patch,'utf8')!=='patch'||fs.readFileSync(prompt,'utf8')!=='hunt')process.exit(9);
+ process.stdout.write(${JSON.stringify(JSON.stringify(events()[0])+"\n")});
+ `,{mode:0o700});
+ const result=spawnSync(process.execPath,[resolve("scripts/review-hunter-capture"),"--directory",join(root,"run"),"--patch",join(root,"patch"),"--prompt",join(root,"prompt"),"--timeout","10","--pass-id","any","--role","logic","--","--no-extensions","-e",resolve("pi/extensions/token-rate.ts"),"--no-session","--no-context-files","--no-skills","--tools","read,grep","--append-system-prompt","./prompt","@./patch"],{cwd:root,encoding:"utf8",env:{...process.env,PATH:`${join(root,"bin")}:${process.env.PATH}`}});
+ assert.equal(result.status,2,result.stderr);assert.match(result.stderr,/incomplete native review receipt/);
+});
 
 
 test("stats-only dispatches require explicit complete one-to-one inventory bindings",()=>{

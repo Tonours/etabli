@@ -39,7 +39,7 @@ jq -r '
 # Shared planMutationGuardDecision works for Claude-style and Pi-style tool names
 node --input-type=module <<EOF
 import { pathToFileURL } from "node:url";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
@@ -486,6 +486,37 @@ if (addForeignBranch?.hookSpecificOutput?.permissionDecision !== "deny") {
   process.exit(1);
 }
 
+const anchoredPlan = "# PLAN\n\n## Meta\n- Status: DRAFT\n- Branch: other-branch\n\n## Goal\n- anchor\n";
+const anchorDecision = (event) => mod.planMutationGuardDecision({ cwd: repo, ...event })?.hookSpecificOutput?.permissionDecision ?? null;
+symlinkSync(join(repo, "PLAN.md"), join(repo, "alias.md"));
+for (const [label, setup, event, expected] of [
+  ["Edit re-anchoring Branch", anchoredPlan, { tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "- Branch: other-branch", new_string: "- Branch: elsewhere" } }, "deny"],
+  ["full Write re-anchoring Branch", anchoredPlan, { tool_name: "Write", tool_input: { file_path: join(repo, "PLAN.md"), content: anchoredPlan.replace("other-branch", "elsewhere") } }, "deny"],
+  ["replace_all re-anchoring Branch", anchoredPlan + "- other-branch notes\n", { tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "other-branch", new_string: "elsewhere", replace_all: true } }, "deny"],
+  ["Branch line added above Meta", "# PLAN\n\n## Meta\n- Status: DRAFT\n", { tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "# PLAN\n", new_string: "# PLAN\n- Branch: elsewhere\n" } }, "deny"],
+  ["Pi edit re-anchoring Branch", anchoredPlan, { toolName: "edit", input: { path: join(repo, "PLAN.md"), edits: [{ oldText: "- Branch: other-branch", newText: "- Branch: elsewhere" }] } }, "deny"],
+  ["alias path re-anchoring Branch", anchoredPlan, { tool_name: "Edit", tool_input: { file_path: join(repo, "alias.md"), old_string: "- Branch: other-branch", new_string: "- Branch: elsewhere" } }, "deny"],
+  ["unreconstructable Edit adding a foreign Branch", anchoredPlan, { tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "missing text", new_string: "- Branch: elsewhere" } }, "deny"],
+  ["Branch kept on the current branch", anchoredPlan, { tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "- anchor", new_string: "- anchor kept" } }, null],
+  ["Branch line removed", anchoredPlan, { tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "- Branch: other-branch\n", new_string: "" } }, null],
+  ["new plan anchored to the current branch", null, { tool_name: "Write", tool_input: { file_path: join(repo, "PLAN.md"), content: anchoredPlan } }, null],
+]) {
+  rmSync(join(repo, "PLAN.md"), { force: true });
+  if (setup != null) writeFileSync(join(repo, "PLAN.md"), setup);
+  const actual = anchorDecision(event);
+  if (actual !== expected) {
+    console.error(label + ": expected " + expected + ", got " + actual);
+    process.exit(1);
+  }
+}
+rmSync(join(repo, "alias.md"));
+writeFileSync(join(repo, "PLAN.md"), anchoredPlan.replace("other-branch", "plan-branch"));
+const foreignPlanEdit = anchorDecision({ tool_name: "Edit", tool_input: { file_path: join(repo, "PLAN.md"), old_string: "- Branch: plan-branch", new_string: "- Branch: elsewhere" } });
+if (foreignPlanEdit != null) {
+  console.error("a plan that is already foreign stays editable from this checkout");
+  process.exit(1);
+}
+
 const validReadyPlan = [
   "# PLAN",
   "",
@@ -525,6 +556,32 @@ const validReadyPlan = [
   "",
 ].join("\\n");
 writeFileSync(join(tmp, "PLAN.md"), validReadyPlan);
+
+const freezeRepo = join(tmp, "freeze-repo");
+mkdirSync(freezeRepo);
+execFileSync("git", ["-C", freezeRepo, "init", "--quiet"]);
+execFileSync("git", ["-C", freezeRepo, "-c", "user.email=guard@test", "-c", "user.name=guard", "commit", "--allow-empty", "--quiet", "-m", "init"]);
+execFileSync("git", ["-C", freezeRepo, "checkout", "-q", "-b", "plan-branch"]);
+writeFileSync(join(freezeRepo, "PLAN.md"), validReadyPlan.replace("- Status: READY", "- Status: READY\n- Branch: plan-branch"));
+execFileSync("git", ["-C", freezeRepo, "checkout", "-q", "-b", "switched-branch"]);
+const foreignFreeze = mod.planMutationGuardDecision({
+  cwd: freezeRepo,
+  tool_name: "Edit",
+  tool_input: { file_path: join(freezeRepo, "PLAN.md"), old_string: "- command: bash tests/b.sh", new_string: "" },
+});
+if (foreignFreeze?.hookSpecificOutput?.permissionDecision !== "deny" || !foreignFreeze.hookSpecificOutput.permissionDecisionReason.includes("plan-cleanup --discard")) {
+  console.error("check-freeze must survive a branch switch away from a READY plan and name the discard remedy");
+  process.exit(1);
+}
+const foreignCode = mod.planMutationGuardDecision({
+  cwd: freezeRepo,
+  tool_name: "Write",
+  tool_input: { file_path: join(freezeRepo, "x.ts"), content: "x" },
+});
+if (foreignCode != null) {
+  console.error("a foreign READY plan must not gate ordinary writes");
+  process.exit(1);
+}
 
 for (const [slug, label, checks] of [
   ["manual", "plural Manual checks", "- Manual checks: inspect the rendered flow"],

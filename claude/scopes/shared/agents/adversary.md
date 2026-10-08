@@ -12,7 +12,7 @@ hooks:
     - matcher: Bash
       hooks:
         - type: command
-          command: node "$HOME/.claude/hooks/read-only-agent-guard.mjs"
+          command: node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs"
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: adversary

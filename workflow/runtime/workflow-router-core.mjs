@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { recordGuardDenial } from "./guard-journal.mjs";
@@ -1218,7 +1218,16 @@ const DIRECT_EDIT_DECISION = directEditDecision(
 export function isPlanFile(filePath, cwd) {
 	if (!filePath) return false;
 	const projectCwd = cwd || process.cwd();
-	return resolve(projectCwd, filePath) === resolve(projectCwd, "PLAN.md");
+	const target = resolve(projectCwd, filePath);
+	const planPath = resolve(projectCwd, "PLAN.md");
+	if (target === planPath) return true;
+	try {
+		const a = statSync(target);
+		const b = statSync(planPath);
+		return a.dev === b.dev && a.ino === b.ino;
+	} catch {
+		return false;
+	}
 }
 
 export function isMutatingBashCommand(command) {
@@ -1572,11 +1581,15 @@ return deny(
 
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
 export function planMutationGuardDecision(event) {
-	return (
+	const decision =
 		planReadyGuardDecision(event) ||
 		planCheckFreezeGuardDecision(event) ||
-		planCheckFreezeBashGuardDecision(event)
-	);
+		planCheckFreezeBashGuardDecision(event);
+	if (decision?.hookSpecificOutput && planBelongsToForeignBranch(event?.cwd || process.cwd())) {
+		decision.hookSpecificOutput.permissionDecisionReason +=
+			" This PLAN.md belongs to another branch: if it is stale here, discard it with scripts/plan-cleanup --discard <reason-slug>.";
+	}
+	return decision;
 }
 
 function parsePlanBranch(text) {

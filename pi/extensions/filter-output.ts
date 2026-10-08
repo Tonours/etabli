@@ -927,8 +927,6 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	pi.on("tool_result", (event, ctx) => {
-		if (event.isError) return undefined;
-
 		const hasTextContent = event.content.some((c) => c.type === "text");
 		if (!hasTextContent) return undefined;
 

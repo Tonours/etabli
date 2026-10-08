@@ -162,20 +162,20 @@ consent for that command's external write contract. When a run ledger exists,
 journal checkpoint decisions as `human_checkpoint` events in
 `.workflow/<slug>/events.jsonl` per `workflow/events.md`. The routing decision
 itself (destructive, secret, production, billing, external write-back →
-`ops-stop`) lives in the Routing rules table in `workflow/spec.md`; this table
-documents the enforcement behind each boundary.
+`ops-stop`) lives in `workflow/spec.md` Routing rules; this table documents
+the enforcement behind each boundary.
 
 | Category | Examples | Enforcement | Behavior |
 | --- | --- | --- | --- |
-| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
+| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN`; `ops-stop-guard` asks on `rm -r` outside repo | route `ops-stop`, risk brief, wait |
 | production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
-| history rewrite / push | force-push, `git push`, push a PR/branch/commit, rebase published history | router `OPS_STOP_PATTERN`; the explicit `/ci-fix` command is the consented exception (slash prompts bypass the router) | route `ops-stop` unless explicit `/ci-fix` |
+| history rewrite / push | force-push, `git push`, push a PR/branch/commit, rebase published history | router `OPS_STOP_PATTERN`; `ops-stop-guard` asks on unleased force or default-branch push; `/ci-fix` is the consented exception | `ops-stop` unless `/ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
 | external write-back | post PR review/comment, update Linear status, create a Linear ticket, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
-| premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (exempt: a genuinely missing PLAN, or a plan whose `Branch` meta anchors it to another branch; stale plan → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | tool call denied; foreign-branch bypass journaled as `foreign-plan-bypass` |
+| premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (exempt: missing PLAN, or `Branch` meta naming another branch, which lifts only this gate; stale → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | denied; bypass journaled `foreign-plan-bypass`; re-anchoring denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
-| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
+| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUseFailure `ledger-auto-emit` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
 | missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
 

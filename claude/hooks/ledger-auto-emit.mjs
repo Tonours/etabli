@@ -14,13 +14,17 @@ const input = readHookInput();
 const cwd = input.cwd || process.cwd();
 const toolName = input.tool_name || input.toolName || "";
 const toolInput = input.tool_input || input.input || {};
-const toolResponse = input.tool_response || input.toolResponse || input.response || "";
+const failureEvent = input.hook_event_name === "PostToolUseFailure";
+const toolResponse = failureEvent
+  ? String(input.error ?? "")
+  : input.tool_response || input.toolResponse || input.response || "";
 const isError =
+  failureEvent ||
   input.is_error === true ||
   input.isError === true ||
   input.tool_error === true;
 
-if (!isBashToolName(toolName)) {
+if (!isBashToolName(toolName) || input.is_interrupt === true) {
   process.exit(0);
 }
 
