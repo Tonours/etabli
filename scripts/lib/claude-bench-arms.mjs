@@ -64,9 +64,7 @@ function diversityCheck(manifest, arm) {
 }
 
 export {
-	agentDefsForArm,
 	agentsInlineJson,
 	sessionFlagsForArm,
 	diversityCheck,
-	READ_ONLY_TOOLS,
 };

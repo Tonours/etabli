@@ -158,4 +158,4 @@ function grade(oracle, ctx) {
 	return { passed: false, reason: `unknown oracle kind: ${kind}` };
 }
 
-export { grade, MARKER_REGEX };
+export { grade };
