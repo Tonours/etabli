@@ -31,17 +31,6 @@ function componentOf(usage, keys) {
 	return 0;
 }
 
-function hasValidComponent(usage, keys) {
-	return keys.some((key) =>
-		isNonNegativeInteger(Number(usage?.[key])),
-	);
-}
-
-function hasInvalidExplicitTotal(usage) {
-	const key = TOTAL_ALIASES.find((candidate) => usage?.[candidate] !== undefined);
-	return key !== undefined && !isNonNegativeInteger(Number(usage[key]));
-}
-
 function explicitTotalOf(usage) {
 	for (const key of TOTAL_ALIASES) {
 		const value = Number(usage?.[key]);
@@ -121,68 +110,5 @@ export function zeroComponentTotals() {
 		cache_read_tokens: 0,
 		cache_creation_tokens: 0,
 		processed_total_tokens: 0,
-	};
-}
-
-export function zeroUsage() {
-	return {
-		input_tokens: 0,
-		output_tokens: 0,
-		total_tokens: 0,
-		cache_read_tokens: 0,
-		cache_creation_tokens: 0,
-		processed_total_tokens: 0,
-	};
-}
-
-export function addUsage(left, right) {
-	return {
-		input_tokens: left.input_tokens + right.input_tokens,
-		output_tokens: left.output_tokens + right.output_tokens,
-		total_tokens: left.total_tokens + right.total_tokens,
-		cache_read_tokens: left.cache_read_tokens + right.cache_read_tokens,
-		cache_creation_tokens:
-			left.cache_creation_tokens + right.cache_creation_tokens,
-		processed_total_tokens:
-			left.processed_total_tokens + right.processed_total_tokens,
-	};
-}
-
-export function usageFromAssistantMessages(messages) {
-	let total = zeroUsage();
-	let found = false;
-	for (const message of messages || []) {
-		if (!message || message.role !== "assistant" || !message.usage) continue;
-		const usage = normalizeUsage(message.usage);
-		if (
-			!hasValidComponent(message.usage, COMPONENT_ALIASES.input_tokens) ||
-			!hasValidComponent(message.usage, COMPONENT_ALIASES.output_tokens) ||
-			hasInvalidExplicitTotal(message.usage)
-		) {
-			continue;
-		}
-		total = addUsage(total, usage);
-		found = true;
-	}
-	return found ? total : null;
-}
-
-export function baseUsageProjection(usage) {
-	if (!usage) return null;
-	return {
-		input_tokens: usage.input_tokens,
-		output_tokens: usage.output_tokens,
-		total_tokens: usage.total_tokens,
-	};
-}
-
-export function accumulateAssistantUsage(current, messages) {
-	const next = baseUsageProjection(usageFromAssistantMessages(messages));
-	if (!next) return current;
-	if (!current) return next;
-	return {
-		input_tokens: current.input_tokens + next.input_tokens,
-		output_tokens: current.output_tokens + next.output_tokens,
-		total_tokens: current.total_tokens + next.total_tokens,
 	};
 }

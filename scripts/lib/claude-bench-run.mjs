@@ -17,13 +17,6 @@ import { grade } from "./claude-bench-oracle.mjs";
 import { agentsInlineJson, sessionFlagsForArm } from "./claude-bench-arms.mjs";
 import { registerPaidProcesses } from "./claude-agent-benchmark.mjs";
 
-const ROUTE_ROLES = {
-	exploration: null,
-	implementation: null,
-	review: "reviewer",
-	adversary: "adversary",
-};
-
 const BUNDLE_INSTRUCTION = {
 	review:
 		"You are the orchestrator. Use the Task tool to launch the `reviewer` agent TWICE as two independent fresh invocations: pass 1 targets logic/runtime defects, pass 2 targets spec/conformance. Merge both verdicts into one final answer.",
@@ -466,5 +459,3 @@ function diversityOkCached(manifest, arm) {
 		reviewer,
 	};
 }
-
-export { ROUTE_ROLES };
