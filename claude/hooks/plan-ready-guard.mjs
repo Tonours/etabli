@@ -55,7 +55,12 @@ try {
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
           permissionDecision: unattended ? "deny" : "ask",
-          permissionDecisionReason: ops.reason,
+          permissionDecisionReason: unattended
+            ? ops.reason.replace(
+                "confirm it explicitly, or run it yourself.",
+                "this permission mode cannot prompt, so run it yourself in a terminal.",
+              )
+            : ops.reason,
         },
       });
     }
