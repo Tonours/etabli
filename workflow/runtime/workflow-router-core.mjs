@@ -1561,8 +1561,8 @@ function planInsertedTexts(toolInput) {
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
 export function planMutationGuardDecision(event) {
 	const bypassCwd = event?.cwd || process.cwd();
-	let readyDecision = null;
-	if (planBelongsToForeignBranch(bypassCwd)) {
+	const foreign = planBelongsToForeignBranch(bypassCwd);
+	if (foreign) {
 		recordGuardBypass({
 			cwd: bypassCwd,
 			guard: "plan-ready-guard",
@@ -1570,15 +1570,17 @@ export function planMutationGuardDecision(event) {
 			target: "PLAN.md",
 			tool: normalizeToolName(event?.tool_name || event?.toolName) || "unknown",
 		});
-	} else {
-		readyDecision = planReadyGuardDecision(event);
 	}
-	return (
-		readyDecision ||
+	const decision =
+		(foreign ? null : planReadyGuardDecision(event)) ||
 		planBranchAnchorGuardDecision(event) ||
 		planCheckFreezeGuardDecision(event) ||
-		planCheckFreezeBashGuardDecision(event)
-	);
+		planCheckFreezeBashGuardDecision(event);
+	if (foreign && decision?.hookSpecificOutput) {
+		decision.hookSpecificOutput.permissionDecisionReason +=
+			" This PLAN.md belongs to another branch: if it is stale here, discard it with scripts/plan-cleanup --discard <reason-slug>.";
+	}
+	return decision;
 }
 
 export function parsePlanBranch(text) {

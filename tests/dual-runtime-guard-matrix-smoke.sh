@@ -352,8 +352,8 @@ const foreignFreeze = mod.planMutationGuardDecision({
   tool_name: "Edit",
   tool_input: { file_path: join(freezeRepo, "PLAN.md"), old_string: "- command: bash tests/b.sh", new_string: "" },
 });
-if (foreignFreeze?.hookSpecificOutput?.permissionDecision !== "deny") {
-  console.error("check-freeze must survive a branch switch away from a READY plan");
+if (foreignFreeze?.hookSpecificOutput?.permissionDecision !== "deny" || !foreignFreeze.hookSpecificOutput.permissionDecisionReason.includes("plan-cleanup --discard")) {
+  console.error("check-freeze must survive a branch switch away from a READY plan and name the discard remedy");
   process.exit(1);
 }
 const foreignCode = mod.planMutationGuardDecision({
