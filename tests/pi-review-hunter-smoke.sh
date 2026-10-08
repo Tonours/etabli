@@ -32,6 +32,16 @@ printf '%s\n' "$out" | grep -Fx -- "$PROMPT_FILE" >/dev/null || fail "expected p
 printf '%s\n' "$out" | grep -Fx -- '--no-skills' >/dev/null || fail "expected --no-skills in argv"
 printf '%s\n' "$out" | grep -Fx -- '--no-extensions' >/dev/null || fail "expected --no-extensions in argv"
 printf '%s\n' "$out" | grep -Fx -- '--no-context-files' >/dev/null || fail "expected --no-context-files in argv"
+real_root="$(cd -P "$ROOT_DIR" && pwd)"
+printf '%s\n' "$out" | grep -Fx -- "$real_root/pi/extensions/filter-output.ts" >/dev/null || fail "expected the redaction extension in argv"
+mkdir -p "$TMP_DIR/linked-dir" "$TMP_DIR/linked-file"
+ln -s "$ROOT_DIR/scripts" "$TMP_DIR/linked-dir/scripts"
+ln -s "$HELPER" "$TMP_DIR/linked-file/pi-review-hunter"
+for linked in "$TMP_DIR/linked-dir/scripts/pi-review-hunter" "$TMP_DIR/linked-file/pi-review-hunter"; do
+  linked_out="$("$linked" --print-argv --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE")"
+  printf '%s\n' "$linked_out" | grep -Fx -- "$real_root/pi/extensions/filter-output.ts" >/dev/null ||
+    fail "redaction extension path must resolve through $linked"
+done
 printf '%s\n' "$out" | grep -Fx -- '--mode' >/dev/null || fail "expected --mode in argv"
 printf '%s\n' "$out" | grep -Fx -- 'json' >/dev/null || fail "expected native JSON mode in argv"
 printf '%s\n' "$out" | grep -Fx -- 'read,grep' >/dev/null || fail "expected read,grep tools in argv"

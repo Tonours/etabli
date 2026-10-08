@@ -513,6 +513,100 @@ if [ -n "$non_git_output" ]; then
 	exit 1
 fi
 
+parity_dir="$TMP_DIR/no-comments-parity"
+mkdir -p "$parity_dir"
+printf '/**\n * Existing doc.\n */\nexport const a = 1;\n' >"$parity_dir/doc.ts"
+ROOT_DIR="$ROOT_DIR" PARITY_DIR="$parity_dir" node --input-type=module <<'NODE'
+import { spawnSync } from "node:child_process";
+const root = process.env.ROOT_DIR;
+const cwd = process.env.PARITY_DIR;
+const { noCommentsGuardDecision } = await import(`${root}/workflow/runtime/no-comments-guard.mjs`);
+const write = (name, content) => ({ tool_name: "Write", tool_input: { file_path: `${cwd}/${name}`, content } });
+const edit = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/doc.ts`, old_string, new_string } });
+const cases = [
+  ["kept comment", edit(" * Existing doc.\n */\nexport const a = 1;", " * Existing doc.\n */\nexport const a = 2;"), "allow", "allow"],
+  ["added comment", edit("export const a = 1;", "// added\nexport const a = 1;"), "deny", "deny"],
+  ["shell length expansion", write("a.sh", "n=${#arr[@]}\n"), "deny", "allow"],
+  ["css url", write("a.scss", ".a { background: url(http://example.test/x.png); }\n"), "deny", "allow"],
+  ["regex literal", write("a.js", 'const p = s.replace(/\\/*$/, "");\n'), "deny", "allow"],
+  ["ts-expect-error", write("b.ts", "// @ts-expect-error legacy\nconst x: number = 'a';\n"), "deny", "allow"],
+  ["eslint directive", write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"), "deny", "allow"],
+  ["copyright header", write("d.ts", "// Copyright 2026 Example\nexport {};\n"), "allow", "deny"],
+  ["astro comment", write("e.astro", "---\n// note\n---\n"), "allow", "deny"],
+  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "allow", "deny"],
+];
+let failed = 0;
+for (const [label, event, sharedExpected, claudeExpected] of cases) {
+  const shared = noCommentsGuardDecision({ cwd, ...event }) ? "deny" : "allow";
+  const run = spawnSync("node", [`${root}/claude/hooks/no-comments-guard.mjs`], { input: JSON.stringify({ cwd, ...event }), encoding: "utf8" });
+  const claude = run.stdout.includes('"permissionDecision":"deny"') ? "deny" : "allow";
+  if (shared !== sharedExpected || claude !== claudeExpected) {
+    console.error(`no-comments parity ${label}: shared ${shared} (want ${sharedExpected}), claude ${claude} (want ${claudeExpected})`);
+    failed += 1;
+  }
+}
+if (failed) process.exit(1);
+NODE
+
+ops_free="$TMP_DIR/ops-free"
+mkdir -p "$ops_free"
+ops_ask_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"git push --force origin feature-x"}}\n' "$ops_free" |
+		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_contains "$ops_ask_output" '"permissionDecision":"ask"'
+assert_contains "$ops_ask_output" 'ops-stop: git push --force without a lease'
+ops_branch_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"git push -u origin feature-x"}}\n' "$ops_free" |
+		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_empty "$ops_branch_output" "plan-ready-guard on a feature-branch push"
+for unattended_mode in bypassPermissions dontAsk; do
+	ops_unattended_output="$(
+		printf '{"cwd":"%s","permission_mode":"%s","tool_name":"Bash","tool_input":{"command":"git push origin main"}}\n' "$ops_free" "$unattended_mode" |
+			node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+	)"
+	assert_contains "$ops_unattended_output" '"permissionDecision":"deny"'
+	assert_contains "$ops_unattended_output" 'run it yourself'
+done
+
+broken_hooks="$TMP_DIR/broken-hooks"
+broken_plan="$TMP_DIR/broken-plan"
+broken_free="$TMP_DIR/broken-free"
+mkdir -p "$broken_hooks" "$broken_plan" "$broken_free"
+cp "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs" "$broken_hooks/"
+printf '%s\n' '## Meta' '- Status: DRAFT' >"$broken_plan/PLAN.md"
+
+broken_plan_output="$(
+	printf '{"cwd":"%s","tool_name":"Write","tool_input":{"file_path":"%s/x.ts","content":"x"}}\n' "$broken_plan" "$broken_plan" |
+		node "$broken_hooks/plan-ready-guard.mjs" 2>/dev/null
+)"
+assert_contains "$broken_plan_output" '"permissionDecision":"deny"'
+assert_contains "$broken_plan_output" 'scripts/deploy-agent-workflow --apply'
+
+broken_push_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"git push origin main"}}\n' "$broken_free" |
+		node "$broken_hooks/plan-ready-guard.mjs" 2>/dev/null
+)"
+assert_contains "$broken_push_output" '"permissionDecision":"deny"'
+
+broken_free_output="$(
+	printf '{"cwd":"%s","tool_name":"Write","tool_input":{"file_path":"%s/x.ts","content":"x"}}\n' "$broken_free" "$broken_free" |
+		node "$broken_hooks/plan-ready-guard.mjs" 2>"$TMP_DIR/broken-free.err"
+)"
+assert_empty "$broken_free_output" "broken plan-ready-guard without a plan or push/rm"
+assert_contains "$(cat "$TMP_DIR/broken-free.err")" 'plan-ready-guard failed'
+
+broken_malformed_output="$(cd "$broken_plan" && printf 'not json{' | node "$broken_hooks/plan-ready-guard.mjs" 2>/dev/null)"
+assert_empty "$broken_malformed_output" "broken plan-ready-guard on malformed stdin"
+
+broken_reader_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"ls"}}\n' "$broken_free" |
+		node "$broken_hooks/read-only-agent-guard.mjs"
+)"
+assert_contains "$broken_reader_output" '"permissionDecision":"deny"'
+assert_contains "$broken_reader_output" 'Bash stays blocked'
+
 for hook in plan-ready-guard plan-commit-guard read-only-agent-guard detect-adr-signal ledger-auto-emit session-state; do
 	malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
 	assert_empty "$malformed_output" "$hook on malformed stdin"

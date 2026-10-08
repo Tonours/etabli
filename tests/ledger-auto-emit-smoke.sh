@@ -204,3 +204,35 @@ EOF
 if ! "$ROOT_DIR/scripts/workflow-event" --dir "$TMP/.workflow" validate run-b >/dev/null 2>&1; then
   fail "run-b ledger with correction events must validate"
 fi
+
+ROOT_DIR="$ROOT_DIR" node --input-type=module <<'NODE'
+const { inferBashFailureFromToolResult: infer } = await import(`${process.env.ROOT_DIR}/scripts/lib/ledger-auto-emit.mjs`);
+const cases = [
+  ["successful output that prints exit 1", "checking\nexit 1 is expected here", false, { failed: false }],
+  ["Pi bash failure", "boom\n\nCommand exited with code 2", true, { failed: true, exit: 2 }],
+  ["Claude PostToolUseFailure error", "Exit code 1\nError: Cannot find module", true, { failed: true, exit: 1 }],
+  ["error without an exit code", "spawn failed", true, { failed: true, exit: 1 }],
+];
+for (const [label, text, isError, expected] of cases) {
+  const actual = infer([{ type: "text", text }], isError);
+  if (actual.failed !== expected.failed || (expected.exit && actual.exit !== expected.exit)) {
+    console.error(`infer ${label}: ${JSON.stringify(actual)}`);
+    process.exit(1);
+  }
+}
+NODE
+
+hook_root="$TMP/claude-hook"
+mkdir -p "$hook_root/.workflow/run-c"
+printf '%s\n' '{"schema_version":2,"ts":"2026-08-01T00:00:00Z","run":"run-c","event":"route_decided","detail":{"route":"implement"}}' >"$hook_root/.workflow/run-c/events.jsonl"
+printf '{"cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"bash tests/a.sh"},"tool_response":{"stdout":"exit 1 printed by a passing test","stderr":"","interrupted":false}}\n' "$hook_root" |
+  node "$ROOT_DIR/claude/hooks/ledger-auto-emit.mjs"
+if grep -q validation_failed "$hook_root/.workflow/run-c/events.jsonl"; then
+  fail "a passing Bash call must not record validation_failed"
+fi
+printf '{"cwd":"%s","hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":"bash tests/a.sh"},"error":"Exit code 3\\nsuite red","is_interrupt":false}\n' "$hook_root" |
+  node "$ROOT_DIR/claude/hooks/ledger-auto-emit.mjs"
+grep -q '"event":"validation_failed"' "$hook_root/.workflow/run-c/events.jsonl" ||
+  fail "PostToolUseFailure must record validation_failed"
+grep -q '"exit":3' "$hook_root/.workflow/run-c/events.jsonl" ||
+  fail "PostToolUseFailure must keep the exit code"

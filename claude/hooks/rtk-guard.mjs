@@ -12,7 +12,7 @@ try {
 if (typeof command !== "string" || command === "" || rtkDataFlowReason(command) !== null) process.exit(0);
 
 const result = spawnSync("rtk", ["hook", "claude"], { input, encoding: "utf8" });
-if (result.error) process.exit(0);
+if (result.error && result.error.code !== "EPIPE") process.exit(0);
 process.stdout.write(result.stdout ?? "");
 process.stderr.write(result.stderr ?? "");
 process.exit(result.status ?? 0);

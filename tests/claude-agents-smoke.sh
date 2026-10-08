@@ -88,6 +88,9 @@ paths.each do |path|
     unless hooks.is_a?(Array) && hook_text.include?("Bash") && hook_text.include?("read-only-agent-guard.mjs")
       raise "#{path}: missing Bash PreToolUse read-only guard. Remediation: wire read-only-agent-guard.mjs in frontmatter."
     end
+    unless hook_text.include?("${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs")
+      raise "#{path}: read-only guard must resolve through CLAUDE_CONFIG_DIR. Remediation: use \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs\"."
+    end
     unless body.include?("workflow/skills/obvault-memory.md")
       raise "#{path}: memory routing must point to workflow/skills/obvault-memory.md."
     end
