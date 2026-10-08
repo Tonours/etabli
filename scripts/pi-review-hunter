@@ -104,6 +104,7 @@ build_pi_args() {
     --no-session
     --no-skills
     --no-extensions
+    -e "$(cd "$(dirname "$0")/.." && pwd)/pi/extensions/filter-output.ts"
     --no-context-files
     --tools read,grep
     --append-system-prompt "$PROMPT_FILE"

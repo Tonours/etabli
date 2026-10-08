@@ -32,6 +32,7 @@ printf '%s\n' "$out" | grep -Fx -- "$PROMPT_FILE" >/dev/null || fail "expected p
 printf '%s\n' "$out" | grep -Fx -- '--no-skills' >/dev/null || fail "expected --no-skills in argv"
 printf '%s\n' "$out" | grep -Fx -- '--no-extensions' >/dev/null || fail "expected --no-extensions in argv"
 printf '%s\n' "$out" | grep -Fx -- '--no-context-files' >/dev/null || fail "expected --no-context-files in argv"
+printf '%s\n' "$out" | grep -Fx -- "$ROOT_DIR/pi/extensions/filter-output.ts" >/dev/null || fail "expected the redaction extension in argv"
 printf '%s\n' "$out" | grep -Fx -- '--mode' >/dev/null || fail "expected --mode in argv"
 printf '%s\n' "$out" | grep -Fx -- 'json' >/dev/null || fail "expected native JSON mode in argv"
 printf '%s\n' "$out" | grep -Fx -- 'read,grep' >/dev/null || fail "expected read,grep tools in argv"
