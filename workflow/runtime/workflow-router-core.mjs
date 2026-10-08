@@ -1416,6 +1416,45 @@ function applyPlanTextEdits(previousText, edits) {
 	return text;
 }
 
+function normalizeToLF(text) {
+	return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+// Same transforms as Pi's edit tool (normalizeToLF, then normalizeForFuzzyMatch).
+function normalizeForFuzzyMatch(text) {
+	return text
+		.normalize("NFKC")
+		.split("\n")
+		.map((line) => line.trimEnd())
+		.join("\n")
+		.replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+		.replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+		.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
+		.replace(/[\u00A0\u2002-\u200A\u202F\u205F\u3000]/g, " ");
+}
+
+function normalizePlanTextLikePi(text) {
+	return normalizeForFuzzyMatch(normalizeToLF(text));
+}
+
+function proposedPlanTextFromPiNormalizedEdit(toolName, toolInput, previousText) {
+	const name = normalizeToolName(toolName);
+	if (name !== "Edit" && name !== "MultiEdit") return null;
+	const edits = Array.isArray(toolInput.edits) ? toolInput.edits : [toolInput];
+	const normalizedEdits = [];
+	for (const edit of edits) {
+		const { oldStr, newStr } = planEditStrings(edit);
+		if (typeof oldStr !== "string" || typeof newStr !== "string") return null;
+		normalizedEdits.push({
+			old_string: normalizePlanTextLikePi(oldStr),
+			new_string: normalizeToLF(newStr),
+			replace_all: edit?.replace_all,
+			replaceAll: edit?.replaceAll,
+		});
+	}
+	return applyPlanTextEdits(normalizePlanTextLikePi(previousText), normalizedEdits);
+}
+
 export function proposedPlanTextFromToolInput(
 	toolName,
 	toolInput,
@@ -1583,18 +1622,31 @@ function branchAnchorEscapeDecision(event) {
 	// divergence while the plan still gates the current branch.
 	if (onDisk && onDisk !== current) return null;
 
-	const proposed = proposedPlanTextFromToolInput(toolName, toolInput, previousText);
+	let proposed = proposedPlanTextFromToolInput(toolName, toolInput, previousText);
+	if (typeof proposed !== "string") {
+		proposed = proposedPlanTextFromPiNormalizedEdit(toolName, toolInput, previousText);
+	}
 	if (typeof proposed === "string") {
 		const next = parsePlanBranch(proposed);
 		if (!next || next === current) return null;
+		return deny(
+			"PLAN.md Branch meta must match the current checkout. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.",
+			{
+				cwd,
+				guard: "plan-ready-guard",
+				pattern: "branch-anchor-escape",
+				target: "PLAN.md",
+				tool: toolName,
+			},
+		);
 	}
 
 	return deny(
-		"PLAN.md Branch meta must match the current checkout. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.",
+		"cannot reconstruct proposed PLAN.md content from this tool call; use a full Write of PLAN.md.",
 		{
 			cwd,
 			guard: "plan-ready-guard",
-			pattern: "branch-anchor-escape",
+			pattern: "branch-anchor-reconstruct-failed",
 			target: "PLAN.md",
 			tool: toolName,
 		},

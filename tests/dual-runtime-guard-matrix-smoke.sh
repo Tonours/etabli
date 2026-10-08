@@ -334,6 +334,57 @@ if (replaceAllStillGated?.hookSpecificOutput?.permissionDecision !== "deny") {
   process.exit(1);
 }
 
+const emDash = String.fromCharCode(0x2014);
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n- Branch: plan-branch\n\n- Scope " + emDash + " x\n");
+const fuzzyKeep = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "edit",
+  input: {
+    path: "PLAN.md",
+    edits: [{ oldText: "- Scope - x", newText: "- Scope - y" }],
+  },
+});
+if (fuzzyKeep != null) {
+  console.error("Pi fuzzy edit that keeps the current Branch must stay allowed");
+  process.exit(1);
+}
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n\n- Scope " + emDash + " x\n");
+const fuzzyUnanchored = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "edit",
+  input: {
+    path: "PLAN.md",
+    edits: [{ oldText: "- Scope - x", newText: "- Scope - y" }],
+  },
+});
+if (fuzzyUnanchored != null) {
+  console.error("Pi fuzzy edit of an unanchored DRAFT plan must stay allowed");
+  process.exit(1);
+}
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n- Branch: plan-branch\n\n- Scope " + emDash + " x\n");
+const fuzzyJournal = join(repo, ".workflow", "guard-journal");
+const fuzzyBefore = readdirSync(fuzzyJournal).filter((name) => name.endsWith(".jsonl")).map((name) => readFileSync(join(fuzzyJournal, name), "utf8")).join("");
+const fuzzyFlip = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "edit",
+  input: {
+    path: "PLAN.md",
+    edits: [{
+      oldText: "- Branch: plan-branch\n\n- Scope - x",
+      newText: "- Branch: other-branch\n\n- Scope - y",
+    }],
+  },
+});
+if (fuzzyFlip?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("Pi fuzzy edit that retargets Branch must deny");
+  process.exit(1);
+}
+const fuzzyAfter = readdirSync(fuzzyJournal).filter((name) => name.endsWith(".jsonl")).map((name) => readFileSync(join(fuzzyJournal, name), "utf8")).join("");
+if (!fuzzyAfter.slice(fuzzyBefore.length).includes('"pattern":"branch-anchor-escape"')) {
+  console.error("Pi fuzzy Branch retarget must journal branch-anchor-escape");
+  process.exit(1);
+}
+
 writeFileSync(join(repo, "PLAN.md"), [
   "# PLAN",
   "",
