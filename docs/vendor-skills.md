@@ -1,6 +1,6 @@
 # Vendored skill suites
 
-Three upstream suites feed etabli's managed skill surface. All ship
+Five upstream suites feed etabli's managed skill surface. All ship
 verbatim (`vendor/<name>/skills/**`); adaptation lives here, never in the
 vendored files.
 
@@ -9,6 +9,8 @@ vendored files.
 | pstack (Lauren Tan) | **migrated** to `@zenspc/pi-pstack` npm port (ADR-0023) | Pi via repo-tracked settings entry | 45 — see `docs/pstack-strategy.md` |
 | mattpocock (Matt Pocock) | `mattpocock/skills` @ `skills/engineering/` | shared | 14 (below) |
 | ember-skills / adonisjs-skills | Tonours forks | work / personal | domain suites |
+| petergyang | `petergyang/no-ai-slop` | `skill-surface.tsv` row `0 0 1`; `user-invocable-only` on Claude | 1 (`no-ai-slop`) |
+| typesafe-ai | `typesafe-ai/skills` | shared, `user-invocable-only` on Claude | 1 (`typesafe-ai`) |
 
 ## mattpocock engineering tier (14)
 
@@ -20,9 +22,9 @@ vendored files.
 
 ### Skipped on purpose — name collisions (one canonical owner per name)
 
-- `engineering/code-review` → etabli's `code-review` stays canonical.
+- `engineering/code-review` → etabli's `review` route (`workflow/skills/review.md`) stays canonical.
 - `engineering/implement` → etabli's `implement` stays canonical.
-- `engineering/tdd` → pstack's `tdd` stays canonical.
+- `engineering/tdd` → pstack's `tdd` stays canonical on Pi; pstack is Pi-only (ADR-0023), so Claude has no TDD skill.
 - `engineering/setup-matt-pocock-skills` → configures the suite's own
   installer conventions (issue tracker, triage labels, doc layout); etabli's
   vendoring replaces that setup, so the skill has no target here.
@@ -47,6 +49,8 @@ Three research surfaces coexist; route by the question:
 | Why was this built this way (history, intent) | pstack `why` | 7-category evidence via configured MCPs |
 | Learn a concept using the current directory | pstack `teach` weaves how+why into one explanation; mattpocock `teach` uses the dir as a stateful workspace over sessions | two complementary takes on teaching |
 | Source-grounded repo research under the etabli contract | `workflow/skills/investigation.md` route + `scripts/research-proof-check` | the ambient contract stays canonical |
+
+pstack rows apply to Pi only (ADR-0023); on Claude, use the mattpocock or etabli equivalent.
 
 Overlap rule: the etabli routes own gating and evidence; the vendored
 skills are task-level entry points invoked explicitly or when a runtime
