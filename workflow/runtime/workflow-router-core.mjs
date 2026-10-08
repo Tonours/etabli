@@ -1404,8 +1404,13 @@ function applyPlanTextEdits(previousText, edits) {
 			return newStr;
 		}
 		const firstMatch = text.indexOf(oldStr);
-		if (firstMatch === -1 || text.indexOf(oldStr, firstMatch + 1) !== -1)
-			return null;
+		if (firstMatch === -1) return null;
+		const replaceAll = edit?.replace_all === true || edit?.replaceAll === true;
+		if (replaceAll) {
+			text = text.split(oldStr).join(newStr);
+			continue;
+		}
+		if (text.indexOf(oldStr, firstMatch + 1) !== -1) return null;
 		text = `${text.slice(0, firstMatch)}${newStr}${text.slice(firstMatch + oldStr.length)}`;
 	}
 	return text;
@@ -1579,9 +1584,10 @@ function branchAnchorEscapeDecision(event) {
 	if (onDisk && onDisk !== current) return null;
 
 	const proposed = proposedPlanTextFromToolInput(toolName, toolInput, previousText);
-	if (typeof proposed !== "string") return null;
-	const next = parsePlanBranch(proposed);
-	if (!next || next === current) return null;
+	if (typeof proposed === "string") {
+		const next = parsePlanBranch(proposed);
+		if (!next || next === current) return null;
+	}
 
 	return deny(
 		"PLAN.md Branch meta must match the current checkout. Discard an unrelated plan with scripts/plan-cleanup --discard <reason-slug>.",

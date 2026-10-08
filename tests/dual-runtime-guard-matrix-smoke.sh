@@ -302,6 +302,38 @@ if (stillGated?.hookSpecificOutput?.permissionDecision !== "deny") {
   process.exit(1);
 }
 
+writeFileSync(join(repo, "PLAN.md"), "# PLAN\n\n## Meta\n- Status: DRAFT\n- Branch: plan-branch\n\nplan-branch\n");
+const replaceAllJournal = join(repo, ".workflow", "guard-journal");
+const replaceAllBefore = readdirSync(replaceAllJournal).filter((name) => name.endsWith(".jsonl")).map((name) => readFileSync(join(replaceAllJournal, name), "utf8")).join("");
+const replaceAllFlip = mod.planMutationGuardDecision({
+  cwd: repo,
+  tool_name: "Edit",
+  tool_input: {
+    file_path: join(repo, "PLAN.md"),
+    old_string: "plan-branch",
+    new_string: "other-branch",
+    replace_all: true,
+  },
+});
+if (replaceAllFlip?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("replace_all retarget of a repeated current branch must deny");
+  process.exit(1);
+}
+const replaceAllAfter = readdirSync(replaceAllJournal).filter((name) => name.endsWith(".jsonl")).map((name) => readFileSync(join(replaceAllJournal, name), "utf8")).join("");
+if (!replaceAllAfter.slice(replaceAllBefore.length).includes('"pattern":"branch-anchor-escape"')) {
+  console.error("replace_all Branch retarget must journal branch-anchor-escape");
+  process.exit(1);
+}
+const replaceAllStillGated = mod.planMutationGuardDecision({
+  cwd: repo,
+  toolName: "bash",
+  input: { command: "touch escaped" },
+});
+if (replaceAllStillGated?.hookSpecificOutput?.permissionDecision !== "deny") {
+  console.error("denied replace_all Branch retarget must leave implementation gated");
+  process.exit(1);
+}
+
 writeFileSync(join(repo, "PLAN.md"), [
   "# PLAN",
   "",
