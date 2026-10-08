@@ -7,6 +7,7 @@ import {
 } from "./lib/workflow-router-runtime.ts";
 import { eventCwd, resolveWorkflowRouteContext } from "./lib/workflow-route-context.ts";
 import { planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
+import { opsStopGuardDecision } from "../../workflow/runtime/ops-stop-guard.mjs";
 import {
 	appendLedgerEvent,
 	inferBashFailureFromToolResult,
@@ -118,7 +119,17 @@ export default function (pi: ExtensionAPI) {
 					"PLAN.md guard: mutating tools are blocked",
 			};
 		}
-		return undefined;
+		if (!isBashToolName(event.toolName)) return undefined;
+		const input = (event.input || {}) as { command?: string; cmd?: string };
+		const ops = opsStopGuardDecision({
+			command: input.command || input.cmd || "",
+			cwd: guardEvent.cwd,
+		}) as { reason: string } | null;
+		if (!ops) return undefined;
+		if (!ctx?.hasUI) return { block: true, reason: ops.reason };
+		return ctx.ui
+			.confirm("ops-stop", ops.reason)
+			.then((confirmed: boolean) => (confirmed ? undefined : { block: true, reason: ops.reason }));
 	});
 
 	pi.on("tool_result", (event, ctx) => {

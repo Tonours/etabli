@@ -40,7 +40,24 @@ const input = readInput();
 try {
   const lib = await import("./workflow-router-lib.mjs");
   const decision = lib.planMutationGuardDecision(input) || lib.planCommitGuardDecision(input);
-  if (decision) emit(decision);
+  if (decision) {
+    emit(decision);
+  } else if (input.tool_name === "Bash") {
+    const { opsStopGuardDecision } = await import("../../workflow/runtime/ops-stop-guard.mjs");
+    const ops = opsStopGuardDecision({
+      command: input.tool_input?.command ?? input.tool_input?.cmd ?? "",
+      cwd: input.cwd,
+    });
+    if (ops) {
+      emit({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "ask",
+          permissionDecisionReason: ops.reason,
+        },
+      });
+    }
+  }
 } catch (error) {
   const reason = `plan-ready-guard failed (${error?.message ?? error}); ${REMEDY}.`;
   if (guardExpected(input)) {

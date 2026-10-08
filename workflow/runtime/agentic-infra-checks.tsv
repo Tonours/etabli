@@ -91,3 +91,4 @@ full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
 full	shell-docs	claude-efficiency-campaign	tests/claude-efficiency-campaign.test.mjs
 core	shell-docs	plan-review-binding-test	tests/plan-review-binding.test.mjs
 core	shell-docs	execution-quality-smoke	tests/execution-quality-smoke.sh
+core	shell-docs	ops-stop-guard-smoke	tests/ops-stop-guard-smoke.sh

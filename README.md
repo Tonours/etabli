@@ -33,8 +33,9 @@ scripts/verify-agentic-infra core        # every check should PASS
 - **One contract, every harness.** Pi and Claude routers are kept identical by
   a shared fixture set (`scripts/router-eval`).
 - **Rules enforced by code.** Guards block edits on a plan that is not `READY`,
-  weakened frozen checks, staged plan files, non-read-only reviewer shells and
-  unconsented default-branch pushes.
+  weakened frozen checks, staged plan files and non-read-only reviewer shells,
+  and ask before a lease-less force push, a default-branch push or a recursive
+  `rm` outside the project.
 - **State that survives compaction.** Claude re-injects the plan status and the
   last ledger handoff on `compact|resume`, with the same compact instructions
   as Pi.

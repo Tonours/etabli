@@ -75,7 +75,8 @@ ship-metrics-report
 project-verification-check
 project-verification-run
 plan-review-binding-test
-execution-quality-smoke'
+execution-quality-smoke
+ops-stop-guard-smoke'
 # Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
 # review-contract-surface-smoke (<50 ms) — the merge gate that must catch
 # contract-surface regressions like the CR-B4 union-cap leak.
@@ -93,10 +94,11 @@ execution-quality-smoke'
 # T7 step 2 adds skill-hygiene (DMI flags + native probe; AC2a/AC3/AC4 sections append).
 # T7 step 3 appends skill-trigger-eval (frozen recompute + compare) and
 # codex-source (hermetic source-measure gate) to full.
+# Guard integrity adds ops-stop-guard-smoke (hermetic decision table).
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted: review workflow/runtime/agentic-infra-checks.tsv and align the exact approved expected_core list"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 33 ] ||
-	fail "core profile must hold exactly 33 checks; align approved manifest rows and expected_core"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 34 ] ||
+	fail "core profile must hold exactly 34 checks; align approved manifest rows and expected_core"
 [ "$(awk -F '\t' '!/^#/ && $1 == "core" {print $4}' "$MANIFEST" | sort | uniq -d)" = "" ] ||
 	fail "core profile runs a target twice under two labels; keep one row per target"
 

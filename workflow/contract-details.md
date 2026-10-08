@@ -162,14 +162,14 @@ consent for that command's external write contract. When a run ledger exists,
 journal checkpoint decisions as `human_checkpoint` events in
 `.workflow/<slug>/events.jsonl` per `workflow/events.md`. The routing decision
 itself (destructive, secret, production, billing, external write-back →
-`ops-stop`) lives in the Routing rules table in `workflow/spec.md`; this table
-documents the enforcement behind each boundary.
+`ops-stop`) lives in `workflow/spec.md` Routing rules; this table documents
+the enforcement behind each boundary.
 
 | Category | Examples | Enforcement | Behavior |
 | --- | --- | --- | --- |
-| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN` in both adapters | route `ops-stop`, risk brief, wait |
+| deletion / destructive | `rm -rf`, drop/truncate, delete repo or branch | router `OPS_STOP_PATTERN`; `ops-stop-guard` asks on `rm -r` outside repo | route `ops-stop`, risk brief, wait |
 | production / billing write | deploy, prod config, billing | router `OPS_STOP_PATTERN` | route `ops-stop` |
-| history rewrite / push | force-push, `git push`, push a PR/branch/commit, rebase published history | router `OPS_STOP_PATTERN`; the explicit `/ci-fix` command is the consented exception (slash prompts bypass the router) | route `ops-stop` unless explicit `/ci-fix` |
+| history rewrite / push | force-push, `git push`, push a PR/branch/commit, rebase published history | router `OPS_STOP_PATTERN`; `ops-stop-guard` asks on unleased force or default-branch push; `/ci-fix` is the consented exception | `ops-stop` unless `/ci-fix` |
 | secrets / credentials | reading, writing, or printing secrets | router `OPS_STOP_PATTERN`, Pi `filter-output`, and sensitive-file blocks | route `ops-stop`; output redaction |
 | external write-back | post PR review/comment, update Linear status, create a Linear ticket, publish | command-level HITL contracts (`/pr-review`, `/sec-pr`, `/linear-*`) plus router `EXTERNAL_WRITE_BACK_PATTERN` for bare prompts | command contract or `ops-stop` |
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |

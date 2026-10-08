@@ -513,6 +513,20 @@ if [ -n "$non_git_output" ]; then
 	exit 1
 fi
 
+ops_free="$TMP_DIR/ops-free"
+mkdir -p "$ops_free"
+ops_ask_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"git push --force origin feature-x"}}\n' "$ops_free" |
+		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_contains "$ops_ask_output" '"permissionDecision":"ask"'
+assert_contains "$ops_ask_output" 'ops-stop: git push --force without a lease'
+ops_branch_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"git push -u origin feature-x"}}\n' "$ops_free" |
+		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+)"
+assert_empty "$ops_branch_output" "plan-ready-guard on a feature-branch push"
+
 broken_hooks="$TMP_DIR/broken-hooks"
 broken_plan="$TMP_DIR/broken-plan"
 broken_free="$TMP_DIR/broken-free"
