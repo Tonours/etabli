@@ -13,10 +13,15 @@ type Notification = { message: string; level: NotifyLevel };
 type ToolResultEvent = {
 	isError?: boolean;
 	content: TextContent[];
+	structuredContent?: unknown;
 	toolName: string;
 	input: Record<string, unknown>;
 };
-type ToolResultResponse = { content: TextContent[] };
+type ToolResultResponse = {
+	content: TextContent[];
+	isError?: boolean;
+	structuredContent?: unknown;
+};
 type ToolContext = {
 	ui: {
 		notifications: Notification[];
@@ -179,6 +184,29 @@ describe("filter-output", () => {
 		expect(ctx.ui.notifications).toEqual([
 			{ message: "Redacted 2 secrets from output", level: "warning" },
 		]);
+	});
+
+	test("redacts failed tool output and drops the raw structured copy", async () => {
+		const handler = setupExtension();
+		const ctx = createContext();
+		const openAiKey = `sk-proj-${"e".repeat(24)}`;
+		const raw = `OPENAI_API_KEY=${openAiKey}\nCommand exited with code 1`;
+
+		const result = await handler(
+			{
+				isError: true,
+				content: [{ type: "text", text: raw }],
+				structuredContent: { output: raw },
+				input: { command: "node scripts/check.mjs" },
+				toolName: "bash",
+			},
+			ctx,
+		);
+
+		expect(result?.content[0]?.text).not.toContain(openAiKey);
+		expect(result?.content[0]?.text).toContain("Command exited with code 1");
+		expect(result && "isError" in result).toBe(false);
+		expect(result && "structuredContent" in result).toBe(false);
 	});
 
 	test("redacts generic token and secret JSON fields by contextual name", async () => {
