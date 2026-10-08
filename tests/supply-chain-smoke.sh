@@ -60,6 +60,10 @@ printf '%s\n' "$dependabot_pairs" | grep -q '^github-actions /$' ||
   fail "missing github-actions Dependabot surface"
 printf '%s\n' "$dependabot_pairs" | grep -q '^npm /pi$' ||
   fail "missing Pi npm Dependabot surface"
+printf '%s\n' "$dependabot_pairs" | grep -q '^npm /pi/durable$' ||
+  fail "missing Pi durable npm Dependabot surface"
+grep -Eq 'uses:[[:space:]]+actions/setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]' "$WORKFLOW" ||
+  fail "durable tests need a SHA-pinned actions/setup-node step (Node >= 22.19)"
 
 while IFS= read -r -d '' entry; do
   case "$entry" in
