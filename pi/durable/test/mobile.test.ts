@@ -18,7 +18,7 @@ import type { PhoneSnapshot } from '../../../../pi-mobile/packages/protocol/src/
 
 test('phone outbox commits exact Unicode content before admission and keeps one identity after app reload', async () => {
   const values = new Map<string, string>();
-  const store: Store = { async getItemAsync(key) { return values.get(key) ?? null; }, async setItemAsync(key, value) { assert.ok(Buffer.byteLength(value) <= 1024); values.set(key, value); }, async deleteItemAsync(key) { values.delete(key); } };
+  const store: Store = { async getItemAsync(key: string) { return values.get(key) ?? null; }, async setItemAsync(key: string, value: string) { assert.ok(Buffer.byteLength(value) <= 1024); values.set(key, value); }, async deleteItemAsync(key: string) { values.delete(key); } };
   const message = { admissionId: randomUUID(), machine: 'host-A', sessionId: 'session-A', conversationId: 1, text: '🙂é exact text\n'.repeat(1000), deliverAs: 'steer' as const };
   await savePendingMessage(store, 'target', message);
   assert.deepEqual(await pendingMessage({ ...store }, 'target'), message);
@@ -91,7 +91,7 @@ test('real connector HTTP and terminal share committed state; retries survive co
   try {
     await register();
     const values = new Map<string, string>();
-    const store: Store = { async getItemAsync(key) { return values.get(key) ?? null; }, async setItemAsync(key, value) { values.set(key, value); }, async deleteItemAsync(key) { values.delete(key); } };
+    const store: Store = { async getItemAsync(key: string) { return values.get(key) ?? null; }, async setItemAsync(key: string, value: string) { values.set(key, value); }, async deleteItemAsync(key: string) { values.delete(key); } };
     const outgoing = { machine: `http://127.0.0.1:${port}`, sessionId: id, text: 'phone message 🙂', deliverAs: 'followUp' as const };
     const prepare = (target: SendTarget | null) => prepareMessage(store, 'phone', target, outgoing, randomUUID);
     const send = async (target: SendTarget | null) => {

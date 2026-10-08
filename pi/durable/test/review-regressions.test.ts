@@ -79,7 +79,7 @@ test('command receipt drains trailing pipes and kills background descendants', a
 
 test('outbox ACK remains committed when chunk cleanup fails and ACK retry is idempotent', async () => {
   const values = new Map<string, string>();
-  const store: Store = { async getItemAsync(key) { return values.get(key) ?? null; }, async setItemAsync(key, value) { values.set(key, value); }, async deleteItemAsync(key) { if (/\.0$/.test(key)) throw new Error('chunk cleanup failed'); values.delete(key); } };
+  const store: Store = { async getItemAsync(key: string) { return values.get(key) ?? null; }, async setItemAsync(key: string, value: string) { values.set(key, value); }, async deleteItemAsync(key: string) { if (/\.0$/.test(key)) throw new Error('chunk cleanup failed'); values.delete(key); } };
   const message = { admissionId: randomUUID(), machine: 'host', sessionId: 'session', conversationId: 1, text: 'message', deliverAs: null };
   await savePendingMessage(store, 'test', message);
   await acknowledgeMessage(store, 'test', message.admissionId);
