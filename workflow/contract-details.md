@@ -175,7 +175,7 @@ the enforcement behind each boundary.
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record `human_checkpoint` and reviewer evidence |
 | premature implementation | writes while root `PLAN.md` is `DRAFT`/`CHALLENGED`, malformed, or incomplete READY (exempt: missing PLAN, or `Branch` meta naming another branch, which lifts only this gate; stale → `plan-cleanup --discard`) | shared `planMutationGuardDecision` (Claude `plan-ready-guard` + Pi `tool_call`) | denied; bypass journaled `foreign-plan-bypass`; re-anchoring denied |
 | check-freeze weaken | remove/weaken READY Checks without demote | same shared guard on PLAN.md writes | tool call denied |
-| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUse `ledger-auto-emit.mjs` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
+| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUseFailure `ledger-auto-emit` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
 | missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
 
