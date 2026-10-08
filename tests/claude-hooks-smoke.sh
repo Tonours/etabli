@@ -513,6 +513,40 @@ if [ -n "$non_git_output" ]; then
 	exit 1
 fi
 
+broken_hooks="$TMP_DIR/broken-hooks"
+broken_plan="$TMP_DIR/broken-plan"
+broken_free="$TMP_DIR/broken-free"
+mkdir -p "$broken_hooks" "$broken_plan" "$broken_free"
+cp "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs" "$broken_hooks/"
+printf '%s\n' '## Meta' '- Status: DRAFT' >"$broken_plan/PLAN.md"
+
+broken_plan_output="$(
+	printf '{"cwd":"%s","tool_name":"Write","tool_input":{"file_path":"%s/x.ts","content":"x"}}\n' "$broken_plan" "$broken_plan" |
+		node "$broken_hooks/plan-ready-guard.mjs" 2>/dev/null
+)"
+assert_contains "$broken_plan_output" '"permissionDecision":"deny"'
+assert_contains "$broken_plan_output" 'scripts/deploy-agent-workflow --apply'
+
+broken_push_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"git push origin main"}}\n' "$broken_free" |
+		node "$broken_hooks/plan-ready-guard.mjs" 2>/dev/null
+)"
+assert_contains "$broken_push_output" '"permissionDecision":"deny"'
+
+broken_free_output="$(
+	printf '{"cwd":"%s","tool_name":"Write","tool_input":{"file_path":"%s/x.ts","content":"x"}}\n' "$broken_free" "$broken_free" |
+		node "$broken_hooks/plan-ready-guard.mjs" 2>"$TMP_DIR/broken-free.err"
+)"
+assert_empty "$broken_free_output" "broken plan-ready-guard without a plan or push/rm"
+assert_contains "$(cat "$TMP_DIR/broken-free.err")" 'plan-ready-guard failed'
+
+broken_reader_output="$(
+	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"ls"}}\n' "$broken_free" |
+		node "$broken_hooks/read-only-agent-guard.mjs"
+)"
+assert_contains "$broken_reader_output" '"permissionDecision":"deny"'
+assert_contains "$broken_reader_output" 'Bash stays blocked'
+
 for hook in plan-ready-guard plan-commit-guard read-only-agent-guard detect-adr-signal ledger-auto-emit session-state; do
 	malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
 	assert_empty "$malformed_output" "$hook on malformed stdin"
