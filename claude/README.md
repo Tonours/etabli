@@ -202,7 +202,10 @@ Optional hooks:
   without it; the hook only lowers the cost of remembering to record decisions.
 - `no-comments-guard.mjs` runs on `PreToolUse` for `Edit|Write|MultiEdit`. It
   denies a write that adds code comments to source files and names the
-  offending line, per the `~/work/CLAUDE.md` no-comments rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
+  offending line; comments already present in `old_string` or on disk are
+  kept. Its detector still differs from Pi's shared
+  `workflow/runtime/no-comments-guard.mjs` on a few frozen cases
+  (`tests/claude-hooks-smoke.sh`), per the `~/work/CLAUDE.md` no-comments rule (lint pragmas, `@ts-expect-error`-style directives, and shebangs are
   exempt). It ships in `settings.workflow-hooks.json`. It cannot see files
   written through `Bash`, so write code with `Edit`/`Write`.
 - RTK command rewriting runs through the native `rtk hook claude`

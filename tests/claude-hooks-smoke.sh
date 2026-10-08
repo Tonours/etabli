@@ -513,6 +513,41 @@ if [ -n "$non_git_output" ]; then
 	exit 1
 fi
 
+parity_dir="$TMP_DIR/no-comments-parity"
+mkdir -p "$parity_dir"
+printf '/**\n * Existing doc.\n */\nexport const a = 1;\n' >"$parity_dir/doc.ts"
+ROOT_DIR="$ROOT_DIR" PARITY_DIR="$parity_dir" node --input-type=module <<'NODE'
+import { spawnSync } from "node:child_process";
+const root = process.env.ROOT_DIR;
+const cwd = process.env.PARITY_DIR;
+const { noCommentsGuardDecision } = await import(`${root}/workflow/runtime/no-comments-guard.mjs`);
+const write = (name, content) => ({ tool_name: "Write", tool_input: { file_path: `${cwd}/${name}`, content } });
+const edit = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/doc.ts`, old_string, new_string } });
+const cases = [
+  ["kept comment", edit(" * Existing doc.\n */\nexport const a = 1;", " * Existing doc.\n */\nexport const a = 2;"), "allow", "allow"],
+  ["added comment", edit("export const a = 1;", "// added\nexport const a = 1;"), "deny", "deny"],
+  ["shell length expansion", write("a.sh", "n=${#arr[@]}\n"), "deny", "allow"],
+  ["css url", write("a.scss", ".a { background: url(http://example.test/x.png); }\n"), "deny", "allow"],
+  ["regex literal", write("a.js", 'const p = s.replace(/\\/*$/, "");\n'), "deny", "allow"],
+  ["ts-expect-error", write("b.ts", "// @ts-expect-error legacy\nconst x: number = 'a';\n"), "deny", "allow"],
+  ["eslint directive", write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"), "deny", "allow"],
+  ["copyright header", write("d.ts", "// Copyright 2026 Example\nexport {};\n"), "allow", "deny"],
+  ["astro comment", write("e.astro", "---\n// note\n---\n"), "allow", "deny"],
+  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "allow", "deny"],
+];
+let failed = 0;
+for (const [label, event, sharedExpected, claudeExpected] of cases) {
+  const shared = noCommentsGuardDecision({ cwd, ...event }) ? "deny" : "allow";
+  const run = spawnSync("node", [`${root}/claude/hooks/no-comments-guard.mjs`], { input: JSON.stringify({ cwd, ...event }), encoding: "utf8" });
+  const claude = run.stdout.includes('"permissionDecision":"deny"') ? "deny" : "allow";
+  if (shared !== sharedExpected || claude !== claudeExpected) {
+    console.error(`no-comments parity ${label}: shared ${shared} (want ${sharedExpected}), claude ${claude} (want ${claudeExpected})`);
+    failed += 1;
+  }
+}
+if (failed) process.exit(1);
+NODE
+
 ops_free="$TMP_DIR/ops-free"
 mkdir -p "$ops_free"
 ops_ask_output="$(

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { recordGuardDenial } from "../../workflow/runtime/guard-journal.mjs";
 
 const CODE_EXT =
@@ -10,13 +11,22 @@ const ALLOW =
 
 const HASH_LANG = /\.(py|sh|bash|zsh|rb)$/i;
 
-function addedLines(input, toolName) {
-  if (toolName === "Write") return String(input.content ?? "").split("\n");
+function editPairs(input, toolName, cwd) {
+  if (toolName === "Write") {
+    let previous = "";
+    try {
+      previous = readFileSync(resolve(cwd, String(input.file_path ?? "")), "utf8");
+    } catch {
+      previous = "";
+    }
+    return [{ before: previous, after: String(input.content ?? "") }];
+  }
   if (toolName === "MultiEdit")
-    return (input.edits ?? []).flatMap((e) =>
-      String(e.new_string ?? "").split("\n"),
-    );
-  return String(input.new_string ?? "").split("\n");
+    return (input.edits ?? []).map((e) => ({
+      before: String(e.old_string ?? ""),
+      after: String(e.new_string ?? ""),
+    }));
+  return [{ before: String(input.old_string ?? ""), after: String(input.new_string ?? "") }];
 }
 
 const REGEX_LITERAL_PREFIX = /[=(,:[!&|?{;+]\s*$/;
@@ -76,18 +86,35 @@ function stripStrings(line) {
     .replace(/`(?:[^`\\]|\\.)*`/g, "");
 }
 
-function findComment(lines, filePath) {
+function findComments(lines, filePath) {
   const allowHash = HASH_LANG.test(filePath);
+  const found = [];
   for (const raw of lines) {
     const line = raw.trimEnd();
     if (!line.trim()) continue;
     if (ALLOW.test(line)) continue;
     const code = stripStrings(line);
-    if (/(^|[^:])\/\//.test(code)) return line.trim();
-    if (/\/\*/.test(code)) return line.trim();
-    if (/^\s*\*(\s|$|\/)/.test(raw)) return line.trim();
-    if (allowHash && /(^|\s)#(?!!)/.test(code) && !/^\s*#!/.test(raw))
-      return line.trim();
+    if (
+      /(^|[^:])\/\//.test(code) ||
+      /\/\*/.test(code) ||
+      /^\s*\*(\s|$|\/)/.test(raw) ||
+      (allowHash && /(^|\s)#(?!!)/.test(code) && !/^\s*#!/.test(raw))
+    )
+      found.push(line.trim());
+  }
+  return found;
+}
+
+function addedComment(pairs, filePath) {
+  for (const { before, after } of pairs) {
+    const existing = new Map();
+    for (const line of findComments(before.split("\n"), filePath))
+      existing.set(line, (existing.get(line) ?? 0) + 1);
+    for (const line of findComments(after.split("\n"), filePath)) {
+      const count = existing.get(line) ?? 0;
+      if (count === 0) return line;
+      existing.set(line, count - 1);
+    }
   }
   return null;
 }
@@ -104,7 +131,7 @@ function main() {
   const filePath = input.file_path ?? "";
   if (!CODE_EXT.test(filePath)) process.exit(0);
 
-  const hit = findComment(addedLines(input, tool), filePath);
+  const hit = addedComment(editPairs(input, tool, payload.cwd ?? process.cwd()), filePath);
   if (!hit) process.exit(0);
 
   recordGuardDenial({
