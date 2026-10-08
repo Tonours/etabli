@@ -94,8 +94,7 @@ function findComments(lines, filePath) {
     if (!line.trim()) continue;
     if (ALLOW.test(line)) continue;
     const code = stripStrings(line);
-    if (
-      /(^|[^:])\/\//.test(code) ||
+    if (/(^|[^:])\/\//.test(code) ||
       /\/\*/.test(code) ||
       /^\s*\*(\s|$|\/)/.test(raw) ||
       (allowHash && /(^|\s)#(?!!)/.test(code) && !/^\s*#!/.test(raw))
