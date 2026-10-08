@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { recordGuardDenial, recordGuardBypass } from "./guard-journal.mjs";
@@ -1198,7 +1198,16 @@ const DIRECT_EDIT_DECISION = directEditDecision(
 export function isPlanFile(filePath, cwd) {
 	if (!filePath) return false;
 	const projectCwd = cwd || process.cwd();
-	return resolve(projectCwd, filePath) === resolve(projectCwd, "PLAN.md");
+	const target = resolve(projectCwd, filePath);
+	const planPath = resolve(projectCwd, "PLAN.md");
+	if (target === planPath) return true;
+	try {
+		const a = statSync(target);
+		const b = statSync(planPath);
+		return a.dev === b.dev && a.ino === b.ino;
+	} catch {
+		return false;
+	}
 }
 
 export function isMutatingBashCommand(command) {
@@ -1378,8 +1387,12 @@ function applyPlanTextEdits(previousText, edits) {
 			return newStr;
 		}
 		const firstMatch = text.indexOf(oldStr);
-		if (firstMatch === -1 || text.indexOf(oldStr, firstMatch + 1) !== -1)
-			return null;
+		if (firstMatch === -1) return null;
+		if (edit?.replace_all === true || edit?.replaceAll === true) {
+			text = text.split(oldStr).join(newStr);
+			continue;
+		}
+		if (text.indexOf(oldStr, firstMatch + 1) !== -1) return null;
 		text = `${text.slice(0, firstMatch)}${newStr}${text.slice(firstMatch + oldStr.length)}`;
 	}
 	return text;
@@ -1500,9 +1513,55 @@ return deny(
 );
 }
 
+export function planBranchAnchorGuardDecision(event) {
+	const toolName = normalizeToolName(event.tool_name || event.toolName);
+	if (toolName !== "Write" && toolName !== "Edit" && toolName !== "MultiEdit") {
+		return null;
+	}
+	const cwd = event.cwd || process.cwd();
+	const toolInput = event.tool_input || event.input || {};
+	const filePath =
+		toolInput.file_path || toolInput.path || toolInput.filePath || "";
+	if (!isPlanFile(filePath, cwd)) return null;
+
+	const currentBranch = checkoutBranchForPlanGuard(cwd);
+	if (!currentBranch) return null;
+
+	let previousText = "";
+	try {
+		previousText = readFileSync(resolve(cwd, "PLAN.md"), "utf8");
+	} catch {
+		previousText = "";
+	}
+	const previousBranch = parsePlanBranch(previousText);
+	if (previousBranch && previousBranch !== currentBranch) return null;
+
+	const proposed = proposedPlanTextFromToolInput(toolName, toolInput, previousText);
+	const candidates = proposed == null ? planInsertedTexts(toolInput) : [proposed];
+	const foreign = candidates
+		.map((text) => parsePlanBranch(text))
+		.find((branch) => branch && branch !== currentBranch);
+	if (!foreign) return null;
+
+	return deny(
+		`PLAN.md is anchored to ${currentBranch}; setting Branch: ${foreign} would detach it from this checkout and lift its gates. Keep Branch: ${currentBranch}, or discard the plan with scripts/plan-cleanup --discard <reason-slug>.`,
+		{ cwd, guard: "plan-ready-guard", pattern: "branch-reanchor", target: "PLAN.md", tool: toolName },
+	);
+}
+
+function planInsertedTexts(toolInput) {
+	const edits = Array.isArray(toolInput.edits) ? toolInput.edits : [toolInput];
+	const texts = edits.map((edit) => planEditStrings(edit).newStr);
+	for (const key of ["content", "contents"]) {
+		if (typeof toolInput[key] === "string") texts.push(toolInput[key]);
+	}
+	return texts.filter((text) => typeof text === "string" && text);
+}
+
 /** Combined PreToolUse / tool_call decision: READY gate, check-freeze. */
 export function planMutationGuardDecision(event) {
 	const bypassCwd = event?.cwd || process.cwd();
+	let readyDecision = null;
 	if (planBelongsToForeignBranch(bypassCwd)) {
 		recordGuardBypass({
 			cwd: bypassCwd,
@@ -1511,10 +1570,12 @@ export function planMutationGuardDecision(event) {
 			target: "PLAN.md",
 			tool: normalizeToolName(event?.tool_name || event?.toolName) || "unknown",
 		});
-		return null;
+	} else {
+		readyDecision = planReadyGuardDecision(event);
 	}
 	return (
-		planReadyGuardDecision(event) ||
+		readyDecision ||
+		planBranchAnchorGuardDecision(event) ||
 		planCheckFreezeGuardDecision(event) ||
 		planCheckFreezeBashGuardDecision(event)
 	);
