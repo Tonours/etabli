@@ -191,29 +191,15 @@ function toolResultText(content) {
 }
 
 export function inferBashFailureFromToolResult(content, isError) {
+	if (!isError) return { failed: false };
 	const text = toolResultText(content);
-
-	const exitMatch = text.match(/exit(?:\s+code)?[=:\s]+(-?\d+)/i);
-	if (exitMatch) {
-		const code = Number(exitMatch[1]);
-		if (Number.isInteger(code) && code !== 0) {
-			return {
-				failed: true,
-				exit: Math.abs(code) || 1,
-				failure: text.slice(0, 200) || `exit ${code}`,
-			};
-		}
-		if (code === 0) return { failed: false };
-	}
-
-	if (isError) {
-		return {
-			failed: true,
-			exit: 1,
-			failure: text.slice(0, 200) || "bash tool error",
-		};
-	}
-	return { failed: false };
+	const exitMatch = text.match(/(?:exited with code|exit code)[=:\s]+(-?\d+)/i);
+	const code = exitMatch ? Number(exitMatch[1]) : 1;
+	return {
+		failed: true,
+		exit: Math.abs(code) || 1,
+		failure: text.slice(0, 200) || `exit ${code}`,
+	};
 }
 
 export function isBashToolName(name) {
