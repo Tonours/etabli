@@ -29,8 +29,7 @@ NEGATIVE_PID=$!
 wait "$NEGATIVE_PID"
 
 # pi/durable imports the sibling pi-mobile checkout, which CI does not have.
-# Only the unresolved pi-mobile imports and the implicit-any errors they cause
-# in the importing files are tolerated; every other diagnostic fails.
+# Only the unresolved pi-mobile imports are tolerated; every other diagnostic fails.
 DURABLE_DIR="$ROOT_DIR/pi/durable"
 if [ ! -d "$DURABLE_DIR/node_modules" ]; then
   printf 'Pi durable typecheck: pi/durable/node_modules is missing; run npm ci --prefix pi/durable\n' >&2
@@ -45,20 +44,8 @@ if [ "$DURABLE_STATUS" -ne 0 ] && ! grep -q ': error TS[0-9]*:' "$TMP_DIR/durabl
   printf 'Pi durable typecheck exited %s without diagnostics\n' "$DURABLE_STATUS" >&2
   exit 1
 fi
-if ! awk '
-  /^[^ ].*: error TS[0-9]+:/ {
-    file = substr($0, 1, index($0, "(") - 1)
-    if ($0 ~ /error TS2307: Cannot find module .[^ ]*pi-mobile\//) { sibling[file] = 1; next }
-    n++; line[n] = $0; owner[n] = file
-  }
-  END {
-    for (i = 1; i <= n; i++) {
-      if (sibling[owner[i]] && line[i] ~ /error TS7006:/) continue
-      print line[i]; bad = 1
-    }
-    exit bad
-  }
-' "$TMP_DIR/durable-tsc.log" >&2; then
+if grep ': error TS[0-9]*:' "$TMP_DIR/durable-tsc.log" |
+  grep -v "error TS2307: Cannot find module '[^']*pi-mobile/" >&2; then
   printf 'Pi durable typecheck failed; full output:\n' >&2
   cat "$TMP_DIR/durable-tsc.log" >&2
   exit 1
