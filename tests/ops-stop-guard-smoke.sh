@@ -53,7 +53,38 @@ const cases = [
   ["cd .. && rm -rf repo", "ask"],
   ["cd \"$X\" && rm -rf build", "ask"],
   ["find . -name x | xargs rm -rf", "ask"],
+  ["if true; then rm -rf ~; fi", "ask"],
+  ["for d in a; do rm -rf /; done", "ask"],
+  ["{ rm -rf ~; }", "ask"],
+  ["! rm -rf ~", "ask"],
+  ["sudo -u root rm -rf /", "ask"],
+  ["sudo -u root git push --force origin main", "ask"],
+  ["xargs -I {} rm -rf {}", "ask"],
+  ["find . | xargs -n 1 rm -rf", "ask"],
+  ["bash -lc 'git push --force'", "ask"],
+  ["sh -ec \"git push origin main\"", "ask"],
+  ["eval 'rm -rf ~'", "ask"],
+  ["timeout 60 git push --force", "ask"],
+  ["nice git push -f", "ask"],
+  ["doas rm -rf /", "ask"],
+  ["pushd / && rm -rf usr", "ask"],
+  ["cd -- / && rm -rf usr", "ask"],
+  ["env -C /tmp rm -rf ~", "ask"],
+  ["env --unset FOO rm -rf ~", "ask"],
+  ["env -S \"rm -rf ~\"", "ask"],
+  ["rm -rf ~root", "ask"],
+  ["find ~ -exec rm -rf {} +", "ask"],
   ["git push -u origin feature-x", null],
+  ["git commit -m \"$(cat <<'EOF'\nfix: do not push to main\nEOF\n)\" && git push -u origin feature-x", null],
+  ["cat > notes.md <<'EOF'\nrm -rf /\nEOF", null],
+  ["git push -n origin main", null],
+  ["git push --dry-run --force", null],
+  ["ls # foo; rm -rf ~", null],
+  ["rm -rf build # cleanup", null],
+  ["find . -name x -exec rm -rf {} +", null],
+  ["git rm -r --cached sub", null],
+  ["npm run rm", null],
+  ["git stash push", null],
   ["git push", null],
   ["git push --force-with-lease origin feature-x", null],
   ["git push --force-with-lease --force-if-includes origin feature-x", null],
@@ -87,6 +118,17 @@ const decision = opsStopGuardDecision({ command: "git push", cwd: process.env.RE
 if (!decision?.reason?.includes("default branch main")) {
   console.error("bare git push from the default branch must ask");
   process.exit(1);
+}
+NODE
+
+ROOT_DIR="$ROOT_DIR" node --input-type=module <<'NODE'
+const { opsStopGuardDecision } = await import(`${process.env.ROOT_DIR}/workflow/runtime/ops-stop-guard.mjs`);
+const { homedir } = await import("node:os");
+for (const [command, cwd] of [["rm -rf .ssh", homedir()], ["rm -rf usr", "/"]]) {
+  if (!opsStopGuardDecision({ command, cwd })) {
+    console.error(`ops-stop: ${command} from ${cwd} must ask outside any project`);
+    process.exit(1);
+  }
 }
 NODE
 

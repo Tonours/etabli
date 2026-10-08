@@ -5,7 +5,21 @@ import { basename, resolve, sep } from "node:path";
 const PREFILTER = /\bgit\b[\s\S]*\bpush\b|\brm\b/;
 const RECURSIVE_RM = /\brm\b[\s\S]*\s(?:-[A-Za-z]*[rR][A-Za-z]*|--recursive)\b/;
 const SEPARATORS = new Set([";", "&&", "||", "|", "&", "\n", "(", ")"]);
-const WRAPPERS = new Set(["sudo", "command", "nohup", "time", "exec", "builtin", "rtk"]);
+const KEYWORDS = new Set(["then", "do", "else", "elif", "if", "while", "until", "{", "}", "!", "time"]);
+const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh"]);
+const WRAPPERS = {
+	sudo: ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-T", "-U", "--user", "--group", "--host", "--prompt", "--close-from", "--chdir", "--role", "--type", "--other-user", "--command-timeout"],
+	doas: ["-u", "-C"],
+	command: [],
+	builtin: [],
+	nohup: [],
+	exec: ["-a"],
+	nice: ["-n", "--adjustment"],
+	ionice: ["-c", "-n", "-p", "--class", "--classdata", "--pid"],
+	stdbuf: ["-i", "-o", "-e", "--input", "--output", "--error"],
+	timeout: ["-s", "-k", "--signal", "--kill-after"],
+	xargs: ["-I", "-n", "-L", "-P", "-s", "-d", "-E", "-a", "--replace", "--max-args", "--max-lines", "--max-procs", "--max-chars", "--delimiter", "--eof", "--arg-file"],
+};
 const PUSH_VALUE_OPTIONS = new Set(["-o", "--push-option", "--repo", "--receive-pack", "--exec"]);
 const GIT_VALUE_OPTIONS = new Set(["-c", "--git-dir", "--work-tree", "--namespace"]);
 
@@ -41,6 +55,10 @@ function tokenize(command) {
 			quoted = true;
 			continue;
 		}
+		if (character === "#" && !word && !quoted) {
+			while (index + 1 < command.length && command[index + 1] !== "\n") index += 1;
+			continue;
+		}
 		if (character === "`" || (character === "$" && next === "(")) return null;
 		if ((character === "<" || character === ">") && next === "(") return null;
 		if (character === ">" || character === "<" || (character === "&" && next === ">")) {
@@ -73,6 +91,26 @@ function tokenize(command) {
 	return tokens;
 }
 
+function stripHeredocs(command) {
+	const kept = [];
+	let pending = [];
+	for (const line of command.split("\n")) {
+		if (pending.length) {
+			if (line.trim() === pending[0]) pending.shift();
+			continue;
+		}
+		kept.push(line);
+		for (const match of line.matchAll(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/g)) pending.push(match[2]);
+	}
+	return kept.join("\n");
+}
+
+function stripQuoted(command) {
+	return command
+		.replace(/'[^']*'/g, "''")
+		.replace(/"(?:[^"\\]|\\.)*"/g, (quoted) => (/\$\(|`/.test(quoted) ? '"$SUBST"' : '""'));
+}
+
 function segmentsOf(command) {
 	const tokens = tokenize(command);
 	if (!tokens) return null;
@@ -100,30 +138,42 @@ function segmentsOf(command) {
 	return segments;
 }
 
+function skipOptions(words, index, valued) {
+	while (index < words.length && words[index].startsWith("-") && words[index] !== "-") {
+		const word = words[index];
+		index += 1;
+		if (word === "--") break;
+		if (valued.includes(word)) index += 1;
+	}
+	return index;
+}
+
 function unwrap(words) {
 	let index = 0;
+	let fromStdin = false;
 	while (index < words.length) {
 		const word = words[index];
 		const name = basename(word);
-		if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word)) {
+		if (KEYWORDS.has(word) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(word)) {
 			index += 1;
 		} else if (name === "env") {
 			index += 1;
 			while (index < words.length && (words[index].startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index]))) {
-				index += words[index] === "-u" ? 2 : 1;
+				const option = words[index];
+				if (option === "-S" || option === "--split-string") {
+					return { words: [], nested: words[index + 1] ?? "", fromStdin };
+				}
+				index += ["-u", "--unset", "-C", "--chdir"].includes(option) ? 2 : 1;
 			}
 		} else if (name === "rtk" && words[index + 1] === "proxy") {
 			index += 2;
-		} else if (WRAPPERS.has(name)) {
-			index += 1;
-			while (index < words.length && words[index].startsWith("-")) index += 1;
-		} else if (name === "xargs") {
-			index += 1;
-			while (index < words.length && words[index].startsWith("-")) index += 1;
-			return { words: words.slice(index), fromStdin: true };
+		} else if (Object.hasOwn(WRAPPERS, name)) {
+			index = skipOptions(words, index + 1, WRAPPERS[name]);
+			if (name === "timeout") index += 1;
+			if (name === "xargs") fromStdin = true;
 		} else break;
 	}
-	return { words: words.slice(index), fromStdin: false };
+	return { words: words.slice(index), fromStdin };
 }
 
 function git(cwd, args) {
@@ -164,11 +214,13 @@ function pushDecision(args, cwd) {
 			index += 1;
 			continue;
 		}
+		if (arg === "--dry-run") return null;
 		if (arg === "--force") force = true;
 		else if (arg.startsWith("--force-with-lease") || arg === "--force-if-includes") continue;
 		else if (arg === "--mirror" || arg === "--all" || arg === "--branches") everything = true;
 		else if (arg === "--delete") deleting = true;
 		else if (/^-[A-Za-z]+$/.test(arg)) {
+			if (arg.includes("n")) return null;
 			if (arg.includes("f")) force = true;
 			if (arg.includes("d")) deleting = true;
 		} else if (!arg.startsWith("-")) positionals.push(arg);
@@ -220,6 +272,7 @@ function rmDecision(args, cwd, fromStdin, project) {
 	const root = project();
 	const temps = [tmpdir(), "/tmp", "/private/tmp", "/var/folders"].map((path) => resolve(path));
 	for (const target of targets) {
+		if (/^~[^/]/.test(target)) return `recursive rm of ${target} (unresolved home)`;
 		let expanded = target
 			.replace(/^~(?=\/|$)/, home)
 			.replace(/^\$\{?HOME\}?(?=\/|$)/, home)
@@ -232,27 +285,60 @@ function rmDecision(args, cwd, fromStdin, project) {
 		}
 		const path = resolve(cwd, expanded);
 		if (path === sep || path === home) return `recursive rm of ${target}`;
-		if (path === root) return `recursive rm of the project root (${target})`;
+		if (root && path === root) return `recursive rm of the project root (${target})`;
 		if (path.split(sep).includes(".git")) return `recursive rm inside .git (${target})`;
-		if (insidePath(path, root)) continue;
+		if (root && insidePath(path, root)) continue;
 		if (temps.some((temp) => insidePath(path, temp) && path !== temp)) continue;
 		return `recursive rm outside the project (${target})`;
 	}
 	return null;
 }
 
+function shellCommandString(args) {
+	for (let index = 0; index < args.length; index += 1) {
+		const arg = args[index];
+		if (!arg.startsWith("-")) return null;
+		if (/^-[A-Za-z]*c[A-Za-z]*$/.test(arg)) return args.slice(index + 1).find((value) => !value.startsWith("-")) ?? null;
+	}
+	return null;
+}
+
+function findExecDecision(args, cwd, project) {
+	const starts = [];
+	let index = 0;
+	while (index < args.length && !/^[-(!]/.test(args[index])) starts.push(args[index++]);
+	for (; index < args.length; index += 1) {
+		if (!["-exec", "-execdir", "-ok", "-okdir"].includes(args[index])) continue;
+		const end = args.findIndex((value, at) => at > index && (value === ";" || value === "+"));
+		const exec = unwrap(args.slice(index + 1, end === -1 ? undefined : end)).words;
+		if (exec.length && basename(exec[0]) === "rm") {
+			const flags = exec.slice(1).filter((value) => value.startsWith("-"));
+			const children = (starts.length ? starts : ["."]).map((start) => `${start.replace(/\/+$/, "")}/entry`);
+			const reason = rmDecision([...flags, "--", ...children], cwd, false, project);
+			if (reason) return reason;
+		}
+	}
+	return null;
+}
+
 function segmentDecision(words, cwd, project) {
-	const { words: command, fromStdin } = unwrap(words);
+	const { words: command, fromStdin, nested } = unwrap(words);
+	if (nested !== undefined) return { reason: opsStopReason(nested, cwd ?? process.cwd(), project), cwd };
 	if (!command.length) return { cwd };
 	const name = basename(command[0]);
-	if (name === "cd") {
-		const target = command[1] ?? homedir();
-		if (cwd == null || target === "-" || target.includes("$")) return { cwd: null };
+	if (name === "cd" || name === "pushd") {
+		const args = command.slice(1).filter((value) => value === "-" || !/^-(?:-|[LPe@]*)$/.test(value));
+		const target = args[0] ?? homedir();
+		if (cwd == null || target === "-" || target.includes("$") || /^[~][^/]/.test(target)) return { cwd: null };
 		return { cwd: resolve(cwd, target.replace(/^~(?=\/|$)/, homedir())) };
 	}
-	if ((name === "bash" || name === "sh" || name === "zsh") && command[1] === "-c" && command[2]) {
-		return { reason: opsStopReason(command[2], cwd ?? process.cwd(), project), cwd };
+	if (name === "popd") return { cwd: null };
+	if (SHELLS.has(name)) {
+		const script = shellCommandString(command.slice(1));
+		return { reason: script == null ? null : opsStopReason(script, cwd ?? process.cwd(), project), cwd };
 	}
+	if (name === "eval") return { reason: opsStopReason(command.slice(1).join(" "), cwd ?? process.cwd(), project), cwd };
+	if (name === "find") return { reason: cwd == null ? null : findExecDecision(command.slice(1), cwd, project), cwd };
 	if (name === "git") {
 		let index = 1;
 		let gitCwd = cwd;
@@ -272,13 +358,17 @@ function segmentDecision(words, cwd, project) {
 }
 
 function opsStopReason(command, cwd, project) {
-	const text = String(command ?? "");
+	const text = stripHeredocs(String(command ?? ""));
 	if (!PREFILTER.test(text)) return null;
-	const segments = segmentsOf(text);
+	let segments = segmentsOf(text);
 	if (!segments) {
-		if (/\bgit\b[\s\S]*\bpush\b/.test(text)) return "unparsed command containing git push";
-		if (RECURSIVE_RM.test(text)) return "unparsed command containing a recursive rm";
-		return null;
+		const visible = stripQuoted(text);
+		segments = segmentsOf(visible);
+		if (!segments) {
+			if (/\bgit\b[\s\S]*\bpush\b/.test(visible)) return "unparsed command containing git push";
+			if (RECURSIVE_RM.test(visible)) return "unparsed command containing a recursive rm";
+			return null;
+		}
 	}
 	let current = cwd;
 	for (const words of segments) {
@@ -292,7 +382,9 @@ function opsStopReason(command, cwd, project) {
 export function opsStopGuardDecision({ command, cwd } = {}) {
 	const start = resolve(cwd || process.cwd());
 	let root;
-	const project = () => (root ??= git(start, ["rev-parse", "--show-toplevel"]) || start);
+	const home = homedir();
+	const fallback = start === sep || start === home || insidePath(home, start) ? null : start;
+	const project = () => (root === undefined ? (root = git(start, ["rev-parse", "--show-toplevel"]) || fallback) : root);
 	const reason = opsStopReason(command, start, project);
 	if (!reason) return null;
 	return {
