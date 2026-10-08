@@ -28,4 +28,27 @@ NEGATIVE_PID=$!
 
 wait "$NEGATIVE_PID"
 
+# pi/durable imports the sibling pi-mobile checkout, which CI does not have.
+# Only the unresolved pi-mobile imports are tolerated; every other diagnostic fails.
+DURABLE_DIR="$ROOT_DIR/pi/durable"
+if [ ! -d "$DURABLE_DIR/node_modules" ]; then
+  printf 'Pi durable typecheck: pi/durable/node_modules is missing; run npm ci --prefix pi/durable\n' >&2
+  exit 1
+fi
+set +e
+npm run --silent typecheck --prefix "$DURABLE_DIR" >"$TMP_DIR/durable-tsc.log" 2>&1
+DURABLE_STATUS=$?
+set -e
+if [ "$DURABLE_STATUS" -ne 0 ] && ! grep -q ': error TS[0-9]*:' "$TMP_DIR/durable-tsc.log"; then
+  cat "$TMP_DIR/durable-tsc.log" >&2
+  printf 'Pi durable typecheck exited %s without diagnostics\n' "$DURABLE_STATUS" >&2
+  exit 1
+fi
+if grep ': error TS[0-9]*:' "$TMP_DIR/durable-tsc.log" |
+  grep -v "error TS2307: Cannot find module '[^']*pi-mobile/" >&2; then
+  printf 'Pi durable typecheck failed; full output:\n' >&2
+  cat "$TMP_DIR/durable-tsc.log" >&2
+  exit 1
+fi
+
 printf 'Pi typecheck smoke test: ok\n'
