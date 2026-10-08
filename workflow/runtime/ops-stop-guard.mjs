@@ -145,7 +145,7 @@ function defaultBranches(cwd, remote) {
 }
 
 function branchName(ref, currentBranch) {
-	const value = ref.replace(/^refs\/heads\//, "");
+	const value = ref.startsWith("refs/heads/") ? ref.slice("refs/heads/".length) : ref;
 	return value === "HEAD" || value === "@" ? currentBranch : value;
 }
 
@@ -226,7 +226,10 @@ function rmDecision(args, cwd, fromStdin, project) {
 			.replace(/^\$\{?TMPDIR\}?(?=\/|$)/, tmpdir());
 		if (expanded.includes("$")) return `recursive rm of ${target} (unresolved variable)`;
 		const glob = expanded.search(/[*?[]/);
-		if (glob !== -1) expanded = expanded.slice(0, glob).replace(/[^/]*$/, "") || ".";
+		if (glob !== -1) {
+			const prefix = expanded.slice(0, glob);
+			expanded = prefix.slice(0, prefix.lastIndexOf("/") + 1) || ".";
+		}
 		const path = resolve(cwd, expanded);
 		if (path === sep || path === home) return `recursive rm of ${target}`;
 		if (path === root) return `recursive rm of the project root (${target})`;
