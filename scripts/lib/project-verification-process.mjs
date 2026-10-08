@@ -166,6 +166,7 @@ export function createVerificationProcesses({
           handle.groupMembers = members;
           return members;
         }
+        if (leader && !handle.leaderReaped) handle.leaderBirth ??= leader.birth;
         if (!handle.leaderBirth) return []; // A newborn miss stays pending.
         handle.exited = true;
         if (service && !intentional) handle.unexpectedExit = true;
