@@ -91,18 +91,52 @@ function tokenize(command) {
 	return tokens;
 }
 
+function heredocDelimiters(line) {
+	const visible = [...line];
+	let quote = "";
+	for (let index = 0; index < visible.length; index += 1) {
+		const character = visible[index];
+		if (quote) {
+			if (character === quote) quote = "";
+			visible[index] = " ";
+		} else if (character === "'" || character === '"') {
+			quote = character;
+		} else if (character === "#" && (index === 0 || /\s/.test(visible[index - 1]))) {
+			visible.fill(" ", index);
+			break;
+		}
+	}
+	const text = visible.join("").replace(/\$\(\([^)]*\)\)/g, (span) => " ".repeat(span.length));
+	const delimiters = [];
+	for (const match of text.matchAll(/(?<![<\d])<<-?(?!<)\s*/g)) {
+		const rest = line.slice(match.index + match[0].length);
+		const delimiter = rest.match(/^(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/);
+		if (delimiter) delimiters.push(delimiter[2]);
+	}
+	return delimiters;
+}
+
 function stripHeredocs(command) {
 	const kept = [];
-	let pending = [];
+	const pending = [];
 	for (const line of command.split("\n")) {
 		if (pending.length) {
 			if (line.trim() === pending[0]) pending.shift();
 			continue;
 		}
 		kept.push(line);
-		for (const match of line.matchAll(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/g)) pending.push(match[2]);
+		pending.push(...heredocDelimiters(line));
 	}
 	return kept.join("\n");
+}
+
+function quotedSubstitutionReason(command) {
+	for (const [quoted] of command.matchAll(/"(?:[^"\\]|\\.)*"/g)) {
+		if (!/\$\(|`/.test(quoted)) continue;
+		if (/\bgit\b[\s\S]*\bpush\b/.test(quoted)) return "git push inside a command substitution";
+		if (RECURSIVE_RM.test(quoted)) return "recursive rm inside a command substitution";
+	}
+	return null;
 }
 
 function stripQuoted(command) {
@@ -148,9 +182,19 @@ function skipOptions(words, index, valued) {
 	return index;
 }
 
+function chdirOption(words, index, names) {
+	const word = words[index];
+	for (const name of names) {
+		if (word === name) return words[index + 1] ?? "$UNKNOWN";
+		if (name.startsWith("--") && word.startsWith(`${name}=`)) return word.slice(name.length + 1);
+	}
+	return undefined;
+}
+
 function unwrap(words) {
 	let index = 0;
 	let fromStdin = false;
+	let chdir;
 	while (index < words.length) {
 		const word = words[index];
 		const name = basename(word);
@@ -161,19 +205,24 @@ function unwrap(words) {
 			while (index < words.length && (words[index].startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index]))) {
 				const option = words[index];
 				if (option === "-S" || option === "--split-string") {
-					return { words: [], nested: words[index + 1] ?? "", fromStdin };
+					return { words: [], nested: words[index + 1] ?? "", fromStdin, chdir };
 				}
+				chdir = chdirOption(words, index, ["-C", "--chdir"]) ?? chdir;
 				index += ["-u", "--unset", "-C", "--chdir"].includes(option) ? 2 : 1;
 			}
 		} else if (name === "rtk" && words[index + 1] === "proxy") {
 			index += 2;
 		} else if (Object.hasOwn(WRAPPERS, name)) {
-			index = skipOptions(words, index + 1, WRAPPERS[name]);
+			const end = skipOptions(words, index + 1, WRAPPERS[name]);
+			if (name === "sudo") {
+				for (let at = index + 1; at < end; at += 1) chdir = chdirOption(words, at, ["-D", "--chdir"]) ?? chdir;
+			}
+			index = end;
 			if (name === "timeout") index += 1;
 			if (name === "xargs") fromStdin = true;
 		} else break;
 	}
-	return { words: words.slice(index), fromStdin };
+	return { words: words.slice(index), fromStdin, chdir };
 }
 
 function git(cwd, args) {
@@ -279,13 +328,17 @@ function rmDecision(args, cwd, fromStdin, project) {
 			.replace(/^\$\{?TMPDIR\}?(?=\/|$)/, tmpdir());
 		if (expanded.includes("$")) return `recursive rm of ${target} (unresolved variable)`;
 		const glob = expanded.search(/[*?[]/);
+		let pattern = "";
 		if (glob !== -1) {
 			const prefix = expanded.slice(0, glob);
-			expanded = prefix.slice(0, prefix.lastIndexOf("/") + 1) || ".";
+			const cut = prefix.lastIndexOf("/") + 1;
+			pattern = expanded.slice(cut).split("/")[0];
+			expanded = prefix.slice(0, cut) || ".";
 		}
 		const path = resolve(cwd, expanded);
 		if (path === sep || path === home) return `recursive rm of ${target}`;
-		if (root && path === root) return `recursive rm of the project root (${target})`;
+		const narrowGlob = pattern && !/^\.?\*+$/.test(pattern);
+		if (root && path === root && !narrowGlob) return `recursive rm of the project root (${target})`;
 		if (path.split(sep).includes(".git")) return `recursive rm inside .git (${target})`;
 		if (root && insidePath(path, root)) continue;
 		if (temps.some((temp) => insidePath(path, temp) && path !== temp)) continue;
@@ -297,8 +350,12 @@ function rmDecision(args, cwd, fromStdin, project) {
 function shellCommandString(args) {
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
-		if (!arg.startsWith("-")) return null;
-		if (/^-[A-Za-z]*c[A-Za-z]*$/.test(arg)) return args.slice(index + 1).find((value) => !value.startsWith("-")) ?? null;
+		if (["-o", "+o", "-O", "+O"].includes(arg)) {
+			index += 1;
+			continue;
+		}
+		if (!/^[-+]/.test(arg)) return null;
+		if (/^-[A-Za-z]*c[A-Za-z]*$/.test(arg)) return args.slice(index + 1).find((value) => !/^[-+]/.test(value)) ?? null;
 	}
 	return null;
 }
@@ -322,7 +379,13 @@ function findExecDecision(args, cwd, project) {
 }
 
 function segmentDecision(words, cwd, project) {
-	const { words: command, fromStdin, nested } = unwrap(words);
+	const unwrapped = unwrap(words);
+	const { words: command, fromStdin, nested } = unwrapped;
+	if (unwrapped.chdir !== undefined) {
+		const target = unwrapped.chdir;
+		const inner = cwd == null || target.includes("$") ? null : resolve(cwd, target);
+		return { reason: segmentDecision(command, inner, project).reason, cwd };
+	}
 	if (nested !== undefined) return { reason: opsStopReason(nested, cwd ?? process.cwd(), project), cwd };
 	if (!command.length) return { cwd };
 	const name = basename(command[0]);
@@ -362,6 +425,8 @@ function opsStopReason(command, cwd, project) {
 	if (!PREFILTER.test(text)) return null;
 	let segments = segmentsOf(text);
 	if (!segments) {
+		const substituted = quotedSubstitutionReason(text);
+		if (substituted) return substituted;
 		const visible = stripQuoted(text);
 		segments = segmentsOf(visible);
 		if (!segments) {
