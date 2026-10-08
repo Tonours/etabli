@@ -43,7 +43,3 @@ function appendGuardLine(input) {
 export function recordGuardDenial(input) {
 	appendGuardLine(input);
 }
-
-export function recordGuardBypass(input) {
-	appendGuardLine(input);
-}
