@@ -561,6 +561,14 @@ ops_branch_output="$(
 		node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 )"
 assert_empty "$ops_branch_output" "plan-ready-guard on a feature-branch push"
+for unattended_mode in bypassPermissions dontAsk; do
+	ops_unattended_output="$(
+		printf '{"cwd":"%s","permission_mode":"%s","tool_name":"Bash","tool_input":{"command":"git push origin main"}}\n' "$ops_free" "$unattended_mode" |
+			node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
+	)"
+	assert_contains "$ops_unattended_output" '"permissionDecision":"deny"'
+	assert_contains "$ops_unattended_output" 'run it yourself'
+done
 
 broken_hooks="$TMP_DIR/broken-hooks"
 broken_plan="$TMP_DIR/broken-plan"
@@ -588,6 +596,9 @@ broken_free_output="$(
 )"
 assert_empty "$broken_free_output" "broken plan-ready-guard without a plan or push/rm"
 assert_contains "$(cat "$TMP_DIR/broken-free.err")" 'plan-ready-guard failed'
+
+broken_malformed_output="$(cd "$broken_plan" && printf 'not json{' | node "$broken_hooks/plan-ready-guard.mjs" 2>/dev/null)"
+assert_empty "$broken_malformed_output" "broken plan-ready-guard on malformed stdin"
 
 broken_reader_output="$(
 	printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"ls"}}\n' "$broken_free" |

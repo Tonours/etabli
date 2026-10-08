@@ -25,6 +25,7 @@ function projectRoot(cwd) {
 }
 
 function guardExpected(input) {
+  if (!input.tool_name) return false;
   const cwd = input.cwd || process.cwd();
   if (existsSync(join(cwd, "PLAN.md")) || existsSync(join(projectRoot(cwd), "PLAN.md"))) return true;
   const command = String(input.tool_input?.command ?? input.tool_input?.cmd ?? "");
@@ -49,10 +50,11 @@ try {
       cwd: input.cwd,
     });
     if (ops) {
+      const unattended = ["bypassPermissions", "dontAsk"].includes(input.permission_mode);
       emit({
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
-          permissionDecision: "ask",
+          permissionDecision: unattended ? "deny" : "ask",
           permissionDecisionReason: ops.reason,
         },
       });

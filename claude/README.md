@@ -241,11 +241,11 @@ into `~/.claude/settings.json`. `permissions.defaultMode: "bypassPermissions"`
 and the two skip flags (`skipDangerousModePermissionPrompt`,
 `skipAutoPermissionPrompt`) are set in the local settings file, not tracked;
 the sync would propagate them key by key if the fragment carried them, never
-touching local `allow`/`deny` lists. The `plan-ready-guard` hook returns
-`ask` before the irreversible pushes and deletions listed in
-`workflow/contract-details.md` § Human checkpoints; Claude's hook docs do not
-say how `bypassPermissions` treats a hook `ask`, so confirm it once on this
-machine.
+touching local `allow`/`deny` lists. The `plan-ready-guard` hook asks before
+the irreversible pushes and deletions listed in `workflow/contract-details.md`
+§ Human checkpoints. Claude's hook docs do not promise a prompt for a hook
+`ask` under `bypassPermissions` or `dontAsk`, so in those modes it denies
+instead and the reason tells you to run the command yourself.
 
 The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
 `attribution.commit`/`attribution.pr`, the two skip flags, `autoMemoryEnabled`), so no secret can leak into the tracked fragment. The
