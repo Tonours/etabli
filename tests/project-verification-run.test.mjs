@@ -547,6 +547,71 @@ for (const replacement of ["retired", "reused-descendant", "owned-descendant"]) 
   });
 }
 
+for (const outcome of ["empty", "descendant", "foreign-leader"]) {
+  test(`zombie leader at the first sample: ${outcome}`, async (t) => {
+    let state = outcome === "descendant" ? "zombie-with-descendant" : "zombie";
+    const signals = [];
+    const processes = createVerificationProcesses({
+      cwd: process.cwd(), runRoot: process.cwd(), originRoot: process.cwd(),
+      environment: { PATH: process.env.PATH }, binding: {},
+      observeGroup: (group) => {
+        const leader = { pid: group, live: false, birth: "original birth" };
+        const descendant = { pid: group + 1, live: true, birth: "descendant birth" };
+        if (state === "zombie") return [leader];
+        if (state === "zombie-with-descendant") return [leader, descendant];
+        if (state === "descendant") return [descendant];
+        if (state === "foreign-leader") return [{ pid: group, live: true, birth: "new birth" }];
+        return [];
+      },
+      sendGroupSignal: () => assert.fail("An exited leader must not authorize a group signal"),
+      sendMemberSignal: (pid, signal) => { signals.push({ pid, signal }); state = "empty"; },
+    });
+    t.after(() => processes.dispose());
+    const handle = processes.start({ argv: [process.execPath, "-e", "setTimeout(()=>{},50)"], timeout_ms: 5000 }, "launch");
+    state = outcome;
+    assert.equal((await handle.done).ok, true);
+    const groups = await processes.stopAll();
+    assert.deepEqual(groups, [{ pid: handle.child.pid, reaped: outcome !== "foreign-leader" }]);
+    if (outcome === "descendant") assert.deepEqual(signals, [{ pid: handle.child.pid + 1, signal: "SIGTERM" }]);
+    else assert.deepEqual(signals, [], "Only recorded group members may be signaled");
+    if (outcome !== "foreign-leader") assert.equal(handle.leaderBirth, "original birth", "An unwaited zombie leader is still the owned child");
+  });
+}
+
+for (const shape of ["exit", "descendant"]) {
+  test(`real leader that is already a zombie at its first sample is reaped: ${shape}`, async (t) => {
+    const identities = (group) => spawnSync("ps", ["-axo", "pid=,pgid=,stat=,lstart="], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } })
+      .stdout.trim().split("\n").map((line) => line.match(/^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+?)\s*$/)).filter(Boolean)
+      .map((m) => ({ pid: Number(m[1]), group: Number(m[2]), live: !/^[ZX]/.test(m[3]), birth: m[4].replace(/\s+/g, " ") }))
+      .filter((member) => member.group === group);
+    let first = true;
+    const processes = createVerificationProcesses({
+      cwd: process.cwd(), runRoot: process.cwd(), originRoot: process.cwd(),
+      environment: { PATH: process.env.PATH }, binding: {},
+      observeGroup: (group) => {
+        if (first) {
+          first = false;
+          const deadline = Date.now() + 5000;
+          while (!identities(group).some((member) => member.pid === group && !member.live) && Date.now() < deadline)
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+        }
+        return identities(group);
+      },
+    });
+    let survivor;
+    t.after(() => { processes.dispose(); if (survivor) try { process.kill(survivor, "SIGKILL"); } catch {} });
+    const argv = shape === "exit" ? [process.execPath, "-e", ""] : ["/bin/sh", "-c", "sleep 30 >/dev/null 2>&1 & echo $!"];
+    const handle = processes.start({ argv, timeout_ms: 5000 }, "action");
+    const result = await handle.done;
+    assert.equal(result.ok, true);
+    if (shape === "descendant") survivor = Number(result.stdout.toString().trim());
+    const groups = await processes.stopAll();
+    assert.deepEqual(groups, [{ pid: handle.child.pid, reaped: true }]);
+    assert.equal(identities(handle.child.pid).some((member) => member.live), false, "No owned group member may survive");
+    assert.ok(handle.leaderBirth, "The zombie leader identity was recorded");
+  });
+}
+
 test("identity lost during final cleanup observation cannot be reported reaped", async (t) => {
   let phase = "leaders", first, second;
   const signals = [];
