@@ -58,8 +58,8 @@ dependabot_pairs="$(awk '
 ' "$DEPENDABOT")"
 printf '%s\n' "$dependabot_pairs" | grep -q '^github-actions /$' ||
   fail "missing github-actions Dependabot surface"
-printf '%s\n' "$dependabot_pairs" | grep -q '^npm /pi$' ||
-  fail "missing Pi npm Dependabot surface"
+printf '%s\n' "$dependabot_pairs" | grep -q '^bun /pi$' ||
+  fail "missing Pi bun Dependabot surface"
 printf '%s\n' "$dependabot_pairs" | grep -q '^npm /pi/durable$' ||
   fail "missing Pi durable npm Dependabot surface"
 grep -Eq 'uses:[[:space:]]+actions/setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]' "$WORKFLOW" ||
