@@ -103,6 +103,12 @@ are requested metadata, not effective provenance. Engine success never replaces
 deterministic assertions. Real provider execution needs its own runtime evidence;
 test doubles do not establish it.
 
+In CI, live engine proof is slow and billed, so it is opt-in. Run it on
+default-branch pushes, manual dispatch, and pull requests labelled `trust`.
+Read the label on pull-request pushes; do not add a `labeled` trigger, because
+it would rerun every job. Deterministic checks still run on every push. Forks
+and bots stay excluded.
+
 ## Evidence and UI
 
 Action references include `action`, results `outcome`, persistence `side_effect`.
