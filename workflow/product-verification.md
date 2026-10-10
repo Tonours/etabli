@@ -71,7 +71,10 @@ environment/recipe hashes, argv, cwd, role, PID, timestamps, timeout and actual
 exit/signal. Raw observations link to stdout hashes. Launch/doctor/isolation/
 cleanup need actual passing observations. Services stay alive until intended
 shutdown. Timeout/interruption bounds command closure with a 2-second shutdown
-grace; cleanup starts its 10-second deadline before waiting for completion.
+grace; cleanup starts its deadline before waiting for completion.
+`ETABLI_CLEANUP_GRACE_MS` sets that deadline when the trimmed value is a
+decimal integer from 1 to 2147483647 with no leading zero. Any other value,
+including an unset variable, keeps the 10000 ms default.
 Group signals require the observed live leader and its birth; after leader exit,
 only captured member PIDs with rechecked births are signaled. A missing live
 birth stays pending even after actual exit; an empty snapshot of that unanchored

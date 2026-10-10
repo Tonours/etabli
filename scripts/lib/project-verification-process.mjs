@@ -40,6 +40,17 @@ export function processGroupMembers(group) {
   return processGroupIdentities(group).map((member) => member.pid);
 }
 
+const defaultCleanupGraceMs = 10000;
+
+function cleanupGraceFromEnv() {
+  const raw = process.env.ETABLI_CLEANUP_GRACE_MS;
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!/^[1-9]\d*$/.test(text)) return defaultCleanupGraceMs;
+  const value = Number(text);
+  if (!Number.isSafeInteger(value) || value > 2147483647) return defaultCleanupGraceMs;
+  return value;
+}
+
 export function createVerificationProcesses({
   cwd,
   runRoot,
@@ -51,7 +62,7 @@ export function createVerificationProcesses({
   sendGroupSignal = (group, signal) => process.kill(-group, signal),
   sendMemberSignal = (pid, signal) => process.kill(pid, signal),
   closeGraceMs = 2000,
-  cleanupGraceMs = 10000,
+  cleanupGraceMs = cleanupGraceFromEnv(),
 }) {
   for (const grace of [closeGraceMs, cleanupGraceMs])
     assert.ok(Number.isSafeInteger(grace) && grace > 0 && grace <= 2147483647, "Shutdown grace must be in Node timer range 1..2147483647");
