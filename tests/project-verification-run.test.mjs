@@ -877,3 +877,72 @@ test("cleanup real-time deadline bounds reaping even when the wall clock freezes
     assert.ok(groups.every(group => !group.reaped));
   } finally {clearTimeout(watchdog);phase="empty";}
 });
+
+test("ETABLI_CLEANUP_GRACE_MS sets cleanup grace to a positive integer", async (t) => {
+  const key = "ETABLI_CLEANUP_GRACE_MS";
+  const previous = process.env[key];
+  t.after(() => {
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
+  });
+  async function observedGrace(env, cleanupGraceMs) {
+    if (env === undefined) delete process.env[key];
+    else process.env[key] = env;
+    const processes = createVerificationProcesses({
+      cwd: process.cwd(),
+      runRoot: process.cwd(),
+      originRoot: process.cwd(),
+      environment: { PATH: process.env.PATH },
+      binding: {},
+      observeGroup: () => [],
+      sendGroupSignal: () => {},
+      sendMemberSignal: () => {},
+      ...(cleanupGraceMs === undefined ? {} : { cleanupGraceMs }),
+    });
+    try {
+      const handle = processes.start(
+        { argv: [process.execPath, "-e", ""], timeout_ms: 1000 },
+        "action",
+      );
+      await handle.done;
+      const delays = [];
+      const original = global.setTimeout;
+      t.mock.method(global, "setTimeout", (fn, ms, ...args) => {
+        delays.push(ms);
+        return original(fn, ms, ...args);
+      });
+      try {
+        await processes.stopAll();
+      } finally {
+        t.mock.restoreAll();
+      }
+      assert.equal(delays.length, 1, "Cleanup arms one deadline");
+      return delays[0];
+    } finally {
+      processes.dispose();
+    }
+  }
+  const cases = [
+    ["250", undefined, 250],
+    ["1", undefined, 1],
+    ["2147483647", undefined, 2147483647],
+    [" 30000 ", undefined, 30000],
+    [undefined, undefined, 10000],
+    ["", undefined, 10000],
+    ["0", undefined, 10000],
+    ["-5", undefined, 10000],
+    ["1.5", undefined, 10000],
+    ["10abc", undefined, 10000],
+    ["2147483648", undefined, 10000],
+    ["+30", undefined, 10000],
+    ["1e4", undefined, 10000],
+    ["01", undefined, 10000],
+    ["250", 100, 100],
+  ];
+  for (const [env, explicit, expected] of cases)
+    assert.equal(
+      await observedGrace(env, explicit),
+      expected,
+      `${JSON.stringify(env)} explicit ${explicit}`,
+    );
+});
