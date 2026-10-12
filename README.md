@@ -100,8 +100,8 @@ scripts/workflow-run-check preflight # prerequisites before validation
 scripts/workflow-run-check close --dir .workflow your-run # prospective event-chain check
 ```
 
-CI runs `agentic-infra` on `ubuntu-24.04` for the public repository and on
-self-hosted runners for private ones (`gh run list --workflow agentic-infra.yml`).
+CI runs `agentic-infra` on GitHub-hosted `ubuntu-24.04`
+(`gh run list --workflow agentic-infra.yml`).
 
 ## Learn more
 

@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   verify-shell-and-docs:
-    runs-on: ${{ fromJSON(github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","Linux","X64","vps-24g","ci-etabli"]' || '["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -35,7 +35,7 @@ jobs:
         run: scripts/verify-agentic-infra shell-docs
 
   verify-pi-typescript:
-    runs-on: ${{ fromJSON(github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","Linux","X64","vps-24g","ci-etabli"]' || '["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
