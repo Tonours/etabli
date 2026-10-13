@@ -156,6 +156,22 @@ export function enginePreflight(recipe, useEngine, environment = process.env) {
   };
 }
 
+const CONSTRAINT_TOOLS = [
+  ["eslint", ["eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.ts", "eslint.config.mts", "eslint.config.cts", ".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yml", ".eslintrc.yaml"]],
+  ["ember-template-lint", [".template-lintrc.js", ".template-lintrc.cjs", ".template-lintrc.mjs"]],
+  ["stylelint", ["stylelint.config.js", "stylelint.config.mjs", "stylelint.config.cjs", ".stylelintrc", ".stylelintrc.json", ".stylelintrc.yml", ".stylelintrc.yaml", ".stylelintrc.js", ".stylelintrc.cjs"]],
+  ["typescript", ["tsconfig.json"]],
+  ["biome", ["biome.json", "biome.jsonc"]],
+  ["oxlint", [".oxlintrc.json"]],
+  ["ruff", ["ruff.toml", ".ruff.toml"]],
+  ["mypy", ["mypy.ini", ".mypy.ini"]],
+  ["pyright", ["pyrightconfig.json"]],
+  ["pyproject", ["pyproject.toml"]],
+  ["clippy", ["clippy.toml", ".clippy.toml"]],
+  ["golangci-lint", [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"]],
+  ["ast-grep", ["sgconfig.yml"]],
+];
+
 function metadata(root, path) {
   try {
     return JSON.parse(readFileSync(confinedFile(root, path), "utf8"));
@@ -194,6 +210,17 @@ export function discoverVerification(root = process.cwd()) {
       .filter((path) => existsSync(join(root, scope, path)))
       .map((path) => scope + path),
   );
+  const constraints = scopes.flatMap((scope) =>
+    CONSTRAINT_TOOLS.flatMap(([tool, files]) =>
+      files
+        .filter((file) =>
+          lstatSync(join(root, scope, file), {
+            throwIfNoEntry: false,
+          })?.isFile(),
+        )
+        .map((file) => ({ tool, path: scope + file })),
+    ),
+  );
   const workspaces = scopes.filter(Boolean).flatMap((scope) => {
     const pkg = metadata(root, scope + "package.json");
     return pkg
@@ -225,6 +252,7 @@ export function discoverVerification(root = process.cwd()) {
     commands: manifest?.scripts ?? {},
     workspaces,
     configuration,
+    constraints,
     prerequisites,
     missing_prerequisites: prerequisites
       .filter((item) => !item.available)
