@@ -19,6 +19,7 @@ export function verificationEnvironment(source = process.env) {
       "LC_ALL",
       "TZ",
       "SYSTEMROOT",
+      "RUNNER_TRACKING_ID",
     ]
       .filter((name) => source[name] !== undefined)
       .map((name) => [name, source[name]]),
