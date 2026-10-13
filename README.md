@@ -73,6 +73,9 @@ then `scripts/project-verification init`. Adapt the versioned
 Init leaves unresolved coverage; it never overwrites a recipe. No model key is
 needed for this baseline. Optional `--engine` uses a configured local runtime;
 credentials are requested only if that selected engine needs them.
+`discover` also lists the project's lint and type-check config under
+`constraints`: where a recurring agent mistake becomes a rule
+([`workflow/project-constraints.md`](workflow/project-constraints.md)).
 
 ## Repository map
 

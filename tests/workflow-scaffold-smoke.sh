@@ -69,6 +69,8 @@ assert_file "$NEW_PROJECT/workflow/git-contract.md"
 assert_file "$NEW_PROJECT/workflow/pr-body-contract.md"
 assert_file "$NEW_PROJECT/workflow/verification-report-template.md"
 assert_file "$NEW_PROJECT/workflow/templates/escaped-defect.md"
+assert_same "$ROOT_DIR/workflow/project-constraints.md" "$NEW_PROJECT/workflow/project-constraints.md"
+assert_contains "$NEW_PROJECT/AGENTS.md" '`workflow/project-constraints.md`'
 assert_file "$NEW_PROJECT/workflow/review-rubric.md"
 assert_file "$NEW_PROJECT/workflow/ticket-template.md"
 assert_file "$NEW_PROJECT/workflow/linear-ticket-template.md"

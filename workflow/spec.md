@@ -107,8 +107,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   adversary is reserved for high-risk; standard accepts a documented
   same-family double-sample; small runs checks plus self-review.
 - Golden principles: every mechanical check fails with a message that names its remediation.
-  Instruction files stay maps, not manuals. The
-  third occurrence of the same review finding becomes a mechanical check.
+  Instruction files stay maps, not manuals.
   Recurring findings become reviewed recommendations, never auto-applied.
   Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
   the issue. Reviewers flag only gaps that affect correctness or stated requirements.
