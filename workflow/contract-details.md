@@ -142,9 +142,9 @@ sandbox. Shared workflow and evidence invariants stay in
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose
   duplicated across adapters. Instruction files stay maps, not manuals. The
-  third occurrence of the same review finding becomes a mechanical check.
-  Every mechanical check fails with a message that names its remediation.
-  A routing or guard failure observed in real use becomes a fixture.
+  third occurrence of the same review finding becomes a mechanical check
+  (`workflow/project-constraints.md`). Every mechanical check fails with a message
+  that names its remediation. A routing or guard failure observed in real use becomes a fixture.
 - Skills, commands, and agent instructions follow `workflow/skill-design.md`.
 - A code behavior change ships with tests written in the existing suite's
   conventions; a bug fix starts from a failing test that reproduces the

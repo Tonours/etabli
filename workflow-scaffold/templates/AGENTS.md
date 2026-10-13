@@ -20,6 +20,8 @@
   follow `workflow/product-verification.md`; auto product plans require evidence.
 - Preserve unrelated changes and report exact checks.
 - Instruction files stay maps, not manuals.
+- A recurring agent mistake becomes a constraint in this repo's own tooling:
+  `workflow/project-constraints.md`.
 
 ## Safety
 - No push, rewrite, deploy, secrets, production mutation, or destructive cleanup

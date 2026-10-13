@@ -33,9 +33,7 @@ never downgrade mid-run.
   (always loaded); a no-progress stop lists the eliminated hypotheses.
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.
-- A new transverse invariant ships with a mechanical check whose failure
-  message names its remediation; the third occurrence of the same review
-  finding becomes a mechanical check; instruction files stay maps, not manuals.
+- Golden principles: `workflow/contract-details.md`.
 - In autonomous runs a session handoff is a `handoff` event (branch, sha, done,
   pending, next action, do-not-redo); a started migration is finished or handed
   off that way, never left half done.
