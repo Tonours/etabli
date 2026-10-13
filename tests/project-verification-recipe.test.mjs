@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { appendFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
   discoverVerification,
@@ -65,6 +65,66 @@ test("discovery uses public metadata, bootstrap is create-only and incomplete re
   assert.equal(initialized.runnable, false);
   await assert.rejects(readVerificationRecipe(f.root), /placeholders/);
   assert.notEqual(f.run().status, 0);
+});
+
+function bareProject(t, files = {}) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "etabli-constraints-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), content);
+  }
+  return root;
+}
+
+test("discovery reports constraint tooling per scope without reading it", (t) => {
+  const root = bareProject(t, {
+    "eslint.config.js": "",
+    ".eslintrc.json": "{",
+    ".template-lintrc.js": "",
+    "pyproject.toml": "not toml [",
+    "ruff.toml": "",
+    "apps/web/tsconfig.json": "",
+    "apps/web/biome.json": "",
+    "packages/core/.golangci.yml": "",
+    "packages/core/sgconfig.yml": "",
+    "packages/core/clippy.toml": "",
+  });
+  const constraints = discoverVerification(root).constraints;
+  assert.deepEqual(constraints, [
+    { tool: "eslint", path: "eslint.config.js" },
+    { tool: "eslint", path: ".eslintrc.json" },
+    { tool: "ember-template-lint", path: ".template-lintrc.js" },
+    { tool: "ruff", path: "ruff.toml" },
+    { tool: "pyproject", path: "pyproject.toml" },
+    { tool: "typescript", path: "apps/web/tsconfig.json" },
+    { tool: "biome", path: "apps/web/biome.json" },
+    { tool: "clippy", path: "packages/core/clippy.toml" },
+    { tool: "golangci-lint", path: "packages/core/.golangci.yml" },
+    { tool: "ast-grep", path: "packages/core/sgconfig.yml" },
+  ]);
+});
+
+test("discovery reports no constraints for a bare project and keeps existing fields", (t) => {
+  const result = discoverVerification(bareProject(t));
+  assert.deepEqual(result.constraints, []);
+  assert.deepEqual(
+    Object.keys(result),
+    ["root", "commands", "workspaces", "configuration", "constraints", "prerequisites", "missing_prerequisites", "recipe", "next", "provider_key_required"],
+  );
+});
+
+test("discovery ignores symlinked, directory and symlinked-scope constraint candidates", (t) => {
+  const outside = bareProject(t, { "eslint.config.js": "", "biome.json": "" });
+  const root = bareProject(t, { "real.config.js": "" });
+  mkdirSync(join(root, "internal-dir"));
+  symlinkSync(join(root, "real.config.js"), join(root, "eslint.config.js"));
+  symlinkSync(join(outside, "biome.json"), join(root, "biome.json"));
+  symlinkSync(join(root, "missing.json"), join(root, ".oxlintrc.json"));
+  symlinkSync(join(root, "internal-dir"), join(root, "tsconfig.json"), "dir");
+  mkdirSync(join(root, "apps/dir/mypy.ini"), { recursive: true });
+  symlinkSync(outside, join(root, "apps/link"), "dir");
+  assert.deepEqual(discoverVerification(root).constraints, []);
 });
 
 for (const [name, mutate] of [

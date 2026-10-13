@@ -83,7 +83,10 @@ export function mergePatternRows(rows) {
 		resolutions: [...group.resolutions.values()],
 		recorded_resolved_run_count: group.resolutions.size,
 		evidence: group.evidence.slice(0, 3),
-		recommendation: families.size >= 3 ? (unmapped ? "Verify unmapped-run independence before considering a candidate mechanical check; do not auto-apply." : "Review a candidate mechanical check; do not auto-apply.") : "Review the cited observations before proposing a correction.",
+		recommendation: families.size < 3 ? "Review the cited observations before proposing a correction."
+			: unmapped ? "Verify unmapped-run independence before considering a candidate mechanical check; do not auto-apply."
+			: group.id.startsWith("finding/") && Object.keys(group.phase_counts).join() === "code_review" ? "Review a candidate project constraint (workflow/project-constraints.md); do not auto-apply."
+			: "Review a candidate mechanical check; do not auto-apply.",
 	}; }).sort((a, b) => b.family_count - a.family_count || b.initiative_count - a.initiative_count || b.observation_count - a.observation_count || a.id.localeCompare(b.id));
 }
 

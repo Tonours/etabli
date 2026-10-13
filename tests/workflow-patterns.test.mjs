@@ -332,3 +332,27 @@ test("planning findings are labelled and all lineage reporting stays read-only",
 	assert.match(renderReport(report()), /planning: 1/);
 	files.forEach((file, index) => assert.deepEqual(readFileSync(file), before[index]));
 });
+
+function recurringFinding(modes, mapped = modes.length) {
+	modes.forEach((mode, index) => ledger(root, `run-${index}`, [{ event: "adversary_completed", detail: { mode, accepted_findings: ["handler drops the error on retry"] } }]));
+	lineage(root, modes.slice(0, mapped).map((_, index) => ({ id: `work-${index}`, runs: [`run-${index}`], resolutions: [] })));
+	return report().patterns.rows[0].recommendation;
+}
+
+test("a code-review finding in three mapped families recommends a project constraint", () => {
+	assert.equal(recurringFinding(["code_diff", "code_diff", "code_diff"]), "Review a candidate project constraint (workflow/project-constraints.md); do not auto-apply.");
+});
+
+test("project-constraint recommendation excludes unmapped, planning, mixed and sub-threshold findings", () => {
+	const cases = [
+		[["code_diff", "code_diff", "code_diff"], 2, /^Verify unmapped-run independence before considering a candidate mechanical check/],
+		[["plan", "plan", "plan"], 3, /^Review a candidate mechanical check; do not auto-apply\.$/],
+		[["code_diff", "code_diff", "plan"], 3, /^Review a candidate mechanical check; do not auto-apply\.$/],
+		[["code_diff", "code_diff"], 2, /^Review the cited observations/],
+	];
+	for (const [modes, mapped, expected] of cases) {
+		rmSync(root, { recursive: true, force: true });
+		mkdirSync(root);
+		assert.match(recurringFinding(modes, mapped), expected);
+	}
+});

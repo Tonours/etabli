@@ -30,7 +30,9 @@ adds `project_root` and `patterns`. JSON includes all patterns and diagnostics.
   copied into the new pattern output; source paths locate the original evidence.
 - Three work groups produce a candidate mechanical-check recommendation.
   Mapped families count once; unmapped runs require an independence check first.
-  Every recommendation needs review before application.
+  An accepted finding observed only in code-diff review instead recommends a
+  candidate project constraint (`workflow/project-constraints.md`): the check
+  belongs in the subject project's tooling. Every recommendation needs review before application.
 - First/last dates describe observations. Archive evidence uses its recorded date
   (`timestamp_basis: archive_recorded`), not a claimed incident time; a partial-day
   window includes archives recorded on that day.

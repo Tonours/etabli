@@ -31,3 +31,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0027](0027-recenter-the-router-on-the-piv-core.md) — Recenter the router on the PIV core [accepted]
 - [0028](0028-define-write-authority-single-integrator-and-per-worktree-lease.md) — Define write authority as a single integrator plus a per-worktree lease [accepted]
 - [0029](0029-subscription-model-routing.md) — Align model routing with the subscription stack [accepted]
+- [0030](0030-promote-recurring-findings-into-project-native-constraints.md) — Promote recurring findings into project-native constraints [accepted]
