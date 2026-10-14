@@ -9,17 +9,25 @@ render_template() {
   env "${@/#/T_}" perl -0pe 's/\{\{(\w+)\}\}/exists $ENV{"T_$1"} ? $ENV{"T_$1"} : $&/ge' "$file"
 }
 
+# Reset every agent config file (CLAUDE.md, AGENTS.md, .claude, .mcp.json) in the
+# worktree to its version in the trusted commit (default: the staged base), wherever in
+# the PR history it was changed. Paths stay staged against the base so the review diff
+# does not show them.
 neutralize_author_config() {
-  local tree="$1" base="$2" path count=0
+  local tree="$1" base="$2" trusted="${3:-$2}" path count=0
   while IFS= read -r path; do
     [ -n "$path" ] || continue
-    if git -C "$tree" cat-file -e "$base:$path" 2>/dev/null; then
-      git -C "$tree" checkout -q "$base" -- "$path"
+    if git -C "$tree" cat-file -e "$trusted:$path" 2>/dev/null; then
+      git -C "$tree" checkout -q "$trusted" -- "$path"
     else
-      git -C "$tree" rm -q -f -- "$path" >/dev/null
+      git -C "$tree" rm -q -f --ignore-unmatch -- "$path" >/dev/null
+      rm -f -- "$tree/$path"
     fi
     count=$((count + 1))
-  done < <(git -C "$tree" diff --cached --name-only -- "${AUTHOR_CONFIG_PATHS[@]}")
+  done < <(git -C "$tree" diff --name-only "$trusted" -- "${AUTHOR_CONFIG_PATHS[@]}")
+  if [ "$trusted" != "$base" ]; then
+    git -C "$tree" reset -q "$base" -- "${AUTHOR_CONFIG_PATHS[@]}" >/dev/null 2>&1
+  fi
   [ "$count" -eq 0 ] || echo "=== $count agent config files changed by the PR were reset to the base version and are not reviewed"
 }
 

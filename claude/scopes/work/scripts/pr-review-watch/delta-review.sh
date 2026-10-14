@@ -25,6 +25,7 @@ if ! git cat-file -e "$SINCE^{commit}" 2>/dev/null || ! git merge-base --is-ance
   echo "=== ${SINCE:0:8} is not an ancestor of the head (rebase, force-push or no prior review): reviewing the whole PR diff"
   SINCE="$(git merge-base "refs/remotes/origin/$BASE_REF" "$HEAD_SHA")" || { echo "no merge base" >&2; exit 1; }
 fi
+MERGE_BASE="$(git merge-base "refs/remotes/origin/$BASE_REF" "$HEAD_SHA")" || { echo "no merge base" >&2; exit 1; }
 [ "$SINCE" != "$HEAD_SHA" ] || { echo "=== nothing new since ${SINCE:0:8}"; exit 0; }
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-delta-$NUMBER.XXXXXX")"
@@ -32,7 +33,7 @@ WORKTREE="$WORK_DIR/tree"
 trap 'git worktree remove --force "$WORKTREE" >/dev/null 2>&1' EXIT
 git worktree add -q --detach "$WORKTREE" "$HEAD_SHA" || { echo "cannot create worktree" >&2; exit 1; }
 git -C "$WORKTREE" reset -q --soft "$SINCE" || { echo "cannot stage the delta" >&2; exit 1; }
-neutralize_author_config "$WORKTREE" "$SINCE"
+neutralize_author_config "$WORKTREE" "$SINCE" "$MERGE_BASE"
 
 echo "=== delta ${SINCE:0:8}..${HEAD_SHA:0:8}: $(git -C "$WORKTREE" diff --cached --shortstat)"
 PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$NUMBER" PR_URL="$PR_URL" \

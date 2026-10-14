@@ -103,15 +103,26 @@ run_delta() {
   return "$rc"
 }
 
+verify_merge_base() {
+  local base_ref
+  base_ref="$(gh pr view "$NUMBER" --repo "$REPO" --json baseRefName --jq .baseRefName)" || return 1
+  [ -n "$base_ref" ] || return 1
+  git fetch -q origin "+refs/heads/$base_ref:refs/remotes/origin/$base_ref" || return 1
+  git merge-base "refs/remotes/origin/$base_ref" "$SHA"
+}
+
 run_verify_fixes() {
-  local claude tree raw rc
+  local claude tree raw rc base
   claude="$(claude_bin)"
   [ -n "$claude" ] || { echo "claude binary not found"; return 1; }
   tree="$(mktemp -d "${TMPDIR:-/tmp}/pr-verify-$NUMBER.XXXXXX")/tree"
   raw="${REPORT%.md}.json"
+  base="$(verify_merge_base)" && [ -n "$base" ] || { echo "cannot resolve the merge base for the verify pass"; return 1; }
   git worktree add -q --detach "$tree" "$SHA" || { echo "cannot create verify worktree"; return 1; }
+  neutralize_author_config "$tree" "$SHA" "$base"
   (cd "$tree" && run_with_timeout "$claude" -p --dangerously-skip-permissions --output-format json \
-    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "$(verify_prompt)" </dev/null) >"$raw" 2>"$raw.err"
+    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" --settings '{"disableAllHooks":true}' \
+    --strict-mcp-config --setting-sources project,local "$(verify_prompt)" </dev/null) >"$raw" 2>"$raw.err"
   rc=$?
   git worktree remove --force "$tree" >/dev/null 2>&1
   extract_result "$raw" | tee "$REPORT"

@@ -90,6 +90,35 @@ expect "run marker: other sha is not clean" "" "$(lib "validator_run_findings '$
 printf 'a={{A}} b={{B}} c={{C}}\n' >"$TMP_DIR/template.md"
 expect "template: special characters survive" 'a=R&D|x b=$HOME c={{C}}' "$(lib "render_template '$TMP_DIR/template.md' 'A=R&D|x' 'B=\$HOME'")"
 
+cfg="$TMP_DIR/cfgrepo"
+git init -q "$cfg"
+gitc() { git -C "$cfg" -c user.name=t -c user.email=t@t "$@"; }
+printf 'trusted\n' >"$cfg/CLAUDE.md"; printf 'a\n' >"$cfg/app.txt"
+gitc add -A && gitc commit -q -m base && cfg_base="$(gitc rev-parse HEAD)"
+mkdir -p "$cfg/.claude" "$cfg/sub"
+printf 'poisoned\n' >"$cfg/CLAUDE.md"; printf '{"hooks":{}}\n' >"$cfg/.claude/settings.json"
+printf 'poisoned\n' >"$cfg/sub/AGENTS.md"; printf '{}\n' >"$cfg/.mcp.json"
+gitc add -A && gitc commit -q -m poison && cfg_since="$(gitc rev-parse HEAD)"
+printf 'b\n' >"$cfg/app.txt"
+gitc add -A && gitc commit -q -m delta && cfg_head="$(gitc rev-parse HEAD)"
+cfg_state() {
+  printf '%s|%s|%s|%s' "$(cat "$1/CLAUDE.md")" "$([ -e "$1/.claude/settings.json" ] && echo hooks || echo none)" \
+    "$([ -e "$1/sub/AGENTS.md" ] && echo agents || echo none)" "$([ -e "$1/.mcp.json" ] && echo mcp || echo none)"
+}
+gitc worktree add -q --detach "$TMP_DIR/delta-tree" "$cfg_head"
+git -C "$TMP_DIR/delta-tree" reset -q --soft "$cfg_since"
+lib "neutralize_author_config '$TMP_DIR/delta-tree' '$cfg_since' '$cfg_base'" >/dev/null
+expect "config: delta pass resets config poisoned before the delta" "trusted|none|none|none" "$(cfg_state "$TMP_DIR/delta-tree")"
+expect "config: delta diff keeps only the delta" "app.txt" "$(git -C "$TMP_DIR/delta-tree" diff --cached --name-only)"
+gitc worktree add -q --detach "$TMP_DIR/verify-tree" "$cfg_head"
+lib "neutralize_author_config '$TMP_DIR/verify-tree' '$cfg_head' '$cfg_base'" >/dev/null
+expect "config: verify pass resets config to the merge base" "trusted|none|none|none" "$(cfg_state "$TMP_DIR/verify-tree")"
+expect "config: verify pass keeps the PR code" "b" "$(cat "$TMP_DIR/verify-tree/app.txt")"
+verify_fn="$(sed -n '/^run_verify_fixes() {/,/^}/p' "$SCRIPTS/pr-review-watch/review-run.sh")"
+expect "verify: neutralizes author config before claude" "1" "$(printf '%s\n' "$verify_fn" | grep -c 'neutralize_author_config "\$tree"')"
+expect "verify: hooks, mcp and setting sources restricted" "1" \
+  "$(printf '%s\n' "$verify_fn" | tr -d '\\\n' | grep -c "disableAllHooks.*--strict-mcp-config.*--setting-sources project,local")"
+
 fake_home="$TMP_DIR/home"
 mkdir -p "$fake_home/.claude/scripts/pr-autoreview" "$fake_home/.claude/state/pr-autoreview"
 printf 'owner/repo\tprofile\n' >"$fake_home/.claude/state/pr-autoreview/repos.tsv"
