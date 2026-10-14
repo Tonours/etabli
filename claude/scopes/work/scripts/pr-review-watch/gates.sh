@@ -9,7 +9,8 @@ field() {
 }
 
 unresolved_threads() {
-  gh api graphql --paginate -F owner="${REPO%/*}" -F name="${REPO#*/}" -F number="$NUMBER" -f query='
+  local out
+  out="$(gh api graphql --paginate -F owner="${REPO%/*}" -F name="${REPO#*/}" -F number="$NUMBER" -f query='
     query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
@@ -19,7 +20,8 @@ unresolved_threads() {
           }
         }
       }
-    }' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not) | 1' | wc -l | tr -d ' '
+    }' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not) | 1')" || return 1
+  printf '%s' "$out" | grep -c . || true
 }
 
 pr_state_line() {

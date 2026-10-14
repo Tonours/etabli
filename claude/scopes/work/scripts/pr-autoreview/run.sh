@@ -60,10 +60,17 @@ HUMAN_REVIEWERS=$(printf '%s' "${PR_REVIEWERS:-}" | tr ',' '\n' | grep -vxF "$ME
 LOCK="$LOCKS/${REPO//\//_}_$PR_NUMBER"
 WAITED=0
 until mkdir "$LOCK" 2>/dev/null; do
+  HOLDER="$(cat "$LOCK/pid" 2>/dev/null)"
+  if [ -n "$HOLDER" ] && ! kill -0 "$HOLDER" 2>/dev/null; then
+    echo "=== stale lock of #$PR_NUMBER (pid $HOLDER gone), taking it over"
+    rm -rf "$LOCK"
+    continue
+  fi
   [ "$WAITED" -lt "$TIMEOUT" ] || { echo "another review of #$PR_NUMBER still holds the lock, skip"; exit 0; }
   sleep 15
   WAITED=$((WAITED + 15))
 done
+echo "$$" >"$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
 
 SEEN_KEY="$REPO#$PR_NUMBER@$SHA"
@@ -71,7 +78,14 @@ if [ -f "$SEEN" ] && grep -qxF "$SEEN_KEY" "$SEEN" 2>/dev/null; then
   echo "already reviewed $SEEN_KEY, skip"
   exit 0
 fi
-if [ "$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid 2>/dev/null)" != "$SHA" ]; then
+CURRENT_HEAD=""
+for attempt in 1 2 3; do
+  CURRENT_HEAD="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid 2>/dev/null)" && [ -n "$CURRENT_HEAD" ] && break
+  CURRENT_HEAD=""
+  [ "$attempt" -lt 3 ] && sleep 10
+done
+[ -n "$CURRENT_HEAD" ] || { echo "cannot read the head of #$PR_NUMBER"; exit 1; }
+if [ "$CURRENT_HEAD" != "$SHA" ]; then
   echo "a newer push superseded ${SHA:0:8}, skip"
   exit 0
 fi
@@ -85,6 +99,7 @@ CLAUDE=""
 [ -r "$HOME/.claude/scripts/claude-bin.sh" ] && . "$HOME/.claude/scripts/claude-bin.sh"
 [ -n "$CLAUDE" ] || { echo "claude binary not found"; exit 1; }
 
+purge_old_dirs "${TMPDIR:-/tmp}" "pr-autoreview-*" 7
 RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-autoreview-$PR_NUMBER.XXXXXX")"
 DONE_FILE="$RUN_DIR/delivered"
 RAW="$RUN_DIR/session.json"

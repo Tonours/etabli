@@ -24,7 +24,7 @@ cat >"$TMP_DIR/bin/gh" <<'GH'
 case "$1 $2" in
   "pr view") printf '%s\n' "$FAKE_PR_JSON" ;;
   "pr checks") printf '%s\n' "$FAKE_BUCKETS" ;;
-  "api graphql") i=0; while [ "$i" -lt "$FAKE_UNRESOLVED" ]; do echo 1; i=$((i + 1)); done ;;
+  "api graphql") [ -z "${FAKE_GRAPHQL_FAIL:-}" ] || exit 1; i=0; while [ "$i" -lt "$FAKE_UNRESOLVED" ]; do echo 1; i=$((i + 1)); done ;;
   *) echo "unexpected gh call: $*" >&2; exit 1 ;;
 esac
 GH
@@ -50,6 +50,7 @@ expect "objective: other reviewer's changes requested blocks" "changes requested
 expect "objective: own changes requested does not block" "" \
   "$(FAKE_PR_JSON="$(pr_json OPEN false abc '{"state":"CHANGES_REQUESTED","author":{"login":"me"}}')" run_gates objective_blocker)"
 expect "objective: unresolved threads block" "2 unresolved review threads" "$(FAKE_UNRESOLVED=2 run_gates objective_blocker)"
+expect "objective: thread lookup failure blocks" "unknown unresolved review threads" "$(FAKE_GRAPHQL_FAIL=1 run_gates objective_blocker)"
 expect "objective: failing CI blocks" "CI is fail" "$(FAKE_BUCKETS="pass,fail" run_gates objective_blocker)"
 expect "objective: pending CI blocks after the wait" "CI is pending" "$(FAKE_BUCKETS="pending" run_gates objective_blocker)"
 expect "objective: no CI blocks by default" "CI is none" "$(FAKE_BUCKETS="" run_gates objective_blocker)"
