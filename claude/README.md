@@ -289,18 +289,62 @@ Rules:
 
 ## PR autoreview
 
-`scopes/work/scripts/pr-autoreview/` reviews the user's own PRs on the four
-employer repos. A `pre-push` hook detaches a background runner; the runner waits
-for nothing, checks that an open PR authored by `Tonours` exists for the pushed
-branch, and reviews it against `profiles/<repo>.md` plus the repo's own
-`CLAUDE.md` and the `~/work/brain` knowledge base.
+`scopes/work/scripts/pr-autoreview/` reviews the user's own PRs. A `pre-push`
+hook (husky v8 or v9) detaches a background runner; the runner waits until the
+PR head is the pushed sha, checks that the PR is authored by the `gh` user, and
+reviews it against `profiles/<profile>.md` plus the repo's own `CLAUDE.md` and
+the `~/work/brain` knowledge base.
+
+Enrolled repositories live in `~/.claude/state/pr-autoreview/repos.tsv`, one
+line per repository: `<owner/repo><TAB><profile>`, where `<profile>` names a
+file in `profiles/` without `.md`. The file is machine-local and never tracked;
+an empty or missing file means no push is reviewed. `install.sh` warns about it.
 
 It currently runs in break-in mode: findings go to Slack `#routines` only,
-nothing is posted to GitHub. The mode lives in `prompt.md`.
+nothing is posted to GitHub. The mode lives in `prompt.md`. A push is marked
+reviewed only once the session touched its delivery file, after the Slack post.
 
-Guards: PR younger than 30 days, author must be `Tonours`, one pass per
-`repo#pr@headSha`, kill switch at `~/.claude/state/pr-autoreview.off`.
+Guards: PR younger than 30 days, author must be the `gh` user, one pass per
+`repo#pr@headSha`, one run per PR at a time, kill switch at
+`~/.claude/state/pr-autoreview.off`.
 
-The hook entry points (`~/.huskyrc`, `~/.config/husky/init.sh`) and the two
+The hook entry points (`~/.huskyrc`, `~/.config/husky/init.sh`) and the
 generated `.husky/pre-push` files are local only — `~/.gitignore_global` keeps
 the latter invisible to git. Run `pr-autoreview/install.sh` to wire a machine.
+
+## PR review watch
+
+`scopes/work/scripts/pr-review-watch/` reviews the PRs other people ask the user
+to review. It never overlaps with PR autoreview: GitHub never requests a review
+from a PR's author, so autoreview owns the user's PRs and the watch owns the
+rest. Team review requests are not discovered, only requests naming the user.
+
+A LaunchAgent (`install.sh`, every 300 s) runs `watch.sh`, which:
+
+- discovers open PRs requesting the user's review and keeps them watched until
+  they close, the user approves them, or the user is no longer involved;
+- waits until a new head sha has been seen for 600 s before reviewing it, skips
+  diffs above 5000 changed lines, runs at most 2 reviews at once and 20 a day,
+  and retries a failed review up to 3 times per sha;
+- opens each review in a `pr-reviews` herdr tab named `<repo>#<number>`, or
+  runs it detached when herdr is down;
+- clones a repository with no local checkout under its state directory and
+  removes that clone once no watched PR uses it.
+
+The first review of a PR is a full `/pr-council-review --post`. Every later push
+gets `/code-review` on the commits since the last review cycle, then
+the employer plugin's `verify-fixes` skill, both unattended. The watch then approves the PR on the
+user's behalf only when the model says it is confident and every check the
+script runs itself holds: head unchanged, PR open and not a draft, no unresolved
+review thread, no changes requested by anyone else, CI green. A model verdict
+alone never approves. When only a script check blocks, the approval is retried
+on later ticks without a new review. Agent config files a PR changes
+(`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`) are reset to the base
+version in every scratch worktree, so a PR cannot steer its own reviewer.
+
+State lives in `~/.claude/state/pr-review-watch/`, logs in
+`~/.claude/logs/pr-review-watch.log`, token usage in
+`~/.claude/logs/pr-review-usage.log`. `watch.sh stop` sets the kill switch
+(`state/pr-review-watch/off`) and stops every review in flight; remove the file
+to resume. `launchctl bootout gui/$(id -u)/com.aguimard.pr-review-watch` stops
+the schedule itself. `tests/pr-review-gates-smoke.sh` covers the approval gates.

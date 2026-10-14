@@ -18,10 +18,28 @@ install_init_file() {
 install_init_file "$HOME/.huskyrc"
 install_init_file "${XDG_CONFIG_HOME:-$HOME/.config}/husky/init.sh"
 
-for repo in \
-  "$HOME/work/agent-nodejs" \
-  "$HOME/work/zendesk/employer-for-zendesk"
-do
+REPOS_TSV="$HOME/.claude/state/pr-autoreview/repos.tsv"
+if [ ! -s "$REPOS_TSV" ]; then
+  mkdir -p "$(dirname "$REPOS_TSV")"
+  touch "$REPOS_TSV"
+  echo "WARNING: $REPOS_TSV is empty: no repository is enrolled, no push will be reviewed."
+  echo "         Add one line per repository: <owner/repo><TAB><profile name in profiles/, without .md>"
+fi
+
+local_clone() {
+  local name="${1#*/}" root
+  for root in "$HOME/work" "$HOME/work/zendesk"; do
+    [ -d "$root/$name/.git" ] && { printf '%s' "$root/$name"; return 0; }
+  done
+  return 1
+}
+
+ENROLLED=()
+while IFS=$'\t' read -r slug profile || [ -n "${slug:-}" ]; do
+  [ -n "$slug" ] || continue
+  [ -f "$(dirname "$0")/profiles/$profile.md" ] || echo "WARNING: $slug maps to missing profile profiles/$profile.md"
+  repo="$(local_clone "$slug")" || { echo "no local clone for $slug, skip"; continue; }
+  ENROLLED+=("$repo")
   [ -d "$repo/.husky" ] || { echo "no .husky in $repo, skip"; continue; }
   hook="$repo/.husky/pre-push"
   if [ -f "$hook" ]; then
@@ -35,11 +53,11 @@ do
   fi
   chmod +x "$hook"
   echo "created: $hook"
-done
+done <"$REPOS_TSV"
 
 echo
 echo "Verify nothing leaks into git:"
-for repo in "$HOME/work/agent-nodejs" "$HOME/work/zendesk/employer-for-zendesk"; do
+for repo in "${ENROLLED[@]+"${ENROLLED[@]}"}"; do
   printf '%-45s ' "$repo"
   if git -C "$repo" status --porcelain .husky/pre-push 2>/dev/null | grep -q .; then
     echo "VISIBLE TO GIT — fix ~/.gitignore_global"
