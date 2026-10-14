@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isNarrowPlanCleanupCommand } from "../../../scripts/lib/plan-cleanup-command.mjs";
+import { isNarrowPlanCleanupCommand, isPlanReadingVerificationRunCommand } from "../../../scripts/lib/plan-cleanup-command.mjs";
 import { planMutationGuardDecision } from "../../../workflow/runtime/workflow-router-core.mjs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -164,6 +164,37 @@ test("archiving and discarding preserve existing archives and active-run selecti
       expect(existsSync(join(cwd, "PLAN.md"))).toBe(false);
       expect(readFileSync(activePath, "utf8")).toBe(active);
       expect(readFileSync(oldArchive, "utf8")).toBe("previous archive\n");
+    }
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
+});
+
+test("only the plan-reading verification run passes the READY freeze guard", () => {
+  const central = fileURLToPath(new URL("../../../scripts/project-verification", import.meta.url));
+  const cwd = mkdtempSync(join(tmpdir(), "verification-run-"));
+  try {
+    const fixture = fileURLToPath(new URL("../../../tests/fixtures/execution-quality/ready-plan.md", import.meta.url));
+    writeFileSync(join(cwd, "PLAN.md"), readFileSync(fixture, "utf8"));
+    for (const command of [
+      `${central} run --plan PLAN.md`,
+      `node '${central}' run --plan ./PLAN.md`,
+      `scripts/project-verification run --plan '${join(cwd, "PLAN.md")}'`,
+    ]) {
+      expect(isPlanReadingVerificationRunCommand(command, cwd)).toBe(true);
+      expect(planMutationGuardDecision({ cwd, tool_name: "Bash", tool_input: { command } })).toBeNull();
+    }
+    for (const command of [
+      `${central} run --plan PLAN.md --engine`,
+      `${central} run --plan PLAN.md > PLAN.md`,
+      `${central} run --plan PLAN.md; touch PLAN.md`,
+      `${central} run --plan PLAN.md && rm PLAN.md`,
+      `${central} run --plan other/PLAN.md`,
+      `bash '${central}' run --plan PLAN.md`,
+      "project-verification run --plan PLAN.md",
+      "/tmp/project-verification run --plan PLAN.md",
+      `${central} init PLAN.md`,
+    ]) {
+      expect(isPlanReadingVerificationRunCommand(command, cwd)).toBe(false);
+      expect(planMutationGuardDecision({ cwd, tool_name: "Bash", tool_input: { command } })).not.toBeNull();
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
