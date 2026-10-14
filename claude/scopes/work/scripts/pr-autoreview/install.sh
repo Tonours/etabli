@@ -35,7 +35,7 @@ local_clone() {
 }
 
 ENROLLED=()
-while IFS=$'\t' read -r slug profile; do
+while IFS=$'\t' read -r slug profile || [ -n "${slug:-}" ]; do
   [ -n "$slug" ] || continue
   [ -f "$(dirname "$0")/profiles/$profile.md" ] || echo "WARNING: $slug maps to missing profile profiles/$profile.md"
   repo="$(local_clone "$slug")" || { echo "no local clone for $slug, skip"; continue; }
