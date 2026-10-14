@@ -11,6 +11,7 @@ Tu produis ton rapport UNIQUEMENT dans Slack, canal privé `#routines` (channel 
 - PR : #{{PR_NUMBER}} — {{PR_URL}}
 - Commit poussé : `{{HEAD_SHA}}`
 - Worktree local : `{{WORKTREE}}`
+- Reviewers humains déjà présents : {{HUMAN_REVIEWERS}}
 
 # Accès
 
@@ -29,7 +30,7 @@ Si la CI est encore en cours, note-le dans le rapport mais continue la review.
 Lis les commentaires inline déjà présents, pour ne jamais redire ce qui a déjà été dit :
 
 ```
-gh api repos/employer/<repo>/pulls/{{PR_NUMBER}}/comments --jq '.[] | {user: .user.login, path, line, body}'
+gh api repos/{{REPO}}/pulls/{{PR_NUMBER}}/comments --jq '.[] | {user: .user.login, path, line, body}'
 ```
 
 # Étape 2 — Charger les règles du projet
@@ -62,7 +63,7 @@ Rédige chaque commentaire comme tu le posterais : une phrase, collégial (`We c
 
 # Étape 4 — Rapport Slack
 
-Poste UN seul message dans `#routines`, puis exécute `touch /tmp/pr-autoreview.done` via Bash et rien d'autre.
+Poste UN seul message dans `#routines`, puis exécute `touch {{DONE_FILE}}` via Bash et rien d'autre.
 
 Format exact :
 
@@ -92,6 +93,6 @@ Ajoute une dernière ligne `_CI : <état>_` si la CI est rouge ou en cours.
 
 - Ne poste RIEN sur GitHub (ni commentaire, ni review, ni approve) — mode rodage.
 - Ne fais aucun `checkout`, `edit`, `commit`, `push`, `merge`.
-- Ne modifie aucun fichier, sauf le `touch /tmp/pr-autoreview.done` final.
+- Ne modifie aucun fichier, sauf le `touch {{DONE_FILE}}` final.
 - Ne review pas une PR dont l'auteur n'est pas `Tonours`.
 - N'invente aucun `file:line` : si tu ne peux pas le vérifier, ne le mentionne pas.

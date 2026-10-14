@@ -1,6 +1,6 @@
 ---
 description: Three-pass review of one PR (code-review + thermo-nuclear, then forest:validator as the council) with a dry-run by default
-argument-hint: "<PR number or URL> [owner/repo] [--post] [--codex]"
+argument-hint: "<PR number or URL> [owner/repo] [--post] [--codex] [--phase-a-model <alias>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
@@ -9,8 +9,17 @@ the PR belongs to, and stream its output.
 
 The script does the orchestration; you do not re-run any of the passes yourself.
 
+It needs the `thermo-nuclear-code-quality-review` skill installed for Pi or
+agents (`~/.pi/agent/skills/` or `~/.agents/skills/`) and stops without it. It
+refuses a closed or merged PR. Agent config files the PR changes are reset to
+the base version in the scratch worktree, so the PR cannot steer phase A. Token
+usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
+
 - Phase A, in a detached scratch worktree at the PR head: `/code-review` and
   `/thermo-nuclear-code-quality-review` in parallel. Neither writes to GitHub.
+  Phase A runs on `sonnet` (`--phase-a-model` / `PR_COUNCIL_PHASE_A_MODEL`)
+  without MCP servers, hooks or user settings, to keep each session's base
+  context small; the validator keeps the full setup on `opus`.
   Claude-only by default; a third `codex` pass runs only with `--codex`, so
   report a plain run as a same-family review, never as cross-model.
 - Phase B: `/validator` on the PR, with phase A's findings injected as extra
