@@ -1,4 +1,4 @@
-/validator {{PR_NUMBER}} {{REPO}}
+/validator {{PR_NUMBER}} {{REPO}}{{VALIDATOR_FLAGS}}
 
 Run the Forest Validator pass exactly as the skill defines it. Every mandated
 retrieval, every mandated delegation, every failure class. Nothing below
@@ -16,6 +16,7 @@ checked out at `{{HEAD_SHA}}`, over the diff `{{MERGE_BASE}}...{{HEAD_SHA}}`:
 - `{{REPORT_THERMO}}` — the `/thermo-nuclear-code-quality-review` maintainability
   and abstraction-quality audit.
 {{CODEX_SECTION}}
+{{PHASE_A_GAPS}}
 
 Read every one of those files. Treat every finding they contain as a
 **candidate finding**, exactly like the ones your own lenses and your delegated
@@ -47,8 +48,8 @@ scratch worktree already exists and is not yours to manage.
 rule, finding markers closing each one, run marker to stdout, then the terminal
 report. No findings means no review.
 
-`dry-run` — run every step including the skeptic gate, then **make no GitHub
-write at all**. Instead emit, under a `WOULD SUBMIT` heading, the exact `gh api`
+`dry-run` — the skill runs with `--dry-run`, as invoked above: run every step
+including the skeptic gate, then **make no GitHub write at all**. Instead emit, under a `WOULD SUBMIT` heading, the exact `gh api`
 call and the exact JSON payload you would have posted: `body`, `event`, and the
 full `comments` array with `path`, `line`, `side` and each comment's finished
 text including its finding marker. Then the run marker and the terminal report.
