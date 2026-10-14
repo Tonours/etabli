@@ -13,7 +13,7 @@ import {
 	isWorkflowEventEscapeCommand,
 } from "../../scripts/lib/no-progress-guard.mjs";
 import { readRootPlanContract, planReviewPermission, isReviewPreparationPath, isPlanReviewBootstrap } from "../../scripts/lib/plan-review-binding.mjs";
-import { closedShellWords, isNarrowPlanCleanupCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
+import { closedShellWords, isNarrowPlanCleanupCommand, isPlanReadingVerificationRunCommand } from "../../scripts/lib/plan-cleanup-command.mjs";
 
 export { parsePlanStatus };
 
@@ -1568,7 +1568,8 @@ export function planCheckFreezeBashGuardDecision(event) {
 	const toolInput = event.tool_input || event.input || {};
 	const command = String(toolInput.command || toolInput.cmd || "");
 	if (!command || !isMutatingBashCommand(command)) return null;
-	if (isNarrowPlanCleanupCommand(command, cwd) || isClosedPlanReviewBootstrap(command, cwd)) return null;
+	if (isNarrowPlanCleanupCommand(command, cwd) || isClosedPlanReviewBootstrap(command, cwd) ||
+		isPlanReadingVerificationRunCommand(command, cwd)) return null;
 
 	// Any mutating shell that names PLAN.md (path or bare) is treated as a freeze risk.
 	if (!/\bPLAN\.md\b/i.test(command)) return null;

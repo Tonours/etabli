@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const CENTRAL_CLEANUP = fileURLToPath(new URL("../plan-cleanup", import.meta.url));
+const CENTRAL_VERIFICATION = fileURLToPath(new URL("../project-verification", import.meta.url));
 
 export function closedShellWords(command) {
   if (!command || /[;$`\\\n\r|<>]/.test(command)) return null;
@@ -45,6 +46,18 @@ export function isNarrowPlanCleanupCommand(command, cwd = process.cwd()) {
   if (binary !== resolve(cwd, "scripts/plan-cleanup") && binary !== CENTRAL_CLEANUP) return false;
   if (mode === "--discard") return /^[a-z0-9][a-z0-9_-]{0,80}$/.test(argument);
   return mode === "--archive" && /^(?:\.\/)?docs\/plan\/[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(argument);
+}
+
+export function isPlanReadingVerificationRunCommand(command, cwd = process.cwd()) {
+  const words = closedShellWords(String(command || "").replace(/^[ \t]+|[ \t]+$/g, ""));
+  if (!words || words.includes("&&")) return false;
+  if (words[0] === "node") words.shift();
+  if (words.length !== 4) return false;
+  const [executable, mode, flag, plan] = words;
+  if (!executable.includes("/") || executable.split("/").includes("..")) return false;
+  const binary = resolve(cwd, executable);
+  if (binary !== resolve(cwd, "scripts/project-verification") && binary !== CENTRAL_VERIFICATION) return false;
+  return mode === "run" && flag === "--plan" && resolve(cwd, plan) === resolve(cwd, "PLAN.md");
 }
 
 
