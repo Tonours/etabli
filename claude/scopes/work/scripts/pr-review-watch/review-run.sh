@@ -63,7 +63,7 @@ post_approval() {
   local body="$1" url
   url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)" \
     || { echo "=== approval POST failed"; return 1; }
-  rm -f "$KEY.approval-pending"
+  rm -f "$KEY.approval-pending" "$KEY.approval-body"
   echo "=== approved: $url"
   notify "PR approved" "$REPO#$NUMBER @${SHA:0:8}" "$URL"
 }
@@ -77,7 +77,8 @@ decide_and_approve() {
   fi
   blocker="$(objective_blocker)"
   if [ -n "$blocker" ]; then
-    printf '%s\t%s\n' "$SHA" "$body" >"$KEY.approval-pending"
+    echo "$SHA" >"$KEY.approval-pending"
+    printf '%s' "$body" >"$KEY.approval-body"
     echo "=== approval pending: $blocker (retried by the watcher without a new review)"
     notify "PR approval pending" "$REPO#$NUMBER: $blocker" "$URL"
     return 0
@@ -86,13 +87,16 @@ decide_and_approve() {
 }
 
 run_council() {
+  local body
   run_with_timeout "$COUNCIL" "$NUMBER" "$REPO" --post </dev/null 2>&1 | tee "$REPORT"
   [ "${PIPESTATUS[0]}" -eq 0 ] || return 1
   echo "$SHA" >"$KEY.council-done"
-  if [ "$(validator_run_findings "$REPORT" "$SHA")" = 0 ]; then
-    echo "$SHA" >"$KEY.council-clean"
-    echo "=== validator run marker reports 0 findings: PR recorded as clean at ${SHA:0:8}"
-  fi
+  [ "$(validator_run_findings "$REPORT" "$SHA")" = 0 ] || return 0
+  echo "$SHA" >"$KEY.council-clean"
+  echo "=== validator run marker reports 0 findings: PR recorded as clean at ${SHA:0:8}"
+  echo "=== approval"
+  body="$(validator_approval_body "$REPORT" "$SHA" 2>&1)" || { decide_and_approve "$body" ""; return 0; }
+  decide_and_approve "" "$body"
 }
 
 run_delta() {
@@ -157,13 +161,14 @@ run_verify() {
 }
 
 run_pending_approval() {
-  local pending_sha body blocker
-  IFS=$'\t' read -r pending_sha body <"$KEY.approval-pending" || return 0
-  [ "$pending_sha" = "$SHA" ] || { rm -f "$KEY.approval-pending"; echo "=== pending approval was for ${pending_sha:0:8}, dropped"; return 0; }
-  PR_REVIEW_WATCH_CI_WAIT=0 CI_WAIT_SECONDS=0
+  local pending_sha blocker
+  pending_sha="$(cat "$KEY.approval-pending" 2>/dev/null)"
+  [ -f "$KEY.approval-body" ] || { rm -f "$KEY.approval-pending"; echo "=== pending approval has no body, dropped"; return 0; }
+  [ "$pending_sha" = "$SHA" ] || { rm -f "$KEY.approval-pending" "$KEY.approval-body"; echo "=== pending approval was for ${pending_sha:0:8}, dropped"; return 0; }
+  CI_WAIT_SECONDS=0
   blocker="$(objective_blocker)"
   [ -z "$blocker" ] || { echo "=== approval still pending: $blocker"; return 0; }
-  post_approval "$body"
+  post_approval "$(cat "$KEY.approval-body")"
 }
 
 [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ] && { echo "kill switch is on"; exit 0; }

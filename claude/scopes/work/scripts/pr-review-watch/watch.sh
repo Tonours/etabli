@@ -188,9 +188,9 @@ launch() {
 
 retry_pending_approval() {
   local repo="$1" number="$2" sha="$3" url="$4" key="$5" pending_sha
-  pending_sha="$(cut -f1 "$key.approval-pending" 2>/dev/null)"
+  pending_sha="$(cat "$key.approval-pending" 2>/dev/null)"
   if [ "$pending_sha" != "$sha" ]; then
-    rm -f "$key.approval-pending"
+    rm -f "$key.approval-pending" "$key.approval-body"
     return
   fi
   "$RUNNER" approve "$repo" "$number" "$sha" - "$url" "$REPORTS/${repo//\//_}-$number-${sha:0:8}-approve.md" "$key" </dev/null \
@@ -248,7 +248,7 @@ process_watched() {
     if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || [ "$approved" = "true" ]; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,too-big}
+      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,too-big}
       continue
     fi
     [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" "$reviewed" </dev/null

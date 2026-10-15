@@ -70,13 +70,45 @@ purge_old_dirs() {
 }
 
 notify() {
-  if command -v terminal-notifier >/dev/null; then
-    terminal-notifier -group "pr-review-$3" -title "$1" -message "$2" -open "$3" >/dev/null 2>&1
-  else
-    osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1
+  if ! terminal-notifier -group "pr-review-$3" -title "$1" -message "$2" -open "$3" >/dev/null 2>&1; then
+    osascript -e "display notification \"${2//\"/}\" with title \"${1//\"/}\"" >/dev/null 2>&1
   fi
+  return 0
 }
 
 validator_run_findings() {
   grep -o '"kind":"run"[^>]*' "$1" 2>/dev/null | grep -F "\"sha\":\"$2\"" | tail -1 | sed -n 's/.*"findings":\([0-9]*\).*/\1/p'
+}
+
+session_run_marker() {
+  local raw="$1" sha="$2" session transcript
+  session="$(jq -r '.session_id // empty' "$raw" 2>/dev/null)"
+  [ -n "$session" ] || return 0
+  transcript="$(find "$HOME/.claude/projects" -maxdepth 2 -name "$session.jsonl" 2>/dev/null | head -1)"
+  [ -n "$transcript" ] || return 0
+  grep -o '"kind\\":\\"run\\"[^>]*' "$transcript" | sed 's/\\"/"/g' | grep -F "\"sha\":\"$sha\"" | tail -1 | sed 's/^/claudine:v1 {/'
+}
+
+validator_marker_json() {
+  local raw
+  raw="$(grep -o '"kind":"run"[^>]*' "$1" 2>/dev/null | grep -F "\"sha\":\"$2\"" | tail -1)"
+  [ -n "$raw" ] || return 1
+  raw="{$raw"
+  raw="$(printf '%s' "$raw" | sed -E 's/[[:space:]-]+$//')"
+  printf '%s' "$raw" | jq -e . >/dev/null 2>&1 || return 1
+  printf '%s' "$raw"
+}
+
+validator_approval_body() {
+  local marker blocker
+  marker="$(validator_marker_json "$1" "$2")" || { echo "no validator run marker for ${2:0:8}" >&2; return 1; }
+  blocker="$(printf '%s' "$marker" | jq -r '
+    if .findings != 0 then "validator posted \(.findings) findings"
+    elif .security == "ticketed" then "a security finding waits on a ticket"
+    elif ([.lenses[]?] | index("pending")) != null then "a validator lens is still pending"
+    else empty end')"
+  [ -z "$blocker" ] || { echo "$blocker" >&2; return 1; }
+  printf 'Approved after /validator run %s: nothing at or above `%s` posted, %s suppressed.\n<!-- claudine:v1 %s -->' \
+    "$(printf '%s' "$marker" | jq -r .run)" "$(printf '%s' "$marker" | jq -r .floor)" \
+    "$(printf '%s' "$marker" | jq -r .suppressed)" "$marker"
 }

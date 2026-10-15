@@ -88,6 +88,15 @@ lib() { bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; $1"; }
 printf '<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix"} -->\n' >"$TMP_DIR/council.log"
 expect "run marker: findings for the reviewed sha" "0" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
 expect "run marker: other sha is not clean" "" "$(lib "validator_run_findings '$TMP_DIR/council.log' def")"
+marker='{"kind":"run","run":"7-x-me","pr":7,"sha":"abc","findings":0,"floor":"should-fix","suppressed":1,"security":"clean","lenses":{"linear":"ran","conventions":"narrowed"}}'
+printf '=== run marker: claudine:v1 %s --\n' "$marker" >"$TMP_DIR/clean.log"
+expect "approval body: validator format with its run marker" \
+  "$(printf 'Approved after /validator run 7-x-me: nothing at or above `should-fix` posted, 1 suppressed.\n<!-- claudine:v1 %s -->' "$marker")" \
+  "$(lib "validator_approval_body '$TMP_DIR/clean.log' abc")"
+printf '<!-- claudine:v1 %s -->\n' "${marker/\"conventions\":\"narrowed\"/\"conventions\":\"pending\"}" >"$TMP_DIR/pending.log"
+expect "approval body: pending lens withholds" "a validator lens is still pending" "$(lib "validator_approval_body '$TMP_DIR/pending.log' abc" 2>&1)"
+printf '<!-- claudine:v1 %s -->\n' "${marker/\"security\":\"clean\"/\"security\":\"ticketed\"}" >"$TMP_DIR/ticketed.log"
+expect "approval body: ticketed security withholds" "a security finding waits on a ticket" "$(lib "validator_approval_body '$TMP_DIR/ticketed.log' abc" 2>&1)"
 printf 'a={{A}} b={{B}} c={{C}}\n' >"$TMP_DIR/template.md"
 expect "template: special characters survive" 'a=R&D|x b=$HOME c={{C}}' "$(lib "render_template '$TMP_DIR/template.md' 'A=R&D|x' 'B=\$HOME'")"
 
