@@ -130,11 +130,12 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     accepted fix invalidates cumulative review and code-diff adversary evidence
     it can affect: re-review follows the review budget below.
 
-    Review budget: one T/D/F counter per run (the ship phase inherits it).
-    Default path: T1 clean → F1 clean on the pinned SHA → VALIDATE. When a
-    round returns findings or a re-review is due, follow the bounded machine
-    in `workflow/skills/review-rounds.md`; never validate past its ceiling.
-    Record every pass in the review evidence: tour (T/D/FD/F + number),
+    Review budget: one T/D counter per run (the ship phase inherits it).
+    Default path: T1 clean → VALIDATE; only blocking findings (high, unmet
+    AC, `BLOCK`) spend a round, residual non-blocking ones go in the final
+    report. Otherwise follow the bounded machine in
+    `workflow/skills/review-rounds.md`; never validate past its ceiling.
+    Record every pass in the review evidence: tour (T/D + number),
     scope (full/delta), base SHA, patch SHA, reviewers. Close each round
     with one `review_completed` carrying `review_round` and `round_outcome`
     (after its adversary); `scripts/workflow-event` refuses a sequence the
