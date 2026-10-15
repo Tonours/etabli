@@ -34,9 +34,36 @@ cat >"$PLIST" <<EOF
 </plist>
 EOF
 
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
+AWAKE_LABEL="com.aguimard.pr-review-awake"
+AWAKE_PLIST="$HOME/Library/LaunchAgents/$AWAKE_LABEL.plist"
+cat >"$AWAKE_PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$AWAKE_LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
+    <string>-s</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>
+EOF
+
+for label_plist in "$LABEL:$PLIST" "$AWAKE_LABEL:$AWAKE_PLIST"; do
+  launchctl bootout "gui/$(id -u)/${label_plist%%:*}" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "${label_plist#*:}"
+done
 echo "loaded $LABEL every ${INTERVAL}s"
+echo "loaded $AWAKE_LABEL: no idle sleep, no system sleep on AC power (display still sleeps)"
 echo "log: $HOME/.claude/logs/pr-review-watch.log"
 echo "pause: touch $HOME/.claude/state/pr-review-watch/off"
 echo "remove: launchctl bootout gui/$(id -u)/$LABEL && rm $PLIST"
+echo "allow sleep again: launchctl bootout gui/$(id -u)/$AWAKE_LABEL && rm $AWAKE_PLIST"
