@@ -158,6 +158,7 @@ done
 parity_dir="$TMP_DIR/no-comments-parity"
 mkdir -p "$parity_dir"
 printf '/**\n * Existing doc.\n */\nexport const a = 1;\n' >"$parity_dir/doc.ts"
+printf "const x = 1; // don't\nconst y = 2;\n" >"$parity_dir/apos.ts"
 ROOT_DIR="$ROOT_DIR" PARITY_DIR="$parity_dir" node --input-type=module <<'NODE'
 import { spawnSync } from "node:child_process";
 const root = process.env.ROOT_DIR;
@@ -183,6 +184,7 @@ const cases = [
   ["line comment in ts", write("f.ts", "// note\nexport {};\n"), "deny"],
   ["hash comment in py", write("g.py", "# note\nx = 1\n"), "deny"],
   ["block comment in css", write("h.css", "/* x */\n.a { color: red; }\n"), "deny"],
+  ["comment after apostrophe", write("apos.ts", "const x = 1; // don't\nconst y = 2;\n// brand new note\n"), "deny"],
 ];
 let failed = 0;
 for (const [label, event, expected] of cases) {

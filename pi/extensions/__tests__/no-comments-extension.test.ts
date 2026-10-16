@@ -244,6 +244,13 @@ describe("unified Claude verdicts", () => {
 			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 2;" } }),
 		).toBe("allow");
 	});
+
+	test("an apostrophe in a comment does not hide later comments", () => {
+		writeFileSync(join(fixtureCwd, "apos.ts"), "const x = 1; // don't\nconst y = 2;\n");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "apos.ts", oldText: "const y = 2;", newText: "const y = 2;\n// brand new note" } }),
+		).toBe("deny");
+	});
 });
 
 describe("no-comments extension", () => {
