@@ -27,3 +27,11 @@ _Avoid_: opt-in, vendor, archive
 **Surface**:
 Emplacement où un runtime charge des skills ou des commandes (~/.pi, ~/.claude).
 _Avoid_: target, destination
+
+**Scaffold**:
+Fichiers de workflow copiés dans un projet par `scripts/deploy-workflow` (spec, templates, scripts de plan).
+_Avoid_: template, bootstrap
+
+**Surface retirée**:
+Surface qu'etabli ne gère plus (ADR-0031) ; ses liens périmés sont laissés en place, jamais nettoyés.
+_Avoid_: surface legacy, ancienne surface
