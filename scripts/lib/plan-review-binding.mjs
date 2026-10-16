@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import commonmark from "../vendor/commonmark/commonmark.cjs";
-import { parsePlanStatus } from "./plan-check-freeze.mjs";
+import { parsePlanStatus } from "./plan-status.mjs";
 import { selectActiveLedger } from "./ledger-integrity.mjs";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");

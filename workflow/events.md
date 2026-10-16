@@ -83,8 +83,6 @@ same fresh validation plus a success-form `ship_completed`; review evidence is
 carried by the `ship_completed` records. Presence alone does not prove
 completion.
 
-Product completion fields and terminal revalidation: `workflow/product-verification.md`.
-
 New plan-bound runs require the captured reviewed contract hash on plan passes.
 The latest verdict must approve the current contract; material edits invalidate it.
 Legacy unbound history remains readable. Details: `workflow/skills/execution-quality.md`.

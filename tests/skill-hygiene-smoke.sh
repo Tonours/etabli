@@ -4,8 +4,7 @@
 # AC4 is UNCLAIMED (ponytail is macbook-work-only,
 # removal needs a user decision) so no scan section exists here.
 # TRIPWIRE-GRADE (AC2): the shape regexes below guard format only and are
-# gameable by construction; semantic validation is carried by the FULL
-# trigger eval (tests/skill-trigger-eval-smoke.sh).
+# gameable by construction.
 set -euo pipefail
 
 fail() {

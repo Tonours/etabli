@@ -23,7 +23,6 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
 (ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
 orchestration: `workflow/skills/orchestration.md`. The parent is the sole writer; delegation defaults to one worker.
-Etabli multi-writer scopes require a per-(repo, worktree) lease via `scripts/workflow-lease` (ADR-0028). <!-- etabli-only -->
 The multi-model council was removed (ADR-0013).
 
 ```text
@@ -76,7 +75,6 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   proxy support, and blocked surfaces stay distinct.
 - Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`) must record
   the event ledger; ordinary work may record it.
-- Skill evaluation: `workflow/skills/skill-evaluation.md`.
 - Cold contracts, opened only on their trigger: bounded re-review
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
   review); open-ended improvement loops `workflow/skills/long-loop.md`;

@@ -16,8 +16,7 @@
   — dispatch an isolated Logic hunter (same-session self-review of Logic is
   forbidden), tables, Verdict line; never free-form commentary.
 - For routes with a plan, implement only from READY `PLAN.md`; archive validated plans in `docs/plan/`.
-- For product work, discover tests/recipe, prepare missing proof in scope and
-  follow `workflow/product-verification.md`; auto product plans require evidence.
+- For product work, exercise the affected flows and report the observed evidence.
 - Preserve unrelated changes and report exact checks.
 - Instruction files stay maps, not manuals.
 - A recurring agent mistake becomes a constraint in this repo's own tooling:

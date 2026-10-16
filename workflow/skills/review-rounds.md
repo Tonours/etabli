@@ -61,7 +61,7 @@ or it touches contractual surfaces (`workflow/`, `scripts/`,
 `tests/`, `skills/`, `pi/skills/`, `claude/scopes/`, `.github/`,
 `AGENTS.md`, `PLAN_TEMPLATE*.md`, `docs/`, `.mcp.json`, locks,
 `*.policy.json`), or any rebase happened (proof invalidated).
-Generated-records row-only deltas (closed list: `review-metrics.md`;
+Generated-records row-only deltas (closed list:
 `skills-lock.json` — with every changed fingerprint recomputed from
 its pinned source via the verify procedure — and the rest identical
 over canonical `jq -S` parsed values) get a schema check. Negative pin: a lone changed

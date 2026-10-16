@@ -3,7 +3,6 @@ import { implementedArchiveError } from "./lib/plan-cleanup-command.mjs";
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { relative, resolve, sep } from "node:path";
-import { assertProductIdentity, frozenProductContract, writeProductCompletion } from "./lib/project-verification.mjs";
 
 function fail(message) {
   process.stderr.write(`plan-cleanup: ${message}\n`);
@@ -85,7 +84,7 @@ function removeRootPlan(cwd) {
   return planPath;
 }
 
-async function archiveMode(cwd, archiveArgument) {
+function archiveMode(cwd, archiveArgument) {
   const planPath = resolve(cwd, "PLAN.md");
   const archivePath = resolve(cwd, archiveArgument);
   const archiveRoot = `${resolve(cwd, "docs", "plan")}${sep}`;
@@ -105,17 +104,9 @@ async function archiveMode(cwd, archiveArgument) {
   const archiveError = implementedArchiveError(archive, hash);
   if (archiveError) fail(archiveError);
 
-  const product = await writeProductCompletion(planPath, archivePath);
-  if (readFileSync(planPath, "utf8") !== plan || readFileSync(archivePath, "utf8") !== archive) {
-    fail("plan or archive changed during cleanup; retain PLAN.md and revalidate");
-  }
-  if (product.required && createHash("sha256").update(readFileSync(product.pack)).digest("hex") !== product.pack_sha256) {
-    fail("evidence pack changed during cleanup; retain PLAN.md and revalidate");
-  }
-  if (product.required) assertProductIdentity(frozenProductContract(plan, planPath), product.pack_sha256);
   rmSync(planPath);
   process.stdout.write(
-    `${JSON.stringify({ removed: "PLAN.md", mode: "archive", archive: relative(cwd, archivePath), ...(product.required ? { product_verification: product } : {}) })}\n`,
+    `${JSON.stringify({ removed: "PLAN.md", mode: "archive", archive: relative(cwd, archivePath) })}\n`,
   );
 }
 
@@ -188,11 +179,7 @@ if (flag === "--status") {
 if (rest.length !== 0) usage();
 if (flag === "--archive") {
   if (!argument) usage();
-  try {
-    await archiveMode(cwd, argument);
-  } catch (error) {
-    fail(`product verification blocked archive: ${error.message}; retain PLAN.md and rerun project-verification-check`);
-  }
+  archiveMode(cwd, argument);
 } else if (flag === "--discard") {
   if (!argument) usage();
   discardMode(cwd, argument);

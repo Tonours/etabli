@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded by ADR-0034
 date: 2026-09-23
 tags: [harness-eval, evaluator, self-improvement]
 affected_components: [scripts/lib/etabli-harness-grade.sh, scripts/lib/etabli-harness-run-v2.sh, scripts/etabli-harness-eval-v2, tests/fixtures/harness-v2, tests/etabli-harness-eval-v2-smoke.sh]
+superseded_by: ADR-0034
 ---
 
 # Split harness-eval v2 into a hashed grading contract and an unhashed runner

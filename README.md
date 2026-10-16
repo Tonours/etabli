@@ -40,14 +40,9 @@ scripts/verify-agentic-infra core        # every check should PASS
 - **Budgeted context.** Per-route instruction size is measured and can only
   shrink: always-on went from 28,423 to 11,789 chars
   ([`docs/workflow-context-budget.md`](docs/workflow-context-budget.md)).
-- **Source-bound product proof.** New plans use `Required: auto`; product
-  criteria need observed results and declared persistence. A shared runner
-  executes project-owned recipes and the closing gate rechecks their assertions.
-  See [product verification](workflow/product-verification.md).
 - **Locked skills.** Vendored packs carry `UPSTREAM_SHA` pins and an integrity
-  lock (`skills-lock.json`). Skill changes pass promotion gates
-  (`workflow/skills/skill-evaluation.md`), and routing stays deterministic code
-  (ADR-0027).
+  lock (`skills-lock.json`); `scripts/update-vendor-skills` refreshes them, and
+  routing stays deterministic code (ADR-0027).
 
 ## How work flows
 
@@ -63,17 +58,10 @@ Every run leaves an event ledger under `.workflow/<slug>/`, and finished plans
 are archived in `docs/plan/`.
 One writer at a time is a protocol, not an OS lock.
 
-To adopt verification in another project, deploy the current scaffold with
+To adopt the workflow in another project, deploy the current scaffold with
 `scripts/deploy-workflow /path/to/project` (review drift before `--force` on an
-existing project). From that project run `scripts/project-verification discover`,
-then `scripts/project-verification init`. Adapt the versioned
-`verification/recipe.json` to the promised behavior before `run --plan PLAN.md`.
-Init leaves unresolved coverage; it never overwrites a recipe. No model key is
-needed for this baseline. Optional `--engine` uses a configured local runtime;
-credentials are requested only if that selected engine needs them.
-`discover` also lists the project's lint and type-check config under
-`constraints`: where a recurring agent mistake becomes a rule
-([`workflow/project-constraints.md`](workflow/project-constraints.md)).
+existing project). A recurring agent mistake becomes a rule in the project's
+own tooling ([`workflow/project-constraints.md`](workflow/project-constraints.md)).
 
 ## Repository map
 
@@ -92,11 +80,9 @@ credentials are requested only if that selected engine needs them.
 ```bash
 scripts/verify-agentic-infra core     # core checks
 bun test pi/extensions/__tests__/     # Pi extension tests
-scripts/token-bench --check           # context cost per route
 scripts/claude-hooks-check            # live Claude hooks wired?
 scripts/check-fix-symlinks.sh         # managed links intact?
 node scripts/validate-adrs .          # ADR format
-scripts/workflow-ship-metrics --dir .workflow report --since 2026-09-01 # stats and patterns
 scripts/workflow-run-check preflight # prerequisites before validation
 scripts/workflow-run-check close --dir .workflow your-run # prospective event-chain check
 ```
@@ -108,8 +94,6 @@ CI runs `agentic-infra` on GitHub-hosted `ubuntu-24.04`
 
 - [`docs/claude-etabli-mod.md`](docs/claude-etabli-mod.md): optional Claude `/etabli` cockpit — resume, routing, journal, checkpoints, diagnostics, review evidence, usage and skills.
 
-- [`docs/workflow-statistics.md`](docs/workflow-statistics.md): local statistics,
-  recurring patterns, evidence and explicit multi-project reports.
 - [`docs/README.md`](docs/README.md): index of current references and history.
 - [`workflow/agent-quick-card.md`](workflow/agent-quick-card.md): one-page
   workflow entry; [`workflow/contract-details.md`](workflow/contract-details.md)

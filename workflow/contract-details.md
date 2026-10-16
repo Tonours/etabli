@@ -38,8 +38,6 @@ one `worker` at a time — foreground, or the parent waits without writing until
 it finishes, then takes the pen back between plan steps; never two writers in
 parallel.
 
-Etabli multi-writer scopes need `scripts/workflow-lease` (repo/worktree, ADR-0028). <!-- etabli-only -->
-
 The deterministic multi-model council (scout / analyst / challenger /
 judge / fallback) was removed in ADR-0013; `classifyWorkflowRoute` always
 attaches parent-only `multiExecution`. Delegating to a subagent stays an
@@ -117,8 +115,7 @@ sandbox. Shared workflow and evidence invariants stay in
   stays red three times with no new diff between runs, stop as `blocked`, emit a
   `no_progress` event, and list the eliminated hypotheses instead of iterating.
 - READY plans stay editable during implementation: when Checks or Acceptance
-  Criteria change, note why in the Decision Log. No runtime freeze;
-  `scripts/plan-check-freeze` remains an optional diff helper. <!-- etabli-only -->
+  Criteria change, note why in the Decision Log. No runtime freeze.
 - Autonomous loop stop conditions pair the measurable goal with an explicit cap
   (iterations or wall-clock).
 - The final review of an autonomous `plan-implement` run comes from a fresh
@@ -177,11 +174,6 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
   (best-effort, never blocks the deny) <!-- etabli-only -->
 - Orchestration contract: `workflow/skills/orchestration.md`
 - Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval` <!-- etabli-only -->
-- Latest-head PR evidence helper: `scripts/pr-latest-head-status` <!-- etabli-only -->
-- In Etabli, ledger census for a plan that tightens validation: `scripts/workflow-ledger-census` <!-- etabli-only -->
-  (`baseline`, then `diff`) freezes each ledger's verdict and sha256; `diff` fails on a verdict flip,
-  a non-append rewrite, a current FAIL, a missing baseline slug, or a grandfathered byte-string
-  reappearing under a new slug.
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
