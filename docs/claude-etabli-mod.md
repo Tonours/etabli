@@ -2,15 +2,29 @@
 
 Le mod ajoute une commande immédiate `/etabli` et huit vues du workflow. Il lit les sources d’Établi sans modifier le plan, le journal, les permissions ou les settings. Il ne lance aucun skill et ne soumet aucun prompt au modèle.
 
-Depuis le checkout Établi :
+## Installation
+
+`claude/mods/.claude-plugin/marketplace.json` déclare la marketplace locale `etabli-local`, de type dossier. Le plugin installé est lu depuis ce checkout (`readFromFolder`) : une modification du mod vaut pour la session suivante, sans réinstallation.
+
+Le déploiement l'enregistre et l'installe au scope utilisateur de la racine Claude active (`CLAUDE_CONFIG_DIR`, sinon `~/.claude`) :
 
 ```bash
-claude --plugin-dir "$PWD/claude/mods/etabli"
+scripts/deploy-agent-workflow            # dry-run : WOULD_LINK / WOULD_INSTALL
+scripts/deploy-agent-workflow --apply
 ```
 
-Depuis un autre projet, passer le chemin absolu du même dossier. Garder le plugin dans son checkout : le pont Node utilise `scripts/lib/etabli-session.mjs` trois niveaux au-dessus du plugin. Une copie isolée du seul dossier du plugin ne contient pas ce helper.
+L'étape est idempotente. Si `etabli-local` pointe vers un autre dossier, par exemple un ancien worktree, elle retire puis réenregistre la marketplace et réinstalle le plugin. Elle est ignorée avec `--home`, quand `CLAUDE_CONFIG_DIR` sort du HOME courant, sans CLI `claude` ou sans Node, et avec `ETABLI_SKIP_CLAUDE_PLUGIN=1`. Équivalent manuel :
 
-Claude Code 2.1.287 ou ultérieur est nécessaire. Le runtime doit autoriser les hooks modules ; `--bare`, `--safe-mode`, `disableAllHooks` et les politiques administrées peuvent empêcher leur chargement. Aucun contournement du rollout n'est fourni. Le lancement ci-dessus charge le plugin pour cette session ; aucune installation globale n'est effectuée.
+```bash
+claude plugin marketplace add "$PWD/claude/mods" --scope user
+claude plugin install etabli@etabli-local --scope user
+```
+
+Pour une seule session, sans installation : `claude --plugin-dir "$PWD/claude/mods/etabli"`.
+
+Garder le plugin dans son checkout : le pont Node utilise `scripts/lib/etabli-session.mjs` trois niveaux au-dessus du plugin. Une copie isolée du seul dossier du plugin ne contient pas ce helper.
+
+Claude Code 2.1.287 ou ultérieur est nécessaire. Le runtime doit autoriser les hooks modules ; `--bare`, `--safe-mode`, `disableAllHooks` et les politiques administrées peuvent empêcher leur chargement. Aucun contournement du rollout n'est fourni.
 
 ## Utilisation
 
@@ -80,7 +94,7 @@ scripts/etabli-session diagnostic --cwd /path/to/project --kind preflight
 scripts/etabli-session diagnostic --cwd /path/to/project --kind close
 scripts/etabli-session review --cwd /path/to/project --base HEAD --excerpt src/guard.ts:20-45
 node --test tests/etabli-session.test.mjs tests/etabli-session-mod.test.mjs
-claude plugin validate claude/mods/etabli
+claude plugin validate claude/mods && claude plugin validate claude/mods/etabli
 claude plugin test claude/mods/etabli
 node pi/node_modules/typescript/lib/tsc.js --project claude/mods/etabli/tsconfig.json
 scripts/verify-agentic-infra core

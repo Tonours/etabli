@@ -153,7 +153,10 @@ skills-lock-coverage-smoke
 skill-trigger-eval
 token-bench-smoke
 claude-launch-smoke
-claude-statusline-smoke'
+claude-statusline-smoke
+etabli-mod-smoke
+etabli-session-test
+etabli-session-mod-test'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
