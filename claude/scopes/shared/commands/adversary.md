@@ -111,4 +111,4 @@ repo command.
 - Read-only is non-negotiable: `--tools read` only; never widen the tool set.
 - Plan mode complements `/plan-loop`; code-diff mode is the independent second
   pass after `review`. Best sequence: `/plan-loop` → `/adversary` → implement →
-  review → `/adversary` (code-diff) → ship.
+  review → `/adversary` (code-diff) → push.

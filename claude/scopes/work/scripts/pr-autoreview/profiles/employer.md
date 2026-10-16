@@ -55,18 +55,3 @@
 4. **Ajout dans `services/internal-business|internal-feature` absent du mapping `class-naming-based-on-path`** (`eslint.config.mjs:315-345` — `internal-feature` n'y est pas) : le lint ne l'attrape pas, vérification manuelle du nommage.
 5. **Ajout dans un fichier de test déjà disproportionné** (125 Ko observé) — passe la CI mais dilue la couverture réelle. Vérifier que le test ajouté est ciblé, pas accolé à un fourre-tout.
 6. **PR MFE** : `--max-warnings 0` (`apps/user-settings-mfe/package.json:12`) — un warning local non résolu bloque le lint CI de ce workspace, contrairement au host.
-
-## Skills à mobiliser
-
-| Zone touchée | Skill |
-|---|---|
-| Composant Ember (`.hbs`, component `.ts`, SCSS) | `ember-employer-components` |
-| Route / controller Ember | `ember-employer-routes` |
-| Service ou state (feature/shared/internal-business/internal-feature) | `ember-employer-services-state` |
-| Modèle / adapter / serializer / GraphQL | `ember-employer-data` |
-| Test QUnit / mirage / sinon | `ember-employer-testing` |
-| Lint, typecheck, nommage de classe, SCSS | `ember-employer-lint-style` |
-| `apps/*` ou `packages/*` (React 19, Module Federation) | `ember-employer-react-mfe` |
-| Déplacement `app/legacy` → structure moderne | `ember-employer-migration` |
-| `workflow-visualizer` | `ember-employer-workflow-visualizer` |
-| Emplacement architectural ambigu (feature vs shared vs legacy) | `ember-employer-architecture` |

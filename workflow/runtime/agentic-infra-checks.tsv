@@ -19,7 +19,6 @@ core	shell-docs	workflow-context-budget-smoke	tests/workflow-context-budget-smok
 core	shell-docs	guards-active	tests/guards-active-smoke.sh
 core	shell-docs	ledger-check	tests/workflow-ledger-check-smoke.sh
 core	shell-docs	contract-coherence	tests/contract-coherence-smoke.sh
-core	shell-docs	ship-order	tests/ship-order-smoke.sh
 core	shell-docs	ref-linter	tests/ref-linter-smoke.sh
 core	shell-docs	adapter-sync	tests/adapter-sync-smoke.sh
 core	shell-docs	rule-registry	tests/rule-registry-smoke.sh
@@ -47,7 +46,6 @@ full	shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
 full	shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
 full	shell-docs	adr-helper-smoke	tests/adr-helper-smoke.sh
 full	shell-docs	validate-adrs	builtin:validate-adrs
-full	shell-docs	browser-full-page-capture-smoke	tests/browser-full-page-capture-smoke.sh
 full	shell-docs	obvault-routing-smoke	tests/obvault-routing-smoke.sh
 full	shell-docs	obvault-query-smoke	tests/obvault-query-smoke.sh
 full	shell-docs	agentic-infra-manifest-smoke	tests/agentic-infra-manifest-smoke.sh
@@ -63,7 +61,6 @@ full	shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.
 full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
 full	shell-docs	claude-profile-smoke	tests/claude-profile-smoke.sh
 full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh
-full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-pattern-smoke.sh
 full	shell-docs	skill-eval-smoke	tests/skill-eval-smoke.sh
 full	shell-docs	session-handoff-smoke	tests/session-handoff-smoke.sh
 full	shell-docs	skill-catalog-name-smoke	tests/skill-catalog-name-smoke.sh

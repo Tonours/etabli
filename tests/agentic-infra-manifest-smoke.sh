@@ -63,7 +63,6 @@ workflow-context-budget-smoke
 guards-active
 ledger-check
 contract-coherence
-ship-order
 ref-linter
 adapter-sync
 rule-registry
@@ -93,8 +92,8 @@ execution-quality-smoke'
 # T7 step 3 appends skill-trigger-eval (frozen recompute + compare) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted: review workflow/runtime/agentic-infra-checks.tsv and align the exact approved expected_core list"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 32 ] ||
-	fail "core profile must hold exactly 32 checks; align approved manifest rows and expected_core"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 31 ] ||
+	fail "core profile must hold exactly 31 checks; align approved manifest rows and expected_core"
 [ "$(awk -F '\t' '!/^#/ && $1 == "core" {print $4}' "$MANIFEST" | sort | uniq -d)" = "" ] ||
 	fail "core profile runs a target twice under two labels; keep one row per target"
 
@@ -118,7 +117,6 @@ adr-validate-smoke
 adr-validation-golden
 adr-helper-smoke
 validate-adrs
-browser-full-page-capture-smoke
 obvault-routing-smoke
 obvault-query-smoke
 agentic-infra-manifest-smoke
@@ -134,7 +132,6 @@ obvault-shadow-promote-smoke
 autonomous-ledger-hygiene-smoke
 claude-profile-smoke
 claim-evidence-check-smoke
-recurring-run-goal-pattern-smoke
 skill-eval-smoke
 session-handoff-smoke
 skill-catalog-name-smoke

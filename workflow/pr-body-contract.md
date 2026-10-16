@@ -1,9 +1,9 @@
 # PR Body Contract
 
 How to write a pull request description. Applies whenever a PR body is authored
-or rewritten, whether through `workflow/skills/ship.md`, a runtime command that
-opens a PR, or a direct request to redo a description. It does not govern
-mechanical edits to an existing body, such as `sec-pr` ticking its checkboxes.
+or rewritten, whether through a runtime command that opens a PR or a direct
+request to redo a description. It does not govern mechanical edits to an
+existing body, such as ticking its checkboxes.
 
 The reader is a busy human reviewer, not a changelog. They decide in about
 thirty seconds whether they can review this now.

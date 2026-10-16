@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded by ADR-0033
 date: 2026-08-28
 tags: [tooling, skills, vendor, pstack]
 affected_components: [vendor/sources.tsv, workflow/runtime/skill-surface.tsv, scripts/lib/skill-catalog.sh, docs/pstack-strategy.md]
+superseded_by: ADR-0033
 ---
 
 # Adopt pstack poteto-mode and principles as wave 2, opt-in

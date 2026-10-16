@@ -2,32 +2,21 @@
   "schema_version": 1,
   "note": "MAP, not a content store: one row per adapter FILE of deployed skills (pi_core=1 in skill-surface.tsv). Bodies hashed with the GENERATED fence span excised; headers verified by regeneration comparison only, never by hash.",
   "deployed": [
-    "adonisjs-suite",
     "adversary",
     "bug-check",
-    "ci-fix",
     "code-quality",
     "implement",
     "linear-ticket-create",
     "linear-work",
     "plan-implement",
     "plan-loop",
-    "pr-qa",
-    "pr-review",
     "review",
-    "sec-pr",
-    "ship",
     "thermo-nuclear-code-quality-review",
     "typesafe-ai",
     "verify",
     "write-direct"
   ],
   "map": {
-    "adonisjs-suite": {
-      "pi": null,
-      "claude": [],
-      "canonical": "pi/skills/adonisjs-suite/SKILL.md"
-    },
     "adversary": {
       "pi": "pi/skills/adversary/SKILL.md",
       "claude": [
@@ -42,13 +31,6 @@
         "claude/scopes/work/commands/bug-check.md"
       ],
       "canonical": "workflow/skills/bug-check.md"
-    },
-    "ci-fix": {
-      "pi": "pi/skills/ci-fix/SKILL.md",
-      "claude": [
-        "claude/scopes/work/commands/ci-fix.md"
-      ],
-      "canonical": "workflow/skills/ci-fix.md"
     },
     "code-quality": {
       "pi": "pi/skills/code-quality/SKILL.md",
@@ -90,40 +72,12 @@
       ],
       "canonical": "workflow/skills/plan-loop.md"
     },
-    "pr-qa": {
-      "pi": "pi/skills/pr-qa/SKILL.md",
-      "claude": [
-        "claude/scopes/work/commands/pr-qa.md"
-      ],
-      "canonical": "workflow/skills/pr-qa.md"
-    },
-    "pr-review": {
-      "pi": "pi/skills/pr-review/SKILL.md",
-      "claude": [
-        "claude/scopes/work/commands/pr-review.md"
-      ],
-      "canonical": "workflow/skills/pr-review.md"
-    },
     "review": {
       "pi": "pi/skills/review/SKILL.md",
       "claude": [
         "claude/scopes/shared/commands/review.md"
       ],
       "canonical": "workflow/skills/review.md"
-    },
-    "sec-pr": {
-      "pi": "pi/skills/sec-pr/SKILL.md",
-      "claude": [
-        "claude/scopes/work/commands/sec-pr.md"
-      ],
-      "canonical": "workflow/skills/sec-pr.md"
-    },
-    "ship": {
-      "pi": "pi/skills/ship/SKILL.md",
-      "claude": [
-        "claude/scopes/shared/commands/ship.md"
-      ],
-      "canonical": "workflow/skills/ship.md"
     },
     "thermo-nuclear-code-quality-review": {
       "pi": "pi/skills/thermo-nuclear-code-quality-review/SKILL.md",
@@ -161,7 +115,7 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/adversary.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "7dd30088e775aff9074253e5d46a10a11fe123738f400785cc2030188535adac"
+      "sha256": "5adc8b87403802bc4666a82f8becb0883d376d4653df0cbe90f6814a607ebb93"
     },
     {
       "skill": "adversary",
@@ -185,25 +139,11 @@
       "sha256": "1b3ec05a0ec1b8684b0a92cb60b0f557364084804a14f84b4464ea5239ca6e69"
     },
     {
-      "skill": "ci-fix",
-      "harness": "claude",
-      "adapter": "claude/scopes/work/commands/ci-fix.md",
-      "canonical": "workflow/skills/ci-fix.md",
-      "sha256": "23f3118f4b7049625745eddedd735dfe67032709ce6bd07825a62b53400bea85"
-    },
-    {
-      "skill": "ci-fix",
-      "harness": "pi",
-      "adapter": "pi/skills/ci-fix/SKILL.md",
-      "canonical": "workflow/skills/ci-fix.md",
-      "sha256": "33c73453b166c995695648a8a152128b52e04a4a7ed61bc176b1ca65e6d19f1a"
-    },
-    {
       "skill": "code-quality",
       "harness": "pi",
       "adapter": "pi/skills/code-quality/SKILL.md",
       "canonical": "pi/skills/code-quality/SKILL.md",
-      "sha256": "5e3f4b5d7c0b5ae2fff9ded9f434e35458985349de87f423a3e86785063ba5ff"
+      "sha256": "3d49878f78ce0f6814f00c00098b4cccb6e8c76514a3a0be3966d1088ff1cf03"
     },
     {
       "skill": "implement",
@@ -276,34 +216,6 @@
       "sha256": "6199ea47d3074d29d01b061e8a46dc3b7d61ac6fac1dbaed046087cf5556d839"
     },
     {
-      "skill": "pr-qa",
-      "harness": "claude",
-      "adapter": "claude/scopes/work/commands/pr-qa.md",
-      "canonical": "workflow/skills/pr-qa.md",
-      "sha256": "07f8825f1c6989d22c9eba8da2a0dbca935e1239435316c3247445843ebe2bc2"
-    },
-    {
-      "skill": "pr-qa",
-      "harness": "pi",
-      "adapter": "pi/skills/pr-qa/SKILL.md",
-      "canonical": "workflow/skills/pr-qa.md",
-      "sha256": "e65b657d000c8b43124a2256496a8ac7033f43570736a9215a84a52a03c1c16a"
-    },
-    {
-      "skill": "pr-review",
-      "harness": "claude",
-      "adapter": "claude/scopes/work/commands/pr-review.md",
-      "canonical": "workflow/skills/pr-review.md",
-      "sha256": "056cbc984c4ca5329f06cc0b582ab0455bded4c6c950d5069d0167a21e0c28b5"
-    },
-    {
-      "skill": "pr-review",
-      "harness": "pi",
-      "adapter": "pi/skills/pr-review/SKILL.md",
-      "canonical": "workflow/skills/pr-review.md",
-      "sha256": "bed1d940bb5e7b0115bf9e9788fb5cf2728633d3bd4bd0724d3bd3fed0295e8a"
-    },
-    {
       "skill": "review",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/review.md",
@@ -318,39 +230,11 @@
       "sha256": "38cb2dfa57540ee6c0785256f10a5531e2ff3ffc0847e9acdd60640bd3121a15"
     },
     {
-      "skill": "sec-pr",
-      "harness": "claude",
-      "adapter": "claude/scopes/work/commands/sec-pr.md",
-      "canonical": "workflow/skills/sec-pr.md",
-      "sha256": "3e150ebb1e004dba35eca752780d1f8d741e50e0ae589b68e92124912b039bfd"
-    },
-    {
-      "skill": "sec-pr",
-      "harness": "pi",
-      "adapter": "pi/skills/sec-pr/SKILL.md",
-      "canonical": "workflow/skills/sec-pr.md",
-      "sha256": "fe33ed27a34d5fa909e1b85b31a33ace9e8469373737e491b2348b6bcc90bea4"
-    },
-    {
-      "skill": "ship",
-      "harness": "claude",
-      "adapter": "claude/scopes/shared/commands/ship.md",
-      "canonical": "workflow/skills/ship.md",
-      "sha256": "af9dac62695e4620c8d1f62fdc768027e769c871bc3cf24be86dcc4c15fd4105"
-    },
-    {
-      "skill": "ship",
-      "harness": "pi",
-      "adapter": "pi/skills/ship/SKILL.md",
-      "canonical": "workflow/skills/ship.md",
-      "sha256": "ed36b297172584c07e08d398b7c7e24c4f2c3ff4de65fab62236b715f50f0df2"
-    },
-    {
       "skill": "thermo-nuclear-code-quality-review",
       "harness": "pi",
       "adapter": "pi/skills/thermo-nuclear-code-quality-review/SKILL.md",
       "canonical": "pi/skills/thermo-nuclear-code-quality-review/SKILL.md",
-      "sha256": "a8c1fd39ff4be2d1c53baa4d45d1a080f123aa8c7c6c1b23853b9c24f05d380c"
+      "sha256": "0b84511b002546f21aaf59fa40cf4ff9eef65f739eee63c2986ffdb52b503851"
     },
     {
       "skill": "verify",
@@ -375,15 +259,6 @@
     }
   ],
   "external": [
-    {
-      "skill": "adonisjs-suite",
-      "rechecked": "2026-09-25",
-      "reason": "no in-repo adapter files; upstream repo",
-      "evidence": [
-        "vendor/adonisjs-skills/skills/adonisjs-suite (upstream git@github.com:Tonours/adonisjs-skills.git per vendor/sources.tsv)",
-        "Pi vendor skill adonisjs-suite (pi_core) router dir"
-      ]
-    },
     {
       "skill": "typesafe-ai",
       "rechecked": "2026-09-25",

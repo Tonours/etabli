@@ -78,10 +78,8 @@ const ROOT_NAMES = [
   "hyperframes", "hyperframes-animation", "hyperframes-audio",
   "hyperframes-cli", "hyperframes-core", "hyperframes-creative",
   "hyperframes-keyframes", "hyperframes-registry", "hyperframes-studio",
-  "media-use", "motion-graphics", "logo-generator", "adonisjs-suite",
-  "ghost-lab", "grill-me", "coolify", "design", "componentize",
-  "add-dark-mode", "canonicalize-tailwind", "make-responsive",
-  "dark-mode-image", "brand-kit", "markup-from-image", "ideas",
+  "media-use", "motion-graphics", "logo-generator",
+  "ghost-lab", "grill-me", "coolify",
 ];
 const PACKAGE_SKILLS = [
   { name: "radius-api", pkg: "@earendil-works/pi-radius" },

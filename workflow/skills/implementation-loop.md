@@ -130,7 +130,7 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     accepted fix invalidates cumulative review and code-diff adversary evidence
     it can affect: re-review follows the review budget below.
 
-    Review budget: one T/D counter per run (the ship phase inherits it).
+    Review budget: one T/D counter per run.
     Default path: T1 clean → VALIDATE; only blocking findings (high, unmet
     AC, `BLOCK`) spend a round, residual non-blocking ones go in the final
     report. Otherwise follow the bounded machine in

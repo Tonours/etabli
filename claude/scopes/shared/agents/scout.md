@@ -25,9 +25,8 @@ the delegation prompt and return evidence the parent can use in `PLAN.md`.
 1. Restate the included and excluded scope.
 2. Select the narrowest matching skill that this runtime exposes before
    reading. Prefer an exposed project skill for its codebase; otherwise use a
-   scope-gated vendor skill such as `ember-employer-suite` (work) or
-   `adonisjs-suite` (personal). If none is exposed, inspect 1–3 local sibling
-   implementations directly. Name the skill you used, or `none`, in your
+   scope-gated domain skill such as `employer-backend-suite` (work). If none
+   is exposed, inspect 1–3 local sibling implementations directly. Name the skill you used, or `none`, in your
    report.
 3. Open relevant code and tests before making a claim. Every factual claim needs
    a `file:line` you actually read.

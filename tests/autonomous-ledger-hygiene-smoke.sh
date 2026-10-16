@@ -253,10 +253,8 @@ else
 fi
 assert_transients_clean
 
-# Pin: implementation-loop / ship mention autonomous ledger
+# Pin: implementation-loop mentions the event ledger
 grep -Fq 'events.jsonl' "$ROOT_DIR/workflow/skills/implementation-loop.md" ||
   fail "implementation-loop must mention event ledger"
-grep -Fq 'autonomous' "$ROOT_DIR/workflow/skills/ship.md" ||
-  fail "ship skill must mention autonomous rules"
 
 printf 'autonomous ledger hygiene smoke test: ok\n'

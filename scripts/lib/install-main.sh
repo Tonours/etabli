@@ -415,7 +415,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
     mkdir -p "$smoke_skill_home/.claude/skills" "$smoke_unmanaged_skill"
     ln -s "$smoke_repo_dir/claude/scopes/shared/skills/removed-skill" \
         "$smoke_skill_home/.claude/skills/removed-scope-skill"
-    ln -s "$smoke_repo_dir/vendor/ember-skills/skills/removed-skill" \
+    ln -s "$smoke_repo_dir/vendor/mattpocock/skills/engineering/removed-skill" \
         "$smoke_skill_home/.claude/skills/removed-vendor-skill"
     ln -s "$smoke_repo_dir/pi/skills/removed-skill" \
         "$smoke_skill_home/.claude/skills/removed-pi-skill"
@@ -433,7 +433,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         "$smoke_skill_home/.claude/skills/relative-managed-dangling"
     for smoke_live_skill in \
         "pi/skills/plan-loop" \
-        "vendor/ember-skills/skills/ember-employer-suite" \
+        "vendor/mattpocock/skills/engineering/research" \
         "pi/skills/review"; do
         ln -s "$smoke_repo_dir/$smoke_live_skill" \
             "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
@@ -441,10 +441,10 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     for smoke_other_surface in .pi/agent/skills; do
         mkdir -p "$smoke_skill_home/$smoke_other_surface"
-        ln -s "$smoke_repo_dir/vendor/ember-skills/skills/removed-skill" \
+        ln -s "$smoke_repo_dir/vendor/mattpocock/skills/engineering/removed-skill" \
             "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill"
-        ln -s "$smoke_repo_dir/vendor/ember-skills/skills/ember-employer-suite" \
-            "$smoke_skill_home/$smoke_other_surface/ember-employer-suite"
+        ln -s "$smoke_repo_dir/vendor/mattpocock/skills/engineering/research" \
+            "$smoke_skill_home/$smoke_other_surface/research"
     done
 
     managed_surface_prune_stale_skill_links install "$smoke_repo_dir" "$smoke_skill_home"
@@ -454,7 +454,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             print_error "stale vendor skill link survived in $smoke_other_surface"
             exit 1
         fi
-        if [ ! -L "$smoke_skill_home/$smoke_other_surface/ember-employer-suite" ]; then
+        if [ ! -L "$smoke_skill_home/$smoke_other_surface/research" ]; then
             print_error "live vendor skill link was removed from $smoke_other_surface"
             exit 1
         fi
@@ -517,7 +517,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             exit 1
         fi
     done
-    for smoke_kept_skill in plan-loop ember-employer-suite review; do
+    for smoke_kept_skill in plan-loop research review; do
         if [ ! -L "$smoke_skill_home/.claude/skills/$smoke_kept_skill" ]; then
             print_error "live managed Claude skill link '$smoke_kept_skill' was removed"
             exit 1

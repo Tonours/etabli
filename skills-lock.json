@@ -41,185 +41,20 @@
       "sourceType": "repo",
       "computedHash": "f78f96920514eca8ac6b59935eee6ea9e7c3b82419f8dd58d07e28e19e4e4aa8"
     },
-    "pr-review": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "f4705237e5998fe6d6aa8412dfddcb714c598d5115f38bf5d3efa3b58692251b"
-    },
-    "pr-qa": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "623de583a4de9e4d36d3846d4d9a1f9124fdb8d22000d4e920869b23c7033a71"
-    },
-    "sec-pr": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "1ce40e38d32b2d0d0acfd6338d395050592a45ef35ded639c50db83dec34d96e"
-    },
-    "ci-fix": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b2d7014b91de442fdcdbb129d7d7e562a87797c44c529e4d2e09e4cec693925d"
-    },
-    "github-pr-review": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "91e054a094b549462c4615ec12ef84fb00f118f813a167add3cb43187a773a15"
-    },
     "adversary": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "18cdb4c8b882b9c1bb244aad3bf4f98e3619fd3d1ca6ee75d88291abba414bc4"
-    },
-    "browser-full-page-capture": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b2e586ace47859974017df96cf5e2b746d2e96ea92d7f27f8f57c66589426342"
-    },
-    "frontend-motion-performance": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "cb55f6d84acd56dd7e63027b4b9debdfff3bc4ecf8a6d8315c3ee41b3ec79b53"
-    },
-    "goal-prompt-rewriter": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "1308be01f1c25300faa8acab7fc8239ed670b796c364488d315790aec2e30c24"
-    },
-    "ui-reference-capture": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "a3de222f984d2b983da5ab220416d6f9a614aa60cd3061daffbf9b8bc7370322"
     },
     "linear-project-setup": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "b3e3589efe3ee2528d3dd97ea44e07bb254a819f7ea51085cc526952d2287c72"
     },
-    "frontend-css-ui-ux": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "fbe3351c07a5cef2b375541d3b07b00bda9c6bd11f5029e64e2609b1e1acbc69"
-    },
-    "css-layout-primitives": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8dd86c762ca6c493b5472c7804049a2d5c73f20e09b454129401a7724804b902"
-    },
-    "css-only-components": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "e1a7a076666462f68566f876792540f10e70444b330ae41519df33f1ceca5739"
-    },
-    "css-debugging": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b7be55dbfcb9b818b34ee79e4cdda4c7cd14cb6c808b41576645a6c8029597de"
-    },
     "react-doctor-100": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "68ece3fc43f49e803ba45897623d433e921dba9b224de8af0f0d8728bd02296b"
-    },
-    "ember-employer-architecture": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "38014242f161c7cdca3d6c1e883912d2f98eac382e6313d3b6d699dbf648ebf0"
-    },
-    "ember-employer-components": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "68c2a936add53bd229ffab8a93c6704119114721856fada9e6e3b7653da8d3cc"
-    },
-    "ember-employer-data": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "2f9594a86abd5f4a5f5f216ef9dd73f1878b4c459013ed57d4f4b1ceca2b22db"
-    },
-    "ember-employer-debug": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "e9c02fcec0408455f9a07ae79deb23c2fce058d794c221b0c22a5a59af701081"
-    },
-    "ember-employer-lint-style": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "612f428b4f6901243740b8b1865607c47a79a05a827b75c0d2a9a2b37951be81"
-    },
-    "ember-employer-migration": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "675667250291e9974fc980c49cf39e3f1f58dc5953daf7c5ed566bff21d463b7"
-    },
-    "ember-employer-react-mfe": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "cbf1b02f2d90819c3c30c96e7892b854f1da60b74c22cc407a26c46774e08fec"
-    },
-    "ember-employer-routes": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "3c2b6477cbdd7619e971279bb96fdaccd6f2905a09b2f2f306bebb0b23b13340"
-    },
-    "ember-employer-services-state": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "1cf19541766e572dc79a0763eb8e65c8d6a7d87388c3f2fedf0a1e5839dc66af"
-    },
-    "ember-employer-suite": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "00be420529c165fb89ff818431637cf3861dc32f985b83bcd448ccecd4363bc9"
-    },
-    "ember-employer-testing": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "838f72ece9b58942557d57b34e7b695aca606d3dbd57a971658c2737eacfa47f"
-    },
-    "ember-employer-workflow-visualizer": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "6dc9a207d432038943e2c34002567214ccae3dd236a1144aa95e801aca644fe8"
-    },
-    "ember-standalone-workflow-package": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "3ee5dee74e3a3b754f8cb7c62bcb219c02859f433569412e04ef2ffa4f2bb56d"
-    },
-    "adonisjs-architecture": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "2ebaa736390e93cd496856d2f9efc26011c31fbfa0da4589303cf481d9eb7897"
-    },
-    "adonisjs-backend": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "28b263b9faa73d15c8be96c02ddffbc58a7f39b50fd080ba31627b4740b0ff3c"
-    },
-    "adonisjs-review": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "31c4a79381d4cddaff8d3598a44c1ca5e6cfa77f31d62b1741162e745f43b7e3"
-    },
-    "adonisjs-suite": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "86698c04d8b2cd221fb8c37159188e987e70cd8e6a49e8b7b40ba3f158040405"
-    },
-    "adonisjs-testing": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "0ecc76ae9a6a74dd2806e611241ca0654cf99887213688d367afbeb796db3703"
-    },
-    "adonisjs-tuyau": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "6bd89a2f4472afff8c6137dfcc9d65658ed55834eba8e2c23d577965eca5e1ba"
-    },
-    "recurring-run": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "cefbdf5a94a52d96870c6efcca901c32edbe27f6c7b8b797ab873b899bf699ec"
     },
     "coolify": {
       "source": "local",
@@ -231,40 +66,15 @@
       "sourceType": "repo",
       "computedHash": "0d8ee81d31d3b64c85dadba763bcfea97ba02c4901c021fa1c490eaccfbce1b1"
     },
-    "session-handoff": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "70c09ac522beef98029e9914f37f4f45863ad361efeb6095313d8938101eb1d8"
-    },
-    "show-me": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "258c662730a2898dd42ae5dd1cdb80de373d37bc43167c6035c2241a56d299d3"
-    },
-    "project-hunt": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8187df26ec48c5da10cbd24ea422088596456a57f816b6fe9087ce7fc9a25869"
-    },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "c1d5a77d937beb19fb82b30cdf72d936592ed476f1441f94f1c302fb29dcb4d6"
-    },
-    "engineering/ask-matt": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "0cd14026efa0330083cbc7adf590976c162b60e02f696a8dcce96f0b4dab8a72"
+      "computedHash": "312cd821623bc3f497966d8b5af836c50159375c3e113fb97934f9d83117f13d"
     },
     "engineering/codebase-design": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "5a17552cc1482f1a40124bf4e6c9dbd90ac0dbb47e71c07d47369f9e5f2ae3b5"
-    },
-    "engineering/diagnosing-bugs": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "37b5e9c624513551da790b52864dc8c84bff996a6d03a380cc6facdcc0a88354"
     },
     "engineering/domain-modeling": {
       "source": "local",
@@ -291,31 +101,6 @@
       "sourceType": "repo",
       "computedHash": "c8c1cba327a6f824b554cd978079a3dadd7406d73174f8fb9bfef58824691970"
     },
-    "engineering/resolving-merge-conflicts": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "63b2dcadbe9124caeb3448f1378286fe18dcefb2494f60e136831b8b4986ca27"
-    },
-    "engineering/to-spec": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "3fa1a0695d4ea242fae9e569e4d22aa1788623197abb33bfadafae7315789bbf"
-    },
-    "engineering/to-tickets": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "bf5e6ebcb4f1272de0c188d5b3901f265a03d1fa9935a21a7a56938e21e2e761"
-    },
-    "engineering/triage": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b954d74c219c805bf353d6642251a713c9b2e9cfdb11babfe588bcfe7dfd16d5"
-    },
-    "engineering/wayfinder": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "fa790eb4255b13d24d7e33ff4891ccd3d621558cc0ab87ae226777538ea16a8f"
-    },
     "engineering/wizard": {
       "source": "local",
       "sourceType": "repo",
@@ -325,21 +110,6 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "79a6be7834183ca0e51296734f966ffa58d8566ecc24d146b294b23cd71215b5"
-    },
-    "claude-scope/shared/playwright-agentic-testing": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "37c698f6703dbfea79db566b008b95b2c876f3127780d1124a47b23d62614bf6"
-    },
-    "claude-scope/shared/playwright-failure-dossier": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "4faffe13db8d8bce3a054daca806619b88a38d38467634fb385d577444f168e6"
-    },
-    "claude-scope/shared/playwright-test-generation": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "dd9a28678fe786658c59ba9f90e61f1595af55b0b8d98a2b08f421dcd911369f"
     },
     "claude-scope/shared/spec": {
       "source": "local",
@@ -359,22 +129,12 @@
     "claude-scope/work/employer-backend-suite": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "1ae8583eed03d2963f5deb0edd0db37c97a20b5ec07b771e96a2651b2ad7ba89"
+      "computedHash": "f0edf738a14acb2dc0f644865a4f4bec9a1fc86d32b6b18b836c365bfe6c38e1"
     },
     "claude-scope/work/employer-mfe-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "e4d4486f56629c700f08134967214e953ddead46b33996dc87d1c38c21815a7c"
-    },
-    "claude-scope/work/pr-qa": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "fb9e7f11d43347daeb219a1baad5e905dcb442eca17f79dff933168c347b095a"
-    },
-    "claude-scope/work/sec-pr": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "27d3204e2bdf77c84f0e8b92e541ae232fee19f564b4f6a61af211c5ccf4cfa8"
+      "computedHash": "9d47f8107357e20798ba612d658a21179753804958e46cbc61c8301c9269300d"
     },
     "claude-scope/work/week-roadmap": {
       "source": "local",
@@ -395,11 +155,6 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "9cd84c5e535dec8dec59917c110f9c00b4a61faadb86b432ec7e41051170af12"
-    },
-    "ship": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "55e928f795cc0b455c201567bf92d8f1196b364b91238a6eec25cd459b390a04"
     },
     "write-direct": {
       "source": "local",

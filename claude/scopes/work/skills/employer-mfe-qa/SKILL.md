@@ -3,7 +3,7 @@ name: employer-mfe-qa
 description: Manually QA employer-poc React MFEs (user-settings, notes-listing) in Claude in Chrome, including flows and console errors. No Playwright.
 ---
 
-Smoke-test the two employer MFEs by driving a real Chrome against the dev app: start the app, walk the changed flows, screenshot each state, assert zero console errors. This is exploratory browser QA — you drive and observe, you do not write test files. For scripted tests use `ember-employer-testing` (QUnit) or `playwright-test-generation`.
+Smoke-test the two employer MFEs by driving a real Chrome against the dev app: start the app, walk the changed flows, screenshot each state, assert zero console errors. This is exploratory browser QA — you drive and observe, you do not write test files. For scripted tests, write them in the app's existing test suite.
 
 The MFEs live in `apps/user-settings-mfe` and `apps/notes-listing-mfe`; they mount into the Ember host via Module Federation. The dev app at `https://app.development.employer.com` proxies to the local server running the current branch.
 

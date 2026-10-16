@@ -24,12 +24,7 @@
         "bug-check",
         "linear-ticket-create",
         "linear-work",
-        "pr-review",
-        "pr-qa",
-        "sec-pr",
-        "ci-fix",
         "write-direct",
-        "ship",
         "thermo-nuclear-code-quality-review"
       ]
     },
@@ -73,18 +68,10 @@
     {
       "source": "npm:pi-subagents",
       "skills": []
-    },
-    {
-      "source": "npm:@zenspc/pi-pstack"
     }
   ],
   "skills": [
-    "!adonisjs-architecture",
-    "!adonisjs-backend",
     "!adonisjs-best-practices",
-    "!adonisjs-review",
-    "!adonisjs-testing",
-    "!adonisjs-tuyau",
     "!alambic-obvault",
     "!autoproject",
     "!brave-search",

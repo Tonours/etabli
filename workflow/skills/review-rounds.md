@@ -1,15 +1,14 @@
 # Review Rounds
 
-Bounded re-review machine for implementation and ship runs. Open it only
+Bounded re-review machine for implementation runs. Open it only
 when a round returned blocking findings, a fold or re-review is due, or
 CI-driven commits landed after a review (`workflow/skills/implementation-loop.md`
-step 13b, `workflow/skills/ship.md` steps 4, 7 and 11). A clean T1 never
+step 13b). A clean T1 never
 needs it.
 
 ## Review budget machine
 
-One T/D counter per run; the ship phase inherits it (see the `ship.md`
-transfer record). T = full tour (hunters + code_diff adversary, fresh
+One T/D counter per run. T = full tour (hunters + code_diff adversary, fresh
 context, pinned patch + SHA). D = delta round (fix diff vs previous
 pinned patch ONLY; Logic hunter + the finding's hunter family, fresh;
 hunter unavailable → `blocked`). T1/T2/D1/D2 are POSITIONAL: the
@@ -45,7 +44,7 @@ inheritance and the 50-line part of the delta bar stay prose-only.
 
 ## Delta re-review
 
-After CI-driven commits that touch runtime code on a ship branch:
+After CI-driven commits that touch runtime code on a PR branch:
 
 Delta = ancestry test (`git merge-base --is-ancestor <reviewed-sha>
 HEAD`, fail → full review) + `git diff --numstat -z <reviewed-sha>

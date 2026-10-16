@@ -4,8 +4,7 @@ Shared contract for taking a broad project from rough intent to validated
 delivery without losing scope, evidence, or authorization boundaries.
 
 Use this when a request says "A to Z", "de a a z", "end to end", "projet
-ambitieux", or equivalent long-running project wording. For one explicitly
-requested ship task, `/ship` keeps its separate push and PR consent contract.
+ambitieux", or equivalent long-running project wording.
 
 ## Lifecycle
 
