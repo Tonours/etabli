@@ -12,7 +12,8 @@ the evidence pack; Logic stays intent-blind. Unavailable plan evidence is explic
 Capture `shasum -a 256 PLAN.md` from the frozen reviewed input before dispatch;
 record that exact hash with plan adversary provenance and verdict in
 § Review Changes. Never stamp the current hash onto an old verdict. The latest
-plan pass governs. Material edits need fresh approval. Operational progress and
+plan pass governs. The hash identifies the dispatched snapshot, not the
+current file: later operational updates change it. Material edits need fresh approval. Operational progress and
 handoff belong in `PLAN.md` (Checks `last run`, Notes / Handoff).
 
 An implemented archive matching the current root plan's exact byte hash is
