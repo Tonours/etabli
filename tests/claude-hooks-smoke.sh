@@ -203,6 +203,8 @@ const cases = [
   ["shell unquoted heredoc apostrophe then comment", write("y.sh", "cat <<EOF\nDon't panic\nEOF\n# added note\n"), "deny"],
   ["shell unquoted heredoc data", write("z.sh", "cat <<EOF\n# Heading\nEOF\n"), "allow"],
   ["ruby hash label regex then comment", write("aa.rb", "rules = {pattern:/don't/}\n# added note\n"), "deny"],
+  ["shell case branch in heredoc substitution", write("ab.sh", "cat <<EOF\n$(case \"$m\" in\n  prod) printf p # added note\n    ;;\nesac)\nEOF\n"), "deny"],
+  ["shell backtick in heredoc", write("ac.sh", "cat <<EOF\n`printf hi # added note\n`\nEOF\n"), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;

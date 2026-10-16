@@ -166,8 +166,9 @@ export function collectCommentLines(text, family) {
 				continue;
 			}
 			if (source.startsWith(delimiter, cursor)) return cursor + delimiter.length;
-			if (family === "shell" && quote === '"' && source.startsWith("$(", cursor)) {
-				cursor = scanCode(cursor + 2, true);
+			const substitution = family === "shell" && quote === '"' ? skipSubstitution(cursor) : -1;
+			if (substitution !== -1) {
+				cursor = substitution;
 				continue;
 			}
 			if (source[cursor] === "\n" && !spansLines) return cursor;
@@ -194,15 +195,21 @@ export function collectCommentLines(text, family) {
 		let cursor = start;
 		while (expands && cursor < end.body) {
 			if (source[cursor] === "\\") cursor += 2;
-			else if (source.startsWith("$(", cursor)) cursor = scanCode(cursor + 2, true);
-			else cursor += 1;
+			else cursor = Math.max(skipSubstitution(cursor), cursor + 1);
 		}
 		return Math.max(cursor, end.stop);
 	};
 
-	const scanCode = (start, untilParen) => {
+	const skipSubstitution = (cursor) => {
+		if (source.startsWith("$(", cursor)) return scanCode(cursor + 2, ")");
+		if (source[cursor] === "`") return scanCode(cursor + 1, "`");
+		return -1;
+	};
+
+	const scanCode = (start, closer) => {
 		let lineCode = "";
 		let depth = 0;
+		let caseDepth = 0;
 		let index = start;
 		const heredocs = [];
 		while (index < source.length) {
@@ -227,10 +234,16 @@ export function collectCommentLines(text, family) {
 					continue;
 				}
 			}
-			if (untilParen && char === "(") depth += 1;
-			if (untilParen && char === ")") {
-				if (depth === 0) return index + 1;
-				depth -= 1;
+			if (family === "shell" && !/\w/.test(source[index - 1] ?? "")) {
+				const word = /^(case|esac)\b/.exec(source.slice(index, index + 5))?.[1];
+				if (word === "case") caseDepth += 1;
+				if (word === "esac" && caseDepth > 0) caseDepth -= 1;
+			}
+			if (closer === "`" && char === "`") return index + 1;
+			if (closer === ")" && char === "(") depth += 1;
+			if (closer === ")" && char === ")") {
+				if (depth === 0 && caseDepth === 0) return index + 1;
+				if (depth > 0) depth -= 1;
 			}
 			if (family === "clike" && char === "/" && source[index + 1] === "*") {
 				const end = source.indexOf("*/", index + 2);
@@ -267,7 +280,7 @@ export function collectCommentLines(text, family) {
 		return index;
 	};
 
-	scanCode(0, false);
+	scanCode(0, null);
 	return found;
 }
 
