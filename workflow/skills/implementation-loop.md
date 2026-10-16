@@ -34,7 +34,7 @@ never downgrade mid-run.
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.
 - Golden principles: `workflow/contract-details.md`.
-- In autonomous runs a session handoff is a `handoff` event (branch, sha, done,
+- A session handoff goes in `PLAN.md` § Notes / Handoff (branch, sha, done,
   pending, next action, do-not-redo); a started migration is finished or handed
   off that way, never left half done.
 
@@ -64,9 +64,9 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
    findings in one family trigger a method reassessment before another patch.
    At most one worker writes at a time: invoke it in the
    foreground, or wait for the worker and do not write until it returns. The
-   parent remains the only canonical ledger writer and reads every integrated diff: a worker report locates the work,
+   parent remains the only `PLAN.md` writer and reads every integrated diff: a worker report locates the work,
    it does not evidence it.
-9. Record progress in the ledger, task markers or nested check `last run`.
+9. Record progress in task markers or nested check `last run`.
    Material plan facts require reconciliation and fresh approval; see
    `workflow/skills/execution-quality.md`.
 10. If facts materially invalidate route, scope, checks, or required evidence,
@@ -97,14 +97,13 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     or required tests.
 
     Re-run focused checks if anything was edited. Record `simplify: clean` or
-    `simplify: removed N`. Autonomous runs also append
-    `simplification_completed` with that evidence.
+    `simplify: removed N` in `PLAN.md`.
 12c. Quality pass on the cumulative diff: invoke `code-quality` when the
     runtime exposes it, else the narrowest exposed domain or project skill,
-    else compare the diff with 1–3 local sibling implementations. Append
-    `quality_completed` with `status: pass` (evidence naming the producer)
-    when a pass ran, or `status: unavailable` (evidence naming what is
-    missing) with neither — then stop before completion; never present
+    else compare the diff with 1–3 local sibling implementations. Record
+    `quality: pass` (naming the producer) when a pass ran, or
+    `quality: unavailable` (naming what is missing) with neither — then stop
+    before completion; never present
     the missing pass as clean. Fix mechanical convention findings;
     report behavioral ones. Re-run focused checks if the pass edited anything.
     Skip only for pure docs or plan-only changes, and say so.
@@ -135,10 +134,8 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     report. Otherwise follow the bounded machine in
     `workflow/skills/review-rounds.md`; never validate past its ceiling.
     Record every pass in the review evidence: tour (T/D + number),
-    scope (full/delta), base SHA, patch SHA, reviewers. Close each round
-    with one `review_completed` carrying `review_round` and `round_outcome`
-    (after its adversary); `scripts/workflow-event` refuses a sequence the
-    machine forbids.
+    scope (full/delta), base SHA, patch SHA, reviewers, round outcome, in
+    `PLAN.md` § Review Changes.
 14. Archive the final implemented plan in `docs/plan/YYYYMMDD-short-slug.md`:
     fill `workflow/templates/plan-archive.md` (convention, hash gate and
     multi-repo rules: `workflow/plan-archive.md`); distill it as memory, do
@@ -171,12 +168,8 @@ Autonomous completion requires:
 - Logic+Spec lead review on the cumulative shippable workspace patch with a
   complete deciding-code table for runtime diffs (self-review only for small
   tier);
-- event ledger per `workflow/events.md` (mandatory for autonomous runs);
+- review and adversary provenance in `PLAN.md` § Review Changes;
 - implemented-plan archive under `docs/plan/` and root `PLAN.md` cleanup
   after successful archive and validation (when a plan existed; small tier
   has none).
-
-## Autonomous evidence
-
-Autonomous `plan-implement` runs must append `.workflow/<slug>/events.jsonl` and pass `scripts/workflow-event validate --profile autonomous-completed` before claiming completion.
 

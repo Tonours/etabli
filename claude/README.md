@@ -195,8 +195,8 @@ fragment `settings.skill-overrides.json` carries the skill map plus:
 
 - `attribution: { commit: "", pr: "" }`: no `Co-Authored-By` trailer on
   commits and no generated-with line in PR bodies;
-- `autoMemoryEnabled: false`: durable memory is the vault plus the workflow
-  ledger handoff, not Claude's auto memory.
+- `autoMemoryEnabled: false`: durable memory is the vault plus the
+  `PLAN.md` handoff, not Claude's auto memory.
 
 `scripts/lib/claude-settings-sync.mjs` (run by the installer) propagates it
 into `~/.claude/settings.json`. `permissions.defaultMode: "bypassPermissions"`

@@ -19,9 +19,9 @@ imported below through its deployed link `~/.pi/agent/AGENTS.md`.
   Pi-only unless equivalent runtime capability is exposed.
 
 ## Compact instructions
-When compacting, keep the root `PLAN.md` subject and status, the active ledger
-run, files modified, frozen check commands and last results, open findings, and
-the exact next action. Drop stale exploration output.
+When compacting, keep the root `PLAN.md` subject and status, files modified,
+frozen check commands and last results, open findings, and the exact next
+action. Drop stale exploration output.
 
 ## Safety
 - Runtime: Node.js/TypeScript, local tests.

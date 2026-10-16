@@ -32,7 +32,6 @@ FILES=(
   "$REPO_DIR/workflow/review-rubric.md|workflow/review-rubric.md"
   "$REPO_DIR/workflow/ticket-template.md|workflow/ticket-template.md"
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
-  "$REPO_DIR/workflow/events.md|workflow/events.md"
   "$REPO_DIR/workflow/contract-details.md|workflow/contract-details.md"
   "$REPO_DIR/workflow/agent-quick-card.md|workflow/agent-quick-card.md"
   "$REPO_DIR/workflow/answer-quality.md|workflow/answer-quality.md"
@@ -51,18 +50,10 @@ FILES=(
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
-  "$REPO_DIR/scripts/plan-review-check|scripts/plan-review-check"
-  "$REPO_DIR/scripts/lib/plan-review-binding.mjs|scripts/lib/plan-review-binding.mjs"
   "$REPO_DIR/scripts/lib/plan-status.mjs|scripts/lib/plan-status.mjs"
   "$REPO_DIR/scripts/lib/plan-cleanup-command.mjs|scripts/lib/plan-cleanup-command.mjs"
-  "$REPO_DIR/scripts/lib/ledger-integrity.mjs|scripts/lib/ledger-integrity.mjs"
-  "$REPO_DIR/scripts/lib/predicates.mjs|scripts/lib/predicates.mjs"
-  "$REPO_DIR/scripts/lib/workflow-events.mjs|scripts/lib/workflow-events.mjs"
   "$REPO_DIR/scripts/vendor/commonmark/commonmark.cjs|scripts/vendor/commonmark/commonmark.cjs"
-  "$REPO_DIR/scripts/workflow-event|scripts/workflow-event"
   "$REPO_DIR/scripts/lib/hash.sh|scripts/lib/hash.sh"
-  "$REPO_DIR/scripts/lib/workflow-event-detail.jq|scripts/lib/workflow-event-detail.jq"
-  "$REPO_DIR/scripts/lib/review-rounds.jq|scripts/lib/review-rounds.jq"
 )
 
 while IFS= read -r contract_path; do
@@ -373,17 +364,9 @@ exclude_block() {
     "/workflow/" \
     "/scripts/vendor/commonmark/commonmark.cjs" \
     "/scripts/plan-cleanup" \
-    "/scripts/plan-review-check" \
-    "/scripts/lib/plan-review-binding.mjs" \
     "/scripts/lib/plan-status.mjs" \
     "/scripts/lib/plan-cleanup-command.mjs" \
-    "/scripts/lib/ledger-integrity.mjs" \
-    "/scripts/lib/predicates.mjs" \
-    "/scripts/lib/workflow-events.mjs" \
-    "/scripts/workflow-event" \
     "/scripts/workflow-measurement-integrity" \
-    "/scripts/lib/workflow-event-detail.jq" \
-    "/scripts/lib/review-rounds.jq" \
     "/scripts/lib/hash.sh" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \

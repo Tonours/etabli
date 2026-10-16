@@ -890,7 +890,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 			stopCondition:
 				"validated archive and handoff, or blocked with exact missing decision/evidence",
 			requiredEvidence:
-				"goal/spec/slice contract, focused validation, product dogfood when relevant, review, event ledger, archive, handoff",
+				"goal/spec/slice contract, focused validation, product dogfood when relevant, review, archive, handoff",
 			writeAllowed: true,
 			planChain: planChainFor(planStatus),
 		};

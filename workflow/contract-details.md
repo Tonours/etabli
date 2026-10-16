@@ -95,16 +95,13 @@ sandbox. Shared workflow and evidence invariants stay in
   worktree, one run per worktree and branch, no sibling-worktree edits, the run's
   root `PLAN.md` inside its own worktree, environment contention reported as
   `blocked`, and explicit cleanup or a stated reason for keeping it.
-- Long or multi-packet runs may record durable progress as events in
-  `.workflow/<slug>/events.jsonl` per `workflow/events.md`; resumption reads the
-  ledger, and `completed`/`blocked` events are terminal evidence.
+- Long or multi-packet runs record durable progress in `PLAN.md` (Checks
+  `last run`, Decision Log, Notes / Handoff); resumption reads it.
 - Workflow improvements start from inspectable evidence and go through a
   reviewed `PLAN.md`.
-- Autonomous runs (`plan-implement` autonome, `/goal`) must record
-  the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
-  stays red three times with no new diff between runs, stop as `blocked`, emit a
-  `no_progress` event, and list the eliminated hypotheses instead of iterating.
+  stays red three times with no new diff between runs, stop as `blocked`, note it in the
+  Decision Log, and list the eliminated hypotheses instead of iterating.
 - READY plans stay editable during implementation: when Checks or Acceptance
   Criteria change, note why in the Decision Log. No runtime freeze.
 - Autonomous loop stop conditions pair the measurable goal with an explicit cap
@@ -116,9 +113,9 @@ sandbox. Shared workflow and evidence invariants stay in
 - Explicit user authorization for subagents, delegation, or reviewers may
   launch one read-only reviewer when a runner is available; record its
   id/verdict. Autonomous `plan-implement` already requires this pass.
-- Independent work starts a new session; continuing work resumes PLAN/ledger.
-  Before switching, record `handoff` (branch, sha, done, pending, next action,
-  do-not-redo); inspect that handoff before switching. No automatic
+- Independent work starts a new session; continuing work resumes `PLAN.md`.
+  Before switching, record the handoff (branch, sha, done, pending, next action,
+  do-not-redo) in § Notes / Handoff; inspect it before switching. No automatic
   reset. Finish or hand off a migration.
 - Golden principles: a new transverse invariant ships with a mechanical check
   (hook, lint, or smoke assertion) in the same change, instead of prose
@@ -139,8 +136,8 @@ sandbox. Shared workflow and evidence invariants stay in
 
 No approval checkpoints (ADR-0032): deletion, production and billing writes,
 history rewrite, pushes, and external write-back (PR comments, Linear tickets,
-publishing) run directly. When a run ledger exists, user decisions that do
-happen are journaled as `human_checkpoint` events per `workflow/events.md`.
+publishing) run directly. User decisions that do happen go in the plan's
+Decision Log.
 
 | Category | Examples | Enforcement | Behavior |
 | --- | --- | --- | --- |
@@ -209,7 +206,7 @@ Claude-native loop:
 - Use `/goal <measurable condition>` for long-running completion loops instead
   of recreating Pi's Task* continuation layer. The goal statement must pair the
   measurable condition with an explicit cap (iterations or wall-clock), and the
-  run must record the event ledger per `workflow/events.md`.
+  run records its evidence in `PLAN.md`.
 - `claude/settings.workflow-hooks.json` wires the no-comments and rtk guards.
   Route classification stays
   library-only and injects no prompt context (ADR-0014).

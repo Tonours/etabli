@@ -64,7 +64,7 @@ describe("installed Pi extension loader", () => {
 
 			const baseline = join(cwd, "baseline/.pi/agent/extensions");
 			mkdirSync(baseline, { recursive: true });
-			writeFileSync(join(baseline, "workflow-router.ts"), 'import "../../scripts/lib/workflow-events.mjs"; export default function () {}\n');
+			writeFileSync(join(baseline, "workflow-router.ts"), 'import "../../scripts/lib/missing-module.mjs"; export default function () {}\n');
 			const baselineResult = loadWithNode(activeNodePath, loaderPath, [join(baseline, "workflow-router.ts")]);
 			expect(baselineResult.loaded).toEqual([]);
 			expect(baselineResult.errors).toHaveLength(1);

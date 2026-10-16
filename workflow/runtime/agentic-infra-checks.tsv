@@ -16,13 +16,11 @@ core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 core	shell-docs	guard-journal-smoke	tests/guard-journal-smoke.sh
 full	shell-docs	guard-journal-isolation-smoke	tests/guard-journal-isolation-smoke.sh
 full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
-full	shell-docs	ledger-selection-performance-smoke	tests/ledger-selection-performance-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
 full	shell-docs	claude-agents-smoke	tests/claude-agents-smoke.sh
 full	shell-docs	claude-commands-smoke	tests/claude-commands-smoke.sh
 full	shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
-full	shell-docs	workflow-event-smoke	tests/workflow-event-smoke.sh
 full	shell-docs	workflow-autonomous-plan-loop-smoke	tests/workflow-autonomous-plan-loop-smoke.sh
 full	shell-docs	runtime-capabilities-smoke	tests/runtime-capabilities-smoke.sh
 full	shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
@@ -37,7 +35,6 @@ full	pi	pi-import-smoke	builtin:pi-import-smoke
 full	shell-docs	fix-links-smoke	tests/fix-links-smoke.sh
 full	shell-docs	install-smoke	tests/install-smoke.sh
 full	shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
-full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
 full	shell-docs	skill-catalog-name-smoke	tests/skill-catalog-name-smoke.sh
 full	shell-docs	skill-tree-hash-smoke	tests/skill-tree-hash-smoke.sh
 full	shell-docs	sync-vendor-subpath-smoke	tests/sync-vendor-subpath-smoke.sh
@@ -49,5 +46,3 @@ full	shell-docs	skills-lock-coverage-smoke	tests/skills-lock-coverage-smoke.sh
 live	shell-docs	workflow-cli-smoke	tests/workflow-cli-smoke.sh
 live	shell-docs	workflow-real-agent-scenarios	tests/workflow-real-agent-scenarios.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
-core	shell-docs	plan-review-binding-test	tests/plan-review-binding.test.mjs
-core	shell-docs	execution-quality-smoke	tests/execution-quality-smoke.sh

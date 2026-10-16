@@ -44,7 +44,7 @@
     "adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "18cdb4c8b882b9c1bb244aad3bf4f98e3619fd3d1ca6ee75d88291abba414bc4"
+      "computedHash": "313fff85e0c749a74d8e681a4c027e0946fa4d4fe4d1a6fe28554635f9f5f3c9"
     },
     "linear-project-setup": {
       "source": "local",

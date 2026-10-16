@@ -107,7 +107,7 @@ Use only when the READY plan explicitly authorizes sidecars and independently
 ownable units. Otherwise delete this section.
 
 - Manifest path:
-- Coordinator / canonical ledger writer:
+- Coordinator / `PLAN.md` writer:
 - Artifact root:
 - Positive max in flight:
 - Unit DAG and non-overlapping scopes:
@@ -137,7 +137,7 @@ ownable units. Otherwise delete this section.
 - Evidence required for done:
 
 ## Progress Log
-- Operational progress: ledger events; avoid material edits after approval.
+- Operational progress: Checks `last run` and task markers; avoid material edits after approval.
 
 ## Decision Log
 - YYYY-MM-DD:
@@ -146,7 +146,7 @@ ownable units. Otherwise delete this section.
 - Adversary deltas:
 
 ## Handoff State
-- Operational handoff: ledger `handoff` event.
+- Operational handoff: branch, sha, done, pending, next action, do-not-redo.
 - Contract changes: reconcile and obtain fresh plan approval.
 
 ## Risks

@@ -15,8 +15,8 @@ checks, edge cases, plan drift, and simpler or safer routes.
 ## Required Behavior
 
 1. Inspect repo state enough to judge plan drift.
-2. Freeze the actual root `PLAN.md` and capture its contract hash before
-   dispatch (`scripts/plan-review-check --hash PLAN.md`).
+2. Freeze the actual root `PLAN.md` and capture its hash before
+   dispatch (`shasum -a 256 PLAN.md`).
 3. Stop if `PLAN.md` is missing.
 4. Review for:
    - blockers;
@@ -33,15 +33,14 @@ checks, edge cases, plan drift, and simpler or safer routes.
 8. Fold accepted findings into `PLAN.md`.
 9. Keep `Status: READY` only if no blocker or high-severity issue remains.
 10. Otherwise set `Status: CHALLENGED`.
-11. Record accepted deltas under `## Review Changes` before fresh approval.
-    Append the pass with its captured `plan_contract_sha256` to the ledger;
-    never recalculate a changed snapshot to make an old verdict current.
+11. Record accepted deltas under `## Review Changes` before fresh approval,
+    with the pass's model, captured hash and verdict; never recalculate a
+    changed snapshot to make an old verdict current.
 12. Return accepted findings, rejected findings, final plan status, and next
     route.
 
 Plan-mode verdicts are `READY` or `CHALLENGED`; code-diff verdicts are `GO`,
-`GO WITH NOTES`, or `BLOCK`. The event CLI refuses a new pass outside its
-mode's canon; history keeps both families for historical compatibility.
+`GO WITH NOTES`, or `BLOCK`.
 
 ## Completion Evidence
 
@@ -101,8 +100,9 @@ effective model family, not on the harness currently driving the workflow:
 1. exclude the author's family;
 2. choose a configured route from the strongest available frontier pool;
 3. prefer a direct provider route over an aggregator route;
-4. record `model_provenance` on the ledger pass (required; shape in
-   `workflow/events.md`), effective values copied from the harness's own record;
+4. record the model provenance (requested and effective model, provider,
+   family, runner) in `PLAN.md` § Review Changes, effective values copied from
+   the harness's own record;
 5. treat missing effective-model provenance as `blocked`, even when the model
    was requested successfully.
 

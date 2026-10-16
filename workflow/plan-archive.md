@@ -27,7 +27,7 @@ Archive a plan if and only if it was implemented and validation ran.
 ## Immutability
 
 An archive is immutable once written: post-archive fixes, ship outcomes,
-and late discoveries live in the ship ledger + report, never rewritten
+and late discoveries live in the ship report, never rewritten
 into the archive. (Prose rule — `plan-cleanup` does not refuse rewrites;
 ship re-checks the captured hash and blocks on divergence.)
 
@@ -103,7 +103,7 @@ refused, which is the point: an archive cannot silently describe a different pla
 - Source plan SHA-256: `<sha256 of the exact root PLAN.md bytes>`
 - Status: IMPLEMENTED
 - Commit / branch: <when available>
-- Workflow initiative: <event-ledger slug, or none>
+- Workflow initiative: <plan slug, or none>
 
 ## Outcome
 - ...
@@ -187,7 +187,7 @@ runs there again — the script is copied per project, not linked. In a project 
 has not been redeployed, the written discipline above is the only thing holding.
 
 When one archive summarizes findings from several workflow initiatives, prefix
-each such finding with `[initiative:<ledger-slug>]`. The archive's `Workflow
+each such finding with `[initiative:<plan-slug>]`. The archive's `Workflow
 initiative` is the default and this inline marker a per-finding override;
 duplicate lines from one initiative remain one recurrence.
 

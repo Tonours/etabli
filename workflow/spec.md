@@ -71,8 +71,10 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Evidence and investigations: `workflow/skills/investigation.md` and
   `workflow/evidence-pack.schema.json`. Integrity, parent-observed execution,
   proxy support, and blocked surfaces stay distinct.
-- Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`) must record
-  the event ledger; ordinary work may record it.
+- Run evidence lives in `PLAN.md`: check results in Checks, review and adversary
+  provenance (model, `shasum -a 256 PLAN.md` at dispatch, verdict) in Review
+  Changes, handoff (branch, sha, done, pending, next action, do-not-redo) in
+  Notes / Handoff.
 - Cold contracts, opened only on their trigger: bounded re-review
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
   review); open-ended improvement loops `workflow/skills/long-loop.md`.
@@ -85,8 +87,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   telemetry, never plan/goal stop conditions. Bounded payload contracts and
   explicit billing authorization remain separate. The final review of an
   autonomous `plan-implement` run comes from a fresh
-  context (subagent reviewer or cross-model). Handoffs are recorded as a
-  `handoff` event.
+  context (subagent reviewer or cross-model). Handoffs are recorded in
+  `PLAN.md` § Notes / Handoff.
 - Implementation depth is risk-tiered (`small` / `standard` / `high-risk`)
   per `workflow/skills/implementation-loop.md`: cross-model code-diff
   adversary is reserved for high-risk; standard accepts a documented
@@ -96,7 +98,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   Recurring findings become reviewed recommendations, never auto-applied.
   Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
   the issue. Reviewers flag only gaps that affect correctness or stated requirements.
-  A started migration is finished or explicitly handed off with a `handoff` event.
+  A started migration is finished or explicitly handed off in `PLAN.md` § Notes / Handoff.
 
 ## Minimal READY gate
 

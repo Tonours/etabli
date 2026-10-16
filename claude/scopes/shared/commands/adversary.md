@@ -29,9 +29,9 @@ is declared in `workflow/runtime/model-routing.json`. Exclude the author's
 family from every route, including an OpenAI model served through Pi.
 Requested-model success is insufficient: record the effective model or stop as
 blocked. A same-family pass is a labeled supplement only and never satisfies
-the independence requirement. Record `model_provenance`
+the independence requirement. Record the model provenance
 (requested/effective/provider/family plus runner and run id, complete when
-present) on the ledger pass.
+present) in `PLAN.md` § Review Changes.
 Code-diff independence follows `workflow/skills/adversary.md`: **small** skips
 the pass; **standard** accepts cross-model or two fresh independent same-family
 samples; **high-risk** requires cross-model. A single same-family pass cannot
@@ -55,7 +55,7 @@ repo command.
    then `../../workflow/skills/adversary.md`. Use `$ARGUMENTS` if given, else `./PLAN.md`. If absent,
    stop and say so (run `/plan-loop` first).
 
-2. Freeze the plan and capture `scripts/plan-review-check --hash PLAN.md`
+2. Freeze the plan and capture `shasum -a 256 PLAN.md`
    before dispatch. **Run a frontier model as an adversarial reviewer**, using the first
    configured route whose family differs from the implementation author. For a
    non-OpenAI author, the preferred eligible Codex call is read-only:
@@ -85,9 +85,9 @@ repo command.
 5. **Fold the accepted findings into `PLAN.md`** the same way `/plan-loop` does:
    update the relevant sections, record deltas under `Review Changes`, and only
    keep `READY` if no BLOCKER/HIGH survives. You (Claude) write the file — the
-   reviewer never does. Material deltas need a fresh pass. Append
-   `adversary_completed` with the pre-dispatch `plan_contract_sha256`; record
-   operational pass results in the ledger, never mutate the approved contract.
+   reviewer never does. Material deltas need a fresh pass. Record the pass
+   (model, pre-dispatch hash, verdict) in `Review Changes`; never stamp a new
+   hash onto an old verdict.
 
 ## Procedure (code-diff mode)
 
