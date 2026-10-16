@@ -203,7 +203,7 @@
       "harness": "pi",
       "adapter": "pi/skills/code-quality/SKILL.md",
       "canonical": "pi/skills/code-quality/SKILL.md",
-      "sha256": "35acba56ed9d58cf6085391f0f856966fe74a7fb303f98dc0b1642bcc524f2a1"
+      "sha256": "5e3f4b5d7c0b5ae2fff9ded9f434e35458985349de87f423a3e86785063ba5ff"
     },
     {
       "skill": "implement",

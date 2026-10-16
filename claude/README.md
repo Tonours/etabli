@@ -11,8 +11,7 @@ Claude Code-specific files for `etabli`.
 - `../PLAN_TEMPLATE_FULL.md` -> `~/.claude/PLAN_TEMPLATE_FULL.md`
 - `../workflow/` -> `~/.claude/workflow`
 - the same plan templates and `workflow/` are also linked under
-  `~/.pi/agent/` and `~/.agents/` so Pi and shared-agent (Grok and future
-  harness) relative fallbacks resolve
+  `~/.pi/agent/` so Pi relative fallbacks resolve
 - `scopes/<scope>/commands/*.md` -> `~/.claude/commands/`
 - `scopes/<scope>/skills/*` -> `~/.claude/skills/`
 - `scopes/<scope>/agents/*.md` -> `~/.claude/agents/`
@@ -47,9 +46,7 @@ means `shared` alone, which is the safe default: a new machine never receives
 another context's surfaces by accident. An unrecognised value fails the deploy
 with exit 2 rather than deploying a partial surface.
 
-The same active scope gates vendored skills linked into Pi, Claude, and Codex.
-Grok receives only catalog entries explicitly marked `agents_visible` through
-`~/.agents/skills`; personal vendor directories are never copied there.
+The same active scope gates vendored skills linked into Pi and Claude.
 
 `scripts/` holds the local cron routines (`routines/`, `sessions-report*`) and
 `claude-bin.sh`, which resolves the `claude` binary for non-interactive

@@ -49,7 +49,7 @@ Read `<root>/AGENTS.md` when present, then use the
 vault's retrieval, not `grep`. The vault contract, status, freshness, and
 abstention rules take precedence over retrieved prose.
 
-Use the same local read interface from Claude, Pi, Codex, Grok, and Cursor:
+Use the same local read interface from Claude and Pi:
 
 1. **MCP**, when the host registers the vault server (ForestAdmin: `alambic-brain`, other projects: `alambic-obvault`; Claude also exposes
    same-named skills):

@@ -95,9 +95,7 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    (F12, partial — porting is a T7 entry item, not assumed here):
    Pi — prose only (pstack off, zero slop skills exposed, `deslop` is
    code-only); Claude — prose only (`write-direct` SKILL forbids PR
-   bodies); Codex — `no-ai-slop` in detect mode (no PR exclusion in its
-   contract; PR contract supplies audience/format/goal, so its conditional
-   questions are satisfied; autonomous-compatible). Fold findings before
+   bodies). Fold findings before
    publishing. State the
    stack explicitly when the base is not the default branch. Publish the
    dense version, then run that contract's non-ASCII check against the live
@@ -105,7 +103,8 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    `pr_body_style` by chain: `write-direct` when the body was drafted with
    the write-direct qualities (every harness, prose or skill); `plain`
    when neither the qualities nor a style skill applied;
-   `no-ai-slop-detect` when Codex ran the detect chain on top;
+   `no-ai-slop-detect` only in older records, from the retired Codex
+   detect chain;
    `write-direct+unslop` only where an unslop contract allows PR bodies
    (today nowhere — pstack off — kept as a forward value). Record
    `pr_url: <published URL>`. T7 entry criterion (verifiable): the F12

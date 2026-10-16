@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0031
 date: 2026-08-07
 tags: [harness, codex, skills, vendor, install]
 affected_components: [scripts/lib/install-main.sh, vendor, workflow/runtime/skill-surface.tsv, docs/adr/0011]
+superseded_by: ADR-0031
 ---
+
 
 # Treat ~/.codex/skills as a managed link surface without restoring the Codex harness
 
@@ -51,3 +53,5 @@ no content at all.
 - ADR-0011 stands. Its harness removal is unchanged and this ADR does not
   supersede it: it records that the *skill link surface* was never what ADR-0011
   set out to delete.
+
+Superseded by ADR-0031.

@@ -20,16 +20,13 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
   `claude-skill-load-check` read it by default. Live skills outside the tracked
   profile in that dir are reported by the load check, never removed; dangling
   managed links are replaced without a `.bak`
-- `~/.agents/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
-- `~/.agents/workflow/` -> `workflow/`
-- `~/.agents/skills/` receives catalog entries marked `agents_visible`; Grok
-  discovers this shared surface
-- `~/.codex/skills/` receives active-scope vendored skills; no other Codex
-  harness state is tracked
-- `~/.config/devin/skills/` receives active-scope vendored skills plus
-  dotfiles `herdr/skills/herdr`; Devin also reads `~/.agents/skills/` natively, so
-  `agents_visible` entries reach it through the shared surface. No other
-  Devin harness state is tracked
+- the Claude plugin marketplace `etabli-local` -> `claude/mods`, with
+  `etabli@etabli-local` installed at user scope and read from the checkout
+  (`docs/claude-etabli-mod.md`)
+- `~/.agents/`, `~/.codex/skills/` and `~/.config/devin/skills/` are retired
+  (ADR-0031): deploy and fix-links remove this checkout's links there and leave
+  real directories and foreign links alone. Pi still reads `~/.agents/skills/`
+  natively, so the Pi skill load check counts what it finds there
 - `~/.etabli-scope` selects `work` or `personal`; the active set is always
   `shared` plus that declared scope
 - Env links (`nvim`, `ghostty`, `tmux`, `herdr` config/layouts, `herdr` skill) moved to the public `dotfiles` repo: see its `docs/symlink-layout.md` and `scripts/fix-links`. Etabli owns core workflow links only.
