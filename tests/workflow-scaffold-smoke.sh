@@ -342,7 +342,8 @@ TRACKED_PROJECT="$TMP_DIR/tracked-project"
 printf '\nproject edit\n' >>"$TRACKED_PROJECT/workflow/spec.md"
 printf 'tracked retired\n' >"$TRACKED_PROJECT/scripts/workflow-event"
 git -C "$TRACKED_PROJECT" init -q .
-git -C "$TRACKED_PROJECT" add -f workflow/spec.md scripts/workflow-event
+printf '\nproject seed\n' >>"$TRACKED_PROJECT/docs/project-context.md"
+git -C "$TRACKED_PROJECT" add -f workflow/spec.md scripts/workflow-event docs/project-context.md
 git -C "$TRACKED_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track scaffold"
 if "$SCRIPT" "$TRACKED_PROJECT" --refresh-tracked >/dev/null 2>&1; then
   printf 'expected --refresh-tracked without --force to fail\n' >&2
@@ -358,6 +359,8 @@ assert_contains "$TRACKED_PROJECT/workflow/spec.md" "uncommitted edit"
 git -C "$TRACKED_PROJECT" checkout -q -- workflow/spec.md
 "$SCRIPT" "$TRACKED_PROJECT" --force --refresh-tracked --prune >"$TMP_DIR/tracked-refresh.out"
 assert_same "$ROOT_DIR/workflow/spec.md" "$TRACKED_PROJECT/workflow/spec.md"
+assert_contains "$TRACKED_PROJECT/docs/project-context.md" "project seed"
+assert_contains "$TMP_DIR/tracked-refresh.out" "docs/project-context.md is a project-owned seed"
 assert_contains "$TMP_DIR/tracked-refresh.out" "GIT_RM    scripts/workflow-event"
 assert_not_exists "$TRACKED_PROJECT/scripts/workflow-event"
 assert_backup "$TRACKED_PROJECT/scripts/workflow-event"
