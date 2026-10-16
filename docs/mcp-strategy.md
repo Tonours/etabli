@@ -29,7 +29,7 @@ runtime's complete user scope.
 
 ## Ownership and scope
 
-1. **Live configuration stays runtime-local.** Claude, Pi, Codex, and Grok may
+1. **Live configuration stays runtime-local.** Claude, Pi and Codex may
    use different native shapes and authentication flows. Etabli does not merge
    or overwrite those files.
 2. **The tracked template is sanitized inventory.** It contains server names,

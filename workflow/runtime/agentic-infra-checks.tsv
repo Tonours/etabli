@@ -87,6 +87,7 @@ core	shell-docs	project-verification-run	tests/project-verification-run-smoke.sh
 full	shell-docs	claude-launch-smoke	tests/claude-launch-smoke.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
 full	shell-docs	etabli-mod-smoke	tests/etabli-mod-smoke.sh
+full	shell-docs	etabli-plugin-deploy-smoke	tests/etabli-plugin-deploy-smoke.sh
 full	shell-docs	etabli-session-test	tests/etabli-session.test.mjs
 full	shell-docs	etabli-session-mod-test	tests/etabli-session-mod.test.mjs
 core	shell-docs	plan-review-binding-test	tests/plan-review-binding.test.mjs

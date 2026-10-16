@@ -155,6 +155,7 @@ token-bench-smoke
 claude-launch-smoke
 claude-statusline-smoke
 etabli-mod-smoke
+etabli-plugin-deploy-smoke
 etabli-session-test
 etabli-session-mod-test'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
