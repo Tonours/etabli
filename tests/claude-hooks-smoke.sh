@@ -165,25 +165,32 @@ const cwd = process.env.PARITY_DIR;
 const { noCommentsGuardDecision } = await import(`${root}/workflow/runtime/no-comments-guard.mjs`);
 const write = (name, content) => ({ tool_name: "Write", tool_input: { file_path: `${cwd}/${name}`, content } });
 const edit = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/doc.ts`, old_string, new_string } });
+const multiEdit = (edits) => ({ tool_name: "MultiEdit", tool_input: { file_path: `${cwd}/doc.ts`, edits } });
 const cases = [
-  ["kept comment", edit(" * Existing doc.\n */\nexport const a = 1;", " * Existing doc.\n */\nexport const a = 2;"), "allow", "allow"],
-  ["added comment", edit("export const a = 1;", "// added\nexport const a = 1;"), "deny", "deny"],
-  ["shell length expansion", write("a.sh", "n=${#arr[@]}\n"), "deny", "allow"],
-  ["css url", write("a.scss", ".a { background: url(http://example.test/x.png); }\n"), "deny", "allow"],
-  ["regex literal", write("a.js", 'const p = s.replace(/\\/*$/, "");\n'), "deny", "allow"],
-  ["ts-expect-error", write("b.ts", "// @ts-expect-error legacy\nconst x: number = 'a';\n"), "deny", "allow"],
-  ["eslint directive", write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"), "deny", "allow"],
-  ["copyright header", write("d.ts", "// Copyright 2026 Example\nexport {};\n"), "allow", "deny"],
-  ["astro comment", write("e.astro", "---\n// note\n---\n"), "allow", "deny"],
-  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "allow", "deny"],
+  ["kept comment", edit(" * Existing doc.\n */\nexport const a = 1;", " * Existing doc.\n */\nexport const a = 2;"), "allow"],
+  ["added comment", edit("export const a = 1;", "// added\nexport const a = 1;"), "deny"],
+  ["shell length expansion", write("a.sh", "n=${#arr[@]}\n"), "allow"],
+  ["css url", write("a.scss", ".a { background: url(http://example.test/x.png); }\n"), "allow"],
+  ["regex literal", write("a.js", 'const p = s.replace(/\\/*$/, "");\n'), "allow"],
+  ["ts-expect-error", write("b.ts", "// @ts-expect-error legacy\nconst x: number = 'a';\n"), "allow"],
+  ["eslint directive", write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"), "allow"],
+  ["copyright header", write("d.ts", "// Copyright 2026 Example\nexport {};\n"), "allow"],
+  ["astro comment", write("e.astro", "---\n// note\n---\n"), "deny"],
+  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "deny"],
+  ["duplicated comment write", write("doc.ts", "/**\n * Existing doc.\n */\n/**\n * Existing doc.\n */\nexport const a = 1;\n"), "deny"],
+  ["duplicated comment edit", edit("export const a = 1;", "export const a = 1;\n/**\n * Existing doc.\n */"), "deny"],
+  ["duplicated comment multiedit", multiEdit([{ old_string: "export const a = 1;", new_string: "export const a = 1;\n/** Existing doc. */" }, { old_string: "/** Existing doc. */", new_string: "/**\n * Existing doc.\n */" }]), "deny"],
+  ["line comment in ts", write("f.ts", "// note\nexport {};\n"), "deny"],
+  ["hash comment in py", write("g.py", "# note\nx = 1\n"), "deny"],
+  ["block comment in css", write("h.css", "/* x */\n.a { color: red; }\n"), "deny"],
 ];
 let failed = 0;
-for (const [label, event, sharedExpected, claudeExpected] of cases) {
+for (const [label, event, expected] of cases) {
   const shared = noCommentsGuardDecision({ cwd, ...event }) ? "deny" : "allow";
   const run = spawnSync("node", [`${root}/claude/hooks/no-comments-guard.mjs`], { input: JSON.stringify({ cwd, ...event }), encoding: "utf8" });
-  const claude = run.stdout.includes('"permissionDecision":"deny"') ? "deny" : "allow";
-  if (shared !== sharedExpected || claude !== claudeExpected) {
-    console.error(`no-comments parity ${label}: shared ${shared} (want ${sharedExpected}), claude ${claude} (want ${claudeExpected})`);
+  const claude = run.status === 0 ? (run.stdout.includes('"permissionDecision":"deny"') ? "deny" : "allow") : `exit ${run.status}`;
+  if (shared !== expected || claude !== expected) {
+    console.error(`no-comments parity ${label}: shared ${shared}, claude ${claude}, want ${expected}`);
     failed += 1;
   }
 }
