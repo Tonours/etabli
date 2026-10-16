@@ -478,7 +478,7 @@ prune_file() {
   fi
 
   if is_tracked "$relative_path"; then
-    git -C "$TARGET_DIR" rm -q --cached -- "$relative_path"
+    git -C "$TARGET_DIR" rm -q --cached -f -- "$relative_path"
     status_line GIT_RM "$relative_path"
   fi
   backup="$(backup_path "$destination_path")"
