@@ -283,6 +283,14 @@ node -e '
 const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
 if (s.autoMemoryEnabled !== false || s.theme !== "dark") { console.error(JSON.stringify(s)); process.exit(1); }
 ' "$FIX/sync/settings.json" || fail "settings sync must write autoMemoryEnabled false and keep other keys"
+mkdir -p "$FIX/sync/skills/personal-hidden" "$FIX/sync/skills/group/nested-dir"
+printf -- '---\nname: personal-hidden\n---\n' >"$FIX/sync/skills/personal-hidden/SKILL.md"
+printf -- '---\nname: nested-declared\n---\n' >"$FIX/sync/skills/group/nested-dir/SKILL.md"
+ln -s "$FIX/sync/gone" "$FIX/sync/skills/removed-skill"
+printf '%s\n' '{"skillOverrides":{"repo-skill":"on","personal-hidden":"off","nested-declared":"off","removed-skill":"off"}}' >"$FIX/sync/settings.json"
+node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked.json" 0 t4 deploy >/dev/null || fail "settings sync with a skill surface failed"
+jq -e '.skillOverrides == {"nested-declared":"off","personal-hidden":"off","repo-skill":"on"}' "$FIX/sync/settings.json" >/dev/null ||
+  fail "settings sync must drop personal keys whose skill left the surface: $(jq -c .skillOverrides "$FIX/sync/settings.json")"
 jq -e '.autoMemoryEnabled == false' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
   fail "claude/settings.skill-overrides.json must track autoMemoryEnabled false (the vault owns durable memory)"
 
