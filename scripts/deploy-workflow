@@ -71,6 +71,46 @@ RETIRED_FILES=(
   "scripts/lib/review-rounds.jq"
   "scripts/lib/workflow-event-detail.jq"
   "scripts/lib/workflow-events.mjs"
+  "workflow/durable-exports.md"
+  "workflow/product-verification.md"
+  "workflow/project-autonomy-envelope.md"
+  "workflow/project-verification-recipe.schema.json"
+  "workflow/templates/project-autonomy-envelope.json"
+  "workflow/verification/README.md"
+  "workflow/verification/cli-app.mjs"
+  "workflow/verification/cli.recipe.json"
+  "workflow/verification/fixture-lifecycle.mjs"
+  "workflow/verification/observe-json.mjs"
+  "workflow/verification/recipe.example.json"
+  "workflow/verification/web-app.mjs"
+  "workflow/verification/web-drive.mjs"
+  "workflow/verification/web-probe.mjs"
+  "workflow/verification/web.recipe.json"
+  "workflow/skills/ambitious-project-loop.md"
+  "workflow/skills/ci-fix.md"
+  "workflow/skills/pr-maintenance-loop.md"
+  "workflow/skills/pr-qa.md"
+  "workflow/skills/pr-review.md"
+  "workflow/skills/product-dogfood.md"
+  "workflow/skills/recurring-run.md"
+  "workflow/skills/reviewer-improvement-loop.md"
+  "workflow/skills/sec-pr.md"
+  "workflow/skills/self-improvement-loop.md"
+  "workflow/skills/ship.md"
+  "workflow/skills/skill-evaluation.md"
+  "scripts/project-verification"
+  "scripts/project-verification-check"
+  "scripts/lib/plan-check-freeze.mjs"
+  "scripts/lib/project-verification.mjs"
+  "scripts/lib/project-verification-assertions.mjs"
+  "scripts/lib/project-verification-plan.mjs"
+  "scripts/lib/project-verification-process.mjs"
+  "scripts/lib/project-verification-recipe.mjs"
+  "scripts/lib/project-verification-run.mjs"
+  "scripts/lib/project-verification-snapshot.mjs"
+  "scripts/lib/project-verification-source.mjs"
+  "scripts/lib/project-verification-ui.mjs"
+  "scripts/lib/unicode-case-fold.mjs"
 )
 
 while IFS= read -r contract_path; do
@@ -86,8 +126,9 @@ Deploy the Etabli workflow scaffold into a new or existing project.
 Options:
   --dry-run   Show planned writes without touching the target
   --force     Backup and overwrite conflicting files
-  --refresh-tracked With --force, also overwrite files the project tracks (git is the backup)
-  --prune     Remove retired scaffold files: backup untracked copies, git rm tracked ones
+  --refresh-tracked With --force, also overwrite tracked scaffold copies (git is the backup;
+              AGENTS.md, docs/ and files with uncommitted changes are kept)
+  --prune     Move retired scaffold files to backups; tracked ones also leave the index
   --check     Report drift between source templates and deployed files without writing
   --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
   -h, --help  Show this help
@@ -345,6 +386,13 @@ write_file() {
       UNCHANGED=$((UNCHANGED + 1))
       return 0
     fi
+    case "$relative_path" in
+      AGENTS.md|docs/*)
+        status_line PROTECTED "$relative_path is a project-owned seed; refresh it by hand"
+        UNCHANGED=$((UNCHANGED + 1))
+        return 0
+        ;;
+    esac
     if ! git -C "$TARGET_DIR" diff --quiet HEAD -- "$relative_path"; then
       status_line PROTECTED "$relative_path has uncommitted changes; commit or stash them before --refresh-tracked"
       UNCHANGED=$((UNCHANGED + 1))
