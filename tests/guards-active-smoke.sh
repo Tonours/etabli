@@ -67,7 +67,7 @@ fi
 [ -x "$MERGE" ] || fail "missing executable scripts/claude-hooks-merge"
 [ -x "$HCHECK" ] || fail "missing executable scripts/claude-hooks-check"
 
-REPO_DMI="grill-me coolify"
+REPO_DMI="coolify"
 pin_repo_dmi() {
   node --input-type=module -e "
 import { existsSync, readFileSync } from 'node:fs';
@@ -88,11 +88,6 @@ if (missing.length) { console.error('repo DMI flags missing: ' + missing.join(',
 pin_repo_dmi "$ROOT_DIR" $REPO_DMI || fail "repo DMI pin failed"
 FIXPIN="$TMP_DIR/fixpin"
 mkdir -p "$FIXPIN/extras/skills"
-for name in $REPO_DMI; do
-  [ "$name" = "coolify" ] && continue
-  mkdir -p "$FIXPIN/extras/skills/$name"
-  cp "$ROOT_DIR/extras/skills/$name/SKILL.md" "$FIXPIN/extras/skills/$name/"
-done
 if pin_repo_dmi "$FIXPIN" $REPO_DMI 2>"$TMP_DIR/fixpin-err.txt"; then
   fail "DMI pin must fail when a repo skill file is absent"
 fi
@@ -107,8 +102,8 @@ for dir in "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/
 done
 printf -- '---\nname: github\ndescription: fixture\n---\nbody\n' \
   >"$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"
-ln -s "$ROOT_DIR/extras/skills/grill-me" "$STAMP_HOME/.agents/skills/grill-me"
-cp "$ROOT_DIR/extras/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md"
+ln -s "$ROOT_DIR/extras/skills/coolify" "$STAMP_HOME/.agents/skills/coolify"
+cp "$ROOT_DIR/extras/skills/coolify/SKILL.md" "$TMP_DIR/coolify-orig.md"
 
 "$STAMP" --list --home "$STAMP_HOME" >"$TMP_DIR/stamp-list.txt" || fail "stamp --list failed"
 grep -q "hyperframes" "$TMP_DIR/stamp-list.txt" || fail "stamp list hides hyperframes"
@@ -125,7 +120,7 @@ for file in "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" \
   "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"; do
   grep -q "^disable-model-invocation: true$" "$file" || fail "flag missing in $file"
 done
-cmp -s "$ROOT_DIR/extras/skills/grill-me/SKILL.md" "$TMP_DIR/grill-orig.md" \
+cmp -s "$ROOT_DIR/extras/skills/coolify/SKILL.md" "$TMP_DIR/coolify-orig.md" \
   || fail "stamp touched a repo realpath"
 grep -q -i -e "absent" -e "skip" "$TMP_DIR/stamp-out.txt" || fail "stamp must report absent names"
 

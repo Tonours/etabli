@@ -1022,7 +1022,7 @@ function classifyWorkflowRouteBase(prompt, low, context = {}) {
 	return SIMPLE_ANSWER_DECISION;
 }
 
-export function classifyKnowledgeContext(prompt, low, cwd = process.cwd()) {
+function classifyKnowledgeContext(prompt, low, cwd = process.cwd()) {
 	const trimmed = prompt.trim();
 	if (trimmed === "" || trimmed.startsWith("/")) return null;
 

@@ -111,7 +111,7 @@ assert_link "$TMP_HOME/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claud
 assert_link "$TMP_HOME/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-assert_not_exists "$TMP_HOME/.claude/skills/grill-me"
+assert_not_exists "$TMP_HOME/.claude/skills/coolify"
 assert_not_exists "$TMP_HOME/.claude/scripts/claude-bin.sh"
 
 mkdir -p "$TMP_HOME/.claude/scripts"

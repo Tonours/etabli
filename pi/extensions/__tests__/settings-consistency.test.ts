@@ -98,7 +98,7 @@ describe("Pi settings consistency", () => {
       expect(source).toContain("skill_catalog_names");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
-    for (const shelved of ["grill-me", "coolify", "react-doctor-100"]) {
+    for (const shelved of ["coolify", "react-doctor-100"]) {
       expect(skillCatalog.find((s) => s.name === shelved)).toMatchObject({
         source: "extras",
         piCore: false,
