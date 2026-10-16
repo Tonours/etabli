@@ -81,9 +81,8 @@ CI runs `agentic-infra` on GitHub-hosted `ubuntu-24.04`
 ## Learn more
 
 - [`docs/README.md`](docs/README.md): index of current references and history.
-- [`workflow/agent-quick-card.md`](workflow/agent-quick-card.md): one-page
-  workflow entry; [`workflow/contract-details.md`](workflow/contract-details.md)
-  for the full rules.
+- [`workflow/spec.md`](workflow/spec.md): workflow entry and map;
+  [`workflow/contract-details.md`](workflow/contract-details.md) for the full rules.
 - [`docs/symlink-layout.md`](docs/symlink-layout.md): every managed link and the
   `shared`/`work`/`personal` scopes.
 - [`claude/README.md`](claude/README.md): Claude commands, hooks and settings.

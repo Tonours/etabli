@@ -6,8 +6,7 @@
 
 ## Workflow
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs, then
-  `workflow/agent-quick-card.md`; open `workflow/spec.md` (full map, wins on
-  conflict) only when the card does not settle the route or a gate.
+  `workflow/spec.md` (entry and map, wins on conflict).
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
 - Smallest route. Current Pi profile: parent-only execution and mutation.
 - Skills are instruction folders, NOT tools. To use a skill: read its SKILL.md,

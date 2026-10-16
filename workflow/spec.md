@@ -1,7 +1,7 @@
 # Workflow Spec
 
-Canonical workflow **map** for `etabli`. Long rules and command lists live in
-`workflow/contract-details.md`. Agent one-pager: `workflow/agent-quick-card.md`.
+Canonical workflow **map** for `etabli` and the single agent entry point. Long
+rules and command lists live in `workflow/contract-details.md`.
 
 ## Flow
 
@@ -22,7 +22,8 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
 (ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
-orchestration: `workflow/skills/orchestration.md`. The parent is the sole writer; delegation defaults to one worker.
+orchestration: `workflow/skills/orchestration.md`. One writer at any instant: the parent or one
+`worker` per step; `scout` and `reviewer` stay read-only (Bash `PreToolUse` allowlist).
 The multi-model council was removed (ADR-0013).
 
 ```text
@@ -75,6 +76,14 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   provenance (model, `shasum -a 256 PLAN.md` at dispatch, verdict) in Review
   Changes, handoff (branch, sha, done, pending, next action, do-not-redo) in
   Notes / Handoff.
+- Pre-READY, edit only root `PLAN.md`. On resume, archive validated work or
+  discard an unrelated plan with `scripts/plan-cleanup --discard <reason-slug>`;
+  age alone is not abandonment (`workflow/plan-archive.md`).
+- Validation: focused checks over full-suite ritual (`scripts/verify-agentic-infra core`,
+  `bun test pi/extensions/__tests__/`); record commands and results.
+- Review: Logic hunter then Spec hunter; `GO` needs a filled deciding-code table
+  for runtime diffs (`workflow/review-rubric.md`). An escaped defect after `GO`
+  fills `workflow/templates/escaped-defect.md`.
 - Cold contracts, opened only on their trigger: bounded re-review
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
   review); open-ended improvement loops `workflow/skills/long-loop.md`.
@@ -95,7 +104,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   same-family double-sample; small runs checks plus self-review.
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals.
-  Recurring findings become reviewed recommendations, never auto-applied.
+  Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees.
   Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
   the issue. Reviewers flag only gaps that affect correctness or stated requirements.
   A started migration is finished or explicitly handed off in `PLAN.md` § Notes / Handoff.

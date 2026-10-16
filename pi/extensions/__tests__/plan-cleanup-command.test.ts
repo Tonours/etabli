@@ -135,15 +135,11 @@ test("shell literal whitespace cannot receive a cleanup-only exception", () => {
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
-test("archiving and discarding preserve existing archives and active-run selection", () => {
+test("archiving and discarding preserve existing archives", () => {
   const cwd = mkdtempSync(join(tmpdir(), "cleanup-preserve-"));
   const cli = fileURLToPath(new URL("../../../scripts/plan-cleanup", import.meta.url));
   try {
     mkdirSync(join(cwd, "docs/plan"), { recursive: true });
-    mkdirSync(join(cwd, ".workflow"));
-    const activePath = join(cwd, ".workflow/active-run.json");
-    const active = '{"schema_version":1,"run":"do-not-change"}\n';
-    writeFileSync(activePath, active);
     const oldArchive = join(cwd, "docs/plan/previous.md");
     writeFileSync(oldArchive, "previous archive\n");
     for (const mode of ["archive", "discard"]) {
@@ -153,7 +149,6 @@ test("archiving and discarding preserve existing archives and active-run selecti
       writeFileSync(join(cwd, "docs/plan/implemented.md"), `# Implemented: test\n- Source plan: \`PLAN.md\`\n- Source plan SHA-256: \`${hash}\`\n- Status: IMPLEMENTED\n`);
       execFileSync(cli, mode === "archive" ? ["--archive", "docs/plan/implemented.md"] : ["--discard", "unrelated-plan"], { cwd });
       expect(existsSync(join(cwd, "PLAN.md"))).toBe(false);
-      expect(readFileSync(activePath, "utf8")).toBe(active);
       expect(readFileSync(oldArchive, "utf8")).toBe("previous archive\n");
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }

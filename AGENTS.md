@@ -36,8 +36,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 
 - Shared agent rules (code, review, git, memory, answers): `pi/AGENTS.md`
 - Human guide + schemas: `README.md` (docs consolidated there; see commit 9466974)
-- Agent one-pager: `workflow/agent-quick-card.md`
-- Canonical workflow map (open on demand; wins on conflict): `workflow/spec.md`
+- Workflow entry and canonical map (wins on conflict): `workflow/spec.md`
 - Long rules / commands: `workflow/contract-details.md`
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
