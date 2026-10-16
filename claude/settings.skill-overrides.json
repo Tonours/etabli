@@ -11,6 +11,7 @@
     "employer-backend-suite": "on",
     "employer-docs-writing": "user-invocable-only",
     "grill-with-docs": "user-invocable-only",
+    "grilling": "on",
     "herdr": "on",
     "improve-codebase-architecture": "user-invocable-only",
     "no-ai-slop": "user-invocable-only",
