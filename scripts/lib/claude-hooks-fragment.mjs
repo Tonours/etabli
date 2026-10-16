@@ -66,7 +66,7 @@ export function hookScriptNames(fragment) {
 }
 
 export const RETIRED_HOOK_COMMANDS = Object.freeze([
-  ...["outcome-metric-emit.mjs", "proof-shadow.mjs"].map(
+  ...["outcome-metric-emit.mjs", "proof-shadow.mjs", "plan-ready-guard.mjs", "plan-commit-guard.mjs"].map(
     (name) => `node "\${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/${name}"`,
   ),
   "rtk hook claude",

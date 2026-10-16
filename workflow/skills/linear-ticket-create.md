@@ -147,6 +147,3 @@ Body:
   expected: set the Epic's priority deliberately and surface the choice.
 - Do not invent product facts. Put uncertain details under assumptions or
   questions.
-- Do not create external tickets for destructive, security-sensitive,
-  production-impacting, billing, credential, or broad ambiguous work without
-  explicit confirmation of scope.

@@ -262,7 +262,7 @@ node -e '
 const s = require(process.argv[1]);
 const cmds = [];
 for (const groups of Object.values(s.hooks)) for (const g of groups) for (const h of g.hooks || []) cmds.push(h.command);
-for (const want of ["plan-ready-guard.mjs", "no-comments-guard.mjs", "ledger-auto-emit.mjs", "detect-adr-signal.mjs"]) {
+for (const want of ["no-comments-guard.mjs", "rtk-guard.mjs", "ledger-auto-emit.mjs", "detect-adr-signal.mjs"]) {
   if (!cmds.some((c) => c.includes(want))) { console.error("missing " + want); process.exit(1); }
 }' "$MG_HOME/.claude/settings.json" || fail "merged settings lack fragment hooks"
 node -e '
@@ -272,8 +272,8 @@ if (Object.keys(require(process.argv[1])).join(",") !== "hooks") process.exit(1)
 cp "$MG_HOME/.claude/settings.json" "$TMP_DIR/merge-orig.json"
 "$MERGE" --home "$MG_HOME" >/dev/null || fail "merge rerun failed"
 cmp -s "$MG_HOME/.claude/settings.json" "$TMP_DIR/merge-orig.json" || fail "merge is not byte-idempotent"
-ready_count="$(grep -c "plan-ready-guard.mjs" "$MG_HOME/.claude/settings.json")"
-[ "$ready_count" = "1" ] || fail "merge duplicated plan-ready-guard ($ready_count)"
+ready_count="$(grep -c "no-comments-guard.mjs" "$MG_HOME/.claude/settings.json")"
+[ "$ready_count" = "1" ] || fail "merge duplicated no-comments-guard ($ready_count)"
 
 USER_HOME="$TMP_DIR/user-home"
 mkdir -p "$USER_HOME/.claude"
@@ -360,7 +360,7 @@ const live = { hooks: { Stop: [{ hooks: [{ type: "command", command: process.arg
 require("fs").writeFileSync(process.argv[1] + "/.claude/settings.json", JSON.stringify(live));' \
   "$CROSS_HOME" "$GUARD_CMD"
 "$MERGE" --home "$CROSS_HOME" >/dev/null || fail "merge must allow same command on different events"
-[ "$(grep -c "plan-ready-guard.mjs" "$CROSS_HOME/.claude/settings.json")" = "2" ] \
+[ "$(grep -c "no-comments-guard.mjs" "$CROSS_HOME/.claude/settings.json")" = "2" ] \
   || fail "cross-event wiring lost an entry"
 OVERLAP_HOME="$TMP_DIR/overlap-home"
 mkdir -p "$OVERLAP_HOME/.claude"
@@ -393,7 +393,7 @@ cmp -s "$ASYNC_HOME/.claude/settings.json" "$TMP_DIR/async-orig.json" || fail "r
 if "$HCHECK" --home "$ASYNC_HOME" >"$TMP_DIR/async-check-out.txt" 2>&1; then
   fail "check must fail on an async variant of a fragment hook"
 fi
-grep -q "plan-ready-guard" "$TMP_DIR/async-check-out.txt" || fail "async check names no entry"
+grep -q "no-comments-guard" "$TMP_DIR/async-check-out.txt" || fail "async check names no entry"
 grep -q "claude-hooks-merge" "$TMP_DIR/async-check-out.txt" || fail "async check names no remediation"
 
 DA_HOME="$TMP_DIR/da-home"
@@ -496,7 +496,7 @@ if claude_marker "$EMPTY_HOME"; then fail "empty home must not trip the Claude m
 MARKER_HOME="$TMP_DIR/marker-home"
 mkdir -p "$MARKER_HOME/.pi/agent" "$MARKER_HOME/.claude/hooks"
 touch "$MARKER_HOME/.pi/agent/extensions"
-ln -s /nonexistent-xyz "$MARKER_HOME/.claude/hooks/plan-ready-guard.mjs"
+ln -s /nonexistent-xyz "$MARKER_HOME/.claude/hooks/no-comments-guard.mjs"
 pi_marker "$MARKER_HOME" || fail "extensions file must trip the Pi marker"
 claude_marker "$MARKER_HOME" || fail "dangling hook link must trip the Claude marker"
 
@@ -505,7 +505,7 @@ grep -q "SKIP" "$TMP_DIR/live-skip.txt" || fail "live-only printed no SKIP"
 
 CI_CLAUDE_HOME="$TMP_DIR/ci-claude-home"
 mkdir -p "$CI_CLAUDE_HOME/.claude/hooks"
-ln -s /nonexistent-xyz "$CI_CLAUDE_HOME/.claude/hooks/plan-ready-guard.mjs"
+ln -s /nonexistent-xyz "$CI_CLAUDE_HOME/.claude/hooks/no-comments-guard.mjs"
 if env -u CI -u GITHUB_ACTIONS LIVE_HOME="$CI_CLAUDE_HOME" bash "$0" --live-only >"$TMP_DIR/ci-control.txt" 2>&1; then
   fail "live-only without CI must attempt live on a marker home"
 fi

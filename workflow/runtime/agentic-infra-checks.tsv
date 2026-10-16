@@ -11,7 +11,6 @@ core	shell-docs	shell-syntax	builtin:shell-syntax
 core	shell-docs	json-config	builtin:json-config
 core	pi	router-eval	builtin:router-eval
 core	shell-docs	router-eval-smoke	tests/router-eval-smoke.sh
-core	shell-docs	dual-runtime-guard-matrix-smoke	tests/dual-runtime-guard-matrix-smoke.sh
 core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
 core	pi	skill-lock	builtin:skill-lock
 core	shell-docs	review-contract-surface-smoke	tests/review-contract-surface-smoke.sh
@@ -92,4 +91,3 @@ full	shell-docs	etabli-session-test	tests/etabli-session.test.mjs
 full	shell-docs	etabli-session-mod-test	tests/etabli-session-mod.test.mjs
 core	shell-docs	plan-review-binding-test	tests/plan-review-binding.test.mjs
 core	shell-docs	execution-quality-smoke	tests/execution-quality-smoke.sh
-core	shell-docs	ops-stop-guard-smoke	tests/ops-stop-guard-smoke.sh

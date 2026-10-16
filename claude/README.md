@@ -162,14 +162,6 @@ the `gh` CLI, not the GitHub MCP/app connector, unless explicitly overridden.
 
 Optional hooks:
 
-- `plan-ready-guard.mjs` blocks implementation writes and mutating Bash commands
-  when a root `PLAN.md` exists but is not `READY`; it also composes the
-  plan-commit guard and the `ops-stop` ask so Bash has one PreToolUse process.
-  If its modules fail to load, it denies only where a guard is expected (a
-  root `PLAN.md`, or a `push`/`rm` command) and names the repair.
-- `plan-commit-guard.mjs` denies `git add`/`git commit` calls that would stage
-  or commit a root `PLAN*.md`; plans are session artifacts, archives belong in
-  `docs/plan/`. Running git manually bypasses it deliberately.
 - `read-only-agent-guard.mjs` is wired directly by `scout`, `reviewer` and
   `adversary`; it denies Bash that is not proven read-only even when the
   optional settings fragment is not active, and denies every Bash call if its
@@ -238,11 +230,8 @@ into `~/.claude/settings.json`. `permissions.defaultMode: "bypassPermissions"`
 and the two skip flags (`skipDangerousModePermissionPrompt`,
 `skipAutoPermissionPrompt`) are set in the local settings file, not tracked;
 the sync would propagate them key by key if the fragment carried them, never
-touching local `allow`/`deny` lists. The `plan-ready-guard` hook asks before
-the irreversible pushes and deletions listed in `workflow/contract-details.md`
-§ Human checkpoints. Claude's hook docs do not promise a prompt for a hook
-`ask` under `bypassPermissions` or `dontAsk`, so in those modes it denies
-instead and the reason tells you to run the command yourself.
+touching local `allow`/`deny` lists. No hook gates pushes, deletions, or
+PLAN.md writes (ADR-0032).
 
 The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
 `attribution.commit`/`attribution.pr`, the two skip flags, `autoMemoryEnabled`), so no secret can leak into the tracked fragment. The
@@ -259,7 +248,7 @@ crons, and `claude-bin.sh`.
   secrets back into the repo. Verify with `scripts/claude-hooks-check`.
   `scripts/deploy-agent-workflow --apply` links new hook files but does not
   wire them, so rerun the merge after a deploy that adds a hook.
-  Activating it enables the session-wide READY, ledger, session-state and ADR
+  Activating it enables the session-wide no-comments, ledger, session-state and ADR
   hooks; the
   read-only agent hook is scoped from agent frontmatter instead.
 

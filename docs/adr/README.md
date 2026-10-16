@@ -8,7 +8,7 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0004](0004-use-a-sanitized-tracked-codex-organization-surface.md) — Use a sanitized tracked Codex organization surface [superseded by ADR-0011]
 - [0005](0005-deploy-workflow-scaffolds-as-self-contained-project-copies.md) — Deploy workflow scaffolds as self-contained project copies [accepted]
 - [0006](0006-keep-agent-surfaces-as-adapters-over-shared-workflow-contracts.md) — Keep agent surfaces as adapters over shared workflow contracts [accepted]
-- [0007](0007-gate-workflow-routing-with-deterministic-guards.md) — Gate workflow routing with deterministic guards [accepted]
+- [0007](0007-gate-workflow-routing-with-deterministic-guards.md) — Gate workflow routing with deterministic guards [superseded by ADR-0032]
 - [0008](0008-record-adrs-through-a-deterministic-helper-and-validator.md) — Record ADRs through a deterministic helper and validator [accepted]
 - [0009](0009-remove-the-legacy-local-review-mirror.md) — Remove the legacy local review mirror [accepted]
 - [0010](0010-replace-lazy-nvim-with-vim-pack.md) — Replace lazy.nvim with vim.pack [accepted]
@@ -33,3 +33,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0029](0029-subscription-model-routing.md) — Align model routing with the subscription stack [accepted]
 - [0030](0030-promote-recurring-findings-into-project-native-constraints.md) — Promote recurring findings into project-native constraints [accepted]
 - [0031](0031-manage-only-the-pi-and-claude-surfaces.md) — Manage only the Pi and Claude surfaces [accepted]
+- [0032](0032-drop-the-approval-guardrails.md) — Drop the approval guardrails [accepted]

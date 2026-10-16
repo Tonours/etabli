@@ -1,6 +1,5 @@
 ---
-description: Create or split Linear tickets through Linear MCP. Use only when explicitly invoked; not for working tickets.
-disable-model-invocation: true
+description: Create or split Linear tickets through Linear MCP. Use when new Linear tickets are needed; not for working tickets.
 argument-hint: [ticket context]
 allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 ---
@@ -8,7 +7,7 @@ allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 skill: linear-ticket-create
 harness: claude
 canonical: workflow/skills/linear-ticket-create.md
-description: Create or split Linear tickets through Linear MCP. Use only when explicitly invoked; not for working tickets.
+description: Create or split Linear tickets through Linear MCP. Use when new Linear tickets are needed; not for working tickets.
 pointer: Adapter for the `linear-ticket-create` skill. Read and follow the shared contract in `workflow/skills/linear-ticket-create.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 

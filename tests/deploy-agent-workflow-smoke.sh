@@ -148,8 +148,6 @@ assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"
 assert_link "$HOME_DIR/.claude/hooks/workflow-router-lib.mjs" "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
-assert_link "$HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
-assert_link "$HOME_DIR/.claude/hooks/plan-commit-guard.mjs" "$ROOT_DIR/claude/hooks/plan-commit-guard.mjs"
 assert_link "$HOME_DIR/.claude/hooks/detect-adr-signal.mjs" "$ROOT_DIR/claude/hooks/detect-adr-signal.mjs"
 assert_link "$HOME_DIR/.claude/hooks/ledger-auto-emit.mjs" "$ROOT_DIR/claude/hooks/ledger-auto-emit.mjs"
 assert_absent "$HOME_DIR/.claude/hooks/outcome-metric-emit.mjs"
@@ -178,8 +176,6 @@ RELOCATED_NODE_DIR="$(dirname "$(node -e 'process.stdout.write(process.execPath)
 HOME="$RELOCATED_HOME_DIR" CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" PATH="$RELOCATED_NODE_DIR:$PATH" \
   ETABLI_INSTALL_HELPER_SMOKE=1 "$DEPLOY_SCRIPT" --apply --home "$RELOCATED_HOME_DIR" >/dev/null
 assert_absent "$RELOCATED_CLAUDE_DIR/hooks/proof-shadow.mjs"
-assert_link "$RELOCATED_CLAUDE_DIR/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
-assert_link "$RELOCATED_HOME_DIR/.claude/hooks/plan-ready-guard.mjs" "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_link "$RELOCATED_CLAUDE_DIR/commands/plan-loop.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"
 if ls "$RELOCATED_CLAUDE_DIR/commands"/plan-loop.md.bak.* >/dev/null 2>&1; then
   printf 'deploy backed up a dangling managed link\n' >&2

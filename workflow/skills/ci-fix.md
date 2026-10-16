@@ -8,9 +8,8 @@ guard, attempt cap, or anti-test-disarming rules.
 
 ## Purpose
 
-Drive an autonomous loop that gets a PR's CI green. This contract can authorize
-stash, checkout, rebase, commit, and push only when explicitly invoked or when
-the user clearly asks to fix CI until green.
+Drive an autonomous loop that gets a PR's CI green. This contract stashes,
+checks out, rebases, commits, and pushes as needed to get there.
 
 If the user asked only to inspect, diagnose, review, or explain CI, do not use
 this contract.

@@ -4,11 +4,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isNarrowPlanCleanupCommand, isPlanReadingVerificationRunCommand } from "../../../scripts/lib/plan-cleanup-command.mjs";
-import { planMutationGuardDecision } from "../../../workflow/runtime/workflow-router-core.mjs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
-test("quoted cleanup and same-session cd survive the plan mutation guard", () => {
+test("quoted cleanup and same-session cd stay narrow cleanup commands", () => {
   const cwd = mkdtempSync(join(tmpdir(), "cleanup test-"));
   const other = mkdtempSync(join(tmpdir(), "cleanup-other-"));
   try {
@@ -19,10 +18,6 @@ test("quoted cleanup and same-session cd survive the plan mutation guard", () =>
       `cd -- '${cwd}' && scripts/plan-cleanup --archive 'docs/plan/old.md'`,
     ]) {
       expect(isNarrowPlanCleanupCommand(command, cwd)).toBe(true);
-      for (const status of ["DRAFT", "CHALLENGED", "READY", "STALE"]) {
-        writeFileSync(join(cwd, "PLAN.md"), `# PLAN.md\n- Status: ${status}\n`);
-        expect(planMutationGuardDecision({ cwd, tool_name: "Bash", tool_input: { command } })).toBeNull();
-      }
     }
     for (const command of [
       `cd '${other}' && scripts/plan-cleanup --discard unrelated-plan`,
@@ -134,10 +129,6 @@ test("shell literal whitespace cannot receive a cleanup-only exception", () => {
           cwd, env: { ...process.env, BASH_ENV: "" }, encoding: "utf8",
         }).trim()).toBe("foreign-executable");
         expect(isNarrowPlanCleanupCommand(command, cwd)).toBe(false);
-        writeFileSync(join(cwd, "PLAN.md"), "# PLAN.md\n- Status: DRAFT\n");
-        expect(planMutationGuardDecision({ cwd, tool_name: "Bash", tool_input: { command } })).toMatchObject({
-          hookSpecificOutput: { permissionDecision: "deny" },
-        });
       }
     }
     expect(isNarrowPlanCleanupCommand(" \tscripts/plan-cleanup\t--discard old\t ", cwd)).toBe(true);
@@ -168,7 +159,7 @@ test("archiving and discarding preserve existing archives and active-run selecti
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
-test("only the plan-reading verification run passes the READY freeze guard", () => {
+test("only the plan-reading verification run is recognized", () => {
   const central = fileURLToPath(new URL("../../../scripts/project-verification", import.meta.url));
   const cwd = mkdtempSync(join(tmpdir(), "verification-run-"));
   try {
@@ -180,7 +171,6 @@ test("only the plan-reading verification run passes the READY freeze guard", () 
       `scripts/project-verification run --plan '${join(cwd, "PLAN.md")}'`,
     ]) {
       expect(isPlanReadingVerificationRunCommand(command, cwd)).toBe(true);
-      expect(planMutationGuardDecision({ cwd, tool_name: "Bash", tool_input: { command } })).toBeNull();
     }
     for (const command of [
       `${central} run --plan PLAN.md --engine`,
@@ -194,7 +184,6 @@ test("only the plan-reading verification run passes the READY freeze guard", () 
       `${central} init PLAN.md`,
     ]) {
       expect(isPlanReadingVerificationRunCommand(command, cwd)).toBe(false);
-      expect(planMutationGuardDecision({ cwd, tool_name: "Bash", tool_input: { command } })).not.toBeNull();
     }
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });

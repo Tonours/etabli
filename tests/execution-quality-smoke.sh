@@ -19,16 +19,11 @@ refused() {
 }
 PROV='{"requested":{"family":"fixture","model":"fixture","provider":"fixture"},"effective":{"family":"fixture","model":"fixture","provider":"fixture"},"runner":"fixture","run_id":"eq"}'
 review() { jq -nc --arg hash "$1" --arg verdict "$2" --argjson p "$PROV" '{mode:"plan",verdict:$verdict,plan_contract_sha256:$hash,accepted_findings:[],rejected_findings:[],model_provenance:$p}'; }
-claude_decision() {
- jq -nc --arg cwd "$TASK_TMP" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"app.mjs",content:"changed"}}' |
- node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
-}
 event append eq route_decided '{"route":"plan-implement","reason":"bound fixture"}'
 event append eq plan_created '{"path":"PLAN.md","status":"READY"}'
 event activate eq >/dev/null
 reviewed="$(contract_hash)"
 jq -s -e --arg hash "$reviewed" '[.[] | select(.event=="plan_created")] | last | .detail.plan_contract_sha256==$hash' "$ledger" >/dev/null
-claude_decision | jq -e '.hookSpecificOutput.permissionDecision=="deny"' >/dev/null
 cp "$ledger" "$TASK_TMP/ledger.before"; cp "$pointer" "$TASK_TMP/pointer.before"
 missing="$(review "$reviewed" READY | jq -c 'del(.plan_contract_sha256)')"
 refused append eq adversary_completed "$missing"
@@ -37,7 +32,7 @@ printf '\n## Additional decision\n- Require neighboring caller cases.\n' >>"$TAS
 [ "$(contract_hash)" != "$reviewed" ]
 refused append eq adversary_completed "$(review "$reviewed" READY)"
 current="$(contract_hash)"
-# One newly bound plan traverses guard -> isolated runner -> receipt -> writer.
+# One newly bound plan traverses isolated runner -> receipt -> writer.
 run_dir="$TASK_TMP/.workflow/eq"
 mkdir -p "$TASK_TMP/bin"
 printf 'Review this fixture plan and return a canonical verdict.\n' >"$run_dir/prompt.md"
@@ -53,24 +48,13 @@ emit(assistant("fixture-final","stop",[{type:"text",text:"Verdict: READY"}]));
 PI
 chmod +x "$TASK_TMP/bin/pi"
 runner=(bash "$ROOT_DIR/scripts/pi-review-hunter" --prompt-file "$run_dir/prompt.md" --patch "$run_dir/plan.patch" --capture-dir "$run_dir/capture" --pass-id eq-plan --role adversary-plan --timeout 60)
-command="$(python3 - "${runner[@]}" <<'WORDS'
-import shlex,sys
-print(shlex.join(sys.argv[1:]))
-WORDS
-)"
-bootstrap="$(jq -nc --arg cwd "$TASK_TMP" --arg command "$command" '{cwd:$cwd,tool_name:"Bash",tool_input:{command:$command}}' | node "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs")"
-[ -z "$bootstrap" ]
-claude_decision | jq -e '.hookSpecificOutput.permissionDecision=="deny"' >/dev/null
 PATH="$TASK_TMP/bin:$PATH" "${runner[@]}" >"$run_dir/verdict.txt"
 grep -Fxq 'Verdict: READY' "$run_dir/verdict.txt"
 jq -e --arg hash "$current" '.review_admissible and .isolated_context and .measured and .plan_contract_sha256==$hash and .models==["fixture/fixture"]' "$run_dir/capture/receipt.json" >/dev/null
 captured="$(jq -nc --slurpfile r "$run_dir/capture/receipt.json" --rawfile v "$run_dir/verdict.txt" --argjson p "$PROV" '{mode:"plan",verdict:($v|sub("^Verdict: ";"")|rtrimstr("\n")),plan_contract_sha256:$r[0].plan_contract_sha256,accepted_findings:[],rejected_findings:[],model_provenance:($p+{runner:"fixture-pi-capture",run_id:$r[0].pass_id})}')"
 event append eq adversary_completed "$captured"
-[ -z "$(claude_decision)" ]
 event append eq adversary_completed "$(review "$current" CHALLENGED)"
-claude_decision | jq -e '.hookSpecificOutput.permissionDecision=="deny"' >/dev/null
 event append eq adversary_completed "$(review "$current" READY)"
-[ -z "$(claude_decision)" ]
 printf 'export const fixture = true;\n' >"$TASK_TMP/app.mjs"
 node --check "$TASK_TMP/app.mjs"
 event append eq file_changed '{"path":"app.mjs","change":"fixture implementation"}'
@@ -88,7 +72,6 @@ for damaged in utf8 nul symlink; do
   nul) printf '\0' >"$TASK_TMP/PLAN.md" ;;
   symlink) ln -s "$TASK_TMP/plan.before-observation" "$TASK_TMP/PLAN.md" ;;
  esac
- claude_decision | jq -e '.hookSpecificOutput.permissionDecision=="deny"' >/dev/null
  for observed in docs/plain.md docs/plan/observed.md; do
   event append eq file_changed "$(jq -nc --arg path "$observed" --arg mode "$damaged" '{path:$path,change:("observation with unavailable plan: " + $mode)}')" >"$TASK_TMP/observation.stdout" 2>"$TASK_TMP/observation.stderr"
  done
@@ -99,7 +82,6 @@ printf '# Implemented: historical record\n\n- Source plan: `PLAN.md`\n- Source p
 event append eq file_changed '{"path":"docs/plan/historical.md","change":"historical document while plan unavailable"}' >"$TASK_TMP/observation.stdout" 2>"$TASK_TMP/observation.stderr"
 mv -f "$TASK_TMP/plan.before-observation" "$TASK_TMP/PLAN.md"
 [ "$(contract_hash)" = "$current" ]
-[ -z "$(claude_decision)" ]
 event append eq validation_run '{"command":"node --check app.mjs","exit":0}'
 event append eq simplification_completed '{"status":"clean","evidence":"fixture diff"}'
 event append eq quality_completed '{"status":"pass","evidence":"fixture diff"}'
@@ -117,4 +99,4 @@ event append eq completed '{"summary":"bound fixture closed"}'
 event validate eq --profile autonomous-completed >/dev/null
 [ ! -e "$TASK_TMP/PLAN.md" ] && [ ! -e "$pointer" ]
 jq -s -e '([.[] | select(.event=="review_completed") | .detail.review_round]==["T1"]) and ([.[] | select(.event=="file_changed")] | length==10) and ([.[] | select(.event=="file_changed") | .detail.path] | unique)==(["app.mjs","docs/plain.md","docs/plan/observed.md","docs/plan/historical.md"] | sort) and (.[-3:] | map(.event)==["archive_written","plan_removed","completed"])' "$ledger" >/dev/null
-printf 'execution quality smoke: writer, Claude hook, archive and terminal chain passed (fixtures)\n'
+printf 'execution quality smoke: writer, archive and terminal chain passed (fixtures)\n'

@@ -189,14 +189,14 @@
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/ci-fix.md",
       "canonical": "workflow/skills/ci-fix.md",
-      "sha256": "883323c51a19fdb31bcfd03bd5d009226859fd65df07698658832030970adab7"
+      "sha256": "23f3118f4b7049625745eddedd735dfe67032709ce6bd07825a62b53400bea85"
     },
     {
       "skill": "ci-fix",
       "harness": "pi",
       "adapter": "pi/skills/ci-fix/SKILL.md",
       "canonical": "workflow/skills/ci-fix.md",
-      "sha256": "77d93f21cc7347cfa5f8568d1cebcf3ae76ffa8202eee22e0ae363ca6f867e98"
+      "sha256": "33c73453b166c995695648a8a152128b52e04a4a7ed61bc176b1ca65e6d19f1a"
     },
     {
       "skill": "code-quality",
@@ -210,28 +210,28 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/implement.md",
       "canonical": "pi/skills/implement/SKILL.md",
-      "sha256": "7d8291f62f937bcd1ddecb1545cc35aeede1713ceeccfea10cbb4b33b99c8d42"
+      "sha256": "038ef3f9a8199cdd5fb7f4456ab8c7693006fbd200cfe7208f5e3b2ef0ee7dda"
     },
     {
       "skill": "implement",
       "harness": "pi",
       "adapter": "pi/skills/implement/SKILL.md",
       "canonical": "pi/skills/implement/SKILL.md",
-      "sha256": "6569a1b25dc5059e2f61c501f93c2dcb83129089225d0b0acbab7fcd1e98e419"
+      "sha256": "b6d60c0c4c0e188b348c85ee5c468d778352790429d52181135ff692ab4e4a2f"
     },
     {
       "skill": "linear-ticket-create",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/linear-ticket-create.md",
       "canonical": "workflow/skills/linear-ticket-create.md",
-      "sha256": "e981c03b1c09ea897aecc3e69e0f7b36c8ab64ab3ea670567e15ca23446c651d"
+      "sha256": "a84e31e39a1aa9865a1f612b88ec557571bdb596455ec2f4e43fa41665247919"
     },
     {
       "skill": "linear-ticket-create",
       "harness": "pi",
       "adapter": "pi/skills/linear-ticket-create/SKILL.md",
       "canonical": "workflow/skills/linear-ticket-create.md",
-      "sha256": "6c5e8c9bb20bef6cee73637f5aa9abab5fbe577d29db15dc05c561c79616afbf"
+      "sha256": "80f7cb9665b8afbbd68ec5d3d8b8ae9d8741b76c5455e0548ff8492f3c3857c0"
     },
     {
       "skill": "linear-work",
@@ -252,14 +252,14 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/plan-implement.md",
       "canonical": "pi/skills/plan-implement/SKILL.md",
-      "sha256": "a70f0bfb3c808f463e2060567cdda441045e3ddc439f322cf56b7d34cc0d7c61"
+      "sha256": "f092e08410821e5611655a1e60d45a53ea5f210718fd101cde784f93d1ee18d3"
     },
     {
       "skill": "plan-implement",
       "harness": "pi",
       "adapter": "pi/skills/plan-implement/SKILL.md",
       "canonical": "pi/skills/plan-implement/SKILL.md",
-      "sha256": "6df65e3bd8e0e038335f27424f9e53555e07fdcd623924183e4cd1edbbeddbdd"
+      "sha256": "77d8b33829840461791de7d6d1bc37ed7498b24260442bcd86c8e002796acc2d"
     },
     {
       "skill": "plan-loop",
@@ -294,14 +294,14 @@
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/pr-review.md",
       "canonical": "workflow/skills/pr-review.md",
-      "sha256": "c9bf0616679ed638d7c3d098143b1e53dbaf83653008aefd77680deabda52233"
+      "sha256": "056cbc984c4ca5329f06cc0b582ab0455bded4c6c950d5069d0167a21e0c28b5"
     },
     {
       "skill": "pr-review",
       "harness": "pi",
       "adapter": "pi/skills/pr-review/SKILL.md",
       "canonical": "workflow/skills/pr-review.md",
-      "sha256": "eec413cd3bee423312c655a1e35629a027d8721db02b21322e8513f973c1bcee"
+      "sha256": "bed1d940bb5e7b0115bf9e9788fb5cf2728633d3bd4bd0724d3bd3fed0295e8a"
     },
     {
       "skill": "review",
@@ -336,14 +336,14 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/ship.md",
       "canonical": "workflow/skills/ship.md",
-      "sha256": "842348b4f01154a97de67d59ca486d939bd7d0c425cbdb92c8db6bc334ef6500"
+      "sha256": "af9dac62695e4620c8d1f62fdc768027e769c871bc3cf24be86dcc4c15fd4105"
     },
     {
       "skill": "ship",
       "harness": "pi",
       "adapter": "pi/skills/ship/SKILL.md",
       "canonical": "workflow/skills/ship.md",
-      "sha256": "3e9c08fa9f4a1d6d753069f4a6aadd2ce3d742236eb80320cafab1aff666779b"
+      "sha256": "ed36b297172584c07e08d398b7c7e24c4f2c3ff4de65fab62236b715f50f0df2"
     },
     {
       "skill": "thermo-nuclear-code-quality-review",

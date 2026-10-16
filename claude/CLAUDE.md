@@ -26,9 +26,8 @@ the exact next action. Drop stale exploration output.
 ## Safety
 - Runtime: Node.js/TypeScript, local tests.
 - Autonomous mode: Claude Code runs with bypass permissions here; never pause
-  to ask for approval — act, then report. This overrides the pause rule in
-  `pi/AGENTS.md` for Claude Code. Ask only when the missing information is
-  strictly user-only (e.g. a credential value) and cannot be found locally.
+  to ask for approval — act, then report. Ask only when the missing information
+  is strictly user-only (e.g. a credential value) and cannot be found locally.
 - Never expose or commit secrets, in any mode.
 
 

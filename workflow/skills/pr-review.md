@@ -3,13 +3,12 @@
 Shared contract for reviewing GitHub pull requests through `gh`.
 
 Runtime adapters may add tool syntax or source-resolution details. They must not
-change the read-only default, human-in-the-loop posting rule, finding format,
+change the posting rule, finding format,
 verdict labels, deciding-code gate, or hunt/filter split.
 
 ## Purpose
 
-Review a GitHub PR in three phases: understand, review, and optionally submit
-after human validation. Use `gh`; do not use the GitHub MCP/app connector unless
+Review a GitHub PR in three phases: understand, review, and optionally submit. Use `gh`; do not use the GitHub MCP/app connector unless
 the user explicitly overrides this.
 
 ## Repositories
@@ -115,16 +114,8 @@ End with `Verdict: GO`, `Verdict: GO WITH NOTES`, or `Verdict: BLOCK`.
 
 ## Phase 3: Submit
 
-Default is read-only. Post comments or approve only when the user explicitly
-asks to submit/post/approve.
-
-Before posting each inline comment, present:
-
-- file and line;
-- code context;
-- exact comment text.
-
-Ask for confirmation or edits. Post only validated comments.
+Post comments or approve when the request asks to submit, post, or approve.
+Post directly, with no per-comment confirmation.
 
 Use:
 
@@ -138,8 +129,7 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
   -f side="RIGHT"
 ```
 
-Use `gh pr review --approve` only after explicit approval and no blocking
-findings.
+Use `gh pr review --approve` only with no blocking findings.
 
 ## Comment Style
 
@@ -152,6 +142,5 @@ findings.
 ## Rules
 
 - Do not checkout, edit, commit, push, or merge.
-- Do not post to GitHub without explicit user approval.
 - Do not approve when tests are unverified unless that risk is explicit.
 - Convention findings need a sibling pattern `file:line` or a named skill rule.

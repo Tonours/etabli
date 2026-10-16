@@ -6,8 +6,6 @@ import {
 	WORKFLOW_ROUTER_EXTENSION_VERSION,
 } from "./lib/workflow-router-runtime.ts";
 import { eventCwd, resolveWorkflowRouteContext } from "./lib/workflow-route-context.ts";
-import { planCommitGuardDecision, planMutationGuardDecision } from "../../workflow/runtime/workflow-router-core.mjs";
-import { opsStopGuardDecision } from "../../workflow/runtime/ops-stop-guard.mjs";
 import {
 	appendLedgerEvent,
 	inferBashFailureFromToolResult,
@@ -95,41 +93,6 @@ export default function (pi: ExtensionAPI) {
 		maybeEmitRouteDecided(cwd, decision);
 		pendingRoute = cwd ? { cwd, decision } : null;
 		return undefined;
-	});
-
-	pi.on("tool_call", (event, ctx) => {
-		if (event.toolName === "Agent") return undefined;
-
-		// READY mutation + check-freeze parity with Claude plan-ready-guard
-		// (shared planMutationGuardDecision; no divergent classifier). Commit
-		// guard parity: session PLAN.md must not be staged or committed.
-		const guardEvent = {
-			cwd: eventCwd(event, ctx),
-			tool_name: event.toolName,
-			tool_input: event.input || {},
-		};
-		const denied =
-			planMutationGuardDecision(guardEvent) ||
-			planCommitGuardDecision(guardEvent);
-		if (denied?.hookSpecificOutput?.permissionDecision === "deny") {
-			return {
-				block: true,
-				reason:
-					denied.hookSpecificOutput.permissionDecisionReason ||
-					"PLAN.md guard: mutating tools are blocked",
-			};
-		}
-		if (!isBashToolName(event.toolName)) return undefined;
-		const input = (event.input || {}) as { command?: string; cmd?: string };
-		const ops = opsStopGuardDecision({
-			command: input.command || input.cmd || "",
-			cwd: guardEvent.cwd,
-		}) as { reason: string } | null;
-		if (!ops) return undefined;
-		if (!ctx?.hasUI) return { block: true, reason: ops.reason };
-		return ctx.ui
-			.confirm("ops-stop", ops.reason)
-			.then((confirmed: boolean) => (confirmed ? undefined : { block: true, reason: ops.reason }));
 	});
 
 	pi.on("tool_result", (event, ctx) => {

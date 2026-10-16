@@ -1,14 +1,13 @@
 ---
 name: implement
-description: Implement an existing READY PLAN.md without replanning. Use only when explicitly asked via /skill:implement; not for planning, design, or unplanned fixes.
-disable-model-invocation: true
+description: Implement an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: implement
 harness: pi
 canonical: pi/skills/implement/SKILL.md
 name: implement
-description: Implement an existing READY PLAN.md without replanning. Use only when explicitly asked via /skill:implement; not for planning, design, or unplanned fixes.
+description: Implement an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
 <!-- GENERATED:adapter-sync:end -->
 
 # Implement

@@ -29,7 +29,7 @@ never downgrade mid-run.
 
 `workflow/spec.md` § Rules governs every step and wins on conflict.
 
-- No-progress stop and check-freeze as in `workflow/agent-quick-card.md`
+- No-progress stop as in `workflow/agent-quick-card.md`
   (always loaded); a no-progress stop lists the eliminated hypotheses.
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.

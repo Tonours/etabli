@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { planMutationGuardDecision } from "../workflow/runtime/workflow-router-core.mjs";
 import { planContract, evaluatePlanReview, planReviewPermission } from "../scripts/lib/plan-review-binding.mjs";
 import { parseChecks, evaluateReadyPlan } from "../scripts/lib/plan-check-freeze.mjs";
 const plan = readFileSync(new URL("./fixtures/execution-quality/ready-plan.md", import.meta.url), "utf8");
@@ -16,17 +15,6 @@ export function fixture(rows) {
  writeFileSync(join(root,".workflow/fixture/events.jsonl"),rows.map(JSON.stringify).join("\n")+"\n");
  return root;
 }
-test("ready_without_review: both adapters reject newly bound READY",()=>{
- assert.equal(evaluateReadyPlan(plan).ok,true);
- const root=fixture([entry("plan_created",{path:"PLAN.md",status:"READY",plan_contract_sha256:"0".repeat(64)})]);
- try {
-  for(const tool_name of ["Write","write"]) {
-   const result=planMutationGuardDecision({cwd:root,tool_name,tool_input:{file_path:"app.mjs",content:"changed"}});
-   assert.equal(result?.hookSpecificOutput?.permissionDecision,"deny");
-  }
- } finally {rmSync(root,{recursive:true,force:true});}
-});
-
 const provenance={requested:{family:"fixture",model:"fixture",provider:"fixture"},effective:{family:"fixture",model:"fixture",provider:"fixture"},runner:"fixture",run_id:"fixture"};
 const binding=()=>entry("plan_created",{path:"PLAN.md",status:"READY",plan_contract_sha256:planContract(plan).contract_sha256});
 const approval=(verdict="READY",hash=planContract(plan).contract_sha256)=>entry("adversary_completed",{mode:"plan",verdict,plan_contract_sha256:hash,accepted_findings:[],rejected_findings:[],model_provenance:provenance});
@@ -91,38 +79,13 @@ test("legacy_unbound and invalid_active_state are distinct",()=>{
   assert.equal(planReviewPermission(root,plan).mode,"legacy-no-ledger");
  } finally {rmSync(root,{recursive:true,force:true});}
 });
-test("matching_plan_verdict: actual guard permits approved current contract",()=>{
+test("matching_plan_verdict: permission follows the approved current contract",()=>{
  const root=fixture([binding(),approval()]);
  try {
-  assert.equal(planMutationGuardDecision({cwd:root,tool_name:"Write",tool_input:{file_path:"app.mjs",content:"changed"}}),null);
-  writeFileSync(join(root,"PLAN.md"),plan.replace("Keep caller behavior stable.","Change caller behavior."));
-  assert.equal(planMutationGuardDecision({cwd:root,tool_name:"Write",tool_input:{file_path:"app.mjs",content:"changed"}})?.hookSpecificOutput?.permissionDecision,"deny");
+  assert.equal(planReviewPermission(root,plan).ok,true);
+  assert.equal(planReviewPermission(root,plan.replace("Keep caller behavior stable.","Change caller behavior.")).ok,false);
  } finally {rmSync(root,{recursive:true,force:true});}
 });
-test("review_bootstrap and review_bootstrap_escape: confined artifacts and fixed argv",()=>{
- const root=fixture([binding()]);
- const run=".workflow/fixture", hunter=new URL("../scripts/pi-review-hunter",import.meta.url).pathname;
- try {
-  const write=path=>planMutationGuardDecision({cwd:root,tool_name:"Write",tool_input:{file_path:path,content:"prompt"}});
-  assert.equal(write(`${run}/prompt.md`),null);
-  assert.equal(write(`${run}/events.jsonl`)?.hookSpecificOutput?.permissionDecision,"deny");
-  writeFileSync(join(root,run,"prompt.md"),"read only");writeFileSync(join(root,run,"plan.patch"),plan);
-  const command=`${hunter} --prompt-file ${run}/prompt.md --patch ${run}/plan.patch --capture-dir ${run}/r1 --pass-id plan-r1 --role adversary-plan`;
-  const bash=command=>planMutationGuardDecision({cwd:root,tool_name:"Bash",tool_input:{command}});
-  assert.equal(bash(command),null);assert.equal(bash(`rtk proxy ${command}`),null);
-  assert.equal(bash(command.replace(`${run}/plan.patch`,"PLAN.md")),null);
-  const check=new URL("../scripts/plan-review-check",import.meta.url).pathname;
-  assert.equal(bash(`${check} --hash PLAN.md`),null);
-  assert.equal(bash(`rtk proxy node ${check} --hash PLAN.md`),null);
-  assert.equal(bash(`bash ${check} --hash PLAN.md`)?.hookSpecificOutput?.permissionDecision,"deny");
-  assert.equal(bash(`node ${command}`)?.hookSpecificOutput?.permissionDecision,"deny");
-  for(const invalid of [command+"; touch outside",command.replace("adversary-plan","logic"),command.replace(`${run}/r1`,"../outside"),command+" --sources-file other.json"]) assert.equal(bash(invalid)?.hookSpecificOutput?.permissionDecision,"deny");
-  writeFileSync(join(root,run,"file"),"regular");
-  assert.equal(write(`${run}/file/prompt.md`)?.hookSpecificOutput?.permissionDecision,"deny");
-  symlinkSync(root,join(root,run,"link"));assert.equal(write(`${run}/link/prompt.md`)?.hookSpecificOutput?.permissionDecision,"deny");
- } finally {rmSync(root,{recursive:true,force:true});}
-});
-
 test("bookkeeping descendants and continuations remain material",()=>{
  for(const next of [
   plan.replace("last run: pending","last run: pending\n      - command: node extra-check.mjs\n        - expected: extra behavior passes"),
@@ -132,14 +95,6 @@ test("bookkeeping descendants and continuations remain material",()=>{
   assert.equal(evaluatePlanReview([binding(),approval()],next).reason,"stale_plan_review");
  }
  assert.notDeepEqual(parseChecks(plan.replace("last run: pending","last run: pending\n      - command: node extra-check.mjs\n        - expected: extra behavior passes")),parseChecks(plan));
-});
-
-test("symlinked root plan does not provide READY authority",()=>{
- const root=fixture([binding(),approval()]);
- try {
-  rmSync(join(root,"PLAN.md"));writeFileSync(join(root,"linked.md"),plan);symlinkSync("linked.md",join(root,"PLAN.md"));
-  assert.equal(planMutationGuardDecision({cwd:root,tool_name:"Write",tool_input:{file_path:"app.mjs",content:"changed"}})?.hookSpecificOutput?.permissionDecision,"deny");
- } finally {rmSync(root,{recursive:true,force:true});}
 });
 
 test("command source escapes in Checks and Steps remain material",()=>{
@@ -157,23 +112,4 @@ test("first last-run result has no contract effect",()=>{
  const after=before.replace("- command: node --check app.mjs","- command: node --check app.mjs\n  - last run: syntax passed");
  assert.equal(planContract(before).contract_sha256,planContract(after).contract_sha256);
  assert.equal(evaluatePlanReview([binding(),approval("READY",planContract(before).contract_sha256)],after).ok,true);
-});
-test("bootstrap rejects expansions and retains quoted literal paths",()=>{
- const root=fixture([binding()]),run=".workflow/fixture",hunter=new URL("../scripts/pi-review-hunter",import.meta.url).pathname;
- try {
-  writeFileSync(join(root,run,"prompt.md"),"read only");symlinkSync(root,join(root,run,"1"));
-  const command=`${hunter} --prompt-file ${run}/prompt.md --patch PLAN.md --capture-dir ${run}/DEST/capture --pass-id plan-r1 --role adversary-plan`;
-  const bash=cmd=>planMutationGuardDecision({cwd:root,tool_name:"Bash",tool_input:{command:cmd}});
-  for(const destination of ["{1..1}","*","?","[1]","~","$(pwd)"])
-   assert.equal(bash(command.replace("DEST",destination))?.hookSpecificOutput?.permissionDecision,"deny",destination);
-  mkdirSync(join(root,run,"{literal}"));
-  assert.equal(bash(command.replace(`${run}/DEST/capture`,`'${run}/{literal}/capture'`)),null);
- } finally {rmSync(root,{recursive:true,force:true});}
-});
-test("invalid UTF-8 plan cannot provide READY authority",()=>{
- const root=fixture([binding(),approval()]);
- try {
-  writeFileSync(join(root,"PLAN.md"),Buffer.concat([Buffer.from(plan),Buffer.from([0xff])]));
-  assert.equal(planMutationGuardDecision({cwd:root,tool_name:"Write",tool_input:{file_path:"app.mjs",content:"changed"}})?.hookSpecificOutput?.permissionDecision,"deny");
- } finally {rmSync(root,{recursive:true,force:true});}
 });

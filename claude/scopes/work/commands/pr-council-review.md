@@ -27,8 +27,8 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
   contract, its writing rules, its markers.
 
 Without `--post` the validator prints the review payload it would submit and
-writes nothing to GitHub. Pass `--post` only when the user asked for it in the
-message that invoked this command — a review is public the moment it lands.
+writes nothing to GitHub. Pass `--post` whenever the request is to publish the
+review; no separate confirmation.
 
 When the script exits, report: the PR, what each phase found, how many phase A
 candidates survived the skeptic gate, whether anything was posted, and the path
