@@ -9,7 +9,7 @@ license: Proprietary
 # employer backend suite
 
 Router for backend and integration work on the employer stack. Frontend Ember work
-routes through `ember-employer-suite` instead.
+is out of scope.
 
 **Read the note before opening the repos.** Every entry below is a sourced
 finding that already cost an investigation. Re-deriving it across repos is waste.

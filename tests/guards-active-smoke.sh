@@ -67,7 +67,7 @@ fi
 [ -x "$MERGE" ] || fail "missing executable scripts/claude-hooks-merge"
 [ -x "$HCHECK" ] || fail "missing executable scripts/claude-hooks-check"
 
-REPO_DMI="grill-me coolify design componentize add-dark-mode canonicalize-tailwind make-responsive dark-mode-image brand-kit markup-from-image ideas"
+REPO_DMI="grill-me coolify"
 pin_repo_dmi() {
   node --input-type=module -e "
 import { existsSync, readFileSync } from 'node:fs';
@@ -89,7 +89,7 @@ pin_repo_dmi "$ROOT_DIR" $REPO_DMI || fail "repo DMI pin failed"
 FIXPIN="$TMP_DIR/fixpin"
 mkdir -p "$FIXPIN/extras/skills"
 for name in $REPO_DMI; do
-  [ "$name" = "ideas" ] && continue
+  [ "$name" = "coolify" ] && continue
   mkdir -p "$FIXPIN/extras/skills/$name"
   cp "$ROOT_DIR/extras/skills/$name/SKILL.md" "$FIXPIN/extras/skills/$name/"
 done
@@ -246,12 +246,12 @@ if find "$STAMP_HOME" "$EDGE_HOME" "$ALIAS_HOME" "$LINKFILE_HOME" "$BROKEN_HOME"
 fi
 
 MODE_HOME="$TMP_DIR/mode-home"
-mkdir -p "$MODE_HOME/.agents/skills/ideas"
-printf -- '---\nname: ideas\ndescription: fixture\n---\nbody\n' >"$MODE_HOME/.agents/skills/ideas/SKILL.md"
-chmod 600 "$MODE_HOME/.agents/skills/ideas/SKILL.md"
+mkdir -p "$MODE_HOME/.agents/skills/ghost-lab"
+printf -- '---\nname: ghost-lab\ndescription: fixture\n---\nbody\n' >"$MODE_HOME/.agents/skills/ghost-lab/SKILL.md"
+chmod 600 "$MODE_HOME/.agents/skills/ghost-lab/SKILL.md"
 "$STAMP" --home "$MODE_HOME" >/dev/null || fail "stamp failed on restrictive-mode skill"
-grep -q "^disable-model-invocation: true$" "$MODE_HOME/.agents/skills/ideas/SKILL.md" || fail "restrictive-mode skill not flagged"
-node -e 'const m = require("fs").statSync(process.argv[1]).mode & 0o777; if (m !== 0o600) { console.error("mode loosened to " + m.toString(8)); process.exit(1); }' "$MODE_HOME/.agents/skills/ideas/SKILL.md" || fail "stamp loosened file mode"
+grep -q "^disable-model-invocation: true$" "$MODE_HOME/.agents/skills/ghost-lab/SKILL.md" || fail "restrictive-mode skill not flagged"
+node -e 'const m = require("fs").statSync(process.argv[1]).mode & 0o777; if (m !== 0o600) { console.error("mode loosened to " + m.toString(8)); process.exit(1); }' "$MODE_HOME/.agents/skills/ghost-lab/SKILL.md" || fail "stamp loosened file mode"
 
 MG_HOME="$TMP_DIR/merge-home"
 mkdir -p "$MG_HOME/.claude"

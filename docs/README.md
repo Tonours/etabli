@@ -13,7 +13,6 @@ runtime instructions.
 - [`docs/symlink-layout.md`](symlink-layout.md): managed links per harness
   and the `shared`/`work`/`personal` scope system.
 - [`docs/mcp-strategy.md`](mcp-strategy.md): sanitized MCP inventory and scope.
-- [`docs/pstack-strategy.md`](pstack-strategy.md): Pi pstack port and settings.
 - [`docs/vendor-skills.md`](vendor-skills.md): vendored skills and update path.
 - [`docs/workflow-context-budget.md`](workflow-context-budget.md): resident
   context budgets and their CI gate.

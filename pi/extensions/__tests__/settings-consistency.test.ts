@@ -98,7 +98,7 @@ describe("Pi settings consistency", () => {
       expect(source).toContain("skill_catalog_names");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
-    for (const shelved of ["caveman", "grill-me", "coolify", "project-hunt"]) {
+    for (const shelved of ["grill-me", "coolify", "react-doctor-100"]) {
       expect(skillCatalog.find((s) => s.name === shelved)).toMatchObject({
         source: "extras",
         piCore: false,
@@ -116,12 +116,7 @@ describe("Pi settings consistency", () => {
       "bug-check",
       "linear-ticket-create",
       "linear-work",
-      "pr-review",
-      "pr-qa",
-      "sec-pr",
-      "ci-fix",
       "write-direct",
-      "ship",
       "thermo-nuclear-code-quality-review",
     ];
     expect(installCoreSkills().sort()).toEqual([...keepList].sort());
@@ -131,7 +126,7 @@ describe("Pi settings consistency", () => {
     expect(
       skillCatalog.find((skill) => skill.name === "code-quality"),
     ).toMatchObject({ piCore: true });
-    expect(keepList).toHaveLength(17);
+    expect(keepList).toHaveLength(12);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);
       expect(localPackage().skills ?? []).not.toContain(banned);
@@ -171,7 +166,7 @@ describe("Pi settings consistency", () => {
     expect(packageBySource("npm:pi-mcp-adapter")?.skills).toEqual([
       "mcp-scripting",
     ]);
-    expect(packageBySource("npm:@zenspc/pi-pstack")?.skills).toBeUndefined();
+    expect(packageBySource("npm:@zenspc/pi-pstack")).toBeUndefined();
     expect(packageBySource("npm:pi-subagents")?.skills).toEqual([]);
 
     // Removed from quasi-vanilla profile

@@ -68,13 +68,13 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `PLAN.md` and the single archive, other repos are declared satellites, and the
   archive is never duplicated. Stale and invalid-status plans are surfaced by
   `scripts/plan-cleanup --status`. Both rules: `workflow/plan-archive.md`.
-- Branch-mutating routes (`/ship`, `sec-pr`) isolate per
+- Branch-mutating runs isolate per
   `workflow/skills/worktree-isolation.md`: one run, one worktree, root `PLAN.md`
   inside it, explicit cleanup.
 - Evidence and investigations: `workflow/skills/investigation.md` and
   `workflow/evidence-pack.schema.json`. Integrity, parent-observed execution,
   proxy support, and blocked surfaces stay distinct.
-- Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record
+- Events: `workflow/events.md`. Autonomous routes (`plan-implement` autonome, `/goal`) must record
   the event ledger; ordinary work may record it.
 - Skill evaluation: `workflow/skills/skill-evaluation.md`.
 - Cold contracts, opened only on their trigger: bounded re-review
@@ -139,7 +139,7 @@ A plan is `READY` when it has:
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
 | Self-improvement request from run evidence, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
-| Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff |
+| Ambitious project, "A to Z", "de a a z", or end-to-end project request | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff |
 | Natural-language implementation request for a Linear ticket | `plan-implement` (`implement` with a READY plan) | `PLAN.md` from the ticket + code/docs + validation | validated archive and root `PLAN.md` deleted |
 | Review request, including a GitHub PR review in natural language | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
@@ -147,8 +147,7 @@ A plan is `READY` when it has:
 
 Work commands are explicit commands (work scope), never chosen by the
 router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
-`/bug-check`, `/pr-review`, `/github-pr-review`, `/pr-qa`, `/sec-pr`,
-`/ci-fix`, `/spec-guide`. Slash prompts bypass the classifier, so each runs
+`/bug-check`, `/pr-council-review`, `/spec-guide`. Slash prompts bypass the classifier, so each runs
 under its own contract. Linear commands
 require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md`. Rationale: ADR-0027.
@@ -161,8 +160,7 @@ already taught us. Where the runtime exposes skills, select the narrowest domain
 or project skill for the subject alongside the route — they are orthogonal, and
 the skill keeps a route from rediscovering known ground. Optional domain skills
 are **opt-in**: load one only when the runtime exposes it and the brief clearly
-matches, never as a mandatory first step on `plan-loop`, `plan-implement`, or
-`/ship`. A project skill wins over a generic language/framework skill when the
+matches, never as a mandatory first step on `plan-loop` or `plan-implement`. A project skill wins over a generic language/framework skill when the
 task is about the codebase. When no matching skill is exposed, the route still
 follows its local-source fallback instead of silently skipping the phase.
 Selection stays with the model, never injected per prompt (ADR-0014). There is

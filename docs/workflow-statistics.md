@@ -9,7 +9,7 @@ scripts/workflow-ship-metrics --dir .workflow report --since 2026-09-01 --until 
 
 The command reads existing sources and prints to stdout. It creates no registry,
 updates no journal and applies no recommendation. Despite its name, it covers
-workflow initiatives outside `/ship` too. Single-project archives come from
+every workflow initiative, not only historical ship runs. Single-project archives come from
 `docs/plan` in the parent of the supplied workflow directory.
 
 The text view shows source coverage, completed/blocked/correction event counts,

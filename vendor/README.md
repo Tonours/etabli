@@ -11,17 +11,12 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
-| `mattpocock` | `mattpocock/skills` | `shared` | 14 — engineering pack (see `docs/vendor-skills.md`) |
-| `ember-skills` | `Tonours/ember-skills` (private) | `work` | 13 — employer Ember frontend |
-| `adonisjs-skills` | `Tonours/adonisjs-skills` (private) | `personal` | 6 — AdonisJS 7 |
+| `mattpocock` | `mattpocock/skills` | `shared` | 7 — engineering pack (see `docs/vendor-skills.md`) |
 | `petergyang` | `petergyang/no-ai-slop` | `shared` | 1 — `no-ai-slop`, AI-slop editing pass |
 | `typesafe-ai` | `typesafe-ai/skills` | `shared` | 1 — `typesafe-ai`, build with TypeSafe System One (Jev) |
 
-pstack was vendored here until ADR-0023 migrated Pi to the
-`@zenspc/pi-pstack` npm port (see `docs/pstack-strategy.md`); the vendoring
-mechanism itself stays for the suites above.
-
-Generic language packs (mcollina) and React packs (vercel, tanstack) were
+pstack (ADR-0023, then removed by ADR-0033), ember-skills, adonisjs-skills,
+generic language packs (mcollina) and React packs (vercel, tanstack) were
 removed as unused surface. Full restore procedure for a dropped pack (all
 inputs recoverable from git history — e.g.
 `git show 18bc2f0^:vendor/sources.tsv`):
@@ -35,28 +30,23 @@ inputs recoverable from git history — e.g.
 Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 `personal` only where the machine declares that scope in `~/.etabli-scope`.
 
-## Syncing
+## Updating
 
 ```bash
-scripts/sync-vendor-skills                  # every vendor
-scripts/sync-vendor-skills mattpocock       # one vendor
+scripts/update-vendor-skills                 # every vendor, review then commit
+scripts/update-vendor-skills mattpocock      # one vendor
+scripts/update-vendor-skills --commit        # commit vendor/ + skills-lock.json
 ```
 
-The script refuses to run while `vendor/` has uncommitted changes, so a
-forgotten local edit surfaces instead of being silently overwritten. It rewrites
-each `UPSTREAM_SHA`, then prints a diffstat to review before committing.
+One step: it runs `scripts/sync-vendor-skills`, refreshes `skills-lock.json`,
+runs `verify:skills` and both skill load checks, then prints each vendor whose
+`UPSTREAM_SHA` moved with a GitHub compare link to read the upstream changes.
+It exits early when nothing moved. Deploy afterwards
+(`scripts/deploy-agent-workflow --apply`) so the live surfaces pick it up.
 
-The private repos clone over SSH. `gh`'s OAuth token can list them but cannot
-read their contents, so HTTPS fails with a misleading 404.
-
-After a vendor sync, refresh `skills-lock.json` so the lock matches the
-vendored trees:
-
-```bash
-cd pi && bun run update:skills-lock
-```
-
-`bun run verify:skills` is the read-only check used by
+`scripts/sync-vendor-skills` alone refuses to run while `vendor/` has
+uncommitted changes, so a forgotten local edit surfaces instead of being
+silently overwritten. `bun run verify:skills` is the read-only check used by
 `scripts/verify-agentic-infra`.
 
 ## Upstream is the source of truth
@@ -65,7 +55,7 @@ Never hand-edit a file under `<vendor>/skills/`. A local fix drifts silently and
 the next sync overwrites it. Fix it upstream and re-sync, or fork the skill into
 `claude/scopes/` under a different name.
 
-This rule has already been paid for once: three `ember-skills` descriptions had
-an unquoted `: ` in their YAML frontmatter, which truncates the description at
-the colon and strips the trigger keywords an agent matches on. The fix lived only
-in `etabli` until it was pushed upstream as `aa6ed23`.
+This rule has already been paid for once: three vendored descriptions had an
+unquoted `: ` in their YAML frontmatter, which truncates the description at the
+colon and strips the trigger keywords an agent matches on. The fix lived only in
+`etabli` until it was pushed upstream.

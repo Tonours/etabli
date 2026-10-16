@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+VENDOR_ROOT="$REPO_DIR/vendor"
+MANIFEST="$VENDOR_ROOT/sources.tsv"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--commit] [vendor]
+
+Update vendored skills in one step: sync every vendor (or one) from upstream,
+refresh skills-lock.json, run the skill checks, and print what moved.
+
+--commit  commit vendor/ and skills-lock.json when something changed
+EOF
+}
+
+COMMIT=0
+ONLY=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --commit) COMMIT=1 ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  -*)
+    usage >&2
+    exit 2
+    ;;
+  *) ONLY="$1" ;;
+  esac
+  shift
+done
+
+vendors() {
+  awk -F '\t' -v only="$ONLY" '!/^#/ && NF && (only == "" || $1 == only) {print $1 "\t" $2}' "$MANIFEST"
+}
+
+[ -n "$(vendors)" ] || {
+  printf 'no vendor matched %s in %s\n' "${ONLY:-<any>}" "$MANIFEST" >&2
+  exit 1
+}
+
+BEFORE="$(mktemp)"
+trap 'rm -f "$BEFORE"' EXIT
+while IFS=$'\t' read -r vendor _; do
+  printf '%s\t%s\n' "$vendor" "$(cat "$VENDOR_ROOT/$vendor/UPSTREAM_SHA" 2>/dev/null || echo none)" >>"$BEFORE"
+done < <(vendors)
+
+"$SCRIPT_DIR/sync-vendor-skills" ${ONLY:+"$ONLY"}
+
+if git -C "$REPO_DIR" diff --quiet -- "$VENDOR_ROOT" &&
+  [ -z "$(git -C "$REPO_DIR" ls-files --others --exclude-standard -- "$VENDOR_ROOT")" ]; then
+  printf '\nvendor skills already up to date\n'
+  exit 0
+fi
+
+(cd "$REPO_DIR/pi" && bun run --silent update:skills-lock)
+(cd "$REPO_DIR/pi" && bun run --silent verify:skills)
+"$SCRIPT_DIR/claude-skill-load-check"
+"$SCRIPT_DIR/pi-skill-load-check" </dev/null
+
+printf '\nchanged vendors:\n'
+changed=()
+while IFS=$'\t' read -r vendor repo; do
+  after="$(cat "$VENDOR_ROOT/$vendor/UPSTREAM_SHA")"
+  old="$(awk -F '\t' -v v="$vendor" '$1 == v {print $2}' "$BEFORE")"
+  [ "$old" = "$after" ] && continue
+  changed+=("$vendor")
+  line="  $vendor ${old:0:12} -> ${after:0:12}"
+  case "$repo" in
+  https://github.com/*)
+    url="${repo%.git}"
+    [ "$old" = none ] || line="$line  $url/compare/${old:0:12}...${after:0:12}"
+    ;;
+  esac
+  printf '%s\n' "$line"
+done < <(vendors)
+[ "${#changed[@]}" -gt 0 ] || printf '  none (only local adaptation drift)\n'
+
+if [ "$COMMIT" -eq 1 ]; then
+  git -C "$REPO_DIR" add -- "$VENDOR_ROOT" "$REPO_DIR/skills-lock.json"
+  label="${changed[*]:-vendor skills}"
+  git -C "$REPO_DIR" commit -q -m "chore(vendor): update ${label// /, }"
+  git -C "$REPO_DIR" log --oneline -1
+else
+  printf '\nreview the diff, then commit (or rerun with --commit)\n'
+fi

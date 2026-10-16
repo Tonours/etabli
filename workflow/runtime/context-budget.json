@@ -114,52 +114,6 @@
         "workflow/contract-details.md"
       ],
       "ceiling_chars": 30207
-    },
-    "ship": {
-      "description": "default read chain of the ship route (systematic reads only; 4 conditionals on trigger)",
-      "files": [
-        "pi/skills/ship/SKILL.md",
-        "workflow/skills/ship.md",
-        "workflow/skills/implementation-loop.md",
-        "workflow/skills/plan-loop.md",
-        "PLAN_TEMPLATE.md",
-        "workflow/skills/adversary.md",
-        "workflow/skills/review.md",
-        "workflow/review-rubric.md",
-        "workflow/templates/review-lead.md",
-        "workflow/templates/review-logic-hunter.md",
-        "workflow/templates/review-spec-hunter.md",
-        "workflow/templates/plan-archive.md",
-        "workflow/templates/escaped-defect.md",
-        "workflow/events.md",
-        "workflow/answer-quality.md",
-        "workflow/skills/worktree-isolation.md",
-        "workflow/git-contract.md",
-        "workflow/pr-body-contract.md"
-      ],
-      "conditional": [
-        {
-          "file": "workflow/spec.md",
-          "trigger": "arbitrage/human-checkpoint"
-        },
-        {
-          "file": "workflow/contract-details.md",
-          "trigger": "long-rules lookup"
-        },
-        {
-          "file": "workflow/skills/ci-fix.md",
-          "trigger": "failing CI"
-        },
-        {
-          "file": "workflow/skills/review-rounds.md",
-          "trigger": "review round with findings, re-review, or CI commits after review"
-        },
-        {
-          "file": "workflow/events-validator.md",
-          "trigger": "event-system edit, corrupt ledger recovery, or active-run selection"
-        }
-      ],
-      "ceiling_chars": 83333
     }
   }
 }

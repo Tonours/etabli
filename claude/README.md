@@ -60,23 +60,23 @@ in `work`.
 
 ### Contracts, commands, and skills
 
-Five names share a `workflow/skills/<name>.md` contract and a
-`scopes/*/commands/<name>.md` command: `bug-check`, `pr-qa`, `pr-review`,
-`sec-pr`, and `review`. That is not drift to clean up.
+Some names share a `workflow/skills/<name>.md` contract and a
+`scopes/*/commands/<name>.md` command, for example `bug-check` and `review`.
+That is not drift to clean up.
 
 - the **contract** is the cross-runtime source of truth — Pi reads it too
-  (`pi/skills/pr-review/SKILL.md`), and Pi cannot see Claude skills;
+  (`pi/skills/review/SKILL.md`), and Pi cannot see Claude skills;
 - the **command** is the thin `/name` entry point;
 - a **Claude skill** exists only when Claude's procedure goes further than
-  the contract. Today that is `bug-check`, `pr-qa`, and `sec-pr` under
-  `scopes/work/skills/`. `review` and `pr-review` have Pi skills instead.
+  the contract. Today that is `bug-check` under `scopes/work/skills/`.
+  `review` has a Pi skill instead.
 
 Change the contract when the rule is true for every runtime. Change the skill
 when only that runtime's procedure moves. `tests/workflow-contract-coverage-smoke.sh`
 enforces that every contract stays referenced somewhere.
 
-The `personal` row in the scope table is the deploy gate. Personal vendor
-skills (AdonisJS) arrive through `vendor/`, not `claude/scopes/personal/`.
+The `personal` row in the scope table is the deploy gate. Shared vendor
+skills arrive through `vendor/`, not `claude/scopes/`.
 
 ## Workflow
 
@@ -86,7 +86,6 @@ Claude commands are thin wrappers over that contract:
 
 - `/plan-loop`
 - `/plan-implement`
-- `/ship`
 - `/implement`
 - `/review`
 - `/verify-workflow`
@@ -94,11 +93,7 @@ Claude commands are thin wrappers over that contract:
 - `/linear-ticket-create`
 - `/linear-work`
 - `/linear-project-setup`
-- `/pr-review`
-- `/pr-qa`
-- `/sec-pr`
-- `/ci-fix`
-- `/github-pr-review`
+- `/pr-council-review`
 - `/adversary`
 - `/spec-guide`
 
@@ -119,10 +114,10 @@ Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
 
 Load only a matching skill that the active Claude surface actually exposes.
 Prefer an exposed project skill when the task is about its codebase; otherwise
-use a scope-gated vendor skill such as `ember-employer-suite` (work) or
-`adonisjs-suite` (personal) when the machine declares that scope. UI/CSS skills
-sit on the `extras/` shelf and are not deployed by default. Skill selection is not a
-mandatory first step on `/plan-loop`, `/plan-implement`, or `/ship`; when no
+use a scope-gated skill such as `employer-backend-suite` (work) when the machine
+declares that scope. Optional skills sit on the `extras/` shelf and are not
+deployed by default. Skill selection is not a
+mandatory first step on `/plan-loop` or `/plan-implement`; when no
 matching skill is exposed, the route uses its local-source fallback instead of
 silently skipping the phase. See `vendor/README.md` for the manifest and sync
 command.
@@ -131,10 +126,6 @@ command.
 themselves when the brief matches. There is no hook that suggests a skill —
 selection is the model's, per ADR-0014. There is no additional global skill
 router.
-
-Playwright QA is packaged as three skills, not extra agents:
-`playwright-agentic-testing`, `playwright-test-generation`, and
-`playwright-failure-dossier`.
 
 `/verify-workflow` is the Etabli workflow verifier. Keep Claude Code's native
 `/verify` free for app/runtime verification.
@@ -156,9 +147,8 @@ link removed. The two skills are not interchangeable: this one writes
 `scripts/validate-adrs` rejects; record etabli ADRs from a `personal` machine,
 or write the file by hand in the numbered form.
 
-Linear commands use Linear MCP. PR review, QA, security PR audit, and CI fix use
-the `gh` CLI, not the GitHub MCP/app connector, unless explicitly overridden.
-`/github-pr-review` is a compatibility alias for `/pr-review`.
+Linear commands use Linear MCP. PR review uses the `gh` CLI, not the GitHub
+MCP/app connector, unless explicitly overridden.
 
 Optional hooks:
 

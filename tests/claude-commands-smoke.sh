@@ -12,8 +12,8 @@ raise "no Claude commands found" if paths.empty?
 
 allowed_keys = %w[name description argument-hint allowed-tools model disable-model-invocation]
 allowed_tools = %w[Read Write Edit Glob Grep Bash AskUserQuestion Agent Skill WebFetch]
-commands_declaring_agent_preapproval = %w[ci-fix implement plan-implement ship]
-commands_without_mutation_preapproval = %w[bug-check github-pr-review pr-qa pr-review review sec-pr verify-workflow]
+commands_declaring_agent_preapproval = %w[implement plan-implement]
+commands_without_mutation_preapproval = %w[bug-check review verify-workflow]
 
 paths.each do |path|
   content = File.read(path)

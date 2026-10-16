@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded by ADR-0033
 date: 2026-08-28
 tags: [tooling, skills, vendor, pstack]
 affected_components: [vendor/sources.tsv, scripts/sync-vendor-skills, workflow/runtime/skill-surface.tsv, docs/pstack-strategy.md]
+superseded_by: ADR-0033
 ---
 
 # Adopt pstack as a vendored task-skill layer, not a workflow replacement

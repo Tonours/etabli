@@ -257,12 +257,15 @@ managed_surface_skill_target_is_managed() {
   local repo_dir="$1"
   local managed_roots="$2"
   local skill_target="$3"
-  local skill_parent
+  local skill_parent root
 
   skill_parent="$(cd "$(dirname "$skill_target")" >/dev/null 2>&1 && pwd -P)"
   if [ -n "$skill_parent" ]; then
-    printf '%s\n' "$managed_roots" | grep -qxF "$skill_parent"
-    return
+    while IFS= read -r root; do
+      [ -n "$root" ] || continue
+      case "$skill_parent/" in "$root"/*) return 0 ;; esac
+    done <<<"$managed_roots"
+    return 1
   fi
 
   case "$skill_target" in

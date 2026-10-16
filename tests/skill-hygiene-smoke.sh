@@ -26,7 +26,7 @@ claude_scoped() {
 }
 
 # Workflow commands stay model-invocable on both runtimes.
-WORKFLOW_COMMANDS="ship plan-implement implement ci-fix linear-ticket-create"
+WORKFLOW_COMMANDS="plan-implement implement linear-ticket-create"
 
 # --- AC1a: no DMI flag on the workflow command paths ---
 DMI_RE='^disable-model-invocation:[ ]*true[ ]*(#.*)?$'
@@ -52,8 +52,8 @@ fi
 # edit only. Unrewritten legacy descriptions (27 pi, tripwire-nonconforming
 # at implement) are out of scope; the trigger eval validates the mixed
 # surface semantically (24/24 at implement).
-PI_SHAPED="adversary bug-check ci-fix code-quality implement linear-ticket-create linear-work plan-implement plan-loop pr-qa pr-review review sec-pr thermo-nuclear-code-quality-review verify"
-CLAUDE_SHAPED="agents/adversary.md commands/adversary.md commands/bug-check.md commands/ci-fix.md commands/implement.md commands/linear-ticket-create.md commands/linear-work.md commands/plan-implement.md commands/plan-loop.md commands/pr-qa.md commands/pr-review.md commands/review.md commands/sec-pr.md commands/verify-workflow.md"
+PI_SHAPED="adversary bug-check code-quality implement linear-ticket-create linear-work plan-implement plan-loop review thermo-nuclear-code-quality-review verify"
+CLAUDE_SHAPED="agents/adversary.md commands/adversary.md commands/bug-check.md commands/implement.md commands/linear-ticket-create.md commands/linear-work.md commands/plan-implement.md commands/plan-loop.md commands/review.md commands/verify-workflow.md"
 USE_RE='use\b.*(when|for)\b'
 NOT_RE='(not|never|except|don'"'"'t|pas pour)\b'
 for name in $PI_SHAPED; do

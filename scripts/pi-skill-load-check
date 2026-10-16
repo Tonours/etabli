@@ -133,7 +133,7 @@ const warnings = [];
 
 const GATE = 7800;
 const ALERT = 7785;
-const PINNED_DMI = ["project-hunt", "runtime-skill-canary", "thermo-nuclear-code-quality-review"];
+const PINNED_DMI = ["runtime-skill-canary"];
 const DELEGATED_DMI = ["obsidian"];
 
 function liveSkillNames(root) {
@@ -261,24 +261,15 @@ while ((match = entryRe.exec(block)) !== null) {
   rendered.push({ name, location, chars: match[0].length });
 }
 
-const pstackStripped = rendered.filter((entry) => entry.location.includes("/pi-pstack/"));
-const pstackChars = pstackStripped.reduce((sum, entry) => sum + entry.chars, 0);
-const modelBlockChars = block.length - pstackChars;
-
-let pstackOff = null;
-try {
-  pstackOff = JSON.parse(readFileSync(join(homeDir, ".pi/agent/pstack/models.json"), "utf8")).skillsEnabled === false;
-} catch {
-  pstackOff = null;
-}
+const modelBlockChars = block.length;
 
 if (modelBlockChars > GATE) {
   errors.push(`B1: model-facing block ${modelBlockChars} chars exceeds gate ${GATE}`);
 } else if (modelBlockChars >= ALERT) {
   warnings.push(`B1: model-facing block ${modelBlockChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
 }
-if (pstackStripped.length > 0 && pstackOff !== true) {
-  errors.push("B3: pstack skills render and /pstack off is not in effect (skillsEnabled must be false)");
+if (rendered.some((entry) => entry.location.includes("/pi-pstack/"))) {
+  errors.push("B3: pi-pstack skills render; the package must stay removed");
 }
 
 for (const pinned of [...PINNED_DMI, ...DELEGATED_DMI]) {
@@ -359,10 +350,8 @@ for (const name of expected) {
 }
 for (const entry of rendered) {
   const isPackage = entry.location.includes("/npm/node_modules/");
-  const isPstack = entry.location.includes("/pi-pstack/");
   const isLens = entry.location.includes("/pi-lens/");
   if (isPackage) {
-    if (isPstack) continue;
     if (isLens) continue;
     const pkg = entry.location.split("/npm/node_modules/")[1].split("/skills/")[0];
     const pkgEntry = (settings.packages ?? []).find(
@@ -396,19 +385,17 @@ if (!process.env.PI_SKILL_LOAD_NO_REPO && JSON.stringify(repoDeny) !== JSON.stri
 
 const buckets = {};
 for (const entry of rendered) {
-  const bucket = entry.location.includes("/pi-pstack/")
-    ? "pkg:pstack"
-    : entry.location.includes("/npm/node_modules/")
-      ? `pkg:${entry.location.split("/npm/node_modules/")[1].split("/skills/")[0]}`
-      : entry.location.includes("/.pi/agent/skills/")
-        ? "root:pi"
-        : entry.location.includes("/.agents/skills/")
-          ? "root:agents"
-          : "other";
+  const bucket = entry.location.includes("/npm/node_modules/")
+    ? `pkg:${entry.location.split("/npm/node_modules/")[1].split("/skills/")[0]}`
+    : entry.location.includes("/.pi/agent/skills/")
+      ? "root:pi"
+      : entry.location.includes("/.agents/skills/")
+        ? "root:agents"
+        : "other";
   buckets[bucket] = (buckets[bucket] ?? 0) + 1;
 }
 
-console.log(`block_chars=${block.length} model_block_chars=${modelBlockChars} entries=${rendered.length} universe=${universe.size} deny=${denySorted.length} dmi=${dmi.size} pstack_entries=${pstackStripped.length}`);
+console.log(`block_chars=${block.length} model_block_chars=${modelBlockChars} entries=${rendered.length} universe=${universe.size} deny=${denySorted.length} dmi=${dmi.size}`);
 console.log(`buckets=${JSON.stringify(buckets)}`);
 console.log(`manifest=${[...renderedNames].sort().join(" ")}`);
 for (const warning of warnings) console.log(`WARN: ${warning}`);

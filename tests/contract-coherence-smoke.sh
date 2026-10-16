@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 # Tranche 4 contract-coherence pins: every AC closes with aligned prose on
 # both sides or a mechanical rule + fixtures. This smoke pins the prose side
-# (anchored grep, presence + absence) and executes the single-sourced ci-fix
-# ledger example. Mechanical pins live in workflow-event-smoke.sh and the
-# router bun tests.
+# (anchored grep, presence + absence). Mechanical pins live in
+# workflow-event-smoke.sh and the router bun tests.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 LOOP="$ROOT_DIR/workflow/skills/implementation-loop.md"
 ADV="$ROOT_DIR/workflow/skills/adversary.md"
 SPEC="$ROOT_DIR/workflow/spec.md"
-CIFIX="$ROOT_DIR/workflow/skills/ci-fix.md"
-SHIP="$ROOT_DIR/workflow/skills/ship.md"
 CORE="$ROOT_DIR/workflow/runtime/workflow-router-core.mjs"
 
 fail() { printf 'contract-coherence: %s\n' "$1" >&2; exit 1; }
@@ -45,23 +42,6 @@ assert_contains "$AGENT" "model: claude-opus-5-5"
 assert_contains "$AGENT" "effort: low"
 assert_contains "$ADV" "## Cross-harness frontier pool"
 assert_contains "$ADV" "exclude the author's family"
-
-# AC4 (F6): force-push allowed with lease only (ADR-0032); cross-ref to ci-fix.
-assert_absent "$SHIP" "Never force-push"
-assert_count "$SHIP" "Force-push with \`--force-with-lease\`, never plain \`--force\`." "1"
-assert_contains "$SHIP" "ci-fix.md"
-
-# AC5 (F7): ci-fix ledger procedure + slug convention.
-assert_contains "$CIFIX" "## Event Ledger"
-assert_contains "$CIFIX" 'Run slug: `ci-fix-<PR number>-r<n>`'
-# Single-source: extract the marked example and EXECUTE it in a tmp dir.
-TMP_CIFIX="$(mktemp -d "${TMPDIR:-/tmp}/coherence-cifix.XXXXXX")"
-trap 'rm -rf "$TMP_CIFIX"' EXIT
-sed -n '/ci-fix-ledger-example-begin/,/ci-fix-ledger-example-end/p' "$CIFIX" \
-  | grep -v "ci-fix-ledger-example-" > "$TMP_CIFIX/example.sh"
-[ -s "$TMP_CIFIX/example.sh" ] || fail "ci-fix example extraction empty"
-TMP="$TMP_CIFIX" ROOT="$ROOT_DIR" bash -e "$TMP_CIFIX/example.sh" \
-  || fail "ci-fix ledger example failed to execute + validate"
 
 # AC6 (F8): no dead openai-codex route in the router core.
 assert_absent "$CORE" "openai-codex"

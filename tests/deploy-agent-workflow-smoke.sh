@@ -264,9 +264,9 @@ grep -Fq 'WOULD_REMOVE   retired surface link review in .codex/skills' "$TMP_DIR
 }
 assert_link "$RETIRED_DRY_HOME_DIR/.codex/skills/review" "$ROOT_DIR/pi/skills/review"
 
-if [ -e "$HOME_DIR/.claude/skills/ember-employer-suite" ]; then
+if [ -e "$HOME_DIR/.claude/skills/employer-backend-suite" ]; then
   printf 'work-scope skill deployed without a declared scope: %s\n' \
-    "$HOME_DIR/.claude/skills/ember-employer-suite" >&2
+    "$HOME_DIR/.claude/skills/employer-backend-suite" >&2
   exit 1
 fi
 
@@ -287,8 +287,8 @@ fi
   assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-inner.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-inner.sh"
   assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report-prompt.md" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report-prompt.md"
   assert_link "$WORK_HOME_DIR/.claude/scripts/sessions-report.sh" "$ROOT_DIR/claude/scopes/work/scripts/sessions-report.sh"
-  assert_link "$WORK_HOME_DIR/.claude/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
-  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/ember-employer-suite"
+  assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/claude/scopes/work/skills/employer-backend-suite"
+  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/employer-backend-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.grok"
@@ -384,8 +384,8 @@ if (!piSubagents || JSON.stringify(piSubagents.skills) !== "[]") {
   throw new Error("tracked npm:pi-subagents entry missing or not skill-silenced");
 }
 
-if (!hasObjectSource("npm:@zenspc/pi-pstack")) {
-  throw new Error("tracked npm:@zenspc/pi-pstack entry missing");
+if (hasObjectSource("npm:@zenspc/pi-pstack")) {
+  throw new Error("npm:@zenspc/pi-pstack must stay removed");
 }
 
 if (!Array.isArray(settings.skills) || !settings.skills.every((pattern) => pattern.startsWith("!"))) {

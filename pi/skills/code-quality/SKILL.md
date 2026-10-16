@@ -19,7 +19,7 @@ and compares the diff to **sibling implementations in this repo**.
 ## When to run
 
 - After the simplification pass in `implementation-loop`
-- During `review` / `pr-review` when the diff touches language or UI surface
+- During `review` when the diff touches language or UI surface
 - Explicit user request for quality, conventions, patterns, or best practices
 - React convention pass on a bounded diff
 
@@ -32,7 +32,7 @@ and compares the diff to **sibling implementations in this repo**.
 
    | Domain | Skills to apply |
    | -------- | ----------------- |
-   | TypeScript / implementation | `codebase-design` (vendored, matt pocock; Claude surface — prompt-hidden on Pi); pstack principles via /skill: invocation (pi-pstack port; prompt-hidden by /pstack off) |
+   | TypeScript / implementation | `codebase-design` (vendored, matt pocock; Claude surface — prompt-hidden on Pi) |
    | CSS / layout / visual | Local sibling components and styles; apply a narrower CSS skill only when the runtime exposes one |
    | Project-specific code | Prefer the matching project skill when the runtime exposes one |
 

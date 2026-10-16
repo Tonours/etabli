@@ -102,7 +102,7 @@ sandbox. Shared workflow and evidence invariants stay in
   UI/browser reality when available, and record `blocked` instead of claiming
   pass when decisive legs need human verification or no validation surface
   exists.
-- Routes that mutate code on a dedicated branch (`/ship`, `sec-pr`) isolate through `workflow/skills/worktree-isolation.md`: clean base
+- Runs that mutate code on a dedicated branch isolate through `workflow/skills/worktree-isolation.md`: clean base
   worktree, one run per worktree and branch, no sibling-worktree edits, the run's
   root `PLAN.md` inside its own worktree, environment contention reported as
   `blocked`, and explicit cleanup or a stated reason for keeping it.
@@ -111,7 +111,7 @@ sandbox. Shared workflow and evidence invariants stay in
   ledger, and `completed`/`blocked` events are terminal evidence.
 - Workflow improvements start from inspectable evidence and go through a
   reviewed `PLAN.md`.
-- Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record
+- Autonomous runs (`plan-implement` autonome, `/goal`) must record
   the event ledger; ordinary work may record it.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`, emit a
@@ -120,7 +120,7 @@ sandbox. Shared workflow and evidence invariants stay in
   Criteria change, note why in the Decision Log. No runtime freeze;
   `scripts/plan-check-freeze` remains an optional diff helper. <!-- etabli-only -->
 - Autonomous loop stop conditions pair the measurable goal with an explicit cap
-  (iterations or wall-clock). `ci-fix` keeps its existing attempt and time caps.
+  (iterations or wall-clock).
 - The final review of an autonomous `plan-implement` run comes from a fresh
   context (subagent reviewer or cross-model), never from the context that
   implemented. If no fresh-context runner is available, stop as `blocked`
@@ -205,10 +205,6 @@ Pi:
 - `/skill:bug-check`: analyze Linear bug root cause without editing
 - `/skill:linear-ticket-create`: create Linear tickets through Linear MCP
 - `/skill:linear-work`: work from Linear tickets through Linear MCP
-- `/skill:pr-review`: review GitHub PRs through `gh`
-- `/skill:pr-qa`: create PR QA test plans through `gh`
-- `/skill:sec-pr`: audit Dependabot/security PRs through `gh`
-- `/skill:ci-fix`: explicitly requested autonomous CI repair through `gh`
 
 Claude:
 
@@ -221,19 +217,11 @@ Claude:
 - `/bug-check`: analyze Linear bug root cause without editing
 - `/linear-ticket-create`: create Linear tickets through Linear MCP
 - `/linear-work`: work from Linear tickets through Linear MCP
-- `/pr-review`: review GitHub PRs through `gh`
-- `/pr-qa`: create PR QA test plans through `gh`
-- `/sec-pr`: audit Dependabot/security PRs through `gh`
-- `/ci-fix`: explicitly requested autonomous CI repair through `gh`
-- `/github-pr-review`: compatibility alias for `/pr-review`
+- `/pr-council-review`: three-pass review of one GitHub PR, dry-run by default
 
-Delivery commands (never chosen by the router; the user or the model invokes
-them): `/ship` (A-to-Z delivery per `workflow/skills/ship.md`, including push
-and PR creation), `/linear-project-setup`.
-The Playwright QA chain lives in the `claude/scopes/shared/skills/playwright-*` skills, not
-in slash commands or separate agents. Work commands (`/linear-*`, `/bug-check`,
-`/pr-review`, `/pr-qa`, `/sec-pr`, `/ci-fix`, `/spec-guide`) are explicit
-commands in the work scope, never routed (ADR-0027).
+Work commands (`/linear-*`, `/bug-check`, `/pr-council-review`,
+`/spec-guide`) are explicit commands in the work scope, never routed
+(ADR-0027).
 
 Claude-native loop:
 

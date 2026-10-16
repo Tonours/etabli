@@ -159,7 +159,7 @@ assert_file "$ROOT_DIR/workflow/skills/adversary.md"
 assert_file "$ROOT_DIR/workflow/skills/implementation-loop.md"
 assert_file "$ROOT_DIR/workflow/skills/orchestration.md"
 assert_file "$ROOT_DIR/workflow/skills/investigation.md"
-for shelved in product-dogfood ambitious-project-loop recurring-run pr-maintenance-loop; do
+for shelved in product-dogfood ambitious-project-loop; do
   assert_file "$ROOT_DIR/extras/contracts/$shelved.md"
   [ ! -e "$ROOT_DIR/workflow/skills/$shelved.md" ] || { printf 'shelved contract %s must not stay in workflow/skills\n' "$shelved" >&2; exit 1; }
 done
@@ -175,15 +175,11 @@ assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
 assert_file "$ROOT_DIR/tests/fixtures/pr-maintenance/stale-review.json"
 for contract in \
     bug-check \
-    ci-fix \
     linear-project-setup \
     linear-ticket-create \
     linear-work \
-    pr-qa \
-    pr-review \
     plan-loop \
     review \
-    sec-pr \
     verify; do
     assert_file "$ROOT_DIR/workflow/skills/$contract.md"
 done
@@ -199,11 +195,6 @@ assert_file "$ROOT_DIR/claude/scopes/shared/commands/verify-workflow.md"
 assert_file "$ROOT_DIR/claude/scopes/work/commands/bug-check.md"
 assert_file "$ROOT_DIR/claude/scopes/work/commands/linear-ticket-create.md"
 assert_file "$ROOT_DIR/claude/scopes/work/commands/linear-work.md"
-assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-review.md"
-assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-qa.md"
-assert_file "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md"
-assert_file "$ROOT_DIR/claude/scopes/work/commands/ci-fix.md"
-assert_file "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
@@ -324,7 +315,6 @@ assert_contains "$ROOT_DIR/workflow/templates/escaped-defect.md" '  constraint: 
 assert_not_contains "$ROOT_DIR/workflow/templates/escaped-defect.md" 'reviewer improvement loop contract'
 assert_contains "$ROOT_DIR/README.md" '[`workflow/project-constraints.md`](workflow/project-constraints.md)'
 assert_contains "$ROOT_DIR/workflow-scaffold/templates/AGENTS.md" '`workflow/project-constraints.md`'
-assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'checkpoint commit'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Understand before planning'
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" 'Code diff mode'
 assert_file "$ROOT_DIR/workflow/skill-design.md"
@@ -386,8 +376,6 @@ assert_not_contains "$ROOT_DIR/workflow/git-contract.md" 'Each operation require
 assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/git-contract.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '<type>/<ticket-id>-<short-slug>'
 assert_contains "$ROOT_DIR/workflow/skills/worktree-isolation.md" '<type>/<ticket-id>-<short-slug>'
-assert_contains "$ROOT_DIR/workflow/skills/ship.md" '<type>/<ticket-id>-<short-slug>'
-assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'Done is a green PR; merging it is optional'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
 jq -e '.mcpServers == {}' "$ROOT_DIR/.mcp.json" >/dev/null
@@ -550,11 +538,9 @@ assert_not_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'spawn_agent'
 assert_contains "$ROOT_DIR/workflow/skills/orchestration.md" 'workflow/runtime-capabilities.json'
 assert_contains "$ROOT_DIR/pi/extensions/lib/workflow-router-runtime.ts" 'workflow-router-core.mjs'
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'SELF_IMPROVEMENT_PATTERN'
-assert_contains "$ROOT_DIR/workflow/skills/ci-fix.md" 'Never make a test pass by disarming it'
 assert_contains "$ROOT_DIR/workflow/skills/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_file "$ROOT_DIR/scripts/pr-latest-head-status"
 assert_file "$ROOT_DIR/tests/pr-latest-head-status-smoke.sh"
-assert_contains "$ROOT_DIR/workflow/skills/sec-pr.md" 'Never merge automatically'
 assert_file "$ROOT_DIR/workflow/events-validator.md"
 assert_contains "$ROOT_DIR/workflow/events-validator.md" '## Retired types'
 assert_contains "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" 'def retired_events'
@@ -599,12 +585,10 @@ assert_contains "$ROOT_DIR/workflow/spec.md" 'Diagnosis, compare, or pre-existin
 assert_not_contains "$ROOT_DIR/workflow/contract-details.md" '/skill:github-pr-review'
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/adversary.md" 'workflow/skills/adversary.md'
 assert_contains "$ROOT_DIR/claude/scopes/work/commands/linear-work.md" 'LINEAR_MCP_UNAVAILABLE'
-assert_contains "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md" 'Never merge automatically'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'plan drift detected'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Does this addition need to exist'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'simplify: clean'
 assert_not_contains "$ROOT_DIR/claude/README.md" 'before the repos are opened'
-assert_not_contains "$ROOT_DIR/claude/scopes/work/skills/sec-pr/references/employer-dependabot.md" 'Read-only sortant'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Verdict: GO'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" 'Never use `OK`, `APPROVED`, `PASS`'
 assert_contains "$ROOT_DIR/workflow/review-rubric.md" '- Bounded read-only inspection of nearby code, tests, config, or docs — only'
@@ -629,10 +613,7 @@ assert_file "$ROOT_DIR/workflow/templates/review-logic-hunter.md"
 assert_file "$ROOT_DIR/workflow/templates/review-spec-hunter.md"
 assert_file "$ROOT_DIR/workflow/templates/review-lead.md"
 assert_contains "$ROOT_DIR/claude/scopes/shared/commands/review.md" 'Agent'
-assert_contains "$ROOT_DIR/claude/scopes/work/commands/pr-review.md" 'Agent'
-assert_contains "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md" 'Agent'
 assert_not_contains "$ROOT_DIR/workflow/skills/review.md" 'No free second bug-hunt'
-assert_not_contains "$ROOT_DIR/workflow/skills/pr-review.md" 'No free second bug-hunt'
 assert_not_contains "$ROOT_DIR/workflow/agent-quick-card.md" 'Break-first then plan-fit'
 if [ -f "$ROOT_DIR/claude/scopes/shared/agents/spec-reviewer.md" ]; then
     printf 'unexpected %s\nRemediation: keep reviewer scout worker only; dispatch two briefs on reviewer.\n' \
@@ -651,11 +632,9 @@ for quality_path in \
     workflow/review-rubric.md \
     workflow/skills/implementation-loop.md \
     workflow/skills/review.md \
-    workflow/skills/pr-review.md \
     pi/skills/code-quality/SKILL.md \
     pi/skills/review/SKILL.md \
     claude/scopes/shared/commands/plan-implement.md \
-    claude/scopes/shared/commands/ship.md \
     claude/scopes/shared/agents/scout.md \
     claude/scopes/shared/agents/reviewer.md \
     claude/scopes/shared/agents/worker.md \
@@ -665,30 +644,6 @@ for quality_path in \
     done
 done
 
-# These CSS skills are distributed cross-harness but are not part of Pi's core
-# package surface. Pi quality adapters must not route to them until the catalog
-# marks them pi_core; Claude adapters may still name cross-harness skills.
-inactive_pi_css_skills="$(
-    awk -F '\t' '
-        $0 !~ /^#/ && ($2 == "pi" || $2 == "extras") && $3 == "0" &&
-        ($1 == "frontend-css-ui-ux" || $1 ~ /^css-/) { print $1 }
-    ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
-)"
-[ -n "$inactive_pi_css_skills" ] || {
-    printf 'expected at least one non-core Pi CSS skill in the managed catalog\n' >&2
-    exit 1
-}
-for pi_quality_path in \
-    pi/skills/code-quality/SKILL.md \
-    pi/skills/implement/SKILL.md \
-    pi/skills/plan-implement/SKILL.md \
-    pi/skills/pr-review/SKILL.md \
-    pi/skills/review/SKILL.md; do
-    while IFS= read -r inactive_pi_css_skill; do
-        [ -n "$inactive_pi_css_skill" ] || continue
-        assert_not_word "$ROOT_DIR/$pi_quality_path" "$inactive_pi_css_skill"
-    done <<<"$inactive_pi_css_skills"
-done
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'status: unavailable'
 assert_contains "$ROOT_DIR/workflow/skills/review.md" 'report the convention lens as `not run`'
 assert_contains "$ROOT_DIR/pi/skills/code-quality/SKILL.md" 'quality: unavailable'
@@ -718,15 +673,15 @@ catalog_counts="$(
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
 read -r catalog_total pi_core_total <<<"$catalog_counts"
-# Catalog baselines: raised 2026-08-28 with the deliberate additions of the
-# thermo-nuclear pi-core skill, pstack unslop, and the 14-skill mattpocock
-# engineering suite (user-directed). Revisit on every suite adoption.
-[ "$catalog_total" -le 120 ] || {
-    printf 'skill catalog grew beyond baseline: %s > 120\n' "$catalog_total" >&2
+# Catalog baselines: lowered 2026-10-16 after the skill prune (pstack, ember,
+# adonisjs, most extras and 7 mattpocock skills removed). Revisit on every
+# suite adoption.
+[ "$catalog_total" -le 40 ] || {
+    printf 'skill catalog grew beyond baseline: %s > 40\n' "$catalog_total" >&2
     exit 1
 }
-[ "$pi_core_total" -le 20 ] || {
-    printf 'pi_core grew beyond baseline: %s > 20\n' "$pi_core_total" >&2
+[ "$pi_core_total" -le 16 ] || {
+    printf 'pi_core grew beyond baseline: %s > 16\n' "$pi_core_total" >&2
     exit 1
 }
 
@@ -939,14 +894,10 @@ for adapter in \
     "pi/skills/plan-implement/SKILL.md:workflow/skills/implementation-loop.md" \
     "pi/skills/adversary/SKILL.md:workflow/skills/adversary.md" \
     "pi/skills/bug-check/SKILL.md:workflow/skills/bug-check.md" \
-    "pi/skills/ci-fix/SKILL.md:workflow/skills/ci-fix.md" \
     "pi/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
     "pi/skills/linear-ticket-create/SKILL.md:workflow/skills/linear-ticket-create.md" \
     "pi/skills/linear-work/SKILL.md:workflow/skills/linear-work.md" \
-    "pi/skills/pr-qa/SKILL.md:workflow/skills/pr-qa.md" \
-    "pi/skills/pr-review/SKILL.md:workflow/skills/pr-review.md" \
     "pi/skills/review/SKILL.md:workflow/skills/review.md" \
-    "pi/skills/sec-pr/SKILL.md:workflow/skills/sec-pr.md" \
     "pi/skills/plan-loop/SKILL.md:workflow/skills/plan-loop.md" \
     "pi/skills/verify/SKILL.md:workflow/skills/verify.md" \
     "pi/skills/linear-project-setup/SKILL.md:workflow/skills/linear-project-setup.md" \
@@ -954,14 +905,10 @@ for adapter in \
     "claude/scopes/shared/commands/plan-implement.md:workflow/skills/implementation-loop.md" \
     "claude/scopes/shared/commands/adversary.md:workflow/skills/adversary.md" \
     "claude/scopes/work/commands/bug-check.md:workflow/skills/bug-check.md" \
-    "claude/scopes/work/commands/ci-fix.md:workflow/skills/ci-fix.md" \
     "claude/scopes/work/commands/linear-project-setup.md:workflow/skills/linear-project-setup.md" \
     "claude/scopes/work/commands/linear-ticket-create.md:workflow/skills/linear-ticket-create.md" \
     "claude/scopes/work/commands/linear-work.md:workflow/skills/linear-work.md" \
-    "claude/scopes/work/commands/pr-qa.md:workflow/skills/pr-qa.md" \
-    "claude/scopes/work/commands/pr-review.md:workflow/skills/pr-review.md" \
     "claude/scopes/shared/commands/review.md:workflow/skills/review.md" \
-    "claude/scopes/work/commands/sec-pr.md:workflow/skills/sec-pr.md" \
     "claude/scopes/shared/commands/plan-loop.md:workflow/skills/plan-loop.md" \
     "claude/scopes/shared/commands/verify-workflow.md:workflow/skills/verify.md"; do
     adapter_path="${adapter%%:*}"

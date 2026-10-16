@@ -8,7 +8,7 @@ Repo-specific instructions for this dotfiles repo.
 - `claude/` — Claude Code commands and local instructions
 - `docs/` — focused user docs
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
-- `vendor/` — vendored upstream skills (`vendor/sources.tsv`; mattpocock is the shared pack, migrated to vendoring after the pstack port move)
+- `vendor/` — vendored upstream skills (`vendor/sources.tsv`; update with `scripts/update-vendor-skills`)
 - `skills-lock.json` — skill-tree integrity lock
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `pi/` — Pi config, extensions, skills, themes
