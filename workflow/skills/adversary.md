@@ -46,10 +46,10 @@ mode's canon; history keeps both families for historical compatibility.
 ## Completion Evidence
 
 Adversary passes run inside the loop's BOUNDED review machine
-(`workflow/skills/review-rounds.md` T/D/F table): T/F rounds use fresh hunters plus the
-adversary, D rounds add the adversary only if a high-severity finding was
-folded, and the bound never downgrades a pass to a lighter re-read — the
-last review always covers the full delivery diff. An implementation loop can
+(`workflow/skills/review-rounds.md` T/D table): T rounds use fresh hunters plus the
+adversary, D rounds add the adversary after a findings round or for a
+contractual delta, and the bound never downgrades a pass to a lighter
+re-read — every shipped delta is reviewed by a fresh context. An implementation loop can
 count the adversary pass as complete only when the final handoff names:
 
 - adversary result;

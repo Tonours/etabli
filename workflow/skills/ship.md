@@ -49,11 +49,11 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    ship ledger a `file_changed` carrier —
    `{"path":"<loop-ledger-dir>","change":"review budget transferred",`
    `"loop_ledger":"<loop-slug>","loop_head_sha":"<sha>",`
-   `"consumed":{"T":<n>,"D":<n>,"F":<n>},"remaining":{"T":<n>,"D":<n>,"F":<n>}}`
+   `"consumed":{"T":<n>,"D":<n>},"remaining":{"T":<n>,"D":<n>}}`
    — with counts computed from the loop ledger's recorded review rounds
-   (tour tags T1…F2 in the review evidence, plus FD counting as D;
-   `remaining = {2,2,2} − consumed`). Ship-phase repeats consume the
-   SAME T/D/F counter (each
+   (tour tags T1…D2 in the review evidence, legacy FD counting as D;
+   `remaining = {2,2} − consumed`). Ship-phase repeats consume the
+   SAME T/D counter (each
    repeat decrements `remaining`; zero → `blocked`), no second budget.
 5. **Thermo-nuclear quality review:** on the cumulative branch diff, run the
    `thermo-nuclear-code-quality-review` skill when it is exposed on the
@@ -77,9 +77,9 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
    never stage `PLAN*.md`. Closed content: review fixes + the metrics-row
    aggregate — nothing else. The archive must be committed no later than
    this sweep (record `archive_commit`). If the sweep touches code, enter
-   the next unspent F round on the new SHA (positional machine: normally
-   F2, a single full pass — clean→ship, findings→`blocked`; no F budget
-   left → `blocked`); row-only generated records get a schema check.
+   the next unspent D round on the new SHA (beyond the delta bar: the next
+   unspent T; clean→ship, findings→the machine's next round, none left →
+   `blocked`); row-only generated records get a schema check.
 8. Run the complete relevant `scripts/verify-agentic-infra` group on the final <!-- etabli-only -->
    diff per `workflow/skills/implementation-loop.md`. A red group blocks the
    push. Also run `scripts/workflow-ref-linter` (all targets); a red linter <!-- etabli-only -->

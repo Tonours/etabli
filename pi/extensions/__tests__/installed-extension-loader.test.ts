@@ -24,7 +24,8 @@ function resolveActiveTargets() {
 	if (launcherTrace.status === 0 && activeExec) {
 		return { activeNode: activeExec[1], activeCli: activeExec[2], version: launcherTrace.stdout.trim() };
 	}
-	const linkedCli = realpathSync(piLauncher);
+	const managedReleaseExec = launcherTrace.stderr.match(/^\+ exec (\S+) --version$/m);
+	const linkedCli = realpathSync(launcherTrace.status === 0 && managedReleaseExec ? managedReleaseExec[1] : piLauncher);
 	if (!/\/dist\/(?:bundle\/)?cli\.js$/.test(linkedCli)) throw new Error("unable to resolve active Pi runtime");
 	const nodeLookup = spawnSync("which", ["node"], { encoding: "utf8" });
 	if (nodeLookup.status !== 0) throw new Error("unable to resolve active Pi runtime");

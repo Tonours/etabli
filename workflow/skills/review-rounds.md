@@ -1,55 +1,47 @@
 # Review Rounds
 
 Bounded re-review machine for implementation and ship runs. Open it only
-when a review round returned findings, a re-review is due, or CI-driven
-commits landed after a review (`workflow/skills/implementation-loop.md`
-step 13b, `workflow/skills/ship.md` steps 4, 7 and 11). A first clean tour
-(T1 → F1) never needs it.
+when a round returned blocking findings, a fold or re-review is due, or
+CI-driven commits landed after a review (`workflow/skills/implementation-loop.md`
+step 13b, `workflow/skills/ship.md` steps 4, 7 and 11). A clean T1 never
+needs it.
 
 ## Review budget machine
 
-One T/D/F counter per run; the ship phase inherits it (see the `ship.md`
-transfer record). T = full tour (hunters +
-adversary, fresh context, pinned patch + SHA). D = delta round (fix
-diff vs previous pinned patch ONLY; Logic hunter + the finding's
-hunter family, fresh; adversary only if a high-severity finding was
-folded; hunter unavailable → `blocked`). F = final full pass (whole
-patch, pinned final SHA). T1/T2/D1/D2/F1/F2 are POSITIONAL: the
-first/second round of that kind SPENT in this run. Every entry
-consumes the next unspent round of that kind; re-entry with none
-left goes `blocked` instead of reusing a spent round. F rounds are
-SHA-bound: a second full pass is always F2, never a new F1.
-- T1: findings → fold → T2. T1 clean → F1.
-- T2: findings → fold → D1. T2 clean → F1.
-- D1: findings within delta → fold → D2. Findings widening beyond
-  delta → reclassify as full tour (next unspent T: T1 if unspent,
-  else T2, else `blocked`). D1 clean → F1.
-- D2: findings within delta → fold → F1 (F covers D2 fixes).
-  Widening → `blocked`. D2 clean → F1.
-- F1: clean → VALIDATE at F1 SHA. Findings → fold on the delivery
-  branch → one FD round (next unspent D required, else `blocked`)
-  → F2 on the new delivery SHA.
-- FD (the post-F1 delta round; tour tag `FD`, consumes one D unit):
-  findings within delta → fold → F2 (F2 covers: it re-reads the
-  whole new delivery SHA). Widening → `blocked` (no T re-entry
-  post-F1: F1 already validated the full scope, new scope needs a
-  new plan). Clean → F2. FD never routes to F1 or D2.
-- F2 (always on the delivery SHA, never on scratch): clean →
-  VALIDATE. Findings → fix on pre-created scratch branch
-  `review-f2/<slug>` (SHA + clean worktree verified at creation) →
-  `blocked`: deliverable SHA stays frozen, worktree kept, never push
-  from a HEAD containing scratch fixes, no scratch→delivery
-  promotion without a new plan. Refused checkout → `blocked` with
-  the frozen SHA named. Never `reset --hard` implicitly: deletion
-  needs a `spec.md` checkpoint.
-Limit cases: (a) fix with exhausted D budget at F1 → `blocked`;
-(b) findings at F2 → `blocked`, fixes abandoned on scratch;
-(c) out-of-delta change during D → full tour or `blocked`;
-(d) second D-round widening → `blocked` (T exhausted);
-(e) FD widening → `blocked` (no post-F1 T re-entry).
+One T/D counter per run; the ship phase inherits it (see the `ship.md`
+transfer record). T = full tour (hunters + code_diff adversary, fresh
+context, pinned patch + SHA). D = delta round (fix diff vs previous
+pinned patch ONLY; Logic hunter + the finding's hunter family, fresh;
+hunter unavailable → `blocked`). T1/T2/D1/D2 are POSITIONAL: the
+first/second round of that kind SPENT in this run; re-entry with none
+left goes `blocked` instead of reusing a spent round.
+Blocking = an accepted finding of high severity or an unmet AC
+(`accepted_findings[].blocking: true`), or a `BLOCK` verdict. A round is
+`clean` when its review is not `BLOCK` and every code_diff adversary of
+the round is `GO`/`GO WITH NOTES` with no blocking accepted finding.
+Non-blocking findings never spend a round: fold them or list them in the
+final report. `widening` on a T round counts as findings.
+- Clean (any round) → VALIDATE. A later fold or fix within the delta bar
+  (§ Delta re-review) takes the next unspent D; a larger one takes the
+  next unspent T.
+- T1: findings → fold → T2. T2: findings → fold → D1.
+- D: findings within delta → fold → next unspent D. Widening beyond
+  delta → next unspent T. Nothing left → `blocked`.
+Adversary: every T round, plus a D round after a findings round or whose
+window holds a `file_changed` on a contractual surface; at least one such
+pass must follow the round's last `file_changed`. No code_diff adversary
+may follow the closing clean round once no round remains or the run
+completes.
+Limit cases: (a) D2 findings → `blocked` (D exhausted);
+(b) widening with both T spent → `blocked` (T exhausted);
+(c) out-of-delta change during D → full tour or `blocked`.
+Legacy: a ledger that already holds F1/F2/FD keeps the former T→F
+machine (F = SHA-bound final full pass, FD = post-F1 delta; clean needs
+an empty `accepted_findings`); new runs never append an F round, so a
+pre-change run still waiting for its first F1 closes or goes `blocked`.
 Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`
 (`workflow-event` append and validate; fields in `workflow/events.md`). Ship
-inheritance and D-round adversaries after a high fold stay prose-only.
+inheritance and the 50-line part of the delta bar stay prose-only.
 
 ## Delta re-review
 

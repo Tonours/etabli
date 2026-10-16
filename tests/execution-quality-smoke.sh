@@ -103,10 +103,8 @@ mv -f "$TASK_TMP/plan.before-observation" "$TASK_TMP/PLAN.md"
 event append eq validation_run '{"command":"node --check app.mjs","exit":0}'
 event append eq simplification_completed '{"status":"clean","evidence":"fixture diff"}'
 event append eq quality_completed '{"status":"pass","evidence":"fixture diff"}'
-for round in T1 F1; do
- event append eq adversary_completed "$(jq -nc --argjson p "$PROV" '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:$p}')"
- event append eq review_completed "$(jq -nc --arg round "$round" '{status:"GO",evidence:"fixture",review_round:$round,round_outcome:"clean"}')"
-done
+event append eq adversary_completed "$(jq -nc --argjson p "$PROV" '{mode:"code_diff",verdict:"GO",accepted_findings:[],rejected_findings:[],model_provenance:$p}')"
+event append eq review_completed '{"status":"GO","evidence":"fixture","review_round":"T1","round_outcome":"clean"}'
 source_hash="$(hash256 "$TASK_TMP/PLAN.md" | awk '{print $1}')"
 printf '# Implemented: fixture\n\n- Source plan: `PLAN.md`\n- Source plan SHA-256: `%s`\n- Status: IMPLEMENTED\n' "$source_hash" >"$TASK_TMP/docs/plan/fixture.md"
 cp "$ledger" "$TASK_TMP/ledger.before"; cp "$pointer" "$TASK_TMP/pointer.before"
@@ -118,5 +116,5 @@ event append eq plan_removed '{"path":"PLAN.md"}'
 event append eq completed '{"summary":"bound fixture closed"}'
 event validate eq --profile autonomous-completed >/dev/null
 [ ! -e "$TASK_TMP/PLAN.md" ] && [ ! -e "$pointer" ]
-jq -s -e '([.[] | select(.event=="review_completed") | .detail.review_round]==["T1","F1"]) and ([.[] | select(.event=="file_changed")] | length==10) and ([.[] | select(.event=="file_changed") | .detail.path] | unique)==(["app.mjs","docs/plain.md","docs/plan/observed.md","docs/plan/historical.md"] | sort) and (.[-3:] | map(.event)==["archive_written","plan_removed","completed"])' "$ledger" >/dev/null
+jq -s -e '([.[] | select(.event=="review_completed") | .detail.review_round]==["T1"]) and ([.[] | select(.event=="file_changed")] | length==10) and ([.[] | select(.event=="file_changed") | .detail.path] | unique)==(["app.mjs","docs/plain.md","docs/plan/observed.md","docs/plan/historical.md"] | sort) and (.[-3:] | map(.event)==["archive_written","plan_removed","completed"])' "$ledger" >/dev/null
 printf 'execution quality smoke: writer, Claude hook, archive and terminal chain passed (fixtures)\n'

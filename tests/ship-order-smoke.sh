@@ -35,10 +35,10 @@ step7=$(grep -n '^7\. Final sweep commit' "$SHIP" | cut -d: -f1)
 
 # AC2: single shared counter + archive hash control.
 assert_contains "$SHIP" '"consumed":{"T":'
-assert_contains "$SHIP" 'SAME T/D/F counter'
-assert_contains "$SHIP" 'next unspent F round'
+assert_contains "$SHIP" 'SAME T/D counter'
+assert_contains "$SHIP" 'next unspent D round'
 assert_contains "$SHIP" 'review budget transferred'
-assert_contains "$SHIP" 'remaining = {2,2,2}'
+assert_contains "$SHIP" 'remaining = {2,2}'
 assert_contains "$SHIP" 'archive_commit'
 assert_contains "$SHIP" 'git show'
 assert_contains "$SHIP" 'divergence → `blocked`'
@@ -50,16 +50,15 @@ assert_contains "$SHIP" 'suffix `-2`, `-3`'
 
 # AC1: bounded machine the ship counter is transferred from.
 assert_contains "$ROUNDS" 'T1: findings → fold → T2'
-assert_contains "$ROUNDS" 'F2 (always on the delivery SHA'
 assert_contains "$ROUNDS" 'are POSITIONAL'
-assert_contains "$ROUNDS" 'tour tag `FD`'
-assert_contains "$ROUNDS" 'FD never routes to F1 or D2'
-assert_contains "$ROUNDS" 'adversary only if a high-severity finding was'
-assert_contains "$ADV" 'D rounds add the adversary only if a high-severity finding was'
-assert_contains "$ROUNDS" 'exhausted D budget at F1'
-assert_contains "$ROUNDS" 'abandoned on scratch'
+assert_contains "$ROUNDS" 'Blocking = an accepted finding of high severity'
+assert_contains "$ROUNDS" 'Non-blocking findings never spend a round'
+assert_contains "$ROUNDS" 'Clean (any round) → VALIDATE'
+assert_contains "$ROUNDS" 'a D round after a findings round'
+assert_contains "$ADV" 'D rounds add the adversary after a findings round'
+assert_contains "$ROUNDS" 'D exhausted'
 assert_contains "$ROUNDS" 'T exhausted'
-assert_contains "$ROUNDS" 'no post-F1 T re-entry'
+assert_contains "$ROUNDS" 'keeps the former T→F'
 assert_contains "$ROUNDS" 'Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`'
 assert_contains "$LOOP" 'workflow/skills/review-rounds.md'
 assert_contains "$LOOP" 'accepted risk: no external feedback; small excludes behavior change'
@@ -216,7 +215,7 @@ rm -rf "$TMP_ROOT/root/wt"
 LED="$TMP_ROOT/ledgers"
 # Transfer carrier (H3): a file_changed detail carrying the budget record
 # validates — the prose shape is executable, not aspirational.
-"$EVENT_BIN" --dir "$LED" append ship-xfer file_changed '{"path":"loop-dir","change":"review budget transferred","loop_ledger":"loop","loop_head_sha":"abc","consumed":{"T":2,"D":0,"F":1},"remaining":{"T":0,"D":2,"F":1}}' >/dev/null
+"$EVENT_BIN" --dir "$LED" append ship-xfer file_changed '{"path":"loop-dir","change":"review budget transferred","loop_ledger":"loop","loop_head_sha":"abc","consumed":{"T":1,"D":1},"remaining":{"T":1,"D":1}}' >/dev/null
 "$EVENT_BIN" --dir "$LED" validate ship-xfer >/dev/null \
   || fail 'transfer carrier file_changed rejected'
 # --- Census tmp fixtures: growth is listed, flip/missing fail.

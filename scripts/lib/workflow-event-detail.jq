@@ -249,6 +249,10 @@ def autonomous_profile_error($values; $st; $label):
   | ([$values | to_entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "plan")] | last // null) as $plan_adversary
   | ($review.key // -1) as $lr
   | ($code_adversary.key // -1) as $la
+  | ([$values[] | select(.event == "review_completed") | ((.detail | objects | .review_round) // null)]) as $rounds
+  # Tagged new-machine ledgers: review-rounds.jq owns per-round adversary freshness.
+  | (any($values[]; (.schema_version | tostring) == "2" and .event == "route_decided" and .detail.route == "plan-implement")
+     and any($rounds[]; IN("T1", "T2", "D1", "D2")) and (any($rounds[]; IN("F1", "F2", "FD")) | not)) as $round_machine
   | ([
       (if $st.term != "completed" then "profile \($label) requires final completed event" else null end),
       ($required | map(. as $req
@@ -268,7 +272,7 @@ def autonomous_profile_error($values; $st; $label):
       (if (($code_adversary.value.detail.verdict // "") | IN("GO", "GO WITH NOTES")) | not
         then "profile \($label) requires the latest code_diff adversary verdict to be non-blocking" else null end),
       (if $lc >= 0 and $lr <= $lc then "profile \($label) requires non-blocking review after last file change"
-       elif $lc >= 0 and $la <= $lc then "profile \($label) requires non-blocking code_diff adversary after last file change"
+       elif $lc >= 0 and $la <= $lc and ($round_machine | not) then "profile \($label) requires non-blocking code_diff adversary after last file change"
        else null end)
     ] | flatten | map(select(. != null)) | first) // null;
 
