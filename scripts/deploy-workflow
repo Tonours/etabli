@@ -33,8 +33,6 @@ FILES=(
   "$REPO_DIR/workflow/ticket-template.md|workflow/ticket-template.md"
   "$REPO_DIR/workflow/linear-ticket-template.md|workflow/linear-ticket-template.md"
   "$REPO_DIR/workflow/events.md|workflow/events.md"
-  "$REPO_DIR/workflow/events-validator.md|workflow/events-validator.md"
-  "$REPO_DIR/workflow/durable-exports.md|workflow/durable-exports.md"
   "$REPO_DIR/workflow/contract-details.md|workflow/contract-details.md"
   "$REPO_DIR/workflow/agent-quick-card.md|workflow/agent-quick-card.md"
   "$REPO_DIR/workflow/answer-quality.md|workflow/answer-quality.md"

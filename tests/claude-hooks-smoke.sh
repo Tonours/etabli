@@ -202,50 +202,13 @@ broken_reader_output="$(
 assert_contains "$broken_reader_output" '"permissionDecision":"deny"'
 assert_contains "$broken_reader_output" 'Bash stays blocked'
 
-for hook in read-only-agent-guard detect-adr-signal ledger-auto-emit session-state; do
+for hook in read-only-agent-guard; do
 	malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
 	assert_empty "$malformed_output" "$hook on malformed stdin"
 done
 
-session_state_dir="$TMP_DIR/session-state"
-mkdir -p "$session_state_dir/.workflow/state-run" "$TMP_DIR/no-state"
-printf '%s\n' '## Meta' '- Subject: session state fixture' '- Status: READY' '' '## Goal' 'Resume after compaction.' >"$session_state_dir/PLAN.md"
-printf '%s\n' '{"schema_version":2,"ts":"2026-09-01T00:00:00Z","event":"adversary_completed","run":"state-run","detail":{"mode":"plan","verdict":"CHALLENGED","accepted_findings":[{"finding":"keep the fixture honest","blocking":true}],"rejected_findings":[]}}' '{"schema_version":2,"ts":"2026-09-01T00:01:00Z","event":"handoff","run":"state-run","detail":{"branch":"b","sha":"abc","done":["slice one"],"pending":["slice two","slice three"],"next_action":"run slice two checks","do_not_redo":["abandoned parser"]}}' >"$session_state_dir/.workflow/state-run/events.jsonl"
-printf '%s\n' '{"schema_version":1,"run":"state-run"}' >"$session_state_dir/.workflow/active-run.json"
-session_state_output="$(jq -nc --arg cwd "$session_state_dir" '{cwd:$cwd,hook_event_name:"SessionStart",reason:"compact"}' | node "$ROOT_DIR/claude/hooks/session-state.mjs")"
-session_state_context="$(printf '%s' "$session_state_output" | jq -r '.hookSpecificOutput.additionalContext')"
-assert_contains "$(printf '%s' "$session_state_output" | jq -r '.hookSpecificOutput.hookEventName')" 'SessionStart'
-assert_contains "$session_state_context" 'When compacting, keep the root `PLAN.md` subject and status'
-assert_contains "$session_state_context" 'PLAN.md: session state fixture (Status: READY)'
-assert_contains "$session_state_context" 'run slice two checks'
-assert_contains "$session_state_context" 'abandoned parser'
-assert_contains "$session_state_context" 'slice three'
-assert_contains "$session_state_context" 'keep the fixture honest'
-plan_only_dir="$TMP_DIR/session-plan-only"
-mkdir -p "$plan_only_dir"
-printf '%s\n' '## Meta' '- Subject: plan only' '- Status: DRAFT' >"$plan_only_dir/PLAN.md"
-plan_only_context="$(jq -nc --arg cwd "$plan_only_dir" '{cwd:$cwd,hook_event_name:"SessionStart",reason:"resume"}' | node "$ROOT_DIR/claude/hooks/session-state.mjs" | jq -r '.hookSpecificOutput.additionalContext')"
-assert_contains "$plan_only_context" 'PLAN.md: plan only (Status: DRAFT)'
-empty_state_output="$(jq -nc --arg cwd "$TMP_DIR/no-state" '{cwd:$cwd,hook_event_name:"SessionStart",reason:"resume"}' | node "$ROOT_DIR/claude/hooks/session-state.mjs")"
-assert_empty "$empty_state_output" "session-state without plan or ledger"
-jq -e '[.hooks.SessionStart[] | select(.matcher == "compact|resume") | .hooks[] | select(.command | contains("session-state.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
-	printf 'settings.workflow-hooks.json must wire session-state on SessionStart compact|resume\n' >&2
-	exit 1
-}
-
-# PostToolUse ledger auto-emit path is registered
-assert_contains "$(cat "$ROOT_DIR/claude/settings.workflow-hooks.json")" 'PostToolUse'
-assert_contains "$(cat "$ROOT_DIR/claude/settings.workflow-hooks.json")" 'ledger-auto-emit.mjs'
 jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hooks[] | select(.command | contains("no-comments-guard.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
 	printf 'settings.workflow-hooks.json must wire no-comments-guard on Write|Edit|MultiEdit\n' >&2
-	exit 1
-}
-jq -e '[.hooks.UserPromptSubmit[] | .hooks[] | select(.command | contains("correction-emit.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
-	printf 'settings.workflow-hooks.json must wire correction-emit on UserPromptSubmit\n' >&2
-	exit 1
-}
-jq -e '[.hooks.Notification[] | .hooks[] | select(.command | contains("notification-classify.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
-	printf 'settings.workflow-hooks.json must wire notification-classify on Notification\n' >&2
 	exit 1
 }
 no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
@@ -366,48 +329,5 @@ for prefixed in 'command -- rtk hook claude' "sh -lc 'rtk hook claude'" 'env -i 
 	fi
 	assert_contains "$(cat "$TMP_DIR/prefixed-check.txt")" 'calls rtk outside rtk-guard'
 done
-
-correction_proj="$TMP_DIR/correction-proj"
-mkdir -p "$correction_proj/scripts" "$correction_proj/.workflow/corr-run"
-cp "$ROOT_DIR/scripts/workflow-event" "$correction_proj/scripts/"
-cp -R "$ROOT_DIR/scripts/lib" "$correction_proj/scripts/"
-printf '%s\n' '{"schema_version":2,"ts":"2026-09-29T00:00:00Z","event":"plan_created","run":"corr-run","detail":{"path":"PLAN.md","status":"READY"}}' >"$correction_proj/.workflow/corr-run/events.jsonl"
-jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",prompt:"initial instruction"}' | node "$ROOT_DIR/claude/hooks/correction-emit.mjs"
-jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",prompt:"non fais plutot ceci"}' | node "$ROOT_DIR/claude/hooks/correction-emit.mjs"
-correction_ledger="$correction_proj/.workflow/corr-run/events.jsonl"
-grep -Fq '"event":"correction"' "$correction_ledger" || {
-	printf 'correction-emit must append a correction on the second prompt via the locked CLI\n' >&2
-	exit 1
-}
-if grep -Fq 'fais plutot ceci' "$correction_ledger"; then
-	printf 'correction ledger must never contain prompt text\n' >&2
-	exit 1
-fi
-"$correction_proj/scripts/workflow-event" --dir "$correction_proj/.workflow" validate corr-run >/dev/null || {
-	printf 'fixture ledger with hook-appended correction must validate\n' >&2
-	exit 1
-}
-
-jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",notification_type:"permission_prompt",message:"Claude needs your permission"}' | node "$ROOT_DIR/claude/hooks/notification-classify.mjs"
-grep -Fq '"consent_class":"permission_request"' "$correction_ledger" || {
-	printf 'notification-classify must emit permission_request for permission_prompt\n' >&2
-	exit 1
-}
-jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",notification_type:"idle_prompt",message:"Claude is waiting for your input"}' | node "$ROOT_DIR/claude/hooks/notification-classify.mjs"
-grep -Fq '"consent_class":"input_request"' "$correction_ledger" || {
-	printf 'notification-classify must emit input_request for idle_prompt\n' >&2
-	exit 1
-}
-before_notif="$(grep -c human_checkpoint "$correction_ledger")"
-jq -nc --arg cwd "$correction_proj" '{cwd:$cwd,session_id:"smoke-sess",notification_type:"future_unknown_type",message:"x"}' | node "$ROOT_DIR/claude/hooks/notification-classify.mjs"
-after_notif="$(grep -c human_checkpoint "$correction_ledger")"
-[ "$after_notif" = "$before_notif" ] || {
-	printf 'notification-classify must abstain on unknown notification types\n' >&2
-	exit 1
-}
-"$correction_proj/scripts/workflow-event" --dir "$correction_proj/.workflow" validate corr-run >/dev/null || {
-	printf 'fixture ledger with classified checkpoints must validate\n' >&2
-	exit 1
-}
 
 printf 'claude hooks smoke test: ok\n'

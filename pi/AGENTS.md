@@ -18,8 +18,7 @@
   archive implemented/validated plans in `docs/plan/`; discard unrelated/
   abandoned root plans with `scripts/plan-cleanup --discard <reason-slug>`
   instead of staying blocked.
-- Answers/handoffs follow `workflow/answer-quality.md` and its live final gate;
-  use `scripts/answer-quality-check` only for durable artifacts.
+- Answers/handoffs follow `workflow/answer-quality.md` and its live final gate.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
 - No approval pauses: destructive work, pushes, deploys, and external writes
   run directly. Pause only for user-only input (a credential value, a real

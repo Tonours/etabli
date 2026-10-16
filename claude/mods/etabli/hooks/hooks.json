@@ -1,4 +1,0 @@
-{
-  "description": "Read-only Etabli session projections",
-  "modules": ["./register.js"]
-}

@@ -32,26 +32,16 @@ printf '\n## Additional decision\n- Require neighboring caller cases.\n' >>"$TAS
 [ "$(contract_hash)" != "$reviewed" ]
 refused append eq adversary_completed "$(review "$reviewed" READY)"
 current="$(contract_hash)"
-# One newly bound plan traverses isolated runner -> receipt -> writer.
+# One newly bound plan traverses the isolated runner -> writer.
 run_dir="$TASK_TMP/.workflow/eq"
 mkdir -p "$TASK_TMP/bin"
 printf 'Review this fixture plan and return a canonical verdict.\n' >"$run_dir/prompt.md"
 cp "$TASK_TMP/PLAN.md" "$run_dir/plan.patch"
-cat >"$TASK_TMP/bin/pi" <<'PI'
-#!/usr/bin/env node
-const fs=require("node:fs"),args=process.argv.slice(2),path=args.find(arg=>arg.startsWith("@")).slice(1);
-const emit=event=>process.stdout.write(JSON.stringify(event)+"\n"),usage={input:10,output:3,cacheRead:7,cacheWrite:0,totalTokens:20};
-const assistant=(responseId,stopReason,content)=>({type:"message_end",message:{role:"assistant",responseId,provider:"fixture",model:"fixture",stopReason,content,usage}});
-emit(assistant("fixture-call","toolUse",[{type:"toolCall",id:"read-plan",name:"read",arguments:{path}}]));
-emit({type:"message_end",message:{role:"toolResult",toolCallId:"read-plan",toolName:"read",isError:false,content:[{type:"text",text:fs.readFileSync(path,"utf8")}]}});
-emit(assistant("fixture-final","stop",[{type:"text",text:"Verdict: READY"}]));
-PI
+printf '#!/usr/bin/env bash\nprintf "Verdict: READY\\n"\n' >"$TASK_TMP/bin/pi"
 chmod +x "$TASK_TMP/bin/pi"
-runner=(bash "$ROOT_DIR/scripts/pi-review-hunter" --prompt-file "$run_dir/prompt.md" --patch "$run_dir/plan.patch" --capture-dir "$run_dir/capture" --pass-id eq-plan --role adversary-plan --timeout 60)
-PATH="$TASK_TMP/bin:$PATH" "${runner[@]}" >"$run_dir/verdict.txt"
+PATH="$TASK_TMP/bin:$PATH" bash "$ROOT_DIR/scripts/pi-review-hunter" --prompt-file "$run_dir/prompt.md" --patch "$run_dir/plan.patch" --timeout 60 >"$run_dir/verdict.txt"
 grep -Fxq 'Verdict: READY' "$run_dir/verdict.txt"
-jq -e --arg hash "$current" '.review_admissible and .isolated_context and .measured and .plan_contract_sha256==$hash and .models==["fixture/fixture"]' "$run_dir/capture/receipt.json" >/dev/null
-captured="$(jq -nc --slurpfile r "$run_dir/capture/receipt.json" --rawfile v "$run_dir/verdict.txt" --argjson p "$PROV" '{mode:"plan",verdict:($v|sub("^Verdict: ";"")|rtrimstr("\n")),plan_contract_sha256:$r[0].plan_contract_sha256,accepted_findings:[],rejected_findings:[],model_provenance:($p+{runner:"fixture-pi-capture",run_id:$r[0].pass_id})}')"
+captured="$(jq -nc --arg hash "$current" --rawfile v "$run_dir/verdict.txt" --argjson p "$PROV" '{mode:"plan",verdict:($v|sub("^Verdict: ";"")|rtrimstr("\n")),plan_contract_sha256:$hash,accepted_findings:[],rejected_findings:[],model_provenance:($p+{runner:"fixture-pi",run_id:"eq-plan"})}')"
 event append eq adversary_completed "$captured"
 event append eq adversary_completed "$(review "$current" CHALLENGED)"
 event append eq adversary_completed "$(review "$current" READY)"

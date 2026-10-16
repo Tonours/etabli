@@ -20,7 +20,7 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0016](0016-record-work-mcp-inventory-per-runtime.md) — Record the work MCP inventory per runtime [accepted]
 - [0017](0017-serve-the-work-knowledge-vault-through-a-standalone-brain-mcp.md) — Serve the work knowledge vault through a standalone brain MCP [accepted]
 - [0018](0018-unify-agent-surface-convergence-behind-deploy-agent-workflow.md) — Unify agent-surface convergence behind deploy-agent-workflow [accepted]
-- [0019](0019-measure-ambient-tooling-before-cutting-review-passes.md) — Measure ambient tooling before cutting review passes [accepted]
+- [0019](0019-measure-ambient-tooling-before-cutting-review-passes.md) — Measure ambient tooling before cutting review passes [superseded by ADR-0035]
 - [0020](0020-adopt-pstack-as-vendored-task-skill-layer.md) — Adopt pstack as a vendored task-skill layer, not a workflow replacement [superseded by ADR-0033]
 - [0021](0021-adopt-pstack-poteto-mode-and-principles-wave-2.md) — Adopt pstack poteto-mode and principles as wave 2, opt-in [superseded by ADR-0033]
 - [0022](0022-amend-vendored-verbatim-with-sync-time-path-adaptation.md) — Amend vendored-verbatim with a sync-time path-adaptation table [accepted]
@@ -36,3 +36,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0032](0032-drop-the-approval-guardrails.md) — Drop the approval guardrails [accepted]
 - [0033](0033-prune-the-skill-surface-and-drop-pstack.md) — Prune the skill surface and drop pstack [accepted]
 - [0034](0034-drop-the-eval-ledger-and-product-verification-tooling.md) — Drop the eval, ledger, product-verification and freeze tooling [accepted]
+- [0035](0035-strip-etabli-to-the-tooling-in-daily-use.md) — Strip Etabli to the tooling in daily use [accepted]

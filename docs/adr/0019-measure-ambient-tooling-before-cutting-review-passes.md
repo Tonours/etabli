@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded by ADR-0035
 date: 2026-08-26
 tags: [tooling, hooks, review, metrics, token-efficiency]
 affected_components: [workflow/self-improvement/review-metrics.md, workflow/skills/adversary.md, workflow/skills/ship.md]
+superseded_by: ADR-0035
 ---
 
 # Measure ambient tooling before cutting review passes

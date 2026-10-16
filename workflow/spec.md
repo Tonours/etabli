@@ -56,9 +56,7 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - One execution artifact: `PLAN.md`. No `REVIEW.md` second plan.
 - Keep facts separate from assumptions; use `PLAN_TEMPLATE.md` /
   `PLAN_TEMPLATE_FULL.md` as appropriate.
-- Source research: `scripts/research-proof-check`. Answers/handoffs: <!-- etabli-only -->
-  `workflow/answer-quality.md`; durable floor:
-  `scripts/answer-quality-check` / `scripts/answer-quality-eval`. <!-- etabli-only -->
+- Answers/handoffs: `workflow/answer-quality.md`.
 - Autonomous plan-loop requests use `plan-implement`. Prompt wording such as "PLAN.md ready" is routing context, not proof.
 - Implementation-bound autonomous loops are not complete until validation,
   adversary evidence, review, implemented-plan archive under `docs/plan/`, and
@@ -77,17 +75,11 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   the event ledger; ordinary work may record it.
 - Cold contracts, opened only on their trigger: bounded re-review
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
-  review); open-ended improvement loops `workflow/skills/long-loop.md`;
-  event-system edits, ledger recovery and active-run selection
-  `workflow/events-validator.md`.
+  review); open-ended improvement loops `workflow/skills/long-loop.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`.
 - READY plans stay editable: when Checks or Acceptance Criteria change, note
   why in the Decision Log. No runtime freeze.
-- Context budget: the instruction files each hot route loads are ceilinged in
-  `workflow/runtime/context-budget.json`; `scripts/workflow-context-budget` <!-- etabli-only -->
-  fails on growth with its remediation and `--ratchet` only lowers ceilings
-  (etabli repo only).
 - Autonomous loop stop conditions pair the measurable goal with an explicit
   operational cap (iterations or wall-clock). Global model-token totals are
   telemetry, never plan/goal stop conditions. Bounded payload contracts and
@@ -145,7 +137,7 @@ A plan is `READY` when it has:
 
 Work commands are explicit commands (work scope), never chosen by the
 router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
-`/bug-check`, `/pr-council-review`, `/spec-guide`. Slash prompts bypass the classifier, so each runs
+`/bug-check`, `/pr-council-review`. Slash prompts bypass the classifier, so each runs
 under its own contract. Linear commands
 require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md`. Rationale: ADR-0027.
@@ -179,8 +171,7 @@ agents) stay authoritative code.
 ## Runtime surfaces
 
 Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key surfaces referenced by routing/guards: Claude hooks fragment
-`claude/settings.workflow-hooks.json` and `workflow/plan-archive.md`. Shared-contract versus
-adapter source ownership: `workflow/runtime/source-ownership.tsv`.
+`claude/settings.workflow-hooks.json` and `workflow/plan-archive.md`.
 
 ## Daily loop
 

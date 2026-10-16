@@ -598,7 +598,7 @@ script_types="$(
   ' "$ROOT_DIR/scripts/workflow-event" | sort
 )"
 doc_types="$(
-  cat "$ROOT_DIR/workflow/events.md" "$ROOT_DIR/workflow/events-validator.md" |
+  cat "$ROOT_DIR/workflow/events.md" |
     awk -F'|' '/^\| `[^`]+` / { gsub(/[`[:space:]]/, "", $2); print $2 }' |
     sort
 )"

@@ -40,7 +40,7 @@ Pruned 2026-10-16 (ADR-0033): `ask-matt`, `diagnosing-bugs`,
 | Need | Surface | Why |
 | --- | --- | --- |
 | Investigate a topic against external primary sources, leave a cited file in the repo | mattpocock `research` | background-agent reading legwork; pairs with `grill-with-docs` |
-| Source-grounded repo research under the etabli contract | `workflow/skills/investigation.md` route + `scripts/research-proof-check` | the ambient contract stays canonical |
+| Source-grounded repo research under the etabli contract | `workflow/skills/investigation.md` route | the ambient contract stays canonical |
 
 Overlap rule: the etabli routes own gating and evidence; the vendored
 skills are task-level entry points invoked explicitly or when a runtime

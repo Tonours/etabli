@@ -30,15 +30,6 @@ the vault CLI remains usable without that file. Pointers:
 - `kb/compiled-wiki-vs-rag-complement`
 - `kb/adr-etabli-execution-vs-obvault-memory`
 
-Local Etabli helper for offline / fixture neighborhood packs (does not replace
-the vault CLI):
-
-```bash
-scripts/graph-neighborhood --vault <path> --hops 1 --max-tokens 800 "<query>"
-```
-
-Mechanical checks: `tests/graph-contract-smoke.sh`,
-`tests/graph-neighborhood-smoke.sh`.
 
 ## Mandatory first check
 
@@ -134,18 +125,3 @@ command only from validated metadata-derived terms.
 - Record only aggregate `hit`, `miss`, `stale`, or `wrong` feedback under local
   XDG state; never include question or answer content in feedback.
 
-### Post-run shadow promotion (Etabli → obvault bridge)
-
-After a validated `plan-implement` archive, prepare a **shadow-only** finding
-payload (decision, route/check preconditions, validation outcome, candidate
-wikilinks). Use the Etabli helper (dry-run by default; never `--apply`):
-
-```bash
-scripts/obvault-shadow-promote --json --shadow \
-  --decision "..." --preconditions "..." --outcome "..." \
-  --route "plan-implement" --checks "..." --wikilinks "note-a,note-b"
-```
-
-The helper refuses PLAN dual-write and secret-like content. Promoting to durable
-`verified`/`accepted` kb remains a separate human/approved gate outside this
-helper.

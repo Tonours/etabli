@@ -8,33 +8,15 @@ usage() {
 Usage: pi-review-hunter --print-argv --prompt-file FILE --patch FILE [--model ID] [--timeout SECS]
        pi-review-hunter --prompt-file FILE --patch FILE [--model ID] [--timeout SECS]
 
-Capture: --capture-dir NEW_DIRECTORY --pass-id ID [--parent-id ID] [--role logic|spec|adversary-plan|adversary-code]
-         [--sources-file JSON] (root and exact contract/plan/evidence selections)
-All executions use native capture; omitted capture-dir stores a private temporary receipt.
 Default timeout is 600 seconds (PI_REVIEW_HUNTER_TIMEOUT).
 EOF
 }
-
-SCRIPT_PATH="$0"
-while [ -L "$SCRIPT_PATH" ]; do
-  link="$(readlink "$SCRIPT_PATH")"
-  case "$link" in
-    /*) SCRIPT_PATH="$link" ;;
-    *) SCRIPT_PATH="$(dirname "$SCRIPT_PATH")/$link" ;;
-  esac
-done
-ETABLI_ROOT="$(CDPATH='' cd -P "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 
 PRINT_ARGV=0
 TIMEOUT_SECS="${PI_REVIEW_HUNTER_TIMEOUT:-600}"
 MODEL=""
 PROMPT_FILE=""
 PATCH_FILE=""
-CAPTURE_DIR=""
-PASS_ID=""
-PARENT_ID=""
-ROLE="logic"
-SOURCES_FILE=""
 
 require_value() {
   if [ "$#" -lt 2 ]; then
@@ -61,17 +43,6 @@ while [ "$#" -gt 0 ]; do
     --patch)
       require_value "$@"
       PATCH_FILE="$2"
-      shift 2
-      ;;
-    --capture-dir|--pass-id|--parent-id|--role|--sources-file)
-      require_value "$@"
-      case "$1" in
-        --capture-dir) CAPTURE_DIR="$2" ;;
-        --pass-id) PASS_ID="$2" ;;
-        --parent-id) PARENT_ID="$2" ;;
-        --role) ROLE="$2" ;;
-        --sources-file) SOURCES_FILE="$2" ;;
-      esac
       shift 2
       ;;
     --model)
@@ -107,14 +78,12 @@ if [ -n "$MODEL" ] && [[ "$MODEL" == cursor/* ]]; then
 fi
 
 build_pi_args() {
-  local mode="json"
   PI_ARGS=(
-    --mode "$mode"
+    --mode text
     -p
     --no-session
     --no-skills
     --no-extensions
-    -e "$ETABLI_ROOT/pi/extensions/filter-output.ts"
     --no-context-files
     --tools read,grep
     --append-system-prompt "$PROMPT_FILE"
@@ -150,21 +119,23 @@ if ! command -v pi >/dev/null 2>&1; then
   printf 'HUNTER_SPAWN_UNAVAILABLE: pi not on PATH\n' >&2
   exit 2
 fi
-if ! command -v node >/dev/null 2>&1; then
-  printf 'HUNTER_SPAWN_UNAVAILABLE: native capture requires node on PATH\n' >&2
+build_pi_args
+out="$(mktemp "${TMPDIR:-/tmp}/etabli-hunter.XXXXXX")"
+trap 'rm -f "$out"' EXIT
+pi "${PI_ARGS[@]}" </dev/null >"$out" &
+pi_pid=$!
+( sleep "$TIMEOUT_SECS"; kill -TERM "$pi_pid" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+watchdog=$!
+set +e
+wait "$pi_pid"
+status=$?
+set -e
+if ! kill "$watchdog" 2>/dev/null; then
+  printf 'HUNTER_TIMEOUT\n' >&2
+  exit 3
+fi
+if [ "$status" -ne 0 ] || ! grep -q '[^[:space:]]' "$out"; then
+  printf 'HUNTER_SPAWN_UNAVAILABLE: pi exited %s without a report\n' "$status" >&2
   exit 2
 fi
-
-require_measured=true
-if [ -z "$CAPTURE_DIR" ]; then
-  TASK_CAPTURE_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/etabli-review.XXXXXX")"
-  CAPTURE_DIR="$TASK_CAPTURE_PARENT/capture"
-  [ -n "$PASS_ID" ] || PASS_ID="${TASK_CAPTURE_PARENT##*/}"
-  require_measured=false
-  printf 'HUNTER_CAPTURE: %s\n' "$CAPTURE_DIR" >&2
-fi
-build_pi_args
-capture_args=(--directory "$CAPTURE_DIR" --prompt "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout "$TIMEOUT_SECS" --pass-id "$PASS_ID" --role "$ROLE" --require-measured "$require_measured")
-[ -z "$PARENT_ID" ] || capture_args+=(--parent-id "$PARENT_ID")
-[ -z "$SOURCES_FILE" ] || capture_args+=(--sources "$SOURCES_FILE")
-exec node "$(dirname "$0")/review-hunter-capture" "${capture_args[@]}" -- "${PI_ARGS[@]}"
+cat "$out"

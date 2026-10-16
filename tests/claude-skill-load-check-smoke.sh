@@ -191,29 +191,6 @@ NODE
 expect_fail "deploy not applied (repo/live divergence)" "$FIX/home" "$FIX/repo" "skillOverrides"
 
 build_fixture "$FIX/home" "$FIX/repo"
-mkdir -p "$FIX/repo/claude/profiles"
-node - "$FIX/repo/claude/settings.skill-overrides.json" "$FIX/repo/claude/profiles/lean.settings.json" <<'NODE'
-const fs = require("node:fs");
-const [mapFile, profileFile] = process.argv.slice(2);
-const map = JSON.parse(fs.readFileSync(mapFile, "utf8")).skillOverrides;
-fs.writeFileSync(profileFile, JSON.stringify({
-	enabledPlugins: {},
-	skillOverrides: map,
-	skillListingBudgetFraction: 0.008,
-}, null, 2));
-NODE
-expect_ok "lean profile default mode" "$FIX/home" "$FIX/repo"
-HIDDEN_KEY="$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).skillOverrides;console.log(Object.keys(m).find(k=>m[k]!=="on"))' "$FIX/repo/claude/profiles/lean.settings.json")"
-node -e 'const fs=require("fs");const f=process.argv[1];const p=JSON.parse(fs.readFileSync(f,"utf8"));delete p.skillOverrides[process.argv[2]];fs.writeFileSync(f,JSON.stringify(p,null,2));' "$FIX/repo/claude/profiles/lean.settings.json" "$HIDDEN_KEY"
-CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" --fix >"$FIX/fix-tracked.txt" 2>&1 || fail "tracked-key --fix: $(cat "$FIX/fix-tracked.txt")"
-grep -qF "\"$HIDDEN_KEY\"" "$FIX/repo/claude/profiles/lean.settings.json" || fail "--fix must repair a tracked key in the profile, not the live settings"
-expect_ok "tracked key repaired in the profile" "$FIX/home" "$FIX/repo"
-
-mkdir -p "$FIX/home/.claude/skills/unmapped-in-profile"
-printf -- '---\nname: unmapped-in-profile\ndescription: x\n---\nx\n' >"$FIX/home/.claude/skills/unmapped-in-profile/SKILL.md"
-expect_fail "ungoverned enforced in profile mode" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: unmapped-in-profile"
-rm -rf "$FIX/home/.claude/skills/unmapped-in-profile"
-
 mkdir -p "$FIX/repo/claude/scopes/probe/skills/repo-newcomer"
 printf -- '---\nname: repo-newcomer\ndescription: x\n---\nx\n' >"$FIX/repo/claude/scopes/probe/skills/repo-newcomer/SKILL.md"
 ln -s "$FIX/repo/claude/scopes/probe/skills/repo-newcomer" "$FIX/home/.claude/skills/repo-newcomer"
@@ -223,46 +200,22 @@ set_live_state repo-newcomer absent
 rm "$FIX/home/.claude/skills/repo-newcomer"
 rm -rf "$FIX/repo/claude/scopes/probe"
 
-for n in $(seq 1 100); do
-  mkdir -p "$FIX/home/.claude/skills/personal-name-only-padding-padding-padding-$n"
-  printf -- '---\nname: personal-name-only-padding-padding-padding-%s\ndescription: x\n---\nx\n' "$n" >"$FIX/home/.claude/skills/personal-name-only-padding-padding-padding-$n/SKILL.md"
-  set_live_state "personal-name-only-padding-padding-padding-$n" name-only
-done
-out="$(CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" 2>&1)" || fail "name-only personal layer: $out"
-printf '%s\n' "$out" | grep -qF "C1(profile): keeper index" || fail "personal name-only entries must count toward the profile budget: $out"
-for n in $(seq 1 100); do
-  set_live_state "personal-name-only-padding-padding-padding-$n" absent
-  rm -rf "$FIX/home/.claude/skills/personal-name-only-padding-padding-padding-$n"
-done
-
-node - "$FIX/repo/claude/profiles/lean.settings.json" <<'NODE'
-const fs = require("node:fs");
-const file = process.argv[2];
-const profile = JSON.parse(fs.readFileSync(file, "utf8"));
-delete profile.skillListingBudgetFraction;
-fs.writeFileSync(file, JSON.stringify(profile, null, 2));
-NODE
-expect_fail "missing native fraction" "$FIX/home" "$FIX/repo" "skillListingBudgetFraction missing or out of range"
-
 mkdir -p "$FIX/plugin-demo/skills/whatever"
 printf -- '---\nname: whatever\ndescription: x\n---\nx\n' >"$FIX/plugin-demo/skills/whatever/SKILL.md"
-node - "$FIX/repo/claude/profiles/lean.settings.json" "$FIX/plugin-demo" "$FIX/home" <<'NODE'
+node - "$FIX/plugin-demo" "$FIX/home" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
-const [profileFile, pluginDir, home] = process.argv.slice(2);
-const profile = JSON.parse(fs.readFileSync(profileFile, "utf8"));
-profile.skillListingBudgetFraction = 0.008;
-profile.enabledPlugins = { "demo@marketplace": true };
-fs.writeFileSync(profileFile, JSON.stringify(profile, null, 2));
+const [pluginDir, home] = process.argv.slice(2);
+const file = path.join(home, ".claude/settings.json");
+const settings = JSON.parse(fs.readFileSync(file, "utf8"));
+settings.enabledPlugins = { "demo@marketplace": true };
+fs.writeFileSync(file, JSON.stringify(settings, null, 2));
 fs.writeFileSync(
 	path.join(home, ".claude/plugins/installed_plugins.json"),
 	JSON.stringify({ plugins: { "demo@marketplace": [{ scope: "user", installPath: pluginDir }] } }),
 );
 NODE
-expect_fail "profile-enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabled plugin demo@marketplace ships skills"
-
-rm -rf "$FIX/repo/claude/profiles"
-expect_ok "legacy mode restored after profile removal" "$FIX/home" "$FIX/repo"
+expect_fail "enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabled plugin demo@marketplace ships skills"
 
 SYNC="$ROOT_DIR/scripts/lib/claude-settings-sync.mjs"
 mkdir -p "$FIX/sync"

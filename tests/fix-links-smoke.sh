@@ -228,7 +228,6 @@ fi
 
 assert_contains "$MISSING_SOURCE_OUTPUT" "source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "script deploy-workflow source missing"
-assert_contains "$MISSING_SOURCE_OUTPUT" "script scaffold-project source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "unresolved"
 assert_not_exists "$FAKE_HOME/.config/nvim"
 assert_not_exists "$FAKE_HOME/.claude/skills/ghost"

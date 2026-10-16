@@ -151,8 +151,7 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     next action if any, and final status.
 18. Before any separately authorized push, run the complete relevant
     `scripts/verify-agentic-infra` group on the final diff. A red group blocks <!-- etabli-only -->
-    push even when focused checks passed. When the diff touches scaffold docs,
-    also run `scripts/workflow-ref-linter`. <!-- etabli-only -->
+    push even when focused checks passed.
 
 ## Long loops
 

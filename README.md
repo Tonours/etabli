@@ -1,8 +1,7 @@
 # Etabli
 
 One workflow contract for Pi and Claude Code. `workflow/` holds the rules;
-both harnesses read them through thin adapters, and Claude gets the `/etabli`
-cockpit on top.
+both harnesses read them through thin adapters.
 
 ## Quick start
 
@@ -27,19 +26,11 @@ scripts/verify-agentic-infra core        # every check should PASS
 
 ## What you get
 
-- **One contract, every harness.** Pi and Claude routers are kept identical by
-  a shared fixture set (`scripts/router-eval`).
-- **Rules enforced by code.** Guards block edits on a plan that is not `READY`,
-  weakened frozen checks, staged plan files and non-read-only reviewer shells.
-  A lease-less force push, a default-branch push or a recursive `rm` outside
-  the project needs confirmation; Claude refuses it outright under
-  `bypassPermissions`/`dontAsk`, and Pi without a UI.
-- **State that survives compaction.** Claude re-injects the plan status and the
-  last ledger handoff on `compact|resume`, with the same compact instructions
-  as Pi.
-- **Budgeted context.** Per-route instruction size is measured and can only
-  shrink: always-on went from 28,423 to 11,789 chars
-  ([`docs/workflow-context-budget.md`](docs/workflow-context-budget.md)).
+- **One contract, every harness.** Pi and Claude share one route classifier
+  and its golden fixtures (`tests/router-evals/core.json`).
+- **A few guards in code.** No-comments and rtk guards on writes and shell
+  commands, and read-only reviewer shells; everything else runs without
+  approval stops (ADR-0032).
 - **Locked skills.** Vendored packs carry `UPSTREAM_SHA` pins and an integrity
   lock (`skills-lock.json`); `scripts/update-vendor-skills` refreshes them, and
   routing stays deterministic code (ADR-0027).
@@ -83,16 +74,12 @@ bun test pi/extensions/__tests__/     # Pi extension tests
 scripts/claude-hooks-check            # live Claude hooks wired?
 scripts/check-fix-symlinks.sh         # managed links intact?
 node scripts/validate-adrs .          # ADR format
-scripts/workflow-run-check preflight # prerequisites before validation
-scripts/workflow-run-check close --dir .workflow your-run # prospective event-chain check
 ```
 
 CI runs `agentic-infra` on GitHub-hosted `ubuntu-24.04`
 (`gh run list --workflow agentic-infra.yml`).
 
 ## Learn more
-
-- [`docs/claude-etabli-mod.md`](docs/claude-etabli-mod.md): optional Claude `/etabli` cockpit — resume, routing, journal, checkpoints, diagnostics, review evidence, usage and skills.
 
 - [`docs/README.md`](docs/README.md): index of current references and history.
 - [`workflow/agent-quick-card.md`](workflow/agent-quick-card.md): one-page

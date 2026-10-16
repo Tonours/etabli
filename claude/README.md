@@ -95,7 +95,6 @@ Claude commands are thin wrappers over that contract:
 - `/linear-project-setup`
 - `/pr-council-review`
 - `/adversary`
-- `/spec-guide`
 
 Custom agents stay bounded:
 
@@ -173,22 +172,6 @@ Optional hooks:
   unquoted globs except for plain readers such as `cat` or `ls`. `rg --pre` and
   `uniq` with an output operand are refused too. `;`/newline sequence read-only
   segments the way `&&` already did.
-- `ledger-auto-emit.mjs` runs on `PostToolUse` and `PostToolUseFailure` for
-  `Bash` and records `validation_failed` only from a failure event or an error
-  flag. `correction-emit.mjs` and `notification-classify.mjs` append to the
-  ledger through the project's own `scripts/workflow-event`, so they do nothing
-  in a project without it.
-- `session-state.mjs` runs on `SessionStart` for `compact|resume`. It re-injects
-  the root `PLAN.md` subject and status and the active ledger's handoff pack
-  (done, pending, decisions, next action), prefixed by the same compact
-  instructions Pi uses. It prints nothing when there is no state and never
-  blocks.
-- `detect-adr-signal.mjs` runs on `Stop`. When a structural file changed and the
-  last assistant message reads like a decision, it returns
-  `decision: "block"` with a reason that asks the model to consider `/adr`, plus
-  a `systemMessage` for the human. The block resumes the turn once per session;
-  the hook never writes and never calls an LLM. The `/adr` skill works without
-  it; the hook only lowers the cost of remembering to record decisions.
 - `no-comments-guard.mjs` runs on `PreToolUse` for `Edit|Write|MultiEdit`. It
   denies a write that adds code comments to source files and names the
   offending line, per the `~/work/CLAUDE.md` no-comments rule (lint pragmas,
@@ -238,8 +221,7 @@ crons, and `claude-bin.sh`.
   secrets back into the repo. Verify with `scripts/claude-hooks-check`.
   `scripts/deploy-agent-workflow --apply` links new hook files but does not
   wire them, so rerun the merge after a deploy that adds a hook.
-  Activating it enables the session-wide no-comments, ledger, session-state and ADR
-  hooks; the
+  Activating it enables the session-wide no-comments and rtk guards; the
   read-only agent hook is scoped from agent frontmatter instead.
 
 Use Claude Code `/goal` for till-done loops:

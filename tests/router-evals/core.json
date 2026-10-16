@@ -118,7 +118,7 @@
     "writeAllowed": false
   },
   {
-    "name": "spec construction uses spec-guide",
+    "name": "spec construction routes to plan-loop",
     "category": "spec",
     "prompt": "guide-moi pour construire la spec",
     "expectedRoute": "plan-loop",

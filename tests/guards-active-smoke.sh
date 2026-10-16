@@ -262,7 +262,7 @@ node -e '
 const s = require(process.argv[1]);
 const cmds = [];
 for (const groups of Object.values(s.hooks)) for (const g of groups) for (const h of g.hooks || []) cmds.push(h.command);
-for (const want of ["no-comments-guard.mjs", "rtk-guard.mjs", "ledger-auto-emit.mjs", "detect-adr-signal.mjs"]) {
+for (const want of ["no-comments-guard.mjs", "rtk-guard.mjs"]) {
   if (!cmds.some((c) => c.includes(want))) { console.error("missing " + want); process.exit(1); }
 }' "$MG_HOME/.claude/settings.json" || fail "merged settings lack fragment hooks"
 node -e '

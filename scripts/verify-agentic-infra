@@ -52,27 +52,19 @@ json_config() {
     "$ROOT_DIR/pi/settings.json" \
     "$ROOT_DIR/pi/agent/settings.json" \
     "$ROOT_DIR/pi/models.json" \
-    "$ROOT_DIR/workflow/runtime-capabilities.json" \
-    "$ROOT_DIR/claude/mods/.claude-plugin/marketplace.json" \
-    "$ROOT_DIR/claude/mods/etabli/.claude-plugin/plugin.json" \
-    "$ROOT_DIR/claude/mods/etabli/hooks/hooks.json"
+    "$ROOT_DIR/workflow/runtime-capabilities.json"
 }
 
 pi_import_smoke() {
   cd "$ROOT_DIR/pi"
   bun -e 'for (const path of [
     "./extensions/workflow-router.ts",
-    "./extensions/filter-output.ts",
     "./extensions/prefer-ipv4-dns.ts",
     "./extensions/rtk.ts",
-    "./extensions/token-rate.ts",
-    "./extensions/session-hygiene.ts",
-    "./extensions/lib/session-hygiene-runtime.ts",
     "./extensions/no-comments.ts",
     "./extensions/lib/pi-runtime.ts",
     "./extensions/lib/rtk-runtime.ts",
     "./extensions/lib/workflow-router-runtime.ts",
-    "./extensions/lib/ledger-auto-emit.ts",
   ]) await import(path)'
 }
 
@@ -84,7 +76,6 @@ run_target() {
     builtin:validate-adrs) node "$ROOT_DIR/scripts/validate-adrs" ;;
     builtin:pi-audit) bash -c "cd '$ROOT_DIR/pi' && bun audit" ;;
     builtin:pi-tests) bash -c "cd '$ROOT_DIR/pi' && bun test ./extensions/__tests__/*.test.ts" ;;
-    builtin:router-eval) "$ROOT_DIR/scripts/router-eval" --min-accuracy 1 --require-alignment ;;
     builtin:skill-lock) bash -c "cd '$ROOT_DIR/pi' && bun run verify:skills" ;;
     builtin:pi-import-smoke) pi_import_smoke ;;
     tests/*.sh) bash "$ROOT_DIR/$target" ;;
