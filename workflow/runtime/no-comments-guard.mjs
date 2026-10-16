@@ -128,6 +128,9 @@ function stripStrings(text, family) {
 				i += 1;
 				break;
 			}
+			if (d === "\n" && quote !== "`") {
+				break;
+			}
 			out += d === "\n" ? "\n" : " ";
 			i += 1;
 		}
