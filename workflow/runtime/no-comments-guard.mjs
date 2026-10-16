@@ -108,7 +108,7 @@ function isExemptComment(text) {
 	return false;
 }
 
-const SHELL_COMMAND_POSITION = /(^|[;&|(]|\b(then|do|else))\s*$/;
+const SHELL_COMMAND_POSITION = /(^|[;&|({]|\b(then|do|else))\s*$/;
 const REGEX_LITERAL_PREFIX = /[=(,:[!&|?{;+]\s*$/;
 
 function normalizeComment(text) {
@@ -236,7 +236,7 @@ export function collectCommentLines(text, family) {
 				}
 			}
 			if (family === "shell" && SHELL_COMMAND_POSITION.test(lineCode)) {
-				const word = /^(case|esac)(?=[\s;)]|$)/.exec(source.slice(index, index + 5))?.[1];
+				const word = /^(case|esac)(?=[\s;)&|<>]|$)/.exec(source.slice(index, index + 5))?.[1];
 				if (word === "case") caseDepth += 1;
 				if (word === "esac" && caseDepth > 0) caseDepth -= 1;
 			}
