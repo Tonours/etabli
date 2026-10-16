@@ -5,9 +5,7 @@ runtime instructions.
 
 ## Start here
 
-- [`workflow/agent-quick-card.md`](../workflow/agent-quick-card.md): one-page
-  workflow entry point.
-- [`workflow/spec.md`](../workflow/spec.md): routing and precedence rules.
+- [`workflow/spec.md`](../workflow/spec.md): workflow entry, routing and precedence rules.
 - [`workflow/contract-details.md`](../workflow/contract-details.md): detailed
   rules and commands.
 - [`docs/symlink-layout.md`](symlink-layout.md): managed links per harness

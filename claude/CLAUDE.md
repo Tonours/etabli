@@ -5,12 +5,12 @@ anti-sycophancy, contrarian, memory, answer and git rules live in `pi/AGENTS.md`
 imported below through its deployed link `~/.pi/agent/AGENTS.md`.
 
 ## Sources
-- Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow: `workflow/agent-quick-card.md` first, `workflow/spec.md` (full map,
-  wins on conflict) when the route or a gate is in doubt; review: `workflow/review-rubric.md`; tickets:
-  `workflow/ticket-template.md`; plans: `PLAN_TEMPLATE*.md`, root `PLAN.md`.
+- Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow: `workflow/spec.md`
+  (entry and map, wins on conflict); review: `workflow/review-rubric.md`;
+  tickets: `workflow/ticket-template.md`; plans: `PLAN_TEMPLATE*.md`, root `PLAN.md`.
 
 ## Claude Workflow
-- Follow the Etabli workflow (quick card, then the route contract); infer the
+- Follow the Etabli workflow (spec, then the route contract); infer the
   route yourself. Claude hooks guard
   writes only; route classification is library-only (ADR-0014).
 - `/goal` only for measurable long loops with validation evidence and a cap.

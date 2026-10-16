@@ -1,7 +1,7 @@
 # Workflow contract details
 
-Long-form rules and loop narrative for Etabli. The short map is
-`workflow/spec.md`; the agent entry page is `workflow/agent-quick-card.md`.
+Long-form rules and loop narrative for Etabli. The entry and short map is
+`workflow/spec.md`.
 Do not treat this file as a second routing table — the code and the map decide.
 
 ## Agentic workflow loop
