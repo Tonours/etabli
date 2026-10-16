@@ -46,9 +46,11 @@ case "$*" in
     rm -f "$state/marketplace" "$state/installed"
     ;;
   "plugin marketplace add "*" --scope user")
+    [ "${STUB_FAIL_ADD:-0}" != 1 ] || exit 1
     printf '%s' "$4" >"$state/marketplace"
     ;;
   "plugin install etabli@etabli-local --scope user")
+    [ "${STUB_FAIL_INSTALL:-0}" != 1 ] || exit 1
     printf '%s/etabli' "$(cat "$state/marketplace")" >"$state/installed"
     ;;
   *)
@@ -82,6 +84,15 @@ expect_no_mutation() {
   fi
 }
 
+node - "$MODS_DIR" <<'NODE' || fail "marketplace or plugin manifest does not match the names deploy_etabli_plugin uses"
+const fs = require("node:fs");
+const mods = process.argv[2];
+const market = JSON.parse(fs.readFileSync(`${mods}/.claude-plugin/marketplace.json`, "utf8"));
+const plugin = JSON.parse(fs.readFileSync(`${mods}/etabli/.claude-plugin/plugin.json`, "utf8"));
+const entry = (market.plugins || []).find((item) => item.name === "etabli");
+if (market.name !== "etabli-local" || !entry || entry.source !== "./etabli" || plugin.name !== "etabli") process.exit(1);
+NODE
+
 run_step 1
 expect_line WOULD_LINK "marketplace etabli-local -> $MODS_DIR"
 expect_line WOULD_INSTALL "plugin etabli@etabli-local from $MODS_DIR/etabli"
@@ -108,6 +119,23 @@ expect_no_mutation "dry-run on a stale marketplace called a mutating claude comm
 run_step 0
 grep -qx 'plugin marketplace remove etabli-local' "$STATE/calls" || fail "stale marketplace was not removed"
 [ "$(cat "$STATE/installed")" = "$MODS_DIR/etabli" ] || fail "stale marketplace was not re-pointed and reinstalled"
+
+ln -s "$MODS_DIR" "$TMP_DIR/mods-alias"
+printf '%s' "$TMP_DIR/mods-alias" >"$STATE/marketplace"
+printf '%s' "$TMP_DIR/mods-alias/etabli" >"$STATE/installed"
+run_step 0
+expect_line OK "marketplace etabli-local"
+expect_line OK "plugin etabli@etabli-local"
+expect_no_mutation "a marketplace registered through a symlinked path was re-pointed"
+
+rm -f "$STATE/marketplace" "$STATE/installed"
+run_step 0 STUB_FAIL_ADD=1
+expect_line WARN "etabli plugin: cannot add marketplace etabli-local from $MODS_DIR"
+run_step 0 STUB_FAIL_INSTALL=1
+expect_line LINK "marketplace etabli-local -> $MODS_DIR"
+expect_line WARN "etabli plugin: cannot install etabli@etabli-local"
+run_step 0
+expect_line INSTALL "plugin etabli@etabli-local from $MODS_DIR/etabli"
 
 run_step 0 ETABLI_SKIP_CLAUDE_PLUGIN=1
 expect_line SKIP "etabli plugin \\(ETABLI_SKIP_CLAUDE_PLUGIN=1\\)"

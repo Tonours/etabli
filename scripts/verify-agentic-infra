@@ -52,7 +52,10 @@ json_config() {
     "$ROOT_DIR/pi/settings.json" \
     "$ROOT_DIR/pi/agent/settings.json" \
     "$ROOT_DIR/pi/models.json" \
-    "$ROOT_DIR/workflow/runtime-capabilities.json"
+    "$ROOT_DIR/workflow/runtime-capabilities.json" \
+    "$ROOT_DIR/claude/mods/.claude-plugin/marketplace.json" \
+    "$ROOT_DIR/claude/mods/etabli/.claude-plugin/plugin.json" \
+    "$ROOT_DIR/claude/mods/etabli/hooks/hooks.json"
 }
 
 pi_import_smoke() {
