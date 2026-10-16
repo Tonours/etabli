@@ -176,16 +176,28 @@ export function collectCommentLines(text, family) {
 		return cursor;
 	};
 
-	const skipHeredoc = (start, word, stripTabs) => {
+	const heredocEnd = (start, word, stripTabs) => {
 		let cursor = start;
 		while (cursor < source.length) {
 			const end = source.indexOf("\n", cursor);
 			const stop = end === -1 ? source.length : end;
 			const line = source.slice(cursor, stop);
-			if ((stripTabs ? line.replace(/^\t+/, "") : line) === word) return stop;
+			if ((stripTabs ? line.replace(/^\t+/, "") : line) === word) return { body: cursor, stop };
 			cursor = stop + 1;
 		}
-		return start;
+		return null;
+	};
+
+	const skipHeredoc = (start, { word, stripTabs, expands }) => {
+		const end = heredocEnd(start, word, stripTabs);
+		if (!end) return start;
+		let cursor = start;
+		while (expands && cursor < end.body) {
+			if (source[cursor] === "\\") cursor += 2;
+			else if (source.startsWith("$(", cursor)) cursor = scanCode(cursor + 2, true);
+			else cursor += 1;
+		}
+		return Math.max(cursor, end.stop);
 	};
 
 	const scanCode = (start, untilParen) => {
@@ -198,7 +210,7 @@ export function collectCommentLines(text, family) {
 			if (char === "\n") {
 				lineCode = "";
 				index += 1;
-				for (const { word, stripTabs } of heredocs.splice(0)) index = skipHeredoc(index, word, stripTabs);
+				for (const heredoc of heredocs.splice(0)) index = skipHeredoc(index, heredoc);
 				continue;
 			}
 			if (family === "shell" && char === "\\") {
@@ -207,9 +219,9 @@ export function collectCommentLines(text, family) {
 				continue;
 			}
 			if (family === "shell" && source.startsWith("<<", index) && source[index + 2] !== "<") {
-				const match = /^<<(-?)[ \t]*(['"])([^'"\s]+)\2/.exec(source.slice(index, index + 200));
+				const match = /^<<(-?)[ \t]*(?:(['"])([^'"\s]+)\2|([^\s'"<>;|&()]+))/.exec(source.slice(index, index + 200));
 				if (match) {
-					heredocs.push({ word: match[3], stripTabs: match[1] === "-" });
+					heredocs.push({ word: match[3] ?? match[4], stripTabs: match[1] === "-", expands: !match[2] });
 					lineCode += "H";
 					index += match[0].length;
 					continue;
@@ -240,7 +252,7 @@ export function collectCommentLines(text, family) {
 				lineCode += "S";
 				continue;
 			}
-			const rubySymbol = family === "ruby" && lineCode.endsWith(":");
+			const rubySymbol = family === "ruby" && /(^|[^\w]):$/.test(lineCode);
 			if ((family === "clike" || family === "ruby") && !rubySymbol && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
 				const stop = skipRegexLiteral(source, index);
 				if (stop !== -1) {

@@ -200,6 +200,9 @@ const cases = [
   ["shell unquoted heredoc substitution comment", write("v.sh", "cat <<EOF\n$(\n  printf hi # added note\n)\nEOF\n"), "deny"],
   ["ruby operator symbol then comment", write("w.rb", "r = values.reduce(:/) # added / note\n"), "deny"],
   ["sql double-quoted backslash then comment", write("x.sql", 'SELECT e"path\\" FROM src; -- added note\n'), "deny"],
+  ["shell unquoted heredoc apostrophe then comment", write("y.sh", "cat <<EOF\nDon't panic\nEOF\n# added note\n"), "deny"],
+  ["shell unquoted heredoc data", write("z.sh", "cat <<EOF\n# Heading\nEOF\n"), "allow"],
+  ["ruby hash label regex then comment", write("aa.rb", "rules = {pattern:/don't/}\n# added note\n"), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;

@@ -266,6 +266,8 @@ describe("unified Claude verdicts", () => {
 		expect(collectCommentLines("cat <<EOF.json\n{}\nEOF.json\n# added note\ncat <<EOF\nx\nEOF\n", "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines("r = values.reduce(:/) # added / note\n", "ruby")).toEqual(["# added / note"]);
 		expect(collectCommentLines('SELECT e"path\\" FROM src; -- added note\n', "sql")).toEqual(["-- added note"]);
+		expect(collectCommentLines("cat <<EOF\nDon't panic\n# Heading\nEOF\n# added note\n", "shell")).toEqual(["# added note"]);
+		expect(collectCommentLines("rules = {pattern:/don't/}\n# added note\n", "ruby")).toEqual(["# added note"]);
 	});
 
 	test("replace_all edits are judged on every occurrence", () => {
