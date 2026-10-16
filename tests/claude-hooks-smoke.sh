@@ -185,6 +185,10 @@ const cases = [
   ["hash comment in py", write("g.py", "# note\nx = 1\n"), "deny"],
   ["block comment in css", write("h.css", "/* x */\n.a { color: red; }\n"), "deny"],
   ["comment after apostrophe", write("apos.ts", "const x = 1; // don't\nconst y = 2;\n// brand new note\n"), "deny"],
+  ["comment after string with slash", write("j.ts", 'const x = "(/)"; // added note\n'), "deny"],
+  ["python glued comment", write("k.py", "x = 1# added note\n"), "deny"],
+  ["shell multiline string", write("l.sh", "data='first\n# data\nlast'\n"), "allow"],
+  ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
 for (const [label, event, expected] of cases) {
