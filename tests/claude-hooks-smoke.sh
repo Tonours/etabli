@@ -188,6 +188,11 @@ const cases = [
   ["comment after string with slash", write("j.ts", 'const x = "(/)"; // added note\n'), "deny"],
   ["python glued comment", write("k.py", "x = 1# added note\n"), "deny"],
   ["shell multiline string", write("l.sh", "data='first\n# data\nlast'\n"), "allow"],
+  ["ruby multiline string", write("m.rb", 's = "first\n# data\nlast"\n'), "allow"],
+  ["ruby empty strings then comment", write("n.rb", "s = ''''\n# added note\n"), "deny"],
+  ["sql multiline string", write("o.sql", "SELECT 'first\n-- data\nlast';\n"), "allow"],
+  ["shell ansi-c string", write("p.sh", "echo $'it\\'s'\n# added note\n"), "deny"],
+  ["shell substitution comment", write("q.sh", 'x="$(\n  printf hi # added note\n)"\n'), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
