@@ -8,7 +8,7 @@ harness: pi
 canonical: workflow/skills/review.md
 name: review
 description: Review diffs for bugs, regressions, plan drift, and conventions. Use when uncommitted or branch changes need review; not for GitHub PR threads or for writing the fix.
-pointer: Adapter for the `review` skill. Read and follow the shared contract in `workflow/skills/review.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `review` skill. Read and follow the shared contract in `workflow/skills/review.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Review
@@ -16,7 +16,7 @@ pointer: Adapter for the `review` skill. Read and follow the shared contract in 
 Read and follow the shared contract in `workflow/skills/review.md` and the
 rubric in `workflow/review-rubric.md`.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 
 ## Procedure

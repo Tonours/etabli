@@ -278,7 +278,7 @@ managed_surface_prune_stale_skill_links() {
   local managed_roots surface surface_name skill_link skill_target
 
   managed_roots="$(managed_surface_skill_roots "$repo_dir")"
-  for surface_name in .claude/skills .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
+  for surface_name in .claude/skills .pi/agent/skills; do
     managed_surface_selected "$surface_name" || continue
     surface="$(managed_surface_dir "$home_dir" "$surface_name")"
     [ -d "$surface" ] || continue
@@ -354,7 +354,7 @@ managed_surface_prune_pi_cross_surface_links() {
   local home_dir="$3"
   local surface skill_link
 
-  for surface in .claude/skills .codex/skills .config/devin/skills; do
+  for surface in .claude/skills; do
     managed_surface_selected "$surface" || continue
     local surface_dir
     surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
@@ -407,7 +407,7 @@ managed_surface_prune_vendor_skill_links() {
   local surface skill_link skill_target link_name
   local record_scope record_name record_pi_core record_vendor matched
 
-  for surface in .pi/agent/skills .claude/skills .codex/skills .config/devin/skills .agents/skills; do
+  for surface in .pi/agent/skills .claude/skills; do
     managed_surface_selected "$surface" || continue
     local surface_dir
     surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
@@ -417,7 +417,7 @@ managed_surface_prune_vendor_skill_links() {
       skill_target="$(readlink "$skill_link")"
       link_name="$(basename "$skill_link")"
       case "$skill_target" in
-      */.agents/skills/* | */.claude/skills/* | */.codex/* | */.config/devin/*)
+      *"/.claude/skills/"*)
         if [ ! -e "$skill_link" ]; then
           managed_surface_prune_link "$mode" "$skill_link" "broken cross-surface mirror $link_name from $surface"
           continue
@@ -445,6 +445,35 @@ managed_surface_prune_vendor_skill_links() {
         esac
       fi
     done
+  done
+}
+
+managed_surface_prune_retired_surfaces() {
+  local mode="$1"
+  local repo_dir="$2"
+  local home_dir="$3"
+  local surface surface_dir link target name
+
+  for surface in .codex/skills .config/devin/skills .agents/skills; do
+    surface_dir="$home_dir/$surface"
+    [ -d "$surface_dir" ] || continue
+    while IFS= read -r link; do
+      [ -n "$link" ] || continue
+      target="$(readlink "$link")"
+      if [ "${target#/}" = "$target" ]; then
+        target="$(dirname "$link")/$target"
+      fi
+      case "$target/" in
+      *"/../"* | *"/./"*) continue ;;
+      "$repo_dir/"*) managed_surface_prune_link "$mode" "$link" "retired surface link $(basename "$link") in $surface" ;;
+      esac
+    done < <(find "$surface_dir" -mindepth 1 -maxdepth 1 -type l | sort)
+  done
+
+  for name in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
+    link="$home_dir/.agents/$name"
+    [ -L "$link" ] && [ "$(readlink "$link")" = "$repo_dir/$name" ] || continue
+    managed_surface_prune_link "$mode" "$link" "retired surface link .agents/$name"
   done
 }
 

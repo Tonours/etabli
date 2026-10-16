@@ -6,10 +6,9 @@ skill_catalog_names() {
   local flag="${3:-any}"
 
   awk -F '\t' -v source="$source" -v flag="$flag" '
-    $0 !~ /^#/ && NF >= 5 &&
+    $0 !~ /^#/ && NF >= 4 &&
     (source == "any" || $2 == source) &&
-    (flag == "any" || (flag == "pi_core" && $3 == "1") ||
-      (flag == "agents_visible" && $4 == "1") || (flag == "locked" && $5 == "1")) {
+    (flag == "any" || (flag == "pi_core" && $3 == "1") || (flag == "locked" && $4 == "1")) {
       print $1
     }
   ' "$catalog"
@@ -20,7 +19,7 @@ skill_catalog_source_of() {
   local name="$2"
 
   awk -F '\t' -v name="$name" '
-    $0 !~ /^#/ && NF >= 5 && $1 == name { print $2; exit }
+    $0 !~ /^#/ && NF >= 4 && $1 == name { print $2; exit }
   ' "$catalog"
 }
 
@@ -107,7 +106,7 @@ skill_catalog_vendor_records() {
       skill_dir="$repo_dir/vendor/$vendor/skills/$catalog_name"
       skill_name="$(skill_declared_name "$skill_dir")"
       printf '%s\t%s\t%s\t%s\t%s\n' "$vendor_scope" "$skill_name" "$skill_dir" "$catalog_pi_core" "$vendor"
-    done < <(awk -F '\t' -v vendor="$vendor" '$0 !~ /^#/ && NF >= 5 && $2 == vendor { print $1 "\t" $3 }' "$catalog")
+    done < <(awk -F '\t' -v vendor="$vendor" '$0 !~ /^#/ && NF >= 4 && $2 == vendor { print $1 "\t" $3 }' "$catalog")
   done <"$repo_dir/vendor/sources.tsv"
 }
 

@@ -8,7 +8,7 @@ description: Turn a tech spec into a Linear Project plus its prioritized Epics, 
 Read and follow the shared contract in
 `workflow/skills/linear-project-setup.md`.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 
 Rules:

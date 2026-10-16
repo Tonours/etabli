@@ -8,7 +8,7 @@ Shape root `PLAN.md`. Stop at `READY` or `CHALLENGED`.
 
 Read the workspace `workflow/spec.md`, `PLAN_TEMPLATE.md` and
 `PLAN_TEMPLATE_FULL.md`; for a missing one, try the same relative path under
-`~/.pi/agent/`, `~/.claude/`, then `~/.agents/`. Only when every copy is
+`~/.pi/agent/` then `~/.claude/`. Only when every copy is
 missing, create `PLAN.md` with the sections Meta, Goal, Workflow Contract,
 Acceptance Criteria, Scope (In / Out), Facts And Assumptions, Requirement
 Trace, Steps, Checks, Risks, Decision Log, Open Questions and Notes / Handoff,

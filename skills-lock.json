@@ -4,62 +4,62 @@
     "plan-loop": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "660d3db329128960e10ac71d1a32acf6423f9607810480ff2f519443c1b2a652"
+      "computedHash": "6d21fdd3b1131d9500d6b7e0dc51b463cc4012331c2237f3c272d717ac2b6a64"
     },
     "plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "b1d72e7d3dfb6bebe5fa62be100ca5d6bd992f0ae7fc4697f28bfd54db1b0cf3"
+      "computedHash": "cc5df9dcb80bd6ffc857cfc8b15d388d3f46122e0e54eef263c36019c23aec3f"
     },
     "review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "2477b9affa151b8328c7ae769360673ee8d76b526209d2ec6fa61e6f22c09a8d"
+      "computedHash": "96a4b43d21a159c1643e6f96cb0075d617bc4eb2c8ae914f89e3064526a50b0f"
     },
     "implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "6d400574b1545123137aeef316699e08b4099d595480b48d87c26454a5a09c9b"
+      "computedHash": "105651c108b592c09cd0abaecd1e9644e46e1fd97f2f6e5aba9f66694ba8bac1"
     },
     "verify": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "03b2788fb3a55877ce4c76c0e00d53a67c935d1b2ee4d104046bc396e3df7159"
+      "computedHash": "9e29d71e7e75f4d49f99785a6228b412c0ef5587b13fe6240d86e6553f271506"
     },
     "bug-check": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "dc792427425d33529cba816cce99395d2e6524e6da3e673dd625e0a9c513f302"
+      "computedHash": "b62d2eef2cdf01e428c1bff63b0c5c1dd7e3d529d1e7aab6c4d97b25f6c587ce"
     },
     "linear-ticket-create": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "08b7cb56b5857af0a59f6b3bc8a4e6291fb28773ce2bdfa1072446ac6b2ff607"
+      "computedHash": "06fa036123be6aa665a89d9ed5321ecc28ee53b818e497bb60cf8fe81d3dc6f7"
     },
     "linear-work": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "613269e071cd99c2b150df0b6a4413274f85244d96e939747d6c24d33bd52a22"
+      "computedHash": "f78f96920514eca8ac6b59935eee6ea9e7c3b82419f8dd58d07e28e19e4e4aa8"
     },
     "pr-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "c857227bfc39604444e47f675eed83efd2b8ff5f98a0e8a3a8e4b692e7346339"
+      "computedHash": "6dc7cbb1a31e85565d780dbaa23e1a95b0013120576530bfd9e577eab7c1c755"
     },
     "pr-qa": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "0191b32f648060c8666880f79434f41e15898f9608fca848481767fa7b61fbfd"
+      "computedHash": "623de583a4de9e4d36d3846d4d9a1f9124fdb8d22000d4e920869b23c7033a71"
     },
     "sec-pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "ddbccc97b820b56e7efddb2c2b14b91238ee63595b904b1f841670adab14f38e"
+      "computedHash": "1ce40e38d32b2d0d0acfd6338d395050592a45ef35ded639c50db83dec34d96e"
     },
     "ci-fix": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "7c04f67f7afecf6fa765081dee5e89a9b71f1d8a64d741f8d30d884434601199"
+      "computedHash": "1e9f0c4c688f3cbe35d0ecd7bdb0fd061adc1a3e21cdbb131288db19b024aa0f"
     },
     "github-pr-review": {
       "source": "local",
@@ -69,7 +69,7 @@
     "adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "0343c7ad1940f5616e0dca8ab549cffc5fdf38c819229b745ff228f253428a55"
+      "computedHash": "18cdb4c8b882b9c1bb244aad3bf4f98e3619fd3d1ca6ee75d88291abba414bc4"
     },
     "browser-full-page-capture": {
       "source": "local",
@@ -94,7 +94,7 @@
     "linear-project-setup": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "c600d161afb42d970d207e1564c14350b3dafb7d7cabec2a5d2a8b29d6580c39"
+      "computedHash": "b3e3589efe3ee2528d3dd97ea44e07bb254a819f7ea51085cc526952d2287c72"
     },
     "frontend-css-ui-ux": {
       "source": "local",
@@ -349,7 +349,7 @@
     "claude-scope/shared/write-direct": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "30e5fee6b9e72f5b425ca49c0a6521ec005a5dc0a773dbbce26f6f545008fb05"
+      "computedHash": "e172b61467146cb77b0bb294ef8bfab29b7a591ce5739e43eb089c27260ba34a"
     },
     "claude-scope/work/bug-check": {
       "source": "local",
@@ -399,12 +399,12 @@
     "ship": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "4d85167256cb5a45aa613e49d5fc23a4a180140928069ee887c5e927431de88b"
+      "computedHash": "74bd3d41d00204f694821ce679ed9a1f9b0273663ede25dd7d180ee869adf023"
     },
     "write-direct": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "30e5fee6b9e72f5b425ca49c0a6521ec005a5dc0a773dbbce26f6f545008fb05"
+      "computedHash": "e172b61467146cb77b0bb294ef8bfab29b7a591ce5739e43eb089c27260ba34a"
     }
   }
 }

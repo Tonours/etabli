@@ -9,7 +9,7 @@ skill: ci-fix
 harness: claude
 canonical: workflow/skills/ci-fix.md
 description: Autonomously fix failing GitHub PR CI through gh CLI. Use only when explicitly invoked; not for local failures or CI design.
-pointer: Adapter for the `ci-fix` skill. Read and follow the shared contract in `workflow/skills/ci-fix.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `ci-fix` skill. Read and follow the shared contract in `workflow/skills/ci-fix.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # CI Fix
@@ -18,7 +18,7 @@ User request: $ARGUMENTS
 
 Read and follow the shared contract in `workflow/skills/ci-fix.md`.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 
 Rules:

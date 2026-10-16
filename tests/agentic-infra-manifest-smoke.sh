@@ -92,8 +92,7 @@ ops-stop-guard-smoke'
 # T6 step 2 adds adapter-sync (~2s, hermetic).
 # T6 step 3 adds rule-registry + router-parity (one smoke file, two labels).
 # T7 step 2 adds skill-hygiene (DMI flags + native probe; AC2a/AC3/AC4 sections append).
-# T7 step 3 appends skill-trigger-eval (frozen recompute + compare) and
-# codex-source (hermetic source-measure gate) to full.
+# T7 step 3 appends skill-trigger-eval (frozen recompute + compare) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted: review workflow/runtime/agentic-infra-checks.tsv and align the exact approved expected_core list"
 [ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 34 ] ||
@@ -152,7 +151,6 @@ review-evidence-pack-test
 harness-token-usage-test
 skills-lock-coverage-smoke
 skill-trigger-eval
-codex-source
 token-bench-smoke
 claude-launch-smoke
 claude-statusline-smoke'

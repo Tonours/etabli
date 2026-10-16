@@ -42,12 +42,12 @@ export function skillCatalog(root, home) {
   const rows = readFileSync(join(root, "workflow/runtime/skill-surface.tsv"), "utf8")
     .split("\n").filter((line) => line && !line.startsWith("#"));
   const skills = rows.map((line) => {
-    const [name, source, piCore, visible, locked] = line.split("\t");
+    const [name, source, piCore, locked] = line.split("\t");
     const directory = source === "pi" ? "pi/skills" : source === "extras" ? "extras/skills" : `vendor/${source}/skills`;
     const scope = vendors.get(source) || "shared";
     return { ...skill(root, `${directory}/${name}/SKILL.md`, source, scope, name),
-      declared_surfaces: { pi_core: piCore === "1", agents_visible: visible === "1", locked: locked === "1" },
-      opt_in: piCore === "0" && visible === "0" && locked === "0" };
+      declared_surfaces: { pi_core: piCore === "1", locked: locked === "1" },
+      opt_in: piCore === "0" && locked === "0" };
   });
   for (const scope of ["shared", "work", "personal"]) {
     const directory = `claude/scopes/${scope}/skills`;

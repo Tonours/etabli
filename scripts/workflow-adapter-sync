@@ -81,9 +81,9 @@ fail() {
   FAILURES=$((FAILURES + 1))
 }
 
-# Live deployed set from the surface (authoritative): pi_core=1 OR agents=1.
+# Live deployed set from the surface (authoritative): pi_core=1.
 live_deployed() {
-  awk -F'\t' '!/^#/ && NF && ($3 == 1 || $4 == 1) { print $1 }' "$SURFACE" | sort -u
+  awk -F'\t' '!/^#/ && NF && $3 == 1 { print $1 }' "$SURFACE" | sort -u
 }
 
 # First top-level `key: value` in the leading frontmatter (single line).
@@ -127,7 +127,7 @@ gen_block() {
   fi
   printf 'description: %s\n' "$desc"
   if [ "$file" != "$ROOT/$canonical" ]; then
-    pointer="Adapter for the \`$skill\` skill. Read and follow the shared contract in \`$canonical\`. If the contract is missing in the workspace, try \`~/.pi/agent/\`, \`~/.claude/\`, then \`~/.agents/\` copies of the same relative path. If still missing, stop with \`SHARED_CONTRACT_MISSING\`."
+    pointer="Adapter for the \`$skill\` skill. Read and follow the shared contract in \`$canonical\`. If the contract is missing in the workspace, try \`~/.pi/agent/\` then \`~/.claude/\` copies of the same relative path. If still missing, stop with \`SHARED_CONTRACT_MISSING\`."
     printf 'pointer: %s\n' "$pointer"
   fi
   printf '%s\n' "$END"

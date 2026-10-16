@@ -9,8 +9,8 @@ the PR belongs to, and stream its output.
 
 The script does the orchestration; you do not re-run any of the passes yourself.
 
-It needs the `thermo-nuclear-code-quality-review` skill installed for Pi or
-agents (`~/.pi/agent/skills/` or `~/.agents/skills/`) and stops without it. It
+It needs the `thermo-nuclear-code-quality-review` skill installed for Pi
+(`~/.pi/agent/skills/`) and stops without it. It
 refuses a closed or merged PR. Agent config files the PR changes are reset to
 the base version in the scratch worktree, so the PR cannot steer phase A. Token
 usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.

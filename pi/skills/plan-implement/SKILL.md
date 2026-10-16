@@ -17,7 +17,7 @@ Follow the shared contract in `workflow/skills/implementation-loop.md`. The
 routing map `workflow/spec.md` wins on conflict; open it only when the route or
 a gate is in doubt.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 Run `workflow/skills/plan-loop.md` first when a task is provided. Load a
 domain suite only when the brief clearly matches one.

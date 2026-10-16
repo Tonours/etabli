@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Skill-hygiene gate (T7): DMI flags + native expansion probe (AC1) +
-# description-shape tripwire (AC2a). AC3 lives in the dedicated load-checks
-# and codex-source checks; AC4 is UNCLAIMED (ponytail is macbook-work-only,
+# description-shape tripwire (AC2a). AC3 lives in the dedicated load-checks;
+# AC4 is UNCLAIMED (ponytail is macbook-work-only,
 # removal needs a user decision) so no scan section exists here.
 # TRIPWIRE-GRADE (AC2): the shape regexes below guard format only and are
 # gameable by construction; semantic validation is carried by the FULL

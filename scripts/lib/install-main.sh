@@ -421,11 +421,11 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
         "$smoke_skill_home/.claude/skills/removed-pi-skill"
     ln -s "$smoke_unmanaged_skill" \
         "$smoke_skill_home/.claude/skills/unmanaged-skill"
-    smoke_relative_target="$smoke_skill_home/.agents/skills/relative-live"
+    smoke_relative_target="$smoke_skill_home/.shared/skills/relative-live"
     mkdir -p "$smoke_relative_target"
-    ln -s "../../.agents/skills/relative-live" \
+    ln -s "../../.shared/skills/relative-live" \
         "$smoke_skill_home/.claude/skills/relative-live"
-    ln -s "../../.agents/skills/relative-gone" \
+    ln -s "../../.shared/skills/relative-gone" \
         "$smoke_skill_home/.claude/skills/relative-dangling"
     smoke_relative_managed_root="$smoke_skill_home/relative-repo/pi/skills"
     mkdir -p "$smoke_relative_managed_root"
@@ -439,7 +439,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
             "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
     done
 
-    for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
+    for smoke_other_surface in .pi/agent/skills; do
         mkdir -p "$smoke_skill_home/$smoke_other_surface"
         ln -s "$smoke_repo_dir/vendor/ember-skills/skills/removed-skill" \
             "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill"
@@ -449,7 +449,7 @@ if [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = "1" ]; then
 
     managed_surface_prune_stale_skill_links install "$smoke_repo_dir" "$smoke_skill_home"
 
-    for smoke_other_surface in .pi/agent/skills .codex/skills .config/devin/skills .agents/skills; do
+    for smoke_other_surface in .pi/agent/skills; do
         if [ -L "$smoke_skill_home/$smoke_other_surface/removed-vendor-skill" ]; then
             print_error "stale vendor skill link survived in $smoke_other_surface"
             exit 1
