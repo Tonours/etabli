@@ -50,8 +50,8 @@ describe("no-comments detector", () => {
 		expect(isGuardedCodeFile("notes.md")).toBe(false);
 		expect(isGuardedCodeFile("pkg.json")).toBe(false);
 		expect(commentFamilyFor("a.ts")).toBe("clike");
-		expect(commentFamilyFor("a.py")).toBe("hash");
-		expect(commentFamilyFor("a.sql")).toBe("dash");
+		expect(commentFamilyFor("a.py")).toBe("python");
+		expect(commentFamilyFor("a.sql")).toBe("sql");
 	});
 
 	test("ignores comments inside strings and urls", () => {
@@ -72,7 +72,7 @@ describe("no-comments detector", () => {
 			"export const ok = true;",
 		].join("\n");
 		expect(collectCommentLines(source, "clike")).toEqual([]);
-		expect(collectCommentLines("#!/usr/bin/env bash\necho hi\n", "hash")).toEqual(
+		expect(collectCommentLines("#!/usr/bin/env bash\necho hi\n", "shell")).toEqual(
 			[],
 		);
 	});
@@ -248,11 +248,16 @@ describe("unified Claude verdicts", () => {
 	test("lexes strings, comments and regexes per language", () => {
 		expect(collectCommentLines('const x = "(/)"; // added note\n', "clike")).toEqual(["// added note"]);
 		expect(collectCommentLines("const s = `a\n// not a comment\nb`;\n", "clike")).toEqual([]);
-		expect(collectCommentLines('s = """first\n# data\nlast"""\n', "hash")).toEqual([]);
-		expect(collectCommentLines("x = 1# added note\n", "hash")).toEqual(["# added note"]);
+		expect(collectCommentLines('s = """first\n# data\nlast"""\n', "python")).toEqual([]);
+		expect(collectCommentLines("x = 1# added note\n", "python")).toEqual(["# added note"]);
 		expect(collectCommentLines("data='first\n# data\nlast'\n", "shell")).toEqual([]);
 		expect(collectCommentLines("n=${#arr[@]}\necho $#\n", "shell")).toEqual([]);
 		expect(commentFamilyFor("a.sh")).toBe("shell");
+		expect(collectCommentLines('s = "first\n# data\nlast"\n', "ruby")).toEqual([]);
+		expect(collectCommentLines("s = ''''\n# added note\n", "ruby")).toEqual(["# added note"]);
+		expect(collectCommentLines("SELECT 'first\n-- data\nlast';\n", "sql")).toEqual([]);
+		expect(collectCommentLines("echo $'it\\'s'\n# added note\n", "shell")).toEqual(["# added note"]);
+		expect(collectCommentLines('x="$(\n  printf hi # added note\n)"\necho "$x"\n', "shell")).toEqual(["# added note"]);
 	});
 
 	test("replace_all edits are judged on every occurrence", () => {

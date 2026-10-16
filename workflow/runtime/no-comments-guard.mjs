@@ -59,9 +59,18 @@ const CODE_EXTENSIONS = new Set([
 	".less",
 ]);
 
-const HASH_EXTENSIONS = new Set([".py", ".rb"]);
-const SHELL_EXTENSIONS = new Set([".sh", ".bash", ".zsh"]);
-const DASH_EXTENSIONS = new Set([".lua", ".sql"]);
+const COMMENT_FAMILIES = new Map([
+	[".py", "python"],
+	[".rb", "ruby"],
+	[".sh", "shell"],
+	[".bash", "shell"],
+	[".zsh", "shell"],
+	[".sql", "sql"],
+	[".lua", "lua"],
+]);
+const HASH_FAMILIES = new Set(["python", "ruby"]);
+const DASH_FAMILIES = new Set(["sql", "lua"]);
+const MULTILINE_STRING_FAMILIES = new Set(["ruby", "shell", "sql"]);
 
 function extname(filePath) {
 	const base = String(filePath || "")
@@ -78,11 +87,7 @@ export function isGuardedCodeFile(filePath) {
 }
 
 export function commentFamilyFor(filePath) {
-	const ext = extname(filePath);
-	if (HASH_EXTENSIONS.has(ext)) return "hash";
-	if (SHELL_EXTENSIONS.has(ext)) return "shell";
-	if (DASH_EXTENSIONS.has(ext)) return "dash";
-	return "clike";
+	return COMMENT_FAMILIES.get(extname(filePath)) ?? "clike";
 }
 
 const TOOL_DIRECTIVE =
@@ -112,29 +117,10 @@ function normalizeComment(text) {
 function lineCommentAt(source, index, family) {
 	const char = source[index];
 	if (family === "clike") return char === "/" && source[index + 1] === "/" && source[index - 1] !== ":";
-	if (family === "dash") return char === "-" && source[index + 1] === "-";
-	if (family === "hash") return char === "#";
+	if (DASH_FAMILIES.has(family)) return char === "-" && source[index + 1] === "-";
+	if (HASH_FAMILIES.has(family)) return char === "#";
 	if (family === "shell") return char === "#" && (index === 0 || /\s/.test(source[index - 1]));
 	return false;
-}
-
-function skipString(source, index, family) {
-	const quote = source[index];
-	const triple = family === "hash" && source.startsWith(quote.repeat(3), index);
-	const delimiter = triple ? quote.repeat(3) : quote;
-	const spansLines = triple || quote === "`" || family === "shell";
-	const escapes = !(family === "shell" && quote === "'");
-	let cursor = index + delimiter.length;
-	while (cursor < source.length) {
-		if (escapes && source[cursor] === "\\") {
-			cursor += 2;
-			continue;
-		}
-		if (source.startsWith(delimiter, cursor)) return cursor + delimiter.length;
-		if (source[cursor] === "\n" && !spansLines) return cursor;
-		cursor += 1;
-	}
-	return cursor;
 }
 
 function skipRegexLiteral(source, index) {
@@ -164,48 +150,82 @@ export function collectCommentLines(text, family) {
 	const push = (chunk) => {
 		if (chunk.trim() && !isExemptComment(chunk)) found.push(normalizeComment(chunk));
 	};
-	let lineCode = "";
-	let index = 0;
 
-	while (index < source.length) {
-		const char = source[index];
-		if (char === "\n") {
-			lineCode = "";
-			index += 1;
-			continue;
-		}
-		if (family === "clike" && char === "/" && source[index + 1] === "*") {
-			const end = source.indexOf("*/", index + 2);
-			const stop = end === -1 ? source.length : end + 2;
-			for (const chunk of source.slice(index, stop).split("\n")) push(chunk);
-			lineCode += " ";
-			index = stop;
-			continue;
-		}
-		if (lineCommentAt(source, index, family)) {
-			const end = source.indexOf("\n", index);
-			const stop = end === -1 ? source.length : end;
-			push(source.slice(index, stop));
-			index = stop;
-			continue;
-		}
-		if (char === "'" || char === '"' || (family === "clike" && char === "`")) {
-			index = skipString(source, index, family);
-			lineCode += "S";
-			continue;
-		}
-		if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
-			const stop = skipRegexLiteral(source, index);
-			if (stop !== -1) {
-				index = stop;
-				lineCode += "RE";
+	const skipString = (index) => {
+		const quote = source[index];
+		const triple = family === "python" && source.startsWith(quote.repeat(3), index);
+		const delimiter = triple ? quote.repeat(3) : quote;
+		const spansLines = triple || quote === "`" || MULTILINE_STRING_FAMILIES.has(family);
+		const ansiC = family === "shell" && quote === "'" && source[index - 1] === "$";
+		const escapes = ansiC || !((family === "shell" && quote === "'") || family === "sql");
+		let cursor = index + delimiter.length;
+		while (cursor < source.length) {
+			if (escapes && source[cursor] === "\\") {
+				cursor += 2;
 				continue;
 			}
+			if (source.startsWith(delimiter, cursor)) return cursor + delimiter.length;
+			if (family === "shell" && quote === '"' && source.startsWith("$(", cursor)) {
+				cursor = scanCode(cursor + 2, true);
+				continue;
+			}
+			if (source[cursor] === "\n" && !spansLines) return cursor;
+			cursor += 1;
 		}
-		lineCode += char;
-		index += 1;
-	}
+		return cursor;
+	};
 
+	const scanCode = (start, untilParen) => {
+		let lineCode = "";
+		let depth = 0;
+		let index = start;
+		while (index < source.length) {
+			const char = source[index];
+			if (char === "\n") {
+				lineCode = "";
+				index += 1;
+				continue;
+			}
+			if (untilParen && char === "(") depth += 1;
+			if (untilParen && char === ")") {
+				if (depth === 0) return index + 1;
+				depth -= 1;
+			}
+			if (family === "clike" && char === "/" && source[index + 1] === "*") {
+				const end = source.indexOf("*/", index + 2);
+				const stop = end === -1 ? source.length : end + 2;
+				for (const chunk of source.slice(index, stop).split("\n")) push(chunk);
+				lineCode += " ";
+				index = stop;
+				continue;
+			}
+			if (lineCommentAt(source, index, family)) {
+				const end = source.indexOf("\n", index);
+				const stop = end === -1 ? source.length : end;
+				push(source.slice(index, stop));
+				index = stop;
+				continue;
+			}
+			if (char === "'" || char === '"' || (family === "clike" && char === "`")) {
+				index = skipString(index);
+				lineCode += "S";
+				continue;
+			}
+			if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
+				const stop = skipRegexLiteral(source, index);
+				if (stop !== -1) {
+					index = stop;
+					lineCode += "RE";
+					continue;
+				}
+			}
+			lineCode += char;
+			index += 1;
+		}
+		return index;
+	};
+
+	scanCode(0, false);
 	return found;
 }
 
