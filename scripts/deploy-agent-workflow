@@ -31,7 +31,9 @@ Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
 
 Deploy only the Etabli-managed workflow and skill surfaces for Claude Code
 and Pi, and remove this checkout's links from the retired Codex, Devin and
-shared agents surfaces.
+shared agents surfaces. Also registers claude/mods as the etabli-local
+marketplace and installs the /etabli plugin for the active Claude config
+(skipped with --home or ETABLI_SKIP_CLAUDE_PLUGIN=1).
 
 Options:
   --dry-run         Show planned changes without touching local harness files (default)
@@ -304,6 +306,75 @@ deploy_pi() {
   done
 }
 
+etabli_plugin_json_field() {
+  node -e '
+let input = "";
+process.stdin.on("data", (chunk) => { input += chunk; });
+process.stdin.on("end", () => {
+  const [key, value, field] = process.argv.slice(1);
+  const entry = JSON.parse(input).find((item) => item[key] === value);
+  if (entry) process.stdout.write(String(entry[field] ?? ""));
+});' "$@"
+}
+
+deploy_etabli_plugin() {
+  local mods_dir="$REPO_DIR/claude/mods"
+  local marketplace="etabli-local"
+  local plugin="etabli@etabli-local"
+  local listing registered_path installed_folder
+
+  status_line SECTION "Claude etabli plugin"
+  if [ "${ETABLI_SKIP_CLAUDE_PLUGIN:-0}" = 1 ]; then
+    status_line SKIP "etabli plugin (ETABLI_SKIP_CLAUDE_PLUGIN=1)"
+    return 0
+  fi
+  if [ "$HOME_DIR" != "$HOME" ] || [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" = 1 ]; then
+    status_line SKIP "etabli plugin for isolated or non-default home"
+    return 0
+  fi
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ] &&
+    [ "$(claude_physical_dir "$CLAUDE_CONFIG_DIR" || true)" != "$(claude_physical_dir "$(claude_effective_dir)" || true)" ]; then
+    status_line SKIP "etabli plugin: CLAUDE_CONFIG_DIR is outside this home"
+    return 0
+  fi
+  if ! command -v claude >/dev/null 2>&1 || ! node_available; then
+    status_line SKIP "etabli plugin: claude CLI or Node.js unavailable"
+    return 0
+  fi
+
+  if ! listing="$(claude plugin marketplace list --json)"; then
+    status_line WARN "etabli plugin: cannot list Claude marketplaces"
+    return 0
+  fi
+  registered_path="$(printf '%s' "$listing" | etabli_plugin_json_field name "$marketplace" path)"
+  if [ "$registered_path" != "$mods_dir" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      [ -z "$registered_path" ] || status_line WOULD_REMOVE "marketplace $marketplace at $registered_path"
+      status_line WOULD_LINK "marketplace $marketplace -> $mods_dir"
+    else
+      [ -z "$registered_path" ] || claude plugin marketplace remove "$marketplace" >/dev/null
+      claude plugin marketplace add "$mods_dir" --scope user >/dev/null
+      status_line LINK "marketplace $marketplace -> $mods_dir"
+    fi
+  else
+    status_line OK "marketplace $marketplace"
+  fi
+
+  if ! listing="$(claude plugin list --json)"; then
+    status_line WARN "etabli plugin: cannot list installed Claude plugins"
+    return 0
+  fi
+  installed_folder="$(printf '%s' "$listing" | etabli_plugin_json_field id "$plugin" readFromFolder)"
+  if [ "$installed_folder" = "$mods_dir/etabli" ]; then
+    status_line OK "plugin $plugin"
+  elif [ "$DRY_RUN" -eq 1 ]; then
+    status_line WOULD_INSTALL "plugin $plugin from $mods_dir/etabli"
+  else
+    claude plugin install "$plugin" --scope user >/dev/null
+    status_line INSTALL "plugin $plugin from $mods_dir/etabli"
+  fi
+}
+
 prune_retired_surfaces() {
   status_line SECTION "Retired surfaces"
   managed_surface_prune_retired_surfaces deploy "$REPO_DIR" "$HOME_DIR"
@@ -485,6 +556,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     deploy_vendor_skills
     deploy_claude
   fi
+  deploy_etabli_plugin
 
   if [ "$DRY_RUN" -eq 1 ]; then
     status_line SUMMARY "dry-run complete"
