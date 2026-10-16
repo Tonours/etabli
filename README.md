@@ -49,7 +49,9 @@ One writer at a time is a protocol, not an OS lock.
 
 To adopt the workflow in another project, deploy the current scaffold with
 `scripts/deploy-workflow /path/to/project` (review drift before `--force` on an
-existing project). A recurring agent mistake becomes a rule in the project's
+existing project; `--prune` backs up scaffold files etabli retired,
+`--refresh-tracked` lets `--force` overwrite copies the project tracks; try
+both with `--dry-run` first). A recurring agent mistake becomes a rule in the project's
 own tooling ([`workflow/project-constraints.md`](workflow/project-constraints.md)).
 
 ## Repository map

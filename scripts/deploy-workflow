@@ -6,6 +6,8 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 
 DRY_RUN=0
 FORCE=0
+PRUNE=0
+REFRESH_TRACKED=0
 CHECK=0
 LIST=0
 TARGET_INPUT="."
@@ -15,6 +17,7 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 WRITTEN=0
 UNCHANGED=0
 CONFLICTS=0
+REMOVED=0
 CHECK_DRIFT=0
 CHECK_MISSING=0
 CHECK_OK=0
@@ -55,19 +58,36 @@ FILES=(
   "$REPO_DIR/scripts/lib/hash.sh|scripts/lib/hash.sh"
 )
 
+RETIRED_FILES=(
+  "workflow/events.md"
+  "workflow/events-validator.md"
+  "workflow/agent-quick-card.md"
+  "scripts/plan-review-check"
+  "scripts/workflow-event"
+  "scripts/workflow-measurement-integrity"
+  "scripts/lib/ledger-integrity.mjs"
+  "scripts/lib/plan-review-binding.mjs"
+  "scripts/lib/predicates.mjs"
+  "scripts/lib/review-rounds.jq"
+  "scripts/lib/workflow-event-detail.jq"
+  "scripts/lib/workflow-events.mjs"
+)
+
 while IFS= read -r contract_path; do
   FILES+=("$contract_path|workflow/skills/$(basename "$contract_path")")
 done < <(find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -print | sort)
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--check] [--list-files]
+Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--refresh-tracked] [--prune] [--check] [--list-files]
 
 Deploy the Etabli workflow scaffold into a new or existing project.
 
 Options:
   --dry-run   Show planned writes without touching the target
   --force     Backup and overwrite conflicting files
+  --refresh-tracked With --force, also overwrite files the project tracks (git is the backup)
+  --prune     Remove retired scaffold files: backup untracked copies, git rm tracked ones
   --check     Report drift between source templates and deployed files without writing
   --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
   -h, --help  Show this help
@@ -77,6 +97,7 @@ Examples:
   deploy-workflow ~/code/new-project
   deploy-workflow . --dry-run
   deploy-workflow . --force
+  deploy-workflow . --force --refresh-tracked --prune --dry-run
   deploy-workflow . --check
 EOF
 }
@@ -88,6 +109,12 @@ while [ "$#" -gt 0 ]; do
       ;;
     --force)
       FORCE=1
+      ;;
+    --refresh-tracked)
+      REFRESH_TRACKED=1
+      ;;
+    --prune)
+      PRUNE=1
       ;;
     --check)
       CHECK=1
@@ -117,13 +144,18 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-if [ "$CHECK" -eq 1 ] && { [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ]; }; then
-  printf 'flags are mutually exclusive: --check cannot be combined with --dry-run or --force\n' >&2
+if [ "$CHECK" -eq 1 ] && { [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ] || [ "$PRUNE" -eq 1 ] || [ "$REFRESH_TRACKED" -eq 1 ]; }; then
+  printf 'flags are mutually exclusive: --check cannot be combined with --dry-run, --force, --refresh-tracked or --prune\n' >&2
+  exit 2
+fi
+
+if [ "$REFRESH_TRACKED" -eq 1 ] && [ "$FORCE" -eq 0 ]; then
+  printf -- '--refresh-tracked requires --force\n' >&2
   exit 2
 fi
 
 if [ "$LIST" -eq 1 ]; then
-  if [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ] || [ "$CHECK" -eq 1 ] || [ "$TARGET_SET" -eq 1 ]; then
+  if [ "$DRY_RUN" -eq 1 ] || [ "$FORCE" -eq 1 ] || [ "$PRUNE" -eq 1 ] || [ "$REFRESH_TRACKED" -eq 1 ] || [ "$CHECK" -eq 1 ] || [ "$TARGET_SET" -eq 1 ]; then
     printf 'flags are mutually exclusive: --list-files cannot be combined with a target or another flag\n' >&2
     exit 2
   fi
@@ -150,6 +182,10 @@ backup_path() {
   done
 
   printf '%s\n' "$candidate"
+}
+
+is_tracked() {
+  git -C "$TARGET_DIR" ls-files --error-unmatch "$1" >/dev/null 2>&1
 }
 
 target_dir() {
@@ -230,7 +266,7 @@ preflight_conflicts() {
       continue
     fi
 
-    if [ -f "$destination_path" ] && git -C "$TARGET_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
+    if [ -f "$destination_path" ] && is_tracked "$relative_path"; then
       continue
     fi
 
@@ -267,7 +303,7 @@ check_deployed_files() {
       continue
     fi
 
-    if git -C "$TARGET_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
+    if is_tracked "$relative_path"; then
       status_line PROTECTED "$relative_path is tracked by the project; scaffold never overwrites it"
       CHECK_OK=$((CHECK_OK + 1))
       continue
@@ -303,9 +339,19 @@ write_file() {
     return 0
   fi
 
-  if [ -f "$destination_path" ] && git -C "$TARGET_DIR" ls-files --error-unmatch "$relative_path" >/dev/null 2>&1; then
-    status_line PROTECTED "$relative_path is tracked by the project; scaffold never overwrites it"
-    UNCHANGED=$((UNCHANGED + 1))
+  if [ -f "$destination_path" ] && is_tracked "$relative_path"; then
+    if [ "$REFRESH_TRACKED" -eq 0 ]; then
+      status_line PROTECTED "$relative_path is tracked by the project; rerun with --force --refresh-tracked to overwrite it"
+      UNCHANGED=$((UNCHANGED + 1))
+      return 0
+    fi
+    if [ "$DRY_RUN" -eq 1 ]; then
+      status_line WOULD_REFRESH "$relative_path"
+      return 0
+    fi
+    cp "$source_path" "$destination_path"
+    status_line REFRESH "$relative_path"
+    WRITTEN=$((WRITTEN + 1))
     return 0
   fi
 
@@ -344,6 +390,50 @@ write_file() {
   WRITTEN=$((WRITTEN + 1))
 }
 
+preflight_prune() {
+  local relative_path parent_path physical_root physical_parent
+
+  physical_root="$(cd "$TARGET_DIR" >/dev/null 2>&1 && pwd -P)"
+  for relative_path in "${RETIRED_FILES[@]}"; do
+    parent_path="$TARGET_DIR/$(dirname "$relative_path")"
+    [ -d "$parent_path" ] || continue
+    physical_parent="$(cd "$parent_path" >/dev/null 2>&1 && pwd -P)"
+    case "$physical_parent/" in
+      "$physical_root"/*) ;;
+      *)
+        status_line CONFLICT "$(dirname "$relative_path") resolves outside the target ($physical_parent); prune refused"
+        CONFLICTS=$((CONFLICTS + 1))
+        ;;
+    esac
+  done
+}
+
+prune_file() {
+  local relative_path="$1"
+  local destination_path="$TARGET_DIR/$relative_path"
+  local backup
+
+  [ -e "$destination_path" ] || [ -L "$destination_path" ] || return 0
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if is_tracked "$relative_path"; then
+      status_line WOULD_GIT_RM "$relative_path"
+    else
+      status_line WOULD_REMOVE "$relative_path"
+    fi
+    return 0
+  fi
+
+  if is_tracked "$relative_path"; then
+    git -C "$TARGET_DIR" rm -q --cached -- "$relative_path"
+    status_line GIT_RM "$relative_path"
+  fi
+  backup="$(backup_path "$destination_path")"
+  mv "$destination_path" "$backup"
+  status_line REMOVE "$relative_path -> ${backup#"$TARGET_DIR"/}"
+  REMOVED=$((REMOVED + 1))
+}
+
 EXCLUDE_BEGIN="# >>> etabli personal workflow ignores >>>"
 EXCLUDE_END="# <<< etabli personal workflow ignores <<<"
 
@@ -365,7 +455,6 @@ exclude_block() {
     "/scripts/plan-cleanup" \
     "/scripts/lib/plan-status.mjs" \
     "/scripts/lib/plan-cleanup-command.mjs" \
-    "/scripts/workflow-measurement-integrity" \
     "/scripts/lib/hash.sh" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \
@@ -450,16 +539,24 @@ preflight_target
 if [ "$CONFLICTS" -eq 0 ]; then
   TARGET_DIR="$(target_dir)"
   preflight_conflicts
+  if [ "$PRUNE" -eq 1 ] && [ -d "$TARGET_DIR" ]; then
+    preflight_prune
+  fi
 fi
 
 if [ "$CONFLICTS" -eq 0 ]; then
   for entry in "${FILES[@]}"; do
     write_file "${entry%%|*}" "${entry#*|}"
   done
+  if [ "$PRUNE" -eq 1 ]; then
+    for relative_path in "${RETIRED_FILES[@]}"; do
+      prune_file "$relative_path"
+    done
+  fi
   ensure_local_exclude
 fi
 
-printf '\nSummary: %d written, %d unchanged, %d conflict(s)\n' "$WRITTEN" "$UNCHANGED" "$CONFLICTS"
+printf '\nSummary: %d written, %d removed, %d unchanged, %d conflict(s)\n' "$WRITTEN" "$REMOVED" "$UNCHANGED" "$CONFLICTS"
 
 if [ "$CONFLICTS" -gt 0 ]; then
   printf 'Resolve conflicts manually or rerun with --force after reviewing the target files.\n' >&2
