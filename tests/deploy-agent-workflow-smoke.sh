@@ -62,6 +62,9 @@ printf '%s\n' '{
     },
     {
       "source": "npm:pi-subagents"
+    },
+    {
+      "source": "npm:@zenspc/pi-pstack"
     }
   ]
 }' >"$HOME_DIR/.pi/agent/settings.json"

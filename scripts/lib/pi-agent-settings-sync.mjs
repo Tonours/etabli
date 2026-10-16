@@ -33,6 +33,7 @@ const legacySources = new Set([
   "npm:@tintinweb/pi-tasks",
   "npm:pi-hooks",
   "npm:glimpseui",
+  "npm:@zenspc/pi-pstack",
 ]);
 
 const deployLegacyModels = new Set([

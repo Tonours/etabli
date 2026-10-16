@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import path from "node:path";
 
 const [localPath, trackedPath, dryRunRaw, timestamp, mode] =
   process.argv.slice(2);
@@ -139,11 +140,36 @@ const liveMap =
   !Array.isArray(localSettings.skillOverrides)
     ? localSettings.skillOverrides
     : {};
+function surfaceSkillNames(skillsDir) {
+  if (!fs.existsSync(skillsDir)) return null;
+  const names = new Set();
+  const addSkill = (dir) => {
+    const skillFile = path.join(dir, "SKILL.md");
+    if (!fs.existsSync(skillFile)) return false;
+    names.add(path.basename(dir));
+    const declared = fs
+      .readFileSync(skillFile, "utf8")
+      .match(/^---\n[\s\S]*?^name:\s*["']?([^"'\n]+?)["']?\s*$/m);
+    if (declared) names.add(declared[1]);
+    return true;
+  };
+  for (const entry of fs.readdirSync(skillsDir)) {
+    const dir = path.join(skillsDir, entry);
+    if (addSkill(dir) || !fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory()) continue;
+    for (const child of fs.readdirSync(dir)) addSkill(path.join(dir, child));
+  }
+  return names;
+}
+
+const surfaceNames = surfaceSkillNames(path.join(path.dirname(localPath), "skills"));
 const mergedMap = Object.fromEntries(
   [
     ...Object.entries(liveMap).filter(
       ([name, state]) =>
-        !Object.hasOwn(trackedMap, name) && STATES.has(state) && state !== "on",
+        !Object.hasOwn(trackedMap, name) &&
+        STATES.has(state) &&
+        state !== "on" &&
+        (surfaceNames === null || surfaceNames.has(name)),
     ),
     ...Object.entries(trackedMap),
   ].sort(([a], [b]) => a.localeCompare(b)),

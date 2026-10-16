@@ -71,7 +71,12 @@
     }
   ],
   "skills": [
+    "!adonisjs-architecture",
+    "!adonisjs-backend",
     "!adonisjs-best-practices",
+    "!adonisjs-review",
+    "!adonisjs-testing",
+    "!adonisjs-tuyau",
     "!alambic-obvault",
     "!autoproject",
     "!brave-search",
