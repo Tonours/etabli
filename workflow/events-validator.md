@@ -35,7 +35,7 @@ non-terminal ledgers; an invalid historical record that already contains a
 terminal event is not an active run, while an invalid non-terminal candidate
 still fails closed. Terminal append clears the matching pointer.
 
-The Pi/Codex harness extensions are the single named exception to CLI-only
+The Pi harness extensions are the single named exception to CLI-only
 appends: their synchronous hot paths append schema_version 2 envelopes
 directly (same shape the CLI would accept); a shared serialized writer is a
 parked follow-up. Every line, whatever the writer, must validate. New appends

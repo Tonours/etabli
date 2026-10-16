@@ -1,8 +1,8 @@
 # Etabli
 
-One workflow contract for every local coding agent. `workflow/` holds the
-rules; Pi and Claude read them through thin adapters, and the skill catalog
-also feeds the shared `~/.agents`, Codex and Devin surfaces.
+One workflow contract for Pi and Claude Code. `workflow/` holds the rules;
+both harnesses read them through thin adapters, and Claude gets the `/etabli`
+cockpit on top.
 
 ## Quick start
 

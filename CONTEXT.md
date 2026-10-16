@@ -25,5 +25,5 @@ Skills suivies dans git mais jamais déployées (extras/) ; on les promeut en le
 _Avoid_: opt-in, vendor, archive
 
 **Surface**:
-Emplacement où un runtime charge des skills ou des commandes (~/.pi, ~/.claude, ~/.agents).
+Emplacement où un runtime charge des skills ou des commandes (~/.pi, ~/.claude).
 _Avoid_: target, destination

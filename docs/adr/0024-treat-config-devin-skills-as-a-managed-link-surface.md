@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded by ADR-0031
 date: 2026-09-10
 tags: [harness, devin, skills, vendor, install]
 affected_components: [scripts/lib/install-main.sh, scripts/deploy-agent-workflow, scripts/check-fix-symlinks.sh, docs/adr/0015]
+superseded_by: ADR-0031
 ---
 
 # Treat ~/.config/devin/skills as a managed link surface
@@ -22,3 +23,5 @@ Relying on the shared `~/.agents/skills` surface alone would leave Devin with on
 - Good, because Devin sees the same vendored suite as Claude and Codex plus the agents_visible Pi skills through `~/.agents/skills`.
 - Good, because the surface is owned: stale or out-of-scope links are pruned by the same machinery as the other surfaces.
 - Neutral, because a fifth harness would again need its own link block.
+
+Superseded by ADR-0031.

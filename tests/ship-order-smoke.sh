@@ -103,7 +103,7 @@ assert_contains "$SHIP" 'never a second row'
 assert_contains "$SHIP" 'no-ai-slop-detect'
 assert_contains "$SHIP" 'Pi — prose only'
 assert_contains "$SHIP" 'Claude — prose only'
-assert_contains "$SHIP" 'detect mode'
+if grep -qF 'Codex — ' "$SHIP"; then fail "retired Codex harness still in the F12 matrix"; fi
 assert_contains "$SHIP" '`pr_body_style` by chain'
 assert_contains "$SHIP" 'T7 entry criterion'
 
