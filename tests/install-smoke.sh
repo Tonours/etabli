@@ -397,15 +397,10 @@ fi
 smoke_converge_home="$tmp_dir/converge-home"
 mkdir -p "$smoke_converge_home/.pi/agent" "$smoke_converge_home/.pi"
 ln -s "$tmp_dir/missing-settings.json" "$smoke_converge_home/.pi/agent/settings.json"
-ln -s "$tmp_dir/legacy-damage-control.json" "$smoke_converge_home/.pi/damage-control-rules.json"
 HOME="$smoke_converge_home"
 converge_agent_surfaces >/dev/null
 if [ -L "$smoke_converge_home/.pi/agent/settings.json" ] || [ ! -f "$smoke_converge_home/.pi/agent/settings.json" ]; then
   print_error "agent convergence did not recover dangling Pi settings"
-  exit 1
-fi
-if [ -L "$smoke_converge_home/.pi/damage-control-rules.json" ]; then
-  print_error "agent convergence kept the legacy Pi damage-control link"
   exit 1
 fi
 if [ "$(readlink "$smoke_converge_home/.claude/statusline-command.sh")" != "$REPO_DIR/claude/statusline-command.sh" ]; then

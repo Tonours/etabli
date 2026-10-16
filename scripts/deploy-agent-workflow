@@ -30,8 +30,7 @@ usage() {
 Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
 
 Deploy only the Etabli-managed workflow and skill surfaces for Claude Code
-and Pi, and remove this checkout's links from the retired Codex, Devin and
-shared agents surfaces.
+and Pi.
 
 Options:
   --dry-run         Show planned changes without touching local harness files (default)
@@ -281,10 +280,6 @@ deploy_pi() {
 
   sync_pi_agent_settings
 
-  managed_surface_remove_symlink deploy \
-    "$HOME_DIR/.pi/damage-control-rules.json" \
-    "legacy Pi damage-control rules"
-
   while IFS= read -r skill; do
     [ -z "$skill" ] && continue
     link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.pi/agent/skills/$skill" "Pi skill $skill"
@@ -302,11 +297,6 @@ deploy_pi() {
     theme_name="$(basename "$theme_file")"
     link_path "$theme_file" "$HOME_DIR/.pi/agent/themes/$theme_name" "Pi theme $theme_name"
   done
-}
-
-prune_retired_surfaces() {
-  status_line SECTION "Retired surfaces"
-  managed_surface_prune_retired_surfaces deploy "$REPO_DIR" "$HOME_DIR"
 }
 
 deploy_vendor_skills() {
@@ -474,7 +464,6 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   CLAUDE_ROOT="$HOME_DIR/.claude"
   export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
   deploy_pi
-  prune_retired_surfaces
   deploy_vendor_skills
   deploy_claude
   if [ "$HOME_DIR" = "$HOME" ] && config_root="$(claude_config_dir_override)"; then
