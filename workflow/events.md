@@ -59,7 +59,7 @@ Ship outcomes are recorded via `ship_completed` (one per ship run, emitted at re
 
 | Type | Detail | Emitter | Moment | Consumer |
 | --- | --- | --- | --- | --- |
-| ship_completed | 5 records + escaped count + URL + CI state (8 detail fields) | ship runner (step 14) | report (success or arrêt) | ship profiles (`ship-completed`/`ship-stopped`), report audit, metrics registry join |
+| ship_completed | 5 records + escaped count + URL + CI state (8 detail fields) | ship runner (step 14) | report (success or arrêt) | ship profiles (`ship-completed`/`ship-stopped`), report audit |
 
 New events use envelope `schema_version:2` enforced by
 `scripts/lib/workflow-event-detail.jq`; version 1 and legacy envelopes stay

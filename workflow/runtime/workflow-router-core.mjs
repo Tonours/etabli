@@ -5,9 +5,6 @@ import { parsePlanStatus } from "../../scripts/lib/plan-status.mjs";
 
 export { parsePlanStatus };
 
-export const COMPACT_INSTRUCTIONS =
-	"When compacting, keep the root `PLAN.md` subject and status, the active ledger run, files modified, frozen check commands and last results, open findings, and the exact next action. Drop stale exploration output.";
-
 const REVIEW_TERMS = "review(?:er|ing)?|revue|relis|audit|critique|findings?";
 const REVIEW_PATTERN = new RegExp(`\\b(${REVIEW_TERMS})\\b`);
 const EXPLICIT_REVIEW_PATTERN =
@@ -616,14 +613,6 @@ function isReadOnlyPipelineSegment(segment) {
 export function isReadOnlyBashCommand(command) {
 	const segments = splitReadOnlyPipeline(command);
 	return Boolean(segments && segments.every(isReadOnlyPipelineSegment));
-}
-
-export function readHookInput() {
-	try {
-		return JSON.parse(readFileSync(0, "utf8") || "{}") || {};
-	} catch {
-		return {};
-	}
 }
 
 export function readPlanStatus(cwd) {

@@ -16,7 +16,7 @@ Claude Code-specific files for `etabli`.
 - `scopes/<scope>/skills/*` -> `~/.claude/skills/`
 - `scopes/<scope>/agents/*.md` -> `~/.claude/agents/`
 - `scopes/<scope>/scripts/*` -> `~/.claude/scripts/`
-- `hooks/*` (`.mjs` + `.sh`) -> `~/.claude/hooks/`
+- `hooks/*.mjs` -> `~/.claude/hooks/`
 - `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
 - `statusline-command.sh` -> `~/.claude/statusline-command.sh` (shows context as `ctx:<N>k` input tokens of the last API call, from `current_usage` then `total_input_tokens`, yellow from 150k and red from 300k, with a percentage fallback)
 - selected shared docs from `../workflow/` -> `~/.claude/`

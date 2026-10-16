@@ -14,6 +14,8 @@ core	shell-docs	guards-active	tests/guards-active-smoke.sh
 core	shell-docs	adapter-sync	tests/adapter-sync-smoke.sh
 core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 core	shell-docs	guard-journal-smoke	tests/guard-journal-smoke.sh
+full	shell-docs	guard-journal-isolation-smoke	tests/guard-journal-isolation-smoke.sh
+full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
 full	shell-docs	ledger-selection-performance-smoke	tests/ledger-selection-performance-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
