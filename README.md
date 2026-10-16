@@ -17,12 +17,11 @@ scripts/verify-agentic-infra core        # every check should PASS
 - The Claude hooks are merged into your live `settings.json` rather than linked,
   because that file can hold secrets. Rerun the merge after a deploy that adds a
   hook.
-- Editor and terminal config live in [dotfiles](https://github.com/Tonours/dotfiles)
-  (`scripts/fix-links --fix` there).
+- Editor and terminal tooling and config live in [dotfiles](https://github.com/Tonours/dotfiles)
+  (`scripts/install-editor`, then `scripts/fix-links --fix` there).
 - Pi is pinned to `@earendil-works/pi-coding-agent@1.0.3`; fresh installation reads the exact version from `pi/package.json`. The installer uses your
   existing Node.js, preferring `asdf` when available; it never installs Node.
 - [Subscription model routing](docs/adr/0029-subscription-model-routing.md) records the task/model choices and Muse terms boundary; the [registry](workflow/runtime/model-routing.json) keeps active selections consistent.
-- Optional diff tooling: `hunkdiff`, from the CLI or a tmux pane.
 
 ## What you get
 
