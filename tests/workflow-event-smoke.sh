@@ -830,7 +830,7 @@ EOF
 RR_DIR="$TMP_DIR/rr/.workflow"
 rr() { "$ROOT_DIR/scripts/workflow-event" --dir "$RR_DIR" "$@"; }
 rr_adversary() {
-  rr append "$1" adversary_completed "$(jq -nc --arg v "$2" --argjson a "$3" --argjson p "$PROV_OK" '{mode:"code_diff",verdict:$v,accepted_findings:($a | map({finding: ., blocking: false})),rejected_findings:[],model_provenance:$p}')"
+  rr append "$1" adversary_completed "$(jq -nc --arg v "$2" --argjson a "$3" --argjson b "${4:-false}" --argjson p "$PROV_OK" '{mode:"code_diff",verdict:$v,accepted_findings:($a | map({finding: ., blocking: $b})),rejected_findings:[],model_provenance:$p}')"
 }
 rr_step() {
   local slug="$1" step="$2" tag outcome status
@@ -838,6 +838,9 @@ rr_step() {
     A) rr_adversary "$slug" GO '[]' ;;
     A!) rr_adversary "$slug" BLOCK '["x"]' ;;
     A+) rr_adversary "$slug" "GO WITH NOTES" '["x"]' ;;
+    AB) rr_adversary "$slug" "GO WITH NOTES" '["x"]' true ;;
+    V) rr append "$slug" validation_run '{"command":"c","exit":0}' ;;
+    C:*) rr append "$slug" file_changed "$(jq -nc --arg p "${step#C:}" '{path:$p,change:"smoke"}')" ;;
     U) rr append "$slug" review_completed '{"status":"GO","evidence":"smoke"}' ;;
     blocked) rr append "$slug" blocked '{"reason":"review_requested","needed_input":"new review run"}' ;;
     *)
@@ -870,31 +873,35 @@ rr_refused() {
   [ "$(cat "$RR_DIR/$slug/events.jsonl")" = "$before" ] || { printf 'review rounds %s: refused append changed the ledger\n' "$slug" >&2; exit 1; }
 }
 
-rr_valid rr-ok-tf A T1:clean A F1:clean
-rr_valid rr-ok-notes-clean A T1:clean A "F1:clean:GO WITH NOTES"
-rr_valid rr-ok-notes A+ T1:findings A T2:clean A F1:clean
-rr_valid rr-ok-dd A T1:findings A T2:findings D1:findings D2:findings A F1:clean
-rr_valid rr-ok-fd A T1:clean A! F1:findings FD:findings A F2:clean
-rr_valid rr-ok-2d A T1:findings A T2:findings D1:clean A! F1:findings FD:clean A F2:clean
-rr_valid rr-ok-dwiden A T1:findings A T2:findings D1:widening blocked
+# New machine: only blocking findings spend a round, a clean round validates.
+rr_valid rr-ok-t1 A T1:clean
+rr_valid rr-clean-notes A+ T1:clean
+rr_valid rr-ok-notes A+ T1:findings A T2:clean
+rr_valid rr-ok-dd A T1:findings A T2:findings A D1:findings A D2:clean
+rr_valid rr-ok-fold A T1:clean C:app.mjs D1:clean
+rr_valid rr-ok-fold-t A T1:clean C:app.mjs D1:widening A T2:clean
+rr_valid rr-ok-fresh A T1:findings A C:app.mjs A T2:clean
+rr_valid rr-ok-dwiden A T1:findings A T2:findings A D1:widening blocked
 rr_valid rr-ok-untagged U U
-rr_valid rr-ok-f2block A T1:clean A F1:findings FD:findings A F2:findings blocked
 rr_steps rr-ok-legacy-round
 rr append rr-ok-legacy-round review_completed '{"status":"GO","evidence":"smoke","round":2}' >/dev/null
 rr validate rr-ok-legacy-round >/dev/null
 
 rr_refused rr-skip "review round D1 (#2) is not allowed here; admitted next: T2" D1:findings A T1:findings
 rr_refused rr-twice "review round T1 (#2) is already spent; admitted next: T2" T1:clean A T1:findings A
-rr_refused rr-third-d "review round FD (#6) follows a blocked review budget; admitted next: none" FD:clean A T1:findings A T2:findings D1:findings D2:findings A F1:findings
-rr_refused rr-after-ok "review round T2 (#3) follows a validated review budget; admitted next: none" T2:findings A T1:clean A F1:clean
+rr_refused rr-exhausted "review round D1 (#5) follows a blocked review budget; admitted next: none" D1:clean A T1:findings A T2:findings A D1:findings A D2:findings A
+rr_refused rr-widen-exhausted "review round D2 (#4) follows a blocked review budget; admitted next: none" D2:clean A T1:findings A T2:findings A D1:widening A
 rr_refused rr-untagged "review_completed #2 after activation has no review_round; admitted next: T2" U A T1:findings
-rr_refused rr-d2-widen "review round F1 (#5) follows a blocked review budget; admitted next: none" F1:clean A T1:findings A T2:findings D1:findings D2:widening A
-rr_refused rr-d1-widen "review round F1 (#4) follows a blocked review budget; admitted next: none" F1:clean A T1:findings A T2:findings D1:widening A
 rr_refused rr-no-adversary "review round T1 (#1) has no code_diff adversary_completed since the previous round; admitted next: T1" T1:clean
-rr_refused rr-clean-block "review round F1 (#2) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: F1" F1:clean A T1:clean A!
-rr_refused rr-clean-blocked-review "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean:BLOCK A
-rr_refused rr-clean-accepted "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1" T1:clean A+
-rr_refused rr-late-adversary "code_diff adversary_completed after the closing clean round F1 (#2); admitted next: none" A+ A T1:clean A F1:clean
+rr_refused rr-clean-block "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an accepted_findings array free of blocking findings; admitted next: T1" T1:clean A!
+rr_refused rr-clean-blocked-review "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an accepted_findings array free of blocking findings; admitted next: T1" T1:clean:BLOCK A
+rr_refused rr-clean-blocking "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an accepted_findings array free of blocking findings; admitted next: T1" T1:clean AB
+rr_refused rr-complete-fold-blocking "review round D1 (#2) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an accepted_findings array free of blocking findings; admitted next: D1 or T2" D1:clean A T1:clean AB C:app.mjs
+rr_refused rr-d-after-findings-no-adversary "review round D1 (#3) has no code_diff adversary_completed since the previous round; admitted next: D1" D1:findings A T1:findings A T2:findings
+rr_refused rr-d-contractual-no-adversary "review round D1 (#2) has no code_diff adversary_completed since the previous round; admitted next: D1 or T2" D1:clean A T1:clean C:scripts/lib/x.jq
+rr_refused rr-stale-adversary "review round T2 (#2) has no code_diff adversary_completed after the last file_changed of its round; admitted next: T2" T2:clean A T1:findings A C:app.mjs
+rr_refused rr-f1-new-ledger "review round F1 (#2) is not allowed here; admitted next: D1 or T2" F1:clean A T1:clean A
+rr_refused rr-late-adversary "code_diff adversary_completed after the closing clean round D2 (#4); admitted next: none" A A T1:clean D1:clean A T2:clean D2:clean
 rr_steps rr-unknown
 out="$(expect_status 2 rr append rr-unknown review_completed '{"status":"GO","evidence":"smoke","review_round":"T3","round_outcome":"clean"}')"
 assert_contains "$out" "invalid json detail for event review_completed"
@@ -924,12 +931,31 @@ rr_complete() {
   rr append "$slug" archive_written '{"path":"docs/plan/x.md"}' >/dev/null
   rr append "$slug" plan_removed '{"path":"PLAN.md"}' >/dev/null
 }
-rr_complete rr-complete-ok A T1:clean A F1:clean
-rr append rr-complete-ok completed '{"summary":"smoke"}' >/dev/null
-rr validate rr-complete-ok --profile autonomous-completed >/dev/null
-rr_complete rr-complete-open A T1:clean
+rr_complete rr-complete-t1 A T1:clean
+rr append rr-complete-t1 completed '{"summary":"smoke"}' >/dev/null
+rr validate rr-complete-t1 --profile autonomous-completed >/dev/null
+rr_complete rr-complete-open A T1:findings
 out="$(expect_status 1 rr append rr-complete-open completed '{"summary":"smoke"}')"
-assert_contains "$out" "completed requires a clean final F1 or F2 review round (budget is open); admitted next: F1"
+assert_contains "$out" "completed requires a clean closing review round (budget is open); admitted next: T2"
+rr_complete rr-complete-late A T1:clean A
+out="$(expect_status 1 rr append rr-complete-late completed '{"summary":"smoke"}')"
+assert_contains "$out" "code_diff adversary_completed after the closing clean round T1 (#1); admitted next: D1 or T2"
+# AC-5: a fold closed by an adversary-free D round completes; the round machine
+# owns adversary freshness, and the batch mirror agrees with the CLI.
+rr_complete rr-complete-fold A T1:clean C:app.mjs V D1:clean
+rr append rr-complete-fold completed '{"summary":"smoke"}' >/dev/null
+rr validate rr-complete-fold --profile autonomous-completed >/dev/null
+rr_complete rr-profile-stale A C:app.mjs V U
+jq -nc '{schema_version:2,ts:"2099-01-01T00:00:00Z",event:"completed",run:"rr-profile-stale",detail:{summary:"smoke"}}' >>"$RR_DIR/rr-profile-stale/events.jsonl"
+out="$(expect_status 1 rr validate rr-profile-stale --profile autonomous-completed)"
+assert_contains "$out" "requires non-blocking code_diff adversary after last file change"
+rr_batch() {
+  jq -Rrs --arg mode batch --arg slug "$1" --arg profile autonomous-completed \
+    --argjson allowed "$t5_allowed" -f "$ROOT_DIR/scripts/lib/workflow-event-detail.jq" \
+    "$RR_DIR/$1/events.jsonl" | head -1
+}
+[ "$(rr_batch rr-complete-fold)" = "OK" ] || { printf 'batch jq rejected a new-machine fold completion\n' >&2; exit 1; }
+[ "$(rr_batch rr-profile-stale)" = "ERR" ] || { printf 'batch jq accepted a stale adversary on an untagged ledger\n' >&2; exit 1; }
 
 rr_ledger() {
   local slug="$1" line
@@ -943,6 +969,26 @@ rr_ledger() {
 rr_route='{"schema_version":2,"event":"route_decided","detail":{"route":"plan-implement","reason":"smoke"}}'
 rr_go='{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"GO","accepted_findings":[],"rejected_findings":[]}}'
 rr_round() { jq -nc --arg t "$1" --arg o "$2" --arg s "$3" '{schema_version:2,event:"review_completed",detail:{status:$s,evidence:"smoke",review_round:$t,round_outcome:$o}}'; }
+# Legacy history: ledgers that already hold F1/F2/FD keep the former T→F machine.
+rr_legacy_valid() {
+  local slug="$1"
+  shift
+  rr_ledger "$slug" "$rr_route" "$@"
+  rr validate "$slug" >/dev/null || { printf 'review rounds %s: legacy history rejected\n' "$slug" >&2; exit 1; }
+}
+rr_block='{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"BLOCK","accepted_findings":["x"],"rejected_findings":[]}}'
+rr_legacy_valid rr-legacy-tf "$rr_go" "$(rr_round T1 clean GO)" "$rr_go" "$(rr_round F1 clean GO)"
+rr_legacy_valid rr-legacy-dd "$rr_go" "$(rr_round T1 findings BLOCK)" "$rr_go" "$(rr_round T2 findings BLOCK)" \
+  "$(rr_round D1 findings BLOCK)" "$(rr_round D2 findings BLOCK)" "$rr_go" "$(rr_round F1 clean GO)"
+rr_legacy_valid rr-legacy-fd "$rr_go" "$(rr_round T1 clean GO)" "$rr_block" "$(rr_round F1 findings BLOCK)" \
+  "$(rr_round FD findings BLOCK)" "$rr_go" "$(rr_round F2 clean GO)"
+rr_ledger rr-legacy-after-ok "$rr_route" "$rr_go" "$(rr_round T1 clean GO)" "$rr_go" "$(rr_round F1 clean GO)" "$rr_go" "$(rr_round T2 findings BLOCK)"
+out="$(expect_status 1 rr validate rr-legacy-after-ok)"
+assert_contains "$out" "review round T2 (#3) follows a validated review budget; admitted next: none"
+rr_ledger rr-legacy-append "$rr_route" "$rr_go" "$(rr_round T1 clean GO)" "$rr_block" "$(rr_round F1 findings BLOCK)"
+jq -c '.ts = "2000-01-01T00:00:00Z"' "$RR_DIR/rr-legacy-append/events.jsonl" >"$RR_DIR/rr-legacy-append/events.tmp"
+mv "$RR_DIR/rr-legacy-append/events.tmp" "$RR_DIR/rr-legacy-append/events.jsonl"
+rr_step rr-legacy-append FD:findings >/dev/null
 rr_ledger rr-read-skip "$rr_route" "$rr_go" "$(rr_round T1 findings BLOCK)" "$(rr_round D1 findings BLOCK)"
 out="$(expect_status 1 rr validate rr-read-skip)"
 assert_contains "$out" "review round D1 (#2) is not allowed here; admitted next: T2"
@@ -958,17 +1004,17 @@ rr_ledger rr-read-v1-adversary "$rr_route" \
   '{"schema_version":1,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"GO","accepted":["finding"]}}' \
   "$(rr_round T1 clean GO)"
 out="$(expect_status 1 rr validate rr-read-v1-adversary)"
-assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1"
+assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an accepted_findings array free of blocking findings; admitted next: T1"
 rr_ledger rr-read-challenged "$rr_route" \
   '{"schema_version":2,"event":"adversary_completed","detail":{"mode":"code_diff","verdict":"CHALLENGED","accepted_findings":[],"rejected_findings":[]}}' \
   "$(rr_round T1 clean GO)"
 out="$(expect_status 1 rr validate rr-read-challenged)"
-assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an empty accepted_findings array; admitted next: T1"
-rr_ledger rr-read-legacy-completed "$rr_route" "$rr_go" "$(rr_round T1 clean GO)" \
+assert_contains "$out" "review round T1 (#1) is declared clean but its review is BLOCK or an adversary of the round is not GO/GO WITH NOTES with an accepted_findings array free of blocking findings; admitted next: T1"
+rr_ledger rr-read-legacy-completed "$rr_route" "$rr_go" "$(rr_round T1 findings BLOCK)" \
   '{"schema_version":1,"event":"completed","detail":{"summary":"smoke"}}' \
   '{"schema_version":1,"event":"human_checkpoint","detail":{"category":"x","decision":"y","target":"z"}}'
 out="$(expect_status 1 rr validate rr-read-legacy-completed)"
-assert_contains "$out" "completed requires a clean final F1 or F2 review round (budget is open); admitted next: F1"
+assert_contains "$out" "completed requires a clean closing review round (budget is open); admitted next: T2"
 rr_ledger rr-read-string-version '{"schema_version":"2","event":"route_decided","detail":{"route":"plan-implement","reason":"smoke"}}' "$rr_go" \
   "$(rr_round T1 findings BLOCK)" "$(rr_round D1 findings BLOCK)"
 out="$(expect_status 1 rr validate rr-read-string-version)"

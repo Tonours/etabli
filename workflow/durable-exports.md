@@ -3,7 +3,7 @@
 On-demand identity and lock contract for the canonical workflow event writer;
 agent-facing event types remain in `workflow/events.md`.
 
-Native `pi/durable` issues routes via CLI; its standalone review uses canonical T/D/F.
+Native `pi/durable` issues routes via CLI; its standalone review uses the canonical T/D rounds (F rounds are legacy-only).
 
 After structural validation, optional `detail.export_id` is checked under
 that lock against the exact original request. When product enrichment changes
@@ -24,7 +24,7 @@ Native Durable coordination acknowledges an export only after this operation.
 Writer timestamps are excluded from equality. Identity does not reset rounds
 or authorize rewriting history; it reconciles append-before-acknowledgement
 crashes. Native standalone reviews use `contract_path: "pi/durable"` with the
-existing T/D/F limits.
+existing T/D limits.
 
 Backend selection prefers `lockf`, then `flock`, then `shlock`, and fails
 if none is available; `WORKFLOW_EVENT_LOCK_BACKEND` can select a backend.

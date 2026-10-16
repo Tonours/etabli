@@ -259,7 +259,7 @@ validate_ledger_file() {
 
 
   validate_autonomous_completion_evidence() {
-    local label="$1" evidence_indices last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict
+    local label="$1" evidence_indices round_machine last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict
     evidence_indices="$(jq -s -r '
       to_entries as $entries
       | ([$entries[] | select(.value.event == "file_changed")] | last // null) as $change
@@ -271,7 +271,11 @@ validate_ledger_file() {
       | ([$entries[] | select(.value.event == "review_completed")] | last // null) as $review
       | ([$entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "code_diff")] | last // null) as $code
       | ([$entries[] | select(.value.event == "adversary_completed" and .value.detail.mode == "plan")] | last // null) as $plan
+      | ([$entries[].value | select(.event == "review_completed") | ((.detail | objects | .review_round) // null)]) as $rounds
+      | (any($entries[].value; (.schema_version | tostring) == "2" and .event == "route_decided" and .detail.route == "plan-implement")
+         and any($rounds[]; IN("T1", "T2", "D1", "D2")) and (any($rounds[]; IN("F1", "F2", "FD")) | not)) as $round_machine
       | [
+          (if $round_machine then 1 else 0 end),
           ($change.key // -1),
           ($attempts | length),
           (if ($latest_attempts | length) > 0 and all($latest_attempts[]; .value.event == "validation_run" and .value.detail.exit == 0) then 1 else 0 end),
@@ -281,14 +285,15 @@ validate_ledger_file() {
         ]
       | @tsv
     ' "$file")" || return 1
-    IFS=$'\t' read -r last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict <<< "$evidence_indices"
+    IFS=$'\t' read -r round_machine last_change validation_attempts validation_ready last_review review_status last_code_adversary code_adversary_verdict last_plan_adversary plan_adversary_verdict <<< "$evidence_indices"
     [ "$validation_attempts" -gt 0 ] || { printf 'profile %s requires validation after last file change\n' "$label" >&2; return 1; }
     [ "$validation_ready" = "1" ] || { printf 'profile %s requires every latest validation attempt per command to succeed\n' "$label" >&2; return 1; }
     case "$review_status" in GO|"GO WITH NOTES") ;; *) printf 'profile %s requires the latest review_completed verdict to be non-blocking\n' "$label" >&2; return 1 ;; esac
     case "$plan_adversary_verdict" in READY|GO|"GO WITH NOTES") ;; *) printf 'profile %s requires the latest plan adversary verdict to be non-blocking\n' "$label" >&2; return 1 ;; esac
     case "$code_adversary_verdict" in GO|"GO WITH NOTES") ;; *) printf 'profile %s requires the latest code_diff adversary verdict to be non-blocking\n' "$label" >&2; return 1 ;; esac
     [ "$last_review" -gt "$last_change" ] || { printf 'profile %s requires non-blocking review after last file change\n' "$label" >&2; return 1; }
-    [ "$last_code_adversary" -gt "$last_change" ] || { printf 'profile %s requires non-blocking code_diff adversary after last file change\n' "$label" >&2; return 1; }
+    # Tagged new-machine ledgers: review-rounds.jq owns per-round adversary freshness.
+    [ "$round_machine" = "1" ] || [ "$last_code_adversary" -gt "$last_change" ] || { printf 'profile %s requires non-blocking code_diff adversary after last file change\n' "$label" >&2; return 1; }
   }
 
   # Single-sourced success-form predicate (operates on one ledger line):
@@ -340,7 +345,7 @@ validate_ledger_file() {
 
 review_rounds_valid() {
   local error
-  error="$(jq -s -r -f "$REVIEW_ROUNDS")" || return 1
+  error="$(jq -s -r "$@" -f "$REVIEW_ROUNDS")" || return 1
   [ -z "$error" ] || { printf '%s\n' "$error" >&2; return 1; }
 }
 
@@ -765,7 +770,7 @@ append_locked_body() {
     '{schema_version:2,ts:$ts,event:$event,run:$run,detail:$detail}')"
   if [ "$event" != "blocked" ] && [ -f "$file" ]; then
     local history
-    history="$(cat "$file")" && printf '%s\n%s\n' "$history" "$event_line" | review_rounds_valid || {
+    history="$(cat "$file")" && printf '%s\n%s\n' "$history" "$event_line" | review_rounds_valid --argjson append true || {
       printf 'refusing %s append: review rounds check failed\n' "$event" >&2
       return 1
     }
