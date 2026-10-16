@@ -3,7 +3,8 @@
 On-demand identity and lock contract for the canonical workflow event writer;
 agent-facing event types remain in `workflow/events.md`.
 
-Native `pi/durable` issues routes via CLI; its standalone review uses the canonical T/D rounds (F rounds are legacy-only).
+An exporter is any caller that replays events it already holds into the
+ledger and must not append them twice.
 
 After structural validation, optional `detail.export_id` is checked under
 that lock against the exact original request. When product enrichment changes
@@ -14,17 +15,16 @@ binds the ID and all non-product fields, validates the original event payload
 and refuses redundant, nested or malformed markers. Legacy receipts retain
 exact detail comparison. Repeat admission precedes re-evaluation of the plan
 and hash precondition, so an already committed request can recover its ACK.
-The original request is private ledger evidence and never a mobile projection.
+The original request is private ledger evidence and is never projected.
 
 The existing event/run and exact original detail are compared under the lock.
 One identical export returns
 the original success before terminal/round checks; a different payload is a
 collision. The batch validator also rejects duplicate v2 export identities.
-Native Durable coordination acknowledges an export only after this operation.
+An exporter acknowledges an export only after this operation.
 Writer timestamps are excluded from equality. Identity does not reset rounds
 or authorize rewriting history; it reconciles append-before-acknowledgement
-crashes. Native standalone reviews use `contract_path: "pi/durable"` with the
-existing T/D limits.
+crashes.
 
 Backend selection prefers `lockf`, then `flock`, then `shlock`, and fails
 if none is available; `WORKFLOW_EVENT_LOCK_BACKEND` can select a backend.

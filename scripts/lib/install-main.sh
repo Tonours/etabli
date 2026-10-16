@@ -1002,11 +1002,15 @@ install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
 install_script "claude-lean" || true
 install_script "claude-full" || true
-install_script "pi-durable" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness
     print_success "Removed legacy deploy-harness link"
+fi
+
+if [ -L ~/.local/bin/pi-durable ]; then
+    rm -f ~/.local/bin/pi-durable
+    print_success "Removed retired pi-durable link"
 fi
 
 prefer_cursor_agent_remove_grok_collision "$HOME"

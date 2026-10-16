@@ -72,8 +72,5 @@ jobs:
           cd pi
           bun install --frozen-lockfile
 
-      - name: Install Pi durable test dependencies
-        run: npm ci --prefix pi/durable
-
       - name: Canonical Pi parity group
         run: scripts/verify-agentic-infra pi
