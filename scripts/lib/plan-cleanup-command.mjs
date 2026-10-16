@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const CENTRAL_CLEANUP = fileURLToPath(new URL("../plan-cleanup", import.meta.url));
 
-export function closedShellWords(command) {
+function closedShellWords(command) {
   if (!command || /[;$`\\\n\r|<>]/.test(command)) return null;
   const pattern = /[ \t]*(?:'([^']*)'|"([^"]*)"|([^ \t'"]+))(?=[ \t]|$)/gy;
   const values = [];

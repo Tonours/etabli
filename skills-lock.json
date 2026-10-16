@@ -61,11 +61,6 @@
       "sourceType": "repo",
       "computedHash": "fdee9cd2a14cb086bc94ff666aded10976dc33d76cb865978420046eb822e7ed"
     },
-    "grill-me": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "0d8ee81d31d3b64c85dadba763bcfea97ba02c4901c021fa1c490eaccfbce1b1"
-    },
     "thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",

@@ -18,7 +18,6 @@ linear-project-setup	pi	0	1
 linear-ticket-create	pi	1	1
 linear-work	pi	1	1
 write-direct	pi	1	1
-grill-me	extras	0	1
 react-doctor-100	extras	0	1
 code-quality	pi	1	0
 coolify	extras	0	1
