@@ -15,7 +15,6 @@ BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 # ============================================================================
 # VERSIONS (centralized for maintenance)
 # ============================================================================
-readonly NERD_FONT_VERSION="v3.4.0"
 readonly PI_AGENT_NPM_PINS=(
     "vscode-languageserver-protocol@3.17.5"
 )
@@ -165,22 +164,6 @@ select_node_runtime() {
 }
 
 # Download helper with retries
-download_with_retry() {
-    local url="$1"
-    local output="$2"
-    local retries=3
-
-    while [ $retries -gt 0 ]; do
-        if curl -fsSLo "$output" "$url"; then
-            return 0
-        fi
-        retries=$((retries - 1))
-        [ $retries -gt 0 ] && print_warning "Download failed, retrying... ($retries left)" && sleep 2
-    done
-    print_error "Failed to download: $url"
-    return 1
-}
-
 # Script install helper (symlink to repo)
 install_script() {
     local script="$1"
@@ -194,32 +177,6 @@ install_script() {
         return 0
     fi
     return 1
-}
-
-install_npm_global_binary_link() {
-    local binary="$1"
-    local prefix target
-
-    if command -v "$binary" >/dev/null 2>&1; then
-        print_success "$binary available"
-        return 0
-    fi
-
-    prefix="$("${NPM_CMD[@]}" config get prefix 2>/dev/null || true)"
-    if [ -z "$prefix" ]; then
-        print_warning "Could not resolve npm prefix for $binary"
-        return 1
-    fi
-
-    target="$prefix/bin/$binary"
-    if [ ! -x "$target" ]; then
-        print_warning "$binary not found after npm install"
-        return 1
-    fi
-
-    mkdir -p "$HOME/.local/bin"
-    ln -sf "$target" "$HOME/.local/bin/$binary"
-    print_success "$binary linked into ~/.local/bin"
 }
 
 pi_coding_agent_spec() {
@@ -371,57 +328,26 @@ if [[ "$OS" == "mac" ]]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
-    brew install neovim tmux git ripgrep fd fzf jq lazygit mosh lua-language-server || {
+    brew install git ripgrep fd jq || {
         print_warning "Some brew packages may have failed"
     }
-    brew upgrade neovim 2>/dev/null || true
-
-    brew tap homebrew/cask-fonts 2>/dev/null || true
-    brew install --cask font-caskaydia-mono-nerd-font 2>/dev/null || true
 
 elif [[ "$OS" == "debian" ]]; then
     sudo apt update
-    sudo apt install -y curl wget git unzip ripgrep fd-find fzf jq build-essential make neovim tmux xclip mosh || {
+    sudo apt install -y curl git unzip ripgrep fd-find jq || {
         print_warning "Some apt packages may have failed"
-    }
-    sudo apt install -y lua-language-server 2>/dev/null || {
-        print_warning "lua-language-server package unavailable from apt"
     }
 
     if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
         sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd || print_warning "Could not create fd symlink"
     fi
 
-    if ! command -v lazygit &>/dev/null; then
-        print_step "Installing Lazygit..."
-        LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' || true)
-        if [ -n "$LAZYGIT_VERSION" ]; then
-            (
-                cd /tmp || exit 1
-                if download_with_retry \
-                    "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz" \
-                    "lazygit.tar.gz"; then
-                    tar xf lazygit.tar.gz lazygit
-                    sudo install lazygit /usr/local/bin
-                    rm -f lazygit lazygit.tar.gz
-                fi
-            )
-        else
-            print_warning "Could not fetch lazygit version from GitHub API"
-        fi
-    fi
-
 elif [[ "$OS" == "redhat" ]]; then
-    sudo dnf install -y neovim tmux git ripgrep fd fzf make gcc jq unzip curl mosh || {
+    sudo dnf install -y git ripgrep fd jq unzip curl || {
         print_warning "Some dnf packages may have failed"
     }
-    sudo dnf install -y lua-language-server 2>/dev/null || {
-        print_warning "lua-language-server package unavailable from dnf"
-    }
 elif [[ "$OS" == "arch" ]]; then
-    sudo pacman -Sy --needed --noconfirm \
-        curl wget git unzip ripgrep fd fzf jq base-devel make neovim tmux \
-        wl-clipboard xclip mosh lazygit lua-language-server || {
+    sudo pacman -Sy --needed --noconfirm curl git unzip ripgrep fd jq || {
         print_warning "Some pacman packages may have failed"
     }
 fi
@@ -456,65 +382,6 @@ fi
 if ! select_node_runtime; then
     exit 1
 fi
-
-# ============================================================================
-# INSTALL NPM TOOLS
-# ============================================================================
-print_step "Installing npm tools..."
-
-if "${NPM_CMD[@]}" install -g \
-    typescript \
-    typescript-language-server \
-    prettier \
-    eslint \
-    intelephense \
-    vscode-langservers-extracted \
-    yaml-language-server \
-    @astrojs/language-server \
-    @glint/core \
-    @github/copilot-language-server \
-    hunkdiff \
-    @ember-tooling/ember-language-server \
-    @tailwindcss/language-server; then
-    reshim_asdf_node
-    print_success "NPM tools installed"
-else
-    reshim_asdf_node
-    print_warning "Some npm packages may have failed to install"
-fi
-install_npm_global_binary_link "hunk" || true
-install_npm_global_binary_link "hunkdiff" || true
-
-# ============================================================================
-# INSTALL NERD FONT
-# ============================================================================
-print_step "Installing Nerd Font..."
-
-mkdir -p ~/.local/share/fonts
-
-(
-    cd ~/.local/share/fonts || exit 1
-
-    if [ ! -f "CaskaydiaMonoNerdFont-Regular.ttf" ]; then
-        if download_with_retry \
-            "https://github.com/ryanoasis/nerd-fonts/releases/download/${NERD_FONT_VERSION}/CascadiaMono.zip" \
-            "CascadiaMono.zip"; then
-            if unzip -tq CascadiaMono.zip >/dev/null 2>&1; then
-                unzip -qo CascadiaMono.zip
-                rm -f CascadiaMono.zip
-            else
-                print_warning "Font zip corrupted, removing"
-                rm -f CascadiaMono.zip
-            fi
-        fi
-    fi
-)
-
-if [[ "$OS" != "mac" ]]; then
-    fc-cache -fv >/dev/null 2>&1 || true
-fi
-
-print_success "Nerd Font installed"
 
 # ============================================================================
 # SETUP AGENT WORKFLOW SURFACES
@@ -573,43 +440,9 @@ if [[ "$SHELL" == *"zsh"* ]]; then
 else
     printf "  1. Reload shell:     ${YELLOW}source ~/.bashrc${NC}\n"
 fi
-printf "  2. Start Neovim:     ${YELLOW}nvim${NC}\n"
-printf "  3. Auth Copilot:     ${YELLOW}:LspCopilotSignIn${NC} in a Neovim project buffer\n"
-printf "  4. Start Tmux:       ${YELLOW}tmux${NC}\n"
-printf "  5. Install plugins:  ${YELLOW}prefix + I${NC} (Ctrl+b then I)\n"
-echo ""
-echo "-------------------------------------------------------------------"
-echo ""
-printf "  ${BLUE}Remote Connection (Mosh):${NC}\n"
-printf "  From your Mac:   ${YELLOW}mosh user@your-vps.com${NC}\n"
-printf "  Firewall VPS:    ${YELLOW}sudo ufw allow 60000:61000/udp${NC}\n"
-echo ""
-echo "-------------------------------------------------------------------"
-echo ""
-printf "  ${BLUE}Neovim Defaults:${NC}\n"
-printf "  Leader          Space\n"
-printf "  Files / Grep    <leader><space> / <leader>/\n"
-printf "  Buffers         <leader>.\n"
-printf "  Explorer        <leader>ft / <leader>fe\n"
-printf "  Projects        <leader>pp / <leader>pr / <leader>pi\n"
-printf "  Sessions        <leader>ps / <leader>pl\n"
-printf "  Project files   <leader>fp\n"
-printf "  Aliases         <leader>ff / <leader>fg / <leader>fb\n"
-printf "  Copilot         Native inline: Tab/<A-l> accept, <A-]> / <A-[> cycle, :CopilotToggle\n"
-printf "  Doctor          :EtabliDoctor\n"
-printf "  Complete        <C-n> / <C-p> / <CR>\n"
-printf "  Format          <leader>cf\n"
-printf "  LSP rename      <leader>rn (buffer-local)\n"
-printf "  Code action     <leader>ca (buffer-local)\n"
-printf "  Help            Minimal which-key on leader maps\n"
-printf "  Notes           See nvim/README.md\n"
-echo ""
-printf "  ${BLUE}Tmux Shortcuts:${NC}\n"
-printf "  Ctrl+b          Prefix\n"
-printf "  Ctrl+b |        Split vertical\n"
-printf "  Ctrl+b -        Split horizontal\n"
-printf "  Ctrl+b h/j/k/l  Navigate panes\n"
-printf "  Shift+Left/Right Switch windows\n"
+printf "  2. Wire Claude hooks: ${YELLOW}scripts/claude-hooks-merge${NC}\n"
+printf "  3. Verify:           ${YELLOW}scripts/verify-agentic-infra core${NC}\n"
+printf "  Editor setup:        ${YELLOW}dotfiles/scripts/install-editor${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
