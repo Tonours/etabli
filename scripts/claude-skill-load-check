@@ -95,6 +95,7 @@ const PINNED_ON = new Set([
   "codebase-design",
   "domain-modeling",
   "employer-backend-suite",
+  "grilling",
   "herdr",
   "prototype",
   "research",

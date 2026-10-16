@@ -6,14 +6,15 @@ vendored files.
 
 | Suite | Upstream | Scope | Skills |
 | --- | --- | --- | --- |
-| mattpocock (Matt Pocock) | `mattpocock/skills` @ `skills/engineering/` | shared | 7 (below) |
+| mattpocock (Matt Pocock) | `mattpocock/skills` @ `skills/engineering/` + `skills/productivity/grilling` | shared | 8 (below) |
 | petergyang | `petergyang/no-ai-slop` | `skill-surface.tsv` row `0 1`; `user-invocable-only` on Claude | 1 (`no-ai-slop`) |
 | typesafe-ai | `typesafe-ai/skills` | shared, `user-invocable-only` on Claude | 1 (`typesafe-ai`) |
 
-## mattpocock engineering tier (7)
+## mattpocock tier (8)
 
 `codebase-design`, `domain-modeling`, `grill-with-docs`,
-`improve-codebase-architecture`, `prototype`, `research`, `wizard`.
+`improve-codebase-architecture`, `prototype`, `research`, `wizard`, plus
+`productivity/grilling`, which `grill-with-docs` calls with `domain-modeling`.
 
 Pruned 2026-10-16 (ADR-0033): `ask-matt`, `diagnosing-bugs`,
 `resolving-merge-conflicts`, `to-spec`, `to-tickets`, `triage`, `wayfinder`.

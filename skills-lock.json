@@ -150,6 +150,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "e172b61467146cb77b0bb294ef8bfab29b7a591ce5739e43eb089c27260ba34a"
+    },
+    "productivity/grilling": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ef1641a2047b71b60f1942cd35efb47d3afc9d584dff5a0b01f8c7db923aaa08"
     }
   }
 }
