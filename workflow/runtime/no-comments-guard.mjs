@@ -59,7 +59,8 @@ const CODE_EXTENSIONS = new Set([
 	".less",
 ]);
 
-const HASH_EXTENSIONS = new Set([".py", ".rb", ".sh", ".bash", ".zsh"]);
+const HASH_EXTENSIONS = new Set([".py", ".rb"]);
+const SHELL_EXTENSIONS = new Set([".sh", ".bash", ".zsh"]);
 const DASH_EXTENSIONS = new Set([".lua", ".sql"]);
 
 function extname(filePath) {
@@ -79,6 +80,7 @@ export function isGuardedCodeFile(filePath) {
 export function commentFamilyFor(filePath) {
 	const ext = extname(filePath);
 	if (HASH_EXTENSIONS.has(ext)) return "hash";
+	if (SHELL_EXTENSIONS.has(ext)) return "shell";
 	if (DASH_EXTENSIONS.has(ext)) return "dash";
 	return "clike";
 }
@@ -101,168 +103,107 @@ function isExemptComment(text) {
 	return false;
 }
 
-function stripStrings(text, family) {
-	let out = "";
-	let i = 0;
-	const n = text.length;
-	while (i < n) {
-		const c = text[i];
-		const quote =
-			c === "'" || c === '"' || (family === "clike" && c === "`") ? c : "";
-		if (!quote) {
-			out += c;
-			i += 1;
-			continue;
-		}
-		out += quote;
-		i += 1;
-		while (i < n) {
-			const d = text[i];
-			if (d === "\\") {
-				out += "  ";
-				i += 2;
-				continue;
-			}
-			if (d === quote) {
-				out += quote;
-				i += 1;
-				break;
-			}
-			if (d === "\n" && quote !== "`") {
-				break;
-			}
-			out += d === "\n" ? "\n" : " ";
-			i += 1;
-		}
-	}
-	return out;
-}
-
 const REGEX_LITERAL_PREFIX = /[=(,:[!&|?{;+]\s*$/;
-
-function stripRegexLiterals(line) {
-	let out = "";
-	let index = 0;
-
-	while (index < line.length) {
-		const opensComment = line[index + 1] === "/" || line[index + 1] === "*";
-		if (line[index] !== "/" || opensComment || !REGEX_LITERAL_PREFIX.test(out)) {
-			out += line[index];
-			index += 1;
-			continue;
-		}
-
-		let cursor = index + 1;
-		let inClass = false;
-		let closed = false;
-		while (cursor < line.length) {
-			const char = line[cursor];
-			if (char === "\\") {
-				cursor += 2;
-				continue;
-			}
-			if (char === "[") inClass = true;
-			else if (char === "]") inClass = false;
-			else if (char === "/" && !inClass) {
-				closed = true;
-				break;
-			}
-			cursor += 1;
-		}
-
-		if (!closed) {
-			out += line.slice(index);
-			break;
-		}
-
-		out += "RE";
-		index = cursor + 1;
-		while (index < line.length && /[dgimsuvy]/.test(line[index])) index += 1;
-	}
-
-	return out;
-}
-
-function stripLiterals(text, family) {
-	const source = family === "clike" ? text.split("\n").map(stripRegexLiterals).join("\n") : text;
-	return stripStrings(source, family);
-}
-
-function lineCommentStart(line) {
-	const match = /(^|[^:])\/\//.exec(line);
-	return match ? match.index + match[1].length : -1;
-}
 
 function normalizeComment(text) {
 	return String(text).replace(/\s+/g, " ").trim();
 }
 
+function lineCommentAt(source, index, family) {
+	const char = source[index];
+	if (family === "clike") return char === "/" && source[index + 1] === "/" && source[index - 1] !== ":";
+	if (family === "dash") return char === "-" && source[index + 1] === "-";
+	if (family === "hash") return char === "#";
+	if (family === "shell") return char === "#" && (index === 0 || /\s/.test(source[index - 1]));
+	return false;
+}
+
+function skipString(source, index, family) {
+	const quote = source[index];
+	const triple = family === "hash" && source.startsWith(quote.repeat(3), index);
+	const delimiter = triple ? quote.repeat(3) : quote;
+	const spansLines = triple || quote === "`" || family === "shell";
+	const escapes = !(family === "shell" && quote === "'");
+	let cursor = index + delimiter.length;
+	while (cursor < source.length) {
+		if (escapes && source[cursor] === "\\") {
+			cursor += 2;
+			continue;
+		}
+		if (source.startsWith(delimiter, cursor)) return cursor + delimiter.length;
+		if (source[cursor] === "\n" && !spansLines) return cursor;
+		cursor += 1;
+	}
+	return cursor;
+}
+
+function skipRegexLiteral(source, index) {
+	let cursor = index + 1;
+	let inClass = false;
+	while (cursor < source.length && source[cursor] !== "\n") {
+		const char = source[cursor];
+		if (char === "\\") {
+			cursor += 2;
+			continue;
+		}
+		if (char === "[") inClass = true;
+		else if (char === "]") inClass = false;
+		else if (char === "/" && !inClass) {
+			cursor += 1;
+			while (cursor < source.length && /[dgimsuvy]/.test(source[cursor])) cursor += 1;
+			return cursor;
+		}
+		cursor += 1;
+	}
+	return -1;
+}
+
 export function collectCommentLines(text, family) {
-	const stripped = stripLiterals(String(text || ""), family);
-	const lines = stripped.split("\n");
+	const source = String(text || "");
 	const found = [];
-	let inBlock = false;
+	const push = (chunk) => {
+		if (chunk.trim() && !isExemptComment(chunk)) found.push(normalizeComment(chunk));
+	};
+	let lineCode = "";
+	let index = 0;
 
-	for (let idx = 0; idx < lines.length; idx += 1) {
-		let line = lines[idx];
-		if (inBlock) {
-			const end = line.indexOf("*/");
-			if (end === -1) {
-				if (line.trim() && !isExemptComment(line)) {
-					found.push(normalizeComment(line));
-				}
-				continue;
-			}
-			const chunk = line.slice(0, end + 2);
-			if (chunk.trim() && !isExemptComment(chunk)) {
-				found.push(normalizeComment(chunk));
-			}
-			line = line.slice(end + 2);
-			inBlock = false;
-		}
-
-		if (family === "clike") {
-			const blockStart = line.indexOf("/*");
-			const lineStart = lineCommentStart(line);
-			if (blockStart !== -1 && (lineStart === -1 || blockStart < lineStart)) {
-				const end = line.indexOf("*/", blockStart + 2);
-				const chunk =
-					end === -1
-						? line.slice(blockStart)
-						: line.slice(blockStart, end + 2);
-				if (chunk.trim() && !isExemptComment(chunk)) {
-					found.push(normalizeComment(chunk));
-				}
-				if (end === -1) inBlock = true;
-				continue;
-			}
-			if (lineStart !== -1) {
-				const chunk = line.slice(lineStart);
-				if (chunk.trim() && !isExemptComment(chunk)) {
-					found.push(normalizeComment(chunk));
-				}
-			}
+	while (index < source.length) {
+		const char = source[index];
+		if (char === "\n") {
+			lineCode = "";
+			index += 1;
 			continue;
 		}
-
-		if (family === "hash") {
-			const match = /(^|\s)#/.exec(line);
-			if (!match) continue;
-			const hash = match.index + match[1].length;
-			const chunk = line.slice(hash);
-			if (idx === 0 && /^#!/.test(chunk.trim())) continue;
-			if (chunk.trim() && !isExemptComment(chunk)) {
-				found.push(normalizeComment(chunk));
-			}
+		if (family === "clike" && char === "/" && source[index + 1] === "*") {
+			const end = source.indexOf("*/", index + 2);
+			const stop = end === -1 ? source.length : end + 2;
+			for (const chunk of source.slice(index, stop).split("\n")) push(chunk);
+			lineCode += " ";
+			index = stop;
 			continue;
 		}
-
-		const dash = line.indexOf("--");
-		if (dash === -1) continue;
-		const chunk = line.slice(dash);
-		if (chunk.trim() && !isExemptComment(chunk)) {
-			found.push(normalizeComment(chunk));
+		if (lineCommentAt(source, index, family)) {
+			const end = source.indexOf("\n", index);
+			const stop = end === -1 ? source.length : end;
+			push(source.slice(index, stop));
+			index = stop;
+			continue;
 		}
+		if (char === "'" || char === '"' || (family === "clike" && char === "`")) {
+			index = skipString(source, index, family);
+			lineCode += "S";
+			continue;
+		}
+		if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
+			const stop = skipRegexLiteral(source, index);
+			if (stop !== -1) {
+				index = stop;
+				lineCode += "RE";
+				continue;
+			}
+		}
+		lineCode += char;
+		index += 1;
 	}
 
 	return found;
@@ -301,6 +242,7 @@ function editPairs(toolInput) {
 	return edits.map((edit) => ({
 		oldStr: String(edit?.old_string ?? edit?.oldString ?? edit?.oldText ?? ""),
 		newStr: String(edit?.new_string ?? edit?.newString ?? edit?.newText ?? ""),
+		replaceAll: edit?.replace_all === true || edit?.replaceAll === true,
 	}));
 }
 
@@ -316,9 +258,9 @@ function previousFileText(cwd, filePath) {
 
 function editedFileTexts(fileText, pairs) {
 	let next = fileText;
-	for (const { oldStr, newStr } of pairs) {
+	for (const { oldStr, newStr, replaceAll } of pairs) {
 		if (!oldStr || !next.includes(oldStr)) return null;
-		next = next.replace(oldStr, () => newStr);
+		next = replaceAll ? next.split(oldStr).join(newStr) : next.replace(oldStr, () => newStr);
 	}
 	return { previous: fileText, next };
 }

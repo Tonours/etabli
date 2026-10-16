@@ -245,6 +245,23 @@ describe("unified Claude verdicts", () => {
 		).toBe("allow");
 	});
 
+	test("lexes strings, comments and regexes per language", () => {
+		expect(collectCommentLines('const x = "(/)"; // added note\n', "clike")).toEqual(["// added note"]);
+		expect(collectCommentLines("const s = `a\n// not a comment\nb`;\n", "clike")).toEqual([]);
+		expect(collectCommentLines('s = """first\n# data\nlast"""\n', "hash")).toEqual([]);
+		expect(collectCommentLines("x = 1# added note\n", "hash")).toEqual(["# added note"]);
+		expect(collectCommentLines("data='first\n# data\nlast'\n", "shell")).toEqual([]);
+		expect(collectCommentLines("n=${#arr[@]}\necho $#\n", "shell")).toEqual([]);
+		expect(commentFamilyFor("a.sh")).toBe("shell");
+	});
+
+	test("replace_all edits are judged on every occurrence", () => {
+		writeFileSync(join(fixtureCwd, "r.ts"), 'const label = "run";\nrun();\n');
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "r.ts", old_string: "run", new_string: "run/* added note */", replace_all: true } }),
+		).toBe("deny");
+	});
+
 	test("an apostrophe in a comment does not hide later comments", () => {
 		writeFileSync(join(fixtureCwd, "apos.ts"), "const x = 1; // don't\nconst y = 2;\n");
 		expect(
