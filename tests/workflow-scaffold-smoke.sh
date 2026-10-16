@@ -295,4 +295,70 @@ assert_not_exists "$BROKEN_PROJECT"
 assert_not_exists "$BROKEN_PROJECT/AGENTS.md"
 assert_not_exists "$BROKEN_PROJECT/.gitignore"
 
+assert_backup() {
+  compgen -G "$1.bak.*" >/dev/null || {
+    printf 'expected backup of %s\n' "$1" >&2
+    exit 1
+  }
+}
+
+PRUNE_PROJECT="$TMP_DIR/prune-project"
+"$SCRIPT" "$PRUNE_PROJECT" >/dev/null
+RETIRED_SET="workflow/events.md scripts/workflow-event scripts/lib/workflow-events.mjs scripts/lib/predicates.mjs"
+for retired in $RETIRED_SET; do
+  printf 'retired copy\n' >"$PRUNE_PROJECT/$retired"
+done
+printf '\nlocal consumer edit\n' >>"$PRUNE_PROJECT/workflow/events.md"
+"$SCRIPT" "$PRUNE_PROJECT" --prune --dry-run >"$TMP_DIR/prune-dry.out"
+assert_contains "$TMP_DIR/prune-dry.out" "WOULD_REMOVE workflow/events.md"
+assert_file "$PRUNE_PROJECT/workflow/events.md"
+"$SCRIPT" "$PRUNE_PROJECT" --prune >"$TMP_DIR/prune.out"
+for retired in $RETIRED_SET; do
+  assert_not_exists "$PRUNE_PROJECT/$retired"
+  assert_backup "$PRUNE_PROJECT/$retired"
+done
+assert_contains "$TMP_DIR/prune.out" "4 removed"
+"$SCRIPT" "$PRUNE_PROJECT" --prune >"$TMP_DIR/prune-again.out"
+assert_contains "$TMP_DIR/prune-again.out" "0 removed"
+
+PRUNE_LINKED="$TMP_DIR/prune-linked"
+PRUNE_OUTSIDE="$TMP_DIR/prune-outside"
+"$SCRIPT" "$PRUNE_LINKED" >/dev/null
+mkdir -p "$PRUNE_OUTSIDE"
+mv "$PRUNE_LINKED/scripts/lib" "$PRUNE_OUTSIDE/lib"
+ln -s "$PRUNE_OUTSIDE/lib" "$PRUNE_LINKED/scripts/lib"
+printf 'outside\n' >"$PRUNE_OUTSIDE/lib/workflow-events.mjs"
+printf 'inside\n' >"$PRUNE_LINKED/workflow/events.md"
+if "$SCRIPT" "$PRUNE_LINKED" --prune >"$TMP_DIR/prune-linked.out" 2>&1; then
+  printf 'expected prune to refuse a symlinked parent\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/prune-linked.out" "resolves outside the target"
+assert_file "$PRUNE_OUTSIDE/lib/workflow-events.mjs"
+assert_file "$PRUNE_LINKED/workflow/events.md"
+
+TRACKED_PROJECT="$TMP_DIR/tracked-project"
+"$SCRIPT" "$TRACKED_PROJECT" >/dev/null
+printf '\nproject edit\n' >>"$TRACKED_PROJECT/workflow/spec.md"
+printf 'tracked retired\n' >"$TRACKED_PROJECT/scripts/workflow-event"
+git -C "$TRACKED_PROJECT" init -q .
+git -C "$TRACKED_PROJECT" add -f workflow/spec.md scripts/workflow-event
+git -C "$TRACKED_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track scaffold"
+if "$SCRIPT" "$TRACKED_PROJECT" --refresh-tracked >/dev/null 2>&1; then
+  printf 'expected --refresh-tracked without --force to fail\n' >&2
+  exit 1
+fi
+"$SCRIPT" "$TRACKED_PROJECT" --force >"$TMP_DIR/tracked-force.out"
+assert_contains "$TMP_DIR/tracked-force.out" "PROTECTED workflow/spec.md"
+assert_contains "$TRACKED_PROJECT/workflow/spec.md" "project edit"
+"$SCRIPT" "$TRACKED_PROJECT" --force --refresh-tracked --prune >"$TMP_DIR/tracked-refresh.out"
+assert_same "$ROOT_DIR/workflow/spec.md" "$TRACKED_PROJECT/workflow/spec.md"
+assert_contains "$TMP_DIR/tracked-refresh.out" "GIT_RM    scripts/workflow-event"
+assert_not_exists "$TRACKED_PROJECT/scripts/workflow-event"
+assert_backup "$TRACKED_PROJECT/scripts/workflow-event"
+if git -C "$TRACKED_PROJECT" ls-files --error-unmatch scripts/workflow-event >/dev/null 2>&1; then
+  printf 'expected tracked retired file to leave the index\n' >&2
+  exit 1
+fi
+
 printf 'workflow scaffold smoke test: ok\n'
