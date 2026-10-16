@@ -86,8 +86,6 @@ before writer agents. Do not use subagents to hide uncertainty.
 - Each retry must consume new evidence: record the observation, failure
   hypothesis, next action, and validation that will prove or reject the recovery.
   Do not blindly rerun the same packet.
-- Do not retry destructive, security-sensitive, production, billing, or external
-  write actions without explicit approval.
 - Cap retries per packet. After the cap, stop as `blocked` with attempts,
   evidence, and the next required input.
 - Record failure class, attempted recovery, and final status.
@@ -129,10 +127,9 @@ Claude:
 - `/goal` is the native till-done mechanism. Pair the measurable condition
   with an explicit cap (iterations or wall-clock) and record the event ledger
   per `workflow/events.md`, as required by `workflow/spec.md`.
-- `plan-ready-guard.mjs` is an opt-in local hook that proves guard behavior in
-  smoke tests. Route classification stays library-only
+- Route classification stays library-only
   (`workflow/runtime/workflow-router-core.mjs`), covered by `scripts/router-eval`. <!-- etabli-only -->
-- Hooks are deterministic guardrails for blocking. They do not inject route
-  context, and they do not replace task state or completion evidence.
+- Hooks do not inject route context, and they do not replace task state or
+  completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.

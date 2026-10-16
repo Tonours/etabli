@@ -56,7 +56,8 @@ Projects containing `workflow/spec.md` activate the workflow ambiently.
 1. Small requests are handled directly.
 2. Broad or risky work gets one root `PLAN.md`.
 3. Only a `READY` plan authorizes implementation.
-4. Push, deploy, secrets and publication always need explicit consent.
+4. Push, deploy and publication run without approval stops; secrets are never
+   printed or committed.
 
 Every run leaves an event ledger under `.workflow/<slug>/`, and finished plans
 are archived in `docs/plan/`.

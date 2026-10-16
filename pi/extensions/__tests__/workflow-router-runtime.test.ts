@@ -134,12 +134,12 @@ describe("workflow router runtime", () => {
 		).toEqual(expected);
 	});
 
-	test("routes Linear ticket creation to ops-stop and Linear work to plan-implement", () => {
+	test("routes Linear ticket creation directly and Linear work to plan-implement", () => {
 		expect(
 			classifyWorkflowRoute("Crée un ticket Linear pour ce bug de login"),
 		).toMatchObject({
-			route: "ops-stop",
-			writeAllowed: false,
+			route: "answer",
+			writeAllowed: true,
 		});
 
 		expect(
@@ -147,7 +147,7 @@ describe("workflow router runtime", () => {
 				"Peux-tu créer un ticket Linear pour corriger le bug de login",
 			),
 		).toMatchObject({
-			route: "ops-stop",
+			route: "answer",
 			writeAllowed: false,
 		});
 
@@ -193,7 +193,7 @@ describe("workflow router runtime", () => {
 		});
 	});
 
-	test("keeps PR QA and security PR read-only and routes CI push to ops-stop", () => {
+	test("keeps PR QA and security PR read-only and routes CI push directly", () => {
 		expect(
 			classifyWorkflowRoute("Comment tester la PR GitHub 42 ?"),
 		).toMatchObject({
@@ -217,8 +217,8 @@ describe("workflow router runtime", () => {
 		});
 
 		expect(classifyWorkflowRoute("fix CI and push PR #42")).toMatchObject({
-			route: "ops-stop",
-			writeAllowed: false,
+			route: "answer",
+			writeAllowed: true,
 		});
 	});
 
@@ -301,18 +301,18 @@ describe("workflow router runtime", () => {
 		expect(decision.knowledgeContext?.source).toBeUndefined();
 	});
 
-	test("routes destructive prompts to ops-stop", () => {
+	test("routes destructive prompts to direct edits without a stop", () => {
 		expect(
 			classifyWorkflowRoute("Supprime ce dossier de production"),
 		).toMatchObject({
-			route: "ops-stop",
-			writeAllowed: false,
+			route: "answer",
+			writeAllowed: true,
 		});
 		expect(
 			classifyWorkflowRoute("Supprime définitivement ce dépôt et sa base de données."),
 		).toMatchObject({
-			route: "ops-stop",
-			writeAllowed: false,
+			route: "answer",
+			writeAllowed: true,
 		});
 	});
 

@@ -63,32 +63,32 @@
     "writeAllowed": false
   },
   {
-    "name": "fuzz: fix then deploy to prod routes to ops-stop",
+    "name": "fuzz: fix then deploy to prod routes to answer",
     "category": "fuzz-combined",
     "prompt": "corrige le bug puis deploy en prod",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
-    "name": "fuzz: push commit to origin in french routes to ops-stop",
-    "category": "fuzz-ops-stop",
+    "name": "fuzz: push commit to origin in french routes to answer",
+    "category": "fuzz-ops-action",
     "prompt": "peux-tu pousser le commit sur origin ?",
-    "expectedRoute": "ops-stop",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
-    "name": "fuzz: publish comment on github issue routes to ops-stop",
-    "category": "fuzz-ops-stop",
+    "name": "fuzz: publish comment on github issue routes to answer",
+    "category": "fuzz-ops-action",
     "prompt": "publie un commentaire sur l'issue github 42",
-    "expectedRoute": "ops-stop",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
-    "name": "fuzz: delete remote branch routes to ops-stop",
-    "category": "fuzz-ops-stop",
+    "name": "fuzz: delete remote branch routes to answer",
+    "category": "fuzz-ops-action",
     "prompt": "supprime la branche distante origin/old-feature",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
     "name": "fuzz: question mentioning spec-guide stays answer",
@@ -117,7 +117,10 @@
     "prompt": "explain the auth flow in the web ui",
     "expectedRoute": "answer",
     "writeAllowed": false,
-    "expectedKnowledgeTopics": ["frontend-css", "web-security"]
+    "expectedKnowledgeTopics": [
+      "frontend-css",
+      "web-security"
+    ]
   },
   {
     "name": "fuzz: improve workflow from last run routes to plan-implement",
@@ -138,7 +141,9 @@
     "category": "fuzz-knowledge",
     "prompt": "J'ai une idée de startup",
     "expectedRoute": "answer",
-    "expectedKnowledgeTopics": ["saas"]
+    "expectedKnowledgeTopics": [
+      "saas"
+    ]
   },
   {
     "name": "fuzz: RAG knowledge-base question gets ai-agents and second-brain topics",
@@ -146,6 +151,9 @@
     "prompt": "que penses-tu du RAG pour la base de connaissances ?",
     "expectedRoute": "answer",
     "writeAllowed": false,
-    "expectedKnowledgeTopics": ["ai-agents", "second-brain"]
+    "expectedKnowledgeTopics": [
+      "ai-agents",
+      "second-brain"
+    ]
   }
 ]

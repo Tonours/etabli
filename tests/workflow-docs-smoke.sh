@@ -204,7 +204,6 @@ assert_file "$ROOT_DIR/claude/scopes/work/commands/pr-qa.md"
 assert_file "$ROOT_DIR/claude/scopes/work/commands/sec-pr.md"
 assert_file "$ROOT_DIR/claude/scopes/work/commands/ci-fix.md"
 assert_file "$ROOT_DIR/claude/scopes/work/commands/github-pr-review.md"
-assert_file "$ROOT_DIR/claude/hooks/plan-ready-guard.mjs"
 assert_file "$ROOT_DIR/claude/hooks/workflow-router-lib.mjs"
 assert_file "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_file "$ROOT_DIR/tests/claude-hooks-smoke.sh"
@@ -379,23 +378,16 @@ assert_contains "$ROOT_DIR/tests/router-evals/core.json" 'organic investigation 
 assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" 'workflow/agent-quick-card.md'
 assert_contains "$ROOT_DIR/workflow/spec.md" 'workflow/contract-details.md'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'planMutationGuardDecision'
-assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'Both conditions are required in the same current user request:'
-assert_contains "$ROOT_DIR/workflow/git-contract.md" 'The branch is the write target'
-assert_contains "$ROOT_DIR/workflow/git-contract.md" 'The user writes the exact requested operation: `commit`, `merge`, or `push`.'
-assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'Synonyms such as “land”, “integrate”, or “ship it”, agent paraphrases, and consent carried from an earlier request do not count.'
-assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'A branch-less grant such as “commit and push”, without naming the default branch as the write target, does not authorize it.'
-assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'When the same request names the default write target and multiple exact operations, each operation is authorized separately.'
-assert_contains "$ROOT_DIR/workflow/git-contract.md" 'Each operation requires its own authorization.'
-assert_contains "$ROOT_DIR/workflow/git-contract.md" 'Final relevant checks must pass before the write.'
-assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" 'never overrides a stricter skill contract'
-assert_contains "$ROOT_DIR/workflow/git-contract.md" 'History-rewriting operations keep their separate rules.'
-assert_contains_wrapped "$ROOT_DIR/workflow/git-contract.md" "when the user's current request explicitly names a branch"
+assert_contains "$ROOT_DIR/workflow/git-contract.md" '## Default branch and history'
+assert_contains "$ROOT_DIR/workflow/git-contract.md" 'No consent gate.'
+assert_contains "$ROOT_DIR/workflow/git-contract.md" '`--force-with-lease`'
+assert_contains "$ROOT_DIR/workflow/git-contract.md" 'Never add AI attribution'
+assert_not_contains "$ROOT_DIR/workflow/git-contract.md" 'Each operation requires its own authorization.'
 assert_contains "$ROOT_DIR/AGENTS.md" 'workflow/git-contract.md'
 assert_contains "$ROOT_DIR/pi/AGENTS.md" '<type>/<ticket-id>-<short-slug>'
 assert_contains "$ROOT_DIR/workflow/skills/worktree-isolation.md" '<type>/<ticket-id>-<short-slug>'
 assert_contains "$ROOT_DIR/workflow/skills/ship.md" '<type>/<ticket-id>-<short-slug>'
-assert_contains_wrapped "$ROOT_DIR/workflow/skills/ship.md" 'Direct default-branch integration is outside `/ship`'
+assert_contains "$ROOT_DIR/workflow/skills/ship.md" 'Done is a green PR; merging it is optional'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'LINEAR_MCP_UNAVAILABLE'
 assert_contains "$ROOT_DIR/docs/mcp-strategy.md" 'https://mcp.linear.app/mcp'
 jq -e '.mcpServers == {}' "$ROOT_DIR/.mcp.json" >/dev/null
@@ -410,7 +402,7 @@ jq -e '
 # Behavioral coverage lives in dedicated smokes (plan-check-freeze, no-progress,
 # workflow-event, dual-runtime). Docs smoke keeps map structure + anti-drift only.
 assert_contains "$ROOT_DIR/workflow/spec.md" 'No-progress stop'
-assert_contains "$ROOT_DIR/workflow/spec.md" 'Check-freeze'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'No runtime freeze.'
 test -x "$ROOT_DIR/scripts/plan-check-freeze" || {
     printf 'missing plan-check-freeze helper\n' >&2
     exit 1
@@ -853,7 +845,6 @@ assert_not_contains "$ROOT_DIR/claude/scopes/shared/commands/plan-implement.md" 
 assert_contains "$ROOT_DIR/claude/README.md" '~/.claude/workflow'
 assert_contains "$ROOT_DIR/claude/README.md" '/verify-workflow'
 assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'actual PLAN.md status is not proven READY'
-assert_contains "$ROOT_DIR/workflow/runtime/workflow-router-core.mjs" 'permissionDecision: "deny"'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PreToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'PostToolUse'
 assert_contains "$ROOT_DIR/claude/settings.workflow-hooks.json" 'MultiEdit'

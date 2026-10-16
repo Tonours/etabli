@@ -16,7 +16,7 @@
   {
     "name": "self-improvement prompt routes through plan-implement",
     "category": "self-improvement",
-    "prompt": "Am\u00e9liore le workflow Etabli \u00e0 partir des findings r\u00e9currents",
+    "prompt": "Améliore le workflow Etabli à partir des findings récurrents",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -30,14 +30,14 @@
   {
     "name": "self-improvement from run proof routes through plan-implement",
     "category": "self-improvement",
-    "prompt": "Am\u00e9liore le workflow Etabli \u00e0 partir de la preuve de run et des failures r\u00e9currents",
+    "prompt": "Améliore le workflow Etabli à partir de la preuve de run et des failures récurrents",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
   {
     "name": "ambitious project prompt routes through plan-implement",
     "category": "ambitious-project",
-    "prompt": "R\u00e9alise ce projet ambitieux de a \u00e0 z",
+    "prompt": "Réalise ce projet ambitieux de a à z",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -58,7 +58,7 @@
   {
     "name": "actual READY plan can implement",
     "category": "ready-gate",
-    "prompt": "Impl\u00e9mente le PLAN.md ready",
+    "prompt": "Implémente le PLAN.md ready",
     "context": {
       "planStatus": "ready"
     },
@@ -68,7 +68,7 @@
   {
     "name": "prompt-only READY wording cannot implement",
     "category": "ready-gate",
-    "prompt": "Impl\u00e9mente le PLAN.md ready",
+    "prompt": "Implémente le PLAN.md ready",
     "context": {
       "planStatus": "missing"
     },
@@ -78,7 +78,7 @@
   {
     "name": "read-only ready plan stays answer",
     "category": "read-only",
-    "prompt": "R\u00e9sume le PLAN.md ready",
+    "prompt": "Résume le PLAN.md ready",
     "expectedRoute": "answer",
     "writeAllowed": false
   },
@@ -97,23 +97,23 @@
     "writeAllowed": false
   },
   {
-    "name": "delete request routes to ops-stop",
-    "category": "ops-stop",
+    "name": "delete request routes to answer",
+    "category": "ops-action",
     "prompt": "Supprime ce dossier",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
-    "name": "external write-back routes to ops-stop",
-    "category": "ops-stop",
+    "name": "external write-back routes to answer",
+    "category": "ops-action",
     "prompt": "poste un commentaire sur la PR 42",
-    "expectedRoute": "ops-stop",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
     "name": "source-backed research uses research-plan",
     "category": "research",
-    "prompt": "Fais une recherche web sourc\u00e9e sur les pratiques agentiques",
+    "prompt": "Fais une recherche web sourcée sur les pratiques agentiques",
     "expectedRoute": "answer",
     "writeAllowed": false
   },
@@ -135,8 +135,8 @@
     "name": "explicit ci fix remains ci-fix despite push wording",
     "category": "ci",
     "prompt": "fix CI and push PR #42",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
     "name": "linear bug analysis stays read-only",
@@ -148,14 +148,14 @@
   {
     "name": "linear creation uses its dedicated route",
     "category": "linear",
-    "prompt": "Cr\u00e9e un ticket Linear pour ce bug de login",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "prompt": "Crée un ticket Linear pour ce bug de login",
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
     "name": "linear implementation uses its dedicated route",
     "category": "linear",
-    "prompt": "Corrige le bug d\u00e9crit dans Linear LIN-123",
+    "prompt": "Corrige le bug décrit dans Linear LIN-123",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -176,7 +176,7 @@
   {
     "name": "adversarial code review is not plan adversary",
     "category": "negative-control",
-    "prompt": "fais une code-review compl\u00e8te puis une code-review adversary",
+    "prompt": "fais une code-review complète puis une code-review adversary",
     "expectedRoute": "review",
     "writeAllowed": false
   },
@@ -190,7 +190,7 @@
   {
     "name": "French implementation question routes ambiently",
     "category": "multilingual",
-    "prompt": "peux-tu impl\u00e9menter le fix du login ?",
+    "prompt": "peux-tu implémenter le fix du login ?",
     "expectedRoute": "answer",
     "writeAllowed": true
   },
@@ -212,7 +212,7 @@
   {
     "name": "SaaS research receives targeted knowledge context",
     "category": "knowledge-routing",
-    "prompt": "Je recherche des id\u00e9es de SaaS rentables",
+    "prompt": "Je recherche des idées de SaaS rentables",
     "expectedRoute": "answer",
     "writeAllowed": false,
     "expectedKnowledgeTopics": [
@@ -222,7 +222,7 @@
   {
     "name": "French apostrophe does not trigger the AI topic",
     "category": "knowledge-routing-negative",
-    "prompt": "J\u2019ai une question simple",
+    "prompt": "J’ai une question simple",
     "expectedRoute": "answer",
     "writeAllowed": false,
     "expectedKnowledgeTopics": []
@@ -361,7 +361,7 @@
   {
     "name": "organic multi-phase-plan is not stolen by verify/research/pr-review",
     "category": "organic",
-    "prompt": "MIGRATION.md sketches a move from callbacks to async/await across src/. Turn it into a multi-phase plan we can execute across several sessions: exact scopes, per-phase checks, dependencies, and restart points. Planning only \u2014 implement nothing yet.",
+    "prompt": "MIGRATION.md sketches a move from callbacks to async/await across src/. Turn it into a multi-phase plan we can execute across several sessions: exact scopes, per-phase checks, dependencies, and restart points. Planning only — implement nothing yet.",
     "expectedRoute": "plan-implement",
     "writeAllowed": true,
     "context": {
@@ -431,7 +431,7 @@
   {
     "name": "organic autonomous-run is not stolen by verify/research/pr-review",
     "category": "organic",
-    "prompt": "ROADMAP.md lists 4 unchecked items for this project. Work through them autonomously, in order, verifying each item's stated check before moving on. Stop only when all items are done and verified, or when you hit a genuine blocker \u2014 then say exactly what blocks you.",
+    "prompt": "ROADMAP.md lists 4 unchecked items for this project. Work through them autonomously, in order, verifying each item's stated check before moving on. Stop only when all items are done and verified, or when you hit a genuine blocker — then say exactly what blocks you.",
     "expectedRoute": "plan-loop",
     "writeAllowed": true,
     "context": {
@@ -487,7 +487,7 @@
   },
   {
     "name": "push notification feature is not an ops-stop push",
-    "category": "ops-stop-negative-control",
+    "category": "ops-action-negative-control",
     "prompt": "ajoute une push notification au dashboard",
     "expectedRoute": "answer",
     "writeAllowed": true,
@@ -550,35 +550,35 @@
     "writeAllowed": true
   },
   {
-    "name": "Linear issue creation stops regardless of word order",
-    "category": "ops-stop",
+    "name": "Linear issue creation routes to answer regardless of word order",
+    "category": "ops-action",
     "prompt": "Create a Linear issue for login",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
-    "name": "French Linear ticket creation stops",
-    "category": "ops-stop",
+    "name": "French Linear ticket creation routes to implement",
+    "category": "ops-action",
     "prompt": "Crée dans Linear un ticket pour le login",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false,
+    "expectedRoute": "implement",
+    "writeAllowed": true,
     "context": {
       "planStatus": "ready"
     }
   },
   {
-    "name": "push of a possessive branch stops",
-    "category": "ops-stop",
+    "name": "push of a possessive branch routes to answer",
+    "category": "ops-action",
     "prompt": "fix CI and push my branch",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
-    "name": "push to origin stops",
-    "category": "ops-stop",
+    "name": "push to origin routes to implement",
+    "category": "ops-action",
     "prompt": "fix CI and push origin main",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false,
+    "expectedRoute": "implement",
+    "writeAllowed": true,
     "context": {
       "planStatus": "ready"
     }
@@ -615,7 +615,7 @@
   },
   {
     "name": "review of already pushed changes is not an ops-stop",
-    "category": "ops-stop-negative-control",
+    "category": "ops-action-negative-control",
     "prompt": "Review the pushed changes in PR #42",
     "expectedRoute": "review",
     "writeAllowed": false

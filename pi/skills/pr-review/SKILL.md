@@ -1,13 +1,13 @@
 ---
 name: pr-review
-description: Review a GitHub PR through gh CLI with human-in-the-loop posting. Use when a PR needs review feedback; not for local diffs, Dependabot/security audits, or auto-merging.
+description: Review a GitHub PR through gh CLI and post when asked. Use when a PR needs review feedback; not for local diffs, Dependabot/security audits, or auto-merging.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: pr-review
 harness: pi
 canonical: workflow/skills/pr-review.md
 name: pr-review
-description: Review a GitHub PR through gh CLI with human-in-the-loop posting. Use when a PR needs review feedback; not for local diffs, Dependabot/security audits, or auto-merging.
+description: Review a GitHub PR through gh CLI and post when asked. Use when a PR needs review feedback; not for local diffs, Dependabot/security audits, or auto-merging.
 pointer: Adapter for the `pr-review` skill. Read and follow the shared contract in `workflow/skills/pr-review.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
@@ -23,7 +23,6 @@ If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/
 
 - Use `gh` for GitHub unless the user explicitly overrides this.
 - Default is read-only.
-- Do not post comments or approve without explicit user approval.
 - Parent pins `gh pr diff` once to a non-empty temp file, then Logic hunter
   via `scripts/pi-review-hunter` (or the argv in `workflow/skills/review.md`).
   Spawn/nonzero → `HUNTER_SPAWN_UNAVAILABLE`. Timeout → `HUNTER_TIMEOUT`.

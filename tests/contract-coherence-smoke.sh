@@ -46,10 +46,9 @@ assert_contains "$AGENT" "effort: low"
 assert_contains "$ADV" "## Cross-harness frontier pool"
 assert_contains "$ADV" "exclude the author's family"
 
-# AC4 (F6): no unqualified force-push ban; cross-ref to ci-fix.
-[ "$(grep -c "Never force-push" "$SHIP")" = "$(grep -c "Never force-push, except" "$SHIP")" ] \
-  || fail "unqualified Never force-push in $SHIP"
-assert_count "$SHIP" "Never force-push, except" "1"
+# AC4 (F6): force-push allowed with lease only (ADR-0032); cross-ref to ci-fix.
+assert_absent "$SHIP" "Never force-push"
+assert_count "$SHIP" "Force-push with \`--force-with-lease\`, never plain \`--force\`." "1"
 assert_contains "$SHIP" "ci-fix.md"
 
 # AC5 (F7): ci-fix ledger procedure + slug convention.

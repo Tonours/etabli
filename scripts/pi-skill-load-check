@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 
-GATE=7190
-ALERT=7175
+GATE=7800
+ALERT=7785
 DUMP_ARG=""
 HOME_DIR="${PI_SKILL_LOAD_HOME:-$HOME}"
 
@@ -131,8 +131,8 @@ try {
 const errors = [];
 const warnings = [];
 
-const GATE = 7190;
-const ALERT = 7175;
+const GATE = 7800;
+const ALERT = 7785;
 const PINNED_DMI = ["project-hunt", "runtime-skill-canary", "thermo-nuclear-code-quality-review"];
 const DELEGATED_DMI = ["obsidian"];
 

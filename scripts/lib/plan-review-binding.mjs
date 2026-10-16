@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync } from "node:fs";
-import { dirname, extname, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import commonmark from "../vendor/commonmark/commonmark.cjs";
 import { parsePlanStatus } from "./plan-check-freeze.mjs";
 import { selectActiveLedger } from "./ledger-integrity.mjs";
@@ -88,58 +87,4 @@ export function planReviewPermission(root, source) {
   const selection = selectActiveLedger(root);
   if (selection.reason) return {ok:false,reason:selection.reason};
   return selection.ledger ? evaluatePlanReview(selection.ledger.events,source) : {ok:true,mode:"legacy-no-ledger"};
-}
-
-function confinedPath(root, run, path) {
-  const absolute = resolve(root,path), directory = resolve(root,".workflow",run), rel = relative(directory,absolute);
-  if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || rel.startsWith(sep)) return false;
-  for (let current = absolute; current !== resolve(root); current = dirname(current)) {
-    const stat = lstatSync(current,{throwIfNoEntry:false});
-    if (stat?.isSymbolicLink()) return false;
-    if (dirname(current) === current) return false;
-  }
-  return true;
-}
-
-export function isReviewPreparationPath(root, path) {
-  if (![".md",".patch"].includes(extname(path))) return false;
-  try {
-    const selection = selectActiveLedger(root);
-    return !selection.reason && Boolean(selection.ledger) && confinedPath(root,selection.ledger.run,path);
-  } catch { return false; }
-}
-
-const centralCheck = fileURLToPath(new URL("../plan-review-check",import.meta.url));
-const centralHunter = fileURLToPath(new URL("../pi-review-hunter",import.meta.url));
-export function isPlanReviewBootstrap(words, root) {
-  if (!words?.length) return false;
-  words = [...words];
-  if (words[0] === "rtk" && words[1] === "proxy") words.splice(0,2);
-  const interpreter = ["node","bun","bash"].includes(words[0]) ? words.shift() : null;
-  const executable = resolve(root,words.shift() ?? "");
-  if ([resolve(root,"scripts/plan-review-check"),centralCheck].includes(executable)) {
-    return interpreter !== "bash" && words.length === 2 && words[0] === "--hash" && resolve(root,words[1]) === resolve(root,"PLAN.md");
-  }
-  if (![resolve(root,"scripts/pi-review-hunter"),centralHunter].includes(executable) || words.length % 2) return false;
-  if (interpreter && interpreter !== "bash") return false;
-  const options = {};
-  for (let index=0; index<words.length; index+=2) {
-    const key = words[index], value = words[index+1];
-    if (!["--prompt-file","--patch","--capture-dir","--pass-id","--role","--model","--timeout"].includes(key) || Object.hasOwn(options,key) || !value) return false;
-    options[key] = value;
-  }
-  if (options["--role"] !== "adversary-plan" || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(options["--pass-id"] ?? "") ||
-      (options["--model"] && !/^[A-Za-z0-9][A-Za-z0-9_./:@-]*$/.test(options["--model"])) ||
-      (options["--timeout"] && !/^[1-9][0-9]*$/.test(options["--timeout"]))) return false;
-  const selected = selectActiveLedger(root);
-  if (selected.reason || !selected.ledger || !options["--capture-dir"] ||
-      !confinedPath(root,selected.ledger.run,options["--capture-dir"]) ||
-      lstatSync(resolve(root,options["--capture-dir"]),{throwIfNoEntry:false})) return false;
-  if (!options["--prompt-file"] || !isReviewPreparationPath(root,options["--prompt-file"]) || extname(options["--prompt-file"]) !== ".md") return false;
-  const patch = options["--patch"];
-  if (!patch || (resolve(root,patch) !== resolve(root,"PLAN.md") &&
-      (!isReviewPreparationPath(root,patch) || extname(patch) !== ".patch"))) return false;
-  try {
-    return readFileSync(resolve(root,patch),"utf8") === readRootPlanContract(root)?.source;
-  } catch { return false; }
 }

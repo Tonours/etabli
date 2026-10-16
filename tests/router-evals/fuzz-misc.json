@@ -77,7 +77,7 @@
     "name": "fuzz: polite linear ticket creation routes to linear-ticket-create",
     "category": "fuzz-linear",
     "prompt": "Peux-tu créer un ticket Linear pour le crash au démarrage ?",
-    "expectedRoute": "ops-stop",
+    "expectedRoute": "answer",
     "writeAllowed": false
   }
 ]

@@ -1,6 +1,5 @@
 ---
-description: Autonomously fix failing GitHub PR CI through gh CLI. Use only when explicitly invoked; not for local failures or CI design.
-disable-model-invocation: true
+description: Autonomously fix failing GitHub PR CI through gh CLI. Use when PR CI is red and should go green; not for local failures or CI design.
 argument-hint: [PR number, optional; defaults to current branch]
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent]
 ---
@@ -8,7 +7,7 @@ allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion, Agent]
 skill: ci-fix
 harness: claude
 canonical: workflow/skills/ci-fix.md
-description: Autonomously fix failing GitHub PR CI through gh CLI. Use only when explicitly invoked; not for local failures or CI design.
+description: Autonomously fix failing GitHub PR CI through gh CLI. Use when PR CI is red and should go green; not for local failures or CI design.
 pointer: Adapter for the `ci-fix` skill. Read and follow the shared contract in `workflow/skills/ci-fix.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
@@ -23,7 +22,7 @@ If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/
 
 Rules:
 
-- Use only when the user explicitly asks to fix CI until green.
+- Use when PR CI should go green.
 - This command may stash, checkout, rebase, commit, and push only within the
   shared contract's safeguards.
 - Never plain `--force`.

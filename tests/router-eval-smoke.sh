@@ -16,7 +16,6 @@ printf '%s\n' "$json_output" | jq -e '.total >= 10' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.accuracy == 1' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.alignmentRate == 1' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.writeRouteFalsePositives == 0' >/dev/null
-printf '%s\n' "$json_output" | jq -e '.opsStopMisses == 0' >/dev/null
 printf '%s\n' "$json_output" | jq -e '.researchRouteMisses == 0' >/dev/null
 
 case "$text_output" in

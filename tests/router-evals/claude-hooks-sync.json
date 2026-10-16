@@ -16,15 +16,15 @@
   {
     "name": "claude-hooks-sync: create linear ticket routes to linear-ticket-create",
     "category": "claude-hooks-sync",
-    "prompt": "Cr\u00e9e un ticket Linear pour ce bug de login",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "prompt": "Crée un ticket Linear pour ce bug de login",
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
     "name": "claude-hooks-sync: infinitive create linear ticket routes to linear-ticket-create",
     "category": "claude-hooks-sync",
-    "prompt": "Peux-tu cr\u00e9er un ticket Linear pour corriger le bug de login",
-    "expectedRoute": "ops-stop",
+    "prompt": "Peux-tu créer un ticket Linear pour corriger le bug de login",
+    "expectedRoute": "answer",
     "writeAllowed": false
   },
   {
@@ -66,15 +66,15 @@
     "name": "claude-hooks-sync: fix ci and push routes to ci-fix",
     "category": "claude-hooks-sync",
     "prompt": "fix CI and push PR #42",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
-    "name": "claude-hooks-sync: remove folder routes to ops-stop",
+    "name": "claude-hooks-sync: remove folder routes to answer",
     "category": "claude-hooks-sync",
     "prompt": "remove this folder",
-    "expectedRoute": "ops-stop",
-    "writeAllowed": false
+    "expectedRoute": "answer",
+    "writeAllowed": true
   },
   {
     "name": "claude-hooks-sync: adversary pass on plan routes to adversary",
@@ -114,7 +114,7 @@
   {
     "name": "claude-hooks-sync: implement ready plan without proven READY routes to plan-implement",
     "category": "claude-hooks-sync",
-    "prompt": "Impl\u00e9mente le PLAN.md ready",
+    "prompt": "Implémente le PLAN.md ready",
     "expectedRoute": "plan-implement",
     "writeAllowed": true
   },
@@ -128,7 +128,7 @@
   {
     "name": "claude-hooks-sync: question-form implement routes to plan-implement",
     "category": "claude-hooks-sync",
-    "prompt": "peux-tu impl\u00e9menter le fix du login ?",
+    "prompt": "peux-tu implémenter le fix du login ?",
     "expectedRoute": "answer",
     "writeAllowed": true
   },
@@ -142,7 +142,7 @@
   {
     "name": "claude-hooks-sync: full code review then adversary routes to review",
     "category": "claude-hooks-sync",
-    "prompt": "fais une code-review compl\u00e8te puis une code-review adversary",
+    "prompt": "fais une code-review complète puis une code-review adversary",
     "expectedRoute": "review",
     "writeAllowed": false
   }

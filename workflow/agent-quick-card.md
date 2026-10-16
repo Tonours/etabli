@@ -43,14 +43,13 @@ abort only at the command timeout sized for the measured project baseline.
 | `READY` | clear enough to execute |
 
 For plan routes, require root **Status: READY**. Prompt "PLAN.md ready" is not proof.
-Pre-READY (`DRAFT`/`CHALLENGED`): only root `PLAN.md` may be edited. Unknown
-status and incomplete `READY` fail closed. On resume: archive validated work
+Pre-READY (`DRAFT`/`CHALLENGED`): edit only root `PLAN.md` (discipline, no
+runtime block). On resume: archive validated work
 or discard unrelated plans with `scripts/plan-cleanup --discard <reason-slug>`;
 never delete on age alone or change `active-run.json`.
 
-**Check-freeze:** READY Checks / Acceptance Criteria / Validation Plan and
-expected results strengthen-only; weaken → `CHALLENGED` + Decision Log.
-CLI: `scripts/plan-check-freeze`. <!-- etabli-only -->
+READY plans stay editable; note Checks / Acceptance Criteria changes in the
+Decision Log.
 
 After validated implementation: archive under `docs/plan/` with the exact root
 plan SHA-256, then `scripts/plan-cleanup --archive docs/plan/<archive>.md`.
@@ -76,7 +75,6 @@ Etabli multi-writer scopes require `scripts/workflow-lease` (per-(repo, worktree
 | Diff/PR review | `review` |
 | Prove claim | `verify` |
 | Linear ticket work (natural language) | `plan-implement` |
-| Destructive/secrets/prod/push/external write | `ops-stop` |
 
 Work commands are explicit, never routed. Full table: `workflow/spec.md` § Routing rules.
 
@@ -87,11 +85,10 @@ Work commands are explicit, never routed. Full table: `workflow/spec.md` § Rout
 - Code-diff adversary: use the tiered independence rules in `workflow/skills/adversary.md`.
 - Escaped defect post-GO → `workflow/templates/escaped-defect.md` + metrics row.
 
-## ops-stop (HITL)
+## No approval stops
 
-`rm -rf`, force-push, deploy, prod, billing, secrets, broad irreversible,
-bare external write-back → risk brief, wait for user. The explicit `/ci-fix`
-command may push for CI repair only under its contract.
+Deletion, force-push, deploy, prod, billing, pushes to `main`, and external
+write-back run directly (ADR-0032). Secrets are never printed or committed.
 
 ## Validation (typical)
 
@@ -114,4 +111,4 @@ on this diff, then review. Record commands + results. Answers: live gate.
 ## Do not
 
 - Auto-apply self-improvement proposals or build parallel harness trees
-- Commit/push/PR/deploy/secrets/external write without explicit authority
+- Print or commit secrets

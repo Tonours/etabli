@@ -25,22 +25,19 @@ claude_scoped() {
   fi
 }
 
-# Pinned side-effect set: a 6th skill joins via reviewed-diff list edit only.
-SIDE_EFFECT="ship plan-implement implement ci-fix linear-ticket-create"
+# Workflow commands stay model-invocable on both runtimes.
+WORKFLOW_COMMANDS="ship plan-implement implement ci-fix linear-ticket-create"
 
-# --- AC1a: flag VALUE on all 10 pinned paths (mirrors load-check:175) ---
+# --- AC1a: no DMI flag on the workflow command paths ---
 DMI_RE='^disable-model-invocation:[ ]*true[ ]*(#.*)?$'
-for name in $SIDE_EFFECT; do
+for name in $WORKFLOW_COMMANDS; do
   for file in "pi/skills/$name/SKILL.md" "$(claude_scoped "commands/$name.md")"; do
     [ -f "$ROOT_DIR/$file" ] || fail "AC1a: pinned path missing: $file"
-    grep -Eq -e "$DMI_RE" "$ROOT_DIR/$file" || fail "AC1a: $file lacks disable-model-invocation: true"
+    if grep -Eq -e "$DMI_RE" "$ROOT_DIR/$file"; then
+      fail "AC1a: $file must stay model-invocable (drop disable-model-invocation)"
+    fi
   done
 done
-
-# --- AC1b: native probe — hidden from prompt, still expandable ---
-"$ROOT_DIR/scripts/pi-dmi-probe" --dir "$ROOT_DIR/pi/skills" \
-  --expect-dmi "$(printf '%s' "$SIDE_EFFECT" | tr ' ' ',')" >/dev/null 2>&1 \
-  || fail "AC1b: pi-dmi-probe failed on the 5 side-effect skills"
 
 # --- AC1c: probe negative fixture — unflagged skill must fail ---
 mkdir -p "$TMP_DIR/skills/naked"
@@ -74,4 +71,4 @@ for sub in $CLAUDE_SHAPED; do
   printf '%s\n' "$desc" | grep -Eq -i -e "$NOT_RE" || fail "AC2a: $file lacks not-for"
 done
 
-printf 'PASS: skill-hygiene smoke (AC1 DMI flags + native probe + AC2a shape tripwire)\n'
+printf 'PASS: skill-hygiene smoke (AC1 model-invocable workflow commands + probe fixture + AC2a shape tripwire)\n'

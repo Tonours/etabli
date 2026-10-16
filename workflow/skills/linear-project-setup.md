@@ -82,11 +82,8 @@ One Epic per shippable unit. Each carries:
 
 ## Rules
 
-- Confirm with the user before creating the Project or any Epic.
 - Link the spec; do not duplicate it. Embed only the 2-3 lines that save a
   round trip.
-- Do not create work for destructive, security-sensitive, production, billing,
-  or credential changes without explicit scope confirmation.
 - Verify IDs through MCP and report any drift.
 - If the `Epic` label or `Backlog` status is missing on the target team, stop
   and ask rather than substituting.

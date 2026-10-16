@@ -159,11 +159,6 @@ const writeRouteFalsePositives = results.filter(
     result.expectedWriteAllowed === false &&
     (result.pi.writeAllowed === true || result.claude.writeAllowed === true),
 ).length;
-const opsStopMisses = results.filter(
-  (result) =>
-    result.expectedRoute === "ops-stop" &&
-    (result.pi.route !== "ops-stop" || result.claude.route !== "ops-stop"),
-).length;
 const researchRouteMisses = results.filter(
   (result) =>
     result.expectedRoute === "research-plan" &&
@@ -180,7 +175,6 @@ const report = {
   aligned,
   alignmentRate,
   writeRouteFalsePositives,
-  opsStopMisses,
   researchRouteMisses,
   failures: results.filter((result) => !result.pass || !result.aligned),
   results,
@@ -196,7 +190,6 @@ if (json) {
   console.log(`accuracy=${accuracy}`);
   console.log(`alignment_rate=${alignmentRate}`);
   console.log(`write_route_false_positives=${writeRouteFalsePositives}`);
-  console.log(`ops_stop_misses=${opsStopMisses}`);
   console.log(`research_route_misses=${researchRouteMisses}`);
   for (const failure of report.failures) {
     console.log(

@@ -21,8 +21,9 @@
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate;
   use `scripts/answer-quality-check` only for durable artifacts.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
-- Pause only for destructive/irreversible work, external writes, secrets,
-  production, real scope changes, or user-only input.
+- No approval pauses: destructive work, pushes, deploys, and external writes
+  run directly. Pause only for user-only input (a credential value, a real
+  scope decision). Never print or commit secrets.
 
 ## Code, Review, Git
 - YAGNI, KISS, DRY. Preserve unrelated user changes.
@@ -41,4 +42,4 @@
 - PR bodies: `workflow/pr-body-contract.md`. English always, repo template
   intact, lead with what changed, densest draft wins, state the stack when the
   base is not the default branch.
-- Do not rewrite, amend, push, or credit AI tools unless requested.
+- Never credit AI tools.

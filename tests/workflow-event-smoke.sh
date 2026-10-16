@@ -263,9 +263,6 @@ const cwd = process.env.TMP_DIR;
 const { ACTIVE_RUN_POINTER, selectActiveLedger } = await import(
   pathToFileURL(join(root, "scripts/lib/ledger-integrity.mjs")).href,
 );
-const { planMutationGuardDecision } = await import(
-  pathToFileURL(join(root, "workflow/runtime/workflow-router-core.mjs")).href,
-);
 
 const selection = selectActiveLedger(cwd);
 if (selection.reason) {
@@ -280,14 +277,6 @@ if (selection.inspection.pointer.path !== expectedPath) {
 }
 if (selection.inspection.records.length !== 1) {
   throw new Error("pointer selection must inspect only the activated ledger");
-}
-const decision = planMutationGuardDecision({
-  cwd,
-  tool_name: "Write",
-  tool_input: { file_path: join(cwd, "src/from-activate.ts"), content: "x" },
-});
-if (decision != null) {
-  throw new Error(`guards did not see activated run: ${JSON.stringify(decision)}`);
 }
 EOF
 "$ROOT_DIR/scripts/workflow-event" --dir "$EVENT_DIR" append run-active completed '{"summary":"active pointer closed"}'

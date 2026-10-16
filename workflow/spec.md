@@ -84,11 +84,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `workflow/events-validator.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`.
-- Check-freeze: once READY, Checks/Acceptance Criteria/Validation Plan,
-  including expected results, strengthen-only;
-  demoting the plan to `CHALLENGED` with a Decision Log rationale required to
-  weaken. Runtime: shared `planMutationGuardDecision` on PLAN.md writes
-  (Pi `tool_call` + Claude `plan-ready-guard`); CLI `scripts/plan-check-freeze`. <!-- etabli-only -->
+- READY plans stay editable: when Checks or Acceptance Criteria change, note
+  why in the Decision Log. No runtime freeze.
 - Context budget: the instruction files each hot route loads are ceilinged in
   `workflow/runtime/context-budget.json`; `scripts/workflow-context-budget` <!-- etabli-only -->
   fails on growth with its remediation and `--ratchet` only lowers ceilings
@@ -98,10 +95,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   telemetry, never plan/goal stop conditions. Bounded payload contracts and
   explicit billing authorization remain separate. The final review of an
   autonomous `plan-implement` run comes from a fresh
-  context (subagent reviewer or cross-model). This authorization is for
-  read-only fresh-context review only; it
-  does not authorize destructive, secret, production, billing, deploy, push,
-  merge, or external write actions. Handoffs are recorded as a `handoff` event.
+  context (subagent reviewer or cross-model). Handoffs are recorded as a
+  `handoff` event.
 - Implementation depth is risk-tiered (`small` / `standard` / `high-risk`)
   per `workflow/skills/implementation-loop.md`: cross-model code-diff
   adversary is reserved for high-risk; standard accepts a documented
@@ -144,18 +139,17 @@ A plan is `READY` when it has:
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
 | Self-improvement request from run evidence, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
-| Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff; no push/PR/deploy without explicit command contract |
+| Ambitious project, "A to Z", "de a a z", or end-to-end project request without explicit `/ship` | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff |
 | Natural-language implementation request for a Linear ticket | `plan-implement` (`implement` with a READY plan) | `PLAN.md` from the ticket + code/docs + validation | validated archive and root `PLAN.md` deleted |
 | Review request, including a GitHub PR review in natural language | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
-| Destructive, secret, production, billing, deployment, push, external write-back (incl. Linear ticket creation), or broad irreversible work | `ops-stop` | risk brief | user decision |
 <!-- ROUTES:end -->
 
 Work commands are explicit commands (work scope), never chosen by the
 router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
 `/bug-check`, `/pr-review`, `/github-pr-review`, `/pr-qa`, `/sec-pr`,
 `/ci-fix`, `/spec-guide`. Slash prompts bypass the classifier, so each runs
-under its own contract (`/ci-fix` may push within it). Linear commands
+under its own contract. Linear commands
 require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md`. Rationale: ADR-0027.
 
@@ -176,16 +170,15 @@ no additional global skill router.
 
 ## Human checkpoints
 
-Checkpoints sit at irreversibility boundaries (deletion, production/billing,
-history rewrite, secrets, external write-back), not every step; the Routing
-rules table above routes these to `ops-stop`. Full enforcement matrix and
-event journaling: `workflow/contract-details.md` § Human checkpoints. Adapter
-coverage: routes shared by Pi extension and Claude hooks; executable classifier
-`workflow/runtime/workflow-router-core.mjs` via runtime-specific adapters.
+None. Deletion, production, billing, history rewrite, pushes, and external
+write-back run without a stop (ADR-0032); secrets are never printed or
+committed. Adapter coverage: routes shared by Pi extension and Claude hooks;
+executable classifier `workflow/runtime/workflow-router-core.mjs` via
+runtime-specific adapters.
 
 Routing is deterministic code only (the semantic judgment layer was removed);
-permissions, destructive/external checkpoints, actual plan state, READY/mutation
-guards, and every execution gate remain authoritative code.
+actual plan state and the remaining write gates (no-comments, read-only
+agents) stay authoritative code.
 
 ## Runtime surfaces
 

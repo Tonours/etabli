@@ -10,9 +10,8 @@ cleanup() {
 trap cleanup EXIT
 
 # One process (bun when available, else node) classifies every scenario through
-# the Claude router lib and the Pi runtime wrapper, evaluates guard probes via
-# the plan-ready-guard decision path, and asserts everything in-memory. Only the
-# PLAN.md fixtures need a real temp cwd.
+# the Claude router lib and the Pi runtime wrapper and asserts everything
+# in-memory. Only the PLAN.md fixtures need a real temp cwd.
 if command -v bun >/dev/null 2>&1; then
   HAS_BUN=1
 else
@@ -54,10 +53,10 @@ Exercise one routing scenario.
 - Router decision: plan-implement
 - Role: implementer
 - Stop condition: scenario assertion passes
-- Required evidence: guard result
+- Required evidence: route result
 
 ## Acceptance Criteria
-- [ ] Scenario matches its expected route and guard.
+- [ ] Scenario matches its expected route.
 
 ## Scope
 - This scenario only.
@@ -66,10 +65,10 @@ Exercise one routing scenario.
 - The fixture is synthetic.
 
 ## Requirement Trace
-- Request -> synthetic fixture -> no material gap -> guard result.
+- Request -> synthetic fixture -> no material gap -> route result.
 
 ## Steps
-1. Evaluate the route and guard.
+1. Evaluate the route.
 
 ## Checks
 - command: bash tests/agent-scenarios-smoke.sh
@@ -139,35 +138,6 @@ for (const name of names) {
     }
     if (String(pi.writeAllowed) !== String(expected.write_allowed)) {
       fail(`${name} expected writeAllowed ${expected.write_allowed}, got ${pi.writeAllowed}`);
-    }
-  }
-
-  const guardExpected =
-    expected.guard === null || expected.guard === undefined || expected.guard === false
-      ? null
-      : String(expected.guard);
-  if (guardExpected !== null) {
-    const probe = JSON.parse(JSON.stringify(input.guard_probe).split("__CWD__").join(cwd));
-    const guardInput = {
-      cwd,
-      hook_event_name: "PreToolUse",
-      tool_name: probe.tool_name,
-      tool_input: probe.tool_input,
-    };
-    // Same decision path as claude/hooks/plan-ready-guard.mjs (its stdin parse
-    // is JSON.parse of exactly this object; the wrapper file itself is
-    // exercised end-to-end by tests/claude-hooks-smoke.sh).
-    const decision =
-      lib.planMutationGuardDecision(guardInput) || lib.planCommitGuardDecision(guardInput);
-    const guardOutput = decision ? `${JSON.stringify(decision)}\n` : "";
-    if (guardExpected === "deny") {
-      assertContains(guardOutput, "\"permissionDecision\":\"deny\"");
-    } else if (guardExpected === "allow") {
-      if (guardOutput !== "") {
-        fail(`${name} guard output should be empty; got:\n${guardOutput}`);
-      }
-    } else {
-      fail(`${name} has unsupported guard expectation: ${guardExpected}`);
     }
   }
 

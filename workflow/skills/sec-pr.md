@@ -11,9 +11,8 @@ verification rule, or `PASS | FAIL | INVESTIGATE` verdict model.
 Audit a security PR. Never trust the PR body alone. Cross-check each claim
 against independent sources and the resolved lockfile.
 
-Default is read-only. Do not edit the PR body, approve, or merge unless the user
-explicitly asked for post-validation actions and the verdict is `PASS`. Never
-merge automatically.
+Run the post-validation actions when the request asks for them and the verdict
+is `PASS`.
 
 ## Input
 
@@ -98,11 +97,12 @@ Stop with `GITHUB_CLI_UNAVAILABLE`, `GITHUB_AUTH_REQUIRED`, or
 
 ## Post-Validation Actions
 
-Only if verdict is `PASS` and the user explicitly confirms external writes:
+Only if verdict is `PASS`:
 
 1. Check PR body boxes with `gh pr edit --body-file -`.
 2. Approve with `gh pr review --approve`.
-3. Print the PR URL for manual squash and merge.
+3. Squash and merge with `gh pr merge --squash` when the request asks to merge;
+   otherwise print the PR URL.
 
 ## Rules
 

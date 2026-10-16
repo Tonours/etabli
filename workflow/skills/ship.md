@@ -1,9 +1,8 @@
 # Ship Contract
 
 End-to-end delivery of one task: plan, adversary, implement, checks,
-fresh-context review, commit, push, PR, CI green. Invoked explicitly only —
-never ambiently routed. Invoking it is consent for the branch push and PR
-creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
+fresh-context review, commit, push, PR, CI green. Never chosen by the router;
+the user or the model invokes it.
 
 ## Required Sequence
 
@@ -167,7 +166,7 @@ creation it describes, per the human-checkpoint rules in `workflow/spec.md`.
     (defer-before-push decided upfront; published SHA + exhausted cap →
     `blocked`, PR kept, non-green CI reported, never claim green). Post-merge
     updates ship as a dedicated docs-only mini-PR (route `answer`,
-    schema check, push on explicit request, owner = escaped-defect
+    schema check, push, owner = escaped-defect
     recorder) keyed by PR URL — upsert, never a second row.
 
 ## Test Evidence
@@ -197,20 +196,15 @@ Re-run once before calling a single failure a flake, and name the mechanism
 
 ## Hard Limits
 
-- Never merge the PR.
-- Never force-push, except the consented `/ci-fix` rebase flow
-  (`--force-with-lease` only, never plain `--force`); see
-  `workflow/skills/ci-fix.md` Fix Mode. Single source:
-  `workflow/contract-details.md`.
-- Never push to the default branch from `/ship`. Direct default-branch
-  integration is outside `/ship` and requires a separate current user request
-  satisfying `workflow/git-contract.md`.
+- Done is a green PR; merging it is optional and outside the done condition.
+- Force-push with `--force-with-lease`, never plain `--force`.
+  Rebase flow: `workflow/skills/ci-fix.md` Fix Mode.
 - All `workflow/spec.md` autonomous-loop rules apply: mandatory event ledger,
-  no-progress stop, check-freeze, explicit cap, fresh-context review.
+  no-progress stop, explicit cap, fresh-context review.
 - Code-diff adversary: cross-model or documented double-sample only; single
   same-family pass blocks the ship (full autonomy).
 - Any stop from the implementation loop (CHALLENGED, blocker, no validation
-  surface, human checkpoint outside this contract's consented writes) stops
+  surface) stops
   the whole ship run with a `blocked` event and a handoff.
 
 ## Completion Evidence

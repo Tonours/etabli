@@ -26,7 +26,6 @@ cleanup reporting rule.
 ## Isolation Rules
 
 - One run, one worktree, one branch.
-- Do not touch the default branch except for read-only comparison.
 - Do not edit sibling worktrees.
 - Do not borrow unstaged changes from the base worktree.
 - Do not mix work for several targets in the same branch or worktree.

@@ -17,7 +17,7 @@
     ],
     "texts": [
       "- Autonomous loop stop conditions pair the measurable goal with an explicit operational cap (iterations or wall-clock).",
-      "- Autonomous loop stop conditions pair the measurable goal with an explicit cap (iterations or wall-clock)."
+      "Autonomous loop stop conditions pair the measurable goal with an explicit cap (iterations or wall-clock)."
     ],
     "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
   },
@@ -40,17 +40,6 @@
     "texts": [
       "Autonomous routes (`plan-implement` autonome, `/goal`, `ci-fix`) must record the event ledger; ordinary work may record it.",
       "- Autonomous runs (`plan-implement` autonome, `/goal`, `/ci-fix`) must record the event ledger; ordinary work may record it."
-    ],
-    "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
-  },
-  {
-    "files": [
-      "workflow/spec.md",
-      "workflow/contract-details.md"
-    ],
-    "texts": [
-      "This authorization is for read-only fresh-context review only; it does not authorize destructive, secret, production, billing, deploy, push, merge, or external write actions.",
-      "This authorization is for read-only fresh-context review only; it does not authorize destructive, secret, production, billing, deploy, push, merge, or external write actions."
     ],
     "reason": "workflow/spec.md and workflow/contract-details.md are independent entry points (AGENTS.md) read by ship only under distinct conditional triggers; contract-details.md carries extra obligations (e.g. the no_progress event)"
   },

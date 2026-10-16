@@ -1,14 +1,13 @@
 ---
 name: plan-implement
-description: Plan, review, then implement, shipping only a READY PLAN.md. Use only when explicitly asked via /skill:plan-implement; not for single-step tasks or plan-free fixes.
-disable-model-invocation: true
+description: Plan, review, then implement, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: plan-implement
 harness: pi
 canonical: pi/skills/plan-implement/SKILL.md
 name: plan-implement
-description: Plan, review, then implement, shipping only a READY PLAN.md. Use only when explicitly asked via /skill:plan-implement; not for single-step tasks or plan-free fixes.
+description: Plan, review, then implement, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
 <!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement

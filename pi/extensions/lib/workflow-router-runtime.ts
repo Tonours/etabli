@@ -12,8 +12,7 @@ export type WorkflowRoute =
 	| "implement"
 	| "plan-implement"
 	| "review"
-	| "verify"
-	| "ops-stop";
+	| "verify";
 
 export type PlanStatus =
 	| "missing"
@@ -82,9 +81,7 @@ export function classifyWorkflowRoute(
 		...core,
 		route,
 		skill:
-			route === "answer" || route === "ops-stop"
-				? core.skill
-				: route,
+			route === "answer" ? core.skill : route,
 		stopCondition: core.stopCondition.replace(/Verdict: /g, ""),
 	};
 }
