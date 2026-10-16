@@ -65,4 +65,3 @@ VERIFIED | NOT VERIFIED | INCONCLUSIVE
 ## Completion Evidence
 
 A verify pass requires one verdict and a status per evidence item.
-Required product plans: read workflow/product-verification.md.

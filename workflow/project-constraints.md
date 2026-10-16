@@ -1,8 +1,7 @@
 # Project Constraints
 
 Open when the same agent mistake on a project's code recurs (third occurrence,
-an `escaped-defect` with `action: project_constraint`, or a
-`workflow-ship-metrics` row recommending a candidate project constraint).
+or an `escaped-defect` with `action: project_constraint`).
 
 The project's code is the agents' memory: a mistake that only lives in prose
 keeps coming back. Turn it into a constraint in the subject project's own
@@ -10,9 +9,8 @@ tooling. Etabli owns this loop, never framework-specific rules.
 
 ## Where it goes
 
-Find the tooling with `scripts/project-verification discover`; its
-`constraints` list says where rules already live. It reports presence only, not
-that a tool runs or is strict.
+Find where rules already live: the project's type-check, lint and test config.
+Presence alone does not prove that a tool runs or is strict.
 
 Take the first rung that can express the rule:
 

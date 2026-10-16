@@ -165,8 +165,3 @@ ownable units. Otherwise delete this section.
 - [ ] Checks are named and proportionate
 - [ ] Risks are identified or explicitly none
 - [ ] No blocking open questions remain
-
-## Product Verification
-- Required: auto
-
-Details: workflow/product-verification.md.

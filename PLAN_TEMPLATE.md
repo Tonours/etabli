@@ -77,8 +77,3 @@ Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side
 
 ## Notes / Handoff
 -
-
-## Product Verification
-- Required: auto
-
-Details: workflow/product-verification.md.

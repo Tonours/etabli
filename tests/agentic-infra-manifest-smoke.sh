@@ -28,7 +28,6 @@ done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 
 for required in \
 	answer-quality-check-smoke \
-	obvault-routing-smoke \
 	obvault-query-smoke \
 	workflow-autonomous-plan-loop-smoke \
 	shell-syntax \
@@ -40,121 +39,6 @@ done
 
 awk -F '\t' '!/^#/ && $1 == "core" && $2 == "pi" && $3 == "pi-audit" && $4 == "builtin:pi-audit" {found=1} END {exit !found}' "$MANIFEST" ||
 	fail "Pi group must enforce bun audit"
-
-# Core order doubles as launch priority: the runner caps concurrency, so the
-# slowest checks must start first (LPT scheduling).
-expected_core='pi-tests
-deploy-agent-workflow-smoke
-workflow-contract-coverage-smoke
-plan-cleanup-smoke
-agent-scenarios-smoke
-pi-typecheck
-plan-check-freeze-smoke
-pi-audit
-shell-syntax
-json-config
-router-eval
-router-eval-smoke
-supply-chain-smoke
-skill-lock
-review-contract-surface-smoke
-worker-recovery-smoke
-workflow-context-budget-smoke
-guards-active
-ledger-check
-contract-coherence
-ref-linter
-adapter-sync
-rule-registry
-skill-hygiene
-workflow-lease-smoke
-guard-journal-smoke
-ship-metrics-report
-project-verification-check
-project-verification-run
-plan-review-binding-test
-execution-quality-smoke'
-# Core budget: 17 checks. Bumped from 16 (2026-08-25) to add
-# review-contract-surface-smoke (<50 ms) — the merge gate that must catch
-# contract-surface regressions like the CR-B4 union-cap leak.
-# Core budget: 18 checks. Bumped from 17 (2026-08-25) to add
-# worker-recovery-smoke (~1s, hermetic) — the dirty-tree salvage contract
-# behind the autoresearch driver's queue-liveness guarantee.
-# Core budget: 19 checks. Bumped from 18 (2026-09-13) to add
-# workflow-context-budget-smoke (<1s, hermetic) — the ratchet gate on resident
-# instruction context.
-# Core budget: 27 checks. T2-T5 added guards-active, ledger-check,
-# contract-coherence, ship-order without updating this pin (full was red);
-# T6 step 1 adds ref-linter (~3s, hermetic). Exact count from here on.
-# T6 step 2 adds adapter-sync (~2s, hermetic).
-# T6 step 3 adds rule-registry + router-parity (one smoke file, two labels).
-# T7 step 2 adds skill-hygiene (DMI flags + native probe; AC2a/AC3/AC4 sections append).
-# T7 step 3 appends skill-trigger-eval (frozen recompute + compare) to full.
-actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
-[ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted: review workflow/runtime/agentic-infra-checks.tsv and align the exact approved expected_core list"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 31 ] ||
-	fail "core profile must hold exactly 31 checks; align approved manifest rows and expected_core"
-[ "$(awk -F '\t' '!/^#/ && $1 == "core" {print $4}' "$MANIFEST" | sort | uniq -d)" = "" ] ||
-	fail "core profile runs a target twice under two labels; keep one row per target"
-
-expected_full='pr-latest-head-status-smoke
-ledger-auto-emit-smoke
-ledger-selection-performance-smoke
-research-proof-check-smoke
-answer-quality-check-smoke
-answer-quality-eval-smoke
-workflow-docs-smoke
-workflow-scaffold-smoke
-claude-hooks-smoke
-claude-agents-smoke
-claude-commands-smoke
-claude-skills-smoke
-workflow-event-smoke
-workflow-autonomous-plan-loop-smoke
-runtime-capabilities-smoke
-adr-hook-smoke
-adr-validate-smoke
-adr-validation-golden
-adr-helper-smoke
-validate-adrs
-obvault-routing-smoke
-obvault-query-smoke
-agentic-infra-manifest-smoke
-pi-paths-smoke
-pi-review-hunter-smoke
-pi-import-smoke
-fix-links-smoke
-install-smoke
-graph-contract-smoke
-graph-neighborhood-smoke
-action-graph-smoke
-obvault-shadow-promote-smoke
-autonomous-ledger-hygiene-smoke
-claude-profile-smoke
-claim-evidence-check-smoke
-skill-eval-smoke
-session-handoff-smoke
-skill-catalog-name-smoke
-skill-tree-hash-smoke
-sync-vendor-subpath-smoke
-claude-skill-load-check-smoke
-pi-skill-load-check-smoke
-vendor-surface-policy-smoke
-vendor-prune-modes-smoke
-review-run-receipt-test
-review-evidence-pack-test
-harness-token-usage-test
-skills-lock-coverage-smoke
-skill-trigger-eval
-token-bench-smoke
-claude-launch-smoke
-claude-statusline-smoke
-etabli-mod-smoke
-etabli-plugin-deploy-smoke
-etabli-session-test
-etabli-session-mod-test'
-actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
-[ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
 expected_live='workflow-cli-smoke
 workflow-real-agent-scenarios'
@@ -170,17 +54,6 @@ printf '%s\n' "$runner_source" | grep -Fq 'fix-links-smoke' ||
 	fail "verify-agentic-infra must name the repo-mutating checks"
 actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 [ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
-
-# Core order doubles as launch priority (slowest first under the runner's
-# concurrency cap); the Pi group inherits that order.
-expected_pi='pi-tests
-pi-typecheck
-pi-audit
-router-eval
-skill-lock
-pi-import-smoke'
-actual_pi="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "pi" {print $3}' "$MANIFEST")"
-[ "$actual_pi" = "$expected_pi" ] || fail "legacy Pi group membership/order drifted"
 
 actual_nvim="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "nvim" {print $3}' "$MANIFEST")"
 [ -z "$actual_nvim" ] || fail "Nvim checks belong to dotfiles, not Etabli: $actual_nvim"

@@ -48,18 +48,18 @@ for durable_backend in lockf flock shlock; do
   done
   [[ -n "$durable_native" ]] || continue
   durable_probe="$(mktemp -d)"
-  printf '# Plan\n- Status: READY\n## Product Verification\n- Required: no\n' >"$durable_probe/PLAN.md"
+  printf '# Plan\n- Status: READY\n' >"$durable_probe/PLAN.md"
   durable_request='{"path":"PLAN.md","status":"READY","export_id":"enriched"}'
   durable_append append replay plan_created "$durable_request"
   durable_file="$durable_probe/.workflow/replay/events.jsonl"
-  jq -e --argjson original "$durable_request" '.detail.product_verification_required == false and .detail.export_source_detail == $original' "$durable_file" >/dev/null || {
+  jq -e --argjson original "$durable_request" '(.detail.plan_contract_sha256 | test("^[a-f0-9]{64}$")) and .detail.export_source_detail == $original' "$durable_file" >/dev/null || {
     printf 'enriched export must preserve its original request identity\n' >&2; exit 1
   }
   durable_before="$(hash256 "$durable_file" | awk '{print $1}')"
-  for phase in draft required removed; do
+  for phase in draft edited removed; do
     case "$phase" in
       draft) printf '# Plan\n- Status: DRAFT\n' >"$durable_probe/PLAN.md" ;;
-      required) printf '# Plan\n- Status: DRAFT\n## Product Verification\n- Required: yes\n- Evidence pack: .workflow/pack.json\n- Subject root: .\n' >"$durable_probe/PLAN.md" ;;
+      edited) printf '# Plan\n- Status: READY\n## Goal\nchanged\n' >"$durable_probe/PLAN.md" ;;
       removed) rm -f "$durable_probe/PLAN.md" ;;
     esac
     durable_append append replay plan_created "$durable_request"
@@ -68,12 +68,12 @@ for durable_backend in lockf flock shlock; do
   durable_append append replay validation_run '{"command":"isolated fixture","exit":0}'
   durable_append --expected-ledger-sha256 "$durable_before" append replay plan_created "$durable_request"
   [[ "$(wc -l <"$durable_file" | tr -d ' ')" == 2 ]] || exit 1
-  printf '# Plan\n- Status: READY\n## Product Verification\n- Required: no\n' >"$durable_probe/PLAN.md"
-  durable_explicit='{"path":"PLAN.md","status":"READY","product_verification_required":true,"export_id":"explicit"}'
+  printf '# Plan\n- Status: READY\n' >"$durable_probe/PLAN.md"
+  durable_explicit='{"path":"PLAN.md","status":"READY","export_id":"explicit"}'
   durable_append append explicit plan_created "$durable_explicit"
   durable_append append explicit plan_created "$durable_explicit"
-  if durable_append append explicit plan_created '{"path":"PLAN.md","status":"READY","product_verification_required":false,"export_id":"explicit"}' 2>"$durable_probe/collision.stderr"; then
-    printf 'explicit product metadata remains part of exact export identity\n' >&2; exit 1
+  if durable_append append explicit plan_created '{"path":"PLAN.md","status":"DRAFT","export_id":"explicit"}' 2>"$durable_probe/collision.stderr"; then
+    printf 'explicit request fields remain part of exact export identity\n' >&2; exit 1
   fi
   grep -Fq 'export_id collision' "$durable_probe/collision.stderr"
   durable_append append terminal plan_created '{"path":"PLAN.md","status":"READY"}'

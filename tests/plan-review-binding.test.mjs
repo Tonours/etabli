@@ -4,7 +4,6 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { planContract, evaluatePlanReview, planReviewPermission } from "../scripts/lib/plan-review-binding.mjs";
-import { parseChecks, evaluateReadyPlan } from "../scripts/lib/plan-check-freeze.mjs";
 const plan = readFileSync(new URL("./fixtures/execution-quality/ready-plan.md", import.meta.url), "utf8");
 const entry = (event,detail) => ({schema_version:2,ts:"2026-10-02T10:00:00Z",run:"fixture",event,detail});
 export function fixture(rows) {
@@ -35,9 +34,6 @@ test("owned check progress preserves binding for the resolver heading aliases",(
  for(const title of ["Checks","Validation Plan","Checks (release)","Validation Plan: release"]) {
   const before=plan.replace("## Checks",`## ${title}`),hash=planContract(before).contract_sha256;
   const after=before.replace("last run: pending","last run: passed");
-  assert.equal(evaluateReadyPlan(before).ok,true,title);
-  assert.equal(evaluateReadyPlan(after).ok,true,title);
-  assert.deepEqual(parseChecks(after),parseChecks(before),title);
   const rows=[entry("plan_created",{path:"PLAN.md",status:"READY",plan_contract_sha256:hash}),approval("READY",hash)];
   assert.equal(planContract(after).contract_sha256,hash,title);
   assert.equal(evaluatePlanReview(rows,after).ok,true,title);
@@ -94,7 +90,6 @@ test("bookkeeping descendants and continuations remain material",()=>{
   assert.notEqual(planContract(next).contract_sha256,planContract(plan).contract_sha256);
   assert.equal(evaluatePlanReview([binding(),approval()],next).reason,"stale_plan_review");
  }
- assert.notDeepEqual(parseChecks(plan.replace("last run: pending","last run: pending\n      - command: node extra-check.mjs\n        - expected: extra behavior passes")),parseChecks(plan));
 });
 
 test("command source escapes in Checks and Steps remain material",()=>{

@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded by ADR-0034
 date: 2026-09-29
 tags: [workflow, one-writer, lease, multihost, agents]
 affected_components: [scripts/workflow-lease, workflow/spec.md, workflow/agent-quick-card.md, workflow/contract-details.md]
+superseded_by: ADR-0034
 ---
 
 # Define write authority as a single integrator plus a per-worktree lease

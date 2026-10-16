@@ -19,8 +19,8 @@ and report the missing paths as a warning, not a blocker.
 1. Inspect `git status --short` and relevant request/spec, tickets, decisions,
    code, launch/tests and recipe. Record precedence, freshness and conflicts;
    derive provisional criteria from the request/confirmed decisions if no spec
-   exists. Classify ACs; include missing verification setup in scope (see
-   `workflow/product-verification.md`). Load domain skills only on a clear
+   exists. Classify ACs; include missing verification setup in scope.
+   Load domain skills only on a clear
    match; name them or `none` in `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`; set the `Branch`
    meta to the current `git branch --show-current`.

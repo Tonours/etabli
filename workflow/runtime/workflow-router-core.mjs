@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { projectVaultRoots, vaultContextCommand } from "./obvault-topic-resolver.mjs";
-import { parsePlanStatus } from "../../scripts/lib/plan-check-freeze.mjs";
+import { parsePlanStatus } from "../../scripts/lib/plan-status.mjs";
 
 export { parsePlanStatus };
 
