@@ -87,7 +87,7 @@
     "typesafe-ai": {
       "pi": null,
       "claude": [],
-      "canonical": "pi/skills/typesafe-ai/SKILL.md"
+      "canonical": "vendor/typesafe-ai/skills/typesafe-ai/SKILL.md"
     },
     "verify": {
       "pi": "pi/skills/verify/SKILL.md",

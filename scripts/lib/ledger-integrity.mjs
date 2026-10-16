@@ -409,11 +409,6 @@ function readPointer(root, absentFromEntries = false) {
   }
 }
 
-export function getActiveRunPointer(cwd) {
-  const root = join(cwd || process.cwd(), ".workflow");
-  return readPointer(root);
-}
-
 /**
  * Collect all root ledgers with their integrity status. Invalid records are
  * deliberately retained so callers can fail closed instead of ignoring them.
