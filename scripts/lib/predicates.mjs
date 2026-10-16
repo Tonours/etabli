@@ -1,7 +1,5 @@
 /**
- * Shared value predicates for workflow libs. Byte-for-byte identical logic
- * previously duplicated across ledger-integrity,
- * no-progress-guard and ledger-auto-emit.
+ * Shared value predicates for workflow libs.
  * @param {unknown} value
  */
 export function isObject(value) {

@@ -128,7 +128,7 @@ Claude:
   with an explicit cap (iterations or wall-clock) and record the event ledger
   per `workflow/events.md`, as required by `workflow/spec.md`.
 - Route classification stays library-only
-  (`workflow/runtime/workflow-router-core.mjs`), covered by `scripts/router-eval`. <!-- etabli-only -->
+  (`workflow/runtime/workflow-router-core.mjs`).
 - Hooks do not inject route context, and they do not replace task state or
   completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one

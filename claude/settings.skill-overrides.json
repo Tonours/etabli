@@ -10,7 +10,6 @@
     "domain-modeling": "on",
     "employer-backend-suite": "on",
     "employer-docs-writing": "user-invocable-only",
-    "employer-mfe-qa": "on",
     "grill-with-docs": "user-invocable-only",
     "herdr": "on",
     "improve-codebase-architecture": "user-invocable-only",
@@ -19,7 +18,6 @@
     "research": "on",
     "spec": "on",
     "typesafe-ai": "user-invocable-only",
-    "week-roadmap": "on",
     "wizard": "on",
     "write-direct": "on"
   }

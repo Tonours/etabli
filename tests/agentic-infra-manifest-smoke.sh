@@ -27,7 +27,6 @@ while IFS=$'\t' read -r profile group label target; do
 done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 
 for required in \
-	answer-quality-check-smoke \
 	obvault-query-smoke \
 	workflow-autonomous-plan-loop-smoke \
 	shell-syntax \

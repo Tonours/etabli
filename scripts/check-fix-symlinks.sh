@@ -309,7 +309,6 @@ elif [ -e "$HOME/.grok/bin/agent" ] || [ -L "$HOME/.grok/bin/agent" ]; then
 elif [ "$VERBOSE" -eq 1 ]; then
   status_line OK "grok colliding agent launcher absent"
 fi
-check_script_link "scaffold-project"
 
 printf '\nSummary: %d issue(s), %d fix(es) applied, %d unresolved\n' "$ISSUES" "$FIXED" "$UNRESOLVED"
 

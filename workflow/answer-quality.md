@@ -71,23 +71,8 @@ Emit the matching reply shape in the last message:
   unstable claims.
 - Repo/workflow answer: inspect current files and Git state; never rely on memory
   alone for drift-prone status.
-- Research answer: include source URLs and confidence labels; validate repo
-  research artifacts with `scripts/research-proof-check`. <!-- etabli-only -->
+- Research answer: include source URLs and confidence labels.
 - Implementation handoff: report files, checks, results, remaining risks,
   archive state, and whether `PLAN.md` still exists.
 - obvault-backed answer: bounded, cited context pack first, per
   `workflow/skills/obvault-memory.md`.
-
-## Mechanical Check
-
-Use `scripts/answer-quality-check` for durable research artifacts, repo <!-- etabli-only -->
-handoffs, implementation summaries, and obvault-backed notes written to disk.
-It checks Markdown markers: source/local-path or command evidence,
-uncertainty, validation/risks, obvault entrypoints, and unsupported perfection
-overclaims. This floor does not score quality, test comprehension, or render rich
-artifacts; a failure identifies missing expected evidence.
-
-## Helper Eval And Evidence
-
-`scripts/answer-quality-eval` (fixture corpus) and the evidence base behind <!-- etabli-only -->
-this contract are documented in `docs/answer-quality-traces/README.md`.

@@ -1,1 +1,0 @@
-../../../pi-mobile/apps/connector/src/extension/pi-mobile-bridge.ts

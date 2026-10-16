@@ -1,6 +1,0 @@
-{
-  "name": "etabli-local",
-  "description": "Etabli workflow cockpit, read from this checkout",
-  "owner": { "name": "Tonours" },
-  "plugins": [{ "name": "etabli", "source": "./etabli" }]
-}

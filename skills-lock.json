@@ -131,16 +131,6 @@
       "sourceType": "repo",
       "computedHash": "f0edf738a14acb2dc0f644865a4f4bec9a1fc86d32b6b18b836c365bfe6c38e1"
     },
-    "claude-scope/work/employer-mfe-qa": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "9d47f8107357e20798ba612d658a21179753804958e46cbc61c8301c9269300d"
-    },
-    "claude-scope/work/week-roadmap": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "80d8b1536c30953a4693f26b154b9bc5626a381e0a08c6a058ee8f47802bc42e"
-    },
     "no-ai-slop": {
       "source": "local",
       "sourceType": "repo",

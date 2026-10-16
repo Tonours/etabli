@@ -57,7 +57,6 @@ PLAN.md
 !tests/fixtures/**/PLAN.md
 ops-roadmap.md
 .workflow/
-claude/mods/etabli/.claude-plugin/types/
 
 # Local Pi runtime state
 .pi/

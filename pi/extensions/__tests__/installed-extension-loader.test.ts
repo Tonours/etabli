@@ -8,12 +8,9 @@ const root = resolve(import.meta.dir, "../../..");
 const piLookup = spawnSync("which", ["pi"], { encoding: "utf8" });
 const piLauncher = piLookup.status === 0 ? piLookup.stdout.trim() : "";
 const repositoryExtensions = [
-	"filter-output.ts",
 	"no-comments.ts",
 	"prefer-ipv4-dns.ts",
 	"rtk.ts",
-	"session-hygiene.ts",
-	"token-rate.ts",
 	"workflow-router.ts",
 	"workflow-tools.ts",
 ];
@@ -77,7 +74,7 @@ describe("installed Pi extension loader", () => {
 			const result = loadWithNode(activeNodePath, loaderPath, installedPaths);
 			expect(result.errors).toEqual([]);
 			expect(result.loaded.sort()).toEqual(installedPaths.sort());
-			expect(installedPaths).toHaveLength(8);
+			expect(installedPaths).toHaveLength(repositoryExtensions.length);
 			expect(packageVersion).toMatch(/^\d+\.\d+\.\d+$/);
 			expect(activePiVersion).toBe(packageVersion);
 		} finally {

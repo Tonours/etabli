@@ -3,8 +3,7 @@
     "allowJs": true,
     "allowImportingTsExtensions": true,
     "paths": {
-      "@earendil-works/*": ["./node_modules/@earendil-works/*"],
-      "@pi-mobile/protocol": ["../../pi-mobile/packages/protocol/src/index.ts"]
+      "@earendil-works/*": ["./node_modules/@earendil-works/*"]
     },
     "module": "ESNext",
     "moduleResolution": "Bundler",

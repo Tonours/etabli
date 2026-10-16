@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 SCRIPT="$ROOT_DIR/scripts/deploy-workflow"
-SCAFFOLD_SCRIPT="$ROOT_DIR/scripts/scaffold-project"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -247,29 +246,6 @@ if "$SCRIPT" "$NEW_PROJECT" --check --dry-run >"$CHECK_FLAG_OUTPUT" 2>&1; then
   exit 1
 fi
 assert_contains "$CHECK_FLAG_OUTPUT" "flags are mutually exclusive"
-
-SCAFFOLD_PROJECT="$TMP_DIR/scaffold-project"
-"$SCAFFOLD_SCRIPT" "$SCAFFOLD_PROJECT" --new >/dev/null
-assert_file "$SCAFFOLD_PROJECT/AGENTS.md"
-assert_file "$SCAFFOLD_PROJECT/docs/plan/README.md"
-
-if "$SCAFFOLD_SCRIPT" "$SCAFFOLD_PROJECT" --new >/dev/null 2>&1; then
-  printf 'expected scaffold --new to fail for a non-empty target\n' >&2
-  exit 1
-fi
-
-CONVERT_PROJECT="$TMP_DIR/convert-project"
-mkdir -p "$CONVERT_PROJECT"
-printf 'existing project\n' >"$CONVERT_PROJECT/README.md"
-"$SCAFFOLD_SCRIPT" "$CONVERT_PROJECT" --convert >/dev/null
-assert_file "$CONVERT_PROJECT/AGENTS.md"
-assert_contains "$CONVERT_PROJECT/README.md" "existing project"
-
-MISSING_CONVERT_PROJECT="$TMP_DIR/missing-convert-project"
-if "$SCAFFOLD_SCRIPT" "$MISSING_CONVERT_PROJECT" --convert >/dev/null 2>&1; then
-  printf 'expected scaffold --convert to fail for a missing target\n' >&2
-  exit 1
-fi
 
 DRY_PROJECT="$TMP_DIR/dry-project"
 "$SCRIPT" "$DRY_PROJECT" --dry-run >/dev/null

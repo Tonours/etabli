@@ -67,19 +67,10 @@ sandbox. Shared workflow and evidence invariants stay in
 - Keep observed facts separate from assumptions in plans.
 - Record exact validation commands and results before claiming completion.
 - Source-backed research artifacts must include source evidence and confidence
-  labels; validate them with `scripts/research-proof-check` when they are <!-- etabli-only -->
-  written to the repo.
+  labels.
 - Answers and handoffs follow `workflow/answer-quality.md`: use the smallest
   evidence-backed response that satisfies the user's goal, labels uncertainty,
   and avoids unsupported claims.
-- Durable answer, handoff, research, and obvault-backed artifacts can be checked
-  with `scripts/answer-quality-check` — a quality floor, not a subjective 10/10 <!-- etabli-only -->
-  scorer.
-- Answer-quality helper behavior is pinned by
-  `scripts/answer-quality-eval` and the versioned fixtures under <!-- etabli-only -->
-  `tests/fixtures/answer-quality/`.
-- Saved answer and handoff reviews under `docs/answer-quality-traces/` are
-  historical evidence, not another active validation layer.
 - Record route, role, stop condition, and required evidence in every plan (the gate requires them unconditionally).
 - Planning review updates `PLAN.md` in place.
 - Implementation-bound plans run an adversary pass before implementation.
@@ -153,9 +144,8 @@ happen are journaled as `human_checkpoint` events per `workflow/events.md`.
 
 | Category | Examples | Enforcement | Behavior |
 | --- | --- | --- | --- |
-| secrets / credentials | printing or committing secrets | Pi `filter-output` and sensitive-file blocks | output redaction; never commit |
+| secrets / credentials | printing or committing secrets | sensitive-file blocks | never print or commit |
 | read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record reviewer evidence |
-| ledger auto-emit | bash failure while active non-terminal ledger exists | Pi `tool_result` + Claude PostToolUseFailure `ledger-auto-emit` | append `validation_failed`; may append `no_progress` (recorded, never blocking); no emit without ledger |
 | ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
 | missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
 
@@ -173,7 +163,7 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
   `{ts, host, harness, guard, pattern, target, tool}` lines to `.workflow/guard-journal/`
   (best-effort, never blocks the deny) <!-- etabli-only -->
 - Orchestration contract: `workflow/skills/orchestration.md`
-- Answer quality: `workflow/answer-quality.md`, `scripts/answer-quality-check`, `scripts/answer-quality-eval` <!-- etabli-only -->
+- Answer quality: `workflow/answer-quality.md`
 - Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
@@ -211,8 +201,7 @@ Claude:
 - `/linear-work`: work from Linear tickets through Linear MCP
 - `/pr-council-review`: three-pass review of one GitHub PR, dry-run by default
 
-Work commands (`/linear-*`, `/bug-check`, `/pr-council-review`,
-`/spec-guide`) are explicit commands in the work scope, never routed
+Work commands (`/linear-*`, `/bug-check`, `/pr-council-review`) are explicit commands in the work scope, never routed
 (ADR-0027).
 
 Claude-native loop:
@@ -221,8 +210,8 @@ Claude-native loop:
   of recreating Pi's Task* continuation layer. The goal statement must pair the
   measurable condition with an explicit cap (iterations or wall-clock), and the
   run must record the event ledger per `workflow/events.md`.
-- Use `claude/settings.workflow-hooks.json` as an opt-in settings fragment for
-  ledger, session-state, and ADR hooks. Route classification stays
+- `claude/settings.workflow-hooks.json` wires the no-comments and rtk guards.
+  Route classification stays
   library-only and injects no prompt context (ADR-0014).
 - Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
   Do not claim Claude has Pi Task* semantics.

@@ -22,18 +22,7 @@ markers. Operational progress and handoff belong in ledger events. Confined
 active-run `.md`/`.patch` preparation and fixed read-only plan-review runner argv
 remain available before approval; no shell chains, expansion or outside capture.
 
-Pi helper executions use native capture by default (private temporary receipts
-when no directory is supplied). Default runs retain transport semantics when
-usage is unmeasured; explicit captures still require complete usage.
-
-Native Read/Grep errors are inspection evidence. A positive verdict is refused
-while any attempted inspection is unresolved or inspection identity, input or result content is malformed.
-Only a successful retry of the same tool/input clears an error. Transport and
-usage measurement remain separate; successful observed reads do not prove full
-coverage. BLOCK reports and ordinary successful no-match searches remain valid.
-
 An implemented archive matching the current root plan's exact byte hash is
 bookkeeping: append `archive_written`, never `file_changed`. Use `plan-cleanup`
 then `plan_removed`; archive naming, Source PLAN, IMPLEMENTED status and hash
-follow the existing cleanup contract. Tests prove guards on fixtures; reduced
-review count requires a later comparable live measurement.
+follow the existing cleanup contract.

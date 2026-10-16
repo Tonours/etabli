@@ -998,19 +998,18 @@ append_path_entry "$HOME/.local/bin"
 
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
-install_script "scaffold-project" || true
-install_script "claude-lean" || true
-install_script "claude-full" || true
 
 if [ -L ~/.local/bin/deploy-harness ]; then
     rm -f ~/.local/bin/deploy-harness
     print_success "Removed legacy deploy-harness link"
 fi
 
-if [ -L ~/.local/bin/pi-durable ]; then
-    rm -f ~/.local/bin/pi-durable
-    print_success "Removed retired pi-durable link"
-fi
+for retired_script in pi-durable scaffold-project claude-lean claude-full claude-deep claude-daily dev-spawn jev-judge; do
+    if [ -L ~/.local/bin/"$retired_script" ]; then
+        rm -f ~/.local/bin/"$retired_script"
+        print_success "Removed retired $retired_script link"
+    fi
+done
 
 # Moved to dotfiles: drop only links that still point into this checkout.
 for moved_script in tmux-clipboard.sh herdr-sync-mini; do
