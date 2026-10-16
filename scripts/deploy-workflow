@@ -127,7 +127,8 @@ Options:
   --dry-run   Show planned writes without touching the target
   --force     Backup and overwrite conflicting files
   --refresh-tracked With --force, also overwrite tracked scaffold copies (git is the backup;
-              AGENTS.md, docs/ and files with uncommitted changes are kept)
+              AGENTS.md, docs/project-context.md, scripts, symlinks and files with
+              uncommitted changes are kept)
   --prune     Move retired scaffold files to backups; tracked ones also leave the index
   --check     Report drift between source templates and deployed files without writing
   --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
@@ -387,12 +388,22 @@ write_file() {
       return 0
     fi
     case "$relative_path" in
-      AGENTS.md|docs/*)
+      AGENTS.md|docs/project-context.md)
         status_line PROTECTED "$relative_path is a project-owned seed; refresh it by hand"
         UNCHANGED=$((UNCHANGED + 1))
         return 0
         ;;
+      scripts/*)
+        status_line PROTECTED "$relative_path is a tracked script whose scaffold dependencies are untracked; refresh it by hand"
+        UNCHANGED=$((UNCHANGED + 1))
+        return 0
+        ;;
     esac
+    if [ -L "$destination_path" ]; then
+      status_line PROTECTED "$relative_path is a tracked symlink; refresh its target by hand"
+      UNCHANGED=$((UNCHANGED + 1))
+      return 0
+    fi
     if ! git -C "$TARGET_DIR" diff --quiet HEAD -- "$relative_path"; then
       status_line PROTECTED "$relative_path has uncommitted changes; commit or stash them before --refresh-tracked"
       UNCHANGED=$((UNCHANGED + 1))
@@ -456,8 +467,13 @@ preflight_prune() {
       *)
         status_line CONFLICT "$(dirname "$relative_path") resolves outside the target ($physical_parent); prune refused"
         CONFLICTS=$((CONFLICTS + 1))
+        continue
         ;;
     esac
+    if is_tracked "$relative_path" && ! git -C "$TARGET_DIR" diff --cached --quiet HEAD -- "$relative_path"; then
+      status_line CONFLICT "$relative_path has staged changes; commit or unstage them before --prune"
+      CONFLICTS=$((CONFLICTS + 1))
+    fi
   done
 }
 
@@ -478,7 +494,7 @@ prune_file() {
   fi
 
   if is_tracked "$relative_path"; then
-    git -C "$TARGET_DIR" rm -q --cached -f -- "$relative_path"
+    git -C "$TARGET_DIR" rm -q --cached -- "$relative_path"
     status_line GIT_RM "$relative_path"
   fi
   backup="$(backup_path "$destination_path")"

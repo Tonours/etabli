@@ -343,7 +343,13 @@ printf '\nproject edit\n' >>"$TRACKED_PROJECT/workflow/spec.md"
 printf 'tracked retired\n' >"$TRACKED_PROJECT/scripts/workflow-event"
 git -C "$TRACKED_PROJECT" init -q .
 printf '\nproject seed\n' >>"$TRACKED_PROJECT/docs/project-context.md"
-git -C "$TRACKED_PROJECT" add -f workflow/spec.md scripts/workflow-event docs/project-context.md
+printf '\nold template\n' >>"$TRACKED_PROJECT/docs/agent-workflow.md"
+printf '\nold script\n' >>"$TRACKED_PROJECT/scripts/plan-cleanup"
+TRACKED_OUTSIDE="$TMP_DIR/tracked-outside.md"
+printf 'outside target\n' >"$TRACKED_OUTSIDE"
+rm "$TRACKED_PROJECT/workflow/review-rubric.md"
+ln -s "$TRACKED_OUTSIDE" "$TRACKED_PROJECT/workflow/review-rubric.md"
+git -C "$TRACKED_PROJECT" add -f workflow/spec.md scripts/workflow-event docs/project-context.md docs/agent-workflow.md scripts/plan-cleanup workflow/review-rubric.md
 git -C "$TRACKED_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track scaffold"
 if "$SCRIPT" "$TRACKED_PROJECT" --refresh-tracked >/dev/null 2>&1; then
   printf 'expected --refresh-tracked without --force to fail\n' >&2
@@ -361,6 +367,11 @@ git -C "$TRACKED_PROJECT" checkout -q -- workflow/spec.md
 assert_same "$ROOT_DIR/workflow/spec.md" "$TRACKED_PROJECT/workflow/spec.md"
 assert_contains "$TRACKED_PROJECT/docs/project-context.md" "project seed"
 assert_contains "$TMP_DIR/tracked-refresh.out" "docs/project-context.md is a project-owned seed"
+assert_same "$ROOT_DIR/workflow-scaffold/templates/docs/agent-workflow.md" "$TRACKED_PROJECT/docs/agent-workflow.md"
+assert_contains "$TMP_DIR/tracked-refresh.out" "scripts/plan-cleanup is a tracked script"
+assert_contains "$TRACKED_PROJECT/scripts/plan-cleanup" "old script"
+assert_contains "$TMP_DIR/tracked-refresh.out" "workflow/review-rubric.md is a tracked symlink"
+assert_contains "$TRACKED_OUTSIDE" "outside target"
 assert_contains "$TMP_DIR/tracked-refresh.out" "GIT_RM    scripts/workflow-event"
 assert_not_exists "$TRACKED_PROJECT/scripts/workflow-event"
 assert_backup "$TRACKED_PROJECT/scripts/workflow-event"
@@ -368,5 +379,22 @@ if git -C "$TRACKED_PROJECT" ls-files --error-unmatch scripts/workflow-event >/d
   printf 'expected tracked retired file to leave the index\n' >&2
   exit 1
 fi
+
+STAGED_PROJECT="$TMP_DIR/staged-project"
+"$SCRIPT" "$STAGED_PROJECT" >/dev/null
+printf 'committed\n' >"$STAGED_PROJECT/workflow/events.md"
+printf 'untracked retired\n' >"$STAGED_PROJECT/scripts/workflow-event"
+git -C "$STAGED_PROJECT" init -q .
+git -C "$STAGED_PROJECT" add -f workflow/events.md
+git -C "$STAGED_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
+printf 'staged only\n' >"$STAGED_PROJECT/workflow/events.md"
+git -C "$STAGED_PROJECT" add -f workflow/events.md
+if "$SCRIPT" "$STAGED_PROJECT" --prune >"$TMP_DIR/staged.out" 2>&1; then
+  printf 'expected prune to refuse a retired file with staged changes\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/staged.out" "workflow/events.md has staged changes"
+assert_file "$STAGED_PROJECT/workflow/events.md"
+assert_file "$STAGED_PROJECT/scripts/workflow-event"
 
 printf 'workflow scaffold smoke test: ok\n'
