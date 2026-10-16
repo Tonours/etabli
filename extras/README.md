@@ -1,7 +1,7 @@
 # extras
 
 Shelf for skills that are tracked in git but never deployed (see
-`CONTEXT.md` § Étagère and ADR-0027). Rows in
+`GLOSSARY.md` § Étagère and ADR-0027). Rows in
 `workflow/runtime/skill-surface.tsv` use source `extras` with
 `pi_core=0`.
 

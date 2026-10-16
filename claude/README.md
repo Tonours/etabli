@@ -1,29 +1,9 @@
 # Claude
 
-Claude Code-specific files for `etabli`.
-
-## Installed surface
-
-`scripts/install.sh` links:
-
-- `CLAUDE.md` -> `~/.claude/CLAUDE.md`
-- `../PLAN_TEMPLATE.md` -> `~/.claude/PLAN_TEMPLATE.md`
-- `../PLAN_TEMPLATE_FULL.md` -> `~/.claude/PLAN_TEMPLATE_FULL.md`
-- `../workflow/` -> `~/.claude/workflow`
-- the same plan templates and `workflow/` are also linked under
-  `~/.pi/agent/` so Pi relative fallbacks resolve
-- `scopes/<scope>/commands/*.md` -> `~/.claude/commands/`
-- `scopes/<scope>/skills/*` -> `~/.claude/skills/`
-- `scopes/<scope>/agents/*.md` -> `~/.claude/agents/`
-- `scopes/<scope>/scripts/*` -> `~/.claude/scripts/`
-- `hooks/*.mjs` -> `~/.claude/hooks/`
-- `settings.workflow-hooks.json` -> `~/.claude/settings.workflow-hooks.json`
-- `statusline-command.sh` -> `~/.claude/statusline-command.sh` (shows context as `ctx:<N>k` input tokens of the last API call, from `current_usage` then `total_input_tokens`, yellow from 150k and red from 300k, with a percentage fallback)
-- selected shared docs from `../workflow/` -> `~/.claude/`
-
-Re-run `scripts/install.sh` any time to refresh links; it is idempotent. When
-links look stale or broken (missing command, drift after an update), run
-`scripts/check-fix-symlinks.sh` to validate and repair the installed surface.
+Claude Code-specific files for `etabli`. Workflow rules live in
+`../workflow/spec.md`; every managed link is listed in
+`../docs/symlink-layout.md`. `scripts/check-fix-symlinks.sh` validates and
+repairs them.
 
 ## Scopes
 
@@ -35,274 +15,115 @@ Commands, skills, agents and scripts live under `claude/scopes/<scope>/`:
 | `work` | Employer-specific surfaces (employer stack, its repos, its conventions) | Only where the machine declares it |
 | `personal` | Private-project surfaces | Only where the machine declares it |
 
-A `shared` surface can still be withheld from one scope when something else on
-that machine owns its name: `SCOPE_SHADOWED_SKILLS` in
-`scripts/lib/install-main.sh` holds `<scope>:<skill>` pairs, currently
-`work:adr`.
-
 A machine declares one scope in `~/.etabli-scope`, containing exactly `work` or
 `personal`. `ETABLI_SCOPE` overrides it for one run. No file and no variable
-means `shared` alone, which is the safe default: a new machine never receives
-another context's surfaces by accident. An unrecognised value fails the deploy
-with exit 2 rather than deploying a partial surface.
-
-The same active scope gates vendored skills linked into Pi and Claude.
-
-`scripts/` holds the local cron routines (`routines/`, `sessions-report*`) and
-`claude-bin.sh`, which resolves the `claude` binary for non-interactive
-contexts where no shell profile is loaded. Their launchd plists stay outside
-this repo, in `~/Library/LaunchAgents/`: linking the scripts installs them but
-does not schedule them.
+means `shared` alone, so a new machine never receives another context's
+surfaces by accident. An unrecognised value fails the deploy with exit 2. The
+same active scope gates vendored skills linked into Pi and Claude.
 
 Put a surface in `shared` only if it would still make sense at a different
 employer. A skill that names a repo, a product, or an internal service belongs
-in `work`.
+in `work`. Shared vendor skills arrive through `vendor/`, not `claude/scopes/`;
+optional skills sit on the `extras/` shelf and are not deployed by default.
 
-### Contracts, commands, and skills
+A `shared` surface is withheld from a scope when something else on that machine
+owns its name: `managed_surface_skill_is_shadowed` in
+`scripts/lib/managed-surfaces.sh` holds `<scope>:<skill>` pairs, currently
+`work:adr`. On a `work` machine `/adr` therefore comes from the employer plugin,
+which writes `docs/adr/YYYY-MM-DD-slug.md`; this repo's `scripts/validate-adrs`
+expects `docs/adr/NNNN-slug.md`, so record etabli ADRs from a `personal`
+machine or by hand.
 
-Some names share a `workflow/skills/<name>.md` contract and a
-`scopes/*/commands/<name>.md` command, for example `bug-check` and `review`.
-That is not drift to clean up.
+`scopes/work/scripts/` holds the cron routines and `claude-bin.sh`, which
+resolves the `claude` binary where no shell profile is loaded. Their launchd
+plists stay in `~/Library/LaunchAgents/`: linking a script does not schedule it.
 
-- the **contract** is the cross-runtime source of truth — Pi reads it too
-  (`pi/skills/review/SKILL.md`), and Pi cannot see Claude skills;
-- the **command** is the thin `/name` entry point;
-- a **Claude skill** exists only when Claude's procedure goes further than
-  the contract. Today that is `bug-check` under `scopes/work/skills/`.
-  `review` has a Pi skill instead.
+## Contracts, commands, skills and agents
 
-Change the contract when the rule is true for every runtime. Change the skill
-when only that runtime's procedure moves. `tests/workflow-contract-coverage-smoke.sh`
-enforces that every contract stays referenced somewhere.
+A `workflow/skills/<name>.md` contract is the cross-runtime source of truth (Pi
+reads it too); a `scopes/*/commands/<name>.md` command is the thin `/name`
+entry point; a Claude skill exists only when Claude's procedure goes further
+than the contract (today `bug-check` under `scopes/work/skills/`).
+`tests/workflow-contract-coverage-smoke.sh` keeps every contract referenced.
 
-The `personal` row in the scope table is the deploy gate. Shared vendor
-skills arrive through `vendor/`, not `claude/scopes/`.
+`/verify-workflow` is the workflow verifier; Claude Code's native `/verify`
+stays free for app verification. Linear commands use Linear MCP; PR review uses
+the `gh` CLI.
 
-## Workflow
+Custom agents: `scout` (read-only reconnaissance), `worker` (one step from a
+`READY` plan, the only writing agent), `reviewer` (fresh-context diff review)
+and `adversary` (read-only plan or diff review). They declare `Skill` and pick
+a domain skill themselves; no hook suggests one (ADR-0014). Command
+`allowed-tools` entries are pre-approvals, not a sandbox.
 
-Canonical contract: `../workflow/spec.md`.
+## Hooks
 
-Claude commands are thin wrappers over that contract:
+- `read-only-agent-guard.mjs` is wired by `scout`, `reviewer` and `adversary`
+  frontmatter. It allows only Bash it can prove read-only, including an
+  allowlisted set of read-only `gh` commands, and fails closed: on shell tricks
+  it cannot prove harmless, on executables outside system bin directories, and
+  on every call if its modules fail to load.
+  `tests/claude-hooks-smoke.sh` holds the accepted and refused cases.
+- `no-comments-guard.mjs` (`PreToolUse` on `Edit|Write|MultiEdit`) is a thin
+  adapter over `workflow/runtime/no-comments-guard.mjs`, the detector Pi uses
+  too. It denies a write that adds a code comment; tool directives, shebangs
+  and comments already on disk are kept. It cannot see files written through
+  `Bash`.
+- `rtk-guard.mjs` (`PreToolUse` on `Bash`) forwards a command to
+  `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs` allows
+  compaction, and runs the rest raw.
 
-- `/plan-loop`
-- `/plan-implement`
-- `/implement`
-- `/review`
-- `/verify-workflow`
-- `/bug-check`
-- `/linear-ticket-create`
-- `/linear-work`
-- `/linear-project-setup`
-- `/pr-council-review`
-- `/adversary`
-
-Custom agents stay bounded:
-
-- `scout` — read-only reconnaissance for one unfamiliar area;
-- `worker` — one implementation step from a `READY` plan;
-- `reviewer` — fresh-context, findings-first diff review;
-- `adversary` — read-only adversarial review of a plan or diff.
-
-`scout`, `reviewer` and `adversary` use an agent-local `PreToolUse` hook to allow only proven
-read-only Bash/Git commands. `worker` is the only writing agent and never spawns
-another agent.
-
-Command `allowed-tools` entries are permission pre-approvals, not a sandbox.
-Source-read-only commands therefore avoid pre-approving `Write`, `Edit`, or bare
-`Bash`; the enforced shell boundary belongs to `scout` and `reviewer`.
-
-Load only a matching skill that the active Claude surface actually exposes.
-Prefer an exposed project skill when the task is about its codebase; otherwise
-use a scope-gated skill such as `employer-backend-suite` (work) when the machine
-declares that scope. Optional skills sit on the `extras/` shelf and are not
-deployed by default. Skill selection is not a
-mandatory first step on `/plan-loop` or `/plan-implement`; when no
-matching skill is exposed, the route uses its local-source fallback instead of
-silently skipping the phase. See `vendor/README.md` for the manifest and sync
-command.
-
-`scout`, `worker`, and `reviewer` declare `Skill` and pick the domain skill
-themselves when the brief matches. There is no hook that suggests a skill —
-selection is the model's, per ADR-0014. There is no additional global skill
-router.
-
-`/verify-workflow` is the Etabli workflow verifier. Keep Claude Code's native
-`/verify` free for app/runtime verification.
-
-`/adr` (from `skills/adr/`) records an Architecture Decision Record for a
-decision made in the session. It is user-invoked: it reads the conversation and
-the working diff, applies a three-condition test (hard to reverse, surprising
-without context, real trade-off), proposes a draft for approval, then writes an
-immutable `docs/adr/NNNN-slug.md` and updates a `CLAUDE.md` index. It never
-writes without explicit confirmation. See `skills/adr/ADR-FORMAT.md`.
-
-It is **not deployed on a `work` machine**: there `/adr` comes from the
-`employer@employer` plugin (`employer/claudine`), which owns the same name.
-`SCOPE_SHADOWED_SKILLS` in `scripts/lib/install-main.sh` lists that exclusion —
-a shared skill named there is skipped for the listed scope and its installed
-link removed. The two skills are not interchangeable: this one writes
-`docs/adr/NNNN-slug.md`, the plugin's writes `docs/adr/YYYY-MM-DD-slug.md`. So a
-`/adr` run inside this repo on a work machine produces a date id that its own
-`scripts/validate-adrs` rejects; record etabli ADRs from a `personal` machine,
-or write the file by hand in the numbered form.
-
-Linear commands use Linear MCP. PR review uses the `gh` CLI, not the GitHub
-MCP/app connector, unless explicitly overridden.
-
-Optional hooks:
-
-- `read-only-agent-guard.mjs` is wired directly by `scout`, `reviewer` and
-  `adversary`; it denies Bash that is not proven read-only even when the
-  optional settings fragment is not active, and denies every Bash call if its
-  modules fail to load. Inspection reaches the remote: `gh` is allowed for an
-  allowlisted set of read commands (`api`, `pr view|diff|list|checks|status`,
-  `issue view|list`, `repo view`, `run view|list`, `search`, `auth status`) and
-  refused the moment a flag could mutate it (`--method` other than GET, `-X`,
-  `-f`/`-F`/`--raw-field`/`--field`, `--input`) — a review agent that cannot
-  read the pull request it was dispatched to review is useless. `awk` is allowed
-  for an inline program only, since single quotes hide `system()`, a `print |`
-  pipe and a `>` redirect from the pipeline splitter; `-f` stays refused because
-  the program then lives in a file this check cannot read. `sed` and `sort`
-  remain refused outright. Executables given by a path are refused unless the
-  path is a system bin directory (`/bin`, `/usr/bin`, `/usr/local/bin`,
-  `/opt/homebrew/bin`…), so `/bin/cat` is judged like `cat` but `./bin/cat` and
-  `script/test` are refused. The check fails closed on shell tricks it cannot
-  prove harmless: quotes spliced into the command word, unquoted `$` expansions,
-  braces and backslash-newline continuations outside single quotes, and
-  unquoted globs except for plain readers such as `cat` or `ls`. `rg --pre` and
-  `uniq` with an output operand are refused too. `;`/newline sequence read-only
-  segments the way `&&` already did.
-- `no-comments-guard.mjs` runs on `PreToolUse` for `Edit|Write|MultiEdit`. It
-  denies a write that adds code comments to source files and names the
-  offending line, per the `~/work/CLAUDE.md` no-comments rule (lint pragmas,
-  `@ts-expect-error`-style directives, and shebangs are exempt). Comments
-  already present in `old_string` or on disk are kept. Its detector still
-  differs from Pi's shared `workflow/runtime/no-comments-guard.mjs` on a few
-  frozen cases (`tests/claude-hooks-smoke.sh`). It ships in
-  `settings.workflow-hooks.json`. It cannot see files written through `Bash`,
-  so write code with `Edit`/`Write`.
-- `rtk-guard.mjs` runs on `PreToolUse` for `Bash`. It forwards a command to
-  the native `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs`
-  allows compaction, and runs the rest raw. The merge retires any bare
-  `rtk hook claude` entry left in the local `~/.claude/settings.json`. The
-  installer ensures the binary itself (`scripts/lib/install-main.sh`); there is
-  no patched `rtk-rewrite.sh` and no link rule to restore.
+`settings.workflow-hooks.json` is a merge fragment, linked but not merged by
+the installer because the live settings file can hold secrets. Run
+`scripts/claude-hooks-merge --dry-run`, then `scripts/claude-hooks-merge`: it
+adds the fragment's hooks, removes only hooks the repo retired (including a bare
+`rtk hook claude`), backs up first, refuses invalid JSON, and never reads
+secrets back into the repo. Rerun it after a deploy that adds a hook; verify
+with `scripts/claude-hooks-check`.
 
 ## Autonomous mode
 
 Claude Code runs without permission prompts on this machine. The tracked
-fragment `settings.skill-overrides.json` carries the skill map plus:
+fragment `settings.skill-overrides.json` carries the skill map plus
+`attribution: { commit: "", pr: "" }` (no AI trailer or PR line) and
+`autoMemoryEnabled: false` (durable memory is the vault plus the `PLAN.md`
+handoff). `scripts/lib/claude-settings-sync.mjs`, run by the installer, copies
+only whitelisted keys into `~/.claude/settings.json`, so no secret can leak into
+the fragment. `permissions.defaultMode: "bypassPermissions"` and the two skip
+flags stay in the local settings file. No hook gates pushes, deletions, or
+`PLAN.md` writes (ADR-0032).
 
-- `attribution: { commit: "", pr: "" }`: no `Co-Authored-By` trailer on
-  commits and no generated-with line in PR bodies;
-- `autoMemoryEnabled: false`: durable memory is the vault plus the
-  `PLAN.md` handoff, not Claude's auto memory.
-
-`scripts/lib/claude-settings-sync.mjs` (run by the installer) propagates it
-into `~/.claude/settings.json`. `permissions.defaultMode: "bypassPermissions"`
-and the two skip flags (`skipDangerousModePermissionPrompt`,
-`skipAutoPermissionPrompt`) are set in the local settings file, not tracked;
-the sync would propagate them key by key if the fragment carried them, never
-touching local `allow`/`deny` lists. No hook gates pushes, deletions, or
-PLAN.md writes (ADR-0032).
-
-The sync accepts only whitelisted keys (`skillOverrides`, `permissions.defaultMode`,
-`attribution.commit`/`attribution.pr`, the two skip flags, `autoMemoryEnabled`), so no secret can leak into the tracked fragment. The
-`--dangerously-skip-permissions` zsh alias is machine-local (`~/.zshrc` is not
-managed here); `defaultMode` alone covers every launcher, including `-p` runs,
-crons, and `claude-bin.sh`.
-- `settings.workflow-hooks.json` is a merge fragment. It is linked but not
-  merged into `~/.claude/settings.json` by the installer, because the live
-  settings file can contain secrets. Activate it with
-  `scripts/claude-hooks-merge --dry-run` (review) then
-  `scripts/claude-hooks-merge`: the merge adds the fragment's hook
-  entries and removes only hooks the repo retired (backup first, refuse on
-  conflict or invalid JSON, byte-idempotent reruns) and never reads live
-  secrets back into the repo. Verify with `scripts/claude-hooks-check`.
-  `scripts/deploy-agent-workflow --apply` links new hook files but does not
-  wire them, so rerun the merge after a deploy that adds a hook.
-  Activating it enables the session-wide no-comments and rtk guards; the
-  read-only agent hook is scoped from agent frontmatter instead.
-
-Use Claude Code `/goal` for till-done loops:
-
-```text
-/goal <measurable done condition, validation command, constraints, and stop limit>
-```
-
-Prefer `/goal` over a custom task continuation hook unless the done condition
-requires deterministic script evaluation across every session.
-
-For Pi/Claude orchestration parity, use `../workflow/skills/orchestration.md`.
-Claude parity is through `/goal`, slash commands, hooks, and smoke tests; Task*
-state is Pi-only unless the active Claude runtime exposes an equivalent
-primitive.
-
-Rules:
-
-- one execution artifact: `PLAN.md`
-- implement only from `Status: READY`
-- no `REVIEW.md`
-- review with `../workflow/review-rubric.md`
+Use `/goal <measurable done condition, validation command, constraints, stop
+limit>` for till-done loops. Pi/Claude orchestration parity:
+`../workflow/skills/orchestration.md`; Task* state is Pi-only.
 
 ## PR autoreview
 
-`scopes/work/scripts/pr-autoreview/` reviews the user's own PRs. A `pre-push`
-hook (husky v8 or v9) detaches a background runner; the runner waits until the
-PR head is the pushed sha, checks that the PR is authored by the `gh` user, and
-reviews it against `profiles/<profile>.md` plus the repo's own `CLAUDE.md` and
-the `~/work/brain` knowledge base.
-
-Enrolled repositories live in `~/.claude/state/pr-autoreview/repos.tsv`, one
-line per repository: `<owner/repo><TAB><profile>`, where `<profile>` names a
-file in `profiles/` without `.md`. The file is machine-local and never tracked;
-an empty or missing file means no push is reviewed. `install.sh` warns about it.
-
-It currently runs in break-in mode: findings go to Slack `#routines` only,
-nothing is posted to GitHub. The mode lives in `prompt.md`. A push is marked
-reviewed only once the session touched its delivery file, after the Slack post.
-
-Guards: PR younger than 30 days, author must be the `gh` user, one pass per
-`repo#pr@headSha`, one run per PR at a time, kill switch at
-`~/.claude/state/pr-autoreview.off`.
-
-The hook entry points (`~/.huskyrc`, `~/.config/husky/init.sh`) and the
-generated `.husky/pre-push` files are local only — `~/.gitignore_global` keeps
-the latter invisible to git. Run `pr-autoreview/install.sh` to wire a machine.
+`scopes/work/scripts/pr-autoreview/` reviews the user's own PRs. A husky
+`pre-push` hook detaches a runner that waits for the pushed head, checks the PR
+author is the `gh` user, and reviews it against `profiles/<profile>.md`, the
+repo's `CLAUDE.md` and `~/work/brain`. Enrolled repositories live in the
+machine-local `~/.claude/state/pr-autoreview/repos.tsv` (`<owner/repo><TAB><profile>`);
+no file means no review. Break-in mode: findings go to Slack `#routines` only
+(`prompt.md`). Guards: PR younger than 30 days, one pass per
+`repo#pr@headSha`, one run per PR, kill switch
+`~/.claude/state/pr-autoreview.off`. `pr-autoreview/install.sh` wires a machine.
 
 ## PR review watch
 
-`scopes/work/scripts/pr-review-watch/` reviews the PRs other people ask the user
-to review. It never overlaps with PR autoreview: GitHub never requests a review
-from a PR's author, so autoreview owns the user's PRs and the watch owns the
-rest. Team review requests are not discovered, only requests naming the user.
+`scopes/work/scripts/pr-review-watch/` reviews PRs where the user's review is
+requested (never the user's own PRs). A LaunchAgent runs `watch.sh` every 300 s:
+it watches open PRs until closed, approved or no longer involving the user,
+reviews a head sha after 600 s of quiet, skips diffs above 5000 lines, runs at
+most 2 reviews at once and 20 a day, and retries a failed review 3 times. Each
+review opens in a `pr-reviews` herdr tab, or runs detached.
 
-A LaunchAgent (`install.sh`, every 300 s) runs `watch.sh`, which:
-
-- discovers open PRs requesting the user's review and keeps them watched until
-  they close, the user approves them, or the user is no longer involved;
-- waits until a new head sha has been seen for 600 s before reviewing it, skips
-  diffs above 5000 changed lines, runs at most 2 reviews at once and 20 a day,
-  and retries a failed review up to 3 times per sha;
-- opens each review in a `pr-reviews` herdr tab named `<repo>#<number>`, or
-  runs it detached when herdr is down;
-- clones a repository with no local checkout under its state directory and
-  removes that clone once no watched PR uses it.
-
-The first review of a PR is a full `/pr-council-review --post`. Every later push
-gets `/code-review` on the commits since the last review cycle, then
-the employer plugin's `verify-fixes` skill, both unattended. The watch then approves the PR on the
-user's behalf only when the model says it is confident and every check the
-script runs itself holds: head unchanged, PR open and not a draft, no unresolved
-review thread, no changes requested by anyone else, CI green. A model verdict
-alone never approves. When only a script check blocks, the approval is retried
-on later ticks without a new review. Agent config files a PR changes
-(`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`) are reset to the base
-version in every scratch worktree, so a PR cannot steer its own reviewer.
-
-State lives in `~/.claude/state/pr-review-watch/`, logs in
-`~/.claude/logs/pr-review-watch.log`, token usage in
-`~/.claude/logs/pr-review-usage.log`. `watch.sh stop` sets the kill switch
-(`state/pr-review-watch/off`) and stops every review in flight; remove the file
-to resume. `launchctl bootout gui/$(id -u)/com.aguimard.pr-review-watch` stops
-the schedule itself. `tests/pr-review-gates-smoke.sh` covers the approval gates.
+The first review is `/pr-council-review --post`; later pushes get
+`/code-review` on the new commits, then the employer plugin's `verify-fixes`.
+The watch approves only when the model is confident and its own checks hold
+(head unchanged, PR open and not draft, no unresolved thread, no other changes
+requested, CI green). Agent config files a PR changes are reset to base in every
+scratch worktree. State: `~/.claude/state/pr-review-watch/`; logs:
+`~/.claude/logs/pr-review-watch.log` and `pr-review-usage.log`. `watch.sh stop`
+sets the kill switch and stops reviews in flight. `tests/pr-review-gates-smoke.sh`
+covers the approval gates.

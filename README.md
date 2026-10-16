@@ -6,13 +6,12 @@ both harnesses read them through thin adapters.
 ## Quick start
 
 ```bash
-git clone https://github.com/Tonours/etabli.git
-cd etabli
-./scripts/install.sh                     # agent workflow
-scripts/deploy-agent-workflow --apply    # managed links; omit --apply to preview
-scripts/claude-hooks-merge --dry-run     # review, then run without --dry-run
-scripts/verify-agentic-infra core        # every check should PASS
+git clone https://github.com/Tonours/etabli.git && cd etabli
+./scripts/install.sh            # tooling, Pi and managed links
+scripts/claude-hooks-merge      # wire Claude hooks; --dry-run to preview
 ```
+
+Then `scripts/verify-agentic-infra core` should PASS.
 
 - The Claude hooks are merged into your live `settings.json` rather than linked,
   because that file can hold secrets. Rerun the merge after a deploy that adds a
@@ -80,12 +79,15 @@ CI runs `agentic-infra` on GitHub-hosted `ubuntu-24.04`
 
 ## Learn more
 
-- [`docs/README.md`](docs/README.md): index of current references and history.
 - [`workflow/spec.md`](workflow/spec.md): workflow entry and map;
   [`workflow/contract-details.md`](workflow/contract-details.md) for the full rules.
 - [`docs/symlink-layout.md`](docs/symlink-layout.md): every managed link and the
   `shared`/`work`/`personal` scopes.
-- [`claude/README.md`](claude/README.md): Claude commands, hooks and settings.
+- [`claude/README.md`](claude/README.md): Claude hooks and settings.
+- [`docs/mcp-strategy.md`](docs/mcp-strategy.md): sanitized MCP inventory and scope;
+  [`docs/vendor-skills.md`](docs/vendor-skills.md): vendored skills and update path.
+- History: [`docs/adr/`](docs/adr/) (decisions) and [`docs/plan/`](docs/plan/)
+  (implemented plan archives) are records, not runtime instructions.
 
 ## Security
 

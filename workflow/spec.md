@@ -21,7 +21,7 @@ required for ordinary bug fixes, feature work, reviews, or verification.
 ## Agentic workflow loop
 
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
-(ADR-0006). Role chain: see `workflow/contract-details.md`. Shared
+(ADR-0006). Role definitions: `workflow/contract-details.md`. Shared
 orchestration: `workflow/skills/orchestration.md`. One writer at any instant: the parent or one
 `worker` per step; `scout` and `reviewer` stay read-only (Bash `PreToolUse` allowlist).
 The multi-model council was removed (ADR-0013).
