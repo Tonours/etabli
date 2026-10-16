@@ -44,7 +44,6 @@ awk -F '\t' '!/^#/ && $1 == "core" && $2 == "pi" && $3 == "pi-audit" && $4 == "b
 # Core order doubles as launch priority: the runner caps concurrency, so the
 # slowest checks must start first (LPT scheduling).
 expected_core='pi-tests
-durable-tests
 deploy-agent-workflow-smoke
 workflow-contract-coverage-smoke
 plan-cleanup-smoke
@@ -97,8 +96,8 @@ ops-stop-guard-smoke'
 # codex-source (hermetic source-measure gate) to full.
 actual_core="$(awk -F '\t' '!/^#/ && $1 == "core" {print $3}' "$MANIFEST")"
 [ "$actual_core" = "$expected_core" ] || fail "core profile membership/order drifted: review workflow/runtime/agentic-infra-checks.tsv and align the exact approved expected_core list"
-[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 35 ] ||
-	fail "core profile must hold exactly 35 checks; align approved manifest rows and expected_core"
+[ "$(printf '%s\n' "$actual_core" | wc -l | tr -d ' ')" -eq 34 ] ||
+	fail "core profile must hold exactly 34 checks; align approved manifest rows and expected_core"
 [ "$(awk -F '\t' '!/^#/ && $1 == "core" {print $4}' "$MANIFEST" | sort | uniq -d)" = "" ] ||
 	fail "core profile runs a target twice under two labels; keep one row per target"
 
@@ -178,7 +177,6 @@ actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
 # Core order doubles as launch priority (slowest first under the runner's
 # concurrency cap); the Pi group inherits that order.
 expected_pi='pi-tests
-durable-tests
 pi-typecheck
 pi-audit
 router-eval

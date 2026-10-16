@@ -310,6 +310,7 @@ check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-workflow"
 check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"
+check_absent "$HOME/.local/bin/pi-durable" "retired pi-durable script"
 
 if prefer_cursor_agent_is_grok_collision "$HOME/.grok/bin/agent" "$HOME/.grok/bin/grok"; then
   ISSUES=$((ISSUES + 1))
