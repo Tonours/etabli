@@ -205,6 +205,8 @@ const cases = [
   ["ruby hash label regex then comment", write("aa.rb", "rules = {pattern:/don't/}\n# added note\n"), "deny"],
   ["shell case branch in heredoc substitution", write("ab.sh", "cat <<EOF\n$(case \"$m\" in\n  prod) printf p # added note\n    ;;\nesac)\nEOF\n"), "deny"],
   ["shell backtick in heredoc", write("ac.sh", "cat <<EOF\n`printf hi # added note\n`\nEOF\n"), "deny"],
+  ["shell case inside a file name", write("ad.sh", 'r="$(cat test-case.json)"\n# added note\n'), "deny"],
+  ["shell heredoc data after substitution", write("ae.sh", "cat <<EOF\n$(cat test-case.json)\n# Heading\nEOF\n"), "allow"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
