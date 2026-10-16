@@ -11,12 +11,9 @@ HOME_DIR="$TMP_DIR/home"
 DRY_HOME_DIR="$TMP_DIR/dry-home"
 WORK_HOME_DIR="$TMP_DIR/work-home"
 mkdir -p "$HOME_DIR/.pi/agent" "$HOME_DIR/.claude/agents" "$HOME_DIR/.claude/skills" \
-  "$HOME_DIR/.claude/commands" "$HOME_DIR/.codex/skills" \
-  "$HOME_DIR/.config/devin/skills" \
+  "$HOME_DIR/.claude/commands" \
   "$TMP_DIR/personal-agents" "$TMP_DIR/external-skill"
 printf 'personal agent\n' >"$TMP_DIR/personal-agents/personal.md"
-printf 'unmanaged skill\n' >"$HOME_DIR/.codex/skills/unmanaged-local"
-printf 'unmanaged skill\n' >"$HOME_DIR/.config/devin/skills/unmanaged-local"
 printf 'personal command\n' >"$HOME_DIR/.claude/commands/recap.md"
 printf 'external command\n' >"$TMP_DIR/external-command.md"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$HOME_DIR/.claude/agents/playwright-generator.md"
@@ -26,13 +23,6 @@ ln -s "$ROOT_DIR/claude/commands/plan.md" "$HOME_DIR/.claude/commands/plan.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/front-quality.md" "$HOME_DIR/.claude/commands/front-quality.md"
 ln -s "$ROOT_DIR/claude/handoff-template.md" "$HOME_DIR/.claude/handoff-template.md"
 ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.claude/skills/retired-skill"
-ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.codex/skills/retired-skill"
-ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/external-skill"
-ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.config/devin/skills/retired-skill"
-ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.config/devin/skills/external-skill"
-ln -s "$ROOT_DIR/vendor/mattpocock/skills/engineering/ask-matt" "$HOME_DIR/.config/devin/skills/ask-matt"
-mkdir -p "$HOME_DIR/.config/devin/skills/user-real"
-ln -s "$TMP_DIR/legacy-damage-control.json" "$HOME_DIR/.pi/damage-control-rules.json"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -80,13 +70,6 @@ grep -Fq '. "$SCRIPT_DIR/lib/pi-paths.sh"' "$DEPLOY_SCRIPT" &&
 "$DEPLOY_SCRIPT" --dry-run --home "$DRY_HOME_DIR" >/dev/null &
 DRY_RUN_PID=$!
 
-mkdir -p "$HOME_DIR/.agents/skills/user-real"
-ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.agents/skills/retired-skill"
-ln -s "$ROOT_DIR/pi/skills/review" "$HOME_DIR/.agents/skills/review"
-ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.agents/skills/external-skill"
-for retired_shared in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
-  ln -s "$ROOT_DIR/$retired_shared" "$HOME_DIR/.agents/$retired_shared"
-done
 seed_stale_hooks() {
   mkdir -p "$1/.claude/hooks"
   ln -s "$ROOT_DIR/claude/hooks/outcome-metric-emit.mjs" "$1/.claude/hooks/outcome-metric-emit.mjs"
@@ -211,7 +194,6 @@ assert_link "$ISOLATED_HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_link "$HOME_DIR/.claude/statusline-command.sh" "$ROOT_DIR/claude/statusline-command.sh"
-assert_absent "$HOME_DIR/.pi/damage-control-rules.json"
 assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
 assert_absent "$HOME_DIR/.claude/skills/frontend-css-ui-ux"
 assert_absent "$HOME_DIR/.claude/skills/css-layout-primitives"
@@ -230,40 +212,9 @@ assert_absent "$HOME_DIR/.claude/scripts/claude-bin.sh"
 assert_absent "$HOME_DIR/.claude/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.claude/skills/adonisjs-suite"
 
-assert_absent "$HOME_DIR/.codex/skills/retired-skill"
-assert_file "$HOME_DIR/.codex/skills/unmanaged-local"
-assert_link "$HOME_DIR/.codex/skills/external-skill" "$TMP_DIR/external-skill"
-assert_absent "$HOME_DIR/.config/devin/skills/retired-skill"
-assert_absent "$HOME_DIR/.config/devin/skills/ask-matt"
-assert_file "$HOME_DIR/.config/devin/skills/unmanaged-local"
-assert_link "$HOME_DIR/.config/devin/skills/external-skill" "$TMP_DIR/external-skill"
-[ -d "$HOME_DIR/.config/devin/skills/user-real" ] || {
-  printf 'retired-surface prune removed a real directory\n' >&2
-  exit 1
-}
-assert_absent "$HOME_DIR/.agents/skills/retired-skill"
-assert_absent "$HOME_DIR/.agents/skills/review"
-assert_link "$HOME_DIR/.agents/skills/external-skill" "$TMP_DIR/external-skill"
-[ -d "$HOME_DIR/.agents/skills/user-real" ] || {
-  printf 'retired-surface prune removed a real directory\n' >&2
-  exit 1
-}
-for retired_shared in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
-  assert_absent "$HOME_DIR/.agents/$retired_shared"
-done
 for retired_surface in .codex .config/devin .agents; do
   assert_absent "$ISOLATED_HOME_DIR/$retired_surface"
 done
-
-RETIRED_DRY_HOME_DIR="$TMP_DIR/retired-dry-home"
-mkdir -p "$RETIRED_DRY_HOME_DIR/.codex/skills"
-ln -s "$ROOT_DIR/pi/skills/review" "$RETIRED_DRY_HOME_DIR/.codex/skills/review"
-"$DEPLOY_SCRIPT" --dry-run --home "$RETIRED_DRY_HOME_DIR" >"$TMP_DIR/retired-dry.txt"
-grep -Fq 'WOULD_REMOVE   retired surface link review in .codex/skills' "$TMP_DIR/retired-dry.txt" || {
-  printf 'dry-run did not announce the retired-surface prune\n' >&2
-  exit 1
-}
-assert_link "$RETIRED_DRY_HOME_DIR/.codex/skills/review" "$ROOT_DIR/pi/skills/review"
 
 if [ -e "$HOME_DIR/.claude/skills/employer-backend-suite" ]; then
   printf 'work-scope skill deployed without a declared scope: %s\n' \
@@ -311,7 +262,6 @@ assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
 assert_absent "$HOME_DIR/.pi/agent/skills/vercel-react-best-practices"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
-assert_absent "$HOME_DIR/.agents/skills/pr-review"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
 
 DANGLING_HOME_DIR="$TMP_DIR/dangling-home"

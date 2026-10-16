@@ -451,35 +451,6 @@ managed_surface_prune_vendor_skill_links() {
   done
 }
 
-managed_surface_prune_retired_surfaces() {
-  local mode="$1"
-  local repo_dir="$2"
-  local home_dir="$3"
-  local surface surface_dir link target name
-
-  for surface in .codex/skills .config/devin/skills .agents/skills; do
-    surface_dir="$home_dir/$surface"
-    [ -d "$surface_dir" ] || continue
-    while IFS= read -r link; do
-      [ -n "$link" ] || continue
-      target="$(readlink "$link")"
-      if [ "${target#/}" = "$target" ]; then
-        target="$(dirname "$link")/$target"
-      fi
-      case "$target/" in
-      *"/../"* | *"/./"*) continue ;;
-      "$repo_dir/"*) managed_surface_prune_link "$mode" "$link" "retired surface link $(basename "$link") in $surface" ;;
-      esac
-    done < <(find "$surface_dir" -mindepth 1 -maxdepth 1 -type l | sort)
-  done
-
-  for name in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
-    link="$home_dir/.agents/$name"
-    [ -L "$link" ] && [ "$(readlink "$link")" = "$repo_dir/$name" ] || continue
-    managed_surface_prune_link "$mode" "$link" "retired surface link .agents/$name"
-  done
-}
-
 managed_surface_skill_is_shadowed() {
   local skill_name="$1"
   local active_scopes="$2"
@@ -496,16 +467,3 @@ managed_surface_skill_is_shadowed() {
   return 1
 }
 
-managed_surface_remove_symlink() {
-  local mode="$1"
-  local target_path="$2"
-  local label="$3"
-
-  [ -L "$target_path" ] || return 0
-  if [ "$mode" = deploy ] && [ "${DRY_RUN:-1}" -eq 1 ]; then
-    managed_surface_emit WOULD_REMOVE "$label"
-    return 0
-  fi
-  rm -f "$target_path"
-  managed_surface_emit REMOVE "$label"
-}

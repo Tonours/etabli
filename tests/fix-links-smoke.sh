@@ -58,30 +58,16 @@ backup_count() {
   find "$(dirname "$1")" -maxdepth 1 -name "$(basename "$1").bak.*" | wc -l | tr -d ' '
 }
 
-mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules" \
-  "$TMP_HOME/.pi/agent/skills" "$TMP_HOME/.agents/skills"
+mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules" "$TMP_HOME/.pi/agent/skills"
 mkdir -p "$TMP_HOME/.claude/agents" "$TMP_HOME/.claude/skills" \
-  "$TMP_HOME/.codex/skills" "$TMP_HOME/.config/devin/skills" \
   "$TMP_HOME/personal-agents" "$TMP_HOME/external-skill"
 printf 'personal agent\n' >"$TMP_HOME/personal-agents/personal.md"
 ln -s "$ROOT_DIR/claude/agents/playwright-generator.md" "$TMP_HOME/.claude/agents/playwright-generator.md"
 ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/agents/personal.md"
 ln -s "$ROOT_DIR/pi/skills/retired-skill" "$TMP_HOME/.claude/skills/retired-skill"
-ln -s "$ROOT_DIR/pi/skills/retired-skill" "$TMP_HOME/.codex/skills/retired-skill"
-ln -s "$ROOT_DIR/pi/skills/retired-skill" "$TMP_HOME/.config/devin/skills/retired-skill"
 ln -s "$ROOT_DIR/pi/skills/retired-skill" "$TMP_HOME/.pi/agent/skills/retired-skill"
-ln -s "$ROOT_DIR/pi/skills/retired-skill" "$TMP_HOME/.agents/skills/retired-skill"
 ln -s "$ROOT_DIR/pi/skills/github-pr-review" "$TMP_HOME/.pi/agent/skills/github-pr-review"
-ln -s "$ROOT_DIR/pi/skills/github-pr-review" "$TMP_HOME/.agents/skills/github-pr-review"
 ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.pi/agent/skills/design"
-ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.agents/skills/design"
-ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.codex/skills/external-skill"
-ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.config/devin/skills/external-skill"
-ln -s "$ROOT_DIR/pi/skills/review" "$TMP_HOME/.agents/skills/review"
-mkdir -p "$TMP_HOME/.agents/skills/user-real"
-for retired_shared in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
-  ln -s "$ROOT_DIR/$retired_shared" "$TMP_HOME/.agents/$retired_shared"
-done
 
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 SECOND_CHECK_OUTPUT="$TMP_HOME/second-check.out"
@@ -98,17 +84,6 @@ assert_link "$TMP_HOME/.pi/agent/skills/linear-work" "$ROOT_DIR/pi/skills/linear
 assert_link "$TMP_HOME/.pi/agent/skills/implement" "$ROOT_DIR/pi/skills/implement"
 assert_link "$TMP_HOME/.pi/agent/skills/code-quality" "$ROOT_DIR/pi/skills/code-quality"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/vercel-react-best-practices"
-assert_not_exists "$TMP_HOME/.agents/skills/adversary"
-assert_not_exists "$TMP_HOME/.agents/skills/review"
-[ -d "$TMP_HOME/.agents/skills/user-real" ] || {
-  printf 'retired-surface fix removed a real directory\n' >&2
-  exit 1
-}
-assert_not_exists "$TMP_HOME/.agents/skills/browser-full-page-capture"
-assert_not_exists "$TMP_HOME/.agents/skills/goal-prompt-rewriter"
-assert_not_exists "$TMP_HOME/.agents/skills/github-pr-review"
-assert_not_exists "$TMP_HOME/.agents/skills/retired-skill"
-assert_not_exists "$TMP_HOME/.agents/skills/design"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/github-pr-review"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/retired-skill"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/design"
@@ -119,23 +94,10 @@ assert_not_exists "$TMP_HOME/.claude/skills/css-debugging"
 assert_not_exists "$TMP_HOME/.claude/skills/react-doctor-100"
 assert_not_exists "$TMP_HOME/.claude/skills/retired-skill"
 assert_not_exists "$TMP_HOME/.claude/skills/vercel-react-best-practices"
-assert_not_exists "$TMP_HOME/.codex/skills/react-doctor-100"
-assert_not_exists "$TMP_HOME/.codex/skills/retired-skill"
-assert_not_exists "$TMP_HOME/.codex/skills/vercel-react-best-practices"
-assert_link "$TMP_HOME/.codex/skills/external-skill" "$TMP_HOME/external-skill"
-assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
-assert_not_exists "$TMP_HOME/.config/devin/skills/react-doctor-100"
-assert_not_exists "$TMP_HOME/.config/devin/skills/retired-skill"
-assert_link "$TMP_HOME/.config/devin/skills/external-skill" "$TMP_HOME/external-skill"
-assert_not_exists "$TMP_HOME/.config/devin/skills/ask-matt"
-assert_not_exists "$TMP_HOME/.config/devin/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.grok"
 assert_link "$TMP_HOME/.pi/agent/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-for retired_shared in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
-  assert_not_exists "$TMP_HOME/.agents/$retired_shared"
-done
 assert_link "$ROOT_DIR/pi/extensions/node_modules" "$TMP_HOME/.pi/agent/npm/node_modules"
 assert_link "$TMP_HOME/.claude/commands/review.md" "$ROOT_DIR/claude/scopes/shared/commands/review.md"
 assert_not_exists "$TMP_HOME/.claude/commands/linear-work.md"
@@ -156,9 +118,6 @@ mkdir -p "$TMP_HOME/.claude/scripts"
 ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/scripts/claude-bin.sh"
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
 ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.claude/skills/adonisjs-suite"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.codex/skills/adonisjs-suite"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.config/devin/skills/adonisjs-suite"
-ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.agents/skills/adonisjs-suite"
 ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_not_exists "$TMP_HOME/.claude/skills/adr"
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
@@ -169,9 +128,6 @@ assert_not_exists "$TMP_HOME/.pi/agent/skills/employer-backend-suite"
 assert_link "$TMP_HOME/.claude/skills/employer-backend-suite" "$ROOT_DIR/claude/scopes/work/skills/employer-backend-suite"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.claude/skills/adonisjs-suite"
-assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
-assert_not_exists "$TMP_HOME/.config/devin/skills/adonisjs-suite"
-assert_not_exists "$TMP_HOME/.agents/skills/adonisjs-suite"
 
 mkdir -p "$TMP_HOME/.grok/bin"
 printf 'grok-bin\n' >"$TMP_HOME/.grok/bin/grok-macos"

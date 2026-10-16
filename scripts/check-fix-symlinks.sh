@@ -124,10 +124,6 @@ check_pi_skill_links() {
     check "$REPO_DIR" "$HOME" .pi/agent/skills Pi pi "${PI_CORE_SKILLS[@]}"
 }
 
-check_retired_surface_links() {
-  managed_surface_prune_retired_surfaces check "$REPO_DIR" "$HOME"
-}
-
 check_vendor_skill_links() {
   local skill_name skill_dir active_scopes surface label
   local record_scope record_pi_core record_vendor
@@ -282,7 +278,6 @@ CLAUDE_ROOT="$HOME/.claude"
 export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
 check_claude_root
 check_pi_skill_links
-check_retired_surface_links
 if config_root="$(claude_config_dir_override)"; then
   CLAUDE_ROOT="$config_root"
   MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
@@ -292,8 +287,6 @@ fi
 
 check_script_link "fix-links"
 check_script_link "deploy-workflow"
-check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"
-check_absent "$HOME/.local/bin/pi-durable" "retired pi-durable script"
 
 if prefer_cursor_agent_is_grok_collision "$HOME/.grok/bin/agent" "$HOME/.grok/bin/grok"; then
   ISSUES=$((ISSUES + 1))

@@ -20,10 +20,9 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
   `claude-skill-load-check` read it by default. Live skills outside the tracked
   profile in that dir are reported by the load check, never removed; dangling
   managed links are replaced without a `.bak`
-- `~/.agents/`, `~/.codex/skills/` and `~/.config/devin/skills/` are retired
-  (ADR-0031): deploy and fix-links remove this checkout's links there and leave
-  real directories and foreign links alone. Pi still reads `~/.agents/skills/`
-  natively, so the Pi skill load check counts what it finds there
+- `~/.agents/`, `~/.codex/skills/` and `~/.config/devin/skills/` are not
+  managed (ADR-0031); stale links there are left alone. Pi still reads
+  `~/.agents/skills/` natively, so the Pi skill load check counts what it finds there
 - `~/.etabli-scope` selects `work` or `personal`; the active set is always
   `shared` plus that declared scope
 - Env links (`nvim`, `ghostty`, `tmux`, `herdr` config/layouts, `herdr` skill) moved to the public `dotfiles` repo: see its `docs/symlink-layout.md` and `scripts/fix-links`. Etabli owns core workflow links only.
