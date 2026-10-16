@@ -324,6 +324,12 @@ process.stdin.on("end", () => {
 });' "$@"
 }
 
+etabli_plugin_same_dir() {
+  [ -n "$1" ] || return 1
+  [ "$1" = "$2" ] && return 0
+  [ "$(claude_physical_dir "$1" || true)" = "$(claude_physical_dir "$2" || printf missing)" ]
+}
+
 deploy_etabli_plugin() {
   local mods_dir="$REPO_DIR/claude/mods"
   local marketplace="etabli-local"
@@ -354,13 +360,17 @@ deploy_etabli_plugin() {
     status_line WARN "etabli plugin: cannot list Claude marketplaces"
     return 0
   fi
-  if [ "$registered_path" != "$mods_dir" ]; then
+  if ! etabli_plugin_same_dir "$registered_path" "$mods_dir"; then
     if [ "$DRY_RUN" -eq 1 ]; then
       [ -z "$registered_path" ] || status_line WOULD_REMOVE "marketplace $marketplace at $registered_path"
       status_line WOULD_LINK "marketplace $marketplace -> $mods_dir"
+    elif [ -n "$registered_path" ] && ! claude plugin marketplace remove "$marketplace" >/dev/null; then
+      status_line WARN "etabli plugin: cannot remove marketplace $marketplace at $registered_path"
+      return 0
+    elif ! claude plugin marketplace add "$mods_dir" --scope user >/dev/null; then
+      status_line WARN "etabli plugin: cannot add marketplace $marketplace from $mods_dir"
+      return 0
     else
-      [ -z "$registered_path" ] || claude plugin marketplace remove "$marketplace" >/dev/null
-      claude plugin marketplace add "$mods_dir" --scope user >/dev/null
       status_line LINK "marketplace $marketplace -> $mods_dir"
     fi
   else
@@ -372,12 +382,13 @@ deploy_etabli_plugin() {
     status_line WARN "etabli plugin: cannot list installed Claude plugins"
     return 0
   fi
-  if [ "$installed_folder" = "$mods_dir/etabli" ]; then
+  if etabli_plugin_same_dir "$installed_folder" "$mods_dir/etabli"; then
     status_line OK "plugin $plugin"
   elif [ "$DRY_RUN" -eq 1 ]; then
     status_line WOULD_INSTALL "plugin $plugin from $mods_dir/etabli"
+  elif ! claude plugin install "$plugin" --scope user >/dev/null; then
+    status_line WARN "etabli plugin: cannot install $plugin"
   else
-    claude plugin install "$plugin" --scope user >/dev/null
     status_line INSTALL "plugin $plugin from $mods_dir/etabli"
   fi
 }
