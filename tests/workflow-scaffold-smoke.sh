@@ -351,6 +351,11 @@ fi
 "$SCRIPT" "$TRACKED_PROJECT" --force >"$TMP_DIR/tracked-force.out"
 assert_contains "$TMP_DIR/tracked-force.out" "PROTECTED workflow/spec.md"
 assert_contains "$TRACKED_PROJECT/workflow/spec.md" "project edit"
+printf 'uncommitted edit\n' >>"$TRACKED_PROJECT/workflow/spec.md"
+"$SCRIPT" "$TRACKED_PROJECT" --force --refresh-tracked >"$TMP_DIR/tracked-dirty.out"
+assert_contains "$TMP_DIR/tracked-dirty.out" "workflow/spec.md has uncommitted changes"
+assert_contains "$TRACKED_PROJECT/workflow/spec.md" "uncommitted edit"
+git -C "$TRACKED_PROJECT" checkout -q -- workflow/spec.md
 "$SCRIPT" "$TRACKED_PROJECT" --force --refresh-tracked --prune >"$TMP_DIR/tracked-refresh.out"
 assert_same "$ROOT_DIR/workflow/spec.md" "$TRACKED_PROJECT/workflow/spec.md"
 assert_contains "$TMP_DIR/tracked-refresh.out" "GIT_RM    scripts/workflow-event"
