@@ -163,7 +163,6 @@ select_node_runtime() {
     return 1
 }
 
-# Download helper with retries
 # Script install helper (symlink to repo)
 install_script() {
     local script="$1"

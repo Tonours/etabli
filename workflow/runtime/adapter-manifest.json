@@ -115,7 +115,7 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/adversary.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "76158abe59db3472930690f806966b1bf373bbbe4e7bf490705399f4ca216823"
+      "sha256": "0eec86c7f8c00f7ea278914efc2878de097e887bdd4fac28de957a01ab9ee123"
     },
     {
       "skill": "adversary",

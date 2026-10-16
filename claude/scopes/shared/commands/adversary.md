@@ -45,7 +45,7 @@ repo command.
 
 - **Plan mode (default):** review `PLAN.md` before implementation.
 - **Code-diff mode:** after Logic+Spec lead review, review
-  `git diff <base>...HEAD` (cumulative). Name `adversary_model` in the handoff.
+  `git diff <base>...HEAD` (cumulative). Name `adversary_model` in § Review Changes.
   High findings must not be closed by the implementer alone.
 
 ## Procedure (plan mode)
