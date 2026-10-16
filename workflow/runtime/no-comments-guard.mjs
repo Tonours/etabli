@@ -157,7 +157,7 @@ export function collectCommentLines(text, family) {
 		const delimiter = triple ? quote.repeat(3) : quote;
 		const spansLines = triple || quote === "`" || MULTILINE_STRING_FAMILIES.has(family);
 		const ansiC = family === "shell" && quote === "'" && source[index - 1] === "$";
-		const sqlEscaped = family === "sql" && /[Ee]/.test(source[index - 1] ?? "") && !/\w/.test(source[index - 2] ?? "");
+		const sqlEscaped = family === "sql" && quote === "'" && /[Ee]/.test(source[index - 1] ?? "") && !/\w/.test(source[index - 2] ?? "");
 		const escapes = ansiC || sqlEscaped || !((family === "shell" && quote === "'") || family === "sql");
 		let cursor = index + delimiter.length;
 		while (cursor < source.length) {
@@ -207,7 +207,7 @@ export function collectCommentLines(text, family) {
 				continue;
 			}
 			if (family === "shell" && source.startsWith("<<", index) && source[index + 2] !== "<") {
-				const match = /^<<(-?)[ \t]*(['"]?)([A-Za-z_][\w-]*)\2/.exec(source.slice(index, index + 200));
+				const match = /^<<(-?)[ \t]*(['"])([^'"\s]+)\2/.exec(source.slice(index, index + 200));
 				if (match) {
 					heredocs.push({ word: match[3], stripTabs: match[1] === "-" });
 					lineCode += "H";
@@ -240,7 +240,8 @@ export function collectCommentLines(text, family) {
 				lineCode += "S";
 				continue;
 			}
-			if ((family === "clike" || family === "ruby") && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
+			const rubySymbol = family === "ruby" && lineCode.endsWith(":");
+			if ((family === "clike" || family === "ruby") && !rubySymbol && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
 				const stop = skipRegexLiteral(source, index);
 				if (stop !== -1) {
 					index = stop;
