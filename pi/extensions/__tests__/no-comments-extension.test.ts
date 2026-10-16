@@ -219,6 +219,33 @@ describe("noCommentsGuardDecision", () => {
 	});
 });
 
+describe("unified Claude verdicts", () => {
+	const decide = (event: Parameters<typeof noCommentsGuardDecision>[0]) => (guardDecision(event) ? "deny" : "allow");
+	const write = (path: string, content: string) => ({ tool_name: "write", tool_input: { path, content } });
+
+	test("allows tool directives and comment-like syntax", () => {
+		expect(decide(write("a.sh", "n=${#arr[@]}\n"))).toBe("allow");
+		expect(decide(write("a.scss", ".a { background: url(http://example.test/x.png); }\n"))).toBe("allow");
+		expect(decide(write("a.js", 'const p = s.replace(/\\/*$/, "");\n'))).toBe("allow");
+		expect(decide(write("b.ts", "// @ts-expect-error legacy\nconst x: number = 'a';\n"))).toBe("allow");
+		expect(decide(write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"))).toBe("allow");
+	});
+
+	test("denies astro comments, JSDoc continuations and duplicated comments", () => {
+		writeFileSync(join(fixtureCwd, "doc.ts"), "/**\n * Existing doc.\n */\nexport const a = 1;\n");
+		expect(decide(write("e.astro", "---\n// note\n---\n"))).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: " * Existing doc.\n", newText: " * Existing doc.\n * new line\n" } }),
+		).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 1;\n/**\n * Existing doc.\n */" } }),
+		).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 2;" } }),
+		).toBe("allow");
+	});
+});
+
 describe("no-comments extension", () => {
 	test("blocks write/edit that add comments and lets bash through", () => {
 		const runtime = setupExtension();

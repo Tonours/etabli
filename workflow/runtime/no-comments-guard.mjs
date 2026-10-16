@@ -52,7 +52,9 @@ const CODE_EXTENSIONS = new Set([
 	".scala",
 	".vue",
 	".svelte",
+	".astro",
 	".css",
+	".sass",
 	".scss",
 	".less",
 ]);
@@ -81,9 +83,13 @@ export function commentFamilyFor(filePath) {
 	return "clike";
 }
 
+const TOOL_DIRECTIVE =
+	/(eslint-disable|eslint-enable|@ts-expect-error|@ts-ignore|@ts-nocheck|biome-ignore|prettier-ignore|stylelint-disable|c8 ignore|istanbul ignore|v8 ignore|@jsxImportSource)/;
+
 function isExemptComment(text) {
 	const trimmed = String(text || "").trim();
 	if (/^#!/.test(trimmed)) return true;
+	if (TOOL_DIRECTIVE.test(trimmed)) return true;
 	if (/spdx-license-identifier/i.test(trimmed)) return true;
 	if (/\bcopyright\b/i.test(trimmed)) return true;
 	if (
@@ -129,12 +135,67 @@ function stripStrings(text, family) {
 	return out;
 }
 
+const REGEX_LITERAL_PREFIX = /[=(,:[!&|?{;+]\s*$/;
+
+function stripRegexLiterals(line) {
+	let out = "";
+	let index = 0;
+
+	while (index < line.length) {
+		const opensComment = line[index + 1] === "/" || line[index + 1] === "*";
+		if (line[index] !== "/" || opensComment || !REGEX_LITERAL_PREFIX.test(out)) {
+			out += line[index];
+			index += 1;
+			continue;
+		}
+
+		let cursor = index + 1;
+		let inClass = false;
+		let closed = false;
+		while (cursor < line.length) {
+			const char = line[cursor];
+			if (char === "\\") {
+				cursor += 2;
+				continue;
+			}
+			if (char === "[") inClass = true;
+			else if (char === "]") inClass = false;
+			else if (char === "/" && !inClass) {
+				closed = true;
+				break;
+			}
+			cursor += 1;
+		}
+
+		if (!closed) {
+			out += line.slice(index);
+			break;
+		}
+
+		out += "RE";
+		index = cursor + 1;
+		while (index < line.length && /[dgimsuvy]/.test(line[index])) index += 1;
+	}
+
+	return out;
+}
+
+function stripLiterals(text, family) {
+	const source = family === "clike" ? text.split("\n").map(stripRegexLiterals).join("\n") : text;
+	return stripStrings(source, family);
+}
+
+function lineCommentStart(line) {
+	const match = /(^|[^:])\/\//.exec(line);
+	return match ? match.index + match[1].length : -1;
+}
+
 function normalizeComment(text) {
 	return String(text).replace(/\s+/g, " ").trim();
 }
 
 export function collectCommentLines(text, family) {
-	const stripped = stripStrings(String(text || ""), family);
+	const stripped = stripLiterals(String(text || ""), family);
 	const lines = stripped.split("\n");
 	const found = [];
 	let inBlock = false;
@@ -159,7 +220,7 @@ export function collectCommentLines(text, family) {
 
 		if (family === "clike") {
 			const blockStart = line.indexOf("/*");
-			const lineStart = line.indexOf("//");
+			const lineStart = lineCommentStart(line);
 			if (blockStart !== -1 && (lineStart === -1 || blockStart < lineStart)) {
 				const end = line.indexOf("*/", blockStart + 2);
 				const chunk =
@@ -182,8 +243,9 @@ export function collectCommentLines(text, family) {
 		}
 
 		if (family === "hash") {
-			const hash = line.indexOf("#");
-			if (hash === -1) continue;
+			const match = /(^|\s)#/.exec(line);
+			if (!match) continue;
+			const hash = match.index + match[1].length;
 			const chunk = line.slice(hash);
 			if (idx === 0 && /^#!/.test(chunk.trim())) continue;
 			if (chunk.trim() && !isExemptComment(chunk)) {
@@ -204,10 +266,16 @@ export function collectCommentLines(text, family) {
 }
 
 export function addedCommentLines(previousText, nextText, family) {
-	const previous = new Set(collectCommentLines(previousText, family));
-	return collectCommentLines(nextText, family).filter(
-		(comment) => !previous.has(comment),
-	);
+	const remaining = new Map();
+	for (const comment of collectCommentLines(previousText, family)) {
+		remaining.set(comment, (remaining.get(comment) ?? 0) + 1);
+	}
+	return collectCommentLines(nextText, family).filter((comment) => {
+		const count = remaining.get(comment) ?? 0;
+		if (count === 0) return true;
+		remaining.set(comment, count - 1);
+		return false;
+	});
 }
 
 function toolFilePath(toolInput) {
@@ -243,6 +311,15 @@ function previousFileText(cwd, filePath) {
 	}
 }
 
+function editedFileTexts(fileText, pairs) {
+	let next = fileText;
+	for (const { oldStr, newStr } of pairs) {
+		if (!oldStr || !next.includes(oldStr)) return null;
+		next = next.replace(oldStr, () => newStr);
+	}
+	return { previous: fileText, next };
+}
+
 function deny(reason) {
 	return {
 		hookSpecificOutput: {
@@ -270,6 +347,8 @@ export function noCommentsGuardDecision(event) {
 
 	const family = commentFamilyFor(filePath);
 	const cwd = event.cwd || process.cwd();
+	const record = () =>
+		recordGuardDenial({ cwd, harness: event.harness, guard: "no-comments", pattern: "code-comment-added", target: filePath, tool: toolName });
 
 	if (toolName === "Write") {
 		const content = writeContent(toolInput);
@@ -280,15 +359,16 @@ export function noCommentsGuardDecision(event) {
 			family,
 		);
 		if (added.length === 0) return null;
-		recordGuardDenial({ cwd, guard: "no-comments", pattern: "code-comment-added", target: filePath, tool: toolName });
+		record();
 		return deny(denyReason(filePath, added));
 	}
 
-	const added = [];
-	for (const pair of editPairs(toolInput)) {
-		added.push(...addedCommentLines(pair.oldStr, pair.newStr, family));
-	}
+	const pairs = editPairs(toolInput);
+	const texts = editedFileTexts(previousFileText(cwd, filePath), pairs);
+	const added = texts
+		? addedCommentLines(texts.previous, texts.next, family)
+		: pairs.flatMap((pair) => addedCommentLines(pair.oldStr, pair.newStr, family));
 	if (added.length === 0) return null;
-	recordGuardDenial({ cwd, guard: "no-comments", pattern: "code-comment-added", target: filePath, tool: toolName });
+	record();
 	return deny(denyReason(filePath, added));
 }
