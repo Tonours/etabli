@@ -264,7 +264,7 @@ test("binary review files are incomplete and escaping excerpts are rejected", ()
 
 test("skill catalog honors canonical scope, declared name, explicit invocation and folded description", () => {
   write(join(root, "vendor/sources.tsv"), "pack\thttps://example.invalid\tmain\twork\tgroup/sample\n");
-  write(join(root, "workflow/runtime/skill-surface.tsv"), "group/sample\tpack\t0\t0\t0\nmanual\tpi\t0\t0\t1\n");
+  write(join(root, "workflow/runtime/skill-surface.tsv"), "group/sample\tpack\t0\t0\nmanual\tpi\t0\t1\n");
   write(join(root, "vendor/pack/skills/group/sample/SKILL.md"), "---\nname: real-name\ndescription: >-\n  Invoke only for\n  a work task.\ndisable-model-invocation: true\nuser-invocable: false\n---\nBody\n");
   write(join(root, ".home/.etabli-scope"), "personal");
   const result = skillCatalog(root, join(root, ".home"));

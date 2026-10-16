@@ -19,7 +19,7 @@ skill: adversary
 harness: claude
 canonical: workflow/skills/adversary.md
 description: "Adversarial same-family sample on a diff, commit, or file set. Re-derives intent from the diff alone with no plan or ticket context, then tries to break it. Use pre-push as the second, independent-context sample when the reviewer has findings to cross-check. Findings only — this agent never gives the final verdict. (Cross-family passes are pool invocations, not this agent.)"
-pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Adversary

@@ -222,14 +222,15 @@ assert_contains "$INSTALL_MAIN" 'converge_agent_surfaces'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'workflow/review-rubric.md'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'PLAN_TEMPLATE.md'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Pi workflow'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Agents workflow'
+assert_not_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Agents workflow'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Claude CLAUDE.md'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Claude workflow'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Claude skill'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Claude hook'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'settings.workflow-hooks.json'
 assert_contains "$INSTALL_MAIN" 'deploy-workflow'
-assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'Pi, Codex, Devin, and Grok (through the shared ~/.agents surface)'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'skill surfaces for Claude Code'
+assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'managed_surface_prune_retired_surfaces'
 assert_contains "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" 'npm:@tintinweb/pi-subagents'
 assert_contains "$ROOT_DIR/scripts/deploy-agent-workflow" 'pi-agent-settings-sync.mjs'
 assert_contains "$INSTALL_MAIN" '@earendil-works/pi-coding-agent'
@@ -707,24 +708,24 @@ source "$ROOT_DIR/scripts/lib/skill-catalog.sh"
 
 catalog_schema_issues="$(
     awk -F '\t' '
-        $0 !~ /^#/ && NF != 5 { print NR ": expected 5 fields, got " NF }
-        $0 !~ /^#/ && NF == 5 && ($3 !~ /^[01]$/ || $4 !~ /^[01]$/ || $5 !~ /^[01]$/) {
+        $0 !~ /^#/ && NF != 4 { print NR ": expected 4 fields, got " NF }
+        $0 !~ /^#/ && NF == 4 && ($3 !~ /^[01]$/ || $4 !~ /^[01]$/) {
             print NR ": visibility and lock flags must be explicit 0 or 1"
         }
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
 [ -z "$catalog_schema_issues" ] || {
-    printf 'skill catalog schema drift:\n%s\nremediation: keep five explicit fields per record\n' "$catalog_schema_issues" >&2
+    printf 'skill catalog schema drift:\n%s\nremediation: keep four explicit fields per record\n' "$catalog_schema_issues" >&2
     exit 1
 }
 
 catalog_counts="$(
     awk -F '\t' '
-        $0 !~ /^#/ { total++; pi_core += ($3 == 1); agents_visible += ($4 == 1) }
-        END { printf "%d %d %d", total, pi_core, agents_visible }
+        $0 !~ /^#/ { total++; pi_core += ($3 == 1) }
+        END { printf "%d %d", total, pi_core }
     ' "$ROOT_DIR/workflow/runtime/skill-surface.tsv"
 )"
-read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
+read -r catalog_total pi_core_total <<<"$catalog_counts"
 # Catalog baselines: raised 2026-08-28 with the deliberate additions of the
 # thermo-nuclear pi-core skill, pstack unslop, and the 14-skill mattpocock
 # engineering suite (user-directed). Revisit on every suite adoption.
@@ -734,10 +735,6 @@ read -r catalog_total pi_core_total agents_visible_total <<<"$catalog_counts"
 }
 [ "$pi_core_total" -le 20 ] || {
     printf 'pi_core grew beyond baseline: %s > 20\n' "$pi_core_total" >&2
-    exit 1
-}
-[ "$agents_visible_total" -le 20 ] || {
-    printf 'agents_visible grew beyond baseline: %s > 20\n' "$agents_visible_total" >&2
     exit 1
 }
 
@@ -797,7 +794,7 @@ surface_descriptions() {
     done < <(skill_catalog_names "$ROOT_DIR/workflow/runtime/skill-surface.tsv" pi "$flag")
 }
 
-for prompt_surface in pi_core agents_visible; do
+for prompt_surface in pi_core; do
     surface_rows="$(surface_descriptions "$prompt_surface")"
     duplicate_descriptions="$(printf '%s\n' "$surface_rows" | awk -F '\t' '{d=tolower($2); gsub(/[[:space:]]+/, " ", d); print d}' | sort | uniq -d)"
     [ -z "$duplicate_descriptions" ] || {
@@ -805,10 +802,7 @@ for prompt_surface in pi_core agents_visible; do
         exit 1
     }
     surface_bytes="$(printf '%s\n' "$surface_rows" | LC_ALL=C awk -F '\t' '{bytes += length($2)} END {print bytes + 0}')"
-    case "$prompt_surface" in
-    pi_core) max_bytes=2950 ;;
-    agents_visible) max_bytes=2818 ;;
-    esac
+    max_bytes=2950
     [ "$surface_bytes" -le "$max_bytes" ] || {
         printf '%s description bytes grew beyond baseline: %s > %s\n' "$prompt_surface" "$surface_bytes" "$max_bytes" >&2
         exit 1

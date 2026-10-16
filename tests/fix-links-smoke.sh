@@ -77,6 +77,11 @@ ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.pi/agent/skills/design"
 ln -s "$ROOT_DIR/pi/skills/design" "$TMP_HOME/.agents/skills/design"
 ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.codex/skills/external-skill"
 ln -s "$TMP_HOME/external-skill" "$TMP_HOME/.config/devin/skills/external-skill"
+ln -s "$ROOT_DIR/pi/skills/review" "$TMP_HOME/.agents/skills/review"
+mkdir -p "$TMP_HOME/.agents/skills/user-real"
+for retired_shared in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
+  ln -s "$ROOT_DIR/$retired_shared" "$TMP_HOME/.agents/$retired_shared"
+done
 
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 SECOND_CHECK_OUTPUT="$TMP_HOME/second-check.out"
@@ -93,9 +98,12 @@ assert_link "$TMP_HOME/.pi/agent/skills/linear-work" "$ROOT_DIR/pi/skills/linear
 assert_link "$TMP_HOME/.pi/agent/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
 assert_link "$TMP_HOME/.pi/agent/skills/ci-fix" "$ROOT_DIR/pi/skills/ci-fix"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/vercel-react-best-practices"
-assert_link "$TMP_HOME/.agents/skills/adversary" "$ROOT_DIR/pi/skills/adversary"
-assert_link "$TMP_HOME/.agents/skills/pr-review" "$ROOT_DIR/pi/skills/pr-review"
-assert_link "$TMP_HOME/.agents/skills/review" "$ROOT_DIR/pi/skills/review"
+assert_not_exists "$TMP_HOME/.agents/skills/adversary"
+assert_not_exists "$TMP_HOME/.agents/skills/review"
+[ -d "$TMP_HOME/.agents/skills/user-real" ] || {
+  printf 'retired-surface fix removed a real directory\n' >&2
+  exit 1
+}
 assert_not_exists "$TMP_HOME/.agents/skills/browser-full-page-capture"
 assert_not_exists "$TMP_HOME/.agents/skills/goal-prompt-rewriter"
 assert_not_exists "$TMP_HOME/.agents/skills/github-pr-review"
@@ -120,16 +128,16 @@ assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.config/devin/skills/react-doctor-100"
 assert_not_exists "$TMP_HOME/.config/devin/skills/retired-skill"
 assert_link "$TMP_HOME/.config/devin/skills/external-skill" "$TMP_HOME/external-skill"
-assert_link "$TMP_HOME/.config/devin/skills/ask-matt" "$ROOT_DIR/vendor/mattpocock/skills/engineering/ask-matt"
+assert_not_exists "$TMP_HOME/.config/devin/skills/ask-matt"
 assert_not_exists "$TMP_HOME/.config/devin/skills/ember-employer-suite"
 assert_not_exists "$TMP_HOME/.config/devin/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.grok"
 assert_link "$TMP_HOME/.pi/agent/workflow" "$ROOT_DIR/workflow"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$TMP_HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-assert_link "$TMP_HOME/.agents/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
-assert_link "$TMP_HOME/.agents/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-assert_link "$TMP_HOME/.agents/workflow" "$ROOT_DIR/workflow"
+for retired_shared in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md workflow; do
+  assert_not_exists "$TMP_HOME/.agents/$retired_shared"
+done
 assert_link "$ROOT_DIR/pi/extensions/node_modules" "$TMP_HOME/.pi/agent/npm/node_modules"
 assert_link "$TMP_HOME/.claude/commands/review.md" "$ROOT_DIR/claude/scopes/shared/commands/review.md"
 assert_not_exists "$TMP_HOME/.claude/commands/pr-review.md"
@@ -161,8 +169,8 @@ assert_link "$TMP_HOME/.claude/commands/pr-review.md" "$ROOT_DIR/claude/scopes/w
 assert_link "$TMP_HOME/.claude/commands/ci-fix.md" "$ROOT_DIR/claude/scopes/work/commands/ci-fix.md"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/ember-employer-suite"
 assert_link "$TMP_HOME/.claude/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
-assert_link "$TMP_HOME/.codex/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
-assert_link "$TMP_HOME/.config/devin/skills/ember-employer-suite" "$ROOT_DIR/vendor/ember-skills/skills/ember-employer-suite"
+assert_not_exists "$TMP_HOME/.codex/skills/ember-employer-suite"
+assert_not_exists "$TMP_HOME/.config/devin/skills/ember-employer-suite"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.claude/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.codex/skills/adonisjs-suite"

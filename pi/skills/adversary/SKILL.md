@@ -8,7 +8,7 @@ harness: pi
 canonical: workflow/skills/adversary.md
 name: adversary
 description: Red-team a PLAN.md, diff, or design as a hostile challenger under the shared risk-tiered contract. Use when it must survive deliberate attack (stress-test, devil's advocate) before approval; not for draft reviews (plan-loop) or final verdicts.
-pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Adversary
@@ -17,7 +17,7 @@ Follow the shared contract in `workflow/skills/adversary.md`. The routing map
 `workflow/spec.md` wins on conflict; open it only when the route or a gate is
 in doubt.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 
 ## Contract

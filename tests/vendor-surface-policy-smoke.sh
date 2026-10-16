@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared vendor surface policy: one source of truth for which surfaces receive
-# an active vendor skill (Claude/Codex/Devin always; Pi only when pi_core).
+# an active vendor skill (Claude always; Pi only when pi_core).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
@@ -30,18 +30,17 @@ assert_absent() {
   { [ ! -e "$1" ] && [ ! -L "$1" ]; } || fail "expected no link: $1"
 }
 
-# pi_core=1, active scope: linked everywhere.
+# pi_core=1, active scope: linked on Claude and Pi, never on a retired surface.
 vendor_link_skill_surfaces "$HOME_DIR" "$SKILL_DIR" core-skill 1 shared shared
 assert_link "$HOME_DIR/.claude/skills/core-skill"
-assert_link "$HOME_DIR/.codex/skills/core-skill"
-assert_link "$HOME_DIR/.config/devin/skills/core-skill"
 assert_link "$HOME_DIR/.pi/agent/skills/core-skill"
+assert_absent "$HOME_DIR/.codex"
+assert_absent "$HOME_DIR/.config/devin"
+assert_absent "$HOME_DIR/.agents"
 
 # pi_core=0, active scope: Pi must not receive the link.
 vendor_link_skill_surfaces "$HOME_DIR" "$SKILL_DIR" shelf-skill 0 shared shared
 assert_link "$HOME_DIR/.claude/skills/shelf-skill"
-assert_link "$HOME_DIR/.codex/skills/shelf-skill"
-assert_link "$HOME_DIR/.config/devin/skills/shelf-skill"
 assert_absent "$HOME_DIR/.pi/agent/skills/shelf-skill"
 
 # Inactive scope: linked nowhere, even with pi_core=1.
@@ -71,7 +70,6 @@ fi
 vendor_surface_expected .pi/agent/skills shared 0 shared && fail "pi_core=0 on Pi surface must not be expected"
 vendor_surface_expected .pi/agent/skills shared 1 shared || fail "pi_core=1 on Pi surface must be expected"
 vendor_surface_expected .claude/skills shared 0 shared || fail "vendor skill must be expected on Claude"
-vendor_surface_expected .config/devin/skills shared 0 shared || fail "vendor skill must be expected on Devin"
 if vendor_surface_expected .claude/skills work 1 "shared personal"; then
   fail "inactive scope must not be expected on Claude"
 fi

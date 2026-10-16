@@ -9,7 +9,7 @@ vendored files.
 | pstack (Lauren Tan) | **migrated** to `@zenspc/pi-pstack` npm port (ADR-0023) | Pi via repo-tracked settings entry | 45 — see `docs/pstack-strategy.md` |
 | mattpocock (Matt Pocock) | `mattpocock/skills` @ `skills/engineering/` | shared | 14 (below) |
 | ember-skills / adonisjs-skills | Tonours forks | work / personal | domain suites |
-| petergyang | `petergyang/no-ai-slop` | `skill-surface.tsv` row `0 0 1`; `user-invocable-only` on Claude | 1 (`no-ai-slop`) |
+| petergyang | `petergyang/no-ai-slop` | `skill-surface.tsv` row `0 1`; `user-invocable-only` on Claude | 1 (`no-ai-slop`) |
 | typesafe-ai | `typesafe-ai/skills` | shared, `user-invocable-only` on Claude | 1 (`typesafe-ai`) |
 
 ## mattpocock engineering tier (14)

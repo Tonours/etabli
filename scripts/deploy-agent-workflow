@@ -15,8 +15,6 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/claude-config-dir.sh"
 SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 
-AGENTS_VISIBLE_SKILLS=( $(skill_catalog_names "$SKILL_CATALOG" any agents_visible) )
-
 ACTIVE_SCOPES="shared"
 
 resolve_scopes() {
@@ -31,8 +29,9 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [--dry-run] [--apply] [--home DIR]
 
-Deploy only the Etabli-managed workflow and skill surfaces for Claude Code,
-Pi, Codex, Devin, and Grok (through the shared ~/.agents surface).
+Deploy only the Etabli-managed workflow and skill surfaces for Claude Code
+and Pi, and remove this checkout's links from the retired Codex, Devin and
+shared agents surfaces.
 
 Options:
   --dry-run         Show planned changes without touching local harness files (default)
@@ -157,11 +156,6 @@ is_core_pi_skill() {
   managed_surface_catalog_contains "$candidate" "${skills[@]}"
 }
 
-is_agents_visible_skill() {
-  local candidate="$1"
-  managed_surface_catalog_contains "$candidate" "${AGENTS_VISIBLE_SKILLS[@]}"
-}
-
 sync_pi_agent_settings() {
   local local_settings="$HOME_DIR/.pi/agent/settings.json"
   local tracked_settings="$REPO_DIR/pi/agent/settings.json"
@@ -246,7 +240,7 @@ deploy_pi() {
   status_line SECTION "Pi"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.pi/agent/agents" "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.pi/agent/themes" "$HOME_DIR/.agents/skills"
+    mkdir -p "$HOME_DIR/.pi/agent/agents" "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.pi/agent/themes"
   fi
 
   link_path "$REPO_DIR/pi/AGENTS.md" "$HOME_DIR/.pi/agent/AGENTS.md" "Pi AGENTS.md"
@@ -303,30 +297,16 @@ deploy_pi() {
   managed_surface_prune_unlisted_source_skills deploy "$REPO_DIR" "$HOME_DIR" \
     .pi/agent/skills Pi pi "${core_skills[@]}"
 
-  for skill in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    [ -n "$skill" ] || continue
-    skill_source="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill" || true)"
-    [ -n "$skill_source" ] || skill_source="$REPO_DIR/pi/skills/$skill"
-    link_path "$skill_source" "$HOME_DIR/.agents/skills/$skill" "Grok/agents-visible skill $skill"
-  done
-
-  managed_surface_prune_unlisted_source_skills deploy "$REPO_DIR" "$HOME_DIR" \
-    .agents/skills Grok/agents-visible all "${AGENTS_VISIBLE_SKILLS[@]}"
-
-  # Shared plan/workflow sources for ~/.agents skills
-  # (../../PLAN_TEMPLATE.md and ../../workflow resolve here).
-  if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.agents"
-  fi
-  link_path "$REPO_DIR/PLAN_TEMPLATE.md" "$HOME_DIR/.agents/PLAN_TEMPLATE.md" "Agents PLAN_TEMPLATE.md"
-  link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "$HOME_DIR/.agents/PLAN_TEMPLATE_FULL.md" "Agents PLAN_TEMPLATE_FULL.md"
-  link_path "$REPO_DIR/workflow" "$HOME_DIR/.agents/workflow" "Agents workflow"
-
   for theme_file in "$REPO_DIR/pi/themes"/*.json; do
     [ -f "$theme_file" ] || continue
     theme_name="$(basename "$theme_file")"
     link_path "$theme_file" "$HOME_DIR/.pi/agent/themes/$theme_name" "Pi theme $theme_name"
   done
+}
+
+prune_retired_surfaces() {
+  status_line SECTION "Retired surfaces"
+  managed_surface_prune_retired_surfaces deploy "$REPO_DIR" "$HOME_DIR"
 }
 
 deploy_vendor_skills() {
@@ -335,7 +315,7 @@ deploy_vendor_skills() {
   status_line SECTION "Vendor skills"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.pi/agent/skills" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills" "$HOME_DIR/.codex/skills" "$HOME_DIR/.config/devin/skills" "$HOME_DIR/.agents/skills"
+    mkdir -p "$HOME_DIR/.pi/agent/skills" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills"
   fi
 
   managed_surface_prune_pi_cross_surface_links deploy "$REPO_DIR" "$HOME_DIR"
@@ -344,13 +324,11 @@ deploy_vendor_skills() {
 
   while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
-    for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+    for surface in .claude/skills .pi/agent/skills; do
       managed_surface_selected "$surface" || continue
       if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$ACTIVE_SCOPES"; then
         case "$surface" in
         .claude/skills) label="Claude" ;;
-        .codex/skills) label="Codex" ;;
-        .config/devin/skills) label="Devin" ;;
         .pi/agent/skills) label="Pi" ;;
         esac
         link_path "$skill_dir" "$(managed_surface_dir "$HOME_DIR" "$surface")/$skill_name" "$label vendor skill $skill_name"
@@ -444,11 +422,6 @@ deploy_claude() {
 
   link_path "$REPO_DIR/claude/settings.workflow-hooks.json" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/settings.workflow-hooks.json" "Claude workflow hooks fragment"
 
-  remove_exact_managed_link \
-    "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills/audit" \
-    "retired Claude skill audit" \
-    "$HOME_DIR/.agents/skills.disabled/ui-pruned-2026-04-28/audit"
-
   sync_claude_skill_overrides
 
   prune_stale_managed_claude_agent_links
@@ -501,6 +474,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   CLAUDE_ROOT="$HOME_DIR/.claude"
   export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
   deploy_pi
+  prune_retired_surfaces
   deploy_vendor_skills
   deploy_claude
   if [ "$HOME_DIR" = "$HOME" ] && config_root="$(claude_config_dir_override)"; then

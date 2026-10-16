@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Shared vendor-skill surface policy (ADR-0018 surfaces).
 # One source of truth for which surfaces receive an active vendor skill:
-# Claude, Codex and Devin always, Pi only when the catalog marks the skill
-# pi_core; active scope gates every surface. Sourced by install-main.sh,
+# Claude always, Pi only when the catalog marks the skill pi_core; active
+# scope gates every surface. Sourced by install-main.sh,
 # deploy-agent-workflow and check-fix-symlinks.sh.
 
 vendor_surface_expected() {
@@ -34,7 +34,7 @@ vendor_link_skill_surfaces() {
   local active_scopes="$6"
   local surface
 
-  for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+  for surface in .claude/skills .pi/agent/skills; do
     if vendor_surface_expected "$surface" "$record_scope" "$pi_core" "$active_scopes"; then
       mkdir -p "$home_dir/$surface"
       ln -sfn "$skill_dir" "$home_dir/$surface/$skill_name"
@@ -54,7 +54,7 @@ vendor_prune_unexpected_skill_surfaces() {
   local active_scopes="$6"
   local surface link_path
 
-  for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+  for surface in .claude/skills .pi/agent/skills; do
     link_path="$home_dir/$surface/$skill_name"
     if ! vendor_surface_expected "$surface" "$record_scope" "$pi_core" "$active_scopes" &&
       [ -L "$link_path" ] &&

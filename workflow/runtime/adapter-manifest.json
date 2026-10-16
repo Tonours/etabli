@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "note": "MAP, not a content store: one row per adapter FILE of deployed skills (pi_core=1 OR agents_visible=1 in skill-surface.tsv). Bodies hashed with the GENERATED fence span excised; headers verified by regeneration comparison only, never by hash.",
+  "note": "MAP, not a content store: one row per adapter FILE of deployed skills (pi_core=1 in skill-surface.tsv). Bodies hashed with the GENERATED fence span excised; headers verified by regeneration comparison only, never by hash.",
   "deployed": [
     "adonisjs-suite",
     "adversary",
@@ -19,7 +19,8 @@
     "ship",
     "thermo-nuclear-code-quality-review",
     "typesafe-ai",
-    "verify"
+    "verify",
+    "write-direct"
   ],
   "map": {
     "adonisjs-suite": {
@@ -140,6 +141,11 @@
         "claude/scopes/shared/commands/verify-workflow.md"
       ],
       "canonical": "workflow/skills/verify.md"
+    },
+    "write-direct": {
+      "pi": "claude/scopes/shared/skills/write-direct/SKILL.md",
+      "claude": [],
+      "canonical": "claude/scopes/shared/skills/write-direct/SKILL.md"
     }
   },
   "rows": [
@@ -148,49 +154,49 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/agents/adversary.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "592a1c90efd08a78d5431436226f569dbef46a400ef181f65a7d770f200367cb"
+      "sha256": "dcf248cb8eeb87d9fded49a0e46d850cb111bebc6799e135d59ed9d7773ee18f"
     },
     {
       "skill": "adversary",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/adversary.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "8490d16d9e0a421b292d409bea3b7751bd5b47806000591ba5f88b9ac15b08be"
+      "sha256": "7dd30088e775aff9074253e5d46a10a11fe123738f400785cc2030188535adac"
     },
     {
       "skill": "adversary",
       "harness": "pi",
       "adapter": "pi/skills/adversary/SKILL.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "61f7a5fa0916b657056ec068a8a2f91f39c3658fbb29a495abcb34ed1ecc524c"
+      "sha256": "74dcc5e7a8afff6d856312a6988233514b83693f909b33b9d313db018a06d475"
     },
     {
       "skill": "bug-check",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/bug-check.md",
       "canonical": "workflow/skills/bug-check.md",
-      "sha256": "a719676a43efc2da1ccfef1e82f16e3cf98455db0d93060d643825fc4fec84b9"
+      "sha256": "46617be23d532292705cab38ed48a3d4953ce4cc73d51c01397d3e9a819bf7eb"
     },
     {
       "skill": "bug-check",
       "harness": "pi",
       "adapter": "pi/skills/bug-check/SKILL.md",
       "canonical": "workflow/skills/bug-check.md",
-      "sha256": "b99498a746aaade6ec93f38bc212f65c03d3458231ff3824bada505fd4f7eca3"
+      "sha256": "1b3ec05a0ec1b8684b0a92cb60b0f557364084804a14f84b4464ea5239ca6e69"
     },
     {
       "skill": "ci-fix",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/ci-fix.md",
       "canonical": "workflow/skills/ci-fix.md",
-      "sha256": "68b6dfa8a6d62dea1083bfe9b6327dd83bc008f49d3d2cb423b0181444c4d3cd"
+      "sha256": "883323c51a19fdb31bcfd03bd5d009226859fd65df07698658832030970adab7"
     },
     {
       "skill": "ci-fix",
       "harness": "pi",
       "adapter": "pi/skills/ci-fix/SKILL.md",
       "canonical": "workflow/skills/ci-fix.md",
-      "sha256": "6287ffa44a73b105286ec64e832b4b4056cbbcad27e9b980f33eb9b087a78271"
+      "sha256": "77d93f21cc7347cfa5f8568d1cebcf3ae76ffa8202eee22e0ae363ca6f867e98"
     },
     {
       "skill": "code-quality",
@@ -204,140 +210,140 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/implement.md",
       "canonical": "pi/skills/implement/SKILL.md",
-      "sha256": "cc96216c51595368bc8cc4d254d7e7a2e2034f5104069155f54a00bcec402fb5"
+      "sha256": "7d8291f62f937bcd1ddecb1545cc35aeede1713ceeccfea10cbb4b33b99c8d42"
     },
     {
       "skill": "implement",
       "harness": "pi",
       "adapter": "pi/skills/implement/SKILL.md",
       "canonical": "pi/skills/implement/SKILL.md",
-      "sha256": "2e9c8e955e16bc551de4e2b891db4bd69f4697a1866b0fbd25acd3aa1e603733"
+      "sha256": "6569a1b25dc5059e2f61c501f93c2dcb83129089225d0b0acbab7fcd1e98e419"
     },
     {
       "skill": "linear-ticket-create",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/linear-ticket-create.md",
       "canonical": "workflow/skills/linear-ticket-create.md",
-      "sha256": "740d373446b2a70a13cefc13642b1be47fbf3a285d776a1fefce7e59173f2a90"
+      "sha256": "e981c03b1c09ea897aecc3e69e0f7b36c8ab64ab3ea670567e15ca23446c651d"
     },
     {
       "skill": "linear-ticket-create",
       "harness": "pi",
       "adapter": "pi/skills/linear-ticket-create/SKILL.md",
       "canonical": "workflow/skills/linear-ticket-create.md",
-      "sha256": "2610050f376a06a1d4c34e1c6b1857350d02eff97c115b55007efe39bdf11f2b"
+      "sha256": "6c5e8c9bb20bef6cee73637f5aa9abab5fbe577d29db15dc05c561c79616afbf"
     },
     {
       "skill": "linear-work",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/linear-work.md",
       "canonical": "workflow/skills/linear-work.md",
-      "sha256": "d3e40aff1a767512c8c212d82f407cdcdf404c5687d3f1960018ce6b717ceb92"
+      "sha256": "1f6fdea085a1c214647ef647398cfa07052f9652dfe128c3157d8f7ead09c362"
     },
     {
       "skill": "linear-work",
       "harness": "pi",
       "adapter": "pi/skills/linear-work/SKILL.md",
       "canonical": "workflow/skills/linear-work.md",
-      "sha256": "88a2b5e545434804c0806e0f4564312c5d201c9c571fec78fc7c63a0af565dda"
+      "sha256": "bf0a747e31b310ef06c48fd88f1e8d7697ea1e5a695836e8b33df209603cb24f"
     },
     {
       "skill": "plan-implement",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/plan-implement.md",
       "canonical": "pi/skills/plan-implement/SKILL.md",
-      "sha256": "bb187b080e65dd0dbd4d97136275773cf8e814ca14af41592be6b25a99e1ebf2"
+      "sha256": "a70f0bfb3c808f463e2060567cdda441045e3ddc439f322cf56b7d34cc0d7c61"
     },
     {
       "skill": "plan-implement",
       "harness": "pi",
       "adapter": "pi/skills/plan-implement/SKILL.md",
       "canonical": "pi/skills/plan-implement/SKILL.md",
-      "sha256": "50674b535a866350ef0507e6f3b95457d4f90c0e567db598eb7ddeddccb8666d"
+      "sha256": "6df65e3bd8e0e038335f27424f9e53555e07fdcd623924183e4cd1edbbeddbdd"
     },
     {
       "skill": "plan-loop",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/plan-loop.md",
       "canonical": "workflow/skills/plan-loop.md",
-      "sha256": "7416f610415e61b3672314e011eb0dde3e30ee5018681fc06067da77d94bef56"
+      "sha256": "0e57123160085c785fee260c3f99854fa0b2b193cda73be3c8f699620d9710d1"
     },
     {
       "skill": "plan-loop",
       "harness": "pi",
       "adapter": "pi/skills/plan-loop/SKILL.md",
       "canonical": "workflow/skills/plan-loop.md",
-      "sha256": "024ec98403f2a1bd03c77e5932eacb5bd4f928871eda0c90afde8ea6c01c7dbb"
+      "sha256": "6199ea47d3074d29d01b061e8a46dc3b7d61ac6fac1dbaed046087cf5556d839"
     },
     {
       "skill": "pr-qa",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/pr-qa.md",
       "canonical": "workflow/skills/pr-qa.md",
-      "sha256": "d90ce46fb55715a154e303abaea683ecd62aae740db36430ee9580cf03665ead"
+      "sha256": "07f8825f1c6989d22c9eba8da2a0dbca935e1239435316c3247445843ebe2bc2"
     },
     {
       "skill": "pr-qa",
       "harness": "pi",
       "adapter": "pi/skills/pr-qa/SKILL.md",
       "canonical": "workflow/skills/pr-qa.md",
-      "sha256": "329efa74a6ad5ffa2739f34e21d67f31be47d9f11ba04ce133179918b9774eae"
+      "sha256": "e65b657d000c8b43124a2256496a8ac7033f43570736a9215a84a52a03c1c16a"
     },
     {
       "skill": "pr-review",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/pr-review.md",
       "canonical": "workflow/skills/pr-review.md",
-      "sha256": "10e47e220a0e51442b3a2426cd98bc8818114dc061f0ce10f87c43513575d4c3"
+      "sha256": "c9bf0616679ed638d7c3d098143b1e53dbaf83653008aefd77680deabda52233"
     },
     {
       "skill": "pr-review",
       "harness": "pi",
       "adapter": "pi/skills/pr-review/SKILL.md",
       "canonical": "workflow/skills/pr-review.md",
-      "sha256": "9a96d7f73f7a45717a0ae372b7369d5667666748c061831c9242d054b505fe81"
+      "sha256": "eec413cd3bee423312c655a1e35629a027d8721db02b21322e8513f973c1bcee"
     },
     {
       "skill": "review",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/review.md",
       "canonical": "workflow/skills/review.md",
-      "sha256": "d74d219a1c7acb74e843ab61cfb035ad003ccf5ed3fd713cdc777e8d1eb763f2"
+      "sha256": "222497abf443b635d50b69bec4f18d9422ea5a1a40f6f22201dabdfb2491518e"
     },
     {
       "skill": "review",
       "harness": "pi",
       "adapter": "pi/skills/review/SKILL.md",
       "canonical": "workflow/skills/review.md",
-      "sha256": "60b01d3275ff82b3c7baf4cd046e7fafde0cb54cc29d398df9ef7ca943646a80"
+      "sha256": "38cb2dfa57540ee6c0785256f10a5531e2ff3ffc0847e9acdd60640bd3121a15"
     },
     {
       "skill": "sec-pr",
       "harness": "claude",
       "adapter": "claude/scopes/work/commands/sec-pr.md",
       "canonical": "workflow/skills/sec-pr.md",
-      "sha256": "daa5ad3c4811c0a0aa5bfbf85ee53bdc1daba352f0a2c1c2daa60373e66792d6"
+      "sha256": "3e150ebb1e004dba35eca752780d1f8d741e50e0ae589b68e92124912b039bfd"
     },
     {
       "skill": "sec-pr",
       "harness": "pi",
       "adapter": "pi/skills/sec-pr/SKILL.md",
       "canonical": "workflow/skills/sec-pr.md",
-      "sha256": "f44f18ef8b3b86ef40e08fdc05ec63b4ad1d786ed369f8a59fc8ae7ceacd92aa"
+      "sha256": "fe33ed27a34d5fa909e1b85b31a33ace9e8469373737e491b2348b6bcc90bea4"
     },
     {
       "skill": "ship",
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/ship.md",
       "canonical": "workflow/skills/ship.md",
-      "sha256": "f5bb521c1836a38ac2718f521fcf9d3b11294e2478cf334a2973b8d36f7576fa"
+      "sha256": "842348b4f01154a97de67d59ca486d939bd7d0c425cbdb92c8db6bc334ef6500"
     },
     {
       "skill": "ship",
       "harness": "pi",
       "adapter": "pi/skills/ship/SKILL.md",
       "canonical": "workflow/skills/ship.md",
-      "sha256": "0820a761e3ba7760143dab54c470d6cea8caebdfdb3196b345aa46752b06fc24"
+      "sha256": "3e9c08fa9f4a1d6d753069f4a6aadd2ce3d742236eb80320cafab1aff666779b"
     },
     {
       "skill": "thermo-nuclear-code-quality-review",
@@ -351,14 +357,21 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/verify-workflow.md",
       "canonical": "workflow/skills/verify.md",
-      "sha256": "c121f976057eeab6c17f122520b72ead5c0c506baed22d4b74d51a67ddea5426"
+      "sha256": "44ea198d27b9575aceef484bdfa985214f4bf4712bafd412b8c08085d7e1efab"
     },
     {
       "skill": "verify",
       "harness": "pi",
       "adapter": "pi/skills/verify/SKILL.md",
       "canonical": "workflow/skills/verify.md",
-      "sha256": "dd2d2fe969be79b4eaa8ed150f1a9a176f2bd44b477402dcc759716650c190f7"
+      "sha256": "8a271368034dd1b594dd9b49a3ff8e030d8a07ffe0608d113368fdf17f90f89b"
+    },
+    {
+      "skill": "write-direct",
+      "harness": "pi",
+      "adapter": "claude/scopes/shared/skills/write-direct/SKILL.md",
+      "canonical": "claude/scopes/shared/skills/write-direct/SKILL.md",
+      "sha256": "0192d390e3327e57b6dfceb0072760340fa86292aea1ece565b5f0a39e9c7f1f"
     }
   ],
   "external": [
@@ -368,7 +381,7 @@
       "reason": "no in-repo adapter files; upstream repo",
       "evidence": [
         "vendor/adonisjs-skills/skills/adonisjs-suite (upstream git@github.com:Tonours/adonisjs-skills.git per vendor/sources.tsv)",
-        "~/.agents/skills/adonisjs-suite router dir"
+        "Pi vendor skill adonisjs-suite (pi_core) router dir"
       ]
     },
     {
@@ -376,7 +389,7 @@
       "rechecked": "2026-09-25",
       "reason": "no in-repo adapter files; upstream repo",
       "evidence": [
-        "symlink ~/.agents/skills/typesafe-ai -> vendor/typesafe-ai/skills/typesafe-ai (upstream https://github.com/typesafe-ai/skills.git per vendor/sources.tsv)"
+        "Pi vendor skill typesafe-ai -> vendor/typesafe-ai/skills/typesafe-ai (upstream https://github.com/typesafe-ai/skills.git per vendor/sources.tsv)"
       ]
     }
   ]

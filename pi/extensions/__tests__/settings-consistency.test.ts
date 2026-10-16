@@ -46,12 +46,11 @@ const skillCatalog = readFileSync(
   .split("\n")
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
-    const [name, source, piCore, agentsVisible, locked] = line.split("\t");
+    const [name, source, piCore, locked] = line.split("\t");
     return {
       name,
       source,
       piCore: piCore === "1",
-      agentsVisible: agentsVisible === "1",
       locked: locked === "1",
     };
   });
@@ -94,36 +93,15 @@ describe("Pi settings consistency", () => {
     );
   });
 
-  test("keeps agents-visible skill lists synchronized across bootstrap scripts", () => {
+  test("keeps the Pi core skill list synchronized across bootstrap scripts", () => {
     for (const source of [deployAgentWorkflowScript, checkFixSymlinksScript])
       expect(source).toContain("skill_catalog_names");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
-    const agentsVisible = skillCatalog.filter((skill) => skill.agentsVisible);
-    const vendorVisible = agentsVisible.filter(
-      (skill) => skill.source !== "pi",
-    );
-    expect(vendorVisible.map((skill) => skill.name)).toEqual(["typesafe-ai"]);
-    expect(vendorVisible.every((skill) => skill.piCore)).toBe(true);
-
-    const coreVisible = agentsVisible
-      .filter((skill) => skill.piCore && skill.source === "pi")
-      .map((skill) => skill.name);
-    expect(
-      coreVisible.every((skill) =>
-        (localPackage().skills ?? []).includes(skill),
-      ),
-    ).toBe(true);
-
-    const packVisible = agentsVisible
-      .filter((skill) => !skill.piCore)
-      .map((skill) => skill.name);
-    expect(packVisible).toEqual([]);
     for (const shelved of ["caveman", "grill-me", "coolify", "project-hunt"]) {
       expect(skillCatalog.find((s) => s.name === shelved)).toMatchObject({
         source: "extras",
         piCore: false,
-        agentsVisible: false,
       });
     }
 
@@ -150,15 +128,9 @@ describe("Pi settings consistency", () => {
     expect([...(localPackage().skills ?? [])].sort()).toEqual(
       [...keepList].sort(),
     );
-    expect(coreVisible.sort()).toEqual(
-      keepList.filter((skill) => skill !== "code-quality").sort(),
-    );
     expect(
       skillCatalog.find((skill) => skill.name === "code-quality"),
-    ).toMatchObject({
-      piCore: true,
-      agentsVisible: false,
-    });
+    ).toMatchObject({ piCore: true });
     expect(keepList).toHaveLength(17);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);

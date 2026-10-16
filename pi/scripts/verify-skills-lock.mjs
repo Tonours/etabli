@@ -41,12 +41,11 @@ const catalog = (
   .split("\n")
   .filter((line) => line && !line.startsWith("#"))
   .map((line) => {
-    const [name, source, piCore, agentsVisible, locked] = line.split("\t");
+    const [name, source, piCore, locked] = line.split("\t");
     return {
       name,
       source,
       piCore: piCore === "1",
-      agentsVisible: agentsVisible === "1",
       locked: locked === "1",
     };
   });

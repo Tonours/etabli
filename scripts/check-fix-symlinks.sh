@@ -20,13 +20,11 @@ SKILL_CATALOG_MISSING=0
 if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; then
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
   PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
-  AGENTS_VISIBLE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" any agents_visible))
   # A present-but-degenerate catalog is corruption, not degradation:
   # fail loudly. (A genuinely absent catalog keeps the missing-catalog
   # degraded mode below.)
-  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; } ||
-    [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 0 ] || { [ "${#AGENTS_VISIBLE_SKILLS[@]}" -eq 1 ] && [ -z "${AGENTS_VISIBLE_SKILLS[0]}" ]; }; then
-    printf 'check-fix-symlinks: skill catalog present but degenerate (empty pi_core or agents_visible); aborting\n' >&2
+  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; }; then
+    printf 'check-fix-symlinks: skill catalog present but degenerate (empty pi_core); aborting\n' >&2
     exit 1
   fi
 else
@@ -35,7 +33,6 @@ fi
 if [ "$SKILL_CATALOG_MISSING" -eq 1 ]; then
   # Bash 3 with `set -u` treats an empty array expansion as unbound.
   PI_CORE_SKILLS=("")
-  AGENTS_VISIBLE_SKILLS=("")
 fi
 
 usage() {
@@ -127,16 +124,8 @@ check_pi_skill_links() {
     check "$REPO_DIR" "$HOME" .pi/agent/skills Pi pi "${PI_CORE_SKILLS[@]}"
 }
 
-check_agents_visible_skill_links() {
-  local skill_name skill_source
-  for skill_name in "${AGENTS_VISIBLE_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    skill_source="$(skill_catalog_dir "$SKILL_CATALOG" "$REPO_DIR" "$skill_name" || true)"
-    [ -n "$skill_source" ] || skill_source="$REPO_DIR/pi/skills/$skill_name"
-    check_link "$HOME/.agents/skills/$skill_name" "$skill_source" "grok/agents-visible skill $skill_name"
-  done
-  [ "$SKILL_CATALOG_MISSING" -eq 1 ] || managed_surface_prune_unlisted_source_skills \
-    check "$REPO_DIR" "$HOME" .agents/skills Grok/agents-visible all "${AGENTS_VISIBLE_SKILLS[@]}"
+check_retired_surface_links() {
+  managed_surface_prune_retired_surfaces check "$REPO_DIR" "$HOME"
 }
 
 check_vendor_skill_links() {
@@ -149,13 +138,11 @@ check_vendor_skill_links() {
   active_scopes="$(deployed_scopes)"
   while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
     [ -n "$skill_name" ] || continue
-    for surface in .claude/skills .codex/skills .config/devin/skills .pi/agent/skills; do
+    for surface in .claude/skills .pi/agent/skills; do
       managed_surface_selected "$surface" || continue
       if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
         case "$surface" in
         .claude/skills) label="claude" ;;
-        .codex/skills) label="codex" ;;
-        .config/devin/skills) label="devin" ;;
         .pi/agent/skills) label="pi" ;;
         esac
         check_link "$(managed_surface_dir "$HOME" "$surface")/$skill_name" "$skill_dir" "$label vendor skill $skill_name"
@@ -276,9 +263,6 @@ check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
 check_link "$HOME/.pi/agent/workflow" "$REPO_DIR/workflow" "pi workflow sources"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "pi PLAN_TEMPLATE.md"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "pi PLAN_TEMPLATE_FULL.md"
-check_link "$HOME/.agents/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "agents PLAN_TEMPLATE.md"
-check_link "$HOME/.agents/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "agents PLAN_TEMPLATE_FULL.md"
-check_link "$HOME/.agents/workflow" "$REPO_DIR/workflow" "agents workflow sources"
 check_link "$HOME/.pi/scripts" "$REPO_DIR/scripts" "pi canonical scripts"
 check_link "$HOME/.pi/workflow" "$REPO_DIR/workflow" "pi canonical workflow"
 check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions"
@@ -298,7 +282,7 @@ CLAUDE_ROOT="$HOME/.claude"
 export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
 check_claude_root
 check_pi_skill_links
-check_agents_visible_skill_links
+check_retired_surface_links
 if config_root="$(claude_config_dir_override)"; then
   CLAUDE_ROOT="$config_root"
   MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"

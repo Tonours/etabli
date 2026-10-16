@@ -9,7 +9,7 @@ skill: plan-implement
 harness: claude
 canonical: pi/skills/plan-implement/SKILL.md
 description: Plan, review, then implement, shipping only when PLAN.md is READY. Use only when explicitly invoked; not for single-step tasks.
-pointer: Adapter for the `plan-implement` skill. Read and follow the shared contract in `pi/skills/plan-implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `plan-implement` skill. Read and follow the shared contract in `pi/skills/plan-implement/SKILL.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement
@@ -20,7 +20,7 @@ Follow the shared contract in `workflow/skills/implementation-loop.md`. The
 routing map `workflow/spec.md` wins on conflict; open it only when the route or
 a gate is in doubt.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 Run `workflow/skills/plan-loop.md` when a task is provided, then follow
 `workflow/skills/implementation-loop.md`. Load a domain suite only when the

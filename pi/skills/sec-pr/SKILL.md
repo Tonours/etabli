@@ -8,14 +8,14 @@ harness: pi
 canonical: workflow/skills/sec-pr.md
 name: sec-pr
 description: Audit a Dependabot or security PR for advisories, lock resolution, and CI. Use when a bot-opened dependency or security PR needs vetting; not for feature PRs or for merging.
-pointer: Adapter for the `sec-pr` skill. Read and follow the shared contract in `workflow/skills/sec-pr.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `sec-pr` skill. Read and follow the shared contract in `workflow/skills/sec-pr.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Sec PR
 
 Read and follow the shared contract in `workflow/skills/sec-pr.md`.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 
 Rules:

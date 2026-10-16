@@ -9,7 +9,7 @@ skill: ship
 harness: claude
 canonical: workflow/skills/ship.md
 description: Deliver one task A to Z - plan, implement, review, commit, push, PR, CI green
-pointer: Adapter for the `ship` skill. Read and follow the shared contract in `workflow/skills/ship.md`. If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+pointer: Adapter for the `ship` skill. Read and follow the shared contract in `workflow/skills/ship.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
 # Ship
@@ -18,7 +18,7 @@ User request: $ARGUMENTS
 
 Follow the shared contract in `workflow/skills/ship.md`.
 
-If the contract is missing in the workspace, try `~/.pi/agent/`, `~/.claude/`, then `~/.agents/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
+If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
 Claude specifics:
 

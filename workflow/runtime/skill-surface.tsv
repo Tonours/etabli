@@ -1,91 +1,91 @@
-# name	source	pi_core	agents_visible	locked
-# all-zero rows (0 0 0) are the opt-in shelf: catalog-tracked but not
+# name	source	pi_core	locked
+# all-zero rows (0 0) are the opt-in shelf: catalog-tracked but not
 # deployed to any surface; invoke manually or promote flags before deploying.
 # Vendor rows honour pi_core: a vendor skill links to the Pi surface only
-# when pi_core=1; Claude and Codex stay scope-governed (workflow decision
-# 3/4/5). Provenance: rows with source mattpocock (Matt Pocock) are the
-# vendored shared suite — cataloged as engineering/<name> but deployed by
+# when pi_core=1; Claude stays scope-governed (workflow decision 3/4/5).
+# Provenance: rows with source mattpocock (Matt Pocock) are the vendored shared
+# suite — cataloged as engineering/<name> but deployed by
 # their frontmatter names (e.g. `research`, `ask-matt`). Suite map and
 # collision rules: docs/vendor-skills.md.
-plan-loop	pi	1	1	1
-plan-implement	pi	1	1	1
-adversary	pi	1	1	1
-review	pi	1	1	1
-implement	pi	1	1	1
-verify	pi	1	1	1
-ship	pi	1	1	1
-bug-check	pi	1	1	1
-linear-project-setup	pi	0	0	1
-linear-ticket-create	pi	1	1	1
-linear-work	pi	1	1	1
-pr-review	pi	1	1	1
-pr-qa	pi	1	1	1
-sec-pr	pi	1	1	1
-ci-fix	pi	1	1	1
-write-direct	pi	1	1	1
-github-pr-review	pi	0	0	1
-suite-router	extras	0	0	0
-caveman	extras	0	0	0
-grill-me	extras	0	0	1
-project-hunt	extras	0	0	1
-browser-full-page-capture	extras	0	0	1
-frontend-motion-performance	extras	0	0	1
-frontend-css-ui-ux	extras	0	0	1
-css-layout-primitives	extras	0	0	1
-css-only-components	extras	0	0	1
-css-debugging	extras	0	0	1
-goal-prompt-rewriter	extras	0	0	1
-recurring-run	extras	0	0	1
-session-handoff	extras	0	0	1
-ui-reference-capture	extras	0	0	1
-maintainer-orchestrator	extras	0	0	0
-react-doctor-100	extras	0	0	1
-show-me	extras	0	0	1
-design-suite	extras	0	0	0
-code-quality	pi	1	0	0
-add-dark-mode	extras	0	0	0
-brand-kit	extras	0	0	0
-canonicalize-tailwind	extras	0	0	0
-componentize	extras	0	0	0
-dark-mode-image	extras	0	0	0
-design	extras	0	0	0
-ideas	extras	0	0	0
-make-responsive	extras	0	0	0
-markup-from-image	extras	0	0	0
-coolify	extras	0	0	1
-ember-employer-architecture	ember-skills	0	0	1
-ember-employer-components	ember-skills	0	0	1
-ember-employer-data	ember-skills	0	0	1
-ember-employer-debug	ember-skills	0	0	1
-ember-employer-lint-style	ember-skills	0	0	1
-ember-employer-migration	ember-skills	0	0	1
-ember-employer-react-mfe	ember-skills	0	0	1
-ember-employer-routes	ember-skills	0	0	1
-ember-employer-services-state	ember-skills	0	0	1
-ember-employer-suite	ember-skills	0	0	1
-ember-employer-testing	ember-skills	0	0	1
-ember-employer-workflow-visualizer	ember-skills	0	0	1
-ember-standalone-workflow-package	ember-skills	0	0	1
-adonisjs-architecture	adonisjs-skills	0	0	1
-adonisjs-backend	adonisjs-skills	0	0	1
-adonisjs-review	adonisjs-skills	0	0	1
-adonisjs-suite	adonisjs-skills	1	0	1
-adonisjs-testing	adonisjs-skills	0	0	1
-adonisjs-tuyau	adonisjs-skills	0	0	1
-thermo-nuclear-code-quality-review	pi	1	1	1
-engineering/ask-matt	mattpocock	0	0	1
-engineering/codebase-design	mattpocock	0	0	1
-engineering/diagnosing-bugs	mattpocock	0	0	1
-engineering/domain-modeling	mattpocock	0	0	1
-engineering/grill-with-docs	mattpocock	0	0	1
-engineering/improve-codebase-architecture	mattpocock	0	0	1
-engineering/prototype	mattpocock	0	0	1
-engineering/research	mattpocock	0	0	1
-engineering/resolving-merge-conflicts	mattpocock	0	0	1
-engineering/to-spec	mattpocock	0	0	1
-engineering/to-tickets	mattpocock	0	0	1
-engineering/triage	mattpocock	0	0	1
-engineering/wayfinder	mattpocock	0	0	1
-engineering/wizard	mattpocock	0	0	1
-no-ai-slop	petergyang	0	0	1
-typesafe-ai	typesafe-ai	1	1	1
+plan-loop	pi	1	1
+plan-implement	pi	1	1
+adversary	pi	1	1
+review	pi	1	1
+implement	pi	1	1
+verify	pi	1	1
+ship	pi	1	1
+bug-check	pi	1	1
+linear-project-setup	pi	0	1
+linear-ticket-create	pi	1	1
+linear-work	pi	1	1
+pr-review	pi	1	1
+pr-qa	pi	1	1
+sec-pr	pi	1	1
+ci-fix	pi	1	1
+write-direct	pi	1	1
+github-pr-review	pi	0	1
+suite-router	extras	0	0
+caveman	extras	0	0
+grill-me	extras	0	1
+project-hunt	extras	0	1
+browser-full-page-capture	extras	0	1
+frontend-motion-performance	extras	0	1
+frontend-css-ui-ux	extras	0	1
+css-layout-primitives	extras	0	1
+css-only-components	extras	0	1
+css-debugging	extras	0	1
+goal-prompt-rewriter	extras	0	1
+recurring-run	extras	0	1
+session-handoff	extras	0	1
+ui-reference-capture	extras	0	1
+maintainer-orchestrator	extras	0	0
+react-doctor-100	extras	0	1
+show-me	extras	0	1
+design-suite	extras	0	0
+code-quality	pi	1	0
+add-dark-mode	extras	0	0
+brand-kit	extras	0	0
+canonicalize-tailwind	extras	0	0
+componentize	extras	0	0
+dark-mode-image	extras	0	0
+design	extras	0	0
+ideas	extras	0	0
+make-responsive	extras	0	0
+markup-from-image	extras	0	0
+coolify	extras	0	1
+ember-employer-architecture	ember-skills	0	1
+ember-employer-components	ember-skills	0	1
+ember-employer-data	ember-skills	0	1
+ember-employer-debug	ember-skills	0	1
+ember-employer-lint-style	ember-skills	0	1
+ember-employer-migration	ember-skills	0	1
+ember-employer-react-mfe	ember-skills	0	1
+ember-employer-routes	ember-skills	0	1
+ember-employer-services-state	ember-skills	0	1
+ember-employer-suite	ember-skills	0	1
+ember-employer-testing	ember-skills	0	1
+ember-employer-workflow-visualizer	ember-skills	0	1
+ember-standalone-workflow-package	ember-skills	0	1
+adonisjs-architecture	adonisjs-skills	0	1
+adonisjs-backend	adonisjs-skills	0	1
+adonisjs-review	adonisjs-skills	0	1
+adonisjs-suite	adonisjs-skills	1	1
+adonisjs-testing	adonisjs-skills	0	1
+adonisjs-tuyau	adonisjs-skills	0	1
+thermo-nuclear-code-quality-review	pi	1	1
+engineering/ask-matt	mattpocock	0	1
+engineering/codebase-design	mattpocock	0	1
+engineering/diagnosing-bugs	mattpocock	0	1
+engineering/domain-modeling	mattpocock	0	1
+engineering/grill-with-docs	mattpocock	0	1
+engineering/improve-codebase-architecture	mattpocock	0	1
+engineering/prototype	mattpocock	0	1
+engineering/research	mattpocock	0	1
+engineering/resolving-merge-conflicts	mattpocock	0	1
+engineering/to-spec	mattpocock	0	1
+engineering/to-tickets	mattpocock	0	1
+engineering/triage	mattpocock	0	1
+engineering/wayfinder	mattpocock	0	1
+engineering/wizard	mattpocock	0	1
+no-ai-slop	petergyang	0	1
+typesafe-ai	typesafe-ai	1	1
