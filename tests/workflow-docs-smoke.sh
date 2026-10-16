@@ -460,7 +460,6 @@ const routing = json("workflow/runtime/model-routing.json");
 const consumers = {
   settings: json("pi/agent/settings.json"),
   policy: json("workflow/runtime/adversary-model-policy.json"),
-  benchmark: json("claude/benchmarks/token-budget/manifest.v2.json"),
   agents: Object.fromEntries(Object.keys(routing.claude_agents).map((role) => [role,
     readFileSync(join(root, `claude/scopes/shared/agents/${role}.md`), "utf8").match(/^model: (.+)$/m)?.[1]])),
 };
@@ -500,22 +499,6 @@ function check(c, registry = routing) {
   assert.deepEqual([glmReview.primary, ...glmReview.escalation], registry.author_family_routes.zai);
   for (const task of Object.values(registry.tasks))
     for (const ref of [task.primary, ...task.escalation, ...(task.mechanical ? [task.mechanical] : [])]) assert(m[ref], `undefined route model: ${ref}`);
-  assert.equal(c.benchmark.selected_candidate, null);
-  assert.equal(c.benchmark.calibration_required, true);
-  for (const [role, ref] of Object.entries(registry.claude_agents)) {
-    const text = readFileSync(join(root, `claude/scopes/shared/agents/${role}.md`), "utf8");
-    assert.deepEqual(c.benchmark.arms.baseline.agents[role], {
-      model: m[ref].model,
-      effort: text.match(/^effort: (.+)$/m)?.[1],
-      max_turns: Number(text.match(/^maxTurns: (.+)$/m)?.[1]),
-    }, `baseline drift: ${role}`);
-  }
-  const allowed = new Set([m.opus.model, m.sonnet.model, null]);
-  for (const arm of Object.values(c.benchmark.arms)) {
-    assert.deepEqual(arm.resolved_model_ids, {}, "historical resolution cannot attest new selections");
-    for (const config of [arm.session, ...Object.values(arm.agents)])
-      assert(allowed.has(config.model ?? null), `active benchmark model outside registry: ${config.model}`);
-  }
 }
 try {
   check(consumers);
@@ -523,9 +506,6 @@ try {
     (c) => { c.settings.enabledModels[0] = "meta/muse-spark-1.3"; },
     (c) => { c.policy.frontier_pool[0].routes[0].model = "gpt-6-astra"; },
     (c) => { c.agents.worker = "sonnet"; },
-    (c) => { c.benchmark.arms.candidate_a.agents.adversary.model = "fable"; },
-    (c) => { c.benchmark.arms.baseline.agents.reviewer.model = "claude-opus-5-5"; },
-    (c) => { c.benchmark.arms.baseline.agents.worker.effort = "high"; },
   ]) {
     const stale = structuredClone(consumers); mutate(stale); assert.throws(() => check(stale));
   }
@@ -537,7 +517,7 @@ try {
     const stale = structuredClone(routing); mutate(stale); assert.throws(() => check(consumers, stale));
   }
 } catch (error) {
-  throw new Error(`model routing drift: synchronize the consumer with workflow/runtime/model-routing.json and invalidate changed benchmark resolutions: ${error.message}`);
+  throw new Error(`model routing drift: synchronize the consumer with workflow/runtime/model-routing.json: ${error.message}`);
 }
 NODE
 # Only active routing/config/code and current command guides; archives, vendor and
@@ -550,9 +530,9 @@ assert_no_active_model_aliases() {
     return 1
   fi
 }
-assert_no_active_model_aliases "$ROOT_DIR/claude/scopes" "$ROOT_DIR/claude/benchmarks" \
+assert_no_active_model_aliases "$ROOT_DIR/claude/scopes" \
     "$ROOT_DIR/scripts/lib" "$ROOT_DIR/workflow/runtime" "$ROOT_DIR/pi/agent" \
-    "$ROOT_DIR/README.md" "$ROOT_DIR/docs/claude-token-budget.md"
+    "$ROOT_DIR/README.md"
 printf 'model: claude-sonnet-5-5\n' >"$instruction_fixture"
 assert_no_active_model_aliases "$instruction_fixture"
 printf 'model: fable\n' >"$instruction_fixture"

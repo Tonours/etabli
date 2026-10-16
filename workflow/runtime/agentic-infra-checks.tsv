@@ -63,7 +63,6 @@ full	shell-docs	graph-neighborhood-smoke	tests/graph-neighborhood-smoke.sh
 full	shell-docs	action-graph-smoke	tests/action-graph-smoke.sh
 full	shell-docs	obvault-shadow-promote-smoke	tests/obvault-shadow-promote-smoke.sh
 full	shell-docs	autonomous-ledger-hygiene-smoke	tests/autonomous-ledger-hygiene-smoke.sh
-full	shell-docs	claude-token-budget-smoke	tests/claude-token-budget-smoke.sh
 full	shell-docs	claude-profile-smoke	tests/claude-profile-smoke.sh
 full	shell-docs	claim-evidence-check-smoke	tests/claim-evidence-check-smoke.sh
 full	shell-docs	recurring-run-goal-pattern-smoke	tests/recurring-run-goal-pattern-smoke.sh
@@ -89,7 +88,6 @@ core	shell-docs	project-verification-check	tests/project-verification-check-smok
 core	shell-docs	project-verification-run	tests/project-verification-run-smoke.sh
 full	shell-docs	claude-launch-smoke	tests/claude-launch-smoke.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
-full	shell-docs	claude-efficiency-campaign	tests/claude-efficiency-campaign.test.mjs
 core	shell-docs	plan-review-binding-test	tests/plan-review-binding.test.mjs
 core	shell-docs	execution-quality-smoke	tests/execution-quality-smoke.sh
 core	shell-docs	ops-stop-guard-smoke	tests/ops-stop-guard-smoke.sh

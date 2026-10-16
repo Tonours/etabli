@@ -17,8 +17,6 @@ runtime instructions.
 - [`docs/vendor-skills.md`](vendor-skills.md): vendored skills and update path.
 - [`docs/workflow-context-budget.md`](workflow-context-budget.md): resident
   context budgets and their CI gate.
-- [`docs/claude-token-budget.md`](claude-token-budget.md): applied Claude
-  token-budget configuration and its usage.
 - [Dotfiles Neovim README](https://github.com/Tonours/dotfiles/blob/main/nvim/README.md): editor configuration (separate repository).
 - [`SECURITY.md`](../SECURITY.md): repository security boundary.
 
@@ -26,12 +24,8 @@ runtime instructions.
 
 - [`docs/adr/`](adr/): accepted architecture decisions.
 - [`docs/plan/`](plan/): implemented plan archives.
-- [`docs/research/`](research/): dated research notes and experiment results
-  (for example `20260928-lean-harness-experiments.md`).
 - [`docs/answer-quality-traces/`](answer-quality-traces/): dated evaluation
   traces and coverage data.
-- [`docs/harness-token-efficiency.md`](harness-token-efficiency.md): dated
-  context-efficiency measurements; current checks remain the source of truth.
 - [`docs/self-improvement-privacy-20260915.md`](self-improvement-privacy-20260915.md):
   dated privacy-migration report for reviewer self-improvement evidence.
 
