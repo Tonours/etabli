@@ -9,20 +9,12 @@ Reconcile acceptance criteria, approach and Decision Log before a review brief.
 Spec/adversary/lead receive the current plan and decisions automatically through
 the evidence pack; Logic stays intent-blind. Unavailable plan evidence is explicit.
 
-A new `plan_created` event with a real root plan binds its semantic contract.
-Capture `scripts/plan-review-check --hash PLAN.md` from the frozen reviewed input
-before dispatch; append that exact `plan_contract_sha256` with plan adversary
-provenance and verdict. Never stamp the current hash onto an old verdict. The
-latest plan pass governs. Material edits need fresh approval.
-
-The hash retains normalized source bytes in all sections, including command
-escapes, unknown prose, link targets and code examples. It excludes only simple single-line Meta Status/Last revised/
-Archive fields, simple nested check last-run results, and list task completion
-markers. Operational progress and handoff belong in ledger events. Confined
-active-run `.md`/`.patch` preparation and fixed read-only plan-review runner argv
-remain available before approval; no shell chains, expansion or outside capture.
+Capture `shasum -a 256 PLAN.md` from the frozen reviewed input before dispatch;
+record that exact hash with plan adversary provenance and verdict in
+§ Review Changes. Never stamp the current hash onto an old verdict. The latest
+plan pass governs. Material edits need fresh approval. Operational progress and
+handoff belong in `PLAN.md` (Checks `last run`, Notes / Handoff).
 
 An implemented archive matching the current root plan's exact byte hash is
-bookkeeping: append `archive_written`, never `file_changed`. Use `plan-cleanup`
-then `plan_removed`; archive naming, Source PLAN, IMPLEMENTED status and hash
+bookkeeping, not a code change. Use `plan-cleanup`; archive naming, Source PLAN, IMPLEMENTED status and hash
 follow the existing cleanup contract.

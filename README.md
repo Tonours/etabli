@@ -44,8 +44,8 @@ Projects containing `workflow/spec.md` activate the workflow ambiently.
 4. Push, deploy and publication run without approval stops; secrets are never
    printed or committed.
 
-Every run leaves an event ledger under `.workflow/<slug>/`, and finished plans
-are archived in `docs/plan/`.
+A run keeps its evidence in `PLAN.md`, and finished plans are archived in
+`docs/plan/`.
 One writer at a time is a protocol, not an OS lock.
 
 To adopt the workflow in another project, deploy the current scaffold with

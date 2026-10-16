@@ -14,8 +14,8 @@ pinned patch ONLY; Logic hunter + the finding's hunter family, fresh;
 hunter unavailable → `blocked`). T1/T2/D1/D2 are POSITIONAL: the
 first/second round of that kind SPENT in this run; re-entry with none
 left goes `blocked` instead of reusing a spent round.
-Blocking = an accepted finding of high severity or an unmet AC
-(`accepted_findings[].blocking: true`), or a `BLOCK` verdict. A round is
+Blocking = an accepted finding of high severity or an unmet AC, or a
+`BLOCK` verdict. A round is
 `clean` when its review is not `BLOCK` and every code_diff adversary of
 the round is `GO`/`GO WITH NOTES` with no blocking accepted finding.
 Non-blocking findings never spend a round: fold them or list them in the
@@ -27,20 +27,14 @@ final report. `widening` on a T round counts as findings.
 - D: findings within delta → fold → next unspent D. Widening beyond
   delta → next unspent T. Nothing left → `blocked`.
 Adversary: every T round, plus a D round after a findings round or whose
-window holds a `file_changed` on a contractual surface; at least one such
-pass must follow the round's last `file_changed`. No code_diff adversary
+window holds a change on a contractual surface; at least one such
+pass must follow the round's last change. No code_diff adversary
 may follow the closing clean round once no round remains or the run
 completes.
 Limit cases: (a) D2 findings → `blocked` (D exhausted);
 (b) widening with both T spent → `blocked` (T exhausted);
 (c) out-of-delta change during D → full tour or `blocked`.
-Legacy: a ledger that already holds F1/F2/FD keeps the former T→F
-machine (F = SHA-bound final full pass, FD = post-F1 delta; clean needs
-an empty `accepted_findings`); new runs never append an F round, so a
-pre-change run still waiting for its first F1 closes or goes `blocked`.
-Enforced for tagged `plan-implement` runs by `scripts/lib/review-rounds.jq`
-(`workflow-event` append and validate; fields in `workflow/events.md`). Ship
-inheritance and the 50-line part of the delta bar stay prose-only.
+Each round is recorded in `PLAN.md` § Review Changes.
 
 ## Delta re-review
 

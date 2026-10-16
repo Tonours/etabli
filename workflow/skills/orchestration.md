@@ -101,8 +101,6 @@ without trusting prose alone:
 - files changed, when edits were allowed;
 - validation command or source checked;
 - result label: accepted, rejected, blocked, or unknown;
-- durable event trail per `workflow/events.md` when the run uses a
-  `.workflow/<slug>/` directory;
 - remaining risks.
 
 Autonomous implementation loops are complete only when the implementation-loop
@@ -125,8 +123,8 @@ Pi:
 Claude:
 
 - `/goal` is the native till-done mechanism. Pair the measurable condition
-  with an explicit cap (iterations or wall-clock) and record the event ledger
-  per `workflow/events.md`, as required by `workflow/spec.md`.
+  with an explicit cap (iterations or wall-clock) and record evidence in
+  `PLAN.md`, as required by `workflow/spec.md`.
 - Route classification stays library-only
   (`workflow/runtime/workflow-router-core.mjs`).
 - Hooks do not inject route context, and they do not replace task state or

@@ -38,9 +38,9 @@ Rules:
   completed cross-model pass.
 - Plan mode: the counting pass must be cross-family; a same-family pass is
   a labeled supplement only and never satisfies independence. Record
-  `model_provenance` and the snapshot hash captured before dispatch
-  (`scripts/plan-review-check --hash PLAN.md`) on the ledger pass as
-  `plan_contract_sha256`. Record deltas in `## Review Changes` before fresh approval.
+  the model provenance, the hash captured before dispatch
+  (`shasum -a 256 PLAN.md`) and the verdict, with deltas, in
+  `## Review Changes` before fresh approval.
 - High findings: accept/reject via cross-model (or second sample), not the
   implementer alone.
 - Plan-mode adversary is required before autonomous implementation completion.

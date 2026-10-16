@@ -115,14 +115,14 @@
       "harness": "claude",
       "adapter": "claude/scopes/shared/commands/adversary.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "5adc8b87403802bc4666a82f8becb0883d376d4653df0cbe90f6814a607ebb93"
+      "sha256": "76158abe59db3472930690f806966b1bf373bbbe4e7bf490705399f4ca216823"
     },
     {
       "skill": "adversary",
       "harness": "pi",
       "adapter": "pi/skills/adversary/SKILL.md",
       "canonical": "workflow/skills/adversary.md",
-      "sha256": "74dcc5e7a8afff6d856312a6988233514b83693f909b33b9d313db018a06d475"
+      "sha256": "f2f95880bcbbb93c26c9ac25a1db2267aac3b27961c18157a701899a0f5c1c4f"
     },
     {
       "skill": "bug-check",

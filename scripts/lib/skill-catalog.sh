@@ -61,8 +61,7 @@ skill_declared_name() {
   ' "$skill_dir/SKILL.md" 2>/dev/null)"
 
   # Link names must be valid skill slugs; a display-case declaration
-  # (e.g. "Poteto Mode") falls back to the directory basename. Stricter than
-  # the workflow-event slug domain (which allows underscores): skill
+  # (e.g. "Poteto Mode") falls back to the directory basename; skill
   # directories are lowercase-hyphen only.
   if [ -n "$declared" ] && printf '%s' "$declared" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
     printf '%s\n' "$declared"
