@@ -136,7 +136,6 @@ graph-neighborhood-smoke
 action-graph-smoke
 obvault-shadow-promote-smoke
 autonomous-ledger-hygiene-smoke
-claude-token-budget-smoke
 claude-profile-smoke
 claim-evidence-check-smoke
 recurring-run-goal-pattern-smoke
@@ -157,8 +156,7 @@ skill-trigger-eval
 codex-source
 token-bench-smoke
 claude-launch-smoke
-claude-statusline-smoke
-claude-efficiency-campaign'
+claude-statusline-smoke'
 actual_full="$(awk -F '\t' '!/^#/ && $1 == "full" {print $3}' "$MANIFEST")"
 [ "$actual_full" = "$expected_full" ] || fail "full profile membership/order drifted"
 
