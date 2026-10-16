@@ -175,7 +175,7 @@ require("fs").writeFileSync(process.argv[2], JSON.stringify({ hooks: f.hooks }))
 ' "$ROOT_DIR/claude/settings.workflow-hooks.json" "$RELOCATED_CLAUDE_DIR/settings.json"
 RELOCATED_NODE_DIR="$(dirname "$(node -e 'process.stdout.write(process.execPath)')")"
 HOME="$RELOCATED_HOME_DIR" CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" PATH="$RELOCATED_NODE_DIR:$PATH" \
-  ETABLI_INSTALL_HELPER_SMOKE=1 "$DEPLOY_SCRIPT" --apply --home "$RELOCATED_HOME_DIR" >/dev/null
+  ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$RELOCATED_HOME_DIR" >/dev/null
 assert_absent "$RELOCATED_CLAUDE_DIR/hooks/proof-shadow.mjs"
 assert_link "$RELOCATED_CLAUDE_DIR/commands/plan-loop.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"
 if ls "$RELOCATED_CLAUDE_DIR/commands"/plan-loop.md.bak.* >/dev/null 2>&1; then
@@ -201,7 +201,7 @@ mkdir -p "$ISOLATED_HOME_DIR" "$OUTSIDE_CLAUDE_DIR"
 ln -s "$OUTSIDE_CLAUDE_DIR" "$ISOLATED_HOME_DIR/claude-alias"
 for outside_config in "$OUTSIDE_CLAUDE_DIR" "$ISOLATED_HOME_DIR/../outside-claude" "$ISOLATED_HOME_DIR/claude-alias"; do
   HOME="$ISOLATED_HOME_DIR" CLAUDE_CONFIG_DIR="$outside_config" PATH="$RELOCATED_NODE_DIR:$PATH" \
-    ETABLI_INSTALL_HELPER_SMOKE=1 "$DEPLOY_SCRIPT" --apply --home "$ISOLATED_HOME_DIR" >/dev/null
+    ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$ISOLATED_HOME_DIR" >/dev/null
 done
 if [ -n "$(ls -A "$OUTSIDE_CLAUDE_DIR")" ]; then
   printf 'deploy under a disposable HOME wrote into an outside CLAUDE_CONFIG_DIR\n' >&2

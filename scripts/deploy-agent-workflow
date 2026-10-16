@@ -263,7 +263,7 @@ deploy_pi() {
   link_path "$REPO_DIR/pi/extensions" "$HOME_DIR/.pi/agent/extensions" "Pi agent extensions"
   link_path "$REPO_DIR/pi/themes" "$HOME_DIR/.pi/themes" "Pi themes"
 
-  if [ "$HOME_DIR" = "$HOME" ] && [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" != 1 ]; then
+  if [ "$HOME_DIR" = "$HOME" ] && [ "${ETABLI_SKIP_LIVE_CHECKS:-}" != 1 ]; then
     pi_node_modules="$(pi_agent_node_modules_dir "$HOME_DIR")"
     if [ "$DRY_RUN" -eq 1 ]; then
       if same_link "$pi_node_modules" "$REPO_DIR/pi/extensions/node_modules"; then
@@ -456,7 +456,7 @@ deploy_claude() {
   link_path "$REPO_DIR/workflow/review-rubric.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/review-rubric.md" "Claude review-rubric.md"
 
   if [ "$DRY_RUN" -eq 0 ] && [ "$HOME_DIR" = "$HOME" ] && \
-    [ "${ETABLI_INSTALL_HELPER_SMOKE:-}" != 1 ] && [ -x "$SCRIPT_DIR/claude-skill-load-check" ]; then
+    [ "${ETABLI_SKIP_LIVE_CHECKS:-}" != 1 ] && [ -x "$SCRIPT_DIR/claude-skill-load-check" ]; then
     if ! CLAUDE_SKILL_LOAD_CLAUDE_DIR="${CLAUDE_ROOT:-$HOME_DIR/.claude}" "$SCRIPT_DIR/claude-skill-load-check"; then
       if [ "${ETABLI_DEPLOY_CALLER:-}" = install ]; then
         status_line WARN "Claude skill load check after installer convergence (see output above)"
