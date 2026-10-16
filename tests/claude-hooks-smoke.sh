@@ -197,6 +197,9 @@ const cases = [
   ["ruby regex then comment", write("s.rb", "pattern = /don't/\n# added note\n"), "deny"],
   ["shell escaped paren in substitution", write("t.sh", 'm="$(grep -o \\( "$f")\n# data"\n'), "allow"],
   ["shell heredoc in substitution", write("u.sh", "t=\"$(cat <<'TEXT'\n# Heading\nTEXT\n)\"\n"), "allow"],
+  ["shell unquoted heredoc substitution comment", write("v.sh", "cat <<EOF\n$(\n  printf hi # added note\n)\nEOF\n"), "deny"],
+  ["ruby operator symbol then comment", write("w.rb", "r = values.reduce(:/) # added / note\n"), "deny"],
+  ["sql double-quoted backslash then comment", write("x.sql", 'SELECT e"path\\" FROM src; -- added note\n'), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
