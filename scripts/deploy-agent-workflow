@@ -312,7 +312,14 @@ let input = "";
 process.stdin.on("data", (chunk) => { input += chunk; });
 process.stdin.on("end", () => {
   const [key, value, field] = process.argv.slice(1);
-  const entry = JSON.parse(input).find((item) => item[key] === value);
+  let items;
+  try {
+    items = JSON.parse(input);
+  } catch {
+    process.exit(3);
+  }
+  if (!Array.isArray(items)) process.exit(3);
+  const entry = items.find((item) => item && item[key] === value);
   if (entry) process.stdout.write(String(entry[field] ?? ""));
 });' "$@"
 }
@@ -342,11 +349,11 @@ deploy_etabli_plugin() {
     return 0
   fi
 
-  if ! listing="$(claude plugin marketplace list --json)"; then
+  if ! listing="$(claude plugin marketplace list --json)" ||
+    ! registered_path="$(printf '%s' "$listing" | etabli_plugin_json_field name "$marketplace" path)"; then
     status_line WARN "etabli plugin: cannot list Claude marketplaces"
     return 0
   fi
-  registered_path="$(printf '%s' "$listing" | etabli_plugin_json_field name "$marketplace" path)"
   if [ "$registered_path" != "$mods_dir" ]; then
     if [ "$DRY_RUN" -eq 1 ]; then
       [ -z "$registered_path" ] || status_line WOULD_REMOVE "marketplace $marketplace at $registered_path"
@@ -360,11 +367,11 @@ deploy_etabli_plugin() {
     status_line OK "marketplace $marketplace"
   fi
 
-  if ! listing="$(claude plugin list --json)"; then
+  if ! listing="$(claude plugin list --json)" ||
+    ! installed_folder="$(printf '%s' "$listing" | etabli_plugin_json_field id "$plugin" readFromFolder)"; then
     status_line WARN "etabli plugin: cannot list installed Claude plugins"
     return 0
   fi
-  installed_folder="$(printf '%s' "$listing" | etabli_plugin_json_field id "$plugin" readFromFolder)"
   if [ "$installed_folder" = "$mods_dir/etabli" ]; then
     status_line OK "plugin $plugin"
   elif [ "$DRY_RUN" -eq 1 ]; then
