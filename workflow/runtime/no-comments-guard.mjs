@@ -136,7 +136,7 @@ function skipRegexLiteral(source, index) {
 		else if (char === "]") inClass = false;
 		else if (char === "/" && !inClass) {
 			cursor += 1;
-			while (cursor < source.length && /[dgimsuvy]/.test(source[cursor])) cursor += 1;
+			while (cursor < source.length && /[a-z]/.test(source[cursor])) cursor += 1;
 			return cursor;
 		}
 		cursor += 1;
@@ -157,7 +157,8 @@ export function collectCommentLines(text, family) {
 		const delimiter = triple ? quote.repeat(3) : quote;
 		const spansLines = triple || quote === "`" || MULTILINE_STRING_FAMILIES.has(family);
 		const ansiC = family === "shell" && quote === "'" && source[index - 1] === "$";
-		const escapes = ansiC || !((family === "shell" && quote === "'") || family === "sql");
+		const sqlEscaped = family === "sql" && /[Ee]/.test(source[index - 1] ?? "") && !/\w/.test(source[index - 2] ?? "");
+		const escapes = ansiC || sqlEscaped || !((family === "shell" && quote === "'") || family === "sql");
 		let cursor = index + delimiter.length;
 		while (cursor < source.length) {
 			if (escapes && source[cursor] === "\\") {
@@ -175,16 +176,44 @@ export function collectCommentLines(text, family) {
 		return cursor;
 	};
 
+	const skipHeredoc = (start, word, stripTabs) => {
+		let cursor = start;
+		while (cursor < source.length) {
+			const end = source.indexOf("\n", cursor);
+			const stop = end === -1 ? source.length : end;
+			const line = source.slice(cursor, stop);
+			if ((stripTabs ? line.replace(/^\t+/, "") : line) === word) return stop;
+			cursor = stop + 1;
+		}
+		return start;
+	};
+
 	const scanCode = (start, untilParen) => {
 		let lineCode = "";
 		let depth = 0;
 		let index = start;
+		const heredocs = [];
 		while (index < source.length) {
 			const char = source[index];
 			if (char === "\n") {
 				lineCode = "";
 				index += 1;
+				for (const { word, stripTabs } of heredocs.splice(0)) index = skipHeredoc(index, word, stripTabs);
 				continue;
+			}
+			if (family === "shell" && char === "\\") {
+				lineCode += "E";
+				index += 2;
+				continue;
+			}
+			if (family === "shell" && source.startsWith("<<", index) && source[index + 2] !== "<") {
+				const match = /^<<(-?)[ \t]*(['"]?)([A-Za-z_][\w-]*)\2/.exec(source.slice(index, index + 200));
+				if (match) {
+					heredocs.push({ word: match[3], stripTabs: match[1] === "-" });
+					lineCode += "H";
+					index += match[0].length;
+					continue;
+				}
 			}
 			if (untilParen && char === "(") depth += 1;
 			if (untilParen && char === ")") {
@@ -211,7 +240,7 @@ export function collectCommentLines(text, family) {
 				lineCode += "S";
 				continue;
 			}
-			if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
+			if ((family === "clike" || family === "ruby") && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
 				const stop = skipRegexLiteral(source, index);
 				if (stop !== -1) {
 					index = stop;

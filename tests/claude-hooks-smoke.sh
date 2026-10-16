@@ -193,6 +193,10 @@ const cases = [
   ["sql multiline string", write("o.sql", "SELECT 'first\n-- data\nlast';\n"), "allow"],
   ["shell ansi-c string", write("p.sh", "echo $'it\\'s'\n# added note\n"), "deny"],
   ["shell substitution comment", write("q.sh", 'x="$(\n  printf hi # added note\n)"\n'), "deny"],
+  ["sql escaped string then comment", write("r.sql", "SELECT E'it\\'s';\n-- added note\n"), "deny"],
+  ["ruby regex then comment", write("s.rb", "pattern = /don't/\n# added note\n"), "deny"],
+  ["shell escaped paren in substitution", write("t.sh", 'm="$(grep -o \\( "$f")\n# data"\n'), "allow"],
+  ["shell heredoc in substitution", write("u.sh", "t=\"$(cat <<'TEXT'\n# Heading\nTEXT\n)\"\n"), "allow"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
