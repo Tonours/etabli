@@ -306,7 +306,6 @@ if config_root="$(claude_config_dir_override)"; then
   check_claude_root
 fi
 
-check_script_link "tmux-clipboard.sh"
 check_script_link "fix-links"
 check_script_link "deploy-workflow"
 check_absent "$HOME/.local/bin/deploy-harness" "legacy deploy-harness script"

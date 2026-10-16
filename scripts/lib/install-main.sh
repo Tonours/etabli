@@ -996,7 +996,6 @@ mkdir -p ~/.local/bin
 
 append_path_entry "$HOME/.local/bin"
 
-install_script "tmux-clipboard.sh" || true
 install_script "fix-links" || true
 install_script "deploy-workflow" || true
 install_script "scaffold-project" || true
@@ -1012,6 +1011,14 @@ if [ -L ~/.local/bin/pi-durable ]; then
     rm -f ~/.local/bin/pi-durable
     print_success "Removed retired pi-durable link"
 fi
+
+# Moved to dotfiles: drop only links that still point into this checkout.
+for moved_script in tmux-clipboard.sh herdr-sync-mini; do
+    if [ "$(readlink ~/.local/bin/"$moved_script" 2>/dev/null)" = "$SCRIPT_DIR/$moved_script" ]; then
+        rm -f ~/.local/bin/"$moved_script"
+        print_success "Removed $moved_script link (now owned by dotfiles)"
+    fi
+done
 
 prefer_cursor_agent_remove_grok_collision "$HOME"
 for rcfile in ~/.bashrc ~/.zshrc; do
