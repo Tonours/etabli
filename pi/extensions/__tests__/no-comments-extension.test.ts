@@ -309,6 +309,10 @@ describe("unified Claude verdicts", () => {
 			["ruby", "n = 5\nn %(\n# real\n2)\n", ["# real"]],
 			["ruby", "n.\n%(\n# real\n2\n)\n", ["# real"]],
 			["ruby", "x = [:%,\n# added note\n:y, 1]\n", ["# added note"]],
+			["ruby", "x = ?%# first note\n# second note\n", ["# first note", "# second note"]],
+			["ruby", 'EOS = "z"\nx = ?<<EOS\n# added note\nEOS\n', ["# added note"]],
+			["ruby", "x = ?#\n", []],
+			["ruby", "ok = list.empty?# added note\n", ["# added note"]],
 		];
 		for (const [family, text, expected] of cases) expect(collectCommentLines(text, family)).toEqual(expected);
 	});
