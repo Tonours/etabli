@@ -322,11 +322,11 @@ export function collectCommentLines(text, family) {
 				continue;
 			}
 			if (family === "lua" && source.startsWith("--[", index)) {
-				const stop = /^\[=*\[/.test(source.slice(index + 2, index + 66)) ? longBracketAt(source, index + 2) : 0;
-				if (stop !== 0) {
-					pushBlock(index, stop === -1 ? source.length : stop);
+				const stop = longBracketAt(source, index + 2);
+				if (stop !== -1) {
+					pushBlock(index, stop);
 					lineCode += " ";
-					index = stop === -1 ? source.length : stop;
+					index = stop;
 					continue;
 				}
 			}
