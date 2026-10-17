@@ -25,3 +25,23 @@ Systems, Not Code", plus the map-not-manual golden principle.
 - Structured contracts at machine-to-machine boundaries: when one step's
   output feeds another agent or script, define the shape; no freeform prose
   between machines.
+
+## Frontmatter and layout
+
+Sources: Anthropic "Skill authoring best practices"
+(platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices),
+Claude Code skills docs (code.claude.com/docs/en/skills), Agent Skills spec
+(agentskills.io/specification).
+
+- `name`: lowercase letters, digits and hyphens, at most 64 characters, equal
+  to the directory name.
+- `description`: third person, what the skill does, then `Use when …`; add
+  `Not for …` when a sibling skill competes. One line, at most 1024
+  characters, key use case first (Claude truncates the listing). Every catalog
+  character is paid each session: `scripts/pi-skill-load-check` and
+  `scripts/claude-skill-load-check` gate the total.
+- Body under 500 lines; reference files one level deep from `SKILL.md`;
+  forward slashes; MCP tools by full name.
+- Instructions in English. A skill whose output is another language keeps its
+  target-language samples quoted.
+- No time-sensitive wording ("until March, use the old API"); history belongs in ADRs.
