@@ -210,6 +210,7 @@ const cases = [
   ["shell case after brace group", write("af.sh", 'r="$({ case "$m" in\n  prod) printf p # added note\n  ;;\nesac; })"\n'), "deny"],
   ["shell esac glued to redirect", write("ag.sh", 'r="$(case "$m" in\n  prod) printf p;;\nesac>/dev/null)"\n# added note\n'), "deny"],
   ["shell case variable in arithmetic", write("ah.sh", 'v="$((case>0))"\n# added note\n'), "deny"],
+  ["shell case in substitution inside arithmetic", write("ai.sh", 'r="$(( $(case "$m" in\n  prod) printf 1;;\n  staging) printf 2;;\n  *) printf 3 # added note\n  ;;\nesac) + 1 ))"\n'), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
