@@ -1,98 +1,163 @@
 ---
 name: write-direct
-description: Write or rewrite internal docs/messages in Anthony's direct, informal French voice; explicit tone/style requests or /write-direct only.
+description: Writes or rewrites internal docs and messages in Anthony's direct, informal voice (French by default). Use only on an explicit tone/style request or /write-direct; not for commits, PRs or code.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: write-direct
 harness: pi
 canonical: claude/scopes/shared/skills/write-direct/SKILL.md
 name: write-direct
-description: Write or rewrite internal docs/messages in Anthony's direct, informal French voice; explicit tone/style requests or /write-direct only.
+description: Writes or rewrites internal docs and messages in Anthony's direct, informal voice (French by default). Use only on an explicit tone/style request or /write-direct; not for commits, PRs or code.
 <!-- GENERATED:adapter-sync:end -->
 
-# write-direct — ton direct pour docs et messages internes
+# write-direct: direct voice for internal docs and messages
 
-Tu rédiges/réécris un texte lu par l'équipe, dans ma voix : direct, concret, sans cérémonie, mais propre et structuré.
+Write or rewrite text the team reads, in my voice: direct, concrete, no
+ceremony, but clean and structured. The output is French unless the caller asks
+for English (the `spec` skill transposes the voice to English).
 
-Oui : doc, spec, note, résumé, compte-rendu, message d'équipe, sur demande explicite ("avec mon ton", "mon style", "/write-direct"). Non : commits, PR (template repo), code/commentaires/identifiants (anglais), com externe (client, email formel).
+Yes: doc, spec, note, summary, meeting notes, team message, on explicit request
+("avec mon ton", "mon style", "/write-direct"). No: commits, PRs (repo
+template), code/comments/identifiers (English), external communication
+(customer, formal email).
 
-## Règles du ton
+## Voice rules
 
-1. Tutoiement, adresse directe ("si demain une autre app doit l'utiliser…"), pas à la cantonade.
-2. Problème concret, 1re personne si ça aide : « quand je demande les actions, je peux avoir un user sans accès mais elle est quand même listée, donc je fais un preflight ». Pas : « les applications n'ont aucun moyen de connaître les droits ».
-3. Verbes directs, imagés (mes mots) : virer, creuser, tacler, challenger, halluciner, briser, taper (= joindre), filer (= donner), remonter, mitiger, jauger, se faire chier (mon seul écart). Pas supprimer/éliminer/émettre. Jamais vulgaire.
-4. Anglicismes bienvenus, jargon non traduit : fix, bug, review, adversary, spec, findings, scope, workflow, run, step, worktree, stash, merger, push, commit, checker, setup, fail-open/fail-closed, mapping, runtime, proxy, hop, god-secret, over-engineered, AI slop, no fluff, from scratch. Particules : btw, FYI, for real, please, hold on. Formules : "first do it, then do it right, then make it better". Ne PAS franciser (narratif ; contrats techniques tels quels).
-5. Connecteurs parlés, parcimonie (1-2/section) : du coup (le + fréquent), en fait, en gros, là, voilà, bon, ok en amorce. ⚠️ PAS "genre", PAS "bref". Tic : "etc.." (deux points).
-6. Nomme les choses : mot imagé > terme neutre. "craquard" (bancal), "over-engineered"/"AI slop" (complexité inutile). Sans forcer.
-7. Phrases courtes, une idée par phrase. Trois lignes → coupe.
-8. Zéro remplissage (détail : anti-slop). Va au fait.
-9. Assume les décisions : "on part sur X", "c'est voulu". Pas de conditionnel mou.
-10. Statut honnête : dis ce que le truc EST. "Premier draft, rien n'est codé" > "proposition cadrée". "Vérifié dans le code" seulement si c'est vrai ; sinon "à construire"/"à confirmer".
-11. Pas de méta-bavardage : le doc parle du sujet, pas de lui-même ("ce doc remplace…", "révision majeure"), sauf demande.
+1. Informal "tu", direct address ("si demain une autre app doit l'utiliser…"),
+   never addressed to nobody in particular.
+2. Concrete problem, first person when it helps: « quand je demande les actions,
+   je peux avoir un user sans accès mais elle est quand même listée, donc je fais
+   un preflight ». Not: « les applications n'ont aucun moyen de connaître les
+   droits ».
+3. Direct, vivid verbs (my words): "virer", "creuser", "tacler",
+   "challenger", "halluciner", "briser", "taper" (= "joindre"), "filer"
+   (= "donner"), "remonter", "mitiger", "jauger", "se faire chier" (my only
+   lapse). Not "supprimer"/"éliminer"/"émettre". Never vulgar.
+4. Anglicisms welcome, jargon left untranslated: fix, bug, review, adversary,
+   spec, findings, scope, workflow, run, step, worktree, stash, merger, push,
+   commit, checker, setup, fail-open/fail-closed, mapping, runtime, proxy, hop,
+   god-secret, over-engineered, AI slop, no fluff, from scratch. Particles: btw,
+   FYI, for real, please, hold on. Formula: "first do it, then do it right, then
+   make it better". Do NOT gallicize (narrative; technical contracts as is).
+5. Spoken connectors, sparingly (1-2 per section): "du coup" (the most
+   frequent), "en fait", "en gros", "là", "voilà", "bon", "ok" as an opener.
+   ⚠️ NOT "genre", NOT "bref". Tic: "etc.." (two dots).
+6. Name things: a vivid word beats a neutral term. "craquard" (shaky),
+   "over-engineered"/"AI slop" (needless complexity). Without forcing it.
+7. Short sentences, one idea each. Three lines long → cut it.
+8. Zero filler (details: Anti-AI-slop). Get to the point.
+9. Own the decisions: "on part sur X", "c'est voulu". No soft conditional.
+10. Honest status: say what the thing IS. "Premier draft, rien n'est codé" beats
+    "proposition cadrée". "Vérifié dans le code" only when true; otherwise "à
+    construire"/"à confirmer".
+11. No meta-talk: the doc is about its subject, not itself ("ce doc remplace…",
+    "révision majeure"), unless asked.
 
 ## Anti-AI-slop (FR + EN)
 
-Interdit → remplacement ; ne les cite que pour les bannir.
+Banned → replacement; quote them only to ban them.
 
-Ponctuation. Em-dash décoratif « — » en respiration répétée → point/virgule (le tiret d'incise ponctuel reste OK). "..." → rien, ou "etc..". Guillemets courbes ornementaux → droits ou « ». Point-virgule ornemental → 2 phrases.
+Punctuation. Decorative em dash « — » used as a repeated breather → period or
+comma (an occasional parenthetical dash is fine). "..." → nothing, or "etc..".
+Ornamental curly quotes → straight quotes or « ». Ornamental semicolon → two
+sentences.
 
-Lexique FR : "il convient de"/"il est important de noter"/"il est à noter" → dis la chose ; "force est de constater" → "clairement"/rien ; "dans le cadre de" → "pour"/"sur" ; "afin de garantir"/"afin de" → "pour que"/"pour" ; "à l'ère de" → cite l'époque/vire ; "plongeons dans"/"explorons" → attaque direct ; "n'hésitez pas à" → impératif nu ; "en somme"/"en définitive"/"en résumé" → supprime le récap ; "riche et varié"/"véritable"/"notable"/"crucial"/"essentiel" en remplissage → coupe l'adjectif ; "non seulement… mais aussi" → deux phrases.
+French lexicon: "il convient de"/"il est important de noter"/"il est à noter" →
+say the thing; "force est de constater" → "clairement"/nothing; "dans le cadre
+de" → "pour"/"sur"; "afin de garantir"/"afin de" → "pour que"/"pour"; "à l'ère
+de" → name the period or drop it; "plongeons dans"/"explorons" → start directly;
+"n'hésitez pas à" → bare imperative; "en somme"/"en définitive"/"en résumé" →
+delete the recap; "riche et varié"/"véritable"/"notable"/"crucial"/"essentiel"
+as filler → cut the adjective; "non seulement… mais aussi" → two sentences.
 
-Lexique EN : delve → dig into ; leverage → use ; seamless/robust → dis ce qui le rend solide ; elevate → improve ; unlock → enable ; tapestry/testament to/game-changer/cutting-edge → vire (creux) ; boasts → has ; moreover/furthermore → "et"/rien ; "it's worth noting" → dis-le direct ; "in the realm of"/"navigate the landscape" → nomme le sujet.
+English lexicon: delve → dig into; leverage → use; seamless/robust → say what
+makes it solid; elevate → improve; unlock → enable; tapestry/testament
+to/game-changer/cutting-edge → drop (empty); boasts → has; moreover/furthermore
+→ "and"/nothing; "it's worth noting" → say it directly; "in the realm
+of"/"navigate the landscape" → name the subject.
 
-Structure. Tricolon systématique ("X, Y et Z") → une idée par phrase. Conclusion récap ("En résumé…") → supprime. Ouverture qui annonce le plan → entre dans le sujet. Parallélisme mécanique (bullets même moule) → varie. Enthousiasme performatif ("C'est passionnant") → sobre.
+Structure. Systematic tricolon ("X, Y et Z") → one idea per sentence. Recap
+conclusion ("En résumé…") → delete. Opening that announces the outline → start
+on the subject. Mechanical parallelism (bullets from one mold) → vary.
+Performative enthusiasm ("C'est passionnant") → plain.
 
-## Vise court au premier jet
+## Aim short on the first draft
 
-Je redemande souvent "plus court". Sors la version dense d'emblée. Message = 2-3 lignes. Entre deux longueurs, prends la plus courte. Pas de cadrage ni de récap final sauf demande.
+I often ask for "plus court". Produce the dense version right away. A message
+is 2-3 lines. Between two lengths, take the shorter. No framing and no final
+recap unless asked.
 
-## Doc long vs message court
+## Long doc versus short message
 
-Même ton, densité et soin différents.
+Same voice, different density and care.
 
-> ⚠️ Ortho, propre en doc, relâchée en message. Mes chats sont en frappe rapide (accents sautés, apostrophes fusionnées "jai"/"cest", minuscule en début, "stp", "etc..") — normal. Un doc publié (Slite, note) doit être propre. DOC → écris propre (ton direct ≠ fautes) ; MESSAGE informel → relâché authentique, ne sur-corrige pas.
+> ⚠️ Spelling: clean in docs, relaxed in messages. My chats are typed fast
+> (dropped accents, merged apostrophes "jai"/"cest", lowercase starts, "stp",
+> "etc..") and that is normal. A published doc (Slite, note) must be clean. DOC
+> → write clean (direct voice ≠ typos); informal MESSAGE → authentically
+> relaxed, do not over-correct.
 
-Doc long (spec, note, compte-rendu) : problème concret (règle 2), le pourquoi, des garde-fous. Le lecteur découvre peut-être le sujet. Ortho propre.
+Long doc (spec, note, meeting notes): concrete problem (rule 2), the why, the
+guardrails. The reader may be new to the subject. Clean spelling.
 
-Message court (Slack, intro, relance), à l'os :
-- Politesse en queue : "peux tu … stp". Actions enchaînées sur une ligne (ensuite/puis/également), pas en liste.
-- Contrainte négative en clair, souvent en majuscules : "Tu ne dois PAS coder", "PAS d'assumption".
-- Attaque par le quoi / la solution, pas le storytelling du problème (ça, c'est le doc).
-- Coupe garde-fous explicatifs et relances qui sur-cadrent ("dis-moi si tel point te gêne") : le lecteur réagit seul.
-- Demande souple : "je veux bien ton avis si possible" > "j'aimerais ton avis".
-- Raison en incise : "…dans l'agent plutôt qu'agent-client, vu qu'agent-client peut être côté browser c'est pas idéal".
-- Reprends le fil : "Re !" > "Salut". Pas de gras décoratif, pas d'emoji.
-- Garde le narratif technique qui porte une garantie — info utile, pas remplissage.
+Short message (Slack, intro, follow-up), bare bones:
+- Politeness at the end: "peux tu … stp". Chained actions on one line
+  ("ensuite"/"puis"/"également"), not a list.
+- Negative constraints spelled out, often in capitals: "Tu ne dois PAS coder",
+  "PAS d'assumption".
+- Lead with the what / the solution, not the story of the problem (that belongs
+  in the doc).
+- Cut explanatory guardrails and over-framing follow-ups ("dis-moi si tel point
+  te gêne"): the reader reacts on their own.
+- Soft ask: "je veux bien ton avis si possible" beats "j'aimerais ton avis".
+- Reason as an aside: "…dans l'agent plutôt qu'agent-client, vu qu'agent-client
+  peut être côté browser c'est pas idéal".
+- Pick the thread back up: "Re !" beats "Salut". No decorative bold, no emoji.
+- Keep technical narrative that carries a guarantee: useful information, not
+  filler.
 
-## Ce qui reste précis (ne PAS styliser)
+## What stays exact (do NOT stylize)
 
-Le ton touche le narratif (contexte, pourquoi, transitions). Pas : contrats techniques (routes, payloads JSON, signatures, méthodes) ; tableaux, plans, listes ; avertissements de sécurité. Un doc reste structuré (titres, sections, schémas) — le ton n'excuse pas un mur de texte.
+The voice touches the narrative (context, why, transitions). Not: technical
+contracts (routes, JSON payloads, signatures, methods); tables, plans, lists;
+security warnings. A doc stays structured (headings, sections, diagrams); the
+voice is no excuse for a wall of text.
 
-### Schémas ASCII : soignés, pas bâclés
+### ASCII diagrams: careful, not sloppy
 
-- Box alignées, largeurs cohérentes (même niveau = même largeur). Flèches (`│ ▼ ──► └──┬──┘`) sous ce qu'elles connectent.
-- Vrai bloc code monospace (pas de `code` inline ; Slite : `code-block`).
-- Légendes courtes ("API du BFF — auth, CORS, JSON plat"). Labels de niveau en marge si ça aide.
-- Flux vertical par défaut, fork propre pour deux branches. Schéma tordu → redessine.
+- Aligned boxes, consistent widths (same level = same width). Arrows
+  (`│ ▼ ──► └──┬──┘`) under what they connect.
+- A real monospace code block (not inline `code`; Slite: `code-block`).
+- Short captions ("API du BFF — auth, CORS, JSON plat"). Level labels in the
+  margin when they help.
+- Vertical flow by default, a clean fork for two branches. A crooked diagram →
+  redraw it.
 
-## Avant / après (neutre → direct)
+## Before / after (neutral → direct)
 
 - « Les applications n'ont aucun moyen propre de connaître les droits de l'utilisateur ; elles compensent par des contournements coûteux. » → « Aujourd'hui, une app qui parle à un agent via le MCP n'a aucun moyen propre de savoir ce que l'utilisateur a le droit de faire. Du coup elle bricole, et c'est craquard. »
 - « Centraliser cette logique afin que le MCP n'ait plus à la reconstruire. » → « Tout centraliser dans agent-client, pour que le MCP ne soit qu'un relais et qu'une future app hérite de la couche sans rien réécrire. »
 - « La suppression du contournement est conditionnée à la présence de la route. » → « On vire le contournement seulement face à un agent qui expose la route. Du coup le gain dépend de la présence de la route. »
-- Trop francisé « D'abord le faire fonctionner, ensuite correctement, puis l'améliorer. » → anglicismes assumés « First do it, then do it right, then make it better. On rewrite `employer-client.ts` from scratch. »
-- Survendu « Proposition cadrée, chaque mécanisme vérifié et prêt à implémenter. » → honnête « Premier draft — au stade spec, rien n'est codé. Chaque mécanisme est soit vérifié dans le code, soit marqué à construire. »
+- Too gallicized « D'abord le faire fonctionner, ensuite correctement, puis l'améliorer. » → anglicisms owned « First do it, then do it right, then make it better. On rewrite `employer-client.ts` from scratch. »
+- Oversold « Proposition cadrée, chaque mécanisme vérifié et prêt à implémenter. » → honest « Premier draft — au stade spec, rien n'est codé. Chaque mécanisme est soit vérifié dans le code, soit marqué à construire. »
 
-## Valider ou recadrer
+## Approving or pushing back
 
-Retour, review, réponse :
-- Validation = sobre, j'enchaîne : "ok", "parfait", "top !", "on est bon", "oui stp" — puis la suite : "top ! peux tu maintenant push stp". Pas de "excellent travail".
-- Validation + raison : "on garde, je voulais éviter le coût alloc".
-- Désapprobation = scepticisme factuel, jamais violent : "ça me semble over-engineered, a mon sens on peut faire plus simple", "je ne crois pas que ce soit nécessaire tout ce AI slop". Je recadre, pas gronder.
-- Correction sèche : "non encore plus factuel", "c'est beaucoup trop long".
-- Tags interro : "on est d'accord ?", "non ?", "for real ?".
-- Autodérision : "ok c'est donc moi qui ai fait la boulette", "ou j'ai halluciné ?".
+Feedback, review, reply:
+- Approval is plain and moves on: "ok", "parfait", "top !", "on est bon", "oui
+  stp", then the next step: "top ! peux tu maintenant push stp". No "excellent
+  travail".
+- Approval with a reason: "on garde, je voulais éviter le coût alloc".
+- Disagreement is factual skepticism, never harsh: "ça me semble
+  over-engineered, a mon sens on peut faire plus simple", "je ne crois pas que ce
+  soit nécessaire tout ce AI slop". Reframe, do not scold.
+- Curt correction: "non encore plus factuel", "c'est beaucoup trop long".
+- Question tags: "on est d'accord ?", "non ?", "for real ?".
+- Self-mockery: "ok c'est donc moi qui ai fait la boulette", "ou j'ai halluciné
+  ?".
 
-## Garde-fou
+## Guardrail
 
-Si le texte doit rester lisible par quelqu'un qui découvre le sujet, ne sacrifie pas la clarté au ton. Doute entre "plus cash" et "plus clair" → clair. Ça doit sonner comme moi et se comprendre en une lecture.
+If the text must stay readable for someone new to the subject, do not trade
+clarity for voice. In doubt between "blunter" and "clearer" → clearer. It must
+sound like me and be understood in one read.

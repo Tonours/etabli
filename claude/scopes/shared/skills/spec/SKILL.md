@@ -1,59 +1,85 @@
 ---
 name: spec
-description: Write, structure or revise employer specs, tech specs, Epics and design docs using its two templates. Use for /spec or spec-writing requests.
+description: Writes, structures or revises employer product specs, technical Epics and design docs from the two bundled templates. Use for /spec or when the user asks to draft or review a spec, Epic or design doc; not for ADRs (adr) or Linear tickets (linear-ticket-create).
 ---
 
-# Création de spec employer
+# employer spec writing
 
-Rédiger une spec employer qui tient les standards : le format réel de l'équipe (Linear) + les bonnes pratiques design-doc de l'industrie (Google, RFC, ADR). Le but d'une spec, c'est de **récolter du feedback AVANT de construire** — pas de documenter après coup.
+Write an employer spec that meets two standards: the team's real format (Linear)
+and industry design-doc practice (Google, RFC, ADR). A spec exists to **collect
+feedback BEFORE building**, not to document afterwards.
 
-## Deux niveaux, ne pas confondre
+## Two levels, never mixed
 
-employer sépare deux docs. Identifie lequel on écrit AVANT de commencer.
+employer splits two documents. Decide which one you are writing BEFORE starting.
 
-| | Spec produit | Epic technique |
+| | Product spec | Technical Epic |
 |---|---|---|
-| Répond à | le **quoi / pourquoi** | le **comment** |
-| Écrit par | produit / CS | tech |
+| Answers | **what / why** | **how** |
+| Written by | product / CS | tech |
 | Template | `template-product.md` | `template-technical.md` |
-| Sections clés | Problem/Goal/Solution, Discovery, Description, Screens, Expected behavior, Events | Contexte, Goals/Non-goals, Technical description, Alternatives, Cross-cutting, User stories, Estimations |
+| Key sections | Problem/Goal/Solution, Discovery, Description, Screens, Expected behavior, Events | Context, Goals/Non-goals, Technical description, Alternatives, Cross-cutting, User stories, Estimations |
 
-Une spec d'archi très technique (un service comme le BFF) est un **hybride** : prends le template technique, il porte déjà le contexte produit léger. Les deux templates sont dans le dossier de ce skill — copie le bon, remplis les `< >`.
+A very technical architecture spec (a service such as the BFF) is a **hybrid**:
+take the technical template, it already carries the light product context. Both
+templates sit next to this file: copy the right one and fill the `< >`.
 
-## Le noyau vs le jetable
+## Core versus disposable
 
-Dans les ~16 Epics employer réels, ce qui est **toujours là** : Scope/Owners/Product-spec · Technical description · User stories (points, Required/Optional) · Estimations · Questions. Ce qui est **boilerplate optionnel** (souvent collé, parfois omis) : le blockquote `> **Warning**` d'entrée, Design challenge, Tech approval. Garde le noyau, supprime l'optionnel inutilisé.
+Across the ~16 real employer Epics, these are **always present**: Scope/Owners/Product
+spec, Technical description, User stories (points, Required/Optional),
+Estimations, Questions. These are **optional boilerplate** (often pasted,
+sometimes dropped): the opening `> **Warning**` blockquote, Design challenge,
+Tech approval. Keep the core, delete unused optional parts.
 
-## Les sections que tout le monde oublie (et qui font la valeur)
+## The sections everyone forgets (and that carry the value)
 
-L'industrie est unanime : sans elles, une "spec" n'est qu'un manuel d'implémentation. Les templates les incluent — ne les laisse pas vides par flemme.
+Without them a "spec" is an implementation manual. The templates include them;
+never leave them empty.
 
-- **Non-goals** — ce qui pourrait être un objectif mais qu'on exclut. Coupe le scope creep.
-- **Alternatives considérées** — les autres approches sérieuses et *pourquoi rejetées*. C'est ce qui distingue une décision d'un manuel. Marque les choix irréversibles (one-way door).
-- **Cross-cutting** — Sécurité & privacy, Rollout/migration (+ **rollback**), Monitoring. "N/A" assumé est OK ; absent ne l'est pas.
+- **Non-goals**: what could be a goal but is excluded. Stops scope creep.
+- **Alternatives considered**: the other serious approaches and *why they were
+  rejected*. This is what makes it a decision. Flag irreversible choices
+  (one-way doors).
+- **Cross-cutting**: Security & privacy, Rollout/migration (with **rollback**),
+  Monitoring. A deliberate "N/A" is fine; a missing section is not.
 
-## Principes
+## Principles
 
-- **Trade-offs > implémentation.** Si la solution est évidente sans aucun trade-off, la spec est inutile. Le cœur, c'est les choix et leur justification.
-- **Vérifier, pas supposer.** Tout mécanisme technique se source `fichier.ts:ligne`. Sinon, le marquer "à confirmer". Une option écartée reste en ~~barré~~ avec le pourquoi. Un choix qui a changé → callout honnête.
-- **Link, don't duplicate.** Pointer vers la spec produit / le repo, pas recopier. Mais embarquer 2-3 lignes de contexte pour éviter l'aller-retour.
-- **Proportionné.** Petit changement = quelques lignes. Gros projet = découper. Pas de spec pour un changement trivial.
-- **Statut explicite.** Draft → In review → Accepted, + qui doit valider.
+- **Trade-offs over implementation.** If the solution is obvious with no
+  trade-off, the spec is not needed. The core is the choices and their reasons.
+- **Verify, do not assume.** Source every technical mechanism as `file.ts:line`;
+  otherwise mark it "to confirm". A dropped option stays ~~struck through~~ with
+  the why. A choice that changed gets an honest callout.
+- **Link, don't duplicate.** Point to the product spec or the repo instead of
+  copying, but embed 2-3 lines of context so the reader need not leave.
+- **Proportionate.** Small change: a few lines. Large project: split it. No spec
+  for a trivial change.
+- **Explicit status.** Draft → In review → Accepted, plus who must approve.
 
-## Rédiger le contenu
+## Writing the content
 
-**La spec se rédige en anglais** (toutes les specs employer le sont). Pour la prose (contexte, justifications, transitions), utiliser le ton direct, transposé en anglais : invoquer le skill `write-direct`. Les contrats techniques (routes, payloads, types) restent exacts, pas stylisés. Schémas ASCII propres (box alignées, flèches sous ce qu'elles connectent).
+**Specs are written in English** (every employer spec is). For prose (context,
+reasons, transitions), use the direct voice transposed to English: invoke the
+`write-direct` skill. Technical contracts (routes, payloads, types) stay exact,
+never stylized. ASCII diagrams stay clean (aligned boxes, arrows under what they
+connect).
 
-Cible Linear : la spec vit dans un **Document** Linear (équivalent page wiki), rattaché à la team Product. Markdown standard. Linear ne rend PAS les callouts GitHub `> [!NOTE]` — un titre en gras dans un blockquote (`> **Note**` puis le texte) tient le même rôle. Garder les blockquotes pour les encarts importants.
+Linear target: the spec lives in a Linear **Document** (wiki-page equivalent)
+attached to the Product team. Standard Markdown. Linear does NOT render GitHub
+callouts `> [!NOTE]`; a bold title inside a blockquote (`> **Note**` then the
+text) plays the same role. Keep blockquotes for important call-outs.
 
-## Avant de publier
+## Before publishing
 
-- [ ] Tous les `< >` remplis ou supprimés
-- [ ] Tous les commentaires `<!-- -->` retirés
-- [ ] Sections "(optionnel)" inutilisées supprimées
-- [ ] Non-goals et Alternatives non vides (ou "N/A" justifié)
-- [ ] Mécanismes techniques sourcés `fichier.ts:ligne`
+- [ ] Every `< >` filled or deleted
+- [ ] Every `<!-- -->` comment removed
+- [ ] Unused "(optional)" sections deleted
+- [ ] Non-goals and Alternatives filled (or a justified "N/A")
+- [ ] Technical mechanisms sourced as `file.ts:line`
 
-## Longueur
+## Length
 
-Mini-spec / changement incrémental : 1-3 pages. Gros projet : 10-20 pages max, au-delà découper. Tant que ça n'a pas shippé, on met la spec à jour quand le design dévie ; après, elle devient le point d'entrée historique.
+Mini-spec or incremental change: 1-3 pages. Large project: 10-20 pages at most;
+beyond that, split. Until it ships, update the spec when the design drifts;
+after shipping it becomes the historical entry point.
