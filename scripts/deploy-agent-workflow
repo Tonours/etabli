@@ -9,7 +9,6 @@ HOME_DIR="$HOME"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 . "$SCRIPT_DIR/lib/pi-paths.sh"
 . "$SCRIPT_DIR/lib/skill-catalog.sh"
-. "$SCRIPT_DIR/lib/vendor-surfaces.sh"
 . "$SCRIPT_DIR/lib/etabli-scope.sh"
 . "$SCRIPT_DIR/lib/managed-surfaces.sh"
 . "$SCRIPT_DIR/lib/claude-config-dir.sh"
@@ -113,8 +112,7 @@ remove_managed_path() {
   fi
 
   if [ -d "$target_path" ] && [ ! -L "$target_path" ]; then
-    backup="$(managed_surface_backup_path "$target_path" "$TIMESTAMP")"
-    mv "$target_path" "$backup"
+    backup="$(managed_surface_move_aside "$target_path")" || return 1
     status_line BACKUP "$backup"
     return 0
   fi
@@ -133,10 +131,6 @@ prune_stale_managed_claude_agent_links() {
 
 node_available() {
   command -v node >/dev/null 2>&1
-}
-
-pi_core_skills() {
-  skill_catalog_names "$SKILL_CATALOG" pi pi_core
 }
 
 sync_pi_agent_settings() {
@@ -212,12 +206,8 @@ sync_claude_skill_overrides() {
 deploy_pi() {
   local agent_file
   local agent_name
-  local skill
   local theme_file
   local theme_name
-  local skill_link
-  local skill_name
-  local skill_target
   local pi_node_modules
 
   status_line SECTION "Pi"
@@ -226,12 +216,12 @@ deploy_pi() {
     mkdir -p "$HOME_DIR/.pi/agent/agents" "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.pi/agent/themes"
   fi
 
-  link_path "$REPO_DIR/pi/AGENTS.md" "$HOME_DIR/.pi/agent/AGENTS.md" "Pi AGENTS.md"
+  link_path "$REPO_DIR/workflow/agent-rules.md" "$HOME_DIR/.pi/agent/AGENTS.md" "Pi AGENTS.md"
   link_path "$REPO_DIR/workflow" "$HOME_DIR/.pi/agent/workflow" "Pi workflow"
   link_path "$REPO_DIR/PLAN_TEMPLATE.md" "$HOME_DIR/.pi/agent/PLAN_TEMPLATE.md" "Pi PLAN_TEMPLATE.md"
   link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "$HOME_DIR/.pi/agent/PLAN_TEMPLATE_FULL.md" "Pi PLAN_TEMPLATE_FULL.md"
   link_path "$REPO_DIR/pi/models.json" "$HOME_DIR/.pi/agent/models.json" "Pi models.json"
-  link_path "$REPO_DIR/pi/agent/subagents.json" "$HOME_DIR/.pi/agent/subagents.json" "Pi subagents.json"
+  remove_exact_managed_link "$HOME_DIR/.pi/agent/subagents.json" "retired Pi subagents.json" "$REPO_DIR/pi/agent/subagents.json"
   link_path "$REPO_DIR/pi/settings.json" "$HOME_DIR/.pi/settings.json" "Pi settings.json"
 
   for agent_file in "$REPO_DIR/pi/agents"/*.md; do
@@ -264,18 +254,6 @@ deploy_pi() {
 
   sync_pi_agent_settings
 
-  while IFS= read -r skill; do
-    [ -z "$skill" ] && continue
-    link_path "$REPO_DIR/pi/skills/$skill" "$HOME_DIR/.pi/agent/skills/$skill" "Pi skill $skill"
-  done < <(pi_core_skills)
-
-  local core_skills=()
-  while IFS= read -r skill; do
-    [ -n "$skill" ] && core_skills+=("$skill")
-  done < <(pi_core_skills)
-  managed_surface_prune_unlisted_source_skills deploy "$REPO_DIR" "$HOME_DIR" \
-    .pi/agent/skills Pi pi "${core_skills[@]}"
-
   for theme_file in "$REPO_DIR/pi/themes"/*.json; do
     [ -f "$theme_file" ] || continue
     theme_name="$(basename "$theme_file")"
@@ -283,43 +261,41 @@ deploy_pi() {
   done
 }
 
-deploy_vendor_skills() {
-  local skill_name skill_dir record_scope record_pi_core record_vendor surface label
+deploy_skills() {
+  local skill_name skill_dir record_scope record_pi_core _record_source surface label
 
-  status_line SECTION "Vendor skills"
+  status_line SECTION "Skills"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$HOME_DIR/.pi/agent/skills" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills"
+    if managed_surface_selected .pi/agent/skills; then
+      mkdir -p "$HOME_DIR/.pi/agent/skills"
+    fi
+    mkdir -p "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills"
   fi
 
-  managed_surface_prune_pi_cross_surface_links deploy "$REPO_DIR" "$HOME_DIR"
   managed_surface_prune_stale_skill_links deploy "$REPO_DIR" "$HOME_DIR"
-  managed_surface_prune_vendor_skill_links deploy "$REPO_DIR" "$HOME_DIR" "$SKILL_CATALOG" "$ACTIVE_SCOPES"
+  managed_surface_prune_skill_links deploy "$REPO_DIR" "$HOME_DIR" "$SKILL_CATALOG" "$ACTIVE_SCOPES"
 
-  while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
+  while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core _record_source; do
     [ -n "$skill_name" ] || continue
     for surface in .claude/skills .pi/agent/skills; do
       managed_surface_selected "$surface" || continue
-      if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$ACTIVE_SCOPES"; then
-        case "$surface" in
-        .claude/skills) label="Claude" ;;
-        .pi/agent/skills) label="Pi" ;;
-        esac
-        link_path "$skill_dir" "$(managed_surface_dir "$HOME_DIR" "$surface")/$skill_name" "$label vendor skill $skill_name"
-      fi
+      skill_surface_expected "$surface" "$record_scope" "$record_pi_core" "$ACTIVE_SCOPES" || continue
+      case "$surface" in
+      .claude/skills)
+        managed_surface_skill_is_shadowed "$skill_name" "$ACTIVE_SCOPES" && continue
+        label="Claude"
+        ;;
+      .pi/agent/skills) label="Pi" ;;
+      esac
+      link_path "$skill_dir" "$(managed_surface_dir "$HOME_DIR" "$surface")/$skill_name" "$label skill $skill_name"
     done
-  done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
+  done < <(skill_catalog_records "$SKILL_CATALOG" "$REPO_DIR")
 }
 
 deploy_claude() {
-  local command_file
-  local command_name
-  local target_name
   local hook_file
   local hook_name
-  local skill_dir
-  local skill_name
-  local stale_command
   local agent_file
   local agent_name
   local script_entry
@@ -328,7 +304,7 @@ deploy_claude() {
   status_line SECTION "Claude"
 
   if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "${CLAUDE_ROOT:-$HOME_DIR/.claude}/commands" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/hooks" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/agents"
+    mkdir -p "${CLAUDE_ROOT:-$HOME_DIR/.claude}/hooks" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/agents"
   fi
 
   link_path "$REPO_DIR/claude/CLAUDE.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/CLAUDE.md" "Claude CLAUDE.md"
@@ -336,47 +312,7 @@ deploy_claude() {
   link_path "$REPO_DIR/PLAN_TEMPLATE.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/PLAN_TEMPLATE.md" "Claude PLAN_TEMPLATE.md"
   link_path "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/PLAN_TEMPLATE_FULL.md" "Claude PLAN_TEMPLATE_FULL.md"
 
-  for scope in $(active_scopes); do
-    for command_file in "$REPO_DIR/claude/scopes/$scope/commands"/*.md; do
-      [ -f "$command_file" ] || continue
-      command_name="$(basename "$command_file")"
-      link_path "$command_file" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/commands/$command_name" "Claude command $command_name"
-    done
-  done
-
-  for stale_command in \
-    qa-planner.md \
-    qa-generator.md \
-    qa-healer.md \
-    qa-reviewer.md \
-    qa-failure-dossier.md \
-    verify.md \
-    plan.md \
-    plan-create.md \
-    plan-review.md \
-    handoff.md \
-    handoff-implement.md \
-    ops-status.md \
-    ops-pi-status.md \
-    commit.md \
-    cross-repo-audit.md \
-    front-quality.md \
-    pr-feedback.md \
-    pre-commit.md \
-    recap.md \
-    spec-verify.md \
-    tests-iso.md \
-    ui-debug.md; do
-    remove_exact_managed_link \
-      "${CLAUDE_ROOT:-$HOME_DIR/.claude}/commands/$stale_command" \
-      "stale Claude command $stale_command" \
-      "$REPO_DIR/claude/commands/$stale_command" \
-      "$REPO_DIR/claude/scopes/shared/commands/$stale_command"
-  done
-  remove_exact_managed_link \
-    "${CLAUDE_ROOT:-$HOME_DIR/.claude}/handoff-template.md" \
-    "stale Claude handoff template" \
-    "$REPO_DIR/claude/handoff-template.md"
+  managed_surface_prune_repo_command_links deploy "$REPO_DIR" "$HOME_DIR"
 
   for hook_file in "$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh; do
     [ -f "$hook_file" ] || continue
@@ -401,19 +337,6 @@ deploy_claude() {
   prune_stale_managed_claude_agent_links
 
   for scope in $(active_scopes); do
-    for skill_dir in "$REPO_DIR/claude/scopes/$scope/skills"/*; do
-      [ -d "$skill_dir" ] || continue
-      skill_name="$(basename "$skill_dir")"
-      if managed_surface_skill_is_shadowed "$skill_name" "$ACTIVE_SCOPES"; then
-        remove_exact_managed_link \
-          "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills/$skill_name" \
-          "shadowed Claude skill $skill_name" \
-          "$skill_dir"
-        continue
-      fi
-      link_path "$skill_dir" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/skills/$skill_name" "Claude skill $skill_name"
-    done
-
     for agent_file in "$REPO_DIR/claude/scopes/$scope/agents"/*.md; do
       [ -f "$agent_file" ] || continue
       agent_name="$(basename "$agent_file")"
@@ -458,14 +381,14 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   CLAUDE_ROOT="$HOME_DIR/.claude"
   export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
   deploy_pi
-  deploy_vendor_skills
+  deploy_skills
   deploy_claude
   if [ "$HOME_DIR" = "$HOME" ] && config_root="$(claude_config_dir_override)"; then
     CLAUDE_ROOT="$config_root"
     MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
     export MANAGED_CLAUDE_ONLY=1
     status_line SECTION "Claude config dir $CLAUDE_ROOT"
-    deploy_vendor_skills
+    deploy_skills
     deploy_claude
   fi
 

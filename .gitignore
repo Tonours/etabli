@@ -61,9 +61,5 @@ ops-roadmap.md
 # Local Pi runtime state
 .pi/
 
-# Machine-local model weight paths / overlays (keep secrets and host layout out of git)
-pi/models.local.json
-
 # archived skill sets kept locally, not tracked
-pi/skills-archive/
 .auto/

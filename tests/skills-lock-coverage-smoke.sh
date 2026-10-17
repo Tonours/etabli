@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# skills-lock.json must pin every Claude scoped skill tree.
-# Expected trees are derived from the filesystem (not from the lock generator)
-# and hashed with the shared skill-tree hasher, so a missed tree fails here.
+# Every first-party skills/<scope>/<name> tree needs a catalog row, and
+# skills-lock.json must pin every locked one. Expected trees are derived from
+# the filesystem (not from the lock generator) and hashed with the shared
+# skill-tree hasher, so a missed tree fails here.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
@@ -17,7 +18,7 @@ fail() {
 [ -f "$LOCK" ] || fail "missing lock: $LOCK"
 
 ROOT_DIR="$ROOT_DIR" node --input-type=module >"$TMP_DIR/expected" <<'NODE'
-import { readdir, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -27,28 +28,37 @@ const { hashSkillTree } = await import(
 );
 
 const roots = [];
-const scopesRoot = join(root, "claude", "scopes");
-for (const scope of (await readdir(scopesRoot)).sort()) {
-  const skillsDir = join(scopesRoot, scope, "skills");
+const catalogRows = new Map(
+  (await readFile(join(root, "workflow/runtime/skill-surface.tsv"), "utf8"))
+    .split("\n")
+    .filter((line) => line && !line.startsWith("#"))
+    .map((line) => line.split("\t"))
+    .filter(([, source]) => source === "etabli")
+    .map(([name, , , locked]) => [name, locked === "1"]),
+);
+const treeRoot = join(root, "skills");
+for (const scope of (await readdir(treeRoot)).sort()) {
   let entries = [];
   try {
-    entries = await readdir(skillsDir);
+    entries = await readdir(join(treeRoot, scope));
   } catch {
     continue;
   }
   for (const name of entries.sort()) {
+    const dir = join(treeRoot, scope, name);
     let isDir = false;
     try {
-      isDir = (await stat(join(skillsDir, name))).isDirectory();
+      isDir = (await stat(dir)).isDirectory();
     } catch {
       isDir = false;
     }
-    if (isDir) {
-      roots.push({
-        key: `claude-scope/${scope}/${name}`,
-        root: join(skillsDir, name),
-      });
+    if (!isDir) continue;
+    const key = `${scope}/${name}`;
+    if (!catalogRows.has(key)) {
+      process.stderr.write(`FAIL: skills/${key} has no etabli catalog row\n`);
+      process.exit(1);
     }
+    if (catalogRows.get(key)) roots.push({ key, root: dir });
   }
 }
 for (const entry of roots) {

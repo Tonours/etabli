@@ -29,11 +29,13 @@ skillOverrides map (claude/settings.skill-overrides.json):
   C2  exhaustive partition: every discovered skill (two-level SKILL.md
       discovery — skills/<name> and skills/<group>/<name>, matching Claude's
       own loading depth; symlink-following; .DS_Store ignored; duplicate
-      declared names rejected) is a map key, and every map key exists on the
-      surface
+      declared names rejected) is a map key; every map key exists on the
+      surface or is a catalog skill another scope owns; every catalog skill
+      this machine's scopes deploy to Claude is on the surface
   C3  effective on-set (state "on" and not frontmatter-dmi) equals the
-      pinned keep-set exactly, failing in both directions; personal skills
-      named in claude/machine-local-skills.json may also be "on" where present
+      pinned keep-set minus skills another scope owns, failing in both
+      directions; personal skills named in claude/machine-local-skills.json
+      may also be "on" where present
   C4  zero dangling links; zero links into skills.disabled
   C5  repo/live map equality (deploy applied)
   C6  no enabled plugin ships SKILL.md files, except plugins named in
@@ -44,7 +46,8 @@ skillOverrides map (claude/settings.skill-overrides.json):
         without it the Claude dir is \$CLAUDE_CONFIG_DIR, else ~/.claude
 --fix            repair the C2 partition in the active map: add every
                  discovered skill missing from it as user-invocable-only,
-                 drop keys with no surface skill, then re-run the checks
+                 drop keys with neither a surface nor a catalog skill,
+                 then re-run the checks
 
 CLAUDE_SKILL_LOAD_HOME and CLAUDE_SKILL_LOAD_REPO redirect the surfaces for
 fixture-based smoke tests.
@@ -81,6 +84,27 @@ command -v node >/dev/null 2>&1 || {
 
 REPO_BASE="${REPO_OVERRIDE:-$REPO_DIR}"
 
+# Scope policy from the catalog: KNOWN lists every repo skill (all scopes),
+# EXPECTED the ones this machine's scopes deploy to Claude (minus shadows).
+# Without a catalog both stay empty and every map key must be on the surface.
+SKILL_KNOWN=""
+SKILL_EXPECTED=""
+if [ -f "$REPO_BASE/workflow/runtime/skill-surface.tsv" ] && [ -f "$REPO_BASE/vendor/sources.tsv" ]; then
+  . "$SCRIPT_DIR/lib/skill-catalog.sh"
+  . "$SCRIPT_DIR/lib/etabli-scope.sh"
+  . "$SCRIPT_DIR/lib/managed-surfaces.sh"
+  active_scopes="$(etabli_active_scopes "$HOME_DIR")"
+  while IFS=$'\t' read -r record_scope record_name _record_dir record_pi_core _record_source; do
+    [ -n "$record_name" ] || continue
+    SKILL_KNOWN="$SKILL_KNOWN$record_name"$'\n'
+    if skill_surface_expected .claude/skills "$record_scope" "$record_pi_core" "$active_scopes" &&
+      ! managed_surface_skill_is_shadowed "$record_name" "$active_scopes"; then
+      SKILL_EXPECTED="$SKILL_EXPECTED$record_name"$'\n'
+    fi
+  done < <(skill_catalog_records "$REPO_BASE/workflow/runtime/skill-surface.tsv" "$REPO_BASE")
+fi
+export SKILL_KNOWN SKILL_EXPECTED
+
 node - "$CLAUDE_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$FIX" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
@@ -93,18 +117,30 @@ const errors = [];
 const warnings = [];
 
 const PINNED_ON = new Set([
+  "adversary",
   "bug-check",
+  "code-quality",
   "codebase-design",
   "domain-modeling",
   "employer-backend-suite",
   "grilling",
   "herdr",
+  "implement",
+  "plan-implement",
+  "plan-loop",
   "prototype",
   "research",
+  "review",
   "spec",
+  "verify-workflow",
   "wizard",
   "write-direct",
 ]);
+const namesOf = (raw) => new Set((raw ?? "").split("\n").filter(Boolean));
+const KNOWN = namesOf(process.env.SKILL_KNOWN);
+const EXPECTED = namesOf(process.env.SKILL_EXPECTED);
+// Repo skills another scope owns: absent here by policy, still governed.
+const OTHER_SCOPE = new Set([...KNOWN].filter((name) => !EXPECTED.has(name)));
 
 const skillsRoot = path.join(claudeDir, "skills");
 
@@ -268,7 +304,10 @@ for (const [name, state] of Object.entries(mapForPartition)) {
 const surfaceNames = new Set(discovered.map((d) => d.name));
 const mapFilePath = path.join(repoDir, "claude/settings.skill-overrides.json");
 const missingFromMap = [...surfaceNames].filter((name) => !Object.hasOwn(mapForPartition, name)).sort();
-const staleMapKeys = Object.keys(mapForPartition).filter((name) => !surfaceNames.has(name)).sort();
+const staleMapKeys = Object.keys(mapForPartition)
+  .filter((name) => !surfaceNames.has(name) && !KNOWN.has(name))
+  .sort();
+const missingExpected = [...EXPECTED].filter((name) => !surfaceNames.has(name)).sort();
 
 if (FIX && (missingFromMap.length > 0 || staleMapKeys.length > 0)) {
 	const personalMissing = missingFromMap.filter(
@@ -282,7 +321,7 @@ if (FIX && (missingFromMap.length > 0 || staleMapKeys.length > 0)) {
 		const document = JSON.parse(fs.readFileSync(mapFilePath, "utf8"));
 		const repaired = {};
 		for (const [name, state] of Object.entries(document.skillOverrides ?? {})) {
-			if (surfaceNames.has(name)) repaired[name] = state;
+			if (surfaceNames.has(name) || KNOWN.has(name)) repaired[name] = state;
 		}
 		for (const name of repoMissing) repaired[name] = "user-invocable-only";
 		document.skillOverrides = sortedMap(repaired);
@@ -318,6 +357,9 @@ for (const name of missingFromMap) {
 for (const name of staleMapKeys) {
   errors.push(`map key with no surface skill: ${name} (remove the stale key, run --fix, or restore the skill)`);
 }
+for (const name of missingExpected) {
+  errors.push(`repo skill ${name} expected for this scope is missing from the surface (run scripts/deploy-agent-workflow --apply)`);
+}
 
 if (liveMap === null) {
   errors.push("live ~/.claude/settings.json has no skillOverrides key; run scripts/deploy-agent-workflow --apply");
@@ -352,6 +394,7 @@ for (const name of effectiveOn) {
   }
 }
 for (const name of PINNED_ON) {
+  if (OTHER_SCOPE.has(name)) continue;
   if (!effectiveOn.has(name)) {
     errors.push(`pinned keeper not effectively listed: ${name} (check its map state and frontmatter dmi, or re-pin the keep-set via a CHALLENGED Decision Log entry)`);
   }

@@ -75,6 +75,8 @@ ln -s "$smoke_repo_dir/vendor/mattpocock/skills/engineering/removed-skill" \
   "$smoke_skill_home/.claude/skills/removed-vendor-skill"
 ln -s "$smoke_repo_dir/pi/skills/removed-skill" \
   "$smoke_skill_home/.claude/skills/removed-pi-skill"
+ln -s "$smoke_repo_dir/skills/shared/removed-skill" \
+  "$smoke_skill_home/.claude/skills/removed-tree-skill"
 ln -s "$smoke_unmanaged_skill" \
   "$smoke_skill_home/.claude/skills/unmanaged-skill"
 smoke_relative_target="$smoke_skill_home/.shared/skills/relative-live"
@@ -88,9 +90,9 @@ mkdir -p "$smoke_relative_managed_root"
 ln -s "../../relative-repo/pi/skills/relative-managed-gone" \
   "$smoke_skill_home/.claude/skills/relative-managed-dangling"
 for smoke_live_skill in \
-  "pi/skills/plan-loop" \
+  "skills/shared/plan-loop" \
   "vendor/mattpocock/skills/engineering/research" \
-  "pi/skills/review"; do
+  "skills/shared/review"; do
   ln -s "$smoke_repo_dir/$smoke_live_skill" \
     "$smoke_skill_home/.claude/skills/$(basename "$smoke_live_skill")"
 done
@@ -116,7 +118,7 @@ for smoke_other_surface in .pi/agent/skills; do
   fi
 done
 
-for smoke_stale_skill in removed-scope-skill removed-vendor-skill removed-pi-skill; do
+for smoke_stale_skill in removed-scope-skill removed-vendor-skill removed-pi-skill removed-tree-skill; do
   if [ -L "$smoke_skill_home/.claude/skills/$smoke_stale_skill" ]; then
     print_error "stale managed Claude skill link '$smoke_stale_skill' was not removed"
     exit 1
@@ -382,7 +384,7 @@ if managed_surface_skill_is_shadowed conventions "shared work"; then
 fi
 
 smoke_shadow_home="$tmp_dir/shadow-home"
-smoke_shadow_target="$smoke_repo_dir/claude/scopes/shared/skills/adr"
+smoke_shadow_target="$smoke_repo_dir/skills/shared/adr"
 mkdir -p "$smoke_shadow_home/.claude/skills"
 ln -sfn "$smoke_shadow_target" "$smoke_shadow_home/.claude/skills/adr"
 managed_surface_remove_exact_link install \

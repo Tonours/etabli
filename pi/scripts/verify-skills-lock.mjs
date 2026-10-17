@@ -21,16 +21,6 @@ try {
   );
 }
 
-let settings;
-try {
-  settings = JSON.parse(
-    await readFile(join(piDir, "agent", "settings.json"), "utf8"),
-  );
-} catch (error) {
-  fail(
-    `invalid pi/agent/settings.json: ${error instanceof Error ? error.message : String(error)}`,
-  );
-}
 const write = process.argv.includes("--write");
 const catalog = (
   await readFile(
@@ -50,65 +40,39 @@ const catalog = (
     };
   });
 
-function configuredLocalSkills() {
-  const result = new Set();
-  for (const pkg of settings.packages ?? []) {
-    if (typeof pkg !== "object" || pkg === null) continue;
-    if (pkg.source !== "local:etabli-workflow") continue;
-    for (const skill of pkg.skills ?? []) {
-      result.add(skill);
-    }
-  }
-  return [...result].sort();
-}
-
 function sourceRootOf(source) {
-  if (source === "pi") return join(repoDir, "pi");
+  if (source === "etabli") return repoDir;
   if (source === "extras") return join(repoDir, "extras");
   return join(repoDir, "vendor", source);
 }
 
-async function hashSkill(name, source = "pi") {
+async function hashSkill(name, source) {
   return hashSkillTree(join(sourceRootOf(source), "skills", name));
 }
 
-// Pinned non-catalog trees: every Claude scoped skill copy/link.
-// Herdr lives in the separate dotfiles repository.
-// Derived from the filesystem so a new scoped skill cannot ship unpinned.
-async function extraLockedRoots() {
-  const roots = [];
-  const scopesRoot = join(repoDir, "claude", "scopes");
-  let scopes = [];
-  try {
-    scopes = await readdir(scopesRoot);
-  } catch {
-    scopes = [];
-  }
-  for (const scope of scopes.sort()) {
-    const skillsDir = join(scopesRoot, scope, "skills");
+// First-party skill directories on disk (skills/<scope>/<name>), so a new
+// skill cannot ship without a catalog row.
+async function firstPartySkillNames() {
+  const names = [];
+  const root = join(repoDir, "skills");
+  for (const scope of (await readdir(root)).sort()) {
     let entries = [];
     try {
-      entries = await readdir(skillsDir);
+      entries = await readdir(join(root, scope));
     } catch {
       continue;
     }
     for (const name of entries.sort()) {
-      let isDir = false;
       try {
-        isDir = (await stat(join(skillsDir, name))).isDirectory();
+        if ((await stat(join(root, scope, name, "SKILL.md"))).isFile())
+          names.push(`${scope}/${name}`);
       } catch {
-        isDir = false;
+        // not a skill directory
       }
-      if (!isDir) continue;
-      roots.push({
-        key: `claude-scope/${scope}/${name}`,
-        root: join(skillsDir, name),
-      });
     }
   }
-  return roots;
+  return names;
 }
-const extraRoots = await extraLockedRoots();
 
 const failures = [];
 
@@ -126,27 +90,23 @@ for (const entry of catalog) {
     );
   }
 }
-const configured = configuredLocalSkills();
-const catalogPiCore = catalog
-  .filter((entry) => entry.source === "pi" && entry.piCore)
-  .map((entry) => entry.name)
-  .sort();
-if (JSON.stringify(configured) !== JSON.stringify(catalogPiCore)) {
-  failures.push(
-    "skill-surface.tsv pi_core entries differ from pi/agent/settings.json",
-  );
+const catalogedFirstParty = new Set(
+  catalog.filter((entry) => entry.source === "etabli").map((entry) => entry.name),
+);
+for (const name of await firstPartySkillNames()) {
+  if (!catalogedFirstParty.has(name))
+    failures.push(`${name}: skills/${name} has no etabli row in skill-surface.tsv`);
 }
 
-const lockedNames = new Set([
-  ...catalog.filter((entry) => entry.locked).map((entry) => entry.name),
-  ...extraRoots.map((entry) => entry.key),
-]);
+const lockedNames = new Set(
+  catalog.filter((entry) => entry.locked).map((entry) => entry.name),
+);
 for (const name of Object.keys(lock.skills)) {
   if (lockedNames.has(name)) continue;
   if (write) delete lock.skills[name];
   else
     failures.push(
-      `${name}: lock entry is not declared locked in skill-surface.tsv or extra roots`,
+      `${name}: lock entry is not declared locked in skill-surface.tsv`,
     );
 }
 
@@ -168,32 +128,6 @@ for (const skill of catalog.filter((entry) => entry.locked)) {
     failures.push(
       `${skill.name}: expected ${entry.computedHash}, got ${actual}`,
     );
-}
-
-for (const extra of extraRoots) {
-  let actual;
-  try {
-    actual = await hashSkillTree(extra.root);
-  } catch (error) {
-    failures.push(
-      `${extra.key}: unreadable pinned tree (${error instanceof Error ? error.message : String(error)})`,
-    );
-    continue;
-  }
-  const entry = lock.skills[extra.key];
-  if (write && !entry)
-    lock.skills[extra.key] = {
-      source: "local",
-      sourceType: "repo",
-      computedHash: actual,
-    };
-  else if (!entry)
-    failures.push(
-      `${extra.key}: locked skill tree missing from skills-lock.json`,
-    );
-  else if (write) entry.computedHash = actual;
-  else if (actual !== entry.computedHash)
-    failures.push(`${extra.key}: expected ${entry.computedHash}, got ${actual}`);
 }
 
 if (write && failures.length === 0) {

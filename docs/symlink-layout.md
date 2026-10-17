@@ -7,15 +7,19 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
 - `~/.pi/workflow/` -> `workflow/` (canonical policies imported by calibrated Pi extensions)
 - `~/.pi/agent/settings.json` stays local, bootstrapped from `pi/agent/settings.json`
 - `~/.pi/agent/models.json` -> `pi/models.json`
-- `~/.pi/agent/AGENTS.md` -> `pi/AGENTS.md`
+- `~/.pi/agent/AGENTS.md` -> `workflow/agent-rules.md`
 - `~/.pi/agent/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.pi/agent/workflow/` -> `workflow/`
 - `~/.pi/settings.json` -> `pi/settings.json`
 - `~/.pi/themes/` -> `pi/themes/`
 - `~/.claude/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.claude/workflow/` -> `workflow/`
+- `~/.claude/skills/<name>/` -> `skills/<scope>/<name>/` and vendored skills
+  for every active-scope catalog row; `~/.pi/agent/skills/<name>/` gets only
+  the `pi_core=1` rows. Claude commands are retired: repo `commands/*` links
+  are pruned
 - When `CLAUDE_CONFIG_DIR` is set and differs from `~/.claude`, deploy also
-  maintains the same Claude surfaces (commands, skills, agents, hooks, scripts,
+  maintains the same Claude surfaces (skills, agents, hooks, scripts,
   settings sync) there; `claude-hooks-merge`, `claude-hooks-check` and
   `claude-skill-load-check` read it by default. Live skills outside the tracked
   profile in that dir are reported by the load check, never removed; dangling

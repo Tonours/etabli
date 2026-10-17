@@ -102,10 +102,10 @@ User decisions that do happen go in the plan's Decision Log.
 
 ## Runtime surfaces (detail)
 
-Pi and Claude wrappers are thin runtime adapters over the shared contract.
+Pi and Claude load the same thin skill adapters over the shared contract.
 
-- Pi skills: `pi/skills/`
-- Claude commands: `claude/scopes/<scope>/commands/`
+- Skill adapters (Claude and Pi): `skills/<scope>/<name>/SKILL.md`, catalogued
+  in `workflow/runtime/skill-surface.tsv`
 - Shared skill contracts: `workflow/skills/`
 - Investigation/evidence contract: `workflow/skills/investigation.md`
 - Claude optional hooks: `claude/hooks/` with
@@ -130,7 +130,7 @@ Pi:
 - `/skill:adversary`: adversarially review `PLAN.md` before implementation
 - `/skill:implement`: implement existing `READY` plan
 - `/skill:review`: review current diff
-- `/skill:verify`: verify checks, claims, or current work without editing
+- `/skill:verify-workflow`: verify checks, claims, or current work without editing
 - `/skill:bug-check`: analyze Linear bug root cause without editing
 - `/skill:linear-ticket-create`: create Linear tickets through Linear MCP
 - `/skill:linear-work`: work from Linear tickets through Linear MCP
@@ -148,7 +148,7 @@ Claude:
 - `/linear-work`: work from Linear tickets through Linear MCP
 - `/pr-council-review`: three-pass review of one GitHub PR, dry-run by default
 
-Work commands (`/linear-*`, `/bug-check`, `/pr-council-review`) are explicit commands in the work scope, never routed
+Work skills (`/linear-*`, `/bug-check`, `/pr-council-review`) are explicit entries in the work scope, never routed
 (ADR-0027).
 
 Claude-native loop:

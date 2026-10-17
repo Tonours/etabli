@@ -11,24 +11,6 @@
       "themes": []
     },
     {
-      "source": "local:etabli-workflow",
-      "extensions": [],
-      "skills": [
-        "plan-loop",
-        "plan-implement",
-        "adversary",
-        "review",
-        "code-quality",
-        "implement",
-        "verify",
-        "bug-check",
-        "linear-ticket-create",
-        "linear-work",
-        "write-direct",
-        "thermo-nuclear-code-quality-review"
-      ]
-    },
-    {
       "source": "git:github.com/badlogic/pi-skills",
       "extensions": [],
       "skills": [],

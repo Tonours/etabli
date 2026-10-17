@@ -82,7 +82,7 @@ silently overwritten. `bun run verify:skills` is the read-only check used by
 
 Never hand-edit a file under `<vendor>/skills/`. A local fix drifts silently and
 the next sync overwrites it. Fix it upstream and re-sync, or fork the skill into
-`claude/scopes/` under a different name.
+`skills/<scope>/` under a different name.
 
 This rule has already been paid for once: three vendored descriptions had an
 unquoted `: ` in their YAML frontmatter, which truncates the description at the

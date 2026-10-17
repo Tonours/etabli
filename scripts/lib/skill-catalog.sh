@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
 
-skill_catalog_names() {
-  local catalog="$1"
-  local source="${2:-any}"
-  local flag="${3:-any}"
-
-  awk -F '\t' -v source="$source" -v flag="$flag" '
-    $0 !~ /^#/ && NF >= 4 &&
-    (source == "any" || $2 == source) &&
-    (flag == "any" || (flag == "pi_core" && $3 == "1") || (flag == "locked" && $4 == "1")) {
-      print $1
-    }
-  ' "$catalog"
-}
-
 skill_declared_name() {
   local skill_dir="$1"
   local declared
@@ -39,11 +25,22 @@ skill_declared_name() {
   fi
 }
 
-skill_catalog_vendor_records() {
+# One record per deployable catalog row, tab-separated:
+#   scope  link-name  skill-dir  pi_core  source
+# First-party rows (source etabli) take their scope from the first segment of
+# skills/<scope>/<skill>; vendor rows from vendor/sources.tsv. Shelf rows
+# (source extras) are never deployed and emit nothing.
+skill_catalog_records() {
   local catalog="$1"
   local repo_dir="$2"
   local vendor _vendor_repo _vendor_ref vendor_scope _vendor_skills
-  local catalog_name catalog_pi_core skill_dir skill_name
+  local catalog_name catalog_pi_core skill_dir
+
+  while IFS=$'\t' read -r catalog_name catalog_pi_core; do
+    [ -n "$catalog_name" ] || continue
+    skill_dir="$repo_dir/skills/$catalog_name"
+    printf '%s\t%s\t%s\t%s\tetabli\n' "${catalog_name%%/*}" "$(skill_declared_name "$skill_dir")" "$skill_dir" "$catalog_pi_core"
+  done < <(awk -F '\t' '$0 !~ /^#/ && NF >= 4 && $2 == "etabli" { print $1 "\t" $3 }' "$catalog")
 
   # shellcheck disable=SC2034
   while IFS=$'\t' read -r vendor _vendor_repo _vendor_ref vendor_scope _vendor_skills || [ -n "$vendor" ]; do
@@ -52,9 +49,26 @@ skill_catalog_vendor_records() {
     while IFS=$'\t' read -r catalog_name catalog_pi_core; do
       [ -n "$catalog_name" ] || continue
       skill_dir="$repo_dir/vendor/$vendor/skills/$catalog_name"
-      skill_name="$(skill_declared_name "$skill_dir")"
-      printf '%s\t%s\t%s\t%s\t%s\n' "$vendor_scope" "$skill_name" "$skill_dir" "$catalog_pi_core" "$vendor"
+      printf '%s\t%s\t%s\t%s\t%s\n' "$vendor_scope" "$(skill_declared_name "$skill_dir")" "$skill_dir" "$catalog_pi_core" "$vendor"
     done < <(awk -F '\t' -v vendor="$vendor" '$0 !~ /^#/ && NF >= 4 && $2 == vendor { print $1 "\t" $3 }' "$catalog")
   done <"$repo_dir/vendor/sources.tsv"
 }
 
+# Which surfaces receive a record: Claude for every active-scope record, Pi
+# only when the record is pi_core. Fails closed on a missing scope.
+skill_surface_expected() {
+  local surface="$1"
+  local record_scope="$2"
+  local record_pi_core="$3"
+  local active_scopes="$4"
+
+  [ -n "$record_scope" ] || return 1
+  case " $active_scopes " in
+  *" $record_scope "*) ;;
+  *) return 1 ;;
+  esac
+  if [ "$surface" = ".pi/agent/skills" ] && [ "$record_pi_core" != "1" ]; then
+    return 1
+  fi
+  return 0
+}

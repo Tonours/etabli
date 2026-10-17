@@ -7,7 +7,8 @@ repairs them.
 
 ## Scopes
 
-Commands, skills, agents and scripts live under `claude/scopes/<scope>/`:
+Skills live in the shared tree `../skills/<scope>/<name>/`, served to Claude
+and Pi alike; Claude agents and scripts live under `claude/scopes/<scope>/`:
 
 | Scope | Holds | Deployed |
 |---|---|---|
@@ -23,8 +24,9 @@ same active scope gates vendored skills linked into Pi and Claude.
 
 Put a surface in `shared` only if it would still make sense at a different
 employer. A skill that names a repo, a product, or an internal service belongs
-in `work`. Shared vendor skills arrive through `vendor/`, not `claude/scopes/`;
-optional skills sit on the `extras/` shelf and are not deployed by default.
+in `work`. Vendored skills arrive through `vendor/`; optional skills sit on the
+`extras/` shelf and are not deployed by default. Claude links every active-scope
+row of `workflow/runtime/skill-surface.tsv`; Pi links only `pi_core=1` rows.
 
 A `shared` surface is withheld from a scope when something else on that machine
 owns its name: `managed_surface_skill_is_shadowed` in
@@ -38,12 +40,12 @@ machine or by hand.
 resolves the `claude` binary where no shell profile is loaded. Their launchd
 plists stay in `~/Library/LaunchAgents/`: linking a script does not schedule it.
 
-## Contracts, commands, skills and agents
+## Contracts, skills and agents
 
-A `workflow/skills/<name>.md` contract is the cross-runtime source of truth (Pi
-reads it too); a `scopes/*/commands/<name>.md` command is the thin `/name`
-entry point; a Claude skill exists only when Claude's procedure goes further
-than the contract (today `bug-check` under `scopes/work/skills/`).
+A `workflow/skills/<name>.md` contract is the cross-runtime source of truth; a
+`skills/<scope>/<name>/SKILL.md` skill is the thin `/name` entry point on both
+runtimes (Claude commands are retired, ADR-0037). Pi ignores the Claude-only
+frontmatter keys (`argument-hint`, `allowed-tools`).
 `tests/workflow-contract-coverage-smoke.sh` keeps every contract referenced.
 
 `/verify-workflow` is the workflow verifier; Claude Code's native `/verify`
@@ -53,7 +55,7 @@ the `gh` CLI.
 Custom agents: `scout` (read-only reconnaissance), `worker` (one step from a
 `READY` plan, the only writing agent), `reviewer` (fresh-context diff review)
 and `adversary` (read-only plan or diff review). They declare `Skill` and pick
-a domain skill themselves; no hook suggests one (ADR-0014). Command
+a domain skill themselves; no hook suggests one (ADR-0014). Skill
 `allowed-tools` entries are pre-approvals, not a sandbox.
 
 ## Skill governance

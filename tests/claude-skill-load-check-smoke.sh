@@ -197,14 +197,14 @@ NODE
 expect_fail "deploy not applied (repo/live divergence)" "$FIX/home" "$FIX/repo" "skillOverrides"
 
 build_fixture "$FIX/home" "$FIX/repo"
-mkdir -p "$FIX/repo/claude/scopes/probe/skills/repo-newcomer"
-printf -- '---\nname: repo-newcomer\ndescription: x\n---\nx\n' >"$FIX/repo/claude/scopes/probe/skills/repo-newcomer/SKILL.md"
-ln -s "$FIX/repo/claude/scopes/probe/skills/repo-newcomer" "$FIX/home/.claude/skills/repo-newcomer"
+mkdir -p "$FIX/repo/skills/shared/repo-newcomer"
+printf -- '---\nname: repo-newcomer\ndescription: x\n---\nx\n' >"$FIX/repo/skills/shared/repo-newcomer/SKILL.md"
+ln -s "$FIX/repo/skills/shared/repo-newcomer" "$FIX/home/.claude/skills/repo-newcomer"
 set_live_state repo-newcomer user-invocable-only
 expect_fail "repo skill cannot hide in the personal layer" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: repo-newcomer"
 set_live_state repo-newcomer absent
 rm "$FIX/home/.claude/skills/repo-newcomer"
-rm -rf "$FIX/repo/claude/scopes/probe"
+rm -rf "$FIX/repo/skills"
 
 mkdir -p "$FIX/plugin-demo/skills/whatever"
 printf -- '---\nname: whatever\ndescription: x\n---\nx\n' >"$FIX/plugin-demo/skills/whatever/SKILL.md"
@@ -222,6 +222,47 @@ fs.writeFileSync(
 );
 NODE
 expect_fail "enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabled plugin demo@marketplace ships skills"
+
+# Scope policy: a repo backed by the real catalog. Work-scope skills are absent
+# on shared/personal machines by design; the shared adr is shadowed on work.
+SREPO="$FIX/scope-repo"
+mkdir -p "$SREPO"
+for shared_root in workflow vendor skills; do ln -s "$ROOT_DIR/$shared_root" "$SREPO/$shared_root"; done
+WORK_ONLY="bug-check employer-backend-suite employer-docs-writing linear-project-setup linear-ticket-create linear-work pr-council-review"
+build_scope_fixture() {
+  build_fixture "$FIX/home" "$SREPO"
+  rm -f "$FIX/home/.etabli-scope"
+  [ -z "$1" ] || printf '%s\n' "$1" >"$FIX/home/.etabli-scope"
+  case "$1" in
+  work) rm -rf "$FIX/home/.claude/skills/adr" "$FIX/home/.claude/skills/synced/adr" ;;
+  *) for name in $WORK_ONLY; do rm -rf "$FIX/home/.claude/skills/$name" "$FIX/home/.claude/skills/synced/$name"; done ;;
+  esac
+}
+for scope in "" personal work; do
+  build_scope_fixture "$scope"
+  expect_ok "scope '${scope:-shared}' surface" "$FIX/home" "$SREPO"
+done
+build_scope_fixture ""
+rm -rf "$FIX/home/.claude/skills/plan-loop"
+expect_fail "missing expected keeper on shared" "$FIX/home" "$SREPO" "repo skill plan-loop expected for this scope is missing"
+build_scope_fixture work
+rm -rf "$FIX/home/.claude/skills/linear-work" "$FIX/home/.claude/skills/synced/linear-work"
+expect_fail "missing work skill on work" "$FIX/home" "$SREPO" "repo skill linear-work expected for this scope is missing"
+build_scope_fixture ""
+node - "$SREPO/claude/settings.skill-overrides.json" <<'NODE'
+const fs = require("node:fs");
+const [file] = process.argv.slice(2);
+const doc = JSON.parse(fs.readFileSync(file, "utf8"));
+doc.skillOverrides["retired-unknown"] = "user-invocable-only";
+fs.writeFileSync(file, JSON.stringify(doc, null, 2));
+NODE
+expect_fail "unknown stale key on shared" "$FIX/home" "$SREPO" "map key with no surface skill: retired-unknown"
+CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$SREPO" "$CHECK" --fix >/dev/null 2>&1 || fail "shared --fix failed"
+jq -e '.skillOverrides | has("retired-unknown") | not' "$SREPO/claude/settings.skill-overrides.json" >/dev/null ||
+  fail "--fix must drop a key with neither a surface nor a catalog skill"
+jq -e '.skillOverrides["linear-work"] == "user-invocable-only" and .skillOverrides["employer-backend-suite"] == "on"' \
+  "$SREPO/claude/settings.skill-overrides.json" >/dev/null || fail "--fix on shared must keep work-scope keys"
+rm -f "$FIX/home/.etabli-scope"
 
 SYNC="$ROOT_DIR/scripts/lib/claude-settings-sync.mjs"
 mkdir -p "$FIX/sync"

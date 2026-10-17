@@ -21,8 +21,12 @@ ln -s "$TMP_DIR/personal-agents/personal.md" "$HOME_DIR/.claude/agents/personal.
 ln -s "$TMP_DIR/external-command.md" "$HOME_DIR/.claude/commands/commit.md"
 ln -s "$ROOT_DIR/claude/commands/plan.md" "$HOME_DIR/.claude/commands/plan.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/front-quality.md" "$HOME_DIR/.claude/commands/front-quality.md"
-ln -s "$ROOT_DIR/claude/handoff-template.md" "$HOME_DIR/.claude/handoff-template.md"
+ln -s "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" "$HOME_DIR/.claude/commands/plan-loop.md"
 ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.claude/skills/retired-skill"
+ln -s "$ROOT_DIR/claude/scopes/shared/skills/spec" "$HOME_DIR/.claude/skills/spec"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/verify-workflow"
+mkdir -p "$HOME_DIR/.pi/agent/skills"
+ln -s "$ROOT_DIR/pi/skills/verify" "$HOME_DIR/.pi/agent/skills/verify"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -55,6 +59,10 @@ printf '%s\n' '{
     },
     {
       "source": "npm:@zenspc/pi-pstack"
+    },
+    {
+      "source": "local:etabli-workflow",
+      "skills": ["plan-loop"]
     }
   ]
 }' >"$HOME_DIR/.pi/agent/settings.json"
@@ -126,10 +134,25 @@ assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
-assert_link "$HOME_DIR/.claude/commands/plan-loop.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"
+assert_absent "$HOME_DIR/.claude/commands/plan-loop.md"
 assert_absent "$HOME_DIR/.claude/commands/plan.md"
 assert_absent "$HOME_DIR/.claude/commands/front-quality.md"
-assert_absent "$HOME_DIR/.claude/handoff-template.md"
+assert_link "$HOME_DIR/.claude/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
+assert_link "$HOME_DIR/.claude/skills/spec" "$ROOT_DIR/skills/shared/spec"
+assert_absent "$HOME_DIR/.pi/agent/skills/spec"
+assert_absent "$HOME_DIR/.claude/skills/linear-work"
+assert_absent "$HOME_DIR/.pi/agent/skills/linear-work"
+# A foreign link on a managed name moves outside the discovery root.
+assert_link "$HOME_DIR/.claude/skills/verify-workflow" "$ROOT_DIR/skills/shared/verify-workflow"
+if find "$HOME_DIR/.claude/skills" -maxdepth 1 -name '*.bak.*' | grep -q .; then
+  printf 'deploy left a skill backup inside the discovery root\n' >&2
+  exit 1
+fi
+collision_backups=( "$HOME_DIR/.claude/skills.bak"/verify-workflow.bak.* )
+[ "$(readlink "${collision_backups[0]}")" = "$TMP_DIR/external-skill" ] || {
+  printf 'deploy did not keep the foreign skill link in skills.bak\n' >&2
+  exit 1
+}
 assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"
@@ -160,13 +183,13 @@ RELOCATED_NODE_DIR="$(dirname "$(node -e 'process.stdout.write(process.execPath)
 HOME="$RELOCATED_HOME_DIR" CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" PATH="$RELOCATED_NODE_DIR:$PATH" \
   ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$RELOCATED_HOME_DIR" >/dev/null
 assert_absent "$RELOCATED_CLAUDE_DIR/hooks/proof-shadow.mjs"
-assert_link "$RELOCATED_CLAUDE_DIR/commands/plan-loop.md" "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md"
+assert_absent "$RELOCATED_CLAUDE_DIR/commands/plan-loop.md"
 if ls "$RELOCATED_CLAUDE_DIR/commands"/plan-loop.md.bak.* >/dev/null 2>&1; then
   printf 'deploy backed up a dangling managed link\n' >&2
   exit 1
 fi
 assert_link "$RELOCATED_CLAUDE_DIR/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
-assert_link "$RELOCATED_CLAUDE_DIR/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
+assert_link "$RELOCATED_CLAUDE_DIR/skills/adr" "$ROOT_DIR/skills/shared/adr"
 CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" "$ROOT_DIR/scripts/claude-hooks-check" >/dev/null
 backups=( "$RELOCATED_CLAUDE_DIR"/CLAUDE.md.bak.* )
 [ -L "${backups[0]}" ] || {
@@ -194,7 +217,7 @@ assert_link "$ISOLATED_HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
 assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_link "$HOME_DIR/.claude/statusline-command.sh" "$ROOT_DIR/claude/statusline-command.sh"
-assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/claude/scopes/shared/skills/adr"
+assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/skills/shared/adr"
 assert_absent "$HOME_DIR/.claude/skills/frontend-css-ui-ux"
 assert_absent "$HOME_DIR/.claude/skills/css-layout-primitives"
 assert_absent "$HOME_DIR/.claude/skills/css-only-components"
@@ -241,8 +264,13 @@ fi
   assert_link "$WORK_HOME_DIR/.claude/scripts/personal-missing-script" "$TMP_DIR/personal-missing-script"
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-review-watch" "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch"
-  assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/claude/scopes/work/skills/employer-backend-suite"
+  assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/skills/work/employer-backend-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/employer-backend-suite"
+  assert_link "$WORK_HOME_DIR/.claude/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
+  assert_link "$WORK_HOME_DIR/.pi/agent/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
+  assert_link "$WORK_HOME_DIR/.claude/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
+  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/pr-council-review"
+  assert_absent "$WORK_HOME_DIR/.claude/skills/adr"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.grok"
@@ -252,16 +280,18 @@ fi
 ) &
 WORK_SCOPE_PID=$!
 
-assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
+assert_link "$HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/workflow/agent-rules.md"
 assert_link "$HOME_DIR/.pi/agent/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.pi/agent/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
 assert_link "$HOME_DIR/.pi/scripts" "$ROOT_DIR/scripts"
 assert_link "$HOME_DIR/.pi/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
-assert_link "$HOME_DIR/.pi/agent/subagents.json" "$ROOT_DIR/pi/agent/subagents.json"
+assert_absent "$HOME_DIR/.pi/agent/subagents.json"
 assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
-assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/pi/skills/plan-loop"
+assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
+assert_link "$HOME_DIR/.pi/agent/skills/verify-workflow" "$ROOT_DIR/skills/shared/verify-workflow"
+assert_absent "$HOME_DIR/.pi/agent/skills/verify"
 assert_absent "$HOME_DIR/.pi/agent/skills/vercel-react-best-practices"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
 assert_file "$HOME_DIR/.pi/agent/settings.json"
@@ -283,7 +313,7 @@ ln -s "$TMP_DIR/wrong-agent-source" "$INSTALL_HOME_DIR/.pi/agent/AGENTS.md"
 printf '%s\n' '{"defaultProvider":"custom","defaultModel":"personal-model","enabledModels":[],"packages":[]}' \
   >"$INSTALL_HOME_DIR/.pi/agent/settings.json"
 ETABLI_DEPLOY_CALLER=install "$DEPLOY_SCRIPT" --apply --home "$INSTALL_HOME_DIR" >/dev/null
-assert_link "$INSTALL_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/pi/AGENTS.md"
+assert_link "$INSTALL_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/workflow/agent-rules.md"
 if find "$INSTALL_HOME_DIR/.pi/agent" -maxdepth 1 -name 'AGENTS.md.bak.*' | grep -q .; then
   printf 'installer convergence backed up a managed symlink instead of replacing it\n' >&2
   exit 1
@@ -335,6 +365,10 @@ if (packages.some((entry) => typeof entry === "string" && entry === "npm:pi-suba
 const piSubagents = packageBySource("npm:pi-subagents");
 if (!piSubagents || JSON.stringify(piSubagents.skills) !== "[]") {
   throw new Error("tracked npm:pi-subagents entry missing or not skill-silenced");
+}
+
+if (hasObjectSource("local:etabli-workflow")) {
+  throw new Error("retired local:etabli-workflow keeper list was kept");
 }
 
 if (hasObjectSource("npm:@zenspc/pi-pstack")) {
